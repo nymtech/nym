@@ -1,12 +1,14 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "StakeSaturationResponse",
+  "description": "Response containing the current state of the stake saturation of a mixnode with the provided id.",
   "type": "object",
   "required": [
     "mix_id"
   ],
   "properties": {
     "current_saturation": {
+      "description": "The current stake saturation of this node that is indirectly used in reward calculation formulas. Note that it can't be larger than 1.",
       "anyOf": [
         {
           "$ref": "#/definitions/Decimal"
@@ -17,11 +19,13 @@
       ]
     },
     "mix_id": {
+      "description": "Id of the requested mixnode.",
       "type": "integer",
       "format": "uint32",
       "minimum": 0.0
     },
     "uncapped_saturation": {
+      "description": "The current, absolute, stake saturation of this node. Note that as the name suggests it can be larger than 1. However, anything beyond that value has no effect on the total node reward.",
       "anyOf": [
         {
           "$ref": "#/definitions/Decimal"

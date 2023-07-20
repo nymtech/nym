@@ -33,6 +33,8 @@ pub fn generate_owner_storage_subkey(
     }
 }
 
+/// Information about tokens being delegated towards given mixnode in order to accrue rewards
+/// with their work.
 #[cw_serde]
 pub struct Delegation {
     /// Address of the owner of this delegation.
@@ -110,8 +112,10 @@ impl Delegation {
     }
 }
 
+/// Response containing paged list of all delegations made towards particular mixnode.
 #[cw_serde]
 pub struct PagedMixNodeDelegationsResponse {
+    /// Each individual delegation made.
     pub delegations: Vec<Delegation>,
 
     /// Field indicating paging information for the following queries if the caller wishes to get further entries.
@@ -127,8 +131,10 @@ impl PagedMixNodeDelegationsResponse {
     }
 }
 
+/// Response containing paged list of all delegations made by the particular address.
 #[cw_serde]
 pub struct PagedDelegatorDelegationsResponse {
+    /// Each individual delegation made.
     pub delegations: Vec<Delegation>,
 
     /// Field indicating paging information for the following queries if the caller wishes to get further entries.
@@ -147,9 +153,13 @@ impl PagedDelegatorDelegationsResponse {
     }
 }
 
+/// Response containing delegation details.
 #[cw_serde]
 pub struct MixNodeDelegationResponse {
+    /// If the delegation exists, this field contains its detailed information.
     pub delegation: Option<Delegation>,
+
+    /// Flag indicating whether the node towards which the delegation was made is still bonded in the network.
     pub mixnode_still_bonded: bool,
 }
 
@@ -162,8 +172,10 @@ impl MixNodeDelegationResponse {
     }
 }
 
+/// Response containing paged list of all delegations currently active.
 #[cw_serde]
 pub struct PagedAllDelegationsResponse {
+    /// Each individual delegation made.
     pub delegations: Vec<Delegation>,
 
     /// Field indicating paging information for the following queries if the caller wishes to get further entries.

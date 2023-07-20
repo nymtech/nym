@@ -1,6 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "PagedMixnodeBondsResponse",
+  "description": "Response containing paged list of all mixnode bonds in the contract.",
   "type": "object",
   "required": [
     "nodes",
@@ -8,17 +9,20 @@
   ],
   "properties": {
     "nodes": {
+      "description": "The mixnode bond information present in the contract.",
       "type": "array",
       "items": {
         "$ref": "#/definitions/MixNodeBond"
       }
     },
     "per_page": {
+      "description": "Maximum number of entries that could be included in a response. `per_page <= nodes.len()`",
       "type": "integer",
       "format": "uint",
       "minimum": 0.0
     },
     "start_next_after": {
+      "description": "Field indicating paging information for the following queries if the caller wishes to get further entries.",
       "type": [
         "integer",
         "null"
@@ -57,6 +61,7 @@
       ]
     },
     "MixNode": {
+      "description": "Information provided by the node operator during bonding that are used to allow other entities to use the services of this node.",
       "type": "object",
       "required": [
         "host",
@@ -69,10 +74,11 @@
       ],
       "properties": {
         "host": {
-          "description": "Network address of this mixnode, for example 1.1.1.1:1234 or foo.mixnode.com",
+          "description": "Network address of this mixnode, for example 1.1.1.1 or foo.mixnode.com",
           "type": "string"
         },
         "http_api_port": {
+          "description": "Port used by this mixnode for its http(s) API",
           "type": "integer",
           "format": "uint16",
           "minimum": 0.0
@@ -82,6 +88,7 @@
           "type": "string"
         },
         "mix_port": {
+          "description": "Port used by this mixnode for listening for mix packets.",
           "type": "integer",
           "format": "uint16",
           "minimum": 0.0
@@ -91,17 +98,20 @@
           "type": "string"
         },
         "verloc_port": {
+          "description": "Port used by this mixnode for listening for verloc requests.",
           "type": "integer",
           "format": "uint16",
           "minimum": 0.0
         },
         "version": {
+          "description": "The self-reported semver version of this mixnode.",
           "type": "string"
         }
       },
       "additionalProperties": false
     },
     "MixNodeBond": {
+      "description": "Basic mixnode information provided by the node operator.",
       "type": "object",
       "required": [
         "bonding_height",

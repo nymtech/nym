@@ -1,6 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "EpochStatus",
+  "description": "The status of the current rewarding epoch.",
   "type": "object",
   "required": [
     "being_advanced_by",
@@ -16,7 +17,12 @@
       ]
     },
     "state": {
-      "$ref": "#/definitions/EpochState"
+      "description": "The concrete state of the epoch.",
+      "allOf": [
+        {
+          "$ref": "#/definitions/EpochState"
+        }
+      ]
     }
   },
   "additionalProperties": false,
@@ -26,6 +32,7 @@
       "type": "string"
     },
     "EpochState": {
+      "description": "The state of the current rewarding epoch.",
       "oneOf": [
         {
           "description": "Represents the state of an epoch that's in progress (well, duh.) All actions are allowed to be issued.",
@@ -49,11 +56,13 @@
               ],
               "properties": {
                 "final_node_id": {
+                  "description": "The id of the last node that's going to be rewarded before progressing into the next state.",
                   "type": "integer",
                   "format": "uint32",
                   "minimum": 0.0
                 },
                 "last_rewarded": {
+                  "description": "The id of the last node that has already received its rewards.",
                   "type": "integer",
                   "format": "uint32",
                   "minimum": 0.0

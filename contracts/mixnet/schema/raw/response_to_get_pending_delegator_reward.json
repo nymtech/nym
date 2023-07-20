@@ -1,12 +1,14 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "PendingRewardResponse",
+  "description": "Response containing information about accrued rewards.",
   "type": "object",
   "required": [
     "mixnode_still_fully_bonded"
   ],
   "properties": {
     "amount_earned": {
+      "description": "The amount of tokens that could be claimed.",
       "anyOf": [
         {
           "$ref": "#/definitions/Coin"
@@ -17,6 +19,7 @@
       ]
     },
     "amount_earned_detailed": {
+      "description": "The full pending rewards. Note that it's nearly identical to `amount_earned`, however, it contains few additional decimal points for more accurate reward calculation.",
       "anyOf": [
         {
           "$ref": "#/definitions/Decimal"
@@ -27,6 +30,7 @@
       ]
     },
     "amount_staked": {
+      "description": "The amount of tokens initially staked.",
       "anyOf": [
         {
           "$ref": "#/definitions/Coin"

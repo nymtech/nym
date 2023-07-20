@@ -7,25 +7,50 @@ use cosmwasm_std::{Addr, Coin};
 use std::cmp::Ordering;
 use std::fmt::Display;
 
+/// Information provided by the node operator during bonding that are used to allow other entities to use the services of this node.
 #[cw_serde]
 #[derive(PartialOrd)]
 pub struct Gateway {
+    /// Network address of this gateway, for example 1.1.1.1 or foo.gateway.com
     pub host: String,
+
+    /// Port used by this gateway for listening for mix packets.
     pub mix_port: u16,
+
+    /// Port used by this gateway for listening for client requests.
     pub clients_port: u16,
+
+    /// The physical, self-reported, location of this gateway.
+    // this field should be deprecated in favour of externally hosted information, like the mixnodes'.
     pub location: String,
+
+    /// Base58-encoded x25519 public key used for sphinx key derivation.
     pub sphinx_key: SphinxKey,
+
     /// Base58 encoded ed25519 EdDSA public key of the gateway used to derive shared keys with clients
     pub identity_key: IdentityKey,
+
+    /// The self-reported semver version of this gateway.
     pub version: String,
 }
 
+/// Basic gateway information provided by the node operator.
 #[cw_serde]
 pub struct GatewayBond {
+    /// Original amount pledged by the operator of this node.
     pub pledge_amount: Coin,
+
+    /// Address of the owner of this gateway.
     pub owner: Addr,
+
+    /// Block height at which this gateway has been bonded.
     pub block_height: u64,
+
+    /// Information provided by the operator for the purposes of bonding.
     pub gateway: Gateway,
+
+    /// Entity who bonded this gateway on behalf of the owner.
+    /// If exists, it's most likely the address of the vesting contract.
     pub proxy: Option<Addr>,
 }
 
@@ -129,9 +154,14 @@ impl GatewayConfigUpdate {
     }
 }
 
+/// Response containing paged list of all gateway bonds in the contract.
 #[cw_serde]
 pub struct PagedGatewayResponse {
+    /// The gateway bond information present in the contract.
     pub nodes: Vec<GatewayBond>,
+
+    /// Maximum number of entries that could be included in a response. `per_page <= nodes.len()`
+    // this field is rather redundant and should be deprecated.
     pub per_page: usize,
 
     /// Field indicating paging information for the following queries if the caller wishes to get further entries.
@@ -152,15 +182,23 @@ impl PagedGatewayResponse {
     }
 }
 
+/// Response containing details of a gateway belonging to the particular owner.
 #[cw_serde]
 pub struct GatewayOwnershipResponse {
+    /// Validated address of the gateway owner.
     pub address: Addr,
+
+    /// If the provided address owns a gateway, this field contains its details.
     pub gateway: Option<GatewayBond>,
 }
 
+/// Response containing details of a gateway with the provided identity key.
 #[cw_serde]
 pub struct GatewayBondResponse {
+    /// The identity key (base58-encoded ed25519 public key) of the gateway.
     pub identity: IdentityKey,
+
+    /// If there exists a gateway with the provided identity key, this field contains its details.
     pub gateway: Option<GatewayBond>,
 }
 

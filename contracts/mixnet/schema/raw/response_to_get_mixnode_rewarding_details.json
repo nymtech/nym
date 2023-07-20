@@ -1,17 +1,20 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "MixnodeRewardingDetailsResponse",
+  "description": "Response containing rewarding information of a mixnode with the provided id.",
   "type": "object",
   "required": [
     "mix_id"
   ],
   "properties": {
     "mix_id": {
+      "description": "Id of the requested mixnode.",
       "type": "integer",
       "format": "uint32",
       "minimum": 0.0
     },
     "rewarding_details": {
+      "description": "If there exists a mixnode with the provided id, this field contains its rewarding information.",
       "anyOf": [
         {
           "$ref": "#/definitions/MixNodeRewarding"
@@ -44,6 +47,7 @@
       "type": "string"
     },
     "MixNodeCostParams": {
+      "description": "The cost parameters, or the cost function, defined for the particular mixnode that influences how the rewards should be split between the node operator and its delegators.",
       "type": "object",
       "required": [
         "interval_operating_cost",
@@ -59,7 +63,12 @@
           ]
         },
         "profit_margin_percent": {
-          "$ref": "#/definitions/Percent"
+          "description": "The profit margin of the associated mixnode, i.e. the desired percent of the reward to be distributed to the operator.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Percent"
+            }
+          ]
         }
       },
       "additionalProperties": false

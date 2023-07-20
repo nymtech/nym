@@ -16,6 +16,7 @@ use cosmwasm_std::{Addr, Coin, Decimal, StdResult, Uint128};
 use schemars::JsonSchema;
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
+/// Current state of given node in the rewarded set.
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
@@ -24,7 +25,10 @@ use serde_repr::{Deserialize_repr, Serialize_repr};
 #[cw_serde]
 #[derive(Copy)]
 pub enum RewardedSetNodeStatus {
+    /// Node that is currently active, i.e. is expected to be used by clients for mixing packets.
     Active,
+
+    /// Node that is currently in standby, i.e. it's present in the rewarded set but is not active.
     Standby,
 }
 
@@ -34,10 +38,16 @@ impl RewardedSetNodeStatus {
     }
 }
 
+/// Full details associated with given mixnode.
 #[cw_serde]
 pub struct MixNodeDetails {
+    /// Basic bond information of this mixnode, such as owner address, original pledge, etc.
     pub bond_information: MixNodeBond,
+
+    /// Details used for computation of rewarding related data.
     pub rewarding_details: MixNodeRewarding,
+
+    /// Adjustments to the mixnode that are ought to happen during future epoch transitions.
     #[serde(default)]
     pub pending_changes: PendingMixNodeChanges,
 }
@@ -465,7 +475,7 @@ impl MixNodeRewarding {
     }
 }
 
-// operator information + data assigned by the contract(s)
+/// Basic mixnode information provided by the node operator.
 #[cw_serde]
 pub struct MixNodeBond {
     /// Unique id assigned to the bonded mixnode.
@@ -534,7 +544,7 @@ impl MixNodeBond {
     }
 }
 
-// information provided by the operator
+/// Information provided by the node operator during bonding that are used to allow other entities to use the services of this node.
 #[cw_serde]
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
@@ -542,13 +552,16 @@ impl MixNodeBond {
     ts(export_to = "ts-packages/types/src/types/rust/Mixnode.ts")
 )]
 pub struct MixNode {
-    /// Network address of this mixnode, for example 1.1.1.1:1234 or foo.mixnode.com
+    /// Network address of this mixnode, for example 1.1.1.1 or foo.mixnode.com
     pub host: String,
 
+    /// Port used by this mixnode for listening for mix packets.
     pub mix_port: u16,
 
+    /// Port used by this mixnode for listening for verloc requests.
     pub verloc_port: u16,
 
+    /// Port used by this mixnode for its http(s) API
     pub http_api_port: u16,
 
     /// Base58-encoded x25519 public key used for sphinx key derivation.
@@ -557,11 +570,15 @@ pub struct MixNode {
     /// Base58-encoded ed25519 EdDSA public key.
     pub identity_key: IdentityKey,
 
+    /// The self-reported semver version of this mixnode.
     pub version: String,
 }
 
+/// The cost parameters, or the cost function, defined for the particular mixnode that influences
+/// how the rewards should be split between the node operator and its delegators.
 #[cw_serde]
 pub struct MixNodeCostParams {
+    /// The profit margin of the associated mixnode, i.e. the desired percent of the reward to be distributed to the operator.
     pub profit_margin_percent: Percent,
 
     /// Operating cost of the associated mixnode per the entire interval.
@@ -649,6 +666,7 @@ impl PendingMixNodeChanges {
     }
 }
 
+/// Basic information of a node that used to be part of the mix network but has already unbonded.
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
@@ -656,14 +674,19 @@ impl PendingMixNodeChanges {
 )]
 #[cw_serde]
 pub struct UnbondedMixnode {
+    /// Base58-encoded ed25519 EdDSA public key.
     pub identity_key: IdentityKey,
 
+    /// Address of the owner of this mixnode.
     #[cfg_attr(feature = "generate-ts", ts(type = "string"))]
     pub owner: Addr,
 
+    /// Entity who bonded this mixnode on behalf of the owner.
+    /// If exists, it's most likely the address of the vesting contract.
     #[cfg_attr(feature = "generate-ts", ts(type = "string | null"))]
     pub proxy: Option<Addr>,
 
+    /// Block height at which this mixnode has unbonded.
     #[cfg_attr(feature = "generate-ts", ts(type = "number"))]
     pub unbonding_height: u64,
 }
@@ -688,9 +711,14 @@ impl MixNodeConfigUpdate {
     }
 }
 
+/// Response containing paged list of all mixnode bonds in the contract.
 #[cw_serde]
 pub struct PagedMixnodeBondsResponse {
+    /// The mixnode bond information present in the contract.
     pub nodes: Vec<MixNodeBond>,
+
+    /// Maximum number of entries that could be included in a response. `per_page <= nodes.len()`
+    // this field is rather redundant and should be deprecated.
     pub per_page: usize,
 
     /// Field indicating paging information for the following queries if the caller wishes to get further entries.
@@ -707,9 +735,16 @@ impl PagedMixnodeBondsResponse {
     }
 }
 
+/// Response containing paged list of all mixnode details in the contract.
 #[cw_serde]
 pub struct PagedMixnodesDetailsResponse {
+    /// All mixnode details stored in the contract.
+    /// Apart from the basic bond information it also contains details required for all future reward calculation
+    /// as well as any pending changes requested by the operator.
     pub nodes: Vec<MixNodeDetails>,
+
+    /// Maximum number of entries that could be included in a response. `per_page <= nodes.len()`
+    // this field is rather redundant and should be deprecated.
     pub per_page: usize,
 
     /// Field indicating paging information for the following queries if the caller wishes to get further entries.
@@ -730,9 +765,14 @@ impl PagedMixnodesDetailsResponse {
     }
 }
 
+/// Response containing paged list of all mixnodes that have ever unbonded.
 #[cw_serde]
 pub struct PagedUnbondedMixnodesResponse {
+    /// The past ids of unbonded mixnodes alongside their basic information such as the owner or the identity key.
     pub nodes: Vec<(MixId, UnbondedMixnode)>,
+
+    /// Maximum number of entries that could be included in a response. `per_page <= nodes.len()`
+    // this field is rather redundant and should be deprecated.
     pub per_page: usize,
 
     /// Field indicating paging information for the following queries if the caller wishes to get further entries.
@@ -753,39 +793,68 @@ impl PagedUnbondedMixnodesResponse {
     }
 }
 
+/// Response containing details of a mixnode belonging to the particular owner.
 #[cw_serde]
 pub struct MixOwnershipResponse {
+    /// Validated address of the mixnode owner.
     pub address: Addr,
+
+    /// If the provided address owns a mixnode, this field contains its detailed information.
     pub mixnode_details: Option<MixNodeDetails>,
 }
 
+/// Response containing details of a mixnode with the provided id.
 #[cw_serde]
 pub struct MixnodeDetailsResponse {
+    /// Id of the requested mixnode.
     pub mix_id: MixId,
+
+    /// If there exists a mixnode with the provided id, this field contains its detailed information.
     pub mixnode_details: Option<MixNodeDetails>,
 }
 
+/// Response containing details of a bonded mixnode with the provided identity key.
 #[cw_serde]
 pub struct MixnodeDetailsByIdentityResponse {
+    /// The identity key (base58-encoded ed25519 public key) of the mixnode.
     pub identity_key: IdentityKey,
+
+    /// If there exists a bonded mixnode with the provided identity key, this field contains its detailed information.
     pub mixnode_details: Option<MixNodeDetails>,
 }
 
+/// Response containing rewarding information of a mixnode with the provided id.
 #[cw_serde]
 pub struct MixnodeRewardingDetailsResponse {
+    /// Id of the requested mixnode.
     pub mix_id: MixId,
+
+    /// If there exists a mixnode with the provided id, this field contains its rewarding information.
     pub rewarding_details: Option<MixNodeRewarding>,
 }
 
+/// Response containing basic information of an unbonded mixnode with the provided id.
 #[cw_serde]
 pub struct UnbondedMixnodeResponse {
+    /// Id of the requested mixnode.
     pub mix_id: MixId,
+
+    /// If there existed a mixnode with the provided id, this field contains its basic information.
     pub unbonded_info: Option<UnbondedMixnode>,
 }
 
+/// Response containing the current state of the stake saturation of a mixnode with the provided id.
 #[cw_serde]
 pub struct StakeSaturationResponse {
+    /// Id of the requested mixnode.
     pub mix_id: MixId,
+
+    /// The current stake saturation of this node that is indirectly used in reward calculation formulas.
+    /// Note that it can't be larger than 1.
     pub current_saturation: Option<Decimal>,
+
+    /// The current, absolute, stake saturation of this node.
+    /// Note that as the name suggests it can be larger than 1.
+    /// However, anything beyond that value has no effect on the total node reward.
     pub uncapped_saturation: Option<Decimal>,
 }

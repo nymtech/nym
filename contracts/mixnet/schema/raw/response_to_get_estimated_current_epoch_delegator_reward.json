@@ -1,9 +1,11 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "EstimatedCurrentEpochRewardResponse",
+  "description": "Response containing estimation of node rewards for the current epoch.",
   "type": "object",
   "properties": {
     "current_stake_value": {
+      "description": "The current stake value given all past rewarding and compounding since the original staking was performed.",
       "anyOf": [
         {
           "$ref": "#/definitions/Coin"
@@ -14,6 +16,7 @@
       ]
     },
     "current_stake_value_detailed_amount": {
+      "description": "The current stake value. Note that it's nearly identical to `current_stake_value`, however, it contains few additional decimal points for more accurate reward calculation.",
       "anyOf": [
         {
           "$ref": "#/definitions/Decimal"
@@ -24,6 +27,7 @@
       ]
     },
     "detailed_estimation_amount": {
+      "description": "The full reward estimation. Note that it's nearly identical to `estimation`, however, it contains few additional decimal points for more accurate reward calculation.",
       "anyOf": [
         {
           "$ref": "#/definitions/Decimal"
@@ -34,6 +38,7 @@
       ]
     },
     "estimation": {
+      "description": "The reward estimation for the current epoch, i.e. the amount of tokens that could be claimable after the epoch finishes and the state of the network does not change.",
       "anyOf": [
         {
           "$ref": "#/definitions/Coin"
@@ -44,6 +49,7 @@
       ]
     },
     "original_stake": {
+      "description": "The amount of tokens initially staked.",
       "anyOf": [
         {
           "$ref": "#/definitions/Coin"

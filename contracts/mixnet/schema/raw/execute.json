@@ -1048,6 +1048,7 @@
       }
     },
     "ContractStateParams": {
+      "description": "Contract parameters that could be adjusted in a transaction by the contract admin.",
       "type": "object",
       "required": [
         "minimum_gateway_pledge",
@@ -1089,9 +1090,11 @@
       "type": "string"
     },
     "FamilyHead": {
+      "description": "Head of particular family as identified by its identity key (i.e. public component of its ed25519 keypair stringified into base58).",
       "type": "string"
     },
     "Gateway": {
+      "description": "Information provided by the node operator during bonding that are used to allow other entities to use the services of this node.",
       "type": "object",
       "required": [
         "clients_port",
@@ -1104,11 +1107,13 @@
       ],
       "properties": {
         "clients_port": {
+          "description": "Port used by this gateway for listening for client requests.",
           "type": "integer",
           "format": "uint16",
           "minimum": 0.0
         },
         "host": {
+          "description": "Network address of this gateway, for example 1.1.1.1 or foo.gateway.com",
           "type": "string"
         },
         "identity_key": {
@@ -1116,17 +1121,21 @@
           "type": "string"
         },
         "location": {
+          "description": "The physical, self-reported, location of this gateway.",
           "type": "string"
         },
         "mix_port": {
+          "description": "Port used by this gateway for listening for mix packets.",
           "type": "integer",
           "format": "uint16",
           "minimum": 0.0
         },
         "sphinx_key": {
+          "description": "Base58-encoded x25519 public key used for sphinx key derivation.",
           "type": "string"
         },
         "version": {
+          "description": "The self-reported semver version of this gateway.",
           "type": "string"
         }
       },
@@ -1165,9 +1174,11 @@
       "additionalProperties": false
     },
     "IntervalRewardingParamsUpdate": {
+      "description": "Specification on how the rewarding params should be updated.",
       "type": "object",
       "properties": {
         "active_set_work_factor": {
+          "description": "Defines the new value of the active set work factor.",
           "anyOf": [
             {
               "$ref": "#/definitions/Decimal"
@@ -1178,6 +1189,7 @@
           ]
         },
         "interval_pool_emission": {
+          "description": "Defines the new value of the interval pool emission rate.",
           "anyOf": [
             {
               "$ref": "#/definitions/Percent"
@@ -1188,6 +1200,7 @@
           ]
         },
         "reward_pool": {
+          "description": "Defines the new value of the reward pool.",
           "anyOf": [
             {
               "$ref": "#/definitions/Decimal"
@@ -1198,6 +1211,7 @@
           ]
         },
         "rewarded_set_size": {
+          "description": "Defines the new size of the rewarded set.",
           "type": [
             "integer",
             "null"
@@ -1206,6 +1220,7 @@
           "minimum": 0.0
         },
         "staking_supply": {
+          "description": "Defines the new value of the staking supply.",
           "anyOf": [
             {
               "$ref": "#/definitions/Decimal"
@@ -1216,6 +1231,7 @@
           ]
         },
         "staking_supply_scale_factor": {
+          "description": "Defines the new value of the staking supply scale factor.",
           "anyOf": [
             {
               "$ref": "#/definitions/Percent"
@@ -1226,6 +1242,7 @@
           ]
         },
         "sybil_resistance_percent": {
+          "description": "Defines the new value of the sybil resistance percent.",
           "anyOf": [
             {
               "$ref": "#/definitions/Percent"
@@ -1247,6 +1264,7 @@
       ]
     },
     "LayerAssignment": {
+      "description": "Specifies layer assignment for the given mixnode.",
       "type": "object",
       "required": [
         "layer",
@@ -1254,9 +1272,15 @@
       ],
       "properties": {
         "layer": {
-          "$ref": "#/definitions/Layer"
+          "description": "The layer to which it's going to be assigned",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Layer"
+            }
+          ]
         },
         "mix_id": {
+          "description": "The id of the mixnode.",
           "type": "integer",
           "format": "uint32",
           "minimum": 0.0
@@ -1273,6 +1297,7 @@
       }
     },
     "MixNode": {
+      "description": "Information provided by the node operator during bonding that are used to allow other entities to use the services of this node.",
       "type": "object",
       "required": [
         "host",
@@ -1285,10 +1310,11 @@
       ],
       "properties": {
         "host": {
-          "description": "Network address of this mixnode, for example 1.1.1.1:1234 or foo.mixnode.com",
+          "description": "Network address of this mixnode, for example 1.1.1.1 or foo.mixnode.com",
           "type": "string"
         },
         "http_api_port": {
+          "description": "Port used by this mixnode for its http(s) API",
           "type": "integer",
           "format": "uint16",
           "minimum": 0.0
@@ -1298,6 +1324,7 @@
           "type": "string"
         },
         "mix_port": {
+          "description": "Port used by this mixnode for listening for mix packets.",
           "type": "integer",
           "format": "uint16",
           "minimum": 0.0
@@ -1307,11 +1334,13 @@
           "type": "string"
         },
         "verloc_port": {
+          "description": "Port used by this mixnode for listening for verloc requests.",
           "type": "integer",
           "format": "uint16",
           "minimum": 0.0
         },
         "version": {
+          "description": "The self-reported semver version of this mixnode.",
           "type": "string"
         }
       },
@@ -1352,6 +1381,7 @@
       "additionalProperties": false
     },
     "MixNodeCostParams": {
+      "description": "The cost parameters, or the cost function, defined for the particular mixnode that influences how the rewards should be split between the node operator and its delegators.",
       "type": "object",
       "required": [
         "interval_operating_cost",
@@ -1367,7 +1397,12 @@
           ]
         },
         "profit_margin_percent": {
-          "$ref": "#/definitions/Percent"
+          "description": "The profit margin of the associated mixnode, i.e. the desired percent of the reward to be distributed to the operator.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Percent"
+            }
+          ]
         }
       },
       "additionalProperties": false

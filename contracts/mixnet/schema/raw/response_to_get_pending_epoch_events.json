@@ -1,6 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "PendingEpochEventsResponse",
+  "description": "Response containing all currently pending epoch events that will be resolved once the current epoch finishes.",
   "type": "object",
   "required": [
     "events",
@@ -8,16 +9,19 @@
   ],
   "properties": {
     "events": {
+      "description": "The currently pending events.",
       "type": "array",
       "items": {
         "$ref": "#/definitions/PendingEpochEvent"
       }
     },
     "seconds_until_executable": {
+      "description": "Amount of seconds until the events would be eligible to be resolved. It's equivalent to the time until the current epoch finishes.",
       "type": "integer",
       "format": "int64"
     },
     "start_next_after": {
+      "description": "Field indicating paging information for the following queries if the caller wishes to get further entries.",
       "type": [
         "integer",
         "null"
@@ -48,6 +52,7 @@
       }
     },
     "PendingEpochEvent": {
+      "description": "A request made at some point in the current epoch that's going to get resolved once the epoch rolls over.",
       "type": "object",
       "required": [
         "event",
@@ -55,9 +60,15 @@
       ],
       "properties": {
         "event": {
-          "$ref": "#/definitions/PendingEpochEventData"
+          "description": "The underlying event details, containing its type and information on how it should get resolved.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/PendingEpochEventData"
+            }
+          ]
         },
         "id": {
+          "description": "The unique id associated with the event.",
           "type": "integer",
           "format": "uint32",
           "minimum": 0.0
@@ -66,6 +77,7 @@
       "additionalProperties": false
     },
     "PendingEpochEventData": {
+      "description": "Details of a particular pending epoch event.",
       "type": "object",
       "required": [
         "created_at",
@@ -73,19 +85,27 @@
       ],
       "properties": {
         "created_at": {
+          "description": "The block height at which the request has been made.",
           "type": "integer",
           "format": "uint64",
           "minimum": 0.0
         },
         "kind": {
-          "$ref": "#/definitions/PendingEpochEventKind"
+          "description": "The underlying event data, containing its concrete type and information on how it should get resolved.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/PendingEpochEventKind"
+            }
+          ]
         }
       },
       "additionalProperties": false
     },
     "PendingEpochEventKind": {
+      "description": "Enum encompassing all possible epoch events.",
       "oneOf": [
         {
+          "description": "Request to create a delegation towards particular mixnode. Note that if such delegation already exists, it will get updated with the provided token amount.",
           "type": "object",
           "required": [
             "delegate"
@@ -100,17 +120,29 @@
               ],
               "properties": {
                 "amount": {
-                  "$ref": "#/definitions/Coin"
+                  "description": "The amount of tokens to use for the delegation.",
+                  "allOf": [
+                    {
+                      "$ref": "#/definitions/Coin"
+                    }
+                  ]
                 },
                 "mix_id": {
+                  "description": "The id of the mixnode used for the delegation.",
                   "type": "integer",
                   "format": "uint32",
                   "minimum": 0.0
                 },
                 "owner": {
-                  "$ref": "#/definitions/Addr"
+                  "description": "The address of the owner of the delegation.",
+                  "allOf": [
+                    {
+                      "$ref": "#/definitions/Addr"
+                    }
+                  ]
                 },
                 "proxy": {
+                  "description": "Entity who made the delegation on behalf of the owner. If present, it's most likely the address of the vesting contract.",
                   "anyOf": [
                     {
                       "$ref": "#/definitions/Addr"
@@ -127,6 +159,7 @@
           "additionalProperties": false
         },
         {
+          "description": "Request to remove delegation from particular mixnode.",
           "type": "object",
           "required": [
             "undelegate"
@@ -140,14 +173,21 @@
               ],
               "properties": {
                 "mix_id": {
+                  "description": "The id of the mixnode used for the delegation.",
                   "type": "integer",
                   "format": "uint32",
                   "minimum": 0.0
                 },
                 "owner": {
-                  "$ref": "#/definitions/Addr"
+                  "description": "The address of the owner of the delegation.",
+                  "allOf": [
+                    {
+                      "$ref": "#/definitions/Addr"
+                    }
+                  ]
                 },
                 "proxy": {
+                  "description": "Entity who made the delegation on behalf of the owner. If present, it's most likely the address of the vesting contract.",
                   "anyOf": [
                     {
                       "$ref": "#/definitions/Addr"
@@ -164,6 +204,7 @@
           "additionalProperties": false
         },
         {
+          "description": "Request to pledge more tokens (by the node operator) towards its node.",
           "type": "object",
           "required": [
             "pledge_more"
@@ -177,9 +218,15 @@
               ],
               "properties": {
                 "amount": {
-                  "$ref": "#/definitions/Coin"
+                  "description": "The amount of additional tokens to use by the pledge.",
+                  "allOf": [
+                    {
+                      "$ref": "#/definitions/Coin"
+                    }
+                  ]
                 },
                 "mix_id": {
+                  "description": "The id of the mixnode that will have its pledge updated.",
                   "type": "integer",
                   "format": "uint32",
                   "minimum": 0.0
@@ -191,6 +238,7 @@
           "additionalProperties": false
         },
         {
+          "description": "Request to decrease amount of pledged tokens (by the node operator) from its node.",
           "type": "object",
           "required": [
             "decrease_pledge"
@@ -204,9 +252,15 @@
               ],
               "properties": {
                 "decrease_by": {
-                  "$ref": "#/definitions/Coin"
+                  "description": "The amount of tokens that should be removed from the pledge.",
+                  "allOf": [
+                    {
+                      "$ref": "#/definitions/Coin"
+                    }
+                  ]
                 },
                 "mix_id": {
+                  "description": "The id of the mixnode that will have its pledge updated.",
                   "type": "integer",
                   "format": "uint32",
                   "minimum": 0.0
@@ -218,6 +272,7 @@
           "additionalProperties": false
         },
         {
+          "description": "Request to unbond a mixnode and completely remove it from the network.",
           "type": "object",
           "required": [
             "unbond_mixnode"
@@ -230,6 +285,7 @@
               ],
               "properties": {
                 "mix_id": {
+                  "description": "The id of the mixnode that will get unbonded.",
                   "type": "integer",
                   "format": "uint32",
                   "minimum": 0.0
@@ -241,6 +297,7 @@
           "additionalProperties": false
         },
         {
+          "description": "Request to update the current size of the active set.",
           "type": "object",
           "required": [
             "update_active_set_size"
@@ -253,6 +310,7 @@
               ],
               "properties": {
                 "new_size": {
+                  "description": "The new desired size of the active set.",
                   "type": "integer",
                   "format": "uint32",
                   "minimum": 0.0

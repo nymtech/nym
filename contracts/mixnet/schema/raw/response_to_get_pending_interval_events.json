@@ -1,6 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "PendingIntervalEventsResponse",
+  "description": "Response containing all currently pending interval events that will be resolved once the current interval finishes.",
   "type": "object",
   "required": [
     "events",
@@ -8,16 +9,19 @@
   ],
   "properties": {
     "events": {
+      "description": "The currently pending events.",
       "type": "array",
       "items": {
         "$ref": "#/definitions/PendingIntervalEvent"
       }
     },
     "seconds_until_executable": {
+      "description": "Amount of seconds until the events would be eligible to be resolved. It's equivalent to the time until the current interval finishes.",
       "type": "integer",
       "format": "int64"
     },
     "start_next_after": {
+      "description": "Field indicating paging information for the following queries if the caller wishes to get further entries.",
       "type": [
         "integer",
         "null"
@@ -48,9 +52,11 @@
       "type": "string"
     },
     "IntervalRewardingParamsUpdate": {
+      "description": "Specification on how the rewarding params should be updated.",
       "type": "object",
       "properties": {
         "active_set_work_factor": {
+          "description": "Defines the new value of the active set work factor.",
           "anyOf": [
             {
               "$ref": "#/definitions/Decimal"
@@ -61,6 +67,7 @@
           ]
         },
         "interval_pool_emission": {
+          "description": "Defines the new value of the interval pool emission rate.",
           "anyOf": [
             {
               "$ref": "#/definitions/Percent"
@@ -71,6 +78,7 @@
           ]
         },
         "reward_pool": {
+          "description": "Defines the new value of the reward pool.",
           "anyOf": [
             {
               "$ref": "#/definitions/Decimal"
@@ -81,6 +89,7 @@
           ]
         },
         "rewarded_set_size": {
+          "description": "Defines the new size of the rewarded set.",
           "type": [
             "integer",
             "null"
@@ -89,6 +98,7 @@
           "minimum": 0.0
         },
         "staking_supply": {
+          "description": "Defines the new value of the staking supply.",
           "anyOf": [
             {
               "$ref": "#/definitions/Decimal"
@@ -99,6 +109,7 @@
           ]
         },
         "staking_supply_scale_factor": {
+          "description": "Defines the new value of the staking supply scale factor.",
           "anyOf": [
             {
               "$ref": "#/definitions/Percent"
@@ -109,6 +120,7 @@
           ]
         },
         "sybil_resistance_percent": {
+          "description": "Defines the new value of the sybil resistance percent.",
           "anyOf": [
             {
               "$ref": "#/definitions/Percent"
@@ -122,6 +134,7 @@
       "additionalProperties": false
     },
     "MixNodeCostParams": {
+      "description": "The cost parameters, or the cost function, defined for the particular mixnode that influences how the rewards should be split between the node operator and its delegators.",
       "type": "object",
       "required": [
         "interval_operating_cost",
@@ -137,12 +150,18 @@
           ]
         },
         "profit_margin_percent": {
-          "$ref": "#/definitions/Percent"
+          "description": "The profit margin of the associated mixnode, i.e. the desired percent of the reward to be distributed to the operator.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Percent"
+            }
+          ]
         }
       },
       "additionalProperties": false
     },
     "PendingIntervalEvent": {
+      "description": "A request made at some point in the current interval that's going to get resolved once the interval rolls over.",
       "type": "object",
       "required": [
         "event",
@@ -150,9 +169,15 @@
       ],
       "properties": {
         "event": {
-          "$ref": "#/definitions/PendingIntervalEventData"
+          "description": "The underlying event details, containing its type and information on how it should get resolved.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/PendingIntervalEventData"
+            }
+          ]
         },
         "id": {
+          "description": "The unique id associated with the event.",
           "type": "integer",
           "format": "uint32",
           "minimum": 0.0
@@ -161,6 +186,7 @@
       "additionalProperties": false
     },
     "PendingIntervalEventData": {
+      "description": "Details of a particular pending interval event.",
       "type": "object",
       "required": [
         "created_at",
@@ -168,19 +194,27 @@
       ],
       "properties": {
         "created_at": {
+          "description": "The block height at which the request has been made.",
           "type": "integer",
           "format": "uint64",
           "minimum": 0.0
         },
         "kind": {
-          "$ref": "#/definitions/PendingIntervalEventKind"
+          "description": "The underlying event data, containing its concrete type and information on how it should get resolved.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/PendingIntervalEventKind"
+            }
+          ]
         }
       },
       "additionalProperties": false
     },
     "PendingIntervalEventKind": {
+      "description": "Enum encompassing all possible interval events.",
       "oneOf": [
         {
+          "description": "Request to update cost parameters of given mixnode.",
           "type": "object",
           "required": [
             "change_mix_cost_params"
@@ -194,12 +228,18 @@
               ],
               "properties": {
                 "mix_id": {
+                  "description": "The id of the mixnode that will have its cost parameters updated.",
                   "type": "integer",
                   "format": "uint32",
                   "minimum": 0.0
                 },
                 "new_costs": {
-                  "$ref": "#/definitions/MixNodeCostParams"
+                  "description": "The new updated cost function of this mixnode.",
+                  "allOf": [
+                    {
+                      "$ref": "#/definitions/MixNodeCostParams"
+                    }
+                  ]
                 }
               },
               "additionalProperties": false
@@ -208,6 +248,7 @@
           "additionalProperties": false
         },
         {
+          "description": "Request to update the underlying rewarding parameters used by the system",
           "type": "object",
           "required": [
             "update_rewarding_params"
@@ -220,7 +261,12 @@
               ],
               "properties": {
                 "update": {
-                  "$ref": "#/definitions/IntervalRewardingParamsUpdate"
+                  "description": "The detailed specification of the update.",
+                  "allOf": [
+                    {
+                      "$ref": "#/definitions/IntervalRewardingParamsUpdate"
+                    }
+                  ]
                 }
               },
               "additionalProperties": false
@@ -229,6 +275,7 @@
           "additionalProperties": false
         },
         {
+          "description": "Request to change the next interval configuration.",
           "type": "object",
           "required": [
             "update_interval_config"
@@ -242,11 +289,13 @@
               ],
               "properties": {
                 "epoch_duration_secs": {
+                  "description": "The new epoch duration.",
                   "type": "integer",
                   "format": "uint64",
                   "minimum": 0.0
                 },
                 "epochs_in_interval": {
+                  "description": "The new number of epochs in intervals.",
                   "type": "integer",
                   "format": "uint32",
                   "minimum": 0.0

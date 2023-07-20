@@ -1,27 +1,26 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "MixNodeDetails",
+  "title": "MixnodeDetailsByIdentityResponse",
+  "description": "Response containing details of a bonded mixnode with the provided identity key.",
   "type": "object",
   "required": [
-    "bond_information",
-    "rewarding_details"
+    "identity_key"
   ],
   "properties": {
-    "bond_information": {
-      "$ref": "#/definitions/MixNodeBond"
+    "identity_key": {
+      "description": "The identity key (base58-encoded ed25519 public key) of the mixnode.",
+      "type": "string"
     },
-    "pending_changes": {
-      "default": {
-        "pledge_change": null
-      },
-      "allOf": [
+    "mixnode_details": {
+      "description": "If there exists a bonded mixnode with the provided identity key, this field contains its detailed information.",
+      "anyOf": [
         {
-          "$ref": "#/definitions/PendingMixNodeChanges"
+          "$ref": "#/definitions/MixNodeDetails"
+        },
+        {
+          "type": "null"
         }
       ]
-    },
-    "rewarding_details": {
-      "$ref": "#/definitions/MixNodeRewarding"
     }
   },
   "additionalProperties": false,
@@ -58,6 +57,7 @@
       ]
     },
     "MixNode": {
+      "description": "Information provided by the node operator during bonding that are used to allow other entities to use the services of this node.",
       "type": "object",
       "required": [
         "host",
@@ -70,10 +70,11 @@
       ],
       "properties": {
         "host": {
-          "description": "Network address of this mixnode, for example 1.1.1.1:1234 or foo.mixnode.com",
+          "description": "Network address of this mixnode, for example 1.1.1.1 or foo.mixnode.com",
           "type": "string"
         },
         "http_api_port": {
+          "description": "Port used by this mixnode for its http(s) API",
           "type": "integer",
           "format": "uint16",
           "minimum": 0.0
@@ -83,6 +84,7 @@
           "type": "string"
         },
         "mix_port": {
+          "description": "Port used by this mixnode for listening for mix packets.",
           "type": "integer",
           "format": "uint16",
           "minimum": 0.0
@@ -92,17 +94,20 @@
           "type": "string"
         },
         "verloc_port": {
+          "description": "Port used by this mixnode for listening for verloc requests.",
           "type": "integer",
           "format": "uint16",
           "minimum": 0.0
         },
         "version": {
+          "description": "The self-reported semver version of this mixnode.",
           "type": "string"
         }
       },
       "additionalProperties": false
     },
     "MixNodeBond": {
+      "description": "Basic mixnode information provided by the node operator.",
       "type": "object",
       "required": [
         "bonding_height",
@@ -177,6 +182,7 @@
       "additionalProperties": false
     },
     "MixNodeCostParams": {
+      "description": "The cost parameters, or the cost function, defined for the particular mixnode that influences how the rewards should be split between the node operator and its delegators.",
       "type": "object",
       "required": [
         "interval_operating_cost",
@@ -192,7 +198,50 @@
           ]
         },
         "profit_margin_percent": {
-          "$ref": "#/definitions/Percent"
+          "description": "The profit margin of the associated mixnode, i.e. the desired percent of the reward to be distributed to the operator.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Percent"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "MixNodeDetails": {
+      "description": "Full details associated with given mixnode.",
+      "type": "object",
+      "required": [
+        "bond_information",
+        "rewarding_details"
+      ],
+      "properties": {
+        "bond_information": {
+          "description": "Basic bond information of this mixnode, such as owner address, original pledge, etc.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/MixNodeBond"
+            }
+          ]
+        },
+        "pending_changes": {
+          "description": "Adjustments to the mixnode that are ought to happen during future epoch transitions.",
+          "default": {
+            "pledge_change": null
+          },
+          "allOf": [
+            {
+              "$ref": "#/definitions/PendingMixNodeChanges"
+            }
+          ]
+        },
+        "rewarding_details": {
+          "description": "Details used for computation of rewarding related data.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/MixNodeRewarding"
+            }
+          ]
         }
       },
       "additionalProperties": false

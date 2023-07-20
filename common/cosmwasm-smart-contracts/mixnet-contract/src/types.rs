@@ -15,9 +15,13 @@ pub type SphinxKeyRef<'a> = &'a str;
 pub type MixId = u32;
 pub type BlockHeight = u64;
 
+/// Specifies layer assignment for the given mixnode.
 #[cw_serde]
 pub struct LayerAssignment {
+    /// The id of the mixnode.
     mix_id: MixId,
+
+    /// The layer to which it's going to be assigned
     layer: Layer,
 }
 
@@ -35,11 +39,17 @@ impl LayerAssignment {
     }
 }
 
+/// The current layer distribution of the mix network.
 #[cw_serde]
 #[derive(Copy, Default)]
 pub struct LayerDistribution {
+    /// Number of nodes on the first layer.
     pub layer1: u64,
+
+    /// Number of nodes on the second layer.
     pub layer2: u64,
+
+    /// Number of nodes on the third layer.
     pub layer3: u64,
 }
 
@@ -112,18 +122,28 @@ impl Index<Layer> for LayerDistribution {
     }
 }
 
+/// The current state of the mixnet contract.
 #[cw_serde]
 pub struct ContractState {
-    pub owner: Addr, // only the owner account can update state
+    /// Address of the contract owner.
+    pub owner: Addr,
+
+    /// Address of "rewarding validator" (nym-api) that's allowed to send any rewarding-related transactions.
     pub rewarding_validator_address: Addr,
 
     /// Address of the vesting contract to which the mixnet contract would be sending all
     /// track-related messages.
     pub vesting_contract_address: Addr,
+
+    /// The expected denom used for rewarding (and realistically any other operation).
+    /// Default: `unym`
     pub rewarding_denom: String,
+
+    /// Contract parameters that could be adjusted in a transaction the contract admin.
     pub params: ContractStateParams,
 }
 
+/// Contract parameters that could be adjusted in a transaction by the contract admin.
 #[cw_serde]
 pub struct ContractStateParams {
     /// Minimum amount a delegator must stake in orders for his delegation to get accepted.

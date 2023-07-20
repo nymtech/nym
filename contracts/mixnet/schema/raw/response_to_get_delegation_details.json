@@ -1,12 +1,14 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "MixNodeDelegationResponse",
+  "description": "Response containing delegation details.",
   "type": "object",
   "required": [
     "mixnode_still_bonded"
   ],
   "properties": {
     "delegation": {
+      "description": "If the delegation exists, this field contains its detailed information.",
       "anyOf": [
         {
           "$ref": "#/definitions/Delegation"
@@ -17,6 +19,7 @@
       ]
     },
     "mixnode_still_bonded": {
+      "description": "Flag indicating whether the node towards which the delegation was made is still bonded in the network.",
       "type": "boolean"
     }
   },
@@ -46,6 +49,7 @@
       "type": "string"
     },
     "Delegation": {
+      "description": "Information about tokens being delegated towards given mixnode in order to accrue rewards with their work.",
       "type": "object",
       "required": [
         "amount",

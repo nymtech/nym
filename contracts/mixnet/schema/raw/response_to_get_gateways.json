@@ -1,6 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "PagedGatewayResponse",
+  "description": "Response containing paged list of all gateway bonds in the contract.",
   "type": "object",
   "required": [
     "nodes",
@@ -8,17 +9,20 @@
   ],
   "properties": {
     "nodes": {
+      "description": "The gateway bond information present in the contract.",
       "type": "array",
       "items": {
         "$ref": "#/definitions/GatewayBond"
       }
     },
     "per_page": {
+      "description": "Maximum number of entries that could be included in a response. `per_page <= nodes.len()`",
       "type": "integer",
       "format": "uint",
       "minimum": 0.0
     },
     "start_next_after": {
+      "description": "Field indicating paging information for the following queries if the caller wishes to get further entries.",
       "type": [
         "string",
         "null"
@@ -47,6 +51,7 @@
       }
     },
     "Gateway": {
+      "description": "Information provided by the node operator during bonding that are used to allow other entities to use the services of this node.",
       "type": "object",
       "required": [
         "clients_port",
@@ -59,11 +64,13 @@
       ],
       "properties": {
         "clients_port": {
+          "description": "Port used by this gateway for listening for client requests.",
           "type": "integer",
           "format": "uint16",
           "minimum": 0.0
         },
         "host": {
+          "description": "Network address of this gateway, for example 1.1.1.1 or foo.gateway.com",
           "type": "string"
         },
         "identity_key": {
@@ -71,23 +78,28 @@
           "type": "string"
         },
         "location": {
+          "description": "The physical, self-reported, location of this gateway.",
           "type": "string"
         },
         "mix_port": {
+          "description": "Port used by this gateway for listening for mix packets.",
           "type": "integer",
           "format": "uint16",
           "minimum": 0.0
         },
         "sphinx_key": {
+          "description": "Base58-encoded x25519 public key used for sphinx key derivation.",
           "type": "string"
         },
         "version": {
+          "description": "The self-reported semver version of this gateway.",
           "type": "string"
         }
       },
       "additionalProperties": false
     },
     "GatewayBond": {
+      "description": "Basic gateway information provided by the node operator.",
       "type": "object",
       "required": [
         "block_height",
@@ -97,20 +109,37 @@
       ],
       "properties": {
         "block_height": {
+          "description": "Block height at which this gateway has been bonded.",
           "type": "integer",
           "format": "uint64",
           "minimum": 0.0
         },
         "gateway": {
-          "$ref": "#/definitions/Gateway"
+          "description": "Information provided by the operator for the purposes of bonding.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Gateway"
+            }
+          ]
         },
         "owner": {
-          "$ref": "#/definitions/Addr"
+          "description": "Address of the owner of this gateway.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Addr"
+            }
+          ]
         },
         "pledge_amount": {
-          "$ref": "#/definitions/Coin"
+          "description": "Original amount pledged by the operator of this node.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Coin"
+            }
+          ]
         },
         "proxy": {
+          "description": "Entity who bonded this gateway on behalf of the owner. If exists, it's most likely the address of the vesting contract.",
           "anyOf": [
             {
               "$ref": "#/definitions/Addr"

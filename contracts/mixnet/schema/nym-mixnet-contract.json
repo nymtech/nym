@@ -1165,6 +1165,7 @@
         }
       },
       "ContractStateParams": {
+        "description": "Contract parameters that could be adjusted in a transaction by the contract admin.",
         "type": "object",
         "required": [
           "minimum_gateway_pledge",
@@ -1206,9 +1207,11 @@
         "type": "string"
       },
       "FamilyHead": {
+        "description": "Head of particular family as identified by its identity key (i.e. public component of its ed25519 keypair stringified into base58).",
         "type": "string"
       },
       "Gateway": {
+        "description": "Information provided by the node operator during bonding that are used to allow other entities to use the services of this node.",
         "type": "object",
         "required": [
           "clients_port",
@@ -1221,11 +1224,13 @@
         ],
         "properties": {
           "clients_port": {
+            "description": "Port used by this gateway for listening for client requests.",
             "type": "integer",
             "format": "uint16",
             "minimum": 0.0
           },
           "host": {
+            "description": "Network address of this gateway, for example 1.1.1.1 or foo.gateway.com",
             "type": "string"
           },
           "identity_key": {
@@ -1233,17 +1238,21 @@
             "type": "string"
           },
           "location": {
+            "description": "The physical, self-reported, location of this gateway.",
             "type": "string"
           },
           "mix_port": {
+            "description": "Port used by this gateway for listening for mix packets.",
             "type": "integer",
             "format": "uint16",
             "minimum": 0.0
           },
           "sphinx_key": {
+            "description": "Base58-encoded x25519 public key used for sphinx key derivation.",
             "type": "string"
           },
           "version": {
+            "description": "The self-reported semver version of this gateway.",
             "type": "string"
           }
         },
@@ -1282,9 +1291,11 @@
         "additionalProperties": false
       },
       "IntervalRewardingParamsUpdate": {
+        "description": "Specification on how the rewarding params should be updated.",
         "type": "object",
         "properties": {
           "active_set_work_factor": {
+            "description": "Defines the new value of the active set work factor.",
             "anyOf": [
               {
                 "$ref": "#/definitions/Decimal"
@@ -1295,6 +1306,7 @@
             ]
           },
           "interval_pool_emission": {
+            "description": "Defines the new value of the interval pool emission rate.",
             "anyOf": [
               {
                 "$ref": "#/definitions/Percent"
@@ -1305,6 +1317,7 @@
             ]
           },
           "reward_pool": {
+            "description": "Defines the new value of the reward pool.",
             "anyOf": [
               {
                 "$ref": "#/definitions/Decimal"
@@ -1315,6 +1328,7 @@
             ]
           },
           "rewarded_set_size": {
+            "description": "Defines the new size of the rewarded set.",
             "type": [
               "integer",
               "null"
@@ -1323,6 +1337,7 @@
             "minimum": 0.0
           },
           "staking_supply": {
+            "description": "Defines the new value of the staking supply.",
             "anyOf": [
               {
                 "$ref": "#/definitions/Decimal"
@@ -1333,6 +1348,7 @@
             ]
           },
           "staking_supply_scale_factor": {
+            "description": "Defines the new value of the staking supply scale factor.",
             "anyOf": [
               {
                 "$ref": "#/definitions/Percent"
@@ -1343,6 +1359,7 @@
             ]
           },
           "sybil_resistance_percent": {
+            "description": "Defines the new value of the sybil resistance percent.",
             "anyOf": [
               {
                 "$ref": "#/definitions/Percent"
@@ -1364,6 +1381,7 @@
         ]
       },
       "LayerAssignment": {
+        "description": "Specifies layer assignment for the given mixnode.",
         "type": "object",
         "required": [
           "layer",
@@ -1371,9 +1389,15 @@
         ],
         "properties": {
           "layer": {
-            "$ref": "#/definitions/Layer"
+            "description": "The layer to which it's going to be assigned",
+            "allOf": [
+              {
+                "$ref": "#/definitions/Layer"
+              }
+            ]
           },
           "mix_id": {
+            "description": "The id of the mixnode.",
             "type": "integer",
             "format": "uint32",
             "minimum": 0.0
@@ -1390,6 +1414,7 @@
         }
       },
       "MixNode": {
+        "description": "Information provided by the node operator during bonding that are used to allow other entities to use the services of this node.",
         "type": "object",
         "required": [
           "host",
@@ -1402,10 +1427,11 @@
         ],
         "properties": {
           "host": {
-            "description": "Network address of this mixnode, for example 1.1.1.1:1234 or foo.mixnode.com",
+            "description": "Network address of this mixnode, for example 1.1.1.1 or foo.mixnode.com",
             "type": "string"
           },
           "http_api_port": {
+            "description": "Port used by this mixnode for its http(s) API",
             "type": "integer",
             "format": "uint16",
             "minimum": 0.0
@@ -1415,6 +1441,7 @@
             "type": "string"
           },
           "mix_port": {
+            "description": "Port used by this mixnode for listening for mix packets.",
             "type": "integer",
             "format": "uint16",
             "minimum": 0.0
@@ -1424,11 +1451,13 @@
             "type": "string"
           },
           "verloc_port": {
+            "description": "Port used by this mixnode for listening for verloc requests.",
             "type": "integer",
             "format": "uint16",
             "minimum": 0.0
           },
           "version": {
+            "description": "The self-reported semver version of this mixnode.",
             "type": "string"
           }
         },
@@ -1469,6 +1498,7 @@
         "additionalProperties": false
       },
       "MixNodeCostParams": {
+        "description": "The cost parameters, or the cost function, defined for the particular mixnode that influences how the rewards should be split between the node operator and its delegators.",
         "type": "object",
         "required": [
           "interval_operating_cost",
@@ -1484,7 +1514,12 @@
             ]
           },
           "profit_margin_percent": {
-            "$ref": "#/definitions/Percent"
+            "description": "The profit margin of the associated mixnode, i.e. the desired percent of the reward to be distributed to the operator.",
+            "allOf": [
+              {
+                "$ref": "#/definitions/Percent"
+              }
+            ]
           }
         },
         "additionalProperties": false
@@ -1508,6 +1543,7 @@
     "title": "QueryMsg",
     "oneOf": [
       {
+        "description": "Gets the list of families registered in this contract.",
         "type": "object",
         "required": [
           "get_all_families_paged"
@@ -1517,6 +1553,7 @@
             "type": "object",
             "properties": {
               "limit": {
+                "description": "Controls the maximum number of entries returned by the query. Note that too large values will be overwritten by a saner default.",
                 "type": [
                   "integer",
                   "null"
@@ -1525,6 +1562,7 @@
                 "minimum": 0.0
               },
               "start_after": {
+                "description": "Pagination control for the values returned by the query. Note that the provided value itself will **not** be used for the response.",
                 "type": [
                   "string",
                   "null"
@@ -1537,6 +1575,7 @@
         "additionalProperties": false
       },
       {
+        "description": "Gets the list of all family members registered in this contract.",
         "type": "object",
         "required": [
           "get_all_members_paged"
@@ -1546,6 +1585,7 @@
             "type": "object",
             "properties": {
               "limit": {
+                "description": "Controls the maximum number of entries returned by the query. Note that too large values will be overwritten by a saner default.",
                 "type": [
                   "integer",
                   "null"
@@ -1554,6 +1594,7 @@
                 "minimum": 0.0
               },
               "start_after": {
+                "description": "Pagination control for the values returned by the query. Note that the provided value itself will **not** be used for the response.",
                 "type": [
                   "string",
                   "null"
@@ -1566,6 +1607,7 @@
         "additionalProperties": false
       },
       {
+        "description": "Attempts to lookup family information given the family head.",
         "type": "object",
         "required": [
           "get_family_by_head"
@@ -1587,6 +1629,7 @@
         "additionalProperties": false
       },
       {
+        "description": "Attempts to lookup family information given the family label.",
         "type": "object",
         "required": [
           "get_family_by_label"
@@ -1608,6 +1651,7 @@
         "additionalProperties": false
       },
       {
+        "description": "Attempts to retrieve family members given the family head.",
         "type": "object",
         "required": [
           "get_family_members_by_head"
@@ -1629,6 +1673,7 @@
         "additionalProperties": false
       },
       {
+        "description": "Attempts to retrieve family members given the family label.",
         "type": "object",
         "required": [
           "get_family_members_by_label"
@@ -1650,6 +1695,7 @@
         "additionalProperties": false
       },
       {
+        "description": "Gets build information of this contract, such as the commit hash used for the build or rustc version.",
         "type": "object",
         "required": [
           "get_contract_version"
@@ -1663,6 +1709,7 @@
         "additionalProperties": false
       },
       {
+        "description": "Gets the stored contract version information that's required by the CW2 spec interface for migrations.",
         "type": "object",
         "required": [
           "get_cw2_contract_version"
@@ -1676,6 +1723,7 @@
         "additionalProperties": false
       },
       {
+        "description": "Gets the address of the validator that's allowed to send rewarding transactions and transition the epoch.",
         "type": "object",
         "required": [
           "get_rewarding_validator_address"
@@ -1689,6 +1737,7 @@
         "additionalProperties": false
       },
       {
+        "description": "Gets the contract parameters that could be adjusted in a transaction by the contract admin.",
         "type": "object",
         "required": [
           "get_state_params"
@@ -1702,6 +1751,7 @@
         "additionalProperties": false
       },
       {
+        "description": "Gets the current state of the contract.",
         "type": "object",
         "required": [
           "get_state"
@@ -1715,6 +1765,7 @@
         "additionalProperties": false
       },
       {
+        "description": "Gets the current parameters used for reward calculation.",
         "type": "object",
         "required": [
           "get_rewarding_params"
@@ -1728,6 +1779,7 @@
         "additionalProperties": false
       },
       {
+        "description": "Gets the status of the current rewarding epoch.",
         "type": "object",
         "required": [
           "get_epoch_status"
@@ -1741,6 +1793,7 @@
         "additionalProperties": false
       },
       {
+        "description": "Get the details of the current rewarding interval.",
         "type": "object",
         "required": [
           "get_current_interval_details"
@@ -1754,6 +1807,7 @@
         "additionalProperties": false
       },
       {
+        "description": "Gets the current list of mixnodes in the rewarded set.",
         "type": "object",
         "required": [
           "get_rewarded_set"
@@ -1763,6 +1817,7 @@
             "type": "object",
             "properties": {
               "limit": {
+                "description": "Controls the maximum number of entries returned by the query. Note that too large values will be overwritten by a saner default.",
                 "type": [
                   "integer",
                   "null"
@@ -1771,6 +1826,7 @@
                 "minimum": 0.0
               },
               "start_after": {
+                "description": "Pagination control for the values returned by the query. Note that the provided value itself will **not** be used for the response.",
                 "type": [
                   "integer",
                   "null"
@@ -1785,6 +1841,7 @@
         "additionalProperties": false
       },
       {
+        "description": "Gets the basic list of all currently bonded mixnodes.",
         "type": "object",
         "required": [
           "get_mix_node_bonds"
@@ -1794,6 +1851,7 @@
             "type": "object",
             "properties": {
               "limit": {
+                "description": "Controls the maximum number of entries returned by the query. Note that too large values will be overwritten by a saner default.",
                 "type": [
                   "integer",
                   "null"
@@ -1802,6 +1860,7 @@
                 "minimum": 0.0
               },
               "start_after": {
+                "description": "Pagination control for the values returned by the query. Note that the provided value itself will **not** be used for the response.",
                 "type": [
                   "integer",
                   "null"
@@ -1816,6 +1875,7 @@
         "additionalProperties": false
       },
       {
+        "description": "Gets the detailed list of all currently bonded mixnodes.",
         "type": "object",
         "required": [
           "get_mix_nodes_detailed"
@@ -1825,6 +1885,7 @@
             "type": "object",
             "properties": {
               "limit": {
+                "description": "Controls the maximum number of entries returned by the query. Note that too large values will be overwritten by a saner default.",
                 "type": [
                   "integer",
                   "null"
@@ -1833,6 +1894,7 @@
                 "minimum": 0.0
               },
               "start_after": {
+                "description": "Pagination control for the values returned by the query. Note that the provided value itself will **not** be used for the response.",
                 "type": [
                   "integer",
                   "null"
@@ -1847,6 +1909,7 @@
         "additionalProperties": false
       },
       {
+        "description": "Gets the basic list of all unbonded mixnodes.",
         "type": "object",
         "required": [
           "get_unbonded_mix_nodes"
@@ -1856,6 +1919,7 @@
             "type": "object",
             "properties": {
               "limit": {
+                "description": "Controls the maximum number of entries returned by the query. Note that too large values will be overwritten by a saner default.",
                 "type": [
                   "integer",
                   "null"
@@ -1864,6 +1928,7 @@
                 "minimum": 0.0
               },
               "start_after": {
+                "description": "Pagination control for the values returned by the query. Note that the provided value itself will **not** be used for the response.",
                 "type": [
                   "integer",
                   "null"
@@ -1878,6 +1943,7 @@
         "additionalProperties": false
       },
       {
+        "description": "Gets the basic list of all unbonded mixnodes that belonged to a particular owner.",
         "type": "object",
         "required": [
           "get_unbonded_mix_nodes_by_owner"
@@ -1890,6 +1956,7 @@
             ],
             "properties": {
               "limit": {
+                "description": "Controls the maximum number of entries returned by the query. Note that too large values will be overwritten by a saner default.",
                 "type": [
                   "integer",
                   "null"
@@ -1898,9 +1965,11 @@
                 "minimum": 0.0
               },
               "owner": {
+                "description": "The address of the owner of the the mixnodes used for the query.",
                 "type": "string"
               },
               "start_after": {
+                "description": "Pagination control for the values returned by the query. Note that the provided value itself will **not** be used for the response.",
                 "type": [
                   "integer",
                   "null"
@@ -1915,6 +1984,7 @@
         "additionalProperties": false
       },
       {
+        "description": "Gets the basic list of all unbonded mixnodes that used the particular identity key.",
         "type": "object",
         "required": [
           "get_unbonded_mix_nodes_by_identity_key"
@@ -1927,9 +1997,11 @@
             ],
             "properties": {
               "identity_key": {
+                "description": "The identity key (base58-encoded ed25519 public key) of the mixnode used for the query.",
                 "type": "string"
               },
               "limit": {
+                "description": "Controls the maximum number of entries returned by the query. Note that too large values will be overwritten by a saner default.",
                 "type": [
                   "integer",
                   "null"
@@ -1938,6 +2010,7 @@
                 "minimum": 0.0
               },
               "start_after": {
+                "description": "Pagination control for the values returned by the query. Note that the provided value itself will **not** be used for the response.",
                 "type": [
                   "integer",
                   "null"
@@ -1952,6 +2025,7 @@
         "additionalProperties": false
       },
       {
+        "description": "Gets the detailed mixnode information belonging to the particular owner.",
         "type": "object",
         "required": [
           "get_owned_mixnode"
@@ -1964,6 +2038,7 @@
             ],
             "properties": {
               "address": {
+                "description": "Address of the mixnode owner to use for the query.",
                 "type": "string"
               }
             },
@@ -1973,6 +2048,7 @@
         "additionalProperties": false
       },
       {
+        "description": "Gets the detailed mixnode information of a node with the provided id.",
         "type": "object",
         "required": [
           "get_mixnode_details"
@@ -1985,6 +2061,7 @@
             ],
             "properties": {
               "mix_id": {
+                "description": "Id of the node to query.",
                 "type": "integer",
                 "format": "uint32",
                 "minimum": 0.0
@@ -1996,6 +2073,7 @@
         "additionalProperties": false
       },
       {
+        "description": "Gets the rewarding information of a mixnode with the provided id.",
         "type": "object",
         "required": [
           "get_mixnode_rewarding_details"
@@ -2008,6 +2086,7 @@
             ],
             "properties": {
               "mix_id": {
+                "description": "Id of the node to query.",
                 "type": "integer",
                 "format": "uint32",
                 "minimum": 0.0
@@ -2019,6 +2098,7 @@
         "additionalProperties": false
       },
       {
+        "description": "Gets the stake saturation of a mixnode with the provided id.",
         "type": "object",
         "required": [
           "get_stake_saturation"
@@ -2031,6 +2111,7 @@
             ],
             "properties": {
               "mix_id": {
+                "description": "Id of the node to query.",
                 "type": "integer",
                 "format": "uint32",
                 "minimum": 0.0
@@ -2042,6 +2123,7 @@
         "additionalProperties": false
       },
       {
+        "description": "Gets the basic information of an unbonded mixnode with the provided id.",
         "type": "object",
         "required": [
           "get_unbonded_mix_node_information"
@@ -2054,6 +2136,7 @@
             ],
             "properties": {
               "mix_id": {
+                "description": "Id of the node to query.",
                 "type": "integer",
                 "format": "uint32",
                 "minimum": 0.0
@@ -2065,6 +2148,7 @@
         "additionalProperties": false
       },
       {
+        "description": "Gets the detailed mixnode information of a node given its current identity key.",
         "type": "object",
         "required": [
           "get_bonded_mixnode_details_by_identity"
@@ -2077,6 +2161,7 @@
             ],
             "properties": {
               "mix_identity": {
+                "description": "The identity key (base58-encoded ed25519 public key) of the mixnode used for the query.",
                 "type": "string"
               }
             },
@@ -2086,6 +2171,7 @@
         "additionalProperties": false
       },
       {
+        "description": "Gets the current layer configuration of the mix network.",
         "type": "object",
         "required": [
           "get_layer_distribution"
@@ -2099,6 +2185,7 @@
         "additionalProperties": false
       },
       {
+        "description": "Gets the basic list of all currently bonded gateways.",
         "type": "object",
         "required": [
           "get_gateways"
@@ -2108,6 +2195,7 @@
             "type": "object",
             "properties": {
               "limit": {
+                "description": "Controls the maximum number of entries returned by the query. Note that too large values will be overwritten by a saner default.",
                 "type": [
                   "integer",
                   "null"
@@ -2116,6 +2204,7 @@
                 "minimum": 0.0
               },
               "start_after": {
+                "description": "Pagination control for the values returned by the query. Note that the provided value itself will **not** be used for the response.",
                 "type": [
                   "string",
                   "null"
@@ -2128,6 +2217,7 @@
         "additionalProperties": false
       },
       {
+        "description": "Gets the gateway details of a node given its identity key.",
         "type": "object",
         "required": [
           "get_gateway_bond"
@@ -2140,6 +2230,7 @@
             ],
             "properties": {
               "identity": {
+                "description": "The identity key (base58-encoded ed25519 public key) of the gateway used for the query.",
                 "type": "string"
               }
             },
@@ -2149,6 +2240,7 @@
         "additionalProperties": false
       },
       {
+        "description": "Gets the detailed gateway information belonging to the particular owner.",
         "type": "object",
         "required": [
           "get_owned_gateway"
@@ -2161,6 +2253,7 @@
             ],
             "properties": {
               "address": {
+                "description": "Address of the gateway owner to use for the query.",
                 "type": "string"
               }
             },
@@ -2170,6 +2263,7 @@
         "additionalProperties": false
       },
       {
+        "description": "Gets all delegations associated with particular mixnode",
         "type": "object",
         "required": [
           "get_mixnode_delegations"
@@ -2182,6 +2276,7 @@
             ],
             "properties": {
               "limit": {
+                "description": "Controls the maximum number of entries returned by the query. Note that too large values will be overwritten by a saner default.",
                 "type": [
                   "integer",
                   "null"
@@ -2190,11 +2285,13 @@
                 "minimum": 0.0
               },
               "mix_id": {
+                "description": "Id of the node to query.",
                 "type": "integer",
                 "format": "uint32",
                 "minimum": 0.0
               },
               "start_after": {
+                "description": "Pagination control for the values returned by the query. Note that the provided value itself will **not** be used for the response.",
                 "type": [
                   "string",
                   "null"
@@ -2207,6 +2304,7 @@
         "additionalProperties": false
       },
       {
+        "description": "Gets all delegations associated with particular delegator",
         "type": "object",
         "required": [
           "get_delegator_delegations"
@@ -2219,9 +2317,11 @@
             ],
             "properties": {
               "delegator": {
+                "description": "The address of the owner of the delegations.",
                 "type": "string"
               },
               "limit": {
+                "description": "Controls the maximum number of entries returned by the query. Note that too large values will be overwritten by a saner default.",
                 "type": [
                   "integer",
                   "null"
@@ -2230,6 +2330,7 @@
                 "minimum": 0.0
               },
               "start_after": {
+                "description": "Pagination control for the values returned by the query. Note that the provided value itself will **not** be used for the response.",
                 "type": [
                   "array",
                   "null"
@@ -2254,6 +2355,7 @@
         "additionalProperties": false
       },
       {
+        "description": "Gets delegation information associated with particular mixnode - delegator pair",
         "type": "object",
         "required": [
           "get_delegation_details"
@@ -2267,14 +2369,17 @@
             ],
             "properties": {
               "delegator": {
+                "description": "The address of the owner of the delegation.",
                 "type": "string"
               },
               "mix_id": {
+                "description": "Id of the node to query.",
                 "type": "integer",
                 "format": "uint32",
                 "minimum": 0.0
               },
               "proxy": {
+                "description": "Entity who made the delegation on behalf of the owner. If present, it's most likely the address of the vesting contract.",
                 "type": [
                   "string",
                   "null"
@@ -2287,6 +2392,7 @@
         "additionalProperties": false
       },
       {
+        "description": "Gets all delegations in the system",
         "type": "object",
         "required": [
           "get_all_delegations"
@@ -2296,6 +2402,7 @@
             "type": "object",
             "properties": {
               "limit": {
+                "description": "Controls the maximum number of entries returned by the query. Note that too large values will be overwritten by a saner default.",
                 "type": [
                   "integer",
                   "null"
@@ -2304,6 +2411,7 @@
                 "minimum": 0.0
               },
               "start_after": {
+                "description": "Pagination control for the values returned by the query. Note that the provided value itself will **not** be used for the response.",
                 "type": [
                   "array",
                   "null"
@@ -2328,6 +2436,7 @@
         "additionalProperties": false
       },
       {
+        "description": "Gets the reward amount accrued by the node operator that has not yet been claimed.",
         "type": "object",
         "required": [
           "get_pending_operator_reward"
@@ -2340,6 +2449,7 @@
             ],
             "properties": {
               "address": {
+                "description": "Address of the operator to use for the query.",
                 "type": "string"
               }
             },
@@ -2349,6 +2459,7 @@
         "additionalProperties": false
       },
       {
+        "description": "Gets the reward amount accrued by the particular mixnode that has not yet been claimed.",
         "type": "object",
         "required": [
           "get_pending_mix_node_operator_reward"
@@ -2361,6 +2472,7 @@
             ],
             "properties": {
               "mix_id": {
+                "description": "Id of the node to query.",
                 "type": "integer",
                 "format": "uint32",
                 "minimum": 0.0
@@ -2372,6 +2484,7 @@
         "additionalProperties": false
       },
       {
+        "description": "Gets the reward amount accrued by the particular delegator that has not yet been claimed.",
         "type": "object",
         "required": [
           "get_pending_delegator_reward"
@@ -2385,14 +2498,17 @@
             ],
             "properties": {
               "address": {
+                "description": "Address of the delegator to use for the query.",
                 "type": "string"
               },
               "mix_id": {
+                "description": "Id of the node to query.",
                 "type": "integer",
                 "format": "uint32",
                 "minimum": 0.0
               },
               "proxy": {
+                "description": "Entity who made the delegation on behalf of the owner. If present, it's most likely the address of the vesting contract.",
                 "type": [
                   "string",
                   "null"
@@ -2405,6 +2521,7 @@
         "additionalProperties": false
       },
       {
+        "description": "Given the provided node performance, attempt to estimate the operator reward for the current epoch.",
         "type": "object",
         "required": [
           "get_estimated_current_epoch_operator_reward"
@@ -2418,9 +2535,15 @@
             ],
             "properties": {
               "estimated_performance": {
-                "$ref": "#/definitions/Percent"
+                "description": "The estimated performance for the current epoch of the given node.",
+                "allOf": [
+                  {
+                    "$ref": "#/definitions/Percent"
+                  }
+                ]
               },
               "mix_id": {
+                "description": "Id of the node to query.",
                 "type": "integer",
                 "format": "uint32",
                 "minimum": 0.0
@@ -2432,6 +2555,7 @@
         "additionalProperties": false
       },
       {
+        "description": "Given the provided node performance, attempt to estimate the delegator reward for the current epoch.",
         "type": "object",
         "required": [
           "get_estimated_current_epoch_delegator_reward"
@@ -2446,17 +2570,25 @@
             ],
             "properties": {
               "address": {
+                "description": "Address of the delegator to use for the query.",
                 "type": "string"
               },
               "estimated_performance": {
-                "$ref": "#/definitions/Percent"
+                "description": "The estimated performance for the current epoch of the given node.",
+                "allOf": [
+                  {
+                    "$ref": "#/definitions/Percent"
+                  }
+                ]
               },
               "mix_id": {
+                "description": "Id of the node to query.",
                 "type": "integer",
                 "format": "uint32",
                 "minimum": 0.0
               },
               "proxy": {
+                "description": "Entity who made the delegation on behalf of the owner. If present, it's most likely the address of the vesting contract.",
                 "type": [
                   "string",
                   "null"
@@ -2469,6 +2601,7 @@
         "additionalProperties": false
       },
       {
+        "description": "Gets the list of all currently pending epoch events that will be resolved once the current epoch finishes.",
         "type": "object",
         "required": [
           "get_pending_epoch_events"
@@ -2478,6 +2611,7 @@
             "type": "object",
             "properties": {
               "limit": {
+                "description": "Controls the maximum number of entries returned by the query. Note that too large values will be overwritten by a saner default.",
                 "type": [
                   "integer",
                   "null"
@@ -2486,6 +2620,7 @@
                 "minimum": 0.0
               },
               "start_after": {
+                "description": "Pagination control for the values returned by the query. Note that the provided value itself will **not** be used for the response.",
                 "type": [
                   "integer",
                   "null"
@@ -2500,6 +2635,7 @@
         "additionalProperties": false
       },
       {
+        "description": "Gets the list of all currently pending interval events that will be resolved once the current interval finishes.",
         "type": "object",
         "required": [
           "get_pending_interval_events"
@@ -2509,6 +2645,7 @@
             "type": "object",
             "properties": {
               "limit": {
+                "description": "Controls the maximum number of entries returned by the query. Note that too large values will be overwritten by a saner default.",
                 "type": [
                   "integer",
                   "null"
@@ -2517,6 +2654,7 @@
                 "minimum": 0.0
               },
               "start_after": {
+                "description": "Pagination control for the values returned by the query. Note that the provided value itself will **not** be used for the response.",
                 "type": [
                   "integer",
                   "null"
@@ -2531,6 +2669,7 @@
         "additionalProperties": false
       },
       {
+        "description": "Gets detailed information about a pending epoch event given its id.",
         "type": "object",
         "required": [
           "get_pending_epoch_event"
@@ -2543,6 +2682,7 @@
             ],
             "properties": {
               "event_id": {
+                "description": "The unique id associated with the event.",
                 "type": "integer",
                 "format": "uint32",
                 "minimum": 0.0
@@ -2554,6 +2694,7 @@
         "additionalProperties": false
       },
       {
+        "description": "Gets detailed information about a pending interval event given its id.",
         "type": "object",
         "required": [
           "get_pending_interval_event"
@@ -2566,6 +2707,7 @@
             ],
             "properties": {
               "event_id": {
+                "description": "The unique id associated with the event.",
                 "type": "integer",
                 "format": "uint32",
                 "minimum": 0.0
@@ -2577,6 +2719,7 @@
         "additionalProperties": false
       },
       {
+        "description": "Gets the information about the number of currently pending epoch and interval events.",
         "type": "object",
         "required": [
           "get_number_of_pending_events"
@@ -2590,6 +2733,7 @@
         "additionalProperties": false
       },
       {
+        "description": "Gets the signing nonce associated with the particular cosmos address.",
         "type": "object",
         "required": [
           "get_signing_nonce"
@@ -2602,6 +2746,7 @@
             ],
             "properties": {
               "address": {
+                "description": "Cosmos address used for the query of the signing nonce.",
                 "type": "string"
               }
             },
@@ -2645,18 +2790,21 @@
     "get_all_delegations": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "PagedAllDelegationsResponse",
+      "description": "Response containing paged list of all delegations currently active.",
       "type": "object",
       "required": [
         "delegations"
       ],
       "properties": {
         "delegations": {
+          "description": "Each individual delegation made.",
           "type": "array",
           "items": {
             "$ref": "#/definitions/Delegation"
           }
         },
         "start_next_after": {
+          "description": "Field indicating paging information for the following queries if the caller wishes to get further entries.",
           "type": [
             "array",
             "null"
@@ -2701,6 +2849,7 @@
           "type": "string"
         },
         "Delegation": {
+          "description": "Information about tokens being delegated towards given mixnode in order to accrue rewards with their work.",
           "type": "object",
           "required": [
             "amount",
@@ -2769,18 +2918,21 @@
     "get_all_families_paged": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "PagedFamiliesResponse",
+      "description": "Response containing paged list of all families registered in the contract.",
       "type": "object",
       "required": [
         "families"
       ],
       "properties": {
         "families": {
+          "description": "The families registered in the contract.",
           "type": "array",
           "items": {
             "$ref": "#/definitions/Family"
           }
         },
         "start_next_after": {
+          "description": "Field indicating paging information for the following queries if the caller wishes to get further entries.",
           "type": [
             "string",
             "null"
@@ -2790,6 +2942,7 @@
       "additionalProperties": false,
       "definitions": {
         "Family": {
+          "description": "A group of mixnodes associated with particular staking entity. When defined all nodes belonging to the same family will be prioritised to be put onto the same layer.",
           "type": "object",
           "required": [
             "head",
@@ -2797,12 +2950,19 @@
           ],
           "properties": {
             "head": {
-              "$ref": "#/definitions/FamilyHead"
+              "description": "Owner of this family.",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/FamilyHead"
+                }
+              ]
             },
             "label": {
+              "description": "Human readable label for this family.",
               "type": "string"
             },
             "proxy": {
+              "description": "Optional proxy (i.e. vesting contract address) used when creating the family.",
               "type": [
                 "string",
                 "null"
@@ -2812,6 +2972,7 @@
           "additionalProperties": false
         },
         "FamilyHead": {
+          "description": "Head of particular family as identified by its identity key (i.e. public component of its ed25519 keypair stringified into base58).",
           "type": "string"
         }
       }
@@ -2819,12 +2980,14 @@
     "get_all_members_paged": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "PagedMembersResponse",
+      "description": "Response containing paged list of all family members (of ALL families) registered in the contract.",
       "type": "object",
       "required": [
         "members"
       ],
       "properties": {
         "members": {
+          "description": "The members alongside their family heads.",
           "type": "array",
           "items": {
             "type": "array",
@@ -2841,6 +3004,7 @@
           }
         },
         "start_next_after": {
+          "description": "Field indicating paging information for the following queries if the caller wishes to get further entries.",
           "type": [
             "string",
             "null"
@@ -2850,34 +3014,34 @@
       "additionalProperties": false,
       "definitions": {
         "FamilyHead": {
+          "description": "Head of particular family as identified by its identity key (i.e. public component of its ed25519 keypair stringified into base58).",
           "type": "string"
         }
       }
     },
     "get_bonded_mixnode_details_by_identity": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "MixNodeDetails",
+      "title": "MixnodeDetailsByIdentityResponse",
+      "description": "Response containing details of a bonded mixnode with the provided identity key.",
       "type": "object",
       "required": [
-        "bond_information",
-        "rewarding_details"
+        "identity_key"
       ],
       "properties": {
-        "bond_information": {
-          "$ref": "#/definitions/MixNodeBond"
+        "identity_key": {
+          "description": "The identity key (base58-encoded ed25519 public key) of the mixnode.",
+          "type": "string"
         },
-        "pending_changes": {
-          "default": {
-            "pledge_change": null
-          },
-          "allOf": [
+        "mixnode_details": {
+          "description": "If there exists a bonded mixnode with the provided identity key, this field contains its detailed information.",
+          "anyOf": [
             {
-              "$ref": "#/definitions/PendingMixNodeChanges"
+              "$ref": "#/definitions/MixNodeDetails"
+            },
+            {
+              "type": "null"
             }
           ]
-        },
-        "rewarding_details": {
-          "$ref": "#/definitions/MixNodeRewarding"
         }
       },
       "additionalProperties": false,
@@ -2914,6 +3078,7 @@
           ]
         },
         "MixNode": {
+          "description": "Information provided by the node operator during bonding that are used to allow other entities to use the services of this node.",
           "type": "object",
           "required": [
             "host",
@@ -2926,10 +3091,11 @@
           ],
           "properties": {
             "host": {
-              "description": "Network address of this mixnode, for example 1.1.1.1:1234 or foo.mixnode.com",
+              "description": "Network address of this mixnode, for example 1.1.1.1 or foo.mixnode.com",
               "type": "string"
             },
             "http_api_port": {
+              "description": "Port used by this mixnode for its http(s) API",
               "type": "integer",
               "format": "uint16",
               "minimum": 0.0
@@ -2939,6 +3105,7 @@
               "type": "string"
             },
             "mix_port": {
+              "description": "Port used by this mixnode for listening for mix packets.",
               "type": "integer",
               "format": "uint16",
               "minimum": 0.0
@@ -2948,17 +3115,20 @@
               "type": "string"
             },
             "verloc_port": {
+              "description": "Port used by this mixnode for listening for verloc requests.",
               "type": "integer",
               "format": "uint16",
               "minimum": 0.0
             },
             "version": {
+              "description": "The self-reported semver version of this mixnode.",
               "type": "string"
             }
           },
           "additionalProperties": false
         },
         "MixNodeBond": {
+          "description": "Basic mixnode information provided by the node operator.",
           "type": "object",
           "required": [
             "bonding_height",
@@ -3033,6 +3203,7 @@
           "additionalProperties": false
         },
         "MixNodeCostParams": {
+          "description": "The cost parameters, or the cost function, defined for the particular mixnode that influences how the rewards should be split between the node operator and its delegators.",
           "type": "object",
           "required": [
             "interval_operating_cost",
@@ -3048,7 +3219,50 @@
               ]
             },
             "profit_margin_percent": {
-              "$ref": "#/definitions/Percent"
+              "description": "The profit margin of the associated mixnode, i.e. the desired percent of the reward to be distributed to the operator.",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Percent"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "MixNodeDetails": {
+          "description": "Full details associated with given mixnode.",
+          "type": "object",
+          "required": [
+            "bond_information",
+            "rewarding_details"
+          ],
+          "properties": {
+            "bond_information": {
+              "description": "Basic bond information of this mixnode, such as owner address, original pledge, etc.",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/MixNodeBond"
+                }
+              ]
+            },
+            "pending_changes": {
+              "description": "Adjustments to the mixnode that are ought to happen during future epoch transitions.",
+              "default": {
+                "pledge_change": null
+              },
+              "allOf": [
+                {
+                  "$ref": "#/definitions/PendingMixNodeChanges"
+                }
+              ]
+            },
+            "rewarding_details": {
+              "description": "Details used for computation of rewarding related data.",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/MixNodeRewarding"
+                }
+              ]
             }
           },
           "additionalProperties": false
@@ -3210,6 +3424,7 @@
     "get_current_interval_details": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "CurrentIntervalResponse",
+      "description": "Information about the current rewarding interval.",
       "type": "object",
       "required": [
         "current_blocktime",
@@ -3219,17 +3434,25 @@
       ],
       "properties": {
         "current_blocktime": {
+          "description": "The current blocktime",
           "type": "integer",
           "format": "uint64",
           "minimum": 0.0
         },
         "interval": {
-          "$ref": "#/definitions/Interval"
+          "description": "Detailed information about the underlying interval.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Interval"
+            }
+          ]
         },
         "is_current_epoch_over": {
+          "description": "Flag indicating whether the current epoch is over and it should be advanced.",
           "type": "boolean"
         },
         "is_current_interval_over": {
+          "description": "Flag indicating whether the current interval is over and it should be advanced.",
           "type": "boolean"
         }
       },
@@ -3298,12 +3521,14 @@
     "get_delegation_details": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "MixNodeDelegationResponse",
+      "description": "Response containing delegation details.",
       "type": "object",
       "required": [
         "mixnode_still_bonded"
       ],
       "properties": {
         "delegation": {
+          "description": "If the delegation exists, this field contains its detailed information.",
           "anyOf": [
             {
               "$ref": "#/definitions/Delegation"
@@ -3314,6 +3539,7 @@
           ]
         },
         "mixnode_still_bonded": {
+          "description": "Flag indicating whether the node towards which the delegation was made is still bonded in the network.",
           "type": "boolean"
         }
       },
@@ -3343,6 +3569,7 @@
           "type": "string"
         },
         "Delegation": {
+          "description": "Information about tokens being delegated towards given mixnode in order to accrue rewards with their work.",
           "type": "object",
           "required": [
             "amount",
@@ -3411,18 +3638,21 @@
     "get_delegator_delegations": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "PagedDelegatorDelegationsResponse",
+      "description": "Response containing paged list of all delegations made by the particular address.",
       "type": "object",
       "required": [
         "delegations"
       ],
       "properties": {
         "delegations": {
+          "description": "Each individual delegation made.",
           "type": "array",
           "items": {
             "$ref": "#/definitions/Delegation"
           }
         },
         "start_next_after": {
+          "description": "Field indicating paging information for the following queries if the caller wishes to get further entries.",
           "type": [
             "array",
             "null"
@@ -3467,6 +3697,7 @@
           "type": "string"
         },
         "Delegation": {
+          "description": "Information about tokens being delegated towards given mixnode in order to accrue rewards with their work.",
           "type": "object",
           "required": [
             "amount",
@@ -3535,6 +3766,7 @@
     "get_epoch_status": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "EpochStatus",
+      "description": "The status of the current rewarding epoch.",
       "type": "object",
       "required": [
         "being_advanced_by",
@@ -3550,7 +3782,12 @@
           ]
         },
         "state": {
-          "$ref": "#/definitions/EpochState"
+          "description": "The concrete state of the epoch.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/EpochState"
+            }
+          ]
         }
       },
       "additionalProperties": false,
@@ -3560,6 +3797,7 @@
           "type": "string"
         },
         "EpochState": {
+          "description": "The state of the current rewarding epoch.",
           "oneOf": [
             {
               "description": "Represents the state of an epoch that's in progress (well, duh.) All actions are allowed to be issued.",
@@ -3583,11 +3821,13 @@
                   ],
                   "properties": {
                     "final_node_id": {
+                      "description": "The id of the last node that's going to be rewarded before progressing into the next state.",
                       "type": "integer",
                       "format": "uint32",
                       "minimum": 0.0
                     },
                     "last_rewarded": {
+                      "description": "The id of the last node that has already received its rewards.",
                       "type": "integer",
                       "format": "uint32",
                       "minimum": 0.0
@@ -3619,9 +3859,11 @@
     "get_estimated_current_epoch_delegator_reward": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "EstimatedCurrentEpochRewardResponse",
+      "description": "Response containing estimation of node rewards for the current epoch.",
       "type": "object",
       "properties": {
         "current_stake_value": {
+          "description": "The current stake value given all past rewarding and compounding since the original staking was performed.",
           "anyOf": [
             {
               "$ref": "#/definitions/Coin"
@@ -3632,6 +3874,7 @@
           ]
         },
         "current_stake_value_detailed_amount": {
+          "description": "The current stake value. Note that it's nearly identical to `current_stake_value`, however, it contains few additional decimal points for more accurate reward calculation.",
           "anyOf": [
             {
               "$ref": "#/definitions/Decimal"
@@ -3642,6 +3885,7 @@
           ]
         },
         "detailed_estimation_amount": {
+          "description": "The full reward estimation. Note that it's nearly identical to `estimation`, however, it contains few additional decimal points for more accurate reward calculation.",
           "anyOf": [
             {
               "$ref": "#/definitions/Decimal"
@@ -3652,6 +3896,7 @@
           ]
         },
         "estimation": {
+          "description": "The reward estimation for the current epoch, i.e. the amount of tokens that could be claimable after the epoch finishes and the state of the network does not change.",
           "anyOf": [
             {
               "$ref": "#/definitions/Coin"
@@ -3662,6 +3907,7 @@
           ]
         },
         "original_stake": {
+          "description": "The amount of tokens initially staked.",
           "anyOf": [
             {
               "$ref": "#/definitions/Coin"
@@ -3702,9 +3948,11 @@
     "get_estimated_current_epoch_operator_reward": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "EstimatedCurrentEpochRewardResponse",
+      "description": "Response containing estimation of node rewards for the current epoch.",
       "type": "object",
       "properties": {
         "current_stake_value": {
+          "description": "The current stake value given all past rewarding and compounding since the original staking was performed.",
           "anyOf": [
             {
               "$ref": "#/definitions/Coin"
@@ -3715,6 +3963,7 @@
           ]
         },
         "current_stake_value_detailed_amount": {
+          "description": "The current stake value. Note that it's nearly identical to `current_stake_value`, however, it contains few additional decimal points for more accurate reward calculation.",
           "anyOf": [
             {
               "$ref": "#/definitions/Decimal"
@@ -3725,6 +3974,7 @@
           ]
         },
         "detailed_estimation_amount": {
+          "description": "The full reward estimation. Note that it's nearly identical to `estimation`, however, it contains few additional decimal points for more accurate reward calculation.",
           "anyOf": [
             {
               "$ref": "#/definitions/Decimal"
@@ -3735,6 +3985,7 @@
           ]
         },
         "estimation": {
+          "description": "The reward estimation for the current epoch, i.e. the amount of tokens that could be claimable after the epoch finishes and the state of the network does not change.",
           "anyOf": [
             {
               "$ref": "#/definitions/Coin"
@@ -3745,6 +3996,7 @@
           ]
         },
         "original_stake": {
+          "description": "The amount of tokens initially staked.",
           "anyOf": [
             {
               "$ref": "#/definitions/Coin"
@@ -3785,12 +4037,14 @@
     "get_family_by_head": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "FamilyByHeadResponse",
+      "description": "Response containing family information.",
       "type": "object",
       "required": [
         "head"
       ],
       "properties": {
         "family": {
+          "description": "If applicable, the family associated with the provided head.",
           "anyOf": [
             {
               "$ref": "#/definitions/Family"
@@ -3801,12 +4055,18 @@
           ]
         },
         "head": {
-          "$ref": "#/definitions/FamilyHead"
+          "description": "The family head used for the query.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/FamilyHead"
+            }
+          ]
         }
       },
       "additionalProperties": false,
       "definitions": {
         "Family": {
+          "description": "A group of mixnodes associated with particular staking entity. When defined all nodes belonging to the same family will be prioritised to be put onto the same layer.",
           "type": "object",
           "required": [
             "head",
@@ -3814,12 +4074,19 @@
           ],
           "properties": {
             "head": {
-              "$ref": "#/definitions/FamilyHead"
+              "description": "Owner of this family.",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/FamilyHead"
+                }
+              ]
             },
             "label": {
+              "description": "Human readable label for this family.",
               "type": "string"
             },
             "proxy": {
+              "description": "Optional proxy (i.e. vesting contract address) used when creating the family.",
               "type": [
                 "string",
                 "null"
@@ -3829,6 +4096,7 @@
           "additionalProperties": false
         },
         "FamilyHead": {
+          "description": "Head of particular family as identified by its identity key (i.e. public component of its ed25519 keypair stringified into base58).",
           "type": "string"
         }
       }
@@ -3836,12 +4104,14 @@
     "get_family_by_label": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "FamilyByLabelResponse",
+      "description": "Response containing family information.",
       "type": "object",
       "required": [
         "label"
       ],
       "properties": {
         "family": {
+          "description": "If applicable, the family associated with the provided label.",
           "anyOf": [
             {
               "$ref": "#/definitions/Family"
@@ -3852,12 +4122,14 @@
           ]
         },
         "label": {
+          "description": "The family label used for the query.",
           "type": "string"
         }
       },
       "additionalProperties": false,
       "definitions": {
         "Family": {
+          "description": "A group of mixnodes associated with particular staking entity. When defined all nodes belonging to the same family will be prioritised to be put onto the same layer.",
           "type": "object",
           "required": [
             "head",
@@ -3865,12 +4137,19 @@
           ],
           "properties": {
             "head": {
-              "$ref": "#/definitions/FamilyHead"
+              "description": "Owner of this family.",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/FamilyHead"
+                }
+              ]
             },
             "label": {
+              "description": "Human readable label for this family.",
               "type": "string"
             },
             "proxy": {
+              "description": "Optional proxy (i.e. vesting contract address) used when creating the family.",
               "type": [
                 "string",
                 "null"
@@ -3880,6 +4159,7 @@
           "additionalProperties": false
         },
         "FamilyHead": {
+          "description": "Head of particular family as identified by its identity key (i.e. public component of its ed25519 keypair stringified into base58).",
           "type": "string"
         }
       }
@@ -3887,6 +4167,7 @@
     "get_family_members_by_head": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "FamilyMembersByHeadResponse",
+      "description": "Response containing family members information.",
       "type": "object",
       "required": [
         "head",
@@ -3894,9 +4175,15 @@
       ],
       "properties": {
         "head": {
-          "$ref": "#/definitions/FamilyHead"
+          "description": "The family head used for the query.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/FamilyHead"
+            }
+          ]
         },
         "members": {
+          "description": "All members belonging to the specified family.",
           "type": "array",
           "items": {
             "type": "string"
@@ -3906,6 +4193,7 @@
       "additionalProperties": false,
       "definitions": {
         "FamilyHead": {
+          "description": "Head of particular family as identified by its identity key (i.e. public component of its ed25519 keypair stringified into base58).",
           "type": "string"
         }
       }
@@ -3913,6 +4201,7 @@
     "get_family_members_by_label": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "FamilyMembersByLabelResponse",
+      "description": "Response containing family members information.",
       "type": "object",
       "required": [
         "label",
@@ -3920,9 +4209,11 @@
       ],
       "properties": {
         "label": {
+          "description": "The family label used for the query.",
           "type": "string"
         },
         "members": {
+          "description": "All members belonging to the specified family.",
           "type": "array",
           "items": {
             "type": "string"
@@ -3934,12 +4225,14 @@
     "get_gateway_bond": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "GatewayBondResponse",
+      "description": "Response containing details of a gateway with the provided identity key.",
       "type": "object",
       "required": [
         "identity"
       ],
       "properties": {
         "gateway": {
+          "description": "If there exists a gateway with the provided identity key, this field contains its details.",
           "anyOf": [
             {
               "$ref": "#/definitions/GatewayBond"
@@ -3950,6 +4243,7 @@
           ]
         },
         "identity": {
+          "description": "The identity key (base58-encoded ed25519 public key) of the gateway.",
           "type": "string"
         }
       },
@@ -3975,6 +4269,7 @@
           }
         },
         "Gateway": {
+          "description": "Information provided by the node operator during bonding that are used to allow other entities to use the services of this node.",
           "type": "object",
           "required": [
             "clients_port",
@@ -3987,11 +4282,13 @@
           ],
           "properties": {
             "clients_port": {
+              "description": "Port used by this gateway for listening for client requests.",
               "type": "integer",
               "format": "uint16",
               "minimum": 0.0
             },
             "host": {
+              "description": "Network address of this gateway, for example 1.1.1.1 or foo.gateway.com",
               "type": "string"
             },
             "identity_key": {
@@ -3999,23 +4296,28 @@
               "type": "string"
             },
             "location": {
+              "description": "The physical, self-reported, location of this gateway.",
               "type": "string"
             },
             "mix_port": {
+              "description": "Port used by this gateway for listening for mix packets.",
               "type": "integer",
               "format": "uint16",
               "minimum": 0.0
             },
             "sphinx_key": {
+              "description": "Base58-encoded x25519 public key used for sphinx key derivation.",
               "type": "string"
             },
             "version": {
+              "description": "The self-reported semver version of this gateway.",
               "type": "string"
             }
           },
           "additionalProperties": false
         },
         "GatewayBond": {
+          "description": "Basic gateway information provided by the node operator.",
           "type": "object",
           "required": [
             "block_height",
@@ -4025,20 +4327,37 @@
           ],
           "properties": {
             "block_height": {
+              "description": "Block height at which this gateway has been bonded.",
               "type": "integer",
               "format": "uint64",
               "minimum": 0.0
             },
             "gateway": {
-              "$ref": "#/definitions/Gateway"
+              "description": "Information provided by the operator for the purposes of bonding.",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Gateway"
+                }
+              ]
             },
             "owner": {
-              "$ref": "#/definitions/Addr"
+              "description": "Address of the owner of this gateway.",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Addr"
+                }
+              ]
             },
             "pledge_amount": {
-              "$ref": "#/definitions/Coin"
+              "description": "Original amount pledged by the operator of this node.",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Coin"
+                }
+              ]
             },
             "proxy": {
+              "description": "Entity who bonded this gateway on behalf of the owner. If exists, it's most likely the address of the vesting contract.",
               "anyOf": [
                 {
                   "$ref": "#/definitions/Addr"
@@ -4060,6 +4379,7 @@
     "get_gateways": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "PagedGatewayResponse",
+      "description": "Response containing paged list of all gateway bonds in the contract.",
       "type": "object",
       "required": [
         "nodes",
@@ -4067,17 +4387,20 @@
       ],
       "properties": {
         "nodes": {
+          "description": "The gateway bond information present in the contract.",
           "type": "array",
           "items": {
             "$ref": "#/definitions/GatewayBond"
           }
         },
         "per_page": {
+          "description": "Maximum number of entries that could be included in a response. `per_page <= nodes.len()`",
           "type": "integer",
           "format": "uint",
           "minimum": 0.0
         },
         "start_next_after": {
+          "description": "Field indicating paging information for the following queries if the caller wishes to get further entries.",
           "type": [
             "string",
             "null"
@@ -4106,6 +4429,7 @@
           }
         },
         "Gateway": {
+          "description": "Information provided by the node operator during bonding that are used to allow other entities to use the services of this node.",
           "type": "object",
           "required": [
             "clients_port",
@@ -4118,11 +4442,13 @@
           ],
           "properties": {
             "clients_port": {
+              "description": "Port used by this gateway for listening for client requests.",
               "type": "integer",
               "format": "uint16",
               "minimum": 0.0
             },
             "host": {
+              "description": "Network address of this gateway, for example 1.1.1.1 or foo.gateway.com",
               "type": "string"
             },
             "identity_key": {
@@ -4130,23 +4456,28 @@
               "type": "string"
             },
             "location": {
+              "description": "The physical, self-reported, location of this gateway.",
               "type": "string"
             },
             "mix_port": {
+              "description": "Port used by this gateway for listening for mix packets.",
               "type": "integer",
               "format": "uint16",
               "minimum": 0.0
             },
             "sphinx_key": {
+              "description": "Base58-encoded x25519 public key used for sphinx key derivation.",
               "type": "string"
             },
             "version": {
+              "description": "The self-reported semver version of this gateway.",
               "type": "string"
             }
           },
           "additionalProperties": false
         },
         "GatewayBond": {
+          "description": "Basic gateway information provided by the node operator.",
           "type": "object",
           "required": [
             "block_height",
@@ -4156,20 +4487,37 @@
           ],
           "properties": {
             "block_height": {
+              "description": "Block height at which this gateway has been bonded.",
               "type": "integer",
               "format": "uint64",
               "minimum": 0.0
             },
             "gateway": {
-              "$ref": "#/definitions/Gateway"
+              "description": "Information provided by the operator for the purposes of bonding.",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Gateway"
+                }
+              ]
             },
             "owner": {
-              "$ref": "#/definitions/Addr"
+              "description": "Address of the owner of this gateway.",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Addr"
+                }
+              ]
             },
             "pledge_amount": {
-              "$ref": "#/definitions/Coin"
+              "description": "Original amount pledged by the operator of this node.",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Coin"
+                }
+              ]
             },
             "proxy": {
+              "description": "Entity who bonded this gateway on behalf of the owner. If exists, it's most likely the address of the vesting contract.",
               "anyOf": [
                 {
                   "$ref": "#/definitions/Addr"
@@ -4191,6 +4539,7 @@
     "get_layer_distribution": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "LayerDistribution",
+      "description": "The current layer distribution of the mix network.",
       "type": "object",
       "required": [
         "layer1",
@@ -4199,16 +4548,19 @@
       ],
       "properties": {
         "layer1": {
+          "description": "Number of nodes on the first layer.",
           "type": "integer",
           "format": "uint64",
           "minimum": 0.0
         },
         "layer2": {
+          "description": "Number of nodes on the second layer.",
           "type": "integer",
           "format": "uint64",
           "minimum": 0.0
         },
         "layer3": {
+          "description": "Number of nodes on the third layer.",
           "type": "integer",
           "format": "uint64",
           "minimum": 0.0
@@ -4219,6 +4571,7 @@
     "get_mix_node_bonds": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "PagedMixnodeBondsResponse",
+      "description": "Response containing paged list of all mixnode bonds in the contract.",
       "type": "object",
       "required": [
         "nodes",
@@ -4226,17 +4579,20 @@
       ],
       "properties": {
         "nodes": {
+          "description": "The mixnode bond information present in the contract.",
           "type": "array",
           "items": {
             "$ref": "#/definitions/MixNodeBond"
           }
         },
         "per_page": {
+          "description": "Maximum number of entries that could be included in a response. `per_page <= nodes.len()`",
           "type": "integer",
           "format": "uint",
           "minimum": 0.0
         },
         "start_next_after": {
+          "description": "Field indicating paging information for the following queries if the caller wishes to get further entries.",
           "type": [
             "integer",
             "null"
@@ -4275,6 +4631,7 @@
           ]
         },
         "MixNode": {
+          "description": "Information provided by the node operator during bonding that are used to allow other entities to use the services of this node.",
           "type": "object",
           "required": [
             "host",
@@ -4287,10 +4644,11 @@
           ],
           "properties": {
             "host": {
-              "description": "Network address of this mixnode, for example 1.1.1.1:1234 or foo.mixnode.com",
+              "description": "Network address of this mixnode, for example 1.1.1.1 or foo.mixnode.com",
               "type": "string"
             },
             "http_api_port": {
+              "description": "Port used by this mixnode for its http(s) API",
               "type": "integer",
               "format": "uint16",
               "minimum": 0.0
@@ -4300,6 +4658,7 @@
               "type": "string"
             },
             "mix_port": {
+              "description": "Port used by this mixnode for listening for mix packets.",
               "type": "integer",
               "format": "uint16",
               "minimum": 0.0
@@ -4309,17 +4668,20 @@
               "type": "string"
             },
             "verloc_port": {
+              "description": "Port used by this mixnode for listening for verloc requests.",
               "type": "integer",
               "format": "uint16",
               "minimum": 0.0
             },
             "version": {
+              "description": "The self-reported semver version of this mixnode.",
               "type": "string"
             }
           },
           "additionalProperties": false
         },
         "MixNodeBond": {
+          "description": "Basic mixnode information provided by the node operator.",
           "type": "object",
           "required": [
             "bonding_height",
@@ -4402,6 +4764,7 @@
     "get_mix_nodes_detailed": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "PagedMixnodesDetailsResponse",
+      "description": "Response containing paged list of all mixnode details in the contract.",
       "type": "object",
       "required": [
         "nodes",
@@ -4409,17 +4772,20 @@
       ],
       "properties": {
         "nodes": {
+          "description": "All mixnode details stored in the contract. Apart from the basic bond information it also contains details required for all future reward calculation as well as any pending changes requested by the operator.",
           "type": "array",
           "items": {
             "$ref": "#/definitions/MixNodeDetails"
           }
         },
         "per_page": {
+          "description": "Maximum number of entries that could be included in a response. `per_page <= nodes.len()`",
           "type": "integer",
           "format": "uint",
           "minimum": 0.0
         },
         "start_next_after": {
+          "description": "Field indicating paging information for the following queries if the caller wishes to get further entries.",
           "type": [
             "integer",
             "null"
@@ -4462,6 +4828,7 @@
           ]
         },
         "MixNode": {
+          "description": "Information provided by the node operator during bonding that are used to allow other entities to use the services of this node.",
           "type": "object",
           "required": [
             "host",
@@ -4474,10 +4841,11 @@
           ],
           "properties": {
             "host": {
-              "description": "Network address of this mixnode, for example 1.1.1.1:1234 or foo.mixnode.com",
+              "description": "Network address of this mixnode, for example 1.1.1.1 or foo.mixnode.com",
               "type": "string"
             },
             "http_api_port": {
+              "description": "Port used by this mixnode for its http(s) API",
               "type": "integer",
               "format": "uint16",
               "minimum": 0.0
@@ -4487,6 +4855,7 @@
               "type": "string"
             },
             "mix_port": {
+              "description": "Port used by this mixnode for listening for mix packets.",
               "type": "integer",
               "format": "uint16",
               "minimum": 0.0
@@ -4496,17 +4865,20 @@
               "type": "string"
             },
             "verloc_port": {
+              "description": "Port used by this mixnode for listening for verloc requests.",
               "type": "integer",
               "format": "uint16",
               "minimum": 0.0
             },
             "version": {
+              "description": "The self-reported semver version of this mixnode.",
               "type": "string"
             }
           },
           "additionalProperties": false
         },
         "MixNodeBond": {
+          "description": "Basic mixnode information provided by the node operator.",
           "type": "object",
           "required": [
             "bonding_height",
@@ -4581,6 +4953,7 @@
           "additionalProperties": false
         },
         "MixNodeCostParams": {
+          "description": "The cost parameters, or the cost function, defined for the particular mixnode that influences how the rewards should be split between the node operator and its delegators.",
           "type": "object",
           "required": [
             "interval_operating_cost",
@@ -4596,12 +4969,18 @@
               ]
             },
             "profit_margin_percent": {
-              "$ref": "#/definitions/Percent"
+              "description": "The profit margin of the associated mixnode, i.e. the desired percent of the reward to be distributed to the operator.",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Percent"
+                }
+              ]
             }
           },
           "additionalProperties": false
         },
         "MixNodeDetails": {
+          "description": "Full details associated with given mixnode.",
           "type": "object",
           "required": [
             "bond_information",
@@ -4609,9 +4988,15 @@
           ],
           "properties": {
             "bond_information": {
-              "$ref": "#/definitions/MixNodeBond"
+              "description": "Basic bond information of this mixnode, such as owner address, original pledge, etc.",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/MixNodeBond"
+                }
+              ]
             },
             "pending_changes": {
+              "description": "Adjustments to the mixnode that are ought to happen during future epoch transitions.",
               "default": {
                 "pledge_change": null
               },
@@ -4622,7 +5007,12 @@
               ]
             },
             "rewarding_details": {
-              "$ref": "#/definitions/MixNodeRewarding"
+              "description": "Details used for computation of rewarding related data.",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/MixNodeRewarding"
+                }
+              ]
             }
           },
           "additionalProperties": false
@@ -4724,18 +5114,21 @@
     "get_mixnode_delegations": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "PagedMixNodeDelegationsResponse",
+      "description": "Response containing paged list of all delegations made towards particular mixnode.",
       "type": "object",
       "required": [
         "delegations"
       ],
       "properties": {
         "delegations": {
+          "description": "Each individual delegation made.",
           "type": "array",
           "items": {
             "$ref": "#/definitions/Delegation"
           }
         },
         "start_next_after": {
+          "description": "Field indicating paging information for the following queries if the caller wishes to get further entries.",
           "type": [
             "string",
             "null"
@@ -4768,6 +5161,7 @@
           "type": "string"
         },
         "Delegation": {
+          "description": "Information about tokens being delegated towards given mixnode in order to accrue rewards with their work.",
           "type": "object",
           "required": [
             "amount",
@@ -4836,17 +5230,20 @@
     "get_mixnode_details": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "MixnodeDetailsResponse",
+      "description": "Response containing details of a mixnode with the provided id.",
       "type": "object",
       "required": [
         "mix_id"
       ],
       "properties": {
         "mix_id": {
+          "description": "Id of the requested mixnode.",
           "type": "integer",
           "format": "uint32",
           "minimum": 0.0
         },
         "mixnode_details": {
+          "description": "If there exists a mixnode with the provided id, this field contains its detailed information.",
           "anyOf": [
             {
               "$ref": "#/definitions/MixNodeDetails"
@@ -4891,6 +5288,7 @@
           ]
         },
         "MixNode": {
+          "description": "Information provided by the node operator during bonding that are used to allow other entities to use the services of this node.",
           "type": "object",
           "required": [
             "host",
@@ -4903,10 +5301,11 @@
           ],
           "properties": {
             "host": {
-              "description": "Network address of this mixnode, for example 1.1.1.1:1234 or foo.mixnode.com",
+              "description": "Network address of this mixnode, for example 1.1.1.1 or foo.mixnode.com",
               "type": "string"
             },
             "http_api_port": {
+              "description": "Port used by this mixnode for its http(s) API",
               "type": "integer",
               "format": "uint16",
               "minimum": 0.0
@@ -4916,6 +5315,7 @@
               "type": "string"
             },
             "mix_port": {
+              "description": "Port used by this mixnode for listening for mix packets.",
               "type": "integer",
               "format": "uint16",
               "minimum": 0.0
@@ -4925,17 +5325,20 @@
               "type": "string"
             },
             "verloc_port": {
+              "description": "Port used by this mixnode for listening for verloc requests.",
               "type": "integer",
               "format": "uint16",
               "minimum": 0.0
             },
             "version": {
+              "description": "The self-reported semver version of this mixnode.",
               "type": "string"
             }
           },
           "additionalProperties": false
         },
         "MixNodeBond": {
+          "description": "Basic mixnode information provided by the node operator.",
           "type": "object",
           "required": [
             "bonding_height",
@@ -5010,6 +5413,7 @@
           "additionalProperties": false
         },
         "MixNodeCostParams": {
+          "description": "The cost parameters, or the cost function, defined for the particular mixnode that influences how the rewards should be split between the node operator and its delegators.",
           "type": "object",
           "required": [
             "interval_operating_cost",
@@ -5025,12 +5429,18 @@
               ]
             },
             "profit_margin_percent": {
-              "$ref": "#/definitions/Percent"
+              "description": "The profit margin of the associated mixnode, i.e. the desired percent of the reward to be distributed to the operator.",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Percent"
+                }
+              ]
             }
           },
           "additionalProperties": false
         },
         "MixNodeDetails": {
+          "description": "Full details associated with given mixnode.",
           "type": "object",
           "required": [
             "bond_information",
@@ -5038,9 +5448,15 @@
           ],
           "properties": {
             "bond_information": {
-              "$ref": "#/definitions/MixNodeBond"
+              "description": "Basic bond information of this mixnode, such as owner address, original pledge, etc.",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/MixNodeBond"
+                }
+              ]
             },
             "pending_changes": {
+              "description": "Adjustments to the mixnode that are ought to happen during future epoch transitions.",
               "default": {
                 "pledge_change": null
               },
@@ -5051,7 +5467,12 @@
               ]
             },
             "rewarding_details": {
-              "$ref": "#/definitions/MixNodeRewarding"
+              "description": "Details used for computation of rewarding related data.",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/MixNodeRewarding"
+                }
+              ]
             }
           },
           "additionalProperties": false
@@ -5153,17 +5574,20 @@
     "get_mixnode_rewarding_details": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "MixnodeRewardingDetailsResponse",
+      "description": "Response containing rewarding information of a mixnode with the provided id.",
       "type": "object",
       "required": [
         "mix_id"
       ],
       "properties": {
         "mix_id": {
+          "description": "Id of the requested mixnode.",
           "type": "integer",
           "format": "uint32",
           "minimum": 0.0
         },
         "rewarding_details": {
+          "description": "If there exists a mixnode with the provided id, this field contains its rewarding information.",
           "anyOf": [
             {
               "$ref": "#/definitions/MixNodeRewarding"
@@ -5196,6 +5620,7 @@
           "type": "string"
         },
         "MixNodeCostParams": {
+          "description": "The cost parameters, or the cost function, defined for the particular mixnode that influences how the rewards should be split between the node operator and its delegators.",
           "type": "object",
           "required": [
             "interval_operating_cost",
@@ -5211,7 +5636,12 @@
               ]
             },
             "profit_margin_percent": {
-              "$ref": "#/definitions/Percent"
+              "description": "The profit margin of the associated mixnode, i.e. the desired percent of the reward to be distributed to the operator.",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Percent"
+                }
+              ]
             }
           },
           "additionalProperties": false
@@ -5299,6 +5729,7 @@
     "get_number_of_pending_events": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "NumberOfPendingEventsResponse",
+      "description": "Response containing number of currently pending epoch and interval events.",
       "type": "object",
       "required": [
         "epoch_events",
@@ -5306,11 +5737,13 @@
       ],
       "properties": {
         "epoch_events": {
+          "description": "The number of the currently pending epoch events.",
           "type": "integer",
           "format": "uint32",
           "minimum": 0.0
         },
         "interval_events": {
+          "description": "The number of the currently pending epoch events.",
           "type": "integer",
           "format": "uint32",
           "minimum": 0.0
@@ -5321,15 +5754,22 @@
     "get_owned_gateway": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "GatewayOwnershipResponse",
+      "description": "Response containing details of a gateway belonging to the particular owner.",
       "type": "object",
       "required": [
         "address"
       ],
       "properties": {
         "address": {
-          "$ref": "#/definitions/Addr"
+          "description": "Validated address of the gateway owner.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Addr"
+            }
+          ]
         },
         "gateway": {
+          "description": "If the provided address owns a gateway, this field contains its details.",
           "anyOf": [
             {
               "$ref": "#/definitions/GatewayBond"
@@ -5362,6 +5802,7 @@
           }
         },
         "Gateway": {
+          "description": "Information provided by the node operator during bonding that are used to allow other entities to use the services of this node.",
           "type": "object",
           "required": [
             "clients_port",
@@ -5374,11 +5815,13 @@
           ],
           "properties": {
             "clients_port": {
+              "description": "Port used by this gateway for listening for client requests.",
               "type": "integer",
               "format": "uint16",
               "minimum": 0.0
             },
             "host": {
+              "description": "Network address of this gateway, for example 1.1.1.1 or foo.gateway.com",
               "type": "string"
             },
             "identity_key": {
@@ -5386,23 +5829,28 @@
               "type": "string"
             },
             "location": {
+              "description": "The physical, self-reported, location of this gateway.",
               "type": "string"
             },
             "mix_port": {
+              "description": "Port used by this gateway for listening for mix packets.",
               "type": "integer",
               "format": "uint16",
               "minimum": 0.0
             },
             "sphinx_key": {
+              "description": "Base58-encoded x25519 public key used for sphinx key derivation.",
               "type": "string"
             },
             "version": {
+              "description": "The self-reported semver version of this gateway.",
               "type": "string"
             }
           },
           "additionalProperties": false
         },
         "GatewayBond": {
+          "description": "Basic gateway information provided by the node operator.",
           "type": "object",
           "required": [
             "block_height",
@@ -5412,20 +5860,37 @@
           ],
           "properties": {
             "block_height": {
+              "description": "Block height at which this gateway has been bonded.",
               "type": "integer",
               "format": "uint64",
               "minimum": 0.0
             },
             "gateway": {
-              "$ref": "#/definitions/Gateway"
+              "description": "Information provided by the operator for the purposes of bonding.",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Gateway"
+                }
+              ]
             },
             "owner": {
-              "$ref": "#/definitions/Addr"
+              "description": "Address of the owner of this gateway.",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Addr"
+                }
+              ]
             },
             "pledge_amount": {
-              "$ref": "#/definitions/Coin"
+              "description": "Original amount pledged by the operator of this node.",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Coin"
+                }
+              ]
             },
             "proxy": {
+              "description": "Entity who bonded this gateway on behalf of the owner. If exists, it's most likely the address of the vesting contract.",
               "anyOf": [
                 {
                   "$ref": "#/definitions/Addr"
@@ -5447,15 +5912,22 @@
     "get_owned_mixnode": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "MixOwnershipResponse",
+      "description": "Response containing details of a mixnode belonging to the particular owner.",
       "type": "object",
       "required": [
         "address"
       ],
       "properties": {
         "address": {
-          "$ref": "#/definitions/Addr"
+          "description": "Validated address of the mixnode owner.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Addr"
+            }
+          ]
         },
         "mixnode_details": {
+          "description": "If the provided address owns a mixnode, this field contains its detailed information.",
           "anyOf": [
             {
               "$ref": "#/definitions/MixNodeDetails"
@@ -5500,6 +5972,7 @@
           ]
         },
         "MixNode": {
+          "description": "Information provided by the node operator during bonding that are used to allow other entities to use the services of this node.",
           "type": "object",
           "required": [
             "host",
@@ -5512,10 +5985,11 @@
           ],
           "properties": {
             "host": {
-              "description": "Network address of this mixnode, for example 1.1.1.1:1234 or foo.mixnode.com",
+              "description": "Network address of this mixnode, for example 1.1.1.1 or foo.mixnode.com",
               "type": "string"
             },
             "http_api_port": {
+              "description": "Port used by this mixnode for its http(s) API",
               "type": "integer",
               "format": "uint16",
               "minimum": 0.0
@@ -5525,6 +5999,7 @@
               "type": "string"
             },
             "mix_port": {
+              "description": "Port used by this mixnode for listening for mix packets.",
               "type": "integer",
               "format": "uint16",
               "minimum": 0.0
@@ -5534,17 +6009,20 @@
               "type": "string"
             },
             "verloc_port": {
+              "description": "Port used by this mixnode for listening for verloc requests.",
               "type": "integer",
               "format": "uint16",
               "minimum": 0.0
             },
             "version": {
+              "description": "The self-reported semver version of this mixnode.",
               "type": "string"
             }
           },
           "additionalProperties": false
         },
         "MixNodeBond": {
+          "description": "Basic mixnode information provided by the node operator.",
           "type": "object",
           "required": [
             "bonding_height",
@@ -5619,6 +6097,7 @@
           "additionalProperties": false
         },
         "MixNodeCostParams": {
+          "description": "The cost parameters, or the cost function, defined for the particular mixnode that influences how the rewards should be split between the node operator and its delegators.",
           "type": "object",
           "required": [
             "interval_operating_cost",
@@ -5634,12 +6113,18 @@
               ]
             },
             "profit_margin_percent": {
-              "$ref": "#/definitions/Percent"
+              "description": "The profit margin of the associated mixnode, i.e. the desired percent of the reward to be distributed to the operator.",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Percent"
+                }
+              ]
             }
           },
           "additionalProperties": false
         },
         "MixNodeDetails": {
+          "description": "Full details associated with given mixnode.",
           "type": "object",
           "required": [
             "bond_information",
@@ -5647,9 +6132,15 @@
           ],
           "properties": {
             "bond_information": {
-              "$ref": "#/definitions/MixNodeBond"
+              "description": "Basic bond information of this mixnode, such as owner address, original pledge, etc.",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/MixNodeBond"
+                }
+              ]
             },
             "pending_changes": {
+              "description": "Adjustments to the mixnode that are ought to happen during future epoch transitions.",
               "default": {
                 "pledge_change": null
               },
@@ -5660,7 +6151,12 @@
               ]
             },
             "rewarding_details": {
-              "$ref": "#/definitions/MixNodeRewarding"
+              "description": "Details used for computation of rewarding related data.",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/MixNodeRewarding"
+                }
+              ]
             }
           },
           "additionalProperties": false
@@ -5762,12 +6258,14 @@
     "get_pending_delegator_reward": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "PendingRewardResponse",
+      "description": "Response containing information about accrued rewards.",
       "type": "object",
       "required": [
         "mixnode_still_fully_bonded"
       ],
       "properties": {
         "amount_earned": {
+          "description": "The amount of tokens that could be claimed.",
           "anyOf": [
             {
               "$ref": "#/definitions/Coin"
@@ -5778,6 +6276,7 @@
           ]
         },
         "amount_earned_detailed": {
+          "description": "The full pending rewards. Note that it's nearly identical to `amount_earned`, however, it contains few additional decimal points for more accurate reward calculation.",
           "anyOf": [
             {
               "$ref": "#/definitions/Decimal"
@@ -5788,6 +6287,7 @@
           ]
         },
         "amount_staked": {
+          "description": "The amount of tokens initially staked.",
           "anyOf": [
             {
               "$ref": "#/definitions/Coin"
@@ -5875,6 +6375,7 @@
           }
         },
         "PendingEpochEventData": {
+          "description": "Details of a particular pending epoch event.",
           "type": "object",
           "required": [
             "created_at",
@@ -5882,19 +6383,27 @@
           ],
           "properties": {
             "created_at": {
+              "description": "The block height at which the request has been made.",
               "type": "integer",
               "format": "uint64",
               "minimum": 0.0
             },
             "kind": {
-              "$ref": "#/definitions/PendingEpochEventKind"
+              "description": "The underlying event data, containing its concrete type and information on how it should get resolved.",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/PendingEpochEventKind"
+                }
+              ]
             }
           },
           "additionalProperties": false
         },
         "PendingEpochEventKind": {
+          "description": "Enum encompassing all possible epoch events.",
           "oneOf": [
             {
+              "description": "Request to create a delegation towards particular mixnode. Note that if such delegation already exists, it will get updated with the provided token amount.",
               "type": "object",
               "required": [
                 "delegate"
@@ -5909,17 +6418,29 @@
                   ],
                   "properties": {
                     "amount": {
-                      "$ref": "#/definitions/Coin"
+                      "description": "The amount of tokens to use for the delegation.",
+                      "allOf": [
+                        {
+                          "$ref": "#/definitions/Coin"
+                        }
+                      ]
                     },
                     "mix_id": {
+                      "description": "The id of the mixnode used for the delegation.",
                       "type": "integer",
                       "format": "uint32",
                       "minimum": 0.0
                     },
                     "owner": {
-                      "$ref": "#/definitions/Addr"
+                      "description": "The address of the owner of the delegation.",
+                      "allOf": [
+                        {
+                          "$ref": "#/definitions/Addr"
+                        }
+                      ]
                     },
                     "proxy": {
+                      "description": "Entity who made the delegation on behalf of the owner. If present, it's most likely the address of the vesting contract.",
                       "anyOf": [
                         {
                           "$ref": "#/definitions/Addr"
@@ -5936,6 +6457,7 @@
               "additionalProperties": false
             },
             {
+              "description": "Request to remove delegation from particular mixnode.",
               "type": "object",
               "required": [
                 "undelegate"
@@ -5949,14 +6471,21 @@
                   ],
                   "properties": {
                     "mix_id": {
+                      "description": "The id of the mixnode used for the delegation.",
                       "type": "integer",
                       "format": "uint32",
                       "minimum": 0.0
                     },
                     "owner": {
-                      "$ref": "#/definitions/Addr"
+                      "description": "The address of the owner of the delegation.",
+                      "allOf": [
+                        {
+                          "$ref": "#/definitions/Addr"
+                        }
+                      ]
                     },
                     "proxy": {
+                      "description": "Entity who made the delegation on behalf of the owner. If present, it's most likely the address of the vesting contract.",
                       "anyOf": [
                         {
                           "$ref": "#/definitions/Addr"
@@ -5973,6 +6502,7 @@
               "additionalProperties": false
             },
             {
+              "description": "Request to pledge more tokens (by the node operator) towards its node.",
               "type": "object",
               "required": [
                 "pledge_more"
@@ -5986,9 +6516,15 @@
                   ],
                   "properties": {
                     "amount": {
-                      "$ref": "#/definitions/Coin"
+                      "description": "The amount of additional tokens to use by the pledge.",
+                      "allOf": [
+                        {
+                          "$ref": "#/definitions/Coin"
+                        }
+                      ]
                     },
                     "mix_id": {
+                      "description": "The id of the mixnode that will have its pledge updated.",
                       "type": "integer",
                       "format": "uint32",
                       "minimum": 0.0
@@ -6000,6 +6536,7 @@
               "additionalProperties": false
             },
             {
+              "description": "Request to decrease amount of pledged tokens (by the node operator) from its node.",
               "type": "object",
               "required": [
                 "decrease_pledge"
@@ -6013,9 +6550,15 @@
                   ],
                   "properties": {
                     "decrease_by": {
-                      "$ref": "#/definitions/Coin"
+                      "description": "The amount of tokens that should be removed from the pledge.",
+                      "allOf": [
+                        {
+                          "$ref": "#/definitions/Coin"
+                        }
+                      ]
                     },
                     "mix_id": {
+                      "description": "The id of the mixnode that will have its pledge updated.",
                       "type": "integer",
                       "format": "uint32",
                       "minimum": 0.0
@@ -6027,6 +6570,7 @@
               "additionalProperties": false
             },
             {
+              "description": "Request to unbond a mixnode and completely remove it from the network.",
               "type": "object",
               "required": [
                 "unbond_mixnode"
@@ -6039,6 +6583,7 @@
                   ],
                   "properties": {
                     "mix_id": {
+                      "description": "The id of the mixnode that will get unbonded.",
                       "type": "integer",
                       "format": "uint32",
                       "minimum": 0.0
@@ -6050,6 +6595,7 @@
               "additionalProperties": false
             },
             {
+              "description": "Request to update the current size of the active set.",
               "type": "object",
               "required": [
                 "update_active_set_size"
@@ -6062,6 +6608,7 @@
                   ],
                   "properties": {
                     "new_size": {
+                      "description": "The new desired size of the active set.",
                       "type": "integer",
                       "format": "uint32",
                       "minimum": 0.0
@@ -6083,6 +6630,7 @@
     "get_pending_epoch_events": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "PendingEpochEventsResponse",
+      "description": "Response containing all currently pending epoch events that will be resolved once the current epoch finishes.",
       "type": "object",
       "required": [
         "events",
@@ -6090,16 +6638,19 @@
       ],
       "properties": {
         "events": {
+          "description": "The currently pending events.",
           "type": "array",
           "items": {
             "$ref": "#/definitions/PendingEpochEvent"
           }
         },
         "seconds_until_executable": {
+          "description": "Amount of seconds until the events would be eligible to be resolved. It's equivalent to the time until the current epoch finishes.",
           "type": "integer",
           "format": "int64"
         },
         "start_next_after": {
+          "description": "Field indicating paging information for the following queries if the caller wishes to get further entries.",
           "type": [
             "integer",
             "null"
@@ -6130,6 +6681,7 @@
           }
         },
         "PendingEpochEvent": {
+          "description": "A request made at some point in the current epoch that's going to get resolved once the epoch rolls over.",
           "type": "object",
           "required": [
             "event",
@@ -6137,9 +6689,15 @@
           ],
           "properties": {
             "event": {
-              "$ref": "#/definitions/PendingEpochEventData"
+              "description": "The underlying event details, containing its type and information on how it should get resolved.",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/PendingEpochEventData"
+                }
+              ]
             },
             "id": {
+              "description": "The unique id associated with the event.",
               "type": "integer",
               "format": "uint32",
               "minimum": 0.0
@@ -6148,6 +6706,7 @@
           "additionalProperties": false
         },
         "PendingEpochEventData": {
+          "description": "Details of a particular pending epoch event.",
           "type": "object",
           "required": [
             "created_at",
@@ -6155,19 +6714,27 @@
           ],
           "properties": {
             "created_at": {
+              "description": "The block height at which the request has been made.",
               "type": "integer",
               "format": "uint64",
               "minimum": 0.0
             },
             "kind": {
-              "$ref": "#/definitions/PendingEpochEventKind"
+              "description": "The underlying event data, containing its concrete type and information on how it should get resolved.",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/PendingEpochEventKind"
+                }
+              ]
             }
           },
           "additionalProperties": false
         },
         "PendingEpochEventKind": {
+          "description": "Enum encompassing all possible epoch events.",
           "oneOf": [
             {
+              "description": "Request to create a delegation towards particular mixnode. Note that if such delegation already exists, it will get updated with the provided token amount.",
               "type": "object",
               "required": [
                 "delegate"
@@ -6182,17 +6749,29 @@
                   ],
                   "properties": {
                     "amount": {
-                      "$ref": "#/definitions/Coin"
+                      "description": "The amount of tokens to use for the delegation.",
+                      "allOf": [
+                        {
+                          "$ref": "#/definitions/Coin"
+                        }
+                      ]
                     },
                     "mix_id": {
+                      "description": "The id of the mixnode used for the delegation.",
                       "type": "integer",
                       "format": "uint32",
                       "minimum": 0.0
                     },
                     "owner": {
-                      "$ref": "#/definitions/Addr"
+                      "description": "The address of the owner of the delegation.",
+                      "allOf": [
+                        {
+                          "$ref": "#/definitions/Addr"
+                        }
+                      ]
                     },
                     "proxy": {
+                      "description": "Entity who made the delegation on behalf of the owner. If present, it's most likely the address of the vesting contract.",
                       "anyOf": [
                         {
                           "$ref": "#/definitions/Addr"
@@ -6209,6 +6788,7 @@
               "additionalProperties": false
             },
             {
+              "description": "Request to remove delegation from particular mixnode.",
               "type": "object",
               "required": [
                 "undelegate"
@@ -6222,14 +6802,21 @@
                   ],
                   "properties": {
                     "mix_id": {
+                      "description": "The id of the mixnode used for the delegation.",
                       "type": "integer",
                       "format": "uint32",
                       "minimum": 0.0
                     },
                     "owner": {
-                      "$ref": "#/definitions/Addr"
+                      "description": "The address of the owner of the delegation.",
+                      "allOf": [
+                        {
+                          "$ref": "#/definitions/Addr"
+                        }
+                      ]
                     },
                     "proxy": {
+                      "description": "Entity who made the delegation on behalf of the owner. If present, it's most likely the address of the vesting contract.",
                       "anyOf": [
                         {
                           "$ref": "#/definitions/Addr"
@@ -6246,6 +6833,7 @@
               "additionalProperties": false
             },
             {
+              "description": "Request to pledge more tokens (by the node operator) towards its node.",
               "type": "object",
               "required": [
                 "pledge_more"
@@ -6259,9 +6847,15 @@
                   ],
                   "properties": {
                     "amount": {
-                      "$ref": "#/definitions/Coin"
+                      "description": "The amount of additional tokens to use by the pledge.",
+                      "allOf": [
+                        {
+                          "$ref": "#/definitions/Coin"
+                        }
+                      ]
                     },
                     "mix_id": {
+                      "description": "The id of the mixnode that will have its pledge updated.",
                       "type": "integer",
                       "format": "uint32",
                       "minimum": 0.0
@@ -6273,6 +6867,7 @@
               "additionalProperties": false
             },
             {
+              "description": "Request to decrease amount of pledged tokens (by the node operator) from its node.",
               "type": "object",
               "required": [
                 "decrease_pledge"
@@ -6286,9 +6881,15 @@
                   ],
                   "properties": {
                     "decrease_by": {
-                      "$ref": "#/definitions/Coin"
+                      "description": "The amount of tokens that should be removed from the pledge.",
+                      "allOf": [
+                        {
+                          "$ref": "#/definitions/Coin"
+                        }
+                      ]
                     },
                     "mix_id": {
+                      "description": "The id of the mixnode that will have its pledge updated.",
                       "type": "integer",
                       "format": "uint32",
                       "minimum": 0.0
@@ -6300,6 +6901,7 @@
               "additionalProperties": false
             },
             {
+              "description": "Request to unbond a mixnode and completely remove it from the network.",
               "type": "object",
               "required": [
                 "unbond_mixnode"
@@ -6312,6 +6914,7 @@
                   ],
                   "properties": {
                     "mix_id": {
+                      "description": "The id of the mixnode that will get unbonded.",
                       "type": "integer",
                       "format": "uint32",
                       "minimum": 0.0
@@ -6323,6 +6926,7 @@
               "additionalProperties": false
             },
             {
+              "description": "Request to update the current size of the active set.",
               "type": "object",
               "required": [
                 "update_active_set_size"
@@ -6335,6 +6939,7 @@
                   ],
                   "properties": {
                     "new_size": {
+                      "description": "The new desired size of the active set.",
                       "type": "integer",
                       "format": "uint32",
                       "minimum": 0.0
@@ -6399,9 +7004,11 @@
           "type": "string"
         },
         "IntervalRewardingParamsUpdate": {
+          "description": "Specification on how the rewarding params should be updated.",
           "type": "object",
           "properties": {
             "active_set_work_factor": {
+              "description": "Defines the new value of the active set work factor.",
               "anyOf": [
                 {
                   "$ref": "#/definitions/Decimal"
@@ -6412,6 +7019,7 @@
               ]
             },
             "interval_pool_emission": {
+              "description": "Defines the new value of the interval pool emission rate.",
               "anyOf": [
                 {
                   "$ref": "#/definitions/Percent"
@@ -6422,6 +7030,7 @@
               ]
             },
             "reward_pool": {
+              "description": "Defines the new value of the reward pool.",
               "anyOf": [
                 {
                   "$ref": "#/definitions/Decimal"
@@ -6432,6 +7041,7 @@
               ]
             },
             "rewarded_set_size": {
+              "description": "Defines the new size of the rewarded set.",
               "type": [
                 "integer",
                 "null"
@@ -6440,6 +7050,7 @@
               "minimum": 0.0
             },
             "staking_supply": {
+              "description": "Defines the new value of the staking supply.",
               "anyOf": [
                 {
                   "$ref": "#/definitions/Decimal"
@@ -6450,6 +7061,7 @@
               ]
             },
             "staking_supply_scale_factor": {
+              "description": "Defines the new value of the staking supply scale factor.",
               "anyOf": [
                 {
                   "$ref": "#/definitions/Percent"
@@ -6460,6 +7072,7 @@
               ]
             },
             "sybil_resistance_percent": {
+              "description": "Defines the new value of the sybil resistance percent.",
               "anyOf": [
                 {
                   "$ref": "#/definitions/Percent"
@@ -6473,6 +7086,7 @@
           "additionalProperties": false
         },
         "MixNodeCostParams": {
+          "description": "The cost parameters, or the cost function, defined for the particular mixnode that influences how the rewards should be split between the node operator and its delegators.",
           "type": "object",
           "required": [
             "interval_operating_cost",
@@ -6488,12 +7102,18 @@
               ]
             },
             "profit_margin_percent": {
-              "$ref": "#/definitions/Percent"
+              "description": "The profit margin of the associated mixnode, i.e. the desired percent of the reward to be distributed to the operator.",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Percent"
+                }
+              ]
             }
           },
           "additionalProperties": false
         },
         "PendingIntervalEventData": {
+          "description": "Details of a particular pending interval event.",
           "type": "object",
           "required": [
             "created_at",
@@ -6501,19 +7121,27 @@
           ],
           "properties": {
             "created_at": {
+              "description": "The block height at which the request has been made.",
               "type": "integer",
               "format": "uint64",
               "minimum": 0.0
             },
             "kind": {
-              "$ref": "#/definitions/PendingIntervalEventKind"
+              "description": "The underlying event data, containing its concrete type and information on how it should get resolved.",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/PendingIntervalEventKind"
+                }
+              ]
             }
           },
           "additionalProperties": false
         },
         "PendingIntervalEventKind": {
+          "description": "Enum encompassing all possible interval events.",
           "oneOf": [
             {
+              "description": "Request to update cost parameters of given mixnode.",
               "type": "object",
               "required": [
                 "change_mix_cost_params"
@@ -6527,12 +7155,18 @@
                   ],
                   "properties": {
                     "mix_id": {
+                      "description": "The id of the mixnode that will have its cost parameters updated.",
                       "type": "integer",
                       "format": "uint32",
                       "minimum": 0.0
                     },
                     "new_costs": {
-                      "$ref": "#/definitions/MixNodeCostParams"
+                      "description": "The new updated cost function of this mixnode.",
+                      "allOf": [
+                        {
+                          "$ref": "#/definitions/MixNodeCostParams"
+                        }
+                      ]
                     }
                   },
                   "additionalProperties": false
@@ -6541,6 +7175,7 @@
               "additionalProperties": false
             },
             {
+              "description": "Request to update the underlying rewarding parameters used by the system",
               "type": "object",
               "required": [
                 "update_rewarding_params"
@@ -6553,7 +7188,12 @@
                   ],
                   "properties": {
                     "update": {
-                      "$ref": "#/definitions/IntervalRewardingParamsUpdate"
+                      "description": "The detailed specification of the update.",
+                      "allOf": [
+                        {
+                          "$ref": "#/definitions/IntervalRewardingParamsUpdate"
+                        }
+                      ]
                     }
                   },
                   "additionalProperties": false
@@ -6562,6 +7202,7 @@
               "additionalProperties": false
             },
             {
+              "description": "Request to change the next interval configuration.",
               "type": "object",
               "required": [
                 "update_interval_config"
@@ -6575,11 +7216,13 @@
                   ],
                   "properties": {
                     "epoch_duration_secs": {
+                      "description": "The new epoch duration.",
                       "type": "integer",
                       "format": "uint64",
                       "minimum": 0.0
                     },
                     "epochs_in_interval": {
+                      "description": "The new number of epochs in intervals.",
                       "type": "integer",
                       "format": "uint32",
                       "minimum": 0.0
@@ -6609,6 +7252,7 @@
     "get_pending_interval_events": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "PendingIntervalEventsResponse",
+      "description": "Response containing all currently pending interval events that will be resolved once the current interval finishes.",
       "type": "object",
       "required": [
         "events",
@@ -6616,16 +7260,19 @@
       ],
       "properties": {
         "events": {
+          "description": "The currently pending events.",
           "type": "array",
           "items": {
             "$ref": "#/definitions/PendingIntervalEvent"
           }
         },
         "seconds_until_executable": {
+          "description": "Amount of seconds until the events would be eligible to be resolved. It's equivalent to the time until the current interval finishes.",
           "type": "integer",
           "format": "int64"
         },
         "start_next_after": {
+          "description": "Field indicating paging information for the following queries if the caller wishes to get further entries.",
           "type": [
             "integer",
             "null"
@@ -6656,9 +7303,11 @@
           "type": "string"
         },
         "IntervalRewardingParamsUpdate": {
+          "description": "Specification on how the rewarding params should be updated.",
           "type": "object",
           "properties": {
             "active_set_work_factor": {
+              "description": "Defines the new value of the active set work factor.",
               "anyOf": [
                 {
                   "$ref": "#/definitions/Decimal"
@@ -6669,6 +7318,7 @@
               ]
             },
             "interval_pool_emission": {
+              "description": "Defines the new value of the interval pool emission rate.",
               "anyOf": [
                 {
                   "$ref": "#/definitions/Percent"
@@ -6679,6 +7329,7 @@
               ]
             },
             "reward_pool": {
+              "description": "Defines the new value of the reward pool.",
               "anyOf": [
                 {
                   "$ref": "#/definitions/Decimal"
@@ -6689,6 +7340,7 @@
               ]
             },
             "rewarded_set_size": {
+              "description": "Defines the new size of the rewarded set.",
               "type": [
                 "integer",
                 "null"
@@ -6697,6 +7349,7 @@
               "minimum": 0.0
             },
             "staking_supply": {
+              "description": "Defines the new value of the staking supply.",
               "anyOf": [
                 {
                   "$ref": "#/definitions/Decimal"
@@ -6707,6 +7360,7 @@
               ]
             },
             "staking_supply_scale_factor": {
+              "description": "Defines the new value of the staking supply scale factor.",
               "anyOf": [
                 {
                   "$ref": "#/definitions/Percent"
@@ -6717,6 +7371,7 @@
               ]
             },
             "sybil_resistance_percent": {
+              "description": "Defines the new value of the sybil resistance percent.",
               "anyOf": [
                 {
                   "$ref": "#/definitions/Percent"
@@ -6730,6 +7385,7 @@
           "additionalProperties": false
         },
         "MixNodeCostParams": {
+          "description": "The cost parameters, or the cost function, defined for the particular mixnode that influences how the rewards should be split between the node operator and its delegators.",
           "type": "object",
           "required": [
             "interval_operating_cost",
@@ -6745,12 +7401,18 @@
               ]
             },
             "profit_margin_percent": {
-              "$ref": "#/definitions/Percent"
+              "description": "The profit margin of the associated mixnode, i.e. the desired percent of the reward to be distributed to the operator.",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Percent"
+                }
+              ]
             }
           },
           "additionalProperties": false
         },
         "PendingIntervalEvent": {
+          "description": "A request made at some point in the current interval that's going to get resolved once the interval rolls over.",
           "type": "object",
           "required": [
             "event",
@@ -6758,9 +7420,15 @@
           ],
           "properties": {
             "event": {
-              "$ref": "#/definitions/PendingIntervalEventData"
+              "description": "The underlying event details, containing its type and information on how it should get resolved.",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/PendingIntervalEventData"
+                }
+              ]
             },
             "id": {
+              "description": "The unique id associated with the event.",
               "type": "integer",
               "format": "uint32",
               "minimum": 0.0
@@ -6769,6 +7437,7 @@
           "additionalProperties": false
         },
         "PendingIntervalEventData": {
+          "description": "Details of a particular pending interval event.",
           "type": "object",
           "required": [
             "created_at",
@@ -6776,19 +7445,27 @@
           ],
           "properties": {
             "created_at": {
+              "description": "The block height at which the request has been made.",
               "type": "integer",
               "format": "uint64",
               "minimum": 0.0
             },
             "kind": {
-              "$ref": "#/definitions/PendingIntervalEventKind"
+              "description": "The underlying event data, containing its concrete type and information on how it should get resolved.",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/PendingIntervalEventKind"
+                }
+              ]
             }
           },
           "additionalProperties": false
         },
         "PendingIntervalEventKind": {
+          "description": "Enum encompassing all possible interval events.",
           "oneOf": [
             {
+              "description": "Request to update cost parameters of given mixnode.",
               "type": "object",
               "required": [
                 "change_mix_cost_params"
@@ -6802,12 +7479,18 @@
                   ],
                   "properties": {
                     "mix_id": {
+                      "description": "The id of the mixnode that will have its cost parameters updated.",
                       "type": "integer",
                       "format": "uint32",
                       "minimum": 0.0
                     },
                     "new_costs": {
-                      "$ref": "#/definitions/MixNodeCostParams"
+                      "description": "The new updated cost function of this mixnode.",
+                      "allOf": [
+                        {
+                          "$ref": "#/definitions/MixNodeCostParams"
+                        }
+                      ]
                     }
                   },
                   "additionalProperties": false
@@ -6816,6 +7499,7 @@
               "additionalProperties": false
             },
             {
+              "description": "Request to update the underlying rewarding parameters used by the system",
               "type": "object",
               "required": [
                 "update_rewarding_params"
@@ -6828,7 +7512,12 @@
                   ],
                   "properties": {
                     "update": {
-                      "$ref": "#/definitions/IntervalRewardingParamsUpdate"
+                      "description": "The detailed specification of the update.",
+                      "allOf": [
+                        {
+                          "$ref": "#/definitions/IntervalRewardingParamsUpdate"
+                        }
+                      ]
                     }
                   },
                   "additionalProperties": false
@@ -6837,6 +7526,7 @@
               "additionalProperties": false
             },
             {
+              "description": "Request to change the next interval configuration.",
               "type": "object",
               "required": [
                 "update_interval_config"
@@ -6850,11 +7540,13 @@
                   ],
                   "properties": {
                     "epoch_duration_secs": {
+                      "description": "The new epoch duration.",
                       "type": "integer",
                       "format": "uint64",
                       "minimum": 0.0
                     },
                     "epochs_in_interval": {
+                      "description": "The new number of epochs in intervals.",
                       "type": "integer",
                       "format": "uint32",
                       "minimum": 0.0
@@ -6884,12 +7576,14 @@
     "get_pending_mix_node_operator_reward": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "PendingRewardResponse",
+      "description": "Response containing information about accrued rewards.",
       "type": "object",
       "required": [
         "mixnode_still_fully_bonded"
       ],
       "properties": {
         "amount_earned": {
+          "description": "The amount of tokens that could be claimed.",
           "anyOf": [
             {
               "$ref": "#/definitions/Coin"
@@ -6900,6 +7594,7 @@
           ]
         },
         "amount_earned_detailed": {
+          "description": "The full pending rewards. Note that it's nearly identical to `amount_earned`, however, it contains few additional decimal points for more accurate reward calculation.",
           "anyOf": [
             {
               "$ref": "#/definitions/Decimal"
@@ -6910,6 +7605,7 @@
           ]
         },
         "amount_staked": {
+          "description": "The amount of tokens initially staked.",
           "anyOf": [
             {
               "$ref": "#/definitions/Coin"
@@ -6954,12 +7650,14 @@
     "get_pending_operator_reward": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "PendingRewardResponse",
+      "description": "Response containing information about accrued rewards.",
       "type": "object",
       "required": [
         "mixnode_still_fully_bonded"
       ],
       "properties": {
         "amount_earned": {
+          "description": "The amount of tokens that could be claimed.",
           "anyOf": [
             {
               "$ref": "#/definitions/Coin"
@@ -6970,6 +7668,7 @@
           ]
         },
         "amount_earned_detailed": {
+          "description": "The full pending rewards. Note that it's nearly identical to `amount_earned`, however, it contains few additional decimal points for more accurate reward calculation.",
           "anyOf": [
             {
               "$ref": "#/definitions/Decimal"
@@ -6980,6 +7679,7 @@
           ]
         },
         "amount_staked": {
+          "description": "The amount of tokens initially staked.",
           "anyOf": [
             {
               "$ref": "#/definitions/Coin"
@@ -7024,12 +7724,14 @@
     "get_rewarded_set": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "PagedRewardedSetResponse",
+      "description": "Response containing paged list of all mixnodes in the rewarded set.",
       "type": "object",
       "required": [
         "nodes"
       ],
       "properties": {
         "nodes": {
+          "description": "Nodes in the current rewarded set.",
           "type": "array",
           "items": {
             "type": "array",
@@ -7048,6 +7750,7 @@
           }
         },
         "start_next_after": {
+          "description": "Field indicating paging information for the following queries if the caller wishes to get further entries.",
           "type": [
             "integer",
             "null"
@@ -7059,10 +7762,22 @@
       "additionalProperties": false,
       "definitions": {
         "RewardedSetNodeStatus": {
-          "type": "string",
-          "enum": [
-            "active",
-            "standby"
+          "description": "Current state of given node in the rewarded set.",
+          "oneOf": [
+            {
+              "description": "Node that is currently active, i.e. is expected to be used by clients for mixing packets.",
+              "type": "string",
+              "enum": [
+                "active"
+              ]
+            },
+            {
+              "description": "Node that is currently in standby, i.e. it's present in the rewarded set but is not active.",
+              "type": "string",
+              "enum": [
+                "standby"
+              ]
+            }
           ]
         }
       }
@@ -7070,6 +7785,7 @@
     "get_rewarding_params": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "RewardingParams",
+      "description": "Parameters used for reward calculation.",
       "type": "object",
       "required": [
         "active_set_size",
@@ -7078,6 +7794,7 @@
       ],
       "properties": {
         "active_set_size": {
+          "description": "The expected number of mixnodes in the active set.",
           "type": "integer",
           "format": "uint32",
           "minimum": 0.0
@@ -7091,6 +7808,7 @@
           ]
         },
         "rewarded_set_size": {
+          "description": "The expected number of mixnodes in the rewarded set (i.e. active + standby).",
           "type": "integer",
           "format": "uint32",
           "minimum": 0.0
@@ -7208,12 +7926,14 @@
     "get_stake_saturation": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "StakeSaturationResponse",
+      "description": "Response containing the current state of the stake saturation of a mixnode with the provided id.",
       "type": "object",
       "required": [
         "mix_id"
       ],
       "properties": {
         "current_saturation": {
+          "description": "The current stake saturation of this node that is indirectly used in reward calculation formulas. Note that it can't be larger than 1.",
           "anyOf": [
             {
               "$ref": "#/definitions/Decimal"
@@ -7224,11 +7944,13 @@
           ]
         },
         "mix_id": {
+          "description": "Id of the requested mixnode.",
           "type": "integer",
           "format": "uint32",
           "minimum": 0.0
         },
         "uncapped_saturation": {
+          "description": "The current, absolute, stake saturation of this node. Note that as the name suggests it can be larger than 1. However, anything beyond that value has no effect on the total node reward.",
           "anyOf": [
             {
               "$ref": "#/definitions/Decimal"
@@ -7250,6 +7972,7 @@
     "get_state": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "ContractState",
+      "description": "The current state of the mixnet contract.",
       "type": "object",
       "required": [
         "owner",
@@ -7260,16 +7983,32 @@
       ],
       "properties": {
         "owner": {
-          "$ref": "#/definitions/Addr"
+          "description": "Address of the contract owner.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Addr"
+            }
+          ]
         },
         "params": {
-          "$ref": "#/definitions/ContractStateParams"
+          "description": "Contract parameters that could be adjusted in a transaction the contract admin.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/ContractStateParams"
+            }
+          ]
         },
         "rewarding_denom": {
+          "description": "The expected denom used for rewarding (and realistically any other operation). Default: `unym`",
           "type": "string"
         },
         "rewarding_validator_address": {
-          "$ref": "#/definitions/Addr"
+          "description": "Address of \"rewarding validator\" (nym-api) that's allowed to send any rewarding-related transactions.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Addr"
+            }
+          ]
         },
         "vesting_contract_address": {
           "description": "Address of the vesting contract to which the mixnet contract would be sending all track-related messages.",
@@ -7302,6 +8041,7 @@
           }
         },
         "ContractStateParams": {
+          "description": "Contract parameters that could be adjusted in a transaction by the contract admin.",
           "type": "object",
           "required": [
             "minimum_gateway_pledge",
@@ -7347,6 +8087,7 @@
     "get_state_params": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "ContractStateParams",
+      "description": "Contract parameters that could be adjusted in a transaction by the contract admin.",
       "type": "object",
       "required": [
         "minimum_gateway_pledge",
@@ -7407,17 +8148,20 @@
     "get_unbonded_mix_node_information": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "UnbondedMixnodeResponse",
+      "description": "Response containing basic information of an unbonded mixnode with the provided id.",
       "type": "object",
       "required": [
         "mix_id"
       ],
       "properties": {
         "mix_id": {
+          "description": "Id of the requested mixnode.",
           "type": "integer",
           "format": "uint32",
           "minimum": 0.0
         },
         "unbonded_info": {
+          "description": "If there existed a mixnode with the provided id, this field contains its basic information.",
           "anyOf": [
             {
               "$ref": "#/definitions/UnbondedMixnode"
@@ -7435,6 +8179,7 @@
           "type": "string"
         },
         "UnbondedMixnode": {
+          "description": "Basic information of a node that used to be part of the mix network but has already unbonded.",
           "type": "object",
           "required": [
             "identity_key",
@@ -7443,12 +8188,19 @@
           ],
           "properties": {
             "identity_key": {
+              "description": "Base58-encoded ed25519 EdDSA public key.",
               "type": "string"
             },
             "owner": {
-              "$ref": "#/definitions/Addr"
+              "description": "Address of the owner of this mixnode.",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Addr"
+                }
+              ]
             },
             "proxy": {
+              "description": "Entity who bonded this mixnode on behalf of the owner. If exists, it's most likely the address of the vesting contract.",
               "anyOf": [
                 {
                   "$ref": "#/definitions/Addr"
@@ -7459,6 +8211,7 @@
               ]
             },
             "unbonding_height": {
+              "description": "Block height at which this mixnode has unbonded.",
               "type": "integer",
               "format": "uint64",
               "minimum": 0.0
@@ -7471,6 +8224,7 @@
     "get_unbonded_mix_nodes": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "PagedUnbondedMixnodesResponse",
+      "description": "Response containing paged list of all mixnodes that have ever unbonded.",
       "type": "object",
       "required": [
         "nodes",
@@ -7478,6 +8232,7 @@
       ],
       "properties": {
         "nodes": {
+          "description": "The past ids of unbonded mixnodes alongside their basic information such as the owner or the identity key.",
           "type": "array",
           "items": {
             "type": "array",
@@ -7496,11 +8251,13 @@
           }
         },
         "per_page": {
+          "description": "Maximum number of entries that could be included in a response. `per_page <= nodes.len()`",
           "type": "integer",
           "format": "uint",
           "minimum": 0.0
         },
         "start_next_after": {
+          "description": "Field indicating paging information for the following queries if the caller wishes to get further entries.",
           "type": [
             "integer",
             "null"
@@ -7516,6 +8273,7 @@
           "type": "string"
         },
         "UnbondedMixnode": {
+          "description": "Basic information of a node that used to be part of the mix network but has already unbonded.",
           "type": "object",
           "required": [
             "identity_key",
@@ -7524,12 +8282,19 @@
           ],
           "properties": {
             "identity_key": {
+              "description": "Base58-encoded ed25519 EdDSA public key.",
               "type": "string"
             },
             "owner": {
-              "$ref": "#/definitions/Addr"
+              "description": "Address of the owner of this mixnode.",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Addr"
+                }
+              ]
             },
             "proxy": {
+              "description": "Entity who bonded this mixnode on behalf of the owner. If exists, it's most likely the address of the vesting contract.",
               "anyOf": [
                 {
                   "$ref": "#/definitions/Addr"
@@ -7540,6 +8305,7 @@
               ]
             },
             "unbonding_height": {
+              "description": "Block height at which this mixnode has unbonded.",
               "type": "integer",
               "format": "uint64",
               "minimum": 0.0
@@ -7552,6 +8318,7 @@
     "get_unbonded_mix_nodes_by_identity_key": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "PagedUnbondedMixnodesResponse",
+      "description": "Response containing paged list of all mixnodes that have ever unbonded.",
       "type": "object",
       "required": [
         "nodes",
@@ -7559,6 +8326,7 @@
       ],
       "properties": {
         "nodes": {
+          "description": "The past ids of unbonded mixnodes alongside their basic information such as the owner or the identity key.",
           "type": "array",
           "items": {
             "type": "array",
@@ -7577,11 +8345,13 @@
           }
         },
         "per_page": {
+          "description": "Maximum number of entries that could be included in a response. `per_page <= nodes.len()`",
           "type": "integer",
           "format": "uint",
           "minimum": 0.0
         },
         "start_next_after": {
+          "description": "Field indicating paging information for the following queries if the caller wishes to get further entries.",
           "type": [
             "integer",
             "null"
@@ -7597,6 +8367,7 @@
           "type": "string"
         },
         "UnbondedMixnode": {
+          "description": "Basic information of a node that used to be part of the mix network but has already unbonded.",
           "type": "object",
           "required": [
             "identity_key",
@@ -7605,12 +8376,19 @@
           ],
           "properties": {
             "identity_key": {
+              "description": "Base58-encoded ed25519 EdDSA public key.",
               "type": "string"
             },
             "owner": {
-              "$ref": "#/definitions/Addr"
+              "description": "Address of the owner of this mixnode.",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Addr"
+                }
+              ]
             },
             "proxy": {
+              "description": "Entity who bonded this mixnode on behalf of the owner. If exists, it's most likely the address of the vesting contract.",
               "anyOf": [
                 {
                   "$ref": "#/definitions/Addr"
@@ -7621,6 +8399,7 @@
               ]
             },
             "unbonding_height": {
+              "description": "Block height at which this mixnode has unbonded.",
               "type": "integer",
               "format": "uint64",
               "minimum": 0.0
@@ -7633,6 +8412,7 @@
     "get_unbonded_mix_nodes_by_owner": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "PagedUnbondedMixnodesResponse",
+      "description": "Response containing paged list of all mixnodes that have ever unbonded.",
       "type": "object",
       "required": [
         "nodes",
@@ -7640,6 +8420,7 @@
       ],
       "properties": {
         "nodes": {
+          "description": "The past ids of unbonded mixnodes alongside their basic information such as the owner or the identity key.",
           "type": "array",
           "items": {
             "type": "array",
@@ -7658,11 +8439,13 @@
           }
         },
         "per_page": {
+          "description": "Maximum number of entries that could be included in a response. `per_page <= nodes.len()`",
           "type": "integer",
           "format": "uint",
           "minimum": 0.0
         },
         "start_next_after": {
+          "description": "Field indicating paging information for the following queries if the caller wishes to get further entries.",
           "type": [
             "integer",
             "null"
@@ -7678,6 +8461,7 @@
           "type": "string"
         },
         "UnbondedMixnode": {
+          "description": "Basic information of a node that used to be part of the mix network but has already unbonded.",
           "type": "object",
           "required": [
             "identity_key",
@@ -7686,12 +8470,19 @@
           ],
           "properties": {
             "identity_key": {
+              "description": "Base58-encoded ed25519 EdDSA public key.",
               "type": "string"
             },
             "owner": {
-              "$ref": "#/definitions/Addr"
+              "description": "Address of the owner of this mixnode.",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Addr"
+                }
+              ]
             },
             "proxy": {
+              "description": "Entity who bonded this mixnode on behalf of the owner. If exists, it's most likely the address of the vesting contract.",
               "anyOf": [
                 {
                   "$ref": "#/definitions/Addr"
@@ -7702,6 +8493,7 @@
               ]
             },
             "unbonding_height": {
+              "description": "Block height at which this mixnode has unbonded.",
               "type": "integer",
               "format": "uint64",
               "minimum": 0.0

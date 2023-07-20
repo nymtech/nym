@@ -84,7 +84,11 @@ pub enum QueryMsg {
         address: String,
     },
     Config {},
+
+    /// Gets build information of this contract, such as the commit hash used for the build or rustc version.
     GetContractVersion {},
+
+    /// Gets the stored contract version information that's required by the CW2 spec interface for migrations.
     #[serde(rename = "get_cw2_contract_version")]
     GetCW2ContractVersion {},
 }

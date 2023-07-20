@@ -1,6 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "RewardingParams",
+  "description": "Parameters used for reward calculation.",
   "type": "object",
   "required": [
     "active_set_size",
@@ -9,6 +10,7 @@
   ],
   "properties": {
     "active_set_size": {
+      "description": "The expected number of mixnodes in the active set.",
       "type": "integer",
       "format": "uint32",
       "minimum": 0.0
@@ -22,6 +24,7 @@
       ]
     },
     "rewarded_set_size": {
+      "description": "The expected number of mixnodes in the rewarded set (i.e. active + standby).",
       "type": "integer",
       "format": "uint32",
       "minimum": 0.0

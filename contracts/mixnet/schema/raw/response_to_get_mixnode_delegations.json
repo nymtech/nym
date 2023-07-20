@@ -1,18 +1,21 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "PagedMixNodeDelegationsResponse",
+  "description": "Response containing paged list of all delegations made towards particular mixnode.",
   "type": "object",
   "required": [
     "delegations"
   ],
   "properties": {
     "delegations": {
+      "description": "Each individual delegation made.",
       "type": "array",
       "items": {
         "$ref": "#/definitions/Delegation"
       }
     },
     "start_next_after": {
+      "description": "Field indicating paging information for the following queries if the caller wishes to get further entries.",
       "type": [
         "string",
         "null"
@@ -45,6 +48,7 @@
       "type": "string"
     },
     "Delegation": {
+      "description": "Information about tokens being delegated towards given mixnode in order to accrue rewards with their work.",
       "type": "object",
       "required": [
         "amount",

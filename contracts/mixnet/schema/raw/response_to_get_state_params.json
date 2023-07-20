@@ -1,6 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "ContractStateParams",
+  "description": "Contract parameters that could be adjusted in a transaction by the contract admin.",
   "type": "object",
   "required": [
     "minimum_gateway_pledge",

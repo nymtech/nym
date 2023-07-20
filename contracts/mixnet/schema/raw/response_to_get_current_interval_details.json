@@ -1,6 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "CurrentIntervalResponse",
+  "description": "Information about the current rewarding interval.",
   "type": "object",
   "required": [
     "current_blocktime",
@@ -10,17 +11,25 @@
   ],
   "properties": {
     "current_blocktime": {
+      "description": "The current blocktime",
       "type": "integer",
       "format": "uint64",
       "minimum": 0.0
     },
     "interval": {
-      "$ref": "#/definitions/Interval"
+      "description": "Detailed information about the underlying interval.",
+      "allOf": [
+        {
+          "$ref": "#/definitions/Interval"
+        }
+      ]
     },
     "is_current_epoch_over": {
+      "description": "Flag indicating whether the current epoch is over and it should be advanced.",
       "type": "boolean"
     },
     "is_current_interval_over": {
+      "description": "Flag indicating whether the current interval is over and it should be advanced.",
       "type": "boolean"
     }
   },

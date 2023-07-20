@@ -1,6 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "ContractState",
+  "description": "The current state of the mixnet contract.",
   "type": "object",
   "required": [
     "owner",
@@ -11,16 +12,32 @@
   ],
   "properties": {
     "owner": {
-      "$ref": "#/definitions/Addr"
+      "description": "Address of the contract owner.",
+      "allOf": [
+        {
+          "$ref": "#/definitions/Addr"
+        }
+      ]
     },
     "params": {
-      "$ref": "#/definitions/ContractStateParams"
+      "description": "Contract parameters that could be adjusted in a transaction the contract admin.",
+      "allOf": [
+        {
+          "$ref": "#/definitions/ContractStateParams"
+        }
+      ]
     },
     "rewarding_denom": {
+      "description": "The expected denom used for rewarding (and realistically any other operation). Default: `unym`",
       "type": "string"
     },
     "rewarding_validator_address": {
-      "$ref": "#/definitions/Addr"
+      "description": "Address of \"rewarding validator\" (nym-api) that's allowed to send any rewarding-related transactions.",
+      "allOf": [
+        {
+          "$ref": "#/definitions/Addr"
+        }
+      ]
     },
     "vesting_contract_address": {
       "description": "Address of the vesting contract to which the mixnet contract would be sending all track-related messages.",
@@ -53,6 +70,7 @@
       }
     },
     "ContractStateParams": {
+      "description": "Contract parameters that could be adjusted in a transaction by the contract admin.",
       "type": "object",
       "required": [
         "minimum_gateway_pledge",

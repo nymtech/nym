@@ -1,10 +1,11 @@
-use crate::{NameId, RegisteredName};
-use cosmwasm_std::Coin;
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
+// Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
 
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+use crate::{NameId, RegisteredName};
+use cosmwasm_schema::cw_serde;
+use cosmwasm_std::Coin;
+
+#[cw_serde]
 pub struct NamesListResponse {
     pub names: Vec<RegisteredName>,
 }
@@ -23,8 +24,7 @@ impl From<&[RegisteredName]> for NamesListResponse {
     }
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
 pub struct PagedNamesListResponse {
     pub names: Vec<RegisteredName>,
     pub per_page: usize,
@@ -47,8 +47,7 @@ impl PagedNamesListResponse {
     }
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
 pub struct ConfigResponse {
     pub deposit_required: Coin,
 }

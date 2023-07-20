@@ -1,14 +1,15 @@
-use std::fmt::{Display, Formatter};
+// Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
 
+use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Addr, Coin};
 use nym_contracts_common::IdentityKey;
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
+use std::fmt::{Display, Formatter};
 
 /// The directory of names are indexed by [`NameId`].
 pub type NameId = u32;
 
-#[derive(Serialize, Deserialize, Clone, PartialEq, Debug, JsonSchema)]
+#[cw_serde]
 pub struct RegisteredName {
     /// Unique id assigned to the registerd name.
     pub id: NameId,
@@ -33,7 +34,7 @@ impl RegisteredName {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, PartialEq, Debug, JsonSchema)]
+#[cw_serde]
 pub struct NameDetails {
     /// The name pointing to the nym address
     pub name: NymName,
@@ -48,8 +49,7 @@ pub struct NameDetails {
 /// String representation of a nym address, which is of the form
 /// client_id.client_enc@gateway_id.
 /// NOTE: entirely unvalidated.
-#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
 pub enum Address {
     NymAddress(String),
     // Possible extension:
@@ -83,8 +83,7 @@ impl Display for Address {
 }
 
 /// Name stored and pointing a to a nym-address
-#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
 pub struct NymName(String);
 
 #[derive(Debug)]

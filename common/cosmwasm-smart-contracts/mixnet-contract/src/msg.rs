@@ -11,7 +11,6 @@ use crate::pending_events::{EpochEventId, IntervalEventId};
 use crate::reward_params::{
     IntervalRewardParams, IntervalRewardingParamsUpdate, Performance, RewardingParams,
 };
-
 use crate::types::{ContractStateParams, LayerAssignment, MixId};
 use contracts_common::{signing::MessageSignature, IdentityKey, Percent};
 use cosmwasm_schema::cw_serde;

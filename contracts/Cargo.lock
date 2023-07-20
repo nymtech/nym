@@ -1479,6 +1479,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "bs58",
+ "cosmwasm-schema",
  "cosmwasm-std",
  "cw-controllers",
  "cw-multi-test",
@@ -1501,11 +1502,12 @@ dependencies = [
 name = "nym-name-service-common"
 version = "0.1.0"
 dependencies = [
+ "cosmwasm-schema",
  "cosmwasm-std",
  "cw-controllers",
  "cw-utils",
+ "cw2",
  "nym-contracts-common",
- "schemars",
  "serde",
  "thiserror",
 ]
@@ -1595,7 +1597,6 @@ dependencies = [
  "nym-mixnet-contract-common",
  "nym-vesting-contract-common",
  "rand_chacha 0.3.1",
- "schemars",
  "semver",
  "serde",
  "serde_json",

@@ -34,7 +34,6 @@ cosmwasm-derive = { workspace = true }
 cw2 = { workspace = true }
 cw-storage-plus = { workspace = true, features = ["iterator"] }
 
-schemars = "0.8"
 serde = { version = "1.0", default-features = false, features = ["derive"] }
 thiserror = { version = "1.0" }
 semver = { version = "1.0.16", default-features = false }

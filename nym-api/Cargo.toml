@@ -67,7 +67,7 @@ zeroize = { workspace = true }
 ## ephemera-specific
 actix-web = "4"
 array-bytes = "6.0.0"
-chrono = { version = "0.4.24", default-features = false, features = ["clock"] }
+chrono = { version = "0.4.24", default-features = false, features = ["clock", "serde"] }
 futures-util = "0.3.25"
 serde_derive = "1.0.149"
 tempfile = "3.3.0"

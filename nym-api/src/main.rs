@@ -35,6 +35,7 @@ mod network_monitor;
 pub(crate) mod node_status_api;
 pub(crate) mod nym_contract_cache;
 pub(crate) mod support;
+pub(crate) mod wireguard;
 
 struct ShutdownHandles {
     task_manager_handle: TaskManager,

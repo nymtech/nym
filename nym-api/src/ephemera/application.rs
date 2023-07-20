@@ -12,9 +12,8 @@ use crate::ephemera::epoch::Epoch;
 use crate::ephemera::peers::members::MembersProvider;
 use crate::ephemera::peers::{NymApiEphemeraPeerInfo, NymPeer};
 use crate::ephemera::reward::aggregator::RewardsAggregator;
-use crate::ephemera::reward::{EphemeraAccess, RewardManager};
+use crate::ephemera::reward::{EphemeraAccess, EphemeraData, RewardManager};
 use crate::ephemera::Args;
-use crate::epoch_operations::MixnodeWithPerformance;
 use crate::support::nyxd;
 use ephemera::crypto::{EphemeraKeypair, EphemeraPublicKey, Keypair};
 use ephemera::ephemera_api::CommandExecutor;
@@ -164,7 +163,7 @@ impl Application for RewardsEphemeraApplication {
     /// - Check that the transaction has a valid signature, we don't want to accept garbage messages
     ///   or messages from unknown peers
     fn check_tx(&self, tx: ApiEphemeraMessage) -> ApplicationResult<bool> {
-        if serde_json::from_slice::<Vec<MixnodeWithPerformance>>(&tx.data).is_err() {
+        if serde_json::from_slice::<EphemeraData>(&tx.data).is_err() {
             error!("Message is not a valid Reward message");
             return Ok(false);
         }

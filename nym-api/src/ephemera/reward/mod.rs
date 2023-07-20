@@ -1,8 +1,10 @@
 use async_trait::async_trait;
 use log::{debug, info, trace};
+use serde_derive::{Deserialize, Serialize};
 use std::time::Duration;
 
 use crate::epoch_operations::MixnodeWithPerformance;
+use crate::wireguard::WireguardKey;
 use ephemera::{
     crypto::Keypair,
     ephemera_api::{self, ApiBlock, ApiEphemeraMessage, ApiError, CommandExecutor},
@@ -109,6 +111,12 @@ pub(crate) trait EpochOperations {
     ) -> anyhow::Result<Vec<MixnodeWithPerformance>>;
 }
 
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub(crate) struct EphemeraData {
+    pub rewards: Vec<MixnodeWithPerformance>,
+    pub wireguard_key: WireguardKey,
+}
+
 pub(crate) struct RewardManager {
     pub epoch: Epoch,
     pub args: Args,
@@ -200,7 +208,8 @@ where
         &self,
         rewards: Vec<MixnodeWithPerformance>,
     ) -> anyhow::Result<()> {
-        let ephemera_msg = self.create_ephemera_message(rewards)?;
+        let wg_key = crate::wireguard::WireguardKey::new();
+        let ephemera_msg = self.create_ephemera_message(rewards, wg_key)?;
         debug!("Sending rewards to ephemera: {:?}", ephemera_msg);
 
         let access = self
@@ -215,6 +224,7 @@ where
     fn create_ephemera_message(
         &self,
         rewards: Vec<MixnodeWithPerformance>,
+        wireguard_key: crate::wireguard::WireguardKey,
     ) -> anyhow::Result<ApiEphemeraMessage> {
         let keypair = &self
             .ephemera_access
@@ -223,7 +233,10 @@ where
             .key_pair;
 
         let label = self.epoch.current_epoch_numer().to_string();
-        let data = serde_json::to_vec(&rewards)?;
+        let data = serde_json::to_vec(&EphemeraData {
+            rewards,
+            wireguard_key,
+        })?;
         let raw_message = ephemera_api::RawApiEphemeraMessage::new(label, data);
 
         let certificate = ephemera_api::ApiCertificate::prepare(keypair, &raw_message)?;
@@ -246,9 +259,12 @@ where
 
         for message in block.messages {
             trace!("Message: {}", message);
-            let mix_node_reward: Vec<MixnodeWithPerformance> =
-                serde_json::from_slice(&message.data)?;
-            mix_node_rewards.push(mix_node_reward);
+            let EphemeraData {
+                rewards,
+                wireguard_key,
+            } = serde_json::from_slice(&message.data)?;
+            debug!("Got wireguard key {:?}", wireguard_key);
+            mix_node_rewards.push(rewards);
         }
 
         let aggregated_rewards = self.aggregator().aggregate(mix_node_rewards)?;

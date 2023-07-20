@@ -5956,16 +5956,10 @@ name = "rust-cosmos-broadcaster"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "async-trait",
  "bip39",
  "bs58 0.5.0",
  "clap 4.2.7",
  "cosmrs",
- "cosmwasm-std",
- "nym-bin-common",
- "nym-cli-commands",
- "nym-crypto",
- "nym-network-defaults",
  "nym-sdk",
  "nym-sphinx-addressing",
  "nym-sphinx-anonymous-replies",
@@ -5973,7 +5967,6 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
- "ts-rs",
 ]
 
 [[package]]

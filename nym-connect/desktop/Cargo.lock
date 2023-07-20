@@ -3484,10 +3484,9 @@ dependencies = [
 name = "nym-coconut-bandwidth-contract-common"
 version = "0.1.0"
 dependencies = [
+ "cosmwasm-schema",
  "cosmwasm-std",
  "nym-multisig-contract-common",
- "schemars",
- "serde",
 ]
 
 [[package]]

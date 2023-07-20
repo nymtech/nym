@@ -13,10 +13,13 @@ nym-coconut-bandwidth-contract-common = { path = "../../common/cosmwasm-smart-co
 nym-multisig-contract-common = { path = "../../common/cosmwasm-smart-contracts/multisig-contract" }
 
 cosmwasm-std = { workspace = true }
+cosmwasm-schema = { workspace = true, optional = true }
 cosmwasm-storage = { workspace = true }
 cw-storage-plus = { workspace = true }
 cw-controllers = { workspace = true }
 
-schemars = "0.8"
 serde = { version = "1.0.103", default-features = false, features = ["derive"] }
 thiserror = "1.0.23"
+
+[features]
+schema-gen = ["nym-coconut-bandwidth-contract-common/schema", "cosmwasm-schema"]

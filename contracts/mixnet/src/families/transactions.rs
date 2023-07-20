@@ -435,7 +435,7 @@ mod test {
             );
 
             let head_identity = head_keys.public_key().to_base58_string();
-            let family_head = FamilyHead::new(&head_identity);
+            let family_head = FamilyHead::new(head_identity);
             let res = try_join_family_on_behalf(
                 test.deps_mut(),
                 mock_info(illegal_proxy.as_ref(), &[]),
@@ -481,7 +481,7 @@ mod test {
             );
 
             let head_identity = head_keys.public_key().to_base58_string();
-            let family_head = FamilyHead::new(&head_identity);
+            let family_head = FamilyHead::new(head_identity);
             try_join_family_on_behalf(
                 test.deps_mut(),
                 mock_info(vesting_contract.as_ref(), &[]),
@@ -535,7 +535,7 @@ mod test {
             );
 
             let head_identity = head_keys.public_key().to_base58_string();
-            let family_head = FamilyHead::new(&head_identity);
+            let family_head = FamilyHead::new(head_identity);
 
             try_join_family_on_behalf(
                 test.deps_mut(),

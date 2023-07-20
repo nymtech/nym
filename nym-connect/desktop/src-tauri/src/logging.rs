@@ -1,4 +1,6 @@
 use fern::colors::{Color, ColoredLevelConfig};
+use log::Level;
+use sentry::Level as SentryLevel;
 use serde::Serialize;
 use serde_repr::{Deserialize_repr, Serialize_repr};
 use std::str::FromStr;
@@ -22,7 +24,10 @@ fn formatted_time() -> String {
     _now.format(&format).unwrap()
 }
 
-pub fn setup_logging(app_handle: tauri::AppHandle) -> Result<(), log::SetLoggerError> {
+pub fn setup_logging(
+    app_handle: tauri::AppHandle,
+    monitoring: bool,
+) -> Result<(), log::SetLoggerError> {
     let colors = ColoredLevelConfig::new()
         .trace(Color::Magenta)
         .debug(Color::Blue)
@@ -61,6 +66,21 @@ pub fn setup_logging(app_handle: tauri::AppHandle) -> Result<(), log::SetLoggerE
                 level: record.level().into(),
             };
             app_handle.emit_all("log://log", msg).unwrap();
+        }))
+        .chain(fern::Output::call(move |record| {
+            if !monitoring {
+                return;
+            }
+            let level = match record.level() {
+                Level::Error => SentryLevel::Error,
+                Level::Warn => SentryLevel::Warning,
+                Level::Info => SentryLevel::Info,
+                _ => SentryLevel::Debug,
+            };
+            // only send error and warn logs to sentry
+            if let Level::Error | Level::Warn = record.level() {
+                sentry::capture_message(&record.args().to_string(), level);
+            };
         }));
 
     base_config

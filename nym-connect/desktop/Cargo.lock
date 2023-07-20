@@ -3757,6 +3757,7 @@ dependencies = [
  "cw-controllers",
  "cw-utils",
  "nym-contracts-common",
+ "serde",
  "thiserror",
 ]
 

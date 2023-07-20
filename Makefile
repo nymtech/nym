@@ -73,7 +73,7 @@ endef
 # Generate targets for the various cargo workspaces
 
 $(eval $(call add_cargo_workspace,main,.))
-$(eval $(call add_cargo_workspace,contracts,contracts,--target wasm32-unknown-unknown))
+$(eval $(call add_cargo_workspace,contracts,contracts,--lib --target wasm32-unknown-unknown))
 $(eval $(call add_cargo_workspace,wasm-client,clients/webassembly,--target wasm32-unknown-unknown))
 $(eval $(call add_cargo_workspace,wallet,nym-wallet,))
 $(eval $(call add_cargo_workspace,connect,nym-connect/desktop))

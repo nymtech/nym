@@ -1507,6 +1507,7 @@ dependencies = [
  "cw-utils",
  "cw2",
  "nym-contracts-common",
+ "serde",
  "thiserror",
 ]
 

@@ -7,7 +7,6 @@ use rust_cosmos_broadcaster::{
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    // setup_logging();
     let mut client = create_client("/tmp/cosmos-broadcaster-mixnet-server-3".into()).await;
     let our_address = client.nym_address();
     println!("\nservice's nym address: {our_address}");

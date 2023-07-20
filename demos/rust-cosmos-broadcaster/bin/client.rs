@@ -40,7 +40,7 @@ struct SendTx {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    // setup_logging();
+
     let cli = Cli::parse();
     let mut client = create_client("/tmp/cosmos-broadcaster-mixnet-client-5".into()).await;
     let our_address = client.nym_address();

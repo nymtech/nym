@@ -13,26 +13,27 @@ async fn main() -> anyhow::Result<()> {
     println!("\nservice's nym address: {our_address}");
     // the httpclient we will use to broadcast our signed tx to the Nyx blockchain
     let broadcaster = create_broadcaster().await;
+    println!("listening for messages, press CTRL-C to exit");
 
     loop {
         // listen out for incoming requests from mixnet, parse and match them
         let request: (RequestTypes, AnonymousSenderTag) =
             listen_and_parse_request(&mut client).await;
-        // grab sender_tag from parsed request for anonymous replies 
+        // grab sender_tag from parsed request for anonymous replies
         let return_recipient: AnonymousSenderTag = request.1;
         match request.0 {
             RequestTypes::Sequence(request) => {
                 println!(
-                    "\nincoming sequence request details:\nsigner address: {}",
+                    "\nincoming sequence request details:\nsigner address: {} \nquerying Nyx blockchain on behalf of requesting client",
                     request.signer_address
                 );
-                // query Nyx chain for sequence information on behalf of request sender 
+                // query Nyx chain for sequence information on behalf of request sender
                 let sequence: SequenceRequestResponse =
                     get_sequence(broadcaster.clone(), request.signer_address)
                         .await
                         .unwrap();
-                println!("sequence information query returned account number: {}, sequence:{}, chain id: {} \nsending response to requesting client via mixnet", sequence.account_number, sequence.sequence, sequence.chain_id); 
-                // send serialised sequence response back to request sender via mixnet 
+                println!("sequence information query returned account number: {}, sequence:{}, chain id: {} \nsending response to requesting client via mixnet", sequence.account_number, sequence.sequence, sequence.chain_id);
+                // send serialised sequence response back to request sender via mixnet
                 client
                     .send_str_reply(return_recipient, &serde_json::to_string(&sequence).unwrap())
                     .await;

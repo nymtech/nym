@@ -44,16 +44,16 @@ async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
     let mut client = create_client("/tmp/cosmos-broadcaster-mixnet-client-5".into()).await;
     let our_address = client.nym_address();
-    println!("\nclient's nym address: {our_address}\n");
+    println!("\nclient's nym address: {our_address}");
 
-    let sp_address = Recipient::try_from_base58_string("DP84PUbje5nMuz4HYSqpdPYHrb5WPjitTyufGubc6MNy.8YhkurLGEeSuRLxhKG5uY7Kz6M4YjytKpUNdZhmo8z56@HcH4JQ4oZ8M4mMXDj5UDAb4WpuhpTKGHBEsZ112mkPkm").unwrap();
+    let sp_address = Recipient::try_from_base58_string("2f499xz7AfEmsdjd9zaxEVMZ4ed5pod2AqomZ74PSdTW.6heKJmwFZMw14Yz7CKF56iyKDaBBssmNWZJHErGg5jgm@HWdr8jgcr32cVGbjisjmwnVF4xrUBRGvbw86F9e3rFzS").unwrap();
 
     match &cli.command {
         Some(Commands::OfflineSignTx(OfflineSignTx {
             mnemonic,
             nyx_token_receipient,
         })) => {
-            println!("sending offline sign info to broadcaster via the mixnet: getting signing account sequence and chain ID");
+            println!("\nsending offline sign info to broadcaster via the mixnet: getting signing account sequence and chain ID");
             let base58_tx_bytes = offline_sign(
                 mnemonic.clone(),
                 nyx_token_receipient.clone(),
@@ -73,7 +73,7 @@ async fn main() -> anyhow::Result<()> {
             let _n = stdin.read_line(&mut input).unwrap();
 
             if input.starts_with('y') {
-                println!("\nsending tx thru the mixnet to broadcaster service");
+                println!("\nsending pre-signed tx through the mixnet to broadcaster service");
                 let Ok((tx_hash, success)) = send_tx(base58_tx_bytes.unwrap(), sp_address, &mut client).await else { todo!() };
                 println!(
                     "tx hash returned from the broadcaster: {}\ntx was successful: {}",
@@ -94,6 +94,7 @@ async fn main() -> anyhow::Result<()> {
         }
     }
     println!("\ndisconnecting client");
+    client.disconnect().await;
     println!("end");
     Ok(())
 }

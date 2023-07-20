@@ -11,7 +11,7 @@ use std::ops::Mul;
 use std::str::FromStr;
 use thiserror::Error;
 
-/// Ed25519 public key strinfified into base58. 
+/// Ed25519 public key strinfified into base58.
 pub type IdentityKey = String;
 pub type IdentityKeyRef<'a> = &'a str;
 

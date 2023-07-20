@@ -156,7 +156,7 @@ pub struct FamilyByLabelResponse {
 pub struct FamilyMembersByHeadResponse {
     /// The family head used for the query.
     pub head: FamilyHead,
-    
+
     /// All members belonging to the specified family.
     pub members: Vec<IdentityKey>,
 }

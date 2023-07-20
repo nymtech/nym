@@ -3,14 +3,14 @@
 
 use crate::msg::ExecuteMsg;
 use crate::types::{EpochId, NodeIndex};
+use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{from_binary, to_binary, Addr, CosmosMsg, StdResult, Timestamp, WasmMsg};
 use cw_utils::Expiration;
 use nym_multisig_contract_common::msg::ExecuteMsg as MultisigExecuteMsg;
-use serde::{Deserialize, Serialize};
 
 pub type VerificationKeyShare = String;
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[cw_serde]
 pub struct ContractVKShare {
     pub share: VerificationKeyShare,
     pub announce_address: String,
@@ -20,8 +20,7 @@ pub struct ContractVKShare {
     pub verified: bool,
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
 pub struct PagedVKSharesResponse {
     pub shares: Vec<ContractVKShare>,
     pub per_page: usize,

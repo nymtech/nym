@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::types::{ContractSafeBytes, EncodedBTEPublicKeyWithProof, NodeIndex};
+use cosmwasm_schema::cw_serde;
 use cosmwasm_std::Addr;
-use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
 pub struct DealerDetails {
     pub address: Addr,
     pub bte_public_key_with_proof: EncodedBTEPublicKeyWithProof,
@@ -14,8 +13,8 @@ pub struct DealerDetails {
     pub assigned_index: NodeIndex,
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
+#[derive(Copy)]
 pub enum DealerType {
     Current,
     Past,
@@ -28,8 +27,7 @@ impl DealerType {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
 pub struct DealerDetailsResponse {
     pub details: Option<DealerDetails>,
     pub dealer_type: DealerType,
@@ -44,8 +42,7 @@ impl DealerDetailsResponse {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
 pub struct PagedDealerResponse {
     pub dealers: Vec<DealerDetails>,
     pub per_page: usize,
@@ -68,8 +65,7 @@ impl PagedDealerResponse {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
 pub struct ContractDealing {
     pub dealing: ContractSafeBytes,
     pub dealer: Addr,
@@ -81,8 +77,7 @@ impl ContractDealing {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
 pub struct PagedDealingsResponse {
     pub dealings: Vec<ContractDealing>,
     pub per_page: usize,

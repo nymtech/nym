@@ -3493,12 +3493,11 @@ dependencies = [
 name = "nym-coconut-dkg-common"
 version = "0.1.0"
 dependencies = [
+ "cosmwasm-schema",
  "cosmwasm-std",
  "cw-utils",
  "nym-contracts-common",
  "nym-multisig-contract-common",
- "schemars",
- "serde",
 ]
 
 [[package]]

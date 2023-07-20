@@ -75,7 +75,7 @@ async fn main() -> anyhow::Result<()> {
 
             if input.starts_with('y') {
                 println!("\nsending pre-signed tx through the mixnet to broadcaster service");
-                let Ok((tx_hash, success)) = send_tx(base58_tx_bytes.unwrap(), sp_address, &mut client).await else { todo!() };
+                let (tx_hash, success) = send_tx(base58_tx_bytes.unwrap(), sp_address, &mut client).await?; 
                 println!(
                     "tx hash returned from the broadcaster: {}\ntx was successful: {}",
                     tx_hash, success

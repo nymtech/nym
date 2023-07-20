@@ -104,7 +104,7 @@ NAME_SERVICE_CONTRACT=$(CONTRACTS_OUT_DIR)/nym_name_service.wasm
 wasm: wasm-build wasm-opt
 
 wasm-build:
-	RUSTFLAGS='-C link-arg=-s' cargo build --manifest-path contracts/Cargo.toml --release --target wasm32-unknown-unknown
+	RUSTFLAGS='-C link-arg=-s' cargo build --lib --manifest-path contracts/Cargo.toml --release --target wasm32-unknown-unknown
 
 wasm-opt:
 	wasm-opt --disable-sign-ext -Os $(VESTING_CONTRACT) -o $(VESTING_CONTRACT)

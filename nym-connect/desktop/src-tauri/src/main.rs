@@ -3,6 +3,7 @@
     windows_subsystem = "windows"
 )]
 
+use std::env;
 use std::sync::Arc;
 
 use nym_config::defaults::setup_env;
@@ -26,10 +27,6 @@ mod operations;
 mod state;
 mod tasks;
 mod window;
-
-// TODO DSN shouldn't be hardcoded
-const SENTRY_DSN: &str =
-    "https://68a2c55113ed47aaa30b9899039b0799@o967446.ingest.sentry.io/4505483113594880";
 
 fn main() {
     dotenvy::dotenv().ok();

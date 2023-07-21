@@ -30,12 +30,12 @@ pub async fn offline_sign(
         signer_address: signer_address.clone(),      // our (sender) address, derived from mnemonic
     };
 
-    // send req to service via the mixnet  
+    // send req to service via the mixnet
     client
         .send_str(sp_address, &serde_json::to_string(&message).unwrap())
         .await;
 
-    // listen for response from service 
+    // listen for response from service
     let sp_response = crate::listen_and_parse_response(client).await?;
 
     // match JSON -> ResponseType
@@ -81,7 +81,7 @@ pub async fn offline_sign(
                 .unwrap();
 
             let tx_bytes = tx_raw.to_bytes().unwrap();
-            // encode tx bytes as base58 for ease of logging + copying for user 
+            // encode tx bytes as base58 for ease of logging + copying for user
             let base58_tx_bytes = bs58::encode(tx_bytes).into_string();
             base58_tx_bytes
         }
@@ -108,7 +108,7 @@ pub async fn send_tx(
         .await;
     println!("Waiting for reply");
 
-    // again, listen for response and parse accordingly 
+    // again, listen for response and parse accordingly
     let sp_response = crate::listen_and_parse_response(client).await?;
 
     let res = match sp_response {

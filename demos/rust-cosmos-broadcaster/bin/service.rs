@@ -17,7 +17,7 @@ async fn main() -> anyhow::Result<()> {
     loop {
         // listen out for incoming requests from mixnet, parse and match them
         let request: (RequestTypes, AnonymousSenderTag) =
-            listen_and_parse_request(&mut client).await?; 
+            listen_and_parse_request(&mut client).await?;
         // grab sender_tag from parsed request for anonymous replies
         let return_recipient: AnonymousSenderTag = request.1;
         match request.0 {
@@ -28,8 +28,7 @@ async fn main() -> anyhow::Result<()> {
                 );
                 // query chain for sequence information on behalf of request sender
                 let sequence: SequenceRequestResponse =
-                    get_sequence(broadcaster.clone(), request.signer_address)
-                        .await?;  
+                    get_sequence(broadcaster.clone(), request.signer_address).await?;
                 println!("sequence information returned from chain: account number: {}, sequence:{}, chain id: {} \nsending response to requesting client via mixnet", sequence.account_number, sequence.sequence, sequence.chain_id);
                 // send serialised sequence response back to request sender via mixnet
                 client
@@ -43,8 +42,7 @@ async fn main() -> anyhow::Result<()> {
                 );
                 // broadcast the signed tx on behalf of request sender
                 let tx_hash: BroadcastResponse =
-                    broadcast(request.base58_tx_bytes, broadcaster.clone())
-                    .await?;
+                    broadcast(request.base58_tx_bytes, broadcaster.clone()).await?;
                 println!("return recipient surb bucket: {}", &return_recipient);
                 // send response to tx (transaction hash) back to request sender via mixnet
                 client

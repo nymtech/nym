@@ -9,7 +9,7 @@ use rust_cosmos_broadcaster::{
 #[derive(Debug, Parser)]
 #[clap(name = "nym cosmos tx signer ")]
 #[clap(
-    about = "demo binary with which users can perform offline signing and transmission of signed tx to broadcaster via the mixnet "
+    about = "demo binary with which users can perform offline signing and transmission of signed token tx to broadcaster via the mixnet "
 )]
 struct Cli {
     #[clap(subcommand)]
@@ -26,7 +26,7 @@ enum Commands {
 
 #[derive(Debug, Clone, Args)]
 struct OfflineSignTx {
-    /// mnemonic of signing + sending account (you!) 
+    /// mnemonic of signing + sending account (you!)
     mnemonic: bip39::Mnemonic,
     /// recipient nyx chain address for token transfer
     nyx_token_receipient: AccountId,
@@ -40,12 +40,10 @@ struct SendTx {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-
     let cli = Cli::parse();
     let mut client = create_client("/tmp/cosmos-broadcaster-mixnet-client-5".into()).await;
     let our_address = client.nym_address();
     println!("\nclient's nym address: {our_address}");
-
     let sp_address = Recipient::try_from_base58_string("2f499xz7AfEmsdjd9zaxEVMZ4ed5pod2AqomZ74PSdTW.6heKJmwFZMw14Yz7CKF56iyKDaBBssmNWZJHErGg5jgm@HWdr8jgcr32cVGbjisjmwnVF4xrUBRGvbw86F9e3rFzS").unwrap();
 
     match cli.command {
@@ -66,7 +64,7 @@ async fn main() -> anyhow::Result<()> {
                 "Encoded response (signed tx data) as base58 for tx broadcast: \n\n{:?}\n",
                 &base58_tx_bytes.as_ref()
             );
-            println!("do you wish to send the tx? y/n");
+            println!("do you also wish to send the tx? y/n");
 
             let mut input = String::new();
             let stdin = std::io::stdin();
@@ -74,7 +72,8 @@ async fn main() -> anyhow::Result<()> {
 
             if input.starts_with('y') {
                 println!("\nsending pre-signed tx through the mixnet to broadcaster service");
-                let (tx_hash, success) = send_tx(base58_tx_bytes.unwrap(), sp_address, &mut client).await?; 
+                let (tx_hash, success) =
+                    send_tx(base58_tx_bytes.unwrap(), sp_address, &mut client).await?;
                 println!(
                     "tx hash returned from the broadcaster: {}\ntx was successful: {}",
                     tx_hash, success

@@ -30,16 +30,16 @@ struct OfflineSignTx {
     mnemonic: bip39::Mnemonic,
     /// recipient nyx chain address for token transfer
     nyx_token_receipient: AccountId,
-    /// the address of the broadcaster service - this submits txs and queries the chain on our behalf 
-    sp_address: String 
+    /// the address of the broadcaster service - this submits txs and queries the chain on our behalf
+    sp_address: String,
 }
 
 #[derive(Debug, Args)]
 struct SendTx {
     /// the base58 encoded signed payload created in OfflineSign()
     base58_payload: String,
-    /// the address of the broadcaster service - this submits txs and queries the chain on our behalf 
-    sp_address: String 
+    /// the address of the broadcaster service - this submits txs and queries the chain on our behalf
+    sp_address: String,
 }
 
 #[tokio::main]
@@ -53,21 +53,21 @@ async fn main() -> anyhow::Result<()> {
         Some(Commands::OfflineSignTx(OfflineSignTx {
             mnemonic,
             nyx_token_receipient,
-            sp_address
+            sp_address,
         })) => {
             println!("\nsending offline sign info to broadcaster via the mixnet: getting signing account sequence and chain ID");
-            let sp_address = Recipient::try_from_base58_string(sp_address).unwrap(); 
+            let sp_address = Recipient::try_from_base58_string(sp_address).unwrap();
             let base58_tx_bytes = offline_sign(
                 mnemonic.clone(),
                 nyx_token_receipient.clone(),
                 &mut client,
                 sp_address,
             )
-            .await;
+            .await?;
 
             println!(
                 "Encoded response (signed tx data) as base58 for tx broadcast: \n\n{:?}\n",
-                &base58_tx_bytes.as_ref()
+                &base58_tx_bytes
             );
             println!("do you also wish to send the tx? y/n");
 
@@ -77,8 +77,7 @@ async fn main() -> anyhow::Result<()> {
 
             if input.starts_with('y') {
                 println!("\nsending pre-signed tx through the mixnet to broadcaster service");
-                let (tx_hash, success) =
-                    send_tx(base58_tx_bytes.unwrap(), sp_address, &mut client).await?;
+                let (tx_hash, success) = send_tx(base58_tx_bytes, sp_address, &mut client).await?;
                 println!(
                     "tx hash returned from the broadcaster: {}\ntx was successful: {}",
                     tx_hash, success
@@ -89,9 +88,12 @@ async fn main() -> anyhow::Result<()> {
                 println!("\nunrecognised user input");
             }
         }
-        Some(Commands::SendTx(SendTx { base58_payload, sp_address})) => {
-            let sp_address = Recipient::try_from_base58_string(sp_address).unwrap(); 
-            let tx_hash = send_tx(base58_payload.clone(), sp_address, &mut client).await;
+        Some(Commands::SendTx(SendTx {
+            base58_payload,
+            sp_address,
+        })) => {
+            let sp_address = Recipient::try_from_base58_string(sp_address).unwrap();
+            let tx_hash = send_tx(base58_payload.clone(), sp_address, &mut client).await?;
             println!("response from the broadcaster (tx hash) {:#?}", tx_hash);
         }
         None => {

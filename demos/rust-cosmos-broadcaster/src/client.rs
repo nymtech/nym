@@ -30,9 +30,9 @@ pub async fn offline_sign(
         signer_address: signer_address.clone(),      // our (sender) address, derived from mnemonic
     };
 
-    // send req to service via the mixnet
+    // send request to service via the mixnet
     client
-        .send_str(sp_address, &serde_json::to_string(&message).unwrap())
+        .send_str(sp_address, &serde_json::to_string(&message)?)
         .await;
 
     // listen for response from service
@@ -101,10 +101,7 @@ pub async fn send_tx(
 
     // send broadcast request containing base58 encoded signed tx to service via mixnet
     client
-        .send_str(
-            sp_address,
-            &serde_json::to_string(&broadcast_request).unwrap(),
-        )
+        .send_str(sp_address, &serde_json::to_string(&broadcast_request)?)
         .await;
     println!("Waiting for reply");
 

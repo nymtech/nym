@@ -22,8 +22,6 @@ pub use nym_client_core::config::{
     Topology as ConfigTopology, Traffic as ConfigTraffic,
 };
 
-use wasm_utils::console_log;
-
 pub fn new_base_client_config(
     id: String,
     version: String,
@@ -31,8 +29,6 @@ pub fn new_base_client_config(
     nyxd: Option<String>,
     debug: Option<DebugWasm>,
 ) -> Result<BaseClientConfig, WasmCoreError> {
-    console_log!("using debug: {:#?}", debug);
-
     let nym_api_url = match nym_api {
         Some(raw) => Some(
             raw.parse()

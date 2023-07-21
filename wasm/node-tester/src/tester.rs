@@ -11,12 +11,13 @@ use nym_node_tester_utils::receiver::SimpleMessageReceiver;
 use nym_node_tester_utils::{NodeTester, PacketSize, PreparedFragment};
 use nym_task::TaskManager;
 use rand::rngs::OsRng;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Arc, Mutex as SyncMutex};
 use std::time::Duration;
 use tokio::sync::Mutex as AsyncMutex;
+use tsify::Tsify;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::future_to_promise;
 use wasm_client_core::helpers::{
@@ -82,45 +83,28 @@ fn address(keys: &ManagedKeys, gateway_identity: NodeIdentity) -> Recipient {
     )
 }
 
-#[wasm_bindgen]
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Tsify, Debug, Clone, Serialize, Deserialize)]
+#[tsify(into_wasm_abi, from_wasm_abi)]
+#[serde(rename_all = "camelCase")]
 pub struct NymNodeTesterOpts {
+    #[tsify(optional)]
     id: Option<String>,
 
-    #[serde(rename = "nymApi")]
+    #[tsify(optional)]
     nym_api: Option<String>,
 
+    #[tsify(optional)]
     topology: Option<WasmNymTopology>,
 
-    gateway: Option<IdentityKey>,
-}
-
-impl TryFrom<JsValue> for NymNodeTesterOpts {
-    type Error = NodeTesterError;
-
-    fn try_from(args: JsValue) -> Result<Self, Self::Error> {
-        if args.is_null() || args.is_undefined() {
-            return Err(NodeTesterError::NoTopologySource);
-        }
-
-        serde_wasm_bindgen::from_value(args).map_err(|err| {
-            NodeTesterError::MalformedNodeTesterArguments {
-                err: err.to_string(),
-            }
-        })
-    }
+    #[tsify(optional)]
+    gateway: Option<String>,
 }
 
 #[wasm_bindgen]
 impl NymNodeTesterBuilder {
     #[wasm_bindgen(constructor)]
     #[allow(clippy::new_ret_no_self)]
-    pub fn new(args: JsValue) -> Promise {
-        let args: NymNodeTesterOpts = match args.try_into() {
-            Ok(args) => args,
-            Err(err) => return err.into_rejected_promise(),
-        };
-
+    pub fn new(args: NymNodeTesterOpts) -> Promise {
         future_to_promise(async move { Self::new_async(args).await.into_promise_result() })
     }
 
@@ -271,12 +255,7 @@ async fn test_mixnode(
 impl NymNodeTester {
     #[wasm_bindgen(constructor)]
     #[allow(clippy::new_ret_no_self)]
-    pub fn new(args: JsValue) -> Promise {
-        let args: NymNodeTesterOpts = match args.try_into() {
-            Ok(args) => args,
-            Err(err) => return err.into_rejected_promise(),
-        };
-
+    pub fn new(args: NymNodeTesterOpts) -> Promise {
         future_to_promise(async move { Self::new_async(args).await.into_promise_result() })
     }
 

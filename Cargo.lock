@@ -4505,6 +4505,7 @@ dependencies = [
  "serde-wasm-bindgen",
  "thiserror",
  "tokio",
+ "tsify",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "wasm-client-core",

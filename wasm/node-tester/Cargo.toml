@@ -22,7 +22,8 @@ serde-wasm-bindgen = { workspace = true }
 tokio = { workspace = true, features = ["sync"] }
 wasm-bindgen = { workspace = true }
 wasm-bindgen-futures = { workspace = true }
-thiserror =  { workspace = true }
+thiserror = { workspace = true }
+tsify = { workspace = true, features = ["js"] }
 
 wasm-timer = { git = "https://github.com/mmsinclair/wasm-timer", rev = "b9d1a54ad514c2f230a026afe0dde341e98cd7b6"}
 

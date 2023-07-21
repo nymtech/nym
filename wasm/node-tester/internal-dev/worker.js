@@ -65,12 +65,12 @@ function dummyTopology() {
     );
 
     const gateway = new WasmGateway(
-        'n13n48znq3v2fu4nwx95vfcyf68zfsad7py2jz4m',
+        'n1d9lclqnfddgg57xe5p0fw4ng54m9f95hal5tlq',
         '85.159.211.99',
         1789,
         9000,
-        '6qQYb4ArXANU6HJDxzH4PFCUqYb39Dae2Gem2KpxescM',
-        '2V9uwPG2YPogX1BR5WXQGFrYzrAnUpnD3aSFyeZepdTp',
+        '6pXQcG1Jt9hxBzMgTbQL5Y58z6mu4KXVRbA1idmibwsw',
+        'GSdqV7GFSwHWQrVV13pNLMeafTLDVFKBKVPxuhdGrpR3',
         '1.1.19',
     );
 
@@ -102,15 +102,15 @@ function printAndDisplayTestResult(result) {
 }
 
 async function testWithTester() {
-    const preferredGateway = "6qQYb4ArXANU6HJDxzH4PFCUqYb39Dae2Gem2KpxescM";
+    const preferredGateway = "6pXQcG1Jt9hxBzMgTbQL5Y58z6mu4KXVRbA1idmibwsw";
     const nymApi = 'https://qa-nym-api.qa.nymte.ch/api';
 
     // A) construct with hardcoded topology
-    // const topology = dummyTopology()
+    const topology = dummyTopology()
 
     // optional arguments: id, gateway
     // mandatory (one of) arguments: topology, nymApi
-    // const nodeTester = await new NymNodeTester({ id: "foomp", topology: topology });
+    const nodeTester = await new NymNodeTester({ id: "foomp", topology: topology });
 
     // B) first get topology directly from nym-api
     // const topology = await currentNetworkTopology(nymApi)
@@ -118,7 +118,7 @@ async function testWithTester() {
 
     // C) use nym-api in the constructor (note: it does no filtering for 'good' nodes on other layers)
     // const validator = 'https://qa-nym-api.qa.nymte.ch/api';
-    const nodeTester = await new NymNodeTester({nymApi});
+    // const nodeTester = await new NymNodeTester({nymApi});
     
     self.onmessage = async event => {
         if (event.data && event.data.kind) {

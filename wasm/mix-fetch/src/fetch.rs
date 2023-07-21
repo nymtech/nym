@@ -12,8 +12,8 @@ use wasm_bindgen::prelude::wasm_bindgen;
 use wasm_bindgen::JsValue;
 use wasm_bindgen_futures::future_to_promise;
 use wasm_client_core::config::r#override::DebugWasmOverride;
+use wasm_utils::check_promise_result;
 use wasm_utils::error::PromisableResultError;
-use wasm_utils::{check_promise_result, console_log};
 
 pub type RequestId = u64;
 
@@ -125,10 +125,6 @@ async fn setup_mix_fetch_async(
     config: MixFetchConfig,
     opts: Option<MixFetchOptsSimple>,
 ) -> Result<(), MixFetchError> {
-    console_log!("SETUP");
-    console_log!("config: {config:#?}");
-    console_log!("opts: {opts:#?}");
-
     let client = if let Some(opts) = opts {
         let preferred_gateway = opts.preferred_gateway;
         let storage_passphrase = opts.storage_passphrase;

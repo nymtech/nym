@@ -3,7 +3,7 @@ A demo showing how to:
 * sign a cosmos tx (simple token transfer) offline 
 * broadcast this tx from a service on the other side of the mixnet
 
-For the moment the fact its a token transfer is hardcoded, but this was just due to time constraints. This could be built out to allow for queries, custom txs, wasm contract interaction, etc. 
+For the moment the fact its a token transfer is hardcoded. This code could be built out to allow for queries, custom txs, wasm contract interaction, etc but goes beyond the bounds of this demo. 
 
 Built using: 
 * rust sdk 

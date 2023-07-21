@@ -1,5 +1,5 @@
 use clap::{Args, Parser, Subcommand};
-use nym_sdk::mixnet::{Recipient, MixnetClient};
+use nym_sdk::mixnet::Recipient;
 use nym_validator_client::nyxd::AccountId;
 use rust_cosmos_broadcaster::{
     client::{offline_sign, send_tx},
@@ -48,7 +48,6 @@ async fn main() -> anyhow::Result<()> {
     let mut client = create_client("/tmp/cosmos-broadcaster-mixnet-client-5".into()).await;
     let our_address = client.nym_address();
     println!("\nclient's nym address: {our_address}");
-    // let sp_address = Recipient::try_from_base58_string("2f499xz7AfEmsdjd9zaxEVMZ4ed5pod2AqomZ74PSdTW.6heKJmwFZMw14Yz7CKF56iyKDaBBssmNWZJHErGg5jgm@HWdr8jgcr32cVGbjisjmwnVF4xrUBRGvbw86F9e3rFzS").unwrap();
 
     match cli.command {
         Some(Commands::OfflineSignTx(OfflineSignTx {

@@ -24,11 +24,19 @@ pub struct Args {
     #[serde(skip)]
     pub cmd: Cmd,
     #[clap(skip)]
-    #[serde(skip)]
+    #[serde(skip, default = "default_block_polling_interval_seconds")]
     pub block_polling_interval_seconds: u64,
     #[clap(skip)]
-    #[serde(skip)]
+    #[serde(skip, default = "default_block_polling_max_attempts")]
     pub block_polling_max_attempts: u64,
+}
+
+fn default_block_polling_interval_seconds() -> u64 {
+    1
+}
+
+fn default_block_polling_max_attempts() -> u64 {
+    60
 }
 
 impl Default for Args {
@@ -36,8 +44,8 @@ impl Default for Args {
         Args {
             ephemera_config: Default::default(),
             cmd: Default::default(),
-            block_polling_interval_seconds: 1,
-            block_polling_max_attempts: 60,
+            block_polling_interval_seconds: default_block_polling_interval_seconds(),
+            block_polling_max_attempts: default_block_polling_max_attempts(),
         }
     }
 }

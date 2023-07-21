@@ -5,6 +5,7 @@ use futures::channel::mpsc;
 use futures::StreamExt;
 use log::*;
 use nym_client_core::client::topology_control::accessor::TopologyAccessor;
+use nym_noise::upgrade_noise_initiator;
 use nym_sphinx::addressing::nodes::NymNodeRoutingAddress;
 use nym_sphinx::framing::codec::NymCodec;
 use nym_sphinx::framing::packet::FramedNymPacket;
@@ -101,8 +102,24 @@ impl Client {
                     debug!("Managed to establish connection to {}", address);
                     // if we managed to connect, reset the reconnection count (whatever it might have been)
                     current_reconnection.store(0, Ordering::Release);
-                    //TODO : SW : here be Noise handshake. Goal is to have a stream that can be framed like it is now
-                    Framed::new(stream, NymCodec)
+                    //Get the topology, because we need the keys for the handshake
+                    let topology_permit = topology_access.get_read_permit().await;
+                    let topology_ref = match topology_permit.try_get_raw_topology_ref() {
+                        Ok(topology) => topology,
+                        Err(err) => {
+                            error!("Cannot connect to {address}, due to topology error - {err}");
+                            return;
+                        }
+                    };
+
+                    let noise_stream = match upgrade_noise_initiator(stream, topology_ref) {
+                        Ok(noise_stream) => noise_stream,
+                        Err(err) => {
+                            error!("Failed to perform Noise handshake with {address} - {err}");
+                            return;
+                        }
+                    };
+                    Framed::new(noise_stream, NymCodec)
                 }
                 Err(err) => {
                     debug!(

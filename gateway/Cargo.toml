@@ -63,6 +63,7 @@ nym-types = { path = "../common/types" }
 nym-validator-client = { path = "../common/client-libs/validator-client", features = [ "nyxd-client" ] }
 nym-client-core = { path = "../common/client-core" }
 nym-topology = { path = "../common/topology" }
+nym-noise = { path = "../common/nymnoise" }
 
 [build-dependencies]
 tokio = { version = "1.24.1", features = ["rt-multi-thread", "macros"] }

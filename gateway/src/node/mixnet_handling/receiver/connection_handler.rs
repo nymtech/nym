@@ -10,6 +10,7 @@ use futures::StreamExt;
 use log::*;
 use nym_mixnet_client::forwarder::MixForwardingSender;
 use nym_mixnode_common::packet_processor::processor::ProcessedFinalHop;
+use nym_noise::upgrade_noise_responder;
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_sphinx::framing::codec::NymCodec;
 use nym_sphinx::framing::packet::FramedNymPacket;
@@ -181,9 +182,15 @@ impl<St: Storage> ConnectionHandler<St> {
         mut shutdown: TaskClient,
     ) {
         debug!("Starting connection handler for {:?}", remote);
-        //TODO : SW : here be Noise handshake. Goal is to have a stream that can be framed like it is now
         shutdown.mark_as_success();
-        let mut framed_conn = Framed::new(conn, NymCodec);
+        let noise_stream = match upgrade_noise_responder(conn) {
+            Ok(noise_stream) => noise_stream,
+            Err(err) => {
+                error!("Failed to perform Noise handshake with {remote} - {err}");
+                return;
+            }
+        };
+        let mut framed_conn = Framed::new(noise_stream, NymCodec);
         while !shutdown.is_shutdown() {
             tokio::select! {
                 biased;
@@ -213,9 +220,6 @@ impl<St: Storage> ConnectionHandler<St> {
             }
         }
 
-        info!(
-            "Closing connection from {:?}",
-            framed_conn.into_inner().peer_addr()
-        );
+        info!("Closing connection from {:?}", remote);
     }
 }

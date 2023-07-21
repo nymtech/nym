@@ -3,7 +3,6 @@
     windows_subsystem = "windows"
 )]
 
-use dotenv::dotenv;
 use std::env;
 use std::sync::Arc;
 
@@ -29,7 +28,7 @@ mod tasks;
 mod window;
 
 fn main() {
-    dotenv().ok();
+    dotenvy::dotenv().ok();
     setup_env(None);
     println!("Starting up...");
 

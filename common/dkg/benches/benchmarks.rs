@@ -110,7 +110,7 @@ pub fn creating_reshared_dealing_for_3_parties(c: &mut Criterion) {
     let params = setup();
     let threshold = 2;
 
-    let (receivers, derived_secrets) = prepare_resharing(&mut rng, &params, 3, threshold);
+    let (receivers, mut derived_secrets) = prepare_resharing(&mut rng, &params, 3, threshold);
 
     c.bench_function(
         "creating single re-shared dealing for 3 parties (threshold 2)",
@@ -123,7 +123,7 @@ pub fn creating_reshared_dealing_for_3_parties(c: &mut Criterion) {
                         receivers.keys().next().copied().unwrap(),
                         threshold,
                         &receivers,
-                        Some(derived_secrets.iter().next().copied().unwrap()),
+                        Some(derived_secrets.pop().unwrap()),
                     )
                 })
             })
@@ -193,7 +193,7 @@ pub fn creating_reshared_dealing_for_20_parties(c: &mut Criterion) {
     let params = setup();
     let threshold = 14;
 
-    let (receivers, derived_secrets) = prepare_resharing(&mut rng, &params, 20, threshold);
+    let (receivers, mut derived_secrets) = prepare_resharing(&mut rng, &params, 20, threshold);
 
     c.bench_function(
         "creating single re-shared dealing for 20 parties (threshold 14)",
@@ -206,7 +206,7 @@ pub fn creating_reshared_dealing_for_20_parties(c: &mut Criterion) {
                         receivers.keys().next().copied().unwrap(),
                         threshold,
                         &receivers,
-                        Some(derived_secrets.iter().next().copied().unwrap()),
+                        Some(derived_secrets.pop().unwrap()),
                     )
                 })
             })
@@ -276,7 +276,7 @@ pub fn creating_reshared_dealing_for_100_parties(c: &mut Criterion) {
     let params = setup();
     let threshold = 67;
 
-    let (receivers, derived_secrets) = prepare_resharing(&mut rng, &params, 100, threshold);
+    let (receivers, mut derived_secrets) = prepare_resharing(&mut rng, &params, 100, threshold);
 
     c.bench_function(
         "creating single re-shared dealing for 100 parties (threshold 67)",
@@ -289,7 +289,7 @@ pub fn creating_reshared_dealing_for_100_parties(c: &mut Criterion) {
                         receivers.keys().next().copied().unwrap(),
                         threshold,
                         &receivers,
-                        Some(derived_secrets.iter().next().copied().unwrap()),
+                        Some(derived_secrets.pop().unwrap()),
                     )
                 })
             })

@@ -46,6 +46,7 @@ yaml-rust = "0.4"
 toml = "0.7"
 sentry = { version = "0.31.5", features = [ "anyhow" ] }
 sentry-log = "0.31.5"
+dotenvy = "0.15.7"
 
 nym-client-core = { path = "../../../common/client-core" }
 nym-api-requests = { path = "../../../nym-api/nym-api-requests" }

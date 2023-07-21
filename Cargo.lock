@@ -4008,6 +4008,7 @@ dependencies = [
  "futures",
  "log",
  "nym-client-core",
+ "nym-crypto",
  "nym-noise",
  "nym-sphinx",
  "nym-task",

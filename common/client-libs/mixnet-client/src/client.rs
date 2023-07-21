@@ -5,6 +5,8 @@ use futures::channel::mpsc;
 use futures::StreamExt;
 use log::*;
 use nym_client_core::client::topology_control::accessor::TopologyAccessor;
+use nym_crypto::asymmetric::identity;
+use crate::client::identity::SECRET_KEY_LENGTH;
 use nym_noise::upgrade_noise_initiator;
 use nym_sphinx::addressing::nodes::NymNodeRoutingAddress;
 use nym_sphinx::framing::codec::NymCodec;
@@ -62,6 +64,7 @@ pub struct Client {
     conn_new: HashMap<NymNodeRoutingAddress, ConnectionSender>,
     config: Config,
     topology_access: TopologyAccessor,
+    private_id_key : [u8; SECRET_KEY_LENGTH],
 }
 
 struct ConnectionSender {
@@ -79,11 +82,12 @@ impl ConnectionSender {
 }
 
 impl Client {
-    pub fn new(config: Config, topology_access: TopologyAccessor) -> Client {
+    pub fn new(config: Config, topology_access: TopologyAccessor, private_id_key: &identity::PrivateKey) -> Client {
         Client {
             conn_new: HashMap::new(),
             config,
             topology_access,
+            private_id_key: private_id_key.to_bytes(),
         }
     }
 
@@ -93,6 +97,7 @@ impl Client {
         connection_timeout: Duration,
         current_reconnection: &AtomicU32,
         topology_access: TopologyAccessor,
+        local_private_key: &[u8],
     ) {
         let connection_fut = TcpStream::connect(address);
 
@@ -112,7 +117,7 @@ impl Client {
                         }
                     };
 
-                    let noise_stream = match upgrade_noise_initiator(stream, topology_ref) {
+                    let noise_stream = match upgrade_noise_initiator(stream, topology_ref, local_private_key) {
                         Ok(noise_stream) => noise_stream,
                         Err(err) => {
                             error!("Failed to perform Noise handshake with {address} - {err}");
@@ -198,6 +203,7 @@ impl Client {
         let initial_connection_timeout = self.config.initial_connection_timeout;
 
         let topology_access_clone = self.topology_access.clone();
+        let local_private_key = self.private_id_key.clone();
 
         tokio::spawn(async move {
             // before executing the manager, wait for what was specified, if anything
@@ -212,6 +218,7 @@ impl Client {
                 initial_connection_timeout,
                 &current_reconnection_attempt,
                 topology_access_clone,
+                &local_private_key,
             )
             .await
         });

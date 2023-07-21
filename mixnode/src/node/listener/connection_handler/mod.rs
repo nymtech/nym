@@ -1,12 +1,14 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::node::identity::SECRET_KEY_LENGTH;
 use crate::node::listener::connection_handler::packet_processing::{
     MixProcessingResult, PacketProcessor,
 };
 use crate::node::packet_delayforwarder::PacketDelayForwardSender;
 use crate::node::TaskClient;
 use futures::StreamExt;
+use nym_crypto::asymmetric::identity;
 use nym_mixnode_common::measure;
 use nym_noise::upgrade_noise_responder;
 use nym_sphinx::forwarding::packet::MixPacket;
@@ -26,16 +28,19 @@ pub(crate) mod packet_processing;
 pub(crate) struct ConnectionHandler {
     packet_processor: PacketProcessor,
     delay_forwarding_channel: PacketDelayForwardSender,
+    private_identity_key: [u8; SECRET_KEY_LENGTH],
 }
 
 impl ConnectionHandler {
     pub(crate) fn new(
         packet_processor: PacketProcessor,
         delay_forwarding_channel: PacketDelayForwardSender,
+        private_identity_key: &identity::PrivateKey,
     ) -> Self {
         ConnectionHandler {
             packet_processor,
             delay_forwarding_channel,
+            private_identity_key: private_identity_key.to_bytes(),
         }
     }
 
@@ -88,7 +93,7 @@ impl ConnectionHandler {
         debug!("Starting connection handler for {:?}", remote);
 
         shutdown.mark_as_success();
-        let noise_stream = match upgrade_noise_responder(conn) {
+        let noise_stream = match upgrade_noise_responder(conn, &self.private_identity_key) {
             Ok(noise_stream) => noise_stream,
             Err(err) => {
                 error!("Failed to perform Noise handshake with {remote} - {err}");

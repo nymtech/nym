@@ -144,6 +144,7 @@ impl<St> Gateway<St> {
             self.storage.clone(),
             ack_sender,
             active_clients_store,
+            self.identity_keypair.private_key(),
         );
 
         let listening_address = SocketAddr::new(
@@ -198,6 +199,7 @@ impl<St> Gateway<St> {
             self.config.debug.maximum_connection_buffer_size,
             self.config.debug.use_legacy_framed_packet_version,
             topology_access,
+            self.identity_keypair.private_key(),
             shutdown,
         );
 

@@ -8,6 +8,7 @@ use log::*;
 use nym_client_core::client::topology_control::accessor::TopologyAccessor;
 use nym_sphinx::forwarding::packet::MixPacket;
 use std::time::Duration;
+use nym_crypto::asymmetric::identity;
 
 pub type MixForwardingSender = mpsc::UnboundedSender<MixPacket>;
 type MixForwardingReceiver = mpsc::UnboundedReceiver<MixPacket>;
@@ -28,6 +29,7 @@ impl PacketForwarder {
         maximum_connection_buffer_size: usize,
         use_legacy_version: bool,
         topology_access: TopologyAccessor,
+        private_id_key: &identity::PrivateKey,
         shutdown: nym_task::TaskClient,
     ) -> (PacketForwarder, MixForwardingSender) {
         let client_config = Config::new(
@@ -42,7 +44,7 @@ impl PacketForwarder {
 
         (
             PacketForwarder {
-                mixnet_client: Client::new(client_config, topology_access),
+                mixnet_client: Client::new(client_config, topology_access, private_id_key),
                 packet_receiver,
                 shutdown,
             },

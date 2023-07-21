@@ -159,7 +159,11 @@ impl MixNode {
         let packet_processor =
             PacketProcessor::new(self.sphinx_keypair.private_key(), node_stats_update_sender);
 
-        let connection_handler = ConnectionHandler::new(packet_processor, delay_forwarding_channel);
+        let connection_handler = ConnectionHandler::new(
+            packet_processor,
+            delay_forwarding_channel,
+            self.identity_keypair.private_key(),
+        );
 
         let listening_address = SocketAddr::new(
             self.config.mixnode.listening_address,
@@ -186,7 +190,11 @@ impl MixNode {
         );
 
         let mut packet_forwarder = DelayForwarder::new(
-            nym_mixnet_client::Client::new(client_config, topology_access),
+            nym_mixnet_client::Client::new(
+                client_config,
+                topology_access,
+                self.identity_keypair.private_key(),
+            ),
             node_stats_update_sender,
             shutdown,
         );

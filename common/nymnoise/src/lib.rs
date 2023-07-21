@@ -4,24 +4,19 @@
 use log::*;
 use nym_topology::NymTopology;
 use pin_project::pin_project;
+use snow::error::Prerequisite;
+use snow::Builder;
 use snow::Error as NoiseError;
-use snow::{params::NoiseParams, Builder, TransportState};
 use std::pin::Pin;
 use tokio::{
     io::{AsyncRead, AsyncWrite},
     net::TcpStream,
 };
 
-const NOISE_HS_PATTERN: &str = "Noise_XK_25519_AESGCM_SHA256";
+const NOISE_HS_PATTERN: &str = "Noise_XKpsk3_25519_AESGCM_SHA256";
 
-static PRIV_KEY: &[u8] = &[
-    208, 217, 103, 180, 100, 15, 242, 137, 184, 247, 248, 193, 21, 66, 177, 79, 90, 131, 15, 134,
-    145, 4, 45, 37, 215, 253, 227, 172, 113, 73, 97, 125,
-];
-static PUB_KEY: &[u8] = &[
-    126, 100, 176, 138, 253, 249, 136, 187, 191, 200, 120, 5, 62, 218, 218, 73, 220, 60, 1, 179,
-    49, 92, 253, 43, 91, 109, 18, 6, 88, 235, 123, 78,
-];
+static SECRET: &[u8] = b"i don't care for fidget spinners";
+
 /// Wrapper around a TcpStream
 //TODO SW : add psk3 to the protocol, requires topology at the receiver
 #[pin_project]
@@ -80,24 +75,47 @@ impl AsyncWrite for NoiseStream {
 pub fn upgrade_noise_initiator(
     conn: TcpStream,
     topology: &NymTopology,
+    local_private_key: &[u8],
 ) -> Result<NoiseStream, NoiseError> {
     debug!("Perform Noise Handshake, initiator side");
     let builder = Builder::new(NOISE_HS_PATTERN.parse().unwrap()); //This cannot fail, hardcoded pattern must be correct
 
+    //Get init material
+    let responder_addr = match conn.peer_addr() {
+        Ok(addr) => addr,
+        Err(err) => {
+            error!("Unable to extract peer address from connection - {err}");
+            return Err(Prerequisite::RemotePublicKey.into());
+        }
+    };
+    let remote_pub_key = match topology.find_node_key_by_mix_host(responder_addr) {
+        Some(pub_key) => pub_key.to_bytes(),
+        None => {
+            error!(
+                "Cannot find public key for node with address {:?}",
+                responder_addr
+            );
+            return Err(Prerequisite::RemotePublicKey.into());
+        }
+    };
+
     let mut _handshake = builder
-        .local_private_key(PRIV_KEY)
-        .remote_public_key(PUB_KEY)
-        //.psk(3, key)
+        .local_private_key(local_private_key)
+        .remote_public_key(&remote_pub_key)
+        .psk(3, SECRET)
         .build_initiator()?;
 
     Ok(NoiseStream::new(conn))
 }
-pub fn upgrade_noise_responder(conn: TcpStream) -> Result<NoiseStream, NoiseError> {
+pub fn upgrade_noise_responder(
+    conn: TcpStream,
+    local_private_key: &[u8],
+) -> Result<NoiseStream, NoiseError> {
     debug!("Perform Noise Handshake, responder side");
     let builder = Builder::new(NOISE_HS_PATTERN.parse().unwrap()); //This cannot fail, hardcoded pattern must be correct
     let mut _handshake = builder
-        .local_private_key(PRIV_KEY)
-        //.psk(3, key)
+        .local_private_key(local_private_key)
+        .psk(3, SECRET)
         .build_responder()?;
     Ok(NoiseStream::new(conn))
 }

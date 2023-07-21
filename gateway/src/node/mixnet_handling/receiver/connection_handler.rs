@@ -3,11 +3,13 @@
 
 use crate::node::client_handling::active_clients::ActiveClientsStore;
 use crate::node::client_handling::websocket::message_receiver::MixMessageSender;
+use crate::node::identity::SECRET_KEY_LENGTH;
 use crate::node::mixnet_handling::receiver::packet_processing::PacketProcessor;
 use crate::node::storage::error::StorageError;
 use crate::node::storage::Storage;
 use futures::StreamExt;
 use log::*;
+use nym_crypto::asymmetric::identity;
 use nym_mixnet_client::forwarder::MixForwardingSender;
 use nym_mixnode_common::packet_processor::processor::ProcessedFinalHop;
 use nym_noise::upgrade_noise_responder;
@@ -32,6 +34,7 @@ pub(crate) struct ConnectionHandler<St: Storage> {
     active_clients_store: ActiveClientsStore,
     storage: St,
     ack_sender: MixForwardingSender,
+    private_identity_key: [u8; SECRET_KEY_LENGTH],
 }
 
 impl<St: Storage + Clone> Clone for ConnectionHandler<St> {
@@ -50,6 +53,7 @@ impl<St: Storage + Clone> Clone for ConnectionHandler<St> {
             active_clients_store: self.active_clients_store.clone(),
             storage: self.storage.clone(),
             ack_sender: self.ack_sender.clone(),
+            private_identity_key: self.private_identity_key.clone(),
         }
     }
 }
@@ -60,6 +64,7 @@ impl<St: Storage> ConnectionHandler<St> {
         storage: St,
         ack_sender: MixForwardingSender,
         active_clients_store: ActiveClientsStore,
+        private_identity_key: &identity::PrivateKey,
     ) -> Self {
         ConnectionHandler {
             packet_processor,
@@ -67,6 +72,7 @@ impl<St: Storage> ConnectionHandler<St> {
             storage,
             active_clients_store,
             ack_sender,
+            private_identity_key: private_identity_key.to_bytes(),
         }
     }
 
@@ -183,7 +189,7 @@ impl<St: Storage> ConnectionHandler<St> {
     ) {
         debug!("Starting connection handler for {:?}", remote);
         shutdown.mark_as_success();
-        let noise_stream = match upgrade_noise_responder(conn) {
+        let noise_stream = match upgrade_noise_responder(conn, &self.private_identity_key) {
             Ok(noise_stream) => noise_stream,
             Err(err) => {
                 error!("Failed to perform Noise handshake with {remote} - {err}");

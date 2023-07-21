@@ -24,6 +24,7 @@ url = { workspace = true }
 wasm-bindgen = { workspace = true }
 wasm-bindgen-futures = { workspace = true }
 thiserror =  { workspace = true }
+tsify = { workspace = true, features = ["js"] }
 
 nym-socks5-requests = { path = "../../common/socks5/requests" }
 nym-ordered-buffer = { path = "../../common/socks5/ordered-buffer" }

@@ -7,17 +7,22 @@
 #![allow(dropping_copy_types)]
 
 use crate::error::WasmCoreError;
-pub use nym_client_core::config::Config as BaseClientConfig;
-use nym_client_core::config::{
-    Acknowledgements as ConfigAcknowledgements, CoverTraffic as ConfigCoverTraffic,
-    DebugConfig as ConfigDebug, GatewayConnection as ConfigGatewayConnection,
-    ReplySurbs as ConfigReplySurbs, Topology as ConfigTopology, Traffic as ConfigTraffic,
-};
 use nym_config::helpers::OptionalSet;
 use nym_sphinx::params::{PacketSize, PacketType};
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use wasm_bindgen::prelude::*;
+
+pub mod r#override;
+
+pub use nym_client_core::config::{
+    Acknowledgements as ConfigAcknowledgements, Config as BaseClientConfig,
+    CoverTraffic as ConfigCoverTraffic, DebugConfig as ConfigDebug,
+    GatewayConnection as ConfigGatewayConnection, ReplySurbs as ConfigReplySurbs,
+    Topology as ConfigTopology, Traffic as ConfigTraffic,
+};
+
+use wasm_utils::console_log;
 
 pub fn new_base_client_config(
     id: String,
@@ -26,6 +31,8 @@ pub fn new_base_client_config(
     nyxd: Option<String>,
     debug: Option<DebugWasm>,
 ) -> Result<BaseClientConfig, WasmCoreError> {
+    console_log!("using debug: {:#?}", debug);
+
     let nym_api_url = match nym_api {
         Some(raw) => Some(
             raw.parse()
@@ -59,6 +66,13 @@ pub fn default_debug() -> DebugWasm {
     ConfigDebug::default().into()
 }
 
+#[wasm_bindgen(js_name = defaultDebug)]
+pub fn default_debug_obj() -> JsValue {
+    let dbg = default_debug();
+    serde_wasm_bindgen::to_value(&dbg)
+        .expect("our 'DebugWasm' struct should have had a correctly defined serde implementation")
+}
+
 /// A client configuration in which no cover traffic will be sent,
 /// in either the main distribution or the secondary traffic stream.
 #[wasm_bindgen]
@@ -69,9 +83,17 @@ pub fn no_cover_debug() -> DebugWasm {
     cfg.into()
 }
 
+#[wasm_bindgen(js_name = noCoverDebug)]
+pub fn no_cover_debug_obj() -> JsValue {
+    let dbg = no_cover_debug();
+    serde_wasm_bindgen::to_value(&dbg)
+        .expect("our 'DebugWasm' struct should have had a correctly defined serde implementation")
+}
+
 // just a helper structure to more easily pass through the JS boundary
-#[wasm_bindgen]
+#[wasm_bindgen(inspectable)]
 #[derive(Debug, Copy, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct DebugWasm {
     /// Defines all configuration options related to traffic streams.
     pub traffic: TrafficWasm,
@@ -90,6 +112,12 @@ pub struct DebugWasm {
 
     /// Defines all configuration options related to reply SURBs.
     pub reply_surbs: ReplySurbsWasm,
+}
+
+impl Default for DebugWasm {
+    fn default() -> Self {
+        ConfigDebug::default().into()
+    }
 }
 
 impl From<DebugWasm> for ConfigDebug {
@@ -118,20 +146,21 @@ impl From<ConfigDebug> for DebugWasm {
     }
 }
 
-#[wasm_bindgen]
+#[wasm_bindgen(inspectable)]
 #[derive(Debug, Copy, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct TrafficWasm {
     /// The parameter of Poisson distribution determining how long, on average,
     /// sent packet is going to be delayed at any given mix node.
     /// So for a packet going through three mix nodes, on average, it will take three times this value
     /// until the packet reaches its destination.
-    pub average_packet_delay_ms: u64,
+    pub average_packet_delay_ms: u32,
 
     /// The parameter of Poisson distribution determining how long, on average,
     /// it is going to take another 'real traffic stream' message to be sent.
     /// If no real packets are available and cover traffic is enabled,
     /// a loop cover message is sent instead in order to preserve the rate.
-    pub message_sending_average_delay_ms: u64,
+    pub message_sending_average_delay_ms: u32,
 
     /// Controls whether the main packet stream constantly produces packets according to the predefined
     /// poisson distribution.
@@ -142,6 +171,12 @@ pub struct TrafficWasm {
 
     /// Controls whether the sent packets should use outfox as opposed to the default sphinx.
     pub use_outfox: bool,
+}
+
+impl Default for TrafficWasm {
+    fn default() -> Self {
+        ConfigTraffic::default().into()
+    }
 }
 
 impl From<TrafficWasm> for ConfigTraffic {
@@ -157,9 +192,9 @@ impl From<TrafficWasm> for ConfigTraffic {
         };
 
         ConfigTraffic {
-            average_packet_delay: Duration::from_millis(traffic.average_packet_delay_ms),
+            average_packet_delay: Duration::from_millis(traffic.average_packet_delay_ms as u64),
             message_sending_average_delay: Duration::from_millis(
-                traffic.message_sending_average_delay_ms,
+                traffic.message_sending_average_delay_ms as u64,
             ),
             disable_main_poisson_packet_distribution: traffic
                 .disable_main_poisson_packet_distribution,
@@ -173,9 +208,9 @@ impl From<TrafficWasm> for ConfigTraffic {
 impl From<ConfigTraffic> for TrafficWasm {
     fn from(traffic: ConfigTraffic) -> Self {
         TrafficWasm {
-            average_packet_delay_ms: traffic.average_packet_delay.as_millis() as u64,
+            average_packet_delay_ms: traffic.average_packet_delay.as_millis() as u32,
             message_sending_average_delay_ms: traffic.message_sending_average_delay.as_millis()
-                as u64,
+                as u32,
             disable_main_poisson_packet_distribution: traffic
                 .disable_main_poisson_packet_distribution,
             use_extended_packet_size: traffic.secondary_packet_size.is_some(),
@@ -184,12 +219,13 @@ impl From<ConfigTraffic> for TrafficWasm {
     }
 }
 
-#[wasm_bindgen]
+#[wasm_bindgen(inspectable)]
 #[derive(Debug, Copy, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct CoverTrafficWasm {
     /// The parameter of Poisson distribution determining how long, on average,
     /// it is going to take for another loop cover traffic message to be sent.
-    pub loop_cover_traffic_average_delay_ms: u64,
+    pub loop_cover_traffic_average_delay_ms: u32,
 
     /// Specifies the ratio of `primary_packet_size` to `secondary_packet_size` used in cover traffic.
     /// Only applicable if `secondary_packet_size` is enabled.
@@ -200,11 +236,17 @@ pub struct CoverTrafficWasm {
     pub disable_loop_cover_traffic_stream: bool,
 }
 
+impl Default for CoverTrafficWasm {
+    fn default() -> Self {
+        ConfigCoverTraffic::default().into()
+    }
+}
+
 impl From<CoverTrafficWasm> for ConfigCoverTraffic {
     fn from(cover_traffic: CoverTrafficWasm) -> Self {
         ConfigCoverTraffic {
             loop_cover_traffic_average_delay: Duration::from_millis(
-                cover_traffic.loop_cover_traffic_average_delay_ms,
+                cover_traffic.loop_cover_traffic_average_delay_ms as u64,
             ),
             cover_traffic_primary_size_ratio: cover_traffic.cover_traffic_primary_size_ratio,
             disable_loop_cover_traffic_stream: cover_traffic.disable_loop_cover_traffic_stream,
@@ -217,26 +259,33 @@ impl From<ConfigCoverTraffic> for CoverTrafficWasm {
         CoverTrafficWasm {
             loop_cover_traffic_average_delay_ms: cover_traffic
                 .loop_cover_traffic_average_delay
-                .as_millis() as u64,
+                .as_millis() as u32,
             cover_traffic_primary_size_ratio: cover_traffic.cover_traffic_primary_size_ratio,
             disable_loop_cover_traffic_stream: cover_traffic.disable_loop_cover_traffic_stream,
         }
     }
 }
 
-#[wasm_bindgen]
+#[wasm_bindgen(inspectable)]
 #[derive(Debug, Copy, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct GatewayConnectionWasm {
     /// How long we're willing to wait for a response to a message sent to the gateway,
     /// before giving up on it.
-    pub gateway_response_timeout_ms: u64,
+    pub gateway_response_timeout_ms: u32,
+}
+
+impl Default for GatewayConnectionWasm {
+    fn default() -> Self {
+        ConfigGatewayConnection::default().into()
+    }
 }
 
 impl From<GatewayConnectionWasm> for ConfigGatewayConnection {
     fn from(gateway_connection: GatewayConnectionWasm) -> Self {
         ConfigGatewayConnection {
             gateway_response_timeout: Duration::from_millis(
-                gateway_connection.gateway_response_timeout_ms,
+                gateway_connection.gateway_response_timeout_ms as u64,
             ),
         }
     }
@@ -246,19 +295,20 @@ impl From<ConfigGatewayConnection> for GatewayConnectionWasm {
     fn from(gateway_connection: ConfigGatewayConnection) -> Self {
         GatewayConnectionWasm {
             gateway_response_timeout_ms: gateway_connection.gateway_response_timeout.as_millis()
-                as u64,
+                as u32,
         }
     }
 }
 
-#[wasm_bindgen]
+#[wasm_bindgen(inspectable)]
 #[derive(Debug, Copy, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct AcknowledgementsWasm {
     /// The parameter of Poisson distribution determining how long, on average,
     /// sent acknowledgement is going to be delayed at any given mix node.
     /// So for an ack going through three mix nodes, on average, it will take three times this value
     /// until the packet reaches its destination.
-    pub average_ack_delay_ms: u64,
+    pub average_ack_delay_ms: u32,
 
     /// Value multiplied with the expected round trip time of an acknowledgement packet before
     /// it is assumed it was lost and retransmission of the data packet happens.
@@ -268,15 +318,21 @@ pub struct AcknowledgementsWasm {
     /// Value added to the expected round trip time of an acknowledgement packet before
     /// it is assumed it was lost and retransmission of the data packet happens.
     /// In an ideal network with 0 latency, this value would have been 0.
-    pub ack_wait_addition_ms: u64,
+    pub ack_wait_addition_ms: u32,
+}
+
+impl Default for AcknowledgementsWasm {
+    fn default() -> Self {
+        ConfigAcknowledgements::default().into()
+    }
 }
 
 impl From<AcknowledgementsWasm> for ConfigAcknowledgements {
     fn from(acknowledgements: AcknowledgementsWasm) -> Self {
         ConfigAcknowledgements {
-            average_ack_delay: Duration::from_millis(acknowledgements.average_ack_delay_ms),
+            average_ack_delay: Duration::from_millis(acknowledgements.average_ack_delay_ms as u64),
             ack_wait_multiplier: acknowledgements.ack_wait_multiplier,
-            ack_wait_addition: Duration::from_millis(acknowledgements.ack_wait_addition_ms),
+            ack_wait_addition: Duration::from_millis(acknowledgements.ack_wait_addition_ms as u64),
         }
     }
 }
@@ -284,24 +340,25 @@ impl From<AcknowledgementsWasm> for ConfigAcknowledgements {
 impl From<ConfigAcknowledgements> for AcknowledgementsWasm {
     fn from(acknowledgements: ConfigAcknowledgements) -> Self {
         AcknowledgementsWasm {
-            average_ack_delay_ms: acknowledgements.average_ack_delay.as_millis() as u64,
+            average_ack_delay_ms: acknowledgements.average_ack_delay.as_millis() as u32,
             ack_wait_multiplier: acknowledgements.ack_wait_multiplier,
-            ack_wait_addition_ms: acknowledgements.ack_wait_addition.as_millis() as u64,
+            ack_wait_addition_ms: acknowledgements.ack_wait_addition.as_millis() as u32,
         }
     }
 }
 
-#[wasm_bindgen]
+#[wasm_bindgen(inspectable)]
 #[derive(Debug, Copy, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct TopologyWasm {
     /// The uniform delay every which clients are querying the directory server
     /// to try to obtain a compatible network topology to send sphinx packets through.
-    pub topology_refresh_rate_ms: u64,
+    pub topology_refresh_rate_ms: u32,
 
     /// During topology refresh, test packets are sent through every single possible network
     /// path. This timeout determines waiting period until it is decided that the packet
     /// did not reach its destination.
-    pub topology_resolution_timeout_ms: u64,
+    pub topology_resolution_timeout_ms: u32,
 
     /// Specifies whether the client should not refresh the network topology after obtaining
     /// the first valid instance.
@@ -309,12 +366,18 @@ pub struct TopologyWasm {
     pub disable_refreshing: bool,
 }
 
+impl Default for TopologyWasm {
+    fn default() -> Self {
+        ConfigTopology::default().into()
+    }
+}
+
 impl From<TopologyWasm> for ConfigTopology {
     fn from(topology: TopologyWasm) -> Self {
         ConfigTopology {
-            topology_refresh_rate: Duration::from_millis(topology.topology_refresh_rate_ms),
+            topology_refresh_rate: Duration::from_millis(topology.topology_refresh_rate_ms as u64),
             topology_resolution_timeout: Duration::from_millis(
-                topology.topology_resolution_timeout_ms,
+                topology.topology_resolution_timeout_ms as u64,
             ),
             disable_refreshing: topology.disable_refreshing,
         }
@@ -324,15 +387,16 @@ impl From<TopologyWasm> for ConfigTopology {
 impl From<ConfigTopology> for TopologyWasm {
     fn from(topology: ConfigTopology) -> Self {
         TopologyWasm {
-            topology_refresh_rate_ms: topology.topology_refresh_rate.as_millis() as u64,
-            topology_resolution_timeout_ms: topology.topology_resolution_timeout.as_millis() as u64,
+            topology_refresh_rate_ms: topology.topology_refresh_rate.as_millis() as u32,
+            topology_resolution_timeout_ms: topology.topology_resolution_timeout.as_millis() as u32,
             disable_refreshing: topology.disable_refreshing,
         }
     }
 }
 
-#[wasm_bindgen]
+#[wasm_bindgen(inspectable)]
 #[derive(Debug, Copy, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ReplySurbsWasm {
     /// Defines the minimum number of reply surbs the client wants to keep in its storage at all times.
     /// It can only allow to go below that value if its to request additional reply surbs.
@@ -352,19 +416,25 @@ pub struct ReplySurbsWasm {
 
     /// Defines maximum amount of time the client is going to wait for reply surbs before explicitly asking
     /// for more even though in theory they wouldn't need to.
-    pub maximum_reply_surb_rerequest_waiting_period_ms: u64,
+    pub maximum_reply_surb_rerequest_waiting_period_ms: u32,
 
     /// Defines maximum amount of time the client is going to wait for reply surbs before
     /// deciding it's never going to get them and would drop all pending messages
-    pub maximum_reply_surb_drop_waiting_period_ms: u64,
+    pub maximum_reply_surb_drop_waiting_period_ms: u32,
 
     /// Defines maximum amount of time given reply surb is going to be valid for.
     /// This is going to be superseded by key rotation once implemented.
-    pub maximum_reply_surb_age_ms: u64,
+    pub maximum_reply_surb_age_ms: u32,
 
     /// Defines maximum amount of time given reply key is going to be valid for.
     /// This is going to be superseded by key rotation once implemented.
-    pub maximum_reply_key_age_ms: u64,
+    pub maximum_reply_key_age_ms: u32,
+}
+
+impl Default for ReplySurbsWasm {
+    fn default() -> Self {
+        ConfigReplySurbs::default().into()
+    }
 }
 
 impl From<ReplySurbsWasm> for ConfigReplySurbs {
@@ -377,13 +447,17 @@ impl From<ReplySurbsWasm> for ConfigReplySurbs {
             maximum_allowed_reply_surb_request_size: reply_surbs
                 .maximum_allowed_reply_surb_request_size,
             maximum_reply_surb_rerequest_waiting_period: Duration::from_millis(
-                reply_surbs.maximum_reply_surb_rerequest_waiting_period_ms,
+                reply_surbs.maximum_reply_surb_rerequest_waiting_period_ms as u64,
             ),
             maximum_reply_surb_drop_waiting_period: Duration::from_millis(
-                reply_surbs.maximum_reply_surb_drop_waiting_period_ms,
+                reply_surbs.maximum_reply_surb_drop_waiting_period_ms as u64,
             ),
-            maximum_reply_surb_age: Duration::from_millis(reply_surbs.maximum_reply_surb_age_ms),
-            maximum_reply_key_age: Duration::from_millis(reply_surbs.maximum_reply_key_age_ms),
+            maximum_reply_surb_age: Duration::from_millis(
+                reply_surbs.maximum_reply_surb_age_ms as u64,
+            ),
+            maximum_reply_key_age: Duration::from_millis(
+                reply_surbs.maximum_reply_key_age_ms as u64,
+            ),
         }
     }
 }
@@ -399,12 +473,12 @@ impl From<ConfigReplySurbs> for ReplySurbsWasm {
                 .maximum_allowed_reply_surb_request_size,
             maximum_reply_surb_rerequest_waiting_period_ms: reply_surbs
                 .maximum_reply_surb_rerequest_waiting_period
-                .as_millis() as u64,
+                .as_millis() as u32,
             maximum_reply_surb_drop_waiting_period_ms: reply_surbs
                 .maximum_reply_surb_drop_waiting_period
-                .as_millis() as u64,
-            maximum_reply_surb_age_ms: reply_surbs.maximum_reply_surb_age.as_millis() as u64,
-            maximum_reply_key_age_ms: reply_surbs.maximum_reply_key_age.as_millis() as u64,
+                .as_millis() as u32,
+            maximum_reply_surb_age_ms: reply_surbs.maximum_reply_surb_age.as_millis() as u32,
+            maximum_reply_key_age_ms: reply_surbs.maximum_reply_key_age.as_millis() as u32,
         }
     }
 }

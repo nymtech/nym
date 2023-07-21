@@ -35,7 +35,7 @@ const {
     send_client_data,
     start_new_mixnet_connection,
     setupMixFetch,
-    setupMixFetchSimple,
+    setupMixFetchWithConfig,
     mix_fetch_initialised,
     finish_mixnet_connection} = wasm_bindgen;
 
@@ -65,26 +65,111 @@ async function logFetchResult(res) {
     });
 }
 
-async function testMixFetch() {
-    // only really useful if you want to adjust some settings like traffic rate
-    // (if not needed you can just pass a null)
-    const debug = no_cover_debug()
-
-    // const preferredGateway = "6qQYb4ArXANU6HJDxzH4PFCUqYb39Dae2Gem2KpxescM";
+async function wasm_bindgenSetup() {
+    const preferredGateway = "6qQYb4ArXANU6HJDxzH4PFCUqYb39Dae2Gem2KpxescM";
     const validator = 'https://qa-nym-api.qa.nymte.ch/api';
 
     // local
-    const mix_fetch_network_requester_address= "2o47bhnXWna6VEyt4mXMGQQAbXfpKmX7BkjkxUz8uQVi.6uQGnCqSczpXwh86NdbsCoDDXuqZQM9Uwko8GE7uC9g8@6qQYb4ArXANU6HJDxzH4PFCUqYb39Dae2Gem2KpxescM";
-    // const mix_fetch_network_requester_address= "GqiGWmKRCbGQFSqH88BzLKijvZgipnqhmbNFsmkZw84t.4L8sXFuAUyUYyHZYgMdM3AtiusKnYUft6Pd8e41rrCHA@6qQYb4ArXANU6HJDxzH4PFCUqYb39Dae2Gem2KpxescM";
+    const mixFetchNetworkRequesterAddress= "2o47bhnXWna6VEyt4mXMGQQAbXfpKmX7BkjkxUz8uQVi.6uQGnCqSczpXwh86NdbsCoDDXuqZQM9Uwko8GE7uC9g8@6qQYb4ArXANU6HJDxzH4PFCUqYb39Dae2Gem2KpxescM";
+    // const mixFetchNetworkRequesterAddress= "GqiGWmKRCbGQFSqH88BzLKijvZgipnqhmbNFsmkZw84t.4L8sXFuAUyUYyHZYgMdM3AtiusKnYUft6Pd8e41rrCHA@6qQYb4ArXANU6HJDxzH4PFCUqYb39Dae2Gem2KpxescM";
 
-    const config = new MixFetchConfig(mix_fetch_network_requester_address, { id: 'my-awesome-mix-fetch-client', nymApi: validator, debug: debug} );
+    // STEP 1. construct config
+    // those are just some examples, there are obviously more permutations;
+    // note, the extra optional argument is of the following type:
+    // /*
+    //     export interface MixFetchConfigOpts {
+    //         id?: string;
+    //         nymApi?: string;
+    //         nyxd?: string;
+    //         debug?: DebugWasm;
+    //     }
+    //  */
+    //
+    // const debug = no_cover_debug()
+    //
+    // #1
+    // const config = new MixFetchConfig(mixFetchNetworkRequesterAddress, { id: 'my-awesome-mix-fetch-client', nymApi: validator, debug: debug} );
+    // #2
+    // const config = new MixFetchConfig(mixFetchNetworkRequesterAddress, { nymApi: validator, debug: debug} );
+    // #3
+    // const config = new MixFetchConfig(mixFetchNetworkRequesterAddress, { id: 'my-awesome-mix-fetch-client' } );
+    //
+    // #4
+    const differentDebug = default_debug()
+    const updatedTraffic = differentDebug.traffic;
+    updatedTraffic.use_extended_packet_size = true
+    updatedTraffic.average_packet_delay_ms = 666;
+    differentDebug.traffic = updatedTraffic;
 
+    const config = new MixFetchConfig(mixFetchNetworkRequesterAddress, { debug: differentDebug } );
+    //
+    // // STEP 2. setup the client
+    // // note, the extra optional argument is of the following type:
+    // /*
+    //     export interface MixFetchOptsSimple {
+    //         preferredGateway?: string;
+    //         storagePassphrase?: string;
+    //     }
+    //  */
+    // #1
+    await setupMixFetchWithConfig(config)
+    //
+    // #2
+    // await setupMixFetchWithConfig(config, { storagePassphrase: "foomp" })
+    //
+    // #3
+    // await setupMixFetchWithConfig(config, { storagePassphrase: "foomp", preferredGateway })
+}
+
+async function nativeSetup() {
+    const preferredGateway = "6qQYb4ArXANU6HJDxzH4PFCUqYb39Dae2Gem2KpxescM";
+    const validator = 'https://qa-nym-api.qa.nymte.ch/api';
+
+    // local
+    const mixFetchNetworkRequesterAddress= "2o47bhnXWna6VEyt4mXMGQQAbXfpKmX7BkjkxUz8uQVi.6uQGnCqSczpXwh86NdbsCoDDXuqZQM9Uwko8GE7uC9g8@6qQYb4ArXANU6HJDxzH4PFCUqYb39Dae2Gem2KpxescM";
+    // const mixFetchNetworkRequesterAddress= "GqiGWmKRCbGQFSqH88BzLKijvZgipnqhmbNFsmkZw84t.4L8sXFuAUyUYyHZYgMdM3AtiusKnYUft6Pd8e41rrCHA@6qQYb4ArXANU6HJDxzH4PFCUqYb39Dae2Gem2KpxescM";
+
+    // those are just some examples, there are obviously more permutations;
+    // note, the extra optional argument is of the following type:
+    /*
+        export interface MixFetchOpts extends MixFetchOptsSimple {
+            clientId?: string;
+            nymApiUrl?: string;
+            nyxdUrl?: string;
+            clientOverride?: DebugWasmOverride;
+            mixFetchOverride?: MixFetchDebugOverride;
+        }
+
+        where
+        export interface MixFetchDebugOverride {
+	       requestTimeoutMs?: number;
+    	}
+
+    	and `DebugWasmOverride` is a rather nested struct that you can look up yourself : )
+     */
+
+    // #1
+    // await setupMixFetch(mixFetchNetworkRequesterAddress)
+    // #2
+    // await setupMixFetch(mixFetchNetworkRequesterAddress, { nymApiUrl: validator })
+    // // #3
+    const noCoverTrafficOverride = {
+        traffic: { disableMainPoissonPacketDistribution: true },
+        coverTraffic: { disableLoopCoverTrafficStream: true },
+    }
+    const mixFetchOverride = {
+        requestTimeoutMs: 10000
+    }
+
+    await setupMixFetch(mixFetchNetworkRequesterAddress, { storagePassphrase: "foomp", nymApiUrl: validator, clientId: "my-client", clientOverride: noCoverTrafficOverride, mixFetchOverride })
+}
+
+async function testMixFetch() {
     console.log('Instantiating Mix Fetch...');
-    // await setupMixFetch(config, {storagePassphrase: "foomp"})
-    await setupMixFetch(config)
+    // await wasm_bindgenSetup()
 
-    // this one will use all the defaults (apart from the SP - but maybe we could grab the list from somewhere?)
-    // await setupMixFetchSimple(mix_fetch_network_requester_address)
+    await nativeSetup()
+
 
     console.log('Mix Fetch client running!');
 

@@ -7,8 +7,9 @@
 use crate::error::MixFetchError;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
+use tsify::Tsify;
 use wasm_bindgen::prelude::*;
-use wasm_client_core::config::{new_base_client_config, BaseClientConfig, DebugWasm};
+use wasm_client_core::config::{new_base_client_config, BaseClientConfig, ConfigDebug, DebugWasm};
 use wasm_client_core::helpers::parse_recipient;
 use wasm_client_core::Recipient;
 
@@ -33,33 +34,27 @@ pub struct MixFetchConfig {
     pub(crate) mix_fetch: MixFetch,
 }
 
-#[wasm_bindgen]
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Tsify, Debug, Clone, Serialize, Deserialize)]
+#[tsify(into_wasm_abi, from_wasm_abi)]
+#[serde(rename_all = "camelCase")]
 pub struct MixFetchConfigOpts {
-    id: Option<String>,
+    #[tsify(optional)]
+    pub id: Option<String>,
 
-    #[serde(rename = "nymApi")]
-    nym_api: Option<String>,
-    nyxd: Option<String>,
-    debug: Option<DebugWasm>,
+    #[tsify(optional)]
+    pub nym_api: Option<String>,
+
+    #[tsify(optional)]
+    pub nyxd: Option<String>,
+
+    #[tsify(optional)]
+    pub debug: Option<DebugWasm>,
 }
 
 #[wasm_bindgen]
 impl MixFetchConfig {
     #[wasm_bindgen(constructor)]
     pub fn new(
-        network_requester_address: String,
-        opts: JsValue,
-    ) -> Result<MixFetchConfig, MixFetchError> {
-        let opts = if opts.is_null() || opts.is_undefined() {
-            None
-        } else {
-            Some(serde_wasm_bindgen::from_value(opts)?)
-        };
-        MixFetchConfig::_new(network_requester_address, opts)
-    }
-
-    pub(crate) fn _new(
         network_requester_address: String,
         opts: Option<MixFetchConfigOpts>,
     ) -> Result<MixFetchConfig, MixFetchError> {
@@ -86,9 +81,19 @@ impl MixFetchConfig {
 
 #[wasm_bindgen]
 impl MixFetchConfig {
-    pub fn with_mix_fetch_timeout(mut self, timeout_ms: u64) -> Self {
-        self.mix_fetch.request_timeout = Duration::from_millis(timeout_ms);
+    pub fn with_mix_fetch_timeout(mut self, timeout_ms: u32) -> Self {
+        self.mix_fetch.debug.request_timeout = Duration::from_millis(timeout_ms as u64);
         self
+    }
+}
+
+impl MixFetchConfig {
+    pub fn override_debug<D: Into<ConfigDebug>>(&mut self, debug: D) {
+        self.base.debug = debug.into();
+    }
+
+    pub fn override_mix_fetch_debug<D: Into<MixFetchDebug>>(&mut self, debug: D) {
+        self.mix_fetch.debug = debug.into();
     }
 }
 
@@ -98,14 +103,51 @@ impl MixFetchConfig {
 pub struct MixFetch {
     pub(crate) network_requester_address: Recipient,
 
-    pub(crate) request_timeout: Duration,
+    #[serde(default)]
+    pub(crate) debug: MixFetchDebug,
 }
 
 impl MixFetch {
     pub(crate) fn new(network_requester_address: String) -> Result<MixFetch, MixFetchError> {
         Ok(MixFetch {
             network_requester_address: parse_recipient(&network_requester_address)?,
-            request_timeout: DEFAULT_MIX_FETCH_TIMEOUT,
+            debug: Default::default(),
         })
+    }
+}
+
+#[wasm_bindgen]
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct MixFetchDebug {
+    pub(crate) request_timeout: Duration,
+}
+
+impl Default for MixFetchDebug {
+    fn default() -> Self {
+        MixFetchDebug {
+            request_timeout: DEFAULT_MIX_FETCH_TIMEOUT,
+        }
+    }
+}
+
+#[derive(Tsify, Debug, Copy, Clone, Serialize, Deserialize)]
+#[tsify(into_wasm_abi, from_wasm_abi)]
+#[serde(rename_all = "camelCase")]
+pub struct MixFetchDebugOverride {
+    #[tsify(optional)]
+    pub request_timeout_ms: Option<u32>,
+}
+
+impl From<MixFetchDebugOverride> for MixFetchDebug {
+    fn from(value: MixFetchDebugOverride) -> Self {
+        let def = MixFetchDebug::default();
+
+        MixFetchDebug {
+            request_timeout: value
+                .request_timeout_ms
+                .map(|d| Duration::from_millis(d as u64))
+                .unwrap_or(def.request_timeout),
+        }
     }
 }

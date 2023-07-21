@@ -76,7 +76,7 @@ impl MixFetchClientBuilder {
     async fn start_client_async(mut self) -> Result<MixFetchClient, MixFetchError> {
         console_log!("Starting the mix fetch client");
 
-        let timeout_ms = self.config.mix_fetch.request_timeout.as_millis();
+        let timeout_ms = self.config.mix_fetch.debug.request_timeout.as_millis();
         if timeout_ms > u32::MAX as u128 {
             return Err(MixFetchError::InvalidTimeoutValue { timeout_ms });
         }

@@ -1,5 +1,5 @@
 use clap::{Args, Parser, Subcommand};
-use nym_sdk::mixnet::Recipient;
+use nym_sdk::mixnet::{Recipient, MixnetClient};
 use nym_validator_client::nyxd::AccountId;
 use rust_cosmos_broadcaster::{
     client::{offline_sign, send_tx},
@@ -30,12 +30,16 @@ struct OfflineSignTx {
     mnemonic: bip39::Mnemonic,
     /// recipient nyx chain address for token transfer
     nyx_token_receipient: AccountId,
+    /// the address of the broadcaster service - this submits txs and queries the chain on our behalf 
+    sp_address: String 
 }
 
 #[derive(Debug, Args)]
 struct SendTx {
     /// the base58 encoded signed payload created in OfflineSign()
     base58_payload: String,
+    /// the address of the broadcaster service - this submits txs and queries the chain on our behalf 
+    sp_address: String 
 }
 
 #[tokio::main]
@@ -44,14 +48,16 @@ async fn main() -> anyhow::Result<()> {
     let mut client = create_client("/tmp/cosmos-broadcaster-mixnet-client-5".into()).await;
     let our_address = client.nym_address();
     println!("\nclient's nym address: {our_address}");
-    let sp_address = Recipient::try_from_base58_string("2f499xz7AfEmsdjd9zaxEVMZ4ed5pod2AqomZ74PSdTW.6heKJmwFZMw14Yz7CKF56iyKDaBBssmNWZJHErGg5jgm@HWdr8jgcr32cVGbjisjmwnVF4xrUBRGvbw86F9e3rFzS").unwrap();
+    // let sp_address = Recipient::try_from_base58_string("2f499xz7AfEmsdjd9zaxEVMZ4ed5pod2AqomZ74PSdTW.6heKJmwFZMw14Yz7CKF56iyKDaBBssmNWZJHErGg5jgm@HWdr8jgcr32cVGbjisjmwnVF4xrUBRGvbw86F9e3rFzS").unwrap();
 
     match cli.command {
         Some(Commands::OfflineSignTx(OfflineSignTx {
             mnemonic,
             nyx_token_receipient,
+            sp_address
         })) => {
             println!("\nsending offline sign info to broadcaster via the mixnet: getting signing account sequence and chain ID");
+            let sp_address = Recipient::try_from_base58_string(sp_address).unwrap(); 
             let base58_tx_bytes = offline_sign(
                 mnemonic.clone(),
                 nyx_token_receipient.clone(),
@@ -84,7 +90,8 @@ async fn main() -> anyhow::Result<()> {
                 println!("\nunrecognised user input");
             }
         }
-        Some(Commands::SendTx(SendTx { base58_payload })) => {
+        Some(Commands::SendTx(SendTx { base58_payload, sp_address})) => {
+            let sp_address = Recipient::try_from_base58_string(sp_address).unwrap(); 
             let tx_hash = send_tx(base58_payload.clone(), sp_address, &mut client).await;
             println!("response from the broadcaster (tx hash) {:#?}", tx_hash);
         }

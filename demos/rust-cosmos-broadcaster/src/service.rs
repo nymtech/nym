@@ -4,9 +4,9 @@ use cosmrs::rpc::{Client, HttpClient};
 use cosmrs::{tendermint, AccountId};
 use nym_validator_client::nyxd::{CosmWasmClient,error::NyxdError};
 
-pub async fn create_broadcaster() -> HttpClient {
-    let broadcaster: HttpClient = HttpClient::new(DEFAULT_VALIDATOR_RPC).unwrap();
-    broadcaster
+pub async fn create_broadcaster() -> anyhow::Result<HttpClient >{
+    let broadcaster: HttpClient = HttpClient::new(DEFAULT_VALIDATOR_RPC)?;
+    Ok(broadcaster)
 }
 
 pub async fn get_sequence(
@@ -15,7 +15,7 @@ pub async fn get_sequence(
 ) -> Result<crate::SequenceRequestResponse, NyxdError> { 
     // get signer information
     let sequence = broadcaster.get_sequence(&signer_address).await?;  
-    let chain_id: tendermint::chain::Id = broadcaster.get_chain_id().await?; // unwrap();
+    let chain_id: tendermint::chain::Id = broadcaster.get_chain_id().await?; 
     Ok(crate::SequenceRequestResponse {
         account_number: sequence.account_number,
         sequence: sequence.sequence,
@@ -26,9 +26,9 @@ pub async fn get_sequence(
 pub async fn broadcast(
     base58_tx_bytes: String,
     broadcaster: HttpClient,
-) -> Result<crate::BroadcastResponse, std::io::Error> {
+) -> anyhow::Result<crate::BroadcastResponse> {
     // decode the base58 tx to vec<u8>
-    let tx_bytes = bs58::decode(base58_tx_bytes).into_vec().unwrap();
+    let tx_bytes = bs58::decode(base58_tx_bytes).into_vec()?;
 
     // this is our sender address hardcoded for ease of the demo logging
     let from_address: AccountId = "n1p8ayfmdash352gh6yy8zlxk24dm6yzc9mdq0p6".parse().unwrap();

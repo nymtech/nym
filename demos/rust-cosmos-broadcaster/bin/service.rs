@@ -11,7 +11,7 @@ async fn main() -> anyhow::Result<()> {
     let our_address = client.nym_address();
     println!("\nservice's nym address: {our_address}");
     // the httpclient we will use to broadcast our signed tx to the Nyx blockchain
-    let broadcaster = create_broadcaster().await;
+    let broadcaster = create_broadcaster().await?;
     println!("listening for messages, press CTRL-C to exit");
 
     loop {
@@ -33,7 +33,7 @@ async fn main() -> anyhow::Result<()> {
                 println!("sequence information returned from chain: account number: {}, sequence:{}, chain id: {} \nsending response to requesting client via mixnet", sequence.account_number, sequence.sequence, sequence.chain_id);
                 // send serialised sequence response back to request sender via mixnet
                 client
-                    .send_str_reply(return_recipient, &serde_json::to_string(&sequence).unwrap())
+                    .send_str_reply(return_recipient, &serde_json::to_string(&sequence)?)
                     .await;
             }
             RequestTypes::Broadcast(request) => {
@@ -48,7 +48,7 @@ async fn main() -> anyhow::Result<()> {
                 println!("return recipient surb bucket: {}", &return_recipient);
                 // send response to tx (transaction hash) back to request sender via mixnet
                 client
-                    .send_str_reply(return_recipient, &serde_json::to_string(&tx_hash).unwrap())
+                    .send_str_reply(return_recipient, &serde_json::to_string(&tx_hash)?)
                     .await;
             }
         }

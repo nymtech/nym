@@ -3,12 +3,13 @@
 
 use crate::node::client_handling::active_clients::ActiveClientsStore;
 use crate::node::client_handling::websocket::message_receiver::MixMessageSender;
-use crate::node::identity::SECRET_KEY_LENGTH;
+use crate::node::identity::{PUBLIC_KEY_LENGTH, SECRET_KEY_LENGTH};
 use crate::node::mixnet_handling::receiver::packet_processing::PacketProcessor;
 use crate::node::storage::error::StorageError;
 use crate::node::storage::Storage;
 use futures::StreamExt;
 use log::*;
+use nym_client_core::client::topology_control::accessor::TopologyAccessor;
 use nym_crypto::asymmetric::identity;
 use nym_mixnet_client::forwarder::MixForwardingSender;
 use nym_mixnode_common::packet_processor::processor::ProcessedFinalHop;
@@ -34,6 +35,8 @@ pub(crate) struct ConnectionHandler<St: Storage> {
     active_clients_store: ActiveClientsStore,
     storage: St,
     ack_sender: MixForwardingSender,
+    topology_access: TopologyAccessor,
+    public_identity_key: [u8; PUBLIC_KEY_LENGTH],
     private_identity_key: [u8; SECRET_KEY_LENGTH],
 }
 
@@ -53,6 +56,8 @@ impl<St: Storage + Clone> Clone for ConnectionHandler<St> {
             active_clients_store: self.active_clients_store.clone(),
             storage: self.storage.clone(),
             ack_sender: self.ack_sender.clone(),
+            topology_access: self.topology_access.clone(),
+            public_identity_key: self.public_identity_key.clone(),
             private_identity_key: self.private_identity_key.clone(),
         }
     }
@@ -64,7 +69,8 @@ impl<St: Storage> ConnectionHandler<St> {
         storage: St,
         ack_sender: MixForwardingSender,
         active_clients_store: ActiveClientsStore,
-        private_identity_key: &identity::PrivateKey,
+        topology_access: TopologyAccessor,
+        identity_key: &identity::KeyPair,
     ) -> Self {
         ConnectionHandler {
             packet_processor,
@@ -72,7 +78,9 @@ impl<St: Storage> ConnectionHandler<St> {
             storage,
             active_clients_store,
             ack_sender,
-            private_identity_key: private_identity_key.to_bytes(),
+            topology_access,
+            public_identity_key: identity_key.public_key().to_bytes(),
+            private_identity_key: identity_key.private_key().to_bytes(),
         }
     }
 
@@ -189,7 +197,23 @@ impl<St: Storage> ConnectionHandler<St> {
     ) {
         debug!("Starting connection handler for {:?}", remote);
         shutdown.mark_as_success();
-        let noise_stream = match upgrade_noise_responder(conn, &self.private_identity_key) {
+
+        let topology_access_clonne = self.topology_access.clone();
+        let topology_permit = topology_access_clonne.get_read_permit().await;
+        let topology_ref = match topology_permit.try_get_raw_topology_ref() {
+            Ok(topology) => topology,
+            Err(err) => {
+                error!("Cannot connect to {remote}, due to topology error - {err}");
+                return;
+            }
+        };
+
+        let noise_stream = match upgrade_noise_responder(
+            conn,
+            topology_ref,
+            &self.private_identity_key,
+            &self.public_identity_key,
+        ) {
             Ok(noise_stream) => noise_stream,
             Err(err) => {
                 error!("Failed to perform Noise handshake with {remote} - {err}");

@@ -75,10 +75,10 @@ impl AsyncWrite for NoiseStream {
 pub fn upgrade_noise_initiator(
     conn: TcpStream,
     topology: &NymTopology,
+    local_public_key: &[u8],
     local_private_key: &[u8],
 ) -> Result<NoiseStream, NoiseError> {
     debug!("Perform Noise Handshake, initiator side");
-    let builder = Builder::new(NOISE_HS_PATTERN.parse().unwrap()); //This cannot fail, hardcoded pattern must be correct
 
     //Get init material
     let responder_addr = match conn.peer_addr() {
@@ -98,7 +98,9 @@ pub fn upgrade_noise_initiator(
             return Err(Prerequisite::RemotePublicKey.into());
         }
     };
+    let secret = [local_public_key, &remote_pub_key].concat();
 
+    let builder = Builder::new(NOISE_HS_PATTERN.parse().unwrap()); //This cannot fail, hardcoded pattern must be correct
     let mut _handshake = builder
         .local_private_key(local_private_key)
         .remote_public_key(&remote_pub_key)
@@ -109,9 +111,32 @@ pub fn upgrade_noise_initiator(
 }
 pub fn upgrade_noise_responder(
     conn: TcpStream,
+    topology: &NymTopology,
+    local_public_key: &[u8],
     local_private_key: &[u8],
 ) -> Result<NoiseStream, NoiseError> {
     debug!("Perform Noise Handshake, responder side");
+
+    //Get init material
+    let initiator_addr = match conn.peer_addr() {
+        Ok(addr) => addr,
+        Err(err) => {
+            error!("Unable to extract peer address from connection - {err}");
+            return Err(Prerequisite::RemotePublicKey.into());
+        }
+    };
+    let remote_pub_key = match topology.find_node_key_by_mix_host(initiator_addr) {
+        Some(pub_key) => pub_key.to_bytes(),
+        None => {
+            error!(
+                "Cannot find public key for node with address {:?}",
+                initiator_addr
+            );
+            return Err(Prerequisite::RemotePublicKey.into());
+        }
+    };
+    let secret = [&remote_pub_key, local_public_key].concat();
+
     let builder = Builder::new(NOISE_HS_PATTERN.parse().unwrap()); //This cannot fail, hardcoded pattern must be correct
     let mut _handshake = builder
         .local_private_key(local_private_key)

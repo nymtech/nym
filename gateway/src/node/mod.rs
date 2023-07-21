@@ -130,6 +130,7 @@ impl<St> Gateway<St> {
         &self,
         ack_sender: MixForwardingSender,
         active_clients_store: ActiveClientsStore,
+        topology_access: TopologyAccessor,
         shutdown: TaskClient,
     ) where
         St: Storage + Clone + 'static,
@@ -144,7 +145,8 @@ impl<St> Gateway<St> {
             self.storage.clone(),
             ack_sender,
             active_clients_store,
-            self.identity_keypair.private_key(),
+            topology_access,
+            &self.identity_keypair,
         );
 
         let listening_address = SocketAddr::new(
@@ -199,7 +201,7 @@ impl<St> Gateway<St> {
             self.config.debug.maximum_connection_buffer_size,
             self.config.debug.use_legacy_framed_packet_version,
             topology_access,
-            self.identity_keypair.private_key(),
+            &self.identity_keypair,
             shutdown,
         );
 
@@ -334,12 +336,13 @@ impl<St> Gateway<St> {
         .await;
 
         let mix_forwarding_channel =
-            self.start_packet_forwarder(shared_topology_access, shutdown.subscribe());
+            self.start_packet_forwarder(shared_topology_access.clone(), shutdown.subscribe());
 
         let active_clients_store = ActiveClientsStore::new();
         self.start_mix_socket_listener(
             mix_forwarding_channel.clone(),
             active_clients_store.clone(),
+            shared_topology_access,
             shutdown.subscribe(),
         );
 

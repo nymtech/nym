@@ -152,6 +152,7 @@ impl MixNode {
         &self,
         node_stats_update_sender: node_statistics::UpdateSender,
         delay_forwarding_channel: PacketDelayForwardSender,
+        topology_access: TopologyAccessor,
         shutdown: TaskClient,
     ) {
         info!("Starting socket listener...");
@@ -162,7 +163,8 @@ impl MixNode {
         let connection_handler = ConnectionHandler::new(
             packet_processor,
             delay_forwarding_channel,
-            self.identity_keypair.private_key(),
+            topology_access,
+            &self.identity_keypair,
         );
 
         let listening_address = SocketAddr::new(
@@ -190,11 +192,7 @@ impl MixNode {
         );
 
         let mut packet_forwarder = DelayForwarder::new(
-            nym_mixnet_client::Client::new(
-                client_config,
-                topology_access,
-                self.identity_keypair.private_key(),
-            ),
+            nym_mixnet_client::Client::new(client_config, topology_access, &self.identity_keypair),
             node_stats_update_sender,
             shutdown,
         );
@@ -345,13 +343,14 @@ impl MixNode {
 
         let delay_forwarding_channel = self.start_packet_delay_forwarder(
             node_stats_update_sender.clone(),
-            shared_topology_access,
+            shared_topology_access.clone(),
             shutdown.subscribe(),
         );
 
         self.start_socket_listener(
             node_stats_update_sender,
             delay_forwarding_channel,
+            shared_topology_access,
             shutdown.subscribe(),
         );
         let atomic_verloc_results = self.start_verloc_measurements(shutdown.subscribe());

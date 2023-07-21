@@ -1,12 +1,12 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::client::identity::SECRET_KEY_LENGTH;
 use futures::channel::mpsc;
 use futures::StreamExt;
 use log::*;
 use nym_client_core::client::topology_control::accessor::TopologyAccessor;
-use nym_crypto::asymmetric::identity;
-use crate::client::identity::SECRET_KEY_LENGTH;
+use nym_crypto::asymmetric::identity::{self, PUBLIC_KEY_LENGTH};
 use nym_noise::upgrade_noise_initiator;
 use nym_sphinx::addressing::nodes::NymNodeRoutingAddress;
 use nym_sphinx::framing::codec::NymCodec;
@@ -64,7 +64,8 @@ pub struct Client {
     conn_new: HashMap<NymNodeRoutingAddress, ConnectionSender>,
     config: Config,
     topology_access: TopologyAccessor,
-    private_id_key : [u8; SECRET_KEY_LENGTH],
+    public_id_key: [u8; PUBLIC_KEY_LENGTH],
+    private_id_key: [u8; SECRET_KEY_LENGTH],
 }
 
 struct ConnectionSender {
@@ -82,12 +83,17 @@ impl ConnectionSender {
 }
 
 impl Client {
-    pub fn new(config: Config, topology_access: TopologyAccessor, private_id_key: &identity::PrivateKey) -> Client {
+    pub fn new(
+        config: Config,
+        topology_access: TopologyAccessor,
+        id_key: &identity::KeyPair,
+    ) -> Client {
         Client {
             conn_new: HashMap::new(),
             config,
             topology_access,
-            private_id_key: private_id_key.to_bytes(),
+            public_id_key: id_key.public_key().to_bytes(),
+            private_id_key: id_key.private_key().to_bytes(),
         }
     }
 
@@ -97,6 +103,7 @@ impl Client {
         connection_timeout: Duration,
         current_reconnection: &AtomicU32,
         topology_access: TopologyAccessor,
+        local_public_key: &[u8],
         local_private_key: &[u8],
     ) {
         let connection_fut = TcpStream::connect(address);
@@ -117,7 +124,12 @@ impl Client {
                         }
                     };
 
-                    let noise_stream = match upgrade_noise_initiator(stream, topology_ref, local_private_key) {
+                    let noise_stream = match upgrade_noise_initiator(
+                        stream,
+                        topology_ref,
+                        local_public_key,
+                        local_private_key,
+                    ) {
                         Ok(noise_stream) => noise_stream,
                         Err(err) => {
                             error!("Failed to perform Noise handshake with {address} - {err}");
@@ -204,6 +216,7 @@ impl Client {
 
         let topology_access_clone = self.topology_access.clone();
         let local_private_key = self.private_id_key.clone();
+        let local_public_key = self.public_id_key.clone();
 
         tokio::spawn(async move {
             // before executing the manager, wait for what was specified, if anything
@@ -218,6 +231,7 @@ impl Client {
                 initial_connection_timeout,
                 &current_reconnection_attempt,
                 topology_access_clone,
+                &local_public_key,
                 &local_private_key,
             )
             .await

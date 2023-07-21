@@ -27,7 +27,7 @@ pub async fn offline_sign(
     // sequence request type
     let message = crate::SequenceRequest {
         validator: DEFAULT_VALIDATOR_RPC.to_owned(), // rpc endpoint for broadcaster to use
-        signer_address,                              // our (sender) address, derived from mnemonic
+        signer_address: signer_address.clone(),      // our (sender) address, derived from mnemonic
     };
 
     // send req to service via the mixnet  
@@ -58,9 +58,6 @@ pub async fn offline_sign(
                 denom: denom.clone(),
                 amount: 12345u32.into(),
             }];
-
-            let signer = DirectSecp256k1HdWallet::from_mnemonic(DEFAULT_PREFIX, mnemonic.clone());
-            let signer_address = signer.try_derive_accounts().unwrap()[0].address().clone();
 
             let send_msg = MsgSend {
                 from_address: signer_address.clone(),

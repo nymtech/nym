@@ -10,7 +10,7 @@ async fn main() -> anyhow::Result<()> {
     let mut client = create_client("/tmp/cosmos-broadcaster-mixnet-server-3".into()).await;
     let our_address = client.nym_address();
     println!("\nservice's nym address: {our_address}");
-    // the httpclient we will use to broadcast our signed tx to the Nyx blockchain
+    // the httpclient we will use to broadcast our signed tx to the blockchain
     let broadcaster = create_broadcaster().await?;
     println!("listening for messages, press CTRL-C to exit");
 
@@ -23,7 +23,7 @@ async fn main() -> anyhow::Result<()> {
         match request.0 {
             RequestTypes::Sequence(request) => {
                 println!(
-                    "\nincoming sequence request details:\nsigner address: {} \nquerying Nyx blockchain on behalf of requesting client",
+                    "\nincoming sequence request details:\nsigner address: {} \nquerying blockchain on behalf of requesting client",
                     request.signer_address
                 );
                 // query chain for sequence information on behalf of request sender

@@ -3904,6 +3904,7 @@ dependencies = [
  "serde",
  "serde-wasm-bindgen",
  "thiserror",
+ "tsify",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "wasm-bindgen-test",

@@ -3,6 +3,7 @@
 
 use crate::error::WasmClientError;
 use serde::{Deserialize, Serialize};
+use tsify::Tsify;
 use wasm_bindgen::prelude::*;
 use wasm_client_core::config::{new_base_client_config, BaseClientConfig, DebugWasm};
 
@@ -13,41 +14,29 @@ pub struct ClientConfig {
     pub(crate) base: BaseClientConfig,
 }
 
-#[wasm_bindgen]
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Tsify, Debug, Clone, Serialize, Deserialize)]
+#[tsify(into_wasm_abi, from_wasm_abi)]
+#[serde(rename_all = "camelCase")]
 pub struct ClientConfigOpts {
-    #[serde(rename = "nymApi")]
+    #[tsify(optional)]
     nym_api: Option<String>,
+
+    #[tsify(optional)]
     nyxd: Option<String>,
+
+    #[tsify(optional)]
     debug: Option<DebugWasm>,
 }
 
 #[wasm_bindgen]
 impl ClientConfig {
     #[wasm_bindgen(constructor)]
-    pub fn new(id: String, opts: JsValue) -> Result<ClientConfig, WasmClientError> {
-        let opts = if opts.is_null() || opts.is_undefined() {
-            None
-        } else {
-            Some(serde_wasm_bindgen::from_value(opts)?)
-        };
-        ClientConfig::_new(id, opts)
-    }
-
-    pub(crate) fn _new(
-        id: String,
-        opts: Option<ClientConfigOpts>,
-    ) -> Result<ClientConfig, WasmClientError> {
+    pub fn new(id: String, opts: ClientConfigOpts) -> Result<ClientConfig, WasmClientError> {
         let version = env!("CARGO_PKG_VERSION").to_string();
-        if let Some(opts) = opts {
-            Ok(ClientConfig {
-                base: new_base_client_config(id, version, opts.nym_api, opts.nyxd, opts.debug)?,
-            })
-        } else {
-            Ok(ClientConfig {
-                base: BaseClientConfig::new(id, version),
-            })
-        }
+
+        Ok(ClientConfig {
+            base: new_base_client_config(id, version, opts.nym_api, opts.nyxd, opts.debug)?,
+        })
     }
 
     #[cfg(feature = "node-tester")]

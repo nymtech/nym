@@ -33,6 +33,9 @@ const DEFAULT_PACKET_FORWARDING_MAXIMUM_BACKOFF: Duration = Duration::from_milli
 const DEFAULT_INITIAL_CONNECTION_TIMEOUT: Duration = Duration::from_millis(1_500);
 const DEFAULT_MAXIMUM_CONNECTION_BUFFER_SIZE: usize = 2000;
 
+const DEFAULT_TOPOLOGY_REFRESH_RATE: Duration = Duration::from_secs(5 * 60); // every 5min
+const DEFAULT_TOPOLOGY_RESOLUTION_TIMEOUT: Duration = Duration::from_millis(5_000);
+
 const DEFAULT_STORED_MESSAGE_FILENAME_LENGTH: u16 = 16;
 const DEFAULT_MESSAGE_RETRIEVAL_LIMIT: i64 = 100;
 
@@ -74,6 +77,9 @@ pub struct Config {
 
     #[serde(default)]
     pub debug: Debug,
+
+    #[serde(default)]
+    pub topology: Topology,
 }
 
 impl NymConfigTemplate for Config {
@@ -89,6 +95,7 @@ impl Config {
             storage_paths: GatewayPaths::new_default(id.as_ref()),
             logging: Default::default(),
             debug: Default::default(),
+            topology: Default::default(),
         }
     }
 
@@ -299,6 +306,36 @@ impl Default for Debug {
             message_retrieval_limit: DEFAULT_MESSAGE_RETRIEVAL_LIMIT,
             // TODO: remember to change it in one of future releases!!
             use_legacy_framed_packet_version: true,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Serialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct Topology {
+    /// The uniform delay every which clients are querying the directory server
+    /// to try to obtain a compatible network topology to send sphinx packets through.
+    #[serde(with = "humantime_serde")]
+    pub topology_refresh_rate: Duration,
+
+    /// During topology refresh, test packets are sent through every single possible network
+    /// path. This timeout determines waiting period until it is decided that the packet
+    /// did not reach its destination.
+    #[serde(with = "humantime_serde")]
+    pub topology_resolution_timeout: Duration,
+
+    /// Specifies whether the client should not refresh the network topology after obtaining
+    /// the first valid instance.
+    /// Supersedes `topology_refresh_rate_ms`.
+    pub disable_refreshing: bool,
+}
+
+impl Default for Topology {
+    fn default() -> Self {
+        Topology {
+            topology_refresh_rate: DEFAULT_TOPOLOGY_REFRESH_RATE,
+            topology_resolution_timeout: DEFAULT_TOPOLOGY_RESOLUTION_TIMEOUT,
+            disable_refreshing: false,
         }
     }
 }

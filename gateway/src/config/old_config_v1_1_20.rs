@@ -69,6 +69,7 @@ impl From<ConfigV1_1_20> for Config {
             },
             logging: value.logging.into(),
             debug: value.debug.into(),
+            topology: Default::default(),
         }
     }
 }

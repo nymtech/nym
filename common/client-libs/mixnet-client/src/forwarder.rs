@@ -5,6 +5,7 @@ use crate::client::{Client, Config, SendWithoutResponse};
 use futures::channel::mpsc;
 use futures::StreamExt;
 use log::*;
+use nym_client_core::client::topology_control::accessor::TopologyAccessor;
 use nym_sphinx::forwarding::packet::MixPacket;
 use std::time::Duration;
 
@@ -26,6 +27,7 @@ impl PacketForwarder {
         initial_connection_timeout: Duration,
         maximum_connection_buffer_size: usize,
         use_legacy_version: bool,
+        topology_access: TopologyAccessor,
         shutdown: nym_task::TaskClient,
     ) -> (PacketForwarder, MixForwardingSender) {
         let client_config = Config::new(
@@ -40,7 +42,7 @@ impl PacketForwarder {
 
         (
             PacketForwarder {
-                mixnet_client: Client::new(client_config),
+                mixnet_client: Client::new(client_config, topology_access),
                 packet_receiver,
                 shutdown,
             },

@@ -9,7 +9,7 @@ use rand::prelude::SliceRandom;
 use rand::thread_rng;
 use url::Url;
 
-pub(crate) struct NymApiTopologyProvider {
+pub struct NymApiTopologyProvider {
     validator_client: nym_validator_client::client::NymApiClient,
     nym_api_urls: Vec<Url>,
 
@@ -18,7 +18,7 @@ pub(crate) struct NymApiTopologyProvider {
 }
 
 impl NymApiTopologyProvider {
-    pub(crate) fn new(mut nym_api_urls: Vec<Url>, client_version: String) -> Self {
+    pub fn new(mut nym_api_urls: Vec<Url>, client_version: String) -> Self {
         nym_api_urls.shuffle(&mut thread_rng());
 
         NymApiTopologyProvider {

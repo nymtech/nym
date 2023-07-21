@@ -4,6 +4,7 @@
 use futures::channel::mpsc;
 use futures::StreamExt;
 use log::*;
+use nym_client_core::client::topology_control::accessor::TopologyAccessor;
 use nym_sphinx::addressing::nodes::NymNodeRoutingAddress;
 use nym_sphinx::framing::codec::NymCodec;
 use nym_sphinx::framing::packet::FramedNymPacket;
@@ -59,6 +60,7 @@ pub trait SendWithoutResponse {
 pub struct Client {
     conn_new: HashMap<NymNodeRoutingAddress, ConnectionSender>,
     config: Config,
+    topology_access: TopologyAccessor,
 }
 
 struct ConnectionSender {
@@ -76,10 +78,11 @@ impl ConnectionSender {
 }
 
 impl Client {
-    pub fn new(config: Config) -> Client {
+    pub fn new(config: Config, topology_access: TopologyAccessor) -> Client {
         Client {
             conn_new: HashMap::new(),
             config,
+            topology_access,
         }
     }
 
@@ -88,6 +91,7 @@ impl Client {
         receiver: mpsc::Receiver<FramedNymPacket>,
         connection_timeout: Duration,
         current_reconnection: &AtomicU32,
+        topology_access: TopologyAccessor,
     ) {
         let connection_fut = TcpStream::connect(address);
 
@@ -97,6 +101,7 @@ impl Client {
                     debug!("Managed to establish connection to {}", address);
                     // if we managed to connect, reset the reconnection count (whatever it might have been)
                     current_reconnection.store(0, Ordering::Release);
+                    //TODO : SW : here be Noise handshake. Goal is to have a stream that can be framed like it is now
                     Framed::new(stream, NymCodec)
                 }
                 Err(err) => {
@@ -175,6 +180,8 @@ impl Client {
         // copy the value before moving into another task
         let initial_connection_timeout = self.config.initial_connection_timeout;
 
+        let topology_access_clone = self.topology_access.clone();
+
         tokio::spawn(async move {
             // before executing the manager, wait for what was specified, if anything
             if let Some(backoff) = backoff {
@@ -187,6 +194,7 @@ impl Client {
                 receiver,
                 initial_connection_timeout,
                 &current_reconnection_attempt,
+                topology_access_clone,
             )
             .await
         });
@@ -255,13 +263,16 @@ mod tests {
     use super::*;
 
     fn dummy_client() -> Client {
-        Client::new(Config {
-            initial_reconnection_backoff: Duration::from_millis(10_000),
-            maximum_reconnection_backoff: Duration::from_millis(300_000),
-            initial_connection_timeout: Duration::from_millis(1_500),
-            maximum_connection_buffer_size: 128,
-            use_legacy_version: false,
-        })
+        Client::new(
+            Config {
+                initial_reconnection_backoff: Duration::from_millis(10_000),
+                maximum_reconnection_backoff: Duration::from_millis(300_000),
+                initial_connection_timeout: Duration::from_millis(1_500),
+                maximum_connection_buffer_size: 128,
+                use_legacy_version: false,
+            },
+            TopologyAccessor::new(),
+        )
     }
 
     #[test]

@@ -181,6 +181,7 @@ impl<St: Storage> ConnectionHandler<St> {
         mut shutdown: TaskClient,
     ) {
         debug!("Starting connection handler for {:?}", remote);
+        //TODO : SW : here be Noise handshake. Goal is to have a stream that can be framed like it is now
         shutdown.mark_as_success();
         let mut framed_conn = Framed::new(conn, NymCodec);
         while !shutdown.is_shutdown() {

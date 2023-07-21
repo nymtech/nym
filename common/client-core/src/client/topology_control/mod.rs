@@ -9,8 +9,8 @@ use nym_topology::provider_trait::TopologyProvider;
 use nym_topology::NymTopologyError;
 use std::time::Duration;
 
-mod accessor;
-pub(crate) mod nym_api_provider;
+pub mod accessor;
+pub mod nym_api_provider;
 
 // TODO: move it to config later
 const MAX_FAILURE_COUNT: usize = 10;

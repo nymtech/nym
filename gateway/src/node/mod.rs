@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use self::storage::PersistentStorage;
-use crate::config::Config;
+use crate::config::{Config, Topology};
 use crate::error::GatewayError;
 use crate::node::client_handling::active_clients::ActiveClientsStore;
 use crate::node::client_handling::websocket;
@@ -12,17 +12,23 @@ use crate::node::statistics::collector::GatewayStatisticsCollector;
 use crate::node::storage::Storage;
 use log::*;
 use nym_bin_common::output_format::OutputFormat;
+use nym_client_core::client::topology_control::accessor::TopologyAccessor;
+use nym_client_core::client::topology_control::nym_api_provider::NymApiTopologyProvider;
+use nym_client_core::client::topology_control::TopologyRefresher;
+use nym_client_core::client::topology_control::TopologyRefresherConfig;
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_mixnet_client::forwarder::{MixForwardingSender, PacketForwarder};
 use nym_network_defaults::NymNetworkDetails;
 use nym_statistics_common::collector::StatisticsSender;
 use nym_task::{TaskClient, TaskManager};
+use nym_topology::provider_trait::TopologyProvider;
 use nym_validator_client::Client;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use std::error::Error;
 use std::net::SocketAddr;
 use std::sync::Arc;
+use url::Url;
 
 pub(crate) mod client_handling;
 pub(crate) mod mixnet_handling;
@@ -178,7 +184,11 @@ impl<St> Gateway<St> {
         );
     }
 
-    fn start_packet_forwarder(&self, shutdown: TaskClient) -> MixForwardingSender {
+    fn start_packet_forwarder(
+        &self,
+        topology_access: TopologyAccessor,
+        shutdown: TaskClient,
+    ) -> MixForwardingSender {
         info!("Starting mix packet forwarder...");
 
         let (mut packet_forwarder, packet_sender) = PacketForwarder::new(
@@ -187,6 +197,7 @@ impl<St> Gateway<St> {
             self.config.debug.initial_connection_timeout,
             self.config.debug.maximum_connection_buffer_size,
             self.config.debug.use_legacy_framed_packet_version,
+            topology_access,
             shutdown,
         );
 
@@ -234,6 +245,47 @@ impl<St> Gateway<St> {
         client
     }
 
+    fn setup_topology_provider(nym_api_urls: Vec<Url>) -> Box<dyn TopologyProvider + Send + Sync> {
+        // if no custom provider was ... provided ..., create one using nym-api
+        Box::new(NymApiTopologyProvider::new(
+            nym_api_urls,
+            env!("CARGO_PKG_VERSION").to_string(),
+        ))
+    }
+
+    // future responsible for periodically polling directory server and updating
+    // the current global view of topology
+    async fn start_topology_refresher(
+        topology_provider: Box<dyn TopologyProvider + Send + Sync>,
+        topology_config: Topology,
+        topology_accessor: TopologyAccessor,
+        mut shutdown: TaskClient,
+    ) {
+        let topology_refresher_config =
+            TopologyRefresherConfig::new(topology_config.topology_refresh_rate);
+
+        let mut topology_refresher = TopologyRefresher::new(
+            topology_refresher_config,
+            topology_accessor,
+            topology_provider,
+        );
+        // before returning, block entire runtime to refresh the current network view so that any
+        // components depending on topology would see a non-empty view
+        info!("Obtaining initial network topology");
+        topology_refresher.try_refresh().await;
+
+        if topology_config.disable_refreshing {
+            // if we're not spawning the refresher, don't cause shutdown immediately
+            info!("The topology refesher is not going to be started");
+            shutdown.mark_as_success();
+        } else {
+            // don't spawn the refresher if we don't want to be refreshing the topology.
+            // only use the initial values obtained
+            info!("Starting topology refresher...");
+            topology_refresher.start_with_shutdown(shutdown);
+        }
+    }
+
     async fn check_if_bonded(&self) -> Result<bool, GatewayError> {
         // TODO: if anything, this should be getting data directly from the contract
         // as opposed to the validator API
@@ -268,7 +320,19 @@ impl<St> Gateway<St> {
             CoconutVerifier::new(nyxd_client)
         };
 
-        let mix_forwarding_channel = self.start_packet_forwarder(shutdown.subscribe());
+        let topology_provider = Self::setup_topology_provider(self.config.get_nym_api_endpoints());
+        let shared_topology_access = TopologyAccessor::new();
+
+        Self::start_topology_refresher(
+            topology_provider,
+            self.config.topology,
+            shared_topology_access.clone(),
+            shutdown.subscribe(),
+        )
+        .await;
+
+        let mix_forwarding_channel =
+            self.start_packet_forwarder(shared_topology_access, shutdown.subscribe());
 
         let active_clients_store = ActiveClientsStore::new();
         self.start_mix_socket_listener(

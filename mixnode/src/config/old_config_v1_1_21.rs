@@ -94,6 +94,7 @@ impl From<ConfigV1_1_21> for Config {
             verloc: value.verloc.into(),
             logging: value.logging.into(),
             debug: value.debug.into(),
+            topology: Default::default(),
         }
     }
 }

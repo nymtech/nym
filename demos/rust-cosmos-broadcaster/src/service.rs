@@ -15,7 +15,7 @@ pub async fn get_sequence(
 ) -> Result<crate::SequenceRequestResponse, NyxdError> { 
     // get signer information
     let sequence = broadcaster.get_sequence(&signer_address).await?;  
-    let chain_id: tendermint::chain::Id = broadcaster.get_chain_id().await?; 
+    let chain_id: tendermint::chain::Id = broadcaster.get_chain_id().await?; // unwrap();
     Ok(crate::SequenceRequestResponse {
         account_number: sequence.account_number,
         sequence: sequence.sequence,

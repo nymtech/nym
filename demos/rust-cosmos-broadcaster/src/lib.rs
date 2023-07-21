@@ -1,4 +1,3 @@
-use anyhow::Result;
 use cosmrs::{tendermint, AccountId};
 use nym_sdk::mixnet::{
     AnonymousSenderTag, MixnetClient, MixnetClientBuilder, ReconstructedMessage, StoragePaths,
@@ -64,7 +63,9 @@ pub async fn create_client(config_path: PathBuf) -> MixnetClient {
 
 // parse returned response from service: ignore empty SURB data packets + parse incoming message to struct or error
 // we know we are expecting JSON here but an irl helper would parse conditionally on bytes / string incoming
-pub async fn listen_and_parse_response(client: &mut MixnetClient) -> Result<ResponseTypes, std::io::Error> {
+pub async fn listen_and_parse_response(
+    client: &mut MixnetClient
+) -> anyhow::Result<ResponseTypes> { 
     let mut message: Vec<ReconstructedMessage> = Vec::new();
 
     // get the actual message - discard the empty vec sent along with the SURB topup request
@@ -79,9 +80,9 @@ pub async fn listen_and_parse_response(client: &mut MixnetClient) -> Result<Resp
     // parse vec<u8> -> JSON String
     let mut parsed = String::new();
     if let Some(r) = message.iter().next() {
-        parsed = String::from_utf8(r.message.clone()).unwrap();
+        parsed = String::from_utf8(r.message.clone())?; 
     }
-    let sp_response: crate::ResponseTypes = serde_json::from_str(&parsed).unwrap();
+    let sp_response: crate::ResponseTypes = serde_json::from_str(&parsed)?; 
     Ok(sp_response)
 }
 
@@ -89,7 +90,7 @@ pub async fn listen_and_parse_response(client: &mut MixnetClient) -> Result<Resp
 // we know we are expecting JSON here but an irl helper would parse conditionally on bytes / string incoming
 pub async fn listen_and_parse_request(
     client: &mut MixnetClient,
-) -> Result<(RequestTypes, AnonymousSenderTag), std::io::Error> {
+) -> anyhow::Result<(RequestTypes, AnonymousSenderTag)> {
     let mut message: Vec<ReconstructedMessage> = Vec::new();
 
     // get the actual message - discard the empty vec sent along with the SURB topup request
@@ -104,9 +105,9 @@ pub async fn listen_and_parse_request(
     // parse vec<u8> -> JSON String
     let mut parsed = String::new();
     if let Some(r) = message.iter().next() {
-        parsed = String::from_utf8(r.message.clone()).unwrap();
+        parsed = String::from_utf8(r.message.clone())?; 
     }
-    let client_request: crate::RequestTypes = serde_json::from_str(&parsed).unwrap();
+    let client_request: crate::RequestTypes = serde_json::from_str(&parsed)?; 
 
     // get the sender_tag for anon reply
     let return_recipient = message[0].sender_tag.unwrap();

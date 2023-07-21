@@ -16,7 +16,7 @@ pub async fn offline_sign(
     to: AccountId,
     client: &mut MixnetClient,
     sp_address: Recipient,
-) -> Result<String, std::io::Error> {
+) -> anyhow::Result<String> {
     let denom: Denom = DEFAULT_DENOM.parse().unwrap();
     let signer = DirectSecp256k1HdWallet::from_mnemonic(DEFAULT_PREFIX, mnemonic.clone());
     let signer_address = signer.try_derive_accounts().unwrap()[0].address().clone();
@@ -97,7 +97,7 @@ pub async fn send_tx(
     base58_tx: String,
     sp_address: Recipient,
     client: &mut MixnetClient,
-) -> Result<(String, bool), std::io::Error> {
+) -> anyhow::Result<(String, bool)> {
     let broadcast_request = crate::BroadcastRequest {
         base58_tx_bytes: base58_tx,
     };

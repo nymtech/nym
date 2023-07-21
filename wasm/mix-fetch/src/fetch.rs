@@ -25,7 +25,7 @@ pub(super) static MIX_FETCH: OnceLock<MixFetchClient> = OnceLock::new();
 pub struct MixFetchOpts {
     // ideally we'd have used the `IdentityKey` type alias, but that'd be extremely annoying to get working in TS
     #[serde(flatten)]
-    pub(crate) base: MixFetchOptsSimple,
+    pub(crate) base: Option<MixFetchOptsSimple>,
 
     #[tsify(optional)]
     pub(crate) client_id: Option<String>,
@@ -69,25 +69,25 @@ impl<'a> From<&'a MixFetchOpts> for MixFetchConfigOpts {
 
 // TODO: in the future make the network requester address optional once there exists some API for obtaining NR addresses
 #[wasm_bindgen(js_name = setupMixFetch)]
-pub fn setup_mix_fetch(network_requester_address: String, opts: Option<MixFetchOpts>) -> Promise {
+pub fn setup_mix_fetch(network_requester_address: String, opts: MixFetchOpts) -> Promise {
     if MIX_FETCH.get().is_some() {
         return MixFetchError::AlreadyInitialised.into_rejected_promise();
     }
 
     let mut config = check_promise_result!(MixFetchConfig::new(
         network_requester_address,
-        opts.as_ref().map(Into::into)
+        Some((&opts).into())
     ));
-    if let Some(dbg) = opts.as_ref().and_then(|o| o.client_override) {
+    if let Some(dbg) = opts.client_override {
         config.override_debug(dbg);
     }
 
-    if let Some(dbg) = opts.as_ref().and_then(|o| o.mix_fetch_override) {
+    if let Some(dbg) = opts.mix_fetch_override {
         config.override_mix_fetch_debug(dbg)
     }
 
     future_to_promise(async move {
-        setup_mix_fetch_async(config, opts.map(|o| o.base))
+        setup_mix_fetch_async(config, opts.base)
             .await
             .map(|_| JsValue::undefined())
             .map_promise_err()

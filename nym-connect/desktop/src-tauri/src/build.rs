@@ -1,7 +1,8 @@
 use std::env;
 
-const SENTRY_DSN_RUST: &str = "SENTRY_DSN_RUST";
-const SENTRY_DSN_JS: &str = "SENTRY_DSN_JS";
+mod constants;
+
+use constants::{SENTRY_DSN_JS, SENTRY_DSN_RUST};
 
 fn main() {
     // set these env vars at compile time

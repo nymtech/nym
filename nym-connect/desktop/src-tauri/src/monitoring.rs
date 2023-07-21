@@ -3,9 +3,7 @@ use std::env;
 use anyhow::{Context, Result};
 use sentry::ClientInitGuard;
 
-// env var keys
-const SENTRY_DSN_RUST: &str = "SENTRY_DSN_RUST";
-const SENTRY_DSN_JS: &str = "SENTRY_DSN_JS";
+use crate::constants::{SENTRY_DSN_JS, SENTRY_DSN_RUST};
 
 pub fn init() -> Result<ClientInitGuard> {
     // if these env vars were set at compile time, use their value

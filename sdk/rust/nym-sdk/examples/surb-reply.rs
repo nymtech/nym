@@ -45,7 +45,7 @@ async fn main() {
     }
 
     let mut parsed = String::new();
-    if let Some(r) = message.iter().next() {
+    if let Some(r) = message.first() {
         parsed = String::from_utf8(r.message.clone()).unwrap();
     }
     // parse sender_tag: we will use this to reply to sender without needing their Nym address

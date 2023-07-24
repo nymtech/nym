@@ -38,8 +38,8 @@ export type TClientContext = {
   setConnectionStats: (connectionStats: ConnectionStatsItem[] | undefined) => void;
   setConnectedSince: (connectedSince: DateTime | undefined) => void;
   setShowInfoModal: (show: boolean) => void;
-  setSerivceProvider: () => void;
-  applyGateway: () => void;
+  setServiceProvider: () => void;
+  setGateway: () => void;
   startConnecting: () => Promise<void>;
   startDisconnecting: () => Promise<void>;
   setUserDefinedGateway: React.Dispatch<React.SetStateAction<UserDefinedGateway>>;
@@ -167,13 +167,13 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
   const shouldUseUserGateway = !!userDefinedGateway.gateway && userDefinedGateway.isActive;
   const shouldUseUserSP = !!userDefinedSPAddress.address && userDefinedSPAddress.isActive;
 
-  const setServiceProvider = async (newServiceProvider: ServiceProvider) => {
+  const applyServiceProvider = async (newServiceProvider: ServiceProvider) => {
     await invoke('set_service_provider', {
       serviceProvider: shouldUseUserSP ? userDefinedSPAddress.address : newServiceProvider.address,
     });
   };
 
-  const setGateway = async (newGateway: Gateway) => {
+  const applyGateway = async (newGateway: Gateway) => {
     await invoke('set_gateway', {
       gateway: shouldUseUserGateway ? userDefinedGateway.gateway : newGateway.identity,
     });
@@ -201,24 +201,22 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
     return gw;
   };
 
-  // WIP(JON): this should probably have a different name?
-  const setSerivceProvider = async () => {
+  const setServiceProvider = async () => {
     if (serviceProviders) {
       const randomServiceProvider = getRandomSPFromList(serviceProviders);
       const withUserDefinitions = await buildServiceProvider(randomServiceProvider);
-      await setServiceProvider(withUserDefinitions);
+      await applyServiceProvider(withUserDefinitions);
       setSelectedProvider(withUserDefinitions);
     }
     return undefined;
   };
 
-  // WIP(JON): come up with a better name?
-  const applyGateway = async () => {
+  const setGateway = async () => {
     if (gateways) {
       const randomGateway = getRandomGatewayFromList(gateways);
       const withUserDefinitionsForGateway = await buildGateway(randomGateway);
-      await setGateway(withUserDefinitionsForGateway);
-      setGateway(withUserDefinitionsForGateway);
+      await applyGateway(withUserDefinitionsForGateway);
+      // Do we need a setSelectedGateway?
     }
     return undefined;
   };
@@ -254,8 +252,8 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
       connectedSince,
       userData,
       setConnectedSince,
-      setSerivceProvider,
-      applyGateway,
+      setServiceProvider,
+      setGateway,
       startConnecting,
       startDisconnecting,
       gatewayPerformance,

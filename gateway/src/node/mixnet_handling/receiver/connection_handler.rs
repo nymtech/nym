@@ -213,7 +213,9 @@ impl<St: Storage> ConnectionHandler<St> {
             topology_ref,
             &self.private_identity_key,
             &self.public_identity_key,
-        ) {
+        )
+        .await
+        {
             Ok(noise_stream) => noise_stream,
             Err(err) => {
                 error!("Failed to perform Noise handshake with {remote} - {err}");

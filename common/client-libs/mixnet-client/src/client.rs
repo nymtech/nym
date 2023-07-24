@@ -129,7 +129,9 @@ impl Client {
                         topology_ref,
                         local_public_key,
                         local_private_key,
-                    ) {
+                    )
+                    .await
+                    {
                         Ok(noise_stream) => noise_stream,
                         Err(err) => {
                             error!("Failed to perform Noise handshake with {address} - {err}");

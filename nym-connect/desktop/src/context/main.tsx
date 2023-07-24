@@ -9,7 +9,7 @@ import { UserDefinedGateway, UserDefinedSPAddress } from 'src/types/service-prov
 import { getItemFromStorage, setItemInStorage } from 'src/utils';
 import { ConnectionStatusKind, GatewayPerformance, PrivacyLevel, UserData } from '../types';
 import { ConnectionStatsItem } from '../components/ConnectionStats';
-import { ServiceProvider } from '../types/directory';
+import { ServiceProvider, Gateway } from '../types/directory';
 import initSentry from '../sentry';
 
 const FORAGE_GATEWAY_KEY = 'nym-connect-user-gateway';
@@ -31,6 +31,7 @@ export type TClientContext = {
   userDefinedGateway?: UserDefinedGateway;
   userDefinedSPAddress: UserDefinedSPAddress;
   serviceProviders?: ServiceProvider[];
+  gateways?: Gateway[];
   setMode: (mode: ModeType) => void;
   clearError: () => void;
   setConnectionStatus: (connectionStatus: ConnectionStatusKind) => void;
@@ -38,6 +39,7 @@ export type TClientContext = {
   setConnectedSince: (connectedSince: DateTime | undefined) => void;
   setShowInfoModal: (show: boolean) => void;
   setSerivceProvider: () => void;
+  applyGateway: () => void;
   startConnecting: () => Promise<void>;
   startDisconnecting: () => Promise<void>;
   setUserDefinedGateway: React.Dispatch<React.SetStateAction<UserDefinedGateway>>;
@@ -55,6 +57,7 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
   const [connectedSince, setConnectedSince] = useState<DateTime>();
   const [selectedProvider, setSelectedProvider] = React.useState<ServiceProvider>();
   const [serviceProviders, setServiceProviders] = React.useState<ServiceProvider[]>();
+  const [gateways, setGateways] = React.useState<Gateway[]>();
   const [error, setError] = useState<Error>();
   const [appVersion, setAppVersion] = useState<string>();
   const [gatewayPerformance, setGatewayPerformance] = useState<GatewayPerformance>('Good');
@@ -104,12 +107,14 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
 
   const initialiseApp = async () => {
     const services = await invoke('get_services');
+    const gateways = await invoke('get_gateways');
     const AppVersion = await getAppVersion();
     const storedUserDefinedGateway = await getItemFromStorage({ key: FORAGE_GATEWAY_KEY });
     const storedUserDefinedSP = await getItemFromStorage({ key: FORAGE_SP_KEY });
 
     setAppVersion(AppVersion);
     setServiceProviders(services as ServiceProvider[]);
+    setGateways(gateways as Gateway[]);
 
     if (storedUserDefinedGateway) {
       setUserDefinedGateway(storedUserDefinedGateway);
@@ -163,34 +168,57 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
   const shouldUseUserSP = !!userDefinedSPAddress.address && userDefinedSPAddress.isActive;
 
   const setServiceProvider = async (newServiceProvider: ServiceProvider) => {
-    await invoke('set_gateway', {
-      gateway: shouldUseUserGateway ? userDefinedGateway.gateway : newServiceProvider.gateway,
-    });
     await invoke('set_service_provider', {
       serviceProvider: shouldUseUserSP ? userDefinedSPAddress.address : newServiceProvider.address,
     });
   };
+
+  const setGateway = async (newGateway: Gateway) => {
+    await invoke('set_gateway', {
+      gateway: shouldUseUserGateway ? userDefinedGateway.gateway : newGateway.gateway,
+    });
+  }
 
   const getRandomSPFromList = (services: ServiceProvider[]) => {
     const randomSelection = services[Math.floor(Math.random() * services.length)];
     return randomSelection;
   };
 
+  const getRandomGatewayFromList = (gateways: Gateway[]) => {
+    const randomSelection = gateways[Math.floor(Math.random() * gateways.length)];
+    return randomSelection;
+  };
+
   const buildServiceProvider = async (serviceProvider: ServiceProvider) => {
     const sp = { ...serviceProvider };
-
-    if (shouldUseUserGateway) sp.gateway = userDefinedGateway.gateway as string;
     if (shouldUseUserSP) sp.address = userDefinedSPAddress.address as string;
-
     return sp;
   };
 
+  const buildGateway = async (gateway: Gateway) => {
+    const gw = { ...gateway };
+    if (shouldUseUserGateway) gw.gateway = userDefinedGateway.gateway as string;
+    return gw;
+  };
+
+  // WIP(JON): this should probably have a different name?
   const setSerivceProvider = async () => {
     if (serviceProviders) {
       const randomServiceProvider = getRandomSPFromList(serviceProviders);
       const withUserDefinitions = await buildServiceProvider(randomServiceProvider);
       await setServiceProvider(withUserDefinitions);
       setSelectedProvider(withUserDefinitions);
+    }
+    return undefined;
+  };
+
+  // WIP(JON): come up with a better name?
+  const applyGateway = async () => {
+    if (gateways) {
+      const randomGateway = getRandomGatewayFromList(gateways);
+      const withUserDefinitionsForGateway = await buildGateway(randomGateway);
+      await setGateway(withUserDefinitionsForGateway);
+      setGateway(withUserDefinitionsForGateway);
     }
     return undefined;
   };
@@ -227,6 +255,7 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
       userData,
       setConnectedSince,
       setSerivceProvider,
+      applyGateway,
       startConnecting,
       startDisconnecting,
       gatewayPerformance,

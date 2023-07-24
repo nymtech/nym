@@ -21,6 +21,7 @@ const mockValues: TClientContext = {
   startConnecting: async () => {},
   startDisconnecting: async () => {},
   setSerivceProvider: () => {},
+  applyGateway: () => {},
   setUserDefinedGateway: () => {},
   setUserDefinedSPAddress: () => {},
   setMonitoring: async () => {},

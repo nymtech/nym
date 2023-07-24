@@ -12,3 +12,7 @@ export interface Service {
 }
 
 export type Services = Service[];
+
+export interface Gateway {
+  gateway: string;
+}

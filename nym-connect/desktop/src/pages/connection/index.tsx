@@ -31,6 +31,7 @@ export const ConnectionPage = () => {
         case 'disconnected':
           Sentry.captureMessage('start connect', 'info');
           await context.setSerivceProvider();
+          await context.applyGateway();
           await context.startConnecting();
           context.setConnectedSince(DateTime.now());
           context.setShowInfoModal(true);

@@ -4,6 +4,7 @@ use crate::{
     models::{DirectoryService, DirectoryServiceProvider, HarbourMasterService, PagedResult},
     state::State,
 };
+use itertools::Itertools;
 use nym_api_requests::models::GatewayBondAnnotated;
 use nym_contracts_common::types::Percent;
 use std::sync::Arc;
@@ -62,7 +63,7 @@ pub async fn get_services(
     }
 
     log::trace!("Filter out inactive");
-    let filtered_services = filter_out_inactive(&all_services, active_services);
+    let filtered_services = filter_out_inactive_services(&all_services, active_services);
     log::trace!("After filtering: {:#?}", filtered_services);
 
     if filtered_services.is_empty() {
@@ -96,7 +97,7 @@ async fn fetch_active_services() -> Result<PagedResult<HarbourMasterService>> {
     Ok(active_services)
 }
 
-fn filter_out_inactive(
+fn filter_out_inactive_services(
     all_services: &[DirectoryServiceProvider],
     active_services: PagedResult<HarbourMasterService>,
 ) -> Vec<DirectoryServiceProvider> {
@@ -112,28 +113,33 @@ fn filter_out_inactive(
         .collect()
 }
 
-#[tauri::command]
-pub async fn get_gateways() -> Result<Vec<GatewayBondAnnotated>> {
-    log::trace!("Fetching gateways");
-    let res = reqwest::get(GATEWAYS_DETAILED_URL)
+async fn fetch_gateways() -> Result<Vec<GatewayBondAnnotated>> {
+    Ok(reqwest::get(GATEWAYS_DETAILED_URL)
         .await?
         .json::<Vec<GatewayBondAnnotated>>()
-        .await?;
-    log::trace!("Received: {:#?}", res);
-    Ok(res)
+        .await?)
 }
 
 #[tauri::command]
-pub async fn get_gateways_filtered() -> Result<Vec<GatewayBondAnnotated>> {
-    let all_gateways = get_gateways().await?;
-    let res = all_gateways
+pub async fn get_gateways() -> Result<Vec<GatewayBondAnnotated>> {
+    log::trace!("Fetching gateways");
+    let all_gateways = fetch_gateways().await?;
+    log::trace!("Received: {:#?}", all_gateways);
+
+    let filtered_gateways = all_gateways
         .iter()
         .filter(|g| {
             g.performance
                 > Percent::from_percentage_value(GATEWAY_PERFORMANCE_SCORE_THRESHOLD).unwrap()
         })
         .cloned()
-        .collect();
-    log::trace!("Filtered: {:#?}", res);
-    Ok(res)
+        .collect_vec();
+    log::trace!("Filtered: {:#?}", filtered_gateways);
+
+    if filtered_gateways.is_empty() {
+        log::warn!("No gateways with high enough performance score found! Using all gateways instead as fallback");
+        return Ok(all_gateways);
+    }
+
+    Ok(filtered_gateways)
 }

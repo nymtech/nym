@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use clap::Parser;
-use nym_issue_credential::utils;
 use nym_issue_credential::errors::Result;
+use nym_issue_credential::utils;
 
 use crate::context::SigningClientWithNyxd;
 use nym_network_defaults::NymNetworkDetails;

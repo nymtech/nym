@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
-use nym_issue_credential::utils;
 use nym_issue_credential::errors::Result;
+use nym_issue_credential::utils;
 use nym_sdk::mixnet::{self, MixnetClientStorage};
 use nym_validator_client::nyxd::Coin;
 use nym_validator_client::{Client, Config};

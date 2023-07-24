@@ -211,8 +211,8 @@ impl<St: Storage> ConnectionHandler<St> {
         let noise_stream = match upgrade_noise_responder(
             conn,
             topology_ref,
-            &self.private_identity_key,
             &self.public_identity_key,
+            &self.private_identity_key,
         )
         .await
         {

@@ -113,3 +113,9 @@ pub struct PagedResult<T> {
     pub total: i32,
     pub items: Vec<T>,
 }
+
+#[cfg_attr(test, derive(ts_rs::TS))]
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct Gateway {
+    pub identity: String,
+}

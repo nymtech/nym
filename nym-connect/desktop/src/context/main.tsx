@@ -175,7 +175,7 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
 
   const setGateway = async (newGateway: Gateway) => {
     await invoke('set_gateway', {
-      gateway: shouldUseUserGateway ? userDefinedGateway.gateway : newGateway.gateway,
+      gateway: shouldUseUserGateway ? userDefinedGateway.gateway : newGateway.identity,
     });
   }
 
@@ -197,7 +197,7 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
 
   const buildGateway = async (gateway: Gateway) => {
     const gw = { ...gateway };
-    if (shouldUseUserGateway) gw.gateway = userDefinedGateway.gateway as string;
+    if (shouldUseUserGateway) gw.identity = userDefinedGateway.gateway as string;
     return gw;
   };
 

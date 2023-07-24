@@ -1,7 +1,9 @@
 use crate::{
     config::PrivacyLevel,
     error::Result,
-    models::{DirectoryService, DirectoryServiceProvider, HarbourMasterService, PagedResult},
+    models::{
+        DirectoryService, DirectoryServiceProvider, Gateway, HarbourMasterService, PagedResult,
+    },
     state::State,
 };
 use itertools::Itertools;
@@ -121,7 +123,7 @@ async fn fetch_gateways() -> Result<Vec<GatewayBondAnnotated>> {
 }
 
 #[tauri::command]
-pub async fn get_gateways() -> Result<Vec<GatewayBondAnnotated>> {
+pub async fn get_gateways() -> Result<Vec<Gateway>> {
     log::trace!("Fetching gateways");
     let all_gateways = fetch_gateways().await?;
     log::trace!("Received: {:#?}", all_gateways);
@@ -129,16 +131,23 @@ pub async fn get_gateways() -> Result<Vec<GatewayBondAnnotated>> {
     let filtered_gateways = all_gateways
         .iter()
         .filter(|g| {
-            g.performance
+            g.node_performance.most_recent
                 > Percent::from_percentage_value(GATEWAY_PERFORMANCE_SCORE_THRESHOLD).unwrap()
         })
-        .cloned()
+        .map(|g| Gateway {
+            identity: g.identity().clone(),
+        })
         .collect_vec();
     log::trace!("Filtered: {:#?}", filtered_gateways);
 
     if filtered_gateways.is_empty() {
         log::warn!("No gateways with high enough performance score found! Using all gateways instead as fallback");
-        return Ok(all_gateways);
+        return Ok(all_gateways
+            .iter()
+            .map(|g| Gateway {
+                identity: g.identity().clone(),
+            })
+            .collect_vec());
     }
 
     Ok(filtered_gateways)

@@ -1,2 +1,3 @@
 src/mixnet/wasm/worker.js
 src/mixnet/node-tester/worker.js
+docs/*

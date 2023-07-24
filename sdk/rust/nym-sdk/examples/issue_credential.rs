@@ -1,12 +1,13 @@
 use std::path::PathBuf;
 
 use nym_issue_credential::utils;
-use nym_sdk::mixnet;
+use nym_issue_credential::errors::Result;
+use nym_sdk::mixnet::{self, MixnetClientStorage};
 use nym_validator_client::nyxd::Coin;
 use nym_validator_client::{Client, Config};
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<()> {
     let amount = 1000000;
     let mnemonic = String::from("");
     let client_home_directory = PathBuf::from("");
@@ -37,10 +38,10 @@ async fn main() {
     utils::issue_credential(
         signing_client,
         coin,
-        &storage.credential_store,
+        &storage.credential_store(),
         recovery_dir,
     )
-    .await;
+    .await?;
 
     let mixnet_client = mixnet::MixnetClientBuilder::new_with_storage(storage)
         .network_details(sandbox_network.clone())
@@ -65,4 +66,6 @@ async fn main() {
     }
 
     client.disconnect().await;
+
+    Ok(())
 }

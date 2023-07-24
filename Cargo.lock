@@ -6288,6 +6288,7 @@ dependencies = [
  "nym-credentials",
  "nym-validator-client",
  "thiserror",
+ "tokio",
 ]
 
 [[package]]

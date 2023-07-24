@@ -12,7 +12,7 @@ pub(crate) async fn execute(
                 args,
                 create_signing_client_with_nym_api(global_args, network_details)?,
             )
-            .await
+            .await?
         }
     }
     Ok(())

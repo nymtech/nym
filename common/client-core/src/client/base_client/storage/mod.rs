@@ -94,7 +94,7 @@ impl MixnetClientStorage for Ephemeral {
 pub struct OnDiskPersistent {
     pub(crate) key_store: OnDiskKeys,
     pub(crate) reply_store: fs_backend::Backend,
-    pub credential_store: PersistentCredentialStorage,
+    pub(crate) credential_store: PersistentCredentialStorage,
     pub(crate) gateway_details_store: OnDiskGatewayDetails,
 }
 

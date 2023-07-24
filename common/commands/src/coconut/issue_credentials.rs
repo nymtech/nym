@@ -3,6 +3,7 @@
 
 use clap::Parser;
 use nym_issue_credential::utils;
+use nym_issue_credential::errors::Result;
 
 use crate::context::SigningClientWithNyxd;
 use nym_network_defaults::NymNetworkDetails;
@@ -18,8 +19,7 @@ pub struct Args {
     #[clap(long)]
     pub(crate) mnemonic: Option<bip39::Mnemonic>,
 
-    /// The amount of utokens the credential will hold. If recovery mode is enabled, this value
-    /// is not needed
+    /// The amount of utokens the credential will hold.
     #[clap(long, default_value = "0")]
     pub(crate) amount: u64,
 
@@ -28,7 +28,7 @@ pub struct Args {
     pub(crate) recovery_dir: std::path::PathBuf,
 }
 
-pub async fn execute(args: Args, client: SigningClientWithNyxd) {
+pub async fn execute(args: Args, client: SigningClientWithNyxd) -> Result<()> {
     let network_details = NymNetworkDetails::new_from_env();
     let coin = Coin::new(
         args.amount as u128,
@@ -36,5 +36,7 @@ pub async fn execute(args: Args, client: SigningClientWithNyxd) {
     );
 
     let persistent_storage = utils::setup_persistent_storage(args.client_home_directory).await;
-    utils::issue_credential(client, coin, &persistent_storage, args.recovery_dir).await;
+    utils::issue_credential(client, coin, &persistent_storage, args.recovery_dir).await?;
+
+    Ok(())
 }

@@ -6,8 +6,9 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-log = "0.4"
-thiserror = "1.0"
+log = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
 
 nym-bandwidth-controller = { path = "../../common/bandwidth-controller" }
 nym-credentials = { path = "../../common/credentials" }

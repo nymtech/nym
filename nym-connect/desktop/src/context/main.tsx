@@ -177,7 +177,7 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
     await invoke('set_gateway', {
       gateway: shouldUseUserGateway ? userDefinedGateway.gateway : newGateway.identity,
     });
-  }
+  };
 
   const getRandomSPFromList = (services: ServiceProvider[]) => {
     const randomSelection = services[Math.floor(Math.random() * services.length)];

@@ -80,13 +80,13 @@ pub(crate) struct OverrideConfig {
     enabled_credentials_mode: Option<bool>,
 }
 
-pub(crate) async fn execute(args: &Cli) -> Result<(), Box<dyn Error + Send + Sync>> {
+pub(crate) async fn execute(args: Cli) -> Result<(), Box<dyn Error + Send + Sync>> {
     let bin_name = "nym-native-client";
 
-    match &args.command {
-        Commands::Init(m) => init::execute(m).await?,
-        Commands::Run(m) => run::execute(m).await?,
-        Commands::BuildInfo(m) => build_info::execute(&m),
+    match args.command {
+        Commands::Init(m) => init::execute(&m).await?,
+        Commands::Run(m) => run::execute(&m).await?,
+        Commands::BuildInfo(m) => build_info::execute(m),
         Commands::Completions(s) => s.generate(&mut Cli::command(), bin_name),
         Commands::GenerateFigSpec => fig_generate(&mut Cli::command(), bin_name),
     }

@@ -21,5 +21,5 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     }
     setup_logging();
 
-    commands::execute(&args).await
+    commands::execute(args).await
 }

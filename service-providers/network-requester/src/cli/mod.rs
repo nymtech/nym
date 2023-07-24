@@ -126,11 +126,11 @@ pub(crate) fn override_config(config: Config, args: OverrideConfig) -> Config {
 pub(crate) async fn execute(args: Cli) -> Result<(), NetworkRequesterError> {
     let bin_name = "nym-network-requester";
 
-    match &args.command {
-        Commands::Init(m) => init::execute(m).await?,
-        Commands::Run(m) => run::execute(m).await?,
-        Commands::Sign(m) => sign::execute(m).await?,
-        Commands::BuildInfo(m) => build_info::execute(&m),
+    match args.command {
+        Commands::Init(m) => init::execute(&m).await?,
+        Commands::Run(m) => run::execute(&m).await?,
+        Commands::Sign(m) => sign::execute(&m).await?,
+        Commands::BuildInfo(m) => build_info::execute(m),
         Commands::Completions(s) => s.generate(&mut Cli::command(), bin_name),
         Commands::GenerateFigSpec => fig_generate(&mut Cli::command(), bin_name),
     }

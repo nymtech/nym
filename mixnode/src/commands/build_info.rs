@@ -11,6 +11,6 @@ pub(crate) struct BuildInfo {
     output: OutputFormat,
 }
 
-pub(crate) fn execute(args: &BuildInfo) {
+pub(crate) fn execute(args: BuildInfo) {
     println!("{}", args.output.format(&bin_info_owned!()))
 }

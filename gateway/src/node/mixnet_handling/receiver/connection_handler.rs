@@ -222,6 +222,7 @@ impl<St: Storage> ConnectionHandler<St> {
                 return;
             }
         };
+        debug!("Noise responder handshake completed for {:?}", remote);
         let mut framed_conn = Framed::new(noise_stream, NymCodec);
         while !shutdown.is_shutdown() {
             tokio::select! {

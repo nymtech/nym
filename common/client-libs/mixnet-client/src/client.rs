@@ -138,6 +138,7 @@ impl Client {
                             return;
                         }
                     };
+                    debug!("Noise initiator handshake completed for {:?}", address);
                     Framed::new(noise_stream, NymCodec)
                 }
                 Err(err) => {

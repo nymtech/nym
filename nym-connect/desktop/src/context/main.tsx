@@ -106,15 +106,15 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
   }, [userDefinedSPAddress]);
 
   const initialiseApp = async () => {
-    const fetched_services = await invoke('get_services');
-    const fetched_gateways = await invoke('get_gateways');
+    const fetchedServices = await invoke('get_services');
+    const fetchedGateways = await invoke('get_gateways');
     const AppVersion = await getAppVersion();
     const storedUserDefinedGateway = await getItemFromStorage({ key: FORAGE_GATEWAY_KEY });
     const storedUserDefinedSP = await getItemFromStorage({ key: FORAGE_SP_KEY });
 
     setAppVersion(AppVersion);
-    setServiceProviders(fetched_services as ServiceProvider[]);
-    setGateways(fetched_gateways as Gateway[]);
+    setServiceProviders(fetchedServices as ServiceProvider[]);
+    setGateways(fetchedGateways as Gateway[]);
 
     if (storedUserDefinedGateway) {
       setUserDefinedGateway(storedUserDefinedGateway);
@@ -184,8 +184,8 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
     return randomSelection;
   };
 
-  const getRandomGatewayFromList = (gateways: Gateway[]) => {
-    const randomSelection = gateways[Math.floor(Math.random() * gateways.length)];
+  const getRandomGatewayFromList = (theGateways: Gateway[]) => {
+    const randomSelection = theGateways[Math.floor(Math.random() * theGateways.length)];
     return randomSelection;
   };
 

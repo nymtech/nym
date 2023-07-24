@@ -37,6 +37,10 @@ struct Cli {
     #[clap(short, long)]
     pub(crate) config_env_file: Option<std::path::PathBuf>,
 
+    /// Flag used for disabling the printed banner in tty.
+    #[clap(long)]
+    pub(crate) no_banner: bool,
+
     #[clap(subcommand)]
     command: commands::Commands,
 }
@@ -49,6 +53,13 @@ fn test_function() {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    let args = Cli::parse();
+    setup_env(args.config_env_file.as_ref());
+
+    if !args.no_banner {
+        maybe_print_banner(crate_name!(), crate_version!());
+    }
+
     cfg_if::cfg_if! {
         if #[cfg(feature = "cpucycles")] {
             setup_tracing!("mixnode");
@@ -59,10 +70,6 @@ async fn main() -> anyhow::Result<()> {
         }
     }
 
-    maybe_print_banner(crate_name!(), crate_version!());
-
-    let args = Cli::parse();
-    setup_env(args.config_env_file.as_ref());
     commands::execute(args).await?;
 
     cfg_if::cfg_if! {

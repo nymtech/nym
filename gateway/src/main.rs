@@ -34,17 +34,23 @@ struct Cli {
     #[clap(short, long)]
     pub(crate) config_env_file: Option<std::path::PathBuf>,
 
+    /// Flag used for disabling the printed banner in tty.
+    #[clap(long)]
+    pub(crate) no_banner: bool,
+
     #[clap(subcommand)]
     command: commands::Commands,
 }
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
-    setup_logging();
-    maybe_print_banner(crate_name!(), crate_version!());
-
     let args = Cli::parse();
     setup_env(args.config_env_file.as_ref());
+
+    if !args.no_banner {
+        maybe_print_banner(crate_name!(), crate_version!());
+    }
+    setup_logging();
 
     commands::execute(args).await.map_err(|err| {
         if atty::is(atty::Stream::Stdout) {

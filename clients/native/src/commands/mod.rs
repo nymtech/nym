@@ -42,6 +42,10 @@ pub(crate) struct Cli {
     #[clap(short, long)]
     pub(crate) config_env_file: Option<std::path::PathBuf>,
 
+    /// Flag used for disabling the printed banner in tty.
+    #[clap(long)]
+    pub(crate) no_banner: bool,
+
     #[clap(subcommand)]
     command: Commands,
 }

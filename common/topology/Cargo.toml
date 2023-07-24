@@ -17,6 +17,7 @@ log = { workspace = true }
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
 thiserror = "1.0.37"
 async-trait = { workspace = true, optional = true }
+semver = "0.11"
 
 ## internal
 nym-crypto = { path = "../crypto", features = ["sphinx", "outfox"] }

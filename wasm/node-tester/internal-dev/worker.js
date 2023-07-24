@@ -22,7 +22,6 @@ console.log('Initializing worker');
 const {
     WasmGateway,
     WasmMixNode,
-    WasmNymTopology,
     default_debug,
     no_cover_debug,
     NymNodeTester,
@@ -33,57 +32,57 @@ const {
 let client = null;
 
 function dummyTopology() {
-    const l1Mixnode = new WasmMixNode(
-        1,
-        'n1lftjhnl35cjsfd533zhgrwrspx6qmumd8vjgp9',
-        '80.85.86.75',
-        1789,
-        '91mNjhJSBkJ9Lb6f1iuYMDQPLiX3kAv6paSUCWjGRwQz',
-        'DmfN1mL1T95nPXvLK44AQKCpW1pStHNQCi6Fgpz5dxDV',
-        1,
-        '1.1.20',
-    );
-    const l2Mixnode = new WasmMixNode(
-        2,
-        'n18ztkyh20gwzrel0e5m4sahd358fq9p4skwa7d3',
-        '139.162.199.75',
-        1789,
-        'BkLhuKQNyPS19sHZ3HHKCTKwK7hCU6XiFLndyZZHiB7s',
-        '7KGC97tJRhJZKhDqFcsp4Vu715VVxizuD7BktnzuSmZC',
-        2,
-        '1.1.20',
-    );
-    const l3Mixnode = new WasmMixNode(
-        3,
-        'n1njq8h4nndp7ngays5el2rdp22hq67lwqcaq3ph',
-        '139.162.244.139',
-        1789,
-        'EPja9Kv8JtPHsFbzPdBQierMu5GmQy5roE5njyD6dmND',
-        'HWpsZChDrtEH8XNscW3qJMRzdCfUD8N8DmMcKqFv7tcf',
-        3,
-        '1.1.20',
-    );
+    const l1Mixnode = {
+        mixId: 1,
+        owner: 'n1lftjhnl35cjsfd533zhgrwrspx6qmumd8vjgp9',
+        host: '80.85.86.75',
+        mixPort: 1789,
+        identityKey: '91mNjhJSBkJ9Lb6f1iuYMDQPLiX3kAv6paSUCWjGRwQz',
+        sphinxKey: 'DmfN1mL1T95nPXvLK44AQKCpW1pStHNQCi6Fgpz5dxDV',
+        layer: 1,
+        version: '1.1.20',
+    };
+    const l2Mixnode = {
+        mixId: 2,
+        owner: 'n18ztkyh20gwzrel0e5m4sahd358fq9p4skwa7d3',
+        host: '139.162.199.75',
+        mixPort: 1789,
+        identityKey: 'BkLhuKQNyPS19sHZ3HHKCTKwK7hCU6XiFLndyZZHiB7s',
+        sphinxKey: '7KGC97tJRhJZKhDqFcsp4Vu715VVxizuD7BktnzuSmZC',
+        layer: 2,
+        version: '1.1.20',
+    };
+    const l3Mixnode = {
+        mixId: 3,
+        owner: 'n1njq8h4nndp7ngays5el2rdp22hq67lwqcaq3ph',
+        host: '139.162.244.139',
+        identityKey: 'EPja9Kv8JtPHsFbzPdBQierMu5GmQy5roE5njyD6dmND',
+        sphinxKey: 'HWpsZChDrtEH8XNscW3qJMRzdCfUD8N8DmMcKqFv7tcf',
+        layer: 3,
+    };
 
-    const gateway = new WasmGateway(
-        'n1d9lclqnfddgg57xe5p0fw4ng54m9f95hal5tlq',
-        '85.159.211.99',
-        1789,
-        9000,
-        '6pXQcG1Jt9hxBzMgTbQL5Y58z6mu4KXVRbA1idmibwsw',
-        'GSdqV7GFSwHWQrVV13pNLMeafTLDVFKBKVPxuhdGrpR3',
-        '1.1.19',
-    );
+    const gateway = {
+        owner: 'n1d9lclqnfddgg57xe5p0fw4ng54m9f95hal5tlq',
+        host: '85.159.211.99',
+        mixPort: 1789,
+        clientsPort: 9000,
+        identityKey: '6pXQcG1Jt9hxBzMgTbQL5Y58z6mu4KXVRbA1idmibwsw',
+        sphinxKey: 'GSdqV7GFSwHWQrVV13pNLMeafTLDVFKBKVPxuhdGrpR3',
+        version: '1.1.19',
+    };
 
     const mixnodes = new Map();
     mixnodes.set(1, [l1Mixnode]);
     mixnodes.set(2, [l2Mixnode]);
     mixnodes.set(3, [l3Mixnode]);
 
-
     const gateways = [gateway];
 
-    return new WasmNymTopology(mixnodes, gateways)
+    return {
+        mixnodes, gateways
+    }
 }
+
 
 function printAndDisplayTestResult(result) {
     result.log_details();
@@ -119,7 +118,7 @@ async function testWithTester() {
     // C) use nym-api in the constructor (note: it does no filtering for 'good' nodes on other layers)
     // const validator = 'https://qa-nym-api.qa.nymte.ch/api';
     // const nodeTester = await new NymNodeTester({nymApi});
-    
+
     self.onmessage = async event => {
         if (event.data && event.data.kind) {
             switch (event.data.kind) {

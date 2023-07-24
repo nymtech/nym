@@ -4957,6 +4957,7 @@ dependencies = [
  "nym-sphinx-routing",
  "nym-sphinx-types",
  "rand 0.7.3",
+ "semver 0.11.0",
  "thiserror",
 ]
 

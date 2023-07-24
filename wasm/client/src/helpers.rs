@@ -116,7 +116,10 @@ impl WasmTopologyExt for Arc<ClientState> {
         let this = Arc::clone(self);
         future_to_promise(async move {
             match this.topology_accessor.current_topology().await {
-                Some(topology) => Ok(JsValue::from(WasmNymTopology::from(topology))),
+                Some(topology) => Ok(serde_wasm_bindgen::to_value(&WasmNymTopology::from(
+                    topology,
+                ))
+                .expect("WasmNymTopology failed serialization")),
                 None => Err(WasmCoreError::UnavailableNetworkTopology.into()),
             }
         })

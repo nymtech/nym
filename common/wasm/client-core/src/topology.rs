@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use nym_client_core::config::GatewayEndpointConfig;
+use nym_config::defaults::{DEFAULT_CLIENT_LISTENING_PORT, DEFAULT_MIX_LISTENING_PORT};
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_topology::gateway::GatewayConversionError;
 use nym_topology::mix::{Layer, MixnodeConversionError};
@@ -10,6 +11,7 @@ use nym_validator_client::client::{IdentityKeyRef, MixId};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use thiserror::Error;
+use tsify::Tsify;
 use wasm_bindgen::{prelude::wasm_bindgen, JsValue};
 use wasm_utils::console_log;
 use wasm_utils::error::simple_js_error;
@@ -39,45 +41,23 @@ impl From<WasmTopologyError> for JsValue {
 }
 
 // serde helper, not intended to be used directly
-#[wasm_bindgen]
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Tsify, Debug, Clone, Serialize, Deserialize)]
+#[tsify(into_wasm_abi, from_wasm_abi)]
+#[serde(rename_all = "camelCase")]
 pub struct WasmNymTopology {
     mixnodes: BTreeMap<MixLayer, Vec<WasmMixNode>>,
     gateways: Vec<WasmGateway>,
 }
 
-#[wasm_bindgen]
 impl WasmNymTopology {
-    // blame javascript on that nasty constructor...
-    #[wasm_bindgen(constructor)]
-    #[allow(clippy::new_ret_no_self)]
-    pub fn new(mixnodes: JsValue, gateways: JsValue) -> Result<JsValue, WasmTopologyError> {
-        let mixnodes: BTreeMap<MixLayer, Vec<WasmMixNode>> =
-            serde_wasm_bindgen::from_value(mixnodes).map_err(|source| {
-                WasmTopologyError::MalformedMixnodeMap {
-                    msg: source.to_string(),
-                }
-            })?;
-
-        let gateways: Vec<WasmGateway> =
-            serde_wasm_bindgen::from_value(gateways).map_err(|source| {
-                WasmTopologyError::MalformedGatewayList {
-                    msg: source.to_string(),
-                }
-            })?;
-        let topology = WasmNymTopology { mixnodes, gateways };
-
-        // the unwrap is fine as we've just constructed the proper structs
-        Ok(serde_wasm_bindgen::to_value(&topology).unwrap())
-    }
-
     pub fn print(&self) {
         if !self.mixnodes.is_empty() {
             console_log!("mixnodes:");
             for (layer, nodes) in &self.mixnodes {
                 console_log!("\tlayer {layer}:");
                 for node in nodes {
-                    console_log!("\t\t{} - {}", node.mix_id, node.identity_key)
+                    // console_log!("\t\t{} - {}", node.mix_id, node.identity_key)
+                    console_log!("\t\t{} - {:?}", node.mix_id, node)
                 }
             }
         } else {
@@ -87,7 +67,8 @@ impl WasmNymTopology {
         if !self.gateways.is_empty() {
             console_log!("gateways:");
             for gateway in &self.gateways {
-                console_log!("\t{}", gateway.identity_key)
+                // console_log!("\t{}", gateway.identity_key)
+                console_log!("\t{:?}", gateway)
             }
         } else {
             console_log!("NO GATEWAYS")
@@ -143,49 +124,18 @@ impl From<NymTopology> for WasmNymTopology {
     }
 }
 
-#[wasm_bindgen]
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Tsify, Debug, Clone, Serialize, Deserialize)]
+#[tsify(into_wasm_abi, from_wasm_abi)]
+#[serde(rename_all = "camelCase")]
 pub struct WasmMixNode {
     pub mix_id: MixId,
-    #[wasm_bindgen(getter_with_clone)]
     pub owner: String,
-    #[wasm_bindgen(getter_with_clone)]
     pub host: String,
-    pub mix_port: u16,
-    #[wasm_bindgen(getter_with_clone)]
+    pub mix_port: Option<u16>,
     pub identity_key: String,
-    #[wasm_bindgen(getter_with_clone)]
     pub sphinx_key: String,
     pub layer: MixLayer,
-    #[wasm_bindgen(getter_with_clone)]
-    pub version: String,
-}
-
-#[wasm_bindgen]
-impl WasmMixNode {
-    #[wasm_bindgen(constructor)]
-    #[allow(clippy::too_many_arguments)]
-    pub fn new(
-        mix_id: MixId,
-        owner: String,
-        host: String,
-        mix_port: u16,
-        identity_key: String,
-        sphinx_key: String,
-        layer: MixLayer,
-        version: String,
-    ) -> Self {
-        Self {
-            mix_id,
-            owner,
-            host,
-            mix_port,
-            identity_key,
-            sphinx_key,
-            layer,
-            version,
-        }
-    }
+    pub version: Option<String>,
 }
 
 impl TryFrom<WasmMixNode> for mix::Node {
@@ -194,9 +144,12 @@ impl TryFrom<WasmMixNode> for mix::Node {
     fn try_from(value: WasmMixNode) -> Result<Self, Self::Error> {
         let host = mix::Node::parse_host(&value.host)?;
 
+        let mix_port = value.mix_port.unwrap_or(DEFAULT_MIX_LISTENING_PORT);
+        let version = value.version.map(|v| v.as_str().into()).unwrap_or_default();
+
         // try to completely resolve the host in the mix situation to avoid doing it every
         // single time we want to construct a path
-        let mix_host = mix::Node::extract_mix_host(&host, value.mix_port)?;
+        let mix_host = mix::Node::extract_mix_host(&host, mix_port)?;
 
         Ok(mix::Node {
             mix_id: value.mix_id,
@@ -209,7 +162,7 @@ impl TryFrom<WasmMixNode> for mix::Node {
                 .map_err(MixnodeConversionError::from)?,
             layer: Layer::try_from(value.layer)
                 .map_err(|_| WasmTopologyError::InvalidMixLayer { value: value.layer })?,
-            version: value.version,
+            version,
         })
     }
 }
@@ -220,54 +173,26 @@ impl<'a> From<&'a mix::Node> for WasmMixNode {
             mix_id: value.mix_id,
             owner: value.owner.clone(),
             host: value.host.to_string(),
-            mix_port: value.mix_host.port(),
+            mix_port: Some(value.mix_host.port()),
             identity_key: value.identity_key.to_base58_string(),
             sphinx_key: value.sphinx_key.to_base58_string(),
             layer: value.layer.into(),
-            version: value.version.clone(),
+            version: Some(value.version.to_string()),
         }
     }
 }
 
-#[wasm_bindgen]
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Tsify, Debug, Clone, Serialize, Deserialize)]
+#[tsify(into_wasm_abi, from_wasm_abi)]
+#[serde(rename_all = "camelCase")]
 pub struct WasmGateway {
-    #[wasm_bindgen(getter_with_clone)]
     pub owner: String,
-    #[wasm_bindgen(getter_with_clone)]
     pub host: String,
-    pub mix_port: u16,
-    pub clients_port: u16,
-    #[wasm_bindgen(getter_with_clone)]
+    pub mix_port: Option<u16>,
+    pub clients_port: Option<u16>,
     pub identity_key: String,
-    #[wasm_bindgen(getter_with_clone)]
     pub sphinx_key: String,
-    #[wasm_bindgen(getter_with_clone)]
-    pub version: String,
-}
-
-#[wasm_bindgen]
-impl WasmGateway {
-    #[wasm_bindgen(constructor)]
-    pub fn new(
-        owner: String,
-        host: String,
-        mix_port: u16,
-        clients_port: u16,
-        identity_key: String,
-        sphinx_key: String,
-        version: String,
-    ) -> Self {
-        Self {
-            owner,
-            host,
-            mix_port,
-            clients_port,
-            identity_key,
-            sphinx_key,
-            version,
-        }
-    }
+    pub version: Option<String>,
 }
 
 impl TryFrom<WasmGateway> for gateway::Node {
@@ -276,20 +201,24 @@ impl TryFrom<WasmGateway> for gateway::Node {
     fn try_from(value: WasmGateway) -> Result<Self, Self::Error> {
         let host = gateway::Node::parse_host(&value.host)?;
 
+        let mix_port = value.mix_port.unwrap_or(DEFAULT_MIX_LISTENING_PORT);
+        let clients_port = value.clients_port.unwrap_or(DEFAULT_CLIENT_LISTENING_PORT);
+        let version = value.version.map(|v| v.as_str().into()).unwrap_or_default();
+
         // try to completely resolve the host in the mix situation to avoid doing it every
         // single time we want to construct a path
-        let mix_host = gateway::Node::extract_mix_host(&host, value.mix_port)?;
+        let mix_host = gateway::Node::extract_mix_host(&host, mix_port)?;
 
         Ok(gateway::Node {
             owner: value.owner,
             host,
             mix_host,
-            clients_port: value.clients_port,
+            clients_port,
             identity_key: identity::PublicKey::from_base58_string(&value.identity_key)
                 .map_err(GatewayConversionError::from)?,
             sphinx_key: encryption::PublicKey::from_base58_string(&value.sphinx_key)
                 .map_err(GatewayConversionError::from)?,
-            version: value.version,
+            version,
         })
     }
 }
@@ -299,11 +228,11 @@ impl<'a> From<&'a gateway::Node> for WasmGateway {
         WasmGateway {
             owner: value.owner.clone(),
             host: value.host.to_string(),
-            mix_port: value.mix_host.port(),
-            clients_port: value.clients_port,
+            mix_port: Some(value.mix_host.port()),
+            clients_port: Some(value.clients_port),
             identity_key: value.identity_key.to_base58_string(),
             sphinx_key: value.sphinx_key.to_base58_string(),
-            version: value.version.clone(),
+            version: Some(value.version.to_string()),
         }
     }
 }

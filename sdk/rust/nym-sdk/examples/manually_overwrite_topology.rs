@@ -30,7 +30,7 @@ async fn main() {
                 .parse()
                 .unwrap(),
             layer: Layer::One,
-            version: "1.1.0".to_string(),
+            version: "1.1.0".into(),
         }],
     );
     mixnodes.insert(
@@ -47,7 +47,7 @@ async fn main() {
                 .parse()
                 .unwrap(),
             layer: Layer::Two,
-            version: "1.1.0".to_string(),
+            version: "1.1.0".into(),
         }],
     );
     mixnodes.insert(
@@ -64,7 +64,7 @@ async fn main() {
                 .parse()
                 .unwrap(),
             layer: Layer::Three,
-            version: "1.1.0".to_string(),
+            version: "1.1.0".into(),
         }],
     );
 

@@ -20,7 +20,7 @@ TODO
 
 # Mix Nodes
 
-> The Nym mix node binary was built in the [building nym](https://nymtech.net/docs/binaries/building-nym.html) section. If you haven't yet built Nym and want to run the code, go there first.
+> The Nym mix node binary was built in the [building nym](https://nymtech.net/operators/binaries/building-nym.html) section. If you haven't yet built Nym and want to run the code, go there first.
 
 > Any syntax in `<>` brackets is a user's unique variable. Exchange with a corresponding name without the `<>` brackets.
 

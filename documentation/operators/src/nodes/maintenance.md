@@ -20,6 +20,8 @@ Follow these steps to upgrade your mix node binary and update its config file:
 * re-run `init` with the same values as you used initially. **This will just update the config file, it will not overwrite existing keys**.
 * restart your mix node process with the new binary.
 
+> In case of a network requester this is all all, the following step is only for mix nodes and gateways.
+
 ### Step 2: Updating your node information in the smart contract
 Follow these steps to update the information about your `<NODE>` which is publicly available from the [Nym API](https://validator.nymtech.net/api/swagger/index.html) and information displayed on the [mixnet explorer](https://explorer.nymtech.net).
 
@@ -36,6 +38,37 @@ You can either do this graphically via the Desktop Wallet, or the CLI.
 
 ### Updating node information via the CLI
 If you want to bond your `<NODE>` via the CLI, then check out the [relevant section in the Nym CLI](../../documentation/docs/src/tools/nym-cli.md#upgrade-a-mix-node) docs.
+
+
+### Upgrading Network Requester to >= v1.1.10 from <v1.1.9
+
+In the previous version of the network-requester, users were required to run a nym-client along side it to function. As of `v1.1.10`, the network-requester now has a nym client embedded into the binary, so it can run standalone.
+
+If you are running an existing network requester registered with nym-connect, upgrading requires you move your old keys over to the new network requester configuration. We suggest following these instructions carefully to ensure a smooth transition.
+
+Initiate the new network requester:
+
+```
+nym-network-requester init --id <YOUR_ID>
+```
+
+Copy the old keys from your client to the network-requester configuration that was created above:
+
+```
+cp -vr ~/.nym/clients/myoldclient/data/* ~/.nym/service-providers/network-requester/<YOUR_ID>/data
+```
+
+Edit the configuration to match what you used on your client. Specifically, edit the configuration file at:
+
+```
+~/.nym/service-providers/network-requester/<YOUR_ID>/config/config.toml
+```
+
+Ensure that the fields `gateway_id`, `gateway_owner`, `gateway_listener` in the new config match those in the old client config at:
+
+```
+~/.nym/clients/myoldclient/config/config.toml
+```
 
 
 ## VPS Setup and Automation
@@ -65,11 +98,16 @@ sudo ufw allow 1789,1790,8000,22/tcp
 # for gateway
 sudo ufw allow 1789,22,9000/tcp
 
-# check the status of the firewall
+# for network requester
+sudo ufw allow 22,9000/tcp
+```
+
+Check the status of the firewall:
+```
 sudo ufw status
 ```
 
-For more information about your mix node's port configuration, check the [mix node port reference table](./mix-node-setup.md#mixnode-port-reference) or [gateway port reference table](https://nymtech.net/docs/nodes/gateway-setup.html#gateway-port-reference) below.
+For more information about your node's port configuration, check the [port reference table](https://nymtech.net/docs/nodes/gateway-setup.html#ports) below.
 
 ### Automating your node with tmux and systemd
 
@@ -161,6 +199,39 @@ WantedBy=multi-user.target
 ```
 
 * Put the above file onto your system at `/etc/systemd/system/nym-gateway.service`.
+
+For network requester:
+
+```ini
+[Unit]
+Description=Nym Network Requester ({{platform_release_version}})
+StartLimitInterval=350
+StartLimitBurst=10
+
+[Service]
+User=nym # replace this with whatever user you wish
+LimitNOFILE=65536
+# remember to add the `--enable-statistics` flag if running as part of a service grant and check the path to your nym-network-requester binary
+ExecStart=/home/nym/nym-network-requester run --id <YOUR_ID>
+KillSignal=SIGINT
+Restart=on-failure
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Now enable and start your requester:
+
+```
+systemctl enable nym-network-requester.service
+systemctl start nym-network-requester.service
+
+# you can always check your requester has succesfully started with:
+systemctl status nym-network-requester.service
+```
+* Put the above file onto your system at `/etc/systemd/system/nym-network-requester.service`.
+
 
 Change the `<PATH>` in `ExecStart` to point at your `<NODE>` binary (`nym-mixnode` or `nym-gateway), and the `<USER>` so it is the user you are running as.
 
@@ -351,7 +422,7 @@ Query Response:
 - `estimated_operator_cost` - An estimate of the total cost that a particular mix node operator can expect to incur for their participation. This value is calculated by the Nym Validator based on a number of factors, including the cost of running a mix node, such as server hosting fees, and other expenses associated with operating the mix node.
 
 ## Ports
-All `<NODE>`-specific port configuration can be found in `$HOME/.nym/<NODE>/<YOUR_ID>/config/config.toml`. If you do edit any port configs, remember to restart your mix node.
+All `<NODE>`-specific port configuration can be found in `$HOME/.nym/<NODE>/<YOUR_ID>/config/config.toml`. If you do edit any port configs, remember to restart your client and node processes.
 
 ### Mix node port reference
 | Default port | Use                       |
@@ -365,6 +436,12 @@ All `<NODE>`-specific port configuration can be found in `$HOME/.nym/<NODE>/<YOU
 | Default port | Use                       |
 |--------------|---------------------------|
 | `1789`       | Listen for Mixnet traffic |
+| `9000`       | Listen for Client traffic |
+
+### Network requester port reference
+
+| Default port | Use                       |
+|--------------|---------------------------|
 | `9000`       | Listen for Client traffic |
 
 /

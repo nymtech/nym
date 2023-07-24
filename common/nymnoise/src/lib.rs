@@ -22,6 +22,14 @@ use tokio::{
 const NOISE_HS_PATTERN: &str = "Noise_XKpsk3_25519_AESGCM_SHA256";
 
 static SECRET: &[u8] = b"i don't care for fidget spinners";
+static PRIV_KEY: &[u8] = &[
+    208, 217, 103, 180, 100, 15, 242, 137, 184, 247, 248, 193, 21, 66, 177, 79, 90, 131, 15, 134,
+    145, 4, 45, 37, 215, 253, 227, 172, 113, 73, 97, 125,
+];
+static PUB_KEY: &[u8] = &[
+    126, 100, 176, 138, 253, 249, 136, 187, 191, 200, 120, 5, 62, 218, 218, 73, 220, 60, 1, 179,
+    49, 92, 253, 43, 91, 109, 18, 6, 88, 235, 123, 78,
+];
 
 /// Wrapper around a TcpStream
 //TODO SW : add psk3 to the protocol, requires topology at the receiver
@@ -54,6 +62,7 @@ impl AsyncRead for NoiseStream {
             Poll::Pending => return Poll::Pending,
             Poll::Ready(Ok(())) => {
                 let mut payload = vec![0u8; 65535];
+                println!("Read : {:?}", &noise_buf);
                 let len = projected_self
                     .noise
                     .read_message(&noise_buf.filled(), &mut payload)
@@ -73,12 +82,15 @@ impl AsyncWrite for NoiseStream {
     ) -> Poll<Result<usize, std::io::Error>> {
         let mut projected_self = self.project();
         //let mut stream = self.project().inner_stream;
-        let mut noise_buf = vec![0u8; buf.len()];
-        projected_self
+        let mut noise_buf = vec![0u8; 65535];
+        let len = projected_self
             .noise
             .write_message(buf, &mut noise_buf)
             .unwrap();
-        Pin::new(&mut projected_self.inner_stream).poll_write(cx, &noise_buf)
+        println!("Will send : {:?}", &noise_buf[..len]);
+        let res = Pin::new(&mut projected_self.inner_stream).poll_write(cx, &noise_buf[..len]);
+        println!("Sent : {:?}", res);
+        res
     }
 
     fn poll_flush(
@@ -129,7 +141,7 @@ pub async fn upgrade_noise_initiator(
     let builder = Builder::new(NOISE_HS_PATTERN.parse().unwrap()); //This cannot fail, hardcoded pattern must be correct
     let mut handshake = builder
         .local_private_key(local_private_key)
-        .remote_public_key(&remote_pub_key)
+        .remote_public_key(PUB_KEY)
         .psk(3, SECRET)
         .build_initiator()?;
 
@@ -183,7 +195,7 @@ pub async fn upgrade_noise_responder(
 
     let builder = Builder::new(NOISE_HS_PATTERN.parse().unwrap()); //This cannot fail, hardcoded pattern must be correct
     let mut handshake = builder
-        .local_private_key(local_private_key)
+        .local_private_key(PRIV_KEY)
         .psk(3, SECRET)
         .build_responder()?;
 
@@ -215,7 +227,6 @@ async fn recv(stream: &mut TcpStream) -> io::Result<Vec<u8>> {
     let msg_len = ((msg_len_buf[0] as usize) << 8) + (msg_len_buf[1] as usize);
     let mut msg = vec![0u8; msg_len];
     stream.read_exact(&mut msg[..]).await?;
-    println!("Recv : {:?}", msg);
     Ok(msg)
 }
 
@@ -223,6 +234,5 @@ async fn recv(stream: &mut TcpStream) -> io::Result<Vec<u8>> {
 async fn send(stream: &mut TcpStream, buf: &[u8]) {
     let msg_len_buf = [(buf.len() >> 8) as u8, (buf.len() & 0xff) as u8];
     stream.write_all(&msg_len_buf).await.unwrap();
-    println!("snt : {:?}", buf);
     stream.write_all(buf).await.unwrap();
 }

@@ -56,6 +56,7 @@ impl AsyncRead for NoiseStream {
         buf: &mut tokio::io::ReadBuf<'_>,
     ) -> Poll<std::io::Result<()>> {
         let mut projected_self = self.project();
+        return Pin::new(&mut projected_self.inner_stream).poll_read(cx, buf);
         let mut inner_vec = vec![0u8; 65535];
         let mut noise_buf = ReadBuf::new(&mut inner_vec);
         match Pin::new(&mut projected_self.inner_stream).poll_read(cx, &mut noise_buf) {
@@ -81,6 +82,7 @@ impl AsyncWrite for NoiseStream {
         buf: &[u8],
     ) -> Poll<Result<usize, std::io::Error>> {
         let mut projected_self = self.project();
+        return Pin::new(&mut projected_self.inner_stream).poll_write(cx, &buf);
         //let mut stream = self.project().inner_stream;
         let mut noise_buf = vec![0u8; 65535];
         let len = projected_self
@@ -141,7 +143,7 @@ pub async fn upgrade_noise_initiator(
     let builder = Builder::new(NOISE_HS_PATTERN.parse().unwrap()); //This cannot fail, hardcoded pattern must be correct
     let mut handshake = builder
         .local_private_key(local_private_key)
-        .remote_public_key(PUB_KEY)
+        .remote_public_key(&remote_pub_key)
         .psk(3, SECRET)
         .build_initiator()?;
 
@@ -192,10 +194,11 @@ pub async fn upgrade_noise_responder(
         }
     };
     let _secret = [&remote_pub_key, local_public_key].concat();
+    println!("Secret key : {:?}", local_private_key);
 
     let builder = Builder::new(NOISE_HS_PATTERN.parse().unwrap()); //This cannot fail, hardcoded pattern must be correct
     let mut handshake = builder
-        .local_private_key(PRIV_KEY)
+        .local_private_key(local_private_key)
         .psk(3, SECRET)
         .build_responder()?;
 

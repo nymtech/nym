@@ -20,9 +20,6 @@ console.log('Initializing worker');
 
 // wasm_bindgen creates a global variable (with the exports attached) that is in scope after `importScripts`
 const {
-    WasmGateway,
-    WasmMixNode,
-    WasmNymTopology,
     default_debug,
     no_cover_debug,
     NymClientBuilder,
@@ -30,63 +27,61 @@ const {
     set_panic_hook,
     ClientConfig,
     GatewayEndpointConfig,
-    ClientStorage,
     current_network_topology,
 } = wasm_bindgen;
 
 let client = null;
 
 function dummyTopology() {
-    const l1Mixnode = new WasmMixNode(
-        1,
-        'n1lftjhnl35cjsfd533zhgrwrspx6qmumd8vjgp9',
-        '80.85.86.75',
-        1789,
-        '91mNjhJSBkJ9Lb6f1iuYMDQPLiX3kAv6paSUCWjGRwQz',
-        'DmfN1mL1T95nPXvLK44AQKCpW1pStHNQCi6Fgpz5dxDV',
-        1,
-        '1.1.20',
-    );
-    const l2Mixnode = new WasmMixNode(
-        2,
-        'n18ztkyh20gwzrel0e5m4sahd358fq9p4skwa7d3',
-        '139.162.199.75',
-        1789,
-        'BkLhuKQNyPS19sHZ3HHKCTKwK7hCU6XiFLndyZZHiB7s',
-        '7KGC97tJRhJZKhDqFcsp4Vu715VVxizuD7BktnzuSmZC',
-        2,
-        '1.1.20',
-    );
-    const l3Mixnode = new WasmMixNode(
-        3,
-        'n1njq8h4nndp7ngays5el2rdp22hq67lwqcaq3ph',
-        '139.162.244.139',
-        1789,
-        'EPja9Kv8JtPHsFbzPdBQierMu5GmQy5roE5njyD6dmND',
-        'HWpsZChDrtEH8XNscW3qJMRzdCfUD8N8DmMcKqFv7tcf',
-        3,
-        '1.1.20',
-    );
+    const l1Mixnode = {
+        mixId: 1,
+        owner: 'n1lftjhnl35cjsfd533zhgrwrspx6qmumd8vjgp9',
+        host: '80.85.86.75',
+        mixPort: 1789,
+        identityKey: '91mNjhJSBkJ9Lb6f1iuYMDQPLiX3kAv6paSUCWjGRwQz',
+        sphinxKey: 'DmfN1mL1T95nPXvLK44AQKCpW1pStHNQCi6Fgpz5dxDV',
+        layer: 1,
+        version: '1.1.20',
+    };
+    const l2Mixnode = {
+        mixId: 2,
+        owner: 'n18ztkyh20gwzrel0e5m4sahd358fq9p4skwa7d3',
+        host: '139.162.199.75',
+        mixPort: 1789,
+        identityKey: 'BkLhuKQNyPS19sHZ3HHKCTKwK7hCU6XiFLndyZZHiB7s',
+        sphinxKey: '7KGC97tJRhJZKhDqFcsp4Vu715VVxizuD7BktnzuSmZC',
+        layer: 2,
+        version: '1.1.20',
+    };
+    const l3Mixnode = {
+        mixId: 3,
+        owner: 'n1njq8h4nndp7ngays5el2rdp22hq67lwqcaq3ph',
+        host: '139.162.244.139',
+        identityKey: 'EPja9Kv8JtPHsFbzPdBQierMu5GmQy5roE5njyD6dmND',
+        sphinxKey: 'HWpsZChDrtEH8XNscW3qJMRzdCfUD8N8DmMcKqFv7tcf',
+        layer: 3,
+    };
 
-    const gateway = new WasmGateway(
-        'n13n48znq3v2fu4nwx95vfcyf68zfsad7py2jz4m',
-        '85.159.211.99',
-        1789,
-        9000,
-        '6qQYb4ArXANU6HJDxzH4PFCUqYb39Dae2Gem2KpxescM',
-        '2V9uwPG2YPogX1BR5WXQGFrYzrAnUpnD3aSFyeZepdTp',
-        '1.1.19',
-    );
+    const gateway = {
+        owner: 'n1d9lclqnfddgg57xe5p0fw4ng54m9f95hal5tlq',
+        host: '85.159.211.99',
+        mixPort: 1789,
+        clientsPort: 9000,
+        identityKey: '6pXQcG1Jt9hxBzMgTbQL5Y58z6mu4KXVRbA1idmibwsw',
+        sphinxKey: 'GSdqV7GFSwHWQrVV13pNLMeafTLDVFKBKVPxuhdGrpR3',
+        version: '1.1.19',
+    };
 
     const mixnodes = new Map();
     mixnodes.set(1, [l1Mixnode]);
     mixnodes.set(2, [l2Mixnode]);
     mixnodes.set(3, [l3Mixnode]);
 
-
     const gateways = [gateway];
 
-    return new WasmNymTopology(mixnodes, gateways)
+    return {
+        mixnodes, gateways
+    }
 }
 
 function printAndDisplayTestResult(result) {
@@ -105,43 +100,8 @@ function printAndDisplayTestResult(result) {
     });
 }
 
-async function testWithTester() {
-    const preferredGateway = "6qQYb4ArXANU6HJDxzH4PFCUqYb39Dae2Gem2KpxescM";
-
-    // A) construct with hardcoded topology
-    const topology = dummyTopology()
-    const nodeTester = await new NymNodeTester(topology, preferredGateway);
-
-    // B) first get topology directly from nym-api
-    // const validator = 'https://qa-nym-api.qa.nymte.ch/api';
-    // const topology = await current_network_topology(validator)
-    // const nodeTester = await new NymNodeTester(topology, preferredGateway);
-    //
-    // C) use nym-api in the constructor (note: it does no filtering for 'good' nodes on other layers)
-    // const validator = 'https://qa-nym-api.qa.nymte.ch/api';
-    // const nodeTester = await NymNodeTester.new_with_api(validator, preferredGateway)
-
-    // D, E, F) you also don't have to specify the gateway. if you don't, a random one (from your topology) will be used
-    // const topology = dummyTopology()
-    // const nodeTester = await new NymNodeTester(topology);
-
-    self.onmessage = async event => {
-        if (event.data && event.data.kind) {
-            switch (event.data.kind) {
-                case 'MagicPayload': {
-                    const {mixnodeIdentity} = event.data.args;
-                    console.log("starting node test...");
-
-                    let result = await nodeTester.test_node(mixnodeIdentity);
-                    printAndDisplayTestResult(result)
-                }
-            }
-        }
-    };
-}
-
 async function testWithNymClient() {
-    const preferredGateway = "6qQYb4ArXANU6HJDxzH4PFCUqYb39Dae2Gem2KpxescM";
+    const preferredGateway = "6pXQcG1Jt9hxBzMgTbQL5Y58z6mu4KXVRbA1idmibwsw";
     const topology = dummyTopology()
 
     let received = 0
@@ -204,27 +164,90 @@ async function testWithNymClient() {
     };
 }
 
-async function normalNymClientUsage() {
-    self.postMessage({kind: 'DisableMagicTestButton'});
-
-    // only really useful if you want to adjust some settings like traffic rate
-    // (if not needed you can just pass a null)
-    const debug = default_debug();
-
-    debug.disable_main_poisson_packet_distribution = true;
-    debug.disable_loop_cover_traffic_stream = true;
-    debug.use_extended_packet_size = false;
-    // debug.average_packet_delay_ms = BigInt(10);
-    // debug.average_ack_delay_ms = BigInt(10);
-    // debug.ack_wait_addition_ms = BigInt(3000);
-    // debug.ack_wait_multiplier = 10;
-
-    debug.topology_refresh_rate_ms = BigInt(60000)
-
+async function wasm_bindgenSetup(onMessageHandler) {
     const preferredGateway = "6qQYb4ArXANU6HJDxzH4PFCUqYb39Dae2Gem2KpxescM";
     const validator = 'https://qa-nym-api.qa.nymte.ch/api';
 
-    const config = new ClientConfig('my-awesome-wasm-client', { nymApi: validator, debug });
+    // STEP 1. construct config
+    // those are just some examples, there are obviously more permutations;
+    // note, the extra optional argument is of the following type:
+    // /*
+    // export interface ClientConfigOpts {
+    //     id?: string;
+    //     nymApi?: string;
+    //     nyxd?: string;
+    //     debug?: DebugWasm;
+    // }
+    //  */
+    //
+    // const debug = no_cover_debug()
+    //
+    // #1
+    // const config = new ClientConfig({ id: 'my-awesome-client', nymApi: validator, debug: debug} );
+    // #2
+    // const config = new ClientConfig({ nymApi: validator, debug: debug} );
+    // #3
+    // const config = new ClientConfig({ id: 'my-awesome-client' } );
+    //
+    // #4
+    const differentDebug = default_debug()
+    const updatedTraffic = differentDebug.traffic;
+    updatedTraffic.use_extended_packet_size = true
+    updatedTraffic.average_packet_delay_ms = 666;
+    differentDebug.traffic = updatedTraffic;
+
+    const config = new ClientConfig( { debug: differentDebug } );
+    //
+    // // STEP 2. setup the client
+    // // note, the extra optional argument is of the following type:
+    // /*
+    //     export interface MixFetchOptsSimple {
+    //         preferredGateway?: string;
+    //         storagePassphrase?: string;
+    //     }
+    //  */
+    // #1
+    // return await NymClient.newWithConfig(config, onMessageHandler)
+    //
+    // #2
+    return await NymClient.newWithConfig(config, onMessageHandler, { storagePassphrase: "foomp" })
+    //
+    // #3
+    // return await NymClient.newWithConfig(config, onMessageHandler, { storagePassphrase: "foomp", preferredGateway })
+}
+
+async function nativeSetup(onMessageHandler) {
+    const preferredGateway = "6qQYb4ArXANU6HJDxzH4PFCUqYb39Dae2Gem2KpxescM";
+    const validator = 'https://qa-nym-api.qa.nymte.ch/api';
+
+    // those are just some examples, there are obviously more permutations;
+    // note, the extra optional argument is of the following type:
+    /*
+        export interface ClientOpts extends ClientOptsSimple {
+            clientId?: string;
+            nymApiUrl?: string;
+            nyxdUrl?: string;
+            clientOverride?: DebugWasmOverride;
+        }
+
+    	where `DebugWasmOverride` is a rather nested struct that you can look up yourself : )
+     */
+
+    // #1
+    // return new NymClient(onMessageHandler)
+    // #2
+    // return new NymClient(onMessageHandler, { nymApiUrl: validator })
+    // #3
+    const noCoverTrafficOverride = {
+        traffic: { disableMainPoissonPacketDistribution: true },
+        coverTraffic: { disableLoopCoverTrafficStream: true },
+    }
+
+    return new NymClient(onMessageHandler, { storagePassphrase: "foomp", nymApiUrl: validator, clientId: "my-client", clientOverride: noCoverTrafficOverride } )
+}
+
+async function normalNymClientUsage() {
+    self.postMessage({ kind: 'DisableMagicTestButton' });
 
     const onMessageHandler = (message) => {
         console.log(message);
@@ -237,8 +260,8 @@ async function normalNymClientUsage() {
     };
 
     console.log('Instantiating WASM client...');
-
-    let localClient = await new NymClient(config, onMessageHandler)
+    // let localClient = await wasm_bindgenSetup(onMessageHandler)
+    let localClient = await nativeSetup(onMessageHandler)
     console.log('WASM client running!');
 
     const selfAddress = localClient.self_address();
@@ -270,28 +293,6 @@ async function normalNymClientUsage() {
     };
 }
 
-async function messWithStorage() {
-    self.onmessage = async event => {
-        if (event.data && event.data.kind) {
-            switch (event.data.kind) {
-                case 'MagicPayload': {
-                    const { mixnodeIdentity } = event.data.args;
-                    console.log("button clicked...", mixnodeIdentity);
-
-                    let id1 = "one";
-                    let id2 = "two";
-
-                    console.log("making store1 NO-ENC");
-                    let _storage1 = await ClientStorage.new_unencrypted(id1);
-
-                    console.log("making store2 ENC")
-                    let _storage2 = await new ClientStorage(id2, "my-secret-password");
-                }
-            }
-        }
-    };
-}
-
 async function main() {
     console.log(">>>>>>>>>>>>>>>>>>>>> JS WORKER MAIN START");
 
@@ -303,10 +304,10 @@ async function main() {
     set_panic_hook();
     //
     // hook-up the whole client for testing (not recommended)
-    await testWithNymClient()
+    // await testWithNymClient()
     //
     // 'Normal' client setup (to send 'normal' messages)
-    // await normalNymClientUsage()
+    await normalNymClientUsage()
     //
     console.log(">>>>>>>>>>>>>>>>>>>>> JS WORKER MAIN END")
 }

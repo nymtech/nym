@@ -22,8 +22,6 @@ console.log('Initializing worker');
 
 // wasm_bindgen creates a global variable (with the exports attached) that is in scope after `importScripts`
 const {
-    WasmMixNode,
-    WasmNymTopology,
     default_debug,
     no_cover_debug,
     NymClient,
@@ -190,7 +188,7 @@ async function testMixFetch() {
                     setTimeout(() => {
                         console.warn("timeout")
                         controller.abort()
-                    }, 1000)
+                    }, 10000)
 
 
                     try {

@@ -1,18 +1,21 @@
 // Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::config::ClientConfig;
+use crate::config::{ClientConfig, ClientConfigOpts};
 use crate::error::WasmClientError;
 use crate::helpers::{InputSender, WasmTopologyExt};
 use crate::response_pusher::ResponsePusher;
 use js_sys::Promise;
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use tsify::Tsify;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::future_to_promise;
 use wasm_client_core::client::{
     base_client::{BaseClientBuilder, ClientInput, ClientOutput, ClientState},
     inbound_messages::InputMessage,
 };
+use wasm_client_core::config::r#override::DebugWasmOverride;
 use wasm_client_core::helpers::{
     parse_recipient, parse_sender_tag, setup_from_topology, setup_gateway_from_api,
     FakeWasmDkgClient,
@@ -54,6 +57,8 @@ pub struct NymClient {
     packet_type: PacketType,
 }
 
+// TODO: we don't really need a builder anymore,
+// but we might as well leave it for backwards compatibility
 #[wasm_bindgen]
 pub struct NymClientBuilder {
     config: ClientConfig,
@@ -181,32 +186,106 @@ impl NymClientBuilder {
     }
 }
 
+#[derive(Tsify, Debug, Clone, Serialize, Deserialize)]
+#[tsify(into_wasm_abi, from_wasm_abi)]
+#[serde(rename_all = "camelCase")]
+pub struct ClientOptsSimple {
+    // ideally we'd have used the `IdentityKey` type alias, but that'd be extremely annoying to get working in TS
+    #[tsify(optional)]
+    pub(crate) preferred_gateway: Option<String>,
+
+    #[tsify(optional)]
+    pub(crate) storage_passphrase: Option<String>,
+}
+
+#[derive(Tsify, Debug, Default, Clone, Serialize, Deserialize)]
+#[tsify(into_wasm_abi, from_wasm_abi)]
+#[serde(rename_all = "camelCase")]
+pub struct ClientOpts {
+    #[serde(flatten)]
+    pub(crate) base: Option<ClientOptsSimple>,
+
+    #[tsify(optional)]
+    pub(crate) client_id: Option<String>,
+
+    #[tsify(optional)]
+    pub(crate) nym_api_url: Option<String>,
+
+    // currently not used, but will be required once we have coconut
+    #[tsify(optional)]
+    pub(crate) nyxd_url: Option<String>,
+
+    #[tsify(optional)]
+    pub(crate) client_override: Option<DebugWasmOverride>,
+}
+
+impl<'a> From<&'a ClientOpts> for ClientConfigOpts {
+    fn from(value: &'a ClientOpts) -> Self {
+        ClientConfigOpts {
+            id: value.client_id.as_ref().map(|v| v.to_owned()),
+            nym_api: value.nym_api_url.as_ref().map(|v| v.to_owned()),
+            nyxd: value.nyxd_url.as_ref().map(|v| v.to_owned()),
+            debug: value.client_override.as_ref().map(|&v| v.into()),
+        }
+    }
+}
+
 #[wasm_bindgen]
 impl NymClient {
     async fn _new(
         config: ClientConfig,
         on_message: js_sys::Function,
-        preferred_gateway: Option<IdentityKey>,
-        storage_passphrase: Option<String>,
+        opts: Option<ClientOptsSimple>,
     ) -> Result<NymClient, WasmClientError> {
-        NymClientBuilder::new(config, on_message, preferred_gateway, storage_passphrase)
-            .start_client_async()
-            .await
+        if let Some(opts) = opts {
+            let preferred_gateway = opts.preferred_gateway;
+            let storage_passphrase = opts.storage_passphrase;
+            NymClientBuilder::new(config, on_message, preferred_gateway, storage_passphrase)
+        } else {
+            NymClientBuilder::new(config, on_message, None, None)
+        }
+        .start_client_async()
+        .await
     }
 
     #[wasm_bindgen(constructor)]
     #[allow(clippy::new_ret_no_self)]
-    pub fn new(
-        config: ClientConfig,
-        on_message: js_sys::Function,
-        preferred_gateway: Option<IdentityKey>,
-        storage_passphrase: Option<String>,
-    ) -> Promise {
+    pub fn new(on_message: js_sys::Function, opts: Option<ClientOpts>) -> Promise {
+        let opts = opts.unwrap_or_default();
+        let mut config = check_promise_result!(ClientConfig::new((&opts).into()));
+
+        if let Some(dbg) = opts.client_override {
+            config.override_debug(dbg);
+        }
+
         future_to_promise(async move {
-            Self::_new(config, on_message, preferred_gateway, storage_passphrase)
+            Self::_new(config, on_message, opts.base)
                 .await
                 .into_promise_result()
         })
+    }
+
+    #[wasm_bindgen(js_name = "newWithConfig")]
+    pub fn new_with_config(
+        config: ClientConfig,
+        on_message: js_sys::Function,
+        opts: ClientOptsSimple,
+    ) -> Promise {
+        future_to_promise(async move {
+            Self::_new(config, on_message, Some(opts))
+                .await
+                .into_promise_result()
+        })
+    }
+
+    // no cover traffic
+    // no poisson delay
+    // hardcoded topology
+    // NOTE: you most likely want to use `[NymNodeTester]` instead.
+    #[cfg(feature = "node-tester")]
+    #[wasm_bindgen(js_name = "newTester")]
+    pub fn new_tester() -> Promise {
+        todo!()
     }
 
     pub fn self_address(&self) -> String {

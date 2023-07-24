@@ -20,8 +20,6 @@ console.log('Initializing worker');
 
 // wasm_bindgen creates a global variable (with the exports attached) that is in scope after `importScripts`
 const {
-    WasmGateway,
-    WasmMixNode,
     default_debug,
     no_cover_debug,
     NymNodeTester,

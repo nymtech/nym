@@ -7,7 +7,7 @@ use nym_crypto::asymmetric::{encryption, identity};
 use nym_topology::gateway::GatewayConversionError;
 use nym_topology::mix::{Layer, MixnodeConversionError};
 use nym_topology::{gateway, mix, MixLayer, NymTopology};
-use nym_validator_client::client::{IdentityKeyRef, MixId};
+use nym_validator_client::client::IdentityKeyRef;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use thiserror::Error;
@@ -128,13 +128,20 @@ impl From<NymTopology> for WasmNymTopology {
 #[tsify(into_wasm_abi, from_wasm_abi)]
 #[serde(rename_all = "camelCase")]
 pub struct WasmMixNode {
-    pub mix_id: MixId,
+    // this is a `MixId` but due to typescript issue, we're using u32 directly.
+    pub mix_id: u32,
     pub owner: String,
     pub host: String,
+
+    #[tsify(optional)]
     pub mix_port: Option<u16>,
     pub identity_key: String,
     pub sphinx_key: String,
-    pub layer: MixLayer,
+
+    // this is a `MixLayer` but due to typescript issue, we're using u8 directly.
+    pub layer: u8,
+
+    #[tsify(optional)]
     pub version: Option<String>,
 }
 
@@ -188,10 +195,16 @@ impl<'a> From<&'a mix::Node> for WasmMixNode {
 pub struct WasmGateway {
     pub owner: String,
     pub host: String,
+
+    #[tsify(optional)]
     pub mix_port: Option<u16>,
+
+    #[tsify(optional)]
     pub clients_port: Option<u16>,
     pub identity_key: String,
     pub sphinx_key: String,
+
+    #[tsify(optional)]
     pub version: Option<String>,
 }
 

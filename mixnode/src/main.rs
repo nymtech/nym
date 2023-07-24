@@ -7,7 +7,8 @@ extern crate rocket;
 use ::nym_config::defaults::setup_env;
 use clap::{crate_name, crate_version, Parser};
 use lazy_static::lazy_static;
-use nym_bin_common::build_information::BinaryBuildInformation;
+use nym_bin_common::bin_info;
+
 #[allow(unused_imports)]
 use nym_bin_common::logging::{maybe_print_banner, setup_logging};
 #[cfg(feature = "cpucycles")]
@@ -16,13 +17,13 @@ use nym_bin_common::setup_tracing;
 use nym_mixnode_common::measure;
 #[cfg(feature = "cpucycles")]
 use tracing::instrument;
+
 mod commands;
 mod config;
 mod node;
 
 lazy_static! {
-    pub static ref PRETTY_BUILD_INFORMATION: String =
-        BinaryBuildInformation::new(env!("CARGO_PKG_VERSION")).pretty_print();
+    pub static ref PRETTY_BUILD_INFORMATION: String = bin_info!().pretty_print();
 }
 
 // Helper for passing LONG_VERSION to clap

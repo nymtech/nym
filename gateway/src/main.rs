@@ -5,7 +5,7 @@ use clap::{crate_name, crate_version, Parser};
 use colored::Colorize;
 use lazy_static::lazy_static;
 use log::error;
-use nym_bin_common::build_information::BinaryBuildInformation;
+use nym_bin_common::bin_info;
 use nym_bin_common::logging::{maybe_print_banner, setup_logging};
 use nym_bin_common::output_format::OutputFormat;
 use nym_network_defaults::setup_env;
@@ -18,8 +18,7 @@ mod node;
 pub(crate) mod support;
 
 lazy_static! {
-    pub static ref PRETTY_BUILD_INFORMATION: String =
-        BinaryBuildInformation::new(env!("CARGO_PKG_VERSION")).pretty_print();
+    pub static ref PRETTY_BUILD_INFORMATION: String = bin_info!().pretty_print();
 }
 
 // Helper for passing LONG_VERSION to clap

@@ -5,6 +5,7 @@
 // and be used by our smart contracts
 
 use serde::{Deserialize, Serialize};
+use std::fmt::{Display, Formatter};
 
 #[derive(Debug)]
 pub struct BinaryBuildInformation {
@@ -70,34 +71,7 @@ impl BinaryBuildInformation {
     }
 
     pub fn pretty_print(&self) -> String {
-        format!(
-            r#"
-{:<20}{}
-{:<20}{}
-{:<20}{}
-{:<20}{}
-{:<20}{}
-{:<20}{}
-{:<20}{}
-{:<20}{}
-"#,
-            "Build Timestamp:",
-            self.build_timestamp,
-            "Build Version:",
-            self.build_version,
-            "Commit SHA:",
-            self.commit_sha,
-            "Commit Date:",
-            self.commit_timestamp,
-            "Commit Branch:",
-            self.commit_branch,
-            "rustc Version:",
-            self.rustc_version,
-            "rustc Channel:",
-            self.rustc_channel,
-            "cargo Profile:",
-            self.cargo_profile,
-        )
+        self.to_owned().to_string()
     }
 }
 
@@ -134,4 +108,53 @@ pub struct BinaryBuildInformationOwned {
     // VERGEN_CARGO_PROFILE
     /// Provides the cargo profile that was used for the build, for example `debug`.
     pub cargo_profile: String,
+}
+
+impl Display for BinaryBuildInformationOwned {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            r#"
+{:<20}{}
+{:<20}{}
+{:<20}{}
+{:<20}{}
+{:<20}{}
+{:<20}{}
+{:<20}{}
+{:<20}{}
+"#,
+            "Build Timestamp:",
+            self.build_timestamp,
+            "Build Version:",
+            self.build_version,
+            "Commit SHA:",
+            self.commit_sha,
+            "Commit Date:",
+            self.commit_timestamp,
+            "Commit Branch:",
+            self.commit_branch,
+            "rustc Version:",
+            self.rustc_version,
+            "rustc Channel:",
+            self.rustc_channel,
+            "cargo Profile:",
+            self.cargo_profile,
+        )
+    }
+}
+
+// since this macro will get expanded at the callsite, it will pull in correct binary version
+#[macro_export]
+macro_rules! bin_info {
+    () => {
+        $crate::build_information::BinaryBuildInformation::new(env!("CARGO_PKG_VERSION"))
+    };
+}
+
+#[macro_export]
+macro_rules! bin_info_owned {
+    () => {
+        $crate::build_information::BinaryBuildInformation::new(env!("CARGO_PKG_VERSION")).to_owned()
+    };
 }

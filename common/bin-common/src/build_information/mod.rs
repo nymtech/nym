@@ -9,6 +9,9 @@ use std::fmt::{Display, Formatter};
 
 #[derive(Debug)]
 pub struct BinaryBuildInformation {
+    /// Provides the name of the binary, i.e. the content of `CARGO_PKG_NAME` environmental variable.
+    pub binary_name: &'static str,
+
     // VERGEN_BUILD_TIMESTAMP
     /// Provides the build timestamp, for example `2021-02-23T20:14:46.558472672+00:00`.
     pub build_timestamp: &'static str,
@@ -44,8 +47,9 @@ pub struct BinaryBuildInformation {
 
 impl BinaryBuildInformation {
     // explicitly require the build_version to be passed as it's binary specific
-    pub const fn new(build_version: &'static str) -> Self {
+    pub const fn new(binary_name: &'static str, build_version: &'static str) -> Self {
         BinaryBuildInformation {
+            binary_name,
             build_timestamp: env!("VERGEN_BUILD_TIMESTAMP"),
             build_version,
             commit_sha: env!("VERGEN_GIT_SHA"),
@@ -59,6 +63,7 @@ impl BinaryBuildInformation {
 
     pub fn to_owned(&self) -> BinaryBuildInformationOwned {
         BinaryBuildInformationOwned {
+            binary_name: self.binary_name.to_owned(),
             build_timestamp: self.build_timestamp.to_owned(),
             build_version: self.build_version.to_owned(),
             commit_sha: self.commit_sha.to_owned(),
@@ -77,6 +82,9 @@ impl BinaryBuildInformation {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct BinaryBuildInformationOwned {
+    /// Provides the name of the binary, i.e. the content of `CARGO_PKG_NAME` environmental variable.
+    pub binary_name: String,
+
     // VERGEN_BUILD_TIMESTAMP
     /// Provides the build timestamp, for example `2021-02-23T20:14:46.558472672+00:00`.
     pub build_timestamp: String,
@@ -123,7 +131,10 @@ impl Display for BinaryBuildInformationOwned {
 {:<20}{}
 {:<20}{}
 {:<20}{}
+{:<20}{}
 "#,
+            "Binary Name:",
+            self.binary_name,
             "Build Timestamp:",
             self.build_timestamp,
             "Build Version:",
@@ -148,13 +159,20 @@ impl Display for BinaryBuildInformationOwned {
 #[macro_export]
 macro_rules! bin_info {
     () => {
-        $crate::build_information::BinaryBuildInformation::new(env!("CARGO_PKG_VERSION"))
+        $crate::build_information::BinaryBuildInformation::new(
+            env!("CARGO_PKG_NAME"),
+            env!("CARGO_PKG_VERSION"),
+        )
     };
 }
 
 #[macro_export]
 macro_rules! bin_info_owned {
     () => {
-        $crate::build_information::BinaryBuildInformation::new(env!("CARGO_PKG_VERSION")).to_owned()
+        $crate::build_information::BinaryBuildInformation::new(
+            env!("CARGO_PKG_NAME"),
+            env!("CARGO_PKG_VERSION"),
+        )
+        .to_owned()
     };
 }

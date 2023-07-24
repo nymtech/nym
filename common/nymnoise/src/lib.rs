@@ -140,6 +140,8 @@ pub async fn upgrade_noise_initiator(
     };
     let _secret = [local_public_key, &remote_pub_key].concat();
 
+    println!("Remote pub key : {:?}", remote_pub_key);
+
     let builder = Builder::new(NOISE_HS_PATTERN.parse().unwrap()); //This cannot fail, hardcoded pattern must be correct
     let mut handshake = builder
         .local_private_key(local_private_key)

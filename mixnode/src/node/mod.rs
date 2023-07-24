@@ -327,7 +327,11 @@ impl MixNode {
         }
         println!(
             "Secret key start : {:?}",
-            self.identity_keypair.private_key()
+            self.identity_keypair.private_key().to_bytes()
+        );
+        println!(
+            "Public key start : {:?}",
+            self.identity_keypair.public_key().to_bytes()
         );
 
         let shutdown = TaskManager::default();

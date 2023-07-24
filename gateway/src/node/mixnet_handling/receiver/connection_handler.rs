@@ -3,14 +3,14 @@
 
 use crate::node::client_handling::active_clients::ActiveClientsStore;
 use crate::node::client_handling::websocket::message_receiver::MixMessageSender;
-use crate::node::identity::{PUBLIC_KEY_LENGTH, SECRET_KEY_LENGTH};
+use crate::node::encryption::{PRIVATE_KEY_SIZE, PUBLIC_KEY_SIZE};
 use crate::node::mixnet_handling::receiver::packet_processing::PacketProcessor;
 use crate::node::storage::error::StorageError;
 use crate::node::storage::Storage;
 use futures::StreamExt;
 use log::*;
 use nym_client_core::client::topology_control::accessor::TopologyAccessor;
-use nym_crypto::asymmetric::identity;
+use nym_crypto::asymmetric::encryption;
 use nym_mixnet_client::forwarder::MixForwardingSender;
 use nym_mixnode_common::packet_processor::processor::ProcessedFinalHop;
 use nym_noise::upgrade_noise_responder;
@@ -36,8 +36,8 @@ pub(crate) struct ConnectionHandler<St: Storage> {
     storage: St,
     ack_sender: MixForwardingSender,
     topology_access: TopologyAccessor,
-    public_identity_key: [u8; PUBLIC_KEY_LENGTH],
-    private_identity_key: [u8; SECRET_KEY_LENGTH],
+    public_identity_key: [u8; PUBLIC_KEY_SIZE],
+    private_identity_key: [u8; PRIVATE_KEY_SIZE],
 }
 
 impl<St: Storage + Clone> Clone for ConnectionHandler<St> {
@@ -70,7 +70,7 @@ impl<St: Storage> ConnectionHandler<St> {
         ack_sender: MixForwardingSender,
         active_clients_store: ActiveClientsStore,
         topology_access: TopologyAccessor,
-        identity_key: &identity::KeyPair,
+        identity_key: &encryption::KeyPair,
     ) -> Self {
         ConnectionHandler {
             packet_processor,

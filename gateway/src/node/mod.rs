@@ -146,7 +146,7 @@ impl<St> Gateway<St> {
             ack_sender,
             active_clients_store,
             topology_access,
-            &self.identity_keypair,
+            &self.sphinx_keypair,
         );
 
         let listening_address = SocketAddr::new(

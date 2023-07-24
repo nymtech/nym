@@ -1,7 +1,7 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::node::identity::{PUBLIC_KEY_LENGTH, SECRET_KEY_LENGTH};
+use crate::node::encryption::{PRIVATE_KEY_SIZE, PUBLIC_KEY_SIZE};
 use crate::node::listener::connection_handler::packet_processing::{
     MixProcessingResult, PacketProcessor,
 };
@@ -9,7 +9,7 @@ use crate::node::packet_delayforwarder::PacketDelayForwardSender;
 use crate::node::TaskClient;
 use futures::StreamExt;
 use nym_client_core::client::topology_control::accessor::TopologyAccessor;
-use nym_crypto::asymmetric::identity;
+use nym_crypto::asymmetric::encryption;
 use nym_mixnode_common::measure;
 use nym_noise::upgrade_noise_responder;
 use nym_sphinx::forwarding::packet::MixPacket;
@@ -30,8 +30,8 @@ pub(crate) struct ConnectionHandler {
     packet_processor: PacketProcessor,
     delay_forwarding_channel: PacketDelayForwardSender,
     topology_access: TopologyAccessor,
-    private_identity_key: [u8; SECRET_KEY_LENGTH],
-    public_identity_key: [u8; PUBLIC_KEY_LENGTH],
+    private_identity_key: [u8; PRIVATE_KEY_SIZE],
+    public_identity_key: [u8; PUBLIC_KEY_SIZE],
 }
 
 impl ConnectionHandler {
@@ -39,7 +39,7 @@ impl ConnectionHandler {
         packet_processor: PacketProcessor,
         delay_forwarding_channel: PacketDelayForwardSender,
         topology_access: TopologyAccessor,
-        identity_key: &identity::KeyPair,
+        identity_key: &encryption::KeyPair,
     ) -> Self {
         ConnectionHandler {
             packet_processor,

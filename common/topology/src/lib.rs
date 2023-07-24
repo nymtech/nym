@@ -3,7 +3,7 @@
 
 use crate::filter::VersionFilterable;
 use log::warn;
-use nym_crypto::asymmetric::identity;
+use nym_crypto::asymmetric::encryption;
 use nym_mixnet_contract_common::mixnode::MixNodeDetails;
 use nym_mixnet_contract_common::{GatewayBond, IdentityKeyRef, MixId};
 use nym_sphinx_addressing::nodes::NodeIdentity;
@@ -108,16 +108,19 @@ impl NymTopology {
         None
     }
 
-    pub fn find_node_key_by_mix_host(&self, mix_host: SocketAddr) -> Option<&identity::PublicKey> {
+    pub fn find_node_key_by_mix_host(
+        &self,
+        mix_host: SocketAddr,
+    ) -> Option<&encryption::PublicKey> {
         for node in self.gateways.iter() {
             if node.mix_host.ip() == mix_host.ip() {
-                return Some(&node.identity_key);
+                return Some(&node.sphinx_key);
             }
         }
         for nodes in self.mixes.values() {
             for node in nodes {
                 if node.mix_host.ip() == mix_host.ip() {
-                    return Some(&node.identity_key);
+                    return Some(&node.sphinx_key);
                 }
             }
         }

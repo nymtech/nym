@@ -164,7 +164,7 @@ impl MixNode {
             packet_processor,
             delay_forwarding_channel,
             topology_access,
-            &self.identity_keypair,
+            &self.sphinx_keypair,
         );
 
         let listening_address = SocketAddr::new(
@@ -325,14 +325,6 @@ impl MixNode {
         if self.check_if_bonded().await {
             warn!("You seem to have bonded your mixnode before starting it - that's highly unrecommended as in the future it might result in slashing");
         }
-        println!(
-            "Secret key start : {:?}",
-            self.identity_keypair.private_key().to_bytes()
-        );
-        println!(
-            "Public key start : {:?}",
-            self.identity_keypair.public_key().to_bytes()
-        );
 
         let shutdown = TaskManager::default();
 

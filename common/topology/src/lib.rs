@@ -110,13 +110,13 @@ impl NymTopology {
 
     pub fn find_node_key_by_mix_host(&self, mix_host: SocketAddr) -> Option<&identity::PublicKey> {
         for node in self.gateways.iter() {
-            if node.mix_host == mix_host {
+            if node.mix_host.ip() == mix_host.ip() {
                 return Some(&node.identity_key);
             }
         }
         for nodes in self.mixes.values() {
             for node in nodes {
-                if node.mix_host == mix_host {
+                if node.mix_host.ip() == mix_host.ip() {
                     return Some(&node.identity_key);
                 }
             }

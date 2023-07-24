@@ -21,7 +21,7 @@ static SERVICE_PROVIDER_WELLKNOWN_URL_MEDIUM: &str =
 static HARBOUR_MASTER_URL: &str = "https://harbourmaster.nymtech.net/v1/services/?size=100";
 
 // We only consider network requesters with a routing score above this threshold
-const SERVICE_ROUTING_SCORE_THRESHOLD: f32 = 90.0;
+const SERVICE_ROUTING_SCORE_THRESHOLD: f32 = 0.9;
 
 static GATEWAYS_DETAILED_URL: &str =
     "https://validator.nymtech.net/api/v1/status/gateways/detailed";
@@ -45,7 +45,7 @@ pub async fn get_services(
     let all_services = all_services_with_category
         .into_iter()
         .flat_map(|sp| sp.items)
-        .collect();
+        .collect_vec();
 
     // Early return if we're running with medium toggle enabled
     if let PrivacyLevel::Medium = privacy_level {

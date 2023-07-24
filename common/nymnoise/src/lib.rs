@@ -215,6 +215,7 @@ async fn recv(stream: &mut TcpStream) -> io::Result<Vec<u8>> {
     let msg_len = ((msg_len_buf[0] as usize) << 8) + (msg_len_buf[1] as usize);
     let mut msg = vec![0u8; msg_len];
     stream.read_exact(&mut msg[..]).await?;
+    println!("Recv : {:?}", msg);
     Ok(msg)
 }
 
@@ -222,5 +223,6 @@ async fn recv(stream: &mut TcpStream) -> io::Result<Vec<u8>> {
 async fn send(stream: &mut TcpStream, buf: &[u8]) {
     let msg_len_buf = [(buf.len() >> 8) as u8, (buf.len() & 0xff) as u8];
     stream.write_all(&msg_len_buf).await.unwrap();
+    println!("snt : {:?}", buf);
     stream.write_all(buf).await.unwrap();
 }

@@ -42,7 +42,13 @@ const ConnectionStatusContent: FCWithChildren<{
     case 'connected':
       return (
         <>
-          <Tooltip title={(serviceProvider && gateway) ? <ServiceProviderInfo serviceProvider={serviceProvider} gateway={gateway} /> : undefined}>
+          <Tooltip
+            title={
+              serviceProvider && gateway ? (
+                <ServiceProviderInfo serviceProvider={serviceProvider} gateway={gateway} />
+              ) : undefined
+            }
+          >
             <Box display="flex" alignItems="center" gap={0.5} justifyContent="center" sx={{ cursor: 'pointer' }}>
               <InfoOutlined sx={{ fontSize: 14 }} />
               <Typography fontWeight={FONT_WEIGHT} fontStyle={FONT_STYLE} fontSize={FONT_SIZE} textAlign="center">

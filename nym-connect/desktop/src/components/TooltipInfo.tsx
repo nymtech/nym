@@ -2,7 +2,13 @@ import React from 'react';
 import { Divider, Stack, Typography } from '@mui/material';
 import { ServiceProvider, Gateway } from 'src/types/directory';
 
-export const ServiceProviderInfo = ({ serviceProvider, gateway }: { serviceProvider: ServiceProvider, gateway: Gateway }) => (
+export const ServiceProviderInfo = ({
+  serviceProvider,
+  gateway,
+}: {
+  serviceProvider: ServiceProvider;
+  gateway: Gateway;
+}) => (
   <Stack gap={1} sx={{ wordWrap: 'break-word', maxWidth: 150, p: 1 }}>
     <Typography variant="body2" fontWeight="bold">
       Connection info

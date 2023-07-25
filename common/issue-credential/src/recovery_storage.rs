@@ -25,7 +25,7 @@ impl RecoveryStorage {
                 let path = ok_entry.path();
                 if path.is_file() {
                     paths.push(path)
-                }            
+                }
             }
         }
 
@@ -37,7 +37,7 @@ impl RecoveryStorage {
                     if let Some(voucher) = BandwidthVoucher::try_from_bytes(&buff).ok() {
                         vouchers.push(voucher)
                     }
-                }        
+                }
             }
         }
 

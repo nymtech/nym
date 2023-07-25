@@ -82,11 +82,11 @@ jobs:
       - id: release-info
         name: Prepare release info
         run: |
-          semver="${${{ github.ref_name }}##nym-connect-}" && semver="${semver##v}"
-          echo "version=$semver" >> "$GITHUB_OUTPUT"
-          echo "filename=nym-connect_$version_amd64.AppImage" >> "$GITHUB_OUTPUT"
+          ref=${{ github.ref_name }}
+          semver="${ref##nym-connect-}" && semver="${semver##v}"
+          echo "version=${semver}" >> "$GITHUB_OUTPUT"
+          echo "filename=nym-connect_${version}_amd64.AppImage" >> "$GITHUB_OUTPUT"
           echo "file_hash=${{ hashFiles('nym-connect/desktop/target/release/bundle/appimage/nym-connect_*_amd64.AppImage') }}" >> "$GITHUB_OUTPUT"
-
   push-release-data:
     if: ${{ (startsWith(github.ref, 'refs/tags/nym-connect-') && github.event_name == 'release') || github.event_name == 'workflow_dispatch' }}
     uses: ./.github/workflows/push-release-data.yml

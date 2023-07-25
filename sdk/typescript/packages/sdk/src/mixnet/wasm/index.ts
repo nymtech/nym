@@ -5,8 +5,8 @@ import {
   ConnectedEvent,
   EventKinds,
   IWebWorker,
-  IWebWorkerAsync,
-  IWebWorkerEvents,
+  Client,
+  Events,
   LoadedEvent,
   MimeTypes,
   RawMessageReceivedEvent,
@@ -18,8 +18,8 @@ import { createSubscriptions } from './subscriptions';
  * Client for the Nym mixnet.
  */
 export interface NymMixnetClient {
-  client: IWebWorkerAsync;
-  events: IWebWorkerEvents;
+  client: Client;
+  events: Events;
 }
 
 /**
@@ -53,7 +53,7 @@ export const createNymMixnetClient = async (options?: {
   });
 
   // manage the subscribers, returning self-unsubscribe methods
-  const events: IWebWorkerEvents = {
+  const events: Events = {
     subscribeToConnected: (handler) => addSubscription<ConnectedEvent>(EventKinds.Connected, handler),
     subscribeToLoaded: (handler) => addSubscription<LoadedEvent>(EventKinds.Loaded, handler),
     subscribeToTextMessageReceivedEvent: (handler) =>
@@ -65,7 +65,7 @@ export const createNymMixnetClient = async (options?: {
   };
 
   // let comlink handle interop with the web worker
-  const client: IWebWorkerAsync = Comlink.wrap<IWebWorker>(worker);
+  const client: Client = Comlink.wrap<IWebWorker>(worker);
 
   // set any options
   if (options?.autoConvertStringMimeTypes) {

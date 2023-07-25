@@ -115,9 +115,10 @@ jobs:
       - id: release-info
         name: Prepare release info
         run: |
-          semver="${${{ github.ref_name }}##nym-connect-}" && semver="${semver##v}"
-          echo "version=$semver" >> "$GITHUB_OUTPUT"
-          echo "filename=nym-connect_$version_x64.dmg" >> "$GITHUB_OUTPUT"
+          ref=${{ github.ref_name }}
+          semver="${ref##nym-connect-}" && semver="${semver##v}"
+          echo "version=${semver}" >> "$GITHUB_OUTPUT"
+          echo "filename=nym-connect_${version}_x64_en-US.msi" >> "$GITHUB_OUTPUT"
           echo "file_hash=${{ hashFiles('nym-connect/desktop/target/release/bundle/dmg/nym-connect_*_x64.dmg') }}" >> "$GITHUB_OUTPUT"
 
   push-release-data:

@@ -3,7 +3,7 @@ import type { DebugWasm } from './types-from-wasm-pack';
 export * from './types-from-wasm-pack';
 
 /**
- * Some common mime types, however, you can always just specify the mime-type as a string
+ * Some common mime types, however, you can always just specify the mime-type as a string. Test
  */
 export enum MimeTypes {
   ApplicationOctetStream = 'application/octet-stream',
@@ -76,11 +76,34 @@ export interface IWebWorkerAsync {
   rawSend: (args: { payload: Uint8Array; recipient: string; replySurbs?: number }) => Promise<void>;
 }
 
+  /**
+ * Enum representing various event kinds.
+ * @enum
+ */
 export enum EventKinds {
+    /**
+   * The event emitted when the nodetester is ready to be used.
+   */
   Loaded = 'Loaded',
+
+     /**
+   * The event emitted when connection to the gateway is established.
+   */
   Connected = 'Connected',
+   
+  /**
+   * The event for when a message is received and interpreted as a string.
+   */
   StringMessageReceived = 'StringMessageReceived',
+
+    /**
+   * The event for when a binary message is received.
+   */
   BinaryMessageReceived = 'BinaryMessageReceived',
+
+    /**
+   * The event for when a raw message is received.
+   */
   RawMessageReceived = 'RawMessageReceived',
 }
 

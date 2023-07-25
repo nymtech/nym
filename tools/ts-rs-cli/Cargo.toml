@@ -11,7 +11,7 @@ ts-rs = "6.1.2"
 walkdir = "2"
 
 nym-validator-client = { path = "../../common/client-libs/validator-client", features = [
-    "nyxd-client", "generate-ts"
+    "generate-ts"
 ] }
 nym-api-requests = { path = "../../nym-api/nym-api-requests", features = ["generate-ts"] }
 nym-mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mixnet-contract", features = [ "generate-ts" ]}

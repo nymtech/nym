@@ -36,9 +36,7 @@ nym-sphinx-framing = { path = "../nymsphinx/framing" }
 nym-sphinx-params = { path = "../nymsphinx/params" }
 nym-sphinx-types = { path = "../nymsphinx/types" }
 nym-task = { path = "../task" }
-nym-validator-client = { path = "../client-libs/validator-client", features = [
-    "nyxd-client",
-] }
+nym-validator-client = { path = "../client-libs/validator-client" }
 nym-bin-common = { path = "../bin-common" }
 
 cfg-if = "1.0.0"

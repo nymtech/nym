@@ -52,7 +52,7 @@ cosmwasm-std = "1.2.0"
 cosmrs = "=0.14.0"
 
 nym-validator-client = { path = "../../common/client-libs/validator-client", features = [
-    "nyxd-client", "signing", "http-client"
+    "signing", "http-client"
 ] }
 nym-crypto = { path = "../../common/crypto", features = ["asymmetric"] }
 nym-contracts-common = { path = "../../common/cosmwasm-smart-contracts/contracts-common" }

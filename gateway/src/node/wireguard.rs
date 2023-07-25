@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{net::SocketAddr, sync::Arc};
 
 use base64::engine::general_purpose;
 use base64::Engine as _;
@@ -8,8 +8,8 @@ use tokio::{net::UdpSocket, sync::Mutex};
 use x25519_dalek::{PublicKey, StaticSecret};
 
 pub async fn wireguard() {
-    let wg_address = "127.0.0.1:51820";
-    let sock = UdpSocket::bind(wg_address).await.unwrap();
+    let wg_address = "0.0.0.0:51820";
+    let sock = Arc::new(UdpSocket::bind(wg_address).await.unwrap());
     info!("wg listening on {wg_address}");
 
     // Secret key ofthe gateway, we'll need a way to generate this from the IdentityKey, might be enough to do some base58 -> base64 conversion
@@ -52,55 +52,62 @@ pub async fn wireguard() {
         Tunn::new(secret, peer_public, None, None, 0, Some(rate_limiter)).unwrap(),
     ));
     // Here we have a pretty suboptimal implementation of the UDP communication, for one client
-    loop {
-        let mut buf = [0; 1024];
-        let mut dst = vec![0; 1024];
-        let (len, addr) = sock.recv_from(&mut buf).await.unwrap();
-        let packet = Tunn::parse_incoming_packet(&buf[..len]).unwrap();
-        info!("packet: {:?}", packet);
-        let dst_addr = Tunn::dst_address(&buf[..len]);
-        debug!("dst_addr: {:?}", dst_addr);
-        let result = {
-            let mut t = tun.lock().await;
-            t.decapsulate(dst_addr, &buf[..len], &mut dst)
-        };
 
-        loop {
-            let tun = Arc::clone(&tun);
-            debug!("result: {:?}", result);
-            match result {
-                TunnResult::Done => break,
-                // We'll get here during the handshake process, if the reponse is WriteToNetwork we should call decapsulate again with an
-                // empty datagram until we get a Done response
-                TunnResult::WriteToNetwork(p) => {
-                    let len = sock.send_to(p, addr).await.unwrap();
-                    debug!("{} bytes sent to {}", len, addr);
-                    let mut t = tun.lock().await;
-                    t.decapsulate(dst_addr, &[], p);
-                    break;
-                }
-                TunnResult::Err(e) => {
-                    error!("error: {:?}", e);
-                    break;
-                }
-                // We've recieved some DataPackets we need to forward and send response back to the initiating client
-                // if no data packets are available we should send an empty packet as an ack.
-                // For now this just logs that it received the packet, and send and ack back to the client.
-                TunnResult::WriteToTunnelV4(ref _r, _addy) => {
-                    // These are very spammy
-                    debug!("WriteToTunnelV4");
-                    let mut t = tun.lock().await;
-                    sock.send_to(&empty_packet(&mut t), addr).await.unwrap();
-                    break;
-                }
-                TunnResult::WriteToTunnelV6(ref _r, _addy) => {
-                    // These are very spammy
-                    debug!("WriteToTunnelV6");
-                    let mut t = tun.lock().await;
-                    sock.send_to(&empty_packet(&mut t), addr).await.unwrap();
-                    break;
-                }
-            }
+    let mut buf = [0; 1024];
+    while let Ok((len, addr)) = sock.recv_from(&mut buf).await {
+        tokio::spawn(process_packet(
+            buf[..len].to_vec(),
+            addr,
+            Arc::clone(&tun),
+            Arc::clone(&sock),
+        ));
+    }
+}
+
+async fn process_packet(
+    packet: Vec<u8>,
+    addr: SocketAddr,
+    tun: Arc<Mutex<Tunn>>,
+    sock: Arc<UdpSocket>,
+) {
+    let mut dst = vec![0; 1024];
+    let tun_packet = Tunn::parse_incoming_packet(&packet).unwrap();
+    info!("packet: {:?}", tun_packet);
+    let dst_addr = Tunn::dst_address(&packet);
+    debug!("dst_addr: {:?}", dst_addr);
+    let result = {
+        let mut t = tun.lock().await;
+        t.decapsulate(dst_addr, &packet, &mut dst)
+    };
+    let tun = Arc::clone(&tun);
+    debug!("result: {:?}", result);
+    match result {
+        TunnResult::Done => {}
+        // We'll get here during the handshake process, if the reponse is WriteToNetwork we should call decapsulate again with an
+        // empty datagram until we get a Done response
+        TunnResult::WriteToNetwork(p) => {
+            let len = sock.send_to(p, addr).await.unwrap();
+            debug!("{} bytes sent to {}", len, addr);
+            let mut t = tun.lock().await;
+            t.decapsulate(dst_addr, &[], p);
+        }
+        TunnResult::Err(e) => {
+            error!("error: {:?}", e);
+        }
+        // We've recieved some DataPackets we need to forward and send response back to the initiating client
+        // if no data packets are available we should send an empty packet as an ack.
+        // For now this just logs that it received the packet, and send and ack back to the client.
+        TunnResult::WriteToTunnelV4(ref _r, _addy) => {
+            // These are very spammy
+            debug!("WriteToTunnelV4");
+            let mut t = tun.lock().await;
+            sock.send_to(&empty_packet(&mut t), addr).await.unwrap();
+        }
+        TunnResult::WriteToTunnelV6(ref _r, _addy) => {
+            // These are very spammy
+            debug!("WriteToTunnelV6");
+            let mut t = tun.lock().await;
+            sock.send_to(&empty_packet(&mut t), addr).await.unwrap();
         }
     }
 }

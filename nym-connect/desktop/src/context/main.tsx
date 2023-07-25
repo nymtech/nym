@@ -171,18 +171,6 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
   const shouldUseUserGateway = !!userDefinedGateway.gateway && userDefinedGateway.isActive;
   const shouldUseUserSP = !!userDefinedSPAddress.address && userDefinedSPAddress.isActive;
 
-  const applyServiceProvider = async (newServiceProvider: ServiceProvider) => {
-    await invoke('set_service_provider', {
-      serviceProvider: shouldUseUserSP ? userDefinedSPAddress.address : newServiceProvider.address,
-    });
-  };
-
-  const applyGateway = async (newGateway: Gateway) => {
-    await invoke('set_gateway', {
-      gateway: shouldUseUserGateway ? userDefinedGateway.gateway : newGateway.identity,
-    });
-  };
-
   const buildServiceProvider = async (serviceProvider: ServiceProvider) => {
     const sp = { ...serviceProvider };
     if (shouldUseUserSP) sp.address = userDefinedSPAddress.address as string;
@@ -199,7 +187,9 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
     if (serviceProviders) {
       const randomServiceProvider = getRandomFromList(serviceProviders);
       const withUserDefinitions = await buildServiceProvider(randomServiceProvider);
-      await applyServiceProvider(withUserDefinitions);
+      await invoke('set_service_provider', {
+        serviceProvider: shouldUseUserSP ? userDefinedSPAddress.address : withUserDefinitions.address,
+      });
       setSelectedProvider(withUserDefinitions);
     }
     return undefined;
@@ -208,8 +198,10 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
   const setGateway = async () => {
     if (gateways) {
       const randomGateway = getRandomFromList(gateways);
-      const withUserDefinitionsForGateway = await buildGateway(randomGateway);
-      await applyGateway(withUserDefinitionsForGateway);
+      const withUserDefinitions = await buildGateway(randomGateway);
+      await invoke('set_gateway', {
+        gateway: shouldUseUserGateway ? userDefinedGateway.gateway : withUserDefinitions.identity,
+      });
       // Do we need a setSelectedGateway?
     }
     return undefined;

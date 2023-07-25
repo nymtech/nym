@@ -30,7 +30,7 @@
     "types:lint:fix": "lerna run lint:fix --scope @nymproject/types --scope @nymproject/nym-wallet-app",
     "audit:fix": "npm_config_yes=true npx yarn-audit-fix -- --dry-run",
     "preinstall": "yarn install:copy-placeholders && yarn install:make-dir && yarn install:copy-storage-placeholders",
-    "install:make-dir": "mkdir -p nym-browser-extension/storage/pkg"
+    "install:make-dir": "mkdir -p nym-browser-extension/storage/pkg",
     "install:copy-placeholders": "cp scripts/build/yarn/wasm-placeholder/package.json sdk/typescript/packages/nym-client-wasm",
     "install:copy-storage-placeholders": "cp scripts/build/yarn/storage-placeholder/package.json nym-browser-extension/storage/pkg"
   },

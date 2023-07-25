@@ -61,6 +61,10 @@ jobs:
         with:
           fileName: '.env'
           encodedString: ${{ secrets.WALLET_ADMIN_ADDRESS }}
+          
+      - name: Make directory nym-browser-extension/storage/pkg
+        shell: bash
+        run: mkdir -p nym-browser-extension/storage/pkg
 
       - name: Install project dependencies
         shell: bash

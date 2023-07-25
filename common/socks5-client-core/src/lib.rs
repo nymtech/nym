@@ -77,6 +77,17 @@ impl CustomTopologyProvider {
 
         // Also fetch mixnodes cached by explorer-api, with the purpose of getting their
         // geolocation.
+        let mixnodes_from_explorer_api =
+            reqwest::get("https://explorer.nymtech.net/api/v1/mix-nodes")
+                .await
+                .unwrap()
+                .json::<Foo>()
+                .await
+                .unwrap();
+
+        // let geonames = geonames_lib::model::GeoName::deserialize_from_string("SE").unwrap();
+        // dbg!(&geonames.name);
+        // dbg!(&geonames.name);
 
         nym_topology_from_detailed(mixnodes, gateways)
     }

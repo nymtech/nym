@@ -4,6 +4,7 @@
 use log::*;
 use nym_topology::NymTopology;
 use pin_project::pin_project;
+use sha2::{Digest, Sha256};
 use snow::error::Prerequisite;
 use snow::Builder;
 use snow::Error as NoiseError;
@@ -21,18 +22,7 @@ use tokio::{
 
 const NOISE_HS_PATTERN: &str = "Noise_XKpsk3_25519_AESGCM_SHA256";
 
-static SECRET: &[u8] = b"i don't care for fidget spinners";
-static PRIV_KEY: &[u8] = &[
-    208, 217, 103, 180, 100, 15, 242, 137, 184, 247, 248, 193, 21, 66, 177, 79, 90, 131, 15, 134,
-    145, 4, 45, 37, 215, 253, 227, 172, 113, 73, 97, 125,
-];
-static PUB_KEY: &[u8] = &[
-    126, 100, 176, 138, 253, 249, 136, 187, 191, 200, 120, 5, 62, 218, 218, 73, 220, 60, 1, 179,
-    49, 92, 253, 43, 91, 109, 18, 6, 88, 235, 123, 78,
-];
-
 /// Wrapper around a TcpStream
-//TODO SW : add psk3 to the protocol, requires topology at the receiver
 #[pin_project]
 pub struct NoiseStream {
     #[pin]
@@ -138,15 +128,14 @@ pub async fn upgrade_noise_initiator(
             return Err(Prerequisite::RemotePublicKey.into());
         }
     };
-    let _secret = [local_public_key, &remote_pub_key].concat();
-
-    println!("Remote pub key : {:?}", remote_pub_key);
+    let secret = [local_public_key, &remote_pub_key].concat();
+    let secret_hash = Sha256::digest(secret);
 
     let builder = Builder::new(NOISE_HS_PATTERN.parse().unwrap()); //This cannot fail, hardcoded pattern must be correct
     let mut handshake = builder
         .local_private_key(local_private_key)
         .remote_public_key(&remote_pub_key)
-        .psk(3, SECRET)
+        .psk(3, &secret_hash)
         .build_initiator()?;
 
     //Actual Handshake
@@ -195,13 +184,13 @@ pub async fn upgrade_noise_responder(
             return Err(Prerequisite::RemotePublicKey.into());
         }
     };
-    let _secret = [&remote_pub_key, local_public_key].concat();
-    println!("Secret key : {:?}", local_private_key);
+    let secret = [&remote_pub_key, local_public_key].concat();
+    let secret_hash = Sha256::digest(secret);
 
     let builder = Builder::new(NOISE_HS_PATTERN.parse().unwrap()); //This cannot fail, hardcoded pattern must be correct
     let mut handshake = builder
         .local_private_key(local_private_key)
-        .psk(3, SECRET)
+        .psk(3, &secret_hash)
         .build_responder()?;
 
     //Actual Handshake

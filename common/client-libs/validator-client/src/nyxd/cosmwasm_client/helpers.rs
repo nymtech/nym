@@ -6,9 +6,6 @@ use cosmrs::proto::cosmos::base::query::v1beta1::{PageRequest, PageResponse};
 use cosmrs::proto::cosmos::base::v1beta1::Coin as ProtoCoin;
 use cosmrs::rpc::endpoint::broadcast;
 use cosmrs::Coin;
-use flate2::write::GzEncoder;
-use flate2::Compression;
-use std::io::Write;
 
 pub(crate) trait CheckResponse: Sized {
     fn check_response(self) -> Result<Self, NyxdError>;
@@ -53,7 +50,12 @@ impl CheckResponse for crate::nyxd::TxResponse {
     }
 }
 
+#[cfg(feature = "signing")]
 pub(crate) fn compress_wasm_code(code: &[u8]) -> Result<Vec<u8>, NyxdError> {
+    use flate2::write::GzEncoder;
+    use flate2::Compression;
+    use std::io::Write;
+
     // using compression level 9, same as cosmjs, that optimises for size
     let mut encoder = GzEncoder::new(Vec::new(), Compression::best());
     encoder

@@ -10,20 +10,23 @@ use cosmrs::{
     },
     tx, AccountId,
 };
+use std::{io, time::Duration};
 use thiserror::Error;
 
+#[cfg(feature = "signing")]
 use crate::signing::direct_wallet::DirectSecp256k1HdWalletError;
+
 pub use cosmrs::rpc::{
     error::{Error as TendermintRpcError, ErrorDetail as TendermintRpcErrorDetail},
     response_error::{Code, ResponseError},
 };
-use std::{io, time::Duration};
 
 #[derive(Debug, Error)]
 pub enum NyxdError {
     #[error("No contract address is available to perform the call: {0}")]
     NoContractAddressAvailable(String),
 
+    #[cfg(feature = "signing")]
     #[error(transparent)]
     WalletError(#[from] DirectSecp256k1HdWalletError),
 

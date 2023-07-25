@@ -19,9 +19,7 @@ use url::Url;
 #[cfg(feature = "nyxd-client")]
 use crate::nyxd::traits::{DkgQueryClient, MixnetQueryClient};
 #[cfg(feature = "nyxd-client")]
-use crate::nyxd::{self, CosmWasmClient, NyxdClient, QueryNyxdClient, SigningNyxdClient};
-#[cfg(feature = "nyxd-client")]
-use crate::signing::direct_wallet::DirectSecp256k1HdWallet;
+use crate::nyxd::{self, CosmWasmClient, NyxdClient, QueryNyxdClient};
 #[cfg(feature = "nyxd-client")]
 use nym_api_requests::models::MixNodeBondAnnotated;
 #[cfg(feature = "nyxd-client")]
@@ -39,6 +37,11 @@ use nym_mixnet_contract_common::{
 use nym_network_defaults::NymNetworkDetails;
 #[cfg(feature = "nyxd-client")]
 use std::str::FromStr;
+
+#[cfg(all(feature = "nyxd-client", feature = "signing"))]
+use crate::nyxd::SigningNyxdClient;
+#[cfg(all(feature = "nyxd-client", feature = "signing"))]
+use crate::signing::direct_wallet::DirectSecp256k1HdWallet;
 
 #[cfg(feature = "nyxd-client")]
 #[must_use]
@@ -131,7 +134,7 @@ pub struct Client<C> {
     pub nyxd: NyxdClient<C>,
 }
 
-#[cfg(feature = "nyxd-client")]
+#[cfg(all(feature = "nyxd-client", feature = "signing"))]
 impl Client<SigningNyxdClient<DirectSecp256k1HdWallet>> {
     pub fn new_signing(
         config: Config,

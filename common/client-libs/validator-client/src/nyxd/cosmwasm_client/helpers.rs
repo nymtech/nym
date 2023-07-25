@@ -3,7 +3,7 @@
 
 use crate::nyxd::error::NyxdError;
 use cosmrs::proto::cosmos::base::query::v1beta1::{PageRequest, PageResponse};
-use cosmrs::rpc::endpoint::broadcast;
+use tendermint_rpc::endpoint::broadcast;
 
 pub(crate) trait CheckResponse: Sized {
     fn check_response(self) -> Result<Self, NyxdError>;

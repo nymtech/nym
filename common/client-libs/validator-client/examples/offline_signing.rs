@@ -70,7 +70,7 @@ async fn main() {
         .unwrap();
 
     // broadcast the tx
-    let res = rpc::Client::broadcast_tx_commit(&broadcaster, tx_bytes.into())
+    let res = tendermint_rpc::client::Client::broadcast_tx_commit(&broadcaster, tx_bytes.into())
         .await
         .unwrap();
 

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 pub mod client;
-#[cfg(feature = "nyxd-client")]
+#[cfg(all(feature = "nyxd-client", feature = "http-client"))]
 pub mod connection_tester;
 pub mod error;
 pub mod nym_api;

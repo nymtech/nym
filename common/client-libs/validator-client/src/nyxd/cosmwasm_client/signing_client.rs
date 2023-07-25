@@ -9,7 +9,6 @@ use crate::nyxd::error::NyxdError;
 use crate::nyxd::fee::{Fee, DEFAULT_SIMULATED_GAS_MULTIPLIER};
 use crate::nyxd::{Coin, GasAdjustable, GasPrice, TxResponse};
 use crate::signing::signer::OfflineSigner;
-use crate::signing::tx_signer::TxSigner;
 use crate::signing::SignerData;
 use async_trait::async_trait;
 use cosmrs::abci::GasInfo;
@@ -19,20 +18,28 @@ use cosmrs::feegrant::{
     AllowedMsgAllowance, BasicAllowance, MsgGrantAllowance, MsgRevokeAllowance,
 };
 use cosmrs::proto::cosmos::tx::signing::v1beta1::SignMode;
-use cosmrs::rpc::endpoint::broadcast;
-use cosmrs::rpc::{Error as TendermintRpcError, HttpClient, HttpClientUrl, SimpleRequest};
 use cosmrs::staking::{MsgDelegate, MsgUndelegate};
-use cosmrs::tx::{self, Msg, Raw};
-use cosmrs::{cosmwasm, rpc, AccountId, Any, Tx};
+use cosmrs::tx::{self, Msg};
+use cosmrs::{cosmwasm, AccountId, Any, Tx};
 use log::debug;
 use serde::Serialize;
 use sha2::Digest;
 use sha2::Sha256;
 use std::convert::TryInto;
 use std::time::{Duration, SystemTime};
+use tendermint_rpc::endpoint::broadcast;
 
-const DEFAULT_BROADCAST_POLLING_RATE: Duration = Duration::from_secs(4);
-const DEFAULT_BROADCAST_TIMEOUT: Duration = Duration::from_secs(60);
+#[cfg(feature = "http-client")]
+use crate::signing::tx_signer::TxSigner;
+
+#[cfg(feature = "http-client")]
+use tendermint_rpc::{Error as TendermintRpcError, SimpleRequest};
+
+#[cfg(feature = "http-client")]
+use cosmrs::rpc::{HttpClient, HttpClientUrl};
+
+pub const DEFAULT_BROADCAST_POLLING_RATE: Duration = Duration::from_secs(4);
+pub const DEFAULT_BROADCAST_TIMEOUT: Duration = Duration::from_secs(60);
 
 fn empty_fee() -> tx::Fee {
     tx::Fee {
@@ -725,6 +732,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
     ) -> Result<tx::Raw, NyxdError>;
 }
 
+#[cfg(feature = "http-client")]
 #[derive(Debug)]
 pub struct Client<S> {
     // TODO: somehow nicely hide this guy if we decide to use our client in offline mode,
@@ -738,6 +746,7 @@ pub struct Client<S> {
     broadcast_timeout: Duration,
 }
 
+#[cfg(feature = "http-client")]
 impl<S> Client<S> {
     pub fn connect_with_signer<U: Clone>(
         endpoint: U,
@@ -786,12 +795,13 @@ impl<S> Client<S> {
     }
 }
 
+#[cfg(feature = "http-client")]
 #[async_trait]
-impl<S> rpc::Client for Client<S>
+impl<S> tendermint_rpc::client::Client for Client<S>
 where
     S: Send + Sync,
 {
-    async fn perform<R>(&self, request: R) -> Result<R::Output, rpc::Error>
+    async fn perform<R>(&self, request: R) -> Result<R::Output, tendermint_rpc::Error>
     where
         R: SimpleRequest,
     {
@@ -799,6 +809,7 @@ where
     }
 }
 
+#[cfg(feature = "http-client")]
 #[async_trait]
 impl<S> CosmWasmClient for Client<S>
 where
@@ -813,6 +824,7 @@ where
     }
 }
 
+#[cfg(feature = "http-client")]
 #[async_trait]
 impl<S> SigningCosmWasmClient for Client<S>
 where
@@ -836,7 +848,7 @@ where
         fee: tx::Fee,
         memo: impl Into<String> + Send + 'static,
         signer_data: SignerData,
-    ) -> Result<Raw, NyxdError> {
+    ) -> Result<tx::Raw, NyxdError> {
         Ok(self
             .tx_signer
             .sign_amino(signer_address, messages, fee, memo, signer_data)?)
@@ -849,7 +861,7 @@ where
         fee: tx::Fee,
         memo: impl Into<String> + Send + 'static,
         signer_data: SignerData,
-    ) -> Result<Raw, NyxdError> {
+    ) -> Result<tx::Raw, NyxdError> {
         Ok(self
             .tx_signer
             .sign_direct(signer_address, messages, fee, memo, signer_data)?)

@@ -18,8 +18,10 @@ use url::Url;
 
 #[cfg(feature = "nyxd-client")]
 use crate::nyxd::traits::{DkgQueryClient, MixnetQueryClient};
+#[cfg(all(feature = "nyxd-client", feature = "http-client"))]
+use crate::nyxd::QueryNyxdClient;
 #[cfg(feature = "nyxd-client")]
-use crate::nyxd::{self, CosmWasmClient, NyxdClient, QueryNyxdClient};
+use crate::nyxd::{self, CosmWasmClient, NyxdClient};
 #[cfg(feature = "nyxd-client")]
 use nym_api_requests::models::MixNodeBondAnnotated;
 #[cfg(feature = "nyxd-client")]
@@ -38,9 +40,9 @@ use nym_network_defaults::NymNetworkDetails;
 #[cfg(feature = "nyxd-client")]
 use std::str::FromStr;
 
-#[cfg(all(feature = "nyxd-client", feature = "signing"))]
+#[cfg(all(feature = "nyxd-client", feature = "signing", feature = "http-client"))]
 use crate::nyxd::SigningNyxdClient;
-#[cfg(all(feature = "nyxd-client", feature = "signing"))]
+#[cfg(all(feature = "nyxd-client", feature = "signing", feature = "http-client"))]
 use crate::signing::direct_wallet::DirectSecp256k1HdWallet;
 
 #[cfg(feature = "nyxd-client")]
@@ -50,6 +52,8 @@ pub struct Config {
     api_url: Url,
     nyxd_url: Url,
 
+    // TODO: until refactored, this is a dead field under some features
+    #[allow(dead_code)]
     nyxd_config: nyxd::Config,
 
     mixnode_page_limit: Option<u32>,
@@ -134,7 +138,7 @@ pub struct Client<C> {
     pub nyxd: NyxdClient<C>,
 }
 
-#[cfg(all(feature = "nyxd-client", feature = "signing"))]
+#[cfg(all(feature = "nyxd-client", feature = "signing", feature = "http-client"))]
 impl Client<SigningNyxdClient<DirectSecp256k1HdWallet>> {
     pub fn new_signing(
         config: Config,
@@ -168,7 +172,7 @@ impl Client<SigningNyxdClient<DirectSecp256k1HdWallet>> {
     }
 }
 
-#[cfg(feature = "nyxd-client")]
+#[cfg(all(feature = "nyxd-client", feature = "http-client"))]
 impl Client<QueryNyxdClient> {
     pub fn new_query(config: Config) -> Result<Client<QueryNyxdClient>, ValidatorClientError> {
         let nym_api_client = nym_api::Client::new(config.api_url.clone());

@@ -41,9 +41,13 @@ nym-api-requests = { path = "../../../nym-api/nym-api-requests" }
 async-trait = { workspace = true, optional = true }
 bip39 = { workspace = true, features = ["rand"], optional = true }
 nym-config = { path = "../../config", optional = true }
-#cosmrs = { workspace = true, features = ["bip32", "cosmwasm"], optional = true }
-cosmrs = { workspace = true, features = ["bip32", "rpc", "cosmwasm"], optional = true }
+cosmrs = { workspace = true, features = ["bip32", "cosmwasm"], optional = true }
+#cosmrs = { workspace = true, features = ["bip32", "rpc", "cosmwasm"], optional = true }
 # note that this has the same version as used by cosmrs
+
+# import it just for the `Client` trait
+tendermint-rpc = { workspace = true, optional = true }
+
 eyre = { version = "0.6", optional = true }
 cw3 = { workspace = true, optional = true }
 cw4 = { workspace = true, optional = true }
@@ -85,12 +89,13 @@ nyxd-client = [
     "cw4",
     "flate2",
     "itertools",
-    "openssl",
     "prost",
     # TODO: this is only here due to the `gas-price` and `fee` module. those should imo be moved outside the feature.
     "nym-config",
     "sha2",
+    "tendermint-rpc",
 ]
+http-client = ["cosmrs/rpc", "openssl"]
 signing = [
     "bip39",
     "cosmrs",

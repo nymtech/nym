@@ -4,21 +4,21 @@
 use crate::nyxd::cosmwasm_client::types::ContractCodeId;
 use cosmrs::tendermint::Hash;
 use cosmrs::{
-    rpc::endpoint::abci_query::AbciQuery,
     tendermint::{abci::Code as AbciCode, block},
     AccountId,
 };
 use std::{io, time::Duration};
+use tendermint_rpc::endpoint::abci_query::AbciQuery;
 use thiserror::Error;
 
 #[cfg(feature = "signing")]
 use crate::signing::direct_wallet::DirectSecp256k1HdWalletError;
 
-pub use cosmrs::rpc::{
+pub use cosmrs::tendermint::error::Error as TendermintError;
+pub use tendermint_rpc::{
     error::{Error as TendermintRpcError, ErrorDetail as TendermintRpcErrorDetail},
     response_error::{Code, ResponseError},
 };
-pub use cosmrs::tendermint::error::Error as TendermintError;
 
 #[derive(Debug, Error)]
 pub enum NyxdError {

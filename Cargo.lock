@@ -4923,6 +4923,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2 0.9.9",
+ "tendermint-rpc",
  "thiserror",
  "tokio",
  "ts-rs",
@@ -7377,9 +7378,9 @@ dependencies = [
 
 [[package]]
 name = "tendermint-rpc"
-version = "0.32.2"
+version = "0.32.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d119d83a130537fc4a98c3c9eb6899ebe857fea4860400a61675bfb5f0b35129"
+checksum = "bd2cc789170db5a35d4e0bb2490035c03ef96df08f119bee25fd8dab5a09aa25"
 dependencies = [
  "async-trait",
  "bytes",

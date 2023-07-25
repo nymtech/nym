@@ -1,4 +1,4 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::nyxd;
@@ -25,20 +25,21 @@ use cosmrs::proto::cosmwasm::wasm::v1::{
     QueryRawContractStateRequest, QueryRawContractStateResponse, QuerySmartContractStateRequest,
     QuerySmartContractStateResponse,
 };
-use cosmrs::rpc::endpoint::block::Response as BlockResponse;
-use cosmrs::rpc::endpoint::broadcast;
-use cosmrs::rpc::endpoint::tx::Response as TxResponse;
-use cosmrs::rpc::query::Query;
-use cosmrs::rpc::{self, HttpClient, Order};
 use cosmrs::tendermint::{block, chain, Hash};
 use cosmrs::{AccountId, Coin as CosmosCoin, Tx};
 use prost::Message;
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 use std::time::Duration;
+use tendermint_rpc::{
+    endpoint::{block::Response as BlockResponse, broadcast, tx::Response as TxResponse},
+    query::Query,
+    Order,
+};
 
+#[cfg(feature = "http-client")]
 #[async_trait]
-impl CosmWasmClient for HttpClient {
+impl CosmWasmClient for cosmrs::rpc::HttpClient {
     fn broadcast_polling_rate(&self) -> Duration {
         Duration::from_secs(4)
     }
@@ -49,7 +50,7 @@ impl CosmWasmClient for HttpClient {
 }
 
 #[async_trait]
-pub trait CosmWasmClient: rpc::Client {
+pub trait CosmWasmClient: tendermint_rpc::client::Client {
     // this should probably get redesigned, but I'm leaving those like that temporarily to fix
     // the underlying issue more quickly
     fn broadcast_polling_rate(&self) -> Duration;
@@ -240,7 +241,7 @@ pub trait CosmWasmClient: rpc::Client {
     where
         T: Into<Vec<u8>> + Send,
     {
-        Ok(rpc::Client::broadcast_tx_async(self, tx).await?)
+        Ok(tendermint_rpc::client::Client::broadcast_tx_async(self, tx).await?)
     }
 
     /// Broadcast a transaction, returning the response from `CheckTx`.
@@ -248,7 +249,7 @@ pub trait CosmWasmClient: rpc::Client {
     where
         T: Into<Vec<u8>> + Send,
     {
-        Ok(rpc::Client::broadcast_tx_sync(self, tx).await?)
+        Ok(tendermint_rpc::client::Client::broadcast_tx_sync(self, tx).await?)
     }
 
     /// Broadcast a transaction, returning the response from `DeliverTx`.
@@ -259,7 +260,7 @@ pub trait CosmWasmClient: rpc::Client {
     where
         T: Into<Vec<u8>> + Send,
     {
-        Ok(rpc::Client::broadcast_tx_commit(self, tx).await?)
+        Ok(tendermint_rpc::client::Client::broadcast_tx_commit(self, tx).await?)
     }
 
     async fn broadcast_tx<T>(&self, tx: T) -> Result<TxResponse, NyxdError>

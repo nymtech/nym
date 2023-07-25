@@ -249,7 +249,6 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
         tx = await undelegate(mixId, fee?.fee);
       }
 
-      // const txs = await undelegate(mixId, usesVestingContractTokens, fee);
       const balances = await getAllBalances();
 
       setConfirmationModalProps({

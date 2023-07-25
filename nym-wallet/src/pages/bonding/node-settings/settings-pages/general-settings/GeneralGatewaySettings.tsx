@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useContext, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { clean } from 'semver';
 import { yupResolver } from '@hookform/resolvers/yup';
@@ -18,11 +18,14 @@ import { ConfirmTx } from 'src/components/ConfirmTX';
 import { useGetFee } from 'src/hooks/useGetFee';
 import { LoadingModal } from 'src/components/Modals/LoadingModal';
 import { updateGatewayValidationSchema } from 'src/components/Bonding/forms/gatewayValidationSchema';
+import { BalanceWarning } from 'src/components/FeeWarning';
+import { AppContext } from 'src/context';
 
 export const GeneralGatewaySettings = ({ bondedNode }: { bondedNode: TBondedGateway }) => {
   const [openConfirmationModal, setOpenConfirmationModal] = useState<boolean>(false);
   const { getFee, fee, resetFeeState } = useGetFee();
   const { refresh } = useBondingContext();
+  const { userBalance } = useContext(AppContext);
 
   const theme = useTheme();
 
@@ -78,7 +81,13 @@ export const GeneralGatewaySettings = ({ bondedNode }: { bondedNode: TBondedGate
           onConfirm={handleSubmit((d) => onSubmit(d))}
           onPrev={resetFeeState}
           onClose={resetFeeState}
-        />
+        >
+          {fee.amount?.amount && userBalance?.balance?.amount.amount && (
+            <Box sx={{ mb: 2 }}>
+              <BalanceWarning fee={fee.amount.amount} />
+            </Box>
+          )}
+        </ConfirmTx>
       )}
       {isSubmitting && <LoadingModal />}
       <Alert

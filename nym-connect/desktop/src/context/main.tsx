@@ -106,8 +106,8 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
   }, [userDefinedSPAddress]);
 
   const initialiseApp = async () => {
-    const fetchedServices = await invoke('get_services');
-    const fetchedGateways = await invoke('get_gateways');
+    const fetchedServices = await invoke<ServiceProvider[]>('get_services');
+    const fetchedGateways = await invoke<Gateway[]>('get_gateways');
     const AppVersion = await getAppVersion();
     const storedUserDefinedGateway = await getItemFromStorage({ key: FORAGE_GATEWAY_KEY });
     const storedUserDefinedSP = await getItemFromStorage({ key: FORAGE_SP_KEY });

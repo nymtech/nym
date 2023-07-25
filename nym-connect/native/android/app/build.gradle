@@ -2,7 +2,7 @@ plugins {
     id 'com.android.application'
     id 'org.jetbrains.kotlin.android'
     id 'org.jetbrains.kotlin.plugin.serialization' version '1.8.21'
-    id "io.sentry.android.gradle" version "3.11.0"
+    id 'io.sentry.android.gradle' version '3.11.0'
 }
 
 android {
@@ -122,6 +122,6 @@ dependencies {
     androidTestImplementation 'androidx.compose.ui:ui-test-junit4'
     debugImplementation 'androidx.compose.ui:ui-tooling'
     debugImplementation 'androidx.compose.ui:ui-test-manifest'
-    implementation 'com.github.kittinunf.fuel:fuel:3.0.0-alpha1'
+    implementation 'com.github.kittinunf.fuel:fuel:2.3.1'
     implementation 'io.sentry:sentry-android:6.24.0'
 }

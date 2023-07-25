@@ -29,7 +29,7 @@
     "build:dev:only-this": "scripts/build.sh",
     "build:local": "run-s build:dependencies:nym-client-wasm build:dev:only-this",
     "docs:watch": "nodemon --ext ts --watch './src/**/*' --exec \"yarn docs:generate\"",
-    "docs:generate": "typedoc --out ./docs ./src",
+    "docs:generate": "typedoc",
     "docs:serve": "reload -b -d ./docs -p 3000",
     "docs:dev": "run-p docs:watch docs:serve ",
     "test": "node --experimental-vm-modules --no-warnings node_modules/jest/bin/jest.js -c=jest.config.mjs --no-cache"

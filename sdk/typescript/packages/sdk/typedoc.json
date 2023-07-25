@@ -1,0 +1,5 @@
+{
+  "entryPoints": ["./src/index.ts"],
+  "out": "./docs",
+  "exclude": ["./src/**/node-tester/*", "./src/**/wasm/types-from-wasm-pack.ts"]
+}

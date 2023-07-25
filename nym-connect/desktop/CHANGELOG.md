@@ -2,7 +2,7 @@
 
 ## [Unreleased]
 
-## [1.1.15] (2023-07-25)
+## [v1.1.15] (2023-07-25)
 
 - NC Desktop - remove sentry DSN from code ([#3694])
 - NC - Add Alephium wallet in the supported app list ([#3681])

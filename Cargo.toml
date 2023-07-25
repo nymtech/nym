@@ -121,7 +121,9 @@ cosmwasm-derive = "=1.2.5"
 cosmwasm-schema = "=1.2.5"
 cosmwasm-std = "=1.2.5"
 cosmwasm-storage = "=1.2.5"
-cosmrs = "=0.8.0"
+cosmrs = "=0.14.0"
+# same version as used by cosmrs
+tendermint-rpc = "=0.32.0"
 cw-utils = "=1.0.1"
 cw-storage-plus = "=1.0.1"
 cw2 = { version = "=1.0.1" }

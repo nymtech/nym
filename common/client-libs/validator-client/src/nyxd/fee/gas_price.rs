@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::nyxd::error::NyxdError;
-use cosmrs::tx::Gas;
 use cosmrs::Coin;
+use cosmrs::Gas;
 use cosmwasm_std::{Decimal, Fraction, Uint128};
 use nym_config::defaults;
 use std::ops::Mul;
@@ -25,7 +25,7 @@ impl<'a> Mul<Gas> for &'a GasPrice {
     type Output = Coin;
 
     fn mul(self, gas_limit: Gas) -> Self::Output {
-        let limit_uint128 = Uint128::from(gas_limit.value());
+        let limit_uint128 = Uint128::from(gas_limit);
         let mut amount = self.amount * limit_uint128;
 
         let gas_price_numerator = self.amount.numerator();

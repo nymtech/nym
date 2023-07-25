@@ -116,7 +116,7 @@ impl GasAdjustable for Gas {
         if adjustment == 1.0 {
             *self
         } else {
-            let adjusted = (self.value() as f32 * adjustment).ceil();
+            let adjusted = (*self as f32 * adjustment).ceil();
             (adjusted as u64).into()
         }
     }
@@ -125,9 +125,9 @@ impl GasAdjustable for Gas {
 // a workaround to provide serde implementation for tx::Fee. We don't want to ever expose any of those
 // types to the public and ideally they will get replaced by proper implementation inside comrs
 mod sealed {
-    use cosmrs::tx::{self, Gas};
-    use cosmrs::Coin as CosmosCoin;
+    use cosmrs::tx::{self};
     use cosmrs::{AccountId, Denom as CosmosDenom};
+    use cosmrs::{Coin as CosmosCoin, Gas};
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
     #[derive(Serialize, Deserialize, Clone)]

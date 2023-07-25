@@ -8,6 +8,7 @@ use cosmrs::rpc::endpoint::block::Response as BlockResponse;
 use cosmrs::rpc::query::Query;
 use cosmrs::rpc::Error as TendermintRpcError;
 use cosmrs::rpc::HttpClientUrl;
+use cosmrs::tendermint::Hash;
 use log::{debug, trace};
 use nym_network_defaults::{ChainDetails, NymNetworkDetails};
 use serde::{Deserialize, Serialize};
@@ -21,23 +22,28 @@ pub use cosmrs::rpc::endpoint::tx::Response as TxResponse;
 pub use cosmrs::rpc::endpoint::validators::Response as ValidatorResponse;
 pub use cosmrs::rpc::HttpClient as QueryNyxdClient;
 pub use cosmrs::rpc::Paging;
-pub use cosmrs::tendermint::abci::responses::{DeliverTx, Event};
-pub use cosmrs::tendermint::abci::tag::Tag;
 pub use cosmrs::tendermint::block::Height;
 pub use cosmrs::tendermint::hash;
 pub use cosmrs::tendermint::validator::Info as TendermintValidatorInfo;
 pub use cosmrs::tendermint::Time as TendermintTime;
-pub use cosmrs::tx::{self, Gas};
+pub use cosmrs::tx::{self};
 pub use cosmrs::Coin as CosmosCoin;
+pub use cosmrs::Gas;
 pub use cosmrs::{bip32, AccountId, Denom};
 pub use cosmwasm_std::Coin as CosmWasmCoin;
 pub use fee::{gas_price::GasPrice, GasAdjustable, GasAdjustment};
 
 #[cfg(feature = "signing")]
+use crate::nyxd::cosmwasm_client::signing_client;
+#[cfg(feature = "signing")]
 use crate::nyxd::cosmwasm_client::types::{
     ChangeAdminResult, ContractCodeId, ExecuteResult, InstantiateOptions, InstantiateResult,
     MigrateResult, SequenceResponse, SimulateResponse, UploadResult,
 };
+#[cfg(feature = "signing")]
+use crate::signing::direct_wallet::DirectSecp256k1HdWallet;
+#[cfg(feature = "signing")]
+use crate::signing::signer::OfflineSigner;
 #[cfg(feature = "signing")]
 use cosmrs::cosmwasm;
 #[cfg(feature = "signing")]
@@ -46,13 +52,6 @@ use cosmrs::tx::Msg;
 use cosmwasm_std::Addr;
 #[cfg(feature = "signing")]
 use std::time::SystemTime;
-
-#[cfg(feature = "signing")]
-use crate::nyxd::cosmwasm_client::signing_client;
-#[cfg(feature = "signing")]
-use crate::signing::direct_wallet::DirectSecp256k1HdWallet;
-#[cfg(feature = "signing")]
-use crate::signing::signer::OfflineSigner;
 
 #[cfg(feature = "signing")]
 pub use crate::nyxd::cosmwasm_client::signing_client::SigningCosmWasmClient;
@@ -727,7 +726,7 @@ impl<C> NyxdClient<C> {
     /// # Arguments
     ///
     /// * `height`: height of the block for which we want to obtain the hash.
-    pub async fn get_block_hash(&self, height: u32) -> Result<hash::Hash, NyxdError>
+    pub async fn get_block_hash(&self, height: u32) -> Result<Hash, NyxdError>
     where
         C: CosmWasmClient + Sync,
     {
@@ -766,7 +765,7 @@ impl<C> NyxdClient<C> {
         self.client.get_all_balances(address).await
     }
 
-    pub async fn get_tx(&self, id: tx::Hash) -> Result<TxResponse, NyxdError>
+    pub async fn get_tx(&self, id: Hash) -> Result<TxResponse, NyxdError>
     where
         C: CosmWasmClient + Sync,
     {

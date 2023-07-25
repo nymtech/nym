@@ -4527,6 +4527,7 @@ dependencies = [
  "nym-socks5-requests",
  "nym-sphinx",
  "nym-task",
+ "nym-topology",
  "nym-validator-client",
  "pin-project",
  "rand 0.7.3",
@@ -4534,6 +4535,7 @@ dependencies = [
  "tap",
  "thiserror",
  "tokio",
+ "url",
 ]
 
 [[package]]

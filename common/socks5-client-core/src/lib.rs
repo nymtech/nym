@@ -24,7 +24,13 @@ use nym_credential_storage::storage::Storage as CredentialStorage;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::params::PacketType;
 use nym_task::{TaskClient, TaskManager};
+use nym_topology::nym_topology_from_detailed;
+use nym_topology::{
+    provider_trait::{async_trait, TopologyProvider},
+    NymTopology,
+};
 use std::error::Error;
+use url::Url;
 
 pub mod config;
 pub mod error;
@@ -46,6 +52,42 @@ pub struct StartedSocks5Client {
 
     /// Address of the started client
     pub address: Recipient,
+}
+
+struct CustomTopologyProvider {
+    validator_client: nym_validator_client::client::NymApiClient,
+}
+
+impl CustomTopologyProvider {
+    fn new(nym_api_url: Url) -> CustomTopologyProvider {
+        CustomTopologyProvider {
+            validator_client: nym_validator_client::client::NymApiClient::new(nym_api_url),
+        }
+    }
+
+    async fn get_topology(&self) -> NymTopology {
+        // Fetch active mixnodes
+        let mixnodes = self
+            .validator_client
+            .get_cached_active_mixnodes()
+            .await
+            .expect("failed to get mixnodes from validator");
+
+        let gateways = self.validator_client.get_cached_gateways().await.unwrap();
+
+        // Also fetch mixnodes cached by explorer-api, with the purpose of getting their
+        // geolocation.
+
+        nym_topology_from_detailed(mixnodes, gateways)
+    }
+}
+
+#[async_trait]
+impl TopologyProvider for CustomTopologyProvider {
+    // this will be manually refreshed on a timer specified inside mixnet client config
+    async fn get_new_topology(&mut self) -> Option<NymTopology> {
+        Some(self.get_topology().await)
+    }
 }
 
 pub struct NymClient<S> {
@@ -209,9 +251,14 @@ where
             Some(default_query_dkg_client_from_config(&self.config.base))
         };
 
+        // WIP(JON)
+        let nym_api = "https://validator.nymtech.net/api/".parse().unwrap();
+        let topology_provider = CustomTopologyProvider::new(nym_api);
+
         let base_builder =
             BaseClientBuilder::new(&self.config.base, self.storage, dkg_query_client)
-                .with_gateway_setup(self.setup_method);
+                .with_gateway_setup(self.setup_method)
+                .with_topology_provider(Box::new(topology_provider));
 
         let packet_type = self.config.base.debug.traffic.packet_type;
         let mut started_client = base_builder.start_base().await?;

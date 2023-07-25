@@ -4,7 +4,7 @@ use base64::engine::general_purpose;
 use base64::Engine as _;
 use boringtun::noise::{rate_limiter::RateLimiter, Tunn, TunnResult};
 use log::{debug, error, info};
-use tokio::net::UdpSocket;
+use tokio::{net::UdpSocket, sync::Mutex};
 use x25519_dalek::{PublicKey, StaticSecret};
 
 pub async fn wireguard() {
@@ -48,18 +48,25 @@ pub async fn wireguard() {
     // Rate limiter is global for the gateway
     let rate_limiter = Arc::new(RateLimiter::new(&public, 1024));
 
-    let mut tun = Tunn::new(secret, peer_public, None, None, 0, Some(rate_limiter)).unwrap();
+    let tun = Arc::new(Mutex::new(
+        Tunn::new(secret, peer_public, None, None, 0, Some(rate_limiter)).unwrap(),
+    ));
     // Here we have a pretty suboptimal implementation of the UDP communication, for one client
     loop {
         let mut buf = [0; 1024];
         let mut dst = vec![0; 1024];
         let (len, addr) = sock.recv_from(&mut buf).await.unwrap();
         let packet = Tunn::parse_incoming_packet(&buf[..len]).unwrap();
-        debug!("packet: {:?}", packet);
+        info!("packet: {:?}", packet);
         let dst_addr = Tunn::dst_address(&buf[..len]);
         debug!("dst_addr: {:?}", dst_addr);
-        let result = tun.decapsulate(dst_addr, &buf[..len], &mut dst);
+        let result = {
+            let mut t = tun.lock().await;
+            t.decapsulate(dst_addr, &buf[..len], &mut dst)
+        };
+
         loop {
+            let tun = Arc::clone(&tun);
             debug!("result: {:?}", result);
             match result {
                 TunnResult::Done => break,
@@ -68,7 +75,8 @@ pub async fn wireguard() {
                 TunnResult::WriteToNetwork(p) => {
                     let len = sock.send_to(p, addr).await.unwrap();
                     debug!("{} bytes sent to {}", len, addr);
-                    tun.decapsulate(dst_addr, &[], p);
+                    let mut t = tun.lock().await;
+                    t.decapsulate(dst_addr, &[], p);
                     break;
                 }
                 TunnResult::Err(e) => {
@@ -81,12 +89,16 @@ pub async fn wireguard() {
                 TunnResult::WriteToTunnelV4(ref _r, _addy) => {
                     // These are very spammy
                     debug!("WriteToTunnelV4");
-                    sock.send_to(&empty_packet(&mut tun), addr).await.unwrap();
+                    let mut t = tun.lock().await;
+                    sock.send_to(&empty_packet(&mut t), addr).await.unwrap();
+                    break;
                 }
                 TunnResult::WriteToTunnelV6(ref _r, _addy) => {
                     // These are very spammy
                     debug!("WriteToTunnelV6");
-                    sock.send_to(&empty_packet(&mut tun), addr).await.unwrap();
+                    let mut t = tun.lock().await;
+                    sock.send_to(&empty_packet(&mut t), addr).await.unwrap();
+                    break;
                 }
             }
         }

@@ -38,7 +38,7 @@ async fn main() -> Result<()> {
     utils::issue_credential(
         signing_client,
         coin,
-        &storage.credential_store(),
+        storage.credential_store(),
         recovery_dir,
     )
     .await?;

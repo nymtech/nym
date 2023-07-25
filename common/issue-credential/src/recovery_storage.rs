@@ -16,27 +16,32 @@ impl RecoveryStorage {
         Ok(Self { recovery_dir })
     }
 
-    pub fn unconsumed_vouchers(&self) -> std::io::Result<impl Iterator<Item = BandwidthVoucher>> {
-        Ok(read_dir(&self.recovery_dir)?
-            .filter_map(|entry| entry.ok())
-            .filter_map(|entry| {
-                let path = entry.path();
+    pub fn unconsumed_vouchers(&self) -> std::io::Result<Vec<BandwidthVoucher>> {
+        let entries = read_dir(&self.recovery_dir)?;
+
+        let mut paths = vec![];
+        for entry in entries {
+            if let Some(ok_entry) = entry.ok() {
+                let path = ok_entry.path();
                 if path.is_file() {
-                    Some(path)
-                } else {
-                    None
-                }
-            })
-            .filter_map(|path| File::open(path).ok())
-            .filter_map(|mut f| {
+                    paths.push(path)
+                }            
+            }
+        }
+
+        let mut vouchers = vec![];
+        for path in paths {
+            if let Some(mut file) = File::open(path).ok() {
                 let mut buff = Vec::new();
-                if f.read_to_end(&mut buff).is_ok() {
-                    Some(buff)
-                } else {
-                    None
-                }
-            })
-            .filter_map(|buff| BandwidthVoucher::try_from_bytes(&buff).ok()))
+                if file.read_to_end(&mut buff).is_ok() {
+                    if let Some(voucher) = BandwidthVoucher::try_from_bytes(&buff).ok() {
+                        vouchers.push(voucher)
+                    }
+                }        
+            }
+        }
+
+        Ok(vouchers)
     }
 
     pub fn insert_voucher(&self, voucher: &BandwidthVoucher) -> std::io::Result<PathBuf> {

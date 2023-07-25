@@ -30,7 +30,7 @@ export const WithServices: ComponentStory<typeof Disconnected> = () => (
         {
           id: '1',
           description: 'Keybase service',
-          items: [{ id: '1', description: 'Keybase service 1', gateway: 'abc123', address: '123abc' }],
+          items: [{ id: '1', description: 'Keybase service 1', address: '123abc' }],
         },
       ]}
       clearError={() => {}}

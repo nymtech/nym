@@ -30,7 +30,8 @@ export const ConnectionPage = () => {
       switch (currentStatus) {
         case 'disconnected':
           Sentry.captureMessage('start connect', 'info');
-          await context.setSerivceProvider();
+          await context.setServiceProvider();
+          await context.setGateway();
           await context.startConnecting();
           context.setConnectedSince(DateTime.now());
           context.setShowInfoModal(true);
@@ -61,6 +62,7 @@ export const ConnectionPage = () => {
         gatewayPerformance={context.gatewayPerformance}
         connectedSince={context.connectedSince}
         serviceProvider={context.selectedProvider}
+        gateway={context.selectedGateway}
         closeInfoModal={closeInfoModal}
         stats={[
           {

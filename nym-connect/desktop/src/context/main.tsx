@@ -9,7 +9,7 @@ import { UserDefinedGateway, UserDefinedSPAddress } from 'src/types/service-prov
 import { getItemFromStorage, setItemInStorage } from 'src/utils';
 import { ConnectionStatusKind, GatewayPerformance, PrivacyLevel, UserData } from '../types';
 import { ConnectionStatsItem } from '../components/ConnectionStats';
-import { ServiceProvider } from '../types/directory';
+import { ServiceProvider, Gateway } from '../types/directory';
 import initSentry from '../sentry';
 
 const FORAGE_GATEWAY_KEY = 'nym-connect-user-gateway';
@@ -27,17 +27,20 @@ export type TClientContext = {
   error?: Error;
   gatewayPerformance: GatewayPerformance;
   selectedProvider?: ServiceProvider;
+  selectedGateway?: Gateway;
   showInfoModal: boolean;
   userDefinedGateway?: UserDefinedGateway;
   userDefinedSPAddress: UserDefinedSPAddress;
   serviceProviders?: ServiceProvider[];
+  gateways?: Gateway[];
   setMode: (mode: ModeType) => void;
   clearError: () => void;
   setConnectionStatus: (connectionStatus: ConnectionStatusKind) => void;
   setConnectionStats: (connectionStats: ConnectionStatsItem[] | undefined) => void;
   setConnectedSince: (connectedSince: DateTime | undefined) => void;
   setShowInfoModal: (show: boolean) => void;
-  setSerivceProvider: () => void;
+  setServiceProvider: () => void;
+  setGateway: () => void;
   startConnecting: () => Promise<void>;
   startDisconnecting: () => Promise<void>;
   setUserDefinedGateway: React.Dispatch<React.SetStateAction<UserDefinedGateway>>;
@@ -45,6 +48,10 @@ export type TClientContext = {
   setMonitoring: (value: boolean) => Promise<void>;
   setPrivacyLevel: (value: PrivacyLevel) => Promise<void>;
 };
+
+function getRandomFromList<T>(items: T[]): T {
+  return items[Math.floor(Math.random() * items.length)];
+}
 
 export const ClientContext = createContext({} as TClientContext);
 
@@ -54,7 +61,9 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
   const [connectionStats, setConnectionStats] = useState<ConnectionStatsItem[]>();
   const [connectedSince, setConnectedSince] = useState<DateTime>();
   const [selectedProvider, setSelectedProvider] = React.useState<ServiceProvider>();
+  const [selectedGateway, setSelectedGateway] = React.useState<Gateway>();
   const [serviceProviders, setServiceProviders] = React.useState<ServiceProvider[]>();
+  const [gateways, setGateways] = React.useState<Gateway[]>();
   const [error, setError] = useState<Error>();
   const [appVersion, setAppVersion] = useState<string>();
   const [gatewayPerformance, setGatewayPerformance] = useState<GatewayPerformance>('Good');
@@ -103,13 +112,15 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
   }, [userDefinedSPAddress]);
 
   const initialiseApp = async () => {
-    const services = await invoke('get_services');
+    const fetchedServices = await invoke<ServiceProvider[]>('get_services');
+    const fetchedGateways = await invoke<Gateway[]>('get_gateways');
     const AppVersion = await getAppVersion();
     const storedUserDefinedGateway = await getItemFromStorage({ key: FORAGE_GATEWAY_KEY });
     const storedUserDefinedSP = await getItemFromStorage({ key: FORAGE_SP_KEY });
 
     setAppVersion(AppVersion);
-    setServiceProviders(services as ServiceProvider[]);
+    setServiceProviders(fetchedServices);
+    setGateways(fetchedGateways);
 
     if (storedUserDefinedGateway) {
       setUserDefinedGateway(storedUserDefinedGateway);
@@ -162,35 +173,38 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
   const shouldUseUserGateway = !!userDefinedGateway.gateway && userDefinedGateway.isActive;
   const shouldUseUserSP = !!userDefinedSPAddress.address && userDefinedSPAddress.isActive;
 
-  const setServiceProvider = async (newServiceProvider: ServiceProvider) => {
-    await invoke('set_gateway', {
-      gateway: shouldUseUserGateway ? userDefinedGateway.gateway : newServiceProvider.gateway,
-    });
-    await invoke('set_service_provider', {
-      serviceProvider: shouldUseUserSP ? userDefinedSPAddress.address : newServiceProvider.address,
-    });
-  };
-
-  const getRandomSPFromList = (services: ServiceProvider[]) => {
-    const randomSelection = services[Math.floor(Math.random() * services.length)];
-    return randomSelection;
-  };
-
   const buildServiceProvider = async (serviceProvider: ServiceProvider) => {
     const sp = { ...serviceProvider };
-
-    if (shouldUseUserGateway) sp.gateway = userDefinedGateway.gateway as string;
     if (shouldUseUserSP) sp.address = userDefinedSPAddress.address as string;
-
     return sp;
   };
 
-  const setSerivceProvider = async () => {
+  const buildGateway = async (gateway: Gateway) => {
+    const gw = { ...gateway };
+    if (shouldUseUserGateway) gw.identity = userDefinedGateway.gateway as string;
+    return gw;
+  };
+
+  const setServiceProvider = async () => {
     if (serviceProviders) {
-      const randomServiceProvider = getRandomSPFromList(serviceProviders);
+      const randomServiceProvider = getRandomFromList(serviceProviders);
       const withUserDefinitions = await buildServiceProvider(randomServiceProvider);
-      await setServiceProvider(withUserDefinitions);
+      await invoke('set_service_provider', {
+        serviceProvider: shouldUseUserSP ? userDefinedSPAddress.address : withUserDefinitions.address,
+      });
       setSelectedProvider(withUserDefinitions);
+    }
+    return undefined;
+  };
+
+  const setGateway = async () => {
+    if (gateways) {
+      const randomGateway = getRandomFromList(gateways);
+      const withUserDefinitions = await buildGateway(randomGateway);
+      await invoke('set_gateway', {
+        gateway: shouldUseUserGateway ? userDefinedGateway.gateway : withUserDefinitions.identity,
+      });
+      setSelectedGateway(withUserDefinitions);
     }
     return undefined;
   };
@@ -222,11 +236,13 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
       showInfoModal,
       setConnectionStats,
       selectedProvider,
+      selectedGateway,
       serviceProviders,
       connectedSince,
       userData,
       setConnectedSince,
-      setSerivceProvider,
+      setServiceProvider,
+      setGateway,
       startConnecting,
       startDisconnecting,
       gatewayPerformance,
@@ -250,6 +266,7 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
       connectedSince,
       gatewayPerformance,
       selectedProvider,
+      selectedGateway,
       userDefinedGateway,
       userDefinedSPAddress,
       userData,

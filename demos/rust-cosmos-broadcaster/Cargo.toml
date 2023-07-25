@@ -11,6 +11,7 @@ clap = { version = "4.0", features = ["derive"] }
 nym-sphinx-addressing = { path = "../../common/nymsphinx/addressing" }
 nym-sdk = { path = "../../sdk/rust/nym-sdk" }
 nym-validator-client = { path = "../../common/client-libs/validator-client", features = ["nyxd-client"] }
+nym-bin-common = { path = "../../common/bin-common" }
 bip39 = { workspace = true, features = ["rand"] }
 cosmrs = { git = "https://github.com/neacsu/cosmos-rust", branch = "neacsu/feegrant_support", features = ["rpc", "bip32", "cosmwasm"] }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }

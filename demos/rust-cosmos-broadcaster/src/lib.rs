@@ -7,7 +7,7 @@ use std::path::PathBuf;
 pub mod client;
 pub mod service;
 
-pub const DEFAULT_VALIDATOR_RPC: &str = "https://qwerty-validator.qa.nymte.ch";
+pub const DEFAULT_VALIDATOR_RPC: &str = "https://sandbox-validator1.nymtech.net";
 pub const DEFAULT_DENOM: &str = "unym";
 pub const DEFAULT_PREFIX: &str = "n";
 
@@ -69,6 +69,7 @@ pub async fn listen_and_parse_response(client: &mut MixnetClient) -> anyhow::Res
     // get the actual message - discard the empty vec sent along with the SURB topup request
     while let Some(new_message) = client.wait_for_messages().await {
         if new_message.is_empty() {
+            println!("got a request for more SURBs from service - sending top up SURBs"); 
             continue;
         }
         message = new_message;
@@ -91,7 +92,7 @@ pub async fn listen_and_parse_request(
 ) -> anyhow::Result<(RequestTypes, AnonymousSenderTag)> {
     let mut message: Vec<ReconstructedMessage> = Vec::new();
 
-    // get the actual message - discard the empty vec sent along with the SURB topup request
+    // get the actual message - discard the empty vec sent along with the SURBs
     while let Some(new_message) = client.wait_for_messages().await {
         if new_message.is_empty() {
             continue;

@@ -5,6 +5,7 @@ use rust_cosmos_broadcaster::{
     client::{offline_sign, send_tx},
     create_client,
 };
+use nym_bin_common::logging::setup_logging;
 
 #[derive(Debug, Parser)]
 #[clap(name = "nym cosmos tx signer ")]
@@ -44,6 +45,7 @@ struct SendTx {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    setup_logging(); 
     let cli = Cli::parse();
     let mut client = create_client("/tmp/cosmos-broadcaster-mixnet-client-5".into()).await;
     let our_address = client.nym_address();

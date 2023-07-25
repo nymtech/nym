@@ -5960,6 +5960,7 @@ dependencies = [
  "bs58 0.5.0",
  "clap 4.2.7",
  "cosmrs",
+ "nym-bin-common",
  "nym-sdk",
  "nym-sphinx-addressing",
  "nym-sphinx-anonymous-replies",

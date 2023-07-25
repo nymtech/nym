@@ -93,6 +93,14 @@ We love seeing our developer community create applications using Nym. If you wou
 
 
 
+## <img src='../images/profile_picture/nymgraph_pp.png' style="float: right; width: 75px; height: 75px;">NymGraph
+
+> NymGraph is a graphical chat client for Nym running on Ubuntu and Debian. Test it to chat over the Nym network!
+* [Github](https://github.com/Tyz3/nymgraph)
+
+
+
+
 <br/> <br/>
   
 # Community Guides

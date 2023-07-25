@@ -5,7 +5,6 @@
 
 use crate::nyxd::cosmwasm_client::logs::Log;
 use crate::nyxd::error::NyxdError;
-use cosmrs::abci::GasInfo;
 use cosmrs::auth::{BaseAccount, ModuleAccount};
 use cosmrs::cosmwasm::{CodeInfoResponse, ContractInfo};
 use cosmrs::proto::cosmos::auth::v1beta1::{
@@ -30,6 +29,8 @@ use cosmrs::{AccountId, Any, Coin as CosmosCoin};
 use prost::Message;
 use serde::Serialize;
 use std::convert::{TryFrom, TryInto};
+
+pub use cosmrs::abci::GasInfo;
 
 pub type ContractCodeId = u64;
 

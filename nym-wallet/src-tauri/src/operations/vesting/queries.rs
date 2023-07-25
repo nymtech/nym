@@ -8,7 +8,7 @@ use cosmwasm_std::Timestamp;
 use nym_types::currency::DecCoin;
 use nym_types::vesting::VestingAccountInfo;
 use nym_types::vesting::{OriginalVestingResponse, PledgeData};
-use nym_validator_client::nyxd::VestingQueryClient;
+use nym_validator_client::nyxd::traits::VestingQueryClient;
 use nym_vesting_contract_common::Period;
 
 #[tauri::command]

@@ -117,7 +117,7 @@ impl GasAdjustable for Gas {
             *self
         } else {
             let adjusted = (*self as f32 * adjustment).ceil();
-            (adjusted as u64).into()
+            adjusted as u64
         }
     }
 }

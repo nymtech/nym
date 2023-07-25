@@ -70,15 +70,17 @@ name = "offline_signing"
 # it should only really require the "signing" feature,
 # but that would require another round of refactoring to make it possible
 # (traits would need to be moved around and refactored themselves)
-required-features = ["nyxd-client"]
+required-features = ["nyxd-client", "http-client", "signing"]
 
 [[example]]
 name = "query_service_provider_directory"
-required-features = ["nyxd-client"]
+# TODO: validate the requirements
+required-features = ["nyxd-client", "http-client", "signing"]
 
 [[example]]
 name = "query_name_service"
-required-features = ["nyxd-client"]
+# TODO: validate the requirements
+required-features = ["nyxd-client", "http-client", "signing"]
 
 [features]
 nyxd-client = [

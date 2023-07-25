@@ -3,7 +3,6 @@
 
 use crate::nyxd::cosmwasm_client::types::Account;
 use crate::nyxd::error::NyxdError;
-use cosmrs::tendermint::Hash;
 use log::{debug, trace};
 use nym_network_defaults::{ChainDetails, NymNetworkDetails};
 use serde::{Deserialize, Serialize};
@@ -16,8 +15,9 @@ pub use crate::nyxd::cosmwasm_client::client::CosmWasmClient;
 pub use crate::nyxd::fee::Fee;
 pub use coin::Coin;
 pub use cosmrs::bank::MsgSend;
+pub use cosmrs::tendermint::abci::{response::DeliverTx, Event, EventAttribute};
 pub use cosmrs::tendermint::block::Height;
-pub use cosmrs::tendermint::hash;
+pub use cosmrs::tendermint::hash::{self, Algorithm, Hash};
 pub use cosmrs::tendermint::validator::Info as TendermintValidatorInfo;
 pub use cosmrs::tendermint::Time as TendermintTime;
 pub use cosmrs::tx::{self};

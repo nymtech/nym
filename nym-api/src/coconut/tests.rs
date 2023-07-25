@@ -28,7 +28,9 @@ use nym_validator_client::nym_api::routes::{
     API_VERSION, BANDWIDTH, COCONUT_BLIND_SIGN, COCONUT_ROUTES, COCONUT_VERIFY_BANDWIDTH_CREDENTIAL,
 };
 use nym_validator_client::nyxd::Coin;
-use nym_validator_client::nyxd::{tx::Hash, AccountId, DeliverTx, Event, Fee, Tag, TxResponse};
+use nym_validator_client::nyxd::{
+    AccountId, Algorithm, DeliverTx, Event, EventAttribute, Fee, Hash, TxResponse,
+};
 
 use crate::coconut::State;
 use crate::support::storage::NymApiStorage;
@@ -365,7 +367,7 @@ impl super::client::Client for DummyClient {
                     .add_attribute(NODE_INDEX, assigned_index.to_string())],
             }],
             data: Default::default(),
-            transaction_hash: Hash::new([0; 32]),
+            transaction_hash: Hash::from_bytes(Algorithm::Sha256, &[0; 32]).unwrap(),
             gas_info: Default::default(),
         })
     }
@@ -389,7 +391,7 @@ impl super::client::Client for DummyClient {
         Ok(ExecuteResult {
             logs: vec![],
             data: Default::default(),
-            transaction_hash: Hash::new([0; 32]),
+            transaction_hash: Hash::from_bytes(Algorithm::Sha256, &[0; 32]).unwrap(),
             gas_info: Default::default(),
         })
     }
@@ -457,7 +459,7 @@ impl super::client::Client for DummyClient {
                     .add_attribute(DKG_PROPOSAL_ID, proposal_id.to_string())],
             }],
             data: Default::default(),
-            transaction_hash: Hash::new([0; 32]),
+            transaction_hash: Hash::from_bytes(Algorithm::Sha256, &[0; 32]).unwrap(),
             gas_info: Default::default(),
         })
     }
@@ -749,33 +751,37 @@ async fn blind_sign_correct() {
 
     let mut tx_entry = tx_entry_fixture(&tx_hash.to_string());
     tx_entry.tx_result.events.push(Event {
-        type_str: format!("wasm-{}", DEPOSITED_FUNDS_EVENT_TYPE),
+        kind: format!("wasm-{}", DEPOSITED_FUNDS_EVENT_TYPE),
         attributes: vec![],
     });
     tx_entry.tx_result.events.get_mut(0).unwrap().attributes = vec![
-        Tag {
+        EventAttribute {
             key: DEPOSIT_VALUE.parse().unwrap(),
             value: "1234".parse().unwrap(),
+            index: false,
         },
-        Tag {
+        EventAttribute {
             key: DEPOSIT_INFO.parse().unwrap(),
             value: VOUCHER_INFO.parse().unwrap(),
+            index: false,
         },
-        Tag {
+        EventAttribute {
             key: DEPOSIT_IDENTITY_KEY.parse().unwrap(),
             value: identity_keypair
                 .public_key()
                 .to_base58_string()
                 .parse()
                 .unwrap(),
+            index: false,
         },
-        Tag {
+        EventAttribute {
             key: DEPOSIT_ENCRYPTION_KEY.parse().unwrap(),
             value: encryption_keypair
                 .public_key()
                 .to_base58_string()
                 .parse()
                 .unwrap(),
+            index: false,
         },
     ];
     tx_db

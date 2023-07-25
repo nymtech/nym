@@ -35,14 +35,14 @@ pub async fn extract_encryption_key(
         .tx_result
         .events
         .iter()
-        .find(|event| event.type_str == format!("wasm-{}", DEPOSITED_FUNDS_EVENT_TYPE))
+        .find(|event| event.kind == format!("wasm-{}", DEPOSITED_FUNDS_EVENT_TYPE))
         .ok_or(CoconutError::DepositEventNotFound)?
         .attributes
         .as_ref();
 
-    let deposit_value = attributes
+    let deposit_value: &str = attributes
         .iter()
-        .find(|tag| tag.key.as_ref() == DEPOSIT_VALUE)
+        .find(|tag| tag.key == DEPOSIT_VALUE)
         .ok_or(CoconutError::DepositValueNotFound)?
         .value
         .as_ref();
@@ -54,9 +54,9 @@ pub async fn extract_encryption_key(
         ));
     }
 
-    let deposit_info = attributes
+    let deposit_info: &str = attributes
         .iter()
-        .find(|tag| tag.key.as_ref() == DEPOSIT_INFO)
+        .find(|tag| tag.key == DEPOSIT_INFO)
         .ok_or(CoconutError::DepositInfoNotFound)?
         .value
         .as_ref();
@@ -69,21 +69,19 @@ pub async fn extract_encryption_key(
     }
 
     let verification_key = identity::PublicKey::from_base58_string(
-        attributes
+        &attributes
             .iter()
-            .find(|tag| tag.key.as_ref() == DEPOSIT_IDENTITY_KEY)
+            .find(|tag| tag.key == DEPOSIT_IDENTITY_KEY)
             .ok_or(CoconutError::DepositVerifKeyNotFound)?
-            .value
-            .as_ref(),
+            .value,
     )?;
 
     let encryption_key = encryption::PublicKey::from_base58_string(
-        attributes
+        &attributes
             .iter()
-            .find(|tag| tag.key.as_ref() == DEPOSIT_ENCRYPTION_KEY)
+            .find(|tag| tag.key == DEPOSIT_ENCRYPTION_KEY)
             .ok_or(CoconutError::DepositEncrKeyNotFound)?
-            .value
-            .as_ref(),
+            .value,
     )?;
 
     verification_key.verify(&message, &signature)?;
@@ -97,8 +95,8 @@ mod test {
     use crate::coconut::tests::tx_entry_fixture;
     use nym_coconut::{prepare_blind_sign, BlindSignRequest, Parameters};
     use nym_config::defaults::VOUCHER_INFO;
-    use nym_validator_client::nyxd::tx::Hash;
-    use nym_validator_client::nyxd::{Event, Tag};
+    use nym_validator_client::nyxd::Hash;
+    use nym_validator_client::nyxd::{Event, EventAttribute};
     use rand_07::rngs::OsRng;
     use std::str::FromStr;
 
@@ -182,7 +180,7 @@ mod test {
         );
 
         tx_entry.tx_result.events.push(Event {
-            type_str: format!("wasm-{}", DEPOSITED_FUNDS_EVENT_TYPE),
+            kind: format!("wasm-{}", DEPOSITED_FUNDS_EVENT_TYPE),
             attributes: vec![],
         });
         let err = extract_encryption_key(&correct_request, tx_entry.clone())
@@ -193,9 +191,10 @@ mod test {
             CoconutError::DepositValueNotFound.to_string(),
         );
 
-        tx_entry.tx_result.events.get_mut(0).unwrap().attributes = vec![Tag {
+        tx_entry.tx_result.events.get_mut(0).unwrap().attributes = vec![EventAttribute {
             key: DEPOSIT_VALUE.parse().unwrap(),
             value: "10".parse().unwrap(),
+            index: false,
         }];
         let err = extract_encryption_key(&correct_request, tx_entry.clone())
             .await
@@ -206,9 +205,10 @@ mod test {
                 .to_string(),
         );
 
-        tx_entry.tx_result.events.get_mut(0).unwrap().attributes = vec![Tag {
+        tx_entry.tx_result.events.get_mut(0).unwrap().attributes = vec![EventAttribute {
             key: DEPOSIT_VALUE.parse().unwrap(),
             value: "1234".parse().unwrap(),
+            index: false,
         }];
         let err = extract_encryption_key(&correct_request, tx_entry.clone())
             .await
@@ -219,13 +219,15 @@ mod test {
         );
 
         tx_entry.tx_result.events.get_mut(0).unwrap().attributes = vec![
-            Tag {
+            EventAttribute {
                 key: DEPOSIT_VALUE.parse().unwrap(),
                 value: "1234".parse().unwrap(),
+                index: false,
             },
-            Tag {
+            EventAttribute {
                 key: DEPOSIT_INFO.parse().unwrap(),
                 value: "bandwidth deposit info".parse().unwrap(),
+                index: false,
             },
         ];
         let err = extract_encryption_key(&correct_request, tx_entry.clone())
@@ -241,13 +243,15 @@ mod test {
         );
 
         tx_entry.tx_result.events.get_mut(0).unwrap().attributes = vec![
-            Tag {
+            EventAttribute {
                 key: DEPOSIT_VALUE.parse().unwrap(),
                 value: "1234".parse().unwrap(),
+                index: false,
             },
-            Tag {
+            EventAttribute {
                 key: DEPOSIT_INFO.parse().unwrap(),
                 value: VOUCHER_INFO.parse().unwrap(),
+                index: false,
             },
         ];
         let err = extract_encryption_key(&correct_request, tx_entry.clone())
@@ -259,17 +263,20 @@ mod test {
         );
 
         tx_entry.tx_result.events.get_mut(0).unwrap().attributes = vec![
-            Tag {
+            EventAttribute {
                 key: DEPOSIT_VALUE.parse().unwrap(),
                 value: "1234".parse().unwrap(),
+                index: false,
             },
-            Tag {
+            EventAttribute {
                 key: DEPOSIT_INFO.parse().unwrap(),
                 value: VOUCHER_INFO.parse().unwrap(),
+                index: false,
             },
-            Tag {
+            EventAttribute {
                 key: DEPOSIT_IDENTITY_KEY.parse().unwrap(),
                 value: "verification key".parse().unwrap(),
+                index: false,
             },
         ];
         let err = extract_encryption_key(&correct_request, tx_entry.clone())
@@ -284,19 +291,22 @@ mod test {
         ));
 
         tx_entry.tx_result.events.get_mut(0).unwrap().attributes = vec![
-            Tag {
+            EventAttribute {
                 key: DEPOSIT_VALUE.parse().unwrap(),
                 value: "1234".parse().unwrap(),
+                index: false,
             },
-            Tag {
+            EventAttribute {
                 key: DEPOSIT_INFO.parse().unwrap(),
                 value: VOUCHER_INFO.parse().unwrap(),
+                index: false,
             },
-            Tag {
+            EventAttribute {
                 key: DEPOSIT_IDENTITY_KEY.parse().unwrap(),
                 value: "2eSxwquNJb2nZTEW5p4rbqjHfBaz9UaNhjHHiexPN4He"
                     .parse()
                     .unwrap(),
+                index: false,
             },
         ];
         let err = extract_encryption_key(&correct_request, tx_entry.clone())
@@ -308,23 +318,27 @@ mod test {
         );
 
         tx_entry.tx_result.events.get_mut(0).unwrap().attributes = vec![
-            Tag {
+            EventAttribute {
                 key: DEPOSIT_VALUE.parse().unwrap(),
                 value: "1234".parse().unwrap(),
+                index: false,
             },
-            Tag {
+            EventAttribute {
                 key: DEPOSIT_INFO.parse().unwrap(),
                 value: VOUCHER_INFO.parse().unwrap(),
+                index: false,
             },
-            Tag {
+            EventAttribute {
                 key: DEPOSIT_IDENTITY_KEY.parse().unwrap(),
                 value: "6EJGMdEq7t8Npz54uPkftGsdmj7DKntLVputAnDfVZB2"
                     .parse()
                     .unwrap(),
+                index: false,
             },
-            Tag {
+            EventAttribute {
                 key: DEPOSIT_ENCRYPTION_KEY.parse().unwrap(),
                 value: "encryption key".parse().unwrap(),
+                index: false,
             },
         ];
         let err = extract_encryption_key(&correct_request, tx_entry.clone())
@@ -340,23 +354,27 @@ mod test {
 
         let expected_encryption_key = "HxnTpWTkgigSTAysVKLE8pEiUULHdTT1BxFfzfJvQRi6";
         tx_entry.tx_result.events.get_mut(0).unwrap().attributes = vec![
-            Tag {
+            EventAttribute {
                 key: DEPOSIT_VALUE.parse().unwrap(),
                 value: "1234".parse().unwrap(),
+                index: false,
             },
-            Tag {
+            EventAttribute {
                 key: DEPOSIT_INFO.parse().unwrap(),
                 value: VOUCHER_INFO.parse().unwrap(),
+                index: false,
             },
-            Tag {
+            EventAttribute {
                 key: DEPOSIT_IDENTITY_KEY.parse().unwrap(),
                 value: "6EJGMdEq7t8Npz54uPkftGsdmj7DKntLVputAnDfVZB2"
                     .parse()
                     .unwrap(),
+                index: false,
             },
-            Tag {
+            EventAttribute {
                 key: DEPOSIT_ENCRYPTION_KEY.parse().unwrap(),
                 value: expected_encryption_key.parse().unwrap(),
+                index: false,
             },
         ];
         let err = extract_encryption_key(&correct_request, tx_entry.clone())
@@ -405,25 +423,29 @@ mod test {
             4,
         );
         tx_entry.tx_result.events.get_mut(0).unwrap().attributes = vec![
-            Tag {
+            EventAttribute {
                 key: DEPOSIT_VALUE.parse().unwrap(),
                 value: "1234".parse().unwrap(),
+                index: false,
             },
-            Tag {
+            EventAttribute {
                 key: DEPOSIT_INFO.parse().unwrap(),
                 value: VOUCHER_INFO.parse().unwrap(),
+                index: false,
             },
-            Tag {
+            EventAttribute {
                 key: DEPOSIT_IDENTITY_KEY.parse().unwrap(),
                 value: "64auwDkWan7R8yH1Mwe9dS4qXgrDBCUNDg3Q4KFnd2P5"
                     .parse()
                     .unwrap(),
+                index: false,
             },
-            Tag {
+            EventAttribute {
                 key: DEPOSIT_ENCRYPTION_KEY.parse().unwrap(),
                 value: "HxnTpWTkgigSTAysVKLE8pEiUULHdTT1BxFfzfJvQRi6"
                     .parse()
                     .unwrap(),
+                index: false,
             },
         ];
         let encryption_key = extract_encryption_key(&correct_request, tx_entry.clone())

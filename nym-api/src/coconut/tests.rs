@@ -500,7 +500,7 @@ pub fn tx_entry_fixture(tx_hash: &str) -> TxResponse {
             events: vec![],
             codespace: Default::default(),
         },
-        tx: vec![].into(),
+        tx: vec![],
         proof: None,
     }
 }

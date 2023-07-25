@@ -122,7 +122,7 @@ mod tests {
     fn gas_limit_multiplication() {
         // real world example that caused an issue when the result was rounded down
         let gas_price: GasPrice = "0.025upunk".parse().unwrap();
-        let gas_limit: Gas = 157500u64.into();
+        let gas_limit: Gas = 157500u64;
 
         let fee = &gas_price * gas_limit;
         // the failing behaviour was result value of 3937

@@ -119,8 +119,8 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
     const storedUserDefinedSP = await getItemFromStorage({ key: FORAGE_SP_KEY });
 
     setAppVersion(AppVersion);
-    setServiceProviders(fetchedServices as ServiceProvider[]);
-    setGateways(fetchedGateways as Gateway[]);
+    setServiceProviders(fetchedServices);
+    setGateways(fetchedGateways);
 
     if (storedUserDefinedGateway) {
       setUserDefinedGateway(storedUserDefinedGateway);

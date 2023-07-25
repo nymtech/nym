@@ -8,6 +8,7 @@ use crate::nyxd::cosmwasm_client::types::{
     Account, CodeDetails, Contract, ContractCodeId, SequenceResponse, SimulateResponse,
 };
 use crate::nyxd::error::NyxdError;
+use crate::nyxd::TendermintClient;
 use async_trait::async_trait;
 use cosmrs::cosmwasm::{CodeInfoResponse, ContractCodeHistoryEntry};
 use cosmrs::proto::cosmos::auth::v1beta1::{QueryAccountRequest, QueryAccountResponse};
@@ -50,7 +51,7 @@ impl CosmWasmClient for cosmrs::rpc::HttpClient {
 }
 
 #[async_trait]
-pub trait CosmWasmClient: tendermint_rpc::client::Client {
+pub trait CosmWasmClient: TendermintClient {
     // this should probably get redesigned, but I'm leaving those like that temporarily to fix
     // the underlying issue more quickly
     fn broadcast_polling_rate(&self) -> Duration;

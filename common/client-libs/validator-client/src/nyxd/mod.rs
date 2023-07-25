@@ -26,6 +26,7 @@ pub use cosmrs::Gas;
 pub use cosmrs::{bip32, AccountId, Denom};
 pub use cosmwasm_std::Coin as CosmWasmCoin;
 pub use fee::{gas_price::GasPrice, GasAdjustable, GasAdjustment};
+pub use tendermint_rpc::{client::Client as TendermintClient, Request, Response, SimpleRequest};
 pub use tendermint_rpc::{
     endpoint::{tx::Response as TxResponse, validators::Response as ValidatorResponse},
     Paging,

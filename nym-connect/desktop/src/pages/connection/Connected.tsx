@@ -7,7 +7,7 @@ import { ConnectionStatus } from 'src/components/ConnectionStatus';
 import { ConnectionStatusKind, GatewayPerformance } from 'src/types';
 import { ConnectionStatsItem } from 'src/components/ConnectionStats';
 import { IpAddressAndPort } from 'src/components/IpAddressAndPort';
-import { ServiceProvider } from 'src/types/directory';
+import { ServiceProvider, Gateway } from 'src/types/directory';
 import { ExperimentalWarning } from 'src/components/ExperimentalWarning';
 import { ConnectionLayout } from 'src/layouts/ConnectionLayout';
 import { PowerButton } from 'src/components/PowerButton/PowerButton';
@@ -26,6 +26,7 @@ export const Connected: FCWithChildren<{
   busy?: boolean;
   isError?: boolean;
   serviceProvider?: ServiceProvider;
+  gateway?: Gateway;
   clearError: () => void;
   onConnectClick: (status: ConnectionStatusKind) => void;
   closeInfoModal: () => void;
@@ -40,6 +41,7 @@ export const Connected: FCWithChildren<{
   busy,
   isError,
   serviceProvider,
+  gateway,
   clearError,
   onConnectClick,
   closeInfoModal,
@@ -54,6 +56,7 @@ export const Connected: FCWithChildren<{
             status={ConnectionStatusKind.connected}
             gatewayPerformance={gatewayPerformance}
             serviceProvider={serviceProvider}
+            gateway={gateway}
           />
           <ConnectionTimer connectedSince={connectedSince} />
         </Box>

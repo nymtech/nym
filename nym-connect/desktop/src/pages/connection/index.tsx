@@ -62,6 +62,7 @@ export const ConnectionPage = () => {
         gatewayPerformance={context.gatewayPerformance}
         connectedSince={context.connectedSince}
         serviceProvider={context.selectedProvider}
+        gateway={context.selectedGateway}
         closeInfoModal={closeInfoModal}
         stats={[
           {

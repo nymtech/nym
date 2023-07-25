@@ -27,6 +27,7 @@ export type TClientContext = {
   error?: Error;
   gatewayPerformance: GatewayPerformance;
   selectedProvider?: ServiceProvider;
+  selectedGateway?: Gateway;
   showInfoModal: boolean;
   userDefinedGateway?: UserDefinedGateway;
   userDefinedSPAddress: UserDefinedSPAddress;
@@ -60,6 +61,7 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
   const [connectionStats, setConnectionStats] = useState<ConnectionStatsItem[]>();
   const [connectedSince, setConnectedSince] = useState<DateTime>();
   const [selectedProvider, setSelectedProvider] = React.useState<ServiceProvider>();
+  const [selectedGateway, setSelectedGateway] = React.useState<Gateway>();
   const [serviceProviders, setServiceProviders] = React.useState<ServiceProvider[]>();
   const [gateways, setGateways] = React.useState<Gateway[]>();
   const [error, setError] = useState<Error>();
@@ -202,7 +204,7 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
       await invoke('set_gateway', {
         gateway: shouldUseUserGateway ? userDefinedGateway.gateway : withUserDefinitions.identity,
       });
-      // Do we need a setSelectedGateway?
+      setSelectedGateway(withUserDefinitions);
     }
     return undefined;
   };
@@ -234,6 +236,7 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
       showInfoModal,
       setConnectionStats,
       selectedProvider,
+      selectedGateway,
       serviceProviders,
       connectedSince,
       userData,
@@ -263,6 +266,7 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
       connectedSince,
       gatewayPerformance,
       selectedProvider,
+      selectedGateway,
       userDefinedGateway,
       userDefinedSPAddress,
       userData,

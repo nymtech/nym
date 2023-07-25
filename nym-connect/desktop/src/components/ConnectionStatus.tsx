@@ -3,7 +3,7 @@ import { Box, CircularProgress, Stack, Tooltip, Typography } from '@mui/material
 import { DateTime } from 'luxon';
 import { ErrorOutline, InfoOutlined } from '@mui/icons-material';
 import { ConnectionStatusKind, GatewayPerformance } from '../types';
-import { ServiceProvider } from '../types/directory';
+import { ServiceProvider, Gateway } from '../types/directory';
 import { GatwayWarningInfo, ServiceProviderInfo } from './TooltipInfo';
 import { useClientContext } from '../context/main';
 
@@ -14,8 +14,9 @@ const FONT_STYLE = 'normal';
 const ConnectionStatusContent: FCWithChildren<{
   status: ConnectionStatusKind;
   serviceProvider?: ServiceProvider;
+  gateway?: Gateway;
   gatewayError: boolean;
-}> = ({ status, serviceProvider, gatewayError }) => {
+}> = ({ status, serviceProvider, gateway, gatewayError }) => {
   const { userData } = useClientContext();
 
   if (gatewayError) {
@@ -41,7 +42,7 @@ const ConnectionStatusContent: FCWithChildren<{
     case 'connected':
       return (
         <>
-          <Tooltip title={serviceProvider ? <ServiceProviderInfo serviceProvider={serviceProvider} /> : undefined}>
+          <Tooltip title={(serviceProvider && gateway) ? <ServiceProviderInfo serviceProvider={serviceProvider} gateway={gateway} /> : undefined}>
             <Box display="flex" alignItems="center" gap={0.5} justifyContent="center" sx={{ cursor: 'pointer' }}>
               <InfoOutlined sx={{ fontSize: 14 }} />
               <Typography fontWeight={FONT_WEIGHT} fontStyle={FONT_STYLE} fontSize={FONT_SIZE} textAlign="center">
@@ -93,7 +94,8 @@ export const ConnectionStatus: FCWithChildren<{
   gatewayPerformance?: GatewayPerformance;
   connectedSince?: DateTime;
   serviceProvider?: ServiceProvider;
-}> = ({ status, serviceProvider, gatewayPerformance }) => {
+  gateway?: Gateway;
+}> = ({ status, serviceProvider, gateway, gatewayPerformance }) => {
   const color = status === 'connected' || status === 'disconnecting' ? '#21D072' : 'white';
 
   return (
@@ -101,6 +103,7 @@ export const ConnectionStatus: FCWithChildren<{
       <ConnectionStatusContent
         status={status}
         serviceProvider={serviceProvider}
+        gateway={gateway}
         gatewayError={gatewayPerformance !== 'Good'}
       />
     </Box>

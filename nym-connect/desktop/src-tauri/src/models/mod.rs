@@ -86,7 +86,6 @@ pub struct DirectoryService {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct HarbourMasterService {
     pub service_provider_client_id: String,
-    pub gateway_identity_key: String,
     pub ip_address: String,
     pub last_successful_ping_utc: String,
     pub last_updated_utc: String,

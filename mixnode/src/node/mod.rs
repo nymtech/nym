@@ -192,7 +192,7 @@ impl MixNode {
         );
 
         let mut packet_forwarder = DelayForwarder::new(
-            nym_mixnet_client::Client::new(client_config, topology_access, &self.identity_keypair),
+            nym_mixnet_client::Client::new(client_config, topology_access, &self.sphinx_keypair),
             node_stats_update_sender,
             shutdown,
         );

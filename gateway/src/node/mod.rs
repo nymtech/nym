@@ -201,7 +201,7 @@ impl<St> Gateway<St> {
             self.config.debug.maximum_connection_buffer_size,
             self.config.debug.use_legacy_framed_packet_version,
             topology_access,
-            &self.identity_keypair,
+            &self.sphinx_keypair,
             shutdown,
         );
 

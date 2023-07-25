@@ -1,12 +1,12 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::client::identity::SECRET_KEY_LENGTH;
+use crate::client::encryption::{PRIVATE_KEY_SIZE, PUBLIC_KEY_SIZE};
 use futures::channel::mpsc;
 use futures::StreamExt;
 use log::*;
 use nym_client_core::client::topology_control::accessor::TopologyAccessor;
-use nym_crypto::asymmetric::identity::{self, PUBLIC_KEY_LENGTH};
+use nym_crypto::asymmetric::encryption;
 use nym_noise::upgrade_noise_initiator;
 use nym_sphinx::addressing::nodes::NymNodeRoutingAddress;
 use nym_sphinx::framing::codec::NymCodec;
@@ -64,8 +64,8 @@ pub struct Client {
     conn_new: HashMap<NymNodeRoutingAddress, ConnectionSender>,
     config: Config,
     topology_access: TopologyAccessor,
-    public_id_key: [u8; PUBLIC_KEY_LENGTH],
-    private_id_key: [u8; SECRET_KEY_LENGTH],
+    public_id_key: [u8; PUBLIC_KEY_SIZE],
+    private_id_key: [u8; PRIVATE_KEY_SIZE],
 }
 
 struct ConnectionSender {
@@ -86,7 +86,7 @@ impl Client {
     pub fn new(
         config: Config,
         topology_access: TopologyAccessor,
-        id_key: &identity::KeyPair,
+        id_key: &encryption::KeyPair,
     ) -> Client {
         Client {
             conn_new: HashMap::new(),

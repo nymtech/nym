@@ -48,6 +48,10 @@ export type TClientContext = {
   setPrivacyLevel: (value: PrivacyLevel) => Promise<void>;
 };
 
+function getRandomFromList<T>(items: T[]): T {
+  return items[Math.floor(Math.random() * items.length)];
+}
+
 export const ClientContext = createContext({} as TClientContext);
 
 export const ClientContextProvider: FCWithChildren = ({ children }) => {
@@ -179,16 +183,6 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
     });
   };
 
-  const getRandomSPFromList = (services: ServiceProvider[]) => {
-    const randomSelection = services[Math.floor(Math.random() * services.length)];
-    return randomSelection;
-  };
-
-  const getRandomGatewayFromList = (theGateways: Gateway[]) => {
-    const randomSelection = theGateways[Math.floor(Math.random() * theGateways.length)];
-    return randomSelection;
-  };
-
   const buildServiceProvider = async (serviceProvider: ServiceProvider) => {
     const sp = { ...serviceProvider };
     if (shouldUseUserSP) sp.address = userDefinedSPAddress.address as string;
@@ -203,7 +197,7 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
 
   const setServiceProvider = async () => {
     if (serviceProviders) {
-      const randomServiceProvider = getRandomSPFromList(serviceProviders);
+      const randomServiceProvider = getRandomFromList(serviceProviders);
       const withUserDefinitions = await buildServiceProvider(randomServiceProvider);
       await applyServiceProvider(withUserDefinitions);
       setSelectedProvider(withUserDefinitions);
@@ -213,7 +207,7 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
 
   const setGateway = async () => {
     if (gateways) {
-      const randomGateway = getRandomGatewayFromList(gateways);
+      const randomGateway = getRandomFromList(gateways);
       const withUserDefinitionsForGateway = await buildGateway(randomGateway);
       await applyGateway(withUserDefinitionsForGateway);
       // Do we need a setSelectedGateway?

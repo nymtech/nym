@@ -62,10 +62,6 @@ jobs:
           fileName: '.env'
           encodedString: ${{ secrets.WALLET_ADMIN_ADDRESS }}
           
-      - name: Make directory nym-browser-extension/storage/pkg
-        shell: bash
-        run: mkdir -p nym-browser-extension/storage/pkg
-
       - name: Install project dependencies
         shell: bash
         run: cd .. && yarn --network-timeout 100000
@@ -104,6 +100,7 @@ jobs:
             nym-connect/desktop/target/release/bundle/msi/*.msi.zip*
       - id: release-info
         name: Prepare release info
+        shell: bash
         run: |
           ref=${{ github.ref_name }}
           semver="${ref##nym-connect-}" && semver="${semver##v}"

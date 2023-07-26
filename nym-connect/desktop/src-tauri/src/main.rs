@@ -3,6 +3,7 @@
     windows_subsystem = "windows"
 )]
 
+use std::env;
 use std::sync::Arc;
 
 use nym_config::defaults::setup_env;

@@ -8,7 +8,6 @@
 <!-- cmdrun ../../../../target/release/nym-network-requester --version | grep "Build Version" | cut -b 21-26  -->
 ```
 
-
 ## Network Requester Whitelist
 If you have access to a server, you can run the network requester, which allows Nym users to send outbound requests from their local machine through the mixnet to a server, which then makes the request on their behalf, shielding them (and their metadata) from clearnet, untrusted and unknown infrastructure, such as email or message client servers.
 
@@ -65,6 +64,34 @@ p2pify.com
 2001:67c:4e8::/48
 2001:b28:f23c::/48
 2a0a:f280::/32
+
+# nym matrix server
+nymtech.chat
+
+# generic matrix server backends
+vector.im
+matrix.org
+
+# monero desktop - mainnet
+212.83.175.67
+212.83.172.165
+176.9.0.187
+88.198.163.90
+95.217.25.101
+136.244.105.131
+104.238.221.81
+66.85.74.134
+88.99.173.38
+51.79.173.165
+
+# monero desktop - stagenet
+162.210.173.150
+176.9.0.187
+88.99.173.38
+51.79.173.165
+
+# alephium 
+alephium.org
 ```
 
 ## Network Requester Directory
@@ -193,15 +220,13 @@ sudo ufw enable
 sudo ufw status
 ```
 
-Finally open your requester's p2p port, as well as ports for ssh and incoming traffic connections:
+Finally open your requester's ssh port to incoming administration connections:
 
 ```
-sudo ufw allow 22,9000/tcp
+sudo ufw allow 22/tcp
 # check the status of the firewall
 sudo ufw status
 ```
-
-For more information about your requester's port configuration, check the [requester port reference table](./network-requester-setup.md#requester-port-reference) below.
 
 ## Using your network requester
 
@@ -209,8 +234,17 @@ The next thing to do is use your requester, share its address with friends (or w
 
 To make things a bit less stressful for administrators, the Network Requester drops all incoming requests by default. In order for it to make requests, you need to add specific domains to the `allowed.list` file at `$HOME/.nym/service-providers/network-requester/allowed.list`.
 
+### Global vs local allow lists 
+Your Network Requester will check for a domain against 2 lists before allowing traffic through for a particular domain or IP. 
+
+* The first list is the default list on the [nymtech.net server](https://nymtech.net/.wellknown/network-requester/standard-allowed-list.txt). Your Requester will not check against this list every time, but instead will keep a record of accepted domains in memory. 
+
+* The second is the local `allowed.list` file. 
+
 ### Supporting custom domains with your network requester
 It is easy to add new domains and services to your network requester - simply find out which endpoints (both URLs and raw IP addresses are supported) you need to whitelist, and then add these endpoints to your `allowed.list`.
+
+> In order to keep things more organised, you can now use comments in the `allow.list` like the example at the top of this page. 
 
 How to go about this? Have a look in your nym-network-requester config directory:
 
@@ -249,7 +283,3 @@ This command should return the following:
 ### Requester port reference
 
 All network-requester-specific port configuration can be found in `$HOME/.nym/service-providers/network-requester/<YOUR_ID>/config/config.toml`. If you do edit any port configs, remember to restart your client and requester processes.
-
-| Default port | Use                       |
-|--------------|---------------------------|
-| 9000         | Listen for Client traffic |

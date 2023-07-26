@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [v1.1.15] (2023-07-25)
+
+- NC Desktop - remove sentry DSN from code ([#3694])
+- NC - Add Alephium wallet in the supported app list ([#3681])
+
+[#3694]: https://github.com/nymtech/nym/issues/3694
+[#3681]: https://github.com/nymtech/nym/issues/3681
+
 ## [v1.1.14] (2023-07-04)
 
 - Nym connect fails to start when encountering an old config version ([#3588])

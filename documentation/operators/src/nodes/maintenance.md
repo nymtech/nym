@@ -4,6 +4,20 @@
 TODO
 - [x] Compare mixnode, gateway, NR steps and validator of upgrading and automation and make a generic page - this one - for all of them with additional notes for particular nodes
 --->
+## Useful commands
+
+> Adding `--no-banner` startup flag will prevent Nym banner being printed even if run in tty environment.
+
+**build-info**
+
+A `build-info` command prints the build information like commit hash, rust version, binary version just like what command `--version` does. However, you can also specify an `--output=json` flag that will format the whole output as a json, making it an order of magnitude easier to parse.
+
+For example `./target/debug/nym-network-requester --no-banner build-info --output json` will return:
+
+```
+{"binary_name":"nym-network-requester","build_timestamp":"2023-07-24T15:38:37.00657Z","build_version":"1.1.23","commit_sha":"c70149400206dce24cf20babb1e64f22202672dd","commit_timestamp":"2023-07-24T14:45:45Z","commit_branch":"feature/simplify-cli-parsing","rustc_version":"1.71.0","rustc_channel":"stable","cargo_profile":"debug"}
+```
+
 ## Upgrading your node
 
 > The process is the similar for mixnode, gateway and network requester. In the following steps we use a placeholder `<NODE>` in the commands, please change it for the type of node you want to upgrade. Any particularities for the given type of node are included.

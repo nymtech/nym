@@ -67,6 +67,8 @@ You can also check the various arguments required for individual commands with:
 ./nym-mixnode <COMMAND> --help
 ```
 
+> Adding `--no-banner` startup flag will prevent Nym banner being printed even if run in tty environment.
+
 ### Initialising your mix node
 
 To check available configuration options for initializing your node use:

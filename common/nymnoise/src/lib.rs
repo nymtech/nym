@@ -63,7 +63,8 @@ impl AsyncRead for NoiseStream {
                 ]
                 .concat();
                 projected_self.storage.clear();
-                //We can't read the lenght
+
+                //We can't read the length
                 if bytes_read.len() < HEADER_SIZE {
                     projected_self.storage.put_slice(&bytes_read);
                     cx.waker().wake_by_ref();
@@ -83,9 +84,15 @@ impl AsyncRead for NoiseStream {
                 println!("Read : {:?}", &noise_buf);
                 let len = projected_self
                     .noise
-                    .read_message(&bytes_read, &mut payload)
+                    .read_message(
+                        &bytes_read[HEADER_SIZE..HEADER_SIZE + msg_len],
+                        &mut payload,
+                    )
                     .unwrap();
                 buf.put_slice(&payload[..len]);
+                projected_self
+                    .storage
+                    .put_slice(&bytes_read[HEADER_SIZE + msg_len..]);
                 return Poll::Ready(Ok(()));
             }
             Poll::Ready(Err(err)) => return Poll::Ready(Err(err)),

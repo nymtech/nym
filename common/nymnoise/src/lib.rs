@@ -67,7 +67,7 @@ impl AsyncRead for NoiseStream {
                 //We can't read the length
                 if bytes_read.len() < HEADER_SIZE {
                     projected_self.storage.put_slice(&bytes_read);
-                    cx.waker().wake_by_ref();
+                    cx.waker().wake_by_ref(); //ideally register cx with the readyness of tcpstream
                     return Poll::Pending;
                 }
 
@@ -75,13 +75,12 @@ impl AsyncRead for NoiseStream {
                 //we can't read the whole message
                 if bytes_read.len() < HEADER_SIZE + msg_len {
                     projected_self.storage.put_slice(&bytes_read);
-                    cx.waker().wake_by_ref();
+                    cx.waker().wake_by_ref(); //ideally register cx with the readyness of tcpstream
                     return Poll::Pending;
                 }
 
                 //we have a full Noise message available
                 let mut payload = vec![0u8; MAXMSGLEN];
-                println!("Read : {:?}", &noise_buf);
                 let len = projected_self
                     .noise
                     .read_message(
@@ -107,19 +106,14 @@ impl AsyncWrite for NoiseStream {
     ) -> Poll<Result<usize, std::io::Error>> {
         let projected_self = self.project();
         let mut noise_buf = vec![0u8; MAXMSGLEN];
+
         let len = projected_self
             .noise
             .write_message(buf, &mut noise_buf)
             .unwrap();
-        println!("Will send : {:?}", &noise_buf[..len]);
-        let to_send = [
-            &[(buf.len() >> 8) as u8, (buf.len() & 0xff) as u8],
-            &noise_buf[..len],
-        ]
-        .concat();
-        let res = projected_self.inner_stream.poll_write(cx, &to_send);
-        println!("Sent : {:?}", res);
-        res
+        let to_send = [&[(len >> 8) as u8, (len & 0xff) as u8], &noise_buf[..len]].concat();
+
+        projected_self.inner_stream.poll_write(cx, &to_send)
     }
 
     fn poll_flush(
@@ -176,19 +170,17 @@ pub async fn upgrade_noise_initiator(
     //Actual Handshake
     let mut buf = vec![0u8; MAXMSGLEN];
     // -> e, es
-    let len = handshake.write_message(&[], &mut buf).unwrap();
+    let len = handshake.write_message(&[], &mut buf)?;
     send(&mut conn, &buf[..len]).await;
 
     // <- e, ee
-    handshake
-        .read_message(&recv(&mut conn).await.unwrap(), &mut buf)
-        .unwrap();
+    handshake.read_message(&recv(&mut conn).await.unwrap(), &mut buf)?;
 
     // -> s, se, psk
-    let len = handshake.write_message(&[], &mut buf).unwrap();
+    let len = handshake.write_message(&[], &mut buf)?;
     send(&mut conn, &buf[..len]).await;
 
-    let noise = handshake.into_transport_mode().unwrap();
+    let noise = handshake.into_transport_mode()?;
 
     Ok(NoiseStream::new(conn, noise))
 }
@@ -231,20 +223,16 @@ pub async fn upgrade_noise_responder(
     //Actual Handshake
     let mut buf = vec![0u8; MAXMSGLEN];
     // <- e, es
-    handshake
-        .read_message(&recv(&mut conn).await.unwrap(), &mut buf)
-        .unwrap();
+    handshake.read_message(&recv(&mut conn).await.unwrap(), &mut buf)?;
 
     // -> e, ee
-    let len = handshake.write_message(&[], &mut buf).unwrap();
+    let len = handshake.write_message(&[], &mut buf)?;
     send(&mut conn, &buf[..len]).await;
 
     // <- s, se, psk
-    handshake
-        .read_message(&recv(&mut conn).await.unwrap(), &mut buf)
-        .unwrap();
+    handshake.read_message(&recv(&mut conn).await.unwrap(), &mut buf)?;
 
-    let noise = handshake.into_transport_mode().unwrap();
+    let noise = handshake.into_transport_mode()?;
 
     Ok(NoiseStream::new(conn, noise))
 }

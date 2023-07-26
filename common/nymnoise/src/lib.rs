@@ -23,6 +23,7 @@ use tokio::{
 
 const NOISE_HS_PATTERN: &str = "Noise_XKpsk3_25519_AESGCM_SHA256";
 const MAXMSGLEN: usize = 65535;
+const TAGLEN: usize = 16;
 const HEADER_SIZE: usize = 2;
 
 /// Wrapper around a TcpStream
@@ -113,7 +114,18 @@ impl AsyncWrite for NoiseStream {
             .unwrap();
         let to_send = [&[(len >> 8) as u8, (len & 0xff) as u8], &noise_buf[..len]].concat();
 
-        projected_self.inner_stream.poll_write(cx, &to_send)
+        match projected_self.inner_stream.poll_write(cx, &to_send) {
+            Poll::Pending => return Poll::Pending,
+            Poll::Ready(Err(err)) => return Poll::Ready(Err(err)),
+            Poll::Ready(Ok(n)) => {
+                //We must guarantee that the return number is <= buf.len()
+                if n >= HEADER_SIZE + TAGLEN {
+                    return Poll::Ready(Ok(n - HEADER_SIZE - TAGLEN));
+                }
+                //We didn't write any meaningful info
+                return Poll::Ready(Ok(0));
+            }
+        }
     }
 
     fn poll_flush(

@@ -1,6 +1,6 @@
 # Introduction
 
-This is Nym's operators guide, containing information and setup tutorials about the various pieces of Nym mixnet infrastructure nodes, such as mix node, gateway and network requester.
+This is Nym's operators guide, containing information and setup tutorials about the various pieces of Nym mixnet infrastructure nodes, such as mix node, gateway and network requester as well as Nyx chain validators.
 
 If you are new to Nym and want to learn about the mixnet, how to integrate with the network, developer tutorials and quickstart guides, check out the [Developer Portal](https://nymtech.net/developers/).
 

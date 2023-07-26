@@ -2,8 +2,7 @@
 
  <!---
 TODO
-- [ ] Compare mixnode, gateway and NR steps of upgrading and automation and make a generic page - this one - for all of them with additional notes for particular nodes
-    - mixnode and gateway done, NR left
+- [x] Compare mixnode, gateway, NR steps and validator of upgrading and automation and make a generic page - this one - for all of them with additional notes for particular nodes
 --->
 ## Upgrading your node
 
@@ -70,10 +69,34 @@ Ensure that the fields `gateway_id`, `gateway_owner`, `gateway_listener` in the 
 ~/.nym/clients/myoldclient/config/config.toml
 ```
 
+### Upgrading your validator
+
+Upgrading from `v0.31.1` -> `v0.32.0` process is fairly simple. Grab the `v0.32.0` release tarball from the [`nyxd` releases page](https://github.com/nymtech/nyxd/releases), and untar it. Inside are two files:
+
+- the new validator (`nyxd`) v0.32.0
+- the new wasmvm (it depends on your platform, but most common filename is `libwasmvm.x86_64.so`)
+
+Wait for the upgrade height to be reached and the chain to halt awaiting upgrade, then:
+
+* copy `libwasmvm.x86_64.so` to the default LD_LIBRARY_PATH on your system (on Ubuntu 20.04 this is `/lib/x86_64-linux-gnu/`) replacing your existing file with the same name.
+* swap in your new `nyxd` binary and restart.
+
+You can also use something like [Cosmovisor](https://github.com/cosmos/cosmos-sdk/tree/main/tools/cosmovisor) - grab the relevant information from the current upgrade proposal [here](https://nym.explorers.guru/proposal/9).
+
+Note: Cosmovisor will swap the `nyxd` binary, but you'll need to already have the `libwasmvm.x86_64.so` in place.
+
+#### Common reasons for your validator being jailed
+
+The most common reason for your validator being jailed is that your validator is out of memory because of bloated syslogs.
+
+Running the command `df -H` will return the size of the various partitions of your VPS.
+
+If the `/dev/sda` partition is almost full, try pruning some of the `.gz` syslog archives and restart your validator process.
+
 
 ## VPS Setup and Automation
 ### Configure your firewall
-Although your `<NODE>` is now ready to recieve traffic, your server may not be. The following commands will allow you to set up a firewall using `ufw`.
+Although your `<NODE>` is now ready to receive traffic, your server may not be. The following commands will allow you to set up a firewall using `ufw`.
 
 ```
 # check if you have ufw installed
@@ -100,6 +123,9 @@ sudo ufw allow 1789,22,9000/tcp
 
 # for network requester
 sudo ufw allow 22,9000/tcp
+
+# for validator
+sudo ufw allow 1317,26656,26660,22,80,443/tcp
 ```
 
 Check the status of the firewall:
@@ -156,7 +182,7 @@ tmux attach-session
 
 Here's a systemd service file to do that:
 
-For mixnode:
+##### For Mixnode
 
 ```ini
 [Unit]
@@ -178,7 +204,7 @@ WantedBy=multi-user.target
 
 * Put the above file onto your system at `/etc/systemd/system/nym-mixnode.service`.
 
-For gateway:
+##### For Gateway
 
 ```ini
 [Unit]
@@ -200,7 +226,7 @@ WantedBy=multi-user.target
 
 * Put the above file onto your system at `/etc/systemd/system/nym-gateway.service`.
 
-For network requester:
+##### For Network requester
 
 ```ini
 [Unit]
@@ -232,8 +258,41 @@ systemctl status nym-network-requester.service
 ```
 * Put the above file onto your system at `/etc/systemd/system/nym-network-requester.service`.
 
+##### For Validator
 
-Change the `<PATH>` in `ExecStart` to point at your `<NODE>` binary (`nym-mixnode` or `nym-gateway), and the `<USER>` so it is the user you are running as.
+Below is a systemd unit file to place at `/etc/systemd/system/nymd.service`:
+
+```ini
+[Unit]
+Description=Nyxd
+StartLimitInterval=350
+StartLimitBurst=10
+
+[Service]
+User=nyx                                                          # change to your user
+Type=simple
+Environment="LD_LIBRARY_PATH=/home/youruser/path/to/nyx/binaries" # change to correct path
+ExecStart=/home/youruser/path/to/nyx/binaries/nymd start          # change to correct path
+Restart=on-failure
+RestartSec=30
+LimitNOFILE=infinity
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Proceed to start it with:
+
+```
+systemctl daemon-reload # to pickup the new unit file
+systemctl enable nymd   # to enable the service
+systemctl start nymd    # to actually start the service
+journalctl -f           # to monitor system logs showing the service start
+```
+
+##### Following steps for Nym Mixnet nodes
+
+Change the `<PATH>` in `ExecStart` to point at your `<NODE>` binary (`nym-mixnode`, `nym-gateway` or `nym-network-requester`), and the `<USER>` so it is the user you are running as.
 
 If you have built nym in the `$HOME` directory on your server, and your username is `jetpanther`, then the start command for nym mixnode might look like this:
 
@@ -288,13 +347,21 @@ This means that the operating system is preventing network connections from bein
 
 #### Set the ulimit via `systemd` service file
 
+> Replace `<NODE>` variable with `nym-mixnode`, `nym-gateway` or `nym-network-requester` according the node you running on your machine.
+
 The ulimit setup is relevant for maintenance of nym mixnode only.
 
-Query the `ulimit` of your mix node with:
+Query the `ulimit` of your `<NODE>` with:
 
 ```
-grep -i "open files" /proc/$(ps -A -o pid,cmd|grep nym-mixnode | grep -v grep |head -n 1 | awk '{print $1}')/limits
+# for nym-mixnode, nym-gateway and nym-network requester:
+grep -i "open files" /proc/$(ps -A -o pid,cmd|grep <NODE> | grep -v grep |head -n 1 | awk '{print $1}')/limits
+
+# for nyx validator:
+grep -i "open files" /proc/$(ps -A -o pid,cmd|grep nymd | grep -v grep |head -n 1 | awk '{print $1}')/limits
 ```
+
+
 
 You'll get back the hard and soft limits, which looks something like this:
 
@@ -322,7 +389,15 @@ or execute this as root for system-wide setting of `ulimit`:
 echo "DefaultLimitNOFILE=65535" >> /etc/systemd/system.conf
 ```
 
-Reboot your machine and restart your node. When it comes back, use `cat /proc/$(pidof nym-mixnode)/limits | grep "Max open files"` to make sure the limit has changed to 65535.
+Reboot your machine and restart your node. When it comes back, use:
+```
+# for nym-mixnode, nym-gateway and nym-network requester:
+cat /proc/$(pidof <NODE>)/limits | grep "Max open files"` to make sure the limit has changed to 65535.
+
+# for validator
+cat /proc/$(pidof nym-validator)/limits | grep "Max open files"
+```
+Make sure the limit has changed to 65535.
 
 #### Set the ulimit on `non-systemd` based distributions
 
@@ -421,6 +496,121 @@ Query Response:
 
 - `estimated_operator_cost` - An estimate of the total cost that a particular mix node operator can expect to incur for their participation. This value is calculated by the Nym Validator based on a number of factors, including the cost of running a mix node, such as server hosting fees, and other expenses associated with operating the mix node.
 
+### Validator: Installing and configuring nginx for HTTPS
+#### Setup
+[Nginx](https://www.nginx.com/resources/glossary/nginx/#:~:text=NGINX%20is%20open%20source%20software,%2C%20media%20streaming%2C%20and%20more.&text=In%20addition%20to%20its%20HTTP,%2C%20TCP%2C%20and%20UDP%20servers.) is an open source software used for operating high-performance web servers. It allows us to set up reverse proxying on our validator server to improve performance and security.
+
+Install `nginx` and allow the 'Nginx Full' rule in your firewall:
+
+```
+sudo ufw allow 'Nginx Full'
+```
+
+Check nginx is running via systemctl:
+
+```
+systemctl status nginx
+```
+
+Which should return:
+
+```
+● nginx.service - A high performance web server and a reverse proxy server
+   Loaded: loaded (/lib/systemd/system/nginx.service; enabled; vendor preset: enabled)
+   Active: active (running) since Fri 2018-04-20 16:08:19 UTC; 3 days ago
+     Docs: man:nginx(8)
+ Main PID: 2369 (nginx)
+    Tasks: 2 (limit: 1153)
+   CGroup: /system.slice/nginx.service
+           ├─2369 nginx: master process /usr/sbin/nginx -g daemon on; master_process on;
+           └─2380 nginx: worker process
+```
+
+#### Configuration
+
+Proxying your validator's port `26657` to nginx port `80` can then be done by creating a file with the following at `/etc/nginx/conf.d/validator.conf`:
+
+```
+server {
+  listen 80;
+  listen [::]:80;
+  server_name "domain_name";
+
+  location / {
+    proxy_pass http://127.0.0.1:26657;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+  }
+}
+```
+
+Followed by:
+
+```
+sudo apt install certbot nginx python3
+certbot --nginx -d nym-validator.yourdomain.com -m you@yourdomain.com --agree-tos --noninteractive --redirect
+```
+
+```admonish caution title=""
+If using a VPS running Ubuntu 20: replace `certbot nginx python3` with `python3-certbot-nginx`
+```
+
+These commands will get you an https encrypted nginx proxy in front of the API.
+
+### Configuring Prometheus metrics (optional)
+
+Configure Prometheus with the following commands (adapted from NodesGuru's [Agoric setup guide](https://nodes.guru/agoric/setup-guide/en)):
+
+```
+echo 'export OTEL_EXPORTER_PROMETHEUS_PORT=9464' >> $HOME/.bashrc
+source ~/.bashrc
+sed -i '/\[telemetry\]/{:a;n;/enabled/s/false/true/;Ta}' $HOME/.nymd/config/app.toml
+sed -i "s/prometheus-retention-time = 0/prometheus-retention-time = 60/g" $HOME/.nymd/config/app.toml
+sudo ufw allow 9464
+echo 'Metrics URL: http://'$(curl -s ifconfig.me)':26660/metrics'
+```
+
+Your validator's metrics will be available to you at the returned 'Metrics URL'.
+
+~~~admonish example collapsible=true title="Console output"
+```
+# HELP go_gc_duration_seconds A summary of the pause duration of garbage collection cycles.
+# TYPE go_gc_duration_seconds summary
+go_gc_duration_seconds{quantile="0"} 6.7969e-05
+go_gc_duration_seconds{quantile="0.25"} 7.864e-05
+go_gc_duration_seconds{quantile="0.5"} 8.4591e-05
+go_gc_duration_seconds{quantile="0.75"} 0.000115919
+go_gc_duration_seconds{quantile="1"} 0.001137591
+go_gc_duration_seconds_sum 0.356555301
+go_gc_duration_seconds_count 2448
+# HELP go_goroutines Number of goroutines that currently exist.
+# TYPE go_goroutines gauge
+go_goroutines 668
+# HELP go_info Information about the Go environment.
+# TYPE go_info gauge
+go_info{version="go1.15.7"} 1
+# HELP go_memstats_alloc_bytes Number of bytes allocated and still in use.
+# TYPE go_memstats_alloc_bytes gauge
+go_memstats_alloc_bytes 1.62622216e+08
+# HELP go_memstats_alloc_bytes_total Total number of bytes allocated, even if freed.
+# TYPE go_memstats_alloc_bytes_total counter
+go_memstats_alloc_bytes_total 2.09341707264e+11
+# HELP go_memstats_buck_hash_sys_bytes Number of bytes used by the profiling bucket hash table.
+# TYPE go_memstats_buck_hash_sys_bytes gauge
+go_memstats_buck_hash_sys_bytes 5.612319e+06
+# HELP go_memstats_frees_total Total number of frees.
+# TYPE go_memstats_frees_total counter
+go_memstats_frees_total 2.828263344e+09
+# HELP go_memstats_gc_cpu_fraction The fraction of this program's available CPU time used by the GC since the program started.
+# TYPE go_memstats_gc_cpu_fraction gauge
+go_memstats_gc_cpu_fraction 0.03357798610671518
+# HELP go_memstats_gc_sys_bytes Number of bytes used for garbage collection system metadata.
+# TYPE go_memstats_gc_sys_bytes gauge
+go_memstats_gc_sys_bytes 1.3884192e+07
+```
+~~~
+
 ## Ports
 All `<NODE>`-specific port configuration can be found in `$HOME/.nym/<NODE>/<YOUR_ID>/config/config.toml`. If you do edit any port configs, remember to restart your client and node processes.
 
@@ -443,5 +633,14 @@ All `<NODE>`-specific port configuration can be found in `$HOME/.nym/<NODE>/<YOU
 | Default port | Use                       |
 |--------------|---------------------------|
 | `9000`       | Listen for Client traffic |
+
+### Validator port reference
+All validator-specific port configuration can be found in `$HOME/.nymd/config/config.toml`. If you do edit any port configs, remember to restart your validator.
+
+| Default port | Use                                  |
+|--------------|--------------------------------------|
+| 1317         | REST API server endpoint             |
+| 26656        | Listen for incoming peer connections |
+| 26660        | Listen for Prometheus connections    |
 
 /

@@ -11,7 +11,7 @@ tokio = { version = "1.24.1", features = ["net","io-util"] }
 pin-project = "1"
 log = "0.4.19"
 sha2 = "0.10.7"
-
+bytes = "1.0"
 
 # internal
 nym-topology = { path = "../topology"}

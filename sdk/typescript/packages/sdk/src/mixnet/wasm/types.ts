@@ -19,14 +19,30 @@ export interface Payload {
   headers?: string;
 }
 
+/**
+ * @ignore
+ * @internal
+ */
 export type OnPayloadFn = (payload: Payload) => void;
-
+/**
+ * @ignore
+ * @internal
+ */
 export type OnRawPayloadFn = (payload: Uint8Array) => void;
-
+/**
+ * @ignore
+ * @internal
+ */
 export type EventHandlerFn<E> = (e: E) => void | Promise<void>;
-
+/**
+ * @ignore
+ * @internal
+ */
 export type EventHandlerSubscribeFn<E> = (fn: EventHandlerFn<E>) => EventHandlerUnsubscribeFn;
-
+/**
+ * @ignore
+ * @internal
+ */
 export type EventHandlerUnsubscribeFn = () => void;
 
 export interface NymClientConfig {
@@ -56,6 +72,12 @@ export interface NymClientConfig {
   debug?: DebugWasm;
 }
 
+/**
+ *
+ * @ignore
+ * @hidden
+ * @internal
+ */
 export interface IWebWorker {
   start: (config: NymClientConfig) => void;
   stop: () => void;
@@ -66,13 +88,34 @@ export interface IWebWorker {
   rawSend: (args: { payload: Uint8Array; recipient: string; replySurbs?: number }) => void;
 }
 
-export interface IWebWorkerAsync {
+export interface Client {
+  /**
+   * Start the client.
+   *
+   * @example
+   *
+   * ```typescript
+   * const client = await createNymMixnetClient();
+   * await client.start({
+   *  clientId: 'my-client',
+   *  nymApiUrl: 'https://validator.nymtech.net',
+   * });
+   *
+   */
   start: (config: NymClientConfig) => Promise<void>;
+
   stop: () => Promise<void>;
+  /**
+    Get the client address
+   */
   selfAddress: () => Promise<string | undefined>;
+
   setTextMimeTypes: (mimeTypes: string[]) => void;
   getTextMimeTypes: () => Promise<string[]>;
   send: (args: { payload: Payload; recipient: string; replySurbs?: number }) => Promise<void>;
+  /**
+   * Send a raw payload, without any mime-type conversion.
+   */
   rawSend: (args: { payload: Uint8Array; recipient: string; replySurbs?: number }) => Promise<void>;
 }
 
@@ -130,7 +173,6 @@ export interface StringMessageReceivedEvent {
     headers?: string;
   };
 }
-
 export interface BinaryMessageReceivedEvent {
   kind: EventKinds.BinaryMessageReceived;
   args: {
@@ -147,7 +189,7 @@ export interface RawMessageReceivedEvent {
   };
 }
 
-export interface IWebWorkerEvents {
+export interface Events {
   subscribeToLoaded: EventHandlerSubscribeFn<LoadedEvent>;
   subscribeToConnected: EventHandlerSubscribeFn<ConnectedEvent>;
   subscribeToTextMessageReceivedEvent: EventHandlerSubscribeFn<StringMessageReceivedEvent>;

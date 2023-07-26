@@ -65,10 +65,10 @@ pub use signing_client::Client as SigningNyxdClient;
 pub type DirectSigningNyxdClient = SigningNyxdClient<DirectSecp256k1HdWallet>;
 
 pub mod coin;
+pub mod contract_traits;
 pub mod cosmwasm_client;
 pub mod error;
 pub mod fee;
-pub mod traits;
 
 #[derive(Debug, Clone)]
 pub struct Config {

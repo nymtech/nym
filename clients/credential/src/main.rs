@@ -17,7 +17,7 @@ use std::time::{Duration, SystemTime};
 use clap::{CommandFactory, Parser};
 use nym_bin_common::logging::setup_logging;
 use nym_client_core::config::disk_persistence::CommonClientPaths;
-use nym_validator_client::nyxd::traits::DkgQueryClient;
+use nym_validator_client::nyxd::contract_traits::DkgQueryClient;
 use nym_validator_client::nyxd::{Coin, CosmWasmClient};
 use nym_validator_client::Config;
 

@@ -16,7 +16,7 @@ pub use nym_mixnet_contract_common::{
 };
 use url::Url;
 
-use crate::nyxd::traits::{DkgQueryClient, MixnetQueryClient};
+use crate::nyxd::contract_traits::{DkgQueryClient, MixnetQueryClient};
 #[cfg(feature = "http-client")]
 use crate::nyxd::QueryNyxdClient;
 use crate::nyxd::{self, CosmWasmClient, NyxdClient};

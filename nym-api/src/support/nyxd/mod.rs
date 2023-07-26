@@ -28,15 +28,13 @@ use nym_mixnet_contract_common::{
 use nym_name_service_common::msg::QueryMsg as NameServiceQueryMsg;
 use nym_service_provider_directory_common::msg::QueryMsg as SpQueryMsg;
 use nym_validator_client::nyxd::error::NyxdError;
-use nym_validator_client::nyxd::traits::{
-    MixnetQueryClient, MixnetSigningClient, SpDirectoryQueryClient,
-};
 use nym_validator_client::nyxd::{
-    cosmwasm_client::types::ExecuteResult,
-    traits::{
+    contract_traits::{
         CoconutBandwidthQueryClient, DkgQueryClient, DkgSigningClient, GroupQueryClient,
-        MultisigQueryClient, MultisigSigningClient, NameServiceQueryClient, VestingQueryClient,
+        MixnetQueryClient, MixnetSigningClient, MultisigQueryClient, MultisigSigningClient,
+        NameServiceQueryClient, SpDirectoryQueryClient, VestingQueryClient,
     },
+    cosmwasm_client::types::ExecuteResult,
     Fee,
 };
 use nym_validator_client::nyxd::{

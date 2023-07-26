@@ -4,11 +4,13 @@
 use super::authenticated::RequestHandlingError;
 use log::*;
 use nym_coconut_interface::Credential;
-use nym_validator_client::nyxd::traits::DkgQueryClient;
 use nym_validator_client::{
     nyxd::{
+        contract_traits::{
+            CoconutBandwidthSigningClient, DkgQueryClient, MultisigQueryClient,
+            MultisigSigningClient,
+        },
         cosmwasm_client::logs::{find_attribute, BANDWIDTH_PROPOSAL_ID},
-        traits::{CoconutBandwidthSigningClient, MultisigQueryClient, MultisigSigningClient},
         Coin, DirectSigningNyxdClient, Fee,
     },
     Client, CoconutApiClient,

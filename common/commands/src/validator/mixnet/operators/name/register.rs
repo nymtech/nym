@@ -2,7 +2,7 @@ use clap::Parser;
 use log::{error, info};
 use nym_contracts_common::signing::MessageSignature;
 use nym_name_service_common::{Address, Coin, NameDetails, NymName};
-use nym_validator_client::nyxd::{error::NyxdError, traits::NameServiceSigningClient};
+use nym_validator_client::nyxd::{contract_traits::NameServiceSigningClient, error::NyxdError};
 use tap::TapFallible;
 
 use crate::context::SigningClient;

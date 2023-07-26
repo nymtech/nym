@@ -3,7 +3,7 @@ use crate::state::WalletState;
 use crate::vesting::rewards::vesting_claim_delegator_reward;
 use nym_mixnet_contract_common::{MixId, RewardingParams};
 use nym_types::transaction::TransactionExecuteResult;
-use nym_validator_client::nyxd::traits::{MixnetQueryClient, MixnetSigningClient};
+use nym_validator_client::nyxd::contract_traits::{MixnetQueryClient, MixnetSigningClient};
 use nym_validator_client::nyxd::Fee;
 
 #[tauri::command]

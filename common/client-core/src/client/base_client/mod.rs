@@ -53,7 +53,7 @@ use nym_bandwidth_controller::wasm_mockups::DkgQueryClient;
 use crate::client::base_client::storage::gateway_details::GatewayDetailsStore;
 use crate::init::{setup_gateway, GatewaySetup, InitialisationDetails};
 #[cfg(not(target_arch = "wasm32"))]
-use nym_validator_client::nyxd::traits::DkgQueryClient;
+use nym_validator_client::nyxd::contract_traits::DkgQueryClient;
 
 #[cfg(all(not(target_arch = "wasm32"), feature = "fs-surb-storage"))]
 pub mod non_wasm_helpers;

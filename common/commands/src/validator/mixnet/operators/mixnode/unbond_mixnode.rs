@@ -3,7 +3,7 @@
 
 use clap::Parser;
 use log::info;
-use nym_validator_client::nyxd::traits::MixnetSigningClient;
+use nym_validator_client::nyxd::contract_traits::MixnetSigningClient;
 
 use crate::context::SigningClient;
 

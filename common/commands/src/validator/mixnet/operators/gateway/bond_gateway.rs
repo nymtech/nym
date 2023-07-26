@@ -7,7 +7,7 @@ use log::{info, warn};
 use nym_contracts_common::signing::MessageSignature;
 use nym_mixnet_contract_common::Coin;
 use nym_network_defaults::{DEFAULT_CLIENT_LISTENING_PORT, DEFAULT_MIX_LISTENING_PORT};
-use nym_validator_client::nyxd::traits::MixnetSigningClient;
+use nym_validator_client::nyxd::contract_traits::MixnetSigningClient;
 
 #[derive(Debug, Parser)]
 pub struct Args {

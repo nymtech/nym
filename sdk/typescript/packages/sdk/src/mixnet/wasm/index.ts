@@ -24,7 +24,11 @@ export interface NymMixnetClient {
 
 /**
  * Create a client to send and receive traffic from the Nym mixnet.
- *
+ * @required
+ * @example
+ * ```typescript
+ * const client = await createNymMixnetClient();
+ * ```
  */
 export const createNymMixnetClient = async (options?: {
   autoConvertStringMimeTypes?: string[] | MimeTypes[];

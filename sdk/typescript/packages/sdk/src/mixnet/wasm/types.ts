@@ -97,12 +97,12 @@ export enum EventKinds {
   StringMessageReceived = 'StringMessageReceived',
 
     /**
-   * The event for when a binary message is received.
+   * The event for when a binary message is received. BinaryMessage is a type of message that contains additional metadata, such as MIME type and some headers, along with the actual payload data.
    */
   BinaryMessageReceived = 'BinaryMessageReceived',
 
     /**
-   * The event for when a raw message is received.
+   * The event for when a raw message is received. RawMessage represents the bytes that are received directly from the mixnet with no further parsing or interpretation done on them.
    */
   RawMessageReceived = 'RawMessageReceived',
 }

@@ -15,7 +15,7 @@ use nym_service_provider_directory_common::{
     ServiceType::NetworkRequester,
 };
 use nym_sphinx::addressing::clients::Recipient;
-use nym_validator_client::nyxd::traits::SpDirectoryQueryClient;
+use nym_validator_client::nyxd::contract_traits::SpDirectoryQueryClient;
 
 #[derive(Debug, Parser)]
 pub struct Args {

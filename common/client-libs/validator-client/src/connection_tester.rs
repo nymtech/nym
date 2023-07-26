@@ -2,7 +2,7 @@ use crate::nyxd::error::NyxdError;
 use crate::nyxd::{Config as ClientConfig, NyxdClient, QueryNyxdClient};
 use crate::{NymApiClient, ValidatorClientError};
 
-use crate::nyxd::traits::MixnetQueryClient;
+use crate::nyxd::contract_traits::MixnetQueryClient;
 use colored::Colorize;
 use core::fmt;
 use itertools::Itertools;

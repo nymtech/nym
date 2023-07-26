@@ -5,7 +5,7 @@ use crate::error::Result;
 use bip39::Mnemonic;
 use nym_network_defaults::{NymNetworkDetails, VOUCHER_INFO};
 use nym_validator_client::nyxd;
-use nym_validator_client::nyxd::traits::CoconutBandwidthSigningClient;
+use nym_validator_client::nyxd::contract_traits::CoconutBandwidthSigningClient;
 use nym_validator_client::nyxd::{Coin, DirectSigningNyxdClient, Fee, NyxdClient};
 use std::str::FromStr;
 use url::Url;

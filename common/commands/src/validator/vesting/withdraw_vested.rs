@@ -5,7 +5,7 @@ use clap::Parser;
 use log::info;
 
 use nym_validator_client::nyxd::{
-    traits::{VestingQueryClient, VestingSigningClient},
+    contract_traits::{VestingQueryClient, VestingSigningClient},
     Coin,
 };
 

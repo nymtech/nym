@@ -8,7 +8,7 @@ use log::info;
 
 use nym_mixnet_contract_common::Coin;
 use nym_network_defaults::NymNetworkDetails;
-use nym_validator_client::nyxd::traits::VestingSigningClient;
+use nym_validator_client::nyxd::contract_traits::VestingSigningClient;
 use nym_validator_client::nyxd::AccountId;
 use nym_validator_client::nyxd::{CosmosCoin, Denom};
 use nym_vesting_contract_common::types::VestingSpecification;

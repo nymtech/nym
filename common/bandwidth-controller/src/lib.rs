@@ -15,7 +15,7 @@ use {
 };
 
 #[cfg(not(target_arch = "wasm32"))]
-use nym_validator_client::nyxd::traits::DkgQueryClient;
+use nym_validator_client::nyxd::contract_traits::DkgQueryClient;
 
 #[cfg(target_arch = "wasm32")]
 use crate::wasm_mockups::DkgQueryClient;

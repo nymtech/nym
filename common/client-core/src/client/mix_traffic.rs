@@ -8,7 +8,7 @@ use nym_sphinx::forwarding::packet::MixPacket;
 
 use nym_credential_storage::storage::Storage;
 #[cfg(not(target_arch = "wasm32"))]
-use nym_validator_client::nyxd::traits::DkgQueryClient;
+use nym_validator_client::nyxd::contract_traits::DkgQueryClient;
 
 #[cfg(target_arch = "wasm32")]
 use nym_bandwidth_controller::wasm_mockups::DkgQueryClient;

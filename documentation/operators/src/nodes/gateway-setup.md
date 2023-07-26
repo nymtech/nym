@@ -45,6 +45,7 @@ You can also check the various arguments required for individual commands with:
 ```
 ./nym-gateway <COMMAND> --help
 ```
+> Adding `--no-banner` startup flag will prevent Nym banner being printed even if run in tty environment.
 
 ### Initialising your gateway
 To check available configuration options use:

@@ -107,6 +107,8 @@ You can check the required parameters for available commands by running:
 ./nym-network-requester <COMMAND> --help
 ```
 
+> Adding `--no-banner` startup flag will prevent Nym banner being printed even if run in tty environment.
+
 ## Initializing and running your network requester
 
 The network-requester needs to be initialized before it can be run. This is required for the embedded nym-client to connect successfully to the mixnet. We want to specify an `<ID>` using the `--id` command and give it a value of your choice. The following command will achieve that:

@@ -15,7 +15,6 @@ pub enum ValidatorClientError {
     #[error("One of the provided URLs was malformed - {0}")]
     MalformedUrlProvided(#[from] url::ParseError),
 
-    #[cfg(feature = "nyxd-client")]
     #[error("nyxd request failed - {0}")]
     NyxdError(#[from] crate::nyxd::error::NyxdError),
 

@@ -1,15 +1,16 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::nyxd;
 use crate::nyxd::coin::Coin;
 use crate::nyxd::cosmwasm_client::helpers::{create_pagination, next_page_key};
 use crate::nyxd::cosmwasm_client::types::{
-    Account, Code, CodeDetails, Contract, ContractCodeHistoryEntry, ContractCodeId,
-    SequenceResponse, SimulateResponse,
+    Account, CodeDetails, Contract, ContractCodeId, SequenceResponse, SimulateResponse,
 };
 use crate::nyxd::error::NyxdError;
+use crate::nyxd::TendermintClient;
 use async_trait::async_trait;
+use cosmrs::cosmwasm::{CodeInfoResponse, ContractCodeHistoryEntry};
 use cosmrs::proto::cosmos::auth::v1beta1::{QueryAccountRequest, QueryAccountResponse};
 use cosmrs::proto::cosmos::bank::v1beta1::{
     QueryAllBalancesRequest, QueryAllBalancesResponse, QueryBalanceRequest, QueryBalanceResponse,
@@ -18,22 +19,28 @@ use cosmrs::proto::cosmos::bank::v1beta1::{
 use cosmrs::proto::cosmos::tx::v1beta1::{
     SimulateRequest, SimulateResponse as ProtoSimulateResponse,
 };
-use cosmrs::proto::cosmwasm::wasm::v1::*;
-use cosmrs::rpc::endpoint::block::Response as BlockResponse;
-use cosmrs::rpc::endpoint::broadcast;
-use cosmrs::rpc::endpoint::tx::Response as TxResponse;
-use cosmrs::rpc::query::Query;
-use cosmrs::rpc::{self, HttpClient, Order};
-use cosmrs::tendermint::abci::Transaction;
-use cosmrs::tendermint::{abci, block, chain};
-use cosmrs::{tx, AccountId, Coin as CosmosCoin, Tx};
+use cosmrs::proto::cosmwasm::wasm::v1::{
+    QueryCodeRequest, QueryCodeResponse, QueryCodesRequest, QueryCodesResponse,
+    QueryContractHistoryRequest, QueryContractHistoryResponse, QueryContractInfoRequest,
+    QueryContractInfoResponse, QueryContractsByCodeRequest, QueryContractsByCodeResponse,
+    QueryRawContractStateRequest, QueryRawContractStateResponse, QuerySmartContractStateRequest,
+    QuerySmartContractStateResponse,
+};
+use cosmrs::tendermint::{block, chain, Hash};
+use cosmrs::{AccountId, Coin as CosmosCoin, Tx};
 use prost::Message;
 use serde::{Deserialize, Serialize};
-use std::convert::{TryFrom, TryInto};
+use std::convert::TryFrom;
 use std::time::Duration;
+use tendermint_rpc::{
+    endpoint::{block::Response as BlockResponse, broadcast, tx::Response as TxResponse},
+    query::Query,
+    Order,
+};
 
+#[cfg(feature = "http-client")]
 #[async_trait]
-impl CosmWasmClient for HttpClient {
+impl CosmWasmClient for cosmrs::rpc::HttpClient {
     fn broadcast_polling_rate(&self) -> Duration {
         Duration::from_secs(4)
     }
@@ -44,7 +51,7 @@ impl CosmWasmClient for HttpClient {
 }
 
 #[async_trait]
-pub trait CosmWasmClient: rpc::Client {
+pub trait CosmWasmClient: TendermintClient {
     // this should probably get redesigned, but I'm leaving those like that temporarily to fix
     // the underlying issue more quickly
     fn broadcast_polling_rate(&self) -> Duration;
@@ -55,7 +62,7 @@ pub trait CosmWasmClient: rpc::Client {
     // require proof?
     async fn make_abci_query<Req, Res>(
         &self,
-        path: Option<abci::Path>,
+        path: Option<String>,
         req: Req,
     ) -> Result<Res, NyxdError>
     where
@@ -81,7 +88,7 @@ pub trait CosmWasmClient: rpc::Client {
 
     // TODO: the return type should probably be changed to a non-proto, type-safe Account alternative
     async fn get_account(&self, address: &AccountId) -> Result<Option<Account>, NyxdError> {
-        let path = Some("/cosmos.auth.v1beta1.Query/Account".parse().unwrap());
+        let path = Some("/cosmos.auth.v1beta1.Query/Account".to_owned());
 
         let req = QueryAccountRequest {
             address: address.to_string(),
@@ -119,7 +126,7 @@ pub trait CosmWasmClient: rpc::Client {
         address: &AccountId,
         search_denom: String,
     ) -> Result<Option<Coin>, NyxdError> {
-        let path = Some("/cosmos.bank.v1beta1.Query/Balance".parse().unwrap());
+        let path = Some("/cosmos.bank.v1beta1.Query/Balance".to_owned());
 
         let req = QueryBalanceRequest {
             address: address.to_string(),
@@ -137,7 +144,7 @@ pub trait CosmWasmClient: rpc::Client {
     }
 
     async fn get_all_balances(&self, address: &AccountId) -> Result<Vec<Coin>, NyxdError> {
-        let path = Some("/cosmos.bank.v1beta1.Query/AllBalances".parse().unwrap());
+        let path = Some("/cosmos.bank.v1beta1.Query/AllBalances".to_owned());
 
         let mut raw_balances = Vec::new();
         let mut pagination = None;
@@ -168,7 +175,7 @@ pub trait CosmWasmClient: rpc::Client {
     }
 
     async fn get_total_supply(&self) -> Result<Vec<Coin>, NyxdError> {
-        let path = Some("/cosmos.bank.v1beta1.Query/TotalSupply".parse().unwrap());
+        let path = Some("/cosmos.bank.v1beta1.Query/TotalSupply".to_owned());
 
         let mut supply = Vec::new();
         let mut pagination = None;
@@ -195,7 +202,7 @@ pub trait CosmWasmClient: rpc::Client {
             .map_err(|_| NyxdError::SerializationError("Coins".to_owned()))
     }
 
-    async fn get_tx(&self, id: tx::Hash) -> Result<TxResponse, NyxdError> {
+    async fn get_tx(&self, id: Hash) -> Result<TxResponse, NyxdError> {
         Ok(self.tx(id, false).await?)
     }
 
@@ -231,30 +238,36 @@ pub trait CosmWasmClient: rpc::Client {
     }
 
     /// Broadcast a transaction, returning immediately.
-    async fn broadcast_tx_async(
-        &self,
-        tx: Transaction,
-    ) -> Result<broadcast::tx_async::Response, NyxdError> {
-        Ok(rpc::Client::broadcast_tx_async(self, tx).await?)
+    async fn broadcast_tx_async<T>(&self, tx: T) -> Result<broadcast::tx_async::Response, NyxdError>
+    where
+        T: Into<Vec<u8>> + Send,
+    {
+        Ok(tendermint_rpc::client::Client::broadcast_tx_async(self, tx).await?)
     }
 
     /// Broadcast a transaction, returning the response from `CheckTx`.
-    async fn broadcast_tx_sync(
-        &self,
-        tx: Transaction,
-    ) -> Result<broadcast::tx_sync::Response, NyxdError> {
-        Ok(rpc::Client::broadcast_tx_sync(self, tx).await?)
+    async fn broadcast_tx_sync<T>(&self, tx: T) -> Result<broadcast::tx_sync::Response, NyxdError>
+    where
+        T: Into<Vec<u8>> + Send,
+    {
+        Ok(tendermint_rpc::client::Client::broadcast_tx_sync(self, tx).await?)
     }
 
     /// Broadcast a transaction, returning the response from `DeliverTx`.
-    async fn broadcast_tx_commit(
+    async fn broadcast_tx_commit<T>(
         &self,
-        tx: Transaction,
-    ) -> Result<broadcast::tx_commit::Response, NyxdError> {
-        Ok(rpc::Client::broadcast_tx_commit(self, tx).await?)
+        tx: T,
+    ) -> Result<broadcast::tx_commit::Response, NyxdError>
+    where
+        T: Into<Vec<u8>> + Send,
+    {
+        Ok(tendermint_rpc::client::Client::broadcast_tx_commit(self, tx).await?)
     }
 
-    async fn broadcast_tx(&self, tx: Transaction) -> Result<TxResponse, NyxdError> {
+    async fn broadcast_tx<T>(&self, tx: T) -> Result<TxResponse, NyxdError>
+    where
+        T: Into<Vec<u8>> + Send,
+    {
         let broadcasted = CosmWasmClient::broadcast_tx_sync(self, tx).await?;
 
         if broadcasted.code.is_err() {
@@ -290,8 +303,8 @@ pub trait CosmWasmClient: rpc::Client {
         }
     }
 
-    async fn get_codes(&self) -> Result<Vec<Code>, NyxdError> {
-        let path = Some("/cosmwasm.wasm.v1.Query/Codes".parse().unwrap());
+    async fn get_codes(&self) -> Result<Vec<CodeInfoResponse>, NyxdError> {
+        let path = Some("/cosmwasm.wasm.v1.Query/Codes".to_owned());
 
         let mut raw_codes = Vec::new();
         let mut pagination = None;
@@ -311,14 +324,14 @@ pub trait CosmWasmClient: rpc::Client {
             }
         }
 
-        raw_codes
+        Ok(raw_codes
             .into_iter()
             .map(TryFrom::try_from)
-            .collect::<Result<_, _>>()
+            .collect::<Result<_, _>>()?)
     }
 
     async fn get_code_details(&self, code_id: ContractCodeId) -> Result<CodeDetails, NyxdError> {
-        let path = Some("/cosmwasm.wasm.v1.Query/Code".parse().unwrap());
+        let path = Some("/cosmwasm.wasm.v1.Query/Code".to_owned());
 
         let req = QueryCodeRequest { code_id };
 
@@ -333,7 +346,7 @@ pub trait CosmWasmClient: rpc::Client {
         }
     }
     async fn get_contracts(&self, code_id: ContractCodeId) -> Result<Vec<AccountId>, NyxdError> {
-        let path = Some("/cosmwasm.wasm.v1.Query/ContractsByCode".parse().unwrap());
+        let path = Some("/cosmwasm.wasm.v1.Query/ContractsByCode".to_owned());
 
         let mut raw_contracts = Vec::new();
         let mut pagination = None;
@@ -364,7 +377,7 @@ pub trait CosmWasmClient: rpc::Client {
     }
 
     async fn get_contract(&self, address: &AccountId) -> Result<Contract, NyxdError> {
-        let path = Some("/cosmwasm.wasm.v1.Query/ContractInfo".parse().unwrap());
+        let path = Some("/cosmwasm.wasm.v1.Query/ContractInfo".to_owned());
 
         let req = QueryContractInfoRequest {
             address: address.to_string(),
@@ -389,7 +402,7 @@ pub trait CosmWasmClient: rpc::Client {
         &self,
         address: &AccountId,
     ) -> Result<Vec<ContractCodeHistoryEntry>, NyxdError> {
-        let path = Some("/cosmwasm.wasm.v1.Query/ContractHistory".parse().unwrap());
+        let path = Some("/cosmwasm.wasm.v1.Query/ContractHistory".to_owned());
 
         let mut raw_entries = Vec::new();
         let mut pagination = None;
@@ -412,10 +425,10 @@ pub trait CosmWasmClient: rpc::Client {
             }
         }
 
-        raw_entries
+        Ok(raw_entries
             .into_iter()
             .map(TryFrom::try_from)
-            .collect::<Result<_, _>>()
+            .collect::<Result<_, _>>()?)
     }
 
     async fn query_contract_raw(
@@ -423,7 +436,7 @@ pub trait CosmWasmClient: rpc::Client {
         address: &AccountId,
         query_data: Vec<u8>,
     ) -> Result<Vec<u8>, NyxdError> {
-        let path = Some("/cosmwasm.wasm.v1.Query/RawContractState".parse().unwrap());
+        let path = Some("/cosmwasm.wasm.v1.Query/RawContractState".to_owned());
 
         let req = QueryRawContractStateRequest {
             address: address.to_string(),
@@ -479,7 +492,7 @@ pub trait CosmWasmClient: rpc::Client {
         tx: Option<Tx>,
         tx_bytes: Vec<u8>,
     ) -> Result<SimulateResponse, NyxdError> {
-        let path = Some("/cosmos.tx.v1beta1.Service/Simulate".parse().unwrap());
+        let path = Some("/cosmos.tx.v1beta1.Service/Simulate".to_owned());
 
         let req = SimulateRequest {
             tx: tx.map(Into::into),

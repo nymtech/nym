@@ -6,13 +6,13 @@
 // right now this has no double-spending protection, spender binding, etc
 // it's the simplest possible case
 
+use cosmrs::tendermint::hash::Algorithm;
+use cosmrs::tendermint::Hash;
 use nym_coconut_interface::{
     hash_to_scalar, prepare_blind_sign, Attribute, BlindSignRequest, Credential, Parameters,
     PrivateAttribute, PublicAttribute, Signature, VerificationKey,
 };
 use nym_crypto::asymmetric::{encryption, identity};
-
-use cosmrs::tx::Hash;
 
 use super::utils::prepare_credential_for_spending;
 use crate::error::Error;
@@ -129,7 +129,9 @@ impl BandwidthVoucher {
         let binding_number = Option::<PrivateAttribute>::from(PrivateAttribute::from_bytes(&buff))
             .ok_or_else(scalar_err)?;
         buff.copy_from_slice(&bytes[2 * 32..3 * 32]);
-        let tx_hash = Hash::new(buff);
+        let tx_hash = Hash::from_bytes(Algorithm::Sha256, &buff).map_err(|_| {
+            Error::BandwidthVoucherDeserializationError(String::from("Invalid transaction Hash"))
+        })?;
         buff.copy_from_slice(&bytes[3 * 32..4 * 32]);
         let signing_key = identity::PrivateKey::from_bytes(&buff).map_err(|_| {
             Error::BandwidthVoucherDeserializationError(String::from("Invalid key"))
@@ -282,6 +284,7 @@ pub fn prepare_for_spending(
 #[cfg(test)]
 mod test {
     use super::*;
+    use cosmrs::tendermint::hash::Algorithm;
     use nym_coconut_interface::Base58;
     use rand::rngs::OsRng;
 
@@ -292,7 +295,7 @@ mod test {
             &params,
             "1234".to_string(),
             "voucher info".to_string(),
-            Hash::new([0; 32]),
+            Hash::from_bytes(Algorithm::Sha256, &[0; 32]).unwrap(),
             identity::PrivateKey::from_base58_string(
                 identity::KeyPair::new(&mut rng)
                     .private_key()

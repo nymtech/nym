@@ -34,4 +34,4 @@ nym-contracts-common = { path = "../common/cosmwasm-smart-contracts/contracts-co
 nym-network-defaults = { path = "../common/network-defaults" }
 nym-bin-common = { path = "../common/bin-common"}
 nym-task = { path = "../common/task" }
-nym-validator-client = { path = "../common/client-libs/validator-client", features=["nyxd-client"] }
+nym-validator-client = { path = "../common/client-libs/validator-client", features=["http-client"] }

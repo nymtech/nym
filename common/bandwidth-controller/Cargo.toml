@@ -18,7 +18,6 @@ nym-crypto = { path = "../crypto", features = ["rand", "asymmetric", "symmetric"
 nym-network-defaults = { path = "../network-defaults" }
 nym-validator-client = { path = "../client-libs/validator-client", default-features = false }
 
-
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.nym-validator-client]
 path = "../client-libs/validator-client"
-features = ["nyxd-client"]
+features = ["signing"]

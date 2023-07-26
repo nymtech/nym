@@ -45,7 +45,7 @@ nym-network-defaults = { path = "../network-defaults" }
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.nym-validator-client]
 path = "../client-libs/validator-client"
-features = ["nyxd-client"]
+features = ["signing", "http-client"]
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio-stream]
 version = "0.1.11"

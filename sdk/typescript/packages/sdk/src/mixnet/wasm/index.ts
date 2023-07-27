@@ -15,7 +15,8 @@ import {
 import { createSubscriptions } from './subscriptions';
 
 /**
- * Client for the Nym mixnet.
+ * The client for the Nym mixnet which gives access to client methods and event subscriptions.
+ *
  */
 export interface NymMixnetClient {
   client: Client;

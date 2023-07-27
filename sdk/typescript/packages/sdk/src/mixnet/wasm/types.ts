@@ -28,7 +28,7 @@ export interface Client {
    * const client = await createNymMixnetClient();
    * await client.start({
    *  clientId: 'my-client',
-   *  nymApiUrl: 'https://validator.nymtech.net',
+   *  nymApiUrl: 'https://validator.nymtech.net/api',
    * });
    *
    */
@@ -40,7 +40,7 @@ export interface Client {
    * const client = await createNymMixnetClient();
    * await client.start({
    *  clientId: 'my-client',
-   *  nymApiUrl: 'https://validator.nymtech.net',
+   *  nymApiUrl: 'https://validator.nymtech.net/api',
    * });
    * await client.stop();
    * ```
@@ -53,29 +53,62 @@ export interface Client {
    * const client = await createNymMixnetClient();
    * await client.start({
    *  clientId: 'my-client',
-   *  nymApiUrl: 'https://validator.nymtech.net',
+   *  nymApiUrl: 'https://validator.nymtech.net/api',
    * });
    * const address = await client.selfAddress();
    * ```
    */
   selfAddress: () => Promise<string | undefined>;
-
+  /**
+   * Set the mime-types that should be used when using the {@link Client.send} method.
+   * @example
+   * ```typescript
+   * const client = await createNymMixnetClient();
+   * await client.start({
+   * clientId: 'my-client',
+   * nymApiUrl: 'https://validator.nymtech.net/api',
+   * });
+   * await client.setTextMimeTypes(['text/plain', 'application/json']);
+   * ```
+   * @param mimeTypes
+   * @see {@link MimeTypes}
+   * @see {@link Client.send}
+   * @see {@link Client.getTextMimeTypes}
+   */
   setTextMimeTypes: (mimeTypes: string[]) => void;
+  /**
+   * Get the mime-types that are automatically converted to strings.
+   * @example
+   * ```typescript
+   * const client = await createNymMixnetClient();
+   * await client.start({
+   * clientId: 'my-client',
+   * nymApiUrl: 'https://validator.nymtech.net/api',
+   * });
+   * const mimeTypes = await client.getTextMimeTypes();
+   * ```
+   * @see {@link MimeTypes}
+   * @see {@link Payload}
+   * @see {@link Client.send}
+   * @see {@link Client.setTextMimeTypes}
+   */
   getTextMimeTypes: () => Promise<string[]>;
   /**
-   * Send a string message.
+   * Send some data through the mixnet message.
    * @example
    * ```typescript
    * const client = await createNymMixnetClient();
    * await client.start({
    *  clientId: 'my-client',
-   *  nymApiUrl: 'https://validator.nymtech.net',
+   *  nymApiUrl: 'https://validator.nymtech.net/api',
    * });
    * await client.send({
    *  payload: 'Hello world',
    *  recipient: // recipient address,
    * });
    * ```
+   * @see {@link MimeTypes}
+   * @see {@link Payload}
    */
   send: (args: { payload: Payload; recipient: string; replySurbs?: number }) => Promise<void>;
   /**
@@ -85,7 +118,7 @@ export interface Client {
    * const client = await createNymMixnetClient();
    * await client.start({
    *  clientId: 'my-client',
-   *  nymApiUrl: 'https://validator.nymtech.net',
+   *  nymApiUrl: 'https://validator.nymtech.net/api',
    * });
    * const payload = new Uint8Array([1, 2, 3]);
    * await client.rawSend({
@@ -93,10 +126,15 @@ export interface Client {
    *  recipient: // recipient address,
    * });
    * ```
+   * @see {@link MimeTypes}
+   * @see {@link Payload}
    */
   rawSend: (args: { payload: Uint8Array; recipient: string; replySurbs?: number }) => Promise<void>;
 }
 
+/**
+ * The configuration passed to the {@link Client.start} method of the {@link Client}
+ */
 export interface NymClientConfig {
   /**
    * A human-readable id for the client.
@@ -262,8 +300,28 @@ export type OnPayloadFn = (payload: Payload) => void;
  */
 export type OnRawPayloadFn = (payload: Uint8Array) => void;
 
-export type EventHandlerFn<E> = (e: E) => void | Promise<void>;
-
+/**
+ * The **EventHandlerSubscribeFn** is a function that takes a callback of type {@link EventHandlerFn}
+ *
+ * @see {@link Events}
+ * @see {@link EventHandlerFn}
+ * @see {@link EventHandlerUnsubscribeFn}
+ */
 export type EventHandlerSubscribeFn<E> = (fn: EventHandlerFn<E>) => EventHandlerUnsubscribeFn;
 
+/**
+ * The **EventHandlerFn** is a callback function that is passed to the {@link EventHandlerSubscribeFn}
+ * @see {@link Events}
+ * @see {@link EventHandlerFn}
+ * @see {@link EventHandlerSubscribeFn}
+ */
+export type EventHandlerFn<E> = (e: E) => void | Promise<void>;
+
+/**
+ * The **EventHandlerUnsubscribeFn** function is returned by the {@link EventHandlerSubscribeFn}
+ * and can be used to stop listening for particular events
+ * @see {@link Events}
+ * @see {@link EventHandlerFn}
+ * @see {@link EventHandlerSubscribeFn}
+ */
 export type EventHandlerUnsubscribeFn = () => void;

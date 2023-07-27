@@ -4038,8 +4038,6 @@ dependencies = [
 name = "nym-sphinx-types"
 version = "0.2.0"
 dependencies = [
- "nym-outfox",
- "sphinx-packet",
  "thiserror",
 ]
 

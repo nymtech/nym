@@ -19,7 +19,7 @@ nym-pemstore = { path = "../../pemstore" }
 nym-sphinx-addressing = { path = "../addressing" }
 nym-sphinx-params = { path = "../params" }
 nym-sphinx-routing = { path = "../routing" }
-nym-sphinx-types = { path = "../types" }
+nym-sphinx-types = { path = "../types", features = ["sphinx"] }
 nym-topology = { path = "../../topology" }
 
 [features]

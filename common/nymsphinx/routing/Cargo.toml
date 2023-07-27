@@ -11,6 +11,4 @@ repository = { workspace = true }
 thiserror = { workspace = true }
 
 nym-sphinx-addressing = { path = "../addressing" }
-nym-sphinx-types = { path = "../types", features = ["sphinx"] }
-
-[features]
+nym-sphinx-types = { path = "../types" }

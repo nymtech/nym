@@ -5,6 +5,7 @@ pub use ed25519_dalek::ed25519::signature::Signature as SignatureTrait;
 pub use ed25519_dalek::SignatureError;
 pub use ed25519_dalek::{Verifier, PUBLIC_KEY_LENGTH, SECRET_KEY_LENGTH, SIGNATURE_LENGTH};
 use nym_pemstore::traits::{PemStorableKey, PemStorableKeyPair};
+#[cfg(feature = "sphinx")]
 use nym_sphinx_types::{DestinationAddressBytes, DESTINATION_ADDRESS_LENGTH};
 use std::fmt::{self, Display, Formatter};
 use std::str::FromStr;
@@ -113,6 +114,7 @@ impl Display for PublicKey {
 }
 
 impl PublicKey {
+    #[cfg(feature = "sphinx")]
     pub fn derive_destination_address(&self) -> DestinationAddressBytes {
         let mut temporary_address = [0u8; DESTINATION_ADDRESS_LENGTH];
         let public_key_bytes = self.to_bytes();

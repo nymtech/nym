@@ -18,7 +18,9 @@ use nym_client_core::client::base_client::{
 };
 use nym_client_core::client::key_manager::persistence::KeyStore;
 use nym_client_core::client::replies::reply_storage::ReplyStorageBackend;
-use nym_client_core::client::topology_control::geo_aware_provider::GeoAwareTopologyProvider;
+use nym_client_core::client::topology_control::geo_aware_provider::{
+    CountryGroup, GeoAwareTopologyProvider,
+};
 use nym_client_core::config::DebugConfig;
 use nym_client_core::init::GatewaySetup;
 use nym_credential_storage::storage::Storage as CredentialStorage;
@@ -223,7 +225,7 @@ where
             .first()
             .unwrap()
             .clone();
-        let filter_on = "EU".to_string();
+        let filter_on = CountryGroup::Europe;
         let topology_provider = GeoAwareTopologyProvider::new(nym_api, filter_on);
         let base_builder = base_builder.with_topology_provider(Box::new(topology_provider));
 

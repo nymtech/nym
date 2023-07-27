@@ -1,6 +1,6 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, fmt};
 
-use log::{debug, error};
+use log::{debug, error, info};
 use nym_explorer_api_requests::PrettyDetailedMixNodeBond;
 use nym_topology::{
     mix::Layer,
@@ -22,96 +22,134 @@ async fn fetch_mixnodes_from_explorer_api() -> Option<Vec<PrettyDetailedMixNodeB
         .ok()
 }
 
+#[derive(Hash, PartialEq, Eq)]
+pub enum CountryGroup {
+    Europe,
+    NorthAmerica,
+    SouthAmerica,
+    Oceania,
+    Asia,
+    Africa,
+    Unknown,
+}
+
+impl fmt::Display for CountryGroup {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        use CountryGroup::*;
+        match self {
+            Europe => write!(f, "EU"),
+            NorthAmerica => write!(f, "NA"),
+            SouthAmerica => write!(f, "SA"),
+            Oceania => write!(f, "OC"),
+            Asia => write!(f, "AS"),
+            Africa => write!(f, "AF"),
+            Unknown => write!(f, "Unknown"),
+        }
+    }
+}
+
 // We map contry codes into group, which initially are continent codes to a first approximation,
 // but we do it manually to reserve the right to tweak this distribution for our purposes.
-// TODO: replace String with enum
-fn country_code_to_group_code(country_code: &str) -> Option<String> {
-    match country_code {
-        // Europe
-        "AT" => Some("EU".to_string()),
-        "BG" => Some("EU".to_string()),
-        "CH" => Some("EU".to_string()),
-        "CY" => Some("EU".to_string()),
-        "CZ" => Some("EU".to_string()),
-        "DE" => Some("EU".to_string()),
-        "DK" => Some("EU".to_string()),
-        "ES" => Some("EU".to_string()),
-        "FI" => Some("EU".to_string()),
-        "FR" => Some("EU".to_string()),
-        "GB" => Some("EU".to_string()),
-        "GR" => Some("EU".to_string()),
-        "IE" => Some("EU".to_string()),
-        "IT" => Some("EU".to_string()),
-        "LT" => Some("EU".to_string()),
-        "LU" => Some("EU".to_string()),
-        "LV" => Some("EU".to_string()),
-        "MD" => Some("EU".to_string()),
-        "MT" => Some("EU".to_string()),
-        "NL" => Some("EU".to_string()),
-        "NO" => Some("EU".to_string()),
-        "PL" => Some("EU".to_string()),
-        "RO" => Some("EU".to_string()),
-        "SE" => Some("EU".to_string()),
-        "SK" => Some("EU".to_string()),
-        "TR" => Some("EU".to_string()),
-        "UA" => Some("EU".to_string()),
+impl From<&str> for CountryGroup {
+    fn from(country_code: &str) -> Self {
+        use CountryGroup::*;
+        match country_code {
+            // Europe
+            "AT" => Europe,
+            "BG" => Europe,
+            "CH" => Europe,
+            "CY" => Europe,
+            "CZ" => Europe,
+            "DE" => Europe,
+            "DK" => Europe,
+            "ES" => Europe,
+            "FI" => Europe,
+            "FR" => Europe,
+            "GB" => Europe,
+            "GR" => Europe,
+            "IE" => Europe,
+            "IT" => Europe,
+            "LT" => Europe,
+            "LU" => Europe,
+            "LV" => Europe,
+            "MD" => Europe,
+            "MT" => Europe,
+            "NL" => Europe,
+            "NO" => Europe,
+            "PL" => Europe,
+            "RO" => Europe,
+            "SE" => Europe,
+            "SK" => Europe,
+            "TR" => Europe,
+            "UA" => Europe,
 
-        // North America
-        "CA" => Some("NA".to_string()),
-        "MX" => Some("NA".to_string()),
-        "US" => Some("NA".to_string()),
+            // North America
+            "CA" => NorthAmerica,
+            "MX" => NorthAmerica,
+            "US" => NorthAmerica,
 
-        // South America
-        "AR" => Some("SA".to_string()),
-        "BR" => Some("SA".to_string()),
-        "CL" => Some("SA".to_string()),
-        "CO" => Some("SA".to_string()),
-        "CR" => Some("SA".to_string()),
-        "GT" => Some("SA".to_string()),
+            // South America
+            "AR" => SouthAmerica,
+            "BR" => SouthAmerica,
+            "CL" => SouthAmerica,
+            "CO" => SouthAmerica,
+            "CR" => SouthAmerica,
+            "GT" => SouthAmerica,
 
-        // Oceania
-        "AU" => Some("OC".to_string()),
+            // Oceania
+            "AU" => Oceania,
 
-        // Asia
-        "AM" => Some("AS".to_string()),
-        "BH" => Some("AS".to_string()),
-        "CN" => Some("AS".to_string()),
-        "GE" => Some("AS".to_string()),
-        "HK" => Some("AS".to_string()),
-        "ID" => Some("AS".to_string()),
-        "IL" => Some("AS".to_string()),
-        "IN" => Some("AS".to_string()),
-        "JP" => Some("AS".to_string()),
-        "KH" => Some("AS".to_string()),
-        "KR" => Some("AS".to_string()),
-        "KZ" => Some("AS".to_string()),
-        "MY" => Some("AS".to_string()),
-        "RU" => Some("AS".to_string()),
-        "SG" => Some("AS".to_string()),
-        "TH" => Some("AS".to_string()),
-        "VN" => Some("AS".to_string()),
+            // Asia
+            "AM" => Asia,
+            "BH" => Asia,
+            "CN" => Asia,
+            "GE" => Asia,
+            "HK" => Asia,
+            "ID" => Asia,
+            "IL" => Asia,
+            "IN" => Asia,
+            "JP" => Asia,
+            "KH" => Asia,
+            "KR" => Asia,
+            "KZ" => Asia,
+            "MY" => Asia,
+            "RU" => Asia,
+            "SG" => Asia,
+            "TH" => Asia,
+            "VN" => Asia,
 
-        // Africa
-        "SC" => Some("AF".to_string()),
-        "UG" => Some("AF".to_string()),
-        "ZA" => Some("AF".to_string()),
+            // Africa
+            "SC" => Africa,
+            "UG" => Africa,
+            "ZA" => Africa,
 
-        _ => {
-            println!("Unknown country code: {}", country_code);
-            None
+            _ => {
+                info!("Unknown country code: {}", country_code);
+                Unknown
+            }
+        }
+    }
+}
+
+impl CountryGroup {
+    fn known(self) -> Option<CountryGroup> {
+        use CountryGroup::*;
+        match self {
+            Europe | NorthAmerica | SouthAmerica | Oceania | Asia | Africa => Some(self),
+            Unknown => None,
         }
     }
 }
 
 fn group_mixnodes_by_country_code(
     mixnodes: Vec<PrettyDetailedMixNodeBond>,
-) -> HashMap<String, Vec<MixId>> {
+) -> HashMap<CountryGroup, Vec<MixId>> {
     mixnodes
         .into_iter()
-        .fold(HashMap::<String, Vec<MixId>>::new(), |mut acc, m| {
+        .fold(HashMap::<CountryGroup, Vec<MixId>>::new(), |mut acc, m| {
             if let Some(ref location) = m.location {
                 let country_code = location.two_letter_iso_country_code.clone();
-                if let Some(group_code) = country_code_to_group_code(&country_code) {
+                if let Some(group_code) = CountryGroup::from(country_code.as_str()).known() {
                     let mixnodes = acc.entry(group_code).or_insert_with(Vec::new);
                     mixnodes.push(m.mix_id);
                 }
@@ -120,7 +158,7 @@ fn group_mixnodes_by_country_code(
         })
 }
 
-fn log_mixnode_distribution(mixnodes: &HashMap<String, Vec<MixId>>) {
+fn log_mixnode_distribution(mixnodes: &HashMap<CountryGroup, Vec<MixId>>) {
     let mixnode_distribution = mixnodes
         .iter()
         .map(|(k, v)| format!("{}: {}", k, v.len()))
@@ -155,11 +193,11 @@ fn check_layer_integrity(mixnodes: Vec<MixNodeDetails>) -> Result<(), ()> {
 
 pub struct GeoAwareTopologyProvider {
     validator_client: nym_validator_client::client::NymApiClient,
-    filter_on: String,
+    filter_on: CountryGroup,
 }
 
 impl GeoAwareTopologyProvider {
-    pub fn new(nym_api_url: Url, filter_on: String) -> GeoAwareTopologyProvider {
+    pub fn new(nym_api_url: Url, filter_on: CountryGroup) -> GeoAwareTopologyProvider {
         GeoAwareTopologyProvider {
             validator_client: nym_validator_client::client::NymApiClient::new(nym_api_url),
             filter_on,

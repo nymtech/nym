@@ -1,7 +1,6 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use bytes::{BufMut, BytesMut};
 use log::*;
 use nym_topology::NymTopology;
 use pin_project::pin_project;
@@ -10,6 +9,8 @@ use snow::error::Prerequisite;
 use snow::Builder;
 use snow::Error;
 use snow::TransportState;
+use std::cmp::min;
+use std::collections::VecDeque;
 use std::io;
 use std::io::ErrorKind;
 use std::pin::Pin;
@@ -54,7 +55,8 @@ pub struct NoiseStream {
     #[pin]
     inner_stream: TcpStream,
     noise: TransportState,
-    storage: BytesMut,
+    enc_storage: VecDeque<u8>,
+    dec_storage: VecDeque<u8>,
 }
 
 impl NoiseStream {
@@ -62,7 +64,8 @@ impl NoiseStream {
         NoiseStream {
             inner_stream,
             noise,
-            storage: BytesMut::with_capacity(MAXMSGLEN + HEADER_SIZE),
+            enc_storage: VecDeque::with_capacity(MAXMSGLEN + HEADER_SIZE),
+            dec_storage: VecDeque::with_capacity(MAXMSGLEN + HEADER_SIZE),
         }
     }
 }
@@ -74,64 +77,68 @@ impl AsyncRead for NoiseStream {
         buf: &mut ReadBuf<'_>,
     ) -> Poll<std::io::Result<()>> {
         let projected_self = self.project();
-        let mut inner_vec = vec![0u8; MAXMSGLEN + HEADER_SIZE];
-        let mut noise_buf = ReadBuf::new(&mut inner_vec);
+        let enc_storage = projected_self.enc_storage;
+        let ready_to_read = projected_self.inner_stream.poll_read_ready(cx);
 
-        match projected_self.inner_stream.poll_read(cx, &mut noise_buf) {
-            Poll::Pending => return Poll::Pending,
-            Poll::Ready(Ok(())) => {
-                //concat what we just with what we had
-                let bytes_read = [
-                    &projected_self.storage[..projected_self.storage.len()],
-                    noise_buf.filled(),
-                ]
-                .concat();
-                projected_self.storage.clear();
-
-                //We can't read the length, store what we have
-                if bytes_read.len() < HEADER_SIZE {
-                    projected_self.storage.put_slice(&bytes_read);
-                    cx.waker().wake_by_ref(); //ideally register cx with the readiness of tcpstream
-                    return Poll::Pending;
-                }
-
-                let msg_len = ((bytes_read[0] as usize) << 8) + (bytes_read[1] as usize);
-                //we can't read the whole message, store what we have and return
-                if bytes_read.len() < HEADER_SIZE + msg_len {
-                    projected_self.storage.put_slice(&bytes_read);
-                    cx.waker().wake_by_ref(); //ideally register cx with the readiness of tcpstream
-                    return Poll::Pending;
-                }
-
-                //we have a full Noise message available
-                let mut payload = vec![0u8; MAXMSGLEN];
-                let len = match projected_self.noise.read_message(
-                    &bytes_read[HEADER_SIZE..HEADER_SIZE + msg_len],
-                    &mut payload,
-                ) {
-                    Ok(len) => len,
-                    Err(_) => return Poll::Ready(Err(ErrorKind::InvalidData.into())),
-                };
-
-                //No place in the buffer, say that we have nothing.
-                //SW might not be acceptable, can create offset?
-                //Maybe return what we can, store the rest in unencrypted buffer for the next call
-                if len > buf.remaining() {
-                    warn!("Not enough space in the buffer to return decrypted message");
-                    projected_self.storage.put_slice(&bytes_read);
-                    return Poll::Pending;
-                }
-                buf.put_slice(&payload[..len]);
-
-                //Store any excess for next time
-                projected_self
-                    .storage
-                    .put_slice(&bytes_read[HEADER_SIZE + msg_len..]);
-
-                return Poll::Ready(Ok(()));
+        match ready_to_read {
+            Poll::Pending => {
+                //no new data, waking is already scheduled.
+                //Nothing new to decrypt, only check if we can return something from dec_storage, happens after
             }
+
+            Poll::Ready(Ok(())) => {
+                //Read what we can into enc_storage, decrypt what we can into dec_storage
+                let mut tcp_buf = vec![0u8; MAXMSGLEN + HEADER_SIZE];
+                let tcp_len = projected_self.inner_stream.try_read(&mut tcp_buf)?;
+                enc_storage.extend(&tcp_buf[..tcp_len]);
+
+                //we can at least read the length
+                if enc_storage.len() >= HEADER_SIZE {
+                    let msg_len = ((enc_storage[0] as usize) << 8) + (enc_storage[1] as usize);
+
+                    //we have a full message to decrypt
+                    if enc_storage.len() >= HEADER_SIZE + msg_len {
+                        //remove size
+                        enc_storage.pop_front();
+                        enc_storage.pop_front();
+
+                        let noise_msg = enc_storage.drain(..msg_len).collect::<Vec<u8>>();
+                        let mut dec_msg = vec![0u8; MAXMSGLEN];
+                        let len = match projected_self.noise.read_message(&noise_msg, &mut dec_msg)
+                        {
+                            Ok(len) => len,
+                            Err(_) => return Poll::Ready(Err(ErrorKind::InvalidData.into())),
+                        };
+                        projected_self.dec_storage.extend(&dec_msg[..len]);
+                    }
+                }
+            }
+
+            //an error occured, let's return it right away
             Poll::Ready(Err(err)) => return Poll::Ready(Err(err)),
         }
+
+        //check if we can return something
+        let read_len = min(buf.remaining(), projected_self.dec_storage.len());
+        if read_len > 0 {
+            buf.put_slice(
+                &projected_self
+                    .dec_storage
+                    .drain(..read_len)
+                    .collect::<Vec<u8>>(),
+            );
+            return Poll::Ready(Ok(()));
+        }
+
+        //can't return anything, schedule the wakeup and return pending
+        match projected_self.inner_stream.poll_read_ready(cx) {
+            Poll::Ready(Ok(())) => {
+                //we got data in the meantime, we can wake up immediately
+                cx.waker().wake_by_ref();
+            }
+            _ => {}
+        }
+        Poll::Pending
     }
 }
 impl AsyncWrite for NoiseStream {

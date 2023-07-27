@@ -3,6 +3,11 @@
  <!---
 TODO
 - [x] Compare mixnode, gateway, NR steps and validator of upgrading and automation and make a generic page - this one - for all of them with additional notes for particular nodes
+- [x] Include how to move a mix node from one VPS to another while keeping the delegation etc (ie init a new mix node and move `/home/nym/.nym/mixnodes/data/*` there ?)
+    - copy that dir over to the new vps
+    - re-run init - remember that init doesn't overwrite existing keys - to generate a  config with the new listening address etc
+    - change the node info via the wallet
+    - Since otherwise their keys will point to the old IP address in the smart contract, and their node will (a) not be able to be connected to, and (b) fail uptime checks 
 --->
 ## Useful commands
 
@@ -107,6 +112,32 @@ Running the command `df -H` will return the size of the various partitions of yo
 
 If the `/dev/sda` partition is almost full, try pruning some of the `.gz` syslog archives and restart your validator process.
 
+## Moving a node
+
+In case of a need to move a node from one machine to another and avoiding to lose the delegation, here are few steps how to do it.
+
+The following examples transfers a mixnode (in case of other nodes, change the `mixnodes` in the command for the `<NODE>` of your desire.
+
+* Pause your node process.
+
+Assuming both machines are remote VPS.
+
+* Make sure your `~/.ssh/<YOUR_KEY>.pub` is in both of the machines `~/.ssh/authorized_keys` file
+* Create a `mixnodes` folder in the target VPS. Ssh in from your terminal and run:
+```
+# in case none of the nym configs was created previously
+mkdir ~/.nym
+
+#in case no nym mixnode was initialized previously
+mkdir ~/.nym/mixnodes
+```
+* Move the node data (keys) and config file to the new machine by opening a local terminal (as that one's ssh key is authorized in both of the machines) and running:
+```
+scp -r <SOURCE_USER_NAME>@<SOURCE_HOST_ADDRESS>:~/.nym/mixnodes/<YOUR_ID> <TARGET_USER_NAME>@<TARGET_HOST_ADDRESS>:~/.nym/mixnodes/
+```
+* Re-run init (remember that init doesn't overwrite existing keys) to generate a config with the new listening address etc.
+* Change the node smart contract info via the wallet interface. Otherwise the keys will point to the old IP address in the smart contract, and the node will not be able to be connected, and it will fail up-time checks.
+* Re-run the node from the new location. 
 
 ## VPS Setup and Automation
 ### Configure your firewall
@@ -149,9 +180,17 @@ sudo ufw status
 
 For more information about your node's port configuration, check the [port reference table](https://nymtech.net/docs/nodes/gateway-setup.html#ports) below.
 
-### Automating your node with tmux and systemd
+### Automating your node with nohup, tmux and systemd
 
 Although it’s not totally necessary, it's useful to have the mix node automatically start at system boot time. 
+
+#### nohup
+
+`nohup` is a command with which your terminal is told to ignore the `HUP` or 'hangup' signal. This will stop the node process ending if you kill your session.
+
+```
+nohup ./<NODE> run --id <YOUR_ID> # where `<YOUR_ID>` is the id you set during the `init` command and <NODE> depends on which node you starting
+```
 
 #### tmux
 

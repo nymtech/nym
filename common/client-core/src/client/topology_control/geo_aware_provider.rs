@@ -11,6 +11,7 @@ use nym_topology::{
 use nym_validator_client::client::{MixId, MixNodeDetails};
 use url::Url;
 
+const MIN_NODES_PER_LAYER: usize = 2;
 const EXPLORER_API_MIXNODES_URL: &str = "https://explorer.nymtech.net/api/v1/mix-nodes";
 
 async fn fetch_mixnodes_from_explorer_api() -> Option<Vec<PrettyDetailedMixNodeBond>> {
@@ -132,6 +133,7 @@ impl From<&str> for CountryGroup {
 }
 
 impl CountryGroup {
+    #[allow(unused)]
     fn known(self) -> Option<CountryGroup> {
         use CountryGroup::*;
         match self {
@@ -149,10 +151,9 @@ fn group_mixnodes_by_country_code(
         .fold(HashMap::<CountryGroup, Vec<MixId>>::new(), |mut acc, m| {
             if let Some(ref location) = m.location {
                 let country_code = location.two_letter_iso_country_code.clone();
-                if let Some(group_code) = CountryGroup::from(country_code.as_str()).known() {
-                    let mixnodes = acc.entry(group_code).or_insert_with(Vec::new);
-                    mixnodes.push(m.mix_id);
-                }
+                let group_code = CountryGroup::from(country_code.as_str());
+                let mixnodes = acc.entry(group_code).or_insert_with(Vec::new);
+                mixnodes.push(m.mix_id);
             }
             acc
         })
@@ -183,7 +184,7 @@ fn check_layer_integrity(mixnodes: Vec<MixNodeDetails>) -> Result<(), ()> {
     for layer in &[Layer::One, Layer::Two, Layer::Three] {
         layer_counts.entry(*layer).or_insert(0);
         let count = layer_counts[layer];
-        if count < 2 {
+        if count < MIN_NODES_PER_LAYER {
             error!("There are only {} mixnodes in layer {:?}", count, layer);
             return Err(());
         }

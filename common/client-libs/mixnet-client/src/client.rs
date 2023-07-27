@@ -119,7 +119,7 @@ impl Client {
                     let topology_ref = match topology_permit.try_get_raw_topology_ref() {
                         Ok(topology) => topology,
                         Err(err) => {
-                            error!("Cannot connect to {address}, due to topology error - {err}");
+                            error!("Cannot perform Noise handshake to {address}, due to topology error - {err}");
                             return;
                         }
                     };

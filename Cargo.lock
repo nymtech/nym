@@ -1907,6 +1907,7 @@ dependencies = [
  "maxminddb",
  "nym-bin-common",
  "nym-contracts-common",
+ "nym-explorer-api-requests",
  "nym-mixnet-contract-common",
  "nym-network-defaults",
  "nym-task",

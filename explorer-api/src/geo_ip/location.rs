@@ -42,6 +42,18 @@ pub(crate) struct Location {
     pub(crate) longitude: Option<f64>,
 }
 
+impl Into<nym_explorer_api_requests::Location> for Location {
+    fn into(self) -> nym_explorer_api_requests::Location {
+        nym_explorer_api_requests::Location {
+            country_name: self.name,
+            two_letter_iso_country_code: self.iso_alpha2,
+            three_letter_iso_country_code: self.iso_alpha3,
+            latitude: self.latitude,
+            longitude: self.longitude,
+        }
+    }
+}
+
 impl GeoIp {
     pub fn new() -> Self {
         let db_path = std::env::var("GEOIP_DB_PATH").unwrap_or_else(|e| {

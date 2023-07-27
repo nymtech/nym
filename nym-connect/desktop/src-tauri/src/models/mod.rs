@@ -86,7 +86,6 @@ pub struct DirectoryService {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct HarbourMasterService {
     pub service_provider_client_id: String,
-    pub gateway_identity_key: String,
     pub ip_address: String,
     pub last_successful_ping_utc: String,
     pub last_updated_utc: String,
@@ -98,11 +97,9 @@ pub struct HarbourMasterService {
 pub struct DirectoryServiceProvider {
     pub id: String,
     pub description: String,
-    /// Address of the network requester in the form "<gateway_id>.<service_provider_id>"
+    /// Address of the network requester in the form "<client_id>.<client_enc>@<gateway_id>"
     /// e.g. DpB3cHAchJiNBQi5FrZx2csXb1mrHkpYh9Wzf8Rjsuko.ANNWrvHqMYuertHGHUrZdBntQhpzfbWekB39qez9U2Vx@2BuMSfMW3zpeAjKXyKLhmY4QW1DXurrtSPEJ6CjX3SEh
     pub address: String,
-    /// Address of the gateway, e.g. 2BuMSfMW3zpeAjKXyKLhmY4QW1DXurrtSPEJ6CjX3SEh
-    pub gateway: String,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -111,4 +108,10 @@ pub struct PagedResult<T> {
     pub size: u32,
     pub total: i32,
     pub items: Vec<T>,
+}
+
+#[cfg_attr(test, derive(ts_rs::TS))]
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct Gateway {
+    pub identity: String,
 }

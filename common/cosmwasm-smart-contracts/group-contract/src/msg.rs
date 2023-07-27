@@ -1,13 +1,7 @@
-// Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: Apache-2.0
-
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
-
+use cosmwasm_schema::{cw_serde, QueryResponses};
 use cw4::Member;
 
-#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
 pub struct InstantiateMsg {
     /// The admin is the only account that can update the group state.
     /// Omit it to make the group immutable.
@@ -15,8 +9,7 @@ pub struct InstantiateMsg {
     pub members: Vec<Member>,
 }
 
-#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
 pub enum ExecuteMsg {
     /// Change the admin
     UpdateAdmin { admin: Option<String> },
@@ -32,23 +25,24 @@ pub enum ExecuteMsg {
     RemoveHook { addr: String },
 }
 
-#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, JsonSchema, Debug)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
+#[derive(QueryResponses)]
 pub enum QueryMsg {
-    /// Return AdminResponse
+    #[returns(cw_controllers::AdminResponse)]
     Admin {},
-    /// Return TotalWeightResponse
-    TotalWeight {},
-    /// Returns MembersListResponse
+    #[returns(cw4::TotalWeightResponse)]
+    TotalWeight { at_height: Option<u64> },
+    #[returns(cw4::MemberListResponse)]
     ListMembers {
         start_after: Option<String>,
         limit: Option<u32>,
     },
-    /// Returns MemberResponse
+    #[returns(cw4::MemberResponse)]
     Member {
         addr: String,
         at_height: Option<u64>,
     },
-    /// Shows all registered hooks. Returns HooksResponse.
+    /// Shows all registered hooks.
+    #[returns(cw_controllers::HooksResponse)]
     Hooks {},
 }

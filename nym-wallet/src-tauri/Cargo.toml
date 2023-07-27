@@ -1,6 +1,6 @@
 [package]
 name = "nym_wallet"
-version = "1.2.5"
+version = "1.2.6"
 description = "Nym Native Wallet"
 authors = ["Nym Technologies SA"]
 license = ""
@@ -38,21 +38,21 @@ serde_json = "1.0"
 serde_repr = "0.1"
 strum = { version = "0.23", features = ["derive"] }
 tauri = { version = "=1.2.3", features = ["clipboard-all", "shell-open", "updater", "window-maximize", "window-print"] }
-tendermint-rpc = "0.23.0"
+#tendermint-rpc = "0.23.0"
 time = { version = "0.3.17", features = ["local-offset"] }
 thiserror = "1.0"
 tokio = { version = "1.10", features = ["full"] }
 toml = "0.5.8"
 url = "2.2"
-k256 = { version = "0.10", features = ["ecdsa", "sha256"] }
+k256 = { version = "0.13", features = ["ecdsa", "sha256"] }
 base64 = "0.13"
 zeroize = { version = "1.5", features = ["zeroize_derive", "serde"] }
 
-cosmwasm-std = "1.0.0"
-cosmrs = { git = "https://github.com/neacsu/cosmos-rust", branch = "neacsu/feegrant_support" }
+cosmwasm-std = "1.2.0"
+cosmrs = "=0.14.0"
 
 nym-validator-client = { path = "../../common/client-libs/validator-client", features = [
-    "nyxd-client",
+    "signing", "http-client"
 ] }
 nym-crypto = { path = "../../common/crypto", features = ["asymmetric"] }
 nym-contracts-common = { path = "../../common/cosmwasm-smart-contracts/contracts-common" }

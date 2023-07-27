@@ -9,29 +9,37 @@ use crate::nyxd::error::NyxdError;
 use crate::nyxd::fee::{Fee, DEFAULT_SIMULATED_GAS_MULTIPLIER};
 use crate::nyxd::{Coin, GasAdjustable, GasPrice, TxResponse};
 use crate::signing::signer::OfflineSigner;
-use crate::signing::tx_signer::TxSigner;
 use crate::signing::SignerData;
 use async_trait::async_trait;
+use cosmrs::abci::GasInfo;
 use cosmrs::bank::MsgSend;
 use cosmrs::distribution::MsgWithdrawDelegatorReward;
 use cosmrs::feegrant::{
     AllowedMsgAllowance, BasicAllowance, MsgGrantAllowance, MsgRevokeAllowance,
 };
 use cosmrs::proto::cosmos::tx::signing::v1beta1::SignMode;
-use cosmrs::rpc::endpoint::broadcast;
-use cosmrs::rpc::{Error as TendermintRpcError, HttpClient, HttpClientUrl, SimpleRequest};
 use cosmrs::staking::{MsgDelegate, MsgUndelegate};
-use cosmrs::tx::{self, Msg, Raw};
-use cosmrs::{cosmwasm, rpc, AccountId, Any, Tx};
+use cosmrs::tx::{self, Msg};
+use cosmrs::{cosmwasm, AccountId, Any, Tx};
 use log::debug;
 use serde::Serialize;
 use sha2::Digest;
 use sha2::Sha256;
 use std::convert::TryInto;
 use std::time::{Duration, SystemTime};
+use tendermint_rpc::endpoint::broadcast;
 
-const DEFAULT_BROADCAST_POLLING_RATE: Duration = Duration::from_secs(4);
-const DEFAULT_BROADCAST_TIMEOUT: Duration = Duration::from_secs(60);
+#[cfg(feature = "http-client")]
+use crate::signing::tx_signer::TxSigner;
+
+#[cfg(feature = "http-client")]
+use tendermint_rpc::{Error as TendermintRpcError, SimpleRequest};
+
+#[cfg(feature = "http-client")]
+use cosmrs::rpc::{HttpClient, HttpClientUrl};
+
+pub const DEFAULT_BROADCAST_POLLING_RATE: Duration = Duration::from_secs(4);
+pub const DEFAULT_BROADCAST_TIMEOUT: Duration = Duration::from_secs(60);
 
 fn empty_fee() -> tx::Fee {
     tx::Fee {
@@ -123,7 +131,10 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
             .check_response()?;
 
         let logs = parse_raw_logs(tx_res.tx_result.log)?;
-        let gas_info = GasInfo::new(tx_res.tx_result.gas_wanted, tx_res.tx_result.gas_used);
+        let gas_info = GasInfo {
+            gas_wanted: tx_res.tx_result.gas_wanted.try_into().unwrap_or_default(),
+            gas_used: tx_res.tx_result.gas_used.try_into().unwrap_or_default(),
+        };
 
         // TODO: should those strings be extracted into some constants?
         // the reason I think unwrap here is fine is that if the transaction succeeded and those
@@ -184,8 +195,10 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
             .check_response()?;
 
         let logs = parse_raw_logs(tx_res.tx_result.log)?;
-        let gas_info = GasInfo::new(tx_res.tx_result.gas_wanted, tx_res.tx_result.gas_used);
-
+        let gas_info = GasInfo {
+            gas_wanted: tx_res.tx_result.gas_wanted.try_into().unwrap_or_default(),
+            gas_used: tx_res.tx_result.gas_used.try_into().unwrap_or_default(),
+        };
         // TODO: should those strings be extracted into some constants?
         // the reason I think unwrap here is fine is that if the transaction succeeded and those
         // fields do not exist or address is malformed, there's no way we can recover, we're probably connected
@@ -212,7 +225,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
         fee: Fee,
         memo: impl Into<String> + Send + 'static,
     ) -> Result<ChangeAdminResult, NyxdError> {
-        let change_admin_msg = cosmwasm::MsgUpdateAdmin {
+        let change_admin_msg = sealed::cosmwasm::MsgUpdateAdmin {
             sender: sender_address.clone(),
             new_admin: new_admin.clone(),
             contract: contract_address.clone(),
@@ -225,8 +238,10 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
             .await?
             .check_response()?;
 
-        let gas_info = GasInfo::new(tx_res.tx_result.gas_wanted, tx_res.tx_result.gas_used);
-
+        let gas_info = GasInfo {
+            gas_wanted: tx_res.tx_result.gas_wanted.try_into().unwrap_or_default(),
+            gas_used: tx_res.tx_result.gas_used.try_into().unwrap_or_default(),
+        };
         Ok(ChangeAdminResult {
             logs: parse_raw_logs(tx_res.tx_result.log)?,
             transaction_hash: tx_res.hash,
@@ -241,7 +256,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
         fee: Fee,
         memo: impl Into<String> + Send + 'static,
     ) -> Result<ChangeAdminResult, NyxdError> {
-        let change_admin_msg = cosmwasm::MsgClearAdmin {
+        let change_admin_msg = sealed::cosmwasm::MsgClearAdmin {
             sender: sender_address.clone(),
             contract: contract_address.clone(),
         }
@@ -253,8 +268,10 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
             .await?
             .check_response()?;
 
-        let gas_info = GasInfo::new(tx_res.tx_result.gas_wanted, tx_res.tx_result.gas_used);
-
+        let gas_info = GasInfo {
+            gas_wanted: tx_res.tx_result.gas_wanted.try_into().unwrap_or_default(),
+            gas_used: tx_res.tx_result.gas_used.try_into().unwrap_or_default(),
+        };
         Ok(ChangeAdminResult {
             logs: parse_raw_logs(tx_res.tx_result.log)?,
             transaction_hash: tx_res.hash,
@@ -288,8 +305,10 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
             .await?
             .check_response()?;
 
-        let gas_info = GasInfo::new(tx_res.tx_result.gas_wanted, tx_res.tx_result.gas_used);
-
+        let gas_info = GasInfo {
+            gas_wanted: tx_res.tx_result.gas_wanted.try_into().unwrap_or_default(),
+            gas_used: tx_res.tx_result.gas_used.try_into().unwrap_or_default(),
+        };
         Ok(MigrateResult {
             logs: parse_raw_logs(tx_res.tx_result.log)?,
             transaction_hash: tx_res.hash,
@@ -323,11 +342,13 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
             .await?
             .check_response()?;
 
-        let gas_info = GasInfo::new(tx_res.tx_result.gas_wanted, tx_res.tx_result.gas_used);
-
+        let gas_info = GasInfo {
+            gas_wanted: tx_res.tx_result.gas_wanted.try_into().unwrap_or_default(),
+            gas_used: tx_res.tx_result.gas_used.try_into().unwrap_or_default(),
+        };
         Ok(ExecuteResult {
             logs: parse_raw_logs(tx_res.tx_result.log)?,
-            data: tx_res.tx_result.data,
+            data: tx_res.tx_result.data.into(),
             transaction_hash: tx_res.hash,
             gas_info,
         })
@@ -364,11 +385,13 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
             .await?
             .check_response()?;
 
-        let gas_info = GasInfo::new(tx_res.tx_result.gas_wanted, tx_res.tx_result.gas_used);
-
+        let gas_info = GasInfo {
+            gas_wanted: tx_res.tx_result.gas_wanted.try_into().unwrap_or_default(),
+            gas_used: tx_res.tx_result.gas_used.try_into().unwrap_or_default(),
+        };
         Ok(ExecuteResult {
             logs: parse_raw_logs(tx_res.tx_result.log)?,
-            data: tx_res.tx_result.data,
+            data: tx_res.tx_result.data.into(),
             transaction_hash: tx_res.hash,
             gas_info,
         })
@@ -602,7 +625,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
             .to_bytes()
             .map_err(|_| NyxdError::SerializationError("Tx".to_owned()))?;
 
-        CosmWasmClient::broadcast_tx_async(self, tx_bytes.into()).await
+        CosmWasmClient::broadcast_tx_async(self, tx_bytes).await
     }
 
     /// Broadcast a transaction, returning the response from `CheckTx`.
@@ -622,7 +645,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
             .to_bytes()
             .map_err(|_| NyxdError::SerializationError("Tx".to_owned()))?;
 
-        CosmWasmClient::broadcast_tx_sync(self, tx_bytes.into()).await
+        CosmWasmClient::broadcast_tx_sync(self, tx_bytes).await
     }
 
     /// Broadcast a transaction, returning the response from `DeliverTx`.
@@ -643,7 +666,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
             .to_bytes()
             .map_err(|_| NyxdError::SerializationError("Tx".to_owned()))?;
 
-        CosmWasmClient::broadcast_tx_commit(self, tx_bytes.into()).await
+        CosmWasmClient::broadcast_tx_commit(self, tx_bytes).await
     }
 
     /// Broadcast a transaction to the network and monitors its inclusion in a block.
@@ -664,7 +687,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
             .to_bytes()
             .map_err(|_| NyxdError::SerializationError("Tx".to_owned()))?;
 
-        self.broadcast_tx(tx_bytes.into()).await
+        self.broadcast_tx(tx_bytes).await
     }
 
     async fn sign(
@@ -709,6 +732,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
     ) -> Result<tx::Raw, NyxdError>;
 }
 
+#[cfg(feature = "http-client")]
 #[derive(Debug)]
 pub struct Client<S> {
     // TODO: somehow nicely hide this guy if we decide to use our client in offline mode,
@@ -722,6 +746,7 @@ pub struct Client<S> {
     broadcast_timeout: Duration,
 }
 
+#[cfg(feature = "http-client")]
 impl<S> Client<S> {
     pub fn connect_with_signer<U: Clone>(
         endpoint: U,
@@ -770,12 +795,13 @@ impl<S> Client<S> {
     }
 }
 
+#[cfg(feature = "http-client")]
 #[async_trait]
-impl<S> rpc::Client for Client<S>
+impl<S> tendermint_rpc::client::Client for Client<S>
 where
     S: Send + Sync,
 {
-    async fn perform<R>(&self, request: R) -> Result<R::Response, rpc::Error>
+    async fn perform<R>(&self, request: R) -> Result<R::Output, tendermint_rpc::Error>
     where
         R: SimpleRequest,
     {
@@ -783,6 +809,7 @@ where
     }
 }
 
+#[cfg(feature = "http-client")]
 #[async_trait]
 impl<S> CosmWasmClient for Client<S>
 where
@@ -797,6 +824,7 @@ where
     }
 }
 
+#[cfg(feature = "http-client")]
 #[async_trait]
 impl<S> SigningCosmWasmClient for Client<S>
 where
@@ -820,7 +848,7 @@ where
         fee: tx::Fee,
         memo: impl Into<String> + Send + 'static,
         signer_data: SignerData,
-    ) -> Result<Raw, NyxdError> {
+    ) -> Result<tx::Raw, NyxdError> {
         Ok(self
             .tx_signer
             .sign_amino(signer_address, messages, fee, memo, signer_data)?)
@@ -833,9 +861,173 @@ where
         fee: tx::Fee,
         memo: impl Into<String> + Send + 'static,
         signer_data: SignerData,
-    ) -> Result<Raw, NyxdError> {
+    ) -> Result<tx::Raw, NyxdError> {
         Ok(self
             .tx_signer
             .sign_direct(signer_address, messages, fee, memo, signer_data)?)
+    }
+}
+
+// a temporary bypass until https://github.com/cosmos/cosmos-rust/pull/419 is merged
+mod sealed {
+    pub mod cosmwasm {
+        use cosmrs::{proto, tx::Msg, AccountId, ErrorReport, Result};
+
+        /// MsgUpdateAdmin sets a new admin for a smart contract
+        #[derive(Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
+        pub struct MsgUpdateAdmin {
+            /// Sender is the that actor that signed the messages
+            pub sender: AccountId,
+
+            /// NewAdmin address to be set
+            pub new_admin: AccountId,
+
+            /// Contract is the address of the smart contract
+            pub contract: AccountId,
+        }
+
+        impl Msg for MsgUpdateAdmin {
+            type Proto = proto::cosmwasm::wasm::v1::MsgUpdateAdmin;
+        }
+
+        impl TryFrom<proto::cosmwasm::wasm::v1::MsgUpdateAdmin> for MsgUpdateAdmin {
+            type Error = ErrorReport;
+
+            fn try_from(
+                proto: proto::cosmwasm::wasm::v1::MsgUpdateAdmin,
+            ) -> Result<MsgUpdateAdmin> {
+                MsgUpdateAdmin::try_from(&proto)
+            }
+        }
+
+        impl TryFrom<&proto::cosmwasm::wasm::v1::MsgUpdateAdmin> for MsgUpdateAdmin {
+            type Error = ErrorReport;
+
+            fn try_from(
+                proto: &proto::cosmwasm::wasm::v1::MsgUpdateAdmin,
+            ) -> Result<MsgUpdateAdmin> {
+                Ok(MsgUpdateAdmin {
+                    sender: proto.sender.parse()?,
+                    new_admin: proto.new_admin.parse()?,
+                    contract: proto.contract.parse()?,
+                })
+            }
+        }
+
+        impl From<MsgUpdateAdmin> for proto::cosmwasm::wasm::v1::MsgUpdateAdmin {
+            fn from(msg: MsgUpdateAdmin) -> proto::cosmwasm::wasm::v1::MsgUpdateAdmin {
+                proto::cosmwasm::wasm::v1::MsgUpdateAdmin::from(&msg)
+            }
+        }
+
+        impl From<&MsgUpdateAdmin> for proto::cosmwasm::wasm::v1::MsgUpdateAdmin {
+            fn from(msg: &MsgUpdateAdmin) -> proto::cosmwasm::wasm::v1::MsgUpdateAdmin {
+                proto::cosmwasm::wasm::v1::MsgUpdateAdmin {
+                    sender: msg.sender.to_string(),
+                    new_admin: msg.new_admin.to_string(),
+                    contract: msg.contract.to_string(),
+                }
+            }
+        }
+
+        /// MsgUpdateAdminResponse returns empty data
+        #[derive(Clone, Copy, Debug, Eq, PartialEq, PartialOrd, Ord)]
+        pub struct MsgUpdateAdminResponse {}
+
+        impl Msg for MsgUpdateAdminResponse {
+            type Proto = proto::cosmwasm::wasm::v1::MsgUpdateAdminResponse;
+        }
+
+        impl TryFrom<proto::cosmwasm::wasm::v1::MsgUpdateAdminResponse> for MsgUpdateAdminResponse {
+            type Error = ErrorReport;
+
+            fn try_from(
+                _proto: proto::cosmwasm::wasm::v1::MsgUpdateAdminResponse,
+            ) -> Result<MsgUpdateAdminResponse> {
+                Ok(MsgUpdateAdminResponse {})
+            }
+        }
+
+        impl From<MsgUpdateAdminResponse> for proto::cosmwasm::wasm::v1::MsgUpdateAdminResponse {
+            fn from(
+                _msg: MsgUpdateAdminResponse,
+            ) -> proto::cosmwasm::wasm::v1::MsgUpdateAdminResponse {
+                proto::cosmwasm::wasm::v1::MsgUpdateAdminResponse {}
+            }
+        }
+
+        /// MsgClearAdmin removes any admin stored for a smart contract
+        #[derive(Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
+        pub struct MsgClearAdmin {
+            /// Sender is the that actor that signed the messages
+            pub sender: AccountId,
+
+            /// Contract is the address of the smart contract
+            pub contract: AccountId,
+        }
+
+        impl Msg for MsgClearAdmin {
+            type Proto = proto::cosmwasm::wasm::v1::MsgClearAdmin;
+        }
+
+        impl TryFrom<proto::cosmwasm::wasm::v1::MsgClearAdmin> for MsgClearAdmin {
+            type Error = ErrorReport;
+
+            fn try_from(proto: proto::cosmwasm::wasm::v1::MsgClearAdmin) -> Result<MsgClearAdmin> {
+                MsgClearAdmin::try_from(&proto)
+            }
+        }
+
+        impl TryFrom<&proto::cosmwasm::wasm::v1::MsgClearAdmin> for MsgClearAdmin {
+            type Error = ErrorReport;
+
+            fn try_from(proto: &proto::cosmwasm::wasm::v1::MsgClearAdmin) -> Result<MsgClearAdmin> {
+                Ok(MsgClearAdmin {
+                    sender: proto.sender.parse()?,
+                    contract: proto.contract.parse()?,
+                })
+            }
+        }
+
+        impl From<MsgClearAdmin> for proto::cosmwasm::wasm::v1::MsgClearAdmin {
+            fn from(msg: MsgClearAdmin) -> proto::cosmwasm::wasm::v1::MsgClearAdmin {
+                proto::cosmwasm::wasm::v1::MsgClearAdmin::from(&msg)
+            }
+        }
+
+        impl From<&MsgClearAdmin> for proto::cosmwasm::wasm::v1::MsgClearAdmin {
+            fn from(msg: &MsgClearAdmin) -> proto::cosmwasm::wasm::v1::MsgClearAdmin {
+                proto::cosmwasm::wasm::v1::MsgClearAdmin {
+                    sender: msg.sender.to_string(),
+                    contract: msg.contract.to_string(),
+                }
+            }
+        }
+
+        /// MsgClearAdminResponse returns empty data
+        #[derive(Clone, Copy, Debug, Eq, PartialEq, PartialOrd, Ord)]
+        pub struct MsgClearAdminResponse {}
+
+        impl Msg for MsgClearAdminResponse {
+            type Proto = proto::cosmwasm::wasm::v1::MsgClearAdminResponse;
+        }
+
+        impl TryFrom<proto::cosmwasm::wasm::v1::MsgClearAdminResponse> for MsgClearAdminResponse {
+            type Error = ErrorReport;
+
+            fn try_from(
+                _proto: proto::cosmwasm::wasm::v1::MsgClearAdminResponse,
+            ) -> Result<MsgClearAdminResponse> {
+                Ok(MsgClearAdminResponse {})
+            }
+        }
+
+        impl From<MsgClearAdminResponse> for proto::cosmwasm::wasm::v1::MsgClearAdminResponse {
+            fn from(
+                _msg: MsgClearAdminResponse,
+            ) -> proto::cosmwasm::wasm::v1::MsgClearAdminResponse {
+                proto::cosmwasm::wasm::v1::MsgClearAdminResponse {}
+            }
+        }
     }
 }

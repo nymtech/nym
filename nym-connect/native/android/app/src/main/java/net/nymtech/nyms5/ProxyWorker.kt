@@ -15,8 +15,7 @@ import androidx.work.ForegroundInfo
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
-import fuel.Fuel
-import fuel.get
+import com.github.kittinunf.fuel.Fuel
 import io.sentry.Sentry
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
@@ -110,20 +109,23 @@ class ProxyWorker(
             var serviceProvider: String? = null
             // fetch the SP list and select a random one
             try {
-                val res = Fuel.get(spUrl)
-                if (res.statusCode == 200) {
-                    val spJson = json.decodeFromString<SPListData>(res.body)
-                    serviceProvider =
-                        Random.nextInt(until = spJson.items.size)
-                            .let { spJson.items[it].service_provider_client_id }
-                    Log.d(tag, "selected service provider: $serviceProvider")
-                } else {
-                    Log.w(
-                        tag,
-                        "failed to fetch the service providers list: $res.statusCode"
-                    )
-                    Log.w(tag, "using a default service provider $defaultSp")
-                }
+                val (_, response, result) = Fuel.get(spUrl).responseString()
+                result.fold(
+                    { data ->
+                        val spJson = json.decodeFromString<SPListData>(data)
+                        serviceProvider =
+                            Random.nextInt(until = spJson.items.size)
+                                .let { spJson.items[it].service_provider_client_id }
+                        Log.d(tag, "selected service provider: $serviceProvider")
+                    },
+                    { error ->
+                        Log.w(
+                            tag,
+                            "failed to fetch the service provider list: ${response.statusCode} ${error.message}"
+                        )
+                        Log.w(tag, "using a default service provider $defaultSp")
+                    }
+                )
             } catch (e: Throwable) {
                 Log.e(
                     tag,

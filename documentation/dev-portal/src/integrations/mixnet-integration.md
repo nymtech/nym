@@ -36,7 +36,7 @@ In order to ensure uptime and reliability, it is recommended that you run some p
 
 * If you're running a purely P2P application, then just integrating clients and having some method of sharing addresses should be enough to route your traffic through the mixnet. 
 * If you're wanting to place the mixnet between your users' application instances and a server-based backend, you can use the [network requester](https://nymtech.net/docs/nodes/network-requester-setup.html) service provider binary to proxy these requests to your application backend, with the mixnet 'between' the user and your service, in order to prevent metadata leakage being broadcast to the internet. 
-* If you're wanting to route RPC requests through the mixnet to a blockchain, you will need to look into setting up some sort of service that does the transaction broadcasting for you. You can find examples of such projects on the [community applications](../community-resources/community-applications.md) page. 
+* If you're wanting to route RPC requests through the mixnet to a blockchain, you will need to look into setting up some sort of service that does the transaction broadcasting for you. You can find examples of such projects on the [community applications](../community-resources/community-applications-and-guides.md) page. 
 
 ## Example application traffic flow
 ### Initialization

@@ -10,7 +10,7 @@ pub fn secp256k1_verify_with_public_key(
     public_key_as_bytes: &[u8],
     signature_as_hex: String,
     message: String,
-) -> Result<(), k256::ecdsa::signature::Error> {
+) -> Result<(), k256::ecdsa::Error> {
     let verifying_key = VerifyingKey::from_sec1_bytes(public_key_as_bytes)?;
     let signature = Signature::from_str(&signature_as_hex)?;
     let message_as_bytes = message.into_bytes();

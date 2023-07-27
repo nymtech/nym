@@ -1,8 +1,8 @@
 [package]
 name = "cw3-flex-multisig"
-version = "0.13.1"
+version = "1.0.0"
 authors = ["Ethan Frey <ethanfrey@users.noreply.github.com>"]
-edition = "2018"
+edition = "2021"
 description = "Implementing cw3 with multiple voting patterns and dynamic groups"
 license = "Apache-2.0"
 repository = "https://github.com/CosmWasm/cw-plus"
@@ -13,6 +13,7 @@ documentation = "https://docs.cosmwasm.com"
 crate-type = ["cdylib", "rlib"]
 
 [features]
+backtraces = ["cosmwasm-std/backtraces"]
 # use library feature to disable all instantiate/execute/query exports
 library = []
 
@@ -22,15 +23,15 @@ cw2 = { workspace = true }
 cw3 = { workspace = true }
 cw3-fixed-multisig = { workspace = true, features = ["library"] }
 cw4 = { workspace = true }
+cw20 = { workspace = true }
 cw-storage-plus = { workspace = true }
 cosmwasm-std = { workspace = true }
 schemars = "0.8.1"
-serde = { version = "1.0.103", default-features = false, features = ["derive"] }
 
 nym-group-contract-common = { path = "../../../common/cosmwasm-smart-contracts/group-contract" }
 nym-multisig-contract-common = { path= "../../../common/cosmwasm-smart-contracts/multisig-contract" }
 
 [dev-dependencies]
-cosmwasm-schema = { version = "1.0.0" }
-cw4-group = { path = "../cw4-group", version = "0.13.4" }
+cw4-group = { path = "../cw4-group", version = "1.0.0" }
 cw-multi-test = { workspace = true }
+cw20-base = "1.0.0"

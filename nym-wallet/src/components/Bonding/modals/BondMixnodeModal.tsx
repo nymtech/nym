@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import { CurrencyDenom, TNodeType } from '@nymproject/types';
 import { ConfirmTx } from 'src/components/ConfirmTX';
 import { ModalListItem } from 'src/components/Modals/ModalListItem';
@@ -8,6 +8,8 @@ import { useGetFee } from 'src/hooks/useGetFee';
 import { MixnodeAmount, MixnodeData, Signature } from 'src/pages/bonding/types';
 import { simulateBondMixnode, simulateVestingBondMixnode } from 'src/requests';
 import { TBondMixNodeArgs } from 'src/types';
+import { BalanceWarning } from 'src/components/FeeWarning';
+import { AppContext } from 'src/context';
 import { BondMixnodeForm } from '../forms/BondMixnodeForm';
 import { costParamsToTauri, mixnodeToTauri } from '../utils';
 
@@ -50,6 +52,7 @@ export const BondMixnodeModal = ({
   const [signature, setSignature] = useState<string>();
 
   const { fee, getFee, resetFeeState, feeError } = useGetFee();
+  const { userBalance } = useContext(AppContext);
 
   useEffect(() => {
     if (feeError) {
@@ -125,6 +128,9 @@ export const BondMixnodeModal = ({
           value={`${amountData.amount.amount} ${amountData.amount.denom.toUpperCase()}`}
           divider
         />
+        {fee.amount?.amount && userBalance.balance && (
+          <BalanceWarning fee={fee.amount?.amount} tx={amountData.amount.amount} />
+        )}
       </ConfirmTx>
     );
   }

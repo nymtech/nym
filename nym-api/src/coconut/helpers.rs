@@ -11,7 +11,7 @@ pub(crate) fn accepted_vote_err(ret: Result<(), CoconutError>) -> Result<(), Coc
         let accepted_err =
             nym_multisig_contract_common::error::ContractError::NotOpen {}.to_string();
         // If redundant voting is not the case, error out on all other error variants
-        if !log.value().contains(&accepted_err) {
+        if !log.contains(&accepted_err) {
             ret?;
         }
     }

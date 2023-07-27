@@ -11,15 +11,13 @@ serde_json = "1.0"
 strum = { version = "0.23", features = ["derive"] }
 ts-rs = "6.1.2"
 
-cosmwasm-std = "1.0.0"
-cosmrs = { git = "https://github.com/neacsu/cosmos-rust", branch = "neacsu/feegrant_support" }
+cosmwasm-std = "1.2.0"
+cosmrs = "=0.14.0"
 
 nym-config = { path = "../../common/config" }
 nym-network-defaults = { path = "../../common/network-defaults" }
 nym-mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mixnet-contract" }
-nym-validator-client = { path = "../../common/client-libs/validator-client", features = [
-    "nyxd-client",
-] }
+nym-validator-client = { path = "../../common/client-libs/validator-client" }
 nym-vesting-contract-common = { path = "../../common/cosmwasm-smart-contracts/vesting-contract" }
 # Used for Type conversion, can be extracted but its a lot of work
 nym-vesting-contract = { path = "../../contracts/vesting" }

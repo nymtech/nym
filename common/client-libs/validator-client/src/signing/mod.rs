@@ -63,7 +63,6 @@ impl SignerData {
         }
     }
 
-    #[cfg(feature = "nyxd-client")]
     pub fn new_from_sequence_response(
         response: crate::nyxd::cosmwasm_client::types::SequenceResponse,
         chain_id: chain::Id,

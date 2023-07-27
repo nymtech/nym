@@ -6,12 +6,12 @@ const mockValues: TClientContext = {
   appVersion: 'v1.x.x',
   mode: 'dark',
   connectionStatus: ConnectionStatusKind.disconnected,
-  selectedProvider: { id: '1', description: 'Keybase service provider', gateway: 'abc123', address: '123abc' },
+  selectedProvider: { id: '1', description: 'Keybase service provider', address: '123abc' },
   gatewayPerformance: 'Good',
   showInfoModal: false,
   userDefinedGateway: { isActive: false, gateway: '' },
   userDefinedSPAddress: { isActive: false, address: '' },
-  monitoringEnabled: false,
+  userData: { monitoring: false, privacy_level: 'High' },
   setShowInfoModal: () => {},
   setMode: () => {},
   clearError: () => {},
@@ -20,10 +20,12 @@ const mockValues: TClientContext = {
   setConnectionStatus: () => {},
   startConnecting: async () => {},
   startDisconnecting: async () => {},
-  setSerivceProvider: () => {},
+  setServiceProvider: () => {},
+  setGateway: () => {},
   setUserDefinedGateway: () => {},
   setUserDefinedSPAddress: () => {},
   setMonitoring: async () => {},
+  setPrivacyLevel: async () => {},
 };
 
 export const MockProvider: FCWithChildren<{

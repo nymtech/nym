@@ -35,7 +35,7 @@ pub struct RewardDistribution {
     pub delegates: Decimal,
 }
 
-#[derive(Clone, Debug, Default, Deserialize, Serialize, JsonSchema, PartialEq)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize, JsonSchema, PartialEq, Eq)]
 pub struct PendingRewardResponse {
     pub amount_staked: Option<Coin>,
     pub amount_earned: Option<Coin>,
@@ -46,7 +46,7 @@ pub struct PendingRewardResponse {
     pub mixnode_still_fully_bonded: bool,
 }
 
-#[derive(Clone, Debug, Default, Deserialize, Serialize, JsonSchema, PartialEq)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize, JsonSchema, PartialEq, Eq)]
 pub struct EstimatedCurrentEpochRewardResponse {
     pub original_stake: Option<Coin>,
 

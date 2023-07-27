@@ -38,6 +38,7 @@ use wasm_utils::websocket::JSWebsocket;
 #[cfg(target_arch = "wasm32")]
 type WsConn = JSWebsocket;
 
+const CONCURRENT_GATEWAYS_MEASURED: usize = 20;
 const MEASUREMENTS: usize = 3;
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -158,23 +159,29 @@ pub(super) async fn choose_gateway_by_latency<R: Rng>(
     rng: &mut R,
     gateways: &[gateway::Node],
 ) -> Result<gateway::Node, ClientCoreError> {
-    info!("choosing gateway by latency...");
+    info!(
+        "choosing gateway by latency, pinging {} gateways ...",
+        gateways.len()
+    );
 
-    let mut gateways_with_latency = Vec::new();
-    for gateway in gateways {
-        let id = *gateway.identity();
-        trace!("measuring latency to {id}...");
-        let with_latency = match measure_latency(gateway).await {
-            Ok(res) => res,
-            Err(err) => {
-                warn!("failed to measure {id}: {err}");
-                continue;
-            }
-        };
-        debug!("{id}: {:?}", with_latency.latency);
-        gateways_with_latency.push(with_latency)
-    }
+    let gateways_with_latency = Arc::new(tokio::sync::Mutex::new(Vec::new()));
+    futures::stream::iter(gateways)
+        .for_each_concurrent(CONCURRENT_GATEWAYS_MEASURED, |gateway| async {
+            let id = *gateway.identity();
+            trace!("measuring latency to {id}...");
+            match measure_latency(gateway).await {
+                Ok(with_latency) => {
+                    debug!("{id}: {:?}", with_latency.latency);
+                    gateways_with_latency.lock().await.push(with_latency);
+                }
+                Err(err) => {
+                    warn!("failed to measure {id}: {err}");
+                }
+            };
+        })
+        .await;
 
+    let gateways_with_latency = gateways_with_latency.lock().await;
     let chosen = gateways_with_latency
         .choose_weighted(rng, |item| 1. / item.latency.as_secs_f32())
         .expect("invalid selection weight!");

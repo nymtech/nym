@@ -107,4 +107,4 @@ The following code shows how you can use the SDK to create and use a [credential
 {{#include ../../../../sdk/rust/nym-sdk/examples/bandwidth.rs}}
 ```
 
-You can read more about Coconut credentials (also referred to as `zk-Nym`) [here](../cococnut.md).
+You can read more about Coconut credentials (also referred to as `zk-Nym`) [here](../coconut.md).

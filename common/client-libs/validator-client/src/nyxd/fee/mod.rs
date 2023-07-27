@@ -116,8 +116,8 @@ impl GasAdjustable for Gas {
         if adjustment == 1.0 {
             *self
         } else {
-            let adjusted = (self.value() as f32 * adjustment).ceil();
-            (adjusted as u64).into()
+            let adjusted = (*self as f32 * adjustment).ceil();
+            adjusted as u64
         }
     }
 }
@@ -125,48 +125,15 @@ impl GasAdjustable for Gas {
 // a workaround to provide serde implementation for tx::Fee. We don't want to ever expose any of those
 // types to the public and ideally they will get replaced by proper implementation inside comrs
 mod sealed {
-    use cosmrs::tx::{self, Gas};
-    use cosmrs::Coin as CosmosCoin;
-    use cosmrs::{AccountId, Decimal as CosmosDecimal, Denom as CosmosDenom};
+    use cosmrs::tx::{self};
+    use cosmrs::{AccountId, Denom as CosmosDenom};
+    use cosmrs::{Coin as CosmosCoin, Gas};
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
-
-    fn cosmos_denom_inner_getter(val: &CosmosDenom) -> String {
-        val.as_ref().to_string()
-    }
-
-    #[derive(Serialize, Deserialize)]
-    #[serde(remote = "CosmosDenom")]
-    struct Denom(#[serde(getter = "cosmos_denom_inner_getter")] String);
-
-    impl From<Denom> for CosmosDenom {
-        fn from(val: Denom) -> Self {
-            val.0.parse().unwrap()
-        }
-    }
-
-    fn cosmos_decimal_inner_getter(val: &CosmosDecimal) -> u64 {
-        // haha, this code is so disgusting. I'll make a PR on cosmrs to slightly alleviate those issues...
-        // note: unwrap here is fine as the to_string is just returning a stringified u64 which, well, is a valid u64
-        val.to_string().parse().unwrap()
-    }
-
-    // at the time of writing it the current cosmrs' Decimal is extremely limited...
-    #[derive(Serialize, Deserialize)]
-    #[serde(remote = "CosmosDecimal")]
-    struct Decimal(#[serde(getter = "cosmos_decimal_inner_getter")] u64);
-
-    impl From<Decimal> for CosmosDecimal {
-        fn from(val: Decimal) -> Self {
-            val.0.into()
-        }
-    }
 
     #[derive(Serialize, Deserialize, Clone)]
     struct Coin {
-        #[serde(with = "Denom")]
         denom: CosmosDenom,
-        #[serde(with = "Decimal")]
-        amount: CosmosDecimal,
+        amount: u128,
     }
 
     impl From<Coin> for CosmosCoin {

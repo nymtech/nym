@@ -19,7 +19,7 @@ jobs:
 
     outputs:
       release_id: ${{ steps.create-release.outputs.id }}
-      release_date: ${{ fromJSON(steps.create-release.outputs.assets)[0].published_at }}
+      release_date: ${{ fromJSON(steps.create-release.outputs.assets)[0].created_at }}
       version: ${{ steps.release-info.outputs.version }}
       filename: ${{ steps.release-info.outputs.filename }}
       file_hash: ${{ steps.release-info.outputs.file_hash }}
@@ -96,12 +96,14 @@ jobs:
           files: |
             nym-wallet/target/release/bundle/msi/*.msi
             nym-wallet/target/release/bundle/msi/*.msi.zip*
+
       - id: release-info
         name: Prepare release info
         run: |
-          semver="${${{ github.ref_name }}##nym-wallet-}" && semver="${semver##v}"
-          echo "version=$semver" >> "$GITHUB_OUTPUT"
-          echo "filename=nym-wallet_$version_x64_en-US.msi" >> "$GITHUB_OUTPUT"
+          ref=${{ github.ref_name }}
+          semver="${ref##nym-wallet-}" && semver="${semver##v}"
+          echo "version=${semver}" >> "$GITHUB_OUTPUT"
+          echo "filename=nym-wallet_${version}_x64_en-US.msi" >> "$GITHUB_OUTPUT"
           echo "file_hash=${{ hashFiles('nym-wallet/target/release/bundle/msi/nym-wallet_*_x64_en-US.msi') }}" >> "$GITHUB_OUTPUT"
 
   push-release-data:

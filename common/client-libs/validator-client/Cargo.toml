@@ -35,27 +35,30 @@ nym-coconut-interface = { path = "../../coconut-interface" }
 nym-network-defaults = { path = "../../network-defaults" }
 nym-api-requests = { path = "../../../nym-api/nym-api-requests" }
 
-# required for nyxd-client
-# at some point it might be possible to make it wasm-compatible
-# perhaps after https://github.com/cosmos/cosmos-rust/pull/97 is resolved (and tendermint-rs is updated)
-async-trait = { workspace = true, optional = true }
+async-trait = { workspace = true }
 bip39 = { workspace = true, features = ["rand"], optional = true }
-nym-config = { path = "../../config", optional = true }
-cosmrs = { git = "https://github.com/neacsu/cosmos-rust", branch = "neacsu/feegrant_support", features = ["rpc", "bip32", "cosmwasm"], optional = true }
+nym-config = { path = "../../config" }
+cosmrs = { workspace = true, features = ["bip32", "cosmwasm"] }
+#cosmrs = { workspace = true, features = ["bip32", "rpc", "cosmwasm"], optional = true }
 # note that this has the same version as used by cosmrs
+
+# import it just for the `Client` trait
+tendermint-rpc = { workspace = true }
+
 eyre = { version = "0.6", optional = true }
-cw3 = { workspace = true, optional = true }
-cw4 = { workspace = true, optional = true }
-prost = { version = "0.10", default-features = false, optional = true }
-flate2 = { version = "1.0.20", optional = true }
-sha2 = { version = "0.9.5", optional = true }
-itertools = { version = "0.10", optional = true }
+cw3 = { workspace = true }
+cw4 = { workspace = true }
+prost = { version = "0.11", default-features = false }
+flate2 = { version = "1.0.20" }
+sha2 = { version = "0.9.5" }
+itertools = { version = "0.10" }
 zeroize = { version = "1.5.7", optional = true, features = ["zeroize_derive"] }
-cosmwasm-std = { workspace = true, optional = true }
+cosmwasm-std = { workspace = true }
 
 [dev-dependencies]
 bip39 = { workspace = true }
-cosmrs = { git = "https://github.com/neacsu/cosmos-rust", branch = "neacsu/feegrant_support", features = ["rpc", "bip32"] }
+#cosmrs = { workspace = true, features = ["rpc", "bip32"] }
+cosmrs = { workspace = true, features = ["bip32"] }
 tokio = { version = "1.24.1", features = ["rt-multi-thread", "macros"] }
 ts-rs = "6.1.2"
 
@@ -64,35 +67,23 @@ name = "offline_signing"
 # it should only really require the "signing" feature,
 # but that would require another round of refactoring to make it possible
 # (traits would need to be moved around and refactored themselves)
-required-features = ["nyxd-client"]
+required-features = ["http-client", "signing"]
 
 [[example]]
 name = "query_service_provider_directory"
-required-features = ["nyxd-client"]
+# TODO: validate the requirements
+required-features = ["http-client", "signing"]
 
 [[example]]
 name = "query_name_service"
-required-features = ["nyxd-client"]
+# TODO: validate the requirements
+required-features = ["http-client", "signing"]
 
 [features]
-nyxd-client = [
-    "async-trait",
-    "cosmrs",
-    "cosmwasm-std",
-    "cw3",
-    "cw4",
-    "flate2",
-    "itertools",
-    "openssl",
-    "prost",
-    "sha2",
-    "signing"
-]
+http-client = ["cosmrs/rpc", "openssl"]
 signing = [
     "bip39",
-    "cosmrs",
     "eyre",
-    "nym-config",
     "zeroize"
 ]
 generate-ts = []

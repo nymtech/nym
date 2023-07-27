@@ -5,8 +5,8 @@ use crate::error::BackendError;
 use crate::state::WalletState;
 use nym_mixnet_contract_common::MixId;
 use nym_types::transaction::TransactionExecuteResult;
+use nym_validator_client::nyxd::traits::VestingSigningClient;
 use nym_validator_client::nyxd::Fee;
-use nym_validator_client::nyxd::VestingSigningClient;
 
 #[tauri::command]
 pub async fn vesting_claim_operator_reward(

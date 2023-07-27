@@ -104,16 +104,17 @@ impl FernExt for fern::Dispatch {
     }
 
     fn filter_lowlevel_external_components(self) -> Self {
-        self.level_for("hyper", log::LevelFilter::Warn)
-            .level_for("tokio_reactor", log::LevelFilter::Warn)
-            .level_for("reqwest", log::LevelFilter::Warn)
+        self.level_for("handlebars", log::LevelFilter::Warn)
+            .level_for("hyper", log::LevelFilter::Warn)
             .level_for("mio", log::LevelFilter::Warn)
-            .level_for("want", log::LevelFilter::Warn)
-            .level_for("sled", log::LevelFilter::Warn)
-            .level_for("tungstenite", log::LevelFilter::Warn)
-            .level_for("tokio_tungstenite", log::LevelFilter::Warn)
+            .level_for("reqwest", log::LevelFilter::Warn)
             .level_for("rustls", log::LevelFilter::Warn)
+            .level_for("sled", log::LevelFilter::Warn)
+            .level_for("tokio_reactor", log::LevelFilter::Warn)
+            .level_for("tokio_tungstenite", log::LevelFilter::Warn)
             .level_for("tokio_util", log::LevelFilter::Warn)
+            .level_for("tungstenite", log::LevelFilter::Warn)
+            .level_for("want", log::LevelFilter::Warn)
     }
 }
 

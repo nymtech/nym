@@ -27,7 +27,7 @@ impl TryFrom<APDUAnswer<Vec<u8>>> for AddrSecp256k1Response {
         }
 
         let (pub_key, addr) = bytes.split_at(33);
-        let public_key = k256::PublicKey::from_bytes(
+        let public_key = PublicKey::from_bytes(
             PublicKeyBytes::try_from(pub_key).expect("Public key should be 33 bytes"),
         )?;
         let address = String::from_utf8(addr.to_vec()).unwrap();

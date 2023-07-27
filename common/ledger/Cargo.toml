@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-bip32 = "0.4.0"
+bip32 = "0.5.1"
 k256 = { workspace = true }
 ledger-transport = "0.10.0"
 ledger-transport-hid = "0.10.0"

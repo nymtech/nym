@@ -11,6 +11,7 @@ import { decCoinToDisplay, validateAmount } from 'src/utils';
 import { simulateUpdateBond, simulateVestingUpdateBond } from 'src/requests';
 import { TSimulateUpdateBondArgs, TUpdateBondArgs } from 'src/types';
 import { AppContext, TBondedMixnode } from 'src/context';
+import { BalanceWarning } from 'src/components/FeeWarning';
 import { TPoolOption } from '../../TokenPoolSelector';
 
 export const UpdateBondAmountModal = ({
@@ -30,7 +31,7 @@ export const UpdateBondAmountModal = ({
   const [newBond, setNewBond] = useState<DecCoin | undefined>();
   const [errorAmount, setErrorAmount] = useState(false);
 
-  const { printBalance, printVestedBalance } = useContext(AppContext);
+  const { printBalance, printVestedBalance, userBalance } = useContext(AppContext);
 
   useEffect(() => {
     if (feeError) {
@@ -104,6 +105,11 @@ export const UpdateBondAmountModal = ({
       >
         <ModalListItem label="New bond details" value={newBondToDisplay()} divider />
         <ModalListItem label="Change bond details" value={`${currentBond.amount} ${currentBond.denom}`} divider />
+        {userBalance.balance?.amount.amount && fee?.amount?.amount && (
+          <Box sx={{ my: 2 }}>
+            <BalanceWarning fee={fee?.amount?.amount} tx={newBond?.amount} />
+          </Box>
+        )}
       </ConfirmTx>
     );
 

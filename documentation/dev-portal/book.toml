@@ -1,6 +1,6 @@
 [book]
 title = "Nym Developer Portal"
-authors = ["Max Hampshire"]
+authors = ["Max Hampshire, Serinko, Alexia Lorenza Martinel"]
 language = "en"
 multilingual = false
 src = "src"
@@ -47,10 +47,10 @@ assets_version = "2.0.0" # do not edit: managed by `mdbook-admonish install`
 # variables preprocessor: import variables into files
 # https://gitlab.com/tglman/mdbook-variables/
 [preprocessor.variables.variables]
-# code prerequisites versions
 minimum_rust_version = "1.66"
-# TODO remove this in place of develop in next release
-platform_release_version = "v1.1.21"
+# vars for links: TODO think on how to streamline updating
+platform_release_version = "v1.1.25"
+wallet_release_version = "v1.2.7"
 
 [preprocessor.last-changed]
 command = "mdbook-last-changed"

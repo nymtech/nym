@@ -22,7 +22,7 @@ export const Default: ComponentStory<typeof Connected> = () => (
       status={ConnectionStatusKind.connected}
       connectedSince={DateTime.now()}
       ipAddress="127.0.0.1"
-      serviceProvider={{ id: 'service 1', description: 'good services', address: 'abc123', gateway: '8910xyz' }}
+      serviceProvider={{ id: 'service 1', description: 'good services', address: 'abc123' }}
       port={1080}
       stats={[
         {

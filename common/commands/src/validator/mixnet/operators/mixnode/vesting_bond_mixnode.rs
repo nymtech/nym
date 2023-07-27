@@ -11,7 +11,7 @@ use nym_mixnet_contract_common::{MixNode, Percent};
 use nym_network_defaults::{
     DEFAULT_HTTP_API_LISTENING_PORT, DEFAULT_MIX_LISTENING_PORT, DEFAULT_VERLOC_LISTENING_PORT,
 };
-use nym_validator_client::nyxd::{CosmWasmCoin, VestingSigningClient};
+use nym_validator_client::nyxd::{traits::VestingSigningClient, CosmWasmCoin};
 
 #[derive(Debug, Parser)]
 pub struct Args {

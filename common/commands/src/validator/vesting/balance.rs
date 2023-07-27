@@ -5,7 +5,7 @@ use clap::Parser;
 use cosmrs::AccountId;
 use log::{error, info};
 
-use nym_validator_client::nyxd::{Coin, VestingQueryClient};
+use nym_validator_client::nyxd::{traits::VestingQueryClient, Coin};
 
 use crate::context::QueryClient;
 use crate::utils::show_error;

@@ -103,7 +103,6 @@ fn main() {
             utils::owns_gateway,
             utils::owns_mixnode,
             utils::get_env,
-            utils::get_old_and_incorrect_hardcoded_fee,
             utils::try_convert_pubkey_to_mix_id,
             utils::default_mixnode_cost_params,
             nym_api::status::compute_mixnode_reward_estimation,

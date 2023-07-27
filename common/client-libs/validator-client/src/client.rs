@@ -16,37 +16,35 @@ pub use nym_mixnet_contract_common::{
 };
 use url::Url;
 
-#[cfg(feature = "nyxd-client")]
 use crate::nyxd::traits::{DkgQueryClient, MixnetQueryClient};
-#[cfg(feature = "nyxd-client")]
-use crate::nyxd::{self, CosmWasmClient, NyxdClient, QueryNyxdClient, SigningNyxdClient};
-#[cfg(feature = "nyxd-client")]
-use crate::signing::direct_wallet::DirectSecp256k1HdWallet;
-#[cfg(feature = "nyxd-client")]
+#[cfg(feature = "http-client")]
+use crate::nyxd::QueryNyxdClient;
+use crate::nyxd::{self, CosmWasmClient, NyxdClient};
 use nym_api_requests::models::MixNodeBondAnnotated;
-#[cfg(feature = "nyxd-client")]
 use nym_coconut_dkg_common::{types::EpochId, verification_key::ContractVKShare};
-#[cfg(feature = "nyxd-client")]
 use nym_coconut_interface::Base58;
-#[cfg(feature = "nyxd-client")]
 use nym_mixnet_contract_common::{
     families::{Family, FamilyHead},
     mixnode::MixNodeBond,
     pending_events::{PendingEpochEvent, PendingIntervalEvent},
     Delegation, RewardedSetNodeStatus, UnbondedMixnode,
 };
-#[cfg(feature = "nyxd-client")]
 use nym_network_defaults::NymNetworkDetails;
-#[cfg(feature = "nyxd-client")]
 use std::str::FromStr;
 
-#[cfg(feature = "nyxd-client")]
+#[cfg(all(feature = "signing", feature = "http-client"))]
+use crate::nyxd::SigningNyxdClient;
+#[cfg(all(feature = "signing", feature = "http-client"))]
+use crate::signing::direct_wallet::DirectSecp256k1HdWallet;
+
 #[must_use]
 #[derive(Debug, Clone)]
 pub struct Config {
     api_url: Url,
     nyxd_url: Url,
 
+    // TODO: until refactored, this is a dead field under some features
+    #[allow(dead_code)]
     nyxd_config: nyxd::Config,
 
     mixnode_page_limit: Option<u32>,
@@ -55,7 +53,6 @@ pub struct Config {
     rewarded_set_page_limit: Option<u32>,
 }
 
-#[cfg(feature = "nyxd-client")]
 impl Config {
     pub fn try_from_nym_network_details(
         details: &NymNetworkDetails,
@@ -119,7 +116,6 @@ impl Config {
     }
 }
 
-#[cfg(feature = "nyxd-client")]
 pub struct Client<C> {
     mixnode_page_limit: Option<u32>,
     gateway_page_limit: Option<u32>,
@@ -131,7 +127,7 @@ pub struct Client<C> {
     pub nyxd: NyxdClient<C>,
 }
 
-#[cfg(feature = "nyxd-client")]
+#[cfg(all(feature = "signing", feature = "http-client"))]
 impl Client<SigningNyxdClient<DirectSecp256k1HdWallet>> {
     pub fn new_signing(
         config: Config,
@@ -165,7 +161,7 @@ impl Client<SigningNyxdClient<DirectSecp256k1HdWallet>> {
     }
 }
 
-#[cfg(feature = "nyxd-client")]
+#[cfg(feature = "http-client")]
 impl Client<QueryNyxdClient> {
     pub fn new_query(config: Config) -> Result<Client<QueryNyxdClient>, ValidatorClientError> {
         let nym_api_client = nym_api::Client::new(config.api_url.clone());
@@ -189,7 +185,6 @@ impl Client<QueryNyxdClient> {
 }
 
 // nyxd wrappers
-#[cfg(feature = "nyxd-client")]
 impl<C> Client<C> {
     // use case: somebody initialised client without a contract in order to upload and initialise one
     // and now they want to actually use it without making new client
@@ -572,7 +567,6 @@ impl<C> Client<C> {
 }
 
 // validator-api wrappers
-#[cfg(feature = "nyxd-client")]
 impl<C> Client<C> {
     pub fn change_nym_api(&mut self, new_endpoint: Url) {
         self.nym_api.change_url(new_endpoint)
@@ -635,11 +629,9 @@ pub struct CoconutApiClient {
     pub api_client: NymApiClient,
     pub verification_key: VerificationKey,
     pub node_id: NodeIndex,
-    #[cfg(feature = "nyxd-client")]
     pub cosmos_address: cosmrs::AccountId,
 }
 
-#[cfg(feature = "nyxd-client")]
 impl CoconutApiClient {
     pub async fn all_coconut_api_clients<C>(
         client: &C,

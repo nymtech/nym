@@ -1,19 +1,17 @@
-use std::cmp::Ordering;
-
 use crate::error::BackendError;
 use crate::nyxd_client;
+use crate::operations::helpers::{
+    verify_gateway_bonding_sign_payload, verify_mixnode_bonding_sign_payload,
+};
 use crate::state::WalletState;
 use crate::{Gateway, MixNode};
 use nym_contracts_common::signing::MessageSignature;
 use nym_mixnet_contract_common::{GatewayConfigUpdate, MixNodeConfigUpdate};
-
-use crate::operations::helpers::{
-    verify_gateway_bonding_sign_payload, verify_mixnode_bonding_sign_payload,
-};
 use nym_types::currency::DecCoin;
 use nym_types::mixnode::MixNodeCostParams;
 use nym_types::transaction::TransactionExecuteResult;
-use nym_validator_client::nyxd::{Fee, VestingSigningClient};
+use nym_validator_client::nyxd::{traits::VestingSigningClient, Fee};
+use std::cmp::Ordering;
 
 #[tauri::command]
 pub async fn vesting_bond_gateway(

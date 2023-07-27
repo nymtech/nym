@@ -4,7 +4,10 @@
 use clap::Parser;
 use log::info;
 
-use nym_validator_client::nyxd::{Coin, VestingQueryClient, VestingSigningClient};
+use nym_validator_client::nyxd::{
+    traits::{VestingQueryClient, VestingSigningClient},
+    Coin,
+};
 
 use crate::context::SigningClient;
 use crate::utils::show_error;

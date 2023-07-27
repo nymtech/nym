@@ -37,8 +37,8 @@ export const PrivacyLevelSettings = () => {
               label="Enable"
             />
             <FormHelperText sx={{ m: 0, my: 2 }}>
-              By activating this option, the connection speed will be relatively faster in exchange of relaxing some
-              protections
+              By activating this option, the connection speed will be relatively faster in exchange for relaxing some
+              privacy protections
             </FormHelperText>
           </FormControl>
         </Box>

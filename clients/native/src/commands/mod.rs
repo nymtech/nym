@@ -10,7 +10,7 @@ use clap::CommandFactory;
 use clap::{Parser, Subcommand};
 use lazy_static::lazy_static;
 use log::{error, info};
-use nym_bin_common::build_information::BinaryBuildInformation;
+use nym_bin_common::bin_info;
 use nym_bin_common::completions::{fig_generate, ArgShell};
 use nym_client_core::client::base_client::storage::gateway_details::{
     OnDiskGatewayDetails, PersistedGatewayDetails,
@@ -22,12 +22,12 @@ use nym_config::OptionalSet;
 use std::error::Error;
 use std::net::IpAddr;
 
+pub(crate) mod build_info;
 pub(crate) mod init;
 pub(crate) mod run;
 
 lazy_static! {
-    pub static ref PRETTY_BUILD_INFORMATION: String =
-        BinaryBuildInformation::new(env!("CARGO_PKG_VERSION")).pretty_print();
+    pub static ref PRETTY_BUILD_INFORMATION: String = bin_info!().pretty_print();
 }
 
 // Helper for passing LONG_VERSION to clap
@@ -42,6 +42,10 @@ pub(crate) struct Cli {
     #[clap(short, long)]
     pub(crate) config_env_file: Option<std::path::PathBuf>,
 
+    /// Flag used for disabling the printed banner in tty.
+    #[clap(long)]
+    pub(crate) no_banner: bool,
+
     #[clap(subcommand)]
     command: Commands,
 }
@@ -53,6 +57,9 @@ pub(crate) enum Commands {
 
     /// Run the Nym client with provided configuration client optionally overriding set parameters
     Run(run::Run),
+
+    /// Show build information of this binary
+    BuildInfo(build_info::BuildInfo),
 
     /// Generate shell completions
     Completions(ArgShell),
@@ -73,12 +80,13 @@ pub(crate) struct OverrideConfig {
     enabled_credentials_mode: Option<bool>,
 }
 
-pub(crate) async fn execute(args: &Cli) -> Result<(), Box<dyn Error + Send + Sync>> {
+pub(crate) async fn execute(args: Cli) -> Result<(), Box<dyn Error + Send + Sync>> {
     let bin_name = "nym-native-client";
 
-    match &args.command {
-        Commands::Init(m) => init::execute(m).await?,
-        Commands::Run(m) => run::execute(m).await?,
+    match args.command {
+        Commands::Init(m) => init::execute(&m).await?,
+        Commands::Run(m) => run::execute(&m).await?,
+        Commands::BuildInfo(m) => build_info::execute(m),
         Commands::Completions(s) => s.generate(&mut Cli::command(), bin_name),
         Commands::GenerateFigSpec => fig_generate(&mut Cli::command(), bin_name),
     }

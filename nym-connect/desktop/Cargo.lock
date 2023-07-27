@@ -2597,17 +2597,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "hostname"
-version = "0.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3c731c3e10504cc8ed35cfe2f1db4c9274c3d35fa486e3b31df46f068ef3e867"
-dependencies = [
- "libc",
- "match_cfg",
- "winapi",
-]
-
-[[package]]
 name = "html5ever"
 version = "0.25.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3669,7 +3658,7 @@ dependencies = [
 
 [[package]]
 name = "nym-connect"
-version = "1.1.13"
+version = "1.1.15"
 dependencies = [
  "anyhow",
  "bip39",
@@ -4179,6 +4168,8 @@ dependencies = [
 name = "nym-sphinx-types"
 version = "0.2.0"
 dependencies = [
+ "nym-outfox",
+ "sphinx-packet",
  "thiserror",
 ]
 

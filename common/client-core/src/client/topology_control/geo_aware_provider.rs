@@ -9,6 +9,8 @@ use nym_topology::{
     NymTopology,
 };
 use nym_validator_client::client::{MixId, MixNodeDetails};
+use rand::{prelude::SliceRandom, thread_rng};
+use serde::{Deserialize, Serialize};
 use url::Url;
 
 const MIN_NODES_PER_LAYER: usize = 2;
@@ -23,7 +25,7 @@ async fn fetch_mixnodes_from_explorer_api() -> Option<Vec<PrettyDetailedMixNodeB
         .ok()
 }
 
-#[derive(Hash, PartialEq, Eq)]
+#[derive(Copy, Clone, Hash, PartialEq, Eq, Serialize, Deserialize, Debug)]
 pub enum CountryGroup {
     Europe,
     NorthAmerica,
@@ -195,13 +197,23 @@ fn check_layer_integrity(mixnodes: Vec<MixNodeDetails>) -> Result<(), ()> {
 pub struct GeoAwareTopologyProvider {
     validator_client: nym_validator_client::client::NymApiClient,
     filter_on: CountryGroup,
+    client_version: String,
 }
 
 impl GeoAwareTopologyProvider {
-    pub fn new(nym_api_url: Url, filter_on: CountryGroup) -> GeoAwareTopologyProvider {
+    pub fn new(
+        mut nym_api_urls: Vec<Url>,
+        client_version: String,
+        filter_on: CountryGroup,
+    ) -> GeoAwareTopologyProvider {
+        nym_api_urls.shuffle(&mut thread_rng());
+
         GeoAwareTopologyProvider {
-            validator_client: nym_validator_client::client::NymApiClient::new(nym_api_url),
+            validator_client: nym_validator_client::client::NymApiClient::new(
+                nym_api_urls[0].clone(),
+            ),
             filter_on,
+            client_version,
         }
     }
 
@@ -248,10 +260,13 @@ impl GeoAwareTopologyProvider {
             .filter(|m| filtered_mixnode_ids.contains(&m.mix_id()))
             .collect::<Vec<_>>();
 
-        // TODO: return real error type
-        check_layer_integrity(mixnodes.clone()).ok()?;
+        let topology = nym_topology_from_detailed(mixnodes, gateways)
+            .filter_system_version(&self.client_version);
 
-        Some(nym_topology_from_detailed(mixnodes, gateways))
+        // TODO: return real error type
+        check_layer_integrity(topology.clone()).ok()?;
+
+        Some(topology)
     }
 }
 

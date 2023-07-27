@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use url::Url;
 
-use crate::error::ClientCoreError;
+use crate::{client::topology_control::geo_aware_provider::CountryGroup, error::ClientCoreError};
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
@@ -466,6 +466,16 @@ pub struct Topology {
     /// the first valid instance.
     /// Supersedes `topology_refresh_rate_ms`.
     pub disable_refreshing: bool,
+
+    /// Specifies the mixnode topology to be used for sending packets.
+    pub topology_structure: TopologyStructure,
+}
+
+#[derive(Default, Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub enum TopologyStructure {
+    #[default]
+    NymApi,
+    GeoAware(CountryGroup),
 }
 
 impl Default for Topology {
@@ -474,6 +484,7 @@ impl Default for Topology {
             topology_refresh_rate: DEFAULT_TOPOLOGY_REFRESH_RATE,
             topology_resolution_timeout: DEFAULT_TOPOLOGY_RESOLUTION_TIMEOUT,
             disable_refreshing: false,
+            topology_structure: TopologyStructure::default(),
         }
     }
 }

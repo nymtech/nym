@@ -12,5 +12,7 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
+
 rootProject.name = "nyms5"
-include ':app'
+include(":app")
+ 

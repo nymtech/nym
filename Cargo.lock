@@ -3783,6 +3783,7 @@ dependencies = [
  "nym-config",
  "nym-credential-storage",
  "nym-crypto",
+ "nym-explorer-api-requests",
  "nym-gateway-client",
  "nym-gateway-requests",
  "nym-network-defaults",
@@ -3793,6 +3794,7 @@ dependencies = [
  "nym-topology",
  "nym-validator-client",
  "rand 0.7.3",
+ "reqwest",
  "serde",
  "serde_json",
  "sha2 0.10.6",
@@ -4003,6 +4005,18 @@ version = "0.1.0"
 dependencies = [
  "quote",
  "syn 1.0.109",
+]
+
+[[package]]
+name = "nym-explorer-api-requests"
+version = "0.1.0"
+dependencies = [
+ "nym-contracts-common",
+ "nym-mixnet-contract-common",
+ "nym-validator-client",
+ "schemars",
+ "serde",
+ "ts-rs",
 ]
 
 [[package]]

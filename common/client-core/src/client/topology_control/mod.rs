@@ -11,6 +11,7 @@ use std::time::Duration;
 
 mod accessor;
 pub(crate) mod nym_api_provider;
+pub mod geo_aware_provider;
 
 // TODO: move it to config later
 const MAX_FAILURE_COUNT: usize = 10;

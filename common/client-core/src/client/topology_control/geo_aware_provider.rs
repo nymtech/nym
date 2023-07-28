@@ -126,7 +126,7 @@ impl CountryGroup {
             "SOUTHAMERICA" => SouthAmerica,
             "OCEANIA" => Oceania,
             "ASIA" => Asia,
-            "AFRIKA" => Africa,
+            "AFRICA" => Africa,
 
             _ => {
                 info!("Unknown country code: {}", country_code);

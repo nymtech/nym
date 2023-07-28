@@ -300,7 +300,17 @@ impl GeoAwareTopologyProvider {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 #[async_trait]
+impl TopologyProvider for GeoAwareTopologyProvider {
+    // this will be manually refreshed on a timer specified inside mixnet client config
+    async fn get_new_topology(&mut self) -> Option<NymTopology> {
+        self.get_topology().await
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+#[async_trait(?Send)]
 impl TopologyProvider for GeoAwareTopologyProvider {
     // this will be manually refreshed on a timer specified inside mixnet client config
     async fn get_new_topology(&mut self) -> Option<NymTopology> {

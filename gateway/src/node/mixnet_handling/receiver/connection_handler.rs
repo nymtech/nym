@@ -3,7 +3,6 @@
 
 use crate::node::client_handling::active_clients::ActiveClientsStore;
 use crate::node::client_handling::websocket::message_receiver::MixMessageSender;
-use crate::node::encryption::{PRIVATE_KEY_SIZE, PUBLIC_KEY_SIZE};
 use crate::node::mixnet_handling::receiver::packet_processing::PacketProcessor;
 use crate::node::storage::error::StorageError;
 use crate::node::storage::Storage;
@@ -13,7 +12,7 @@ use nym_client_core::client::topology_control::accessor::TopologyAccessor;
 use nym_crypto::asymmetric::encryption;
 use nym_mixnet_client::forwarder::MixForwardingSender;
 use nym_mixnode_common::packet_processor::processor::ProcessedFinalHop;
-use nym_noise::upgrade_noise_responder;
+use nym_noise::upgrade_noise_responder_with_topology;
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_sphinx::framing::codec::NymCodec;
 use nym_sphinx::framing::packet::FramedNymPacket;
@@ -21,6 +20,7 @@ use nym_sphinx::DestinationAddressBytes;
 use nym_task::TaskClient;
 use std::collections::HashMap;
 use std::net::SocketAddr;
+use std::sync::Arc;
 use tokio::net::TcpStream;
 use tokio_util::codec::Framed;
 
@@ -36,8 +36,7 @@ pub(crate) struct ConnectionHandler<St: Storage> {
     storage: St,
     ack_sender: MixForwardingSender,
     topology_access: TopologyAccessor,
-    public_identity_key: [u8; PUBLIC_KEY_SIZE],
-    private_identity_key: [u8; PRIVATE_KEY_SIZE],
+    local_identity: Arc<encryption::KeyPair>,
 }
 
 impl<St: Storage + Clone> Clone for ConnectionHandler<St> {
@@ -57,8 +56,7 @@ impl<St: Storage + Clone> Clone for ConnectionHandler<St> {
             storage: self.storage.clone(),
             ack_sender: self.ack_sender.clone(),
             topology_access: self.topology_access.clone(),
-            public_identity_key: self.public_identity_key.clone(),
-            private_identity_key: self.private_identity_key.clone(),
+            local_identity: self.local_identity.clone(),
         }
     }
 }
@@ -70,7 +68,7 @@ impl<St: Storage> ConnectionHandler<St> {
         ack_sender: MixForwardingSender,
         active_clients_store: ActiveClientsStore,
         topology_access: TopologyAccessor,
-        identity_key: &encryption::KeyPair,
+        local_identity: Arc<encryption::KeyPair>,
     ) -> Self {
         ConnectionHandler {
             packet_processor,
@@ -79,8 +77,7 @@ impl<St: Storage> ConnectionHandler<St> {
             active_clients_store,
             ack_sender,
             topology_access,
-            public_identity_key: identity_key.public_key().to_bytes(),
-            private_identity_key: identity_key.private_key().to_bytes(),
+            local_identity,
         }
     }
 
@@ -208,11 +205,11 @@ impl<St: Storage> ConnectionHandler<St> {
             }
         };
 
-        let noise_stream = match upgrade_noise_responder(
+        let noise_stream = match upgrade_noise_responder_with_topology(
             conn,
             topology_ref,
-            &self.public_identity_key,
-            &self.private_identity_key,
+            &self.local_identity.public_key().to_bytes(),
+            &self.local_identity.private_key().to_bytes(),
         )
         .await
         {

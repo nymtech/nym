@@ -164,7 +164,7 @@ impl MixNode {
             packet_processor,
             delay_forwarding_channel,
             topology_access,
-            &self.sphinx_keypair,
+            Arc::clone(&self.sphinx_keypair),
         );
 
         let listening_address = SocketAddr::new(
@@ -192,7 +192,11 @@ impl MixNode {
         );
 
         let mut packet_forwarder = DelayForwarder::new(
-            nym_mixnet_client::Client::new(client_config, topology_access, &self.sphinx_keypair),
+            nym_mixnet_client::Client::new(
+                client_config,
+                topology_access,
+                Arc::clone(&self.sphinx_keypair),
+            ),
             node_stats_update_sender,
             shutdown,
         );

@@ -198,31 +198,14 @@ impl AsyncWrite for NoiseStream {
 
 pub async fn upgrade_noise_initiator(
     mut conn: TcpStream,
-    topology: &NymTopology,
-    local_public_key: &[u8],
+    local_public_key: Option<&[u8]>,
     local_private_key: &[u8],
+    remote_pub_key: &[u8],
 ) -> Result<NoiseStream, NoiseError> {
     trace!("Perform Noise Handshake, initiator side");
 
-    //Get init material
-    let responder_addr = match conn.peer_addr() {
-        Ok(addr) => addr,
-        Err(err) => {
-            error!("Unable to extract peer address from connection - {err}");
-            return Err(Error::Prereq(Prerequisite::RemotePublicKey).into());
-        }
-    };
-    let remote_pub_key = match topology.find_node_key_by_mix_host(responder_addr) {
-        Some(pub_key) => pub_key.to_bytes(),
-        None => {
-            error!(
-                "Cannot find public key for node with address {:?}",
-                responder_addr
-            );
-            return Err(Error::Prereq(Prerequisite::RemotePublicKey).into());
-        }
-    };
-    let secret = [local_public_key, &remote_pub_key].concat();
+    //In case the local key cannot be known by the remote party, e.g. in a client-gateway connection
+    let secret = [local_public_key.unwrap_or(&[]), remote_pub_key].concat();
     let secret_hash = Sha256::digest(secret);
 
     let builder = Builder::new(NOISE_HS_PATTERN.parse().unwrap()); //This cannot fail, hardcoded pattern must be correct
@@ -250,33 +233,50 @@ pub async fn upgrade_noise_initiator(
     Ok(NoiseStream::new(conn, noise))
 }
 
-pub async fn upgrade_noise_responder(
-    mut conn: TcpStream,
+pub async fn upgrade_noise_initiator_with_topology(
+    conn: TcpStream,
     topology: &NymTopology,
     local_public_key: &[u8],
     local_private_key: &[u8],
 ) -> Result<NoiseStream, NoiseError> {
-    trace!("Perform Noise Handshake, responder side");
-
     //Get init material
-    let initiator_addr = match conn.peer_addr() {
+    let responder_addr = match conn.peer_addr() {
         Ok(addr) => addr,
         Err(err) => {
             error!("Unable to extract peer address from connection - {err}");
             return Err(Error::Prereq(Prerequisite::RemotePublicKey).into());
         }
     };
-    let remote_pub_key = match topology.find_node_key_by_mix_host(initiator_addr) {
+    let remote_pub_key = match topology.find_node_key_by_mix_host(responder_addr) {
         Some(pub_key) => pub_key.to_bytes(),
         None => {
             error!(
                 "Cannot find public key for node with address {:?}",
-                initiator_addr
+                responder_addr
             );
             return Err(Error::Prereq(Prerequisite::RemotePublicKey).into());
         }
     };
-    let secret = [&remote_pub_key, local_public_key].concat();
+
+    upgrade_noise_initiator(
+        conn,
+        Some(local_public_key),
+        local_private_key,
+        &remote_pub_key,
+    )
+    .await
+}
+
+pub async fn upgrade_noise_responder(
+    mut conn: TcpStream,
+    local_public_key: &[u8],
+    local_private_key: &[u8],
+    remote_pub_key: Option<&[u8]>,
+) -> Result<NoiseStream, NoiseError> {
+    trace!("Perform Noise Handshake, responder side");
+
+    //If the remote_key cannot be kwnown, e.g. in a client-gateway connection
+    let secret = [&remote_pub_key.unwrap_or(&[]), local_public_key].concat();
     let secret_hash = Sha256::digest(secret);
 
     let builder = Builder::new(NOISE_HS_PATTERN.parse().unwrap()); //This cannot fail, hardcoded pattern must be correct
@@ -300,6 +300,40 @@ pub async fn upgrade_noise_responder(
     let noise = handshake.into_transport_mode()?;
 
     Ok(NoiseStream::new(conn, noise))
+}
+
+pub async fn upgrade_noise_responder_with_topology(
+    conn: TcpStream,
+    topology: &NymTopology,
+    local_public_key: &[u8],
+    local_private_key: &[u8],
+) -> Result<NoiseStream, NoiseError> {
+    //Get init material
+    let initiator_addr = match conn.peer_addr() {
+        Ok(addr) => addr,
+        Err(err) => {
+            error!("Unable to extract peer address from connection - {err}");
+            return Err(Error::Prereq(Prerequisite::RemotePublicKey).into());
+        }
+    };
+    let remote_pub_key = match topology.find_node_key_by_mix_host(initiator_addr) {
+        Some(pub_key) => pub_key.to_bytes(),
+        None => {
+            error!(
+                "Cannot find public key for node with address {:?}",
+                initiator_addr
+            );
+            return Err(Error::Prereq(Prerequisite::RemotePublicKey).into());
+        }
+    };
+
+    upgrade_noise_responder(
+        conn,
+        local_public_key,
+        local_private_key,
+        Some(&remote_pub_key),
+    )
+    .await
 }
 
 /// Hyper-basic stream transport receiver. 16-bit BE size followed by payload.

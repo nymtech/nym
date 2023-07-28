@@ -1,7 +1,6 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::node::encryption::{PRIVATE_KEY_SIZE, PUBLIC_KEY_SIZE};
 use crate::node::listener::connection_handler::packet_processing::{
     MixProcessingResult, PacketProcessor,
 };
@@ -11,12 +10,13 @@ use futures::StreamExt;
 use nym_client_core::client::topology_control::accessor::TopologyAccessor;
 use nym_crypto::asymmetric::encryption;
 use nym_mixnode_common::measure;
-use nym_noise::upgrade_noise_responder;
+use nym_noise::upgrade_noise_responder_with_topology;
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_sphinx::framing::codec::NymCodec;
 use nym_sphinx::framing::packet::FramedNymPacket;
 use nym_sphinx::Delay as SphinxDelay;
 use std::net::SocketAddr;
+use std::sync::Arc;
 use tokio::net::TcpStream;
 use tokio::time::Instant;
 use tokio_util::codec::Framed;
@@ -30,8 +30,7 @@ pub(crate) struct ConnectionHandler {
     packet_processor: PacketProcessor,
     delay_forwarding_channel: PacketDelayForwardSender,
     topology_access: TopologyAccessor,
-    private_identity_key: [u8; PRIVATE_KEY_SIZE],
-    public_identity_key: [u8; PUBLIC_KEY_SIZE],
+    local_identity: Arc<encryption::KeyPair>,
 }
 
 impl ConnectionHandler {
@@ -39,14 +38,13 @@ impl ConnectionHandler {
         packet_processor: PacketProcessor,
         delay_forwarding_channel: PacketDelayForwardSender,
         topology_access: TopologyAccessor,
-        identity_key: &encryption::KeyPair,
+        local_identity: Arc<encryption::KeyPair>,
     ) -> Self {
         ConnectionHandler {
             packet_processor,
             delay_forwarding_channel,
             topology_access,
-            public_identity_key: identity_key.public_key().to_bytes(),
-            private_identity_key: identity_key.private_key().to_bytes(),
+            local_identity,
         }
     }
 
@@ -109,11 +107,11 @@ impl ConnectionHandler {
             }
         };
 
-        let noise_stream = match upgrade_noise_responder(
+        let noise_stream = match upgrade_noise_responder_with_topology(
             conn,
             topology_ref,
-            &self.public_identity_key,
-            &self.private_identity_key,
+            &self.local_identity.public_key().to_bytes(),
+            &self.local_identity.private_key().to_bytes(),
         )
         .await
         {

@@ -146,7 +146,7 @@ impl<St> Gateway<St> {
             ack_sender,
             active_clients_store,
             topology_access,
-            &self.sphinx_keypair,
+            Arc::clone(&self.sphinx_keypair),
         );
 
         let listening_address = SocketAddr::new(
@@ -176,6 +176,7 @@ impl<St> Gateway<St> {
         websocket::Listener::new(
             listening_address,
             Arc::clone(&self.identity_keypair),
+            Arc::clone(&self.sphinx_keypair),
             self.config.gateway.only_coconut_credentials,
             coconut_verifier,
         )
@@ -201,7 +202,7 @@ impl<St> Gateway<St> {
             self.config.debug.maximum_connection_buffer_size,
             self.config.debug.use_legacy_framed_packet_version,
             topology_access,
-            &self.sphinx_keypair,
+            Arc::clone(&self.sphinx_keypair),
             shutdown,
         );
 

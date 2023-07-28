@@ -1,13 +1,12 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::client::encryption::{PRIVATE_KEY_SIZE, PUBLIC_KEY_SIZE};
 use futures::channel::mpsc;
 use futures::StreamExt;
 use log::*;
 use nym_client_core::client::topology_control::accessor::TopologyAccessor;
 use nym_crypto::asymmetric::encryption;
-use nym_noise::upgrade_noise_initiator;
+use nym_noise::upgrade_noise_initiator_with_topology;
 use nym_sphinx::addressing::nodes::NymNodeRoutingAddress;
 use nym_sphinx::framing::codec::NymCodec;
 use nym_sphinx::framing::packet::FramedNymPacket;
@@ -64,8 +63,7 @@ pub struct Client {
     conn_new: HashMap<NymNodeRoutingAddress, ConnectionSender>,
     config: Config,
     topology_access: TopologyAccessor,
-    public_id_key: [u8; PUBLIC_KEY_SIZE],
-    private_id_key: [u8; PRIVATE_KEY_SIZE],
+    local_identity: Arc<encryption::KeyPair>,
 }
 
 struct ConnectionSender {
@@ -86,14 +84,13 @@ impl Client {
     pub fn new(
         config: Config,
         topology_access: TopologyAccessor,
-        id_key: &encryption::KeyPair,
+        local_identity: Arc<encryption::KeyPair>,
     ) -> Client {
         Client {
             conn_new: HashMap::new(),
             config,
             topology_access,
-            public_id_key: id_key.public_key().to_bytes(),
-            private_id_key: id_key.private_key().to_bytes(),
+            local_identity,
         }
     }
 
@@ -124,7 +121,7 @@ impl Client {
                         }
                     };
 
-                    let noise_stream = match upgrade_noise_initiator(
+                    let noise_stream = match upgrade_noise_initiator_with_topology(
                         stream,
                         topology_ref,
                         local_public_key,
@@ -218,8 +215,8 @@ impl Client {
         let initial_connection_timeout = self.config.initial_connection_timeout;
 
         let topology_access_clone = self.topology_access.clone();
-        let local_private_key = self.private_id_key.clone();
-        let local_public_key = self.public_id_key.clone();
+        let local_public_key = self.local_identity.public_key().to_bytes();
+        let local_private_key = self.local_identity.private_key().to_bytes();
 
         tokio::spawn(async move {
             // before executing the manager, wait for what was specified, if anything

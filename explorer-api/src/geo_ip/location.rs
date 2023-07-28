@@ -42,14 +42,14 @@ pub(crate) struct Location {
     pub(crate) longitude: Option<f64>,
 }
 
-impl Into<nym_explorer_api_requests::Location> for Location {
-    fn into(self) -> nym_explorer_api_requests::Location {
+impl From<Location> for nym_explorer_api_requests::Location {
+    fn from(location: Location) -> Self {
         nym_explorer_api_requests::Location {
-            country_name: self.name,
-            two_letter_iso_country_code: self.iso_alpha2,
-            three_letter_iso_country_code: self.iso_alpha3,
-            latitude: self.latitude,
-            longitude: self.longitude,
+            country_name: location.name,
+            two_letter_iso_country_code: location.iso_alpha2,
+            three_letter_iso_country_code: location.iso_alpha3,
+            latitude: location.latitude,
+            longitude: location.longitude,
         }
     }
 }

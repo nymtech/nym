@@ -46,6 +46,11 @@ fn override_config_from_env(config: &mut Config, privacy_level: &PrivacyLevel) {
 
         log::warn!("Disabling per-hop delay");
         config.core.base.set_no_per_hop_delays();
+
+        // TODO: selectable in the UI
+        let default_country_group = CountryGroup::Europe;
+        log::warn!("Using geo-aware mixnode selection: {default_country_group}");
+        config.core.base.set_topology_structure(TopologyStructure::GeoAware(default_country_group));
     }
 }
 

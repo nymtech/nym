@@ -123,7 +123,7 @@ pub(crate) fn override_config(config: Config, args: OverrideConfig) -> Config {
         // NOTE: see comment above about the order of the other disble cover traffic config
         .with_base(BaseClientConfig::with_disabled_cover_traffic, args.no_cover)
         .with_base(BaseClientConfig::with_packet_type, packet_type)
-        .with_base(BaseClientConfig::set_topology_structure, topology_structure)
+        .with_base(BaseClientConfig::with_topology_structure, topology_structure)
         .with_optional(Config::with_anonymous_replies, args.use_anonymous_replies)
         .with_optional(Config::with_port, args.port)
         .with_optional_base_custom_env(

@@ -89,27 +89,33 @@ impl AsyncRead for NoiseStream {
             Poll::Ready(Ok(())) => {
                 //Read what we can into enc_storage, decrypt what we can into dec_storage
                 let mut tcp_buf = vec![0u8; MAXMSGLEN + HEADER_SIZE];
-                let tcp_len = projected_self.inner_stream.try_read(&mut tcp_buf)?;
-                enc_storage.extend(&tcp_buf[..tcp_len]);
+                if let Ok(tcp_len) = projected_self.inner_stream.try_read(&mut tcp_buf) {
+                    if tcp_len == 0 && projected_self.dec_storage.len() == 0 {
+                        //EOF
+                        return Poll::Ready(Ok(()));
+                    }
+                    enc_storage.extend(&tcp_buf[..tcp_len]);
+                    //we can at least read the length
+                    if enc_storage.len() >= HEADER_SIZE {
+                        let msg_len = ((enc_storage[0] as usize) << 8) + (enc_storage[1] as usize);
 
-                //we can at least read the length
-                if enc_storage.len() >= HEADER_SIZE {
-                    let msg_len = ((enc_storage[0] as usize) << 8) + (enc_storage[1] as usize);
+                        //we have a full message to decrypt
+                        if enc_storage.len() >= HEADER_SIZE + msg_len {
+                            //remove size
+                            enc_storage.pop_front();
+                            enc_storage.pop_front();
 
-                    //we have a full message to decrypt
-                    if enc_storage.len() >= HEADER_SIZE + msg_len {
-                        //remove size
-                        enc_storage.pop_front();
-                        enc_storage.pop_front();
-
-                        let noise_msg = enc_storage.drain(..msg_len).collect::<Vec<u8>>();
-                        let mut dec_msg = vec![0u8; MAXMSGLEN];
-                        let len = match projected_self.noise.read_message(&noise_msg, &mut dec_msg)
-                        {
-                            Ok(len) => len,
-                            Err(_) => return Poll::Ready(Err(ErrorKind::InvalidData.into())),
-                        };
-                        projected_self.dec_storage.extend(&dec_msg[..len]);
+                            let noise_msg = enc_storage.drain(..msg_len).collect::<Vec<u8>>();
+                            let mut dec_msg = vec![0u8; MAXMSGLEN];
+                            let len = match projected_self
+                                .noise
+                                .read_message(&noise_msg, &mut dec_msg)
+                            {
+                                Ok(len) => len,
+                                Err(_) => return Poll::Ready(Err(ErrorKind::InvalidData.into())),
+                            };
+                            projected_self.dec_storage.extend(&dec_msg[..len]);
+                        }
                     }
                 }
             }

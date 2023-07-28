@@ -31,14 +31,17 @@
 
 # Tutorials
 
-- [Simple Service Provider](tutorials/simple-service-provider.md)
+- [(Rust SDK) Cosmos Blockchain Service](tutorials/cosmos-service/intro.md)
+	- [Tutorial Overview](tutorials/cosmos-service/overview.md)
+	- [Preparing Your Environment](tutorials/cosmos-service/preparing-env.md)
+- [(Typescript) Simple Service Provider](tutorials/simple-service-provider/simple-service-provider.md)
     - [Tutorial Overview](tutorials/simple-service-provider/overview.md)
     - [Preparing Your User Client Environment](tutorials/simple-service-provider/preparating-env.md)
     - [Building Your User Client](tutorials/simple-service-provider/user-client.md)
     - [Preparing Your Service Provider Environment](tutorials/simple-service-provider/preparating-env2.md)
     - [Building Your Service Provider](tutorials/simple-service-provider/service-provider.md)
     - [Sending a Message Through the Mixnet](tutorials/simple-service-provider/sending-message.md)
-- [IPFS Service Provider (coming soon)](tutorials/ipfs-service-provider.md)
+
 
 # Community Resources
 

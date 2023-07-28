@@ -15,7 +15,23 @@ import {
 import { createSubscriptions } from './subscriptions';
 
 /**
+ * Options for the Nym mixnet client.
+ * @property autoConvertStringMimeTypes - An array of mime types.
+ * @example
+ * ```typescript
+ * const client = await createNymMixnetClient({
+ *  autoConvertStringMimeTypes: [MimeTypes.ApplicationJson, MimeTypes.TextPlain],
+ * });
+ * ```
+ */
+
+export interface NymMixnetClientOptions {
+  autoConvertStringMimeTypes?: string[] | MimeTypes[];
+}
+
+/**
  * The client for the Nym mixnet which gives access to client methods and event subscriptions.
+ * Returned by the {@link createNymMixnetClient} function.
  *
  */
 export interface NymMixnetClient {
@@ -26,14 +42,13 @@ export interface NymMixnetClient {
 /**
  * Create a client to send and receive traffic from the Nym mixnet.
  * @required
+ * @returns
  * @example
  * ```typescript
  * const client = await createNymMixnetClient();
  * ```
  */
-export const createNymMixnetClient = async (options?: {
-  autoConvertStringMimeTypes?: string[] | MimeTypes[];
-}): Promise<NymMixnetClient> => {
+export const createNymMixnetClient = async (options?: NymMixnetClientOptions): Promise<NymMixnetClient> => {
   // create a web worker that runs the WASM client on another thread and wait until it signals that it is ready
   // eslint-disable-next-line @typescript-eslint/no-use-before-define
   const worker = await createWorker();

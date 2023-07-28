@@ -136,7 +136,6 @@ impl HostsStore {
             })
             .map(Host::from)
             .collect();
-        dbg!(&hosts);
         Ok(hosts)
     }
 }

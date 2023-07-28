@@ -158,6 +158,11 @@ impl Config {
         self
     }
 
+    pub fn set_topology_structure(mut self, topology_structure: TopologyStructure) -> Self {
+        self.debug.topology.topology_structure = topology_structure;
+        self
+    }
+
     pub fn with_no_per_hop_delays(mut self, no_per_hop_delays: bool) -> Self {
         if no_per_hop_delays {
             self.set_no_per_hop_delays()

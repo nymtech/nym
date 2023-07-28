@@ -526,27 +526,12 @@ where
             Self::setup_persistent_reply_storage(reply_storage_backend, task_manager.subscribe())
                 .await?;
 
-        // WIP(JON)
-        //let topology_provider = match self.config.debug.topology.topology_structure {
-        //    config::TopologyStructure::NymApi => Self::setup_topology_provider(
-        //        self.custom_topology_provider.take(),
-        //        self.config.get_nym_api_endpoints(),
-        //    ),
-        //    config::TopologyStructure::GeoAware(_) => {
-
-        //    },
-        //};
-
         let topology_provider = Self::setup_topology_provider(
             self.custom_topology_provider.take(),
             self.config.debug.topology.topology_structure,
             self.config.get_nym_api_endpoints(),
         );
 
-        // let topology_provider = Self::setup_topology_provider(
-        //     self.custom_topology_provider.take(),
-        //     self.config.get_nym_api_endpoints(),
-        // );
         Self::start_topology_refresher(
             topology_provider,
             self.config.debug.topology,

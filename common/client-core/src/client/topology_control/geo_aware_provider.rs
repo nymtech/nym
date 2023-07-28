@@ -3,19 +3,19 @@ use std::{collections::HashMap, fmt};
 use log::{debug, error, info};
 use nym_explorer_api_requests::PrettyDetailedMixNodeBond;
 use nym_topology::{
-    mix::Layer,
     nym_topology_from_detailed,
     provider_trait::{async_trait, TopologyProvider},
     NymTopology,
 };
-use nym_validator_client::client::{MixId, MixNodeDetails};
+use nym_validator_client::client::MixId;
 use rand::{prelude::SliceRandom, thread_rng};
 use serde::{Deserialize, Serialize};
 use url::Url;
 
-const MIN_NODES_PER_LAYER: usize = 2;
+const MIN_NODES_PER_LAYER: usize = 1;
 const EXPLORER_API_MIXNODES_URL: &str = "https://explorer.nymtech.net/api/v1/mix-nodes";
 
+// TODO: create a explorer-api-client
 async fn fetch_mixnodes_from_explorer_api() -> Option<Vec<PrettyDetailedMixNodeBond>> {
     reqwest::get(EXPLORER_API_MIXNODES_URL)
         .await
@@ -36,27 +36,13 @@ pub enum CountryGroup {
     Unknown,
 }
 
-impl fmt::Display for CountryGroup {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl CountryGroup {
+    // We map contry codes into group, which initially are continent codes to a first approximation,
+    // but we do it manually to reserve the right to tweak this distribution for our purposes.
+    fn new(country_code: &str) -> Self {
+        let country_code = country_code.to_uppercase();
         use CountryGroup::*;
-        match self {
-            Europe => write!(f, "EU"),
-            NorthAmerica => write!(f, "NA"),
-            SouthAmerica => write!(f, "SA"),
-            Oceania => write!(f, "OC"),
-            Asia => write!(f, "AS"),
-            Africa => write!(f, "AF"),
-            Unknown => write!(f, "Unknown"),
-        }
-    }
-}
-
-// We map contry codes into group, which initially are continent codes to a first approximation,
-// but we do it manually to reserve the right to tweak this distribution for our purposes.
-impl From<&str> for CountryGroup {
-    fn from(country_code: &str) -> Self {
-        use CountryGroup::*;
-        match country_code {
+        match country_code.as_ref() {
             // Europe
             "AT" => Europe,
             "BG" => Europe,
@@ -126,10 +112,54 @@ impl From<&str> for CountryGroup {
             "UG" => Africa,
             "ZA" => Africa,
 
+            // And group level codes work too
+            "EU" => Europe,
+            "NA" => NorthAmerica,
+            "SA" => SouthAmerica,
+            "OC" => Oceania,
+            "AS" => Asia,
+            "AF" => Africa,
+
+            // And some aliases
+            "EUROPE" => Europe,
+            "NORTHAMERICA" => NorthAmerica,
+            "SOUTHAMERICA" => SouthAmerica,
+            "OCEANIA" => Oceania,
+            "ASIA" => Asia,
+            "AFRIKA" => Africa,
+
             _ => {
                 info!("Unknown country code: {}", country_code);
                 Unknown
             }
+        }
+    }
+}
+
+impl fmt::Display for CountryGroup {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        use CountryGroup::*;
+        match self {
+            Europe => write!(f, "EU"),
+            NorthAmerica => write!(f, "NA"),
+            SouthAmerica => write!(f, "SA"),
+            Oceania => write!(f, "OC"),
+            Asia => write!(f, "AS"),
+            Africa => write!(f, "AF"),
+            Unknown => write!(f, "Unknown"),
+        }
+    }
+}
+
+impl std::str::FromStr for CountryGroup {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let group = CountryGroup::new(s);
+        if group == CountryGroup::Unknown {
+            Err(())
+        } else {
+            Ok(group)
         }
     }
 }
@@ -153,7 +183,7 @@ fn group_mixnodes_by_country_code(
         .fold(HashMap::<CountryGroup, Vec<MixId>>::new(), |mut acc, m| {
             if let Some(ref location) = m.location {
                 let country_code = location.two_letter_iso_country_code.clone();
-                let group_code = CountryGroup::from(country_code.as_str());
+                let group_code = CountryGroup::new(country_code.as_str());
                 let mixnodes = acc.entry(group_code).or_insert_with(Vec::new);
                 mixnodes.push(m.mix_id);
             }
@@ -170,24 +200,20 @@ fn log_mixnode_distribution(mixnodes: &HashMap<CountryGroup, Vec<MixId>>) {
     debug!("Mixnode distribution - {}", mixnode_distribution);
 }
 
-fn count_mixnodes_per_layer(mixnodes: Vec<MixNodeDetails>) -> HashMap<Layer, usize> {
-    mixnodes
-        .iter()
-        .map(|m| m.layer())
-        .fold(HashMap::<Layer, usize>::new(), |mut acc, layer| {
-            let count = acc.entry(layer).or_insert(0);
-            *count += 1;
-            acc
-        })
-}
-
-fn check_layer_integrity(mixnodes: Vec<MixNodeDetails>) -> Result<(), ()> {
-    let mut layer_counts = count_mixnodes_per_layer(mixnodes);
-    for layer in &[Layer::One, Layer::Two, Layer::Three] {
-        layer_counts.entry(*layer).or_insert(0);
-        let count = layer_counts[layer];
-        if count < MIN_NODES_PER_LAYER {
-            error!("There are only {} mixnodes in layer {:?}", count, layer);
+fn check_layer_integrity(topology: NymTopology) -> Result<(), ()> {
+    let mixes = topology.mixes();
+    if mixes.keys().len() < 3 {
+        error!("Layer is missing in topology!");
+        return Err(());
+    }
+    for (layer, mixnodes) in mixes {
+        debug!("Layer {:?} has {} mixnodes", layer, mixnodes.len());
+        if mixnodes.len() < MIN_NODES_PER_LAYER {
+            error!(
+                "There are only {} mixnodes in layer {:?}",
+                mixnodes.len(),
+                layer
+            );
             return Err(());
         }
     }
@@ -206,6 +232,10 @@ impl GeoAwareTopologyProvider {
         client_version: String,
         filter_on: CountryGroup,
     ) -> GeoAwareTopologyProvider {
+        log::info!(
+            "Creating geo-aware topology provider with filter on {:?}",
+            filter_on
+        );
         nym_api_urls.shuffle(&mut thread_rng());
 
         GeoAwareTopologyProvider {

@@ -31,7 +31,6 @@ nym-socks5-proxy-helpers = { path = "../socks5/proxy-helpers" }
 nym-socks5-requests = { path = "../socks5/requests" }
 nym-sphinx = { path = "../nymsphinx" }
 nym-task = { path = "../task" }
-nym-topology = { path = "../topology" }
 nym-validator-client = { path = "../client-libs/validator-client" }
 
 [features]

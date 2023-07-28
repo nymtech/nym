@@ -18,9 +18,6 @@ use nym_client_core::client::base_client::{
 };
 use nym_client_core::client::key_manager::persistence::KeyStore;
 use nym_client_core::client::replies::reply_storage::ReplyStorageBackend;
-use nym_client_core::client::topology_control::geo_aware_provider::{
-    CountryGroup, GeoAwareTopologyProvider,
-};
 use nym_client_core::config::DebugConfig;
 use nym_client_core::init::GatewaySetup;
 use nym_credential_storage::storage::Storage as CredentialStorage;
@@ -216,18 +213,6 @@ where
         let base_builder =
             BaseClientBuilder::new(&self.config.base, self.storage, dkg_query_client)
                 .with_gateway_setup(self.setup_method);
-
-        // WIP(JON)
-        // let nym_api = self
-        //     .config
-        //     .base
-        //     .get_nym_api_endpoints()
-        //     .first()
-        //     .unwrap()
-        //     .clone();
-        // let filter_on = CountryGroup::Europe;
-        // let topology_provider = GeoAwareTopologyProvider::new(nym_api, filter_on);
-        // let base_builder = base_builder.with_topology_provider(Box::new(topology_provider));
 
         let packet_type = self.config.base.debug.traffic.packet_type;
         let mut started_client = base_builder.start_base().await?;

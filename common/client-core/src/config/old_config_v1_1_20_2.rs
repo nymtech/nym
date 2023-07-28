@@ -267,6 +267,7 @@ impl From<TopologyV1_1_20_2> for Topology {
             topology_refresh_rate: value.topology_refresh_rate,
             topology_resolution_timeout: value.topology_resolution_timeout,
             disable_refreshing: value.disable_refreshing,
+            topology_structure: Default::default(),
         }
     }
 }

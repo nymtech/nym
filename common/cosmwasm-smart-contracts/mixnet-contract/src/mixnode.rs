@@ -58,6 +58,10 @@ impl MixNodeDetails {
         self.bond_information.mix_id
     }
 
+    pub fn layer(&self) -> Layer {
+        self.bond_information.layer
+    }
+
     pub fn is_unbonding(&self) -> bool {
         self.bond_information.is_unbonding
     }

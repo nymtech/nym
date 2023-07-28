@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::received_buffer::ReceivedBufferMessage;
+use super::topology_control::geo_aware_provider::GeoAwareTopologyProvider;
 use crate::client::base_client::storage::MixnetClientStorage;
 use crate::client::cover_traffic_stream::LoopCoverTrafficStream;
 use crate::client::inbound_messages::{InputMessage, InputMessageReceiver, InputMessageSender};
@@ -339,14 +340,20 @@ where
 
     fn setup_topology_provider(
         custom_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
+        provider_from_config: config::TopologyStructure,
         nym_api_urls: Vec<Url>,
     ) -> Box<dyn TopologyProvider + Send + Sync> {
         // if no custom provider was ... provided ..., create one using nym-api
-        custom_provider.unwrap_or_else(|| {
-            Box::new(NymApiTopologyProvider::new(
+        custom_provider.unwrap_or_else(|| match provider_from_config {
+            config::TopologyStructure::NymApi => Box::new(NymApiTopologyProvider::new(
                 nym_api_urls,
                 env!("CARGO_PKG_VERSION").to_string(),
-            ))
+            )),
+            config::TopologyStructure::GeoAware(group) => Box::new(GeoAwareTopologyProvider::new(
+                nym_api_urls,
+                env!("CARGO_PKG_VERSION").to_string(),
+                group,
+            )),
         })
     }
 
@@ -521,8 +528,10 @@ where
 
         let topology_provider = Self::setup_topology_provider(
             self.custom_topology_provider.take(),
+            self.config.debug.topology.topology_structure,
             self.config.get_nym_api_endpoints(),
         );
+
         Self::start_topology_refresher(
             topology_provider,
             self.config.debug.topology,

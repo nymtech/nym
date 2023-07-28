@@ -6,9 +6,10 @@ use crate::mix_node::delegations::{
 };
 use crate::mix_node::econ_stats::retrieve_mixnode_econ_stats;
 use crate::mix_node::models::{
-    EconomicDynamicsStats, NodeDescription, NodeStats, PrettyDetailedMixNodeBond, SummedDelegations,
+    EconomicDynamicsStats, NodeDescription, NodeStats, SummedDelegations,
 };
 use crate::state::ExplorerApiStateContext;
+use nym_explorer_api_requests::PrettyDetailedMixNodeBond;
 use nym_mixnet_contract_common::{Delegation, MixId};
 use reqwest::Error as ReqwestError;
 use rocket::response::status::NotFound;

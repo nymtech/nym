@@ -1909,6 +1909,7 @@ dependencies = [
  "maxminddb",
  "nym-bin-common",
  "nym-contracts-common",
+ "nym-explorer-api-requests",
  "nym-mixnet-contract-common",
  "nym-network-defaults",
  "nym-task",
@@ -3782,6 +3783,7 @@ dependencies = [
  "nym-config",
  "nym-credential-storage",
  "nym-crypto",
+ "nym-explorer-api-requests",
  "nym-gateway-client",
  "nym-gateway-requests",
  "nym-network-defaults",
@@ -3792,6 +3794,7 @@ dependencies = [
  "nym-topology",
  "nym-validator-client",
  "rand 0.7.3",
+ "reqwest",
  "serde",
  "serde_json",
  "sha2 0.10.6",
@@ -4002,6 +4005,18 @@ version = "0.1.0"
 dependencies = [
  "quote",
  "syn 1.0.109",
+]
+
+[[package]]
+name = "nym-explorer-api-requests"
+version = "0.1.0"
+dependencies = [
+ "nym-contracts-common",
+ "nym-mixnet-contract-common",
+ "nym-validator-client",
+ "schemars",
+ "serde",
+ "ts-rs",
 ]
 
 [[package]]
@@ -4520,7 +4535,9 @@ dependencies = [
  "nym-bandwidth-controller",
  "nym-client-core",
  "nym-config",
+ "nym-contracts-common",
  "nym-credential-storage",
+ "nym-mixnet-contract-common",
  "nym-network-defaults",
  "nym-service-providers-common",
  "nym-socks5-proxy-helpers",
@@ -4530,10 +4547,13 @@ dependencies = [
  "nym-validator-client",
  "pin-project",
  "rand 0.7.3",
+ "reqwest",
+ "schemars",
  "serde",
  "tap",
  "thiserror",
  "tokio",
+ "url",
 ]
 
 [[package]]

@@ -1,17 +1,23 @@
 use futures::{channel::mpsc, StreamExt};
-use nym_client_core::client::base_client::storage::gateway_details::GatewayDetailsStore;
-use nym_client_core::client::base_client::storage::{MixnetClientStorage, OnDiskPersistent};
-use nym_client_core::{config::GatewayEndpointConfig, error::ClientCoreStatusMessage};
-use nym_socks5_client_core::NymClient as Socks5NymClient;
-use nym_socks5_client_core::Socks5ControlMessageSender;
+use nym_client_core::{
+    client::{
+        base_client::storage::{
+            gateway_details::GatewayDetailsStore, MixnetClientStorage, OnDiskPersistent,
+        },
+        topology_control::geo_aware_provider::CountryGroup,
+    },
+    config::{GatewayEndpointConfig, TopologyStructure},
+    error::ClientCoreStatusMessage,
+};
+use nym_socks5_client_core::{NymClient as Socks5NymClient, Socks5ControlMessageSender};
 use nym_sphinx::params::PacketSize;
 use nym_task::manager::TaskStatus;
 use std::sync::Arc;
 use tap::TapFallible;
 use tokio::sync::RwLock;
 
-use crate::config::{Config, PrivacyLevel};
 use crate::{
+    config::{Config, PrivacyLevel},
     error::Result,
     events::{self, emit_event, emit_status_event},
     models::{ConnectionStatusKind, ConnectivityTestResult},
@@ -46,6 +52,14 @@ fn override_config_from_env(config: &mut Config, privacy_level: &PrivacyLevel) {
 
         log::warn!("Disabling per-hop delay");
         config.core.base.set_no_per_hop_delays();
+
+        // TODO: selectable in the UI
+        let default_country_group = CountryGroup::Europe;
+        log::warn!("Using geo-aware mixnode selection: {default_country_group}");
+        config
+            .core
+            .base
+            .set_topology_structure(TopologyStructure::GeoAware(default_country_group));
     }
 }
 

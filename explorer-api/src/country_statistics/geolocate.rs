@@ -1,9 +1,9 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::mix_nodes::location::Location;
 use crate::state::ExplorerApiStateContext;
 use log::{info, warn};
+use nym_explorer_api_requests::Location;
 use nym_task::TaskClient;
 
 pub(crate) struct GeoLocateTask {
@@ -64,7 +64,7 @@ impl GeoLocateTask {
             ) {
                 Ok(opt) => match opt {
                     Some(location) => {
-                        let location = Location::new(location);
+                        let location: Location = location.into();
 
                         trace!(
                             "{} mix nodes already located. Ip {} is located in {:#?}",

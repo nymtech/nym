@@ -15,6 +15,7 @@ use log::{debug, info, trace, warn};
 use nym_bandwidth_controller::BandwidthController;
 use nym_config::defaults::REMAINING_BANDWIDTH_THRESHOLD;
 use nym_credential_storage::persistent_storage::PersistentStorage;
+use nym_crypto::asymmetric::encryption;
 use nym_crypto::asymmetric::identity::{self, PUBLIC_KEY_LENGTH};
 use nym_gateway_client::error::GatewayClientError;
 use nym_gateway_client::{AcknowledgementReceiver, GatewayClient, MixnetMessageReceiver};
@@ -38,6 +39,8 @@ pub(crate) struct GatewayPackets {
     /// Public key of the target gateway.
     pub(crate) pub_key: identity::PublicKey,
 
+    pub(crate) encryption_key: encryption::PublicKey,
+
     /// All the packets that are going to get sent to the gateway.
     pub(crate) packets: Vec<MixPacket>,
 }
@@ -46,19 +49,26 @@ impl GatewayPackets {
     pub(crate) fn new(
         clients_address: String,
         pub_key: identity::PublicKey,
+        encryption_key: encryption::PublicKey,
         packets: Vec<MixPacket>,
     ) -> Self {
         GatewayPackets {
             clients_address,
             pub_key,
+            encryption_key,
             packets,
         }
     }
 
-    pub(crate) fn empty(clients_address: String, pub_key: identity::PublicKey) -> Self {
+    pub(crate) fn empty(
+        clients_address: String,
+        pub_key: identity::PublicKey,
+        encryption_key: encryption::PublicKey,
+    ) -> Self {
         GatewayPackets {
             clients_address,
             pub_key,
+            encryption_key,
             packets: Vec::new(),
         }
     }
@@ -79,6 +89,7 @@ impl GatewayPackets {
 struct FreshGatewayClientData {
     gateways_status_updater: GatewayClientUpdateSender,
     local_identity: Arc<identity::KeyPair>,
+    local_sphinx: Arc<encryption::KeyPair>,
     gateway_response_timeout: Duration,
     bandwidth_controller: BandwidthController<nyxd::Client, PersistentStorage>,
     disabled_credentials_mode: bool,
@@ -134,6 +145,7 @@ impl PacketSender {
     pub(crate) fn new(
         gateways_status_updater: GatewayClientUpdateSender,
         local_identity: Arc<identity::KeyPair>,
+        local_sphinx: Arc<encryption::KeyPair>,
         gateway_response_timeout: Duration,
         gateway_connection_timeout: Duration,
         max_concurrent_clients: usize,
@@ -146,6 +158,7 @@ impl PacketSender {
             fresh_gateway_client_data: Arc::new(FreshGatewayClientData {
                 gateways_status_updater,
                 local_identity,
+                local_sphinx,
                 gateway_response_timeout,
                 bandwidth_controller,
                 disabled_credentials_mode,
@@ -171,6 +184,7 @@ impl PacketSender {
     fn new_gateway_client_handle(
         address: String,
         identity: identity::PublicKey,
+        sphinx: encryption::PublicKey,
         fresh_gateway_client_data: &FreshGatewayClientData,
     ) -> (
         GatewayClientHandle,
@@ -187,7 +201,9 @@ impl PacketSender {
         let mut gateway_client = GatewayClient::new(
             address,
             Arc::clone(&fresh_gateway_client_data.local_identity),
+            Arc::clone(&fresh_gateway_client_data.local_sphinx),
             identity,
+            sphinx,
             None,
             message_sender,
             ack_sender,
@@ -267,6 +283,7 @@ impl PacketSender {
     async fn create_new_gateway_client_handle_and_authenticate(
         address: String,
         identity: identity::PublicKey,
+        sphinx: encryption::PublicKey,
         fresh_gateway_client_data: &FreshGatewayClientData,
         gateway_connection_timeout: Duration,
     ) -> Option<(
@@ -274,7 +291,7 @@ impl PacketSender {
         (MixnetMessageReceiver, AcknowledgementReceiver),
     )> {
         let (new_client, (message_receiver, ack_receiver)) =
-            Self::new_gateway_client_handle(address, identity, fresh_gateway_client_data);
+            Self::new_gateway_client_handle(address, identity, sphinx, fresh_gateway_client_data);
 
         // Put this in timeout in case the gateway has incorrectly set their ulimit and our connection
         // gets stuck in their TCP queue and just hangs on our end but does not terminate
@@ -351,6 +368,7 @@ impl PacketSender {
                 Self::create_new_gateway_client_handle_and_authenticate(
                     packets.clients_address,
                     packets.pub_key,
+                    packets.encryption_key,
                     &fresh_gateway_client_data,
                     gateway_connection_timeout,
                 )

@@ -14,24 +14,27 @@ use nym_bandwidth_controller::BandwidthController;
 use nym_coconut_interface::Credential;
 use nym_credential_storage::ephemeral_storage::EphemeralStorage as EphemeralCredentialStorage;
 use nym_credential_storage::storage::Storage as CredentialStorage;
-use nym_crypto::asymmetric::identity;
+use nym_crypto::asymmetric::{encryption, identity};
 use nym_gateway_requests::authentication::encrypted_address::EncryptedAddressBytes;
 use nym_gateway_requests::iv::IV;
 use nym_gateway_requests::registration::handshake::{client_handshake, SharedKeys};
 use nym_gateway_requests::{BinaryRequest, ClientControlRequest, ServerResponse, PROTOCOL_VERSION};
 use nym_network_defaults::{REMAINING_BANDWIDTH_THRESHOLD, TOKENS_TO_BURN};
+use nym_noise::upgrade_noise_initiator;
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_task::TaskClient;
 use rand::rngs::OsRng;
 use std::convert::TryFrom;
+use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
+use tokio::net::TcpStream;
 use tungstenite::protocol::Message;
 
 #[cfg(not(target_arch = "wasm32"))]
 use nym_validator_client::nyxd::traits::DkgQueryClient;
 #[cfg(not(target_arch = "wasm32"))]
-use tokio_tungstenite::connect_async;
+use tokio_tungstenite::client_async;
 
 #[cfg(target_arch = "wasm32")]
 use nym_bandwidth_controller::wasm_mockups::DkgQueryClient;
@@ -49,7 +52,9 @@ pub struct GatewayClient<C, St> {
     bandwidth_remaining: i64,
     gateway_address: String,
     gateway_identity: identity::PublicKey,
+    gateway_sphinx: encryption::PublicKey,
     local_identity: Arc<identity::KeyPair>,
+    local_sphinx: Arc<encryption::KeyPair>,
     shared_key: Option<Arc<SharedKeys>>,
     connection: SocketState,
     packet_router: PacketRouter,
@@ -75,7 +80,9 @@ impl<C, St> GatewayClient<C, St> {
     pub fn new(
         gateway_address: String,
         local_identity: Arc<identity::KeyPair>,
+        local_sphinx: Arc<encryption::KeyPair>,
         gateway_identity: identity::PublicKey,
+        gateway_sphinx: encryption::PublicKey,
         // TODO: make it mandatory. if you don't want to pass it, use `new_init`
         shared_key: Option<Arc<SharedKeys>>,
         mixnet_message_sender: MixnetMessageSender,
@@ -89,8 +96,10 @@ impl<C, St> GatewayClient<C, St> {
             disabled_credentials_mode: true,
             bandwidth_remaining: 0,
             gateway_address,
-            gateway_identity,
             local_identity,
+            local_sphinx,
+            gateway_identity,
+            gateway_sphinx,
             shared_key,
             connection: SocketState::NotConnected,
             packet_router: PacketRouter::new(ack_sender, mixnet_message_sender, shutdown.clone()),
@@ -163,7 +172,50 @@ impl<C, St> GatewayClient<C, St> {
 
     #[cfg(not(target_arch = "wasm32"))]
     pub async fn establish_connection(&mut self) -> Result<(), GatewayClientError> {
-        let ws_stream = match connect_async(&self.gateway_address).await {
+        let socket_addr: SocketAddr = self.gateway_address.parse().unwrap();
+        let connection_fut = TcpStream::connect(socket_addr);
+
+        //arbitrary TO, it's a POC
+        let noise_conn = match tokio::time::timeout(Duration::from_secs(5), connection_fut).await {
+            Ok(stream_res) => match stream_res {
+                Ok(stream) => {
+                    debug!("Managed to establish connection to gateway");
+                    let noise_stream = match upgrade_noise_initiator(
+                        stream,
+                        None, //as a client, the gateway cannot know my pub key
+                        &self.local_sphinx.private_key().to_bytes(),
+                        &self.gateway_sphinx.to_bytes(),
+                    )
+                    .await
+                    {
+                        Ok(noise_stream) => noise_stream,
+                        Err(err) => {
+                            error!(
+                                "Failed to perform Noise handshake with {:?} - {err}",
+                                self.gateway_address
+                            );
+                            return Err(GatewayClientError::ConnectionNotEstablished);
+                        }
+                    };
+                    debug!(
+                        "Noise initiator handshake completed for {:?}",
+                        self.gateway_address
+                    );
+                    noise_stream
+                }
+                Err(err) => {
+                    debug!("failed to establish connection to gateway (err: {})", err);
+                    return Err(GatewayClientError::NetworkIoError(err));
+                }
+            },
+            Err(_) => {
+                debug!("failed to connect to {} within 5s", self.gateway_address);
+                return Err(GatewayClientError::Timeout);
+            }
+        };
+        let ws_address = format!("ws://{}", self.gateway_address);
+
+        let ws_stream = match client_async(ws_address, noise_conn).await {
             Ok((ws_stream, _)) => ws_stream,
             Err(e) => return Err(GatewayClientError::NetworkError(e)),
         };
@@ -773,7 +825,9 @@ impl<C> GatewayClient<C, EphemeralCredentialStorage> {
     pub fn new_init(
         gateway_address: String,
         gateway_identity: identity::PublicKey,
+        gateway_sphinx: encryption::PublicKey,
         local_identity: Arc<identity::KeyPair>,
+        local_sphinx: Arc<encryption::KeyPair>,
         response_timeout_duration: Duration,
     ) -> Self {
         use futures::channel::mpsc;
@@ -791,7 +845,9 @@ impl<C> GatewayClient<C, EphemeralCredentialStorage> {
             bandwidth_remaining: 0,
             gateway_address,
             gateway_identity,
+            gateway_sphinx,
             local_identity,
+            local_sphinx,
             shared_key: None,
             connection: SocketState::NotConnected,
             packet_router,

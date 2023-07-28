@@ -73,6 +73,8 @@ pub struct GatewayEndpointConfigV1_1_20_2 {
     /// If initially omitted, a random gateway will be chosen from the available topology.
     pub gateway_id: String,
 
+    pub gateway_sphinx: String,
+
     /// Address of the gateway owner to which the client should send messages.
     pub gateway_owner: String,
 
@@ -84,6 +86,7 @@ impl From<GatewayEndpointConfigV1_1_20_2> for GatewayEndpointConfig {
     fn from(value: GatewayEndpointConfigV1_1_20_2) -> Self {
         GatewayEndpointConfig {
             gateway_id: value.gateway_id,
+            gateway_sphinx: value.gateway_sphinx,
             gateway_owner: value.gateway_owner,
             gateway_listener: value.gateway_listener,
         }

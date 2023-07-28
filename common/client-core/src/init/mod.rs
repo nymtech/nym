@@ -370,8 +370,11 @@ where
     // get our identity key
     let our_identity = managed_keys.identity_keypair();
 
+    let our_sphinx = managed_keys.encryption_keypair();
+
     // Establish connection, authenticate and generate keys for talking with the gateway
-    let shared_keys = helpers::register_with_gateway(&gateway_details, our_identity).await?;
+    let shared_keys =
+        helpers::register_with_gateway(&gateway_details, our_identity, our_sphinx).await?;
 
     let persisted_details = PersistedGatewayDetails::new(gateway_details, &shared_keys);
 

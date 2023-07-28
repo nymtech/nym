@@ -1,6 +1,7 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use nym_crypto::asymmetric::encryption::KeyRecoveryError;
 use nym_crypto::asymmetric::identity::Ed25519RecoveryError;
 use nym_gateway_client::error::GatewayClientError;
 use nym_topology::gateway::GatewayConversionError;
@@ -57,6 +58,9 @@ pub enum ClientCoreError {
 
     #[error("The gateway id is invalid - {0}")]
     UnableToCreatePublicKeyFromGatewayId(Ed25519RecoveryError),
+
+    #[error("The gateway sphinx is invalid - {0}")]
+    UnableToCreateSphinxKeyFromGatewayId(KeyRecoveryError),
 
     #[error("The identity of the gateway is unknown - did you run init?")]
     GatewayIdUnknown,

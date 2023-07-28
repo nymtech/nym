@@ -3,7 +3,7 @@
 
 use crate::network_monitor::test_packet::NymApiTestMessageExt;
 use crate::network_monitor::ROUTE_TESTING_TEST_NONCE;
-use nym_crypto::asymmetric::identity;
+use nym_crypto::asymmetric::{encryption, identity};
 use nym_topology::{gateway, mix, NymTopology};
 use std::fmt::{Debug, Formatter};
 
@@ -61,6 +61,10 @@ impl TestRoute {
 
     pub(crate) fn gateway_identity(&self) -> identity::PublicKey {
         self.gateway().identity_key
+    }
+
+    pub(crate) fn gateway_sphinx(&self) -> encryption::PublicKey {
+        self.gateway().sphinx_key
     }
 
     pub(crate) fn topology(&self) -> &NymTopology {

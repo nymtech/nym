@@ -68,6 +68,7 @@ pub struct ConfigV1_1_20<T> {
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Eq, Serialize)]
 pub struct GatewayEndpointConfigV1_1_20 {
     pub gateway_id: String,
+    pub gateway_sphinx: String,
     pub gateway_owner: String,
     pub gateway_listener: String,
 }
@@ -76,6 +77,7 @@ impl From<GatewayEndpointConfigV1_1_20> for GatewayEndpointConfigV1_1_20_2 {
     fn from(value: GatewayEndpointConfigV1_1_20) -> Self {
         GatewayEndpointConfigV1_1_20_2 {
             gateway_id: value.gateway_id,
+            gateway_sphinx: value.gateway_sphinx,
             gateway_owner: value.gateway_owner,
             gateway_listener: value.gateway_listener,
         }

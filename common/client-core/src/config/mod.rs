@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use nym_config::defaults::NymNetworkDetails;
-use nym_crypto::asymmetric::identity;
+use nym_crypto::asymmetric::{encryption, identity};
 use nym_sphinx::params::{PacketSize, PacketType};
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
@@ -207,6 +207,8 @@ pub struct GatewayEndpointConfig {
     /// If initially omitted, a random gateway will be chosen from the available topology.
     pub gateway_id: String,
 
+    pub gateway_sphinx: String,
+
     /// Address of the gateway owner to which the client should send messages.
     pub gateway_owner: String,
 
@@ -219,11 +221,13 @@ impl GatewayEndpointConfig {
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen(constructor))]
     pub fn new(
         gateway_id: String,
+        gateway_sphinx: String,
         gateway_owner: String,
         gateway_listener: String,
     ) -> GatewayEndpointConfig {
         GatewayEndpointConfig {
             gateway_id,
+            gateway_sphinx,
             gateway_owner,
             gateway_listener,
         }
@@ -236,6 +240,11 @@ impl GatewayEndpointConfig {
         identity::PublicKey::from_base58_string(&self.gateway_id)
             .map_err(ClientCoreError::UnableToCreatePublicKeyFromGatewayId)
     }
+
+    pub fn try_get_gateway_sphinx_key(&self) -> Result<encryption::PublicKey, ClientCoreError> {
+        encryption::PublicKey::from_base58_string(&self.gateway_sphinx)
+            .map_err(ClientCoreError::UnableToCreateSphinxKeyFromGatewayId)
+    }
 }
 
 impl From<nym_topology::gateway::Node> for GatewayEndpointConfig {
@@ -243,6 +252,7 @@ impl From<nym_topology::gateway::Node> for GatewayEndpointConfig {
         let gateway_listener = node.clients_address();
         GatewayEndpointConfig {
             gateway_id: node.identity_key.to_base58_string(),
+            gateway_sphinx: node.sphinx_key.to_base58_string(),
             gateway_owner: node.owner,
             gateway_listener,
         }

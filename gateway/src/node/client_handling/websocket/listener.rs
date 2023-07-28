@@ -62,49 +62,48 @@ impl Listener {
 
         while !shutdown.is_shutdown() {
             tokio::select! {
-                            biased;
-                            _ = shutdown.recv() => {
-                                log::trace!("client_handling::Listener: received shutdown");
-                            }
-                            connection = tcp_listener.accept() => {
-                                match connection {
-                                    Ok((socket, remote_addr)) => {
-                                        trace!("received a socket connection from {remote_addr}");
-                                        // TODO: I think we *REALLY* need a mechanism for having a maximum number of connected
-                                        // clients or spawned tokio tasks -> perhaps a worker system?
-                                        // let noise_stream = match upgrade_noise_responder(
-                                        //     socket,
-                                        //     &self.local_sphinx.public_key().to_bytes(),
-                                        //     &self.local_sphinx.private_key().to_bytes(),
-                                        //     None, //connection from client, no remote pub key
-                                        // )
-                                        // .await
-                                        // {
-                                        //     Ok(noise_stream) => noise_stream,
-                                        //     Err(err) => {
-                                        //         error!("Failed to perform Noise handshake with {remote_addr} - {err}");
-                                        //         return;
-                                        //     }
-                                        // };
-                                        let handle = FreshHandler::new(
-                                            OsRng,
-                                            socket,
-            //                                noise_stream,
-                                            self.only_coconut_credentials,
-                                            outbound_mix_sender.clone(),
-                                            Arc::clone(&self.local_identity),
-                                            storage.clone(),
-                                            active_clients_store.clone(),
-                                            Arc::clone(&self.coconut_verifier),
-                                        );
-                                        let shutdown = shutdown.clone();
-                                        tokio::spawn(async move { handle.start_handling(shutdown).await });
-                                    }
-                                    Err(err) => warn!("failed to get client: {err}"),
+                biased;
+                _ = shutdown.recv() => {
+                    log::trace!("client_handling::Listener: received shutdown");
+                }
+                connection = tcp_listener.accept() => {
+                    match connection {
+                        Ok((socket, remote_addr)) => {
+                            trace!("received a socket connection from {remote_addr}");
+                            // TODO: I think we *REALLY* need a mechanism for having a maximum number of connected
+                            // clients or spawned tokio tasks -> perhaps a worker system?
+                            let noise_stream = match upgrade_noise_responder(
+                                socket,
+                                &self.local_sphinx.public_key().to_bytes(),
+                                &self.local_sphinx.private_key().to_bytes(),
+                                None, //connection from client, no remote pub key
+                            )
+                            .await
+                            {
+                                Ok(noise_stream) => noise_stream,
+                                Err(err) => {
+                                    error!("Failed to perform Noise handshake with {remote_addr} - {err}");
+                                    return;
                                 }
-                            }
-
+                            };
+                            let handle = FreshHandler::new(
+                                OsRng,
+                                noise_stream,
+                                self.only_coconut_credentials,
+                                outbound_mix_sender.clone(),
+                                Arc::clone(&self.local_identity),
+                                storage.clone(),
+                                active_clients_store.clone(),
+                                Arc::clone(&self.coconut_verifier),
+                            );
+                            let shutdown = shutdown.clone();
+                            tokio::spawn(async move { handle.start_handling(shutdown).await });
                         }
+                        Err(err) => warn!("failed to get client: {err}"),
+                    }
+                }
+
+            }
         }
     }
 

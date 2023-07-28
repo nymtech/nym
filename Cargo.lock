@@ -3944,6 +3944,7 @@ dependencies = [
  "nym-crypto",
  "nym-gateway-requests",
  "nym-network-defaults",
+ "nym-noise",
  "nym-pemstore",
  "nym-sphinx",
  "nym-task",

@@ -306,15 +306,21 @@ where
     {
         let gateway_address = gateway_config.gateway_listener.clone();
         let gateway_id = gateway_config.gateway_id;
+        let gateway_sphinx = gateway_config.gateway_sphinx;
 
         // TODO: in theory, at this point, this should be infallible
         let gateway_identity = identity::PublicKey::from_base58_string(gateway_id)
             .map_err(ClientCoreError::UnableToCreatePublicKeyFromGatewayId)?;
 
+        let gateway_sphinx_key = encryption::PublicKey::from_base58_string(gateway_sphinx)
+            .map_err(ClientCoreError::UnableToCreateSphinxKeyFromGatewayId)?;
+
         let mut gateway_client = GatewayClient::new(
             gateway_address,
             managed_keys.identity_keypair(),
+            managed_keys.encryption_keypair(),
             gateway_identity,
+            gateway_sphinx_key,
             Some(managed_keys.must_get_gateway_shared_key()),
             mixnet_message_sender,
             ack_sender,

@@ -5,7 +5,7 @@ use crate::config::GatewayEndpointConfig;
 use crate::error::ClientCoreError;
 use futures::{SinkExt, StreamExt};
 use log::{debug, info, trace, warn};
-use nym_crypto::asymmetric::identity;
+use nym_crypto::asymmetric::{encryption, identity};
 use nym_gateway_client::GatewayClient;
 use nym_gateway_requests::registration::handshake::SharedKeys;
 use nym_topology::{filter::VersionFilterable, gateway};
@@ -200,12 +200,15 @@ pub(super) fn uniformly_random_gateway<R: Rng>(
 pub(super) async fn register_with_gateway(
     gateway: &GatewayEndpointConfig,
     our_identity: Arc<identity::KeyPair>,
+    our_sphinx: Arc<encryption::KeyPair>,
 ) -> Result<Arc<SharedKeys>, ClientCoreError> {
     let timeout = Duration::from_millis(1500);
     let mut gateway_client: GatewayClient<DirectSigningNyxdClient, _> = GatewayClient::new_init(
         gateway.gateway_listener.clone(),
         gateway.try_get_gateway_identity_key()?,
+        gateway.try_get_gateway_sphinx_key()?,
         our_identity.clone(),
+        our_sphinx.clone(),
         timeout,
     );
     gateway_client

@@ -9,14 +9,13 @@ use futures::stream::{SplitSink, SplitStream};
 use futures::{SinkExt, StreamExt};
 use log::*;
 use nym_gateway_requests::registration::handshake::SharedKeys;
+use nym_noise::NoiseStream;
 use nym_task::TaskClient;
 use std::sync::Arc;
 use tungstenite::Message;
 
 #[cfg(not(target_arch = "wasm32"))]
-use tokio::net::TcpStream;
-#[cfg(not(target_arch = "wasm32"))]
-use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
+use tokio_tungstenite::WebSocketStream;
 
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen_futures;
@@ -26,7 +25,7 @@ use wasm_utils::websocket::JSWebsocket;
 // type alias for not having to type the whole thing every single time (and now it makes it easier
 // to use different types based on compilation target)
 #[cfg(not(target_arch = "wasm32"))]
-type WsConn = WebSocketStream<MaybeTlsStream<TcpStream>>;
+type WsConn = WebSocketStream<NoiseStream>;
 
 #[cfg(target_arch = "wasm32")]
 type WsConn = JSWebsocket;

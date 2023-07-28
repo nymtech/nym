@@ -105,6 +105,7 @@ impl<'a> NetworkMonitorBuilder<'a> {
             self.config,
             gateway_status_update_sender,
             Arc::clone(&identity_keypair),
+            Arc::clone(&encryption_keypair),
             self.config.debug.gateway_sending_rate,
             bandwidth_controller,
             self.config.debug.disabled_credentials_mode,
@@ -177,6 +178,7 @@ fn new_packet_sender(
     config: &config::NetworkMonitor,
     gateways_status_updater: GatewayClientUpdateSender,
     local_identity: Arc<identity::KeyPair>,
+    local_sphinx: Arc<encryption::KeyPair>,
     max_sending_rate: usize,
     bandwidth_controller: BandwidthController<nyxd::Client, PersistentStorage>,
     disabled_credentials_mode: bool,
@@ -184,6 +186,7 @@ fn new_packet_sender(
     PacketSender::new(
         gateways_status_updater,
         local_identity,
+        local_sphinx,
         config.debug.gateway_response_timeout,
         config.debug.gateway_connection_timeout,
         config.debug.max_concurrent_gateway_clients,

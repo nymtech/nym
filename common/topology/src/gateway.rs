@@ -67,7 +67,7 @@ impl Node {
     }
 
     pub fn clients_address(&self) -> String {
-        format!("ws://{}:{}", self.host, self.clients_port)
+        format!("{}:{}", self.host, self.clients_port)
     }
 }
 

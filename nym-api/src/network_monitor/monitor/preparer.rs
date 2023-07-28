@@ -310,6 +310,7 @@ impl PacketPreparer {
         GatewayPackets::new(
             route.gateway_clients_address(),
             route.gateway_identity(),
+            route.gateway_sphinx(),
             mix_packets,
         )
     }
@@ -387,6 +388,7 @@ impl PacketPreparer {
             let route_ext = test_route.test_message_ext(test_nonce);
             let gateway_address = test_route.gateway_clients_address();
             let gateway_identity = test_route.gateway_identity();
+            let gateway_sphinx = test_route.gateway_sphinx();
 
             let mut mix_tester = self.ephemeral_mix_tester(test_route);
 
@@ -408,7 +410,9 @@ impl PacketPreparer {
 
             let gateway_packets = all_gateway_packets
                 .entry(gateway_identity.to_bytes())
-                .or_insert_with(|| GatewayPackets::empty(gateway_address, gateway_identity));
+                .or_insert_with(|| {
+                    GatewayPackets::empty(gateway_address, gateway_identity, gateway_sphinx)
+                });
             gateway_packets.push_packets(mix_packets);
 
             // and generate test packets for gateways (note the variable recipient)
@@ -436,7 +440,9 @@ impl PacketPreparer {
                 // or create a new one
                 let gateway_packets = all_gateway_packets
                     .entry(gateway_identity.to_bytes())
-                    .or_insert_with(|| GatewayPackets::empty(gateway_address, gateway_identity));
+                    .or_insert_with(|| {
+                        GatewayPackets::empty(gateway_address, gateway_identity, gateway_sphinx)
+                    });
                 gateway_packets.push_packets(gateway_mix_packets);
             }
         }

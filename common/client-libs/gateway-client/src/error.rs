@@ -19,6 +19,9 @@ pub enum GatewayClientError {
     #[error("There was a network error - {0}")]
     NetworkError(#[from] WsError),
 
+    #[error("There was a network error - {0}")]
+    NetworkIoError(#[from] io::Error),
+
     // TODO: see if `JsValue` is a reasonable type for this
     #[cfg(target_arch = "wasm32")]
     #[error("There was a network error")]

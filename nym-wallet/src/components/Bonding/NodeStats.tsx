@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import { Stack, Typography, Box, useTheme, Grid, LinearProgress, LinearProgressProps, Button } from '@mui/material';
-import { useNavigate } from 'react-router-dom';
-import { TBondedMixnode } from 'src/context';
-import { Cell, Pie, PieChart, Legend, ResponsiveContainer } from 'recharts';
+import { open as openLink } from '@tauri-apps/api/shell';
 import { SelectionChance } from '@nymproject/types';
+import { AppContext, TBondedMixnode } from 'src/context';
+import { validatorApiFromNetwork } from 'src/constants';
+import { Cell, Pie, PieChart, Legend, ResponsiveContainer } from 'recharts';
 import { NymCard } from '../NymCard';
 import { InfoTooltip } from '../InfoToolTip';
 
@@ -50,7 +51,7 @@ const StatRow = ({
 export const NodeStats = ({ mixnode }: { mixnode: TBondedMixnode }) => {
   const { activeSetProbability, routingScore } = mixnode;
   const theme = useTheme();
-  const navigate = useNavigate();
+  const { network } = useContext(AppContext);
 
   // clamp routing score to [0-100]
   const score = Math.min(Math.max(routingScore, 0), 100);
@@ -74,8 +75,16 @@ export const NodeStats = ({ mixnode }: { mixnode: TBondedMixnode }) => {
     }
   };
 
-  const handleGoToTestNode = () => {
-    navigate('/bonding/node-settings', { state: 'test-node' });
+  const handleGoToTestNode = async () => {
+    if (network) {
+      let validatorUrl = validatorApiFromNetwork(network);
+
+      //TODO need to change URL to the deployed node-tester (once deployed)
+      const url = new window.URL(
+        `http://localhost:1234/?validator-address=${validatorUrl}&mixnode-identity=${mixnode.identityKey}`,
+      );
+      openLink(url.toString());
+    }
   };
 
   const renderLegend = () => (

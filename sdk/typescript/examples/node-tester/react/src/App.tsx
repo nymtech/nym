@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
+  Alert,
   Button,
   Card,
   CardActions,
@@ -21,8 +22,8 @@ import { TestStatusLabel } from 'src/components/TestStatusLabel';
 import Icon from '../../../../../../assets/appicon/appicon.png';
 
 export const App = () => {
-  const { testState, error, testNode, disconnectFromGateway, reconnectToGateway } = useNodeTesterClient();
-  const [mixnodeIdentity, setMixnodeIdentity] = useState<string>('');
+  const { createClient, testState, error, testNode, disconnectFromGateway, reconnectToGateway } = useNodeTesterClient();
+  const [mixnodeIdentity, setMixnodeIdentity] = useState('');
   const [results, setResults] = React.useState<NodeTestResultResponse>();
 
   console.log({ testState, error, testNode });
@@ -36,6 +37,26 @@ export const App = () => {
       console.error(e);
     }
   };
+
+  const getParams = () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    return {
+      mixnodeIdentity: urlParams.get('mixnode-identity'),
+      validatorAddress: urlParams.get('validator-address'),
+    };
+  };
+
+  const initApp = async () => {
+    const { mixnodeIdentity, validatorAddress } = getParams();
+    if (mixnodeIdentity) {
+      setMixnodeIdentity(mixnodeIdentity);
+    }
+    await createClient(validatorAddress || 'https://validator.nymtech.net/api');
+  };
+
+  useEffect(() => {
+    initApp();
+  }, []);
 
   return (
     <BasicPageLayout>
@@ -66,6 +87,11 @@ export const App = () => {
                 </ListItem>
               </List>
             </Grid>
+            {error && (
+              <Grid item xs={12}>
+                <Alert severity="error">{error}</Alert>
+              </Grid>
+            )}
           </Grid>
         </CardContent>
         <CardActions>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { createNodeTesterClient, NodeTester } from '@nymproject/sdk';
 
 export type TestState = 'Ready' | 'Connecting' | 'Disconnected' | 'Disconnecting' | 'Error' | 'Testing' | 'Stopped';
@@ -8,25 +8,20 @@ export const useNodeTesterClient = () => {
   const [error, setError] = useState<string>();
   const [testState, setTestState] = useState<TestState>('Disconnected');
 
-  const createClient = async () => {
+  const createClient = async (validator: string) => {
     setTestState('Connecting');
     try {
-      const validator = 'https://validator.nymtech.net/api';
       const nodeTesterClient = await createNodeTesterClient();
 
       await nodeTesterClient.tester.init(validator);
       setClient(nodeTesterClient);
+      setTestState('Ready');
     } catch (e) {
       console.log(e);
-      setError('Failed to load node tester client, please try again');
-    } finally {
-      setTestState('Ready');
+      setError('Failed to load node tester client, please try again. Error: ' + e.message);
+      setTestState('Error');
     }
   };
-
-  useEffect(() => {
-    createClient();
-  }, []);
 
   const testNode = !client
     ? undefined
@@ -38,7 +33,7 @@ export const useNodeTesterClient = () => {
           return result;
         } catch (e) {
           console.log(e);
-          setError('Failed to test node, please try again');
+          setError('Failed to test node, please try again. Error: ' + e.message);
           setTestState('Error');
         }
       };
@@ -67,5 +62,5 @@ export const useNodeTesterClient = () => {
         setTestState('Disconnected');
       };
 
-  return { testNode, disconnectFromGateway, reconnectToGateway, terminateWorker, testState, error };
+  return { createClient, testNode, disconnectFromGateway, reconnectToGateway, terminateWorker, testState, error };
 };

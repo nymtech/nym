@@ -43,13 +43,7 @@ pub struct Config {
     nyxd_url: Url,
 
     // TODO: until refactored, this is a dead field under some features
-    #[allow(dead_code)]
     nyxd_config: nyxd::Config,
-
-    mixnode_page_limit: Option<u32>,
-    gateway_page_limit: Option<u32>,
-    mixnode_delegations_page_limit: Option<u32>,
-    rewarded_set_page_limit: Option<u32>,
 }
 
 impl Config {
@@ -74,10 +68,6 @@ impl Config {
                 .parse()
                 .map_err(ValidatorClientError::MalformedUrlProvided)?,
             nyxd_config: nyxd::Config::try_from_nym_network_details(details)?,
-            mixnode_page_limit: None,
-            gateway_page_limit: None,
-            mixnode_delegations_page_limit: None,
-            rewarded_set_page_limit: None,
         })
     }
 
@@ -93,38 +83,9 @@ impl Config {
         self.nyxd_url = nyxd_url;
         self
     }
-
-    pub fn with_mixnode_page_limit(mut self, limit: Option<u32>) -> Config {
-        self.mixnode_page_limit = limit;
-        self
-    }
-
-    pub fn with_gateway_page_limit(mut self, limit: Option<u32>) -> Config {
-        self.gateway_page_limit = limit;
-        self
-    }
-
-    pub fn with_mixnode_delegations_page_limit(mut self, limit: Option<u32>) -> Config {
-        self.mixnode_delegations_page_limit = limit;
-        self
-    }
-
-    pub fn with_rewarded_set_page_limit(mut self, limit: Option<u32>) -> Config {
-        self.rewarded_set_page_limit = limit;
-        self
-    }
 }
 
 pub struct Client<C, S = NoSigner> {
-    #[deprecated]
-    mixnode_page_limit: Option<u32>,
-    #[deprecated]
-    gateway_page_limit: Option<u32>,
-    #[deprecated]
-    mixnode_delegations_page_limit: Option<u32>,
-    #[deprecated]
-    rewarded_set_page_limit: Option<u32>,
-
     // ideally they would have been read-only, but unfortunately rust doesn't have such features
     pub nym_api: nym_api::Client,
     pub nyxd: NyxdClient<C, S>,
@@ -144,10 +105,6 @@ impl Client<HttpClient, DirectSecp256k1HdWallet> {
         )?;
 
         Ok(Client {
-            mixnode_page_limit: config.mixnode_page_limit,
-            gateway_page_limit: config.gateway_page_limit,
-            mixnode_delegations_page_limit: config.mixnode_delegations_page_limit,
-            rewarded_set_page_limit: config.rewarded_set_page_limit,
             nym_api: nym_api_client,
             nyxd: nyxd_client,
         })
@@ -172,10 +129,6 @@ impl Client<HttpClient> {
             NyxdClient::connect(config.nyxd_config.clone(), config.nyxd_url.as_str())?;
 
         Ok(Client {
-            mixnode_page_limit: config.mixnode_page_limit,
-            gateway_page_limit: config.gateway_page_limit,
-            mixnode_delegations_page_limit: config.mixnode_delegations_page_limit,
-            rewarded_set_page_limit: config.rewarded_set_page_limit,
             nym_api: nym_api_client,
             nyxd: nyxd_client,
         })
@@ -192,11 +145,13 @@ impl<C> Client<C> {
     // use case: somebody initialised client without a contract in order to upload and initialise one
     // and now they want to actually use it without making new client
 
+    #[deprecated]
     pub fn set_mixnet_contract_address(&mut self, mixnet_contract_address: cosmrs::AccountId) {
         self.nyxd
             .set_mixnet_contract_address(mixnet_contract_address)
     }
 
+    #[deprecated]
     pub fn get_mixnet_contract_address(&self) -> cosmrs::AccountId {
         // TODO: deal with the expect
         self.nyxd
@@ -204,249 +159,6 @@ impl<C> Client<C> {
             .expect("mixnet contract address is not available")
             .clone()
     }
-
-    //
-    // pub async fn get_all_nyxd_unbonded_mixnodes(
-    //     &self,
-    // ) -> Result<Vec<(MixId, UnbondedMixnode)>, ValidatorClientError>
-    // where
-    //     C: CosmWasmClient + Sync + Send,
-    // {
-    //     let mut mixnodes = Vec::new();
-    //     let mut start_after = None;
-    //     loop {
-    //         let mut paged_response = self
-    //             .nyxd
-    //             .get_unbonded_paged(self.mixnode_page_limit, start_after.take())
-    //             .await?;
-    //         mixnodes.append(&mut paged_response.nodes);
-    //
-    //         if let Some(start_after_res) = paged_response.start_next_after {
-    //             start_after = Some(start_after_res)
-    //         } else {
-    //             break;
-    //         }
-    //     }
-    //
-    //     Ok(mixnodes)
-    // }
-    //
-    // pub async fn get_all_nyxd_unbonded_mixnodes_by_owner(
-    //     &self,
-    //     owner: &cosmrs::AccountId,
-    // ) -> Result<Vec<(MixId, UnbondedMixnode)>, ValidatorClientError>
-    // where
-    //     C: CosmWasmClient + Sync + Send,
-    // {
-    //     let mut mixnodes = Vec::new();
-    //     let mut start_after = None;
-    //     loop {
-    //         let mut paged_response = self
-    //             .nyxd
-    //             .get_unbonded_by_owner_paged(owner, self.mixnode_page_limit, start_after.take())
-    //             .await?;
-    //         mixnodes.append(&mut paged_response.nodes);
-    //
-    //         if let Some(start_after_res) = paged_response.start_next_after {
-    //             start_after = Some(start_after_res)
-    //         } else {
-    //             break;
-    //         }
-    //     }
-    //
-    //     Ok(mixnodes)
-    // }
-    //
-    // pub async fn get_all_nyxd_unbonded_mixnodes_by_identity(
-    //     &self,
-    //     identity_key: String,
-    // ) -> Result<Vec<(MixId, UnbondedMixnode)>, ValidatorClientError>
-    // where
-    //     C: CosmWasmClient + Sync + Send,
-    // {
-    //     let mut mixnodes = Vec::new();
-    //     let mut start_after = None;
-    //     loop {
-    //         let mut paged_response = self
-    //             .nyxd
-    //             .get_unbonded_by_identity_paged(
-    //                 identity_key.clone(),
-    //                 self.mixnode_page_limit,
-    //                 start_after.take(),
-    //             )
-    //             .await?;
-    //         mixnodes.append(&mut paged_response.nodes);
-    //
-    //         if let Some(start_after_res) = paged_response.start_next_after {
-    //             start_after = Some(start_after_res)
-    //         } else {
-    //             break;
-    //         }
-    //     }
-    //
-    //     Ok(mixnodes)
-    // }
-    //
-    // pub async fn get_all_nyxd_gateways(&self) -> Result<Vec<GatewayBond>, ValidatorClientError>
-    // where
-    //     C: CosmWasmClient + Sync + Send,
-    // {
-    //     let mut gateways = Vec::new();
-    //     let mut start_after = None;
-    //     loop {
-    //         let mut paged_response = self
-    //             .nyxd
-    //             .get_gateways_paged(start_after.take(), self.gateway_page_limit)
-    //             .await?;
-    //         gateways.append(&mut paged_response.nodes);
-    //
-    //         if let Some(start_after_res) = paged_response.start_next_after {
-    //             start_after = Some(start_after_res)
-    //         } else {
-    //             break;
-    //         }
-    //     }
-    //
-    //     Ok(gateways)
-    // }
-    //
-    // pub async fn get_all_nyxd_single_mixnode_delegations(
-    //     &self,
-    //     mix_id: MixId,
-    // ) -> Result<Vec<Delegation>, ValidatorClientError>
-    // where
-    //     C: CosmWasmClient + Sync + Send,
-    // {
-    //     let mut delegations = Vec::new();
-    //     let mut start_after = None;
-    //     loop {
-    //         let mut paged_response = self
-    //             .nyxd
-    //             .get_mixnode_delegations_paged(
-    //                 mix_id,
-    //                 start_after.take(),
-    //                 self.mixnode_delegations_page_limit,
-    //             )
-    //             .await?;
-    //         delegations.append(&mut paged_response.delegations);
-    //
-    //         if let Some(start_after_res) = paged_response.start_next_after {
-    //             start_after = Some(start_after_res)
-    //         } else {
-    //             break;
-    //         }
-    //     }
-    //
-    //     Ok(delegations)
-    // }
-    //
-    // pub async fn get_all_delegator_delegations(
-    //     &self,
-    //     delegation_owner: &cosmrs::AccountId,
-    // ) -> Result<Vec<Delegation>, ValidatorClientError>
-    // where
-    //     C: CosmWasmClient + Sync + Send,
-    // {
-    //     let mut delegations = Vec::new();
-    //     let mut start_after = None;
-    //     loop {
-    //         let mut paged_response = self
-    //             .nyxd
-    //             .get_delegator_delegations_paged(
-    //                 delegation_owner.to_string(),
-    //                 start_after.take(),
-    //                 self.mixnode_delegations_page_limit,
-    //             )
-    //             .await?;
-    //         delegations.append(&mut paged_response.delegations);
-    //
-    //         if let Some(start_after_res) = paged_response.start_next_after {
-    //             start_after = Some(start_after_res)
-    //         } else {
-    //             break;
-    //         }
-    //     }
-    //
-    //     Ok(delegations)
-    // }
-    //
-    // pub async fn get_all_network_delegations(&self) -> Result<Vec<Delegation>, ValidatorClientError>
-    // where
-    //     C: CosmWasmClient + Sync + Send,
-    // {
-    //     let mut delegations = Vec::new();
-    //     let mut start_after = None;
-    //     loop {
-    //         let mut paged_response = self
-    //             .nyxd
-    //             .get_all_network_delegations_paged(
-    //                 start_after.take(),
-    //                 self.mixnode_delegations_page_limit,
-    //             )
-    //             .await?;
-    //         delegations.append(&mut paged_response.delegations);
-    //
-    //         if let Some(start_after_res) = paged_response.start_next_after {
-    //             start_after = Some(start_after_res)
-    //         } else {
-    //             break;
-    //         }
-    //     }
-    //
-    //     Ok(delegations)
-    // }
-    //
-    // pub async fn get_all_nyxd_pending_epoch_events(
-    //     &self,
-    // ) -> Result<Vec<PendingEpochEvent>, ValidatorClientError>
-    // where
-    //     C: CosmWasmClient + Sync + Send,
-    // {
-    //     let mut events = Vec::new();
-    //     let mut start_after = None;
-    //
-    //     loop {
-    //         let mut paged_response = self
-    //             .nyxd
-    //             .get_pending_epoch_events_paged(start_after.take(), self.rewarded_set_page_limit)
-    //             .await?;
-    //         events.append(&mut paged_response.events);
-    //
-    //         if let Some(start_after_res) = paged_response.start_next_after {
-    //             start_after = Some(start_after_res)
-    //         } else {
-    //             break;
-    //         }
-    //     }
-    //
-    //     Ok(events)
-    // }
-    //
-    // pub async fn get_all_nyxd_pending_interval_events(
-    //     &self,
-    // ) -> Result<Vec<PendingIntervalEvent>, ValidatorClientError>
-    // where
-    //     C: CosmWasmClient + Sync + Send,
-    // {
-    //     let mut events = Vec::new();
-    //     let mut start_after = None;
-    //
-    //     loop {
-    //         let mut paged_response = self
-    //             .nyxd
-    //             .get_pending_interval_events_paged(start_after.take(), self.rewarded_set_page_limit)
-    //             .await?;
-    //         events.append(&mut paged_response.events);
-    //
-    //         if let Some(start_after_res) = paged_response.start_next_after {
-    //             start_after = Some(start_after_res)
-    //         } else {
-    //             break;
-    //         }
-    //     }
-    //
-    //     Ok(events)
-    // }
 }
 
 // validator-api wrappers

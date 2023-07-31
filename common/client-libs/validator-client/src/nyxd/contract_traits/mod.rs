@@ -129,11 +129,27 @@ impl TryFrom<NymContracts> for TypedNymContracts {
 // a simple helper macro to define to repeatedly call a paged query until a full response is constructed
 #[macro_export]
 macro_rules! collect_paged {
+    // TODO: deal with the args in a nicer way
     ( $self:ident, $f: ident, $field: ident ) => {{
         let mut res = Vec::new();
         let mut start_after = None;
         loop {
             let paged_response = $self.$f(start_after.take(), None).await?;
+            res.extend(paged_response.$field);
+
+            if let Some(start_next_after) = paged_response.start_next_after {
+                start_after = Some(start_next_after)
+            } else {
+                break Ok(res);
+            }
+        }
+    }};
+
+    ( $self:ident, $f: ident, $field: ident, $($args:tt),*) => {{
+        let mut res = Vec::new();
+        let mut start_after = None;
+        loop {
+            let paged_response = $self.$f($($args),*, start_after.take(), None).await?;
             res.extend(paged_response.$field);
 
             if let Some(start_next_after) = paged_response.start_next_after {

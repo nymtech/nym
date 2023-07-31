@@ -1,17 +1,3 @@
-<!---
-TODO
-- [x] Go through the entire doc and fix typos, coherency and conventions
-- [x] Add a short point to run a mix node on tmux shell on VPS
-- [x] Add path to target release
-- [x] Change variables into a unified and explicit ones
-- [x] Run the process along and create wallet screenshots of mixnode, not gateway
-- [x] Add step 2/3 in the wallet bonding
-- [x] Better picture alignment.
-- [x] Add second console output to Initialising your mixnode manually as the automatized is not working
-- [x] Explain more about self hosted nodes in the 6.1 not only as a troubleshooting
-- [x] Move the upgrade, automation, ulimit, vps, API and port parts to maintenance.md
---->
-
 # Mix Nodes
 
 > The Nym mix node binary was built in the [building nym](https://nymtech.net/operators/binaries/building-nym.html) section. If you haven't yet built Nym and want to run the code, go there first.

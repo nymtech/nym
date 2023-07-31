@@ -18,6 +18,5 @@
 - [Nyx Validator Setup](./nodes/validator-setup.md)
 - [Maintenance](./nodes/maintenance.md)
 - [Troubleshooting](./nodes/troubleshooting.md)
-<!---
 - [FAQ](./faq.md)
---->
+

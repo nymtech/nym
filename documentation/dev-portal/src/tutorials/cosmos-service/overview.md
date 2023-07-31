@@ -2,7 +2,7 @@
 
 This tutorial involves writing two pieces of code in Rust:
 
-- A client side binary used to construct a blockchain query and send this query to a service, which will interact with a Cosmos SDK blockchain on our behalf.
+- A client side binary used to construct a blockchain query and send this query to a service, which will interact with a Cosmos SDK blockchain on our behalf (bear in mind this principle works for all blockchains - we're just utilising the `cosmrs` library to interact with the Nyx blockchain in this tutorial).
 - A service which will listen out for requests from the mixnet, act on those requests, and anonymously reply to the client sending the requests.
 
 You will learn how to do the following with the Rust SDK:

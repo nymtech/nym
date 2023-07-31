@@ -8,6 +8,7 @@ use crate::nyxd::CosmWasmClient;
 use async_trait::async_trait;
 use cosmrs::AccountId;
 use nym_contracts_common::signing::Nonce;
+use nym_contracts_common::IdentityKeyRef;
 use nym_mixnet_contract_common::delegation::{MixNodeDelegationResponse, OwnerProxySubKey};
 use nym_mixnet_contract_common::families::{Family, FamilyHead};
 use nym_mixnet_contract_common::mixnode::{
@@ -20,16 +21,16 @@ use nym_mixnet_contract_common::rewarding::{
 };
 use nym_mixnet_contract_common::{
     delegation, ContractBuildInformation, ContractState, ContractStateParams,
-    CurrentIntervalResponse, EpochEventId, EpochStatus, FamilyByHeadResponse,
-    FamilyByLabelResponse, FamilyMembersByHeadResponse, FamilyMembersByLabelResponse,
+    CurrentIntervalResponse, Delegation, EpochEventId, EpochStatus, FamilyByHeadResponse,
+    FamilyByLabelResponse, FamilyMembersByHeadResponse, FamilyMembersByLabelResponse, GatewayBond,
     GatewayBondResponse, GatewayOwnershipResponse, IdentityKey, IntervalEventId, LayerDistribution,
-    MixId, MixNodeBond, MixNodeDetails, MixOwnershipResponse, MixnodeDetailsByIdentityResponse,
-    MixnodeDetailsResponse, NumberOfPendingEventsResponse, PagedAllDelegationsResponse,
-    PagedDelegatorDelegationsResponse, PagedFamiliesResponse, PagedGatewayResponse,
-    PagedMembersResponse, PagedMixNodeDelegationsResponse, PagedMixnodeBondsResponse,
-    PagedRewardedSetResponse, PendingEpochEventResponse, PendingEpochEventsResponse,
+    MixId, MixNodeBond, MixNodeDetails, MixOwnershipResponse, MixnodeDetailsResponse,
+    NumberOfPendingEventsResponse, PagedAllDelegationsResponse, PagedDelegatorDelegationsResponse,
+    PagedFamiliesResponse, PagedGatewayResponse, PagedMembersResponse,
+    PagedMixNodeDelegationsResponse, PagedMixnodeBondsResponse, PagedRewardedSetResponse,
+    PendingEpochEvent, PendingEpochEventResponse, PendingEpochEventsResponse, PendingIntervalEvent,
     PendingIntervalEventResponse, PendingIntervalEventsResponse, QueryMsg as MixnetQueryMsg,
-    RewardedSetNodeStatus,
+    RewardedSetNodeStatus, UnbondedMixnode,
 };
 use serde::Deserialize;
 
@@ -166,12 +167,12 @@ pub trait MixnetQueryClient {
 
     async fn get_unbonded_by_identity_paged(
         &self,
-        identity_key: String,
+        identity_key: IdentityKeyRef<'_>,
         start_after: Option<MixId>,
         limit: Option<u32>,
     ) -> Result<PagedUnbondedMixnodesResponse, NyxdError> {
         self.query_mixnet_contract(MixnetQueryMsg::GetUnbondedMixNodesByIdentityKey {
-            identity_key,
+            identity_key: identity_key.to_string(),
             limit,
             start_after,
         })
@@ -286,12 +287,12 @@ pub trait MixnetQueryClient {
     /// Gets list of all the mixnodes to which a particular address delegated.
     async fn get_delegator_delegations_paged(
         &self,
-        delegator: String,
+        delegator: &AccountId,
         start_after: Option<(MixId, OwnerProxySubKey)>,
         limit: Option<u32>,
     ) -> Result<PagedDelegatorDelegationsResponse, NyxdError> {
         self.query_mixnet_contract(MixnetQueryMsg::GetDelegatorDelegations {
-            delegator,
+            delegator: delegator.to_string(),
             start_after,
             limit,
         })
@@ -477,6 +478,61 @@ pub trait PagedMixnetQueryClient: MixnetQueryClient {
 
     async fn get_all_mixnodes_detailed(&self) -> Result<Vec<MixNodeDetails>, NyxdError> {
         collect_paged!(self, get_mixnodes_detailed_paged, nodes)
+    }
+
+    async fn get_all_unbonded_mixnodes(&self) -> Result<Vec<(MixId, UnbondedMixnode)>, NyxdError> {
+        collect_paged!(self, get_unbonded_paged, nodes)
+    }
+
+    async fn get_all_unbonded_mixnodes_by_owner(
+        &self,
+        owner: &AccountId,
+    ) -> Result<Vec<(MixId, UnbondedMixnode)>, NyxdError> {
+        collect_paged!(self, get_unbonded_by_owner_paged, nodes, owner)
+    }
+
+    async fn get_all_unbonded_mixnodes_by_identity(
+        &self,
+        identity_key: IdentityKeyRef<'_>,
+    ) -> Result<Vec<(MixId, UnbondedMixnode)>, NyxdError> {
+        collect_paged!(self, get_unbonded_by_identity_paged, nodes, identity_key)
+    }
+
+    async fn get_all_gateways(&self) -> Result<Vec<GatewayBond>, NyxdError> {
+        collect_paged!(self, get_gateways_paged, nodes)
+    }
+
+    async fn get_all_single_mixnode_delegations(
+        &self,
+        mix_id: MixId,
+    ) -> Result<Vec<Delegation>, NyxdError> {
+        collect_paged!(self, get_mixnode_delegations_paged, delegations, mix_id)
+    }
+
+    async fn get_all_delegator_delegations(
+        &self,
+        delegation_owner: &AccountId,
+    ) -> Result<Vec<Delegation>, NyxdError> {
+        collect_paged!(
+            self,
+            get_delegator_delegations_paged,
+            delegations,
+            delegation_owner
+        )
+    }
+
+    async fn get_all_network_delegations(&self) -> Result<Vec<Delegation>, NyxdError> {
+        collect_paged!(self, get_all_network_delegations_paged, delegations)
+    }
+
+    async fn get_all_pending_epoch_events(&self) -> Result<Vec<PendingEpochEvent>, NyxdError> {
+        collect_paged!(self, get_pending_epoch_events_paged, events)
+    }
+
+    async fn get_all_pending_interval_events(
+        &self,
+    ) -> Result<Vec<PendingIntervalEvent>, NyxdError> {
+        collect_paged!(self, get_pending_interval_events_paged, events)
     }
 }
 

@@ -1,6 +1,7 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::nyxd::contract_traits::NymContractsProvider;
 use crate::nyxd::error::NyxdError;
 use crate::nyxd::{CosmWasmClient, NyxdClient};
 use async_trait::async_trait;
@@ -176,29 +177,32 @@ pub trait DkgQueryClient {
 }
 
 #[async_trait]
-impl<C> DkgQueryClient for NyxdClient<C>
+impl<C> DkgQueryClient for C
 where
-    C: CosmWasmClient + Send + Sync,
+    C: CosmWasmClient + NymContractsProvider + Send + Sync,
 {
     async fn query_dkg_contract<T>(&self, query: DkgQueryMsg) -> Result<T, NyxdError>
     where
         for<'a> T: Deserialize<'a>,
     {
-        self.client
-            .query_contract_smart(self.coconut_dkg_contract_address(), &query)
+        let dkg_contract_address = &self
+            .dkg_contract_address()
+            .ok_or_else(|| NyxdError::unavailable_contract_address("dkg contract"))?;
+        self.query_contract_smart(dkg_contract_address, &query)
             .await
     }
 }
 
-#[async_trait]
-impl<C> DkgQueryClient for crate::Client<C>
-where
-    C: CosmWasmClient + Sync + Send,
-{
-    async fn query_dkg_contract<T>(&self, query: DkgQueryMsg) -> Result<T, NyxdError>
-    where
-        for<'a> T: Deserialize<'a>,
-    {
-        self.nyxd.query_dkg_contract(query).await
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // it's enough that this compiles
+    #[deprecated]
+    async fn all_query_variants_are_covered<C: DkgQueryClient + Send + Sync>(
+        client: C,
+        msg: DkgQueryMsg,
+    ) {
+        unimplemented!()
     }
 }

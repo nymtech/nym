@@ -1,37 +1,153 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-#[cfg(feature = "http-client")]
+use crate::nyxd::cosmwasm_client::client_traits::{CosmWasmClient, SigningCosmWasmClient};
 use crate::nyxd::error::NyxdError;
-#[cfg(feature = "http-client")]
-use cosmrs::rpc::{Error as TendermintRpcError, HttpClient, HttpClientUrl};
-#[cfg(feature = "http-client")]
-use std::convert::TryInto;
+use crate::nyxd::{Config, GasPrice, TendermintClient};
+use crate::signing::signer::{NoSigner, OfflineSigner};
+use crate::signing::tx_signer::TxSigner;
+use crate::signing::AccountData;
+use async_trait::async_trait;
+use cosmrs::rpc::Error as TendermintRpcError;
+use cosmrs::AccountId;
+use tendermint_rpc::SimpleRequest;
 
-pub mod client;
+pub mod client_traits;
 mod helpers;
 pub mod logs;
 pub mod types;
 
-#[cfg(feature = "signing")]
-pub mod signing_client;
-
-#[cfg(feature = "http-client")]
-pub fn connect<U>(endpoint: U) -> Result<HttpClient, NyxdError>
-where
-    U: TryInto<HttpClientUrl, Error = TendermintRpcError>,
-{
-    Ok(HttpClient::new(endpoint)?)
+#[derive(Debug)]
+pub(crate) struct SigningClientOptions {
+    gas_price: GasPrice,
 }
 
-#[cfg(all(feature = "signing", feature = "http-client"))]
-pub fn connect_with_signer<S, U: Clone>(
-    endpoint: U,
+impl<'a> From<&'a Config> for SigningClientOptions {
+    fn from(value: &'a Config) -> Self {
+        SigningClientOptions {
+            gas_price: value.gas_price.clone(),
+        }
+    }
+}
+
+// convenience wrapper around query client to allow for optional signing
+#[derive(Debug)]
+pub(crate) struct MaybeSigningClient<C, S = NoSigner> {
+    client: C,
     signer: S,
-    gas_price: crate::nyxd::GasPrice,
-) -> Result<signing_client::Client<S>, NyxdError>
-where
-    U: TryInto<HttpClientUrl, Error = TendermintRpcError>,
-{
-    signing_client::Client::connect_with_signer(endpoint, signer, gas_price)
+    opts: SigningClientOptions,
+    derived_addresses: Option<Vec<AccountId>>,
 }
+
+impl<C> MaybeSigningClient<C> {
+    pub(crate) fn new(client: C, opts: SigningClientOptions) -> Self {
+        MaybeSigningClient {
+            client,
+            signer: Default::default(),
+            opts,
+            derived_addresses: None,
+        }
+    }
+}
+
+impl<C, S> MaybeSigningClient<C, S> {
+    pub(crate) fn new_signing(
+        client: C,
+        signer: S,
+        opts: SigningClientOptions,
+    ) -> Result<Self, S::Error>
+    where
+        S: OfflineSigner,
+    {
+        let derived_addresses = signer
+            .get_accounts()?
+            .into_iter()
+            .map(|account| account.address)
+            .collect();
+        Ok(MaybeSigningClient {
+            client,
+            signer,
+            opts,
+            derived_addresses: Some(derived_addresses),
+        })
+    }
+
+    pub(crate) fn derived_addresses(&self) -> &[AccountId] {
+        // the unwrap is fine here as you can't construct a signing client without setting the addresses
+        self.derived_addresses.as_ref().unwrap()
+    }
+}
+
+#[async_trait]
+impl<C, S> TendermintClient for MaybeSigningClient<C, S>
+where
+    C: TendermintClient + Send + Sync,
+    S: Send + Sync,
+{
+    async fn perform<R>(&self, request: R) -> Result<R::Output, TendermintRpcError>
+    where
+        R: SimpleRequest,
+    {
+        self.client.perform(request).await
+    }
+}
+
+#[async_trait]
+impl<C, S> CosmWasmClient for MaybeSigningClient<C, S>
+where
+    C: CosmWasmClient + Send + Sync,
+    S: Send + Sync,
+{
+}
+
+impl<C, S> OfflineSigner for MaybeSigningClient<C, S>
+where
+    C: CosmWasmClient,
+    S: OfflineSigner,
+{
+    type Error = S::Error;
+
+    fn get_accounts(&self) -> Result<Vec<AccountData>, Self::Error> {
+        self.signer.get_accounts()
+    }
+}
+
+impl<C, S> TxSigner for MaybeSigningClient<C, S>
+where
+    C: CosmWasmClient,
+    S: OfflineSigner,
+{
+}
+
+#[async_trait]
+impl<C, S> SigningCosmWasmClient for MaybeSigningClient<C, S>
+where
+    C: CosmWasmClient + Send + Sync,
+    S: OfflineSigner + Send + Sync,
+    NyxdError: From<S::Error>,
+{
+    fn gas_price(&self) -> &GasPrice {
+        &self.opts.gas_price
+    }
+}
+
+//
+// #[cfg(feature = "http-client")]
+// pub fn connect<U>(endpoint: U) -> Result<MaybeSigningClient<HttpClient>, NyxdError>
+// where
+//     U: TryInto<HttpClientUrl, Error = TendermintRpcError>,
+// {
+//     Ok(HttpClient::new(endpoint)?)
+// }
+//
+// #[cfg(all(feature = "signing", feature = "http-client"))]
+// pub fn connect_with_signer<S, U: Clone>(
+//     endpoint: U,
+//     signer: S,
+//     gas_price: crate::nyxd::GasPrice,
+// ) -> Result<MaybeSigningClient<HttpClient, S>, NyxdError>
+// where
+//     U: TryInto<HttpClientUrl, Error = TendermintRpcError>,
+// {
+//     signing_client::Client::connect_with_signer(endpoint, signer, gas_price)
+// }

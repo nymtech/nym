@@ -164,6 +164,10 @@ impl NymNetworkDetails {
         }
     }
 
+    pub fn default_gas_price_amount(&self) -> f64 {
+        GAS_PRICE_AMOUNT
+    }
+
     #[must_use]
     pub fn with_network_name(mut self, network_name: String) -> Self {
         self.network_name = network_name;

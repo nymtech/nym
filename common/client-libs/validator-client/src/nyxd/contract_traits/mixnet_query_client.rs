@@ -1,9 +1,10 @@
-// Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2022-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-pub use crate::nyxd::cosmwasm_client::client::CosmWasmClient;
+use crate::define_paged_response;
+use crate::nyxd::contract_traits::NymContractsProvider;
 use crate::nyxd::error::NyxdError;
-use crate::nyxd::NyxdClient;
+use crate::nyxd::CosmWasmClient;
 use async_trait::async_trait;
 use cosmrs::AccountId;
 use nym_contracts_common::signing::Nonce;
@@ -93,8 +94,8 @@ pub trait MixnetQueryClient {
 
     async fn get_all_family_members_paged(
         &self,
-        start_after: Option<String>,
         limit: Option<u32>,
+        start_after: Option<String>,
     ) -> Result<PagedMembersResponse, NyxdError> {
         self.query_mixnet_contract(MixnetQueryMsg::GetAllMembersPaged { limit, start_after })
             .await
@@ -435,46 +436,177 @@ pub trait MixnetQueryClient {
 
     async fn get_node_family_by_label(
         &self,
-        label: &str,
+        label: String,
     ) -> Result<FamilyByLabelResponse, NyxdError> {
-        self.query_mixnet_contract(MixnetQueryMsg::GetFamilyByLabel {
-            label: label.to_string(),
-        })
-        .await
+        self.query_mixnet_contract(MixnetQueryMsg::GetFamilyByLabel { label })
+            .await
     }
 
-    async fn get_node_family_by_head(&self, head: &str) -> Result<FamilyByHeadResponse, NyxdError> {
-        self.query_mixnet_contract(MixnetQueryMsg::GetFamilyByHead {
-            head: head.to_string(),
-        })
-        .await
-    }
-}
-
-#[async_trait]
-impl<C> MixnetQueryClient for NyxdClient<C>
-where
-    C: CosmWasmClient + Sync + Send,
-{
-    async fn query_mixnet_contract<T>(&self, query: MixnetQueryMsg) -> Result<T, NyxdError>
-    where
-        for<'a> T: Deserialize<'a>,
-    {
-        self.client
-            .query_contract_smart(self.mixnet_contract_address(), &query)
+    async fn get_node_family_by_head(
+        &self,
+        head: String,
+    ) -> Result<FamilyByHeadResponse, NyxdError> {
+        self.query_mixnet_contract(MixnetQueryMsg::GetFamilyByHead { head })
             .await
     }
 }
 
+// extension trait to the query client to deal with the paged queries
+// (it didn't feel appropriate to combine it with the existing trait
 #[async_trait]
-impl<C> MixnetQueryClient for crate::Client<C>
+pub trait PagedMixnetClient: MixnetQueryClient + Send + Sync {
+    // async fn get_all_node_families(&self) -> Result<Vec<Family>, NyxdError> {
+    //     let mut res = Vec::new();
+    //     let mut start_after = None;
+    //
+    //     loop {
+    //         let paged_response = self
+    //             .get_all_node_families_paged(start_after.take(), None)
+    //             .await?;
+    //         res.extend(paged_response.families);
+    //
+    //         if let Some(start_next_after) = paged_response.start_next_after {
+    //             start_after = Some(start_next_after)
+    //         } else {
+    //             break;
+    //         }
+    //     }
+    //
+    //     Ok(res)
+    // }
+
+    // define_paged_response!(
+    //     get_all_node_families,
+    //     Family,
+    //     get_all_node_families_paged,
+    //     families
+    // );
+}
+
+#[async_trait]
+impl<T> PagedMixnetClient for T where T: MixnetQueryClient {}
+
+#[async_trait]
+impl<C> MixnetQueryClient for C
 where
-    C: CosmWasmClient + Sync + Send,
+    C: CosmWasmClient + NymContractsProvider + Send + Sync,
 {
     async fn query_mixnet_contract<T>(&self, query: MixnetQueryMsg) -> Result<T, NyxdError>
     where
         for<'a> T: Deserialize<'a>,
     {
-        self.nyxd.query_mixnet_contract(query).await
+        let mixnet_contract_address = &self
+            .mixnet_contract_address()
+            .ok_or_else(|| NyxdError::unavailable_contract_address("mixnet contract"))?;
+        self.query_contract_smart(mixnet_contract_address, &query)
+            .await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // it's enough that this compiles
+    #[deprecated]
+    async fn all_query_variants_are_covered<C: MixnetQueryClient + Send + Sync>(
+        client: C,
+        msg: MixnetQueryMsg,
+    ) {
+        todo!()
+        // match msg {
+        //     MixnetQueryMsg::GetAllFamiliesPaged { limit, start_after } => client
+        //         .get_all_family_members_paged(limit, start_after)
+        //         .await
+        //         .map(|_| ()),
+        //     MixnetQueryMsg::GetAllMembersPaged { limit, start_after } => client
+        //         .get_all_family_members_paged(limit, start_after)
+        //         .await
+        //         .map(|_| ()),
+        //     MixnetQueryMsg::GetFamilyByHead { head } => {
+        //         client.get_node_family_by_head(head).await.map(|_| ())
+        //     }
+        //     MixnetQueryMsg::GetFamilyByLabel { label } => {
+        //         client.get_node_family_by_label(label).await.map(|_| ())
+        //     }
+        //     MixnetQueryMsg::GetFamilyMembersByHead { head } => todo!(),
+        //     MixnetQueryMsg::GetFamilyMembersByLabel { label } => todo!(),
+        //     MixnetQueryMsg::GetContractVersion {} => {
+        //         client.get_mixnet_contract_version().await.map(|_| ())
+        //     }
+        //     MixnetQueryMsg::GetCW2ContractVersion {} => todo!(),
+        //     MixnetQueryMsg::GetRewardingValidatorAddress {} => {
+        //         client.get_rewarding_validator_address().await.map(|_| ())
+        //     }
+        //     MixnetQueryMsg::GetStateParams {} => todo!(),
+        //     MixnetQueryMsg::GetState {} => client.get_mixnet_contract_state().await.map(|_| ()),
+        //     MixnetQueryMsg::GetRewardingParams {} => {}
+        //     MixnetQueryMsg::GetEpochStatus {} => {}
+        //     MixnetQueryMsg::GetCurrentIntervalDetails {} => {}
+        //     MixnetQueryMsg::GetRewardedSet { limit, start_after } => {}
+        //     MixnetQueryMsg::GetMixNodeBonds { limit, start_after } => {}
+        //     MixnetQueryMsg::GetMixNodesDetailed { limit, start_after } => {}
+        //     MixnetQueryMsg::GetUnbondedMixNodes { limit, start_after } => {}
+        //     MixnetQueryMsg::GetUnbondedMixNodesByOwner {
+        //         owner,
+        //         limit,
+        //         start_after,
+        //     } => {}
+        //     MixnetQueryMsg::GetUnbondedMixNodesByIdentityKey {
+        //         identity_key,
+        //         limit,
+        //         start_after,
+        //     } => {}
+        //     MixnetQueryMsg::GetOwnedMixnode { address } => {}
+        //     MixnetQueryMsg::GetMixnodeDetails { mix_id } => {}
+        //     MixnetQueryMsg::GetMixnodeRewardingDetails { mix_id } => {}
+        //     MixnetQueryMsg::GetStakeSaturation { mix_id } => {}
+        //     MixnetQueryMsg::GetUnbondedMixNodeInformation { mix_id } => {}
+        //     MixnetQueryMsg::GetBondedMixnodeDetailsByIdentity { mix_identity } => {}
+        //     MixnetQueryMsg::GetLayerDistribution {} => {}
+        //     MixnetQueryMsg::GetGateways { start_after, limit } => {}
+        //     MixnetQueryMsg::GetGatewayBond { identity } => {}
+        //     MixnetQueryMsg::GetOwnedGateway { address } => {}
+        //     MixnetQueryMsg::GetMixnodeDelegations {
+        //         mix_id,
+        //         start_after,
+        //         limit,
+        //     } => {}
+        //     MixnetQueryMsg::GetDelegatorDelegations {
+        //         delegator,
+        //         start_after,
+        //         limit,
+        //     } => {}
+        //     MixnetQueryMsg::GetDelegationDetails {
+        //         mix_id,
+        //         delegator,
+        //         proxy,
+        //     } => {}
+        //     MixnetQueryMsg::GetAllDelegations { start_after, limit } => {}
+        //     MixnetQueryMsg::GetPendingOperatorReward { address } => {}
+        //     MixnetQueryMsg::GetPendingMixNodeOperatorReward { mix_id } => {}
+        //     MixnetQueryMsg::GetPendingDelegatorReward {
+        //         address,
+        //         mix_id,
+        //         proxy,
+        //     } => {}
+        //     MixnetQueryMsg::GetEstimatedCurrentEpochOperatorReward {
+        //         mix_id,
+        //         estimated_performance,
+        //     } => {}
+        //     MixnetQueryMsg::GetEstimatedCurrentEpochDelegatorReward {
+        //         address,
+        //         mix_id,
+        //         proxy,
+        //         estimated_performance,
+        //     } => {}
+        //     MixnetQueryMsg::GetPendingEpochEvents { limit, start_after } => {}
+        //     MixnetQueryMsg::GetPendingIntervalEvents { limit, start_after } => {}
+        //     MixnetQueryMsg::GetPendingEpochEvent { event_id } => {}
+        //     MixnetQueryMsg::GetPendingIntervalEvent { event_id } => {}
+        //     MixnetQueryMsg::GetNumberOfPendingEvents {} => {}
+        //     MixnetQueryMsg::GetSigningNonce { address } => {}
+        // }
+        // .expect("ignore error")
     }
 }

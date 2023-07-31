@@ -10,6 +10,7 @@ use nym_service_provider_directory_common::{
 };
 use serde::Deserialize;
 
+use crate::nyxd::contract_traits::NymContractsProvider;
 use crate::nyxd::{error::NyxdError, CosmWasmClient, NyxdClient};
 
 #[async_trait]
@@ -89,36 +90,33 @@ pub trait SpDirectoryQueryClient {
 }
 
 #[async_trait]
-impl<C> SpDirectoryQueryClient for NyxdClient<C>
+impl<C> SpDirectoryQueryClient for C
 where
-    C: CosmWasmClient + Send + Sync,
+    C: CosmWasmClient + NymContractsProvider + Send + Sync,
 {
     async fn query_service_provider_contract<T>(&self, query: SpQueryMsg) -> Result<T, NyxdError>
     where
         for<'a> T: Deserialize<'a>,
     {
-        self.client
-            .query_contract_smart(
-                self.service_provider_contract_address().ok_or(
-                    NyxdError::NoContractAddressAvailable(
-                        "service provider directory contract".to_string(),
-                    ),
-                )?,
-                &query,
-            )
+        let sp_directory_contract_address =
+            &self.service_provider_contract_address().ok_or_else(|| {
+                NyxdError::unavailable_contract_address("service provider directory contract")
+            })?;
+        self.query_contract_smart(sp_directory_contract_address, &query)
             .await
     }
 }
 
-#[async_trait]
-impl<C> SpDirectoryQueryClient for crate::Client<C>
-where
-    C: CosmWasmClient + Send + Sync,
-{
-    async fn query_service_provider_contract<T>(&self, query: SpQueryMsg) -> Result<T, NyxdError>
-    where
-        for<'a> T: Deserialize<'a>,
-    {
-        self.nyxd.query_service_provider_contract(query).await
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // it's enough that this compiles
+    #[deprecated]
+    async fn all_query_variants_are_covered<C: SpDirectoryQueryClient + Send + Sync>(
+        client: C,
+        msg: SpQueryMsg,
+    ) {
+        unimplemented!()
     }
 }

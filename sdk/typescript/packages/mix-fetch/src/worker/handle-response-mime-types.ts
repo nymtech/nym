@@ -30,8 +30,11 @@ const doHandleResponseMethod = async (response: Response, method?: ResponseBodyM
       return { json: await response.json() };
     case 'text':
       return { text: await response.text() };
-    case 'blob':
-      return { blob: await response.blob() };
+    case 'blob': {
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      return { blobUrl };
+    }
     case 'formData': {
       const formData: any = {};
       const data = await response.formData();

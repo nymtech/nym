@@ -28,7 +28,7 @@ export interface ResponseBody {
   json?: any;
   text?: string;
   formData?: any;
-  blob?: Blob;
+  blobUrl?: string;
 }
 
 export type ResponseBodyMethod = 'uint8array' | 'json' | 'text' | 'formData' | 'blob';

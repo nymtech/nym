@@ -18,14 +18,14 @@ describe('handleResponseMimeTypes', () => {
     const resp = await handleResponseMimeTypes(
       new Response(DATA, { headers: new Headers([['Content-Type', 'image/jpeg']]) }),
     );
-    expect(resp.blob).toBeDefined();
+    expect(resp.blobUrl).toBeDefined();
   });
   test('handles videos', async () => {
     const DATA = new Uint8Array([0, 1, 2, 3]).buffer;
     const resp = await handleResponseMimeTypes(
       new Response(DATA, { headers: new Headers([['Content-Type', 'video/mpeg4']]) }),
     );
-    expect(resp.blob).toBeDefined();
+    expect(resp.blobUrl).toBeDefined();
   });
   test('handles form data when URL encoded', async () => {
     const formData = 'foo=bar&baz=42';

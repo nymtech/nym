@@ -6,6 +6,13 @@ function appendOutput(value: string) {
   el.appendChild(text);
 }
 
+function appendImageOutput(url: string) {
+  const el = document.getElementById('outputImage') as HTMLPreElement;
+  const imgNode = document.createElement('img');
+  imgNode.src = url;
+  el.appendChild(imgNode);
+}
+
 /**
  * The main entry point
  */
@@ -32,8 +39,8 @@ async function main() {
   // await setupMixFetch(config, {storagePassphrase: "foomp"})
 
   await worker.setupMixFetch({
-    // preferredNetworkRequester: addr,
-    clientId: 'my-new-client-12',
+    preferredNetworkRequester: addr,
+    clientId: 'my-new-client-15',
     clientOverride: {
       coverTraffic: { disableLoopCoverTrafficStream: true },
       traffic: { disableMainPoissonPacketDistribution: true },
@@ -43,14 +50,21 @@ async function main() {
 
   appendOutput('Ready!');
 
-  const url = 'https://nymtech.net/.wellknown/network-requester/standard-allowed-list.txt';
+  let url = 'https://nymtech.net/.wellknown/network-requester/standard-allowed-list.txt';
   appendOutput(`Using mixFetch to get ${url}...`);
   const args = { mode: 'unsafe-ignore-cors' };
 
-  const resp = await worker.mixFetch(url, args);
+  let resp = await worker.mixFetch(url, args);
   console.log({ resp });
 
   appendOutput(JSON.stringify(resp, null, 2));
+
+  // get an image
+  url = 'https://nymtech.net/images/nav/nym-logo.svg';
+  resp = await worker.mixFetch(url, args);
+  console.log({ resp });
+  appendOutput(JSON.stringify(resp, null, 2));
+  appendImageOutput(resp.body.blobUrl);
 }
 
 // wait for the html to load

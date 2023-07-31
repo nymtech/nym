@@ -18,3 +18,6 @@ mod response_pusher;
 
 #[cfg(target_arch = "wasm32")]
 pub use wasm_client_core::set_panic_hook;
+
+#[cfg(target_arch = "wasm32")]
+pub mod encoded_payload_helper;

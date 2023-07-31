@@ -3919,6 +3919,7 @@ dependencies = [
 name = "nym-client-wasm"
 version = "1.1.1-rc.0"
 dependencies = [
+ "anyhow",
  "futures",
  "js-sys",
  "nym-node-tester-utils",
@@ -3926,6 +3927,7 @@ dependencies = [
  "rand 0.7.3",
  "serde",
  "serde-wasm-bindgen",
+ "serde_json",
  "thiserror",
  "tsify",
  "wasm-bindgen",

@@ -76,11 +76,11 @@ export const NodeStats = ({ mixnode }: { mixnode: TBondedMixnode }) => {
   };
 
   const handleGoToTestNode = async () => {
-    //TODO Change URL to the deployed node-tester (once deployed)
+    // TODO Change URL to the deployed node-tester (once deployed)
     const url = new window.URL('http://localhost:1234');
 
     if (network) {
-      let validatorUrl = validatorApiFromNetwork(network);
+      const validatorUrl = validatorApiFromNetwork(network);
 
       const urlParams = {
         'validator-address': validatorUrl,

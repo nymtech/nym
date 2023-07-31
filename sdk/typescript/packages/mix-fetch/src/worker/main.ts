@@ -17,15 +17,7 @@ export async function run() {
     mixFetch: async (url, args) => {
       console.log('[Worker] --- mixFetch ---', { url, args });
 
-      const controller = new AbortController();
-      const { signal } = controller;
-
-      setTimeout(() => {
-        console.warn('timeout');
-        controller.abort();
-      }, 30000);
-
-      const response: Response = await mixFetch(url, { ...(args || {}), signal });
+      const response: Response = await mixFetch(url, args);
 
       console.log('[Worker]', { response, json: JSON.stringify(response, null, 2) });
 

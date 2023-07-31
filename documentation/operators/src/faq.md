@@ -21,7 +21,7 @@ make a note that the keys will be overwritten in bold when you're noting it in t
 
 ### What determines the rewards when running a mixnode?
 
-The stake required for a mix node to achieve maximum rewards is called to the mix node saturation point os simply stake saturation point. This is calculated from the staking supply (all circulating supply + part of unlocked tokens). The target level of staking is to have 50% of the staking supply locked in mix nodes.
+The stake required for a mix node to achieve maximum rewards is called mix node saturation point. This is calculated from the staking supply (all circulating supply + part of unlocked tokens). The target level of staking is to have 50% of the staking supply locked in mix nodes.
 
 The node stake saturation point, which we denote by Nsat, is given by the stake supply, target level of staking divided by the number of rewarded (active) nodes. 
 

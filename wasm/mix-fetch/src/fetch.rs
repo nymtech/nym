@@ -4,6 +4,7 @@
 use crate::client::MixFetchClient;
 use crate::config::{MixFetchConfig, MixFetchConfigOpts, MixFetchDebugOverride};
 use crate::error::MixFetchError;
+use crate::helpers::get_network_requester;
 use js_sys::Promise;
 use serde::{Deserialize, Serialize};
 use std::sync::OnceLock;
@@ -12,7 +13,7 @@ use wasm_bindgen::prelude::wasm_bindgen;
 use wasm_bindgen::JsValue;
 use wasm_bindgen_futures::future_to_promise;
 use wasm_client_core::config::r#override::DebugWasmOverride;
-use wasm_utils::check_promise_result;
+use wasm_utils::console_log;
 use wasm_utils::error::PromisableResultError;
 
 pub type RequestId = u64;
@@ -25,7 +26,7 @@ pub(super) static MIX_FETCH: OnceLock<MixFetchClient> = OnceLock::new();
 pub struct MixFetchOpts {
     // ideally we'd have used the `IdentityKey` type alias, but that'd be extremely annoying to get working in TS
     #[serde(flatten)]
-    pub(crate) base: Option<MixFetchOptsSimple>,
+    pub(crate) base: MixFetchOptsSimple,
 
     #[tsify(optional)]
     pub(crate) client_id: Option<String>,
@@ -53,6 +54,9 @@ pub struct MixFetchOptsSimple {
     pub(crate) preferred_gateway: Option<String>,
 
     #[tsify(optional)]
+    pub(crate) preferred_network_requester: Option<String>,
+
+    #[tsify(optional)]
     pub(crate) storage_passphrase: Option<String>,
 }
 
@@ -69,24 +73,35 @@ impl<'a> From<&'a MixFetchOpts> for MixFetchConfigOpts {
 
 // TODO: in the future make the network requester address optional once there exists some API for obtaining NR addresses
 #[wasm_bindgen(js_name = setupMixFetch)]
-pub fn setup_mix_fetch(network_requester_address: String, opts: MixFetchOpts) -> Promise {
+pub fn setup_mix_fetch(opts: MixFetchOpts) -> Promise {
     if MIX_FETCH.get().is_some() {
         return MixFetchError::AlreadyInitialised.into_rejected_promise();
     }
 
-    let mut config = check_promise_result!(MixFetchConfig::new(
-        network_requester_address,
-        Some((&opts).into())
-    ));
-    if let Some(dbg) = opts.client_override {
-        config.override_debug(dbg);
-    }
-
-    if let Some(dbg) = opts.mix_fetch_override {
-        config.override_mix_fetch_debug(dbg)
+    // if nym api was overridden, it means we're not using mainnet and we don't have harbourmaster url
+    // for anything that's not mainnet
+    if opts.nym_api_url.is_some() && opts.base.preferred_network_requester.is_none() {
+        return MixFetchError::NoNetworkRequesters.into_rejected_promise();
     }
 
     future_to_promise(async move {
+        let network_requester_address =
+            get_network_requester(opts.base.preferred_network_requester.clone())
+                .await
+                .map_promise_err()?;
+
+        console_log!("going to use {network_requester_address} network requester");
+
+        let mut config = MixFetchConfig::new(network_requester_address, Some((&opts).into()))
+            .map_promise_err()?;
+        if let Some(dbg) = opts.client_override {
+            config.override_debug(dbg);
+        }
+
+        if let Some(dbg) = opts.mix_fetch_override {
+            config.override_mix_fetch_debug(dbg)
+        }
+
         setup_mix_fetch_async(config, opts.base)
             .await
             .map(|_| JsValue::undefined())
@@ -95,10 +110,7 @@ pub fn setup_mix_fetch(network_requester_address: String, opts: MixFetchOpts) ->
 }
 
 #[wasm_bindgen(js_name = setupMixFetchWithConfig)]
-pub fn setup_mix_fetch_with_config(
-    config: MixFetchConfig,
-    opts: Option<MixFetchOptsSimple>,
-) -> Promise {
+pub fn setup_mix_fetch_with_config(config: MixFetchConfig, opts: MixFetchOptsSimple) -> Promise {
     if MIX_FETCH.get().is_some() {
         return MixFetchError::AlreadyInitialised.into_rejected_promise();
     }
@@ -123,15 +135,11 @@ pub(super) fn mix_fetch_client() -> Result<&'static MixFetchClient, MixFetchErro
 
 async fn setup_mix_fetch_async(
     config: MixFetchConfig,
-    opts: Option<MixFetchOptsSimple>,
+    opts: MixFetchOptsSimple,
 ) -> Result<(), MixFetchError> {
-    let client = if let Some(opts) = opts {
-        let preferred_gateway = opts.preferred_gateway;
-        let storage_passphrase = opts.storage_passphrase;
-        MixFetchClient::new_async(config, preferred_gateway, storage_passphrase).await?
-    } else {
-        MixFetchClient::new_async(config, None, None).await?
-    };
+    let preferred_gateway = opts.preferred_gateway;
+    let storage_passphrase = opts.storage_passphrase;
+    let client = MixFetchClient::new_async(config, preferred_gateway, storage_passphrase).await?;
     set_mix_fetch_client(client)?;
     Ok(())
 }

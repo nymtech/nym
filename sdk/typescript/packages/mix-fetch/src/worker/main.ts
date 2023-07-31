@@ -69,9 +69,9 @@ export async function run() {
 
       return output;
     },
-    setupMixFetch: async (serviceProviderAddress, opts) => {
-      console.log('[Worker] --- setupMixFetch ---', { serviceProviderAddress, opts });
-      await setupMixFetch(serviceProviderAddress, opts);
+    setupMixFetch: async (opts) => {
+      console.log('[Worker] --- setupMixFetch ---', { opts });
+      await setupMixFetch(opts);
     },
   };
 

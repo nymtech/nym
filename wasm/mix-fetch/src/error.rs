@@ -1,6 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::harbourmaster::HarbourMasterApiError;
 use crate::RequestId;
 use js_sys::Promise;
 use nym_ordered_buffer::OrderedMessageError;
@@ -16,6 +17,15 @@ pub enum MixFetchError {
     CoreError {
         #[from]
         source: WasmCoreError,
+    },
+
+    #[error("no public network requesters are not available on this network")]
+    NoNetworkRequesters,
+
+    #[error("could not query for the service providers: {source}")]
+    HarbourmasterError {
+        #[from]
+        source: HarbourMasterApiError,
     },
 
     #[error("failed to parse mix fetch config options: {source}")]

@@ -5,7 +5,7 @@ type IMixFetch = (url: string, args: any) => Promise<any>;
 
 export interface IMixFetchWebWorker {
   mixFetch: IMixFetch;
-  setupMixFetch: (network_requester_address: string, opts: MixFetchOpts) => Promise<void>;
+  setupMixFetch: (opts: MixFetchOpts) => Promise<void>;
 }
 
 export enum EventKinds {

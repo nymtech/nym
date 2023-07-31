@@ -30,9 +30,10 @@ async function main() {
   console.log('Instantiating Mix Fetch...');
   // await setupMixFetch(config, {storagePassphrase: "foomp"})
 
-  await worker.setupMixFetch(addr, {
+  await worker.setupMixFetch({
+    // preferredNetworkRequester: addr,
     clientId: 'my-new-client-11',
-    clientOverride: { coverTraffic: { disableLoopCoverTrafficStream: true } },
+    clientOverride: { coverTraffic: { disableLoopCoverTrafficStream: true }, traffic: { disableMainPoissonPacketDistribution: true } },
     mixFetchOverride: { requestTimeoutMs: 60000 },
   });
 

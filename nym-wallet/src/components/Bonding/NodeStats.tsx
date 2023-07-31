@@ -76,13 +76,19 @@ export const NodeStats = ({ mixnode }: { mixnode: TBondedMixnode }) => {
   };
 
   const handleGoToTestNode = async () => {
+    //TODO Change URL to the deployed node-tester (once deployed)
+    const url = new window.URL('http://localhost:1234');
+
     if (network) {
       let validatorUrl = validatorApiFromNetwork(network);
 
-      //TODO need to change URL to the deployed node-tester (once deployed)
-      const url = new window.URL(
-        `http://localhost:1234/?validator-address=${validatorUrl}&mixnode-identity=${mixnode.identityKey}`,
-      );
+      const urlParams = {
+        'validator-address': validatorUrl,
+        'mixnode-identity': mixnode.identityKey,
+      };
+
+      Object.entries(urlParams).forEach(([key, value]) => url.searchParams.append(key, value));
+
       openLink(url.toString());
     }
   };

@@ -18,8 +18,7 @@ import wasmBytes from '@nymproject/nym-client-wasm/nym_client_wasm_bg.wasm';
 import init, {
   NymClient,
   NymClientBuilder,
-  Config,
-  get_gateway,
+  ClientConfig,
   default_debug,
   decode_payload,
   parse_utf8_string,
@@ -65,7 +64,7 @@ class ClientWrapper {
   /**
    * Creates the WASM client and initialises it.
    */
-  init = (config: Config, onRawPayloadHandler?: OnRawPayloadFn) => {
+  init = (config: ClientConfig, onRawPayloadHandler?: OnRawPayloadFn) => {
     const onMessageHandler = (message: Uint8Array) => {
       try {
         if (onRawPayloadHandler) {
@@ -161,14 +160,8 @@ init(wasmBytes())
     const wrapper = new ClientWrapper();
 
     const startHandler = async (config: NymClientConfig) => {
-      // fetch the gateway details (randomly chosen if no preferred gateway is set)
-      const gatewayEndpoint = await get_gateway(config.nymApiUrl, config.preferredGatewayIdentityKey);
-
-      // set a different gatewayListener in order to avoid workaround ws over https error
-      if (config.gatewayListener) gatewayEndpoint.gateway_listener = config.gatewayListener;
-
       // create the client, passing handlers for events
-      wrapper.init(new Config(config.clientId, config.nymApiUrl, config.debug || default_debug()), async (message) => {
+      wrapper.init(new ClientConfig(config), async (message) => {
         // fire an event with the raw message
         postMessageWithType<RawMessageReceivedEvent>({
           kind: EventKinds.RawMessageReceived,

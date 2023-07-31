@@ -1,6 +1,4 @@
-import type { DebugWasm } from './types-from-wasm-pack';
-
-export * from './types-from-wasm-pack';
+import type { DebugWasm } from '@nymproject/nym-client-wasm';
 
 /**
  * Some common mime types, however, you can always just specify the mime-type as a string

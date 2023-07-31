@@ -26,12 +26,8 @@
     "test": "node --experimental-vm-modules --no-warnings node_modules/jest/bin/jest.js -c=jest.config.mjs --no-cache"
   },
   "dependencies": {
-    "@npmcli/node-gyp": "^3.0.0",
     "@nymproject/mix-fetch-wasm": "~1.0.0-rc.0 || 1",
-    "comlink": "^4.3.1",
-    "lerna": "^6.6.2",
-    "node-gyp": "^9.3.1",
-    "serializr": "^3.0.2"
+    "comlink": "^4.3.1"
   },
   "devDependencies": {
     "@babel/core": "^7.15.0",

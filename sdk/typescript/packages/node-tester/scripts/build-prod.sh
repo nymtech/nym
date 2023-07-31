@@ -5,7 +5,7 @@ set -o nounset
 set -o pipefail
 
 rm -rf dist || true
-rm -rf ../../../../dist/ts/sdk/sdk || true
+rm -rf ../../../../dist/ts/sdk/node-tester || true
 
 # run the build
 scripts/build.sh
@@ -14,7 +14,7 @@ node scripts/buildPackageJson.mjs
 # move the output outside of the yarn/npm workspaces
 mkdir -p ../../../../dist/ts/sdk
 mv dist ../../../../dist/ts/sdk
-mv ../../../../dist/ts/sdk/dist ../../../../dist/ts/sdk/sdk
+mv ../../../../dist/ts/sdk/dist ../../../../dist/ts/sdk/node-tester
 
 echo "Output can be found in:"
-realpath ../../../../dist/ts/sdk/sdk
+realpath ../../../../dist/ts/sdk/node-tester

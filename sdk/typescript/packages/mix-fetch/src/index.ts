@@ -51,6 +51,7 @@ export const createMixFetch = async (): Promise<IMixFetch> => {
       console.log({ workerResponse });
       const { headers: headersRaw, status, statusText } = workerResponse;
 
+      // reconstruct the Headers object instance from a plain object
       const headers = convertHeaders(headersRaw);
 
       // handle blobs

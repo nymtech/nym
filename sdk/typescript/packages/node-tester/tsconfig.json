@@ -17,10 +17,13 @@
     "skipLibCheck": true,
     "skipDefaultLibCheck": true,
     "declaration": true,
-    "baseUrl": "."
+    "baseUrl": ".",
+    "downlevelIteration": true
   },
   "include": [
-    "src/**/*.ts"
+    "src/**/*.ts",
+    "src/*.ts",
+    "typings"
   ],
   "exclude": [
     "jest.config.js",

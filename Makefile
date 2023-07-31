@@ -122,6 +122,12 @@ sdk-wasm-build:
 	# full
 	$(MAKE) -C wasm/full-nym-wasm build-full
 
+# run this from npm/yarn to ensure tools are in the path, e.g. yarn build:sdk from root of repo
+sdk-typescript-build:
+	lerna run --scope @nymproject/sdk build --stream
+	lerna run --scope @nymproject/mix-fetch build --stream
+	lerna run --scope @nymproject/node-tester build --stream
+
 sdk-wasm-test:
 #	# client
 #	cargo test -p nym-client-wasm --target wasm32-unknown-unknown

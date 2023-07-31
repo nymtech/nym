@@ -17,7 +17,8 @@
     "declaration": true,
     "baseUrl": ".",
     "esModuleInterop": true,
-    "allowJs": true
+    "allowJs": true,
+    "downlevelIteration": true
   },
   "include": [
     "src/**/*.ts"

@@ -112,6 +112,9 @@ wasm-opt:
 	wasm-opt --disable-sign-ext -Os $(SERVICE_PROVIDER_DIRECTORY_CONTRACT) -o $(SERVICE_PROVIDER_DIRECTORY_CONTRACT)
 	wasm-opt --disable-sign-ext -Os $(NAME_SERVICE_CONTRACT) -o $(NAME_SERVICE_CONTRACT)
 
+contract-schema:
+	$(MAKE) -C contracts schema
+
 # -----------------------------------------------------------------------------
 # Misc
 # -----------------------------------------------------------------------------

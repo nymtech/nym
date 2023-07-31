@@ -692,9 +692,11 @@
       "type": "string"
     },
     "FamilyHead": {
+      "description": "Head of particular family as identified by its identity key (i.e. public component of its ed25519 keypair stringified into base58).",
       "type": "string"
     },
     "Gateway": {
+      "description": "Information provided by the node operator during bonding that are used to allow other entities to use the services of this node.",
       "type": "object",
       "required": [
         "clients_port",
@@ -707,11 +709,13 @@
       ],
       "properties": {
         "clients_port": {
+          "description": "Port used by this gateway for listening for client requests.",
           "type": "integer",
           "format": "uint16",
           "minimum": 0.0
         },
         "host": {
+          "description": "Network address of this gateway, for example 1.1.1.1 or foo.gateway.com",
           "type": "string"
         },
         "identity_key": {
@@ -719,17 +723,21 @@
           "type": "string"
         },
         "location": {
+          "description": "The physical, self-reported, location of this gateway.",
           "type": "string"
         },
         "mix_port": {
+          "description": "Port used by this gateway for listening for mix packets.",
           "type": "integer",
           "format": "uint16",
           "minimum": 0.0
         },
         "sphinx_key": {
+          "description": "Base58-encoded x25519 public key used for sphinx key derivation.",
           "type": "string"
         },
         "version": {
+          "description": "The self-reported semver version of this gateway.",
           "type": "string"
         }
       },
@@ -776,6 +784,7 @@
       }
     },
     "MixNode": {
+      "description": "Information provided by the node operator during bonding that are used to allow other entities to use the services of this node.",
       "type": "object",
       "required": [
         "host",
@@ -788,10 +797,11 @@
       ],
       "properties": {
         "host": {
-          "description": "Network address of this mixnode, for example 1.1.1.1:1234 or foo.mixnode.com",
+          "description": "Network address of this mixnode, for example 1.1.1.1 or foo.mixnode.com",
           "type": "string"
         },
         "http_api_port": {
+          "description": "Port used by this mixnode for its http(s) API",
           "type": "integer",
           "format": "uint16",
           "minimum": 0.0
@@ -801,6 +811,7 @@
           "type": "string"
         },
         "mix_port": {
+          "description": "Port used by this mixnode for listening for mix packets.",
           "type": "integer",
           "format": "uint16",
           "minimum": 0.0
@@ -810,11 +821,13 @@
           "type": "string"
         },
         "verloc_port": {
+          "description": "Port used by this mixnode for listening for verloc requests.",
           "type": "integer",
           "format": "uint16",
           "minimum": 0.0
         },
         "version": {
+          "description": "The self-reported semver version of this mixnode.",
           "type": "string"
         }
       },
@@ -855,6 +868,7 @@
       "additionalProperties": false
     },
     "MixNodeCostParams": {
+      "description": "The cost parameters, or the cost function, defined for the particular mixnode that influences how the rewards should be split between the node operator and its delegators.",
       "type": "object",
       "required": [
         "interval_operating_cost",
@@ -870,7 +884,12 @@
           ]
         },
         "profit_margin_percent": {
-          "$ref": "#/definitions/Percent"
+          "description": "The profit margin of the associated mixnode, i.e. the desired percent of the reward to be distributed to the operator.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Percent"
+            }
+          ]
         }
       },
       "additionalProperties": false

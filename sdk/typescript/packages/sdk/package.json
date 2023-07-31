@@ -26,7 +26,7 @@
     "test": "node --experimental-vm-modules --no-warnings node_modules/jest/bin/jest.js -c=jest.config.mjs --no-cache"
   },
   "dependencies": {
-    "@nymproject/nym-client-wasm": "~1.0.0-rc.0 || 1",
+    "@nymproject/nym-client-wasm": "~1.1.1-rc.0 || 1",
     "comlink": "^4.3.1"
   },
   "devDependencies": {

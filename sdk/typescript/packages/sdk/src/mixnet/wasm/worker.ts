@@ -19,7 +19,6 @@ import init, {
   NymClient,
   NymClientBuilder,
   ClientConfig,
-  default_debug,
   decode_payload,
   parse_utf8_string,
   utf8_string_to_byte_array,

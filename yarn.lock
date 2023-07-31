@@ -3217,11 +3217,8 @@
 "@nymproject/mix-fetch@file:sdk/typescript/packages/mix-fetch":
   version "1.0.0"
   dependencies:
-    "@npmcli/node-gyp" "^3.0.0"
     "@nymproject/mix-fetch-wasm" "~1.0.0-rc.0 || 1"
     comlink "^4.3.1"
-    lerna "^6.6.2"
-    node-gyp "^9.3.1"
 
 "@nymproject/nym-validator-client@^0.18.0":
   version "0.18.0"
@@ -18714,11 +18711,6 @@ serialize-javascript@^6.0.0, serialize-javascript@^6.0.1:
   integrity sha512-owoXEFjWRllis8/M1Q+Cw5k8ZH40e3zhp/ovX+Xr/vi1qj6QesbyXXViFbpNvWvPNAD62SutwEXavefrLJWj7w==
   dependencies:
     randombytes "^2.1.0"
-
-serializr@^3.0.2:
-  version "3.0.2"
-  resolved "https://registry.yarnpkg.com/serializr/-/serializr-3.0.2.tgz#2092ad21cffbc3f27e2edcc251a0ff2cad962d0a"
-  integrity sha512-bCACTuCiAEjtk1NxkATc3yz2j/8OoaWYxRkC4D5yq0ikZeLO7KLmmI/owmvJ/N4vS9SX4fZTXgSmsNzWtxDJ/Q==
 
 serve-favicon@^2.5.0:
   version "2.5.0"

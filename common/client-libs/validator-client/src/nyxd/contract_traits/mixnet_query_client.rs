@@ -9,6 +9,7 @@ use async_trait::async_trait;
 use cosmrs::AccountId;
 use nym_contracts_common::signing::Nonce;
 use nym_mixnet_contract_common::delegation::{MixNodeDelegationResponse, OwnerProxySubKey};
+use nym_mixnet_contract_common::families::{Family, FamilyHead};
 use nym_mixnet_contract_common::mixnode::{
     MixnodeRewardingDetailsResponse, PagedMixnodesDetailsResponse, PagedUnbondedMixnodesResponse,
     StakeSaturationResponse, UnbondedMixnodeResponse,
@@ -22,12 +23,13 @@ use nym_mixnet_contract_common::{
     CurrentIntervalResponse, EpochEventId, EpochStatus, FamilyByHeadResponse,
     FamilyByLabelResponse, FamilyMembersByHeadResponse, FamilyMembersByLabelResponse,
     GatewayBondResponse, GatewayOwnershipResponse, IdentityKey, IntervalEventId, LayerDistribution,
-    MixId, MixOwnershipResponse, MixnodeDetailsByIdentityResponse, MixnodeDetailsResponse,
-    NumberOfPendingEventsResponse, PagedAllDelegationsResponse, PagedDelegatorDelegationsResponse,
-    PagedFamiliesResponse, PagedGatewayResponse, PagedMembersResponse,
-    PagedMixNodeDelegationsResponse, PagedMixnodeBondsResponse, PagedRewardedSetResponse,
-    PendingEpochEventResponse, PendingEpochEventsResponse, PendingIntervalEventResponse,
-    PendingIntervalEventsResponse, QueryMsg as MixnetQueryMsg,
+    MixId, MixNodeBond, MixNodeDetails, MixOwnershipResponse, MixnodeDetailsByIdentityResponse,
+    MixnodeDetailsResponse, NumberOfPendingEventsResponse, PagedAllDelegationsResponse,
+    PagedDelegatorDelegationsResponse, PagedFamiliesResponse, PagedGatewayResponse,
+    PagedMembersResponse, PagedMixNodeDelegationsResponse, PagedMixnodeBondsResponse,
+    PagedRewardedSetResponse, PendingEpochEventResponse, PendingEpochEventsResponse,
+    PendingIntervalEventResponse, PendingIntervalEventsResponse, QueryMsg as MixnetQueryMsg,
+    RewardedSetNodeStatus,
 };
 use serde::Deserialize;
 
@@ -94,8 +96,8 @@ pub trait MixnetQueryClient {
 
     async fn get_all_family_members_paged(
         &self,
-        limit: Option<u32>,
         start_after: Option<String>,
+        limit: Option<u32>,
     ) -> Result<PagedMembersResponse, NyxdError> {
         self.query_mixnet_contract(MixnetQueryMsg::GetAllMembersPaged { limit, start_after })
             .await
@@ -123,8 +125,8 @@ pub trait MixnetQueryClient {
 
     async fn get_mixnode_bonds_paged(
         &self,
-        limit: Option<u32>,
         start_after: Option<MixId>,
+        limit: Option<u32>,
     ) -> Result<PagedMixnodeBondsResponse, NyxdError> {
         self.query_mixnet_contract(MixnetQueryMsg::GetMixNodeBonds { limit, start_after })
             .await
@@ -132,8 +134,8 @@ pub trait MixnetQueryClient {
 
     async fn get_mixnodes_detailed_paged(
         &self,
-        limit: Option<u32>,
         start_after: Option<MixId>,
+        limit: Option<u32>,
     ) -> Result<PagedMixnodesDetailsResponse, NyxdError> {
         self.query_mixnet_contract(MixnetQueryMsg::GetMixNodesDetailed { limit, start_after })
             .await
@@ -141,8 +143,8 @@ pub trait MixnetQueryClient {
 
     async fn get_unbonded_paged(
         &self,
-        limit: Option<u32>,
         start_after: Option<MixId>,
+        limit: Option<u32>,
     ) -> Result<PagedUnbondedMixnodesResponse, NyxdError> {
         self.query_mixnet_contract(MixnetQueryMsg::GetUnbondedMixNodes { limit, start_after })
             .await
@@ -151,8 +153,8 @@ pub trait MixnetQueryClient {
     async fn get_unbonded_by_owner_paged(
         &self,
         owner: &AccountId,
-        limit: Option<u32>,
         start_after: Option<MixId>,
+        limit: Option<u32>,
     ) -> Result<PagedUnbondedMixnodesResponse, NyxdError> {
         self.query_mixnet_contract(MixnetQueryMsg::GetUnbondedMixNodesByOwner {
             owner: owner.to_string(),
@@ -165,8 +167,8 @@ pub trait MixnetQueryClient {
     async fn get_unbonded_by_identity_paged(
         &self,
         identity_key: String,
-        limit: Option<u32>,
         start_after: Option<MixId>,
+        limit: Option<u32>,
     ) -> Result<PagedUnbondedMixnodesResponse, NyxdError> {
         self.query_mixnet_contract(MixnetQueryMsg::GetUnbondedMixNodesByIdentityKey {
             identity_key,
@@ -454,14 +456,32 @@ pub trait MixnetQueryClient {
 // extension trait to the query client to deal with the paged queries
 // (it didn't feel appropriate to combine it with the existing trait
 #[async_trait]
-pub trait PagedMixnetClient: MixnetQueryClient {
+pub trait PagedMixnetQueryClient: MixnetQueryClient {
     async fn get_all_node_families(&self) -> Result<Vec<Family>, NyxdError> {
         collect_paged!(self, get_all_node_families_paged, families)
+    }
+
+    async fn get_all_family_members(&self) -> Result<Vec<(IdentityKey, FamilyHead)>, NyxdError> {
+        collect_paged!(self, get_all_family_members_paged, members)
+    }
+
+    async fn get_all_rewarded_set_mixnodes(
+        &self,
+    ) -> Result<Vec<(MixId, RewardedSetNodeStatus)>, NyxdError> {
+        collect_paged!(self, get_rewarded_set_paged, nodes)
+    }
+
+    async fn get_all_mixnode_bonds(&self) -> Result<Vec<MixNodeBond>, NyxdError> {
+        collect_paged!(self, get_mixnode_bonds_paged, nodes)
+    }
+
+    async fn get_all_mixnodes_detailed(&self) -> Result<Vec<MixNodeDetails>, NyxdError> {
+        collect_paged!(self, get_mixnodes_detailed_paged, nodes)
     }
 }
 
 #[async_trait]
-impl<T> PagedMixnetClient for T where T: MixnetQueryClient {}
+impl<T> PagedMixnetQueryClient for T where T: MixnetQueryClient {}
 
 #[async_trait]
 impl<C> MixnetQueryClient for C

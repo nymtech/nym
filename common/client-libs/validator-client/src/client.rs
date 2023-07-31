@@ -205,130 +205,6 @@ impl<C> Client<C> {
             .clone()
     }
 
-    // pub async fn get_all_node_families(&self) -> Result<Vec<Family>, ValidatorClientError>
-    // where
-    //     C: CosmWasmClient + Sync + Send,
-    // {
-    //     let mut families = Vec::new();
-    //     let mut start_after = None;
-    //
-    //     loop {
-    //         let paged_response = self
-    //             .nyxd
-    //             .get_all_node_families_paged(start_after.take(), None)
-    //             .await?;
-    //         families.extend(paged_response.families);
-    //
-    //         if let Some(start_after_res) = paged_response.start_next_after {
-    //             start_after = Some(start_after_res)
-    //         } else {
-    //             break;
-    //         }
-    //     }
-    //
-    //     Ok(families)
-    // }
-    //
-    // pub async fn get_all_family_members(
-    //     &self,
-    // ) -> Result<Vec<(IdentityKey, FamilyHead)>, ValidatorClientError>
-    // where
-    //     C: CosmWasmClient + Sync + Send,
-    // {
-    //     let mut members = Vec::new();
-    //     let mut start_after = None;
-    //
-    //     loop {
-    //         let paged_response = self
-    //             .nyxd
-    //             .get_all_family_members_paged(start_after.take(), None)
-    //             .await?;
-    //         members.extend(paged_response.members);
-    //
-    //         if let Some(start_after_res) = paged_response.start_next_after {
-    //             start_after = Some(start_after_res)
-    //         } else {
-    //             break;
-    //         }
-    //     }
-    //
-    //     Ok(members)
-    // }
-    //
-    // // basically handles paging for us
-    // pub async fn get_all_nyxd_rewarded_set_mixnodes(
-    //     &self,
-    // ) -> Result<Vec<(MixId, RewardedSetNodeStatus)>, ValidatorClientError>
-    // where
-    //     C: CosmWasmClient + Sync + Send,
-    // {
-    //     let mut identities = Vec::new();
-    //     let mut start_after = None;
-    //
-    //     loop {
-    //         let mut paged_response = self
-    //             .nyxd
-    //             .get_rewarded_set_paged(start_after.take(), self.rewarded_set_page_limit)
-    //             .await?;
-    //         identities.append(&mut paged_response.nodes);
-    //
-    //         if let Some(start_after_res) = paged_response.start_next_after {
-    //             start_after = Some(start_after_res)
-    //         } else {
-    //             break;
-    //         }
-    //     }
-    //
-    //     Ok(identities)
-    // }
-    //
-    // pub async fn get_all_nyxd_mixnode_bonds(&self) -> Result<Vec<MixNodeBond>, ValidatorClientError>
-    // where
-    //     C: CosmWasmClient + Sync + Send,
-    // {
-    //     let mut mixnodes = Vec::new();
-    //     let mut start_after = None;
-    //     loop {
-    //         let mut paged_response = self
-    //             .nyxd
-    //             .get_mixnode_bonds_paged(self.mixnode_page_limit, start_after.take())
-    //             .await?;
-    //         mixnodes.append(&mut paged_response.nodes);
-    //
-    //         if let Some(start_after_res) = paged_response.start_next_after {
-    //             start_after = Some(start_after_res)
-    //         } else {
-    //             break;
-    //         }
-    //     }
-    //
-    //     Ok(mixnodes)
-    // }
-    //
-    // pub async fn get_all_nyxd_mixnodes_detailed(
-    //     &self,
-    // ) -> Result<Vec<MixNodeDetails>, ValidatorClientError>
-    // where
-    //     C: CosmWasmClient + Sync + Send,
-    // {
-    //     let mut mixnodes = Vec::new();
-    //     let mut start_after = None;
-    //     loop {
-    //         let mut paged_response = self
-    //             .nyxd
-    //             .get_mixnodes_detailed_paged(self.mixnode_page_limit, start_after.take())
-    //             .await?;
-    //         mixnodes.append(&mut paged_response.nodes);
-    //
-    //         if let Some(start_after_res) = paged_response.start_next_after {
-    //             start_after = Some(start_after_res)
-    //         } else {
-    //             break;
-    //         }
-    //     }
-    //
-    //     Ok(mixnodes)
-    // }
     //
     // pub async fn get_all_nyxd_unbonded_mixnodes(
     //     &self,
@@ -676,40 +552,40 @@ impl CoconutApiClient {
 
 #[derive(Clone)]
 pub struct NymApiClient {
-    pub nym_api_client: nym_api::Client,
+    pub nym_api: nym_api::Client,
     // TODO: perhaps if we really need it at some (currently I don't see any reasons for it)
     // we could re-implement the communication with the REST API on port 1317
 }
 
 impl NymApiClient {
     pub fn new(api_url: Url) -> Self {
-        let nym_api_client = nym_api::Client::new(api_url);
+        let nym_api = nym_api::Client::new(api_url);
 
-        NymApiClient { nym_api_client }
+        NymApiClient { nym_api }
     }
 
     pub fn change_nym_api(&mut self, new_endpoint: Url) {
-        self.nym_api_client.change_url(new_endpoint);
+        self.nym_api.change_url(new_endpoint);
     }
 
     pub async fn get_cached_active_mixnodes(
         &self,
     ) -> Result<Vec<MixNodeDetails>, ValidatorClientError> {
-        Ok(self.nym_api_client.get_active_mixnodes().await?)
+        Ok(self.nym_api.get_active_mixnodes().await?)
     }
 
     pub async fn get_cached_rewarded_mixnodes(
         &self,
     ) -> Result<Vec<MixNodeDetails>, ValidatorClientError> {
-        Ok(self.nym_api_client.get_rewarded_mixnodes().await?)
+        Ok(self.nym_api.get_rewarded_mixnodes().await?)
     }
 
     pub async fn get_cached_mixnodes(&self) -> Result<Vec<MixNodeDetails>, ValidatorClientError> {
-        Ok(self.nym_api_client.get_mixnodes().await?)
+        Ok(self.nym_api.get_mixnodes().await?)
     }
 
     pub async fn get_cached_gateways(&self) -> Result<Vec<GatewayBond>, ValidatorClientError> {
-        Ok(self.nym_api_client.get_gateways().await?)
+        Ok(self.nym_api.get_gateways().await?)
     }
 
     pub async fn get_gateway_core_status_count(
@@ -718,7 +594,7 @@ impl NymApiClient {
         since: Option<i64>,
     ) -> Result<GatewayCoreStatusResponse, ValidatorClientError> {
         Ok(self
-            .nym_api_client
+            .nym_api
             .get_gateway_core_status_count(identity, since)
             .await?)
     }
@@ -729,7 +605,7 @@ impl NymApiClient {
         since: Option<i64>,
     ) -> Result<MixnodeCoreStatusResponse, ValidatorClientError> {
         Ok(self
-            .nym_api_client
+            .nym_api
             .get_mixnode_core_status_count(mix_id, since)
             .await?)
     }
@@ -738,34 +614,28 @@ impl NymApiClient {
         &self,
         mix_id: MixId,
     ) -> Result<MixnodeStatusResponse, ValidatorClientError> {
-        Ok(self.nym_api_client.get_mixnode_status(mix_id).await?)
+        Ok(self.nym_api.get_mixnode_status(mix_id).await?)
     }
 
     pub async fn get_mixnode_reward_estimation(
         &self,
         mix_id: MixId,
     ) -> Result<RewardEstimationResponse, ValidatorClientError> {
-        Ok(self
-            .nym_api_client
-            .get_mixnode_reward_estimation(mix_id)
-            .await?)
+        Ok(self.nym_api.get_mixnode_reward_estimation(mix_id).await?)
     }
 
     pub async fn get_mixnode_stake_saturation(
         &self,
         mix_id: MixId,
     ) -> Result<StakeSaturationResponse, ValidatorClientError> {
-        Ok(self
-            .nym_api_client
-            .get_mixnode_stake_saturation(mix_id)
-            .await?)
+        Ok(self.nym_api.get_mixnode_stake_saturation(mix_id).await?)
     }
 
     pub async fn blind_sign(
         &self,
         request_body: &BlindSignRequestBody,
     ) -> Result<BlindedSignatureResponse, ValidatorClientError> {
-        Ok(self.nym_api_client.blind_sign(request_body).await?)
+        Ok(self.nym_api.blind_sign(request_body).await?)
     }
 
     pub async fn verify_bandwidth_credential(
@@ -773,7 +643,7 @@ impl NymApiClient {
         request_body: &VerifyCredentialBody,
     ) -> Result<VerifyCredentialResponse, ValidatorClientError> {
         Ok(self
-            .nym_api_client
+            .nym_api
             .verify_bandwidth_credential(request_body)
             .await?)
     }

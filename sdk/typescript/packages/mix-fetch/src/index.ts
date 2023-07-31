@@ -1,7 +1,7 @@
 import InlineWasmWebWorker from 'web-worker:./worker/worker';
 import * as Comlink from 'comlink';
 import type { IMixFetchWebWorker } from './types';
-import { EventKinds } from './types';
+import { EventKinds, IMixFetch } from './types';
 
 const createWorker = async () =>
   new Promise<Worker>((resolve, reject) => {
@@ -25,9 +25,47 @@ const createWorker = async () =>
     );
   });
 
-export const createMixFetch = async (): Promise<IMixFetchWebWorker> => {
+const convertHeaders = (headers: any): Headers => {
+  const out = new Headers();
+  Object.keys(headers).forEach((key) => {
+    out.append(key, headers[key]);
+  });
+  return out;
+};
+
+export const createMixFetch = async (): Promise<IMixFetch> => {
+  // start the worker
   const worker = await createWorker();
-  const mixFetchWebWorker = Comlink.wrap<IMixFetchWebWorker>(worker);
+
+  // bind with Comlink
+  const wrappedWorker = Comlink.wrap<IMixFetchWebWorker>(worker);
+
+  // handle the responses
+  const mixFetchWebWorker: IMixFetch = {
+    setupMixFetch: wrappedWorker.setupMixFetch,
+    mixFetch: async (url: string, args: any) => {
+      const workerResponse = await wrappedWorker.mixFetch(url, args);
+      if (!workerResponse) {
+        throw new Error('No response received');
+      }
+      console.log({ workerResponse });
+      const { headers: headersRaw, status, statusText } = workerResponse;
+
+      const headers = convertHeaders(headersRaw);
+
+      // handle blobs
+      if (workerResponse.body.blobUrl) {
+        const blob = await (await fetch(workerResponse.body.blobUrl)).blob();
+        const body = await blob.arrayBuffer();
+        return new Response(body, { headers, status, statusText });
+      }
+
+      // handle everything else
+      const body = Object.values(workerResponse.body)[0]; // we are expecting only one value to be set in `.body`
+      return new Response(body, { headers, status, statusText });
+    },
+  };
+
   return mixFetchWebWorker;
 };
 

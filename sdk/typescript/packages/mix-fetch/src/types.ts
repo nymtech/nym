@@ -1,14 +1,19 @@
 import type { MixFetchOpts } from '@nymproject/mix-fetch-wasm';
 
 // type IMixFetch = typeof fetch;
-type IMixFetch = (url: string, args: any) => Promise<any>;
+type IMixFetchFn = (url: string, args: any) => Promise<MixFetchWebWorkerResponse>;
 
 export type SetupMixFetchOps = MixFetchOpts & {
   responseBodyConfigMap: ResponseBodyConfigMap;
 };
 
 export interface IMixFetchWebWorker {
-  mixFetch: IMixFetch;
+  mixFetch: IMixFetchFn;
+  setupMixFetch: (opts: SetupMixFetchOps) => Promise<void>;
+}
+
+export interface IMixFetch {
+  mixFetch: (url: string, args: any) => Promise<Response>;
   setupMixFetch: (opts: SetupMixFetchOps) => Promise<void>;
 }
 
@@ -76,3 +81,14 @@ export const ResponseBodyConfigMapDefaults: ResponseBodyConfigMap = {
   blob: [/image\/.*/, /video\/.*/],
   fallback: 'blob',
 };
+
+export interface MixFetchWebWorkerResponse {
+  body: ResponseBody;
+  url: string;
+  headers: any;
+  status: number;
+  statusText: string;
+  type: string;
+  ok: boolean;
+  redirected: boolean;
+}

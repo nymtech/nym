@@ -56,15 +56,20 @@ async function main() {
 
   let resp = await worker.mixFetch(url, args);
   console.log({ resp });
+  const text = await resp.text();
 
   appendOutput(JSON.stringify(resp, null, 2));
+  appendOutput(JSON.stringify({ text }, null, 2));
 
   // get an image
-  url = 'https://nymtech.net/images/nav/nym-logo.svg';
+  url = 'https://nymtech.net/images/token/pie-classic-2.svg';
   resp = await worker.mixFetch(url, args);
   console.log({ resp });
-  appendOutput(JSON.stringify(resp, null, 2));
-  appendImageOutput(resp.body.blobUrl);
+  const buffer = await resp.arrayBuffer();
+  const type = resp.headers.get('Content-Type');
+  const blobUrl = URL.createObjectURL(new Blob([buffer], { type }));
+  appendOutput(JSON.stringify({ bufferBytes: buffer.byteLength, blobUrl }, null, 2));
+  appendImageOutput(blobUrl);
 }
 
 // wait for the html to load

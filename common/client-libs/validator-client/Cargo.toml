@@ -23,7 +23,7 @@ nym-service-provider-directory-common = { path = "../../cosmwasm-smart-contracts
 nym-vesting-contract = { path = "../../../contracts/vesting" }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
-reqwest = { version = "0.11", features = ["json"] }
+reqwest = { workspace = true, features = ["json"] }
 thiserror = "1"
 log = { workspace = true }
 url = { version = "2.2", features = ["serde"] }

@@ -3485,6 +3485,7 @@ dependencies = [
  "nym-service-providers-common",
  "nym-socks5-requests",
  "rand 0.7.3",
+ "reqwest",
  "serde",
  "serde-wasm-bindgen",
  "thiserror",

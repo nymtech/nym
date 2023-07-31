@@ -30,7 +30,7 @@ pin-project = "1.0"
 pretty_env_logger = "0.4.0"
 rand = "0.8.5"
 rand-07 = { package = "rand", version = "0.7.3" } # required for compatibility
-reqwest = { version = "0.11.11", features = ["json"] }
+reqwest = { workspace = true, features = ["json"] }
 rocket = { version = "0.5.0-rc.2", features = ["json"] }
 rocket_cors = { git = "https://github.com/lawliet89/rocket_cors", rev = "dfd3662c49e2f6fc37df35091cb94d82f7fb5915" }
 serde = "1.0"

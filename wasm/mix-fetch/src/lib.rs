@@ -25,6 +25,8 @@ mod request_writer;
 #[cfg(target_arch = "wasm32")]
 mod socks_helpers;
 
+mod harbourmaster;
+
 #[cfg(target_arch = "wasm32")]
 pub(crate) use fetch::{mix_fetch_client, RequestId, MIX_FETCH};
 

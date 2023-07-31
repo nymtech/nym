@@ -17,6 +17,7 @@ crate-type = ["cdylib", "rlib"]
 futures = { workspace = true }
 js-sys = { workspace = true }
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
+reqwest = { workspace = true, default-features = false }
 serde = { workspace = true, features = ["derive"] }
 serde-wasm-bindgen = { workspace = true }
 tokio = { workspace = true, features = ["sync"] }

@@ -227,32 +227,32 @@ export interface Events {
   subscribeToRawMessageReceivedEvent: EventHandlerSubscribeFn<RawMessageReceivedEvent>;
 }
 
-  /**
+/**
  * Enum representing various event kinds.
  * @enum
  */
 export enum EventKinds {
-    /**
+  /**
    * The event emitted when the nodetester is ready to be used.
    */
   Loaded = 'Loaded',
 
-     /**
+  /**
    * The event emitted when connection to the gateway is established.
    */
   Connected = 'Connected',
-   
+
   /**
    * The event for when a message is received and interpreted as a string.
    */
   StringMessageReceived = 'StringMessageReceived',
 
-    /**
+  /**
    * The event for when a binary message is received. BinaryMessage is a type of message that contains additional metadata, such as MIME type and some headers, along with the actual payload data.
    */
   BinaryMessageReceived = 'BinaryMessageReceived',
 
-    /**
+  /**
    * The event for when a raw message is received. RawMessage represents the bytes that are received directly from the mixnet with no further parsing or interpretation done on them.
    */
   RawMessageReceived = 'RawMessageReceived',

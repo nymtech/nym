@@ -1,8 +1,9 @@
 /* eslint-disable no-restricted-globals */
-import { MixFetchConfig, no_cover_debug, setupMixFetch } from '@nymproject/mix-fetch-wasm';
+import { setupMixFetch } from '@nymproject/mix-fetch-wasm';
 import * as Comlink from 'comlink';
 import type { IMixFetchWebWorker, LoadedEvent } from '../types';
-import { EventKinds } from '../types';
+import { EventKinds, ResponseBodyConfigMap } from '../types';
+import { handleResponseMimeTypes } from './handle-response-mime-types';
 
 /**
  * Helper method to send typed messages.
@@ -12,6 +13,7 @@ import { EventKinds } from '../types';
 const postMessageWithType = <E>(event: E) => self.postMessage(event);
 export async function run() {
   const { mixFetch } = self as any;
+  let responseBodyConfigMap: ResponseBodyConfigMap | undefined;
 
   const mixFetchWebWorker: IMixFetchWebWorker = {
     mixFetch: async (url, args) => {
@@ -21,29 +23,16 @@ export async function run() {
 
       console.log('[Worker]', { response, json: JSON.stringify(response, null, 2) });
 
-      let body;
-      let json;
-      let text;
-      let formData;
-      let blob;
-
-      try {
-        text = await response.clone().text();
-      } catch (e: any) {
-        console.warn('text', e);
-      }
-
-      console.log('[Worker]', { body, text });
+      const bodyResponse = await handleResponseMimeTypes(response, responseBodyConfigMap);
+      console.log('[Worker]', { bodyResponse });
 
       const headers: any = {};
       response.headers.forEach((value, key) => {
         headers[key] = value;
       });
 
-      console.log('[Worker]', { headers, json, text, formData, blob });
-
       const output = {
-        body,
+        body: bodyResponse,
         url: response.url,
         headers,
         status: response.status,
@@ -51,10 +40,6 @@ export async function run() {
         type: response.type,
         ok: response.ok,
         redirected: response.redirected,
-        json,
-        text,
-        formData,
-        blob,
       };
 
       console.log('[Worker]', { output });
@@ -63,6 +48,7 @@ export async function run() {
     },
     setupMixFetch: async (opts) => {
       console.log('[Worker] --- setupMixFetch ---', { opts });
+      responseBodyConfigMap = opts.responseBodyConfigMap;
       await setupMixFetch(opts);
     },
   };

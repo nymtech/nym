@@ -1,10 +1,10 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::nyxd::coin::Coin;
-pub use crate::nyxd::cosmwasm_client::client::CosmWasmClient;
+use crate::nyxd::contract_traits::NymContractsProvider;
 use crate::nyxd::error::NyxdError;
-use crate::nyxd::NyxdClient;
+use crate::nyxd::{CosmWasmClient, NyxdClient};
 use async_trait::async_trait;
 use cosmwasm_std::{Coin as CosmWasmCoin, Timestamp};
 use nym_contracts_common::ContractBuildInformation;
@@ -334,13 +334,32 @@ pub trait VestingQueryClient {
 }
 
 #[async_trait]
-impl<C: CosmWasmClient + Sync + Send> VestingQueryClient for NyxdClient<C> {
+impl<C> VestingQueryClient for C
+where
+    C: CosmWasmClient + NymContractsProvider + Send + Sync,
+{
     async fn query_vesting_contract<T>(&self, query: VestingQueryMsg) -> Result<T, NyxdError>
     where
         for<'a> T: Deserialize<'a>,
     {
-        self.client
-            .query_contract_smart(self.vesting_contract_address(), &query)
+        let vesting_contract_address = &self
+            .vesting_contract_address()
+            .ok_or_else(|| NyxdError::unavailable_contract_address("vesting contract"))?;
+        self.query_contract_smart(vesting_contract_address, &query)
             .await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // it's enough that this compiles
+    #[deprecated]
+    async fn all_query_variants_are_covered<C: VestingQueryClient + Send + Sync>(
+        client: C,
+        msg: VestingQueryMsg,
+    ) {
+        unimplemented!()
     }
 }

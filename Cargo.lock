@@ -4851,6 +4851,7 @@ dependencies = [
  "colored",
  "cosmrs",
  "cosmwasm-std",
+ "cw-utils",
  "cw3",
  "cw4",
  "eyre",

@@ -1,4 +1,4 @@
-// Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::nyxd;
@@ -38,25 +38,15 @@ use tendermint_rpc::{
     Order,
 };
 
+pub const DEFAULT_BROADCAST_POLLING_RATE: Duration = Duration::from_secs(4);
+pub const DEFAULT_BROADCAST_TIMEOUT: Duration = Duration::from_secs(60);
+
 #[cfg(feature = "http-client")]
 #[async_trait]
-impl CosmWasmClient for cosmrs::rpc::HttpClient {
-    fn broadcast_polling_rate(&self) -> Duration {
-        Duration::from_secs(4)
-    }
-
-    fn broadcast_timeout(&self) -> Duration {
-        Duration::from_secs(60)
-    }
-}
+impl CosmWasmClient for cosmrs::rpc::HttpClient {}
 
 #[async_trait]
 pub trait CosmWasmClient: TendermintClient {
-    // this should probably get redesigned, but I'm leaving those like that temporarily to fix
-    // the underlying issue more quickly
-    fn broadcast_polling_rate(&self) -> Duration;
-    fn broadcast_timeout(&self) -> Duration;
-
     // helper method to remove duplicate code involved in making abci requests with protobuf messages
     // TODO: perhaps it should have an additional argument to determine whether the response should
     // require proof?
@@ -264,10 +254,20 @@ pub trait CosmWasmClient: TendermintClient {
         Ok(tendermint_rpc::client::Client::broadcast_tx_commit(self, tx).await?)
     }
 
-    async fn broadcast_tx<T>(&self, tx: T) -> Result<TxResponse, NyxdError>
+    async fn broadcast_tx<T>(
+        &self,
+        tx: T,
+        timeout: impl Into<Option<Duration>> + Send,
+        poll_interval: impl Into<Option<Duration>> + Send,
+    ) -> Result<TxResponse, NyxdError>
     where
         T: Into<Vec<u8>> + Send,
     {
+        let timeout = timeout.into().unwrap_or(DEFAULT_BROADCAST_TIMEOUT);
+        let poll_interval = poll_interval
+            .into()
+            .unwrap_or(DEFAULT_BROADCAST_POLLING_RATE);
+
         let broadcasted = CosmWasmClient::broadcast_tx_sync(self, tx).await?;
 
         if broadcasted.code.is_err() {
@@ -288,10 +288,10 @@ pub trait CosmWasmClient: TendermintClient {
                 "Polling for result of including {} in a block...",
                 broadcasted.hash
             );
-            if tokio::time::Instant::now().duration_since(start) >= self.broadcast_timeout() {
+            if tokio::time::Instant::now().duration_since(start) >= timeout {
                 return Err(NyxdError::BroadcastTimeout {
                     hash: tx_hash,
-                    timeout: self.broadcast_timeout(),
+                    timeout,
                 });
             }
 
@@ -299,7 +299,7 @@ pub trait CosmWasmClient: TendermintClient {
                 return Ok(poll_res);
             }
 
-            tokio::time::sleep(self.broadcast_polling_rate()).await;
+            tokio::time::sleep(poll_interval).await;
         }
     }
 

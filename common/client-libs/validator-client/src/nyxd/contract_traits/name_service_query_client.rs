@@ -1,3 +1,8 @@
+// Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
+use crate::nyxd::contract_traits::NymContractsProvider;
+use crate::nyxd::{error::NyxdError, CosmWasmClient};
 use async_trait::async_trait;
 use cosmrs::AccountId;
 use nym_contracts_common::ContractBuildInformation;
@@ -7,8 +12,6 @@ use nym_name_service_common::{
     Address, NameId, RegisteredName,
 };
 use serde::Deserialize;
-
-use crate::nyxd::{error::NyxdError, CosmWasmClient, NyxdClient};
 
 #[async_trait]
 pub trait NameServiceQueryClient {
@@ -74,36 +77,33 @@ pub trait NameServiceQueryClient {
         Ok(services)
     }
 }
-
 #[async_trait]
-impl<C> NameServiceQueryClient for NyxdClient<C>
+impl<C> NameServiceQueryClient for C
 where
-    C: CosmWasmClient + Send + Sync,
+    C: CosmWasmClient + NymContractsProvider + Send + Sync,
 {
     async fn query_name_service_contract<T>(&self, query: NameQueryMsg) -> Result<T, NyxdError>
     where
         for<'a> T: Deserialize<'a>,
     {
-        self.client
-            .query_contract_smart(
-                self.name_service_contract_address().ok_or(
-                    NyxdError::NoContractAddressAvailable("name service contract".to_string()),
-                )?,
-                &query,
-            )
+        let name_service_contract_address = &self
+            .name_service_contract_address()
+            .ok_or_else(|| NyxdError::unavailable_contract_address("name service contract"))?;
+        self.query_contract_smart(name_service_contract_address, &query)
             .await
     }
 }
 
-#[async_trait]
-impl<C> NameServiceQueryClient for crate::Client<C>
-where
-    C: CosmWasmClient + Send + Sync,
-{
-    async fn query_name_service_contract<T>(&self, query: NameQueryMsg) -> Result<T, NyxdError>
-    where
-        for<'a> T: Deserialize<'a>,
-    {
-        self.nyxd.query_name_service_contract(query).await
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // it's enough that this compiles
+    #[deprecated]
+    async fn all_query_variants_are_covered<C: NameServiceQueryClient + Send + Sync>(
+        client: C,
+        msg: NameQueryMsg,
+    ) {
+        unimplemented!()
     }
 }

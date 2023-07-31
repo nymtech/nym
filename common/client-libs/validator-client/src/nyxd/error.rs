@@ -224,4 +224,8 @@ impl NyxdError {
             _ => false,
         }
     }
+
+    pub fn unavailable_contract_address<S: Into<String>>(contract_type: S) -> Self {
+        NyxdError::NoContractAddressAvailable(contract_type.into())
+    }
 }

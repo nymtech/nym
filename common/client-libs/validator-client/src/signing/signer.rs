@@ -94,3 +94,25 @@ pub trait OfflineSigner {
 
     // fn sign_amino_with_account(&self, signer: &AccountData, sign_doc: AminoSignDoc) -> Result<tx::Raw, Self::Error>;
 }
+
+#[derive(Debug, Default, Copy, Clone)]
+pub struct NoSigner;
+
+// #[derive(Debug, Copy, Clone, Error)]
+// #[error("no signer is available")]
+// struct SignerUnavailable;
+//
+// // trait bound requirements
+// impl From<SigningError> for SignerUnavailable {
+//     fn from(_: SigningError) -> Self {
+//         SignerUnavailable
+//     }
+// }
+//
+// impl OfflineSigner for NoSigner {
+//     type Error = SignerUnavailable;
+//
+//     fn get_accounts(&self) -> Result<Vec<AccountData>, Self::Error> {
+//         return Err(SignerUnavailable);
+//     }
+// }

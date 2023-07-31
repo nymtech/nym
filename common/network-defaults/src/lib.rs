@@ -160,6 +160,10 @@ impl NymNetworkDetails {
         }
     }
 
+    pub fn default_gas_price_amount(&self) -> f64 {
+        GAS_PRICE_AMOUNT
+    }
+
     #[must_use]
     pub fn with_bech32_account_prefix<S: Into<String>>(mut self, prefix: S) -> Self {
         self.chain_details.bech32_account_prefix = prefix.into();

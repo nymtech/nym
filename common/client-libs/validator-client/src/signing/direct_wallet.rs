@@ -35,6 +35,7 @@ pub enum DirectSecp256k1HdWalletError {
     AccountDerivationError { source: eyre::Report },
 }
 
+// TODO: maybe lock this one behind feature flag?
 #[derive(Debug, Clone, Zeroize, ZeroizeOnDrop)]
 pub struct DirectSecp256k1HdWallet {
     /// Base secret

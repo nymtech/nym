@@ -1,7 +1,7 @@
 // Copyright 2022-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::define_paged_response;
+use crate::collect_paged;
 use crate::nyxd::contract_traits::NymContractsProvider;
 use crate::nyxd::error::NyxdError;
 use crate::nyxd::CosmWasmClient;
@@ -454,33 +454,10 @@ pub trait MixnetQueryClient {
 // extension trait to the query client to deal with the paged queries
 // (it didn't feel appropriate to combine it with the existing trait
 #[async_trait]
-pub trait PagedMixnetClient: MixnetQueryClient + Send + Sync {
-    // async fn get_all_node_families(&self) -> Result<Vec<Family>, NyxdError> {
-    //     let mut res = Vec::new();
-    //     let mut start_after = None;
-    //
-    //     loop {
-    //         let paged_response = self
-    //             .get_all_node_families_paged(start_after.take(), None)
-    //             .await?;
-    //         res.extend(paged_response.families);
-    //
-    //         if let Some(start_next_after) = paged_response.start_next_after {
-    //             start_after = Some(start_next_after)
-    //         } else {
-    //             break;
-    //         }
-    //     }
-    //
-    //     Ok(res)
-    // }
-
-    // define_paged_response!(
-    //     get_all_node_families,
-    //     Family,
-    //     get_all_node_families_paged,
-    //     families
-    // );
+pub trait PagedMixnetClient: MixnetQueryClient {
+    async fn get_all_node_families(&self) -> Result<Vec<Family>, NyxdError> {
+        collect_paged!(self, get_all_node_families_paged, families)
+    }
 }
 
 #[async_trait]

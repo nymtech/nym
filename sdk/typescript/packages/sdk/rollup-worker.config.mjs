@@ -3,9 +3,7 @@ import resolve from '@rollup/plugin-node-resolve';
 import { wasm } from '@rollup/plugin-wasm';
 import replace from '@rollup/plugin-replace';
 
-const extensions = [
-  '.js', '.jsx', '.ts', '.tsx',
-];
+const extensions = ['.js', '.jsx', '.ts', '.tsx'];
 
 export default {
   input: 'src/mixnet/wasm/worker.ts',
@@ -17,7 +15,7 @@ export default {
     resolve({ extensions }),
     // this is some nasty monkey patching that removes the WASM URL (because it is handled by the `wasm` plugin)
     replace({
-      values: { 'input = new URL(\'nym_client_wasm_bg.wasm\', import.meta.url);': 'input = undefined;' },
+      values: { "input = new URL('nym_client_wasm_bg.wasm', import.meta.url);": 'input = undefined;' },
       delimiters: ['', ''],
       preventAssignment: true,
     }),

@@ -36,11 +36,20 @@ rollup -c rollup-esm.config.mjs
 rollup -c rollup-cjs.config.mjs
 
 #-------------------------------------------------------
-# FULL FAT
+# ESM (full-fat)
 #-------------------------------------------------------
 
-# build the SDK as a ESM bundle
-rollup -c rollup-full-fat.config.mjs
+# build the SDK as a ESM bundle (with worker inlined as a blob)
+rollup -c rollup-esm-full-fat.config.mjs
+
+#-------------------------------------------------------
+# COMMON JS (full-fat)
+#-------------------------------------------------------
+# Some old build systems cannot fully handle ESM or ES2021, so build
+# a CommonJS bundle targeting ES5
+
+# build the SDK as a CommonJS bundle (with worker inlined as a blob)
+rollup -c rollup-cjs-full-fat.config.mjs
 
 #-------------------------------------------------------
 # CLEAN UP
@@ -49,5 +58,7 @@ rollup -c rollup-full-fat.config.mjs
 # copy README
 cp README.md dist/esm
 cp README-CommonJS.md dist/cjs/README.md
+cp README-full-fat.md dist/esm-full-fat
+cp README-CommonJS-full-fat.md dist/cjs-full-fat/README.md
 
 

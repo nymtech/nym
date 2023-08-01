@@ -9,6 +9,7 @@ use async_trait::async_trait;
 use cw3::ProposalResponse;
 use cw4::MemberResponse;
 use nym_coconut_bandwidth_contract_common::spend_credential::SpendCredentialResponse;
+use nym_coconut_dkg_common::msg::QueryMsg as DkgQueryMsg;
 use nym_coconut_dkg_common::types::InitialReplacementData;
 use nym_coconut_dkg_common::{
     dealer::{ContractDealing, DealerDetails, DealerDetailsResponse},
@@ -424,6 +425,16 @@ impl crate::coconut::client::Client for Client {
             .await
             .submit_verification_key_share(share, resharing, None)
             .await?)
+    }
+}
+
+#[async_trait]
+impl DkgQueryClient for Client {
+    async fn query_dkg_contract<T>(&self, query: DkgQueryMsg) -> std::result::Result<T, NyxdError>
+    where
+        for<'a> T: Deserialize<'a>,
+    {
+        self.0.read().await.query_dkg_contract(query).await
     }
 }
 

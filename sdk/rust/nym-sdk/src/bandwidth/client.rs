@@ -6,9 +6,8 @@ use nym_bandwidth_controller::acquire::state::State;
 use nym_credential_storage::storage::Storage;
 use nym_credentials::coconut::bandwidth::BandwidthVoucher;
 use nym_network_defaults::NymNetworkDetails;
-use nym_validator_client::nyxd::{Coin, SigningNyxdClient};
-use nym_validator_client::signing::direct_wallet::DirectSecp256k1HdWallet;
-use nym_validator_client::{Client, Config};
+use nym_validator_client::nyxd::Coin;
+use nym_validator_client::{nyxd, DirectSigningHttpRpcNyxdClient};
 
 /// The serialized version of the yet untransformed bandwidth voucher. It can be used to complete
 /// the acquirement process of a bandwidth credential.
@@ -22,7 +21,7 @@ pub type VoucherBlob = Vec<u8>;
 /// client.
 pub struct BandwidthAcquireClient<'a, St: Storage> {
     network_details: NymNetworkDetails,
-    client: Client<SigningNyxdClient<DirectSecp256k1HdWallet>>,
+    client: DirectSigningHttpRpcNyxdClient,
     storage: &'a St,
 }
 
@@ -36,8 +35,14 @@ where
         mnemonic: String,
         storage: &'a St,
     ) -> Result<Self> {
-        let config = Config::try_from_nym_network_details(&network_details)?;
-        let client = nym_validator_client::Client::new_signing(config, mnemonic.parse()?)?;
+        let nyxd_url = network_details.endpoints[0].nyxd_url.as_str();
+        let config = nyxd::Config::try_from_nym_network_details(&network_details)?;
+
+        let client = DirectSigningHttpRpcNyxdClient::connect_with_mnemonic(
+            config,
+            nyxd_url,
+            mnemonic.parse()?,
+        )?;
         Ok(Self {
             network_details,
             client,
@@ -51,7 +56,7 @@ where
     /// associated bandwidth credential, using [`Self::recover`].
     pub async fn acquire(&self, amount: u128) -> Result<()> {
         let amount = Coin::new(amount, &self.network_details.chain_details.mix_denom.base);
-        let state = nym_bandwidth_controller::acquire::deposit(&self.client.nyxd, amount).await?;
+        let state = nym_bandwidth_controller::acquire::deposit(&self.client, amount).await?;
         nym_bandwidth_controller::acquire::get_credential(&state, &self.client, self.storage)
             .await
             .map_err(|reason| Error::UnconvertedDeposit {

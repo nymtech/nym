@@ -109,20 +109,15 @@ pub fn create_bandwidth_controller<St: CredentialStorage>(
         .get_validator_endpoints()
         .pop()
         .expect("No nyxd validator endpoint provided");
-    let api_url = config
-        .get_nym_api_endpoints()
-        .pop()
-        .expect("No validator api endpoint provided");
 
-    create_bandwidth_controller_with_urls(nyxd_url, api_url, storage)
+    create_bandwidth_controller_with_urls(nyxd_url, storage)
 }
 
 pub fn create_bandwidth_controller_with_urls<St: CredentialStorage>(
     nyxd_url: Url,
-    nym_api_url: Url,
     storage: St,
 ) -> BandwidthController<QueryHttpRpcNyxdClient, St> {
-    let client = default_query_dkg_client(nyxd_url, nym_api_url);
+    let client = default_query_dkg_client(nyxd_url);
 
     BandwidthController::new(storage, client)
 }
@@ -132,12 +127,8 @@ pub fn default_query_dkg_client_from_config(config: &Config) -> QueryHttpRpcNyxd
         .get_validator_endpoints()
         .pop()
         .expect("No nyxd validator endpoint provided");
-    let api_url = config
-        .get_nym_api_endpoints()
-        .pop()
-        .expect("No validator api endpoint provided");
 
-    default_query_dkg_client(nyxd_url, api_url)
+    default_query_dkg_client(nyxd_url)
 }
 
 pub fn default_query_dkg_client(nyxd_url: Url) -> QueryHttpRpcNyxdClient {

@@ -84,15 +84,15 @@ To check available configuration options for initializing your node use:
 ```
 ~~~
 
-Initalise your mixnode with the following command, replacing the value of `--id` with the moniker you wish to give your mixnode, and the `--wallet-address` with the Nym address you created earlier. Your `--host` must be publicly routable on the internet in order to mix packets, and can be either an Ipv4 or IPv6 address. The `$(curl ifconfig.me)` command returns your IP automatically using an external service. If you enter your IP address manually, enter it **without** any port information.
+Initalise your mixnode with the following command, replacing the value of `--id` with the moniker you wish to give your mixnode. Your `--host` must be publicly routable on the internet in order to mix packets, and can be either an Ipv4 or IPv6 address. The `$(curl ifconfig.me)` command returns your IP automatically using an external service. If you enter your IP address manually, enter it **without** any port information.
 
 ```
-./nym-mixnode init --id winston-smithnode --host $(curl ifconfig.me) --wallet-address n1eufxdlgt0puwrwptgjfqne8pj4nhy2u5ft62uq
+./nym-mixnode init --id winston-smithnode --host $(curl ifconfig.me) 
 ```
 
 ~~~admonish example collapsible=true title="Console output"
 ```
- <!-- cmdrun ../../../../target/release/nym-mixnode init --id winston-smithnode --host $(curl ifconfig.me) --wallet-address n1eufxdlgt0puwrwptgjfqne8pj4nhy2u5ft62uq -->
+ <!-- cmdrun ../../../../target/release/nym-mixnode init --id winston-smithnode --host $(curl ifconfig.me) -->
 ```
 ~~~
 

@@ -1,13 +1,12 @@
 // Copyright 2022-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::nyxd::contract_traits::NymContractsProvider;
 use crate::nyxd::error::NyxdError;
-use crate::nyxd::{CosmWasmClient, NyxdClient};
+use crate::nyxd::CosmWasmClient;
+use async_trait::async_trait;
 use nym_coconut_bandwidth_contract_common::msg::QueryMsg as CoconutBandwidthQueryMsg;
 use nym_coconut_bandwidth_contract_common::spend_credential::SpendCredentialResponse;
-
-use crate::nyxd::contract_traits::NymContractsProvider;
-use async_trait::async_trait;
 use serde::Deserialize;
 
 #[async_trait]

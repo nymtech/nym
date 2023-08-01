@@ -11,7 +11,7 @@ use nym_service_provider_directory_common::{
 use serde::Deserialize;
 
 use crate::nyxd::contract_traits::NymContractsProvider;
-use crate::nyxd::{error::NyxdError, CosmWasmClient, NyxdClient};
+use crate::nyxd::{error::NyxdError, CosmWasmClient};
 
 #[async_trait]
 pub trait SpDirectoryQueryClient {

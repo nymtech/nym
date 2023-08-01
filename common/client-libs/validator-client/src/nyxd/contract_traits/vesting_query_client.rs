@@ -4,7 +4,7 @@
 use crate::nyxd::coin::Coin;
 use crate::nyxd::contract_traits::NymContractsProvider;
 use crate::nyxd::error::NyxdError;
-use crate::nyxd::{CosmWasmClient, NyxdClient};
+use crate::nyxd::CosmWasmClient;
 use async_trait::async_trait;
 use cosmwasm_std::{Coin as CosmWasmCoin, Timestamp};
 use nym_contracts_common::ContractBuildInformation;

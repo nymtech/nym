@@ -1,40 +1,33 @@
 // Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::nyxd::contract_traits::NymContractsProvider;
+use crate::nyxd::{self, NyxdClient};
+use crate::signing::signer::NoSigner;
 use crate::{nym_api, ValidatorClientError};
 use nym_api_requests::coconut::{
     BlindSignRequestBody, BlindedSignatureResponse, VerifyCredentialBody, VerifyCredentialResponse,
 };
+use nym_api_requests::models::MixNodeBondAnnotated;
 use nym_api_requests::models::{
     GatewayCoreStatusResponse, MixnodeCoreStatusResponse, MixnodeStatusResponse,
     RewardEstimationResponse, StakeSaturationResponse,
 };
-use nym_coconut_dkg_common::types::NodeIndex;
-use nym_coconut_interface::VerificationKey;
+use nym_network_defaults::NymNetworkDetails;
+use url::Url;
+
 pub use nym_mixnet_contract_common::{
     mixnode::MixNodeDetails, GatewayBond, IdentityKey, IdentityKeyRef, MixId,
 };
-use url::Url;
 
-// use crate::nyxd::contract_traits::{DkgQueryClient, MixnetQueryClient};
-use crate::nyxd::contract_traits::NymContractsProvider;
-use crate::nyxd::{self, CosmWasmClient, NyxdClient};
-use nym_api_requests::models::MixNodeBondAnnotated;
-use nym_coconut_dkg_common::{types::EpochId, verification_key::ContractVKShare};
-use nym_coconut_interface::Base58;
-use nym_mixnet_contract_common::{
-    families::{Family, FamilyHead},
-    mixnode::MixNodeBond,
-    pending_events::{PendingEpochEvent, PendingIntervalEvent},
-    Delegation, RewardedSetNodeStatus, UnbondedMixnode,
-};
-use nym_network_defaults::NymNetworkDetails;
-use std::str::FromStr;
-use tendermint_rpc::HttpClient;
+// re-export the type to not break existing imports
+pub use crate::coconut::CoconutApiClient;
 
-#[cfg(all(feature = "signing", feature = "http-client"))]
+#[cfg(feature = "direct-secp256k1-wallet")]
 use crate::signing::direct_wallet::DirectSecp256k1HdWallet;
-use crate::signing::signer::NoSigner;
+
+#[cfg(feature = "http-client")]
+use tendermint_rpc::HttpClient;
 
 #[must_use]
 #[derive(Debug, Clone)]
@@ -91,7 +84,7 @@ pub struct Client<C, S = NoSigner> {
     pub nyxd: NyxdClient<C, S>,
 }
 
-#[cfg(all(feature = "signing", feature = "http-client"))]
+#[cfg(all(feature = "direct-secp256k1-wallet", feature = "http-client"))]
 impl Client<HttpClient, DirectSecp256k1HdWallet> {
     pub fn new_signing(
         config: Config,
@@ -113,11 +106,6 @@ impl Client<HttpClient, DirectSecp256k1HdWallet> {
     pub fn change_nyxd(&mut self, new_endpoint: Url) -> Result<(), ValidatorClientError> {
         self.nyxd.change_endpoint(new_endpoint.as_ref())?;
         Ok(())
-    }
-
-    pub fn set_nyxd_simulated_gas_multiplier(&mut self, multiplier: f32) {
-        todo!()
-        // self.nyxd.set_simulated_gas_multiplier(multiplier)
     }
 }
 
@@ -216,49 +204,6 @@ impl<C> Client<C> {
         request_body: &BlindSignRequestBody,
     ) -> Result<BlindedSignatureResponse, ValidatorClientError> {
         Ok(self.nym_api.blind_sign(request_body).await?)
-    }
-}
-
-#[derive(Clone)]
-pub struct CoconutApiClient {
-    pub api_client: NymApiClient,
-    pub verification_key: VerificationKey,
-    pub node_id: NodeIndex,
-    pub cosmos_address: cosmrs::AccountId,
-}
-
-impl CoconutApiClient {
-    // pub async fn all_coconut_api_clients<C>(
-    //     client: &C,
-    //     epoch_id: EpochId,
-    // ) -> Result<Vec<Self>, ValidatorClientError>
-    // where
-    //     C: DkgQueryClient + Sync + Send,
-    // {
-    //     Ok(client
-    //         .get_all_verification_key_shares(epoch_id)
-    //         .await?
-    //         .into_iter()
-    //         .filter_map(Self::try_from)
-    //         .collect())
-    // }
-
-    fn try_from(share: ContractVKShare) -> Option<Self> {
-        if share.verified {
-            if let Ok(url_address) = Url::parse(&share.announce_address) {
-                if let Ok(verification_key) = VerificationKey::try_from_bs58(&share.share) {
-                    if let Ok(cosmos_address) = cosmrs::AccountId::from_str(share.owner.as_str()) {
-                        return Some(CoconutApiClient {
-                            api_client: NymApiClient::new(url_address),
-                            verification_key,
-                            node_id: share.node_index,
-                            cosmos_address,
-                        });
-                    }
-                }
-            }
-        }
-        None
     }
 }
 

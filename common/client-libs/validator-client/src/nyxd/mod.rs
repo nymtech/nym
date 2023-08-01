@@ -1,14 +1,13 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::nyxd::cosmwasm_client::types::Account;
 use crate::nyxd::error::NyxdError;
+use async_trait::async_trait;
 use log::{debug, trace};
 use nym_network_defaults::{ChainDetails, NymNetworkDetails};
-use serde::{Deserialize, Serialize};
-use tendermint_rpc::{
-    endpoint::block::Response as BlockResponse, query::Query, HttpClient, HttpClientUrl,
-};
+use serde::Serialize;
+use tendermint_rpc::endpoint::block::Response as BlockResponse;
+use tendermint_rpc::Error as TendermintRpcError;
 
 pub use crate::nyxd::cosmwasm_client::client_traits::{CosmWasmClient, SigningCosmWasmClient};
 pub use crate::nyxd::fee::Fee;
@@ -31,27 +30,21 @@ pub use tendermint_rpc::{
     Paging,
 };
 
-#[cfg(feature = "http-client")]
-use tendermint_rpc::Error as TendermintRpcError;
-
-#[cfg(feature = "signing")]
 use crate::nyxd::cosmwasm_client::types::{
     ChangeAdminResult, ContractCodeId, ExecuteResult, InstantiateOptions, InstantiateResult,
     MigrateResult, SequenceResponse, SimulateResponse, UploadResult,
 };
-#[cfg(all(feature = "signing", feature = "http-client"))]
-use crate::signing::direct_wallet::DirectSecp256k1HdWallet;
-#[cfg(all(feature = "signing", feature = "http-client"))]
 use crate::signing::signer::OfflineSigner;
-use async_trait::async_trait;
-#[cfg(feature = "signing")]
 use cosmrs::cosmwasm;
-#[cfg(feature = "signing")]
 use cosmrs::tx::Msg;
-#[cfg(feature = "signing")]
 use cosmwasm_std::Addr;
-#[cfg(feature = "signing")]
 use std::time::SystemTime;
+
+#[cfg(feature = "http-client")]
+use cosmrs::rpc::{HttpClient, HttpClientUrl};
+
+#[cfg(feature = "direct-secp256k1-wallet")]
+use crate::signing::direct_wallet::DirectSecp256k1HdWallet;
 
 use crate::nyxd::contract_traits::{NymContractsProvider, TypedNymContracts};
 use crate::nyxd::cosmwasm_client::MaybeSigningClient;
@@ -64,12 +57,8 @@ pub mod cosmwasm_client;
 pub mod error;
 pub mod fee;
 
-// temp
-#[deprecated]
-type QueryNyxdClient = HttpClient;
-
 // helper types
-#[cfg(all(feature = "signing", feature = "http-client"))]
+#[cfg(all(feature = "direct-secp256k1-wallet", feature = "http-client"))]
 pub type DirectSigningHttpNyxdClient = NyxdClient<HttpClient, DirectSecp256k1HdWallet>;
 #[cfg(feature = "http-client")]
 pub type QueryHttpNyxdClient = NyxdClient<HttpClient>;
@@ -117,6 +106,11 @@ impl Config {
             simulated_gas_multiplier: DEFAULT_SIMULATED_GAS_MULTIPLIER,
         })
     }
+
+    pub fn with_simulated_gas_multplier(mut self, simulated_gas_multiplier: f32) -> Self {
+        self.simulated_gas_multiplier = simulated_gas_multiplier;
+        self
+    }
 }
 
 // so youd have:
@@ -149,7 +143,7 @@ impl NyxdClient<HttpClient> {
     }
 }
 
-#[cfg(all(feature = "signing", feature = "http-client"))]
+#[cfg(all(feature = "direct-secp256k1-wallet", feature = "http-client"))]
 impl NyxdClient<HttpClient, DirectSecp256k1HdWallet> {
     // TODO: rename this one
     pub fn connect_with_mnemonic<U: Clone>(
@@ -166,14 +160,13 @@ impl NyxdClient<HttpClient, DirectSecp256k1HdWallet> {
     }
 }
 
-#[cfg(all(feature = "signing", feature = "http-client"))]
+#[cfg(feature = "http-client")]
 impl<S> NyxdClient<HttpClient, S>
 where
     S: OfflineSigner,
     // I have no idea why S::Error: Into<NyxdError> bound wouldn't do the trick
     NyxdError: From<S::Error>,
 {
-    #[cfg(feature = "http-client")]
     pub fn connect_with_signer<U: Clone>(
         config: Config,
         endpoint: U,
@@ -188,31 +181,20 @@ where
             config,
         })
     }
+}
 
-    // #[cfg(feature = "http-client")]
-    // pub fn change_endpoint<U>(&mut self, new_endpoint: U) -> Result<(), NyxdError>
-    // where
-    //     U: TryInto<HttpClientUrl, Error = TendermintRpcError>,
-    // {
-    //     self.client.change_endpoint(new_endpoint)
-    // }
-
-    #[deprecated]
-    pub fn into_signer(self) -> S {
-        todo!()
-        // self.client.into_signer()
+#[cfg(feature = "http-client")]
+impl<S> NyxdClient<HttpClient, S> {
+    pub fn change_endpoint<U>(&mut self, new_endpoint: U) -> Result<(), NyxdError>
+    where
+        U: TryInto<HttpClientUrl, Error = TendermintRpcError>,
+    {
+        self.client.change_endpoint(new_endpoint)
     }
 }
 
 // no trait bounds
 impl<C, S> NyxdClient<C, S> {
-    pub(crate) fn change_endpoint<U>(&mut self, new_endpoint: U) -> Result<(), NyxdError>
-    where
-        U: TryInto<HttpClientUrl, Error = TendermintRpcError>,
-    {
-        todo!()
-    }
-
     pub fn current_config(&self) -> &Config {
         &self.config
     }
@@ -357,7 +339,6 @@ where
 }
 
 // signing
-#[cfg(feature = "signing")]
 impl<C, S> NyxdClient<C, S>
 where
     C: SigningCosmWasmClient + Send + Sync,

@@ -3,7 +3,7 @@
 
 use crate::nyxd::contract_traits::NymContractsProvider;
 use crate::nyxd::error::NyxdError;
-use crate::nyxd::{CosmWasmClient, NyxdClient};
+use crate::nyxd::CosmWasmClient;
 use async_trait::async_trait;
 use cw4::MemberResponse;
 use nym_group_contract_common::msg::QueryMsg as GroupQueryMsg;

@@ -1,9 +1,10 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::collect_paged;
 use crate::nyxd::contract_traits::NymContractsProvider;
 use crate::nyxd::error::NyxdError;
-use crate::nyxd::{CosmWasmClient, NyxdClient};
+use crate::nyxd::CosmWasmClient;
 use async_trait::async_trait;
 use cosmrs::AccountId;
 use nym_coconut_dkg_common::dealer::{
@@ -47,24 +48,18 @@ pub trait DkgQueryClient {
     async fn get_current_dealers_paged(
         &self,
         start_after: Option<String>,
-        page_limit: Option<u32>,
+        limit: Option<u32>,
     ) -> Result<PagedDealerResponse, NyxdError> {
-        let request = DkgQueryMsg::GetCurrentDealers {
-            start_after,
-            limit: page_limit,
-        };
+        let request = DkgQueryMsg::GetCurrentDealers { start_after, limit };
         self.query_dkg_contract(request).await
     }
 
     async fn get_past_dealers_paged(
         &self,
         start_after: Option<String>,
-        page_limit: Option<u32>,
+        limit: Option<u32>,
     ) -> Result<PagedDealerResponse, NyxdError> {
-        let request = DkgQueryMsg::GetPastDealers {
-            start_after,
-            limit: page_limit,
-        };
+        let request = DkgQueryMsg::GetPastDealers { start_after, limit };
         self.query_dkg_contract(request).await
     }
 
@@ -72,11 +67,11 @@ pub trait DkgQueryClient {
         &self,
         idx: usize,
         start_after: Option<String>,
-        page_limit: Option<u32>,
+        limit: Option<u32>,
     ) -> Result<PagedDealingsResponse, NyxdError> {
         let request = DkgQueryMsg::GetDealing {
             idx: idx as u64,
-            limit: page_limit,
+            limit,
             start_after,
         };
         self.query_dkg_contract(request).await
@@ -86,95 +81,43 @@ pub trait DkgQueryClient {
         &self,
         epoch_id: EpochId,
         start_after: Option<String>,
-        page_limit: Option<u32>,
+        limit: Option<u32>,
     ) -> Result<PagedVKSharesResponse, NyxdError> {
         let request = DkgQueryMsg::GetVerificationKeys {
             epoch_id,
-            limit: page_limit,
+            limit,
             start_after,
         };
         self.query_dkg_contract(request).await
     }
+}
 
+// extension trait to the query client to deal with the paged queries
+// (it didn't feel appropriate to combine it with the existing trait
+#[async_trait]
+pub trait PagedDkgQueryClient: DkgQueryClient {
     async fn get_all_current_dealers(&self) -> Result<Vec<DealerDetails>, NyxdError> {
-        let mut dealers = Vec::new();
-        let mut start_after = None;
-        loop {
-            let mut paged_response = self
-                .get_current_dealers_paged(start_after.take(), None)
-                .await?;
-            dealers.append(&mut paged_response.dealers);
-
-            if let Some(start_after_res) = paged_response.start_next_after {
-                start_after = Some(start_after_res.into_string())
-            } else {
-                break;
-            }
-        }
-
-        Ok(dealers)
+        collect_paged!(self, get_current_dealers_paged, dealers)
     }
 
     async fn get_all_past_dealers(&self) -> Result<Vec<DealerDetails>, NyxdError> {
-        let mut dealers = Vec::new();
-        let mut start_after = None;
-        loop {
-            let mut paged_response = self
-                .get_past_dealers_paged(start_after.take(), None)
-                .await?;
-            dealers.append(&mut paged_response.dealers);
-
-            if let Some(start_after_res) = paged_response.start_next_after {
-                start_after = Some(start_after_res.into_string())
-            } else {
-                break;
-            }
-        }
-
-        Ok(dealers)
+        collect_paged!(self, get_past_dealers_paged, dealers)
     }
 
     async fn get_all_epoch_dealings(&self, idx: usize) -> Result<Vec<ContractDealing>, NyxdError> {
-        let mut dealings = Vec::new();
-        let mut start_after = None;
-        loop {
-            let mut paged_response = self
-                .get_dealings_paged(idx, start_after.take(), None)
-                .await?;
-            dealings.append(&mut paged_response.dealings);
-
-            if let Some(start_after_res) = paged_response.start_next_after {
-                start_after = Some(start_after_res.into_string())
-            } else {
-                break;
-            }
-        }
-
-        Ok(dealings)
+        collect_paged!(self, get_dealings_paged, dealings, idx)
     }
 
     async fn get_all_verification_key_shares(
         &self,
         epoch_id: EpochId,
     ) -> Result<Vec<ContractVKShare>, NyxdError> {
-        let mut shares = Vec::new();
-        let mut start_after = None;
-        loop {
-            let mut paged_response = self
-                .get_vk_shares_paged(epoch_id, start_after.take(), None)
-                .await?;
-            shares.append(&mut paged_response.shares);
-
-            if let Some(start_after_res) = paged_response.start_next_after {
-                start_after = Some(start_after_res.into_string())
-            } else {
-                break;
-            }
-        }
-
-        Ok(shares)
+        collect_paged!(self, get_vk_shares_paged, shares, epoch_id)
     }
 }
+
+#[async_trait]
+impl<T> PagedDkgQueryClient for T where T: DkgQueryClient {}
 
 #[async_trait]
 impl<C> DkgQueryClient for C

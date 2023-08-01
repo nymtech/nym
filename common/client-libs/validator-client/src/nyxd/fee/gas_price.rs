@@ -6,7 +6,7 @@ use cosmrs::Coin;
 use cosmrs::Gas;
 use cosmwasm_std::{Decimal, Fraction, Uint128};
 use nym_config::defaults;
-use nym_network_defaults::{ChainDetails, NymNetworkDetails};
+use nym_network_defaults::NymNetworkDetails;
 use std::ops::Mul;
 use std::str::FromStr;
 

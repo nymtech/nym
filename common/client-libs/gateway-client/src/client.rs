@@ -22,6 +22,7 @@ use nym_gateway_requests::{BinaryRequest, ClientControlRequest, ServerResponse, 
 use nym_network_defaults::{REMAINING_BANDWIDTH_THRESHOLD, TOKENS_TO_BURN};
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_task::TaskClient;
+use nym_validator_client::nyxd::contract_traits::DkgQueryClient;
 use rand::rngs::OsRng;
 use std::convert::TryFrom;
 use std::sync::Arc;
@@ -29,14 +30,10 @@ use std::time::Duration;
 use tungstenite::protocol::Message;
 
 #[cfg(not(target_arch = "wasm32"))]
-use nym_validator_client::nyxd::contract_traits::DkgQueryClient;
-#[cfg(not(target_arch = "wasm32"))]
 use tokio::time::sleep;
 #[cfg(not(target_arch = "wasm32"))]
 use tokio_tungstenite::connect_async;
 
-#[cfg(target_arch = "wasm32")]
-use nym_bandwidth_controller::wasm_mockups::DkgQueryClient;
 #[cfg(target_arch = "wasm32")]
 use wasm_utils::websocket::JSWebsocket;
 #[cfg(target_arch = "wasm32")]
@@ -199,7 +196,6 @@ impl<C, St> GatewayClient<C, St> {
                 return Ok(());
             }
 
-            #[cfg(not(target_arch = "wasm32"))]
             sleep(self.reconnection_backoff).await;
         }
 
@@ -755,7 +751,9 @@ impl<C, St> GatewayClient<C, St> {
     }
 }
 
-impl<C> GatewayClient<C, EphemeralCredentialStorage> {
+pub struct NoDkgInit;
+
+impl GatewayClient<NoDkgInit, EphemeralCredentialStorage> {
     // for initialisation we do not need credential storage. Though it's still a bit weird we have to set the generic...
     pub fn new_init(
         gateway_address: String,
@@ -772,7 +770,7 @@ impl<C> GatewayClient<C, EphemeralCredentialStorage> {
         let shutdown = TaskClient::dummy();
         let packet_router = PacketRouter::new(ack_tx, mix_tx, shutdown.clone());
 
-        GatewayClient::<C, EphemeralCredentialStorage> {
+        GatewayClient {
             authenticated: false,
             disabled_credentials_mode: true,
             bandwidth_remaining: 0,

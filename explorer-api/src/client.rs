@@ -2,7 +2,7 @@ use nym_network_defaults::{
     var_names::{NYM_API, NYXD},
     NymNetworkDetails,
 };
-use nym_validator_client::nyxd::QueryNyxdClient;
+use nym_validator_client::QueryHttpRpcValidatorClient;
 use reqwest::Url;
 use std::{str::FromStr, sync::Arc};
 
@@ -11,9 +11,7 @@ use std::{str::FromStr, sync::Arc};
 // when that becomes a requirement, we would simply put an extra RwLock (or Mutex) in here
 
 #[derive(Clone)]
-pub(crate) struct ThreadsafeValidatorClient(
-    pub(crate) Arc<nym_validator_client::Client<QueryNyxdClient>>,
-);
+pub(crate) struct ThreadsafeValidatorClient(pub(crate) Arc<QueryHttpRpcValidatorClient>);
 
 impl ThreadsafeValidatorClient {
     pub(crate) fn new() -> Self {

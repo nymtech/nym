@@ -4,6 +4,7 @@
 use super::authenticated::RequestHandlingError;
 use log::*;
 use nym_coconut_interface::Credential;
+use nym_validator_client::coconut::all_coconut_api_clients;
 use nym_validator_client::{
     nyxd::{
         contract_traits::{
@@ -11,9 +12,9 @@ use nym_validator_client::{
             MultisigSigningClient,
         },
         cosmwasm_client::logs::{find_attribute, BANDWIDTH_PROPOSAL_ID},
-        Coin, DirectSigningNyxdClient, Fee,
+        Coin, Fee,
     },
-    Client, CoconutApiClient,
+    CoconutApiClient, DirectSigningHttpRpcNyxdClient,
 };
 use std::time::{Duration, SystemTime};
 
@@ -21,18 +22,13 @@ const ONE_HOUR_SEC: u64 = 3600;
 const MAX_FEEGRANT_UNYM: u128 = 10000;
 
 pub(crate) struct CoconutVerifier {
-    nyxd_client: Client<DirectSigningNyxdClient>,
+    nyxd_client: DirectSigningHttpRpcNyxdClient,
     mix_denom_base: String,
 }
 
 impl CoconutVerifier {
-    pub fn new(nyxd_client: Client<DirectSigningNyxdClient>) -> Self {
-        let mix_denom_base = nyxd_client
-            .nyxd
-            .current_chain_details()
-            .mix_denom
-            .base
-            .clone();
+    pub fn new(nyxd_client: DirectSigningHttpRpcNyxdClient) -> Self {
+        let mix_denom_base = nyxd_client.current_chain_details().mix_denom.base.clone();
 
         CoconutVerifier {
             nyxd_client,
@@ -43,7 +39,7 @@ impl CoconutVerifier {
     pub async fn all_current_coconut_api_clients(
         &self,
     ) -> Result<Vec<CoconutApiClient>, RequestHandlingError> {
-        let epoch_id = self.nyxd_client.nyxd.get_current_epoch().await?.epoch_id;
+        let epoch_id = self.nyxd_client.get_current_epoch().await?.epoch_id;
         self.all_coconut_api_clients(epoch_id).await
     }
 
@@ -51,7 +47,7 @@ impl CoconutVerifier {
         &self,
         epoch_id: u64,
     ) -> Result<Vec<CoconutApiClient>, RequestHandlingError> {
-        Ok(CoconutApiClient::all_coconut_api_clients(&self.nyxd_client, epoch_id).await?)
+        Ok(all_coconut_api_clients(&self.nyxd_client, epoch_id).await?)
     }
 
     pub async fn release_funds(
@@ -65,14 +61,13 @@ impl CoconutVerifier {
 
         let res = self
             .nyxd_client
-            .nyxd
             .spend_credential(
                 Coin::new(
                     credential.voucher_value().into(),
                     self.mix_denom_base.clone(),
                 ),
                 credential.blinded_serial_number(),
-                self.nyxd_client.nyxd.address().to_string(),
+                self.nyxd_client.address().to_string(),
                 None,
             )
             .await?;
@@ -86,7 +81,7 @@ impl CoconutVerifier {
                 reason: String::from("proposal id could not be parsed to u64"),
             })?;
 
-        let proposal = self.nyxd_client.nyxd.get_proposal(proposal_id).await?;
+        let proposal = self.nyxd_client.query_proposal(proposal_id).await?;
         if !credential.has_blinded_serial_number(&proposal.description)? {
             return Err(RequestHandlingError::ProposalIdError {
                 reason: String::from("proposal has different serial number"),
@@ -96,11 +91,10 @@ impl CoconutVerifier {
         let req = nym_api_requests::coconut::VerifyCredentialBody::new(
             credential.clone(),
             proposal_id,
-            self.nyxd_client.nyxd.address().clone(),
+            self.nyxd_client.address().clone(),
         );
         for client in api_clients {
             self.nyxd_client
-                .nyxd
                 .grant_allowance(
                     &client.cosmos_address,
                     vec![Coin::new(MAX_FEEGRANT_UNYM, self.mix_denom_base.clone())],
@@ -113,7 +107,6 @@ impl CoconutVerifier {
                 .await?;
             let ret = client.api_client.verify_bandwidth_credential(&req).await;
             self.nyxd_client
-                .nyxd
                 .revoke_allowance(
                     &client.cosmos_address,
                     "Cleanup the previous allowance for releasing funds".to_string(),
@@ -132,10 +125,7 @@ impl CoconutVerifier {
             }
         }
 
-        self.nyxd_client
-            .nyxd
-            .execute_proposal(proposal_id, None)
-            .await?;
+        self.nyxd_client.execute_proposal(proposal_id, None).await?;
 
         Ok(())
     }

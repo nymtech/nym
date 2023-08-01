@@ -4,17 +4,15 @@
 use crate::nyxd::cosmwasm_client::client_traits::{CosmWasmClient, SigningCosmWasmClient};
 use crate::nyxd::error::NyxdError;
 use crate::nyxd::{Config, GasPrice, TendermintClient};
+use crate::signing::{
+    signer::{NoSigner, OfflineSigner},
+    AccountData,
+};
 use async_trait::async_trait;
 use tendermint_rpc::{Error as TendermintRpcError, SimpleRequest};
 
 #[cfg(feature = "http-client")]
 use cosmrs::rpc::{HttpClient, HttpClientUrl};
-
-use crate::signing::{
-    signer::{NoSigner, OfflineSigner},
-    tx_signer::TxSigner,
-    AccountData,
-};
 
 pub mod client_traits;
 mod helpers;
@@ -92,17 +90,8 @@ where
     }
 }
 
-#[async_trait]
-impl<C, S> CosmWasmClient for MaybeSigningClient<C, S>
-where
-    C: CosmWasmClient + Send + Sync,
-    S: Send + Sync,
-{
-}
-
 impl<C, S> OfflineSigner for MaybeSigningClient<C, S>
 where
-    C: CosmWasmClient,
     S: OfflineSigner,
 {
     type Error = S::Error;
@@ -112,17 +101,18 @@ where
     }
 }
 
-impl<C, S> TxSigner for MaybeSigningClient<C, S>
+#[async_trait]
+impl<C, S> CosmWasmClient for MaybeSigningClient<C, S>
 where
-    C: CosmWasmClient,
-    S: OfflineSigner,
+    C: TendermintClient + Send + Sync,
+    S: Send + Sync,
 {
 }
 
 #[async_trait]
 impl<C, S> SigningCosmWasmClient for MaybeSigningClient<C, S>
 where
-    C: CosmWasmClient + Send + Sync,
+    C: TendermintClient + Send + Sync,
     S: OfflineSigner + Send + Sync,
     NyxdError: From<S::Error>,
 {

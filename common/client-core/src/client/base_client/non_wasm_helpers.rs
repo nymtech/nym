@@ -10,8 +10,8 @@ use crate::error::ClientCoreError;
 use log::{error, info};
 use nym_bandwidth_controller::BandwidthController;
 use nym_credential_storage::storage::Storage as CredentialStorage;
-use nym_validator_client::nyxd::QueryNyxdClient;
-use nym_validator_client::Client;
+use nym_validator_client::nyxd;
+use nym_validator_client::QueryHttpRpcNyxdClient;
 use std::path::Path;
 use std::{fs, io};
 use time::OffsetDateTime;
@@ -104,7 +104,7 @@ pub async fn setup_fs_reply_surb_backend<P: AsRef<Path>>(
 pub fn create_bandwidth_controller<St: CredentialStorage>(
     config: &Config,
     storage: St,
-) -> BandwidthController<Client<QueryNyxdClient>, St> {
+) -> BandwidthController<QueryHttpRpcNyxdClient, St> {
     let nyxd_url = config
         .get_validator_endpoints()
         .pop()
@@ -121,13 +121,13 @@ pub fn create_bandwidth_controller_with_urls<St: CredentialStorage>(
     nyxd_url: Url,
     nym_api_url: Url,
     storage: St,
-) -> BandwidthController<Client<QueryNyxdClient>, St> {
+) -> BandwidthController<QueryHttpRpcNyxdClient, St> {
     let client = default_query_dkg_client(nyxd_url, nym_api_url);
 
     BandwidthController::new(storage, client)
 }
 
-pub fn default_query_dkg_client_from_config(config: &Config) -> Client<QueryNyxdClient> {
+pub fn default_query_dkg_client_from_config(config: &Config) -> QueryHttpRpcNyxdClient {
     let nyxd_url = config
         .get_validator_endpoints()
         .pop()
@@ -140,12 +140,11 @@ pub fn default_query_dkg_client_from_config(config: &Config) -> Client<QueryNyxd
     default_query_dkg_client(nyxd_url, api_url)
 }
 
-pub fn default_query_dkg_client(nyxd_url: Url, nym_api_url: Url) -> Client<QueryNyxdClient> {
+pub fn default_query_dkg_client(nyxd_url: Url) -> QueryHttpRpcNyxdClient {
     let details = nym_network_defaults::NymNetworkDetails::new_from_env();
-    let mut client_config = nym_validator_client::Config::try_from_nym_network_details(&details)
+    let client_config = nyxd::Config::try_from_nym_network_details(&details)
         .expect("failed to construct validator client config");
     // overwrite env configuration with config URLs
-    client_config = client_config.with_urls(nyxd_url, nym_api_url);
-    nym_validator_client::Client::new_query(client_config)
+    QueryHttpRpcNyxdClient::connect(client_config, nyxd_url.as_str())
         .expect("Could not construct query client")
 }

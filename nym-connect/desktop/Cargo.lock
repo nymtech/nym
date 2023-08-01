@@ -3720,7 +3720,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "log",
- "sqlx 0.5.13",
+ "sqlx 0.5.11",
  "thiserror",
  "tokio",
 ]
@@ -6050,9 +6050,9 @@ dependencies = [
 
 [[package]]
 name = "sqlx"
-version = "0.5.13"
+version = "0.5.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "551873805652ba0d912fec5bbb0f8b4cdd96baf8e2ebf5970e5671092966019b"
+checksum = "fc15591eb44ffb5816a4a70a7efd5dd87bfd3aa84c4c200401c4396140525826"
 dependencies = [
  "sqlx-core 0.5.13",
  "sqlx-macros 0.5.13",

@@ -1,11 +1,26 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::nyxd::contract_traits::{NymContractsProvider, TypedNymContracts};
+use crate::nyxd::cosmwasm_client::types::{
+    ChangeAdminResult, ContractCodeId, ExecuteResult, InstantiateOptions, InstantiateResult,
+    MigrateResult, SequenceResponse, SimulateResponse, UploadResult,
+};
+use crate::nyxd::cosmwasm_client::MaybeSigningClient;
 use crate::nyxd::error::NyxdError;
+use crate::nyxd::fee::DEFAULT_SIMULATED_GAS_MULTIPLIER;
+use crate::signing::signer::NoSigner;
+use crate::signing::signer::OfflineSigner;
+use crate::signing::tx_signer::TxSigner;
+use crate::signing::AccountData;
 use async_trait::async_trait;
+use cosmrs::cosmwasm;
+use cosmrs::tx::Msg;
+use cosmwasm_std::Addr;
 use log::{debug, trace};
 use nym_network_defaults::{ChainDetails, NymNetworkDetails};
 use serde::Serialize;
+use std::time::SystemTime;
 use tendermint_rpc::endpoint::block::Response as BlockResponse;
 use tendermint_rpc::Error as TendermintRpcError;
 
@@ -30,37 +45,18 @@ pub use tendermint_rpc::{
     Paging,
 };
 
-use crate::nyxd::cosmwasm_client::types::{
-    ChangeAdminResult, ContractCodeId, ExecuteResult, InstantiateOptions, InstantiateResult,
-    MigrateResult, SequenceResponse, SimulateResponse, UploadResult,
-};
-use crate::signing::signer::OfflineSigner;
-use cosmrs::cosmwasm;
-use cosmrs::tx::Msg;
-use cosmwasm_std::Addr;
-use std::time::SystemTime;
-
+#[cfg(feature = "http-client")]
+use crate::signing::direct_wallet::DirectSecp256k1HdWallet;
+#[cfg(feature = "http-client")]
+use crate::{DirectSigningHttpRpcNyxdClient, QueryHttpRpcNyxdClient};
 #[cfg(feature = "http-client")]
 use cosmrs::rpc::{HttpClient, HttpClientUrl};
-
-use crate::nyxd::contract_traits::{NymContractsProvider, TypedNymContracts};
-use crate::nyxd::cosmwasm_client::MaybeSigningClient;
-use crate::nyxd::fee::DEFAULT_SIMULATED_GAS_MULTIPLIER;
-use crate::signing::signer::NoSigner;
 
 pub mod coin;
 pub mod contract_traits;
 pub mod cosmwasm_client;
 pub mod error;
 pub mod fee;
-
-// helper types
-#[cfg(feature = "http-client")]
-pub type DirectSigningHttpNyxdClient =
-    NyxdClient<HttpClient, crate::signing::direct_wallet::DirectSecp256k1HdWallet>;
-
-#[cfg(feature = "http-client")]
-pub type QueryHttpNyxdClient = NyxdClient<HttpClient>;
 
 // TODO: reqwest based for wasm
 
@@ -129,7 +125,7 @@ pub struct NyxdClient<C, S = NoSigner> {
 
 #[cfg(feature = "http-client")]
 impl NyxdClient<HttpClient> {
-    pub fn connect<U>(config: Config, endpoint: U) -> Result<QueryHttpNyxdClient, NyxdError>
+    pub fn connect<U>(config: Config, endpoint: U) -> Result<QueryHttpRpcNyxdClient, NyxdError>
     where
         U: TryInto<HttpClientUrl, Error = TendermintRpcError>,
     {
@@ -142,14 +138,14 @@ impl NyxdClient<HttpClient> {
     }
 }
 
-#[cfg(all(feature = "direct-secp256k1-wallet", feature = "http-client"))]
+#[cfg(feature = "http-client")]
 impl NyxdClient<HttpClient, DirectSecp256k1HdWallet> {
     // TODO: rename this one
-    pub fn connect_with_mnemonic<U: Clone>(
+    pub fn connect_with_mnemonic<U>(
         config: Config,
         endpoint: U,
         mnemonic: bip39::Mnemonic,
-    ) -> Result<DirectSigningHttpNyxdClient, NyxdError>
+    ) -> Result<DirectSigningHttpRpcNyxdClient, NyxdError>
     where
         U: TryInto<HttpClientUrl, Error = TendermintRpcError>,
     {
@@ -166,7 +162,7 @@ where
     // I have no idea why S::Error: Into<NyxdError> bound wouldn't do the trick
     NyxdError: From<S::Error>,
 {
-    pub fn connect_with_signer<U: Clone>(
+    pub fn connect_with_signer<U>(
         config: Config,
         endpoint: U,
         signer: S,
@@ -272,52 +268,25 @@ impl<C, S> NymContractsProvider for NyxdClient<C, S> {
 // queries
 impl<C, S> NyxdClient<C, S>
 where
-    C: CosmWasmClient + Send + Sync,
+    C: TendermintClient + Send + Sync,
     S: Send + Sync,
 {
-    pub async fn get_account_public_key(
-        &self,
-        address: &AccountId,
-    ) -> Result<Option<cosmrs::crypto::PublicKey>, NyxdError>
-    where
-        C: CosmWasmClient + Sync,
-    {
-        if let Some(account) = self.client.get_account(address).await? {
-            let base_account = account.try_get_base_account()?;
-            return Ok(base_account.pubkey);
-        }
-
-        Ok(None)
-    }
-
-    pub async fn get_current_block_timestamp(&self) -> Result<TendermintTime, NyxdError>
-    where
-        C: CosmWasmClient + Sync,
-    {
+    pub async fn get_current_block_timestamp(&self) -> Result<TendermintTime, NyxdError> {
         self.get_block_timestamp(None).await
     }
 
     pub async fn get_block_timestamp(
         &self,
         height: Option<u32>,
-    ) -> Result<TendermintTime, NyxdError>
-    where
-        C: CosmWasmClient + Sync,
-    {
+    ) -> Result<TendermintTime, NyxdError> {
         Ok(self.client.get_block(height).await?.block.header.time)
     }
 
-    pub async fn get_block(&self, height: Option<u32>) -> Result<BlockResponse, NyxdError>
-    where
-        C: CosmWasmClient + Sync,
-    {
+    pub async fn get_block(&self, height: Option<u32>) -> Result<BlockResponse, NyxdError> {
         self.client.get_block(height).await
     }
 
-    pub async fn get_current_block_height(&self) -> Result<Height, NyxdError>
-    where
-        C: CosmWasmClient + Sync,
-    {
+    pub async fn get_current_block_height(&self) -> Result<Height, NyxdError> {
         self.client.get_height().await
     }
 
@@ -326,10 +295,7 @@ where
     /// # Arguments
     ///
     /// * `height`: height of the block for which we want to obtain the hash.
-    pub async fn get_block_hash(&self, height: u32) -> Result<Hash, NyxdError>
-    where
-        C: CosmWasmClient + Sync,
-    {
+    pub async fn get_block_hash(&self, height: u32) -> Result<Hash, NyxdError> {
         self.client
             .get_block(Some(height))
             .await
@@ -340,13 +306,22 @@ where
 // signing
 impl<C, S> NyxdClient<C, S>
 where
-    C: SigningCosmWasmClient + Send + Sync,
+    C: TendermintClient + Send + Sync,
     S: OfflineSigner + Send + Sync,
-
-    // TODO: figure out those trait bounds lol
     NyxdError: From<<S as OfflineSigner>::Error>,
-    NyxdError: From<<C as OfflineSigner>::Error>,
 {
+    pub async fn get_account_public_key(
+        &self,
+        address: &AccountId,
+    ) -> Result<Option<cosmrs::crypto::PublicKey>, NyxdError> {
+        if let Some(account) = self.client.get_account(address).await? {
+            let base_account = account.try_get_base_account()?;
+            return Ok(base_account.pubkey);
+        }
+
+        Ok(None)
+    }
+
     pub fn address(&self) -> AccountId {
         match self.client.signer_addresses() {
             Ok(addresses) => addresses[0].clone(),
@@ -574,10 +549,13 @@ where
     }
 }
 
+// ugh. is there a way to avoid that nasty trait implementation?
+
 #[async_trait]
-impl<C> TendermintClient for NyxdClient<C>
+impl<C, S> TendermintClient for NyxdClient<C, S>
 where
     C: TendermintClient + Send + Sync,
+    S: Send + Sync,
 {
     async fn perform<R>(&self, request: R) -> Result<R::Output, TendermintRpcError>
     where
@@ -588,11 +566,36 @@ where
 }
 
 #[async_trait]
-impl<C> CosmWasmClient for NyxdClient<C> where C: CosmWasmClient + Send + Sync {}
+impl<C, S> CosmWasmClient for NyxdClient<C, S>
+where
+    C: TendermintClient + Send + Sync,
+    S: Send + Sync,
+{
+}
 
-// #[async_trait]
-// impl<C> SigningCosmWasmClient for NyxdClient<C> where C: SigningCosmWasmClient + Send + Sync {
-//     fn gas_price(&self) -> &GasPrice {
-//         self.client.gas_price()
-//     }
-// }
+impl<C, S> OfflineSigner for NyxdClient<C, S>
+where
+    S: OfflineSigner,
+{
+    type Error = S::Error;
+
+    fn get_accounts(&self) -> Result<Vec<AccountData>, Self::Error> {
+        self.client.get_accounts()
+    }
+}
+
+#[async_trait]
+impl<C, S> SigningCosmWasmClient for NyxdClient<C, S>
+where
+    C: TendermintClient + Send + Sync,
+    S: TxSigner + Send + Sync,
+    NyxdError: From<S::Error>,
+{
+    fn gas_price(&self) -> &GasPrice {
+        self.client.gas_price()
+    }
+
+    fn simulated_gas_multiplier(&self) -> f32 {
+        self.client.simulated_gas_multiplier()
+    }
+}

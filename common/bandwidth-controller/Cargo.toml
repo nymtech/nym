@@ -20,3 +20,4 @@ nym-validator-client = { path = "../client-libs/validator-client", default-featu
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.nym-validator-client]
 path = "../client-libs/validator-client"
+features = ["http-client"]

@@ -5,8 +5,8 @@ import {
   ConnectedEvent,
   EventKinds,
   IWebWorker,
-  IWebWorkerAsync,
-  IWebWorkerEvents,
+  Client,
+  Events,
   LoadedEvent,
   MimeTypes,
   RawMessageReceivedEvent,
@@ -15,20 +15,40 @@ import {
 import { createSubscriptions } from './subscriptions';
 
 /**
- * Client for the Nym mixnet.
+ * Options for the Nym mixnet client.
+ * @property autoConvertStringMimeTypes - An array of mime types.
+ * @example
+ * ```typescript
+ * const client = await createNymMixnetClient({
+ *  autoConvertStringMimeTypes: [MimeTypes.ApplicationJson, MimeTypes.TextPlain],
+ * });
+ * ```
+ */
+
+export interface NymMixnetClientOptions {
+  autoConvertStringMimeTypes?: string[] | MimeTypes[];
+}
+
+/**
+ * The client for the Nym mixnet which gives access to client methods and event subscriptions.
+ * Returned by the {@link createNymMixnetClient} function.
+ *
  */
 export interface NymMixnetClient {
-  client: IWebWorkerAsync;
-  events: IWebWorkerEvents;
+  client: Client;
+  events: Events;
 }
 
 /**
  * Create a client to send and receive traffic from the Nym mixnet.
- *
+ * @required
+ * @returns
+ * @example
+ * ```typescript
+ * const client = await createNymMixnetClient();
+ * ```
  */
-export const createNymMixnetClient = async (options?: {
-  autoConvertStringMimeTypes?: string[] | MimeTypes[];
-}): Promise<NymMixnetClient> => {
+export const createNymMixnetClient = async (options?: NymMixnetClientOptions): Promise<NymMixnetClient> => {
   // create a web worker that runs the WASM client on another thread and wait until it signals that it is ready
   // eslint-disable-next-line @typescript-eslint/no-use-before-define
   const worker = await createWorker();
@@ -53,7 +73,7 @@ export const createNymMixnetClient = async (options?: {
   });
 
   // manage the subscribers, returning self-unsubscribe methods
-  const events: IWebWorkerEvents = {
+  const events: Events = {
     subscribeToConnected: (handler) => addSubscription<ConnectedEvent>(EventKinds.Connected, handler),
     subscribeToLoaded: (handler) => addSubscription<LoadedEvent>(EventKinds.Loaded, handler),
     subscribeToTextMessageReceivedEvent: (handler) =>
@@ -65,7 +85,7 @@ export const createNymMixnetClient = async (options?: {
   };
 
   // let comlink handle interop with the web worker
-  const client: IWebWorkerAsync = Comlink.wrap<IWebWorker>(worker);
+  const client: Client = Comlink.wrap<IWebWorker>(worker);
 
   // set any options
   if (options?.autoConvertStringMimeTypes) {

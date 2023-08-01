@@ -5,6 +5,7 @@ use std::str::FromStr;
 
 use clap::Parser;
 use cosmrs::rpc::query::Query;
+use nym_validator_client::nyxd::CosmWasmClient;
 use serde_json::json;
 
 use crate::context::QueryClient;

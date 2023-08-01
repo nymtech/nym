@@ -30,7 +30,7 @@ pub fn get_env() -> AppEnv {
 #[tauri::command]
 pub async fn owns_mixnode(state: tauri::State<'_, WalletState>) -> Result<bool, BackendError> {
     Ok(nyxd_client!(state)
-        .get_owned_mixnode(nyxd_client!(state).address())
+        .get_owned_mixnode(&nyxd_client!(state).address())
         .await?
         .mixnode_details
         .is_some())
@@ -39,7 +39,7 @@ pub async fn owns_mixnode(state: tauri::State<'_, WalletState>) -> Result<bool, 
 #[tauri::command]
 pub async fn owns_gateway(state: tauri::State<'_, WalletState>) -> Result<bool, BackendError> {
     Ok(nyxd_client!(state)
-        .get_owned_gateway(nyxd_client!(state).address())
+        .get_owned_gateway(&nyxd_client!(state).address())
         .await?
         .gateway
         .is_some())

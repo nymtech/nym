@@ -12,10 +12,10 @@ use nym_mixnet_contract_common::{
     construct_mixnode_bonding_sign_payload, Gateway, GatewayBondingPayload, MixNode,
     MixNodeCostParams, SignableGatewayBondingMsg, SignableMixNodeBondingMsg,
 };
-use nym_validator_client::nyxd::contract_traits::MixnetQueryClient;
+use nym_validator_client::nyxd::contract_traits::{MixnetQueryClient, NymContractsProvider};
 use nym_validator_client::nyxd::error::NyxdError;
-use nym_validator_client::nyxd::{Coin, DirectSigningNyxdClient};
-use nym_validator_client::Client;
+use nym_validator_client::nyxd::Coin;
+use nym_validator_client::DirectSigningHttpRpcValidatorClient;
 
 // define this as a separate trait for mocking purposes
 #[async_trait]
@@ -26,15 +26,20 @@ pub(crate) trait AddressAndNonceProvider {
 }
 
 #[async_trait]
-impl AddressAndNonceProvider for Client<DirectSigningNyxdClient> {
+impl AddressAndNonceProvider for DirectSigningHttpRpcValidatorClient {
     async fn get_signing_nonce(&self) -> Result<Nonce, NyxdError> {
-        self.nyxd.get_signing_nonce(self.nyxd.address()).await
+        self.nyxd.get_signing_nonce(&self.nyxd.address()).await
     }
 
     fn vesting_contract_address(&self) -> Addr {
         // the call to unchecked is fine here as we're converting directly from `AccountId`
         // which must have been a valid bech32 address
-        Addr::unchecked(self.nyxd.vesting_contract_address().as_ref())
+        Addr::unchecked(
+            self.nyxd
+                .vesting_contract_address()
+                .expect("unknown vesting contract address")
+                .as_ref(),
+        )
     }
 
     fn cw_address(&self) -> Addr {

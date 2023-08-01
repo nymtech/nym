@@ -17,7 +17,6 @@ use async_trait::async_trait;
 use cosmrs::cosmwasm;
 use cosmrs::tx::Msg;
 use cosmwasm_std::Addr;
-use log::{debug, trace};
 use nym_network_defaults::{ChainDetails, NymNetworkDetails};
 use serde::Serialize;
 use std::time::SystemTime;
@@ -58,6 +57,9 @@ pub mod cosmwasm_client;
 pub mod error;
 pub mod fee;
 
+#[cfg(target_arch = "wasm32")]
+pub mod wasm;
+
 // TODO: reqwest based for wasm
 
 #[derive(Debug, Clone)]
@@ -69,29 +71,29 @@ pub struct Config {
 }
 
 impl Config {
-    fn parse_optional_account(
-        raw: Option<&String>,
-        expected_prefix: &str,
-    ) -> Result<Option<AccountId>, NyxdError> {
-        if let Some(address) = raw {
-            trace!("Raw address:{:?}", raw);
-            trace!("Expected prefix:{:?}", expected_prefix);
-            let parsed: AccountId = address
-                .parse()
-                .map_err(|_| NyxdError::MalformedAccountAddress(address.clone()))?;
-            debug!("Parsed prefix:{:?}", parsed);
-            if parsed.prefix() != expected_prefix {
-                Err(NyxdError::UnexpectedBech32Prefix {
-                    got: parsed.prefix().into(),
-                    expected: expected_prefix.into(),
-                })
-            } else {
-                Ok(Some(parsed))
-            }
-        } else {
-            Ok(None)
-        }
-    }
+    // fn parse_optional_account(
+    //     raw: Option<&String>,
+    //     expected_prefix: &str,
+    // ) -> Result<Option<AccountId>, NyxdError> {
+    //     if let Some(address) = raw {
+    //         trace!("Raw address:{:?}", raw);
+    //         trace!("Expected prefix:{:?}", expected_prefix);
+    //         let parsed: AccountId = address
+    //             .parse()
+    //             .map_err(|_| NyxdError::MalformedAccountAddress(address.clone()))?;
+    //         debug!("Parsed prefix:{:?}", parsed);
+    //         if parsed.prefix() != expected_prefix {
+    //             Err(NyxdError::UnexpectedBech32Prefix {
+    //                 got: parsed.prefix().into(),
+    //                 expected: expected_prefix.into(),
+    //             })
+    //         } else {
+    //             Ok(Some(parsed))
+    //         }
+    //     } else {
+    //         Ok(None)
+    //     }
+    // }
 
     pub fn try_from_nym_network_details(details: &NymNetworkDetails) -> Result<Self, NyxdError> {
         Ok(Config {
@@ -188,8 +190,27 @@ impl<S> NyxdClient<HttpClient, S> {
     }
 }
 
+impl<C> NyxdClient<C> {
+    pub fn new(config: Config, client: C) -> Self {
+        NyxdClient {
+            client: MaybeSigningClient::new(client, (&config).into()),
+            config,
+        }
+    }
+}
+
 // no trait bounds
 impl<C, S> NyxdClient<C, S> {
+    pub fn new_signing(config: Config, client: C, signer: S) -> Self
+    where
+        S: OfflineSigner,
+    {
+        NyxdClient {
+            client: MaybeSigningClient::new_signing(client, signer, (&config).into()),
+            config,
+        }
+    }
+
     pub fn current_config(&self) -> &Config {
         &self.config
     }
@@ -271,6 +292,18 @@ where
     C: TendermintClient + Send + Sync,
     S: Send + Sync,
 {
+    pub async fn get_account_public_key(
+        &self,
+        address: &AccountId,
+    ) -> Result<Option<cosmrs::crypto::PublicKey>, NyxdError> {
+        if let Some(account) = self.client.get_account(address).await? {
+            let base_account = account.try_get_base_account()?;
+            return Ok(base_account.pubkey);
+        }
+
+        Ok(None)
+    }
+
     pub async fn get_current_block_timestamp(&self) -> Result<TendermintTime, NyxdError> {
         self.get_block_timestamp(None).await
     }
@@ -310,18 +343,6 @@ where
     S: OfflineSigner + Send + Sync,
     NyxdError: From<<S as OfflineSigner>::Error>,
 {
-    pub async fn get_account_public_key(
-        &self,
-        address: &AccountId,
-    ) -> Result<Option<cosmrs::crypto::PublicKey>, NyxdError> {
-        if let Some(account) = self.client.get_account(address).await? {
-            let base_account = account.try_get_base_account()?;
-            return Ok(base_account.pubkey);
-        }
-
-        Ok(None)
-    }
-
     pub fn address(&self) -> AccountId {
         match self.client.signer_addresses() {
             Ok(addresses) => addresses[0].clone(),

@@ -30,7 +30,7 @@ pub async fn vesting_update_config(client: SigningClient, args: Args) {
     info!("Update vesting mix node config!");
 
     let current_details = match client
-        .get_owned_mixnode(client.address())
+        .get_owned_mixnode(&client.address())
         .await
         .expect("failed to query the chain for mixnode details")
         .mixnode_details

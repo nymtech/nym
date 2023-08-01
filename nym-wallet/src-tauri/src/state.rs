@@ -8,10 +8,8 @@ use log::warn;
 use nym_types::currency::{DecCoin, Denom, RegisteredCoins};
 use nym_types::fees::FeeDetails;
 use nym_validator_client::nyxd::cosmwasm_client::types::SimulateResponse;
-use nym_validator_client::nyxd::{
-    AccountId as CosmosAccountId, Coin, DirectSigningNyxdClient, Fee,
-};
-use nym_validator_client::Client;
+use nym_validator_client::nyxd::{AccountId as CosmosAccountId, Coin, Fee, SigningCosmWasmClient};
+use nym_validator_client::DirectSigningHttpRpcValidatorClient;
 use nym_wallet_types::network::Network;
 use nym_wallet_types::network_config;
 use once_cell::sync::Lazy;
@@ -67,7 +65,7 @@ impl WalletState {
 #[derive(Default)]
 pub struct WalletStateInner {
     config: config::Config,
-    signing_clients: HashMap<Network, Client<DirectSigningNyxdClient>>,
+    signing_clients: HashMap<Network, DirectSigningHttpRpcValidatorClient>,
     current_network: Network,
 
     // All the accounts the we get from decrypting the wallet. We hold on to these for being able to
@@ -181,7 +179,7 @@ impl WalletStateInner {
         // this MUST succeed as we just used it before
         let client = self.current_client()?;
         let gas_price = client.nyxd.gas_price().clone();
-        let gas_adjustment = client.nyxd.gas_adjustment();
+        let gas_adjustment = client.nyxd.simulated_gas_multiplier();
 
         let res = SimulateResult::new(simulate_response.gas_info, gas_price, gas_adjustment);
 
@@ -196,7 +194,7 @@ impl WalletStateInner {
     pub fn client(
         &self,
         network: Network,
-    ) -> Result<&Client<DirectSigningNyxdClient>, BackendError> {
+    ) -> Result<&DirectSigningHttpRpcValidatorClient, BackendError> {
         self.signing_clients
             .get(&network)
             .ok_or(BackendError::ClientNotInitialized)
@@ -205,13 +203,13 @@ impl WalletStateInner {
     pub fn client_mut(
         &mut self,
         network: Network,
-    ) -> Result<&mut Client<DirectSigningNyxdClient>, BackendError> {
+    ) -> Result<&mut DirectSigningHttpRpcValidatorClient, BackendError> {
         self.signing_clients
             .get_mut(&network)
             .ok_or(BackendError::ClientNotInitialized)
     }
 
-    pub fn current_client(&self) -> Result<&Client<DirectSigningNyxdClient>, BackendError> {
+    pub fn current_client(&self) -> Result<&DirectSigningHttpRpcValidatorClient, BackendError> {
         self.signing_clients
             .get(&self.current_network)
             .ok_or(BackendError::ClientNotInitialized)
@@ -220,7 +218,7 @@ impl WalletStateInner {
     #[allow(unused)]
     pub fn current_client_mut(
         &mut self,
-    ) -> Result<&mut Client<DirectSigningNyxdClient>, BackendError> {
+    ) -> Result<&mut DirectSigningHttpRpcValidatorClient, BackendError> {
         self.signing_clients
             .get_mut(&self.current_network)
             .ok_or(BackendError::ClientNotInitialized)
@@ -240,7 +238,7 @@ impl WalletStateInner {
         Ok(self.config.save_to_files()?)
     }
 
-    pub fn add_client(&mut self, network: Network, client: Client<DirectSigningNyxdClient>) {
+    pub fn add_client(&mut self, network: Network, client: DirectSigningHttpRpcValidatorClient) {
         self.signing_clients.insert(network, client);
     }
 

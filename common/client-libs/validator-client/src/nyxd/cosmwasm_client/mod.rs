@@ -4,13 +4,18 @@
 use crate::nyxd::cosmwasm_client::client_traits::{CosmWasmClient, SigningCosmWasmClient};
 use crate::nyxd::error::NyxdError;
 use crate::nyxd::{Config, GasPrice, TendermintClient};
-use crate::signing::signer::{NoSigner, OfflineSigner};
-use crate::signing::tx_signer::TxSigner;
-use crate::signing::AccountData;
 use async_trait::async_trait;
-use cosmrs::rpc::Error as TendermintRpcError;
 use cosmrs::AccountId;
-use tendermint_rpc::SimpleRequest;
+use tendermint_rpc::{Error as TendermintRpcError, SimpleRequest};
+
+#[cfg(feature = "http-client")]
+use cosmrs::rpc::{HttpClient, HttpClientUrl};
+
+use crate::signing::{
+    signer::{NoSigner, OfflineSigner},
+    tx_signer::TxSigner,
+    AccountData,
+};
 
 pub mod client_traits;
 mod helpers;
@@ -75,6 +80,17 @@ impl<C, S> MaybeSigningClient<C, S> {
     pub(crate) fn derived_addresses(&self) -> &[AccountId] {
         // the unwrap is fine here as you can't construct a signing client without setting the addresses
         self.derived_addresses.as_ref().unwrap()
+    }
+}
+
+#[cfg(feature = "http-client")]
+impl<S> MaybeSigningClient<HttpClient, S> {
+    pub(crate) fn change_endpoint<U>(&mut self, new_endpoint: U) -> Result<(), NyxdError>
+    where
+        U: TryInto<HttpClientUrl, Error = TendermintRpcError>,
+    {
+        self.client = HttpClient::new(new_endpoint)?;
+        Ok(())
     }
 }
 

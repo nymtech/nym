@@ -138,7 +138,7 @@ macro_rules! collect_paged {
             res.extend(paged_response.$field);
 
             if let Some(start_next_after) = paged_response.start_next_after {
-                start_after = Some(start_next_after)
+                start_after = Some(start_next_after.into())
             } else {
                 break Ok(res);
             }
@@ -153,7 +153,7 @@ macro_rules! collect_paged {
             res.extend(paged_response.$field);
 
             if let Some(start_next_after) = paged_response.start_next_after {
-                start_after = Some(start_next_after)
+                start_after = Some(start_next_after.into())
             } else {
                 break Ok(res);
             }

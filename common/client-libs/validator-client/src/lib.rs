@@ -8,7 +8,7 @@ pub mod error;
 pub mod nym_api;
 pub mod nyxd;
 
-#[cfg(feature = "signing")]
+pub mod coconut;
 pub mod signing;
 
 pub use crate::error::ValidatorClientError;

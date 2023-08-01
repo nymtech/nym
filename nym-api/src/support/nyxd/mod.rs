@@ -106,7 +106,7 @@ impl Client {
         cosmwasm_addr
             .clone()
             .parse()
-            .map_err(|_| NyxdError::MalformedAccountAddress(cosmwasm_addr).into())
+            .map_err(|_| NyxdError::MalformedAccountAddress(cosmwasm_addr))
     }
 
     // a helper function for the future to obtain the current block timestamp
@@ -145,17 +145,17 @@ impl Client {
     }
 
     pub(crate) async fn get_current_interval(&self) -> Result<CurrentIntervalResponse, NyxdError> {
-        Ok(self.0.read().await.get_current_interval_details().await?)
+        self.0.read().await.get_current_interval_details().await
     }
 
     pub(crate) async fn get_current_epoch_status(&self) -> Result<EpochStatus, NyxdError> {
-        Ok(self.0.read().await.get_current_epoch_status().await?)
+        self.0.read().await.get_current_epoch_status().await
     }
 
     pub(crate) async fn get_current_rewarding_parameters(
         &self,
     ) -> Result<RewardingParams, NyxdError> {
-        Ok(self.0.read().await.get_rewarding_parameters().await?)
+        self.0.read().await.get_rewarding_parameters().await
     }
 
     pub(crate) async fn get_rewarded_set_mixnodes(
@@ -179,13 +179,13 @@ impl Client {
             return Ok(0);
         }
 
-        Ok(serde_json::from_slice(&res).map_err(NyxdError::from)?)
+        serde_json::from_slice(&res).map_err(NyxdError::from)
     }
 
     pub(crate) async fn get_all_vesting_coins(
         &self,
     ) -> Result<Vec<AccountVestingCoins>, NyxdError> {
-        Ok(self.0.read().await.get_all_accounts_vesting_coins().await?)
+        self.0.read().await.get_all_accounts_vesting_coins().await
     }
 
     pub(crate) async fn get_all_family_members(
@@ -241,7 +241,7 @@ impl Client {
 
         guard
             .execute_multiple(
-                &mixnet_contract,
+                mixnet_contract,
                 msgs,
                 Default::default(),
                 format!("rewarding {} mixnodes", nodes.len()),

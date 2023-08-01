@@ -35,11 +35,9 @@ nym-network-defaults = { path = "../../network-defaults" }
 nym-api-requests = { path = "../../../nym-api/nym-api-requests" }
 
 async-trait = { workspace = true }
-#bip39 = { workspace = true, features = ["rand"], optional = true }
 bip39 = { workspace = true, features = ["rand"] }
 nym-config = { path = "../../config" }
 cosmrs = { workspace = true, features = ["bip32", "cosmwasm"] }
-#cosmrs = { workspace = true, features = ["bip32", "rpc", "cosmwasm"], optional = true }
 # note that this has the same version as used by cosmrs
 
 # import it just for the `Client` trait

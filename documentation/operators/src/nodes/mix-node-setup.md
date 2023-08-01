@@ -1,6 +1,6 @@
 # Mix Nodes
 
-> The Nym mix node binary was built in the [building nym](https://nymtech.net/operators/binaries/building-nym.html) section. If you haven't yet built Nym and want to run the code, go there first.
+> The Nym mix node binary was built in the [building nym](../binaries/building-nym.md) section. If you haven't yet built Nym and want to run the code, go there first.
 
 > Any syntax in `<>` brackets is a user's unique variable. Exchange with a corresponding name without the `<>` brackets.
 
@@ -17,7 +17,7 @@ Make sure you do the preparation listed in the [preliminary steps page](../preli
 
 ## Mix node setup
 
-Now that you have built the [codebase](https://nymtech.net/docs/binaries/building-nym.html), set up your [wallet](https://nymtech.net/docs/wallet/desktop-wallet.html), and have a VPS with the `nym-mixnode` binary, you can set up your mix node with the instructions below.  
+Now that you have built the [codebase](../binaries/building-nym.md), set up your [wallet](https://nymtech.net/docs/wallet/desktop-wallet.html), and have a VPS with the `nym-mixnode` binary, you can set up your mix node with the instructions below.  
 
 To begin, move to `/taget/release` directory from which you run the node commands:
 

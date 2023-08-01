@@ -3,9 +3,9 @@
 - [Introduction](introduction.md)
 
 # Binaries
-- [Pre-built Binaries](../../docs/src/binaries/pre-built-binaries.md)
-- [Building from Source](../../docs/src/binaries/building-nym.md)
-- [Binary Initialisation and Configuration](../../docs/src/binaries/init-and-config.md)
+- [Pre-built Binaries](./binaries/pre-built-binaries.md)
+- [Building from Source](./binaries/building-nym.md)
+- [Binary Initialisation and Configuration](./binaries/init-and-config.md)
 <!-- - [Version Compatibility Table](binaries/version-compatiblity.md) -->
 
 # Operators Guides

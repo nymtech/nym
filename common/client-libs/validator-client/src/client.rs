@@ -23,9 +23,6 @@ pub use nym_mixnet_contract_common::{
 // re-export the type to not break existing imports
 pub use crate::coconut::CoconutApiClient;
 
-#[cfg(feature = "direct-secp256k1-wallet")]
-use crate::signing::direct_wallet::DirectSecp256k1HdWallet;
-
 #[cfg(feature = "http-client")]
 use tendermint_rpc::HttpClient;
 

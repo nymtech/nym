@@ -1,79 +1,59 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-pub use crate::nyxd::cosmwasm_client::signing_client::SigningCosmWasmClient;
+use crate::nyxd::contract_traits::NymContractsProvider;
 use crate::nyxd::cosmwasm_client::types::ExecuteResult;
 use crate::nyxd::error::NyxdError;
-use crate::nyxd::{Fee, NyxdClient};
-
+use crate::nyxd::{Coin, Fee, SigningCosmWasmClient};
+use crate::signing::signer::OfflineSigner;
+use async_trait::async_trait;
+use cosmwasm_std::{to_binary, CosmosMsg, WasmMsg};
 use cw3::Vote;
 use nym_coconut_bandwidth_contract_common::msg::ExecuteMsg as CoconutBandwidthExecuteMsg;
-use nym_multisig_contract_common::msg::ExecuteMsg;
-
-use async_trait::async_trait;
-use cosmwasm_std::{to_binary, Coin, CosmosMsg, WasmMsg};
+use nym_multisig_contract_common::msg::ExecuteMsg as MultisigExecuteMsg;
 
 #[async_trait]
-pub trait MultisigSigningClient {
+pub trait MultisigSigningClient: NymContractsProvider {
+    async fn execute_multisig_contract(
+        &self,
+        fee: Option<Fee>,
+        msg: MultisigExecuteMsg,
+        memo: String,
+        funds: Vec<Coin>,
+    ) -> Result<ExecuteResult, NyxdError>;
+
     async fn propose_release_funds(
         &self,
         title: String,
         blinded_serial_number: String,
-        voucher_value: u128,
-        fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NyxdError>;
-
-    async fn vote_proposal(
-        &self,
-        proposal_id: u64,
-        yes: bool,
-        fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NyxdError>;
-
-    async fn execute_proposal(
-        &self,
-        proposal_id: u64,
-        fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NyxdError>;
-}
-
-#[async_trait]
-impl<C: SigningCosmWasmClient + Sync + Send> MultisigSigningClient for NyxdClient<C> {
-    async fn propose_release_funds(
-        &self,
-        title: String,
-        blinded_serial_number: String,
-        voucher_value: u128,
+        voucher_value: Coin,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
-        let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
+        let coconut_bandwidth_contract_address = self
+            .coconut_bandwidth_contract_address()
+            .ok_or_else(|| NyxdError::unavailable_contract_address("coconut bandwidth contract"))?;
+
         let release_funds_req = CoconutBandwidthExecuteMsg::ReleaseFunds {
-            funds: Coin::new(
-                voucher_value,
-                self.config.chain_details.mix_denom.base.clone(),
-            ),
+            funds: voucher_value.into(),
         };
         let release_funds_msg = CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: self.coconut_bandwidth_contract_address().to_string(),
+            contract_addr: coconut_bandwidth_contract_address.to_string(),
             msg: to_binary(&release_funds_req)?,
             funds: vec![],
         });
-        let req = ExecuteMsg::Propose {
+        let req = MultisigExecuteMsg::Propose {
             title,
             description: blinded_serial_number,
             msgs: vec![release_funds_msg],
             latest: None,
         };
-        self.client
-            .execute(
-                self.address(),
-                self.multisig_contract_address(),
-                &req,
-                fee,
-                "Multisig::Propose::Execute::ReleaseFunds",
-                vec![],
-            )
-            .await
+        self.execute_multisig_contract(
+            fee,
+            req,
+            "Multisig::Propose::Execute::ReleaseFunds".to_string(),
+            vec![],
+        )
+        .await
     }
 
     async fn vote_proposal(
@@ -82,18 +62,9 @@ impl<C: SigningCosmWasmClient + Sync + Send> MultisigSigningClient for NyxdClien
         vote_yes: bool,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
-        let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
         let vote = if vote_yes { Vote::Yes } else { Vote::No };
-        let req = ExecuteMsg::Vote { proposal_id, vote };
-        self.client
-            .execute(
-                self.address(),
-                self.multisig_contract_address(),
-                &req,
-                fee,
-                "Multisig::Vote",
-                vec![],
-            )
+        let req = MultisigExecuteMsg::Vote { proposal_id, vote };
+        self.execute_multisig_contract(fee, req, "Multisig::Vote".to_string(), vec![])
             .await
     }
 
@@ -102,17 +73,54 @@ impl<C: SigningCosmWasmClient + Sync + Send> MultisigSigningClient for NyxdClien
         proposal_id: u64,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
-        let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
-        let req = ExecuteMsg::Execute { proposal_id };
-        self.client
-            .execute(
-                self.address(),
-                self.multisig_contract_address(),
-                &req,
-                fee,
-                "Multisig::Execute",
-                vec![],
-            )
+        let req = MultisigExecuteMsg::Execute { proposal_id };
+        self.execute_multisig_contract(fee, req, "Multisig::Execute".to_string(), vec![])
             .await
+    }
+}
+
+#[async_trait]
+impl<C> MultisigSigningClient for C
+where
+    C: SigningCosmWasmClient + NymContractsProvider + Sync,
+    NyxdError: From<<Self as OfflineSigner>::Error>,
+{
+    async fn execute_multisig_contract(
+        &self,
+        fee: Option<Fee>,
+        msg: MultisigExecuteMsg,
+        memo: String,
+        funds: Vec<Coin>,
+    ) -> Result<ExecuteResult, NyxdError> {
+        let multisig_contract_address = self
+            .multisig_contract_address()
+            .ok_or_else(|| NyxdError::unavailable_contract_address("multisig contract"))?;
+
+        let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier())));
+
+        let signer_address = &self.signer_addresses()?[0];
+        self.execute(
+            signer_address,
+            multisig_contract_address,
+            &msg,
+            fee,
+            memo,
+            funds,
+        )
+        .await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // it's enough that this compiles
+    #[deprecated]
+    async fn all_execute_variants_are_covered<C: MultisigSigningClient + Send + Sync>(
+        client: C,
+        msg: MultisigExecuteMsg,
+    ) {
+        unimplemented!()
     }
 }

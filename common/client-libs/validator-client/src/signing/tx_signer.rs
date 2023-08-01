@@ -77,6 +77,11 @@ use cosmrs::{tx, AccountId, Any};
 
 // extension trait for the OfflineSigner to allow to sign transactions
 pub trait TxSigner: OfflineSigner {
+    fn signer_public_key(&self, signer_address: &AccountId) -> Option<tx::SignerPublicKey> {
+        let account = self.find_account(signer_address).ok()?;
+        Some(account.public_key().into())
+    }
+
     fn sign_amino(
         &self,
         _signer_address: &AccountId,

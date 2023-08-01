@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::nyxd::coin::Coin;
-pub use crate::nyxd::cosmwasm_client::client::CosmWasmClient;
+use crate::nyxd::contract_traits::NymContractsProvider;
 use crate::nyxd::cosmwasm_client::types::ExecuteResult;
 use crate::nyxd::error::NyxdError;
-use crate::nyxd::{Fee, NyxdClient, SigningCosmWasmClient};
+use crate::nyxd::{Fee, SigningCosmWasmClient};
+use crate::signing::signer::OfflineSigner;
 use async_trait::async_trait;
 use cosmrs::AccountId;
 use nym_contracts_common::signing::MessageSignature;
@@ -668,9 +669,10 @@ pub trait MixnetSigningClient {
 }
 
 #[async_trait]
-impl<C> MixnetSigningClient for NyxdClient<C>
+impl<C> MixnetSigningClient for C
 where
-    C: SigningCosmWasmClient + Sync + Send,
+    C: SigningCosmWasmClient + NymContractsProvider + Sync,
+    NyxdError: From<<Self as OfflineSigner>::Error>,
 {
     async fn execute_mixnet_contract(
         &self,
@@ -678,32 +680,36 @@ where
         msg: MixnetExecuteMsg,
         funds: Vec<Coin>,
     ) -> Result<ExecuteResult, NyxdError> {
-        let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
+        let mixnet_contract_address = &self
+            .mixnet_contract_address()
+            .ok_or_else(|| NyxdError::unavailable_contract_address("mixnet contract"))?;
+
+        let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier())));
         let memo = msg.default_memo();
-        self.client
-            .execute(
-                self.address(),
-                self.mixnet_contract_address(),
-                &msg,
-                fee,
-                memo,
-                funds,
-            )
-            .await
+
+        let signer_address = &self.signer_addresses()?[0];
+        self.execute(
+            signer_address,
+            mixnet_contract_address,
+            &msg,
+            fee,
+            memo,
+            funds,
+        )
+        .await
     }
 }
 
-#[async_trait]
-impl<C> MixnetSigningClient for crate::Client<C>
-where
-    C: SigningCosmWasmClient + Sync + Send + Clone,
-{
-    async fn execute_mixnet_contract(
-        &self,
-        fee: Option<Fee>,
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // it's enough that this compiles
+    #[deprecated]
+    async fn all_execute_variants_are_covered<C: MixnetSigningClient + Send + Sync>(
+        client: C,
         msg: MixnetExecuteMsg,
-        funds: Vec<Coin>,
-    ) -> Result<ExecuteResult, NyxdError> {
-        self.nyxd.execute_mixnet_contract(fee, msg, funds).await
+    ) {
+        unimplemented!()
     }
 }

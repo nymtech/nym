@@ -7,6 +7,7 @@ use std::str::FromStr;
 
 // TODO: all of those could/should be derived via a macro
 
+// query clients
 mod coconut_bandwidth_query_client;
 mod dkg_query_client;
 mod group_query_client;
@@ -16,45 +17,37 @@ mod name_service_query_client;
 mod sp_directory_query_client;
 mod vesting_query_client;
 
-// #[cfg(feature = "signing")]
-// mod coconut_bandwidth_signing_client;
-// #[cfg(feature = "signing")]
-// mod dkg_signing_client;
-// #[cfg(feature = "signing")]
-// mod mixnet_signing_client;
-// #[cfg(feature = "signing")]
-// mod multisig_signing_client;
-// #[cfg(feature = "signing")]
-// mod name_service_signing_client;
-// #[cfg(feature = "signing")]
-// mod sp_directory_signing_client;
-// #[cfg(feature = "signing")]
-// mod vesting_signing_client;
+// signing clients
+mod coconut_bandwidth_signing_client;
+mod dkg_signing_client;
+mod group_signing_client;
+mod mixnet_signing_client;
+mod multisig_signing_client;
+mod name_service_signing_client;
+mod sp_directory_signing_client;
+mod vesting_signing_client;
 
+// re-export query traits
 pub use coconut_bandwidth_query_client::CoconutBandwidthQueryClient;
-pub use dkg_query_client::DkgQueryClient;
+pub use dkg_query_client::{DkgQueryClient, PagedDkgQueryClient};
 pub use group_query_client::GroupQueryClient;
-pub use mixnet_query_client::MixnetQueryClient;
+pub use mixnet_query_client::{MixnetQueryClient, PagedMixnetQueryClient};
 pub use multisig_query_client::MultisigQueryClient;
 pub use name_service_query_client::NameServiceQueryClient;
 pub use sp_directory_query_client::SpDirectoryQueryClient;
 pub use vesting_query_client::VestingQueryClient;
 
-// #[cfg(feature = "signing")]
-// pub use coconut_bandwidth_signing_client::CoconutBandwidthSigningClient;
-// #[cfg(feature = "signing")]
-// pub use dkg_signing_client::DkgSigningClient;
-// #[cfg(feature = "signing")]
-// pub use mixnet_signing_client::MixnetSigningClient;
-// #[cfg(feature = "signing")]
-// pub use multisig_signing_client::MultisigSigningClient;
-// #[cfg(feature = "signing")]
-// pub use name_service_signing_client::NameServiceSigningClient;
-// #[cfg(feature = "signing")]
-// pub use sp_directory_signing_client::SpDirectorySigningClient;
-// #[cfg(feature = "signing")]
-// pub use vesting_signing_client::VestingSigningClient;
+// re-export signing traits
+pub use coconut_bandwidth_signing_client::CoconutBandwidthSigningClient;
+pub use dkg_signing_client::DkgSigningClient;
+pub use group_signing_client::GroupSigningClient;
+pub use mixnet_signing_client::MixnetSigningClient;
+pub use multisig_signing_client::MultisigSigningClient;
+pub use name_service_signing_client::NameServiceSigningClient;
+pub use sp_directory_signing_client::SpDirectorySigningClient;
+pub use vesting_signing_client::VestingSigningClient;
 
+// helper for providing blanket implementation for query clients
 pub trait NymContractsProvider {
     // main
     fn mixnet_contract_address(&self) -> Option<&AccountId>;

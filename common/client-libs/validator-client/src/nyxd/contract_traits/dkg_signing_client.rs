@@ -1,9 +1,11 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::nyxd::contract_traits::NymContractsProvider;
 use crate::nyxd::cosmwasm_client::types::ExecuteResult;
 use crate::nyxd::error::NyxdError;
-use crate::nyxd::{Fee, NyxdClient, SigningCosmWasmClient};
+use crate::nyxd::{Coin, Fee, SigningCosmWasmClient};
+use crate::signing::signer::OfflineSigner;
 use async_trait::async_trait;
 use nym_coconut_dkg_common::msg::ExecuteMsg as DkgExecuteMsg;
 use nym_coconut_dkg_common::types::EncodedBTEPublicKeyWithProof;
@@ -12,47 +14,18 @@ use nym_contracts_common::dealings::ContractSafeBytes;
 
 #[async_trait]
 pub trait DkgSigningClient {
-    async fn advance_dkg_epoch_state(&self, fee: Option<Fee>) -> Result<ExecuteResult, NyxdError>;
-    async fn register_dealer(
+    async fn execute_dkg_contract(
         &self,
-        bte_key: EncodedBTEPublicKeyWithProof,
-        announce_address: String,
-        resharing: bool,
         fee: Option<Fee>,
+        msg: DkgExecuteMsg,
+        memo: String,
+        funds: Vec<Coin>,
     ) -> Result<ExecuteResult, NyxdError>;
 
-    async fn submit_dealing_bytes(
-        &self,
-        commitment: ContractSafeBytes,
-        resharing: bool,
-        fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NyxdError>;
-
-    async fn submit_verification_key_share(
-        &self,
-        share: VerificationKeyShare,
-        resharing: bool,
-        fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NyxdError>;
-}
-
-#[async_trait]
-impl<C> DkgSigningClient for NyxdClient<C>
-where
-    C: SigningCosmWasmClient + Send + Sync,
-{
     async fn advance_dkg_epoch_state(&self, fee: Option<Fee>) -> Result<ExecuteResult, NyxdError> {
         let req = DkgExecuteMsg::AdvanceEpochState {};
 
-        self.client
-            .execute(
-                self.address(),
-                self.coconut_dkg_contract_address(),
-                &req,
-                fee.unwrap_or_default(),
-                "advancing DKG state",
-                vec![],
-            )
+        self.execute_dkg_contract(fee, req, "advancing DKG state".to_string(), vec![])
             .await
     }
 
@@ -69,15 +42,7 @@ where
             resharing,
         };
 
-        self.client
-            .execute(
-                self.address(),
-                self.coconut_dkg_contract_address(),
-                &req,
-                fee.unwrap_or_default(),
-                format!("registering {} as a dealer", self.address()),
-                vec![],
-            )
+        self.execute_dkg_contract(fee, req, "registering as a dealer".to_string(), vec![])
             .await
     }
 
@@ -92,15 +57,7 @@ where
             resharing,
         };
 
-        self.client
-            .execute(
-                self.address(),
-                self.coconut_dkg_contract_address(),
-                &req,
-                fee.unwrap_or_default(),
-                "dealing commitment",
-                vec![],
-            )
+        self.execute_dkg_contract(fee, req, "dealing commitment".to_string(), vec![])
             .await
     }
 
@@ -112,15 +69,51 @@ where
     ) -> Result<ExecuteResult, NyxdError> {
         let req = DkgExecuteMsg::CommitVerificationKeyShare { share, resharing };
 
-        self.client
-            .execute(
-                self.address(),
-                self.coconut_dkg_contract_address(),
-                &req,
-                fee.unwrap_or_default(),
-                "verification key share commitment",
-                vec![],
-            )
+        self.execute_dkg_contract(
+            fee,
+            req,
+            "verification key share commitment".to_string(),
+            vec![],
+        )
+        .await
+    }
+}
+
+#[async_trait]
+impl<C> DkgSigningClient for C
+where
+    C: SigningCosmWasmClient + NymContractsProvider + Sync,
+    NyxdError: From<<Self as OfflineSigner>::Error>,
+{
+    async fn execute_dkg_contract(
+        &self,
+        fee: Option<Fee>,
+        msg: DkgExecuteMsg,
+        memo: String,
+        funds: Vec<Coin>,
+    ) -> Result<ExecuteResult, NyxdError> {
+        let dkg_contract_address = self
+            .dkg_contract_address()
+            .ok_or_else(|| NyxdError::unavailable_contract_address("dkg contract"))?;
+
+        let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier())));
+        let signer_address = &self.signer_addresses()?[0];
+
+        self.execute(signer_address, dkg_contract_address, &msg, fee, memo, funds)
             .await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // it's enough that this compiles
+    #[deprecated]
+    async fn all_execute_variants_are_covered<C: DkgSigningClient + Send + Sync>(
+        client: C,
+        msg: DkgExecuteMsg,
+    ) {
+        unimplemented!()
     }
 }

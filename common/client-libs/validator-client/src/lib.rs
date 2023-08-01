@@ -23,7 +23,9 @@ pub type SigningValidatorClient<C, S> = Client<C, S>;
 #[cfg(feature = "http-client")]
 pub use cosmrs::rpc::HttpClient as HttpRpcClient;
 
-#[cfg(feature = "http-client")]
+#[cfg(target_arch = "wasm32")]
+pub use crate::nyxd::wasm::WasmRpcClient;
+
 use crate::signing::direct_wallet::DirectSecp256k1HdWallet;
 
 #[cfg(feature = "http-client")]
@@ -37,3 +39,14 @@ pub type DirectSigningHttpRpcValidatorClient = Client<HttpRpcClient, DirectSecp2
 pub type DirectSigningHttpRpcNyxdClient = nyxd::NyxdClient<HttpRpcClient, DirectSecp256k1HdWallet>;
 
 // TODO: the same for reqwest client (once implemented)
+
+// TODO: rename it to whatever we end up using in wasm
+#[cfg(target_arch = "wasm32")]
+pub type QueryWasmRpcValidatorClient = Client<WasmRpcClient>;
+#[cfg(target_arch = "wasm32")]
+pub type QueryWasmRpcNyxdClient = nyxd::NyxdClient<WasmRpcClient>;
+
+#[cfg(target_arch = "wasm32")]
+pub type DirectSigningWasmRpcValidatorClient = Client<WasmRpcClient, DirectSecp256k1HdWallet>;
+#[cfg(target_arch = "wasm32")]
+pub type DirectSigningWasmRpcNyxdClient = nyxd::NyxdClient<WasmRpcClient, DirectSecp256k1HdWallet>;

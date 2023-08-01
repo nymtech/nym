@@ -29,7 +29,7 @@ pub async fn update_config(args: Args, client: SigningClient) {
     info!("Update mix node config!");
 
     let current_details = match client
-        .get_owned_mixnode(client.address())
+        .get_owned_mixnode(&client.address())
         .await
         .expect("failed to query the chain for mixnode details")
         .mixnode_details

@@ -30,7 +30,7 @@ pub async fn vesting_update_config(args: Args, client: SigningClient) {
     info!("Update vesting gateway config!");
 
     let current_details = match client
-        .get_owned_gateway(client.address())
+        .get_owned_gateway(&client.address())
         .await
         .expect("failed to query the chain for gateway details")
         .gateway

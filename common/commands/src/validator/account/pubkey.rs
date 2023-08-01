@@ -3,7 +3,7 @@
 
 use clap::Parser;
 use log::{error, info};
-use nym_validator_client::nyxd::AccountId;
+use nym_validator_client::nyxd::{AccountId, CosmWasmClient};
 use nym_validator_client::signing::direct_wallet::DirectSecp256k1HdWallet;
 
 use crate::context::QueryClient;
@@ -68,7 +68,7 @@ pub fn get_pubkey_from_mnemonic(address: AccountId, prefix: &str, mnemonic: bip3
 
 pub async fn get_pubkey_from_chain(address: AccountId, client: &QueryClient) {
     info!("Getting public key for address {} from chain...", address);
-    match client.get_account_details(&address).await {
+    match client.get_account(&address).await {
         Ok(Some(account)) => {
             if let Ok(base_account) = account.try_get_base_account() {
                 if let Some(pubkey) = base_account.pubkey {

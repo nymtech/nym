@@ -24,6 +24,8 @@ pub use nym_mixnet_contract_common::{
 pub use crate::coconut::CoconutApiClient;
 
 #[cfg(feature = "http-client")]
+use crate::signing::direct_wallet::DirectSecp256k1HdWallet;
+#[cfg(feature = "http-client")]
 use tendermint_rpc::HttpClient;
 
 #[must_use]
@@ -73,6 +75,11 @@ impl Config {
         self.nyxd_url = nyxd_url;
         self
     }
+
+    pub fn with_simulated_gas_multiplier(mut self, gas_multiplier: f32) -> Self {
+        self.nyxd_config.simulated_gas_multiplier = gas_multiplier;
+        self
+    }
 }
 
 pub struct Client<C, S = NoSigner> {
@@ -81,7 +88,7 @@ pub struct Client<C, S = NoSigner> {
     pub nyxd: NyxdClient<C, S>,
 }
 
-#[cfg(all(feature = "direct-secp256k1-wallet", feature = "http-client"))]
+#[cfg(feature = "http-client")]
 impl Client<HttpClient, DirectSecp256k1HdWallet> {
     pub fn new_signing(
         config: Config,
@@ -147,7 +154,7 @@ impl<C> Client<C> {
 }
 
 // validator-api wrappers
-impl<C> Client<C> {
+impl<C, S> Client<C, S> {
     pub fn change_nym_api(&mut self, new_endpoint: Url) {
         self.nym_api.change_url(new_endpoint)
     }

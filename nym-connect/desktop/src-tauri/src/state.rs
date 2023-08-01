@@ -27,7 +27,7 @@ use crate::{
 // certain duration then we assume it's all good.
 const GATEWAY_CONNECTIVITY_TIMEOUT_SECS: u64 = 20;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum GatewayConnectivity {
     Good,
     Bad { when: Instant },
@@ -50,6 +50,7 @@ impl TryFrom<&ClientCoreStatusMessage> for GatewayConnectivity {
     }
 }
 
+#[derive(Debug)]
 pub struct State {
     /// The current connection status
     status: ConnectionStatusKind,
@@ -104,6 +105,13 @@ impl State {
 
     pub fn get_user_data(&self) -> &UserData {
         &self.user_data
+    }
+
+    pub fn clear_user_data(&mut self) -> Result<()> {
+        self.user_data.clear().map_err(|e| {
+            error!("Failed to clear user data {e}");
+            BackendError::UserDataWriteError
+        })
     }
 
     pub fn set_monitoring(&mut self, enabled: bool) -> Result<()> {

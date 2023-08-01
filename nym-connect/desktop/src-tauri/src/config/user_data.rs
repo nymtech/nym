@@ -78,4 +78,16 @@ impl UserData {
         fs::write(data_path, toml)?;
         Ok(())
     }
+
+    pub fn clear(&self) -> Result<()> {
+        // create the full directory path if it is missing
+        create_directory_path()?;
+
+        let mut data_path = data_dir().ok_or(eyre!("Failed to retrieve data directory"))?;
+
+        data_path.push(DATA_DIR);
+        data_path.push(DATA_FILE);
+        fs::write(data_path, vec![])?;
+        Ok(())
+    }
 }

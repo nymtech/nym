@@ -1,15 +1,15 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::nyxd::contract_traits::NymContractsProvider;
+use crate::nyxd::{
+    coin::Coin, cosmwasm_client::types::ExecuteResult, error::NyxdError, Fee, SigningCosmWasmClient,
+};
+use crate::signing::signer::OfflineSigner;
 use async_trait::async_trait;
 use nym_contracts_common::signing::MessageSignature;
 use nym_service_provider_directory_common::{
     msg::ExecuteMsg as SpExecuteMsg, NymAddress, ServiceDetails, ServiceId,
-};
-
-use crate::nyxd::{
-    coin::Coin, cosmwasm_client::types::ExecuteResult, error::NyxdError, Fee, NyxdClient,
-    SigningCosmWasmClient,
 };
 
 #[async_trait]
@@ -82,9 +82,10 @@ pub trait SpDirectorySigningClient {
 }
 
 #[async_trait]
-impl<C> SpDirectorySigningClient for NyxdClient<C>
+impl<C> SpDirectorySigningClient for C
 where
-    C: SigningCosmWasmClient + Sync + Send,
+    C: SigningCosmWasmClient + NymContractsProvider + Sync,
+    NyxdError: From<<Self as OfflineSigner>::Error>,
 {
     async fn execute_service_provider_directory_contract(
         &self,
@@ -92,21 +93,37 @@ where
         msg: SpExecuteMsg,
         funds: Vec<Coin>,
     ) -> Result<ExecuteResult, NyxdError> {
-        let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
+        let sp_directory_contract_address =
+            &self.service_provider_contract_address().ok_or_else(|| {
+                NyxdError::unavailable_contract_address("service provider directory contract")
+            })?;
+
+        let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier())));
         let memo = msg.default_memo();
-        self.client
-            .execute(
-                self.address(),
-                self.service_provider_contract_address().ok_or(
-                    NyxdError::NoContractAddressAvailable(
-                        "service provider directory contract".to_string(),
-                    ),
-                )?,
-                &msg,
-                fee,
-                memo,
-                funds,
-            )
-            .await
+
+        let signer_address = &self.signer_addresses()?[0];
+        self.execute(
+            signer_address,
+            sp_directory_contract_address,
+            &msg,
+            fee,
+            memo,
+            funds,
+        )
+        .await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // it's enough that this compiles
+    #[deprecated]
+    async fn all_execute_variants_are_covered<C: SpDirectorySigningClient + Send + Sync>(
+        client: C,
+        msg: SpExecuteMsg,
+    ) {
+        unimplemented!()
     }
 }

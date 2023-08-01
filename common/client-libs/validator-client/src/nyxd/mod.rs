@@ -43,9 +43,6 @@ use std::time::SystemTime;
 #[cfg(feature = "http-client")]
 use cosmrs::rpc::{HttpClient, HttpClientUrl};
 
-#[cfg(feature = "direct-secp256k1-wallet")]
-use crate::signing::direct_wallet::DirectSecp256k1HdWallet;
-
 use crate::nyxd::contract_traits::{NymContractsProvider, TypedNymContracts};
 use crate::nyxd::cosmwasm_client::MaybeSigningClient;
 use crate::nyxd::fee::DEFAULT_SIMULATED_GAS_MULTIPLIER;
@@ -58,8 +55,10 @@ pub mod error;
 pub mod fee;
 
 // helper types
-#[cfg(all(feature = "direct-secp256k1-wallet", feature = "http-client"))]
-pub type DirectSigningHttpNyxdClient = NyxdClient<HttpClient, DirectSecp256k1HdWallet>;
+#[cfg(feature = "http-client")]
+pub type DirectSigningHttpNyxdClient =
+    NyxdClient<HttpClient, crate::signing::direct_wallet::DirectSecp256k1HdWallet>;
+
 #[cfg(feature = "http-client")]
 pub type QueryHttpNyxdClient = NyxdClient<HttpClient>;
 
@@ -177,7 +176,7 @@ where
     {
         let client = HttpClient::new(endpoint)?;
         Ok(NyxdClient {
-            client: MaybeSigningClient::new_signing(client, signer, (&config).into())?,
+            client: MaybeSigningClient::new_signing(client, signer, (&config).into()),
             config,
         })
     }
@@ -348,8 +347,13 @@ where
     NyxdError: From<<S as OfflineSigner>::Error>,
     NyxdError: From<<C as OfflineSigner>::Error>,
 {
-    pub fn address(&self) -> &AccountId {
-        &self.client.derived_addresses()[0]
+    pub fn address(&self) -> AccountId {
+        match self.client.signer_addresses() {
+            Ok(addresses) => addresses[0].clone(),
+            Err(_) => {
+                panic!("key derivation failure")
+            }
+        }
     }
 
     pub fn cw_address(&self) -> Addr {
@@ -359,7 +363,7 @@ where
     }
 
     pub async fn account_sequence(&self) -> Result<SequenceResponse, NyxdError> {
-        self.client.get_sequence(self.address()).await
+        self.client.get_sequence(&self.address()).await
     }
 
     pub fn wrap_contract_execute_message<M>(
@@ -372,7 +376,7 @@ where
         M: ?Sized + Serialize,
     {
         Ok(cosmwasm::MsgExecuteContract {
-            sender: self.address().clone(),
+            sender: self.address(),
             contract: contract_address.clone(),
             msg: serde_json::to_vec(msg)?,
             funds: funds.into_iter().map(Into::into).collect(),
@@ -386,7 +390,7 @@ where
     {
         self.client
             .simulate(
-                self.address(),
+                &self.address(),
                 messages
                     .into_iter()
                     .map(|msg| msg.into_any())
@@ -409,7 +413,7 @@ where
     ) -> Result<TxResponse, NyxdError> {
         let fee = fee.unwrap_or(Fee::Auto(Some(self.config.simulated_gas_multiplier)));
         self.client
-            .send_tokens(self.address(), recipient, amount, fee, memo)
+            .send_tokens(&self.address(), recipient, amount, fee, memo)
             .await
     }
 
@@ -422,7 +426,7 @@ where
     ) -> Result<TxResponse, NyxdError> {
         let fee = fee.unwrap_or(Fee::Auto(Some(self.config.simulated_gas_multiplier)));
         self.client
-            .send_tokens_multiple(self.address(), msgs, fee, memo)
+            .send_tokens_multiple(&self.address(), msgs, fee, memo)
             .await
     }
 
@@ -439,7 +443,7 @@ where
         let fee = fee.unwrap_or(Fee::Auto(Some(self.config.simulated_gas_multiplier)));
         self.client
             .grant_allowance(
-                self.address(),
+                &self.address(),
                 grantee,
                 spend_limit,
                 expiration,
@@ -459,7 +463,7 @@ where
     ) -> Result<TxResponse, NyxdError> {
         let fee = fee.unwrap_or(Fee::Auto(Some(self.config.simulated_gas_multiplier)));
         self.client
-            .revoke_allowance(self.address(), grantee, fee, memo)
+            .revoke_allowance(&self.address(), grantee, fee, memo)
             .await
     }
 
@@ -476,7 +480,7 @@ where
     {
         let fee = fee.unwrap_or(Fee::Auto(Some(self.config.simulated_gas_multiplier)));
         self.client
-            .execute(self.address(), contract_address, msg, fee, memo, funds)
+            .execute(&self.address(), contract_address, msg, fee, memo, funds)
             .await
     }
 
@@ -493,7 +497,7 @@ where
     {
         let fee = fee.unwrap_or(Fee::Auto(Some(self.config.simulated_gas_multiplier)));
         self.client
-            .execute_multiple(self.address(), contract_address, msgs, fee, memo)
+            .execute_multiple(&self.address(), contract_address, msgs, fee, memo)
             .await
     }
 
@@ -505,7 +509,7 @@ where
     ) -> Result<UploadResult, NyxdError> {
         let fee = fee.unwrap_or(Fee::Auto(Some(self.config.simulated_gas_multiplier)));
         self.client
-            .upload(self.address(), wasm_code, fee, memo)
+            .upload(&self.address(), wasm_code, fee, memo)
             .await
     }
 
@@ -523,7 +527,7 @@ where
     {
         let fee = fee.unwrap_or(Fee::Auto(Some(self.config.simulated_gas_multiplier)));
         self.client
-            .instantiate(self.address(), code_id, msg, label, fee, memo, options)
+            .instantiate(&self.address(), code_id, msg, label, fee, memo, options)
             .await
     }
 
@@ -536,7 +540,7 @@ where
     ) -> Result<ChangeAdminResult, NyxdError> {
         let fee = fee.unwrap_or(Fee::Auto(Some(self.config.simulated_gas_multiplier)));
         self.client
-            .update_admin(self.address(), contract_address, new_admin, fee, memo)
+            .update_admin(&self.address(), contract_address, new_admin, fee, memo)
             .await
     }
 
@@ -548,7 +552,7 @@ where
     ) -> Result<ChangeAdminResult, NyxdError> {
         let fee = fee.unwrap_or(Fee::Auto(Some(self.config.simulated_gas_multiplier)));
         self.client
-            .clear_admin(self.address(), contract_address, fee, memo)
+            .clear_admin(&self.address(), contract_address, fee, memo)
             .await
     }
 
@@ -565,7 +569,7 @@ where
     {
         let fee = fee.unwrap_or(Fee::Auto(Some(self.config.simulated_gas_multiplier)));
         self.client
-            .migrate(self.address(), contract_address, code_id, fee, msg, memo)
+            .migrate(&self.address(), contract_address, code_id, fee, msg, memo)
             .await
     }
 }

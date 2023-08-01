@@ -5,10 +5,11 @@ use async_trait::async_trait;
 use nym_contracts_common::signing::MessageSignature;
 use nym_name_service_common::{msg::ExecuteMsg as NameExecuteMsg, NameDetails, NameId, NymName};
 
+use crate::nyxd::contract_traits::NymContractsProvider;
 use crate::nyxd::{
-    coin::Coin, cosmwasm_client::types::ExecuteResult, error::NyxdError, Fee, NyxdClient,
-    SigningCosmWasmClient,
+    coin::Coin, cosmwasm_client::types::ExecuteResult, error::NyxdError, Fee, SigningCosmWasmClient,
 };
+use crate::signing::signer::OfflineSigner;
 
 #[async_trait]
 pub trait NameServiceSigningClient {
@@ -72,9 +73,10 @@ pub trait NameServiceSigningClient {
 }
 
 #[async_trait]
-impl<C> NameServiceSigningClient for NyxdClient<C>
+impl<C> NameServiceSigningClient for C
 where
-    C: SigningCosmWasmClient + Sync + Send,
+    C: SigningCosmWasmClient + NymContractsProvider + Sync,
+    NyxdError: From<<Self as OfflineSigner>::Error>,
 {
     async fn execute_name_service_contract(
         &self,
@@ -82,19 +84,36 @@ where
         msg: NameExecuteMsg,
         funds: Vec<Coin>,
     ) -> Result<ExecuteResult, NyxdError> {
-        let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
+        let name_service_contract_address = &self
+            .name_service_contract_address()
+            .ok_or_else(|| NyxdError::unavailable_contract_address("name service contract"))?;
+
+        let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier())));
         let memo = msg.default_memo();
-        self.client
-            .execute(
-                self.address(),
-                self.name_service_contract_address().ok_or(
-                    NyxdError::NoContractAddressAvailable("name service contract".to_string()),
-                )?,
-                &msg,
-                fee,
-                memo,
-                funds,
-            )
-            .await
+
+        let signer_address = &self.signer_addresses()?[0];
+        self.execute(
+            signer_address,
+            name_service_contract_address,
+            &msg,
+            fee,
+            memo,
+            funds,
+        )
+        .await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // it's enough that this compiles
+    #[deprecated]
+    async fn all_execute_variants_are_covered<C: NameServiceSigningClient + Send + Sync>(
+        client: C,
+        msg: NameExecuteMsg,
+    ) {
+        unimplemented!()
     }
 }

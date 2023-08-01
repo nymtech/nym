@@ -5,7 +5,6 @@ use crate::nyxd::cosmwasm_client::client_traits::{CosmWasmClient, SigningCosmWas
 use crate::nyxd::error::NyxdError;
 use crate::nyxd::{Config, GasPrice, TendermintClient};
 use async_trait::async_trait;
-use cosmrs::AccountId;
 use tendermint_rpc::{Error as TendermintRpcError, SimpleRequest};
 
 #[cfg(feature = "http-client")]
@@ -25,12 +24,14 @@ pub mod types;
 #[derive(Debug)]
 pub(crate) struct SigningClientOptions {
     gas_price: GasPrice,
+    simulated_gas_multiplier: f32,
 }
 
 impl<'a> From<&'a Config> for SigningClientOptions {
     fn from(value: &'a Config) -> Self {
         SigningClientOptions {
             gas_price: value.gas_price.clone(),
+            simulated_gas_multiplier: value.simulated_gas_multiplier,
         }
     }
 }
@@ -41,7 +42,6 @@ pub(crate) struct MaybeSigningClient<C, S = NoSigner> {
     client: C,
     signer: S,
     opts: SigningClientOptions,
-    derived_addresses: Option<Vec<AccountId>>,
 }
 
 impl<C> MaybeSigningClient<C> {
@@ -50,36 +50,20 @@ impl<C> MaybeSigningClient<C> {
             client,
             signer: Default::default(),
             opts,
-            derived_addresses: None,
         }
     }
 }
 
 impl<C, S> MaybeSigningClient<C, S> {
-    pub(crate) fn new_signing(
-        client: C,
-        signer: S,
-        opts: SigningClientOptions,
-    ) -> Result<Self, S::Error>
+    pub(crate) fn new_signing(client: C, signer: S, opts: SigningClientOptions) -> Self
     where
         S: OfflineSigner,
     {
-        let derived_addresses = signer
-            .get_accounts()?
-            .into_iter()
-            .map(|account| account.address)
-            .collect();
-        Ok(MaybeSigningClient {
+        MaybeSigningClient {
             client,
             signer,
             opts,
-            derived_addresses: Some(derived_addresses),
-        })
-    }
-
-    pub(crate) fn derived_addresses(&self) -> &[AccountId] {
-        // the unwrap is fine here as you can't construct a signing client without setting the addresses
-        self.derived_addresses.as_ref().unwrap()
+        }
     }
 }
 
@@ -144,6 +128,10 @@ where
 {
     fn gas_price(&self) -> &GasPrice {
         &self.opts.gas_price
+    }
+
+    fn simulated_gas_multiplier(&self) -> f32 {
+        self.opts.simulated_gas_multiplier
     }
 }
 

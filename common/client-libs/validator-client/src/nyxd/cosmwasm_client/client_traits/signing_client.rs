@@ -62,10 +62,7 @@ where
     // blanket implementation for anything that provides CosmWasmClient + TxSigner?
     fn gas_price(&self) -> &GasPrice;
 
-    fn signer_public_key(&self, signer_address: &AccountId) -> Option<tx::SignerPublicKey> {
-        let account = self.find_account(signer_address).ok()?;
-        Some(account.public_key().into())
-    }
+    fn simulated_gas_multiplier(&self) -> f32;
 
     async fn simulate(
         &self,

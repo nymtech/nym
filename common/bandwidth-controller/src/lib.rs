@@ -17,12 +17,15 @@ use {
 #[cfg(not(target_arch = "wasm32"))]
 use nym_validator_client::nyxd::contract_traits::DkgQueryClient;
 
+#[deprecated]
 #[cfg(target_arch = "wasm32")]
 use crate::wasm_mockups::DkgQueryClient;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub mod acquire;
 pub mod error;
+
+#[deprecated]
 #[cfg(target_arch = "wasm32")]
 pub mod wasm_mockups;
 

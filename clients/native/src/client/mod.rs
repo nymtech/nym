@@ -19,8 +19,7 @@ use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nym_sphinx::params::PacketType;
 use nym_task::connections::TransmissionLane;
 use nym_task::TaskManager;
-use nym_validator_client::nyxd::QueryNyxdClient;
-use nym_validator_client::Client;
+use nym_validator_client::QueryHttpRpcNyxdClient;
 use std::error::Error;
 use tokio::sync::watch::error::SendError;
 
@@ -29,7 +28,7 @@ pub use nym_sphinx::receiver::ReconstructedMessage;
 
 pub mod config;
 
-type NativeClientBuilder<'a> = BaseClientBuilder<'a, Client<QueryNyxdClient>, OnDiskPersistent>;
+type NativeClientBuilder<'a> = BaseClientBuilder<'a, QueryHttpRpcNyxdClient, OnDiskPersistent>;
 
 pub struct SocketClient {
     /// Client configuration options, including, among other things, packet sending rates,

@@ -1,7 +1,3 @@
-<!---
-TODO:
-- [ ] Update domains division per app, or preferably maker a version of default allowed list with comments https://nymtech.net/.wellknown/network-requester/standard-allowed-list.txt
---->
 # Network Requesters
 
 > The Nym gateway was built in the [building nym](../binaries/building-nym.md) section. If you haven't yet built Nym and want to run the code, go there first.

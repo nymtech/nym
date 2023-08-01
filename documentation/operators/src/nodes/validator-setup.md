@@ -1,11 +1,3 @@
-<!---
-TODO:
-- [x] Put outside of mixnet nodes and  make a clear codebase distinction
-- [x] Go through my notes and incorporate them
-- [x] Put an info on the whitelisting on top
-- [x] Prune - shorten the doc
-- [x] Add unyx <> nyx conversion - it will be in faq.md
---->
 # Validators
 
 > Nym has two main codebases:  

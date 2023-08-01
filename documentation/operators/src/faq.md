@@ -1,20 +1,3 @@
-<!---
-TODO
-- [x] Explain active set and needed metrics
-- [x] List friendly VPS providers
-- [ ] Explain difficulty running a node on a self-hosted machine
-- [x] Explain uNYM vs NYM/uNYX vs NYX. Why, ratio, etc
-- [x] Explain why validators set is whitelisted
-
-Some community questions:
-Hi, do you know if it's on the roadmap for network nodes (requesters, socks5 client, etc.) to reconnect to another gateway if the current gateway's connection drops or has issues? I have to reset my requester and socks5 clients to connect them to a new gateway almost every day...😕 having to delete the entire folders associated with them
-
-you should be able to switch gateway (and overwrite keys) using —force-register
-
-make a note that the keys will be overwritten in bold when you're noting it in the operators guides
-
-
---->
 # Frequently Asked Questions
 
 ## Mixnet nodes

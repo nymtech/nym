@@ -88,7 +88,13 @@ pub trait MultisigQueryClient {
     async fn query_config(&self) -> Result<(), NyxdError> {
         unimplemented!()
     }
+}
 
+// extension trait to the query client to deal with the paged queries
+// (it didn't feel appropriate to combine it with the existing trait
+#[async_trait]
+pub trait PagedMultisigQueryClient: MultisigQueryClient {
+    // can't use the macro due to different paging behaviour
     async fn get_all_proposals(&self) -> Result<Vec<ProposalResponse>, NyxdError> {
         let mut proposals = Vec::new();
         let mut start_after = None;
@@ -109,6 +115,9 @@ pub trait MultisigQueryClient {
         Ok(proposals)
     }
 }
+
+#[async_trait]
+impl<T> PagedMultisigQueryClient for T where T: MultisigQueryClient {}
 
 #[async_trait]
 impl<C> MultisigQueryClient for C

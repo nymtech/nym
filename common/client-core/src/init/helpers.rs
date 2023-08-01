@@ -3,6 +3,7 @@
 
 use crate::config::GatewayEndpointConfig;
 use crate::error::ClientCoreError;
+use crate::init::RegistrationResult;
 use futures::{SinkExt, StreamExt};
 use log::{debug, info, trace, warn};
 use nym_crypto::asymmetric::identity;
@@ -27,7 +28,6 @@ type WsConn = WebSocketStream<MaybeTlsStream<TcpStream>>;
 #[cfg(not(target_arch = "wasm32"))]
 use tokio::time::sleep;
 
-use crate::init::RegistrationResult;
 #[cfg(target_arch = "wasm32")]
 use wasm_utils::websocket::JSWebsocket;
 #[cfg(target_arch = "wasm32")]

@@ -122,3 +122,5 @@ pub trait TxSigner: OfflineSigner {
         self.sign_direct_with_account(&account_from_signer, sign_doc)
     }
 }
+
+impl<T> TxSigner for T where T: OfflineSigner {}

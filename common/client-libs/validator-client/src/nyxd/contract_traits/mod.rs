@@ -32,7 +32,7 @@ pub use coconut_bandwidth_query_client::CoconutBandwidthQueryClient;
 pub use dkg_query_client::{DkgQueryClient, PagedDkgQueryClient};
 pub use group_query_client::GroupQueryClient;
 pub use mixnet_query_client::{MixnetQueryClient, PagedMixnetQueryClient};
-pub use multisig_query_client::MultisigQueryClient;
+pub use multisig_query_client::{MultisigQueryClient, PagedMultisigQueryClient};
 pub use name_service_query_client::NameServiceQueryClient;
 pub use sp_directory_query_client::SpDirectoryQueryClient;
 pub use vesting_query_client::VestingQueryClient;

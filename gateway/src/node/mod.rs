@@ -17,7 +17,7 @@ use nym_mixnet_client::forwarder::{MixForwardingSender, PacketForwarder};
 use nym_network_defaults::NymNetworkDetails;
 use nym_statistics_common::collector::StatisticsSender;
 use nym_task::{TaskClient, TaskManager};
-use nym_validator_client::Client;
+use nym_validator_client::{nyxd, DirectSigningHttpRpcNyxdClient};
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use std::error::Error;
@@ -212,26 +212,22 @@ impl<St> Gateway<St> {
         nym_validator_client::NymApiClient::new(nym_api.clone())
     }
 
-    fn random_nyxd_client(
-        &self,
-    ) -> nym_validator_client::Client<nym_validator_client::nyxd::DirectSigningNyxdClient> {
+    fn random_nyxd_client(&self) -> DirectSigningHttpRpcNyxdClient {
         let endpoints = self.config.get_nyxd_urls();
         let validator_nyxd = endpoints
             .choose(&mut thread_rng())
             .expect("The list of validators is empty");
 
         let network_details = NymNetworkDetails::new_from_env();
-        let client_config = nym_validator_client::Config::try_from_nym_network_details(
-            &network_details,
-        )
-        .expect("failed to construct valid validator client config with the provided network");
+        let client_config = nyxd::Config::try_from_nym_network_details(&network_details)
+            .expect("failed to construct valid validator client config with the provided network");
 
-        let mut client = Client::new_signing(client_config, self.config.get_cosmos_mnemonic())
-            .expect("Could not connect with mnemonic");
-        client
-            .change_nyxd(validator_nyxd.clone())
-            .expect("Could not use the random nyxd URL");
-        client
+        DirectSigningHttpRpcNyxdClient::connect_with_mnemonic(
+            client_config,
+            validator_nyxd.as_ref(),
+            self.config.get_cosmos_mnemonic(),
+        )
+        .expect("Could not connect with mnemonic")
     }
 
     async fn check_if_bonded(&self) -> Result<bool, GatewayError> {

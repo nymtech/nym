@@ -1,8 +1,10 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::nyxd::contract_traits::{DkgQueryClient, PagedDkgQueryClient};
+use crate::nyxd::error::NyxdError;
 use crate::NymApiClient;
-use nym_coconut_dkg_common::types::NodeIndex;
+use nym_coconut_dkg_common::types::{EpochId, NodeIndex};
 use nym_coconut_dkg_common::verification_key::ContractVKShare;
 use nym_coconut_interface::{Base58, CoconutError, VerificationKey};
 use thiserror::Error;
@@ -25,6 +27,12 @@ pub enum CoconutApiError {
     // TODO: ask @BN whether this is a correct error message
     #[error("the provided key share hasn't been verified")]
     UnverifiedShare,
+
+    #[error("failed to query the contract: {source}")]
+    ContractQueryFailure {
+        #[from]
+        source: NyxdError,
+    },
 
     #[error("the provided announce address is malformed: {source}")]
     MalformedAnnounceAddress {
@@ -64,19 +72,26 @@ impl TryFrom<ContractVKShare> for CoconutApiClient {
     }
 }
 
-// impl CoconutApiClient {
-//     // pub async fn all_coconut_api_clients<C>(
-//     //     client: &C,
-//     //     epoch_id: EpochId,
-//     // ) -> Result<Vec<Self>, ValidatorClientError>
-//     // where
-//     //     C: DkgQueryClient + Sync + Send,
-//     // {
-//     //     Ok(client
-//     //         .get_all_verification_key_shares(epoch_id)
-//     //         .await?
-//     //         .into_iter()
-//     //         .filter_map(Self::try_from)
-//     //         .collect())
-//     // }
-// }
+pub async fn all_coconut_api_clients<C>(
+    client: &C,
+    epoch_id: EpochId,
+) -> Result<Vec<CoconutApiClient>, CoconutApiError>
+where
+    C: DkgQueryClient + Sync + Send,
+{
+    // TODO: this will error out if there's an invalid share out there. is that what we want?
+    client
+        .get_all_verification_key_shares(epoch_id)
+        .await?
+        .into_iter()
+        .map(TryInto::try_into)
+        .collect::<Result<Vec<_>, _>>()
+
+    // ... if not, let's switch to the below:
+    // client
+    //     .get_all_verification_key_shares(epoch_id)
+    //     .await?
+    //     .into_iter()
+    //     .filter_map(TryInto::try_into)
+    //     .collect::<Result<Vec<_>, _>>()
+}

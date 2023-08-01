@@ -13,7 +13,7 @@ export const useNodeTesterClient = () => {
     try {
       const nodeTesterClient = await createNodeTesterClient();
 
-      await nodeTesterClient.tester.init(validator);
+      await nodeTesterClient.tester.init(validator, validator);
       setClient(nodeTesterClient);
       setTestState('Ready');
     } catch (e) {

@@ -37,6 +37,7 @@
     "clean": "rimraf dist",
     "build": "tsc --noEmit false",
     "watch": "tsc --noEmit false -w",
+    "tsc": "tsc --noEmit true",
     "lint": "eslint src",
     "lint:fix": "eslint src --fix"
   }

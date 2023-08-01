@@ -15,7 +15,7 @@
     "clean": "rm -rf ./dist",
     "lint": "eslint",
     "lint:fix": "eslint --fix",
-    "lint:tsc": "tsc --noEmit",
+    "tsc": "tsc --noEmit",
     "docs": "typedoc --out docs src/index.ts"
   },
   "files": [

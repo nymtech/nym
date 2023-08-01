@@ -82,6 +82,7 @@
   },
   "scripts": {
     "clean": "rimraf dist",
+    "tsc": "tsc --noEmit true",
     "build": "tsc --noEmit false",
     "watch": "tsc --noEmit false -w",
     "lint": "eslint src .storybook",

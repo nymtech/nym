@@ -17,7 +17,7 @@
     "start": "tsc -w",
     "start:dev": "nodemon --watch src -e ts,json --exec 'yarn build:dev:esm'",
     "clean": "rimraf dist",
-    "typecheck": "tsc --noEmit true",
+    "tsc": "tsc --noEmit true",
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
     "build": "scripts/build-prod.sh",

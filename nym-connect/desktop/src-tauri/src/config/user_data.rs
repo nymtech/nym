@@ -14,6 +14,18 @@ pub enum PrivacyLevel {
     Medium,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+pub struct SelectedGateway {
+    address: Option<String>,
+    is_active: Option<bool>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+pub struct SelectedSp {
+    address: Option<String>,
+    is_active: Option<bool>,
+}
+
 // User data is read from and write on disk
 // Linux: $XDG_DATA_HOME or $HOME/.local/share/
 // macOS: $HOME/Library/Application Support
@@ -22,6 +34,8 @@ pub enum PrivacyLevel {
 pub struct UserData {
     pub monitoring: Option<bool>,
     pub privacy_level: Option<PrivacyLevel>,
+    pub selected_gateway: Option<SelectedGateway>,
+    pub selected_sp: Option<SelectedSp>,
 }
 
 fn create_directory_path() -> Result<()> {

@@ -9,6 +9,8 @@ use tokio::time::Instant;
 
 use crate::config::Config;
 use crate::config::PrivacyLevel;
+use crate::config::SelectedGateway;
+use crate::config::SelectedSp;
 use crate::config::UserData;
 use crate::{
     config::{self, socks5_config_id_appended_with},
@@ -114,6 +116,22 @@ impl State {
 
     pub fn set_privacy_level(&mut self, privacy_level: PrivacyLevel) -> Result<()> {
         self.user_data.privacy_level = Some(privacy_level);
+        self.user_data.write().map_err(|e| {
+            error!("Failed to write user data to disk {e}");
+            BackendError::UserDataWriteError
+        })
+    }
+
+    pub fn set_user_selected_gateway(&mut self, gateway: Option<SelectedGateway>) -> Result<()> {
+        self.user_data.selected_gateway = gateway;
+        self.user_data.write().map_err(|e| {
+            error!("Failed to write user data to disk {e}");
+            BackendError::UserDataWriteError
+        })
+    }
+
+    pub fn set_user_selected_sp(&mut self, service_provider: Option<SelectedSp>) -> Result<()> {
+        self.user_data.selected_sp = service_provider;
         self.user_data.write().map_err(|e| {
             error!("Failed to write user data to disk {e}");
             BackendError::UserDataWriteError

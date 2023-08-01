@@ -351,7 +351,7 @@ sudo ufw status
 
 Ports `22`, `80`, and `443` are for ssh, http, and https connections respectively. The rest of the ports are documented [here](https://docs.cosmos.network/main/core/grpc_rest).
 
-For more information about your validator's port configuration, check the [validator port reference table](https://nymtech.net/operators/binaries/maintenance.html#ports) below.
+For more information about your validator's port configuration, check the [validator port reference table](./maintenance.md#ports) below.
 
 > If you are planning to use [Cockpit](https://cockpit-project.org/) on your validator server then you will have defined a different `grpc` port in your `config.toml` above: remember to open this port as well.
 
@@ -465,15 +465,15 @@ nyxd tx staking edit-validator
 With above command you can specify the `gpg` key last numbers (as used in `keybase`) as well as validator details and your email for security contact.
 
 ### Automating your validator with systemd
-You will most likely want to automate your validator restarting if your server reboots. Checkout the [maintenance page](https://nymtech.net/operators/binaries/maintenance.html#systemd) with a quick tutorial.
+You will most likely want to automate your validator restarting if your server reboots. Checkout the [maintenance page](./maintenance.md#systemd) with a quick tutorial.
 
 ### Installing and configuring nginx for HTTPS
 
-If you want to set up a reverse proxying on the validator server to improve security and performance, using [nginx](https://www.nginx.com/resources/glossary/nginx/#:~:text=NGINX%20is%20open%20source%20software,%2C%20media%20streaming%2C%20and%20more.&text=In%20addition%20to%20its%20HTTP,%2C%20TCP%2C%20and%20UDP%20servers.), follow the manual on the [maintenance page](https://nymtech.net/operators/binaries/maintenance.html#setup).
+If you want to set up a reverse proxying on the validator server to improve security and performance, using [nginx](https://www.nginx.com/resources/glossary/nginx/#:~:text=NGINX%20is%20open%20source%20software,%2C%20media%20streaming%2C%20and%20more.&text=In%20addition%20to%20its%20HTTP,%2C%20TCP%2C%20and%20UDP%20servers.), follow the manual on the [maintenance page](./maintenance.md#setup).
 
 ### Setting the ulimit
 
-Linux machines limit how many open files a user is allowed to have. This is called a `ulimit`. We need to set it to a higher value than the default 1024. Follow the instructions in the [maintenance page](https://nymtech.net/operators/binaries/maintenance.html#Setting-the-ulimit) to change the `ulimit` value for validators.
+Linux machines limit how many open files a user is allowed to have. This is called a `ulimit`. We need to set it to a higher value than the default 1024. Follow the instructions in the [maintenance page](./maintenance.md#Setting-the-ulimit) to change the `ulimit` value for validators.
 
 ## Using your validator
 ### Unjailing your validator
@@ -502,7 +502,7 @@ nyxd tx slashing unjail
 
 ### Upgrading your validator
 
-To upgrade your validator, follow the steps on the [maintenance page](https://nymtech.net/operators/binaries/maintenance.html#Setting-the-ulimit).
+To upgrade your validator, follow the steps on the [maintenance page](./maintenance.md#setting-the-ulimit).
 
 #### Common reasons for your validator being jailed
 

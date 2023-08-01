@@ -1,13 +1,13 @@
 <!---
 TODO
-- [ ] Fix all the existing guides
+- [x] Fix all the existing guides
 - [ ] Get a new CSS theme for all the books
-- [ ] Add a FAQ page
-- [ ] Add automatization page: systemd, tmux, openRC, runinit etc
+- [x] Add a FAQ page
+- [x] Add automatization page: systemd, tmux, openRC, runinit etc
 --->
 # Node Setup Guides
 
-To setup any type of Nym's node, start with building [Nym's platform](https://nymtech.net/docs/binaries/building-nym.html) on the machine (VPS) where you want to run the node. Nodes will need to be bond to Nym's wallet, setup one [here](https://nymtech.net/docs/wallet/desktop-wallet.html).
+To setup any type of Nym's node, start with building [Nym's platform](../binaries/building-nym.md) on the machine (VPS) where you want to run the node. Nodes will need to be bond to Nym's wallet, setup one [here](https://nymtech.net/docs/wallet/desktop-wallet.html).
 
 This section contains setup guides for the following node types:
 * [Mix node](./mix-node-setup.md)

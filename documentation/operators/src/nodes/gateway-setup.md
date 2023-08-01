@@ -1,7 +1,3 @@
-<!---
-TODO
-- [x] Move ## VPS Setup and Automation to ./maintenance.md and merge it with mixnode and NR automation setup.
---->
 # Gateways
 
 > The Nym gateway was built in the [building nym](../binaries/building-nym.md) section. If you haven't yet built Nym and want to run the code, go there first.

@@ -1,12 +1,12 @@
 # Preliminary Steps
 
-> The Nym mixnode, gateway and network requester binaries were built in the [building nym](../binaries/building-nym.md) section. If you haven't yet built Nym and want to run the code, go there first.
+> The Nym `mixnode`, `gateway` and `network-requester` binaries were built in the [building nym](../binaries/building-nym.md) section. If you haven't yet built Nym and want to run the code, go there first.
 
 ## Preliminary steps
 
 There are a couple of steps that need completing before starting to set up your mixnode, gateway or a network requester:
 
-- preparing your [wallet](https://nymtech.net/docs/wallet/desktop-wallet.html)
+- preparing your [desktop wallet](https://nymtech.net/docs/wallet/desktop-wallet.html) or [CLI wallet](https://nymtech.net/docs/wallet/cli-wallet.html).
 - requisitioning a VPS (Virtual Private Server)
 
 ### Wallet preparation
@@ -32,12 +32,12 @@ For now, see the below rough specs:
 
 - Processors: 2 cores are fine. Get the fastest CPUs you can afford.
 
-#### For Nym Mixnode
+#### For Mixnode
 
 - RAM: Memory requirements are very low - typically a mix node may use only a few hundred MB of RAM.
 - Disks: The mixnodes require no disk space beyond a few bytes for the configuration files.
 
-#### For Nym Gateway
+#### For Gateway
 
 - RAM: Memory requirements depend on the amount of users your Gateway will be serving at any one time. If you're just going to be using it yourself, then minimal RAM is fine. **If you're running your Gateway as part of a Service Grant, get something with at least 4GB RAM.**
 - Disks: much like the amount of RAM your Gateway could use, the amount of disk space required will vary with the amount of users your Gateway is serving. **If you're running your Gateway as part of a Service Grant, get something with at least 40GB storage.**

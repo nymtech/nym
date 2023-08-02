@@ -4,9 +4,6 @@ This is Nym's technical documentation, containing information and setup guides a
 
 If you are new to Nym and want to learn about the mixnet, how to integrate with the network, developer tutorials and quickstart guides, check out the [Developer Portal](https://nymtech.net/developers/).
 
-If you are looking for information on grants and beta-release Nym apps, check out the [Shipyard](https://shipyard.nymtech.net) site.
-
-
 ## Popular pages
 **Network Architecture:**
 * [Network Overview](./architecture/network-overview.md)

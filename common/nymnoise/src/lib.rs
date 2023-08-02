@@ -96,26 +96,26 @@ impl AsyncRead for NoiseStream {
                     }
                     enc_storage.extend(&tcp_buf[..tcp_len]);
                     //we can at least read the length
-                    if enc_storage.len() >= HEADER_SIZE {
+                    while enc_storage.len() >= HEADER_SIZE {
                         let msg_len = ((enc_storage[0] as usize) << 8) + (enc_storage[1] as usize);
 
-                        //we have a full message to decrypt
-                        if enc_storage.len() >= HEADER_SIZE + msg_len {
-                            //remove size
-                            enc_storage.pop_front();
-                            enc_storage.pop_front();
-
-                            let noise_msg = enc_storage.drain(..msg_len).collect::<Vec<u8>>();
-                            let mut dec_msg = vec![0u8; MAXMSGLEN];
-                            let len = match projected_self
-                                .noise
-                                .read_message(&noise_msg, &mut dec_msg)
-                            {
-                                Ok(len) => len,
-                                Err(_) => return Poll::Ready(Err(ErrorKind::InvalidData.into())),
-                            };
-                            projected_self.dec_storage.extend(&dec_msg[..len]);
+                        //no more messages to read
+                        if enc_storage.len() < HEADER_SIZE + msg_len {
+                            break;
                         }
+                        //we have a full message to decrypt
+                        //remove size
+                        enc_storage.pop_front();
+                        enc_storage.pop_front();
+
+                        let noise_msg = enc_storage.drain(..msg_len).collect::<Vec<u8>>();
+                        let mut dec_msg = vec![0u8; MAXMSGLEN];
+                        let len = match projected_self.noise.read_message(&noise_msg, &mut dec_msg)
+                        {
+                            Ok(len) => len,
+                            Err(_) => return Poll::Ready(Err(ErrorKind::InvalidData.into())),
+                        };
+                        projected_self.dec_storage.extend(&dec_msg[..len]);
                     }
                 }
             }

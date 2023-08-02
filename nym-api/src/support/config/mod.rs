@@ -156,6 +156,11 @@ impl Config {
         self
     }
 
+    pub fn with_ephemera_enabled(mut self, enabled: bool) -> Self {
+        self.ephemera.enabled = enabled;
+        self
+    }
+
     pub fn with_custom_nyxd_validator(mut self, validator: Url) -> Self {
         self.base.local_validator = validator;
         self
@@ -566,12 +571,14 @@ impl Default for CoconutSignerDebug {
 #[derive(Debug, Default, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(default)]
 pub struct Ephemera {
+    pub enabled: bool,
     args: crate::ephemera::Args,
 }
 
 impl Ephemera {
     fn new_default(id: &str) -> Self {
         Ephemera {
+            enabled: false,
             args: crate::ephemera::Args {
                 ephemera_config: ephemera::configuration::Configuration::ephemera_config_file_home(
                     Some(id),

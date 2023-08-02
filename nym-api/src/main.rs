@@ -137,13 +137,19 @@ async fn start_nym_api_tasks(
                         .expect("Config file should be created now")
                 }
             };
-        let ephemera_reward_manager = ephemera::application::NymApi::run(
-            config.get_ephemera_args().clone(),
-            ephemera_config,
-            nyxd_client.clone(),
-            &shutdown,
-        )
-        .await?;
+        let ephemera_reward_manager = if config.ephemera.enabled {
+            Some(
+                ephemera::application::NymApi::run(
+                    config.get_ephemera_args().clone(),
+                    ephemera_config,
+                    nyxd_client.clone(),
+                    &shutdown,
+                )
+                .await?,
+            )
+        } else {
+            None
+        };
 
         // if network monitor is enabled, the storage MUST BE available
         let storage = maybe_storage.unwrap();

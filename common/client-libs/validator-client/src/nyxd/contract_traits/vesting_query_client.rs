@@ -1,6 +1,7 @@
 // Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::collect_paged;
 use crate::nyxd::coin::Coin;
 use crate::nyxd::contract_traits::NymContractsProvider;
 use crate::nyxd::error::NyxdError;
@@ -24,6 +25,11 @@ pub trait VestingQueryClient {
 
     async fn get_vesting_contract_version(&self) -> Result<ContractBuildInformation, NyxdError> {
         self.query_vesting_contract(VestingQueryMsg::GetContractVersion {})
+            .await
+    }
+
+    async fn get_vesting_contract_cw2_version(&self) -> Result<cw2::ContractVersion, NyxdError> {
+        self.query_vesting_contract(VestingQueryMsg::GetCW2ContractVersion {})
             .await
     }
 
@@ -274,64 +280,25 @@ pub trait VestingQueryClient {
         self.query_vesting_contract(VestingQueryMsg::GetAllDelegations { start_after, limit })
             .await
     }
+}
 
+#[async_trait]
+pub trait PagedVestingQueryClient: VestingQueryClient {
     async fn get_all_vesting_delegations(&self) -> Result<Vec<VestingDelegation>, NyxdError> {
-        let mut delegations = Vec::new();
-        let mut start_after = None;
-        loop {
-            let mut paged_response = self
-                .get_all_vesting_delegations_paged(start_after.take(), None)
-                .await?;
-            delegations.append(&mut paged_response.delegations);
-
-            if let Some(start_after_res) = paged_response.start_next_after {
-                start_after = Some(start_after_res)
-            } else {
-                break;
-            }
-        }
-
-        Ok(delegations)
+        collect_paged!(self, get_all_vesting_delegations_paged, delegations)
     }
 
     async fn get_all_accounts_info(&self) -> Result<Vec<BaseVestingAccountInfo>, NyxdError> {
-        let mut accounts = Vec::new();
-        let mut start_after = None;
-        loop {
-            let mut paged_response = self
-                .get_all_accounts_paged(start_after.take(), None)
-                .await?;
-            accounts.append(&mut paged_response.accounts);
-
-            if let Some(start_after_res) = paged_response.start_next_after {
-                start_after = Some(start_after_res.into_string())
-            } else {
-                break;
-            }
-        }
-
-        Ok(accounts)
+        collect_paged!(self, get_all_accounts_paged, accounts)
     }
 
     async fn get_all_accounts_vesting_coins(&self) -> Result<Vec<AccountVestingCoins>, NyxdError> {
-        let mut accounts = Vec::new();
-        let mut start_after = None;
-        loop {
-            let mut paged_response = self
-                .get_all_accounts_vesting_coins_paged(start_after.take(), None)
-                .await?;
-            accounts.append(&mut paged_response.accounts);
-
-            if let Some(start_after_res) = paged_response.start_next_after {
-                start_after = Some(start_after_res.into_string())
-            } else {
-                break;
-            }
-        }
-
-        Ok(accounts)
+        collect_paged!(self, get_all_accounts_vesting_coins_paged, accounts)
     }
 }
+
+#[async_trait]
+impl<T> PagedVestingQueryClient for T where T: VestingQueryClient {}
 
 #[async_trait]
 impl<C> VestingQueryClient for C
@@ -353,13 +320,119 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::nyxd::contract_traits::tests::IgnoreValue;
 
-    // it's enough that this compiles
-    #[deprecated]
-    async fn all_query_variants_are_covered<C: VestingQueryClient + Send + Sync>(
+    // it's enough that this compiles and clippy is happy about it
+    #[allow(dead_code)]
+    fn all_query_variants_are_covered<C: VestingQueryClient + Send + Sync>(
         client: C,
         msg: VestingQueryMsg,
     ) {
-        unimplemented!()
+        match msg {
+            VestingQueryMsg::GetContractVersion {} => {
+                client.get_vesting_contract_version().ignore()
+            }
+            VestingQueryMsg::GetCW2ContractVersion {} => {
+                client.get_vesting_contract_cw2_version().ignore()
+            }
+            VestingQueryMsg::GetAccountsPaged {
+                start_next_after,
+                limit,
+            } => client
+                .get_all_accounts_paged(start_next_after, limit)
+                .ignore(),
+            VestingQueryMsg::GetAccountsVestingCoinsPaged {
+                start_next_after,
+                limit,
+            } => client
+                .get_all_accounts_vesting_coins_paged(start_next_after, limit)
+                .ignore(),
+            VestingQueryMsg::LockedCoins {
+                vesting_account_address,
+                block_time,
+            } => client
+                .locked_coins(&vesting_account_address, block_time)
+                .ignore(),
+            VestingQueryMsg::SpendableCoins {
+                vesting_account_address,
+                block_time,
+            } => client
+                .spendable_coins(&vesting_account_address, block_time)
+                .ignore(),
+            VestingQueryMsg::GetVestedCoins {
+                vesting_account_address,
+                block_time,
+            } => client
+                .vested_coins(&vesting_account_address, block_time)
+                .ignore(),
+            VestingQueryMsg::GetVestingCoins {
+                vesting_account_address,
+                block_time,
+            } => client
+                .vesting_coins(&vesting_account_address, block_time)
+                .ignore(),
+            VestingQueryMsg::GetStartTime {
+                vesting_account_address,
+            } => client.vesting_start_time(&vesting_account_address).ignore(),
+            VestingQueryMsg::GetEndTime {
+                vesting_account_address,
+            } => client.vesting_end_time(&vesting_account_address).ignore(),
+            VestingQueryMsg::GetOriginalVesting {
+                vesting_account_address,
+            } => client.original_vesting(&vesting_account_address).ignore(),
+            VestingQueryMsg::GetHistoricalVestingStakingReward {
+                vesting_account_address,
+            } => client
+                .get_historical_vesting_staking_reward(&vesting_account_address)
+                .ignore(),
+            VestingQueryMsg::GetSpendableVestedCoins {
+                vesting_account_address,
+            } => client
+                .get_spendable_vested_coins(&vesting_account_address)
+                .ignore(),
+            VestingQueryMsg::GetSpendableRewardCoins {
+                vesting_account_address,
+            } => client
+                .get_spendable_reward_coins(&vesting_account_address)
+                .ignore(),
+            VestingQueryMsg::GetDelegatedCoins {
+                vesting_account_address,
+            } => client
+                .get_delegated_coins(&vesting_account_address)
+                .ignore(),
+            VestingQueryMsg::GetPledgedCoins {
+                vesting_account_address,
+            } => client.get_pledged_coins(&vesting_account_address).ignore(),
+            VestingQueryMsg::GetStakedCoins {
+                vesting_account_address,
+            } => client.get_staked_coins(&vesting_account_address).ignore(),
+            VestingQueryMsg::GetWithdrawnCoins {
+                vesting_account_address,
+            } => client
+                .get_withdrawn_coins(&vesting_account_address)
+                .ignore(),
+            VestingQueryMsg::GetAccount { address } => client.get_account(&address).ignore(),
+            VestingQueryMsg::GetMixnode { address } => client.get_mixnode_pledge(&address).ignore(),
+            VestingQueryMsg::GetGateway { address } => client.get_gateway_pledge(&address).ignore(),
+            VestingQueryMsg::GetCurrentVestingPeriod { address } => {
+                client.get_current_vesting_period(&address).ignore()
+            }
+            VestingQueryMsg::GetDelegation {
+                address,
+                mix_id,
+                block_timestamp_secs,
+            } => client
+                .get_vesting_delegation(&address, mix_id, block_timestamp_secs)
+                .ignore(),
+            VestingQueryMsg::GetTotalDelegationAmount { address, mix_id } => client
+                .get_total_delegation_amount(&address, mix_id)
+                .ignore(),
+            VestingQueryMsg::GetDelegationTimes { address, mix_id } => {
+                client.get_delegation_timestamps(&address, mix_id).ignore()
+            }
+            VestingQueryMsg::GetAllDelegations { start_after, limit } => client
+                .get_all_vesting_delegations_paged(start_after, limit)
+                .ignore(),
+        };
     }
 }

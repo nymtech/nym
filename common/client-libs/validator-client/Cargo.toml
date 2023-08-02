@@ -45,8 +45,10 @@ tendermint-rpc = { workspace = true }
 
 eyre = { version = "0.6" }
 cw-utils = { workspace = true }
+cw2 = { workspace = true }
 cw3 = { workspace = true }
 cw4 = { workspace = true }
+cw-controllers = { workspace = true }
 prost = { version = "0.11", default-features = false }
 flate2 = { version = "1.0.20" }
 sha2 = { version = "0.9.5" }

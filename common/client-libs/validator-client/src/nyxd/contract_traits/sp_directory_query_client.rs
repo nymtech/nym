@@ -1,3 +1,4 @@
+use crate::collect_paged;
 use async_trait::async_trait;
 use cosmrs::AccountId;
 use nym_contracts_common::{signing::Nonce, ContractBuildInformation};
@@ -64,21 +65,9 @@ pub trait SpDirectoryQueryClient {
             .await
     }
 
-    async fn get_all_services(&self) -> Result<Vec<Service>, NyxdError> {
-        let mut services = Vec::new();
-        let mut start_after = None;
-        loop {
-            let mut paged_response = self.get_services_paged(start_after.take(), None).await?;
-            services.append(&mut paged_response.services);
-
-            if let Some(start_after_res) = paged_response.start_next_after {
-                start_after = Some(start_after_res)
-            } else {
-                break;
-            }
-        }
-
-        Ok(services)
+    async fn get_sp_contract_cw2_version(&self) -> Result<cw2::ContractVersion, NyxdError> {
+        self.query_service_provider_contract(SpQueryMsg::GetCW2ContractVersion {})
+            .await
     }
 
     async fn get_service_signing_nonce(&self, address: &AccountId) -> Result<Nonce, NyxdError> {
@@ -88,6 +77,16 @@ pub trait SpDirectoryQueryClient {
         .await
     }
 }
+
+#[async_trait]
+pub trait PagedSpDirectoryQueryClient: SpDirectoryQueryClient {
+    async fn get_all_services(&self) -> Result<Vec<Service>, NyxdError> {
+        collect_paged!(self, get_services_paged, services)
+    }
+}
+
+#[async_trait]
+impl<T> PagedSpDirectoryQueryClient for T where T: SpDirectoryQueryClient {}
 
 #[async_trait]
 impl<C> SpDirectoryQueryClient for C
@@ -110,13 +109,31 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::nyxd::contract_traits::tests::IgnoreValue;
 
-    // it's enough that this compiles
-    #[deprecated]
-    async fn all_query_variants_are_covered<C: SpDirectoryQueryClient + Send + Sync>(
+    // it's enough that this compiles and clippy is happy about it
+    #[allow(dead_code)]
+    fn all_query_variants_are_covered<C: SpDirectoryQueryClient + Send + Sync>(
         client: C,
         msg: SpQueryMsg,
     ) {
-        unimplemented!()
+        match msg {
+            SpQueryMsg::ServiceId { service_id } => client.get_service_info(service_id).ignore(),
+            SpQueryMsg::ByAnnouncer { announcer } => client
+                .get_services_by_announcer(announcer.parse().unwrap())
+                .ignore(),
+            SpQueryMsg::ByNymAddress { nym_address } => {
+                client.get_services_by_nym_address(nym_address).ignore()
+            }
+            SpQueryMsg::All { limit, start_after } => {
+                client.get_services_paged(start_after, limit).ignore()
+            }
+            SpQueryMsg::SigningNonce { address } => client
+                .get_service_signing_nonce(&address.parse().unwrap())
+                .ignore(),
+            SpQueryMsg::Config {} => client.get_service_config().ignore(),
+            SpQueryMsg::GetContractVersion {} => client.get_sp_contract_version().ignore(),
+            SpQueryMsg::GetCW2ContractVersion {} => client.get_sp_contract_cw2_version().ignore(),
+        };
     }
 }

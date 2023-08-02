@@ -65,12 +65,12 @@ pub trait DkgQueryClient {
 
     async fn get_dealings_paged(
         &self,
-        idx: usize,
+        idx: u64,
         start_after: Option<String>,
         limit: Option<u32>,
     ) -> Result<PagedDealingsResponse, NyxdError> {
         let request = DkgQueryMsg::GetDealing {
-            idx: idx as u64,
+            idx,
             limit,
             start_after,
         };
@@ -104,7 +104,7 @@ pub trait PagedDkgQueryClient: DkgQueryClient {
         collect_paged!(self, get_past_dealers_paged, dealers)
     }
 
-    async fn get_all_epoch_dealings(&self, idx: usize) -> Result<Vec<ContractDealing>, NyxdError> {
+    async fn get_all_epoch_dealings(&self, idx: u64) -> Result<Vec<ContractDealing>, NyxdError> {
         collect_paged!(self, get_dealings_paged, dealings, idx)
     }
 
@@ -139,13 +139,41 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::nyxd::contract_traits::tests::IgnoreValue;
 
-    // it's enough that this compiles
-    #[deprecated]
-    async fn all_query_variants_are_covered<C: DkgQueryClient + Send + Sync>(
+    // it's enough that this compiles and clippy is happy about it
+    #[allow(dead_code)]
+    fn all_query_variants_are_covered<C: DkgQueryClient + Send + Sync>(
         client: C,
         msg: DkgQueryMsg,
     ) {
-        unimplemented!()
+        match msg {
+            DkgQueryMsg::GetCurrentEpochState {} => client.get_current_epoch().ignore(),
+            DkgQueryMsg::GetCurrentEpochThreshold {} => {
+                client.get_current_epoch_threshold().ignore()
+            }
+            DkgQueryMsg::GetInitialDealers {} => client.get_initial_dealers().ignore(),
+            DkgQueryMsg::GetDealerDetails { dealer_address } => client
+                .get_dealer_details(&dealer_address.parse().unwrap())
+                .ignore(),
+            DkgQueryMsg::GetCurrentDealers { limit, start_after } => client
+                .get_current_dealers_paged(start_after, limit)
+                .ignore(),
+            DkgQueryMsg::GetPastDealers { limit, start_after } => {
+                client.get_past_dealers_paged(start_after, limit).ignore()
+            }
+            DkgQueryMsg::GetDealing {
+                idx,
+                limit,
+                start_after,
+            } => client.get_dealings_paged(idx, start_after, limit).ignore(),
+            DkgQueryMsg::GetVerificationKeys {
+                epoch_id,
+                limit,
+                start_after,
+            } => client
+                .get_vk_shares_paged(epoch_id, start_after, limit)
+                .ignore(),
+        };
     }
 }

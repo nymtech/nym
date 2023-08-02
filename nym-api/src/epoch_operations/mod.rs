@@ -33,7 +33,7 @@ mod rewarding;
 mod transition_beginning;
 
 pub struct RewardedSetUpdater {
-    ephemera_reward_manager: RewardManager,
+    ephemera_reward_manager: Option<RewardManager>,
     nyxd_client: Client,
     nym_contract_cache: NymContractCache,
     storage: NymApiStorage,
@@ -47,7 +47,7 @@ impl RewardedSetUpdater {
     }
 
     pub(crate) fn new(
-        ephemera_reward_manager: RewardManager,
+        ephemera_reward_manager: Option<RewardManager>,
         nyxd_client: Client,
         nym_contract_cache: NymContractCache,
         storage: NymApiStorage,
@@ -91,12 +91,13 @@ impl RewardedSetUpdater {
     /// 7. it purges old (older than 48h) measurement data
     /// 8. the whole process repeats once the new epoch finishes
     async fn perform_epoch_operations(&mut self, interval: Interval) -> Result<(), RewardingError> {
-        let raw_rewards = self.nodes_to_reward(interval).await;
-        let mut to_reward = self
-            .ephemera_reward_manager
-            .perform_epoch_operations(raw_rewards)
-            .await?;
-        to_reward.sort_by_key(|a| a.mix_id);
+        let mut rewards = self.nodes_to_reward(interval).await;
+        if let Some(ephemera_reward_manager) = self.ephemera_reward_manager.as_mut() {
+            rewards = ephemera_reward_manager
+                .perform_epoch_operations(rewards)
+                .await?;
+        }
+        rewards.sort_by_key(|a| a.mix_id);
 
         log::info!("The current epoch has finished.");
         log::info!(
@@ -141,8 +142,7 @@ impl RewardedSetUpdater {
 
         // Reward all the nodes in the still current, soon to be previous rewarded set
         log::info!("Rewarding the current rewarded set...");
-        self.reward_current_rewarded_set(&to_reward, interval)
-            .await?;
+        self.reward_current_rewarded_set(&rewards, interval).await?;
 
         // note: those operations don't really have to be atomic, so it's fine to send them
         // as separate transactions
@@ -274,7 +274,7 @@ impl RewardedSetUpdater {
     }
 
     pub(crate) fn start(
-        ephemera_reward_manager: RewardManager,
+        ephemera_reward_manager: Option<RewardManager>,
         nyxd_client: Client,
         nym_contract_cache: &NymContractCache,
         storage: &NymApiStorage,

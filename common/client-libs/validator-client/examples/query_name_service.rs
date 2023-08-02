@@ -3,7 +3,9 @@ use std::str::FromStr;
 use cosmrs::AccountId;
 use nym_name_service_common::Address;
 use nym_network_defaults::{setup_env, NymNetworkDetails};
-use nym_validator_client::nyxd::contract_traits::NameServiceQueryClient;
+use nym_validator_client::nyxd::contract_traits::{
+    NameServiceQueryClient, PagedNameServiceQueryClient,
+};
 
 #[tokio::main]
 async fn main() {

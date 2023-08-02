@@ -241,7 +241,7 @@ describe("Get mixnode data", (): void => {
       expect(response).toBeNull();
     } else {
       response.forEach(function (value) {
-        expect(typeof value).toBe("string");
+        expect(typeof value).toBe("number");
       });
     }
   });

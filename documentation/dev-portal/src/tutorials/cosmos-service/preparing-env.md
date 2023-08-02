@@ -28,16 +28,17 @@ cargo new nym-cosmos-service
 * Add the following dependencies to your `Cargo.toml` file:
 ```
 [dependencies]
-anyhow = "1.0.72"
 clap = { version = "4.0", features = ["derive"] }
-bip39 = { version = "2.0.0", features = ["zeroize"] }
 cosmrs = "=0.14.0"
-TODO
-# tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
-tokio = "1.24.1"
-bs58 = "0.5.0"
+tokio = { version = "1.24.1", features = ["rt-multi-thread", "macros"] }
 serde = "1.0.152"
 serde_json = "1.0.91"
+nym-sdk = { git = "https://github.com/nymtech/nym", rev = "5dacf0c8f8775de6168d4da808fdce56e1ac2706" }
+nym-sphinx-addressing = { git = "https://github.com/nymtech/nym", rev = "5dacf0c8f8775de6168d4da808fdce56e1ac2706" }
+nym-validator-client = { git = "https://github.com/nymtech/nym", rev = "5dacf0c8f8775de6168d4da808fdce56e1ac2706" }
+nym-bin-common = { git = "https://github.com/nymtech/nym", rev = "5dacf0c8f8775de6168d4da808fdce56e1ac2706" }
+nym-sphinx-anonymous-replies = { git = "https://github.com/nymtech/nym", rev = "5dacf0c8f8775de6168d4da808fdce56e1ac2706" }
+anyhow = "1.0.72"
 ```
 
 These are non Nym-specific dependencies for the project. `anyhow` is for catch-all error handling, `clap` is for setting up the CLI commands, `cosmrs` for cosmos-specific types and functionality, `tokio` for the async/await environment, and `serde` for (de)serialisation.

@@ -34,7 +34,7 @@ use nym_validator_client::nyxd::{
         CoconutBandwidthQueryClient, DkgQueryClient, DkgSigningClient, GroupQueryClient,
         MixnetQueryClient, MixnetSigningClient, MultisigQueryClient, MultisigSigningClient,
         NymContractsProvider, PagedMixnetQueryClient, PagedMultisigQueryClient,
-        SpDirectoryQueryClient, VestingQueryClient,
+        PagedVestingQueryClient, SpDirectoryQueryClient,
     },
     cosmwasm_client::types::ExecuteResult,
     CosmWasmClient, Fee,

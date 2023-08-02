@@ -13,3 +13,7 @@ serde = { workspace = true, features = ["derive"] }
 
 nym-crypto = { path = "../../crypto", features = ["hashing", "symmetric"] }
 nym-sphinx-types = { path = "../types" }
+
+[features]
+sphinx = ["nym-crypto/sphinx", "nym-sphinx-types/outfox"]
+outfox = ["nym-crypto/outfox", "nym-sphinx-types/outfox"]

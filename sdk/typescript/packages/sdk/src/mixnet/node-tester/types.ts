@@ -25,8 +25,6 @@ export interface NodeTesterLoadedEvent {
   };
 }
 
-export type Network = 'QA' | 'SANDBOX' | 'MAINNET';
-
 export type NodeTestResultResponse = {
   score: number;
   sentPackets: number;
@@ -35,31 +33,3 @@ export type NodeTestResultResponse = {
   duplicatePackets: number;
   duplicateAcks: number;
 };
-
-export type Error = {
-  kind: 'Error';
-  args: { message: string };
-};
-
-export type WorkerLoaded = {
-  kind: 'WorkerLoaded';
-};
-
-export type DisplayTesterResults = {
-  kind: 'DisplayTesterResults';
-  args: {
-    result: NodeTestResultResponse;
-  };
-};
-
-export type TestPacket = {
-  kind: 'TestPacket';
-  args: {
-    mixnodeIdentity: string;
-    network: Network;
-  };
-};
-
-export type TestStatus = 'Stopped' | 'Running' | 'Complete';
-
-export type NodeTestEvent = Error | DisplayTesterResults | TestPacket | WorkerLoaded;

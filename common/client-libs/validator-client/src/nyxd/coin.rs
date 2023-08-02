@@ -52,7 +52,6 @@ impl<'a> Div<GasPrice> for &'a Coin {
         } else {
             implicit_gas_limit.u128() as u64
         }
-        .into()
     }
 }
 
@@ -191,32 +190,32 @@ mod tests {
         let amount = Coin::new(3938, "unym");
         let gas_price = "0.025unym".parse().unwrap();
         let res = amount / gas_price;
-        assert_eq!(157520, res.value());
+        assert_eq!(157520, res);
 
         let amount = Coin::new(1234567890, "unym");
         let gas_price = "0.025unym".parse().unwrap();
         let res = amount / gas_price;
-        assert_eq!(49382715600, res.value());
+        assert_eq!(49382715600, res);
 
         let amount = Coin::new(1, "unym");
         let gas_price = "0.025unym".parse().unwrap();
         let res = amount / gas_price;
-        assert_eq!(40, res.value());
+        assert_eq!(40, res);
 
         let amount = Coin::new(150_000_000, "unym");
         let gas_price = "0.001234unym".parse().unwrap();
         let res = amount / gas_price;
-        assert_eq!(121555915721, res.value());
+        assert_eq!(121555915721, res);
 
         let amount = Coin::new(150_000_000, "unym");
         let gas_price = "1unym".parse().unwrap();
         let res = amount / gas_price;
-        assert_eq!(150_000_000, res.value());
+        assert_eq!(150_000_000, res);
 
         let amount = Coin::new(150_000_000, "unym");
         let gas_price = "1234.56unym".parse().unwrap();
         let res = amount / gas_price;
-        assert_eq!(121500, res.value());
+        assert_eq!(121500, res);
     }
 
     #[test]

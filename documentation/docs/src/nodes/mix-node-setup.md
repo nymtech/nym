@@ -84,15 +84,15 @@ To check available configuration options for initializing your node use:
 ```
 ~~~
 
-Initalise your mixnode with the following command, replacing the value of `--id` with the moniker you wish to give your mixnode, and the `--wallet-address` with the Nym address you created earlier. Your `--host` must be publicly routable on the internet in order to mix packets, and can be either an Ipv4 or IPv6 address. The `$(curl ifconfig.me)` command returns your IP automatically using an external service. If you enter your IP address manually, enter it **without** any port information.
+Initalise your mixnode with the following command, replacing the value of `--id` with the moniker you wish to give your mixnode. Your `--host` must be publicly routable on the internet in order to mix packets, and can be either an Ipv4 or IPv6 address. The `$(curl ifconfig.me)` command returns your IP automatically using an external service. If you enter your IP address manually, enter it **without** any port information.
 
 ```
-./nym-mixnode init --id winston-smithnode --host $(curl ifconfig.me) --wallet-address n1eufxdlgt0puwrwptgjfqne8pj4nhy2u5ft62uq
+./nym-mixnode init --id winston-smithnode --host $(curl ifconfig.me) 
 ```
 
 ~~~admonish example collapsible=true title="Console output"
 ```
- <!-- cmdrun ../../../../target/release/nym-mixnode init --id winston-smithnode --host $(curl ifconfig.me) --wallet-address n1eufxdlgt0puwrwptgjfqne8pj4nhy2u5ft62uq -->
+ <!-- cmdrun ../../../../target/release/nym-mixnode init --id winston-smithnode --host $(curl ifconfig.me) -->
 ```
 ~~~
 
@@ -190,8 +190,6 @@ Follow these steps to upgrade your mix node binary and update its config file:
 * replace the existing binary with the newest binary (which you can either compile yourself or grab from our [releases page](https://github.com/nymtech/nym/releases)).
 * re-run `init` with the same values as you used initially. **This will just update the config file, it will not overwrite existing keys**.
 * restart your mix node process with the new binary.
-
-> Do **not** use the `upgrade` command: there is a known error with the command that will be fixed in a subsequent release.
 
 #### Step 2: updating your node information in the smart contract
 Follow these steps to update the information about your mix node which is publically avaliable from the [Nym API](https://validator.nymtech.net/api/swagger/index.html) and information displayed on the [mixnet explorer](https://explorer.nymtech.net).

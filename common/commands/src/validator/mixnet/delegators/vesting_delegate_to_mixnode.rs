@@ -6,7 +6,7 @@ use log::info;
 
 use nym_mixnet_contract_common::{Coin, MixId};
 use nym_validator_client::nyxd::traits::MixnetQueryClient;
-use nym_validator_client::nyxd::VestingSigningClient;
+use nym_validator_client::nyxd::traits::VestingSigningClient;
 
 use crate::context::SigningClient;
 

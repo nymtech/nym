@@ -4,8 +4,8 @@ import { Box, FormControl, FormControlLabel, FormHelperText, Stack, Switch, Typo
 import { useClientContext } from 'src/context/main';
 
 export const MonitoringSettings = () => {
-  const { monitoringEnabled, setMonitoring } = useClientContext();
-  const [enabled, setEnabled] = useState(monitoringEnabled);
+  const { userData, setMonitoring } = useClientContext();
+  const [enabled, setEnabled] = useState(userData?.monitoring || false);
   const [loading, setLoading] = useState(false);
 
   const handleChange = async (e: ChangeEvent<HTMLInputElement>) => {
@@ -25,7 +25,13 @@ export const MonitoringSettings = () => {
           <FormControl fullWidth>
             <FormControlLabel
               control={
-                <Switch checked={enabled} onChange={handleChange} disabled={loading} size="small" sx={{ ml: 1 }} />
+                <Switch
+                  checked={enabled}
+                  onChange={handleChange}
+                  disabled={loading}
+                  size="small"
+                  sx={{ ml: 1, mr: 1 }}
+                />
               }
               label="Enable"
             />

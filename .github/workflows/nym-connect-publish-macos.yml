@@ -31,10 +31,20 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: 18
+
       - name: Install Rust stable
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
+          target: wasm32-unknown-unknown
+
+      - name: Install wasm-pack
+        run: |
+          export WASM_PACK_VERSION="v0.12.1" 
+          curl -LO https://github.com/rustwasm/wasm-pack/releases/download/${WASM_PACK_VERSION}/wasm-pack-${WASM_PACK_VERSION}-x86_64-apple-darwin.tar.gz
+          tar xvzf wasm-pack-${WASM_PACK_VERSION}-x86_64-apple-darwin.tar.gz -C $HOME/.cargo/bin --strip-components=1
+          rm wasm-pack-${WASM_PACK_VERSION}-x86_64-apple-darwin.tar.gz
+
       - name: Install the Apple developer certificate for code signing
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
@@ -78,6 +88,8 @@ jobs:
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
           TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+          SENTRY_DSN_RUST: ${{ secrets.SENTRY_DSN_RUST }}
+          SENTRY_DSN_JS: ${{ secrets.SENTRY_DSN_JS }}
         run: yarn && yarn build
 
       - name: Upload Artifact
@@ -103,9 +115,10 @@ jobs:
       - id: release-info
         name: Prepare release info
         run: |
-          semver="${${{ github.ref_name }}##nym-connect-}" && semver="${semver##v}"
-          echo "version=$semver" >> "$GITHUB_OUTPUT"
-          echo "filename=nym-connect_$version_x64.dmg" >> "$GITHUB_OUTPUT"
+          ref=${{ github.ref_name }}
+          semver="${ref##nym-connect-}" && semver="${semver##v}"
+          echo "version=${semver}" >> "$GITHUB_OUTPUT"
+          echo "filename=nym-connect_${semver}_x64.dmg " >> "$GITHUB_OUTPUT"
           echo "file_hash=${{ hashFiles('nym-connect/desktop/target/release/bundle/dmg/nym-connect_*_x64.dmg') }}" >> "$GITHUB_OUTPUT"
 
   push-release-data:

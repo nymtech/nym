@@ -2,7 +2,6 @@ export interface ServiceProvider {
   id: string;
   description: string;
   address: string;
-  gateway: string;
 }
 
 export interface Service {
@@ -12,3 +11,7 @@ export interface Service {
 }
 
 export type Services = Service[];
+
+export interface Gateway {
+  identity: string;
+}

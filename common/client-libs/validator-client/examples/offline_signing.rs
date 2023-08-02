@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use cosmrs::bank::MsgSend;
-use cosmrs::rpc::{self, HttpClient};
+use cosmrs::rpc::HttpClient;
 use cosmrs::tx::Msg;
 use cosmrs::{tx, AccountId, Coin, Denom};
 use nym_validator_client::nyxd::CosmWasmClient;
@@ -54,7 +54,7 @@ async fn main() {
             denom,
             amount: 2500u32.into(),
         },
-        100000,
+        100000u32,
     );
 
     let tx_raw = tx_signer
@@ -70,7 +70,7 @@ async fn main() {
         .unwrap();
 
     // broadcast the tx
-    let res = rpc::Client::broadcast_tx_commit(&broadcaster, tx_bytes.into())
+    let res = tendermint_rpc::client::Client::broadcast_tx_commit(&broadcaster, tx_bytes)
         .await
         .unwrap();
 

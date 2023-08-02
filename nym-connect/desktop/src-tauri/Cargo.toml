@@ -1,6 +1,6 @@
 [package]
 name = "nym-connect"
-version = "1.1.13"
+version = "1.1.15"
 description = "nym-connect"
 authors = ["Nym Technologies SA"]
 license = ""
@@ -37,13 +37,16 @@ serde_json = "1.0"
 serde_repr = "0.1"
 tap = "1.0.1"
 tauri = { version = "^1.2.2", features = ["clipboard-write-text", "macos-private-api", "notification-all", "shell-open", "system-tray", "updater", "window-close", "window-minimize", "window-start-dragging"] }
-tendermint-rpc = "0.23.0"
+#tendermint-rpc = "0.23.0"
 thiserror = "1.0"
 time = { version = "0.3.17", features = ["local-offset"] }
 tokio = { version = "1.24.1", features = ["sync", "time"] }
 url = "2.2"
 yaml-rust = "0.4"
-
+toml = "0.7"
+sentry = { version = "0.31.5", features = [ "anyhow" ] }
+sentry-log = "0.31.5"
+dotenvy = "0.15.7"
 
 nym-client-core = { path = "../../../common/client-core" }
 nym-api-requests = { path = "../../../nym-api/nym-api-requests" }

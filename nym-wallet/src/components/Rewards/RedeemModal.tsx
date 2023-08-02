@@ -1,12 +1,13 @@
-import React, { useEffect } from 'react';
+import React, { useContext, useEffect } from 'react';
 import { IdentityKeyFormField } from '@nymproject/react/mixnodes/IdentityKeyFormField';
 import { CurrencyDenom, FeeDetails } from '@nymproject/types';
-import { SxProps } from '@mui/material';
+import { Box, SxProps } from '@mui/material';
 import { useGetFee } from 'src/hooks/useGetFee';
 import { simulateClaimDelegatorReward, simulateVestingClaimDelegatorReward } from 'src/requests';
+import { AppContext } from 'src/context';
 import { ModalFee } from '../Modals/ModalFee';
 import { SimpleModal } from '../Modals/SimpleModal';
-import { FeeWarning } from '../FeeWarning';
+import { BalanceWarning, FeeWarning } from '../FeeWarning';
 import { ModalListItem } from '../Modals/ModalListItem';
 
 export const RedeemModal: FCWithChildren<{
@@ -23,6 +24,7 @@ export const RedeemModal: FCWithChildren<{
   usesVestingTokens: boolean;
 }> = ({ open, onClose, onOk, mixId, identityKey, amount, denom, message, usesVestingTokens, sx, backdropProps }) => {
   const { fee, isFeeLoading, feeError, getFee } = useGetFee();
+  const { userBalance } = useContext(AppContext);
 
   const handleOk = async () => {
     if (onOk) {
@@ -56,6 +58,11 @@ export const RedeemModal: FCWithChildren<{
       <ModalFee fee={fee} isLoading={isFeeLoading} error={feeError} divider />
       <ModalListItem label="Rewards will be transferred to account you are logged in with now" value="" divider />
       {fee && <FeeWarning amount={amount} fee={fee} />}
+      {userBalance.balance?.amount.amount && fee?.amount?.amount && (
+        <Box sx={{ my: 2 }}>
+          <BalanceWarning fee={fee?.amount?.amount} />
+        </Box>
+      )}
     </SimpleModal>
   );
 };

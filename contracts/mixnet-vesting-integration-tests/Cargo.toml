@@ -22,7 +22,7 @@ nym-mixnet-contract = { path = "../mixnet" }
 nym-vesting-contract = { path = "../vesting" }
 
 # other local dependencies
-nym-crypto = { path = "../../common/crypto", features = ["asymmetric", "rand", "sphinx-only"] }
+nym-crypto = { path = "../../common/crypto", features = ["asymmetric", "rand"] }
 
 # external dependencies
 rand_chacha = "0.2"

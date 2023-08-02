@@ -1,10 +1,10 @@
 // Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{PacketType, FRAG_ID_LEN};
-use nym_sphinx_types::header::HEADER_SIZE;
+use crate::PacketType;
 use nym_sphinx_types::{
-    MIN_PACKET_SIZE, MIX_PARAMS_LEN, OUTFOX_PACKET_OVERHEAD, PAYLOAD_OVERHEAD_SIZE,
+    header::HEADER_SIZE, MIN_PACKET_SIZE, MIX_PARAMS_LEN, OUTFOX_PACKET_OVERHEAD,
+    PAYLOAD_OVERHEAD_SIZE,
 };
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
@@ -22,9 +22,10 @@ const SPHINX_PACKET_OVERHEAD: usize = HEADER_SIZE + PAYLOAD_OVERHEAD_SIZE;
 
 // TODO: I'm not entirely sure if we can easily extract `<AckEncryptionAlgorithm as NewStreamCipher>::NonceSize`
 // into a const usize before relevant stuff is stabilised in rust...
+
 const ACK_IV_SIZE: usize = 16;
 
-const ACK_PACKET_SIZE: usize = ACK_IV_SIZE + FRAG_ID_LEN + SPHINX_PACKET_OVERHEAD;
+const ACK_PACKET_SIZE: usize = ACK_IV_SIZE + crate::FRAG_ID_LEN + SPHINX_PACKET_OVERHEAD;
 const REGULAR_PACKET_SIZE: usize = 2 * 1024 + SPHINX_PACKET_OVERHEAD;
 const EXTENDED_PACKET_SIZE_8: usize = 8 * 1024 + SPHINX_PACKET_OVERHEAD;
 const EXTENDED_PACKET_SIZE_16: usize = 16 * 1024 + SPHINX_PACKET_OVERHEAD;
@@ -176,6 +177,7 @@ impl PacketSize {
     }
 
     pub const fn payload_overhead(&self) -> usize {
+        #[allow(unreachable_patterns)]
         match self {
             PacketSize::RegularPacket
             | PacketSize::AckPacket

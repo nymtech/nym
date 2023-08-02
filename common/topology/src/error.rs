@@ -41,6 +41,7 @@ pub enum NymTopologyError {
     PayloadBuilder,
 
     #[error("Outfox: {0}")]
+    #[cfg(feature = "outfox")]
     Outfox(#[from] nym_sphinx_types::OutfoxError),
 
     #[error("{0}")]

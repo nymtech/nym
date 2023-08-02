@@ -1,0 +1,19 @@
+{
+  "name": "@nymproject/sdk-example-node-tester-react",
+  "description": "An example project that uses WASM node tester and React",
+  "version": "1.0.0",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@emotion/react": "^11.11.1",
+    "@emotion/styled": "^11.11.0",
+    "@mui/icons-material": "^5.14.0",
+    "@mui/material": "^5.14.0",
+    "@nymproject/sdk": "1",
+    "parcel": "^2.9.3",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "scripts": {
+    "start": "parcel index.html"
+  }
+}

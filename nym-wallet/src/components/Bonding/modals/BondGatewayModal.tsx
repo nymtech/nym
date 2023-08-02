@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import { Box } from '@mui/material';
 import { CurrencyDenom, TNodeType } from '@nymproject/types';
 import { ConfirmTx } from 'src/components/ConfirmTX';
@@ -9,6 +9,8 @@ import { useGetFee } from 'src/hooks/useGetFee';
 import { GatewayAmount, GatewayData, Signature } from 'src/pages/bonding/types';
 import { simulateBondGateway, simulateVestingBondGateway } from 'src/requests';
 import { TBondGatewayArgs } from 'src/types';
+import { BalanceWarning } from 'src/components/FeeWarning';
+import { AppContext } from 'src/context';
 import { BondGatewayForm } from '../forms/BondGatewayForm';
 import { gatewayToTauri } from '../utils';
 
@@ -50,6 +52,7 @@ export const BondGatewayModal = ({
   const [signature, setSignature] = useState<string>();
 
   const { fee, getFee, resetFeeState, feeError } = useGetFee();
+  const { userBalance } = useContext(AppContext);
 
   useEffect(() => {
     if (feeError) {
@@ -123,6 +126,9 @@ export const BondGatewayModal = ({
           value={`${amountData.amount.amount} ${amountData.amount.denom.toUpperCase()}`}
           divider
         />
+        {fee.amount?.amount && userBalance.balance && (
+          <BalanceWarning fee={fee.amount?.amount} tx={amountData.amount.amount} />
+        )}
       </ConfirmTx>
     );
   }

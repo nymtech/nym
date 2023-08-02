@@ -1,10 +1,16 @@
 use std::env;
 
-fn main() {
-    if env::var_os("NYM_CONNECT_ENABLE_MEDIUM").is_some() {
-        println!("cargo:rustc-cfg=medium_enabled");
-    }
-    println!("cargo:rerun-if-changed=build.rs");
+mod constants;
 
+use constants::{SENTRY_DSN_JS, SENTRY_DSN_RUST};
+
+fn main() {
+    // set these env vars at compile time
+    if let Ok(dsn) = env::var(SENTRY_DSN_RUST) {
+        println!("cargo:rustc-env={}={}", SENTRY_DSN_RUST, dsn);
+    }
+    if let Ok(dsn) = env::var(SENTRY_DSN_JS) {
+        println!("cargo:rustc-env={}={}", SENTRY_DSN_JS, dsn);
+    }
     tauri_build::build();
 }

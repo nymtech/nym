@@ -13,7 +13,7 @@ use crate::{reply, socks5};
 use async_trait::async_trait;
 use futures::channel::mpsc;
 use log::warn;
-use nym_bin_common::build_information::BinaryBuildInformation;
+use nym_bin_common::bin_info_owned;
 use nym_client_core::config::disk_persistence::CommonClientPaths;
 use nym_network_defaults::NymNetworkDetails;
 use nym_service_providers_common::interface::{
@@ -101,7 +101,7 @@ impl ServiceProvider<Socks5Request> for NRServiceProvider {
     ) -> Result<BinaryInformation, Self::ServiceProviderError> {
         Ok(BinaryInformation {
             binary_name: env!("CARGO_PKG_NAME").to_string(),
-            build_information: BinaryBuildInformation::new(env!("CARGO_PKG_VERSION")).to_owned(),
+            build_information: bin_info_owned!(),
         })
     }
 

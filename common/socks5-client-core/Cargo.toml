@@ -26,7 +26,7 @@ nym-service-providers-common = { path = "../../service-providers/common" }
 nym-socks5-requests = { path = "../socks5/requests" }
 nym-sphinx = { path = "../nymsphinx" }
 nym-task = { path = "../task" }
-nym-validator-client = { path = "../client-libs/validator-client", features = ["nyxd-client"] }
+nym-validator-client = { path = "../client-libs/validator-client" }
 
 [features]
 default = []

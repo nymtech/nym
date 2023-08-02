@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from 'react';
-import { invoke } from '@tauri-apps/api';
 import { Account, Balance, DecCoin, OriginalVestingResponse, Period, VestingAccountInfo } from '@nymproject/types';
 import {
   getVestingCoins,
@@ -11,6 +10,7 @@ import {
   getVestingAccountInfo,
   getSpendableRewardCoins,
   getSpendableVestedCoins,
+  userBalance,
 } from '../requests';
 import { Console } from '../utils/console';
 
@@ -101,8 +101,8 @@ export const useGetBalance = (clientDetails?: Account): TUseuserBalance => {
     setIsLoading(true);
     setError(undefined);
     try {
-      const bal = await invoke('get_balance');
-      setBalance(bal as Balance);
+      const bal = await userBalance();
+      setBalance(bal);
     } catch (err) {
       setError(err as string);
     } finally {

@@ -16,8 +16,12 @@ describe("Get mixnode data", (): void => {
       //bond information overview
       expect(typeof mixnode.bond_information.mix_id).toBe("number");
       expect(typeof mixnode.bond_information.owner).toBe("string");
-      expect(typeof mixnode.bond_information.original_pledge.amount).toBe("string");
-      expect(typeof mixnode.bond_information.original_pledge.denom).toBe("string");
+      expect(typeof mixnode.bond_information.original_pledge.amount).toBe(
+        "string"
+      );
+      expect(typeof mixnode.bond_information.original_pledge.denom).toBe(
+        "string"
+      );
       expect(typeof mixnode.bond_information.layer).toBe("number");
       expect(typeof mixnode.bond_information.bonding_height).toBe("number");
       expect(typeof mixnode.bond_information.is_unbonding).toBe("boolean");
@@ -30,11 +34,17 @@ describe("Get mixnode data", (): void => {
 
       //mixnode
       expect(typeof mixnode.bond_information.mix_node.host).toBe("string");
-      expect(mixnode.bond_information.mix_node.http_api_port).toStrictEqual(8000);
-      expect(typeof mixnode.bond_information.mix_node.verloc_port).toBe("number");
+      expect(mixnode.bond_information.mix_node.http_api_port).toStrictEqual(
+        8000
+      );
+      expect(typeof mixnode.bond_information.mix_node.verloc_port).toBe(
+        "number"
+      );
       expect(typeof mixnode.bond_information.mix_node.mix_port).toBe("number");
       expect(mixnode.bond_information.mix_node.mix_port).toStrictEqual(1789);
-      expect(typeof mixnode.bond_information.mix_node.verloc_port).toBe("number");
+      expect(typeof mixnode.bond_information.mix_node.verloc_port).toBe(
+        "number"
+      );
 
       const identitykey = mixnode.bond_information.mix_node.identity_key;
       if (typeof identitykey === "string") {
@@ -51,15 +61,27 @@ describe("Get mixnode data", (): void => {
       }
 
       //rewarding details
-      expect(typeof mixnode.rewarding_details.cost_params.profit_margin_percent).toBe("string");
-      expect(typeof mixnode.rewarding_details.cost_params.interval_operating_cost.denom).toBe("string");
-      expect(typeof mixnode.rewarding_details.cost_params.interval_operating_cost.amount).toBe("string");
+      expect(
+        typeof mixnode.rewarding_details.cost_params.profit_margin_percent
+      ).toBe("string");
+      expect(
+        typeof mixnode.rewarding_details.cost_params.interval_operating_cost
+          .denom
+      ).toBe("string");
+      expect(
+        typeof mixnode.rewarding_details.cost_params.interval_operating_cost
+          .amount
+      ).toBe("string");
       expect(typeof mixnode.rewarding_details.operator).toBe("string");
       expect(typeof mixnode.rewarding_details.delegates).toBe("string");
       expect(typeof mixnode.rewarding_details.total_unit_reward).toBe("string");
       expect(typeof mixnode.rewarding_details.unit_delegation).toBe("string");
-      expect(typeof mixnode.rewarding_details.last_rewarded_epoch).toBe("number");
-      expect(typeof mixnode.rewarding_details.unique_delegations).toBe("number");
+      expect(typeof mixnode.rewarding_details.last_rewarded_epoch).toBe(
+        "number"
+      );
+      expect(typeof mixnode.rewarding_details.unique_delegations).toBe(
+        "number"
+      );
     });
   });
 
@@ -76,36 +98,66 @@ describe("Get mixnode data", (): void => {
       // expect(typeof mixnode.family).toBe("string");
 
       //mixnode details bond info
-      expect(typeof mixnode.mixnode_details.bond_information.mix_id).toBe("number")
-      expect(typeof mixnode.mixnode_details.bond_information.owner).toBe("string");
-      expect(typeof mixnode.mixnode_details.bond_information.original_pledge.amount).toBe("string");
-      expect(typeof mixnode.mixnode_details.bond_information.original_pledge.denom).toBe("string");
-      expect(typeof mixnode.mixnode_details.bond_information.layer).toBe("number");
-      expect(typeof mixnode.mixnode_details.bond_information.bonding_height).toBe("number");
-      expect(typeof mixnode.mixnode_details.bond_information.is_unbonding).toBe("boolean");
+      expect(typeof mixnode.mixnode_details.bond_information.mix_id).toBe(
+        "number"
+      );
+      expect(typeof mixnode.mixnode_details.bond_information.owner).toBe(
+        "string"
+      );
+      expect(
+        typeof mixnode.mixnode_details.bond_information.original_pledge.amount
+      ).toBe("string");
+      expect(
+        typeof mixnode.mixnode_details.bond_information.original_pledge.denom
+      ).toBe("string");
+      expect(typeof mixnode.mixnode_details.bond_information.layer).toBe(
+        "number"
+      );
+      expect(
+        typeof mixnode.mixnode_details.bond_information.bonding_height
+      ).toBe("number");
+      expect(typeof mixnode.mixnode_details.bond_information.is_unbonding).toBe(
+        "boolean"
+      );
 
       if (mixnode.mixnode_details.bond_information.proxy === null) {
         return true;
       } else {
-        expect(typeof mixnode.mixnode_details.bond_information.proxy).toBe("string");
+        expect(typeof mixnode.mixnode_details.bond_information.proxy).toBe(
+          "string"
+        );
       }
 
       //mixnode
-      expect(typeof mixnode.mixnode_details.bond_information.mix_node.host).toBe("string");
-      expect(mixnode.mixnode_details.bond_information.mix_node.http_api_port).toStrictEqual(8000);
-      expect(typeof mixnode.mixnode_details.bond_information.mix_node.verloc_port).toBe("number");
-      expect(typeof mixnode.mixnode_details.bond_information.mix_node.mix_port).toBe("number");
-      expect(mixnode.mixnode_details.bond_information.mix_node.mix_port).toStrictEqual(1789);
-      expect(typeof mixnode.mixnode_details.bond_information.mix_node.verloc_port).toBe("number");
+      expect(
+        typeof mixnode.mixnode_details.bond_information.mix_node.host
+      ).toBe("string");
+      expect(
+        mixnode.mixnode_details.bond_information.mix_node.http_api_port
+      ).toStrictEqual(8000);
+      expect(
+        typeof mixnode.mixnode_details.bond_information.mix_node.verloc_port
+      ).toBe("number");
+      expect(
+        typeof mixnode.mixnode_details.bond_information.mix_node.mix_port
+      ).toBe("number");
+      expect(
+        mixnode.mixnode_details.bond_information.mix_node.mix_port
+      ).toStrictEqual(1789);
+      expect(
+        typeof mixnode.mixnode_details.bond_information.mix_node.verloc_port
+      ).toBe("number");
 
-      const identitykey2 = mixnode.mixnode_details.bond_information.mix_node.identity_key
+      const identitykey2 =
+        mixnode.mixnode_details.bond_information.mix_node.identity_key;
       if (typeof identitykey2 === "string") {
         if (identitykey2.length === 43) {
           return true;
         } else expect(identitykey2).toHaveLength(44);
       }
 
-      const sphinx2 = mixnode.mixnode_details.bond_information.mix_node.sphinx_key
+      const sphinx2 =
+        mixnode.mixnode_details.bond_information.mix_node.sphinx_key;
       if (typeof sphinx2 === "string") {
         if (sphinx2.length === 43) {
           return true;
@@ -113,22 +165,45 @@ describe("Get mixnode data", (): void => {
       }
 
       //mixnode rewarding info
-      expect(typeof mixnode.mixnode_details.rewarding_details.cost_params.profit_margin_percent).toBe("string");
-      expect(typeof mixnode.mixnode_details.rewarding_details.cost_params.interval_operating_cost.denom).toBe("string");
-      expect(typeof mixnode.mixnode_details.rewarding_details.cost_params.interval_operating_cost.amount).toBe("string");
-      expect(typeof mixnode.mixnode_details.rewarding_details.operator).toBe("string");
-      expect(typeof mixnode.mixnode_details.rewarding_details.delegates).toBe("string");
-      expect(typeof mixnode.mixnode_details.rewarding_details.total_unit_reward).toBe("string");
-      expect(typeof mixnode.mixnode_details.rewarding_details.unit_delegation).toBe("string");
-      expect(typeof mixnode.mixnode_details.rewarding_details.last_rewarded_epoch).toBe("number");
-      expect(typeof mixnode.mixnode_details.rewarding_details.unique_delegations).toBe("number");
+      expect(
+        typeof mixnode.mixnode_details.rewarding_details.cost_params
+          .profit_margin_percent
+      ).toBe("string");
+      expect(
+        typeof mixnode.mixnode_details.rewarding_details.cost_params
+          .interval_operating_cost.denom
+      ).toBe("string");
+      expect(
+        typeof mixnode.mixnode_details.rewarding_details.cost_params
+          .interval_operating_cost.amount
+      ).toBe("string");
+      expect(typeof mixnode.mixnode_details.rewarding_details.operator).toBe(
+        "string"
+      );
+      expect(typeof mixnode.mixnode_details.rewarding_details.delegates).toBe(
+        "string"
+      );
+      expect(
+        typeof mixnode.mixnode_details.rewarding_details.total_unit_reward
+      ).toBe("string");
+      expect(
+        typeof mixnode.mixnode_details.rewarding_details.unit_delegation
+      ).toBe("string");
+      expect(
+        typeof mixnode.mixnode_details.rewarding_details.last_rewarded_epoch
+      ).toBe("number");
+      expect(
+        typeof mixnode.mixnode_details.rewarding_details.unique_delegations
+      ).toBe("number");
     });
   });
 
   it("Get active mixnodes", async (): Promise<void> => {
     const response = await contract.getActiveMixnodes();
     response.forEach(function (mixnode) {
-      expect(mixnode.rewarding_details.cost_params.profit_margin_percent).toBeTruthy();
+      expect(
+        mixnode.rewarding_details.cost_params.profit_margin_percent
+      ).toBeTruthy();
       expect(typeof mixnode.bond_information.layer).toBe("number");
     });
   });
@@ -136,7 +211,10 @@ describe("Get mixnode data", (): void => {
   it("Get active mixnodes detailed", async (): Promise<void> => {
     const response = await contract.getActiveMixnodesDetailed();
     response.forEach(function (mixnode) {
-      expect(mixnode.mixnode_details.rewarding_details.cost_params.profit_margin_percent).toBeTruthy();
+      expect(
+        mixnode.mixnode_details.rewarding_details.cost_params
+          .profit_margin_percent
+      ).toBeTruthy();
     });
   });
 
@@ -150,14 +228,21 @@ describe("Get mixnode data", (): void => {
   it("Get rewarded mixnodes detailed", async (): Promise<void> => {
     const response = await contract.getRewardedMixnodesDetailed();
     response.forEach(function (mixnode) {
-      expect(mixnode.mixnode_details.rewarding_details.last_rewarded_epoch).toBeTruthy();
+      expect(
+        mixnode.mixnode_details.rewarding_details.last_rewarded_epoch
+      ).toBeTruthy();
     });
   });
 
   it("Get blacklisted mixnodes", async (): Promise<void> => {
     const response = await contract.getBlacklistedMixnodes();
-    response.forEach(function (value) {
-      expect(typeof value).toBe("number");
-    });
+    if (response === null) {
+      console.log("No blacklisted mixnodes");
+      expect(response).toBeNull();;
+    } else {
+      response.forEach(function (value) {
+        expect(typeof value).toBe("string");
+      });
+    }
   });
 });

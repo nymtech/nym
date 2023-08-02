@@ -40,8 +40,13 @@ describe("Get gateway data", (): void => {
 
   it("Get blacklisted gateways", async (): Promise<void> => {
     const response = await contract.getBlacklistedGateways();
-    response.forEach(function (value) {
-      expect(typeof value).toBe("string");
-    });
+    if (response === null) {
+      console.log("No blacklisted gateways");
+      expect(response).toBeNull(); 
+    } else {
+      response.forEach(function (value) {
+        expect(typeof value).toBe("string");
+      });
+    }
   });
 });

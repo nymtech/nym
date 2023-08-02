@@ -40,7 +40,9 @@ describe("Get gateway data", (): void => {
       expect(identity_key).toStrictEqual(response.identity);
       expect(typeof response.owner).toBe("string");
     } else if ("message" in response) {
-      expect(response.message).toContain("could not find uptime history associated with gateway");
+      expect(response.message).toContain(
+        "could not find uptime history associated with gateway"
+      );
     }
   });
 
@@ -58,7 +60,9 @@ describe("Get gateway data", (): void => {
       expect(identity_key).toStrictEqual(response.identity);
       expect(typeof response.count).toBe("number");
     } else if ("message" in response) {
-      expect(response.message).toContain("could not find uptime history associated with mixnode");
+      expect(response.message).toContain(
+        "could not find uptime history associated with mixnode"
+      );
     }
   });
 

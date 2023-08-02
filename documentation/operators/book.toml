@@ -53,9 +53,9 @@ platform_release_version = "v1.1.22"
 wallet_release_version = "v1.2.5"
 
 
-# [preprocessor.last-changed]
-# command = "mdbook-last-changed"
-# renderer = ["html"]
+[preprocessor.last-changed]
+command = "mdbook-last-changed"
+renderer = ["html"]
 
 
 # used for grabbing output of binary commands for automation

@@ -41,7 +41,7 @@ describe("Get gateway data", (): void => {
   it("Get blacklisted gateways", async (): Promise<void> => {
     const response = await contract.getBlacklistedGateways();
     if (response === null) {
-      console.log("No blacklisted gateways");
+      // no blacklisted gateways returns an empty array
       expect(response).toBeNull(); 
     } else {
       response.forEach(function (value) {

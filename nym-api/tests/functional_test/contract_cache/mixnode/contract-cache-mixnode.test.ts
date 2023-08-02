@@ -237,7 +237,7 @@ describe("Get mixnode data", (): void => {
   it("Get blacklisted mixnodes", async (): Promise<void> => {
     const response = await contract.getBlacklistedMixnodes();
     if (response === null) {
-      console.log("No blacklisted mixnodes");
+      // no blacklisted mixnodes returns an empty array
       expect(response).toBeNull();;
     } else {
       response.forEach(function (value) {

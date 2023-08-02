@@ -28,14 +28,16 @@ mod sp_directory_signing_client;
 mod vesting_signing_client;
 
 // re-export query traits
-pub use coconut_bandwidth_query_client::CoconutBandwidthQueryClient;
+pub use coconut_bandwidth_query_client::{
+    CoconutBandwidthQueryClient, PagedCoconutBandwidthQueryClient,
+};
 pub use dkg_query_client::{DkgQueryClient, PagedDkgQueryClient};
-pub use group_query_client::GroupQueryClient;
+pub use group_query_client::{GroupQueryClient, PagedGroupQueryClient};
 pub use mixnet_query_client::{MixnetQueryClient, PagedMixnetQueryClient};
 pub use multisig_query_client::{MultisigQueryClient, PagedMultisigQueryClient};
-pub use name_service_query_client::NameServiceQueryClient;
-pub use sp_directory_query_client::SpDirectoryQueryClient;
-pub use vesting_query_client::VestingQueryClient;
+pub use name_service_query_client::{NameServiceQueryClient, PagedNameServiceQueryClient};
+pub use sp_directory_query_client::{PagedSpDirectoryQueryClient, SpDirectoryQueryClient};
+pub use vesting_query_client::{PagedVestingQueryClient, VestingQueryClient};
 
 // re-export signing traits
 pub use coconut_bandwidth_signing_client::CoconutBandwidthSigningClient;
@@ -152,4 +154,20 @@ macro_rules! collect_paged {
             }
         }
     }};
+}
+
+#[cfg(test)]
+mod tests {
+    pub(crate) trait IgnoreValue {
+        fn ignore(self) -> u32
+        where
+            Self: Sized,
+        {
+            42
+            // reason we're returning a value as opposed to just `()` is that whenever we match on all enums
+            // we don't want to accidentally miss a variant because compiler will treat it the same way
+        }
+    }
+
+    impl<T> IgnoreValue for T {}
 }

@@ -704,8 +704,7 @@ where
 mod tests {
     use super::*;
 
-    // it's enough that this compiles
-    #[deprecated]
+    // it's enough that this compiles and clippy is happy about it
     async fn all_execute_variants_are_covered<C: MixnetSigningClient + Send + Sync>(
         client: C,
         msg: MixnetExecuteMsg,

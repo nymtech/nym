@@ -33,6 +33,7 @@ use nym_mixnet_contract_common::{
     RewardedSetNodeStatus, UnbondedMixnode,
 };
 use serde::Deserialize;
+use std::collections::HashSet;
 
 #[async_trait]
 pub trait MixnetQueryClient {
@@ -44,6 +45,11 @@ pub trait MixnetQueryClient {
 
     async fn get_mixnet_contract_version(&self) -> Result<ContractBuildInformation, NyxdError> {
         self.query_mixnet_contract(MixnetQueryMsg::GetContractVersion {})
+            .await
+    }
+
+    async fn get_mixnet_contract_cw2_version(&self) -> Result<cw2::ContractVersion, NyxdError> {
+        self.query_mixnet_contract(MixnetQueryMsg::GetCW2ContractVersion {})
             .await
     }
 
@@ -452,6 +458,20 @@ pub trait MixnetQueryClient {
         self.query_mixnet_contract(MixnetQueryMsg::GetFamilyByHead { head })
             .await
     }
+
+    // TODO: make sure the type matches after https://github.com/nymtech/nym/pull/3693 is merged
+    async fn get_family_members_by_head(&self, head: String) -> Result<HashSet<String>, NyxdError> {
+        self.query_mixnet_contract(MixnetQueryMsg::GetFamilyMembersByHead { head })
+            .await
+    }
+
+    async fn get_family_members_by_label(
+        &self,
+        label: String,
+    ) -> Result<HashSet<String>, NyxdError> {
+        self.query_mixnet_contract(MixnetQueryMsg::GetFamilyMembersByLabel { label })
+            .await
+    }
 }
 
 // extension trait to the query client to deal with the paged queries
@@ -559,107 +579,175 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::nyxd::contract_traits::tests::IgnoreValue;
 
-    // it's enough that this compiles
-    #[deprecated]
-    async fn all_query_variants_are_covered<C: MixnetQueryClient + Send + Sync>(
+    // it's enough that this compiles and clippy is happy about it
+    #[allow(dead_code)]
+    fn all_query_variants_are_covered<C: MixnetQueryClient + Send + Sync>(
         client: C,
         msg: MixnetQueryMsg,
-    ) {
-        todo!()
-        // match msg {
-        //     MixnetQueryMsg::GetAllFamiliesPaged { limit, start_after } => client
-        //         .get_all_family_members_paged(limit, start_after)
-        //         .await
-        //         .map(|_| ()),
-        //     MixnetQueryMsg::GetAllMembersPaged { limit, start_after } => client
-        //         .get_all_family_members_paged(limit, start_after)
-        //         .await
-        //         .map(|_| ()),
-        //     MixnetQueryMsg::GetFamilyByHead { head } => {
-        //         client.get_node_family_by_head(head).await.map(|_| ())
-        //     }
-        //     MixnetQueryMsg::GetFamilyByLabel { label } => {
-        //         client.get_node_family_by_label(label).await.map(|_| ())
-        //     }
-        //     MixnetQueryMsg::GetFamilyMembersByHead { head } => todo!(),
-        //     MixnetQueryMsg::GetFamilyMembersByLabel { label } => todo!(),
-        //     MixnetQueryMsg::GetContractVersion {} => {
-        //         client.get_mixnet_contract_version().await.map(|_| ())
-        //     }
-        //     MixnetQueryMsg::GetCW2ContractVersion {} => todo!(),
-        //     MixnetQueryMsg::GetRewardingValidatorAddress {} => {
-        //         client.get_rewarding_validator_address().await.map(|_| ())
-        //     }
-        //     MixnetQueryMsg::GetStateParams {} => todo!(),
-        //     MixnetQueryMsg::GetState {} => client.get_mixnet_contract_state().await.map(|_| ()),
-        //     MixnetQueryMsg::GetRewardingParams {} => {}
-        //     MixnetQueryMsg::GetEpochStatus {} => {}
-        //     MixnetQueryMsg::GetCurrentIntervalDetails {} => {}
-        //     MixnetQueryMsg::GetRewardedSet { limit, start_after } => {}
-        //     MixnetQueryMsg::GetMixNodeBonds { limit, start_after } => {}
-        //     MixnetQueryMsg::GetMixNodesDetailed { limit, start_after } => {}
-        //     MixnetQueryMsg::GetUnbondedMixNodes { limit, start_after } => {}
-        //     MixnetQueryMsg::GetUnbondedMixNodesByOwner {
-        //         owner,
-        //         limit,
-        //         start_after,
-        //     } => {}
-        //     MixnetQueryMsg::GetUnbondedMixNodesByIdentityKey {
-        //         identity_key,
-        //         limit,
-        //         start_after,
-        //     } => {}
-        //     MixnetQueryMsg::GetOwnedMixnode { address } => {}
-        //     MixnetQueryMsg::GetMixnodeDetails { mix_id } => {}
-        //     MixnetQueryMsg::GetMixnodeRewardingDetails { mix_id } => {}
-        //     MixnetQueryMsg::GetStakeSaturation { mix_id } => {}
-        //     MixnetQueryMsg::GetUnbondedMixNodeInformation { mix_id } => {}
-        //     MixnetQueryMsg::GetBondedMixnodeDetailsByIdentity { mix_identity } => {}
-        //     MixnetQueryMsg::GetLayerDistribution {} => {}
-        //     MixnetQueryMsg::GetGateways { start_after, limit } => {}
-        //     MixnetQueryMsg::GetGatewayBond { identity } => {}
-        //     MixnetQueryMsg::GetOwnedGateway { address } => {}
-        //     MixnetQueryMsg::GetMixnodeDelegations {
-        //         mix_id,
-        //         start_after,
-        //         limit,
-        //     } => {}
-        //     MixnetQueryMsg::GetDelegatorDelegations {
-        //         delegator,
-        //         start_after,
-        //         limit,
-        //     } => {}
-        //     MixnetQueryMsg::GetDelegationDetails {
-        //         mix_id,
-        //         delegator,
-        //         proxy,
-        //     } => {}
-        //     MixnetQueryMsg::GetAllDelegations { start_after, limit } => {}
-        //     MixnetQueryMsg::GetPendingOperatorReward { address } => {}
-        //     MixnetQueryMsg::GetPendingMixNodeOperatorReward { mix_id } => {}
-        //     MixnetQueryMsg::GetPendingDelegatorReward {
-        //         address,
-        //         mix_id,
-        //         proxy,
-        //     } => {}
-        //     MixnetQueryMsg::GetEstimatedCurrentEpochOperatorReward {
-        //         mix_id,
-        //         estimated_performance,
-        //     } => {}
-        //     MixnetQueryMsg::GetEstimatedCurrentEpochDelegatorReward {
-        //         address,
-        //         mix_id,
-        //         proxy,
-        //         estimated_performance,
-        //     } => {}
-        //     MixnetQueryMsg::GetPendingEpochEvents { limit, start_after } => {}
-        //     MixnetQueryMsg::GetPendingIntervalEvents { limit, start_after } => {}
-        //     MixnetQueryMsg::GetPendingEpochEvent { event_id } => {}
-        //     MixnetQueryMsg::GetPendingIntervalEvent { event_id } => {}
-        //     MixnetQueryMsg::GetNumberOfPendingEvents {} => {}
-        //     MixnetQueryMsg::GetSigningNonce { address } => {}
-        // }
-        // .expect("ignore error")
+    ) -> u32 {
+        match msg {
+            MixnetQueryMsg::GetAllFamiliesPaged { limit, start_after } => client
+                .get_all_family_members_paged(start_after, limit)
+                .ignore(),
+            MixnetQueryMsg::GetAllMembersPaged { limit, start_after } => client
+                .get_all_family_members_paged(start_after, limit)
+                .ignore(),
+            MixnetQueryMsg::GetFamilyByHead { head } => {
+                client.get_node_family_by_head(head).ignore()
+            }
+            MixnetQueryMsg::GetFamilyByLabel { label } => {
+                client.get_node_family_by_label(label).ignore()
+            }
+            MixnetQueryMsg::GetFamilyMembersByHead { head } => {
+                client.get_family_members_by_head(head).ignore()
+            }
+            MixnetQueryMsg::GetFamilyMembersByLabel { label } => {
+                client.get_family_members_by_label(label).ignore()
+            }
+            MixnetQueryMsg::GetContractVersion {} => client.get_mixnet_contract_version().ignore(),
+            MixnetQueryMsg::GetCW2ContractVersion {} => {
+                client.get_mixnet_contract_cw2_version().ignore()
+            }
+            MixnetQueryMsg::GetRewardingValidatorAddress {} => {
+                client.get_rewarding_validator_address().ignore()
+            }
+            MixnetQueryMsg::GetStateParams {} => {}
+            MixnetQueryMsg::GetState {} => client.get_mixnet_contract_state().ignore(),
+            MixnetQueryMsg::GetRewardingParams {} => client.get_rewarding_parameters().ignore(),
+            MixnetQueryMsg::GetEpochStatus {} => client.get_current_epoch_status().ignore(),
+            MixnetQueryMsg::GetCurrentIntervalDetails {} => {
+                client.get_current_interval_details().ignore()
+            }
+            MixnetQueryMsg::GetRewardedSet { limit, start_after } => {
+                client.get_rewarded_set_paged(start_after, limit).ignore()
+            }
+            MixnetQueryMsg::GetMixNodeBonds { limit, start_after } => {
+                client.get_mixnode_bonds_paged(start_after, limit).ignore()
+            }
+            MixnetQueryMsg::GetMixNodesDetailed { limit, start_after } => client
+                .get_mixnodes_detailed_paged(start_after, limit)
+                .ignore(),
+            MixnetQueryMsg::GetUnbondedMixNodes { limit, start_after } => {
+                client.get_unbonded_paged(start_after, limit).ignore()
+            }
+            MixnetQueryMsg::GetUnbondedMixNodesByOwner {
+                owner,
+                limit,
+                start_after,
+            } => client
+                .get_unbonded_by_owner_paged(&owner.parse().unwrap(), start_after, limit)
+                .ignore(),
+            MixnetQueryMsg::GetUnbondedMixNodesByIdentityKey {
+                identity_key,
+                limit,
+                start_after,
+            } => client
+                .get_unbonded_by_identity_paged(&identity_key, start_after, limit)
+                .ignore(),
+            MixnetQueryMsg::GetOwnedMixnode { address } => {
+                client.get_owned_mixnode(&address.parse().unwrap()).ignore()
+            }
+            MixnetQueryMsg::GetMixnodeDetails { mix_id } => {
+                client.get_mixnode_details(mix_id).ignore()
+            }
+            MixnetQueryMsg::GetMixnodeRewardingDetails { mix_id } => {
+                client.get_mixnode_rewarding_details(mix_id).ignore()
+            }
+            MixnetQueryMsg::GetStakeSaturation { mix_id } => {
+                client.get_mixnode_stake_saturation(mix_id).ignore()
+            }
+            MixnetQueryMsg::GetUnbondedMixNodeInformation { mix_id } => {
+                client.get_unbonded_mixnode_information(mix_id).ignore()
+            }
+            MixnetQueryMsg::GetBondedMixnodeDetailsByIdentity { mix_identity } => client
+                .get_mixnode_details_by_identity(mix_identity)
+                .ignore(),
+            MixnetQueryMsg::GetLayerDistribution {} => client.get_layer_distribution().ignore(),
+            MixnetQueryMsg::GetGateways { start_after, limit } => {
+                client.get_gateways_paged(start_after, limit).ignore()
+            }
+            MixnetQueryMsg::GetGatewayBond { identity } => {
+                client.get_gateway_bond(identity).ignore()
+            }
+            MixnetQueryMsg::GetOwnedGateway { address } => {
+                client.get_owned_gateway(&address.parse().unwrap()).ignore()
+            }
+            MixnetQueryMsg::GetMixnodeDelegations {
+                mix_id,
+                start_after,
+                limit,
+            } => client
+                .get_mixnode_delegations_paged(mix_id, start_after, limit)
+                .ignore(),
+            MixnetQueryMsg::GetDelegatorDelegations {
+                delegator,
+                start_after,
+                limit,
+            } => client
+                .get_delegator_delegations_paged(&delegator.parse().unwrap(), start_after, limit)
+                .ignore(),
+            MixnetQueryMsg::GetDelegationDetails {
+                mix_id,
+                delegator,
+                proxy,
+            } => client
+                .get_delegation_details(mix_id, &delegator.parse().unwrap(), proxy)
+                .ignore(),
+            MixnetQueryMsg::GetAllDelegations { start_after, limit } => client
+                .get_all_network_delegations_paged(start_after, limit)
+                .ignore(),
+            MixnetQueryMsg::GetPendingOperatorReward { address } => client
+                .get_pending_operator_reward(&address.parse().unwrap())
+                .ignore(),
+            MixnetQueryMsg::GetPendingMixNodeOperatorReward { mix_id } => {
+                client.get_pending_mixnode_operator_reward(mix_id).ignore()
+            }
+            MixnetQueryMsg::GetPendingDelegatorReward {
+                address,
+                mix_id,
+                proxy,
+            } => client
+                .get_pending_delegator_reward(&address.parse().unwrap(), mix_id, proxy)
+                .ignore(),
+            MixnetQueryMsg::GetEstimatedCurrentEpochOperatorReward {
+                mix_id,
+                estimated_performance,
+            } => client
+                .get_estimated_current_epoch_operator_reward(mix_id, estimated_performance)
+                .ignore(),
+            MixnetQueryMsg::GetEstimatedCurrentEpochDelegatorReward {
+                address,
+                mix_id,
+                proxy,
+                estimated_performance,
+            } => client
+                .get_estimated_current_epoch_delegator_reward(
+                    &address.parse().unwrap(),
+                    mix_id,
+                    proxy,
+                    estimated_performance,
+                )
+                .ignore(),
+            MixnetQueryMsg::GetPendingEpochEvents { limit, start_after } => client
+                .get_pending_epoch_events_paged(start_after, limit)
+                .ignore(),
+            MixnetQueryMsg::GetPendingIntervalEvents { limit, start_after } => client
+                .get_pending_interval_events_paged(start_after, limit)
+                .ignore(),
+            MixnetQueryMsg::GetPendingEpochEvent { event_id } => {
+                client.get_pending_epoch_event(event_id).ignore()
+            }
+            MixnetQueryMsg::GetPendingIntervalEvent { event_id } => {
+                client.get_pending_interval_event(event_id).ignore()
+            }
+            MixnetQueryMsg::GetNumberOfPendingEvents {} => {
+                client.get_number_of_pending_events().ignore()
+            }
+            MixnetQueryMsg::GetSigningNonce { address } => {
+                client.get_signing_nonce(&address.parse().unwrap()).ignore()
+            }
+        }
     }
 }

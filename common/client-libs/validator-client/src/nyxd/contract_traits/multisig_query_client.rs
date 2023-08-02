@@ -83,10 +83,8 @@ pub trait MultisigQueryClient {
             .await
     }
 
-    // technically it's not deprecated, just not implemented, but I need clippy to point it out to me before I make a PR
-    #[deprecated]
     async fn query_config(&self) -> Result<(), NyxdError> {
-        unimplemented!()
+        unimplemented!("requires exporting state::Config type")
     }
 }
 
@@ -139,44 +137,39 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::nyxd::contract_traits::tests::IgnoreValue;
 
-    // it's enough that this compiles
-    async fn all_query_variants_are_covered<C: MultisigQueryClient + Send + Sync>(
+    // it's enough that this compiles and clippy is happy about it
+    #[allow(dead_code)]
+    fn all_query_variants_are_covered<C: MultisigQueryClient + Send + Sync>(
         client: C,
         msg: MultisigQueryMsg,
     ) {
         match msg {
-            MultisigQueryMsg::Threshold {} => client.query_threshold().await.map(|_| ()),
+            MultisigQueryMsg::Threshold {} => client.query_threshold().ignore(),
             MultisigQueryMsg::Proposal { proposal_id } => {
-                client.query_proposal(proposal_id).await.map(|_| ())
+                client.query_proposal(proposal_id).ignore()
             }
             MultisigQueryMsg::ListProposals { start_after, limit } => {
-                client.list_proposals(start_after, limit).await.map(|_| ())
+                client.list_proposals(start_after, limit).ignore()
             }
             MultisigQueryMsg::ReverseProposals {
                 start_before,
                 limit,
-            } => client
-                .reverse_proposals(start_before, limit)
-                .await
-                .map(|_| ()),
+            } => client.reverse_proposals(start_before, limit).ignore(),
             MultisigQueryMsg::Vote { proposal_id, voter } => {
-                client.query_vote(proposal_id, voter).await.map(|_| ())
+                client.query_vote(proposal_id, voter).ignore()
             }
             MultisigQueryMsg::ListVotes {
                 proposal_id,
                 start_after,
                 limit,
-            } => client
-                .list_votes(proposal_id, start_after, limit)
-                .await
-                .map(|_| ()),
-            MultisigQueryMsg::Voter { address } => client.query_voter(address).await.map(|_| ()),
+            } => client.list_votes(proposal_id, start_after, limit).ignore(),
+            MultisigQueryMsg::Voter { address } => client.query_voter(address).ignore(),
             MultisigQueryMsg::ListVoters { start_after, limit } => {
-                client.list_voters(start_after, limit).await.map(|_| ())
+                client.list_voters(start_after, limit).ignore()
             }
-            MultisigQueryMsg::Config {} => client.query_config().await.map(|_| ()),
-        }
-        .expect("ignore error")
+            MultisigQueryMsg::Config {} => client.query_config().ignore(),
+        };
     }
 }

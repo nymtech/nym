@@ -344,7 +344,12 @@ impl crate::coconut::client::Client for Client {
         &self,
         idx: usize,
     ) -> crate::coconut::error::Result<Vec<ContractDealing>> {
-        Ok(self.0.read().await.get_all_epoch_dealings(idx).await?)
+        Ok(self
+            .0
+            .read()
+            .await
+            .get_all_epoch_dealings(idx as u64)
+            .await?)
     }
 
     async fn get_verification_key_shares(

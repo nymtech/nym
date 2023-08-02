@@ -11,6 +11,8 @@
 # Quickstart
 
 - [Overview](quickstart/overview.md)
+- [Chat demo (webapp)](quickstart/chat-demo.md)
+- [Coconut Credential Playground (webapp)](quickstart/cred-playground.md)
 - [SOCKS Proxy (CLI)](quickstart/socks-proxy.md)
 - [NymConnect Beta (GUI)](quickstart/nymconnect-gui.md)
 

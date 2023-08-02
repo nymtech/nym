@@ -1,9 +1,3 @@
-<!---
-TODO
-- [x] Pull original troubleshooting
-- [x] Add points from your notes
---->
-
 # Troubleshooting
 
 ## Binary Build Problems
@@ -72,6 +66,8 @@ Enter your **identity key** to find your node. Check the contents of the `Mixnod
 There are 2 community explorers currently, which have been created by [Nodes Guru](https://nodes.guru): 
 * [Mainnet](https://mixnet.explorers.guru/)
 * [Sandbox testnet](https://sandbox.mixnet.explorers.guru/)
+
+[Here](https://github.com/cosmos/chain-registry/blob/master/nyx/chain.json#L158-L187) is a dictionary with Nyx chain registry entry regarding all explorers.  
 
 If you want more information, or if your node isn't showing up on the explorer of your choice and you want to double-check, here are some examples on how to check if the node is configured properly.
 

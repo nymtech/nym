@@ -95,8 +95,7 @@ impl RewardedSetUpdater {
         let mut to_reward = self
             .ephemera_reward_manager
             .perform_epoch_operations(raw_rewards)
-            .await
-            .unwrap();
+            .await?;
         to_reward.sort_by_key(|a| a.mix_id);
 
         log::info!("The current epoch has finished.");

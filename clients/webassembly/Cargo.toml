@@ -33,7 +33,7 @@ wasm-bindgen-futures = "0.4"
 thiserror = "1.0.40"
 zeroize = "1.6.0"
 
-wasm-timer = { git = "https://github.com/mmsinclair/wasm-timer", rev = "b9d1a54ad514c2f230a026afe0dde341e98cd7b6"}
+wasmtimer = { version = "0.2.0", features = ["tokio"] }
 
 # internal
 nym-node-tester-utils = { path = "../../common/node-tester-utils" }

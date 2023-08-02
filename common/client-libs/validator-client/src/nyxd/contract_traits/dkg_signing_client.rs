@@ -7,6 +7,8 @@ use crate::nyxd::error::NyxdError;
 use crate::nyxd::{Coin, Fee, SigningCosmWasmClient};
 use crate::signing::signer::OfflineSigner;
 use async_trait::async_trait;
+use cosmrs::AccountId;
+use cosmwasm_std::Addr;
 use nym_coconut_dkg_common::msg::ExecuteMsg as DkgExecuteMsg;
 use nym_coconut_dkg_common::types::EncodedBTEPublicKeyWithProof;
 use nym_coconut_dkg_common::verification_key::VerificationKeyShare;
@@ -26,6 +28,13 @@ pub trait DkgSigningClient {
         let req = DkgExecuteMsg::AdvanceEpochState {};
 
         self.execute_dkg_contract(fee, req, "advancing DKG state".to_string(), vec![])
+            .await
+    }
+
+    async fn surpass_threshold(&self, fee: Option<Fee>) -> Result<ExecuteResult, NyxdError> {
+        let req = DkgExecuteMsg::SurpassedThreshold {};
+
+        self.execute_dkg_contract(fee, req, "surpass DKG threshold".to_string(), vec![])
             .await
     }
 
@@ -77,6 +86,25 @@ pub trait DkgSigningClient {
         )
         .await
     }
+
+    async fn verify_verification_key_share(
+        &self,
+        owner: &AccountId,
+        resharing: bool,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NyxdError> {
+        // the call to unchecked is fine as we're converting from pre-validated `AccountId`
+        let owner = Addr::unchecked(owner.to_string());
+        let req = DkgExecuteMsg::VerifyVerificationKeyShare { owner, resharing };
+
+        self.execute_dkg_contract(
+            fee,
+            req,
+            "verification key VerifyVerificationKeyShare".to_string(),
+            vec![],
+        )
+        .await
+    }
 }
 
 #[async_trait]
@@ -107,12 +135,40 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::nyxd::contract_traits::tests::IgnoreValue;
 
     // it's enough that this compiles and clippy is happy about it
-    async fn all_execute_variants_are_covered<C: DkgSigningClient + Send + Sync>(
+    #[allow(dead_code)]
+    fn all_execute_variants_are_covered<C: DkgSigningClient + Send + Sync>(
         client: C,
         msg: DkgExecuteMsg,
     ) {
-        unimplemented!()
+        match msg {
+            DkgExecuteMsg::RegisterDealer {
+                bte_key_with_proof,
+                announce_address,
+                resharing,
+            } => client
+                .register_dealer(bte_key_with_proof, announce_address, resharing, None)
+                .ignore(),
+            DkgExecuteMsg::CommitDealing {
+                dealing_bytes,
+                resharing,
+            } => client
+                .submit_dealing_bytes(dealing_bytes, resharing, None)
+                .ignore(),
+            DkgExecuteMsg::CommitVerificationKeyShare { share, resharing } => client
+                .submit_verification_key_share(share, resharing, None)
+                .ignore(),
+            DkgExecuteMsg::VerifyVerificationKeyShare { owner, resharing } => client
+                .verify_verification_key_share(
+                    &owner.into_string().parse().unwrap(),
+                    resharing,
+                    None,
+                )
+                .ignore(),
+            DkgExecuteMsg::SurpassedThreshold {} => client.surpass_threshold(None).ignore(),
+            DkgExecuteMsg::AdvanceEpochState {} => client.advance_dkg_epoch_state(None).ignore(),
+        };
     }
 }

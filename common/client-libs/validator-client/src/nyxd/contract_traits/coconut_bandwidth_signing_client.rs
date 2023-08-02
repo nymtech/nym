@@ -64,6 +64,22 @@ pub trait CoconutBandwidthSigningClient {
         )
         .await
     }
+
+    async fn release_funds(
+        &self,
+        amount: Coin,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NyxdError> {
+        self.execute_coconut_bandwidth_contract(
+            fee,
+            CoconutBandwidthExecuteMsg::ReleaseFunds {
+                funds: amount.into(),
+            },
+            "CoconutBandwidth::ReleaseFunds".to_string(),
+            vec![],
+        )
+        .await
+    }
 }
 
 #[async_trait]
@@ -101,12 +117,35 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::nyxd::contract_traits::tests::{mock_coin, IgnoreValue};
 
     // it's enough that this compiles and clippy is happy about it
-    async fn all_execute_variants_are_covered<C: CoconutBandwidthSigningClient + Send + Sync>(
+    #[allow(dead_code)]
+    fn all_execute_variants_are_covered<C: CoconutBandwidthSigningClient + Send + Sync>(
         client: C,
         msg: CoconutBandwidthExecuteMsg,
     ) {
-        unimplemented!()
+        match msg {
+            CoconutBandwidthExecuteMsg::DepositFunds { data } => client
+                .deposit(
+                    mock_coin(),
+                    data.deposit_info().to_string(),
+                    data.identity_key().to_string(),
+                    data.encryption_key().to_string(),
+                    None,
+                )
+                .ignore(),
+            CoconutBandwidthExecuteMsg::SpendCredential { data } => client
+                .spend_credential(
+                    mock_coin(),
+                    data.blinded_serial_number().to_string(),
+                    data.gateway_cosmos_address().to_string(),
+                    None,
+                )
+                .ignore(),
+            CoconutBandwidthExecuteMsg::ReleaseFunds { funds } => {
+                client.release_funds(mock_coin(), None).ignore()
+            }
+        };
     }
 }

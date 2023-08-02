@@ -158,6 +158,8 @@ macro_rules! collect_paged {
 
 #[cfg(test)]
 mod tests {
+    use crate::nyxd::Coin;
+
     pub(crate) trait IgnoreValue {
         fn ignore(self) -> u32
         where
@@ -170,4 +172,8 @@ mod tests {
     }
 
     impl<T> IgnoreValue for T {}
+
+    pub(crate) fn mock_coin() -> Coin {
+        Coin::new(42, "ufoomp")
+    }
 }

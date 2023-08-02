@@ -42,6 +42,7 @@ pub enum ExecuteMsg {
     },
 
     VerifyVerificationKeyShare {
+        // TODO: this should be using a String...
         owner: Addr,
         resharing: bool,
     },

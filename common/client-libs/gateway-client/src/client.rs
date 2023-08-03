@@ -185,6 +185,7 @@ impl<C, St> GatewayClient<C, St> {
                         None, //as a client, the gateway cannot know my pub key
                         &self.local_sphinx.private_key().to_bytes(),
                         &self.gateway_sphinx.to_bytes(),
+                        0,
                     )
                     .await
                     {

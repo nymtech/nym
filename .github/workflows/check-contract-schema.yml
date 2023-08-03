@@ -15,6 +15,9 @@ jobs:
     name: Generate and check schema
     runs-on: ubuntu-latest
     steps:
+      - name: Check out repository code
+        uses: actions/checkout@v2
+        
       - name: Generate the schema
         run: make contract-schema
 

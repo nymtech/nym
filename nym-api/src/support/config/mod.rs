@@ -106,15 +106,14 @@ impl NymConfigTemplate for Config {
 
 impl Config {
     pub fn new<S: AsRef<str>>(id: S) -> Self {
-        let base_data_dir = default_data_directory(id.as_ref());
         Config {
             base: Base::new_default(id.as_ref()),
-            network_monitor: NetworkMonitor::new_default(&base_data_dir),
-            node_status_api: NodeStatusAPI::new_default(&base_data_dir),
+            network_monitor: NetworkMonitor::new_default(id.as_ref()),
+            node_status_api: NodeStatusAPI::new_default(id.as_ref()),
             topology_cacher: Default::default(),
             circulating_supply_cacher: Default::default(),
             rewarding: Default::default(),
-            coconut_signer: CoconutSigner::new_default(base_data_dir),
+            coconut_signer: CoconutSigner::new_default(id.as_ref()),
             ephemera: Ephemera::new_default(id.as_ref()),
         }
     }

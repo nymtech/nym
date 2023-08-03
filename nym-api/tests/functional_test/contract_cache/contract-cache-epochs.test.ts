@@ -1,13 +1,10 @@
 import ContractCache from "../../src/endpoints/ContractCache";
-import ConfigHandler from "../../src/config/configHandler";
 
 let contract: ContractCache;
-let config: ConfigHandler;
 
 describe("Get epoch info", (): void => {
   beforeAll(async (): Promise<void> => {
     contract = new ContractCache();
-    config = ConfigHandler.getInstance();
   });
 
   it("Get epoch reward params", async (): Promise<void> => {

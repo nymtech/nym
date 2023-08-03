@@ -101,6 +101,12 @@ android {
     }
 }
 
+sentry {
+    // TODO disable auto upload of mapping files for now to ease FDroid submission
+    //   (avoiding to have to provide a sentry auth token during compile time)
+    autoUploadProguardMapping.set(false)
+}
+
 dependencies {
 
     implementation("androidx.core:core-ktx:1.10.1")

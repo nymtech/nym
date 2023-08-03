@@ -10,7 +10,8 @@ qa:
   log_level: error
 prod:
   api_base_url: https://validator.nymtech.net/api/v1
-  mixnode_identity: DLdMKLPywEy1vnu3yPrtXvzY7fw1puiiHpA9n9UQatiQ
-  gateway_identity: CgQrYP8etksSBf4nALNqp93SHPpgFwEUyTsjBNNLj5WM
+  mix_id: 730
+  mixnode_identity: 3pMCJswCyA19MGYWGDWT5fBk2M8ybSZGXttyAoNY5gBB
+  gateway_identity: 2BuMSfMW3zpeAjKXyKLhmY4QW1DXurrtSPEJ6CjX3SEh
   log_level: error
   time_zone: utc

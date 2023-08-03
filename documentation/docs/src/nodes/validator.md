@@ -1,4 +1,4 @@
-# Validator
+# Validators
 
 > The validator setup and maintenance guide has moved to the [Operator Guides book](TO_DO).
 

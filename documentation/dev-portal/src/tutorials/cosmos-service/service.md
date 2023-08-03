@@ -17,7 +17,7 @@ The imports from `chain_query` are most of the data types and functions defined 
 The `AnonymousSenderTag` type is used for SURBs.
 
 ## main()
-Also using [tokio](URL) for the async runtime, `main` does the following:
+Also using tokio for the async runtime, `main` does the following:
 * If not already existing, creates a Nym client with config at `/tmp/client`. Otherwise it loads the already existing client from this config.
 * Create a `broadcaster` - this is used by the service to interact with the blockchain, using the consts defined in `src/lib.rs` as chain config.
 * Listen out for incoming messages, and in much the same way as the `client`, handle and match the incoming request.

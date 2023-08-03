@@ -79,7 +79,7 @@ impl ResponseTypes {
 }
 ```
 
-The above data types are pretty straightforward. Even though there are only one instance of a request type (sent from client to service) and one of a response type (service -> client) so far, a pair of enums has been defined to contain additional response or request types that will be added in the future.
+The above data types are pretty straightforward. Even though there are only one instance of a request type (sent from client -> service) and one of a response type (service -> client) so far, a pair of enums has been defined to contain additional response or request types that will be added in the future.
 
 `BalanceRequest` will be used when requesting the service to query the token balance of the supplied address on the client's behalf. You can see the information that will be returned from the chain to the service, and from the service to the client, in `BalanceResponse`.
 
@@ -114,7 +114,7 @@ Next to define two functions: one for listening _for_ messages from the mixnet (
 
 Both functions attempt to deserialise the vec of `ReconstructedMessages` that are reconstructed by the client from delivered Sphinx packets after decryption.
 
-`handle_request` performs one additional function - parsing the `sender_tag` from the incoming reconstructed message. This is the randomised alphanumeric string used to identify a bucket of _SURBs_ (_S_ingle _U_se _R_eply _B_locks) that are sent along with any outgoing message by default. More information about them can be found [here](LINK_TO_SURBS_DOCS) but all that is necessary to know for now is that these are pre-addressed packets that clients send out with their messages. Any reply to their message that is to be sent back to them back be written to the payload of these packets, but without the entity seeing the destination address. This allows for services to _anonymously reply_ to clients without being able to doxx them.
+`handle_request` performs one additional function - parsing the `sender_tag` from the incoming reconstructed message. This is the randomised alphanumeric string used to identify a bucket of _SURBs_ (Single Use Reply Blocks) that are sent along with any outgoing message by default. More information about them can be found [here](https://nymtech.net/docs/architecture/traffic-flow.html#private-replies-using-surbs) but all that is necessary to know for now is that these are pre-addressed packets that clients send out with their messages. Any reply to their message that is to be sent back to them back be written to the payload of these packets, but without the entity seeing the destination address. This allows for services to _anonymously reply_ to clients without being able to doxx them.
 
 ```rust
 pub fn handle_response(message: ReconstructedMessage) -> anyhow::Result<ResponseTypes> {
@@ -129,7 +129,7 @@ pub fn handle_request(
 }
 ```
 
-Before moving on to the `client` and `service` code, one more function is needed. This allows for both binaries to parse empty incoming messages that they might receive. This is necessary as incoming SURBs as well as requests for more SURBs contain empty data fields for the moment.
+Before moving on to the `client` and `service` code, one more function is needed. This allows for both binaries to parse empty incoming messages that they might receive. This is necessary as incoming SURBs as well as requests for more SURBs contain empty data fields.
 
 ```rust
 pub async fn wait_for_non_empty_message(

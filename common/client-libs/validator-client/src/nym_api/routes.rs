@@ -7,6 +7,9 @@ pub const API_VERSION: &str = NYM_API_VERSION;
 pub const MIXNODES: &str = "mixnodes";
 pub const GATEWAYS: &str = "gateways";
 
+pub const EPOCH: &str = "epoch";
+pub const CURRENT: &str = "current";
+
 pub const DETAILED: &str = "detailed";
 pub const DETAILED_UNFILTERED: &str = "detailed-unfiltered";
 pub const ACTIVE: &str = "active";

@@ -76,8 +76,16 @@ impl NymApiTopologyProvider {
             }
             Ok(gateways) => gateways,
         };
+        let current_epoch = match self.validator_client.get_current_epoch_id().await {
+            Err(err) => {
+                error!("failed to get current epoch - {err}");
+                return None;
+            }
+            Ok(epoch) => epoch,
+        };
 
         let topology = nym_topology_from_detailed(mixnodes, gateways)
+            .with_epoch(current_epoch)
             .filter_system_version(&self.client_version);
 
         if let Err(err) = self.check_layer_distribution(&topology) {

@@ -713,6 +713,16 @@ impl NymApiClient {
         Ok(self.nym_api_client.get_gateways().await?)
     }
 
+    pub async fn get_current_epoch_id(
+        &self,
+    ) -> Result<nym_mixnet_contract_common::EpochId, ValidatorClientError> {
+        Ok(self
+            .nym_api_client
+            .get_current_epoch()
+            .await?
+            .current_epoch_id())
+    }
+
     pub async fn get_gateway_core_status_count(
         &self,
         identity: IdentityKeyRef<'_>,

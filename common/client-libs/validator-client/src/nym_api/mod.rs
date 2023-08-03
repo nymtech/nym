@@ -14,7 +14,7 @@ use nym_api_requests::models::{
     UptimeResponse,
 };
 use nym_mixnet_contract_common::mixnode::MixNodeDetails;
-use nym_mixnet_contract_common::{GatewayBond, IdentityKeyRef, MixId};
+use nym_mixnet_contract_common::{GatewayBond, IdentityKeyRef, Interval, MixId};
 use nym_name_service_common::response::NamesListResponse;
 use nym_service_provider_directory_common::response::ServicesListResponse;
 use reqwest::{Response, StatusCode};
@@ -128,6 +128,14 @@ impl Client {
         } else {
             Err(NymAPIError::GenericRequestFailure(response.text().await?))
         }
+    }
+
+    pub async fn get_current_epoch(&self) -> Result<Interval, NymAPIError> {
+        self.query_nym_api(
+            &[routes::API_VERSION, routes::EPOCH, routes::CURRENT],
+            NO_PARAMS,
+        )
+        .await
     }
 
     pub async fn get_mixnodes(&self) -> Result<Vec<MixNodeDetails>, NymAPIError> {

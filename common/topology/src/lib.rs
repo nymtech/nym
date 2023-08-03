@@ -5,7 +5,7 @@ use crate::filter::VersionFilterable;
 use log::warn;
 use nym_crypto::asymmetric::encryption;
 use nym_mixnet_contract_common::mixnode::MixNodeDetails;
-use nym_mixnet_contract_common::{GatewayBond, IdentityKeyRef, MixId};
+use nym_mixnet_contract_common::{EpochId, GatewayBond, IdentityKeyRef, MixId};
 use nym_sphinx_addressing::nodes::NodeIdentity;
 use nym_sphinx_types::Node as SphinxNode;
 use rand::prelude::SliceRandom;
@@ -72,11 +72,21 @@ pub type MixLayer = u8;
 pub struct NymTopology {
     mixes: BTreeMap<MixLayer, Vec<mix::Node>>,
     gateways: Vec<gateway::Node>,
+    epoch: EpochId,
 }
 
 impl NymTopology {
     pub fn new(mixes: BTreeMap<MixLayer, Vec<mix::Node>>, gateways: Vec<gateway::Node>) -> Self {
-        NymTopology { mixes, gateways }
+        NymTopology {
+            mixes,
+            gateways,
+            epoch: 0,
+        }
+    }
+
+    pub fn with_epoch(mut self, epoch: EpochId) -> Self {
+        self.epoch = epoch;
+        self
     }
 
     pub fn from_detailed(
@@ -131,6 +141,10 @@ impl NymTopology {
         self.gateways
             .iter()
             .find(|&gateway| gateway.identity_key.to_base58_string() == gateway_identity)
+    }
+
+    pub fn epoch_id(&self) -> EpochId {
+        self.epoch
     }
 
     pub fn mixes(&self) -> &BTreeMap<MixLayer, Vec<mix::Node>> {
@@ -334,6 +348,7 @@ impl NymTopology {
         NymTopology {
             mixes: self.mixes.filter_by_version(expected_mix_version),
             gateways: self.gateways.clone(),
+            epoch: 0,
         }
     }
 }

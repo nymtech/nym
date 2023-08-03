@@ -201,11 +201,17 @@ pub async fn upgrade_noise_initiator(
     local_public_key: Option<&[u8]>,
     local_private_key: &[u8],
     remote_pub_key: &[u8],
+    epoch: u32,
 ) -> Result<NoiseStream, NoiseError> {
     trace!("Perform Noise Handshake, initiator side");
 
     //In case the local key cannot be known by the remote party, e.g. in a client-gateway connection
-    let secret = [local_public_key.unwrap_or(&[]), remote_pub_key].concat();
+    let secret = [
+        local_public_key.unwrap_or(&[]),
+        remote_pub_key,
+        &epoch.to_be_bytes(),
+    ]
+    .concat();
     let secret_hash = Sha256::digest(secret);
 
     let builder = Builder::new(NOISE_HS_PATTERN.parse().unwrap()); //This cannot fail, hardcoded pattern must be correct
@@ -263,6 +269,7 @@ pub async fn upgrade_noise_initiator_with_topology(
         Some(local_public_key),
         local_private_key,
         &remote_pub_key,
+        topology.epoch_id(),
     )
     .await
 }
@@ -272,11 +279,17 @@ pub async fn upgrade_noise_responder(
     local_public_key: &[u8],
     local_private_key: &[u8],
     remote_pub_key: Option<&[u8]>,
+    epoch: u32,
 ) -> Result<NoiseStream, NoiseError> {
     trace!("Perform Noise Handshake, responder side");
 
     //If the remote_key cannot be kwnown, e.g. in a client-gateway connection
-    let secret = [&remote_pub_key.unwrap_or(&[]), local_public_key].concat();
+    let secret = [
+        &remote_pub_key.unwrap_or(&[]),
+        local_public_key,
+        &epoch.to_be_bytes(),
+    ]
+    .concat();
     let secret_hash = Sha256::digest(secret);
 
     let builder = Builder::new(NOISE_HS_PATTERN.parse().unwrap()); //This cannot fail, hardcoded pattern must be correct
@@ -332,6 +345,7 @@ pub async fn upgrade_noise_responder_with_topology(
         local_public_key,
         local_private_key,
         Some(&remote_pub_key),
+        topology.epoch_id(),
     )
     .await
 }

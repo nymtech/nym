@@ -7,6 +7,7 @@ use crate::nyxd::error::NyxdError;
 use crate::nyxd::{Coin, Fee, SigningCosmWasmClient};
 use crate::signing::signer::OfflineSigner;
 use async_trait::async_trait;
+use cw4::Member;
 use nym_group_contract_common::msg::ExecuteMsg as GroupExecuteMsg;
 
 #[async_trait]
@@ -18,6 +19,59 @@ pub trait GroupSigningClient {
         memo: String,
         funds: Vec<Coin>,
     ) -> Result<ExecuteResult, NyxdError>;
+
+    async fn update_admin(
+        &self,
+        admin: Option<String>,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NyxdError> {
+        self.execute_group_contract(
+            fee,
+            GroupExecuteMsg::UpdateAdmin { admin },
+            "GroupExecuteMsg::UpdateAdmin".to_string(),
+            vec![],
+        )
+        .await
+    }
+
+    async fn update_members(
+        &self,
+        add: Vec<Member>,
+        remove: Vec<String>,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NyxdError> {
+        self.execute_group_contract(
+            fee,
+            GroupExecuteMsg::UpdateMembers { add, remove },
+            "GroupExecuteMsg::UpdateMembers".to_string(),
+            vec![],
+        )
+        .await
+    }
+
+    async fn add_hook(&self, addr: String, fee: Option<Fee>) -> Result<ExecuteResult, NyxdError> {
+        self.execute_group_contract(
+            fee,
+            GroupExecuteMsg::AddHook { addr },
+            "GroupExecuteMsg::AddHook".to_string(),
+            vec![],
+        )
+        .await
+    }
+
+    async fn remove_hook(
+        &self,
+        addr: String,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NyxdError> {
+        self.execute_group_contract(
+            fee,
+            GroupExecuteMsg::RemoveHook { addr },
+            "GroupExecuteMsg::RemoveHook".to_string(),
+            vec![],
+        )
+        .await
+    }
 }
 
 #[async_trait]
@@ -55,12 +109,21 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::nyxd::contract_traits::tests::IgnoreValue;
 
     // it's enough that this compiles and clippy is happy about it
-    async fn all_execute_variants_are_covered<C: GroupSigningClient + Send + Sync>(
+    #[allow(dead_code)]
+    fn all_execute_variants_are_covered<C: GroupSigningClient + Send + Sync>(
         client: C,
         msg: GroupExecuteMsg,
     ) {
-        unimplemented!()
+        match msg {
+            GroupExecuteMsg::UpdateAdmin { admin } => client.update_admin(admin, None).ignore(),
+            GroupExecuteMsg::UpdateMembers { remove, add } => {
+                client.update_members(add, remove, None).ignore()
+            }
+            GroupExecuteMsg::AddHook { addr } => client.add_hook(addr, None).ignore(),
+            GroupExecuteMsg::RemoveHook { addr } => client.remove_hook(addr, None).ignore(),
+        };
     }
 }

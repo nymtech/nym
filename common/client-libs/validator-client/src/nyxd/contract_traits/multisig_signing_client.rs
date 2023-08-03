@@ -9,6 +9,7 @@ use crate::signing::signer::OfflineSigner;
 use async_trait::async_trait;
 use cosmwasm_std::{to_binary, CosmosMsg, WasmMsg};
 use cw3::Vote;
+use cw4::{MemberChangedHookMsg, MemberDiff};
 use nym_coconut_bandwidth_contract_common::msg::ExecuteMsg as CoconutBandwidthExecuteMsg;
 use nym_multisig_contract_common::msg::ExecuteMsg as MultisigExecuteMsg;
 
@@ -68,6 +69,22 @@ pub trait MultisigSigningClient: NymContractsProvider {
             .await
     }
 
+    // alternative variant to vote_proposal that lets you to abstain and veto a proposal
+    async fn vote(
+        &self,
+        proposal_id: u64,
+        vote: Vote,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NyxdError> {
+        self.execute_multisig_contract(
+            fee,
+            MultisigExecuteMsg::Vote { proposal_id, vote },
+            "Multisig::Vote".to_string(),
+            vec![],
+        )
+        .await
+    }
+
     async fn execute_proposal(
         &self,
         proposal_id: u64,
@@ -76,6 +93,34 @@ pub trait MultisigSigningClient: NymContractsProvider {
         let req = MultisigExecuteMsg::Execute { proposal_id };
         self.execute_multisig_contract(fee, req, "Multisig::Execute".to_string(), vec![])
             .await
+    }
+
+    async fn close_proposal(
+        &self,
+        proposal_id: u64,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NyxdError> {
+        self.execute_multisig_contract(
+            fee,
+            MultisigExecuteMsg::Close { proposal_id },
+            "Multisig::Close".to_string(),
+            vec![],
+        )
+        .await
+    }
+
+    async fn changed_member_hook(
+        &self,
+        member_diff: Vec<MemberDiff>,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NyxdError> {
+        self.execute_multisig_contract(
+            fee,
+            MultisigExecuteMsg::MemberChangedHook(MemberChangedHookMsg::new(member_diff)),
+            "Multisig::MemberChangedHook".to_string(),
+            vec![],
+        )
+        .await
     }
 }
 
@@ -114,12 +159,32 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::nyxd::contract_traits::tests::{mock_coin, IgnoreValue};
 
     // it's enough that this compiles and clippy is happy about it
-    async fn all_execute_variants_are_covered<C: MultisigSigningClient + Send + Sync>(
+    #[allow(dead_code)]
+    fn all_execute_variants_are_covered<C: MultisigSigningClient + Send + Sync>(
         client: C,
         msg: MultisigExecuteMsg,
     ) {
-        unimplemented!()
+        match msg {
+            MultisigExecuteMsg::Propose {
+                title, description, ..
+            } => client
+                .propose_release_funds(title, description, mock_coin(), None)
+                .ignore(),
+            MultisigExecuteMsg::Vote { proposal_id, vote } => {
+                client.vote(proposal_id, vote, None).ignore()
+            }
+            MultisigExecuteMsg::Execute { proposal_id } => {
+                client.execute_proposal(proposal_id, None).ignore()
+            }
+            MultisigExecuteMsg::Close { proposal_id } => {
+                client.close_proposal(proposal_id, None).ignore()
+            }
+            MultisigExecuteMsg::MemberChangedHook(hook_msg) => {
+                client.changed_member_hook(hook_msg.diffs, None).ignore()
+            }
+        };
     }
 }

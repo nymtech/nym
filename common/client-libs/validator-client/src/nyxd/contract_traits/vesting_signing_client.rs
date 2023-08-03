@@ -71,6 +71,23 @@ pub trait VestingSigningClient {
         self.execute_vesting_contract(fee, req, vec![]).await
     }
 
+    async fn vesting_track_decrease_pledge(
+        &self,
+        owner: String,
+        amount: Coin,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NyxdError> {
+        self.execute_vesting_contract(
+            fee,
+            VestingExecuteMsg::TrackDecreasePledge {
+                owner,
+                amount: amount.into(),
+            },
+            Vec::new(),
+        )
+        .await
+    }
+
     async fn vesting_bond_gateway(
         &self,
         gateway: Gateway,
@@ -256,6 +273,23 @@ pub trait VestingSigningClient {
         self.execute_vesting_contract(fee, req, vec![amount]).await
     }
 
+    async fn vesting_track_reward(
+        &self,
+        amount: Coin,
+        address: String,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NyxdError> {
+        self.execute_vesting_contract(
+            fee,
+            VestingExecuteMsg::TrackReward {
+                amount: amount.into(),
+                address,
+            },
+            Vec::new(),
+        )
+        .await
+    }
+
     async fn vesting_withdraw_operator_reward(
         &self,
         fee: Option<Fee>,
@@ -272,6 +306,32 @@ pub trait VestingSigningClient {
         self.execute_vesting_contract(
             fee,
             VestingExecuteMsg::ClaimDelegatorReward { mix_id },
+            Vec::new(),
+        )
+        .await
+    }
+
+    async fn vesting_transfer_ownership(
+        &self,
+        to_address: String,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NyxdError> {
+        self.execute_vesting_contract(
+            fee,
+            VestingExecuteMsg::TransferOwnership { to_address },
+            Vec::new(),
+        )
+        .await
+    }
+
+    async fn update_staking_address(
+        &self,
+        to_address: Option<String>,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NyxdError> {
+        self.execute_vesting_contract(
+            fee,
+            VestingExecuteMsg::UpdateStakingAddress { to_address },
             Vec::new(),
         )
         .await
@@ -374,12 +434,130 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::nyxd::contract_traits::tests::{mock_coin, IgnoreValue};
 
     // it's enough that this compiles and clippy is happy about it
-    async fn all_execute_variants_are_covered<C: VestingSigningClient + Send + Sync>(
+    #[allow(dead_code)]
+    fn all_execute_variants_are_covered<C: VestingSigningClient + Send + Sync>(
         client: C,
         msg: VestingExecuteMsg,
     ) {
-        unimplemented!()
+        match msg {
+            VestingExecuteMsg::CreateFamily { label } => {
+                client.vesting_create_family(label, None).ignore()
+            }
+            VestingExecuteMsg::JoinFamily {
+                join_permit,
+                family_head,
+            } => client
+                .vesting_join_family(join_permit, family_head, None)
+                .ignore(),
+            VestingExecuteMsg::LeaveFamily { family_head } => {
+                client.vesting_leave_family(family_head, None).ignore()
+            }
+            VestingExecuteMsg::KickFamilyMember { member } => {
+                client.vesting_kick_family_member(member, None).ignore()
+            }
+            VestingExecuteMsg::TrackReward { amount, address } => client
+                .vesting_track_reward(amount.into(), address, None)
+                .ignore(),
+            VestingExecuteMsg::ClaimOperatorReward {} => {
+                client.vesting_withdraw_operator_reward(None).ignore()
+            }
+            VestingExecuteMsg::ClaimDelegatorReward { mix_id } => client
+                .vesting_withdraw_delegator_reward(mix_id, None)
+                .ignore(),
+            VestingExecuteMsg::UpdateMixnodeCostParams { new_costs } => client
+                .vesting_update_mixnode_cost_params(new_costs, None)
+                .ignore(),
+            VestingExecuteMsg::UpdateMixnodeConfig { new_config } => client
+                .vesting_update_mixnode_config(new_config, None)
+                .ignore(),
+            VestingExecuteMsg::UpdateMixnetAddress { address } => {
+                client.update_mixnet_address(&address, None).ignore()
+            }
+            VestingExecuteMsg::DelegateToMixnode {
+                mix_id,
+                amount,
+                on_behalf_of,
+            } => client
+                .vesting_delegate_to_mixnode(mix_id, amount.into(), on_behalf_of, None)
+                .ignore(),
+            VestingExecuteMsg::UndelegateFromMixnode {
+                mix_id,
+                on_behalf_of,
+            } => client
+                .vesting_undelegate_from_mixnode(mix_id, on_behalf_of, None)
+                .ignore(),
+            VestingExecuteMsg::CreateAccount {
+                owner_address,
+                staking_address,
+                vesting_spec,
+                cap,
+            } => client
+                .create_periodic_vesting_account(
+                    &owner_address,
+                    staking_address,
+                    vesting_spec,
+                    mock_coin(),
+                    cap,
+                    None,
+                )
+                .ignore(),
+            VestingExecuteMsg::WithdrawVestedCoins { amount } => {
+                client.withdraw_vested_coins(amount.into(), None).ignore()
+            }
+            VestingExecuteMsg::TrackUndelegation {
+                owner,
+                mix_id,
+                amount,
+            } => client
+                .vesting_track_undelegation(&owner, mix_id, amount.into(), None)
+                .ignore(),
+            VestingExecuteMsg::BondMixnode {
+                mix_node,
+                cost_params,
+                owner_signature,
+                amount,
+            } => client
+                .vesting_bond_mixnode(mix_node, cost_params, owner_signature, amount.into(), None)
+                .ignore(),
+            VestingExecuteMsg::PledgeMore { amount } => {
+                client.vesting_pledge_more(amount.into(), None).ignore()
+            }
+            VestingExecuteMsg::DecreasePledge { amount } => {
+                client.vesting_decrease_pledge(amount.into(), None).ignore()
+            }
+            VestingExecuteMsg::UnbondMixnode {} => client.vesting_unbond_mixnode(None).ignore(),
+            VestingExecuteMsg::TrackUnbondMixnode { owner, amount } => client
+                .vesting_track_unbond_mixnode(&owner, amount.into(), None)
+                .ignore(),
+            VestingExecuteMsg::TrackDecreasePledge { owner, amount } => client
+                .vesting_track_decrease_pledge(owner, amount.into(), None)
+                .ignore(),
+            VestingExecuteMsg::BondGateway {
+                gateway,
+                owner_signature,
+                amount,
+            } => client
+                .vesting_bond_gateway(gateway, owner_signature, amount.into(), None)
+                .ignore(),
+            VestingExecuteMsg::UnbondGateway {} => client.vesting_unbond_gateway(None).ignore(),
+            VestingExecuteMsg::TrackUnbondGateway { owner, amount } => client
+                .vesting_track_unbond_gateway(&owner, amount.into(), None)
+                .ignore(),
+            VestingExecuteMsg::UpdateGatewayConfig { new_config } => client
+                .vesting_update_gateway_config(new_config, None)
+                .ignore(),
+            VestingExecuteMsg::TransferOwnership { to_address } => {
+                client.vesting_transfer_ownership(to_address, None).ignore()
+            }
+            VestingExecuteMsg::UpdateStakingAddress { to_address } => {
+                client.update_staking_address(to_address, None).ignore()
+            }
+            VestingExecuteMsg::UpdateLockedPledgeCap { address, cap } => client
+                .update_locked_pledge_cap(address.parse().unwrap(), cap, None)
+                .ignore(),
+        };
     }
 }

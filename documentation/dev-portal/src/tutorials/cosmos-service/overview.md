@@ -13,30 +13,21 @@ You will learn how to do the following with the Rust SDK:
 
 
 ```
-       +----------+              +----------+             +----------+
-       | Mix Node |<-----------> | Mix Node |<----------->| Mix Node |
-       | Layer 1  |              | Layer 2  |             | Layer 3  |
-       +----------+              +----------+             +----------+
-            ^                                                   ^
-            |                                                   |
-            |<--------------------------------------------------+
-            |
-            v
-    +--------------+
-    | Your gateway |
-    +--------------+
-            ^
-            |
-            |
-            v
-+-------------------------------------------+
-|                                           |
-|  +-------------+     +--------------+     |
-|  | Client code |     | Service code |     |
-|  +-------------+     +--------------+     |
-|                                           |
-+-------------------------------------------+
-            Your Local Machine
+
+TODO 
+
+REDRAW 
+
+ASCII
+
+DIAGRAM 
+
+FROM 
+
+PREVIOUS
+
+TUTORIAL
+
 ```
 
 You can find the code for these components [here](). You can use it as a reference while building or simply download it and follow along as you progress through the tutorial.

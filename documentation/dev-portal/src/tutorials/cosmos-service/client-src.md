@@ -14,7 +14,7 @@ use nym_validator_client::nyxd::Coin
 # Querying via the Mixnet
 The following is used to construct a `BalanceRequest`, send this to the supplied `service` address, and then handle the response, matching it to a `ResponseType`, in this case the only expected response, a `BalanceResponse`.
 
-The actual sending of the request is performed by `client.send_bytes`: sending the serialised `BalanceRequest` to the supplied Nym address (the `Recipient` imported from the `nym_sphinx_addressing` crate). It is sending the default number of SURBs along with the message, defined [here](LINK_TO_SURB_DEFAULT_NUMBEr).
+The actual sending of the request is performed by `client.send_bytes`: sending the serialised `BalanceRequest` to the supplied Nym address (the `Recipient` imported from the `nym_sphinx_addressing` crate). It is sending the default number of SURBs along with the message, defined [here](https://github.com/nymtech/nym/blob/develop/sdk/rust/nym-sdk/src/mixnet/client.rs#L34).
 
 ```rust
 pub async fn query_balance(

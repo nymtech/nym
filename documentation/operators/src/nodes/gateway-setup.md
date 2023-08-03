@@ -17,7 +17,7 @@ Make sure you do the preparation listed in the [preliminary steps page](../preli
 ## Gateway setup
 Now that you have built the codebase, set up your wallet, and have a VPS with the `nym-gateway` binary, you can set up your gateway with the instructions below.  
 
-To begin, move to `/taget/release` directory from which you run the node commands:
+To begin, move to `/target/release` directory from which you run the node commands:
 
 ```
 cd target/release

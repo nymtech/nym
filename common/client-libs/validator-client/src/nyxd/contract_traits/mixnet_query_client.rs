@@ -63,6 +63,11 @@ pub trait MixnetQueryClient {
             .await
     }
 
+    async fn get_mixnet_contract_state_params(&self) -> Result<ContractStateParams, NyxdError> {
+        self.query_mixnet_contract(MixnetQueryMsg::GetStateParams {})
+            .await
+    }
+
     async fn get_mixnet_contract_state(&self) -> Result<ContractState, NyxdError> {
         self.query_mixnet_contract(MixnetQueryMsg::GetState {})
             .await
@@ -613,7 +618,7 @@ mod tests {
             MixnetQueryMsg::GetRewardingValidatorAddress {} => {
                 client.get_rewarding_validator_address().ignore()
             }
-            MixnetQueryMsg::GetStateParams {} => {}
+            MixnetQueryMsg::GetStateParams {} => client.get_mixnet_contract_state_params().ignore(),
             MixnetQueryMsg::GetState {} => client.get_mixnet_contract_state().ignore(),
             MixnetQueryMsg::GetRewardingParams {} => client.get_rewarding_parameters().ignore(),
             MixnetQueryMsg::GetEpochStatus {} => client.get_current_epoch_status().ignore(),

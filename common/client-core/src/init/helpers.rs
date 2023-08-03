@@ -27,13 +27,17 @@ use tokio_tungstenite::connect_async;
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 #[cfg(not(target_arch = "wasm32"))]
 type WsConn = WebSocketStream<MaybeTlsStream<TcpStream>>;
+#[cfg(not(target_arch = "wasm32"))]
+use tokio::time::sleep;
 
 #[cfg(target_arch = "wasm32")]
 use nym_bandwidth_controller::wasm_mockups::DirectSigningNyxdClient;
 #[cfg(target_arch = "wasm32")]
-use wasm_timer::Instant;
-#[cfg(target_arch = "wasm32")]
 use wasm_utils::websocket::JSWebsocket;
+#[cfg(target_arch = "wasm32")]
+use wasmtimer::std::Instant;
+#[cfg(target_arch = "wasm32")]
+use wasmtimer::tokio::sleep;
 
 #[cfg(target_arch = "wasm32")]
 type WsConn = JSWebsocket;
@@ -125,14 +129,8 @@ async fn measure_latency(gateway: &gateway::Node) -> Result<GatewayWithLatency, 
             Ok::<(), ClientCoreError>(())
         };
 
-        // thanks to wasm we can't use tokio::time::timeout : (
-        #[cfg(not(target_arch = "wasm32"))]
-        let timeout = tokio::time::sleep(PING_TIMEOUT);
-        #[cfg(not(target_arch = "wasm32"))]
+        let timeout = sleep(PING_TIMEOUT);
         tokio::pin!(timeout);
-
-        #[cfg(target_arch = "wasm32")]
-        let mut timeout = wasm_timer::Delay::new(PING_TIMEOUT);
 
         tokio::select! {
             _ = &mut timeout => {

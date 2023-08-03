@@ -1,10 +1,22 @@
+// Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
 use crate::{NymAddress, ServiceDetails, ServiceId};
+use cosmwasm_schema::cw_serde;
 use cosmwasm_std::Coin;
 use nym_contracts_common::signing::MessageSignature;
-use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
-#[serde(rename_all = "snake_case")]
+#[cfg(feature = "schema")]
+use crate::{
+    response::{ConfigResponse, PagedServicesListResponse, ServicesListResponse},
+    types::Service,
+};
+#[cfg(feature = "schema")]
+use cosmwasm_schema::QueryResponses;
+#[cfg(feature = "schema")]
+use nym_contracts_common::{signing::Nonce, ContractBuildInformation};
+
+#[cw_serde]
 pub struct InstantiateMsg {
     pub deposit_required: Coin,
 }
@@ -15,12 +27,10 @@ impl InstantiateMsg {
     }
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
 pub struct MigrateMsg {}
 
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
 pub enum ExecuteMsg {
     Announce {
         service: ServiceDetails,
@@ -64,28 +74,37 @@ impl ExecuteMsg {
     }
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
+#[cfg_attr(feature = "schema", derive(QueryResponses))]
 pub enum QueryMsg {
-    ServiceId {
-        service_id: ServiceId,
-    },
-    ByAnnouncer {
-        announcer: String,
-    },
-    ByNymAddress {
-        nym_address: NymAddress,
-    },
+    #[cfg_attr(feature = "schema", returns(Service))]
+    ServiceId { service_id: ServiceId },
+
+    #[cfg_attr(feature = "schema", returns(ServicesListResponse))]
+    ByAnnouncer { announcer: String },
+
+    #[cfg_attr(feature = "schema", returns(ServicesListResponse))]
+    ByNymAddress { nym_address: NymAddress },
+
+    #[cfg_attr(feature = "schema", returns(PagedServicesListResponse))]
     All {
         limit: Option<u32>,
         start_after: Option<ServiceId>,
     },
-    SigningNonce {
-        address: String,
-    },
+
+    #[cfg_attr(feature = "schema", returns(Nonce))]
+    SigningNonce { address: String },
+
+    #[cfg_attr(feature = "schema", returns(ConfigResponse))]
     Config {},
+
+    /// Gets build information of this contract, such as the commit hash used for the build or rustc version.
+    #[cfg_attr(feature = "schema", returns(ContractBuildInformation))]
     GetContractVersion {},
+
+    /// Gets the stored contract version information that's required by the CW2 spec interface for migrations.
     #[serde(rename = "get_cw2_contract_version")]
+    #[cfg_attr(feature = "schema", returns(cw2::ContractVersion))]
     GetCW2ContractVersion {},
 }
 

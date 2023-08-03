@@ -20,7 +20,6 @@ nym-multisig-contract-common = { path = "../../cosmwasm-smart-contracts/multisig
 nym-name-service-common = { path = "../../cosmwasm-smart-contracts/name-service" }
 nym-group-contract-common = { path = "../../cosmwasm-smart-contracts/group-contract" }
 nym-service-provider-directory-common = { path = "../../cosmwasm-smart-contracts/service-provider-directory" }
-nym-vesting-contract = { path = "../../../contracts/vesting" }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 reqwest = { version = "0.11", features = ["json"] }

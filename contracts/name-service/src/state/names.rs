@@ -120,6 +120,8 @@ pub fn load_owner(store: &dyn Storage, owner: Addr) -> Result<Vec<RegisteredName
 pub struct PagedLoad {
     pub names: Vec<RegisteredName>,
     pub limit: usize,
+
+    /// Field indicating paging information for the following queries if the caller wishes to get further entries.
     pub start_next_after: Option<NameId>,
 }
 

@@ -40,6 +40,7 @@ pub async fn vesting_delegate_to_mixnode(args: Args, client: SigningClient) {
                 .get_mixnode_details_by_identity(identity_key)
                 .await
                 .expect("contract query failed")
+                .mixnode_details
                 .expect("mixnode with the specified identity doesnt exist");
             node_details.mix_id()
         }

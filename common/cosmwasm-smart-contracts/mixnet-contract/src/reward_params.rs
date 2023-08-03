@@ -3,9 +3,8 @@
 
 use crate::helpers::IntoBaseDecimal;
 use crate::{error::MixnetContractError, Percent};
+use cosmwasm_schema::cw_serde;
 use cosmwasm_std::Decimal;
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 
 pub type Performance = Percent;
 
@@ -15,7 +14,8 @@ pub type Performance = Percent;
     feature = "generate-ts",
     ts(export_to = "ts-packages/types/src/types/rust/IntervalRewardParams.ts")
 )]
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, PartialOrd, Serialize, JsonSchema)]
+#[cw_serde]
+#[derive(Copy)]
 pub struct IntervalRewardParams {
     /// Current value of the rewarding pool.
     /// It is expected to be constant throughout the interval.
@@ -74,21 +74,26 @@ impl IntervalRewardParams {
     }
 }
 
+/// Parameters used for reward calculation.
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
     ts(export_to = "ts-packages/types/src/types/rust/RewardingParams.ts")
 )]
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, PartialOrd, Serialize, JsonSchema)]
+#[cw_serde]
+#[derive(Copy)]
 pub struct RewardingParams {
     /// Parameters that should remain unchanged throughout an interval.
     pub interval: IntervalRewardParams,
 
-    // while the active set size can change between epochs to accommodate for bandwidth demands,
+    // while the rewarded set size can change between epochs to accommodate for bandwidth demands,
     // the active set size should be unchanged between epochs and should only be adjusted between
     // intervals. However, it makes more sense to keep both of those values together as they're
     // very strongly related to each other.
+    /// The expected number of mixnodes in the rewarded set (i.e. active + standby).
     pub rewarded_set_size: u32,
+
+    /// The expected number of mixnodes in the active set.
     pub active_set_size: u32,
 }
 
@@ -224,9 +229,14 @@ impl RewardingParams {
 }
 
 // TODO: possibly refactor this
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, PartialOrd, Serialize, JsonSchema)]
+/// Parameters used for rewarding particular mixnode.
+#[cw_serde]
+#[derive(Copy)]
 pub struct NodeRewardParams {
+    /// Performance of the particular node in the current epoch.
     pub performance: Percent,
+
+    /// Flag indicating whether the node has been in the active set during the epoch.
     pub in_active_set: bool,
 }
 
@@ -239,33 +249,40 @@ impl NodeRewardParams {
     }
 }
 
+/// Specification on how the rewarding params should be updated.
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
     ts(export_to = "ts-packages/types/src/types/rust/IntervalRewardingParamsUpdate.ts")
 )]
-#[derive(
-    Clone, Copy, Debug, Default, Deserialize, PartialEq, Eq, PartialOrd, Serialize, JsonSchema,
-)]
+#[cw_serde]
+#[derive(Copy, Default)]
 pub struct IntervalRewardingParamsUpdate {
     #[cfg_attr(feature = "generate-ts", ts(type = "string | null"))]
+    /// Defines the new value of the reward pool.
     pub reward_pool: Option<Decimal>,
 
     #[cfg_attr(feature = "generate-ts", ts(type = "string | null"))]
+    /// Defines the new value of the staking supply.
     pub staking_supply: Option<Decimal>,
 
     #[cfg_attr(feature = "generate-ts", ts(type = "string | null"))]
+    /// Defines the new value of the staking supply scale factor.
     pub staking_supply_scale_factor: Option<Percent>,
 
     #[cfg_attr(feature = "generate-ts", ts(type = "string | null"))]
+    /// Defines the new value of the sybil resistance percent.
     pub sybil_resistance_percent: Option<Percent>,
 
     #[cfg_attr(feature = "generate-ts", ts(type = "string | null"))]
+    /// Defines the new value of the active set work factor.
     pub active_set_work_factor: Option<Decimal>,
 
     #[cfg_attr(feature = "generate-ts", ts(type = "string | null"))]
+    /// Defines the new value of the interval pool emission rate.
     pub interval_pool_emission: Option<Percent>,
 
+    /// Defines the new size of the rewarded set.
     pub rewarded_set_size: Option<u32>,
 }
 

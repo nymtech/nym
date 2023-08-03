@@ -1,0 +1,34 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "FamilyMembersByHeadResponse",
+  "description": "Response containing family members information.",
+  "type": "object",
+  "required": [
+    "head",
+    "members"
+  ],
+  "properties": {
+    "head": {
+      "description": "The family head used for the query.",
+      "allOf": [
+        {
+          "$ref": "#/definitions/FamilyHead"
+        }
+      ]
+    },
+    "members": {
+      "description": "All members belonging to the specified family.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "FamilyHead": {
+      "description": "Head of particular family as identified by its identity key (i.e. public component of its ed25519 keypair stringified into base58).",
+      "type": "string"
+    }
+  }
+}

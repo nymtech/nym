@@ -1,14 +1,13 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{from_binary, to_binary, Addr, Coin, CosmosMsg, StdResult, WasmMsg};
 use nym_multisig_contract_common::msg::ExecuteMsg as MultisigExecuteMsg;
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 
 use crate::msg::ExecuteMsg;
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
+#[cw_serde]
 pub struct SpendCredentialData {
     funds: Coin,
     blinded_serial_number: String,
@@ -37,13 +36,14 @@ impl SpendCredentialData {
     }
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize, JsonSchema)]
+#[cw_serde]
+#[derive(Copy)]
 pub enum SpendCredentialStatus {
     InProgress,
     Spent,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize, JsonSchema)]
+#[cw_serde]
 pub struct SpendCredential {
     funds: Coin,
     blinded_serial_number: String,
@@ -74,10 +74,12 @@ impl SpendCredential {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize, JsonSchema)]
+#[cw_serde]
 pub struct PagedSpendCredentialResponse {
     pub spend_credentials: Vec<SpendCredential>,
     pub per_page: usize,
+
+    /// Field indicating paging information for the following queries if the caller wishes to get further entries.
     pub start_next_after: Option<String>,
 }
 
@@ -95,7 +97,7 @@ impl PagedSpendCredentialResponse {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize, JsonSchema)]
+#[cw_serde]
 pub struct SpendCredentialResponse {
     pub spend_credential: Option<SpendCredential>,
 }

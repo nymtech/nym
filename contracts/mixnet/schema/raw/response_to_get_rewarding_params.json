@@ -1,0 +1,129 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "RewardingParams",
+  "description": "Parameters used for reward calculation.",
+  "type": "object",
+  "required": [
+    "active_set_size",
+    "interval",
+    "rewarded_set_size"
+  ],
+  "properties": {
+    "active_set_size": {
+      "description": "The expected number of mixnodes in the active set.",
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0.0
+    },
+    "interval": {
+      "description": "Parameters that should remain unchanged throughout an interval.",
+      "allOf": [
+        {
+          "$ref": "#/definitions/IntervalRewardParams"
+        }
+      ]
+    },
+    "rewarded_set_size": {
+      "description": "The expected number of mixnodes in the rewarded set (i.e. active + standby).",
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0.0
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "Decimal": {
+      "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
+      "type": "string"
+    },
+    "IntervalRewardParams": {
+      "description": "Parameters required by the mix-mining reward distribution that do not change during an interval.",
+      "type": "object",
+      "required": [
+        "active_set_work_factor",
+        "epoch_reward_budget",
+        "interval_pool_emission",
+        "reward_pool",
+        "stake_saturation_point",
+        "staking_supply",
+        "staking_supply_scale_factor",
+        "sybil_resistance"
+      ],
+      "properties": {
+        "active_set_work_factor": {
+          "description": "Current active set work factor. It is not really expected to be changing very often. As a matter of fact, unless there's a very specific reason, it should remain constant.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Decimal"
+            }
+          ]
+        },
+        "epoch_reward_budget": {
+          "description": "Current value of the computed reward budget per epoch, per node. It is expected to be constant throughout the interval.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Decimal"
+            }
+          ]
+        },
+        "interval_pool_emission": {
+          "description": "Current maximum interval pool emission. Assuming all nodes in the rewarded set are fully saturated and have 100% performance, this % of the reward pool would get distributed in rewards to all operators and its delegators. It is not really expected to be changing very often. As a matter of fact, unless there's a very specific reason, it should remain constant.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Percent"
+            }
+          ]
+        },
+        "reward_pool": {
+          "description": "Current value of the rewarding pool. It is expected to be constant throughout the interval.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Decimal"
+            }
+          ]
+        },
+        "stake_saturation_point": {
+          "description": "Current value of the stake saturation point. It is expected to be constant throughout the interval.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Decimal"
+            }
+          ]
+        },
+        "staking_supply": {
+          "description": "Current value of the staking supply. It is expected to be constant throughout the interval.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Decimal"
+            }
+          ]
+        },
+        "staking_supply_scale_factor": {
+          "description": "Defines the percentage of stake needed to reach saturation for all of the nodes in the rewarded set. Also known as `beta`.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Percent"
+            }
+          ]
+        },
+        "sybil_resistance": {
+          "description": "Current value of the sybil resistance percent (`alpha`). It is not really expected to be changing very often. As a matter of fact, unless there's a very specific reason, it should remain constant.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Percent"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "Percent": {
+      "description": "Percent represents a value between 0 and 100% (i.e. between 0.0 and 1.0)",
+      "allOf": [
+        {
+          "$ref": "#/definitions/Decimal"
+        }
+      ]
+    }
+  }
+}

@@ -12,10 +12,8 @@ use nym_mixnet_contract_common::families::FamilyHead;
 use nym_mixnet_contract_common::gateway::GatewayConfigUpdate;
 use nym_mixnet_contract_common::mixnode::{MixNodeConfigUpdate, MixNodeCostParams};
 use nym_mixnet_contract_common::{Gateway, MixId, MixNode};
-use nym_vesting_contract_common::messages::{
-    ExecuteMsg as VestingExecuteMsg, VestingSpecification,
-};
-use nym_vesting_contract_common::PledgeCap;
+use nym_vesting_contract_common::messages::ExecuteMsg as VestingExecuteMsg;
+use nym_vesting_contract_common::{PledgeCap, VestingSpecification};
 
 #[async_trait]
 pub trait VestingSigningClient {

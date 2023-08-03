@@ -2,19 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::MixnetContractError;
-use crate::pending_events::{PendingEpochEvent, PendingIntervalEvent};
-use crate::{
-    EpochEventId, EpochId, IntervalEventId, IntervalId, MixId, PendingEpochEventData,
-    PendingIntervalEventData,
-};
+use crate::MixId;
+use cosmwasm_schema::cw_serde;
+use cosmwasm_schema::schemars::gen::SchemaGenerator;
+use cosmwasm_schema::schemars::schema::{InstanceType, Schema, SchemaObject};
+use cosmwasm_schema::schemars::JsonSchema;
 use cosmwasm_std::{Addr, Env};
-use schemars::gen::SchemaGenerator;
-use schemars::schema::{InstanceType, Schema, SchemaObject};
-use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 use std::time::Duration;
 use time::OffsetDateTime;
+
+pub type EpochId = u32;
+pub type IntervalId = u32;
 
 // internally, since version 0.3.6, time uses deserialize_any for deserialization, which can't be handled
 // by serde wasm. We could just downgrade to 0.3.5 and call it a day, but then it would break
@@ -64,12 +64,15 @@ pub(crate) mod string_rfc3339_offset_date_time {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Eq, PartialEq)]
+/// The status of the current rewarding epoch.
+#[cw_serde]
 pub struct EpochStatus {
     // TODO: introduce mechanism to allow another validator to take over if no progress has been made in X blocks / Y seconds
     /// Specifies either, which validator is currently performing progression into the following epoch (if the epoch is currently being progressed),
     /// or which validator was responsible for progressing into the current epoch (if the epoch is currently in progress)
     pub being_advanced_by: Addr,
+
+    /// The concrete state of the epoch.
     pub state: EpochState,
 }
 
@@ -150,7 +153,9 @@ impl EpochStatus {
     }
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, Eq, PartialEq)]
+/// The state of the current rewarding epoch.
+#[cw_serde]
+#[derive(Copy)]
 pub enum EpochState {
     /// Represents the state of an epoch that's in progress (well, duh.)
     /// All actions are allowed to be issued.
@@ -159,8 +164,10 @@ pub enum EpochState {
     /// Represents the state of an epoch when the rewarding entity has been decided on,
     /// and the mixnodes are in the process of being rewarded for their work in this epoch.
     Rewarding {
+        /// The id of the last node that has already received its rewards.
         last_rewarded: MixId,
 
+        /// The id of the last node that's going to be rewarded before progressing into the next state.
         final_node_id: MixId,
         // total_rewarded: u32,
     },
@@ -191,6 +198,7 @@ impl Display for EpochState {
     }
 }
 
+/// Specification of a rewarding interval.
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
@@ -198,7 +206,10 @@ impl Display for EpochState {
 )]
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize)]
 pub struct Interval {
+    /// Monotonously increasing id of this interval.
     id: IntervalId,
+
+    /// Number of epochs in this interval.
     epochs_in_interval: u32,
 
     // TODO add a better TS type generation
@@ -207,10 +218,17 @@ pub struct Interval {
     // note: the `ts-rs failed to parse this attribute. It will be ignored.` warning emitted during
     // compilation is fine (I guess). `ts-rs` can't handle `with` serde attribute, but that's okay
     // since we explicitly specified this field should correspond to typescript's string
+    /// The timestamp indicating the start of the current rewarding epoch.
     current_epoch_start: OffsetDateTime,
+
+    /// Monotonously increasing id of the current epoch in this interval.
     current_epoch_id: EpochId,
+
+    /// The duration of all epochs in this interval.
     #[cfg_attr(feature = "generate-ts", ts(type = "{ secs: number; nanos: number; }"))]
     epoch_length: Duration,
+
+    /// The total amount of elapsed epochs since the first epoch of the first interval.
     total_elapsed_epochs: EpochId,
 }
 
@@ -455,11 +473,19 @@ impl Display for Interval {
     }
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize)]
+/// Information about the current rewarding interval.
+#[cw_serde]
 pub struct CurrentIntervalResponse {
+    /// Detailed information about the underlying interval.
     pub interval: Interval,
+
+    /// The current blocktime
     pub current_blocktime: u64,
+
+    /// Flag indicating whether the current interval is over and it should be advanced.
     pub is_current_interval_over: bool,
+
+    /// Flag indicating whether the current epoch is over and it should be advanced.
     pub is_current_epoch_over: bool,
 }
 
@@ -485,87 +511,6 @@ impl CurrentIntervalResponse {
             } else {
                 Duration::from_secs(remaining_secs as u64)
             }
-        }
-    }
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
-pub struct PendingEpochEventsResponse {
-    pub seconds_until_executable: i64,
-    pub events: Vec<PendingEpochEvent>,
-    pub start_next_after: Option<u32>,
-}
-
-impl PendingEpochEventsResponse {
-    pub fn new(
-        seconds_until_executable: i64,
-        events: Vec<PendingEpochEvent>,
-        start_next_after: Option<u32>,
-    ) -> Self {
-        PendingEpochEventsResponse {
-            seconds_until_executable,
-            events,
-            start_next_after,
-        }
-    }
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
-pub struct PendingIntervalEventsResponse {
-    pub seconds_until_executable: i64,
-    pub events: Vec<PendingIntervalEvent>,
-    pub start_next_after: Option<u32>,
-}
-
-impl PendingIntervalEventsResponse {
-    pub fn new(
-        seconds_until_executable: i64,
-        events: Vec<PendingIntervalEvent>,
-        start_next_after: Option<u32>,
-    ) -> Self {
-        PendingIntervalEventsResponse {
-            seconds_until_executable,
-            events,
-            start_next_after,
-        }
-    }
-}
-
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct PendingEpochEventResponse {
-    pub event_id: EpochEventId,
-    pub event: Option<PendingEpochEventData>,
-}
-
-impl PendingEpochEventResponse {
-    pub fn new(event_id: EpochEventId, event: Option<PendingEpochEventData>) -> Self {
-        PendingEpochEventResponse { event_id, event }
-    }
-}
-
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct PendingIntervalEventResponse {
-    pub event_id: IntervalEventId,
-    pub event: Option<PendingIntervalEventData>,
-}
-
-impl PendingIntervalEventResponse {
-    pub fn new(event_id: IntervalEventId, event: Option<PendingIntervalEventData>) -> Self {
-        PendingIntervalEventResponse { event_id, event }
-    }
-}
-
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
-pub struct NumberOfPendingEventsResponse {
-    pub epoch_events: u32,
-    pub interval_events: u32,
-}
-
-impl NumberOfPendingEventsResponse {
-    pub fn new(epoch_events: u32, interval_events: u32) -> Self {
-        Self {
-            epoch_events,
-            interval_events,
         }
     }
 }

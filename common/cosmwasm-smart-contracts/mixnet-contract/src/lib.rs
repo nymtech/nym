@@ -11,14 +11,14 @@ pub mod events;
 pub mod families;
 pub mod gateway;
 pub mod helpers;
-mod interval;
+pub mod interval;
 pub mod mixnode;
-mod msg;
+pub mod msg;
 pub mod pending_events;
 pub mod reward_params;
 pub mod rewarding;
 pub mod signing_types;
-mod types;
+pub mod types;
 
 pub use contracts_common::types::*;
 pub use cosmwasm_std::{Addr, Coin, Decimal, Fraction};
@@ -26,25 +26,32 @@ pub use delegation::{
     Delegation, PagedAllDelegationsResponse, PagedDelegatorDelegationsResponse,
     PagedMixNodeDelegationsResponse,
 };
+pub use families::{
+    Family, FamilyByHeadResponse, FamilyByLabelResponse, FamilyHead, FamilyMembersByHeadResponse,
+    FamilyMembersByLabelResponse, PagedFamiliesResponse, PagedMembersResponse,
+};
 pub use gateway::{
     Gateway, GatewayBond, GatewayBondResponse, GatewayConfigUpdate, GatewayOwnershipResponse,
     PagedGatewayResponse,
 };
 pub use interval::{
-    CurrentIntervalResponse, EpochState, EpochStatus, Interval, NumberOfPendingEventsResponse,
-    PendingEpochEventResponse, PendingEpochEventsResponse, PendingIntervalEventResponse,
-    PendingIntervalEventsResponse,
+    CurrentIntervalResponse, EpochId, EpochState, EpochStatus, Interval, IntervalId,
 };
 pub use mixnode::{
     Layer, MixNode, MixNodeBond, MixNodeConfigUpdate, MixNodeCostParams, MixNodeDetails,
-    MixNodeRewarding, MixOwnershipResponse, MixnodeDetailsResponse, PagedMixnodeBondsResponse,
-    RewardedSetNodeStatus, UnbondedMixnode,
+    MixNodeRewarding, MixOwnershipResponse, MixnodeDetailsByIdentityResponse,
+    MixnodeDetailsResponse, PagedMixnodeBondsResponse, RewardedSetNodeStatus, UnbondedMixnode,
 };
 pub use msg::*;
 pub use pending_events::{
-    PendingEpochEvent, PendingEpochEventData, PendingEpochEventKind, PendingIntervalEvent,
-    PendingIntervalEventData, PendingIntervalEventKind,
+    EpochEventId, IntervalEventId, NumberOfPendingEventsResponse, PendingEpochEvent,
+    PendingEpochEventData, PendingEpochEventKind, PendingEpochEventResponse,
+    PendingEpochEventsResponse, PendingIntervalEvent, PendingIntervalEventData,
+    PendingIntervalEventKind, PendingIntervalEventResponse, PendingIntervalEventsResponse,
 };
 pub use reward_params::{IntervalRewardParams, IntervalRewardingParamsUpdate, RewardingParams};
+pub use rewarding::{
+    EstimatedCurrentEpochRewardResponse, PagedRewardedSetResponse, PendingRewardResponse,
+};
 pub use signing_types::*;
 pub use types::*;

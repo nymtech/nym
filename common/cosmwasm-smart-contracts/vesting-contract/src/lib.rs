@@ -4,83 +4,31 @@
 #![warn(clippy::expect_used)]
 #![warn(clippy::unwrap_used)]
 
-use contracts_common::Percent;
-use cosmwasm_std::{Addr, Coin, Timestamp, Uint128};
+use cosmwasm_schema::cw_serde;
+use cosmwasm_std::{Addr, Coin};
 use mixnet_contract_common::MixId;
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
-use std::str::FromStr;
 
-pub use messages::{ExecuteMsg, InitMsg, MigrateMsg, QueryMsg};
-
+pub mod account;
+pub mod error;
 pub mod events;
 pub mod messages;
+pub mod types;
 
-#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
-#[cfg_attr(
-    feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/Period.ts")
-)]
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone, JsonSchema)]
-pub enum Period {
-    Before,
-    In(usize),
-    After,
-}
+pub use account::Account;
+pub use error::VestingContractError;
+pub use messages::{ExecuteMsg, InitMsg, MigrateMsg, QueryMsg};
+pub use types::*;
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
-pub struct PledgeData {
-    pub amount: Coin,
-    pub block_time: Timestamp,
-}
-
-impl PledgeData {
-    pub fn amount(&self) -> Coin {
-        self.amount.clone()
-    }
-
-    pub fn block_time(&self) -> Timestamp {
-        self.block_time
-    }
-
-    pub fn new(amount: Coin, block_time: Timestamp) -> Self {
-        Self { amount, block_time }
-    }
-}
-
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
-pub enum PledgeCap {
-    Percent(Percent),
-    Absolute(Uint128), // This has to be in unym
-}
-
-impl FromStr for PledgeCap {
-    type Err = String;
-
-    fn from_str(cap: &str) -> Result<Self, Self::Err> {
-        let cap = cap.replace('_', "").replace(',', ".");
-        match Percent::from_str(&cap) {
-            Ok(p) => Ok(PledgeCap::Percent(p)),
-            Err(_) => match cap.parse::<u128>() {
-                Ok(i) => Ok(PledgeCap::Absolute(Uint128::from(i))),
-                Err(_e) => Err(format!("Could not parse {cap} as Percent or Uint128")),
-            },
-        }
-    }
-}
-
-impl Default for PledgeCap {
-    fn default() -> Self {
-        #[allow(clippy::expect_used)]
-        PledgeCap::Percent(Percent::from_percentage_value(10).expect("This can never fail!"))
-    }
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
+/// Details about the original vesting specification used when the account was created.
+#[cw_serde]
 pub struct OriginalVestingResponse {
+    /// The original amount that was used for the creation of this vesting account
     pub amount: Coin,
+
+    /// The number of vesting periods that the account was created with
     pub number_of_periods: usize,
+
+    /// Duration of each vesting period in seconds
     pub period_duration: u64,
 }
 
@@ -106,57 +54,73 @@ impl OriginalVestingResponse {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone, JsonSchema)]
-pub struct VestingDelegation {
-    pub account_id: u32,
-    pub mix_id: MixId,
-    pub block_timestamp: u64,
-    pub amount: Uint128,
-}
-
-impl VestingDelegation {
-    pub fn storage_key(&self) -> (u32, MixId, u64) {
-        (self.account_id, self.mix_id, self.block_timestamp)
-    }
-}
-
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone, JsonSchema)]
+/// Response containing timestamps of all delegations made towards particular mixnode by given vesting account.
+#[cw_serde]
 pub struct DelegationTimesResponse {
+    /// Address of this account's owner
     pub owner: Addr,
+
+    /// Id associated with this account
     pub account_id: u32,
+
+    /// Id of the mixnode towards which the delegation was made
     pub mix_id: MixId,
+
+    /// All timestamps where a delegation was made
     pub delegation_timestamps: Vec<u64>,
 }
 
-#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone, JsonSchema)]
+/// Response containing paged list of all vesting delegations made using vesting coins.
+#[cw_serde]
 pub struct AllDelegationsResponse {
+    /// The actual vesting delegations made.
     pub delegations: Vec<VestingDelegation>,
+
+    /// Field indicating paging information for the following queries if the caller wishes to get further entries.
     pub start_next_after: Option<(u32, MixId, u64)>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
+/// Basic information regarding particular vesting account alongside the amount of vesting coins.
+#[cw_serde]
 pub struct AccountVestingCoins {
+    /// Id associated with this account
     pub account_id: u32,
+
+    /// Address of this account's owner
     pub owner: Addr,
+
+    /// Coins that are still vesting belonging to this account.
     pub still_vesting: Coin,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
+/// Response containing vesting coins held in this contract
+#[cw_serde]
 pub struct VestingCoinsResponse {
+    /// The actual accounts, and their vesting coins, returned by the query.
     pub accounts: Vec<AccountVestingCoins>,
+
+    /// Field indicating paging information for the following queries if the caller wishes to get further entries.
     pub start_next_after: Option<Addr>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
+/// Basic information regarding particular vesting account
+#[cw_serde]
 pub struct BaseVestingAccountInfo {
+    /// Id associated with this account
     pub account_id: u32,
+
+    /// Address of this account's owner
     pub owner: Addr,
     // TODO: should this particular query/response expose anything else?
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
+/// Response containing basic vesting account information
+#[cw_serde]
 pub struct AccountsResponse {
+    /// The actual accounts returned by the query.
     pub accounts: Vec<BaseVestingAccountInfo>,
+
+    /// Field indicating paging information for the following queries if the caller wishes to get further entries.
     pub start_next_after: Option<Addr>,
 }
 

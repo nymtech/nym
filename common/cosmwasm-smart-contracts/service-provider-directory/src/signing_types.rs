@@ -1,15 +1,17 @@
+// Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
+use crate::ServiceDetails;
+use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Addr, Coin};
 use nym_contracts_common::signing::{
     ContractMessageContent, MessageType, Nonce, SignableMessage, SigningPurpose,
 };
-use serde::Serialize;
-
-use crate::ServiceDetails;
 
 pub type SignableServiceProviderAnnounceMsg =
     SignableMessage<ContractMessageContent<ServiceProviderAnnounce>>;
 
-#[derive(Serialize)]
+#[cw_serde]
 pub struct ServiceProviderAnnounce {
     service: ServiceDetails,
 }

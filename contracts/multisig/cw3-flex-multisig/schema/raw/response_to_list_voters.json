@@ -1,0 +1,37 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "VoterListResponse",
+  "type": "object",
+  "required": [
+    "voters"
+  ],
+  "properties": {
+    "voters": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/VoterDetail"
+      }
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "VoterDetail": {
+      "type": "object",
+      "required": [
+        "addr",
+        "weight"
+      ],
+      "properties": {
+        "addr": {
+          "type": "string"
+        },
+        "weight": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

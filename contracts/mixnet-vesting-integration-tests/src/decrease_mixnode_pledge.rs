@@ -9,8 +9,7 @@ use nym_contracts_common::Percent;
 use nym_mixnet_contract_common::error::MixnetContractError;
 use nym_mixnet_contract_common::{ContractStateParams, MixNodeCostParams};
 use nym_mixnet_contract_common::{MixOwnershipResponse, QueryMsg as MixnetQueryMsg};
-use nym_vesting_contract_common::ExecuteMsg as VestingExecuteMsg;
-use vesting_contract::errors::ContractError as VestingContractError;
+use nym_vesting_contract_common::{ExecuteMsg as VestingExecuteMsg, VestingContractError};
 
 #[test]
 fn decrease_mixnode_pledge_from_vesting_account_with_minimum_pledge() {

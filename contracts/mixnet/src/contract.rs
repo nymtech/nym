@@ -404,11 +404,11 @@ pub fn query(
             to_binary(&crate::mixnet_contract_settings::queries::query_contract_version())
         }
         QueryMsg::GetCW2ContractVersion {} => to_binary(&cw2::get_contract_version(deps.storage)?),
-        QueryMsg::GetStateParams {} => to_binary(
-            &crate::mixnet_contract_settings::queries::query_contract_settings_params(deps)?,
-        ),
         QueryMsg::GetRewardingValidatorAddress {} => to_binary(
             &crate::mixnet_contract_settings::queries::query_rewarding_validator_address(deps)?,
+        ),
+        QueryMsg::GetStateParams {} => to_binary(
+            &crate::mixnet_contract_settings::queries::query_contract_settings_params(deps)?,
         ),
         QueryMsg::GetState {} => {
             to_binary(&crate::mixnet_contract_settings::queries::query_contract_state(deps)?)
@@ -594,6 +594,8 @@ pub fn query(
         QueryMsg::GetNumberOfPendingEvents {} => to_binary(
             &crate::interval::queries::query_number_of_pending_events(deps)?,
         ),
+
+        // signing-related
         QueryMsg::GetSigningNonce { address } => to_binary(
             &crate::signing::queries::query_current_signing_nonce(deps, address)?,
         ),

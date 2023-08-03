@@ -1,0 +1,17 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "HooksResponse",
+  "type": "object",
+  "required": [
+    "hooks"
+  ],
+  "properties": {
+    "hooks": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "additionalProperties": false
+}

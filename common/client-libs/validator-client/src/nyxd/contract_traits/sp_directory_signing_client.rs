@@ -117,12 +117,30 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::nyxd::contract_traits::tests::{mock_coin, IgnoreValue};
 
     // it's enough that this compiles and clippy is happy about it
-    async fn all_execute_variants_are_covered<C: SpDirectorySigningClient + Send + Sync>(
+    #[allow(dead_code)]
+    fn all_execute_variants_are_covered<C: SpDirectorySigningClient + Send + Sync>(
         client: C,
         msg: SpExecuteMsg,
     ) {
-        unimplemented!()
+        match msg {
+            SpExecuteMsg::Announce {
+                service,
+                owner_signature,
+            } => client
+                .announce_service_provider(service, owner_signature, mock_coin(), None)
+                .ignore(),
+            SpExecuteMsg::DeleteId { service_id } => client
+                .delete_service_provider_by_id(service_id, None)
+                .ignore(),
+            SpExecuteMsg::DeleteNymAddress { nym_address } => client
+                .delete_service_provider_by_nym_address(nym_address, None)
+                .ignore(),
+            SpExecuteMsg::UpdateDepositRequired { deposit_required } => client
+                .update_deposit_required(deposit_required.into(), None)
+                .ignore(),
+        };
     }
 }

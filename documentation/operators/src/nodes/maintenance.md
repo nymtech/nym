@@ -2,7 +2,7 @@
 
  <!---
 TODO
-- [x] Compare mixnode, gateway, NR steps and validator of upgrading and automation and make a generic page - this one - for all of them with additional notes for particular nodes
+- [x] Compare mix node, gateway, NR steps and validator of upgrading and automation and make a generic page - this one - for all of them with additional notes for particular nodes
 - [x] Include how to move a mix node from one VPS to another while keeping the delegation etc (ie init a new mix node and move `/home/nym/.nym/mixnodes/data/*` there ?)
     - copy that dir over to the new vps
     - re-run init - remember that init doesn't overwrite existing keys - to generate a  config with the new listening address etc
@@ -25,7 +25,7 @@ For example `./target/debug/nym-network-requester --no-banner build-info --outpu
 
 ## Upgrading your node
 
-> The process is the similar for mixnode, gateway and network requester. In the following steps we use a placeholder `<NODE>` in the commands, please change it for the type of node you want to upgrade. Any particularities for the given type of node are included.
+> The process is the similar for mix node, gateway and network requester. In the following steps we use a placeholder `<NODE>` in the commands, please change it for the type of node you want to upgrade. Any particularities for the given type of node are included.
 
 Upgrading your node is a two-step process:
 * Updating the binary and `~/.nym/<NODE>/<YOUR_ID>/config.toml` on your VPS
@@ -116,7 +116,7 @@ If the `/dev/sda` partition is almost full, try pruning some of the `.gz` syslog
 
 In case of a need to move a node from one machine to another and avoiding to lose the delegation, here are few steps how to do it.
 
-The following examples transfers a mixnode (in case of other nodes, change the `mixnodes` in the command for the `<NODE>` of your desire.
+The following examples transfers a mix node (in case of other nodes, change the `mixnodes` in the command for the `<NODE>` of your desire.
 
 * Pause your node process.
 
@@ -128,7 +128,7 @@ Assuming both machines are remote VPS.
 # in case none of the nym configs was created previously
 mkdir ~/.nym
 
-#in case no nym mixnode was initialized previously
+#in case no nym mix node was initialized previously
 mkdir ~/.nym/mixnodes
 ```
 * Move the node data (keys) and config file to the new machine by opening a local terminal (as that one's ssh key is authorized in both of the machines) and running:
@@ -160,7 +160,7 @@ sudo ufw status
 Finally open your `<NODE>` p2p port, as well as ports for ssh and ports for verloc and measurement pings:
 
 ```
-# for mixnode
+# for mix node
 sudo ufw allow 1789,1790,8000,22/tcp
 
 # for gateway
@@ -212,7 +212,7 @@ In case it didn't work for your distribution, see how to build `tmux` from [vers
 
 **Running tmux**
 
-No when you installed tmux on your VPS, let's run a mixnode on tmux, which allows you to detach your terminal and let your `<NODE>` run on its own on the VPS.
+No when you installed tmux on your VPS, let's run a mix node on tmux, which allows you to detach your terminal and let your `<NODE>` run on its own on the VPS.
 
 * Pause your `<NODE>`
 * Start tmux with the command 
@@ -235,7 +235,7 @@ tmux attach-session
 
 Here's a systemd service file to do that:
 
-##### For Mixnode
+##### For mix node
 
 ```ini
 [Unit]
@@ -354,8 +354,8 @@ If you have built nym in the `$HOME` directory on your server, and your username
 Then run:
 
 ```
-# for mixnode
-systemctl enable nym-mixnode.service
+# for mix node
+systemctl enable nym-mix node.service
 
 # for gateway
 systemctl enable nym-gateway.service
@@ -364,7 +364,7 @@ systemctl enable nym-gateway.service
 Start your node:
 
 ```
-# for mixnode
+# for mix node
 service nym-mixnode start
 
 # for gateway
@@ -402,12 +402,12 @@ This means that the operating system is preventing network connections from bein
 
 > Replace `<NODE>` variable with `nym-mixnode`, `nym-gateway` or `nym-network-requester` according the node you running on your machine.
 
-The ulimit setup is relevant for maintenance of nym mixnode only.
+The ulimit setup is relevant for maintenance of nym mix node only.
 
 Query the `ulimit` of your `<NODE>` with:
 
 ```
-# for nym-mixnode, nym-gateway and nym-network requester:
+# for nym-, nym-gateway and nym-network requester:
 grep -i "open files" /proc/$(ps -A -o pid,cmd|grep <NODE> | grep -v grep |head -n 1 | awk '{print $1}')/limits
 
 # for nyx validator:
@@ -454,7 +454,7 @@ Make sure the limit has changed to 65535.
 
 #### Set the ulimit on `non-systemd` based distributions
 
-In case you chose tmux option for mixnode automatization, see your `ulimit` list by running:
+In case you chose tmux option for mix node automatization, see your `ulimit` list by running:
 
 ```
 ulimit -a
@@ -479,7 +479,7 @@ username        hard nofile 4096
 username        soft nofile 4096
 ```
 
-Then reboot your server and restart your mixnode.
+Then reboot your server and restart your mix node.
 
 ## Virtual IPs and hosting via Google & AWS
 For true internet decentralization we encourage operators to use diverse VPS providers instead of the largest companies offering such services. If for some reasons you have already running AWS or Google and want to setup a `<NODE>` there, please read the following.
@@ -514,11 +514,11 @@ Numerous API endpoints are documented on the Nym API (previously 'Validator API'
 
 ### Mix node Reward Estimation API endpoint
 
-The Reward Estimation API endpoint allows mixnode operators to estimate the rewards they could earn for running a Nym mixnode with a specific `MIX_ID`.
+The Reward Estimation API endpoint allows mix node operators to estimate the rewards they could earn for running a Nym mix node with a specific `MIX_ID`.
 
 > The `<MIX_ID>` can be found in the "Mix ID" column of the [Network Explorer](https://explorer.nymtech.net/network-components/mixnodes/active).
 
-The endpoint is a particularly common for mixnode operators as it can provide an estimate of potential earnings based on factors such as the amount of traffic routed through the mixnode, the quality of the mixnode's performance, and the overall demand for mixnodes in the network. This information can be useful for mixnode operators in deciding whether or not to run a mix node and in optimizing its operations for maximum profitability.
+The endpoint is a particularly common for mix node operators as it can provide an estimate of potential earnings based on factors such as the amount of traffic routed through the mix node, the quality of the mix node's performance, and the overall demand for mixnodes in the network. This information can be useful for mix node operators in deciding whether or not to run a mix node and in optimizing its operations for maximum profitability.
 
 Using this API endpoint returns information about the Reward Estimation:
 

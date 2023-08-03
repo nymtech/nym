@@ -1,23 +1,23 @@
 # Preliminary Steps
 
-> The Nym `mixnode`, `gateway` and `network-requester` binaries were built in the [building nym](../binaries/building-nym.md) section. If you haven't yet built Nym and want to run the code, go there first.
+> The Nym `mix node`, `gateway` and `network-requester` binaries were built in the [building nym](../binaries/building-nym.md) section. If you haven't yet built Nym and want to run the code, go there first.
 
 ## Preliminary steps
 
-There are a couple of steps that need completing before starting to set up your mixnode, gateway or a network requester:
+There are a couple of steps that need completing before starting to set up your mix node, gateway or a network requester:
 
 - preparing your [desktop wallet](https://nymtech.net/docs/wallet/desktop-wallet.html) or [CLI wallet](https://nymtech.net/docs/wallet/cli-wallet.html).
 - requisitioning a VPS (Virtual Private Server)
 
 ### Wallet preparation
 #### Mainnet
-Before you initialise and run your mixnode, head to our [website](https://nymtech.net/download/) and download the Nym wallet for your operating system. If pre-compiled binaries for your operating system aren't available, you can build the wallet yourself with instructions [here](https://nymtech.net/docs/wallet/desktop-wallet.html).
+Before you initialise and run your mix node, head to our [website](https://nymtech.net/download/) and download the Nym wallet for your operating system. If pre-compiled binaries for your operating system aren't available, you can build the wallet yourself with instructions [here](https://nymtech.net/docs/wallet/desktop-wallet.html).
 
-If you don't already have one, please create a Nym address using the wallet, and fund it with tokens. The minimum amount required to bond a mixnode is 100 `NYM`, but make sure you have a bit more to account for gas costs.
+If you don't already have one, please create a Nym address using the wallet, and fund it with tokens. The minimum amount required to bond a mix node is 100 `NYM`, but make sure you have a bit more to account for gas costs.
 
 `NYM` can be purchased via Bity from the wallet itself with BTC or fiat, and is currently present on several [exchanges](https://www.coingecko.com/en/coins/nym#markets).
 
-> Remember that you can **only** use Cosmos `NYM` tokens to bond your mixnode. You **cannot** use ERC20 representations of `NYM` to run a node.
+> Remember that you can **only** use Cosmos `NYM` tokens to bond your mix node. You **cannot** use ERC20 representations of `NYM` to run a node.
 
 
 #### Sandbox testnet
@@ -32,7 +32,7 @@ For now, see the below rough specs:
 
 - Processors: 2 cores are fine. Get the fastest CPUs you can afford.
 
-#### For Mixnode
+#### For mix node
 
 - RAM: Memory requirements are very low - typically a mix node may use only a few hundred MB of RAM.
 - Disks: The mixnodes require no disk space beyond a few bytes for the configuration files.

@@ -9,17 +9,17 @@
 <!-- cmdrun ../../../../target/release/nym-mixnode --version | grep "Build Version" | cut -b 21-26  -->
 ```
 
-The `nym-mixnode` binary is currently one point version ahead of the rest of the platform binaries due to a patch applied between releases.
+The `nym-mix node` binary is currently one point version ahead of the rest of the platform binaries due to a patch applied between releases.
 
 ## Preliminary steps
 
-Make sure you do the preparation listed in the [preliminary steps page](../preliminary-steps.md) before setting up your mixnode.
+Make sure you do the preparation listed in the [preliminary steps page](../preliminary-steps.md) before setting up your mix node.
 
 ## Mix node setup
 
-Now that you have built the [codebase](../binaries/building-nym.md), set up your [wallet](https://nymtech.net/docs/wallet/desktop-wallet.html), and have a VPS with the `nym-mixnode` binary, you can set up your mix node with the instructions below.  
+Now that you have built the [codebase](../binaries/building-nym.md), set up your [wallet](https://nymtech.net/docs/wallet/desktop-wallet.html), and have a VPS with the `nym-mix node` binary, you can set up your mix node with the instructions below.  
 
-To begin, move to `/taget/release` directory from which you run the node commands:
+To begin, move to `/target/release` directory from which you run the node commands:
 
 ```
 cd target/release
@@ -63,10 +63,10 @@ To check available configuration options for initializing your node use:
 ```
 ~~~
 
-Initalise your mixnode with the following command, replacing the value of `--id` with the moniker you wish to give your mixnode, and the `--wallet-address` with the Nym address you created earlier. Your `--host` must be publicly routable on the internet in order to mix packets, and can be either an Ipv4 or IPv6 address. The `$(curl ifconfig.me)` command returns your IP automatically using an external service. If you enter your IP address manually, enter it **without** any port information.
+Initalise your mix node with the following command, replacing the value of `--id` with the moniker you wish to give your mix node. Your `--host` must be publicly routable on the internet in order to mix packets, and can be either an Ipv4 or IPv6 address. The `$(curl ifconfig.me)` command returns your IP automatically using an external service. If you enter your IP address manually, enter it **without** any port information.
 
 ```
-./nym-mixnode init --id <NODE_NAME> --host $(curl ifconfig.me) --wallet-address <WALLET_ADDRESS>
+./nym-mixnode init --id <NODE_NAME> --host $(curl ifconfig.me) 
 ```
 
 <!---serinko: The automatized command did not work, printing the output manually--->
@@ -105,7 +105,7 @@ During the `init` process you will have the option to change the `http_api`, `ve
 ### Bonding your mix node
 
 ```admonish caution
-From `v1.1.3`, if you unbond your mixnode that means you are leaving the mixnet and you will lose all your delegations (permanently). You can join again with the same identity key, however, you will start with **no delegations**.
+From `v1.1.3`, if you unbond your mix node that means you are leaving the mixnet and you will lose all your delegations (permanently). You can join again with the same identity key, however, you will start with **no delegations**.
 ```
 
 #### Bond via the Desktop wallet (recommended)
@@ -183,7 +183,7 @@ Have a look at the saved configuration files in `$HOME/.nym/mixnodes/` to see mo
 
 ## Node Description (optional)
 
-In order to easily identify your node via human-readable information later on in the development of the testnet when delegated staking is implemented, you can `describe` your mixnode with the following command:
+In order to easily identify your node via human-readable information later on in the development of the testnet when delegated staking is implemented, you can `describe` your mix node with the following command:
 
 ```
 ./nym-mixnode describe --id <YOUR_ID>
@@ -311,5 +311,5 @@ For more details see [Troubleshooting FAQ](../nodes/troubleshooting.md)
 
 ## Maintenance
 
-For mixnode upgrade, firewall setup, port configuration, API endpoints, VPS suggestions, automation and more, see the [maintenance page](./maintenance.md)
+For mix node upgrade, firewall setup, port configuration, API endpoints, VPS suggestions, automation and more, see the [maintenance page](./maintenance.md)
 

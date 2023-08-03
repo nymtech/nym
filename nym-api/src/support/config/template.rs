@@ -132,7 +132,7 @@ public_key_with_proof_path = '{{ coconut_signer.storage_paths.public_key_with_pr
 
 [ephemera]
 
-enabled = '{{ ephemera.enabled }}'
+enabled = {{ ephemera.enabled }}
 
 [ephemera.args]
 

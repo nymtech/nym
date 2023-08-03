@@ -2,7 +2,7 @@
 
 ## Mixnet nodes
 
-### What determines the rewards when running a mixnode?
+### What determines the rewards when running a mix node?
 
 The stake required for a mix node to achieve maximum rewards is called mix node saturation point. This is calculated from the staking supply (all circulating supply + part of unlocked tokens). The target level of staking is to have 50% of the staking supply locked in mix nodes.
 
@@ -16,7 +16,7 @@ For more detailed calculation, read our blog post [Nym Token Economics update](h
 
 Consider in which jurisdiction you reside and where do you want to run a mix node. Do you want to pay by crypto or not and what are the other important particularities for your case? We always recommend operators to try to chose smaller and decentralized VPS providers over the most known ones controlling a majority of the internet. We recieve some good feedback on these: Hertzner, DigitalOcean, Linode, Ghandi and Exoscale. Do your own research and share with the community.
 
-<!---### Why is a mixnode setup on a self-hosted machine so tricky?--->
+<!---### Why is a mix node setup on a self-hosted machine so tricky?--->
 
 ### What's the Sphinx packet size?
 
@@ -32,7 +32,7 @@ Right now only mix nodes are rewarded. We're working on gateway and service paym
 
 ### Are mixnodes whitelisted?
 
-Nope, anyone can run a mixnode. Purely reliant on the node's reputation (self stake + delegations) & routing score.
+Nope, anyone can run a mix node. Purely reliant on the node's reputation (self stake + delegations) & routing score.
 
 ## Validators and tokens
 

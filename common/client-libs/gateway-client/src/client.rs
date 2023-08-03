@@ -23,6 +23,7 @@ use nym_network_defaults::{REMAINING_BANDWIDTH_THRESHOLD, TOKENS_TO_BURN};
 use nym_noise::upgrade_noise_initiator;
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_task::TaskClient;
+use nym_validator_client::NymApiClient;
 use rand::rngs::OsRng;
 use std::convert::TryFrom;
 use std::net::SocketAddr;
@@ -60,6 +61,7 @@ pub struct GatewayClient<C, St> {
     packet_router: PacketRouter,
     response_timeout_duration: Duration,
     bandwidth_controller: Option<BandwidthController<C, St>>,
+    nym_api_client: NymApiClient,
 
     // reconnection related variables
     /// Specifies whether client should try to reconnect to gateway on connection failure.
@@ -89,6 +91,7 @@ impl<C, St> GatewayClient<C, St> {
         ack_sender: AcknowledgementSender,
         response_timeout_duration: Duration,
         bandwidth_controller: Option<BandwidthController<C, St>>,
+        nym_api_client: NymApiClient,
         shutdown: TaskClient,
     ) -> Self {
         GatewayClient {
@@ -105,6 +108,7 @@ impl<C, St> GatewayClient<C, St> {
             packet_router: PacketRouter::new(ack_sender, mixnet_message_sender, shutdown.clone()),
             response_timeout_duration,
             bandwidth_controller,
+            nym_api_client,
             should_reconnect_on_failure: true,
             reconnection_attempts: DEFAULT_RECONNECTION_ATTEMPTS,
             reconnection_backoff: DEFAULT_RECONNECTION_BACKOFF,
@@ -180,12 +184,20 @@ impl<C, St> GatewayClient<C, St> {
             Ok(stream_res) => match stream_res {
                 Ok(stream) => {
                     debug!("Managed to establish connection to gateway");
+                    let current_epoch_id = match self.nym_api_client.get_current_epoch_id().await {
+                        Ok(epoch_id) => epoch_id,
+                        Err(err) => {
+                            error!("Failed to retrieve epoch Id for Noise handshake - {err}");
+                            return Err(GatewayClientError::ConnectionNotEstablished);
+                        }
+                    };
+
                     let noise_stream = match upgrade_noise_initiator(
                         stream,
                         None, //as a client, the gateway cannot know my pub key
                         &self.local_sphinx.private_key().to_bytes(),
                         &self.gateway_sphinx.to_bytes(),
-                        0,
+                        current_epoch_id,
                     )
                     .await
                     {
@@ -830,6 +842,7 @@ impl<C> GatewayClient<C, EphemeralCredentialStorage> {
         local_identity: Arc<identity::KeyPair>,
         local_sphinx: Arc<encryption::KeyPair>,
         response_timeout_duration: Duration,
+        nym_api_client: NymApiClient,
     ) -> Self {
         use futures::channel::mpsc;
 
@@ -854,6 +867,7 @@ impl<C> GatewayClient<C, EphemeralCredentialStorage> {
             packet_router,
             response_timeout_duration,
             bandwidth_controller: None,
+            nym_api_client,
             should_reconnect_on_failure: false,
             reconnection_attempts: DEFAULT_RECONNECTION_ATTEMPTS,
             reconnection_backoff: DEFAULT_RECONNECTION_BACKOFF,

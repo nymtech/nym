@@ -17,7 +17,9 @@ use nym_crypto::asymmetric::identity;
 use nym_sphinx::addressing::{clients::Recipient, nodes::NodeIdentity};
 use nym_topology::gateway;
 use nym_validator_client::client::IdentityKey;
+use nym_validator_client::NymApiClient;
 use rand::rngs::OsRng;
+use rand::seq::SliceRandom;
 use serde::Serialize;
 use std::fmt::{Debug, Display};
 use url::Url;
@@ -271,6 +273,7 @@ pub async fn setup_gateway_from<K, D>(
     details_store: &D,
     overwrite_data: bool,
     gateways: Option<&[gateway::Node]>,
+    nym_api_client: NymApiClient,
 ) -> Result<InitialisationDetails, ClientCoreError>
 where
     K: KeyStore,
@@ -374,7 +377,8 @@ where
 
     // Establish connection, authenticate and generate keys for talking with the gateway
     let shared_keys =
-        helpers::register_with_gateway(&gateway_details, our_identity, our_sphinx).await?;
+        helpers::register_with_gateway(&gateway_details, our_identity, our_sphinx, nym_api_client)
+            .await?;
 
     let persisted_details = PersistedGatewayDetails::new(gateway_details, &shared_keys);
 
@@ -411,12 +415,19 @@ where
     let mut rng = OsRng;
     let gateways = current_gateways(&mut rng, validator_servers.unwrap_or_default()).await?;
 
+    let nym_api = validator_servers
+        .unwrap_or_default()
+        .choose(&mut rng)
+        .ok_or(ClientCoreError::ListOfNymApisIsEmpty)?;
+    let client = nym_validator_client::client::NymApiClient::new(nym_api.clone());
+
     setup_gateway_from(
         setup,
         key_store,
         details_store,
         overwrite_data,
         Some(&gateways),
+        client,
     )
     .await
 }

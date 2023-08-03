@@ -9,6 +9,7 @@ use log::*;
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_mixnet_client::forwarder::MixForwardingSender;
 use nym_noise::upgrade_noise_responder;
+use nym_validator_client::NymApiClient;
 use rand::rngs::OsRng;
 use std::net::SocketAddr;
 use std::process;
@@ -21,6 +22,7 @@ pub(crate) struct Listener {
     local_sphinx: Arc<encryption::KeyPair>,
     only_coconut_credentials: bool,
     pub(crate) coconut_verifier: Arc<CoconutVerifier>,
+    nym_api_client: NymApiClient,
 }
 
 impl Listener {
@@ -30,6 +32,7 @@ impl Listener {
         local_sphinx: Arc<encryption::KeyPair>,
         only_coconut_credentials: bool,
         coconut_verifier: Arc<CoconutVerifier>,
+        nym_api_client: NymApiClient,
     ) -> Self {
         Listener {
             address,
@@ -37,6 +40,7 @@ impl Listener {
             local_sphinx,
             only_coconut_credentials,
             coconut_verifier,
+            nym_api_client,
         }
     }
 
@@ -72,12 +76,20 @@ impl Listener {
                             trace!("received a socket connection from {remote_addr}");
                             // TODO: I think we *REALLY* need a mechanism for having a maximum number of connected
                             // clients or spawned tokio tasks -> perhaps a worker system?
+
+                            let current_epoch_id = match self.nym_api_client.get_current_epoch_id().await {
+                                Ok(epoch_id) => epoch_id,
+                                Err(err) => {
+                                    error!("Failed to retrieve epoch Id for Noise handshake - {err}");
+                                    return;
+                                }
+                            };
                             let noise_stream = match upgrade_noise_responder(
                                 socket,
                                 &self.local_sphinx.public_key().to_bytes(),
                                 &self.local_sphinx.private_key().to_bytes(),
                                 None, //connection from client, no remote pub key
-                                0,
+                                current_epoch_id,
                             )
                             .await
                             {

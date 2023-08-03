@@ -179,6 +179,7 @@ impl<St> Gateway<St> {
             Arc::clone(&self.sphinx_keypair),
             self.config.gateway.only_coconut_credentials,
             coconut_verifier,
+            self.random_api_client(),
         )
         .start(
             forwarding_channel,

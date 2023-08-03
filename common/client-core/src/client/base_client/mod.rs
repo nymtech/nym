@@ -42,6 +42,9 @@ use nym_sphinx::receiver::{ReconstructedMessage, SphinxMessageReceiver};
 use nym_task::connections::{ConnectionCommandReceiver, ConnectionCommandSender, LaneQueueLengths};
 use nym_task::{TaskClient, TaskManager};
 use nym_topology::provider_trait::TopologyProvider;
+use nym_validator_client::NymApiClient;
+use rand::seq::SliceRandom;
+use rand::thread_rng;
 use std::sync::Arc;
 use tap::TapFallible;
 use url::Url;
@@ -298,6 +301,7 @@ where
         bandwidth_controller: Option<BandwidthController<C, S::CredentialStore>>,
         mixnet_message_sender: MixnetMessageSender,
         ack_sender: AcknowledgementSender,
+        api_client: NymApiClient,
         shutdown: TaskClient,
     ) -> Result<GatewayClient<C, S::CredentialStore>, ClientCoreError>
     where
@@ -326,6 +330,7 @@ where
             ack_sender,
             config.debug.gateway_connection.gateway_response_timeout,
             bandwidth_controller,
+            api_client,
             shutdown,
         );
 
@@ -341,6 +346,15 @@ where
         managed_keys.ensure_gateway_key(shared_key);
 
         Ok(gateway_client)
+    }
+
+    fn random_api_client(&self) -> nym_validator_client::NymApiClient {
+        let endpoints = self.config.get_nym_api_endpoints();
+        let nym_api = endpoints
+            .choose(&mut thread_rng())
+            .expect("The list of validator apis is empty");
+
+        nym_validator_client::NymApiClient::new(nym_api.clone())
     }
 
     fn setup_topology_provider(
@@ -474,6 +488,8 @@ where
         let gateway_config = details.gateway_details;
         let managed_keys = details.managed_keys;
 
+        let random_api_client = self.random_api_client();
+
         let (reply_storage_backend, credential_store) = self.client_store.into_runtime_stores();
 
         let bandwidth_controller = self
@@ -517,6 +533,7 @@ where
             bandwidth_controller,
             mixnet_messages_sender,
             ack_sender,
+            random_api_client,
             task_manager.subscribe(),
         )
         .await?;

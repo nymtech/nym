@@ -9,6 +9,7 @@ use nym_crypto::asymmetric::{encryption, identity};
 use nym_gateway_client::GatewayClient;
 use nym_gateway_requests::registration::handshake::SharedKeys;
 use nym_topology::{filter::VersionFilterable, gateway};
+use nym_validator_client::NymApiClient;
 use rand::{seq::SliceRandom, Rng};
 use std::{sync::Arc, time::Duration};
 use tap::TapFallible;
@@ -201,6 +202,7 @@ pub(super) async fn register_with_gateway(
     gateway: &GatewayEndpointConfig,
     our_identity: Arc<identity::KeyPair>,
     our_sphinx: Arc<encryption::KeyPair>,
+    nym_api_client: NymApiClient,
 ) -> Result<Arc<SharedKeys>, ClientCoreError> {
     let timeout = Duration::from_millis(1500);
     let mut gateway_client: GatewayClient<DirectSigningNyxdClient, _> = GatewayClient::new_init(
@@ -210,6 +212,7 @@ pub(super) async fn register_with_gateway(
         our_identity.clone(),
         our_sphinx.clone(),
         timeout,
+        nym_api_client,
     );
     gateway_client
         .establish_connection()

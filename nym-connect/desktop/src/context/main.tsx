@@ -113,8 +113,6 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
 
   useEffect(() => {
     const saveUserGateway = async () => {
-      console.log('******** SAVE GATEWAY');
-      console.log(userDefinedGateway);
       await invoke('set_selected_gateway', {
         gateway: { address: userDefinedGateway.address, is_active: userDefinedGateway.isActive },
       });
@@ -124,8 +122,6 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
 
   useEffect(() => {
     const saveUserServiceProvider = async () => {
-      console.log('******** SAVE SP');
-      console.log(userDefinedSPAddress);
       await invoke('set_selected_sp', {
         serviceProvider: { address: userDefinedSPAddress.address, is_active: userDefinedSPAddress.isActive },
       });

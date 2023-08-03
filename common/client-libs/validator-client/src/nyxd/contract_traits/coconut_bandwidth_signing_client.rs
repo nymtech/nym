@@ -144,7 +144,7 @@ mod tests {
                 )
                 .ignore(),
             CoconutBandwidthExecuteMsg::ReleaseFunds { funds } => {
-                client.release_funds(mock_coin(), None).ignore()
+                client.release_funds(funds.into(), None).ignore()
             }
         };
     }

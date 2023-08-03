@@ -1105,6 +1105,7 @@ dependencies = [
 name = "nym-ephemera"
 version = "0.1.0"
 dependencies = [
+ "cosmwasm-schema",
  "cosmwasm-std",
  "cosmwasm-storage",
  "cw-controllers",
@@ -1116,7 +1117,6 @@ dependencies = [
  "nym-ephemera-common",
  "nym-group-contract-common",
  "rusty-fork",
- "schemars",
  "serde",
  "thiserror",
 ]
@@ -1125,11 +1125,10 @@ dependencies = [
 name = "nym-ephemera-common"
 version = "0.1.0"
 dependencies = [
+ "cosmwasm-schema",
  "cosmwasm-std",
  "cw-utils",
  "nym-contracts-common",
- "schemars",
- "serde",
 ]
 
 [[package]]

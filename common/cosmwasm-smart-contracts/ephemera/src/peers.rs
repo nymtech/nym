@@ -2,14 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::types::JsonPeerInfo;
+use cosmwasm_schema::cw_serde;
 use cosmwasm_std::Addr;
-use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
 pub struct PagedPeerResponse {
     pub peers: Vec<JsonPeerInfo>,
     pub per_page: usize,
+
+    /// Field indicating paging information for the following queries if the caller wishes to get further entries.
     pub start_next_after: Option<Addr>,
 }
 

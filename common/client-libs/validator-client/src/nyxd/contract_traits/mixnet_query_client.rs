@@ -24,16 +24,16 @@ use nym_mixnet_contract_common::{
     CurrentIntervalResponse, Delegation, EpochEventId, EpochStatus, FamilyByHeadResponse,
     FamilyByLabelResponse, FamilyMembersByHeadResponse, FamilyMembersByLabelResponse, GatewayBond,
     GatewayBondResponse, GatewayOwnershipResponse, IdentityKey, IntervalEventId, LayerDistribution,
-    MixId, MixNodeBond, MixNodeDetails, MixOwnershipResponse, MixnodeDetailsResponse,
-    NumberOfPendingEventsResponse, PagedAllDelegationsResponse, PagedDelegatorDelegationsResponse,
-    PagedFamiliesResponse, PagedGatewayResponse, PagedMembersResponse,
-    PagedMixNodeDelegationsResponse, PagedMixnodeBondsResponse, PagedRewardedSetResponse,
-    PendingEpochEvent, PendingEpochEventResponse, PendingEpochEventsResponse, PendingIntervalEvent,
-    PendingIntervalEventResponse, PendingIntervalEventsResponse, QueryMsg as MixnetQueryMsg,
-    RewardedSetNodeStatus, UnbondedMixnode,
+    MixId, MixNodeBond, MixNodeDetails, MixOwnershipResponse, MixnodeDetailsByIdentityResponse,
+    MixnodeDetailsResponse, NumberOfPendingEventsResponse, PagedAllDelegationsResponse,
+    PagedDelegatorDelegationsResponse, PagedFamiliesResponse, PagedGatewayResponse,
+    PagedMembersResponse, PagedMixNodeDelegationsResponse, PagedMixnodeBondsResponse,
+    PagedRewardedSetResponse, PendingEpochEvent, PendingEpochEventResponse,
+    PendingEpochEventsResponse, PendingIntervalEvent, PendingIntervalEventResponse,
+    PendingIntervalEventsResponse, QueryMsg as MixnetQueryMsg, RewardedSetNodeStatus,
+    UnbondedMixnode,
 };
 use serde::Deserialize;
-use std::collections::HashSet;
 
 #[async_trait]
 pub trait MixnetQueryClient {
@@ -461,20 +461,6 @@ pub trait MixnetQueryClient {
         head: String,
     ) -> Result<FamilyByHeadResponse, NyxdError> {
         self.query_mixnet_contract(MixnetQueryMsg::GetFamilyByHead { head })
-            .await
-    }
-
-    // TODO: make sure the type matches after https://github.com/nymtech/nym/pull/3693 is merged
-    async fn get_family_members_by_head(&self, head: String) -> Result<HashSet<String>, NyxdError> {
-        self.query_mixnet_contract(MixnetQueryMsg::GetFamilyMembersByHead { head })
-            .await
-    }
-
-    async fn get_family_members_by_label(
-        &self,
-        label: String,
-    ) -> Result<HashSet<String>, NyxdError> {
-        self.query_mixnet_contract(MixnetQueryMsg::GetFamilyMembersByLabel { label })
             .await
     }
 }

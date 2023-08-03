@@ -22,6 +22,7 @@ use nym_bin_common::logging::setup_logging;
 use nym_contract_cache::cache::NymContractCache;
 use nym_sphinx::receiver::SphinxMessageReceiver;
 use nym_task::TaskManager;
+use nym_validator_client::NymApiClient;
 use rand::rngs::OsRng;
 use std::error::Error;
 use support::{http, nyxd};
@@ -124,12 +125,20 @@ async fn start_nym_api_tasks(
     if config.network_monitor.enabled {
         // if network monitor is enabled, the storage MUST BE available
         let storage = maybe_storage.unwrap();
-
+        let url = format!(
+            "http://{}:{}",
+            rocket.config().address,
+            rocket.config().port
+        )
+        .parse()
+        .unwrap();
+        let nym_api_client = NymApiClient::new(url);
         network_monitor::start::<SphinxMessageReceiver>(
             &config.network_monitor,
             nym_contract_cache_state,
             storage,
             nyxd_client.clone(),
+            nym_api_client,
             &shutdown,
         )
         .await;

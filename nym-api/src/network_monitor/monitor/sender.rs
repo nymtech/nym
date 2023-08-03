@@ -21,6 +21,7 @@ use nym_gateway_client::error::GatewayClientError;
 use nym_gateway_client::{AcknowledgementReceiver, GatewayClient, MixnetMessageReceiver};
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_task::TaskClient;
+use nym_validator_client::NymApiClient;
 use pin_project::pin_project;
 use std::mem;
 use std::num::NonZeroUsize;
@@ -133,6 +134,7 @@ pub(crate) struct PacketSender {
     active_gateway_clients: ActiveGatewayClients,
 
     fresh_gateway_client_data: Arc<FreshGatewayClientData>,
+    nym_api_client: NymApiClient,
     gateway_connection_timeout: Duration,
     max_concurrent_clients: usize,
     max_sending_rate: usize,
@@ -151,6 +153,7 @@ impl PacketSender {
         max_concurrent_clients: usize,
         max_sending_rate: usize,
         bandwidth_controller: BandwidthController<nyxd::Client, PersistentStorage>,
+        nym_api_client: NymApiClient,
         disabled_credentials_mode: bool,
     ) -> Self {
         PacketSender {
@@ -163,6 +166,7 @@ impl PacketSender {
                 bandwidth_controller,
                 disabled_credentials_mode,
             }),
+            nym_api_client,
             gateway_connection_timeout,
             max_concurrent_clients,
             max_sending_rate,
@@ -186,6 +190,7 @@ impl PacketSender {
         identity: identity::PublicKey,
         sphinx: encryption::PublicKey,
         fresh_gateway_client_data: &FreshGatewayClientData,
+        nym_api_client: NymApiClient,
     ) -> (
         GatewayClientHandle,
         (MixnetMessageReceiver, AcknowledgementReceiver),
@@ -209,6 +214,7 @@ impl PacketSender {
             ack_sender,
             fresh_gateway_client_data.gateway_response_timeout,
             Some(fresh_gateway_client_data.bandwidth_controller.clone()),
+            nym_api_client,
             nym_task::TaskClient::dummy(),
         );
 
@@ -285,13 +291,19 @@ impl PacketSender {
         identity: identity::PublicKey,
         sphinx: encryption::PublicKey,
         fresh_gateway_client_data: &FreshGatewayClientData,
+        nym_api_client: NymApiClient,
         gateway_connection_timeout: Duration,
     ) -> Option<(
         GatewayClientHandle,
         (MixnetMessageReceiver, AcknowledgementReceiver),
     )> {
-        let (new_client, (message_receiver, ack_receiver)) =
-            Self::new_gateway_client_handle(address, identity, sphinx, fresh_gateway_client_data);
+        let (new_client, (message_receiver, ack_receiver)) = Self::new_gateway_client_handle(
+            address,
+            identity,
+            sphinx,
+            fresh_gateway_client_data,
+            nym_api_client,
+        );
 
         // Put this in timeout in case the gateway has incorrectly set their ulimit and our connection
         // gets stuck in their TCP queue and just hangs on our end but does not terminate
@@ -349,6 +361,7 @@ impl PacketSender {
         gateway_connection_timeout: Duration,
         packets: GatewayPackets,
         fresh_gateway_client_data: Arc<FreshGatewayClientData>,
+        nym_api_client: NymApiClient,
         client: Option<GatewayClientHandle>,
         max_sending_rate: usize,
     ) -> Option<GatewayClientHandle> {
@@ -370,6 +383,7 @@ impl PacketSender {
                     packets.pub_key,
                     packets.encryption_key,
                     &fresh_gateway_client_data,
+                    nym_api_client,
                     gateway_connection_timeout,
                 )
                 .await?;
@@ -497,6 +511,7 @@ impl PacketSender {
         // we're not interacting with right now)
         drop(guard);
 
+        let nym_api_client = &self.nym_api_client;
         // can't chain it all nicely together as there's no adapter method defined on Stream directly
         // for ForEachConcurrentClientUse
         let used_clients = ForEachConcurrentClientUse::new(
@@ -507,6 +522,7 @@ impl PacketSender {
                     gateway_connection_timeout,
                     packets,
                     fresh_data,
+                    nym_api_client.clone(),
                     client,
                     max_sending_rate,
                 )

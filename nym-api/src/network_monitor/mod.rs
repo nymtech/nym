@@ -22,6 +22,7 @@ use nym_sphinx::acknowledgements::AckKey;
 use nym_sphinx::params::PacketType;
 use nym_sphinx::receiver::MessageReceiver;
 use nym_task::TaskManager;
+use nym_validator_client::NymApiClient;
 use std::sync::Arc;
 
 pub(crate) mod gateways_reader;
@@ -36,10 +37,12 @@ pub(crate) fn setup<'a>(
     nym_contract_cache_state: &NymContractCache,
     storage: &NymApiStorage,
     nyxd_client: nyxd::Client,
+    nym_api_client: NymApiClient,
 ) -> NetworkMonitorBuilder<'a> {
     NetworkMonitorBuilder::new(
         config,
         nyxd_client,
+        nym_api_client,
         storage.to_owned(),
         nym_contract_cache_state.to_owned(),
     )
@@ -48,6 +51,7 @@ pub(crate) fn setup<'a>(
 pub(crate) struct NetworkMonitorBuilder<'a> {
     config: &'a config::NetworkMonitor,
     nyxd_client: nyxd::Client,
+    nym_api_client: NymApiClient,
     node_status_storage: NymApiStorage,
     validator_cache: NymContractCache,
 }
@@ -56,12 +60,14 @@ impl<'a> NetworkMonitorBuilder<'a> {
     pub(crate) fn new(
         config: &'a config::NetworkMonitor,
         nyxd_client: nyxd::Client,
+        nym_api_client: NymApiClient,
         node_status_storage: NymApiStorage,
         validator_cache: NymContractCache,
     ) -> Self {
         NetworkMonitorBuilder {
             config,
             nyxd_client,
+            nym_api_client,
             node_status_storage,
             validator_cache,
         }
@@ -108,6 +114,7 @@ impl<'a> NetworkMonitorBuilder<'a> {
             Arc::clone(&encryption_keypair),
             self.config.debug.gateway_sending_rate,
             bandwidth_controller,
+            self.nym_api_client,
             self.config.debug.disabled_credentials_mode,
         );
 
@@ -181,6 +188,7 @@ fn new_packet_sender(
     local_sphinx: Arc<encryption::KeyPair>,
     max_sending_rate: usize,
     bandwidth_controller: BandwidthController<nyxd::Client, PersistentStorage>,
+    nym_api_client: nym_validator_client::NymApiClient,
     disabled_credentials_mode: bool,
 ) -> PacketSender {
     PacketSender::new(
@@ -192,6 +200,7 @@ fn new_packet_sender(
         config.debug.max_concurrent_gateway_clients,
         max_sending_rate,
         bandwidth_controller,
+        nym_api_client,
         disabled_credentials_mode,
     )
 }
@@ -224,9 +233,16 @@ pub(crate) async fn start<R: MessageReceiver + Send + 'static>(
     nym_contract_cache_state: &NymContractCache,
     storage: &NymApiStorage,
     nyxd_client: nyxd::Client,
+    nym_api_client: NymApiClient,
     shutdown: &TaskManager,
 ) {
-    let monitor_builder = setup(config, nym_contract_cache_state, storage, nyxd_client);
+    let monitor_builder = setup(
+        config,
+        nym_contract_cache_state,
+        storage,
+        nyxd_client,
+        nym_api_client,
+    );
     info!("Starting network monitor...");
     let runnables: NetworkMonitorRunnables<R> = monitor_builder.build().await;
     runnables.spawn_tasks(shutdown);

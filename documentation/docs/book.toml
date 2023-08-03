@@ -49,7 +49,7 @@ assets_version = "2.0.0" # do not edit: managed by `mdbook-admonish install`
 [preprocessor.variables.variables]
 minimum_rust_version = "1.66"
 # vars for links: TODO think on how to streamline updating
-platform_release_version = "v1.1.25"
+platform_release_version = "v1.1.26"
 wallet_release_version = "v1.2.7"
 
 [preprocessor.last-changed]
@@ -92,7 +92,7 @@ git-repository-icon = "fa-github"
 # edit-url-template = "https://github.com/rust-lang/mdBook/edit/master/guide/{path}"
 # site-url = "/docs/"
 # cname = "nymtech.net"
-# input-404 = "not-found.md" # todo make custom 404 page
+input-404 = "not-found.md" 
 
 [output.html.fold]
 enable = true    # whether or not to enable section folding

@@ -15,7 +15,7 @@ use crate::signing::tx_signer::TxSigner;
 use crate::signing::AccountData;
 use async_trait::async_trait;
 use cosmrs::cosmwasm;
-use cosmrs::tx::Msg;
+use cosmrs::tx::{Msg, Raw, SignDoc};
 use cosmwasm_std::Addr;
 use nym_network_defaults::{ChainDetails, NymNetworkDetails};
 use serde::Serialize;
@@ -602,6 +602,14 @@ where
 
     fn get_accounts(&self) -> Result<Vec<AccountData>, Self::Error> {
         self.client.get_accounts()
+    }
+
+    fn sign_direct_with_account(
+        &self,
+        signer: &AccountData,
+        sign_doc: SignDoc,
+    ) -> Result<Raw, Self::Error> {
+        self.client.sign_direct_with_account(signer, sign_doc)
     }
 }
 

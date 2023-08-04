@@ -6,6 +6,7 @@ import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -66,6 +67,8 @@ import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.map
+import net.nymtech.nyms5.ui.theme.darkYellow
+import net.nymtech.nyms5.ui.theme.lightYellow
 
 class MainActivity : ComponentActivity() {
     private val tag = "MainActivity"
@@ -309,6 +312,10 @@ fun Monitoring(
     onSwitch: (value: Boolean) -> Unit,
 ) {
     var monitoring by remember { mutableStateOf(initialValue) }
+    val yellowColor = when (isSystemInDarkTheme()) {
+        true -> darkYellow
+        false -> lightYellow
+    }
 
     Column(
         modifier = modifier
@@ -330,10 +337,13 @@ fun Monitoring(
             Icon(
                 painter = painterResource(R.drawable.warning_24),
                 contentDescription = "copy to clipboard",
-                tint = Color.Yellow
+                tint = yellowColor
             )
             Spacer(modifier = modifier.width(16.dp))
-            Text(stringResource(R.string.monitoring_desc_2), color = Color.Yellow)
+            Text(
+                stringResource(R.string.monitoring_desc_2),
+                color = yellowColor
+            )
         }
         Spacer(modifier = modifier.height(18.dp))
         Text(stringResource(R.string.monitoring_desc_1))

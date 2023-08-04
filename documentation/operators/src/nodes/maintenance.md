@@ -7,7 +7,8 @@ TODO
     - copy that dir over to the new vps
     - re-run init - remember that init doesn't overwrite existing keys - to generate a  config with the new listening address etc
     - change the node info via the wallet
-    - Since otherwise their keys will point to the old IP address in the smart contract, and their node will (a) not be able to be connected to, and (b) fail uptime checks 
+    - Since otherwise their keys will point to the old IP address in the smart contract, and their node will (a) not be able to be connected to, and (b) fail uptime checks
+- [ ] Test the scp -3 command in the moving a node section
 --->
 ## Useful commands
 

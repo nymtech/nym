@@ -1,6 +1,6 @@
 # Mix Nodes
 
-> The mix node setup and maintenance guide has migrated to the [Operator Guides book](TO_DO).
+> The mix node setup and maintenance guide has migrated to the [Operator Guides book](https://nymtech.net/developers/nodes/mix-node-setup.html).
 
 Mix nodes are the backbone of the mixnet. These are the nodes that perform 'mix mining', otherwise known simply as 'mixing' or performing the 'poisson mix'. 
 

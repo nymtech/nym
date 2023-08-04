@@ -1,6 +1,6 @@
 # Preliminary Steps
 
-> The Nym `mix node`, `gateway` and `network-requester` binaries were built in the [building nym](../binaries/building-nym.md) section. If you haven't yet built Nym and want to run the code, go there first.
+> The Nym `mix node`, `gateway` and `network-requester` binaries were built in the [building nym](./binaries/building-nym.md) section. If you haven't yet built Nym and want to run the code, go there first.
 
 ## Preliminary steps
 

@@ -88,6 +88,16 @@ impl NymTopology {
         }
     }
 
+    pub fn empty() -> Self {
+        NymTopology {
+            mixes: BTreeMap::new(),
+            gateways: Vec::new(),
+            epoch: 0,
+            all_mixes: Vec::new(),
+            all_gateways: Vec::new(),
+        }
+    }
+
     pub fn with_epoch(mut self, epoch: EpochId) -> Self {
         self.epoch = epoch;
         self

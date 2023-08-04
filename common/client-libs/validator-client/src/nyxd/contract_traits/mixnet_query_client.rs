@@ -8,22 +8,20 @@ use crate::nyxd::CosmWasmClient;
 use async_trait::async_trait;
 use cosmrs::AccountId;
 use nym_contracts_common::signing::Nonce;
-use nym_contracts_common::IdentityKeyRef;
-use nym_mixnet_contract_common::delegation::{MixNodeDelegationResponse, OwnerProxySubKey};
-use nym_mixnet_contract_common::families::{Family, FamilyHead};
-use nym_mixnet_contract_common::mixnode::{
-    MixnodeRewardingDetailsResponse, PagedMixnodesDetailsResponse, PagedUnbondedMixnodesResponse,
-    StakeSaturationResponse, UnbondedMixnodeResponse,
-};
-use nym_mixnet_contract_common::reward_params::{Performance, RewardingParams};
-use nym_mixnet_contract_common::rewarding::{
-    EstimatedCurrentEpochRewardResponse, PendingRewardResponse,
-};
 use nym_mixnet_contract_common::{
-    delegation, ContractBuildInformation, ContractState, ContractStateParams,
-    CurrentIntervalResponse, Delegation, EpochEventId, EpochStatus, FamilyByHeadResponse,
-    FamilyByLabelResponse, FamilyMembersByHeadResponse, FamilyMembersByLabelResponse, GatewayBond,
-    GatewayBondResponse, GatewayOwnershipResponse, IdentityKey, IntervalEventId, LayerDistribution,
+    delegation,
+    delegation::{MixNodeDelegationResponse, OwnerProxySubKey},
+    families::{Family, FamilyHead},
+    mixnode::{
+        MixnodeRewardingDetailsResponse, PagedMixnodesDetailsResponse,
+        PagedUnbondedMixnodesResponse, StakeSaturationResponse, UnbondedMixnodeResponse,
+    },
+    reward_params::{Performance, RewardingParams},
+    rewarding::{EstimatedCurrentEpochRewardResponse, PendingRewardResponse},
+    ContractBuildInformation, ContractState, ContractStateParams, CurrentIntervalResponse,
+    Delegation, EpochEventId, EpochStatus, FamilyByHeadResponse, FamilyByLabelResponse,
+    FamilyMembersByHeadResponse, FamilyMembersByLabelResponse, GatewayBond, GatewayBondResponse,
+    GatewayOwnershipResponse, IdentityKey, IdentityKeyRef, IntervalEventId, LayerDistribution,
     MixId, MixNodeBond, MixNodeDetails, MixOwnershipResponse, MixnodeDetailsByIdentityResponse,
     MixnodeDetailsResponse, NumberOfPendingEventsResponse, PagedAllDelegationsResponse,
     PagedDelegatorDelegationsResponse, PagedFamiliesResponse, PagedGatewayResponse,
@@ -35,7 +33,8 @@ use nym_mixnet_contract_common::{
 };
 use serde::Deserialize;
 
-#[async_trait]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait MixnetQueryClient {
     async fn query_mixnet_contract<T>(&self, query: MixnetQueryMsg) -> Result<T, NyxdError>
     where
@@ -467,7 +466,8 @@ pub trait MixnetQueryClient {
 
 // extension trait to the query client to deal with the paged queries
 // (it didn't feel appropriate to combine it with the existing trait
-#[async_trait]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait PagedMixnetQueryClient: MixnetQueryClient {
     async fn get_all_node_families(&self) -> Result<Vec<Family>, NyxdError> {
         collect_paged!(self, get_all_node_families_paged, families)
@@ -550,7 +550,8 @@ pub trait PagedMixnetQueryClient: MixnetQueryClient {
 #[async_trait]
 impl<T> PagedMixnetQueryClient for T where T: MixnetQueryClient {}
 
-#[async_trait]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl<C> MixnetQueryClient for C
 where
     C: CosmWasmClient + NymContractsProvider + Send + Sync,

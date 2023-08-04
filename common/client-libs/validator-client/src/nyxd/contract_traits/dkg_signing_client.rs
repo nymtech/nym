@@ -14,7 +14,8 @@ use nym_coconut_dkg_common::types::EncodedBTEPublicKeyWithProof;
 use nym_coconut_dkg_common::verification_key::VerificationKeyShare;
 use nym_contracts_common::dealings::ContractSafeBytes;
 
-#[async_trait]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait DkgSigningClient {
     async fn execute_dkg_contract(
         &self,
@@ -107,7 +108,8 @@ pub trait DkgSigningClient {
     }
 }
 
-#[async_trait]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl<C> DkgSigningClient for C
 where
     C: SigningCosmWasmClient + NymContractsProvider + Sync,

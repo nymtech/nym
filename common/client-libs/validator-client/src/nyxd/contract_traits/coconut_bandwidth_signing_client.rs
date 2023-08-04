@@ -12,7 +12,8 @@ use nym_coconut_bandwidth_contract_common::{
     deposit::DepositData, msg::ExecuteMsg as CoconutBandwidthExecuteMsg,
 };
 
-#[async_trait]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait CoconutBandwidthSigningClient {
     async fn execute_coconut_bandwidth_contract(
         &self,
@@ -82,7 +83,8 @@ pub trait CoconutBandwidthSigningClient {
     }
 }
 
-#[async_trait]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl<C> CoconutBandwidthSigningClient for C
 where
     C: SigningCosmWasmClient + NymContractsProvider + Sync,

@@ -14,7 +14,8 @@ use serde::Deserialize;
 use crate::nyxd::contract_traits::NymContractsProvider;
 use crate::nyxd::{error::NyxdError, CosmWasmClient};
 
-#[async_trait]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait SpDirectoryQueryClient {
     async fn query_service_provider_contract<T>(&self, query: SpQueryMsg) -> Result<T, NyxdError>
     where
@@ -78,7 +79,8 @@ pub trait SpDirectoryQueryClient {
     }
 }
 
-#[async_trait]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait PagedSpDirectoryQueryClient: SpDirectoryQueryClient {
     async fn get_all_services(&self) -> Result<Vec<Service>, NyxdError> {
         collect_paged!(self, get_services_paged, services)
@@ -88,7 +90,8 @@ pub trait PagedSpDirectoryQueryClient: SpDirectoryQueryClient {
 #[async_trait]
 impl<T> PagedSpDirectoryQueryClient for T where T: SpDirectoryQueryClient {}
 
-#[async_trait]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl<C> SpDirectoryQueryClient for C
 where
     C: CosmWasmClient + NymContractsProvider + Send + Sync,

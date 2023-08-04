@@ -17,7 +17,7 @@ use async_trait::async_trait;
 use cosmrs::cosmwasm;
 use cosmrs::tx::{Msg, Raw, SignDoc};
 use cosmwasm_std::Addr;
-use nym_network_defaults::{ChainDetails, NymNetworkDetails};
+use nym_network_defaults::{ChainDetails, DenomDetailsOwned, NymNetworkDetails};
 use serde::Serialize;
 use std::time::SystemTime;
 use tendermint_rpc::endpoint::block::Response as BlockResponse;
@@ -25,6 +25,7 @@ use tendermint_rpc::Error as TendermintRpcError;
 
 pub use crate::nyxd::cosmwasm_client::client_traits::{CosmWasmClient, SigningCosmWasmClient};
 pub use crate::nyxd::fee::Fee;
+pub use crate::rpc::TendermintRpcClient;
 pub use coin::Coin;
 pub use cosmrs::bank::MsgSend;
 pub use cosmrs::tendermint::abci::{response::DeliverTx, Event, EventAttribute};
@@ -38,29 +39,26 @@ pub use cosmrs::Gas;
 pub use cosmrs::{bip32, AccountId, Denom};
 pub use cosmwasm_std::Coin as CosmWasmCoin;
 pub use fee::{gas_price::GasPrice, GasAdjustable, GasAdjustment};
-pub use tendermint_rpc::{client::Client as TendermintClient, Request, Response, SimpleRequest};
 pub use tendermint_rpc::{
     endpoint::{tx::Response as TxResponse, validators::Response as ValidatorResponse},
     Paging,
 };
+pub use tendermint_rpc::{Request, Response, SimpleRequest};
 
-#[cfg(feature = "http-client")]
+// #[cfg(feature = "http-client")]
 use crate::signing::direct_wallet::DirectSecp256k1HdWallet;
+use crate::ReqwestRpcClient;
 #[cfg(feature = "http-client")]
 use crate::{DirectSigningHttpRpcNyxdClient, QueryHttpRpcNyxdClient};
 #[cfg(feature = "http-client")]
 use cosmrs::rpc::{HttpClient, HttpClientUrl};
+use url::Url;
 
 pub mod coin;
 pub mod contract_traits;
 pub mod cosmwasm_client;
 pub mod error;
 pub mod fee;
-
-#[cfg(target_arch = "wasm32")]
-pub mod wasm;
-
-// TODO: reqwest based for wasm
 
 #[derive(Debug, Clone)]
 pub struct Config {
@@ -289,7 +287,7 @@ impl<C, S> NymContractsProvider for NyxdClient<C, S> {
 // queries
 impl<C, S> NyxdClient<C, S>
 where
-    C: TendermintClient + Send + Sync,
+    C: TendermintRpcClient + Send + Sync,
     S: Send + Sync,
 {
     pub async fn get_account_public_key(
@@ -339,7 +337,7 @@ where
 // signing
 impl<C, S> NyxdClient<C, S>
 where
-    C: TendermintClient + Send + Sync,
+    C: TendermintRpcClient + Send + Sync,
     S: OfflineSigner + Send + Sync,
     NyxdError: From<<S as OfflineSigner>::Error>,
 {
@@ -572,10 +570,11 @@ where
 
 // ugh. is there a way to avoid that nasty trait implementation?
 
-#[async_trait]
-impl<C, S> TendermintClient for NyxdClient<C, S>
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+impl<C, S> TendermintRpcClient for NyxdClient<C, S>
 where
-    C: TendermintClient + Send + Sync,
+    C: TendermintRpcClient + Send + Sync,
     S: Send + Sync,
 {
     async fn perform<R>(&self, request: R) -> Result<R::Output, TendermintRpcError>
@@ -589,7 +588,7 @@ where
 #[async_trait]
 impl<C, S> CosmWasmClient for NyxdClient<C, S>
 where
-    C: TendermintClient + Send + Sync,
+    C: TendermintRpcClient + Send + Sync,
     S: Send + Sync,
 {
 }
@@ -616,7 +615,7 @@ where
 #[async_trait]
 impl<C, S> SigningCosmWasmClient for NyxdClient<C, S>
 where
-    C: TendermintClient + Send + Sync,
+    C: TendermintRpcClient + Send + Sync,
     S: TxSigner + Send + Sync,
     NyxdError: From<S::Error>,
 {

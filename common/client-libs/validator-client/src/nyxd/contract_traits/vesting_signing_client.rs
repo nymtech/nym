@@ -16,7 +16,8 @@ use nym_mixnet_contract_common::{Gateway, MixId, MixNode};
 use nym_vesting_contract_common::messages::ExecuteMsg as VestingExecuteMsg;
 use nym_vesting_contract_common::{PledgeCap, VestingSpecification};
 
-#[async_trait]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait VestingSigningClient {
     async fn execute_vesting_contract(
         &self,
@@ -399,7 +400,8 @@ pub trait VestingSigningClient {
     }
 }
 
-#[async_trait]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl<C> VestingSigningClient for C
 where
     C: SigningCosmWasmClient + NymContractsProvider + Sync,

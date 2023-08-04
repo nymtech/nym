@@ -47,7 +47,7 @@ tauri = { version = "2.0.0-alpha.3", features = ["clipboard-write-text", "native
 thiserror = "1.0"
 time = { version = "0.3.17", features = ["local-offset"] }
 tokio = { version = "1.24.1", features = ["sync", "time"] }
-url = "2.2"
+url = "2.4"
 yaml-rust = "0.4"
 
 nym-client-core = { path = "../../../common/client-core", features = ["mobile"], default-features = false }

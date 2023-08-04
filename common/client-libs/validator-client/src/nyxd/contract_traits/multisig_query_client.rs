@@ -13,7 +13,8 @@ use cw_utils::ThresholdResponse;
 use nym_multisig_contract_common::msg::QueryMsg as MultisigQueryMsg;
 use serde::Deserialize;
 
-#[async_trait]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait MultisigQueryClient {
     async fn query_multisig_contract<T>(&self, query: MultisigQueryMsg) -> Result<T, NyxdError>
     where
@@ -90,7 +91,8 @@ pub trait MultisigQueryClient {
 
 // extension trait to the query client to deal with the paged queries
 // (it didn't feel appropriate to combine it with the existing trait
-#[async_trait]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait PagedMultisigQueryClient: MultisigQueryClient {
     // can't use the macro due to different paging behaviour
     async fn get_all_proposals(&self) -> Result<Vec<ProposalResponse>, NyxdError> {
@@ -117,7 +119,8 @@ pub trait PagedMultisigQueryClient: MultisigQueryClient {
 #[async_trait]
 impl<T> PagedMultisigQueryClient for T where T: MultisigQueryClient {}
 
-#[async_trait]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl<C> MultisigQueryClient for C
 where
     C: CosmWasmClient + NymContractsProvider + Send + Sync,

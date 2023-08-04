@@ -9,7 +9,7 @@ edition = "2021"
 bip39 = { workspace = true }
 rand = "0.7.3"
 thiserror = "1.0"
-url = "2.2"
+url = { workspace = true }
 
 nym-coconut-interface = { path = "../coconut-interface" }
 nym-credential-storage = { path = "../credential-storage" }

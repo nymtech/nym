@@ -15,7 +15,8 @@ use nym_name_service_common::{
 };
 use serde::Deserialize;
 
-#[async_trait]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait NameServiceQueryClient {
     async fn query_name_service_contract<T>(&self, query: NameQueryMsg) -> Result<T, NyxdError>
     where
@@ -79,7 +80,8 @@ pub trait NameServiceQueryClient {
     }
 }
 
-#[async_trait]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait PagedNameServiceQueryClient: NameServiceQueryClient {
     async fn get_all_names(&self) -> Result<Vec<RegisteredName>, NyxdError> {
         collect_paged!(self, get_names_paged, names)
@@ -89,7 +91,8 @@ pub trait PagedNameServiceQueryClient: NameServiceQueryClient {
 #[async_trait]
 impl<T> PagedNameServiceQueryClient for T where T: NameServiceQueryClient {}
 
-#[async_trait]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl<C> NameServiceQueryClient for C
 where
     C: CosmWasmClient + NymContractsProvider + Send + Sync,

@@ -13,6 +13,7 @@ use tendermint_rpc::{Error as TendermintRpcError, SimpleRequest};
 
 #[cfg(feature = "http-client")]
 use cosmrs::rpc::{HttpClient, HttpClientUrl};
+use cosmrs::tx::{Raw, SignDoc};
 
 pub mod client_traits;
 mod helpers;
@@ -98,6 +99,14 @@ where
 
     fn get_accounts(&self) -> Result<Vec<AccountData>, Self::Error> {
         self.signer.get_accounts()
+    }
+
+    fn sign_direct_with_account(
+        &self,
+        signer: &AccountData,
+        sign_doc: SignDoc,
+    ) -> Result<Raw, Self::Error> {
+        self.signer.sign_direct_with_account(signer, sign_doc)
     }
 }
 

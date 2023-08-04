@@ -84,8 +84,26 @@ impl NymApiTopologyProvider {
             Ok(epoch) => epoch,
         };
 
+        let all_mixes = match self.validator_client.get_all_mixnodes().await {
+            Err(err) => {
+                error!("failed to get all mixes - {err}");
+                return None;
+            }
+            Ok(epoch) => epoch,
+        };
+
+        let all_gateways = match self.validator_client.get_all_gateways().await {
+            Err(err) => {
+                error!("failed to get all gateways - {err}");
+                return None;
+            }
+            Ok(epoch) => epoch,
+        };
+
         let topology = nym_topology_from_detailed(mixnodes, gateways)
             .with_epoch(current_epoch)
+            .with_all_mixes(all_mixes)
+            .with_all_gateways(all_gateways)
             .filter_system_version(&self.client_version);
 
         if let Err(err) = self.check_layer_distribution(&topology) {

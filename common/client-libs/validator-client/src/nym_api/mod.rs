@@ -143,6 +143,14 @@ impl Client {
             .await
     }
 
+    pub async fn get_all_mixnodes(&self) -> Result<Vec<MixNodeDetails>, NymAPIError> {
+        self.query_nym_api(
+            &[routes::API_VERSION, routes::MIXNODES, routes::ALL],
+            NO_PARAMS,
+        )
+        .await
+    }
+
     pub async fn get_mixnodes_detailed(&self) -> Result<Vec<MixNodeBondAnnotated>, NymAPIError> {
         self.query_nym_api(
             &[
@@ -174,6 +182,14 @@ impl Client {
     pub async fn get_gateways(&self) -> Result<Vec<GatewayBond>, NymAPIError> {
         self.query_nym_api(&[routes::API_VERSION, routes::GATEWAYS], NO_PARAMS)
             .await
+    }
+
+    pub async fn get_all_gateways(&self) -> Result<Vec<GatewayBond>, NymAPIError> {
+        self.query_nym_api(
+            &[routes::API_VERSION, routes::GATEWAYS, routes::ALL],
+            NO_PARAMS,
+        )
+        .await
     }
 
     pub async fn get_active_mixnodes(&self) -> Result<Vec<MixNodeDetails>, NymAPIError> {

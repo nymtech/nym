@@ -73,19 +73,60 @@ pub struct NymTopology {
     mixes: BTreeMap<MixLayer, Vec<mix::Node>>,
     gateways: Vec<gateway::Node>,
     epoch: EpochId,
+    all_mixes: Vec<mix::Node>,
+    all_gateways: Vec<gateway::Node>,
 }
 
 impl NymTopology {
     pub fn new(mixes: BTreeMap<MixLayer, Vec<mix::Node>>, gateways: Vec<gateway::Node>) -> Self {
         NymTopology {
-            mixes,
-            gateways,
+            mixes: mixes.clone(),
+            gateways: gateways.clone(),
             epoch: 0,
+            all_mixes: mixes.values().flatten().cloned().collect(),
+            all_gateways: gateways,
         }
     }
 
     pub fn with_epoch(mut self, epoch: EpochId) -> Self {
         self.epoch = epoch;
+        self
+    }
+
+    pub fn with_all_mixes(mut self, all_mixes: Vec<MixNodeDetails>) -> Self {
+        let mut mixes = Vec::new();
+        for bond in all_mixes
+            .into_iter()
+            .map(|details| details.bond_information)
+        {
+            let mix_id = bond.mix_id;
+            let mix_identity = bond.mix_node.identity_key.clone();
+
+            match bond.try_into() {
+                Ok(mix) => mixes.push(mix),
+                Err(err) => {
+                    warn!("Mix {} / {} is malformed - {err}", mix_id, mix_identity);
+                    continue;
+                }
+            }
+        }
+        self.all_mixes = mixes;
+        self
+    }
+
+    pub fn with_all_gateways(mut self, all_gateways: Vec<GatewayBond>) -> Self {
+        let mut gateways = Vec::with_capacity(all_gateways.len());
+        for bond in all_gateways.into_iter() {
+            let gate_id = bond.gateway.identity_key.clone();
+            match bond.try_into() {
+                Ok(gate) => gateways.push(gate),
+                Err(err) => {
+                    warn!("Gateway {} is malformed - {err}", gate_id);
+                    continue;
+                }
+            }
+        }
+        self.all_gateways = gateways;
         self
     }
 
@@ -122,16 +163,14 @@ impl NymTopology {
         &self,
         mix_host: SocketAddr,
     ) -> Option<&encryption::PublicKey> {
-        for node in self.gateways.iter() {
+        for node in self.all_gateways.iter() {
             if node.mix_host.ip() == mix_host.ip() {
                 return Some(&node.sphinx_key);
             }
         }
-        for nodes in self.mixes.values() {
-            for node in nodes {
-                if node.mix_host.ip() == mix_host.ip() {
-                    return Some(&node.sphinx_key);
-                }
+        for node in self.all_mixes.iter() {
+            if node.mix_host.ip() == mix_host.ip() {
+                return Some(&node.sphinx_key);
             }
         }
         None
@@ -349,6 +388,8 @@ impl NymTopology {
             mixes: self.mixes.filter_by_version(expected_mix_version),
             gateways: self.gateways.clone(),
             epoch: 0,
+            all_mixes: self.all_mixes.clone(),
+            all_gateways: self.all_gateways.clone(),
         }
     }
 }

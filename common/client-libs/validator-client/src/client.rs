@@ -709,6 +709,14 @@ impl NymApiClient {
         Ok(self.nym_api_client.get_mixnodes().await?)
     }
 
+    pub async fn get_all_mixnodes(&self) -> Result<Vec<MixNodeDetails>, ValidatorClientError> {
+        Ok(self.nym_api_client.get_all_mixnodes().await?)
+    }
+
+    pub async fn get_all_gateways(&self) -> Result<Vec<GatewayBond>, ValidatorClientError> {
+        Ok(self.nym_api_client.get_all_gateways().await?)
+    }
+
     pub async fn get_cached_gateways(&self) -> Result<Vec<GatewayBond>, ValidatorClientError> {
         Ok(self.nym_api_client.get_gateways().await?)
     }

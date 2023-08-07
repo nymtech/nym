@@ -8,6 +8,7 @@ use sha2::{Digest, Sha256};
 use snow::error::Prerequisite;
 use snow::Builder;
 use snow::Error;
+use snow::HandshakeState;
 use snow::TransportState;
 use std::cmp::min;
 use std::collections::VecDeque;
@@ -38,6 +39,9 @@ pub enum NoiseError {
     ProtocolError(Error),
     #[error("encountered an IO error - {0}")]
     IoError(#[from] io::Error),
+
+    #[error("Incorrect state")]
+    IncorrectStateError,
 }
 
 impl From<Error> for NoiseError {
@@ -54,19 +58,28 @@ impl From<Error> for NoiseError {
 pub struct NoiseStream {
     #[pin]
     inner_stream: TcpStream,
-    noise: TransportState,
+    handshake: Option<HandshakeState>,
+    noise: Option<TransportState>,
     enc_storage: VecDeque<u8>,
     dec_storage: VecDeque<u8>,
 }
 
 impl NoiseStream {
-    fn new(inner_stream: TcpStream, noise: TransportState) -> NoiseStream {
+    fn new(inner_stream: TcpStream, handshake: HandshakeState) -> NoiseStream {
         NoiseStream {
             inner_stream,
-            noise,
+            handshake: Some(handshake),
+            noise: None,
             enc_storage: VecDeque::with_capacity(MAXMSGLEN + HEADER_SIZE),
             dec_storage: VecDeque::with_capacity(MAXMSGLEN + HEADER_SIZE),
         }
+    }
+
+    fn into_transport_mode(mut self) -> Result<Self, NoiseError> {
+        let Some(handshake) = self.handshake else {return Err(NoiseError::IncorrectStateError)};
+        self.handshake = None;
+        self.noise = Some(handshake.into_transport_mode()?);
+        Ok(self)
     }
 }
 
@@ -110,10 +123,18 @@ impl AsyncRead for NoiseStream {
 
                         let noise_msg = enc_storage.drain(..msg_len).collect::<Vec<u8>>();
                         let mut dec_msg = vec![0u8; MAXMSGLEN];
-                        let len = match projected_self.noise.read_message(&noise_msg, &mut dec_msg)
-                        {
-                            Ok(len) => len,
-                            Err(_) => return Poll::Ready(Err(ErrorKind::InvalidData.into())),
+
+                        let Ok(len) = (match projected_self.noise {
+                            Some(transport_state) => transport_state.read_message(&noise_msg, &mut dec_msg),
+                            None => match projected_self.handshake {
+                                Some(handshake_state) => handshake_state.read_message(&noise_msg, &mut dec_msg),
+                                None => {
+                                    error!("NoiseStream in an imposible state, no handshake nor transport state");
+                                    return Poll::Ready(Err(ErrorKind::Other.into()));
+                                }
+                            },
+                        }) else {
+                            return Poll::Ready(Err(ErrorKind::InvalidInput.into()));
                         };
                         projected_self.dec_storage.extend(&dec_msg[..len]);
                     }
@@ -156,9 +177,17 @@ impl AsyncWrite for NoiseStream {
         let projected_self = self.project();
         let mut noise_buf = vec![0u8; MAXMSGLEN];
 
-        let len = match projected_self.noise.write_message(buf, &mut noise_buf) {
-            Ok(len) => len,
-            Err(_) => return Poll::Ready(Err(ErrorKind::InvalidInput.into())),
+        let Ok(len) = (match projected_self.noise {
+            Some(transport_state) => transport_state.write_message(buf, &mut noise_buf),
+            None => match projected_self.handshake {
+                Some(handshake_state) => handshake_state.write_message(buf, &mut noise_buf),
+                None => {
+                    error!("NoiseStream in an imposible state, no handshake nor transport state");
+                    return Poll::Ready(Err(ErrorKind::Other.into()));
+                }
+            },
+        }) else {
+            return Poll::Ready(Err(ErrorKind::InvalidInput.into()));
         };
         let to_send = [&[(len >> 8) as u8, (len & 0xff) as u8], &noise_buf[..len]].concat();
 
@@ -176,6 +205,10 @@ impl AsyncWrite for NoiseStream {
                     return Poll::Ready(Ok(n - HEADER_SIZE - TAGLEN));
                 }
                 //We didn't write the whole message, the stream will be corrupted
+                error!(
+                    "Partial write on Noise Stream, it will be corrupted - {}",
+                    n
+                );
                 return Poll::Ready(Err(ErrorKind::WriteZero.into()));
             }
         }
@@ -197,7 +230,7 @@ impl AsyncWrite for NoiseStream {
 }
 
 pub async fn upgrade_noise_initiator(
-    mut conn: TcpStream,
+    conn: TcpStream,
     local_public_key: Option<&[u8]>,
     local_private_key: &[u8],
     remote_pub_key: &[u8],
@@ -215,28 +248,33 @@ pub async fn upgrade_noise_initiator(
     let secret_hash = Sha256::digest(secret);
 
     let builder = Builder::new(NOISE_HS_PATTERN.parse().unwrap()); //This cannot fail, hardcoded pattern must be correct
-    let mut handshake = builder
+    let handshake = builder
         .local_private_key(local_private_key)
         .remote_public_key(&remote_pub_key)
         .psk(3, &secret_hash)
         .build_initiator()?;
 
-    //Actual Handshake
+    let mut noise_stream = NoiseStream::new(conn, handshake);
+
+    // //Actual Handshake
     let mut buf = vec![0u8; MAXMSGLEN];
-    // -> e, es
-    let len = handshake.write_message(&[], &mut buf)?;
-    send(&mut conn, &buf[..len]).await?;
+    // // -> e, es
+    noise_stream.write(&[]).await?;
+    // let len = handshake.write_message(&[], &mut buf)?;
+    // send(&mut conn, &buf[..len]).await?;
 
-    // <- e, ee
-    handshake.read_message(&recv(&mut conn).await?, &mut buf)?;
+    // // <- e, ee
+    noise_stream.read(&mut buf).await?;
+    // handshake.read_message(&recv(&mut conn).await?, &mut buf)?;
 
-    // -> s, se, psk
-    let len = handshake.write_message(&[], &mut buf)?;
-    send(&mut conn, &buf[..len]).await?;
+    // // -> s, se, psk
+    // let len = handshake.write_message(&[], &mut buf)?;
+    noise_stream.write(&[]).await?;
+    // send(&mut conn, &buf[..len]).await?;
 
-    let noise = handshake.into_transport_mode()?;
-
-    Ok(NoiseStream::new(conn, noise))
+    // let noise = handshake.into_transport_mode()?;
+    noise_stream.into_transport_mode()
+    // Ok(NoiseStream::new(conn, noise))
 }
 
 pub async fn upgrade_noise_initiator_with_topology(
@@ -275,7 +313,7 @@ pub async fn upgrade_noise_initiator_with_topology(
 }
 
 pub async fn upgrade_noise_responder(
-    mut conn: TcpStream,
+    conn: TcpStream,
     local_public_key: &[u8],
     local_private_key: &[u8],
     remote_pub_key: Option<&[u8]>,
@@ -293,26 +331,32 @@ pub async fn upgrade_noise_responder(
     let secret_hash = Sha256::digest(secret);
 
     let builder = Builder::new(NOISE_HS_PATTERN.parse().unwrap()); //This cannot fail, hardcoded pattern must be correct
-    let mut handshake = builder
+    let handshake = builder
         .local_private_key(local_private_key)
         .psk(3, &secret_hash)
         .build_responder()?;
 
+    let mut noise_stream = NoiseStream::new(conn, handshake);
+
     //Actual Handshake
     let mut buf = vec![0u8; MAXMSGLEN];
     // <- e, es
-    handshake.read_message(&recv(&mut conn).await?, &mut buf)?;
+    noise_stream.read(&mut buf).await?;
+    //handshake.read_message(&recv(&mut conn).await?, &mut buf)?;
 
     // -> e, ee
-    let len = handshake.write_message(&[], &mut buf)?;
-    send(&mut conn, &buf[..len]).await?;
+    noise_stream.write(&[]).await?;
+    //let len = handshake.write_message(&[], &mut buf)?;
+    //send(&mut conn, &buf[..len]).await?;
 
     // <- s, se, psk
-    handshake.read_message(&recv(&mut conn).await?, &mut buf)?;
+    noise_stream.read(&mut buf).await?;
+    //handshake.read_message(&recv(&mut conn).await?, &mut buf)?;
 
-    let noise = handshake.into_transport_mode()?;
+    //let noise = handshake.into_transport_mode()?;
 
-    Ok(NoiseStream::new(conn, noise))
+    noise_stream.into_transport_mode()
+    //Ok(NoiseStream::new(conn, noise))
 }
 
 pub async fn upgrade_noise_responder_with_topology(
@@ -350,20 +394,20 @@ pub async fn upgrade_noise_responder_with_topology(
     .await
 }
 
-/// Hyper-basic stream transport receiver. 16-bit BE size followed by payload.
-async fn recv(stream: &mut TcpStream) -> io::Result<Vec<u8>> {
-    let mut msg_len_buf = [0u8; HEADER_SIZE];
-    stream.read_exact(&mut msg_len_buf).await?;
-    let msg_len = ((msg_len_buf[0] as usize) << 8) + (msg_len_buf[1] as usize);
-    let mut msg = vec![0u8; msg_len];
-    stream.read_exact(&mut msg[..]).await?;
-    Ok(msg)
-}
+///// Hyper-basic stream transport receiver. 16-bit BE size followed by payload.
+// async fn recv(stream: &mut TcpStream) -> io::Result<Vec<u8>> {
+//     let mut msg_len_buf = [0u8; HEADER_SIZE];
+//     stream.read_exact(&mut msg_len_buf).await?;
+//     let msg_len = ((msg_len_buf[0] as usize) << 8) + (msg_len_buf[1] as usize);
+//     let mut msg = vec![0u8; msg_len];
+//     stream.read_exact(&mut msg[..]).await?;
+//     Ok(msg)
+// }
 
-/// Hyper-basic stream transport sender. 16-bit BE size followed by payload.
-async fn send(stream: &mut TcpStream, buf: &[u8]) -> io::Result<()> {
-    let msg_len_buf = [(buf.len() >> 8) as u8, (buf.len() & 0xff) as u8];
-    stream.write_all(&msg_len_buf).await?;
-    stream.write_all(buf).await?;
-    Ok(())
-}
+// /// Hyper-basic stream transport sender. 16-bit BE size followed by payload.
+// async fn send(stream: &mut TcpStream, buf: &[u8]) -> io::Result<()> {
+//     let msg_len_buf = [(buf.len() >> 8) as u8, (buf.len() & 0xff) as u8];
+//     stream.write_all(&msg_len_buf).await?;
+//     stream.write_all(buf).await?;
+//     Ok(())
+// }

@@ -11,7 +11,7 @@ use crate::error::{DivisibleEcashError, Result};
 use crate::proofs::proof_spend::{SpendInstance, SpendProof, SpendWitness};
 use crate::scheme::keygen::{SecretKeyUser, VerificationKeyAuth};
 use crate::scheme::setup::{GroupParameters, Parameters};
-use crate::utils::{check_bilinear_pairing, hash_to_scalar, Signature, SignerIndex, try_deserialize_g1_projective};
+use crate::utils::{check_bilinear_pairing, hash_to_scalar, Signature, SignerIndex, try_deserialize_g1_projective, try_deserialize_scalar, try_deserialize_g2_projective};
 
 pub mod aggregation;
 pub mod keygen;
@@ -116,7 +116,7 @@ pub struct PayInfo {
     pub info: [u8; 32],
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Payment {
     pub kappa: G2Projective,
     pub sig: Signature,
@@ -149,6 +149,152 @@ impl Payment {
     pub fn get_rr(&self) -> Scalar { self.rr }
     pub fn get_zk_proof(&self) -> SpendProof { self.zk_proof.clone() }
     pub fn get_vv(&self) -> u64 { self.vv }
+    pub fn to_bytes(&self) -> Vec<u8>{
+        let kappa_bytes = self.kappa.to_affine().to_compressed();
+        let sig_bytes = self.sig.to_bytes();
+        let phi_bytes = self.phi.to_bytes();
+        let varphi_bytes = self.varphi.to_bytes();
+        let varsig_prime1_bytes = self.varsig_prime1.to_affine().to_compressed();
+        let varsig_prime2_bytes = self.varsig_prime2.to_affine().to_compressed();
+        let theta_prime1_bytes = self.theta_prime1.to_affine().to_compressed();
+        let theta_prime2 = self.theta_prime2.to_affine().to_compressed();
+        let rr_prime_bytes = self.rr_prime.to_affine().to_compressed();
+        let ss_prime_bytes = self.ss_prime.to_affine().to_compressed();
+        let tt_prime_bytes = self.tt_prime.to_affine().to_compressed();
+        let rr_bytes = self.rr.to_bytes();
+        let zk_proof_bytes = self.zk_proof.to_bytes();
+        let vv_bytes = self.vv.to_le_bytes();
+
+        let mut bytes: Vec<u8> = Vec::with_capacity(760);
+        bytes.extend_from_slice(&kappa_bytes);
+        bytes.extend_from_slice(&sig_bytes);
+        bytes.extend_from_slice(&phi_bytes);
+        bytes.extend_from_slice(&varphi_bytes);
+        bytes.extend_from_slice(&varsig_prime1_bytes);
+        bytes.extend_from_slice(&varsig_prime2_bytes);
+        bytes.extend_from_slice(&theta_prime1_bytes);
+        bytes.extend_from_slice(&theta_prime2);
+        bytes.extend_from_slice(&rr_prime_bytes);
+        bytes.extend_from_slice(&ss_prime_bytes);
+        bytes.extend_from_slice(&tt_prime_bytes);
+        bytes.extend_from_slice(&rr_bytes);
+        bytes.extend_from_slice(&vv_bytes);
+        bytes.extend_from_slice(&zk_proof_bytes);
+
+        bytes
+    }
+}
+
+impl TryFrom<&[u8]> for Payment {
+    type Error = DivisibleEcashError;
+
+    fn try_from(bytes: &[u8]) -> Result<Self> {
+        if bytes.len() < 760  {
+            return Err(DivisibleEcashError::Deserialization(
+                "Invalid byte array for Payment deserialization".to_string(),
+            ));
+        }
+
+        let mut idx = 0;
+        let kappa_bytes: [u8; 96] = bytes[idx..idx+96].try_into().unwrap();
+        let kappa = try_deserialize_g2_projective(
+            &kappa_bytes,
+            DivisibleEcashError::Deserialization("Failed to deserialize kappa".to_string()),
+        )?;
+        idx += 96;
+
+        let sig_bytes: [u8; 96] = bytes[idx..idx+96].try_into().unwrap();
+        let sig = Signature::try_from(sig_bytes.as_slice())?;
+        idx += 96;
+
+        let phi_bytes: [u8; 96] = bytes[idx..idx+96].try_into().unwrap();
+        let phi = Phi::from_bytes(&phi_bytes).unwrap();
+        idx += 96;
+
+        let varphi_bytes: [u8; 96] = bytes[idx..idx+96].try_into().unwrap();
+        let varphi = VarPhi::from_bytes(&varphi_bytes).unwrap();
+        idx += 96;
+
+        let varsig_prime1_bytes: [u8; 48] = bytes[idx..idx+48].try_into().unwrap();
+        let varsig_prime1 = try_deserialize_g1_projective(
+            &varsig_prime1_bytes,
+            DivisibleEcashError::Deserialization("Failed to deserialize varsig_prime1".to_string()),
+        )?;
+        idx += 48;
+
+        let varsig_prime2_bytes: [u8; 48] = bytes[idx..idx+48].try_into().unwrap();
+        let varsig_prime2 = try_deserialize_g1_projective(
+            &varsig_prime2_bytes,
+            DivisibleEcashError::Deserialization("Failed to deserialize varsig_prime2".to_string()),
+        )?;
+        idx += 48;
+
+        let theta_prime1_bytes: [u8; 48] = bytes[idx..idx+48].try_into().unwrap();
+        let theta_prime1 = try_deserialize_g1_projective(
+            &theta_prime1_bytes,
+            DivisibleEcashError::Deserialization("Failed to deserialize theta_prime1".to_string()),
+        )?;
+        idx += 48;
+
+        let theta_prime2_bytes: [u8; 48] = bytes[idx..idx+48].try_into().unwrap();
+        let theta_prime2 = try_deserialize_g1_projective(
+            &theta_prime2_bytes,
+            DivisibleEcashError::Deserialization("Failed to deserialize theta_prime2".to_string()),
+        )?;
+        idx += 48;
+
+        let rr_prime_bytes: [u8; 48] = bytes[idx..idx+48].try_into().unwrap();
+        let rr_prime = try_deserialize_g1_projective(
+            &rr_prime_bytes,
+            DivisibleEcashError::Deserialization("Failed to deserialize rr_prime".to_string()),
+        )?;
+        idx += 48;
+
+        let ss_prime_bytes: [u8; 48] = bytes[idx..idx+48].try_into().unwrap();
+        let ss_prime = try_deserialize_g1_projective(
+            &ss_prime_bytes,
+            DivisibleEcashError::Deserialization("Failed to deserialize ss_prime".to_string()),
+        )?;
+        idx += 48;
+
+        let tt_prime_bytes: [u8; 96] = bytes[idx..idx+96].try_into().unwrap();
+        let tt_prime = try_deserialize_g2_projective(
+            &tt_prime_bytes,
+            DivisibleEcashError::Deserialization("Failed to deserialize tt_prime".to_string()),
+        )?;
+        idx += 96;
+
+        let rr_bytes: [u8; 32] = bytes[idx..idx+32].try_into().unwrap();
+        let rr = try_deserialize_scalar(
+            &rr_bytes,
+            DivisibleEcashError::Deserialization("Failed to deserialize rr element".to_string()),
+        )?;
+        idx += 32;
+
+        let vv = u64::from_le_bytes(bytes[idx..idx+8].try_into().unwrap());
+        idx += 8;
+
+        // Deserialize the SpendProof struct
+        let zk_proof_bytes = &bytes[idx..];
+        let zk_proof = SpendProof::try_from(zk_proof_bytes)?;
+
+        Ok(Payment{
+            kappa,
+            sig,
+            phi,
+            varphi,
+            varsig_prime1,
+            varsig_prime2,
+            theta_prime1,
+            theta_prime2,
+            rr_prime,
+            ss_prime,
+            tt_prime,
+            rr,
+            zk_proof,
+            vv,
+        })
+    }
 }
 
 pub struct PartialWallet {

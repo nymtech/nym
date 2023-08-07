@@ -400,7 +400,7 @@ impl Payment {
         Ok(true)
     }
 
-    pub fn to_bytes(&self) -> Vec<u8>{
+    pub fn to_bytes(&self) -> Vec<u8> {
         let kappa_bytes = self.kappa.to_affine().to_compressed();
         let sig_bytes = self.sig.to_bytes();
         let cc_bytes = self.cc.to_affine().to_compressed();

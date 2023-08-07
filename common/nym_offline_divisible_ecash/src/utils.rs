@@ -206,8 +206,7 @@ pub fn check_bilinear_pairing(p: &G1Affine, q: &G2Prepared, r: &G1Affine, s: &G2
 
 pub type SignerIndex = u64;
 
-#[derive(Debug, Clone, Copy)]
-#[cfg_attr(test, derive(PartialEq))]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Signature(pub(crate) G1Projective, pub(crate) G1Projective);
 
 pub type PartialSignature = Signature;

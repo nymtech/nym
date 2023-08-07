@@ -66,12 +66,12 @@ You can read more about how SURBs function under the hood [here](../architecture
 
 
 ### Importing and using a custom network topology
-If you want to send traffic through a sub-set of nodes (for instance, ones you control, or a small test setup) when developing, debugging, or peforming research, you will need to import these nodes as a custom network topology, instead of grabbing it from the [`Mainnet Nym-API`](https://validator.nymtech.net/api/swagger/index.html) (`examples/custom_topology_provider.rs`).
+If you want to send traffic through a sub-set of nodes (for instance, ones you control, or a small test setup) when developing, debugging, or performing research, you will need to import these nodes as a custom network topology, instead of grabbing it from the [`Mainnet Nym-API`](https://validator.nymtech.net/api/swagger/index.html) (`examples/custom_topology_provider.rs`).
 
 There are two ways to do this:
 
 #### Import a custom Nym API endpoint
-If you are also running a Validator and Nym API for your network, you can specify that endpoint as such and interact with it as clients ususally do (under the hood):
+If you are also running a Validator and Nym API for your network, you can specify that endpoint as such and interact with it as clients usually do (under the hood):
 
 ```rust,noplayground
 {{#include ../../../../sdk/rust/nym-sdk/examples/custom_topology_provider.rs}}
@@ -102,4 +102,4 @@ The following code shows how you can use the SDK to create and use a [credential
 {{#include ../../../../sdk/rust/nym-sdk/examples/bandwidth.rs}}
 ```
 
-You can read more about Coconut credentials (also referred to as `zk-Nym`) [here](../cococnut.md).
+You can read more about Coconut credentials (also referred to as `zk-Nym`) [here](../coconut.md).

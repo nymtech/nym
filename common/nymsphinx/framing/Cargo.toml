@@ -12,5 +12,6 @@ bytes = "1.0"
 tokio-util = { version = "0.7.4", features = ["codec"] }
 thiserror = "1.0.37"
 
-nym-sphinx-types = { path = "../types" }
-nym-sphinx-params = { path = "../params" }
+nym-sphinx-types = { path = "../types", features = ["sphinx", "outfox"] }
+nym-sphinx-params = { path = "../params", features = ["sphinx", "outfox"] }
+

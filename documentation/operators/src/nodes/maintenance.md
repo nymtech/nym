@@ -1,15 +1,5 @@
 # Maintenance
 
- <!---
-TODO
-- [x] Compare mix node, gateway, NR steps and validator of upgrading and automation and make a generic page - this one - for all of them with additional notes for particular nodes
-- [x] Include how to move a mix node from one VPS to another while keeping the delegation etc (ie init a new mix node and move `/home/nym/.nym/mixnodes/data/*` there ?)
-    - copy that dir over to the new vps
-    - re-run init - remember that init doesn't overwrite existing keys - to generate a  config with the new listening address etc
-    - change the node info via the wallet
-    - Since otherwise their keys will point to the old IP address in the smart contract, and their node will (a) not be able to be connected to, and (b) fail uptime checks
-- [ ] Test the scp -3 command in the moving a node section
---->
 ## Useful commands
 
 > Adding `--no-banner` startup flag will prevent Nym banner being printed even if run in tty environment.

@@ -7,10 +7,10 @@ use crate::scheme::aggregation::{
 use crate::scheme::keygen::{
     generate_keypair_user, ttp_keygen, VerificationKeyAuth,
 };
-use crate::scheme::PartialWallet;
+use crate::scheme::{Wallet, PartialWallet, Payment};
 use crate::scheme::PayInfo;
 use crate::scheme::setup::setup;
-use crate::scheme::withdrawal::{issue_verify, issue_wallet, withdrawal_request};
+use crate::scheme::withdrawal::{issue_verify, issue_wallet, withdrawal_request, WithdrawalRequest};
 
 #[test]
 fn main() -> Result<(), CompactEcashError> {
@@ -20,6 +20,10 @@ fn main() -> Result<(), CompactEcashError> {
     let user_keypair = generate_keypair_user(&grparams);
 
     let (req, req_info) = withdrawal_request(grparams, &user_keypair.secret_key()).unwrap();
+    let req_bytes = req.to_bytes();
+    let req2 = WithdrawalRequest::try_from(req_bytes.as_slice()).unwrap();
+    assert_eq!(req, req2);
+
     let authorities_keypairs = ttp_keygen(&grparams, 2, 3).unwrap();
 
     let verification_keys_auth: Vec<VerificationKeyAuth> = authorities_keypairs
@@ -47,6 +51,11 @@ fn main() -> Result<(), CompactEcashError> {
         .map(|(w, vk)| issue_verify(&grparams, vk, &user_keypair.secret_key(), w, &req_info).unwrap())
         .collect();
 
+    let partial_wallet = unblinded_wallet_shares.get(0).unwrap().clone();
+    let partial_wallet_bytes = partial_wallet.to_bytes();
+    let partial_wallet2 = PartialWallet::try_from(&partial_wallet_bytes[..]).unwrap();
+    assert_eq!(partial_wallet, partial_wallet2);
+
     // Aggregate partial wallets
     let aggr_wallet = aggregate_wallets(
         &grparams,
@@ -55,6 +64,10 @@ fn main() -> Result<(), CompactEcashError> {
         &unblinded_wallet_shares,
         &req_info,
     )?;
+
+    let wallet_bytes = aggr_wallet.to_bytes();
+    let wallet = Wallet::try_from(&wallet_bytes[..]).unwrap();
+    assert_eq!(aggr_wallet, wallet);
 
     // Let's try to spend some coins
     let pay_info = PayInfo { info: [6u8; 32] };
@@ -73,6 +86,10 @@ fn main() -> Result<(), CompactEcashError> {
         .spend_verify(&params, &verification_key, &pay_info)
         .unwrap());
 
+    let payment_bytes = payment.to_bytes();
+    println!("{:?}", payment_bytes.len());
+    let payment2 = Payment::try_from(&payment_bytes[..]).unwrap();
+    assert_eq!(payment, payment2);
 
     Ok(())
 }

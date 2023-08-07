@@ -7,7 +7,7 @@ use crate::error::{CompactEcashError, Result};
 use crate::proofs::{ChallengeDigest, compute_challenge, produce_response, produce_responses};
 use crate::scheme::keygen::VerificationKeyAuth;
 use crate::scheme::setup::Parameters;
-use crate::utils::{try_deserialize_g1_projective, try_deserialize_g2_projective};
+use crate::utils::{try_deserialize_g1_projective, try_deserialize_g2_projective, try_deserialize_scalar_vec, try_deserialize_scalar};
 
 #[derive(Debug)]
 #[cfg_attr(test, derive(PartialEq))]
@@ -207,7 +207,7 @@ pub struct SpendWitness {
     pub r_k: Vec<Scalar>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct SpendProof {
     challenge: Scalar,
     response_r: Scalar,
@@ -353,6 +353,7 @@ impl SpendProof {
             response_attributes,
         }
     }
+
     pub fn verify(
         &self,
         params: &Parameters,
@@ -464,6 +465,210 @@ impl SpendProof {
 
         challenge == self.challenge
     }
+
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let challenge_bytes = self.challenge.to_bytes();
+        let response_r_bytes = self.response_r.to_bytes();
+
+        let rrl_len = self.response_r_l.len();
+        let rrl_len_bytes = rrl_len.to_le_bytes();
+
+        let rl_len = self.response_l.len();
+        let rl_len_bytes = rl_len.to_le_bytes();
+
+        let roa_len = self.response_o_a.len();
+        let roa_len_bytes = roa_len.to_le_bytes();
+
+        let roc_bytes = self.response_o_c.to_bytes();
+
+        let rmu_len = self.response_mu.len();
+        let rmu_len_bytes = rmu_len.to_le_bytes();
+
+        let romu_len = self.response_o_mu.len();
+        let romu_len_bytes = romu_len.to_le_bytes();
+
+        let rattributes_len = self.response_attributes.len();
+        let rattributes_len_bytes = rattributes_len.to_le_bytes();
+
+        let mut bytes: Vec<u8> = Vec::with_capacity(
+            96 + (rrl_len + rl_len + roa_len + rmu_len + romu_len + rattributes_len) * 8
+                + (rrl_len + rl_len + roa_len + rmu_len + romu_len + rattributes_len) * 32);
+
+        bytes.extend_from_slice(&challenge_bytes);
+        bytes.extend_from_slice(&response_r_bytes);
+        bytes.extend_from_slice(&roc_bytes);
+
+        bytes.extend_from_slice(&rrl_len_bytes);
+        for rrl in &self.response_r_l {
+            bytes.extend_from_slice(&rrl.to_bytes());
+        }
+
+        bytes.extend_from_slice(&rl_len_bytes);
+        for rl in &self.response_l {
+            bytes.extend_from_slice(&rl.to_bytes());
+        }
+
+        bytes.extend_from_slice(&roa_len_bytes);
+        for roa in &self.response_o_a {
+            bytes.extend_from_slice(&roa.to_bytes());
+        }
+
+        bytes.extend_from_slice(&rmu_len_bytes);
+        for rmu in &self.response_mu {
+            bytes.extend_from_slice(&rmu.to_bytes());
+        }
+
+        bytes.extend_from_slice(&romu_len_bytes);
+        for romu in &self.response_o_mu {
+            bytes.extend_from_slice(&romu.to_bytes());
+        }
+
+        bytes.extend_from_slice(&rattributes_len_bytes);
+        for rattr in &self.response_attributes {
+            bytes.extend_from_slice(&rattr.to_bytes());
+        }
+
+        bytes
+
+    }
+
+}
+
+impl TryFrom<&[u8]> for SpendProof {
+    type Error = CompactEcashError;
+
+    fn try_from(bytes: &[u8]) -> Result<SpendProof> {
+        if bytes.len() < 336 || (bytes.len() - 96 - 48) % 32 != 0 {
+            return Err(CompactEcashError::Deserialization(
+                "tried to deserialize proof of spending with bytes of invalid length"
+                    .to_string(),
+            ));
+        }
+
+        let mut idx = 0;
+        let challenge_bytes = bytes[idx..idx + 32].try_into().unwrap();
+        idx += 32;
+        let response_r_bytes = bytes[idx..idx + 32].try_into().unwrap();
+        idx += 32;
+        let response_o_c_bytes = bytes[idx..idx + 32].try_into().unwrap();
+        idx += 32;
+
+        let challenge = try_deserialize_scalar(
+            &challenge_bytes,
+            CompactEcashError::Deserialization("Failed to deserialize challenge".to_string()),
+        )?;
+
+        let response_r = try_deserialize_scalar(
+            &response_r_bytes,
+            CompactEcashError::Deserialization("Failed to deserialize response_r".to_string()),
+        )?;
+
+        let response_o_c = try_deserialize_scalar(
+            &response_o_c_bytes,
+            CompactEcashError::Deserialization("Failed to deserialize response_o_c".to_string()),
+        )?;
+
+        let rrl_len = u64::from_le_bytes(bytes[idx..idx + 8].try_into().unwrap());
+        idx += 8;
+        if bytes[idx..].len() < rrl_len as usize * 32 {
+            return Err(
+                CompactEcashError::Deserialization(
+                    "tried to deserialize response_r_l".to_string()),
+            );
+        }
+        let rrl_end = idx + rrl_len as usize * 32;
+        let response_r_l = try_deserialize_scalar_vec(
+            rrl_len,
+            &bytes[idx..rrl_end],
+            CompactEcashError::Deserialization("Failed to deserialize response_r_l".to_string()),
+        )?;
+
+        let rl_len = u64::from_le_bytes(bytes[rrl_end..rrl_end + 8].try_into().unwrap());
+        let response_l_start = rrl_end + 8;
+        if bytes[response_l_start..].len() < rl_len as usize * 32 {
+            return Err(CompactEcashError::Deserialization(
+                "tried to deserialize response_l".to_string(),
+            ));
+        }
+        let rl_end = response_l_start + rl_len as usize * 32;
+        let response_l = try_deserialize_scalar_vec(
+            rl_len,
+            &bytes[response_l_start..rl_end],
+            CompactEcashError::Deserialization("Failed to deserialize response_l".to_string()),
+        )?;
+
+        let roa_len = u64::from_le_bytes(bytes[rl_end..rl_end + 8].try_into().unwrap());
+        let roa_end = rl_end + 8;
+        if bytes[roa_end..].len() < roa_len as usize * 32 {
+            return Err(CompactEcashError::Deserialization(
+                "tried to deserialize response_o_a".to_string(),
+            ));
+        }
+        let roa_end = roa_end + roa_len as usize * 32;
+        let response_o_a = try_deserialize_scalar_vec(
+            roa_len,
+            &bytes[rl_end + 8..roa_end],
+            CompactEcashError::Deserialization("Failed to deserialize response_o_a".to_string()),
+        )?;
+
+        let response_mu_len = u64::from_le_bytes(bytes[roa_end..roa_end + 8].try_into().unwrap());
+        let response_mu_end = roa_end + 8;
+        if bytes[response_mu_end..].len() < response_mu_len as usize * 32 {
+            return Err(CompactEcashError::Deserialization(
+                "tried to deserialize response_mu".to_string(),
+            ));
+        }
+        let response_mu_end = response_mu_end + response_mu_len as usize * 32;
+        let response_mu = try_deserialize_scalar_vec(
+            response_mu_len,
+            &bytes[roa_end + 8..response_mu_end],
+            CompactEcashError::Deserialization("Failed to deserialize response_mu".to_string()),
+        )?;
+
+        let response_o_mu_len = u64::from_le_bytes(bytes[response_mu_end..response_mu_end + 8].try_into().unwrap());
+        let response_o_mu_end = response_mu_end + 8;
+        if bytes[response_o_mu_end..].len() < response_o_mu_len as usize * 32 {
+            return Err(CompactEcashError::Deserialization(
+                "tried to deserialize response_o_mu".to_string(),
+            ));
+        }
+        let response_o_mu_end = response_o_mu_end + response_o_mu_len as usize * 32;
+        let response_o_mu = try_deserialize_scalar_vec(
+            response_o_mu_len,
+            &bytes[response_mu_end + 8..response_o_mu_end],
+            CompactEcashError::Deserialization("Failed to deserialize response_o_mu".to_string()),
+        )?;
+
+        let response_attributes_len = u64::from_le_bytes(bytes[response_o_mu_end..response_o_mu_end + 8].try_into().unwrap());
+        let response_attributes_end = response_o_mu_end + 8;
+        if bytes[response_attributes_end..].len() < response_attributes_len as usize * 32 {
+            return Err(CompactEcashError::Deserialization(
+                "tried to deserialize response_attributes".to_string(),
+            ));
+        }
+        let response_attributes_end = response_attributes_end + response_attributes_len as usize * 32;
+        let response_attributes = try_deserialize_scalar_vec(
+            response_attributes_len,
+            &bytes[response_o_mu_end + 8..response_attributes_end],
+            CompactEcashError::Deserialization("Failed to deserialize response_attributes".to_string()),
+        )?;
+
+
+        // Construct the SpendProof struct from the deserialized data
+        let spend_proof = SpendProof {
+            challenge,
+            response_r,
+            response_o_c,
+            response_r_l,
+            response_l,
+            response_o_a,
+            response_mu,
+            response_o_mu,
+            response_attributes,
+        };
+
+        Ok(spend_proof)
+    }
 }
 
 #[cfg(test)]
@@ -563,6 +768,10 @@ mod tests {
         };
 
         let zk_proof = SpendProof::construct(&params, &instance, &witness, &verification_key, &[rr]);
-        assert!(zk_proof.verify(&params, &instance, &verification_key, &[rr]))
+        assert!(zk_proof.verify(&params, &instance, &verification_key, &[rr]));
+
+        let zk_proof_bytes = zk_proof.to_bytes();
+        let zk_proof2 = SpendProof::try_from(zk_proof_bytes.as_slice()).unwrap();
+        assert_eq!(zk_proof, zk_proof2);
     }
 }

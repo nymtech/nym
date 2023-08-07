@@ -661,7 +661,7 @@ All `<NODE>`-specific port configuration can be found in `$HOME/.nym/<NODE>/<YOU
 ### Mix node port reference
 | Default port | Use                       |
 | ------------ | ------------------------- |
-| `1789`       | Listen for mixnet traffic |
+| `1789`       | Listen for Mixnet traffic |
 | `1790`       | Listen for VerLoc traffic |
 | `8000`       | Metrics http API endpoint |
 

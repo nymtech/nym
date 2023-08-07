@@ -82,7 +82,7 @@ You can check that your binaries are properly compiled with:
 You can check the necessary parameters for the available commands by running:
 
 ```
-./nym-client <command> --help
+./nym-client <COMMAND> --help
 ```
 
 ### Initialising a new client instance
@@ -169,3 +169,13 @@ Here is an example of setting the proxy connecting in Blockstream Green:
 Most wallets and other applications will work basically the same way: find the network proxy settings, enter the proxy url (host: **localhost**, port: **1080**).
 
 In some other applications, this might be written as **localhost:1080** if there's only one proxy entry field.
+
+## Useful Commands
+
+**no-banner**
+
+Adding `--no-banner` startup flag will prevent Nym banner being printed even if run in tty environment.
+
+**build-info**
+
+A `build-info` command prints the build information like commit hash, rust version, binary version just like what command `--version` does. However, you can also specify an `--output=json` flag that will format the whole output as a json, making it an order of magnitude easier to parse.

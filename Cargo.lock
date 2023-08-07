@@ -1904,6 +1904,7 @@ dependencies = [
  "humantime-serde",
  "isocountry",
  "itertools",
+ "lazy_static",
  "log",
  "maxminddb",
  "nym-bin-common",

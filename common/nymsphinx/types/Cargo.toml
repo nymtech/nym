@@ -13,5 +13,6 @@ nym-outfox = { path = "../../../nym-outfox", optional = true }
 thiserror = "1"
 
 [features]
+default = ["sphinx"]
 sphinx = ["sphinx-packet"]
 outfox = ["nym-outfox"]

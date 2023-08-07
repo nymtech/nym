@@ -8,7 +8,7 @@ use crate::error::{CompactEcashError, Result};
 use crate::proofs::{ChallengeDigest, compute_challenge, produce_response, produce_responses};
 use crate::scheme::keygen::PublicKeyUser;
 use crate::scheme::setup::GroupParameters;
-use crate::utils::try_deserialize_g1_projective;
+use crate::utils::{try_deserialize_g1_projective, try_deserialize_scalar_vec, try_deserialize_scalar};
 
 #[derive(Debug)]
 #[cfg_attr(test, derive(PartialEq))]
@@ -115,6 +115,7 @@ pub struct WithdrawalReqWitness {
     pub pc_coms_openings: Vec<Scalar>,
 }
 
+#[derive(Debug, PartialEq)]
 pub struct WithdrawalReqProof {
     challenge: Scalar,
     response_opening: Scalar,
@@ -244,7 +245,88 @@ impl WithdrawalReqProof {
 
         challenge == self.challenge
     }
+
+    pub fn to_bytes(&self) -> Vec<u8>{
+        let challenge_bytes = self.challenge.to_bytes();
+        let response_opening_bytes = self.response_opening.to_bytes();
+        let ro_len = self.response_openings.len() as u64;
+        let ra_len = self.response_attributes.len() as u64;
+
+        let mut bytes = Vec::with_capacity(32 + 32 + 8 + ro_len as usize * 32 + 8 + ra_len as usize * 32);
+        bytes.extend_from_slice(&challenge_bytes);
+        bytes.extend_from_slice(&response_opening_bytes);
+        bytes.extend_from_slice(&ro_len.to_le_bytes());
+        for ro in &self.response_openings {
+            bytes.extend_from_slice(&ro.to_bytes());
+        }
+        bytes.extend_from_slice(&ra_len.to_le_bytes());
+        for ra in &self.response_attributes {
+            bytes.extend_from_slice(&ra.to_bytes());
+        }
+        bytes
+    }
 }
+
+impl TryFrom<&[u8]> for WithdrawalReqProof {
+    type Error = CompactEcashError;
+
+    fn try_from(bytes: &[u8]) -> Result<WithdrawalReqProof> {
+        if bytes.len() < 32 + 32 + 16 + 32 + 32 || (bytes.len() - 16) % 32 != 0 {
+            return Err(CompactEcashError::Deserialization(
+                "tried to deserialize proof of withdrawal with bytes of invalid length"
+                    .to_string(),
+            ));
+        }
+
+        let mut idx = 0;
+        let challenge_bytes = bytes[idx..idx + 32].try_into().unwrap();
+        idx += 32;
+        let response_opening_bytes = bytes[idx..idx + 32].try_into().unwrap();
+        idx += 32;
+
+        let challenge = try_deserialize_scalar(
+            &challenge_bytes,
+            CompactEcashError::Deserialization("Failed to deserialize challenge".to_string()),
+        )?;
+
+        let response_opening = try_deserialize_scalar(
+            &response_opening_bytes,
+            CompactEcashError::Deserialization(
+                "Failed to deserialize the response to the random".to_string(),
+            ),
+        )?;
+
+        let ro_len = u64::from_le_bytes(bytes[idx..idx + 8].try_into().unwrap());
+        idx += 8;
+        if bytes[idx..].len() < ro_len as usize * 32 + 8 {
+            return Err(
+                CompactEcashError::Deserialization(
+                    "tried to deserialize response openings".to_string()),
+            );
+        }
+        let ro_end = idx + ro_len as usize * 32;
+        let response_openings = try_deserialize_scalar_vec(
+            ro_len,
+            &bytes[idx..ro_end],
+            CompactEcashError::Deserialization("Failed to deserialize openings response".to_string()),
+        )?;
+
+        let ra_len = u64::from_le_bytes(bytes[ro_end..ro_end + 8].try_into().unwrap());
+        let response_attributes = try_deserialize_scalar_vec(
+            ra_len,
+            &bytes[ro_end + 8..],
+            CompactEcashError::Deserialization("Failed to deserialize attributes response".to_string()),
+        )?;
+
+        Ok(WithdrawalReqProof{
+            challenge,
+            response_opening,
+            response_openings,
+            response_attributes,
+        })
+    }
+}
+
 
 #[cfg(test)]
 mod tests {

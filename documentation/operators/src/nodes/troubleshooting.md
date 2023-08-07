@@ -236,7 +236,7 @@ Here is a sample of the `init` command example to create the mix node config.
 ./nym-mixnode init --id <YOUR_ID> --host 0.0.0.0 --announce-host 85.160.12.13
 ```
 
-- `--host 0.0.0.0` should work every time even if your local machine IPv4 address changes. For example on Monday your router gives your machine an address `192.168.0.13` and on Wednesday, the DHCP lease will end and you will be asigned `192.168.0.14`. Using `0.0.0.0` should avoid this without having to set any static ip in your router`s configuration.
+- `--host 0.0.0.0` should work every time even if your local machine IPv4 address changes. For example on Monday your router gives your machine an address `192.168.0.13` and on Wednesday, the DHCP lease will end and you will be assigned `192.168.0.14`. Using `0.0.0.0` should avoid this without having to set any static IP in your router`s configuration.
 
 - you can get your current IPv4 address by either using `curl ipinfo.io` if you're on MacOS or Linux or visiting [whatsmyip site](https://www.whatsmyip.org/). Simply copy it and use it as `--anounce-host` address.
 

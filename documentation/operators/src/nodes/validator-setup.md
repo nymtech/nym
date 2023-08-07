@@ -455,7 +455,7 @@ If you want to set up a reverse proxying on the validator server to improve secu
 Linux machines limit how many open files a user is allowed to have. This is called a `ulimit`. We need to set it to a higher value than the default 1024. Follow the instructions in the [maintenance page](./maintenance.md#Setting-the-ulimit) to change the `ulimit` value for validators.
 
 ## Using your validator
-### Unjailing your validator
+### Un-jailing your validator
 If your validator gets jailed, you can fix it with the following command:
 
 ```
@@ -499,7 +499,7 @@ You can check your current balances with:
 nymd query bank balances ${ADDRESS}
 ```
 
-For example, on the Sanbox testnet this would return:
+For example, on the Sandbox testnet this would return:
 
 ```yaml
 balances:

@@ -1,14 +1,13 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use std::future::Future;
-
 use nym_mixnet_contract_common::GatewayBond;
 use nym_task::TaskClient;
 use nym_validator_client::models::MixNodeBondAnnotated;
 use nym_validator_client::nyxd::error::NyxdError;
-use nym_validator_client::nyxd::{Paging, TendermintClient, ValidatorResponse};
+use nym_validator_client::nyxd::{Paging, TendermintRpcClient, ValidatorResponse};
 use nym_validator_client::{QueryHttpRpcValidatorClient, ValidatorClientError};
+use std::future::Future;
 
 use crate::mix_nodes::CACHE_REFRESH_RATE;
 use crate::state::ExplorerApiStateContext;

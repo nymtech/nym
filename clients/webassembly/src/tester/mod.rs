@@ -26,7 +26,7 @@ use nym_sphinx::preparer::PreparedFragment;
 use nym_task::TaskManager;
 use nym_topology::NymTopology;
 use nym_validator_client::client::IdentityKey;
-use nym_validator_client::QueryWasmRpcNyxdClient;
+use nym_validator_client::QueryReqwestRpcNyxdClient;
 use rand::rngs::OsRng;
 use std::collections::HashSet;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
@@ -41,7 +41,8 @@ mod ephemeral_receiver;
 pub(crate) mod helpers;
 
 pub type NodeTestMessage = TestMessage<WasmTestMessageExt>;
-type LockedGatewayClient = Arc<AsyncMutex<GatewayClient<QueryWasmRpcNyxdClient, EphemeralStorage>>>;
+type LockedGatewayClient =
+    Arc<AsyncMutex<GatewayClient<QueryReqwestRpcNyxdClient, EphemeralStorage>>>;
 
 pub(crate) const DEFAULT_TEST_TIMEOUT: Duration = Duration::from_secs(10);
 pub(crate) const DEFAULT_TEST_PACKETS: u32 = 20;
@@ -77,7 +78,7 @@ pub struct NymNodeTesterBuilder {
     base_topology: NymTopology,
 
     // unimplemented
-    bandwidth_controller: Option<BandwidthController<QueryWasmRpcNyxdClient, EphemeralStorage>>,
+    bandwidth_controller: Option<BandwidthController<QueryReqwestRpcNyxdClient, EphemeralStorage>>,
 }
 
 fn address(keys: &ManagedKeys, gateway_identity: NodeIdentity) -> Recipient {

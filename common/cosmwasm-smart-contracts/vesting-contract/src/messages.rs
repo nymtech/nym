@@ -1,4 +1,9 @@
+// Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
+use crate::{PledgeCap, VestingSpecification};
 use contracts_common::signing::MessageSignature;
+use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Coin, Timestamp};
 use mixnet_contract_common::families::FamilyHead;
 use mixnet_contract_common::{
@@ -6,57 +11,30 @@ use mixnet_contract_common::{
     mixnode::{MixNodeConfigUpdate, MixNodeCostParams},
     Gateway, IdentityKey, MixId, MixNode,
 };
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 
-use crate::PledgeCap;
+#[cfg(feature = "schema")]
+use contracts_common::ContractBuildInformation;
+#[cfg(feature = "schema")]
+use cosmwasm_schema::QueryResponses;
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[cfg(feature = "schema")]
+use crate::{
+    account::Account,
+    types::{Period, PledgeData, VestingDelegation},
+    AccountsResponse, AllDelegationsResponse, DelegationTimesResponse, OriginalVestingResponse,
+    VestingCoinsResponse,
+};
+
+#[cw_serde]
 pub struct InitMsg {
     pub mixnet_contract_address: String,
     pub mix_denom: String,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
 pub struct MigrateMsg {}
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema, Default)]
-pub struct VestingSpecification {
-    start_time: Option<u64>,
-    period_seconds: Option<u64>,
-    num_periods: Option<u64>,
-}
-
-impl VestingSpecification {
-    pub fn new(
-        start_time: Option<u64>,
-        period_seconds: Option<u64>,
-        num_periods: Option<u64>,
-    ) -> Self {
-        Self {
-            start_time,
-            period_seconds,
-            num_periods,
-        }
-    }
-
-    pub fn start_time(&self) -> Option<u64> {
-        self.start_time
-    }
-
-    pub fn period_seconds(&self) -> u64 {
-        self.period_seconds.unwrap_or(3 * 30 * 86400)
-    }
-
-    pub fn num_periods(&self) -> u64 {
-        self.num_periods.unwrap_or(8)
-    }
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
 pub enum ExecuteMsg {
     // Families
     /// Only owner of the node can crate the family with node as head
@@ -197,93 +175,226 @@ impl ExecuteMsg {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+/// Queries exposed by this contract.
+#[cw_serde]
+#[cfg_attr(feature = "schema", derive(QueryResponses))]
 pub enum QueryMsg {
+    /// Gets build information of this contract, such as the commit hash used for the build or rustc version.
+    #[cfg_attr(feature = "schema", returns(ContractBuildInformation))]
     GetContractVersion {},
+
+    /// Gets the stored contract version information that's required by the CW2 spec interface for migrations.
     #[serde(rename = "get_cw2_contract_version")]
+    #[cfg_attr(feature = "schema", returns(cw2::ContractVersion))]
     GetCW2ContractVersion {},
+
+    /// Gets the list of vesting accounts held in this contract.
+    #[cfg_attr(feature = "schema", returns(AccountsResponse))]
     GetAccountsPaged {
+        /// Pagination control for the values returned by the query. Note that the provided value itself will **not** be used for the response.
         start_next_after: Option<String>,
+
+        /// Controls the maximum number of entries returned by the query. Note that too large values will be overwritten by a saner default.
         limit: Option<u32>,
     },
+
+    /// Gets the list of coins that are still vesting for each account held in this contract.
+    #[cfg_attr(feature = "schema", returns(VestingCoinsResponse))]
     GetAccountsVestingCoinsPaged {
+        /// Pagination control for the values returned by the query. Note that the provided value itself will **not** be used for the response.
         start_next_after: Option<String>,
+
+        /// Controls the maximum number of entries returned by the query. Note that too large values will be overwritten by a saner default.
         limit: Option<u32>,
     },
+
+    /// Returns the amount of locked coins for the provided vesting account,
+    /// i.e. coins that are still vesting but have not been staked.
+    /// `locked_coins = vesting_coins - staked_coins`
+    #[cfg_attr(feature = "schema", returns(Coin))]
     LockedCoins {
+        /// Address of the vesting account in question.
         vesting_account_address: String,
+
+        /// (deprecated) Optional argument specifying that the query should be performed against non-current block.
         block_time: Option<Timestamp>,
     },
+
+    /// Returns the amount of spendable coins for the provided vesting account,
+    /// i.e. coins that could be withdrawn.
+    /// `spendable_coins = account_balance - locked_coins`
+    /// note: `account_balance` is the amount of coins still physically present in this contract, i.e. not withdrawn or staked.
+    #[cfg_attr(feature = "schema", returns(Coin))]
     SpendableCoins {
+        /// Address of the vesting account in question.
         vesting_account_address: String,
+
+        /// (deprecated) Optional argument specifying that the query should be performed against non-current block.
         block_time: Option<Timestamp>,
     },
+
+    /// Returns the amount of coins that have already vested for the provided vesting account address.
+    #[cfg_attr(feature = "schema", returns(Coin))]
     GetVestedCoins {
+        /// Address of the vesting account in question.
         vesting_account_address: String,
+
+        /// (deprecated) Optional argument specifying that the query should be performed against non-current block.
         block_time: Option<Timestamp>,
     },
+
+    /// Returns the amount of coins that are still vesting for the provided vesting account address.
+    #[cfg_attr(feature = "schema", returns(Coin))]
     GetVestingCoins {
+        /// Address of the vesting account in question.
         vesting_account_address: String,
+
+        /// (deprecated) Optional argument specifying that the query should be performed against non-current block.
         block_time: Option<Timestamp>,
     },
+
+    /// Returns the starting vesting time for the provided vesting account,
+    /// i.e. the beginning of the first vesting period.
+    #[cfg_attr(feature = "schema", returns(Timestamp))]
     GetStartTime {
+        /// Address of the vesting account in question.
         vesting_account_address: String,
     },
+
+    /// Returns the ending vesting time for the provided vesting account,
+    /// i.e. the end of the last vesting period.
+    #[cfg_attr(feature = "schema", returns(Timestamp))]
     GetEndTime {
+        /// Address of the vesting account in question.
         vesting_account_address: String,
     },
+
+    /// Returns the initial vesting specification used for the provided vesting account address.
+    #[cfg_attr(feature = "schema", returns(OriginalVestingResponse))]
     GetOriginalVesting {
+        /// Address of the vesting account in question.
         vesting_account_address: String,
     },
+
+    /// Returns the total amount of coins accrued through claimed staking rewards by the provided vesting account.
+    #[cfg_attr(feature = "schema", returns(Coin))]
     GetHistoricalVestingStakingReward {
+        /// Address of the vesting account in question.
         vesting_account_address: String,
     },
+
+    /// Returns the amount of spendable vesting coins for the provided vesting account,
+    /// i.e. coins that could be withdrawn that originated from the vesting specification.
+    #[cfg_attr(feature = "schema", returns(Coin))]
     GetSpendableVestedCoins {
+        /// Address of the vesting account in question.
         vesting_account_address: String,
     },
+
+    /// Returns the amount of spendable reward coins for the provided vesting account,
+    /// i.e. coins that could be withdrawn that originated from the claimed staking rewards.
+    #[cfg_attr(feature = "schema", returns(Coin))]
     GetSpendableRewardCoins {
+        /// Address of the vesting account in question.
         vesting_account_address: String,
     },
+
+    /// Returns the amount of coins that are currently delegated for the provided vesting account address.
+    #[cfg_attr(feature = "schema", returns(Coin))]
     GetDelegatedCoins {
+        /// Address of the vesting account in question.
         vesting_account_address: String,
     },
+
+    /// Returns the amount of coins that are currently pledged for the provided vesting account address.
+    #[cfg_attr(feature = "schema", returns(Coin))]
     GetPledgedCoins {
+        /// Address of the vesting account in question.
         vesting_account_address: String,
     },
+
+    /// Returns the amount of coins that are currently staked (i.e. delegations + pledges) for the provided vesting account address.
+    #[cfg_attr(feature = "schema", returns(Coin))]
     GetStakedCoins {
+        /// Address of the vesting account in question.
         vesting_account_address: String,
     },
+
+    /// Returns the amount of coins that got withdrawn for the provided vesting account address.
+    #[cfg_attr(feature = "schema", returns(Coin))]
     GetWithdrawnCoins {
+        /// Address of the vesting account in question.
         vesting_account_address: String,
     },
+
+    /// Returns detailed information associated with the account for the provided vesting account address.
+    #[cfg_attr(feature = "schema", returns(Account))]
     GetAccount {
+        /// Address of the vesting account in question.
         address: String,
     },
+
+    /// Returns pledge information (if applicable) for bonded mixnode for the provided vesting account address.
+    #[cfg_attr(feature = "schema", returns(Option<PledgeData>))]
     GetMixnode {
+        /// Address of the vesting account in question.
         address: String,
     },
+
+    /// Returns pledge information (if applicable) for bonded gateway for the provided vesting account address.
+    #[cfg_attr(feature = "schema", returns(Option<PledgeData>))]
     GetGateway {
+        /// Address of the vesting account in question.
         address: String,
     },
+
+    /// Returns the current vesting period for the provided vesting account address.
+    #[cfg_attr(feature = "schema", returns(Period))]
     GetCurrentVestingPeriod {
+        /// Address of the vesting account in question.
         address: String,
     },
+
+    /// Returns the information about particular vesting delegation.
+    #[cfg_attr(feature = "schema", returns(VestingDelegation))]
     GetDelegation {
+        /// Address of the vesting account in question.
         address: String,
+
+        /// Id of the mixnode towards which the delegation has been made.
         mix_id: MixId,
+
+        /// Block timestamp of the delegation.
         block_timestamp_secs: u64,
     },
+
+    /// Returns the total amount of coins delegated towards particular mixnode by the provided vesting account address.
+    #[cfg_attr(feature = "schema", returns(Coin))]
     GetTotalDelegationAmount {
+        /// Address of the vesting account in question.
         address: String,
+
+        /// Id of the mixnode towards which the delegations have been made.
         mix_id: MixId,
     },
+
+    /// Returns timestamps of delegations made towards particular mixnode by the provided vesting account address.
+    #[cfg_attr(feature = "schema", returns(DelegationTimesResponse))]
     GetDelegationTimes {
+        /// Address of the vesting account in question.
         address: String,
+
+        /// Id of the mixnode towards which the delegations have been made.
         mix_id: MixId,
     },
+
+    /// Returns all active delegations made with vesting tokens stored in this contract.
+    #[cfg_attr(feature = "schema", returns(AllDelegationsResponse))]
     GetAllDelegations {
+        /// Pagination control for the values returned by the query. Note that the provided value itself will **not** be used for the response.
         start_after: Option<(u32, MixId, u64)>,
+
+        /// Controls the maximum number of entries returned by the query. Note that too large values will be overwritten by a saner default.
         limit: Option<u32>,
     },
 }

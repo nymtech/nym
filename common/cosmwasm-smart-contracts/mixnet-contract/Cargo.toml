@@ -11,14 +11,16 @@ repository = { workspace = true }
 [dependencies]
 bs58 = "0.4.0"
 cosmwasm-std = { workspace = true }
-serde = { version = "1.0", features = ["derive"] }
+cosmwasm-schema = { workspace = true }
+cw2 = { workspace = true, optional = true }
+serde = { workspace = true, features = ["derive"] }
 serde_repr = "0.1"
+
+# we still have to preserve that import for `JsonSchema` for `Layer` type (since we can't use cw_serde macro due to custom serde impl)
 schemars = "0.8"
 thiserror = "1.0"
 contracts-common = { path = "../contracts-common", package = "nym-contracts-common", version = "0.5.0" }
-# use 0.4.1 as that's the version used by cosmwasm-std 1.0.0
-# (and ideally we don't want to pull the same dependency twice)
-serde-json-wasm = "=0.4.1"
+serde-json-wasm = { workspace = true }
 humantime-serde = "1.1.1"
 
 # TO CHECK WHETHER STILL NEEDED:
@@ -33,4 +35,5 @@ time = { version = "0.3.5", features = ["serde", "macros"] }
 [features]
 default = []
 contract-testing = []
+schema = ["cw2"]
 generate-ts = ['ts-rs']

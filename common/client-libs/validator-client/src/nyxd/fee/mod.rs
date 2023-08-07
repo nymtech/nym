@@ -32,7 +32,7 @@ impl Display for AutoFeeGrant {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Fee {
-    Manual(#[serde(with = "sealed::TxFee")] tx::Fee),
+    Manual(tx::Fee),
     Auto(Option<GasAdjustment>),
     PayerGranterAuto(AutoFeeGrant),
 }
@@ -119,60 +119,5 @@ impl GasAdjustable for Gas {
             let adjusted = (*self as f32 * adjustment).ceil();
             adjusted as u64
         }
-    }
-}
-
-// a workaround to provide serde implementation for tx::Fee. We don't want to ever expose any of those
-// types to the public and ideally they will get replaced by proper implementation inside comrs
-mod sealed {
-    use cosmrs::tx::{self};
-    use cosmrs::{AccountId, Denom as CosmosDenom};
-    use cosmrs::{Coin as CosmosCoin, Gas};
-    use serde::{Deserialize, Deserializer, Serialize, Serializer};
-
-    #[derive(Serialize, Deserialize, Clone)]
-    struct Coin {
-        denom: CosmosDenom,
-        amount: u128,
-    }
-
-    impl From<Coin> for CosmosCoin {
-        fn from(val: Coin) -> Self {
-            CosmosCoin {
-                denom: val.denom,
-                amount: val.amount,
-            }
-        }
-    }
-
-    impl From<CosmosCoin> for Coin {
-        fn from(val: CosmosCoin) -> Self {
-            Coin {
-                denom: val.denom,
-                amount: val.amount,
-            }
-        }
-    }
-
-    fn coin_vec_ser<S: Serializer>(val: &[CosmosCoin], serializer: S) -> Result<S::Ok, S::Error> {
-        let vec: Vec<Coin> = val.iter().cloned().map(Into::into).collect();
-        vec.serialize(serializer)
-    }
-    fn coin_vec_deser<'de, D: Deserializer<'de>>(
-        deserializer: D,
-    ) -> Result<Vec<CosmosCoin>, D::Error> {
-        let vec: Vec<Coin> = Deserialize::deserialize(deserializer)?;
-        Ok(vec.iter().cloned().map(Into::into).collect())
-    }
-
-    #[derive(Serialize, Deserialize)]
-    #[serde(remote = "tx::Fee")]
-    pub(super) struct TxFee {
-        #[serde(serialize_with = "coin_vec_ser")]
-        #[serde(deserialize_with = "coin_vec_deser")]
-        pub amount: Vec<CosmosCoin>,
-        pub gas_limit: Gas,
-        pub payer: Option<AccountId>,
-        pub granter: Option<AccountId>,
     }
 }

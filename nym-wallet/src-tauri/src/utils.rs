@@ -53,7 +53,9 @@ pub async fn try_convert_pubkey_to_mix_id(
     let res = nyxd_client!(state)
         .get_mixnode_details_by_identity(mix_identity)
         .await?;
-    Ok(res.map(|mixnode_details| mixnode_details.mix_id()))
+    Ok(res
+        .mixnode_details
+        .map(|mixnode_details| mixnode_details.mix_id()))
 }
 
 #[tauri::command]

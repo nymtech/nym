@@ -1,0 +1,1233 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "QueryMsg",
+  "oneOf": [
+    {
+      "description": "Gets the list of families registered in this contract.",
+      "type": "object",
+      "required": [
+        "get_all_families_paged"
+      ],
+      "properties": {
+        "get_all_families_paged": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "description": "Controls the maximum number of entries returned by the query. Note that too large values will be overwritten by a saner default.",
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "start_after": {
+              "description": "Pagination control for the values returned by the query. Note that the provided value itself will **not** be used for the response.",
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Gets the list of all family members registered in this contract.",
+      "type": "object",
+      "required": [
+        "get_all_members_paged"
+      ],
+      "properties": {
+        "get_all_members_paged": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "description": "Controls the maximum number of entries returned by the query. Note that too large values will be overwritten by a saner default.",
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "start_after": {
+              "description": "Pagination control for the values returned by the query. Note that the provided value itself will **not** be used for the response.",
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Attempts to lookup family information given the family head.",
+      "type": "object",
+      "required": [
+        "get_family_by_head"
+      ],
+      "properties": {
+        "get_family_by_head": {
+          "type": "object",
+          "required": [
+            "head"
+          ],
+          "properties": {
+            "head": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Attempts to lookup family information given the family label.",
+      "type": "object",
+      "required": [
+        "get_family_by_label"
+      ],
+      "properties": {
+        "get_family_by_label": {
+          "type": "object",
+          "required": [
+            "label"
+          ],
+          "properties": {
+            "label": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Attempts to retrieve family members given the family head.",
+      "type": "object",
+      "required": [
+        "get_family_members_by_head"
+      ],
+      "properties": {
+        "get_family_members_by_head": {
+          "type": "object",
+          "required": [
+            "head"
+          ],
+          "properties": {
+            "head": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Attempts to retrieve family members given the family label.",
+      "type": "object",
+      "required": [
+        "get_family_members_by_label"
+      ],
+      "properties": {
+        "get_family_members_by_label": {
+          "type": "object",
+          "required": [
+            "label"
+          ],
+          "properties": {
+            "label": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Gets build information of this contract, such as the commit hash used for the build or rustc version.",
+      "type": "object",
+      "required": [
+        "get_contract_version"
+      ],
+      "properties": {
+        "get_contract_version": {
+          "type": "object",
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Gets the stored contract version information that's required by the CW2 spec interface for migrations.",
+      "type": "object",
+      "required": [
+        "get_cw2_contract_version"
+      ],
+      "properties": {
+        "get_cw2_contract_version": {
+          "type": "object",
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Gets the address of the validator that's allowed to send rewarding transactions and transition the epoch.",
+      "type": "object",
+      "required": [
+        "get_rewarding_validator_address"
+      ],
+      "properties": {
+        "get_rewarding_validator_address": {
+          "type": "object",
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Gets the contract parameters that could be adjusted in a transaction by the contract admin.",
+      "type": "object",
+      "required": [
+        "get_state_params"
+      ],
+      "properties": {
+        "get_state_params": {
+          "type": "object",
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Gets the current state of the contract.",
+      "type": "object",
+      "required": [
+        "get_state"
+      ],
+      "properties": {
+        "get_state": {
+          "type": "object",
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Gets the current parameters used for reward calculation.",
+      "type": "object",
+      "required": [
+        "get_rewarding_params"
+      ],
+      "properties": {
+        "get_rewarding_params": {
+          "type": "object",
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Gets the status of the current rewarding epoch.",
+      "type": "object",
+      "required": [
+        "get_epoch_status"
+      ],
+      "properties": {
+        "get_epoch_status": {
+          "type": "object",
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Get the details of the current rewarding interval.",
+      "type": "object",
+      "required": [
+        "get_current_interval_details"
+      ],
+      "properties": {
+        "get_current_interval_details": {
+          "type": "object",
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Gets the current list of mixnodes in the rewarded set.",
+      "type": "object",
+      "required": [
+        "get_rewarded_set"
+      ],
+      "properties": {
+        "get_rewarded_set": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "description": "Controls the maximum number of entries returned by the query. Note that too large values will be overwritten by a saner default.",
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "start_after": {
+              "description": "Pagination control for the values returned by the query. Note that the provided value itself will **not** be used for the response.",
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Gets the basic list of all currently bonded mixnodes.",
+      "type": "object",
+      "required": [
+        "get_mix_node_bonds"
+      ],
+      "properties": {
+        "get_mix_node_bonds": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "description": "Controls the maximum number of entries returned by the query. Note that too large values will be overwritten by a saner default.",
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "start_after": {
+              "description": "Pagination control for the values returned by the query. Note that the provided value itself will **not** be used for the response.",
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Gets the detailed list of all currently bonded mixnodes.",
+      "type": "object",
+      "required": [
+        "get_mix_nodes_detailed"
+      ],
+      "properties": {
+        "get_mix_nodes_detailed": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "description": "Controls the maximum number of entries returned by the query. Note that too large values will be overwritten by a saner default.",
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "start_after": {
+              "description": "Pagination control for the values returned by the query. Note that the provided value itself will **not** be used for the response.",
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Gets the basic list of all unbonded mixnodes.",
+      "type": "object",
+      "required": [
+        "get_unbonded_mix_nodes"
+      ],
+      "properties": {
+        "get_unbonded_mix_nodes": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "description": "Controls the maximum number of entries returned by the query. Note that too large values will be overwritten by a saner default.",
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "start_after": {
+              "description": "Pagination control for the values returned by the query. Note that the provided value itself will **not** be used for the response.",
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Gets the basic list of all unbonded mixnodes that belonged to a particular owner.",
+      "type": "object",
+      "required": [
+        "get_unbonded_mix_nodes_by_owner"
+      ],
+      "properties": {
+        "get_unbonded_mix_nodes_by_owner": {
+          "type": "object",
+          "required": [
+            "owner"
+          ],
+          "properties": {
+            "limit": {
+              "description": "Controls the maximum number of entries returned by the query. Note that too large values will be overwritten by a saner default.",
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "owner": {
+              "description": "The address of the owner of the the mixnodes used for the query.",
+              "type": "string"
+            },
+            "start_after": {
+              "description": "Pagination control for the values returned by the query. Note that the provided value itself will **not** be used for the response.",
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Gets the basic list of all unbonded mixnodes that used the particular identity key.",
+      "type": "object",
+      "required": [
+        "get_unbonded_mix_nodes_by_identity_key"
+      ],
+      "properties": {
+        "get_unbonded_mix_nodes_by_identity_key": {
+          "type": "object",
+          "required": [
+            "identity_key"
+          ],
+          "properties": {
+            "identity_key": {
+              "description": "The identity key (base58-encoded ed25519 public key) of the mixnode used for the query.",
+              "type": "string"
+            },
+            "limit": {
+              "description": "Controls the maximum number of entries returned by the query. Note that too large values will be overwritten by a saner default.",
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "start_after": {
+              "description": "Pagination control for the values returned by the query. Note that the provided value itself will **not** be used for the response.",
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Gets the detailed mixnode information belonging to the particular owner.",
+      "type": "object",
+      "required": [
+        "get_owned_mixnode"
+      ],
+      "properties": {
+        "get_owned_mixnode": {
+          "type": "object",
+          "required": [
+            "address"
+          ],
+          "properties": {
+            "address": {
+              "description": "Address of the mixnode owner to use for the query.",
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Gets the detailed mixnode information of a node with the provided id.",
+      "type": "object",
+      "required": [
+        "get_mixnode_details"
+      ],
+      "properties": {
+        "get_mixnode_details": {
+          "type": "object",
+          "required": [
+            "mix_id"
+          ],
+          "properties": {
+            "mix_id": {
+              "description": "Id of the node to query.",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Gets the rewarding information of a mixnode with the provided id.",
+      "type": "object",
+      "required": [
+        "get_mixnode_rewarding_details"
+      ],
+      "properties": {
+        "get_mixnode_rewarding_details": {
+          "type": "object",
+          "required": [
+            "mix_id"
+          ],
+          "properties": {
+            "mix_id": {
+              "description": "Id of the node to query.",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Gets the stake saturation of a mixnode with the provided id.",
+      "type": "object",
+      "required": [
+        "get_stake_saturation"
+      ],
+      "properties": {
+        "get_stake_saturation": {
+          "type": "object",
+          "required": [
+            "mix_id"
+          ],
+          "properties": {
+            "mix_id": {
+              "description": "Id of the node to query.",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Gets the basic information of an unbonded mixnode with the provided id.",
+      "type": "object",
+      "required": [
+        "get_unbonded_mix_node_information"
+      ],
+      "properties": {
+        "get_unbonded_mix_node_information": {
+          "type": "object",
+          "required": [
+            "mix_id"
+          ],
+          "properties": {
+            "mix_id": {
+              "description": "Id of the node to query.",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Gets the detailed mixnode information of a node given its current identity key.",
+      "type": "object",
+      "required": [
+        "get_bonded_mixnode_details_by_identity"
+      ],
+      "properties": {
+        "get_bonded_mixnode_details_by_identity": {
+          "type": "object",
+          "required": [
+            "mix_identity"
+          ],
+          "properties": {
+            "mix_identity": {
+              "description": "The identity key (base58-encoded ed25519 public key) of the mixnode used for the query.",
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Gets the current layer configuration of the mix network.",
+      "type": "object",
+      "required": [
+        "get_layer_distribution"
+      ],
+      "properties": {
+        "get_layer_distribution": {
+          "type": "object",
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Gets the basic list of all currently bonded gateways.",
+      "type": "object",
+      "required": [
+        "get_gateways"
+      ],
+      "properties": {
+        "get_gateways": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "description": "Controls the maximum number of entries returned by the query. Note that too large values will be overwritten by a saner default.",
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "start_after": {
+              "description": "Pagination control for the values returned by the query. Note that the provided value itself will **not** be used for the response.",
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Gets the gateway details of a node given its identity key.",
+      "type": "object",
+      "required": [
+        "get_gateway_bond"
+      ],
+      "properties": {
+        "get_gateway_bond": {
+          "type": "object",
+          "required": [
+            "identity"
+          ],
+          "properties": {
+            "identity": {
+              "description": "The identity key (base58-encoded ed25519 public key) of the gateway used for the query.",
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Gets the detailed gateway information belonging to the particular owner.",
+      "type": "object",
+      "required": [
+        "get_owned_gateway"
+      ],
+      "properties": {
+        "get_owned_gateway": {
+          "type": "object",
+          "required": [
+            "address"
+          ],
+          "properties": {
+            "address": {
+              "description": "Address of the gateway owner to use for the query.",
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Gets all delegations associated with particular mixnode",
+      "type": "object",
+      "required": [
+        "get_mixnode_delegations"
+      ],
+      "properties": {
+        "get_mixnode_delegations": {
+          "type": "object",
+          "required": [
+            "mix_id"
+          ],
+          "properties": {
+            "limit": {
+              "description": "Controls the maximum number of entries returned by the query. Note that too large values will be overwritten by a saner default.",
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "mix_id": {
+              "description": "Id of the node to query.",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "start_after": {
+              "description": "Pagination control for the values returned by the query. Note that the provided value itself will **not** be used for the response.",
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Gets all delegations associated with particular delegator",
+      "type": "object",
+      "required": [
+        "get_delegator_delegations"
+      ],
+      "properties": {
+        "get_delegator_delegations": {
+          "type": "object",
+          "required": [
+            "delegator"
+          ],
+          "properties": {
+            "delegator": {
+              "description": "The address of the owner of the delegations.",
+              "type": "string"
+            },
+            "limit": {
+              "description": "Controls the maximum number of entries returned by the query. Note that too large values will be overwritten by a saner default.",
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "start_after": {
+              "description": "Pagination control for the values returned by the query. Note that the provided value itself will **not** be used for the response.",
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": [
+                {
+                  "type": "integer",
+                  "format": "uint32",
+                  "minimum": 0.0
+                },
+                {
+                  "type": "string"
+                }
+              ],
+              "maxItems": 2,
+              "minItems": 2
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Gets delegation information associated with particular mixnode - delegator pair",
+      "type": "object",
+      "required": [
+        "get_delegation_details"
+      ],
+      "properties": {
+        "get_delegation_details": {
+          "type": "object",
+          "required": [
+            "delegator",
+            "mix_id"
+          ],
+          "properties": {
+            "delegator": {
+              "description": "The address of the owner of the delegation.",
+              "type": "string"
+            },
+            "mix_id": {
+              "description": "Id of the node to query.",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "proxy": {
+              "description": "Entity who made the delegation on behalf of the owner. If present, it's most likely the address of the vesting contract.",
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Gets all delegations in the system",
+      "type": "object",
+      "required": [
+        "get_all_delegations"
+      ],
+      "properties": {
+        "get_all_delegations": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "description": "Controls the maximum number of entries returned by the query. Note that too large values will be overwritten by a saner default.",
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "start_after": {
+              "description": "Pagination control for the values returned by the query. Note that the provided value itself will **not** be used for the response.",
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": [
+                {
+                  "type": "integer",
+                  "format": "uint32",
+                  "minimum": 0.0
+                },
+                {
+                  "type": "string"
+                }
+              ],
+              "maxItems": 2,
+              "minItems": 2
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Gets the reward amount accrued by the node operator that has not yet been claimed.",
+      "type": "object",
+      "required": [
+        "get_pending_operator_reward"
+      ],
+      "properties": {
+        "get_pending_operator_reward": {
+          "type": "object",
+          "required": [
+            "address"
+          ],
+          "properties": {
+            "address": {
+              "description": "Address of the operator to use for the query.",
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Gets the reward amount accrued by the particular mixnode that has not yet been claimed.",
+      "type": "object",
+      "required": [
+        "get_pending_mix_node_operator_reward"
+      ],
+      "properties": {
+        "get_pending_mix_node_operator_reward": {
+          "type": "object",
+          "required": [
+            "mix_id"
+          ],
+          "properties": {
+            "mix_id": {
+              "description": "Id of the node to query.",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Gets the reward amount accrued by the particular delegator that has not yet been claimed.",
+      "type": "object",
+      "required": [
+        "get_pending_delegator_reward"
+      ],
+      "properties": {
+        "get_pending_delegator_reward": {
+          "type": "object",
+          "required": [
+            "address",
+            "mix_id"
+          ],
+          "properties": {
+            "address": {
+              "description": "Address of the delegator to use for the query.",
+              "type": "string"
+            },
+            "mix_id": {
+              "description": "Id of the node to query.",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "proxy": {
+              "description": "Entity who made the delegation on behalf of the owner. If present, it's most likely the address of the vesting contract.",
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Given the provided node performance, attempt to estimate the operator reward for the current epoch.",
+      "type": "object",
+      "required": [
+        "get_estimated_current_epoch_operator_reward"
+      ],
+      "properties": {
+        "get_estimated_current_epoch_operator_reward": {
+          "type": "object",
+          "required": [
+            "estimated_performance",
+            "mix_id"
+          ],
+          "properties": {
+            "estimated_performance": {
+              "description": "The estimated performance for the current epoch of the given node.",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Percent"
+                }
+              ]
+            },
+            "mix_id": {
+              "description": "Id of the node to query.",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Given the provided node performance, attempt to estimate the delegator reward for the current epoch.",
+      "type": "object",
+      "required": [
+        "get_estimated_current_epoch_delegator_reward"
+      ],
+      "properties": {
+        "get_estimated_current_epoch_delegator_reward": {
+          "type": "object",
+          "required": [
+            "address",
+            "estimated_performance",
+            "mix_id"
+          ],
+          "properties": {
+            "address": {
+              "description": "Address of the delegator to use for the query.",
+              "type": "string"
+            },
+            "estimated_performance": {
+              "description": "The estimated performance for the current epoch of the given node.",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Percent"
+                }
+              ]
+            },
+            "mix_id": {
+              "description": "Id of the node to query.",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "proxy": {
+              "description": "Entity who made the delegation on behalf of the owner. If present, it's most likely the address of the vesting contract.",
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Gets the list of all currently pending epoch events that will be resolved once the current epoch finishes.",
+      "type": "object",
+      "required": [
+        "get_pending_epoch_events"
+      ],
+      "properties": {
+        "get_pending_epoch_events": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "description": "Controls the maximum number of entries returned by the query. Note that too large values will be overwritten by a saner default.",
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "start_after": {
+              "description": "Pagination control for the values returned by the query. Note that the provided value itself will **not** be used for the response.",
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Gets the list of all currently pending interval events that will be resolved once the current interval finishes.",
+      "type": "object",
+      "required": [
+        "get_pending_interval_events"
+      ],
+      "properties": {
+        "get_pending_interval_events": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "description": "Controls the maximum number of entries returned by the query. Note that too large values will be overwritten by a saner default.",
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "start_after": {
+              "description": "Pagination control for the values returned by the query. Note that the provided value itself will **not** be used for the response.",
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Gets detailed information about a pending epoch event given its id.",
+      "type": "object",
+      "required": [
+        "get_pending_epoch_event"
+      ],
+      "properties": {
+        "get_pending_epoch_event": {
+          "type": "object",
+          "required": [
+            "event_id"
+          ],
+          "properties": {
+            "event_id": {
+              "description": "The unique id associated with the event.",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Gets detailed information about a pending interval event given its id.",
+      "type": "object",
+      "required": [
+        "get_pending_interval_event"
+      ],
+      "properties": {
+        "get_pending_interval_event": {
+          "type": "object",
+          "required": [
+            "event_id"
+          ],
+          "properties": {
+            "event_id": {
+              "description": "The unique id associated with the event.",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Gets the information about the number of currently pending epoch and interval events.",
+      "type": "object",
+      "required": [
+        "get_number_of_pending_events"
+      ],
+      "properties": {
+        "get_number_of_pending_events": {
+          "type": "object",
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Gets the signing nonce associated with the particular cosmos address.",
+      "type": "object",
+      "required": [
+        "get_signing_nonce"
+      ],
+      "properties": {
+        "get_signing_nonce": {
+          "type": "object",
+          "required": [
+            "address"
+          ],
+          "properties": {
+            "address": {
+              "description": "Cosmos address used for the query of the signing nonce.",
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  ],
+  "definitions": {
+    "Decimal": {
+      "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
+      "type": "string"
+    },
+    "Percent": {
+      "description": "Percent represents a value between 0 and 100% (i.e. between 0.0 and 1.0)",
+      "allOf": [
+        {
+          "$ref": "#/definitions/Decimal"
+        }
+      ]
+    }
+  }
+}

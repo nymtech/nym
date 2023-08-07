@@ -8,7 +8,7 @@ edition = "2021"
 [dependencies]
 cw-utils = { workspace = true }
 cw3 = { workspace = true }
-cw4 = { workspace= true }
+cw4 = { workspace = true }
 cw-storage-plus = { workspace = true }
 cosmwasm-schema = { workspace = true }
 cosmwasm-std = { workspace = true }

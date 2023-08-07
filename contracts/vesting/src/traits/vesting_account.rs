@@ -1,9 +1,8 @@
-use crate::errors::ContractError;
 use cosmwasm_std::{Addr, Coin, Env, Storage, Timestamp, Uint128};
-use vesting_contract_common::OriginalVestingResponse;
+use vesting_contract_common::{OriginalVestingResponse, VestingContractError};
 
 pub trait VestingAccount {
-    fn total_staked(&self, storage: &dyn Storage) -> Result<Uint128, ContractError>;
+    fn total_staked(&self, storage: &dyn Storage) -> Result<Uint128, VestingContractError>;
 
     /// Returns the set of coins that are not spendable (can still be delegated tough) (i.e. locked),
     /// defined as vesting coins that are not delegated or pledged.
@@ -17,7 +16,7 @@ pub trait VestingAccount {
         block_time: Option<Timestamp>,
         env: &Env,
         storage: &dyn Storage,
-    ) -> Result<Coin, ContractError>;
+    ) -> Result<Coin, VestingContractError>;
 
     /// Calculated as current_balance minus [crate::traits::VestingAccount::locked_coins]
     /// See [/vesting-contract/struct.Account.html/method.spendable_coins] for impl
@@ -26,21 +25,21 @@ pub trait VestingAccount {
         block_time: Option<Timestamp>,
         env: &Env,
         storage: &dyn Storage,
-    ) -> Result<Coin, ContractError>;
+    ) -> Result<Coin, VestingContractError>;
 
     fn spendable_vested_coins(
         &self,
         block_time: Option<Timestamp>,
         env: &Env,
         storage: &dyn Storage,
-    ) -> Result<Coin, ContractError>;
+    ) -> Result<Coin, VestingContractError>;
 
     fn spendable_reward_coins(
         &self,
         block_time: Option<Timestamp>,
         env: &Env,
         storage: &dyn Storage,
-    ) -> Result<Coin, ContractError>;
+    ) -> Result<Coin, VestingContractError>;
 
     /// See [/vesting-contract/struct.Account.html/method.get_vested_coins] for impl
     fn get_vested_coins(
@@ -48,7 +47,7 @@ pub trait VestingAccount {
         block_time: Option<Timestamp>,
         env: &Env,
         storage: &dyn Storage,
-    ) -> Result<Coin, ContractError>;
+    ) -> Result<Coin, VestingContractError>;
 
     /// See [/vesting-contract/struct.Account.html/method.get_vesting_coins] for impl
     fn get_vesting_coins(
@@ -56,7 +55,7 @@ pub trait VestingAccount {
         block_time: Option<Timestamp>,
         env: &Env,
         storage: &dyn Storage,
-    ) -> Result<Coin, ContractError>;
+    ) -> Result<Coin, VestingContractError>;
 
     /// See [/vesting-contract/struct.Account.html/method.get_start_time] for impl
     fn get_start_time(&self) -> Timestamp;
@@ -65,23 +64,27 @@ pub trait VestingAccount {
 
     /// Returns amount of coins set at account creation
     /// See [/vesting-contract/struct.Account.html/method.get_original_vesting] for impl
-    fn get_original_vesting(&self) -> Result<OriginalVestingResponse, ContractError>;
+    fn get_original_vesting(&self) -> Result<OriginalVestingResponse, VestingContractError>;
 
     /// See [/vesting-contract/struct.Account.html/method.transfer_ownership] for impl
     fn transfer_ownership(
         &mut self,
         to_address: &Addr,
         storage: &mut dyn Storage,
-    ) -> Result<(), ContractError>;
+    ) -> Result<(), VestingContractError>;
     /// See [/vesting-contract/struct.Account.html/method.update_staking_address] for impl
     fn update_staking_address(
         &mut self,
         to_address: Option<Addr>,
         storage: &mut dyn Storage,
-    ) -> Result<(), ContractError>;
-    fn track_reward(&self, amount: Coin, storage: &mut dyn Storage) -> Result<(), ContractError>;
+    ) -> Result<(), VestingContractError>;
+    fn track_reward(
+        &self,
+        amount: Coin,
+        storage: &mut dyn Storage,
+    ) -> Result<(), VestingContractError>;
     fn get_historical_vested_staking_rewards(
         &self,
         storage: &dyn Storage,
-    ) -> Result<Coin, ContractError>;
+    ) -> Result<Coin, VestingContractError>;
 }

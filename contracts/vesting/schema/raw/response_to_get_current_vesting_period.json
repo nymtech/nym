@@ -1,0 +1,36 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Period",
+  "description": "The vesting period.",
+  "oneOf": [
+    {
+      "description": "Defines a pre-vesting period.",
+      "type": "string",
+      "enum": [
+        "before"
+      ]
+    },
+    {
+      "description": "Defines currently active vesting period.",
+      "type": "object",
+      "required": [
+        "in"
+      ],
+      "properties": {
+        "in": {
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Defines a post-vesting period.",
+      "type": "string",
+      "enum": [
+        "after"
+      ]
+    }
+  ]
+}

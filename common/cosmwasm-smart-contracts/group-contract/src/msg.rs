@@ -46,3 +46,5 @@ pub enum QueryMsg {
     #[returns(cw_controllers::HooksResponse)]
     Hooks {},
 }
+#[cw_serde]
+pub struct MigrateMsg {}

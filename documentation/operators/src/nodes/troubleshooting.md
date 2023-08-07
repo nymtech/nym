@@ -183,7 +183,7 @@ Your mix node **must speak both IPv4 and IPv6** in order to cooperate with other
 
 #### Incorrect bonding information
 
-Check that you have provided the correct information when bonding your mix node in the web wallet [interface](https://sandbox-wallet.nymtech.net/). When in doubt, un-bond and then re-bond your node!
+Check that you have provided the correct information when bonding your mix node in the web wallet interface. When in doubt, un-bond and then re-bond your node!
 
 > All delegated stake will be lost when un-bonding! However the mix node must be operational in the first place for the delegation to have any effect.
 
@@ -222,7 +222,7 @@ bob@nym:~$ hostname -I
 
 ### Running on a local machine behind NAT with no fixed IP address
 
-Your ISP has to be IPv6 ready if you want to run a mix node on your local machine. Sadly, in 2020, most of them are not and you won't get an IPv6 address by default from your ISP. Usually it is a extra paid service or they simply don't offer it.
+Your ISP has to be IPv6 ready if you want to run a mix node on your local machine. Sadly, in 2020, most of them are not and you won't get an IPv6 address by default from your ISP. Usually it is an extra paid service or they simply don't offer it.
 
 Before you begin, check if you have IPv6 [here](https://test-ipv6.cz/) or by running command explained in the [section above](./troubleshooting.md#no-ipv6-connectivity). If not, then don't waste your time to run a node which won't ever be able to mix any packet due to this limitation. Call your ISP and ask for IPv6, there is a plenty of it for everyone!
 

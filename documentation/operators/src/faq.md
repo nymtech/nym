@@ -14,7 +14,7 @@ For more detailed calculation, read our blog post [Nym Token Economics update](h
 
 ### Which VPS providers would you recommend?
 
-Consider in which jurisdiction you reside and where do you want to run a mix node. Do you want to pay by crypto or not and what are the other important particularities for your case? We always recommend operators to try to chose smaller and decentralized VPS providers over the most known ones controlling a majority of the internet. We recieve some good feedback on these: Hertzner, DigitalOcean, Linode, Ghandi and Exoscale. Do your own research and share with the community.
+Consider in which jurisdiction you reside and where do you want to run a mix node. Do you want to pay by crypto or not and what are the other important particularities for your case? We always recommend operators to try to chose smaller and decentralized VPS providers over the most known ones controlling a majority of the internet. We receive some good feedback on these: Hertzner, DigitalOcean, Linode, Ghandi and Exoscale. Do your own research and share with the community.
 
 <!---### Why is a mix node setup on a self-hosted machine so tricky?--->
 

@@ -22,7 +22,7 @@ Any request to a URL which is not on this list will be blocked.
 
 On startup, if this file is not present, the requester will grab the default whitelist from [Nym's default list](https://nymtech.net/.wellknown/network-requester/standard-allowed-list.txt) automatically.
 
-This default whitelist is useful for knowing that the majority of network requesters are able to support certain apps 'out of the box'.
+This default whitelist is useful for knowing that the majority of Network requesters are able to support certain apps 'out of the box'.
 
 **Operators of a network requester are of course free to edit this file and add the URLs of services they wish to support to it!** You can find instructions below on adding your own URLs or IPs to this list.
 
@@ -77,7 +77,7 @@ matrix.org
 ```
 
 ## Network Requester Directory
-You can find a list of Network Requesters running the default whitelist in the [explorer](https://explorer.nymtech.net/network-components/service-providers). This list comprises of the NRs running as infrastructure for NymConnect.
+You can find a list of Network requesters running the default whitelist in the [explorer](https://explorer.nymtech.net/network-components/service-providers). This list comprises of the NRs running as infrastructure for NymConnect.
 
 > We are currently working on a smart-contract based solution more in line with how Mix nodes and Gateways announce themselves to the network.
 

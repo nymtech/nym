@@ -173,12 +173,6 @@ If everything worked, you'll see your node running on the either the [Sandbox te
 
 Note that your node's public identity key is displayed during startup, you can use it to identify your node in the list.
 
-<!---serinko - propose to drop this sentence:
-
-Keep reading to find out more about configuration options or troubleshooting if you're having issues. There are also some tips for running on AWS and other cloud providers, some of which require minor additional setup.
-
---->
-
 Have a look at the saved configuration files in `$HOME/.nym/mixnodes/` to see more configuration options.
 
 ## Node Description (optional)
@@ -298,7 +292,7 @@ Once you've started your mix node and it connects to the validator, your node wi
 - [Mainnet](https://explorer.nymtech.net/overview)
 - [Sandbox testnet](https://sandbox-explorer.nymtech.net/)
 
-Enter your **identity key** to find your node. There are numerous statistics about your node on that page that are useful for checking your uptime history, packets mixed, and any delegations your node may have.
+Enter your **identity key** to find your node. There are numerous statistics about your node on that page that are useful for checking your up-time history, packets mixed, and any delegations your node may have.
 
 There are also 2 community explorers which have been created by [Nodes Guru](https://nodes.guru):
 

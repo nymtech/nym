@@ -2,7 +2,7 @@
 
 This is Nym's Operators guide, containing information and setup guides for the various pieces of Nym mixnet infrastructure (mix node, gateway and network requester) and Nyx blockchain validators.
 
-If you are new to Nym and want to learn about the mixnet, explore quickstart options and demos, learn how to integrate with the network, and follow developer tutorials check out the [Developer Portal](https://nymtech.net/developers/).
+If you are new to Nym and want to learn about the mixnet, explore kickstart options and demos, learn how to integrate with the network, and follow developer tutorials check out the [Developer Portal](https://nymtech.net/developers/).
 
 If you want to dive deeper into Nym's architecture, clients, nodes, and SDK examples visit the [technical docs](https://nymtech.net/docs/).
 

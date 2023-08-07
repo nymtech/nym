@@ -83,7 +83,7 @@ You can find a list of Network requesters running the default whitelist in the [
 
 ## Viewing command help
 
-To begin, move to `/taget/release` directory from which you run the node commands:
+To begin, move to `/target/release` directory from which you run the node commands:
 
 ```
 cd target/release

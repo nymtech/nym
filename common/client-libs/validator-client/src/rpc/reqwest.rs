@@ -60,8 +60,14 @@ impl TendermintRpcClient for ReqwestRpcClient {
     {
         let request = self.build_request(request);
         // that's extremely unfortunate. the trait requires returning tendermint rpc error so we have to make best effort error mapping
-        let response = request.send().await.unwrap();
-        let bytes = response.bytes().await.unwrap();
+        let response = request
+            .send()
+            .await
+            .map_err(TendermintRpcErrorMap::into_rpc_err)?;
+        let bytes = response
+            .bytes()
+            .await
+            .map_err(TendermintRpcErrorMap::into_rpc_err)?;
         R::Response::from_string(bytes).map(Into::into)
     }
 }

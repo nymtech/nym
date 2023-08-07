@@ -2523,7 +2523,6 @@ dependencies = [
  "nym-credentials",
  "nym-crypto",
  "nym-gateway-client",
- "nym-mixnet-contract-common",
  "nym-node-tester-utils",
  "nym-sphinx",
  "nym-sphinx-acknowledgements",

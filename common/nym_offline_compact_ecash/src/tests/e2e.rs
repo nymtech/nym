@@ -87,7 +87,6 @@ fn main() -> Result<(), CompactEcashError> {
         .unwrap());
 
     let payment_bytes = payment.to_bytes();
-    println!("{:?}", payment_bytes.len());
     let payment2 = Payment::try_from(&payment_bytes[..]).unwrap();
     assert_eq!(payment, payment2);
 

@@ -8,6 +8,8 @@ use crate::proofs::{ChallengeDigest, compute_challenge, produce_response, produc
 use crate::scheme::{Phi, VarPhi, Wallet};
 use crate::scheme::keygen::{SecretKeyUser, VerificationKeyAuth};
 use crate::scheme::setup::Parameters;
+use crate::error::{DivisibleEcashError, Result};
+use crate::utils::{try_deserialize_scalar};
 
 pub struct SpendInstance {
     pub kappa: G2Projective,
@@ -84,7 +86,7 @@ pub struct SpendWitness {
     pub rho3: Scalar,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct SpendProof {
     challenge: Scalar,
     response_r: Scalar,
@@ -106,6 +108,29 @@ pub struct SpendProof {
 }
 
 impl SpendProof {
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut bytes: Vec<u8> = Vec::with_capacity(32 * 17); // 17 fields, each 32 bytes
+
+        bytes.extend_from_slice(&self.challenge.to_bytes());
+        bytes.extend_from_slice(&self.response_r.to_bytes());
+        bytes.extend_from_slice(&self.response_r_sk_u.to_bytes());
+        bytes.extend_from_slice(&self.response_r_v.to_bytes());
+        bytes.extend_from_slice(&self.response_r_r.to_bytes());
+        bytes.extend_from_slice(&self.response_r_r1.to_bytes());
+        bytes.extend_from_slice(&self.response_r_r2.to_bytes());
+        bytes.extend_from_slice(&self.response_r_varsig1.to_bytes());
+        bytes.extend_from_slice(&self.response_r_theta1.to_bytes());
+        bytes.extend_from_slice(&self.response_r_varsig2.to_bytes());
+        bytes.extend_from_slice(&self.response_r_theta2.to_bytes());
+        bytes.extend_from_slice(&self.response_r_rr.to_bytes());
+        bytes.extend_from_slice(&self.response_r_ss.to_bytes());
+        bytes.extend_from_slice(&self.response_r_tt.to_bytes());
+        bytes.extend_from_slice(&self.response_r_rho1.to_bytes());
+        bytes.extend_from_slice(&self.response_r_rho2.to_bytes());
+        bytes.extend_from_slice(&self.response_r_rho3.to_bytes());
+
+        bytes
+    }
     pub fn construct(
         params: &Parameters,
         instance: &SpendInstance,
@@ -279,6 +304,142 @@ impl SpendProof {
     }
 }
 
+impl TryFrom<&[u8]> for SpendProof {
+    type Error = DivisibleEcashError;
+
+    fn try_from(bytes: &[u8]) -> Result<Self> {
+        const FIELD_SIZE: usize = 32; // Each Scalar field is 32 bytes
+
+        if bytes.len() != FIELD_SIZE * 17 {
+            return Err(DivisibleEcashError::Deserialization(
+                "Invalid byte array for SpendProof deserialization".to_string(),
+            ));
+        }
+
+        let challenge_bytes = bytes[0..FIELD_SIZE].try_into().unwrap();
+        let challenge = try_deserialize_scalar(
+            &challenge_bytes,
+            DivisibleEcashError::Deserialization("Failed to deserialize challenge".to_string()),
+        )?;
+
+        let response_r_bytes = bytes[FIELD_SIZE..FIELD_SIZE * 2].try_into().unwrap();
+        let response_r = try_deserialize_scalar(
+            &response_r_bytes,
+            DivisibleEcashError::Deserialization("Failed to deserialize response_r".to_string()),
+        )?;
+
+        let response_r_sk_u_bytes = bytes[FIELD_SIZE * 2..FIELD_SIZE * 3].try_into().unwrap();
+        let response_r_sk_u = try_deserialize_scalar(
+            &response_r_sk_u_bytes,
+            DivisibleEcashError::Deserialization("Failed to deserialize response_r_sk_u".to_string()),
+        )?;
+
+        let response_r_v_bytes = bytes[FIELD_SIZE * 3..FIELD_SIZE * 4].try_into().unwrap();
+        let response_r_v = try_deserialize_scalar(
+            &response_r_v_bytes,
+            DivisibleEcashError::Deserialization("Failed to deserialize response_r_v".to_string()),
+        )?;
+
+        let response_r_r_bytes = bytes[FIELD_SIZE * 4..FIELD_SIZE * 5].try_into().unwrap();
+        let response_r_r = try_deserialize_scalar(
+            &response_r_r_bytes,
+            DivisibleEcashError::Deserialization("Failed to deserialize response_r_r".to_string()),
+        )?;
+
+        let response_r_r1_bytes = bytes[FIELD_SIZE * 5..FIELD_SIZE * 6].try_into().unwrap();
+        let response_r_r1 = try_deserialize_scalar(
+            &response_r_r1_bytes,
+            DivisibleEcashError::Deserialization("Failed to deserialize response_r_r1".to_string()),
+        )?;
+
+        let response_r_r2_bytes = bytes[FIELD_SIZE * 6..FIELD_SIZE * 7].try_into().unwrap();
+        let response_r_r2 = try_deserialize_scalar(
+            &response_r_r2_bytes,
+            DivisibleEcashError::Deserialization("Failed to deserialize response_r_r2".to_string()),
+        )?;
+
+        let response_r_varsig1_bytes = bytes[FIELD_SIZE * 7..FIELD_SIZE * 8].try_into().unwrap();
+        let response_r_varsig1 = try_deserialize_scalar(
+            response_r_varsig1_bytes,
+            DivisibleEcashError::Deserialization("Failed to deserialize response_r_varsig1".to_string()),
+        )?;
+
+        let response_r_theta1_bytes = bytes[FIELD_SIZE * 8..FIELD_SIZE * 9].try_into().unwrap();
+        let response_r_theta1 = try_deserialize_scalar(
+            &response_r_theta1_bytes,
+            DivisibleEcashError::Deserialization("Failed to deserialize response_r_theta1".to_string()),
+        )?;
+
+        let response_r_varsig2_bytes = bytes[FIELD_SIZE * 9..FIELD_SIZE * 10].try_into().unwrap();
+        let response_r_varsig2 = try_deserialize_scalar(
+            &response_r_varsig2_bytes,
+            DivisibleEcashError::Deserialization("Failed to deserialize response_r_varsig2".to_string()),
+        )?;
+
+        let response_r_theta2_bytes = bytes[FIELD_SIZE * 10..FIELD_SIZE * 11].try_into().unwrap();
+        let response_r_theta2 = try_deserialize_scalar(
+            &response_r_theta2_bytes,
+            DivisibleEcashError::Deserialization("Failed to deserialize response_r_theta2".to_string()),
+        )?;
+
+        let response_r_rr_bytes = bytes[FIELD_SIZE * 11..FIELD_SIZE * 12].try_into().unwrap();
+        let response_r_rr = try_deserialize_scalar(
+            &response_r_rr_bytes,
+            DivisibleEcashError::Deserialization("Failed to deserialize response_r_rr".to_string()),
+        )?;
+
+        let response_r_ss_bytes = bytes[FIELD_SIZE * 12..FIELD_SIZE * 13].try_into().unwrap();
+        let response_r_ss = try_deserialize_scalar(
+            &response_r_ss_bytes,
+            DivisibleEcashError::Deserialization("Failed to deserialize response_r_ss".to_string()),
+        )?;
+
+        let response_r_tt_bytes = bytes[FIELD_SIZE * 13..FIELD_SIZE * 14].try_into().unwrap();
+        let response_r_tt = try_deserialize_scalar(
+            &response_r_tt_bytes,
+            DivisibleEcashError::Deserialization("Failed to deserialize response_r_tt".to_string()),
+        )?;
+
+        let response_r_rho1_bytes = bytes[FIELD_SIZE * 14..FIELD_SIZE * 15].try_into().unwrap();
+        let response_r_rho1 = try_deserialize_scalar(
+            &response_r_rho1_bytes,
+            DivisibleEcashError::Deserialization("Failed to deserialize response_r_rho1".to_string()),
+        )?;
+
+        let response_r_rho2_bytes = bytes[FIELD_SIZE * 15..FIELD_SIZE * 16].try_into().unwrap();
+        let response_r_rho2 = try_deserialize_scalar(
+            &response_r_rho2_bytes,
+            DivisibleEcashError::Deserialization("Failed to deserialize response_r_rho2".to_string()),
+        )?;
+
+        let response_r_rho3_bytes = bytes[FIELD_SIZE * 16..FIELD_SIZE * 17].try_into().unwrap();
+        let response_r_rho3 = try_deserialize_scalar(
+            &response_r_rho3_bytes,
+            DivisibleEcashError::Deserialization("Failed to deserialize response_r_rho3".to_string()),
+        )?;
+
+        Ok(SpendProof {
+            challenge,
+            response_r,
+            response_r_sk_u,
+            response_r_v,
+            response_r_r,
+            response_r_r1,
+            response_r_r2,
+            response_r_varsig1,
+            response_r_theta1,
+            response_r_varsig2,
+            response_r_theta2,
+            response_r_rr,
+            response_r_ss,
+            response_r_tt,
+            response_r_rho1,
+            response_r_rho2,
+            response_r_rho3,
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::ops::Neg;
@@ -439,7 +600,13 @@ mod tests {
 
         // compute the zk proof
         let zk_proof = SpendProof::construct(&params, &instance, &witness, &verification_key, vv);
-        assert!(zk_proof.verify(&params, &instance, &verification_key, vv))
+        assert!(zk_proof.verify(&params, &instance, &verification_key, vv));
+
+        // do a to and from bytes check
+        let zk_proof_bytes = zk_proof.to_bytes();
+        let zk_proof2 = SpendProof::try_from(&zk_proof_bytes[..]).unwrap();
+        assert_eq!(zk_proof, zk_proof2);
+
     }
 }
 

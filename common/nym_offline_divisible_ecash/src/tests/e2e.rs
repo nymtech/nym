@@ -55,6 +55,9 @@ fn main() -> Result<(), DivisibleEcashError> {
 
     // SPEND VERIFICATION 
     assert!(payment.spend_verify(&params, &verification_key, &pay_info).unwrap());
+    let payment_bytes = payment.to_bytes();
+    let payment2 = Payment::try_from(&payment_bytes[..]).unwrap();
+    assert_eq!(payment, payment2);
 
     Ok(())
 }

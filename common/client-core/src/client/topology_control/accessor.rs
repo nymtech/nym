@@ -132,7 +132,10 @@ impl TopologyAccessor {
     }
 
     pub async fn current_topology(&self) -> Option<NymTopology> {
-        self.inner.topology.read().await.clone()
+        let read_lock = self.inner.topology.read().await;
+        let topology = read_lock.clone();
+        drop(read_lock);
+        topology
     }
 
     pub async fn manually_change_topology(&self, new_topology: NymTopology) {

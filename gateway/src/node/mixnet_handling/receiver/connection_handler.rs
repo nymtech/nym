@@ -196,18 +196,26 @@ impl<St: Storage> ConnectionHandler<St> {
         shutdown.mark_as_success();
 
         let topology_access_clonne = self.topology_access.clone();
-        let topology_permit = topology_access_clonne.get_read_permit().await;
-        let topology_ref = match topology_permit.try_get_raw_topology_ref() {
-            Ok(topology) => topology,
-            Err(err) => {
-                error!("Cannot connect to {remote}, due to topology error - {err}");
+        // let topology_permit = topology_access_clonne.get_read_permit().await;
+        // let topology_ref = match topology_permit.try_get_raw_topology_ref() {
+        //     Ok(topology) => topology,
+        //     Err(err) => {
+        //         error!("Cannot connect to {remote}, due to topology error - {err}");
+        //         return;
+        //     }
+        // };
+
+        let topology_ref = match topology_access_clonne.current_topology().await {
+            Some(topology) => topology,
+            None => {
+                error!("Cannot perform Noise handshake to {remote}, due to topology error");
                 return;
             }
         };
 
         let noise_stream = match upgrade_noise_responder_with_topology(
             conn,
-            topology_ref,
+            &topology_ref,
             &self.local_identity.public_key().to_bytes(),
             &self.local_identity.private_key().to_bytes(),
         )

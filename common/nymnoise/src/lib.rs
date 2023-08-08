@@ -16,6 +16,7 @@ use std::io;
 use std::io::ErrorKind;
 use std::pin::Pin;
 use std::task::Poll;
+use std::time::Duration;
 use thiserror::Error;
 use tokio::io::AsyncReadExt;
 use tokio::io::AsyncWriteExt;
@@ -42,6 +43,9 @@ pub enum NoiseError {
 
     #[error("Incorrect state")]
     IncorrectStateError,
+
+    #[error("Handshake timeout")]
+    HandshakeTimeoutError(#[from] tokio::time::error::Elapsed),
 }
 
 impl From<Error> for NoiseError {
@@ -73,6 +77,31 @@ impl NoiseStream {
             enc_storage: VecDeque::with_capacity(MAXMSGLEN + HEADER_SIZE),
             dec_storage: VecDeque::with_capacity(MAXMSGLEN + HEADER_SIZE),
         }
+    }
+
+    async fn send_handshake_msg(&mut self) -> Result<(), NoiseError> {
+        let mut buf = vec![0u8; MAXMSGLEN];
+        let len = match &mut self.handshake {
+            Some(handshake_state) => handshake_state.write_message(&[], &mut buf)?,
+            None => return Err(NoiseError::IncorrectStateError),
+        };
+
+        self.inner_stream.write_u16(len.try_into().unwrap()).await?; //len is always < 2^16, so it shouldn't fail
+        self.inner_stream.write_all(&buf[..len]).await?;
+        Ok(())
+    }
+
+    async fn recv_handshake_msg(&mut self) -> Result<(), NoiseError> {
+        let msg_len = self.inner_stream.read_u16().await?;
+        let mut msg = vec![0u8; msg_len as usize];
+        self.inner_stream.read_exact(&mut msg[..]).await?;
+
+        let mut buf = vec![0u8; MAXMSGLEN];
+        match &mut self.handshake {
+            Some(handshake_state) => handshake_state.read_message(&msg, &mut buf)?,
+            None => return Err(NoiseError::IncorrectStateError),
+        };
+        Ok(())
     }
 
     fn into_transport_mode(mut self) -> Result<Self, NoiseError> {
@@ -126,13 +155,7 @@ impl AsyncRead for NoiseStream {
 
                         let Ok(len) = (match projected_self.noise {
                             Some(transport_state) => transport_state.read_message(&noise_msg, &mut dec_msg),
-                            None => match projected_self.handshake {
-                                Some(handshake_state) => handshake_state.read_message(&noise_msg, &mut dec_msg),
-                                None => {
-                                    error!("NoiseStream in an imposible state, no handshake nor transport state");
-                                    return Poll::Ready(Err(ErrorKind::Other.into()));
-                                }
-                            },
+                            None => return Poll::Ready(Err(ErrorKind::Other.into())),
                         }) else {
                             return Poll::Ready(Err(ErrorKind::InvalidInput.into()));
                         };
@@ -179,13 +202,7 @@ impl AsyncWrite for NoiseStream {
 
         let Ok(len) = (match projected_self.noise {
             Some(transport_state) => transport_state.write_message(buf, &mut noise_buf),
-            None => match projected_self.handshake {
-                Some(handshake_state) => handshake_state.write_message(buf, &mut noise_buf),
-                None => {
-                    error!("NoiseStream in an imposible state, no handshake nor transport state");
-                    return Poll::Ready(Err(ErrorKind::Other.into()));
-                }
-            },
+            None => return Poll::Ready(Err(ErrorKind::Other.into())),
         }) else {
             return Poll::Ready(Err(ErrorKind::InvalidInput.into()));
         };
@@ -256,25 +273,20 @@ pub async fn upgrade_noise_initiator(
 
     let mut noise_stream = NoiseStream::new(conn, handshake);
 
-    // //Actual Handshake
-    let mut buf = vec![0u8; MAXMSGLEN];
-    // // -> e, es
-    noise_stream.write(&[]).await?;
-    // let len = handshake.write_message(&[], &mut buf)?;
-    // send(&mut conn, &buf[..len]).await?;
+    tokio::time::timeout(Duration::from_secs(5), async {
+        // -> e, es
+        noise_stream.send_handshake_msg().await?;
 
-    // // <- e, ee
-    noise_stream.read(&mut buf).await?;
-    // handshake.read_message(&recv(&mut conn).await?, &mut buf)?;
+        // <- e, ee
+        noise_stream.recv_handshake_msg().await?;
 
-    // // -> s, se, psk
-    // let len = handshake.write_message(&[], &mut buf)?;
-    noise_stream.write(&[]).await?;
-    // send(&mut conn, &buf[..len]).await?;
+        // -> s, se, psk
 
-    // let noise = handshake.into_transport_mode()?;
+        noise_stream.send_handshake_msg().await
+    })
+    .await??;
+
     noise_stream.into_transport_mode()
-    // Ok(NoiseStream::new(conn, noise))
 }
 
 pub async fn upgrade_noise_initiator_with_topology(
@@ -338,25 +350,20 @@ pub async fn upgrade_noise_responder(
 
     let mut noise_stream = NoiseStream::new(conn, handshake);
 
-    //Actual Handshake
-    let mut buf = vec![0u8; MAXMSGLEN];
-    // <- e, es
-    noise_stream.read(&mut buf).await?;
-    //handshake.read_message(&recv(&mut conn).await?, &mut buf)?;
+    tokio::time::timeout(Duration::from_secs(5), async {
+        //Actual Handshake
+        // <- e, es
+        noise_stream.recv_handshake_msg().await?;
 
-    // -> e, ee
-    noise_stream.write(&[]).await?;
-    //let len = handshake.write_message(&[], &mut buf)?;
-    //send(&mut conn, &buf[..len]).await?;
+        // -> e, ee
+        noise_stream.send_handshake_msg().await?;
 
-    // <- s, se, psk
-    noise_stream.read(&mut buf).await?;
-    //handshake.read_message(&recv(&mut conn).await?, &mut buf)?;
-
-    //let noise = handshake.into_transport_mode()?;
+        // <- s, se, psk
+        noise_stream.recv_handshake_msg().await
+    })
+    .await??;
 
     noise_stream.into_transport_mode()
-    //Ok(NoiseStream::new(conn, noise))
 }
 
 pub async fn upgrade_noise_responder_with_topology(
@@ -393,21 +400,3 @@ pub async fn upgrade_noise_responder_with_topology(
     )
     .await
 }
-
-///// Hyper-basic stream transport receiver. 16-bit BE size followed by payload.
-// async fn recv(stream: &mut TcpStream) -> io::Result<Vec<u8>> {
-//     let mut msg_len_buf = [0u8; HEADER_SIZE];
-//     stream.read_exact(&mut msg_len_buf).await?;
-//     let msg_len = ((msg_len_buf[0] as usize) << 8) + (msg_len_buf[1] as usize);
-//     let mut msg = vec![0u8; msg_len];
-//     stream.read_exact(&mut msg[..]).await?;
-//     Ok(msg)
-// }
-
-// /// Hyper-basic stream transport sender. 16-bit BE size followed by payload.
-// async fn send(stream: &mut TcpStream, buf: &[u8]) -> io::Result<()> {
-//     let msg_len_buf = [(buf.len() >> 8) as u8, (buf.len() & 0xff) as u8];
-//     stream.write_all(&msg_len_buf).await?;
-//     stream.write_all(buf).await?;
-//     Ok(())
-// }

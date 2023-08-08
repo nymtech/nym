@@ -92,9 +92,9 @@ additional-js  = ["theme/pagetoc.js"]
 git-repository-url = "https://github.com/nymtech/nym"
 git-repository-icon = "fa-github"
 # edit-url-template = "https://github.com/rust-lang/mdBook/edit/master/guide/{path}"
-# site-url = "/docs/"
+site-url = "/operators/"
 # cname = "nymtech.net"
-# input-404 = "not-found.md" # todo make custom 404 page
+input-404 = "not-found.md"
 
 [output.html.fold]
 enable = true    # whether or not to enable section folding

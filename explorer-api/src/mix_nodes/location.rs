@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::geo_ip::location;
+use nym_explorer_api_requests::Location;
 use nym_mixnet_contract_common::MixId;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -29,27 +29,6 @@ pub(crate) struct GeoLocation {
 pub(crate) struct LocationCacheItem {
     pub(crate) location: Option<Location>,
     pub(crate) valid_until: SystemTime,
-}
-
-#[derive(Clone, Debug, JsonSchema, Serialize, Deserialize)]
-pub(crate) struct Location {
-    pub(crate) two_letter_iso_country_code: String,
-    pub(crate) three_letter_iso_country_code: String,
-    pub(crate) country_name: String,
-    pub(crate) latitude: Option<f64>,
-    pub(crate) longitude: Option<f64>,
-}
-
-impl Location {
-    pub(crate) fn new(location: location::Location) -> Self {
-        Location {
-            country_name: location.name,
-            two_letter_iso_country_code: location.iso_alpha2,
-            three_letter_iso_country_code: location.iso_alpha3,
-            latitude: location.latitude,
-            longitude: location.longitude,
-        }
-    }
 }
 
 impl LocationCacheItem {

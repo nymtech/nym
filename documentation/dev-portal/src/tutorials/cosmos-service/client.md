@@ -43,10 +43,10 @@ struct QueryBalance {
 ```
 
 ## `main()`
-This is the root logic of the `client`. Using `[tokio](URL_TO_DO)` for the async runtime, this function performs the following functions:
-* If not already existing, creates a Nym client with config at `/tmp/client`. Otherwise it loads the already existing client from this config.
-* Matches the command from the CLI - in this instance, the `QueryBalance` function which will be defined in the next section. This will create a `BalanceRequest` and send this to the `service`, before returning the response sent back to it to the main thread and printing this to the console.
-* Performs a proper shutdown of the running Nym client.
+This is the root logic of the `client`. Using `[tokio](https://tokio.rs/)` for the async runtime, this function performs the following functions:
+* If not already existing, create a Nym client with config at `/tmp/client`. Otherwise load the already existing client from this config.
+* Matche the command from the CLI - in this instance, the `QueryBalance` function which will be defined in the next section. This creates a `BalanceRequest` and sends this to the `service`, before returning the response back to the main thread and print this to the console.
+* Perform a proper shutdown of the Nym client.
 
 ```rust
 #[tokio::main]

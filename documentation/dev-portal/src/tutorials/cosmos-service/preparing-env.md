@@ -33,23 +33,18 @@ cosmrs = "=0.14.0"
 tokio = { version = "1.24.1", features = ["rt-multi-thread", "macros"] }
 serde = "1.0.152"
 serde_json = "1.0.91"
+anyhow = "1.0.72"
+```
+
+These are non Nym-specific dependencies for the project. `clap` is for setting up the CLI commands, `cosmrs` for cosmos-specific types and functionality, `tokio` for the async/await environment, and `serde` for (de)serialisation. `anyhow` is for catch-all error handling. 
+
+* Next add Nym-specific dependencies. Since these libraries are not yet on [crates io](https://crates.io) then you need to import them from the Nym monorepo:
+```
 nym-sdk = { git = "https://github.com/nymtech/nym", rev = "5dacf0c8f8775de6168d4da808fdce56e1ac2706" }
 nym-sphinx-addressing = { git = "https://github.com/nymtech/nym", rev = "5dacf0c8f8775de6168d4da808fdce56e1ac2706" }
 nym-validator-client = { git = "https://github.com/nymtech/nym", rev = "5dacf0c8f8775de6168d4da808fdce56e1ac2706" }
 nym-bin-common = { git = "https://github.com/nymtech/nym", rev = "5dacf0c8f8775de6168d4da808fdce56e1ac2706" }
 nym-sphinx-anonymous-replies = { git = "https://github.com/nymtech/nym", rev = "5dacf0c8f8775de6168d4da808fdce56e1ac2706" }
-anyhow = "1.0.72"
-```
-
-These are non Nym-specific dependencies for the project. `anyhow` is for catch-all error handling, `clap` is for setting up the CLI commands, `cosmrs` for cosmos-specific types and functionality, `tokio` for the async/await environment, and `serde` for (de)serialisation.
-
-* Next add Nym-specific dependencies. Since these libraries are not yet on [crates io](https://crates.io) then you need to import them from the Nym monorepo:
-```
-nym-sdk = { git = "https://github.com/nymtech/nym" }
-nym-sphinx-addressing = { git = "https://github.com/nymtech/nym" }
-nym-validator-client = { git = "https://github.com/nymtech/nym" }
-nym-bin-common = { git = "https://github.com/nymtech/nym" }
-nym-sphinx-anonymous-replies = { git = "https://github.com/nymtech/nym" }
 ```
 
 The `sphinx` dependencies are for packet- and address-related functionality, the `validator-client` for Nyx blockchain specific configs, `common` for client logging, and the `sdk` for SDK functionality: creating and managing client storage and connections, and sending and receiving messages to and from the mixnet.

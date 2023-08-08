@@ -18,16 +18,16 @@ The `AnonymousSenderTag` type is used for SURBs.
 
 ## main()
 Also using tokio for the async runtime, `main` does the following:
-* If not already existing, creates a Nym client with config at `/tmp/client`. Otherwise it loads the already existing client from this config.
+* Create a Nym client with config at `/tmp/service`, or load the existing client from this config directory.
 * Create a `broadcaster` - this is used by the service to interact with the blockchain, using the consts defined in `src/lib.rs` as chain config.
 * Listen out for incoming messages, and in much the same way as the `client`, handle and match the incoming request.
-* Using the `sender_tag`, anonymously reply to the Nym client in `client` with the response from the blockchain.
+* Using the `sender_tag`, anonymously reply to the `client` with the response from the blockchain **without having to know the client's Nym address**.
 
 ```rust
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     setup_logging();
-    let mut client = create_client("/tmp/service2".into()).await;
+    let mut client = create_client("/tmp/service".into()).await;
     let our_address = client.nym_address();
     println!("\nservice's nym address: {our_address}");
     // the httpclient we will use to broadcast our query to the blockchain

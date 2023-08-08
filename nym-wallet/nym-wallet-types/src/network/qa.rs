@@ -13,8 +13,6 @@ pub(crate) const MIXNET_CONTRACT_ADDRESS: &str =
     "n10qt8wg0n7z740ssvf3urmvgtjhxpyp74hxqvqt7z226gykuus7eq5u9pvq";
 pub(crate) const VESTING_CONTRACT_ADDRESS: &str =
     "n1vguuxez2h5ekltfj9gjd62fs5k4rl2zy5hfrncasykzw08rezpfstk9xtk";
-pub(crate) const BANDWIDTH_CLAIM_CONTRACT_ADDRESS: &str =
-    "n19lc9u84cz0yz3fww5283nucc9yvr8gsjmgeul0";
 pub(crate) const COCONUT_BANDWIDTH_CONTRACT_ADDRESS: &str =
     "n1ghd753shjuwexxywmgs4xz7x2q732vcn7ty4yw";
 pub(crate) const GROUP_CONTRACT_ADDRESS: &str =
@@ -48,7 +46,6 @@ pub(crate) fn network_details() -> nym_network_defaults::NymNetworkDetails {
         contracts: NymContracts {
             mixnet_contract_address: parse_optional_str(MIXNET_CONTRACT_ADDRESS),
             vesting_contract_address: parse_optional_str(VESTING_CONTRACT_ADDRESS),
-            bandwidth_claim_contract_address: parse_optional_str(BANDWIDTH_CLAIM_CONTRACT_ADDRESS),
             coconut_bandwidth_contract_address: parse_optional_str(
                 COCONUT_BANDWIDTH_CONTRACT_ADDRESS,
             ),

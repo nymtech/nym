@@ -3,11 +3,19 @@
 
 use crate::types::{ContractSafeBytes, EncodedBTEPublicKeyWithProof, EpochId, TimeConfiguration};
 use crate::verification_key::VerificationKeyShare;
+use cosmwasm_schema::cw_serde;
 use cosmwasm_std::Addr;
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
+#[cfg(feature = "schema")]
+use crate::{
+    dealer::{DealerDetailsResponse, PagedDealerResponse, PagedDealingsResponse},
+    types::{Epoch, InitialReplacementData},
+    verification_key::PagedVKSharesResponse,
+};
+#[cfg(feature = "schema")]
+use cosmwasm_schema::QueryResponses;
+
+#[cw_serde]
 pub struct InstantiateMsg {
     pub group_addr: String,
     pub multisig_addr: String,
@@ -15,8 +23,7 @@ pub struct InstantiateMsg {
     pub mix_denom: String,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
 pub enum ExecuteMsg {
     RegisterDealer {
         bte_key_with_proof: EncodedBTEPublicKeyWithProof,
@@ -44,28 +51,41 @@ pub enum ExecuteMsg {
     AdvanceEpochState {},
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
+#[cfg_attr(feature = "schema", derive(QueryResponses))]
 pub enum QueryMsg {
+    #[cfg_attr(feature = "schema", returns(Epoch))]
     GetCurrentEpochState {},
+
+    #[cfg_attr(feature = "schema", returns(u64))]
     GetCurrentEpochThreshold {},
+
+    #[cfg_attr(feature = "schema", returns(Option<InitialReplacementData>))]
     GetInitialDealers {},
-    GetDealerDetails {
-        dealer_address: String,
-    },
+
+    #[cfg_attr(feature = "schema", returns(DealerDetailsResponse))]
+    GetDealerDetails { dealer_address: String },
+
+    #[cfg_attr(feature = "schema", returns(PagedDealerResponse))]
     GetCurrentDealers {
         limit: Option<u32>,
         start_after: Option<String>,
     },
+
+    #[cfg_attr(feature = "schema", returns(PagedDealerResponse))]
     GetPastDealers {
         limit: Option<u32>,
         start_after: Option<String>,
     },
+
+    #[cfg_attr(feature = "schema", returns(PagedDealingsResponse))]
     GetDealing {
         idx: u64,
         limit: Option<u32>,
         start_after: Option<String>,
     },
+
+    #[cfg_attr(feature = "schema", returns(PagedVKSharesResponse))]
     GetVerificationKeys {
         epoch_id: EpochId,
         limit: Option<u32>,
@@ -73,6 +93,5 @@ pub enum QueryMsg {
     },
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
 pub struct MigrateMsg {}

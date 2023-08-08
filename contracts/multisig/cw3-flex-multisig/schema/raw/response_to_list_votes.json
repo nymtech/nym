@@ -1,0 +1,80 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "VoteListResponse",
+  "type": "object",
+  "required": [
+    "votes"
+  ],
+  "properties": {
+    "votes": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/VoteInfo"
+      }
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "Vote": {
+      "oneOf": [
+        {
+          "description": "Marks support for the proposal.",
+          "type": "string",
+          "enum": [
+            "yes"
+          ]
+        },
+        {
+          "description": "Marks opposition to the proposal.",
+          "type": "string",
+          "enum": [
+            "no"
+          ]
+        },
+        {
+          "description": "Marks participation but does not count towards the ratio of support / opposed",
+          "type": "string",
+          "enum": [
+            "abstain"
+          ]
+        },
+        {
+          "description": "Veto is generally to be treated as a No vote. Some implementations may allow certain voters to be able to Veto, or them to be counted stronger than No in some way.",
+          "type": "string",
+          "enum": [
+            "veto"
+          ]
+        }
+      ]
+    },
+    "VoteInfo": {
+      "description": "Returns the vote (opinion as well as weight counted) as well as the address of the voter who submitted it",
+      "type": "object",
+      "required": [
+        "proposal_id",
+        "vote",
+        "voter",
+        "weight"
+      ],
+      "properties": {
+        "proposal_id": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        },
+        "vote": {
+          "$ref": "#/definitions/Vote"
+        },
+        "voter": {
+          "type": "string"
+        },
+        "weight": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

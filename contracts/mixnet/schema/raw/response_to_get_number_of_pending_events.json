@@ -1,0 +1,25 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "NumberOfPendingEventsResponse",
+  "description": "Response containing number of currently pending epoch and interval events.",
+  "type": "object",
+  "required": [
+    "epoch_events",
+    "interval_events"
+  ],
+  "properties": {
+    "epoch_events": {
+      "description": "The number of the currently pending epoch events.",
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0.0
+    },
+    "interval_events": {
+      "description": "The number of the currently pending epoch events.",
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0.0
+    }
+  },
+  "additionalProperties": false
+}

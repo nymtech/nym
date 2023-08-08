@@ -273,36 +273,42 @@ impl PemStorableKey for PrivateKey {
 }
 
 // compatibility with sphinx keys:
+#[cfg(feature = "sphinx")]
 impl From<PublicKey> for nym_sphinx_types::PublicKey {
     fn from(key: PublicKey) -> Self {
         nym_sphinx_types::PublicKey::from(key.to_bytes())
     }
 }
 
+#[cfg(feature = "sphinx")]
 impl<'a> From<&'a PublicKey> for nym_sphinx_types::PublicKey {
     fn from(key: &'a PublicKey) -> Self {
         nym_sphinx_types::PublicKey::from((*key).to_bytes())
     }
 }
 
+#[cfg(feature = "sphinx")]
 impl From<nym_sphinx_types::PublicKey> for PublicKey {
     fn from(pub_key: nym_sphinx_types::PublicKey) -> Self {
         Self(x25519_dalek::PublicKey::from(*pub_key.as_bytes()))
     }
 }
 
+#[cfg(feature = "sphinx")]
 impl From<PrivateKey> for nym_sphinx_types::PrivateKey {
     fn from(key: PrivateKey) -> Self {
         nym_sphinx_types::PrivateKey::from(key.to_bytes())
     }
 }
 
+#[cfg(feature = "sphinx")]
 impl<'a> From<&'a PrivateKey> for nym_sphinx_types::PrivateKey {
     fn from(key: &'a PrivateKey) -> Self {
         nym_sphinx_types::PrivateKey::from(key.to_bytes())
     }
 }
 
+#[cfg(feature = "sphinx")]
 impl From<nym_sphinx_types::PrivateKey> for PrivateKey {
     fn from(private_key: nym_sphinx_types::PrivateKey) -> Self {
         let private_key_bytes = private_key.to_bytes();

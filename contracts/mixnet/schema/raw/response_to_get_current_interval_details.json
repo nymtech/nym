@@ -1,0 +1,97 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "CurrentIntervalResponse",
+  "description": "Information about the current rewarding interval.",
+  "type": "object",
+  "required": [
+    "current_blocktime",
+    "interval",
+    "is_current_epoch_over",
+    "is_current_interval_over"
+  ],
+  "properties": {
+    "current_blocktime": {
+      "description": "The current blocktime",
+      "type": "integer",
+      "format": "uint64",
+      "minimum": 0.0
+    },
+    "interval": {
+      "description": "Detailed information about the underlying interval.",
+      "allOf": [
+        {
+          "$ref": "#/definitions/Interval"
+        }
+      ]
+    },
+    "is_current_epoch_over": {
+      "description": "Flag indicating whether the current epoch is over and it should be advanced.",
+      "type": "boolean"
+    },
+    "is_current_interval_over": {
+      "description": "Flag indicating whether the current interval is over and it should be advanced.",
+      "type": "boolean"
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "Duration": {
+      "type": "object",
+      "required": [
+        "nanos",
+        "secs"
+      ],
+      "properties": {
+        "nanos": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "secs": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        }
+      }
+    },
+    "Interval": {
+      "type": "object",
+      "required": [
+        "current_epoch_id",
+        "current_epoch_start",
+        "epoch_length",
+        "epochs_in_interval",
+        "id",
+        "total_elapsed_epochs"
+      ],
+      "properties": {
+        "current_epoch_id": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "current_epoch_start": {
+          "type": "string"
+        },
+        "epoch_length": {
+          "$ref": "#/definitions/Duration"
+        },
+        "epochs_in_interval": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "id": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "total_elapsed_epochs": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        }
+      }
+    }
+  }
+}

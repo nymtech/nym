@@ -7,7 +7,8 @@ extern crate rocket;
 use ::nym_config::defaults::setup_env;
 use clap::{crate_name, crate_version, Parser};
 use lazy_static::lazy_static;
-use nym_bin_common::build_information::BinaryBuildInformation;
+use nym_bin_common::bin_info;
+
 #[allow(unused_imports)]
 use nym_bin_common::logging::{maybe_print_banner, setup_logging};
 #[cfg(feature = "cpucycles")]
@@ -16,13 +17,13 @@ use nym_bin_common::setup_tracing;
 use nym_mixnode_common::measure;
 #[cfg(feature = "cpucycles")]
 use tracing::instrument;
+
 mod commands;
 mod config;
 mod node;
 
 lazy_static! {
-    pub static ref PRETTY_BUILD_INFORMATION: String =
-        BinaryBuildInformation::new(env!("CARGO_PKG_VERSION")).pretty_print();
+    pub static ref PRETTY_BUILD_INFORMATION: String = bin_info!().pretty_print();
 }
 
 // Helper for passing LONG_VERSION to clap
@@ -37,6 +38,10 @@ struct Cli {
     #[clap(short, long)]
     pub(crate) config_env_file: Option<std::path::PathBuf>,
 
+    /// Flag used for disabling the printed banner in tty.
+    #[clap(long)]
+    pub(crate) no_banner: bool,
+
     #[clap(subcommand)]
     command: commands::Commands,
 }
@@ -49,6 +54,13 @@ fn test_function() {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    let args = Cli::parse();
+    setup_env(args.config_env_file.as_ref());
+
+    if !args.no_banner {
+        maybe_print_banner(crate_name!(), crate_version!());
+    }
+
     cfg_if::cfg_if! {
         if #[cfg(feature = "cpucycles")] {
             setup_tracing!("mixnode");
@@ -59,10 +71,6 @@ async fn main() -> anyhow::Result<()> {
         }
     }
 
-    maybe_print_banner(crate_name!(), crate_version!());
-
-    let args = Cli::parse();
-    setup_env(args.config_env_file.as_ref());
     commands::execute(args).await?;
 
     cfg_if::cfg_if! {

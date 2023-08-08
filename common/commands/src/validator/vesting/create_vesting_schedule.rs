@@ -11,7 +11,7 @@ use nym_network_defaults::NymNetworkDetails;
 use nym_validator_client::nyxd::traits::VestingSigningClient;
 use nym_validator_client::nyxd::AccountId;
 use nym_validator_client::nyxd::{CosmosCoin, Denom};
-use nym_vesting_contract_common::messages::VestingSpecification;
+use nym_vesting_contract_common::types::VestingSpecification;
 use nym_vesting_contract_common::PledgeCap;
 
 use crate::context::SigningClient;

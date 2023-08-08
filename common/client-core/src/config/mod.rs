@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use url::Url;
 
-use crate::error::ClientCoreError;
+use crate::{client::topology_control::geo_aware_provider::CountryGroup, error::ClientCoreError};
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
@@ -156,6 +156,15 @@ impl Config {
     pub fn with_disabled_topology_refresh(mut self, disable_topology_refresh: bool) -> Self {
         self.debug.topology.disable_refreshing = disable_topology_refresh;
         self
+    }
+
+    pub fn with_topology_structure(mut self, topology_structure: TopologyStructure) -> Self {
+        self.set_topology_structure(topology_structure);
+        self
+    }
+
+    pub fn set_topology_structure(&mut self, topology_structure: TopologyStructure) {
+        self.debug.topology.topology_structure = topology_structure;
     }
 
     pub fn with_no_per_hop_delays(mut self, no_per_hop_delays: bool) -> Self {
@@ -466,6 +475,16 @@ pub struct Topology {
     /// the first valid instance.
     /// Supersedes `topology_refresh_rate_ms`.
     pub disable_refreshing: bool,
+
+    /// Specifies the mixnode topology to be used for sending packets.
+    pub topology_structure: TopologyStructure,
+}
+
+#[derive(Default, Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub enum TopologyStructure {
+    #[default]
+    NymApi,
+    GeoAware(CountryGroup),
 }
 
 impl Default for Topology {
@@ -474,6 +493,7 @@ impl Default for Topology {
             topology_refresh_rate: DEFAULT_TOPOLOGY_REFRESH_RATE,
             topology_resolution_timeout: DEFAULT_TOPOLOGY_RESOLUTION_TIMEOUT,
             disable_refreshing: false,
+            topology_structure: TopologyStructure::default(),
         }
     }
 }

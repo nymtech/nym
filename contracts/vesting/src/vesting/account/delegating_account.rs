@@ -1,14 +1,15 @@
 use crate::contract::MAX_PER_MIX_DELEGATIONS;
-use crate::errors::ContractError;
 use crate::storage::save_delegation;
 use crate::storage::MIXNET_CONTRACT_ADDRESS;
 use crate::traits::DelegatingAccount;
+use crate::vesting::account::StorableVestingAccountExt;
 use cosmwasm_std::{wasm_execute, Coin, Env, Response, Storage, Uint128};
 use mixnet_contract_common::ExecuteMsg as MixnetExecuteMsg;
 use mixnet_contract_common::MixId;
 use vesting_contract_common::events::{
     new_vesting_delegation_event, new_vesting_undelegation_event,
 };
+use vesting_contract_common::VestingContractError;
 
 use super::Account;
 
@@ -17,7 +18,7 @@ impl DelegatingAccount for Account {
         &self,
         mix_id: MixId,
         storage: &dyn Storage,
-    ) -> Result<Response, ContractError> {
+    ) -> Result<Response, VestingContractError> {
         let msg = MixnetExecuteMsg::WithdrawDelegatorRewardOnBehalf {
             owner: self.owner_address().to_string(),
             mix_id,
@@ -35,12 +36,12 @@ impl DelegatingAccount for Account {
         coin: Coin,
         env: &Env,
         storage: &mut dyn Storage,
-    ) -> Result<Response, ContractError> {
+    ) -> Result<Response, VestingContractError> {
         let current_balance = self.ensure_valid_additional_stake(&coin, storage)?;
         let num_subdelegations = self.num_subdelegations_for_mix(mix_id, storage);
 
         if num_subdelegations >= MAX_PER_MIX_DELEGATIONS {
-            return Err(ContractError::TooManyDelegations {
+            return Err(VestingContractError::TooManyDelegations {
                 address: self.owner_address.clone(),
                 acc_id: self.storage_key(),
                 mix_id,
@@ -75,9 +76,9 @@ impl DelegatingAccount for Account {
         &self,
         mix_id: MixId,
         storage: &dyn Storage,
-    ) -> Result<Response, ContractError> {
+    ) -> Result<Response, VestingContractError> {
         if !self.any_delegation_for_mix(mix_id, storage) {
-            return Err(ContractError::NoSuchDelegation(
+            return Err(VestingContractError::NoSuchDelegation(
                 self.owner_address(),
                 mix_id,
             ));
@@ -102,7 +103,7 @@ impl DelegatingAccount for Account {
         current_balance: Uint128,
         delegation: Coin,
         storage: &mut dyn Storage,
-    ) -> Result<(), ContractError> {
+    ) -> Result<(), VestingContractError> {
         save_delegation(
             (self.storage_key(), mix_id, block_timestamp_secs),
             delegation.amount,
@@ -118,7 +119,7 @@ impl DelegatingAccount for Account {
         mix_id: MixId,
         amount: Coin,
         storage: &mut dyn Storage,
-    ) -> Result<(), ContractError> {
+    ) -> Result<(), VestingContractError> {
         self.remove_delegations_for_mix(mix_id, storage)?;
         let new_balance = Uint128::new(self.load_balance(storage)?.u128() + amount.amount.u128());
         self.save_balance(new_balance, storage)?;

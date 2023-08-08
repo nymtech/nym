@@ -55,7 +55,9 @@ describe("Get mixnode data", (): void => {
       expect(identity_key).toStrictEqual(response.mix_id);
       expect(typeof response.owner).toBe("string");
     } else if ("message" in response) {
-      expect(response.message).toContain("could not find uptime history associated with mixnode");
+      expect(response.message).toContain(
+        "could not find uptime history associated with mixnode"
+      );
     }
   });
 
@@ -70,7 +72,9 @@ describe("Get mixnode data", (): void => {
     const identity_key = config.environmnetConfig.mix_id;
     const response = await status.getMixnodeRewardComputation(identity_key);
     if ("estimation" in response) {
-      expect(response.reward_params.interval.sybil_resistance).toStrictEqual("0.3");
+      expect(response.reward_params.interval.sybil_resistance).toStrictEqual(
+        "0.3"
+      );
       expect(response.reward_params.active_set_size).toStrictEqual(240);
       expect(typeof response.reward_params.interval.reward_pool).toBe("string");
     } else if ("message" in response) {
@@ -108,7 +112,9 @@ describe("Get mixnode data", (): void => {
     const response = await status.getUnfilteredMixnodes();
     response.forEach((x) => {
       expect(typeof x.stake_saturation).toBe("string");
-      expect(typeof x.mixnode_details.rewarding_details.last_rewarded_epoch).toBe("number");
+      expect(
+        typeof x.mixnode_details.rewarding_details.last_rewarded_epoch
+      ).toBe("number");
     });
   });
 
@@ -116,7 +122,9 @@ describe("Get mixnode data", (): void => {
     const identity_key = config.environmnetConfig.mix_id;
     const response = await status.getMixnodeStatus(identity_key);
     const unfiltered_mixnodes_response = await status.getUnfilteredMixnodes();
-    const mixnode = unfiltered_mixnodes_response.find(x => x.mixnode_details.bond_information.mix_id === identity_key);
+    const mixnode = unfiltered_mixnodes_response.find(
+      (x) => x.mixnode_details.bond_information.mix_id === identity_key
+    );
     if (mixnode) {
       expect(response.status).toStrictEqual("active");
     } else {
@@ -127,7 +135,9 @@ describe("Get mixnode data", (): void => {
   it("Get all rewarded mixnodes", async (): Promise<void> => {
     const response = await status.getDetailedRewardedMixnodes();
     response.forEach((x) => {
-      expect(typeof x.mixnode_details.rewarding_details.last_rewarded_epoch).toBe("number");
+      expect(
+        typeof x.mixnode_details.rewarding_details.last_rewarded_epoch
+      ).toBe("number");
     });
   });
 
@@ -146,7 +156,9 @@ describe("Get mixnode data", (): void => {
 
     it("with correct data", async (): Promise<void> => {
       const mix_id = config.environmnetConfig.mix_id;
-      const response = await status.sendMixnodeRewardEstimatedComputation(mix_id);
+      const response = await status.sendMixnodeRewardEstimatedComputation(
+        mix_id
+      );
       expect(typeof response.estimation.delegates).toBe("string");
     });
   });

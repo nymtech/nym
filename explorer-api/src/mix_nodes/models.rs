@@ -5,6 +5,7 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 
+use nym_explorer_api_requests::{Location, MixnodeStatus, PrettyDetailedMixNodeBond};
 use nym_mixnet_contract_common::rewarding::helpers::truncate_reward;
 use nym_mixnet_contract_common::MixId;
 use serde::Serialize;
@@ -14,8 +15,7 @@ use crate::helpers::best_effort_small_dec_to_f64;
 use nym_validator_client::models::MixNodeBondAnnotated;
 
 use super::utils::family_numerical_id;
-use crate::mix_node::models::{MixnodeStatus, PrettyDetailedMixNodeBond};
-use crate::mix_nodes::location::{Location, LocationCache, LocationCacheItem};
+use crate::mix_nodes::location::{LocationCache, LocationCacheItem};
 use crate::mix_nodes::CACHE_ENTRY_TTL;
 
 #[derive(Clone, Debug, Serialize, JsonSchema)]

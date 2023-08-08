@@ -10,12 +10,11 @@ use cosmwasm_std::{Coin as CosmWasmCoin, Timestamp};
 use nym_contracts_common::ContractBuildInformation;
 use nym_mixnet_contract_common::MixId;
 use nym_vesting_contract_common::{
-    messages::QueryMsg as VestingQueryMsg, AccountVestingCoins, AccountsResponse,
+    messages::QueryMsg as VestingQueryMsg, Account, AccountVestingCoins, AccountsResponse,
     AllDelegationsResponse, BaseVestingAccountInfo, DelegationTimesResponse,
     OriginalVestingResponse, Period, PledgeData, VestingCoinsResponse, VestingDelegation,
 };
 use serde::Deserialize;
-use vesting_contract::vesting::Account;
 
 #[async_trait]
 pub trait VestingQueryClient {

@@ -246,6 +246,7 @@ impl From<TopologyWasm> for ConfigTopology {
                 topology.topology_resolution_timeout_ms,
             ),
             disable_refreshing: topology.disable_refreshing,
+            topology_structure: Default::default(),
         }
     }
 }

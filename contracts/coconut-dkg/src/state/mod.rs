@@ -5,14 +5,13 @@ use cosmwasm_std::Addr;
 use cw4::Cw4Contract;
 use cw_controllers::Admin;
 use cw_storage_plus::Item;
-use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 // unique items
 pub const STATE: Item<State> = Item::new("state");
 pub const MULTISIG: Admin = Admin::new("multisig");
 
-#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
 pub struct State {
     pub mix_denom: String,
     pub multisig_addr: Addr,

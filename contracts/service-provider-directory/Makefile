@@ -1,0 +1,2 @@
+generate-schema:
+	cargo schema

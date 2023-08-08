@@ -28,7 +28,7 @@ pub struct Args {
 pub async fn join_family(args: Args, client: SigningClient) {
     info!("Join family");
 
-    let family_head = FamilyHead::new(&args.family_head.to_base58_string());
+    let family_head = FamilyHead::new(args.family_head.to_base58_string());
 
     let res = if args.with_vesting_account {
         client

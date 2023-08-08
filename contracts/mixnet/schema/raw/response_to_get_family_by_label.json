@@ -1,0 +1,63 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "FamilyByLabelResponse",
+  "description": "Response containing family information.",
+  "type": "object",
+  "required": [
+    "label"
+  ],
+  "properties": {
+    "family": {
+      "description": "If applicable, the family associated with the provided label.",
+      "anyOf": [
+        {
+          "$ref": "#/definitions/Family"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "label": {
+      "description": "The family label used for the query.",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "Family": {
+      "description": "A group of mixnodes associated with particular staking entity. When defined all nodes belonging to the same family will be prioritised to be put onto the same layer.",
+      "type": "object",
+      "required": [
+        "head",
+        "label"
+      ],
+      "properties": {
+        "head": {
+          "description": "Owner of this family.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/FamilyHead"
+            }
+          ]
+        },
+        "label": {
+          "description": "Human readable label for this family.",
+          "type": "string"
+        },
+        "proxy": {
+          "description": "Optional proxy (i.e. vesting contract address) used when creating the family.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "FamilyHead": {
+      "description": "Head of particular family as identified by its identity key (i.e. public component of its ed25519 keypair stringified into base58).",
+      "type": "string"
+    }
+  }
+}

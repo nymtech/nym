@@ -15,7 +15,7 @@ use cw_utils::maybe_addr;
 use crate::error::ContractError;
 use crate::helpers::validate_unique_members;
 use crate::state::{ADMIN, HOOKS, MEMBERS, TOTAL};
-use nym_group_contract_common::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
+use nym_group_contract_common::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
 
 // version info for migration info
 const CONTRACT_NAME: &str = "crates.io:cw4-group";
@@ -218,4 +218,9 @@ pub fn query_list_members(
         .collect::<StdResult<_>>()?;
 
     Ok(MemberListResponse { members })
+}
+
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn migrate(_deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+    Ok(Default::default())
 }

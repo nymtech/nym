@@ -1,14 +1,13 @@
-use crate::errors::ContractError;
 pub use crate::queries::*;
 use crate::storage::{ADMIN, MIXNET_CONTRACT_ADDRESS, MIX_DENOM};
 pub use crate::transactions::*;
-use crate::vesting::Account;
 use cosmwasm_std::{
     entry_point, to_binary, Addr, Coin, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response,
     Uint128,
 };
 use semver::Version;
 use vesting_contract_common::messages::{ExecuteMsg, InitMsg, MigrateMsg, QueryMsg};
+use vesting_contract_common::{Account, VestingContractError};
 
 // version info for migration info
 const CONTRACT_NAME: &str = "crate:nym-vesting-contract";
@@ -36,7 +35,7 @@ pub fn instantiate(
     _env: Env,
     info: MessageInfo,
     msg: InitMsg,
-) -> Result<Response, ContractError> {
+) -> Result<Response, VestingContractError> {
     // validate the received mixnet contract address
     let mixnet_contract_address = deps.api.addr_validate(&msg.mixnet_contract_address)?;
 
@@ -51,21 +50,24 @@ pub fn instantiate(
 }
 
 #[entry_point]
-pub fn migrate(deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+pub fn migrate(
+    deps: DepsMut<'_>,
+    _env: Env,
+    _msg: MigrateMsg,
+) -> Result<Response, VestingContractError> {
     // note: don't remove this particular bit of code as we have to ALWAYS check whether we have to update the stored version
-    let version: Version =
-        CONTRACT_VERSION
-            .parse()
-            .map_err(|error: semver::Error| ContractError::SemVerFailure {
-                value: CONTRACT_VERSION.to_string(),
-                error_message: error.to_string(),
-            })?;
+    let version: Version = CONTRACT_VERSION.parse().map_err(|error: semver::Error| {
+        VestingContractError::SemVerFailure {
+            value: CONTRACT_VERSION.to_string(),
+            error_message: error.to_string(),
+        }
+    })?;
 
     let storage_version_raw = cw2::get_contract_version(deps.storage)?.version;
     let storage_version: Version =
         storage_version_raw
             .parse()
-            .map_err(|error: semver::Error| ContractError::SemVerFailure {
+            .map_err(|error: semver::Error| VestingContractError::SemVerFailure {
                 value: storage_version_raw,
                 error_message: error.to_string(),
             })?;
@@ -86,7 +88,7 @@ pub fn execute(
     env: Env,
     info: MessageInfo,
     msg: ExecuteMsg,
-) -> Result<Response, ContractError> {
+) -> Result<Response, VestingContractError> {
     match msg {
         ExecuteMsg::CreateFamily { label } => try_create_family(info, deps, label),
         ExecuteMsg::JoinFamily {
@@ -190,7 +192,11 @@ pub fn execute(
 }
 
 #[entry_point]
-pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, ContractError> {
+pub fn query(
+    deps: Deps<'_>,
+    env: Env,
+    msg: QueryMsg,
+) -> Result<QueryResponse, VestingContractError> {
     let query_res = match msg {
         QueryMsg::GetContractVersion {} => to_binary(&get_contract_version()),
         QueryMsg::GetCW2ContractVersion {} => to_binary(&cw2::get_contract_version(deps.storage)?),
@@ -314,17 +320,23 @@ pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, C
     Ok(query_res?)
 }
 
-pub(crate) fn validate_funds(funds: &[Coin], mix_denom: String) -> Result<Coin, ContractError> {
+pub(crate) fn validate_funds(
+    funds: &[Coin],
+    mix_denom: String,
+) -> Result<Coin, VestingContractError> {
     if funds.is_empty() || funds[0].amount.is_zero() {
-        return Err(ContractError::EmptyFunds);
+        return Err(VestingContractError::EmptyFunds);
     }
 
     if funds.len() > 1 {
-        return Err(ContractError::MultipleDenoms);
+        return Err(VestingContractError::MultipleDenoms);
     }
 
     if funds[0].denom != mix_denom {
-        return Err(ContractError::WrongDenom(funds[0].denom.clone(), mix_denom));
+        return Err(VestingContractError::WrongDenom(
+            funds[0].denom.clone(),
+            mix_denom,
+        ));
     }
 
     Ok(funds[0].clone())
@@ -333,13 +345,13 @@ pub(crate) fn validate_funds(funds: &[Coin], mix_denom: String) -> Result<Coin, 
 pub(crate) fn ensure_staking_permission(
     addr: &Addr,
     account: &Account,
-) -> Result<(), ContractError> {
+) -> Result<(), VestingContractError> {
     if let Some(staking_address) = account.staking_address() {
         if staking_address == addr {
             return Ok(());
         }
     }
-    Err(ContractError::InvalidStakingAccount {
+    Err(VestingContractError::InvalidStakingAccount {
         address: addr.clone(),
         for_account: account.owner_address(),
     })

@@ -21,7 +21,7 @@ The following happens:
 * `client` sends a request to `service` using the supplied `n1...` address as the Nyx account to query the balance of, and the supplied Nym address to communicate with this instance of `service`. 
 * `service` queries the Sandbox testnet blockchain using the `broadcaster` http client. It then serialises the response and returns it using SURBs to the `client`.  
 
-All in all, quite simple. By using the service as a proxy, the client never interacts with the blockchain, thus is not revealing metadata to the operator of the chain or anyone watching incoming traffic to it. Furthermore, the client doesn't even need to share its Nym address with the service, as the service is able to reply via SURBs.  
+All in all, quite simple. By using the service as a proxy, the client never interacts with the blockchain, thus is not revealing metadata to the operator of the Validator nor any entities monitoring its incoming and outgoing traffic. Furthermore, the client doesn't even need to share its Nym address with the service, as the service is able to reply via SURBs.  
 
 ## Creating Sandbox Account 
 If you wish to create an account on Sandbox to use instead of the supplied account above, the easiest way is by building the `nym-cli` tool and using that to create one: 

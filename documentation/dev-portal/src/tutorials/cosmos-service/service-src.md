@@ -3,7 +3,7 @@
 Now to define the logic of creating the `broadcaster` for interacting with the blockchain, and querying it in `src/service.rs`. 
 
 ## Dependencies
-The following dependencies are for creating a client to interact with the blockchain, and deal with the returned `Coin` type expected from the balance query. 
+The following dependencies are for creating a client to interact with the blockchain, and deal with the returned `Coin` type in `BalanceResponse`. 
 
 ```rust
 use crate::{BalanceResponse, DEFAULT_DENOM, DEFAULT_VALIDATOR_RPC};

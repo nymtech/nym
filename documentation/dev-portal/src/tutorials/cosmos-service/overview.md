@@ -2,15 +2,14 @@
 
 This tutorial involves writing two pieces of code in Rust:
 
-- A client side binary used to (for now) construct a blockchain query and send this query to a service, which will interact with a Cosmos SDK blockchain on our behalf (bear in mind this principle works for all blockchains - we're just utilising the `cosmrs` library to interact with the Nyx blockchain in this tutorial). This query will be to query the balance of an account, in preparation for spending these tokens on a credential in a subsequent tutorial.
+- A client side binary used to construct a blockchain query and send this query to a service, which will query the Cosmos SDK blockchain and then pass the response back to the client (bear in mind this principle works for all blockchains - we're just utilising the `cosmrs` library to interact with the Sandbox testnet blockchain in this tutorial). This query will be to query the balance of an account, in preparation for spending these tokens on a [bandwidth credential](https://nymtech.net/docs/bandwidth-credentials.html) in a subsequent tutorial.
 - A service which will listen out for requests from the mixnet, act on those requests, and anonymously reply to the client sending the requests.
 
 You will learn how to do the following with the Rust SDK:
 - Create clients with manual storage settings.
-- Parse incoming traffic from the mixnet and reply anonymously using [SURBs]().
+- Parse incoming traffic from the mixnet and reply anonymously using [SURBs](https://nymtech.net/docs/architecture/traffic-flow.html#private-replies-using-surbs).
 
 > Services usually run on remote servers to assure reliable uptime and to unlink sender and receiver metadata. For demonstration purposes however, you will run both components on your local machine, looping messages through the mixnet to yourself.
-
 
 ```
 
@@ -30,9 +29,9 @@ TUTORIAL
 
 ```
 
-You can find the code for these components [here](). You can use it as a reference while building or simply download it and follow along as you progress through the tutorial.
+You can find the code for these components [here](https://github.com/nymtech/developer-tutorials). You can use it as a reference while building or simply download it and follow along as you progress through the tutorial.
 
-Notice that this tutorial attempts to use very few external libraries. This tutorial is not showing you how to build production-grade code, but **to understand how to connect and send messages to, as well as recieve messages from, the mixnet.**
+Notice that this tutorial attempts to use very few external libraries. This tutorial is not showing you how to build production-grade code, but **to understand how to connect and send messages to, as well as receive messages from, the mixnet.**
 
 ```admonish note title="Sidenote: What is a Service / Service Provider?"
 'Service' or 'Service Provider' are catchall names used to refer to any type of app that can communicate with the mixnet via a Nym client - in this case, one embedded in its app process via the Rust SDK.

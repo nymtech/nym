@@ -5,7 +5,7 @@ Now move on to preparing shared data structures and functions in `src/lib.rs`.
 These include the request and response types the client and the service will be passing through the mixnet, as well as shared functions such as client creation, and message parsing.
 
 ## Dependencies
-The dependecies for the shared `lib` file are the following:
+The dependencies for the shared `lib` file are the following:
 ```rust
 use anyhow::bail;
 use cosmrs::AccountId;
@@ -31,7 +31,7 @@ pub const DEFAULT_DENOM: &str = "unym";
 pub const DEFAULT_PREFIX: &str = "n";
 ```
 
-These define the RPC endpoint your service will use to interact with the blockchain - in this case the Sandbox testnet - as well as the coin denomination and Bech32-prefix of the blockchain accounts.
+These define the RPC endpoint your service will use to interact with the blockchain - in this case the Sandbox testnet - as well as the expected coin denomination, and Bech32-prefix of addresses.
 
 ## Shared Data Structures
 Define the following structs for our different request and responses that will be serialised and sent through the mixnet between your client and service binaries:
@@ -79,17 +79,17 @@ impl ResponseTypes {
 }
 ```
 
-The above data types are pretty straightforward. Even though there are only one instance of a request type (sent from client -> service) and one of a response type (service -> client) so far, a pair of enums has been defined to contain additional response or request types that will be added in the future.
+The above data types are pretty straightforward. Even though there are only one instance of a request type (sent from `client` -> mixnet -> `service`) and one of a response type (`service` -> mixnet -> `client`) so far, a pair of enums has been defined to contain additional response and request types that will be added in part 2 of this tutorial, when adding credential functionality.
 
 `BalanceRequest` will be used when requesting the service to query the token balance of the supplied address on the client's behalf. You can see the information that will be returned from the chain to the service, and from the service to the client, in `BalanceResponse`.
 
-Custom serialistion and deserialisation have been implemented for each enum for ease of future modification if required, and testing.
+Custom serialistion and deserialisation have been implemented for each enum for ease of future modification and testing.
 
 ## Shared Functions
 Now to define functions shared by the `client` and `service` binaries.
 
 ### Client Creation
-The following function is called on startup by each binary, with the `config_path` being a filepath for storing client config.
+The following function is called on startup by each binary, with the `config_path` being a filepath for storing client config:
 
 ```rust
 // create our client with specified path for key storage
@@ -107,6 +107,25 @@ pub async fn create_client(config_path: PathBuf) -> MixnetClient {
 }
 ```
 
+If no config files exist at the location designated by `config_path` (in this case `/tmp/service`) then the following files are generated: 
+
+```sh
+service
+├── ack_key.pem
+├── db.sqlite
+├── db.sqlite-shm
+├── db.sqlite-wal
+├── gateway_details.json
+├── gateway_shared.pem
+├── persistent_reply_store.sqlite
+├── private_encryption.pem
+├── private_identity.pem
+├── public_encryption.pem
+└── public_identity.pem
+
+1 directory, 11 files
+```
+
 > If keys and config already exist at this location, re-running this function **will not** overwrite them.
 
 ### Listening for & Parsing Incoming messages
@@ -114,7 +133,7 @@ Next to define two functions: one for listening _for_ messages from the mixnet (
 
 Both functions attempt to deserialise the vec of `ReconstructedMessages` that are reconstructed by the client from delivered Sphinx packets after decryption.
 
-`handle_request` performs one additional function - parsing the `sender_tag` from the incoming reconstructed message. This is the randomised alphanumeric string used to identify a bucket of _SURBs_ (Single Use Reply Blocks) that are sent along with any outgoing message by default. More information about them can be found [here](https://nymtech.net/docs/architecture/traffic-flow.html#private-replies-using-surbs) but all that is necessary to know for now is that these are pre-addressed packets that clients send out with their messages. Any reply to their message that is to be sent back to them back be written to the payload of these packets, but without the entity seeing the destination address. This allows for services to _anonymously reply_ to clients without being able to doxx them.
+`handle_request` performs one additional function - parsing the `sender_tag` from the incoming reconstructed message. This is the randomised alphanumeric string used to identify a bucket of _SURBs_ (Single Use Reply Blocks) that are sent along with any outgoing message by default. More information about them can be found [here](https://nymtech.net/docs/architecture/traffic-flow.html#private-replies-using-surbs) but all that is necessary to know for now is that these are pre-addressed packets that clients send out with their messages. Any reply to their message that is to be sent back to them back be written to the payload of these packets, but without the replying party being able to see the destination that the reply is being sent to. This allows for services to **anonymously reply to clients without being able to doxx them by knowing their Nym address**. 
 
 ```rust
 pub fn handle_response(message: ReconstructedMessage) -> anyhow::Result<ResponseTypes> {
@@ -129,7 +148,7 @@ pub fn handle_request(
 }
 ```
 
-Before moving on to the `client` and `service` code, one more function is needed. This allows for both binaries to parse empty incoming messages that they might receive. This is necessary as incoming SURBs as well as requests for more SURBs contain empty data fields.
+Before moving on to the `client` and `service` code, one more function is needed. This allows for both binaries to parse empty incoming messages that they might receive. This is necessary as incoming SURBs, as well as requests for more SURBs, contain empty data fields.
 
 ```rust
 pub async fn wait_for_non_empty_message(

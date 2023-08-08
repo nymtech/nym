@@ -112,15 +112,6 @@ impl Client {
                     // if we managed to connect, reset the reconnection count (whatever it might have been)
                     current_reconnection.store(0, Ordering::Release);
                     //Get the topology, because we need the keys for the handshake
-                    // let topology_permit = topology_access.get_read_permit().await;
-                    // let topology_ref = match topology_permit.try_get_raw_topology_ref() {
-                    //     Ok(topology) => topology,
-                    //     Err(err) => {
-                    //         error!("Cannot perform Noise handshake to {address}, due to topology error - {err}");
-                    //         return;
-                    //     }
-                    // };
-
                     let topology_ref = match topology_access.current_topology().await {
                         Some(topology) => topology,
                         None => {

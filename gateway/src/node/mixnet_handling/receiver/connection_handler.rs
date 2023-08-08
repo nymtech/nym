@@ -195,17 +195,7 @@ impl<St: Storage> ConnectionHandler<St> {
         debug!("Starting connection handler for {:?}", remote);
         shutdown.mark_as_success();
 
-        let topology_access_clonne = self.topology_access.clone();
-        // let topology_permit = topology_access_clonne.get_read_permit().await;
-        // let topology_ref = match topology_permit.try_get_raw_topology_ref() {
-        //     Ok(topology) => topology,
-        //     Err(err) => {
-        //         error!("Cannot connect to {remote}, due to topology error - {err}");
-        //         return;
-        //     }
-        // };
-
-        let topology_ref = match topology_access_clonne.current_topology().await {
+        let topology_ref = match self.topology_access.current_topology().await {
             Some(topology) => topology,
             None => {
                 error!("Cannot perform Noise handshake to {remote}, due to topology error");

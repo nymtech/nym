@@ -397,7 +397,7 @@ impl NymTopology {
         NymTopology {
             mixes: self.mixes.filter_by_version(expected_mix_version),
             gateways: self.gateways.clone(),
-            epoch: 0,
+            epoch: self.epoch,
             all_mixes: self.all_mixes.clone(),
             all_gateways: self.all_gateways.clone(),
         }

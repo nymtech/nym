@@ -17,4 +17,6 @@ book
 
 theme/
 theme
-theme/* 
+theme/*
+
+.idea

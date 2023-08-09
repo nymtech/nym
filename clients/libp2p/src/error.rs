@@ -1,6 +1,5 @@
 use libp2p::core::multiaddr;
 use nym_sphinx::addressing::clients::RecipientFormattingError;
-use tokio_tungstenite::tungstenite::Error as WsError;
 
 use crate::message::SubstreamId;
 
@@ -12,10 +11,6 @@ pub enum Error {
     FailedToFormatMultiaddr(#[from] multiaddr::Error),
     #[error("unexpected protocol in multiaddress")]
     InvalidProtocolForMultiaddr,
-    #[error("websocket stream error")]
-    WebsocketStreamError(#[from] WsError),
-    #[error("websocket stream read returned None")]
-    WebsocketStreamReadNone,
     #[error("nym message error")]
     NymMessageError(String),
     #[error("unexpected message received over mixnet")]

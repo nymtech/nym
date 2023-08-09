@@ -1,3 +1,6 @@
+use crate::message::{
+    ConnectionId, Message, OutboundMessage, SubstreamId, SubstreamMessage, TransportMessage,
+};
 use futures::{
     io::{Error as IoError, ErrorKind},
     AsyncRead, AsyncWrite,
@@ -17,10 +20,6 @@ use tokio::sync::{
     oneshot::Receiver,
 };
 use tracing::debug;
-
-use crate::message::{
-    ConnectionId, Message, OutboundMessage, SubstreamId, SubstreamMessage, TransportMessage,
-};
 
 #[derive(Debug)]
 pub struct Substream {
@@ -224,16 +223,14 @@ impl AsyncWrite for Substream {
 
 #[cfg(test)]
 mod test {
-    use futures::{AsyncReadExt, AsyncWriteExt};
-    use nym_sphinx::addressing::clients::Recipient;
-    use std::sync::atomic::AtomicU64;
-    use std::sync::Arc;
-    use testcontainers::clients;
-
     use super::Substream;
     use crate::message::{ConnectionId, Message, SubstreamId, SubstreamMessage, TransportMessage};
     use crate::mixnet::initialize_mixnet;
-    use crate::test_utils::create_nym_client;
+    use futures::{AsyncReadExt, AsyncWriteExt};
+    use nym_sdk::mixnet::MixnetClient;
+    use nym_sphinx::addressing::clients::Recipient;
+    use std::sync::atomic::AtomicU64;
+    use std::sync::Arc;
 
     #[tokio::test]
     async fn test_substream_poll_read_unread_data() {
@@ -310,11 +307,9 @@ mod test {
 
     #[tokio::test]
     async fn test_substream_read_write() {
-        let docker_client = clients::Cli::default();
-        let nym_id = "test_substream_read_write";
-        let (_container, uri) = create_nym_client(&docker_client, nym_id);
+        let client = MixnetClient::connect_new().await.unwrap();
         let (self_address, mut mixnet_inbound_rx, outbound_tx) =
-            initialize_mixnet(&uri, None).await.unwrap();
+            initialize_mixnet(client, None).await.unwrap();
 
         const MSG_INNER: &[u8] = "hello".as_bytes();
         let connection_id = ConnectionId::generate();
@@ -394,10 +389,8 @@ mod test {
 
     #[tokio::test]
     async fn test_substream_recv_close() {
-        let docker_client = clients::Cli::default();
-        let nym_id = "test_substream_recv_close";
-        let (_container1, uri) = create_nym_client(&docker_client, nym_id);
-        let (self_address, _, outbound_tx) = initialize_mixnet(&uri, None).await.unwrap();
+        let client = MixnetClient::connect_new().await.unwrap();
+        let (self_address, _, outbound_tx) = initialize_mixnet(client, None).await.unwrap();
 
         const MSG_INNER: &[u8] = "hello".as_bytes();
         let connection_id = ConnectionId::generate();

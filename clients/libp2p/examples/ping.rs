@@ -45,12 +45,11 @@ use libp2p::ping::Success;
 use libp2p::swarm::{keep_alive, NetworkBehaviour, SwarmEvent};
 use libp2p::{identity, ping, Multiaddr, PeerId};
 
-use rust_libp2p_nym::test_utils::create_nym_client;
 use std::error::Error;
 use std::time::Duration;
-use testcontainers::clients;
 use tracing::{debug, info};
 
+use nym_sdk::mixnet::MixnetClient;
 use tracing_subscriber::EnvFilter;
 
 #[tokio::main]
@@ -65,12 +64,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let local_key = identity::Keypair::generate_ed25519();
     let local_peer_id = PeerId::from(local_key.public());
     info!("Local peer id: {local_peer_id:?}");
-    // #[cfg(not(feature = "vanilla"))]
-    let nym_id = rand::random::<u64>().to_string();
-
-    let docker_client = clients::Cli::default();
-    let (_nym_container, dialer_uri) = create_nym_client(&docker_client, &nym_id);
-    info!("dialer_uri: {}", dialer_uri);
 
     #[cfg(not(feature = "vanilla"))]
     let mut swarm = {
@@ -79,7 +72,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
         use libp2p::swarm::SwarmBuilder;
         use rust_libp2p_nym::transport::NymTransport;
 
-        let transport = NymTransport::new(&dialer_uri, local_key.clone()).await?;
+        let client = MixnetClient::connect_new().await.unwrap();
+
+        let transport = NymTransport::new(client, local_key.clone()).await?;
         SwarmBuilder::with_tokio_executor(
             transport
                 .map(|a, _| (a.0, StreamMuxerBox::new(a.1)))

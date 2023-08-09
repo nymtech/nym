@@ -8,7 +8,7 @@ futures = "0.3.26"
 hex = "0.4"
 libp2p = { git = "https://github.com/ChainSafe/rust-libp2p.git", rev = "e3440d25681df380c9f0f8cfdcfd5ecc0a4f2fb6", features = [ "identify", "macros", "ping", "tokio", "tcp", "dns", "websocket", "noise", "mplex", "yamux", "gossipsub" ]}
 multihash = "0.17"
-nym-client-websocket-requests = { path = "../native/websocket-requests" }
+nym-sdk = { path = "../../sdk/rust/nym-sdk" }
 nym-sphinx = { path = "../../common/nymsphinx" }
 parking_lot = "0.12"
 rand = { version = "0.8", features = [ "std" ] }
@@ -16,10 +16,8 @@ rand_core = "0.6"
 thiserror = "1.0"
 tokio = { workspace = true, features = [ "full" ] }
 tokio-stream = "0.1.12"
-tokio-tungstenite = "0.14"
 tracing = "0.1.23"
 tracing-subscriber = "0.2.15"
-testcontainers = "0.14.0"
 tokio-util = { version = "0.7", features = ["codec"] }
 
 [dev-dependencies]

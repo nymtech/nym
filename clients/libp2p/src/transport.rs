@@ -5,6 +5,7 @@ use libp2p::core::{
     transport::{ListenerId, TransportError, TransportEvent},
     PeerId, Transport,
 };
+use nym_sdk::mixnet::MixnetClient;
 use nym_sphinx::addressing::clients::Recipient;
 use std::{
     collections::HashMap,
@@ -79,17 +80,17 @@ pub struct NymTransport {
 
 impl NymTransport {
     /// New transport.
-    pub async fn new(uri: &String, keypair: Keypair) -> Result<Self, Error> {
-        Self::new_maybe_with_notify_inbound(uri, keypair, None, None).await
+    pub async fn new(client: MixnetClient, keypair: Keypair) -> Result<Self, Error> {
+        Self::new_maybe_with_notify_inbound(client, keypair, None, None).await
     }
 
     /// New transport with a timeout.
     pub async fn new_with_timeout(
-        uri: &String,
+        client: MixnetClient,
         keypair: Keypair,
         timeout: Duration,
     ) -> Result<Self, Error> {
-        Self::new_maybe_with_notify_inbound(uri, keypair, None, Some(timeout)).await
+        Self::new_maybe_with_notify_inbound(client, keypair, None, Some(timeout)).await
     }
 
     /// Add timeout to transport and return self.
@@ -99,13 +100,13 @@ impl NymTransport {
     }
 
     async fn new_maybe_with_notify_inbound(
-        uri: &String,
+        client: MixnetClient,
         keypair: Keypair,
         notify_inbound_tx: Option<UnboundedSender<()>>,
         timeout: Option<Duration>,
     ) -> Result<Self, Error> {
         let (self_address, inbound_rx, outbound_tx) =
-            initialize_mixnet(uri, notify_inbound_tx).await?;
+            initialize_mixnet(client, notify_inbound_tx).await?;
         let listen_addr = nym_address_to_multiaddress(self_address)?;
         let listener_id = ListenerId::new();
 
@@ -519,6 +520,7 @@ fn multiaddress_to_nym_address(multiaddr: Multiaddr) -> Result<Recipient, Error>
 
 #[cfg(test)]
 mod test {
+    use super::{nym_address_to_multiaddress, NymTransport};
     use crate::connection::Connection;
     use crate::error::Error;
     use crate::message::{
@@ -526,17 +528,14 @@ mod test {
         TransportMessage,
     };
     use crate::substream::Substream;
-    use crate::test_utils::create_nym_client;
-
-    use super::{nym_address_to_multiaddress, NymTransport};
     use futures::{future::poll_fn, AsyncReadExt, AsyncWriteExt, FutureExt};
     use libp2p::core::{
         identity::Keypair,
         transport::{Transport, TransportEvent},
         Multiaddr, StreamMuxer,
     };
+    use nym_sdk::mixnet::MixnetClient;
     use std::{pin::Pin, str::FromStr, sync::atomic::Ordering};
-    use testcontainers::clients;
     use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
     use tracing::info;
     use tracing_subscriber::EnvFilter;
@@ -560,11 +559,12 @@ mod test {
 
     impl NymTransport {
         async fn new_with_notify_inbound(
-            uri: &String,
+            client: MixnetClient,
             notify_inbound_tx: UnboundedSender<()>,
         ) -> Result<Self, Error> {
             let local_key = Keypair::generate_ed25519();
-            Self::new_maybe_with_notify_inbound(uri, local_key, Some(notify_inbound_tx), None).await
+            Self::new_maybe_with_notify_inbound(client, local_key, Some(notify_inbound_tx), None)
+                .await
         }
     }
 
@@ -576,20 +576,17 @@ mod test {
             )
             .init();
 
-        let docker_client = clients::Cli::default();
-        let nym_id = "test_transport_connection_dialer";
-        let (_container1, dialer_uri) = create_nym_client(&docker_client, nym_id);
+        let client = MixnetClient::connect_new().await.unwrap();
         let (dialer_notify_inbound_tx, mut dialer_notify_inbound_rx) = unbounded_channel();
         let mut dialer_transport =
-            NymTransport::new_with_notify_inbound(&dialer_uri, dialer_notify_inbound_tx)
+            NymTransport::new_with_notify_inbound(client, dialer_notify_inbound_tx)
                 .await
                 .unwrap();
 
-        let nym_id = "test_transport_connection_listener";
-        let (_container2, listener_uri) = create_nym_client(&docker_client, nym_id);
+        let client2 = MixnetClient::connect_new().await.unwrap();
         let (listener_notify_inbound_tx, mut listener_notify_inbound_rx) = unbounded_channel();
         let mut listener_transport =
-            NymTransport::new_with_notify_inbound(&listener_uri, listener_notify_inbound_tx)
+            NymTransport::new_with_notify_inbound(client2, listener_notify_inbound_tx)
                 .await
                 .unwrap();
         let listener_multiaddr =
@@ -714,20 +711,19 @@ mod test {
 
     #[tokio::test]
     async fn test_transport_substream() {
-        let docker_client = clients::Cli::default();
-        let nym_id = "test_transport_substream_dialer";
-        let (_container, dialer_uri) = create_nym_client(&docker_client, nym_id);
+        let client = MixnetClient::connect_new().await.unwrap();
+
         let (dialer_notify_inbound_tx, mut dialer_notify_inbound_rx) = unbounded_channel();
         let mut dialer_transport =
-            NymTransport::new_with_notify_inbound(&dialer_uri, dialer_notify_inbound_tx)
+            NymTransport::new_with_notify_inbound(client, dialer_notify_inbound_tx)
                 .await
                 .unwrap();
 
-        let nym_id = "test_transport_substream_listener";
-        let (_container1, listener_uri) = create_nym_client(&docker_client, nym_id);
+        let client2 = MixnetClient::connect_new().await.unwrap();
+
         let (listener_notify_inbound_tx, mut listener_notify_inbound_rx) = unbounded_channel();
         let mut listener_transport =
-            NymTransport::new_with_notify_inbound(&listener_uri, listener_notify_inbound_tx)
+            NymTransport::new_with_notify_inbound(client2, listener_notify_inbound_tx)
                 .await
                 .unwrap();
         let listener_multiaddr =
@@ -878,12 +874,11 @@ mod test {
 
     #[tokio::test]
     async fn test_transport_timeout() {
-        let docker_client = clients::Cli::default();
-        let nym_id = "test_transport_timeout";
-        let (_container, dialer_uri) = create_nym_client(&docker_client, nym_id);
+        let client = MixnetClient::connect_new().await.unwrap();
+
         let (dialer_notify_inbound_tx, _) = unbounded_channel();
         let mut dialer_transport =
-            NymTransport::new_with_notify_inbound(&dialer_uri, dialer_notify_inbound_tx)
+            NymTransport::new_with_notify_inbound(client, dialer_notify_inbound_tx)
                 .await
                 .unwrap()
                 .with_timeout(std::time::Duration::from_millis(100));

@@ -53,13 +53,11 @@ use libp2p::{
     swarm::{SwarmBuilder, SwarmEvent},
     PeerId, Transport,
 };
-use rust_libp2p_nym::test_utils::create_nym_client;
 use rust_libp2p_nym::transport::NymTransport;
 use std::collections::hash_map::DefaultHasher;
 use std::error::Error;
 use std::hash::{Hash, Hasher};
 use std::time::Duration;
-use testcontainers::clients;
 use tokio::io;
 use tokio_util::codec;
 use tracing::info;
@@ -71,6 +69,7 @@ struct Behaviour {
     gossipsub: gossipsub::Behaviour,
 }
 use libp2p::Multiaddr;
+use nym_sdk::mixnet::MixnetClient;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -110,16 +109,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // subscribes to our topic
     gossipsub.subscribe(&topic)?;
 
-    let nym_id = rand::random::<u64>().to_string();
-    let docker_client = clients::Cli::default();
-    let (_nym_container, dialer_uri) = create_nym_client(&docker_client, &nym_id);
-    info!("dialer_uri: {}", dialer_uri);
+    let client = MixnetClient::connect_new().await.unwrap();
+    info!("client address: {}", client.nym_address());
 
     let local_key = identity::Keypair::generate_ed25519();
     let local_peer_id = PeerId::from(local_key.public());
     info!("Local peer id: {local_peer_id:?}");
 
-    let transport = NymTransport::new(&dialer_uri, local_key).await?;
+    let transport = NymTransport::new(client, local_key).await?;
 
     let mut swarm = SwarmBuilder::with_tokio_executor(
         transport

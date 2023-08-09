@@ -15,6 +15,7 @@ use nym_sphinx::forwarding::packet::MixPacket;
 use nym_sphinx::framing::codec::NymCodec;
 use nym_sphinx::framing::packet::FramedNymPacket;
 use nym_sphinx::Delay as SphinxDelay;
+use nym_validator_client::NymApiClient;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::net::TcpStream;
@@ -30,6 +31,7 @@ pub(crate) struct ConnectionHandler {
     packet_processor: PacketProcessor,
     delay_forwarding_channel: PacketDelayForwardSender,
     topology_access: TopologyAccessor,
+    api_client: NymApiClient,
     local_identity: Arc<encryption::KeyPair>,
 }
 
@@ -38,12 +40,14 @@ impl ConnectionHandler {
         packet_processor: PacketProcessor,
         delay_forwarding_channel: PacketDelayForwardSender,
         topology_access: TopologyAccessor,
+        api_client: NymApiClient,
         local_identity: Arc<encryption::KeyPair>,
     ) -> Self {
         ConnectionHandler {
             packet_processor,
             delay_forwarding_channel,
             topology_access,
+            api_client,
             local_identity,
         }
     }
@@ -106,9 +110,18 @@ impl ConnectionHandler {
             }
         };
 
+        let epoch_id = match self.api_client.get_current_epoch_id().await {
+            Ok(id) => id,
+            Err(err) => {
+                error!("Cannot perform Noise handshake to {remote}, due to epoch id error - {err}");
+                return;
+            }
+        };
+
         let noise_stream = match upgrade_noise_responder_with_topology(
             conn,
             &topology_ref,
+            epoch_id,
             &self.local_identity.public_key().to_bytes(),
             &self.local_identity.private_key().to_bytes(),
         )

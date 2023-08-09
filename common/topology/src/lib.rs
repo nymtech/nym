@@ -5,7 +5,7 @@ use crate::filter::VersionFilterable;
 use log::warn;
 use nym_crypto::asymmetric::encryption;
 use nym_mixnet_contract_common::mixnode::MixNodeDetails;
-use nym_mixnet_contract_common::{EpochId, GatewayBond, IdentityKeyRef, MixId};
+use nym_mixnet_contract_common::{GatewayBond, IdentityKeyRef, MixId};
 use nym_sphinx_addressing::nodes::NodeIdentity;
 use nym_sphinx_types::Node as SphinxNode;
 use rand::prelude::SliceRandom;
@@ -72,7 +72,6 @@ pub type MixLayer = u8;
 pub struct NymTopology {
     mixes: BTreeMap<MixLayer, Vec<mix::Node>>,
     gateways: Vec<gateway::Node>,
-    epoch: EpochId,
     all_mixes: Vec<mix::Node>,
     all_gateways: Vec<gateway::Node>,
 }
@@ -82,7 +81,6 @@ impl NymTopology {
         NymTopology {
             mixes: mixes.clone(),
             gateways: gateways.clone(),
-            epoch: 0,
             all_mixes: mixes.values().flatten().cloned().collect(),
             all_gateways: gateways,
         }
@@ -92,15 +90,9 @@ impl NymTopology {
         NymTopology {
             mixes: BTreeMap::new(),
             gateways: Vec::new(),
-            epoch: 0,
             all_mixes: Vec::new(),
             all_gateways: Vec::new(),
         }
-    }
-
-    pub fn with_epoch(mut self, epoch: EpochId) -> Self {
-        self.epoch = epoch;
-        self
     }
 
     pub fn with_all_mixes(mut self, all_mixes: Vec<MixNodeDetails>) -> Self {
@@ -190,10 +182,6 @@ impl NymTopology {
         self.gateways
             .iter()
             .find(|&gateway| gateway.identity_key.to_base58_string() == gateway_identity)
-    }
-
-    pub fn epoch_id(&self) -> EpochId {
-        self.epoch
     }
 
     pub fn mixes(&self) -> &BTreeMap<MixLayer, Vec<mix::Node>> {
@@ -397,7 +385,6 @@ impl NymTopology {
         NymTopology {
             mixes: self.mixes.filter_by_version(expected_mix_version),
             gateways: self.gateways.clone(),
-            epoch: self.epoch,
             all_mixes: self.all_mixes.clone(),
             all_gateways: self.all_gateways.clone(),
         }

@@ -22,7 +22,7 @@ use nym_network_defaults::NymNetworkDetails;
 use nym_statistics_common::collector::StatisticsSender;
 use nym_task::{TaskClient, TaskManager};
 use nym_topology::provider_trait::TopologyProvider;
-use nym_validator_client::Client;
+use nym_validator_client::{Client, NymApiClient};
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use std::error::Error;
@@ -131,6 +131,7 @@ impl<St> Gateway<St> {
         ack_sender: MixForwardingSender,
         active_clients_store: ActiveClientsStore,
         topology_access: TopologyAccessor,
+        api_client: NymApiClient,
         shutdown: TaskClient,
     ) where
         St: Storage + Clone + 'static,
@@ -146,6 +147,7 @@ impl<St> Gateway<St> {
             ack_sender,
             active_clients_store,
             topology_access,
+            api_client,
             Arc::clone(&self.sphinx_keypair),
         );
 
@@ -192,6 +194,7 @@ impl<St> Gateway<St> {
     fn start_packet_forwarder(
         &self,
         topology_access: TopologyAccessor,
+        api_client: NymApiClient,
         shutdown: TaskClient,
     ) -> MixForwardingSender {
         info!("Starting mix packet forwarder...");
@@ -203,6 +206,7 @@ impl<St> Gateway<St> {
             self.config.debug.maximum_connection_buffer_size,
             self.config.debug.use_legacy_framed_packet_version,
             topology_access,
+            api_client,
             Arc::clone(&self.sphinx_keypair),
             shutdown,
         );
@@ -325,7 +329,7 @@ impl<St> Gateway<St> {
             let nyxd_client = self.random_nyxd_client();
             CoconutVerifier::new(nyxd_client)
         };
-
+        let random_api_client = self.random_api_client();
         let topology_provider = Self::setup_topology_provider(self.config.get_nym_api_endpoints());
         let shared_topology_access = TopologyAccessor::new();
 
@@ -337,14 +341,18 @@ impl<St> Gateway<St> {
         )
         .await;
 
-        let mix_forwarding_channel =
-            self.start_packet_forwarder(shared_topology_access.clone(), shutdown.subscribe());
+        let mix_forwarding_channel = self.start_packet_forwarder(
+            shared_topology_access.clone(),
+            random_api_client.clone(),
+            shutdown.subscribe(),
+        );
 
         let active_clients_store = ActiveClientsStore::new();
         self.start_mix_socket_listener(
             mix_forwarding_channel.clone(),
             active_clients_store.clone(),
             shared_topology_access,
+            random_api_client,
             shutdown.subscribe(),
         );
 

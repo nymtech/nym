@@ -292,6 +292,7 @@ pub async fn upgrade_noise_initiator(
 pub async fn upgrade_noise_initiator_with_topology(
     conn: TcpStream,
     topology: &NymTopology,
+    epoch: u32,
     local_public_key: &[u8],
     local_private_key: &[u8],
 ) -> Result<NoiseStream, NoiseError> {
@@ -319,7 +320,7 @@ pub async fn upgrade_noise_initiator_with_topology(
         Some(local_public_key),
         local_private_key,
         &remote_pub_key,
-        topology.epoch_id(),
+        epoch,
     )
     .await
 }
@@ -369,6 +370,7 @@ pub async fn upgrade_noise_responder(
 pub async fn upgrade_noise_responder_with_topology(
     conn: TcpStream,
     topology: &NymTopology,
+    epoch: u32,
     local_public_key: &[u8],
     local_private_key: &[u8],
 ) -> Result<NoiseStream, NoiseError> {
@@ -396,7 +398,7 @@ pub async fn upgrade_noise_responder_with_topology(
         local_public_key,
         local_private_key,
         Some(&remote_pub_key),
-        topology.epoch_id(),
+        epoch,
     )
     .await
 }

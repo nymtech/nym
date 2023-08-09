@@ -25,6 +25,7 @@ use nym_crypto::asymmetric::{encryption, identity};
 use nym_mixnode_common::verloc::{self, AtomicVerlocResult, VerlocMeasurer};
 use nym_task::{TaskClient, TaskManager};
 use nym_topology::provider_trait::TopologyProvider;
+use nym_validator_client::NymApiClient;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use std::net::SocketAddr;
@@ -153,6 +154,7 @@ impl MixNode {
         node_stats_update_sender: node_statistics::UpdateSender,
         delay_forwarding_channel: PacketDelayForwardSender,
         topology_access: TopologyAccessor,
+        api_client: NymApiClient,
         shutdown: TaskClient,
     ) {
         info!("Starting socket listener...");
@@ -164,6 +166,7 @@ impl MixNode {
             packet_processor,
             delay_forwarding_channel,
             topology_access,
+            api_client,
             Arc::clone(&self.sphinx_keypair),
         );
 
@@ -179,6 +182,7 @@ impl MixNode {
         &mut self,
         node_stats_update_sender: node_statistics::UpdateSender,
         topology_access: TopologyAccessor,
+        api_client: NymApiClient,
         shutdown: TaskClient,
     ) -> PacketDelayForwardSender {
         info!("Starting packet delay-forwarder...");
@@ -195,6 +199,7 @@ impl MixNode {
             nym_mixnet_client::Client::new(
                 client_config,
                 topology_access,
+                api_client,
                 Arc::clone(&self.sphinx_keypair),
             ),
             node_stats_update_sender,
@@ -344,10 +349,12 @@ impl MixNode {
             shutdown.subscribe(),
         )
         .await;
+        let random_api_client = self.random_api_client();
 
         let delay_forwarding_channel = self.start_packet_delay_forwarder(
             node_stats_update_sender.clone(),
             shared_topology_access.clone(),
+            random_api_client.clone(),
             shutdown.subscribe(),
         );
 
@@ -355,6 +362,7 @@ impl MixNode {
             node_stats_update_sender,
             delay_forwarding_channel,
             shared_topology_access,
+            random_api_client,
             shutdown.subscribe(),
         );
         let atomic_verloc_results = self.start_verloc_measurements(shutdown.subscribe());

@@ -18,6 +18,7 @@ use nym_sphinx::framing::codec::NymCodec;
 use nym_sphinx::framing::packet::FramedNymPacket;
 use nym_sphinx::DestinationAddressBytes;
 use nym_task::TaskClient;
+use nym_validator_client::NymApiClient;
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -36,6 +37,7 @@ pub(crate) struct ConnectionHandler<St: Storage> {
     storage: St,
     ack_sender: MixForwardingSender,
     topology_access: TopologyAccessor,
+    api_client: NymApiClient,
     local_identity: Arc<encryption::KeyPair>,
 }
 
@@ -56,6 +58,7 @@ impl<St: Storage + Clone> Clone for ConnectionHandler<St> {
             storage: self.storage.clone(),
             ack_sender: self.ack_sender.clone(),
             topology_access: self.topology_access.clone(),
+            api_client: self.api_client.clone(),
             local_identity: self.local_identity.clone(),
         }
     }
@@ -68,6 +71,7 @@ impl<St: Storage> ConnectionHandler<St> {
         ack_sender: MixForwardingSender,
         active_clients_store: ActiveClientsStore,
         topology_access: TopologyAccessor,
+        api_client: NymApiClient,
         local_identity: Arc<encryption::KeyPair>,
     ) -> Self {
         ConnectionHandler {
@@ -77,6 +81,7 @@ impl<St: Storage> ConnectionHandler<St> {
             active_clients_store,
             ack_sender,
             topology_access,
+            api_client,
             local_identity,
         }
     }
@@ -203,9 +208,18 @@ impl<St: Storage> ConnectionHandler<St> {
             }
         };
 
+        let epoch_id = match self.api_client.get_current_epoch_id().await {
+            Ok(id) => id,
+            Err(err) => {
+                error!("Cannot perform Noise handshake to {remote}, due to epoch id error - {err}");
+                return;
+            }
+        };
+
         let noise_stream = match upgrade_noise_responder_with_topology(
             conn,
             &topology_ref,
+            epoch_id,
             &self.local_identity.public_key().to_bytes(),
             &self.local_identity.private_key().to_bytes(),
         )

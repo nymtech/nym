@@ -76,13 +76,6 @@ impl NymApiTopologyProvider {
             }
             Ok(gateways) => gateways,
         };
-        let current_epoch = match self.validator_client.get_current_epoch_id().await {
-            Err(err) => {
-                error!("failed to get current epoch - {err}");
-                return None;
-            }
-            Ok(epoch) => epoch,
-        };
 
         let all_mixes = match self.validator_client.get_all_mixnodes().await {
             Err(err) => {
@@ -101,7 +94,6 @@ impl NymApiTopologyProvider {
         };
 
         let topology = nym_topology_from_detailed(mixnodes, gateways)
-            .with_epoch(current_epoch)
             .with_all_mixes(all_mixes.clone())
             .with_all_gateways(all_gateways.clone())
             .filter_system_version(&self.client_version);
@@ -110,7 +102,6 @@ impl NymApiTopologyProvider {
             warn!("The current filtered active topology has extremely skewed layer distribution. It cannot be used: {err}");
             self.use_next_nym_api();
             let empty_topology = NymTopology::empty()
-                .with_epoch(current_epoch)
                 .with_all_mixes(all_mixes)
                 .with_all_gateways(all_gateways);
             Some(empty_topology)

@@ -12,6 +12,7 @@ use nym_sphinx::framing::codec::NymCodec;
 use nym_sphinx::framing::packet::FramedNymPacket;
 use nym_sphinx::params::PacketType;
 use nym_sphinx::NymPacket;
+use nym_validator_client::NymApiClient;
 use std::collections::HashMap;
 use std::io;
 use std::net::SocketAddr;
@@ -63,6 +64,7 @@ pub struct Client {
     conn_new: HashMap<NymNodeRoutingAddress, ConnectionSender>,
     config: Config,
     topology_access: TopologyAccessor,
+    api_client: NymApiClient,
     local_identity: Arc<encryption::KeyPair>,
 }
 
@@ -84,12 +86,14 @@ impl Client {
     pub fn new(
         config: Config,
         topology_access: TopologyAccessor,
+        api_client: NymApiClient,
         local_identity: Arc<encryption::KeyPair>,
     ) -> Client {
         Client {
             conn_new: HashMap::new(),
             config,
             topology_access,
+            api_client,
             local_identity,
         }
     }
@@ -100,6 +104,7 @@ impl Client {
         connection_timeout: Duration,
         current_reconnection: &AtomicU32,
         topology_access: TopologyAccessor,
+        api_client: NymApiClient,
         local_public_key: &[u8],
         local_private_key: &[u8],
     ) {
@@ -120,9 +125,18 @@ impl Client {
                         }
                     };
 
+                    let epoch_id = match api_client.get_current_epoch_id().await {
+                        Ok(id) => id,
+                        Err(err) => {
+                            error!("Cannot perform Noise handshake to {address}, due to epoch id error - {err}");
+                            return;
+                        }
+                    };
+
                     let noise_stream = match upgrade_noise_initiator_with_topology(
                         stream,
                         &topology_ref,
+                        epoch_id,
                         local_public_key,
                         local_private_key,
                     )
@@ -214,6 +228,7 @@ impl Client {
         let initial_connection_timeout = self.config.initial_connection_timeout;
 
         let topology_access_clone = self.topology_access.clone();
+        let api_client_clone = self.api_client.clone();
         let local_public_key = self.local_identity.public_key().to_bytes();
         let local_private_key = self.local_identity.private_key().to_bytes();
 
@@ -230,6 +245,7 @@ impl Client {
                 initial_connection_timeout,
                 &current_reconnection_attempt,
                 topology_access_clone,
+                api_client_clone,
                 &local_public_key,
                 &local_private_key,
             )

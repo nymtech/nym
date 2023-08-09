@@ -4013,6 +4013,7 @@ dependencies = [
  "nym-noise",
  "nym-sphinx",
  "nym-task",
+ "nym-validator-client",
  "tokio",
  "tokio-util",
 ]

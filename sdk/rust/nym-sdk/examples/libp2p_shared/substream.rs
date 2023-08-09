@@ -1,4 +1,4 @@
-use crate::message::{
+use super::message::{
     ConnectionId, Message, OutboundMessage, SubstreamId, SubstreamMessage, TransportMessage,
 };
 use futures::{
@@ -223,9 +223,11 @@ impl AsyncWrite for Substream {
 
 #[cfg(test)]
 mod test {
+    use super::super::message::{
+        ConnectionId, Message, SubstreamId, SubstreamMessage, TransportMessage,
+    };
+    use super::super::mixnet::initialize_mixnet;
     use super::Substream;
-    use crate::message::{ConnectionId, Message, SubstreamId, SubstreamMessage, TransportMessage};
-    use crate::mixnet::initialize_mixnet;
     use futures::{AsyncReadExt, AsyncWriteExt};
     use nym_sdk::mixnet::MixnetClient;
     use nym_sphinx::addressing::clients::Recipient;
@@ -345,7 +347,7 @@ mod test {
             }) => {
                 assert_eq!(nonce, 1);
                 match msg {
-                    crate::message::SubstreamMessageType::Data(data) => {
+                    super::super::message::SubstreamMessageType::Data(data) => {
                         assert_eq!(data, MSG_INNER);
                         // send message to substream inbound channel
                         inbound_tx.send(data).unwrap();
@@ -380,7 +382,7 @@ mod test {
                         message_type: msg,
                     },
             }) => match msg {
-                crate::message::SubstreamMessageType::Close => {}
+                super::super::message::SubstreamMessageType::Close => {}
                 _ => panic!("unexpected message type"),
             },
             _ => panic!("unexpected message: {:?}", recv_msg.0),

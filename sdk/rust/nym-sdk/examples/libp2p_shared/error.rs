@@ -1,7 +1,7 @@
 use libp2p::core::multiaddr;
 use nym_sphinx::addressing::clients::RecipientFormattingError;
 
-use crate::message::SubstreamId;
+use super::message::SubstreamId;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -11,14 +11,6 @@ pub enum Error {
     FailedToFormatMultiaddr(#[from] multiaddr::Error),
     #[error("unexpected protocol in multiaddress")]
     InvalidProtocolForMultiaddr,
-    #[error("nym message error")]
-    NymMessageError(String),
-    #[error("unexpected message received over mixnet")]
-    UnexpectedNymMessage,
-    #[error("unexpected response to get self address request")]
-    UnexpectedSelfAddressResponse,
-    #[error("unknown nym message")]
-    UnknownNymMessage,
     #[error("failed to decode message")]
     InvalidMessageBytes,
     #[error("no connection found for ConnectionResponse")]
@@ -57,8 +49,6 @@ pub enum Error {
     SubstreamIdDoesNotExist(SubstreamId),
     #[error("recv error: channel closed")]
     OneshotRecvError(#[from] tokio::sync::oneshot::error::RecvError),
-    #[error("failed to send new substream; receiver dropped")]
-    SubstreamSendError,
     #[error("recv error: channel closed")]
     RecvError,
     #[error("outbound send error")]

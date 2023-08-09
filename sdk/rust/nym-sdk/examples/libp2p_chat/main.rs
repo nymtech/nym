@@ -45,7 +45,9 @@
 //! If a participant exits (Control-C or otherwise) the other peers will receive an mDNS expired
 //! event and remove the expired peer from the list of known peers.
 
+use crate::rust_libp2p_nym::transport::NymTransport;
 use futures::{prelude::*, select};
+use libp2p::Multiaddr;
 use libp2p::{
     core::muxing::StreamMuxerBox,
     gossipsub, identity,
@@ -53,7 +55,7 @@ use libp2p::{
     swarm::{SwarmBuilder, SwarmEvent},
     PeerId, Transport,
 };
-use rust_libp2p_nym::transport::NymTransport;
+use nym_sdk::mixnet::MixnetClient;
 use std::collections::hash_map::DefaultHasher;
 use std::error::Error;
 use std::hash::{Hash, Hasher};
@@ -63,13 +65,14 @@ use tokio_util::codec;
 use tracing::info;
 use tracing_subscriber::EnvFilter;
 
+#[path = "../libp2p_shared/lib.rs"]
+mod rust_libp2p_nym;
+
 // We create a custom network behaviour that uses Gossipsub
 #[derive(NetworkBehaviour)]
 struct Behaviour {
     gossipsub: gossipsub::Behaviour,
 }
-use libp2p::Multiaddr;
-use nym_sdk::mixnet::MixnetClient;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {

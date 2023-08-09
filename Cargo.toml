@@ -18,7 +18,6 @@ opt-level = 3
 resolver = "2"
 members = [
     "clients/credential",
-    "clients/libp2p",
     "clients/native",
     "clients/native/websocket-requests",
     "clients/socks5",

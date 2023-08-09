@@ -52,6 +52,9 @@ use tracing::{debug, info};
 use nym_sdk::mixnet::MixnetClient;
 use tracing_subscriber::EnvFilter;
 
+#[path = "../libp2p_shared/lib.rs"]
+mod rust_libp2p_nym;
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     tracing_subscriber::fmt()

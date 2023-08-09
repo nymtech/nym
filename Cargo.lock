@@ -6629,7 +6629,10 @@ dependencies = [
  "bip39",
  "dotenvy",
  "futures",
+ "hex",
+ "libp2p 0.51.0",
  "log",
+ "multihash",
  "nym-bandwidth-controller",
  "nym-bin-common",
  "nym-client-core",
@@ -6643,13 +6646,18 @@ dependencies = [
  "nym-task",
  "nym-topology",
  "nym-validator-client",
+ "parking_lot 0.12.1",
  "pretty_env_logger",
  "rand 0.7.3",
  "reqwest",
  "tap",
  "thiserror",
  "tokio",
+ "tokio-stream",
+ "tokio-util",
  "toml 0.5.11",
+ "tracing",
+ "tracing-subscriber 0.2.25",
  "url",
 ]
 
@@ -8762,27 +8770,6 @@ checksum = "512b0ab6853f7e14e3c8754acb43d6f748bb9ced66aa5915a6553ac8213f7731"
 dependencies = [
  "sha2 0.10.7",
  "walkdir",
-]
-
-[[package]]
-name = "rust-libp2p-nym"
-version = "0.1.0"
-dependencies = [
- "futures",
- "hex",
- "libp2p 0.51.0",
- "multihash",
- "nym-sdk",
- "nym-sphinx",
- "parking_lot 0.12.1",
- "rand 0.8.5",
- "rand_core 0.6.4",
- "thiserror",
- "tokio",
- "tokio-stream",
- "tokio-util",
- "tracing",
- "tracing-subscriber 0.2.25",
 ]
 
 [[package]]

@@ -6,8 +6,8 @@ use nym_sphinx::receiver::ReconstructedMessage;
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 use tracing::debug;
 
-use crate::error::Error;
-use crate::message::*;
+use super::error::Error;
+use super::message::*;
 
 /// initialize_mixnet initializes a read/write connection to a Nym websockets endpoint.
 /// It starts a task that listens for inbound messages from the endpoint and writes outbound messages to the endpoint.
@@ -120,11 +120,11 @@ async fn write_bytes(
 
 #[cfg(test)]
 mod test {
-    use crate::message::{
+    use super::super::message::{
         self, ConnectionId, Message, SubstreamId, SubstreamMessage, SubstreamMessageType,
         TransportMessage,
     };
-    use crate::mixnet::initialize_mixnet;
+    use super::super::mixnet::initialize_mixnet;
     use nym_sdk::mixnet::MixnetClient;
 
     #[tokio::test]

@@ -1,9 +1,10 @@
 use libp2p::core::PeerId;
 use nym_sphinx::addressing::clients::Recipient;
-use rand_core::{OsRng, RngCore};
+use rand::rngs::OsRng;
+use rand::RngCore;
 use std::fmt::{Debug, Formatter};
 
-use crate::error::Error;
+use super::error::Error;
 
 const RECIPIENT_LENGTH: usize = Recipient::LEN;
 const CONNECTION_ID_LENGTH: usize = 32;

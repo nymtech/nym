@@ -15,12 +15,12 @@ use tokio::sync::{
 };
 use tracing::debug;
 
-use crate::error::Error;
-use crate::message::{
+use super::error::Error;
+use super::message::{
     ConnectionId, Message, OutboundMessage, SubstreamId, SubstreamMessage, SubstreamMessageType,
     TransportMessage,
 };
-use crate::substream::Substream;
+use super::substream::Substream;
 
 /// Connection represents the result of a connection setup process.
 /// It implements `StreamMuxer` and thus has stream multiplexing built in.
@@ -278,8 +278,8 @@ impl PendingConnection {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::message::InboundMessage;
-    use crate::mixnet::initialize_mixnet;
+    use super::super::message::InboundMessage;
+    use super::super::mixnet::initialize_mixnet;
     use futures::future::poll_fn;
     use futures::{AsyncReadExt, AsyncWriteExt, FutureExt};
     use nym_sdk::mixnet::MixnetClient;

@@ -36,3 +36,13 @@ reqwest = { workspace = true, features = ["json", "socks"] }
 thiserror = { workspace = true }
 tokio = { version = "1", features = ["full"] }
 nym-bin-common = { path = "../../../common/bin-common" }
+
+# libp2p examples
+libp2p = { git = "https://github.com/ChainSafe/rust-libp2p.git", rev = "e3440d25681df380c9f0f8cfdcfd5ecc0a4f2fb6", features = [ "identify", "macros", "ping", "tokio", "tcp", "dns", "websocket", "noise", "mplex", "yamux", "gossipsub" ]}
+tokio-stream = "0.1.12"
+tracing = "0.1.23"
+tracing-subscriber = "0.2.15"
+tokio-util = { version = "0.7", features = ["codec"] }
+parking_lot = "0.12"
+multihash = "0.17"
+hex = "0.4"

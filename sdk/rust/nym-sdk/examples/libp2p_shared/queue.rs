@@ -1,7 +1,7 @@
 use std::collections::BTreeSet;
 use tracing::{debug, warn};
 
-use crate::message::TransportMessage;
+use super::message::TransportMessage;
 
 /// MessageQueue is a queue of messages, ordered by nonce, that we've
 /// received but are not yet able to process because we're waiting for
@@ -91,7 +91,7 @@ impl MessageQueue {
 
 #[cfg(test)]
 mod test {
-    use crate::message::{ConnectionId, SubstreamId, SubstreamMessage};
+    use super::super::message::{ConnectionId, SubstreamId, SubstreamMessage};
 
     use super::*;
 

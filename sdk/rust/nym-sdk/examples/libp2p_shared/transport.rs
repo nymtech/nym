@@ -23,15 +23,15 @@ use tokio::{
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use tracing::debug;
 
-use crate::connection::{Connection, PendingConnection};
-use crate::error::Error;
-use crate::message::{
+use super::connection::{Connection, PendingConnection};
+use super::error::Error;
+use super::message::{
     ConnectionId, ConnectionMessage, InboundMessage, Message, OutboundMessage, SubstreamMessage,
     TransportMessage,
 };
-use crate::mixnet::initialize_mixnet;
-use crate::queue::MessageQueue;
-use crate::DEFAULT_HANDSHAKE_TIMEOUT_SECS;
+use super::mixnet::initialize_mixnet;
+use super::queue::MessageQueue;
+use super::DEFAULT_HANDSHAKE_TIMEOUT_SECS;
 
 /// InboundTransportEvent represents an inbound event from the mixnet.
 pub enum InboundTransportEvent {
@@ -85,6 +85,7 @@ impl NymTransport {
     }
 
     /// New transport with a timeout.
+    #[allow(dead_code)]
     pub async fn new_with_timeout(
         client: MixnetClient,
         keypair: Keypair,
@@ -94,6 +95,7 @@ impl NymTransport {
     }
 
     /// Add timeout to transport and return self.
+    #[allow(dead_code)]
     pub fn with_timeout(mut self, timeout: Duration) -> Self {
         self.handshake_timeout = timeout;
         self
@@ -520,14 +522,14 @@ fn multiaddress_to_nym_address(multiaddr: Multiaddr) -> Result<Recipient, Error>
 
 #[cfg(test)]
 mod test {
-    use super::{nym_address_to_multiaddress, NymTransport};
-    use crate::connection::Connection;
-    use crate::error::Error;
-    use crate::message::{
+    use super::super::connection::Connection;
+    use super::super::error::Error;
+    use super::super::message::{
         Message, OutboundMessage, SubstreamId, SubstreamMessage, SubstreamMessageType,
         TransportMessage,
     };
-    use crate::substream::Substream;
+    use super::super::substream::Substream;
+    use super::{nym_address_to_multiaddress, NymTransport};
     use futures::{future::poll_fn, AsyncReadExt, AsyncWriteExt, FutureExt};
     use libp2p::core::{
         identity::Keypair,

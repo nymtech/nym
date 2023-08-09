@@ -36,6 +36,7 @@ mod connection_state;
 mod native_client;
 mod paths;
 mod socks5_client;
+mod traits;
 
 pub use client::{DisconnectedMixnetClient, IncludedSurbs, MixnetClientBuilder};
 pub use config::{Config, KeyMode};
@@ -73,3 +74,4 @@ pub use nym_sphinx::{
 pub use nym_topology::{provider_trait::TopologyProvider, NymTopology};
 pub use paths::StoragePaths;
 pub use socks5_client::Socks5MixnetClient;
+pub use traits::MixnetMessageSender;

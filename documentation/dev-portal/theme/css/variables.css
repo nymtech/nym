@@ -2,14 +2,14 @@
 /* Globals */
 
 :root {
-  --sidebar-width: 300px;
-  --page-padding: 20px;
-  --content-max-width: 70%;
-  --menu-bar-height: 40px;
-  --mono-font: "Source Code Pro", Consolas, "Ubuntu Mono", Menlo, "DejaVu Sans Mono", monospace, monospace;
-  --code-font-size: 0.875em /* please adjust the ace font size accordingly in editor.js */
-  --pagetoc-width: 13%;
-  --pagetoc-fontsize: 14.5px;
+    --sidebar-width: 300px;
+    --page-padding: 20px;
+    --content-max-width: 70%;
+    --menu-bar-height: 40px;
+    --mono-font: "Source Code Pro", Consolas, "Ubuntu Mono", Menlo, "DejaVu Sans Mono", monospace, monospace;
+    --code-font-size: 0.875em /* please adjust the ace font size accordingly in editor.js */
+    --pagetoc-width: 13%;
+    --pagetoc-fontsize: 14.5px;
 }
 
 @media only screen and (max-width:1439px) {

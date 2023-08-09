@@ -230,7 +230,7 @@ Here's a systemd service file to do that:
 
 ```ini
 [Unit]
-Description=Nym Mixnode ({{mix_node_release_version}})
+Description=Nym Mixnode ({{platform_release_version}})
 StartLimitInterval=350
 StartLimitBurst=10
 

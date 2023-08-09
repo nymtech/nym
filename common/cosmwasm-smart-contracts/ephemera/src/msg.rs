@@ -1,31 +1,33 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+#[cfg(feature = "schema")]
+use crate::peers::PagedPeerResponse;
 use crate::types::JsonPeerInfo;
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
+use cosmwasm_schema::cw_serde;
+#[cfg(feature = "schema")]
+use cosmwasm_schema::QueryResponses;
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
+#[cw_serde]
 pub struct InstantiateMsg {
     pub group_addr: String,
     pub mix_denom: String,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
 pub enum ExecuteMsg {
     RegisterPeer { peer_info: JsonPeerInfo },
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
+#[cfg_attr(feature = "schema", derive(QueryResponses))]
 pub enum QueryMsg {
+    #[cfg_attr(feature = "schema", returns(PagedPeerResponse))]
     GetPeers {
         limit: Option<u32>,
         start_after: Option<String>,
     },
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
 pub struct MigrateMsg {}

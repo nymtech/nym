@@ -6,7 +6,7 @@
     --page-padding: 20px;
     --content-max-width: 70%;
     --menu-bar-height: 40px;
-    --mono-font: "Source Code Pro", Consolas, "Ubuntu Mono", Menlo, "DejaVu Sans Mono", monospace, monospace;
+    --mono-font: 'Open Sans', Consolas, "Ubuntu Mono", Menlo, "DejaVu Sans Mono", monospace, monospace;
     --code-font-size: 0.875em /* please adjust the ace font size accordingly in editor.js */
     --pagetoc-width: 13%;
     --pagetoc-fontsize: 14.5px;
@@ -91,21 +91,21 @@
 }
 
 .coal {
-    --bg: hsl(200, 7%, 8%);
-    --fg: #98a3ad;
+    --bg: #121726;
+    --fg: #F2F2F2;
 
-    --sidebar-bg: #292c2f;
-    --sidebar-fg: #a1adb8;
+    --sidebar-bg: #121726;
+    --sidebar-fg: #F2F2F2;
     --sidebar-non-existant: #505254;
-    --sidebar-active: #3473ad;
+    --sidebar-active: #FB6E4E;
     --sidebar-spacer: #393939;
 
     --scrollbar: var(--sidebar-fg);
 
-    --icons: #43484d;
-    --icons-hover: #b3c0cc;
+    --icons: #F2F2F2;
+    --icons-hover: #FB6E4E;
 
-    --links: #2b79a2;
+    --links: #FB6E4E;
 
     --inline-code-color: #c5c8c6;
 
@@ -131,21 +131,21 @@
 }
 
 .light {
-    --bg: hsl(0, 0%, 100%);
-    --fg: hsl(0, 0%, 0%);
+    --bg: #F4F6F8;
+    --fg: #121726;
 
-    --sidebar-bg: #fafafa;
-    --sidebar-fg: hsl(0, 0%, 0%);
+    --sidebar-bg: #F4F6F8;
+    --sidebar-fg: #121726;
     --sidebar-non-existant: #aaaaaa;
-    --sidebar-active: #1f1fff;
+    --sidebar-active: #FB6E4E;
     --sidebar-spacer: #f4f4f4;
 
     --scrollbar: #8F8F8F;
 
-    --icons: #747474;
-    --icons-hover: #000000;
+    --icons: #121726;
+    --icons-hover: #FB6E4E;
 
-    --links: #1f1fff;
+    --links: #FB6E4E;
 
     --inline-code-color: #F42C4C;
 

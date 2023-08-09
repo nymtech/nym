@@ -6,6 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+async-trait = { workspace = true }
 bip39 = { workspace = true }
 nym-client-core = { path = "../../../common/client-core", features = ["fs-surb-storage"]}
 nym-crypto = { path = "../../../common/crypto" }

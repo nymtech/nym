@@ -1,7 +1,9 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use nym_sdk::mixnet::{IncludedSurbs, MixnetClient, Recipient, ReconstructedMessage};
+use nym_sdk::mixnet::{
+    IncludedSurbs, MixnetClient, MixnetMessageSender, Recipient, ReconstructedMessage,
+};
 use nym_service_providers_common::interface::{
     ProviderInterfaceVersion, Request, Response, ResponseContent,
 };
@@ -47,23 +49,23 @@ async fn main() -> anyhow::Result<()> {
     );
     println!("Sending 'OpenProxy' query...");
     client
-        .send_bytes(
+        .send_message(
             provider,
             open_proxy_request.into_bytes(),
             IncludedSurbs::new(10),
         )
-        .await;
+        .await?;
     let response = wait_for_response(&mut client).await;
     println!("response to 'OpenProxy' query: {response:#?}");
 
     println!("Sending 'Description' query...");
     client
-        .send_bytes(
+        .send_message(
             provider,
             description_request.into_bytes(),
             IncludedSurbs::none(),
         )
-        .await;
+        .await?;
     let response = wait_for_response(&mut client).await;
     println!("response to 'Description' query: {response:#?}");
 

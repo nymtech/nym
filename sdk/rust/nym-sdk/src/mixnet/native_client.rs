@@ -1,5 +1,7 @@
-use crate::mixnet::client::{IncludedSurbs, MixnetClientBuilder};
-use crate::Result;
+use crate::mixnet::client::MixnetClientBuilder;
+use crate::mixnet::traits::MixnetMessageSender;
+use crate::{Error, Result};
+use async_trait::async_trait;
 use futures::{Stream, StreamExt};
 use nym_client_core::client::{
     base_client::{ClientInput, ClientOutput, ClientState},
@@ -7,10 +9,9 @@ use nym_client_core::client::{
     received_buffer::ReconstructedMessagesReceiver,
 };
 use nym_sphinx::addressing::clients::Recipient;
-use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nym_sphinx::{params::PacketType, receiver::ReconstructedMessage};
 use nym_task::{
-    connections::{ConnectionCommandSender, LaneQueueLengths, TransmissionLane},
+    connections::{ConnectionCommandSender, LaneQueueLengths},
     TaskManager,
 };
 use nym_topology::NymTopology;
@@ -74,9 +75,10 @@ impl MixnetClient {
 
     /// Get a shallow clone of [`MixnetClientSender`]. Useful if you want split the send and
     /// receive logic in different locations.
-    pub fn sender(&self) -> MixnetClientSender {
+    pub fn split_sender(&self) -> MixnetClientSender {
         MixnetClientSender {
             client_input: self.client_input.clone(),
+            packet_type: self.packet_type,
         }
     }
 
@@ -112,132 +114,6 @@ impl MixnetClient {
         self.client_state.topology_accessor.release_manual_control()
     }
 
-    /// Sends stringy data to the supplied Nym address
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// use nym_sdk::mixnet;
-    ///
-    /// #[tokio::main]
-    /// async fn main() {
-    ///     let address = "foobar";
-    ///     let recipient = mixnet::Recipient::try_from_base58_string(address).unwrap();
-    ///     let mut client = mixnet::MixnetClient::connect_new().await.unwrap();
-    ///     client.send_str(recipient, "hi").await;
-    /// }
-    /// ```
-    pub async fn send_str(&self, address: Recipient, message: &str) {
-        self.send_bytes(address, message, IncludedSurbs::default())
-            .await;
-    }
-
-    /// Sends bytes to the supplied Nym address. There is the option to specify the number of
-    /// reply-SURBs to include.
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// use nym_sdk::mixnet;
-    ///
-    /// #[tokio::main]
-    /// async fn main() {
-    ///     let address = "foobar";
-    ///     let recipient = mixnet::Recipient::try_from_base58_string(address).unwrap();
-    ///     let mut client = mixnet::MixnetClient::connect_new().await.unwrap();
-    ///     let surbs = mixnet::IncludedSurbs::default();
-    ///     client.send_bytes(recipient, "hi".to_owned().into_bytes(), surbs).await;
-    /// }
-    /// ```
-    pub async fn send_bytes<M: AsRef<[u8]>>(
-        &self,
-        address: Recipient,
-        message: M,
-        surbs: IncludedSurbs,
-    ) {
-        let lane = TransmissionLane::General;
-        let input_msg = match surbs {
-            IncludedSurbs::Amount(surbs) => InputMessage::new_anonymous(
-                address,
-                message.as_ref().to_vec(),
-                surbs,
-                lane,
-                self.packet_type,
-            ),
-            IncludedSurbs::ExposeSelfAddress => InputMessage::new_regular(
-                address,
-                message.as_ref().to_vec(),
-                lane,
-                self.packet_type,
-            ),
-        };
-        self.send(input_msg).await
-    }
-
-    /// Sends stringy reply data to the supplied anonymous recipient.
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// use nym_sdk::mixnet;
-    ///
-    /// #[tokio::main]
-    /// async fn main() {
-    ///     let mut client = mixnet::MixnetClient::connect_new().await.unwrap();
-    ///     // note: the tag is something you would have received from a remote client sending you surbs!
-    ///     let tag = mixnet::AnonymousSenderTag::try_from_base58_string("foobar").unwrap();
-    ///     client.send_str_reply(tag, "hi").await;
-    /// }
-    /// ```
-    pub async fn send_str_reply(&self, recipient_tag: AnonymousSenderTag, message: &str) {
-        self.send_reply(recipient_tag, message).await;
-    }
-
-    /// Sends binary reply data to the supplied anonymous recipient.
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// use nym_sdk::mixnet;
-    ///
-    /// #[tokio::main]
-    /// async fn main() {
-    ///     let mut client = mixnet::MixnetClient::connect_new().await.unwrap();
-    ///     // note: the tag is something you would have received from a remote client sending you surbs!
-    ///     let tag = mixnet::AnonymousSenderTag::try_from_base58_string("foobar").unwrap();
-    ///     client.send_reply(tag, b"hi").await;
-    /// }
-    /// ```
-    pub async fn send_reply<M: AsRef<[u8]>>(&self, recipient_tag: AnonymousSenderTag, message: M) {
-        let lane = TransmissionLane::General;
-        let input_msg = InputMessage::new_reply(
-            recipient_tag,
-            message.as_ref().to_vec(),
-            lane,
-            self.packet_type,
-        );
-        self.send(input_msg).await
-    }
-
-    /// Sends a [`InputMessage`] to the mixnet. This is the most low-level sending function, for
-    /// full customization.
-    async fn send(&self, message: InputMessage) {
-        if self.client_input.send(message).await.is_err() {
-            log::error!("Failed to send message");
-        }
-    }
-
-    /// Sends a [`InputMessage`] to the mixnet. This is the most low-level sending function, for
-    /// full customization.
-    ///
-    /// Waits until the message is actually sent, or close to being sent, until returning.
-    ///
-    /// NOTE: this not yet implemented.
-    #[allow(unused)]
-    async fn send_wait(&self, _message: InputMessage) {
-        todo!();
-    }
-
     /// Wait for messages from the mixnet
     pub async fn wait_for_messages(&mut self) -> Option<Vec<ReconstructedMessage>> {
         self.reconstructed_receiver.next().await
@@ -265,14 +141,7 @@ impl MixnetClient {
 
 pub struct MixnetClientSender {
     client_input: ClientInput,
-}
-
-impl MixnetClientSender {
-    pub async fn send_input_message(&mut self, message: InputMessage) {
-        if self.client_input.send(message).await.is_err() {
-            log::error!("Failed to send message");
-        }
-    }
+    packet_type: Option<PacketType>,
 }
 
 impl Stream for MixnetClient {
@@ -280,5 +149,33 @@ impl Stream for MixnetClient {
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         Pin::new(&mut self.reconstructed_receiver).poll_next(cx)
+    }
+}
+
+#[async_trait]
+impl MixnetMessageSender for MixnetClient {
+    fn packet_type(&self) -> Option<PacketType> {
+        self.packet_type
+    }
+
+    async fn send(&self, message: InputMessage) -> Result<()> {
+        self.client_input
+            .send(message)
+            .await
+            .map_err(|_| Error::MessageSendingFailure)
+    }
+}
+
+#[async_trait]
+impl MixnetMessageSender for MixnetClientSender {
+    fn packet_type(&self) -> Option<PacketType> {
+        self.packet_type
+    }
+
+    async fn send(&self, message: InputMessage) -> Result<()> {
+        self.client_input
+            .send(message)
+            .await
+            .map_err(|_| Error::MessageSendingFailure)
     }
 }

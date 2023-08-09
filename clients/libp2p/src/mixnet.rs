@@ -3,8 +3,8 @@ use futures::{
     stream::{SplitSink, SplitStream},
 };
 use futures::{FutureExt, SinkExt, StreamExt};
+use nym_client_websocket_requests::{requests::ClientRequest, responses::ServerResponse};
 use nym_sphinx::addressing::clients::Recipient;
-use nym_websocket::{requests::ClientRequest, responses::ServerResponse};
 use tokio::{
     net::TcpStream,
     sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender},

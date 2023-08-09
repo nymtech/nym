@@ -6,15 +6,15 @@ edition = "2021"
 [dependencies]
 futures = "0.3.26"
 hex = "0.4"
-libp2p = { version = "0.51.0", features = [ "identify", "macros", "ping", "tokio", "tcp", "dns", "websocket", "noise", "mplex", "yamux", "gossipsub" ]}
+libp2p = { git = "https://github.com/ChainSafe/rust-libp2p.git", rev = "e3440d25681df380c9f0f8cfdcfd5ecc0a4f2fb6", features = [ "identify", "macros", "ping", "tokio", "tcp", "dns", "websocket", "noise", "mplex", "yamux", "gossipsub" ]}
 multihash = "0.17"
-nym-websocket = { package = "websocket-requests", git = "https://github.com/nymtech/nym", rev = "7e109e7f2d684e261327fba7126b198cb3d7bc61" }
-nym-sphinx = { package = "nym-sphinx", git = "https://github.com/nymtech/nym", rev = "7e109e7f2d684e261327fba7126b198cb3d7bc61" }
+nym-client-websocket-requests = { path = "../native/websocket-requests" }
+nym-sphinx = { path = "../../common/nymsphinx" }
 parking_lot = "0.12"
 rand = { version = "0.8", features = [ "std" ] }
 rand_core = "0.6"
 thiserror = "1.0"
-tokio = { version = "1.24", features = [ "full" ] }
+tokio = { workspace = true, features = [ "full" ] }
 tokio-stream = "0.1.12"
 tokio-tungstenite = "0.14"
 tracing = "0.1.23"
@@ -27,6 +27,3 @@ tokio-util = { version = "0.7", features = ["codec"] }
 [features]
 vanilla = []
 
-[patch.crates-io] 
-libp2p = { git = "https://github.com/ChainSafe/rust-libp2p.git", rev = "e3440d25681df380c9f0f8cfdcfd5ecc0a4f2fb6" }
-multiaddr = { git = "https://github.com/ChainSafe/rust-multiaddr.git", rev = "2d21365f880622adf1c8e594b72e671dbac9dd64" }

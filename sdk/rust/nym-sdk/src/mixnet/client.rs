@@ -497,15 +497,15 @@ where
 
         let reconstructed_receiver = client_output.register_receiver()?;
 
-        Ok(MixnetClient {
+        Ok(MixnetClient::new(
             nym_address,
             client_input,
             client_output,
             client_state,
             reconstructed_receiver,
-            task_manager: started_client.task_manager,
-            packet_type: None,
-        })
+            started_client.task_manager,
+            None,
+        ))
     }
 }
 

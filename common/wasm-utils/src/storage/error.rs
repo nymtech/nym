@@ -22,6 +22,9 @@ pub enum StorageError {
         message: String,
     },
 
+    #[error("FATAL ERROR: storage key is somehow present {count} times in the table!")]
+    DuplicateKey { count: u32 },
+
     #[error("encountered issue with our storage encryption layer: {source}")]
     CryptoStorageError {
         #[from]

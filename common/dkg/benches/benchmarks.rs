@@ -10,10 +10,10 @@ use nym_dkg::bte::proof_discrete_log::ProofOfDiscreteLog;
 use nym_dkg::bte::proof_sharing::ProofOfSecretSharing;
 use nym_dkg::bte::{
     decrypt_share, encrypt_shares, keygen, proof_chunking, proof_sharing, setup, DecryptionKey,
-    PublicKey,
+    Params, PublicKey,
 };
 use nym_dkg::interpolation::polynomial::Polynomial;
-use nym_dkg::{Dealing, NodeIndex, Share};
+use nym_dkg::{combine_shares, Dealing, NodeIndex, Share, Threshold};
 use rand_core::{RngCore, SeedableRng};
 use std::collections::BTreeMap;
 
@@ -49,6 +49,37 @@ fn prepare_keys(
     (receivers, dks)
 }
 
+fn prepare_resharing(
+    mut rng: impl RngCore,
+    params: &Params,
+    nodes: usize,
+    threshold: Threshold,
+) -> (BTreeMap<NodeIndex, PublicKey>, Vec<Scalar>) {
+    let (receivers, mut dks) = prepare_keys(&mut rng, nodes);
+
+    let first_dealings = receivers
+        .keys()
+        .map(|&dealer_index| {
+            Dealing::create(&mut rng, params, dealer_index, threshold, &receivers, None).0
+        })
+        .collect::<Vec<_>>();
+
+    let mut derived_secrets = Vec::new();
+    for (i, ref mut dk) in dks.iter_mut().enumerate() {
+        let shares = first_dealings
+            .iter()
+            .map(|dealing| decrypt_share(dk, i, &dealing.ciphertexts, None).unwrap())
+            .collect();
+
+        let recovered_secret =
+            combine_shares(shares, &receivers.keys().copied().collect::<Vec<_>>()).unwrap();
+
+        derived_secrets.push(recovered_secret)
+    }
+
+    (receivers, derived_secrets)
+}
+
 pub fn creating_dealing_for_3_parties(c: &mut Criterion) {
     let dummy_seed = [42u8; 32];
     let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
@@ -71,6 +102,33 @@ pub fn creating_dealing_for_3_parties(c: &mut Criterion) {
             })
         })
     });
+}
+
+pub fn creating_reshared_dealing_for_3_parties(c: &mut Criterion) {
+    let dummy_seed = [42u8; 32];
+    let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
+    let params = setup();
+    let threshold = 2;
+
+    let (receivers, mut derived_secrets) = prepare_resharing(&mut rng, &params, 3, threshold);
+
+    c.bench_function(
+        "creating single re-shared dealing for 3 parties (threshold 2)",
+        |b| {
+            b.iter(|| {
+                black_box({
+                    Dealing::create(
+                        &mut rng,
+                        &params,
+                        receivers.keys().next().copied().unwrap(),
+                        threshold,
+                        &receivers,
+                        Some(derived_secrets.pop().unwrap()),
+                    )
+                })
+            })
+        },
+    );
 }
 
 pub fn verifying_dealing_made_for_3_parties_and_recovering_share(c: &mut Criterion) {
@@ -129,6 +187,33 @@ pub fn creating_dealing_for_20_parties(c: &mut Criterion) {
     );
 }
 
+pub fn creating_reshared_dealing_for_20_parties(c: &mut Criterion) {
+    let dummy_seed = [42u8; 32];
+    let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
+    let params = setup();
+    let threshold = 14;
+
+    let (receivers, mut derived_secrets) = prepare_resharing(&mut rng, &params, 20, threshold);
+
+    c.bench_function(
+        "creating single re-shared dealing for 20 parties (threshold 14)",
+        |b| {
+            b.iter(|| {
+                black_box({
+                    Dealing::create(
+                        &mut rng,
+                        &params,
+                        receivers.keys().next().copied().unwrap(),
+                        threshold,
+                        &receivers,
+                        Some(derived_secrets.pop().unwrap()),
+                    )
+                })
+            })
+        },
+    );
+}
+
 pub fn verifying_dealing_made_for_20_parties_and_recovering_share(c: &mut Criterion) {
     let dummy_seed = [42u8; 32];
     let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
@@ -178,6 +263,33 @@ pub fn creating_dealing_for_100_parties(c: &mut Criterion) {
                         threshold,
                         &receivers,
                         None,
+                    )
+                })
+            })
+        },
+    );
+}
+
+pub fn creating_reshared_dealing_for_100_parties(c: &mut Criterion) {
+    let dummy_seed = [42u8; 32];
+    let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
+    let params = setup();
+    let threshold = 67;
+
+    let (receivers, mut derived_secrets) = prepare_resharing(&mut rng, &params, 100, threshold);
+
+    c.bench_function(
+        "creating single re-shared dealing for 100 parties (threshold 67)",
+        |b| {
+            b.iter(|| {
+                black_box({
+                    Dealing::create(
+                        &mut rng,
+                        &params,
+                        receivers.keys().next().copied().unwrap(),
+                        threshold,
+                        &receivers,
+                        Some(derived_secrets.pop().unwrap()),
                     )
                 })
             })
@@ -472,6 +584,13 @@ criterion_group!(
     creating_dealing_for_100_parties,
 );
 
+criterion_group!(
+    reshared_dealings_creation,
+    creating_reshared_dealing_for_3_parties,
+    creating_reshared_dealing_for_20_parties,
+    creating_reshared_dealing_for_100_parties,
+);
+
 // note: in our setting each party will have to create at least 4 dealings (one per attribute in credential)
 // and verify 99 * 4 of them (4 from each other dealer)
 criterion_group!(
@@ -501,6 +620,7 @@ criterion_group!(
 criterion_main!(
     utils,
     dealings_creation,
+    reshared_dealings_creation,
     dealings_verification,
     proofs_of_knowledge,
     encryption

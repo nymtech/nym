@@ -1,15 +1,15 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
-
+use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{CosmosMsg, Empty};
-use cw3::Vote;
+use cw3::{UncheckedDepositInfo, Vote};
 use cw4::MemberChangedHookMsg;
 use cw_utils::{Duration, Expiration, Threshold};
 
-#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
+use crate::state::Executor;
+
+#[cw_serde]
 pub struct InstantiateMsg {
     // this is the group contract that contains the member list
     pub group_addr: String,
@@ -17,11 +17,15 @@ pub struct InstantiateMsg {
     pub coconut_dkg_contract_address: String,
     pub threshold: Threshold,
     pub max_voting_period: Duration,
+    // who is able to execute passed proposals
+    // None means that anyone can execute
+    pub executor: Option<Executor>,
+    /// The cost of creating a proposal (if any).
+    pub proposal_deposit: Option<UncheckedDepositInfo>,
 }
 
 // TODO: add some T variants? Maybe good enough as fixed Empty for now
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
 pub enum ExecuteMsg {
     Propose {
         title: String,
@@ -45,41 +49,44 @@ pub enum ExecuteMsg {
 }
 
 // We can also add this as a cw3 extension
-#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, JsonSchema, Debug)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
+#[derive(QueryResponses)]
 pub enum QueryMsg {
-    /// Return ThresholdResponse
+    #[returns(cw_utils::ThresholdResponse)]
     Threshold {},
-    /// Returns ProposalResponse
+    #[returns(cw3::ProposalResponse)]
     Proposal { proposal_id: u64 },
-    /// Returns ProposalListResponse
+    #[returns(cw3::ProposalListResponse)]
     ListProposals {
         start_after: Option<u64>,
         limit: Option<u32>,
     },
-    /// Returns ProposalListResponse
+    #[returns(cw3::ProposalListResponse)]
     ReverseProposals {
         start_before: Option<u64>,
         limit: Option<u32>,
     },
-    /// Returns VoteResponse
+    #[returns(cw3::VoteResponse)]
     Vote { proposal_id: u64, voter: String },
-    /// Returns VoteListResponse
+    #[returns(cw3::VoteListResponse)]
     ListVotes {
         proposal_id: u64,
         start_after: Option<String>,
         limit: Option<u32>,
     },
-    /// Returns VoterInfo
+    #[returns(cw3::VoterResponse)]
     Voter { address: String },
-    /// Returns VoterListResponse
+    #[returns(cw3::VoterListResponse)]
     ListVoters {
         start_after: Option<String>,
         limit: Option<u32>,
     },
+    /// Gets the current configuration.
+    #[returns(crate::state::Config)]
+    Config {},
 }
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+
+#[cw_serde]
 pub struct MigrateMsg {
     pub coconut_bandwidth_address: String,
     pub coconut_dkg_address: String,

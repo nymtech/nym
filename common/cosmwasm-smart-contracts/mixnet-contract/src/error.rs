@@ -165,6 +165,9 @@ pub enum MixnetContractError {
     #[error("Family with head {head} does not exist!")]
     FamilyDoesNotExist { head: String },
 
+    #[error("Family with label {label} does not exist!")]
+    FamilyLabelDoesNotExist { label: String },
+
     #[error("Family with label '{0}' already exists")]
     FamilyWithLabelExists(String),
 

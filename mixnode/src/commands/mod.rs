@@ -15,12 +15,12 @@ use nym_crypto::bech32_address_validation;
 use std::net::IpAddr;
 use std::process;
 
+mod build_info;
 mod describe;
 mod init;
 mod node_details;
 mod run;
 mod sign;
-mod upgrade;
 
 #[derive(Subcommand)]
 pub(crate) enum Commands {
@@ -36,11 +36,11 @@ pub(crate) enum Commands {
     /// Sign text to prove ownership of this mixnode
     Sign(sign::Sign),
 
-    /// Try to upgrade the mixnode
-    Upgrade(upgrade::Upgrade),
-
     /// Show details of this mixnode
     NodeDetails(node_details::NodeDetails),
+
+    /// Show build information of this binary
+    BuildInfo(build_info::BuildInfo),
 
     /// Generate shell completions
     Completions(ArgShell),
@@ -67,8 +67,8 @@ pub(crate) async fn execute(args: Cli) -> anyhow::Result<()> {
         Commands::Init(m) => init::execute(&m),
         Commands::Run(m) => run::execute(&m).await?,
         Commands::Sign(m) => sign::execute(&m)?,
-        Commands::Upgrade(m) => upgrade::execute(&m)?,
         Commands::NodeDetails(m) => node_details::execute(&m)?,
+        Commands::BuildInfo(m) => build_info::execute(m),
         Commands::Completions(s) => s.generate(&mut crate::Cli::command(), bin_name),
         Commands::GenerateFigSpec => fig_generate(&mut crate::Cli::command(), bin_name),
     }

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::client::config::Config;
-use crate::storage::errors::ClientStorageError;
+use crate::storage::error::ClientStorageError;
 use js_sys::Promise;
 use nym_client_core::client::base_client::storage::gateway_details::PersistedGatewayDetails;
 use nym_crypto::asymmetric::{encryption, identity};
@@ -15,7 +15,7 @@ use wasm_utils::storage::{IdbVersionChangeEvent, WasmStorage};
 use wasm_utils::PromisableResult;
 use zeroize::Zeroizing;
 
-pub(crate) mod errors;
+pub(crate) mod error;
 pub(crate) mod traits;
 
 const STORAGE_NAME_PREFIX: &str = "wasm-client-storage";

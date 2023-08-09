@@ -3,7 +3,7 @@ use cw_storage_plus::Item;
 use nym_name_service_common::response::ConfigResponse;
 use serde::{Deserialize, Serialize};
 
-use crate::{constants::CONFIG_KEY, error::Result};
+use crate::{constants::CONFIG_KEY, Result};
 
 const CONFIG: Item<Config> = Item::new(CONFIG_KEY);
 

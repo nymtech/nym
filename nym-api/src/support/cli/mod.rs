@@ -8,13 +8,13 @@ use ::nym_config::defaults::var_names::{MIXNET_CONTRACT_ADDRESS, VESTING_CONTRAC
 use anyhow::Result;
 use clap::Parser;
 use lazy_static::lazy_static;
-use nym_bin_common::build_information::BinaryBuildInformation;
+use nym_bin_common::bin_info;
+use nym_config::defaults::var_names::NYXD;
 use nym_config::OptionalSet;
 use nym_validator_client::nyxd;
 
 lazy_static! {
-    pub static ref PRETTY_BUILD_INFORMATION: String =
-        BinaryBuildInformation::new(env!("CARGO_PKG_VERSION")).pretty_print();
+    pub static ref PRETTY_BUILD_INFORMATION: String = bin_info!().pretty_print();
 }
 
 // Helper for passing LONG_VERSION to clap
@@ -109,7 +109,11 @@ pub(crate) struct CliArgs {
 
 pub(crate) fn override_config(config: Config, args: CliArgs) -> Config {
     config
-        .with_optional(Config::with_custom_nyxd_validator, args.nyxd_validator)
+        .with_optional_env(
+            Config::with_custom_nyxd_validator,
+            args.nyxd_validator,
+            NYXD,
+        )
         .with_optional_env(
             Config::with_custom_mixnet_contract,
             args.mixnet_contract,

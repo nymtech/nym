@@ -1,17 +1,23 @@
 use futures::{channel::mpsc, StreamExt};
-use nym_client_core::client::base_client::storage::gateway_details::GatewayDetailsStore;
-use nym_client_core::client::base_client::storage::{MixnetClientStorage, OnDiskPersistent};
-use nym_client_core::{config::GatewayEndpointConfig, error::ClientCoreStatusMessage};
-use nym_socks5_client_core::NymClient as Socks5NymClient;
-use nym_socks5_client_core::Socks5ControlMessageSender;
+use nym_client_core::{
+    client::{
+        base_client::storage::{
+            gateway_details::GatewayDetailsStore, MixnetClientStorage, OnDiskPersistent,
+        },
+        topology_control::geo_aware_provider::CountryGroup,
+    },
+    config::{GatewayEndpointConfig, TopologyStructure},
+    error::ClientCoreStatusMessage,
+};
+use nym_socks5_client_core::{NymClient as Socks5NymClient, Socks5ControlMessageSender};
 use nym_sphinx::params::PacketSize;
 use nym_task::manager::TaskStatus;
 use std::sync::Arc;
 use tap::TapFallible;
 use tokio::sync::RwLock;
 
-use crate::config::Config;
 use crate::{
+    config::{Config, PrivacyLevel},
     error::Result,
     events::{self, emit_event, emit_status_event},
     models::{ConnectionStatusKind, ConnectivityTestResult},
@@ -30,9 +36,37 @@ pub enum Socks5ExitStatusMessage {
     Failed(Box<dyn std::error::Error + Send>),
 }
 
+fn override_config_from_env(config: &mut Config, privacy_level: &PrivacyLevel) {
+    // Disable both the loop cover traffic that runs in the background as well as the Poisson
+    // process that injects cover traffic into the traffic stream.
+    if let PrivacyLevel::Medium = privacy_level {
+        log::info!("Running in Medium privacy level");
+        log::warn!("Disabling cover traffic");
+        config.core.base.set_no_cover_traffic_with_keepalive();
+
+        log::warn!("Enabling mixed size packets");
+        config
+            .core
+            .base
+            .set_secondary_packet_size(Some(PacketSize::ExtendedPacket16));
+
+        log::warn!("Disabling per-hop delay");
+        config.core.base.set_no_per_hop_delays();
+
+        // TODO: selectable in the UI
+        let default_country_group = CountryGroup::Europe;
+        log::warn!("Using geo-aware mixnode selection: {default_country_group}");
+        config
+            .core
+            .base
+            .set_topology_structure(TopologyStructure::GeoAware(default_country_group));
+    }
+}
+
 /// The main SOCKS5 client task. It loads the configuration from file determined by the `id`.
 pub async fn start_nym_socks5_client(
     id: &str,
+    privacy_level: &PrivacyLevel,
 ) -> Result<(
     Socks5ControlMessageSender,
     nym_task::StatusReceiver,
@@ -43,25 +77,7 @@ pub async fn start_nym_socks5_client(
     let mut config = Config::read_from_default_path(id)
         .tap_err(|_| log::warn!("Failed to load configuration file"))?;
 
-    // Disable both the loop cover traffic that runs in the background as well as the Poisson
-    // process that injects cover traffic into the traffic stream.
-    if std::env::var("NYM_CONNECT_DISABLE_COVER").is_ok() {
-        log::warn!("Disabling cover traffic");
-        config.core.base.set_no_cover_traffic_with_keepalive();
-    }
-
-    if std::env::var("NYM_CONNECT_ENABLE_MIXED_SIZE_PACKETS").is_ok() {
-        log::warn!("Enabling mixed size packets");
-        config
-            .core
-            .base
-            .set_secondary_packet_size(Some(PacketSize::ExtendedPacket16));
-    }
-
-    if std::env::var("NYM_CONNECT_DISABLE_PER_HOP_DELAYS").is_ok() {
-        log::warn!("Disabling per-hop delay");
-        config.core.base.set_no_per_hop_delays();
-    }
+    override_config_from_env(&mut config, privacy_level);
 
     log::trace!("Configuration used: {:#?}", config);
 

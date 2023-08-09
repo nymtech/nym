@@ -120,7 +120,7 @@ async fn test_nyxd_connection(
     )
     .await
     {
-        Ok(Err(NyxdError::TendermintError(e))) => {
+        Ok(Err(NyxdError::TendermintErrorRpc(e))) => {
             // If we get a tendermint-rpc error, we classify the node as not contactable
             log::warn!("Checking: nyxd url: {url}: {}: {}", "failed".red(), e);
             false

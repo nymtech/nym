@@ -11,8 +11,6 @@ pub(crate) const STAKE_DENOM: DenomDetails = DenomDetails::new("unyxt", "nyxt", 
 
 pub(crate) const MIXNET_CONTRACT_ADDRESS: &str = "nymt1ghd753shjuwexxywmgs4xz7x2q732vcnstz02j";
 pub(crate) const VESTING_CONTRACT_ADDRESS: &str = "nymt14ejqjyq8um4p3xfqj74yld5waqljf88fn549lh";
-pub(crate) const BANDWIDTH_CLAIM_CONTRACT_ADDRESS: &str =
-    "nymt17p9rzwnnfxcjp32un9ug7yhhzgtkhvl9f8xzkv";
 pub(crate) const COCONUT_BANDWIDTH_CONTRACT_ADDRESS: &str =
     "nymt1nz0r0au8aj6dc00wmm3ufy4g4k86rjzlgq608r";
 pub(crate) const GROUP_CONTRACT_ADDRESS: &str = "nymt1k8re7jwz6rnnwrktnejdwkwnncte7ek7kk6fvg";
@@ -39,7 +37,6 @@ pub(crate) fn network_details() -> nym_network_defaults::NymNetworkDetails {
         contracts: NymContracts {
             mixnet_contract_address: parse_optional_str(MIXNET_CONTRACT_ADDRESS),
             vesting_contract_address: parse_optional_str(VESTING_CONTRACT_ADDRESS),
-            bandwidth_claim_contract_address: parse_optional_str(BANDWIDTH_CLAIM_CONTRACT_ADDRESS),
             coconut_bandwidth_contract_address: parse_optional_str(
                 COCONUT_BANDWIDTH_CONTRACT_ADDRESS,
             ),

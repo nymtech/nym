@@ -52,6 +52,8 @@ fn dkg_proposal() {
         threshold: Threshold::AbsolutePercentage {
             percentage: Decimal::from_ratio(1u128, 1u128),
         },
+        executor: None,
+        proposal_deposit: None,
         max_voting_period: Duration::Time(1000),
         coconut_bandwidth_contract_address: TEST_COCONUT_BANDWIDTH_CONTRACT_ADDRESS.to_string(),
         coconut_dkg_contract_address: TEST_COCONUT_DKG_CONTRACT_ADDRESS.to_string(),

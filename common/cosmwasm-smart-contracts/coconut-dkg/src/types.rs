@@ -1,8 +1,7 @@
-// Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2022-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
+use cosmwasm_schema::cw_serde;
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 
@@ -18,15 +17,14 @@ pub type EpochId = u64;
 // 2 public attributes, 2 private attributes, 1 fixed for coconut credential
 pub const TOTAL_DEALINGS: usize = 2 + 2 + 1;
 
-#[derive(Serialize, Deserialize, Default, Clone, Debug, PartialEq, Eq, Ord, PartialOrd)]
+#[cw_serde]
 pub struct InitialReplacementData {
     pub initial_dealers: Vec<Addr>,
     pub initial_height: u64,
 }
 
-#[derive(
-    Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq, Ord, PartialOrd, JsonSchema,
-)]
+#[cw_serde]
+#[derive(Copy)]
 pub struct TimeConfiguration {
     // The time sign-up is open for dealers to join
     pub public_key_submission_time_secs: u64,
@@ -75,8 +73,8 @@ impl Default for TimeConfiguration {
     }
 }
 
-#[derive(Serialize, Deserialize, Default, Clone, Copy, Debug, PartialEq, Eq, Ord, PartialOrd)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
+#[derive(Copy, Default)]
 pub struct Epoch {
     pub state: EpochState,
     pub epoch_id: EpochId,
@@ -155,8 +153,8 @@ impl Epoch {
 // 8. InProgress -> all receivers have all their secrets derived and all is good
 //
 // Note: It's important that the variant ordering is not changed otherwise it would mess up the derived `PartialOrd`
-#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq, Ord, PartialOrd)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
+#[derive(Copy)]
 pub enum EpochState {
     PublicKeySubmission { resharing: bool },
     DealingExchange { resharing: bool },

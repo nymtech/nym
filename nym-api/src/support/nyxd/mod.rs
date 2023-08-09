@@ -35,13 +35,13 @@ use nym_validator_client::nyxd::{
     cosmwasm_client::types::ExecuteResult,
     traits::{
         CoconutBandwidthQueryClient, DkgQueryClient, DkgSigningClient, GroupQueryClient,
-        MultisigQueryClient, MultisigSigningClient, NameServiceQueryClient,
+        MultisigQueryClient, MultisigSigningClient, NameServiceQueryClient, VestingQueryClient,
     },
     Fee,
 };
 use nym_validator_client::nyxd::{
     hash::{Hash, SHA256_HASH_SIZE},
-    AccountId, Coin, DirectSigningNyxdClient, TendermintTime, VestingQueryClient,
+    AccountId, Coin, DirectSigningNyxdClient, TendermintTime,
 };
 use nym_validator_client::ValidatorClientError;
 use nym_vesting_contract_common::AccountVestingCoins;
@@ -321,8 +321,8 @@ impl crate::coconut::client::Client for Client {
         &self,
         tx_hash: &str,
     ) -> crate::coconut::error::Result<nym_validator_client::nyxd::TxResponse> {
-        let tx_hash = tx_hash
-            .parse::<nym_validator_client::nyxd::tx::Hash>()
+        let tx_hash: Hash = tx_hash
+            .parse()
             .map_err(|_| CoconutError::TxHashParseError)?;
         Ok(self.0.read().await.nyxd.get_tx(tx_hash).await?)
     }

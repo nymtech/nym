@@ -24,8 +24,12 @@ pub(crate) fn verify_family_join_permit(
     let Some(head_mixnode) = mixnodes_storage::mixnode_bonds()
         .idx
         .identity_key
-        .item(deps.storage, granter.identity().to_owned())?.map(|record| record.1) else {
-        return Err(MixnetContractError::FamilyDoesNotExist { head: granter.identity().to_string() })
+        .item(deps.storage, granter.identity().to_owned())?
+        .map(|record| record.1)
+    else {
+        return Err(MixnetContractError::FamilyDoesNotExist {
+            head: granter.identity().to_string(),
+        });
     };
     let nonce = signing_storage::get_signing_nonce(deps.storage, head_mixnode.owner)?;
     let msg = construct_family_join_permit(nonce, granter, proxy, member.to_owned());

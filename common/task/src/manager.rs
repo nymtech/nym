@@ -30,7 +30,7 @@ enum TaskError {
 }
 
 // TODO: possibly we should create a `Status` trait instead of reusing `Error`
-#[derive(thiserror::Error, Debug)]
+#[derive(thiserror::Error, Debug, PartialEq, Eq)]
 pub enum TaskStatus {
     #[error("Ready")]
     Ready,

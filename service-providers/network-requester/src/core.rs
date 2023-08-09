@@ -13,7 +13,7 @@ use crate::{reply, socks5};
 use async_trait::async_trait;
 use futures::channel::mpsc;
 use log::warn;
-use nym_bin_common::build_information::BinaryBuildInformation;
+use nym_bin_common::bin_info_owned;
 use nym_client_core::config::disk_persistence::CommonClientPaths;
 use nym_network_defaults::NymNetworkDetails;
 use nym_service_providers_common::interface::{
@@ -101,7 +101,7 @@ impl ServiceProvider<Socks5Request> for NRServiceProvider {
     ) -> Result<BinaryInformation, Self::ServiceProviderError> {
         Ok(BinaryInformation {
             binary_name: env!("CARGO_PKG_NAME").to_string(),
-            build_information: BinaryBuildInformation::new(env!("CARGO_PKG_VERSION")).to_owned(),
+            build_information: bin_info_owned!(),
         })
     }
 
@@ -421,7 +421,9 @@ impl NRServiceProvider {
         sender_tag: Option<AnonymousSenderTag>,
         connect_req: Box<ConnectRequest>,
     ) {
-        let Some(return_address) = reply::MixnetAddress::new(connect_req.return_address, sender_tag) else {
+        let Some(return_address) =
+            reply::MixnetAddress::new(connect_req.return_address, sender_tag)
+        else {
             log::warn!(
                 "attempted to start connection with no way of returning data back to the sender"
             );

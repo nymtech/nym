@@ -55,11 +55,11 @@ NETWORK=sandbox cargo build --release # build your binaries with **sandbox** con
 
 Quite a bit of stuff gets built. The key working parts are:
 
-* [mix node](../nodes/mix-node-setup.md): `nym-mixnode`
-* [gateway node](../nodes/gateway-setup.md): `nym-gateway`
+* [mix node](../nodes/mixnode.md): `nym-mixnode`
+* [gateway node](../nodes/gateway.md): `nym-gateway`
 * [websocket client](../clients/websocket-client.md): `nym-client`
 * [socks5 client](../clients/socks5-client.md): `nym-socks5-client`
-* [network requester](../nodes/network-requester-setup.md): `nym-network-requester`
+* [network requester](../nodes/network-requester.md): `nym-network-requester`
 * [nym-cli tool](../tools/nym-cli.md): `nym-cli`
 
 The repository also contains Typescript applications which aren't built in this process. These can be built by following the instructions on their respective docs pages.

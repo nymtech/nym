@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nym Node Tester Demo</title>
+</head>
+
+<body>
+<p>
+  <label>Mixnode Id: </label><input size="85" type="text" id="mixnodeId" value="">
+</p>
+<p>
+  <button id="test-button">Test</button>
+  <button id="disconnect-button">Disconnect from Gateway</button>
+  <button id="reconnect-button">Reconnect to Gateway</button>
+  <button id="terminate-button">Terminate worker</button>
+</p>
+
+<p>Test a mixnode by entering the mixnode id above and click the Test button</p>
+
+<hr>
+<p>
+<div id="output"></div>
+</p>
+<script src="./index.ts" type="module"></script>
+</body>
+</html>

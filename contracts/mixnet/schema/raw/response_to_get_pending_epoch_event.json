@@ -1,0 +1,298 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "PendingEpochEventResponse",
+  "type": "object",
+  "required": [
+    "event_id"
+  ],
+  "properties": {
+    "event": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/PendingEpochEventData"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "event_id": {
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0.0
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "Addr": {
+      "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
+      "type": "string"
+    },
+    "Coin": {
+      "type": "object",
+      "required": [
+        "amount",
+        "denom"
+      ],
+      "properties": {
+        "amount": {
+          "$ref": "#/definitions/Uint128"
+        },
+        "denom": {
+          "type": "string"
+        }
+      }
+    },
+    "PendingEpochEventData": {
+      "description": "Details of a particular pending epoch event.",
+      "type": "object",
+      "required": [
+        "created_at",
+        "kind"
+      ],
+      "properties": {
+        "created_at": {
+          "description": "The block height at which the request has been made.",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        },
+        "kind": {
+          "description": "The underlying event data, containing its concrete type and information on how it should get resolved.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/PendingEpochEventKind"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "PendingEpochEventKind": {
+      "description": "Enum encompassing all possible epoch events.",
+      "oneOf": [
+        {
+          "description": "Request to create a delegation towards particular mixnode. Note that if such delegation already exists, it will get updated with the provided token amount.",
+          "type": "object",
+          "required": [
+            "delegate"
+          ],
+          "properties": {
+            "delegate": {
+              "type": "object",
+              "required": [
+                "amount",
+                "mix_id",
+                "owner"
+              ],
+              "properties": {
+                "amount": {
+                  "description": "The amount of tokens to use for the delegation.",
+                  "allOf": [
+                    {
+                      "$ref": "#/definitions/Coin"
+                    }
+                  ]
+                },
+                "mix_id": {
+                  "description": "The id of the mixnode used for the delegation.",
+                  "type": "integer",
+                  "format": "uint32",
+                  "minimum": 0.0
+                },
+                "owner": {
+                  "description": "The address of the owner of the delegation.",
+                  "allOf": [
+                    {
+                      "$ref": "#/definitions/Addr"
+                    }
+                  ]
+                },
+                "proxy": {
+                  "description": "Entity who made the delegation on behalf of the owner. If present, it's most likely the address of the vesting contract.",
+                  "anyOf": [
+                    {
+                      "$ref": "#/definitions/Addr"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "Request to remove delegation from particular mixnode.",
+          "type": "object",
+          "required": [
+            "undelegate"
+          ],
+          "properties": {
+            "undelegate": {
+              "type": "object",
+              "required": [
+                "mix_id",
+                "owner"
+              ],
+              "properties": {
+                "mix_id": {
+                  "description": "The id of the mixnode used for the delegation.",
+                  "type": "integer",
+                  "format": "uint32",
+                  "minimum": 0.0
+                },
+                "owner": {
+                  "description": "The address of the owner of the delegation.",
+                  "allOf": [
+                    {
+                      "$ref": "#/definitions/Addr"
+                    }
+                  ]
+                },
+                "proxy": {
+                  "description": "Entity who made the delegation on behalf of the owner. If present, it's most likely the address of the vesting contract.",
+                  "anyOf": [
+                    {
+                      "$ref": "#/definitions/Addr"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "Request to pledge more tokens (by the node operator) towards its node.",
+          "type": "object",
+          "required": [
+            "pledge_more"
+          ],
+          "properties": {
+            "pledge_more": {
+              "type": "object",
+              "required": [
+                "amount",
+                "mix_id"
+              ],
+              "properties": {
+                "amount": {
+                  "description": "The amount of additional tokens to use by the pledge.",
+                  "allOf": [
+                    {
+                      "$ref": "#/definitions/Coin"
+                    }
+                  ]
+                },
+                "mix_id": {
+                  "description": "The id of the mixnode that will have its pledge updated.",
+                  "type": "integer",
+                  "format": "uint32",
+                  "minimum": 0.0
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "Request to decrease amount of pledged tokens (by the node operator) from its node.",
+          "type": "object",
+          "required": [
+            "decrease_pledge"
+          ],
+          "properties": {
+            "decrease_pledge": {
+              "type": "object",
+              "required": [
+                "decrease_by",
+                "mix_id"
+              ],
+              "properties": {
+                "decrease_by": {
+                  "description": "The amount of tokens that should be removed from the pledge.",
+                  "allOf": [
+                    {
+                      "$ref": "#/definitions/Coin"
+                    }
+                  ]
+                },
+                "mix_id": {
+                  "description": "The id of the mixnode that will have its pledge updated.",
+                  "type": "integer",
+                  "format": "uint32",
+                  "minimum": 0.0
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "Request to unbond a mixnode and completely remove it from the network.",
+          "type": "object",
+          "required": [
+            "unbond_mixnode"
+          ],
+          "properties": {
+            "unbond_mixnode": {
+              "type": "object",
+              "required": [
+                "mix_id"
+              ],
+              "properties": {
+                "mix_id": {
+                  "description": "The id of the mixnode that will get unbonded.",
+                  "type": "integer",
+                  "format": "uint32",
+                  "minimum": 0.0
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "Request to update the current size of the active set.",
+          "type": "object",
+          "required": [
+            "update_active_set_size"
+          ],
+          "properties": {
+            "update_active_set_size": {
+              "type": "object",
+              "required": [
+                "new_size"
+              ],
+              "properties": {
+                "new_size": {
+                  "description": "The new desired size of the active set.",
+                  "type": "integer",
+                  "format": "uint32",
+                  "minimum": 0.0
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Uint128": {
+      "description": "A thin wrapper around u128 that is using strings for JSON encoding/decoding, such that the full u128 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u128` to get the value out:\n\n``` # use cosmwasm_std::Uint128; let a = Uint128::from(123u128); assert_eq!(a.u128(), 123);\n\nlet b = Uint128::from(42u64); assert_eq!(b.u128(), 42);\n\nlet c = Uint128::from(70u32); assert_eq!(c.u128(), 70); ```",
+      "type": "string"
+    }
+  }
+}

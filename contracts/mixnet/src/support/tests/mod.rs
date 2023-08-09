@@ -224,7 +224,7 @@ pub mod test_helpers {
 
             let join_permit =
                 self.generate_family_join_permit(head_keys, &member_identity, vesting);
-            let family_head = FamilyHead::new(&head_identity);
+            let family_head = FamilyHead::new(head_identity);
 
             try_join_family(
                 self.deps_mut(),

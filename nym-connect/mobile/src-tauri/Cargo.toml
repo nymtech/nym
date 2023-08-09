@@ -43,7 +43,7 @@ serde_repr = "0.1"
 tap = "1.0.1"
 # tauri = { git = "https://github.com/tauri-apps/tauri", branch = "next", features = ["clipboard-write-text", "native-tls-vendored", "notification-all", "shell-open"] }
 tauri = { version = "2.0.0-alpha.3", features = ["clipboard-write-text", "native-tls-vendored", "notification-all", "shell-open"] }
-tendermint-rpc = "0.23.0"
+#tendermint-rpc = "0.23.0"
 thiserror = "1.0"
 time = { version = "0.3.17", features = ["local-offset"] }
 tokio = { version = "1.24.1", features = ["sync", "time"] }

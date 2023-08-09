@@ -18,11 +18,11 @@ use std::error::Error;
 use std::net::IpAddr;
 use std::path::PathBuf;
 
+pub(crate) mod build_info;
 pub(crate) mod init;
 pub(crate) mod node_details;
 pub(crate) mod run;
 pub(crate) mod sign;
-pub(crate) mod upgrade;
 
 #[derive(Subcommand)]
 pub(crate) enum Commands {
@@ -38,8 +38,8 @@ pub(crate) enum Commands {
     /// Sign text to prove ownership of this mixnode
     Sign(sign::Sign),
 
-    /// Try to upgrade the gateway
-    Upgrade(upgrade::Upgrade),
+    /// Show build information of this binary
+    BuildInfo(build_info::BuildInfo),
 
     /// Generate shell completions
     Completions(ArgShell),
@@ -71,7 +71,7 @@ pub(crate) async fn execute(args: Cli) -> Result<(), Box<dyn Error + Send + Sync
         Commands::NodeDetails(m) => node_details::execute(m).await?,
         Commands::Run(m) => run::execute(m).await?,
         Commands::Sign(m) => sign::execute(m)?,
-        Commands::Upgrade(m) => upgrade::execute(&m).await,
+        Commands::BuildInfo(m) => build_info::execute(m),
         Commands::Completions(s) => s.generate(&mut crate::Cli::command(), bin_name),
         Commands::GenerateFigSpec => fig_generate(&mut crate::Cli::command(), bin_name),
     }

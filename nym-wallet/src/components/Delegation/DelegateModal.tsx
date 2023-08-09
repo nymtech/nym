@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useContext, useState } from 'react';
 import { Box, Typography, SxProps } from '@mui/material';
 import { IdentityKeyFormField } from '@nymproject/react/mixnodes/IdentityKeyFormField';
 import { CurrencyFormField } from '@nymproject/react/currency/CurrencyFormField';
@@ -7,6 +7,7 @@ import { Console } from 'src/utils/console';
 import { useGetFee } from 'src/hooks/useGetFee';
 import { simulateDelegateToMixnode, simulateVestingDelegateToMixnode, tryConvertIdentityToMixId } from 'src/requests';
 import { debounce } from 'lodash';
+import { AppContext } from 'src/context';
 import { SimpleModal } from '../Modals/SimpleModal';
 import { ModalListItem } from '../Modals/ModalListItem';
 import { checkTokenBalance, validateAmount, validateKey } from '../../utils';
@@ -15,6 +16,7 @@ import { ConfirmTx } from '../ConfirmTX';
 
 import { getMixnodeStakeSaturation } from '../../requests';
 import { ErrorModal } from '../Modals/ErrorModal';
+import { BalanceWarning } from '../FeeWarning';
 
 const MIN_AMOUNT_TO_DELEGATE = 10;
 
@@ -73,6 +75,7 @@ export const DelegateModal: FCWithChildren<{
   const [mixIdError, setMixIdError] = useState<string>();
 
   const { fee, getFee, resetFeeState, feeError } = useGetFee();
+  const { userBalance } = useContext(AppContext);
 
   const handleCheckStakeSaturation = async (newMixId: number) => {
     try {
@@ -213,6 +216,11 @@ export const DelegateModal: FCWithChildren<{
         onPrev={resetFeeState}
         onConfirm={handleOk}
       >
+        {userBalance.balance?.amount.amount && fee?.amount?.amount && (
+          <Box sx={{ my: 2 }}>
+            <BalanceWarning fee={fee?.amount?.amount} tx={amount} />
+          </Box>
+        )}
         <ModalListItem label="Node identity key" value={identityKey} divider />
         <ModalListItem label="Amount" value={`${amount} ${denom.toUpperCase()}`} divider />
       </ConfirmTx>

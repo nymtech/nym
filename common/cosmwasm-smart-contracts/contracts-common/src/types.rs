@@ -1,16 +1,17 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use cosmwasm_schema::cw_serde;
 use cosmwasm_std::Decimal;
 use cosmwasm_std::Uint128;
-use schemars::JsonSchema;
 use serde::de::Error;
-use serde::{Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Deserializer};
 use std::fmt::{self, Display, Formatter};
 use std::ops::Mul;
 use std::str::FromStr;
 use thiserror::Error;
 
+/// Ed25519 public key strinfified into base58.
 pub type IdentityKey = String;
 pub type IdentityKeyRef<'a> = &'a str;
 
@@ -32,9 +33,8 @@ pub enum ContractsCommonError {
 
 /// Percent represents a value between 0 and 100%
 /// (i.e. between 0.0 and 1.0)
-#[derive(
-    Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Serialize, Deserialize, JsonSchema,
-)]
+#[cw_serde]
+#[derive(Copy, Default, PartialOrd)]
 pub struct Percent(#[serde(deserialize_with = "de_decimal_percent")] Decimal);
 
 impl Percent {
@@ -129,7 +129,7 @@ where
 
 // TODO: there's no reason this couldn't be used for proper binaries, but in that case
 // perhaps the struct should get renamed and moved to a "more" common crate
-#[derive(Debug, Serialize, Deserialize)]
+#[cw_serde]
 pub struct ContractBuildInformation {
     // VERGEN_BUILD_TIMESTAMP
     /// Provides the build timestamp, for example `2021-02-23T20:14:46.558472672+00:00`.

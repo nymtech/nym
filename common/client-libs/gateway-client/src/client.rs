@@ -31,14 +31,16 @@ use tungstenite::protocol::Message;
 #[cfg(not(target_arch = "wasm32"))]
 use nym_validator_client::nyxd::traits::DkgQueryClient;
 #[cfg(not(target_arch = "wasm32"))]
+use tokio::time::sleep;
+#[cfg(not(target_arch = "wasm32"))]
 use tokio_tungstenite::connect_async;
 
 #[cfg(target_arch = "wasm32")]
 use nym_bandwidth_controller::wasm_mockups::DkgQueryClient;
 #[cfg(target_arch = "wasm32")]
-use wasm_timer;
-#[cfg(target_arch = "wasm32")]
 use wasm_utils::websocket::JSWebsocket;
+#[cfg(target_arch = "wasm32")]
+use wasmtimer::tokio::sleep;
 
 const DEFAULT_RECONNECTION_ATTEMPTS: usize = 10;
 const DEFAULT_RECONNECTION_BACKOFF: Duration = Duration::from_secs(5);
@@ -198,15 +200,7 @@ impl<C, St> GatewayClient<C, St> {
             }
 
             #[cfg(not(target_arch = "wasm32"))]
-            tokio::time::sleep(self.reconnection_backoff).await;
-
-            #[cfg(target_arch = "wasm32")]
-            if let Err(err) = wasm_timer::Delay::new(self.reconnection_backoff).await {
-                error!(
-                    "the timer has gone away while in reconnection backoff! - {}",
-                    err
-                );
-            }
+            sleep(self.reconnection_backoff).await;
         }
 
         // final attempt (done separately to be able to return a proper error)
@@ -235,15 +229,8 @@ impl<C, St> GatewayClient<C, St> {
             _ => return Err(GatewayClientError::ConnectionInInvalidState),
         };
 
-        #[cfg(not(target_arch = "wasm32"))]
-        let timeout = tokio::time::sleep(self.response_timeout_duration);
-        #[cfg(not(target_arch = "wasm32"))]
+        let timeout = sleep(self.response_timeout_duration);
         tokio::pin!(timeout);
-
-        // technically the `wasm_timer` also works outside wasm, but unless required,
-        // I really prefer to just stick to tokio
-        #[cfg(target_arch = "wasm32")]
-        let mut timeout = wasm_timer::Delay::new(self.response_timeout_duration);
 
         loop {
             tokio::select! {

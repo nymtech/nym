@@ -19,10 +19,10 @@ thiserror = "1.0.37"
 async-trait = { workspace = true, optional = true }
 
 ## internal
-nym-crypto = { path = "../crypto" }
+nym-crypto = { path = "../crypto", features = ["sphinx", "outfox"] }
 nym-mixnet-contract-common = { path = "../cosmwasm-smart-contracts/mixnet-contract" }
 nym-sphinx-addressing = { path = "../nymsphinx/addressing" }
-nym-sphinx-types = { path = "../nymsphinx/types" }
+nym-sphinx-types = { path = "../nymsphinx/types", features = ["sphinx", "outfox"] }
 nym-sphinx-routing = { path = "../nymsphinx/routing" }
 nym-bin-common = { path = "../bin-common" }
 

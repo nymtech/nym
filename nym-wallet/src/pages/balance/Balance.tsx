@@ -1,9 +1,10 @@
 import React from 'react';
 import { Alert, Grid, Typography } from '@mui/material';
 import { Link } from '@nymproject/react/link/Link';
+import { ClientAddress } from '@nymproject/react/client-address/ClientAddress';
 import { Network } from 'src/types';
 import { Balance } from '@nymproject/types';
-import { NymCard, ClientAddress } from '../../components';
+import { NymCard } from '../../components';
 import { urls } from '../../context/main';
 
 export const BalanceCard = ({
@@ -17,7 +18,12 @@ export const BalanceCard = ({
   network?: Network;
   clientAddress?: string;
 }) => (
-  <NymCard title="Balance" data-testid="check-balance" borderless Action={<ClientAddress withCopy showEntireAddress />}>
+  <NymCard
+    title="Balance"
+    data-testid="check-balance"
+    borderless
+    Action={clientAddress && <ClientAddress address={clientAddress} withCopy showEntireAddress />}
+  >
     <Grid container direction="column" spacing={2}>
       <Grid item>
         {userBalanceError && (

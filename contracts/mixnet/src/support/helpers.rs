@@ -298,7 +298,7 @@ pub(crate) fn ensure_is_authorized(
     sender: &Addr,
     storage: &dyn Storage,
 ) -> Result<(), MixnetContractError> {
-    if sender != &crate::mixnet_contract_settings::storage::rewarding_validator_address(storage)? {
+    if sender != crate::mixnet_contract_settings::storage::rewarding_validator_address(storage)? {
         return Err(MixnetContractError::Unauthorized);
     }
     Ok(())
@@ -309,7 +309,7 @@ pub(crate) fn ensure_can_advance_epoch(
     storage: &dyn Storage,
 ) -> Result<EpochStatus, MixnetContractError> {
     let epoch_status = crate::interval::storage::current_epoch_status(storage)?;
-    if sender != &epoch_status.being_advanced_by {
+    if sender != epoch_status.being_advanced_by {
         // well, we know we're going to throw an error now,
         // but we might as well also check if we're even a validator
         // to return a possibly better error message

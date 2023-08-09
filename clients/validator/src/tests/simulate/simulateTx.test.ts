@@ -22,9 +22,12 @@ describe('Simualtions', () => {
   });
 
   it('can simulate sending tokens', async () => {
-    const res = await client.simulateSend(client.address, client.address, client.address, [
-      { amount: '400000', denom: 'unym' },
-    ]);
+    const res = await client.simulateSend({
+      signingAddress: client.address,
+      from: client.address,
+      to: client.address,
+      amount: [{ amount: '400000', denom: 'unym' }],
+    });
 
     expect(typeof res).toBe('number');
   }).timeout(10000);

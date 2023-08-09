@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useContext, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { clean } from 'semver';
-import { Button, Divider, Grid, Stack, TextField, Typography } from '@mui/material';
+import { Box, Button, Divider, Grid, Stack, TextField, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { isMixnode } from 'src/types';
 import { simulateUpdateMixnodeConfig, simulateVestingUpdateMixnodeConfig, updateMixnodeConfig } from 'src/requests';
@@ -15,10 +15,13 @@ import { vestingUpdateMixnodeConfig } from 'src/requests/vesting';
 import { ConfirmTx } from 'src/components/ConfirmTX';
 import { useGetFee } from 'src/hooks/useGetFee';
 import { LoadingModal } from 'src/components/Modals/LoadingModal';
+import { BalanceWarning } from 'src/components/FeeWarning';
+import { AppContext } from 'src/context';
 
 export const GeneralMixnodeSettings = ({ bondedNode }: { bondedNode: TBondedMixnode | TBondedGateway }) => {
   const [openConfirmationModal, setOpenConfirmationModal] = useState<boolean>(false);
   const { getFee, fee, resetFeeState } = useGetFee();
+  const { userBalance } = useContext(AppContext);
 
   const theme = useTheme();
 
@@ -72,7 +75,13 @@ export const GeneralMixnodeSettings = ({ bondedNode }: { bondedNode: TBondedMixn
           onConfirm={handleSubmit((d) => onSubmit(d))}
           onPrev={resetFeeState}
           onClose={resetFeeState}
-        />
+        >
+          {fee.amount?.amount && userBalance?.balance?.amount.amount && (
+            <Box sx={{ mb: 2 }}>
+              <BalanceWarning fee={fee.amount.amount} />
+            </Box>
+          )}
+        </ConfirmTx>
       )}
       {isSubmitting && <LoadingModal />}
       <Alert

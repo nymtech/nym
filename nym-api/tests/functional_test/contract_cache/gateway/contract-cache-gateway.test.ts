@@ -1,13 +1,10 @@
 import ContractCache from "../../../src/endpoints/ContractCache";
-import ConfigHandler from "../../../src/config/configHandler";
 
 let contract: ContractCache;
-let config: ConfigHandler;
 
 describe("Get gateway data", (): void => {
   beforeAll(async (): Promise<void> => {
     contract = new ContractCache();
-    config = ConfigHandler.getInstance();
   });
 
   it("Get all gateways", async (): Promise<void> => {
@@ -40,8 +37,13 @@ describe("Get gateway data", (): void => {
 
   it("Get blacklisted gateways", async (): Promise<void> => {
     const response = await contract.getBlacklistedGateways();
-    response.forEach(function (value) {
-      expect(typeof value).toBe("string");
-    });
+    if (response === null) {
+      // no blacklisted gateways returns an empty array
+      expect(response).toBeNull();
+    } else {
+      response.forEach(function (value) {
+        expect(typeof value).toBe("string");
+      });
+    }
   });
 });

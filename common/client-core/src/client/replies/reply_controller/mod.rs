@@ -727,7 +727,11 @@ where
                 continue;
             }
 
-            let Some(last_received) = self.full_reply_storage.surbs_storage_ref().surbs_last_received_at(pending_reply_target) else {
+            let Some(last_received) = self
+                .full_reply_storage
+                .surbs_storage_ref()
+                .surbs_last_received_at(pending_reply_target)
+            else {
                 error!("we have {} pending replies for {pending_reply_target}, but we somehow never received any reply surbs from them!", vals.total_size());
                 to_remove.push(*pending_reply_target);
                 continue;
@@ -811,7 +815,8 @@ where
 
             // this should never ever happen (famous last words, eh?), but in case it DOES happen eventually
             // purge that malformed data
-            let Ok(sent_at) = OffsetDateTime::from_unix_timestamp(reply_key.sent_at_timestamp) else {
+            let Ok(sent_at) = OffsetDateTime::from_unix_timestamp(reply_key.sent_at_timestamp)
+            else {
                 error!("somehow our stored timestamp ({}) for one of our reply key is corrupted!. Going to remove all the entry", reply_key.sent_at_timestamp);
                 to_remove_keys.push(*digest);
                 continue;

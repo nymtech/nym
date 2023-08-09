@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "jsx": "react",
+    "baseUrl": ".",
+    "paths": {
+      "react": ["node_modules/react"],
+      "react-dom": ["node_modules/react-dom"]
+    },
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true
+  },
+  "include": ["src"],
+  "paths": {
+    "@assets/*": ["../../../../../../assets"]
+  }
+}

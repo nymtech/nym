@@ -4,7 +4,7 @@ use nym_contracts_common::ContractBuildInformation;
 use nym_name_service_common::{
     msg::QueryMsg as NameQueryMsg,
     response::{ConfigResponse, NamesListResponse, PagedNamesListResponse},
-    Address, NameEntry, NameId,
+    Address, NameId, RegisteredName,
 };
 use serde::Deserialize;
 
@@ -21,7 +21,7 @@ pub trait NameServiceQueryClient {
             .await
     }
 
-    async fn get_name_entry(&self, name_id: NameId) -> Result<NameEntry, NyxdError> {
+    async fn get_name_entry(&self, name_id: NameId) -> Result<RegisteredName, NyxdError> {
         self.query_name_service_contract(NameQueryMsg::NameId { name_id })
             .await
     }
@@ -54,14 +54,14 @@ pub trait NameServiceQueryClient {
             .await
     }
 
-    async fn get_all_names(&self) -> Result<Vec<NameEntry>, NyxdError> {
+    async fn get_all_names(&self) -> Result<Vec<RegisteredName>, NyxdError> {
         let mut services = Vec::new();
         let mut start_after = None;
 
         loop {
             let mut paged_response = self.get_names_paged(start_after.take(), None).await?;
 
-            let last_id = paged_response.names.last().map(|serv| serv.name_id);
+            let last_id = paged_response.names.last().map(|serv| serv.id);
             services.append(&mut paged_response.names);
 
             if let Some(start_after_res) = last_id {

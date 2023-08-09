@@ -5,9 +5,13 @@
 // and be used by our smart contracts
 
 use serde::{Deserialize, Serialize};
+use std::fmt::{Display, Formatter};
 
 #[derive(Debug)]
 pub struct BinaryBuildInformation {
+    /// Provides the name of the binary, i.e. the content of `CARGO_PKG_NAME` environmental variable.
+    pub binary_name: &'static str,
+
     // VERGEN_BUILD_TIMESTAMP
     /// Provides the build timestamp, for example `2021-02-23T20:14:46.558472672+00:00`.
     pub build_timestamp: &'static str,
@@ -43,8 +47,9 @@ pub struct BinaryBuildInformation {
 
 impl BinaryBuildInformation {
     // explicitly require the build_version to be passed as it's binary specific
-    pub const fn new(build_version: &'static str) -> Self {
+    pub const fn new(binary_name: &'static str, build_version: &'static str) -> Self {
         BinaryBuildInformation {
+            binary_name,
             build_timestamp: env!("VERGEN_BUILD_TIMESTAMP"),
             build_version,
             commit_sha: env!("VERGEN_GIT_SHA"),
@@ -58,6 +63,7 @@ impl BinaryBuildInformation {
 
     pub fn to_owned(&self) -> BinaryBuildInformationOwned {
         BinaryBuildInformationOwned {
+            binary_name: self.binary_name.to_owned(),
             build_timestamp: self.build_timestamp.to_owned(),
             build_version: self.build_version.to_owned(),
             commit_sha: self.commit_sha.to_owned(),
@@ -70,39 +76,15 @@ impl BinaryBuildInformation {
     }
 
     pub fn pretty_print(&self) -> String {
-        format!(
-            r#"
-{:<20}{}
-{:<20}{}
-{:<20}{}
-{:<20}{}
-{:<20}{}
-{:<20}{}
-{:<20}{}
-{:<20}{}
-"#,
-            "Build Timestamp:",
-            self.build_timestamp,
-            "Build Version:",
-            self.build_version,
-            "Commit SHA:",
-            self.commit_sha,
-            "Commit Date:",
-            self.commit_timestamp,
-            "Commit Branch:",
-            self.commit_branch,
-            "rustc Version:",
-            self.rustc_version,
-            "rustc Channel:",
-            self.rustc_channel,
-            "cargo Profile:",
-            self.cargo_profile,
-        )
+        self.to_owned().to_string()
     }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct BinaryBuildInformationOwned {
+    /// Provides the name of the binary, i.e. the content of `CARGO_PKG_NAME` environmental variable.
+    pub binary_name: String,
+
     // VERGEN_BUILD_TIMESTAMP
     /// Provides the build timestamp, for example `2021-02-23T20:14:46.558472672+00:00`.
     pub build_timestamp: String,
@@ -134,4 +116,63 @@ pub struct BinaryBuildInformationOwned {
     // VERGEN_CARGO_PROFILE
     /// Provides the cargo profile that was used for the build, for example `debug`.
     pub cargo_profile: String,
+}
+
+impl Display for BinaryBuildInformationOwned {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            r#"
+{:<20}{}
+{:<20}{}
+{:<20}{}
+{:<20}{}
+{:<20}{}
+{:<20}{}
+{:<20}{}
+{:<20}{}
+{:<20}{}
+"#,
+            "Binary Name:",
+            self.binary_name,
+            "Build Timestamp:",
+            self.build_timestamp,
+            "Build Version:",
+            self.build_version,
+            "Commit SHA:",
+            self.commit_sha,
+            "Commit Date:",
+            self.commit_timestamp,
+            "Commit Branch:",
+            self.commit_branch,
+            "rustc Version:",
+            self.rustc_version,
+            "rustc Channel:",
+            self.rustc_channel,
+            "cargo Profile:",
+            self.cargo_profile,
+        )
+    }
+}
+
+// since this macro will get expanded at the callsite, it will pull in correct binary version
+#[macro_export]
+macro_rules! bin_info {
+    () => {
+        $crate::build_information::BinaryBuildInformation::new(
+            env!("CARGO_PKG_NAME"),
+            env!("CARGO_PKG_VERSION"),
+        )
+    };
+}
+
+#[macro_export]
+macro_rules! bin_info_owned {
+    () => {
+        $crate::build_information::BinaryBuildInformation::new(
+            env!("CARGO_PKG_NAME"),
+            env!("CARGO_PKG_VERSION"),
+        )
+        .to_owned()
+    };
 }

@@ -1,22 +1,34 @@
+// Copyright 2022-2023 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
 use crate::{IdentityKey, IdentityKeyRef};
+use cosmwasm_schema::cw_serde;
 use cosmwasm_std::Addr;
 use schemars::JsonSchema;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 
+/// A group of mixnodes associated with particular staking entity.
+/// When defined all nodes belonging to the same family will be prioritised to be put onto the same layer.
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
     ts(export_to = "ts-packages/types/src/types/rust/NodeFamily.ts")
 )]
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, JsonSchema)]
+#[cw_serde]
 pub struct Family {
+    /// Owner of this family.
     head: FamilyHead,
+
+    /// Optional proxy (i.e. vesting contract address) used when creating the family.
     proxy: Option<String>,
+
+    /// Human readable label for this family.
     label: String,
 }
 
+/// Head of particular family as identified by its identity key (i.e. public component of its ed25519 keypair stringified into base58).
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
@@ -62,8 +74,8 @@ impl Display for FamilyHead {
 }
 
 impl FamilyHead {
-    pub fn new(identity: IdentityKeyRef<'_>) -> Self {
-        FamilyHead(identity.to_string())
+    pub fn new<S: Into<String>>(identity: S) -> Self {
+        FamilyHead(identity.into())
     }
 
     pub fn identity(&self) -> IdentityKeyRef<'_> {
@@ -97,6 +109,66 @@ impl Family {
     pub fn label(&self) -> &str {
         &self.label
     }
+}
+
+/// Response containing paged list of all families registered in the contract.
+#[cw_serde]
+pub struct PagedFamiliesResponse {
+    /// The families registered in the contract.
+    pub families: Vec<Family>,
+
+    /// Field indicating paging information for the following queries if the caller wishes to get further entries.
+    pub start_next_after: Option<String>,
+}
+
+/// Response containing paged list of all family members (of ALL families) registered in the contract.
+#[cw_serde]
+pub struct PagedMembersResponse {
+    /// The members alongside their family heads.
+    pub members: Vec<(IdentityKey, FamilyHead)>,
+
+    /// Field indicating paging information for the following queries if the caller wishes to get further entries.
+    pub start_next_after: Option<String>,
+}
+
+/// Response containing family information.
+#[cw_serde]
+pub struct FamilyByHeadResponse {
+    /// The family head used for the query.
+    pub head: FamilyHead,
+
+    /// If applicable, the family associated with the provided head.
+    pub family: Option<Family>,
+}
+
+/// Response containing family information.
+#[cw_serde]
+pub struct FamilyByLabelResponse {
+    /// The family label used for the query.
+    pub label: String,
+
+    /// If applicable, the family associated with the provided label.
+    pub family: Option<Family>,
+}
+
+/// Response containing family members information.
+#[cw_serde]
+pub struct FamilyMembersByHeadResponse {
+    /// The family head used for the query.
+    pub head: FamilyHead,
+
+    /// All members belonging to the specified family.
+    pub members: Vec<IdentityKey>,
+}
+
+/// Response containing family members information.
+#[cw_serde]
+pub struct FamilyMembersByLabelResponse {
+    /// The family label used for the query.
+    pub label: String,
+
+    /// All members belonging to the specified family.
+    pub members: Vec<IdentityKey>,
 }
 
 #[cfg(test)]

@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { listen, UnlistenFn } from '@tauri-apps/api/event';
+import * as Sentry from '@sentry/react';
 import { ConnectionStatusKind, GatewayPerformance } from 'src/types';
 import { Error } from 'src/types/error';
 import { TauriEvent } from 'src/types/event';
@@ -29,7 +30,10 @@ export const useEvents = ({
       .then((result) => {
         unlisten.push(result);
       })
-      .catch((e) => console.log(e));
+      .catch((e) => {
+        console.log(e);
+        Sentry.captureException(e);
+      });
 
     listen('socks5-event', (e: TauriEvent) => {
       console.log(e);

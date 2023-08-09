@@ -1,4 +1,4 @@
-use cosmrs::tx::Gas as CosmrsGas;
+use cosmrs::Gas as CosmrsGas;
 use nym_validator_client::nyxd::cosmwasm_client::types::GasInfo as ValidatorClientGasInfo;
 use serde::{Deserialize, Serialize};
 
@@ -21,8 +21,14 @@ impl Gas {
 
 impl From<CosmrsGas> for Gas {
     fn from(gas: CosmrsGas) -> Self {
+        Gas { gas_units: gas }
+    }
+}
+
+impl From<i64> for Gas {
+    fn from(value: i64) -> Self {
         Gas {
-            gas_units: gas.value(),
+            gas_units: value.try_into().unwrap_or_default(),
         }
     }
 }

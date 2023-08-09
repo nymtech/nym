@@ -125,7 +125,7 @@ export interface EpochLength {
 }
 
 export interface ServiceProviders {
-  services: (Services)[];
+  services: Services[];
 }
 export interface Services {
   service_id: number;
@@ -145,4 +145,3 @@ export interface Deposit {
   denom: string;
   amount: string;
 }
-

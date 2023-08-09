@@ -70,6 +70,8 @@ pub enum BackendError {
     NewWindowError,
     #[error("unable to parse the specified gateway")]
     UnableToParseGateway,
+    #[error("unable to write user data to disk")]
+    UserDataWriteError,
 
     #[error("unable to load keys: {source}")]
     UnableToLoadKeys {

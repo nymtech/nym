@@ -1,0 +1,42 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "PagedMembersResponse",
+  "description": "Response containing paged list of all family members (of ALL families) registered in the contract.",
+  "type": "object",
+  "required": [
+    "members"
+  ],
+  "properties": {
+    "members": {
+      "description": "The members alongside their family heads.",
+      "type": "array",
+      "items": {
+        "type": "array",
+        "items": [
+          {
+            "type": "string"
+          },
+          {
+            "$ref": "#/definitions/FamilyHead"
+          }
+        ],
+        "maxItems": 2,
+        "minItems": 2
+      }
+    },
+    "start_next_after": {
+      "description": "Field indicating paging information for the following queries if the caller wishes to get further entries.",
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "FamilyHead": {
+      "description": "Head of particular family as identified by its identity key (i.e. public component of its ed25519 keypair stringified into base58).",
+      "type": "string"
+    }
+  }
+}

@@ -1,4 +1,5 @@
 use futures::SinkExt;
+use log::error;
 use nym_client_core::error::ClientCoreStatusMessage;
 use nym_socks5_client_core::{Socks5ControlMessage, Socks5ControlMessageSender};
 use std::time::Duration;
@@ -7,6 +8,8 @@ use tauri::Manager;
 use tokio::time::Instant;
 
 use crate::config::Config;
+use crate::config::PrivacyLevel;
+use crate::config::UserData;
 use crate::{
     config::{self, socks5_config_id_appended_with},
     error::{BackendError, Result},
@@ -65,10 +68,13 @@ pub struct State {
     /// The latest end-to-end connectivity test result. The first test is initiated on connection
     /// established. Additional tests can be triggered.
     connectivity_test_result: ConnectivityTestResult,
+
+    /// User data saved on disk, like user settings
+    user_data: UserData,
 }
 
 impl State {
-    pub fn new() -> Self {
+    pub fn new(user_data: UserData) -> Self {
         State {
             status: ConnectionStatusKind::Disconnected,
             service_provider: None,
@@ -76,6 +82,7 @@ impl State {
             socks5_client_sender: None,
             gateway_connectivity: GatewayConnectivity::Good,
             connectivity_test_result: ConnectivityTestResult::NotAvailable,
+            user_data,
         }
     }
 
@@ -91,6 +98,26 @@ impl State {
             current => current,
         };
         self.gateway_connectivity
+    }
+
+    pub fn get_user_data(&self) -> &UserData {
+        &self.user_data
+    }
+
+    pub fn set_monitoring(&mut self, enabled: bool) -> Result<()> {
+        self.user_data.monitoring = Some(enabled);
+        self.user_data.write().map_err(|e| {
+            error!("Failed to write user data to disk {e}");
+            BackendError::UserDataWriteError
+        })
+    }
+
+    pub fn set_privacy_level(&mut self, privacy_level: PrivacyLevel) -> Result<()> {
+        self.user_data.privacy_level = Some(privacy_level);
+        self.user_data.write().map_err(|e| {
+            error!("Failed to write user data to disk {e}");
+            BackendError::UserDataWriteError
+        })
     }
 
     pub fn set_gateway_connectivity(&mut self, gateway_connectivity: GatewayConnectivity) {
@@ -200,8 +227,9 @@ impl State {
         &mut self,
     ) -> Result<(nym_task::StatusReceiver, ExitStatusReceiver)> {
         let id = self.get_config_id()?;
+        let privacy_level = self.user_data.privacy_level.unwrap_or_default();
         let (control_tx, msg_rx, exit_status_rx, used_gateway) =
-            tasks::start_nym_socks5_client(&id).await?;
+            tasks::start_nym_socks5_client(&id, &privacy_level).await?;
         self.socks5_client_sender = Some(control_tx);
         self.gateway = Some(used_gateway.gateway_id);
         Ok((msg_rx, exit_status_rx))

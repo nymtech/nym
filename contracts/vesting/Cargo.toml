@@ -15,6 +15,10 @@ exclude = [
   "artifacts",
 ]
 
+[[bin]]
+name = "schema"
+required-features = ["schema-gen"]
+
 [lib]
 name = "vesting_contract"
 crate-type = ["cdylib", "rlib"]
@@ -24,12 +28,12 @@ mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mixnet-
 contracts-common = { path = "../../common/cosmwasm-smart-contracts/contracts-common", package = "nym-contracts-common", version = "0.5.0" }
 vesting-contract-common = { path = "../../common/cosmwasm-smart-contracts/vesting-contract", package = "nym-vesting-contract-common", version = "0.7.0" }
 
+cosmwasm-schema = { workspace = true, optional = true }
 cosmwasm-std = { workspace = true }
 cosmwasm-derive = { workspace = true }
 cw2 = { workspace = true }
 cw-storage-plus = { workspace = true, features = ["iterator"] }
 
-schemars = "0.8"
 serde = { version = "1.0", default-features = false, features = ["derive"] }
 thiserror = { version = "1.0" }
 semver = { version = "1.0.16", default-features = false }
@@ -46,3 +50,6 @@ vergen = { version = "=7.4.3", default-features = false, features = ["build", "g
 
 [profile.release]
 overflow-checks = true
+
+[features]
+schema-gen = ["vesting-contract-common/schema", "cosmwasm-schema"]

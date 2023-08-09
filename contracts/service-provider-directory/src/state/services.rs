@@ -26,12 +26,12 @@ impl<'a> IndexList<Service> for ServiceIndex<'a> {
 fn services<'a>() -> IndexedMap<'a, ServiceId, Service, ServiceIndex<'a>> {
     let indexes = ServiceIndex {
         nym_address: MultiIndex::new(
-            |d| d.service.nym_address.to_string(),
+            |_pk, d| d.service.nym_address.to_string(),
             SERVICES_PK_NAMESPACE,
             SERVICES_NYM_ADDRESS_IDX_NAMESPACE,
         ),
         announcer: MultiIndex::new(
-            |d| d.announcer.clone(),
+            |_pk, d| d.announcer.clone(),
             SERVICES_PK_NAMESPACE,
             SERVICES_ANNOUNCER_IDX_NAMESPACE,
         ),
@@ -88,6 +88,8 @@ pub fn load_nym_address(store: &dyn Storage, nym_address: NymAddress) -> Result<
 pub struct PagedLoad {
     pub services: Vec<Service>,
     pub limit: usize,
+
+    /// Field indicating paging information for the following queries if the caller wishes to get further entries.
     pub start_next_after: Option<ServiceId>,
 }
 

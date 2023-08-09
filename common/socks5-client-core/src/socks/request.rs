@@ -78,7 +78,7 @@ impl SocksRequest {
     where
         R: AsyncRead + Unpin,
     {
-        log::info!("read from stream socks5");
+        log::trace!("read from stream socks5");
 
         let mut packet = [0u8; 4];
         // Read a byte from the stream and determine the version being requested
@@ -107,7 +107,7 @@ impl SocksRequest {
         // ATYP
         let Some(addr_type) = AddrType::from(packet[3] as usize) else {
             error!("No Addr");
-            return Err(ResponseCodeV5::AddrTypeNotSupported.into())
+            return Err(ResponseCodeV5::AddrTypeNotSupported.into());
         };
 
         // DST.ADDR

@@ -190,7 +190,7 @@ impl StoreCipher<Aes256Gcm> {
             exported.ciphertext_info.ciphertext(),
         ) else {
             key.zeroize();
-            return Err(Error::InvalidImportPassphrase)
+            return Err(Error::InvalidImportPassphrase);
         };
 
         // if we successfully decrypted aes256gcm ciphertext, it's almost certainly correct

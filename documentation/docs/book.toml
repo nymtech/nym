@@ -1,6 +1,6 @@
 [book]
 title = "Nym Docs"
-authors = ["Max Hampshire"]
+authors = ["Max Hampshire, Serinko, Alexia Lorenza Martinel"]
 description = "Nym technical documentation"
 language = "en"
 multilingual = false # for the moment - ideally work on chinese, brazillian, spanish next

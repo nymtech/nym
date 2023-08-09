@@ -282,12 +282,7 @@ fn create_clients(
         let network_details = NymNetworkDetails::from(network)
             .clone()
             .with_mixnet_contract(Some(config.get_mixnet_contract_address(network).as_ref()))
-            .with_vesting_contract(Some(config.get_vesting_contract_address(network).as_ref()))
-            .with_bandwidth_claim_contract(Some(
-                config
-                    .get_bandwidth_claim_contract_address(network)
-                    .as_ref(),
-            ));
+            .with_vesting_contract(Some(config.get_vesting_contract_address(network).as_ref()));
 
         let config = nym_validator_client::Config::try_from_nym_network_details(&network_details)?
             .with_urls(nyxd_url, api_url);

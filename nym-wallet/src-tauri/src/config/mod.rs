@@ -237,15 +237,6 @@ impl Config {
             .expect("Wrong format for vesting contract address")
     }
 
-    pub fn get_bandwidth_claim_contract_address(&self, network: WalletNetwork) -> CosmosAccountId {
-        self.base
-            .networks
-            .bandwidth_claim_contract_address(&network)
-            .expect("No bandwidth claim contract address found in config")
-            .parse()
-            .expect("Wrong format for bandwidth claim contract address")
-    }
-
     pub fn set_default_nyxd_urls(&mut self, urls: &HashMap<WalletNetwork, Url>) {
         for (network, url) in urls {
             self.set_default_nyxd_url(url.to_owned(), network);
@@ -499,12 +490,6 @@ impl SupportedNetworks {
             .map(|network_details| network_details.vesting_contract_address.as_str())
     }
 
-    fn bandwidth_claim_contract_address(&self, network: &WalletNetwork) -> Option<&str> {
-        self.networks
-            .get(network)
-            .map(|network_details| network_details.bandwidth_claim_contract_address.as_str())
-    }
-
     fn validators(&self, network: &WalletNetwork) -> impl Iterator<Item = &ValidatorDetails> {
         self.networks
             .get(network)
@@ -522,7 +507,6 @@ struct NetworkDetails {
     stake_denom: DenomDetailsOwned,
     mixnet_contract_address: String,
     vesting_contract_address: String,
-    bandwidth_claim_contract_address: String,
     statistics_service_url: String,
     validators: Vec<ValidatorDetails>,
 }
@@ -542,10 +526,6 @@ impl From<NymNetworkDetails> for NetworkDetails {
             vesting_contract_address: details
                 .contracts
                 .vesting_contract_address
-                .unwrap_or_default(),
-            bandwidth_claim_contract_address: details
-                .contracts
-                .bandwidth_claim_contract_address
                 .unwrap_or_default(),
             statistics_service_url: "".to_string(),
             validators: details.endpoints,

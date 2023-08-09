@@ -4,12 +4,11 @@
 use cosmwasm_std::Addr;
 use cw_controllers::Admin;
 use cw_storage_plus::Item;
-use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 pub const ADMIN: Admin = Admin::new("admin");
 
-#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, JsonSchema, Debug)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug)]
 pub struct Config {
     pub multisig_addr: Addr,
     pub pool_addr: Addr,

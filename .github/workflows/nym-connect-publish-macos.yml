@@ -15,8 +15,15 @@ jobs:
       fail-fast: false
       matrix:
         platform: [macos-latest]
-
     runs-on: ${{ matrix.platform }}
+
+    outputs:
+      release_id: ${{ steps.create-release.outputs.id }}
+      release_date: ${{ fromJSON(steps.create-release.outputs.assets)[0].published_at }}
+      version: ${{ steps.release-info.outputs.version }}
+      filename: ${{ steps.release-info.outputs.filename }}
+      file_hash: ${{ steps.release-info.outputs.file_hash }}
+
     steps:
       - uses: actions/checkout@v2
 
@@ -24,10 +31,20 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: 18
+
       - name: Install Rust stable
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
+          target: wasm32-unknown-unknown
+
+      - name: Install wasm-pack
+        run: |
+          export WASM_PACK_VERSION="v0.12.1" 
+          curl -LO https://github.com/rustwasm/wasm-pack/releases/download/${WASM_PACK_VERSION}/wasm-pack-${WASM_PACK_VERSION}-x86_64-apple-darwin.tar.gz
+          tar xvzf wasm-pack-${WASM_PACK_VERSION}-x86_64-apple-darwin.tar.gz -C $HOME/.cargo/bin --strip-components=1
+          rm wasm-pack-${WASM_PACK_VERSION}-x86_64-apple-darwin.tar.gz
+
       - name: Install the Apple developer certificate for code signing
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
@@ -71,6 +88,8 @@ jobs:
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
           TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+          SENTRY_DSN_RUST: ${{ secrets.SENTRY_DSN_RUST }}
+          SENTRY_DSN_JS: ${{ secrets.SENTRY_DSN_JS }}
         run: yarn && yarn build
 
       - name: Upload Artifact
@@ -85,10 +104,39 @@ jobs:
         run: |
           security delete-keychain $RUNNER_TEMP/app-signing.keychain-db
 
-      - name: Upload to release based on tag name
+      - id: create-release
+        name: Upload to release based on tag name
         uses: softprops/action-gh-release@v1
         if: github.event_name == 'release'
         with:
           files: |
             nym-connect/desktop/target/release/bundle/dmg/*.dmg
             nym-connect/desktop/target/release/bundle/macos/*.app.tar.gz*
+      - id: release-info
+        name: Prepare release info
+        run: |
+          ref=${{ github.ref_name }}
+          semver="${ref##nym-connect-}" && semver="${semver##v}"
+          echo "version=${semver}" >> "$GITHUB_OUTPUT"
+          echo "filename=nym-connect_${semver}_x64.dmg " >> "$GITHUB_OUTPUT"
+          echo "file_hash=${{ hashFiles('nym-connect/desktop/target/release/bundle/dmg/nym-connect_*_x64.dmg') }}" >> "$GITHUB_OUTPUT"
+
+  push-release-data:
+    if: ${{ (startsWith(github.ref, 'refs/tags/nym-connect-') && github.event_name == 'release') || github.event_name == 'workflow_dispatch' }}
+    uses: ./.github/workflows/push-release-data.yml
+    needs: publish-tauri
+    with:
+      release_tag: ${{ github.ref_name }}
+      release_id: ${{ needs.publish-tauri.outputs.release_id }}
+      release_date: ${{ needs.publish-tauri.outputs.release_date }}
+      download_base_url: https://github.com/nymtech/nym/releases/download/${{ github.ref_name }}
+      changelog_url: https://github.com/nymtech/nym/blob/${{ github.ref_name }}/nym-connect/desktop/CHANGELOG.md
+      archive_url: https://github.com/nymtech/nym/releases/download/${{ github.ref_name }}/nym-connect.app.tar.gz
+      sig_url: https://github.com/nymtech/nym/releases/download/${{ github.ref_name }}/nym-connect.app.tar.gz.sig
+      version: ${{ needs.publish-tauri.outputs.version }}
+      filename: ${{ needs.publish-tauri.outputs.filename }}
+      file_hash: ${{ needs.publish-tauri.outputs.file_hash }}
+      name: NymConnect
+      category: connect
+      platform: MacOS
+    secrets: inherit

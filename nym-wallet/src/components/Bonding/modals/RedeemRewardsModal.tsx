@@ -1,11 +1,13 @@
-import React, { useEffect } from 'react';
+import React, { useContext, useEffect } from 'react';
 import { FeeDetails } from '@nymproject/types';
 import { ModalListItem } from 'src/components/Modals/ModalListItem';
 import { SimpleModal } from 'src/components/Modals/SimpleModal';
 import { ModalFee } from 'src/components/Modals/ModalFee';
 import { useGetFee } from 'src/hooks/useGetFee';
 import { simulateClaimOperatorReward, simulateVestingClaimOperatorReward } from 'src/requests';
-import { TBondedMixnode } from 'src/context';
+import { AppContext, TBondedMixnode } from 'src/context';
+import { BalanceWarning } from 'src/components/FeeWarning';
+import { Box } from '@mui/material';
 
 export const RedeemRewardsModal = ({
   node,
@@ -19,6 +21,7 @@ export const RedeemRewardsModal = ({
   onClose: () => void;
 }) => {
   const { fee, getFee, isFeeLoading, feeError } = useGetFee();
+  const { userBalance } = useContext(AppContext);
 
   useEffect(() => {
     if (feeError) onError(feeError);
@@ -49,7 +52,13 @@ export const RedeemRewardsModal = ({
         divider
       />
       <ModalFee fee={fee} isLoading={isFeeLoading} divider />
+      <ModalListItem label="Balance" value={userBalance.balance?.printable_balance.toUpperCase()} divider />
       <ModalListItem label="Rewards will be transferred to the account you are logged in with" value="" />
+      {userBalance.balance?.amount.amount && fee?.amount?.amount && (
+        <Box sx={{ my: 2 }}>
+          <BalanceWarning fee={fee?.amount?.amount} />
+        </Box>
+      )}
     </SimpleModal>
   );
 };

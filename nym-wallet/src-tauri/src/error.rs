@@ -1,4 +1,5 @@
 use nym_contracts_common::signing::SigningAlgorithm;
+use nym_crypto::asymmetric::identity;
 use nym_crypto::asymmetric::identity::Ed25519RecoveryError;
 use nym_types::error::TypesError;
 use nym_validator_client::nym_api::error::NymAPIError;
@@ -25,7 +26,7 @@ pub enum BackendError {
     #[error("{source}")]
     TendermintError {
         #[from]
-        source: tendermint_rpc::Error,
+        source: cosmrs::rpc::Error,
     },
     #[error("{pretty_error}")]
     NyxdError {
@@ -148,6 +149,9 @@ pub enum BackendError {
     },
     #[error(transparent)]
     Ed25519Recovery(#[from] Ed25519RecoveryError),
+
+    #[error("failed to verify ed25519 signature: {0}")]
+    Ed25519SignatureError(#[from] identity::SignatureError),
 
     #[error("This command ({name}) has been removed. Please try to use {alternative} instead.")]
     RemovedCommand { name: String, alternative: String },

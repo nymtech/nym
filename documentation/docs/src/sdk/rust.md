@@ -50,20 +50,25 @@ As seen in the example above, the `mixnet::MixnetClientBuilder::new()` function 
 If you're integrating mixnet functionality into an existing app and want to integrate saving client configs and keys into your existing storage logic, you can manually perform the actions taken automatically above (`examples/manually_handle_keys_and_config.rs`)
 
 ```rust,noplayground
-{{#include ../../../../sdk/rust/nym-sdk/examples/manually_handle_keys_and_config.rs}}
+{{#include ../../../../sdk/rust/nym-sdk/examples/manually_handle_storage.rs}}
 ```
 
 ### Anonymous replies with SURBs
 Both functions used to send messages through the mixnet (`send_str` and `send_bytes`) send a pre-determined number of SURBs along with their messages by default.
 
-The number of SURBs is set [here](https://github.com/nymtech/nym/blob/release/{{platform_release_version}}/sdk/rust/nym-sdk/src/mixnet/client.rs#L35):
+The number of SURBs is set [here](https://github.com/nymtech/nym/blob/release/{{platform_release_version}}/sdk/rust/nym-sdk/src/mixnet/client.rs#L34):
 
 ```rust,noplayground
-{{#include ../../../../sdk/rust/nym-sdk/src/mixnet/client.rs:30}}
+{{#include ../../../../sdk/rust/nym-sdk/src/mixnet/client.rs:34}}
 ```
 
 You can read more about how SURBs function under the hood [here](../architecture/traffic-flow.md#private-replies-using-surbs).
 
+In order to reply to an incoming message using SURBs, you can construct a `recipient` from the `sender_tag` sent along with the message you wish to reply to: 
+
+```rust,noplayground
+{{#include ../../../../sdk/rust/nym-sdk/examples/surb-reply.rs}}
+```
 
 ### Importing and using a custom network topology
 If you want to send traffic through a sub-set of nodes (for instance, ones you control, or a small test setup) when developing, debugging, or performing research, you will need to import these nodes as a custom network topology, instead of grabbing it from the [`Mainnet Nym-API`](https://validator.nymtech.net/api/swagger/index.html) (`examples/custom_topology_provider.rs`).

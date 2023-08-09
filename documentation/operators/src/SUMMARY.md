@@ -20,3 +20,8 @@
 - [Troubleshooting](./nodes/troubleshooting.md)
 - [FAQ](./faq.md)
 
+--- 
+# Misc.
+- [Code of Conduct](coc.md)
+- [Licensing](licensing.md)
+---

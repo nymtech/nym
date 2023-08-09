@@ -2,7 +2,8 @@ use crate::mixnet::client::MixnetClientBuilder;
 use crate::mixnet::traits::MixnetMessageSender;
 use crate::{Error, Result};
 use async_trait::async_trait;
-use futures::{Stream, StreamExt};
+use futures::{ready, Stream, StreamExt};
+use log::error;
 use nym_client_core::client::{
     base_client::{ClientInput, ClientOutput, ClientState},
     inbound_messages::InputMessage,
@@ -42,9 +43,33 @@ pub struct MixnetClient {
     /// The task manager that controlls all the spawned tasks that the clients uses to do it's job.
     pub(crate) task_manager: TaskManager,
     pub(crate) packet_type: Option<PacketType>,
+
+    // internal state used for the `Stream` implementation
+    _buffered: Vec<ReconstructedMessage>,
 }
 
 impl MixnetClient {
+    pub(crate) fn new(
+        nym_address: Recipient,
+        client_input: ClientInput,
+        client_output: ClientOutput,
+        client_state: ClientState,
+        reconstructed_receiver: ReconstructedMessagesReceiver,
+        task_manager: TaskManager,
+        packet_type: Option<PacketType>,
+    ) -> Self {
+        Self {
+            nym_address,
+            client_input,
+            client_output,
+            client_state,
+            reconstructed_receiver,
+            task_manager,
+            packet_type,
+            _buffered: Vec::new(),
+        }
+    }
+
     /// Create a new client and connect to the mixnet using ephemeral in-memory keys that are
     /// discarded at application close.
     ///
@@ -145,10 +170,32 @@ pub struct MixnetClientSender {
 }
 
 impl Stream for MixnetClient {
-    type Item = Vec<ReconstructedMessage>;
+    type Item = ReconstructedMessage;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        Pin::new(&mut self.reconstructed_receiver).poll_next(cx)
+        if let Some(next) = self._buffered.pop() {
+            cx.waker().wake_by_ref();
+            return Poll::Ready(Some(next));
+        }
+        match ready!(Pin::new(&mut self.reconstructed_receiver).poll_next(cx)) {
+            None => Poll::Ready(None),
+            Some(mut msgs) => {
+                // the vector itself should never be empty
+                if let Some(next) = msgs.pop() {
+                    // there's more than a single message - buffer them and wake the waker
+                    // to get polled again immediately
+                    if !msgs.is_empty() {
+                        self._buffered = msgs;
+                        cx.waker().wake_by_ref();
+                    }
+                    Poll::Ready(Some(next))
+                } else {
+                    error!("the reconstructed messages vector is empty - please let the developers know if you see this message");
+                    cx.waker().wake_by_ref();
+                    Poll::Pending
+                }
+            }
+        }
     }
 }
 

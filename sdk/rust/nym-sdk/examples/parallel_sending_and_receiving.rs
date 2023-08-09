@@ -28,9 +28,7 @@ async fn main() {
     // receiving task
     tokio::spawn(async move {
         if let Some(received) = client.next().await {
-            for r in received {
-                println!("Received: {}", String::from_utf8_lossy(&r.message));
-            }
+            println!("Received: {}", String::from_utf8_lossy(&received.message));
         }
 
         client.disconnect().await;

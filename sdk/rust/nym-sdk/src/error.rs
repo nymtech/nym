@@ -89,7 +89,7 @@ pub enum Error {
 
     #[error("loaded shared gateway key without providing information about what gateway it corresponds to")]
     GatewayWithUnknownEndpoint,
-    
+
     #[error("failed to send the provided message")]
     MessageSendingFailure,
 }

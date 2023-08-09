@@ -119,9 +119,9 @@ In order to run the ping example with vanilla libp2p, which uses tcp, pass the
 rust-libp2p project as usual.
 
 ```bash
-RUST_LOG=ping=debug cargo run --examples ping --feature vanilla
+RUST_LOG=ping=debug cargo run --example ping --features vanilla
 ```
 
 ```bash
-RUST_LOG=ping=debug cargo run --examples ping --feature vanilla -- "/ip4/127.0.0.1/tcp/$PORT"
+RUST_LOG=ping=debug cargo run --example ping --features vanilla -- "/ip4/127.0.0.1/tcp/$PORT"
 ```

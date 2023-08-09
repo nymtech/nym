@@ -65,7 +65,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let local_key = identity::Keypair::generate_ed25519();
     let local_peer_id = PeerId::from(local_key.public());
     info!("Local peer id: {local_peer_id:?}");
-    #[cfg(not(feature = "vanilla"))]
+    // #[cfg(not(feature = "vanilla"))]
     let nym_id = rand::random::<u64>().to_string();
 
     let docker_client = clients::Cli::default();

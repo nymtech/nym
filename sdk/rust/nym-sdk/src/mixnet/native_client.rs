@@ -1,21 +1,21 @@
+use crate::mixnet::client::{IncludedSurbs, MixnetClientBuilder};
+use crate::Result;
+use futures::{Stream, StreamExt};
 use nym_client_core::client::{
     base_client::{ClientInput, ClientOutput, ClientState},
     inbound_messages::InputMessage,
     received_buffer::ReconstructedMessagesReceiver,
 };
 use nym_sphinx::addressing::clients::Recipient;
+use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nym_sphinx::{params::PacketType, receiver::ReconstructedMessage};
 use nym_task::{
     connections::{ConnectionCommandSender, LaneQueueLengths, TransmissionLane},
     TaskManager,
 };
-
-use futures::StreamExt;
-use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nym_topology::NymTopology;
-
-use crate::mixnet::client::{IncludedSurbs, MixnetClientBuilder};
-use crate::Result;
+use std::pin::Pin;
+use std::task::{Context, Poll};
 
 /// Client connected to the Nym mixnet.
 pub struct MixnetClient {
@@ -272,5 +272,13 @@ impl MixnetClientSender {
         if self.client_input.send(message).await.is_err() {
             log::error!("Failed to send message");
         }
+    }
+}
+
+impl Stream for MixnetClient {
+    type Item = Vec<ReconstructedMessage>;
+
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        Pin::new(&mut self.reconstructed_receiver).poll_next(cx)
     }
 }

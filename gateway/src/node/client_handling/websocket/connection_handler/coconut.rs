@@ -118,8 +118,15 @@ impl CoconutVerifier {
                     revoke_fee.clone(),
                 )
                 .await?;
-            if !ret?.verification_result {
-                debug!("Validator {} didn't accept the credential. It will probably vote No on the spending proposal", client.api_client.nym_api_client.current_url());
+            match ret {
+                Ok(res) => {
+                    if !res.verification_result {
+                        debug!("Validator {} didn't accept the credential. It will probably vote No on the spending proposal", client.api_client.nym_api_client.current_url());
+                    }
+                }
+                Err(e) => {
+                    warn!("Validator {} could not be reached. There might be a problem with the coconut endpoint - {:?}", client.api_client.nym_api_client.current_url(), e);
+                }
             }
         }
 

@@ -33,6 +33,7 @@ export type TClientContext = {
   userDefinedSPAddress: UserDefinedSPAddress;
   serviceProviders?: ServiceProvider[];
   gateways?: Gateway[];
+  showFeedbackNote: boolean;
   setMode: (mode: ModeType) => void;
   clearError: () => void;
   setConnectionStatus: (connectionStatus: ConnectionStatusKind) => void;
@@ -47,6 +48,7 @@ export type TClientContext = {
   setUserDefinedSPAddress: React.Dispatch<React.SetStateAction<UserDefinedSPAddress>>;
   setMonitoring: (value: boolean) => Promise<void>;
   setPrivacyLevel: (value: PrivacyLevel) => Promise<void>;
+  setShowFeedbackNote: (value: boolean) => void;
 };
 
 function getRandomFromList<T>(items: T[]): T {
@@ -77,6 +79,7 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
     address: undefined,
   });
   const [userData, setUserData] = useState<UserData>();
+  const [showFeedbackNote, setShowFeedbackNote] = useState(true);
 
   const getAppVersion = async () => {
     const version = await getVersion();
@@ -240,6 +243,7 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
       serviceProviders,
       connectedSince,
       userData,
+      showFeedbackNote,
       setConnectedSince,
       setServiceProvider,
       setGateway,
@@ -253,6 +257,7 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
       setUserDefinedSPAddress,
       setMonitoring,
       setPrivacyLevel,
+      setShowFeedbackNote,
     }),
     [
       mode,
@@ -270,6 +275,7 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
       userDefinedGateway,
       userDefinedSPAddress,
       userData,
+      showFeedbackNote,
     ],
   );
 

@@ -74,17 +74,16 @@ export const UserFeedback = () => {
       </Snackbar>
       <Stack justifyContent="space-between" height="100%">
         <Box>
-          <Typography fontWeight="bold" variant="body2" mb={2}>
+          <Typography fontWeight="bold" variant="body2">
             Send us your feedback about the app
           </Typography>
           <form onSubmit={handleSubmit(onSubmit)}>
-            <FormControl fullWidth>
+            <FormControl sx={{ mt: 2 }} fullWidth>
               <Controller
                 render={({ field }) => (
                   <TextField
                     size="small"
                     placeholder="E-mail address (optional)"
-                    sx={{ mt: 1 }}
                     error={Boolean(errors.email)}
                     helperText={errors.email && errors.email.message}
                     {...field}
@@ -93,12 +92,13 @@ export const UserFeedback = () => {
                 name="email"
                 control={control}
               />
+            </FormControl>
+            <FormControl sx={{ mt: 2 }} fullWidth>
               <Controller
                 render={({ field }) => (
                   <TextField
                     size="small"
                     placeholder="Feedback text"
-                    sx={{ mt: 2 }}
                     rows={8}
                     multiline
                     required
@@ -110,10 +110,12 @@ export const UserFeedback = () => {
                 name="feedback"
                 control={control}
               />
+            </FormControl>
+            <Stack>
               <Button color="primary" variant="contained" size="medium" type="submit" sx={{ mt: 2 }} disabled={isBusy}>
                 Send
               </Button>
-            </FormControl>
+            </Stack>
           </form>
         </Box>
       </Stack>

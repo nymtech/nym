@@ -74,8 +74,8 @@ impl NoiseStream {
             inner_stream,
             handshake: Some(handshake),
             noise: None,
-            enc_storage: VecDeque::with_capacity(MAXMSGLEN + HEADER_SIZE),
-            dec_storage: VecDeque::with_capacity(MAXMSGLEN + HEADER_SIZE),
+            enc_storage: VecDeque::with_capacity(MAXMSGLEN + TAGLEN + HEADER_SIZE), //At least one message
+            dec_storage: VecDeque::with_capacity(MAXMSGLEN),
         }
     }
 
@@ -130,7 +130,7 @@ impl AsyncRead for NoiseStream {
 
             Poll::Ready(Ok(())) => {
                 //Read what we can into enc_storage, decrypt what we can into dec_storage
-                let mut tcp_buf = vec![0u8; MAXMSGLEN + HEADER_SIZE];
+                let mut tcp_buf = vec![0u8; MAXMSGLEN + HEADER_SIZE + TAGLEN];
                 if let Ok(tcp_len) = projected_self.inner_stream.try_read(&mut tcp_buf) {
                     if tcp_len == 0 && projected_self.dec_storage.len() == 0 {
                         //EOF

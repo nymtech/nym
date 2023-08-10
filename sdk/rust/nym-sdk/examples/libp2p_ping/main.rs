@@ -44,25 +44,18 @@ use libp2p::futures::StreamExt;
 use libp2p::ping::Success;
 use libp2p::swarm::{keep_alive, NetworkBehaviour, SwarmEvent};
 use libp2p::{identity, ping, Multiaddr, PeerId};
-
+use log::{debug, info};
+use nym_bin_common::logging::setup_logging;
+use nym_sdk::mixnet::MixnetClient;
 use std::error::Error;
 use std::time::Duration;
-use tracing::{debug, info};
-
-use nym_sdk::mixnet::MixnetClient;
-use tracing_subscriber::EnvFilter;
 
 #[path = "../libp2p_shared/lib.rs"]
 mod rust_libp2p_nym;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    tracing_subscriber::fmt()
-        .with_env_filter(
-            EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| EnvFilter::new("ping=debug,rust_libp2p_nym=debug")),
-        )
-        .init();
+    setup_logging();
 
     let local_key = identity::Keypair::generate_ed25519();
     let local_peer_id = PeerId::from(local_key.public());

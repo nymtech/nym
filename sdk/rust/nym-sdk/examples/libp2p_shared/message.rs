@@ -155,14 +155,14 @@ impl ConnectionMessage {
                     return Err(Error::ConnectionMessageBytesNoPeerId);
                 }
                 PeerId::from_bytes(&bytes[CONNECTION_ID_LENGTH + 1 + RECIPIENT_LENGTH..])
-                    .map_err(Error::InvalidPeerIdBytes)?
+                    .map_err(|_| Error::InvalidPeerIdBytes)?
             }
             None => {
                 if bytes.len() < CONNECTION_ID_LENGTH + 2 {
                     return Err(Error::ConnectionMessageBytesNoPeerId);
                 }
                 PeerId::from_bytes(&bytes[CONNECTION_ID_LENGTH + 1..])
-                    .map_err(Error::InvalidPeerIdBytes)?
+                    .map_err(|_| Error::InvalidPeerIdBytes)?
             }
         };
         Ok(ConnectionMessage {

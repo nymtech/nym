@@ -1,5 +1,5 @@
+use log::{debug, warn};
 use std::collections::BTreeSet;
-use tracing::{debug, warn};
 
 use super::message::TransportMessage;
 

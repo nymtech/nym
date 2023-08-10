@@ -1,4 +1,5 @@
 use libp2p::core::{muxing::StreamMuxerEvent, PeerId, StreamMuxer};
+use log::debug;
 use nym_sphinx::addressing::clients::Recipient;
 use std::{
     collections::{HashMap, HashSet},
@@ -13,7 +14,6 @@ use tokio::sync::{
     mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender},
     oneshot,
 };
-use tracing::debug;
 
 use super::error::Error;
 use super::message::{
@@ -277,9 +277,9 @@ impl PendingConnection {
 
 #[cfg(test)]
 mod test {
-    use super::*;
     use super::super::message::InboundMessage;
     use super::super::mixnet::initialize_mixnet;
+    use super::*;
     use futures::future::poll_fn;
     use futures::{AsyncReadExt, AsyncWriteExt, FutureExt};
     use nym_sdk::mixnet::MixnetClient;

@@ -5,6 +5,7 @@ use libp2p::core::{
     transport::{ListenerId, TransportError, TransportEvent},
     PeerId, Transport,
 };
+use log::debug;
 use nym_sdk::mixnet::MixnetClient;
 use nym_sphinx::addressing::clients::Recipient;
 use std::{
@@ -21,7 +22,6 @@ use tokio::{
     time::{timeout, Duration},
 };
 use tokio_stream::wrappers::UnboundedReceiverStream;
-use tracing::debug;
 
 use super::connection::{Connection, PendingConnection};
 use super::error::Error;
@@ -536,11 +536,11 @@ mod test {
         transport::{Transport, TransportEvent},
         Multiaddr, StreamMuxer,
     };
+    use log::info;
+    use nym_bin_common::logging::setup_logging;
     use nym_sdk::mixnet::MixnetClient;
     use std::{pin::Pin, str::FromStr, sync::atomic::Ordering};
     use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
-    use tracing::info;
-    use tracing_subscriber::EnvFilter;
 
     impl Connection {
         fn write(&self, msg: SubstreamMessage) -> Result<(), Error> {
@@ -572,11 +572,7 @@ mod test {
 
     #[tokio::test]
     async fn test_transport_connection() {
-        tracing_subscriber::fmt()
-            .with_env_filter(
-                EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("debug")),
-            )
-            .init();
+        setup_logging();
 
         let client = MixnetClient::connect_new().await.unwrap();
         let (dialer_notify_inbound_tx, mut dialer_notify_inbound_rx) = unbounded_channel();

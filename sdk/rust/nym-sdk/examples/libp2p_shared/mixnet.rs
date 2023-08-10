@@ -1,10 +1,10 @@
 use futures::{pin_mut, select};
 use futures::{FutureExt, StreamExt};
+use log::debug;
 use nym_sdk::mixnet::{IncludedSurbs, MixnetClient, MixnetClientSender, MixnetMessageSender};
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::receiver::ReconstructedMessage;
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
-use tracing::debug;
 
 use super::error::Error;
 use super::message::*;

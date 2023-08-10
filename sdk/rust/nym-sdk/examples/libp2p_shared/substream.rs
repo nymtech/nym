@@ -5,6 +5,7 @@ use futures::{
     io::{Error as IoError, ErrorKind},
     AsyncRead, AsyncWrite,
 };
+use log::debug;
 use nym_sphinx::addressing::clients::Recipient;
 use parking_lot::Mutex;
 use std::{
@@ -19,7 +20,6 @@ use tokio::sync::{
     mpsc::{UnboundedReceiver, UnboundedSender},
     oneshot::Receiver,
 };
-use tracing::debug;
 
 #[derive(Debug)]
 pub struct Substream {

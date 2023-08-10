@@ -55,6 +55,8 @@ use libp2p::{
     swarm::{SwarmBuilder, SwarmEvent},
     PeerId, Transport,
 };
+use log::info;
+use nym_bin_common::logging::setup_logging;
 use nym_sdk::mixnet::MixnetClient;
 use std::collections::hash_map::DefaultHasher;
 use std::error::Error;
@@ -62,8 +64,6 @@ use std::hash::{Hash, Hasher};
 use std::time::Duration;
 use tokio::io;
 use tokio_util::codec;
-use tracing::info;
-use tracing_subscriber::EnvFilter;
 
 #[path = "../libp2p_shared/lib.rs"]
 mod rust_libp2p_nym;
@@ -76,11 +76,8 @@ struct Behaviour {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    tracing_subscriber::fmt()
-        .with_env_filter(
-            EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info")),
-        )
-        .init();
+    setup_logging();
+
     // Create a random PeerId
     let id_keys = identity::Keypair::generate_ed25519();
     let local_peer_id = PeerId::from(id_keys.public());

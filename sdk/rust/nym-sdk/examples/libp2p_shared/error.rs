@@ -30,7 +30,7 @@ pub enum Error {
     #[error("failed to decode ConnectionMessage; no peer ID")]
     ConnectionMessageBytesNoPeerId,
     #[error("invalid peer ID bytes")]
-    InvalidPeerIdBytes(#[from] multihash::Error),
+    InvalidPeerIdBytes,
     #[error("invalid recipient bytes")]
     InvalidRecipientBytes(#[from] RecipientFormattingError),
     #[error("invalid recipient prefix byte")]

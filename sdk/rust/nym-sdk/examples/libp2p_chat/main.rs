@@ -55,8 +55,7 @@ use libp2p::{
     swarm::{SwarmBuilder, SwarmEvent},
     PeerId, Transport,
 };
-use log::info;
-use nym_bin_common::logging::setup_logging;
+use log::{error, info, LevelFilter};
 use nym_sdk::mixnet::MixnetClient;
 use std::collections::hash_map::DefaultHasher;
 use std::error::Error;
@@ -76,12 +75,15 @@ struct Behaviour {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    setup_logging();
+    pretty_env_logger::formatted_timed_builder()
+        .filter_level(LevelFilter::Warn)
+        .filter(Some("libp2p_chat"), LevelFilter::Info)
+        .init();
 
     // Create a random PeerId
     let id_keys = identity::Keypair::generate_ed25519();
     let local_peer_id = PeerId::from(id_keys.public());
-    println!("Local peer id: {local_peer_id}");
+    info!("Local peer id: {local_peer_id}");
 
     // To content-address message, we can take the hash of message and use it as an ID.
     let message_id_fn = |message: &gossipsub::Message| {
@@ -136,7 +138,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // Read full lines from stdin
     let mut stdin = codec::FramedRead::new(io::stdin(), codec::LinesCodec::new()).fuse();
 
-    println!("Enter messages via STDIN and they will be sent to connected peers using Gossipsub");
+    info!("Enter messages via STDIN and they will be sent to connected peers using Gossipsub");
 
     // Kick it off
     loop {
@@ -145,7 +147,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 if let Err(e) = swarm
                     .behaviour_mut().gossipsub
                     .publish(topic.clone(), line.expect("Stdin not to close").as_bytes()) {
-                    println!("Publish error: {e:?}");
+                    error!("Publish error: {e:?}");
                 }
             },
             event = swarm.select_next_some() => {
@@ -154,14 +156,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
                         propagation_source: peer_id,
                         message_id: id,
                         message,
-                    })) => println!(
+                    })) => info!(
                             "Got message: '{}' with id: {id} from peer: {peer_id}",
                             String::from_utf8_lossy(&message.data),
                         ),
                     SwarmEvent::NewListenAddr { address, .. } => {
-                        println!("Local node is listening on {address}");
+                        info!("Local node is listening on {address}");
                     }
-                    other => {println!("other event: {:?}", other)}
+                    other => {info!("other event: {:?}", other)}
                 }
             }
         }

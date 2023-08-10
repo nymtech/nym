@@ -44,8 +44,7 @@ use libp2p::futures::StreamExt;
 use libp2p::ping::Success;
 use libp2p::swarm::{keep_alive, NetworkBehaviour, SwarmEvent};
 use libp2p::{identity, ping, Multiaddr, PeerId};
-use log::{debug, info};
-use nym_bin_common::logging::setup_logging;
+use log::{debug, info, LevelFilter};
 use nym_sdk::mixnet::MixnetClient;
 use std::error::Error;
 use std::time::Duration;
@@ -55,13 +54,16 @@ mod rust_libp2p_nym;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    setup_logging();
+    pretty_env_logger::formatted_timed_builder()
+        .filter_level(LevelFilter::Warn)
+        .filter(Some("libp2p_ping"), LevelFilter::Debug)
+        .init();
 
     let local_key = identity::Keypair::generate_ed25519();
     let local_peer_id = PeerId::from(local_key.public());
     info!("Local peer id: {local_peer_id:?}");
 
-    #[cfg(not(feature = "vanilla"))]
+    #[cfg(not(feature = "libp2p-vanilla"))]
     let mut swarm = {
         debug!("Running `ping` example using NymTransport");
         use libp2p::core::{muxing::StreamMuxerBox, transport::Transport};
@@ -81,7 +83,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .build()
     };
 
-    #[cfg(feature = "vanilla")]
+    #[cfg(feature = "libp2p-vanilla")]
     let mut swarm = {
         debug!("Running `ping` example using the vanilla libp2p tokio_development_transport");
         let transport = libp2p::tokio_development_transport(local_key)?;

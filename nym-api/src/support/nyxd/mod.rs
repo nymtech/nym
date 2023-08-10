@@ -16,7 +16,7 @@ use nym_coconut_dkg_common::{
     types::{EncodedBTEPublicKeyWithProof, Epoch, EpochId},
     verification_key::{ContractVKShare, VerificationKeyShare},
 };
-use nym_config::defaults::{ChainDetails, NymNetworkDetails};
+use nym_config::defaults::ChainDetails;
 use nym_contracts_common::dealings::ContractSafeBytes;
 use nym_mixnet_contract_common::families::FamilyHead;
 use nym_mixnet_contract_common::mixnode::MixNodeDetails;
@@ -59,11 +59,8 @@ impl Clone for Client {
 
 impl Client {
     pub(crate) fn new(config: &Config) -> Self {
+        let details = config.get_network_details();
         let nyxd_url = config.get_nyxd_url();
-
-        let details = NymNetworkDetails::new_from_env()
-            .with_mixnet_contract(Some(config.get_mixnet_contract_address().as_ref()))
-            .with_vesting_contract(Some(config.get_vesting_contract_address().as_ref()));
 
         let client_config = nyxd::Config::try_from_nym_network_details(&details)
             .expect("failed to construct valid validator client config with the provided network");

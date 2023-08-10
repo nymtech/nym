@@ -3,6 +3,8 @@
 
 use crate::circulating_supply_api::cache::CirculatingSupplyCache;
 use crate::coconut::{self, comm::QueryCommunicationChannel, InternalSignRequest};
+use crate::network::models::NetworkDetails;
+use crate::network::network_routes;
 use crate::node_status_api::{self, NodeStatusCache};
 use crate::nym_contract_cache::cache::NymContractCache;
 use crate::support::config::Config;
@@ -19,12 +21,14 @@ pub(crate) mod openapi;
 
 pub(crate) async fn setup_rocket(
     config: &Config,
-    mix_denom: String,
+    network_details: NetworkDetails,
     _nyxd_client: nyxd::Client,
     coconut_keypair: coconut::keypair::KeyPair,
 ) -> anyhow::Result<Rocket<Ignite>> {
     let openapi_settings = rocket_okapi::settings::OpenApiSettings::default();
     let mut rocket = rocket::build();
+
+    let mix_denom = network_details.network.chain_details.mix_denom.base.clone();
 
     mount_endpoints_and_merged_docs! {
         rocket,
@@ -34,9 +38,11 @@ pub(crate) async fn setup_rocket(
         "" => circulating_supply_api::circulating_supply_routes(&openapi_settings),
         "" => nym_contract_cache::nym_contract_cache_routes(&openapi_settings),
         "/status" => node_status_api::node_status_routes(&openapi_settings, config.network_monitor.enabled),
+        "/network" => network_routes(&openapi_settings),
     }
 
     let rocket = rocket
+        .manage(network_details)
         .mount("/swagger", make_swagger_ui(&openapi::get_docs()))
         .attach(setup_cors()?)
         .attach(NymContractCache::stage())

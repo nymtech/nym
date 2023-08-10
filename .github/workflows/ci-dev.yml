@@ -23,10 +23,13 @@ jobs:
         with:
           toolchain: stable
       - name: Install mdbook
-        run: (test -x $HOME/.cargo/bin/mdbook || cargo install --vers "^0.4" mdbook)
+        # to make sure we don't run into toml dependency issue, make sure to pull fixed mdbook that depends on old 0.5
+        # and OLD mdbook-variables that uses the same dependency
+        # (mdbook-variables 0.2.3 updated to 0.7 which was used by mdbook incorrectly and extremely briefly)
+        run: (test -x $HOME/.cargo/bin/mdbook || cargo install --vers "^0.4.33" mdbook)
       - name: Install mdbook plugins
         run: |
-          cargo install --vers "^0.2.0" mdbook-variables && cargo install \
+          cargo install --vers "=0.2.2" mdbook-variables && cargo install \
             --vers "^1.8.0" mdbook-admonish && cargo install --vers \
             "^0.1.2" mdbook-last-changed && cargo install --vers "^0.1.2" mdbook-theme \
             && cargo install --vers "^0.7.7" mdbook-linkcheck 

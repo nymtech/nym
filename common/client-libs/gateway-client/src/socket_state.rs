@@ -9,11 +9,12 @@ use futures::stream::{SplitSink, SplitStream};
 use futures::{SinkExt, StreamExt};
 use log::*;
 use nym_gateway_requests::registration::handshake::SharedKeys;
-use nym_noise::NoiseStream;
 use nym_task::TaskClient;
 use std::sync::Arc;
 use tungstenite::Message;
 
+#[cfg(not(target_arch = "wasm32"))]
+use nym_noise::NoiseStream;
 #[cfg(not(target_arch = "wasm32"))]
 use tokio_tungstenite::WebSocketStream;
 

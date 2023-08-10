@@ -20,20 +20,23 @@ use nym_gateway_requests::iv::IV;
 use nym_gateway_requests::registration::handshake::{client_handshake, SharedKeys};
 use nym_gateway_requests::{BinaryRequest, ClientControlRequest, ServerResponse, PROTOCOL_VERSION};
 use nym_network_defaults::{REMAINING_BANDWIDTH_THRESHOLD, TOKENS_TO_BURN};
-use nym_noise::upgrade_noise_initiator;
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_task::TaskClient;
 use nym_validator_client::NymApiClient;
 use rand::rngs::OsRng;
 use std::convert::TryFrom;
-use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::net::TcpStream;
 use tungstenite::protocol::Message;
 
 #[cfg(not(target_arch = "wasm32"))]
+use nym_noise::upgrade_noise_initiator;
+#[cfg(not(target_arch = "wasm32"))]
 use nym_validator_client::nyxd::traits::DkgQueryClient;
+#[cfg(not(target_arch = "wasm32"))]
+use std::net::SocketAddr;
+#[cfg(not(target_arch = "wasm32"))]
+use tokio::net::TcpStream;
 #[cfg(not(target_arch = "wasm32"))]
 use tokio_tungstenite::client_async;
 

@@ -27,7 +27,6 @@ nym-sphinx = { path = "../../nymsphinx" }
 nym-pemstore = { path = "../../pemstore" }
 nym-validator-client = { path = "../validator-client" }
 nym-task = { path = "../../task" }
-nym-noise = { path = "../../nymnoise"}
 serde = { workspace = true, features = ["derive"] }
 
 
@@ -36,6 +35,9 @@ version = "0.13"
 default-features = false
 
 # non-wasm-only dependencies
+[target."cfg(not(target_arch = \"wasm32\"))".dependencies.nym-noise]
+path = "../../nymnoise"
+
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio]
 version = "1.24.1"
 features = ["macros", "rt", "net", "sync", "time"]

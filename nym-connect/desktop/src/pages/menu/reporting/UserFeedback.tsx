@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
-import { Alert, Box, Button, FormControl, Snackbar, Stack, TextField, Typography } from '@mui/material';
-import * as Sentry from '@sentry/browser';
+import { Link as RouterLink } from 'react-router-dom';
+import { Alert, Box, Button, FormControl, Link, Snackbar, Stack, TextField, Typography } from '@mui/material';
+import * as Sentry from '@sentry/react';
 import { Controller, SubmitHandler, useForm } from 'react-hook-form';
 import { object, string } from 'yup';
 import { yupResolver } from '@hookform/resolvers/yup';
+import { useClientContext } from '../../../context/main';
 
 type FormValues = {
   email?: string;
@@ -17,6 +19,7 @@ const schema = object({
 
 export const UserFeedback = () => {
   const [isBusy, setIsBusy] = useState(false);
+  const { userData } = useClientContext();
 
   const {
     handleSubmit,
@@ -33,8 +36,9 @@ export const UserFeedback = () => {
   });
 
   const onSubmit: SubmitHandler<FormValues> = (data) => {
+    const eventId = Sentry.captureMessage('user feedback');
     Sentry.captureUserFeedback({
-      event_id: 'user_feedback',
+      event_id: eventId,
       name: 'nym',
       email: data.email,
       comments: data.feedback,
@@ -46,6 +50,20 @@ export const UserFeedback = () => {
   const handleClose = () => {
     setIsBusy(false);
   };
+
+  if (!userData?.monitoring) {
+    return (
+      <Stack mt={3}>
+        <Typography variant="caption" color="warning.main" fontWeight="bold">
+          The error reporting option must be enabled in order to report feedback. Turn it on{' '}
+          <Link to="/menu/reporting/error-reporting" component={RouterLink} color="secondary" underline="hover">
+            here
+          </Link>
+          .
+        </Typography>
+      </Stack>
+    );
+  }
 
   return (
     <Box height="100%">
@@ -92,7 +110,7 @@ export const UserFeedback = () => {
                 name="feedback"
                 control={control}
               />
-              <Button variant="contained" size="medium" type="submit" sx={{ mt: 2 }} disabled={isBusy}>
+              <Button color="primary" variant="contained" size="medium" type="submit" sx={{ mt: 2 }} disabled={isBusy}>
                 Send
               </Button>
             </FormControl>

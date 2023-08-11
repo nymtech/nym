@@ -47,7 +47,7 @@
     "react-markdown": "^8.0.4",
     "react-router-dom": "^6.7.0",
     "semver": "^6.3.0",
-    "yup": "^0.32.9"
+    "yup": "^1.2.0"
   },
   "devDependencies": {
     "@babel/core": "^7.15.0",

@@ -4,6 +4,10 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+- Add Ephemera functionality in nym-api ([#3731])
+
+[#3731]: https://github.com/nymtech/nym/pull/3731
+
 ## [v1.1.24] (2023-08-08)
 
 - Latency based gateway selection is serial and slow ([#3710])

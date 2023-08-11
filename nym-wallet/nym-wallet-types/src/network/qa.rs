@@ -3,6 +3,8 @@ use nym_network_defaults::{ChainDetails, DenomDetails, NymContracts, ValidatorDe
 
 // -- Chain details --
 
+pub(crate) const NETWORK_NAME: &str = "qa";
+
 pub(crate) const BECH32_PREFIX: &str = "n";
 pub(crate) const MIX_DENOM: DenomDetails = DenomDetails::new("unym", "nym", 6);
 pub(crate) const STAKE_DENOM: DenomDetails = DenomDetails::new("unyx", "nyx", 6);
@@ -37,6 +39,7 @@ pub(crate) fn validators() -> Vec<ValidatorDetails> {
 
 pub(crate) fn network_details() -> nym_network_defaults::NymNetworkDetails {
     nym_network_defaults::NymNetworkDetails {
+        network_name: NETWORK_NAME.into(),
         chain_details: ChainDetails {
             bech32_account_prefix: BECH32_PREFIX.to_string(),
             mix_denom: MIX_DENOM.into(),

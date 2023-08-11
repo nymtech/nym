@@ -7,6 +7,8 @@ Create a `sandbox.env` file with the following details:
 ```
 CONFIGURED=true
 
+NETWORK_NAME=sandbox
+
 RUST_LOG=info
 RUST_BACKTRACE=1
 

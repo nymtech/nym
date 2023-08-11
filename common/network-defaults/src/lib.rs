@@ -37,6 +37,7 @@ pub struct NymContracts {
 // with `NetworkDetails` defined in all.rs...
 #[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub struct NymNetworkDetails {
+    pub network_name: String,
     pub chain_details: ChainDetails,
     pub endpoints: Vec<ValidatorDetails>,
     pub contracts: NymContracts,
@@ -52,6 +53,7 @@ impl Default for NymNetworkDetails {
 impl NymNetworkDetails {
     pub fn new_empty() -> Self {
         NymNetworkDetails {
+            network_name: Default::default(),
             chain_details: ChainDetails {
                 bech32_account_prefix: Default::default(),
                 mix_denom: DenomDetailsOwned {
@@ -80,6 +82,7 @@ impl NymNetworkDetails {
         }
 
         NymNetworkDetails::new_empty()
+            .with_network_name(var(var_names::NETWORK_NAME).expect("network name not set"))
             .with_bech32_account_prefix(
                 var(var_names::BECH32_PREFIX).expect("bech32 prefix not set"),
             )
@@ -137,6 +140,7 @@ impl NymNetworkDetails {
 
         // Consider caching this process (lazy static)
         NymNetworkDetails {
+            network_name: mainnet::NETWORK_NAME.into(),
             chain_details: ChainDetails {
                 bech32_account_prefix: mainnet::BECH32_PREFIX.into(),
                 mix_denom: mainnet::MIX_DENOM.into(),
@@ -158,6 +162,12 @@ impl NymNetworkDetails {
                 name_service_contract_address: None,
             },
         }
+    }
+
+    #[must_use]
+    pub fn with_network_name(mut self, network_name: String) -> Self {
+        self.network_name = network_name;
+        self
     }
 
     #[must_use]

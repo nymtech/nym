@@ -47,7 +47,7 @@ use nym_validator_client::{nyxd, DirectSigningHttpRpcNyxdClient};
 use nym_vesting_contract_common::AccountVestingCoins;
 use serde::Deserialize;
 use std::sync::Arc;
-use tokio::sync::RwLock;
+use tokio::sync::{RwLock, RwLockReadGuard};
 
 pub(crate) struct Client(pub(crate) Arc<RwLock<DirectSigningHttpRpcNyxdClient>>);
 
@@ -75,6 +75,10 @@ impl Client {
         .expect("Failed to connect to nyxd!");
 
         Client(Arc::new(RwLock::new(inner)))
+    }
+
+    pub(crate) async fn read(&self) -> RwLockReadGuard<'_, DirectSigningHttpRpcNyxdClient> {
+        self.0.read().await
     }
 
     pub(crate) async fn client_address(&self) -> AccountId {

@@ -1,12 +1,16 @@
 use super::NymContractCache;
+use crate::nym_contract_cache::cache::data::{CachedContractInfo, CachedContractsInfo};
 use crate::nyxd::Client;
 use crate::support::caching::CacheNotification;
 use anyhow::Result;
+use futures::future::join_all;
 use nym_mixnet_contract_common::{MixId, MixNodeDetails, RewardedSetNodeStatus};
 use nym_task::TaskClient;
 use nym_validator_client::nyxd::contract_traits::{
-    PagedNameServiceQueryClient, PagedSpDirectoryQueryClient,
+    MixnetQueryClient, NameServiceQueryClient, NymContractsProvider, PagedNameServiceQueryClient,
+    PagedSpDirectoryQueryClient, SpDirectoryQueryClient, VestingQueryClient,
 };
+use nym_validator_client::nyxd::CosmWasmClient;
 use std::{collections::HashMap, sync::atomic::Ordering, time::Duration};
 use tokio::sync::watch;
 use tokio::time;
@@ -39,6 +43,129 @@ impl NymContractCacheRefresher {
         self.update_notifier.subscribe()
     }
 
+    async fn get_nym_contracts_info(&self) -> Result<CachedContractsInfo> {
+        let mut updated = HashMap::new();
+
+        let client_guard = self.nyxd_client.read().await;
+
+        let mixnet = client_guard.mixnet_contract_address();
+        let vesting = client_guard.vesting_contract_address();
+        let name_service = client_guard.name_service_contract_address();
+        let service_provider = client_guard.service_provider_contract_address();
+        let coconut_bandwidth = client_guard.coconut_bandwidth_contract_address();
+        let coconut_dkg = client_guard.dkg_contract_address();
+        let group = client_guard.group_contract_address();
+        let multisig = client_guard.multisig_contract_address();
+
+        // get cw2 versions
+        let mixnet_cw2_future = client_guard.get_mixnet_contract_cw2_version();
+        let vesting_cw2_future = client_guard.get_vesting_contract_cw2_version();
+        let service_provider_cw2_future = client_guard.get_name_service_contract_cw2_version();
+        let name_service_cw2_future = client_guard.get_name_service_contract_cw2_version();
+
+        // group and multisig contract save that information in their storage but don't expose it via queries
+        // so a temporary workaround...
+        let multisig_cw2 = if let Some(multisig_contract) = multisig {
+            client_guard
+                .query_contract_raw(multisig_contract, b"contract_info".to_vec())
+                .await
+                .map(|r| serde_json::from_slice(&r).ok())
+                .ok()
+                .flatten()
+        } else {
+            None
+        };
+        let group_cw2 = if let Some(group_contract) = group {
+            client_guard
+                .query_contract_raw(group_contract, b"contract_info".to_vec())
+                .await
+                .map(|r| serde_json::from_slice(&r).ok())
+                .ok()
+                .flatten()
+        } else {
+            None
+        };
+
+        let mut cw2_info = join_all(vec![
+            mixnet_cw2_future,
+            vesting_cw2_future,
+            service_provider_cw2_future,
+            name_service_cw2_future,
+        ])
+        .await;
+
+        // get detailed build info
+        let mixnet_detailed_future = client_guard.get_mixnet_contract_version();
+        let vesting_detailed_future = client_guard.get_vesting_contract_version();
+        let service_provider_detailed_future = client_guard.get_sp_contract_version();
+        let name_service_detailed_future = client_guard.get_name_service_contract_version();
+
+        let mut build_info = join_all(vec![
+            mixnet_detailed_future,
+            vesting_detailed_future,
+            service_provider_detailed_future,
+            name_service_detailed_future,
+        ])
+        .await;
+
+        // the below unwraps are fine as we definitely have the specified number of entries
+        // Note to whoever updates this code in the future: `pop` removes **LAST** element,
+        // so make sure you call them in correct order, depending on what's specified in the `join_all`
+        updated.insert(
+            "nym-name-service-contract".to_string(),
+            CachedContractInfo::new(
+                name_service,
+                cw2_info.pop().unwrap().ok(),
+                build_info.pop().unwrap().ok(),
+            ),
+        );
+
+        updated.insert(
+            "nym-service-provider-directory-contract".to_string(),
+            CachedContractInfo::new(
+                service_provider,
+                cw2_info.pop().unwrap().ok(),
+                build_info.pop().unwrap().ok(),
+            ),
+        );
+
+        updated.insert(
+            "nym-vesting-contract".to_string(),
+            CachedContractInfo::new(
+                vesting,
+                cw2_info.pop().unwrap().ok(),
+                build_info.pop().unwrap().ok(),
+            ),
+        );
+        updated.insert(
+            "nym-mixnet-contract".to_string(),
+            CachedContractInfo::new(
+                mixnet,
+                cw2_info.pop().unwrap().ok(),
+                build_info.pop().unwrap().ok(),
+            ),
+        );
+
+        updated.insert(
+            "nym-coconut-bandwidth-contract".to_string(),
+            CachedContractInfo::new(coconut_bandwidth, None, None),
+        );
+        updated.insert(
+            "nym-coconut-dkg-contract".to_string(),
+            CachedContractInfo::new(coconut_dkg, None, None),
+        );
+        updated.insert(
+            "nym-cw3-multisig-contract".to_string(),
+            CachedContractInfo::new(multisig, multisig_cw2, None),
+        );
+        updated.insert(
+            "nym-cw4-group-contract".to_string(),
+            CachedContractInfo::new(group, group_cw2, None),
+        );
+
+        Ok(updated)
+    }
+
     async fn refresh(&self) -> Result<()> {
         let rewarding_params = self.nyxd_client.get_current_rewarding_parameters().await?;
         let current_interval = self.nyxd_client.get_current_interval().await?.interval;
@@ -56,6 +183,7 @@ impl NymContractCacheRefresher {
         // The service providers and names are optional
         let services = self.nyxd_client.get_all_services().await.ok();
         let names = self.nyxd_client.get_all_names().await.ok();
+        let contract_info = self.get_nym_contracts_info().await?;
 
         info!(
             "Updating validator cache. There are {} mixnodes and {} gateways",
@@ -74,6 +202,7 @@ impl NymContractCacheRefresher {
                 mix_to_family,
                 services,
                 names,
+                contract_info,
             )
             .await;
 

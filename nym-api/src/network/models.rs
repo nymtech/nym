@@ -19,3 +19,10 @@ impl NetworkDetails {
         }
     }
 }
+
+#[derive(Serialize, Deserialize, Clone, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct ContractInformation<T> {
+    pub(crate) address: Option<String>,
+    pub(crate) details: Option<T>,
+}

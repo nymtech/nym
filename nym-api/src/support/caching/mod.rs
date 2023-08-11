@@ -2,13 +2,13 @@ use serde::Serialize;
 use std::ops::Deref;
 use time::OffsetDateTime;
 
-#[derive(Default, Serialize, Clone)]
+#[derive(Serialize, Clone)]
 pub struct Cache<T> {
     pub value: T,
     as_at: i64,
 }
 
-impl<T: Clone> Cache<T> {
+impl<T> Cache<T> {
     pub fn new(value: T) -> Self {
         Cache {
             value,
@@ -35,6 +35,18 @@ impl<T> Deref for Cache<T> {
 
     fn deref(&self) -> &Self::Target {
         &self.value
+    }
+}
+
+impl<T> Default for Cache<T>
+where
+    T: Default,
+{
+    fn default() -> Self {
+        Cache {
+            value: T::default(),
+            as_at: 0,
+        }
     }
 }
 

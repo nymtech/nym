@@ -28,4 +28,4 @@ jobs:
         run: make contract-schema
 
       - name: Check for diff
-        run: git diff --exit-code
+        run: git diff --exit-code -- contracts/*/schema

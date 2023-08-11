@@ -46,7 +46,7 @@ You can either do this graphically via the Desktop Wallet, or the CLI.
 ![Node Settings Page](../images/wallet-screenshots/node_settings.png)
 
 ### Updating node information via the CLI
-If you want to bond your `<NODE>` via the CLI, then check out the [relevant section in the Nym CLI](../../documentation/docs/src/tools/nym-cli.md#upgrade-a-mix-node) docs.
+If you want to bond your `<NODE>` via the CLI, then check out the [relevant section in the Nym CLI](https://nymtech.net/docs/tools/nym-cli.md#upgrade-a-mix-node) docs.
 
 
 ### Upgrading Network Requester to >= v1.1.10 from <v1.1.9

@@ -17,7 +17,13 @@ jobs:
     steps:
       - name: Check out repository code
         uses: actions/checkout@v2
-        
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+
+
       - name: Generate the schema
         run: make contract-schema
 

@@ -119,5 +119,5 @@ expand = true            # partial words will match longer terms
 heading-split-level = 3  # link results to heading levels
 copy-js = true           # include Javascript code for search
 
-# [output.linkcheck]
-# warning-policy = "warn"
+[output.linkcheck]
+warning-policy = "warn"

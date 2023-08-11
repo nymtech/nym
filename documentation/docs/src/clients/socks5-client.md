@@ -60,7 +60,7 @@ There are 2 pieces of software that work together to send SOCKS traffic through 
 The `nym-socks5-client` allows you to do the following from your local machine:
 * Take a TCP data stream from a application that can send traffic via SOCKS5.
 * Chop up the TCP stream into multiple Sphinx packets, assigning sequence numbers to them, while leaving the TCP connection open for more data
-* Send the Sphinx packets through the mixnet to a [network requester](../nodes/network-requester-setup.md). Packets are shuffled and mixed as they transit the mixnet.
+* Send the Sphinx packets through the mixnet to a [network requester](../nodes/network-requester.md). Packets are shuffled and mixed as they transit the mixnet.
 
 The `nym-network-requester` then reassembles the original TCP stream using the packets' sequence numbers, and make the intended request. It will then chop up the response into Sphinx packets and send them back through the mixnet to your  `nym-socks5-client`. The application will then receive its data, without even noticing that it wasn't talking to a "normal" SOCKS5 proxy!
 
@@ -100,9 +100,9 @@ Before you can use the client, you need to initalise a new instance of it, which
 
 The `--id` in the example above is a local identifier so that you can name your clients and keep track of them on your local system; it is **never** transmitted over the network.
 
-The `--provider` field needs to be filled with the Nym address of a Network Requester that can make network requests on your behalf. If you don't want to [run your own](../nodes/network-requester-setup.md) you can select one from the [mixnet explorer](https://explorer.nymtech.net/network-components/service-providers) by copying its `Client ID` and using this as the value of the `--provider` flag. Alternatively, you could use [this list](https://harbourmaster.nymtech.net/).
+The `--provider` field needs to be filled with the Nym address of a Network Requester that can make network requests on your behalf. If you don't want to [run your own](../nodes/network-requester.md) you can select one from the [mixnet explorer](https://explorer.nymtech.net/network-components/service-providers) by copying its `Client ID` and using this as the value of the `--provider` flag. Alternatively, you could use [this list](https://harbourmaster.nymtech.net/).
 
-Since the nodes on this list are the infrastructure for [Nymconnect](https://nymtech.net/developers/quickstart/nymconnect-gui.html) they will support all apps on the [default whitelist](../nodes/network-requester-setup.md#network-requester-whitelist): Keybase, Telegram, Electrum, Blockstream Green, and Helios.
+Since the nodes on this list are the infrastructure for [Nymconnect](https://nymtech.net/developers/quickstart/nymconnect-gui.html) they will support all apps on the [default whitelist](../nodes/network-requester.md#network-requester-whitelist): Keybase, Telegram, Electrum, Blockstream Green, and Helios.
 
 #### Choosing a Gateway
 By default - as in the example above - your client will choose a random gateway to connect to.

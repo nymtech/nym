@@ -27,9 +27,9 @@ do
    # clean old dist/$i
    rm -rf ../../dist/docs/$i
    # move newly rendered book/ to dist
-   cp -r ./book/ ../../dist/docs/$i
+   cp -r ./book/html/ ../../dist/docs/$i
    # sanity check
-   ls -a ../../dist/docs/$i/html
+   ls -a ../../dist/docs/$i/
    # cd back to ../documentation/
    cd ../
 done

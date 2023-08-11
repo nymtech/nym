@@ -10,7 +10,7 @@ use wasm_client_core::client::base_client::ClientOutput;
 use wasm_client_core::client::received_buffer::{
     ReceivedBufferMessage, ReconstructedMessagesReceiver,
 };
-use wasm_utils::console_error;
+use wasm_utils::{console_error, console_log};
 
 pub(crate) struct ResponsePusher {
     reconstructed_receiver: ReconstructedMessagesReceiver,
@@ -46,6 +46,10 @@ impl ResponsePusher {
 
             while let Some(reconstructed) = self.reconstructed_receiver.next().await {
                 for reconstructed_msg in reconstructed {
+                    console_log!(
+                        "reconstructed: {:?}",
+                        String::from_utf8_lossy(&reconstructed_msg.message)
+                    );
                     let (msg, tag) = reconstructed_msg.into_inner();
 
                     let msg_slice: &[u8] = &msg;

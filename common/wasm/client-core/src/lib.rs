@@ -2,19 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // that's so stupid...
-#[cfg(target_arch = "wasm32")]
+// #[cfg(target_arch = "wasm32")]
 pub mod config;
 
-#[cfg(target_arch = "wasm32")]
+// #[cfg(target_arch = "wasm32")]
 pub mod error;
 
-#[cfg(target_arch = "wasm32")]
+// #[cfg(target_arch = "wasm32")]
 pub mod helpers;
 
-#[cfg(target_arch = "wasm32")]
+// #[cfg(target_arch = "wasm32")]
 pub mod storage;
 
-#[cfg(target_arch = "wasm32")]
+// #[cfg(target_arch = "wasm32")]
 pub mod topology;
 
 // re-export types for ease of use

@@ -1,0 +1,22 @@
+{
+  "name": "internal-dev-node",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "node src/index.mjs"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@nymproject/nym-client-wasm": "file:../../../dist/wasm/client",
+    "isomorphic-ws": "^5.0.0",
+    "websocket": "^1.0.34",
+    "websocket-polyfill": "^0.0.3",
+    "ws": "^8.13.0"
+  },
+  "devDependencies": {
+    "fake-indexeddb": "^4.0.2",
+    "typescript": "^5.1.6"
+  }
+}

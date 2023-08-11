@@ -51,7 +51,8 @@ export const Disconnected: FCWithChildren<{
 
             {showFeedbackNote ? (
               <Alert variant="outlined" icon={false} onClose={() => setShowFeedbackNote(false)}>
-                Help improve NymConnect{' '}
+                Help improve NymConnect
+                <br />
                 <Link to="/menu/reporting/user-feedback" component={RouterLink} color="secondary" underline="hover">
                   Send feedback
                 </Link>

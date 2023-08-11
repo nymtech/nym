@@ -14,7 +14,7 @@ type FormValues = {
 
 const schema = object({
   email: string().email(),
-  feedback: string().required().min(20),
+  feedback: string().required().min(20).max(512),
 }).required();
 
 export const UserFeedback = () => {

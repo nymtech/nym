@@ -78,7 +78,6 @@ pub struct Config {
     // however, I'd really prefer to use something more strongly typed (i.e. AccountId vs String)
     pub(crate) mixnet_contract_address: Option<AccountId>,
     pub(crate) vesting_contract_address: Option<AccountId>,
-    pub(crate) bandwidth_claim_contract_address: Option<AccountId>,
     pub(crate) coconut_bandwidth_contract_address: Option<AccountId>,
     pub(crate) group_contract_address: Option<AccountId>,
     pub(crate) multisig_contract_address: Option<AccountId>,
@@ -125,10 +124,6 @@ impl Config {
             )?,
             vesting_contract_address: Self::parse_optional_account(
                 details.contracts.vesting_contract_address.as_ref(),
-                prefix,
-            )?,
-            bandwidth_claim_contract_address: Self::parse_optional_account(
-                details.contracts.bandwidth_claim_contract_address.as_ref(),
                 prefix,
             )?,
             coconut_bandwidth_contract_address: Self::parse_optional_account(
@@ -553,10 +548,6 @@ impl<C> NyxdClient<C> {
         self.config.vesting_contract_address = Some(address);
     }
 
-    pub fn set_bandwidth_claim_contract_address(&mut self, address: AccountId) {
-        self.config.bandwidth_claim_contract_address = Some(address);
-    }
-
     pub fn set_coconut_bandwidth_contract_address(&mut self, address: AccountId) {
         self.config.coconut_bandwidth_contract_address = Some(address);
     }
@@ -587,17 +578,6 @@ impl<C> NyxdClient<C> {
     // so it's not introducing new source of failure (just moves it)
     pub fn vesting_contract_address(&self) -> &AccountId {
         self.config.vesting_contract_address.as_ref().unwrap()
-    }
-
-    // TODO: this should get changed into Result<&AccountId, NyxdError> (or Option<&AccountId> in future commits
-    // note: what unwrap is doing here is just moving a failure that would have normally
-    // occurred in `connect` when attempting to parse an empty address,
-    // so it's not introducing new source of failure (just moves it)
-    pub fn bandwidth_claim_contract_address(&self) -> &AccountId {
-        self.config
-            .bandwidth_claim_contract_address
-            .as_ref()
-            .unwrap()
     }
 
     // TODO: this should get changed into Result<&AccountId, NyxdError> (or Option<&AccountId> in future commits

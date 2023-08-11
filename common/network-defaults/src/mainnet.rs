@@ -13,8 +13,6 @@ pub const MIXNET_CONTRACT_ADDRESS: &str =
     "n17srjznxl9dvzdkpwpw24gg668wc73val88a6m5ajg6ankwvz9wtst0cznr";
 pub const VESTING_CONTRACT_ADDRESS: &str =
     "n1nc5tatafv6eyq7llkr2gv50ff9e22mnf70qgjlv737ktmt4eswrq73f2nw";
-pub(crate) const BANDWIDTH_CLAIM_CONTRACT_ADDRESS: &str =
-    "n19lc9u84cz0yz3fww5283nucc9yvr8gsjmgeul0";
 pub(crate) const COCONUT_BANDWIDTH_CONTRACT_ADDRESS: &str =
     "n19lc9u84cz0yz3fww5283nucc9yvr8gsjmgeul0";
 pub(crate) const GROUP_CONTRACT_ADDRESS: &str = "n19lc9u84cz0yz3fww5283nucc9yvr8gsjmgeul0";
@@ -72,10 +70,6 @@ pub fn export_to_env() {
         VESTING_CONTRACT_ADDRESS,
     );
     set_var_to_default(
-        var_names::BANDWIDTH_CLAIM_CONTRACT_ADDRESS,
-        BANDWIDTH_CLAIM_CONTRACT_ADDRESS,
-    );
-    set_var_to_default(
         var_names::COCONUT_BANDWIDTH_CONTRACT_ADDRESS,
         COCONUT_BANDWIDTH_CONTRACT_ADDRESS,
     );
@@ -119,10 +113,6 @@ pub fn export_to_env_if_not_set() {
     set_var_conditionally_to_default(
         var_names::VESTING_CONTRACT_ADDRESS,
         VESTING_CONTRACT_ADDRESS,
-    );
-    set_var_conditionally_to_default(
-        var_names::BANDWIDTH_CLAIM_CONTRACT_ADDRESS,
-        BANDWIDTH_CLAIM_CONTRACT_ADDRESS,
     );
     set_var_conditionally_to_default(
         var_names::COCONUT_BANDWIDTH_CONTRACT_ADDRESS,

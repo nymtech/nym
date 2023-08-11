@@ -25,7 +25,6 @@ pub struct ChainDetails {
 pub struct NymContracts {
     pub mixnet_contract_address: Option<String>,
     pub vesting_contract_address: Option<String>,
-    pub bandwidth_claim_contract_address: Option<String>,
     pub coconut_bandwidth_contract_address: Option<String>,
     pub group_contract_address: Option<String>,
     pub multisig_contract_address: Option<String>,
@@ -113,10 +112,6 @@ impl NymNetworkDetails {
             .with_vesting_contract(Some(
                 var(var_names::VESTING_CONTRACT_ADDRESS).expect("vesting contract not set"),
             ))
-            .with_bandwidth_claim_contract(Some(
-                var(var_names::BANDWIDTH_CLAIM_CONTRACT_ADDRESS)
-                    .expect("bandwidth claim contract not set"),
-            ))
             .with_coconut_bandwidth_contract(Some(
                 var(var_names::COCONUT_BANDWIDTH_CONTRACT_ADDRESS)
                     .expect("coconut bandwidth contract not set"),
@@ -155,9 +150,6 @@ impl NymNetworkDetails {
             contracts: NymContracts {
                 mixnet_contract_address: parse_optional_str(mainnet::MIXNET_CONTRACT_ADDRESS),
                 vesting_contract_address: parse_optional_str(mainnet::VESTING_CONTRACT_ADDRESS),
-                bandwidth_claim_contract_address: parse_optional_str(
-                    mainnet::BANDWIDTH_CLAIM_CONTRACT_ADDRESS,
-                ),
                 coconut_bandwidth_contract_address: parse_optional_str(
                     mainnet::COCONUT_BANDWIDTH_CONTRACT_ADDRESS,
                 ),
@@ -218,12 +210,6 @@ impl NymNetworkDetails {
     #[must_use]
     pub fn with_vesting_contract<S: Into<String>>(mut self, contract: Option<S>) -> Self {
         self.contracts.vesting_contract_address = contract.map(Into::into);
-        self
-    }
-
-    #[must_use]
-    pub fn with_bandwidth_claim_contract<S: Into<String>>(mut self, contract: Option<S>) -> Self {
-        self.contracts.bandwidth_claim_contract_address = contract.map(Into::into);
         self
     }
 

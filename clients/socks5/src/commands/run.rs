@@ -11,6 +11,7 @@ use clap::Args;
 use log::*;
 use nym_bin_common::version_checker::is_minor_version_compatible;
 use nym_client_core::client::base_client::storage::OnDiskPersistent;
+use nym_client_core::client::topology_control::geo_aware_provider::CountryGroup;
 use nym_crypto::asymmetric::identity;
 use nym_socks5_client_core::NymClient;
 use nym_sphinx::addressing::clients::Recipient;
@@ -60,6 +61,10 @@ pub(crate) struct Run {
     #[clap(long, hide = true)]
     no_cover: bool,
 
+    /// Set geo-aware mixnode selection when sending mixnet traffic, for experiments only.
+    #[clap(long, hide = true, value_parser = validate_country_group)]
+    geo_routing: Option<CountryGroup>,
+
     /// Enable medium mixnet traffic, for experiments only.
     /// This includes things like disabling cover traffic, no per hop delays, etc.
     #[clap(long, hide = true)]
@@ -82,11 +87,19 @@ impl From<Run> for OverrideConfig {
             use_anonymous_replies: run_config.use_anonymous_replies,
             fastmode: run_config.fastmode,
             no_cover: run_config.no_cover,
+            geo_routing: run_config.geo_routing,
             medium_toggle: run_config.medium_toggle,
             nyxd_urls: run_config.nyxd_urls,
             enabled_credentials_mode: run_config.enabled_credentials_mode,
             outfox: run_config.outfox,
         }
+    }
+}
+
+fn validate_country_group(s: &str) -> Result<CountryGroup, String> {
+    match s.parse() {
+        Ok(cg) => Ok(cg),
+        Err(_) => Err(format!("failed to parse country group: {}", s)),
     }
 }
 

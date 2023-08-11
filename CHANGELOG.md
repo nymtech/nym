@@ -4,6 +4,28 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [v1.1.24] (2023-08-08)
+
+- Latency based gateway selection is serial and slow ([#3710])
+- Network-requester: strip comments from allow lists ([#3625])
+- Remove (or start maintaining) `upgrade` commands from all binaries ([#3600])
+- Set sphinx as default packet type ([#3748])
+- Apply fix from feature/ephemera to develop too (#3698) ([#3742])
+- Feature/coco demos ([#3732])
+- Add updates to community list projects ([#3722])
+- Add geo-aware mixnet topology provider ([#3713])
+- Add updates to community list projects ([#3711])
+
+[#3710]: https://github.com/nymtech/nym/issues/3710
+[#3625]: https://github.com/nymtech/nym/issues/3625
+[#3600]: https://github.com/nymtech/nym/issues/3600
+[#3748]: https://github.com/nymtech/nym/pull/3748
+[#3742]: https://github.com/nymtech/nym/pull/3742
+[#3732]: https://github.com/nymtech/nym/pull/3732
+[#3722]: https://github.com/nymtech/nym/pull/3722
+[#3713]: https://github.com/nymtech/nym/pull/3713
+[#3711]: https://github.com/nymtech/nym/pull/3711
+
 ## [v1.1.23] (2023-07-04)
 
 - nym-cli: add client identity key signing support ([#3576])

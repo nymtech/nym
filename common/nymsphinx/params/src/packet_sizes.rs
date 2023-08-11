@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::PacketType;
-use nym_sphinx_types::{
-    header::HEADER_SIZE, MIN_PACKET_SIZE, MIX_PARAMS_LEN, OUTFOX_PACKET_OVERHEAD,
-    PAYLOAD_OVERHEAD_SIZE,
-};
+#[cfg(feature = "sphinx")]
+use nym_sphinx_types::{header::HEADER_SIZE, PAYLOAD_OVERHEAD_SIZE};
+#[cfg(feature = "outfox")]
+use nym_sphinx_types::{MIN_PACKET_SIZE, MIX_PARAMS_LEN, OUTFOX_PACKET_OVERHEAD};
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::convert::TryFrom;
@@ -14,6 +14,7 @@ use std::str::FromStr;
 use thiserror::Error;
 
 // each sphinx packet contains mandatory header and payload padding + markers
+#[cfg(feature = "sphinx")]
 const SPHINX_PACKET_OVERHEAD: usize = HEADER_SIZE + PAYLOAD_OVERHEAD_SIZE;
 
 // it's up to the smart people to figure those values out : )
@@ -22,16 +23,23 @@ const SPHINX_PACKET_OVERHEAD: usize = HEADER_SIZE + PAYLOAD_OVERHEAD_SIZE;
 
 // TODO: I'm not entirely sure if we can easily extract `<AckEncryptionAlgorithm as NewStreamCipher>::NonceSize`
 // into a const usize before relevant stuff is stabilised in rust...
-
+#[cfg(feature = "sphinx")]
 const ACK_IV_SIZE: usize = 16;
 
+#[cfg(feature = "sphinx")]
 const ACK_PACKET_SIZE: usize = ACK_IV_SIZE + crate::FRAG_ID_LEN + SPHINX_PACKET_OVERHEAD;
+#[cfg(feature = "sphinx")]
 const REGULAR_PACKET_SIZE: usize = 2 * 1024 + SPHINX_PACKET_OVERHEAD;
+#[cfg(feature = "sphinx")]
 const EXTENDED_PACKET_SIZE_8: usize = 8 * 1024 + SPHINX_PACKET_OVERHEAD;
+#[cfg(feature = "sphinx")]
 const EXTENDED_PACKET_SIZE_16: usize = 16 * 1024 + SPHINX_PACKET_OVERHEAD;
+#[cfg(feature = "sphinx")]
 const EXTENDED_PACKET_SIZE_32: usize = 32 * 1024 + SPHINX_PACKET_OVERHEAD;
 
+#[cfg(feature = "outfox")]
 const OUTFOX_ACK_PACKET_SIZE: usize = MIN_PACKET_SIZE + OUTFOX_PACKET_OVERHEAD;
+#[cfg(feature = "outfox")]
 const OUTFOX_REGULAR_PACKET_SIZE: usize = 2 * 1024 + OUTFOX_PACKET_OVERHEAD;
 
 #[derive(Debug, Error)]
@@ -154,39 +162,55 @@ impl TryFrom<u8> for PacketSize {
 
 impl PacketSize {
     pub const fn size(self) -> usize {
+        #[allow(unreachable_patterns)]
         match self {
+            #[cfg(feature = "sphinx")]
             PacketSize::RegularPacket => REGULAR_PACKET_SIZE,
+            #[cfg(feature = "sphinx")]
             PacketSize::AckPacket => ACK_PACKET_SIZE,
+            #[cfg(feature = "sphinx")]
             PacketSize::ExtendedPacket8 => EXTENDED_PACKET_SIZE_8,
+            #[cfg(feature = "sphinx")]
             PacketSize::ExtendedPacket16 => EXTENDED_PACKET_SIZE_16,
+            #[cfg(feature = "sphinx")]
             PacketSize::ExtendedPacket32 => EXTENDED_PACKET_SIZE_32,
+            #[cfg(feature = "outfox")]
             PacketSize::OutfoxRegularPacket => OUTFOX_REGULAR_PACKET_SIZE,
+            #[cfg(feature = "outfox")]
             PacketSize::OutfoxAckPacket => OUTFOX_ACK_PACKET_SIZE,
+            _ => 0,
         }
     }
 
     pub const fn header_size(&self) -> usize {
+        #[allow(unreachable_patterns)]
         match self {
+            #[cfg(feature = "sphinx")]
             PacketSize::RegularPacket
             | PacketSize::AckPacket
             | PacketSize::ExtendedPacket8
             | PacketSize::ExtendedPacket16
             | PacketSize::ExtendedPacket32 => HEADER_SIZE,
+            #[cfg(feature = "outfox")]
             PacketSize::OutfoxRegularPacket | PacketSize::OutfoxAckPacket => MIX_PARAMS_LEN,
+            _ => 0,
         }
     }
 
     pub const fn payload_overhead(&self) -> usize {
         #[allow(unreachable_patterns)]
         match self {
+            #[cfg(feature = "sphinx")]
             PacketSize::RegularPacket
             | PacketSize::AckPacket
             | PacketSize::ExtendedPacket8
             | PacketSize::ExtendedPacket16
             | PacketSize::ExtendedPacket32 => PAYLOAD_OVERHEAD_SIZE,
+            #[cfg(feature = "outfox")]
             PacketSize::OutfoxRegularPacket | PacketSize::OutfoxAckPacket => {
                 OUTFOX_PACKET_OVERHEAD - MIX_PARAMS_LEN // Mix params are calculated into the total overhead so we take them out here
             }
+            _ => 0,
         }
     }
 
@@ -244,11 +268,16 @@ impl PacketSize {
         plaintext_size: usize,
         packet_type: PacketType,
     ) -> Result<Self, InvalidPacketSize> {
+        #[allow(unreachable_patterns)]
         let overhead = match packet_type {
+            #[cfg(feature = "sphinx")]
             PacketType::Mix => SPHINX_PACKET_OVERHEAD,
             #[allow(deprecated)]
+            #[cfg(feature = "sphinx")]
             PacketType::Vpn => SPHINX_PACKET_OVERHEAD,
+            #[cfg(feature = "outfox")]
             PacketType::Outfox => OUTFOX_PACKET_OVERHEAD,
+            _ => 0,
         };
         let packet_size = plaintext_size + overhead;
         Self::get_type(packet_size)

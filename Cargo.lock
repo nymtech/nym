@@ -2729,7 +2729,7 @@ checksum = "0206175f82b8d6bf6652ff7d71a1e27fd2e4efde587fd368662814d6ec1d9ce0"
 
 [[package]]
 name = "explorer-api"
-version = "1.1.23"
+version = "1.1.24"
 dependencies = [
  "chrono",
  "clap 4.2.7",
@@ -2737,10 +2737,12 @@ dependencies = [
  "humantime-serde",
  "isocountry",
  "itertools",
+ "lazy_static",
  "log",
  "maxminddb",
  "nym-bin-common",
  "nym-contracts-common",
+ "nym-explorer-api-requests",
  "nym-mixnet-contract-common",
  "nym-network-defaults",
  "nym-task",
@@ -5182,7 +5184,7 @@ dependencies = [
 
 [[package]]
 name = "nym-api"
-version = "1.1.24"
+version = "1.1.25"
 dependencies = [
  "actix-web",
  "anyhow",
@@ -5328,7 +5330,7 @@ dependencies = [
 
 [[package]]
 name = "nym-cli"
-version = "1.1.23"
+version = "1.1.24"
 dependencies = [
  "anyhow",
  "base64 0.13.1",
@@ -5394,7 +5396,7 @@ dependencies = [
 
 [[package]]
 name = "nym-client"
-version = "1.1.23"
+version = "1.1.24"
 dependencies = [
  "clap 4.2.7",
  "dirs 4.0.0",
@@ -5444,6 +5446,7 @@ dependencies = [
  "nym-config",
  "nym-credential-storage",
  "nym-crypto",
+ "nym-explorer-api-requests",
  "nym-gateway-client",
  "nym-gateway-requests",
  "nym-network-defaults",
@@ -5454,6 +5457,7 @@ dependencies = [
  "nym-topology",
  "nym-validator-client",
  "rand 0.7.3",
+ "reqwest",
  "serde",
  "serde_json",
  "sha2 0.10.6",
@@ -5677,8 +5681,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-explorer-api-requests"
+version = "0.1.0"
+dependencies = [
+ "nym-contracts-common",
+ "nym-mixnet-contract-common",
+ "nym-validator-client",
+ "schemars",
+ "serde",
+ "ts-rs",
+]
+
+[[package]]
 name = "nym-gateway"
-version = "1.1.23"
+version = "1.1.24"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5833,7 +5849,7 @@ dependencies = [
 
 [[package]]
 name = "nym-mixnode"
-version = "1.1.24"
+version = "1.1.25"
 dependencies = [
  "anyhow",
  "bs58 0.4.0",
@@ -5950,7 +5966,7 @@ dependencies = [
 
 [[package]]
 name = "nym-network-requester"
-version = "1.1.23"
+version = "1.1.24"
 dependencies = [
  "anyhow",
  "async-file-watcher",
@@ -5997,7 +6013,7 @@ dependencies = [
 
 [[package]]
 name = "nym-network-statistics"
-version = "1.1.23"
+version = "1.1.24"
 dependencies = [
  "dirs 4.0.0",
  "log",
@@ -6154,7 +6170,7 @@ dependencies = [
 
 [[package]]
 name = "nym-socks5-client"
-version = "1.1.23"
+version = "1.1.24"
 dependencies = [
  "clap 4.2.7",
  "lazy_static",
@@ -6192,7 +6208,9 @@ dependencies = [
  "nym-bandwidth-controller",
  "nym-client-core",
  "nym-config",
+ "nym-contracts-common",
  "nym-credential-storage",
+ "nym-mixnet-contract-common",
  "nym-network-defaults",
  "nym-service-providers-common",
  "nym-socks5-proxy-helpers",
@@ -6202,10 +6220,13 @@ dependencies = [
  "nym-validator-client",
  "pin-project",
  "rand 0.7.3",
+ "reqwest",
+ "schemars",
  "serde",
  "tap",
  "thiserror",
  "tokio",
+ "url",
 ]
 
 [[package]]

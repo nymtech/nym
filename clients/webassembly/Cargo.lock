@@ -2701,7 +2701,7 @@ dependencies = [
  "nym-contracts-common",
 ]
 
- [[package]]
+[[package]]
 name = "nym-explorer-api-requests"
 version = "0.1.0"
 dependencies = [

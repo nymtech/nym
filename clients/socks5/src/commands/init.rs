@@ -193,7 +193,8 @@ pub(crate) async fn execute(args: &Init) -> Result<(), Socks5ClientError> {
         Some(&config.core.base.client.nym_api_urls),
     )
     .await
-    .tap_err(|err| eprintln!("Failed to setup gateway\nError: {err}"))?;
+    .tap_err(|err| eprintln!("Failed to setup gateway\nError: {err}"))?
+    .details;
 
     // TODO: ask the service provider we specified for its interface version and set it in the config
 

@@ -5,26 +5,31 @@ use nym_network_defaults::{ChainDetails, DenomDetails, NymContracts, ValidatorDe
 
 pub(crate) const NETWORK_NAME: &str = "sandbox";
 
-pub(crate) const BECH32_PREFIX: &str = "nymt";
-pub(crate) const MIX_DENOM: DenomDetails = DenomDetails::new("unymt", "nymt", 6);
-pub(crate) const STAKE_DENOM: DenomDetails = DenomDetails::new("unyxt", "nyxt", 6);
+pub(crate) const BECH32_PREFIX: &str = "n";
+pub(crate) const MIX_DENOM: DenomDetails = DenomDetails::new("unym", "nym", 6);
+pub(crate) const STAKE_DENOM: DenomDetails = DenomDetails::new("unyx", "nyx", 6);
 
 // -- Contract addresses --
 
-pub(crate) const MIXNET_CONTRACT_ADDRESS: &str = "nymt1ghd753shjuwexxywmgs4xz7x2q732vcnstz02j";
-pub(crate) const VESTING_CONTRACT_ADDRESS: &str = "nymt14ejqjyq8um4p3xfqj74yld5waqljf88fn549lh";
+pub(crate) const MIXNET_CONTRACT_ADDRESS: &str =
+    "n1xr3rq8yvd7qplsw5yx90ftsr2zdhg4e9z60h5duusgxpv72hud3sjkxkav";
+pub(crate) const VESTING_CONTRACT_ADDRESS: &str =
+    "n1unyuj8qnmygvzuex3dwmg9yzt9alhvyeat0uu0jedg2wj33efl5qackslz";
 pub(crate) const COCONUT_BANDWIDTH_CONTRACT_ADDRESS: &str =
-    "nymt1nz0r0au8aj6dc00wmm3ufy4g4k86rjzlgq608r";
-pub(crate) const GROUP_CONTRACT_ADDRESS: &str = "nymt1k8re7jwz6rnnwrktnejdwkwnncte7ek7kk6fvg";
-pub(crate) const MULTISIG_CONTRACT_ADDRESS: &str = "nymt1k8re7jwz6rnnwrktnejdwkwnncte7ek7kk6fvg";
-pub(crate) const COCONUT_DKG_CONTRACT_ADDRESS: &str = "nymt1k8re7jwz6rnnwrktnejdwkwnncte7ek7kk6fvg";
+    "n16a32stm6kknhq5cc8rx77elr66pygf2hfszw7wvpq746x3uffylqkjar4l";
+pub(crate) const GROUP_CONTRACT_ADDRESS: &str =
+    "n1pd7kfgvr5tpcv0xnlv46c4jsq9jg2r799xxrcwqdm4l2jhq2pjwqrmz5ju";
+pub(crate) const MULTISIG_CONTRACT_ADDRESS: &str =
+    "n14ph4e660eyqz0j36zlkaey4zgzexm5twkmjlqaequxr2cjm9eprqsmad6k";
+pub(crate) const COCONUT_DKG_CONTRACT_ADDRESS: &str =
+    "n1ahg0erc2fs6xx3j5m8sfx3ryuzdjh6kf6qm9plsf865fltekyrfsesac6a";
 
 // -- Constructor functions --
 
 pub(crate) fn validators() -> Vec<ValidatorDetails> {
     vec![ValidatorDetails::new(
-        "https://sandbox-validator.nymtech.net",
-        Some("https://sandbox-validator.nymtech.net/api"),
+        "https://sandbox-validator1.nymtech.net",
+        Some("https://sandbox-nym-api1.nymtech.net/api"),
     )]
 }
 

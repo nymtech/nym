@@ -11,7 +11,7 @@ futures = "0.3"
 log = { workspace = true }
 pin-project = "1.0"
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
-reqwest = "0.11.4"
+reqwest = { workspace = true }
 schemars = { version = "0.8", features = ["preserve_order"] }
 serde = { workspace = true, features = ["derive"] } # for config serialization/deserialization
 tap = "1.0.1"

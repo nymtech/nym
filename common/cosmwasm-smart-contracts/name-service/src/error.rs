@@ -74,7 +74,10 @@ pub enum NameServiceError {
     InvalidNymAddress(String),
 
     #[error("client identity in nym address does not match the provided identity key")]
-    IdentityKeyMismatch { address: Address, identity_key: String },
+    IdentityKeyMismatch {
+        address: Address,
+        identity_key: String,
+    },
 }
 
 pub type Result<T, E = NameServiceError> = std::result::Result<T, E>;

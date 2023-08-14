@@ -58,7 +58,7 @@ pub enum Address {
     //Gateway(String)
 }
 
-#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug, JsonSchema)]
+#[cw_serde]
 pub struct NymAddressInner {
     client_id: String,
     client_enc: String,
@@ -67,7 +67,7 @@ pub struct NymAddressInner {
 
 // ADDRESS . ENCRYPTION @ GATEWAY_ID
 impl std::fmt::Display for NymAddressInner {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
             "{}.{}@{}",

@@ -3656,7 +3656,7 @@ dependencies = [
 
 [[package]]
 name = "nym-connect"
-version = "1.1.15"
+version = "1.1.16"
 dependencies = [
  "anyhow",
  "bip39",

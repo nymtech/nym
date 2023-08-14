@@ -8,9 +8,13 @@ use crate::{
 };
 use itertools::Itertools;
 use nym_api_requests::models::GatewayBondAnnotated;
+use nym_config::defaults::var_names::NYM_API;
 use nym_contracts_common::types::Percent;
+use nym_validator_client::nym_api::Client as ApiClient;
+use std::str::FromStr;
 use std::sync::Arc;
 use tokio::sync::RwLock;
+use url::Url;
 
 static SERVICE_PROVIDER_WELLKNOWN_URL: &str =
     "https://nymtech.net/.wellknown/connect/service-providers.json";
@@ -24,9 +28,6 @@ static HARBOUR_MASTER_URL: &str = "https://harbourmaster.nymtech.net/v1/services
 
 // We only consider network requesters with a routing score above this threshold
 const SERVICE_ROUTING_SCORE_THRESHOLD: f32 = 0.9;
-
-static GATEWAYS_DETAILED_URL: &str =
-    "https://validator.nymtech.net/api/v1/status/gateways/detailed";
 
 // Only use gateways with a performnnce score above this
 const GATEWAY_PERFORMANCE_SCORE_THRESHOLD: u64 = 90;
@@ -116,10 +117,8 @@ fn filter_out_inactive_services(
 }
 
 async fn fetch_gateways() -> Result<Vec<GatewayBondAnnotated>> {
-    Ok(reqwest::get(GATEWAYS_DETAILED_URL)
-        .await?
-        .json::<Vec<GatewayBondAnnotated>>()
-        .await?)
+    let api_client = ApiClient::new(Url::from_str(&std::env::var(NYM_API)?)?);
+    Ok(api_client.get_gateways_detailed().await?)
 }
 
 #[tauri::command]

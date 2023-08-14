@@ -51,7 +51,7 @@ use url::Url;
 use nym_bandwidth_controller::wasm_mockups::DkgQueryClient;
 
 use crate::client::base_client::storage::gateway_details::GatewayDetailsStore;
-use crate::init::{setup_gateway, GatewaySetup, InitialisationDetails};
+use crate::init::{setup_gateway, GatewaySetup, InitialisationResult};
 #[cfg(not(target_arch = "wasm32"))]
 use nym_validator_client::nyxd::traits::DkgQueryClient;
 
@@ -445,7 +445,7 @@ where
         Ok(mem_store)
     }
 
-    async fn initialise_keys_and_gateway(&self) -> Result<InitialisationDetails, ClientCoreError>
+    async fn initialise_keys_and_gateway(&self) -> Result<InitialisationResult, ClientCoreError>
     where
         <S::KeyStore as KeyStore>::StorageError: Sync + Send,
         <S::GatewayDetailsStore as GatewayDetailsStore>::StorageError: Sync + Send,
@@ -471,9 +471,9 @@ where
         info!("Starting nym client");
 
         // derive (or load) client keys and gateway configuration
-        let details = self.initialise_keys_and_gateway().await?;
-        let gateway_config = details.gateway_details;
-        let managed_keys = details.managed_keys;
+        let init_res = self.initialise_keys_and_gateway().await?;
+        let gateway_config = init_res.details.gateway_details;
+        let managed_keys = init_res.details.managed_keys;
 
         let (reply_storage_backend, credential_store) = self.client_store.into_runtime_stores();
 

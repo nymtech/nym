@@ -45,7 +45,7 @@ use wasmtimer::tokio::sleep;
 const DEFAULT_RECONNECTION_ATTEMPTS: usize = 10;
 const DEFAULT_RECONNECTION_BACKOFF: Duration = Duration::from_secs(5);
 
-pub struct GatewayClient<C, St> {
+pub struct GatewayClient<C, St = EphemeralCredentialStorage> {
     authenticated: bool,
     disabled_credentials_mode: bool,
     bandwidth_remaining: i64,
@@ -755,7 +755,9 @@ impl<C, St> GatewayClient<C, St> {
     }
 }
 
-impl<C> GatewayClient<C, EphemeralCredentialStorage> {
+pub struct InitOnly;
+
+impl GatewayClient<InitOnly, EphemeralCredentialStorage> {
     // for initialisation we do not need credential storage. Though it's still a bit weird we have to set the generic...
     pub fn new_init(
         gateway_address: String,
@@ -772,7 +774,7 @@ impl<C> GatewayClient<C, EphemeralCredentialStorage> {
         let shutdown = TaskClient::dummy();
         let packet_router = PacketRouter::new(ack_tx, mix_tx, shutdown.clone());
 
-        GatewayClient::<C, EphemeralCredentialStorage> {
+        GatewayClient::<InitOnly, EphemeralCredentialStorage> {
             authenticated: false,
             disabled_credentials_mode: true,
             bandwidth_remaining: 0,

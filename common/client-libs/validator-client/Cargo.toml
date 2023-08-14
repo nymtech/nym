@@ -22,13 +22,13 @@ nym-group-contract-common = { path = "../../cosmwasm-smart-contracts/group-contr
 nym-service-provider-directory-common = { path = "../../cosmwasm-smart-contracts/service-provider-directory" }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
-reqwest = { version = "0.11", features = ["json"] }
+reqwest = { workspace = true, features = ["json"] }
 thiserror = "1"
 log = { workspace = true }
 url = { version = "2.2", features = ["serde"] }
 tokio = { version = "1.24.1", features = ["sync", "time"] }
 futures = "0.3"
-openssl = { version = "0.10", features = ["vendored"], optional = true }
+openssl = { version = "^0.10.55", features = ["vendored"], optional = true }
 
 nym-coconut-interface = { path = "../../coconut-interface" }
 nym-network-defaults = { path = "../../network-defaults" }

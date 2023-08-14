@@ -3656,7 +3656,7 @@ dependencies = [
 
 [[package]]
 name = "nym-connect"
-version = "1.1.15"
+version = "1.1.16"
 dependencies = [
  "anyhow",
  "bip39",
@@ -3788,7 +3788,6 @@ version = "0.1.0"
 dependencies = [
  "nym-contracts-common",
  "nym-mixnet-contract-common",
- "nym-validator-client",
  "schemars",
  "serde",
 ]

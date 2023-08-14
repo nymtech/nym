@@ -7,7 +7,6 @@ use crate::client::base_client::storage::MixnetClientStorage;
 use crate::client::cover_traffic_stream::LoopCoverTrafficStream;
 use crate::client::inbound_messages::{InputMessage, InputMessageReceiver, InputMessageSender};
 use crate::client::key_manager::persistence::KeyStore;
-use crate::client::key_manager::ManagedKeys;
 use crate::client::mix_traffic::{BatchMixMessageSender, MixTrafficController};
 use crate::client::real_messages_control;
 use crate::client::real_messages_control::RealMessagesController;
@@ -23,7 +22,7 @@ use crate::client::topology_control::nym_api_provider::NymApiTopologyProvider;
 use crate::client::topology_control::{
     TopologyAccessor, TopologyRefresher, TopologyRefresherConfig,
 };
-use crate::config::{Config, DebugConfig, GatewayEndpointConfig};
+use crate::config::{Config, DebugConfig};
 use crate::error::ClientCoreError;
 use crate::{config, spawn_future};
 use futures::channel::mpsc;
@@ -51,7 +50,7 @@ use url::Url;
 use nym_bandwidth_controller::wasm_mockups::DkgQueryClient;
 
 use crate::client::base_client::storage::gateway_details::GatewayDetailsStore;
-use crate::init::{setup_gateway, GatewaySetup, InitialisationResult};
+use crate::init::{setup_gateway, GatewaySetup, InitialisationDetails, InitialisationResult};
 #[cfg(not(target_arch = "wasm32"))]
 use nym_validator_client::nyxd::traits::DkgQueryClient;
 
@@ -200,16 +199,13 @@ where
 
     // note: do **NOT** make this method public as its only valid usage is from within `start_base`
     // because it relies on the crypto keys being already loaded
-    fn mix_address(
-        managed_keys: &ManagedKeys,
-        gateway_config: &GatewayEndpointConfig,
-    ) -> Recipient {
+    fn mix_address(details: &InitialisationDetails) -> Recipient {
         Recipient::new(
-            *managed_keys.identity_public_key(),
-            *managed_keys.encryption_public_key(),
+            *details.managed_keys.identity_public_key(),
+            *details.managed_keys.encryption_public_key(),
             // TODO: below only works under assumption that gateway address == gateway id
             // (which currently is true)
-            NodeIdentity::from_base58_string(&gateway_config.gateway_id).unwrap(),
+            NodeIdentity::from_base58_string(&details.gateway_details.gateway_id).unwrap(),
         )
     }
 
@@ -294,8 +290,7 @@ where
 
     async fn start_gateway_client(
         config: &Config,
-        gateway_config: GatewayEndpointConfig,
-        managed_keys: &ManagedKeys,
+        initialisation_result: InitialisationResult,
         bandwidth_controller: Option<BandwidthController<C, S::CredentialStore>>,
         mixnet_message_sender: MixnetMessageSender,
         ack_sender: AcknowledgementSender,
@@ -305,24 +300,39 @@ where
         <S::KeyStore as KeyStore>::StorageError: Send + Sync + 'static,
         <S::CredentialStore as CredentialStorage>::StorageError: Send + Sync + 'static,
     {
-        let gateway_address = gateway_config.gateway_listener.clone();
-        let gateway_id = gateway_config.gateway_id;
+        let managed_keys = initialisation_result.details.managed_keys;
 
-        // TODO: in theory, at this point, this should be infallible
-        let gateway_identity = identity::PublicKey::from_base58_string(gateway_id)
-            .map_err(ClientCoreError::UnableToCreatePublicKeyFromGatewayId)?;
+        let mut gateway_client =
+            if let Some(existing_client) = initialisation_result.authenticated_ephemeral_client {
+                existing_client.upgrade(
+                    mixnet_message_sender,
+                    ack_sender,
+                    config.debug.gateway_connection.gateway_response_timeout,
+                    bandwidth_controller,
+                    shutdown,
+                )
+            } else {
+                let gateway_config = initialisation_result.details.gateway_details;
 
-        let mut gateway_client = GatewayClient::new(
-            gateway_address,
-            managed_keys.identity_keypair(),
-            gateway_identity,
-            Some(managed_keys.must_get_gateway_shared_key()),
-            mixnet_message_sender,
-            ack_sender,
-            config.debug.gateway_connection.gateway_response_timeout,
-            bandwidth_controller,
-            shutdown,
-        );
+                let gateway_address = gateway_config.gateway_listener.clone();
+                let gateway_id = gateway_config.gateway_id;
+
+                // TODO: in theory, at this point, this should be infallible
+                let gateway_identity = identity::PublicKey::from_base58_string(gateway_id)
+                    .map_err(ClientCoreError::UnableToCreatePublicKeyFromGatewayId)?;
+
+                GatewayClient::new(
+                    gateway_address,
+                    managed_keys.identity_keypair(),
+                    gateway_identity,
+                    Some(managed_keys.must_get_gateway_shared_key()),
+                    mixnet_message_sender,
+                    ack_sender,
+                    config.debug.gateway_connection.gateway_response_timeout,
+                    bandwidth_controller,
+                    shutdown,
+                )
+            };
 
         gateway_client.set_disabled_credentials_mode(config.client.disabled_credentials_mode);
 
@@ -472,8 +482,6 @@ where
 
         // derive (or load) client keys and gateway configuration
         let init_res = self.initialise_keys_and_gateway().await?;
-        let gateway_config = init_res.details.gateway_details;
-        let managed_keys = init_res.details.managed_keys;
 
         let (reply_storage_backend, credential_store) = self.client_store.into_runtime_stores();
 
@@ -507,14 +515,15 @@ where
         let (reply_controller_sender, reply_controller_receiver) =
             reply_controller::requests::new_control_channels();
 
-        let self_address = Self::mix_address(&managed_keys, &gateway_config);
+        let self_address = Self::mix_address(&init_res.details);
+        let ack_key = init_res.details.managed_keys.ack_key();
+        let encryption_keys = init_res.details.managed_keys.encryption_keypair();
 
         // the components are started in very specific order. Unless you know what you are doing,
         // do not change that.
         let gateway_client = Self::start_gateway_client(
             self.config,
-            gateway_config,
-            &managed_keys,
+            init_res,
             bandwidth_controller,
             mixnet_messages_sender,
             ack_sender,
@@ -541,7 +550,7 @@ where
         .await?;
 
         Self::start_received_messages_buffer_controller(
-            managed_keys.encryption_keypair(),
+            encryption_keys,
             received_buffer_request_receiver,
             mixnet_messages_receiver,
             reply_storage.key_storage(),
@@ -566,7 +575,7 @@ where
 
         let controller_config = real_messages_control::Config::new(
             &self.config.debug,
-            managed_keys.ack_key(),
+            Arc::clone(&ack_key),
             self_address,
         );
 
@@ -593,7 +602,7 @@ where
         {
             Self::start_cover_traffic_stream(
                 &self.config.debug,
-                managed_keys.ack_key(),
+                ack_key,
                 self_address,
                 shared_topology_accessor.clone(),
                 message_sender,

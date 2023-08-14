@@ -290,6 +290,7 @@ mod tests {
             block_height: 12345,
             deposit,
         };
+        dbg!(&expected_service);
         assert_services(deps.as_ref(), &[expected_service.clone()]);
         assert_service(deps.as_ref(), &expected_service);
     }

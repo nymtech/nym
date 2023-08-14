@@ -4124,7 +4124,6 @@ version = "0.1.0"
 dependencies = [
  "nym-contracts-common",
  "nym-mixnet-contract-common",
- "nym-validator-client",
  "schemars",
  "serde",
 ]

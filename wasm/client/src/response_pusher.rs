@@ -46,10 +46,6 @@ impl ResponsePusher {
 
             while let Some(reconstructed) = self.reconstructed_receiver.next().await {
                 for reconstructed_msg in reconstructed {
-                    console_log!(
-                        "reconstructed: {:?}",
-                        String::from_utf8_lossy(&reconstructed_msg.message)
-                    );
                     let (msg, tag) = reconstructed_msg.into_inner();
 
                     let msg_slice: &[u8] = &msg;

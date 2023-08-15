@@ -36,6 +36,14 @@ class NodeWorkerClient {
         this.worker.postMessage({kind: 'sendRequest', data: {message, recipient}})
     }
 
+    handleReceived = (message, senderTag) => {
+        console.log(`received raw message: ${message}`)
+        console.log(`with senderTag: ${senderTag}`)
+
+        let decoded = new TextDecoder().decode(message);
+        console.log(`decoded message: "${decoded}"`)
+    }
+
     handleMessage = (message) => {
         console.log(`handling "${message.kind}"`)
         switch (message.kind) {
@@ -44,7 +52,7 @@ class NodeWorkerClient {
                 this.selfAddress = message.data.clientAddress
                 break;
             case 'receivedMessage':
-                console.log("received wasm message: ", message.data)
+                this.handleReceived(message.data.message, message.data.senderTag)
                 break;
             default:
                 console.log("UNKOWN MESSAGE")
@@ -79,8 +87,9 @@ async function main() {
     console.log("main thread address: ", ourAddress)
 
     let message = "hello world"
+    let uint8Array = new TextEncoder().encode(message);
     console.log(`sending "${message}" to ourselves...`)
-    client.sendMessage(message, ourAddress)
+    client.sendMessage(uint8Array, ourAddress)
 }
 
 await main()

@@ -26,8 +26,8 @@ parentPort.on('message', async message => {
     await handleMessage(message)
 });
 
-function onReceived(message) {
-    parentPort.postMessage({kind: 'receivedMessage', data: {message}});
+function onReceived(message, senderTag) {
+    parentPort.postMessage({kind: 'receivedMessage', data: {message, senderTag}});
 }
 
 async function handleMessage(message) {
@@ -46,8 +46,7 @@ async function handleMessage(message) {
 }
 
 async function handleSendRequest(message, recipient) {
-    let uint8Array = new TextEncoder().encode(message);
-    await nymClient.send_regular_message(uint8Array, recipient)
+    await nymClient.send_regular_message(message, recipient)
 }
 
 async function nativeSetup(onMessageHandler) {

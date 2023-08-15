@@ -38,7 +38,7 @@
     mkdirp "^1.0.4"
     rimraf "^3.0.2"
 
-"@nymproject/nym-client-wasm@file:../../../dist/wasm/client":
+"@nymproject/nym-client-wasm@file:../../../dist-node/wasm/client":
   version "1.2.0-rc.2"
 
 "@tootallnate/once@1":

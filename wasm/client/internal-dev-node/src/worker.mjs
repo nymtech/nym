@@ -1,25 +1,43 @@
-import { parentPort } from 'worker_threads';
+import {parentPort} from 'worker_threads';
+import setGlobalVars from 'indexeddbshim';
+import WebSocket from 'ws';
+import {NymClient, set_panic_hook} from '@nymproject/nym-client-wasm';
 
-import { set_panic_hook, NymClient } from '../../../../dist-node/wasm/client/nym_client_wasm.js';
+// polyfill setup
+const globalVar =
+    typeof window !== "undefined"
+        ? window
+        : typeof WorkerGlobalScope !== "undefined"
+            ? self
+            : typeof global !== "undefined"
+                ? global
+                : Function("return this;")();
 
-// const RUST_WASM_URL = "nym_client_wasm_bg.wasm"
-//
-// importScripts('nym_client_wasm.js');
+// checkOrigin:false is required to avoid  SecurityError Cannot open
+// an IndexedDB database from an opaque origin.
+setGlobalVars(globalVar, {checkOrigin: false})
+globalVar.WebSocket = WebSocket
 
+let initDone = false
+let nymClient = null
+let clientAddress = null
 
-
-let client = null
-
-parentPort.on('message', async event => {
-    await handleMessage(event)
-
-    console.log("done handling");
+parentPort.on('message', async message => {
+    await handleMessage(message)
 });
 
-async function handleMessage(event) {
-    switch (event.kind) {
-        case 'init':
+function onReceived(message) {
+    parentPort.postMessage({kind: 'receivedMessage', data: {message}});
+}
+
+async function handleMessage(message) {
+    console.log(`handling "${message.kind}"`)
+    switch (message.kind) {
+        case 'initRequest':
             await initialiseWasmClient()
+            break;
+        case 'sendRequest':
+            await handleSendRequest(message.data.message, message.data.recipient);
             break;
         default:
             console.log("UNKOWN MESSAGE")
@@ -27,75 +45,45 @@ async function handleMessage(event) {
     }
 }
 
-async function nativeSetup(onMessageHandler) {
-    const preferredGateway = "2BuMSfMW3zpeAjKXyKLhmY4QW1DXurrtSPEJ6CjX3SEh";
-    const validator = 'https://validator.nymtech.net/api/';
-
-    // those are just some examples, there are obviously more permutations;
-    // note, the extra optional argument is of the following type:
-    /*
-        export interface ClientOpts extends ClientOptsSimple {
-            clientId?: string;
-            nymApiUrl?: string;
-            nyxdUrl?: string;
-            clientOverride?: DebugWasmOverride;
-        }
-
-    	where `DebugWasmOverride` is a rather nested struct that you can look up yourself : )
-     */
-
-    // #1
-    // return new NymClient(onMessageHandler)
-    // #2
-    // return new NymClient(onMessageHandler, { nymApiUrl: validator })
-    // #3
-    const noCoverTrafficOverride = {
-        traffic: { disableMainPoissonPacketDistribution: true },
-        coverTraffic: { disableLoopCoverTrafficStream: true },
-    }
-
-    return new NymClient(onMessageHandler, { storagePassphrase: "foomp", nymApiUrl: validator, clientId: "my-client", clientOverride: noCoverTrafficOverride } )
+async function handleSendRequest(message, recipient) {
+    let uint8Array = new TextEncoder().encode(message);
+    await nymClient.send_regular_message(uint8Array, recipient)
 }
 
-function dummyOnMessage(message) {
-    console.log("received a message!", message)
+async function nativeSetup(onMessageHandler) {
+    const validator = 'https://validator.nymtech.net/api/';
+
+    const noCoverTrafficOverride = {
+        traffic: {disableMainPoissonPacketDistribution: true},
+        coverTraffic: {disableLoopCoverTrafficStream: true},
+    }
+
+    return new NymClient(onMessageHandler, {
+        storagePassphrase: "foomp",
+        nymApiUrl: validator,
+        clientId: "my-client",
+        clientOverride: noCoverTrafficOverride
+    })
+}
+
+
+function finishInit() {
+    initDone = true
+    parentPort.postMessage({kind: 'initResponse', data: {done: initDone, clientAddress}})
 }
 
 async function initialiseWasmClient() {
-    console.log(">>>>>>>>>>>>>>>>>>>>> NODE WORKER START");
-
-    // load rust WASM package
-    // await wasm_bindgen(RUST_WASM_URL);
-    // console.log('Loaded RUST WASM');
+    if (initDone) {
+        return finishInit()
+    }
 
     // sets up better stack traces in case of in-rust panics
     set_panic_hook();
 
     console.log('Instantiating WASM client...');
-    let localClient = await nativeSetup(dummyOnMessage)
+    nymClient = await nativeSetup(onReceived)
+    clientAddress = nymClient.self_address()
     console.log('WASM client running!');
 
-    const selfAddress = localClient.self_address();
-    console.log("our address is ", selfAddress)
-
-    let message = "hello world"
-    console.log(`sending "${message}" to ourselves...`)
-    let uint8Array = new TextEncoder().encode(message);
-    await localClient.send_regular_message(uint8Array, selfAddress)
-
-
-    // await sleep(1000);
-    console.log("done!");
-}
-
-//
-// self.onmessage = async event => {
-//     console.log("worker event!", event)
-// }
-
-
-function sleep(ms) {
-    return new Promise((resolve) => {
-        setTimeout(resolve, ms);
-    });
+    finishInit()
 }

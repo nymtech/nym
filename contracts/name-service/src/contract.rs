@@ -112,7 +112,7 @@ mod tests {
             assert_config, assert_current_nonce, assert_empty, assert_name, assert_names,
             assert_not_found,
         },
-        fixture::new_name_details_with_sign2,
+        fixture::new_name_details_with_sign,
         helpers::{get_attribute, nyms, test_rng},
     };
 
@@ -155,7 +155,7 @@ mod tests {
         let deposit = nyms(99);
         let owner = "steve";
         let (name, owner_signature) =
-            new_name_details_with_sign2(deps.as_mut(), &mut rng, "foo", owner, deposit);
+            new_name_details_with_sign(deps.as_mut(), &mut rng, "foo", owner, deposit);
         let msg = ExecuteMsg::Register {
             name,
             owner_signature,
@@ -200,7 +200,7 @@ mod tests {
         let deposit = nyms(101);
         let owner = "steve";
         let (name, owner_signature) =
-            new_name_details_with_sign2(deps.as_mut(), &mut rng, "foo", owner, deposit);
+            new_name_details_with_sign(deps.as_mut(), &mut rng, "foo", owner, deposit);
         let msg = ExecuteMsg::Register {
             name,
             owner_signature,
@@ -246,7 +246,7 @@ mod tests {
         let deposit = nyms(100);
         let owner = "steve";
         let (name, owner_signature) =
-            new_name_details_with_sign2(deps.as_mut(), &mut rng, "my-name", owner, deposit);
+            new_name_details_with_sign(deps.as_mut(), &mut rng, "my-name", owner, deposit);
 
         // Register
         let msg = ExecuteMsg::Register {
@@ -285,7 +285,7 @@ mod tests {
         let deposit = nyms(100);
         let owner = "steve";
         let (name, owner_signature) =
-            new_name_details_with_sign2(deps.as_mut(), &mut rng, "my-name", owner, deposit.clone());
+            new_name_details_with_sign(deps.as_mut(), &mut rng, "my-name", owner, deposit.clone());
         dbg!(&name);
 
         // Register
@@ -334,7 +334,7 @@ mod tests {
         let deposit = nyms(100);
         let steve = "steve";
         let (name, owner_signature) =
-            new_name_details_with_sign2(deps.as_mut(), &mut rng, "my-name", steve, deposit.clone());
+            new_name_details_with_sign(deps.as_mut(), &mut rng, "my-name", steve, deposit.clone());
         let msg = ExecuteMsg::Register {
             name: name.clone(),
             owner_signature,

@@ -40,17 +40,6 @@ pub fn name_fixture(id: NameId) -> RegisteredName {
     )
 }
 
-#[allow(unused)]
-pub fn name_fixture_with_name(id: NameId, name: &str, address: &str) -> RegisteredName {
-    new_name(
-        id,
-        &NymName::new(name).unwrap(),
-        &Address::new(address).unwrap(),
-        &Addr::unchecked("steve"),
-        "identity",
-    )
-}
-
 pub fn name_fixture_full(id: NameId, name: &str, address: &str, owner: &str) -> RegisteredName {
     new_name(
         id,
@@ -61,51 +50,7 @@ pub fn name_fixture_full(id: NameId, name: &str, address: &str, owner: &str) -> 
     )
 }
 
-// Create a new name, using a correctly generted identity key
-// pub fn new_name_details<R>(
-//     rng: &mut R,
-//     name: &str,
-//     nym_address: &str,
-// ) -> (NameDetails, identity::KeyPair)
-// where
-//     R: RngCore + CryptoRng,
-// {
-//     let keypair = identity::KeyPair::new(rng);
-//     (
-//         NameDetails {
-//             name: NymName::new(name).unwrap(),
-//             address: Address::new(nym_address).unwrap(),
-//             identity_key: keypair.public_key().to_base58_string(),
-//         },
-//         keypair,
-//     )
-// }
-
-// Create a new service, with a correctly generated identity key, and sign it
-// pub fn new_name_details_with_sign<R>(
-//     deps: DepsMut<'_>,
-//     rng: &mut R,
-//     name: &str,
-//     nym_address: &str,
-//     owner: &str,
-//     deposit: Coin,
-// ) -> (NameDetails, MessageSignature)
-// where
-//     R: RngCore + CryptoRng,
-// {
-//     // Service
-//     let (name, keypair) = new_name_details(rng, name, nym_address);
-//
-//     // Sign
-//     let sign_msg = name_register_sign_payload(deps.as_ref(), owner, name.clone(), deposit);
-//     let owner_signature = ed25519_sign_message(sign_msg, keypair.private_key());
-//
-//     (name, owner_signature)
-// }
-
-// -- NEW --
-
-pub fn new_recipient<R>(rng: &mut R) -> (Recipient, identity::KeyPair)
+fn new_recipient<R>(rng: &mut R) -> (Recipient, identity::KeyPair)
 where
     R: RngCore + CryptoRng,
 {
@@ -123,14 +68,22 @@ where
     )
 }
 
-// Create a new name with a correctly generated nym address and matching identity key
-pub fn new_name_details2<R>(rng: &mut R, name: &str) -> (NameDetails, identity::KeyPair)
+pub fn new_address<R>(rng: &mut R) -> (Address, identity::KeyPair)
 where
     R: RngCore + CryptoRng,
 {
     let (recipient, client_id_keys) = new_recipient(rng);
     let address = Address::new(&recipient.to_string()).unwrap();
-    let identity_key = recipient.identity().to_base58_string();
+    (address, client_id_keys)
+}
+
+// Create a new name with a correctly generated nym address and matching identity key
+pub fn new_name_details<R>(rng: &mut R, name: &str) -> (NameDetails, identity::KeyPair)
+where
+    R: RngCore + CryptoRng,
+{
+    let (address, client_id_keys) = new_address(rng);
+    let identity_key = client_id_keys.public_key().to_base58_string();
 
     (
         NameDetails {
@@ -142,8 +95,8 @@ where
     )
 }
 
-// Create a new name, with a correctly generated identity key, and sign it
-pub fn new_name_details_with_sign2<R>(
+// Create a new name, with a correctly generated nym adress and identity key, and sign it
+pub fn new_name_details_with_sign<R>(
     deps: DepsMut<'_>,
     rng: &mut R,
     name: &str,
@@ -153,8 +106,8 @@ pub fn new_name_details_with_sign2<R>(
 where
     R: RngCore + CryptoRng,
 {
-    // Service
-    let (name, client_id_keys) = new_name_details2(rng, name);
+    // Name
+    let (name, client_id_keys) = new_name_details(rng, name);
 
     // Sign
     let sign_msg = name_register_sign_payload(deps.as_ref(), owner, name.clone(), deposit);

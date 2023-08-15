@@ -34,7 +34,7 @@ where
     R: RngCore + CryptoRng,
 {
     let deposit = nyms(100);
-    let (name, owner_signature) = super::fixture::new_name_details_with_sign2(
+    let (name, owner_signature) = super::fixture::new_name_details_with_sign(
         deps.branch(),
         rng,
         name,

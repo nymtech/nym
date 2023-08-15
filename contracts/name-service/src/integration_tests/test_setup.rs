@@ -106,10 +106,7 @@ impl TestSetup {
 
     // Create a new random address and a corresponding keypair.
     pub fn new_nym_address(&mut self) -> (Address, identity::KeyPair) {
-        let (recipient, client_id_keys) =
-            crate::test_helpers::fixture::new_recipient(&mut self.rng);
-        let address = Address::new(&recipient.to_string()).unwrap();
-        (address, client_id_keys)
+        crate::test_helpers::fixture::new_address(&mut self.rng)
     }
 
     // Create a new name with a given address. It's up to the caller to make sure that the keys

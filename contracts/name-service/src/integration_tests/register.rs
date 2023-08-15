@@ -1,8 +1,7 @@
 use cosmwasm_std::Addr;
 use nym_crypto::asymmetric::identity;
 use nym_name_service_common::{
-    error::NameServiceError, response::PagedNamesListResponse, Address, NameDetails, NymName,
-    RegisteredName,
+    error::NameServiceError, response::PagedNamesListResponse, NameDetails, NymName, RegisteredName,
 };
 use rstest::rstest;
 
@@ -32,7 +31,6 @@ fn basic_register(mut setup: TestSetup) {
     // Register a first name
     let owner = Addr::unchecked("owner");
     let name = NymName::new("steves-server").unwrap();
-    // let nym_address = Address::new("nym.address@g").unwrap();
     let (nym_address, id_keypair) = setup.new_nym_address();
     assert_eq!(setup.contract_balance(), nyms(0));
     assert_eq!(setup.balance(&owner), nyms(250));
@@ -107,8 +105,6 @@ fn basic_register(mut setup: TestSetup) {
 fn register_fails_when_owner_mismatch(mut setup: TestSetup) {
     let owner = Addr::unchecked("owner");
     let name = NymName::new("steves-server").unwrap();
-    // let nym_address = Address::new("nym.address@g").unwrap();
-    // let nym_address = setup.new_nym_address();
     let reg_name = setup.new_signed_name(&name, &owner, &nyms(100));
     let res = setup
         .try_register(&reg_name, &Addr::unchecked("owner2"))
@@ -127,32 +123,17 @@ fn signing_nonce_is_increased_when_registering(mut setup: TestSetup) {
     assert_eq!(setup.query_signing_nonce(owner1.to_string()), 0);
     assert_eq!(setup.query_signing_nonce(owner2.to_string()), 0);
 
-    setup.sign_and_register(
-        &NymName::new("myname1").unwrap(),
-        // &Address::new("address.1@g").unwrap(),
-        &owner1,
-        &nyms(100),
-    );
+    setup.sign_and_register(&NymName::new("myname1").unwrap(), &owner1, &nyms(100));
 
     assert_eq!(setup.query_signing_nonce(owner1.to_string()), 1);
     assert_eq!(setup.query_signing_nonce(owner2.to_string()), 0);
 
-    setup.sign_and_register(
-        &NymName::new("myname2").unwrap(),
-        // &Address::new("address.2@g").unwrap(),
-        &owner2,
-        &nyms(100),
-    );
+    setup.sign_and_register(&NymName::new("myname2").unwrap(), &owner2, &nyms(100));
 
     assert_eq!(setup.query_signing_nonce(owner1.to_string()), 1);
     assert_eq!(setup.query_signing_nonce(owner2.to_string()), 1);
 
-    setup.sign_and_register(
-        &NymName::new("myname3").unwrap(),
-        // &Address::new("address.3@g").unwrap(),
-        &owner2,
-        &nyms(100),
-    );
+    setup.sign_and_register(&NymName::new("myname3").unwrap(), &owner2, &nyms(100));
 
     assert_eq!(setup.query_signing_nonce(owner1.to_string()), 1);
     assert_eq!(setup.query_signing_nonce(owner2.to_string()), 2);
@@ -163,8 +144,6 @@ fn creating_two_names_in_a_row_without_announcing_fails(mut setup: TestSetup) {
     let owner = Addr::unchecked("wealthy_owner_1");
     let name1 = NymName::new("steves-server1").unwrap();
     let name2 = NymName::new("steves-server2").unwrap();
-    // let address1 = Address::new("nym.Address@1").unwrap();
-    // let address2 = Address::new("nym.Address@2").unwrap();
     let deposit = nyms(100);
 
     let s1 = setup.new_signed_name(&name1, &owner, &deposit);

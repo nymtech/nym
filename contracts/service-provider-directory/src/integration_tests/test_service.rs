@@ -10,7 +10,6 @@ use crate::test_helpers::signing::ed25519_sign_message;
 pub struct TestService {
     pub service: ServiceDetails,
     pub keys: identity::KeyPair,
-    pub rng: ChaCha20Rng,
 }
 
 impl TestService {
@@ -21,11 +20,7 @@ impl TestService {
             service_type: ServiceType::NetworkRequester,
             identity_key: keys.public_key().to_base58_string(),
         };
-        Self {
-            service,
-            keys,
-            rng: rng.clone(),
-        }
+        Self { service, keys }
     }
 
     pub fn identity_key(&self) -> &IdentityKey {

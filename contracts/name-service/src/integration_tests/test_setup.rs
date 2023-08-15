@@ -1,7 +1,7 @@
 use cosmwasm_std::{coins, Addr, Coin, Uint128};
 use cw_multi_test::{App, AppBuilder, AppResponse, ContractWrapper, Executor};
 use nym_contracts_common::signing::Nonce;
-use nym_crypto::asymmetric::{encryption, identity};
+use nym_crypto::asymmetric::identity;
 use nym_name_service_common::{
     msg::{ExecuteMsg, InstantiateMsg, QueryMsg},
     response::{ConfigResponse, PagedNamesListResponse},
@@ -106,21 +106,9 @@ impl TestSetup {
 
     // Create a new random address and a corresponding keypair.
     pub fn new_nym_address(&mut self) -> (Address, identity::KeyPair) {
-        // create_nym_address(&mut self.rng)
-
         let (recipient, client_id_keys) =
             crate::test_helpers::fixture::new_recipient(&mut self.rng);
         let address = Address::new(&recipient.to_string()).unwrap();
-        // let identity_key = recipient.identity().to_base58_string();
-
-        // (
-        // NameDetails {
-        // name: NymName::new(name).unwrap(),
-        // address,
-        // identity_key,
-        // },
-        // client_id_keys,
-        // )
         (address, client_id_keys)
     }
 

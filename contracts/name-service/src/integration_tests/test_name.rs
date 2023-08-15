@@ -1,41 +1,30 @@
 use nym_contracts_common::{signing::MessageSignature, IdentityKey};
-use nym_crypto::asymmetric::{encryption, identity};
+use nym_crypto::asymmetric::identity;
 use nym_name_service_common::{
     signing_types::SignableNameRegisterMsg, Address, NameDetails, NymName,
 };
-use rand_chacha::ChaCha20Rng;
 
-use crate::test_helpers::{fixture::new_name_details2, signing::ed25519_sign_message};
+use crate::test_helpers::signing::ed25519_sign_message;
 
 pub struct TestName {
     pub name: NameDetails,
     pub id_keys: identity::KeyPair,
-    // WIP(JON): remove? Same in service-provider-directory
-    // pub rng: ChaCha20Rng,
 }
 
 impl TestName {
-    pub fn new(
-        // rng: &mut ChaCha20Rng,
-        name: NymName,
-        address: Address,
-        id_keys: identity::KeyPair,
-    ) -> Self {
-        // let keys = identity::KeyPair::new(rng);
+    pub fn new(name: NymName, address: Address, id_keys: identity::KeyPair) -> Self {
         let identity_key = id_keys.public_key().to_base58_string();
-        assert_eq!(identity_key, address.client_id().to_string());
-        // let name = new_name_details2(rng, name);
+        assert_eq!(
+            identity_key,
+            address.client_id().to_string(),
+            "address and identity key must match"
+        );
         let name = NameDetails {
             name,
             address,
-            // identity_key: keys.public_key().to_base58_string(),
             identity_key,
         };
-        Self {
-            name,
-            id_keys,
-            // rng: rng.clone(),
-        }
+        Self { name, id_keys }
     }
 
     pub fn identity_key(&self) -> &IdentityKey {

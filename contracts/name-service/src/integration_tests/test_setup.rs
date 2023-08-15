@@ -237,18 +237,3 @@ impl TestSetup {
         self.app.wrap().query_balance(address, DENOM).unwrap()
     }
 }
-
-// pub fn create_nym_address(rng: &mut ChaCha20Rng) -> Address {
-//     let client_id_pair = identity::KeyPair::new(rng);
-//     let client_enc_pair = encryption::KeyPair::new(rng);
-//     let gateway_id_pair = identity::KeyPair::new(rng);
-//
-//     Address::new(
-//         &format!(
-//             "{}.{}@{}",
-//             client_id_pair.public_key(),
-//             client_enc_pair.public_key(),
-//             gateway_id_pair.public_key()
-//         )
-//     ).unwrap()
-// }

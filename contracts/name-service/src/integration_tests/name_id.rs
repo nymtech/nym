@@ -10,19 +10,19 @@ fn name_id_is_not_resused_when_deleting_and_then_adding_a_new_names() {
     let mut setup = TestSetup::new();
     setup.sign_and_register(
         &NymName::new("myname1").unwrap(),
-        &Address::new("nym.Add@ress1").unwrap(),
+        // &Address::new("nym.Add@ress1").unwrap(),
         &Addr::unchecked("owner1"),
         &nyms(100),
     );
     let s2 = setup.sign_and_register(
         &NymName::new("myname2").unwrap(),
-        &Address::new("nym.Add@ress2").unwrap(),
+        // &Address::new("nym.Add@ress2").unwrap(),
         &Addr::unchecked("owner2"),
         &nyms(100),
     );
     setup.sign_and_register(
         &NymName::new("myname3").unwrap(),
-        &Address::new("nym.Add@ress3").unwrap(),
+        // &Address::new("nym.Add@ress3").unwrap(),
         &Addr::unchecked("owner3"),
         &nyms(100),
     );
@@ -35,7 +35,8 @@ fn name_id_is_not_resused_when_deleting_and_then_adding_a_new_names() {
         vec![new_name(
             2,
             &NymName::new("myname2").unwrap(),
-            &Address::new("nym.Add@ress2").unwrap(),
+            // &Address::new("nym.Add@ress2").unwrap(),
+            s2.address(),
             &Addr::unchecked("owner2"),
             s2.identity_key(),
         )]
@@ -43,7 +44,7 @@ fn name_id_is_not_resused_when_deleting_and_then_adding_a_new_names() {
 
     let s4 = setup.sign_and_register(
         &NymName::new("myname4").unwrap(),
-        &Address::new("nym.Add@ress4").unwrap(),
+        // &Address::new("nym.Add@ress4").unwrap(),
         &Addr::unchecked("owner4"),
         &nyms(100),
     );
@@ -54,14 +55,16 @@ fn name_id_is_not_resused_when_deleting_and_then_adding_a_new_names() {
             new_name(
                 2,
                 &NymName::new("myname2").unwrap(),
-                &Address::new("nym.Add@ress2").unwrap(),
+                // &Address::new("nym.Add@ress2").unwrap(),
+                s2.address(),
                 &Addr::unchecked("owner2"),
                 s2.identity_key(),
             ),
             new_name(
                 4,
                 &NymName::new("myname4").unwrap(),
-                &Address::new("nym.Add@ress4").unwrap(),
+                // &Address::new("nym.Add@ress4").unwrap(),
+                s4.address(),
                 &Addr::unchecked("owner4"),
                 s4.identity_key(),
             )

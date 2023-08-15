@@ -26,7 +26,7 @@ async fn main() {
     let names_by_owner = client.nyxd.get_names_by_owner(owner).await.unwrap();
     println!("names (by owner): {names_by_owner:#?}");
 
-    let nym_address = Address::new("client_id.client_key@gateway_id");
+    let nym_address = Address::new("client_id.client_key@gateway_id").unwrap();
     let names_by_address = client.nyxd.get_names_by_address(nym_address).await.unwrap();
     println!("names (by address): {names_by_address:#?}");
 

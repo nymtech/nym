@@ -97,7 +97,6 @@ impl InitialisationDetails {
     }
 }
 
-#[derive(Debug, Clone)]
 pub enum GatewaySetup {
     /// The gateway specification MUST BE loaded from the underlying storage.
     MustLoad,
@@ -114,6 +113,13 @@ pub enum GatewaySetup {
     Predefined {
         /// Full gateway configuration
         details: PersistedGatewayDetails,
+    },
+    ReuseConnection {
+        /// The authenticated ephemeral client that was created during `init`
+        authenticated_ephemeral_client: GatewayClient<InitOnly>,
+
+        /// Details of this pre-initialised client
+        details: InitialisationDetails,
     },
 }
 
@@ -289,7 +295,7 @@ fn ensure_valid_details(
 }
 
 pub async fn setup_gateway_from<K, D>(
-    setup: &GatewaySetup,
+    setup: GatewaySetup,
     key_store: &K,
     details_store: &D,
     overwrite_data: bool,
@@ -301,6 +307,20 @@ where
     K::StorageError: Send + Sync + 'static,
     D::StorageError: Send + Sync + 'static,
 {
+    // I don't like how we can't deal with this variant in the match below, but we need to take ownership of internal values.
+    if let GatewaySetup::ReuseConnection {
+        authenticated_ephemeral_client,
+        details,
+    } = setup
+    {
+        // if we have already performed the full setup, forward the details.
+        // it's up to the caller to ensure persistence
+        return Ok(InitialisationResult {
+            details,
+            authenticated_ephemeral_client: Some(authenticated_ephemeral_client),
+        });
+    }
+
     let mut rng = OsRng;
 
     // try load gateway details
@@ -309,7 +329,7 @@ where
     // try load keys and decide what to do based on the GatewaySetup
     let mut managed_keys = match ManagedKeys::try_load(key_store).await {
         Ok(loaded_keys) => {
-            match setup {
+            match &setup {
                 GatewaySetup::MustLoad => {
                     // get EVERYTHING from the storage
                     let details = loaded_details?;
@@ -376,6 +396,9 @@ where
                         return Err(ClientCoreError::ForbiddenKeyOverwrite);
                     }
                 }
+                GatewaySetup::ReuseConnection { .. } => {
+                    unreachable!("the reuse connection variant was already manually covered")
+                }
             }
         }
         Err(_) => {
@@ -419,7 +442,7 @@ where
 }
 
 pub async fn setup_gateway<K, D>(
-    setup: &GatewaySetup,
+    setup: GatewaySetup,
     key_store: &K,
     details_store: &D,
     overwrite_data: bool,

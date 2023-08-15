@@ -455,17 +455,23 @@ where
         Ok(mem_store)
     }
 
-    async fn initialise_keys_and_gateway(&self) -> Result<InitialisationResult, ClientCoreError>
+    async fn initialise_keys_and_gateway(
+        setup_method: GatewaySetup,
+        key_store: &S::KeyStore,
+        details_store: &S::GatewayDetailsStore,
+        overwrite_data: bool,
+        validator_servers: Option<&[Url]>,
+    ) -> Result<InitialisationResult, ClientCoreError>
     where
         <S::KeyStore as KeyStore>::StorageError: Sync + Send,
         <S::GatewayDetailsStore as GatewayDetailsStore>::StorageError: Sync + Send,
     {
         setup_gateway(
-            &self.setup_method,
-            self.client_store.key_store(),
-            self.client_store.gateway_details_store(),
-            false,
-            Some(&self.config.client.nym_api_urls),
+            setup_method,
+            key_store,
+            details_store,
+            overwrite_data,
+            validator_servers,
         )
         .await
     }
@@ -481,7 +487,14 @@ where
         info!("Starting nym client");
 
         // derive (or load) client keys and gateway configuration
-        let init_res = self.initialise_keys_and_gateway().await?;
+        let init_res = Self::initialise_keys_and_gateway(
+            self.setup_method,
+            self.client_store.key_store(),
+            self.client_store.gateway_details_store(),
+            false,
+            Some(&self.config.client.nym_api_urls),
+        )
+        .await?;
 
         let (reply_storage_backend, credential_store) = self.client_store.into_runtime_stores();
 

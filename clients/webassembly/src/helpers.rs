@@ -89,7 +89,7 @@ async fn setup_gateway(
         GatewaySetup::new_fresh(chosen_gateway.clone(), None)
     };
 
-    setup_gateway_from(&setup, client_store, client_store, false, Some(gateways))
+    setup_gateway_from(setup, client_store, client_store, false, Some(gateways))
         .await
         .map_err(Into::into)
 }

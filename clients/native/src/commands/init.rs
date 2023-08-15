@@ -174,7 +174,7 @@ pub(crate) async fn execute(args: &Init) -> Result<(), ClientError> {
     let details_store =
         OnDiskGatewayDetails::new(&config.storage_paths.common_paths.gateway_details);
     let init_details = nym_client_core::init::setup_gateway(
-        &gateway_setup,
+        gateway_setup,
         &key_store,
         &details_store,
         register_gateway,

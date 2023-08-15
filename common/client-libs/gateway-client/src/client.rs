@@ -809,6 +809,12 @@ impl GatewayClient<InitOnly, EphemeralCredentialStorage> {
         bandwidth_controller: Option<BandwidthController<C, St>>,
         shutdown: TaskClient,
     ) -> GatewayClient<C, St> {
+        // invariants that can't be broken
+        // (unless somebody decided to expose some field that wasn't meant to be exposed)
+        assert!(self.authenticated);
+        assert!(self.connection.is_available());
+        assert!(self.shared_key.is_some());
+
         GatewayClient {
             authenticated: self.authenticated,
             disabled_credentials_mode: self.disabled_credentials_mode,

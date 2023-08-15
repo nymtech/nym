@@ -4,6 +4,7 @@
 )]
 
 use std::env;
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use nym_config::defaults::setup_env;
@@ -30,7 +31,8 @@ mod window;
 
 fn main() {
     dotenvy::dotenv().ok();
-    setup_env(None);
+
+    setup_env(env::args().nth(1).map(PathBuf::from).as_ref());
     println!("Starting up...");
 
     // As per breaking change description here

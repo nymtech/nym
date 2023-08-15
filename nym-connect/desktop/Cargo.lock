@@ -4013,6 +4013,7 @@ dependencies = [
  "nym-socks5-client-core",
  "nym-sphinx",
  "nym-task",
+ "nym-validator-client",
  "pretty_env_logger",
  "rand 0.8.5",
  "reqwest",

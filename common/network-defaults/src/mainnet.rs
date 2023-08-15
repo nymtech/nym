@@ -4,6 +4,8 @@
 use crate::var_names;
 use crate::{DenomDetails, ValidatorDetails};
 
+pub(crate) const NETWORK_NAME: &str = "mainnet";
+
 pub(crate) const BECH32_PREFIX: &str = "n";
 
 pub const MIX_DENOM: DenomDetails = DenomDetails::new("unym", "nym", 6);
@@ -54,6 +56,7 @@ pub fn read_var_if_not_default(var: &str) -> Option<String> {
 
 pub fn export_to_env() {
     set_var_to_default(var_names::CONFIGURED, "true");
+    set_var_to_default(var_names::NETWORK_NAME, NETWORK_NAME);
     set_var_to_default(var_names::BECH32_PREFIX, BECH32_PREFIX);
     set_var_to_default(var_names::MIX_DENOM, MIX_DENOM.base);
     set_var_to_default(var_names::MIX_DENOM_DISPLAY, MIX_DENOM.display);
@@ -95,6 +98,7 @@ pub fn export_to_env() {
 
 pub fn export_to_env_if_not_set() {
     set_var_conditionally_to_default(var_names::CONFIGURED, "true");
+    set_var_conditionally_to_default(var_names::NETWORK_NAME, NETWORK_NAME);
     set_var_conditionally_to_default(var_names::BECH32_PREFIX, BECH32_PREFIX);
     set_var_conditionally_to_default(var_names::MIX_DENOM, MIX_DENOM.base);
     set_var_conditionally_to_default(var_names::MIX_DENOM_DISPLAY, MIX_DENOM.display);

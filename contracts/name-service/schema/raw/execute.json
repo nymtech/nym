@@ -108,7 +108,7 @@
           ],
           "properties": {
             "nym_address": {
-              "type": "string"
+              "$ref": "#/definitions/NymAddressInner"
             }
           },
           "additionalProperties": false
@@ -165,6 +165,26 @@
               "$ref": "#/definitions/NymName"
             }
           ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "NymAddressInner": {
+      "type": "object",
+      "required": [
+        "client_enc",
+        "client_id",
+        "gateway_id"
+      ],
+      "properties": {
+        "client_enc": {
+          "type": "string"
+        },
+        "client_id": {
+          "type": "string"
+        },
+        "gateway_id": {
+          "type": "string"
         }
       },
       "additionalProperties": false

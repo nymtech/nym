@@ -282,8 +282,7 @@ impl Default for Debug {
             packet_forwarding_maximum_backoff: DEFAULT_PACKET_FORWARDING_MAXIMUM_BACKOFF,
             initial_connection_timeout: DEFAULT_INITIAL_CONNECTION_TIMEOUT,
             maximum_connection_buffer_size: DEFAULT_MAXIMUM_CONNECTION_BUFFER_SIZE,
-            // TODO: remember to change it in one of future releases!!
-            use_legacy_framed_packet_version: true,
+            use_legacy_framed_packet_version: false,
         }
     }
 }

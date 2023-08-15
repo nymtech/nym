@@ -292,8 +292,7 @@ impl Default for Debug {
             maximum_connection_buffer_size: DEFAULT_MAXIMUM_CONNECTION_BUFFER_SIZE,
             stored_messages_filename_length: DEFAULT_STORED_MESSAGE_FILENAME_LENGTH,
             message_retrieval_limit: DEFAULT_MESSAGE_RETRIEVAL_LIMIT,
-            // TODO: remember to change it in one of future releases!!
-            use_legacy_framed_packet_version: true,
+            use_legacy_framed_packet_version: false,
         }
     }
 }

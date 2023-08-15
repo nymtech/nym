@@ -106,14 +106,17 @@ pub enum GatewaySetup {
         /// Should the new gateway be selected based on latency.
         by_latency: bool,
     },
+
     Specified {
         /// Identity key of the gateway we want to try to use.
         gateway_identity: IdentityKey,
     },
+
     Predefined {
         /// Full gateway configuration
         details: PersistedGatewayDetails,
     },
+
     ReuseConnection {
         /// The authenticated ephemeral client that was created during `init`
         authenticated_ephemeral_client: GatewayClient<InitOnly>,

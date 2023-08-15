@@ -176,7 +176,6 @@ impl<C, St> GatewayClient<C, St> {
         let ws_stream = match JSWebsocket::new(&self.gateway_address) {
             Ok(ws_stream) => ws_stream,
             Err(e) => {
-                panic!("{e}");
                 return Err(GatewayClientError::NetworkErrorWasm(e));
             }
         };

@@ -1,10 +1,9 @@
 import { Worker, workerData } from 'worker_threads';
-// import "websocket-polyfill";
-import "fake-indexeddb/auto";
+import setGlobalVars from 'indexeddbshim';
 import WebSocket from 'ws';
-// import 'isomorphic-ws';
 import { set_panic_hook, NymClient } from '../../../../dist-node/wasm/client/nym_client_wasm.js';
 
+// polyfill setup
 var globalVar =
     typeof window !== "undefined"
         ? window
@@ -13,6 +12,10 @@ var globalVar =
             : typeof global !== "undefined"
                 ? global
                 : Function("return this;")();
+
+// checkOrigin:false is required to avoid  SecurityError Cannot open
+// an IndexedDB database from an opaque origin.
+setGlobalVars(globalVar, { checkOrigin: false })
 globalVar.WebSocket = WebSocket
 
 

@@ -41,6 +41,11 @@ fn basic_register(mut setup: TestSetup) {
     let reg_name = reg_name.sign(payload);
     setup.register(&reg_name, &owner);
 
+    // Confirm that the client id in the name matches the identity key.
+    let address_client_id = reg_name.name.address.client_id();
+    let identity_key = reg_name.keys.public_key().to_base58_string();
+    assert_eq!(address_client_id, &identity_key);
+
     // Deposit is deposited to contract and deducted from owners's balance
     assert_eq!(setup.contract_balance(), nyms(100));
     assert_eq!(setup.balance(&owner), nyms(150));

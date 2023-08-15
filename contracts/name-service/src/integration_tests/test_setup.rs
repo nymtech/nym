@@ -139,7 +139,6 @@ impl TestSetup {
     pub fn new_signed_name(
         &mut self,
         name: &NymName,
-        // address: &Address,
         owner: &Addr,
         deposit: &Coin,
     ) -> SignedTestName {
@@ -180,7 +179,6 @@ impl TestSetup {
     pub fn sign_and_register(
         &mut self,
         name: &NymName,
-        // address: &Address,
         owner: &Addr,
         deposit: &Coin,
     ) -> SignedTestName {

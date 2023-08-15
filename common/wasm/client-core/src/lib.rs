@@ -1,20 +1,10 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-// that's so stupid...
-// #[cfg(target_arch = "wasm32")]
 pub mod config;
-
-// #[cfg(target_arch = "wasm32")]
 pub mod error;
-
-// #[cfg(target_arch = "wasm32")]
 pub mod helpers;
-
-// #[cfg(target_arch = "wasm32")]
 pub mod storage;
-
-// #[cfg(target_arch = "wasm32")]
 pub mod topology;
 
 // re-export types for ease of use
@@ -38,10 +28,8 @@ pub use nym_validator_client::{DirectSigningReqwestRpcNyxdClient, QueryReqwestRp
 // TODO: that's a very nasty import path. it should come from contracts instead!
 pub use nym_validator_client::client::IdentityKey;
 
-#[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
-#[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
 pub fn set_panic_hook() {
     // When the `console_error_panic_hook` feature is enabled, we can call the

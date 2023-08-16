@@ -194,7 +194,8 @@ func parseHeaders(headers js.Value, reqOpts types.RequestOptions, method string)
 	// add additional headers
 
 	// 3.1.1
-	serializedOrigin := &jstypes.Origin
+	origin := jstypes.Origin()
+	serializedOrigin := &origin
 	// Reference: https://fetch.spec.whatwg.org/#origin-header
 	// TODO: 3.1.2: check response tainting
 	// 3.1.3

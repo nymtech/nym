@@ -241,7 +241,7 @@ func doCorsCheck(reqOpts *types.RequestOptions, resp *http.Response) error {
 
 	// 4.9.4
 	// TODO: presumably this needs to better account for the wildcard?
-	if jstypes.Origin != originHeader {
+	if jstypes.Origin() != originHeader {
 		return errors.New(fmt.Sprintf("\"%s\" does not match the origin \"%s\" on \"%s\" remote header", jstypes.Origin, originHeader, jstypes.HeaderAllowOrigin))
 	}
 

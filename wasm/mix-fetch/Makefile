@@ -25,7 +25,7 @@ check-fmt-rust:
 ###### NODEJS
 
 build-rust-node:
-	wasm-pack build --scope nymproject --target web --out-dir ../../dist/node/wasm/mix-fetch
+	wasm-pack build --scope nymproject --target nodejs --out-dir ../../dist/node/wasm/mix-fetch
 	wasm-opt -Oz -o ../../dist/node/wasm/mix-fetch/mix_fetch_wasm_bg.wasm ../../dist/node/wasm/mix-fetch/mix_fetch_wasm_bg.wasm
 
 build-package-json-node:

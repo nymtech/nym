@@ -10,7 +10,7 @@ use wasm_client_core::client::base_client::ClientOutput;
 use wasm_client_core::client::received_buffer::{
     ReceivedBufferMessage, ReconstructedMessagesReceiver,
 };
-use wasm_utils::{console_error, console_log};
+use wasm_utils::console_error;
 
 pub(crate) struct ResponsePusher {
     reconstructed_receiver: ReconstructedMessagesReceiver,

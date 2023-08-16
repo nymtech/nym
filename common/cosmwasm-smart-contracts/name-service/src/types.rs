@@ -4,7 +4,11 @@
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Addr, Coin};
 use nym_contracts_common::IdentityKey;
-use std::fmt::{Display, Formatter};
+use std::{
+    fmt::{Display, Formatter},
+    str::FromStr,
+};
+use thiserror::Error;
 
 use crate::error::{NameServiceError, Result};
 
@@ -150,8 +154,9 @@ fn parse_nym_address(address: &str) -> Option<NymAddressInner> {
 #[cw_serde]
 pub struct NymName(String);
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum NymNameError {
+    #[error("invalid name")]
     InvalidName,
 }
 
@@ -177,6 +182,14 @@ impl NymName {
 
     pub fn as_str(&self) -> &str {
         &self.0
+    }
+}
+
+impl FromStr for NymName {
+    type Err = NymNameError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::new(s)
     }
 }
 

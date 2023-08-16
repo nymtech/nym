@@ -1,0 +1,17 @@
+{
+  "name": "internal-dev-node",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "node src/index.mjs"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@nymproject/mix-fetch-wasm": "file:../../../dist/node/wasm/mix-fetch",
+    "indexeddbshim": "^13.0.0-pre.1",
+    "node-fetch": "^3.3.2",
+    "ws": "^8.13.0"
+  }
+}

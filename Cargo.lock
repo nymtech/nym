@@ -1896,7 +1896,7 @@ checksum = "0206175f82b8d6bf6652ff7d71a1e27fd2e4efde587fd368662814d6ec1d9ce0"
 
 [[package]]
 name = "explorer-api"
-version = "1.1.24"
+version = "1.1.25"
 dependencies = [
  "chrono",
  "clap 4.2.7",
@@ -3530,7 +3530,7 @@ dependencies = [
 
 [[package]]
 name = "nym-api"
-version = "1.1.25"
+version = "1.1.26"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3667,7 +3667,7 @@ dependencies = [
 
 [[package]]
 name = "nym-cli"
-version = "1.1.24"
+version = "1.1.25"
 dependencies = [
  "anyhow",
  "base64 0.13.1",
@@ -3733,7 +3733,7 @@ dependencies = [
 
 [[package]]
 name = "nym-client"
-version = "1.1.24"
+version = "1.1.25"
 dependencies = [
  "clap 4.2.7",
  "dirs 4.0.0",
@@ -4021,7 +4021,7 @@ dependencies = [
 
 [[package]]
 name = "nym-gateway"
-version = "1.1.24"
+version = "1.1.25"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4176,7 +4176,7 @@ dependencies = [
 
 [[package]]
 name = "nym-mixnode"
-version = "1.1.25"
+version = "1.1.26"
 dependencies = [
  "anyhow",
  "bs58 0.4.0",
@@ -4293,7 +4293,7 @@ dependencies = [
 
 [[package]]
 name = "nym-network-requester"
-version = "1.1.24"
+version = "1.1.25"
 dependencies = [
  "anyhow",
  "async-file-watcher",
@@ -4340,7 +4340,7 @@ dependencies = [
 
 [[package]]
 name = "nym-network-statistics"
-version = "1.1.24"
+version = "1.1.25"
 dependencies = [
  "dirs 4.0.0",
  "log",
@@ -4497,7 +4497,7 @@ dependencies = [
 
 [[package]]
 name = "nym-socks5-client"
-version = "1.1.24"
+version = "1.1.25"
 dependencies = [
  "clap 4.2.7",
  "lazy_static",

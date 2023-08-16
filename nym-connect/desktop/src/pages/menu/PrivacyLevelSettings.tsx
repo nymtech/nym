@@ -1,7 +1,7 @@
 import React, { ChangeEvent, useState } from 'react';
 import * as Sentry from '@sentry/react';
 import { Box, FormControl, FormControlLabel, FormHelperText, Stack, Switch, Typography } from '@mui/material';
-import { useClientContext } from 'src/context/main';
+import { useClientContext } from '../../context/main';
 
 export const PrivacyLevelSettings = () => {
   const { userData, setPrivacyLevel } = useClientContext();

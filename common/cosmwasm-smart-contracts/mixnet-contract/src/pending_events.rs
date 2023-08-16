@@ -37,6 +37,7 @@ pub enum PendingEpochEventKind {
     // `cumulative_reward_ratio` ahead of time
     /// Request to create a delegation towards particular mixnode.
     /// Note that if such delegation already exists, it will get updated with the provided token amount.
+    #[serde(alias = "Delegate")]
     Delegate {
         /// The address of the owner of the delegation.
         owner: Addr,
@@ -53,6 +54,7 @@ pub enum PendingEpochEventKind {
     },
 
     /// Request to remove delegation from particular mixnode.
+    #[serde(alias = "Undelegate")]
     Undelegate {
         /// The address of the owner of the delegation.
         owner: Addr,
@@ -66,6 +68,7 @@ pub enum PendingEpochEventKind {
     },
 
     /// Request to pledge more tokens (by the node operator) towards its node.
+    #[serde(alias = "PledgeMore")]
     PledgeMore {
         /// The id of the mixnode that will have its pledge updated.
         mix_id: MixId,
@@ -75,6 +78,7 @@ pub enum PendingEpochEventKind {
     },
 
     /// Request to decrease amount of pledged tokens (by the node operator) from its node.
+    #[serde(alias = "DecreasePledge")]
     DecreasePledge {
         /// The id of the mixnode that will have its pledge updated.
         mix_id: MixId,
@@ -84,12 +88,14 @@ pub enum PendingEpochEventKind {
     },
 
     /// Request to unbond a mixnode and completely remove it from the network.
+    #[serde(alias = "UnbondMixnode")]
     UnbondMixnode {
         /// The id of the mixnode that will get unbonded.
         mix_id: MixId,
     },
 
     /// Request to update the current size of the active set.
+    #[serde(alias = "UpdateActiveSetSize")]
     UpdateActiveSetSize {
         /// The new desired size of the active set.
         new_size: u32,
@@ -138,6 +144,7 @@ pub struct PendingIntervalEventData {
 #[cw_serde]
 pub enum PendingIntervalEventKind {
     /// Request to update cost parameters of given mixnode.
+    #[serde(alias = "PendingIntervalEventKind")]
     ChangeMixCostParams {
         /// The id of the mixnode that will have its cost parameters updated.
         mix_id: MixId,
@@ -147,12 +154,14 @@ pub enum PendingIntervalEventKind {
     },
 
     /// Request to update the underlying rewarding parameters used by the system
+    #[serde(alias = "UpdateRewardingParams")]
     UpdateRewardingParams {
         /// The detailed specification of the update.
         update: IntervalRewardingParamsUpdate,
     },
 
     /// Request to change the next interval configuration.
+    #[serde(alias = "UpdateIntervalConfig")]
     UpdateIntervalConfig {
         /// The new number of epochs in intervals.
         epochs_in_interval: u32,

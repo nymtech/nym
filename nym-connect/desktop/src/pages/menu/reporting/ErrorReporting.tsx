@@ -1,9 +1,8 @@
 import React, { ChangeEvent, useState } from 'react';
-import { Warning as WarningIcon } from '@mui/icons-material';
 import { Box, FormControl, FormControlLabel, FormHelperText, Stack, Switch, Typography } from '@mui/material';
-import { useClientContext } from 'src/context/main';
+import { useClientContext } from '../../../context/main';
 
-export const MonitoringSettings = () => {
+export const ErrorReporting = () => {
   const { userData, setMonitoring } = useClientContext();
   const [enabled, setEnabled] = useState(userData?.monitoring || false);
   const [loading, setLoading] = useState(false);
@@ -20,7 +19,7 @@ export const MonitoringSettings = () => {
       <Stack justifyContent="space-between" height="100%">
         <Box>
           <Typography fontWeight="bold" variant="body2" mb={2}>
-            Error reporting and performance monitoring
+            Turn on error reporting and performance monitoring
           </Typography>
           <FormControl fullWidth>
             <FormControlLabel
@@ -33,20 +32,17 @@ export const MonitoringSettings = () => {
                   sx={{ ml: 1, mr: 1 }}
                 />
               }
-              label="Enable"
+              label={enabled ? 'On' : 'Off'}
             />
             <FormHelperText sx={{ m: 0, my: 2 }}>
-              Help Nym developers to fix errors, crashes and improve the application by enabling this option. If errors
-              occur or if the app crashes, it will automatically send a report. Also it tracks various performance
-              metrics. We use sentry.io service to handle this.
+              Help Nym developers fix errors, crashes and improve the application by enabling this option. If errors
+              occur or if the app crashes, it will automatically send a report. It also tracks various performance
+              metrics. We use Sentry.io service to handle this.
             </FormHelperText>
           </FormControl>
-          <Stack direction="row" gap={1} alignItems="center">
-            <WarningIcon color="warning" fontSize="small" />
-            <Typography variant="caption" color="warning.main">
-              You must restart the application for the change to take effect.
-            </Typography>
-          </Stack>
+          <Typography variant="caption" color="warning.main" fontWeight="bold">
+            You must restart the application for the change to take effect.
+          </Typography>
         </Box>
       </Stack>
     </Box>

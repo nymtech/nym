@@ -13,13 +13,19 @@ on:
 jobs:
   check-schema:
     name: Generate and check schema
-    runs-on: ubuntu-latest
+    runs-on: custom-runner-linux
     steps:
       - name: Check out repository code
         uses: actions/checkout@v2
-        
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+
+
       - name: Generate the schema
         run: make contract-schema
 
       - name: Check for diff
-        run: git diff --exit-code
+        run: git diff --exit-code -- contracts/*/schema

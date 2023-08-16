@@ -26,9 +26,11 @@ use serde_repr::{Deserialize_repr, Serialize_repr};
 #[derive(Copy)]
 pub enum RewardedSetNodeStatus {
     /// Node that is currently active, i.e. is expected to be used by clients for mixing packets.
+    #[serde(alias = "Active")]
     Active,
 
     /// Node that is currently in standby, i.e. it's present in the rewarded set but is not active.
+    #[serde(alias = "Standby")]
     Standby,
 }
 

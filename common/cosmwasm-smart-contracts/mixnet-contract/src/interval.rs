@@ -159,10 +159,12 @@ impl EpochStatus {
 pub enum EpochState {
     /// Represents the state of an epoch that's in progress (well, duh.)
     /// All actions are allowed to be issued.
+    #[serde(alias = "InProgress")]
     InProgress,
 
     /// Represents the state of an epoch when the rewarding entity has been decided on,
     /// and the mixnodes are in the process of being rewarded for their work in this epoch.
+    #[serde(alias = "Rewarding")]
     Rewarding {
         /// The id of the last node that has already received its rewards.
         last_rewarded: MixId,
@@ -174,10 +176,12 @@ pub enum EpochState {
 
     /// Represents the state of an epoch when all mixnodes have already been rewarded for their work in this epoch
     /// and all issued actions should now get resolved before being allowed to advance into the next epoch.
+    #[serde(alias = "ReconcilingEvents")]
     ReconcilingEvents,
 
     /// Represents the state of an epoch when all mixnodes have already been rewarded for their work in this epoch,
     /// all issued actions got resolved and the epoch should now be advanced whilst assigning new rewarded set.
+    #[serde(alias = "AdvancingEpoch")]
     AdvancingEpoch,
 }
 

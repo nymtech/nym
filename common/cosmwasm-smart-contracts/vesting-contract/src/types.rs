@@ -16,12 +16,15 @@ use std::str::FromStr;
 /// The vesting period.
 pub enum Period {
     /// Defines a pre-vesting period.
+    #[serde(alias = "Before")]
     Before,
 
     /// Defines currently active vesting period.
+    #[serde(alias = "In")]
     In(usize),
 
     /// Defines a post-vesting period.
+    #[serde(alias = "After")]
     After,
 }
 
@@ -53,9 +56,11 @@ impl PledgeData {
 #[cw_serde]
 pub enum PledgeCap {
     /// Specifies a percent-based pledge cap, i.e. only given % of tokens could be pledged/staked.
+    #[serde(alias = "Percent")]
     Percent(Percent),
 
     /// Specifies an absolute pledge cap, i.e. an explicit value that could be pledged/staked.
+    #[serde(alias = "Absolute")]
     Absolute(Uint128), // This has to be in unym
 }
 

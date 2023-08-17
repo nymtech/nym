@@ -21,18 +21,18 @@ nym-topology = { path = "../../../common/topology" }
 nym-socks5-client-core = { path = "../../../common/socks5-client-core" }
 nym-validator-client = { path = "../../../common/client-libs/validator-client", features = ["http-client"] }
 
-futures = "0.3"
+futures = { workspace = true }
 log = { workspace = true }
 rand = { version = "0.7.3" }
 tap = "1.0.1"
-thiserror = "1.0.38"
-url = "2.2"
+thiserror = { workspace = true }
+url = { workspace = true }
 toml = "0.5.10"
 
 [dev-dependencies]
 dotenvy = { workspace = true }
 pretty_env_logger = "0.4.0"
-reqwest = { version = "0.11", features = ["json", "socks"] }
+reqwest = { workspace = true, features = ["json", "socks"] }
 thiserror = { workspace = true }
 tokio = { version = "1", features = ["full"] }
 nym-bin-common = { path = "../../../common/bin-common" }

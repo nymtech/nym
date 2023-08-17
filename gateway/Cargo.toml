@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-gateway"
-version = "1.1.24"
+version = "1.1.25"
 authors = [
     "Dave Hrycyszyn <futurechimp@users.noreply.github.com>",
     "Jędrzej Stuczyński <andrew@nymtech.net>",
@@ -25,7 +25,7 @@ colored = "2.0"
 dashmap = "4.0"
 dirs = "4.0"
 dotenvy = { workspace = true }
-futures = "0.3"
+futures = { workspace = true }
 humantime-serde = "1.0.1"
 lazy_static = "1.4.0"
 log = { workspace = true }

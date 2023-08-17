@@ -66,10 +66,20 @@ fn ensure_name_exists(deps: Deps, name_id: NameId) -> Result<()> {
 
 fn ensure_name_not_exists(deps: Deps, name: &NymName) -> Result<()> {
     if state::names::has_name(deps.storage, name) {
-        println!("name already exists");
         Err(NameServiceError::NameAlreadyRegistered { name: name.clone() })
     } else {
         Ok(())
+    }
+}
+
+fn ensure_identity_key_is_part_of_nym_address(address: &Address, identity_key: &str) -> Result<()> {
+    if address.client_id() == identity_key {
+        Ok(())
+    } else {
+        Err(NameServiceError::IdentityKeyMismatch {
+            address: address.clone(),
+            identity_key: identity_key.to_string(),
+        })
     }
 }
 
@@ -135,6 +145,7 @@ pub fn register(
     name: NameDetails,
     owner_signature: MessageSignature,
 ) -> Result<Response> {
+    ensure_identity_key_is_part_of_nym_address(&name.address, &name.identity_key)?;
     ensure_name_not_exists(deps.as_ref(), &name.name)?;
     ensure_max_names_per_owner(deps.as_ref(), info.sender.clone())?;
     ensure_max_names_per_address(deps.as_ref(), name.address.clone())?;

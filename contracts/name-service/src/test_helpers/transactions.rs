@@ -28,7 +28,6 @@ pub fn register_name<R>(
     mut deps: DepsMut<'_>,
     rng: &mut R,
     name: &str,
-    nym_address: &str,
     owner: &str,
 ) -> (NameId, NameDetails)
 where
@@ -39,7 +38,6 @@ where
         deps.branch(),
         rng,
         name,
-        nym_address,
         owner,
         deposit.clone(),
     );

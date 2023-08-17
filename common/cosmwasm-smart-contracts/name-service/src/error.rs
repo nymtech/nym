@@ -49,13 +49,13 @@ pub enum NameServiceError {
         error_message: String,
     },
 
-    #[error("Failed to recover ed25519 public key from its base58 representation - {0}")]
+    #[error("failed to recover ed25519 public key from its base58 representation: {0}")]
     MalformedEd25519IdentityKey(String),
 
-    #[error("Failed to recover ed25519 signature from its base58 representation - {0}")]
+    #[error("failed to recover ed25519 signature from its base58 representation: {0}")]
     MalformedEd25519Signature(String),
 
-    #[error("Provided ed25519 signature did not verify correctly")]
+    #[error("provided ed25519 signature did not verify correctly")]
     InvalidEd25519Signature,
 
     #[error("failed to verify message signature: {source}")]
@@ -69,6 +69,15 @@ pub enum NameServiceError {
 
     #[error("name already registered: {name}")]
     NameAlreadyRegistered { name: NymName },
+
+    #[error("invalid nym address format: {0}")]
+    InvalidNymAddress(String),
+
+    #[error("client identity in nym address does not match the provided identity key")]
+    IdentityKeyMismatch {
+        address: Address,
+        identity_key: String,
+    },
 }
 
 pub type Result<T, E = NameServiceError> = std::result::Result<T, E>;

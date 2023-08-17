@@ -1,3 +1,4 @@
+use nym_validator_client::nyxd::error::NyxdError;
 use std::path::PathBuf;
 
 /// Top-level Error enum for the mixnet client and its relevant types.
@@ -46,7 +47,7 @@ pub enum Error {
     DisabledCredentialsMode,
 
     #[error("bad validator details: {0}")]
-    BadValidatorDetails(#[from] nym_validator_client::ValidatorClientError),
+    BadValidatorDetails(#[from] NyxdError),
 
     #[error("socks5 configuration set: {}, but expected to be {}", set, !set)]
     Socks5Config { set: bool },

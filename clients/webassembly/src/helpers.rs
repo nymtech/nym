@@ -8,7 +8,7 @@ use js_sys::Promise;
 use nym_client_core::client::replies::reply_storage::browser_backend;
 use nym_client_core::config;
 use nym_client_core::init::helpers::current_gateways;
-use nym_client_core::init::{setup_gateway_from, GatewaySetup, InitialisationDetails};
+use nym_client_core::init::{setup_gateway_from, GatewaySetup, InitialisationResult};
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nym_topology::{gateway, NymTopology};
@@ -82,14 +82,14 @@ async fn setup_gateway(
     client_store: &ClientStorage,
     chosen_gateway: Option<IdentityKey>,
     gateways: &[gateway::Node],
-) -> Result<InitialisationDetails, WasmClientError> {
+) -> Result<InitialisationResult, WasmClientError> {
     let setup = if client_store.has_full_gateway_info().await? {
         GatewaySetup::MustLoad
     } else {
         GatewaySetup::new_fresh(chosen_gateway.clone(), None)
     };
 
-    setup_gateway_from(&setup, client_store, client_store, false, Some(gateways))
+    setup_gateway_from(setup, client_store, client_store, false, Some(gateways))
         .await
         .map_err(Into::into)
 }
@@ -98,7 +98,7 @@ pub(crate) async fn setup_gateway_from_api(
     client_store: &ClientStorage,
     chosen_gateway: Option<IdentityKey>,
     nym_apis: &[Url],
-) -> Result<InitialisationDetails, WasmClientError> {
+) -> Result<InitialisationResult, WasmClientError> {
     let mut rng = thread_rng();
     let gateways = current_gateways(&mut rng, nym_apis).await?;
     setup_gateway(client_store, chosen_gateway, &gateways).await
@@ -108,7 +108,7 @@ pub(crate) async fn setup_from_topology(
     explicit_gateway: Option<IdentityKey>,
     topology: &NymTopology,
     client_store: &ClientStorage,
-) -> Result<InitialisationDetails, WasmClientError> {
+) -> Result<InitialisationResult, WasmClientError> {
     let gateways = topology.gateways();
     setup_gateway(client_store, explicit_gateway, gateways).await
 }

@@ -174,14 +174,15 @@ pub(crate) async fn execute(args: &Init) -> Result<(), ClientError> {
     let details_store =
         OnDiskGatewayDetails::new(&config.storage_paths.common_paths.gateway_details);
     let init_details = nym_client_core::init::setup_gateway(
-        &gateway_setup,
+        gateway_setup,
         &key_store,
         &details_store,
         register_gateway,
         Some(&config.base.client.nym_api_urls),
     )
     .await
-    .tap_err(|err| eprintln!("Failed to setup gateway\nError: {err}"))?;
+    .tap_err(|err| eprintln!("Failed to setup gateway\nError: {err}"))?
+    .details;
 
     let config_save_location = config.default_location();
     config.save_to_default_location().tap_err(|_| {

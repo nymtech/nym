@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [1.1.27] (2023-08-16)
+
+- Add a "Send us your feedback" section in NC (on the main screen)  to collect user feedback using Sentry ([#3619])
+- NC native android - deploy on FDroid ([#3483])
+
+[#3619]: https://github.com/nymtech/nym/issues/3619
+[#3483]: https://github.com/nymtech/nym/issues/3483
+
 ## [v1.1.16] (2023-08-08)
 
 - Uncouple network-requester <-> gateway in nym-connect and harbourmaster ([#3472])

@@ -2,7 +2,8 @@ use clap::Parser;
 use log::{error, info};
 use nym_contracts_common::signing::MessageSignature;
 use nym_name_service_common::{Address, Coin, NameDetails, NymName};
-use nym_validator_client::nyxd::{error::NyxdError, traits::NameServiceSigningClient};
+use nym_sphinx::addressing::clients::Recipient;
+use nym_validator_client::nyxd::{contract_traits::NameServiceSigningClient, error::NyxdError};
 use tap::TapFallible;
 
 use crate::context::SigningClient;
@@ -11,11 +12,11 @@ use crate::context::SigningClient;
 pub struct Args {
     /// Name alias
     #[clap(long)]
-    pub name: String,
+    pub name: NymName,
 
     /// Nym address that the alias is pointing to
     #[clap(long)]
-    pub nym_address: String,
+    pub nym_address: Recipient,
 
     #[clap(long)]
     pub signature: MessageSignature,
@@ -23,9 +24,6 @@ pub struct Args {
     /// Deposit to be made to the service provider directory, in curent DENOMINATION (e.g. 'unym')
     #[clap(long)]
     pub deposit: u128,
-
-    #[clap(long)]
-    pub identity_key: String,
 }
 
 pub async fn register(args: Args, client: SigningClient) -> Result<(), NyxdError> {
@@ -34,12 +32,12 @@ pub async fn register(args: Args, client: SigningClient) -> Result<(), NyxdError
         args.name, args.nym_address
     );
 
-    let name = NymName::new(&args.name).expect("invalid name");
-    let address = Address::new(&args.nym_address);
+    let address = Address::new(&args.nym_address.to_string()).expect("invalid address");
+    let identity_key = address.client_id().to_string();
     let name = NameDetails {
-        name,
+        name: args.name,
         address,
-        identity_key: args.identity_key,
+        identity_key,
     };
 
     let denom = client.current_chain_details().mix_denom.base.as_str();

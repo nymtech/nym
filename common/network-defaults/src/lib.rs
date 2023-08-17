@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::var_names::{DEPRECATED_API_VALIDATOR, DEPRECATED_NYMD_VALIDATOR, NYM_API, NYXD};
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::{
     env::{var, VarError},
@@ -14,14 +15,14 @@ use url::Url;
 pub mod mainnet;
 pub mod var_names;
 
-#[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize, JsonSchema)]
 pub struct ChainDetails {
     pub bech32_account_prefix: String,
     pub mix_denom: DenomDetailsOwned,
     pub stake_denom: DenomDetailsOwned,
 }
 
-#[derive(Clone, Debug, Default, Deserialize, Eq, Hash, PartialEq, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, Eq, Hash, PartialEq, Serialize, JsonSchema)]
 pub struct NymContracts {
     pub mixnet_contract_address: Option<String>,
     pub vesting_contract_address: Option<String>,
@@ -35,8 +36,9 @@ pub struct NymContracts {
 
 // I wanted to use the simpler `NetworkDetails` name, but there's a clash
 // with `NetworkDetails` defined in all.rs...
-#[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize, JsonSchema)]
 pub struct NymNetworkDetails {
+    pub network_name: String,
     pub chain_details: ChainDetails,
     pub endpoints: Vec<ValidatorDetails>,
     pub contracts: NymContracts,
@@ -52,6 +54,7 @@ impl Default for NymNetworkDetails {
 impl NymNetworkDetails {
     pub fn new_empty() -> Self {
         NymNetworkDetails {
+            network_name: Default::default(),
             chain_details: ChainDetails {
                 bech32_account_prefix: Default::default(),
                 mix_denom: DenomDetailsOwned {
@@ -80,6 +83,7 @@ impl NymNetworkDetails {
         }
 
         NymNetworkDetails::new_empty()
+            .with_network_name(var(var_names::NETWORK_NAME).expect("network name not set"))
             .with_bech32_account_prefix(
                 var(var_names::BECH32_PREFIX).expect("bech32 prefix not set"),
             )
@@ -101,7 +105,7 @@ impl NymNetworkDetails {
                     .parse()
                     .expect("denomination exponent is not u32"),
             })
-            .with_validator_endpoint(ValidatorDetails::new(
+            .with_additional_validator_endpoint(ValidatorDetails::new(
                 var(var_names::NYXD).expect("nyxd validator not set"),
                 Some(var(var_names::NYM_API).expect("nym api not set")),
             ))
@@ -137,6 +141,7 @@ impl NymNetworkDetails {
 
         // Consider caching this process (lazy static)
         NymNetworkDetails {
+            network_name: mainnet::NETWORK_NAME.into(),
             chain_details: ChainDetails {
                 bech32_account_prefix: mainnet::BECH32_PREFIX.into(),
                 mix_denom: mainnet::MIX_DENOM.into(),
@@ -158,6 +163,16 @@ impl NymNetworkDetails {
                 name_service_contract_address: None,
             },
         }
+    }
+
+    pub fn default_gas_price_amount(&self) -> f64 {
+        GAS_PRICE_AMOUNT
+    }
+
+    #[must_use]
+    pub fn with_network_name(mut self, network_name: String) -> Self {
+        self.network_name = network_name;
+        self
     }
 
     #[must_use]
@@ -191,8 +206,14 @@ impl NymNetworkDetails {
     }
 
     #[must_use]
-    pub fn with_validator_endpoint(mut self, endpoint: ValidatorDetails) -> Self {
+    pub fn with_additional_validator_endpoint(mut self, endpoint: ValidatorDetails) -> Self {
         self.endpoints.push(endpoint);
+        self
+    }
+
+    #[must_use]
+    pub fn with_validator_endpoint(mut self, endpoint: ValidatorDetails) -> Self {
+        self.endpoints = vec![endpoint];
         self
     }
 
@@ -266,7 +287,7 @@ impl DenomDetails {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Hash, Clone, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Hash, Clone, PartialEq, Eq, JsonSchema)]
 pub struct DenomDetailsOwned {
     pub base: String,
     pub display: String,
@@ -294,7 +315,7 @@ impl DenomDetailsOwned {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize, JsonSchema)]
 pub struct ValidatorDetails {
     // it is assumed those values are always valid since they're being provided in our defaults file
     pub nyxd_url: String,

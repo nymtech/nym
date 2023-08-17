@@ -8,25 +8,26 @@ use crate::{
 };
 use itertools::Itertools;
 use nym_api_requests::models::GatewayBondAnnotated;
+use nym_config::defaults::var_names::{NETWORK_NAME, NYM_API};
 use nym_contracts_common::types::Percent;
+use nym_validator_client::nym_api::Client as ApiClient;
+use std::str::FromStr;
 use std::sync::Arc;
 use tokio::sync::RwLock;
+use url::Url;
 
-static SERVICE_PROVIDER_WELLKNOWN_URL: &str =
-    "https://nymtech.net/.wellknown/connect/service-providers.json";
+pub(crate) static WELLKNOWN_DIR: &str = "https://nymtech.net/.wellknown";
+
+static SERVICE_PROVIDER_URL_PATH: &str = "connect/service-providers.json";
 
 // List of network-requesters running with medium toggle enabled, for testing
-static SERVICE_PROVIDER_WELLKNOWN_URL_MEDIUM: &str =
-    "https://nymtech.net/.wellknown/connect/service-providers-medium.json";
+static SERVICE_PROVIDER_MEDIUM_URL_PATH: &str = "connect/service-providers-medium.json";
 
 // Harbour master is used to periodically keep track of which network-requesters are online
 static HARBOUR_MASTER_URL: &str = "https://harbourmaster.nymtech.net/v1/services/?size=100";
 
 // We only consider network requesters with a routing score above this threshold
 const SERVICE_ROUTING_SCORE_THRESHOLD: f32 = 0.9;
-
-static GATEWAYS_DETAILED_URL: &str =
-    "https://validator.nymtech.net/api/v1/status/gateways/detailed";
 
 // Only use gateways with a performnnce score above this
 const GATEWAY_PERFORMANCE_SCORE_THRESHOLD: u64 = 90;
@@ -80,11 +81,13 @@ pub async fn get_services(
 
 async fn fetch_services(privacy_level: &PrivacyLevel) -> Result<Vec<DirectoryService>> {
     let services_url = match privacy_level {
-        PrivacyLevel::Medium => SERVICE_PROVIDER_WELLKNOWN_URL_MEDIUM,
-        _ => SERVICE_PROVIDER_WELLKNOWN_URL,
+        PrivacyLevel::Medium => SERVICE_PROVIDER_MEDIUM_URL_PATH,
+        _ => SERVICE_PROVIDER_URL_PATH,
     };
 
-    let services_res = reqwest::get(services_url)
+    let network_name = std::env::var(NETWORK_NAME)?;
+    let url = format!("{}/{}/{}", WELLKNOWN_DIR, network_name, services_url);
+    let services_res = reqwest::get(url)
         .await?
         .json::<Vec<DirectoryService>>()
         .await?;
@@ -116,10 +119,8 @@ fn filter_out_inactive_services(
 }
 
 async fn fetch_gateways() -> Result<Vec<GatewayBondAnnotated>> {
-    Ok(reqwest::get(GATEWAYS_DETAILED_URL)
-        .await?
-        .json::<Vec<GatewayBondAnnotated>>()
-        .await?)
+    let api_client = ApiClient::new(Url::from_str(&std::env::var(NYM_API)?)?);
+    Ok(api_client.get_gateways_detailed().await?)
 }
 
 #[tauri::command]

@@ -5,7 +5,7 @@ use crate::error::BackendError;
 use crate::state::WalletState;
 use nym_mixnet_contract_common::MixId;
 use nym_types::transaction::TransactionExecuteResult;
-use nym_validator_client::nyxd::traits::VestingSigningClient;
+use nym_validator_client::nyxd::contract_traits::VestingSigningClient;
 use nym_validator_client::nyxd::Fee;
 
 #[tauri::command]

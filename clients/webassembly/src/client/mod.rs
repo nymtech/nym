@@ -14,7 +14,6 @@ use crate::storage::traits::FullWasmClientStorage;
 use crate::storage::ClientStorage;
 use crate::topology::WasmNymTopology;
 use js_sys::Promise;
-use nym_bandwidth_controller::wasm_mockups::{Client as FakeClient, DirectSigningNyxdClient};
 use nym_client_core::client::base_client::{
     BaseClientBuilder, ClientInput, ClientOutput, ClientState,
 };
@@ -26,6 +25,7 @@ use nym_task::TaskManager;
 use nym_topology::provider_trait::{HardcodedTopologyProvider, TopologyProvider};
 use nym_topology::NymTopology;
 use nym_validator_client::client::IdentityKey;
+use nym_validator_client::QueryReqwestRpcNyxdClient;
 use rand::rngs::OsRng;
 use rand::RngCore;
 use std::sync::Arc;
@@ -152,7 +152,7 @@ impl NymClientBuilder {
         let maybe_topology_provider = self.topology_provider();
 
         let mut base_builder: BaseClientBuilder<_, FullWasmClientStorage> =
-            BaseClientBuilder::<FakeClient<DirectSigningNyxdClient>, _>::new(
+            BaseClientBuilder::<QueryReqwestRpcNyxdClient, _>::new(
                 &self.config.base,
                 storage,
                 None,

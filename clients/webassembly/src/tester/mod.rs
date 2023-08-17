@@ -12,10 +12,9 @@ use crate::tester::helpers::{
 use crate::topology::WasmNymTopology;
 use futures::channel::mpsc;
 use js_sys::Promise;
-use nym_bandwidth_controller::wasm_mockups::{Client as FakeClient, DirectSigningNyxdClient};
 use nym_bandwidth_controller::BandwidthController;
 use nym_client_core::client::key_manager::ManagedKeys;
-use nym_client_core::init::InitialisationDetails;
+use nym_client_core::init::{InitialisationDetails, InitialisationResult};
 use nym_credential_storage::ephemeral_storage::EphemeralStorage;
 use nym_gateway_client::GatewayClient;
 use nym_node_tester_utils::receiver::SimpleMessageReceiver;
@@ -27,6 +26,7 @@ use nym_sphinx::preparer::PreparedFragment;
 use nym_task::TaskManager;
 use nym_topology::NymTopology;
 use nym_validator_client::client::IdentityKey;
+use nym_validator_client::QueryReqwestRpcNyxdClient;
 use rand::rngs::OsRng;
 use std::collections::HashSet;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
@@ -42,7 +42,7 @@ pub(crate) mod helpers;
 
 pub type NodeTestMessage = TestMessage<WasmTestMessageExt>;
 type LockedGatewayClient =
-    Arc<AsyncMutex<GatewayClient<FakeClient<DirectSigningNyxdClient>, EphemeralStorage>>>;
+    Arc<AsyncMutex<GatewayClient<QueryReqwestRpcNyxdClient, EphemeralStorage>>>;
 
 pub(crate) const DEFAULT_TEST_TIMEOUT: Duration = Duration::from_secs(10);
 pub(crate) const DEFAULT_TEST_PACKETS: u32 = 20;
@@ -78,8 +78,7 @@ pub struct NymNodeTesterBuilder {
     base_topology: NymTopology,
 
     // unimplemented
-    bandwidth_controller:
-        Option<BandwidthController<FakeClient<DirectSigningNyxdClient>, EphemeralStorage>>,
+    bandwidth_controller: Option<BandwidthController<QueryReqwestRpcNyxdClient, EphemeralStorage>>,
 }
 
 fn address(keys: &ManagedKeys, gateway_identity: NodeIdentity) -> Recipient {
@@ -130,9 +129,9 @@ impl NymNodeTesterBuilder {
     async fn gateway_info(
         &self,
         client_store: &ClientStorage,
-    ) -> Result<InitialisationDetails, WasmClientError> {
+    ) -> Result<InitialisationResult, WasmClientError> {
         if let Ok(loaded) = InitialisationDetails::try_load(client_store, client_store).await {
-            Ok(loaded)
+            Ok(loaded.into())
         } else {
             setup_from_topology(self.gateway.clone(), &self.base_topology, client_store).await
         }
@@ -148,26 +147,37 @@ impl NymNodeTesterBuilder {
         };
 
         let client_store = ClientStorage::new_async(&storage_id, None).await?;
-
-        let init_details = self.gateway_info(&client_store).await?;
+        let initialisation_result = self.gateway_info(&client_store).await?;
+        let init_details = initialisation_result.details;
+        let managed_keys = init_details.managed_keys;
         let gateway_endpoint = init_details.gateway_details;
         let gateway_identity = gateway_endpoint.try_get_gateway_identity_key()?;
-        let managed_keys = init_details.managed_keys;
 
         let (mixnet_message_sender, mixnet_message_receiver) = mpsc::unbounded();
         let (ack_sender, ack_receiver) = mpsc::unbounded();
 
-        let mut gateway_client = GatewayClient::new(
-            gateway_endpoint.gateway_listener,
-            managed_keys.identity_keypair(),
-            gateway_identity,
-            Some(managed_keys.must_get_gateway_shared_key()),
-            mixnet_message_sender,
-            ack_sender,
-            Duration::from_secs(10),
-            self.bandwidth_controller.take(),
-            task_manager.subscribe(),
-        );
+        let mut gateway_client =
+            if let Some(existing_client) = initialisation_result.authenticated_ephemeral_client {
+                existing_client.upgrade(
+                    mixnet_message_sender,
+                    ack_sender,
+                    Duration::from_secs(10),
+                    self.bandwidth_controller.take(),
+                    task_manager.subscribe(),
+                )
+            } else {
+                GatewayClient::new(
+                    gateway_endpoint.gateway_listener,
+                    managed_keys.identity_keypair(),
+                    gateway_identity,
+                    Some(managed_keys.must_get_gateway_shared_key()),
+                    mixnet_message_sender,
+                    ack_sender,
+                    Duration::from_secs(10),
+                    self.bandwidth_controller.take(),
+                    task_manager.subscribe(),
+                )
+            };
 
         gateway_client.set_disabled_credentials_mode(true);
         gateway_client.authenticate_and_start().await?;

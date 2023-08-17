@@ -4,8 +4,8 @@
 use self::data::CirculatingSupplyCacheData;
 use cosmwasm_std::Addr;
 use nym_api_requests::models::CirculatingSupplyResponse;
+use nym_validator_client::nyxd::error::NyxdError;
 use nym_validator_client::nyxd::Coin;
-use nym_validator_client::ValidatorClientError;
 use rocket::fairing::AdHoc;
 use std::ops::Deref;
 use std::{
@@ -34,7 +34,7 @@ enum CirculatingSupplyCacheError {
     #[error(transparent)]
     ClientError {
         #[from]
-        source: ValidatorClientError,
+        source: NyxdError,
     },
 }
 

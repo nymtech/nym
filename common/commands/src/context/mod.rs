@@ -8,17 +8,19 @@ use nym_network_defaults::{
     NymNetworkDetails,
 };
 pub use nym_validator_client::nym_api::Client as NymApiClient;
-use nym_validator_client::nyxd::{
-    self, AccountId, DirectSigningNyxdClient, NyxdClient, QueryNyxdClient,
+use nym_validator_client::nyxd::{self, AccountId, NyxdClient};
+use nym_validator_client::{
+    DirectSigningHttpRpcNyxdClient, DirectSigningHttpRpcValidatorClient, QueryHttpRpcNyxdClient,
+    QueryHttpRpcValidatorClient,
 };
 use tap::prelude::*;
 
 pub mod errors;
 
-pub type SigningClient = nym_validator_client::nyxd::NyxdClient<DirectSigningNyxdClient>;
-pub type QueryClient = nym_validator_client::nyxd::NyxdClient<QueryNyxdClient>;
-pub type SigningClientWithNyxd = nym_validator_client::Client<DirectSigningNyxdClient>;
-pub type QueryClientWithNyxd = nym_validator_client::Client<QueryNyxdClient>;
+pub type SigningClient = DirectSigningHttpRpcNyxdClient;
+pub type QueryClient = QueryHttpRpcNyxdClient;
+pub type SigningClientWithNyxd = DirectSigningHttpRpcValidatorClient;
+pub type QueryClientWithNyxd = QueryHttpRpcValidatorClient;
 
 #[derive(Debug)]
 pub struct ClientArgs {
@@ -79,7 +81,7 @@ pub fn create_signing_client(
         .nyxd_url
         .as_str();
 
-    match NyxdClient::connect_with_mnemonic(client_config, nyxd_url, mnemonic, None) {
+    match NyxdClient::connect_with_mnemonic(client_config, nyxd_url, mnemonic) {
         Ok(client) => Ok(client),
         Err(e) => Err(ContextError::NyxdError(format!("{e}"))),
     }

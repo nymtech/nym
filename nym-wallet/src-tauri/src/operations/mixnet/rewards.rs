@@ -3,7 +3,9 @@ use crate::state::WalletState;
 use crate::vesting::rewards::vesting_claim_delegator_reward;
 use nym_mixnet_contract_common::{MixId, RewardingParams};
 use nym_types::transaction::TransactionExecuteResult;
-use nym_validator_client::nyxd::traits::{MixnetQueryClient, MixnetSigningClient};
+use nym_validator_client::nyxd::contract_traits::{
+    MixnetQueryClient, MixnetSigningClient, NymContractsProvider, PagedMixnetQueryClient,
+};
 use nym_validator_client::nyxd::Fee;
 
 #[tauri::command]
@@ -64,13 +66,21 @@ pub async fn claim_locked_and_unlocked_delegator_reward(
 
     log::trace!(">>> Get delegations: mix_id = {}", mix_id);
     let address = client.nyxd.address();
-    let delegations = client.get_all_delegator_delegations(address).await?;
+    let delegations = client.nyxd.get_all_delegator_delegations(&address).await?;
     log::trace!("<<< {} delegations", delegations.len());
 
-    let vesting_contract = client.nyxd.vesting_contract_address().to_string();
-    let liquid_delegation = client.get_delegation_details(mix_id, address, None).await?;
+    let vesting_contract = client
+        .nyxd
+        .vesting_contract_address()
+        .expect("vesting contract address is not available")
+        .to_string();
+    let liquid_delegation = client
+        .nyxd
+        .get_delegation_details(mix_id, &address, None)
+        .await?;
     let vesting_delegation = client
-        .get_delegation_details(mix_id, address, Some(vesting_contract))
+        .nyxd
+        .get_delegation_details(mix_id, &address, Some(vesting_contract))
         .await?;
 
     drop(guard);

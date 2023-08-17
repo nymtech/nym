@@ -3,7 +3,9 @@ use std::str::FromStr;
 use cosmrs::AccountId;
 use nym_name_service_common::Address;
 use nym_network_defaults::{setup_env, NymNetworkDetails};
-use nym_validator_client::nyxd::traits::NameServiceQueryClient;
+use nym_validator_client::nyxd::contract_traits::{
+    NameServiceQueryClient, PagedNameServiceQueryClient,
+};
 
 #[tokio::main]
 async fn main() {
@@ -26,7 +28,7 @@ async fn main() {
     let names_by_owner = client.nyxd.get_names_by_owner(owner).await.unwrap();
     println!("names (by owner): {names_by_owner:#?}");
 
-    let nym_address = Address::new("client_id.client_key@gateway_id");
+    let nym_address = Address::new("client_id.client_key@gateway_id").unwrap();
     let names_by_address = client.nyxd.get_names_by_address(nym_address).await.unwrap();
     println!("names (by address): {names_by_address:#?}");
 

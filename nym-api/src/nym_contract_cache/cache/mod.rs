@@ -1,3 +1,4 @@
+use crate::nym_contract_cache::cache::data::CachedContractsInfo;
 use crate::support::caching::Cache;
 use data::ValidatorCacheData;
 use nym_api_requests::models::MixnodeStatus;
@@ -54,6 +55,7 @@ impl NymContractCache {
         mix_to_family: Vec<(IdentityKey, FamilyHead)>,
         services: Option<Vec<Service>>,
         names: Option<Vec<RegisteredName>>,
+        nym_contracts_info: CachedContractsInfo,
     ) {
         match time::timeout(Duration::from_millis(100), self.inner.write()).await {
             Ok(mut cache) => {
@@ -67,6 +69,7 @@ impl NymContractCache {
                 // Just return empty lists when these are not available
                 cache.service_providers.update(services.unwrap_or_default());
                 cache.registered_names.update(names.unwrap_or_default());
+                cache.contracts_info.update(nym_contracts_info)
             }
             Err(err) => {
                 error!("{err}");
@@ -263,6 +266,16 @@ impl NymContractCache {
             Err(err) => {
                 error!("{err}");
                 Cache::new(None)
+            }
+        }
+    }
+
+    pub(crate) async fn contract_details(&self) -> Cache<CachedContractsInfo> {
+        match time::timeout(Duration::from_millis(100), self.inner.read()).await {
+            Ok(cache) => cache.contracts_info.clone(),
+            Err(err) => {
+                error!("{err}");
+                Cache::default()
             }
         }
     }

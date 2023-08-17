@@ -19,16 +19,16 @@ log = { workspace = true }
 rand = {version = "0.6", features = ["std"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { workspace = true }
-thiserror = "1"
+thiserror = { workspace = true }
 time = { version = "0.3.6", features = ["parsing", "formatting"] }
 toml = "0.5.6"
-url = "2.2"
+url = { workspace = true }
 tap = "1"
 
 cosmrs = { workspace = true }
 cosmwasm-std = { workspace = true }
 
-nym-validator-client = { path = "../client-libs/validator-client", features = ["signing", "http-client"] }
+nym-validator-client = { path = "../client-libs/validator-client" }
 nym-bin-common = { path = "../../common/bin-common", features = ["output_format"] }
 nym-crypto = { path = "../../common/crypto", features = ["asymmetric"] }
 nym-network-defaults = { path = "../network-defaults" }

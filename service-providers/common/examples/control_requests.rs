@@ -3,7 +3,9 @@
 
 // use nym_client::client::config::{BaseClientConfig, Config, GatewayEndpointConfig};
 // use nym_client::client::{DirectClient, KeyManager, Recipient, ReconstructedMessage, SocketClient};
-use nym_sdk::mixnet::{IncludedSurbs, MixnetClient, Recipient, ReconstructedMessage};
+use nym_sdk::mixnet::{
+    IncludedSurbs, MixnetClient, MixnetMessageSender, Recipient, ReconstructedMessage,
+};
 use nym_service_providers_common::interface::{
     ControlRequest, ControlResponse, ProviderInterfaceVersion, Request, Response, ResponseContent,
 };
@@ -51,34 +53,34 @@ async fn main() -> anyhow::Result<()> {
     // TODO: currently we HAVE TO use surbs unfortunately
     println!("Sending 'Health' request...");
     client
-        .send_bytes(
+        .send_message(
             provider,
             full_request_health.into_bytes(),
             IncludedSurbs::new(10),
         )
-        .await;
+        .await?;
     let response = wait_for_control_response(&mut client).await;
     println!("response to 'Health' request: {response:#?}");
 
     println!("Sending 'BinaryInfo' request...");
     client
-        .send_bytes(
+        .send_message(
             provider,
             full_request_binary_info.into_bytes(),
             IncludedSurbs::none(),
         )
-        .await;
+        .await?;
     let response = wait_for_control_response(&mut client).await;
     println!("response to 'BinaryInfo' request: {response:#?}");
 
     println!("Sending 'SupportedRequestVersions' request...");
     client
-        .send_bytes(
+        .send_message(
             provider,
             full_request_versions.into_bytes(),
             IncludedSurbs::none(),
         )
-        .await;
+        .await?;
     let response = wait_for_control_response(&mut client).await;
     println!("response to 'SupportedRequestVersions' request: {response:#?}");
 

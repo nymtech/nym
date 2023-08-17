@@ -2,7 +2,7 @@ use std::fmt;
 
 use clap::{Parser, ValueEnum};
 use nym_bin_common::output_format::OutputFormat;
-use nym_sdk::mixnet::{self, IncludedSurbs};
+use nym_sdk::mixnet::{self, IncludedSurbs, MixnetMessageSender};
 use nym_service_providers_common::interface::{
     ControlRequest, ControlResponse, ProviderInterfaceVersion, Request, Response, ResponseContent,
 };
@@ -154,34 +154,37 @@ impl QueryClient {
 
     async fn query_bin_info(&mut self) -> ControlResponse {
         self.client
-            .send_bytes(
+            .send_message(
                 self.provider,
                 new_bin_info_request().into_bytes(),
                 IncludedSurbs::new(10),
             )
-            .await;
+            .await
+            .unwrap();
         wait_for_control_response(&mut self.client).await
     }
 
     async fn query_supported_versions(&mut self) -> ControlResponse {
         self.client
-            .send_bytes(
+            .send_message(
                 self.provider,
                 new_supported_request_versions_request().into_bytes(),
                 IncludedSurbs::new(10),
             )
-            .await;
+            .await
+            .unwrap();
         wait_for_control_response(&mut self.client).await
     }
 
     async fn query_open_proxy(&mut self) -> QueryResponse {
         self.client
-            .send_bytes(
+            .send_message(
                 self.provider,
                 new_open_proxy_request().into_bytes(),
                 IncludedSurbs::new(10),
             )
-            .await;
+            .await
+            .unwrap();
         let response = wait_for_socks5_response(&mut self.client).await;
         response
             .content
@@ -193,12 +196,13 @@ impl QueryClient {
     async fn ping(&mut self) -> PingResponse {
         let now = std::time::Instant::now();
         self.client
-            .send_bytes(
+            .send_message(
                 self.provider,
                 new_ping_request().into_bytes(),
                 IncludedSurbs::new(5),
             )
-            .await;
+            .await
+            .unwrap();
         let response = wait_for_control_response(&mut self.client).await;
         assert!(matches!(response, ControlResponse::Health));
         let elapsed = now.elapsed();

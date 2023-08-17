@@ -81,8 +81,13 @@ impl NymConfigTemplate for Config {
 
 impl Config {
     pub fn new<S: AsRef<str>>(id: S) -> Self {
+        let mut base = BaseClientConfig::new(id.as_ref(), env!("CARGO_PKG_VERSION"));
+        // By default we have no cover traffic, but we have a slow trickle of cover traffic
+        // packages acting as keepalive messages.
+        base.set_no_cover_traffic_with_keepalive();
+
         Config {
-            base: BaseClientConfig::new(id.as_ref(), env!("CARGO_PKG_VERSION")),
+            base,
             network_requester: Default::default(),
             storage_paths: NetworkRequesterPaths::new_default(default_data_directory(id.as_ref())),
             network_requester_debug: Default::default(),

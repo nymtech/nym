@@ -84,25 +84,38 @@ pub(crate) struct OverrideConfig {
 }
 
 pub(crate) fn override_config(config: Config, args: OverrideConfig) -> Config {
-    let disable_cover_traffic_with_keepalive = args.medium_toggle;
-    let secondary_packet_size = args.medium_toggle.then_some(PacketSize::ExtendedPacket16);
-    let no_per_hop_delays = args.medium_toggle;
+    // These flags have overlapping effects, meaning the order matters here. Making it a bit messy.
+    // Since a big chunk of these are hidden experimental flags there is hope we can remove them
+    // soonish and clean this up.
+
+    let config = config.with_base(
+        BaseClientConfig::with_high_default_traffic_volume,
+        args.fastmode,
+    );
+
+    // There is a decent chance we might not need the medium toggle for network-requesters in the
+    // future, at which point we can remove this whole block.
+    let config = if args.medium_toggle {
+        let disable_cover_traffic_with_keepalive = args.medium_toggle;
+        let secondary_packet_size = args.medium_toggle.then_some(PacketSize::ExtendedPacket16);
+        let no_per_hop_delays = args.medium_toggle;
+
+        config
+            .with_base(
+                // NOTE: This interacts with disabling cover traffic fully, so we want to this to be set before
+                BaseClientConfig::with_disabled_cover_traffic_with_keepalive,
+                disable_cover_traffic_with_keepalive,
+            )
+            .with_base(
+                BaseClientConfig::with_secondary_packet_size,
+                secondary_packet_size,
+            )
+            .with_base(BaseClientConfig::with_no_per_hop_delays, no_per_hop_delays)
+    } else {
+        config
+    };
 
     config
-        .with_base(
-            BaseClientConfig::with_high_default_traffic_volume,
-            args.fastmode,
-        )
-        .with_base(
-            // NOTE: This interacts with disabling cover traffic fully, so we want to this to be set before
-            BaseClientConfig::with_disabled_cover_traffic_with_keepalive,
-            disable_cover_traffic_with_keepalive,
-        )
-        .with_base(
-            BaseClientConfig::with_secondary_packet_size,
-            secondary_packet_size,
-        )
-        .with_base(BaseClientConfig::with_no_per_hop_delays, no_per_hop_delays)
         // NOTE: see comment above about the order of the other disble cover traffic config
         .with_base(BaseClientConfig::with_disabled_cover_traffic, args.no_cover)
         .with_optional_base_custom_env(

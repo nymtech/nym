@@ -144,9 +144,9 @@ impl<St: Storage> ConnectionHandler<St> {
                 .await
             {
                 Err(err) => error!("Failed to store client data - {err}"),
-                Ok(_) => trace!("Stored packet for {}", client_address),
+                Ok(_) => trace!("Stored packet for {client_address}"),
             },
-            Ok(_) => trace!("Pushed received packet to {}", client_address),
+            Ok(_) => trace!("Pushed received packet to {client_address}"),
         }
 
         // if we managed to either push message directly to the [online] client or store it at

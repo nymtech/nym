@@ -2,10 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use clap::{crate_name, crate_version, Parser};
+use error::NetworkRequesterError;
 use nym_bin_common::logging::{maybe_print_banner, setup_logging};
 use nym_network_defaults::setup_env;
-
-use error::NetworkRequesterError;
 
 mod allowed_hosts;
 mod cli;

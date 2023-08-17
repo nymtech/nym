@@ -23,11 +23,11 @@ nym-service-provider-directory-common = { path = "../../cosmwasm-smart-contracts
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 reqwest = { workspace = true, features = ["json"] }
-thiserror = "1"
+thiserror = { workspace = true }
 log = { workspace = true }
-url = { version = "2.2", features = ["serde"] }
-tokio = { version = "1.24.1", features = ["sync", "time"] }
-futures = "0.3"
+url = { workspace = true, features = ["serde"] }
+tokio = { workspace = true, features = ["sync", "time"] }
+futures = { workspace = true }
 openssl = { version = "^0.10.55", features = ["vendored"], optional = true }
 
 nym-coconut-interface = { path = "../../coconut-interface" }
@@ -35,30 +35,35 @@ nym-network-defaults = { path = "../../network-defaults" }
 nym-api-requests = { path = "../../../nym-api/nym-api-requests" }
 
 async-trait = { workspace = true }
-bip39 = { workspace = true, features = ["rand"], optional = true }
+bip39 = { workspace = true, features = ["rand"] }
 nym-config = { path = "../../config" }
 cosmrs = { workspace = true, features = ["bip32", "cosmwasm"] }
-#cosmrs = { workspace = true, features = ["bip32", "rpc", "cosmwasm"], optional = true }
 # note that this has the same version as used by cosmrs
 
 # import it just for the `Client` trait
 tendermint-rpc = { workspace = true }
 
-eyre = { version = "0.6", optional = true }
+eyre = { version = "0.6" }
+cw-utils = { workspace = true }
+cw2 = { workspace = true }
 cw3 = { workspace = true }
 cw4 = { workspace = true }
+cw-controllers = { workspace = true }
 prost = { version = "0.11", default-features = false }
 flate2 = { version = "1.0.20" }
 sha2 = { version = "0.9.5" }
 itertools = { version = "0.10" }
-zeroize = { version = "1.5.7", optional = true, features = ["zeroize_derive"] }
+zeroize = { workspace = true, features = ["zeroize_derive"] }
 cosmwasm-std = { workspace = true }
+
+# required for polling for broadcast result
+[target."cfg(target_arch = \"wasm32\")".dependencies.wasmtimer]
+workspace = true
+features = ["tokio"]
 
 [dev-dependencies]
 bip39 = { workspace = true }
-#cosmrs = { workspace = true, features = ["rpc", "bip32"] }
 cosmrs = { workspace = true, features = ["bip32"] }
-tokio = { version = "1.24.1", features = ["rt-multi-thread", "macros"] }
 ts-rs = "6.1.2"
 
 [[example]]
@@ -66,24 +71,18 @@ name = "offline_signing"
 # it should only really require the "signing" feature,
 # but that would require another round of refactoring to make it possible
 # (traits would need to be moved around and refactored themselves)
-required-features = ["http-client", "signing"]
+required-features = ["http-client"]
 
 [[example]]
 name = "query_service_provider_directory"
-# TODO: validate the requirements
-required-features = ["http-client", "signing"]
+required-features = ["http-client"]
 
 [[example]]
 name = "query_name_service"
-# TODO: validate the requirements
-required-features = ["http-client", "signing"]
+required-features = ["http-client"]
 
 [features]
+default = ["http-client"]
 http-client = ["cosmrs/rpc", "openssl"]
-signing = [
-    "bip39",
-    "eyre",
-    "zeroize"
-]
 generate-ts = []
 

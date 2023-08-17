@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::nyxd::cosmwasm_client::types::ContractCodeId;
+use crate::signing::direct_wallet::DirectSecp256k1HdWalletError;
 use cosmrs::tendermint::Hash;
 use cosmrs::{
     tendermint::{abci::Code as AbciCode, block},
@@ -10,9 +11,6 @@ use cosmrs::{
 use std::{io, time::Duration};
 use tendermint_rpc::endpoint::abci_query::AbciQuery;
 use thiserror::Error;
-
-#[cfg(feature = "signing")]
-use crate::signing::direct_wallet::DirectSecp256k1HdWalletError;
 
 pub use cosmrs::tendermint::error::Error as TendermintError;
 pub use tendermint_rpc::{
@@ -25,7 +23,6 @@ pub enum NyxdError {
     #[error("No contract address is available to perform the call: {0}")]
     NoContractAddressAvailable(String),
 
-    #[cfg(feature = "signing")]
     #[error(transparent)]
     WalletError(#[from] DirectSecp256k1HdWalletError),
 
@@ -223,5 +220,9 @@ impl NyxdError {
             }
             _ => false,
         }
+    }
+
+    pub fn unavailable_contract_address<S: Into<String>>(contract_type: S) -> Self {
+        NyxdError::NoContractAddressAvailable(contract_type.into())
     }
 }

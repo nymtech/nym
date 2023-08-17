@@ -5,7 +5,7 @@ use crate::support::config::persistence::{
     CoconutSignerPaths, NetworkMonitorPaths, NodeStatusAPIPaths,
 };
 use crate::support::config::template::CONFIG_TEMPLATE;
-use nym_config::defaults::mainnet;
+use nym_config::defaults::{mainnet, NymNetworkDetails};
 use nym_config::{
     must_get_home, read_config_from_toml_file, save_formatted_config_to_file, NymConfigTemplate,
     DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, DEFAULT_DATA_DIR, NYM_DIR,
@@ -98,6 +98,16 @@ pub struct Config {
     pub coconut_signer: CoconutSigner,
 }
 
+impl<'a> From<&'a Config> for NymNetworkDetails {
+    fn from(value: &'a Config) -> Self {
+        // we get the current environmental details and then overwrite whatever is appropriate with
+        // the values from the config
+        NymNetworkDetails::new_from_env()
+            .with_mixnet_contract(Some(value.get_mixnet_contract_address().as_ref()))
+            .with_vesting_contract(Some(value.get_vesting_contract_address().as_ref()))
+    }
+}
+
 impl NymConfigTemplate for Config {
     fn template() -> &'static str {
         CONFIG_TEMPLATE
@@ -132,6 +142,10 @@ impl Config {
     pub fn save_to_default_location(&self) -> io::Result<()> {
         let config_save_location: PathBuf = self.default_location();
         save_formatted_config_to_file(self, config_save_location)
+    }
+
+    pub fn get_network_details(&self) -> NymNetworkDetails {
+        self.into()
     }
 
     pub fn with_network_monitor_enabled(mut self, enabled: bool) -> Self {

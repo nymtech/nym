@@ -6,6 +6,7 @@ use cosmrs::Coin;
 use cosmrs::Gas;
 use cosmwasm_std::{Decimal, Fraction, Uint128};
 use nym_config::defaults;
+use nym_network_defaults::NymNetworkDetails;
 use std::ops::Mul;
 use std::str::FromStr;
 
@@ -70,6 +71,19 @@ impl FromStr for GasPrice {
         let denom = possible_denom.trim().to_string();
 
         Ok(GasPrice { amount, denom })
+    }
+}
+
+impl<'a> TryFrom<&'a NymNetworkDetails> for GasPrice {
+    type Error = NyxdError;
+
+    fn try_from(value: &'a NymNetworkDetails) -> Result<Self, Self::Error> {
+        format!(
+            "{}{}",
+            value.default_gas_price_amount(),
+            value.chain_details.mix_denom.base
+        )
+        .parse()
     }
 }
 

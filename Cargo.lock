@@ -460,8 +460,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "93f2635620bf0b9d4576eb7bb9a38a55df78bd1205d26fa994b25911a69f212f"
 dependencies = [
  "bitcoin_hashes",
- "rand 0.8.5",
- "rand_core 0.6.4",
+ "rand 0.6.5",
+ "rand_core 0.4.2",
  "serde",
  "unicode-normalization",
  "zeroize",
@@ -3575,6 +3575,7 @@ dependencies = [
  "console-subscriber",
  "cosmwasm-std",
  "cw-utils",
+ "cw2",
  "cw3",
  "cw4",
  "dirs 4.0.0",
@@ -3965,7 +3966,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "log",
- "sqlx 0.5.13",
+ "sqlx 0.5.11",
  "thiserror",
  "tokio",
 ]
@@ -4045,9 +4046,9 @@ dependencies = [
 name = "nym-explorer-api-requests"
 version = "0.1.0"
 dependencies = [
+ "nym-api-requests",
  "nym-contracts-common",
  "nym-mixnet-contract-common",
- "nym-validator-client",
  "schemars",
  "serde",
  "ts-rs",
@@ -4092,7 +4093,7 @@ dependencies = [
  "rand 0.7.3",
  "serde",
  "serde_json",
- "sqlx 0.5.13",
+ "sqlx 0.5.11",
  "subtle-encoding",
  "thiserror",
  "tokio",
@@ -4320,6 +4321,7 @@ dependencies = [
  "dotenvy",
  "hex-literal",
  "once_cell",
+ "schemars",
  "serde",
  "thiserror",
  "url",
@@ -4384,7 +4386,7 @@ dependencies = [
  "pretty_env_logger",
  "rocket",
  "serde",
- "sqlx 0.5.13",
+ "sqlx 0.5.11",
  "thiserror",
  "tokio",
 ]
@@ -4801,7 +4803,7 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
- "sqlx 0.5.13",
+ "sqlx 0.5.11",
  "thiserror",
  "tokio",
 ]
@@ -4885,6 +4887,9 @@ dependencies = [
  "colored",
  "cosmrs",
  "cosmwasm-std",
+ "cw-controllers",
+ "cw-utils",
+ "cw2",
  "cw3",
  "cw4",
  "eyre",
@@ -4916,6 +4921,7 @@ dependencies = [
  "tokio",
  "ts-rs",
  "url",
+ "wasmtimer",
  "zeroize",
 ]
 
@@ -6845,9 +6851,9 @@ dependencies = [
 
 [[package]]
 name = "sqlx"
-version = "0.5.13"
+version = "0.5.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "551873805652ba0d912fec5bbb0f8b4cdd96baf8e2ebf5970e5671092966019b"
+checksum = "fc15591eb44ffb5816a4a70a7efd5dd87bfd3aa84c4c200401c4396140525826"
 dependencies = [
  "sqlx-core 0.5.13",
  "sqlx-macros 0.5.13",

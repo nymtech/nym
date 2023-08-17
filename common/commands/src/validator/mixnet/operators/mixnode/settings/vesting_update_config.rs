@@ -5,8 +5,8 @@ use crate::context::SigningClient;
 use clap::Parser;
 use log::info;
 use nym_mixnet_contract_common::MixNodeConfigUpdate;
-use nym_validator_client::nyxd::traits::MixnetQueryClient;
-use nym_validator_client::nyxd::traits::VestingSigningClient;
+use nym_validator_client::nyxd::contract_traits::MixnetQueryClient;
+use nym_validator_client::nyxd::contract_traits::VestingSigningClient;
 
 #[derive(Debug, Parser)]
 pub struct Args {
@@ -30,7 +30,7 @@ pub async fn vesting_update_config(client: SigningClient, args: Args) {
     info!("Update vesting mix node config!");
 
     let current_details = match client
-        .get_owned_mixnode(client.address())
+        .get_owned_mixnode(&client.address())
         .await
         .expect("failed to query the chain for mixnode details")
         .mixnode_details

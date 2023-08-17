@@ -10,7 +10,7 @@ use nym_mixnet_contract_common::{GatewayConfigUpdate, MixNodeConfigUpdate};
 use nym_types::currency::DecCoin;
 use nym_types::mixnode::MixNodeCostParams;
 use nym_types::transaction::TransactionExecuteResult;
-use nym_validator_client::nyxd::{traits::VestingSigningClient, Fee};
+use nym_validator_client::nyxd::{contract_traits::VestingSigningClient, Fee};
 use std::cmp::Ordering;
 
 #[tauri::command]

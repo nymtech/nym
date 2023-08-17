@@ -196,11 +196,6 @@ impl From<NyxdError> for BackendError {
 
 impl From<ValidatorClientError> for BackendError {
     fn from(e: ValidatorClientError) -> Self {
-        match e {
-            ValidatorClientError::NymAPIError { source } => source.into(),
-            ValidatorClientError::MalformedUrlProvided(e) => e.into(),
-            ValidatorClientError::NyxdError(e) => e.into(),
-            ValidatorClientError::NoAPIUrlAvailable => TypesError::NoNymApiUrlConfigured.into(),
-        }
+        TypesError::from(e).into()
     }
 }

@@ -12,7 +12,7 @@ async-trait = { workspace = true }
 base64 = "0.21.2"
 dashmap = "5.4.0"
 dirs = "4.0"
-futures = "0.3"
+futures = { workspace = true }
 humantime-serde = "1.0"
 log = { workspace = true }
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
@@ -25,7 +25,7 @@ thiserror = "1.0.34"
 time = "0.3.17"
 tokio = { version = "1.24.1", features = ["macros"]}
 tungstenite = { version = "0.13.0", default-features = false }
-url = { version ="2.2", features = ["serde"] }
+url = { workspace = true, features = ["serde"] }
 zeroize = { workspace = true }
 
 # internal
@@ -44,10 +44,6 @@ nym-validator-client = { path = "../client-libs/validator-client", default-featu
 nym-task = { path = "../task" }
 nym-credential-storage = { path = "../credential-storage" }
 nym-network-defaults = { path = "../network-defaults" }
-
-[target."cfg(not(target_arch = \"wasm32\"))".dependencies.nym-validator-client]
-path = "../client-libs/validator-client"
-features = ["signing", "http-client"]
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio-stream]
 version = "0.1.11"

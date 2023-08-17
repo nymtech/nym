@@ -14,7 +14,7 @@ use nym_name_service_common::{
     signing_types::construct_name_register_sign_payload, Address, NymName,
 };
 use nym_sphinx::addressing::clients::Recipient;
-use nym_validator_client::nyxd::{error::NyxdError, traits::NameServiceQueryClient};
+use nym_validator_client::nyxd::{contract_traits::NameServiceQueryClient, error::NyxdError};
 
 #[derive(Debug, Parser)]
 pub struct Args {
@@ -45,7 +45,7 @@ pub async fn create_payload(args: Args, client: SigningClient) -> Result<(), Nyx
     let denom = client.current_chain_details().mix_denom.base.as_str();
     let deposit = Coin::new(args.amount, denom);
 
-    let nonce = match client.get_name_signing_nonce(client.address()).await {
+    let nonce = match client.get_name_signing_nonce(&client.address()).await {
         Ok(nonce) => nonce,
         Err(err) => {
             eprint!(
@@ -56,7 +56,7 @@ pub async fn create_payload(args: Args, client: SigningClient) -> Result<(), Nyx
         }
     };
 
-    let address = account_id_to_cw_addr(client.address());
+    let address = account_id_to_cw_addr(&client.address());
     let payload = construct_name_register_sign_payload(nonce, address, deposit, name);
     let wrapper = DataWrapper::new(payload.to_base58_string().unwrap());
     println!("{}", args.output.format(&wrapper));

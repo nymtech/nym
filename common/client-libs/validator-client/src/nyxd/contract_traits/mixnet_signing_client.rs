@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::nyxd::coin::Coin;
-pub use crate::nyxd::cosmwasm_client::client::CosmWasmClient;
+use crate::nyxd::contract_traits::NymContractsProvider;
 use crate::nyxd::cosmwasm_client::types::ExecuteResult;
 use crate::nyxd::error::NyxdError;
-use crate::nyxd::{Fee, NyxdClient, SigningCosmWasmClient};
+use crate::nyxd::{Fee, SigningCosmWasmClient};
+use crate::signing::signer::OfflineSigner;
 use async_trait::async_trait;
 use cosmrs::AccountId;
 use nym_contracts_common::signing::MessageSignature;
@@ -14,10 +15,12 @@ use nym_mixnet_contract_common::gateway::GatewayConfigUpdate;
 use nym_mixnet_contract_common::mixnode::{MixNodeConfigUpdate, MixNodeCostParams};
 use nym_mixnet_contract_common::reward_params::{IntervalRewardingParamsUpdate, Performance};
 use nym_mixnet_contract_common::{
-    ContractStateParams, ExecuteMsg as MixnetExecuteMsg, Gateway, LayerAssignment, MixId, MixNode,
+    ContractStateParams, ExecuteMsg as MixnetExecuteMsg, Gateway, Layer, LayerAssignment, MixId,
+    MixNode,
 };
 
-#[async_trait]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait MixnetSigningClient {
     async fn execute_mixnet_contract(
         &self,
@@ -126,6 +129,20 @@ pub trait MixnetSigningClient {
                 new_rewarded_set,
                 expected_active_set_size,
             },
+            vec![],
+        )
+        .await
+    }
+
+    async fn assign_node_layer(
+        &self,
+        mix_id: MixId,
+        layer: Layer,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NyxdError> {
+        self.execute_mixnet_contract(
+            fee,
+            MixnetExecuteMsg::AssignNodeLayer { mix_id, layer },
             vec![],
         )
         .await
@@ -665,38 +682,26 @@ pub trait MixnetSigningClient {
         )
         .await
     }
-}
 
-#[async_trait]
-impl<C> MixnetSigningClient for NyxdClient<C>
-where
-    C: SigningCosmWasmClient + Sync + Send,
-{
-    async fn execute_mixnet_contract(
-        &self,
+    #[cfg(feature = "nym_mixnet_contract_common/contract-testing")]
+    async fn testing_resolve_all_pending_events(
         fee: Option<Fee>,
-        msg: MixnetExecuteMsg,
-        funds: Vec<Coin>,
     ) -> Result<ExecuteResult, NyxdError> {
-        let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
-        let memo = msg.default_memo();
-        self.client
-            .execute(
-                self.address(),
-                self.mixnet_contract_address(),
-                &msg,
-                fee,
-                memo,
-                funds,
-            )
-            .await
+        self.execute_mixnet_contract(
+            fee,
+            MixnetExecuteMsg::TestingResolveAllPendingEvents {},
+            vec![],
+        )
+        .await
     }
 }
 
-#[async_trait]
-impl<C> MixnetSigningClient for crate::Client<C>
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+impl<C> MixnetSigningClient for C
 where
-    C: SigningCosmWasmClient + Sync + Send + Clone,
+    C: SigningCosmWasmClient + NymContractsProvider + Sync,
+    NyxdError: From<<Self as OfflineSigner>::Error>,
 {
     async fn execute_mixnet_contract(
         &self,
@@ -704,6 +709,229 @@ where
         msg: MixnetExecuteMsg,
         funds: Vec<Coin>,
     ) -> Result<ExecuteResult, NyxdError> {
-        self.nyxd.execute_mixnet_contract(fee, msg, funds).await
+        let mixnet_contract_address = &self
+            .mixnet_contract_address()
+            .ok_or_else(|| NyxdError::unavailable_contract_address("mixnet contract"))?;
+
+        let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier())));
+        let memo = msg.default_memo();
+
+        let signer_address = &self.signer_addresses()?[0];
+        self.execute(
+            signer_address,
+            mixnet_contract_address,
+            &msg,
+            fee,
+            memo,
+            funds,
+        )
+        .await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::nyxd::contract_traits::tests::{mock_coin, IgnoreValue};
+
+    // it's enough that this compiles and clippy is happy about it
+    #[allow(dead_code)]
+    fn all_execute_variants_are_covered<C: MixnetSigningClient + Send + Sync>(
+        client: C,
+        msg: MixnetExecuteMsg,
+    ) {
+        match msg {
+            MixnetExecuteMsg::AssignNodeLayer { mix_id, layer } => {
+                client.assign_node_layer(mix_id, layer, None).ignore()
+            }
+            MixnetExecuteMsg::CreateFamily { label } => client.create_family(label, None).ignore(),
+            MixnetExecuteMsg::JoinFamily {
+                join_permit,
+                family_head,
+            } => client.join_family(join_permit, family_head, None).ignore(),
+            MixnetExecuteMsg::LeaveFamily { family_head } => {
+                client.leave_family(family_head, None).ignore()
+            }
+            MixnetExecuteMsg::KickFamilyMember { member } => {
+                client.kick_family_member(member, None).ignore()
+            }
+            MixnetExecuteMsg::CreateFamilyOnBehalf {
+                owner_address,
+                label,
+            } => client
+                .create_family_on_behalf(owner_address, label, None)
+                .ignore(),
+            MixnetExecuteMsg::JoinFamilyOnBehalf {
+                member_address,
+                join_permit,
+                family_head,
+            } => client
+                .join_family_on_behalf(member_address, join_permit, family_head, None)
+                .ignore(),
+            MixnetExecuteMsg::LeaveFamilyOnBehalf {
+                member_address,
+                family_head,
+            } => client
+                .leave_family_on_behalf(member_address, family_head, None)
+                .ignore(),
+            MixnetExecuteMsg::KickFamilyMemberOnBehalf {
+                head_address,
+                member,
+            } => client
+                .kick_family_member_on_behalf(head_address, member, None)
+                .ignore(),
+            MixnetExecuteMsg::UpdateRewardingValidatorAddress { address } => client
+                .update_rewarding_validator_address(address.parse().unwrap(), None)
+                .ignore(),
+            MixnetExecuteMsg::UpdateContractStateParams { updated_parameters } => client
+                .update_contract_state_params(updated_parameters, None)
+                .ignore(),
+            MixnetExecuteMsg::UpdateActiveSetSize {
+                active_set_size,
+                force_immediately,
+            } => client
+                .update_active_set_size(active_set_size, force_immediately, None)
+                .ignore(),
+            MixnetExecuteMsg::UpdateRewardingParams {
+                updated_params,
+                force_immediately,
+            } => client
+                .update_rewarding_parameters(updated_params, force_immediately, None)
+                .ignore(),
+            MixnetExecuteMsg::UpdateIntervalConfig {
+                epochs_in_interval,
+                epoch_duration_secs,
+                force_immediately,
+            } => client
+                .update_interval_config(
+                    epochs_in_interval,
+                    epoch_duration_secs,
+                    force_immediately,
+                    None,
+                )
+                .ignore(),
+            MixnetExecuteMsg::BeginEpochTransition {} => {
+                client.begin_epoch_transition(None).ignore()
+            }
+            MixnetExecuteMsg::AdvanceCurrentEpoch {
+                new_rewarded_set,
+                expected_active_set_size,
+            } => client
+                .advance_current_epoch(new_rewarded_set, expected_active_set_size, None)
+                .ignore(),
+            MixnetExecuteMsg::ReconcileEpochEvents { limit } => {
+                client.reconcile_epoch_events(limit, None).ignore()
+            }
+            MixnetExecuteMsg::BondMixnode {
+                mix_node,
+                cost_params,
+                owner_signature,
+            } => client
+                .bond_mixnode(mix_node, cost_params, owner_signature, mock_coin(), None)
+                .ignore(),
+            MixnetExecuteMsg::BondMixnodeOnBehalf {
+                mix_node,
+                cost_params,
+                owner_signature,
+                owner,
+            } => client
+                .bond_mixnode_on_behalf(
+                    owner.parse().unwrap(),
+                    mix_node,
+                    cost_params,
+                    owner_signature,
+                    mock_coin(),
+                    None,
+                )
+                .ignore(),
+            MixnetExecuteMsg::PledgeMore {} => client.pledge_more(mock_coin(), None).ignore(),
+            MixnetExecuteMsg::PledgeMoreOnBehalf { owner } => client
+                .pledge_more_on_behalf(owner.parse().unwrap(), mock_coin(), None)
+                .ignore(),
+            MixnetExecuteMsg::DecreasePledge { decrease_by } => {
+                client.decrease_pledge(decrease_by.into(), None).ignore()
+            }
+            MixnetExecuteMsg::DecreasePledgeOnBehalf { owner, decrease_by } => client
+                .decrease_pledge_on_behalf(owner.parse().unwrap(), decrease_by.into(), None)
+                .ignore(),
+            MixnetExecuteMsg::UnbondMixnode {} => client.unbond_mixnode(None).ignore(),
+            MixnetExecuteMsg::UnbondMixnodeOnBehalf { owner } => client
+                .unbond_mixnode_on_behalf(owner.parse().unwrap(), None)
+                .ignore(),
+            MixnetExecuteMsg::UpdateMixnodeCostParams { new_costs } => {
+                client.update_mixnode_cost_params(new_costs, None).ignore()
+            }
+            MixnetExecuteMsg::UpdateMixnodeCostParamsOnBehalf { new_costs, owner } => client
+                .update_mixnode_cost_params_on_behalf(owner.parse().unwrap(), new_costs, None)
+                .ignore(),
+            MixnetExecuteMsg::UpdateMixnodeConfig { new_config } => {
+                client.update_mixnode_config(new_config, None).ignore()
+            }
+            MixnetExecuteMsg::UpdateMixnodeConfigOnBehalf { new_config, owner } => client
+                .update_mixnode_config_on_behalf(owner.parse().unwrap(), new_config, None)
+                .ignore(),
+            MixnetExecuteMsg::BondGateway {
+                gateway,
+                owner_signature,
+            } => client
+                .bond_gateway(gateway, owner_signature, mock_coin(), None)
+                .ignore(),
+            MixnetExecuteMsg::BondGatewayOnBehalf {
+                gateway,
+                owner,
+                owner_signature,
+            } => client
+                .bond_gateway_on_behalf(
+                    owner.parse().unwrap(),
+                    gateway,
+                    owner_signature,
+                    mock_coin(),
+                    None,
+                )
+                .ignore(),
+            MixnetExecuteMsg::UnbondGateway {} => client.unbond_gateway(None).ignore(),
+            MixnetExecuteMsg::UnbondGatewayOnBehalf { owner } => client
+                .unbond_gateway_on_behalf(owner.parse().unwrap(), None)
+                .ignore(),
+            MixnetExecuteMsg::UpdateGatewayConfig { new_config } => {
+                client.update_gateway_config(new_config, None).ignore()
+            }
+            MixnetExecuteMsg::UpdateGatewayConfigOnBehalf { new_config, owner } => client
+                .update_gateway_config_on_behalf(owner.parse().unwrap(), new_config, None)
+                .ignore(),
+            MixnetExecuteMsg::DelegateToMixnode { mix_id } => client
+                .delegate_to_mixnode(mix_id, mock_coin(), None)
+                .ignore(),
+            MixnetExecuteMsg::DelegateToMixnodeOnBehalf { mix_id, delegate } => client
+                .delegate_to_mixnode_on_behalf(delegate.parse().unwrap(), mix_id, mock_coin(), None)
+                .ignore(),
+            MixnetExecuteMsg::UndelegateFromMixnode { mix_id } => {
+                client.undelegate_from_mixnode(mix_id, None).ignore()
+            }
+            MixnetExecuteMsg::UndelegateFromMixnodeOnBehalf { mix_id, delegate } => client
+                .undelegate_to_mixnode_on_behalf(delegate.parse().unwrap(), mix_id, None)
+                .ignore(),
+            MixnetExecuteMsg::RewardMixnode {
+                mix_id,
+                performance,
+            } => client.reward_mixnode(mix_id, performance, None).ignore(),
+            MixnetExecuteMsg::WithdrawOperatorReward {} => {
+                client.withdraw_operator_reward(None).ignore()
+            }
+            MixnetExecuteMsg::WithdrawOperatorRewardOnBehalf { owner } => client
+                .withdraw_operator_reward_on_behalf(owner.parse().unwrap(), None)
+                .ignore(),
+            MixnetExecuteMsg::WithdrawDelegatorReward { mix_id } => {
+                client.withdraw_delegator_reward(mix_id, None).ignore()
+            }
+            MixnetExecuteMsg::WithdrawDelegatorRewardOnBehalf { mix_id, owner } => client
+                .withdraw_delegator_reward_on_behalf(owner.parse().unwrap(), mix_id, None)
+                .ignore(),
+
+            #[cfg(feature = "nym_mixnet_contract_common/contract-testing")]
+            MixnetExecuteMsg::TestingResolveAllPendingEvents {} => {
+                client.testing_resolve_all_pending_events(None).ignore()
+            }
+        };
     }
 }

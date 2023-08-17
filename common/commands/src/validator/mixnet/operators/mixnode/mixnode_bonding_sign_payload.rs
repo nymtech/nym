@@ -11,7 +11,7 @@ use nym_mixnet_contract_common::{construct_mixnode_bonding_sign_payload, MixNode
 use nym_network_defaults::{
     DEFAULT_HTTP_API_LISTENING_PORT, DEFAULT_MIX_LISTENING_PORT, DEFAULT_VERLOC_LISTENING_PORT,
 };
-use nym_validator_client::nyxd::traits::MixnetQueryClient;
+use nym_validator_client::nyxd::contract_traits::{MixnetQueryClient, NymContractsProvider};
 use nym_validator_client::nyxd::CosmWasmCoin;
 
 #[derive(Debug, Parser)]
@@ -88,7 +88,7 @@ pub async fn create_payload(args: Args, client: SigningClient) {
         },
     };
 
-    let nonce = match client.get_signing_nonce(client.address()).await {
+    let nonce = match client.get_signing_nonce(&client.address()).await {
         Ok(nonce) => nonce,
         Err(err) => {
             eprint!(
@@ -99,9 +99,11 @@ pub async fn create_payload(args: Args, client: SigningClient) {
         }
     };
 
-    let address = account_id_to_cw_addr(client.address());
+    let address = account_id_to_cw_addr(&client.address());
     let proxy = if args.with_vesting_account {
-        Some(account_id_to_cw_addr(client.vesting_contract_address()))
+        Some(account_id_to_cw_addr(
+            client.vesting_contract_address().unwrap(),
+        ))
     } else {
         None
     };

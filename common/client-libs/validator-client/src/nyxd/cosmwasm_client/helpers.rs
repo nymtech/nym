@@ -48,7 +48,6 @@ impl CheckResponse for crate::nyxd::TxResponse {
     }
 }
 
-#[cfg(feature = "signing")]
 pub(crate) fn compress_wasm_code(code: &[u8]) -> Result<Vec<u8>, NyxdError> {
     use flate2::write::GzEncoder;
     use flate2::Compression;

@@ -3,6 +3,7 @@
 
 use super::received_buffer::ReceivedBufferMessage;
 use super::topology_control::geo_aware_provider::GeoAwareTopologyProvider;
+use crate::client::base_client::storage::gateway_details::GatewayDetailsStore;
 use crate::client::base_client::storage::MixnetClientStorage;
 use crate::client::cover_traffic_stream::LoopCoverTrafficStream;
 use crate::client::inbound_messages::{InputMessage, InputMessageReceiver, InputMessageSender};
@@ -24,6 +25,7 @@ use crate::client::topology_control::{
 };
 use crate::config::{Config, DebugConfig};
 use crate::error::ClientCoreError;
+use crate::init::{setup_gateway, GatewaySetup, InitialisationDetails, InitialisationResult};
 use crate::{config, spawn_future};
 use futures::channel::mpsc;
 use log::{debug, info};
@@ -42,17 +44,10 @@ use nym_sphinx::receiver::{ReconstructedMessage, SphinxMessageReceiver};
 use nym_task::connections::{ConnectionCommandReceiver, ConnectionCommandSender, LaneQueueLengths};
 use nym_task::{TaskClient, TaskManager};
 use nym_topology::provider_trait::TopologyProvider;
+use nym_validator_client::nyxd::contract_traits::DkgQueryClient;
 use std::sync::Arc;
 use tap::TapFallible;
 use url::Url;
-
-#[cfg(target_arch = "wasm32")]
-use nym_bandwidth_controller::wasm_mockups::DkgQueryClient;
-
-use crate::client::base_client::storage::gateway_details::GatewayDetailsStore;
-use crate::init::{setup_gateway, GatewaySetup, InitialisationDetails, InitialisationResult};
-#[cfg(not(target_arch = "wasm32"))]
-use nym_validator_client::nyxd::traits::DkgQueryClient;
 
 #[cfg(all(not(target_arch = "wasm32"), feature = "fs-surb-storage"))]
 pub mod non_wasm_helpers;

@@ -13,7 +13,9 @@ use nym_types::deprecated::{
 use nym_types::mixnode::MixNodeCostParams;
 use nym_types::pending_events::PendingEpochEvent;
 use nym_types::transaction::TransactionExecuteResult;
-use nym_validator_client::nyxd::traits::{MixnetQueryClient, MixnetSigningClient};
+use nym_validator_client::nyxd::contract_traits::{
+    MixnetQueryClient, MixnetSigningClient, NymContractsProvider, PagedMixnetQueryClient,
+};
 use nym_validator_client::nyxd::Fee;
 
 #[tauri::command]
@@ -25,7 +27,7 @@ pub async fn get_pending_delegation_events(
     let reg = guard.registered_coins()?;
     let client = guard.current_client()?;
 
-    let events = client.get_all_nyxd_pending_epoch_events().await?;
+    let events = client.nyxd.get_all_pending_epoch_events().await?;
     let converted = events
         .into_iter()
         .map(|e| PendingEpochEvent::try_from_mixnet_contract(e, reg))
@@ -156,10 +158,13 @@ pub async fn get_all_mix_delegations(
     let address = client.nyxd.address();
     let network = guard.current_network();
     let base_mix_denom = network.base_mix_denom().to_string();
-    let vesting_contract = client.nyxd.vesting_contract_address();
+    let vesting_contract = client
+        .nyxd
+        .vesting_contract_address()
+        .expect("vesting contract address is not available");
 
     log::info!("  >>> Get delegations");
-    let delegations = client.get_all_delegator_delegations(address).await?;
+    let delegations = client.nyxd.get_all_delegator_delegations(&address).await?;
     log::info!("  <<< {} delegations", delegations.len());
 
     let pending_events_for_account = get_pending_delegation_events(state.clone()).await?;
@@ -185,7 +190,11 @@ pub async fn get_all_mix_delegations(
             d.amount
         );
 
-        let mixnode = client.get_mixnode_details(d.mix_id).await?.mixnode_details;
+        let mixnode = client
+            .nyxd
+            .get_mixnode_details(d.mix_id)
+            .await?
+            .mixnode_details;
 
         let accumulated_by_operator = mixnode
             .as_ref()
@@ -214,7 +223,7 @@ pub async fn get_all_mix_delegations(
         log::trace!("  >>> Get accumulated rewards: address = {}", address);
         let pending_reward = client
             .nyxd
-            .get_pending_delegator_reward(address, d.mix_id, d.proxy.clone())
+            .get_pending_delegator_reward(&address, d.mix_id, d.proxy.clone())
             .await?;
 
         let accumulated_rewards = match &pending_reward.amount_earned {

@@ -17,9 +17,9 @@ use std::time::{Duration, SystemTime};
 use clap::{CommandFactory, Parser};
 use nym_bin_common::logging::setup_logging;
 use nym_client_core::config::disk_persistence::CommonClientPaths;
-use nym_validator_client::nyxd::traits::DkgQueryClient;
-use nym_validator_client::nyxd::{Coin, CosmWasmClient};
-use nym_validator_client::Config;
+use nym_validator_client::nyxd::contract_traits::DkgQueryClient;
+use nym_validator_client::nyxd::{Coin, Config};
+use nym_validator_client::DirectSigningHttpRpcNyxdClient;
 
 const SAFETY_BUFFER_SECS: u64 = 60; // 1 minute
 
@@ -34,11 +34,11 @@ struct Cli {
     pub(crate) command: Command,
 }
 
-async fn block_until_coconut_is_available<C: CosmWasmClient + Send + Sync>(
-    client: &nym_validator_client::Client<C>,
+async fn block_until_coconut_is_available<C: DkgQueryClient + Send + Sync>(
+    client: &C,
 ) -> Result<()> {
     loop {
-        let epoch = client.nyxd.get_current_epoch().await?;
+        let epoch = client.get_current_epoch().await?;
         let current_timestamp_secs = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)?
             .as_secs();
@@ -89,15 +89,18 @@ async fn main() -> Result<()> {
                 r.amount as u128,
                 network_details.chain_details.mix_denom.base,
             );
-            let client =
-                nym_validator_client::Client::new_signing(config, r.mnemonic.parse().unwrap())?;
+            let endpoint = network_details.endpoints[0].nyxd_url.as_str();
+            let client = DirectSigningHttpRpcNyxdClient::connect_with_mnemonic(
+                config,
+                endpoint,
+                r.mnemonic.parse().unwrap(),
+            )?;
 
             block_until_coconut_is_available(&client).await?;
             info!("Starting depositing funds, don't kill the process");
 
             if !r.recovery_mode {
-                let state =
-                    nym_bandwidth_controller::acquire::deposit(&client.nyxd, amount).await?;
+                let state = nym_bandwidth_controller::acquire::deposit(&client, amount).await?;
                 if nym_bandwidth_controller::acquire::get_credential(
                     &state,
                     &client,
@@ -117,7 +120,7 @@ async fn main() -> Result<()> {
                     }
                 }
             } else {
-                recover_credentials(&client.nyxd, &recovery_storage, &shared_storage).await?;
+                recover_credentials(&client, &recovery_storage, &shared_storage).await?;
             }
         }
         Command::Completions(c) => c.generate(&mut Cli::command(), bin_name),

@@ -5,6 +5,7 @@ This repo contains an example implementation of a libp2p transport using the Nym
 ## Requirements
 
 - Rust 1.68.2
+- `Protoc` protobuf compiler. On Debian/Ubuntu distributed via `apt` as `protobuf-compiler` & on Arch/Manjaro via AUR as `[python-protobuf-compiler](https://aur.archlinux.org/packages/python-protobuf-compiler)`. 
 
 ## Usage
 

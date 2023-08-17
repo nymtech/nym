@@ -2818,6 +2818,7 @@ dependencies = [
  "dotenvy",
  "hex-literal",
  "once_cell",
+ "schemars",
  "serde",
  "thiserror",
  "url",

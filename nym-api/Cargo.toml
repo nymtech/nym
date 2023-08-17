@@ -74,6 +74,7 @@ cosmwasm-std = { workspace = true }
 nym-credential-storage = { path = "../common/credential-storage" }
 nym-credentials = { path = "../common/credentials" }
 nym-crypto = { path = "../common/crypto" }
+cw2 = { workspace = true }
 cw3 = { workspace = true }
 cw4 = { workspace = true }
 nym-dkg = { path = "../common/dkg", features = ["cw-types"] }

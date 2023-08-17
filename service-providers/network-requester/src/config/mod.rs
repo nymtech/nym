@@ -81,13 +81,8 @@ impl NymConfigTemplate for Config {
 
 impl Config {
     pub fn new<S: AsRef<str>>(id: S) -> Self {
-        let mut base = BaseClientConfig::new(id.as_ref(), env!("CARGO_PKG_VERSION"));
-        // By default we have no cover traffic, but we have a slow trickle of cover traffic
-        // packages acting as keepalive messages.
-        base.set_no_cover_traffic_with_keepalive();
-
         Config {
-            base,
+            base: BaseClientConfig::new(id.as_ref(), env!("CARGO_PKG_VERSION")),
             network_requester: Default::default(),
             storage_paths: NetworkRequesterPaths::new_default(default_data_directory(id.as_ref())),
             network_requester_debug: Default::default(),
@@ -164,9 +159,19 @@ impl Config {
     }
 }
 
-#[derive(Debug, Default, Clone, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(default, deny_unknown_fields)]
-pub struct NetworkRequester {}
+pub struct NetworkRequester {
+    pub disable_poisson_rate: bool,
+}
+
+impl Default for NetworkRequester {
+    fn default() -> Self {
+        NetworkRequester {
+            disable_poisson_rate: true,
+        }
+    }
+}
 
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Serialize)]
 #[serde(default, deny_unknown_fields)]

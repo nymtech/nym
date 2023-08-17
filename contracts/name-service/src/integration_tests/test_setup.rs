@@ -1,6 +1,7 @@
 use cosmwasm_std::{coins, Addr, Coin, Uint128};
 use cw_multi_test::{App, AppBuilder, AppResponse, ContractWrapper, Executor};
 use nym_contracts_common::signing::Nonce;
+use nym_crypto::asymmetric::identity;
 use nym_name_service_common::{
     msg::{ExecuteMsg, InstantiateMsg, QueryMsg},
     response::{ConfigResponse, PagedNamesListResponse},
@@ -103,8 +104,26 @@ impl TestSetup {
         self.query(&QueryMsg::SigningNonce { address })
     }
 
-    pub fn new_name(&mut self, name: &NymName, address: &Address) -> TestName {
-        TestName::new(&mut self.rng, name.clone(), address.clone())
+    // Create a new random address and a corresponding keypair.
+    pub fn new_nym_address(&mut self) -> (Address, identity::KeyPair) {
+        crate::test_helpers::fixture::new_address(&mut self.rng)
+    }
+
+    // Create a new name with a given address. It's up to the caller to make sure that the keys
+    // match.
+    pub fn new_name_from_address(
+        &mut self,
+        name: &NymName,
+        address: &Address,
+        id_keys: identity::KeyPair,
+    ) -> TestName {
+        TestName::new(name.clone(), address.clone(), id_keys)
+    }
+
+    // Create a new name with a random address
+    pub fn new_name(&mut self, name: &NymName) -> TestName {
+        let (address, id_keys) = self.new_nym_address();
+        self.new_name_from_address(name, &address, id_keys)
     }
 
     pub fn payload_to_sign(
@@ -120,11 +139,10 @@ impl TestSetup {
     pub fn new_signed_name(
         &mut self,
         name: &NymName,
-        address: &Address,
         owner: &Addr,
         deposit: &Coin,
     ) -> SignedTestName {
-        let name = self.new_name(name, address);
+        let name = self.new_name(name);
         let payload = self.payload_to_sign(owner, deposit, name.details());
         name.sign(payload)
     }
@@ -161,11 +179,10 @@ impl TestSetup {
     pub fn sign_and_register(
         &mut self,
         name: &NymName,
-        address: &Address,
         owner: &Addr,
         deposit: &Coin,
     ) -> SignedTestName {
-        let signed_name = self.new_signed_name(name, address, owner, deposit);
+        let signed_name = self.new_signed_name(name, owner, deposit);
         self.register(&signed_name, owner);
         signed_name
     }

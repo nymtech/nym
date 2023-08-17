@@ -2,6 +2,7 @@ use clap::{Args, Subcommand};
 
 pub mod delete;
 pub mod register;
+pub mod register_sign_payload;
 
 #[derive(Debug, Args)]
 #[clap(args_conflicts_with_subcommands = true, subcommand_required = true)]
@@ -16,4 +17,6 @@ pub enum MixnetOperatorsNameCommands {
     Register(register::Args),
     /// Delete name alias for a nym address
     Delete(delete::Args),
+    /// Create base58-encoded payload required for producing valiid register signature.
+    CreateNameRegisterPayload(register_sign_payload::Args),
 }

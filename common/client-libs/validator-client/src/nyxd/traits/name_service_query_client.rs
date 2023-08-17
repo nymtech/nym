@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use cosmrs::AccountId;
-use nym_contracts_common::ContractBuildInformation;
+use nym_contracts_common::{signing::Nonce, ContractBuildInformation};
 use nym_name_service_common::{
     msg::QueryMsg as NameQueryMsg,
     response::{ConfigResponse, NamesListResponse, PagedNamesListResponse},
@@ -72,6 +72,13 @@ pub trait NameServiceQueryClient {
         }
 
         Ok(services)
+    }
+
+    async fn get_name_signing_nonce(&self, address: &AccountId) -> Result<Nonce, NyxdError> {
+        self.query_name_service_contract(NameQueryMsg::SigningNonce {
+            address: address.to_string(),
+        })
+        .await
     }
 }
 

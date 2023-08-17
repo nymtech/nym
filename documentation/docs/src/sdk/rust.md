@@ -22,13 +22,19 @@ In the future the SDK will be made up of several components, each of which will 
 | Coconut   | Create & verify Coconut credentials                                                   | 🛠️       |
 | Validator | Sign & broadcast Nyx blockchain transactions, query the blockchain                    | ❌       |
 
-The `mixnet` component currently exposes the logic of two clients: the websocket client, and the socks client.
+The `mixnet` component currently exposes the logic of two clients: the [websocket client](../clients/websocket-client.md), and the [socks](../clients/socks5-client.md) client.
 
 The `coconut` component is currently being worked on. Right now it exposes logic allowing for the creation of coconut credentials on the Sandbox testnet.
 
 ## Websocket client examples
 > All the codeblocks below can be found in the `nym-sdk` [examples directory](https://github.com/nymtech/nym/tree/release/{{platform_release_version}}/sdk/rust/nym-sdk/examples) in the monorepo. Just navigate to `nym/sdk/rust/nym-sdk/examples/` and run the files from there. If you wish to run these outside of the workspace - such as if you want to use one as the basis for your own project - then make sure to import the `sdk`, `tokio`, and `nym_bin_common` crates.
 
+### Different message types
+There are two methods for sending messages through the mixnet using your client: 
+* `send_plain_message()` is the most simple: pass the recipient address and the message you wish to send as a string (this was previously `send_str()`). This is a nicer-to-use wrapper around `send_message()`. 
+* `send_message()` allows you to also define the amount of SURBs to send along with your message (which is sent as bytes). 
+
+### Simple example 
 Lets look at a very simple example of how you can import and use the websocket client in a piece of Rust code (`examples/simple.rs`):
 
 ```rust,noplayground
@@ -87,6 +93,13 @@ If you aren't running a Validator and Nym API, and just want to import a specifi
 
 ```rust,noplayground
 {{#include ../../../../sdk/rust/nym-sdk/examples/manually_overwrite_topology.rs}}
+```
+
+### Send and receive in different tasks
+If you need to split the different actions of your client across different tasks, you can do so like this: 
+
+```rust, noplayground
+{{#include ../../../../sdk/rust/nym-sdk/examples/parallel_sending_and_receiving.rs}}
 ```
 
 ## Socks client example

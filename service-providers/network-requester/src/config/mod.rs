@@ -112,6 +112,11 @@ impl Config {
         self.base.validate()
     }
 
+    pub fn with_description(mut self, description: String) -> Self {
+        self.network_requester.description = description;
+        self
+    }
+
     // poor man's 'builder' method
     pub fn with_base<F, T>(mut self, f: F, val: T) -> Self
     where
@@ -162,12 +167,14 @@ impl Config {
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct NetworkRequester {
+    pub description: String,
     pub disable_poisson_rate: bool,
 }
 
 impl Default for NetworkRequester {
     fn default() -> Self {
         NetworkRequester {
+            description: String::new(),
             disable_poisson_rate: true,
         }
     }

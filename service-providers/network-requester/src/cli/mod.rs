@@ -1,24 +1,29 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::config::old_config_v1_1_13::OldConfigV1_1_13;
-use crate::config::old_config_v1_1_20::ConfigV1_1_20;
-use crate::config::old_config_v1_1_20_2::ConfigV1_1_20_2;
 use crate::{
-    config::{BaseClientConfig, Config},
+    config::{
+        old_config_v1_1_13::OldConfigV1_1_13, old_config_v1_1_20::ConfigV1_1_20,
+        old_config_v1_1_20_2::ConfigV1_1_20_2, BaseClientConfig, Config,
+    },
     error::NetworkRequesterError,
 };
+
 use clap::{CommandFactory, Parser, Subcommand};
 use log::{error, info};
-use nym_bin_common::bin_info;
-use nym_bin_common::completions::{fig_generate, ArgShell};
-use nym_bin_common::version_checker;
+use nym_bin_common::{
+    bin_info,
+    completions::{fig_generate, ArgShell},
+    version_checker,
+};
 use nym_client_core::client::base_client::storage::gateway_details::{
     OnDiskGatewayDetails, PersistedGatewayDetails,
 };
-use nym_client_core::client::key_manager::persistence::OnDiskKeys;
-use nym_client_core::config::GatewayEndpointConfig;
-use nym_client_core::error::ClientCoreError;
+use nym_client_core::{
+    client::key_manager::persistence::OnDiskKeys, config::GatewayEndpointConfig,
+    error::ClientCoreError,
+};
+use nym_config::OptionalSet;
 use nym_sphinx::params::PacketSize;
 
 mod build_info;
@@ -36,17 +41,17 @@ fn pretty_build_info_static() -> &'static str {
 }
 
 #[derive(Parser)]
-#[clap(author = "Nymtech", version, about, long_version = pretty_build_info_static())]
+#[command(author = "Nymtech", version, about, long_version = pretty_build_info_static())]
 pub(crate) struct Cli {
     /// Path pointing to an env file that configures the client.
-    #[clap(short, long)]
+    #[arg(short, long)]
     pub(crate) config_env_file: Option<std::path::PathBuf>,
 
     /// Flag used for disabling the printed banner in tty.
-    #[clap(long)]
+    #[arg(long)]
     pub(crate) no_banner: bool,
 
-    #[clap(subcommand)]
+    #[command(subcommand)]
     command: Commands,
 }
 
@@ -75,6 +80,7 @@ pub(crate) enum Commands {
 
 // Configuration that can be overridden.
 pub(crate) struct OverrideConfig {
+    description: Option<String>,
     nym_apis: Option<Vec<url::Url>>,
     fastmode: bool,
     no_cover: bool,
@@ -94,6 +100,7 @@ pub(crate) fn override_config(config: Config, args: OverrideConfig) -> Config {
     let no_per_hop_delays = args.medium_toggle;
 
     config
+        .with_optional(Config::with_description, args.description)
         .with_base(
             BaseClientConfig::with_high_default_traffic_volume,
             args.fastmode,

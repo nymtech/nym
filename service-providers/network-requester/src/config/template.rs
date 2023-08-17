@@ -78,6 +78,9 @@ unknown_list_location = '{{ storage_paths.unknown_list_location }}'
 
 [network_requester]
 
+# User provided human readable description of this particular network requester.
+description = '{{ network_requester.description }}'
+
 # Disable Poisson sending rate, and only send cover traffic occasionally as keepalive messages.
 # This is equivalent to setting debug.traffic.disable_main_poisson_packet_distribution = true,
 # and debug.cover_traffic.loop_cover_traffic_average_delay = 5s.

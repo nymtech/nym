@@ -7,7 +7,7 @@ use nym_bin_common::output_format::OutputFormat;
 
 #[derive(Args)]
 pub(crate) struct BuildInfo {
-    #[clap(short, long, default_value_t = OutputFormat::default())]
+    #[arg(short, long, default_value_t = OutputFormat::default())]
     output: OutputFormat,
 }
 

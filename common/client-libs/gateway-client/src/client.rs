@@ -45,7 +45,7 @@ use wasmtimer::tokio::sleep;
 const DEFAULT_RECONNECTION_ATTEMPTS: usize = 10;
 const DEFAULT_RECONNECTION_BACKOFF: Duration = Duration::from_secs(5);
 
-pub struct GatewayClient<C, St> {
+pub struct GatewayClient<C, St = EphemeralCredentialStorage> {
     authenticated: bool,
     disabled_credentials_mode: bool,
     bandwidth_remaining: i64,
@@ -471,6 +471,14 @@ impl<C, St> GatewayClient<C, St> {
     pub async fn perform_initial_authentication(
         &mut self,
     ) -> Result<Arc<SharedKeys>, GatewayClientError> {
+        if self.authenticated {
+            return if let Some(shared_key) = &self.shared_key {
+                Ok(Arc::clone(shared_key))
+            } else {
+                Err(GatewayClientError::AuthenticationFailure)
+            };
+        }
+
         if self.shared_key.is_some() {
             self.authenticate(None).await?;
         } else {
@@ -755,7 +763,9 @@ impl<C, St> GatewayClient<C, St> {
     }
 }
 
-impl<C> GatewayClient<C, EphemeralCredentialStorage> {
+pub struct InitOnly;
+
+impl GatewayClient<InitOnly, EphemeralCredentialStorage> {
     // for initialisation we do not need credential storage. Though it's still a bit weird we have to set the generic...
     pub fn new_init(
         gateway_address: String,
@@ -772,7 +782,7 @@ impl<C> GatewayClient<C, EphemeralCredentialStorage> {
         let shutdown = TaskClient::dummy();
         let packet_router = PacketRouter::new(ack_tx, mix_tx, shutdown.clone());
 
-        GatewayClient::<C, EphemeralCredentialStorage> {
+        GatewayClient::<InitOnly, EphemeralCredentialStorage> {
             authenticated: false,
             disabled_credentials_mode: true,
             bandwidth_remaining: 0,
@@ -787,6 +797,39 @@ impl<C> GatewayClient<C, EphemeralCredentialStorage> {
             should_reconnect_on_failure: false,
             reconnection_attempts: DEFAULT_RECONNECTION_ATTEMPTS,
             reconnection_backoff: DEFAULT_RECONNECTION_BACKOFF,
+            shutdown,
+        }
+    }
+
+    pub fn upgrade<C, St>(
+        self,
+        mixnet_message_sender: MixnetMessageSender,
+        ack_sender: AcknowledgementSender,
+        response_timeout_duration: Duration,
+        bandwidth_controller: Option<BandwidthController<C, St>>,
+        shutdown: TaskClient,
+    ) -> GatewayClient<C, St> {
+        // invariants that can't be broken
+        // (unless somebody decided to expose some field that wasn't meant to be exposed)
+        assert!(self.authenticated);
+        assert!(self.connection.is_available());
+        assert!(self.shared_key.is_some());
+
+        GatewayClient {
+            authenticated: self.authenticated,
+            disabled_credentials_mode: self.disabled_credentials_mode,
+            bandwidth_remaining: self.bandwidth_remaining,
+            gateway_address: self.gateway_address,
+            gateway_identity: self.gateway_identity,
+            local_identity: self.local_identity,
+            shared_key: self.shared_key,
+            connection: self.connection,
+            packet_router: PacketRouter::new(ack_sender, mixnet_message_sender, shutdown.clone()),
+            response_timeout_duration,
+            bandwidth_controller,
+            should_reconnect_on_failure: self.should_reconnect_on_failure,
+            reconnection_attempts: self.reconnection_attempts,
+            reconnection_backoff: self.reconnection_backoff,
             shutdown,
         }
     }

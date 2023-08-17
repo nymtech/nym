@@ -323,7 +323,7 @@ where
 
         // this will perform necessary key and details load and optional store
         let _init_result = nym_client_core::init::setup_gateway(
-            &gateway_setup,
+            gateway_setup,
             self.storage.key_store(),
             self.storage.gateway_details_store(),
             !self.config.key_mode.is_keep(),

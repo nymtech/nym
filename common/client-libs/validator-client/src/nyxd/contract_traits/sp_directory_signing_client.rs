@@ -12,7 +12,8 @@ use nym_service_provider_directory_common::{
     msg::ExecuteMsg as SpExecuteMsg, NymAddress, ServiceDetails, ServiceId,
 };
 
-#[async_trait]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait SpDirectorySigningClient {
     async fn execute_service_provider_directory_contract(
         &self,
@@ -81,7 +82,8 @@ pub trait SpDirectorySigningClient {
     }
 }
 
-#[async_trait]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl<C> SpDirectorySigningClient for C
 where
     C: SigningCosmWasmClient + NymContractsProvider + Sync,

@@ -25,6 +25,7 @@ use tendermint_rpc::Error as TendermintRpcError;
 
 pub use crate::nyxd::cosmwasm_client::client_traits::{CosmWasmClient, SigningCosmWasmClient};
 pub use crate::nyxd::fee::Fee;
+pub use crate::rpc::TendermintRpcClient;
 pub use coin::Coin;
 pub use cosmrs::bank::MsgSend;
 pub use cosmrs::tendermint::abci::{response::DeliverTx, Event, EventAttribute};
@@ -38,29 +39,26 @@ pub use cosmrs::Gas;
 pub use cosmrs::{bip32, AccountId, Denom};
 pub use cosmwasm_std::Coin as CosmWasmCoin;
 pub use fee::{gas_price::GasPrice, GasAdjustable, GasAdjustment};
-pub use tendermint_rpc::{client::Client as TendermintClient, Request, Response, SimpleRequest};
 pub use tendermint_rpc::{
     endpoint::{tx::Response as TxResponse, validators::Response as ValidatorResponse},
     Paging,
 };
+pub use tendermint_rpc::{Request, Response, SimpleRequest};
 
-#[cfg(feature = "http-client")]
+// #[cfg(feature = "http-client")]
 use crate::signing::direct_wallet::DirectSecp256k1HdWallet;
 #[cfg(feature = "http-client")]
 use crate::{DirectSigningHttpRpcNyxdClient, QueryHttpRpcNyxdClient};
+use crate::{DirectSigningReqwestRpcNyxdClient, QueryReqwestRpcNyxdClient, ReqwestRpcClient};
 #[cfg(feature = "http-client")]
 use cosmrs::rpc::{HttpClient, HttpClientUrl};
+use url::Url;
 
 pub mod coin;
 pub mod contract_traits;
 pub mod cosmwasm_client;
 pub mod error;
 pub mod fee;
-
-#[cfg(target_arch = "wasm32")]
-pub mod wasm;
-
-// TODO: reqwest based for wasm
 
 #[derive(Debug, Clone)]
 pub struct Config {
@@ -71,30 +69,6 @@ pub struct Config {
 }
 
 impl Config {
-    // fn parse_optional_account(
-    //     raw: Option<&String>,
-    //     expected_prefix: &str,
-    // ) -> Result<Option<AccountId>, NyxdError> {
-    //     if let Some(address) = raw {
-    //         trace!("Raw address:{:?}", raw);
-    //         trace!("Expected prefix:{:?}", expected_prefix);
-    //         let parsed: AccountId = address
-    //             .parse()
-    //             .map_err(|_| NyxdError::MalformedAccountAddress(address.clone()))?;
-    //         debug!("Parsed prefix:{:?}", parsed);
-    //         if parsed.prefix() != expected_prefix {
-    //             Err(NyxdError::UnexpectedBech32Prefix {
-    //                 got: parsed.prefix().into(),
-    //                 expected: expected_prefix.into(),
-    //             })
-    //         } else {
-    //             Ok(Some(parsed))
-    //         }
-    //     } else {
-    //         Ok(None)
-    //     }
-    // }
-
     pub fn try_from_nym_network_details(details: &NymNetworkDetails) -> Result<Self, NyxdError> {
         Ok(Config {
             chain_details: details.chain_details.clone(),
@@ -110,21 +84,13 @@ impl Config {
     }
 }
 
-// so youd have:
-// for queries:
-// NyxdClient<HttpClient>
-// NyxdClient<WasmReqwest>
-//
-// for signing:
-// NyxdClient<HttpClient, Direct....>
-// NyxdClient<WasmReqest, CosmJsWallet>
-
 #[derive(Debug)]
 pub struct NyxdClient<C, S = NoSigner> {
     client: MaybeSigningClient<C, S>,
     config: Config,
 }
 
+// terrible name, but can't really change it because it will break so many uses
 #[cfg(feature = "http-client")]
 impl NyxdClient<HttpClient> {
     pub fn connect<U>(config: Config, endpoint: U) -> Result<QueryHttpRpcNyxdClient, NyxdError>
@@ -140,9 +106,32 @@ impl NyxdClient<HttpClient> {
     }
 }
 
+impl NyxdClient<ReqwestRpcClient> {
+    pub fn connect_reqwest(
+        config: Config,
+        endpoint: Url,
+    ) -> Result<QueryReqwestRpcNyxdClient, NyxdError> {
+        let client = ReqwestRpcClient::new(endpoint);
+
+        Ok(NyxdClient {
+            client: MaybeSigningClient::new(client, (&config).into()),
+            config,
+        })
+    }
+}
+
+impl<C> NyxdClient<C> {
+    pub fn new(config: Config, client: C) -> Self {
+        NyxdClient {
+            client: MaybeSigningClient::new(client, (&config).into()),
+            config,
+        }
+    }
+}
+
+// terrible name, but can't really change it because it will break so many uses
 #[cfg(feature = "http-client")]
 impl NyxdClient<HttpClient, DirectSecp256k1HdWallet> {
-    // TODO: rename this one
     pub fn connect_with_mnemonic<U>(
         config: Config,
         endpoint: U,
@@ -151,32 +140,37 @@ impl NyxdClient<HttpClient, DirectSecp256k1HdWallet> {
     where
         U: TryInto<HttpClientUrl, Error = TendermintRpcError>,
     {
+        let client = HttpClient::new(endpoint)?;
+
         let prefix = &config.chain_details.bech32_account_prefix;
         let wallet = DirectSecp256k1HdWallet::from_mnemonic(prefix, mnemonic);
-        Self::connect_with_signer(config, endpoint, wallet)
+        Ok(Self::connect_with_signer(config, client, wallet))
     }
 }
 
-#[cfg(feature = "http-client")]
-impl<S> NyxdClient<HttpClient, S>
+impl NyxdClient<ReqwestRpcClient, DirectSecp256k1HdWallet> {
+    pub fn connect_reqwest_with_mnemonic(
+        config: Config,
+        endpoint: Url,
+        mnemonic: bip39::Mnemonic,
+    ) -> DirectSigningReqwestRpcNyxdClient {
+        let client = ReqwestRpcClient::new(endpoint);
+
+        let prefix = &config.chain_details.bech32_account_prefix;
+        let wallet = DirectSecp256k1HdWallet::from_mnemonic(prefix, mnemonic);
+        Self::connect_with_signer(config, client, wallet)
+    }
+}
+
+impl<C, S> NyxdClient<C, S>
 where
     S: OfflineSigner,
-    // I have no idea why S::Error: Into<NyxdError> bound wouldn't do the trick
-    NyxdError: From<S::Error>,
 {
-    pub fn connect_with_signer<U>(
-        config: Config,
-        endpoint: U,
-        signer: S,
-    ) -> Result<NyxdClient<HttpClient, S>, NyxdError>
-    where
-        U: TryInto<HttpClientUrl, Error = TendermintRpcError>,
-    {
-        let client = HttpClient::new(endpoint)?;
-        Ok(NyxdClient {
+    pub fn connect_with_signer(config: Config, client: C, signer: S) -> NyxdClient<C, S> {
+        NyxdClient {
             client: MaybeSigningClient::new_signing(client, signer, (&config).into()),
             config,
-        })
+        }
     }
 }
 
@@ -187,15 +181,6 @@ impl<S> NyxdClient<HttpClient, S> {
         U: TryInto<HttpClientUrl, Error = TendermintRpcError>,
     {
         self.client.change_endpoint(new_endpoint)
-    }
-}
-
-impl<C> NyxdClient<C> {
-    pub fn new(config: Config, client: C) -> Self {
-        NyxdClient {
-            client: MaybeSigningClient::new(client, (&config).into()),
-            config,
-        }
     }
 }
 
@@ -289,7 +274,7 @@ impl<C, S> NymContractsProvider for NyxdClient<C, S> {
 // queries
 impl<C, S> NyxdClient<C, S>
 where
-    C: TendermintClient + Send + Sync,
+    C: TendermintRpcClient + Send + Sync,
     S: Send + Sync,
 {
     pub async fn get_account_public_key(
@@ -339,7 +324,7 @@ where
 // signing
 impl<C, S> NyxdClient<C, S>
 where
-    C: TendermintClient + Send + Sync,
+    C: TendermintRpcClient + Send + Sync,
     S: OfflineSigner + Send + Sync,
     NyxdError: From<<S as OfflineSigner>::Error>,
 {
@@ -572,10 +557,11 @@ where
 
 // ugh. is there a way to avoid that nasty trait implementation?
 
-#[async_trait]
-impl<C, S> TendermintClient for NyxdClient<C, S>
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+impl<C, S> TendermintRpcClient for NyxdClient<C, S>
 where
-    C: TendermintClient + Send + Sync,
+    C: TendermintRpcClient + Send + Sync,
     S: Send + Sync,
 {
     async fn perform<R>(&self, request: R) -> Result<R::Output, TendermintRpcError>
@@ -589,7 +575,7 @@ where
 #[async_trait]
 impl<C, S> CosmWasmClient for NyxdClient<C, S>
 where
-    C: TendermintClient + Send + Sync,
+    C: TendermintRpcClient + Send + Sync,
     S: Send + Sync,
 {
 }
@@ -616,7 +602,7 @@ where
 #[async_trait]
 impl<C, S> SigningCosmWasmClient for NyxdClient<C, S>
 where
-    C: TendermintClient + Send + Sync,
+    C: TendermintRpcClient + Send + Sync,
     S: TxSigner + Send + Sync,
     NyxdError: From<S::Error>,
 {

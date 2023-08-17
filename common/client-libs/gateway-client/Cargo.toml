@@ -9,10 +9,10 @@ edition = "2021"
 [dependencies]
 # TODO: (for this and other crates), similarly to 'tokio', import only required "futures" modules rather than
 # the entire crate
-futures = "0.3"
+futures = { workspace = true }
 log = { workspace = true }
-thiserror = "1.0"
-url = "2.2"
+thiserror = { workspace = true }
+url = { workspace = true }
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
 tokio = { version = "1.24.1", features = ["macros"] }
 

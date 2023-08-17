@@ -25,7 +25,7 @@ use crate::client::topology_control::{
 };
 use crate::config::{Config, DebugConfig};
 use crate::error::ClientCoreError;
-use crate::init::{setup_gateway, GatewaySetup, InitialisationDetails};
+use crate::init::{setup_gateway, GatewaySetup, InitialisationDetails, InitialisationResult};
 use crate::{config, spawn_future};
 use futures::channel::mpsc;
 use log::{debug, info};

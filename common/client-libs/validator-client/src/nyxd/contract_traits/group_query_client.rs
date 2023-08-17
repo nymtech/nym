@@ -9,7 +9,8 @@ use cw4::{Member, MemberListResponse, MemberResponse, TotalWeightResponse};
 use nym_group_contract_common::msg::QueryMsg as GroupQueryMsg;
 use serde::Deserialize;
 
-#[async_trait]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait GroupQueryClient {
     async fn query_group_contract<T>(&self, query: GroupQueryMsg) -> Result<T, NyxdError>
     where
@@ -47,7 +48,8 @@ pub trait GroupQueryClient {
     }
 }
 
-#[async_trait]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait PagedGroupQueryClient: GroupQueryClient {
     // can't use the macro due to different paging behaviour
     async fn get_all_members(&self) -> Result<Vec<Member>, NyxdError> {
@@ -74,7 +76,8 @@ pub trait PagedGroupQueryClient: GroupQueryClient {
 #[async_trait]
 impl<T> PagedGroupQueryClient for T where T: GroupQueryClient {}
 
-#[async_trait]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl<C> GroupQueryClient for C
 where
     C: CosmWasmClient + NymContractsProvider + Send + Sync,

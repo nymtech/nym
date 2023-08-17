@@ -10,7 +10,8 @@ use async_trait::async_trait;
 use cw4::Member;
 use nym_group_contract_common::msg::ExecuteMsg as GroupExecuteMsg;
 
-#[async_trait]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait GroupSigningClient {
     async fn execute_group_contract(
         &self,
@@ -74,7 +75,8 @@ pub trait GroupSigningClient {
     }
 }
 
-#[async_trait]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl<C> GroupSigningClient for C
 where
     C: SigningCosmWasmClient + NymContractsProvider + Sync,

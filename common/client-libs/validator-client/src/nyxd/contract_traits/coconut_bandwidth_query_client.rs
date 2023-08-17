@@ -12,7 +12,8 @@ use nym_coconut_bandwidth_contract_common::spend_credential::{
 };
 use serde::Deserialize;
 
-#[async_trait]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait CoconutBandwidthQueryClient {
     async fn query_coconut_bandwidth_contract<T>(
         &self,
@@ -44,7 +45,8 @@ pub trait CoconutBandwidthQueryClient {
     }
 }
 
-#[async_trait]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait PagedCoconutBandwidthQueryClient: CoconutBandwidthQueryClient {
     async fn get_all_spent_credentials(&self) -> Result<Vec<SpendCredential>, NyxdError> {
         collect_paged!(self, get_all_spent_credential_paged, spend_credentials)
@@ -54,7 +56,8 @@ pub trait PagedCoconutBandwidthQueryClient: CoconutBandwidthQueryClient {
 #[async_trait]
 impl<T> PagedCoconutBandwidthQueryClient for T where T: CoconutBandwidthQueryClient {}
 
-#[async_trait]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl<C> CoconutBandwidthQueryClient for C
 where
     C: CosmWasmClient + NymContractsProvider + Send + Sync,

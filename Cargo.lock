@@ -3575,6 +3575,7 @@ dependencies = [
  "console-subscriber",
  "cosmwasm-std",
  "cw-utils",
+ "cw2",
  "cw3",
  "cw4",
  "dirs 4.0.0",
@@ -4045,6 +4046,7 @@ dependencies = [
 name = "nym-explorer-api-requests"
 version = "0.1.0"
 dependencies = [
+ "nym-api-requests",
  "nym-contracts-common",
  "nym-mixnet-contract-common",
  "schemars",
@@ -4319,6 +4321,7 @@ dependencies = [
  "dotenvy",
  "hex-literal",
  "once_cell",
+ "schemars",
  "serde",
  "thiserror",
  "url",
@@ -4918,6 +4921,7 @@ dependencies = [
  "tokio",
  "ts-rs",
  "url",
+ "wasmtimer",
  "zeroize",
 ]
 

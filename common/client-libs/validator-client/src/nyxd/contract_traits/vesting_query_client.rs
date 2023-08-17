@@ -17,7 +17,8 @@ use nym_vesting_contract_common::{
 };
 use serde::Deserialize;
 
-#[async_trait]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait VestingQueryClient {
     async fn query_vesting_contract<T>(&self, query: VestingQueryMsg) -> Result<T, NyxdError>
     where
@@ -282,7 +283,8 @@ pub trait VestingQueryClient {
     }
 }
 
-#[async_trait]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait PagedVestingQueryClient: VestingQueryClient {
     async fn get_all_vesting_delegations(&self) -> Result<Vec<VestingDelegation>, NyxdError> {
         collect_paged!(self, get_all_vesting_delegations_paged, delegations)
@@ -300,7 +302,8 @@ pub trait PagedVestingQueryClient: VestingQueryClient {
 #[async_trait]
 impl<T> PagedVestingQueryClient for T where T: VestingQueryClient {}
 
-#[async_trait]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl<C> VestingQueryClient for C
 where
     C: CosmWasmClient + NymContractsProvider + Send + Sync,

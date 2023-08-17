@@ -19,7 +19,8 @@ use nym_mixnet_contract_common::{
     MixNode,
 };
 
-#[async_trait]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait MixnetSigningClient {
     async fn execute_mixnet_contract(
         &self,
@@ -695,7 +696,8 @@ pub trait MixnetSigningClient {
     }
 }
 
-#[async_trait]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl<C> MixnetSigningClient for C
 where
     C: SigningCosmWasmClient + NymContractsProvider + Sync,

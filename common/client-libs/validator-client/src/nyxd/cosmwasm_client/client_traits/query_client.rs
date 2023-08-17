@@ -8,7 +8,7 @@ use crate::nyxd::cosmwasm_client::types::{
     Account, CodeDetails, Contract, ContractCodeId, SequenceResponse, SimulateResponse,
 };
 use crate::nyxd::error::NyxdError;
-use crate::nyxd::TendermintClient;
+use crate::rpc::TendermintRpcClient;
 use async_trait::async_trait;
 use cosmrs::cosmwasm::{CodeInfoResponse, ContractCodeHistoryEntry};
 use cosmrs::proto::cosmos::auth::v1beta1::{QueryAccountRequest, QueryAccountResponse};
@@ -39,6 +39,16 @@ use tendermint_rpc::{
     Order,
 };
 
+#[cfg(not(target_arch = "wasm32"))]
+use tokio::time::sleep;
+#[cfg(not(target_arch = "wasm32"))]
+use tokio::time::Instant;
+
+#[cfg(target_arch = "wasm32")]
+use wasmtimer::std::Instant;
+#[cfg(target_arch = "wasm32")]
+use wasmtimer::tokio::sleep;
+
 pub const DEFAULT_BROADCAST_POLLING_RATE: Duration = Duration::from_secs(4);
 pub const DEFAULT_BROADCAST_TIMEOUT: Duration = Duration::from_secs(60);
 
@@ -46,8 +56,9 @@ pub const DEFAULT_BROADCAST_TIMEOUT: Duration = Duration::from_secs(60);
 #[async_trait]
 impl CosmWasmClient for cosmrs::rpc::HttpClient {}
 
-#[async_trait]
-pub trait CosmWasmClient: TendermintClient {
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+pub trait CosmWasmClient: TendermintRpcClient {
     // helper method to remove duplicate code involved in making abci requests with protobuf messages
     // TODO: perhaps it should have an additional argument to determine whether the response should
     // require proof?
@@ -236,7 +247,7 @@ pub trait CosmWasmClient: TendermintClient {
     where
         T: Into<Vec<u8>> + Send,
     {
-        Ok(tendermint_rpc::client::Client::broadcast_tx_async(self, tx).await?)
+        Ok(TendermintRpcClient::broadcast_tx_async(self, tx).await?)
     }
 
     /// Broadcast a transaction, returning the response from `CheckTx`.
@@ -244,7 +255,7 @@ pub trait CosmWasmClient: TendermintClient {
     where
         T: Into<Vec<u8>> + Send,
     {
-        Ok(tendermint_rpc::client::Client::broadcast_tx_sync(self, tx).await?)
+        Ok(TendermintRpcClient::broadcast_tx_sync(self, tx).await?)
     }
 
     /// Broadcast a transaction, returning the response from `DeliverTx`.
@@ -255,7 +266,7 @@ pub trait CosmWasmClient: TendermintClient {
     where
         T: Into<Vec<u8>> + Send,
     {
-        Ok(tendermint_rpc::client::Client::broadcast_tx_commit(self, tx).await?)
+        Ok(TendermintRpcClient::broadcast_tx_commit(self, tx).await?)
     }
 
     async fn broadcast_tx<T>(
@@ -286,13 +297,13 @@ pub trait CosmWasmClient: TendermintClient {
 
         let tx_hash = broadcasted.hash;
 
-        let start = tokio::time::Instant::now();
+        let start = Instant::now();
         loop {
             log::debug!(
                 "Polling for result of including {} in a block...",
                 broadcasted.hash
             );
-            if tokio::time::Instant::now().duration_since(start) >= timeout {
+            if Instant::now().duration_since(start) >= timeout {
                 return Err(NyxdError::BroadcastTimeout {
                     hash: tx_hash,
                     timeout,
@@ -303,7 +314,7 @@ pub trait CosmWasmClient: TendermintClient {
                 return Ok(poll_res);
             }
 
-            tokio::time::sleep(poll_interval).await;
+            sleep(poll_interval).await;
         }
     }
 

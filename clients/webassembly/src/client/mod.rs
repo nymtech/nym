@@ -25,7 +25,7 @@ use nym_task::TaskManager;
 use nym_topology::provider_trait::{HardcodedTopologyProvider, TopologyProvider};
 use nym_topology::NymTopology;
 use nym_validator_client::client::IdentityKey;
-use nym_validator_client::QueryWasmRpcNyxdClient;
+use nym_validator_client::QueryReqwestRpcNyxdClient;
 use rand::rngs::OsRng;
 use rand::RngCore;
 use std::sync::Arc;
@@ -152,7 +152,11 @@ impl NymClientBuilder {
         let maybe_topology_provider = self.topology_provider();
 
         let mut base_builder: BaseClientBuilder<_, FullWasmClientStorage> =
-            BaseClientBuilder::<QueryWasmRpcNyxdClient, _>::new(&self.config.base, storage, None);
+            BaseClientBuilder::<QueryReqwestRpcNyxdClient, _>::new(
+                &self.config.base,
+                storage,
+                None,
+            );
         if let Some(topology_provider) = maybe_topology_provider {
             base_builder = base_builder.with_topology_provider(topology_provider);
         }

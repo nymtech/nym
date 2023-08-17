@@ -3,7 +3,8 @@
 
 use crate::nyxd::cosmwasm_client::client_traits::{CosmWasmClient, SigningCosmWasmClient};
 use crate::nyxd::error::NyxdError;
-use crate::nyxd::{Config, GasPrice, TendermintClient};
+use crate::nyxd::{Config, GasPrice};
+use crate::rpc::TendermintRpcClient;
 use crate::signing::{
     signer::{NoSigner, OfflineSigner},
     AccountData,
@@ -77,10 +78,11 @@ impl<S> MaybeSigningClient<HttpClient, S> {
     }
 }
 
-#[async_trait]
-impl<C, S> TendermintClient for MaybeSigningClient<C, S>
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+impl<C, S> TendermintRpcClient for MaybeSigningClient<C, S>
 where
-    C: TendermintClient + Send + Sync,
+    C: TendermintRpcClient + Send + Sync,
     S: Send + Sync,
 {
     async fn perform<R>(&self, request: R) -> Result<R::Output, TendermintRpcError>
@@ -113,7 +115,7 @@ where
 #[async_trait]
 impl<C, S> CosmWasmClient for MaybeSigningClient<C, S>
 where
-    C: TendermintClient + Send + Sync,
+    C: TendermintRpcClient + Send + Sync,
     S: Send + Sync,
 {
 }
@@ -121,7 +123,7 @@ where
 #[async_trait]
 impl<C, S> SigningCosmWasmClient for MaybeSigningClient<C, S>
 where
-    C: TendermintClient + Send + Sync,
+    C: TendermintRpcClient + Send + Sync,
     S: OfflineSigner + Send + Sync,
     NyxdError: From<S::Error>,
 {

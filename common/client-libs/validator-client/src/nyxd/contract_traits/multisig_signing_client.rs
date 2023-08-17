@@ -13,7 +13,8 @@ use cw4::{MemberChangedHookMsg, MemberDiff};
 use nym_coconut_bandwidth_contract_common::msg::ExecuteMsg as CoconutBandwidthExecuteMsg;
 use nym_multisig_contract_common::msg::ExecuteMsg as MultisigExecuteMsg;
 
-#[async_trait]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait MultisigSigningClient: NymContractsProvider {
     async fn execute_multisig_contract(
         &self,
@@ -124,7 +125,8 @@ pub trait MultisigSigningClient: NymContractsProvider {
     }
 }
 
-#[async_trait]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl<C> MultisigSigningClient for C
 where
     C: SigningCosmWasmClient + NymContractsProvider + Sync,

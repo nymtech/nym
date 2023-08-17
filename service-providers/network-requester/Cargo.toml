@@ -15,7 +15,7 @@ async-trait = { workspace = true }
 bs58 = "0.4.0"
 clap = {version = "4.0", features = ["cargo", "derive"]}
 dirs = "4.0"
-futures = "0.3.24"
+futures = { workspace = true }
 humantime-serde = "1.1.1"
 ipnetwork = "0.20.0"
 lazy_static = { workspace = true }

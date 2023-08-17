@@ -15,7 +15,8 @@ use nym_coconut_dkg_common::types::{DealerDetails, Epoch, EpochId, InitialReplac
 use nym_coconut_dkg_common::verification_key::{ContractVKShare, PagedVKSharesResponse};
 use serde::Deserialize;
 
-#[async_trait]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait DkgQueryClient {
     async fn query_dkg_contract<T>(&self, query: DkgQueryMsg) -> Result<T, NyxdError>
     where
@@ -94,7 +95,8 @@ pub trait DkgQueryClient {
 
 // extension trait to the query client to deal with the paged queries
 // (it didn't feel appropriate to combine it with the existing trait
-#[async_trait]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait PagedDkgQueryClient: DkgQueryClient {
     async fn get_all_current_dealers(&self) -> Result<Vec<DealerDetails>, NyxdError> {
         collect_paged!(self, get_current_dealers_paged, dealers)
@@ -119,7 +121,8 @@ pub trait PagedDkgQueryClient: DkgQueryClient {
 #[async_trait]
 impl<T> PagedDkgQueryClient for T where T: DkgQueryClient {}
 
-#[async_trait]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl<C> DkgQueryClient for C
 where
     C: CosmWasmClient + NymContractsProvider + Send + Sync,

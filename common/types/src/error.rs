@@ -1,3 +1,4 @@
+use nym_validator_client::error::TendermintRpcError;
 use nym_validator_client::nym_api::error::NymAPIError;
 use nym_validator_client::{nyxd::error::NyxdError, ValidatorClientError};
 use serde::{Serialize, Serializer};
@@ -16,6 +17,11 @@ pub enum TypesError {
     CosmwasmStd {
         #[from]
         source: cosmwasm_std::StdError,
+    },
+    #[error("{source}")]
+    TendermintRpcError {
+        #[from]
+        source: TendermintRpcError,
     },
     #[error("{source}")]
     ErrorReport {
@@ -92,6 +98,7 @@ impl From<ValidatorClientError> for TypesError {
             ValidatorClientError::MalformedUrlProvided(e) => e.into(),
             ValidatorClientError::NyxdError(e) => e.into(),
             ValidatorClientError::NoAPIUrlAvailable => TypesError::NoNymApiUrlConfigured,
+            ValidatorClientError::TendermintErrorRpc(err) => err.into(),
         }
     }
 }

@@ -1,10 +1,13 @@
 // Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::nyxd::contract_traits::NymContractsProvider;
 use crate::nyxd::{self, NyxdClient};
-use crate::signing::signer::NoSigner;
-use crate::{nym_api, ValidatorClientError};
+use crate::signing::direct_wallet::DirectSecp256k1HdWallet;
+use crate::signing::signer::{NoSigner, OfflineSigner};
+use crate::{
+    nym_api, DirectSigningReqwestRpcValidatorClient, QueryReqwestRpcValidatorClient,
+    ReqwestRpcClient, ValidatorClientError,
+};
 use nym_api_requests::coconut::{
     BlindSignRequestBody, BlindedSignatureResponse, VerifyCredentialBody, VerifyCredentialResponse,
 };
@@ -24,9 +27,7 @@ pub use nym_mixnet_contract_common::{
 pub use crate::coconut::CoconutApiClient;
 
 #[cfg(feature = "http-client")]
-use crate::signing::direct_wallet::DirectSecp256k1HdWallet;
-#[cfg(feature = "http-client")]
-use tendermint_rpc::HttpClient;
+use crate::{DirectSigningHttpRpcValidatorClient, HttpRpcClient, QueryHttpRpcValidatorClient};
 
 #[must_use]
 #[derive(Debug, Clone)]
@@ -89,22 +90,18 @@ pub struct Client<C, S = NoSigner> {
 }
 
 #[cfg(feature = "http-client")]
-impl Client<HttpClient, DirectSecp256k1HdWallet> {
+impl Client<HttpRpcClient, DirectSecp256k1HdWallet> {
     pub fn new_signing(
         config: Config,
         mnemonic: bip39::Mnemonic,
-    ) -> Result<Client<HttpClient, DirectSecp256k1HdWallet>, ValidatorClientError> {
-        let nym_api_client = nym_api::Client::new(config.api_url.clone());
-        let nyxd_client = NyxdClient::connect_with_mnemonic(
-            config.nyxd_config.clone(),
-            config.nyxd_url.as_str(),
-            mnemonic,
-        )?;
+    ) -> Result<DirectSigningHttpRpcValidatorClient, ValidatorClientError> {
+        let rpc_client = HttpRpcClient::new(config.nyxd_url.as_str())?;
+        let prefix = &config.nyxd_config.chain_details.bech32_account_prefix;
+        let wallet = DirectSecp256k1HdWallet::from_mnemonic(prefix, mnemonic);
 
-        Ok(Client {
-            nym_api: nym_api_client,
-            nyxd: nyxd_client,
-        })
+        Ok(Self::new_signing_with_rpc_client(
+            config, rpc_client, wallet,
+        ))
     }
 
     pub fn change_nyxd(&mut self, new_endpoint: Url) -> Result<(), ValidatorClientError> {
@@ -113,17 +110,24 @@ impl Client<HttpClient, DirectSecp256k1HdWallet> {
     }
 }
 
-#[cfg(feature = "http-client")]
-impl Client<HttpClient> {
-    pub fn new_query(config: Config) -> Result<Client<HttpClient>, ValidatorClientError> {
-        let nym_api_client = nym_api::Client::new(config.api_url.clone());
-        let nyxd_client =
-            NyxdClient::connect(config.nyxd_config.clone(), config.nyxd_url.as_str())?;
+impl Client<ReqwestRpcClient, DirectSecp256k1HdWallet> {
+    pub fn new_reqwest_signing(
+        config: Config,
+        mnemonic: bip39::Mnemonic,
+    ) -> DirectSigningReqwestRpcValidatorClient {
+        let rpc_client = ReqwestRpcClient::new(config.nyxd_url.clone());
+        let prefix = &config.nyxd_config.chain_details.bech32_account_prefix;
+        let wallet = DirectSecp256k1HdWallet::from_mnemonic(prefix, mnemonic);
 
-        Ok(Client {
-            nym_api: nym_api_client,
-            nyxd: nyxd_client,
-        })
+        Self::new_signing_with_rpc_client(config, rpc_client, wallet)
+    }
+}
+
+#[cfg(feature = "http-client")]
+impl Client<HttpRpcClient> {
+    pub fn new_query(config: Config) -> Result<QueryHttpRpcValidatorClient, ValidatorClientError> {
+        let rpc_client = HttpRpcClient::new(config.nyxd_url.as_str())?;
+        Ok(Self::new_with_rpc_client(config, rpc_client))
     }
 
     pub fn change_nyxd(&mut self, new_endpoint: Url) -> Result<(), ValidatorClientError> {
@@ -132,24 +136,35 @@ impl Client<HttpClient> {
     }
 }
 
-// nyxd wrappers
-impl<C> Client<C> {
-    // use case: somebody initialised client without a contract in order to upload and initialise one
-    // and now they want to actually use it without making new client
-
-    #[deprecated]
-    pub fn set_mixnet_contract_address(&mut self, mixnet_contract_address: cosmrs::AccountId) {
-        self.nyxd
-            .set_mixnet_contract_address(mixnet_contract_address)
+impl Client<ReqwestRpcClient> {
+    pub fn new_reqwest_query(config: Config) -> QueryReqwestRpcValidatorClient {
+        let rpc_client = ReqwestRpcClient::new(config.nyxd_url.clone());
+        Self::new_with_rpc_client(config, rpc_client)
     }
+}
 
-    #[deprecated]
-    pub fn get_mixnet_contract_address(&self) -> cosmrs::AccountId {
-        // TODO: deal with the expect
-        self.nyxd
-            .mixnet_contract_address()
-            .expect("mixnet contract address is not available")
-            .clone()
+impl<C> Client<C> {
+    pub fn new_with_rpc_client(config: Config, rpc_client: C) -> Self {
+        let nym_api_client = nym_api::Client::new(config.api_url.clone());
+
+        Client {
+            nym_api: nym_api_client,
+            nyxd: NyxdClient::new(config.nyxd_config, rpc_client),
+        }
+    }
+}
+
+impl<C, S> Client<C, S> {
+    pub fn new_signing_with_rpc_client(config: Config, rpc_client: C, signer: S) -> Self
+    where
+        S: OfflineSigner,
+    {
+        let nym_api_client = nym_api::Client::new(config.api_url.clone());
+
+        Client {
+            nym_api: nym_api_client,
+            nyxd: NyxdClient::new_signing(config.nyxd_config, rpc_client, signer),
+        }
     }
 }
 

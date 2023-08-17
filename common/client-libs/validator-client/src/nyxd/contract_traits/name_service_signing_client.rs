@@ -11,7 +11,8 @@ use crate::nyxd::{
 };
 use crate::signing::signer::OfflineSigner;
 
-#[async_trait]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait NameServiceSigningClient {
     async fn execute_name_service_contract(
         &self,
@@ -72,7 +73,8 @@ pub trait NameServiceSigningClient {
     }
 }
 
-#[async_trait]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl<C> NameServiceSigningClient for C
 where
     C: SigningCosmWasmClient + NymContractsProvider + Sync,

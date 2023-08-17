@@ -15,8 +15,8 @@ schemars = "0.8"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { workspace = true }
 strum = { version = "0.23", features = ["derive"] }
-thiserror = "1.0"
-url = "2.2"
+thiserror = { workspace = true }
+url = { workspace = true }
 ts-rs = "6.1.2"
 
 cosmwasm-std = { workspace = true }

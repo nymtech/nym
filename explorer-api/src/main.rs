@@ -20,6 +20,7 @@ mod guards;
 mod helpers;
 mod http;
 mod mix_node;
+mod location;
 pub(crate) mod mix_nodes;
 mod overview;
 mod ping;

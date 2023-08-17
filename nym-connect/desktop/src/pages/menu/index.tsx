@@ -8,8 +8,8 @@ const menuSchema = [
   { title: 'Supported apps', icon: Apps, path: 'apps' },
   { title: 'How to connect guide', icon: HelpOutline, path: 'guide' },
   { title: 'Privacy level', icon: PrivacyTip, path: 'privacy-level' },
-  { title: 'Please help us improve the app', icon: BugReport, path: 'monitoring' },
   { title: 'Settings', icon: Settings, path: 'settings' },
+  { title: 'Help improve the app', icon: BugReport, path: 'reporting' },
 ];
 
 export const Menu = () => (

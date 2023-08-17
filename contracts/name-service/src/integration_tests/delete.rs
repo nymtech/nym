@@ -1,5 +1,5 @@
 use cosmwasm_std::Addr;
-use nym_name_service_common::{response::PagedNamesListResponse, Address, NymName};
+use nym_name_service_common::{response::PagedNamesListResponse, NymName};
 use rstest::rstest;
 
 use crate::{
@@ -19,7 +19,6 @@ fn setup() -> TestSetup {
 fn delete_name(mut setup: TestSetup) {
     setup.sign_and_register(
         &NymName::new("my_name").unwrap(),
-        &Address::new("address"),
         &Addr::unchecked("owner"),
         &nyms(100),
     );
@@ -39,7 +38,6 @@ fn only_owner_can_delete_name(mut setup: TestSetup) {
     assert_eq!(setup.contract_balance(), nyms(0));
     setup.sign_and_register(
         &NymName::new("name").unwrap(),
-        &Address::new("nymAddress"),
         &Addr::unchecked("owner"),
         &nyms(100),
     );
@@ -63,7 +61,6 @@ fn only_owner_can_delete_name(mut setup: TestSetup) {
 fn cant_delete_name_that_does_not_exist(mut setup: TestSetup) {
     setup.sign_and_register(
         &NymName::new("foo").unwrap(),
-        &Address::new("nymAddress"),
         &Addr::unchecked("owner"),
         &nyms(100),
     );
@@ -94,8 +91,6 @@ fn cant_delete_name_that_does_not_exist(mut setup: TestSetup) {
 fn register_multiple_names_and_deleting_by_name(mut setup: TestSetup) {
     let owner1 = Addr::unchecked("wealthy_owner_1");
     let owner2 = Addr::unchecked("wealthy_owner_2");
-    let address1 = Address::new("address1");
-    let address2 = Address::new("address2");
     let name1 = NymName::new("name1").unwrap();
     let name2 = NymName::new("name2").unwrap();
     let name3 = NymName::new("name3").unwrap();
@@ -105,11 +100,11 @@ fn register_multiple_names_and_deleting_by_name(mut setup: TestSetup) {
     // We register the same address three times, but with different owners
     assert_eq!(setup.contract_balance(), nyms(0));
     assert_eq!(setup.balance(&owner1), nyms(1000));
-    let s1 = setup.sign_and_register(&name1, &address1, &owner1, &nyms(100));
-    let s2 = setup.sign_and_register(&name2, &address1, &owner1, &nyms(100));
-    let s3 = setup.sign_and_register(&name3, &address2, &owner1, &nyms(100));
-    let s4 = setup.sign_and_register(&name4, &address1, &owner2, &nyms(100));
-    let s5 = setup.sign_and_register(&name5, &address2, &owner2, &nyms(100));
+    let s1 = setup.sign_and_register(&name1, &owner1, &nyms(100));
+    let s2 = setup.sign_and_register(&name2, &owner1, &nyms(100));
+    let s3 = setup.sign_and_register(&name3, &owner1, &nyms(100));
+    let s4 = setup.sign_and_register(&name4, &owner2, &nyms(100));
+    let s5 = setup.sign_and_register(&name5, &owner2, &nyms(100));
 
     assert_eq!(setup.contract_balance(), nyms(500));
     assert_eq!(setup.balance(&owner1), nyms(700));
@@ -117,11 +112,11 @@ fn register_multiple_names_and_deleting_by_name(mut setup: TestSetup) {
         setup.query_all(),
         PagedNamesListResponse {
             names: vec![
-                new_name(1, &name1, &address1, &owner1, s1.identity_key()),
-                new_name(2, &name2, &address1, &owner1, s2.identity_key()),
-                new_name(3, &name3, &address2, &owner1, s3.identity_key()),
-                new_name(4, &name4, &address1, &owner2, s4.identity_key()),
-                new_name(5, &name5, &address2, &owner2, s5.identity_key()),
+                new_name(1, &name1, s1.address(), &owner1, s1.identity_key()),
+                new_name(2, &name2, s2.address(), &owner1, s2.identity_key()),
+                new_name(3, &name3, s3.address(), &owner1, s3.identity_key()),
+                new_name(4, &name4, s4.address(), &owner2, s4.identity_key()),
+                new_name(5, &name5, s5.address(), &owner2, s5.identity_key()),
             ],
             per_page: NAME_DEFAULT_RETRIEVAL_LIMIT as usize,
             start_next_after: Some(5),
@@ -136,10 +131,10 @@ fn register_multiple_names_and_deleting_by_name(mut setup: TestSetup) {
         setup.query_all(),
         PagedNamesListResponse {
             names: vec![
-                new_name(2, &name2, &address1, &owner1, s2.identity_key()),
-                new_name(3, &name3, &address2, &owner1, s3.identity_key()),
-                new_name(4, &name4, &address1, &owner2, s4.identity_key()),
-                new_name(5, &name5, &address2, &owner2, s5.identity_key()),
+                new_name(2, &name2, s2.address(), &owner1, s2.identity_key()),
+                new_name(3, &name3, s3.address(), &owner1, s3.identity_key()),
+                new_name(4, &name4, s4.address(), &owner2, s4.identity_key()),
+                new_name(5, &name5, s5.address(), &owner2, s5.identity_key()),
             ],
             per_page: NAME_DEFAULT_RETRIEVAL_LIMIT as usize,
             start_next_after: Some(5),

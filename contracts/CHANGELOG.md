@@ -1,6 +1,12 @@
 # Changelog
 
-## Unreleased
+## [Unreleased]
+
+## [v1.5.0] (2023-08-16)
+- Generate json schema for all used contracts #3693 ([#3693])
+
+[#3233]: https://github.com/nymtech/nym/pull/3693
+
 
 ## [v1.4.0] (2023-04-25)
 - Allow mixnode operators to decrease their bond amount without having to rebond (will require a lot of testing EXACT reward values to make sure the "unit delegation" isn't broken afterwards) ([#3233])

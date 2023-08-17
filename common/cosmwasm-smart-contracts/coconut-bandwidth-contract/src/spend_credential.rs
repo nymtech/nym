@@ -39,7 +39,9 @@ impl SpendCredentialData {
 #[cw_serde]
 #[derive(Copy)]
 pub enum SpendCredentialStatus {
+    #[serde(alias = "InProgress")]
     InProgress,
+    #[serde(alias = "Spent")]
     Spent,
 }
 

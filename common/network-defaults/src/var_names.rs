@@ -4,6 +4,8 @@
 // Environment variable that, if set, shows the environment is currently configured
 pub const CONFIGURED: &str = "CONFIGURED";
 
+pub const NETWORK_NAME: &str = "NETWORK_NAME";
+
 pub const BECH32_PREFIX: &str = "BECH32_PREFIX";
 pub const MIX_DENOM: &str = "MIX_DENOM";
 pub const MIX_DENOM_DISPLAY: &str = "MIX_DENOM_DISPLAY";

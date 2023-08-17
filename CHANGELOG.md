@@ -8,6 +8,18 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 [#3731]: https://github.com/nymtech/nym/pull/3731
 
+## [1.1.27] (2023-08-16)
+
+- fix serialisation of contract types ([#3752])
+- Investigate spending credentials from the main API (coconut enabled to a gateway) from feature/ephemera branch ([#3741])
+- NymConnect UI stuck in showing "Gateway has issues" ([#3594])
+- [UPDATE] Update MiniBolt community-applications-and-guides dev docs ([#3754])
+
+[#3752]: https://github.com/nymtech/nym/issues/3752
+[#3741]: https://github.com/nymtech/nym/issues/3741
+[#3594]: https://github.com/nymtech/nym/issues/3594
+[#3754]: https://github.com/nymtech/nym/pull/3754
+
 ## [v1.1.24] (2023-08-08)
 
 - Latency based gateway selection is serial and slow ([#3710])

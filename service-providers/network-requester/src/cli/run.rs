@@ -83,6 +83,7 @@ pub(crate) async fn execute(args: &Run) -> Result<(), NetworkRequesterError> {
     }
 
     let mut config = try_load_current_config(&args.id)?;
+    dbg!(&config);
     config = override_config(config, OverrideConfig::from(args.clone()));
     log::debug!("Using config: {:#?}", config);
 
@@ -109,6 +110,5 @@ pub(crate) async fn execute(args: &Run) -> Result<(), NetworkRequesterError> {
         stats_provider_addr,
     )
     .await;
-    panic!();
     server.run_service_provider().await
 }

@@ -79,7 +79,7 @@ pub struct NetworkRequesterV1_1_20_2 {}
 
 impl From<NetworkRequesterV1_1_20_2> for NetworkRequester {
     fn from(_value: NetworkRequesterV1_1_20_2) -> Self {
-        NetworkRequester {}
+        NetworkRequester::default()
     }
 }
 

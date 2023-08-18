@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::node::client_handling::active_clients::ActiveClientsStore;
+use crate::node::client_handling::active_clients::{ActiveClientsStore, RecentlyActive};
 use crate::node::client_handling::websocket::connection_handler::coconut::CoconutVerifier;
 use crate::node::client_handling::websocket::connection_handler::{
     AuthenticatedHandler, ClientDetails, InitialAuthResult, SocketStream,
@@ -420,8 +420,28 @@ where
 
         if self.active_clients_store.get(address).is_some() {
             println!("duplicate connection when authenticating");
+
+            let msg = Message::Ping("duplicate connection".to_string().into_bytes());
+            if let Err(err) = self.send_websocket_message(msg).await {
+                warn!(
+                    "Failed to send message over websocket: {err}. \
+                    Assuming the connection is dead.",
+                );
+                println!("disconnecting");
+                self.active_clients_store.disconnect(address);
+            }
+
+            println!("waiting..");
+            let msg = self.read_websocket_message().await;
+            dbg!(&msg);
+
+            return Err(InitialAuthenticationError::DuplicateConnection);
+            // if self.active_clients_store.get_is_recently_active(address) == Some(RecentlyActive::No) {
+            // println!("disconnecting");
+            // self.active_clients_store.disconnect(address)
+            // } else {
             // return Err(InitialAuthenticationError::DuplicateConnection);
-            self.active_clients_store.disconnect(address)
+            // }
         }
 
         let shared_keys = self

@@ -135,6 +135,12 @@ where
         }
     }
 
+    fn register_activity(&self) {
+        self.inner
+            .active_clients_store
+            .register_activity(self.client.address)
+    }
+
     /// Explicitly removes handle from the global store.
     fn disconnect(self) {
         self.inner

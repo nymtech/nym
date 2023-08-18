@@ -12,7 +12,6 @@ use crate::tester::helpers::{
 use crate::topology::WasmNymTopology;
 use futures::channel::mpsc;
 use js_sys::Promise;
-use nym_bandwidth_controller::wasm_mockups::{Client as FakeClient, DirectSigningNyxdClient};
 use nym_bandwidth_controller::BandwidthController;
 use nym_client_core::client::key_manager::ManagedKeys;
 use nym_client_core::init::{InitialisationDetails, InitialisationResult};
@@ -27,6 +26,7 @@ use nym_sphinx::preparer::PreparedFragment;
 use nym_task::TaskManager;
 use nym_topology::NymTopology;
 use nym_validator_client::client::IdentityKey;
+use nym_validator_client::QueryReqwestRpcNyxdClient;
 use rand::rngs::OsRng;
 use std::collections::HashSet;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
@@ -42,7 +42,7 @@ pub(crate) mod helpers;
 
 pub type NodeTestMessage = TestMessage<WasmTestMessageExt>;
 type LockedGatewayClient =
-    Arc<AsyncMutex<GatewayClient<FakeClient<DirectSigningNyxdClient>, EphemeralStorage>>>;
+    Arc<AsyncMutex<GatewayClient<QueryReqwestRpcNyxdClient, EphemeralStorage>>>;
 
 pub(crate) const DEFAULT_TEST_TIMEOUT: Duration = Duration::from_secs(10);
 pub(crate) const DEFAULT_TEST_PACKETS: u32 = 20;
@@ -78,8 +78,7 @@ pub struct NymNodeTesterBuilder {
     base_topology: NymTopology,
 
     // unimplemented
-    bandwidth_controller:
-        Option<BandwidthController<FakeClient<DirectSigningNyxdClient>, EphemeralStorage>>,
+    bandwidth_controller: Option<BandwidthController<QueryReqwestRpcNyxdClient, EphemeralStorage>>,
 }
 
 fn address(keys: &ManagedKeys, gateway_identity: NodeIdentity) -> Recipient {

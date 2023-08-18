@@ -3,7 +3,9 @@ use std::str::FromStr;
 use cosmrs::AccountId;
 use nym_network_defaults::{setup_env, NymNetworkDetails};
 use nym_service_provider_directory_common::NymAddress;
-use nym_validator_client::nyxd::traits::SpDirectoryQueryClient;
+use nym_validator_client::nyxd::contract_traits::{
+    PagedSpDirectoryQueryClient, SpDirectoryQueryClient,
+};
 
 #[tokio::main]
 async fn main() {

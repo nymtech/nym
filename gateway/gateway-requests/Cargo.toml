@@ -11,7 +11,7 @@ edition = "2021"
 
 [dependencies]
 bs58 = "0.4.0"
-futures = "0.3.15"
+futures = { workspace = true }
 generic-array = { workspace = true, features = ["serde"] }
 log = { workspace = true }
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }

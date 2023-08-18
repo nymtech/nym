@@ -5,6 +5,7 @@
 extern crate rocket;
 
 use crate::epoch_operations::RewardedSetUpdater;
+use crate::network::models::NetworkDetails;
 use crate::node_status_api::uptime_updater::HistoricalUptimeUpdater;
 use crate::support::cli;
 use crate::support::cli::CliArgs;
@@ -31,6 +32,7 @@ mod circulating_supply_api;
 mod coconut;
 mod ephemera;
 mod epoch_operations;
+pub(crate) mod network;
 mod network_monitor;
 pub(crate) mod node_status_api;
 pub(crate) mod nym_contract_cache;
@@ -60,14 +62,16 @@ async fn start_nym_api_tasks(
     config: Config,
 ) -> Result<ShutdownHandles, Box<dyn Error + Send + Sync>> {
     let nyxd_client = nyxd::Client::new(&config);
-    let mix_denom = nyxd_client.chain_details().await.mix_denom.base;
+    let connected_nyxd = config.get_nyxd_url();
+    let nym_network_details = config.get_network_details();
+    let network_details = NetworkDetails::new(connected_nyxd.to_string(), nym_network_details);
 
     let coconut_keypair = coconut::keypair::KeyPair::new();
 
     // let's build our rocket!
     let rocket = http::setup_rocket(
         &config,
-        mix_denom,
+        network_details,
         nyxd_client.clone(),
         coconut_keypair.clone(),
     )

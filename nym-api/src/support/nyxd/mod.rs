@@ -16,11 +16,11 @@ use nym_coconut_dkg_common::{
     types::{EncodedBTEPublicKeyWithProof, Epoch, EpochId},
     verification_key::{ContractVKShare, VerificationKeyShare},
 };
-use nym_config::defaults::{ChainDetails, NymNetworkDetails, DEFAULT_NYM_API_PORT};
+use nym_config::defaults::ChainDetails;
 use nym_contracts_common::dealings::ContractSafeBytes;
 use nym_ephemera_common::msg::QueryMsg as EphemeraQueryMsg;
 use nym_ephemera_common::types::JsonPeerInfo;
-use nym_mixnet_contract_common::families::{Family, FamilyHead};
+use nym_mixnet_contract_common::families::FamilyHead;
 use nym_mixnet_contract_common::mixnode::MixNodeDetails;
 use nym_mixnet_contract_common::reward_params::RewardingParams;
 use nym_mixnet_contract_common::{
@@ -29,32 +29,30 @@ use nym_mixnet_contract_common::{
 };
 use nym_name_service_common::msg::QueryMsg as NameServiceQueryMsg;
 use nym_service_provider_directory_common::msg::QueryMsg as SpQueryMsg;
+use nym_validator_client::nyxd::contract_traits::{NameServiceQueryClient, PagedDkgQueryClient};
 use nym_validator_client::nyxd::error::NyxdError;
-use nym_validator_client::nyxd::traits::{
-    EphemeraQueryClient, EphemeraSigningClient, MixnetQueryClient, MixnetSigningClient,
-    SpDirectoryQueryClient,
-};
 use nym_validator_client::nyxd::{
-    cosmwasm_client::types::ExecuteResult,
-    traits::{
-        CoconutBandwidthQueryClient, DkgQueryClient, DkgSigningClient, GroupQueryClient,
-        MultisigQueryClient, MultisigSigningClient, NameServiceQueryClient, VestingQueryClient,
+    contract_traits::{
+        CoconutBandwidthQueryClient, DkgQueryClient, DkgSigningClient, EphemeraQueryClient,
+        EphemeraSigningClient, GroupQueryClient, MixnetQueryClient, MixnetSigningClient,
+        MultisigQueryClient, MultisigSigningClient, NymContractsProvider, PagedEphemeraQueryClient,
+        PagedMixnetQueryClient, PagedMultisigQueryClient, PagedVestingQueryClient,
+        SpDirectoryQueryClient,
     },
-    Fee,
+    cosmwasm_client::types::ExecuteResult,
+    CosmWasmClient, Fee,
 };
 use nym_validator_client::nyxd::{
     hash::{Hash, SHA256_HASH_SIZE},
-    AccountId, Coin, DirectSigningNyxdClient, TendermintTime,
+    AccountId, Coin, TendermintTime,
 };
-use nym_validator_client::ValidatorClientError;
+use nym_validator_client::{nyxd, DirectSigningHttpRpcNyxdClient};
 use nym_vesting_contract_common::AccountVestingCoins;
 use serde::Deserialize;
 use std::sync::Arc;
-use tokio::sync::RwLock;
+use tokio::sync::{RwLock, RwLockReadGuard};
 
-pub(crate) struct Client(
-    pub(crate) Arc<RwLock<nym_validator_client::Client<DirectSigningNyxdClient>>>,
-);
+pub(crate) struct Client(pub(crate) Arc<RwLock<DirectSigningHttpRpcNyxdClient>>);
 
 impl Clone for Client {
     fn clone(&self) -> Self {
@@ -64,45 +62,41 @@ impl Clone for Client {
 
 impl Client {
     pub(crate) fn new(config: &Config) -> Self {
-        // the api address is irrelevant here as **WE ARE THE API**
-        // and we won't be talking on the socket here.
-        let api_url = format!("http://localhost:{}", DEFAULT_NYM_API_PORT)
-            .parse()
-            .unwrap();
+        let details = config.get_network_details();
         let nyxd_url = config.get_nyxd_url();
 
-        let details = NymNetworkDetails::new_from_env()
-            .with_mixnet_contract(Some(config.get_mixnet_contract_address().as_ref()))
-            .with_vesting_contract(Some(config.get_vesting_contract_address().as_ref()));
-
-        let client_config = nym_validator_client::Config::try_from_nym_network_details(&details)
-            .expect("failed to construct valid validator client config with the provided network")
-            .with_urls(nyxd_url, api_url);
+        let client_config = nyxd::Config::try_from_nym_network_details(&details)
+            .expect("failed to construct valid validator client config with the provided network");
 
         let mnemonic = config.get_mnemonic();
 
-        let inner = nym_validator_client::Client::new_signing(client_config, mnemonic)
-            .expect("Failed to connect to nyxd!");
+        let inner = DirectSigningHttpRpcNyxdClient::connect_with_mnemonic(
+            client_config,
+            nyxd_url.as_str(),
+            mnemonic,
+        )
+        .expect("Failed to connect to nyxd!");
 
         Client(Arc::new(RwLock::new(inner)))
     }
 
+    pub(crate) async fn read(&self) -> RwLockReadGuard<'_, DirectSigningHttpRpcNyxdClient> {
+        self.0.read().await
+    }
+
     pub(crate) async fn client_address(&self) -> AccountId {
-        self.0.read().await.nyxd.address().clone()
+        self.0.read().await.address()
     }
 
     pub(crate) async fn chain_details(&self) -> ChainDetails {
-        self.0.read().await.nyxd.current_chain_details().clone()
+        self.0.read().await.current_chain_details().clone()
     }
 
-    pub(crate) async fn get_rewarding_validator_address(
-        &self,
-    ) -> Result<AccountId, ValidatorClientError> {
+    pub(crate) async fn get_rewarding_validator_address(&self) -> Result<AccountId, NyxdError> {
         let cosmwasm_addr = self
             .0
             .read()
             .await
-            .nyxd
             .get_mixnet_contract_state()
             .await?
             .rewarding_validator_address
@@ -116,21 +110,13 @@ impl Client {
         cosmwasm_addr
             .clone()
             .parse()
-            .map_err(|_| NyxdError::MalformedAccountAddress(cosmwasm_addr).into())
+            .map_err(|_| NyxdError::MalformedAccountAddress(cosmwasm_addr))
     }
 
     // a helper function for the future to obtain the current block timestamp
     #[allow(dead_code)]
-    pub(crate) async fn current_block_timestamp(
-        &self,
-    ) -> Result<TendermintTime, ValidatorClientError> {
-        let time = self
-            .0
-            .read()
-            .await
-            .nyxd
-            .get_current_block_timestamp()
-            .await?;
+    pub(crate) async fn current_block_timestamp(&self) -> Result<TendermintTime, NyxdError> {
+        let time = self.0.read().await.get_current_block_timestamp().await?;
 
         Ok(time)
     }
@@ -145,8 +131,8 @@ impl Client {
     pub(crate) async fn get_block_hash(
         &self,
         height: u32,
-    ) -> Result<Option<[u8; SHA256_HASH_SIZE]>, ValidatorClientError> {
-        let hash = match self.0.read().await.nyxd.get_block_hash(height).await? {
+    ) -> Result<Option<[u8; SHA256_HASH_SIZE]>, NyxdError> {
+        let hash = match self.0.read().await.get_block_hash(height).await? {
             Hash::Sha256(hash) => Some(hash),
             Hash::None => None,
         };
@@ -154,101 +140,78 @@ impl Client {
         Ok(hash)
     }
 
-    pub(crate) async fn get_mixnodes(&self) -> Result<Vec<MixNodeDetails>, ValidatorClientError> {
-        self.0.read().await.get_all_nyxd_mixnodes_detailed().await
+    pub(crate) async fn get_mixnodes(&self) -> Result<Vec<MixNodeDetails>, NyxdError> {
+        self.0.read().await.get_all_mixnodes_detailed().await
     }
 
-    pub(crate) async fn get_gateways(&self) -> Result<Vec<GatewayBond>, ValidatorClientError> {
-        self.0.read().await.get_all_nyxd_gateways().await
+    pub(crate) async fn get_gateways(&self) -> Result<Vec<GatewayBond>, NyxdError> {
+        self.0.read().await.get_all_gateways().await
     }
 
-    pub(crate) async fn get_current_interval(
-        &self,
-    ) -> Result<CurrentIntervalResponse, ValidatorClientError> {
-        Ok(self.0.read().await.get_current_interval_details().await?)
+    pub(crate) async fn get_current_interval(&self) -> Result<CurrentIntervalResponse, NyxdError> {
+        self.0.read().await.get_current_interval_details().await
     }
 
-    pub(crate) async fn get_current_epoch_status(
-        &self,
-    ) -> Result<EpochStatus, ValidatorClientError> {
-        Ok(self.0.read().await.nyxd.get_current_epoch_status().await?)
+    pub(crate) async fn get_current_epoch_status(&self) -> Result<EpochStatus, NyxdError> {
+        self.0.read().await.get_current_epoch_status().await
     }
 
     pub(crate) async fn get_current_rewarding_parameters(
         &self,
-    ) -> Result<RewardingParams, ValidatorClientError> {
-        Ok(self.0.read().await.get_rewarding_parameters().await?)
+    ) -> Result<RewardingParams, NyxdError> {
+        self.0.read().await.get_rewarding_parameters().await
     }
 
     pub(crate) async fn get_rewarded_set_mixnodes(
         &self,
-    ) -> Result<Vec<(MixId, RewardedSetNodeStatus)>, ValidatorClientError> {
-        self.0
-            .read()
-            .await
-            .get_all_nyxd_rewarded_set_mixnodes()
-            .await
+    ) -> Result<Vec<(MixId, RewardedSetNodeStatus)>, NyxdError> {
+        self.0.read().await.get_all_rewarded_set_mixnodes().await
     }
 
-    pub(crate) async fn get_current_vesting_account_storage_key(
-        &self,
-    ) -> Result<u32, ValidatorClientError> {
+    pub(crate) async fn get_current_vesting_account_storage_key(&self) -> Result<u32, NyxdError> {
         let guard = self.0.read().await;
-        let vesting_contract = guard.nyxd.vesting_contract_address();
+
+        // the expect is fine as we always construct the client with the vesting contract explicitly set
+        let vesting_contract = guard
+            .vesting_contract_address()
+            .expect("vesting contract address is not available");
         // TODO: I don't like the usage of the hardcoded value here
         let res = guard
-            .nyxd
             .query_contract_raw(vesting_contract, b"key".to_vec())
             .await?;
         if res.is_empty() {
             return Ok(0);
         }
 
-        Ok(serde_json::from_slice(&res).map_err(NyxdError::from)?)
+        serde_json::from_slice(&res).map_err(NyxdError::from)
     }
 
     pub(crate) async fn get_all_vesting_coins(
         &self,
-    ) -> Result<Vec<AccountVestingCoins>, ValidatorClientError> {
-        Ok(self
-            .0
-            .read()
-            .await
-            .nyxd
-            .get_all_accounts_vesting_coins()
-            .await?)
-    }
-
-    #[allow(dead_code)]
-    pub(crate) async fn get_all_node_families(&self) -> Result<Vec<Family>, ValidatorClientError> {
-        self.0.read().await.get_all_node_families().await
+    ) -> Result<Vec<AccountVestingCoins>, NyxdError> {
+        self.0.read().await.get_all_accounts_vesting_coins().await
     }
 
     pub(crate) async fn get_all_family_members(
         &self,
-    ) -> Result<Vec<(IdentityKey, FamilyHead)>, ValidatorClientError> {
+    ) -> Result<Vec<(IdentityKey, FamilyHead)>, NyxdError> {
         self.0.read().await.get_all_family_members().await
     }
 
-    pub(crate) async fn get_pending_events_count(&self) -> Result<u32, ValidatorClientError> {
+    pub(crate) async fn get_pending_events_count(&self) -> Result<u32, NyxdError> {
         let pending = self.0.read().await.get_number_of_pending_events().await?;
         Ok(pending.epoch_events + pending.interval_events)
     }
 
-    pub(crate) async fn begin_epoch_transition(&self) -> Result<(), ValidatorClientError> {
-        self.0
-            .write()
-            .await
-            .nyxd
-            .begin_epoch_transition(None)
-            .await?;
+    pub(crate) async fn begin_epoch_transition(&self) -> Result<(), NyxdError> {
+        self.0.write().await.begin_epoch_transition(None).await?;
         Ok(())
     }
 
     pub(crate) async fn send_rewarding_messages(
         &self,
         nodes: &[MixnodeWithPerformance],
-    ) -> Result<(), ValidatorClientError> {
+    ) -> Result<(), NyxdError> {
         // for some reason, compiler complains if this is explicitly inline in code ¯\_(ツ)_/¯
         #[inline]
         #[allow(unused_variables)]
@@ -268,16 +231,21 @@ impl Client {
             }
         }
 
-        let contract = self.0.read().await.get_mixnet_contract_address();
+        // "technically" we don't need a write access to the client,
+        // but we REALLY don't want to accidentally send any transactions while we're sending rewarding messages
+        // as that would have messed up sequence numbers
+        let guard = self.0.write().await;
+
+        // the expect is fine as we always construct the client with the mixnet contract explicitly set
+        let mixnet_contract = guard
+            .mixnet_contract_address()
+            .expect("mixnet contract address is not available");
 
         let msgs = generate_reward_messages(nodes);
 
-        self.0
-            .write()
-            .await
-            .nyxd
+        guard
             .execute_multiple(
-                &contract,
+                mixnet_contract,
                 msgs,
                 Default::default(),
                 format!("rewarding {} mixnodes", nodes.len()),
@@ -290,24 +258,19 @@ impl Client {
         &self,
         new_rewarded_set: Vec<LayerAssignment>,
         expected_active_set_size: u32,
-    ) -> Result<(), ValidatorClientError> {
+    ) -> Result<(), NyxdError> {
         self.0
             .write()
             .await
-            .nyxd
             .advance_current_epoch(new_rewarded_set, expected_active_set_size, None)
             .await?;
         Ok(())
     }
 
-    pub(crate) async fn reconcile_epoch_events(
-        &self,
-        limit: Option<u32>,
-    ) -> Result<(), ValidatorClientError> {
+    pub(crate) async fn reconcile_epoch_events(&self, limit: Option<u32>) -> Result<(), NyxdError> {
         self.0
             .write()
             .await
-            .nyxd
             .reconcile_epoch_events(limit, None)
             .await?;
         Ok(())
@@ -320,25 +283,22 @@ impl crate::coconut::client::Client for Client {
         self.client_address().await
     }
 
-    async fn get_tx(
-        &self,
-        tx_hash: &str,
-    ) -> crate::coconut::error::Result<nym_validator_client::nyxd::TxResponse> {
+    async fn get_tx(&self, tx_hash: &str) -> crate::coconut::error::Result<nyxd::TxResponse> {
         let tx_hash: Hash = tx_hash
             .parse()
             .map_err(|_| CoconutError::TxHashParseError)?;
-        Ok(self.0.read().await.nyxd.get_tx(tx_hash).await?)
+        Ok(self.0.read().await.get_tx(tx_hash).await?)
     }
 
     async fn get_proposal(
         &self,
         proposal_id: u64,
     ) -> crate::coconut::error::Result<ProposalResponse> {
-        Ok(self.0.read().await.nyxd.get_proposal(proposal_id).await?)
+        Ok(self.0.read().await.query_proposal(proposal_id).await?)
     }
 
     async fn list_proposals(&self) -> crate::coconut::error::Result<Vec<ProposalResponse>> {
-        Ok(self.0.read().await.nyxd.get_all_proposals().await?)
+        Ok(self.0.read().await.get_all_proposals().await?)
     }
 
     async fn get_spent_credential(
@@ -349,48 +309,35 @@ impl crate::coconut::client::Client for Client {
             .0
             .read()
             .await
-            .nyxd
             .get_spent_credential(blinded_serial_number)
             .await?)
     }
 
     async fn get_current_epoch(&self) -> crate::coconut::error::Result<Epoch> {
-        Ok(self.0.read().await.nyxd.get_current_epoch().await?)
+        Ok(self.0.read().await.get_current_epoch().await?)
     }
 
     async fn group_member(&self, addr: String) -> crate::coconut::error::Result<MemberResponse> {
-        Ok(self.0.read().await.nyxd.member(addr).await?)
+        Ok(self.0.read().await.member(addr, None).await?)
     }
 
     async fn get_current_epoch_threshold(
         &self,
     ) -> crate::coconut::error::Result<Option<nym_dkg::Threshold>> {
-        Ok(self
-            .0
-            .read()
-            .await
-            .nyxd
-            .get_current_epoch_threshold()
-            .await?)
+        Ok(self.0.read().await.get_current_epoch_threshold().await?)
     }
 
     async fn get_initial_dealers(
         &self,
     ) -> crate::coconut::error::Result<Option<InitialReplacementData>> {
-        Ok(self.0.read().await.nyxd.get_initial_dealers().await?)
+        Ok(self.0.read().await.get_initial_dealers().await?)
     }
 
     async fn get_self_registered_dealer_details(
         &self,
     ) -> crate::coconut::error::Result<DealerDetailsResponse> {
         let self_address = &self.address().await;
-        Ok(self
-            .0
-            .read()
-            .await
-            .nyxd
-            .get_dealer_details(self_address)
-            .await?)
+        Ok(self.0.read().await.get_dealer_details(self_address).await?)
     }
 
     async fn get_current_dealers(&self) -> crate::coconut::error::Result<Vec<DealerDetails>> {
@@ -401,7 +348,12 @@ impl crate::coconut::client::Client for Client {
         &self,
         idx: usize,
     ) -> crate::coconut::error::Result<Vec<ContractDealing>> {
-        Ok(self.0.read().await.get_all_epoch_dealings(idx).await?)
+        Ok(self
+            .0
+            .read()
+            .await
+            .get_all_epoch_dealings(idx as u64)
+            .await?)
     }
 
     async fn get_verification_key_shares(
@@ -425,7 +377,6 @@ impl crate::coconut::client::Client for Client {
         self.0
             .read()
             .await
-            .nyxd
             .vote_proposal(proposal_id, vote_yes, fee)
             .await?;
         Ok(())
@@ -435,19 +386,13 @@ impl crate::coconut::client::Client for Client {
         self.0
             .read()
             .await
-            .nyxd
             .execute_proposal(proposal_id, None)
             .await?;
         Ok(())
     }
 
     async fn advance_epoch_state(&self) -> crate::coconut::error::Result<()> {
-        self.0
-            .write()
-            .await
-            .nyxd
-            .advance_dkg_epoch_state(None)
-            .await?;
+        self.0.write().await.advance_dkg_epoch_state(None).await?;
         Ok(())
     }
 
@@ -461,7 +406,6 @@ impl crate::coconut::client::Client for Client {
             .0
             .write()
             .await
-            .nyxd
             .register_dealer(bte_key, announce_address, resharing, None)
             .await?)
     }
@@ -475,7 +419,6 @@ impl crate::coconut::client::Client for Client {
             .0
             .write()
             .await
-            .nyxd
             .submit_dealing_bytes(dealing_bytes, resharing, None)
             .await?)
     }
@@ -489,7 +432,6 @@ impl crate::coconut::client::Client for Client {
             .0
             .write()
             .await
-            .nyxd
             .submit_verification_key_share(share, resharing, None)
             .await?)
     }
@@ -509,7 +451,6 @@ impl crate::ephemera::client::Client for Client {
             .0
             .write()
             .await
-            .nyxd
             .register_as_peer(peer_info, None)
             .await?)
     }
@@ -521,7 +462,7 @@ impl DkgQueryClient for Client {
     where
         for<'a> T: Deserialize<'a>,
     {
-        self.0.read().await.nyxd.query_dkg_contract(query).await
+        self.0.read().await.query_dkg_contract(query).await
     }
 }
 
@@ -534,12 +475,7 @@ impl EphemeraQueryClient for Client {
     where
         for<'a> T: Deserialize<'a>,
     {
-        self.0
-            .read()
-            .await
-            .nyxd
-            .query_ephemera_contract(query)
-            .await
+        self.0.read().await.query_ephemera_contract(query).await
     }
 }
 
@@ -555,7 +491,6 @@ impl SpDirectoryQueryClient for Client {
         self.0
             .read()
             .await
-            .nyxd
             .query_service_provider_contract(query)
             .await
     }
@@ -570,11 +505,6 @@ impl NameServiceQueryClient for Client {
     where
         for<'a> T: Deserialize<'a>,
     {
-        self.0
-            .read()
-            .await
-            .nyxd
-            .query_name_service_contract(query)
-            .await
+        self.0.read().await.query_name_service_contract(query).await
     }
 }

@@ -1,4 +1,5 @@
 use nym_sdk::mixnet;
+use nym_sdk::mixnet::MixnetMessageSender;
 
 #[tokio::main]
 async fn main() {
@@ -12,7 +13,10 @@ async fn main() {
     println!("Our client nym address is: {our_address}");
 
     // Send a message throught the mixnet to ourselves
-    client.send_str(*our_address, "hello there").await;
+    client
+        .send_plain_message(*our_address, "hello there")
+        .await
+        .unwrap();
 
     println!("Waiting for message (ctrl-c to exit)");
     client

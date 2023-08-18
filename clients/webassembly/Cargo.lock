@@ -2743,9 +2743,9 @@ dependencies = [
 name = "nym-explorer-api-requests"
 version = "0.1.0"
 dependencies = [
+ "nym-api-requests",
  "nym-contracts-common",
  "nym-mixnet-contract-common",
- "nym-validator-client",
  "schemars",
  "serde",
 ]
@@ -2867,6 +2867,7 @@ dependencies = [
  "dotenvy",
  "hex-literal",
  "once_cell",
+ "schemars",
  "serde",
  "thiserror",
  "url",
@@ -3138,6 +3139,9 @@ dependencies = [
  "colored",
  "cosmrs",
  "cosmwasm-std",
+ "cw-controllers",
+ "cw-utils",
+ "cw2",
  "cw3",
  "cw4",
  "eyre",
@@ -3169,6 +3173,7 @@ dependencies = [
  "thiserror",
  "tokio",
  "url",
+ "wasmtimer",
  "zeroize",
 ]
 

@@ -1,7 +1,7 @@
-// Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::nyxd::cosmwasm_client::client::CosmWasmClient;
+use crate::nyxd::cosmwasm_client::client_traits::CosmWasmClient;
 use crate::nyxd::cosmwasm_client::helpers::{compress_wasm_code, CheckResponse};
 use crate::nyxd::cosmwasm_client::logs::{self, parse_raw_logs};
 use crate::nyxd::cosmwasm_client::types::*;
@@ -9,6 +9,7 @@ use crate::nyxd::error::NyxdError;
 use crate::nyxd::fee::{Fee, DEFAULT_SIMULATED_GAS_MULTIPLIER};
 use crate::nyxd::{Coin, GasAdjustable, GasPrice, TxResponse};
 use crate::signing::signer::OfflineSigner;
+use crate::signing::tx_signer::TxSigner;
 use crate::signing::SignerData;
 use async_trait::async_trait;
 use cosmrs::abci::GasInfo;
@@ -26,20 +27,8 @@ use serde::Serialize;
 use sha2::Digest;
 use sha2::Sha256;
 use std::convert::TryInto;
-use std::time::{Duration, SystemTime};
+use std::time::SystemTime;
 use tendermint_rpc::endpoint::broadcast;
-
-#[cfg(feature = "http-client")]
-use crate::signing::tx_signer::TxSigner;
-
-#[cfg(feature = "http-client")]
-use tendermint_rpc::{Error as TendermintRpcError, SimpleRequest};
-
-#[cfg(feature = "http-client")]
-use cosmrs::rpc::{HttpClient, HttpClientUrl};
-
-pub const DEFAULT_BROADCAST_POLLING_RATE: Duration = Duration::from_secs(4);
-pub const DEFAULT_BROADCAST_TIMEOUT: Duration = Duration::from_secs(60);
 
 fn empty_fee() -> tx::Fee {
     tx::Fee {
@@ -64,18 +53,17 @@ fn single_unspecified_signer_auth(
     .auth_info(empty_fee())
 }
 
-#[async_trait]
-pub trait SigningCosmWasmClient: CosmWasmClient {
-    type Signer: OfflineSigner + Send + Sync;
-
-    fn signer(&self) -> &Self::Signer;
-
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+pub trait SigningCosmWasmClient: CosmWasmClient + TxSigner
+where
+    NyxdError: From<<Self as OfflineSigner>::Error>,
+{
+    // TODO: would it somehow be possible to get rid of this method and allow for
+    // blanket implementation for anything that provides CosmWasmClient + TxSigner?
     fn gas_price(&self) -> &GasPrice;
 
-    fn signer_public_key(&self, signer_address: &AccountId) -> Option<tx::SignerPublicKey> {
-        let account = self.signer().find_account(signer_address).ok()?;
-        Some(account.public_key().into())
-    }
+    fn simulated_gas_multiplier(&self) -> f32;
 
     async fn simulate(
         &self,
@@ -587,9 +575,9 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
             let multiplier = multiplier.unwrap_or(DEFAULT_SIMULATED_GAS_MULTIPLIER);
             let gas = gas_estimation.adjust_gas(multiplier);
 
-            debug!("Gas estimation: {}", gas_estimation);
-            debug!("Multiplying the estimation by {}", multiplier);
-            debug!("Final gas limit used: {}", gas);
+            debug!("Gas estimation: {gas_estimation}");
+            debug!("Multiplying the estimation by {multiplier}");
+            debug!("Final gas limit used: {gas}");
 
             let fee = self.gas_price() * gas;
             Ok::<tx::Fee, NyxdError>(tx::Fee::from_amount_and_gas(fee, gas))
@@ -687,7 +675,7 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
             .to_bytes()
             .map_err(|_| NyxdError::SerializationError("Tx".to_owned()))?;
 
-        self.broadcast_tx(tx_bytes).await
+        self.broadcast_tx(tx_bytes, None, None).await
     }
 
     async fn sign(
@@ -710,161 +698,14 @@ pub trait SigningCosmWasmClient: CosmWasmClient {
             }
         };
 
-        self.sign_direct(signer_address, messages, fee, memo, signer_data)
-    }
-
-    fn sign_amino(
-        &self,
-        signer_address: &AccountId,
-        messages: Vec<Any>,
-        fee: tx::Fee,
-        memo: impl Into<String> + Send + 'static,
-        signer_data: SignerData,
-    ) -> Result<tx::Raw, NyxdError>;
-
-    fn sign_direct(
-        &self,
-        signer_address: &AccountId,
-        messages: Vec<Any>,
-        fee: tx::Fee,
-        memo: impl Into<String> + Send + 'static,
-        signer_data: SignerData,
-    ) -> Result<tx::Raw, NyxdError>;
-}
-
-#[cfg(feature = "http-client")]
-#[derive(Debug)]
-pub struct Client<S> {
-    // TODO: somehow nicely hide this guy if we decide to use our client in offline mode,
-    // maybe just convert it into an option?
-    // or maybe we need another level of indirection. tbd.
-    rpc_client: HttpClient,
-    tx_signer: TxSigner<S>,
-    gas_price: GasPrice,
-
-    broadcast_polling_rate: Duration,
-    broadcast_timeout: Duration,
-}
-
-#[cfg(feature = "http-client")]
-impl<S> Client<S> {
-    pub fn connect_with_signer<U: Clone>(
-        endpoint: U,
-        signer: S,
-        gas_price: GasPrice,
-    ) -> Result<Self, NyxdError>
-    where
-        U: TryInto<HttpClientUrl, Error = TendermintRpcError>,
-    {
-        let rpc_client = HttpClient::new(endpoint)?;
-        Ok(Client {
-            rpc_client,
-            tx_signer: TxSigner::new(signer),
-            gas_price,
-            broadcast_polling_rate: DEFAULT_BROADCAST_POLLING_RATE,
-            broadcast_timeout: DEFAULT_BROADCAST_TIMEOUT,
-        })
-    }
-
-    pub fn offline(signer: S) -> TxSigner<S>
-    where
-        S: OfflineSigner,
-    {
-        TxSigner::new(signer)
-    }
-
-    pub fn change_endpoint<U>(&mut self, new_endpoint: U) -> Result<(), NyxdError>
-    where
-        U: TryInto<HttpClientUrl, Error = TendermintRpcError>,
-    {
-        let new_rpc_client = HttpClient::new(new_endpoint)?;
-        self.rpc_client = new_rpc_client;
-        Ok(())
-    }
-
-    pub fn into_signer(self) -> S {
-        self.tx_signer.into_inner_signer()
-    }
-
-    pub fn set_broadcast_polling_rate(&mut self, broadcast_polling_rate: Duration) {
-        self.broadcast_polling_rate = broadcast_polling_rate
-    }
-
-    pub fn set_broadcast_timeout(&mut self, broadcast_timeout: Duration) {
-        self.broadcast_timeout = broadcast_timeout
-    }
-}
-
-#[cfg(feature = "http-client")]
-#[async_trait]
-impl<S> tendermint_rpc::client::Client for Client<S>
-where
-    S: Send + Sync,
-{
-    async fn perform<R>(&self, request: R) -> Result<R::Output, tendermint_rpc::Error>
-    where
-        R: SimpleRequest,
-    {
-        self.rpc_client.perform(request).await
-    }
-}
-
-#[cfg(feature = "http-client")]
-#[async_trait]
-impl<S> CosmWasmClient for Client<S>
-where
-    S: Send + Sync,
-{
-    fn broadcast_polling_rate(&self) -> Duration {
-        self.broadcast_polling_rate
-    }
-
-    fn broadcast_timeout(&self) -> Duration {
-        self.broadcast_timeout
-    }
-}
-
-#[cfg(feature = "http-client")]
-#[async_trait]
-impl<S> SigningCosmWasmClient for Client<S>
-where
-    S: OfflineSigner + Send + Sync,
-    NyxdError: From<S::Error>,
-{
-    type Signer = S;
-
-    fn signer(&self) -> &Self::Signer {
-        self.tx_signer.signer()
-    }
-
-    fn gas_price(&self) -> &GasPrice {
-        &self.gas_price
-    }
-
-    fn sign_amino(
-        &self,
-        signer_address: &AccountId,
-        messages: Vec<Any>,
-        fee: tx::Fee,
-        memo: impl Into<String> + Send + 'static,
-        signer_data: SignerData,
-    ) -> Result<tx::Raw, NyxdError> {
-        Ok(self
-            .tx_signer
-            .sign_amino(signer_address, messages, fee, memo, signer_data)?)
-    }
-
-    fn sign_direct(
-        &self,
-        signer_address: &AccountId,
-        messages: Vec<Any>,
-        fee: tx::Fee,
-        memo: impl Into<String> + Send + 'static,
-        signer_data: SignerData,
-    ) -> Result<tx::Raw, NyxdError> {
-        Ok(self
-            .tx_signer
-            .sign_direct(signer_address, messages, fee, memo, signer_data)?)
+        Ok(<Self as TxSigner>::sign_direct(
+            self,
+            signer_address,
+            messages,
+            fee,
+            memo,
+            signer_data,
+        )?)
     }
 }
 

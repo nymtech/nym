@@ -1,5 +1,6 @@
 use nym_sdk::mixnet::{
-    AnonymousSenderTag, MixnetClientBuilder, ReconstructedMessage, StoragePaths,
+    AnonymousSenderTag, MixnetClientBuilder, MixnetMessageSender, ReconstructedMessage,
+    StoragePaths,
 };
 use std::path::PathBuf;
 
@@ -28,7 +29,10 @@ async fn main() {
     println!("\nOur client nym address is: {our_address}");
 
     // Send a message through the mixnet to ourselves using our nym address
-    client.send_str(*our_address, "hello there").await;
+    client
+        .send_plain_message(*our_address, "hello there")
+        .await
+        .unwrap();
 
     // we're going to parse the sender_tag (AnonymousSenderTag) from the incoming message and use it to 'reply' to ourselves instead of our Nym address.
     // we know there will be a sender_tag since the sdk sends SURBs along with messages by default.
@@ -57,7 +61,10 @@ async fn main() {
 
     // reply to self with it: note we use `send_str_reply` instead of `send_str`
     println!("Replying with using SURBs");
-    client.send_str_reply(return_recipient, "hi an0n!").await;
+    client
+        .send_reply(return_recipient, "hi an0n!")
+        .await
+        .unwrap();
 
     println!("Waiting for message (once you see it, ctrl-c to exit)\n");
     client

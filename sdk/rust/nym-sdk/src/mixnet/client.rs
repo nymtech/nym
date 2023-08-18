@@ -24,8 +24,7 @@ use nym_network_defaults::NymNetworkDetails;
 use nym_socks5_client_core::config::Socks5;
 use nym_task::manager::TaskStatus;
 use nym_topology::provider_trait::TopologyProvider;
-use nym_validator_client::nyxd::QueryNyxdClient;
-use nym_validator_client::Client;
+use nym_validator_client::{nyxd, QueryHttpRpcNyxdClient};
 use std::path::Path;
 use std::path::PathBuf;
 use url::Url;
@@ -214,7 +213,7 @@ where
 
     /// In the case of enabled credentials, a client instance responsible for querying the state of the
     /// dkg and coconut contracts
-    dkg_query_client: Option<Client<QueryNyxdClient>>,
+    dkg_query_client: Option<QueryHttpRpcNyxdClient>,
 
     /// Alternative provider of network topology used for constructing sphinx packets.
     custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
@@ -244,10 +243,12 @@ where
     ) -> Result<DisconnectedMixnetClient<S>> {
         // don't create dkg client for the bandwidth controller if credentials are disabled
         let dkg_query_client = if config.enabled_credentials_mode {
-            let client_config = nym_validator_client::Config::try_from_nym_network_details(
-                &config.network_details,
+            let client_config =
+                nyxd::Config::try_from_nym_network_details(&config.network_details)?;
+            let client = QueryHttpRpcNyxdClient::connect(
+                client_config,
+                config.network_details.endpoints[0].nyxd_url.as_str(),
             )?;
-            let client = nym_validator_client::Client::new_query(client_config)?;
             Some(client)
         } else {
             None
@@ -496,15 +497,15 @@ where
 
         let reconstructed_receiver = client_output.register_receiver()?;
 
-        Ok(MixnetClient {
+        Ok(MixnetClient::new(
             nym_address,
             client_input,
             client_output,
             client_state,
             reconstructed_receiver,
-            task_manager: started_client.task_manager,
-            packet_type: None,
-        })
+            started_client.task_manager,
+            None,
+        ))
     }
 }
 

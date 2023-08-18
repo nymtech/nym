@@ -4,7 +4,7 @@
 use clap::Parser;
 use log::{error, info};
 
-use nym_validator_client::nyxd::AccountId;
+use nym_validator_client::nyxd::{AccountId, CosmWasmClient};
 
 use crate::context::QueryClient;
 use crate::utils::{pretty_coin, show_error};

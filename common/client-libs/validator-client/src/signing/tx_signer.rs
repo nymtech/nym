@@ -6,53 +6,33 @@ use crate::signing::SignerData;
 use cosmrs::tx::{SignDoc, SignerInfo};
 use cosmrs::{tx, AccountId, Any};
 
-#[derive(Debug)]
-/// A client that has only one responsibility - sign transactions
-/// and not touch chain.
-pub struct TxSigner<S> {
-    signer: S,
-}
-
-impl<S> TxSigner<S> {
-    pub fn new(signer: S) -> Self {
-        TxSigner { signer }
+// extension trait for the OfflineSigner to allow to sign transactions
+pub trait TxSigner: OfflineSigner {
+    fn signer_public_key(&self, signer_address: &AccountId) -> Option<tx::SignerPublicKey> {
+        let account = self.find_account(signer_address).ok()?;
+        Some(account.public_key().into())
     }
 
-    pub fn signer(&self) -> &S {
-        &self.signer
-    }
-
-    pub fn into_inner_signer(self) -> S {
-        self.signer
-    }
-
-    pub fn sign_amino(
+    fn sign_amino(
         &self,
         _signer_address: &AccountId,
         _messages: Vec<Any>,
         _fee: tx::Fee,
         _memo: impl Into<String> + Send + 'static,
         _signer_data: SignerData,
-    ) -> Result<tx::Raw, S::Error>
-    where
-        S: OfflineSigner,
-    {
+    ) -> Result<tx::Raw, <Self as OfflineSigner>::Error> {
         unimplemented!()
     }
 
-    // TODO: change this sucker to use the trait better
-    pub fn sign_direct(
+    fn sign_direct(
         &self,
         signer_address: &AccountId,
         messages: Vec<Any>,
         fee: tx::Fee,
         memo: impl Into<String> + Send + 'static,
         signer_data: SignerData,
-    ) -> Result<tx::Raw, S::Error>
-    where
-        S: OfflineSigner,
-    {
-        let account_from_signer = self.signer.find_account(signer_address)?;
+    ) -> Result<tx::Raw, <Self as OfflineSigner>::Error> {
+        let account_from_signer = self.find_account(signer_address)?;
 
         // TODO: experiment with this field
         let timeout_height = 0u32;
@@ -70,7 +50,8 @@ impl<S> TxSigner<S> {
         )
         .map_err(|source| SigningError::SignDocFailure { source })?;
 
-        self.signer
-            .sign_direct_with_account(&account_from_signer, sign_doc)
+        self.sign_direct_with_account(&account_from_signer, sign_doc)
     }
 }
+
+impl<T> TxSigner for T where T: OfflineSigner {}

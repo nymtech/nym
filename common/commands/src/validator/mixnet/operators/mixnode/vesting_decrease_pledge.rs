@@ -5,7 +5,7 @@ use crate::context::SigningClient;
 use clap::Parser;
 use log::info;
 use nym_mixnet_contract_common::Coin;
-use nym_validator_client::nyxd::traits::VestingSigningClient;
+use nym_validator_client::nyxd::contract_traits::VestingSigningClient;
 
 #[derive(Debug, Parser)]
 pub struct Args {

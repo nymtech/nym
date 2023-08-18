@@ -12,6 +12,7 @@ use nym_crypto::asymmetric::{
     identity::{Ed25519RecoveryError, SignatureError},
 };
 use nym_dkg::error::DkgError;
+use nym_validator_client::coconut::CoconutApiError;
 use nym_validator_client::nyxd::error::NyxdError;
 
 use crate::node_status_api::models::NymApiStorageError;
@@ -22,6 +23,9 @@ pub type Result<T> = std::result::Result<T, CoconutError>;
 pub enum CoconutError {
     #[error(transparent)]
     IOError(#[from] std::io::Error),
+
+    #[error("coconut api query failure: {0}")]
+    CoconutApiError(#[from] CoconutApiError),
 
     #[error(transparent)]
     SerdeJsonError(#[from] serde_json::Error),

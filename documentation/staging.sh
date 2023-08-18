@@ -13,6 +13,7 @@ do
    # little sanity checks
    echo $(pwd) && echo $(mdbook --version) &&
    # clean old book
+   echo "cleaning old book"
    rm -rf ./book/
    # build book
    mdbook build
@@ -27,9 +28,9 @@ do
    # clean old dist/$i
    rm -rf ../../dist/docs/$i
    # move newly rendered book/ to dist
-   cp -r ./book/html/ ../../dist/docs/$i
+   rsync -r ./book/html/ ../../dist/docs/$i
    # sanity check
-   ls -a ../../dist/docs/$i/
+   ls -laF ../../dist/docs/
    # cd back to ../documentation/
    cd ../
 done

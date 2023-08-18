@@ -50,6 +50,7 @@ jobs:
           TARGET: ${{ secrets.CD_WWW_REMOTE_TARGET }}/
           EXCLUDE: "/node_modules/"
       - name: Deploy branch master to prod
+        if: github.ref == 'refs/heads/master'
         uses: easingthemes/ssh-deploy@main
         env:
           SSH_PRIVATE_KEY: ${{ secrets.CD_WWW_SSH_PRIVATE_KEY }}

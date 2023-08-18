@@ -13,8 +13,8 @@ use nym_validator_client::models::MixNodeBondAnnotated;
 use crate::country_statistics::country_nodes_distribution::{
     CountryNodesDistribution, ThreadsafeCountryNodesDistribution,
 };
-use crate::gateways::models::ThreadsafeGatewayCache;
 use crate::gateways::location::GatewayLocationCache;
+use crate::gateways::models::ThreadsafeGatewayCache;
 use crate::mix_node::models::ThreadsafeMixNodeCache;
 use crate::mix_nodes::location::MixnodeLocationCache;
 use crate::mix_nodes::models::ThreadsafeMixNodesCache;

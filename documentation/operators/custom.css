@@ -1,6 +1,5 @@
 :root {
-  --mono-font: "Open Sans", Consolas, "Ubuntu Mono", Menlo, "DejaVu Sans Mono",
-    monospace, monospace;
+  --mono-font: Consolas, "Ubuntu Mono", Menlo, "DejaVu Sans Mono", monospace;
 }
 .coal {
   --bg: #121726;

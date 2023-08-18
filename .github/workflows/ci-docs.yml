@@ -1,6 +1,7 @@
 name: CI docs
 
 on:
+  workflow_dispatch:
   push:
     branches-ignore: master
     paths:
@@ -34,21 +35,24 @@ jobs:
             --vers "^1.8.0" mdbook-admonish && cargo install --vers \
             "^0.1.2" mdbook-last-changed && cargo install --vers "^0.1.2" mdbook-theme \
             && cargo install --vers "^0.7.7" mdbook-linkcheck
-      - name: Clean website
-        run: cd documentation/docs && mdbook clean
-      - name: Build website
-        run: cd documentation/docs && mdbook build
+      # - name: Clean website
+      #  run: cd documentation/docs && mdbook clean
+      # - name: Build website
+      #  run: cd documentation/docs && mdbook build
+      - name: Build all projects in documentation/ & move to ~/dist/docs/
+        run: cd documentation && chmod +x build_all_to_dist.sh && ./build_all_to_dist.sh
+        continue-on-error: false
       - name: Deploy branch to CI www
         continue-on-error: true
         uses: easingthemes/ssh-deploy@main
         env:
           SSH_PRIVATE_KEY: ${{ secrets.CI_WWW_SSH_PRIVATE_KEY }}
           ARGS: "-rltgoDzvO --delete"
-          SOURCE: "documentation/docs/book/"
+          SOURCE: "dist/docs/"
           REMOTE_HOST: ${{ secrets.CI_WWW_REMOTE_HOST }}
           REMOTE_USER: ${{ secrets.CI_WWW_REMOTE_USER }}
           TARGET: ${{ secrets.CI_WWW_REMOTE_TARGET }}/docs-${{ env.GITHUB_REF_SLUG }}
-          EXCLUDE: "/dist/, /node_modules/"
+          EXCLUDE: "/node_modules/"
       - name: Matrix - Node Install
         run: npm install
         working-directory: .github/workflows/support-files

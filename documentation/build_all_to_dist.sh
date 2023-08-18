@@ -34,3 +34,4 @@ do
    # cd back to ../documentation/
    cd ../
 done
+mv ../../dist/docs/dev-portal ../../dist/docs/developers

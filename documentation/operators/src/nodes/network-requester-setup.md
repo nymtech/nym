@@ -1,23 +1,28 @@
 # Network Requesters
 
-> The Nym network requester was built in the [building nym](../binaries/building-nym.md) section. If you haven't yet built Nym and want to run the code on this page, go there first.
+> The Nym gateway was built in the [building nym](../binaries/building-nym.md) section. If you haven't yet built Nym and want to run the code, go there first.
 
+> Any syntax in `<>` brackets is a user's unique variable. Exchange with a corresponding name without the `<>` brackets.
 
 ## Current version
 ```
 <!-- cmdrun ../../../../target/release/nym-network-requester --version | grep "Build Version" | cut -b 21-26  -->
 ```
 
+## Preliminary steps
+
+Make sure you do the preparation listed in the [preliminary steps page](../preliminary-steps.md) before setting up your network requester.
+
 ## Network Requester Whitelist
 If you have access to a server, you can run the network requester, which allows Nym users to send outbound requests from their local machine through the mixnet to a server, which then makes the request on their behalf, shielding them (and their metadata) from clearnet, untrusted and unknown infrastructure, such as email or message client servers.
 
-By default the network requester is **not** an open proxy (although it can be used as one). It uses a file called `allowed.list` (located in `~/.nym/service-providers/network-requester/<network-requester-id>/`) as a whitelist for outbound requests.
+By default the network requester is **not** an open proxy (although it can be used as one). It uses a file called `allowed.list` (located in `~/.nym/service-providers/network-requester/<NETWORK-REQUESTER-ID>/`) as a whitelist for outbound requests.
 
 Any request to a URL which is not on this list will be blocked.
 
-On startup, if this file is not present, the requester will grab the default whitelist from [here](https://nymtech.net/.wellknown/network-requester/standard-allowed-list.txt) automatically.
+On startup, if this file is not present, the requester will grab the default whitelist from [Nym's default list](https://nymtech.net/.wellknown/network-requester/standard-allowed-list.txt) automatically.
 
-This default whitelist is useful for knowing that the majority of network requesters are able to support certain apps 'out of the box'.
+This default whitelist is useful for knowing that the majority of Network requesters are able to support certain apps 'out of the box'.
 
 **Operators of a network requester are of course free to edit this file and add the URLs of services they wish to support to it!** You can find instructions below on adding your own URLs or IPs to this list.
 
@@ -95,11 +100,17 @@ alephium.org
 ```
 
 ## Network Requester Directory
-You can find a list of Network Requesters running the default whitelist [here](https://explorer.nymtech.net/network-components/service-providers). This list comprises of the NRs running as infrastructure for NymConnect.
+You can find a list of Network requesters running the default whitelist in the [explorer](https://explorer.nymtech.net/network-components/service-providers). This list comprises of the NRs running as infrastructure for NymConnect.
 
 > We are currently working on a smart-contract based solution more in line with how Mix nodes and Gateways announce themselves to the network.
 
 ## Viewing command help
+
+To begin, move to `/target/release` directory from which you run the node commands:
+
+```
+cd target/release
+```
 
 The `./nym-network-requester --help ` command can be used to show a list of available parameters.
 
@@ -112,16 +123,20 @@ The `./nym-network-requester --help ` command can be used to show a list of avai
 You can check the required parameters for available commands by running:
 
 ```
-./nym-network-requester <command> --help
+./nym-network-requester <COMMAND> --help
 ```
+
+> Adding `--no-banner` startup flag will prevent Nym banner being printed even if run in tty environment.
 
 ## Initializing and running your network requester
 
-The network-requester needs to be initialized before it can be run. This is required for the embedded nym-client to connect successfully to the mixnet. We want to specify an `id` using the `--id` command and give it a value of your choosing. The following command will achieve that:
+The network-requester needs to be initialized before it can be run. This is required for the embedded nym-client to connect successfully to the mixnet. We want to specify an `<ID>` using the `--id` command and give it a value of your choice. The following command will achieve that:
 
 ```
- ./nym-network-requester init --id example
+ ./nym-network-requester init --id <YOUR_ID>
 ```
+
+In the following we used `example`.
 
 ~~~admonish example collapsible=true title="Console output"
 ```
@@ -133,15 +148,12 @@ The network-requester needs to be initialized before it can be run. This is requ
 Now that we have initialized our network-requester, we can start it with the following command:
 
 ```
- ./nym-network-requester run --id example
+ ./nym-network-requester run --id <YOUR_ID>
 ```
 
-## Upgrading your network requester
-You can upgrade your network requester by following these steps:
+## Maintenance
 
-* stop your network requester service
-* replace the old binary with the new binary
-* restart your service using the commands in the previous section of the document
+For network requester upgrade (including an upgrade from `<v1.1.9` to `>= v1.1.10`), firewall setup, port configuration, API endpoints, VPS suggestions, automation and more, see the [maintenance page](./maintenance.md).
 
 ### Upgrading to >= v1.1.10 from <v1.1.9
 
@@ -227,6 +239,8 @@ sudo ufw allow 22/tcp
 # check the status of the firewall
 sudo ufw status
 ```
+>>>>>>> release/v1.1.27:documentation/docs/src/nodes/network-requester-setup.md
+>>>>>>> 85ab634d9c1f1f54073c97a133c83e645a0a3f41
 
 ## Using your network requester
 
@@ -254,7 +268,7 @@ ls $HOME/.nym/service-providers/network-requester/
 # returns: allowed.list  unknown.list
 ```
 
-We already know that `allowed.list` is what lets requests go through. All unknown requests are logged to `unknown.list`. If you want to try using a new client type, just start the new application, point it at your local [socks client](../clients/socks5-client.md) (configured to use your remote `nym-network-requester`), and keep copying URLs from `unknown.list` into `allowed.list` (it may take multiple tries until you get all of them, depending on the complexity of the application). Make sure to restart your network requester!
+We already know that `allowed.list` is what lets requests go through. All unknown requests are logged to `unknown.list`. If you want to try using a new client type, just start the new application, point it at your local [socks client](https://nymtech.net/docs/clients/socks5-client.html) (configured to use your remote `nym-network-requester`), and keep copying URLs from `unknown.list` into `allowed.list` (it may take multiple tries until you get all of them, depending on the complexity of the application). Make sure to restart your network requester!
 
 > If you are adding custom domains, please note that whilst they may appear in the logs of your network-requester as something like `api-0.core.keybaseapi.com:443`, you **only need** to include the main domain name, in this instance `keybaseapi.com`
 
@@ -262,7 +276,7 @@ We already know that `allowed.list` is what lets requests go through. All unknow
 If you *really* want to run an open proxy, perhaps for testing purposes for your own use or among a small group of trusted friends, it is possible to do so. You can disable network checks by passing the flag `--open-proxy` flag when you run it. If you run in this configuration, you do so at your own risk.
 
 ## Testing your network requester
-1. Add `nymtech.net` to your `allowed.list` (remember to restart your network requester).
+1. Make sure `nymtech.net` is in your `allowed.list` (remember to restart your network requester).
 
 2. Ensure that your network-requester is initialized and running.
 

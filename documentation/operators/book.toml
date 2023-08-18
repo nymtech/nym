@@ -1,7 +1,7 @@
 [book]
-title = "Nym Docs"
-authors = ["Max Hampshire, Serinko, Alexia Lorenza Martinel"]
-description = "Nym technical documentation"
+title = "Nym Operators Guide"
+authors = ["Max Hampshire", "serinko"]
+description = "Guides to setup Nym infrastructure"
 language = "en"
 multilingual = false # for the moment - ideally work on chinese, brazillian, spanish next
 src = "src"
@@ -18,7 +18,7 @@ src = "src"
 # - run `mdbook build`: this will rebuild the `./theme` directory
 # - change value of `turn-off` back to `true`
 [preprocessor.theme]
-pagetoc        = true
+pagetoc = true
 # some variables related (defined in theme/css/variables.css)
 pagetoc-width            = "13%"
 content-max-width        = "70%" # 82
@@ -52,9 +52,11 @@ minimum_rust_version = "1.66"
 platform_release_version = "v1.1.27"
 wallet_release_version = "v1.2.7"
 
+
 [preprocessor.last-changed]
 command = "mdbook-last-changed"
 renderer = ["html"]
+
 
 # used for grabbing output of binary commands for automation
 # https://github.com/FauconFan/mdbook-cmdrun
@@ -85,14 +87,14 @@ curly-quotes = true
 # mathjax-support = false # useful if we want to pull equations in
 copy-fonts = true
 no-section-label = false
-additional-css = ["theme/pagetoc.css", "././mdbook-admonish.css", "./custom.css"]
+additional-css = ["theme/pagetoc.css", "././mdbook-admonish.css","./custom.css"]
 additional-js  = ["theme/pagetoc.js"]
 git-repository-url = "https://github.com/nymtech/nym"
 git-repository-icon = "fa-github"
 # edit-url-template = "https://github.com/rust-lang/mdBook/edit/master/guide/{path}"
-# site-url = "/docs/"
+site-url = "/operators/"
 # cname = "nymtech.net"
-input-404 = "not-found.md" 
+input-404 = "not-found.md"
 
 [output.html.fold]
 enable = true    # whether or not to enable section folding

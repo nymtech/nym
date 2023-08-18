@@ -22,7 +22,7 @@ body {
 }
 
 code {
-    font-family: var(--mono-font);
+    font-family: var(--mono-font) !important;
     font-size: 0.9em;
 }
 
@@ -62,8 +62,7 @@ h3:target::before,
 h4:target::before,
 h5:target::before,
 h6:target::before {
-     /* display "none" in order to avoid default artifacts on the community-applications-and-guides page */
-    display: none;
+    display: inline-block;
     content: "»";
     margin-left: -30px;
     width: 30px;

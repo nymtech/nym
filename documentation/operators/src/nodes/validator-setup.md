@@ -1,10 +1,20 @@
 # Validators
 
+> Nym has two main codebases:  
+> - the [Nym platform](https://github.com/nymtech/nym), written in Rust. This contains all of our code except for the validators.
+> - the [Nym validators](https://github.com/nymtech/nyxd), written in Go.
+
 The validator is built using [Cosmos SDK](https://cosmos.network) and [Tendermint](https://tendermint.com), with a [CosmWasm](https://cosmwasm.com) smart contract controlling the directory service, node bonding, and delegated mixnet staking.
 
+> We are currently working towards building up a closed set of reputable validators. You can ask us for coins to get in, but please don't be offended if we say no - validators are part of our system's core security and we are starting out with people we already know or who have a solid reputation.
+
 ## Building your validator
+
+> Any syntax in `<>` brackets is a user's unique variable. Exchange it with a corresponding name without the `<>` brackets.
+
 ### Prerequisites
 #### `git`, `gcc`, `jq`
+
 * Debian-based systems:
 ```
 apt install git build-essential jq
@@ -20,22 +30,15 @@ pacman -S git gcc jq
 ```
 
 #### `Go`
-`Go` can be installed via the following commands (taken from the [Agoric SDK docs](https://github.com/Agoric/agoric-sdk/wiki/Validator-Guide-for-Incentivized-Testnet#install-go)):
+`Go` can be installed via the following commands (taken from the [Go Download and install page](https://go.dev/doc/install)):
 
 ```
-# First remove any existing old Go installation
-sudo rm -rf /usr/local/go
+# First remove any existing old Go installation and extract the archive you just downloaded into /usr/local: 
+# You may need to run the command as root or through sudo
+rm -rf /usr/local/go && tar -C /usr/local -xzf go1.20.6.linux-amd64.tar.gz
 
-# Install correct Go version
-curl https://dl.google.com/go/go1.20.4.linux-amd64.tar.gz | sudo tar -C/usr/local -zxvf -
-
-# Update environment variables to include go
-cat <<'EOF' >>$HOME/.profile
-export GOROOT=/usr/local/go
-export GOPATH=$HOME/go
-export GO111MODULE=on
-export PATH=$PATH:/usr/local/go/bin:$HOME/go/bin
-EOF
+# Add /usr/local/go/bin to the PATH environment variable
+export PATH=$PATH:/usr/local/go/bin
 source $HOME/.profile
 ```
 
@@ -61,7 +64,7 @@ The validator binary can be compiled by running the following commands:
 ```
 git clone https://github.com/nymtech/nyxd.git
 cd nyxd
-git checkout release/<nyxd_version>
+git checkout release/<NYXD_VERSION>
 
 # Mainnet
 make build
@@ -76,7 +79,46 @@ At this point, you will have a copy of the `nyxd` binary in your `build/` direct
 ./build/nyxd
 ```
 
-You should see help text print out.
+You should see a similar help menu printed to you:
+
+~~~admonish example collapsible=true title="Console output"
+```
+Wasm Daemon (server)
+
+Usage:
+  nyxd [command]
+
+Available Commands:
+  add-genesis-account      Add a genesis account to genesis.json
+  add-wasm-genesis-message Wasm genesis subcommands
+  collect-gentxs           Collect genesis txs and output a genesis.json file
+  config                   Create or query an application CLI configuration file
+  debug                    Tool for helping with debugging your application
+  export                   Export state to JSON
+  gentx                    Generate a genesis tx carrying a self delegation
+  help                     Help about any command
+  init                     Initialize private validator, p2p, genesis, and application configuration files
+  keys                     Manage your application's keys
+  query                    Querying subcommands
+  rollback                 rollback cosmos-sdk and tendermint state by one height
+  start                    Run the full node
+  status                   Query remote node for status
+  tendermint               Tendermint subcommands
+  tx                       Transactions subcommands
+  validate-genesis         validates the genesis file at the default location or at the location passed as an arg
+  version                  Print the application binary version information
+
+Flags:
+  -h, --help                help for nyxd
+      --home string         directory for config and data (default "/home/willow/.nyxd")
+      --log_format string   The logging format (json|plain) (default "plain")
+      --log_level string    The logging level (trace|debug|info|warn|error|fatal|panic) (default "info")
+      --trace               print out full stack trace on errors
+
+Use "nyxd [command] --help" for more information about a command.
+
+```
+~~~
 
 ### Linking `nyxd` to `libwasmvm.so`
 
@@ -89,10 +131,10 @@ If you are seeing an error concerning this file when trying to run `nyxd`, then 
 Simply `cp` or `mv` that file to `/lib/x86_64-linux-gnu/` and re-run `nyxd`.
 
 ### Adding `nyxd` to your `$PATH`
-You'll need to set `LD_LIBRARY_PATH` in your user's `~/.bashrc` file, and add that to our path. Replace `/home/youruser/path/to/nym/binaries` in the command below to the locations of `nyxd` and `libwasmvm.so` and run it. If you have compiled these on the server, they will be in the `build/` folder:
+You'll need to set `LD_LIBRARY_PATH` in your user's `~/.bashrc` or `~/.zshrc` file (depends on the terminal you use), and add that to our path. Replace `/home/<USER>/<PATH-TO-NYM>/binaries` in the command below to the locations of `nyxd` and `libwasmvm.so` and run it. If you have compiled these on the server, they will be in the `build/` folder:
 
 ```
-NYX_BINARIES=/home/youruser/path/to/validator/binary
+NYX_BINARIES=/home/<USER>/<PATH-TO-VALIDATOR>/<BINARY>
 
 # if you are using another shell like zsh replace '.bashrc' with the relevant config file
 echo 'export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:'NYX_BINARIES >> ~/.bashrc
@@ -106,7 +148,46 @@ Test everything worked:
 nyxd
 ```
 
-This should return the regular help text.
+This should return the regular help menu:
+
+~~~admonish example collapsible=true title="Console output"
+```
+Wasm Daemon (server)
+
+Usage:
+  nyxd [command]
+
+Available Commands:
+  add-genesis-account      Add a genesis account to genesis.json
+  add-wasm-genesis-message Wasm genesis subcommands
+  collect-gentxs           Collect genesis txs and output a genesis.json file
+  config                   Create or query an application CLI configuration file
+  debug                    Tool for helping with debugging your application
+  export                   Export state to JSON
+  gentx                    Generate a genesis tx carrying a self delegation
+  help                     Help about any command
+  init                     Initialize private validator, p2p, genesis, and application configuration files
+  keys                     Manage your application's keys
+  query                    Querying subcommands
+  rollback                 rollback cosmos-sdk and tendermint state by one height
+  start                    Run the full node
+  status                   Query remote node for status
+  tendermint               Tendermint subcommands
+  tx                       Transactions subcommands
+  validate-genesis         validates the genesis file at the default location or at the location passed as an arg
+  version                  Print the application binary version information
+
+Flags:
+  -h, --help                help for nyxd
+      --home string         directory for config and data (default "/home/willow/.nyxd")
+      --log_format string   The logging format (json|plain) (default "plain")
+      --log_level string    The logging level (trace|debug|info|warn|error|fatal|panic) (default "info")
+      --trace               print out full stack trace on errors
+
+Use "nyxd [command] --help" for more information about a command.
+
+```
+~~~
 
 ## Initialising your validator
 ### Prerequisites:
@@ -165,7 +246,7 @@ create_empty_blocks = false
 laddr = "tcp://0.0.0.0:26656"
 ```
 
-These affect the following:
+These affect the following:  
 * `persistent_peers = "<PEER_ADDRESS>@<DOMAIN>.nymtech.net:26666"` allows your validator to start pulling blocks from other validators. **The main sandbox validator listens on `26666` instead of the default `26656` for debugging**. It is recommended you do not change your port from `26656`.
 * `create_empty_blocks = false` will save space
 * `laddr = "tcp://0.0.0.0:26656"` is in your p2p configuration options
@@ -179,7 +260,7 @@ Optionally, if you want to enable [Prometheus](https://prometheus.io/) metrics t
 
 And if you wish to add a human-readable moniker to your node:
 
-- `moniker = "yourname"`
+- `moniker = "<YOUR_VALIDATOR_NAME>"`
 
 Finally, if you plan on using [Cockpit](https://cockpit-project.org/documentation.html) on your server, change the `grpc` port from `9090` as this is the port used by Cockpit.
 
@@ -232,7 +313,9 @@ If this check passes, you should receive the following output:
 File at /path/to/genesis.json is a valid genesis file
 ```
 
-> If this test did not pass, check that you have replaced the contents of `/path/to/.nymd/config/genesis.json` with that of the correct genesis file.
+> If this test did not pass, check that you have replaced the contents of `/<PATH-TO>/.nymd/config/genesis.json` with that of the correct genesis file.
+
+### Open firewall ports
 
 Before starting the validator, we will need to open the firewall ports:
 
@@ -245,9 +328,9 @@ sudo ufw allow 1317,26656,26660,22,80,443/tcp
 sudo ufw status
 ```
 
-Ports `22`, `80`, and `443` are for ssh, http, and https connections respectively. The rest of the ports are documented [here](https://docs.cosmos.network/v0.42/core/grpc_rest.html).
+Ports `22`, `80`, and `443` are for ssh, http, and https connections respectively. The rest of the ports are documented [here](https://docs.cosmos.network/main/core/grpc_rest).
 
-For more information about your validator's port configuration, check the [validator port reference table](#validator-port-reference) below.
+For more information about your validator's port configuration, check the [validator port reference table](./maintenance.md#ports) below.
 
 > If you are planning to use [Cockpit](https://cockpit-project.org/) on your validator server then you will have defined a different `grpc` port in your `config.toml` above: remember to open this port as well.
 
@@ -295,8 +378,8 @@ Once your validator has synced and you have received tokens, you can join consen
 nyxd tx staking create-validator
   --amount=10000000unyx
   --fees=0unyx
-  --pubkey=$(/home/youruser/path/to/nyxd/binaries/nyxd tendermint show-validator)
-  --moniker="whatever you called your validator"
+  --pubkey=$(/home/<USER>/<PATH-TO>/nyxd/binaries/nyxd tendermint show-validator)
+  --moniker="<YOUR_VALIDATOR_NAME>"
   --chain-id=nyx
   --commission-rate="0.10"
   --commission-max-rate="0.20"
@@ -312,8 +395,8 @@ nyxd tx staking create-validator
 nyxd tx staking create-validator
   --amount=10000000unyxt
   --fees=5000unyxt
-  --pubkey=$(/home/youruser/path/to/nym/binaries/nyxd tendermint show-validator)
-  --moniker="whatever you called your validator"
+  --pubkey=$(/home/<USER>/<PATH-TO>/nym/binaries/nyxd tendermint show-validator)
+  --moniker="<YOUR_VALIDATOR_NAME>"
   --chain-id=sandbox
   --commission-rate="0.10"
   --commission-max-rate="0.20"
@@ -335,10 +418,10 @@ If you want to edit some details for your node you will use a command like this:
 # Mainnet
 nyxd tx staking edit-validator
   --chain-id=nyx
-  --moniker="whatever you called your validator"
+  --moniker="<YOUR_VALIDATOR_NAME>"
   --details="Nyx validator"
-  --security-contact="your email"
-  --identity="your identity"
+  --security-contact="<YOUR_EMAIL>"
+  --identity="<YOUR_IDENTITY>"
   --gas="auto"
   --gas-adjustment=1.15
   --from="KEYRING_NAME"
@@ -348,10 +431,10 @@ nyxd tx staking edit-validator
 # Sandbox testnet
 nyxd tx staking edit-validator
   --chain-id=sandbox
-  --moniker="whatever you called your validator"
+  --moniker="<YOUR_VALIDATOR_NAME>"
   --details="Sandbox testnet validator"
   --security-contact="your email"
-  --identity="your identity"
+  --identity="<YOUR_IDENTITY>"
   --gas="auto"
   --gas-adjustment=1.15
   --from="KEYRING_NAME"
@@ -361,213 +444,18 @@ nyxd tx staking edit-validator
 With above command you can specify the `gpg` key last numbers (as used in `keybase`) as well as validator details and your email for security contact.
 
 ### Automating your validator with systemd
-You will most likely want to automate your validator restarting if your server reboots. Below is a systemd unit file to place at `/etc/systemd/system/nymd.service`:
-
-```ini
-[Unit]
-Description=Nyxd
-StartLimitInterval=350
-StartLimitBurst=10
-
-[Service]
-User=nyx                                                          # change to your user
-Type=simple
-Environment="LD_LIBRARY_PATH=/home/youruser/path/to/nyx/binaries" # change to correct path
-ExecStart=/home/youruser/path/to/nyx/binaries/nymd start          # change to correct path
-Restart=on-failure
-RestartSec=30
-LimitNOFILE=infinity
-
-[Install]
-WantedBy=multi-user.target
-```
-
-Proceed to start it with:
-
-```
-systemctl daemon-reload # to pickup the new unit file
-systemctl enable nymd   # to enable the service
-systemctl start nymd    # to actually start the service
-journalctl -f           # to monitor system logs showing the service start
-```
+You will most likely want to automate your validator restarting if your server reboots. Checkout the [maintenance page](./maintenance.md#systemd) with a quick tutorial.
 
 ### Installing and configuring nginx for HTTPS
-#### Setup
-[Nginx](https://www.nginx.com/resources/glossary/nginx/#:~:text=NGINX%20is%20open%20source%20software,%2C%20media%20streaming%2C%20and%20more.&text=In%20addition%20to%20its%20HTTP,%2C%20TCP%2C%20and%20UDP%20servers.) is an open source software used for operating high-performance web servers. It allows us to set up reverse proxying on our validator server to improve performance and security.
 
-Install `nginx` and allow the 'Nginx Full' rule in your firewall:
-
-```
-sudo ufw allow 'Nginx Full'
-```
-
-Check nginx is running via systemctl:
-
-```
-systemctl status nginx
-```
-
-Which should return:
-
-```
-● nginx.service - A high performance web server and a reverse proxy server
-   Loaded: loaded (/lib/systemd/system/nginx.service; enabled; vendor preset: enabled)
-   Active: active (running) since Fri 2018-04-20 16:08:19 UTC; 3 days ago
-     Docs: man:nginx(8)
- Main PID: 2369 (nginx)
-    Tasks: 2 (limit: 1153)
-   CGroup: /system.slice/nginx.service
-           ├─2369 nginx: master process /usr/sbin/nginx -g daemon on; master_process on;
-           └─2380 nginx: worker process
-```
-
-#### Configuration
-
-Proxying your validator's port `26657` to nginx port `80` can then be done by creating a file with the following at `/etc/nginx/conf.d/validator.conf`:
-
-```
-server {
-  listen 80;
-  listen [::]:80;
-  server_name "domain_name";
-
-  location / {
-    proxy_pass http://127.0.0.1:26657;
-    proxy_set_header X-Real-IP $remote_addr;
-    proxy_set_header Host $host;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-  }
-}
-```
-
-Followed by:
-
-```
-sudo apt install certbot nginx python3
-certbot --nginx -d nym-validator.yourdomain.com -m you@yourdomain.com --agree-tos --noninteractive --redirect
-```
-
-```admonish caution title=""
-If using a VPS running Ubuntu 20: replace `certbot nginx python3` with `python3-certbot-nginx`
-```
-
-These commands will get you an https encrypted nginx proxy in front of the API.
-
-### Configuring Prometheus metrics (optional)
-
-Configure Prometheus with the following commands (adapted from NodesGuru's [Agoric setup guide](https://nodes.guru/agoric/setup-guide/en)):
-
-```
-echo 'export OTEL_EXPORTER_PROMETHEUS_PORT=9464' >> $HOME/.bashrc
-source ~/.bashrc
-sed -i '/\[telemetry\]/{:a;n;/enabled/s/false/true/;Ta}' $HOME/.nymd/config/app.toml
-sed -i "s/prometheus-retention-time = 0/prometheus-retention-time = 60/g" $HOME/.nymd/config/app.toml
-sudo ufw allow 9464
-echo 'Metrics URL: http://'$(curl -s ifconfig.me)':26660/metrics'
-```
-
-Your validator's metrics will be available to you at the returned 'Metrics URL'.
-
-~~~admonish example collapsible=true title="Console output"
-```
-# HELP go_gc_duration_seconds A summary of the pause duration of garbage collection cycles.
-# TYPE go_gc_duration_seconds summary
-go_gc_duration_seconds{quantile="0"} 6.7969e-05
-go_gc_duration_seconds{quantile="0.25"} 7.864e-05
-go_gc_duration_seconds{quantile="0.5"} 8.4591e-05
-go_gc_duration_seconds{quantile="0.75"} 0.000115919
-go_gc_duration_seconds{quantile="1"} 0.001137591
-go_gc_duration_seconds_sum 0.356555301
-go_gc_duration_seconds_count 2448
-# HELP go_goroutines Number of goroutines that currently exist.
-# TYPE go_goroutines gauge
-go_goroutines 668
-# HELP go_info Information about the Go environment.
-# TYPE go_info gauge
-go_info{version="go1.15.7"} 1
-# HELP go_memstats_alloc_bytes Number of bytes allocated and still in use.
-# TYPE go_memstats_alloc_bytes gauge
-go_memstats_alloc_bytes 1.62622216e+08
-# HELP go_memstats_alloc_bytes_total Total number of bytes allocated, even if freed.
-# TYPE go_memstats_alloc_bytes_total counter
-go_memstats_alloc_bytes_total 2.09341707264e+11
-# HELP go_memstats_buck_hash_sys_bytes Number of bytes used by the profiling bucket hash table.
-# TYPE go_memstats_buck_hash_sys_bytes gauge
-go_memstats_buck_hash_sys_bytes 5.612319e+06
-# HELP go_memstats_frees_total Total number of frees.
-# TYPE go_memstats_frees_total counter
-go_memstats_frees_total 2.828263344e+09
-# HELP go_memstats_gc_cpu_fraction The fraction of this program's available CPU time used by the GC since the program started.
-# TYPE go_memstats_gc_cpu_fraction gauge
-go_memstats_gc_cpu_fraction 0.03357798610671518
-# HELP go_memstats_gc_sys_bytes Number of bytes used for garbage collection system metadata.
-# TYPE go_memstats_gc_sys_bytes gauge
-go_memstats_gc_sys_bytes 1.3884192e+07
-```
-~~~
+If you want to set up a reverse proxying on the validator server to improve security and performance, using [nginx](https://www.nginx.com/resources/glossary/nginx/#:~:text=NGINX%20is%20open%20source%20software,%2C%20media%20streaming%2C%20and%20more.&text=In%20addition%20to%20its%20HTTP,%2C%20TCP%2C%20and%20UDP%20servers.), follow the manual on the [maintenance page](./maintenance.md#setup).
 
 ### Setting the ulimit
-Linux machines limit how many open files a user is allowed to have. This is called a `ulimit`.
 
-`ulimit` is 1024 by default on most systems. It needs to be set higher, because validators make and receive a lot of connections to other nodes.
-
-If you see errors such as:
-
-```
-Failed to accept incoming connection - Os { code: 24, kind: Other, message: "Too many open files" }
-```
-
-This means that the operating system is preventing network connections from being made.
-
-##### Set the ulimit via `systemd` service file
-Query the `ulimit` of your validator with:
-
-```
-grep -i "open files" /proc/$(ps -A -o pid,cmd|grep nymd | grep -v grep |head -n 1 | awk '{print $1}')/limits
-```
-
-You'll get back the hard and soft limits, which looks something like this:
-
-```
-Max open files            65536                65536                files
-```
-
-If your output is **the same as above**, your node will not encounter any `ulimit` related issues.
-
-However if either value is `1024`, you must raise the limit via the systemd service file. Add the line:
-
-```
-LimitNOFILE=65536
-```
-
-Reload the daemon:
-
-```
-systemctl daemon-reload
-```
-
-or execute this as root for system-wide setting of `ulimit`:
-
-```
-echo "DefaultLimitNOFILE=65535" >> /etc/systemd/system.conf
-```
-
-Reboot your machine and restart your node. When it comes back, use `cat /proc/$(pidof nym-validator)/limits | grep "Max open files"` to make sure the limit has changed to 65535.
-
-##### Set the ulimit on `non-systemd` based distributions
-Edit `etc/security/conf` and add the following lines:
-
-```
-# Example hard limit for max opened files
-username        hard nofile 4096
-# Example soft limit for max opened files
-username        soft nofile 4096
-```
-
-Then reboot your server and restart your validator.
+Linux machines limit how many open files a user is allowed to have. This is called a `ulimit`. We need to set it to a higher value than the default 1024. Follow the instructions in the [maintenance page](./maintenance.md#Setting-the-ulimit) to change the `ulimit` value for validators.
 
 ## Using your validator
-### Unjailing your validator
+### Un-jailing your validator
 If your validator gets jailed, you can fix it with the following command:
 
 ```
@@ -593,19 +481,7 @@ nyxd tx slashing unjail
 
 ### Upgrading your validator
 
-Upgrading from `v0.31.1` -> `v0.32.0` process is fairly simple. Grab the `v0.32.0` release tarball from the [`nyxd` releases page](https://github.com/nymtech/nyxd/releases), and untar it. Inside are two files:
-
-- the new validator (`nyxd`) v0.32.0
-- the new wasmvm (it depends on your platform, but most common filename is `libwasmvm.x86_64.so`)
-
-Wait for the upgrade height to be reached and the chain to halt awaiting upgrade, then:
-
-* copy `libwasmvm.x86_64.so` to the default LD_LIBRARY_PATH on your system (on Ubuntu 20.04 this is `/lib/x86_64-linux-gnu/`) replacing your existing file with the same name.
-* swap in your new `nyxd` binary and restart.
-
-You can also use something like [Cosmovisor](https://github.com/cosmos/cosmos-sdk/tree/main/tools/cosmovisor) - grab the relevant information from the current upgrade proposal [here](https://nym.explorers.guru/proposal/9).
-
-Note: Cosmovisor will swap the `nyxd` binary, but you'll need to already have the `libwasmvm.x86_64.so` in place.
+To upgrade your validator, follow the steps on the [maintenance page](./maintenance.md#setting-the-ulimit).
 
 #### Common reasons for your validator being jailed
 
@@ -623,7 +499,7 @@ You can check your current balances with:
 nymd query bank balances ${ADDRESS}
 ```
 
-For example, on the Sanbox testnet this would return:
+For example, on the Sandbox testnet this would return:
 
 ```yaml
 balances:
@@ -659,11 +535,3 @@ nyxd tx staking delegate VALOPERADDRESS AMOUNTunymt
   --fees 5000unyxt
 ```
 
-## Validator port reference
-All validator-specific port configuration can be found in `$HOME/.nymd/config/config.toml`. If you do edit any port configs, remember to restart your validator.
-
-| Default port | Use                                  |
-|--------------|--------------------------------------|
-| 1317         | REST API server endpoint             |
-| 26656        | Listen for incoming peer connections |
-| 26660        | Listen for Prometheus connections    |

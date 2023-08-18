@@ -383,6 +383,7 @@ where
                     log::trace!("client_handling::AuthenticatedHandler: received shutdown");
                 }
                 socket_msg = self.inner.read_websocket_message() => {
+                    println!("socket_msg");
                     let socket_msg = match socket_msg {
                         None => break,
                         Some(Ok(socket_msg)) => socket_msg,
@@ -406,7 +407,11 @@ where
                     }
                 },
                 mix_messages = self.mix_receiver.next() => {
-                    let mix_messages = mix_messages.expect("sender was unexpectedly closed! this shouldn't have ever happened!");
+                    // let mix_messages = mix_messages.expect("sender was unexpectedly closed! this shouldn't have ever happened!");
+                    let mix_messages = match mix_messages {
+                        None => { println!("None"); break; },
+                        Some(mix_messages) => mix_messages,
+                    };
                     if let Err(err) = self.inner.push_packets_to_client(&self.client.shared_keys, mix_messages).await {
                         warn!("failed to send the unwrapped sphinx packets back to the client - {err}, assuming the connection is dead");
                         break;

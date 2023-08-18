@@ -78,11 +78,21 @@ impl NymApiTopologyProvider {
                 return None;
             }
             Ok(gateways) => {
-                dbg!(&gateways);
-                panic!();
+                // dbg!(&gateways);
                 gateways
             }
         };
+        let mut g = gateways[0].clone();
+        g.gateway = nym_mixnet_contract_common::Gateway {
+            host: "127.0.0.1".to_string(),
+            mix_port: 1789,
+            clients_port: 9000,
+            location: "local".to_string(),
+            sphinx_key: "9PgtqBP8Xo3icVvvgrtxWKcNEFGnvDAXd7tWHmpA5UPR".to_string(),
+            identity_key: "GapWkU8o3goXH5sjKw7TWGE3NwLKq7gBqzdD77qahC28".to_string(),
+            version: "1.1.25".to_string(),
+        };
+        let gateways = vec![g];
 
         let topology = nym_topology_from_detailed(mixnodes, gateways)
             .filter_system_version(&self.client_version);

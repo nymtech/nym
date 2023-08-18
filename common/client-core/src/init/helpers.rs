@@ -68,42 +68,16 @@ pub async fn current_gateways<R: Rng>(
     log::trace!("Fetching list of gateways from: {nym_api}");
 
     let gateways = client.get_cached_gateways().await?;
-    dbg!(&gateways);
+    // dbg!(&gateways);
     let mut g = gateways[0].clone();
-    g.gateway = Gateway {
-    // pub host: String,
-    // pub mix_port: u16,
-    // pub clients_port: u16,
-    // pub location: String,
-    // pub sphinx_key: String,
-    // pub identity_key: String,
-    // pub version: String,
-
-        /*
-pub struct Gateway {
-    /// Network address of this gateway, for example 1.1.1.1 or foo.gateway.com
-    pub host: String,
-
-    /// Port used by this gateway for listening for mix packets.
-    pub mix_port: u16,
-
-    /// Port used by this gateway for listening for client requests.
-    pub clients_port: u16,
-
-    /// The physical, self-reported, location of this gateway.
-    // this field should be deprecated in favour of externally hosted information, like the mixnodes'.
-    pub location: String,
-
-    /// Base58-encoded x25519 public key used for sphinx key derivation.
-    pub sphinx_key: SphinxKey,
-
-    /// Base58 encoded ed25519 EdDSA public key of the gateway used to derive shared keys with clients
-    pub identity_key: IdentityKey,
-
-    /// The self-reported semver version of this gateway.
-    pub version: String,
-}
-        */
+    g.gateway = nym_mixnet_contract_common::Gateway {
+        host: "127.0.0.1".to_string(),
+        mix_port: 1789,
+        clients_port: 9000,
+        location: "local".to_string(),
+        sphinx_key: "9PgtqBP8Xo3icVvvgrtxWKcNEFGnvDAXd7tWHmpA5UPR".to_string(),
+        identity_key: "GapWkU8o3goXH5sjKw7TWGE3NwLKq7gBqzdD77qahC28".to_string(),
+        version: "1.1.25".to_string(),
     };
     let gateways = vec![g];
     let valid_gateways = gateways

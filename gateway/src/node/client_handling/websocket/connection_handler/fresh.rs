@@ -419,7 +419,9 @@ where
         let iv = IV::try_from_base58_string(iv)?;
 
         if self.active_clients_store.get(address).is_some() {
-            return Err(InitialAuthenticationError::DuplicateConnection);
+            println!("duplicate connection when authenticating");
+            // return Err(InitialAuthenticationError::DuplicateConnection);
+            self.active_clients_store.disconnect(address)
         }
 
         let shared_keys = self
@@ -504,7 +506,8 @@ where
         let remote_address = remote_identity.derive_destination_address();
 
         if self.active_clients_store.get(remote_address).is_some() {
-            return Err(InitialAuthenticationError::DuplicateConnection);
+            println!("duplicate connection when registering");
+            // return Err(InitialAuthenticationError::DuplicateConnection);
         }
 
         let shared_keys = self.perform_registration_handshake(init_data).await?;

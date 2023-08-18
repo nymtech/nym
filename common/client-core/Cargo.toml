@@ -45,6 +45,8 @@ nym-task = { path = "../task" }
 nym-credential-storage = { path = "../credential-storage" }
 nym-network-defaults = { path = "../network-defaults" }
 
+nym-mixnet-contract-common = { path = "../cosmwasm-smart-contracts/mixnet-contract" }
+
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio-stream]
 version = "0.1.11"
 features = ["time"]

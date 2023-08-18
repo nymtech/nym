@@ -3821,6 +3821,7 @@ dependencies = [
  "nym-explorer-api-requests",
  "nym-gateway-client",
  "nym-gateway-requests",
+ "nym-mixnet-contract-common",
  "nym-network-defaults",
  "nym-nonexhaustive-delayqueue",
  "nym-pemstore",

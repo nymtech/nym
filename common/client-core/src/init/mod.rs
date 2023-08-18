@@ -97,6 +97,7 @@ impl InitialisationDetails {
     }
 }
 
+#[derive(Debug)]
 pub enum GatewaySetup {
     /// The gateway specification MUST BE loaded from the underlying storage.
     MustLoad,
@@ -307,6 +308,7 @@ where
     K::StorageError: Send + Sync + 'static,
     D::StorageError: Send + Sync + 'static,
 {
+    dbg!(&overwrite_data);
     // I don't like how we can't deal with this variant in the match below, but we need to take ownership of internal values.
     if let GatewaySetup::ReuseConnection {
         authenticated_ephemeral_client,
@@ -331,6 +333,7 @@ where
         Ok(loaded_keys) => {
             match &setup {
                 GatewaySetup::MustLoad => {
+                    println!("GatewaySetup::MustLoad");
                     // get EVERYTHING from the storage
                     let details = loaded_details?;
                     ensure_valid_details(&details, &loaded_keys)?;
@@ -339,6 +342,7 @@ where
                     return Ok(InitialisationDetails::new(details.into(), loaded_keys).into());
                 }
                 GatewaySetup::Predefined { details } => {
+                    println!("GatewaySetup::Predefined");
                     // we already have defined gateway details AND a shared key
                     ensure_valid_details(details, &loaded_keys)?;
 
@@ -352,6 +356,7 @@ where
                     );
                 }
                 GatewaySetup::Specified { gateway_identity } => {
+                    println!("GatewaySetup::Specified");
                     // if that data was already stored...
                     if let Ok(existing_gateway) = loaded_details {
                         ensure_valid_details(&existing_gateway, &loaded_keys)?;
@@ -379,7 +384,9 @@ where
                     }
                 }
                 GatewaySetup::New { .. } => {
+                    println!("GatewaySetup::New");
                     if let Ok(existing_gateway) = loaded_details {
+                        println!("GatewaySetup::New - existing_gateway");
                         ensure_valid_details(&existing_gateway, &loaded_keys)?;
                         return Ok(InitialisationDetails::new(
                             existing_gateway.into(),
@@ -391,6 +398,7 @@ where
                     // we didn't get full details from the store and we have loaded some keys
                     // so we can only continue if we're allowed to overwrite keys
                     if overwrite_data {
+                        println!("GatewaySetup::New - overwrite_data");
                         ManagedKeys::generate_new(&mut rng)
                     } else {
                         return Err(ClientCoreError::ForbiddenKeyOverwrite);
@@ -456,6 +464,7 @@ where
 {
     let mut rng = OsRng;
     let gateways = current_gateways(&mut rng, validator_servers.unwrap_or_default()).await?;
+    dbg!(&gateways);
 
     setup_gateway_from(
         setup,

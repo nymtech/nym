@@ -25,6 +25,7 @@ use nym_task::TaskClient;
 use nym_validator_client::nyxd::contract_traits::DkgQueryClient;
 use rand::rngs::OsRng;
 use std::convert::TryFrom;
+use std::fmt;
 use std::sync::Arc;
 use std::time::Duration;
 use tungstenite::protocol::Message;
@@ -66,6 +67,34 @@ pub struct GatewayClient<C, St = EphemeralCredentialStorage> {
 
     /// Listen to shutdown messages.
     shutdown: TaskClient,
+}
+
+impl<C, St> fmt::Debug for GatewayClient<C, St> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("GatewayClient")
+            .field("authenticated", &self.authenticated)
+            .field("disabled_credentials_mode", &self.disabled_credentials_mode)
+            .field("bandwidth_remaining", &self.bandwidth_remaining)
+            .field("gateway_address", &self.gateway_address)
+            .field("gateway_identity", &self.gateway_identity)
+            .field("local_identity", &self.local_identity)
+            .field("shared_key", &self.shared_key)
+            // .field("connection", &self.connection)
+            .field("packet_router", &self.packet_router)
+            .field(
+                "response_timeout_duration",
+                &self.response_timeout_duration,
+            )
+            // .field("bandwidth_controller", &self.bandwidth_controller)
+            .field(
+                "should_reconnect_on_failure",
+                &self.should_reconnect_on_failure,
+            )
+            .field("reconnection_attempts", &self.reconnection_attempts)
+            .field("reconnection_backoff", &self.reconnection_backoff)
+            .field("shutdown", &self.shutdown)
+            .finish()
+    }
 }
 
 impl<C, St> GatewayClient<C, St> {

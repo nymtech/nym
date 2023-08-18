@@ -164,6 +164,7 @@ pub(crate) async fn execute(args: &Init) -> Result<(), ClientError> {
         user_chosen_gateway_id.map(|id| id.to_base58_string()),
         Some(args.latency_based_selection),
     );
+    dbg!(&gateway_setup);
 
     // Load and potentially override config
     let config = override_config(Config::new(id), OverrideConfig::from(args.clone()));

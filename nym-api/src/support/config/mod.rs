@@ -8,7 +8,7 @@ use crate::support::config::template::CONFIG_TEMPLATE;
 use nym_config::defaults::{mainnet, NymNetworkDetails};
 use nym_config::{
     must_get_home, read_config_from_toml_file, save_formatted_config_to_file, NymConfigTemplate,
-    DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, DEFAULT_DATA_DIR, NYM_DIR,
+    DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, DEFAULT_DATA_DIR, DEFAULT_NYM_APIS_DIR, NYM_DIR,
 };
 use nym_validator_client::nyxd;
 use serde::{Deserialize, Serialize};
@@ -22,8 +22,6 @@ pub(crate) mod helpers;
 pub(crate) mod old_config_v1_1_21;
 mod persistence;
 mod template;
-
-const DEFAULT_NYM_APIS_DIR: &str = "nym-api";
 
 pub const DEFAULT_LOCAL_VALIDATOR: &str = "http://localhost:26657";
 pub const DEFAULT_NYM_API_PORT: u16 = 8080;
@@ -96,6 +94,8 @@ pub struct Config {
     pub rewarding: Rewarding,
 
     pub coconut_signer: CoconutSigner,
+
+    pub ephemera: Ephemera,
 }
 
 impl<'a> From<&'a Config> for NymNetworkDetails {
@@ -124,6 +124,7 @@ impl Config {
             circulating_supply_cacher: Default::default(),
             rewarding: Default::default(),
             coconut_signer: CoconutSigner::new_default(id.as_ref()),
+            ephemera: Ephemera::new_default(id.as_ref()),
         }
     }
 
@@ -168,6 +169,11 @@ impl Config {
         self
     }
 
+    pub fn with_ephemera_enabled(mut self, enabled: bool) -> Self {
+        self.ephemera.enabled = enabled;
+        self
+    }
+
     pub fn with_custom_nyxd_validator(mut self, validator: Url) -> Self {
         self.base.local_validator = validator;
         self
@@ -208,6 +214,30 @@ impl Config {
         self
     }
 
+    pub fn with_ephemera_ip(mut self, ip: String) -> Self {
+        self.ephemera.args.cmd.ephemera_ip = Some(ip);
+        self
+    }
+
+    pub fn with_ephemera_protocol_port(mut self, port: u16) -> Self {
+        self.ephemera.args.cmd.ephemera_protocol_port = Some(port);
+        self
+    }
+
+    pub fn with_ephemera_websocket_port(mut self, port: u16) -> Self {
+        self.ephemera.args.cmd.ephemera_websocket_port = Some(port);
+        self
+    }
+
+    pub fn with_ephemera_http_api_port(mut self, port: u16) -> Self {
+        self.ephemera.args.cmd.ephemera_http_api_port = Some(port);
+        self
+    }
+
+    pub fn get_id(&self) -> String {
+        self.base.id.clone()
+    }
+
     pub fn get_nyxd_url(&self) -> Url {
         self.base.local_validator.clone()
     }
@@ -222,6 +252,14 @@ impl Config {
 
     pub fn get_mnemonic(&self) -> bip39::Mnemonic {
         self.base.mnemonic.clone()
+    }
+
+    pub fn get_ephemera_args(&self) -> &crate::ephemera::Args {
+        &self.ephemera.args
+    }
+
+    pub fn get_ephemera_config_path(&self) -> PathBuf {
+        self.ephemera.args.ephemera_config.clone()
     }
 }
 
@@ -539,6 +577,28 @@ impl Default for CoconutSignerDebug {
     fn default() -> Self {
         CoconutSignerDebug {
             dkg_contract_polling_rate: DEFAULT_DKG_CONTRACT_POLLING_RATE,
+        }
+    }
+}
+
+#[derive(Debug, Default, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(default)]
+pub struct Ephemera {
+    pub enabled: bool,
+    args: crate::ephemera::Args,
+}
+
+impl Ephemera {
+    fn new_default(id: &str) -> Self {
+        Ephemera {
+            enabled: false,
+            args: crate::ephemera::Args {
+                ephemera_config: ephemera::configuration::Configuration::ephemera_config_file_home(
+                    Some(id),
+                )
+                .unwrap(),
+                ..Default::default()
+            },
         }
     }
 }

@@ -13,6 +13,7 @@ colored = "2.0"
 
 nym-coconut-dkg-common = { path = "../../cosmwasm-smart-contracts/coconut-dkg" }
 nym-contracts-common = { path = "../../cosmwasm-smart-contracts/contracts-common" }
+nym-ephemera-common = { path = "../../cosmwasm-smart-contracts/ephemera" }
 nym-mixnet-contract-common = { path = "../../cosmwasm-smart-contracts/mixnet-contract" }
 nym-vesting-contract-common = { path = "../../cosmwasm-smart-contracts/vesting-contract" }
 nym-coconut-bandwidth-contract-common = { path = "../../cosmwasm-smart-contracts/coconut-bandwidth-contract" }

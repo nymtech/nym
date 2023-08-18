@@ -18,6 +18,8 @@ use nym_coconut_dkg_common::{
 };
 use nym_config::defaults::ChainDetails;
 use nym_contracts_common::dealings::ContractSafeBytes;
+use nym_ephemera_common::msg::QueryMsg as EphemeraQueryMsg;
+use nym_ephemera_common::types::JsonPeerInfo;
 use nym_mixnet_contract_common::families::FamilyHead;
 use nym_mixnet_contract_common::mixnode::MixNodeDetails;
 use nym_mixnet_contract_common::reward_params::RewardingParams;
@@ -31,10 +33,11 @@ use nym_validator_client::nyxd::contract_traits::{NameServiceQueryClient, PagedD
 use nym_validator_client::nyxd::error::NyxdError;
 use nym_validator_client::nyxd::{
     contract_traits::{
-        CoconutBandwidthQueryClient, DkgQueryClient, DkgSigningClient, GroupQueryClient,
-        MixnetQueryClient, MixnetSigningClient, MultisigQueryClient, MultisigSigningClient,
-        NymContractsProvider, PagedMixnetQueryClient, PagedMultisigQueryClient,
-        PagedVestingQueryClient, SpDirectoryQueryClient,
+        CoconutBandwidthQueryClient, DkgQueryClient, DkgSigningClient, EphemeraQueryClient,
+        EphemeraSigningClient, GroupQueryClient, MixnetQueryClient, MixnetSigningClient,
+        MultisigQueryClient, MultisigSigningClient, NymContractsProvider, PagedEphemeraQueryClient,
+        PagedMixnetQueryClient, PagedMultisigQueryClient, PagedVestingQueryClient,
+        SpDirectoryQueryClient,
     },
     cosmwasm_client::types::ExecuteResult,
     CosmWasmClient, Fee,
@@ -435,12 +438,44 @@ impl crate::coconut::client::Client for Client {
 }
 
 #[async_trait]
+impl crate::ephemera::client::Client for Client {
+    async fn get_ephemera_peers(&self) -> crate::ephemera::error::Result<Vec<JsonPeerInfo>> {
+        Ok(self.0.read().await.get_all_ephemera_peers().await?)
+    }
+
+    async fn register_ephemera_peer(
+        &self,
+        peer_info: JsonPeerInfo,
+    ) -> crate::ephemera::error::Result<ExecuteResult> {
+        Ok(self
+            .0
+            .write()
+            .await
+            .register_as_peer(peer_info, None)
+            .await?)
+    }
+}
+
+#[async_trait]
 impl DkgQueryClient for Client {
     async fn query_dkg_contract<T>(&self, query: DkgQueryMsg) -> std::result::Result<T, NyxdError>
     where
         for<'a> T: Deserialize<'a>,
     {
         self.0.read().await.query_dkg_contract(query).await
+    }
+}
+
+#[async_trait]
+impl EphemeraQueryClient for Client {
+    async fn query_ephemera_contract<T>(
+        &self,
+        query: EphemeraQueryMsg,
+    ) -> std::result::Result<T, NyxdError>
+    where
+        for<'a> T: Deserialize<'a>,
+    {
+        self.0.read().await.query_ephemera_contract(query).await
     }
 }
 

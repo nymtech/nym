@@ -55,6 +55,10 @@ pub(crate) struct CliArgs {
     #[clap(short = 'r', long, requires = "enable_monitor", requires = "mnemonic")]
     pub(crate) enable_rewarding: Option<bool>,
 
+    /// Specifies whether ephemera is used to aggregate monitor data on this API
+    #[clap(short = 'e', long, requires = "enable_monitor")]
+    pub(crate) enable_ephemera: Option<bool>,
+
     /// Endpoint to nyxd instance from which the monitor will grab nodes to test
     #[clap(long)]
     pub(crate) nyxd_validator: Option<url::Url>,
@@ -105,6 +109,10 @@ pub(crate) struct CliArgs {
         hide = true
     )]
     pub(crate) enable_coconut: Option<bool>,
+
+    /// Ephemera configuration arguments.
+    #[command(flatten)]
+    pub(crate) ephemera_args: ephemera::cli::init::Cmd,
 }
 
 pub(crate) fn override_config(config: Config, args: CliArgs) -> Config {
@@ -139,12 +147,26 @@ pub(crate) fn override_config(config: Config, args: CliArgs) -> Config {
         )
         .with_optional(Config::with_network_monitor_enabled, args.enable_monitor)
         .with_optional(Config::with_rewarding_enabled, args.enable_rewarding)
+        .with_optional(Config::with_ephemera_enabled, args.enable_ephemera)
         .with_optional(
             Config::with_disabled_credentials_mode,
             args.enabled_credentials_mode.map(|b| !b),
         )
         .with_optional(Config::with_announce_address, args.announce_address)
         .with_optional(Config::with_coconut_signer_enabled, args.enable_coconut)
+        .with_optional(Config::with_ephemera_ip, args.ephemera_args.ephemera_ip)
+        .with_optional(
+            Config::with_ephemera_protocol_port,
+            args.ephemera_args.ephemera_protocol_port,
+        )
+        .with_optional(
+            Config::with_ephemera_websocket_port,
+            args.ephemera_args.ephemera_websocket_port,
+        )
+        .with_optional(
+            Config::with_ephemera_http_api_port,
+            args.ephemera_args.ephemera_http_api_port,
+        )
 }
 
 pub(crate) fn build_config(args: CliArgs) -> Result<Config> {

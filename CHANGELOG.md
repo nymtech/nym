@@ -4,6 +4,10 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+- Add Ephemera functionality in nym-api ([#3731])
+
+[#3731]: https://github.com/nymtech/nym/pull/3731
+
 ## [1.1.27] (2023-08-16)
 
 - fix serialisation of contract types ([#3752])

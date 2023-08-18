@@ -23,6 +23,8 @@ pub(crate) const MULTISIG_CONTRACT_ADDRESS: &str =
     "n1p54qvfde6mpnqvz3dnpa78x2qyyr5k4sgw9qr97mxjgklc5gze9sv6t964";
 pub(crate) const COCONUT_DKG_CONTRACT_ADDRESS: &str =
     "n1xqkp8x4gqwjnhemtemc5dqhwll6w6rrgpywvhka7sh8vz8swul9sp3lv3w";
+pub(crate) const EPHEMERA_CONTRACT_ADDRESS: &str =
+    "n1xqkp8x4gqwjnhemtemc5dqhwll6w6rrgpywvhka7sh8vz8swul9sp3lv3w";
 pub(crate) const SERVICE_PROVIDER_DIRECTORY_CONTRACT_ADDRESS: &str =
     "n1nhdr07kmjns2x8dnp53tdk4qxreze8zdxj6xucyvkdj9tta73rjqa96wps";
 pub(crate) const NAME_SERVICE_CONTRACT_ADDRESS: &str =
@@ -55,6 +57,7 @@ pub(crate) fn network_details() -> nym_network_defaults::NymNetworkDetails {
             group_contract_address: parse_optional_str(GROUP_CONTRACT_ADDRESS),
             multisig_contract_address: parse_optional_str(MULTISIG_CONTRACT_ADDRESS),
             coconut_dkg_contract_address: parse_optional_str(COCONUT_DKG_CONTRACT_ADDRESS),
+            ephemera_contract_address: parse_optional_str(EPHEMERA_CONTRACT_ADDRESS),
             service_provider_directory_contract_address: parse_optional_str(
                 SERVICE_PROVIDER_DIRECTORY_CONTRACT_ADDRESS,
             ),

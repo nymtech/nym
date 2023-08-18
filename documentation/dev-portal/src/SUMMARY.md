@@ -20,6 +20,7 @@
 
 - [NymConnect Monero](tutorials/monero.md)
 - [NymConnect Matrix](tutorials/matrix.md)
+- [NymConnect Telegram](tutorials/telegram.md)
 
 # Integrations
 

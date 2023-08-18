@@ -8,7 +8,7 @@
 }
 
 html {
-    font-family: "Open Sans", sans-serif;
+    /* font-family: "Open Sans", sans-serif; */
     color: var(--fg);
     background-color: var(--bg);
     text-size-adjust: none;
@@ -16,13 +16,14 @@ html {
 }
 
 body {
+    font-family: "Open Sans", sans-serif;
     margin: 0;
     font-size: 1.5rem;
     overflow-x: hidden;
 }
 
 code {
-    font-family: var(--mono-font) !important;
+    font-family: var(--mono-font);
     font-size: 0.9em;
 }
 

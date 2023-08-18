@@ -28,14 +28,13 @@ jobs:
           command: build
           args: --workspace --release --all
       - name: Install mdbook
-        run: (test -x $HOME/.cargo/bin/mdbook || cargo install --vers "^0.4" mdbook)
+        run: (test -x $HOME/.cargo/bin/mdbook || cargo install --vers "^0.4.33" mdbook)
       - name: Install mdbook plugins
         run: |
-          cargo install --vers "^0.2.0" mdbook-variables && cargo install \
+          cargo install --vers "=0.2.2" mdbook-variables && cargo install \
             --vers "^1.8.0" mdbook-admonish && cargo install --vers \
-            "^0.1.2" mdbook-last-changed && cargo install --vers "^0.1.2" \
-            mdbook-theme && cargo install --vers "^0.7.7" mdbook-linkcheck && \
-            cargo install --vers "^0.5.0" mdbook-cmdrun
+            "^0.1.2" mdbook-last-changed && cargo install --vers "^0.1.2" mdbook-theme \
+            && cargo install --vers "^0.7.7" mdbook-linkcheck 
       - name: Clean website
         run: cd documentation/docs && mdbook clean
       - name: Build website

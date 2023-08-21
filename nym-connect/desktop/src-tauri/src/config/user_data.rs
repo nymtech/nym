@@ -14,6 +14,18 @@ pub enum PrivacyLevel {
     Medium,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+pub struct SelectedGateway {
+    address: Option<String>,
+    is_active: Option<bool>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+pub struct SelectedSp {
+    address: Option<String>,
+    is_active: Option<bool>,
+}
+
 // User data is read from and write on disk
 // Linux: $XDG_DATA_HOME or $HOME/.local/share/
 // macOS: $HOME/Library/Application Support
@@ -22,6 +34,8 @@ pub enum PrivacyLevel {
 pub struct UserData {
     pub monitoring: Option<bool>,
     pub privacy_level: Option<PrivacyLevel>,
+    pub selected_gateway: Option<SelectedGateway>,
+    pub selected_sp: Option<SelectedSp>,
 }
 
 fn create_directory_path() -> Result<()> {
@@ -62,6 +76,18 @@ impl UserData {
         data_path.push(DATA_FILE);
         let toml = toml::to_string(&self)?;
         fs::write(data_path, toml)?;
+        Ok(())
+    }
+
+    pub fn clear(&self) -> Result<()> {
+        // create the full directory path if it is missing
+        create_directory_path()?;
+
+        let mut data_path = data_dir().ok_or(eyre!("Failed to retrieve data directory"))?;
+
+        data_path.push(DATA_DIR);
+        data_path.push(DATA_FILE);
+        fs::write(data_path, vec![])?;
         Ok(())
     }
 }

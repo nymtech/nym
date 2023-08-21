@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::node::client_handling::active_clients::{ActiveClientsStore};
+use crate::node::client_handling::active_clients::ActiveClientsStore;
 use crate::node::client_handling::websocket::connection_handler::coconut::CoconutVerifier;
 use crate::node::client_handling::websocket::connection_handler::{
     AuthenticatedHandler, ClientDetails, InitialAuthResult, SocketStream,
@@ -78,8 +78,10 @@ pub(crate) struct FreshHandler<R, S, St> {
     pub(crate) socket_connection: SocketStream<S>,
     pub(crate) storage: St,
     pub(crate) coconut_verifier: Arc<CoconutVerifier>,
-    // pub(crate) is_active_receiver: Option<mpsc::UnboundedReceiver<oneshot::Sender<bool>>>,
-    pub(crate) is_active_pending_replies: HashMap<DestinationAddressBytes, oneshot::Sender<bool>>,
+    // Occasionally the handler is requested to ping the connected client for confirm that it's
+    // active, such as when a duplicate connection is detected. This hashmap stores the oneshot
+    // senders that are used to return the result of the ping to the handler requesting the ping.
+    pub(crate) is_active_ping_pending_replies: HashMap<u64, oneshot::Sender<bool>>,
 }
 
 impl<R, S, St> FreshHandler<R, S, St>
@@ -111,8 +113,7 @@ where
             local_identity,
             storage,
             coconut_verifier,
-            // is_active_receiver: None,
-            is_active_pending_replies: HashMap::new(),
+            is_active_ping_pending_replies: HashMap::new(),
         }
     }
 
@@ -425,62 +426,39 @@ where
         let encrypted_address = EncryptedAddressBytes::try_from_base58_string(enc_address)?;
         let iv = IV::try_from_base58_string(iv)?;
 
-        if self.active_clients_store.get(address).is_some() {
-            println!("duplicate connection when authenticating");
+        if let Some(mut tx) = self.active_clients_store.get_is_active_sender(address) {
+            log::warn!("Detected duplicate connection for client: {}", address);
 
-            // WIP(JON)
-            if let Some(mut tx) = self.active_clients_store.get_is_active_sender(address) {
-                // Ask the other connection to ping if they are still active.
-                // Use a oneshot channel to return the result to us
-                let (reply_sender, reply_receiver) = oneshot::channel::<bool>();
-                println!("Asking other connection to ping");
-                tx.send(reply_sender).await;
+            // Ask the other connection to ping if they are still active.
+            // Use a oneshot channel to return the result to us
+            let (ping_result_sender, ping_result_receiver) = oneshot::channel::<bool>();
+            log::debug!("Asking other connection to ping the connection client");
+            tx.send(ping_result_sender).await.ok();
 
-                // Wait for the reply
-                // let r = reply_receiver.await.expect("JON");
-                let r = tokio::time::timeout(Duration::from_millis(1000), reply_receiver).await;
-                match r {
-                    Ok(r) => {
-                        let r = r.expect("JON");
-                        if r == true {
-                            println!("Get a positive reply");
-                            return Err(InitialAuthenticationError::DuplicateConnection);
-                        } else {
-                            println!("Get a negative reply");
-                            self.active_clients_store.disconnect(address);
-                        }
-                    }
-                    Err(err) => {
-                        println!("ping timeout");
+            // Wait for the reply
+            match tokio::time::timeout(Duration::from_millis(1000), ping_result_receiver).await {
+                Ok(Ok(res)) => {
+                    if res {
+                        // The other handled reported a positive reply, so we have to assume it's
+                        // still active and disconnect this connection.
+                        log::info!("Other handler reports it is active");
+                        return Err(InitialAuthenticationError::DuplicateConnection);
+                    } else {
+                        log::debug!("Other handler reports it is not active");
                         self.active_clients_store.disconnect(address);
                     }
                 }
-
-                // let msg = Message::Ping("duplicate connection".to_string().into_bytes());
-                // println!("Sending ping");
-                // if let Err(err) = self.send_websocket_message(msg).await {
-                //     warn!(
-                //         "Failed to send message over websocket: {err}. \
-                //     Assuming the connection is dead.",
-                //     );
-                //     println!("disconnecting");
-                //     self.active_clients_store.disconnect(address);
-                // }
-                // println!("waiting..");
-                // let msg = self.read_websocket_message().await;
-                // dbg!(&msg);
-                // tokio::time::sleep(Duration::from_secs(1)).await;
-            } else {
-
-                println!("fail without pinging");
-                return Err(InitialAuthenticationError::DuplicateConnection);
+                Ok(Err(_)) => {
+                    // Other channel failed to reply (the channel sender probably dropped)
+                    log::info!("Other connection failed to reply, disconnecting it in favour of this new connection");
+                    self.active_clients_store.disconnect(address);
+                }
+                Err(_) => {
+                    // Timeout waiting for reply
+                    log::warn!("Other connection timed out, disconnecting it in favour of this new connection");
+                    self.active_clients_store.disconnect(address);
+                }
             }
-            // if self.active_clients_store.get_is_recently_active(address) == Some(RecentlyActive::No) {
-            // println!("disconnecting");
-            // self.active_clients_store.disconnect(address)
-            // } else {
-            // return Err(InitialAuthenticationError::DuplicateConnection);
-            // }
         }
 
         let shared_keys = self
@@ -668,21 +646,19 @@ where
                             }
 
                             return if let Some(client_details) = auth_result.client_details {
-                                // create mpsc channel
-                                let (is_active_sender, is_active_receiver) =
-                                    mpsc::unbounded::<futures::channel::oneshot::Sender<bool>>();
-                                // self.is_active_receiver = Some(is_active_receiver);
-
+                                // Channel for handlers to ask other handlers if they are still active.
+                                let (is_active_request_sender, is_active_request_receiver) =
+                                    mpsc::unbounded();
                                 self.active_clients_store.insert(
                                     client_details.address,
                                     mix_sender,
-                                    is_active_sender,
+                                    is_active_request_sender,
                                 );
                                 Some(AuthenticatedHandler::upgrade(
                                     self,
                                     client_details,
                                     mix_receiver,
-                                    is_active_receiver,
+                                    is_active_request_receiver,
                                 ))
                             } else {
                                 None

@@ -98,7 +98,7 @@ pub(crate) struct AuthenticatedHandler<R, S, St> {
     inner: FreshHandler<R, S, St>,
     client: ClientDetails,
     mix_receiver: MixMessageReceiver,
-    is_active_receiver: mpsc::UnboundedReceiver<oneshot::Sender<bool>>,
+    is_active_request_receiver: mpsc::UnboundedReceiver<oneshot::Sender<bool>>,
 }
 
 // explicitly remove handle from the global store upon being dropped
@@ -129,13 +129,13 @@ where
         fresh: FreshHandler<R, S, St>,
         client: ClientDetails,
         mix_receiver: MixMessageReceiver,
-        is_active_receiver: mpsc::UnboundedReceiver<oneshot::Sender<bool>>,
+        is_active_request_receiver: mpsc::UnboundedReceiver<oneshot::Sender<bool>>,
     ) -> Self {
         AuthenticatedHandler {
             inner: fresh,
             client,
             mix_receiver,
-            is_active_receiver,
+            is_active_request_receiver,
         }
     }
 
@@ -376,18 +376,20 @@ where
         match raw_request {
             Message::Binary(bin_msg) => Some(self.handle_binary(bin_msg).await),
             Message::Text(text_msg) => Some(self.handle_text(text_msg).await),
-            Message::Ping(s) => {
-                println!("Received ping from client: {}", String::from_utf8_lossy(&s));
-                None
-            }
-            Message::Pong(s) => {
+            Message::Pong(msg) => {
                 // println!("1 Received pong from client: {}", String::from_utf8_lossy(&s));
-                let ss = nym_sphinx::DestinationAddressBytes::try_from_byte_slice(&s).expect("JON");
-                if true {
-                    println!("Received pong from client: {}", ss);
-                    if let Some(tx) = self.inner.is_active_pending_replies.remove(&ss) {
-                        println!("Reporting back");
-                        tx.send(true).expect("JON");
+                // let ss = nym_sphinx::DestinationAddressBytes::try_from_byte_slice(&s).expect("JON");
+                // let msg = msg.try_into();
+                // let msg = u64::from_be_bytes(msg.try_into().expect("JON"));
+                if let Ok(msg) = msg.try_into() {
+                    let msg = u64::from_be_bytes(msg);
+                    // WIP(JON): for testing
+                    if true {
+                        println!("Received pong from client: {}", msg);
+                        if let Some(tx) = self.inner.is_active_ping_pending_replies.remove(&msg) {
+                            println!("Reporting back");
+                            tx.send(true).expect("JON");
+                        }
                     }
                 }
                 None
@@ -406,33 +408,22 @@ where
     {
         trace!("Started listening for ALL incoming requests...");
 
-        // let mut is_active_receiver = self
-        //     .inner
-        //     .is_active_receiver
-        //     .take()
-        //     .expect("we should always have a receiver");
-
         while !shutdown.is_shutdown() {
             tokio::select! {
                 _ = shutdown.recv() => {
                     log::trace!("client_handling::AuthenticatedHandler: received shutdown");
                 },
-                tx = self.is_active_receiver.next() => {
+                tx = self.is_active_request_receiver.next() => {
                     match tx {
-                        None => {
-                            println!("Got None in listen_for_requests for is_active_receiver");
-                        }
-                        Some(tx) => {
-                            println!("Received tx");
-
-                            // WIP(JON)
-                            // if we receive a request to ping the client, we should do so and respond with
-                            // the result
-                            println!("Got request to ping our connection");
-                            // self.inner.send_websocket_message(Message::Ping("jon".to_string().into_bytes())).await;
-                            let payload = self.client.address.as_bytes().to_vec();
-                            self.inner.send_websocket_message(Message::Ping(payload)).await;
-                            self.inner.is_active_pending_replies.insert(self.client.address, tx);
+                        None => debug!("is_active_request_receiver was closed!"),
+                        Some(reply_tx) => {
+                            let tag: u64 = rand::thread_rng().gen();
+                            debug!("Got request to ping our connection: {}", tag);
+                            if let Err(err) = self.inner.send_websocket_message(Message::Ping(tag.to_be_bytes().to_vec())).await {
+                                warn!("Failed to send ping to client: {err}. Assuming the connection is dead.");
+                                break;
+                            }
+                            self.inner.is_active_ping_pending_replies.insert(tag, reply_tx);
                         }
                     };
                 },
@@ -461,11 +452,7 @@ where
                     }
                 },
                 mix_messages = self.mix_receiver.next() => {
-                    // let mix_messages = mix_messages.expect("sender was unexpectedly closed! this shouldn't have ever happened!");
-                    let mix_messages = match mix_messages {
-                        None => { println!("None"); break; },
-                        Some(mix_messages) => mix_messages,
-                    };
+                    let mix_messages = mix_messages.expect("sender was unexpectedly closed! this shouldn't have ever happened!");
                     if let Err(err) = self.inner.push_packets_to_client(&self.client.shared_keys, mix_messages).await {
                         warn!("failed to send the unwrapped sphinx packets back to the client - {err}, assuming the connection is dead");
                         break;

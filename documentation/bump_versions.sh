@@ -23,6 +23,7 @@ fi
 if [ $(pwd | awk -F/ '{print $NF}') != "documentation" ]
 then
   echo "failure: please run script from documentation/"
+  exit 0
 else
   ## now loop through the above array sed-ing the variable values in the book.toml files
   for i in "${projects[@]}"

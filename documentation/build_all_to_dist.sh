@@ -1,6 +1,9 @@
 #!/bin/bash
-
-# commands assume you run script from `nym/documentation/`
+# this is a script called by the github CI and CD workflows to build all 3 docs projects
+# and move them to /dist/ in the root of the monorepo. They are rsynced to various servers
+# from there by the CI and CD workflows.
+#
+# these commands assume the script is run from `nym/documentation/`
 
 # array of project dirs
 declare -a projects=("docs" "dev-portal" "operators")
@@ -34,4 +37,5 @@ do
    # cd back to ../documentation/
    cd ../
 done
+# rename for server paths
 mv ../dist/docs/dev-portal ../dist/docs/developers

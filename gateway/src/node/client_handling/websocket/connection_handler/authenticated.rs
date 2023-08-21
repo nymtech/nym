@@ -102,6 +102,9 @@ pub(crate) struct AuthenticatedHandler<R, S, St> {
 // explicitly remove handle from the global store upon being dropped
 impl<R, S, St> Drop for AuthenticatedHandler<R, S, St> {
     fn drop(&mut self) {
+        // WIP(JON): Also remove from is_active_pending_replies
+        self.inner.is_active_pending_replies.remove(&self.client.address);
+
         self.inner
             .active_clients_store
             .disconnect(self.client.address)

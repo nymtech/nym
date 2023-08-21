@@ -81,7 +81,7 @@ unknown_list_location = '{{ storage_paths.unknown_list_location }}'
 # Disable Poisson sending rate, and only send cover traffic occasionally as keepalive messages.
 # This is equivalent to setting debug.traffic.disable_main_poisson_packet_distribution = true,
 # and debug.cover_traffic.loop_cover_traffic_average_delay = 5s.
-disable_poisson_rate = '{{ network_requester.disable_poisson_rate }}'
+disable_poisson_rate = {{ network_requester.disable_poisson_rate }}
 
 
 ##### logging configuration options #####

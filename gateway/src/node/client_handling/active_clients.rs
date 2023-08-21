@@ -4,6 +4,7 @@
 use crate::node::client_handling::websocket::message_receiver::MixMessageSender;
 use dashmap::DashMap;
 use nym_sphinx::DestinationAddressBytes;
+use futures::channel::{mpsc, oneshot};
 use std::sync::Arc;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -15,7 +16,7 @@ pub enum RecentlyActive {
 
 #[derive(Clone)]
 pub(crate) struct ActiveClientsStore(
-    Arc<DashMap<DestinationAddressBytes, (MixMessageSender, RecentlyActive)>>,
+    Arc<DashMap<DestinationAddressBytes, (MixMessageSender, RecentlyActive, mpsc::UnboundedSender<oneshot::Sender<bool>>)>>,
 );
 
 impl ActiveClientsStore {
@@ -62,6 +63,22 @@ impl ActiveClientsStore {
         }
     }
 
+    pub(crate) fn get_is_active_sender(&self, client: DestinationAddressBytes) -> Option<mpsc::UnboundedSender<oneshot::Sender<bool>>> {
+        let entry = self.0.get(&client)?;
+        let is_active_sender = &entry.value().2;
+
+        // if the entry is stale, remove it from the map
+        // if handle.is_valid() {
+        if !entry.value().0.is_closed() {
+            Some(is_active_sender.clone())
+        } else {
+            // drop the reference to the map to prevent deadlocks
+            drop(entry);
+            self.0.remove(&client);
+            None
+        }
+    }
+
     pub(crate) fn register_activity(&self, client: DestinationAddressBytes) {
         if let Some(mut entry) = self.0.get_mut(&client) {
             entry.value_mut().1 = RecentlyActive::Yes;
@@ -93,8 +110,8 @@ impl ActiveClientsStore {
     ///
     /// * `client`: address of the client for which to insert the handle.
     /// * `handle`: the sender channel for all mix packets to be pushed back onto the websocket
-    pub(crate) fn insert(&self, client: DestinationAddressBytes, handle: MixMessageSender) {
-        self.0.insert(client, (handle, RecentlyActive::Yes));
+    pub(crate) fn insert(&self, client: DestinationAddressBytes, handle: MixMessageSender, is_active_sender: mpsc::UnboundedSender<oneshot::Sender<bool>>) {
+        self.0.insert(client, (handle, RecentlyActive::Yes, is_active_sender));
     }
 
     /// Get number of active clients in store

@@ -8,6 +8,7 @@ use crate::node::client_handling::websocket::connection_handler::{
 };
 use crate::node::storage::error::StorageError;
 use crate::node::storage::Storage;
+use futures::channel::oneshot;
 use futures::{channel::mpsc, SinkExt, StreamExt};
 use log::*;
 use nym_crypto::asymmetric::identity;
@@ -22,8 +23,10 @@ use nym_gateway_requests::{BinaryResponse, PROTOCOL_VERSION};
 use nym_mixnet_client::forwarder::MixForwardingSender;
 use nym_sphinx::DestinationAddressBytes;
 use rand::{CryptoRng, Rng};
+use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::sync::Arc;
+use std::time::Duration;
 use thiserror::Error;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_tungstenite::tungstenite::{protocol::Message, Error as WsError};
@@ -75,6 +78,8 @@ pub(crate) struct FreshHandler<R, S, St> {
     pub(crate) socket_connection: SocketStream<S>,
     pub(crate) storage: St,
     pub(crate) coconut_verifier: Arc<CoconutVerifier>,
+    pub(crate) is_active_receiver: Option<mpsc::UnboundedReceiver<oneshot::Sender<bool>>>,
+    pub(crate) is_active_pending_replies: HashMap<DestinationAddressBytes, oneshot::Sender<bool>>,
 }
 
 impl<R, S, St> FreshHandler<R, S, St>
@@ -106,6 +111,8 @@ where
             local_identity,
             storage,
             coconut_verifier,
+            is_active_receiver: None,
+            is_active_pending_replies: HashMap::new(),
         }
     }
 
@@ -421,21 +428,53 @@ where
         if self.active_clients_store.get(address).is_some() {
             println!("duplicate connection when authenticating");
 
-            let msg = Message::Ping("duplicate connection".to_string().into_bytes());
-            if let Err(err) = self.send_websocket_message(msg).await {
-                warn!(
-                    "Failed to send message over websocket: {err}. \
-                    Assuming the connection is dead.",
-                );
-                println!("disconnecting");
-                self.active_clients_store.disconnect(address);
+            // WIP(JON)
+            if let Some(mut tx) = self.active_clients_store.get_is_active_sender(address) {
+                // Ask the other connection to ping if they are still active.
+                // Use a oneshot channel to return the result to us
+                let (reply_sender, reply_receiver) = oneshot::channel::<bool>();
+                println!("Asking other connection to ping");
+                tx.send(reply_sender).await;
+
+                // Wait for the reply
+                // let r = reply_receiver.await.expect("JON");
+                let r = tokio::time::timeout(Duration::from_millis(1000), reply_receiver).await;
+                match r {
+                    Ok(r) => {
+                        let r = r.expect("JON");
+                        if r == true {
+                            println!("Get a positive reply");
+                            return Err(InitialAuthenticationError::DuplicateConnection);
+                        } else {
+                            println!("Get a negative reply");
+                            self.active_clients_store.disconnect(address);
+                        }
+                    }
+                    Err(err) => {
+                        println!("ping timeout");
+                        self.active_clients_store.disconnect(address);
+                    }
+                }
+
+                // let msg = Message::Ping("duplicate connection".to_string().into_bytes());
+                // println!("Sending ping");
+                // if let Err(err) = self.send_websocket_message(msg).await {
+                //     warn!(
+                //         "Failed to send message over websocket: {err}. \
+                //     Assuming the connection is dead.",
+                //     );
+                //     println!("disconnecting");
+                //     self.active_clients_store.disconnect(address);
+                // }
+                // println!("waiting..");
+                // let msg = self.read_websocket_message().await;
+                // dbg!(&msg);
+                // tokio::time::sleep(Duration::from_secs(1)).await;
+            } else {
+
+                println!("fail without pinging");
+                return Err(InitialAuthenticationError::DuplicateConnection);
             }
-
-            println!("waiting..");
-            let msg = self.read_websocket_message().await;
-            dbg!(&msg);
-
-            return Err(InitialAuthenticationError::DuplicateConnection);
             // if self.active_clients_store.get_is_recently_active(address) == Some(RecentlyActive::No) {
             // println!("disconnecting");
             // self.active_clients_store.disconnect(address)
@@ -629,8 +668,16 @@ where
                             }
 
                             return if let Some(client_details) = auth_result.client_details {
-                                self.active_clients_store
-                                    .insert(client_details.address, mix_sender);
+                                // create mpsc channel
+                                let (is_active_sender, is_active_receiver) =
+                                    mpsc::unbounded::<futures::channel::oneshot::Sender<bool>>();
+                                self.is_active_receiver = Some(is_active_receiver);
+
+                                self.active_clients_store.insert(
+                                    client_details.address,
+                                    mix_sender,
+                                    is_active_sender,
+                                );
                                 Some(AuthenticatedHandler::upgrade(
                                     self,
                                     client_details,

@@ -317,6 +317,7 @@ where
     ///
     /// * `bin_msg`: raw message to handle.
     async fn handle_binary(&self, bin_msg: Vec<u8>) -> Message {
+        println!("handle_binary");
         // this function decrypts the request and checks the MAC
         match BinaryRequest::try_from_encrypted_tagged_bytes(bin_msg, &self.client.shared_keys) {
             Err(e) => {
@@ -341,6 +342,7 @@ where
     ///
     /// * `raw_request`: raw message to handle.
     async fn handle_text(&mut self, raw_request: String) -> Message {
+        println!("handle_text");
         match ClientControlRequest::try_from(raw_request) {
             Err(e) => RequestHandlingError::InvalidTextRequest(e).into_error_message(),
             Ok(request) => match request {
@@ -363,12 +365,29 @@ where
     ///
     /// * `raw_request`: raw received websocket message.
     async fn handle_request(&mut self, raw_request: Message) -> Option<Message> {
+        println!("handle_request");
         // apparently tungstenite auto-handles ping/pong/close messages so for now let's ignore
         // them and let's test that claim. If that's not the case, just copy code from
         // desktop nym-client websocket as I've manually handled everything there
         match raw_request {
             Message::Binary(bin_msg) => Some(self.handle_binary(bin_msg).await),
             Message::Text(text_msg) => Some(self.handle_text(text_msg).await),
+            Message::Ping(s) => {
+                println!("Received ping from client: {}", String::from_utf8_lossy(&s));
+                None
+            }
+            Message::Pong(s) => {
+                // println!("1 Received pong from client: {}", String::from_utf8_lossy(&s));
+                let ss = nym_sphinx::DestinationAddressBytes::try_from_byte_slice(&s).expect("JON");
+                if true {
+                    println!("Received pong from client: {}", ss);
+                    if let Some(tx) = self.inner.is_active_pending_replies.remove(&ss) {
+                        println!("Reporting back");
+                        tx.send(true).expect("JON");
+                    }
+                }
+                None
+            }
             _ => None,
         }
     }
@@ -383,11 +402,36 @@ where
     {
         trace!("Started listening for ALL incoming requests...");
 
+        let mut is_active_receiver = self
+            .inner
+            .is_active_receiver
+            .take()
+            .expect("we should always have a receiver");
+
         while !shutdown.is_shutdown() {
             tokio::select! {
                 _ = shutdown.recv() => {
                     log::trace!("client_handling::AuthenticatedHandler: received shutdown");
-                }
+                },
+                tx = is_active_receiver.next() => {
+                    match tx {
+                        None => {
+                            println!("Got None in listen_for_requests for is_active_receiver");
+                        }
+                        Some(tx) => {
+                            println!("Received tx");
+
+                            // WIP(JON)
+                            // if we receive a request to ping the client, we should do so and respond with
+                            // the result
+                            println!("Got request to ping our connection");
+                            // self.inner.send_websocket_message(Message::Ping("jon".to_string().into_bytes())).await;
+                            let payload = self.client.address.as_bytes().to_vec();
+                            self.inner.send_websocket_message(Message::Ping(payload)).await;
+                            self.inner.is_active_pending_replies.insert(self.client.address, tx);
+                        }
+                    };
+                },
                 socket_msg = self.inner.read_websocket_message() => {
                     println!("socket_msg");
                     let socket_msg = match socket_msg {

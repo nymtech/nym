@@ -11,16 +11,31 @@
 # array of project dirs
 declare -a projects=("docs" "dev-portal" "operators")
 
-## now loop through the above array sed-ing the variable values in the book.toml files
-for i in "${projects[@]}"
-do
-  # sed the vars in the book.toml file for each project
-  echo "setting platform and wallet versions in $i"
-  sed -i 's/platform_release_version =.*/platform_release_version = "'$1'"/' "$i"/book.toml
-  sed -i 's/wallet_release_version =.*/wallet_release_version = "'$2'"/' "$i"/book.toml
-  if [ "$3" ]
-  then
-    echo "setting minimum rust version in $i"
-    sed -i 's/minimum_rust_version = .*/minimum_rust_version = "'$3'"/' "$i"/book.toml
-  fi
-done
+# if called with no args then exit
+if [[ $# -eq 0 ]] ; then
+    echo 'calling with no args: failure'
+    exit 0
+fi
+
+# check you're calling from the right place
+if [ $(pwd | awk -F/ '{print $NF}') != "documentation" ]
+then
+  echo "failure: please run script from documentation/"
+else
+  ## now loop through the above array sed-ing the variable values in the book.toml files
+  for i in "${projects[@]}"
+  do
+    # sed the vars in the book.toml file for each project
+    echo "setting platform and wallet versions in $i"
+    sed -i 's/platform_release_version =.*/platform_release_version = "'$1'"/' "$i"/book.toml
+    if [ "$2" ]
+    then
+      sed -i 's/wallet_release_version =.*/wallet_release_version = "'$2'"/' "$i"/book.toml
+    fi
+    if [ "$3" ]
+    then
+      echo "setting minimum rust version in $i"
+      sed -i 's/minimum_rust_version = .*/minimum_rust_version = "'$3'"/' "$i"/book.toml
+    fi
+  done
+fi

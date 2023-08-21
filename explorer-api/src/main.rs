@@ -19,6 +19,7 @@ mod geo_ip;
 mod guards;
 mod helpers;
 mod http;
+mod location;
 mod mix_node;
 pub(crate) mod mix_nodes;
 mod overview;

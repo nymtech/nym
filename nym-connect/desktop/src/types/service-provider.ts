@@ -1,6 +1,6 @@
 export interface UserDefinedGateway {
   isActive: boolean;
-  gateway?: string;
+  address?: string;
 }
 
 export interface UserDefinedSPAddress {

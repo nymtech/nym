@@ -9,6 +9,8 @@ use tokio::time::Instant;
 
 use crate::config::Config;
 use crate::config::PrivacyLevel;
+use crate::config::SelectedGateway;
+use crate::config::SelectedSp;
 use crate::config::UserData;
 use crate::{
     config::{self, socks5_config_id_appended_with},
@@ -25,7 +27,7 @@ use crate::{
 // certain duration then we assume it's all good.
 const GATEWAY_CONNECTIVITY_TIMEOUT_SECS: u64 = 20;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum GatewayConnectivity {
     Good,
     Bad { when: Instant },
@@ -48,6 +50,7 @@ impl TryFrom<&ClientCoreStatusMessage> for GatewayConnectivity {
     }
 }
 
+#[derive(Debug)]
 pub struct State {
     /// The current connection status
     status: ConnectionStatusKind,
@@ -104,6 +107,13 @@ impl State {
         &self.user_data
     }
 
+    pub fn clear_user_data(&mut self) -> Result<()> {
+        self.user_data.clear().map_err(|e| {
+            error!("Failed to clear user data {e}");
+            BackendError::UserDataWriteError
+        })
+    }
+
     pub fn set_monitoring(&mut self, enabled: bool) -> Result<()> {
         self.user_data.monitoring = Some(enabled);
         self.user_data.write().map_err(|e| {
@@ -114,6 +124,22 @@ impl State {
 
     pub fn set_privacy_level(&mut self, privacy_level: PrivacyLevel) -> Result<()> {
         self.user_data.privacy_level = Some(privacy_level);
+        self.user_data.write().map_err(|e| {
+            error!("Failed to write user data to disk {e}");
+            BackendError::UserDataWriteError
+        })
+    }
+
+    pub fn set_user_selected_gateway(&mut self, gateway: Option<SelectedGateway>) -> Result<()> {
+        self.user_data.selected_gateway = gateway;
+        self.user_data.write().map_err(|e| {
+            error!("Failed to write user data to disk {e}");
+            BackendError::UserDataWriteError
+        })
+    }
+
+    pub fn set_user_selected_sp(&mut self, service_provider: Option<SelectedSp>) -> Result<()> {
+        self.user_data.selected_sp = service_provider;
         self.user_data.write().map_err(|e| {
             error!("Failed to write user data to disk {e}");
             BackendError::UserDataWriteError

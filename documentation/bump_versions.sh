@@ -11,9 +11,11 @@
 # array of project dirs
 declare -a projects=("docs" "dev-portal" "operators")
 
-# if called with no args then exit
-if [[ $# -eq 0 ]] ; then
-    echo 'calling with no args: failure'
+# check number of args passed
+if [ "$#" -lt 2 ] || [ "$#" -gt 3 ];
+then
+    echo "failure: please pass at least 2 and at most 3 args: "
+    echo "./bump_version.sh <new platform_release_version> <new wallet_release_version> [OPTIONAL]<new minimum_rust_version>"
     exit 0
 fi
 
@@ -26,15 +28,12 @@ else
   for i in "${projects[@]}"
   do
     # sed the vars in the book.toml file for each project
-    echo "setting platform and wallet versions in $i"
+    echo "setting platform and wallet versions in $i/"
     sed -i 's/platform_release_version =.*/platform_release_version = "'$1'"/' "$i"/book.toml
-    if [ "$2" ]
-    then
-      sed -i 's/wallet_release_version =.*/wallet_release_version = "'$2'"/' "$i"/book.toml
-    fi
+    sed -i 's/wallet_release_version =.*/wallet_release_version = "'$2'"/' "$i"/book.toml
     if [ "$3" ]
     then
-      echo "setting minimum rust version in $i"
+      echo "setting minimum rust version in $i/"
       sed -i 's/minimum_rust_version = .*/minimum_rust_version = "'$3'"/' "$i"/book.toml
     fi
   done

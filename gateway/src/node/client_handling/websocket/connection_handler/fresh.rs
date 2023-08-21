@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::node::client_handling::active_clients::{ActiveClientsStore, RecentlyActive};
+use crate::node::client_handling::active_clients::{ActiveClientsStore};
 use crate::node::client_handling::websocket::connection_handler::coconut::CoconutVerifier;
 use crate::node::client_handling::websocket::connection_handler::{
     AuthenticatedHandler, ClientDetails, InitialAuthResult, SocketStream,
@@ -78,7 +78,7 @@ pub(crate) struct FreshHandler<R, S, St> {
     pub(crate) socket_connection: SocketStream<S>,
     pub(crate) storage: St,
     pub(crate) coconut_verifier: Arc<CoconutVerifier>,
-    pub(crate) is_active_receiver: Option<mpsc::UnboundedReceiver<oneshot::Sender<bool>>>,
+    // pub(crate) is_active_receiver: Option<mpsc::UnboundedReceiver<oneshot::Sender<bool>>>,
     pub(crate) is_active_pending_replies: HashMap<DestinationAddressBytes, oneshot::Sender<bool>>,
 }
 
@@ -111,7 +111,7 @@ where
             local_identity,
             storage,
             coconut_verifier,
-            is_active_receiver: None,
+            // is_active_receiver: None,
             is_active_pending_replies: HashMap::new(),
         }
     }
@@ -671,7 +671,7 @@ where
                                 // create mpsc channel
                                 let (is_active_sender, is_active_receiver) =
                                     mpsc::unbounded::<futures::channel::oneshot::Sender<bool>>();
-                                self.is_active_receiver = Some(is_active_receiver);
+                                // self.is_active_receiver = Some(is_active_receiver);
 
                                 self.active_clients_store.insert(
                                     client_details.address,
@@ -682,6 +682,7 @@ where
                                     self,
                                     client_details,
                                     mix_receiver,
+                                    is_active_receiver,
                                 ))
                             } else {
                                 None

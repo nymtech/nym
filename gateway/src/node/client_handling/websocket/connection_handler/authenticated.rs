@@ -5,6 +5,7 @@ use crate::node::client_handling::websocket::connection_handler::{ClientDetails,
 use crate::node::client_handling::websocket::message_receiver::MixMessageReceiver;
 use crate::node::storage::error::StorageError;
 use crate::node::storage::Storage;
+use futures::channel::{mpsc, oneshot};
 use futures::StreamExt;
 use log::*;
 use nym_gateway_requests::iv::IVConversionError;
@@ -97,14 +98,12 @@ pub(crate) struct AuthenticatedHandler<R, S, St> {
     inner: FreshHandler<R, S, St>,
     client: ClientDetails,
     mix_receiver: MixMessageReceiver,
+    is_active_receiver: mpsc::UnboundedReceiver<oneshot::Sender<bool>>,
 }
 
 // explicitly remove handle from the global store upon being dropped
 impl<R, S, St> Drop for AuthenticatedHandler<R, S, St> {
     fn drop(&mut self) {
-        // WIP(JON): Also remove from is_active_pending_replies
-        self.inner.is_active_pending_replies.remove(&self.client.address);
-
         self.inner
             .active_clients_store
             .disconnect(self.client.address)
@@ -130,19 +129,21 @@ where
         fresh: FreshHandler<R, S, St>,
         client: ClientDetails,
         mix_receiver: MixMessageReceiver,
+        is_active_receiver: mpsc::UnboundedReceiver<oneshot::Sender<bool>>,
     ) -> Self {
         AuthenticatedHandler {
             inner: fresh,
             client,
             mix_receiver,
+            is_active_receiver,
         }
     }
 
-    fn register_activity(&self) {
-        self.inner
-            .active_clients_store
-            .register_activity(self.client.address)
-    }
+    // fn register_activity(&self) {
+    //     self.inner
+    //         .active_clients_store
+    //         .register_activity(self.client.address)
+    // }
 
     /// Explicitly removes handle from the global store.
     fn disconnect(self) {
@@ -405,18 +406,18 @@ where
     {
         trace!("Started listening for ALL incoming requests...");
 
-        let mut is_active_receiver = self
-            .inner
-            .is_active_receiver
-            .take()
-            .expect("we should always have a receiver");
+        // let mut is_active_receiver = self
+        //     .inner
+        //     .is_active_receiver
+        //     .take()
+        //     .expect("we should always have a receiver");
 
         while !shutdown.is_shutdown() {
             tokio::select! {
                 _ = shutdown.recv() => {
                     log::trace!("client_handling::AuthenticatedHandler: received shutdown");
                 },
-                tx = is_active_receiver.next() => {
+                tx = self.is_active_receiver.next() => {
                     match tx {
                         None => {
                             println!("Got None in listen_for_requests for is_active_receiver");

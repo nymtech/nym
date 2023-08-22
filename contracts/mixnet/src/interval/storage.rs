@@ -176,7 +176,7 @@ mod tests {
     use cosmwasm_std::Order;
     use rand_chacha::rand_core::RngCore;
 
-    fn read_entire_set(storage: &mut dyn Storage) -> HashMap<MixId, RewardedSetNodeStatus> {
+    fn read_entire_set(storage: &dyn Storage) -> HashMap<MixId, RewardedSetNodeStatus> {
         REWARDED_SET
             .range(storage, None, None, Order::Ascending)
             .map(|r| r.unwrap())

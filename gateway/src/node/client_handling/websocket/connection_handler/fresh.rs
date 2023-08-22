@@ -1,38 +1,42 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::node::client_handling::active_clients::ActiveClientsStore;
-use crate::node::client_handling::websocket::connection_handler::coconut::CoconutVerifier;
-use crate::node::client_handling::websocket::connection_handler::{
-    AuthenticatedHandler, ClientDetails, InitialAuthResult, SocketStream,
+use futures::{
+    channel::{mpsc, oneshot},
+    SinkExt, StreamExt,
 };
-use crate::node::client_handling::websocket::message_receiver::{
-    IsActiveRequestSender, IsActiveResultSender,
-};
-use crate::node::storage::error::StorageError;
-use crate::node::storage::Storage;
-use futures::channel::oneshot;
-use futures::{channel::mpsc, SinkExt, StreamExt};
 use log::*;
 use nym_crypto::asymmetric::identity;
 use nym_gateway_requests::authentication::encrypted_address::{
     EncryptedAddressBytes, EncryptedAddressConversionError,
 };
-use nym_gateway_requests::iv::{IVConversionError, IV};
-use nym_gateway_requests::registration::handshake::error::HandshakeError;
-use nym_gateway_requests::registration::handshake::{gateway_handshake, SharedKeys};
-use nym_gateway_requests::types::{ClientControlRequest, ServerResponse};
-use nym_gateway_requests::{BinaryResponse, PROTOCOL_VERSION};
+use nym_gateway_requests::{
+    iv::{IVConversionError, IV},
+    registration::handshake::{error::HandshakeError, gateway_handshake, SharedKeys},
+    types::{ClientControlRequest, ServerResponse},
+    BinaryResponse, PROTOCOL_VERSION,
+};
 use nym_mixnet_client::forwarder::MixForwardingSender;
 use nym_sphinx::DestinationAddressBytes;
 use rand::{CryptoRng, Rng};
-use std::collections::HashMap;
-use std::convert::TryFrom;
-use std::sync::Arc;
-use std::time::Duration;
+use std::{convert::TryFrom, sync::Arc, time::Duration};
 use thiserror::Error;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_tungstenite::tungstenite::{protocol::Message, Error as WsError};
+
+use crate::node::{
+    client_handling::{
+        active_clients::ActiveClientsStore,
+        websocket::{
+            connection_handler::{
+                coconut::CoconutVerifier, AuthenticatedHandler, ClientDetails, InitialAuthResult,
+                SocketStream,
+            },
+            message_receiver::IsActiveRequestSender,
+        },
+    },
+    storage::{error::StorageError, Storage},
+};
 
 #[derive(Debug, Error)]
 pub(crate) enum InitialAuthenticationError {
@@ -81,10 +85,6 @@ pub(crate) struct FreshHandler<R, S, St> {
     pub(crate) socket_connection: SocketStream<S>,
     pub(crate) storage: St,
     pub(crate) coconut_verifier: Arc<CoconutVerifier>,
-    // Occasionally the handler is requested to ping the connected client for confirm that it's
-    // active, such as when a duplicate connection is detected. This hashmap stores the oneshot
-    // senders that are used to return the result of the ping to the handler requesting the ping.
-    pub(crate) is_active_ping_pending_replies: HashMap<u64, IsActiveResultSender>,
 }
 
 impl<R, S, St> FreshHandler<R, S, St>
@@ -116,7 +116,6 @@ where
             local_identity,
             storage,
             coconut_verifier,
-            is_active_ping_pending_replies: HashMap::new(),
         }
     }
 

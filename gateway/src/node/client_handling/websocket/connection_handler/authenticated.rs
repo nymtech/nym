@@ -1,30 +1,34 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::node::client_handling::websocket::connection_handler::{ClientDetails, FreshHandler};
-use crate::node::client_handling::websocket::message_receiver::{
-    IsActiveRequestReceiver, MixMessageReceiver,
-};
-use crate::node::storage::error::StorageError;
-use crate::node::storage::Storage;
 use futures::StreamExt;
 use log::*;
-use nym_gateway_requests::iv::IVConversionError;
-use nym_gateway_requests::types::{BinaryRequest, ServerResponse};
-use nym_gateway_requests::{ClientControlRequest, GatewayRequestsError};
+use nym_gateway_requests::{
+    iv::{IVConversionError, IV},
+    types::{BinaryRequest, ServerResponse},
+    ClientControlRequest, GatewayRequestsError,
+};
 use nym_sphinx::forwarding::packet::MixPacket;
-use rand::{CryptoRng, Rng};
-use std::convert::TryFrom;
-use std::process;
-use thiserror::Error;
-use tokio::io::{AsyncRead, AsyncWrite};
-use tokio_tungstenite::tungstenite::protocol::Message;
-
-use crate::node::client_handling::bandwidth::Bandwidth;
-use crate::node::client_handling::FREE_TESTNET_BANDWIDTH_VALUE;
-use nym_gateway_requests::iv::IV;
 use nym_task::TaskClient;
 use nym_validator_client::coconut::CoconutApiError;
+use rand::{CryptoRng, Rng};
+use thiserror::Error;
+use tokio::io::{AsyncRead, AsyncWrite};
+use tokio_tungstenite::tungstenite::{protocol::Message, Error as WsError};
+
+use std::{convert::TryFrom, pin::Pin, process, time::Duration};
+
+use crate::node::{
+    client_handling::{
+        bandwidth::Bandwidth,
+        websocket::{
+            connection_handler::{ClientDetails, FreshHandler},
+            message_receiver::{IsActiveRequestReceiver, IsActiveResultSender, MixMessageReceiver},
+        },
+        FREE_TESTNET_BANDWIDTH_VALUE,
+    },
+    storage::{error::StorageError, Storage},
+};
 
 #[derive(Debug, Error)]
 pub(crate) enum RequestHandlingError {
@@ -99,7 +103,11 @@ pub(crate) struct AuthenticatedHandler<R, S, St> {
     inner: FreshHandler<R, S, St>,
     client: ClientDetails,
     mix_receiver: MixMessageReceiver,
+    // Occasionally the handler is requested to ping the connected client for confirm that it's
+    // active, such as when a duplicate connection is detected. This hashmap stores the oneshot
+    // senders that are used to return the result of the ping to the handler requesting the ping.
     is_active_request_receiver: IsActiveRequestReceiver,
+    is_active_ping_pending_reply: Option<(u64, IsActiveResultSender)>,
 }
 
 // explicitly remove handle from the global store upon being dropped
@@ -137,6 +145,7 @@ where
             client,
             mix_receiver,
             is_active_request_receiver,
+            is_active_ping_pending_reply: None,
         }
     }
 
@@ -362,9 +371,18 @@ where
         if let Ok(msg) = msg.try_into() {
             let msg = u64::from_be_bytes(msg);
             debug!("Received pong from client: {}", msg);
-            if let Some(tx) = self.inner.is_active_ping_pending_replies.remove(&msg) {
-                if let Err(err) = tx.send(true) {
-                    warn!("Failed to send pong reply back to the requesting handler: {err}");
+            if let Some((tag, _)) = &self.is_active_ping_pending_reply {
+                if tag == &msg {
+                    debug!("Received pong reply from the client: {}", msg);
+                    let tx = self.is_active_ping_pending_reply.take().unwrap().1;
+                    if let Err(err) = tx.send(true) {
+                        warn!("Failed to send pong reply back to the requesting handler: {err}");
+                    }
+                } else {
+                    warn!(
+                        "Received pong reply from the client with unexpected tag: {}",
+                        msg
+                    );
                 }
             }
         }
@@ -390,6 +408,19 @@ where
         }
     }
 
+    /// Send a ping to the connected client and return a tag identifying the ping.
+    async fn send_ping(&mut self) -> Result<u64, WsError>
+    where
+        S: AsyncRead + AsyncWrite + Unpin,
+    {
+        let tag: u64 = rand::thread_rng().gen();
+        debug!("Got request to ping our connection: {}", tag);
+        self.inner
+            .send_websocket_message(Message::Ping(tag.to_be_bytes().to_vec()))
+            .await?;
+        Ok(tag)
+    }
+
     /// Simultaneously listens for incoming client requests, which realistically should only be
     /// binary requests to forward sphinx packets or increase bandwidth
     /// and for sphinx packets received from the mix network that should be sent back to the client.
@@ -400,24 +431,50 @@ where
     {
         trace!("Started listening for ALL incoming requests...");
 
+        // Ping timeout future used to check if the client responded to our ping request
+        let mut ping_timeout: Option<Pin<Box<tokio::time::Sleep>>> = None;
+
         while !shutdown.is_shutdown() {
             tokio::select! {
                 _ = shutdown.recv() => {
                     log::trace!("client_handling::AuthenticatedHandler: received shutdown");
                 },
+                // Received a request to ping the client to check if it's still active
                 tx = self.is_active_request_receiver.next() => {
                     match tx {
                         None => debug!("is_active_request_receiver was closed!"),
                         Some(reply_tx) => {
-                            let tag: u64 = rand::thread_rng().gen();
-                            debug!("Got request to ping our connection: {}", tag);
-                            if let Err(err) = self.inner.send_websocket_message(Message::Ping(tag.to_be_bytes().to_vec())).await {
-                                warn!("Failed to send ping to client: {err}. Assuming the connection is dead.");
-                                break;
+                            // First check that a ping is not already in progress
+                            if self.is_active_ping_pending_reply.is_some() {
+                                warn!("Received request to ping the client, but a ping is already in progress!");
+                                if let Err(err) = reply_tx.send(true) {
+                                    warn!("Failed to respond back to the handler requesting the ping: {err}");
+                                }
+                                continue;
                             }
-                            self.inner.is_active_ping_pending_replies.insert(tag, reply_tx);
+
+                            match self.send_ping().await {
+                                Ok(tag) => {
+                                    self.is_active_ping_pending_reply = Some((tag, reply_tx));
+                                    ping_timeout = Some(Box::pin(tokio::time::sleep(Duration::from_secs(1))));
+                                },
+                                Err(err) => {
+                                    warn!("Failed to send ping to client: {err}. Assuming the connection is dead.");
+                                    break;
+                                }
+                            }
                         }
                     };
+                },
+                // The ping timeout expired, meaning the client didn't respond to our ping request
+                _ = ping_timeout.as_mut().unwrap(), if ping_timeout.is_some() => {
+                    error!("Ping timeout expired!");
+                    ping_timeout.take();
+                    if let Some((_tag, reply_tx)) = self.is_active_ping_pending_reply.take() {
+                        if let Err(err) = reply_tx.send(false) {
+                            warn!("Failed to respond back to the handler requesting the ping: {err}");
+                        }
+                    }
                 },
                 socket_msg = self.inner.read_websocket_message() => {
                     let socket_msg = match socket_msg {

@@ -14,7 +14,7 @@ use nym_types::currency::DecCoin;
 use nym_types::gateway::GatewayBond;
 use nym_types::mixnode::{MixNodeCostParams, MixNodeDetails};
 use nym_types::transaction::TransactionExecuteResult;
-use nym_validator_client::nyxd::traits::{MixnetQueryClient, MixnetSigningClient};
+use nym_validator_client::nyxd::contract_traits::{MixnetQueryClient, MixnetSigningClient};
 use nym_validator_client::nyxd::Fee;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
@@ -337,7 +337,10 @@ pub async fn get_mixnode_avg_uptime(
     log::info!(">>> Get mixnode bond details");
     let guard = state.read().await;
     let client = guard.current_client()?;
-    let res = client.nyxd.get_owned_mixnode(client.nyxd.address()).await?;
+    let res = client
+        .nyxd
+        .get_owned_mixnode(&client.nyxd.address())
+        .await?;
 
     match res.mixnode_details {
         Some(details) => {
@@ -363,7 +366,10 @@ pub async fn mixnode_bond_details(
     log::info!(">>> Get mixnode bond details");
     let guard = state.read().await;
     let client = guard.current_client()?;
-    let res = client.nyxd.get_owned_mixnode(client.nyxd.address()).await?;
+    let res = client
+        .nyxd
+        .get_owned_mixnode(&client.nyxd.address())
+        .await?;
     let details = res
         .mixnode_details
         .map(|details| {
@@ -391,7 +397,10 @@ pub async fn gateway_bond_details(
     log::info!(">>> Get gateway bond details");
     let guard = state.read().await;
     let client = guard.current_client()?;
-    let bond = client.nyxd.get_owned_gateway(client.nyxd.address()).await?;
+    let bond = client
+        .nyxd
+        .get_owned_gateway(&client.nyxd.address())
+        .await?;
     let res = bond
         .gateway
         .map(|bond| {

@@ -4,6 +4,8 @@
 use crate::var_names;
 use crate::{DenomDetails, ValidatorDetails};
 
+pub(crate) const NETWORK_NAME: &str = "mainnet";
+
 pub(crate) const BECH32_PREFIX: &str = "n";
 
 pub const MIX_DENOM: DenomDetails = DenomDetails::new("unym", "nym", 6);
@@ -18,6 +20,7 @@ pub(crate) const COCONUT_BANDWIDTH_CONTRACT_ADDRESS: &str =
 pub(crate) const GROUP_CONTRACT_ADDRESS: &str = "n19lc9u84cz0yz3fww5283nucc9yvr8gsjmgeul0";
 pub(crate) const MULTISIG_CONTRACT_ADDRESS: &str = "n19lc9u84cz0yz3fww5283nucc9yvr8gsjmgeul0";
 pub(crate) const COCONUT_DKG_CONTRACT_ADDRESS: &str = "n19lc9u84cz0yz3fww5283nucc9yvr8gsjmgeul0";
+pub(crate) const EPHEMERA_CONTRACT_ADDRESS: &str = "n19lc9u84cz0yz3fww5283nucc9yvr8gsjmgeul0";
 pub(crate) const REWARDING_VALIDATOR_ADDRESS: &str = "n10yyd98e2tuwu0f7ypz9dy3hhjw7v772q6287gy";
 
 pub const STATISTICS_SERVICE_DOMAIN_ADDRESS: &str = "https://mainnet-stats.nymte.ch:8090/";
@@ -54,6 +57,7 @@ pub fn read_var_if_not_default(var: &str) -> Option<String> {
 
 pub fn export_to_env() {
     set_var_to_default(var_names::CONFIGURED, "true");
+    set_var_to_default(var_names::NETWORK_NAME, NETWORK_NAME);
     set_var_to_default(var_names::BECH32_PREFIX, BECH32_PREFIX);
     set_var_to_default(var_names::MIX_DENOM, MIX_DENOM.base);
     set_var_to_default(var_names::MIX_DENOM_DISPLAY, MIX_DENOM.display);
@@ -82,6 +86,10 @@ pub fn export_to_env() {
         COCONUT_DKG_CONTRACT_ADDRESS,
     );
     set_var_to_default(
+        var_names::EPHEMERA_CONTRACT_ADDRESS,
+        EPHEMERA_CONTRACT_ADDRESS,
+    );
+    set_var_to_default(
         var_names::REWARDING_VALIDATOR_ADDRESS,
         REWARDING_VALIDATOR_ADDRESS,
     );
@@ -95,6 +103,7 @@ pub fn export_to_env() {
 
 pub fn export_to_env_if_not_set() {
     set_var_conditionally_to_default(var_names::CONFIGURED, "true");
+    set_var_conditionally_to_default(var_names::NETWORK_NAME, NETWORK_NAME);
     set_var_conditionally_to_default(var_names::BECH32_PREFIX, BECH32_PREFIX);
     set_var_conditionally_to_default(var_names::MIX_DENOM, MIX_DENOM.base);
     set_var_conditionally_to_default(var_names::MIX_DENOM_DISPLAY, MIX_DENOM.display);
@@ -121,6 +130,10 @@ pub fn export_to_env_if_not_set() {
     set_var_conditionally_to_default(
         var_names::COCONUT_DKG_CONTRACT_ADDRESS,
         COCONUT_DKG_CONTRACT_ADDRESS,
+    );
+    set_var_conditionally_to_default(
+        var_names::EPHEMERA_CONTRACT_ADDRESS,
+        EPHEMERA_CONTRACT_ADDRESS,
     );
     set_var_conditionally_to_default(
         var_names::REWARDING_VALIDATOR_ADDRESS,

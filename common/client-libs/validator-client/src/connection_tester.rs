@@ -1,8 +1,7 @@
+use crate::nyxd::contract_traits::MixnetQueryClient;
 use crate::nyxd::error::NyxdError;
-use crate::nyxd::{Config as ClientConfig, NyxdClient, QueryNyxdClient};
-use crate::{NymApiClient, ValidatorClientError};
-
-use crate::nyxd::traits::MixnetQueryClient;
+use crate::nyxd::Config as ClientConfig;
+use crate::{NymApiClient, QueryHttpRpcNyxdClient, ValidatorClientError};
 use colored::Colorize;
 use core::fmt;
 use itertools::Itertools;
@@ -53,7 +52,7 @@ pub async fn test_nyxd_url_connection(
     let config = ClientConfig::try_from_nym_network_details(&network)
         .expect("failed to create valid nyxd client config");
 
-    let mut nyxd_client = NyxdClient::<QueryNyxdClient>::connect(config, nyxd_url.as_str())?;
+    let mut nyxd_client = QueryHttpRpcNyxdClient::connect(config, nyxd_url.as_str())?;
     // possibly redundant, but lets just leave it here
     nyxd_client.set_mixnet_contract_address(address);
     match test_nyxd_connection(network, &nyxd_url, &nyxd_client).await {
@@ -75,7 +74,7 @@ fn setup_connection_tests<H: BuildHasher + 'static>(
         let config = ClientConfig::try_from_nym_network_details(&network)
             .expect("failed to create valid nyxd client config");
 
-        if let Ok(mut client) = NyxdClient::<QueryNyxdClient>::connect(config, url.as_str()) {
+        if let Ok(mut client) = QueryHttpRpcNyxdClient::connect(config, url.as_str()) {
             // possibly redundant, but lets just leave it here
             client.set_mixnet_contract_address(address);
             Some(ClientForConnectionTest::Nyxd(
@@ -112,7 +111,7 @@ fn extract_and_collect_results_into_map(
 async fn test_nyxd_connection(
     network: NymNetworkDetails,
     url: &Url,
-    client: &NyxdClient<QueryNyxdClient>,
+    client: &QueryHttpRpcNyxdClient,
 ) -> ConnectionResult {
     let result = match timeout(
         Duration::from_secs(CONNECTION_TEST_TIMEOUT_SEC),
@@ -186,7 +185,7 @@ async fn test_nym_api_connection(
 }
 
 enum ClientForConnectionTest {
-    Nyxd(NymNetworkDetails, Url, Box<NyxdClient<QueryNyxdClient>>),
+    Nyxd(NymNetworkDetails, Url, Box<QueryHttpRpcNyxdClient>),
     Api(NymNetworkDetails, Url, NymApiClient),
 }
 

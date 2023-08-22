@@ -195,12 +195,32 @@
           ],
           "properties": {
             "nym_address": {
-              "type": "string"
+              "$ref": "#/definitions/NymAddressInner"
             }
           },
           "additionalProperties": false
         }
       ]
+    },
+    "NymAddressInner": {
+      "type": "object",
+      "required": [
+        "client_enc",
+        "client_id",
+        "gateway_id"
+      ],
+      "properties": {
+        "client_enc": {
+          "type": "string"
+        },
+        "client_id": {
+          "type": "string"
+        },
+        "gateway_id": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
     },
     "NymName": {
       "description": "Name stored and pointing a to a nym-address",

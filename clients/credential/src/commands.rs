@@ -6,7 +6,7 @@ use log::*;
 use nym_bandwidth_controller::acquire::state::State;
 use nym_bin_common::completions::ArgShell;
 use nym_credential_storage::persistent_storage::PersistentStorage;
-use nym_validator_client::nyxd::traits::DkgQueryClient;
+use nym_validator_client::nyxd::contract_traits::DkgQueryClient;
 
 use crate::error::Result;
 use crate::recovery_storage::RecoveryStorage;

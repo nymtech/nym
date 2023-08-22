@@ -28,8 +28,7 @@ mod template;
 mod upgrade;
 mod user_data;
 
-pub use user_data::PrivacyLevel;
-pub use user_data::UserData;
+pub use user_data::*;
 
 static SOCKS5_CONFIG_ID: &str = "nym-connect";
 
@@ -183,13 +182,14 @@ pub async fn init_socks5_config(provider_address: String, chosen_gateway_id: Str
     let details_store =
         OnDiskGatewayDetails::new(&config.storage_paths.common_paths.gateway_details);
     let init_details = nym_client_core::init::setup_gateway(
-        &gateway_setup,
+        gateway_setup,
         &key_store,
         &details_store,
         register_gateway,
         Some(&config.core.base.client.nym_api_urls),
     )
-    .await?;
+    .await?
+    .details;
 
     config.save_to_default_location().tap_err(|_| {
         log::error!("Failed to save the config file");

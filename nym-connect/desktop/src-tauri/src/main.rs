@@ -4,6 +4,7 @@
 )]
 
 use std::env;
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use nym_config::defaults::setup_env;
@@ -30,7 +31,8 @@ mod window;
 
 fn main() {
     dotenvy::dotenv().ok();
-    setup_env(None);
+
+    setup_env(env::args().nth(1).map(PathBuf::from).as_ref());
     println!("Starting up...");
 
     // As per breaking change description here
@@ -72,6 +74,8 @@ fn main() {
             crate::operations::common::get_user_data,
             crate::operations::common::set_monitoring,
             crate::operations::common::set_privacy_level,
+            crate::operations::common::set_selected_gateway,
+            crate::operations::common::set_selected_sp,
             crate::operations::connection::connect::get_gateway,
             crate::operations::connection::connect::get_service_provider,
             crate::operations::connection::connect::set_gateway,

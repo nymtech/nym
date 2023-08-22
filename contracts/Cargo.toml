@@ -3,6 +3,7 @@ members = [
     "coconut-bandwidth",
     "coconut-dkg",
     "coconut-test",
+    "ephemera",
     "mixnet",
     "mixnet-vesting-integration-tests",
     "multisig/cw3-flex-multisig",

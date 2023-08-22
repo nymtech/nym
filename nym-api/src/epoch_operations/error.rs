@@ -47,6 +47,9 @@ pub enum RewardingError {
         #[from]
         source: rand::distributions::WeightedError,
     },
+
+    #[error("{0}")]
+    GenericError(#[from] anyhow::Error),
 }
 
 impl From<NyxdError> for RewardingError {

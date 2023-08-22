@@ -1,14 +1,13 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use std::future::Future;
-
 use nym_mixnet_contract_common::GatewayBond;
 use nym_task::TaskClient;
 use nym_validator_client::models::MixNodeBondAnnotated;
 use nym_validator_client::nyxd::error::NyxdError;
-use nym_validator_client::nyxd::{Paging, QueryNyxdClient, ValidatorResponse};
-use nym_validator_client::ValidatorClientError;
+use nym_validator_client::nyxd::{Paging, TendermintRpcClient, ValidatorResponse};
+use nym_validator_client::{QueryHttpRpcValidatorClient, ValidatorClientError};
+use std::future::Future;
 
 use crate::mix_nodes::CACHE_REFRESH_RATE;
 use crate::state::ExplorerApiStateContext;
@@ -26,7 +25,7 @@ impl ExplorerApiTasks {
     // a helper to remove duplicate code when grabbing active/rewarded/all mixnodes
     async fn retrieve_mixnodes<'a, F, Fut>(&'a self, f: F) -> Vec<MixNodeBondAnnotated>
     where
-        F: FnOnce(&'a nym_validator_client::Client<QueryNyxdClient>) -> Fut,
+        F: FnOnce(&'a QueryHttpRpcValidatorClient) -> Fut,
         Fut: Future<Output = Result<Vec<MixNodeBondAnnotated>, ValidatorClientError>>,
     {
         let bonds = match f(&self.state.inner.validator_client.0).await {
@@ -75,7 +74,7 @@ impl ExplorerApiTasks {
             .validator_client
             .0
             .nyxd
-            .get_validators(height.value(), Paging::All)
+            .validators(height, Paging::All)
             .await?;
         info!("Fetched {} validators", response.validators.len());
         Ok(response)

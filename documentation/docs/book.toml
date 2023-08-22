@@ -48,8 +48,7 @@ assets_version = "2.0.0" # do not edit: managed by `mdbook-admonish install`
 # https://gitlab.com/tglman/mdbook-variables/
 [preprocessor.variables.variables]
 minimum_rust_version = "1.66"
-# vars for links: TODO think on how to streamline updating
-platform_release_version = "v1.1.25"
+platform_release_version = "v1.1.28"
 wallet_release_version = "v1.2.7"
 
 [preprocessor.last-changed]
@@ -85,14 +84,14 @@ curly-quotes = true
 # mathjax-support = false # useful if we want to pull equations in
 copy-fonts = true
 no-section-label = false
-additional-css = ["theme/pagetoc.css", "././mdbook-admonish.css", "last-changed.css"]
+additional-css = ["theme/pagetoc.css", "././mdbook-admonish.css", "./custom.css"]
 additional-js  = ["theme/pagetoc.js"]
 git-repository-url = "https://github.com/nymtech/nym"
 git-repository-icon = "fa-github"
 # edit-url-template = "https://github.com/rust-lang/mdBook/edit/master/guide/{path}"
 # site-url = "/docs/"
 # cname = "nymtech.net"
-# input-404 = "not-found.md" # todo make custom 404 page
+input-404 = "not-found.md" 
 
 [output.html.fold]
 enable = true    # whether or not to enable section folding
@@ -119,5 +118,5 @@ expand = true            # partial words will match longer terms
 heading-split-level = 3  # link results to heading levels
 copy-js = true           # include Javascript code for search
 
-# [output.linkcheck]
-# warning-policy = "warn"
+[output.linkcheck]
+warning-policy = "warn"

@@ -6,7 +6,8 @@ use crate::nyxd;
 use nym_coconut_dkg_common::types::EpochId;
 use nym_coconut_interface::VerificationKey;
 use nym_credentials::coconut::utils::obtain_aggregate_verification_key;
-use nym_validator_client::CoconutApiClient;
+use nym_validator_client::coconut::all_coconut_api_clients;
+use std::ops::Deref;
 
 #[async_trait]
 pub trait APICommunicationChannel {
@@ -27,8 +28,7 @@ impl QueryCommunicationChannel {
 impl APICommunicationChannel for QueryCommunicationChannel {
     async fn aggregated_verification_key(&self, epoch_id: EpochId) -> Result<VerificationKey> {
         let client = self.nyxd_client.0.read().await;
-        let coconut_api_clients =
-            CoconutApiClient::all_coconut_api_clients(&client.nyxd, epoch_id).await?;
+        let coconut_api_clients = all_coconut_api_clients(client.deref(), epoch_id).await?;
         let vk = obtain_aggregate_verification_key(&coconut_api_clients).await?;
         Ok(vk)
     }

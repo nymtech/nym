@@ -2,7 +2,7 @@ use clap::Parser;
 use log::info;
 use nym_contracts_common::signing::MessageSignature;
 use nym_service_provider_directory_common::{Coin, NymAddress, ServiceDetails, ServiceType};
-use nym_validator_client::nyxd::traits::SpDirectorySigningClient;
+use nym_validator_client::nyxd::contract_traits::SpDirectorySigningClient;
 
 use crate::context::SigningClient;
 

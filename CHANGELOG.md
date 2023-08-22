@@ -4,6 +4,21 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [1.1.28] (2023-08-22)
+
+- [final step3]: add [rust] support to nyxd client in wasm ([#3743])
+- Feature/ephemera upgrade ([#3791])
+- [rust-sdk] feat: make it more convenient to send and receive messages in different tasks ([#3756])
+- feat: validator client refactoring + wasm compatible nyxd client ([#3726])
+- feat: retain connection between client init and run ([#3767])
+
+[#3743]: https://github.com/nymtech/nym/issues/3743
+[#3791]: https://github.com/nymtech/nym/pull/3791
+[#3756]: https://github.com/nymtech/nym/pull/3756
+[#3726]: https://github.com/nymtech/nym/pull/3726
+[#3767]: https://github.com/nymtech/nym/pull/3767
+
+
 ## [1.1.27] (2023-08-16)
 
 - fix serialisation of contract types ([#3752])

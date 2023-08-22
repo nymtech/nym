@@ -1,7 +1,7 @@
 use clap::Parser;
 use log::info;
 use nym_service_provider_directory_common::ServiceId;
-use nym_validator_client::nyxd::traits::SpDirectorySigningClient;
+use nym_validator_client::nyxd::contract_traits::SpDirectorySigningClient;
 
 use crate::context::SigningClient;
 

@@ -23,7 +23,7 @@ async fn main() {
     let signer_address = signer.try_derive_accounts().unwrap()[0].address().clone();
 
     // local 'client' ONLY signing messages
-    let tx_signer = TxSigner::new(signer);
+    let tx_signer = signer;
 
     // possibly remote client that doesn't do ANY signing
     // (only broadcasts + queries for sequence numbers)

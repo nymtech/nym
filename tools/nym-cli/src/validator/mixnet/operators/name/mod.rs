@@ -23,6 +23,14 @@ pub(crate) async fn execute(
             };
             res
         },
+        nym_cli_commands::validator::mixnet::operators::name::MixnetOperatorsNameCommands::CreateNameRegisterPayload(args) => {
+            let res = nym_cli_commands::validator::mixnet::operators::name::register_sign_payload::create_payload(args, create_signing_client(global_args, network_details)?).await;
+            match res {
+                Ok(_) => (),
+                Err(_) => println!("Failed to create payload")
+            };
+            res
+        }
     };
     Ok(res?)
 }

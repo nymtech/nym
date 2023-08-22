@@ -22,7 +22,7 @@ body {
 }
 
 code {
-    font-family: var(--mono-font) !important;
+    font-family: var(--mono-font);
     font-size: 0.9em;
 }
 

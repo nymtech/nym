@@ -22,6 +22,7 @@ use crate::node::client_handling::bandwidth::Bandwidth;
 use crate::node::client_handling::FREE_TESTNET_BANDWIDTH_VALUE;
 use nym_gateway_requests::iv::IV;
 use nym_task::TaskClient;
+use nym_validator_client::coconut::CoconutApiError;
 
 #[derive(Debug, Error)]
 pub(crate) enum RequestHandlingError {
@@ -63,6 +64,9 @@ pub(crate) enum RequestHandlingError {
 
     #[error("Coconut interface error - {0}")]
     CoconutInterfaceError(#[from] nym_coconut_interface::error::CoconutInterfaceError),
+
+    #[error("coconut api query failure: {0}")]
+    CoconutApiError(#[from] CoconutApiError),
 
     #[error("Credential error - {0}")]
     CredentialError(#[from] nym_credentials::error::Error),

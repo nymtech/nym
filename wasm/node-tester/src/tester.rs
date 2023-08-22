@@ -26,8 +26,9 @@ use wasm_client_core::helpers::{
 use wasm_client_core::storage::ClientStorage;
 use wasm_client_core::topology::WasmNymTopology;
 use wasm_client_core::{
-    nym_task, GatewayClient, IdentityKey, InitialisationDetails, InitialisationResult, ManagedKeys,
-    NodeIdentity, NymTopology, QueryReqwestRpcNyxdClient, Recipient,
+    nym_task, BandwidthController, GatewayClient, IdentityKey, InitialisationDetails,
+    InitialisationResult, ManagedKeys, NodeIdentity, NymTopology, QueryReqwestRpcNyxdClient,
+    Recipient,
 };
 use wasm_utils::check_promise_result;
 use wasm_utils::error::PromisableResult;

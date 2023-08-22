@@ -2586,7 +2586,7 @@ dependencies = [
  "futures-channel",
  "futures-core",
  "futures-sink",
- "gloo-utils 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
+ "gloo-utils",
  "http",
  "js-sys",
  "pin-project",
@@ -2608,19 +2608,6 @@ dependencies = [
  "futures-core",
  "js-sys",
  "wasm-bindgen",
-]
-
-[[package]]
-name = "gloo-utils"
-version = "0.1.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "037fcb07216cb3a30f7292bd0176b050b7b9a052ba830ef7d5d65f6dc64ba58e"
-dependencies = [
- "js-sys",
- "serde",
- "serde_json",
- "wasm-bindgen",
- "web-sys",
 ]
 
 [[package]]
@@ -4208,7 +4195,7 @@ version = "0.1.0"
 dependencies = [
  "futures",
  "getrandom 0.2.10",
- "gloo-utils 0.1.7",
+ "gloo-utils",
  "log",
  "nym-bandwidth-controller",
  "nym-coconut-interface",
@@ -8007,7 +7994,7 @@ dependencies = [
  "futures",
  "getrandom 0.2.10",
  "gloo-net",
- "gloo-utils 0.1.7",
+ "gloo-utils",
  "js-sys",
  "tungstenite",
  "wasm-bindgen",

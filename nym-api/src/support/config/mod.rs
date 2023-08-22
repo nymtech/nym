@@ -20,6 +20,7 @@ use zeroize::{Zeroize, ZeroizeOnDrop};
 
 pub(crate) mod helpers;
 pub(crate) mod old_config_v1_1_21;
+pub(crate) mod old_config_v1_1_27;
 mod persistence;
 mod template;
 

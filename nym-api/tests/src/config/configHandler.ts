@@ -6,7 +6,7 @@ import YAML from "yaml";
 class ConfigHandler {
   private static instance: ConfigHandler;
 
-  private validEnvironments = ["qa", "prod"];
+  private validEnvironments = ["sandbox", "prod"];
 
   public commonConfig: { request_headers: object };
 
@@ -23,7 +23,7 @@ class ConfigHandler {
 
   private constructor() {
     this.setCommonConfig();
-    this.setEnvironmentConfig(process.env.TEST_ENV || "qa" || "prod");
+    this.setEnvironmentConfig(process.env.TEST_ENV || "sandbox" || "prod");
   }
 
   public static getInstance(): ConfigHandler {

@@ -2,12 +2,13 @@ common:
   request_headers:
     Accept: application/json
     Content-Type: application/json
-qa:
-  api_base_url: https://qwerty-validator-api.qa.nymte.ch/api/v1
-  mix_id: 63
-  identity_key: 4Yr4qmEHd9sgsuQ83191FR2hD88RfsbMmB4tzhhZWriz
-  gateway_identity: 336yuXAeGEgedRfqTJZsG2YV7P13QH1bHv1SjCZYarc9
+sandbox:
+  api_base_url: https://sandbox-nym-api1.nymtech.net/api/v1
+  mix_id: 7
+  identity_key: 2wEzyW6Pihk19xbCK9kB81vYuDFUvTzTAr77arvxdfSg
+  gateway_identity: HjNEDJuotWV8VD4ufeA1jeheTnfNJ7Jorevp57hgaZua
   log_level: error
+  time_zone: utc
 prod:
   api_base_url: https://validator.nymtech.net/api/v1
   mix_id: 730

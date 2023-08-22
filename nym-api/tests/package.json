@@ -7,7 +7,7 @@
     "test": "test"
   },
   "scripts": {
-    "test:qa": "TEST_ENV=qa jest --forceExit --detectOpenHandles --passWithNoTests",
+    "test:sandbox": "TEST_ENV=sandbox jest --forceExit --detectOpenHandles --passWithNoTests",
     "test:prod": "TEST_ENV=prod jest --forceExit --detectOpenHandles --passWithNoTests",
     "build": "tsc",
     "lint": "eslint --ext .js,.ts,.tsx .",

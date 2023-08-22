@@ -159,9 +159,19 @@ impl Config {
     }
 }
 
-#[derive(Debug, Default, Clone, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(default, deny_unknown_fields)]
-pub struct NetworkRequester {}
+pub struct NetworkRequester {
+    pub disable_poisson_rate: bool,
+}
+
+impl Default for NetworkRequester {
+    fn default() -> Self {
+        NetworkRequester {
+            disable_poisson_rate: true,
+        }
+    }
+}
 
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Serialize)]
 #[serde(default, deny_unknown_fields)]

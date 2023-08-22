@@ -286,7 +286,6 @@ mod tests {
         let owner = "steve";
         let (name, owner_signature) =
             new_name_details_with_sign(deps.as_mut(), &mut rng, "my-name", owner, deposit.clone());
-        dbg!(&name);
 
         // Register
         let msg = ExecuteMsg::Register {

@@ -84,7 +84,12 @@ pub(crate) struct OverrideConfig {
 }
 
 pub(crate) fn override_config(config: Config, args: OverrideConfig) -> Config {
-    let disable_cover_traffic_with_keepalive = args.medium_toggle;
+    // These flags have overlapping effects, meaning the order matters here. Making it a bit messy.
+    // Since a big chunk of these are hidden experimental flags there is hope we can remove them
+    // soonish and clean this up.
+
+    let disable_cover_traffic_with_keepalive =
+        config.network_requester.disable_poisson_rate || args.medium_toggle;
     let secondary_packet_size = args.medium_toggle.then_some(PacketSize::ExtendedPacket16);
     let no_per_hop_delays = args.medium_toggle;
 

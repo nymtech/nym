@@ -2,9 +2,8 @@
 
 ## [Unreleased]
 
-## [1.1.27] (2023-08-17)
+## [1.2.7] (2023-08-17)
 - release due to schema changes in the contract
-
 
 ## [v1.2.6] (2023-07-18)
 

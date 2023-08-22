@@ -1,0 +1,41 @@
+[package]
+name = "nym-payment-manager"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "1.0"
+log = { workspace = true }
+schemars = { version = "0.8", features = ["preserve_order"] }
+rocket = { version = "0.5.0-rc.2", features = ["json"] }
+rocket_cors = { git = "https://github.com/lawliet89/rocket_cors", rev = "dfd3662c49e2f6fc37df35091cb94d82f7fb5915" }
+rocket_okapi = { version = "0.8.0-rc.2", features = ["swagger"] }
+serde = { workspace = true }
+sqlx = { version = "0.6.2", features = [
+    "runtime-tokio-rustls",
+    "sqlite",
+    "macros",
+    "migrate",
+] }
+thiserror = "1.0"
+tokio = { version = "1.24.1", features = [
+    "rt-multi-thread",
+    "macros",
+    "signal",
+    "time",
+] }
+
+nym-bin-common = { path = "../../common/bin-common" }
+nym-payment-manager-common = { path = "../../common/payment-manager" }
+nym-task = { path = "../../common/task" }
+
+[build-dependencies]
+sqlx = { version = "0.6.2", features = [
+    "runtime-tokio-rustls",
+    "sqlite",
+    "macros",
+    "migrate",
+] }
+tokio = { version = "1.24.1", features = ["rt-multi-thread", "macros"] }

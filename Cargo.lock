@@ -6574,6 +6574,33 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-payment-manager"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "log",
+ "nym-bin-common",
+ "nym-payment-manager-common",
+ "nym-task",
+ "rocket",
+ "rocket_cors",
+ "rocket_okapi",
+ "schemars",
+ "serde",
+ "sqlx 0.6.3",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
+name = "nym-payment-manager-common"
+version = "0.1.0"
+dependencies = [
+ "schemars",
+ "serde",
+]
+
+[[package]]
 name = "nym-pemstore"
 version = "0.3.0"
 dependencies = [

@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::node::client_handling::websocket::connection_handler::{ClientDetails, FreshHandler};
-use crate::node::client_handling::websocket::message_receiver::MixMessageReceiver;
+use crate::node::client_handling::websocket::message_receiver::{
+    IsActiveRequestReceiver, MixMessageReceiver,
+};
 use crate::node::storage::error::StorageError;
 use crate::node::storage::Storage;
-use futures::channel::{mpsc, oneshot};
 use futures::StreamExt;
 use log::*;
 use nym_gateway_requests::iv::IVConversionError;
@@ -98,7 +99,7 @@ pub(crate) struct AuthenticatedHandler<R, S, St> {
     inner: FreshHandler<R, S, St>,
     client: ClientDetails,
     mix_receiver: MixMessageReceiver,
-    is_active_request_receiver: mpsc::UnboundedReceiver<oneshot::Sender<bool>>,
+    is_active_request_receiver: IsActiveRequestReceiver,
 }
 
 // explicitly remove handle from the global store upon being dropped
@@ -129,7 +130,7 @@ where
         fresh: FreshHandler<R, S, St>,
         client: ClientDetails,
         mix_receiver: MixMessageReceiver,
-        is_active_request_receiver: mpsc::UnboundedReceiver<oneshot::Sender<bool>>,
+        is_active_request_receiver: IsActiveRequestReceiver,
     ) -> Self {
         AuthenticatedHandler {
             inner: fresh,
@@ -138,12 +139,6 @@ where
             is_active_request_receiver,
         }
     }
-
-    // fn register_activity(&self) {
-    //     self.inner
-    //         .active_clients_store
-    //         .register_activity(self.client.address)
-    // }
 
     /// Explicitly removes handle from the global store.
     fn disconnect(self) {
@@ -321,7 +316,6 @@ where
     ///
     /// * `bin_msg`: raw message to handle.
     async fn handle_binary(&self, bin_msg: Vec<u8>) -> Message {
-        println!("handle_binary");
         // this function decrypts the request and checks the MAC
         match BinaryRequest::try_from_encrypted_tagged_bytes(bin_msg, &self.client.shared_keys) {
             Err(e) => {
@@ -346,7 +340,6 @@ where
     ///
     /// * `raw_request`: raw message to handle.
     async fn handle_text(&mut self, raw_request: String) -> Message {
-        println!("handle_text");
         match ClientControlRequest::try_from(raw_request) {
             Err(e) => RequestHandlingError::InvalidTextRequest(e).into_error_message(),
             Ok(request) => match request {
@@ -360,6 +353,21 @@ where
                     .into_ws_message(),
                 _ => RequestHandlingError::IllegalRequest.into_error_message(),
             },
+        }
+    }
+
+    /// Handles pong message received from the client.
+    /// If the client is still active, the handler that requested the ping will receive a reply.
+    async fn handle_pong(&mut self, msg: Vec<u8>) {
+        if let Ok(msg) = msg.try_into() {
+            let msg = u64::from_be_bytes(msg);
+            debug!("Received pong from client: {}", msg);
+            if let Some(tx) = self.inner.is_active_ping_pending_replies.remove(&msg) {
+                debug!("Reporting back");
+                if let Err(err) = tx.send(true) {
+                    warn!("Failed to send pong reply back to the requesting handler: {err}");
+                }
+            }
         }
     }
 
@@ -377,21 +385,7 @@ where
             Message::Binary(bin_msg) => Some(self.handle_binary(bin_msg).await),
             Message::Text(text_msg) => Some(self.handle_text(text_msg).await),
             Message::Pong(msg) => {
-                // println!("1 Received pong from client: {}", String::from_utf8_lossy(&s));
-                // let ss = nym_sphinx::DestinationAddressBytes::try_from_byte_slice(&s).expect("JON");
-                // let msg = msg.try_into();
-                // let msg = u64::from_be_bytes(msg.try_into().expect("JON"));
-                if let Ok(msg) = msg.try_into() {
-                    let msg = u64::from_be_bytes(msg);
-                    // WIP(JON): for testing
-                    if true {
-                        println!("Received pong from client: {}", msg);
-                        if let Some(tx) = self.inner.is_active_ping_pending_replies.remove(&msg) {
-                            println!("Reporting back");
-                            tx.send(true).expect("JON");
-                        }
-                    }
-                }
+                self.handle_pong(msg).await;
                 None
             }
             _ => None,

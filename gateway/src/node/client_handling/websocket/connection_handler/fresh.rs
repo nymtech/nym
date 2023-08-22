@@ -6,6 +6,7 @@ use crate::node::client_handling::websocket::connection_handler::coconut::Coconu
 use crate::node::client_handling::websocket::connection_handler::{
     AuthenticatedHandler, ClientDetails, InitialAuthResult, SocketStream,
 };
+use crate::node::client_handling::websocket::message_receiver::IsActiveResultSender;
 use crate::node::storage::error::StorageError;
 use crate::node::storage::Storage;
 use futures::channel::oneshot;
@@ -81,7 +82,7 @@ pub(crate) struct FreshHandler<R, S, St> {
     // Occasionally the handler is requested to ping the connected client for confirm that it's
     // active, such as when a duplicate connection is detected. This hashmap stores the oneshot
     // senders that are used to return the result of the ping to the handler requesting the ping.
-    pub(crate) is_active_ping_pending_replies: HashMap<u64, oneshot::Sender<bool>>,
+    pub(crate) is_active_ping_pending_replies: HashMap<u64, IsActiveResultSender>,
 }
 
 impl<R, S, St> FreshHandler<R, S, St>
@@ -426,14 +427,14 @@ where
         let encrypted_address = EncryptedAddressBytes::try_from_base58_string(enc_address)?;
         let iv = IV::try_from_base58_string(iv)?;
 
-        if let Some(mut tx) = self.active_clients_store.get_is_active_sender(address) {
+        if let Some((__, mut is_active_request_tx)) = self.active_clients_store.get(address) {
             log::warn!("Detected duplicate connection for client: {}", address);
 
             // Ask the other connection to ping if they are still active.
             // Use a oneshot channel to return the result to us
             let (ping_result_sender, ping_result_receiver) = oneshot::channel::<bool>();
             log::debug!("Asking other connection to ping the connection client");
-            tx.send(ping_result_sender).await.ok();
+            is_active_request_tx.send(ping_result_sender).await.ok();
 
             // Wait for the reply
             match tokio::time::timeout(Duration::from_millis(1000), ping_result_receiver).await {

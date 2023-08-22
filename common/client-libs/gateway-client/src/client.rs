@@ -81,10 +81,7 @@ impl<C, St> fmt::Debug for GatewayClient<C, St> {
             .field("shared_key", &self.shared_key)
             // .field("connection", &self.connection)
             .field("packet_router", &self.packet_router)
-            .field(
-                "response_timeout_duration",
-                &self.response_timeout_duration,
-            )
+            .field("response_timeout_duration", &self.response_timeout_duration)
             // .field("bandwidth_controller", &self.bandwidth_controller)
             .field(
                 "should_reconnect_on_failure",

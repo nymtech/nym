@@ -19,7 +19,6 @@ pub(crate) struct NymApiTopologyProvider {
 
 impl NymApiTopologyProvider {
     pub(crate) fn new(mut nym_api_urls: Vec<Url>, client_version: String) -> Self {
-        println!("new");
         nym_api_urls.shuffle(&mut thread_rng());
 
         NymApiTopologyProvider {
@@ -33,7 +32,6 @@ impl NymApiTopologyProvider {
     }
 
     fn use_next_nym_api(&mut self) {
-        println!("using next nym api");
         if self.nym_api_urls.len() == 1 {
             warn!("There's only a single nym API available - it won't be possible to use a different one");
             return;
@@ -63,7 +61,6 @@ impl NymApiTopologyProvider {
     }
 
     async fn get_current_compatible_topology(&mut self) -> Option<NymTopology> {
-        println!("getting current compatible topology");
         let mixnodes = match self.validator_client.get_cached_active_mixnodes().await {
             Err(err) => {
                 error!("failed to get network mixnodes - {err}");
@@ -112,7 +109,6 @@ impl NymApiTopologyProvider {
 #[async_trait]
 impl TopologyProvider for NymApiTopologyProvider {
     async fn get_new_topology(&mut self) -> Option<NymTopology> {
-        println!("get_new_topology");
         self.get_current_compatible_topology().await
     }
 }

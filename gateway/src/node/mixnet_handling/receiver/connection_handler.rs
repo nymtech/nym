@@ -70,7 +70,7 @@ impl<St: Storage> ConnectionHandler<St> {
     }
 
     fn update_clients_store_cache_entry(&mut self, client_address: DestinationAddressBytes) {
-        if let Some(client_sender) = self.active_clients_store.get(client_address) {
+        if let Some((client_sender, _)) = self.active_clients_store.get(client_address) {
             self.clients_store_cache
                 .insert(client_address, client_sender);
         }

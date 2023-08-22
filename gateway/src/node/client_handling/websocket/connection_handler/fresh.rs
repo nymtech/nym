@@ -6,8 +6,12 @@ use crate::node::client_handling::websocket::connection_handler::coconut::Coconu
 use crate::node::client_handling::websocket::connection_handler::{
     AuthenticatedHandler, ClientDetails, InitialAuthResult, SocketStream,
 };
+use crate::node::client_handling::websocket::message_receiver::{
+    IsActiveRequestSender, IsActiveResultSender,
+};
 use crate::node::storage::error::StorageError;
 use crate::node::storage::Storage;
+use futures::channel::oneshot;
 use futures::{channel::mpsc, SinkExt, StreamExt};
 use log::*;
 use nym_crypto::asymmetric::identity;
@@ -22,8 +26,10 @@ use nym_gateway_requests::{BinaryResponse, PROTOCOL_VERSION};
 use nym_mixnet_client::forwarder::MixForwardingSender;
 use nym_sphinx::DestinationAddressBytes;
 use rand::{CryptoRng, Rng};
+use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::sync::Arc;
+use std::time::Duration;
 use thiserror::Error;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_tungstenite::tungstenite::{protocol::Message, Error as WsError};
@@ -75,6 +81,10 @@ pub(crate) struct FreshHandler<R, S, St> {
     pub(crate) socket_connection: SocketStream<S>,
     pub(crate) storage: St,
     pub(crate) coconut_verifier: Arc<CoconutVerifier>,
+    // Occasionally the handler is requested to ping the connected client for confirm that it's
+    // active, such as when a duplicate connection is detected. This hashmap stores the oneshot
+    // senders that are used to return the result of the ping to the handler requesting the ping.
+    pub(crate) is_active_ping_pending_replies: HashMap<u64, IsActiveResultSender>,
 }
 
 impl<R, S, St> FreshHandler<R, S, St>
@@ -106,6 +116,7 @@ where
             local_identity,
             storage,
             coconut_verifier,
+            is_active_ping_pending_replies: HashMap::new(),
         }
     }
 
@@ -394,6 +405,48 @@ where
         }
     }
 
+    async fn handle_duplicate_client(
+        &mut self,
+        address: DestinationAddressBytes,
+        mut is_active_request_tx: IsActiveRequestSender,
+    ) -> Result<(), InitialAuthenticationError> {
+        // Ask the other connection to ping if they are still active.
+        // Use a oneshot channel to return the result to us
+        let (ping_result_sender, ping_result_receiver) = oneshot::channel::<bool>();
+        log::debug!("Asking other connection handler to ping the connected client to see if it is still active");
+        if let Err(err) = is_active_request_tx.send(ping_result_sender).await {
+            warn!("Failed to send ping request to other handler: {err}");
+        }
+
+        // Wait for the reply
+        match tokio::time::timeout(Duration::from_millis(1000), ping_result_receiver).await {
+            Ok(Ok(res)) => {
+                if res {
+                    // The other handled reported a positive reply, so we have to assume it's
+                    // still active and disconnect this connection.
+                    log::info!("Other handler reports it is active");
+                    return Err(InitialAuthenticationError::DuplicateConnection);
+                } else {
+                    log::debug!("Other handler reports it is not active");
+                    self.active_clients_store.disconnect(address);
+                }
+            }
+            Ok(Err(_)) => {
+                // Other channel failed to reply (the channel sender probably dropped)
+                log::info!("Other connection failed to reply, disconnecting it in favour of this new connection");
+                self.active_clients_store.disconnect(address);
+            }
+            Err(_) => {
+                // Timeout waiting for reply
+                log::warn!(
+                    "Other connection timed out, disconnecting it in favour of this new connection"
+                );
+                self.active_clients_store.disconnect(address);
+            }
+        }
+        Ok(())
+    }
+
     /// Tries to handle the received authentication request by checking correctness of the received data.
     ///
     /// # Arguments
@@ -418,8 +471,11 @@ where
         let encrypted_address = EncryptedAddressBytes::try_from_base58_string(enc_address)?;
         let iv = IV::try_from_base58_string(iv)?;
 
-        if self.active_clients_store.get(address).is_some() {
-            return Err(InitialAuthenticationError::DuplicateConnection);
+        // Check for duplicate clients
+        if let Some((__, is_active_request_tx)) = self.active_clients_store.get(address) {
+            log::warn!("Detected duplicate connection for client: {}", address);
+            self.handle_duplicate_client(address, is_active_request_tx)
+                .await?;
         }
 
         let shared_keys = self
@@ -606,12 +662,19 @@ where
                             }
 
                             return if let Some(client_details) = auth_result.client_details {
-                                self.active_clients_store
-                                    .insert(client_details.address, mix_sender);
+                                // Channel for handlers to ask other handlers if they are still active.
+                                let (is_active_request_sender, is_active_request_receiver) =
+                                    mpsc::unbounded();
+                                self.active_clients_store.insert(
+                                    client_details.address,
+                                    mix_sender,
+                                    is_active_request_sender,
+                                );
                                 Some(AuthenticatedHandler::upgrade(
                                     self,
                                     client_details,
                                     mix_receiver,
+                                    is_active_request_receiver,
                                 ))
                             } else {
                                 None

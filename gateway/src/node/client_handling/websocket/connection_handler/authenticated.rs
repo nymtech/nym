@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::node::client_handling::websocket::connection_handler::{ClientDetails, FreshHandler};
-use crate::node::client_handling::websocket::message_receiver::MixMessageReceiver;
+use crate::node::client_handling::websocket::message_receiver::{
+    IsActiveRequestReceiver, MixMessageReceiver,
+};
 use crate::node::storage::error::StorageError;
 use crate::node::storage::Storage;
 use futures::StreamExt;
@@ -97,6 +99,7 @@ pub(crate) struct AuthenticatedHandler<R, S, St> {
     inner: FreshHandler<R, S, St>,
     client: ClientDetails,
     mix_receiver: MixMessageReceiver,
+    is_active_request_receiver: IsActiveRequestReceiver,
 }
 
 // explicitly remove handle from the global store upon being dropped
@@ -127,11 +130,13 @@ where
         fresh: FreshHandler<R, S, St>,
         client: ClientDetails,
         mix_receiver: MixMessageReceiver,
+        is_active_request_receiver: IsActiveRequestReceiver,
     ) -> Self {
         AuthenticatedHandler {
             inner: fresh,
             client,
             mix_receiver,
+            is_active_request_receiver,
         }
     }
 
@@ -351,6 +356,20 @@ where
         }
     }
 
+    /// Handles pong message received from the client.
+    /// If the client is still active, the handler that requested the ping will receive a reply.
+    async fn handle_pong(&mut self, msg: Vec<u8>) {
+        if let Ok(msg) = msg.try_into() {
+            let msg = u64::from_be_bytes(msg);
+            debug!("Received pong from client: {}", msg);
+            if let Some(tx) = self.inner.is_active_ping_pending_replies.remove(&msg) {
+                if let Err(err) = tx.send(true) {
+                    warn!("Failed to send pong reply back to the requesting handler: {err}");
+                }
+            }
+        }
+    }
+
     /// Attempts to handle websocket message received from the connected client.
     ///
     /// # Arguments
@@ -363,6 +382,10 @@ where
         match raw_request {
             Message::Binary(bin_msg) => Some(self.handle_binary(bin_msg).await),
             Message::Text(text_msg) => Some(self.handle_text(text_msg).await),
+            Message::Pong(msg) => {
+                self.handle_pong(msg).await;
+                None
+            }
             _ => None,
         }
     }
@@ -381,7 +404,21 @@ where
             tokio::select! {
                 _ = shutdown.recv() => {
                     log::trace!("client_handling::AuthenticatedHandler: received shutdown");
-                }
+                },
+                tx = self.is_active_request_receiver.next() => {
+                    match tx {
+                        None => debug!("is_active_request_receiver was closed!"),
+                        Some(reply_tx) => {
+                            let tag: u64 = rand::thread_rng().gen();
+                            debug!("Got request to ping our connection: {}", tag);
+                            if let Err(err) = self.inner.send_websocket_message(Message::Ping(tag.to_be_bytes().to_vec())).await {
+                                warn!("Failed to send ping to client: {err}. Assuming the connection is dead.");
+                                break;
+                            }
+                            self.inner.is_active_ping_pending_replies.insert(tag, reply_tx);
+                        }
+                    };
+                },
                 socket_msg = self.inner.read_websocket_message() => {
                     let socket_msg = match socket_msg {
                         None => break,

@@ -100,7 +100,7 @@ pub(crate) async fn handle_connection<R, S, St>(
         .await
     {
         None => {
-            trace!("received shutdown signal while performing initial authetnication");
+            trace!("received shutdown signal while performing initial authentication");
             return;
         }
         Some(None) => {

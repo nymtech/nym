@@ -40,6 +40,6 @@ else
       cd ../
    done
    # rename for server paths
+   rm -rf ../dist/docs/developers
    mv ../dist/docs/dev-portal ../dist/docs/developers
 fi
-

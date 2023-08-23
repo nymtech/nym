@@ -4,10 +4,13 @@
 use cosmrs::AccountId;
 use cosmwasm_std::{Addr, Coin as CosmWasmCoin, Decimal};
 use log::error;
+use nym_client_core::config::disk_persistence::CommonClientPaths;
 use nym_validator_client::nyxd::Coin;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::error::Error;
 use std::fmt::{Display, Formatter};
+use std::fs;
+use std::path::Path;
 
 // TODO: perhaps it should be moved to some global common crate?
 pub fn account_id_to_cw_addr(account_id: &AccountId) -> Addr {
@@ -73,5 +76,21 @@ where
 impl<T> DataWrapper<T> {
     pub(crate) fn new(data: T) -> Self {
         DataWrapper { data }
+    }
+}
+
+// a hacky way of reading common data from client configs (native, socks5, etc.)
+// it works because all clients follow the same structure
+#[derive(Deserialize, Debug)]
+pub(crate) struct ClientConfigCommonWrapper {
+    pub(crate) client: nym_client_core::config::Client,
+
+    pub(crate) storage_paths: CommonClientPaths,
+}
+
+impl ClientConfigCommonWrapper {
+    pub(crate) fn try_load<P: AsRef<Path>>(path: P) -> anyhow::Result<ClientConfigCommonWrapper> {
+        let content = fs::read_to_string(path)?;
+        Ok(toml::from_str(&content)?)
     }
 }

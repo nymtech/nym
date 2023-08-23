@@ -1,4 +1,4 @@
-use nym_cli_commands::context::{create_signing_client_with_nym_api, ClientArgs};
+use nym_cli_commands::context::{create_query_client, create_signing_client, ClientArgs};
 use nym_network_defaults::NymNetworkDetails;
 
 pub(crate) async fn execute(
@@ -10,7 +10,14 @@ pub(crate) async fn execute(
         nym_cli_commands::coconut::CoconutCommands::IssueCredentials(args) => {
             nym_cli_commands::coconut::issue_credentials::execute(
                 args,
-                create_signing_client_with_nym_api(global_args, network_details)?,
+                create_signing_client(global_args, network_details)?,
+            )
+            .await?
+        }
+        nym_cli_commands::coconut::CoconutCommands::RecoverCredentials(args) => {
+            nym_cli_commands::coconut::recover_credentials::execute(
+                args,
+                create_query_client(network_details)?,
             )
             .await?
         }

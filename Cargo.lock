@@ -5811,6 +5811,7 @@ dependencies = [
 name = "nym-cli-commands"
 version = "1.0.0"
 dependencies = [
+ "anyhow",
  "base64 0.13.1",
  "bip39",
  "bs58 0.4.0",
@@ -6028,27 +6029,6 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror",
-]
-
-[[package]]
-name = "nym-credential-client"
-version = "0.1.0"
-dependencies = [
- "clap 4.3.21",
- "log",
- "nym-bandwidth-controller",
- "nym-bin-common",
- "nym-client-core",
- "nym-config",
- "nym-credential-storage",
- "nym-credential-utils",
- "nym-credentials",
- "nym-network-defaults",
- "nym-pemstore",
- "nym-validator-client",
- "serde",
- "thiserror",
- "tokio",
 ]
 
 [[package]]

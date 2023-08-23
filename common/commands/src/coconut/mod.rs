@@ -4,6 +4,7 @@
 use clap::{Args, Subcommand};
 
 pub mod issue_credentials;
+pub mod recover_credentials;
 
 #[derive(Debug, Args)]
 #[clap(args_conflicts_with_subcommands = true, subcommand_required = true)]
@@ -15,4 +16,5 @@ pub struct Coconut {
 #[derive(Debug, Subcommand)]
 pub enum CoconutCommands {
     IssueCredentials(issue_credentials::Args),
+    RecoverCredentials(recover_credentials::Args),
 }

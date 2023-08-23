@@ -132,7 +132,7 @@ impl AsyncRead for NoiseStream {
                 //Read what we can into enc_storage, decrypt what we can into dec_storage
                 let mut tcp_buf = vec![0u8; MAXMSGLEN + HEADER_SIZE + TAGLEN];
                 if let Ok(tcp_len) = projected_self.inner_stream.try_read(&mut tcp_buf) {
-                    if tcp_len == 0 && projected_self.dec_storage.len() == 0 {
+                    if tcp_len == 0 && projected_self.dec_storage.is_empty() {
                         //EOF
                         return Poll::Ready(Ok(()));
                     }
@@ -181,12 +181,9 @@ impl AsyncRead for NoiseStream {
         }
 
         //can't return anything, schedule the wakeup and return pending
-        match projected_self.inner_stream.poll_read_ready(cx) {
-            Poll::Ready(Ok(())) => {
-                //we got data in the meantime, we can wake up immediately
-                cx.waker().wake_by_ref();
-            }
-            _ => {}
+        if let Poll::Ready(Ok(())) = projected_self.inner_stream.poll_read_ready(cx) {
+            //we got data in the meantime, we can wake up immediately
+            cx.waker().wake_by_ref();
         }
         Poll::Pending
     }
@@ -209,8 +206,8 @@ impl AsyncWrite for NoiseStream {
         let to_send = [&[(len >> 8) as u8, (len & 0xff) as u8], &noise_buf[..len]].concat();
 
         match projected_self.inner_stream.poll_write(cx, &to_send) {
-            Poll::Pending => return Poll::Pending,
-            Poll::Ready(Err(err)) => return Poll::Ready(Err(err)),
+            Poll::Pending => Poll::Pending,
+            Poll::Ready(Err(err)) => Poll::Ready(Err(err)),
             Poll::Ready(Ok(n)) => {
                 //didn't send a thing, no problem for the underlying stream
                 if n == 0 {
@@ -226,7 +223,7 @@ impl AsyncWrite for NoiseStream {
                     "Partial write on Noise Stream, it will be corrupted - {}",
                     n
                 );
-                return Poll::Ready(Err(ErrorKind::WriteZero.into()));
+                Poll::Ready(Err(ErrorKind::WriteZero.into()))
             }
         }
     }
@@ -267,7 +264,7 @@ pub async fn upgrade_noise_initiator(
     let builder = Builder::new(NOISE_HS_PATTERN.parse().unwrap()); //This cannot fail, hardcoded pattern must be correct
     let handshake = builder
         .local_private_key(local_private_key)
-        .remote_public_key(&remote_pub_key)
+        .remote_public_key(remote_pub_key)
         .psk(3, &secret_hash)
         .build_initiator()?;
 
@@ -336,7 +333,7 @@ pub async fn upgrade_noise_responder(
 
     //If the remote_key cannot be kwnown, e.g. in a client-gateway connection
     let secret = [
-        &remote_pub_key.unwrap_or(&[]),
+        remote_pub_key.unwrap_or(&[]),
         local_public_key,
         &epoch.to_be_bytes(),
     ]

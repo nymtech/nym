@@ -5832,9 +5832,9 @@ dependencies = [
  "nym-config",
  "nym-contracts-common",
  "nym-credential-storage",
+ "nym-credential-utils",
  "nym-credentials",
  "nym-crypto",
- "nym-issue-credential",
  "nym-mixnet-contract-common",
  "nym-multisig-contract-common",
  "nym-name-service-common",
@@ -6041,6 +6041,7 @@ dependencies = [
  "nym-client-core",
  "nym-config",
  "nym-credential-storage",
+ "nym-credential-utils",
  "nym-credentials",
  "nym-network-defaults",
  "nym-pemstore",
@@ -6062,11 +6063,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-credential-utils"
+version = "0.1.0"
+dependencies = [
+ "log",
+ "nym-bandwidth-controller",
+ "nym-client-core",
+ "nym-config",
+ "nym-credential-storage",
+ "nym-credentials",
+ "nym-validator-client",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
 name = "nym-credentials"
 version = "0.1.0"
 dependencies = [
  "bls12_381 0.5.0",
  "cosmrs",
+ "log",
  "nym-api-requests",
  "nym-coconut-interface",
  "nym-crypto",
@@ -6274,21 +6291,6 @@ dependencies = [
  "log",
  "rand 0.8.5",
  "thiserror",
-]
-
-[[package]]
-name = "nym-issue-credential"
-version = "0.1.0"
-dependencies = [
- "log",
- "nym-bandwidth-controller",
- "nym-client-core",
- "nym-config",
- "nym-credential-storage",
- "nym-credentials",
- "nym-validator-client",
- "thiserror",
- "tokio",
 ]
 
 [[package]]
@@ -6600,10 +6602,10 @@ dependencies = [
  "nym-bin-common",
  "nym-client-core",
  "nym-credential-storage",
+ "nym-credential-utils",
  "nym-credentials",
  "nym-crypto",
  "nym-gateway-requests",
- "nym-issue-credential",
  "nym-network-defaults",
  "nym-socks5-client-core",
  "nym-sphinx",

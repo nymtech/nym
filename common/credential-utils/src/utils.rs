@@ -1,35 +1,34 @@
+use crate::errors::{Error, Result};
+use crate::recovery_storage::RecoveryStorage;
 use log::*;
-use std::path::PathBuf;
-use std::process::exit;
-use std::time::{Duration, SystemTime};
-
 use nym_bandwidth_controller::acquire::state::State;
 use nym_client_core::config::disk_persistence::CommonClientPaths;
 use nym_config::DEFAULT_DATA_DIR;
 use nym_credential_storage::persistent_storage::PersistentStorage;
-use nym_validator_client::nyxd::traits::DkgQueryClient;
+use nym_validator_client::nyxd::contract_traits::{CoconutBandwidthSigningClient, DkgQueryClient};
 use nym_validator_client::nyxd::Coin;
-use nym_validator_client::nyxd::DirectSigningNyxdClient;
-use nym_validator_client::Client;
-
-use crate::errors::{CredentialClientError, Result};
-use crate::recovery_storage::RecoveryStorage;
+use std::path::PathBuf;
+use std::process::exit;
+use std::time::{Duration, SystemTime};
 
 const SAFETY_BUFFER_SECS: u64 = 60; // 1 minute
 
-pub async fn issue_credential(
-    client: nym_validator_client::Client<DirectSigningNyxdClient>,
+pub async fn issue_credential<C>(
+    client: &C,
     amount: Coin,
     persistent_storage: &PersistentStorage,
     recovery_storage_path: PathBuf,
-) -> Result<()> {
+) -> Result<()>
+where
+    C: DkgQueryClient + CoconutBandwidthSigningClient + Send + Sync,
+{
     let recovery_storage = setup_recovery_storage(recovery_storage_path).await;
 
-    block_until_coconut_is_available(&client).await?;
+    block_until_coconut_is_available(client).await?;
     info!("Starting to deposit funds, don't kill the process");
 
     if let Ok(recovered_amount) =
-        recover_credentials(&client, &recovery_storage, persistent_storage).await
+        recover_credentials(client, &recovery_storage, persistent_storage).await
     {
         if recovered_amount != 0 {
             info!(
@@ -40,9 +39,9 @@ pub async fn issue_credential(
         }
     };
 
-    let state = nym_bandwidth_controller::acquire::deposit(&client.nyxd, amount.clone()).await?;
+    let state = nym_bandwidth_controller::acquire::deposit(client, amount.clone()).await?;
 
-    if nym_bandwidth_controller::acquire::get_credential(&state, &client, persistent_storage)
+    if nym_bandwidth_controller::acquire::get_credential(&state, client, persistent_storage)
         .await
         .is_err()
     {
@@ -56,7 +55,7 @@ pub async fn issue_credential(
             }
         }
 
-        return Err(CredentialClientError::Credential(
+        return Err(Error::Credential(
             nym_credentials::error::Error::BandwidthCredentialError,
         ));
     }
@@ -78,13 +77,15 @@ pub async fn setup_persistent_storage(client_home_directory: PathBuf) -> Persist
     nym_credential_storage::initialise_persistent_storage(db_path).await
 }
 
-pub async fn block_until_coconut_is_available(
-    client: &Client<DirectSigningNyxdClient>,
-) -> Result<()> {
+pub async fn block_until_coconut_is_available<C>(client: &C) -> Result<()>
+where
+    C: DkgQueryClient + Send + Sync,
+{
     loop {
-        let epoch = client.nyxd.get_current_epoch().await?;
+        let epoch = client.get_current_epoch().await?;
         let current_timestamp_secs = SystemTime::now()
-            .duration_since(SystemTime::UNIX_EPOCH)?
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .expect("the system clock is set to 01/01/1970 (or earlier)")
             .as_secs();
         if epoch.state.is_final() {
             if current_timestamp_secs + SAFETY_BUFFER_SECS >= epoch.finish_timestamp.seconds() {
@@ -107,32 +108,29 @@ pub async fn block_until_coconut_is_available(
     Ok(())
 }
 
-pub async fn recover_credentials<C: DkgQueryClient + Send + Sync>(
+pub async fn recover_credentials<C>(
     client: &C,
     recovery_storage: &RecoveryStorage,
     shared_storage: &PersistentStorage,
-) -> Result<i32> {
-    let mut recovered_amount: i32 = 0;
+) -> Result<u128>
+where
+    C: DkgQueryClient + Send + Sync,
+{
+    let mut recovered_amount: u128 = 0;
     for voucher in recovery_storage.unconsumed_vouchers()? {
         let voucher_value = voucher.get_voucher_value();
-        recovered_amount += voucher_value.parse::<i32>().unwrap();
+        recovered_amount += voucher_value.parse::<u128>()?;
 
         let state = State::new(voucher);
+        let voucher = state.voucher.tx_hash();
         if let Err(e) =
             nym_bandwidth_controller::acquire::get_credential(&state, client, shared_storage).await
         {
-            error!(
-                "Could not recover deposit {} due to {:?}, try again later",
-                state.voucher.tx_hash(),
-                e
-            )
+            error!("Could not recover deposit {voucher} due to {e}, try again later",)
         } else {
-            info!(
-                "Converted deposit {} to a credential, removing recovery data for it",
-                state.voucher.tx_hash()
-            );
-            if let Err(e) = recovery_storage.remove_voucher(state.voucher.tx_hash().to_string()) {
-                warn!("Could not remove recovery data - {:?}", e);
+            info!("Converted deposit {voucher} to a credential, removing recovery data for it",);
+            if let Err(e) = recovery_storage.remove_voucher(voucher.to_string()) {
+                warn!("Could not remove recovery data: {e}");
             }
         }
     }

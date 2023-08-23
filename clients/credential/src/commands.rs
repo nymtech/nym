@@ -2,14 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use clap::{ArgGroup, Args, Subcommand};
-use log::*;
-use nym_bandwidth_controller::acquire::state::State;
 use nym_bin_common::completions::ArgShell;
-use nym_credential_storage::persistent_storage::PersistentStorage;
-use nym_validator_client::nyxd::contract_traits::DkgQueryClient;
-
-use crate::error::Result;
-use crate::recovery_storage::RecoveryStorage;
 
 #[derive(Subcommand)]
 pub(crate) enum Command {
@@ -50,33 +43,4 @@ pub(crate) struct Run {
     /// Recovery mode, when enabled, tries to recover any deposit data dumped in recovery_dir
     #[clap(long)]
     pub(crate) recovery_mode: bool,
-}
-
-pub(crate) async fn recover_credentials<C: DkgQueryClient + Send + Sync>(
-    client: &C,
-    recovery_storage: &RecoveryStorage,
-    shared_storage: &PersistentStorage,
-) -> Result<()> {
-    for voucher in recovery_storage.unconsumed_vouchers()? {
-        let state = State::new(voucher);
-        if let Err(e) =
-            nym_bandwidth_controller::acquire::get_credential(&state, client, shared_storage).await
-        {
-            error!(
-                "Could not recover deposit {} due to {:?}, try again later",
-                state.voucher.tx_hash(),
-                e
-            )
-        } else {
-            info!(
-                "Converted deposit {} to a credential, removing recovery data for it",
-                state.voucher.tx_hash()
-            );
-            if let Err(e) = recovery_storage.remove_voucher(state.voucher.tx_hash().to_string()) {
-                warn!("Could not remove recovery data - {:?}", e);
-            }
-        }
-    }
-
-    Ok(())
 }

@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 
-use nym_issue_credential::errors::Result;
-use nym_issue_credential::utils;
-use nym_sdk::mixnet::{self, MixnetClientStorage};
+use nym_credential_utils::errors::Result;
+use nym_credential_utils::utils;
+use nym_sdk::mixnet::{self, MixnetClientStorage, MixnetMessageSender};
 use nym_validator_client::nyxd::Coin;
 use nym_validator_client::{Client, Config};
 
@@ -36,7 +36,7 @@ async fn main() -> Result<()> {
     let signing_client = Client::new_signing(config, mnemonic.parse().unwrap()).unwrap();
     log::info!("Issuing credentials!");
     utils::issue_credential(
-        signing_client,
+        &signing_client.nyxd,
         coin,
         storage.credential_store(),
         recovery_dir,
@@ -56,7 +56,10 @@ async fn main() -> Result<()> {
     let our_address = client.nym_address();
 
     // Send a message throughout the mixnet to ourselves
-    client.send_str(*our_address, "hello there").await;
+    client
+        .send_plain_message(*our_address, "hello there")
+        .await
+        .unwrap();
 
     println!("Waiting for message");
     if let Some(received) = client.wait_for_messages().await {

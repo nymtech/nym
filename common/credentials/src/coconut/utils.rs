@@ -1,6 +1,10 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::coconut::bandwidth::{BandwidthVoucher, PRIVATE_ATTRIBUTES, PUBLIC_ATTRIBUTES};
+use crate::coconut::params::{NymApiCredentialEncryptionAlgorithm, NymApiCredentialHkdfAlgorithm};
+use crate::error::Error;
+use log::{debug, warn};
 use nym_api_requests::coconut::BlindSignRequestBody;
 use nym_coconut_interface::{
     aggregate_signature_shares, aggregate_verification_keys, prove_bandwidth_credential, Attribute,
@@ -10,10 +14,6 @@ use nym_crypto::asymmetric::encryption::PublicKey;
 use nym_crypto::shared_key::recompute_shared_key;
 use nym_crypto::symmetric::stream_cipher;
 use nym_validator_client::client::CoconutApiClient;
-
-use crate::coconut::bandwidth::{BandwidthVoucher, PRIVATE_ATTRIBUTES, PUBLIC_ATTRIBUTES};
-use crate::coconut::params::{NymApiCredentialEncryptionAlgorithm, NymApiCredentialHkdfAlgorithm};
-use crate::error::Error;
 
 pub async fn obtain_aggregate_verification_key(
     api_clients: &[CoconutApiClient],
@@ -107,7 +107,12 @@ pub async fn obtain_aggregate_signature(
         aggregate_verification_keys(&validators_partial_vks, Some(indices.as_ref()))?;
 
     for coconut_api_client in coconut_api_clients.iter() {
-        if let Ok(signature) = obtain_partial_credential(
+        debug!(
+            "attempting to obtain partial credential from {}",
+            coconut_api_client.api_client.api_url()
+        );
+
+        match obtain_partial_credential(
             params,
             attributes,
             &coconut_api_client.api_client,
@@ -115,9 +120,17 @@ pub async fn obtain_aggregate_signature(
         )
         .await
         {
-            let share = SignatureShare::new(signature, coconut_api_client.node_id);
-            shares.push(share)
-        }
+            Ok(signature) => {
+                let share = SignatureShare::new(signature, coconut_api_client.node_id);
+                shares.push(share)
+            }
+            Err(err) => {
+                warn!(
+                    "failed to obtain partial credential from {}: {err}",
+                    coconut_api_client.api_client.api_url()
+                );
+            }
+        };
     }
     if shares.len() < threshold as usize {
         return Err(Error::NotEnoughShares);

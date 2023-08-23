@@ -1,27 +1,20 @@
 // Copyright 2022-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-mod commands;
-mod error;
-mod recovery_storage;
-
+use clap::{CommandFactory, Parser};
 use commands::*;
-use error::Result;
 use log::*;
 use nym_bin_common::completions::fig_generate;
-use nym_config::DEFAULT_DATA_DIR;
-use nym_network_defaults::{setup_env, NymNetworkDetails};
-use std::process::exit;
-use std::time::{Duration, SystemTime};
-
-use clap::{CommandFactory, Parser};
 use nym_bin_common::logging::setup_logging;
 use nym_client_core::config::disk_persistence::CommonClientPaths;
-use nym_validator_client::nyxd::contract_traits::DkgQueryClient;
+use nym_config::DEFAULT_DATA_DIR;
+use nym_credential_utils::utils::{block_until_coconut_is_available, recover_credentials};
+use nym_credential_utils::{recovery_storage, Result};
+use nym_network_defaults::{setup_env, NymNetworkDetails};
 use nym_validator_client::nyxd::{Coin, Config};
 use nym_validator_client::DirectSigningHttpRpcNyxdClient;
 
-const SAFETY_BUFFER_SECS: u64 = 60; // 1 minute
+mod commands;
 
 #[derive(Parser)]
 #[clap(author = "Nymtech", version, about)]
@@ -32,35 +25,6 @@ struct Cli {
 
     #[clap(subcommand)]
     pub(crate) command: Command,
-}
-
-async fn block_until_coconut_is_available<C: DkgQueryClient + Send + Sync>(
-    client: &C,
-) -> Result<()> {
-    loop {
-        let epoch = client.get_current_epoch().await?;
-        let current_timestamp_secs = SystemTime::now()
-            .duration_since(SystemTime::UNIX_EPOCH)?
-            .as_secs();
-        if epoch.state.is_final() {
-            if current_timestamp_secs + SAFETY_BUFFER_SECS >= epoch.finish_timestamp.seconds() {
-                info!("In the next {} minute(s), a transition will take place in the coconut system. Deposits should be halted in this time for safety reasons.", SAFETY_BUFFER_SECS / 60);
-                exit(0);
-            }
-
-            break;
-        } else {
-            // Use 1 additional second to not start the next iteration immediately and spam get_current_epoch queries
-            let secs_until_final = epoch
-                .final_timestamp_secs()
-                .saturating_sub(current_timestamp_secs)
-                + 1;
-            info!("Approximately {} seconds until coconut is available. Sleeping until then. You can safely kill the process at any moment.", secs_until_final);
-            std::thread::sleep(Duration::from_secs(secs_until_final));
-        }
-    }
-
-    Ok(())
 }
 
 #[tokio::main]

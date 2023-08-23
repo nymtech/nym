@@ -1,6 +1,8 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::errors::Result;
+use log::error;
 use nym_credentials::coconut::bandwidth::BandwidthVoucher;
 use std::fs::{create_dir_all, read_dir, File};
 use std::io::{Read, Write};
@@ -11,12 +13,12 @@ pub struct RecoveryStorage {
 }
 
 impl RecoveryStorage {
-    pub fn new(recovery_dir: PathBuf) -> std::io::Result<Self> {
+    pub fn new(recovery_dir: PathBuf) -> Result<Self> {
         create_dir_all(&recovery_dir)?;
         Ok(Self { recovery_dir })
     }
 
-    pub fn unconsumed_vouchers(&self) -> std::io::Result<Vec<BandwidthVoucher>> {
+    pub fn unconsumed_vouchers(&self) -> Result<Vec<BandwidthVoucher>> {
         let entries = read_dir(&self.recovery_dir)?;
 
         let mut paths = vec![];
@@ -29,11 +31,14 @@ impl RecoveryStorage {
 
         let mut vouchers = vec![];
         for path in paths {
-            if let Ok(mut file) = File::open(path) {
+            if let Ok(mut file) = File::open(&path) {
                 let mut buff = Vec::new();
                 if file.read_to_end(&mut buff).is_ok() {
-                    if let Ok(voucher) = BandwidthVoucher::try_from_bytes(&buff) {
-                        vouchers.push(voucher)
+                    match BandwidthVoucher::try_from_bytes(&buff) {
+                        Ok(voucher) => vouchers.push(voucher),
+                        Err(err) => {
+                            error!("failed to parse the voucher at {}: {err}", path.display())
+                        }
                     }
                 }
             }
@@ -42,7 +47,7 @@ impl RecoveryStorage {
         Ok(vouchers)
     }
 
-    pub fn insert_voucher(&self, voucher: &BandwidthVoucher) -> std::io::Result<PathBuf> {
+    pub fn insert_voucher(&self, voucher: &BandwidthVoucher) -> Result<PathBuf> {
         let file_name = voucher.tx_hash().to_string();
         let file_path = self.recovery_dir.join(file_name);
         let mut file = File::create(&file_path)?;
@@ -52,8 +57,8 @@ impl RecoveryStorage {
         Ok(file_path)
     }
 
-    pub fn remove_voucher(&self, file_name: String) -> std::io::Result<()> {
+    pub fn remove_voucher(&self, file_name: String) -> Result<()> {
         let file_path = self.recovery_dir.join(file_name);
-        std::fs::remove_file(file_path)
+        Ok(std::fs::remove_file(file_path)?)
     }
 }

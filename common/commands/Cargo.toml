@@ -46,7 +46,7 @@ nym-client-core = { path = "../../common/client-core" }
 nym-config = { path = "../../common/config" }
 nym-credentials = { path = "../../common/credentials" }
 nym-credential-storage = { path = "../../common/credential-storage" }
-nym-issue-credential = { path = "../../common/issue-credential" }
+nym-credential-utils = { path = "../../common/credential-utils" }
 
 nym-pemstore = { path = "../../common/pemstore", version = "0.3.0" }
 nym-types = { path = "../../common/types" }

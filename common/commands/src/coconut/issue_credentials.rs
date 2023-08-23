@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use clap::Parser;
-use nym_issue_credential::errors::Result;
-use nym_issue_credential::utils;
+use nym_credential_utils::errors::Result;
+use nym_credential_utils::utils;
 
 use crate::context::SigningClientWithNyxd;
 use nym_network_defaults::NymNetworkDetails;
@@ -36,7 +36,7 @@ pub async fn execute(args: Args, client: SigningClientWithNyxd) -> Result<()> {
     );
 
     let persistent_storage = utils::setup_persistent_storage(args.client_home_directory).await;
-    utils::issue_credential(client, coin, &persistent_storage, args.recovery_dir).await?;
+    utils::issue_credential(&client.nyxd, coin, &persistent_storage, args.recovery_dir).await?;
 
     Ok(())
 }

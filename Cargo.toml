@@ -43,7 +43,7 @@ members = [
     "common/cosmwasm-smart-contracts/vesting-contract",
     "common/credential-storage",
     "common/credentials",
-    "common/issue-credential",
+    "common/credential-utils",
     "common/crypto",
     "common/dkg",
     "common/execute",

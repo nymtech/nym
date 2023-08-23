@@ -20,6 +20,8 @@ pub use nym_api_requests::*;
 
 #[cfg(feature = "http-client")]
 pub use cosmrs::rpc::HttpClient as HttpRpcClient;
+#[cfg(feature = "http-client")]
+pub use rpc::http_client;
 
 // some type aliasing
 

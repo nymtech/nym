@@ -1,11 +1,6 @@
-
 use futures::StreamExt;
-use libp2p::{
-    core::transport::upgrade::Version,
-    identify, identity, noise, ping, rendezvous,
-    tcp, yamux, PeerId, Transport,
-};
-use libp2p::swarm::{keep_alive, NetworkBehaviour, SwarmBuilder, SwarmEvent}; 
+use libp2p::{identify, identity, ping, rendezvous, PeerId};
+use libp2p::swarm::{keep_alive, NetworkBehaviour, SwarmEvent}; 
 use std::time::Duration;
 use log::{debug, info, LevelFilter};
 use nym_sdk::mixnet::MixnetClient;
@@ -24,25 +19,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let local_key = identity::Keypair::generate_ed25519();
     let local_peer_id = PeerId::from(local_key.public());
     info!("Local peer id: {local_peer_id:?}"); 
-
-    // let mut swarm = SwarmBuilder::with_tokio_executor(
-    //     tcp::tokio::Transport::default()
-    //         .upgrade(Version::V1Lazy)
-    //         .authenticate(noise::Config::new(&key_pair).unwrap())
-    //         .multiplex(yamux::Config::default())
-    //         .boxed(),
-    //     MyBehaviour {
-    //         identify: identify::Behaviour::new(identify::Config::new(
-    //             "rendezvous-example/1.0.0".to_string(),
-    //             key_pair.public(),
-    //         )),
-    //         rendezvous: rendezvous::server::Behaviour::new(rendezvous::server::Config::default()),
-    //         ping: ping::Behaviour::new(ping::Config::new().with_interval(Duration::from_secs(1))),
-    //         keep_alive: keep_alive::Behaviour,
-    //     },
-    //     PeerId::from(key_pair.public()),
-    // )
-    // .build();
 
     let mut swarm = {
         debug!("Running `rendezvous server` example using NymTransport");
@@ -73,8 +49,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     log::info!("Local peer id: {}", swarm.local_peer_id());
 
-    // let _ = swarm.listen_on("/ip4/0.0.0.0/tcp/62649".parse().unwrap());
-
     loop {
         match swarm.select_next_some().await {
             SwarmEvent::NewListenAddr { address, .. } => info!("Listening on {address:?}"),
@@ -87,6 +61,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         }
     }
 
+    // TODO incorporate 
     // while let Some(event) = swarm.next().await {
     //     match event {
     //         SwarmEvent::ConnectionEstablished { peer_id, .. } => {
@@ -123,7 +98,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
     //     }
     // }
 
-    Ok(()) 
 }
 
 #[derive(NetworkBehaviour)]

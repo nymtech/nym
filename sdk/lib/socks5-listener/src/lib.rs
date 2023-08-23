@@ -58,7 +58,7 @@ async fn is_shutdown_handle_set() -> bool {
 
 fn set_default_env() {
     if !ENV_SET.swap(true, Ordering::SeqCst) {
-        setup_env(None);
+        setup_env::<&str>(None);
     }
 }
 

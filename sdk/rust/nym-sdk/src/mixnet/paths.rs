@@ -51,7 +51,8 @@ impl StoragePaths {
     ///
     /// This function will return an error if it is passed a path to an existing file instead of a
     /// directory.
-    pub fn new_from_dir(dir: &Path) -> Result<Self> {
+    pub fn new_from_dir<P: AsRef<Path>>(dir: P) -> Result<Self> {
+        let dir = dir.as_ref();
         if dir.is_file() {
             return Err(Error::ExpectedDirectory(dir.to_owned()));
         }

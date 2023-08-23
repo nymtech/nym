@@ -31,6 +31,7 @@ url = { workspace = true }
 toml = "0.5.10"
 
 [dev-dependencies]
+anyhow = { workspace = true }
 dotenvy = { workspace = true }
 pretty_env_logger = "0.4.0"
 reqwest = { workspace = true, features = ["json", "socks"] }

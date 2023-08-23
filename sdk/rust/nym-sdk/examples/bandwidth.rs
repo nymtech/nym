@@ -1,46 +1,43 @@
+use futures::StreamExt;
+use nym_network_defaults::setup_env;
 use nym_sdk::mixnet;
 use nym_sdk::mixnet::MixnetMessageSender;
 
 #[tokio::main]
-async fn main() {
+async fn main() -> anyhow::Result<()> {
     nym_bin_common::logging::setup_logging();
     // right now, only sandbox has coconut setup
     // this should be run from the `sdk/rust/nym-sdk` directory
-    dotenvy::from_path("../../../envs/sandbox.env").unwrap();
+    setup_env(Some("../../../envs/sandbox.env"));
 
     let sandbox_network = mixnet::NymNetworkDetails::new_from_env();
+    let mnemonic = String::from("my super secret mnemonic");
 
     let mixnet_client = mixnet::MixnetClientBuilder::new_ephemeral()
         .network_details(sandbox_network)
         .enable_credentials_mode()
         .build()
-        .await
-        .unwrap();
+        .await?;
 
-    let bandwidth_client = mixnet_client
-        .create_bandwidth_client(String::from("very secret mnemonic"))
-        .unwrap();
+    let bandwidth_client = mixnet_client.create_bandwidth_client(mnemonic)?;
 
     // Get a bandwidth credential worth 1000000 unym for the mixnet_client
-    bandwidth_client.acquire(1000000).await.unwrap();
+    bandwidth_client.acquire(1000000).await?;
 
     // Connect using paid bandwidth credential
-    let mut client = mixnet_client.connect_to_mixnet().await.unwrap();
+    let mut client = mixnet_client.connect_to_mixnet().await?;
 
     let our_address = client.nym_address();
 
     // Send a message throughout the mixnet to ourselves
     client
         .send_plain_message(*our_address, "hello there")
-        .await
-        .unwrap();
+        .await?;
 
     println!("Waiting for message");
-    if let Some(received) = client.wait_for_messages().await {
-        for r in received {
-            println!("Received: {}", String::from_utf8_lossy(&r.message));
-        }
-    }
+    let received = client.next().await.unwrap();
+    println!("Received: {}", String::from_utf8_lossy(&received.message));
 
     client.disconnect().await;
+    Ok(())
 }

@@ -9,7 +9,7 @@ use nym_validator_client::nyxd::contract_traits::{
 
 #[tokio::main]
 async fn main() {
-    setup_env(Some(&"../../../envs/qa-qwerty.env".parse().unwrap()));
+    setup_env(Some("../../../envs/qa-qwerty.env"));
     let network_details = NymNetworkDetails::new_from_env();
     let config =
         nym_validator_client::Config::try_from_nym_network_details(&network_details).unwrap();

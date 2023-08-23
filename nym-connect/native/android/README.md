@@ -37,7 +37,7 @@ RELEASE=true ./build-android.sh aarch64 x86_64
 The shared library for each ABIs will be automatically moved into
 `app/src/main/jniLibs/*` directories.
 
-### APK build (from terminal)
+### APK/AAB build (from terminal)
 
 This project is setup with multiple [product flavors](app/build.gradle) to
 build for specific architectures.\
@@ -48,10 +48,16 @@ Supported archs:
 - x86_64
 - x86
 
-For example to build for _arm64_ in _release_ mode use
+For example to build an APK for _arm64_ in _release_ mode use
 
 ```shell
 ./gradlew :app:assembleArm64Release
+```
+
+Instead of building an APK, to build an app bundle (`.aab`) run
+
+```shell
+./gradlew :app:bundleArm64Release
 ```
 
 **NOTE**: you likely want _arch64_ (`arm64` & `x86_64`) for APK distribution

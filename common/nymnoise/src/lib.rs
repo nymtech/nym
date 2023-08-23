@@ -14,6 +14,7 @@ use std::cmp::min;
 use std::collections::VecDeque;
 use std::io;
 use std::io::ErrorKind;
+use std::num::TryFromIntError;
 use std::pin::Pin;
 use std::task::Poll;
 use std::time::Duration;
@@ -46,6 +47,9 @@ pub enum NoiseError {
 
     #[error("Handshake timeout")]
     HandshakeTimeoutError(#[from] tokio::time::error::Elapsed),
+
+    #[error(transparent)]
+    IntConversionError(#[from] TryFromIntError),
 }
 
 impl From<Error> for NoiseError {
@@ -86,14 +90,14 @@ impl NoiseStream {
             None => return Err(NoiseError::IncorrectStateError),
         };
 
-        self.inner_stream.write_u16(len.try_into().unwrap()).await?; //len is always < 2^16, so it shouldn't fail
+        self.inner_stream.write_u16(len.try_into()?).await?; //len is always < 2^16, so it shouldn't fail
         self.inner_stream.write_all(&buf[..len]).await?;
         Ok(())
     }
 
     async fn recv_handshake_msg(&mut self) -> Result<(), NoiseError> {
         let msg_len = self.inner_stream.read_u16().await?;
-        let mut msg = vec![0u8; msg_len as usize];
+        let mut msg = vec![0u8; msg_len.into()];
         self.inner_stream.read_exact(&mut msg[..]).await?;
 
         let mut buf = vec![0u8; MAXMSGLEN];

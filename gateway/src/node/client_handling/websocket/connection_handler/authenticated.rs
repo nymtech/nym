@@ -1,7 +1,10 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use futures::StreamExt;
+use futures::{
+    future::{FusedFuture, OptionFuture},
+    FutureExt, StreamExt,
+};
 use log::*;
 use nym_gateway_requests::{
     iv::{IVConversionError, IV},
@@ -16,14 +19,16 @@ use thiserror::Error;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_tungstenite::tungstenite::{protocol::Message, Error as WsError};
 
-use std::{convert::TryFrom, pin::Pin, process, time::Duration};
+use std::{convert::TryFrom, process, time::Duration};
 
 use crate::node::{
     client_handling::{
         bandwidth::Bandwidth,
         websocket::{
             connection_handler::{ClientDetails, FreshHandler},
-            message_receiver::{IsActiveRequestReceiver, IsActiveResultSender, MixMessageReceiver},
+            message_receiver::{
+                IsActive, IsActiveRequestReceiver, IsActiveResultSender, MixMessageReceiver,
+            },
         },
         FREE_TESTNET_BANDWIDTH_VALUE,
     },
@@ -370,13 +375,13 @@ where
     async fn handle_pong(&mut self, msg: Vec<u8>) {
         if let Ok(msg) = msg.try_into() {
             let msg = u64::from_be_bytes(msg);
-            debug!("Received pong from client: {}", msg);
+            trace!("Received pong from client: {}", msg);
             if let Some((tag, _)) = &self.is_active_ping_pending_reply {
                 if tag == &msg {
-                    debug!("Received pong reply from the client: {}", msg);
+                    debug!("Reporting back to the handler that the client is still active");
                     let tx = self.is_active_ping_pending_reply.take().unwrap().1;
-                    if let Err(err) = tx.send(true) {
-                        warn!("Failed to send pong reply back to the requesting handler: {err}");
+                    if let Err(err) = tx.send(IsActive::Active) {
+                        warn!("Failed to send pong reply back to the requesting handler: {err:?}");
                     }
                 } else {
                     warn!(
@@ -421,6 +426,43 @@ where
         Ok(tag)
     }
 
+    /// Handles the ping timeout by responding back to the handler that requested the ping.
+    async fn handle_ping_timout(&mut self) {
+        debug!("Ping timeout expired!");
+        if let Some((_tag, reply_tx)) = self.is_active_ping_pending_reply.take() {
+            if let Err(err) = reply_tx.send(IsActive::NotActive) {
+                warn!("Failed to respond back to the handler requesting the ping: {err:?}");
+            }
+        }
+    }
+
+    async fn handle_is_active_request(
+        &mut self,
+        reply_tx: IsActiveResultSender,
+    ) -> Result<(), WsError>
+    where
+        S: AsyncRead + AsyncWrite + Unpin,
+    {
+        if self.is_active_ping_pending_reply.is_some() {
+            warn!("Received request to ping the client, but a ping is already in progress!");
+            if let Err(err) = reply_tx.send(IsActive::BusyPinging) {
+                warn!("Failed to respond back to the handler requesting the ping: {err:?}");
+            }
+            return Ok(());
+        }
+
+        match self.send_ping().await {
+            Ok(tag) => {
+                self.is_active_ping_pending_reply = Some((tag, reply_tx));
+                Ok(())
+            }
+            Err(err) => {
+                warn!("Failed to send ping to client: {err}. Assuming the connection is dead.");
+                Err(err)
+            }
+        }
+    }
+
     /// Simultaneously listens for incoming client requests, which realistically should only be
     /// binary requests to forward sphinx packets or increase bandwidth
     /// and for sphinx packets received from the mix network that should be sent back to the client.
@@ -432,7 +474,7 @@ where
         trace!("Started listening for ALL incoming requests...");
 
         // Ping timeout future used to check if the client responded to our ping request
-        let mut ping_timeout: Option<Pin<Box<tokio::time::Sleep>>> = None;
+        let mut ping_timeout: OptionFuture<_> = None.into();
 
         while !shutdown.is_shutdown() {
             tokio::select! {
@@ -442,39 +484,20 @@ where
                 // Received a request to ping the client to check if it's still active
                 tx = self.is_active_request_receiver.next() => {
                     match tx {
-                        None => debug!("is_active_request_receiver was closed!"),
+                        None => break,
                         Some(reply_tx) => {
-                            // First check that a ping is not already in progress
-                            if self.is_active_ping_pending_reply.is_some() {
-                                warn!("Received request to ping the client, but a ping is already in progress!");
-                                if let Err(err) = reply_tx.send(true) {
-                                    warn!("Failed to respond back to the handler requesting the ping: {err}");
-                                }
-                                continue;
+                            if self.handle_is_active_request(reply_tx).await.is_err() {
+                                break;
                             }
-
-                            match self.send_ping().await {
-                                Ok(tag) => {
-                                    self.is_active_ping_pending_reply = Some((tag, reply_tx));
-                                    ping_timeout = Some(Box::pin(tokio::time::sleep(Duration::from_secs(1))));
-                                },
-                                Err(err) => {
-                                    warn!("Failed to send ping to client: {err}. Assuming the connection is dead.");
-                                    break;
-                                }
-                            }
+                            // NOTE: fuse here due to .is_terminated() check below
+                            ping_timeout = Some(Box::pin(tokio::time::sleep(Duration::from_millis(1000)).fuse())).into();
                         }
                     };
                 },
                 // The ping timeout expired, meaning the client didn't respond to our ping request
-                _ = ping_timeout.as_mut().unwrap(), if ping_timeout.is_some() => {
-                    error!("Ping timeout expired!");
-                    ping_timeout.take();
-                    if let Some((_tag, reply_tx)) = self.is_active_ping_pending_reply.take() {
-                        if let Err(err) = reply_tx.send(false) {
-                            warn!("Failed to respond back to the handler requesting the ping: {err}");
-                        }
-                    }
+                _ = &mut ping_timeout, if !ping_timeout.is_terminated() => {
+                   ping_timeout = None.into();
+                   self.handle_ping_timout().await;
                 },
                 socket_msg = self.inner.read_websocket_message() => {
                     let socket_msg = match socket_msg {
@@ -500,7 +523,13 @@ where
                     }
                 },
                 mix_messages = self.mix_receiver.next() => {
-                    let mix_messages = mix_messages.expect("sender was unexpectedly closed! this shouldn't have ever happened!");
+                    let mix_messages = match mix_messages {
+                        None => {
+                            warn!("mix receiver was closed! Assuming the connection is dead.");
+                            break;
+                        }
+                        Some(mix_messages) => mix_messages,
+                    };
                     if let Err(err) = self.inner.push_packets_to_client(&self.client.shared_keys, mix_messages).await {
                         warn!("failed to send the unwrapped sphinx packets back to the client - {err}, assuming the connection is dead");
                         break;

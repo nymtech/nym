@@ -10,4 +10,11 @@ pub(crate) type MixMessageReceiver = mpsc::UnboundedReceiver<Vec<Vec<u8>>>;
 // active. The result is then passed back to the requesting handler in the oneshot channel.
 pub(crate) type IsActiveRequestSender = mpsc::UnboundedSender<IsActiveResultSender>;
 pub(crate) type IsActiveRequestReceiver = mpsc::UnboundedReceiver<IsActiveResultSender>;
-pub(crate) type IsActiveResultSender = oneshot::Sender<bool>;
+
+#[derive(Debug)]
+pub(crate) enum IsActive {
+    Active,
+    NotActive,
+    BusyPinging,
+}
+pub(crate) type IsActiveResultSender = oneshot::Sender<IsActive>;

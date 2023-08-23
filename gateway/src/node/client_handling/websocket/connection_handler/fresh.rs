@@ -32,7 +32,7 @@ use crate::node::{
                 coconut::CoconutVerifier, AuthenticatedHandler, ClientDetails, InitialAuthResult,
                 SocketStream,
             },
-            message_receiver::IsActiveRequestSender,
+            message_receiver::{IsActive, IsActiveRequestSender},
         },
     },
     storage::{error::StorageError, Storage},
@@ -411,23 +411,34 @@ where
     ) -> Result<(), InitialAuthenticationError> {
         // Ask the other connection to ping if they are still active.
         // Use a oneshot channel to return the result to us
-        let (ping_result_sender, ping_result_receiver) = oneshot::channel::<bool>();
+        let (ping_result_sender, ping_result_receiver) = oneshot::channel();
         log::debug!("Asking other connection handler to ping the connected client to see if it is still active");
         if let Err(err) = is_active_request_tx.send(ping_result_sender).await {
             warn!("Failed to send ping request to other handler: {err}");
         }
 
         // Wait for the reply
-        match tokio::time::timeout(Duration::from_millis(1000), ping_result_receiver).await {
+        match tokio::time::timeout(Duration::from_millis(2000), ping_result_receiver).await {
             Ok(Ok(res)) => {
-                if res {
-                    // The other handled reported a positive reply, so we have to assume it's
-                    // still active and disconnect this connection.
-                    log::info!("Other handler reports it is active");
-                    return Err(InitialAuthenticationError::DuplicateConnection);
-                } else {
-                    log::debug!("Other handler reports it is not active");
-                    self.active_clients_store.disconnect(address);
+                match res {
+                    IsActive::NotActive => {
+                        // The other handler reported that the client is not active, so we can
+                        // disconnect the other client and continue with this connection.
+                        log::debug!("Other handler reports it is not active");
+                        self.active_clients_store.disconnect(address);
+                    }
+                    IsActive::Active => {
+                        // The other handled reported a positive reply, so we have to assume it's
+                        // still active and disconnect this connection.
+                        log::info!("Other handler reports it is active");
+                        return Err(InitialAuthenticationError::DuplicateConnection);
+                    }
+                    IsActive::BusyPinging => {
+                        // The other handler is already busy pinging the client, so we have to
+                        // assume it's still active and disconnect this connection.
+                        log::debug!("Other handler reports it is already busy pinging the client");
+                        return Err(InitialAuthenticationError::DuplicateConnection);
+                    }
                 }
             }
             Ok(Err(_)) => {

@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use dashmap::DashMap;
-use futures::channel::{mpsc, oneshot};
 use nym_sphinx::DestinationAddressBytes;
 use std::sync::Arc;
 
@@ -63,7 +62,7 @@ impl ActiveClientsStore {
         &self,
         client: DestinationAddressBytes,
         handle: MixMessageSender,
-        is_active_sender: mpsc::UnboundedSender<oneshot::Sender<bool>>,
+        is_active_sender: IsActiveRequestSender,
     ) {
         self.0.insert(client, (handle, is_active_sender));
     }

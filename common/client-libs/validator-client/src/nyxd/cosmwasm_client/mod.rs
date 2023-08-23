@@ -10,11 +10,14 @@ use crate::signing::{
     AccountData,
 };
 use async_trait::async_trait;
+use cosmrs::tx::{Raw, SignDoc};
+use std::fmt::Debug;
 use tendermint_rpc::{Error as TendermintRpcError, SimpleRequest};
 
 #[cfg(feature = "http-client")]
+use crate::http_client;
+#[cfg(feature = "http-client")]
 use cosmrs::rpc::{HttpClient, HttpClientUrl};
-use cosmrs::tx::{Raw, SignDoc};
 
 pub mod client_traits;
 mod helpers;
@@ -73,7 +76,7 @@ impl<S> MaybeSigningClient<HttpClient, S> {
     where
         U: TryInto<HttpClientUrl, Error = TendermintRpcError>,
     {
-        self.client = HttpClient::new(new_endpoint)?;
+        self.client = http_client(new_endpoint)?;
         Ok(())
     }
 }

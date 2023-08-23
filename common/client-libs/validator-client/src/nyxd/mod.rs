@@ -50,9 +50,12 @@ use crate::signing::direct_wallet::DirectSecp256k1HdWallet;
 #[cfg(feature = "http-client")]
 use crate::{DirectSigningHttpRpcNyxdClient, QueryHttpRpcNyxdClient};
 use crate::{DirectSigningReqwestRpcNyxdClient, QueryReqwestRpcNyxdClient, ReqwestRpcClient};
+use url::Url;
+
+#[cfg(feature = "http-client")]
+use crate::http_client;
 #[cfg(feature = "http-client")]
 use cosmrs::rpc::{HttpClient, HttpClientUrl};
-use url::Url;
 
 pub mod coin;
 pub mod contract_traits;
@@ -97,7 +100,7 @@ impl NyxdClient<HttpClient> {
     where
         U: TryInto<HttpClientUrl, Error = TendermintRpcError>,
     {
-        let client = HttpClient::new(endpoint)?;
+        let client = http_client(endpoint)?;
 
         Ok(NyxdClient {
             client: MaybeSigningClient::new(client, (&config).into()),
@@ -140,7 +143,7 @@ impl NyxdClient<HttpClient, DirectSecp256k1HdWallet> {
     where
         U: TryInto<HttpClientUrl, Error = TendermintRpcError>,
     {
-        let client = HttpClient::new(endpoint)?;
+        let client = http_client(endpoint)?;
 
         let prefix = &config.chain_details.bech32_account_prefix;
         let wallet = DirectSecp256k1HdWallet::from_mnemonic(prefix, mnemonic);

@@ -4,12 +4,13 @@ import { toPercentFloatString } from '../../utils';
 
 export function mixnodeToTauri(data: MixnodeData): MixNode {
   return {
-    ...data,
     mix_port: data.mixPort,
     http_api_port: data.httpApiPort,
     verloc_port: data.verlocPort,
     sphinx_key: data.sphinxKey,
     identity_key: data.identityKey,
+    version: data.version,
+    host: data.host,
   };
 }
 
@@ -25,7 +26,6 @@ export function costParamsToTauri(data: MixnodeAmount): MixNodeCostParams {
 
 export function gatewayToTauri(data: GatewayData): Gateway {
   return {
-    ...data,
     host: data.host,
     version: data.version,
     mix_port: data.mixPort,

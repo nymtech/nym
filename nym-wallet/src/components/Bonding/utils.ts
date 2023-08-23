@@ -10,7 +10,7 @@ export function mixnodeToTauri(data: MixnodeData): MixNode {
     sphinx_key: data.sphinxKey,
     identity_key: data.identityKey,
     version: data.version,
-    host: data.host
+    host: data.host,
   };
 }
 

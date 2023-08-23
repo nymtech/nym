@@ -28,7 +28,7 @@ export const gatewayValidationSchema = Yup.object().shape({
 
   location: Yup.string()
     .required('A location is required')
-    .test('valid-location', 'A valid version is required', (locationValueTest) =>
+    .test('valid-location', 'A valid location is required', (locationValueTest) =>
       locationValueTest ? validateLocation(locationValueTest) : false,
     ),
 

@@ -131,11 +131,29 @@ export interface GatewayBond {
   owner: string;
   gateway: Gateway;
   node_performance: NodePerformance;
+  location?: Location;
 }
 
 export interface GatewayBondAnnotated {
   gateway_bond: GatewayBond;
   node_performance: NodePerformance;
+}
+
+export interface Location {
+  two_letter_iso_country_code: string;
+  three_letter_iso_country_code: string;
+  country_name: string;
+  latitude?: number;
+  longitude?: number;
+}
+
+export interface LocatedGateway {
+  pledge_amount: Amount;
+  owner: string;
+  block_height: number;
+  gateway: Gateway;
+  proxy?: string;
+  location?: Location;
 }
 
 export type GatewayResponse = GatewayBond[];

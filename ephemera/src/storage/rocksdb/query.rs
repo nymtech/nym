@@ -53,7 +53,7 @@ impl Database {
     pub(crate) fn get_block_by_height(&self, height: u64) -> anyhow::Result<Option<Block>> {
         trace!("Getting block by height: {}", height);
 
-        if let Some(block_hash) = self.database.get(block_height_key(&height))? {
+        if let Some(block_hash) = self.database.get(block_height_key(height))? {
             let block_hash = String::from_utf8(block_hash)?;
             self.get_block_by_hash(&block_hash)
         } else {

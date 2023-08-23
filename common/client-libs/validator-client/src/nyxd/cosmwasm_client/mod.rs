@@ -10,11 +10,11 @@ use crate::signing::{
     AccountData,
 };
 use async_trait::async_trait;
-use cosmrs::rpc::endpoint::*;
 use cosmrs::tendermint::{abci, evidence::Evidence, Genesis};
 use cosmrs::tx::{Raw, SignDoc};
 use serde::{de::DeserializeOwned, Serialize};
 use std::fmt::Debug;
+use tendermint_rpc::endpoint::*;
 use tendermint_rpc::query::Query;
 use tendermint_rpc::{Error as TendermintRpcError, Order, Paging, SimpleRequest};
 

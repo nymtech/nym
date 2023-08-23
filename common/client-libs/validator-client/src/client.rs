@@ -26,6 +26,7 @@ pub use nym_mixnet_contract_common::{
 // re-export the type to not break existing imports
 pub use crate::coconut::CoconutApiClient;
 
+#[cfg(feature = "http-client")]
 use crate::rpc::http_client;
 #[cfg(feature = "http-client")]
 use crate::{DirectSigningHttpRpcValidatorClient, HttpRpcClient, QueryHttpRpcValidatorClient};

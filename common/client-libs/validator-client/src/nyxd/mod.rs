@@ -17,7 +17,6 @@ use crate::signing::AccountData;
 use crate::{DirectSigningReqwestRpcNyxdClient, QueryReqwestRpcNyxdClient, ReqwestRpcClient};
 use async_trait::async_trait;
 use cosmrs::cosmwasm;
-use cosmrs::rpc::endpoint::*;
 use cosmrs::tendermint::{abci, evidence::Evidence, Genesis};
 use cosmrs::tx::{Msg, Raw, SignDoc};
 use cosmwasm_std::Addr;
@@ -26,6 +25,7 @@ use serde::{de::DeserializeOwned, Serialize};
 use std::fmt::Debug;
 use std::time::SystemTime;
 use tendermint_rpc::endpoint::block::Response as BlockResponse;
+use tendermint_rpc::endpoint::*;
 use tendermint_rpc::{Error as TendermintRpcError, Order};
 use url::Url;
 

@@ -9,19 +9,25 @@ use crate::nyxd::cosmwasm_client::types::{
 use crate::nyxd::cosmwasm_client::MaybeSigningClient;
 use crate::nyxd::error::NyxdError;
 use crate::nyxd::fee::DEFAULT_SIMULATED_GAS_MULTIPLIER;
+use crate::signing::direct_wallet::DirectSecp256k1HdWallet;
 use crate::signing::signer::NoSigner;
 use crate::signing::signer::OfflineSigner;
 use crate::signing::tx_signer::TxSigner;
 use crate::signing::AccountData;
+use crate::{DirectSigningReqwestRpcNyxdClient, QueryReqwestRpcNyxdClient, ReqwestRpcClient};
 use async_trait::async_trait;
 use cosmrs::cosmwasm;
+use cosmrs::rpc::endpoint::*;
+use cosmrs::tendermint::{abci, evidence::Evidence, Genesis};
 use cosmrs::tx::{Msg, Raw, SignDoc};
 use cosmwasm_std::Addr;
 use nym_network_defaults::{ChainDetails, NymNetworkDetails};
-use serde::Serialize;
+use serde::{de::DeserializeOwned, Serialize};
+use std::fmt::Debug;
 use std::time::SystemTime;
 use tendermint_rpc::endpoint::block::Response as BlockResponse;
-use tendermint_rpc::Error as TendermintRpcError;
+use tendermint_rpc::{Error as TendermintRpcError, Order};
+use url::Url;
 
 pub use crate::nyxd::cosmwasm_client::client_traits::{CosmWasmClient, SigningCosmWasmClient};
 pub use crate::nyxd::fee::Fee;
@@ -45,17 +51,13 @@ pub use tendermint_rpc::{
 };
 pub use tendermint_rpc::{Request, Response, SimpleRequest};
 
-// #[cfg(feature = "http-client")]
-use crate::signing::direct_wallet::DirectSecp256k1HdWallet;
-#[cfg(feature = "http-client")]
-use crate::{DirectSigningHttpRpcNyxdClient, QueryHttpRpcNyxdClient};
-use crate::{DirectSigningReqwestRpcNyxdClient, QueryReqwestRpcNyxdClient, ReqwestRpcClient};
-use url::Url;
-
 #[cfg(feature = "http-client")]
 use crate::http_client;
 #[cfg(feature = "http-client")]
+use crate::{DirectSigningHttpRpcNyxdClient, QueryHttpRpcNyxdClient};
+#[cfg(feature = "http-client")]
 use cosmrs::rpc::{HttpClient, HttpClientUrl};
+use tendermint_rpc::query::Query;
 
 pub mod coin;
 pub mod contract_traits;
@@ -571,6 +573,216 @@ where
     C: TendermintRpcClient + Send + Sync,
     S: Send + Sync,
 {
+    async fn abci_info(&self) -> Result<abci::response::Info, TendermintRpcError> {
+        self.client.abci_info().await
+    }
+
+    async fn abci_query<V>(
+        &self,
+        path: Option<String>,
+        data: V,
+        height: Option<Height>,
+        prove: bool,
+    ) -> Result<abci_query::AbciQuery, TendermintRpcError>
+    where
+        V: Into<Vec<u8>> + Send,
+    {
+        self.client.abci_query(path, data, height, prove).await
+    }
+
+    async fn block<H>(&self, height: H) -> Result<block::Response, TendermintRpcError>
+    where
+        H: Into<Height> + Send,
+    {
+        self.client.block(height).await
+    }
+
+    async fn block_by_hash(
+        &self,
+        hash: Hash,
+    ) -> Result<block_by_hash::Response, TendermintRpcError> {
+        self.client.block_by_hash(hash).await
+    }
+
+    async fn latest_block(&self) -> Result<block::Response, TendermintRpcError> {
+        self.client.latest_block().await
+    }
+
+    async fn header<H>(&self, height: H) -> Result<header::Response, TendermintRpcError>
+    where
+        H: Into<Height> + Send,
+    {
+        self.client.header(height).await
+    }
+
+    async fn header_by_hash(
+        &self,
+        hash: Hash,
+    ) -> Result<header_by_hash::Response, TendermintRpcError> {
+        self.client.header_by_hash(hash).await
+    }
+
+    async fn block_results<H>(
+        &self,
+        height: H,
+    ) -> Result<block_results::Response, TendermintRpcError>
+    where
+        H: Into<Height> + Send,
+    {
+        self.client.block_results(height).await
+    }
+
+    async fn latest_block_results(&self) -> Result<block_results::Response, TendermintRpcError> {
+        self.client.latest_block_results().await
+    }
+
+    async fn block_search(
+        &self,
+        query: Query,
+        page: u32,
+        per_page: u8,
+        order: Order,
+    ) -> Result<block_search::Response, TendermintRpcError> {
+        self.client.block_search(query, page, per_page, order).await
+    }
+
+    async fn blockchain<H>(
+        &self,
+        min: H,
+        max: H,
+    ) -> Result<blockchain::Response, TendermintRpcError>
+    where
+        H: Into<Height> + Send,
+    {
+        self.client.blockchain(min, max).await
+    }
+
+    async fn broadcast_tx_async<T>(
+        &self,
+        tx: T,
+    ) -> Result<broadcast::tx_async::Response, TendermintRpcError>
+    where
+        T: Into<Vec<u8>> + Send,
+    {
+        TendermintRpcClient::broadcast_tx_async(&self.client, tx).await
+    }
+
+    async fn broadcast_tx_sync<T>(
+        &self,
+        tx: T,
+    ) -> Result<broadcast::tx_sync::Response, TendermintRpcError>
+    where
+        T: Into<Vec<u8>> + Send,
+    {
+        TendermintRpcClient::broadcast_tx_sync(&self.client, tx).await
+    }
+
+    async fn broadcast_tx_commit<T>(
+        &self,
+        tx: T,
+    ) -> Result<broadcast::tx_commit::Response, TendermintRpcError>
+    where
+        T: Into<Vec<u8>> + Send,
+    {
+        TendermintRpcClient::broadcast_tx_commit(&self.client, tx).await
+    }
+
+    async fn commit<H>(&self, height: H) -> Result<commit::Response, TendermintRpcError>
+    where
+        H: Into<Height> + Send,
+    {
+        self.client.commit(height).await
+    }
+
+    async fn consensus_params<H>(
+        &self,
+        height: H,
+    ) -> Result<consensus_params::Response, TendermintRpcError>
+    where
+        H: Into<Height> + Send,
+    {
+        self.client.consensus_params(height).await
+    }
+
+    async fn consensus_state(&self) -> Result<consensus_state::Response, TendermintRpcError> {
+        self.client.consensus_state().await
+    }
+
+    async fn validators<H>(
+        &self,
+        height: H,
+        paging: Paging,
+    ) -> Result<validators::Response, TendermintRpcError>
+    where
+        H: Into<Height> + Send,
+    {
+        self.client.validators(height, paging).await
+    }
+
+    async fn latest_consensus_params(
+        &self,
+    ) -> Result<consensus_params::Response, TendermintRpcError> {
+        self.client.latest_consensus_params().await
+    }
+
+    async fn latest_commit(&self) -> Result<commit::Response, TendermintRpcError> {
+        self.client.latest_commit().await
+    }
+
+    async fn health(&self) -> Result<(), TendermintRpcError> {
+        self.client.health().await
+    }
+
+    async fn genesis<AppState>(&self) -> Result<Genesis<AppState>, TendermintRpcError>
+    where
+        AppState: Debug + Serialize + DeserializeOwned + Send,
+    {
+        self.client.genesis().await
+    }
+
+    async fn net_info(&self) -> Result<net_info::Response, TendermintRpcError> {
+        self.client.net_info().await
+    }
+
+    async fn status(&self) -> Result<status::Response, TendermintRpcError> {
+        self.client.status().await
+    }
+
+    async fn broadcast_evidence(
+        &self,
+        e: Evidence,
+    ) -> Result<evidence::Response, TendermintRpcError> {
+        self.client.broadcast_evidence(e).await
+    }
+
+    async fn tx(&self, hash: Hash, prove: bool) -> Result<TxResponse, TendermintRpcError> {
+        self.client.tx(hash, prove).await
+    }
+
+    async fn tx_search(
+        &self,
+        query: Query,
+        prove: bool,
+        page: u32,
+        per_page: u8,
+        order: Order,
+    ) -> Result<tx_search::Response, TendermintRpcError> {
+        self.client
+            .tx_search(query, prove, page, per_page, order)
+            .await
+    }
+
+    #[cfg(any(
+        feature = "tendermint-rpc/http-client",
+        feature = "tendermint-rpc/websocket-client"
+    ))]
+    async fn wait_until_healthy<T>(&self, timeout: T) -> Result<(), Error>
+    where
+        T: Into<core::time::Duration> + Send,
+    {
+        self.client.wait_until_healthy(timeout).await
+    }
+
     async fn perform<R>(&self, request: R) -> Result<R::Output, TendermintRpcError>
     where
         R: SimpleRequest,

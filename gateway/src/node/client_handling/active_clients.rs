@@ -8,9 +8,16 @@ use std::sync::Arc;
 use super::websocket::message_receiver::{IsActiveRequestSender, MixMessageSender};
 
 #[derive(Clone)]
-pub(crate) struct ActiveClientsStore(
-    Arc<DashMap<DestinationAddressBytes, (MixMessageSender, IsActiveRequestSender)>>,
-);
+pub(crate) struct ActiveClientsStore(Arc<DashMap<DestinationAddressBytes, ClientIncomingChannels>>);
+
+#[derive(Clone)]
+pub(crate) struct ClientIncomingChannels {
+    // Mix messages coming from the mixnet to the handler of a client.
+    pub mix_message_sender: MixMessageSender,
+
+    // Requests sent from the handler of one client to the handler of other clients.
+    pub is_active_request_sender: IsActiveRequestSender,
+}
 
 impl ActiveClientsStore {
     /// Creates new instance of `ActiveClientsStore` to store in-memory handles to all currently connected clients.
@@ -24,16 +31,13 @@ impl ActiveClientsStore {
     /// # Arguments
     ///
     /// * `client`: address of the client for which to obtain the handle.
-    pub(crate) fn get(
-        &self,
-        client: DestinationAddressBytes,
-    ) -> Option<(MixMessageSender, IsActiveRequestSender)> {
+    pub(crate) fn get(&self, client: DestinationAddressBytes) -> Option<ClientIncomingChannels> {
         let entry = self.0.get(&client)?;
         let handle = entry.value();
 
         // if the entry is stale, remove it from the map
         // if handle.is_valid() {
-        if !handle.0.is_closed() {
+        if !handle.mix_message_sender.is_closed() {
             Some(handle.clone())
         } else {
             // drop the reference to the map to prevent deadlocks
@@ -62,9 +66,15 @@ impl ActiveClientsStore {
         &self,
         client: DestinationAddressBytes,
         handle: MixMessageSender,
-        is_active_sender: IsActiveRequestSender,
+        is_active_request_sender: IsActiveRequestSender,
     ) {
-        self.0.insert(client, (handle, is_active_sender));
+        self.0.insert(
+            client,
+            ClientIncomingChannels {
+                mix_message_sender: handle,
+                is_active_request_sender,
+            },
+        );
     }
 
     /// Get number of active clients in store

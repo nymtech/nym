@@ -482,9 +482,9 @@ where
         let iv = IV::try_from_base58_string(iv)?;
 
         // Check for duplicate clients
-        if let Some((__, is_active_request_tx)) = self.active_clients_store.get(address) {
+        if let Some(client_tx) = self.active_clients_store.get(address) {
             log::warn!("Detected duplicate connection for client: {}", address);
-            self.handle_duplicate_client(address, is_active_request_tx)
+            self.handle_duplicate_client(address, client_tx.is_active_request_sender)
                 .await?;
         }
 

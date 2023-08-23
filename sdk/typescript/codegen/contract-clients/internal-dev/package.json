@@ -1,0 +1,14 @@
+{
+  "name": "internal-dev-contract-clients",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "@nymproject/contract-clients": "file:.."
+  },
+  "author": "",
+  "license": "ISC"
+}

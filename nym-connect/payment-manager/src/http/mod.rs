@@ -1,6 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::cli::CliArgs;
 use crate::client::Client;
 use crate::state::{Config, State};
 use crate::storage::Storage;
@@ -13,7 +14,6 @@ use rocket_okapi::okapi::openapi3::OpenApi;
 use rocket_okapi::settings::OpenApiSettings;
 use rocket_okapi::swagger_ui::make_swagger_ui;
 use rocket_okapi::{mount_endpoints_and_merged_docs, openapi_get_routes_spec};
-use std::path::PathBuf;
 
 pub(crate) mod openapi;
 pub(crate) mod routes;
@@ -40,10 +40,10 @@ fn setup_cors() -> Result<Cors> {
     Ok(cors)
 }
 
-pub(crate) async fn setup_rocket() -> Result<Rocket<Ignite>> {
+pub(crate) async fn setup_rocket(args: &CliArgs) -> Result<Rocket<Ignite>> {
     let openapi_settings = rocket_okapi::settings::OpenApiSettings::default();
     let mut rocket = rocket::build();
-    let storage = Storage::init(PathBuf::from("/tmp/payments/payments.db")).await?;
+    let storage = Storage::init(&args.db_path).await?;
 
     mount_endpoints_and_merged_docs! {
         rocket,
@@ -54,7 +54,7 @@ pub(crate) async fn setup_rocket() -> Result<Rocket<Ignite>> {
     }
 
     let details = NymNetworkDetails::new_from_env();
-    let client = Client::new(&details)?;
+    let client = Client::new(&details, &args.mnemonic)?;
     let config = Config::new(details.chain_details.mix_denom.base.clone());
     let rocket = rocket
         .manage(State::new(storage, client, config))

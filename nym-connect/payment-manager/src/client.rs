@@ -16,7 +16,10 @@ impl Clone for Client {
 }
 
 impl Client {
-    pub(crate) fn new(details: &NymNetworkDetails) -> Result<Self, Error> {
+    pub(crate) fn new(
+        details: &NymNetworkDetails,
+        mnemonic: &bip39::Mnemonic,
+    ) -> Result<Self, Error> {
         let client_config = nyxd::Config::try_from_nym_network_details(details)?;
         let endpoint = details
             .endpoints
@@ -28,7 +31,7 @@ impl Client {
         let inner = DirectSigningHttpRpcNyxdClient::connect_with_mnemonic(
             client_config,
             endpoint,
-            "".parse().unwrap(),
+            mnemonic.clone(),
         )?;
 
         Ok(Client(Arc::new(RwLock::new(inner))))

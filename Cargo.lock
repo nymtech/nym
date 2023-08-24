@@ -6578,6 +6578,9 @@ name = "nym-payment-manager"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bip39",
+ "clap 4.3.21",
+ "lazy_static",
  "log",
  "nym-bin-common",
  "nym-network-defaults",

@@ -2,6 +2,7 @@ use std::{collections::HashMap, fmt};
 
 use log::{debug, error, info};
 use nym_explorer_api_requests::PrettyDetailedMixNodeBond;
+use nym_network_defaults::var_names::EXPLORER_API;
 use nym_topology::{
     nym_topology_from_detailed,
     provider_trait::{async_trait, TopologyProvider},
@@ -13,11 +14,23 @@ use serde::{Deserialize, Serialize};
 use url::Url;
 
 const MIN_NODES_PER_LAYER: usize = 1;
-const EXPLORER_API_MIXNODES_URL: &str = "https://explorer.nymtech.net/api/v1/mix-nodes";
 
 // TODO: create a explorer-api-client
 async fn fetch_mixnodes_from_explorer_api() -> Option<Vec<PrettyDetailedMixNodeBond>> {
-    reqwest::get(EXPLORER_API_MIXNODES_URL)
+    let explorer_api_url = std::env::var(EXPLORER_API).ok()?;
+    let explorer_api_url = Url::parse(&explorer_api_url)
+        .ok()?
+        .join("v1/mix-nodes")
+        .ok()?;
+
+    debug!("Fetching: {}", explorer_api_url);
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(5))
+        .build()
+        .ok()?;
+    client
+        .get(explorer_api_url)
+        .send()
         .await
         .ok()?
         .json::<Vec<PrettyDetailedMixNodeBond>>()

@@ -43,6 +43,7 @@ pub struct NymNetworkDetails {
     pub chain_details: ChainDetails,
     pub endpoints: Vec<ValidatorDetails>,
     pub contracts: NymContracts,
+    pub explorer_api: Option<String>,
 }
 
 // by default we assume the same defaults as mainnet, i.e. same prefixes and denoms
@@ -71,6 +72,7 @@ impl NymNetworkDetails {
             },
             endpoints: Default::default(),
             contracts: Default::default(),
+            explorer_api: Default::default(),
         }
     }
 
@@ -136,6 +138,7 @@ impl NymNetworkDetails {
                 var_names::SERVICE_PROVIDER_DIRECTORY_CONTRACT_ADDRESS,
             ))
             .with_name_service_contract(get_optional_env(var_names::NAME_SERVICE_CONTRACT_ADDRESS))
+            .with_explorer_api(get_optional_env(var_names::EXPLORER_API))
     }
 
     pub fn new_mainnet() -> Self {
@@ -167,6 +170,7 @@ impl NymNetworkDetails {
                 service_provider_directory_contract_address: None,
                 name_service_contract_address: None,
             },
+            explorer_api: parse_optional_str(mainnet::EXPLORER_API),
         }
     }
 
@@ -276,6 +280,12 @@ impl NymNetworkDetails {
     #[must_use]
     pub fn with_name_service_contract<S: Into<String>>(mut self, contract: Option<S>) -> Self {
         self.contracts.name_service_contract_address = contract.map(Into::into);
+        self
+    }
+
+    #[must_use]
+    pub fn with_explorer_api<S: Into<String>>(mut self, endpoint: Option<S>) -> Self {
+        self.explorer_api = endpoint.map(Into::into);
         self
     }
 }

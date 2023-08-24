@@ -26,6 +26,8 @@ pub(crate) const REWARDING_VALIDATOR_ADDRESS: &str = "n10yyd98e2tuwu0f7ypz9dy3hh
 pub const STATISTICS_SERVICE_DOMAIN_ADDRESS: &str = "https://mainnet-stats.nymte.ch:8090/";
 pub const NYXD_URL: &str = "https://rpc.nymtech.net";
 pub const NYM_API: &str = "https://validator.nymtech.net/api/";
+pub const EXPLORER_API: &str = "https://explorer.nymtech.net/api/";
+
 pub(crate) fn validators() -> Vec<ValidatorDetails> {
     vec![ValidatorDetails::new(NYXD_URL, Some(NYM_API))]
 }
@@ -99,6 +101,7 @@ pub fn export_to_env() {
     );
     set_var_to_default(var_names::NYXD, NYXD_URL);
     set_var_to_default(var_names::NYM_API, NYM_API);
+    set_var_to_default(var_names::EXPLORER_API, EXPLORER_API);
 }
 
 pub fn export_to_env_if_not_set() {
@@ -145,4 +148,5 @@ pub fn export_to_env_if_not_set() {
     );
     set_var_conditionally_to_default(var_names::NYXD, NYXD_URL);
     set_var_conditionally_to_default(var_names::NYM_API, NYM_API);
+    set_var_conditionally_to_default(var_names::EXPLORER_API, EXPLORER_API);
 }

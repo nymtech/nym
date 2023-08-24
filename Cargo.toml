@@ -150,6 +150,7 @@ tap = "1.0.1"
 tendermint-rpc = "0.32" # same version as used by cosmrs
 thiserror = "1.0.38"
 tokio = "1.24.1"
+ts-rs = "7.0.0"
 url = "2.4"
 zeroize = "1.6.0"
 

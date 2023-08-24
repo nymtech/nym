@@ -26,7 +26,7 @@ humantime-serde = "1.1.1"
 # TO CHECK WHETHER STILL NEEDED:
 log = { workspace = true }
 time = { version = "0.3.6", features = ["parsing", "formatting"] }
-ts-rs = { version = "6.1.2", optional = true }
+ts-rs = { workspace = true, optional = true }
 
 [dev-dependencies]
 rand_chacha = "0.3"

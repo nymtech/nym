@@ -47,7 +47,7 @@ tokio = { version = "1.24.1", features = [
 tokio-stream = "0.1.11"
 url = { workspace = true }
 
-ts-rs = {version = "6.1", optional = true}
+ts-rs = { workspace = true, optional = true}
 
 anyhow = "1.0"
 getset = "0.1.1"

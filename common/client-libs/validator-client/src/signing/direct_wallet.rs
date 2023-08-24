@@ -199,16 +199,14 @@ mod tests {
     #[test]
     fn generating_account_addresses() {
         // test vectors produced from our js wallet
-        let mnemonics = vec![
-            "crush minute paddle tobacco message debate cabin peace bar jacket execute twenty winner view sure mask popular couch penalty fragile demise fresh pizza stove",
+        let mnemonics = ["crush minute paddle tobacco message debate cabin peace bar jacket execute twenty winner view sure mask popular couch penalty fragile demise fresh pizza stove",
             "acquire rebel spot skin gun such erupt pull swear must define ill chief turtle today flower chunk truth battle claw rigid detail gym feel",
-            "step income throw wheat mobile ship wave drink pool sudden upset jaguar bar globe rifle spice frost bless glimpse size regular carry aspect ball"
-        ];
+            "step income throw wheat mobile ship wave drink pool sudden upset jaguar bar globe rifle spice frost bless glimpse size regular carry aspect ball"];
         let prefix = NymNetworkDetails::new_mainnet()
             .chain_details
             .bech32_account_prefix;
 
-        let addrs = vec![
+        let addrs = [
             "n1jw6mp7d5xqc7w6xm79lha27glmd0vdt3l9artf",
             "n1h5hgn94nsq4kh99rjj794hr5h5q6yfm2lr52es",
             "n17n9flp6jflljg6fp05dsy07wcprf2uuu8g40rf",

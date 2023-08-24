@@ -73,7 +73,7 @@ impl SocketDataHeader {
             .to_be_bytes()
             .into_iter()
             .chain(std::iter::once(self.local_socket_closed as u8))
-            .chain(self.seq.to_be_bytes().into_iter())
+            .chain(self.seq.to_be_bytes())
     }
 
     pub fn try_from_response_bytes(
@@ -107,8 +107,8 @@ impl SocketDataHeader {
 
     pub fn into_response_bytes_iter(self) -> impl Iterator<Item = u8> {
         std::iter::once(self.local_socket_closed as u8)
-            .chain(self.connection_id.to_be_bytes().into_iter())
-            .chain(self.seq.to_be_bytes().into_iter())
+            .chain(self.connection_id.to_be_bytes())
+            .chain(self.seq.to_be_bytes())
     }
 }
 
@@ -170,9 +170,7 @@ impl SocketData {
     }
 
     pub fn into_request_bytes_iter(self) -> impl Iterator<Item = u8> {
-        self.header
-            .into_request_bytes_iter()
-            .chain(self.data.into_iter())
+        self.header.into_request_bytes_iter().chain(self.data)
     }
 
     pub fn try_from_response_bytes(b: &[u8]) -> Result<SocketData, InsufficientSocketDataError> {
@@ -190,9 +188,7 @@ impl SocketData {
     }
 
     pub fn into_response_bytes_iter(self) -> impl Iterator<Item = u8> {
-        self.header
-            .into_response_bytes_iter()
-            .chain(self.data.into_iter())
+        self.header.into_response_bytes_iter().chain(self.data)
     }
 }
 

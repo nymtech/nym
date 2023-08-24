@@ -94,7 +94,7 @@ impl<'a> GatewayHandshake<'a> {
             .to_bytes()
             .iter()
             .cloned()
-            .chain(material.into_iter())
+            .chain(material)
             .collect()
     }
 

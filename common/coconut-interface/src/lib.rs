@@ -57,7 +57,7 @@ impl Credential {
 
     pub fn verify(&self, verification_key: &VerificationKey) -> bool {
         let params = Parameters::new(self.n_params).unwrap();
-        let public_attributes = vec![
+        let public_attributes = [
             self.voucher_value.to_string().as_bytes(),
             self.voucher_info.as_bytes(),
         ]

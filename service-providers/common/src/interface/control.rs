@@ -130,7 +130,7 @@ impl Serializable for ControlResponse {
 
     fn into_bytes(self) -> Vec<u8> {
         std::iter::once(self.tag() as u8)
-            .chain(self.serialize_inner().into_iter())
+            .chain(self.serialize_inner())
             .collect()
     }
 

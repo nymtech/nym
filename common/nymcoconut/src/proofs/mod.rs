@@ -354,7 +354,7 @@ impl ProofKappaZeta {
         let witness_blinder = params.random_scalar();
         let witness_serial_number = params.random_scalar();
         let witness_binding_number = params.random_scalar();
-        let witness_attributes = vec![witness_serial_number, witness_binding_number];
+        let witness_attributes = [witness_serial_number, witness_binding_number];
 
         let beta_bytes = verification_key
             .beta_g2
@@ -417,7 +417,7 @@ impl ProofKappaZeta {
             .map(|beta_i| beta_i.to_bytes())
             .collect::<Vec<_>>();
 
-        let response_attributes = vec![self.response_serial_number, self.response_binding_number];
+        let response_attributes = [self.response_serial_number, self.response_binding_number];
         // re-compute witnesses commitments
         // Aw = (c * kappa) + (rt * g2) + ((1 - c) * alpha) + (rm[0] * beta[0]) + ... + (rm[i] * beta[i])
         let commitment_kappa = kappa * self.challenge

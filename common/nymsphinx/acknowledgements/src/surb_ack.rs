@@ -122,7 +122,7 @@ impl SurbAck {
             .first_hop_address
             .as_zero_padded_bytes(MAX_NODE_ADDRESS_UNPADDED_LEN)
             .into_iter()
-            .chain(self.surb_ack_packet.to_bytes()?.into_iter())
+            .chain(self.surb_ack_packet.to_bytes()?)
             .collect();
         Ok((self.expected_total_delay, surb_bytes))
     }

@@ -17,7 +17,7 @@ pub fn prepare_identifier<R: RngCore + CryptoRng>(
     let id_ciphertext = encrypt::<AckEncryptionAlgorithm>(key.inner(), &iv, &serialized_id);
 
     // IV || ID_CIPHERTEXT
-    iv.into_iter().chain(id_ciphertext.into_iter()).collect()
+    iv.into_iter().chain(id_ciphertext).collect()
 }
 
 pub fn recover_identifier(

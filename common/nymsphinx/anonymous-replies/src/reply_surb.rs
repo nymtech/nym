@@ -130,7 +130,7 @@ impl ReplySurb {
         self.encryption_key
             .to_bytes()
             .into_iter()
-            .chain(self.surb.to_bytes().into_iter())
+            .chain(self.surb.to_bytes())
             .collect()
     }
 

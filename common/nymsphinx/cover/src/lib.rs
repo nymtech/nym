@@ -115,7 +115,7 @@ where
     let packet_payload: Vec<_> = ack_bytes
         .into_iter()
         .chain(ephemeral_keypair.public_key().to_bytes().iter().cloned())
-        .chain(cover_content.into_iter())
+        .chain(cover_content)
         .collect();
 
     let route =

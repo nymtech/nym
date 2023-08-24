@@ -15,6 +15,19 @@ use url::Url;
 
 const MIN_NODES_PER_LAYER: usize = 1;
 
+#[cfg(target_arch = "wasm32")]
+fn reqwest_client() -> Option<reqwest::Client> {
+    reqwest::Client::builder().build().ok()
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn reqwest_client() -> Option<reqwest::Client> {
+    reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(5))
+        .build()
+        .ok()
+}
+
 // TODO: create a explorer-api-client
 async fn fetch_mixnodes_from_explorer_api() -> Option<Vec<PrettyDetailedMixNodeBond>> {
     let explorer_api_url = std::env::var(EXPLORER_API).ok()?;
@@ -24,20 +37,7 @@ async fn fetch_mixnodes_from_explorer_api() -> Option<Vec<PrettyDetailedMixNodeB
         .ok()?;
 
     debug!("Fetching: {}", explorer_api_url);
-    cfg_if::cfg_if! {
-        if #[cfg(target_arch = "wasm32")] {
-            let client = reqwest::Client::builder()
-                .build()
-                .ok()?;
-        } else {
-            let client = reqwest::Client::builder()
-                .timeout(std::time::Duration::from_secs(5))
-                .build()
-                .ok()?;
-        }
-    }
-
-    client
+    reqwest_client()?
         .get(explorer_api_url)
         .send()
         .await

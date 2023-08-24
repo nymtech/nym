@@ -24,10 +24,19 @@ async fn fetch_mixnodes_from_explorer_api() -> Option<Vec<PrettyDetailedMixNodeB
         .ok()?;
 
     debug!("Fetching: {}", explorer_api_url);
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(5))
-        .build()
-        .ok()?;
+    cfg_if::cfg_if! {
+        if #[cfg(target_arch = "wasm32")] {
+            let client = reqwest::Client::builder()
+                .build()
+                .ok()?;
+        } else {
+            let client = reqwest::Client::builder()
+                .timeout(std::time::Duration::from_secs(5))
+                .build()
+                .ok()?;
+        }
+    }
+
     client
         .get(explorer_api_url)
         .send()

@@ -2,6 +2,7 @@ use crate::ClientState;
 use ::safer_ffi::prelude::*;
 use jni::{
     objects::{JClass, JObject, JString},
+    sys::jboolean,
     sys::jint,
     JNIEnv,
 };
@@ -88,4 +89,14 @@ pub unsafe extern "C" fn Java_net_nymtech_nyms5_NymProxy_getClientState(
         ClientState::Connected => 1,
         ClientState::Disconnected => 2,
     }
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn Java_net_nymtech_nyms5_NymProxy_pingClient(
+    _env: JNIEnv,
+    _class: JClass,
+) -> jboolean {
+    // TODO: implement
+    log::debug!("ping received");
+    1
 }

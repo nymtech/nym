@@ -17,6 +17,10 @@ import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import com.github.kittinunf.fuel.Fuel
 import io.sentry.Sentry
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
@@ -44,6 +48,8 @@ class ProxyWorker(
     }
 
     private val tag = "proxyWorker"
+
+    private val pingRate = 1000L
 
     private val spUrl = context.getString(R.string.sp_url)
 
@@ -135,7 +141,24 @@ class ProxyWorker(
                 Log.w(tag, "using a default service provider $defaultSp")
             }
 
-            nymProxy.start(serviceProvider ?: defaultSp, onStartCb, onStopCb)
+            withContext(Dispatchers.IO) {
+                val pingJob = launch {
+                    do {
+                        val pong = nymProxy.ping()
+                        delay(pingRate)
+                    } while (pong)
+                }
+
+                val proxyJob = launch {
+                    nymProxy.start(serviceProvider ?: defaultSp, onStartCb, onStopCb)
+                }
+
+                // wait for the underlying call to `startClient` to be released which means
+                // the connection has been terminated (`startClient` is a blocking call)
+                proxyJob.join()
+                // stop pinging
+                pingJob.cancel()
+            }
 
             // the state should be already set to DISCONNECTED at this point
             // but for the sake of it, reset it

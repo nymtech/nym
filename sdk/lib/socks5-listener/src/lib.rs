@@ -163,7 +163,10 @@ pub fn blocking_run_client<'cb, F, S>(
             )
             .await
         })
-        .unwrap();
+        .map_err(|err| {
+            warn!("failed to run client: {}", err);
+        })
+        .ok();
 }
 
 #[ffi_export]

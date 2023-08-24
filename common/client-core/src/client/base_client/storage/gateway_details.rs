@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::config::GatewayEndpointConfig;
+use crate::init::EmptyCustomDetails;
 use async_trait::async_trait;
 use nym_gateway_requests::registration::handshake::SharedKeys;
 use serde::{Deserialize, Serialize};
@@ -25,7 +26,14 @@ pub trait GatewayDetailsStore {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PersistedGatewayDetails {
+#[serde(untagged)]
+pub enum PersistedGatewayDetails<T = EmptyCustomDetails> {
+    Default(PersistedGatewayConfig),
+    Custom(PersistedCustomGatewayDetails<T>),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PersistedGatewayConfig {
     // TODO: should we also verify correctness of the details themselves?
     // i.e. we could include a checksum or tag (via the shared keys)
     // counterargument: if we wanted to modify, say, the host information in the stored file on disk,
@@ -38,13 +46,16 @@ pub struct PersistedGatewayDetails {
     pub(crate) details: GatewayEndpointConfig,
 }
 
-impl From<PersistedGatewayDetails> for GatewayEndpointConfig {
-    fn from(value: PersistedGatewayDetails) -> Self {
-        value.details
-    }
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PersistedCustomGatewayDetails<T> {
+    // whatever custom method is used, gateway's identity must be known
+    pub gateway_id: String,
+
+    #[serde(flatten)]
+    pub additional_data: T,
 }
 
-impl PersistedGatewayDetails {
+impl PersistedGatewayConfig {
     pub fn new(details: GatewayEndpointConfig, shared_key: &SharedKeys) -> Self {
         let key_bytes = Zeroizing::new(shared_key.to_bytes());
 
@@ -52,7 +63,7 @@ impl PersistedGatewayDetails {
         key_hasher.update(&key_bytes);
         let key_hash = key_hasher.finalize().to_vec();
 
-        PersistedGatewayDetails { key_hash, details }
+        PersistedGatewayConfig { key_hash, details }
     }
 
     pub fn verify(&self, shared_key: &SharedKeys) -> bool {
@@ -63,6 +74,27 @@ impl PersistedGatewayDetails {
         let key_hash = key_hasher.finalize();
 
         self.key_hash == key_hash.deref()
+    }
+}
+
+impl From<PersistedGatewayDetails> for GatewayEndpointConfig {
+    // TODO: change this into a `TryFrom` trait
+    fn from(value: PersistedGatewayDetails) -> Self {
+        if let PersistedGatewayDetails::Default(config) = value {
+            config.details
+        } else {
+            panic!("unhandled exception: got custom gateway configuration")
+        }
+    }
+}
+
+impl PersistedGatewayDetails {
+    pub fn new(details: GatewayEndpointConfig, shared_key: &SharedKeys) -> Self {
+        PersistedGatewayDetails::Default(PersistedGatewayConfig::new(details, shared_key))
+    }
+
+    pub fn is_custom(&self) -> bool {
+        matches!(self, PersistedGatewayDetails::Custom(..))
     }
 }
 

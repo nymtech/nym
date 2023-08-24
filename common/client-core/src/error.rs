@@ -122,6 +122,12 @@ pub enum ClientCoreError {
 
     #[error("unable to upgrade config file to `{new_version}`")]
     UnableToUpgradeConfigFile { new_version: String },
+
+    #[error("custom selection of gateway was expected")]
+    CustomGatewaySelectionExpected,
+
+    #[error("the persisted gateway details were set for a custom setup")]
+    UnexpectedPersistedCustomGatewayDetails,
 }
 
 /// Set of messages that the client can send to listeners via the task manager

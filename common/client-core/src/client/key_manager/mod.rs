@@ -103,7 +103,7 @@ impl ManagedKeys {
     pub fn gateway_shared_key(&self) -> Option<Arc<SharedKeys>> {
         match self {
             ManagedKeys::Initial(_) => None,
-            ManagedKeys::FullyDerived(keys) => Some(keys.gateway_shared_key()),
+            ManagedKeys::FullyDerived(keys) => keys.gateway_shared_key(),
             ManagedKeys::Invalidated => unreachable!("the managed keys got invalidated"),
         }
     }
@@ -126,8 +126,10 @@ impl ManagedKeys {
 
     pub fn ensure_gateway_key(&self, gateway_shared_key: Arc<SharedKeys>) {
         if let ManagedKeys::FullyDerived(key_manager) = &self {
-            if !Arc::ptr_eq(&key_manager.gateway_shared_key, &gateway_shared_key)
-                || key_manager.gateway_shared_key != gateway_shared_key
+            if !Arc::ptr_eq(
+                key_manager.must_get_gateway_shared_key(),
+                &gateway_shared_key,
+            ) || *key_manager.must_get_gateway_shared_key() != gateway_shared_key
             {
                 // this should NEVER happen thus panic here
                 panic!("derived fresh gateway shared key whilst already holding one!")
@@ -188,7 +190,7 @@ impl KeyManagerBuilder {
         KeyManager {
             identity_keypair: self.identity_keypair,
             encryption_keypair: self.encryption_keypair,
-            gateway_shared_key,
+            gateway_shared_key: Some(gateway_shared_key),
             ack_key: self.ack_key,
         }
     }
@@ -222,7 +224,7 @@ pub struct KeyManager {
     encryption_keypair: Arc<encryption::KeyPair>,
 
     /// shared key derived with the gateway during "registration handshake"
-    gateway_shared_key: Arc<SharedKeys>,
+    gateway_shared_key: Option<Arc<SharedKeys>>,
 
     /// key used for producing and processing acknowledgement packets.
     ack_key: Arc<AckKey>,
@@ -232,13 +234,13 @@ impl KeyManager {
     pub fn from_keys(
         id_keypair: identity::KeyPair,
         enc_keypair: encryption::KeyPair,
-        gateway_shared_key: SharedKeys,
+        gateway_shared_key: Option<SharedKeys>,
         ack_key: AckKey,
     ) -> Self {
         Self {
             identity_keypair: Arc::new(id_keypair),
             encryption_keypair: Arc::new(enc_keypair),
-            gateway_shared_key: Arc::new(gateway_shared_key),
+            gateway_shared_key: gateway_shared_key.map(Arc::new),
             ack_key: Arc::new(ack_key),
         }
     }
@@ -265,13 +267,23 @@ impl KeyManager {
         Arc::clone(&self.ack_key)
     }
 
+    fn must_get_gateway_shared_key(&self) -> &Arc<SharedKeys> {
+        self.gateway_shared_key
+            .as_ref()
+            .expect("gateway shared key is unavailable")
+    }
+
+    pub fn uses_custom_gateway(&self) -> bool {
+        self.gateway_shared_key.is_none()
+    }
+
     /// Gets an atomically reference counted pointer to [`SharedKey`].
-    pub fn gateway_shared_key(&self) -> Arc<SharedKeys> {
-        Arc::clone(&self.gateway_shared_key)
+    pub fn gateway_shared_key(&self) -> Option<Arc<SharedKeys>> {
+        self.gateway_shared_key.as_ref().map(Arc::clone)
     }
 
     pub fn remove_gateway_key(self) -> KeyManagerBuilder {
-        if Arc::strong_count(&self.gateway_shared_key) > 1 {
+        if Arc::strong_count(self.must_get_gateway_shared_key()) > 1 {
             panic!("attempted to remove gateway key whilst still holding multiple references!")
         }
         KeyManagerBuilder {

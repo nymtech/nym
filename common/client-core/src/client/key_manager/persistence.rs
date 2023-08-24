@@ -4,6 +4,7 @@
 use crate::client::key_manager::KeyManager;
 use async_trait::async_trait;
 use std::error::Error;
+use std::ops::Deref;
 use tokio::sync::Mutex;
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -161,8 +162,9 @@ impl OnDiskKeys {
         let encryption_keypair = self.load_encryption_keypair()?;
 
         let ack_key: AckKey = self.load_key(self.paths.ack_key(), "ack key")?;
-        let gateway_shared_key: SharedKeys =
-            self.load_key(self.paths.gateway_shared_key(), "gateway shared keys")?;
+        let gateway_shared_key: Option<SharedKeys> = self
+            .load_key(self.paths.gateway_shared_key(), "gateway shared keys")
+            .ok();
 
         Ok(KeyManager::from_keys(
             identity_keypair,
@@ -188,11 +190,14 @@ impl OnDiskKeys {
         )?;
 
         self.store_key(keys.ack_key.as_ref(), self.paths.ack_key(), "ack key")?;
-        self.store_key(
-            keys.gateway_shared_key.as_ref(),
-            self.paths.gateway_shared_key(),
-            "gateway shared keys",
-        )?;
+
+        if let Some(shared_keys) = &keys.gateway_shared_key {
+            self.store_key(
+                shared_keys.deref(),
+                self.paths.gateway_shared_key(),
+                "gateway shared keys",
+            )?;
+        }
 
         Ok(())
     }

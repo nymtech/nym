@@ -169,6 +169,16 @@ where
         self
     }
 
+    /// Use custom mixnet sender that might not be the default websocket gateway connection.
+
+    #[must_use]
+    // pub fn custom_mixnet_sender(
+    //     mut self,
+    //     mixnet_sender: Box<dyn MixnetSender + Send + Sync>
+    // ) -> Self {
+    //     todo!()
+    // }
+
     /// Use specified file for storing gateway configuration.
     pub fn gateway_endpoint_config_path<P: AsRef<Path>>(mut self, path: P) -> Self {
         self.gateway_endpoint_config_path = Some(path.as_ref().to_owned());

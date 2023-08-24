@@ -114,7 +114,7 @@ impl WasmTopologyExt for Arc<ClientState> {
         let this = Arc::clone(self);
         future_to_promise(async move {
             let Some(current_topology) = this.topology_accessor.current_topology().await else {
-                return Err(WasmClientError::UnavailableNetworkTopology.into())
+                return Err(WasmClientError::UnavailableNetworkTopology.into());
             };
 
             match current_topology.find_mix_by_identity(&mixnode_identity) {
@@ -135,7 +135,7 @@ impl WasmTopologyExt for Arc<ClientState> {
         let this = Arc::clone(self);
         future_to_promise(async move {
             let Some(current_topology) = this.topology_accessor.current_topology().await else {
-                return Err(WasmClientError::UnavailableNetworkTopology.into())
+                return Err(WasmClientError::UnavailableNetworkTopology.into());
             };
 
             let Some(mix) = current_topology.find_mix_by_identity(&mixnode_identity) else {

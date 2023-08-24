@@ -39,6 +39,8 @@ pub(crate) fn validators() -> Vec<ValidatorDetails> {
     )]
 }
 
+pub(crate) const EXPLORER_API: &str = "https://qa-explorer.qa.nymte.ch/api/";
+
 pub(crate) fn network_details() -> nym_network_defaults::NymNetworkDetails {
     nym_network_defaults::NymNetworkDetails {
         network_name: NETWORK_NAME.into(),
@@ -63,5 +65,6 @@ pub(crate) fn network_details() -> nym_network_defaults::NymNetworkDetails {
             ),
             name_service_contract_address: parse_optional_str(NAME_SERVICE_CONTRACT_ADDRESS),
         },
+        explorer_api: parse_optional_str(EXPLORER_API),
     }
 }

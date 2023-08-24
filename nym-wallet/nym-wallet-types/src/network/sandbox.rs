@@ -35,6 +35,8 @@ pub(crate) fn validators() -> Vec<ValidatorDetails> {
     )]
 }
 
+pub(crate) const EXPLORER_API: &str = "https://sandbox-explorer.nymtech.net/api/";
+
 pub(crate) fn network_details() -> nym_network_defaults::NymNetworkDetails {
     nym_network_defaults::NymNetworkDetails {
         network_name: NETWORK_NAME.into(),
@@ -57,5 +59,6 @@ pub(crate) fn network_details() -> nym_network_defaults::NymNetworkDetails {
             service_provider_directory_contract_address: None,
             name_service_contract_address: None,
         },
+        explorer_api: parse_optional_str(EXPLORER_API),
     }
 }

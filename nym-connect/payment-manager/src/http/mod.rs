@@ -1,9 +1,11 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::state::State;
+use crate::client::Client;
+use crate::state::{Config, State};
 use crate::storage::Storage;
 use anyhow::Result;
+use nym_network_defaults::NymNetworkDetails;
 use rocket::http::Method;
 use rocket::{Ignite, Rocket, Route};
 use rocket_cors::{AllowedHeaders, AllowedOrigins, Cors};
@@ -51,8 +53,11 @@ pub(crate) async fn setup_rocket() -> Result<Rocket<Ignite>> {
         "" => routes(&openapi_settings),
     }
 
+    let details = NymNetworkDetails::new_from_env();
+    let client = Client::new(&details)?;
+    let config = Config::new(details.chain_details.mix_denom.base.clone());
     let rocket = rocket
-        .manage(State::new(storage))
+        .manage(State::new(storage, client, config))
         .mount("/swagger", make_swagger_ui(&openapi::get_docs()))
         .attach(setup_cors()?);
 

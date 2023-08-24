@@ -8,7 +8,7 @@ pub(crate) struct Payment {
     pub(crate) id: i64,
     pub(crate) serial_number: String,
     pub(crate) unyms_bought: i64,
-    pub(crate) status: String,
+    pub(crate) paid: bool,
 }
 
 #[derive(Clone, Serialize, Deserialize, schemars::JsonSchema)]

@@ -18,6 +18,15 @@ pub enum Error {
 
     #[error("SQL migrate error - {0}")]
     DatabaseMigrateError(#[from] sqlx::migrate::MigrateError),
+
+    #[error("NyxdError - {0}")]
+    NyxdError(#[from] nym_validator_client::nyxd::error::NyxdError),
+
+    #[error("Bad deposit address")]
+    BadAddress,
+
+    #[error("Empty list of validators")]
+    EmptyValidatorList,
 }
 
 impl<'r, 'o: 'r> Responder<'r, 'o> for Error {

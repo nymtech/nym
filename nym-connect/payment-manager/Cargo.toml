@@ -28,8 +28,10 @@ tokio = { version = "1.24.1", features = [
 ] }
 
 nym-bin-common = { path = "../../common/bin-common" }
+nym-network-defaults = { path = "../../common/network-defaults" }
 nym-payment-manager-common = { path = "../../common/payment-manager" }
 nym-task = { path = "../../common/task" }
+nym-validator-client = { path = "../../common/client-libs/validator-client" }
 
 [build-dependencies]
 sqlx = { version = "0.6.2", features = [

@@ -23,4 +23,19 @@ impl StorageManager {
         .fetch_one(&self.connection_pool)
         .await
     }
+
+    pub(crate) async fn update_payment(&self, id: i64) -> Result<(), sqlx::Error> {
+        sqlx::query!(
+            r#"
+                UPDATE payments
+                SET paid = true
+                WHERE id = ?
+            "#,
+            id
+        )
+        .execute(&self.connection_pool)
+        .await?;
+
+        Ok(())
+    }
 }

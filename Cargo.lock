@@ -6579,6 +6579,7 @@ dependencies = [
  "nym-mixnet-client",
  "nym-mixnode-common",
  "nym-network-defaults",
+ "nym-network-requester",
  "nym-pemstore",
  "nym-sphinx",
  "nym-statistics-common",

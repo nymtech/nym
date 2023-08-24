@@ -436,7 +436,7 @@ where
         <S::CredentialStore as CredentialStorage>::StorageError: Send + Sync + 'static,
     {
         info!("Starting mix traffic controller...");
-        let (mix_traffic_controller, mix_tx) = MixTrafficController::new(gateway_client);
+        let (mix_traffic_controller, mix_tx) = MixTrafficController::new_remote(gateway_client);
         mix_traffic_controller.start_with_shutdown(shutdown);
         mix_tx
     }

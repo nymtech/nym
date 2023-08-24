@@ -24,7 +24,7 @@ pub struct MixnetClient {
     /// The nym address of this connected client.
     pub(crate) nym_address: Recipient,
 
-    /// Input to the client from the users perspective. This can be either data to send or controll
+    /// Input to the client from the users perspective. This can be either data to send or control
     /// messages.
     pub(crate) client_input: ClientInput,
 

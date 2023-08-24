@@ -22,6 +22,9 @@ pub enum Error {
     #[error("NyxdError - {0}")]
     NyxdError(#[from] nym_validator_client::nyxd::error::NyxdError),
 
+    #[error("Invalid payment requested")]
+    InvalidPaymentRequest,
+
     #[error("Bad deposit address")]
     BadAddress,
 

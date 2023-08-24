@@ -30,7 +30,8 @@ pub async fn claim_payment(
         .storage
         .manager
         .get_payment(&claim_payment_request_body.serial_number)
-        .await?;
+        .await?
+        .ok_or(Error::InvalidPaymentRequest)?;
 
     let recipient = AccountId::from_str(&claim_payment_request_body.deposit_address)
         .map_err(|_| Error::BadAddress)?;

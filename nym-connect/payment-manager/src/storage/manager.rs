@@ -10,7 +10,10 @@ pub(crate) struct StorageManager {
 
 // all SQL goes here
 impl StorageManager {
-    pub(crate) async fn get_payment(&self, serial_number: &str) -> Result<Payment, sqlx::Error> {
+    pub(crate) async fn get_payment(
+        &self,
+        serial_number: &str,
+    ) -> Result<Option<Payment>, sqlx::Error> {
         sqlx::query_as!(
             Payment,
             r#"
@@ -20,7 +23,7 @@ impl StorageManager {
             "#,
             serial_number
         )
-        .fetch_one(&self.connection_pool)
+        .fetch_optional(&self.connection_pool)
         .await
     }
 

@@ -25,7 +25,7 @@ pub struct State {
 }
 
 impl State {
-    pub(crate) async fn new(storage: Storage, client: Client, config: Config) -> Self {
+    pub(crate) fn new(storage: Storage, client: Client, config: Config) -> Self {
         State {
             storage,
             client,

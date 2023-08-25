@@ -77,9 +77,6 @@ $(eval $(call add_cargo_workspace,contracts,contracts,--lib --target wasm32-unkn
 $(eval $(call add_cargo_workspace,wasm-client,clients/webassembly,--target wasm32-unknown-unknown))
 $(eval $(call add_cargo_workspace,wallet,nym-wallet,))
 $(eval $(call add_cargo_workspace,connect,nym-connect/desktop))
-ifdef NYM_MOBILE
-$(eval $(call add_cargo_workspace,connect-mobile,nym-connect/mobile/src-tauri))
-endif
 
 # -----------------------------------------------------------------------------
 # Convenience targets for crates that are already part of the main workspace

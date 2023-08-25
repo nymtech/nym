@@ -427,7 +427,7 @@ where
     }
 
     /// Handles the ping timeout by responding back to the handler that requested the ping.
-    async fn handle_ping_timout(&mut self) {
+    async fn handle_ping_timeout(&mut self) {
         debug!("Ping timeout expired!");
         if let Some((_tag, reply_tx)) = self.is_active_ping_pending_reply.take() {
             if let Err(err) = reply_tx.send(IsActive::NotActive) {
@@ -497,7 +497,7 @@ where
                 // The ping timeout expired, meaning the client didn't respond to our ping request
                 _ = &mut ping_timeout, if !ping_timeout.is_terminated() => {
                    ping_timeout = None.into();
-                   self.handle_ping_timout().await;
+                   self.handle_ping_timeout().await;
                 },
                 socket_msg = self.inner.read_websocket_message() => {
                     let socket_msg = match socket_msg {

@@ -354,11 +354,13 @@ where
                 nym_api_urls,
                 env!("CARGO_PKG_VERSION").to_string(),
             )),
-            config::TopologyStructure::GeoAware(group) => Box::new(GeoAwareTopologyProvider::new(
-                nym_api_urls,
-                env!("CARGO_PKG_VERSION").to_string(),
-                group,
-            )),
+            config::TopologyStructure::GeoAware(group_by) => {
+                Box::new(GeoAwareTopologyProvider::new(
+                    nym_api_urls,
+                    env!("CARGO_PKG_VERSION").to_string(),
+                    group_by,
+                ))
+            }
         })
     }
 

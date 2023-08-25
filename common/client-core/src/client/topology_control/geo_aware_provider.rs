@@ -1,17 +1,20 @@
 use std::{collections::HashMap, fmt};
 
 use log::{debug, error, info};
-use nym_explorer_api_requests::{PrettyDetailedMixNodeBond, PrettyDetailedGatewayBond};
+use nym_explorer_api_requests::{PrettyDetailedGatewayBond, PrettyDetailedMixNodeBond};
 use nym_network_defaults::var_names::EXPLORER_API;
 use nym_topology::{
     nym_topology_from_detailed,
     provider_trait::{async_trait, TopologyProvider},
     NymTopology,
 };
-use nym_validator_client::client::{MixId, IdentityKey};
+use nym_validator_client::client::{IdentityKey, MixId};
 use rand::{prelude::SliceRandom, thread_rng};
 use serde::{Deserialize, Serialize};
+use tap::TapOptional;
 use url::Url;
+
+use crate::config::GroupBy;
 
 const MIN_NODES_PER_LAYER: usize = 1;
 
@@ -235,9 +238,9 @@ fn group_mixnodes_by_country_code(
 fn group_gateways_by_country_code(
     gateways: Vec<PrettyDetailedGatewayBond>,
 ) -> HashMap<CountryGroup, Vec<IdentityKey>> {
-    gateways
-        .into_iter()
-        .fold(HashMap::<CountryGroup, Vec<IdentityKey>>::new(), |mut acc, g| {
+    gateways.into_iter().fold(
+        HashMap::<CountryGroup, Vec<IdentityKey>>::new(),
+        |mut acc, g| {
             if let Some(ref location) = g.location {
                 let country_code = location.two_letter_iso_country_code.clone();
                 let group_code = CountryGroup::new(country_code.as_str());
@@ -245,7 +248,8 @@ fn group_gateways_by_country_code(
                 gateways.push(g.gateway.identity_key)
             }
             acc
-        })
+        },
+    )
 }
 
 fn log_mixnode_distribution(mixnodes: &HashMap<CountryGroup, Vec<MixId>>) {
@@ -288,7 +292,7 @@ fn check_layer_integrity(topology: NymTopology) -> Result<(), ()> {
 
 pub struct GeoAwareTopologyProvider {
     validator_client: nym_validator_client::client::NymApiClient,
-    filter_on: CountryGroup,
+    filter_on: GroupBy,
     client_version: String,
 }
 
@@ -296,7 +300,7 @@ impl GeoAwareTopologyProvider {
     pub fn new(
         mut nym_api_urls: Vec<Url>,
         client_version: String,
-        filter_on: CountryGroup,
+        filter_on: GroupBy,
     ) -> GeoAwareTopologyProvider {
         log::info!(
             "Creating geo-aware topology provider with filter on {:?}",
@@ -344,6 +348,32 @@ impl GeoAwareTopologyProvider {
             return None;
         };
 
+        // Determine what we should filter around
+        let filter_on = match self.filter_on {
+            GroupBy::CountryGroup(group) => group,
+            GroupBy::NymAddress(recipient) => {
+                // Convert recipient into a country group by extracting out the gateway part and
+                // using that as the country code.
+                let gateway = recipient.gateway().to_base58_string();
+
+                // Lookup the location of this gateway by using the location data from the
+                // explorer-api
+                let gateway_location = gateways_from_explorer_api
+                    .iter()
+                    .find(|g| g.gateway.identity_key == gateway)
+                    .and_then(|g| g.location.clone())
+                    .map(|location| location.two_letter_iso_country_code)
+                    .tap_none(|| error!("No location found for the gateway: {}", gateway))?;
+                debug!(
+                    "Filtering on nym-address: {}, with location: {}",
+                    recipient, gateway_location
+                );
+
+                CountryGroup::new(&gateway_location)
+            }
+        };
+        debug!("Filter group: {}", filter_on);
+
         // Partition mixnodes_from_explorer_api according to the value of
         // two_letter_iso_country_code.
         // NOTE: we construct the full distribution here, but only use the one we're interested in.
@@ -355,13 +385,13 @@ impl GeoAwareTopologyProvider {
         let gateway_distribution = group_gateways_by_country_code(gateways_from_explorer_api);
         log_gateway_distribution(&gateway_distribution);
 
-        let Some(filtered_mixnode_ids) = mixnode_distribution.get(&self.filter_on) else {
-            error!("no mixnodes found for: {}", self.filter_on);
+        let Some(filtered_mixnode_ids) = mixnode_distribution.get(&filter_on) else {
+            error!("no mixnodes found for: {}", filter_on);
             return None;
         };
 
-        let Some(filtered_gateway_ids) = gateway_distribution.get(&self.filter_on) else {
-            error!("no gateways found for: {}", self.filter_on);
+        let Some(filtered_gateway_ids) = gateway_distribution.get(&filter_on) else {
+            error!("no gateways found for: {}", filter_on);
             return None;
         };
 

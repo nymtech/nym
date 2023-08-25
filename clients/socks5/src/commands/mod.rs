@@ -17,7 +17,7 @@ use nym_client_core::client::base_client::storage::gateway_details::{
 };
 use nym_client_core::client::key_manager::persistence::OnDiskKeys;
 use nym_client_core::client::topology_control::geo_aware_provider::CountryGroup;
-use nym_client_core::config::{GatewayEndpointConfig, TopologyStructure};
+use nym_client_core::config::{GatewayEndpointConfig, GroupBy, TopologyStructure};
 use nym_client_core::error::ClientCoreError;
 use nym_config::OptionalSet;
 use nym_sphinx::params::{PacketSize, PacketType};
@@ -101,9 +101,17 @@ pub(crate) fn override_config(config: Config, args: OverrideConfig) -> Config {
     let secondary_packet_size = args.medium_toggle.then_some(PacketSize::ExtendedPacket16);
     let no_per_hop_delays = args.medium_toggle;
 
-    let topology_structure = if args.medium_toggle || args.geo_routing.is_some() {
-        // TODO: rethink the default group. I just picked one for now.
-        TopologyStructure::GeoAware(args.geo_routing.unwrap_or(CountryGroup::Europe))
+    let topology_structure = if args.medium_toggle {
+        // Use the location of the network-requester
+        let address = config
+            .core
+            .socks5
+            .provider_mix_address
+            .parse()
+            .expect("failed to parse provider mix address");
+        TopologyStructure::GeoAware(GroupBy::NymAddress(address))
+    } else if let Some(code) = args.geo_routing {
+        TopologyStructure::GeoAware(GroupBy::CountryGroup(code))
     } else {
         TopologyStructure::default()
     };

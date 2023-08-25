@@ -172,6 +172,10 @@ impl<C, S> Client<C, S> {
 
 // validator-api wrappers
 impl<C, S> Client<C, S> {
+    pub fn api_url(&self) -> &Url {
+        self.nym_api.current_url()
+    }
+
     pub fn change_nym_api(&mut self, new_endpoint: Url) {
         self.nym_api.change_url(new_endpoint)
     }
@@ -240,6 +244,10 @@ impl NymApiClient {
         let nym_api = nym_api::Client::new(api_url);
 
         NymApiClient { nym_api }
+    }
+
+    pub fn api_url(&self) -> &Url {
+        self.nym_api.current_url()
     }
 
     pub fn change_nym_api(&mut self, new_endpoint: Url) {

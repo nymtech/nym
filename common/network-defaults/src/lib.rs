@@ -4,11 +4,11 @@
 use crate::var_names::{DEPRECATED_API_VALIDATOR, DEPRECATED_NYMD_VALIDATOR, NYM_API, NYXD};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use std::path::Path;
 use std::{
     env::{var, VarError},
     ffi::OsStr,
     ops::Not,
-    path::PathBuf,
 };
 use url::Url;
 
@@ -388,7 +388,7 @@ fn fix_deprecated_environmental_variables() {
     }
 }
 
-pub fn setup_env(config_env_file: Option<&PathBuf>) {
+pub fn setup_env<P: AsRef<Path>>(config_env_file: Option<P>) {
     match std::env::var(var_names::CONFIGURED) {
         // if the configuration is not already set in the env vars
         Err(std::env::VarError::NotPresent) => {

@@ -14,6 +14,7 @@ nym-gateway-requests = { path = "../../../gateway/gateway-requests" }
 nym-bandwidth-controller = { path = "../../../common/bandwidth-controller" }
 nym-credentials = { path = "../../../common/credentials" }
 nym-credential-storage = { path = "../../../common/credential-storage" }
+nym-credential-utils = { path = "../../../common/credential-utils" }
 nym-network-defaults = { path = "../../../common/network-defaults" }
 nym-sphinx = { path = "../../../common/nymsphinx" }
 nym-task = { path = "../../../common/task" }
@@ -30,11 +31,12 @@ url = { workspace = true }
 toml = "0.5.10"
 
 [dev-dependencies]
+anyhow = { workspace = true }
 dotenvy = { workspace = true }
 pretty_env_logger = "0.4.0"
 reqwest = { workspace = true, features = ["json", "socks"] }
 thiserror = { workspace = true }
-tokio = { version = "1", features = ["full"] }
+tokio = { workspace = true, features = ["full"] }
 nym-bin-common = { path = "../../../common/bin-common" }
 
 # extra dependencies for libp2p examples

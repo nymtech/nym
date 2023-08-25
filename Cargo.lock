@@ -5811,6 +5811,7 @@ dependencies = [
 name = "nym-cli-commands"
 version = "1.0.0"
 dependencies = [
+ "anyhow",
  "base64 0.13.1",
  "bip39",
  "bs58 0.4.0",
@@ -5824,10 +5825,16 @@ dependencies = [
  "humantime-serde",
  "k256 0.13.1",
  "log",
+ "nym-bandwidth-controller",
  "nym-bin-common",
+ "nym-client-core",
  "nym-coconut-bandwidth-contract-common",
  "nym-coconut-dkg-common",
+ "nym-config",
  "nym-contracts-common",
+ "nym-credential-storage",
+ "nym-credential-utils",
+ "nym-credentials",
  "nym-crypto",
  "nym-mixnet-contract-common",
  "nym-multisig-contract-common",
@@ -6025,26 +6032,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "nym-credential-client"
-version = "0.1.0"
-dependencies = [
- "clap 4.3.21",
- "log",
- "nym-bandwidth-controller",
- "nym-bin-common",
- "nym-client-core",
- "nym-config",
- "nym-credential-storage",
- "nym-credentials",
- "nym-network-defaults",
- "nym-pemstore",
- "nym-validator-client",
- "serde",
- "thiserror",
- "tokio",
-]
-
-[[package]]
 name = "nym-credential-storage"
 version = "0.1.0"
 dependencies = [
@@ -6056,11 +6043,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-credential-utils"
+version = "0.1.0"
+dependencies = [
+ "log",
+ "nym-bandwidth-controller",
+ "nym-client-core",
+ "nym-config",
+ "nym-credential-storage",
+ "nym-credentials",
+ "nym-validator-client",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
 name = "nym-credentials"
 version = "0.1.0"
 dependencies = [
  "bls12_381 0.5.0",
  "cosmrs",
+ "log",
  "nym-api-requests",
  "nym-coconut-interface",
  "nym-crypto",
@@ -6568,6 +6571,7 @@ dependencies = [
 name = "nym-sdk"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "async-trait",
  "bip39",
  "dotenvy",
@@ -6579,6 +6583,7 @@ dependencies = [
  "nym-bin-common",
  "nym-client-core",
  "nym-credential-storage",
+ "nym-credential-utils",
  "nym-credentials",
  "nym-crypto",
  "nym-gateway-requests",

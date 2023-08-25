@@ -17,7 +17,6 @@ opt-level = 3
 
 resolver = "2"
 members = [
-    "clients/credential",
     "clients/native",
     "clients/native/websocket-requests",
     "clients/socks5",
@@ -43,6 +42,7 @@ members = [
     "common/cosmwasm-smart-contracts/vesting-contract",
     "common/credential-storage",
     "common/credentials",
+    "common/credential-utils",
     "common/crypto",
     "common/dkg",
     "common/execute",

@@ -52,7 +52,7 @@ pub fn encode_payload_with_headers(
         Ok(metadata) => {
             let metadata = metadata.as_bytes().to_vec();
             let size = (metadata.len() as u64).to_be_bytes().to_vec();
-            Ok(vec![size, metadata, payload].concat())
+            Ok([size, metadata, payload].concat())
         }
         Err(e) => Err(JsValue::from(JsError::new(
             format!("Could not encode message: {}", e).as_str(),

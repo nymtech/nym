@@ -105,10 +105,10 @@ impl ClientRequest {
         let conn_id_bytes = connection_id.unwrap_or(0).to_be_bytes();
 
         std::iter::once(ClientRequestTag::Send as u8)
-            .chain(recipient.to_bytes().into_iter()) // will not be length prefixed because the length is constant
-            .chain(conn_id_bytes.into_iter())
-            .chain(data_len_bytes.into_iter())
-            .chain(data.into_iter())
+            .chain(recipient.to_bytes()) // will not be length prefixed because the length is constant
+            .chain(conn_id_bytes)
+            .chain(data_len_bytes)
+            .chain(data)
             .collect()
     }
 
@@ -180,11 +180,11 @@ impl ClientRequest {
         let conn_id_bytes = connection_id.unwrap_or(0).to_be_bytes();
 
         std::iter::once(ClientRequestTag::SendAnonymous as u8)
-            .chain(reply_surbs.to_be_bytes().into_iter())
-            .chain(recipient.to_bytes().into_iter()) // will not be length prefixed because the length is constant
-            .chain(conn_id_bytes.into_iter())
-            .chain(data_len_bytes.into_iter())
-            .chain(data.into_iter())
+            .chain(reply_surbs.to_be_bytes())
+            .chain(recipient.to_bytes()) // will not be length prefixed because the length is constant
+            .chain(conn_id_bytes)
+            .chain(data_len_bytes)
+            .chain(data)
             .collect()
     }
 
@@ -258,10 +258,10 @@ impl ClientRequest {
         let conn_id_bytes = connection_id.unwrap_or(0).to_be_bytes();
 
         std::iter::once(ClientRequestTag::Reply as u8)
-            .chain(sender_tag.to_bytes().into_iter())
-            .chain(conn_id_bytes.into_iter())
-            .chain(message_len_bytes.into_iter())
-            .chain(message.into_iter())
+            .chain(sender_tag.to_bytes())
+            .chain(conn_id_bytes)
+            .chain(message_len_bytes)
+            .chain(message)
             .collect()
     }
 
@@ -332,7 +332,7 @@ impl ClientRequest {
     fn serialize_closed_connection(connection_id: u64) -> Vec<u8> {
         let conn_id_bytes = connection_id.to_be_bytes();
         std::iter::once(ClientRequestTag::ClosedConnection as u8)
-            .chain(conn_id_bytes.into_iter())
+            .chain(conn_id_bytes)
             .collect()
     }
 
@@ -359,7 +359,7 @@ impl ClientRequest {
     fn serialize_get_lane_queue_lengths(connection_id: u64) -> Vec<u8> {
         let conn_id_bytes = connection_id.to_be_bytes();
         std::iter::once(ClientRequestTag::GetLaneQueueLength as u8)
-            .chain(conn_id_bytes.into_iter())
+            .chain(conn_id_bytes)
             .collect()
     }
 

@@ -66,7 +66,9 @@ impl From<ConfigV1_1_20> for Config {
                     public_sphinx_key_file: value.gateway.public_sphinx_key_file,
                 },
                 clients_storage: value.gateway.persistent_storage,
+                network_requester_config: None,
             },
+            network_requester: Default::default(),
             logging: value.logging.into(),
             debug: value.debug.into(),
         }

@@ -1,7 +1,7 @@
 // Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::commands::{ensure_config_version_compatibility, OverrideConfig};
+use crate::commands::helpers::{ensure_config_version_compatibility, OverrideConfig};
 use crate::support::config::build_config;
 use clap::Args;
 use nym_bin_common::output_format::OutputFormat;
@@ -65,6 +65,10 @@ pub struct Run {
     #[clap(long)]
     statistics_service_url: Option<url::Url>,
 
+    /// Allows this gateway to run an embedded network requester for minimal network overhead
+    #[clap(long)]
+    with_network_requester: Option<bool>,
+
     #[clap(short, long, default_value_t = OutputFormat::default())]
     output: OutputFormat,
 }
@@ -83,6 +87,7 @@ impl From<Run> for OverrideConfig {
             statistics_service_url: run_config.statistics_service_url,
             nyxd_urls: run_config.nyxd_urls,
             only_coconut_credentials: run_config.only_coconut_credentials,
+            with_network_requester: run_config.with_network_requester,
         }
     }
 }

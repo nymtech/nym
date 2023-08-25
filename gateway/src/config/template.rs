@@ -73,6 +73,9 @@ keys.public_sphinx_key_file = '{{ storage_paths.keys.public_sphinx_key_file }}'
 # derived shared keys and available client bandwidths.
 clients_storage = '{{ storage_paths.clients_storage }}'
 
+# Path to the configuration of the locally running network requester.
+network_requester_config = '{{ storage_paths.network_requester_config }}'
+
 ##### logging configuration options #####
 
 [logging]

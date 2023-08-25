@@ -69,6 +69,8 @@ pub struct Config {
 
     pub storage_paths: GatewayPaths,
 
+    pub network_requester: NetworkRequester,
+
     #[serde(default)]
     pub logging: LoggingSettings,
 
@@ -87,6 +89,7 @@ impl Config {
         Config {
             gateway: Gateway::new_default(id.as_ref()),
             storage_paths: GatewayPaths::new_default(id.as_ref()),
+            network_requester: Default::default(),
             logging: Default::default(),
             debug: Default::default(),
         }
@@ -107,6 +110,18 @@ impl Config {
     pub fn save_to_default_location(&self) -> io::Result<()> {
         let config_save_location: PathBuf = self.default_location();
         save_formatted_config_to_file(self, config_save_location)
+    }
+
+    pub fn with_enabled_network_requester(mut self, enabled_network_requester: bool) -> Self {
+        self.network_requester.enabled = enabled_network_requester;
+        self
+    }
+
+    pub fn with_default_network_requester_config_path(mut self) -> Self {
+        self.storage_paths = self
+            .storage_paths
+            .with_default_network_requester_config(&self.gateway.id);
+        self
     }
 
     pub fn with_only_coconut_credentials(mut self, only_coconut_credentials: bool) -> Self {
@@ -242,6 +257,19 @@ impl Gateway {
             nyxd_urls: vec![mainnet::NYXD_URL.parse().expect("Invalid default nyxd URL")],
             cosmos_mnemonic: bip39::Mnemonic::generate(24).unwrap(),
         }
+    }
+}
+
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[serde(default)]
+pub struct NetworkRequester {
+    /// Specifies whether network requester service is enabled in this process.
+    pub enabled: bool,
+}
+
+impl Default for NetworkRequester {
+    fn default() -> Self {
+        NetworkRequester { enabled: false }
     }
 }
 

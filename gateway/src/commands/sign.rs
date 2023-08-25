@@ -1,12 +1,12 @@
 // Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::commands::{ensure_correct_bech32_prefix, OverrideConfig};
+use crate::commands::helpers::{
+    ensure_config_version_compatibility, ensure_correct_bech32_prefix, OverrideConfig,
+};
+use crate::config::persistence::paths::GatewayPaths;
 use crate::error::GatewayError;
 use crate::support::config::build_config;
-use crate::{
-    commands::ensure_config_version_compatibility, config::persistence::paths::GatewayPaths,
-};
 use anyhow::{bail, Result};
 use clap::{ArgGroup, Args};
 use nym_bin_common::output_format::OutputFormat;

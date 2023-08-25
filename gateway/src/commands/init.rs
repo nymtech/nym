@@ -1,12 +1,9 @@
 // Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::commands::helpers::initialise_local_network_requester;
 use crate::config::{default_config_directory, default_config_filepath, default_data_directory};
-use crate::{
-    commands::{override_config, OverrideConfig},
-    config::Config,
-    OutputFormat,
-};
+use crate::{commands::helpers::OverrideConfig, config::Config, OutputFormat};
 use clap::Args;
 use nym_crypto::asymmetric::{encryption, identity};
 use std::error::Error;
@@ -69,6 +66,10 @@ pub struct Init {
     #[clap(long)]
     statistics_service_url: Option<url::Url>,
 
+    /// Allows this gateway to run an embedded network requester for minimal network overhead
+    #[clap(long)]
+    with_network_requester: Option<bool>,
+
     #[clap(short, long, default_value_t = OutputFormat::default())]
     output: OutputFormat,
 }
@@ -88,6 +89,7 @@ impl From<Init> for OverrideConfig {
 
             nyxd_urls: init_config.nyxd_urls,
             only_coconut_credentials: init_config.only_coconut_credentials,
+            with_network_requester: init_config.with_network_requester,
         }
     }
 }
@@ -99,6 +101,7 @@ fn init_paths(id: &str) -> io::Result<()> {
 
 pub async fn execute(args: Init) -> Result<(), Box<dyn Error + Send + Sync>> {
     eprintln!("Initialising gateway {}...", args.id);
+    let output = args.output;
 
     let already_init = if default_config_filepath(&args.id).exists() {
         eprintln!(
@@ -112,12 +115,11 @@ pub async fn execute(args: Init) -> Result<(), Box<dyn Error + Send + Sync>> {
         false
     };
 
-    let override_config_fields = OverrideConfig::from(args.clone());
-
     // Initialising the config structure is just overriding a default constructed one
-    let config = override_config(Config::new(&args.id), override_config_fields)?;
+    let fresh_config = Config::new(&args.id);
+    let config = OverrideConfig::from(args).do_override(fresh_config)?;
 
-    // if gateway was already initialised, don't generate new keys
+    // if gateway was already initialised, don't generate new keys, et al.
     if !already_init {
         let mut rng = rand::rngs::OsRng;
 
@@ -142,6 +144,10 @@ pub async fn execute(args: Init) -> Result<(), Box<dyn Error + Send + Sync>> {
         )
         .expect("Failed to save sphinx keys");
 
+        if config.network_requester.enabled {
+            initialise_local_network_requester()?;
+        }
+
         eprintln!("Saved identity and mixnet sphinx keypairs");
     }
 
@@ -157,7 +163,7 @@ pub async fn execute(args: Init) -> Result<(), Box<dyn Error + Send + Sync>> {
 
     crate::node::create_gateway(config)
         .await
-        .print_node_details(args.output);
+        .print_node_details(output);
     Ok(())
 }
 
@@ -184,11 +190,13 @@ mod tests {
             nyxd_urls: None,
             only_coconut_credentials: None,
             output: Default::default(),
+            with_network_requester: None,
         };
         std::env::set_var(BECH32_PREFIX, "n");
 
-        let config = Config::new(&args.id);
-        let config = override_config(config, OverrideConfig::from(args.clone())).unwrap();
+        let config = OverrideConfig::from(args)
+            .do_override(Config::new(&args.id))
+            .unwrap();
 
         let (identity_keys, sphinx_keys) = {
             let mut rng = rand::rngs::OsRng;

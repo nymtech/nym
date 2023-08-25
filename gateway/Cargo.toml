@@ -15,7 +15,7 @@ rust-version = "1.56"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-anyhow = "1.0.53"
+anyhow = { workspace = true }
 async-trait = { workspace = true }
 atty = "0.2"
 bip39 = { workspace = true }

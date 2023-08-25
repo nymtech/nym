@@ -27,6 +27,7 @@ mod config;
 mod persistence;
 
 static SOCKS5_CONFIG_ID: &str = "mobile-socks5-test";
+const ANDROID_HEALTHCHECK_INTERVAL: Duration = Duration::from_secs(5);
 
 // hehe, this is so disgusting : )
 lazy_static! {
@@ -144,7 +145,6 @@ pub fn ping_client() {
     RUNTIME.spawn(async {
         let mut guard = LAST_PING.lock().await;
         *guard = Some(Instant::now());
-        debug!("last ping set to now");
     });
 }
 
@@ -170,27 +170,24 @@ pub fn blocking_run_client<'cb, F, S>(
         drop(guard);
 
         loop {
-            sleep(Duration::from_secs(10)).await;
+            sleep(ANDROID_HEALTHCHECK_INTERVAL).await;
 
-            if get_client_state() == ClientState::Disconnected {
-                return;
+            if !is_shutdown_handle_set().await {
+                debug!("client has been shutdown, cancelling healthcheck loop");
+                break;
             }
             let mut guard = LAST_PING.lock().await;
             let Some(last_ping) = *guard else {
                     warn!("client has not been pinged yet - shutting down");
                     *guard = None;
-                    if get_client_state() == ClientState::Connected {
-                        stop_and_reset_shutdown_handle().await;
-                    }
-                    return;
+                    stop_and_reset_shutdown_handle().await;
+                    break;
             };
             if last_ping.elapsed() > Duration::from_secs(10) {
                 warn!("client has not been pinged for more than 10 seconds - shutting down");
                 *guard = None;
-                if get_client_state() == ClientState::Connected {
-                    stop_and_reset_shutdown_handle().await;
-                }
-                return;
+                stop_and_reset_shutdown_handle().await;
+                break;
             }
             debug!("✓ android app healthy");
         }

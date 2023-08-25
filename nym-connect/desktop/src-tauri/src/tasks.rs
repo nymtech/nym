@@ -1,12 +1,9 @@
 use futures::{channel::mpsc, StreamExt};
 use nym_client_core::{
-    client::{
-        base_client::storage::{
-            gateway_details::GatewayDetailsStore, MixnetClientStorage, OnDiskPersistent,
-        },
-        topology_control::geo_aware_provider::CountryGroup,
+    client::base_client::storage::{
+        gateway_details::GatewayDetailsStore, MixnetClientStorage, OnDiskPersistent,
     },
-    config::{GatewayEndpointConfig, GroupdBy, TopologyStructure},
+    config::{GatewayEndpointConfig, GroupBy, TopologyStructure},
     error::ClientCoreStatusMessage,
 };
 use nym_socks5_client_core::{NymClient as Socks5NymClient, Socks5ControlMessageSender};

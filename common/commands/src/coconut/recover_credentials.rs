@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::context::QueryClient;
-use crate::utils::ClientConfigCommonWrapper;
+use crate::utils::CommonConfigsWrapper;
+use anyhow::bail;
 use clap::Parser;
 use nym_credential_storage::initialise_persistent_storage;
 use nym_credential_utils::{recovery_storage, utils};
@@ -20,11 +21,22 @@ pub struct Args {
 }
 
 pub async fn execute(args: Args, client: QueryClient) -> anyhow::Result<()> {
-    let common_cfg = ClientConfigCommonWrapper::try_load(args.client_config)?;
-    println!("loaded config file for client '{}'", common_cfg.client.id);
+    let loaded = CommonConfigsWrapper::try_load(args.client_config)?;
 
-    let persistent_storage =
-        initialise_persistent_storage(common_cfg.storage_paths.credentials_database).await;
+    if let Ok(id) = loaded.try_get_id() {
+        println!("loaded config file for client '{id}'");
+    }
+
+    let Ok(credentials_store) = loaded.try_get_credentials_store() else {
+        bail!("the loaded config does not have a credentials store information")
+    };
+
+    println!(
+        "using credentials store at '{}'",
+        credentials_store.display()
+    );
+
+    let persistent_storage = initialise_persistent_storage(credentials_store).await;
     let recovery_storage = recovery_storage::RecoveryStorage::new(args.recovery_dir)?;
 
     let recovered =

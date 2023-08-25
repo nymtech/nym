@@ -483,6 +483,7 @@ pub struct Topology {
     pub topology_structure: TopologyStructure,
 }
 
+#[allow(clippy::large_enum_variant)]
 #[derive(Default, Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum TopologyStructure {
     #[default]
@@ -490,6 +491,7 @@ pub enum TopologyStructure {
     GeoAware(GroupBy),
 }
 
+#[allow(clippy::large_enum_variant)]
 #[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum GroupBy {
     CountryGroup(CountryGroup),

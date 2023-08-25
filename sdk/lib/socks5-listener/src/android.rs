@@ -96,7 +96,7 @@ pub unsafe extern "C" fn Java_net_nymtech_nyms5_NymProxy_pingClient(
     _env: JNIEnv,
     _class: JClass,
 ) -> jboolean {
-    // TODO: implement
-    log::debug!("ping received");
+    log::debug!("pong");
+    crate::ping_client();
     1
 }

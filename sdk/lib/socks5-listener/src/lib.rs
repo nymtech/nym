@@ -6,7 +6,7 @@ use crate::persistence::MobileClientStorage;
 use ::safer_ffi::prelude::*;
 use anyhow::{anyhow, Result};
 use lazy_static::lazy_static;
-use log::{info, warn};
+use log::{debug, info, warn};
 use nym_bin_common::logging::setup_logging;
 use nym_client_core::init::GatewaySetup;
 use nym_config_common::defaults::setup_env;
@@ -16,8 +16,10 @@ use std::marker::Send;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::runtime::Runtime;
 use tokio::sync::{Mutex, Notify};
+use tokio::time::{sleep, Instant};
 
 #[cfg(target_os = "android")]
 pub mod android;
@@ -30,6 +32,7 @@ static SOCKS5_CONFIG_ID: &str = "mobile-socks5-test";
 lazy_static! {
     static ref CLIENT_SHUTDOWN_HANDLE: Mutex<Option<Arc<Notify>>> = Mutex::new(None);
     static ref RUNTIME: Runtime = Runtime::new().unwrap();
+    static ref LAST_PING: Mutex<Option<Instant>> = Mutex::new(None);
 }
 static ENV_SET: AtomicBool = AtomicBool::new(false);
 
@@ -136,6 +139,15 @@ pub fn stop_client() {
     RUNTIME.block_on(async move { stop_and_reset_shutdown_handle().await });
 }
 
+#[ffi_export]
+pub fn ping_client() {
+    RUNTIME.spawn(async {
+        let mut guard = LAST_PING.lock().await;
+        *guard = Some(Instant::now());
+        debug!("last ping set to now");
+    });
+}
+
 pub fn blocking_run_client<'cb, F, S>(
     storage_directory: Option<char_p::Ref<'_>>,
     service_provider: Option<char_p::Ref<'_>>,
@@ -149,6 +161,40 @@ pub fn blocking_run_client<'cb, F, S>(
         warn!("could not start the client as it's already running");
         return;
     }
+
+    RUNTIME.spawn(async move {
+        // init the ping to now
+        let mut guard = LAST_PING.lock().await;
+        *guard = Some(Instant::now());
+        // release the mutex
+        drop(guard);
+
+        loop {
+            sleep(Duration::from_secs(10)).await;
+
+            if get_client_state() == ClientState::Disconnected {
+                return;
+            }
+            let mut guard = LAST_PING.lock().await;
+            let Some(last_ping) = *guard else {
+                    warn!("client has not been pinged yet - shutting down");
+                    *guard = None;
+                    if get_client_state() == ClientState::Connected {
+                        stop_and_reset_shutdown_handle().await;
+                    }
+                    return;
+            };
+            if last_ping.elapsed() > Duration::from_secs(10) {
+                warn!("client has not been pinged for more than 10 seconds - shutting down");
+                *guard = None;
+                if get_client_state() == ClientState::Connected {
+                    stop_and_reset_shutdown_handle().await;
+                }
+                return;
+            }
+            debug!("✓ android app healthy");
+        }
+    });
 
     let storage_dir = storage_directory.map(|s| s.to_string());
     let service_provider = service_provider.map(|s| s.to_string());

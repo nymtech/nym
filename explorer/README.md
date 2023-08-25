@@ -32,6 +32,21 @@ You can then open a browser to http://localhost:3000 and start development.
 
 Documentation for developers [can be found here](./docs).
 
+Several environment variables are required. They can be
+provisioned via a `.env` file. For convenience a `.env.dev` is
+provided, just copy its content into `.env`.
+
+#### Required env vars
+
+```
+EXPLORER_API_URL
+NYM_API_URL
+VALIDATOR_URL
+BIG_DIPPER_URL
+CURRENCY_DENOM
+CURRENCY_STAKING_DENOM
+```
+
 ## Deployment
 
 Build the UI with (starting in the repository root):

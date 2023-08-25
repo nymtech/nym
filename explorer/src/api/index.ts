@@ -1,3 +1,4 @@
+import keyBy from 'lodash/keyBy';
 import {
   API_BASE_URL,
   BLOCK_API,
@@ -11,6 +12,7 @@ import {
   UPTIME_STORY_API,
   VALIDATORS_API,
   SERVICE_PROVIDERS,
+  GATEWAYS_EXPLORER_API,
 } from './constants';
 
 import {
@@ -32,6 +34,7 @@ import {
   GatewayBondAnnotated,
   GatewayBond,
   DirectoryServiceProvider,
+  LocatedGateway,
 } from '../typeDefs/explorer-api';
 
 function getFromCache(key: string) {
@@ -98,9 +101,13 @@ export class Api {
   static fetchGateways = async (): Promise<GatewayBond[]> => {
     const res = await fetch(GATEWAYS_API);
     const gatewaysAnnotated: GatewayBondAnnotated[] = await res.json();
+    const res2 = await fetch(GATEWAYS_EXPLORER_API);
+    const locatedGateways: LocatedGateway[] = await res2.json();
+    const locatedGatewaysByOwner = keyBy(locatedGateways, 'owner');
     return gatewaysAnnotated.map(({ gateway_bond, node_performance }) => ({
       ...gateway_bond,
       node_performance,
+      location: locatedGatewaysByOwner[gateway_bond.owner]?.location,
     }));
   };
 

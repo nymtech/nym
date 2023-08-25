@@ -80,6 +80,22 @@ impl<T> DataWrapper<T> {
     }
 }
 
+fn find_toml_value<'a>(root: &'a toml::Value, key: &str) -> Option<&'a toml::Value> {
+    if let toml::Value::Table(table) = root {
+        for (k, v) in table {
+            if k == key {
+                return Some(v);
+            }
+            if v.is_table() {
+                if let Some(res) = find_toml_value(v, key) {
+                    return Some(res);
+                }
+            }
+        }
+    }
+    None
+}
+
 #[derive(Deserialize, Debug)]
 #[serde(untagged)]
 pub(crate) enum CommonConfigsWrapper {
@@ -101,7 +117,7 @@ impl CommonConfigsWrapper {
 
     pub(crate) fn try_get_id(&self) -> anyhow::Result<&str> {
         match self {
-            CommonConfigsWrapper::NymClients(cfg) => Ok(&cfg.client.id),
+            CommonConfigsWrapper::NymClients(cfg) => cfg.try_get_id(),
             CommonConfigsWrapper::NymApi(cfg) => Ok(&cfg.base.id),
             CommonConfigsWrapper::Unknown(cfg) => cfg.try_get_id(),
         }
@@ -110,7 +126,7 @@ impl CommonConfigsWrapper {
     pub(crate) fn try_get_credentials_store(&self) -> anyhow::Result<PathBuf> {
         match self {
             CommonConfigsWrapper::NymClients(cfg) => {
-                Ok(cfg.storage_paths.credentials_database.clone())
+                Ok(cfg.storage_paths.inner.credentials_database.clone())
             }
             CommonConfigsWrapper::NymApi(cfg) => Ok(cfg
                 .network_monitor
@@ -146,12 +162,35 @@ struct NetworkMonitorPaths {
 }
 
 // a hacky way of reading common data from client configs (native, socks5, etc.)
-// it works because all clients follow the same structure
+// it works because all clients follow the same structure for storage paths
+// (or so I thought)
 #[derive(Deserialize, Debug)]
 pub(crate) struct ClientConfigCommonWrapper {
-    client: nym_client_core::config::Client,
+    storage_paths: StoragePathsWrapper,
 
-    storage_paths: CommonClientPaths,
+    // ... but they have different structure for `nym_client_core::config::Client`
+    // native client has it on the top layer, whilsts socks5 has it under 'core' table
+    #[serde(flatten)]
+    other: toml::Value,
+}
+
+// wrapper to allow for any additional entries besides the common paths, like allow list for NR
+#[derive(Deserialize, Debug)]
+struct StoragePathsWrapper {
+    #[serde(flatten)]
+    inner: CommonClientPaths,
+}
+
+impl ClientConfigCommonWrapper {
+    pub(crate) fn try_get_id(&self) -> anyhow::Result<&str> {
+        let id_val = find_toml_value(&self.other, "id")
+            .ok_or_else(|| anyhow!("no id field present in the config"))?;
+        if let toml::Value::String(id) = id_val {
+            Ok(id)
+        } else {
+            bail!("no id field present in the config")
+        }
+    }
 }
 
 #[derive(Deserialize, Debug)]
@@ -161,24 +200,8 @@ pub(crate) struct UnknownConfigWrapper {
 }
 
 impl UnknownConfigWrapper {
-    fn find_toml_value<'a>(root: &'a toml::Value, key: &str) -> Option<&'a toml::Value> {
-        if let toml::Value::Table(table) = root {
-            for (k, v) in table {
-                if k == key {
-                    return Some(v);
-                }
-                if v.is_table() {
-                    if let Some(res) = Self::find_toml_value(v, key) {
-                        return Some(res);
-                    }
-                }
-            }
-        }
-        None
-    }
-
     fn find_value(&self, key: &str) -> Option<&toml::Value> {
-        Self::find_toml_value(&self.inner, key)
+        find_toml_value(&self.inner, key)
     }
 
     pub(crate) fn try_get_id(&self) -> anyhow::Result<&str> {

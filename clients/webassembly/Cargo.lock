@@ -2503,6 +2503,7 @@ version = "1.1.15"
 dependencies = [
  "async-trait",
  "base64 0.21.2",
+ "cfg-if 1.0.0",
  "dashmap",
  "dirs 4.0.0",
  "futures",

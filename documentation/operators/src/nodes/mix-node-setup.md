@@ -63,16 +63,16 @@ To check available configuration options for initializing your node use:
 ```
 ~~~
 
-Initalise your mix node with the following command, replacing the value of `--id` with the moniker you wish to give your mix node. Your `--host` must be publicly routable on the internet in order to mix packets, and can be either an Ipv4 or IPv6 address. The `$(curl ifconfig.me)` command returns your IP automatically using an external service. If you enter your IP address manually, enter it **without** any port information.
+Initalise your mix node with the following command, replacing the value of `--id` with the moniker you wish to give your mix node. Your `--host` must be publicly routable on the internet in order to mix packets, and can be either an Ipv4 or IPv6 address. The `$(curl -4 https://ifconfig.me)` command returns your IP automatically using an external service. If you enter your IP address manually, enter it **without** any port information.
 
 ```
-./nym-mixnode init --id <NODE_NAME> --host $(curl ifconfig.me) 
+./nym-mixnode init --id <NODE_NAME> --host $(curl -4 https://ifconfig.me) 
 ```
 
 <!---serinko: The automatized command did not work, printing the output manually--->
 ~~~admonish example collapsible=true title="Console output"
 ```
-.nym-mixnode init --id <YOUR_ID> --host $(curl ifconfig.me) --wallet-address <WALLET_ADDRESS>
+.nym-mixnode init --id <YOUR_ID> --host $(curl -4 https://ifconfig.me) --wallet-address <WALLET_ADDRESS>
 
 
 Initialising mixnode <YOUR_ID>...

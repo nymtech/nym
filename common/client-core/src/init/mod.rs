@@ -4,368 +4,22 @@
 //! Collection of initialization steps used by client implementations
 
 use crate::client::base_client::storage::gateway_details::{
-    GatewayDetailsStore, PersistedCustomGatewayDetails, PersistedGatewayDetails,
+    GatewayDetailsStore, PersistedGatewayDetails,
 };
 use crate::client::key_manager::persistence::KeyStore;
 use crate::client::key_manager::ManagedKeys;
-use crate::init::helpers::{choose_gateway_by_latency, current_gateways, uniformly_random_gateway};
-use crate::{
-    config::{Config, GatewayEndpointConfig},
-    error::ClientCoreError,
-};
+use crate::error::ClientCoreError;
+use crate::init::helpers::current_gateways;
+use crate::init::types::{GatewaySetup, InitialisationResult};
 use log::error;
-use nym_crypto::asymmetric::identity;
-use nym_gateway_client::client::InitOnly;
-use nym_gateway_client::GatewayClient;
-use nym_gateway_requests::registration::handshake::SharedKeys;
-use nym_sphinx::addressing::clients::Recipient;
 use nym_topology::gateway;
-use nym_validator_client::client::IdentityKey;
 use rand::rngs::OsRng;
-use serde::{Deserialize, Serialize};
-use std::fmt::{Debug, Display};
-use std::sync::Arc;
+use serde::Serialize;
+use std::ops::Deref;
 use url::Url;
 
 pub mod helpers;
-
-const UNUSED_CONSTANT_SO_CLIPPY_YELLS_AT_ME: usize = 42;
-// TODO: cleanup those types. jesus christ.
-
-pub struct RegistrationResult {
-    pub shared_keys: Arc<SharedKeys>,
-    pub authenticated_ephemeral_client: Option<GatewayClient<InitOnly>>,
-}
-
-pub struct InitialisationResult {
-    pub details: InitialisationDetails,
-    pub authenticated_ephemeral_client: Option<GatewayClient<InitOnly>>,
-}
-
-// impl InitialisationResult {
-//     pub(crate) fn new_custom(managed_keys: ManagedKeys) -> Self {
-//         InitialisationResult {
-//             details: InitialisationDetails::new_custom(managed_keys),
-//             authenticated_ephemeral_client: None,
-//         }
-//     }
-// }
-
-impl From<InitialisationDetails> for InitialisationResult {
-    fn from(details: InitialisationDetails) -> Self {
-        InitialisationResult {
-            details,
-            authenticated_ephemeral_client: None,
-        }
-    }
-}
-
-// TODO: rename to something better...
-#[derive(Debug)]
-pub struct InitialisationDetails {
-    pub gateway_details: GatewayDetails,
-    pub managed_keys: ManagedKeys,
-}
-
-#[derive(Debug, Default, Copy, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub struct EmptyCustomDetails {}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CustomGatewayDetails<T = EmptyCustomDetails> {
-    // whatever custom method is used, gateway's identity must be known
-    pub gateway_id: String,
-
-    #[serde(flatten)]
-    pub additional_data: T,
-}
-
-#[derive(Debug)]
-pub enum GatewayDetails<T = EmptyCustomDetails> {
-    Configured(GatewayEndpointConfig),
-    Custom(CustomGatewayDetails<T>),
-}
-
-impl<T> GatewayDetails<T> {
-    pub fn is_custom(&self) -> bool {
-        matches!(self, GatewayDetails::Custom(_))
-    }
-
-    pub fn gateway_id(&self) -> &str {
-        match self {
-            GatewayDetails::Configured(cfg) => &cfg.gateway_id,
-            GatewayDetails::Custom(custom) => &custom.gateway_id,
-        }
-    }
-}
-
-impl From<GatewayEndpointConfig> for GatewayDetails {
-    fn from(value: GatewayEndpointConfig) -> Self {
-        GatewayDetails::Configured(value)
-    }
-}
-
-impl<T> From<PersistedCustomGatewayDetails<T>> for CustomGatewayDetails<T> {
-    fn from(value: PersistedCustomGatewayDetails<T>) -> Self {
-        CustomGatewayDetails {
-            gateway_id: value.gateway_id,
-            additional_data: value.additional_data,
-        }
-    }
-}
-
-impl<T> From<PersistedGatewayDetails<T>> for GatewayDetails<T> {
-    fn from(value: PersistedGatewayDetails<T>) -> Self {
-        match value {
-            PersistedGatewayDetails::Default(default) => {
-                GatewayDetails::Configured(default.details)
-            }
-            PersistedGatewayDetails::Custom(custom) => GatewayDetails::Custom(custom.into()),
-        }
-    }
-}
-
-impl InitialisationDetails {
-    pub fn new(gateway_details: GatewayEndpointConfig, managed_keys: ManagedKeys) -> Self {
-        InitialisationDetails {
-            gateway_details: gateway_details.into(),
-            managed_keys,
-        }
-    }
-
-    // for now don't bother with custom data
-    pub fn new_custom(gateway_id: String, managed_keys: ManagedKeys) -> Self {
-        InitialisationDetails {
-            gateway_details: GatewayDetails::Custom(CustomGatewayDetails {
-                gateway_id,
-                additional_data: Default::default(),
-            }),
-            managed_keys,
-        }
-    }
-
-    pub async fn try_load<K, D>(key_store: &K, details_store: &D) -> Result<Self, ClientCoreError>
-    where
-        K: KeyStore,
-        D: GatewayDetailsStore,
-        K::StorageError: Send + Sync + 'static,
-        D::StorageError: Send + Sync + 'static,
-    {
-        let loaded_details = _load_gateway_details(details_store).await?;
-        let loaded_keys = _load_managed_keys(key_store).await?;
-
-        match &loaded_details {
-            PersistedGatewayDetails::Default(loaded_default) => {
-                if !loaded_default.verify(&loaded_keys.must_get_gateway_shared_key()) {
-                    return Err(ClientCoreError::MismatchedGatewayDetails {
-                        gateway_id: loaded_default.details.gateway_id.clone(),
-                    });
-                }
-            }
-            PersistedGatewayDetails::Custom(_) => {}
-        }
-
-        Ok(InitialisationDetails {
-            gateway_details: loaded_details.into(),
-            managed_keys: loaded_keys,
-        })
-    }
-
-    pub fn client_address(&self) -> Result<Recipient, ClientCoreError> {
-        todo!()
-        // let client_recipient = Recipient::new(
-        //     *self.managed_keys.identity_public_key(),
-        //     *self.managed_keys.encryption_public_key(),
-        //     // TODO: below only works under assumption that gateway address == gateway id
-        //     // (which currently is true)
-        //     NodeIdentity::from_base58_string(&self.gateway_details.gateway_id)?,
-        // );
-        //
-        // Ok(client_recipient)
-    }
-}
-
-#[derive(Copy, Clone, Default)]
-pub enum GatewaySelectionSpecification {
-    /// Uniformly choose a random remote gateway.
-    #[default]
-    Remote,
-
-    /// Should the new, remote, gateway be selected based on latency.
-    RemoteByLatency,
-
-    /// This client will handle the selection by itself
-    Custom,
-}
-
-impl GatewaySelectionSpecification {
-    pub(crate) fn is_custom(&self) -> bool {
-        matches!(self, GatewaySelectionSpecification::Custom)
-    }
-}
-
-pub enum GatewaySetup {
-    /// The gateway specification MUST BE loaded from the underlying storage.
-    MustLoad,
-
-    /// Specifies usage of a new, random, gateway.
-    New {
-        specification: GatewaySelectionSpecification,
-    },
-
-    Specified {
-        /// Identity key of the gateway we want to try to use, if applicable
-        gateway_identity: IdentityKey,
-    },
-
-    Predefined {
-        /// Full gateway configuration
-        details: PersistedGatewayDetails,
-    },
-
-    ReuseConnection {
-        /// The authenticated ephemeral client that was created during `init`
-        authenticated_ephemeral_client: GatewayClient<InitOnly>,
-
-        /// Details of this pre-initialised client
-        details: InitialisationDetails,
-    },
-}
-
-impl From<PersistedGatewayDetails> for GatewaySetup {
-    fn from(details: PersistedGatewayDetails) -> Self {
-        GatewaySetup::Predefined { details }
-    }
-}
-
-impl From<IdentityKey> for GatewaySetup {
-    fn from(gateway_identity: IdentityKey) -> Self {
-        GatewaySetup::Specified { gateway_identity }
-    }
-}
-
-impl Default for GatewaySetup {
-    fn default() -> Self {
-        GatewaySetup::New {
-            specification: Default::default(),
-        }
-    }
-}
-
-impl GatewaySetup {
-    pub fn new_fresh(
-        gateway_identity: Option<String>,
-        latency_based_selection: Option<bool>,
-    ) -> Self {
-        if let Some(gateway_identity) = gateway_identity {
-            GatewaySetup::Specified { gateway_identity }
-        } else {
-            let specification = if let Some(true) = latency_based_selection {
-                GatewaySelectionSpecification::RemoteByLatency
-            } else {
-                GatewaySelectionSpecification::Remote
-            };
-
-            GatewaySetup::New { specification }
-        }
-    }
-
-    pub fn is_must_load(&self) -> bool {
-        matches!(self, GatewaySetup::MustLoad)
-    }
-
-    pub fn has_full_details(&self) -> bool {
-        matches!(self, GatewaySetup::Predefined { .. }) || self.is_must_load()
-    }
-
-    pub fn is_custom(&self) -> bool {
-        if let GatewaySetup::New { specification } = self {
-            specification.is_custom()
-        } else {
-            false
-        }
-    }
-
-    pub async fn choose_gateway(
-        &self,
-        gateways: &[gateway::Node],
-    ) -> Result<GatewayEndpointConfig, ClientCoreError> {
-        match self {
-            GatewaySetup::New { specification } => {
-                match specification {
-                    GatewaySelectionSpecification::Remote => {
-                        let mut rng = OsRng;
-                        uniformly_random_gateway(&mut rng, gateways)
-                    }
-                    GatewaySelectionSpecification::RemoteByLatency => {
-                        let mut rng = OsRng;
-                        choose_gateway_by_latency(&mut rng, gateways).await
-                    }
-                    GatewaySelectionSpecification::Custom => {
-                        Err(ClientCoreError::CustomGatewaySelectionExpected)
-                    }
-                }
-            }
-            .map(Into::into),
-            GatewaySetup::Specified { gateway_identity } => {
-                let user_gateway = identity::PublicKey::from_base58_string(gateway_identity)
-                    .map_err(ClientCoreError::UnableToCreatePublicKeyFromGatewayId)?;
-
-                gateways
-                    .iter()
-                    .find(|gateway| gateway.identity_key == user_gateway)
-                    .ok_or_else(|| ClientCoreError::NoGatewayWithId(gateway_identity.to_string()))
-                    .cloned()
-            }
-            .map(Into::into),
-            _ => Err(ClientCoreError::UnexpectedGatewayDetails),
-        }
-    }
-
-    pub async fn try_get_new_gateway_details(
-        &self,
-        validator_servers: &[Url],
-    ) -> Result<GatewayEndpointConfig, ClientCoreError> {
-        let mut rng = OsRng;
-        let gateways = current_gateways(&mut rng, validator_servers).await?;
-        self.choose_gateway(&gateways).await
-    }
-}
-
-/// Struct describing the results of the client initialization procedure.
-#[derive(Debug, Serialize)]
-pub struct InitResults {
-    version: String,
-    id: String,
-    identity_key: String,
-    encryption_key: String,
-    gateway_id: String,
-    gateway_listener: String,
-}
-
-impl InitResults {
-    pub fn new(config: &Config, address: &Recipient, gateway: &GatewayEndpointConfig) -> Self {
-        Self {
-            version: config.client.version.clone(),
-            id: config.client.id.clone(),
-            identity_key: address.identity().to_base58_string(),
-            encryption_key: address.encryption_key().to_base58_string(),
-            gateway_id: gateway.gateway_id.clone(),
-            gateway_listener: gateway.gateway_listener.clone(),
-        }
-    }
-}
-
-impl Display for InitResults {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "Version: {}", self.version)?;
-        writeln!(f, "ID: {}", self.id)?;
-        writeln!(f, "Identity key: {}", self.identity_key)?;
-        writeln!(f, "Encryption: {}", self.encryption_key)?;
-        writeln!(f, "Gateway ID: {}", self.gateway_id)?;
-        write!(f, "Gateway: {}", self.gateway_listener)
-    }
-}
+pub mod types;
 
 // helpers for error wrapping
 async fn _store_gateway_details<D>(
@@ -417,7 +71,12 @@ fn ensure_valid_details(
 ) -> Result<(), ClientCoreError> {
     match details {
         PersistedGatewayDetails::Default(details) => {
-            if !details.verify(&loaded_keys.must_get_gateway_shared_key()) {
+            if !details.verify(
+                loaded_keys
+                    .gateway_shared_key()
+                    .ok_or(ClientCoreError::UnavailableSharedKey)?
+                    .deref(),
+            ) {
                 Err(ClientCoreError::MismatchedGatewayDetails {
                     gateway_id: details.details.gateway_id.clone(),
                 })
@@ -451,13 +110,15 @@ where
     // I don't like how we can't deal with this variant in the match below, but we need to take ownership of internal values.
     if let GatewaySetup::ReuseConnection {
         authenticated_ephemeral_client,
-        details,
+        gateway_details,
+        managed_keys,
     } = setup
     {
         // if we have already performed the full setup, forward the details.
         // it's up to the caller to ensure persistence
         return Ok(InitialisationResult {
-            details,
+            gateway_details,
+            managed_keys,
             authenticated_ephemeral_client: Some(authenticated_ephemeral_client),
         });
     }
@@ -477,34 +138,52 @@ where
                     ensure_valid_details(&details, &loaded_keys)?;
 
                     // no need to persist anything as we got everything from the storage
-                    return Ok(InitialisationDetails::new(details.into(), loaded_keys).into());
+                    return Ok(InitialisationResult::new_loaded(
+                        details.into(),
+                        loaded_keys,
+                    ));
                 }
                 GatewaySetup::Predefined { details } => {
-                    // we already have defined gateway details AND a shared key
-                    ensure_valid_details(details, &loaded_keys)?;
-
                     // if nothing was stored or we're allowed to overwrite what's there, just persist the passed data
                     if overwrite_data || loaded_details.is_err() {
-                        _store_gateway_details(details_store, details).await?;
+                        let shared_key = loaded_keys.gateway_shared_key();
+                        let storable =
+                            PersistedGatewayDetails::new(details.clone(), shared_key.as_deref())?;
+                        _store_gateway_details(details_store, &storable).await?;
+                    } else if let Ok(existing_details) = loaded_details {
+                        // if there was some stored data and we can't overwrite it make sure it's exactly what we provided now
+                        // (and that they match the key)
+
+                        if !existing_details.matches(&details) {
+                            return Err(ClientCoreError::MismatchedStoredGatewayDetails);
+                        }
+
+                        ensure_valid_details(&existing_details, &loaded_keys)?;
                     }
 
-                    return Ok(
-                        InitialisationDetails::new(details.clone().into(), loaded_keys).into(),
-                    );
+                    return Ok(InitialisationResult::new_loaded(
+                        details.clone().into(),
+                        loaded_keys,
+                    )
+                    .into());
                 }
                 GatewaySetup::Specified { gateway_identity } => {
                     // if that data was already stored...
                     if let Ok(existing_gateway) = loaded_details {
                         ensure_valid_details(&existing_gateway, &loaded_keys)?;
                         let PersistedGatewayDetails::Default(cfg) = existing_gateway else {
-                            return Err(ClientCoreError::UnexpectedPersistedCustomGatewayDetails)
+                            return Err(ClientCoreError::UnexpectedPersistedCustomGatewayDetails);
                         };
                         if &cfg.details.gateway_id != gateway_identity && !overwrite_data {
                             // if our loaded details don't match requested value and we CANT overwrite it...
                             return Err(ClientCoreError::UnexpectedGatewayDetails);
                         } else if &cfg.details.gateway_id == gateway_identity {
                             // if they do match up, just return it
-                            return Ok(InitialisationDetails::new(cfg.details, loaded_keys).into());
+                            return Ok(InitialisationResult::new_loaded(
+                                cfg.details.into(),
+                                loaded_keys,
+                            )
+                            .into());
                         }
                     }
 
@@ -519,7 +198,7 @@ where
                 GatewaySetup::New { .. } => {
                     if let Ok(existing_gateway) = loaded_details {
                         ensure_valid_details(&existing_gateway, &loaded_keys)?;
-                        return Ok(InitialisationDetails::new(
+                        return Ok(InitialisationResult::new_loaded(
                             existing_gateway.into(),
                             loaded_keys,
                         )
@@ -549,6 +228,8 @@ where
         }
     };
 
+    // TODO: figure out how custom gateway fits into the below logic
+
     // choose gateway
     let gateway_details = setup.choose_gateway(gateways.unwrap_or_default()).await?;
 
@@ -560,7 +241,8 @@ where
         helpers::register_with_gateway(&gateway_details, our_identity).await?;
     let shared_keys = registration_result.shared_keys;
 
-    let persisted_details = PersistedGatewayDetails::new(gateway_details, &shared_keys);
+    let persisted_details =
+        PersistedGatewayDetails::new(gateway_details.into(), Some(shared_keys.deref()))?;
 
     // persist gateway keys
     managed_keys
@@ -574,8 +256,9 @@ where
     _store_gateway_details(details_store, &persisted_details).await?;
 
     Ok(InitialisationResult {
-        details: InitialisationDetails::new(persisted_details.into(), managed_keys),
-        authenticated_ephemeral_client: registration_result.authenticated_ephemeral_client,
+        gateway_details: persisted_details.into(),
+        managed_keys,
+        authenticated_ephemeral_client: Some(registration_result.authenticated_ephemeral_client),
     })
 }
 

@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::config::GatewayEndpointConfig;
-use crate::init::EmptyCustomDetails;
+use crate::error::ClientCoreError;
+use crate::init::types::{EmptyCustomDetails, GatewayDetails};
 use async_trait::async_trait;
 use nym_gateway_requests::registration::handshake::SharedKeys;
 use serde::{Deserialize, Serialize};
@@ -28,11 +29,14 @@ pub trait GatewayDetailsStore {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum PersistedGatewayDetails<T = EmptyCustomDetails> {
+    /// Standard details of a remote gateway
     Default(PersistedGatewayConfig),
+
+    /// Custom gateway setup, such as for a client embedded inside gateway itself
     Custom(PersistedCustomGatewayDetails<T>),
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct PersistedGatewayConfig {
     // TODO: should we also verify correctness of the details themselves?
     // i.e. we could include a checksum or tag (via the shared keys)
@@ -88,13 +92,47 @@ impl From<PersistedGatewayDetails> for GatewayEndpointConfig {
     }
 }
 
-impl PersistedGatewayDetails {
-    pub fn new(details: GatewayEndpointConfig, shared_key: &SharedKeys) -> Self {
-        PersistedGatewayDetails::Default(PersistedGatewayConfig::new(details, shared_key))
+impl<T> PersistedGatewayDetails<T> {
+    pub fn new(
+        details: GatewayDetails<T>,
+        shared_key: Option<&SharedKeys>,
+    ) -> Result<Self, ClientCoreError> {
+        match details {
+            GatewayDetails::Configured(cfg) => {
+                let shared_key = shared_key.ok_or(ClientCoreError::UnavailableSharedKey)?;
+                Ok(PersistedGatewayDetails::Default(
+                    PersistedGatewayConfig::new(cfg, shared_key),
+                ))
+            }
+            GatewayDetails::Custom(custom) => Ok(PersistedGatewayDetails::Custom(custom.into())),
+        }
     }
 
     pub fn is_custom(&self) -> bool {
         matches!(self, PersistedGatewayDetails::Custom(..))
+    }
+
+    pub fn matches(&self, other: &GatewayDetails<T>) -> bool
+    where
+        T: PartialEq,
+    {
+        match self {
+            PersistedGatewayDetails::Default(default) => {
+                if let GatewayDetails::Configured(other_configured) = other {
+                    &default.details == other_configured
+                } else {
+                    false
+                }
+            }
+            PersistedGatewayDetails::Custom(custom) => {
+                if let GatewayDetails::Custom(other_custom) = other {
+                    custom.gateway_id == other_custom.gateway_id
+                        && custom.additional_data == other_custom.additional_data
+                } else {
+                    false
+                }
+            }
+        }
     }
 }
 

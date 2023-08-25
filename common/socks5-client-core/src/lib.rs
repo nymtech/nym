@@ -19,7 +19,7 @@ use nym_client_core::client::base_client::{
 use nym_client_core::client::key_manager::persistence::KeyStore;
 use nym_client_core::client::replies::reply_storage::ReplyStorageBackend;
 use nym_client_core::config::DebugConfig;
-use nym_client_core::init::GatewaySetup;
+use nym_client_core::init::types::GatewaySetup;
 use nym_credential_storage::storage::Storage as CredentialStorage;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::params::PacketType;

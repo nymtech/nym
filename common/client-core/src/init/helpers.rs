@@ -3,7 +3,7 @@
 
 use crate::config::GatewayEndpointConfig;
 use crate::error::ClientCoreError;
-use crate::init::RegistrationResult;
+use crate::init::types::RegistrationResult;
 use futures::{SinkExt, StreamExt};
 use log::{debug, info, trace, warn};
 use nym_crypto::asymmetric::identity;
@@ -230,6 +230,6 @@ pub(super) async fn register_with_gateway(
         })?;
     Ok(RegistrationResult {
         shared_keys,
-        authenticated_ephemeral_client: Some(gateway_client),
+        authenticated_ephemeral_client: gateway_client,
     })
 }

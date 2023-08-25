@@ -133,7 +133,7 @@ fn persist_gateway_details(
             source: Box::new(source),
         })
     })?;
-    let persisted_details = PersistedGatewayDetails::new(details, &shared_keys);
+    let persisted_details = PersistedGatewayDetails::new(details.into(), Some(&shared_keys))?;
     details_store
         .store_to_disk(&persisted_details)
         .map_err(|source| {

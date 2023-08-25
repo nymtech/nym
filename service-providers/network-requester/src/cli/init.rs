@@ -13,7 +13,9 @@ use nym_bin_common::output_format::OutputFormat;
 use nym_client_core::client::base_client::storage::gateway_details::OnDiskGatewayDetails;
 use nym_client_core::client::key_manager::persistence::OnDiskKeys;
 use nym_client_core::config::GatewayEndpointConfig;
-use nym_client_core::init::GatewaySetup;
+use nym_client_core::error::ClientCoreError;
+use nym_client_core::init::types::GatewayDetails;
+use nym_client_core::init::types::GatewaySetup;
 use nym_crypto::asymmetric::identity;
 use nym_sphinx::addressing::clients::Recipient;
 use serde::Serialize;
@@ -91,14 +93,18 @@ impl From<Init> for OverrideConfig {
 #[derive(Debug, Serialize)]
 pub struct InitResults {
     #[serde(flatten)]
-    client_core: nym_client_core::init::InitResults,
+    client_core: nym_client_core::init::types::InitResults,
     client_address: String,
 }
 
 impl InitResults {
     fn new(config: &Config, address: &Recipient, gateway: &GatewayEndpointConfig) -> Self {
         Self {
-            client_core: nym_client_core::init::InitResults::new(&config.base, address, gateway),
+            client_core: nym_client_core::init::types::InitResults::new(
+                &config.base,
+                address,
+                gateway,
+            ),
             client_address: address.to_string(),
         }
     }
@@ -172,8 +178,7 @@ pub(crate) async fn execute(args: &Init) -> Result<(), NetworkRequesterError> {
         Some(&config.base.client.nym_api_urls),
     )
     .await
-    .tap_err(|err| log::error!("Failed to setup gateway\nError: {err}"))?
-    .details;
+    .tap_err(|err| log::error!("Failed to setup gateway\nError: {err}"))?;
 
     let config_save_location = config.default_location();
     config.save_to_default_location().tap_err(|_| {
@@ -188,7 +193,10 @@ pub(crate) async fn execute(args: &Init) -> Result<(), NetworkRequesterError> {
 
     log::info!("Client configuration completed.\n");
 
-    let init_results = InitResults::new(&config, &address, &init_details.gateway_details);
+    let GatewayDetails::Configured(gateway_details) = init_details.gateway_details else {
+        return Err(ClientCoreError::UnexpectedPersistedCustomGatewayDetails)?
+    };
+    let init_results = InitResults::new(&config, &address, &gateway_details);
     println!("{}", args.output.format(&init_results));
 
     Ok(())

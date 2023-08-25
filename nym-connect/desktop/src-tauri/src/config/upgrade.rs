@@ -29,7 +29,7 @@ fn persist_gateway_details(config: &Config, details: GatewayEndpointConfig) -> R
             },
         }
     })?;
-    let persisted_details = PersistedGatewayDetails::new(details, &shared_keys);
+    let persisted_details = PersistedGatewayDetails::new(details, Some(&shared_keys))?;
     details_store
         .store_to_disk(&persisted_details)
         .map_err(|source| BackendError::ClientCoreError {

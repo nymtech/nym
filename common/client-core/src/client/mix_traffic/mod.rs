@@ -1,14 +1,10 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::client::mix_traffic::sender::{GatewaySender, RemoteGateway};
+use crate::client::mix_traffic::sender::GatewaySender;
 use crate::spawn_future;
 use log::*;
-use nym_credential_storage::storage::Storage;
-use nym_gateway_client::GatewayClient;
 use nym_sphinx::forwarding::packet::MixPacket;
-use nym_validator_client::nyxd::contract_traits::DkgQueryClient;
-use std::marker::PhantomData;
 
 pub type BatchMixMessageSender = tokio::sync::mpsc::Sender<Vec<MixPacket>>;
 pub type BatchMixMessageReceiver = tokio::sync::mpsc::Receiver<Vec<MixPacket>>;
@@ -31,19 +27,6 @@ pub struct MixTrafficController {
     // in long run `gateway_client` will be moved away from `MixTrafficController` anyway.
     consecutive_gateway_failure_count: usize,
 }
-
-// impl<C, St> MixTrafficController<C, St>
-// where
-//     C: DkgQueryClient + Sync + Send + 'static,
-//     St: Storage + 'static,
-//     <St as Storage>::StorageError: Send + Sync + 'static,
-// {
-//     pub fn new_remote(
-//         gateway_client: GatewayClient<C, St>,
-//     ) -> (MixTrafficController<C, St>, BatchMixMessageSender) {
-//         Self::new(RemoteGateway::new(gateway_client))
-//     }
-// }
 
 impl MixTrafficController {
     pub fn new<T>(gateway_sender: T) -> (MixTrafficController, BatchMixMessageSender)

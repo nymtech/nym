@@ -15,7 +15,7 @@ use nym_client_core::client::base_client::storage::{
 use nym_client_core::client::base_client::BaseClient;
 use nym_client_core::client::key_manager::persistence::KeyStore;
 use nym_client_core::config::DebugConfig;
-use nym_client_core::init::GatewaySetup;
+use nym_client_core::init::types::GatewaySetup;
 use nym_client_core::{
     client::{base_client::BaseClientBuilder, replies::reply_storage::ReplyStorageBackend},
     config::GatewayEndpointConfig,

@@ -27,11 +27,12 @@ use crate::client::topology_control::{
 use crate::config::{Config, DebugConfig};
 use crate::error::ClientCoreError;
 use crate::init::{
-    setup_gateway, GatewayDetails, GatewaySetup, InitialisationDetails, InitialisationResult,
+    setup_gateway,
+    types::{GatewayDetails, GatewaySetup, InitialisationResult},
 };
 use crate::{config, spawn_future};
 use futures::channel::mpsc;
-use log::{debug, error, info};
+use log::{debug, info};
 use nym_bandwidth_controller::BandwidthController;
 use nym_credential_storage::storage::Storage as CredentialStorage;
 use nym_crypto::asymmetric::{encryption, identity};
@@ -220,7 +221,7 @@ where
 
     // note: do **NOT** make this method public as its only valid usage is from within `start_base`
     // because it relies on the crypto keys being already loaded
-    fn mix_address(details: &InitialisationDetails) -> Recipient {
+    fn mix_address(details: &InitialisationResult) -> Recipient {
         Recipient::new(
             *details.managed_keys.identity_public_key(),
             *details.managed_keys.encryption_public_key(),
@@ -321,8 +322,8 @@ where
         <S::KeyStore as KeyStore>::StorageError: Send + Sync + 'static,
         <S::CredentialStore as CredentialStorage>::StorageError: Send + Sync + 'static,
     {
-        let managed_keys = initialisation_result.details.managed_keys;
-        let GatewayDetails::Configured(gateway_config) = initialisation_result.details.gateway_details else {
+        let managed_keys = initialisation_result.managed_keys;
+        let GatewayDetails::Configured(gateway_config) = initialisation_result.gateway_details else {
             return Err(ClientCoreError::UnexpectedPersistedCustomGatewayDetails)
         };
 
@@ -390,7 +391,7 @@ where
     {
         // if we have setup custom gateway sender and persisted details agree with it, return it
         if let Some(custom_gateway_sender) = custom_gateway_sender {
-            return if !initialisation_result.details.gateway_details.is_custom() {
+            return if !initialisation_result.gateway_details.is_custom() {
                 Err(ClientCoreError::CustomGatewaySelectionExpected)
             } else {
                 Ok(custom_gateway_sender)
@@ -582,9 +583,9 @@ where
         let (reply_controller_sender, reply_controller_receiver) =
             reply_controller::requests::new_control_channels();
 
-        let self_address = Self::mix_address(&init_res.details);
-        let ack_key = init_res.details.managed_keys.ack_key();
-        let encryption_keys = init_res.details.managed_keys.encryption_keypair();
+        let self_address = Self::mix_address(&init_res);
+        let ack_key = init_res.managed_keys.ack_key();
+        let encryption_keys = init_res.managed_keys.encryption_keypair();
 
         // the components are started in very specific order. Unless you know what you are doing,
         // do not change that.

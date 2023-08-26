@@ -29,7 +29,6 @@ use nym_validator_client::client::IdentityKey;
 use nym_validator_client::QueryReqwestRpcNyxdClient;
 use rand::rngs::OsRng;
 use std::collections::HashSet;
-use std::rc::Rc;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Arc, Mutex as SyncMutex};
 use std::time::Duration;
@@ -43,7 +42,7 @@ pub(crate) mod helpers;
 
 pub type NodeTestMessage = TestMessage<WasmTestMessageExt>;
 type LockedGatewayClient =
-    Rc<AsyncMutex<GatewayClient<QueryReqwestRpcNyxdClient, EphemeralStorage>>>;
+    Arc<AsyncMutex<GatewayClient<QueryReqwestRpcNyxdClient, EphemeralStorage>>>;
 
 pub(crate) const DEFAULT_TEST_TIMEOUT: Duration = Duration::from_secs(10);
 pub(crate) const DEFAULT_TEST_PACKETS: u32 = 20;
@@ -211,7 +210,7 @@ impl NymNodeTesterBuilder {
             test_in_progress: Arc::new(AtomicBool::new(false)),
             current_test_nonce: Default::default(),
             tester: Arc::new(SyncMutex::new(tester)),
-            gateway_client: Rc::new(AsyncMutex::new(gateway_client)),
+            gateway_client: Arc::new(AsyncMutex::new(gateway_client)),
             processed_receiver: ReceivedReceiverWrapper::new(processed_receiver),
             _task_manager: task_manager,
         })
@@ -344,7 +343,7 @@ impl NymNodeTester {
         ));
 
         let processed_receiver_clone = self.processed_receiver.clone();
-        let gateway_client_clone = Rc::clone(&self.gateway_client);
+        let gateway_client_clone = Arc::clone(&self.gateway_client);
         let tester_marker = TestMarker::new(Arc::clone(&self.test_in_progress));
 
         // start doing async things (send packets and watch for anything coming back)

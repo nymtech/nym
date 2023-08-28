@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::BandwidthControllerError;
-
 use nym_credential_storage::error::StorageError;
 use nym_credential_storage::storage::Storage;
-
+use nym_validator_client::coconut::all_coconut_api_clients;
+use nym_validator_client::nyxd::contract_traits::DkgQueryClient;
 use std::str::FromStr;
 use {
     nym_coconut_interface::Base58,
@@ -14,17 +14,8 @@ use {
     },
 };
 
-#[cfg(not(target_arch = "wasm32"))]
-use nym_validator_client::nyxd::traits::DkgQueryClient;
-
-#[cfg(target_arch = "wasm32")]
-use crate::wasm_mockups::DkgQueryClient;
-
-#[cfg(not(target_arch = "wasm32"))]
 pub mod acquire;
 pub mod error;
-#[cfg(target_arch = "wasm32")]
-pub mod wasm_mockups;
 
 pub struct BandwidthController<C, St> {
     storage: St,
@@ -64,12 +55,8 @@ impl<C, St: Storage> BandwidthController<C, St> {
         let epoch_id = u64::from_str(&bandwidth_credential.epoch_id)
             .map_err(|_| StorageError::InconsistentData)?;
 
-        #[cfg(not(target_arch = "wasm32"))]
-        let coconut_api_clients =
-            nym_validator_client::CoconutApiClient::all_coconut_api_clients(&self.client, epoch_id)
-                .await?;
-        #[cfg(target_arch = "wasm32")]
-        let coconut_api_clients = vec![];
+        let coconut_api_clients = all_coconut_api_clients(&self.client, epoch_id).await?;
+
         let verification_key = obtain_aggregate_verification_key(&coconut_api_clients).await?;
 
         // the below would only be executed once we know where we want to spend it (i.e. which gateway and stuff)

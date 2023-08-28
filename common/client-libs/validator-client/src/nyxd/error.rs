@@ -2,22 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::nyxd::cosmwasm_client::types::ContractCodeId;
+use crate::signing::direct_wallet::DirectSecp256k1HdWalletError;
+use cosmrs::tendermint::Hash;
 use cosmrs::{
-    rpc::endpoint::abci_query::AbciQuery,
-    tendermint::{
-        abci::{self, Code as AbciCode},
-        block,
-    },
-    tx, AccountId,
+    tendermint::{abci::Code as AbciCode, block},
+    AccountId,
 };
+use std::{io, time::Duration};
+use tendermint_rpc::endpoint::abci_query::AbciQuery;
 use thiserror::Error;
 
-use crate::signing::direct_wallet::DirectSecp256k1HdWalletError;
-pub use cosmrs::rpc::{
+pub use cosmrs::tendermint::error::Error as TendermintError;
+pub use tendermint_rpc::{
     error::{Error as TendermintRpcError, ErrorDetail as TendermintRpcErrorDetail},
     response_error::{Code, ResponseError},
 };
-use std::{io, time::Duration};
 
 #[derive(Debug, Error)]
 pub enum NyxdError {
@@ -27,8 +26,11 @@ pub enum NyxdError {
     #[error(transparent)]
     WalletError(#[from] DirectSecp256k1HdWalletError),
 
-    #[error("There was an issue on the cosmrs side - {0}")]
+    #[error("There was an issue on the cosmrs side: {0}")]
     CosmrsError(#[from] cosmrs::Error),
+
+    #[error("There was an issue on the cosmrs side: {0}")]
+    CosmrsErrorReport(#[from] cosmrs::ErrorReport),
 
     #[error("Failed to derive account address")]
     AccountDerivationError,
@@ -43,7 +45,10 @@ pub enum NyxdError {
     InvalidTxHash(String),
 
     #[error("Tendermint RPC request failed - {0}")]
-    TendermintError(#[from] TendermintRpcError),
+    TendermintErrorRpc(#[from] TendermintRpcError),
+
+    #[error("tendermint library failure: {0}")]
+    TendermintError(#[from] TendermintError),
 
     #[error("Failed when attempting to serialize data ({0})")]
     SerializationError(String),
@@ -91,7 +96,7 @@ pub enum NyxdError {
     "Error when broadcasting tx {hash} at height {height:?}. Error occurred during CheckTx phase. Code: {code}; Raw log: {raw_log}"
     )]
     BroadcastTxErrorCheckTx {
-        hash: tx::Hash,
+        hash: Hash,
         height: Option<block::Height>,
         code: u32,
         raw_log: String,
@@ -101,7 +106,7 @@ pub enum NyxdError {
     "Error when broadcasting tx {hash} at height {height:?}. Error occurred during DeliverTx phase. Code: {code}; Raw log: {raw_log}"
     )]
     BroadcastTxErrorDeliverTx {
-        hash: tx::Hash,
+        hash: Hash,
         height: Option<block::Height>,
         code: u32,
         raw_log: String,
@@ -116,7 +121,7 @@ pub enum NyxdError {
     #[error("Abci query failed with code {code} - {log}")]
     AbciError {
         code: u32,
-        log: abci::Log,
+        log: String,
         pretty_log: Option<String>,
     },
 
@@ -130,7 +135,7 @@ pub enum NyxdError {
     NoBaseAccountInformationAvailable,
 
     #[error("Transaction with ID {hash} has been submitted but not yet found on the chain. You might want to check for it later. There was a total wait of {} seconds", .timeout.as_secs())]
-    BroadcastTimeout { hash: tx::Hash, timeout: Duration },
+    BroadcastTimeout { hash: Hash, timeout: Duration },
 
     #[error("Cosmwasm std error: {0}")]
     CosmwasmStdError(#[from] cosmwasm_std::StdError),
@@ -148,7 +153,7 @@ pub fn parse_abci_query_result(query_result: AbciQuery) -> Result<AbciQuery, Nyx
     match query_result.code {
         AbciCode::Ok => Ok(query_result),
         AbciCode::Err(code) => Err(NyxdError::AbciError {
-            code,
+            code: code.into(),
             log: query_result.log.clone(),
             pretty_log: try_parse_abci_log(&query_result.log),
         }),
@@ -157,11 +162,8 @@ pub fn parse_abci_query_result(query_result: AbciQuery) -> Result<AbciQuery, Nyx
 
 // Some of the error strings returned by the query are a bit too technical to present to the
 // enduser. So we special case some commonly encountered errors.
-fn try_parse_abci_log(log: &abci::Log) -> Option<String> {
-    if log
-        .value()
-        .contains("Maximum amount of locked coins has already been pledged")
-    {
+fn try_parse_abci_log(log: &str) -> Option<String> {
+    if log.contains("Maximum amount of locked coins has already been pledged") {
         Some("Maximum amount of locked tokens has already been used. You can only use up to 10% of your locked tokens for bonding and delegating.".to_string())
     } else {
         None
@@ -171,7 +173,7 @@ fn try_parse_abci_log(log: &abci::Log) -> Option<String> {
 impl NyxdError {
     pub fn is_tendermint_response_timeout(&self) -> bool {
         match &self {
-            NyxdError::TendermintError(TendermintRpcError(
+            NyxdError::TendermintErrorRpc(TendermintRpcError(
                 TendermintRpcErrorDetail::Response(err),
                 _,
             )) => {
@@ -198,7 +200,7 @@ impl NyxdError {
 
     pub fn is_tendermint_response_duplicate(&self) -> bool {
         match &self {
-            NyxdError::TendermintError(TendermintRpcError(
+            NyxdError::TendermintErrorRpc(TendermintRpcError(
                 TendermintRpcErrorDetail::Response(err),
                 _,
             )) => {
@@ -218,5 +220,9 @@ impl NyxdError {
             }
             _ => false,
         }
+    }
+
+    pub fn unavailable_contract_address<S: Into<String>>(contract_type: S) -> Self {
+        NyxdError::NoContractAddressAvailable(contract_type.into())
     }
 }

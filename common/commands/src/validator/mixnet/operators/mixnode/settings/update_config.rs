@@ -5,7 +5,7 @@ use crate::context::SigningClient;
 use clap::Parser;
 use log::info;
 use nym_mixnet_contract_common::MixNodeConfigUpdate;
-use nym_validator_client::nyxd::traits::{MixnetQueryClient, MixnetSigningClient};
+use nym_validator_client::nyxd::contract_traits::{MixnetQueryClient, MixnetSigningClient};
 
 #[derive(Debug, Parser)]
 pub struct Args {
@@ -29,7 +29,7 @@ pub async fn update_config(args: Args, client: SigningClient) {
     info!("Update mix node config!");
 
     let current_details = match client
-        .get_owned_mixnode(client.address())
+        .get_owned_mixnode(&client.address())
         .await
         .expect("failed to query the chain for mixnode details")
         .mixnode_details

@@ -6,7 +6,8 @@ use std::str::FromStr;
 
 use crate::context::QueryClient;
 use crate::utils::show_error;
-use cosmrs::tx::Hash;
+use cosmrs::tendermint::Hash;
+use nym_validator_client::nyxd::CosmWasmClient;
 use serde_json::json;
 
 #[derive(Debug, Parser)]

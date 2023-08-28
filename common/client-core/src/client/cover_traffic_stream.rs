@@ -19,10 +19,10 @@ use std::time::Duration;
 use tokio::sync::mpsc::error::TrySendError;
 
 #[cfg(not(target_arch = "wasm32"))]
-use tokio::time;
+use tokio::time::{sleep, Sleep};
 
 #[cfg(target_arch = "wasm32")]
-use wasm_timer;
+use wasmtimer::tokio::{sleep, Sleep};
 
 pub struct LoopCoverTrafficStream<R>
 where
@@ -39,11 +39,7 @@ where
 
     /// Internal state, determined by `average_message_sending_delay`,
     /// used to keep track of when a next packet should be sent out.
-    #[cfg(not(target_arch = "wasm32"))]
-    next_delay: Pin<Box<time::Sleep>>,
-
-    #[cfg(target_arch = "wasm32")]
-    next_delay: Pin<Box<wasm_timer::Delay>>,
+    next_delay: Pin<Box<Sleep>>,
 
     /// Channel used for sending prepared nym packets to `MixTrafficController` that sends them
     /// out to the network without any further delays.
@@ -90,17 +86,9 @@ where
 
         // The next interval value is `next_poisson_delay` after the one that just
         // yielded.
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            let now = self.next_delay.deadline();
-            let next = now + next_poisson_delay;
-            self.next_delay.as_mut().reset(next);
-        }
-
-        #[cfg(target_arch = "wasm32")]
-        {
-            self.next_delay.as_mut().reset(next_poisson_delay);
-        }
+        let now = self.next_delay.deadline();
+        let next = now + next_poisson_delay;
+        self.next_delay.as_mut().reset(next);
 
         Poll::Ready(Some(()))
     }
@@ -120,11 +108,7 @@ impl LoopCoverTrafficStream<OsRng> {
     ) -> Self {
         let rng = OsRng;
 
-        #[cfg(not(target_arch = "wasm32"))]
-        let next_delay = Box::pin(time::sleep(Default::default()));
-
-        #[cfg(target_arch = "wasm32")]
-        let next_delay = Box::pin(wasm_timer::Delay::new(Default::default()));
+        let next_delay = Box::pin(sleep(Default::default()));
 
         LoopCoverTrafficStream {
             ack_key,
@@ -142,18 +126,13 @@ impl LoopCoverTrafficStream<OsRng> {
     }
 
     fn set_next_delay(&mut self, amount: Duration) {
-        #[cfg(not(target_arch = "wasm32"))]
-        let next_delay = Box::pin(time::sleep(amount));
-
-        #[cfg(target_arch = "wasm32")]
-        let next_delay = Box::pin(wasm_timer::Delay::new(amount));
-
+        let next_delay = Box::pin(sleep(amount));
         self.next_delay = next_delay;
     }
 
     fn loop_cover_message_size(&mut self) -> PacketSize {
         let Some(secondary_packet_size) = self.secondary_packet_size else {
-            return self.primary_packet_size
+            return self.primary_packet_size;
         };
 
         let use_primary = self

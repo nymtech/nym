@@ -1,0 +1,32 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "LayerDistribution",
+  "description": "The current layer distribution of the mix network.",
+  "type": "object",
+  "required": [
+    "layer1",
+    "layer2",
+    "layer3"
+  ],
+  "properties": {
+    "layer1": {
+      "description": "Number of nodes on the first layer.",
+      "type": "integer",
+      "format": "uint64",
+      "minimum": 0.0
+    },
+    "layer2": {
+      "description": "Number of nodes on the second layer.",
+      "type": "integer",
+      "format": "uint64",
+      "minimum": 0.0
+    },
+    "layer3": {
+      "description": "Number of nodes on the third layer.",
+      "type": "integer",
+      "format": "uint64",
+      "minimum": 0.0
+    }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,1030 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ProposalResponse_for_Empty",
+  "description": "Note, if you are storing custom messages in the proposal, the querier needs to know what possible custom message types those are in order to parse the response",
+  "type": "object",
+  "required": [
+    "description",
+    "expires",
+    "id",
+    "msgs",
+    "proposer",
+    "status",
+    "threshold",
+    "title"
+  ],
+  "properties": {
+    "deposit": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/DepositInfo"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "description": {
+      "type": "string"
+    },
+    "expires": {
+      "$ref": "#/definitions/Expiration"
+    },
+    "id": {
+      "type": "integer",
+      "format": "uint64",
+      "minimum": 0.0
+    },
+    "msgs": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/CosmosMsg_for_Empty"
+      }
+    },
+    "proposer": {
+      "$ref": "#/definitions/Addr"
+    },
+    "status": {
+      "$ref": "#/definitions/Status"
+    },
+    "threshold": {
+      "description": "This is the threshold that is applied to this proposal. Both the rules of the voting contract, as well as the total_weight of the voting group may have changed since this time. That means that the generic `Threshold{}` query does not provide valid information for existing proposals.",
+      "allOf": [
+        {
+          "$ref": "#/definitions/ThresholdResponse"
+        }
+      ]
+    },
+    "title": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "Addr": {
+      "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
+      "type": "string"
+    },
+    "BankMsg": {
+      "description": "The message types of the bank module.\n\nSee https://github.com/cosmos/cosmos-sdk/blob/v0.40.0/proto/cosmos/bank/v1beta1/tx.proto",
+      "oneOf": [
+        {
+          "description": "Sends native tokens from the contract to the given address.\n\nThis is translated to a [MsgSend](https://github.com/cosmos/cosmos-sdk/blob/v0.40.0/proto/cosmos/bank/v1beta1/tx.proto#L19-L28). `from_address` is automatically filled with the current contract's address.",
+          "type": "object",
+          "required": [
+            "send"
+          ],
+          "properties": {
+            "send": {
+              "type": "object",
+              "required": [
+                "amount",
+                "to_address"
+              ],
+              "properties": {
+                "amount": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/definitions/Coin"
+                  }
+                },
+                "to_address": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "This will burn the given coins from the contract's account. There is no Cosmos SDK message that performs this, but it can be done by calling the bank keeper. Important if a contract controls significant token supply that must be retired.",
+          "type": "object",
+          "required": [
+            "burn"
+          ],
+          "properties": {
+            "burn": {
+              "type": "object",
+              "required": [
+                "amount"
+              ],
+              "properties": {
+                "amount": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/definitions/Coin"
+                  }
+                }
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Binary": {
+      "description": "Binary is a wrapper around Vec<u8> to add base64 de/serialization with serde. It also adds some helper methods to help encode inline.\n\nThis is only needed as serde-json-{core,wasm} has a horrible encoding for Vec<u8>. See also <https://github.com/CosmWasm/cosmwasm/blob/main/docs/MESSAGE_TYPES.md>.",
+      "type": "string"
+    },
+    "Coin": {
+      "type": "object",
+      "required": [
+        "amount",
+        "denom"
+      ],
+      "properties": {
+        "amount": {
+          "$ref": "#/definitions/Uint128"
+        },
+        "denom": {
+          "type": "string"
+        }
+      }
+    },
+    "CosmosMsg_for_Empty": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "bank"
+          ],
+          "properties": {
+            "bank": {
+              "$ref": "#/definitions/BankMsg"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "custom"
+          ],
+          "properties": {
+            "custom": {
+              "$ref": "#/definitions/Empty"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "staking"
+          ],
+          "properties": {
+            "staking": {
+              "$ref": "#/definitions/StakingMsg"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "distribution"
+          ],
+          "properties": {
+            "distribution": {
+              "$ref": "#/definitions/DistributionMsg"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "A Stargate message encoded the same way as a protobuf [Any](https://github.com/protocolbuffers/protobuf/blob/master/src/google/protobuf/any.proto). This is the same structure as messages in `TxBody` from [ADR-020](https://github.com/cosmos/cosmos-sdk/blob/master/docs/architecture/adr-020-protobuf-transaction-encoding.md)",
+          "type": "object",
+          "required": [
+            "stargate"
+          ],
+          "properties": {
+            "stargate": {
+              "type": "object",
+              "required": [
+                "type_url",
+                "value"
+              ],
+              "properties": {
+                "type_url": {
+                  "type": "string"
+                },
+                "value": {
+                  "$ref": "#/definitions/Binary"
+                }
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "ibc"
+          ],
+          "properties": {
+            "ibc": {
+              "$ref": "#/definitions/IbcMsg"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "wasm"
+          ],
+          "properties": {
+            "wasm": {
+              "$ref": "#/definitions/WasmMsg"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "gov"
+          ],
+          "properties": {
+            "gov": {
+              "$ref": "#/definitions/GovMsg"
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Decimal": {
+      "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
+      "type": "string"
+    },
+    "Denom": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "native"
+          ],
+          "properties": {
+            "native": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "cw20"
+          ],
+          "properties": {
+            "cw20": {
+              "$ref": "#/definitions/Addr"
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "DepositInfo": {
+      "description": "Information about the deposit required to create a proposal.",
+      "type": "object",
+      "required": [
+        "amount",
+        "denom",
+        "refund_failed_proposals"
+      ],
+      "properties": {
+        "amount": {
+          "description": "The number tokens required for payment.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Uint128"
+            }
+          ]
+        },
+        "denom": {
+          "description": "The denom of the deposit payment.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Denom"
+            }
+          ]
+        },
+        "refund_failed_proposals": {
+          "description": "Should failed proposals have their deposits refunded?",
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "DistributionMsg": {
+      "description": "The message types of the distribution module.\n\nSee https://github.com/cosmos/cosmos-sdk/blob/v0.42.4/proto/cosmos/distribution/v1beta1/tx.proto",
+      "oneOf": [
+        {
+          "description": "This is translated to a [MsgSetWithdrawAddress](https://github.com/cosmos/cosmos-sdk/blob/v0.42.4/proto/cosmos/distribution/v1beta1/tx.proto#L29-L37). `delegator_address` is automatically filled with the current contract's address.",
+          "type": "object",
+          "required": [
+            "set_withdraw_address"
+          ],
+          "properties": {
+            "set_withdraw_address": {
+              "type": "object",
+              "required": [
+                "address"
+              ],
+              "properties": {
+                "address": {
+                  "description": "The `withdraw_address`",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "This is translated to a [[MsgWithdrawDelegatorReward](https://github.com/cosmos/cosmos-sdk/blob/v0.42.4/proto/cosmos/distribution/v1beta1/tx.proto#L42-L50). `delegator_address` is automatically filled with the current contract's address.",
+          "type": "object",
+          "required": [
+            "withdraw_delegator_reward"
+          ],
+          "properties": {
+            "withdraw_delegator_reward": {
+              "type": "object",
+              "required": [
+                "validator"
+              ],
+              "properties": {
+                "validator": {
+                  "description": "The `validator_address`",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Empty": {
+      "description": "An empty struct that serves as a placeholder in different places, such as contracts that don't set a custom message.\n\nIt is designed to be expressable in correct JSON and JSON Schema but contains no meaningful data. Previously we used enums without cases, but those cannot represented as valid JSON Schema (https://github.com/CosmWasm/cosmwasm/issues/451)",
+      "type": "object"
+    },
+    "Expiration": {
+      "description": "Expiration represents a point in time when some event happens. It can compare with a BlockInfo and will return is_expired() == true once the condition is hit (and for every block in the future)",
+      "oneOf": [
+        {
+          "description": "AtHeight will expire when `env.block.height` >= height",
+          "type": "object",
+          "required": [
+            "at_height"
+          ],
+          "properties": {
+            "at_height": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "AtTime will expire when `env.block.time` >= time",
+          "type": "object",
+          "required": [
+            "at_time"
+          ],
+          "properties": {
+            "at_time": {
+              "$ref": "#/definitions/Timestamp"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "Never will never expire. Used to express the empty variant",
+          "type": "object",
+          "required": [
+            "never"
+          ],
+          "properties": {
+            "never": {
+              "type": "object",
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "GovMsg": {
+      "description": "This message type allows the contract interact with the [x/gov] module in order to cast votes.\n\n[x/gov]: https://github.com/cosmos/cosmos-sdk/tree/v0.45.12/x/gov\n\n## Examples\n\nCast a simple vote:\n\n``` # use cosmwasm_std::{ #     HexBinary, #     Storage, Api, Querier, DepsMut, Deps, entry_point, Env, StdError, MessageInfo, #     Response, QueryResponse, # }; # type ExecuteMsg = (); use cosmwasm_std::{GovMsg, VoteOption};\n\n#[entry_point] pub fn execute( deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg, ) -> Result<Response, StdError> { // ... Ok(Response::new().add_message(GovMsg::Vote { proposal_id: 4, vote: VoteOption::Yes, })) } ```\n\nCast a weighted vote:\n\n``` # use cosmwasm_std::{ #     HexBinary, #     Storage, Api, Querier, DepsMut, Deps, entry_point, Env, StdError, MessageInfo, #     Response, QueryResponse, # }; # type ExecuteMsg = (); # #[cfg(feature = \"cosmwasm_1_2\")] use cosmwasm_std::{Decimal, GovMsg, VoteOption, WeightedVoteOption};\n\n# #[cfg(feature = \"cosmwasm_1_2\")] #[entry_point] pub fn execute( deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg, ) -> Result<Response, StdError> { // ... Ok(Response::new().add_message(GovMsg::VoteWeighted { proposal_id: 4, options: vec![ WeightedVoteOption { option: VoteOption::Yes, weight: Decimal::percent(65), }, WeightedVoteOption { option: VoteOption::Abstain, weight: Decimal::percent(35), }, ], })) } ```",
+      "oneOf": [
+        {
+          "description": "This maps directly to [MsgVote](https://github.com/cosmos/cosmos-sdk/blob/v0.42.5/proto/cosmos/gov/v1beta1/tx.proto#L46-L56) in the Cosmos SDK with voter set to the contract address.",
+          "type": "object",
+          "required": [
+            "vote"
+          ],
+          "properties": {
+            "vote": {
+              "type": "object",
+              "required": [
+                "proposal_id",
+                "vote"
+              ],
+              "properties": {
+                "proposal_id": {
+                  "type": "integer",
+                  "format": "uint64",
+                  "minimum": 0.0
+                },
+                "vote": {
+                  "description": "The vote option.\n\nThis should be called \"option\" for consistency with Cosmos SDK. Sorry for that. See <https://github.com/CosmWasm/cosmwasm/issues/1571>.",
+                  "allOf": [
+                    {
+                      "$ref": "#/definitions/VoteOption"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "IbcMsg": {
+      "description": "These are messages in the IBC lifecycle. Only usable by IBC-enabled contracts (contracts that directly speak the IBC protocol via 6 entry points)",
+      "oneOf": [
+        {
+          "description": "Sends bank tokens owned by the contract to the given address on another chain. The channel must already be established between the ibctransfer module on this chain and a matching module on the remote chain. We cannot select the port_id, this is whatever the local chain has bound the ibctransfer module to.",
+          "type": "object",
+          "required": [
+            "transfer"
+          ],
+          "properties": {
+            "transfer": {
+              "type": "object",
+              "required": [
+                "amount",
+                "channel_id",
+                "timeout",
+                "to_address"
+              ],
+              "properties": {
+                "amount": {
+                  "description": "packet data only supports one coin https://github.com/cosmos/cosmos-sdk/blob/v0.40.0/proto/ibc/applications/transfer/v1/transfer.proto#L11-L20",
+                  "allOf": [
+                    {
+                      "$ref": "#/definitions/Coin"
+                    }
+                  ]
+                },
+                "channel_id": {
+                  "description": "exisiting channel to send the tokens over",
+                  "type": "string"
+                },
+                "timeout": {
+                  "description": "when packet times out, measured on remote chain",
+                  "allOf": [
+                    {
+                      "$ref": "#/definitions/IbcTimeout"
+                    }
+                  ]
+                },
+                "to_address": {
+                  "description": "address on the remote chain to receive these tokens",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "Sends an IBC packet with given data over the existing channel. Data should be encoded in a format defined by the channel version, and the module on the other side should know how to parse this.",
+          "type": "object",
+          "required": [
+            "send_packet"
+          ],
+          "properties": {
+            "send_packet": {
+              "type": "object",
+              "required": [
+                "channel_id",
+                "data",
+                "timeout"
+              ],
+              "properties": {
+                "channel_id": {
+                  "type": "string"
+                },
+                "data": {
+                  "$ref": "#/definitions/Binary"
+                },
+                "timeout": {
+                  "description": "when packet times out, measured on remote chain",
+                  "allOf": [
+                    {
+                      "$ref": "#/definitions/IbcTimeout"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "This will close an existing channel that is owned by this contract. Port is auto-assigned to the contract's IBC port",
+          "type": "object",
+          "required": [
+            "close_channel"
+          ],
+          "properties": {
+            "close_channel": {
+              "type": "object",
+              "required": [
+                "channel_id"
+              ],
+              "properties": {
+                "channel_id": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "IbcTimeout": {
+      "description": "In IBC each package must set at least one type of timeout: the timestamp or the block height. Using this rather complex enum instead of two timeout fields we ensure that at least one timeout is set.",
+      "type": "object",
+      "properties": {
+        "block": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/IbcTimeoutBlock"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "timestamp": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "IbcTimeoutBlock": {
+      "description": "IBCTimeoutHeight Height is a monotonically increasing data type that can be compared against another Height for the purposes of updating and freezing clients. Ordering is (revision_number, timeout_height)",
+      "type": "object",
+      "required": [
+        "height",
+        "revision"
+      ],
+      "properties": {
+        "height": {
+          "description": "block height after which the packet times out. the height within the given revision",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        },
+        "revision": {
+          "description": "the version that the client is currently on (eg. after reseting the chain this could increment 1 as height drops to 0)",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        }
+      }
+    },
+    "StakingMsg": {
+      "description": "The message types of the staking module.\n\nSee https://github.com/cosmos/cosmos-sdk/blob/v0.40.0/proto/cosmos/staking/v1beta1/tx.proto",
+      "oneOf": [
+        {
+          "description": "This is translated to a [MsgDelegate](https://github.com/cosmos/cosmos-sdk/blob/v0.40.0/proto/cosmos/staking/v1beta1/tx.proto#L81-L90). `delegator_address` is automatically filled with the current contract's address.",
+          "type": "object",
+          "required": [
+            "delegate"
+          ],
+          "properties": {
+            "delegate": {
+              "type": "object",
+              "required": [
+                "amount",
+                "validator"
+              ],
+              "properties": {
+                "amount": {
+                  "$ref": "#/definitions/Coin"
+                },
+                "validator": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "This is translated to a [MsgUndelegate](https://github.com/cosmos/cosmos-sdk/blob/v0.40.0/proto/cosmos/staking/v1beta1/tx.proto#L112-L121). `delegator_address` is automatically filled with the current contract's address.",
+          "type": "object",
+          "required": [
+            "undelegate"
+          ],
+          "properties": {
+            "undelegate": {
+              "type": "object",
+              "required": [
+                "amount",
+                "validator"
+              ],
+              "properties": {
+                "amount": {
+                  "$ref": "#/definitions/Coin"
+                },
+                "validator": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "This is translated to a [MsgBeginRedelegate](https://github.com/cosmos/cosmos-sdk/blob/v0.40.0/proto/cosmos/staking/v1beta1/tx.proto#L95-L105). `delegator_address` is automatically filled with the current contract's address.",
+          "type": "object",
+          "required": [
+            "redelegate"
+          ],
+          "properties": {
+            "redelegate": {
+              "type": "object",
+              "required": [
+                "amount",
+                "dst_validator",
+                "src_validator"
+              ],
+              "properties": {
+                "amount": {
+                  "$ref": "#/definitions/Coin"
+                },
+                "dst_validator": {
+                  "type": "string"
+                },
+                "src_validator": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Status": {
+      "oneOf": [
+        {
+          "description": "proposal was created, but voting has not yet begun for whatever reason",
+          "type": "string",
+          "enum": [
+            "pending"
+          ]
+        },
+        {
+          "description": "you can vote on this",
+          "type": "string",
+          "enum": [
+            "open"
+          ]
+        },
+        {
+          "description": "voting is over and it did not pass",
+          "type": "string",
+          "enum": [
+            "rejected"
+          ]
+        },
+        {
+          "description": "voting is over and it did pass, but has not yet executed",
+          "type": "string",
+          "enum": [
+            "passed"
+          ]
+        },
+        {
+          "description": "voting is over it passed, and the proposal was executed",
+          "type": "string",
+          "enum": [
+            "executed"
+          ]
+        }
+      ]
+    },
+    "ThresholdResponse": {
+      "description": "This defines the different ways tallies can happen. Every contract should support a subset of these, ideally all.\n\nThe total_weight used for calculating success as well as the weights of each individual voter used in tallying should be snapshotted at the beginning of the block at which the proposal starts (this is likely the responsibility of a correct cw4 implementation).",
+      "oneOf": [
+        {
+          "description": "Declares that a fixed weight of yes votes is needed to pass. It does not matter how many no votes are cast, or how many do not vote, as long as `weight` yes votes are cast.\n\nThis is the simplest format and usually suitable for small multisigs of trusted parties, like 3 of 5. (weight: 3, total_weight: 5)\n\nA proposal of this type can pass early as soon as the needed weight of yes votes has been cast.",
+          "type": "object",
+          "required": [
+            "absolute_count"
+          ],
+          "properties": {
+            "absolute_count": {
+              "type": "object",
+              "required": [
+                "total_weight",
+                "weight"
+              ],
+              "properties": {
+                "total_weight": {
+                  "type": "integer",
+                  "format": "uint64",
+                  "minimum": 0.0
+                },
+                "weight": {
+                  "type": "integer",
+                  "format": "uint64",
+                  "minimum": 0.0
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "Declares a percentage of the total weight that must cast Yes votes, in order for a proposal to pass. The passing weight is computed over the total weight minus the weight of the abstained votes.\n\nThis is useful for similar circumstances as `AbsoluteCount`, where we have a relatively small set of voters, and participation is required. It is understood that if the voting set (group) changes between different proposals that refer to the same group, each proposal will work with a different set of voter weights (the ones snapshotted at proposal creation), and the passing weight for each proposal will be computed based on the absolute percentage, times the total weights of the members at the time of each proposal creation.\n\nExample: we set `percentage` to 51%. Proposal 1 starts when there is a `total_weight` of 5. This will require 3 weight of Yes votes in order to pass. Later, the Proposal 2 starts but the `total_weight` of the group has increased to 9. That proposal will then automatically require 5 Yes of 9 to pass, rather than 3 yes of 9 as would be the case with `AbsoluteCount`.",
+          "type": "object",
+          "required": [
+            "absolute_percentage"
+          ],
+          "properties": {
+            "absolute_percentage": {
+              "type": "object",
+              "required": [
+                "percentage",
+                "total_weight"
+              ],
+              "properties": {
+                "percentage": {
+                  "$ref": "#/definitions/Decimal"
+                },
+                "total_weight": {
+                  "type": "integer",
+                  "format": "uint64",
+                  "minimum": 0.0
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "In addition to a `threshold`, declares a `quorum` of the total votes that must participate in the election in order for the vote to be considered at all. Within the votes that were cast, it requires `threshold` votes in favor. That is calculated by ignoring the Abstain votes (they count towards `quorum`, but do not influence `threshold`). That is, we calculate `Yes / (Yes + No + Veto)` and compare it with `threshold` to consider if the proposal was passed.\n\nIt is rather difficult for a proposal of this type to pass early. That can only happen if the required quorum has been already met, and there are already enough Yes votes for the proposal to pass.\n\n30% Yes votes, 10% No votes, and 20% Abstain would pass early if quorum <= 60% (who has cast votes) and if the threshold is <= 37.5% (the remaining 40% voting no => 30% yes + 50% no). Once the voting period has passed with no additional votes, that same proposal would be considered successful if quorum <= 60% and threshold <= 75% (percent in favor if we ignore abstain votes).\n\nThis type is more common in general elections, where participation is often expected to be low, and `AbsolutePercentage` would either be too high to pass anything, or allow low percentages to pass, independently of if there was high participation in the election or not.",
+          "type": "object",
+          "required": [
+            "threshold_quorum"
+          ],
+          "properties": {
+            "threshold_quorum": {
+              "type": "object",
+              "required": [
+                "quorum",
+                "threshold",
+                "total_weight"
+              ],
+              "properties": {
+                "quorum": {
+                  "$ref": "#/definitions/Decimal"
+                },
+                "threshold": {
+                  "$ref": "#/definitions/Decimal"
+                },
+                "total_weight": {
+                  "type": "integer",
+                  "format": "uint64",
+                  "minimum": 0.0
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Timestamp": {
+      "description": "A point in time in nanosecond precision.\n\nThis type can represent times from 1970-01-01T00:00:00Z to 2554-07-21T23:34:33Z.\n\n## Examples\n\n``` # use cosmwasm_std::Timestamp; let ts = Timestamp::from_nanos(1_000_000_202); assert_eq!(ts.nanos(), 1_000_000_202); assert_eq!(ts.seconds(), 1); assert_eq!(ts.subsec_nanos(), 202);\n\nlet ts = ts.plus_seconds(2); assert_eq!(ts.nanos(), 3_000_000_202); assert_eq!(ts.seconds(), 3); assert_eq!(ts.subsec_nanos(), 202); ```",
+      "allOf": [
+        {
+          "$ref": "#/definitions/Uint64"
+        }
+      ]
+    },
+    "Uint128": {
+      "description": "A thin wrapper around u128 that is using strings for JSON encoding/decoding, such that the full u128 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u128` to get the value out:\n\n``` # use cosmwasm_std::Uint128; let a = Uint128::from(123u128); assert_eq!(a.u128(), 123);\n\nlet b = Uint128::from(42u64); assert_eq!(b.u128(), 42);\n\nlet c = Uint128::from(70u32); assert_eq!(c.u128(), 70); ```",
+      "type": "string"
+    },
+    "Uint64": {
+      "description": "A thin wrapper around u64 that is using strings for JSON encoding/decoding, such that the full u64 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u64` to get the value out:\n\n``` # use cosmwasm_std::Uint64; let a = Uint64::from(42u64); assert_eq!(a.u64(), 42);\n\nlet b = Uint64::from(70u32); assert_eq!(b.u64(), 70); ```",
+      "type": "string"
+    },
+    "VoteOption": {
+      "type": "string",
+      "enum": [
+        "yes",
+        "no",
+        "abstain",
+        "no_with_veto"
+      ]
+    },
+    "WasmMsg": {
+      "description": "The message types of the wasm module.\n\nSee https://github.com/CosmWasm/wasmd/blob/v0.14.0/x/wasm/internal/types/tx.proto",
+      "oneOf": [
+        {
+          "description": "Dispatches a call to another contract at a known address (with known ABI).\n\nThis is translated to a [MsgExecuteContract](https://github.com/CosmWasm/wasmd/blob/v0.14.0/x/wasm/internal/types/tx.proto#L68-L78). `sender` is automatically filled with the current contract's address.",
+          "type": "object",
+          "required": [
+            "execute"
+          ],
+          "properties": {
+            "execute": {
+              "type": "object",
+              "required": [
+                "contract_addr",
+                "funds",
+                "msg"
+              ],
+              "properties": {
+                "contract_addr": {
+                  "type": "string"
+                },
+                "funds": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/definitions/Coin"
+                  }
+                },
+                "msg": {
+                  "description": "msg is the json-encoded ExecuteMsg struct (as raw Binary)",
+                  "allOf": [
+                    {
+                      "$ref": "#/definitions/Binary"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "Instantiates a new contracts from previously uploaded Wasm code.\n\nThe contract address is non-predictable. But it is guaranteed that when emitting the same Instantiate message multiple times, multiple instances on different addresses will be generated. See also Instantiate2.\n\nThis is translated to a [MsgInstantiateContract](https://github.com/CosmWasm/wasmd/blob/v0.29.2/proto/cosmwasm/wasm/v1/tx.proto#L53-L71). `sender` is automatically filled with the current contract's address.",
+          "type": "object",
+          "required": [
+            "instantiate"
+          ],
+          "properties": {
+            "instantiate": {
+              "type": "object",
+              "required": [
+                "code_id",
+                "funds",
+                "label",
+                "msg"
+              ],
+              "properties": {
+                "admin": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "code_id": {
+                  "type": "integer",
+                  "format": "uint64",
+                  "minimum": 0.0
+                },
+                "funds": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/definitions/Coin"
+                  }
+                },
+                "label": {
+                  "description": "A human-readbale label for the contract",
+                  "type": "string"
+                },
+                "msg": {
+                  "description": "msg is the JSON-encoded InstantiateMsg struct (as raw Binary)",
+                  "allOf": [
+                    {
+                      "$ref": "#/definitions/Binary"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "Migrates a given contracts to use new wasm code. Passes a MigrateMsg to allow us to customize behavior.\n\nOnly the contract admin (as defined in wasmd), if any, is able to make this call.\n\nThis is translated to a [MsgMigrateContract](https://github.com/CosmWasm/wasmd/blob/v0.14.0/x/wasm/internal/types/tx.proto#L86-L96). `sender` is automatically filled with the current contract's address.",
+          "type": "object",
+          "required": [
+            "migrate"
+          ],
+          "properties": {
+            "migrate": {
+              "type": "object",
+              "required": [
+                "contract_addr",
+                "msg",
+                "new_code_id"
+              ],
+              "properties": {
+                "contract_addr": {
+                  "type": "string"
+                },
+                "msg": {
+                  "description": "msg is the json-encoded MigrateMsg struct that will be passed to the new code",
+                  "allOf": [
+                    {
+                      "$ref": "#/definitions/Binary"
+                    }
+                  ]
+                },
+                "new_code_id": {
+                  "description": "the code_id of the new logic to place in the given contract",
+                  "type": "integer",
+                  "format": "uint64",
+                  "minimum": 0.0
+                }
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "Sets a new admin (for migrate) on the given contract. Fails if this contract is not currently admin of the target contract.",
+          "type": "object",
+          "required": [
+            "update_admin"
+          ],
+          "properties": {
+            "update_admin": {
+              "type": "object",
+              "required": [
+                "admin",
+                "contract_addr"
+              ],
+              "properties": {
+                "admin": {
+                  "type": "string"
+                },
+                "contract_addr": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "Clears the admin on the given contract, so no more migration possible. Fails if this contract is not currently admin of the target contract.",
+          "type": "object",
+          "required": [
+            "clear_admin"
+          ],
+          "properties": {
+            "clear_admin": {
+              "type": "object",
+              "required": [
+                "contract_addr"
+              ],
+              "properties": {
+                "contract_addr": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    }
+  }
+}

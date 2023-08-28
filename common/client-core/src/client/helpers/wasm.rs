@@ -2,13 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use std::time::Duration;
-use wasm_timer;
 
-pub use wasm_timer::*;
+pub use wasmtimer::{std::Instant, tokio::*};
 pub type IntervalStream = gloo_timers::future::IntervalStream;
 
 pub(crate) fn get_time_now() -> Instant {
-    wasm_timer::Instant::now()
+    Instant::now()
 }
 
 pub(crate) fn new_interval_stream(polling_rate: Duration) -> IntervalStream {

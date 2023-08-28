@@ -185,7 +185,7 @@ pub(crate) fn _try_withdraw_operator_reward(
             // we can only attempt to send the message to the vesting contract if the proxy IS the vesting contract
             // otherwise, we don't care
             let vesting_contract = mixnet_params_storage::vesting_contract_address(deps.storage)?;
-            if proxy == &vesting_contract {
+            if proxy == vesting_contract {
                 let msg = VestingContractExecuteMsg::TrackReward {
                     amount: reward.clone(),
                     address: owner.clone().into_string(),
@@ -271,7 +271,7 @@ pub(crate) fn _try_withdraw_delegator_reward(
             // we can only attempt to send the message to the vesting contract if the proxy IS the vesting contract
             // otherwise, we don't care
             let vesting_contract = mixnet_params_storage::vesting_contract_address(deps.storage)?;
-            if proxy == &vesting_contract {
+            if proxy == vesting_contract {
                 let msg = VestingContractExecuteMsg::TrackReward {
                     amount: reward.clone(),
                     address: owner.clone().into_string(),

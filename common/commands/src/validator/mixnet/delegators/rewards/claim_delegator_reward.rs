@@ -5,7 +5,7 @@ use crate::context::SigningClient;
 use clap::Parser;
 use log::info;
 use nym_mixnet_contract_common::MixId;
-use nym_validator_client::nyxd::traits::{MixnetQueryClient, MixnetSigningClient};
+use nym_validator_client::nyxd::contract_traits::{MixnetQueryClient, MixnetSigningClient};
 
 #[derive(Debug, Parser)]
 pub struct Args {
@@ -29,6 +29,7 @@ pub async fn claim_delegator_reward(args: Args, client: SigningClient) {
                 .get_mixnode_details_by_identity(identity_key)
                 .await
                 .expect("contract query failed")
+                .mixnode_details
                 .expect("mixnode with the specified identity doesnt exist");
             node_details.mix_id()
         }

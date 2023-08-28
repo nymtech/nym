@@ -33,6 +33,16 @@ pub enum SignerType {
 pub trait OfflineSigner {
     type Error: From<SigningError>;
 
+    // I really dislike existence of this function because it makes you re-derive your key **twice** for each contract transaction
+    fn signer_addresses(&self) -> Result<Vec<AccountId>, Self::Error> {
+        let derived_addresses = self
+            .get_accounts()?
+            .into_iter()
+            .map(|account| account.address)
+            .collect();
+        Ok(derived_addresses)
+    }
+
     fn get_accounts(&self) -> Result<Vec<AccountData>, Self::Error>;
 
     fn find_account(&self, signer_address: &AccountId) -> Result<AccountData, Self::Error> {
@@ -94,3 +104,25 @@ pub trait OfflineSigner {
 
     // fn sign_amino_with_account(&self, signer: &AccountData, sign_doc: AminoSignDoc) -> Result<tx::Raw, Self::Error>;
 }
+
+#[derive(Debug, Default, Copy, Clone)]
+pub struct NoSigner;
+
+// #[derive(Debug, Copy, Clone, Error)]
+// #[error("no signer is available")]
+// struct SignerUnavailable;
+//
+// // trait bound requirements
+// impl From<SigningError> for SignerUnavailable {
+//     fn from(_: SigningError) -> Self {
+//         SignerUnavailable
+//     }
+// }
+//
+// impl OfflineSigner for NoSigner {
+//     type Error = SignerUnavailable;
+//
+//     fn get_accounts(&self) -> Result<Vec<AccountData>, Self::Error> {
+//         return Err(SignerUnavailable);
+//     }
+// }

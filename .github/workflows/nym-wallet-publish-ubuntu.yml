@@ -15,8 +15,15 @@ jobs:
       fail-fast: false
       matrix:
         platform: [custom-runner-linux]
-
     runs-on: ${{ matrix.platform }}
+
+    outputs:
+      release_id: ${{ steps.create-release.outputs.id }}
+      release_date: ${{ fromJSON(steps.create-release.outputs.assets)[0].created_at }}
+      version: ${{ steps.release-info.outputs.version }}
+      filename: ${{ steps.release-info.outputs.filename }}
+      file_hash: ${{ steps.release-info.outputs.file_hash }}
+
     steps:
       - uses: actions/checkout@v2
 
@@ -61,10 +68,40 @@ jobs:
           path: nym-wallet/target/release/bundle/appimage/nym-wallet*.AppImage.tar.gz
           retention-days: 30
 
-      - name: Upload to release based on tag name
+      - id: create-release
+        name: Upload to release based on tag name
         uses: softprops/action-gh-release@v1
         if: github.event_name == 'release'
         with:
           files: |
             nym-wallet/target/release/bundle/appimage/*.AppImage
             nym-wallet/target/release/bundle/appimage/*.AppImage.tar.gz*
+
+      - id: release-info
+        name: Prepare release info
+        run: |
+          ref=${{ github.ref_name }}
+          semver="${ref##nym-wallet-}" && semver="${semver##v}"
+          echo "version=${semver}" >> "$GITHUB_OUTPUT"
+          echo "filename=nym-wallet_${semver}_amd64.AppImage" >> "$GITHUB_OUTPUT"
+          echo "file_hash=${{ hashFiles('nym-wallet/target/release/bundle/appimage/nym-wallet_*_amd64.AppImage') }}" >> "$GITHUB_OUTPUT"
+
+  push-release-data:
+    if: ${{ (startsWith(github.ref, 'refs/tags/nym-wallet-') && github.event_name == 'release') || github.event_name == 'workflow_dispatch' }}
+    uses: ./.github/workflows/push-release-data.yml
+    needs: publish-tauri
+    with:
+      release_tag: ${{ github.ref_name }}
+      release_id: ${{ needs.publish-tauri.outputs.release_id }}
+      release_date: ${{ needs.publish-tauri.outputs.release_date }}
+      download_base_url: https://github.com/nymtech/nym/releases/download/${{ github.ref_name }}
+      changelog_url: https://github.com/nymtech/nym/blob/${{ github.ref_name }}/nym-wallet/CHANGELOG.md
+      archive_url: https://github.com/nymtech/nym/releases/download/${{ github.ref_name }}/nym-wallet_${{ needs.publish-tauri.outputs.version }}_amd64.AppImage.tar.gz
+      sig_url: https://github.com/nymtech/nym/releases/download/${{ github.ref_name }}/nym-wallet_${{ needs.publish-tauri.outputs.version }}_amd64.AppImage.tar.gz.sig
+      version: ${{ needs.publish-tauri.outputs.version }}
+      filename: ${{ needs.publish-tauri.outputs.filename }}
+      file_hash: ${{ needs.publish-tauri.outputs.file_hash }}
+      name: Wallet
+      category: wallet
+      platform: Ubuntu
+    secrets: inherit

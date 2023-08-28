@@ -10,27 +10,24 @@ rust-version = "1.58"
 eyre = "0.6.5"
 log = { workspace = true }
 itertools = "0.10"
-reqwest = "0.11.9"
+reqwest = { workspace = true }
 schemars = "0.8"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { workspace = true }
 strum = { version = "0.23", features = ["derive"] }
-thiserror = "1.0"
-url = "2.2"
+thiserror = { workspace = true }
+url = { workspace = true }
 ts-rs = "6.1.2"
 
 cosmwasm-std = { workspace = true }
-cosmrs = { git = "https://github.com/neacsu/cosmos-rust", branch = "neacsu/feegrant_support" }
+cosmrs = { workspace = true }
 
-nym-validator-client = { path = "../../common/client-libs/validator-client", features = [
-    "nyxd-client",
-] }
+nym-validator-client = { path = "../../common/client-libs/validator-client" }
 nym-mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mixnet-contract" }
 nym-vesting-contract-common = { path = "../../common/cosmwasm-smart-contracts/vesting-contract" }
 nym-config = { path = "../../common/config" }
 nym-coconut-interface = { path = "../../common/coconut-interface" }
-# Used for Type conversion, can be extracted but its a lot of work
-nym-vesting-contract = { path = "../../contracts/vesting" }
+
 
 [dev-dependencies]
 tempfile = "3.3.0"

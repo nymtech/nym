@@ -1,0 +1,17 @@
+{
+  "name": "Nym Chrome Extension Example",
+  "description": "An example demonstrating how to integrate the Nym TypeScript SDK in the context of a Google Chrome browser extension.",
+  "version": "1.0",
+  "manifest_version": 3,
+  "icons": {
+    "48": "icon.png"
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';"
+  },
+  "action": {
+    "default_title": "Nym Chrome Extension Example",
+    "default_icon": "icon.png",
+    "default_popup": "popup.html"
+  }
+}

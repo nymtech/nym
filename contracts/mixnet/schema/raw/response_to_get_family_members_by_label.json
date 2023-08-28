@@ -1,0 +1,24 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "FamilyMembersByLabelResponse",
+  "description": "Response containing family members information.",
+  "type": "object",
+  "required": [
+    "label",
+    "members"
+  ],
+  "properties": {
+    "label": {
+      "description": "The family label used for the query.",
+      "type": "string"
+    },
+    "members": {
+      "description": "All members belonging to the specified family.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "additionalProperties": false
+}

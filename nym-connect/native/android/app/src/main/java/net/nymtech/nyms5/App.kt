@@ -19,7 +19,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.runBlocking
 
-
 val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
 val monitoringKey = booleanPreferencesKey("monitoring")
 

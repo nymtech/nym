@@ -2,7 +2,7 @@
 name: Feature request
 about: Suggest an enhancement to the product
 title: "[Feature Request]"
-labels: enhancement
+labels: enhancement, needs-triage
 assignees: ''
 
 ---

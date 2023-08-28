@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::nyxd::error::NyxdError;
-use cosmrs::tendermint::abci;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
@@ -49,7 +48,7 @@ fn parse_raw_str_logs(raw: &str) -> Result<Vec<Log>, NyxdError> {
     Ok(logs)
 }
 
-pub fn parse_raw_logs(raw: abci::Log) -> Result<Vec<Log>, NyxdError> {
+pub fn parse_raw_logs(raw: String) -> Result<Vec<Log>, NyxdError> {
     parse_raw_str_logs(raw.as_ref())
 }
 

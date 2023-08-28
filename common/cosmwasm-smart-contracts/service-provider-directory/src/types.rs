@@ -1,14 +1,15 @@
-use std::fmt::{Display, Formatter};
+// Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
 
+use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Addr, Coin};
 use nym_contracts_common::IdentityKey;
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
+use std::fmt::{Display, Formatter};
 
 /// The directory of services are indexed by [`ServiceId`].
 pub type ServiceId = u32;
 
-#[derive(Serialize, Deserialize, Clone, PartialEq, Debug, JsonSchema)]
+#[cw_serde]
 pub struct Service {
     /// Unique id assigned to the anounced service.
     pub service_id: ServiceId,
@@ -22,7 +23,7 @@ pub struct Service {
     pub deposit: Coin,
 }
 
-#[derive(Serialize, Deserialize, Clone, PartialEq, Debug, JsonSchema)]
+#[cw_serde]
 pub struct ServiceDetails {
     /// The address of the service.
     pub nym_address: NymAddress,
@@ -33,8 +34,7 @@ pub struct ServiceDetails {
 }
 
 /// The types of addresses supported.
-#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
 pub enum NymAddress {
     /// String representation of a nym address, which is of the form
     /// client_id.client_enc@gateway_id.
@@ -64,8 +64,7 @@ impl Display for NymAddress {
 }
 
 /// The type of services provider supported
-#[derive(Serialize, Deserialize, Copy, Clone, PartialEq, Eq, Debug, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
 pub enum ServiceType {
     NetworkRequester,
 }

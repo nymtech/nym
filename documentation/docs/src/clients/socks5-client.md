@@ -60,7 +60,7 @@ There are 2 pieces of software that work together to send SOCKS traffic through 
 The `nym-socks5-client` allows you to do the following from your local machine:
 * Take a TCP data stream from a application that can send traffic via SOCKS5.
 * Chop up the TCP stream into multiple Sphinx packets, assigning sequence numbers to them, while leaving the TCP connection open for more data
-* Send the Sphinx packets through the mixnet to a [network requester](../nodes/network-requester-setup.md). Packets are shuffled and mixed as they transit the mixnet.
+* Send the Sphinx packets through the mixnet to a [network requester](../nodes/network-requester.md). Packets are shuffled and mixed as they transit the mixnet.
 
 The `nym-network-requester` then reassembles the original TCP stream using the packets' sequence numbers, and make the intended request. It will then chop up the response into Sphinx packets and send them back through the mixnet to your  `nym-socks5-client`. The application will then receive its data, without even noticing that it wasn't talking to a "normal" SOCKS5 proxy!
 
@@ -82,7 +82,7 @@ You can check that your binaries are properly compiled with:
 You can check the necessary parameters for the available commands by running:
 
 ```
-./nym-client <command> --help
+./nym-client <COMMAND> --help
 ```
 
 ### Initialising a new client instance
@@ -100,9 +100,9 @@ Before you can use the client, you need to initalise a new instance of it, which
 
 The `--id` in the example above is a local identifier so that you can name your clients and keep track of them on your local system; it is **never** transmitted over the network.
 
-The `--provider` field needs to be filled with the Nym address of a Network Requester that can make network requests on your behalf. If you don't want to [run your own](../nodes/network-requester-setup.md) you can select one from the [mixnet explorer](https://explorer.nymtech.net/network-components/service-providers) by copying its `Client ID` and using this as the value of the `--provider` flag. Alternatively, you could use [this list](https://harbourmaster.nymtech.net/).
+The `--provider` field needs to be filled with the Nym address of a Network Requester that can make network requests on your behalf. If you don't want to [run your own](../nodes/network-requester.md) you can select one from the [mixnet explorer](https://explorer.nymtech.net/network-components/service-providers) by copying its `Client ID` and using this as the value of the `--provider` flag. Alternatively, you could use [this list](https://harbourmaster.nymtech.net/).
 
-Since the nodes on this list are the infrastructure for [Nymconnect](https://nymtech.net/developers/quickstart/nymconnect-gui.html) they will support all apps on the [default whitelist](../nodes/network-requester-setup.md#network-requester-whitelist): Keybase, Telegram, Electrum, Blockstream Green, and Helios.
+Since the nodes on this list are the infrastructure for [Nymconnect](https://nymtech.net/developers/quickstart/nymconnect-gui.html) they will support all apps on the [default whitelist](../nodes/network-requester.md#network-requester-whitelist): Keybase, Telegram, Electrum, Blockstream Green, and Helios.
 
 #### Choosing a Gateway
 By default - as in the example above - your client will choose a random gateway to connect to.
@@ -146,14 +146,43 @@ You can set this via the `--host` flag during either the `init` or `run` command
 
 Alternatively, a custom host can be set in the `config.toml` file under the `socket` section. If you do this, remember to restart your client process.
 
-
-
 ### Running the socks5 client
 
 You can run the initalised client by doing this:
 
 ```
 ./nym-socks5-client run --id docs-example
+```
+
+## Automating your socks5 client with systemd
+
+Create a service file for the socks5 client at `/etc/systemd/system/nym-socks5-client.service`:
+
+```ini
+[Unit]
+Description=Nym Socks5 Client ({{platform_release_version}})
+StartLimitInterval=350
+StartLimitBurst=10
+
+[Service]
+User=nym # replace this with whatever user you wish
+LimitNOFILE=65536
+ExecStart=/home/nym/nym-socks5-client run --id <your_id>
+KillSignal=SIGINT
+Restart=on-failure
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Now enable and start your socks5 client:
+
+```
+systemctl enable nym-socks5-client.service
+systemctl start nym-socks5-client.service
+# you can always check your socks5 client has succesfully started with:
+systemctl status nym-socks5-client.service
 ```
 
 ## Using your Socks5 Client
@@ -169,3 +198,13 @@ Here is an example of setting the proxy connecting in Blockstream Green:
 Most wallets and other applications will work basically the same way: find the network proxy settings, enter the proxy url (host: **localhost**, port: **1080**).
 
 In some other applications, this might be written as **localhost:1080** if there's only one proxy entry field.
+
+## Useful Commands
+
+**no-banner**
+
+Adding `--no-banner` startup flag will prevent Nym banner being printed even if run in tty environment.
+
+**build-info**
+
+A `build-info` command prints the build information like commit hash, rust version, binary version just like what command `--version` does. However, you can also specify an `--output=json` flag that will format the whole output as a json, making it an order of magnitude easier to parse.

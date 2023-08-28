@@ -520,7 +520,7 @@ mod tests {
                 .delegations
                 .iter()
                 .filter(|d| d.proxy.is_some())
-                .all(|d| d.proxy.as_ref().unwrap() == &vesting_contract));
+                .all(|d| d.proxy.as_ref().unwrap() == vesting_contract));
 
             // now make sure that if we do it in paged manner, we'll get exactly the same result
             let per_page = Some(15);

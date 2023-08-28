@@ -10,6 +10,7 @@ use crate::utils::{pretty_cosmwasm_coin, show_error_passthrough};
 use comfy_table::Table;
 use cosmwasm_std::Addr;
 use nym_mixnet_contract_common::{Delegation, PendingEpochEvent, PendingEpochEventKind};
+use nym_validator_client::nyxd::contract_traits::PagedMixnetQueryClient;
 
 #[derive(Debug, Parser)]
 pub struct Args {}
@@ -21,12 +22,14 @@ pub async fn execute(_args: Args, client: SigningClientWithNyxd) {
     );
 
     let delegations = client
-        .get_all_delegator_delegations(client.nyxd.address())
+        .nyxd
+        .get_all_delegator_delegations(&client.nyxd.address())
         .await
         .map_err(show_error_passthrough);
 
     let mixnet_contract_events = client
-        .get_all_nyxd_pending_epoch_events()
+        .nyxd
+        .get_all_pending_epoch_events()
         .await
         .map_err(show_error_passthrough);
 

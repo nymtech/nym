@@ -9,7 +9,7 @@ edition = "2021"
 bip39 = { workspace = true }
 rand = "0.7.3"
 thiserror = "1.0"
-url = "2.2"
+url = { workspace = true }
 
 nym-coconut-interface = { path = "../coconut-interface" }
 nym-credential-storage = { path = "../credential-storage" }
@@ -18,7 +18,6 @@ nym-crypto = { path = "../crypto", features = ["rand", "asymmetric", "symmetric"
 nym-network-defaults = { path = "../network-defaults" }
 nym-validator-client = { path = "../client-libs/validator-client", default-features = false }
 
-
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.nym-validator-client]
 path = "../client-libs/validator-client"
-features = ["nyxd-client"]
+features = ["http-client"]

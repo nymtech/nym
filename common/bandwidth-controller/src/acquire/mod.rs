@@ -8,11 +8,11 @@ use nym_credentials::coconut::bandwidth::{BandwidthVoucher, TOTAL_ATTRIBUTES};
 use nym_credentials::coconut::utils::obtain_aggregate_signature;
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_network_defaults::VOUCHER_INFO;
-use nym_validator_client::nyxd::traits::CoconutBandwidthSigningClient;
-use nym_validator_client::nyxd::traits::DkgQueryClient;
-use nym_validator_client::nyxd::tx::Hash;
+use nym_validator_client::coconut::all_coconut_api_clients;
+use nym_validator_client::nyxd::contract_traits::CoconutBandwidthSigningClient;
+use nym_validator_client::nyxd::contract_traits::DkgQueryClient;
 use nym_validator_client::nyxd::Coin;
-use nym_validator_client::CoconutApiClient;
+use nym_validator_client::nyxd::Hash;
 use rand::rngs::OsRng;
 use state::{KeyPair, State};
 use std::str::FromStr;
@@ -21,7 +21,7 @@ pub mod state;
 
 pub async fn deposit<C>(client: &C, amount: Coin) -> Result<State, BandwidthControllerError>
 where
-    C: CoconutBandwidthSigningClient,
+    C: CoconutBandwidthSigningClient + Sync,
 {
     let mut rng = OsRng;
     let signing_keypair = KeyPair::from(identity::KeyPair::new(&mut rng));
@@ -70,7 +70,8 @@ where
         .get_current_epoch_threshold()
         .await?
         .ok_or(BandwidthControllerError::NoThreshold)?;
-    let coconut_api_clients = CoconutApiClient::all_coconut_api_clients(client, epoch_id).await?;
+
+    let coconut_api_clients = all_coconut_api_clients(client, epoch_id).await?;
 
     let signature = obtain_aggregate_signature(
         &state.params,

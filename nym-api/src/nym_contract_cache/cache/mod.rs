@@ -1,3 +1,4 @@
+use crate::nym_contract_cache::cache::data::CachedContractsInfo;
 use crate::support::caching::Cache;
 use data::ValidatorCacheData;
 use nym_api_requests::models::MixnodeStatus;
@@ -5,7 +6,7 @@ use nym_mixnet_contract_common::{
     families::FamilyHead, GatewayBond, IdentityKey, Interval, MixId, MixNodeBond, MixNodeDetails,
     RewardingParams,
 };
-use nym_name_service_common::NameEntry;
+use nym_name_service_common::RegisteredName;
 use nym_service_provider_directory_common::Service;
 use rocket::fairing::AdHoc;
 use std::{
@@ -53,7 +54,8 @@ impl NymContractCache {
         current_interval: Interval,
         mix_to_family: Vec<(IdentityKey, FamilyHead)>,
         services: Option<Vec<Service>>,
-        names: Option<Vec<NameEntry>>,
+        names: Option<Vec<RegisteredName>>,
+        nym_contracts_info: CachedContractsInfo,
     ) {
         match time::timeout(Duration::from_millis(100), self.inner.write()).await {
             Ok(mut cache) => {
@@ -67,6 +69,7 @@ impl NymContractCache {
                 // Just return empty lists when these are not available
                 cache.service_providers.update(services.unwrap_or_default());
                 cache.registered_names.update(names.unwrap_or_default());
+                cache.contracts_info.update(nym_contracts_info)
             }
             Err(err) => {
                 error!("{err}");
@@ -267,6 +270,16 @@ impl NymContractCache {
         }
     }
 
+    pub(crate) async fn contract_details(&self) -> Cache<CachedContractsInfo> {
+        match time::timeout(Duration::from_millis(100), self.inner.read()).await {
+            Ok(cache) => cache.contracts_info.clone(),
+            Err(err) => {
+                error!("{err}");
+                Cache::default()
+            }
+        }
+    }
+
     pub async fn mixnode_details(&self, mix_id: MixId) -> (Option<MixNodeDetails>, MixnodeStatus) {
         // it might not be the most optimal to possibly iterate the entire vector to find (or not)
         // the relevant value. However, the vectors are relatively small (< 10_000 elements, < 1000 for active set)
@@ -303,7 +316,7 @@ impl NymContractCache {
         }
     }
 
-    pub(crate) async fn names(&self) -> Cache<Vec<NameEntry>> {
+    pub(crate) async fn names(&self) -> Cache<Vec<RegisteredName>> {
         match time::timeout(Duration::from_millis(100), self.inner.read()).await {
             Ok(cache) => cache.registered_names.clone(),
             Err(err) => {

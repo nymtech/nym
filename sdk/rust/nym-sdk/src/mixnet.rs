@@ -4,20 +4,20 @@
 //! # Basic example
 //!
 //! ```no_run
-//! use nym_sdk::mixnet;
+//! use nym_sdk::mixnet::{self, MixnetMessageSender};
 //!
 //! #[tokio::main]
 //! async fn main() {
 //!     // Passing no config makes the client fire up an ephemeral session and figure stuff out on
 //!     // its own
-//!     let mut client = mixnet::MixnetClient::connect_new().await.unwrap();
+//! let mut client = mixnet::MixnetClient::connect_new().await.unwrap();
 //!
 //!     // Be able to get our client address
 //!     let our_address = client.nym_address();
 //!     println!("Our client nym address is: {our_address}");
 //!
 //!     // Send a message throught the mixnet to ourselves
-//!     client.send_str(*our_address, "hello there").await;
+//!     client.send_plain_message(*our_address, "hello there").await.unwrap();
 //!
 //!     println!("Waiting for message");
 //!     if let Some(received) = client.wait_for_messages().await {
@@ -36,6 +36,7 @@ mod connection_state;
 mod native_client;
 mod paths;
 mod socks5_client;
+mod traits;
 
 pub use client::{DisconnectedMixnetClient, IncludedSurbs, MixnetClientBuilder};
 pub use config::{Config, KeyMode};
@@ -67,8 +68,10 @@ pub use nym_sphinx::{
         clients::{ClientIdentity, Recipient},
         nodes::NodeIdentity,
     },
+    anonymous_replies::requests::AnonymousSenderTag,
     receiver::ReconstructedMessage,
 };
 pub use nym_topology::{provider_trait::TopologyProvider, NymTopology};
 pub use paths::StoragePaths;
 pub use socks5_client::Socks5MixnetClient;
+pub use traits::MixnetMessageSender;

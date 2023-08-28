@@ -1,5 +1,5 @@
 # Introduction
 
-Welcome to the Nym Developer Portal, containing the resources and tools needed to build privacy enhanced apps (PEApps) with Nym's technology. Whether you're a seasoned developer or just getting started, our portal is designed to help you create  decentralized applications and services utilising the Nym mixnet. 
+Welcome to the Nym Developer Portal, containing quickstart resources, user manuals, integration information, and tutorials outlining to start building privacy enhanced apps.
 
-Join our community of developers and start building the decentralized future today!
+For more in-depth information about nodes, network traffic flows, etc check out the [docs](https://nymtech.net/docs).

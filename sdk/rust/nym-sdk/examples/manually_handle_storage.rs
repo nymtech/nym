@@ -3,6 +3,7 @@ use nym_client_core::client::base_client::storage::gateway_details::{
 };
 use nym_sdk::mixnet::{
     self, EmptyReplyStorage, EphemeralCredentialStorage, KeyManager, KeyStore, MixnetClientStorage,
+    MixnetMessageSender,
 };
 use nym_topology::provider_trait::async_trait;
 
@@ -26,7 +27,10 @@ async fn main() {
     println!("Our client nym address is: {our_address}");
 
     // Send important info up the pipe to a buddy
-    client.send_str(*our_address, "hello there").await;
+    client
+        .send_plain_message(*our_address, "hello there")
+        .await
+        .unwrap();
 
     println!("Waiting for message");
     if let Some(received) = client.wait_for_messages().await {

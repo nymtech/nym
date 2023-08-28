@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::nyxd::error::NyxdError;
-use cosmrs::tx::Gas;
 use cosmrs::Coin;
+use cosmrs::Gas;
 use cosmwasm_std::{Decimal, Fraction, Uint128};
 use nym_config::defaults;
+use nym_network_defaults::NymNetworkDetails;
 use std::ops::Mul;
 use std::str::FromStr;
 
@@ -25,7 +26,7 @@ impl<'a> Mul<Gas> for &'a GasPrice {
     type Output = Coin;
 
     fn mul(self, gas_limit: Gas) -> Self::Output {
-        let limit_uint128 = Uint128::from(gas_limit.value());
+        let limit_uint128 = Uint128::from(gas_limit);
         let mut amount = self.amount * limit_uint128;
 
         let gas_price_numerator = self.amount.numerator();
@@ -70,6 +71,19 @@ impl FromStr for GasPrice {
         let denom = possible_denom.trim().to_string();
 
         Ok(GasPrice { amount, denom })
+    }
+}
+
+impl<'a> TryFrom<&'a NymNetworkDetails> for GasPrice {
+    type Error = NyxdError;
+
+    fn try_from(value: &'a NymNetworkDetails) -> Result<Self, Self::Error> {
+        format!(
+            "{}{}",
+            value.default_gas_price_amount(),
+            value.chain_details.mix_denom.base
+        )
+        .parse()
     }
 }
 
@@ -122,7 +136,7 @@ mod tests {
     fn gas_limit_multiplication() {
         // real world example that caused an issue when the result was rounded down
         let gas_price: GasPrice = "0.025upunk".parse().unwrap();
-        let gas_limit: Gas = 157500u64.into();
+        let gas_limit: Gas = 157500u64;
 
         let fee = &gas_price * gas_limit;
         // the failing behaviour was result value of 3937

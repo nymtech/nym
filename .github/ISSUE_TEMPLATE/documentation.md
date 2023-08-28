@@ -2,7 +2,7 @@
 name: 'Documentation'
 about: Suggest a fix or enhancement to the documentation or developer portal content
 title: "[DOCS]"
-labels: documentation
+labels: documentation, needs-triage
 assignees: mfahampshire
 
 ---

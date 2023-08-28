@@ -3,11 +3,11 @@
 
 use crate::config::GatewayEndpointConfig;
 use crate::error::ClientCoreError;
+use crate::init::RegistrationResult;
 use futures::{SinkExt, StreamExt};
 use log::{debug, info, trace, warn};
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_gateway_client::GatewayClient;
-use nym_gateway_requests::registration::handshake::SharedKeys;
 use nym_topology::{filter::VersionFilterable, gateway};
 use nym_validator_client::NymApiClient;
 use rand::{seq::SliceRandom, Rng};
@@ -16,8 +16,6 @@ use tap::TapFallible;
 use tungstenite::Message;
 use url::Url;
 
-#[cfg(not(target_arch = "wasm32"))]
-use nym_validator_client::nyxd::DirectSigningNyxdClient;
 #[cfg(not(target_arch = "wasm32"))]
 use tokio::net::TcpStream;
 #[cfg(not(target_arch = "wasm32"))]
@@ -28,17 +26,20 @@ use tokio_tungstenite::connect_async;
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 #[cfg(not(target_arch = "wasm32"))]
 type WsConn = WebSocketStream<MaybeTlsStream<TcpStream>>;
+#[cfg(not(target_arch = "wasm32"))]
+use tokio::time::sleep;
 
 #[cfg(target_arch = "wasm32")]
-use nym_bandwidth_controller::wasm_mockups::DirectSigningNyxdClient;
-#[cfg(target_arch = "wasm32")]
-use wasm_timer::Instant;
-#[cfg(target_arch = "wasm32")]
 use wasm_utils::websocket::JSWebsocket;
+#[cfg(target_arch = "wasm32")]
+use wasmtimer::std::Instant;
+#[cfg(target_arch = "wasm32")]
+use wasmtimer::tokio::sleep;
 
 #[cfg(target_arch = "wasm32")]
 type WsConn = JSWebsocket;
 
+const CONCURRENT_GATEWAYS_MEASURED: usize = 20;
 const MEASUREMENTS: usize = 3;
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -125,14 +126,8 @@ async fn measure_latency(gateway: &gateway::Node) -> Result<GatewayWithLatency, 
             Ok::<(), ClientCoreError>(())
         };
 
-        // thanks to wasm we can't use tokio::time::timeout : (
-        #[cfg(not(target_arch = "wasm32"))]
-        let timeout = tokio::time::sleep(PING_TIMEOUT);
-        #[cfg(not(target_arch = "wasm32"))]
+        let timeout = sleep(PING_TIMEOUT);
         tokio::pin!(timeout);
-
-        #[cfg(target_arch = "wasm32")]
-        let mut timeout = wasm_timer::Delay::new(PING_TIMEOUT);
 
         tokio::select! {
             _ = &mut timeout => {
@@ -159,23 +154,29 @@ pub(super) async fn choose_gateway_by_latency<R: Rng>(
     rng: &mut R,
     gateways: &[gateway::Node],
 ) -> Result<gateway::Node, ClientCoreError> {
-    info!("choosing gateway by latency...");
+    info!(
+        "choosing gateway by latency, pinging {} gateways ...",
+        gateways.len()
+    );
 
-    let mut gateways_with_latency = Vec::new();
-    for gateway in gateways {
-        let id = *gateway.identity();
-        trace!("measuring latency to {id}...");
-        let with_latency = match measure_latency(gateway).await {
-            Ok(res) => res,
-            Err(err) => {
-                warn!("failed to measure {id}: {err}");
-                continue;
-            }
-        };
-        debug!("{id}: {:?}", with_latency.latency);
-        gateways_with_latency.push(with_latency)
-    }
+    let gateways_with_latency = Arc::new(tokio::sync::Mutex::new(Vec::new()));
+    futures::stream::iter(gateways)
+        .for_each_concurrent(CONCURRENT_GATEWAYS_MEASURED, |gateway| async {
+            let id = *gateway.identity();
+            trace!("measuring latency to {id}...");
+            match measure_latency(gateway).await {
+                Ok(with_latency) => {
+                    debug!("{id}: {:?}", with_latency.latency);
+                    gateways_with_latency.lock().await.push(with_latency);
+                }
+                Err(err) => {
+                    warn!("failed to measure {id}: {err}");
+                }
+            };
+        })
+        .await;
 
+    let gateways_with_latency = gateways_with_latency.lock().await;
     let chosen = gateways_with_latency
         .choose_weighted(rng, |item| 1. / item.latency.as_secs_f32())
         .expect("invalid selection weight!");
@@ -203,9 +204,9 @@ pub(super) async fn register_with_gateway(
     our_identity: Arc<identity::KeyPair>,
     our_sphinx: Arc<encryption::KeyPair>,
     nym_api_client: NymApiClient,
-) -> Result<Arc<SharedKeys>, ClientCoreError> {
+) -> Result<RegistrationResult, ClientCoreError> {
     let timeout = Duration::from_millis(1500);
-    let mut gateway_client: GatewayClient<DirectSigningNyxdClient, _> = GatewayClient::new_init(
+    let mut gateway_client = GatewayClient::new_init(
         gateway.gateway_listener.clone(),
         gateway.try_get_gateway_identity_key()?,
         gateway.try_get_gateway_sphinx_key()?,
@@ -222,5 +223,8 @@ pub(super) async fn register_with_gateway(
         .perform_initial_authentication()
         .await
         .tap_err(|_| log::warn!("Failed to register with the gateway!"))?;
-    Ok(shared_keys)
+    Ok(RegistrationResult {
+        shared_keys,
+        authenticated_ephemeral_client: Some(gateway_client),
+    })
 }

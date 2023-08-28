@@ -5,8 +5,9 @@ use crate::epoch_operations::RewardedSetUpdater;
 use cosmwasm_std::{Decimal, Fraction};
 use nym_mixnet_contract_common::reward_params::Performance;
 use nym_mixnet_contract_common::{ExecuteMsg, Interval, MixId};
+use serde_derive::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub(crate) struct MixnodeWithPerformance {
     pub(crate) mix_id: MixId,
 

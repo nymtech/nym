@@ -4,7 +4,10 @@
 use clap::Parser;
 use log::info;
 
-use nym_validator_client::nyxd::{Coin, VestingQueryClient, VestingSigningClient};
+use nym_validator_client::nyxd::{
+    contract_traits::{VestingQueryClient, VestingSigningClient},
+    Coin, CosmWasmClient,
+};
 
 use crate::context::SigningClient;
 use crate::utils::show_error;
@@ -36,7 +39,7 @@ pub async fn execute(args: Args, client: SigningClient) {
                 .await
                 .unwrap_or_else(|_| Coin::new(0u128, denom));
             let liquid_account_balance = client
-                .get_balance(account_id, denom.to_string())
+                .get_balance(&account_id, denom.to_string())
                 .await
                 .unwrap_or(None)
                 .unwrap_or_else(|| Coin::new(0u128, denom));
@@ -94,7 +97,7 @@ pub async fn execute(args: Args, client: SigningClient) {
                 .unwrap_or_else(|_| Coin::new(0u128, denom));
 
             let liquid_account_balance = client
-                .get_balance(account_id, denom.to_string())
+                .get_balance(&account_id, denom.to_string())
                 .await
                 .unwrap_or(None)
                 .unwrap_or_else(|| Coin::new(0u128, denom));

@@ -1,11 +1,13 @@
+import React, { useContext, useEffect } from 'react';
 import { Box, SxProps } from '@mui/material';
-import React, { useEffect } from 'react';
 import { FeeDetails } from '@nymproject/types';
 import { useGetFee } from 'src/hooks/useGetFee';
 import { simulateUndelegateFromMixnode, simulateVestingUndelegateFromMixnode } from 'src/requests';
+import { AppContext } from 'src/context';
 import { ModalFee } from '../Modals/ModalFee';
 import { ModalListItem } from '../Modals/ModalListItem';
 import { SimpleModal } from '../Modals/SimpleModal';
+import { BalanceWarning } from '../FeeWarning';
 
 export const UndelegateModal: FCWithChildren<{
   open: boolean;
@@ -20,6 +22,7 @@ export const UndelegateModal: FCWithChildren<{
   backdropProps?: object;
 }> = ({ mixId, identityKey, open, onClose, onOk, amount, currency, usesVestingContractTokens, sx, backdropProps }) => {
   const { fee, isFeeLoading, feeError, getFee } = useGetFee();
+  const { userBalance } = useContext(AppContext);
 
   useEffect(() => {
     if (usesVestingContractTokens) getFee(simulateVestingUndelegateFromMixnode, { mixId });
@@ -50,6 +53,11 @@ export const UndelegateModal: FCWithChildren<{
         <ModalListItem label="Delegation amount" value={`${amount} ${currency.toUpperCase()}`} divider />
         <ModalFee fee={fee} isLoading={isFeeLoading} error={feeError} divider />
         <ModalListItem label=" Tokens will be transferred to account you are logged in with now" value="" divider />
+        {userBalance.balance?.amount.amount && fee?.amount?.amount && (
+          <Box sx={{ my: 2 }}>
+            <BalanceWarning fee={fee?.amount?.amount} />
+          </Box>
+        )}
       </Box>
     </SimpleModal>
   );

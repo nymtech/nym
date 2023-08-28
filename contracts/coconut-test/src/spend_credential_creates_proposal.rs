@@ -45,6 +45,8 @@ fn spend_credential_creates_proposal() {
         threshold: Threshold::AbsolutePercentage {
             percentage: Decimal::from_ratio(2u128, 3u128),
         },
+        executor: None,
+        proposal_deposit: None,
         max_voting_period: Duration::Height(1000),
         coconut_bandwidth_contract_address: TEST_COCONUT_BANDWIDTH_CONTRACT_ADDRESS.to_string(),
         coconut_dkg_contract_address: TEST_COCONUT_DKG_CONTRACT_ADDRESS.to_string(),

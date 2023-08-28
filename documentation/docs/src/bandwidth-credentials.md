@@ -7,6 +7,8 @@ Create a `sandbox.env` file with the following details:
 ```
 CONFIGURED=true
 
+NETWORK_NAME=sandbox
+
 RUST_LOG=info
 RUST_BACKTRACE=1
 
@@ -20,7 +22,6 @@ DENOMS_EXPONENT=6
 REWARDING_VALIDATOR_ADDRESS="nymt1mxuweurc066kprnngtm8zmvam7m2nw26yatpmv"
 MIXNET_CONTRACT_ADDRESS="nymt1dlsvvgey26ernlj0sq2afjluh3qd4ap0k9eerekfkw5algqrwqksaf2qf7"
 VESTING_CONTRACT_ADDRESS="nymt19g9xuqrvz2frv905v3fc7puryfypluhg383q9zwsmedrlqekfgys62ykm4"
-BANDWIDTH_CLAIM_CONTRACT_ADDRESS="nymt1rhmk9udessnv3r8f3eh2s03f45svnjaczpmcqz"
 MULTISIG_CONTRACT_ADDRESS="nymt142dkm8xe9f0ytyarp7ww4kvclva65705jphxsk9exn3nqdsm8jkqnp06ac"
 COCONUT_BANDWIDTH_CONTRACT_ADDRESS="nymt1ty0frysegskh6ndm3v96z5xdq66qzcu0aw7xcxlgp54jg0mjwlgqplc6v0"
 COCONUT_DKG_CONTRACT_ADDRESS="nymt1gwk6muhmzeuxje7df7rjvqwl2vex0kj4t2hwuzmyx5k62kfusu5qk4k5z4"

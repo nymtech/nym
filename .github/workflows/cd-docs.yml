@@ -1,6 +1,7 @@
 name: CD docs
 
 on:
+  workflow_dispatch:
   push:
     branches: master
     paths:
@@ -27,39 +28,38 @@ jobs:
           command: build
           args: --workspace --release --all
       - name: Install mdbook
-        run: (test -x $HOME/.cargo/bin/mdbook || cargo install --vers "^0.4" mdbook)
+        run: (test -x $HOME/.cargo/bin/mdbook || cargo install --vers "^0.4.33" mdbook)
       - name: Install mdbook plugins
         run: |
-          cargo install --vers "^0.2.0" mdbook-variables && cargo install \
+          cargo install --vers "=0.2.2" mdbook-variables && cargo install \
             --vers "^1.8.0" mdbook-admonish && cargo install --vers \
-            "^0.1.2" mdbook-last-changed && cargo install --vers "^0.1.2" \
-            mdbook-theme && cargo install --vers "^0.7.7" mdbook-linkcheck && \
-            cargo install --vers "^0.5.0" mdbook-cmdrun
-      - name: Clean website
-        run: cd documentation/docs && mdbook clean
-      - name: Build website
-        run: cd documentation/docs && mdbook build
+            "^0.1.2" mdbook-last-changed && cargo install --vers "^0.1.2" mdbook-theme \
+            && cargo install --vers "^0.7.7" mdbook-linkcheck
+      - name: Build all projects in documentation/ & move to ~/dist/docs/
+        run: cd documentation && ./build_all_to_dist.sh
+        continue-on-error: false
       - name: Deploy branch master to dev
         continue-on-error: true
         uses: easingthemes/ssh-deploy@main
         env:
           SSH_PRIVATE_KEY: ${{ secrets.CD_WWW_SSH_PRIVATE_KEY }}
           ARGS: "-rltgoDzvO --delete"
-          SOURCE: "documentation/docs/book/"
+          SOURCE: "dist/docs/"
           REMOTE_HOST: ${{ secrets.CD_WWW_REMOTE_HOST_DEV }}
           REMOTE_USER: ${{ secrets.CD_WWW_REMOTE_USER }}
           TARGET: ${{ secrets.CD_WWW_REMOTE_TARGET }}/
-          EXCLUDE: "/dist/, /node_modules/"
+          EXCLUDE: "/node_modules/"
       - name: Deploy branch master to prod
+        if: github.ref == 'refs/heads/master'
         uses: easingthemes/ssh-deploy@main
         env:
           SSH_PRIVATE_KEY: ${{ secrets.CD_WWW_SSH_PRIVATE_KEY }}
           ARGS: "-rltgoDzvO --delete"
-          SOURCE: "documentation/docs/book/"
+          SOURCE: "dist/docs/"
           REMOTE_HOST: ${{ secrets.CD_WWW_REMOTE_HOST_PROD }}
           REMOTE_USER: ${{ secrets.CD_WWW_REMOTE_USER }}
           TARGET: ${{ secrets.CD_WWW_REMOTE_TARGET }}/
-          EXCLUDE: "/dist/, /node_modules/"
+          EXCLUDE: "/node_modules/"
       - name: Matrix - Node Install
         run: npm install
         working-directory: .github/workflows/support-files

@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [1.2.7] (2023-08-17)
+- release due to schema changes in the contract
+
+## [v1.2.6] (2023-07-18)
+
+- [wallet] bugfix: don't send funds for pledge decrease simulation ([#3676])
+
+[#3676]: https://github.com/nymtech/nym/pull/3676
+
 ## [v1.2.5] (2023-07-04)
 
 - Wallet - add "Test my node" in the Node Settings and show its results ([#2314])

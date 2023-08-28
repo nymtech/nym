@@ -1,7 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::storage::errors::ClientStorageError;
+use crate::storage::error::ClientStorageError;
 use crate::storage::ClientStorage;
 use async_trait::async_trait;
 use nym_client_core::client::base_client::storage::gateway_details::{

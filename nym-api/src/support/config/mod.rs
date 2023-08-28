@@ -5,10 +5,10 @@ use crate::support::config::persistence::{
     CoconutSignerPaths, NetworkMonitorPaths, NodeStatusAPIPaths,
 };
 use crate::support::config::template::CONFIG_TEMPLATE;
-use nym_config::defaults::mainnet;
+use nym_config::defaults::{mainnet, NymNetworkDetails};
 use nym_config::{
     must_get_home, read_config_from_toml_file, save_formatted_config_to_file, NymConfigTemplate,
-    DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, DEFAULT_DATA_DIR, NYM_DIR,
+    DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, DEFAULT_DATA_DIR, DEFAULT_NYM_APIS_DIR, NYM_DIR,
 };
 use nym_validator_client::nyxd;
 use serde::{Deserialize, Serialize};
@@ -20,10 +20,9 @@ use zeroize::{Zeroize, ZeroizeOnDrop};
 
 pub(crate) mod helpers;
 pub(crate) mod old_config_v1_1_21;
+pub(crate) mod old_config_v1_1_27;
 mod persistence;
 mod template;
-
-const DEFAULT_NYM_APIS_DIR: &str = "nym-api";
 
 pub const DEFAULT_LOCAL_VALIDATOR: &str = "http://localhost:26657";
 pub const DEFAULT_NYM_API_PORT: u16 = 8080;
@@ -96,6 +95,18 @@ pub struct Config {
     pub rewarding: Rewarding,
 
     pub coconut_signer: CoconutSigner,
+
+    pub ephemera: Ephemera,
+}
+
+impl<'a> From<&'a Config> for NymNetworkDetails {
+    fn from(value: &'a Config) -> Self {
+        // we get the current environmental details and then overwrite whatever is appropriate with
+        // the values from the config
+        NymNetworkDetails::new_from_env()
+            .with_mixnet_contract(Some(value.get_mixnet_contract_address().as_ref()))
+            .with_vesting_contract(Some(value.get_vesting_contract_address().as_ref()))
+    }
 }
 
 impl NymConfigTemplate for Config {
@@ -106,15 +117,15 @@ impl NymConfigTemplate for Config {
 
 impl Config {
     pub fn new<S: AsRef<str>>(id: S) -> Self {
-        let base_data_dir = default_data_directory(id.as_ref());
         Config {
             base: Base::new_default(id.as_ref()),
-            network_monitor: NetworkMonitor::new_default(&base_data_dir),
-            node_status_api: NodeStatusAPI::new_default(&base_data_dir),
+            network_monitor: NetworkMonitor::new_default(id.as_ref()),
+            node_status_api: NodeStatusAPI::new_default(id.as_ref()),
             topology_cacher: Default::default(),
             circulating_supply_cacher: Default::default(),
             rewarding: Default::default(),
-            coconut_signer: CoconutSigner::new_default(base_data_dir),
+            coconut_signer: CoconutSigner::new_default(id.as_ref()),
+            ephemera: Ephemera::new_default(id.as_ref()),
         }
     }
 
@@ -135,6 +146,10 @@ impl Config {
         save_formatted_config_to_file(self, config_save_location)
     }
 
+    pub fn get_network_details(&self) -> NymNetworkDetails {
+        self.into()
+    }
+
     pub fn with_network_monitor_enabled(mut self, enabled: bool) -> Self {
         self.network_monitor.enabled = enabled;
         self
@@ -152,6 +167,11 @@ impl Config {
 
     pub fn with_coconut_signer_enabled(mut self, enabled: bool) -> Self {
         self.coconut_signer.enabled = enabled;
+        self
+    }
+
+    pub fn with_ephemera_enabled(mut self, enabled: bool) -> Self {
+        self.ephemera.enabled = enabled;
         self
     }
 
@@ -195,6 +215,30 @@ impl Config {
         self
     }
 
+    pub fn with_ephemera_ip(mut self, ip: String) -> Self {
+        self.ephemera.args.cmd.ephemera_ip = Some(ip);
+        self
+    }
+
+    pub fn with_ephemera_protocol_port(mut self, port: u16) -> Self {
+        self.ephemera.args.cmd.ephemera_protocol_port = Some(port);
+        self
+    }
+
+    pub fn with_ephemera_websocket_port(mut self, port: u16) -> Self {
+        self.ephemera.args.cmd.ephemera_websocket_port = Some(port);
+        self
+    }
+
+    pub fn with_ephemera_http_api_port(mut self, port: u16) -> Self {
+        self.ephemera.args.cmd.ephemera_http_api_port = Some(port);
+        self
+    }
+
+    pub fn get_id(&self) -> String {
+        self.base.id.clone()
+    }
+
     pub fn get_nyxd_url(&self) -> Url {
         self.base.local_validator.clone()
     }
@@ -209,6 +253,14 @@ impl Config {
 
     pub fn get_mnemonic(&self) -> bip39::Mnemonic {
         self.base.mnemonic.clone()
+    }
+
+    pub fn get_ephemera_args(&self) -> &crate::ephemera::Args {
+        &self.ephemera.args
+    }
+
+    pub fn get_ephemera_config_path(&self) -> PathBuf {
+        self.ephemera.args.ephemera_config.clone()
     }
 }
 
@@ -526,6 +578,28 @@ impl Default for CoconutSignerDebug {
     fn default() -> Self {
         CoconutSignerDebug {
             dkg_contract_polling_rate: DEFAULT_DKG_CONTRACT_POLLING_RATE,
+        }
+    }
+}
+
+#[derive(Debug, Default, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(default)]
+pub struct Ephemera {
+    pub enabled: bool,
+    args: crate::ephemera::Args,
+}
+
+impl Ephemera {
+    fn new_default(id: &str) -> Self {
+        Ephemera {
+            enabled: false,
+            args: crate::ephemera::Args {
+                ephemera_config: ephemera::configuration::Configuration::ephemera_config_file_home(
+                    Some(id),
+                )
+                .unwrap(),
+                ..Default::default()
+            },
         }
     }
 }

@@ -2,13 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::support::caching::Cache;
+use nym_contracts_common::ContractBuildInformation;
 use nym_mixnet_contract_common::{
     families::FamilyHead, GatewayBond, IdentityKey, Interval, MixId, MixNodeDetails,
     RewardingParams,
 };
-use nym_name_service_common::NameEntry;
+use nym_name_service_common::RegisteredName;
 use nym_service_provider_directory_common::Service;
-use std::collections::HashSet;
+use nym_validator_client::nyxd::AccountId;
+use std::collections::{HashMap, HashSet};
 
 pub(crate) struct ValidatorCacheData {
     pub(crate) mixnodes: Cache<Vec<MixNodeDetails>>,
@@ -26,7 +28,9 @@ pub(crate) struct ValidatorCacheData {
     pub(crate) mix_to_family: Cache<Vec<(IdentityKey, FamilyHead)>>,
 
     pub(crate) service_providers: Cache<Vec<Service>>,
-    pub(crate) registered_names: Cache<Vec<NameEntry>>,
+    pub(crate) registered_names: Cache<Vec<RegisteredName>>,
+
+    pub(crate) contracts_info: Cache<CachedContractsInfo>,
 }
 
 impl ValidatorCacheData {
@@ -43,6 +47,31 @@ impl ValidatorCacheData {
             mix_to_family: Cache::default(),
             service_providers: Cache::default(),
             registered_names: Cache::default(),
+            contracts_info: Cache::default(),
+        }
+    }
+}
+
+type ContractAddress = String;
+pub type CachedContractsInfo = HashMap<ContractAddress, CachedContractInfo>;
+
+#[derive(Clone)]
+pub struct CachedContractInfo {
+    pub(crate) address: Option<AccountId>,
+    pub(crate) base: Option<cw2::ContractVersion>,
+    pub(crate) detailed: Option<ContractBuildInformation>,
+}
+
+impl CachedContractInfo {
+    pub fn new(
+        address: Option<&AccountId>,
+        base: Option<cw2::ContractVersion>,
+        detailed: Option<ContractBuildInformation>,
+    ) -> Self {
+        Self {
+            address: address.cloned(),
+            base,
+            detailed,
         }
     }
 }

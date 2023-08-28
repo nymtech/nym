@@ -250,24 +250,24 @@ impl PacketPreparer {
         let mut routes = Vec::new();
         for i in 0..most_available {
             let Ok(node_1) = self.try_parse_mix_bond(rand_l1[i]) else {
-                    blacklist.insert(rand_l1[i].identity().to_owned());
-                    continue
-                };
+                blacklist.insert(rand_l1[i].identity().to_owned());
+                continue;
+            };
 
             let Ok(node_2) = self.try_parse_mix_bond(rand_l2[i]) else {
-                    blacklist.insert(rand_l2[i].identity().to_owned());
-                    continue
-                };
+                blacklist.insert(rand_l2[i].identity().to_owned());
+                continue;
+            };
 
             let Ok(node_3) = self.try_parse_mix_bond(rand_l3[i]) else {
-                    blacklist.insert(rand_l3[i].identity().to_owned());
-                    continue
-                };
+                blacklist.insert(rand_l3[i].identity().to_owned());
+                continue;
+            };
 
             let Ok(gateway) = self.try_parse_gateway_bond(rand_gateways[i]) else {
-                    blacklist.insert(rand_gateways[i].identity().to_owned());
-                    continue
-                };
+                blacklist.insert(rand_gateways[i].identity().to_owned());
+                continue;
+            };
 
             routes.push(TestRoute::new(rng.gen(), node_1, node_2, node_3, gateway))
         }

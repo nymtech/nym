@@ -1,17 +1,25 @@
 import React from 'react';
 import { createRoutesFromChildren, matchRoutes, useLocation, useNavigationType } from 'react-router-dom';
+import { invoke } from '@tauri-apps/api';
 import * as Sentry from '@sentry/react';
 import { CaptureConsole } from '@sentry/integrations';
 import { getVersion } from '@tauri-apps/api/app';
 
-const SENTRY_DSN = 'https://625e2658da4945a7a253f3ee04413a31@o967446.ingest.sentry.io/4505306292289536';
+const SENTRY_DSN = 'SENTRY_DSN_JS';
 
 async function initSentry() {
   console.log('⚠ performance monitoring and error reporting enabled');
   console.log('initializing sentry');
 
+  const dsn = await invoke<string | undefined>('get_env', { variable: SENTRY_DSN });
+
+  if (!dsn) {
+    console.warn(`unable to initialize sentry, ${SENTRY_DSN} env var not set`);
+    return;
+  }
+
   Sentry.init({
-    dsn: SENTRY_DSN,
+    dsn,
     integrations: [
       new Sentry.BrowserTracing({
         // Set `tracePropagationTargets` to control for which URLs distributed tracing should be enabled

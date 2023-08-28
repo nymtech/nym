@@ -10,6 +10,7 @@ use nym_topology::NymTopologyError;
 use std::time::Duration;
 
 pub mod accessor;
+pub mod geo_aware_provider;
 pub mod nym_api_provider;
 
 // TODO: move it to config later

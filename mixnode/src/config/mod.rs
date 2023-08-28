@@ -154,11 +154,6 @@ impl Config {
         self
     }
 
-    pub fn with_custom_version<S: Into<String>>(mut self, version: S) -> Self {
-        self.mixnode.version = version.into();
-        self
-    }
-
     pub fn get_nym_api_endpoints(&self) -> Vec<Url> {
         self.mixnode.nym_api_urls.clone()
     }

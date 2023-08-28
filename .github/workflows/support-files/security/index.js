@@ -10,7 +10,7 @@ async function addToContextAndValidate(context) {
 async function getMessageBody(context) {
   try {
     const source = fs
-    .readFileSync("deny.message").toString();
+    .readFileSync("./notifications/deny.message").toString();
     return source;
 } catch (error) {
     console.error(error);

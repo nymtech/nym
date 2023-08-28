@@ -10,7 +10,7 @@ use nym_bin_common::output_format::OutputFormat;
 use nym_crypto::asymmetric::identity;
 use nym_mixnet_contract_common::construct_family_join_permit;
 use nym_mixnet_contract_common::families::FamilyHead;
-use nym_validator_client::nyxd::traits::MixnetQueryClient;
+use nym_validator_client::nyxd::contract_traits::{MixnetQueryClient, NymContractsProvider};
 
 #[derive(Debug, Parser)]
 pub struct Args {
@@ -35,16 +35,22 @@ pub async fn create_family_join_permit_sign_payload(args: Args, client: QueryCli
     info!("Create family join permit sign payload");
 
     // get the address of our mixnode to recover the family head information
-    let Some(mixnode) = client.get_owned_mixnode(&args.address).await.unwrap().mixnode_details else {
+    let Some(mixnode) = client
+        .get_owned_mixnode(&args.address)
+        .await
+        .unwrap()
+        .mixnode_details
+    else {
         eprintln!("{} does not seem to even own a mixnode!", args.address);
-        return
+        return;
     };
 
     // make sure this mixnode is actually a family head
     if client
-        .get_node_family_by_head(mixnode.bond_information.identity())
+        .get_node_family_by_head(mixnode.bond_information.identity().to_string())
         .await
         .unwrap()
+        .family
         .is_none()
     {
         eprintln!("{} does not even seem to own a family!", args.address);
@@ -64,7 +70,9 @@ pub async fn create_family_join_permit_sign_payload(args: Args, client: QueryCli
 
     // let address = account_id_to_cw_addr(&args.address);
     let proxy = if args.with_vesting_account {
-        Some(account_id_to_cw_addr(client.vesting_contract_address()))
+        Some(account_id_to_cw_addr(
+            client.vesting_contract_address().unwrap(),
+        ))
     } else {
         None
     };

@@ -1,0 +1,61 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "PagedRewardedSetResponse",
+  "description": "Response containing paged list of all mixnodes in the rewarded set.",
+  "type": "object",
+  "required": [
+    "nodes"
+  ],
+  "properties": {
+    "nodes": {
+      "description": "Nodes in the current rewarded set.",
+      "type": "array",
+      "items": {
+        "type": "array",
+        "items": [
+          {
+            "type": "integer",
+            "format": "uint32",
+            "minimum": 0.0
+          },
+          {
+            "$ref": "#/definitions/RewardedSetNodeStatus"
+          }
+        ],
+        "maxItems": 2,
+        "minItems": 2
+      }
+    },
+    "start_next_after": {
+      "description": "Field indicating paging information for the following queries if the caller wishes to get further entries.",
+      "type": [
+        "integer",
+        "null"
+      ],
+      "format": "uint32",
+      "minimum": 0.0
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "RewardedSetNodeStatus": {
+      "description": "Current state of given node in the rewarded set.",
+      "oneOf": [
+        {
+          "description": "Node that is currently active, i.e. is expected to be used by clients for mixing packets.",
+          "type": "string",
+          "enum": [
+            "active"
+          ]
+        },
+        {
+          "description": "Node that is currently in standby, i.e. it's present in the rewarded set but is not active.",
+          "type": "string",
+          "enum": [
+            "standby"
+          ]
+        }
+      ]
+    }
+  }
+}

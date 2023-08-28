@@ -45,6 +45,21 @@ pub enum BackendError {
         #[from]
         source: crate::operations::growth::api_client::ApiClientError,
     },
+    #[error("{source}")]
+    EnvError {
+        #[from]
+        source: std::env::VarError,
+    },
+    #[error("{source}")]
+    UrlError {
+        #[from]
+        source: url::ParseError,
+    },
+    #[error("{source}")]
+    APIError {
+        #[from]
+        source: nym_validator_client::nym_api::error::NymAPIError,
+    },
 
     #[error("could not send disconnect signal to the SOCKS5 client")]
     CoundNotSendDisconnectSignal,
@@ -70,6 +85,8 @@ pub enum BackendError {
     NewWindowError,
     #[error("unable to parse the specified gateway")]
     UnableToParseGateway,
+    #[error("unable to write user data to disk")]
+    UserDataWriteError,
 
     #[error("unable to load keys: {source}")]
     UnableToLoadKeys {

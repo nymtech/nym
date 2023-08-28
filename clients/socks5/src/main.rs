@@ -13,10 +13,13 @@ pub mod error;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
-    setup_logging();
-    maybe_print_banner(crate_name!(), crate_version!());
-
     let args = commands::Cli::parse();
     setup_env(args.config_env_file.as_ref());
-    commands::execute(&args).await
+
+    if !args.no_banner {
+        maybe_print_banner(crate_name!(), crate_version!());
+    }
+    setup_logging();
+
+    commands::execute(args).await
 }

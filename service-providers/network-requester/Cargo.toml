@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-network-requester"
-version = "1.1.23"
+version = "1.1.26"
 authors.workspace = true
 edition.workspace = true
 rust-version = "1.65"
@@ -15,7 +15,7 @@ async-trait = { workspace = true }
 bs58 = "0.4.0"
 clap = {version = "4.0", features = ["cargo", "derive"]}
 dirs = "4.0"
-futures = "0.3.24"
+futures = { workspace = true }
 humantime-serde = "1.1.1"
 ipnetwork = "0.20.0"
 lazy_static = { workspace = true }
@@ -23,7 +23,8 @@ log = { workspace = true }
 pretty_env_logger = "0.4.0"
 publicsuffix = "1.5" # Can't update this until bip updates to support newer idna version
 rand = "0.7.3"
-reqwest = { version = "0.11.11", features = ["json"] }
+regex = "1.8.4"
+reqwest = { workspace = true, features = ["json"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 sqlx = { version = "0.6.1", features = ["runtime-tokio-rustls", "chrono"]}

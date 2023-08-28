@@ -166,11 +166,6 @@ impl Config {
         self
     }
 
-    pub fn with_custom_version<S: Into<String>>(mut self, version: S) -> Self {
-        self.gateway.version = version.into();
-        self
-    }
-
     pub fn get_statistics_service_url(&self) -> Url {
         self.gateway.statistics_service_url.clone()
     }

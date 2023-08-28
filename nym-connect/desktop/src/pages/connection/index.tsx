@@ -1,25 +1,13 @@
 import React from 'react';
-import { forage } from '@tauri-apps/tauri-forage';
+import * as Sentry from '@sentry/react';
 import { DateTime } from 'luxon';
 import { useClientContext } from 'src/context/main';
-import { useTauriEvents } from 'src/utils';
 import { Connected } from './Connected';
 import { Disconnected } from './Disconnected';
 
 export const ConnectionPage = () => {
   const context = useClientContext();
   const [busy, setBusy] = React.useState<boolean>();
-
-  useTauriEvents('help://clear-storage', (_event) => {
-    console.log('About to clear local storage...');
-    // clear local storage
-    try {
-      forage.clear()();
-      console.log('Local storage cleared');
-    } catch (e) {
-      console.error('Failed to clear local storage', e);
-    }
-  });
 
   const handleConnectClick = async () => {
     const currentStatus = context.connectionStatus;
@@ -28,12 +16,15 @@ export const ConnectionPage = () => {
       // eslint-disable-next-line default-case
       switch (currentStatus) {
         case 'disconnected':
-          await context.setSerivceProvider();
+          Sentry.captureMessage('start connect', 'info');
+          await context.setServiceProvider();
+          await context.setGateway();
           await context.startConnecting();
           context.setConnectedSince(DateTime.now());
           context.setShowInfoModal(true);
           break;
         case 'connected':
+          Sentry.captureMessage('start disconnect', 'info');
           await context.startDisconnecting();
           context.setConnectedSince(undefined);
           break;
@@ -58,6 +49,7 @@ export const ConnectionPage = () => {
         gatewayPerformance={context.gatewayPerformance}
         connectedSince={context.connectedSince}
         serviceProvider={context.selectedProvider}
+        gateway={context.selectedGateway}
         closeInfoModal={closeInfoModal}
         stats={[
           {

@@ -1,17 +1,17 @@
-use crate::{Service, ServiceId};
-use cosmwasm_std::Coin;
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
+// Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
 
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
-#[serde(rename_all = "snake_case")]
+use crate::{Service, ServiceId};
+use cosmwasm_schema::cw_serde;
+use cosmwasm_std::Coin;
+
+#[cw_serde]
 pub struct ServiceInfoResponse {
     pub service_id: ServiceId,
     pub service: Option<Service>,
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
 pub struct ServicesListResponse {
     pub services: Vec<Service>,
 }
@@ -30,11 +30,12 @@ impl From<&[Service]> for ServicesListResponse {
     }
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
 pub struct PagedServicesListResponse {
     pub services: Vec<Service>,
     pub per_page: usize,
+
+    /// Field indicating paging information for the following queries if the caller wishes to get further entries.
     pub start_next_after: Option<ServiceId>,
 }
 
@@ -52,8 +53,7 @@ impl PagedServicesListResponse {
     }
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
 pub struct ConfigResponse {
     pub deposit_required: Coin,
 }

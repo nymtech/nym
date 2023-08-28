@@ -14,12 +14,11 @@
 <!-- - [Version Compatibility Table](binaries/version-compatiblity.md) -->
 
 # Nodes
-- [Node Setup Guides](nodes/setup-guides.md)
-    - [Mix Node](nodes/mix-node-setup.md)
-    - [Gateway](nodes/gateway-setup.md)
-    - [Network Requester](nodes/network-requester-setup.md)
-    - [Validator](nodes/validator-setup.md)
-- [Troubleshooting](nodes/troubleshooting.md)
+- [Node Types (Previously Setup Guides)](nodes/overview.md)  
+    - [Mix Node](nodes/mixnode.md)
+    - [Gateway](nodes/gateway.md)
+    - [Network Requester](nodes/network-requester.md)
+    - [Validator](nodes/validator.md)
 
 # Clients
 - [Clients Overview](clients/overview.md)
@@ -40,7 +39,7 @@
 - [Mixnet Explorer](explorers/mixnet-explorer.md)
 
 # Nyx Blockchain
-<!-- - [Interacting with Nyx Chain and Smart Contracts](nyx/interacting-with-chain.md) -->
+- [Interacting with Nyx Chain and Smart Contracts](nyx/interacting-with-chain.md) 
 - [Smart Contracts](nyx/smart-contracts.md)
     - [Mixnet Contract](nyx/mixnet-contract.md)
     - [Vesting Contract](nyx/vesting-contract.md)

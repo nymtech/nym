@@ -1,14 +1,14 @@
-use crate::errors::ContractError;
 use crate::storage::{delete_account, save_account, MIX_DENOM};
 use crate::traits::VestingAccount;
+use crate::vesting::account::StorableVestingAccountExt;
 use cosmwasm_std::{Addr, Coin, Env, Storage, Timestamp, Uint128};
 use std::cmp::min;
-use vesting_contract_common::{OriginalVestingResponse, Period};
+use vesting_contract_common::{OriginalVestingResponse, Period, VestingContractError};
 
 use super::Account;
 
 impl VestingAccount for Account {
-    fn total_staked(&self, storage: &dyn Storage) -> Result<Uint128, ContractError> {
+    fn total_staked(&self, storage: &dyn Storage) -> Result<Uint128, VestingContractError> {
         Ok(self.total_delegations(storage)? + self.total_pledged(storage)?)
     }
 
@@ -21,7 +21,7 @@ impl VestingAccount for Account {
         block_time: Option<Timestamp>,
         env: &Env,
         storage: &dyn Storage,
-    ) -> Result<Coin, ContractError> {
+    ) -> Result<Coin, VestingContractError> {
         let still_vesting = self.get_vesting_coins(block_time, env, storage)?.amount;
         let staked = self.total_staked(storage)?;
         let locked_amount = still_vesting.saturating_sub(staked);
@@ -37,7 +37,7 @@ impl VestingAccount for Account {
         block_time: Option<Timestamp>,
         env: &Env,
         storage: &dyn Storage,
-    ) -> Result<Coin, ContractError> {
+    ) -> Result<Coin, VestingContractError> {
         Ok(Coin {
             amount: self
                 .load_balance(storage)?
@@ -51,7 +51,7 @@ impl VestingAccount for Account {
         block_time: Option<Timestamp>,
         env: &Env,
         storage: &dyn Storage,
-    ) -> Result<Coin, ContractError> {
+    ) -> Result<Coin, VestingContractError> {
         let vested = self.get_vested_coins(block_time, env, storage)?;
         let withdrawn = self.load_withdrawn(storage)?;
 
@@ -76,7 +76,7 @@ impl VestingAccount for Account {
         block_time: Option<Timestamp>,
         env: &Env,
         storage: &dyn Storage,
-    ) -> Result<Coin, ContractError> {
+    ) -> Result<Coin, VestingContractError> {
         let spendable = self.spendable_coins(block_time, env, storage)?;
         let spendable_vested = self.spendable_vested_coins(block_time, env, storage)?;
 
@@ -92,7 +92,7 @@ impl VestingAccount for Account {
         block_time: Option<Timestamp>,
         env: &Env,
         storage: &dyn Storage,
-    ) -> Result<Coin, ContractError> {
+    ) -> Result<Coin, VestingContractError> {
         let block_time = block_time.unwrap_or(env.block.time);
         let period = self.get_current_vesting_period(block_time)?;
         let denom = MIX_DENOM.load(storage)?;
@@ -119,7 +119,7 @@ impl VestingAccount for Account {
         block_time: Option<Timestamp>,
         env: &Env,
         storage: &dyn Storage,
-    ) -> Result<Coin, ContractError> {
+    ) -> Result<Coin, VestingContractError> {
         Ok(Coin {
             amount: self.get_original_vesting()?.amount().amount
                 - self.get_vested_coins(block_time, env, storage)?.amount,
@@ -135,7 +135,7 @@ impl VestingAccount for Account {
         self.periods[self.num_vesting_periods() - 1].end_time()
     }
 
-    fn get_original_vesting(&self) -> Result<OriginalVestingResponse, ContractError> {
+    fn get_original_vesting(&self) -> Result<OriginalVestingResponse, VestingContractError> {
         Ok(OriginalVestingResponse::new(
             self.coin.clone(),
             self.num_vesting_periods(),
@@ -147,7 +147,7 @@ impl VestingAccount for Account {
         &mut self,
         to_address: &Addr,
         storage: &mut dyn Storage,
-    ) -> Result<(), ContractError> {
+    ) -> Result<(), VestingContractError> {
         delete_account(self.owner_address(), storage)?;
         self.owner_address = to_address.to_owned();
         save_account(self, storage)?;
@@ -158,7 +158,7 @@ impl VestingAccount for Account {
         &mut self,
         to_address: Option<Addr>,
         storage: &mut dyn Storage,
-    ) -> Result<(), ContractError> {
+    ) -> Result<(), VestingContractError> {
         if let Some(staking_address) = self.staking_address() {
             delete_account(staking_address.to_owned(), storage)?;
         }
@@ -167,7 +167,11 @@ impl VestingAccount for Account {
         Ok(())
     }
 
-    fn track_reward(&self, amount: Coin, storage: &mut dyn Storage) -> Result<(), ContractError> {
+    fn track_reward(
+        &self,
+        amount: Coin,
+        storage: &mut dyn Storage,
+    ) -> Result<(), VestingContractError> {
         let current_balance = self.load_balance(storage)?;
         let new_balance = current_balance + amount.amount;
         self.save_balance(new_balance, storage)?;
@@ -183,7 +187,7 @@ impl VestingAccount for Account {
     fn get_historical_vested_staking_rewards(
         &self,
         storage: &dyn Storage,
-    ) -> Result<Coin, ContractError> {
+    ) -> Result<Coin, VestingContractError> {
         let balance = self.load_balance(storage)?;
         let withdrawn = self.load_withdrawn(storage)?;
         let staked = self.total_staked(storage)?;

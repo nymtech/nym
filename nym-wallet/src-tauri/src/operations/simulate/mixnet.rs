@@ -11,6 +11,7 @@ use nym_mixnet_contract_common::{ExecuteMsg, Gateway, MixId, MixNode};
 use nym_mixnet_contract_common::{GatewayConfigUpdate, MixNodeConfigUpdate};
 use nym_types::currency::DecCoin;
 use nym_types::mixnode::MixNodeCostParams;
+use nym_validator_client::nyxd::contract_traits::NymContractsProvider;
 
 async fn simulate_mixnet_operation(
     msg: ExecuteMsg,
@@ -28,7 +29,10 @@ async fn simulate_mixnet_operation(
     };
 
     let client = guard.current_client()?;
-    let mixnet_contract = client.nyxd.mixnet_contract_address();
+    let mixnet_contract = client
+        .nyxd
+        .mixnet_contract_address()
+        .expect("mixnet contract address is not available");
 
     let msg = client
         .nyxd
@@ -124,11 +128,9 @@ pub async fn simulate_update_pledge(
             );
             simulate_mixnet_operation(
                 ExecuteMsg::DecreasePledge {
-                    decrease_by: guard
-                        .attempt_convert_to_base_coin(dec_delta.clone())?
-                        .into(),
+                    decrease_by: guard.attempt_convert_to_base_coin(dec_delta)?.into(),
                 },
-                Some(dec_delta),
+                None,
                 &state,
             )
             .await

@@ -4,6 +4,7 @@ use cosmrs::crypto::secp256k1::{Signature, VerifyingKey};
 use cosmrs::crypto::PublicKey;
 use cosmrs::AccountId;
 use k256::ecdsa::signature::Verifier;
+use nym_validator_client::nyxd::CosmWasmClient;
 use nym_validator_client::signing::signer::OfflineSigner;
 use serde::Serialize;
 use serde_json::json;
@@ -23,15 +24,16 @@ pub async fn sign(
 ) -> Result<String, BackendError> {
     let guard = state.read().await;
     let client = guard.current_client()?;
-    let wallet = client.nyxd.signer();
-    let derived_accounts = wallet.try_derive_accounts()?;
+    let derived_accounts = client.nyxd.get_accounts()?;
     let account = derived_accounts.first().ok_or_else(|| {
         log::error!(">>> Unable to derive account");
         BackendError::SignatureError("unable to derive account".to_string())
     })?;
 
     log::info!("<<< Signing message");
-    let signature = wallet.sign_raw_with_account(account, message.as_bytes())?;
+    let signature = client
+        .nyxd
+        .sign_raw_with_account(account, message.as_bytes())?;
     let output = SignatureOutputJson {
         account_id: account.address().to_string(),
         public_key: account.public_key(),
@@ -49,14 +51,10 @@ async fn get_pubkey_from_account_address(
     log::info!("Getting public key for address {} from chain...", address);
     let guard = state.read().await;
     let client = guard.current_client()?;
-    let account = client
-        .nyxd
-        .get_account_details(address)
-        .await?
-        .ok_or_else(|| {
-            log::error!("No account associated with address {}", address);
-            BackendError::SignatureError(format!("No account associated with address {address}"))
-        })?;
+    let account = client.nyxd.get_account(address).await?.ok_or_else(|| {
+        log::error!("No account associated with address {}", address);
+        BackendError::SignatureError(format!("No account associated with address {address}"))
+    })?;
     let base_account = account.try_get_base_account()?;
 
     base_account.pubkey.ok_or_else(|| {
@@ -116,7 +114,7 @@ pub async fn verify(
             // get public key from current account address
             let guard = state.read().await;
             let client = guard.current_client()?;
-            let address = client.nyxd.address();
+            let address = &client.nyxd.address();
             get_pubkey_from_account_address(address, &state).await?
         }
     };

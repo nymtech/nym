@@ -40,3 +40,8 @@ path = "framing"
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio]
 version = "1.24.1"
 features = ["sync"]
+
+[features]
+default = ["sphinx"]
+sphinx = ["nym-crypto/sphinx", "nym-sphinx-params/sphinx", "nym-sphinx-types/sphinx"]
+outfox = ["nym-crypto/outfox", "nym-sphinx-params/outfox", "nym-sphinx-types/outfox"]

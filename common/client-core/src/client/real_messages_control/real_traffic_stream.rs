@@ -27,9 +27,10 @@ use std::sync::Arc;
 use std::time::Duration;
 
 #[cfg(not(target_arch = "wasm32"))]
-use tokio::time;
+use tokio::time::{sleep, Sleep};
+
 #[cfg(target_arch = "wasm32")]
-use wasm_timer;
+use wasmtimer::tokio::{sleep, Sleep};
 
 mod sending_delay_controller;
 
@@ -82,11 +83,7 @@ where
 
     /// Internal state, determined by `average_message_sending_delay`,
     /// used to keep track of when a next packet should be sent out.
-    #[cfg(not(target_arch = "wasm32"))]
-    next_delay: Option<Pin<Box<time::Sleep>>>,
-
-    #[cfg(target_arch = "wasm32")]
-    next_delay: Option<Pin<Box<wasm_timer::Delay>>>,
+    next_delay: Option<Pin<Box<Sleep>>>,
 
     // To make sure we don't overload the mix_tx channel, we limit the rate we are pushing
     // messages.
@@ -200,7 +197,7 @@ where
 
     fn loop_cover_message_size(&mut self) -> PacketSize {
         let Some(secondary_packet_size) = self.config.traffic.secondary_packet_size else {
-            return self.config.traffic.primary_packet_size
+            return self.config.traffic.primary_packet_size;
         };
 
         let use_primary = self
@@ -373,17 +370,9 @@ where
 
             // The next interval value is `next_poisson_delay` after the one that just
             // yielded.
-            #[cfg(not(target_arch = "wasm32"))]
-            {
-                let now = next_delay.deadline();
-                let next = now + next_poisson_delay;
-                next_delay.as_mut().reset(next);
-            }
-
-            #[cfg(target_arch = "wasm32")]
-            {
-                next_delay.as_mut().reset(next_poisson_delay);
-            }
+            let now = next_delay.deadline();
+            let next = now + next_poisson_delay;
+            next_delay.as_mut().reset(next);
 
             // On every iteration we get new messages from upstream. Given that these come bunched
             // in `Vec`, this ensures that on average we will fetch messages faster than we can
@@ -421,12 +410,7 @@ where
                 self.config.traffic.message_sending_average_delay,
             );
 
-            #[cfg(not(target_arch = "wasm32"))]
-            let next_delay = Box::pin(time::sleep(sampled));
-
-            #[cfg(target_arch = "wasm32")]
-            let next_delay = Box::pin(wasm_timer::Delay::new(sampled));
-
+            let next_delay = Box::pin(sleep(sampled));
             self.next_delay = Some(next_delay);
 
             Poll::Pending

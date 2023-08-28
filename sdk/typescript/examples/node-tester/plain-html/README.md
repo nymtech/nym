@@ -1,4 +1,4 @@
-# HTML Nyn Node Test
+# Nym Node Tester - HTML
 
 This is an example of using the Nym Mixnet node tester.
 

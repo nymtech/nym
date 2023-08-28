@@ -4,7 +4,8 @@ import { Tune as TuneIcon, BorderColor as BorderColorIcon } from '@mui/icons-mat
 import { CoinMark } from '@nymproject/react/coins/CoinMark';
 import { PoweredByBity } from 'src/svg-icons';
 import { AppContext } from 'src/context';
-import { NymCard, ClientAddress } from '..';
+import { ClientAddress } from '@nymproject/react/client-address/ClientAddress';
+import { NymCard } from '..';
 import { SignMessageModal } from './SignMessageModal';
 
 // TODO retrieve this value from env
@@ -58,7 +59,12 @@ export const Tutorial = () => {
   const showBorder = useMediaQuery(theme.breakpoints.up('md'));
 
   return (
-    <NymCard borderless title="Buy NYM with BTC" sx={{ mt: 4 }} Action={<ClientAddress withCopy />}>
+    <NymCard
+      borderless
+      title="Buy NYM with BTC"
+      sx={{ mt: 4 }}
+      Action={clientDetails?.client_address && <ClientAddress address={clientDetails?.client_address} withCopy />}
+    >
       <Typography mb={2} fontSize={14}>
         Follow below 3 steps to quickly and easily buy NYM tokens. You can purchase up to 1000 Swiss Francs per day.
       </Typography>

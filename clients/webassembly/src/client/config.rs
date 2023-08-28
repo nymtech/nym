@@ -4,7 +4,7 @@
 // due to expansion of #[wasm_bindgen] macro on `Debug` Config struct
 #![allow(clippy::drop_non_drop)]
 // another issue due to #[wasm_bindgen] and `Copy` trait
-#![allow(clippy::drop_copy)]
+#![allow(dropping_copy_types)]
 
 use nym_client_core::config::{
     Acknowledgements as ConfigAcknowledgements, Config as BaseClientConfig,
@@ -246,6 +246,7 @@ impl From<TopologyWasm> for ConfigTopology {
                 topology.topology_resolution_timeout_ms,
             ),
             disable_refreshing: topology.disable_refreshing,
+            topology_structure: Default::default(),
         }
     }
 }

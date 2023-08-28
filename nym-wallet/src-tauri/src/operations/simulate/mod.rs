@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use cosmrs::tx;
-use cosmrs::tx::Gas;
+use cosmrs::Gas;
 use nym_types::fees::FeeDetails;
 use nym_validator_client::nyxd::cosmwasm_client::types::GasInfo;
 use nym_validator_client::nyxd::{CosmosCoin, Fee, GasAdjustable, GasAdjustment, GasPrice};

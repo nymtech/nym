@@ -1,0 +1,19 @@
+{
+  "name": "firefox-extension",
+  "version": "1.0.0",
+  "description": "This is an example of how Nym can be used within the context of a Firefox extension.",
+  "main": "index.js",
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "copy-webpack-plugin": "^11.0.0",
+    "webpack": "^5.88.1",
+    "webpack-cli": "^5.1.4"
+  },
+  "scripts": {
+    "build": "yarn webpack"
+  },
+  "dependencies": {
+    "worker-loader": "^3.0.8"
+  }
+}

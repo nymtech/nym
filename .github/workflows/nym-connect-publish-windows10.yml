@@ -15,8 +15,15 @@ jobs:
       fail-fast: false
       matrix:
         platform: [windows10]
-
     runs-on: ${{ matrix.platform }}
+
+    outputs:
+      release_id: ${{ steps.create-release.outputs.id }}
+      release_date: ${{ fromJSON(steps.create-release.outputs.assets)[0].created_at }}
+      version: ${{ steps.release-info.outputs.version }}
+      filename: ${{ steps.release-info.outputs.filename }}
+      file_hash: ${{ steps.release-info.outputs.file_hash }}
+
     steps:
       - name: Clean up first
         continue-on-error: true
@@ -72,6 +79,8 @@ jobs:
           WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
           TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
           TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+          SENTRY_DSN_RUST: ${{ secrets.SENTRY_DSN_RUST }}
+          SENTRY_DSN_JS: ${{ secrets.SENTRY_DSN_JS }}
         run: yarn build
 
       - name: Upload Artifact
@@ -81,10 +90,39 @@ jobs:
           path: nym-connect/desktop/target/release/bundle/msi/nym-connect_1*_x64_en-US.msi
           retention-days: 30
 
-      - name: Upload to release based on tag name
+      - id: create-release
+        name: Upload to release based on tag name
         uses: softprops/action-gh-release@v1
         if: github.event_name == 'release'
         with:
           files: |
             nym-connect/desktop/target/release/bundle/msi/*.msi
             nym-connect/desktop/target/release/bundle/msi/*.msi.zip*
+      - id: release-info
+        name: Prepare release info
+        run: |
+          ref=${{ github.ref_name }}
+          semver="${ref##nym-connect-}" && semver="${semver##v}"
+          echo "version=${semver}" >> "$GITHUB_OUTPUT"
+          echo "filename=nym-connect_${semver}_x64_en-US.msi" >> "$GITHUB_OUTPUT"
+          echo "file_hash=${{ hashFiles('nym-connect/desktop/target/release/bundle/msi/nym-connect_*_x64_en-US.msi') }}" >> "$GITHUB_OUTPUT"
+
+  push-release-data:
+    if: ${{ (startsWith(github.ref, 'refs/tags/nym-connect-') && github.event_name == 'release') || github.event_name == 'workflow_dispatch' }}
+    uses: ./.github/workflows/push-release-data.yml
+    needs: publish-tauri
+    with:
+      release_tag: ${{ github.ref_name }}
+      release_id: ${{ needs.publish-tauri.outputs.release_id }}
+      release_date: ${{ needs.publish-tauri.outputs.release_date }}
+      download_base_url: https://github.com/nymtech/nym/releases/download/${{ github.ref_name }}
+      changelog_url: https://github.com/nymtech/nym/blob/${{ github.ref_name }}/nym-connect/desktop/CHANGELOG.md
+      archive_url: https://github.com/nymtech/nym/releases/download/${{ github.ref_name }}/nym-connect_${{ needs.publish-tauri.outputs.version }}_x64_en-US.msi.zip
+      sig_url: https://github.com/nymtech/nym/releases/download/${{ github.ref_name }}/nym-connect_${{ needs.publish-tauri.outputs.version }}_x64_en-US.msi.zip.sig
+      version: ${{ needs.publish-tauri.outputs.version }}
+      filename: ${{ needs.publish-tauri.outputs.filename }}
+      file_hash: ${{ needs.publish-tauri.outputs.file_hash }}
+      name: NymConnect
+      category: connect
+      platform: Windows
+    secrets: inherit

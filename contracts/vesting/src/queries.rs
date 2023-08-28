@@ -1,19 +1,18 @@
 // Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::errors::ContractError;
 use crate::storage;
 use crate::storage::{account_from_address, BlockTimestampSecs, ACCOUNTS, DELEGATIONS, MIX_DENOM};
 use crate::traits::VestingAccount;
-use crate::vesting::Account;
+use crate::vesting::StorableVestingAccountExt;
 use contracts_common::ContractBuildInformation;
 use cosmwasm_std::{Coin, Deps, Env, Order, StdResult, Timestamp, Uint128};
 use cw_storage_plus::Bound;
 use mixnet_contract_common::MixId;
 use vesting_contract_common::{
-    AccountVestingCoins, AccountsResponse, AllDelegationsResponse, BaseVestingAccountInfo,
+    Account, AccountVestingCoins, AccountsResponse, AllDelegationsResponse, BaseVestingAccountInfo,
     DelegationTimesResponse, OriginalVestingResponse, Period, PledgeData, VestingCoinsResponse,
-    VestingDelegation,
+    VestingContractError, VestingDelegation,
 };
 
 /// Get current vesting period for a given [crate::vesting::Account].
@@ -21,24 +20,30 @@ pub fn try_get_current_vesting_period(
     address: &str,
     deps: Deps<'_>,
     env: Env,
-) -> Result<Period, ContractError> {
+) -> Result<Period, VestingContractError> {
     let account = account_from_address(address, deps.storage, deps.api)?;
     account.get_current_vesting_period(env.block.time)
 }
 
 /// Loads mixnode bond from vesting contract storage.
-pub fn try_get_mixnode(address: &str, deps: Deps<'_>) -> Result<Option<PledgeData>, ContractError> {
+pub fn try_get_mixnode(
+    address: &str,
+    deps: Deps<'_>,
+) -> Result<Option<PledgeData>, VestingContractError> {
     let account = account_from_address(address, deps.storage, deps.api)?;
     account.load_mixnode_pledge(deps.storage)
 }
 
 /// Loads gateway bond from vesting contract storage.
-pub fn try_get_gateway(address: &str, deps: Deps<'_>) -> Result<Option<PledgeData>, ContractError> {
+pub fn try_get_gateway(
+    address: &str,
+    deps: Deps<'_>,
+) -> Result<Option<PledgeData>, VestingContractError> {
     let account = account_from_address(address, deps.storage, deps.api)?;
     account.load_gateway_pledge(deps.storage)
 }
 
-pub fn try_get_account(address: &str, deps: Deps<'_>) -> Result<Account, ContractError> {
+pub fn try_get_account(address: &str, deps: Deps<'_>) -> Result<Account, VestingContractError> {
     account_from_address(address, deps.storage, deps.api)
 }
 
@@ -65,7 +70,7 @@ pub fn try_get_all_accounts(
     deps: Deps<'_>,
     start_after: Option<String>,
     limit: Option<u32>,
-) -> Result<AccountsResponse, ContractError> {
+) -> Result<AccountsResponse, VestingContractError> {
     let limit = limit.unwrap_or(150).min(250) as usize;
 
     let start = start_after
@@ -96,7 +101,7 @@ pub fn try_get_all_accounts_vesting_coins(
     env: Env,
     start_after: Option<String>,
     limit: Option<u32>,
-) -> Result<VestingCoinsResponse, ContractError> {
+) -> Result<VestingCoinsResponse, VestingContractError> {
     let limit = limit.unwrap_or(150).min(250) as usize;
 
     let start = start_after
@@ -133,7 +138,7 @@ pub fn try_get_locked_coins(
     block_time: Option<Timestamp>,
     env: Env,
     deps: Deps<'_>,
-) -> Result<Coin, ContractError> {
+) -> Result<Coin, VestingContractError> {
     let account = account_from_address(vesting_account_address, deps.storage, deps.api)?;
     account.locked_coins(block_time, &env, deps.storage)
 }
@@ -144,7 +149,7 @@ pub fn try_get_spendable_coins(
     block_time: Option<Timestamp>,
     env: Env,
     deps: Deps<'_>,
-) -> Result<Coin, ContractError> {
+) -> Result<Coin, VestingContractError> {
     let account = account_from_address(vesting_account_address, deps.storage, deps.api)?;
     account.spendable_coins(block_time, &env, deps.storage)
 }
@@ -155,7 +160,7 @@ pub fn try_get_vested_coins(
     block_time: Option<Timestamp>,
     env: Env,
     deps: Deps<'_>,
-) -> Result<Coin, ContractError> {
+) -> Result<Coin, VestingContractError> {
     let account = account_from_address(vesting_account_address, deps.storage, deps.api)?;
     account.get_vested_coins(block_time, &env, deps.storage)
 }
@@ -166,7 +171,7 @@ pub fn try_get_vesting_coins(
     block_time: Option<Timestamp>,
     env: Env,
     deps: Deps<'_>,
-) -> Result<Coin, ContractError> {
+) -> Result<Coin, VestingContractError> {
     let account = account_from_address(vesting_account_address, deps.storage, deps.api)?;
     account.get_vesting_coins(block_time, &env, deps.storage)
 }
@@ -175,7 +180,7 @@ pub fn try_get_vesting_coins(
 pub fn try_get_start_time(
     vesting_account_address: &str,
     deps: Deps<'_>,
-) -> Result<Timestamp, ContractError> {
+) -> Result<Timestamp, VestingContractError> {
     let account = account_from_address(vesting_account_address, deps.storage, deps.api)?;
     Ok(account.get_start_time())
 }
@@ -184,7 +189,7 @@ pub fn try_get_start_time(
 pub fn try_get_end_time(
     vesting_account_address: &str,
     deps: Deps<'_>,
-) -> Result<Timestamp, ContractError> {
+) -> Result<Timestamp, VestingContractError> {
     let account = account_from_address(vesting_account_address, deps.storage, deps.api)?;
     Ok(account.get_end_time())
 }
@@ -193,7 +198,7 @@ pub fn try_get_end_time(
 pub fn try_get_original_vesting(
     vesting_account_address: &str,
     deps: Deps<'_>,
-) -> Result<OriginalVestingResponse, ContractError> {
+) -> Result<OriginalVestingResponse, VestingContractError> {
     let account = account_from_address(vesting_account_address, deps.storage, deps.api)?;
     account.get_original_vesting()
 }
@@ -201,7 +206,7 @@ pub fn try_get_original_vesting(
 pub fn try_get_historical_vesting_staking_reward(
     vesting_account_address: &str,
     deps: Deps<'_>,
-) -> Result<Coin, ContractError> {
+) -> Result<Coin, VestingContractError> {
     let account = account_from_address(vesting_account_address, deps.storage, deps.api)?;
     account.get_historical_vested_staking_rewards(deps.storage)
 }
@@ -210,7 +215,7 @@ pub fn try_get_spendable_vested_coins(
     vesting_account_address: &str,
     deps: Deps<'_>,
     env: Env,
-) -> Result<Coin, ContractError> {
+) -> Result<Coin, VestingContractError> {
     let account = account_from_address(vesting_account_address, deps.storage, deps.api)?;
     account.spendable_vested_coins(None, &env, deps.storage)
 }
@@ -219,7 +224,7 @@ pub fn try_get_spendable_reward_coins(
     vesting_account_address: &str,
     deps: Deps<'_>,
     env: Env,
-) -> Result<Coin, ContractError> {
+) -> Result<Coin, VestingContractError> {
     let account = account_from_address(vesting_account_address, deps.storage, deps.api)?;
     account.spendable_reward_coins(None, &env, deps.storage)
 }
@@ -227,7 +232,7 @@ pub fn try_get_spendable_reward_coins(
 pub fn try_get_delegated_coins(
     vesting_account_address: &str,
     deps: Deps<'_>,
-) -> Result<Coin, ContractError> {
+) -> Result<Coin, VestingContractError> {
     let account = account_from_address(vesting_account_address, deps.storage, deps.api)?;
     let denom = MIX_DENOM.load(deps.storage)?;
     let amount = account.total_delegations(deps.storage)?;
@@ -237,7 +242,7 @@ pub fn try_get_delegated_coins(
 pub fn try_get_pledged_coins(
     vesting_account_address: &str,
     deps: Deps<'_>,
-) -> Result<Coin, ContractError> {
+) -> Result<Coin, VestingContractError> {
     let account = account_from_address(vesting_account_address, deps.storage, deps.api)?;
     let denom = MIX_DENOM.load(deps.storage)?;
     let amount = account.total_pledged(deps.storage)?;
@@ -247,7 +252,7 @@ pub fn try_get_pledged_coins(
 pub fn try_get_staked_coins(
     vesting_account_address: &str,
     deps: Deps<'_>,
-) -> Result<Coin, ContractError> {
+) -> Result<Coin, VestingContractError> {
     let account = account_from_address(vesting_account_address, deps.storage, deps.api)?;
     let denom = MIX_DENOM.load(deps.storage)?;
     let amount = account.total_staked(deps.storage)?;
@@ -257,7 +262,7 @@ pub fn try_get_staked_coins(
 pub fn try_get_withdrawn_coins(
     vesting_account_address: &str,
     deps: Deps<'_>,
-) -> Result<Coin, ContractError> {
+) -> Result<Coin, VestingContractError> {
     let account = account_from_address(vesting_account_address, deps.storage, deps.api)?;
     let denom = MIX_DENOM.load(deps.storage)?;
     let amount = account.load_withdrawn(deps.storage)?;
@@ -269,7 +274,7 @@ pub fn try_get_delegation_times(
     deps: Deps<'_>,
     vesting_account_address: &str,
     mix_id: MixId,
-) -> Result<DelegationTimesResponse, ContractError> {
+) -> Result<DelegationTimesResponse, VestingContractError> {
     let owner = deps.api.addr_validate(vesting_account_address)?;
     let account = account_from_address(vesting_account_address, deps.storage, deps.api)?;
 
@@ -288,7 +293,7 @@ pub fn try_get_all_delegations(
     deps: Deps<'_>,
     start_after: Option<(u32, MixId, BlockTimestampSecs)>,
     limit: Option<u32>,
-) -> Result<AllDelegationsResponse, ContractError> {
+) -> Result<AllDelegationsResponse, VestingContractError> {
     let limit = limit.unwrap_or(100).min(200) as usize;
 
     let start = start_after.map(Bound::exclusive);
@@ -325,7 +330,7 @@ pub fn try_get_delegation(
     vesting_account_address: &str,
     mix_id: MixId,
     block_timestamp_secs: BlockTimestampSecs,
-) -> Result<VestingDelegation, ContractError> {
+) -> Result<VestingDelegation, VestingContractError> {
     let account = account_from_address(vesting_account_address, deps.storage, deps.api)?;
 
     let storage_key = (account.storage_key(), mix_id, block_timestamp_secs);
@@ -343,7 +348,7 @@ pub fn try_get_delegation_amount(
     deps: Deps<'_>,
     vesting_account_address: &str,
     mix_id: MixId,
-) -> Result<Coin, ContractError> {
+) -> Result<Coin, VestingContractError> {
     let account = account_from_address(vesting_account_address, deps.storage, deps.api)?;
 
     let amount = DELEGATIONS

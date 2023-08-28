@@ -20,7 +20,7 @@ use std::net::IpAddr;
     feature = "generate-ts",
     ts(export_to = "ts-packages/types/src/types/rust/MixNodeDetails.ts")
 )]
-#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize, JsonSchema)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct MixNodeDetails {
     pub bond_information: MixNodeBond,
     pub rewarding_details: MixNodeRewarding,
@@ -49,7 +49,7 @@ impl MixNodeDetails {
     feature = "generate-ts",
     ts(export_to = "ts-packages/types/src/types/rust/MixNodeBond.ts")
 )]
-#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize, JsonSchema)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct MixNodeBond {
     pub mix_id: MixId,
     pub owner: String,
@@ -85,7 +85,7 @@ impl MixNodeBond {
     feature = "generate-ts",
     ts(export_to = "ts-packages/types/src/types/rust/MixNodeRewarding.ts")
 )]
-#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize, JsonSchema)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct MixNodeRewarding {
     pub cost_params: MixNodeCostParams,
 
@@ -131,7 +131,7 @@ impl MixNodeRewarding {
     feature = "generate-ts",
     ts(export_to = "ts-packages/types/src/types/rust/MixNodeCostParams.ts")
 )]
-#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize, JsonSchema)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct MixNodeCostParams {
     #[cfg_attr(feature = "generate-ts", ts(type = "string"))]
     pub profit_margin_percent: Percent,

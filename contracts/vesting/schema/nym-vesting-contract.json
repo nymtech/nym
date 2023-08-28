@@ -1,0 +1,2841 @@
+{
+  "contract_name": "nym-vesting-contract",
+  "contract_version": "1.4.1",
+  "idl_version": "1.0.0",
+  "instantiate": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "InstantiateMsg",
+    "type": "object",
+    "required": [
+      "mix_denom",
+      "mixnet_contract_address"
+    ],
+    "properties": {
+      "mix_denom": {
+        "type": "string"
+      },
+      "mixnet_contract_address": {
+        "type": "string"
+      }
+    },
+    "additionalProperties": false
+  },
+  "execute": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "ExecuteMsg",
+    "oneOf": [
+      {
+        "description": "Only owner of the node can crate the family with node as head",
+        "type": "object",
+        "required": [
+          "create_family"
+        ],
+        "properties": {
+          "create_family": {
+            "type": "object",
+            "required": [
+              "label"
+            ],
+            "properties": {
+              "label": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Family head needs to sign the joining node IdentityKey, the Node provides its signature signaling consent to join the family",
+        "type": "object",
+        "required": [
+          "join_family"
+        ],
+        "properties": {
+          "join_family": {
+            "type": "object",
+            "required": [
+              "family_head",
+              "join_permit"
+            ],
+            "properties": {
+              "family_head": {
+                "$ref": "#/definitions/FamilyHead"
+              },
+              "join_permit": {
+                "$ref": "#/definitions/MessageSignature"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "leave_family"
+        ],
+        "properties": {
+          "leave_family": {
+            "type": "object",
+            "required": [
+              "family_head"
+            ],
+            "properties": {
+              "family_head": {
+                "$ref": "#/definitions/FamilyHead"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "kick_family_member"
+        ],
+        "properties": {
+          "kick_family_member": {
+            "type": "object",
+            "required": [
+              "member"
+            ],
+            "properties": {
+              "member": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "track_reward"
+        ],
+        "properties": {
+          "track_reward": {
+            "type": "object",
+            "required": [
+              "address",
+              "amount"
+            ],
+            "properties": {
+              "address": {
+                "type": "string"
+              },
+              "amount": {
+                "$ref": "#/definitions/Coin"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "claim_operator_reward"
+        ],
+        "properties": {
+          "claim_operator_reward": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "claim_delegator_reward"
+        ],
+        "properties": {
+          "claim_delegator_reward": {
+            "type": "object",
+            "required": [
+              "mix_id"
+            ],
+            "properties": {
+              "mix_id": {
+                "type": "integer",
+                "format": "uint32",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "update_mixnode_cost_params"
+        ],
+        "properties": {
+          "update_mixnode_cost_params": {
+            "type": "object",
+            "required": [
+              "new_costs"
+            ],
+            "properties": {
+              "new_costs": {
+                "$ref": "#/definitions/MixNodeCostParams"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "update_mixnode_config"
+        ],
+        "properties": {
+          "update_mixnode_config": {
+            "type": "object",
+            "required": [
+              "new_config"
+            ],
+            "properties": {
+              "new_config": {
+                "$ref": "#/definitions/MixNodeConfigUpdate"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "update_mixnet_address"
+        ],
+        "properties": {
+          "update_mixnet_address": {
+            "type": "object",
+            "required": [
+              "address"
+            ],
+            "properties": {
+              "address": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "delegate_to_mixnode"
+        ],
+        "properties": {
+          "delegate_to_mixnode": {
+            "type": "object",
+            "required": [
+              "amount",
+              "mix_id"
+            ],
+            "properties": {
+              "amount": {
+                "$ref": "#/definitions/Coin"
+              },
+              "mix_id": {
+                "type": "integer",
+                "format": "uint32",
+                "minimum": 0.0
+              },
+              "on_behalf_of": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "undelegate_from_mixnode"
+        ],
+        "properties": {
+          "undelegate_from_mixnode": {
+            "type": "object",
+            "required": [
+              "mix_id"
+            ],
+            "properties": {
+              "mix_id": {
+                "type": "integer",
+                "format": "uint32",
+                "minimum": 0.0
+              },
+              "on_behalf_of": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "create_account"
+        ],
+        "properties": {
+          "create_account": {
+            "type": "object",
+            "required": [
+              "owner_address"
+            ],
+            "properties": {
+              "cap": {
+                "anyOf": [
+                  {
+                    "$ref": "#/definitions/PledgeCap"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "owner_address": {
+                "type": "string"
+              },
+              "staking_address": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "vesting_spec": {
+                "anyOf": [
+                  {
+                    "$ref": "#/definitions/VestingSpecification"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "withdraw_vested_coins"
+        ],
+        "properties": {
+          "withdraw_vested_coins": {
+            "type": "object",
+            "required": [
+              "amount"
+            ],
+            "properties": {
+              "amount": {
+                "$ref": "#/definitions/Coin"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "track_undelegation"
+        ],
+        "properties": {
+          "track_undelegation": {
+            "type": "object",
+            "required": [
+              "amount",
+              "mix_id",
+              "owner"
+            ],
+            "properties": {
+              "amount": {
+                "$ref": "#/definitions/Coin"
+              },
+              "mix_id": {
+                "type": "integer",
+                "format": "uint32",
+                "minimum": 0.0
+              },
+              "owner": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "bond_mixnode"
+        ],
+        "properties": {
+          "bond_mixnode": {
+            "type": "object",
+            "required": [
+              "amount",
+              "cost_params",
+              "mix_node",
+              "owner_signature"
+            ],
+            "properties": {
+              "amount": {
+                "$ref": "#/definitions/Coin"
+              },
+              "cost_params": {
+                "$ref": "#/definitions/MixNodeCostParams"
+              },
+              "mix_node": {
+                "$ref": "#/definitions/MixNode"
+              },
+              "owner_signature": {
+                "$ref": "#/definitions/MessageSignature"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "pledge_more"
+        ],
+        "properties": {
+          "pledge_more": {
+            "type": "object",
+            "required": [
+              "amount"
+            ],
+            "properties": {
+              "amount": {
+                "$ref": "#/definitions/Coin"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "decrease_pledge"
+        ],
+        "properties": {
+          "decrease_pledge": {
+            "type": "object",
+            "required": [
+              "amount"
+            ],
+            "properties": {
+              "amount": {
+                "$ref": "#/definitions/Coin"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "unbond_mixnode"
+        ],
+        "properties": {
+          "unbond_mixnode": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "track_unbond_mixnode"
+        ],
+        "properties": {
+          "track_unbond_mixnode": {
+            "type": "object",
+            "required": [
+              "amount",
+              "owner"
+            ],
+            "properties": {
+              "amount": {
+                "$ref": "#/definitions/Coin"
+              },
+              "owner": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "track_decrease_pledge"
+        ],
+        "properties": {
+          "track_decrease_pledge": {
+            "type": "object",
+            "required": [
+              "amount",
+              "owner"
+            ],
+            "properties": {
+              "amount": {
+                "$ref": "#/definitions/Coin"
+              },
+              "owner": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "bond_gateway"
+        ],
+        "properties": {
+          "bond_gateway": {
+            "type": "object",
+            "required": [
+              "amount",
+              "gateway",
+              "owner_signature"
+            ],
+            "properties": {
+              "amount": {
+                "$ref": "#/definitions/Coin"
+              },
+              "gateway": {
+                "$ref": "#/definitions/Gateway"
+              },
+              "owner_signature": {
+                "$ref": "#/definitions/MessageSignature"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "unbond_gateway"
+        ],
+        "properties": {
+          "unbond_gateway": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "track_unbond_gateway"
+        ],
+        "properties": {
+          "track_unbond_gateway": {
+            "type": "object",
+            "required": [
+              "amount",
+              "owner"
+            ],
+            "properties": {
+              "amount": {
+                "$ref": "#/definitions/Coin"
+              },
+              "owner": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "update_gateway_config"
+        ],
+        "properties": {
+          "update_gateway_config": {
+            "type": "object",
+            "required": [
+              "new_config"
+            ],
+            "properties": {
+              "new_config": {
+                "$ref": "#/definitions/GatewayConfigUpdate"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "transfer_ownership"
+        ],
+        "properties": {
+          "transfer_ownership": {
+            "type": "object",
+            "required": [
+              "to_address"
+            ],
+            "properties": {
+              "to_address": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "update_staking_address"
+        ],
+        "properties": {
+          "update_staking_address": {
+            "type": "object",
+            "properties": {
+              "to_address": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "update_locked_pledge_cap"
+        ],
+        "properties": {
+          "update_locked_pledge_cap": {
+            "type": "object",
+            "required": [
+              "address",
+              "cap"
+            ],
+            "properties": {
+              "address": {
+                "type": "string"
+              },
+              "cap": {
+                "$ref": "#/definitions/PledgeCap"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      }
+    ],
+    "definitions": {
+      "Coin": {
+        "type": "object",
+        "required": [
+          "amount",
+          "denom"
+        ],
+        "properties": {
+          "amount": {
+            "$ref": "#/definitions/Uint128"
+          },
+          "denom": {
+            "type": "string"
+          }
+        }
+      },
+      "Decimal": {
+        "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
+        "type": "string"
+      },
+      "FamilyHead": {
+        "description": "Head of particular family as identified by its identity key (i.e. public component of its ed25519 keypair stringified into base58).",
+        "type": "string"
+      },
+      "Gateway": {
+        "description": "Information provided by the node operator during bonding that are used to allow other entities to use the services of this node.",
+        "type": "object",
+        "required": [
+          "clients_port",
+          "host",
+          "identity_key",
+          "location",
+          "mix_port",
+          "sphinx_key",
+          "version"
+        ],
+        "properties": {
+          "clients_port": {
+            "description": "Port used by this gateway for listening for client requests.",
+            "type": "integer",
+            "format": "uint16",
+            "minimum": 0.0
+          },
+          "host": {
+            "description": "Network address of this gateway, for example 1.1.1.1 or foo.gateway.com",
+            "type": "string"
+          },
+          "identity_key": {
+            "description": "Base58 encoded ed25519 EdDSA public key of the gateway used to derive shared keys with clients",
+            "type": "string"
+          },
+          "location": {
+            "description": "The physical, self-reported, location of this gateway.",
+            "type": "string"
+          },
+          "mix_port": {
+            "description": "Port used by this gateway for listening for mix packets.",
+            "type": "integer",
+            "format": "uint16",
+            "minimum": 0.0
+          },
+          "sphinx_key": {
+            "description": "Base58-encoded x25519 public key used for sphinx key derivation.",
+            "type": "string"
+          },
+          "version": {
+            "description": "The self-reported semver version of this gateway.",
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "GatewayConfigUpdate": {
+        "type": "object",
+        "required": [
+          "clients_port",
+          "host",
+          "location",
+          "mix_port",
+          "version"
+        ],
+        "properties": {
+          "clients_port": {
+            "type": "integer",
+            "format": "uint16",
+            "minimum": 0.0
+          },
+          "host": {
+            "type": "string"
+          },
+          "location": {
+            "type": "string"
+          },
+          "mix_port": {
+            "type": "integer",
+            "format": "uint16",
+            "minimum": 0.0
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "MessageSignature": {
+        "type": "array",
+        "items": {
+          "type": "integer",
+          "format": "uint8",
+          "minimum": 0.0
+        }
+      },
+      "MixNode": {
+        "description": "Information provided by the node operator during bonding that are used to allow other entities to use the services of this node.",
+        "type": "object",
+        "required": [
+          "host",
+          "http_api_port",
+          "identity_key",
+          "mix_port",
+          "sphinx_key",
+          "verloc_port",
+          "version"
+        ],
+        "properties": {
+          "host": {
+            "description": "Network address of this mixnode, for example 1.1.1.1 or foo.mixnode.com",
+            "type": "string"
+          },
+          "http_api_port": {
+            "description": "Port used by this mixnode for its http(s) API",
+            "type": "integer",
+            "format": "uint16",
+            "minimum": 0.0
+          },
+          "identity_key": {
+            "description": "Base58-encoded ed25519 EdDSA public key.",
+            "type": "string"
+          },
+          "mix_port": {
+            "description": "Port used by this mixnode for listening for mix packets.",
+            "type": "integer",
+            "format": "uint16",
+            "minimum": 0.0
+          },
+          "sphinx_key": {
+            "description": "Base58-encoded x25519 public key used for sphinx key derivation.",
+            "type": "string"
+          },
+          "verloc_port": {
+            "description": "Port used by this mixnode for listening for verloc requests.",
+            "type": "integer",
+            "format": "uint16",
+            "minimum": 0.0
+          },
+          "version": {
+            "description": "The self-reported semver version of this mixnode.",
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "MixNodeConfigUpdate": {
+        "type": "object",
+        "required": [
+          "host",
+          "http_api_port",
+          "mix_port",
+          "verloc_port",
+          "version"
+        ],
+        "properties": {
+          "host": {
+            "type": "string"
+          },
+          "http_api_port": {
+            "type": "integer",
+            "format": "uint16",
+            "minimum": 0.0
+          },
+          "mix_port": {
+            "type": "integer",
+            "format": "uint16",
+            "minimum": 0.0
+          },
+          "verloc_port": {
+            "type": "integer",
+            "format": "uint16",
+            "minimum": 0.0
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "MixNodeCostParams": {
+        "description": "The cost parameters, or the cost function, defined for the particular mixnode that influences how the rewards should be split between the node operator and its delegators.",
+        "type": "object",
+        "required": [
+          "interval_operating_cost",
+          "profit_margin_percent"
+        ],
+        "properties": {
+          "interval_operating_cost": {
+            "description": "Operating cost of the associated mixnode per the entire interval.",
+            "allOf": [
+              {
+                "$ref": "#/definitions/Coin"
+              }
+            ]
+          },
+          "profit_margin_percent": {
+            "description": "The profit margin of the associated mixnode, i.e. the desired percent of the reward to be distributed to the operator.",
+            "allOf": [
+              {
+                "$ref": "#/definitions/Percent"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "Percent": {
+        "description": "Percent represents a value between 0 and 100% (i.e. between 0.0 and 1.0)",
+        "allOf": [
+          {
+            "$ref": "#/definitions/Decimal"
+          }
+        ]
+      },
+      "PledgeCap": {
+        "description": "Defines cap for pleding/staking tokens.",
+        "oneOf": [
+          {
+            "description": "Specifies a percent-based pledge cap, i.e. only given % of tokens could be pledged/staked.",
+            "type": "object",
+            "required": [
+              "percent"
+            ],
+            "properties": {
+              "percent": {
+                "$ref": "#/definitions/Percent"
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "description": "Specifies an absolute pledge cap, i.e. an explicit value that could be pledged/staked.",
+            "type": "object",
+            "required": [
+              "absolute"
+            ],
+            "properties": {
+              "absolute": {
+                "$ref": "#/definitions/Uint128"
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
+      },
+      "Uint128": {
+        "description": "A thin wrapper around u128 that is using strings for JSON encoding/decoding, such that the full u128 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u128` to get the value out:\n\n``` # use cosmwasm_std::Uint128; let a = Uint128::from(123u128); assert_eq!(a.u128(), 123);\n\nlet b = Uint128::from(42u64); assert_eq!(b.u128(), 42);\n\nlet c = Uint128::from(70u32); assert_eq!(c.u128(), 70); ```",
+        "type": "string"
+      },
+      "VestingSpecification": {
+        "type": "object",
+        "properties": {
+          "num_periods": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          "period_seconds": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          "start_time": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "uint64",
+            "minimum": 0.0
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "query": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "QueryMsg",
+    "description": "Queries exposed by this contract.",
+    "oneOf": [
+      {
+        "description": "Gets build information of this contract, such as the commit hash used for the build or rustc version.",
+        "type": "object",
+        "required": [
+          "get_contract_version"
+        ],
+        "properties": {
+          "get_contract_version": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Gets the stored contract version information that's required by the CW2 spec interface for migrations.",
+        "type": "object",
+        "required": [
+          "get_cw2_contract_version"
+        ],
+        "properties": {
+          "get_cw2_contract_version": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Gets the list of vesting accounts held in this contract.",
+        "type": "object",
+        "required": [
+          "get_accounts_paged"
+        ],
+        "properties": {
+          "get_accounts_paged": {
+            "type": "object",
+            "properties": {
+              "limit": {
+                "description": "Controls the maximum number of entries returned by the query. Note that too large values will be overwritten by a saner default.",
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "uint32",
+                "minimum": 0.0
+              },
+              "start_next_after": {
+                "description": "Pagination control for the values returned by the query. Note that the provided value itself will **not** be used for the response.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Gets the list of coins that are still vesting for each account held in this contract.",
+        "type": "object",
+        "required": [
+          "get_accounts_vesting_coins_paged"
+        ],
+        "properties": {
+          "get_accounts_vesting_coins_paged": {
+            "type": "object",
+            "properties": {
+              "limit": {
+                "description": "Controls the maximum number of entries returned by the query. Note that too large values will be overwritten by a saner default.",
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "uint32",
+                "minimum": 0.0
+              },
+              "start_next_after": {
+                "description": "Pagination control for the values returned by the query. Note that the provided value itself will **not** be used for the response.",
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Returns the amount of locked coins for the provided vesting account, i.e. coins that are still vesting but have not been staked. `locked_coins = vesting_coins - staked_coins`",
+        "type": "object",
+        "required": [
+          "locked_coins"
+        ],
+        "properties": {
+          "locked_coins": {
+            "type": "object",
+            "required": [
+              "vesting_account_address"
+            ],
+            "properties": {
+              "block_time": {
+                "description": "(deprecated) Optional argument specifying that the query should be performed against non-current block.",
+                "anyOf": [
+                  {
+                    "$ref": "#/definitions/Timestamp"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "vesting_account_address": {
+                "description": "Address of the vesting account in question.",
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Returns the amount of spendable coins for the provided vesting account, i.e. coins that could be withdrawn. `spendable_coins = account_balance - locked_coins` note: `account_balance` is the amount of coins still physically present in this contract, i.e. not withdrawn or staked.",
+        "type": "object",
+        "required": [
+          "spendable_coins"
+        ],
+        "properties": {
+          "spendable_coins": {
+            "type": "object",
+            "required": [
+              "vesting_account_address"
+            ],
+            "properties": {
+              "block_time": {
+                "description": "(deprecated) Optional argument specifying that the query should be performed against non-current block.",
+                "anyOf": [
+                  {
+                    "$ref": "#/definitions/Timestamp"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "vesting_account_address": {
+                "description": "Address of the vesting account in question.",
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Returns the amount of coins that have already vested for the provided vesting account address.",
+        "type": "object",
+        "required": [
+          "get_vested_coins"
+        ],
+        "properties": {
+          "get_vested_coins": {
+            "type": "object",
+            "required": [
+              "vesting_account_address"
+            ],
+            "properties": {
+              "block_time": {
+                "description": "(deprecated) Optional argument specifying that the query should be performed against non-current block.",
+                "anyOf": [
+                  {
+                    "$ref": "#/definitions/Timestamp"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "vesting_account_address": {
+                "description": "Address of the vesting account in question.",
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Returns the amount of coins that are still vesting for the provided vesting account address.",
+        "type": "object",
+        "required": [
+          "get_vesting_coins"
+        ],
+        "properties": {
+          "get_vesting_coins": {
+            "type": "object",
+            "required": [
+              "vesting_account_address"
+            ],
+            "properties": {
+              "block_time": {
+                "description": "(deprecated) Optional argument specifying that the query should be performed against non-current block.",
+                "anyOf": [
+                  {
+                    "$ref": "#/definitions/Timestamp"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "vesting_account_address": {
+                "description": "Address of the vesting account in question.",
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Returns the starting vesting time for the provided vesting account, i.e. the beginning of the first vesting period.",
+        "type": "object",
+        "required": [
+          "get_start_time"
+        ],
+        "properties": {
+          "get_start_time": {
+            "type": "object",
+            "required": [
+              "vesting_account_address"
+            ],
+            "properties": {
+              "vesting_account_address": {
+                "description": "Address of the vesting account in question.",
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Returns the ending vesting time for the provided vesting account, i.e. the end of the last vesting period.",
+        "type": "object",
+        "required": [
+          "get_end_time"
+        ],
+        "properties": {
+          "get_end_time": {
+            "type": "object",
+            "required": [
+              "vesting_account_address"
+            ],
+            "properties": {
+              "vesting_account_address": {
+                "description": "Address of the vesting account in question.",
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Returns the initial vesting specification used for the provided vesting account address.",
+        "type": "object",
+        "required": [
+          "get_original_vesting"
+        ],
+        "properties": {
+          "get_original_vesting": {
+            "type": "object",
+            "required": [
+              "vesting_account_address"
+            ],
+            "properties": {
+              "vesting_account_address": {
+                "description": "Address of the vesting account in question.",
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Returns the total amount of coins accrued through claimed staking rewards by the provided vesting account.",
+        "type": "object",
+        "required": [
+          "get_historical_vesting_staking_reward"
+        ],
+        "properties": {
+          "get_historical_vesting_staking_reward": {
+            "type": "object",
+            "required": [
+              "vesting_account_address"
+            ],
+            "properties": {
+              "vesting_account_address": {
+                "description": "Address of the vesting account in question.",
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Returns the amount of spendable vesting coins for the provided vesting account, i.e. coins that could be withdrawn that originated from the vesting specification.",
+        "type": "object",
+        "required": [
+          "get_spendable_vested_coins"
+        ],
+        "properties": {
+          "get_spendable_vested_coins": {
+            "type": "object",
+            "required": [
+              "vesting_account_address"
+            ],
+            "properties": {
+              "vesting_account_address": {
+                "description": "Address of the vesting account in question.",
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Returns the amount of spendable reward coins for the provided vesting account, i.e. coins that could be withdrawn that originated from the claimed staking rewards.",
+        "type": "object",
+        "required": [
+          "get_spendable_reward_coins"
+        ],
+        "properties": {
+          "get_spendable_reward_coins": {
+            "type": "object",
+            "required": [
+              "vesting_account_address"
+            ],
+            "properties": {
+              "vesting_account_address": {
+                "description": "Address of the vesting account in question.",
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Returns the amount of coins that are currently delegated for the provided vesting account address.",
+        "type": "object",
+        "required": [
+          "get_delegated_coins"
+        ],
+        "properties": {
+          "get_delegated_coins": {
+            "type": "object",
+            "required": [
+              "vesting_account_address"
+            ],
+            "properties": {
+              "vesting_account_address": {
+                "description": "Address of the vesting account in question.",
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Returns the amount of coins that are currently pledged for the provided vesting account address.",
+        "type": "object",
+        "required": [
+          "get_pledged_coins"
+        ],
+        "properties": {
+          "get_pledged_coins": {
+            "type": "object",
+            "required": [
+              "vesting_account_address"
+            ],
+            "properties": {
+              "vesting_account_address": {
+                "description": "Address of the vesting account in question.",
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Returns the amount of coins that are currently staked (i.e. delegations + pledges) for the provided vesting account address.",
+        "type": "object",
+        "required": [
+          "get_staked_coins"
+        ],
+        "properties": {
+          "get_staked_coins": {
+            "type": "object",
+            "required": [
+              "vesting_account_address"
+            ],
+            "properties": {
+              "vesting_account_address": {
+                "description": "Address of the vesting account in question.",
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Returns the amount of coins that got withdrawn for the provided vesting account address.",
+        "type": "object",
+        "required": [
+          "get_withdrawn_coins"
+        ],
+        "properties": {
+          "get_withdrawn_coins": {
+            "type": "object",
+            "required": [
+              "vesting_account_address"
+            ],
+            "properties": {
+              "vesting_account_address": {
+                "description": "Address of the vesting account in question.",
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Returns detailed information associated with the account for the provided vesting account address.",
+        "type": "object",
+        "required": [
+          "get_account"
+        ],
+        "properties": {
+          "get_account": {
+            "type": "object",
+            "required": [
+              "address"
+            ],
+            "properties": {
+              "address": {
+                "description": "Address of the vesting account in question.",
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Returns pledge information (if applicable) for bonded mixnode for the provided vesting account address.",
+        "type": "object",
+        "required": [
+          "get_mixnode"
+        ],
+        "properties": {
+          "get_mixnode": {
+            "type": "object",
+            "required": [
+              "address"
+            ],
+            "properties": {
+              "address": {
+                "description": "Address of the vesting account in question.",
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Returns pledge information (if applicable) for bonded gateway for the provided vesting account address.",
+        "type": "object",
+        "required": [
+          "get_gateway"
+        ],
+        "properties": {
+          "get_gateway": {
+            "type": "object",
+            "required": [
+              "address"
+            ],
+            "properties": {
+              "address": {
+                "description": "Address of the vesting account in question.",
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Returns the current vesting period for the provided vesting account address.",
+        "type": "object",
+        "required": [
+          "get_current_vesting_period"
+        ],
+        "properties": {
+          "get_current_vesting_period": {
+            "type": "object",
+            "required": [
+              "address"
+            ],
+            "properties": {
+              "address": {
+                "description": "Address of the vesting account in question.",
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Returns the information about particular vesting delegation.",
+        "type": "object",
+        "required": [
+          "get_delegation"
+        ],
+        "properties": {
+          "get_delegation": {
+            "type": "object",
+            "required": [
+              "address",
+              "block_timestamp_secs",
+              "mix_id"
+            ],
+            "properties": {
+              "address": {
+                "description": "Address of the vesting account in question.",
+                "type": "string"
+              },
+              "block_timestamp_secs": {
+                "description": "Block timestamp of the delegation.",
+                "type": "integer",
+                "format": "uint64",
+                "minimum": 0.0
+              },
+              "mix_id": {
+                "description": "Id of the mixnode towards which the delegation has been made.",
+                "type": "integer",
+                "format": "uint32",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Returns the total amount of coins delegated towards particular mixnode by the provided vesting account address.",
+        "type": "object",
+        "required": [
+          "get_total_delegation_amount"
+        ],
+        "properties": {
+          "get_total_delegation_amount": {
+            "type": "object",
+            "required": [
+              "address",
+              "mix_id"
+            ],
+            "properties": {
+              "address": {
+                "description": "Address of the vesting account in question.",
+                "type": "string"
+              },
+              "mix_id": {
+                "description": "Id of the mixnode towards which the delegations have been made.",
+                "type": "integer",
+                "format": "uint32",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Returns timestamps of delegations made towards particular mixnode by the provided vesting account address.",
+        "type": "object",
+        "required": [
+          "get_delegation_times"
+        ],
+        "properties": {
+          "get_delegation_times": {
+            "type": "object",
+            "required": [
+              "address",
+              "mix_id"
+            ],
+            "properties": {
+              "address": {
+                "description": "Address of the vesting account in question.",
+                "type": "string"
+              },
+              "mix_id": {
+                "description": "Id of the mixnode towards which the delegations have been made.",
+                "type": "integer",
+                "format": "uint32",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Returns all active delegations made with vesting tokens stored in this contract.",
+        "type": "object",
+        "required": [
+          "get_all_delegations"
+        ],
+        "properties": {
+          "get_all_delegations": {
+            "type": "object",
+            "properties": {
+              "limit": {
+                "description": "Controls the maximum number of entries returned by the query. Note that too large values will be overwritten by a saner default.",
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "uint32",
+                "minimum": 0.0
+              },
+              "start_after": {
+                "description": "Pagination control for the values returned by the query. Note that the provided value itself will **not** be used for the response.",
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": [
+                  {
+                    "type": "integer",
+                    "format": "uint32",
+                    "minimum": 0.0
+                  },
+                  {
+                    "type": "integer",
+                    "format": "uint32",
+                    "minimum": 0.0
+                  },
+                  {
+                    "type": "integer",
+                    "format": "uint64",
+                    "minimum": 0.0
+                  }
+                ],
+                "maxItems": 3,
+                "minItems": 3
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      }
+    ],
+    "definitions": {
+      "Timestamp": {
+        "description": "A point in time in nanosecond precision.\n\nThis type can represent times from 1970-01-01T00:00:00Z to 2554-07-21T23:34:33Z.\n\n## Examples\n\n``` # use cosmwasm_std::Timestamp; let ts = Timestamp::from_nanos(1_000_000_202); assert_eq!(ts.nanos(), 1_000_000_202); assert_eq!(ts.seconds(), 1); assert_eq!(ts.subsec_nanos(), 202);\n\nlet ts = ts.plus_seconds(2); assert_eq!(ts.nanos(), 3_000_000_202); assert_eq!(ts.seconds(), 3); assert_eq!(ts.subsec_nanos(), 202); ```",
+        "allOf": [
+          {
+            "$ref": "#/definitions/Uint64"
+          }
+        ]
+      },
+      "Uint64": {
+        "description": "A thin wrapper around u64 that is using strings for JSON encoding/decoding, such that the full u64 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u64` to get the value out:\n\n``` # use cosmwasm_std::Uint64; let a = Uint64::from(42u64); assert_eq!(a.u64(), 42);\n\nlet b = Uint64::from(70u32); assert_eq!(b.u64(), 70); ```",
+        "type": "string"
+      }
+    }
+  },
+  "migrate": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "MigrateMsg",
+    "type": "object",
+    "additionalProperties": false
+  },
+  "sudo": null,
+  "responses": {
+    "get_account": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Account",
+      "description": "Vesting account information.",
+      "type": "object",
+      "required": [
+        "coin",
+        "owner_address",
+        "periods",
+        "start_time",
+        "storage_key"
+      ],
+      "properties": {
+        "coin": {
+          "description": "The initial amount of coins used creation of this account.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Coin"
+            }
+          ]
+        },
+        "owner_address": {
+          "description": "Address of the owner of the vesting account.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Addr"
+            }
+          ]
+        },
+        "periods": {
+          "description": "All vesting periods for this account.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/VestingPeriod"
+          }
+        },
+        "pledge_cap": {
+          "description": "Optional custom pledge cap of this vesting account.",
+          "default": null,
+          "anyOf": [
+            {
+              "$ref": "#/definitions/PledgeCap"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "staking_address": {
+          "description": "Optional address of an account allowed to perform staking on behalf of the owner.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Addr"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "start_time": {
+          "description": "The starting vesting time.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Timestamp"
+            }
+          ]
+        },
+        "storage_key": {
+          "description": "The id/storage_key of this vesting account.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "Addr": {
+          "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
+          "type": "string"
+        },
+        "Coin": {
+          "type": "object",
+          "required": [
+            "amount",
+            "denom"
+          ],
+          "properties": {
+            "amount": {
+              "$ref": "#/definitions/Uint128"
+            },
+            "denom": {
+              "type": "string"
+            }
+          }
+        },
+        "Decimal": {
+          "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
+          "type": "string"
+        },
+        "Percent": {
+          "description": "Percent represents a value between 0 and 100% (i.e. between 0.0 and 1.0)",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Decimal"
+            }
+          ]
+        },
+        "PledgeCap": {
+          "description": "Defines cap for pleding/staking tokens.",
+          "oneOf": [
+            {
+              "description": "Specifies a percent-based pledge cap, i.e. only given % of tokens could be pledged/staked.",
+              "type": "object",
+              "required": [
+                "percent"
+              ],
+              "properties": {
+                "percent": {
+                  "$ref": "#/definitions/Percent"
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "Specifies an absolute pledge cap, i.e. an explicit value that could be pledged/staked.",
+              "type": "object",
+              "required": [
+                "absolute"
+              ],
+              "properties": {
+                "absolute": {
+                  "$ref": "#/definitions/Uint128"
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "Timestamp": {
+          "description": "A point in time in nanosecond precision.\n\nThis type can represent times from 1970-01-01T00:00:00Z to 2554-07-21T23:34:33Z.\n\n## Examples\n\n``` # use cosmwasm_std::Timestamp; let ts = Timestamp::from_nanos(1_000_000_202); assert_eq!(ts.nanos(), 1_000_000_202); assert_eq!(ts.seconds(), 1); assert_eq!(ts.subsec_nanos(), 202);\n\nlet ts = ts.plus_seconds(2); assert_eq!(ts.nanos(), 3_000_000_202); assert_eq!(ts.seconds(), 3); assert_eq!(ts.subsec_nanos(), 202); ```",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Uint64"
+            }
+          ]
+        },
+        "Uint128": {
+          "description": "A thin wrapper around u128 that is using strings for JSON encoding/decoding, such that the full u128 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u128` to get the value out:\n\n``` # use cosmwasm_std::Uint128; let a = Uint128::from(123u128); assert_eq!(a.u128(), 123);\n\nlet b = Uint128::from(42u64); assert_eq!(b.u128(), 42);\n\nlet c = Uint128::from(70u32); assert_eq!(c.u128(), 70); ```",
+          "type": "string"
+        },
+        "Uint64": {
+          "description": "A thin wrapper around u64 that is using strings for JSON encoding/decoding, such that the full u64 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u64` to get the value out:\n\n``` # use cosmwasm_std::Uint64; let a = Uint64::from(42u64); assert_eq!(a.u64(), 42);\n\nlet b = Uint64::from(70u32); assert_eq!(b.u64(), 70); ```",
+          "type": "string"
+        },
+        "VestingPeriod": {
+          "description": "Vesting period details.",
+          "type": "object",
+          "required": [
+            "period_seconds",
+            "start_time"
+          ],
+          "properties": {
+            "period_seconds": {
+              "description": "The duration (in seconds) of the vesting period.",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "start_time": {
+              "description": "The start time of this vesting period, as unix timestamp.",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
+    "get_accounts_paged": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "AccountsResponse",
+      "description": "Response containing basic vesting account information",
+      "type": "object",
+      "required": [
+        "accounts"
+      ],
+      "properties": {
+        "accounts": {
+          "description": "The actual accounts returned by the query.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/BaseVestingAccountInfo"
+          }
+        },
+        "start_next_after": {
+          "description": "Field indicating paging information for the following queries if the caller wishes to get further entries.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Addr"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "Addr": {
+          "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
+          "type": "string"
+        },
+        "BaseVestingAccountInfo": {
+          "description": "Basic information regarding particular vesting account",
+          "type": "object",
+          "required": [
+            "account_id",
+            "owner"
+          ],
+          "properties": {
+            "account_id": {
+              "description": "Id associated with this account",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "owner": {
+              "description": "Address of this account's owner",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Addr"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
+    "get_accounts_vesting_coins_paged": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "VestingCoinsResponse",
+      "description": "Response containing vesting coins held in this contract",
+      "type": "object",
+      "required": [
+        "accounts"
+      ],
+      "properties": {
+        "accounts": {
+          "description": "The actual accounts, and their vesting coins, returned by the query.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/AccountVestingCoins"
+          }
+        },
+        "start_next_after": {
+          "description": "Field indicating paging information for the following queries if the caller wishes to get further entries.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Addr"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "AccountVestingCoins": {
+          "description": "Basic information regarding particular vesting account alongside the amount of vesting coins.",
+          "type": "object",
+          "required": [
+            "account_id",
+            "owner",
+            "still_vesting"
+          ],
+          "properties": {
+            "account_id": {
+              "description": "Id associated with this account",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "owner": {
+              "description": "Address of this account's owner",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Addr"
+                }
+              ]
+            },
+            "still_vesting": {
+              "description": "Coins that are still vesting belonging to this account.",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Coin"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "Addr": {
+          "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
+          "type": "string"
+        },
+        "Coin": {
+          "type": "object",
+          "required": [
+            "amount",
+            "denom"
+          ],
+          "properties": {
+            "amount": {
+              "$ref": "#/definitions/Uint128"
+            },
+            "denom": {
+              "type": "string"
+            }
+          }
+        },
+        "Uint128": {
+          "description": "A thin wrapper around u128 that is using strings for JSON encoding/decoding, such that the full u128 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u128` to get the value out:\n\n``` # use cosmwasm_std::Uint128; let a = Uint128::from(123u128); assert_eq!(a.u128(), 123);\n\nlet b = Uint128::from(42u64); assert_eq!(b.u128(), 42);\n\nlet c = Uint128::from(70u32); assert_eq!(c.u128(), 70); ```",
+          "type": "string"
+        }
+      }
+    },
+    "get_all_delegations": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "AllDelegationsResponse",
+      "description": "Response containing paged list of all vesting delegations made using vesting coins.",
+      "type": "object",
+      "required": [
+        "delegations"
+      ],
+      "properties": {
+        "delegations": {
+          "description": "The actual vesting delegations made.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/VestingDelegation"
+          }
+        },
+        "start_next_after": {
+          "description": "Field indicating paging information for the following queries if the caller wishes to get further entries.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": [
+            {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            }
+          ],
+          "maxItems": 3,
+          "minItems": 3
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "Uint128": {
+          "description": "A thin wrapper around u128 that is using strings for JSON encoding/decoding, such that the full u128 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u128` to get the value out:\n\n``` # use cosmwasm_std::Uint128; let a = Uint128::from(123u128); assert_eq!(a.u128(), 123);\n\nlet b = Uint128::from(42u64); assert_eq!(b.u128(), 42);\n\nlet c = Uint128::from(70u32); assert_eq!(c.u128(), 70); ```",
+          "type": "string"
+        },
+        "VestingDelegation": {
+          "description": "Details about particular vesting delegation.",
+          "type": "object",
+          "required": [
+            "account_id",
+            "amount",
+            "block_timestamp",
+            "mix_id"
+          ],
+          "properties": {
+            "account_id": {
+              "description": "The id of the vesting account that has made the delegation.",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "amount": {
+              "description": "The raw amount delegated (interpreted to be in the same denom as the underlying vesting specification)",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Uint128"
+                }
+              ]
+            },
+            "block_timestamp": {
+              "description": "The block timestamp when the delegation has been made.",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "mix_id": {
+              "description": "The id of the mixnode towards which the delegation has been made.",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
+    "get_c_w2_contract_version": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "ContractVersion",
+      "type": "object",
+      "required": [
+        "contract",
+        "version"
+      ],
+      "properties": {
+        "contract": {
+          "description": "contract is the crate name of the implementing contract, eg. `crate:cw20-base` we will use other prefixes for other languages, and their standard global namespacing",
+          "type": "string"
+        },
+        "version": {
+          "description": "version is any string that this implementation knows. It may be simple counter \"1\", \"2\". or semantic version on release tags \"v0.7.0\", or some custom feature flag list. the only code that needs to understand the version parsing is code that knows how to migrate from the given contract (and is tied to it's implementation somehow)",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "get_contract_version": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "ContractBuildInformation",
+      "type": "object",
+      "required": [
+        "build_timestamp",
+        "build_version",
+        "commit_branch",
+        "commit_sha",
+        "commit_timestamp",
+        "rustc_version"
+      ],
+      "properties": {
+        "build_timestamp": {
+          "description": "Provides the build timestamp, for example `2021-02-23T20:14:46.558472672+00:00`.",
+          "type": "string"
+        },
+        "build_version": {
+          "description": "Provides the build version, for example `0.1.0-9-g46f83e1`.",
+          "type": "string"
+        },
+        "commit_branch": {
+          "description": "Provides the name of the git branch that was used for the build, for example `master`.",
+          "type": "string"
+        },
+        "commit_sha": {
+          "description": "Provides the hash of the commit that was used for the build, for example `46f83e112520533338245862d366f6a02cef07d4`.",
+          "type": "string"
+        },
+        "commit_timestamp": {
+          "description": "Provides the timestamp of the commit that was used for the build, for example `2021-02-23T08:08:02-05:00`.",
+          "type": "string"
+        },
+        "rustc_version": {
+          "description": "Provides the rustc version that was used for the build, for example `1.52.0-nightly`.",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "get_current_vesting_period": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Period",
+      "description": "The vesting period.",
+      "oneOf": [
+        {
+          "description": "Defines a pre-vesting period.",
+          "type": "string",
+          "enum": [
+            "before"
+          ]
+        },
+        {
+          "description": "Defines currently active vesting period.",
+          "type": "object",
+          "required": [
+            "in"
+          ],
+          "properties": {
+            "in": {
+              "type": "integer",
+              "format": "uint",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "Defines a post-vesting period.",
+          "type": "string",
+          "enum": [
+            "after"
+          ]
+        }
+      ]
+    },
+    "get_delegated_coins": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Coin",
+      "type": "object",
+      "required": [
+        "amount",
+        "denom"
+      ],
+      "properties": {
+        "amount": {
+          "$ref": "#/definitions/Uint128"
+        },
+        "denom": {
+          "type": "string"
+        }
+      },
+      "definitions": {
+        "Uint128": {
+          "description": "A thin wrapper around u128 that is using strings for JSON encoding/decoding, such that the full u128 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u128` to get the value out:\n\n``` # use cosmwasm_std::Uint128; let a = Uint128::from(123u128); assert_eq!(a.u128(), 123);\n\nlet b = Uint128::from(42u64); assert_eq!(b.u128(), 42);\n\nlet c = Uint128::from(70u32); assert_eq!(c.u128(), 70); ```",
+          "type": "string"
+        }
+      }
+    },
+    "get_delegation": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "VestingDelegation",
+      "description": "Details about particular vesting delegation.",
+      "type": "object",
+      "required": [
+        "account_id",
+        "amount",
+        "block_timestamp",
+        "mix_id"
+      ],
+      "properties": {
+        "account_id": {
+          "description": "The id of the vesting account that has made the delegation.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "amount": {
+          "description": "The raw amount delegated (interpreted to be in the same denom as the underlying vesting specification)",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Uint128"
+            }
+          ]
+        },
+        "block_timestamp": {
+          "description": "The block timestamp when the delegation has been made.",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        },
+        "mix_id": {
+          "description": "The id of the mixnode towards which the delegation has been made.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "Uint128": {
+          "description": "A thin wrapper around u128 that is using strings for JSON encoding/decoding, such that the full u128 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u128` to get the value out:\n\n``` # use cosmwasm_std::Uint128; let a = Uint128::from(123u128); assert_eq!(a.u128(), 123);\n\nlet b = Uint128::from(42u64); assert_eq!(b.u128(), 42);\n\nlet c = Uint128::from(70u32); assert_eq!(c.u128(), 70); ```",
+          "type": "string"
+        }
+      }
+    },
+    "get_delegation_times": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "DelegationTimesResponse",
+      "description": "Response containing timestamps of all delegations made towards particular mixnode by given vesting account.",
+      "type": "object",
+      "required": [
+        "account_id",
+        "delegation_timestamps",
+        "mix_id",
+        "owner"
+      ],
+      "properties": {
+        "account_id": {
+          "description": "Id associated with this account",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "delegation_timestamps": {
+          "description": "All timestamps where a delegation was made",
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          }
+        },
+        "mix_id": {
+          "description": "Id of the mixnode towards which the delegation was made",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "owner": {
+          "description": "Address of this account's owner",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Addr"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "Addr": {
+          "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
+          "type": "string"
+        }
+      }
+    },
+    "get_end_time": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Timestamp",
+      "description": "A point in time in nanosecond precision.\n\nThis type can represent times from 1970-01-01T00:00:00Z to 2554-07-21T23:34:33Z.\n\n## Examples\n\n``` # use cosmwasm_std::Timestamp; let ts = Timestamp::from_nanos(1_000_000_202); assert_eq!(ts.nanos(), 1_000_000_202); assert_eq!(ts.seconds(), 1); assert_eq!(ts.subsec_nanos(), 202);\n\nlet ts = ts.plus_seconds(2); assert_eq!(ts.nanos(), 3_000_000_202); assert_eq!(ts.seconds(), 3); assert_eq!(ts.subsec_nanos(), 202); ```",
+      "allOf": [
+        {
+          "$ref": "#/definitions/Uint64"
+        }
+      ],
+      "definitions": {
+        "Uint64": {
+          "description": "A thin wrapper around u64 that is using strings for JSON encoding/decoding, such that the full u64 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u64` to get the value out:\n\n``` # use cosmwasm_std::Uint64; let a = Uint64::from(42u64); assert_eq!(a.u64(), 42);\n\nlet b = Uint64::from(70u32); assert_eq!(b.u64(), 70); ```",
+          "type": "string"
+        }
+      }
+    },
+    "get_gateway": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Nullable_PledgeData",
+      "anyOf": [
+        {
+          "$ref": "#/definitions/PledgeData"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "definitions": {
+        "Coin": {
+          "type": "object",
+          "required": [
+            "amount",
+            "denom"
+          ],
+          "properties": {
+            "amount": {
+              "$ref": "#/definitions/Uint128"
+            },
+            "denom": {
+              "type": "string"
+            }
+          }
+        },
+        "PledgeData": {
+          "description": "Information regarding pledge (i.e. mixnode or gateway bonding) made with vesting tokens.",
+          "type": "object",
+          "required": [
+            "amount",
+            "block_time"
+          ],
+          "properties": {
+            "amount": {
+              "description": "The amount pledged.",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Coin"
+                }
+              ]
+            },
+            "block_time": {
+              "description": "The block timestamp where the pledge occurred.",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Timestamp"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "Timestamp": {
+          "description": "A point in time in nanosecond precision.\n\nThis type can represent times from 1970-01-01T00:00:00Z to 2554-07-21T23:34:33Z.\n\n## Examples\n\n``` # use cosmwasm_std::Timestamp; let ts = Timestamp::from_nanos(1_000_000_202); assert_eq!(ts.nanos(), 1_000_000_202); assert_eq!(ts.seconds(), 1); assert_eq!(ts.subsec_nanos(), 202);\n\nlet ts = ts.plus_seconds(2); assert_eq!(ts.nanos(), 3_000_000_202); assert_eq!(ts.seconds(), 3); assert_eq!(ts.subsec_nanos(), 202); ```",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Uint64"
+            }
+          ]
+        },
+        "Uint128": {
+          "description": "A thin wrapper around u128 that is using strings for JSON encoding/decoding, such that the full u128 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u128` to get the value out:\n\n``` # use cosmwasm_std::Uint128; let a = Uint128::from(123u128); assert_eq!(a.u128(), 123);\n\nlet b = Uint128::from(42u64); assert_eq!(b.u128(), 42);\n\nlet c = Uint128::from(70u32); assert_eq!(c.u128(), 70); ```",
+          "type": "string"
+        },
+        "Uint64": {
+          "description": "A thin wrapper around u64 that is using strings for JSON encoding/decoding, such that the full u64 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u64` to get the value out:\n\n``` # use cosmwasm_std::Uint64; let a = Uint64::from(42u64); assert_eq!(a.u64(), 42);\n\nlet b = Uint64::from(70u32); assert_eq!(b.u64(), 70); ```",
+          "type": "string"
+        }
+      }
+    },
+    "get_historical_vesting_staking_reward": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Coin",
+      "type": "object",
+      "required": [
+        "amount",
+        "denom"
+      ],
+      "properties": {
+        "amount": {
+          "$ref": "#/definitions/Uint128"
+        },
+        "denom": {
+          "type": "string"
+        }
+      },
+      "definitions": {
+        "Uint128": {
+          "description": "A thin wrapper around u128 that is using strings for JSON encoding/decoding, such that the full u128 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u128` to get the value out:\n\n``` # use cosmwasm_std::Uint128; let a = Uint128::from(123u128); assert_eq!(a.u128(), 123);\n\nlet b = Uint128::from(42u64); assert_eq!(b.u128(), 42);\n\nlet c = Uint128::from(70u32); assert_eq!(c.u128(), 70); ```",
+          "type": "string"
+        }
+      }
+    },
+    "get_mixnode": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Nullable_PledgeData",
+      "anyOf": [
+        {
+          "$ref": "#/definitions/PledgeData"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "definitions": {
+        "Coin": {
+          "type": "object",
+          "required": [
+            "amount",
+            "denom"
+          ],
+          "properties": {
+            "amount": {
+              "$ref": "#/definitions/Uint128"
+            },
+            "denom": {
+              "type": "string"
+            }
+          }
+        },
+        "PledgeData": {
+          "description": "Information regarding pledge (i.e. mixnode or gateway bonding) made with vesting tokens.",
+          "type": "object",
+          "required": [
+            "amount",
+            "block_time"
+          ],
+          "properties": {
+            "amount": {
+              "description": "The amount pledged.",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Coin"
+                }
+              ]
+            },
+            "block_time": {
+              "description": "The block timestamp where the pledge occurred.",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Timestamp"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "Timestamp": {
+          "description": "A point in time in nanosecond precision.\n\nThis type can represent times from 1970-01-01T00:00:00Z to 2554-07-21T23:34:33Z.\n\n## Examples\n\n``` # use cosmwasm_std::Timestamp; let ts = Timestamp::from_nanos(1_000_000_202); assert_eq!(ts.nanos(), 1_000_000_202); assert_eq!(ts.seconds(), 1); assert_eq!(ts.subsec_nanos(), 202);\n\nlet ts = ts.plus_seconds(2); assert_eq!(ts.nanos(), 3_000_000_202); assert_eq!(ts.seconds(), 3); assert_eq!(ts.subsec_nanos(), 202); ```",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Uint64"
+            }
+          ]
+        },
+        "Uint128": {
+          "description": "A thin wrapper around u128 that is using strings for JSON encoding/decoding, such that the full u128 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u128` to get the value out:\n\n``` # use cosmwasm_std::Uint128; let a = Uint128::from(123u128); assert_eq!(a.u128(), 123);\n\nlet b = Uint128::from(42u64); assert_eq!(b.u128(), 42);\n\nlet c = Uint128::from(70u32); assert_eq!(c.u128(), 70); ```",
+          "type": "string"
+        },
+        "Uint64": {
+          "description": "A thin wrapper around u64 that is using strings for JSON encoding/decoding, such that the full u64 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u64` to get the value out:\n\n``` # use cosmwasm_std::Uint64; let a = Uint64::from(42u64); assert_eq!(a.u64(), 42);\n\nlet b = Uint64::from(70u32); assert_eq!(b.u64(), 70); ```",
+          "type": "string"
+        }
+      }
+    },
+    "get_original_vesting": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "OriginalVestingResponse",
+      "description": "Details about the original vesting specification used when the account was created.",
+      "type": "object",
+      "required": [
+        "amount",
+        "number_of_periods",
+        "period_duration"
+      ],
+      "properties": {
+        "amount": {
+          "description": "The original amount that was used for the creation of this vesting account",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Coin"
+            }
+          ]
+        },
+        "number_of_periods": {
+          "description": "The number of vesting periods that the account was created with",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0.0
+        },
+        "period_duration": {
+          "description": "Duration of each vesting period in seconds",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "Coin": {
+          "type": "object",
+          "required": [
+            "amount",
+            "denom"
+          ],
+          "properties": {
+            "amount": {
+              "$ref": "#/definitions/Uint128"
+            },
+            "denom": {
+              "type": "string"
+            }
+          }
+        },
+        "Uint128": {
+          "description": "A thin wrapper around u128 that is using strings for JSON encoding/decoding, such that the full u128 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u128` to get the value out:\n\n``` # use cosmwasm_std::Uint128; let a = Uint128::from(123u128); assert_eq!(a.u128(), 123);\n\nlet b = Uint128::from(42u64); assert_eq!(b.u128(), 42);\n\nlet c = Uint128::from(70u32); assert_eq!(c.u128(), 70); ```",
+          "type": "string"
+        }
+      }
+    },
+    "get_pledged_coins": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Coin",
+      "type": "object",
+      "required": [
+        "amount",
+        "denom"
+      ],
+      "properties": {
+        "amount": {
+          "$ref": "#/definitions/Uint128"
+        },
+        "denom": {
+          "type": "string"
+        }
+      },
+      "definitions": {
+        "Uint128": {
+          "description": "A thin wrapper around u128 that is using strings for JSON encoding/decoding, such that the full u128 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u128` to get the value out:\n\n``` # use cosmwasm_std::Uint128; let a = Uint128::from(123u128); assert_eq!(a.u128(), 123);\n\nlet b = Uint128::from(42u64); assert_eq!(b.u128(), 42);\n\nlet c = Uint128::from(70u32); assert_eq!(c.u128(), 70); ```",
+          "type": "string"
+        }
+      }
+    },
+    "get_spendable_reward_coins": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Coin",
+      "type": "object",
+      "required": [
+        "amount",
+        "denom"
+      ],
+      "properties": {
+        "amount": {
+          "$ref": "#/definitions/Uint128"
+        },
+        "denom": {
+          "type": "string"
+        }
+      },
+      "definitions": {
+        "Uint128": {
+          "description": "A thin wrapper around u128 that is using strings for JSON encoding/decoding, such that the full u128 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u128` to get the value out:\n\n``` # use cosmwasm_std::Uint128; let a = Uint128::from(123u128); assert_eq!(a.u128(), 123);\n\nlet b = Uint128::from(42u64); assert_eq!(b.u128(), 42);\n\nlet c = Uint128::from(70u32); assert_eq!(c.u128(), 70); ```",
+          "type": "string"
+        }
+      }
+    },
+    "get_spendable_vested_coins": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Coin",
+      "type": "object",
+      "required": [
+        "amount",
+        "denom"
+      ],
+      "properties": {
+        "amount": {
+          "$ref": "#/definitions/Uint128"
+        },
+        "denom": {
+          "type": "string"
+        }
+      },
+      "definitions": {
+        "Uint128": {
+          "description": "A thin wrapper around u128 that is using strings for JSON encoding/decoding, such that the full u128 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u128` to get the value out:\n\n``` # use cosmwasm_std::Uint128; let a = Uint128::from(123u128); assert_eq!(a.u128(), 123);\n\nlet b = Uint128::from(42u64); assert_eq!(b.u128(), 42);\n\nlet c = Uint128::from(70u32); assert_eq!(c.u128(), 70); ```",
+          "type": "string"
+        }
+      }
+    },
+    "get_staked_coins": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Coin",
+      "type": "object",
+      "required": [
+        "amount",
+        "denom"
+      ],
+      "properties": {
+        "amount": {
+          "$ref": "#/definitions/Uint128"
+        },
+        "denom": {
+          "type": "string"
+        }
+      },
+      "definitions": {
+        "Uint128": {
+          "description": "A thin wrapper around u128 that is using strings for JSON encoding/decoding, such that the full u128 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u128` to get the value out:\n\n``` # use cosmwasm_std::Uint128; let a = Uint128::from(123u128); assert_eq!(a.u128(), 123);\n\nlet b = Uint128::from(42u64); assert_eq!(b.u128(), 42);\n\nlet c = Uint128::from(70u32); assert_eq!(c.u128(), 70); ```",
+          "type": "string"
+        }
+      }
+    },
+    "get_start_time": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Timestamp",
+      "description": "A point in time in nanosecond precision.\n\nThis type can represent times from 1970-01-01T00:00:00Z to 2554-07-21T23:34:33Z.\n\n## Examples\n\n``` # use cosmwasm_std::Timestamp; let ts = Timestamp::from_nanos(1_000_000_202); assert_eq!(ts.nanos(), 1_000_000_202); assert_eq!(ts.seconds(), 1); assert_eq!(ts.subsec_nanos(), 202);\n\nlet ts = ts.plus_seconds(2); assert_eq!(ts.nanos(), 3_000_000_202); assert_eq!(ts.seconds(), 3); assert_eq!(ts.subsec_nanos(), 202); ```",
+      "allOf": [
+        {
+          "$ref": "#/definitions/Uint64"
+        }
+      ],
+      "definitions": {
+        "Uint64": {
+          "description": "A thin wrapper around u64 that is using strings for JSON encoding/decoding, such that the full u64 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u64` to get the value out:\n\n``` # use cosmwasm_std::Uint64; let a = Uint64::from(42u64); assert_eq!(a.u64(), 42);\n\nlet b = Uint64::from(70u32); assert_eq!(b.u64(), 70); ```",
+          "type": "string"
+        }
+      }
+    },
+    "get_total_delegation_amount": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Coin",
+      "type": "object",
+      "required": [
+        "amount",
+        "denom"
+      ],
+      "properties": {
+        "amount": {
+          "$ref": "#/definitions/Uint128"
+        },
+        "denom": {
+          "type": "string"
+        }
+      },
+      "definitions": {
+        "Uint128": {
+          "description": "A thin wrapper around u128 that is using strings for JSON encoding/decoding, such that the full u128 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u128` to get the value out:\n\n``` # use cosmwasm_std::Uint128; let a = Uint128::from(123u128); assert_eq!(a.u128(), 123);\n\nlet b = Uint128::from(42u64); assert_eq!(b.u128(), 42);\n\nlet c = Uint128::from(70u32); assert_eq!(c.u128(), 70); ```",
+          "type": "string"
+        }
+      }
+    },
+    "get_vested_coins": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Coin",
+      "type": "object",
+      "required": [
+        "amount",
+        "denom"
+      ],
+      "properties": {
+        "amount": {
+          "$ref": "#/definitions/Uint128"
+        },
+        "denom": {
+          "type": "string"
+        }
+      },
+      "definitions": {
+        "Uint128": {
+          "description": "A thin wrapper around u128 that is using strings for JSON encoding/decoding, such that the full u128 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u128` to get the value out:\n\n``` # use cosmwasm_std::Uint128; let a = Uint128::from(123u128); assert_eq!(a.u128(), 123);\n\nlet b = Uint128::from(42u64); assert_eq!(b.u128(), 42);\n\nlet c = Uint128::from(70u32); assert_eq!(c.u128(), 70); ```",
+          "type": "string"
+        }
+      }
+    },
+    "get_vesting_coins": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Coin",
+      "type": "object",
+      "required": [
+        "amount",
+        "denom"
+      ],
+      "properties": {
+        "amount": {
+          "$ref": "#/definitions/Uint128"
+        },
+        "denom": {
+          "type": "string"
+        }
+      },
+      "definitions": {
+        "Uint128": {
+          "description": "A thin wrapper around u128 that is using strings for JSON encoding/decoding, such that the full u128 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u128` to get the value out:\n\n``` # use cosmwasm_std::Uint128; let a = Uint128::from(123u128); assert_eq!(a.u128(), 123);\n\nlet b = Uint128::from(42u64); assert_eq!(b.u128(), 42);\n\nlet c = Uint128::from(70u32); assert_eq!(c.u128(), 70); ```",
+          "type": "string"
+        }
+      }
+    },
+    "get_withdrawn_coins": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Coin",
+      "type": "object",
+      "required": [
+        "amount",
+        "denom"
+      ],
+      "properties": {
+        "amount": {
+          "$ref": "#/definitions/Uint128"
+        },
+        "denom": {
+          "type": "string"
+        }
+      },
+      "definitions": {
+        "Uint128": {
+          "description": "A thin wrapper around u128 that is using strings for JSON encoding/decoding, such that the full u128 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u128` to get the value out:\n\n``` # use cosmwasm_std::Uint128; let a = Uint128::from(123u128); assert_eq!(a.u128(), 123);\n\nlet b = Uint128::from(42u64); assert_eq!(b.u128(), 42);\n\nlet c = Uint128::from(70u32); assert_eq!(c.u128(), 70); ```",
+          "type": "string"
+        }
+      }
+    },
+    "locked_coins": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Coin",
+      "type": "object",
+      "required": [
+        "amount",
+        "denom"
+      ],
+      "properties": {
+        "amount": {
+          "$ref": "#/definitions/Uint128"
+        },
+        "denom": {
+          "type": "string"
+        }
+      },
+      "definitions": {
+        "Uint128": {
+          "description": "A thin wrapper around u128 that is using strings for JSON encoding/decoding, such that the full u128 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u128` to get the value out:\n\n``` # use cosmwasm_std::Uint128; let a = Uint128::from(123u128); assert_eq!(a.u128(), 123);\n\nlet b = Uint128::from(42u64); assert_eq!(b.u128(), 42);\n\nlet c = Uint128::from(70u32); assert_eq!(c.u128(), 70); ```",
+          "type": "string"
+        }
+      }
+    },
+    "spendable_coins": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Coin",
+      "type": "object",
+      "required": [
+        "amount",
+        "denom"
+      ],
+      "properties": {
+        "amount": {
+          "$ref": "#/definitions/Uint128"
+        },
+        "denom": {
+          "type": "string"
+        }
+      },
+      "definitions": {
+        "Uint128": {
+          "description": "A thin wrapper around u128 that is using strings for JSON encoding/decoding, such that the full u128 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u128` to get the value out:\n\n``` # use cosmwasm_std::Uint128; let a = Uint128::from(123u128); assert_eq!(a.u128(), 123);\n\nlet b = Uint128::from(42u64); assert_eq!(b.u128(), 42);\n\nlet c = Uint128::from(70u32); assert_eq!(c.u128(), 70); ```",
+          "type": "string"
+        }
+      }
+    }
+  }
+}

@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { Button, FormControl, Stack } from '@mui/material';
 import { useSnackbar } from 'notistack';
+import { MnemonicInput } from '@nymproject/react/textfields/Mnemonic';
+import { PasswordInput } from '@nymproject/react/textfields/Password';
 import { createPassword } from '../../requests';
 import { PasswordStrength } from '../../pages/auth/components';
-import { MnemonicInput, PasswordInput } from '../textfields';
 
 const PasswordCreateForm = ({ onPwdSaved }: { onPwdSaved: () => void }) => {
   const [mnemonic, setMnemonic] = useState('');

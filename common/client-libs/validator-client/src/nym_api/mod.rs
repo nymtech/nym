@@ -7,11 +7,11 @@ use nym_api_requests::coconut::{
     BlindSignRequestBody, BlindedSignatureResponse, VerifyCredentialBody, VerifyCredentialResponse,
 };
 use nym_api_requests::models::{
-    ComputeRewardEstParam, GatewayCoreStatusResponse, GatewayStatusReportResponse,
-    GatewayUptimeHistoryResponse, InclusionProbabilityResponse, MixNodeBondAnnotated,
-    MixnodeCoreStatusResponse, MixnodeStatusReportResponse, MixnodeStatusResponse,
-    MixnodeUptimeHistoryResponse, RequestError, RewardEstimationResponse, StakeSaturationResponse,
-    UptimeResponse,
+    ComputeRewardEstParam, GatewayBondAnnotated, GatewayCoreStatusResponse,
+    GatewayStatusReportResponse, GatewayUptimeHistoryResponse, InclusionProbabilityResponse,
+    MixNodeBondAnnotated, MixnodeCoreStatusResponse, MixnodeStatusReportResponse,
+    MixnodeStatusResponse, MixnodeUptimeHistoryResponse, RequestError, RewardEstimationResponse,
+    StakeSaturationResponse, UptimeResponse,
 };
 use nym_mixnet_contract_common::mixnode::MixNodeDetails;
 use nym_mixnet_contract_common::{GatewayBond, IdentityKeyRef, Interval, MixId};
@@ -157,6 +157,19 @@ impl Client {
                 routes::API_VERSION,
                 routes::STATUS,
                 routes::MIXNODES,
+                routes::DETAILED,
+            ],
+            NO_PARAMS,
+        )
+        .await
+    }
+
+    pub async fn get_gateways_detailed(&self) -> Result<Vec<GatewayBondAnnotated>, NymAPIError> {
+        self.query_nym_api(
+            &[
+                routes::API_VERSION,
+                routes::STATUS,
+                routes::GATEWAYS,
                 routes::DETAILED,
             ],
             NO_PARAMS,

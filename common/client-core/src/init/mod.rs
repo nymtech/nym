@@ -14,6 +14,9 @@ use crate::{
     error::ClientCoreError,
 };
 use nym_crypto::asymmetric::identity;
+use nym_gateway_client::client::InitOnly;
+use nym_gateway_client::GatewayClient;
+use nym_gateway_requests::registration::handshake::SharedKeys;
 use nym_sphinx::addressing::{clients::Recipient, nodes::NodeIdentity};
 use nym_topology::gateway;
 use nym_validator_client::client::IdentityKey;
@@ -22,9 +25,29 @@ use rand::rngs::OsRng;
 use rand::seq::SliceRandom;
 use serde::Serialize;
 use std::fmt::{Debug, Display};
+use std::sync::Arc;
 use url::Url;
 
 pub mod helpers;
+
+pub struct RegistrationResult {
+    pub shared_keys: Arc<SharedKeys>,
+    pub authenticated_ephemeral_client: Option<GatewayClient<InitOnly>>,
+}
+
+pub struct InitialisationResult {
+    pub details: InitialisationDetails,
+    pub authenticated_ephemeral_client: Option<GatewayClient<InitOnly>>,
+}
+
+impl From<InitialisationDetails> for InitialisationResult {
+    fn from(details: InitialisationDetails) -> Self {
+        InitialisationResult {
+            details,
+            authenticated_ephemeral_client: None,
+        }
+    }
+}
 
 // TODO: rename to something better...
 #[derive(Debug)]
@@ -76,7 +99,6 @@ impl InitialisationDetails {
     }
 }
 
-#[derive(Debug, Clone)]
 pub enum GatewaySetup {
     /// The gateway specification MUST BE loaded from the underlying storage.
     MustLoad,
@@ -93,6 +115,13 @@ pub enum GatewaySetup {
     Predefined {
         /// Full gateway configuration
         details: PersistedGatewayDetails,
+    },
+    ReuseConnection {
+        /// The authenticated ephemeral client that was created during `init`
+        authenticated_ephemeral_client: GatewayClient<InitOnly>,
+
+        /// Details of this pre-initialised client
+        details: InitialisationDetails,
     },
 }
 
@@ -268,19 +297,33 @@ fn ensure_valid_details(
 }
 
 pub async fn setup_gateway_from<K, D>(
-    setup: &GatewaySetup,
+    setup: GatewaySetup,
     key_store: &K,
     details_store: &D,
     overwrite_data: bool,
     gateways: Option<&[gateway::Node]>,
     nym_api_client: NymApiClient,
-) -> Result<InitialisationDetails, ClientCoreError>
+) -> Result<InitialisationResult, ClientCoreError>
 where
     K: KeyStore,
     D: GatewayDetailsStore,
     K::StorageError: Send + Sync + 'static,
     D::StorageError: Send + Sync + 'static,
 {
+    // I don't like how we can't deal with this variant in the match below, but we need to take ownership of internal values.
+    if let GatewaySetup::ReuseConnection {
+        authenticated_ephemeral_client,
+        details,
+    } = setup
+    {
+        // if we have already performed the full setup, forward the details.
+        // it's up to the caller to ensure persistence
+        return Ok(InitialisationResult {
+            details,
+            authenticated_ephemeral_client: Some(authenticated_ephemeral_client),
+        });
+    }
+
     let mut rng = OsRng;
 
     // try load gateway details
@@ -289,14 +332,14 @@ where
     // try load keys and decide what to do based on the GatewaySetup
     let mut managed_keys = match ManagedKeys::try_load(key_store).await {
         Ok(loaded_keys) => {
-            match setup {
+            match &setup {
                 GatewaySetup::MustLoad => {
                     // get EVERYTHING from the storage
                     let details = loaded_details?;
                     ensure_valid_details(&details, &loaded_keys)?;
 
                     // no need to persist anything as we got everything from the storage
-                    return Ok(InitialisationDetails::new(details.into(), loaded_keys));
+                    return Ok(InitialisationDetails::new(details.into(), loaded_keys).into());
                 }
                 GatewaySetup::Predefined { details } => {
                     // we already have defined gateway details AND a shared key
@@ -307,10 +350,9 @@ where
                         _store_gateway_details(details_store, details).await?;
                     }
 
-                    return Ok(InitialisationDetails::new(
-                        details.clone().into(),
-                        loaded_keys,
-                    ));
+                    return Ok(
+                        InitialisationDetails::new(details.clone().into(), loaded_keys).into(),
+                    );
                 }
                 GatewaySetup::Specified { gateway_identity } => {
                     // if that data was already stored...
@@ -326,7 +368,8 @@ where
                             return Ok(InitialisationDetails::new(
                                 existing_gateway.into(),
                                 loaded_keys,
-                            ));
+                            )
+                            .into());
                         }
                     }
 
@@ -344,7 +387,8 @@ where
                         return Ok(InitialisationDetails::new(
                             existing_gateway.into(),
                             loaded_keys,
-                        ));
+                        )
+                        .into());
                     }
 
                     // we didn't get full details from the store and we have loaded some keys
@@ -354,6 +398,9 @@ where
                     } else {
                         return Err(ClientCoreError::ForbiddenKeyOverwrite);
                     }
+                }
+                GatewaySetup::ReuseConnection { .. } => {
+                    unreachable!("the reuse connection variant was already manually covered")
                 }
             }
         }
@@ -376,9 +423,10 @@ where
     let our_sphinx = managed_keys.encryption_keypair();
 
     // Establish connection, authenticate and generate keys for talking with the gateway
-    let shared_keys =
+    let registration_result =
         helpers::register_with_gateway(&gateway_details, our_identity, our_sphinx, nym_api_client)
             .await?;
+    let shared_keys = registration_result.shared_keys;
 
     let persisted_details = PersistedGatewayDetails::new(gateway_details, &shared_keys);
 
@@ -393,19 +441,19 @@ where
     // persist gateway config
     _store_gateway_details(details_store, &persisted_details).await?;
 
-    Ok(InitialisationDetails::new(
-        persisted_details.into(),
-        managed_keys,
-    ))
+    Ok(InitialisationResult {
+        details: InitialisationDetails::new(persisted_details.into(), managed_keys),
+        authenticated_ephemeral_client: registration_result.authenticated_ephemeral_client,
+    })
 }
 
 pub async fn setup_gateway<K, D>(
-    setup: &GatewaySetup,
+    setup: GatewaySetup,
     key_store: &K,
     details_store: &D,
     overwrite_data: bool,
     validator_servers: Option<&[Url]>,
-) -> Result<InitialisationDetails, ClientCoreError>
+) -> Result<InitialisationResult, ClientCoreError>
 where
     K: KeyStore,
     D: GatewayDetailsStore,

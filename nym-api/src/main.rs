@@ -5,12 +5,14 @@
 extern crate rocket;
 
 use crate::epoch_operations::RewardedSetUpdater;
+use crate::network::models::NetworkDetails;
 use crate::node_status_api::uptime_updater::HistoricalUptimeUpdater;
 use crate::support::cli;
 use crate::support::cli::CliArgs;
 use crate::support::config::Config;
 use crate::support::storage;
 use crate::support::storage::NymApiStorage;
+use ::ephemera::configuration::Configuration as EphemeraConfiguration;
 use ::nym_config::defaults::setup_env;
 use anyhow::Result;
 use circulating_supply_api::cache::CirculatingSupplyCache;
@@ -29,7 +31,9 @@ use support::{http, nyxd};
 
 mod circulating_supply_api;
 mod coconut;
+mod ephemera;
 mod epoch_operations;
+pub(crate) mod network;
 mod network_monitor;
 pub(crate) mod node_status_api;
 pub(crate) mod nym_contract_cache;
@@ -59,14 +63,16 @@ async fn start_nym_api_tasks(
     config: Config,
 ) -> Result<ShutdownHandles, Box<dyn Error + Send + Sync>> {
     let nyxd_client = nyxd::Client::new(&config);
-    let mix_denom = nyxd_client.chain_details().await.mix_denom.base;
+    let connected_nyxd = config.get_nyxd_url();
+    let nym_network_details = config.get_network_details();
+    let network_details = NetworkDetails::new(connected_nyxd.to_string(), nym_network_details);
 
     let coconut_keypair = coconut::keypair::KeyPair::new();
 
     // let's build our rocket!
     let rocket = http::setup_rocket(
         &config,
-        mix_denom,
+        network_details,
         nyxd_client.clone(),
         coconut_keypair.clone(),
     )
@@ -123,6 +129,33 @@ async fn start_nym_api_tasks(
     // and then only start the uptime updater (and the monitor itself, duh)
     // if the monitoring if it's enabled
     if config.network_monitor.enabled {
+        let ephemera_config =
+            match EphemeraConfiguration::try_load(config.get_ephemera_config_path()) {
+                Ok(c) => c,
+                Err(_) => {
+                    config
+                        .get_ephemera_args()
+                        .cmd
+                        .clone()
+                        .execute(Some(&config.get_id()));
+                    EphemeraConfiguration::try_load(config.get_ephemera_config_path())
+                        .expect("Config file should be created now")
+                }
+            };
+        let ephemera_reward_manager = if config.ephemera.enabled {
+            Some(
+                ephemera::application::NymApi::run(
+                    config.get_ephemera_args().clone(),
+                    ephemera_config,
+                    nyxd_client.clone(),
+                    &shutdown,
+                )
+                .await?,
+            )
+        } else {
+            None
+        };
+
         // if network monitor is enabled, the storage MUST BE available
         let storage = maybe_storage.unwrap();
         let url = format!(
@@ -148,7 +181,13 @@ async fn start_nym_api_tasks(
         // start 'rewarding' if its enabled
         if config.rewarding.enabled {
             epoch_operations::ensure_rewarding_permission(&nyxd_client).await?;
-            RewardedSetUpdater::start(nyxd_client, nym_contract_cache_state, storage, &shutdown);
+            RewardedSetUpdater::start(
+                ephemera_reward_manager,
+                nyxd_client,
+                nym_contract_cache_state,
+                storage,
+                &shutdown,
+            );
         }
     }
 
@@ -169,6 +208,11 @@ async fn run_nym_api(cli_args: CliArgs) -> Result<(), Box<dyn Error + Send + Syn
     if save_to_file {
         info!("Saving the configuration to a file");
         config.save_to_default_location()?;
+        config
+            .get_ephemera_args()
+            .cmd
+            .clone()
+            .execute(Some(&config.get_id()));
         return Ok(());
     }
 

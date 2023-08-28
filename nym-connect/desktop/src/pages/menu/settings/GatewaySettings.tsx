@@ -7,7 +7,7 @@ import { AppVersion } from 'src/components/AppVersion';
 
 export const GatewaySettings = () => {
   const { userDefinedGateway, setUserDefinedGateway, connectionStatus } = useClientContext();
-  const [gatewayKey, setGatewayKey] = useState<string | undefined>(userDefinedGateway?.gateway);
+  const [gatewayKey, setGatewayKey] = useState<string | undefined>(userDefinedGateway?.address);
 
   const handleIsValidGatewayKey = (isValid: boolean) => {
     let gateway: string | undefined;
@@ -16,7 +16,7 @@ export const GatewaySettings = () => {
       gateway = gatewayKey;
     }
 
-    setUserDefinedGateway((current) => ({ ...current, gateway }));
+    setUserDefinedGateway((current) => ({ ...current, address: gateway }));
   };
 
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {

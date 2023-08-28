@@ -1,5 +1,5 @@
 import React from 'react';
-import { Apps, HelpOutline, Settings, BugReport } from '@mui/icons-material';
+import { Apps, HelpOutline, Settings, BugReport, PrivacyTip } from '@mui/icons-material';
 import { Stack, Link, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
 import { AppVersion } from 'src/components/AppVersion';
@@ -7,8 +7,9 @@ import { AppVersion } from 'src/components/AppVersion';
 const menuSchema = [
   { title: 'Supported apps', icon: Apps, path: 'apps' },
   { title: 'How to connect guide', icon: HelpOutline, path: 'guide' },
-  { title: 'Please help us improve the app', icon: BugReport, path: 'monitoring' },
+  { title: 'Privacy level', icon: PrivacyTip, path: 'privacy-level' },
   { title: 'Settings', icon: Settings, path: 'settings' },
+  { title: 'Help improve the app', icon: BugReport, path: 'reporting' },
 ];
 
 export const Menu = () => (

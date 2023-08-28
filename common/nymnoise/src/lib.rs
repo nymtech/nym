@@ -83,38 +83,48 @@ impl NoiseStream {
         }
     }
 
-    async fn send_handshake_msg(&mut self) -> Result<(), NoiseError> {
-        let mut buf = vec![0u8; MAXMSGLEN];
-        let len = match &mut self.handshake {
-            Some(handshake_state) => handshake_state.write_message(&[], &mut buf)?,
-            None => return Err(NoiseError::IncorrectStateError),
+    async fn perform_handshake(mut self) -> Result<Self, NoiseError> {
+        //Check if we are in the correct state
+        let Some(mut handshake) = self.handshake else {
+            return Err(NoiseError::IncorrectStateError);
         };
+        self.handshake = None;
+
+        while !handshake.is_handshake_finished() {
+            if handshake.is_my_turn() {
+                self.send_handshake_msg(&mut handshake).await?;
+            } else {
+                self.recv_handshake_msg(&mut handshake).await?;
+            }
+        }
+
+        self.noise = Some(handshake.into_transport_mode()?);
+        Ok(self)
+    }
+
+    async fn send_handshake_msg(
+        &mut self,
+        handshake: &mut HandshakeState,
+    ) -> Result<(), NoiseError> {
+        let mut buf = vec![0u8; MAXMSGLEN];
+        let len = handshake.write_message(&[], &mut buf)?;
 
         self.inner_stream.write_u16(len.try_into()?).await?; //len is always < 2^16, so it shouldn't fail
         self.inner_stream.write_all(&buf[..len]).await?;
         Ok(())
     }
 
-    async fn recv_handshake_msg(&mut self) -> Result<(), NoiseError> {
+    async fn recv_handshake_msg(
+        &mut self,
+        handshake: &mut HandshakeState,
+    ) -> Result<(), NoiseError> {
         let msg_len = self.inner_stream.read_u16().await?;
         let mut msg = vec![0u8; msg_len.into()];
         self.inner_stream.read_exact(&mut msg[..]).await?;
 
         let mut buf = vec![0u8; MAXMSGLEN];
-        match &mut self.handshake {
-            Some(handshake_state) => handshake_state.read_message(&msg, &mut buf)?,
-            None => return Err(NoiseError::IncorrectStateError),
-        };
+        handshake.read_message(&msg, &mut buf)?;
         Ok(())
-    }
-
-    fn into_transport_mode(mut self) -> Result<Self, NoiseError> {
-        let Some(handshake) = self.handshake else {
-            return Err(NoiseError::IncorrectStateError);
-        };
-        self.handshake = None;
-        self.noise = Some(handshake.into_transport_mode()?);
-        Ok(self)
     }
 }
 
@@ -269,30 +279,16 @@ pub async fn upgrade_noise_initiator(
     .concat();
     let secret_hash = Sha256::digest(secret);
 
-    let builder = Builder::new(NOISE_HS_PATTERN.parse().unwrap()); //This cannot fail, hardcoded pattern must be correct
+    let builder = Builder::new(NOISE_HS_PATTERN.parse()?);
     let handshake = builder
         .local_private_key(local_private_key)
         .remote_public_key(remote_pub_key)
         .psk(3, &secret_hash)
         .build_initiator()?;
 
-    let mut noise_stream = NoiseStream::new(conn, handshake);
+    let noise_stream = NoiseStream::new(conn, handshake);
 
-    tokio::time::timeout(Duration::from_secs(5), async {
-        //The 5 sec TO is completely arbitrary. Has to be changed if it becomes more than a POC
-        // -> e, es
-        noise_stream.send_handshake_msg().await?;
-
-        // <- e, ee
-        noise_stream.recv_handshake_msg().await?;
-
-        // -> s, se, psk
-
-        noise_stream.send_handshake_msg().await
-    })
-    .await??;
-
-    noise_stream.into_transport_mode()
+    tokio::time::timeout(Duration::from_secs(5), noise_stream.perform_handshake()).await?
 }
 
 pub async fn upgrade_noise_initiator_with_topology(
@@ -349,29 +345,16 @@ pub async fn upgrade_noise_responder(
     .concat();
     let secret_hash = Sha256::digest(secret);
 
-    let builder = Builder::new(NOISE_HS_PATTERN.parse().unwrap()); //This cannot fail, hardcoded pattern must be correct
+    let builder = Builder::new(NOISE_HS_PATTERN.parse()?);
     let handshake = builder
         .local_private_key(local_private_key)
         .psk(3, &secret_hash)
         .build_responder()?;
 
-    let mut noise_stream = NoiseStream::new(conn, handshake);
+    let noise_stream = NoiseStream::new(conn, handshake);
 
-    tokio::time::timeout(Duration::from_secs(5), async {
-        //The 5 sec TO is completely arbitrary. Has to be changed if it becomes more than a POC
-        //Actual Handshake
-        // <- e, es
-        noise_stream.recv_handshake_msg().await?;
-
-        // -> e, ee
-        noise_stream.send_handshake_msg().await?;
-
-        // <- s, se, psk
-        noise_stream.recv_handshake_msg().await
-    })
-    .await??;
-
-    noise_stream.into_transport_mode()
+    //The 5 sec TO is completely arbitrary. Has to be changed if it becomes more than a POC
+    tokio::time::timeout(Duration::from_secs(5), noise_stream.perform_handshake()).await?
 }
 
 pub async fn upgrade_noise_responder_with_topology(

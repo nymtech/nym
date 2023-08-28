@@ -109,7 +109,9 @@ impl NoiseStream {
     }
 
     fn into_transport_mode(mut self) -> Result<Self, NoiseError> {
-        let Some(handshake) = self.handshake else {return Err(NoiseError::IncorrectStateError)};
+        let Some(handshake) = self.handshake else {
+            return Err(NoiseError::IncorrectStateError);
+        };
         self.handshake = None;
         self.noise = Some(handshake.into_transport_mode()?);
         Ok(self)
@@ -158,7 +160,9 @@ impl AsyncRead for NoiseStream {
                         let mut dec_msg = vec![0u8; MAXMSGLEN];
 
                         let Ok(len) = (match projected_self.noise {
-                            Some(transport_state) => transport_state.read_message(&noise_msg, &mut dec_msg),
+                            Some(transport_state) => {
+                                transport_state.read_message(&noise_msg, &mut dec_msg)
+                            }
                             None => return Poll::Ready(Err(ErrorKind::Other.into())),
                         }) else {
                             return Poll::Ready(Err(ErrorKind::InvalidInput.into()));
@@ -275,6 +279,7 @@ pub async fn upgrade_noise_initiator(
     let mut noise_stream = NoiseStream::new(conn, handshake);
 
     tokio::time::timeout(Duration::from_secs(5), async {
+        //The 5 sec TO is completely arbitrary. Has to be changed if it becomes more than a POC
         // -> e, es
         noise_stream.send_handshake_msg().await?;
 
@@ -353,6 +358,7 @@ pub async fn upgrade_noise_responder(
     let mut noise_stream = NoiseStream::new(conn, handshake);
 
     tokio::time::timeout(Duration::from_secs(5), async {
+        //The 5 sec TO is completely arbitrary. Has to be changed if it becomes more than a POC
         //Actual Handshake
         // <- e, es
         noise_stream.recv_handshake_msg().await?;

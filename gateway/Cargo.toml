@@ -60,7 +60,7 @@ nym-sphinx = { path = "../common/nymsphinx" }
 nym-statistics-common = { path = "../common/statistics" }
 nym-task = { path = "../common/task" }
 nym-types = { path = "../common/types" }
-nym-validator-client = { path = "../common/client-libs/validator-client", features = [ "nyxd-client" ] }
+nym-validator-client = { path = "../common/client-libs/validator-client"}
 nym-client-core = { path = "../common/client-core" }
 nym-topology = { path = "../common/topology" }
 nym-noise = { path = "../common/nymnoise" }

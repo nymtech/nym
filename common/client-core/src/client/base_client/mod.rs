@@ -500,6 +500,7 @@ where
     {
         info!("Starting nym client");
 
+        let random_api_client = self.random_api_client();
         // derive (or load) client keys and gateway configuration
         let init_res = Self::initialise_keys_and_gateway(
             self.setup_method,
@@ -509,8 +510,6 @@ where
             Some(&self.config.client.nym_api_urls),
         )
         .await?;
-
-        let random_api_client = self.random_api_client();
 
         let (reply_storage_backend, credential_store) = self.client_store.into_runtime_stores();
 

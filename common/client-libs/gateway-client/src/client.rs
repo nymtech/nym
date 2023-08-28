@@ -33,8 +33,6 @@ use tungstenite::protocol::Message;
 #[cfg(not(target_arch = "wasm32"))]
 use nym_noise::upgrade_noise_initiator;
 #[cfg(not(target_arch = "wasm32"))]
-use nym_validator_client::nyxd::traits::DkgQueryClient;
-#[cfg(not(target_arch = "wasm32"))]
 use std::net::SocketAddr;
 #[cfg(not(target_arch = "wasm32"))]
 use tokio::net::TcpStream;
@@ -893,12 +891,15 @@ impl GatewayClient<InitOnly, EphemeralCredentialStorage> {
             bandwidth_remaining: self.bandwidth_remaining,
             gateway_address: self.gateway_address,
             gateway_identity: self.gateway_identity,
+            gateway_sphinx: self.gateway_sphinx,
+            local_sphinx: self.local_sphinx,
             local_identity: self.local_identity,
             shared_key: self.shared_key,
             connection: self.connection,
             packet_router: PacketRouter::new(ack_sender, mixnet_message_sender, shutdown.clone()),
             response_timeout_duration,
             bandwidth_controller,
+            nym_api_client: self.nym_api_client,
             should_reconnect_on_failure: self.should_reconnect_on_failure,
             reconnection_attempts: self.reconnection_attempts,
             reconnection_backoff: self.reconnection_backoff,

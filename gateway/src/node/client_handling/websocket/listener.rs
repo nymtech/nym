@@ -81,7 +81,7 @@ impl Listener {
                                 Ok(epoch_id) => epoch_id,
                                 Err(err) => {
                                     error!("Failed to retrieve epoch Id for Noise handshake - {err}");
-                                    return;
+                                    continue;
                                 }
                             };
                             let noise_stream = match upgrade_noise_responder(
@@ -96,7 +96,7 @@ impl Listener {
                                 Ok(noise_stream) => noise_stream,
                                 Err(err) => {
                                     error!("Failed to perform Noise handshake with {remote_addr} - {err}");
-                                    return;
+                                    continue;
                                 }
                             };
                             let handle = FreshHandler::new(

@@ -2,9 +2,10 @@ import React, { ChangeEvent, useState } from 'react';
 import * as Sentry from '@sentry/react';
 import { Box, FormControl, FormControlLabel, FormHelperText, Stack, Switch, Typography } from '@mui/material';
 import { useClientContext } from '../../context/main';
+import { ConnectionStatusKind } from '../../types';
 
 export const PrivacyLevelSettings = () => {
-  const { userData, setPrivacyLevel } = useClientContext();
+  const { userData, setPrivacyLevel, connectionStatus } = useClientContext();
   const [speedBoost, setSpeedBoost] = useState(userData?.privacy_level !== 'High');
   const [loading, setLoading] = useState(false);
 
@@ -29,7 +30,7 @@ export const PrivacyLevelSettings = () => {
                 <Switch
                   checked={speedBoost}
                   onChange={handleChange}
-                  disabled={loading}
+                  disabled={loading || connectionStatus === ConnectionStatusKind.connected}
                   size="small"
                   sx={{ ml: 1, mr: 1 }}
                 />

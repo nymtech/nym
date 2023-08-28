@@ -149,7 +149,7 @@ async fn measure_latency(gateway: &gateway::Node) -> Result<GatewayWithLatency, 
     Ok(GatewayWithLatency::new(gateway, avg))
 }
 
-pub(super) async fn choose_gateway_by_latency<R: Rng>(
+pub async fn choose_gateway_by_latency<R: Rng>(
     rng: &mut R,
     gateways: &[gateway::Node],
 ) -> Result<gateway::Node, ClientCoreError> {

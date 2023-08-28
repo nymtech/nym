@@ -11,6 +11,7 @@ use nym_api_requests::models::GatewayBondAnnotated;
 use nym_bin_common::version_checker::is_minor_version_compatible;
 use nym_config::defaults::var_names::{NETWORK_NAME, NYM_API};
 use nym_contracts_common::types::Percent;
+use nym_topology::gateway;
 use nym_validator_client::nym_api::Client as ApiClient;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -163,4 +164,42 @@ pub async fn get_gateways() -> Result<Vec<Gateway>> {
     }
 
     Ok(filtered_gateways)
+}
+
+async fn select_gateway_by_latency(gateways: Vec<GatewayBondAnnotated>) -> Result<gateway::Node> {
+    let gateways_as_nodes: Vec<gateway::Node> = gateways
+        .into_iter()
+        .filter_map(|g| g.gateway_bond.try_into().ok())
+        .collect();
+
+    let mut rng = rand_07::rngs::OsRng;
+    let selected_gateway =
+        nym_client_core::init::helpers::choose_gateway_by_latency(&mut rng, &gateways_as_nodes)
+            .await?;
+    Ok(selected_gateway)
+}
+
+#[tauri::command]
+pub async fn get_gateway_with_low_latency() -> Result<Gateway> {
+    let all_gateways = fetch_gateways().await?;
+    let selected_gateway = select_gateway_by_latency(all_gateways).await?;
+    Ok(Gateway {
+        identity: selected_gateway.identity().to_base58_string(),
+    })
+}
+
+#[tauri::command]
+pub async fn get_gateway_with_low_latency_from_list(gateways: Vec<Gateway>) -> Result<Gateway> {
+    log::debug!("Selecting a gateway with low latency");
+    let gateways = gateways.into_iter().map(|g| g.identity).collect_vec();
+    let all_gateways = fetch_gateways().await?;
+    let gateways_union_set: Vec<GatewayBondAnnotated> = all_gateways
+        .into_iter()
+        .filter(|g| gateways.contains(g.identity()))
+        .collect();
+    let selected_gateway = select_gateway_by_latency(gateways_union_set).await?;
+    log::debug!("Selected gateway: {}", selected_gateway);
+    Ok(Gateway {
+        identity: selected_gateway.identity().to_base58_string(),
+    })
 }

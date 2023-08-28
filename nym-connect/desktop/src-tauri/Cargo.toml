@@ -30,6 +30,7 @@ itertools = "0.10.5"
 log = { version = "0.4", features = ["serde"] }
 pretty_env_logger = "0.4.0"
 rand = "0.8"
+rand-07 = { package = "rand", version = "0.7.3" }
 reqwest = { version = "0.11.18", features = ["json", "socks"] }
 rust-embed = { version = "6.4.2", features = ["include-exclude"] }
 serde = { version = "1.0", features = ["derive"] }
@@ -58,6 +59,7 @@ nym-bin-common = { path = "../../../common/bin-common"}
 nym-socks5-client-core = { path = "../../../common/socks5-client-core" }
 nym-sphinx = { path = "../../../common/nymsphinx" }
 nym-task = { path = "../../../common/task" }
+nym-topology = { path = "../../../common/topology" }
 nym-validator-client = { path = "../../../common/client-libs/validator-client" }
 
 [dev-dependencies]

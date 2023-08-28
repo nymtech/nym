@@ -173,7 +173,7 @@ pub fn blocking_run_client<'cb, F, S>(
             sleep(ANDROID_HEALTHCHECK_INTERVAL).await;
 
             if !is_shutdown_handle_set().await {
-                debug!("client has been shutdown, cancelling healthcheck loop");
+                debug!("client has been shutdown, cancelling healthcheck");
                 break;
             }
             let mut guard = LAST_PING.lock().await;

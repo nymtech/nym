@@ -36,7 +36,9 @@ class ProxyWorker(
     companion object Work {
         const val name = "nymS5ProxyWorker"
         const val workTag = "nymProxy"
-        val workId: UUID = UUID.randomUUID()
+        // it is very important to use a static UUID in order to allow WorkManager
+        // handling the proxy work as a unique work
+        val workId: UUID = UUID.fromString("cc785aa4-5775-4bf0-b870-39645e35e660")
 
         const val State = "State"
 
@@ -143,10 +145,12 @@ class ProxyWorker(
 
             withContext(Dispatchers.IO) {
                 val pingJob = launch {
-                    do {
-                        val pong = nymProxy.ping()
+                    // this job will get automatically killed by the WorkManager once
+                    // the job has been terminated, so it's safe to use `while (true)`
+                    while (true) {
+                        nymProxy.ping()
                         delay(pingRate)
-                    } while (pong)
+                    }
                 }
 
                 val proxyJob = launch {

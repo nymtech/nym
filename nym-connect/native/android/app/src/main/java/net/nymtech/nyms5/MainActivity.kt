@@ -71,11 +71,6 @@ class MainActivity : ComponentActivity() {
                     ) {
                         viewModel.setUiConnected()
                     }
-                    if (proxyState == NymProxy.Companion.State.DISCONNECTED &&
-                        workState != WorkInfo.State.RUNNING
-                    ) {
-                        viewModel.setUiDisconnected()
-                    }
                 }
             }
 

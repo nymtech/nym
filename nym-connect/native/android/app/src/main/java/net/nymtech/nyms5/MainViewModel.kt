@@ -10,7 +10,6 @@ import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequest
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.OutOfQuotaPolicy
-import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -49,7 +48,7 @@ class MainViewModel(
     val uiState: StateFlow<ProxyState> = _uiState.asStateFlow()
 
     fun setUiConnected() {
-        Log.d(tag, "_____setUiConnected")
+        Log.d(tag, "____setUiConnected")
         _uiState.update { currentState ->
             currentState.copy(
                 connected = true,
@@ -59,7 +58,7 @@ class MainViewModel(
     }
 
     fun setUiDisconnected() {
-        Log.d(tag, "_____setUiDisconnected")
+        Log.d(tag, "____setUiDisconnected")
         _uiState.update { currentState ->
             currentState.copy(
                 connected = false,

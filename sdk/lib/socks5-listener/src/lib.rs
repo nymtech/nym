@@ -178,10 +178,10 @@ pub fn blocking_run_client<'cb, F, S>(
             }
             let mut guard = LAST_PING.lock().await;
             let Some(last_ping) = *guard else {
-                    warn!("client has not been pinged yet - shutting down");
-                    *guard = None;
-                    stop_and_reset_shutdown_handle().await;
-                    break;
+               warn!("client has not been pinged yet - shutting down");
+               *guard = None;
+               stop_and_reset_shutdown_handle().await;
+               break;
             };
             if last_ping.elapsed() > Duration::from_secs(10) {
                 warn!("client has not been pinged for more than 10 seconds - shutting down");

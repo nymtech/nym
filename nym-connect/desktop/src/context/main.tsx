@@ -216,7 +216,7 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
     if (gateways) {
       let randomGateway;
       if (userData?.privacy_level === 'Medium') {
-        randomGateway = await invoke<Gateway>('get_gateway_with_low_latency_from_list', { gateways });
+        randomGateway = await invoke<Gateway>('select_gateway_with_low_latency_from_list', { gateways });
       } else {
         randomGateway = getRandomFromList(gateways);
       }

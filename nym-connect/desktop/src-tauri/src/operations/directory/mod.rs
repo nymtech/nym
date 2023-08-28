@@ -135,35 +135,16 @@ async fn fetch_gateways() -> Result<Vec<GatewayBondAnnotated>> {
     Ok(gateways)
 }
 
-#[tauri::command]
-pub async fn get_gateways() -> Result<Vec<Gateway>> {
-    log::trace!("Fetching gateways");
-    let all_gateways = fetch_gateways().await?;
-    log::trace!("Received: {:#?}", all_gateways);
-
-    let filtered_gateways = all_gateways
-        .iter()
+fn filter_out_low_performance_gateways(
+    gateways: Vec<GatewayBondAnnotated>,
+) -> Vec<GatewayBondAnnotated> {
+    gateways
+        .into_iter()
         .filter(|g| {
             g.node_performance.most_recent
                 > Percent::from_percentage_value(GATEWAY_PERFORMANCE_SCORE_THRESHOLD).unwrap()
         })
-        .map(|g| Gateway {
-            identity: g.identity().clone(),
-        })
-        .collect_vec();
-    log::trace!("Filtered: {:#?}", filtered_gateways);
-
-    if filtered_gateways.is_empty() {
-        log::warn!("No gateways with high enough performance score found! Using all gateways instead as fallback");
-        return Ok(all_gateways
-            .iter()
-            .map(|g| Gateway {
-                identity: g.identity().clone(),
-            })
-            .collect_vec());
-    }
-
-    Ok(filtered_gateways)
+        .collect()
 }
 
 async fn select_gateway_by_latency(gateways: Vec<GatewayBondAnnotated>) -> Result<gateway::Node> {
@@ -179,17 +160,52 @@ async fn select_gateway_by_latency(gateways: Vec<GatewayBondAnnotated>) -> Resul
     Ok(selected_gateway)
 }
 
+// Get all gateways satisfying the performance threshold.
+#[tauri::command]
+pub async fn get_gateways() -> Result<Vec<Gateway>> {
+    log::trace!("Fetching gateways");
+    let all_gateways = fetch_gateways().await?;
+    log::trace!("Received: {:#?}", all_gateways);
+
+    let gateways_filtered = filter_out_low_performance_gateways(all_gateways.clone())
+        .into_iter()
+        .map(|g| Gateway {
+            identity: g.identity().clone(),
+        })
+        .collect_vec();
+    log::trace!("Filtered: {:#?}", gateways_filtered);
+
+    if gateways_filtered.is_empty() {
+        log::warn!("No gateways with high enough performance score found! Using all gateways instead as fallback");
+        return Ok(all_gateways
+            .iter()
+            .map(|g| Gateway {
+                identity: g.identity().clone(),
+            })
+            .collect_vec());
+    }
+
+    Ok(gateways_filtered)
+}
+
+// Lookup and select a single gateway with low latency.
 #[tauri::command]
 pub async fn get_gateway_with_low_latency() -> Result<Gateway> {
+    log::trace!("Fetching gateways");
     let all_gateways = fetch_gateways().await?;
-    let selected_gateway = select_gateway_by_latency(all_gateways).await?;
+    log::trace!("Received: {:#?}", all_gateways);
+
+    let gateways_filtered = filter_out_low_performance_gateways(all_gateways);
+    let selected_gateway = select_gateway_by_latency(gateways_filtered).await?;
+    log::debug!("Selected gateway: {}", selected_gateway);
     Ok(Gateway {
         identity: selected_gateway.identity().to_base58_string(),
     })
 }
 
+// From a given list of gateways, select the one with low latency.
 #[tauri::command]
-pub async fn get_gateway_with_low_latency_from_list(gateways: Vec<Gateway>) -> Result<Gateway> {
+pub async fn select_gateway_with_low_latency_from_list(gateways: Vec<Gateway>) -> Result<Gateway> {
     log::debug!("Selecting a gateway with low latency");
     let gateways = gateways.into_iter().map(|g| g.identity).collect_vec();
     let all_gateways = fetch_gateways().await?;
@@ -197,7 +213,8 @@ pub async fn get_gateway_with_low_latency_from_list(gateways: Vec<Gateway>) -> R
         .into_iter()
         .filter(|g| gateways.contains(g.identity()))
         .collect();
-    let selected_gateway = select_gateway_by_latency(gateways_union_set).await?;
+    let gateways_filtered = filter_out_low_performance_gateways(gateways_union_set);
+    let selected_gateway = select_gateway_by_latency(gateways_filtered).await?;
     log::debug!("Selected gateway: {}", selected_gateway);
     Ok(Gateway {
         identity: selected_gateway.identity().to_base58_string(),

@@ -149,6 +149,8 @@ pub fn ping_client() {
     });
 }
 
+// Continusouly poll that we are being pinged from the outside. If the pings stop that means 
+// that the higher layer somehow terminated without telling us.
 pub async fn health_check() {
     // init the ping to now
     let mut guard = LAST_HEALTHCHECK_PING.lock().await;
@@ -197,6 +199,8 @@ pub fn blocking_run_client<'cb, F, S>(
         return;
     }
 
+    // Spawn a task that monitors that we are continuously receiving pings from the outside, 
+    // to make sure we don't end up with a runaway process
     RUNTIME.spawn(async { health_check().await });
 
     let storage_dir = storage_directory.map(|s| s.to_string());

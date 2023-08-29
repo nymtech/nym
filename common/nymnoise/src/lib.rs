@@ -87,15 +87,25 @@ impl NoisePattern {
     }
 
     fn psk_position(&self) -> u8 {
-        match self {
-            Self::XKpsk3 => 3,
-            Self::IKpsk2 => 2,
+        // match self {
+        //     Self::XKpsk3 => 3,
+        //     Self::IKpsk2 => 2,
 
-            //DEMO MODE, TO BE DELETED
-            Self::NN => 0, //psk will not be used anyway
-            Self::XXpsk0 => 0,
-            Self::XKpsk3Var => 3,
-            Self::KKpsk2 => 2,
+        //     //DEMO MODE, TO BE DELETED
+        //     Self::NN => 0, //psk will not be used anyway
+        //     Self::XXpsk0 => 0,
+        //     Self::XKpsk3Var => 3,
+        //     Self::KKpsk2 => 2,
+        // }
+
+        //automatic parsing, works for correct pattern, more convenient, might be slower though
+        match self.as_str().find("psk") {
+            Some(n) => {
+                let psk_index = n + 3;
+                u8::try_from(self.as_str().chars().nth(psk_index).unwrap()).unwrap()
+                //if this fails, it means hardcoded pattern are wrong
+            }
+            None => 0,
         }
     }
 }
@@ -379,14 +389,16 @@ pub async fn upgrade_noise_responder(
     trace!("Perform Noise Handshake, responder side");
 
     //If the remote_key cannot be kwnown, e.g. in a client-gateway connection
-    let remote_public_key = remote_pub_key.unwrap_or(&[]);
-
-    let secret = [remote_public_key, local_public_key, &epoch.to_be_bytes()].concat();
+    let secret = [
+        remote_pub_key.unwrap_or(&[]),
+        local_public_key,
+        &epoch.to_be_bytes(),
+    ]
+    .concat();
     let secret_hash = Sha256::digest(secret);
 
     let handshake = Builder::new(pattern.as_str().parse()?)
         .local_private_key(local_private_key)
-        .remote_public_key(remote_public_key)
         .psk(pattern.psk_position(), &secret_hash)
         .build_responder()?;
 

@@ -27,6 +27,8 @@ pub use nym_mixnet_contract_common::{
 pub use crate::coconut::CoconutApiClient;
 
 #[cfg(feature = "http-client")]
+use crate::rpc::http_client;
+#[cfg(feature = "http-client")]
 use crate::{DirectSigningHttpRpcValidatorClient, HttpRpcClient, QueryHttpRpcValidatorClient};
 
 #[must_use]
@@ -95,7 +97,7 @@ impl Client<HttpRpcClient, DirectSecp256k1HdWallet> {
         config: Config,
         mnemonic: bip39::Mnemonic,
     ) -> Result<DirectSigningHttpRpcValidatorClient, ValidatorClientError> {
-        let rpc_client = HttpRpcClient::new(config.nyxd_url.as_str())?;
+        let rpc_client = http_client(config.nyxd_url.as_str())?;
         let prefix = &config.nyxd_config.chain_details.bech32_account_prefix;
         let wallet = DirectSecp256k1HdWallet::from_mnemonic(prefix, mnemonic);
 
@@ -126,7 +128,7 @@ impl Client<ReqwestRpcClient, DirectSecp256k1HdWallet> {
 #[cfg(feature = "http-client")]
 impl Client<HttpRpcClient> {
     pub fn new_query(config: Config) -> Result<QueryHttpRpcValidatorClient, ValidatorClientError> {
-        let rpc_client = HttpRpcClient::new(config.nyxd_url.as_str())?;
+        let rpc_client = http_client(config.nyxd_url.as_str())?;
         Ok(Self::new_with_rpc_client(config, rpc_client))
     }
 
@@ -170,6 +172,10 @@ impl<C, S> Client<C, S> {
 
 // validator-api wrappers
 impl<C, S> Client<C, S> {
+    pub fn api_url(&self) -> &Url {
+        self.nym_api.current_url()
+    }
+
     pub fn change_nym_api(&mut self, new_endpoint: Url) {
         self.nym_api.change_url(new_endpoint)
     }
@@ -238,6 +244,10 @@ impl NymApiClient {
         let nym_api = nym_api::Client::new(api_url);
 
         NymApiClient { nym_api }
+    }
+
+    pub fn api_url(&self) -> &Url {
+        self.nym_api.current_url()
     }
 
     pub fn change_nym_api(&mut self, new_endpoint: Url) {

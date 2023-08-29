@@ -17,7 +17,7 @@ serde_json = { workspace = true }
 strum = { version = "0.23", features = ["derive"] }
 thiserror = { workspace = true }
 url = { workspace = true }
-ts-rs = "6.1.2"
+ts-rs = { workspace = true }
 
 cosmwasm-std = { workspace = true }
 cosmrs = { workspace = true }

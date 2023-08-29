@@ -12,6 +12,7 @@ use rocksdb::{TransactionDB, WriteBatchWithTransaction};
 
 use crate::utilities::crypto::Certificate;
 
+#[allow(clippy::module_name_repetitions)]
 pub struct DbStore {
     connection: Arc<TransactionDB>,
 }
@@ -34,7 +35,7 @@ impl DbStore {
 
         let block_id_key = block_hash_key(&hash_str);
         let certificates_key = certificates_key(&hash_str);
-        let height_key = block_height_key(&block.header.height);
+        let height_key = block_height_key(block.header.height);
         let members_key = members_key(&hash_str);
         let merkle_tree_key = merkle_tree_key(&hash_str);
 

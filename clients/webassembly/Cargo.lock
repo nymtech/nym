@@ -2503,6 +2503,7 @@ version = "1.1.15"
 dependencies = [
  "async-trait",
  "base64 0.21.2",
+ "cfg-if 1.0.0",
  "dashmap",
  "dirs 4.0.0",
  "futures",
@@ -2676,6 +2677,7 @@ version = "0.1.0"
 dependencies = [
  "bls12_381 0.5.0",
  "cosmrs",
+ "log",
  "nym-api-requests",
  "nym-coconut-interface",
  "nym-crypto",

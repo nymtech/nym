@@ -100,6 +100,7 @@ jobs:
             nym-connect/desktop/target/release/bundle/msi/*.msi.zip*
       - id: release-info
         name: Prepare release info
+        shell: bash
         run: |
           ref=${{ github.ref_name }}
           semver="${ref##nym-connect-}" && semver="${semver##v}"

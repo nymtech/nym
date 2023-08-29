@@ -113,7 +113,7 @@ impl Serializable for Socks5Request {
     fn into_bytes(self) -> Vec<u8> {
         if let Some(version) = self.protocol_version.as_u8() {
             std::iter::once(version)
-                .chain(self.content.into_bytes().into_iter())
+                .chain(self.content.into_bytes())
                 .collect()
         } else {
             std::iter::once(Self::LEGACY_TYPE_TAG)
@@ -335,12 +335,12 @@ impl Socks5RequestContent {
                 let remote_address_bytes_len = remote_address_bytes.len() as u16;
 
                 let iter = std::iter::once(RequestFlag::Connect as u8)
-                    .chain(req.conn_id.to_be_bytes().into_iter())
-                    .chain(remote_address_bytes_len.to_be_bytes().into_iter())
-                    .chain(remote_address_bytes.into_iter());
+                    .chain(req.conn_id.to_be_bytes())
+                    .chain(remote_address_bytes_len.to_be_bytes())
+                    .chain(remote_address_bytes);
 
                 if let Some(return_address) = req.return_address {
-                    iter.chain(return_address.to_bytes().into_iter()).collect()
+                    iter.chain(return_address.to_bytes()).collect()
                 } else {
                     iter.collect()
                 }
@@ -358,7 +358,7 @@ impl Socks5RequestContent {
                     })
                     .unwrap_or_default();
                 std::iter::once(RequestFlag::Query as u8)
-                    .chain(query_bytes.into_iter())
+                    .chain(query_bytes)
                     .collect()
             }
         }
@@ -495,7 +495,7 @@ mod request_deserialization_tests {
             let request_bytes: Vec<_> = request_bytes_prefix
                 .iter()
                 .cloned()
-                .chain(recipient_bytes.into_iter())
+                .chain(recipient_bytes)
                 .collect();
             assert!(Socks5RequestContent::try_from_bytes(&request_bytes)
                 .unwrap_err()
@@ -530,10 +530,7 @@ mod request_deserialization_tests {
             let recipient = Recipient::try_from_base58_string("CytBseW6yFXUMzz4SGAKdNLGR7q3sJLLYxyBGvutNEQV.4QXYyEVc5fUDjmmi8PrHN9tdUFV4PCvSJE1278cHyvoe@4sBbL1ngf1vtNqykydQKTFh26sQCw888GpUqvPvyNB4f").unwrap();
             let recipient_bytes = recipient.to_bytes();
 
-            let request_bytes: Vec<_> = request_bytes
-                .into_iter()
-                .chain(recipient_bytes.into_iter())
-                .collect();
+            let request_bytes: Vec<_> = request_bytes.into_iter().chain(recipient_bytes).collect();
 
             let request = Socks5RequestContent::try_from_bytes(&request_bytes).unwrap();
             match request {
@@ -577,10 +574,7 @@ mod request_deserialization_tests {
             let recipient = Recipient::try_from_base58_string("CytBseW6yFXUMzz4SGAKdNLGR7q3sJLLYxyBGvutNEQV.4QXYyEVc5fUDjmmi8PrHN9tdUFV4PCvSJE1278cHyvoe@4sBbL1ngf1vtNqykydQKTFh26sQCw888GpUqvPvyNB4f").unwrap();
             let recipient_bytes = recipient.to_bytes();
 
-            let request_bytes: Vec<_> = request_bytes
-                .into_iter()
-                .chain(recipient_bytes.into_iter())
-                .collect();
+            let request_bytes: Vec<_> = request_bytes.into_iter().chain(recipient_bytes).collect();
 
             let request = Socks5RequestContent::try_from_bytes(&request_bytes).unwrap();
             match request {

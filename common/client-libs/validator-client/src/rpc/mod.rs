@@ -11,7 +11,26 @@ use tendermint_rpc::{
     Error, Order, Paging, SimpleRequest,
 };
 
+#[cfg(feature = "http-client")]
+use crate::error::TendermintRpcError;
+#[cfg(feature = "http-client")]
+use crate::HttpRpcClient;
+#[cfg(feature = "http-client")]
+use tendermint_rpc::client::CompatMode;
+#[cfg(feature = "http-client")]
+use tendermint_rpc::HttpClientUrl;
+
 pub mod reqwest;
+
+#[cfg(feature = "http-client")]
+pub fn http_client<U>(url: U) -> Result<HttpRpcClient, TendermintRpcError>
+where
+    U: TryInto<HttpClientUrl, Error = Error>,
+{
+    HttpRpcClient::builder(url.try_into()?)
+        .compat_mode(CompatMode::V0_34)
+        .build()
+}
 
 // we have to create a sealed trait since `TendermintClient` needs T: Send (due to how async trait is created)
 // which we can't do in wasm

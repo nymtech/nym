@@ -19,6 +19,7 @@ mod geo_ip;
 mod guards;
 mod helpers;
 mod http;
+mod location;
 mod mix_node;
 pub(crate) mod mix_nodes;
 mod overview;
@@ -35,7 +36,7 @@ async fn main() {
     dotenv().ok();
     setup_logging();
     let args = commands::Cli::parse();
-    setup_env(args.config_env_file.as_ref());
+    setup_env(args.config_env_file);
     let mut explorer_api = ExplorerApi::new();
     explorer_api.run().await;
 }

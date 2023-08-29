@@ -106,7 +106,7 @@ fn init_paths(id: &str) -> io::Result<()> {
 }
 
 pub(crate) async fn execute(args: &Init) -> Result<(), NetworkRequesterError> {
-    eprintln!("Initialising client...");
+    log::info!("Initialising client...");
 
     let id = &args.id;
 
@@ -114,7 +114,7 @@ pub(crate) async fn execute(args: &Init) -> Result<(), NetworkRequesterError> {
         // in case we're using old config, try to upgrade it
         // (if we're using the current version, it's a no-op)
         try_upgrade_config(id)?;
-        eprintln!("Client \"{id}\" was already initialised before");
+        log::info!("Client \"{id}\" was already initialised before");
         true
     } else {
         init_paths(&args.id)?;
@@ -125,7 +125,7 @@ pub(crate) async fn execute(args: &Init) -> Result<(), NetworkRequesterError> {
     // re-registering if wanted.
     let user_wants_force_register = args.force_register_gateway;
     if user_wants_force_register {
-        eprintln!("Instructed to force registering gateway. This might overwrite keys!");
+        log::warn!("Instructed to force registering gateway. This might overwrite keys!");
     }
 
     // If the client was already initialized, don't generate new keys and don't re-register with
@@ -142,6 +142,7 @@ pub(crate) async fn execute(args: &Init) -> Result<(), NetworkRequesterError> {
 
     // Load and potentially override config
     let config = override_config(Config::new(id), OverrideConfig::from(args.clone()));
+    log::debug!("Using config: {:#?}", config);
 
     // Setup gateway by either registering a new one, or creating a new config from the selected
     // one but with keys kept, or reusing the gateway configuration.
@@ -156,21 +157,21 @@ pub(crate) async fn execute(args: &Init) -> Result<(), NetworkRequesterError> {
         Some(&config.base.client.nym_api_urls),
     )
     .await
-    .tap_err(|err| eprintln!("Failed to setup gateway\nError: {err}"))?
+    .tap_err(|err| log::error!("Failed to setup gateway\nError: {err}"))?
     .details;
 
     let config_save_location = config.default_location();
     config.save_to_default_location().tap_err(|_| {
         log::error!("Failed to save the config file");
     })?;
-    eprintln!(
+    log::info!(
         "Saved configuration file to {}",
         config_save_location.display()
     );
 
     let address = init_details.client_address()?;
 
-    eprintln!("Client configuration completed.\n");
+    log::info!("Client configuration completed.\n");
 
     let init_results = InitResults::new(&config, &address, &init_details.gateway_details);
     println!("{}", args.output.format(&init_results));

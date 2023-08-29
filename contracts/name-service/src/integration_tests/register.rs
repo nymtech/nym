@@ -265,7 +265,6 @@ fn can_register_multiple_names_for_the_same_nym_address(mut setup: TestSetup) {
     let reg_name2 = reg_name2.sign(payload);
     setup.register(&reg_name2, &owner);
 
-    dbg!(&setup.query_all().names);
     assert_eq!(
         setup.query_all().names,
         vec![

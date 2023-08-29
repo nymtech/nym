@@ -1,6 +1,6 @@
 use nym_api_requests::models::NodePerformance;
 use nym_contracts_common::Percent;
-use nym_mixnet_contract_common::{Addr, Coin, Layer, MixId, MixNode};
+use nym_mixnet_contract_common::{Addr, Coin, Gateway, Layer, MixId, MixNode};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -41,4 +41,14 @@ pub struct Location {
     pub country_name: String,
     pub latitude: Option<f64>,
     pub longitude: Option<f64>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+pub struct PrettyDetailedGatewayBond {
+    pub pledge_amount: Coin,
+    pub owner: Addr,
+    pub block_height: u64,
+    pub gateway: Gateway,
+    pub proxy: Option<Addr>,
+    pub location: Option<Location>,
 }

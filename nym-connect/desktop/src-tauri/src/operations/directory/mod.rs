@@ -8,6 +8,7 @@ use crate::{
 };
 use itertools::Itertools;
 use nym_api_requests::models::GatewayBondAnnotated;
+use nym_bin_common::version_checker::is_minor_version_compatible;
 use nym_config::defaults::var_names::{NETWORK_NAME, NYM_API};
 use nym_contracts_common::types::Percent;
 use nym_validator_client::nym_api::Client as ApiClient;
@@ -120,7 +121,17 @@ fn filter_out_inactive_services(
 
 async fn fetch_gateways() -> Result<Vec<GatewayBondAnnotated>> {
     let api_client = ApiClient::new(Url::from_str(&std::env::var(NYM_API)?)?);
-    Ok(api_client.get_gateways_detailed().await?)
+    let gateways = api_client.get_gateways_detailed().await?;
+    let our_version = env!("CARGO_PKG_VERSION");
+    log::debug!(
+        "Our version that we use to filter compatible gateways: {}",
+        our_version
+    );
+    let gateways = gateways
+        .into_iter()
+        .filter(|g| is_minor_version_compatible(&g.gateway_bond.gateway.version, our_version))
+        .collect();
+    Ok(gateways)
 }
 
 #[tauri::command]

@@ -1,6 +1,6 @@
 [package]
 name = "nym-connect"
-version = "1.1.18"
+version = "1.1.19"
 description = "nym-connect"
 authors = ["Nym Technologies SA"]
 license = ""
@@ -61,7 +61,7 @@ nym-task = { path = "../../../common/task" }
 nym-validator-client = { path = "../../../common/client-libs/validator-client" }
 
 [dev-dependencies]
-ts-rs = "6.1.2"
+ts-rs = "7.0.0"
 tempfile = "3.3.0"
 
 [features]

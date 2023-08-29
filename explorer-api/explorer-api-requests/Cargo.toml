@@ -9,4 +9,4 @@ nym-mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mix
 nym-api-requests = { path = "../../nym-api/nym-api-requests" }
 schemars = { version = "0.8", features = ["preserve_order"] }
 serde = { version = "1.0", features = ["derive"] }
-ts-rs = { version = "6.1.2", optional = true }
+ts-rs = { workspace = true, optional = true }

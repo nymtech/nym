@@ -67,15 +67,15 @@ impl ServerResponse {
         if let Some(sender_tag) = reconstructed_message.sender_tag {
             std::iter::once(ServerResponseTag::Received as u8)
                 .chain(std::iter::once(true as u8))
-                .chain(sender_tag.to_bytes().into_iter())
+                .chain(sender_tag.to_bytes())
                 .chain(message_len_bytes.iter().cloned())
-                .chain(reconstructed_message.message.into_iter())
+                .chain(reconstructed_message.message)
                 .collect()
         } else {
             std::iter::once(ServerResponseTag::Received as u8)
                 .chain(std::iter::once(false as u8))
                 .chain(message_len_bytes.iter().cloned())
-                .chain(reconstructed_message.message.into_iter())
+                .chain(reconstructed_message.message)
                 .collect()
         }
     }
@@ -149,7 +149,7 @@ impl ServerResponse {
     // SELF_ADDRESS_RESPONSE_TAG || self_address
     fn serialize_self_address(address: Recipient) -> Vec<u8> {
         std::iter::once(ServerResponseTag::SelfAddress as u8)
-            .chain(address.to_bytes().into_iter())
+            .chain(address.to_bytes())
             .collect()
     }
 
@@ -211,8 +211,8 @@ impl ServerResponse {
         let message_len_bytes = (error.message.len() as u64).to_be_bytes();
         std::iter::once(ServerResponseTag::Error as u8)
             .chain(std::iter::once(error.kind as u8))
-            .chain(message_len_bytes.into_iter())
-            .chain(error.message.into_bytes().into_iter())
+            .chain(message_len_bytes)
+            .chain(error.message.into_bytes())
             .collect()
     }
 

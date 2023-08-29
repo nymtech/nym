@@ -3,7 +3,10 @@
 
 use nym_config::defaults::NymNetworkDetails;
 use nym_crypto::asymmetric::identity;
-use nym_sphinx::params::{PacketSize, PacketType};
+use nym_sphinx::{
+    addressing::clients::Recipient,
+    params::{PacketSize, PacketType},
+};
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use url::Url;
@@ -480,11 +483,19 @@ pub struct Topology {
     pub topology_structure: TopologyStructure,
 }
 
+#[allow(clippy::large_enum_variant)]
 #[derive(Default, Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum TopologyStructure {
     #[default]
     NymApi,
-    GeoAware(CountryGroup),
+    GeoAware(GroupBy),
+}
+
+#[allow(clippy::large_enum_variant)]
+#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub enum GroupBy {
+    CountryGroup(CountryGroup),
+    NymAddress(Recipient),
 }
 
 impl Default for Topology {

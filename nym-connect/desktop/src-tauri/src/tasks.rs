@@ -1,12 +1,9 @@
 use futures::{channel::mpsc, StreamExt};
 use nym_client_core::{
-    client::{
-        base_client::storage::{
-            gateway_details::GatewayDetailsStore, MixnetClientStorage, OnDiskPersistent,
-        },
-        topology_control::geo_aware_provider::CountryGroup,
+    client::base_client::storage::{
+        gateway_details::GatewayDetailsStore, MixnetClientStorage, OnDiskPersistent,
     },
-    config::{GatewayEndpointConfig, TopologyStructure},
+    config::{GatewayEndpointConfig, GroupBy, TopologyStructure},
     error::ClientCoreStatusMessage,
 };
 use nym_socks5_client_core::{NymClient as Socks5NymClient, Socks5ControlMessageSender};
@@ -54,12 +51,17 @@ fn override_config_from_env(config: &mut Config, privacy_level: &PrivacyLevel) {
         config.core.base.set_no_per_hop_delays();
 
         // TODO: selectable in the UI
-        let default_country_group = CountryGroup::Europe;
-        log::warn!("Using geo-aware mixnode selection: {default_country_group}");
+        let address = config
+            .core
+            .socks5
+            .provider_mix_address
+            .parse()
+            .expect("failed to parse provider mix address");
+        log::warn!("Using geo-aware mixnode selection baseon the location of: {address}");
         config
             .core
             .base
-            .set_topology_structure(TopologyStructure::GeoAware(default_country_group));
+            .set_topology_structure(TopologyStructure::GeoAware(GroupBy::NymAddress(address)));
     }
 }
 

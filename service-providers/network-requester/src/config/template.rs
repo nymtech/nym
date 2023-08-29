@@ -37,7 +37,7 @@ nym_api_urls = [
     {{/each}}
 ]
 
-[storage_paths] 
+[storage_paths]
 
 # Path to file containing private identity key.
 keys.private_identity_key_file = '{{ storage_paths.keys.private_identity_key_file }}'
@@ -74,6 +74,14 @@ allowed_list_location = '{{ storage_paths.allowed_list_location }}'
 
 # Location of the file containing our unknown.list
 unknown_list_location = '{{ storage_paths.unknown_list_location }}'
+
+
+[network_requester]
+
+# Disable Poisson sending rate, and only send cover traffic occasionally as keepalive messages.
+# This is equivalent to setting debug.traffic.disable_main_poisson_packet_distribution = true,
+# and debug.cover_traffic.loop_cover_traffic_average_delay = 5s.
+disable_poisson_rate = {{ network_requester.disable_poisson_rate }}
 
 
 ##### logging configuration options #####

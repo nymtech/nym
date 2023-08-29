@@ -104,7 +104,7 @@ fn block_hash_key(block_hash: &str) -> String {
     format!("{PREFIX_BLOCK_HASH}:{block_hash}")
 }
 
-fn block_height_key(height: &u64) -> String {
+fn block_height_key(height: u64) -> String {
     format!("{PREFIX_BLOCK_HEIGHT}:{height}")
 }
 

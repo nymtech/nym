@@ -71,7 +71,7 @@ where
     pub fn into_bytes(self) -> Vec<u8> {
         if let Some(version) = self.interface_version.as_u8() {
             std::iter::once(version)
-                .chain(self.content.into_bytes(self.interface_version).into_iter())
+                .chain(self.content.into_bytes(self.interface_version))
                 .collect()
         } else {
             self.content.into_bytes(self.interface_version)
@@ -127,7 +127,7 @@ where
             }
         } else {
             std::iter::once(self.tag() as u8)
-                .chain(self.serialize_inner().into_iter())
+                .chain(self.serialize_inner())
                 .collect()
         }
     }

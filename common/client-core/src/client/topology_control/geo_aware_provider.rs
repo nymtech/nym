@@ -1,26 +1,70 @@
 use std::{collections::HashMap, fmt};
 
 use log::{debug, error, info};
-use nym_explorer_api_requests::PrettyDetailedMixNodeBond;
+use nym_explorer_api_requests::{PrettyDetailedGatewayBond, PrettyDetailedMixNodeBond};
+use nym_network_defaults::var_names::EXPLORER_API;
 use nym_topology::{
     nym_topology_from_detailed,
     provider_trait::{async_trait, TopologyProvider},
     NymTopology,
 };
-use nym_validator_client::client::MixId;
+use nym_validator_client::client::{IdentityKey, MixId};
 use rand::{prelude::SliceRandom, thread_rng};
 use serde::{Deserialize, Serialize};
+use tap::TapOptional;
 use url::Url;
 
+use crate::config::GroupBy;
+
 const MIN_NODES_PER_LAYER: usize = 1;
-const EXPLORER_API_MIXNODES_URL: &str = "https://explorer.nymtech.net/api/v1/mix-nodes";
+
+#[cfg(target_arch = "wasm32")]
+fn reqwest_client() -> Option<reqwest::Client> {
+    reqwest::Client::builder().build().ok()
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn reqwest_client() -> Option<reqwest::Client> {
+    reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(5))
+        .build()
+        .ok()
+}
 
 // TODO: create a explorer-api-client
 async fn fetch_mixnodes_from_explorer_api() -> Option<Vec<PrettyDetailedMixNodeBond>> {
-    reqwest::get(EXPLORER_API_MIXNODES_URL)
+    let explorer_api_url = std::env::var(EXPLORER_API).ok()?;
+    let explorer_api_url = Url::parse(&explorer_api_url)
+        .ok()?
+        .join("v1/mix-nodes")
+        .ok()?;
+
+    debug!("Fetching: {}", explorer_api_url);
+    reqwest_client()?
+        .get(explorer_api_url)
+        .send()
         .await
         .ok()?
         .json::<Vec<PrettyDetailedMixNodeBond>>()
+        .await
+        .ok()
+}
+
+// TODO: create a explorer-api-client
+async fn fetch_gateways_from_explorer_api() -> Option<Vec<PrettyDetailedGatewayBond>> {
+    let explorer_api_url = std::env::var(EXPLORER_API).ok()?;
+    let explorer_api_url = Url::parse(&explorer_api_url)
+        .ok()?
+        .join("v1/gateways")
+        .ok()?;
+
+    debug!("Fetching: {}", explorer_api_url);
+    reqwest_client()?
+        .get(explorer_api_url)
+        .send()
+        .await
+        .ok()?
+        .json::<Vec<PrettyDetailedGatewayBond>>()
         .await
         .ok()
 }
@@ -191,6 +235,23 @@ fn group_mixnodes_by_country_code(
         })
 }
 
+fn group_gateways_by_country_code(
+    gateways: Vec<PrettyDetailedGatewayBond>,
+) -> HashMap<CountryGroup, Vec<IdentityKey>> {
+    gateways.into_iter().fold(
+        HashMap::<CountryGroup, Vec<IdentityKey>>::new(),
+        |mut acc, g| {
+            if let Some(ref location) = g.location {
+                let country_code = location.two_letter_iso_country_code.clone();
+                let group_code = CountryGroup::new(country_code.as_str());
+                let gateways = acc.entry(group_code).or_insert_with(Vec::new);
+                gateways.push(g.gateway.identity_key)
+            }
+            acc
+        },
+    )
+}
+
 fn log_mixnode_distribution(mixnodes: &HashMap<CountryGroup, Vec<MixId>>) {
     let mixnode_distribution = mixnodes
         .iter()
@@ -198,6 +259,15 @@ fn log_mixnode_distribution(mixnodes: &HashMap<CountryGroup, Vec<MixId>>) {
         .collect::<Vec<_>>()
         .join(", ");
     debug!("Mixnode distribution - {}", mixnode_distribution);
+}
+
+fn log_gateway_distribution(gateways: &HashMap<CountryGroup, Vec<IdentityKey>>) {
+    let gateway_distribution = gateways
+        .iter()
+        .map(|(k, v)| format!("{}: {}", k, v.len()))
+        .collect::<Vec<_>>()
+        .join(", ");
+    debug!("Gateway distribution - {}", gateway_distribution);
 }
 
 fn check_layer_integrity(topology: NymTopology) -> Result<(), ()> {
@@ -222,7 +292,7 @@ fn check_layer_integrity(topology: NymTopology) -> Result<(), ()> {
 
 pub struct GeoAwareTopologyProvider {
     validator_client: nym_validator_client::client::NymApiClient,
-    filter_on: CountryGroup,
+    filter_on: GroupBy,
     client_version: String,
 }
 
@@ -230,7 +300,7 @@ impl GeoAwareTopologyProvider {
     pub fn new(
         mut nym_api_urls: Vec<Url>,
         client_version: String,
-        filter_on: CountryGroup,
+        filter_on: GroupBy,
     ) -> GeoAwareTopologyProvider {
         log::info!(
             "Creating geo-aware topology provider with filter on {:?}",
@@ -272,6 +342,38 @@ impl GeoAwareTopologyProvider {
             return None;
         };
 
+        debug!("Fetching gateways from explorer-api...");
+        let Some(gateways_from_explorer_api) = fetch_gateways_from_explorer_api().await else {
+            error!("failed to get mixnodes from explorer-api");
+            return None;
+        };
+
+        // Determine what we should filter around
+        let filter_on = match self.filter_on {
+            GroupBy::CountryGroup(group) => group,
+            GroupBy::NymAddress(recipient) => {
+                // Convert recipient into a country group by extracting out the gateway part and
+                // using that as the country code.
+                let gateway = recipient.gateway().to_base58_string();
+
+                // Lookup the location of this gateway by using the location data from the
+                // explorer-api
+                let gateway_location = gateways_from_explorer_api
+                    .iter()
+                    .find(|g| g.gateway.identity_key == gateway)
+                    .and_then(|g| g.location.clone())
+                    .map(|location| location.two_letter_iso_country_code)
+                    .tap_none(|| error!("No location found for the gateway: {}", gateway))?;
+                debug!(
+                    "Filtering on nym-address: {}, with location: {}",
+                    recipient, gateway_location
+                );
+
+                CountryGroup::new(&gateway_location)
+            }
+        };
+        debug!("Filter group: {}", filter_on);
+
         // Partition mixnodes_from_explorer_api according to the value of
         // two_letter_iso_country_code.
         // NOTE: we construct the full distribution here, but only use the one we're interested in.
@@ -280,14 +382,27 @@ impl GeoAwareTopologyProvider {
         let mixnode_distribution = group_mixnodes_by_country_code(mixnodes_from_explorer_api);
         log_mixnode_distribution(&mixnode_distribution);
 
-        let Some(filtered_mixnode_ids) = mixnode_distribution.get(&self.filter_on) else {
-            error!("no mixnodes found for: {}", self.filter_on);
+        let gateway_distribution = group_gateways_by_country_code(gateways_from_explorer_api);
+        log_gateway_distribution(&gateway_distribution);
+
+        let Some(filtered_mixnode_ids) = mixnode_distribution.get(&filter_on) else {
+            error!("no mixnodes found for: {}", filter_on);
+            return None;
+        };
+
+        let Some(filtered_gateway_ids) = gateway_distribution.get(&filter_on) else {
+            error!("no gateways found for: {}", filter_on);
             return None;
         };
 
         let mixnodes = mixnodes
             .into_iter()
             .filter(|m| filtered_mixnode_ids.contains(&m.mix_id()))
+            .collect::<Vec<_>>();
+
+        let gateways = gateways
+            .into_iter()
+            .filter(|g| filtered_gateway_ids.contains(g.identity()))
             .collect::<Vec<_>>();
 
         let topology = nym_topology_from_detailed(mixnodes, gateways)

@@ -211,7 +211,7 @@ impl<A: Application> EphemeraStarterWithApplication<A> {
     #[cfg(feature = "rocksdb_storage")]
     fn connect_rocksdb(&self) -> anyhow::Result<RocksDbStorage> {
         info!("Opening database...");
-        RocksDbStorage::open(self.init.config.storage.clone())
+        RocksDbStorage::open(&self.init.config.storage)
             .map_err(|e| anyhow::anyhow!("Failed to open database: {}", e))
     }
 

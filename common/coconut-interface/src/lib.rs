@@ -8,7 +8,14 @@ use serde::{Deserialize, Serialize};
 
 use error::CoconutInterfaceError;
 
-pub use nym_coconut::*;
+// We list these explicity instead of glob export due to shadowing warnings with the pub tests
+// module.
+pub use nym_coconut::{
+    aggregate_signature_shares, aggregate_verification_keys, blind_sign, hash_to_scalar,
+    prepare_blind_sign, prove_bandwidth_credential, Attribute, Base58, BlindSignRequest,
+    BlindedSignature, Bytable, CoconutError, KeyPair, Parameters, PrivateAttribute,
+    PublicAttribute, Signature, SignatureShare, Theta, VerificationKey,
+};
 
 #[derive(Debug, Serialize, Deserialize, Getters, CopyGetters, Clone, PartialEq, Eq)]
 pub struct Credential {
@@ -57,7 +64,7 @@ impl Credential {
 
     pub fn verify(&self, verification_key: &VerificationKey) -> bool {
         let params = Parameters::new(self.n_params).unwrap();
-        let public_attributes = vec![
+        let public_attributes = [
             self.voucher_value.to_string().as_bytes(),
             self.voucher_info.as_bytes(),
         ]
@@ -138,6 +145,8 @@ impl Base58 for Credential {}
 
 #[cfg(test)]
 mod tests {
+    use nym_coconut::{prove_bandwidth_credential, Signature};
+
     use super::*;
 
     #[test]

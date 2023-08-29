@@ -125,7 +125,7 @@ jobs:
           v=$(rg '^version = "(.*)"' -or '$1' tools/nym-cli/Cargo.toml) && echo "cli_version=$v" >> "$GITHUB_OUTPUT"
           v=$(rg '^version = "(.*)"' -or '$1' service-providers/network-statistics/Cargo.toml) && echo "netstat_version=$v" >> "$GITHUB_OUTPUT"
 
-      - id: get platform version
+      - id: get-platform-version
         name: get platform version
         run: |
           echo "::set-output name=platform::$(uname -r)"

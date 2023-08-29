@@ -99,7 +99,8 @@ impl NoisePattern {
         match self.as_str().find("psk") {
             Some(n) => {
                 let psk_index = n + 3;
-                u8::try_from(self.as_str().chars().nth(psk_index).unwrap()).unwrap()
+                let psk_char = self.as_str().chars().nth(psk_index).unwrap();
+                psk_char.to_string().parse().unwrap()
                 //if this fails, it means hardcoded pattern are wrong
             }
             None => 0,

@@ -149,7 +149,7 @@ pub fn ping_client() {
     });
 }
 
-// Continusouly poll that we are being pinged from the outside. If the pings stop that means 
+// Continusouly poll that we are being pinged from the outside. If the pings stop that means
 // that the higher layer somehow terminated without telling us.
 pub async fn health_check() {
     // init the ping to now
@@ -167,11 +167,11 @@ pub async fn health_check() {
         }
         let mut guard = LAST_HEALTHCHECK_PING.lock().await;
         let Some(last_ping) = *guard else {
-                warn!("client has not been pinged yet - shutting down");
-                *guard = None;
-                stop_and_reset_shutdown_handle().await;
-                break;
-            };
+            warn!("client has not been pinged yet - shutting down");
+            *guard = None;
+            stop_and_reset_shutdown_handle().await;
+            break;
+        };
         if last_ping.elapsed() > HEALTHCHECK_TIMEOUT {
             warn!(
                 "client has not been pinged for more than {} seconds - shutting down",
@@ -199,7 +199,7 @@ pub fn blocking_run_client<'cb, F, S>(
         return;
     }
 
-    // Spawn a task that monitors that we are continuously receiving pings from the outside, 
+    // Spawn a task that monitors that we are continuously receiving pings from the outside,
     // to make sure we don't end up with a runaway process
     RUNTIME.spawn(async { health_check().await });
 

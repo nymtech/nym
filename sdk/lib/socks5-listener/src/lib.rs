@@ -28,12 +28,13 @@ mod persistence;
 
 static SOCKS5_CONFIG_ID: &str = "mobile-socks5-test";
 const ANDROID_HEALTHCHECK_INTERVAL: Duration = Duration::from_secs(5);
+const HEALTHCHECK_TIMEOUT: Duration = Duration::from_secs(10);
 
 // hehe, this is so disgusting : )
 lazy_static! {
     static ref CLIENT_SHUTDOWN_HANDLE: Mutex<Option<Arc<Notify>>> = Mutex::new(None);
     static ref RUNTIME: Runtime = Runtime::new().unwrap();
-    static ref LAST_PING: Mutex<Option<Instant>> = Mutex::new(None);
+    static ref LAST_HEALTHCHECK_PING: Mutex<Option<Instant>> = Mutex::new(None);
 }
 static ENV_SET: AtomicBool = AtomicBool::new(false);
 
@@ -143,9 +144,43 @@ pub fn stop_client() {
 #[ffi_export]
 pub fn ping_client() {
     RUNTIME.spawn(async {
-        let mut guard = LAST_PING.lock().await;
+        let mut guard = LAST_HEALTHCHECK_PING.lock().await;
         *guard = Some(Instant::now());
     });
+}
+
+pub async fn health_check() {
+    // init the ping to now
+    let mut guard = LAST_HEALTHCHECK_PING.lock().await;
+    *guard = Some(Instant::now());
+    // release the mutex
+    drop(guard);
+
+    loop {
+        sleep(ANDROID_HEALTHCHECK_INTERVAL).await;
+
+        if !is_shutdown_handle_set().await {
+            debug!("client has been shutdown, cancelling healthcheck");
+            break;
+        }
+        let mut guard = LAST_HEALTHCHECK_PING.lock().await;
+        let Some(last_ping) = *guard else {
+                warn!("client has not been pinged yet - shutting down");
+                *guard = None;
+                stop_and_reset_shutdown_handle().await;
+                break;
+            };
+        if last_ping.elapsed() > HEALTHCHECK_TIMEOUT {
+            warn!(
+                "client has not been pinged for more than {} seconds - shutting down",
+                HEALTHCHECK_TIMEOUT.as_secs()
+            );
+            *guard = None;
+            stop_and_reset_shutdown_handle().await;
+            break;
+        }
+        debug!("✓ android app healthy");
+    }
 }
 
 pub fn blocking_run_client<'cb, F, S>(
@@ -162,36 +197,7 @@ pub fn blocking_run_client<'cb, F, S>(
         return;
     }
 
-    RUNTIME.spawn(async move {
-        // init the ping to now
-        let mut guard = LAST_PING.lock().await;
-        *guard = Some(Instant::now());
-        // release the mutex
-        drop(guard);
-
-        loop {
-            sleep(ANDROID_HEALTHCHECK_INTERVAL).await;
-
-            if !is_shutdown_handle_set().await {
-                debug!("client has been shutdown, cancelling healthcheck");
-                break;
-            }
-            let mut guard = LAST_PING.lock().await;
-            let Some(last_ping) = *guard else {
-                warn!("client has not been pinged yet - shutting down");
-                *guard = None;
-                stop_and_reset_shutdown_handle().await;
-                break;
-            };
-            if last_ping.elapsed() > Duration::from_secs(10) {
-                warn!("client has not been pinged for more than 10 seconds - shutting down");
-                *guard = None;
-                stop_and_reset_shutdown_handle().await;
-                break;
-            }
-            debug!("✓ android app healthy");
-        }
-    });
+    RUNTIME.spawn(async { health_check().await });
 
     let storage_dir = storage_directory.map(|s| s.to_string());
     let service_provider = service_provider.map(|s| s.to_string());

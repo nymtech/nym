@@ -2,7 +2,6 @@ use crate::ClientState;
 use ::safer_ffi::prelude::*;
 use jni::{
     objects::{JClass, JObject, JString},
-    sys::jboolean,
     sys::jint,
     JNIEnv,
 };

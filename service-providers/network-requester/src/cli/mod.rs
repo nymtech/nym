@@ -36,17 +36,17 @@ fn pretty_build_info_static() -> &'static str {
 }
 
 #[derive(Parser)]
-#[clap(author = "Nymtech", version, about, long_version = pretty_build_info_static())]
+#[command(author = "Nymtech", version, about, long_version = pretty_build_info_static())]
 pub(crate) struct Cli {
     /// Path pointing to an env file that configures the client.
-    #[clap(short, long)]
+    #[arg(short, long)]
     pub(crate) config_env_file: Option<std::path::PathBuf>,
 
     /// Flag used for disabling the printed banner in tty.
-    #[clap(long)]
+    #[arg(long)]
     pub(crate) no_banner: bool,
 
-    #[clap(subcommand)]
+    #[command(subcommand)]
     command: Commands,
 }
 

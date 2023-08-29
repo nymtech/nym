@@ -16,39 +16,39 @@ const ENABLE_STATISTICS: &str = "enable-statistics";
 #[derive(Args, Clone)]
 pub(crate) struct Run {
     /// Id of the nym-mixnet-client we want to run.
-    #[clap(long)]
+    #[arg(long)]
     id: String,
 
     /// Specifies whether this network requester should run in 'open-proxy' mode
-    #[clap(long)]
+    #[arg(long)]
     open_proxy: bool,
 
     /// Enable service anonymized statistics that get sent to a statistics aggregator server
-    #[clap(long)]
+    #[arg(long)]
     enable_statistics: bool,
 
     /// Mixnet client address where a statistics aggregator is running. The default value is a Nym
     /// aggregator client
-    #[clap(long)]
+    #[arg(long)]
     statistics_recipient: Option<String>,
 
     /// Set this client to work in a enabled credentials mode that would attempt to use gateway
     /// with bandwidth credential requirement.
-    #[clap(long)]
+    #[arg(long)]
     enabled_credentials_mode: Option<bool>,
 
     /// Mostly debug-related option to increase default traffic rate so that you would not need to
     /// modify config post init
-    #[clap(long, hide = true)]
+    #[arg(long, hide = true)]
     fastmode: bool,
 
     /// Disable loop cover traffic and the Poisson rate limiter (for debugging only)
-    #[clap(long, hide = true)]
+    #[arg(long, hide = true)]
     no_cover: bool,
 
     /// Enable medium mixnet traffic, for experiments only.
     /// This includes things like disabling cover traffic, no per hop delays, etc.
-    #[clap(long, hide = true)]
+    #[arg(long, hide = true)]
     medium_toggle: bool,
 }
 

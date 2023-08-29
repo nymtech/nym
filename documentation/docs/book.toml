@@ -48,8 +48,8 @@ assets_version = "2.0.0" # do not edit: managed by `mdbook-admonish install`
 # https://gitlab.com/tglman/mdbook-variables/
 [preprocessor.variables.variables]
 minimum_rust_version = "1.66"
-platform_release_version = "v1.1.28"
-wallet_release_version = "v1.2.7"
+platform_release_version = "1.1.29"
+wallet_release_version = "1.2.8"
 
 [preprocessor.last-changed]
 command = "mdbook-last-changed"

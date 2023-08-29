@@ -9,7 +9,7 @@ use crate::{
     error::NetworkRequesterError,
 };
 use clap::{CommandFactory, Parser, Subcommand};
-use log::{error, info};
+use log::{error, info, trace};
 use nym_bin_common::bin_info;
 use nym_bin_common::completions::{fig_generate, ArgShell};
 use nym_bin_common::version_checker;
@@ -165,6 +165,7 @@ fn persist_gateway_details(
 }
 
 fn try_upgrade_v1_1_13_config(id: &str) -> Result<bool, NetworkRequesterError> {
+    trace!("Trying to load as v1.1.13 config");
     use nym_config::legacy_helpers::nym_config::MigrationNymConfig;
 
     // explicitly load it as v1.1.13 (which is incompatible with the next step, i.e. 1.1.19)
@@ -186,6 +187,7 @@ fn try_upgrade_v1_1_13_config(id: &str) -> Result<bool, NetworkRequesterError> {
 }
 
 fn try_upgrade_v1_1_20_config(id: &str) -> Result<bool, NetworkRequesterError> {
+    trace!("Trying to load as v1.1.20 config");
     use nym_config::legacy_helpers::nym_config::MigrationNymConfig;
 
     // explicitly load it as v1.1.20 (which is incompatible with the current one, i.e. +1.1.21)
@@ -207,6 +209,8 @@ fn try_upgrade_v1_1_20_config(id: &str) -> Result<bool, NetworkRequesterError> {
 }
 
 fn try_upgrade_v1_1_20_2_config(id: &str) -> Result<bool, NetworkRequesterError> {
+    trace!("Trying to load as v1.1.20_2 config");
+
     // explicitly load it as v1.1.20_2 (which is incompatible with the current one, i.e. +1.1.21)
     let Ok(old_config) = ConfigV1_1_20_2::read_from_default_path(id) else {
         // if we failed to load it, there might have been nothing to upgrade
@@ -224,6 +228,7 @@ fn try_upgrade_v1_1_20_2_config(id: &str) -> Result<bool, NetworkRequesterError>
 }
 
 fn try_upgrade_config(id: &str) -> Result<(), NetworkRequesterError> {
+    trace!("Attempting to upgrade config");
     if try_upgrade_v1_1_13_config(id)? {
         return Ok(());
     }

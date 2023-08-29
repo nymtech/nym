@@ -3,6 +3,7 @@
 
 use crate::config::persistence::NetworkRequesterPaths;
 use crate::config::{default_config_filepath, Config, Debug, NetworkRequester};
+use log::trace;
 use nym_bin_common::logging::LoggingSettings;
 use nym_client_core::config::disk_persistence::old_v1_1_20_2::CommonClientPathsV1_1_20_2;
 use nym_client_core::config::old_config_v1_1_20_2::ConfigV1_1_20_2 as BaseClientConfigV1_1_20_2;
@@ -58,6 +59,7 @@ impl ConfigV1_1_20_2 {
     // in this upgrade, gateway endpoint configuration was moved out of the config file,
     // so its returned to be stored elsewhere.
     pub fn upgrade(self) -> (Config, GatewayEndpointConfig) {
+        trace!("Upgrading from v1.1.20_2");
         let gateway_details = self.base.client.gateway_endpoint.clone().into();
         let nr_description = self
             .storage_paths

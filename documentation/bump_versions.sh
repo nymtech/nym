@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # this takes two args: platform release version and wallet release version.
 # it then uses sed to bump them in the three book.toml files.
 #

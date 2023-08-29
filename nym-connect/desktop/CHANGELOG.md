@@ -2,7 +2,7 @@
 
 ## [Unreleased]
 
-## [v1.1.29-snickers] (2023-08-29)
+## [v1.1.19-snickers] (2023-08-29)
 
 - NymConnect sometimes fails to connect because the gateway it fetches from the validator-api to use is running an old version (of the gateway binary) ([#3788])
 

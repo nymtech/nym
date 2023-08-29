@@ -303,7 +303,7 @@ impl GeoAwareTopologyProvider {
         filter_on: GroupBy,
     ) -> GeoAwareTopologyProvider {
         log::info!(
-            "Creating geo-aware topology provider with filter on {:?}",
+            "Creating geo-aware topology provider with filter on {}",
             filter_on
         );
         nym_api_urls.shuffle(&mut thread_rng());

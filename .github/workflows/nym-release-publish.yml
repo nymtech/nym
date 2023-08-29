@@ -25,7 +25,7 @@ jobs:
 
     outputs:
       release_id: ${{ steps.create-release.outputs.id }}
-      release_date: ${{ fromJSON(steps.create-release.outputs.assets)[0].published_at }}
+      release_date: ${{ fromJSON(steps.create-release.outputs.assets)[0].created_at }}
       client_hash: ${{ steps.binary-hashes.outputs.client_hash }}
       mixnode_hash: ${{ steps.binary-hashes.outputs.mixnode_hash }}
       gateway_hash: ${{ steps.binary-hashes.outputs.gateway_hash }}
@@ -40,6 +40,7 @@ jobs:
       netreq_version: ${{ steps.binary-versions.outputs.netreq_version }}
       cli_version: ${{ steps.binary-versions.outputs.cli_version }}
       netstat_version: ${{ steps.binary-versions.outputs.netstat_version }}
+      platform: ${{ steps.get-platform-version.outputs.platform }}"
 
     steps:
       - uses: actions/checkout@v3
@@ -124,6 +125,11 @@ jobs:
           v=$(rg '^version = "(.*)"' -or '$1' tools/nym-cli/Cargo.toml) && echo "cli_version=$v" >> "$GITHUB_OUTPUT"
           v=$(rg '^version = "(.*)"' -or '$1' service-providers/network-statistics/Cargo.toml) && echo "netstat_version=$v" >> "$GITHUB_OUTPUT"
 
+      - id: get platform version
+        name: get platform version
+        run: |
+          echo "::set-output name=platform::$(uname -r)"
+
   push-release-data-client:
     if: ${{ (startsWith(github.ref, 'refs/tags/nym-binaries-') && github.event_name == 'release') || github.event_name == 'workflow_dispatch' }}
     uses: ./.github/workflows/push-release-data.yml
@@ -139,6 +145,7 @@ jobs:
       file_hash: ${{ needs.publish-nym.outputs.client_hash }}
       name: Client
       category: binaries
+      platform: "${{ needs.publish-nym.outputs.platform }}"
     secrets: inherit
 
   push-release-data-mixnode:
@@ -156,6 +163,7 @@ jobs:
       file_hash: ${{ needs.publish-nym.outputs.mixnode_hash }}
       name: Mixnode
       category: binaries
+      platform: "${{ needs.publish-nym.outputs.platform }}"
     secrets: inherit
 
   push-release-data-gateway:
@@ -173,6 +181,7 @@ jobs:
       file_hash: ${{ needs.publish-nym.outputs.gateway_hash }}
       name: Gateway
       category: binaries
+      platform: "${{ needs.publish-nym.outputs.platform }}"
     secrets: inherit
 
   push-release-data-socks5:
@@ -190,6 +199,7 @@ jobs:
       file_hash: ${{ needs.publish-nym.outputs.socks5_hash }}
       name: Socks5 Client
       category: binaries
+      platform: "${{ needs.publish-nym.outputs.platform }}"
     secrets: inherit
 
   push-release-data-network-requester:
@@ -207,6 +217,7 @@ jobs:
       file_hash: ${{ needs.publish-nym.outputs.netreq_hash }}
       name: Network Requester
       category: binaries
+      platform: "${{ needs.publish-nym.outputs.platform }}"
     secrets: inherit
 
   push-release-data-cli:
@@ -224,6 +235,7 @@ jobs:
       file_hash: ${{ needs.publish-nym.outputs.cli_hash }}
       name: Cli
       category: binaries
+      platform: "${{ needs.publish-nym.outputs.platform }}"
     secrets: inherit
 
   push-release-data-network-stat:
@@ -241,4 +253,5 @@ jobs:
       file_hash: ${{ needs.publish-nym.outputs.netstat_hash }}
       name: Network Statistics
       category: binaries
+      platform: "${{ needs.publish-nym.outputs.platform }}"
     secrets: inherit

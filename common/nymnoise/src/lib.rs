@@ -69,7 +69,6 @@ pub enum NoisePattern {
     NN,
     XXpsk0,
     XKpsk3Var,
-    KKpsk2,
 }
 
 impl NoisePattern {
@@ -81,8 +80,7 @@ impl NoisePattern {
             //DEMO MODE, TO BE DELETED
             Self::NN => "Noise_NN_25519_AESGCM_SHA256",
             Self::XXpsk0 => "Noise_XXpsk0_25519_AESGCM_SHA256",
-            Self::XKpsk3Var => "Noise_XKpsk3_Ed448_ChaChaPoly_Blake2b",
-            Self::KKpsk2 => "Noise_KKpsk2_Ed448_ChaChaPoly_Blake2b",
+            Self::XKpsk3Var => "Noise_XKpsk3_25519_ChaChaPoly_Blake2b",
         }
     }
 
@@ -95,7 +93,6 @@ impl NoisePattern {
         //     Self::NN => 0, //psk will not be used anyway
         //     Self::XXpsk0 => 0,
         //     Self::XKpsk3Var => 3,
-        //     Self::KKpsk2 => 2,
         // }
 
         //automatic parsing, works for correct pattern, more convenient, might be slower though

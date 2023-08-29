@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [v1.1.29-snickers] (2023-08-29)
+
+- NymConnect sometimes fails to connect because the gateway it fetches from the validator-api to use is running an old version (of the gateway binary) ([#3788])
+
+[#3788]: https://github.com/nymtech/nym/issues/3788
+
 ## [1.1.18] (2023-08-22)
 
 - refactor(nc-desktop): use userdata storage to save user gateway&sp ([#3723])

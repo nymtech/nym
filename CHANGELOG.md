@@ -4,6 +4,26 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [v1.1.29-snickers] (2023-08-29)
+
+- Add EXPLORER_API configurable url ([#3810])
+- Bugfix/use correct tendermint dialect ([#3802])
+- Explorer - look up gateways based on geo-location ([#3776])
+- Speedy mode - select the mixnodes based on the location of the NR ([#3775])
+- NR - reduce response time by removing poisson delay ([#3774])
+- [demo] libp2p example with nym-sdk ([#3763])
+- introduced /network/details endpoint to nym-api to return used network information ([#3758])
+- Feature/issue credentials ([#3691])
+
+[#3810]: https://github.com/nymtech/nym/pull/3810
+[#3802]: https://github.com/nymtech/nym/pull/3802
+[#3776]: https://github.com/nymtech/nym/issues/3776
+[#3775]: https://github.com/nymtech/nym/issues/3775
+[#3774]: https://github.com/nymtech/nym/issues/3774
+[#3763]: https://github.com/nymtech/nym/pull/3763
+[#3758]: https://github.com/nymtech/nym/pull/3758
+[#3691]: https://github.com/nymtech/nym/pull/3691
+
 ## [1.1.28] (2023-08-22)
 
 - [final step3]: add [rust] support to nyxd client in wasm ([#3743])

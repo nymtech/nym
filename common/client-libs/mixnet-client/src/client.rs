@@ -135,6 +135,7 @@ impl Client {
 
                     let noise_stream = match upgrade_noise_initiator_with_topology(
                         stream,
+                        Default::default(),
                         &topology_ref,
                         epoch_id,
                         local_public_key,

@@ -27,7 +27,6 @@ use tokio::{
     net::TcpStream,
 };
 
-const NOISE_HS_PATTERN: &str = "Noise_XKpsk3_25519_AESGCM_SHA256";
 const MAXMSGLEN: usize = 65535;
 const TAGLEN: usize = 16;
 const HEADER_SIZE: usize = 2;
@@ -57,6 +56,46 @@ impl From<Error> for NoiseError {
         match err {
             Error::Decrypt => NoiseError::DecryptionError,
             err => NoiseError::ProtocolError(err),
+        }
+    }
+}
+#[derive(Default)]
+pub enum NoisePattern {
+    #[default]
+    XKpsk3,
+    IKpsk2,
+
+    //DEMO MODE, TO BE DELETED
+    NN,
+    XXpsk0,
+    XKpsk3Var,
+    KKpsk2,
+}
+
+impl NoisePattern {
+    fn as_str(&self) -> &'static str {
+        match self {
+            Self::XKpsk3 => "Noise_XKpsk3_25519_AESGCM_SHA256",
+            Self::IKpsk2 => "Noise_IKpsk2_25519_AESGCM_SHA256",
+
+            //DEMO MODE, TO BE DELETED
+            Self::NN => "Noise_NN_25519_AESGCM_SHA256",
+            Self::XXpsk0 => "Noise_XXpsk0_25519_AESGCM_SHA256",
+            Self::XKpsk3Var => "Noise_XKpsk3_Ed448_ChaChaPoly_Blake2b",
+            Self::KKpsk2 => "Noise_KKpsk2_Ed448_ChaChaPoly_Blake2b",
+        }
+    }
+
+    fn psk_position(&self) -> u8 {
+        match self {
+            Self::XKpsk3 => 3,
+            Self::IKpsk2 => 2,
+
+            //DEMO MODE, TO BE DELETED
+            Self::NN => 0, //psk will not be used anyway
+            Self::XXpsk0 => 0,
+            Self::XKpsk3Var => 3,
+            Self::KKpsk2 => 2,
         }
     }
 }
@@ -263,6 +302,7 @@ impl AsyncWrite for NoiseStream {
 
 pub async fn upgrade_noise_initiator(
     conn: TcpStream,
+    pattern: NoisePattern,
     local_public_key: Option<&[u8]>,
     local_private_key: &[u8],
     remote_pub_key: &[u8],
@@ -279,11 +319,10 @@ pub async fn upgrade_noise_initiator(
     .concat();
     let secret_hash = Sha256::digest(secret);
 
-    let builder = Builder::new(NOISE_HS_PATTERN.parse()?);
-    let handshake = builder
+    let handshake = Builder::new(pattern.as_str().parse()?)
         .local_private_key(local_private_key)
         .remote_public_key(remote_pub_key)
-        .psk(3, &secret_hash)
+        .psk(pattern.psk_position(), &secret_hash)
         .build_initiator()?;
 
     let noise_stream = NoiseStream::new(conn, handshake);
@@ -293,6 +332,7 @@ pub async fn upgrade_noise_initiator(
 
 pub async fn upgrade_noise_initiator_with_topology(
     conn: TcpStream,
+    pattern: NoisePattern,
     topology: &NymTopology,
     epoch: u32,
     local_public_key: &[u8],
@@ -319,6 +359,7 @@ pub async fn upgrade_noise_initiator_with_topology(
 
     upgrade_noise_initiator(
         conn,
+        pattern,
         Some(local_public_key),
         local_private_key,
         &remote_pub_key,
@@ -329,6 +370,7 @@ pub async fn upgrade_noise_initiator_with_topology(
 
 pub async fn upgrade_noise_responder(
     conn: TcpStream,
+    pattern: NoisePattern,
     local_public_key: &[u8],
     local_private_key: &[u8],
     remote_pub_key: Option<&[u8]>,
@@ -337,18 +379,15 @@ pub async fn upgrade_noise_responder(
     trace!("Perform Noise Handshake, responder side");
 
     //If the remote_key cannot be kwnown, e.g. in a client-gateway connection
-    let secret = [
-        remote_pub_key.unwrap_or(&[]),
-        local_public_key,
-        &epoch.to_be_bytes(),
-    ]
-    .concat();
+    let remote_public_key = remote_pub_key.unwrap_or(&[]);
+
+    let secret = [remote_public_key, local_public_key, &epoch.to_be_bytes()].concat();
     let secret_hash = Sha256::digest(secret);
 
-    let builder = Builder::new(NOISE_HS_PATTERN.parse()?);
-    let handshake = builder
+    let handshake = Builder::new(pattern.as_str().parse()?)
         .local_private_key(local_private_key)
-        .psk(3, &secret_hash)
+        .remote_public_key(remote_public_key)
+        .psk(pattern.psk_position(), &secret_hash)
         .build_responder()?;
 
     let noise_stream = NoiseStream::new(conn, handshake);
@@ -359,6 +398,7 @@ pub async fn upgrade_noise_responder(
 
 pub async fn upgrade_noise_responder_with_topology(
     conn: TcpStream,
+    pattern: NoisePattern,
     topology: &NymTopology,
     epoch: u32,
     local_public_key: &[u8],
@@ -385,6 +425,7 @@ pub async fn upgrade_noise_responder_with_topology(
 
     upgrade_noise_responder(
         conn,
+        pattern,
         local_public_key,
         local_private_key,
         Some(&remote_pub_key),

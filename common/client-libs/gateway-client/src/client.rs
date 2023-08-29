@@ -196,6 +196,7 @@ impl<C, St> GatewayClient<C, St> {
 
                     let noise_stream = match upgrade_noise_initiator(
                         stream,
+                        Default::default(),
                         None, //as a client, the gateway cannot know my pub key
                         &self.local_sphinx.private_key().to_bytes(),
                         &self.gateway_sphinx.to_bytes(),

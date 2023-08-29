@@ -120,6 +120,7 @@ impl ConnectionHandler {
 
         let noise_stream = match upgrade_noise_responder_with_topology(
             conn,
+            Default::default(),
             &topology_ref,
             epoch_id,
             &self.local_identity.public_key().to_bytes(),

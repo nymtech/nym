@@ -86,6 +86,7 @@ impl Listener {
                             };
                             let noise_stream = match upgrade_noise_responder(
                                 socket,
+                                Default::default(),
                                 &self.local_sphinx.public_key().to_bytes(),
                                 &self.local_sphinx.private_key().to_bytes(),
                                 None, //connection from client, no remote pub key

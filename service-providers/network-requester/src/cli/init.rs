@@ -24,38 +24,38 @@ use tap::TapFallible;
 #[derive(Args, Clone)]
 pub(crate) struct Init {
     /// Id of the nym-mixnet-client we want to create config for.
-    #[clap(long)]
+    #[arg(long)]
     id: String,
 
     /// Id of the gateway we are going to connect to.
-    #[clap(long)]
+    #[arg(long)]
     gateway: Option<identity::PublicKey>,
 
     /// Specifies whether the new gateway should be determined based by latency as opposed to being chosen
     /// uniformly.
-    #[clap(long, conflicts_with = "gateway")]
+    #[arg(long, conflicts_with = "gateway")]
     latency_based_selection: bool,
 
     /// Force register gateway. WARNING: this will overwrite any existing keys for the given id,
     /// potentially causing loss of access.
-    #[clap(long)]
+    #[arg(long)]
     force_register_gateway: bool,
 
     /// Comma separated list of rest endpoints of the nyxd validators
-    #[clap(long, alias = "nymd_validators", value_delimiter = ',')]
+    #[arg(long, alias = "nymd_validators", value_delimiter = ',')]
     nyxd_urls: Option<Vec<url::Url>>,
 
     /// Comma separated list of rest endpoints of the API validators
-    #[clap(long, alias = "api_validators", value_delimiter = ',')]
+    #[arg(long, alias = "api_validators", value_delimiter = ',')]
     // the alias here is included for backwards compatibility (1.1.4 and before)
     nym_apis: Option<Vec<url::Url>>,
 
     /// Set this client to work in a enabled credentials mode that would attempt to use gateway
     /// with bandwidth credential requirement.
-    #[clap(long)]
+    #[arg(long)]
     enabled_credentials_mode: Option<bool>,
 
-    #[clap(short, long, default_value_t = OutputFormat::default())]
+    #[arg(short, long, default_value_t = OutputFormat::default())]
     output: OutputFormat,
 }
 

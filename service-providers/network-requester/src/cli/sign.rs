@@ -13,14 +13,14 @@ use nym_types::helpers::ConsoleSigningOutput;
 #[derive(Args, Clone)]
 pub(crate) struct Sign {
     /// The id of the mixnode you want to sign with
-    #[clap(long)]
+    #[arg(long)]
     id: String,
 
     /// Signs a transaction-specific payload, that is going to be sent to the smart contract, with your identity key
-    #[clap(long)]
+    #[arg(long)]
     contract_msg: String,
 
-    #[clap(short, long, default_value_t = OutputFormat::default())]
+    #[arg(short, long, default_value_t = OutputFormat::default())]
     output: OutputFormat,
 }
 

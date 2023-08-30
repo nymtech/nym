@@ -52,6 +52,8 @@ pub enum CountryGroup {
 impl CountryGroup {
     // We map contry codes into group, which initially are continent codes to a first approximation,
     // but we do it manually to reserve the right to tweak this distribution for our purposes.
+    // NOTE: I did this quickly and it's not a complete list of all countries, but only those that
+    // were present in the network at the time. Please add more as needed.
     fn new(country_code: &str) -> Self {
         let country_code = country_code.to_uppercase();
         use CountryGroup::*;

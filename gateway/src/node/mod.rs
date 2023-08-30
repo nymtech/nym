@@ -29,7 +29,8 @@ pub(crate) mod client_handling;
 pub(crate) mod mixnet_handling;
 pub(crate) mod statistics;
 pub(crate) mod storage;
-pub (crate) mod wireguard;
+mod wg;
+pub(crate) mod wireguard;
 
 /// Wire up and create Gateway instance
 pub(crate) async fn create_gateway(config: Config) -> Gateway<PersistentStorage> {

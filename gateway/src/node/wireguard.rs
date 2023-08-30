@@ -1,11 +1,14 @@
-use std::{net::SocketAddr, sync::Arc};
-
 use base64::engine::general_purpose;
 use base64::Engine as _;
-use boringtun::noise::{rate_limiter::RateLimiter, Tunn, TunnResult};
-use log::{debug, error, info};
-use tokio::{net::UdpSocket, sync::Mutex};
+use log::{error, info};
+use std::collections::HashSet;
+use std::sync::Arc;
+use tokio::net::UdpSocket;
+use tokio::sync::broadcast;
 use x25519_dalek::{PublicKey, StaticSecret};
+
+use crate::node::wg::events::Event;
+use crate::node::wg::WireGuardTunnel;
 
 pub async fn wireguard() {
     let wg_address = "0.0.0.0:51820";
@@ -14,7 +17,7 @@ pub async fn wireguard() {
 
     // Secret key ofthe gateway, we'll need a way to generate this from the IdentityKey, might be enough to do some base58 -> base64 conversion
     let secret_bytes: [u8; 32] = general_purpose::STANDARD
-        .decode("MBbPChSpmC/FXwIWNROltjd6cOywC81GNEgH9jMOOFk=")
+        .decode("AEqXrLFT4qjYq3wmX0456iv94uM6nDj5ugp6Jedcflg=")
         .unwrap()
         .try_into()
         .unwrap();
@@ -34,7 +37,7 @@ pub async fn wireguard() {
     // AllowedIPs = 0.0.0.0/0
     // Endpoint = 127.0.0.1:51820
     let peer_public_bytes: [u8; 32] = general_purpose::STANDARD
-        .decode("JpJzoO1DY6HZbn2h33GQJg0GLnxfdpOeV9C/rvdZ5Cs=")
+        .decode("mxV/mw7WZTe+0Msa0kvJHMHERDA/cSskiZWQce+TdEs=")
         .unwrap()
         .try_into()
         .unwrap();
@@ -45,75 +48,30 @@ pub async fn wireguard() {
         "wg public key: {}",
         general_purpose::STANDARD.encode(public)
     );
-    // Rate limiter is global for the gateway
-    let rate_limiter = Arc::new(RateLimiter::new(&public, 1024));
-
-    let tun = Arc::new(Mutex::new(
-        Tunn::new(secret, peer_public, None, None, 0, Some(rate_limiter)).unwrap(),
-    ));
-    // Here we have a pretty suboptimal implementation of the UDP communication, for one client
 
     let mut buf = [0; 1024];
+    let mut peers = HashSet::new();
+
+    let (bus_tx, _) = broadcast::channel(128);
+
     while let Ok((len, addr)) = sock.recv_from(&mut buf).await {
-        tokio::spawn(process_packet(
-            buf[..len].to_vec(),
-            addr,
-            Arc::clone(&tun),
-            Arc::clone(&sock),
-        ));
-    }
-}
-
-async fn process_packet(
-    packet: Vec<u8>,
-    addr: SocketAddr,
-    tun: Arc<Mutex<Tunn>>,
-    sock: Arc<UdpSocket>,
-) {
-    let mut dst = vec![0; 1024];
-    let tun_packet = Tunn::parse_incoming_packet(&packet).unwrap();
-    info!("packet: {:?}", tun_packet);
-    let dst_addr = Tunn::dst_address(&packet);
-    debug!("dst_addr: {:?}", dst_addr);
-    let result = {
-        let mut t = tun.lock().await;
-        t.decapsulate(dst_addr, &packet, &mut dst)
-    };
-    let tun = Arc::clone(&tun);
-    debug!("result: {:?}", result);
-    match result {
-        TunnResult::Done => {}
-        // We'll get here during the handshake process, if the reponse is WriteToNetwork we should call decapsulate again with an
-        // empty datagram until we get a Done response
-        TunnResult::WriteToNetwork(p) => {
-            let len = sock.send_to(p, addr).await.unwrap();
-            debug!("{} bytes sent to {}", len, addr);
-            let mut t = tun.lock().await;
-            t.decapsulate(dst_addr, &[], p);
-        }
-        TunnResult::Err(e) => {
-            error!("error: {:?}", e);
-        }
-        // We've recieved some DataPackets we need to forward and send response back to the initiating client
-        // if no data packets are available we should send an empty packet as an ack.
-        // For now this just logs that it received the packet, and send and ack back to the client.
-        TunnResult::WriteToTunnelV4(ref _r, _addy) => {
-            // These are very spammy
-            debug!("WriteToTunnelV4");
-            let mut t = tun.lock().await;
-            sock.send_to(&empty_packet(&mut t), addr).await.unwrap();
-        }
-        TunnResult::WriteToTunnelV6(ref _r, _addy) => {
-            // These are very spammy
-            debug!("WriteToTunnelV6");
-            let mut t = tun.lock().await;
-            sock.send_to(&empty_packet(&mut t), addr).await.unwrap();
+        info!("Received {} bytes from {}", len, addr);
+        if peers.contains(&addr) {
+            bus_tx
+                .send(Event::WgPacket(buf[..len].to_vec().into()))
+                .map_err(|e| error!("{e}"))
+                .unwrap();
+        } else {
+            info!("New peer with endpoint {addr}");
+            let tun =
+                WireGuardTunnel::new(peer_public, Arc::clone(&sock), addr, bus_tx.clone()).await;
+            peers.insert(addr);
+            tokio::spawn(tun.spin_off());
+            bus_tx
+                .send(Event::WgPacket(buf[..len].to_vec().into()))
+                .map_err(|e| error!("{e}"))
+                .unwrap();
         }
     }
-}
-
-fn empty_packet(tun: &mut Tunn) -> [u8; 128] {
-    let mut dst = [0; 128];
-    tun.encapsulate(&[], &mut dst);
-    dst
+    panic!("Not OK");
 }

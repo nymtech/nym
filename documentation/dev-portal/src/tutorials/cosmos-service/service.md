@@ -60,7 +60,7 @@ async fn main() -> anyhow::Result<()> {
                     println!("\nsending response to {}", &return_recipient);
                     // send response back to anon requesting client via mixnet
                     client
-                        .send_str_reply(return_recipient, &serde_json::to_string(&response)?)
+                        .send_reply(return_recipient, &serde_json::to_string(&response)?)
                         .await;
                 }
             }

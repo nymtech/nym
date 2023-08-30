@@ -16,7 +16,7 @@ As well as importing message-handling functionality, request types, and the defa
 # Querying via the Mixnet
 The following is used to construct a `BalanceRequest`, send this to the supplied `service` address, and then handle the response, matching it to a `ResponseType` (in this case the only expected response, a `BalanceResponse`).
 
-The actual sending of the request is performed by `client.send_bytes`: sending the serialised `BalanceRequest` to the supplied Nym address (the `Recipient` imported from the `nym_sphinx_addressing` crate). It is sending the default number of SURBs along with the message, defined [here](https://github.com/nymtech/nym/blob/develop/sdk/rust/nym-sdk/src/mixnet/client.rs#L34).
+The actual sending of the request is performed by `client.send_message`: sending the serialised `BalanceRequest` to the supplied Nym address (the `Recipient` imported from the `nym_sphinx_addressing` crate). It is sending the default number of SURBs along with the message, defined [here](https://github.com/nymtech/nym/blob/develop/sdk/rust/nym-sdk/src/mixnet/client.rs#L34).
 
 ```rust
 pub async fn query_balance(
@@ -32,7 +32,7 @@ pub async fn query_balance(
 
     // send serialised request to service via mixnet
     client
-        .send_bytes(sp_address, message.serialize(), Default::default())
+        .send_message(sp_address, message.serialize(), Default::default())
         .await;
 
     let received = wait_for_non_empty_message(client).await?;

@@ -17,7 +17,6 @@ use std::io::ErrorKind;
 use std::num::TryFromIntError;
 use std::pin::Pin;
 use std::task::Poll;
-use std::time::Duration;
 use thiserror::Error;
 use tokio::io::AsyncReadExt;
 use tokio::io::AsyncWriteExt;
@@ -325,7 +324,7 @@ pub async fn upgrade_noise_initiator(
 
     let noise_stream = NoiseStream::new(conn, handshake);
 
-    tokio::time::timeout(Duration::from_secs(5), noise_stream.perform_handshake()).await?
+    noise_stream.perform_handshake().await
 }
 
 pub async fn upgrade_noise_initiator_with_topology(
@@ -392,8 +391,7 @@ pub async fn upgrade_noise_responder(
 
     let noise_stream = NoiseStream::new(conn, handshake);
 
-    //The 5 sec TO is completely arbitrary. Has to be changed if it becomes more than a POC
-    tokio::time::timeout(Duration::from_secs(5), noise_stream.perform_handshake()).await?
+    noise_stream.perform_handshake().await
 }
 
 pub async fn upgrade_noise_responder_with_topology(

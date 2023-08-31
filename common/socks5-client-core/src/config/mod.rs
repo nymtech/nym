@@ -110,10 +110,10 @@ pub struct Socks5 {
     /// The version of the 'service provider' this client is going to use in its communication with the
     /// specified socks5 provider.
     // if in doubt, use the legacy version as initially nobody will be using the updated binaries
-    #[serde(default = "ProviderInterfaceVersion::new_legacy")]
+    #[serde(default)]
     pub provider_interface_version: ProviderInterfaceVersion,
 
-    #[serde(default = "Socks5ProtocolVersion::new_legacy")]
+    #[serde(default)]
     pub socks5_protocol_version: Socks5ProtocolVersion,
 
     /// Specifies whether this client is going to use an anonymous sender tag for communication with the service provider.
@@ -147,7 +147,7 @@ impl Socks5 {
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize)]
-#[serde(deny_unknown_fields)]
+#[serde(default, deny_unknown_fields)]
 pub struct Socks5Debug {
     /// Number of reply SURBs attached to each `Request::Connect` message.
     pub connection_start_surbs: u32,

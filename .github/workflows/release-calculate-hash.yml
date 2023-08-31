@@ -1,0 +1,18 @@
+name: Releases - calculate file hashes
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Calculate hash
+    runs-on: custom-runner-linux
+    steps:
+      - uses: MCJack123/ghaction-generate-release-hashes@v3
+        with:
+          hash-type: sha256
+          file-name: hashes.txt
+      - uses: actions/upload-artifact@v2
+        with:
+          name: Asset Hashes
+          path: hashes.txt

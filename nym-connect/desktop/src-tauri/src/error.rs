@@ -81,6 +81,8 @@ pub enum BackendError {
     CouldNotGetConfigFilename,
     #[error("could not load existing gateway configuration")]
     CouldNotLoadExistingGatewayConfiguration(std::io::Error),
+    #[error("no suitable gateways found when querying!")]
+    NoGatewaysFound,
     #[error("unable to open a new window")]
     NewWindowError,
     #[error("unable to parse the specified gateway")]

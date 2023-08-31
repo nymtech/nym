@@ -1,14 +1,14 @@
 use std::{collections::HashMap, fmt};
 
 use log::{debug, error, info};
-use nym_explorer_client::{ExplorerClient, PrettyDetailedGatewayBond, PrettyDetailedMixNodeBond};
+use nym_explorer_client::{ExplorerClient, PrettyDetailedMixNodeBond};
 use nym_network_defaults::var_names::EXPLORER_API;
 use nym_topology::{
     nym_topology_from_detailed,
     provider_trait::{async_trait, TopologyProvider},
     NymTopology,
 };
-use nym_validator_client::client::{IdentityKey, MixId};
+use nym_validator_client::client::MixId;
 use rand::{prelude::SliceRandom, thread_rng};
 use serde::{Deserialize, Serialize};
 use tap::TapOptional;

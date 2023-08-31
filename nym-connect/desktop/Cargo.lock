@@ -3895,7 +3895,7 @@ dependencies = [
  "nym-config",
  "nym-credential-storage",
  "nym-crypto",
- "nym-explorer-api-requests",
+ "nym-explorer-client",
  "nym-gateway-client",
  "nym-gateway-requests",
  "nym-network-defaults",
@@ -3992,7 +3992,7 @@ dependencies = [
 
 [[package]]
 name = "nym-connect"
-version = "1.1.18"
+version = "1.1.19"
 dependencies = [
  "anyhow",
  "bip39",
@@ -4141,6 +4141,18 @@ dependencies = [
  "nym-mixnet-contract-common",
  "schemars",
  "serde",
+]
+
+[[package]]
+name = "nym-explorer-client"
+version = "0.1.0"
+dependencies = [
+ "log",
+ "nym-explorer-api-requests",
+ "reqwest",
+ "serde",
+ "thiserror",
+ "url",
 ]
 
 [[package]]

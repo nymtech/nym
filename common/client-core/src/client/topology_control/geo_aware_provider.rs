@@ -354,27 +354,14 @@ impl GeoAwareTopologyProvider {
         let mixnode_distribution = group_mixnodes_by_country_code(mixnodes_from_explorer_api);
         log_mixnode_distribution(&mixnode_distribution);
 
-        let gateway_distribution = group_gateways_by_country_code(gateways_from_explorer_api);
-        log_gateway_distribution(&gateway_distribution);
-
         let Some(filtered_mixnode_ids) = mixnode_distribution.get(&filter_on) else {
             error!("no mixnodes found for: {}", filter_on);
-            return None;
-        };
-
-        let Some(filtered_gateway_ids) = gateway_distribution.get(&filter_on) else {
-            error!("no gateways found for: {}", filter_on);
             return None;
         };
 
         let mixnodes = mixnodes
             .into_iter()
             .filter(|m| filtered_mixnode_ids.contains(&m.mix_id()))
-            .collect::<Vec<_>>();
-
-        let gateways = gateways
-            .into_iter()
-            .filter(|g| filtered_gateway_ids.contains(g.identity()))
             .collect::<Vec<_>>();
 
         let topology = nym_topology_from_detailed(mixnodes, gateways)

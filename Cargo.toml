@@ -76,6 +76,7 @@ members = [
     "common/wasm-utils",
     "explorer-api",
     "explorer-api/explorer-api-requests",
+    "explorer-api/explorer-client",
     "gateway",
     "gateway/gateway-requests",
     "integrations/bity",

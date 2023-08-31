@@ -1,7 +1,7 @@
 use std::{collections::HashMap, fmt};
 
 use log::{debug, error, info};
-use nym_explorer_api_requests::{PrettyDetailedGatewayBond, PrettyDetailedMixNodeBond};
+use nym_explorer_client::{ExplorerClient, PrettyDetailedGatewayBond, PrettyDetailedMixNodeBond};
 use nym_network_defaults::var_names::EXPLORER_API;
 use nym_topology::{
     nym_topology_from_detailed,
@@ -18,55 +18,24 @@ use crate::config::GroupBy;
 
 const MIN_NODES_PER_LAYER: usize = 1;
 
-#[cfg(target_arch = "wasm32")]
-fn reqwest_client() -> Option<reqwest::Client> {
-    reqwest::Client::builder().build().ok()
-}
+fn create_explorer_client() -> Option<ExplorerClient> {
+    let Ok(explorer_api_url) = std::env::var(EXPLORER_API) else {
+        error!("Missing EXPLORER_API");
+        return None;
+    };
 
-#[cfg(not(target_arch = "wasm32"))]
-fn reqwest_client() -> Option<reqwest::Client> {
-    reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(5))
-        .build()
-        .ok()
-}
+    let Ok(explorer_api_url) = explorer_api_url.parse() else {
+        error!("Failed to parse EXPLORER_API");
+        return None;
+    };
 
-// TODO: create a explorer-api-client
-async fn fetch_mixnodes_from_explorer_api() -> Option<Vec<PrettyDetailedMixNodeBond>> {
-    let explorer_api_url = std::env::var(EXPLORER_API).ok()?;
-    let explorer_api_url = Url::parse(&explorer_api_url)
-        .ok()?
-        .join("v1/mix-nodes")
-        .ok()?;
+    log::debug!("Using explorer-api url: {}", explorer_api_url);
+    let Ok(client) = nym_explorer_client::ExplorerClient::new(explorer_api_url) else {
+        error!("Failed to create explorer-api client");
+        return None;
+    };
 
-    debug!("Fetching: {}", explorer_api_url);
-    reqwest_client()?
-        .get(explorer_api_url)
-        .send()
-        .await
-        .ok()?
-        .json::<Vec<PrettyDetailedMixNodeBond>>()
-        .await
-        .ok()
-}
-
-// TODO: create a explorer-api-client
-async fn fetch_gateways_from_explorer_api() -> Option<Vec<PrettyDetailedGatewayBond>> {
-    let explorer_api_url = std::env::var(EXPLORER_API).ok()?;
-    let explorer_api_url = Url::parse(&explorer_api_url)
-        .ok()?
-        .join("v1/gateways")
-        .ok()?;
-
-    debug!("Fetching: {}", explorer_api_url);
-    reqwest_client()?
-        .get(explorer_api_url)
-        .send()
-        .await
-        .ok()?
-        .json::<Vec<PrettyDetailedGatewayBond>>()
-        .await
-        .ok()
+    Some(client)
 }
 
 #[derive(Copy, Clone, Hash, PartialEq, Eq, Serialize, Deserialize, Debug)]
@@ -83,6 +52,8 @@ pub enum CountryGroup {
 impl CountryGroup {
     // We map contry codes into group, which initially are continent codes to a first approximation,
     // but we do it manually to reserve the right to tweak this distribution for our purposes.
+    // NOTE: I did this quickly and it's not a complete list of all countries, but only those that
+    // were present in the network at the time. Please add more as needed.
     fn new(country_code: &str) -> Self {
         let country_code = country_code.to_uppercase();
         use CountryGroup::*;
@@ -337,13 +308,14 @@ impl GeoAwareTopologyProvider {
         // Also fetch mixnodes cached by explorer-api, with the purpose of getting their
         // geolocation.
         debug!("Fetching mixnodes from explorer-api...");
-        let Some(mixnodes_from_explorer_api) = fetch_mixnodes_from_explorer_api().await else {
+        let explorer_client = create_explorer_client()?;
+        let Ok(mixnodes_from_explorer_api) = explorer_client.get_mixnodes().await else {
             error!("failed to get mixnodes from explorer-api");
             return None;
         };
 
         debug!("Fetching gateways from explorer-api...");
-        let Some(gateways_from_explorer_api) = fetch_gateways_from_explorer_api().await else {
+        let Ok(gateways_from_explorer_api) = explorer_client.get_gateways().await else {
             error!("failed to get mixnodes from explorer-api");
             return None;
         };

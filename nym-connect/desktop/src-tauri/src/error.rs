@@ -81,8 +81,21 @@ pub enum BackendError {
     CouldNotGetConfigFilename,
     #[error("could not load existing gateway configuration")]
     CouldNotLoadExistingGatewayConfiguration(std::io::Error),
-    #[error("no suitable gateways found when querying!")]
-    NoGatewaysFound,
+
+    #[error("no gateways found in directory")]
+    NoGatewaysFoundInDirectory,
+    #[error("no gateways found with compatible version: {0}")]
+    NoVersionCompatibleGatewaysFound(String),
+    #[error("no gateways found with acceptable performance")]
+    NoGatewayWithAcceptablePerformanceFound,
+    #[error("no gateways found with acceptable performance when measuring latency")]
+    NoGatewayWithAcceptablePerformanceFoundToQuery,
+
+    #[error("no network-requesters found in directory")]
+    NoServicesFoundInDirectory,
+    #[error("no active network-requesters found in directory")]
+    NoActiveServicesFound,
+
     #[error("unable to open a new window")]
     NewWindowError,
     #[error("unable to parse the specified gateway")]

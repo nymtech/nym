@@ -71,14 +71,14 @@ pub async fn get_services(
     let filtered_services = filter_out_inactive_services(&all_services, active_services);
     log::trace!("After filtering: {:#?}", filtered_services);
 
-    if filtered_services.is_empty() {
+    if let Ok(services) = filtered_services {
+        Ok(services)
+    } else {
         log::warn!(
             "After filtering, no active services found! Using all services instead as fallback"
         );
-        return Ok(all_services);
+        Ok(all_services)
     }
-
-    Ok(filtered_services)
 }
 
 async fn fetch_services(privacy_level: &PrivacyLevel) -> Result<Vec<DirectoryService>> {
@@ -93,7 +93,12 @@ async fn fetch_services(privacy_level: &PrivacyLevel) -> Result<Vec<DirectorySer
         .await?
         .json::<Vec<DirectoryService>>()
         .await?;
-    Ok(services_res)
+    if services_res.is_empty() {
+        log::error!("No services found in directory!");
+        Err(BackendError::NoServicesFoundInDirectory)
+    } else {
+        Ok(services_res)
+    }
 }
 
 async fn fetch_active_services() -> Result<PagedResult<HarbourMasterService>> {
@@ -101,14 +106,19 @@ async fn fetch_active_services() -> Result<PagedResult<HarbourMasterService>> {
         .await?
         .json::<PagedResult<HarbourMasterService>>()
         .await?;
-    Ok(active_services)
+    if active_services.items.is_empty() {
+        log::error!("No active services found!");
+        Err(BackendError::NoActiveServicesFound)
+    } else {
+        Ok(active_services)
+    }
 }
 
 fn filter_out_inactive_services(
     all_services: &[DirectoryServiceProvider],
     active_services: PagedResult<HarbourMasterService>,
-) -> Vec<DirectoryServiceProvider> {
-    all_services
+) -> Result<Vec<DirectoryServiceProvider>> {
+    let services: Vec<_> = all_services
         .iter()
         .filter(|sp| {
             active_services.items.iter().any(|active| {
@@ -117,34 +127,60 @@ fn filter_out_inactive_services(
             })
         })
         .cloned()
-        .collect()
+        .collect();
+    if services.is_empty() {
+        Err(BackendError::NoServicesFoundInDirectory)
+    } else {
+        Ok(services)
+    }
 }
 
-async fn fetch_gateways() -> Result<Vec<GatewayBondAnnotated>> {
+async fn fetch_all_gateways() -> Result<Vec<GatewayBondAnnotated>> {
     let api_client = ApiClient::new(Url::from_str(&std::env::var(NYM_API)?)?);
     let gateways = api_client.get_gateways_detailed().await?;
+    if gateways.is_empty() {
+        Err(BackendError::NoGatewaysFoundInDirectory)
+    } else {
+        Ok(gateways)
+    }
+}
+
+async fn fetch_compatible_gateways() -> Result<Vec<GatewayBondAnnotated>> {
+    let gateways = fetch_all_gateways().await?;
     let our_version = env!("CARGO_PKG_VERSION");
     log::debug!(
         "Our version that we use to filter compatible gateways: {}",
         our_version
     );
-    let gateways = gateways
+    let gateways: Vec<_> = gateways
         .into_iter()
         .filter(|g| is_minor_version_compatible(&g.gateway_bond.gateway.version, our_version))
         .collect();
-    Ok(gateways)
+    if gateways.is_empty() {
+        Err(BackendError::NoVersionCompatibleGatewaysFound(
+            our_version.to_string(),
+        ))
+    } else {
+        Ok(gateways)
+    }
 }
 
 fn filter_out_low_performance_gateways(
     gateways: Vec<GatewayBondAnnotated>,
-) -> Vec<GatewayBondAnnotated> {
-    gateways
+) -> Result<Vec<GatewayBondAnnotated>> {
+    let gateways: Vec<_> = gateways
         .into_iter()
         .filter(|g| {
             g.node_performance.most_recent
                 > Percent::from_percentage_value(GATEWAY_PERFORMANCE_SCORE_THRESHOLD).unwrap()
         })
-        .collect()
+        .collect();
+    if gateways.is_empty() {
+        log::error!("No gateways found! (with high enough performance score)");
+        Err(BackendError::NoGatewayWithAcceptablePerformanceFound)
+    } else {
+        Ok(gateways)
+    }
 }
 
 async fn select_gateway_by_latency(gateways: Vec<GatewayBondAnnotated>) -> Result<gateway::Node> {
@@ -164,22 +200,16 @@ async fn select_gateway_by_latency(gateways: Vec<GatewayBondAnnotated>) -> Resul
 #[tauri::command]
 pub async fn get_gateways() -> Result<Vec<Gateway>> {
     log::trace!("Fetching gateways");
-    let all_gateways = fetch_gateways().await?;
+    let all_gateways = fetch_compatible_gateways().await?;
     log::trace!("Received: {:#?}", all_gateways);
 
-    let gateways_filtered = filter_out_low_performance_gateways(all_gateways.clone())
+    let gateways_filtered = filter_out_low_performance_gateways(all_gateways.clone())?
         .into_iter()
         .map(|g| Gateway {
             identity: g.identity().clone(),
         })
         .collect_vec();
     log::trace!("Filtered: {:#?}", gateways_filtered);
-
-    if gateways_filtered.is_empty() {
-        log::error!("No gateways found! (with high enough performance score)");
-        return Err(BackendError::NoGatewaysFound);
-    }
-
     Ok(gateways_filtered)
 }
 
@@ -187,10 +217,10 @@ pub async fn get_gateways() -> Result<Vec<Gateway>> {
 #[tauri::command]
 pub async fn get_gateway_with_low_latency() -> Result<Gateway> {
     log::trace!("Fetching gateways");
-    let all_gateways = fetch_gateways().await?;
+    let all_gateways = fetch_compatible_gateways().await?;
     log::trace!("Received: {:#?}", all_gateways);
 
-    let gateways_filtered = filter_out_low_performance_gateways(all_gateways);
+    let gateways_filtered = filter_out_low_performance_gateways(all_gateways)?;
     let selected_gateway = select_gateway_by_latency(gateways_filtered).await?;
     log::debug!("Selected gateway: {}", selected_gateway);
     Ok(Gateway {
@@ -203,16 +233,12 @@ pub async fn get_gateway_with_low_latency() -> Result<Gateway> {
 pub async fn select_gateway_with_low_latency_from_list(gateways: Vec<Gateway>) -> Result<Gateway> {
     log::debug!("Selecting a gateway with low latency");
     let gateways = gateways.into_iter().map(|g| g.identity).collect_vec();
-    let all_gateways = fetch_gateways().await?;
+    let all_gateways = fetch_compatible_gateways().await?;
     let gateways_union_set: Vec<GatewayBondAnnotated> = all_gateways
         .into_iter()
         .filter(|g| gateways.contains(g.identity()))
         .collect();
-    let gateways_filtered = filter_out_low_performance_gateways(gateways_union_set);
-    if gateways_filtered.is_empty() {
-        log::error!("No gateways found! (with high enough performance score)");
-        return Err(BackendError::NoGatewaysFound);
-    }
+    let gateways_filtered = filter_out_low_performance_gateways(gateways_union_set)?;
     let selected_gateway = select_gateway_by_latency(gateways_filtered).await?;
     log::debug!("Selected gateway: {}", selected_gateway);
     Ok(Gateway {

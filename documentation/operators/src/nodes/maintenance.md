@@ -19,7 +19,7 @@ For example `./target/debug/nym-network-requester --no-banner build-info --outpu
 > The process is the similar for mix node, gateway and network requester. In the following steps we use a placeholder `<NODE>` in the commands, please change it for the type of node you want to upgrade. Any particularities for the given type of node are included.
 
 Upgrading your node is a two-step process:
-* Updating the binary and `~/.nym/<NODE>/<YOUR_ID>/config.toml` on your VPS
+* Updating the binary and `~/.nym/<NODE>/<YOUR_ID>/config/config.toml` on your VPS
 * Updating the node information in the [mixnet smart contract](https://nymtech.net/docs/nyx/mixnet-contract.html). **This is the information that is present on the [mixnet explorer](https://explorer.nymtech.net)**.
 
 ### Step 1: Upgrading your binary

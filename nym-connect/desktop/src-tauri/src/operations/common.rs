@@ -1,4 +1,4 @@
-use crate::config::PrivacyLevel;
+use crate::config::{PrivacyLevel, SelectedGateway, SelectedSp};
 use crate::error::Result;
 use crate::{config::UserData, state::State};
 use std::env;
@@ -35,4 +35,22 @@ pub async fn set_privacy_level(
 ) -> Result<()> {
     let mut guard = state.write().await;
     guard.set_privacy_level(privacy_level)
+}
+
+#[tauri::command]
+pub async fn set_selected_gateway(
+    gateway: Option<SelectedGateway>,
+    state: tauri::State<'_, Arc<RwLock<State>>>,
+) -> Result<()> {
+    let mut guard = state.write().await;
+    guard.set_user_selected_gateway(gateway)
+}
+
+#[tauri::command]
+pub async fn set_selected_sp(
+    service_provider: Option<SelectedSp>,
+    state: tauri::State<'_, Arc<RwLock<State>>>,
+) -> Result<()> {
+    let mut guard = state.write().await;
+    guard.set_user_selected_sp(service_provider)
 }

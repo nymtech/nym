@@ -7,8 +7,8 @@ use log::info;
 use nym_contracts_common::signing::MessageSignature;
 use nym_crypto::asymmetric::identity;
 use nym_mixnet_contract_common::families::FamilyHead;
-use nym_validator_client::nyxd::traits::MixnetSigningClient;
-use nym_validator_client::nyxd::traits::VestingSigningClient;
+use nym_validator_client::nyxd::contract_traits::MixnetSigningClient;
+use nym_validator_client::nyxd::contract_traits::VestingSigningClient;
 
 #[derive(Debug, Parser)]
 pub struct Args {
@@ -28,7 +28,7 @@ pub struct Args {
 pub async fn join_family(args: Args, client: SigningClient) {
     info!("Join family");
 
-    let family_head = FamilyHead::new(&args.family_head.to_base58_string());
+    let family_head = FamilyHead::new(args.family_head.to_base58_string());
 
     let res = if args.with_vesting_account {
         client

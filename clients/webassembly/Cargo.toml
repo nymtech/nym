@@ -3,7 +3,7 @@ name = "nym-client-wasm"
 authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>", "Jedrzej Stuczynski <andrew@nymtech.net>"]
 version = "1.1.1"
 edition = "2021"
-keywords = ["nym", "sphinx", "wasm", "webassembly", "privacy", "client"]
+keywords = ["nym", "sphinx", "wasm", "webassembly", "privacy"]
 license = "Apache-2.0"
 repository = "https://github.com/nymtech/nym"
 description = "A webassembly client which can be used to interact with the the Nym privacy platform. Wasm is used for Sphinx packet generation."
@@ -33,7 +33,7 @@ wasm-bindgen-futures = "0.4"
 thiserror = "1.0.40"
 zeroize = "1.6.0"
 
-wasm-timer = { git = "https://github.com/mmsinclair/wasm-timer", rev = "b9d1a54ad514c2f230a026afe0dde341e98cd7b6"}
+wasmtimer = { version = "0.2.0", features = ["tokio"] }
 
 # internal
 nym-node-tester-utils = { path = "../../common/node-tester-utils" }

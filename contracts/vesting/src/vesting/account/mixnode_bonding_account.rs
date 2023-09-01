@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::Account;
-use crate::errors::ContractError;
 use crate::storage::MIXNET_CONTRACT_ADDRESS;
 use crate::traits::MixnodeBondingAccount;
+use crate::vesting::account::StorableVestingAccountExt;
 use contracts_common::signing::MessageSignature;
 use cosmwasm_std::{wasm_execute, Coin, Env, Response, Storage, Uint128};
 use mixnet_contract_common::mixnode::MixNodeConfigUpdate;
@@ -15,10 +15,13 @@ use vesting_contract_common::events::{
     new_vesting_mixnode_unbonding_event, new_vesting_pledge_more_event,
     new_vesting_update_mixnode_config_event, new_vesting_update_mixnode_cost_params_event,
 };
-use vesting_contract_common::PledgeData;
+use vesting_contract_common::{PledgeData, VestingContractError};
 
 impl MixnodeBondingAccount for Account {
-    fn try_claim_operator_reward(&self, storage: &dyn Storage) -> Result<Response, ContractError> {
+    fn try_claim_operator_reward(
+        &self,
+        storage: &dyn Storage,
+    ) -> Result<Response, VestingContractError> {
         let msg = MixnetExecuteMsg::WithdrawOperatorRewardOnBehalf {
             owner: self.owner_address().into_string(),
         };
@@ -37,11 +40,11 @@ impl MixnodeBondingAccount for Account {
         pledge: Coin,
         env: &Env,
         storage: &mut dyn Storage,
-    ) -> Result<Response, ContractError> {
+    ) -> Result<Response, VestingContractError> {
         let current_balance = self.ensure_valid_additional_stake(&pledge, storage)?;
 
         let pledge_data = if self.load_mixnode_pledge(storage)?.is_some() {
-            return Err(ContractError::AlreadyBonded(
+            return Err(VestingContractError::AlreadyBonded(
                 self.owner_address().as_str().to_string(),
             ));
         } else {
@@ -73,13 +76,13 @@ impl MixnodeBondingAccount for Account {
         additional_pledge: Coin,
         env: &Env,
         storage: &mut dyn Storage,
-    ) -> Result<Response, ContractError> {
+    ) -> Result<Response, VestingContractError> {
         let current_balance = self.ensure_valid_additional_stake(&additional_pledge, storage)?;
 
         let mut pledge_data = if let Some(pledge_data) = self.load_mixnode_pledge(storage)? {
             pledge_data
         } else {
-            return Err(ContractError::NoBondFound(
+            return Err(VestingContractError::NoBondFound(
                 self.owner_address().as_str().to_string(),
             ));
         };
@@ -113,18 +116,18 @@ impl MixnodeBondingAccount for Account {
         &self,
         amount: Coin,
         storage: &mut dyn Storage,
-    ) -> Result<Response, ContractError> {
+    ) -> Result<Response, VestingContractError> {
         match self.load_mixnode_pledge(storage)? {
             Some(pledge) => {
                 if pledge.amount.amount <= amount.amount {
-                    return Err(ContractError::InvalidBondPledgeReduction {
+                    return Err(VestingContractError::InvalidBondPledgeReduction {
                         current: pledge.amount,
                         decrease_by: amount,
                     });
                 }
             }
             None => {
-                return Err(ContractError::NoBondFound(
+                return Err(VestingContractError::NoBondFound(
                     self.owner_address().as_str().to_string(),
                 ));
             }
@@ -147,14 +150,14 @@ impl MixnodeBondingAccount for Account {
         &self,
         amount: Coin,
         storage: &mut dyn Storage,
-    ) -> Result<(), ContractError> {
+    ) -> Result<(), VestingContractError> {
         let new_balance = Uint128::new(self.load_balance(storage)?.u128() + amount.amount.u128());
         self.save_balance(new_balance, storage)?;
 
         self.decrease_mixnode_pledge(amount, storage)
     }
 
-    fn try_unbond_mixnode(&self, storage: &dyn Storage) -> Result<Response, ContractError> {
+    fn try_unbond_mixnode(&self, storage: &dyn Storage) -> Result<Response, VestingContractError> {
         let msg = MixnetExecuteMsg::UnbondMixnodeOnBehalf {
             owner: self.owner_address().into_string(),
         };
@@ -166,7 +169,7 @@ impl MixnodeBondingAccount for Account {
                 .add_message(unbond_msg)
                 .add_event(new_vesting_mixnode_unbonding_event()))
         } else {
-            Err(ContractError::NoBondFound(
+            Err(VestingContractError::NoBondFound(
                 self.owner_address().as_str().to_string(),
             ))
         }
@@ -176,7 +179,7 @@ impl MixnodeBondingAccount for Account {
         &self,
         amount: Coin,
         storage: &mut dyn Storage,
-    ) -> Result<(), ContractError> {
+    ) -> Result<(), VestingContractError> {
         let new_balance = Uint128::new(self.load_balance(storage)?.u128() + amount.amount.u128());
         self.save_balance(new_balance, storage)?;
 
@@ -187,7 +190,7 @@ impl MixnodeBondingAccount for Account {
         &self,
         new_config: MixNodeConfigUpdate,
         storage: &mut dyn Storage,
-    ) -> Result<Response, ContractError> {
+    ) -> Result<Response, VestingContractError> {
         let msg = MixnetExecuteMsg::UpdateMixnodeConfigOnBehalf {
             new_config,
             owner: self.owner_address().into_string(),
@@ -205,7 +208,7 @@ impl MixnodeBondingAccount for Account {
         &self,
         new_costs: MixNodeCostParams,
         storage: &mut dyn Storage,
-    ) -> Result<Response, ContractError> {
+    ) -> Result<Response, VestingContractError> {
         let msg = MixnetExecuteMsg::UpdateMixnodeCostParamsOnBehalf {
             new_costs,
             owner: self.owner_address().into_string(),

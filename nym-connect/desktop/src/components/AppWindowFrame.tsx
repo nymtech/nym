@@ -16,7 +16,7 @@ export const AppWindowFrame: FCWithChildren = ({ children }) => {
         return () => {
           // when the user moves away from the settings page and the gateway is not valid
           // set isActive to false
-          if (!userDefinedGateway?.gateway) {
+          if (!userDefinedGateway?.address) {
             setUserDefinedGateway((current) => ({ ...current, isActive: false }));
           }
         };

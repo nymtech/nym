@@ -84,6 +84,7 @@ pub(crate) async fn execute(args: &Run) -> Result<(), NetworkRequesterError> {
 
     let mut config = try_load_current_config(&args.id)?;
     config = override_config(config, OverrideConfig::from(args.clone()));
+    log::debug!("Using config: {:#?}", config);
 
     if !version_check(&config) {
         error!("failed the local version check");

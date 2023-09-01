@@ -1,0 +1,93 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "EpochStatus",
+  "description": "The status of the current rewarding epoch.",
+  "type": "object",
+  "required": [
+    "being_advanced_by",
+    "state"
+  ],
+  "properties": {
+    "being_advanced_by": {
+      "description": "Specifies either, which validator is currently performing progression into the following epoch (if the epoch is currently being progressed), or which validator was responsible for progressing into the current epoch (if the epoch is currently in progress)",
+      "allOf": [
+        {
+          "$ref": "#/definitions/Addr"
+        }
+      ]
+    },
+    "state": {
+      "description": "The concrete state of the epoch.",
+      "allOf": [
+        {
+          "$ref": "#/definitions/EpochState"
+        }
+      ]
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "Addr": {
+      "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
+      "type": "string"
+    },
+    "EpochState": {
+      "description": "The state of the current rewarding epoch.",
+      "oneOf": [
+        {
+          "description": "Represents the state of an epoch that's in progress (well, duh.) All actions are allowed to be issued.",
+          "type": "string",
+          "enum": [
+            "in_progress"
+          ]
+        },
+        {
+          "description": "Represents the state of an epoch when the rewarding entity has been decided on, and the mixnodes are in the process of being rewarded for their work in this epoch.",
+          "type": "object",
+          "required": [
+            "rewarding"
+          ],
+          "properties": {
+            "rewarding": {
+              "type": "object",
+              "required": [
+                "final_node_id",
+                "last_rewarded"
+              ],
+              "properties": {
+                "final_node_id": {
+                  "description": "The id of the last node that's going to be rewarded before progressing into the next state.",
+                  "type": "integer",
+                  "format": "uint32",
+                  "minimum": 0.0
+                },
+                "last_rewarded": {
+                  "description": "The id of the last node that has already received its rewards.",
+                  "type": "integer",
+                  "format": "uint32",
+                  "minimum": 0.0
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "Represents the state of an epoch when all mixnodes have already been rewarded for their work in this epoch and all issued actions should now get resolved before being allowed to advance into the next epoch.",
+          "type": "string",
+          "enum": [
+            "reconciling_events"
+          ]
+        },
+        {
+          "description": "Represents the state of an epoch when all mixnodes have already been rewarded for their work in this epoch, all issued actions got resolved and the epoch should now be advanced whilst assigning new rewarded set.",
+          "type": "string",
+          "enum": [
+            "advancing_epoch"
+          ]
+        }
+      ]
+    }
+  }
+}

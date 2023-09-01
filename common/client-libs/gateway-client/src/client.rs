@@ -1,4 +1,4 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::GatewayClientError;
@@ -22,6 +22,7 @@ use nym_gateway_requests::{BinaryRequest, ClientControlRequest, ServerResponse, 
 use nym_network_defaults::{REMAINING_BANDWIDTH_THRESHOLD, TOKENS_TO_BURN};
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_task::TaskClient;
+use nym_validator_client::nyxd::contract_traits::DkgQueryClient;
 use rand::rngs::OsRng;
 use std::convert::TryFrom;
 use std::sync::Arc;
@@ -29,21 +30,19 @@ use std::time::Duration;
 use tungstenite::protocol::Message;
 
 #[cfg(not(target_arch = "wasm32"))]
-use nym_validator_client::nyxd::traits::DkgQueryClient;
+use tokio::time::sleep;
 #[cfg(not(target_arch = "wasm32"))]
 use tokio_tungstenite::connect_async;
 
 #[cfg(target_arch = "wasm32")]
-use nym_bandwidth_controller::wasm_mockups::DkgQueryClient;
-#[cfg(target_arch = "wasm32")]
-use wasm_timer;
-#[cfg(target_arch = "wasm32")]
 use wasm_utils::websocket::JSWebsocket;
+#[cfg(target_arch = "wasm32")]
+use wasmtimer::tokio::sleep;
 
 const DEFAULT_RECONNECTION_ATTEMPTS: usize = 10;
 const DEFAULT_RECONNECTION_BACKOFF: Duration = Duration::from_secs(5);
 
-pub struct GatewayClient<C, St> {
+pub struct GatewayClient<C, St = EphemeralCredentialStorage> {
     authenticated: bool,
     disabled_credentials_mode: bool,
     bandwidth_remaining: i64,
@@ -197,16 +196,7 @@ impl<C, St> GatewayClient<C, St> {
                 return Ok(());
             }
 
-            #[cfg(not(target_arch = "wasm32"))]
-            tokio::time::sleep(self.reconnection_backoff).await;
-
-            #[cfg(target_arch = "wasm32")]
-            if let Err(err) = wasm_timer::Delay::new(self.reconnection_backoff).await {
-                error!(
-                    "the timer has gone away while in reconnection backoff! - {}",
-                    err
-                );
-            }
+            sleep(self.reconnection_backoff).await;
         }
 
         // final attempt (done separately to be able to return a proper error)
@@ -235,15 +225,8 @@ impl<C, St> GatewayClient<C, St> {
             _ => return Err(GatewayClientError::ConnectionInInvalidState),
         };
 
-        #[cfg(not(target_arch = "wasm32"))]
-        let timeout = tokio::time::sleep(self.response_timeout_duration);
-        #[cfg(not(target_arch = "wasm32"))]
+        let timeout = sleep(self.response_timeout_duration);
         tokio::pin!(timeout);
-
-        // technically the `wasm_timer` also works outside wasm, but unless required,
-        // I really prefer to just stick to tokio
-        #[cfg(target_arch = "wasm32")]
-        let mut timeout = wasm_timer::Delay::new(self.response_timeout_duration);
 
         loop {
             tokio::select! {
@@ -484,6 +467,14 @@ impl<C, St> GatewayClient<C, St> {
     pub async fn perform_initial_authentication(
         &mut self,
     ) -> Result<Arc<SharedKeys>, GatewayClientError> {
+        if self.authenticated {
+            return if let Some(shared_key) = &self.shared_key {
+                Ok(Arc::clone(shared_key))
+            } else {
+                Err(GatewayClientError::AuthenticationFailure)
+            };
+        }
+
         if self.shared_key.is_some() {
             self.authenticate(None).await?;
         } else {
@@ -768,7 +759,9 @@ impl<C, St> GatewayClient<C, St> {
     }
 }
 
-impl<C> GatewayClient<C, EphemeralCredentialStorage> {
+pub struct InitOnly;
+
+impl GatewayClient<InitOnly, EphemeralCredentialStorage> {
     // for initialisation we do not need credential storage. Though it's still a bit weird we have to set the generic...
     pub fn new_init(
         gateway_address: String,
@@ -785,7 +778,7 @@ impl<C> GatewayClient<C, EphemeralCredentialStorage> {
         let shutdown = TaskClient::dummy();
         let packet_router = PacketRouter::new(ack_tx, mix_tx, shutdown.clone());
 
-        GatewayClient::<C, EphemeralCredentialStorage> {
+        GatewayClient {
             authenticated: false,
             disabled_credentials_mode: true,
             bandwidth_remaining: 0,
@@ -800,6 +793,39 @@ impl<C> GatewayClient<C, EphemeralCredentialStorage> {
             should_reconnect_on_failure: false,
             reconnection_attempts: DEFAULT_RECONNECTION_ATTEMPTS,
             reconnection_backoff: DEFAULT_RECONNECTION_BACKOFF,
+            shutdown,
+        }
+    }
+
+    pub fn upgrade<C, St>(
+        self,
+        mixnet_message_sender: MixnetMessageSender,
+        ack_sender: AcknowledgementSender,
+        response_timeout_duration: Duration,
+        bandwidth_controller: Option<BandwidthController<C, St>>,
+        shutdown: TaskClient,
+    ) -> GatewayClient<C, St> {
+        // invariants that can't be broken
+        // (unless somebody decided to expose some field that wasn't meant to be exposed)
+        assert!(self.authenticated);
+        assert!(self.connection.is_available());
+        assert!(self.shared_key.is_some());
+
+        GatewayClient {
+            authenticated: self.authenticated,
+            disabled_credentials_mode: self.disabled_credentials_mode,
+            bandwidth_remaining: self.bandwidth_remaining,
+            gateway_address: self.gateway_address,
+            gateway_identity: self.gateway_identity,
+            local_identity: self.local_identity,
+            shared_key: self.shared_key,
+            connection: self.connection,
+            packet_router: PacketRouter::new(ack_sender, mixnet_message_sender, shutdown.clone()),
+            response_timeout_duration,
+            bandwidth_controller,
+            should_reconnect_on_failure: self.should_reconnect_on_failure,
+            reconnection_attempts: self.reconnection_attempts,
+            reconnection_backoff: self.reconnection_backoff,
             shutdown,
         }
     }

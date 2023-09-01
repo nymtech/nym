@@ -17,7 +17,6 @@ opt-level = 3
 
 resolver = "2"
 members = [
-    "clients/credential",
     "clients/native",
     "clients/native/websocket-requests",
     "clients/socks5",
@@ -34,6 +33,7 @@ members = [
     "common/cosmwasm-smart-contracts/coconut-bandwidth-contract",
     "common/cosmwasm-smart-contracts/coconut-dkg",
     "common/cosmwasm-smart-contracts/contracts-common",
+    "common/cosmwasm-smart-contracts/ephemera",
     "common/cosmwasm-smart-contracts/group-contract",
     "common/cosmwasm-smart-contracts/mixnet-contract",
     "common/cosmwasm-smart-contracts/multisig-contract",
@@ -42,6 +42,7 @@ members = [
     "common/cosmwasm-smart-contracts/vesting-contract",
     "common/credential-storage",
     "common/credentials",
+    "common/credential-utils",
     "common/crypto",
     "common/dkg",
     "common/execute",
@@ -75,6 +76,7 @@ members = [
     "common/wasm-utils",
     "demos/rust-cosmos-broadcaster",
     "explorer-api",
+    "explorer-api/explorer-api-requests",
     "gateway",
     "gateway/gateway-requests",
     "integrations/bity",
@@ -118,32 +120,40 @@ anyhow = "1.0.71"
 async-trait = "0.1.64"
 bip39 = { version = "2.0.0", features = ["zeroize"] }
 cfg-if = "1.0.0"
-cosmwasm-derive = "=1.2.5"
-cosmwasm-schema = "=1.2.5"
-cosmwasm-std = "=1.2.5"
-cosmwasm-storage = "=1.2.5"
+cosmwasm-derive = "=1.3.0"
+cosmwasm-schema = "=1.3.0"
+cosmwasm-std = "=1.3.0"
+# use 0.5.0 as that's the version used by cosmwasm-std 1.3.0
+# (and ideally we don't want to pull the same dependency twice)
+serde-json-wasm = "=0.5.0"
+cosmwasm-storage = "=1.3.0"
 cosmrs = "=0.14.0"
 # same version as used by cosmrs
-tendermint-rpc = "=0.32"
 cw-utils = "=1.0.1"
-cw-storage-plus = "=1.0.1"
-cw2 = { version = "=1.0.1" }
-cw3 = { version = "=1.0.1" }
-cw3-fixed-multisig = { version = "=1.0.1" }
-cw4 = { version = "=1.0.1" }
-cw-controllers = { version = "=1.0.1" }
+cw-storage-plus = "=1.1.0"
+cw2 = { version = "=1.1.0" }
+cw3 = { version = "=1.1.0" }
+cw4 = { version = "=1.1.0" }
+cw-controllers = { version = "=1.1.0" }
 dotenvy = "0.15.6"
+futures = "0.3.28"
 generic-array = "0.14.7"
-k256 = "0.13"
 getrandom = "0.2.10"
+k256 = "0.13"
 lazy_static = "1.4.0"
 log = "0.4"
 once_cell = "1.7.2"
 rand = "0.8.5"
+reqwest = "0.11.18"
 serde = "1.0.152"
 serde_json = "1.0.91"
 tap = "1.0.1"
+tendermint-rpc = "0.32" # same version as used by cosmrs
 thiserror = "1.0.38"
 tokio = "1.24.1"
-url = "2.2"
+ts-rs = "7.0.0"
+url = "2.4"
 zeroize = "1.6.0"
+
+# wasm-related dependencies
+wasmtimer = "0.2.0"

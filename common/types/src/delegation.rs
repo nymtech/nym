@@ -41,7 +41,7 @@ impl Delegation {
     feature = "generate-ts",
     ts(export_to = "ts-packages/types/src/types/rust/DelegationWithEverything.ts")
 )]
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq, JsonSchema)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, JsonSchema)]
 pub struct DelegationWithEverything {
     pub owner: String,
     pub mix_id: MixId,

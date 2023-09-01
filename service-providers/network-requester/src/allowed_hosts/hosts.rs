@@ -100,7 +100,7 @@ impl HostsStore {
             .unwrap();
 
         if let Err(e) = writeln!(file, "{text}") {
-            eprintln!("Couldn't write to file: {e}");
+            log::error!("Couldn't write to file: {e}");
         }
     }
 
@@ -136,7 +136,6 @@ impl HostsStore {
             })
             .map(Host::from)
             .collect();
-        dbg!(&hosts);
         Ok(hosts)
     }
 }

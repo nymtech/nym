@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use cosmrs::bank::MsgSend;
-use cosmrs::rpc::HttpClient;
 use cosmrs::tx::Msg;
 use cosmrs::{tx, AccountId, Coin, Denom};
+use nym_validator_client::http_client;
 use nym_validator_client::nyxd::CosmWasmClient;
 use nym_validator_client::signing::direct_wallet::DirectSecp256k1HdWallet;
 use nym_validator_client::signing::tx_signer::TxSigner;
@@ -23,11 +23,11 @@ async fn main() {
     let signer_address = signer.try_derive_accounts().unwrap()[0].address().clone();
 
     // local 'client' ONLY signing messages
-    let tx_signer = TxSigner::new(signer);
+    let tx_signer = signer;
 
     // possibly remote client that doesn't do ANY signing
     // (only broadcasts + queries for sequence numbers)
-    let broadcaster = HttpClient::new(validator).unwrap();
+    let broadcaster = http_client(validator).unwrap();
 
     // get signer information
     let sequence_response = broadcaster.get_sequence(&signer_address).await.unwrap();

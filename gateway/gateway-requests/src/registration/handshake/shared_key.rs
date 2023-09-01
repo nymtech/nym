@@ -85,10 +85,7 @@ impl SharedKeys {
         let mac =
             compute_keyed_hmac::<GatewayIntegrityHmacAlgorithm>(self.mac_key(), &encrypted_data);
 
-        mac.into_bytes()
-            .into_iter()
-            .chain(encrypted_data.into_iter())
-            .collect()
+        mac.into_bytes().into_iter().chain(encrypted_data).collect()
     }
 
     pub fn decrypt_tagged(

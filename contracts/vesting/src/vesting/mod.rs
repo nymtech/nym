@@ -1,43 +1,18 @@
-use cosmwasm_std::Timestamp;
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
-
 mod account;
-pub use account::*;
 
-use vesting_contract_common::messages::VestingSpecification;
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
-pub struct VestingPeriod {
-    pub start_time: u64,
-    pub period_seconds: u64,
-}
-
-impl VestingPeriod {
-    pub fn end_time(&self) -> Timestamp {
-        Timestamp::from_seconds(self.start_time + self.period_seconds)
-    }
-}
+pub(crate) use account::StorableVestingAccountExt;
+use vesting_contract_common::{VestingPeriod, VestingSpecification};
 
 pub fn populate_vesting_periods(
     start_time: u64,
     vesting_spec: VestingSpecification,
 ) -> Vec<VestingPeriod> {
-    let mut periods = Vec::with_capacity(vesting_spec.num_periods() as usize);
-    for i in 0..vesting_spec.num_periods() {
-        let period = VestingPeriod {
-            start_time: start_time + i * vesting_spec.period_seconds(),
-            period_seconds: vesting_spec.period_seconds(),
-        };
-        periods.push(period);
-    }
-    periods
+    vesting_spec.populate_vesting_periods(start_time)
 }
 
 #[cfg(test)]
 mod tests {
     use crate::contract::*;
-    use crate::errors::ContractError;
     use crate::storage::*;
     use crate::support::tests::helpers::vesting_account_percent_fixture;
     use crate::support::tests::helpers::{
@@ -46,15 +21,16 @@ mod tests {
     use crate::traits::DelegatingAccount;
     use crate::traits::VestingAccount;
     use crate::traits::{GatewayBondingAccount, MixnodeBondingAccount};
-    use crate::vesting::{populate_vesting_periods, Account};
+    use crate::vesting::account::StorableVestingAccountExt;
+    use crate::vesting::populate_vesting_periods;
     use contracts_common::signing::MessageSignature;
     use cosmwasm_std::testing::{mock_env, mock_info};
     use cosmwasm_std::{coin, coins, Addr, Coin, Timestamp, Uint128};
     use mixnet_contract_common::mixnode::MixNodeCostParams;
     use mixnet_contract_common::{Gateway, MixNode, Percent};
-    use vesting_contract_common::messages::{ExecuteMsg, VestingSpecification};
-    use vesting_contract_common::Period;
-    use vesting_contract_common::PledgeCap;
+    use vesting_contract_common::messages::ExecuteMsg;
+    use vesting_contract_common::{Account, PledgeCap, VestingSpecification};
+    use vesting_contract_common::{Period, VestingContractError};
 
     #[test]
     fn test_account_creation() {
@@ -317,7 +293,9 @@ mod tests {
             staking_address_change,
         );
         assert_eq!(
-            Err(ContractError::StakingAccountExists("vesting1".to_string())),
+            Err(VestingContractError::StakingAccountExists(
+                "vesting1".to_string()
+            )),
             res
         );
 
@@ -802,7 +780,7 @@ mod tests {
             VestingSpecification::new(None, Some(vesting_period_length_secs), None),
         );
 
-        let vesting_account = Account::new(
+        let vesting_account = Account::save_new(
             Addr::unchecked("owner"),
             Some(Addr::unchecked("staking")),
             Coin {
@@ -842,7 +820,7 @@ mod tests {
 
         assert_eq!(
             res,
-            ContractError::TooManyDelegations {
+            VestingContractError::TooManyDelegations {
                 address: vesting_account.owner_address(),
                 acc_id: vesting_account.storage_key(),
                 mix_id,

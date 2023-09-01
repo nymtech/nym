@@ -8,14 +8,13 @@ use ::nym_config::defaults::var_names::{MIXNET_CONTRACT_ADDRESS, VESTING_CONTRAC
 use anyhow::Result;
 use clap::Parser;
 use lazy_static::lazy_static;
-use nym_bin_common::build_information::BinaryBuildInformation;
+use nym_bin_common::bin_info;
 use nym_config::defaults::var_names::NYXD;
 use nym_config::OptionalSet;
 use nym_validator_client::nyxd;
 
 lazy_static! {
-    pub static ref PRETTY_BUILD_INFORMATION: String =
-        BinaryBuildInformation::new(env!("CARGO_PKG_VERSION")).pretty_print();
+    pub static ref PRETTY_BUILD_INFORMATION: String = bin_info!().pretty_print();
 }
 
 // Helper for passing LONG_VERSION to clap
@@ -55,6 +54,10 @@ pub(crate) struct CliArgs {
     /// Specifies whether network rewarding is enabled on this API
     #[clap(short = 'r', long, requires = "enable_monitor", requires = "mnemonic")]
     pub(crate) enable_rewarding: Option<bool>,
+
+    /// Specifies whether ephemera is used to aggregate monitor data on this API
+    #[clap(short = 'e', long, requires = "enable_monitor")]
+    pub(crate) enable_ephemera: Option<bool>,
 
     /// Endpoint to nyxd instance from which the monitor will grab nodes to test
     #[clap(long)]
@@ -106,6 +109,10 @@ pub(crate) struct CliArgs {
         hide = true
     )]
     pub(crate) enable_coconut: Option<bool>,
+
+    /// Ephemera configuration arguments.
+    #[command(flatten)]
+    pub(crate) ephemera_args: ephemera::cli::init::Cmd,
 }
 
 pub(crate) fn override_config(config: Config, args: CliArgs) -> Config {
@@ -140,12 +147,26 @@ pub(crate) fn override_config(config: Config, args: CliArgs) -> Config {
         )
         .with_optional(Config::with_network_monitor_enabled, args.enable_monitor)
         .with_optional(Config::with_rewarding_enabled, args.enable_rewarding)
+        .with_optional(Config::with_ephemera_enabled, args.enable_ephemera)
         .with_optional(
             Config::with_disabled_credentials_mode,
             args.enabled_credentials_mode.map(|b| !b),
         )
         .with_optional(Config::with_announce_address, args.announce_address)
         .with_optional(Config::with_coconut_signer_enabled, args.enable_coconut)
+        .with_optional(Config::with_ephemera_ip, args.ephemera_args.ephemera_ip)
+        .with_optional(
+            Config::with_ephemera_protocol_port,
+            args.ephemera_args.ephemera_protocol_port,
+        )
+        .with_optional(
+            Config::with_ephemera_websocket_port,
+            args.ephemera_args.ephemera_websocket_port,
+        )
+        .with_optional(
+            Config::with_ephemera_http_api_port,
+            args.ephemera_args.ephemera_http_api_port,
+        )
 }
 
 pub(crate) fn build_config(args: CliArgs) -> Result<Config> {

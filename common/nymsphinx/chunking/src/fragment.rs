@@ -204,7 +204,7 @@ impl Fragment {
         self.header
             .to_bytes()
             .into_iter()
-            .chain(self.payload.into_iter())
+            .chain(self.payload)
             .collect()
     }
 

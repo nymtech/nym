@@ -1,18 +1,37 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::nyxd::cosmwasm_client::types::Account;
+use crate::nyxd::contract_traits::{NymContractsProvider, TypedNymContracts};
+use crate::nyxd::cosmwasm_client::types::{
+    ChangeAdminResult, ContractCodeId, ExecuteResult, InstantiateOptions, InstantiateResult,
+    MigrateResult, SequenceResponse, SimulateResponse, UploadResult,
+};
+use crate::nyxd::cosmwasm_client::MaybeSigningClient;
 use crate::nyxd::error::NyxdError;
-use log::{debug, trace};
+use crate::nyxd::fee::DEFAULT_SIMULATED_GAS_MULTIPLIER;
+use crate::signing::direct_wallet::DirectSecp256k1HdWallet;
+use crate::signing::signer::NoSigner;
+use crate::signing::signer::OfflineSigner;
+use crate::signing::tx_signer::TxSigner;
+use crate::signing::AccountData;
+use crate::{DirectSigningReqwestRpcNyxdClient, QueryReqwestRpcNyxdClient, ReqwestRpcClient};
+use async_trait::async_trait;
+use cosmrs::cosmwasm;
+use cosmrs::tendermint::{abci, evidence::Evidence, Genesis};
+use cosmrs::tx::{Msg, Raw, SignDoc};
+use cosmwasm_std::Addr;
 use nym_network_defaults::{ChainDetails, NymNetworkDetails};
-use serde::{Deserialize, Serialize};
-use tendermint_rpc::{endpoint::block::Response as BlockResponse, query::Query};
+use serde::{de::DeserializeOwned, Serialize};
+use std::fmt::Debug;
+use std::time::SystemTime;
+use tendermint_rpc::endpoint::block::Response as BlockResponse;
+use tendermint_rpc::endpoint::*;
+use tendermint_rpc::{Error as TendermintRpcError, Order};
+use url::Url;
 
-#[cfg(feature = "http-client")]
-use tendermint_rpc::Error as TendermintRpcError;
-
-pub use crate::nyxd::cosmwasm_client::client::CosmWasmClient;
+pub use crate::nyxd::cosmwasm_client::client_traits::{CosmWasmClient, SigningCosmWasmClient};
 pub use crate::nyxd::fee::Fee;
+pub use crate::rpc::TendermintRpcClient;
 pub use coin::Coin;
 pub use cosmrs::bank::MsgSend;
 pub use cosmrs::tendermint::abci::{response::DeliverTx, Event, EventAttribute};
@@ -26,274 +45,315 @@ pub use cosmrs::Gas;
 pub use cosmrs::{bip32, AccountId, Denom};
 pub use cosmwasm_std::Coin as CosmWasmCoin;
 pub use fee::{gas_price::GasPrice, GasAdjustable, GasAdjustment};
-pub use tendermint_rpc::{client::Client as TendermintClient, Request, Response, SimpleRequest};
 pub use tendermint_rpc::{
     endpoint::{tx::Response as TxResponse, validators::Response as ValidatorResponse},
     Paging,
 };
+pub use tendermint_rpc::{Request, Response, SimpleRequest};
 
 #[cfg(feature = "http-client")]
-pub use cosmrs::rpc::{HttpClient as QueryNyxdClient, HttpClientUrl};
-
-#[cfg(all(feature = "signing", feature = "http-client"))]
-use crate::nyxd::cosmwasm_client::signing_client;
-#[cfg(feature = "signing")]
-use crate::nyxd::cosmwasm_client::types::{
-    ChangeAdminResult, ContractCodeId, ExecuteResult, InstantiateOptions, InstantiateResult,
-    MigrateResult, SequenceResponse, SimulateResponse, UploadResult,
-};
-#[cfg(all(feature = "signing", feature = "http-client"))]
-use crate::signing::direct_wallet::DirectSecp256k1HdWallet;
-#[cfg(all(feature = "signing", feature = "http-client"))]
-use crate::signing::signer::OfflineSigner;
-#[cfg(feature = "signing")]
-use cosmrs::cosmwasm;
-#[cfg(feature = "signing")]
-use cosmrs::tx::Msg;
-#[cfg(feature = "signing")]
-use cosmwasm_std::Addr;
-#[cfg(feature = "signing")]
-use std::time::SystemTime;
-
-#[cfg(feature = "signing")]
-pub use crate::nyxd::cosmwasm_client::signing_client::SigningCosmWasmClient;
-
-#[cfg(all(feature = "signing", feature = "http-client"))]
-pub use signing_client::Client as SigningNyxdClient;
-
-#[cfg(all(feature = "signing", feature = "http-client"))]
-pub type DirectSigningNyxdClient = SigningNyxdClient<DirectSecp256k1HdWallet>;
+use crate::http_client;
+#[cfg(feature = "http-client")]
+use crate::{DirectSigningHttpRpcNyxdClient, QueryHttpRpcNyxdClient};
+#[cfg(feature = "http-client")]
+use cosmrs::rpc::{HttpClient, HttpClientUrl};
+use tendermint_rpc::query::Query;
 
 pub mod coin;
+pub mod contract_traits;
 pub mod cosmwasm_client;
 pub mod error;
 pub mod fee;
-pub mod traits;
 
 #[derive(Debug, Clone)]
 pub struct Config {
     pub(crate) chain_details: ChainDetails,
-
-    // I'd love to have used `NymContracts` struct directly here instead,
-    // however, I'd really prefer to use something more strongly typed (i.e. AccountId vs String)
-    pub(crate) mixnet_contract_address: Option<AccountId>,
-    pub(crate) vesting_contract_address: Option<AccountId>,
-    pub(crate) bandwidth_claim_contract_address: Option<AccountId>,
-    pub(crate) coconut_bandwidth_contract_address: Option<AccountId>,
-    pub(crate) group_contract_address: Option<AccountId>,
-    pub(crate) multisig_contract_address: Option<AccountId>,
-    pub(crate) coconut_dkg_contract_address: Option<AccountId>,
-    pub(crate) service_provider_contract_address: Option<AccountId>,
-    pub(crate) name_service_contract_address: Option<AccountId>,
-    // TODO: add this in later commits
-    // pub(crate) gas_price: GasPrice,
+    pub(crate) contracts: TypedNymContracts,
+    pub(crate) gas_price: GasPrice,
+    pub(crate) simulated_gas_multiplier: f32,
 }
 
 impl Config {
-    fn parse_optional_account(
-        raw: Option<&String>,
-        expected_prefix: &str,
-    ) -> Result<Option<AccountId>, NyxdError> {
-        if let Some(address) = raw {
-            trace!("Raw address:{:?}", raw);
-            trace!("Expected prefix:{:?}", expected_prefix);
-            let parsed: AccountId = address
-                .parse()
-                .map_err(|_| NyxdError::MalformedAccountAddress(address.clone()))?;
-            debug!("Parsed prefix:{:?}", parsed);
-            if parsed.prefix() != expected_prefix {
-                Err(NyxdError::UnexpectedBech32Prefix {
-                    got: parsed.prefix().into(),
-                    expected: expected_prefix.into(),
-                })
-            } else {
-                Ok(Some(parsed))
-            }
-        } else {
-            Ok(None)
-        }
-    }
-
     pub fn try_from_nym_network_details(details: &NymNetworkDetails) -> Result<Self, NyxdError> {
-        let prefix = &details.chain_details.bech32_account_prefix;
         Ok(Config {
             chain_details: details.chain_details.clone(),
-            mixnet_contract_address: Self::parse_optional_account(
-                details.contracts.mixnet_contract_address.as_ref(),
-                prefix,
-            )?,
-            vesting_contract_address: Self::parse_optional_account(
-                details.contracts.vesting_contract_address.as_ref(),
-                prefix,
-            )?,
-            bandwidth_claim_contract_address: Self::parse_optional_account(
-                details.contracts.bandwidth_claim_contract_address.as_ref(),
-                prefix,
-            )?,
-            coconut_bandwidth_contract_address: Self::parse_optional_account(
-                details
-                    .contracts
-                    .coconut_bandwidth_contract_address
-                    .as_ref(),
-                prefix,
-            )?,
-            group_contract_address: Self::parse_optional_account(
-                details.contracts.group_contract_address.as_ref(),
-                prefix,
-            )?,
-            multisig_contract_address: Self::parse_optional_account(
-                details.contracts.multisig_contract_address.as_ref(),
-                prefix,
-            )?,
-            coconut_dkg_contract_address: Self::parse_optional_account(
-                details.contracts.coconut_dkg_contract_address.as_ref(),
-                prefix,
-            )?,
-            service_provider_contract_address: Self::parse_optional_account(
-                details
-                    .contracts
-                    .service_provider_directory_contract_address
-                    .as_ref(),
-                prefix,
-            )?,
-            name_service_contract_address: Self::parse_optional_account(
-                details.contracts.name_service_contract_address.as_ref(),
-                prefix,
-            )?,
+            contracts: TypedNymContracts::try_from(details.contracts.clone())?,
+            gas_price: details.try_into()?,
+            simulated_gas_multiplier: DEFAULT_SIMULATED_GAS_MULTIPLIER,
         })
+    }
+
+    pub fn with_simulated_gas_multplier(mut self, simulated_gas_multiplier: f32) -> Self {
+        self.simulated_gas_multiplier = simulated_gas_multiplier;
+        self
     }
 }
 
 #[derive(Debug)]
-pub struct NyxdClient<C> {
-    client: C,
+pub struct NyxdClient<C, S = NoSigner> {
+    client: MaybeSigningClient<C, S>,
     config: Config,
-    // TODO: refactor because that field is only really used for signing
-    #[allow(dead_code)]
-    client_address: Option<Vec<AccountId>>,
-    simulated_gas_multiplier: f32,
 }
 
+// terrible name, but can't really change it because it will break so many uses
 #[cfg(feature = "http-client")]
-impl NyxdClient<QueryNyxdClient> {
-    pub fn connect<U>(config: Config, endpoint: U) -> Result<NyxdClient<QueryNyxdClient>, NyxdError>
+impl NyxdClient<HttpClient> {
+    pub fn connect<U>(config: Config, endpoint: U) -> Result<QueryHttpRpcNyxdClient, NyxdError>
     where
         U: TryInto<HttpClientUrl, Error = TendermintRpcError>,
     {
+        let client = http_client(endpoint)?;
+
         Ok(NyxdClient {
-            client: QueryNyxdClient::new(endpoint)?,
+            client: MaybeSigningClient::new(client, (&config).into()),
             config,
-            client_address: None,
-            simulated_gas_multiplier: crate::nyxd::fee::DEFAULT_SIMULATED_GAS_MULTIPLIER,
         })
     }
 }
 
-#[cfg(all(feature = "signing", feature = "http-client"))]
-impl NyxdClient<SigningNyxdClient<DirectSecp256k1HdWallet>> {
-    // TODO: rename this one
-    pub fn connect_with_mnemonic<U: Clone>(
+impl NyxdClient<ReqwestRpcClient> {
+    pub fn connect_reqwest(
+        config: Config,
+        endpoint: Url,
+    ) -> Result<QueryReqwestRpcNyxdClient, NyxdError> {
+        let client = ReqwestRpcClient::new(endpoint);
+
+        Ok(NyxdClient {
+            client: MaybeSigningClient::new(client, (&config).into()),
+            config,
+        })
+    }
+}
+
+impl<C> NyxdClient<C> {
+    pub fn new(config: Config, client: C) -> Self {
+        NyxdClient {
+            client: MaybeSigningClient::new(client, (&config).into()),
+            config,
+        }
+    }
+}
+
+// terrible name, but can't really change it because it will break so many uses
+#[cfg(feature = "http-client")]
+impl NyxdClient<HttpClient, DirectSecp256k1HdWallet> {
+    pub fn connect_with_mnemonic<U>(
         config: Config,
         endpoint: U,
         mnemonic: bip39::Mnemonic,
-        gas_price: Option<GasPrice>,
-    ) -> Result<NyxdClient<SigningNyxdClient<DirectSecp256k1HdWallet>>, NyxdError>
+    ) -> Result<DirectSigningHttpRpcNyxdClient, NyxdError>
     where
         U: TryInto<HttpClientUrl, Error = TendermintRpcError>,
     {
+        let client = http_client(endpoint)?;
+
         let prefix = &config.chain_details.bech32_account_prefix;
         let wallet = DirectSecp256k1HdWallet::from_mnemonic(prefix, mnemonic);
-        Self::connect_with_signer(config, endpoint, wallet, gas_price)
+        Ok(Self::connect_with_signer(config, client, wallet))
     }
 }
 
-#[cfg(all(feature = "signing", feature = "http-client"))]
-impl<S> NyxdClient<SigningNyxdClient<S>>
+impl NyxdClient<ReqwestRpcClient, DirectSecp256k1HdWallet> {
+    pub fn connect_reqwest_with_mnemonic(
+        config: Config,
+        endpoint: Url,
+        mnemonic: bip39::Mnemonic,
+    ) -> DirectSigningReqwestRpcNyxdClient {
+        let client = ReqwestRpcClient::new(endpoint);
+
+        let prefix = &config.chain_details.bech32_account_prefix;
+        let wallet = DirectSecp256k1HdWallet::from_mnemonic(prefix, mnemonic);
+        Self::connect_with_signer(config, client, wallet)
+    }
+}
+
+impl<C, S> NyxdClient<C, S>
 where
     S: OfflineSigner,
-    // I have no idea why S::Error: Into<NyxdError> bound wouldn't do the trick
-    NyxdError: From<S::Error>,
 {
-    #[cfg(feature = "http-client")]
-    pub fn connect_with_signer<U: Clone>(
-        config: Config,
-        endpoint: U,
-        signer: S,
-        gas_price: Option<GasPrice>,
-    ) -> Result<NyxdClient<SigningNyxdClient<S>>, NyxdError>
-    where
-        U: TryInto<HttpClientUrl, Error = TendermintRpcError>,
-    {
-        let denom = &config.chain_details.mix_denom.base;
-        let client_address = signer
-            .get_accounts()?
-            .into_iter()
-            .map(|account| account.address)
-            .collect();
-        let gas_price = gas_price.unwrap_or(GasPrice::new_with_default_price(denom)?);
-
-        Ok(NyxdClient {
-            client: SigningNyxdClient::connect_with_signer(endpoint, signer, gas_price)?,
+    pub fn connect_with_signer(config: Config, client: C, signer: S) -> NyxdClient<C, S> {
+        NyxdClient {
+            client: MaybeSigningClient::new_signing(client, signer, (&config).into()),
             config,
-            client_address: Some(client_address),
-            simulated_gas_multiplier: crate::nyxd::fee::DEFAULT_SIMULATED_GAS_MULTIPLIER,
-        })
+        }
     }
+}
 
-    #[cfg(feature = "http-client")]
+#[cfg(feature = "http-client")]
+impl<S> NyxdClient<HttpClient, S> {
     pub fn change_endpoint<U>(&mut self, new_endpoint: U) -> Result<(), NyxdError>
     where
         U: TryInto<HttpClientUrl, Error = TendermintRpcError>,
     {
         self.client.change_endpoint(new_endpoint)
     }
+}
 
-    pub fn into_signer(self) -> S {
-        self.client.into_signer()
+// no trait bounds
+impl<C, S> NyxdClient<C, S> {
+    pub fn new_signing(config: Config, client: C, signer: S) -> Self
+    where
+        S: OfflineSigner,
+    {
+        NyxdClient {
+            client: MaybeSigningClient::new_signing(client, signer, (&config).into()),
+            config,
+        }
+    }
+
+    pub fn current_config(&self) -> &Config {
+        &self.config
+    }
+
+    pub fn current_chain_details(&self) -> &ChainDetails {
+        &self.config.chain_details
+    }
+
+    pub fn set_mixnet_contract_address(&mut self, address: AccountId) {
+        self.config.contracts.mixnet_contract_address = Some(address);
+    }
+
+    pub fn set_vesting_contract_address(&mut self, address: AccountId) {
+        self.config.contracts.vesting_contract_address = Some(address);
+    }
+
+    pub fn set_coconut_bandwidth_contract_address(&mut self, address: AccountId) {
+        self.config.contracts.coconut_bandwidth_contract_address = Some(address);
+    }
+
+    pub fn set_multisig_contract_address(&mut self, address: AccountId) {
+        self.config.contracts.multisig_contract_address = Some(address);
+    }
+
+    pub fn set_service_provider_contract_address(&mut self, address: AccountId) {
+        self.config
+            .contracts
+            .service_provider_directory_contract_address = Some(address);
+    }
+
+    pub fn set_simulated_gas_multiplier(&mut self, multiplier: f32) {
+        self.config.simulated_gas_multiplier = multiplier;
     }
 }
 
-#[cfg(feature = "signing")]
-impl<C> NyxdClient<C>
-where
-    C: SigningCosmWasmClient + Sync,
-{
-    pub fn address(&self) -> &AccountId
-    where
-        C: SigningCosmWasmClient,
-    {
-        // if this is a signing client (as required by the trait bound), it must have the address set
-        &self.client_address.as_ref().unwrap()[0]
+impl<C, S> NymContractsProvider for NyxdClient<C, S> {
+    fn mixnet_contract_address(&self) -> Option<&AccountId> {
+        self.config.contracts.mixnet_contract_address.as_ref()
     }
 
-    pub fn cw_address(&self) -> Addr
-    where
-        C: SigningCosmWasmClient,
-    {
+    fn vesting_contract_address(&self) -> Option<&AccountId> {
+        self.config.contracts.vesting_contract_address.as_ref()
+    }
+
+    fn coconut_bandwidth_contract_address(&self) -> Option<&AccountId> {
+        self.config
+            .contracts
+            .coconut_bandwidth_contract_address
+            .as_ref()
+    }
+
+    fn dkg_contract_address(&self) -> Option<&AccountId> {
+        self.config.contracts.coconut_dkg_contract_address.as_ref()
+    }
+
+    fn group_contract_address(&self) -> Option<&AccountId> {
+        self.config.contracts.group_contract_address.as_ref()
+    }
+
+    fn multisig_contract_address(&self) -> Option<&AccountId> {
+        self.config.contracts.multisig_contract_address.as_ref()
+    }
+
+    fn ephemera_contract_address(&self) -> Option<&AccountId> {
+        self.config.contracts.ephemera_contract_address.as_ref()
+    }
+
+    fn name_service_contract_address(&self) -> Option<&AccountId> {
+        self.config.contracts.name_service_contract_address.as_ref()
+    }
+
+    fn service_provider_contract_address(&self) -> Option<&AccountId> {
+        self.config
+            .contracts
+            .service_provider_directory_contract_address
+            .as_ref()
+    }
+}
+
+// queries
+impl<C, S> NyxdClient<C, S>
+where
+    C: TendermintRpcClient + Send + Sync,
+    S: Send + Sync,
+{
+    pub async fn get_account_public_key(
+        &self,
+        address: &AccountId,
+    ) -> Result<Option<cosmrs::crypto::PublicKey>, NyxdError> {
+        if let Some(account) = self.client.get_account(address).await? {
+            let base_account = account.try_get_base_account()?;
+            return Ok(base_account.pubkey);
+        }
+
+        Ok(None)
+    }
+
+    pub async fn get_current_block_timestamp(&self) -> Result<TendermintTime, NyxdError> {
+        self.get_block_timestamp(None).await
+    }
+
+    pub async fn get_block_timestamp(
+        &self,
+        height: Option<u32>,
+    ) -> Result<TendermintTime, NyxdError> {
+        Ok(self.client.get_block(height).await?.block.header.time)
+    }
+
+    pub async fn get_block(&self, height: Option<u32>) -> Result<BlockResponse, NyxdError> {
+        self.client.get_block(height).await
+    }
+
+    pub async fn get_current_block_height(&self) -> Result<Height, NyxdError> {
+        self.client.get_height().await
+    }
+
+    /// Obtains the hash of a block specified by the provided height.
+    ///
+    /// # Arguments
+    ///
+    /// * `height`: height of the block for which we want to obtain the hash.
+    pub async fn get_block_hash(&self, height: u32) -> Result<Hash, NyxdError> {
+        self.client
+            .get_block(Some(height))
+            .await
+            .map(|block| block.block_id.hash)
+    }
+}
+
+// signing
+impl<C, S> NyxdClient<C, S>
+where
+    C: TendermintRpcClient + Send + Sync,
+    S: OfflineSigner + Send + Sync,
+    NyxdError: From<<S as OfflineSigner>::Error>,
+{
+    pub fn address(&self) -> AccountId {
+        match self.client.signer_addresses() {
+            Ok(addresses) => addresses[0].clone(),
+            Err(_) => {
+                panic!("key derivation failure")
+            }
+        }
+    }
+
+    pub fn cw_address(&self) -> Addr {
         // the call to unchecked is fine here as we're converting directly from `AccountId`
         // which must have been a valid bech32 address
         Addr::unchecked(self.address().as_ref())
     }
 
-    pub async fn account_sequence(&self) -> Result<SequenceResponse, NyxdError>
-    where
-        C: SigningCosmWasmClient + Sync,
-    {
-        self.client.get_sequence(self.address()).await
-    }
-
-    pub fn signer(&self) -> &<C as SigningCosmWasmClient>::Signer
-    where
-        C: SigningCosmWasmClient,
-    {
-        self.client.signer()
-    }
-
-    pub fn gas_price(&self) -> &GasPrice
-    where
-        C: SigningCosmWasmClient,
-    {
-        self.client.gas_price()
+    pub async fn account_sequence(&self) -> Result<SequenceResponse, NyxdError> {
+        self.client.get_sequence(&self.address()).await
     }
 
     pub fn wrap_contract_execute_message<M>(
@@ -303,11 +363,10 @@ where
         funds: Vec<Coin>,
     ) -> Result<cosmwasm::MsgExecuteContract, NyxdError>
     where
-        C: SigningCosmWasmClient,
         M: ?Sized + Serialize,
     {
         Ok(cosmwasm::MsgExecuteContract {
-            sender: self.address().clone(),
+            sender: self.address(),
             contract: contract_address.clone(),
             msg: serde_json::to_vec(msg)?,
             funds: funds.into_iter().map(Into::into).collect(),
@@ -316,13 +375,12 @@ where
 
     pub async fn simulate<I, M>(&self, messages: I) -> Result<SimulateResponse, NyxdError>
     where
-        C: SigningCosmWasmClient + Sync,
         I: IntoIterator<Item = M> + Send,
         M: Msg,
     {
         self.client
             .simulate(
-                self.address(),
+                &self.address(),
                 messages
                     .into_iter()
                     .map(|msg| msg.into_any())
@@ -342,13 +400,10 @@ where
         amount: Vec<Coin>,
         memo: impl Into<String> + Send + 'static,
         fee: Option<Fee>,
-    ) -> Result<TxResponse, NyxdError>
-    where
-        C: SigningCosmWasmClient + Sync,
-    {
-        let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
+    ) -> Result<TxResponse, NyxdError> {
+        let fee = fee.unwrap_or(Fee::Auto(Some(self.config.simulated_gas_multiplier)));
         self.client
-            .send_tokens(self.address(), recipient, amount, fee, memo)
+            .send_tokens(&self.address(), recipient, amount, fee, memo)
             .await
     }
 
@@ -358,13 +413,10 @@ where
         msgs: Vec<(AccountId, Vec<Coin>)>,
         memo: impl Into<String> + Send + 'static,
         fee: Option<Fee>,
-    ) -> Result<TxResponse, NyxdError>
-    where
-        C: SigningCosmWasmClient + Sync,
-    {
-        let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
+    ) -> Result<TxResponse, NyxdError> {
+        let fee = fee.unwrap_or(Fee::Auto(Some(self.config.simulated_gas_multiplier)));
         self.client
-            .send_tokens_multiple(self.address(), msgs, fee, memo)
+            .send_tokens_multiple(&self.address(), msgs, fee, memo)
             .await
     }
 
@@ -377,14 +429,11 @@ where
         allowed_messages: Vec<String>,
         memo: impl Into<String> + Send + 'static,
         fee: Option<Fee>,
-    ) -> Result<TxResponse, NyxdError>
-    where
-        C: SigningCosmWasmClient + Sync,
-    {
-        let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
+    ) -> Result<TxResponse, NyxdError> {
+        let fee = fee.unwrap_or(Fee::Auto(Some(self.config.simulated_gas_multiplier)));
         self.client
             .grant_allowance(
-                self.address(),
+                &self.address(),
                 grantee,
                 spend_limit,
                 expiration,
@@ -401,13 +450,10 @@ where
         grantee: &AccountId,
         memo: impl Into<String> + Send + 'static,
         fee: Option<Fee>,
-    ) -> Result<TxResponse, NyxdError>
-    where
-        C: SigningCosmWasmClient + Sync,
-    {
-        let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
+    ) -> Result<TxResponse, NyxdError> {
+        let fee = fee.unwrap_or(Fee::Auto(Some(self.config.simulated_gas_multiplier)));
         self.client
-            .revoke_allowance(self.address(), grantee, fee, memo)
+            .revoke_allowance(&self.address(), grantee, fee, memo)
             .await
     }
 
@@ -420,12 +466,11 @@ where
         funds: Vec<Coin>,
     ) -> Result<ExecuteResult, NyxdError>
     where
-        C: SigningCosmWasmClient + Sync,
         M: ?Sized + Serialize + Sync,
     {
-        let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
+        let fee = fee.unwrap_or(Fee::Auto(Some(self.config.simulated_gas_multiplier)));
         self.client
-            .execute(self.address(), contract_address, msg, fee, memo, funds)
+            .execute(&self.address(), contract_address, msg, fee, memo, funds)
             .await
     }
 
@@ -437,13 +482,12 @@ where
         memo: impl Into<String> + Send + 'static,
     ) -> Result<ExecuteResult, NyxdError>
     where
-        C: SigningCosmWasmClient + Sync,
         I: IntoIterator<Item = (M, Vec<Coin>)> + Send,
         M: Serialize,
     {
-        let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
+        let fee = fee.unwrap_or(Fee::Auto(Some(self.config.simulated_gas_multiplier)));
         self.client
-            .execute_multiple(self.address(), contract_address, msgs, fee, memo)
+            .execute_multiple(&self.address(), contract_address, msgs, fee, memo)
             .await
     }
 
@@ -452,13 +496,10 @@ where
         wasm_code: Vec<u8>,
         memo: impl Into<String> + Send + 'static,
         fee: Option<Fee>,
-    ) -> Result<UploadResult, NyxdError>
-    where
-        C: SigningCosmWasmClient + Sync,
-    {
-        let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
+    ) -> Result<UploadResult, NyxdError> {
+        let fee = fee.unwrap_or(Fee::Auto(Some(self.config.simulated_gas_multiplier)));
         self.client
-            .upload(self.address(), wasm_code, fee, memo)
+            .upload(&self.address(), wasm_code, fee, memo)
             .await
     }
 
@@ -472,12 +513,11 @@ where
         fee: Option<Fee>,
     ) -> Result<InstantiateResult, NyxdError>
     where
-        C: SigningCosmWasmClient + Sync,
         M: ?Sized + Serialize + Sync,
     {
-        let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
+        let fee = fee.unwrap_or(Fee::Auto(Some(self.config.simulated_gas_multiplier)));
         self.client
-            .instantiate(self.address(), code_id, msg, label, fee, memo, options)
+            .instantiate(&self.address(), code_id, msg, label, fee, memo, options)
             .await
     }
 
@@ -487,13 +527,10 @@ where
         new_admin: &AccountId,
         memo: impl Into<String> + Send + 'static,
         fee: Option<Fee>,
-    ) -> Result<ChangeAdminResult, NyxdError>
-    where
-        C: SigningCosmWasmClient + Sync,
-    {
-        let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
+    ) -> Result<ChangeAdminResult, NyxdError> {
+        let fee = fee.unwrap_or(Fee::Auto(Some(self.config.simulated_gas_multiplier)));
         self.client
-            .update_admin(self.address(), contract_address, new_admin, fee, memo)
+            .update_admin(&self.address(), contract_address, new_admin, fee, memo)
             .await
     }
 
@@ -502,13 +539,10 @@ where
         contract_address: &AccountId,
         memo: impl Into<String> + Send + 'static,
         fee: Option<Fee>,
-    ) -> Result<ChangeAdminResult, NyxdError>
-    where
-        C: SigningCosmWasmClient + Sync,
-    {
-        let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
+    ) -> Result<ChangeAdminResult, NyxdError> {
+        let fee = fee.unwrap_or(Fee::Auto(Some(self.config.simulated_gas_multiplier)));
         self.client
-            .clear_admin(self.address(), contract_address, fee, memo)
+            .clear_admin(&self.address(), contract_address, fee, memo)
             .await
     }
 
@@ -521,273 +555,281 @@ where
         fee: Option<Fee>,
     ) -> Result<MigrateResult, NyxdError>
     where
-        C: SigningCosmWasmClient + Sync,
         M: ?Sized + Serialize + Sync,
     {
-        let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
+        let fee = fee.unwrap_or(Fee::Auto(Some(self.config.simulated_gas_multiplier)));
         self.client
-            .migrate(self.address(), contract_address, code_id, fee, msg, memo)
+            .migrate(&self.address(), contract_address, code_id, fee, msg, memo)
             .await
     }
 }
 
-impl<C> NyxdClient<C> {
-    pub fn current_config(&self) -> &Config {
-        &self.config
+// ugh. is there a way to avoid that nasty trait implementation?
+
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+impl<C, S> TendermintRpcClient for NyxdClient<C, S>
+where
+    C: TendermintRpcClient + Send + Sync,
+    S: Send + Sync,
+{
+    async fn abci_info(&self) -> Result<abci::response::Info, TendermintRpcError> {
+        self.client.abci_info().await
     }
 
-    pub fn current_chain_details(&self) -> &ChainDetails {
-        &self.config.chain_details
-    }
-
-    pub fn set_mixnet_contract_address(&mut self, address: AccountId) {
-        self.config.mixnet_contract_address = Some(address);
-    }
-
-    pub fn set_vesting_contract_address(&mut self, address: AccountId) {
-        self.config.vesting_contract_address = Some(address);
-    }
-
-    pub fn set_bandwidth_claim_contract_address(&mut self, address: AccountId) {
-        self.config.bandwidth_claim_contract_address = Some(address);
-    }
-
-    pub fn set_coconut_bandwidth_contract_address(&mut self, address: AccountId) {
-        self.config.coconut_bandwidth_contract_address = Some(address);
-    }
-
-    pub fn set_multisig_contract_address(&mut self, address: AccountId) {
-        self.config.multisig_contract_address = Some(address);
-    }
-
-    pub fn set_service_provider_contract_address(&mut self, address: AccountId) {
-        self.config.service_provider_contract_address = Some(address);
-    }
-
-    // TODO: this should get changed into Result<&AccountId, NyxdError> (or Option<&AccountId> in future commits
-    // note: what unwrap is doing here is just moving a failure that would have normally
-    // occurred in `connect` when attempting to parse an empty address,
-    // so it's not introducing new source of failure (just moves it)
-    pub fn mixnet_contract_address(&self) -> &AccountId {
-        self.config.mixnet_contract_address.as_ref().unwrap()
-    }
-
-    // TODO: this should get changed into Result<&AccountId, NyxdError> (or Option<&AccountId> in future commits
-    // note: what unwrap is doing here is just moving a failure that would have normally
-    // occurred in `connect` when attempting to parse an empty address,
-    // so it's not introducing new source of failure (just moves it)
-    pub fn vesting_contract_address(&self) -> &AccountId {
-        self.config.vesting_contract_address.as_ref().unwrap()
-    }
-
-    // TODO: this should get changed into Result<&AccountId, NyxdError> (or Option<&AccountId> in future commits
-    // note: what unwrap is doing here is just moving a failure that would have normally
-    // occurred in `connect` when attempting to parse an empty address,
-    // so it's not introducing new source of failure (just moves it)
-    pub fn bandwidth_claim_contract_address(&self) -> &AccountId {
-        self.config
-            .bandwidth_claim_contract_address
-            .as_ref()
-            .unwrap()
-    }
-
-    // TODO: this should get changed into Result<&AccountId, NyxdError> (or Option<&AccountId> in future commits
-    // note: what unwrap is doing here is just moving a failure that would have normally
-    // occurred in `connect` when attempting to parse an empty address,
-    // so it's not introducing new source of failure (just moves it)
-    pub fn coconut_bandwidth_contract_address(&self) -> &AccountId {
-        self.config
-            .coconut_bandwidth_contract_address
-            .as_ref()
-            .unwrap()
-    }
-
-    pub fn group_contract_address(&self) -> &AccountId {
-        self.config.group_contract_address.as_ref().unwrap()
-    }
-
-    // TODO: this should get changed into Result<&AccountId, NyxdError> (or Option<&AccountId> in future commits
-    // note: what unwrap is doing here is just moving a failure that would have normally
-    // occurred in `connect` when attempting to parse an empty address,
-    // so it's not introducing new source of failure (just moves it)
-    pub fn multisig_contract_address(&self) -> &AccountId {
-        self.config.multisig_contract_address.as_ref().unwrap()
-    }
-
-    // TODO: this should get changed into Result<&AccountId, NyxdError> (or Option<&AccountId> in future commits
-    // note: what unwrap is doing here is just moving a failure that would have normally
-    // occurred in `connect` when attempting to parse an empty address,
-    // so it's not introducing new source of failure (just moves it)
-    pub fn coconut_dkg_contract_address(&self) -> &AccountId {
-        self.config.coconut_dkg_contract_address.as_ref().unwrap()
-    }
-
-    // The service provider directory contract is optional, so we return an Option not a Result
-    pub fn service_provider_contract_address(&self) -> Option<&AccountId> {
-        self.config.service_provider_contract_address.as_ref()
-    }
-
-    // The name service contract is optional, so we return an Option not a Result
-    pub fn name_service_contract_address(&self) -> Option<&AccountId> {
-        self.config.name_service_contract_address.as_ref()
-    }
-
-    pub fn set_simulated_gas_multiplier(&mut self, multiplier: f32) {
-        self.simulated_gas_multiplier = multiplier;
-    }
-
-    pub async fn query_contract_smart<M, T>(
+    async fn abci_query<V>(
         &self,
-        contract: &AccountId,
-        query_msg: &M,
-    ) -> Result<T, NyxdError>
+        path: Option<String>,
+        data: V,
+        height: Option<Height>,
+        prove: bool,
+    ) -> Result<abci_query::AbciQuery, TendermintRpcError>
     where
-        C: CosmWasmClient + Sync,
-        M: ?Sized + Serialize + Sync,
-        for<'a> T: Deserialize<'a>,
+        V: Into<Vec<u8>> + Send,
     {
-        self.client.query_contract_smart(contract, query_msg).await
+        self.client.abci_query(path, data, height, prove).await
     }
 
-    pub async fn query_contract_raw(
+    async fn block<H>(&self, height: H) -> Result<block::Response, TendermintRpcError>
+    where
+        H: Into<Height> + Send,
+    {
+        self.client.block(height).await
+    }
+
+    async fn block_by_hash(
         &self,
-        contract: &AccountId,
-        query_data: Vec<u8>,
-    ) -> Result<Vec<u8>, NyxdError>
+        hash: Hash,
+    ) -> Result<block_by_hash::Response, TendermintRpcError> {
+        self.client.block_by_hash(hash).await
+    }
+
+    async fn latest_block(&self) -> Result<block::Response, TendermintRpcError> {
+        self.client.latest_block().await
+    }
+
+    async fn header<H>(&self, height: H) -> Result<header::Response, TendermintRpcError>
     where
-        C: CosmWasmClient + Sync,
+        H: Into<Height> + Send,
     {
-        self.client.query_contract_raw(contract, query_data).await
+        self.client.header(height).await
     }
 
-    pub fn gas_adjustment(&self) -> GasAdjustment {
-        self.simulated_gas_multiplier
-    }
-
-    // =============
-    // CHAIN RELATED
-    // =============
-
-    // CHAIN QUERIES
-
-    pub async fn get_account_details(
+    async fn header_by_hash(
         &self,
-        address: &AccountId,
-    ) -> Result<Option<Account>, NyxdError>
-    where
-        C: CosmWasmClient + Sync,
-    {
-        self.client.get_account(address).await
+        hash: Hash,
+    ) -> Result<header_by_hash::Response, TendermintRpcError> {
+        self.client.header_by_hash(hash).await
     }
 
-    pub async fn get_account_public_key(
+    async fn block_results<H>(
         &self,
-        address: &AccountId,
-    ) -> Result<Option<cosmrs::crypto::PublicKey>, NyxdError>
+        height: H,
+    ) -> Result<block_results::Response, TendermintRpcError>
     where
-        C: CosmWasmClient + Sync,
+        H: Into<Height> + Send,
     {
-        if let Some(account) = self.client.get_account(address).await? {
-            let base_account = account.try_get_base_account()?;
-            return Ok(base_account.pubkey);
-        }
-
-        Ok(None)
+        self.client.block_results(height).await
     }
 
-    pub async fn get_current_block_timestamp(&self) -> Result<TendermintTime, NyxdError>
-    where
-        C: CosmWasmClient + Sync,
-    {
-        self.get_block_timestamp(None).await
+    async fn latest_block_results(&self) -> Result<block_results::Response, TendermintRpcError> {
+        self.client.latest_block_results().await
     }
 
-    pub async fn get_block_timestamp(
+    async fn block_search(
         &self,
-        height: Option<u32>,
-    ) -> Result<TendermintTime, NyxdError>
-    where
-        C: CosmWasmClient + Sync,
-    {
-        Ok(self.client.get_block(height).await?.block.header.time)
+        query: Query,
+        page: u32,
+        per_page: u8,
+        order: Order,
+    ) -> Result<block_search::Response, TendermintRpcError> {
+        self.client.block_search(query, page, per_page, order).await
     }
 
-    pub async fn get_block(&self, height: Option<u32>) -> Result<BlockResponse, NyxdError>
-    where
-        C: CosmWasmClient + Sync,
-    {
-        self.client.get_block(height).await
-    }
-
-    pub async fn get_current_block_height(&self) -> Result<Height, NyxdError>
-    where
-        C: CosmWasmClient + Sync,
-    {
-        self.client.get_height().await
-    }
-
-    /// Obtains the hash of a block specified by the provided height.
-    ///
-    /// # Arguments
-    ///
-    /// * `height`: height of the block for which we want to obtain the hash.
-    pub async fn get_block_hash(&self, height: u32) -> Result<Hash, NyxdError>
-    where
-        C: CosmWasmClient + Sync,
-    {
-        self.client
-            .get_block(Some(height))
-            .await
-            .map(|block| block.block_id.hash)
-    }
-
-    pub async fn get_validators(
+    async fn blockchain<H>(
         &self,
-        height: u64,
+        min: H,
+        max: H,
+    ) -> Result<blockchain::Response, TendermintRpcError>
+    where
+        H: Into<Height> + Send,
+    {
+        self.client.blockchain(min, max).await
+    }
+
+    async fn broadcast_tx_async<T>(
+        &self,
+        tx: T,
+    ) -> Result<broadcast::tx_async::Response, TendermintRpcError>
+    where
+        T: Into<Vec<u8>> + Send,
+    {
+        TendermintRpcClient::broadcast_tx_async(&self.client, tx).await
+    }
+
+    async fn broadcast_tx_sync<T>(
+        &self,
+        tx: T,
+    ) -> Result<broadcast::tx_sync::Response, TendermintRpcError>
+    where
+        T: Into<Vec<u8>> + Send,
+    {
+        TendermintRpcClient::broadcast_tx_sync(&self.client, tx).await
+    }
+
+    async fn broadcast_tx_commit<T>(
+        &self,
+        tx: T,
+    ) -> Result<broadcast::tx_commit::Response, TendermintRpcError>
+    where
+        T: Into<Vec<u8>> + Send,
+    {
+        TendermintRpcClient::broadcast_tx_commit(&self.client, tx).await
+    }
+
+    async fn commit<H>(&self, height: H) -> Result<commit::Response, TendermintRpcError>
+    where
+        H: Into<Height> + Send,
+    {
+        self.client.commit(height).await
+    }
+
+    async fn consensus_params<H>(
+        &self,
+        height: H,
+    ) -> Result<consensus_params::Response, TendermintRpcError>
+    where
+        H: Into<Height> + Send,
+    {
+        self.client.consensus_params(height).await
+    }
+
+    async fn consensus_state(&self) -> Result<consensus_state::Response, TendermintRpcError> {
+        self.client.consensus_state().await
+    }
+
+    async fn validators<H>(
+        &self,
+        height: H,
         paging: Paging,
-    ) -> Result<ValidatorResponse, NyxdError>
+    ) -> Result<validators::Response, TendermintRpcError>
     where
-        C: CosmWasmClient + Sync,
+        H: Into<Height> + Send,
     {
-        Ok(self.client.validators(height as u32, paging).await?)
+        self.client.validators(height, paging).await
     }
 
-    pub async fn get_balance(
+    async fn latest_consensus_params(
         &self,
-        address: &AccountId,
-        denom: String,
-    ) -> Result<Option<Coin>, NyxdError>
-    where
-        C: CosmWasmClient + Sync,
-    {
-        self.client.get_balance(address, denom).await
+    ) -> Result<consensus_params::Response, TendermintRpcError> {
+        self.client.latest_consensus_params().await
     }
 
-    pub async fn get_all_balances(&self, address: &AccountId) -> Result<Vec<Coin>, NyxdError>
-    where
-        C: CosmWasmClient + Sync,
-    {
-        self.client.get_all_balances(address).await
+    async fn latest_commit(&self) -> Result<commit::Response, TendermintRpcError> {
+        self.client.latest_commit().await
     }
 
-    pub async fn get_tx(&self, id: Hash) -> Result<TxResponse, NyxdError>
-    where
-        C: CosmWasmClient + Sync,
-    {
-        self.client.get_tx(id).await
+    async fn health(&self) -> Result<(), TendermintRpcError> {
+        self.client.health().await
     }
 
-    pub async fn search_tx(&self, query: Query) -> Result<Vec<TxResponse>, NyxdError>
+    async fn genesis<AppState>(&self) -> Result<Genesis<AppState>, TendermintRpcError>
     where
-        C: CosmWasmClient + Sync,
+        AppState: Debug + Serialize + DeserializeOwned + Send,
     {
-        self.client.search_tx(query).await
+        self.client.genesis().await
     }
 
-    pub async fn get_total_supply(&self) -> Result<Vec<Coin>, NyxdError>
+    async fn net_info(&self) -> Result<net_info::Response, TendermintRpcError> {
+        self.client.net_info().await
+    }
+
+    async fn status(&self) -> Result<status::Response, TendermintRpcError> {
+        self.client.status().await
+    }
+
+    async fn broadcast_evidence(
+        &self,
+        e: Evidence,
+    ) -> Result<evidence::Response, TendermintRpcError> {
+        self.client.broadcast_evidence(e).await
+    }
+
+    async fn tx(&self, hash: Hash, prove: bool) -> Result<TxResponse, TendermintRpcError> {
+        self.client.tx(hash, prove).await
+    }
+
+    async fn tx_search(
+        &self,
+        query: Query,
+        prove: bool,
+        page: u32,
+        per_page: u8,
+        order: Order,
+    ) -> Result<tx_search::Response, TendermintRpcError> {
+        self.client
+            .tx_search(query, prove, page, per_page, order)
+            .await
+    }
+
+    #[cfg(any(
+        feature = "tendermint-rpc/http-client",
+        feature = "tendermint-rpc/websocket-client"
+    ))]
+    async fn wait_until_healthy<T>(&self, timeout: T) -> Result<(), Error>
     where
-        C: CosmWasmClient + Sync,
+        T: Into<core::time::Duration> + Send,
     {
-        self.client.get_total_supply().await
+        self.client.wait_until_healthy(timeout).await
+    }
+
+    async fn perform<R>(&self, request: R) -> Result<R::Output, TendermintRpcError>
+    where
+        R: SimpleRequest,
+    {
+        self.client.perform(request).await
+    }
+}
+
+#[async_trait]
+impl<C, S> CosmWasmClient for NyxdClient<C, S>
+where
+    C: TendermintRpcClient + Send + Sync,
+    S: Send + Sync,
+{
+}
+
+impl<C, S> OfflineSigner for NyxdClient<C, S>
+where
+    S: OfflineSigner,
+{
+    type Error = S::Error;
+
+    fn get_accounts(&self) -> Result<Vec<AccountData>, Self::Error> {
+        self.client.get_accounts()
+    }
+
+    fn sign_direct_with_account(
+        &self,
+        signer: &AccountData,
+        sign_doc: SignDoc,
+    ) -> Result<Raw, Self::Error> {
+        self.client.sign_direct_with_account(signer, sign_doc)
+    }
+}
+
+#[async_trait]
+impl<C, S> SigningCosmWasmClient for NyxdClient<C, S>
+where
+    C: TendermintRpcClient + Send + Sync,
+    S: TxSigner + Send + Sync,
+    NyxdError: From<S::Error>,
+{
+    fn gas_price(&self) -> &GasPrice {
+        self.client.gas_price()
+    }
+
+    fn simulated_gas_multiplier(&self) -> f32 {
+        self.client.simulated_gas_multiplier()
     }
 }

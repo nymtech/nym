@@ -73,13 +73,10 @@ endef
 # Generate targets for the various cargo workspaces
 
 $(eval $(call add_cargo_workspace,main,.))
-$(eval $(call add_cargo_workspace,contracts,contracts,--target wasm32-unknown-unknown))
+$(eval $(call add_cargo_workspace,contracts,contracts,--lib --target wasm32-unknown-unknown))
 $(eval $(call add_cargo_workspace,wasm-client,clients/webassembly,--target wasm32-unknown-unknown))
 $(eval $(call add_cargo_workspace,wallet,nym-wallet,))
 $(eval $(call add_cargo_workspace,connect,nym-connect/desktop))
-ifdef NYM_MOBILE
-$(eval $(call add_cargo_workspace,connect-mobile,nym-connect/mobile/src-tauri))
-endif
 
 # -----------------------------------------------------------------------------
 # Convenience targets for crates that are already part of the main workspace
@@ -104,13 +101,16 @@ NAME_SERVICE_CONTRACT=$(CONTRACTS_OUT_DIR)/nym_name_service.wasm
 wasm: wasm-build wasm-opt
 
 wasm-build:
-	RUSTFLAGS='-C link-arg=-s' cargo build --manifest-path contracts/Cargo.toml --release --target wasm32-unknown-unknown
+	RUSTFLAGS='-C link-arg=-s' cargo build --lib --manifest-path contracts/Cargo.toml --release --target wasm32-unknown-unknown
 
 wasm-opt:
 	wasm-opt --disable-sign-ext -Os $(VESTING_CONTRACT) -o $(VESTING_CONTRACT)
 	wasm-opt --disable-sign-ext -Os $(MIXNET_CONTRACT) -o $(MIXNET_CONTRACT)
 	wasm-opt --disable-sign-ext -Os $(SERVICE_PROVIDER_DIRECTORY_CONTRACT) -o $(SERVICE_PROVIDER_DIRECTORY_CONTRACT)
 	wasm-opt --disable-sign-ext -Os $(NAME_SERVICE_CONTRACT) -o $(NAME_SERVICE_CONTRACT)
+
+contract-schema:
+	$(MAKE) -C contracts schema
 
 # -----------------------------------------------------------------------------
 # Misc

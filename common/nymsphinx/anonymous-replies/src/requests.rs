@@ -275,7 +275,7 @@ impl RepliableMessageContent {
                     .to_be_bytes()
                     .into_iter()
                     .chain(reply_surbs.into_iter().flat_map(|s| s.to_bytes()))
-                    .chain(message.into_iter())
+                    .chain(message)
                     .collect()
             }
             RepliableMessageContent::AdditionalSurbs { reply_surbs } => {
@@ -465,7 +465,7 @@ impl ReplyMessageContent {
             ReplyMessageContent::SurbRequest { recipient, amount } => recipient
                 .to_bytes()
                 .into_iter()
-                .chain(amount.to_be_bytes().into_iter())
+                .chain(amount.to_be_bytes())
                 .collect(),
         }
     }

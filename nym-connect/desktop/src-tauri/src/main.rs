@@ -4,6 +4,7 @@
 )]
 
 use std::env;
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use nym_config::defaults::setup_env;
@@ -30,7 +31,8 @@ mod window;
 
 fn main() {
     dotenvy::dotenv().ok();
-    setup_env(None);
+
+    setup_env(env::args().nth(1).map(PathBuf::from).as_ref());
     println!("Starting up...");
 
     // As per breaking change description here
@@ -72,6 +74,8 @@ fn main() {
             crate::operations::common::get_user_data,
             crate::operations::common::set_monitoring,
             crate::operations::common::set_privacy_level,
+            crate::operations::common::set_selected_gateway,
+            crate::operations::common::set_selected_sp,
             crate::operations::connection::connect::get_gateway,
             crate::operations::connection::connect::get_service_provider,
             crate::operations::connection::connect::set_gateway,
@@ -82,8 +86,10 @@ fn main() {
             crate::operations::connection::status::get_connection_status,
             crate::operations::connection::status::get_gateway_connection_status,
             crate::operations::connection::status::start_connection_health_check_task,
-            crate::operations::directory::get_services,
+            crate::operations::directory::get_gateway_with_low_latency,
             crate::operations::directory::get_gateways,
+            crate::operations::directory::get_services,
+            crate::operations::directory::select_gateway_with_low_latency_from_list,
             crate::operations::export::export_keys,
             crate::operations::window::hide_window,
             crate::operations::growth::test_and_earn::growth_tne_get_client_id,

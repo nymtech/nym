@@ -7,22 +7,27 @@ edition = "2021"
 
 [dependencies]
 dirs = "4.0"
+futures = { workspace = true }
 log = { workspace = true }
 pin-project = "1.0"
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
+reqwest = { workspace = true }
+schemars = { version = "0.8", features = ["preserve_order"] }
 serde = { workspace = true, features = ["derive"] } # for config serialization/deserialization
-thiserror = "1.0.34"
 tap = "1.0.1"
+thiserror = "1.0.34"
 tokio = { version = "1.24.1", features = ["rt-multi-thread", "net", "signal"] }
-futures = "0.3"
+url = { workspace = true }
 
-nym-client-core = { path = "../client-core", features = ["fs-surb-storage"] }
 nym-bandwidth-controller = { path = "../../common/bandwidth-controller" }
+nym-client-core = { path = "../client-core", features = ["fs-surb-storage"] }
 nym-config = { path = "../config" }
+nym-contracts-common = { path = "../cosmwasm-smart-contracts/contracts-common" }
 nym-credential-storage = { path = "../credential-storage" }
+nym-mixnet-contract-common = { path = "../cosmwasm-smart-contracts/mixnet-contract" }
 nym-network-defaults = { path = "../network-defaults" }
-nym-socks5-proxy-helpers = { path = "../socks5/proxy-helpers" }
 nym-service-providers-common = { path = "../../service-providers/common" }
+nym-socks5-proxy-helpers = { path = "../socks5/proxy-helpers" }
 nym-socks5-requests = { path = "../socks5/requests" }
 nym-sphinx = { path = "../nymsphinx" }
 nym-task = { path = "../task" }

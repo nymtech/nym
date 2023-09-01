@@ -8,9 +8,17 @@ Features:
 - calculates how many nodes are in each country
 - proxies mixnode API requests to add HTTPS
 
+## Development
+
+Several environment variables are required. They can be
+provisioned via a `.env` file. For convenience a `.env.dev` is
+provided, just copy its content into `.env`.
+
+Follow the steps to setup the geoip database.
+
 ## GeoIP db install/update
 
-First we need to install the geoip database.
+A geoip database needs to be installed.
 
 We use https://github.com/maxmind/geoipupdate to automatically
 download and update GeoLite2 binary database. For convenience we
@@ -37,13 +45,7 @@ When starting the explorer-api, supply the environment variable
 `GEOIP_DB_PATH`, pointing to the GeoLite2 binary database file.
 It should be previously installed thanks to `geoipupdate` service.
 
-For example:
-
-```shell
-GEOIP_DB_PATH=./geo_ip/GeoLite2-City.mmdb cargo run
-```
-
-Note: explorer-api binary reads the provided `.env` file.
+Note: As mentioned above the explorer-api binary reads the provided `.env` file.
 
 Run as a service and reverse proxy with `nginx` to add `https` with Lets Encrypt.
 

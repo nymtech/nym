@@ -1,6 +1,10 @@
 // Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+// After reading https://github.com/rust-lang/rust-clippy/issues/11382
+// I suspect we *maybe* have hit a false positive, but I'm not sure.
+#![allow(clippy::arc_with_non_send_sync)]
+
 use wasm_bindgen::prelude::*;
 
 #[cfg(target_arch = "wasm32")]

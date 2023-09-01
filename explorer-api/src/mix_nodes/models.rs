@@ -5,17 +5,18 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 
+use nym_explorer_api_requests::{Location, MixnodeStatus, PrettyDetailedMixNodeBond};
 use nym_mixnet_contract_common::rewarding::helpers::truncate_reward;
 use nym_mixnet_contract_common::MixId;
 use serde::Serialize;
 use tokio::sync::{RwLock, RwLockReadGuard};
 
 use crate::helpers::best_effort_small_dec_to_f64;
+use crate::location::LocationCacheItem;
 use nym_validator_client::models::MixNodeBondAnnotated;
 
+use super::location::MixnodeLocationCache;
 use super::utils::family_numerical_id;
-use crate::mix_node::models::{MixnodeStatus, PrettyDetailedMixNodeBond};
-use crate::mix_nodes::location::{Location, LocationCache, LocationCacheItem};
 use crate::mix_nodes::CACHE_ENTRY_TTL;
 
 #[derive(Clone, Debug, Serialize, JsonSchema)]
@@ -83,18 +84,18 @@ impl MixNodesResult {
 #[derive(Clone)]
 pub(crate) struct ThreadsafeMixNodesCache {
     mixnodes: Arc<RwLock<MixNodesResult>>,
-    locations: Arc<RwLock<LocationCache>>,
+    locations: Arc<RwLock<MixnodeLocationCache>>,
 }
 
 impl ThreadsafeMixNodesCache {
     pub(crate) fn new() -> Self {
         ThreadsafeMixNodesCache {
             mixnodes: Arc::new(RwLock::new(MixNodesResult::new())),
-            locations: Arc::new(RwLock::new(LocationCache::new())),
+            locations: Arc::new(RwLock::new(MixnodeLocationCache::new())),
         }
     }
 
-    pub(crate) fn new_with_location_cache(locations: LocationCache) -> Self {
+    pub(crate) fn new_with_location_cache(locations: MixnodeLocationCache) -> Self {
         ThreadsafeMixNodesCache {
             mixnodes: Arc::new(RwLock::new(MixNodesResult::new())),
             locations: Arc::new(RwLock::new(locations)),
@@ -111,7 +112,7 @@ impl ThreadsafeMixNodesCache {
             })
     }
 
-    pub(crate) async fn get_locations(&self) -> LocationCache {
+    pub(crate) async fn get_locations(&self) -> MixnodeLocationCache {
         self.locations.read().await.clone()
     }
 

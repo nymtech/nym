@@ -2,45 +2,48 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::var_names::{DEPRECATED_API_VALIDATOR, DEPRECATED_NYMD_VALIDATOR, NYM_API, NYXD};
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use std::path::Path;
 use std::{
     env::{var, VarError},
     ffi::OsStr,
     ops::Not,
-    path::PathBuf,
 };
 use url::Url;
 
 pub mod mainnet;
 pub mod var_names;
 
-#[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize, JsonSchema)]
 pub struct ChainDetails {
     pub bech32_account_prefix: String,
     pub mix_denom: DenomDetailsOwned,
     pub stake_denom: DenomDetailsOwned,
 }
 
-#[derive(Clone, Debug, Default, Deserialize, Eq, Hash, PartialEq, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, Eq, Hash, PartialEq, Serialize, JsonSchema)]
 pub struct NymContracts {
     pub mixnet_contract_address: Option<String>,
     pub vesting_contract_address: Option<String>,
-    pub bandwidth_claim_contract_address: Option<String>,
     pub coconut_bandwidth_contract_address: Option<String>,
     pub group_contract_address: Option<String>,
     pub multisig_contract_address: Option<String>,
     pub coconut_dkg_contract_address: Option<String>,
+    pub ephemera_contract_address: Option<String>,
     pub service_provider_directory_contract_address: Option<String>,
     pub name_service_contract_address: Option<String>,
 }
 
 // I wanted to use the simpler `NetworkDetails` name, but there's a clash
 // with `NetworkDetails` defined in all.rs...
-#[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize, JsonSchema)]
 pub struct NymNetworkDetails {
+    pub network_name: String,
     pub chain_details: ChainDetails,
     pub endpoints: Vec<ValidatorDetails>,
     pub contracts: NymContracts,
+    pub explorer_api: Option<String>,
 }
 
 // by default we assume the same defaults as mainnet, i.e. same prefixes and denoms
@@ -53,6 +56,7 @@ impl Default for NymNetworkDetails {
 impl NymNetworkDetails {
     pub fn new_empty() -> Self {
         NymNetworkDetails {
+            network_name: Default::default(),
             chain_details: ChainDetails {
                 bech32_account_prefix: Default::default(),
                 mix_denom: DenomDetailsOwned {
@@ -68,6 +72,7 @@ impl NymNetworkDetails {
             },
             endpoints: Default::default(),
             contracts: Default::default(),
+            explorer_api: Default::default(),
         }
     }
 
@@ -81,6 +86,7 @@ impl NymNetworkDetails {
         }
 
         NymNetworkDetails::new_empty()
+            .with_network_name(var(var_names::NETWORK_NAME).expect("network name not set"))
             .with_bech32_account_prefix(
                 var(var_names::BECH32_PREFIX).expect("bech32 prefix not set"),
             )
@@ -102,7 +108,7 @@ impl NymNetworkDetails {
                     .parse()
                     .expect("denomination exponent is not u32"),
             })
-            .with_validator_endpoint(ValidatorDetails::new(
+            .with_additional_validator_endpoint(ValidatorDetails::new(
                 var(var_names::NYXD).expect("nyxd validator not set"),
                 Some(var(var_names::NYM_API).expect("nym api not set")),
             ))
@@ -111,10 +117,6 @@ impl NymNetworkDetails {
             ))
             .with_vesting_contract(Some(
                 var(var_names::VESTING_CONTRACT_ADDRESS).expect("vesting contract not set"),
-            ))
-            .with_bandwidth_claim_contract(Some(
-                var(var_names::BANDWIDTH_CLAIM_CONTRACT_ADDRESS)
-                    .expect("bandwidth claim contract not set"),
             ))
             .with_coconut_bandwidth_contract(Some(
                 var(var_names::COCONUT_BANDWIDTH_CONTRACT_ADDRESS)
@@ -129,10 +131,14 @@ impl NymNetworkDetails {
             .with_coconut_dkg_contract(Some(
                 var(var_names::COCONUT_DKG_CONTRACT_ADDRESS).expect("coconut dkg contract not set"),
             ))
+            .with_ephemera_contract(Some(
+                var(var_names::EPHEMERA_CONTRACT_ADDRESS).expect("ephemera contract not set"),
+            ))
             .with_service_provider_directory_contract(get_optional_env(
                 var_names::SERVICE_PROVIDER_DIRECTORY_CONTRACT_ADDRESS,
             ))
             .with_name_service_contract(get_optional_env(var_names::NAME_SERVICE_CONTRACT_ADDRESS))
+            .with_explorer_api(get_optional_env(var_names::EXPLORER_API))
     }
 
     pub fn new_mainnet() -> Self {
@@ -142,6 +148,7 @@ impl NymNetworkDetails {
 
         // Consider caching this process (lazy static)
         NymNetworkDetails {
+            network_name: mainnet::NETWORK_NAME.into(),
             chain_details: ChainDetails {
                 bech32_account_prefix: mainnet::BECH32_PREFIX.into(),
                 mix_denom: mainnet::MIX_DENOM.into(),
@@ -151,9 +158,6 @@ impl NymNetworkDetails {
             contracts: NymContracts {
                 mixnet_contract_address: parse_optional_str(mainnet::MIXNET_CONTRACT_ADDRESS),
                 vesting_contract_address: parse_optional_str(mainnet::VESTING_CONTRACT_ADDRESS),
-                bandwidth_claim_contract_address: parse_optional_str(
-                    mainnet::BANDWIDTH_CLAIM_CONTRACT_ADDRESS,
-                ),
                 coconut_bandwidth_contract_address: parse_optional_str(
                     mainnet::COCONUT_BANDWIDTH_CONTRACT_ADDRESS,
                 ),
@@ -162,10 +166,22 @@ impl NymNetworkDetails {
                 coconut_dkg_contract_address: parse_optional_str(
                     mainnet::COCONUT_DKG_CONTRACT_ADDRESS,
                 ),
+                ephemera_contract_address: parse_optional_str(mainnet::EPHEMERA_CONTRACT_ADDRESS),
                 service_provider_directory_contract_address: None,
                 name_service_contract_address: None,
             },
+            explorer_api: parse_optional_str(mainnet::EXPLORER_API),
         }
+    }
+
+    pub fn default_gas_price_amount(&self) -> f64 {
+        GAS_PRICE_AMOUNT
+    }
+
+    #[must_use]
+    pub fn with_network_name(mut self, network_name: String) -> Self {
+        self.network_name = network_name;
+        self
     }
 
     #[must_use]
@@ -199,8 +215,14 @@ impl NymNetworkDetails {
     }
 
     #[must_use]
-    pub fn with_validator_endpoint(mut self, endpoint: ValidatorDetails) -> Self {
+    pub fn with_additional_validator_endpoint(mut self, endpoint: ValidatorDetails) -> Self {
         self.endpoints.push(endpoint);
+        self
+    }
+
+    #[must_use]
+    pub fn with_validator_endpoint(mut self, endpoint: ValidatorDetails) -> Self {
+        self.endpoints = vec![endpoint];
         self
     }
 
@@ -213,12 +235,6 @@ impl NymNetworkDetails {
     #[must_use]
     pub fn with_vesting_contract<S: Into<String>>(mut self, contract: Option<S>) -> Self {
         self.contracts.vesting_contract_address = contract.map(Into::into);
-        self
-    }
-
-    #[must_use]
-    pub fn with_bandwidth_claim_contract<S: Into<String>>(mut self, contract: Option<S>) -> Self {
-        self.contracts.bandwidth_claim_contract_address = contract.map(Into::into);
         self
     }
 
@@ -247,6 +263,12 @@ impl NymNetworkDetails {
     }
 
     #[must_use]
+    pub fn with_ephemera_contract<S: Into<String>>(mut self, contract: Option<S>) -> Self {
+        self.contracts.ephemera_contract_address = contract.map(Into::into);
+        self
+    }
+
+    #[must_use]
     pub fn with_service_provider_directory_contract<S: Into<String>>(
         mut self,
         contract: Option<S>,
@@ -258,6 +280,12 @@ impl NymNetworkDetails {
     #[must_use]
     pub fn with_name_service_contract<S: Into<String>>(mut self, contract: Option<S>) -> Self {
         self.contracts.name_service_contract_address = contract.map(Into::into);
+        self
+    }
+
+    #[must_use]
+    pub fn with_explorer_api<S: Into<String>>(mut self, endpoint: Option<S>) -> Self {
+        self.explorer_api = endpoint.map(Into::into);
         self
     }
 }
@@ -280,7 +308,7 @@ impl DenomDetails {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Hash, Clone, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, Hash, Clone, PartialEq, Eq, JsonSchema)]
 pub struct DenomDetailsOwned {
     pub base: String,
     pub display: String,
@@ -308,7 +336,7 @@ impl DenomDetailsOwned {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize, JsonSchema)]
 pub struct ValidatorDetails {
     // it is assumed those values are always valid since they're being provided in our defaults file
     pub nyxd_url: String,
@@ -360,7 +388,7 @@ fn fix_deprecated_environmental_variables() {
     }
 }
 
-pub fn setup_env(config_env_file: Option<&PathBuf>) {
+pub fn setup_env<P: AsRef<Path>>(config_env_file: Option<P>) {
     match std::env::var(var_names::CONFIGURED) {
         // if the configuration is not already set in the env vars
         Err(std::env::VarError::NotPresent) => {

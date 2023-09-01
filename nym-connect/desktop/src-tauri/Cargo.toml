@@ -1,6 +1,6 @@
 [package]
 name = "nym-connect"
-version = "1.1.15"
+version = "1.1.19"
 description = "nym-connect"
 authors = ["Nym Technologies SA"]
 license = ""
@@ -30,7 +30,8 @@ itertools = "0.10.5"
 log = { version = "0.4", features = ["serde"] }
 pretty_env_logger = "0.4.0"
 rand = "0.8"
-reqwest = { version = "0.11", features = ["json", "socks"] }
+rand-07 = { package = "rand", version = "0.7.3" }
+reqwest = { version = "0.11.18", features = ["json", "socks"] }
 rust-embed = { version = "6.4.2", features = ["include-exclude"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
@@ -41,7 +42,7 @@ tauri = { version = "^1.2.2", features = ["clipboard-write-text", "macos-private
 thiserror = "1.0"
 time = { version = "0.3.17", features = ["local-offset"] }
 tokio = { version = "1.24.1", features = ["sync", "time"] }
-url = "2.2"
+url = "2.4"
 yaml-rust = "0.4"
 toml = "0.7"
 sentry = { version = "0.31.5", features = [ "anyhow" ] }
@@ -58,9 +59,11 @@ nym-bin-common = { path = "../../../common/bin-common"}
 nym-socks5-client-core = { path = "../../../common/socks5-client-core" }
 nym-sphinx = { path = "../../../common/nymsphinx" }
 nym-task = { path = "../../../common/task" }
+nym-topology = { path = "../../../common/topology" }
+nym-validator-client = { path = "../../../common/client-libs/validator-client" }
 
 [dev-dependencies]
-ts-rs = "6.1.2"
+ts-rs = "7.0.0"
 tempfile = "3.3.0"
 
 [features]

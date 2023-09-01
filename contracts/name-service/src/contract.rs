@@ -155,7 +155,7 @@ mod tests {
         let deposit = nyms(99);
         let owner = "steve";
         let (name, owner_signature) =
-            new_name_details_with_sign(deps.as_mut(), &mut rng, "foo", "address", owner, deposit);
+            new_name_details_with_sign(deps.as_mut(), &mut rng, "foo", owner, deposit);
         let msg = ExecuteMsg::Register {
             name,
             owner_signature,
@@ -200,7 +200,7 @@ mod tests {
         let deposit = nyms(101);
         let owner = "steve";
         let (name, owner_signature) =
-            new_name_details_with_sign(deps.as_mut(), &mut rng, "foo", "address", owner, deposit);
+            new_name_details_with_sign(deps.as_mut(), &mut rng, "foo", owner, deposit);
         let msg = ExecuteMsg::Register {
             name,
             owner_signature,
@@ -245,14 +245,8 @@ mod tests {
         // Setup
         let deposit = nyms(100);
         let owner = "steve";
-        let (name, owner_signature) = new_name_details_with_sign(
-            deps.as_mut(),
-            &mut rng,
-            "my-name",
-            "my-address",
-            owner,
-            deposit,
-        );
+        let (name, owner_signature) =
+            new_name_details_with_sign(deps.as_mut(), &mut rng, "my-name", owner, deposit);
 
         // Register
         let msg = ExecuteMsg::Register {
@@ -290,14 +284,8 @@ mod tests {
         // Setup
         let deposit = nyms(100);
         let owner = "steve";
-        let (name, owner_signature) = new_name_details_with_sign(
-            deps.as_mut(),
-            &mut rng,
-            "my-name",
-            "my-address",
-            owner,
-            deposit.clone(),
-        );
+        let (name, owner_signature) =
+            new_name_details_with_sign(deps.as_mut(), &mut rng, "my-name", owner, deposit.clone());
 
         // Register
         let msg = ExecuteMsg::Register {
@@ -314,10 +302,6 @@ mod tests {
         assert_eq!(
             get_attribute(&res, "register", "name"),
             "my-name".to_string()
-        );
-        assert_eq!(
-            get_attribute(&res, "register", "nym_address"),
-            "my-address".to_string()
         );
 
         // Check that the nonce has been incremented, but only for the owner
@@ -348,14 +332,8 @@ mod tests {
         // Register
         let deposit = nyms(100);
         let steve = "steve";
-        let (name, owner_signature) = new_name_details_with_sign(
-            deps.as_mut(),
-            &mut rng,
-            "my-name",
-            "my-address",
-            steve,
-            deposit.clone(),
-        );
+        let (name, owner_signature) =
+            new_name_details_with_sign(deps.as_mut(), &mut rng, "my-name", steve, deposit.clone());
         let msg = ExecuteMsg::Register {
             name: name.clone(),
             owner_signature,

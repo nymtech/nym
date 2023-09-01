@@ -94,6 +94,7 @@ impl From<Init> for OverrideConfig {
             use_anonymous_replies: init_config.use_reply_surbs,
             fastmode: init_config.fastmode,
             no_cover: init_config.no_cover,
+            geo_routing: None,
             medium_toggle: false,
             nyxd_urls: init_config.nyxd_urls,
             enabled_credentials_mode: init_config.enabled_credentials_mode,
@@ -185,14 +186,15 @@ pub(crate) async fn execute(args: &Init) -> Result<(), Socks5ClientError> {
     let details_store =
         OnDiskGatewayDetails::new(&config.storage_paths.common_paths.gateway_details);
     let init_details = nym_client_core::init::setup_gateway(
-        &gateway_setup,
+        gateway_setup,
         &key_store,
         &details_store,
         register_gateway,
         Some(&config.core.base.client.nym_api_urls),
     )
     .await
-    .tap_err(|err| eprintln!("Failed to setup gateway\nError: {err}"))?;
+    .tap_err(|err| eprintln!("Failed to setup gateway\nError: {err}"))?
+    .details;
 
     // TODO: ask the service provider we specified for its interface version and set it in the config
 

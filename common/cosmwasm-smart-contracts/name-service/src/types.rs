@@ -1,14 +1,21 @@
-use std::fmt::{Display, Formatter};
+// Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
 
+use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Addr, Coin};
 use nym_contracts_common::IdentityKey;
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
+use std::{
+    fmt::{Display, Formatter},
+    str::FromStr,
+};
+use thiserror::Error;
+
+use crate::error::{NameServiceError, Result};
 
 /// The directory of names are indexed by [`NameId`].
 pub type NameId = u32;
 
-#[derive(Serialize, Deserialize, Clone, PartialEq, Debug, JsonSchema)]
+#[cw_serde]
 pub struct RegisteredName {
     /// Unique id assigned to the registerd name.
     pub id: NameId,
@@ -33,7 +40,7 @@ impl RegisteredName {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, PartialEq, Debug, JsonSchema)]
+#[cw_serde]
 pub struct NameDetails {
     /// The name pointing to the nym address
     pub name: NymName,
@@ -48,23 +55,54 @@ pub struct NameDetails {
 /// String representation of a nym address, which is of the form
 /// client_id.client_enc@gateway_id.
 /// NOTE: entirely unvalidated.
-#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
 pub enum Address {
-    NymAddress(String),
+    NymAddress(NymAddressInner),
     // Possible extension:
     //Gateway(String)
 }
 
+#[cw_serde]
+pub struct NymAddressInner {
+    client_id: String,
+    client_enc: String,
+    gateway_id: String,
+}
+
+// ADDRESS . ENCRYPTION @ GATEWAY_ID
+impl std::fmt::Display for NymAddressInner {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}.{}@{}",
+            self.client_id, self.client_enc, self.gateway_id
+        )
+    }
+}
+
 impl Address {
     /// Create a new nym address.
-    pub fn new(address: &str) -> Self {
-        Self::NymAddress(address.to_string())
+    pub fn new(address: &str) -> Result<Self> {
+        parse_nym_address(address)
+            .map(Self::NymAddress)
+            .ok_or_else(|| NameServiceError::InvalidNymAddress(address.to_string()))
     }
 
-    pub fn as_str(&self) -> &str {
+    pub fn client_id(&self) -> &str {
         match self {
-            Address::NymAddress(address) => address,
+            Address::NymAddress(address) => &address.client_id,
+        }
+    }
+
+    pub fn client_enc(&self) -> &str {
+        match self {
+            Address::NymAddress(address) => &address.client_enc,
+        }
+    }
+
+    pub fn gateway_id(&self) -> &str {
+        match self {
+            Address::NymAddress(address) => &address.gateway_id,
         }
     }
 
@@ -78,17 +116,47 @@ impl Address {
 
 impl Display for Address {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.as_str())
+        match self {
+            Address::NymAddress(address) => write!(f, "{}", address),
+        }
     }
 }
 
+// A valid nym address is of the form client_id.client_enc@gateway_id
+fn parse_nym_address(address: &str) -> Option<NymAddressInner> {
+    let parts: Vec<&str> = address.split('@').collect();
+    if parts.len() != 2 {
+        return None;
+    }
+
+    let client_part = parts[0];
+    let gateway_part = parts[1];
+
+    // The client part consists of two parts separated by a dot
+    let client_parts: Vec<&str> = client_part.split('.').collect();
+    if client_parts.len() != 2 {
+        return None;
+    }
+
+    // Check that the gateway part does not contain any dots
+    if gateway_part.contains('.') {
+        return None;
+    }
+
+    Some(NymAddressInner {
+        client_id: client_parts[0].to_string(),
+        client_enc: client_parts[1].to_string(),
+        gateway_id: gateway_part.to_string(),
+    })
+}
+
 /// Name stored and pointing a to a nym-address
-#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug, JsonSchema)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
 pub struct NymName(String);
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum NymNameError {
+    #[error("invalid name")]
     InvalidName,
 }
 
@@ -114,6 +182,14 @@ impl NymName {
 
     pub fn as_str(&self) -> &str {
         &self.0
+    }
+}
+
+impl FromStr for NymName {
+    type Err = NymNameError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::new(s)
     }
 }
 

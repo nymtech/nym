@@ -3,11 +3,13 @@ use std::str::FromStr;
 use cosmrs::AccountId;
 use nym_network_defaults::{setup_env, NymNetworkDetails};
 use nym_service_provider_directory_common::NymAddress;
-use nym_validator_client::nyxd::traits::SpDirectoryQueryClient;
+use nym_validator_client::nyxd::contract_traits::{
+    PagedSpDirectoryQueryClient, SpDirectoryQueryClient,
+};
 
 #[tokio::main]
 async fn main() {
-    setup_env(Some(&"../../../envs/qa-qwerty.env".parse().unwrap()));
+    setup_env(Some("../../../envs/qa-qwerty.env"));
     let network_details = NymNetworkDetails::new_from_env();
     let config =
         nym_validator_client::Config::try_from_nym_network_details(&network_details).unwrap();

@@ -83,7 +83,7 @@ jobs:
           ref=${{ github.ref_name }}
           semver="${ref##nym-wallet-}" && semver="${semver##v}"
           echo "version=${semver}" >> "$GITHUB_OUTPUT"
-          echo "filename=nym-wallet_${version}_amd64.AppImage" >> "$GITHUB_OUTPUT"
+          echo "filename=nym-wallet_${semver}_amd64.AppImage" >> "$GITHUB_OUTPUT"
           echo "file_hash=${{ hashFiles('nym-wallet/target/release/bundle/appimage/nym-wallet_*_amd64.AppImage') }}" >> "$GITHUB_OUTPUT"
 
   push-release-data:

@@ -36,12 +36,11 @@ For example, a Service Provider could receive a request to check a mail server a
 
 Maybe you would like to concentrate on building a application that uses the mixnet:
 
-* Explore the Tutorials section of the Developer Portal. Our in-depth tutorial on [Building a Simple Service Provider](../tutorials/simple-service-provider.md) give a good understanding of building User Clients and Service Providers in TypeScript, and how to configure Nym Websocket Clients for seamless communication with the mixnet.
+* Explore the Tutorials section of the Developer Portal. Our in-depth tutorial on [Building a Simple Service Provider](../tutorials/simple-service-provider/simple-service-provider.md) give a good understanding of building User Clients and Service Providers in TypeScript, and how to configure Nym Websocket Clients for seamless communication with the mixnet.
 
 * Get started with using the Nym Mixnet quickly and easily by exploring the [Quickstart](../quickstart/overview.md) options, such a NymConnect, proxying traffic through the Nym Socks5 client, or dive into integrating Nym into your existing application with the [Integrations](../integrations/integration-options.md) section.
 
-Or perhaps you a developer that would like to run a infrastructure node such as a Gateway, Mix node or Network Requestor: 
-* Check out the [Network Overview](https://nymtech.net/docs/architecture/network-overview.html) docs page. 
+Or perhaps you a developer that would like to run a infrastructure node such as a Gateway, Mix node or Network Requestor:
+* Check out the [Network Overview](https://nymtech.net/docs/architecture/network-overview.html) docs page.
 
 * Take a look at our [Node Setup Guide](https://nymtech.net/docs/nodes/setup-guides.html) with our Nym Docs, containing setup guides for setting up you own infrastructure node.
-

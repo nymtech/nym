@@ -7,6 +7,9 @@ edition = "2021"
 
 [dependencies]
 cosmwasm-std = { workspace = true }
-schemars = "0.8"
-serde = { version = "1.0.103", default-features = false, features = ["derive"] }
+cosmwasm-schema = { workspace = true }
+cw2 = { workspace = true, optional = true }
 nym-multisig-contract-common = { path = "../multisig-contract" }
+
+[features]
+schema = ["cw2"]

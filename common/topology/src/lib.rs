@@ -131,7 +131,7 @@ impl NymTopology {
     }
 
     pub fn mixes_in_layer(&self, layer: MixLayer) -> Vec<mix::Node> {
-        assert!(vec![1, 2, 3].contains(&layer));
+        assert!([1, 2, 3].contains(&layer));
         self.mixes.get(&layer).unwrap().to_owned()
     }
 

@@ -1,0 +1,38 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "MemberListResponse",
+  "type": "object",
+  "required": [
+    "members"
+  ],
+  "properties": {
+    "members": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Member"
+      }
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "Member": {
+      "description": "A group member has a weight associated with them. This may all be equal, or may have meaning in the app that makes use of the group (eg. voting power)",
+      "type": "object",
+      "required": [
+        "addr",
+        "weight"
+      ],
+      "properties": {
+        "addr": {
+          "type": "string"
+        },
+        "weight": {
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

@@ -120,6 +120,8 @@ pub fn load_owner(store: &dyn Storage, owner: Addr) -> Result<Vec<RegisteredName
 pub struct PagedLoad {
     pub names: Vec<RegisteredName>,
     pub limit: usize,
+
+    /// Field indicating paging information for the following queries if the caller wishes to get further entries.
     pub start_next_after: Option<NameId>,
 }
 
@@ -177,27 +179,27 @@ mod tests {
     #[rstest::fixture]
     fn uniq_names() -> Vec<RegisteredName> {
         vec![
-            name_fixture_full(1, "one", "address_one", "owner_one"),
-            name_fixture_full(2, "two", "address_two", "owner_two"),
-            name_fixture_full(3, "three", "address_three", "owner_three"),
+            name_fixture_full(1, "one", "address.one@a", "owner_one"),
+            name_fixture_full(2, "two", "address.two@b", "owner_two"),
+            name_fixture_full(3, "three", "address.three@c", "owner_three"),
         ]
     }
 
     #[rstest::fixture]
     fn overlapping_addresses() -> Vec<RegisteredName> {
         vec![
-            name_fixture_full(1, "one", "address_one", "owner_one"),
-            name_fixture_full(2, "two", "address_two", "owner_two"),
-            name_fixture_full(3, "three", "address_two", "owner_three"),
+            name_fixture_full(1, "one", "address.one@a", "owner_one"),
+            name_fixture_full(2, "two", "address.two@b", "owner_two"),
+            name_fixture_full(3, "three", "address.two@b", "owner_three"),
         ]
     }
 
     #[rstest::fixture]
     fn overlapping_owners() -> Vec<RegisteredName> {
         vec![
-            name_fixture_full(1, "one", "address_one", "owner_one"),
-            name_fixture_full(2, "two", "address_two", "owner_two"),
-            name_fixture_full(3, "three", "address_three", "owner_two"),
+            name_fixture_full(1, "one", "address.one@a", "owner_one"),
+            name_fixture_full(2, "two", "address.two@b", "owner_two"),
+            name_fixture_full(3, "three", "address.three@c", "owner_two"),
         ]
     }
 
@@ -393,8 +395,8 @@ mod tests {
             load_all_paged(deps.as_ref().storage, None, None).unwrap(),
             PagedLoad {
                 names: vec![
-                    name_fixture_full(1, "one", "address_one", "owner_one"),
-                    name_fixture_full(3, "three", "address_three", "owner_three"),
+                    name_fixture_full(1, "one", "address.one@a", "owner_one"),
+                    name_fixture_full(3, "three", "address.three@c", "owner_three"),
                 ],
                 limit: NAME_DEFAULT_RETRIEVAL_LIMIT as usize,
                 start_next_after: Some(3),
@@ -413,8 +415,8 @@ mod tests {
             load_all_paged(deps.as_ref().storage, None, None).unwrap(),
             PagedLoad {
                 names: vec![
-                    name_fixture_full(1, "one", "address_one", "owner_one"),
-                    name_fixture_full(3, "three", "address_three", "owner_three"),
+                    name_fixture_full(1, "one", "address.one@a", "owner_one"),
+                    name_fixture_full(3, "three", "address.three@c", "owner_three"),
                 ],
                 limit: NAME_DEFAULT_RETRIEVAL_LIMIT as usize,
                 start_next_after: Some(3),
@@ -442,19 +444,23 @@ mod tests {
             load_all_paged(deps.as_ref().storage, None, None).unwrap(),
             PagedLoad {
                 names: vec![
-                    name_fixture_full(1, "one", "address_one", "owner_one"),
-                    name_fixture_full(2, "two", "address_two", "owner_two"),
-                    name_fixture_full(3, "three", "address_two", "owner_three"),
+                    name_fixture_full(1, "one", "address.one@a", "owner_one"),
+                    name_fixture_full(2, "two", "address.two@b", "owner_two"),
+                    name_fixture_full(3, "three", "address.two@b", "owner_three"),
                 ],
                 limit: NAME_DEFAULT_RETRIEVAL_LIMIT as usize,
                 start_next_after: Some(3),
             }
         );
         assert_eq!(
-            load_address(deps.as_ref().storage, &Address::new("address_two")).unwrap(),
+            load_address(
+                deps.as_ref().storage,
+                &Address::new("address.two@b").unwrap()
+            )
+            .unwrap(),
             vec![
-                name_fixture_full(2, "two", "address_two", "owner_two"),
-                name_fixture_full(3, "three", "address_two", "owner_three"),
+                name_fixture_full(2, "two", "address.two@b", "owner_two"),
+                name_fixture_full(3, "three", "address.two@b", "owner_three"),
             ]
         );
     }
@@ -470,8 +476,8 @@ mod tests {
             load_all_paged(deps.as_ref().storage, None, None).unwrap(),
             PagedLoad {
                 names: vec![
-                    name_fixture_full(1, "one", "address_one", "owner_one"),
-                    name_fixture_full(3, "three", "address_two", "owner_three"),
+                    name_fixture_full(1, "one", "address.one@a", "owner_one"),
+                    name_fixture_full(3, "three", "address.two@b", "owner_three"),
                 ],
                 limit: NAME_DEFAULT_RETRIEVAL_LIMIT as usize,
                 start_next_after: Some(3),
@@ -494,8 +500,8 @@ mod tests {
             load_all_paged(deps.as_ref().storage, None, None).unwrap(),
             PagedLoad {
                 names: vec![
-                    name_fixture_full(1, "one", "address_one", "owner_one"),
-                    name_fixture_full(3, "three", "address_two", "owner_three"),
+                    name_fixture_full(1, "one", "address.one@a", "owner_one"),
+                    name_fixture_full(3, "three", "address.two@b", "owner_three"),
                 ],
                 limit: NAME_DEFAULT_RETRIEVAL_LIMIT as usize,
                 start_next_after: Some(3),
@@ -523,9 +529,9 @@ mod tests {
             load_all_paged(deps.as_ref().storage, None, None).unwrap(),
             PagedLoad {
                 names: vec![
-                    name_fixture_full(1, "one", "address_one", "owner_one"),
-                    name_fixture_full(2, "two", "address_two", "owner_two"),
-                    name_fixture_full(3, "three", "address_three", "owner_two"),
+                    name_fixture_full(1, "one", "address.one@a", "owner_one"),
+                    name_fixture_full(2, "two", "address.two@b", "owner_two"),
+                    name_fixture_full(3, "three", "address.three@c", "owner_two"),
                 ],
                 limit: NAME_DEFAULT_RETRIEVAL_LIMIT as usize,
                 start_next_after: Some(3),
@@ -534,8 +540,8 @@ mod tests {
         assert_eq!(
             load_owner(deps.as_ref().storage, Addr::unchecked("owner_two")).unwrap(),
             vec![
-                name_fixture_full(2, "two", "address_two", "owner_two"),
-                name_fixture_full(3, "three", "address_three", "owner_two"),
+                name_fixture_full(2, "two", "address.two@b", "owner_two"),
+                name_fixture_full(3, "three", "address.three@c", "owner_two"),
             ]
         );
     }
@@ -553,8 +559,8 @@ mod tests {
             load_all_paged(deps.as_ref().storage, None, None).unwrap(),
             PagedLoad {
                 names: vec![
-                    name_fixture_full(1, "one", "address_one", "owner_one"),
-                    name_fixture_full(3, "three", "address_three", "owner_two"),
+                    name_fixture_full(1, "one", "address.one@a", "owner_one"),
+                    name_fixture_full(3, "three", "address.three@c", "owner_two"),
                 ],
                 limit: NAME_DEFAULT_RETRIEVAL_LIMIT as usize,
                 start_next_after: Some(3),
@@ -575,8 +581,8 @@ mod tests {
             load_all_paged(deps.as_ref().storage, None, None).unwrap(),
             PagedLoad {
                 names: vec![
-                    name_fixture_full(1, "one", "address_one", "owner_one"),
-                    name_fixture_full(3, "three", "address_three", "owner_two"),
+                    name_fixture_full(1, "one", "address.one@a", "owner_one"),
+                    name_fixture_full(3, "three", "address.three@c", "owner_two"),
                 ],
                 limit: NAME_DEFAULT_RETRIEVAL_LIMIT as usize,
                 start_next_after: Some(3),
@@ -591,8 +597,8 @@ mod tests {
             load_all_paged(&deps.storage, Some(2), None).unwrap(),
             PagedLoad {
                 names: vec![
-                    name_fixture_full(1, "one", "address_one", "owner_one"),
-                    name_fixture_full(2, "two", "address_two", "owner_two"),
+                    name_fixture_full(1, "one", "address.one@a", "owner_one"),
+                    name_fixture_full(2, "two", "address.two@b", "owner_two"),
                 ],
                 limit: 2,
                 start_next_after: Some(2),
@@ -604,7 +610,7 @@ mod tests {
                 names: vec![name_fixture_full(
                     3,
                     "three",
-                    "address_three",
+                    "address.three@c",
                     "owner_three"
                 )],
                 limit: 1,
@@ -617,7 +623,7 @@ mod tests {
                 names: vec![name_fixture_full(
                     3,
                     "three",
-                    "address_three",
+                    "address.three@c",
                     "owner_three"
                 )],
                 limit: 2,

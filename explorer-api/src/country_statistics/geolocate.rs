@@ -1,9 +1,9 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::mix_nodes::location::Location;
 use crate::state::ExplorerApiStateContext;
 use log::{info, warn};
+use nym_explorer_api_requests::Location;
 use nym_task::TaskClient;
 
 pub(crate) struct GeoLocateTask {
@@ -17,13 +17,14 @@ impl GeoLocateTask {
     }
 
     pub(crate) fn start(mut self) {
-        info!("Spawning mix node locator task runner...");
+        info!("Spawning locator task runner...");
         tokio::spawn(async move {
             let mut interval_timer = tokio::time::interval(std::time::Duration::from_millis(50));
             while !self.shutdown.is_shutdown() {
                 tokio::select! {
                     _ = interval_timer.tick() => {
                         self.locate_mix_nodes().await;
+                        self.locate_gateways().await;
                     }
                     _ = self.shutdown.recv() => {
                         trace!("Listener: Received shutdown");
@@ -64,7 +65,7 @@ impl GeoLocateTask {
             ) {
                 Ok(opt) => match opt {
                     Some(location) => {
-                        let location = Location::new(location);
+                        let location: Location = location.into();
 
                         trace!(
                             "{} mix nodes already located. Ip {} is located in {:#?}",
@@ -106,5 +107,69 @@ impl GeoLocateTask {
         }
 
         trace!("All mix nodes located");
+    }
+
+    async fn locate_gateways(&mut self) {
+        let gateways = self.state.inner.gateways.get_gateways().await;
+
+        let geo_ip = self.state.inner.geo_ip.0.clone();
+
+        for (i, cache_item) in gateways.iter().enumerate() {
+            if self
+                .state
+                .inner
+                .gateways
+                .is_location_valid(cache_item.identity().to_owned())
+                .await
+            {
+                // when the cached location is valid, don't locate and continue to next gateway
+                continue;
+            }
+
+            match geo_ip.query(&cache_item.gateway.host, Some(cache_item.gateway.mix_port)) {
+                Ok(opt) => match opt {
+                    Some(location) => {
+                        let location: Location = location.into();
+
+                        trace!(
+                            "{} gateways already located. Ip {} is located in {:#?}",
+                            i,
+                            cache_item.gateway.host,
+                            location.three_letter_iso_country_code,
+                        );
+
+                        if i > 0 && (i % 100) == 0 {
+                            info!("Located {} gateways...", i + 1,);
+                        }
+
+                        self.state
+                            .inner
+                            .gateways
+                            .set_location(cache_item.identity().to_owned(), Some(location))
+                            .await;
+
+                        // one node has been located, so return out of the loop
+                        return;
+                    }
+                    None => {
+                        warn!("❌ Location for {} not found.", cache_item.gateway.host);
+                        self.state
+                            .inner
+                            .gateways
+                            .set_location(cache_item.identity().to_owned(), None)
+                            .await;
+                    }
+                },
+                Err(_e) => {
+                    // warn!(
+                    //     "❌ Oh no! Location for {} failed. Error: {:#?}",
+                    //     cache_item.gateway.host,
+                    //     e
+                    // );
+                }
+            };
+        }
+
+        trace!("All gateways located");
     }
 }

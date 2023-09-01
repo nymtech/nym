@@ -9,9 +9,10 @@ const mockValues: TClientContext = {
   selectedProvider: { id: '1', description: 'Keybase service provider', address: '123abc' },
   gatewayPerformance: 'Good',
   showInfoModal: false,
-  userDefinedGateway: { isActive: false, gateway: '' },
+  userDefinedGateway: { isActive: false, address: '' },
   userDefinedSPAddress: { isActive: false, address: '' },
   userData: { monitoring: false, privacy_level: 'High' },
+  showFeedbackNote: false,
   setShowInfoModal: () => {},
   setMode: () => {},
   clearError: () => {},
@@ -26,6 +27,7 @@ const mockValues: TClientContext = {
   setUserDefinedSPAddress: () => {},
   setMonitoring: async () => {},
   setPrivacyLevel: async () => {},
+  setShowFeedbackNote: () => {},
 };
 
 export const MockProvider: FCWithChildren<{

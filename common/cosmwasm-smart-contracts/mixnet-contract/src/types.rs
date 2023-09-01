@@ -2,29 +2,26 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::MixnetContractError;
-use crate::families::{Family, FamilyHead};
-use crate::{Layer, RewardedSetNodeStatus};
-use contracts_common::IdentityKey;
+use crate::Layer;
+use cosmwasm_schema::cw_serde;
 use cosmwasm_std::Addr;
 use cosmwasm_std::Coin;
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use std::ops::Index;
 
 // type aliases for better reasoning about available data
 pub type SphinxKey = String;
 pub type SphinxKeyRef<'a> = &'a str;
-pub type EpochId = u32;
-pub type IntervalId = u32;
+
 pub type MixId = u32;
 pub type BlockHeight = u64;
-pub type EpochEventId = u32;
-pub type IntervalEventId = u32;
 
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq, Eq)]
+/// Specifies layer assignment for the given mixnode.
+#[cw_serde]
 pub struct LayerAssignment {
+    /// The id of the mixnode.
     mix_id: MixId,
+
+    /// The layer to which it's going to be assigned
     layer: Layer,
 }
 
@@ -42,10 +39,17 @@ impl LayerAssignment {
     }
 }
 
-#[derive(Debug, Default, Serialize, Deserialize, Copy, Clone, Eq, PartialEq)]
+/// The current layer distribution of the mix network.
+#[cw_serde]
+#[derive(Copy, Default)]
 pub struct LayerDistribution {
+    /// Number of nodes on the first layer.
     pub layer1: u64,
+
+    /// Number of nodes on the second layer.
     pub layer2: u64,
+
+    /// Number of nodes on the third layer.
     pub layer3: u64,
 }
 
@@ -118,19 +122,29 @@ impl Index<Layer> for LayerDistribution {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
+/// The current state of the mixnet contract.
+#[cw_serde]
 pub struct ContractState {
-    pub owner: Addr, // only the owner account can update state
+    /// Address of the contract owner.
+    pub owner: Addr,
+
+    /// Address of "rewarding validator" (nym-api) that's allowed to send any rewarding-related transactions.
     pub rewarding_validator_address: Addr,
 
     /// Address of the vesting contract to which the mixnet contract would be sending all
     /// track-related messages.
     pub vesting_contract_address: Addr,
+
+    /// The expected denom used for rewarding (and realistically any other operation).
+    /// Default: `unym`
     pub rewarding_denom: String,
+
+    /// Contract parameters that could be adjusted in a transaction the contract admin.
     pub params: ContractStateParams,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
+/// Contract parameters that could be adjusted in a transaction by the contract admin.
+#[cw_serde]
 pub struct ContractStateParams {
     /// Minimum amount a delegator must stake in orders for his delegation to get accepted.
     pub minimum_mixnode_delegation: Option<Coin>,
@@ -140,22 +154,4 @@ pub struct ContractStateParams {
 
     /// Minimum amount a gateway must pledge to get into the system.
     pub minimum_gateway_pledge: Coin,
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq, JsonSchema)]
-pub struct PagedRewardedSetResponse {
-    pub nodes: Vec<(MixId, RewardedSetNodeStatus)>,
-    pub start_next_after: Option<MixId>,
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq, JsonSchema)]
-pub struct PagedFamiliesResponse {
-    pub families: Vec<Family>,
-    pub start_next_after: Option<String>,
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq, JsonSchema)]
-pub struct PagedMembersResponse {
-    pub members: Vec<(IdentityKey, FamilyHead)>,
-    pub start_next_after: Option<String>,
 }

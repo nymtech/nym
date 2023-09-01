@@ -5,7 +5,6 @@
 #![warn(clippy::unwrap_used)]
 
 pub mod contract;
-pub mod errors;
 mod queries;
 mod queued_migrations;
 mod storage;

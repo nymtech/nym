@@ -50,8 +50,8 @@ impl NymPayloadBuilder {
         Ok(NymPayload(
             surb_ack_bytes
                 .into_iter()
-                .chain(variant_data.into_iter())
-                .chain(fragment_data.into_iter())
+                .chain(variant_data)
+                .chain(fragment_data)
                 .collect(),
         ))
     }
@@ -61,10 +61,7 @@ impl NymPayloadBuilder {
         packet_encryption_key: &SurbEncryptionKey,
     ) -> Result<NymPayload, SurbAckRecoveryError> {
         let key_digest = packet_encryption_key.compute_digest();
-        self.build::<ReplySurbEncryptionAlgorithm>(
-            packet_encryption_key.inner(),
-            key_digest.into_iter(),
-        )
+        self.build::<ReplySurbEncryptionAlgorithm>(packet_encryption_key.inner(), key_digest)
     }
 
     pub fn build_regular<R>(

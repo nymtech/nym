@@ -2,6 +2,32 @@
 
 ## [Unreleased]
 
+## [v1.1.19-snickers] (2023-08-29)
+
+- NymConnect sometimes fails to connect because the gateway it fetches from the validator-api to use is running an old version (of the gateway binary) ([#3788])
+
+[#3788]: https://github.com/nymtech/nym/issues/3788
+
+## [1.1.18] (2023-08-22)
+
+- refactor(nc-desktop): use userdata storage to save user gateway&sp ([#3723])
+
+[#3723]: https://github.com/nymtech/nym/pull/3723
+
+## [1.1.17] (2023-08-16)
+
+- Add a "Send us your feedback" section in NC (on the main screen)  to collect user feedback using Sentry ([#3619])
+- NC native android - deploy on FDroid ([#3483])
+
+[#3619]: https://github.com/nymtech/nym/issues/3619
+[#3483]: https://github.com/nymtech/nym/issues/3483
+
+## [v1.1.16] (2023-08-08)
+
+- Uncouple network-requester <-> gateway in nym-connect and harbourmaster ([#3472])
+
+[#3472]: https://github.com/nymtech/nym/issues/3472
+
 ## [v1.1.15] (2023-07-25)
 
 - NC Desktop - remove sentry DSN from code ([#3694])

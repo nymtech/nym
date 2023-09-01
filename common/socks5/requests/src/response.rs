@@ -84,7 +84,7 @@ impl Serializable for Socks5Response {
     fn into_bytes(self) -> Vec<u8> {
         if let Some(version) = self.protocol_version.as_u8() {
             std::iter::once(version)
-                .chain(self.content.into_bytes().into_iter())
+                .chain(self.content.into_bytes())
                 .collect()
         } else {
             self.content.into_bytes()
@@ -192,7 +192,7 @@ impl Socks5ResponseContent {
             }
             Socks5ResponseContent::ConnectionError(res) => {
                 std::iter::once(ResponseFlag::ConnectionError as u8)
-                    .chain(res.into_bytes().into_iter())
+                    .chain(res.into_bytes())
                     .collect()
             }
             Socks5ResponseContent::Query(query) => {
@@ -204,7 +204,7 @@ impl Socks5ResponseContent {
                     })
                     .unwrap_or_default();
                 std::iter::once(ResponseFlag::Query as u8)
-                    .chain(query_bytes.into_iter())
+                    .chain(query_bytes)
                     .collect()
             }
         }
@@ -290,7 +290,7 @@ impl ConnectionError {
             .to_be_bytes()
             .iter()
             .copied()
-            .chain(self.network_requester_error.into_bytes().into_iter())
+            .chain(self.network_requester_error.into_bytes())
             .collect()
     }
 }
@@ -339,7 +339,7 @@ mod tests {
             let bytes: Vec<u8> = 42u64
                 .to_be_bytes()
                 .into_iter()
-                .chain([0, 159, 146, 150].into_iter())
+                .chain([0, 159, 146, 150])
                 .collect();
             let err = ConnectionError::try_from_bytes(&bytes).err().unwrap();
             assert!(matches!(

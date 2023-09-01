@@ -5,7 +5,7 @@ use crate::error::BackendError;
 use crate::nyxd_client;
 use crate::state::WalletState;
 use nym_types::pending_events::{PendingEpochEvent, PendingIntervalEvent};
-use nym_validator_client::nyxd::traits::MixnetQueryClient;
+use nym_validator_client::nyxd::contract_traits::{MixnetQueryClient, PagedMixnetQueryClient};
 use nym_wallet_types::interval::Interval;
 
 #[tauri::command]
@@ -26,7 +26,7 @@ pub async fn get_pending_epoch_events(
     let guard = state.read().await;
     let reg = guard.registered_coins()?;
     let client = guard.current_client()?;
-    let res = client.get_all_nyxd_pending_epoch_events().await?;
+    let res = client.nyxd.get_all_pending_epoch_events().await?;
 
     log::info!("<<< got = {:?} events", res.len());
 
@@ -46,7 +46,7 @@ pub async fn get_pending_interval_events(
     let guard = state.read().await;
     let reg = guard.registered_coins()?;
     let client = guard.current_client()?;
-    let res = client.get_all_nyxd_pending_interval_events().await?;
+    let res = client.nyxd.get_all_pending_interval_events().await?;
 
     log::info!("<<< got = {:?} events", res.len());
 

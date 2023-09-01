@@ -1,6 +1,6 @@
-use crate::mix_node::models::{MixnodeStatus, PrettyDetailedMixNodeBond};
 use crate::mix_nodes::models::{MixNodeActiveSetSummary, MixNodeSummary};
 use crate::state::ExplorerApiStateContext;
+use nym_explorer_api_requests::{MixnodeStatus, PrettyDetailedMixNodeBond};
 use rocket::serde::json::Json;
 use rocket::{Route, State};
 use rocket_okapi::okapi::openapi3::OpenApi;

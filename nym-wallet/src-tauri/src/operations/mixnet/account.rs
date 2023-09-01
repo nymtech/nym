@@ -9,9 +9,10 @@ use cosmrs::bip32::DerivationPath;
 use itertools::Itertools;
 use nym_config::defaults::{NymNetworkDetails, COSMOS_DERIVATION_PATH};
 use nym_types::account::{Account, AccountEntry, Balance};
+use nym_validator_client::nyxd::CosmWasmClient;
 use nym_validator_client::signing::direct_wallet::DirectSecp256k1HdWallet;
 use nym_validator_client::signing::AccountData;
-use nym_validator_client::{nyxd::DirectSigningNyxdClient, Client};
+use nym_validator_client::DirectSigningHttpRpcValidatorClient;
 use nym_wallet_types::network::Network as WalletNetwork;
 use std::collections::HashMap;
 use strum::IntoEnumIterator;
@@ -35,7 +36,7 @@ pub async fn get_balance(state: tauri::State<'_, WalletState>) -> Result<Balance
 
     match client
         .nyxd
-        .get_balance(address, base_mix_denom.to_string())
+        .get_balance(&address, base_mix_denom.to_string())
         .await?
     {
         Some(coin) => {
@@ -251,7 +252,7 @@ fn create_clients(
     default_api_urls: &HashMap<WalletNetwork, Url>,
     config: &Config,
     mnemonic: &Mnemonic,
-) -> Result<Vec<(WalletNetwork, Client<DirectSigningNyxdClient>)>, BackendError> {
+) -> Result<Vec<(WalletNetwork, DirectSigningHttpRpcValidatorClient)>, BackendError> {
     let mut clients = Vec::new();
     for network in WalletNetwork::iter() {
         let nyxd_url = if let Some(url) = config.get_selected_validator_nyxd_url(network) {
@@ -282,18 +283,13 @@ fn create_clients(
         let network_details = NymNetworkDetails::from(network)
             .clone()
             .with_mixnet_contract(Some(config.get_mixnet_contract_address(network).as_ref()))
-            .with_vesting_contract(Some(config.get_vesting_contract_address(network).as_ref()))
-            .with_bandwidth_claim_contract(Some(
-                config
-                    .get_bandwidth_claim_contract_address(network)
-                    .as_ref(),
-            ));
+            .with_vesting_contract(Some(config.get_vesting_contract_address(network).as_ref()));
 
         let config = nym_validator_client::Config::try_from_nym_network_details(&network_details)?
-            .with_urls(nyxd_url, api_url);
+            .with_urls(nyxd_url, api_url)
+            .with_simulated_gas_multiplier(CUSTOM_SIMULATED_GAS_MULTIPLIER);
 
-        let mut client = nym_validator_client::Client::new_signing(config, mnemonic.clone())?;
-        client.set_nyxd_simulated_gas_multiplier(CUSTOM_SIMULATED_GAS_MULTIPLIER);
+        let client = nym_validator_client::Client::new_signing(config, mnemonic.clone())?;
         clients.push((network, client));
     }
     Ok(clients)

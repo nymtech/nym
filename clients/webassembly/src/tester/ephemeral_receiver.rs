@@ -10,6 +10,7 @@ use std::collections::HashSet;
 use std::time::Duration;
 use tokio::sync::MutexGuard as AsyncMutexGuard;
 use wasm_utils::{console_error, console_log, console_warn};
+use wasmtimer::tokio::sleep;
 
 pub(crate) struct EphemeralTestReceiver<'a> {
     sent_packets: u32,
@@ -57,7 +58,7 @@ impl<'a> EphemeralTestReceiver<'a> {
         let Some(received_packet) = packet else {
             // can't do anything more...
             console_error!("packet receiver has stopped processing results!");
-            return true
+            return true;
         };
         match received_packet {
             Received::Message(msg) => {
@@ -90,7 +91,7 @@ impl<'a> EphemeralTestReceiver<'a> {
     }
 
     pub(crate) async fn perform_test(mut self) -> NodeTestResult {
-        let mut timeout_fut = wasm_timer::Delay::new(self.timeout_duration);
+        let mut timeout_fut = sleep(self.timeout_duration);
 
         loop {
             tokio::select! {

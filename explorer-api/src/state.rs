@@ -13,9 +13,10 @@ use nym_validator_client::models::MixNodeBondAnnotated;
 use crate::country_statistics::country_nodes_distribution::{
     CountryNodesDistribution, ThreadsafeCountryNodesDistribution,
 };
+use crate::gateways::location::GatewayLocationCache;
 use crate::gateways::models::ThreadsafeGatewayCache;
 use crate::mix_node::models::ThreadsafeMixNodeCache;
-use crate::mix_nodes::location::LocationCache;
+use crate::mix_nodes::location::MixnodeLocationCache;
 use crate::mix_nodes::models::ThreadsafeMixNodesCache;
 use crate::ping::models::ThreadsafePingCache;
 use crate::validators::models::ThreadsafeValidatorCache;
@@ -46,7 +47,8 @@ impl ExplorerApiState {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ExplorerApiStateOnDisk {
     pub(crate) country_node_distribution: CountryNodesDistribution,
-    pub(crate) location_cache: LocationCache,
+    pub(crate) mixnode_location_cache: MixnodeLocationCache,
+    pub(crate) gateway_location_cache: GatewayLocationCache,
     pub(crate) as_at: DateTime<Utc>,
 }
 
@@ -76,9 +78,13 @@ impl ExplorerApiStateContext {
                     ThreadsafeCountryNodesDistribution::new_from_distribution(
                         state.country_node_distribution,
                     ),
-                gateways: ThreadsafeGatewayCache::new(),
+                gateways: ThreadsafeGatewayCache::new_with_location_cache(
+                    state.gateway_location_cache,
+                ),
                 mixnode: ThreadsafeMixNodeCache::new(),
-                mixnodes: ThreadsafeMixNodesCache::new_with_location_cache(state.location_cache),
+                mixnodes: ThreadsafeMixNodesCache::new_with_location_cache(
+                    state.mixnode_location_cache,
+                ),
                 ping: ThreadsafePingCache::new(),
                 validators: ThreadsafeValidatorCache::new(),
                 validator_client: ThreadsafeValidatorClient::new(),
@@ -109,7 +115,8 @@ impl ExplorerApiStateContext {
         let file = File::create(json_file_path).expect("unable to create state json file");
         let state = ExplorerApiStateOnDisk {
             country_node_distribution: self.inner.country_node_distribution.get_all().await,
-            location_cache: self.inner.mixnodes.get_locations().await,
+            mixnode_location_cache: self.inner.mixnodes.get_locations().await,
+            gateway_location_cache: self.inner.gateways.get_locations().await,
             as_at: Utc::now(),
         };
         serde_json::to_writer(file, &state).expect("error writing state to disk");

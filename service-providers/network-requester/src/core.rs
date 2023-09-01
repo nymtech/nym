@@ -13,9 +13,10 @@ use crate::{reply, socks5};
 use async_trait::async_trait;
 use futures::channel::mpsc;
 use log::warn;
-use nym_bin_common::build_information::BinaryBuildInformation;
+use nym_bin_common::bin_info_owned;
 use nym_client_core::config::disk_persistence::CommonClientPaths;
 use nym_network_defaults::NymNetworkDetails;
+use nym_sdk::mixnet::MixnetMessageSender;
 use nym_service_providers_common::interface::{
     BinaryInformation, ProviderInterfaceVersion, Request, RequestVersion,
 };
@@ -101,7 +102,7 @@ impl ServiceProvider<Socks5Request> for NRServiceProvider {
     ) -> Result<BinaryInformation, Self::ServiceProviderError> {
         Ok(BinaryInformation {
             binary_name: env!("CARGO_PKG_NAME").to_string(),
-            build_information: BinaryBuildInformation::new(env!("CARGO_PKG_VERSION")).to_owned(),
+            build_information: bin_info_owned!(),
         })
     }
 
@@ -223,7 +224,7 @@ impl NRServiceProviderBuilder {
         };
 
         let stats_collector_clone = stats_collector.clone();
-        let mixnet_client_sender = mixnet_client.sender();
+        let mixnet_client_sender = mixnet_client.split_sender();
         let self_address = *mixnet_client.nym_address();
 
         // start the listener for mix messages
@@ -297,7 +298,7 @@ impl NRServiceProvider {
     /// Listens for any messages from `mix_reader` that should be written back to the mix network
     /// via the `websocket_writer`.
     async fn mixnet_response_listener(
-        mut mixnet_client_sender: nym_sdk::mixnet::MixnetClientSender,
+        mixnet_client_sender: nym_sdk::mixnet::MixnetClientSender,
         mut mix_input_reader: MixProxyReader<MixnetMessage>,
         stats_collector: Option<ServiceStatisticsCollector>,
     ) {
@@ -321,7 +322,7 @@ impl NRServiceProvider {
                         }
 
                         let response_message = msg.into_input_message();
-                        mixnet_client_sender.send_input_message(response_message).await;
+                        mixnet_client_sender.send(response_message).await.unwrap();
                     } else {
                         log::error!("Exiting: channel closed!");
                         break;

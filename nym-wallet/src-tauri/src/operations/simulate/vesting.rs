@@ -11,6 +11,7 @@ use nym_mixnet_contract_common::{Gateway, MixId, MixNode};
 use nym_mixnet_contract_common::{GatewayConfigUpdate, MixNodeConfigUpdate};
 use nym_types::currency::DecCoin;
 use nym_types::mixnode::MixNodeCostParams;
+use nym_validator_client::nyxd::contract_traits::NymContractsProvider;
 use nym_vesting_contract_common::ExecuteMsg;
 
 async fn simulate_vesting_operation(
@@ -29,7 +30,10 @@ async fn simulate_vesting_operation(
     };
 
     let client = guard.current_client()?;
-    let vesting_contract = client.nyxd.vesting_contract_address();
+    let vesting_contract = client
+        .nyxd
+        .vesting_contract_address()
+        .expect("vesting contract address is not available");
 
     let msg = client
         .nyxd

@@ -8,7 +8,7 @@ use cosmwasm_std::Coin;
 use nym_bin_common::output_format::OutputFormat;
 use nym_mixnet_contract_common::construct_gateway_bonding_sign_payload;
 use nym_network_defaults::{DEFAULT_CLIENT_LISTENING_PORT, DEFAULT_MIX_LISTENING_PORT};
-use nym_validator_client::nyxd::traits::MixnetQueryClient;
+use nym_validator_client::nyxd::contract_traits::{MixnetQueryClient, NymContractsProvider};
 
 #[derive(Debug, Parser)]
 pub struct Args {
@@ -62,7 +62,7 @@ pub async fn create_payload(args: Args, client: SigningClient) {
 
     let coin = Coin::new(args.amount, denom);
 
-    let nonce = match client.get_signing_nonce(client.address()).await {
+    let nonce = match client.get_signing_nonce(&client.address()).await {
         Ok(nonce) => nonce,
         Err(err) => {
             eprint!(
@@ -73,9 +73,11 @@ pub async fn create_payload(args: Args, client: SigningClient) {
         }
     };
 
-    let address = account_id_to_cw_addr(client.address());
+    let address = account_id_to_cw_addr(&client.address());
     let proxy = if args.with_vesting_account {
-        Some(account_id_to_cw_addr(client.vesting_contract_address()))
+        Some(account_id_to_cw_addr(
+            client.vesting_contract_address().unwrap(),
+        ))
     } else {
         None
     };

@@ -1,7 +1,7 @@
 use cosmwasm_std::Addr;
+use nym_crypto::asymmetric::identity;
 use nym_name_service_common::{
-    error::NameServiceError, response::PagedNamesListResponse, Address, NameDetails, NymName,
-    RegisteredName,
+    error::NameServiceError, response::PagedNamesListResponse, NameDetails, NymName, RegisteredName,
 };
 use rstest::rstest;
 
@@ -31,15 +31,20 @@ fn basic_register(mut setup: TestSetup) {
     // Register a first name
     let owner = Addr::unchecked("owner");
     let name = NymName::new("steves-server").unwrap();
-    let nym_address = Address::new("nym-address");
+    let (nym_address, id_keypair) = setup.new_nym_address();
     assert_eq!(setup.contract_balance(), nyms(0));
     assert_eq!(setup.balance(&owner), nyms(250));
     assert_eq!(setup.query_signing_nonce(owner.to_string()), 0);
 
-    let reg_name = setup.new_name(&name, &nym_address);
+    let reg_name = setup.new_name_from_address(&name, &nym_address, id_keypair);
     let payload = setup.payload_to_sign(&owner, &nyms(100), &reg_name.name);
     let reg_name = reg_name.sign(payload);
     setup.register(&reg_name, &owner);
+
+    // Confirm that the client id in the name matches the identity key.
+    let address_client_id = reg_name.name.address.client_id();
+    let identity_key = reg_name.keys.public_key().to_base58_string();
+    assert_eq!(address_client_id, &identity_key);
 
     // Deposit is deposited to contract and deducted from owners's balance
     assert_eq!(setup.contract_balance(), nyms(100));
@@ -83,8 +88,8 @@ fn basic_register(mut setup: TestSetup) {
     // Register a second name
     let owner2 = Addr::unchecked("owner2");
     let name2 = NymName::new("another_server").unwrap();
-    let nym_address2 = Address::new("nymAddress2");
-    let reg_name2 = setup.new_signed_name(&name2, &nym_address2, &owner2, &nyms(100));
+    let reg_name2 = setup.new_signed_name(&name2, &owner2, &nyms(100));
+    let nym_address2 = reg_name2.address().clone();
     setup.register(&reg_name2, &owner2);
 
     assert_eq!(setup.contract_balance(), nyms(200));
@@ -105,8 +110,7 @@ fn basic_register(mut setup: TestSetup) {
 fn register_fails_when_owner_mismatch(mut setup: TestSetup) {
     let owner = Addr::unchecked("owner");
     let name = NymName::new("steves-server").unwrap();
-    let nym_address = Address::new("nym-address");
-    let reg_name = setup.new_signed_name(&name, &nym_address, &owner, &nyms(100));
+    let reg_name = setup.new_signed_name(&name, &owner, &nyms(100));
     let res = setup
         .try_register(&reg_name, &Addr::unchecked("owner2"))
         .unwrap_err();
@@ -124,32 +128,17 @@ fn signing_nonce_is_increased_when_registering(mut setup: TestSetup) {
     assert_eq!(setup.query_signing_nonce(owner1.to_string()), 0);
     assert_eq!(setup.query_signing_nonce(owner2.to_string()), 0);
 
-    setup.sign_and_register(
-        &NymName::new("myname1").unwrap(),
-        &Address::new("address1"),
-        &owner1,
-        &nyms(100),
-    );
+    setup.sign_and_register(&NymName::new("myname1").unwrap(), &owner1, &nyms(100));
 
     assert_eq!(setup.query_signing_nonce(owner1.to_string()), 1);
     assert_eq!(setup.query_signing_nonce(owner2.to_string()), 0);
 
-    setup.sign_and_register(
-        &NymName::new("myname2").unwrap(),
-        &Address::new("address2"),
-        &owner2,
-        &nyms(100),
-    );
+    setup.sign_and_register(&NymName::new("myname2").unwrap(), &owner2, &nyms(100));
 
     assert_eq!(setup.query_signing_nonce(owner1.to_string()), 1);
     assert_eq!(setup.query_signing_nonce(owner2.to_string()), 1);
 
-    setup.sign_and_register(
-        &NymName::new("myname3").unwrap(),
-        &Address::new("address3"),
-        &owner2,
-        &nyms(100),
-    );
+    setup.sign_and_register(&NymName::new("myname3").unwrap(), &owner2, &nyms(100));
 
     assert_eq!(setup.query_signing_nonce(owner1.to_string()), 1);
     assert_eq!(setup.query_signing_nonce(owner2.to_string()), 2);
@@ -160,14 +149,12 @@ fn creating_two_names_in_a_row_without_announcing_fails(mut setup: TestSetup) {
     let owner = Addr::unchecked("wealthy_owner_1");
     let name1 = NymName::new("steves-server1").unwrap();
     let name2 = NymName::new("steves-server2").unwrap();
-    let address1 = Address::new("nymAddress1");
-    let address2 = Address::new("nymAddress2");
     let deposit = nyms(100);
 
-    let s1 = setup.new_signed_name(&name1, &address1, &owner, &deposit);
+    let s1 = setup.new_signed_name(&name1, &owner, &deposit);
 
     // This second name will be signed with the same nonce
-    let s2 = setup.new_signed_name(&name2, &address2, &owner, &deposit);
+    let s2 = setup.new_signed_name(&name2, &owner, &deposit);
 
     // Announce the first service works, and this increments the nonce
     setup.register(&s1, &owner);
@@ -187,7 +174,6 @@ fn cant_register_a_name_without_funds(mut setup: TestSetup) {
     assert_eq!(setup.balance("owner"), nyms(250));
     let name1 = setup.new_signed_name(
         &NymName::new("my_name").unwrap(),
-        &Address::new("nymAddress"),
         &Addr::unchecked("owner"),
         &nyms(100),
     );
@@ -197,7 +183,6 @@ fn cant_register_a_name_without_funds(mut setup: TestSetup) {
 
     let name2 = setup.new_signed_name(
         &NymName::new("my_name2").unwrap(),
-        &Address::new("nymAddress"),
         &Addr::unchecked("owner"),
         &nyms(100),
     );
@@ -206,7 +191,6 @@ fn cant_register_a_name_without_funds(mut setup: TestSetup) {
     assert_eq!(setup.balance("owner"), nyms(50));
     let name3 = setup.new_signed_name(
         &NymName::new("my_name3").unwrap(),
-        &Address::new("nymAddress"),
         &Addr::unchecked("owner"),
         &nyms(100),
     );
@@ -229,7 +213,6 @@ fn cant_register_a_name_without_funds(mut setup: TestSetup) {
 fn cant_register_the_same_name_multiple_times(mut setup: TestSetup) {
     let name1 = setup.new_signed_name(
         &NymName::new("name").unwrap(),
-        &Address::new("nymAddress"),
         &Addr::unchecked("owner"),
         &nyms(100),
     );
@@ -246,16 +229,40 @@ fn cant_register_the_same_name_multiple_times(mut setup: TestSetup) {
     );
 }
 
+fn clone_keys(keys: &identity::KeyPair) -> identity::KeyPair {
+    let priv_bytes = keys.private_key().to_bytes();
+    let pub_bytes = keys.public_key().to_bytes();
+    identity::KeyPair::from_bytes(&priv_bytes, &pub_bytes).unwrap()
+}
+
 #[rstest]
 fn can_register_multiple_names_for_the_same_nym_address(mut setup: TestSetup) {
     let name1 = NymName::new("name1").unwrap();
     let name2 = NymName::new("name2").unwrap();
-    let address = Address::new("nymaddress");
+    // let address = Address::new("nym.add@ress").unwrap();
+    let (address, id_keys) = setup.new_nym_address();
     let owner = Addr::unchecked("owner");
 
-    let reg_name1 = setup.new_signed_name(&name1, &address, &owner, &nyms(100));
+    // We duplicate the keypair here to ensure that the same keypair is used for both names.
+    // The private key lacks a clone method, for good reason, so we have to serialize and
+    // deserialize it.
+    let id_keys2 = clone_keys(&id_keys);
+    assert_eq!(id_keys.public_key(), id_keys2.public_key());
+    assert_eq!(
+        id_keys.private_key().to_base58_string(),
+        id_keys2.private_key().to_base58_string()
+    );
+
+    // let reg_name1 = setup.new_signed_name(&name1, &owner, &nyms(100));
+    let reg_name1 = setup.new_name_from_address(&name1, &address, id_keys);
+    let payload = setup.payload_to_sign(&owner, &nyms(100), &reg_name1.name);
+    let reg_name1 = reg_name1.sign(payload);
     setup.register(&reg_name1, &owner);
-    let reg_name2 = setup.new_signed_name(&name2, &address, &owner, &nyms(100));
+
+    // let reg_name2 = setup.new_signed_name(&name2, &owner, &nyms(100));
+    let reg_name2 = setup.new_name_from_address(&name2, &address, id_keys2);
+    let payload = setup.payload_to_sign(&owner, &nyms(100), &reg_name2.name);
+    let reg_name2 = reg_name2.sign(payload);
     setup.register(&reg_name2, &owner);
 
     assert_eq!(
@@ -266,4 +273,3 @@ fn can_register_multiple_names_for_the_same_nym_address(mut setup: TestSetup) {
         ],
     );
 }
-//

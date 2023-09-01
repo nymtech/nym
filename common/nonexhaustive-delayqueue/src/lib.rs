@@ -6,12 +6,8 @@ use std::task::{Context, Poll, Waker};
 use std::time::Duration;
 use tokio_stream::Stream;
 
-pub use tokio::time::error::Error as TimerError;
-
 // this is a copy of tokio-util delay_queue with `Sleep` and `Instant` being replaced with
 // `wasm_timer` equivalents
-#[cfg(target_arch = "wasm32")]
-mod wasm_delay_queue;
 
 #[cfg(not(target_arch = "wasm32"))]
 type DelayQueue<T> = tokio_util::time::DelayQueue<T>;
@@ -23,13 +19,13 @@ pub type QueueKey = tokio_util::time::delay_queue::Key;
 use tokio::time::Instant;
 
 #[cfg(target_arch = "wasm32")]
-type DelayQueue<T> = crate::wasm_delay_queue::DelayQueue<T>;
+type DelayQueue<T> = wasmtimer::tokio_util::DelayQueue<T>;
 #[cfg(target_arch = "wasm32")]
-pub use crate::wasm_delay_queue::delay_queue::Expired;
+pub use wasmtimer::tokio_util::delay_queue::Expired;
 #[cfg(target_arch = "wasm32")]
-pub type QueueKey = crate::wasm_delay_queue::delay_queue::Key;
+pub type QueueKey = wasmtimer::tokio_util::delay_queue::Key;
 #[cfg(target_arch = "wasm32")]
-use wasm_timer::Instant;
+use wasmtimer::std::Instant;
 
 /// A variant of tokio's `DelayQueue`, such that its `Stream` implementation will never return a 'None'.
 pub struct NonExhaustiveDelayQueue<T> {

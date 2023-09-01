@@ -5,8 +5,8 @@ use clap::Parser;
 use log::info;
 
 use nym_mixnet_contract_common::{Coin, MixId};
-use nym_validator_client::nyxd::traits::MixnetQueryClient;
-use nym_validator_client::nyxd::traits::VestingSigningClient;
+use nym_validator_client::nyxd::contract_traits::MixnetQueryClient;
+use nym_validator_client::nyxd::contract_traits::VestingSigningClient;
 
 use crate::context::SigningClient;
 
@@ -40,6 +40,7 @@ pub async fn vesting_delegate_to_mixnode(args: Args, client: SigningClient) {
                 .get_mixnode_details_by_identity(identity_key)
                 .await
                 .expect("contract query failed")
+                .mixnode_details
                 .expect("mixnode with the specified identity doesnt exist");
             node_details.mix_id()
         }

@@ -6,14 +6,10 @@ import { getVersion } from '@tauri-apps/api/app';
 import * as Sentry from '@sentry/react';
 import { useEvents } from 'src/hooks/events';
 import { UserDefinedGateway, UserDefinedSPAddress } from 'src/types/service-provider';
-import { getItemFromStorage, setItemInStorage } from 'src/utils';
 import { ConnectionStatusKind, GatewayPerformance, PrivacyLevel, UserData } from '../types';
 import { ConnectionStatsItem } from '../components/ConnectionStats';
 import { ServiceProvider, Gateway } from '../types/directory';
 import initSentry from '../sentry';
-
-const FORAGE_GATEWAY_KEY = 'nym-connect-user-gateway';
-const FORAGE_SP_KEY = 'nym-connect-user-sp';
 
 type ModeType = 'light' | 'dark';
 
@@ -33,6 +29,7 @@ export type TClientContext = {
   userDefinedSPAddress: UserDefinedSPAddress;
   serviceProviders?: ServiceProvider[];
   gateways?: Gateway[];
+  showFeedbackNote: boolean;
   setMode: (mode: ModeType) => void;
   clearError: () => void;
   setConnectionStatus: (connectionStatus: ConnectionStatusKind) => void;
@@ -47,6 +44,7 @@ export type TClientContext = {
   setUserDefinedSPAddress: React.Dispatch<React.SetStateAction<UserDefinedSPAddress>>;
   setMonitoring: (value: boolean) => Promise<void>;
   setPrivacyLevel: (value: PrivacyLevel) => Promise<void>;
+  setShowFeedbackNote: (value: boolean) => void;
 };
 
 function getRandomFromList<T>(items: T[]): T {
@@ -70,13 +68,14 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [userDefinedGateway, setUserDefinedGateway] = useState<UserDefinedGateway>({
     isActive: false,
-    gateway: undefined,
+    address: undefined,
   });
   const [userDefinedSPAddress, setUserDefinedSPAddress] = useState<UserDefinedSPAddress>({
     isActive: false,
     address: undefined,
   });
   const [userData, setUserData] = useState<UserData>();
+  const [showFeedbackNote, setShowFeedbackNote] = useState(true);
 
   const getAppVersion = async () => {
     const version = await getVersion();
@@ -89,6 +88,15 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
       data.privacy_level = 'High';
     }
     setUserData(data);
+    if (data.selected_gateway) {
+      setUserDefinedGateway({
+        address: data.selected_gateway.address,
+        isActive: data.selected_gateway.is_active || false,
+      });
+    }
+    if (data.selected_sp) {
+      setUserDefinedSPAddress({ address: data.selected_sp.address, isActive: data.selected_sp.is_active || false });
+    }
     return data;
   };
 
@@ -104,30 +112,31 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
   }, []);
 
   useEffect(() => {
-    setItemInStorage({ key: FORAGE_GATEWAY_KEY, value: userDefinedGateway });
+    const saveUserGateway = async () => {
+      await invoke('set_selected_gateway', {
+        gateway: { address: userDefinedGateway.address, is_active: userDefinedGateway.isActive },
+      });
+    };
+    saveUserGateway();
   }, [userDefinedGateway]);
 
   useEffect(() => {
-    setItemInStorage({ key: FORAGE_SP_KEY, value: userDefinedSPAddress });
+    const saveUserServiceProvider = async () => {
+      await invoke('set_selected_sp', {
+        serviceProvider: { address: userDefinedSPAddress.address, is_active: userDefinedSPAddress.isActive },
+      });
+    };
+    saveUserServiceProvider();
   }, [userDefinedSPAddress]);
 
   const initialiseApp = async () => {
     const fetchedServices = await invoke<ServiceProvider[]>('get_services');
     const fetchedGateways = await invoke<Gateway[]>('get_gateways');
     const AppVersion = await getAppVersion();
-    const storedUserDefinedGateway = await getItemFromStorage({ key: FORAGE_GATEWAY_KEY });
-    const storedUserDefinedSP = await getItemFromStorage({ key: FORAGE_SP_KEY });
 
     setAppVersion(AppVersion);
     setServiceProviders(fetchedServices);
     setGateways(fetchedGateways);
-
-    if (storedUserDefinedGateway) {
-      setUserDefinedGateway(storedUserDefinedGateway);
-    }
-    if (storedUserDefinedSP) {
-      setUserDefinedSPAddress(storedUserDefinedSP);
-    }
   };
 
   useEvents({
@@ -161,16 +170,22 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
     }
   }, []);
 
+  const afterDisconnection = useCallback(async () => {
+    setGatewayPerformance('Good');
+    setConnectedSince(undefined);
+  }, []);
+
   const startDisconnecting = useCallback(async () => {
     try {
       await invoke('start_disconnecting');
+      afterDisconnection();
     } catch (e) {
       console.log(e);
       Sentry.captureException(e);
     }
   }, []);
 
-  const shouldUseUserGateway = !!userDefinedGateway.gateway && userDefinedGateway.isActive;
+  const shouldUseUserGateway = !!userDefinedGateway.address && userDefinedGateway.isActive;
   const shouldUseUserSP = !!userDefinedSPAddress.address && userDefinedSPAddress.isActive;
 
   const buildServiceProvider = async (serviceProvider: ServiceProvider) => {
@@ -181,7 +196,7 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
 
   const buildGateway = async (gateway: Gateway) => {
     const gw = { ...gateway };
-    if (shouldUseUserGateway) gw.identity = userDefinedGateway.gateway as string;
+    if (shouldUseUserGateway) gw.identity = userDefinedGateway.address as string;
     return gw;
   };
 
@@ -199,10 +214,15 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
 
   const setGateway = async () => {
     if (gateways) {
-      const randomGateway = getRandomFromList(gateways);
+      let randomGateway;
+      if (userData?.privacy_level === 'Medium') {
+        randomGateway = await invoke<Gateway>('select_gateway_with_low_latency_from_list', { gateways });
+      } else {
+        randomGateway = getRandomFromList(gateways);
+      }
       const withUserDefinitions = await buildGateway(randomGateway);
       await invoke('set_gateway', {
-        gateway: shouldUseUserGateway ? userDefinedGateway.gateway : withUserDefinitions.identity,
+        gateway: shouldUseUserGateway ? userDefinedGateway.address : withUserDefinitions.identity,
       });
       setSelectedGateway(withUserDefinitions);
     }
@@ -240,6 +260,7 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
       serviceProviders,
       connectedSince,
       userData,
+      showFeedbackNote,
       setConnectedSince,
       setServiceProvider,
       setGateway,
@@ -253,6 +274,7 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
       setUserDefinedSPAddress,
       setMonitoring,
       setPrivacyLevel,
+      setShowFeedbackNote,
     }),
     [
       mode,
@@ -270,6 +292,7 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
       userDefinedGateway,
       userDefinedSPAddress,
       userData,
+      showFeedbackNote,
     ],
   );
 

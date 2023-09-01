@@ -22,13 +22,19 @@ In the future the SDK will be made up of several components, each of which will 
 | Coconut   | Create & verify Coconut credentials                                                   | 🛠️       |
 | Validator | Sign & broadcast Nyx blockchain transactions, query the blockchain                    | ❌       |
 
-The `mixnet` component currently exposes the logic of two clients: the websocket client, and the socks client.
+The `mixnet` component currently exposes the logic of two clients: the [websocket client](../clients/websocket-client.md), and the [socks](../clients/socks5-client.md) client.
 
 The `coconut` component is currently being worked on. Right now it exposes logic allowing for the creation of coconut credentials on the Sandbox testnet.
 
 ## Websocket client examples
 > All the codeblocks below can be found in the `nym-sdk` [examples directory](https://github.com/nymtech/nym/tree/release/{{platform_release_version}}/sdk/rust/nym-sdk/examples) in the monorepo. Just navigate to `nym/sdk/rust/nym-sdk/examples/` and run the files from there. If you wish to run these outside of the workspace - such as if you want to use one as the basis for your own project - then make sure to import the `sdk`, `tokio`, and `nym_bin_common` crates.
 
+### Different message types
+There are two methods for sending messages through the mixnet using your client: 
+* `send_plain_message()` is the most simple: pass the recipient address and the message you wish to send as a string (this was previously `send_str()`). This is a nicer-to-use wrapper around `send_message()`. 
+* `send_message()` allows you to also define the amount of SURBs to send along with your message (which is sent as bytes). 
+
+### Simple example 
 Lets look at a very simple example of how you can import and use the websocket client in a piece of Rust code (`examples/simple.rs`):
 
 ```rust,noplayground
@@ -46,6 +52,26 @@ The example above involves ephemeral keys - if we want to create and then mainta
 
 As seen in the example above, the `mixnet::MixnetClientBuilder::new()` function handles checking for keys in a storage location, loading them if present, or creating them and storing them if not, making client key management very simple.
 
+Assuming our client config is stored in `/tmp/mixnet-client`, the following files are generated:
+```
+$ tree /tmp/mixnet-client
+
+mixnet-client
+├── ack_key.pem
+├── db.sqlite
+├── db.sqlite-shm
+├── db.sqlite-wal
+├── gateway_details.json
+├── gateway_shared.pem
+├── persistent_reply_store.sqlite
+├── private_encryption.pem
+├── private_identity.pem
+├── public_encryption.pem
+└── public_identity.pem
+
+1 directory, 11 files
+```
+
 ### Manually handling storage
 If you're integrating mixnet functionality into an existing app and want to integrate saving client configs and keys into your existing storage logic, you can manually perform the actions taken automatically above (`examples/manually_handle_keys_and_config.rs`)
 
@@ -54,7 +80,7 @@ If you're integrating mixnet functionality into an existing app and want to inte
 ```
 
 ### Anonymous replies with SURBs
-Both functions used to send messages through the mixnet (`send_str` and `send_bytes`) send a pre-determined number of SURBs along with their messages by default.
+Both functions used to send messages through the mixnet (`send_message` and `send_plain_message`) send a pre-determined number of SURBs along with their messages by default.
 
 The number of SURBs is set [here](https://github.com/nymtech/nym/blob/release/{{platform_release_version}}/sdk/rust/nym-sdk/src/mixnet/client.rs#L34):
 
@@ -64,19 +90,19 @@ The number of SURBs is set [here](https://github.com/nymtech/nym/blob/release/{{
 
 You can read more about how SURBs function under the hood [here](../architecture/traffic-flow.md#private-replies-using-surbs).
 
-In order to reply to an incoming message using SURBs, you can construct a `recipient` from the `sender_tag` sent along with the message you wish to reply to: 
+In order to reply to an incoming message using SURBs, you can construct a `recipient` from the `sender_tag` sent along with the message you wish to reply to:
 
 ```rust,noplayground
 {{#include ../../../../sdk/rust/nym-sdk/examples/surb-reply.rs}}
 ```
 
 ### Importing and using a custom network topology
-If you want to send traffic through a sub-set of nodes (for instance, ones you control, or a small test setup) when developing, debugging, or peforming research, you will need to import these nodes as a custom network topology, instead of grabbing it from the [`Mainnet Nym-API`](https://validator.nymtech.net/api/swagger/index.html) (`examples/custom_topology_provider.rs`).
+If you want to send traffic through a sub-set of nodes (for instance, ones you control, or a small test setup) when developing, debugging, or performing research, you will need to import these nodes as a custom network topology, instead of grabbing it from the [`Mainnet Nym-API`](https://validator.nymtech.net/api/swagger/index.html) (`examples/custom_topology_provider.rs`).
 
 There are two ways to do this:
 
 #### Import a custom Nym API endpoint
-If you are also running a Validator and Nym API for your network, you can specify that endpoint as such and interact with it as clients ususally do (under the hood):
+If you are also running a Validator and Nym API for your network, you can specify that endpoint as such and interact with it as clients usually do (under the hood):
 
 ```rust,noplayground
 {{#include ../../../../sdk/rust/nym-sdk/examples/custom_topology_provider.rs}}
@@ -87,6 +113,13 @@ If you aren't running a Validator and Nym API, and just want to import a specifi
 
 ```rust,noplayground
 {{#include ../../../../sdk/rust/nym-sdk/examples/manually_overwrite_topology.rs}}
+```
+
+### Send and receive in different tasks
+If you need to split the different actions of your client across different tasks, you can do so like this: 
+
+```rust, noplayground
+{{#include ../../../../sdk/rust/nym-sdk/examples/parallel_sending_and_receiving.rs}}
 ```
 
 ## Socks client example

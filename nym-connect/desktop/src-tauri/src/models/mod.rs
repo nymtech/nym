@@ -1,4 +1,4 @@
-use core::fmt;
+use std::fmt;
 
 use serde::{Deserialize, Serialize};
 
@@ -114,4 +114,10 @@ pub struct PagedResult<T> {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Gateway {
     pub identity: String,
+}
+
+impl fmt::Display for Gateway {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Gateway({})", self.identity)
+    }
 }

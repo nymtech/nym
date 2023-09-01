@@ -4,7 +4,7 @@ Start by creating the startup logic of your `client` in `bin/client.rs` - creati
 
 ## Dependencies
 Import the following dependencies:
-```
+```rust
 use clap::{Args, Parser, Subcommand};
 use chain_query::{client::query_balance, create_client};
 use nym_sdk::mixnet::Recipient;

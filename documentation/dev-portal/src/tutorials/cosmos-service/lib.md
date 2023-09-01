@@ -107,7 +107,7 @@ pub async fn create_client(config_path: PathBuf) -> MixnetClient {
 }
 ```
 
-If no config files exist at the location designated by `config_path` (in this case `/tmp/service`) then the following files are generated: 
+If no config files exist at the location designated by `config_path` (in this case `/tmp/service`) then the following files are generated:
 
 ```sh
 service
@@ -133,7 +133,7 @@ Next to define two functions: one for listening _for_ messages from the mixnet (
 
 Both functions attempt to deserialise the vec of `ReconstructedMessages` that are reconstructed by the client from delivered Sphinx packets after decryption.
 
-`handle_request` performs one additional function - parsing the `sender_tag` from the incoming reconstructed message. This is the randomised alphanumeric string used to identify a bucket of _SURBs_ (Single Use Reply Blocks) that are sent along with any outgoing message by default. More information about them can be found [here](https://nymtech.net/docs/architecture/traffic-flow.html#private-replies-using-surbs) but all that is necessary to know for now is that these are pre-addressed packets that clients send out with their messages. Any reply to their message that is to be sent back to them back be written to the payload of these packets, but without the replying party being able to see the destination that the reply is being sent to. This allows for services to **anonymously reply to clients without being able to doxx them by knowing their Nym address**. 
+`handle_request` performs one additional function - parsing the `sender_tag` from the incoming reconstructed message. This is the randomised alphanumeric string used to identify a bucket of _SURBs_ (Single Use Reply Blocks) that are sent along with any outgoing message by default. More information about them can be found [here](https://nymtech.net/docs/architecture/traffic-flow.html#private-replies-using-surbs) but all that is necessary to know for now is that these are pre-addressed packets that clients send out with their messages. Any reply to their message that is to be sent back to them back be written to the payload of these packets, but without the replying party being able to see the destination that the reply is being sent to. This allows for services to **anonymously reply to clients without being able to doxx them by knowing their Nym address**.
 
 ```rust
 pub fn handle_response(message: ReconstructedMessage) -> anyhow::Result<ResponseTypes> {

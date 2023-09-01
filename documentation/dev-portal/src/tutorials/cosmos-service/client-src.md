@@ -8,10 +8,10 @@ use crate::{handle_response, wait_for_non_empty_message, RequestTypes, DEFAULT_V
 use cosmrs::AccountId;
 use nym_sdk::mixnet::MixnetClient;
 use nym_sphinx_addressing::clients::Recipient;
-use nym_validator_client::nyxd::Coin; 
+use nym_validator_client::nyxd::Coin;
 ```
 
-As well as importing message-handling functionality, request types, and the default RPC endpoint, this file relies on the `AccountId` type to construct blockchain addresses, the `MixnetClient` for interacting with the mixnet, the `Recipient` type to construct mixnet recipient addresses, and the `Coin` type for properly handling the returned balance of the account that will be queried.  
+As well as importing message-handling functionality, request types, and the default RPC endpoint, this file relies on the `AccountId` type to construct blockchain addresses, the `MixnetClient` for interacting with the mixnet, the `Recipient` type to construct mixnet recipient addresses, and the `Coin` type for properly handling the returned balance of the account that will be queried.
 
 # Querying via the Mixnet
 The following is used to construct a `BalanceRequest`, send this to the supplied `service` address, and then handle the response, matching it to a `ResponseType` (in this case the only expected response, a `BalanceResponse`).
@@ -31,12 +31,8 @@ pub async fn query_balance(
     });
 
     // send serialised request to service via mixnet
-    client
-<<<<<<< HEAD
+    let _ = client
         .send_message(sp_address, message.serialize(), Default::default())
-=======
-        .send_bytes(sp_address, message.serialize(), Default::default())
->>>>>>> e504def9e40b472f224244cfa8d58a94c2e48d20
         .await;
 
     let received = wait_for_non_empty_message(client).await?;

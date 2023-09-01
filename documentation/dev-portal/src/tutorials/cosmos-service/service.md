@@ -2,14 +2,15 @@
 In `bin/src.rs` define the startup and response logic of the `service`. Client connection / config reading happens as it does in `bin/client.rs`.
 
 ## Dependencies
-```
+```rust
 use chain_query::{
     create_client, handle_request,
     service::{create_broadcaster, get_balance},
     BalanceResponse, RequestTypes, ResponseTypes,
 };
 use nym_sphinx_anonymous_replies::{self, requests::AnonymousSenderTag};
-use nym_bin_common::logging::setup_logging
+use nym_bin_common::logging::setup_logging;
+use nym_sdk::mixnet::MixnetMessageSender;
 ```
 
 The imports from `chain_query` are most of the data types and functions defined in the previous sections of this tutorial.
@@ -59,7 +60,7 @@ async fn main() -> anyhow::Result<()> {
                     println!("\nreturn recipient surb bucket: {}", &return_recipient);
                     println!("\nsending response to {}", &return_recipient);
                     // send response back to anon requesting client via mixnet
-                    client
+                    let _ = client
                         .send_reply(return_recipient, &serde_json::to_string(&response)?)
                         .await;
                 }

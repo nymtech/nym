@@ -11,24 +11,6 @@ You will learn how to do the following with the Rust SDK:
 
 > Services usually run on remote servers to assure reliable uptime and to unlink sender and receiver metadata. For demonstration purposes however, you will run both components on your local machine, looping messages through the mixnet to yourself.
 
-```
-
-TODO 
-
-REDRAW 
-
-ASCII
-
-DIAGRAM 
-
-FROM 
-
-PREVIOUS
-
-TUTORIAL
-
-```
-
 You can find the code for these components [here](https://github.com/nymtech/developer-tutorials). You can use it as a reference while building or simply download it and follow along as you progress through the tutorial.
 
 Notice that this tutorial attempts to use very few external libraries. This tutorial is not showing you how to build production-grade code, but **to understand how to connect and send messages to, as well as receive messages from, the mixnet.**

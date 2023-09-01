@@ -1,0 +1,25 @@
+name: 'Nym Hash Release'
+author: 'Nym Technologies SA'
+description: 'Generate hashes and signatures for assets in Nym releases'
+inputs:
+  hash-type:
+    description: 'Type of hash to generate (md5, sha1, sha256, sha512)'
+    required: false
+    default: 'sha256'
+  file-name:
+    description: 'File name to save as if desired'
+    required: false
+    default: 'hashes.json'
+  release-tag-or-name-or-id:
+    description: 'The tag/release to process. Uses the release id when trigger from a release.'
+    required: false
+    default: ''
+outputs:
+  hashes:
+    description: 'A string containing JSON with the release asset hashes and signatures'
+runs:
+  using: 'node18'
+  main: 'index.js'
+branding:
+  icon: 'hash'
+  color: 'green'

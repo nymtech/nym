@@ -18,7 +18,7 @@ outputs:
   hashes:
     description: 'A string containing JSON with the release asset hashes and signatures'
 runs:
-  using: 'node18'
+  using: 'node16'
   main: 'index.js'
 branding:
   icon: 'hash'

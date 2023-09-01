@@ -46,7 +46,6 @@ use nym_task::{TaskClient, TaskManager};
 use nym_topology::provider_trait::TopologyProvider;
 use nym_validator_client::nyxd::contract_traits::DkgQueryClient;
 use std::sync::Arc;
-use tap::TapFallible;
 use url::Url;
 
 #[cfg(all(not(target_arch = "wasm32"), feature = "fs-surb-storage"))]
@@ -329,13 +328,18 @@ where
                 )
             };
 
+        let gateway_id = gateway_client.gateway_identity();
         gateway_client.set_disabled_credentials_mode(config.client.disabled_credentials_mode);
 
         let shared_key = gateway_client
             .authenticate_and_start()
             .await
-            .tap_err(|err| {
-                log::error!("Could not authenticate and start up the gateway connection - {err}")
+            .map_err(|err| {
+                log::error!("Could not authenticate and start up the gateway connection - {err}");
+                ClientCoreError::GatewayClientError {
+                    gateway_id: gateway_id.to_base58_string(),
+                    source: err,
+                }
             })?;
 
         managed_keys.ensure_gateway_key(shared_key);

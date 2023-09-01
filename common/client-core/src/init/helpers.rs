@@ -208,21 +208,21 @@ pub(super) async fn register_with_gateway(
         our_identity.clone(),
         timeout,
     );
-    gateway_client
-        .establish_connection()
-        .await
-        .map_err(|err| {
-            log::warn!("Failed to establish connection with gateway!");
-            ClientCoreError::GatewayClientError {
-                gateway_id: gateway.gateway_id.clone(),
-                source: err,
-            }
-        })?;
+    gateway_client.establish_connection().await.map_err(|err| {
+        log::warn!("Failed to establish connection with gateway!");
+        ClientCoreError::GatewayClientError {
+            gateway_id: gateway.gateway_id.clone(),
+            source: err,
+        }
+    })?;
     let shared_keys = gateway_client
         .perform_initial_authentication()
         .await
         .map_err(|err| {
-            log::warn!( "Failed to register with the gateway {}!", gateway.gateway_id);
+            log::warn!(
+                "Failed to register with the gateway {}!",
+                gateway.gateway_id
+            );
             ClientCoreError::GatewayClientError {
                 gateway_id: gateway.gateway_id.clone(),
                 source: err,

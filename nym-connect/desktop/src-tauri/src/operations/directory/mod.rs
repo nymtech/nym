@@ -1,6 +1,6 @@
 use crate::{
     config::PrivacyLevel,
-    error::Result,
+    error::{BackendError, Result},
     models::{
         DirectoryService, DirectoryServiceProvider, Gateway, HarbourMasterService, PagedResult,
     },
@@ -176,13 +176,8 @@ pub async fn get_gateways() -> Result<Vec<Gateway>> {
     log::trace!("Filtered: {:#?}", gateways_filtered);
 
     if gateways_filtered.is_empty() {
-        log::warn!("No gateways with high enough performance score found! Using all gateways instead as fallback");
-        return Ok(all_gateways
-            .iter()
-            .map(|g| Gateway {
-                identity: g.identity().clone(),
-            })
-            .collect_vec());
+        log::error!("No gateways found! (with high enough performance score)");
+        return Err(BackendError::NoGatewaysFound);
     }
 
     Ok(gateways_filtered)
@@ -214,6 +209,10 @@ pub async fn select_gateway_with_low_latency_from_list(gateways: Vec<Gateway>) -
         .filter(|g| gateways.contains(g.identity()))
         .collect();
     let gateways_filtered = filter_out_low_performance_gateways(gateways_union_set);
+    if gateways_filtered.is_empty() {
+        log::error!("No gateways found! (with high enough performance score)");
+        return Err(BackendError::NoGatewaysFound);
+    }
     let selected_gateway = select_gateway_by_latency(gateways_filtered).await?;
     log::debug!("Selected gateway: {}", selected_gateway);
     Ok(Gateway {

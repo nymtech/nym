@@ -74,7 +74,7 @@ fn filter_out_low_performance_gateways(
 
     if filtered_gateways.is_empty() {
         log::error!("No gateways found! (with high enough performance score)");
-        Err(BackendError::NoGatewayWithAcceptablePerformanceFound)
+        Err(BackendError::NoGatewaysWithAcceptablePerformanceFound)
     } else {
         Ok(filtered_gateways)
     }

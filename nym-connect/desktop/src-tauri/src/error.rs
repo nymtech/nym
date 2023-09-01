@@ -87,9 +87,7 @@ pub enum BackendError {
     #[error("no gateways found with compatible version: {0}")]
     NoVersionCompatibleGatewaysFound(String),
     #[error("no gateways found with acceptable performance")]
-    NoGatewayWithAcceptablePerformanceFound,
-    #[error("no gateways found with acceptable performance when measuring latency")]
-    NoGatewayWithAcceptablePerformanceFoundToQuery,
+    NoGatewaysWithAcceptablePerformanceFound,
 
     #[error("no network-requesters found in directory")]
     NoServicesFoundInDirectory,

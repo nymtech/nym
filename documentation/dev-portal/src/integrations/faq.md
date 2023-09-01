@@ -110,7 +110,7 @@ Yes, it is supported.
 Yes. Follow the instructions in the [Ledger support for Nyx documentation](https://nymtech.net/docs/nyx/ledger-live.html). 
 
 ### Where can I find network details such as deployed smart contract addresses? 
-In the [`network defaults`](https://github.com/nymtech/nym/blob/release/{{platform_release_version}}/common/network-defaults/src/mainnet.rs) file. 
+In the [`network defaults`](https://github.com/nymtech/nym/blob/master/common/network-defaults/src/mainnet.rs) file. 
 
 ## `NYM` Token 
 The token used to reward mixnet infrastructure operators - `NYM` - is one of the native tokens of the Nyx blockchain. The other token is `NYX`. 

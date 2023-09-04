@@ -29,7 +29,7 @@ else
   for i in "${projects[@]}"
   do
     # sed the vars in the book.toml file for each project
-    echo "setting platform and wallet versions in $i/"
+    echo "setting wallet version in $i/"
     sed -i 's/wallet_release_version =.*/wallet_release_version = "'$2'"/' "$i"/book.toml
     if [ "$3" ]
     then

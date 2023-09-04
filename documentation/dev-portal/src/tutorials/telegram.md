@@ -2,6 +2,8 @@
 
 *This is a shortened version of a [Nym Community post](https://blog.nymtech.net/how-to-use-telegram-in-iraq-with-nymconnect-106a3b8dd050) written by Saliveja.*
 
+![](../images/monero_tutorial/telegram.png)
+
 The purpose of the following manual is not to promote Telegram but so people can use it with the Nym mixnet if they wish to, should a situation ask for that. This privacy-enhances Telegram at the network level and allows users to access the application from locations like where the application was banned.  
 
 See also: [Element (Matrix) over the Nym mixnet](./matrix.md): private, decentralised and secure messaging.
@@ -10,7 +12,7 @@ See also: [Element (Matrix) over the Nym mixnet](./matrix.md): private, decentra
 
 Here’s how to configure Telegram with NymConnect:
 
-1. Download and install NymConnect ().**
+1. **Download and install NymConnect(https://nymtech.net/download-nymconnect/).**
 	For more releases, check out [Github](https://github.com/nymtech/nym/tags). NymConnect is available for Linux, Windows, and MacOS.
 	On Linux make sure NymConnect is executable. Opening a terminal in the same directory and run:
 	```sh

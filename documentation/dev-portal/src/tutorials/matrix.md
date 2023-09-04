@@ -1,5 +1,6 @@
 # Matrix NymConnect Integration
 
+![](../images//matrix.png)
 
 Chat applications became an essential part of human communication. Matrix chat has end to end encryption on protocol level and Element app users can sort their communication into spaces and rooms. Now the Matrix communities can rely on network privacy as NymConnect supports Matrix chat protocol.
 

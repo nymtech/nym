@@ -230,7 +230,7 @@ Here's a systemd service file to do that:
 
 ```ini
 [Unit]
-Description=Nym Mixnode ({{platform_release_version}})
+Description=Nym Mixnode <VERSION>
 StartLimitInterval=350
 StartLimitBurst=10
 
@@ -252,7 +252,7 @@ WantedBy=multi-user.target
 
 ```ini
 [Unit]
-Description=Nym Gateway ({{platform_release_version}})
+Description=Nym Gateway <VERSION>
 StartLimitInterval=350
 StartLimitBurst=10
 
@@ -274,7 +274,7 @@ WantedBy=multi-user.target
 
 ```ini
 [Unit]
-Description=Nym Network Requester ({{platform_release_version}})
+Description=Nym Network Requester <VERSION>
 StartLimitInterval=350
 StartLimitBurst=10
 

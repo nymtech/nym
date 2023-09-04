@@ -112,31 +112,11 @@ jobs:
           files: |
             nym-connect/desktop/target/release/bundle/dmg/*.dmg
             nym-connect/desktop/target/release/bundle/macos/*.app.tar.gz*
-      - id: release-info
-        name: Prepare release info
-        run: |
-          ref=${{ github.ref_name }}
-          semver="${ref##nym-connect-}" && semver="${semver##v}"
-          echo "version=${semver}" >> "$GITHUB_OUTPUT"
-          echo "filename=nym-connect_${semver}_x64.dmg " >> "$GITHUB_OUTPUT"
-          echo "file_hash=${{ hashFiles('nym-connect/desktop/target/release/bundle/dmg/nym-connect_*_x64.dmg') }}" >> "$GITHUB_OUTPUT"
 
   push-release-data:
     if: ${{ (startsWith(github.ref, 'refs/tags/nym-connect-') && github.event_name == 'release') || github.event_name == 'workflow_dispatch' }}
-    uses: ./.github/workflows/push-release-data.yml
+    uses: ./.github/workflows/release-calculate-hash.yml
     needs: publish-tauri
     with:
       release_tag: ${{ github.ref_name }}
-      release_id: ${{ needs.publish-tauri.outputs.release_id }}
-      release_date: ${{ needs.publish-tauri.outputs.release_date }}
-      download_base_url: https://github.com/nymtech/nym/releases/download/${{ github.ref_name }}
-      changelog_url: https://github.com/nymtech/nym/blob/${{ github.ref_name }}/nym-connect/desktop/CHANGELOG.md
-      archive_url: https://github.com/nymtech/nym/releases/download/${{ github.ref_name }}/nym-connect.app.tar.gz
-      sig_url: https://github.com/nymtech/nym/releases/download/${{ github.ref_name }}/nym-connect.app.tar.gz.sig
-      version: ${{ needs.publish-tauri.outputs.version }}
-      filename: ${{ needs.publish-tauri.outputs.filename }}
-      file_hash: ${{ needs.publish-tauri.outputs.file_hash }}
-      name: NymConnect
-      category: connect
-      platform: MacOS
     secrets: inherit

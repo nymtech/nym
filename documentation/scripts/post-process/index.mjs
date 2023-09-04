@@ -36,7 +36,15 @@ async function main() {
 
                         // remove relative paths from URL
                         const bareUrl = rawUrl.split('/').filter(c => c !== '.' && c !== '..').join('/');
-                        const url = path.join(`/${book}`, bareUrl);
+                        let url;
+
+                        if(rawUrl.includes('.html#')) {
+                            url = path.join(`/${relativeDirectory}`, rawUrl);
+                        } else if(rawUrl.startsWith('#')) {
+                            url = path.join(`/`, relativeFilename + bareUrl);
+                        } else {
+                            url = path.join(`/${book}`, bareUrl);
+                        }
 
                         // const item = { filename, relativeDirectory, tagName, propertyName, rawUrl, url };
                         const item = { tagName, rawUrl, url };
@@ -68,7 +76,7 @@ async function main() {
         }
     }
 
-   // console.table(items.slice(0, 20));
+   // console.table(items.filter(i => i.rawUrl.startsWith('#')));
    // console.log();
 }
 

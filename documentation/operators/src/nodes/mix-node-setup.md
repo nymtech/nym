@@ -87,13 +87,13 @@ Mixnode configuration completed.
      |_| |_|\__, |_| |_| |_|
             |___/
 
-             (nym-mixnode - version {{platform_release_version}})
+             (nym-mixnode - version v1.1.29)
 
 
-Identity Key: DhmUYedPZvhP9MMwXdNpPaqCxxTQgjAg78s2nqtTTiNF","version":"{{platform_release_version}}"},"cost_params
+Identity Key: DhmUYedPZvhP9MMwXdNpPaqCxxTQgjAg78s2nqtTTiNF","version":"v1.1.29"},"cost_params
 Sphinx Key: CfZSy1jRfrfiVi9JYexjFWPqWkKoY72t7NdpWaq37K8Z
 Host: 62.240.134.189 (bind address: 62.240.134.189)
-Version: {{platform_release_version}}
+Version: v1.1.29
 Mix Port: 1789, Verloc port: 1790, Http Port: 8000
 ```
 ~~~
@@ -134,7 +134,7 @@ It will look something like this:
      |_| |_|\__, |_| |_| |_|
             |___/
 
-             (nym-mixnode - version {{platform_release_version}})
+             (nym-mixnode - version v1.1.29)
 
 
 >>> attempting to sign 22Z9wt4PyiBCbMiErxj5bBa4VCCFsjNawZ1KnLyMeV9pMUQGyksRVANbXHjWndMUaXNRnAuEVJW6UCxpRJwZe788hDt4sicsrv7iAXRajEq19cWPVybbUqgeo76wbXbCbRdg1FvVKgYZGZZp8D72p5zWhKSBRD44qgCrqzfV1SkiFEhsvcLUvZATdLRocAUL75KmWivyRiQjCE1XYEWyRH9yvRYn4TymWwrKVDtEB63zhHjATN4QEi2E5qSrSbBcmmqatXsKakbgSbQoLsYygcHx7tkwbQ2HDYzeiKP1t16Rhcjn6Ftc2FuXUNnTcibk2LQ1hiqu3FAq31bHUbzn2wiaPfm4RgqTwGM4eqnjBofwR3251wQSxbYwKUYwGsrkweRcoPuEaovApR9R19oJ7GVG5BrKmFwZWX3XFVuECe8vt1x9MY7DbQ3xhAapsHhThUmzN6JPPU4qbQ3PdMt3YVWy6oRhap97ma2dPMBaidebfgLJizpRU3Yu7mtb6E8vgi5Xnehrgtd35gitoJqJUY5sB1p6TDPd6vk3MVU1zqusrke7Lvrud4xKfCLqp672Bj9eGb2wPwow643CpHuMkhigfSWsv9jDq13d75EGTEiprC2UmWTzCJWHrDH7ka68DZJ5XXAW67DBewu7KUm1jrJkNs55vS83SWwm5RjzQLVhscdtCH1Bamec6uZoFBNVzjs21o7ax2WHDghJpGMxFi6dmdMCZpqn618t4

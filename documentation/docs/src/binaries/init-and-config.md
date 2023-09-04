@@ -1,6 +1,13 @@
 # Binary Initialisation and Configuration
 
-All Nym binaries must first be initialised with `init` before being `run`. 
+All Nym binaries must first be made executable and initialised with `init` before being `run`. 
+
+To make a binary executable, open terminal in the same directory and run:
+
+```sh
+chmod +x <BINARY_NAME> 
+# for example: chmod +x nym-mixnode
+```
 
 The `init` command is usually where you pass flags specifying configuration arguments such as the gateway you wish to communicate with, the ports you wish your binary to listen on, etc. 
 

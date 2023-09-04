@@ -7,7 +7,7 @@ Each directory contains a readme with more information about running and contrib
 * `operators` contains node setup and maintenance guides hosted at [https://nymtech.net/operators](https://nymtech.net/operators)
 
 ## Scripts 
-* `bump_versions.sh` allows you to update the `platform_release_version` and `wallet_release_version` variables in the `book.toml` of each mdbook project at once. You can also optionally update the `minimum_rust_version` as well. Helpful for lazy-updating when cutting a new version of the docs. 
-  * `build_all_to_dist.sh` is used by the `ci-dev.yml` and `cd-dev.yml` scripts for building all mdbook projects and moving the rendered html to `../dist/` to be rsynced with various servers. 
+* `bump_versions.sh` allows you to update the ~~`platform_release_version` and~~ `wallet_release_version` variable~~s~~ in the `book.toml` of each mdbook project at once. You can also optionally update the `minimum_rust_version` as well. Helpful for lazy-updating when cutting a new version of the docs. 
+* `build_all_to_dist.sh` is used by the `ci-dev.yml` and `cd-dev.yml` scripts for building all mdbook projects and moving the rendered html to `../dist/` to be rsynced with various servers. 
 
 

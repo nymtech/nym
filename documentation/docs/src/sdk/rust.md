@@ -27,7 +27,7 @@ The `mixnet` component currently exposes the logic of two clients: the [websocke
 The `coconut` component is currently being worked on. Right now it exposes logic allowing for the creation of coconut credentials on the Sandbox testnet.
 
 ## Websocket client examples
-> All the codeblocks below can be found in the `nym-sdk` [examples directory](https://github.com/nymtech/nym/tree/release/{{platform_release_version}}/sdk/rust/nym-sdk/examples) in the monorepo. Just navigate to `nym/sdk/rust/nym-sdk/examples/` and run the files from there. If you wish to run these outside of the workspace - such as if you want to use one as the basis for your own project - then make sure to import the `sdk`, `tokio`, and `nym_bin_common` crates.
+> All the codeblocks below can be found in the `nym-sdk` [examples directory](https://github.com/nymtech/nym/tree/master/sdk/rust/nym-sdk/examples) in the monorepo. Just navigate to `nym/sdk/rust/nym-sdk/examples/` and run the files from there. If you wish to run these outside of the workspace - such as if you want to use one as the basis for your own project - then make sure to import the `sdk`, `tokio`, and `nym_bin_common` crates.
 
 ### Different message types
 There are two methods for sending messages through the mixnet using your client: 
@@ -82,7 +82,7 @@ If you're integrating mixnet functionality into an existing app and want to inte
 ### Anonymous replies with SURBs
 Both functions used to send messages through the mixnet (`send_message` and `send_plain_message`) send a pre-determined number of SURBs along with their messages by default.
 
-The number of SURBs is set [here](https://github.com/nymtech/nym/blob/release/{{platform_release_version}}/sdk/rust/nym-sdk/src/mixnet/client.rs#L34):
+The number of SURBs is set [here](https://github.com/nymtech/nym/blob/master/sdk/rust/nym-sdk/src/mixnet/client.rs#L33):
 
 ```rust,noplayground
 {{#include ../../../../sdk/rust/nym-sdk/src/mixnet/client.rs:34}}

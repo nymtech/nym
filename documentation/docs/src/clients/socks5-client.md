@@ -160,7 +160,7 @@ Create a service file for the socks5 client at `/etc/systemd/system/nym-socks5-c
 
 ```ini
 [Unit]
-Description=Nym Socks5 Client ({{platform_release_version}})
+Description=Nym Socks5 Client 
 StartLimitInterval=350
 StartLimitBurst=10
 

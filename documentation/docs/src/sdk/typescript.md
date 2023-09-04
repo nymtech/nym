@@ -1,7 +1,7 @@
 # Typescript SDK
 The Typescript SDK allows developers to start building browser-based mixnet applications quickly, by simply importing the SDK into their code via NPM as they would any other Typescript library.
 
-You can find the source code [here](https://github.com/nymtech/nym/tree/release/{{platform_release_version}}/sdk) and the library on NPM [here](https://www.npmjs.com/package/@nymproject/sdk).
+You can find the source code [here](https://github.com/nymtech/nym/tree/master/sdk) and the library on NPM [here](https://www.npmjs.com/package/@nymproject/sdk).
 
 Currently developers can use the SDK to do the following **entirely in the browser**:
 * Create a client
@@ -19,7 +19,7 @@ In the future the SDK will be made up of several components, each of which will 
 | Validator | Sign & broadcast Nyx blockchain transactions, query the blockchain             | ❌       |
 
 ### How it works
-The SDK can be thought of as a 'wrapper' around the compiled [WebAssembly client](https://github.com/nymtech/nym/tree/release/{{platform_release_version}}/clients/webassembly) code: it runs the client (a Wasm blob) in a web worker. This allows us to keep the work done by the client - such as the heavy lifting of creating and multiply-encrypting Sphinx packets - in a seperate thread from our UI, enabling you to build reactive frontends without worrying about the work done under the hood by the client eating your processing power.
+The SDK can be thought of as a 'wrapper' around the compiled [WebAssembly client](https://github.com/nymtech/nym/tree/master/clients/webassembly) code: it runs the client (a Wasm blob) in a web worker. This allows us to keep the work done by the client - such as the heavy lifting of creating and multiply-encrypting Sphinx packets - in a seperate thread from our UI, enabling you to build reactive frontends without worrying about the work done under the hood by the client eating your processing power.
 
 The SDK exposes an interface that allows developers to interact with the Wasm blob inside the webworker from frontend code.
 
@@ -41,7 +41,7 @@ Support for environments with different bundlers will be added in subsequent rel
 
 
 ### Using the SDK
-There are multiple example projects in [`nym/sdk/typescript/examples/`](https://github.com/nymtech/nym/tree/release/{{platform_release_version}}/sdk/typescript/examples/), each for a different frontend framework.
+There are multiple example projects in [`nym/sdk/typescript/examples/`](https://github.com/nymtech/nym/tree/master/sdk/typescript/examples/), each for a different frontend framework.
 
 #### Vanilla HTML
 The best place to start if you just want to quickly get a basic frontend up and running with which to experiment is `examples/plain-html`:
@@ -53,10 +53,10 @@ The best place to start if you just want to quickly get a basic frontend up and 
 As you can see, all that is required to create an ephemeral keypair and connect to the mixnet is creating a client and then subscribing to the mixnet events coming down the websocket, and adding logic to deal with them.
 
 #### Parcel
-If you don't want to use `Webpack` as your app bundler, we have an example with `Parcel` located at [`examples/parcel/`](https://github.com/nymtech/nym/tree/release/{{platform_release_version}}/sdk/typescript/examples/react-webpack-with-theme-example/parcel/).
+If you don't want to use `Webpack` as your app bundler, we have an example with `Parcel` located at [`examples/parcel/`](https://github.com/nymtech/nym/tree/master/sdk/typescript/examples/chat-app/parcel).
 
 #### Create React App
-For React developers we have an example which is a basic React app scaffold with the additional logic for creating a client and subscribing to mixnet events in [`examples/react-webpack-with-theme-example/`](https://github.com/nymtech/nym/tree/release/{{platform_release_version}}/sdk/typescript/examples/react-webpack-with-theme-example/).
+For React developers we have an example which is a basic React app scaffold with the additional logic for creating a client and subscribing to mixnet events in [`examples/react-webpack-with-theme-example/`](https://github.com/nymtech/nym/tree/master/sdk/typescript/examples/chat-app/react-webpack-with-theme-example).
 
 ### Developers: think about what you're sending (and importing)!
 Think about what information your app sends. That goes for whatever you put into your Sphinx packet messages as well as what your app's environment may leak.

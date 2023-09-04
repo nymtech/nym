@@ -37,7 +37,7 @@ serde_json = { workspace = true }
 sqlx = { version = "0.5", features = [ "runtime-tokio-rustls", "sqlite", "macros", "migrate", ] }
 subtle-encoding = { version = "0.5", features = ["bech32-preview"] }
 thiserror = "1"
-tokio = { version = "1.24.1", features = [ "rt-multi-thread", "net", "signal", "fs", ] }
+tokio = { workspace = true, features = [ "rt-multi-thread", "net", "signal", "fs", "time" ] }
 tokio-stream = { version = "0.1.11", features = ["fs"] }
 tokio-tungstenite = "0.14"
 tokio-util = { version = "0.7.4", features = ["codec"] }

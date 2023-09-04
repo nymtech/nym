@@ -13,6 +13,7 @@ log = "0.4.19"
 sha2 = "0.10.7"
 bytes = "1.0"
 thiserror = "1.0.44"
+blake2 = "0.10.6"
 
 # internal
 nym-topology = { path = "../topology"}

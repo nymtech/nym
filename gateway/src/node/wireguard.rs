@@ -15,7 +15,7 @@ pub async fn wireguard() {
 
     // Secret key ofthe gateway, we'll need a way to generate this from the IdentityKey, might be enough to do some base58 -> base64 conversion
     let secret_bytes: [u8; 32] = general_purpose::STANDARD
-        .decode("AEqXrLFT4qjYq3wmX0456iv94uM6nDj5ugp6Jedcflg=")
+        .decode("+EWK0GFOIhSOuAo6vFqTgnm14lJiIBWt0KXnZ06/pkU=")
         .unwrap()
         .try_into()
         .unwrap();
@@ -26,16 +26,16 @@ pub async fn wireguard() {
     // starts sending data packets to the gateway.
     //
     // [Interface]
-    // PrivateKey = aMUcuAgTiFCHQ/fHqEQRvpLWBxh8sKA7f7lSyWymrGE=
+    // PrivateKey = 6OhouAaOtkcrCPDX5UZHAwXmagYX8x/Y1vTO4mWst0M=
     // Address = 10.8.0.0/24
     // DNS = 1.1.1.1
     //
     // [Peer]
-    // PublicKey = y6/iGYraJjON6pw9fcBa5vLRbGsQqprFLfWKyJQnlWs=
+    // PublicKey = 2Ie0Cp1tQnejZfKdHGmpIkWS/9MQJV6sWtP4QJLREl4=
     // AllowedIPs = 0.0.0.0/0
     // Endpoint = 127.0.0.1:51820
     let peer_public_bytes: [u8; 32] = general_purpose::STANDARD
-        .decode("mxV/mw7WZTe+0Msa0kvJHMHERDA/cSskiZWQce+TdEs=")
+        .decode("MzfycYCQl1KR6LSViZCrp6Imx/MfXHH11U+Nrwxr5Dw=")
         .unwrap()
         .try_into()
         .unwrap();
@@ -52,9 +52,15 @@ pub async fn wireguard() {
 
     // let (bus_tx, _) = broadcast::channel(128);
 
-    let wireguard_stream = upgrade_noise_responder(sock.clone(), &secret_bytes);
+    let mut wireguard_stream =
+        upgrade_noise_responder(sock.clone(), &secret_bytes, peer_public_bytes.clone())
+            .await
+            .unwrap();
     println!("Handshake completed");
 
+    while let Ok(msg) = wireguard_stream.recv().await {
+        println!("msg : {:?}", msg);
+    }
     // while let Ok((len, addr)) = sock.recv_from(&mut buf).await {
     //     info!("Received {} bytes from {}", len, addr);
     //     if peers.contains(&addr) {

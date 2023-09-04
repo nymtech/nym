@@ -1,6 +1,10 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use blake2::digest::FixedOutput;
+use blake2::digest::KeyInit;
+use blake2::Blake2s256;
+use blake2::Blake2sMac;
 use log::*;
 use snow::Builder;
 use snow::HandshakeState;
@@ -16,14 +20,20 @@ pub struct WireGuardStream {
     inner_stream: Arc<UdpSocket>,
     handshake: Option<HandshakeState>,
     noise: Option<TransportState>,
+    peer_public_key: [u8; 32],
 }
 
 impl WireGuardStream {
-    fn new(inner_stream: Arc<UdpSocket>, handshake: HandshakeState) -> WireGuardStream {
+    fn new(
+        inner_stream: Arc<UdpSocket>,
+        handshake: HandshakeState,
+        peer_public_key: [u8; 32],
+    ) -> WireGuardStream {
         WireGuardStream {
             inner_stream,
             handshake: Some(handshake),
             noise: None,
+            peer_public_key,
         }
     }
 
@@ -33,12 +43,17 @@ impl WireGuardStream {
             return Err(NoiseError::IncorrectStateError);
         };
         self.handshake = None;
+        let mut id_i = [0u8; 4];
+        let mut address: SocketAddr = "0.0.0.0:12345".parse().unwrap();
 
         while !handshake.is_handshake_finished() {
             if handshake.is_my_turn() {
-                self.send_handshake_msg(&mut handshake).await?;
+                self.send_handshake_msg(&mut handshake, id_i.clone(), address)
+                    .await?;
             } else {
-                self.recv_handshake_msg(&mut handshake).await?;
+                let res = self.recv_handshake_msg(&mut handshake).await?;
+                id_i = res.0;
+                address = res.1;
             }
         }
 
@@ -49,9 +64,25 @@ impl WireGuardStream {
     async fn send_handshake_msg(
         &mut self,
         handshake: &mut HandshakeState,
+        id_initiator: [u8; 4],
+        address: SocketAddr,
     ) -> Result<(), NoiseError> {
-        // let mut buf = vec![0u8; MAXMSGLEN];
-        // let len = handshake.write_message(&[], &mut buf)?;
+        let mut buf = vec![0u8; MAXMSGLEN];
+        let len = handshake.write_message(&[], &mut buf)?;
+        let msg = [&2u32.to_be_bytes(), &id_initiator, &[42u8; 4], &buf[..len]].concat();
+        //mac1 key
+        let mut k_mac1 = Blake2s256::new();
+        k_mac1.update(b"mac1----");
+        k_mac1.update(self.peer_public_key);
+        let k_mac1_bytes: [u8; 32] = k_mac1.finalize().into();
+
+        //mac1
+        let mut hmac = Blake2sMac::new_from_slice(&k_mac1_bytes).unwrap();
+        blake2::digest::Update::update(&mut hmac, &msg);
+        let mac1_bytes: [u8; 16] = hmac.finalize_fixed().into();
+
+        let final_msg = [msg, mac1_bytes.to_vec(), vec![0u8; 16]].concat();
+        self.send_wg_msg(&final_msg, address).await?;
 
         // self.inner_stream.write_u16(len.try_into()?).await?; //len is always < 2^16, so it shouldn't fail
         // self.inner_stream.write_all(&buf[..len]).await?;
@@ -61,26 +92,38 @@ impl WireGuardStream {
     async fn recv_handshake_msg(
         &mut self,
         handshake: &mut HandshakeState,
-    ) -> Result<(), NoiseError> {
-        let msg = self.recv_wg_msg().await?;
+    ) -> Result<([u8; 4], SocketAddr), NoiseError> {
+        println!("Hash 1 : {:?}", handshake.get_handshake_hash());
+        let (msg, address) = self.recv_wg_msg().await?;
         println!("Rcv: {:?}", msg);
-        // let mut msg = vec![0u8; msg_len.into()];
-        // self.inner_stream.read_exact(&mut msg[..]).await?;
+        println!("Will read : {:?}", &msg[8..88]);
 
-        // let mut buf = vec![0u8; MAXMSGLEN];
-        // handshake.read_message(&msg, &mut buf)?;
-        Ok(())
+        let mut buf = vec![0u8; MAXMSGLEN];
+        handshake.read_message(&msg[8..88], &mut buf)?;
+        Ok((msg[4..8].try_into().unwrap(), address))
     }
 
-    async fn recv_wg_msg(&self) -> Result<Vec<u8>, NoiseError> {
+    async fn recv_wg_msg(&self) -> Result<(Vec<u8>, SocketAddr), NoiseError> {
         let mut buf = [0u8; MAXMSGLEN];
-        let len = self.inner_stream.recv(&mut buf).await?;
-        Ok(buf[..len].to_vec())
+        let (len, address) = self.inner_stream.recv_from(&mut buf).await?;
+        Ok((buf[..len].to_vec(), address))
     }
 
     async fn send_wg_msg(&self, msg: &[u8], address: SocketAddr) -> Result<(), NoiseError> {
         self.inner_stream.send_to(msg, address).await?;
         Ok(())
+    }
+
+    pub async fn recv(&mut self) -> Result<Vec<u8>, NoiseError> {
+        let (msg, _) = self.recv_wg_msg().await?;
+        println!("Rcv: {:?}", msg);
+
+        let mut buf = vec![0u8; MAXMSGLEN];
+        if let Some(noise) = &mut self.noise {
+            let len = noise.read_message(&msg[16..], &mut buf)?;
+            return Ok(buf[..len].to_vec());
+        }
+        Err(NoiseError::IncorrectStateError)
     }
 }
 
@@ -155,6 +198,7 @@ impl WireGuardStream {
 pub async fn upgrade_noise_responder(
     conn: Arc<UdpSocket>,
     local_private_key: &[u8],
+    peer_public_key: [u8; 32],
 ) -> Result<WireGuardStream, NoiseError> {
     trace!("Perform Wireguard Handshake, responder side");
 
@@ -165,9 +209,10 @@ pub async fn upgrade_noise_responder(
     let handshake = Builder::new(pattern.as_str().parse()?)
         .local_private_key(local_private_key)
         .psk(pattern.psk_position(), &secret)
+        .prologue(b"WireGuard v1 zx2c4 Jason@zx2c4.com")
         .build_responder()?;
 
-    let noise_stream = WireGuardStream::new(conn, handshake);
+    let noise_stream = WireGuardStream::new(conn, handshake, peer_public_key);
 
     noise_stream.perform_handshake().await
 }

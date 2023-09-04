@@ -63,6 +63,10 @@ jobs:
           TARGET: ${{ secrets.CD_WWW_REMOTE_TARGET }}/
           EXCLUDE: "/node_modules/"
 
+      - name: Post process
+        run: cd documentation && ./post_process.sh
+        continue-on-error: false
+
       - name: Create Vercel project file
         uses: mobiledevops/secret-to-file-action@v1
         with:

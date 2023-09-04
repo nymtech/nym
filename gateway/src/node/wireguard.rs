@@ -1,14 +1,12 @@
 use base64::engine::general_purpose;
 use base64::Engine as _;
 use log::{error, info};
+use nym_noise::wireguard::upgrade_noise_responder;
 use std::collections::HashSet;
 use std::sync::Arc;
 use tokio::net::UdpSocket;
 use tokio::sync::broadcast;
 use x25519_dalek::{PublicKey, StaticSecret};
-
-use crate::node::wg::events::Event;
-use crate::node::wg::WireGuardTunnel;
 
 pub async fn wireguard() {
     let wg_address = "0.0.0.0:51820";
@@ -49,29 +47,32 @@ pub async fn wireguard() {
         general_purpose::STANDARD.encode(public)
     );
 
-    let mut buf = [0; 1024];
-    let mut peers = HashSet::new();
+    // let mut buf = [0; 1024];
+    // let mut peers = HashSet::new();
 
-    let (bus_tx, _) = broadcast::channel(128);
+    // let (bus_tx, _) = broadcast::channel(128);
 
-    while let Ok((len, addr)) = sock.recv_from(&mut buf).await {
-        info!("Received {} bytes from {}", len, addr);
-        if peers.contains(&addr) {
-            bus_tx
-                .send(Event::WgPacket(buf[..len].to_vec().into()))
-                .map_err(|e| error!("{e}"))
-                .unwrap();
-        } else {
-            info!("New peer with endpoint {addr}");
-            let tun =
-                WireGuardTunnel::new(peer_public, Arc::clone(&sock), addr, bus_tx.clone()).await;
-            peers.insert(addr);
-            tokio::spawn(tun.spin_off());
-            bus_tx
-                .send(Event::WgPacket(buf[..len].to_vec().into()))
-                .map_err(|e| error!("{e}"))
-                .unwrap();
-        }
-    }
+    let wireguard_stream = upgrade_noise_responder(sock.clone(), &secret_bytes);
+    println!("Handshake completed");
+
+    // while let Ok((len, addr)) = sock.recv_from(&mut buf).await {
+    //     info!("Received {} bytes from {}", len, addr);
+    //     if peers.contains(&addr) {
+    //         bus_tx
+    //             .send(Event::WgPacket(buf[..len].to_vec().into()))
+    //             .map_err(|e| error!("{e}"))
+    //             .unwrap();
+    //     } else {
+    //         info!("New peer with endpoint {addr}");
+    //         let tun =
+    //             WireGuardTunnel::new(peer_public, Arc::clone(&sock), addr, bus_tx.clone()).await;
+    //         peers.insert(addr);
+    //         tokio::spawn(tun.spin_off());
+    //         bus_tx
+    //             .send(Event::WgPacket(buf[..len].to_vec().into()))
+    //             .map_err(|e| error!("{e}"))
+    //             .unwrap();
+    //     }
+    // }
     panic!("Not OK");
 }

@@ -26,6 +26,8 @@ use tokio::{
     net::TcpStream,
 };
 
+pub mod wireguard;
+
 const MAXMSGLEN: usize = 65535;
 const TAGLEN: usize = 16;
 const HEADER_SIZE: usize = 2;

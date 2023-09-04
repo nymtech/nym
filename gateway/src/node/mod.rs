@@ -36,7 +36,6 @@ pub(crate) mod client_handling;
 pub(crate) mod mixnet_handling;
 pub(crate) mod statistics;
 pub(crate) mod storage;
-mod wg;
 pub(crate) mod wireguard;
 
 /// Wire up and create Gateway instance

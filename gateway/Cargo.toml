@@ -56,9 +56,8 @@ zeroize = { workspace = true }
 
 # wireguard
 # Forked it to be able to bump x25519-dalek to rc.3
-boringtun = { git = "https://github.com/durch/boringtun.git" }
 base64 = "0.21"
-x25519-dalek = { version = "=2.0.0-rc.3", features = [
+x25519-dalek = { version = "2.0.0", features = [
     "reusable_secrets",
     "static_secrets",
 ] }

@@ -53,7 +53,11 @@ nyxd_urls = [
     {{/each}}
 ]
 
-cosmos_mnemonic = "{{ gateway.cosmos_mnemonic }}"
+cosmos_mnemonic = '{{ gateway.cosmos_mnemonic }}'
+
+[network_requester]
+# Specifies whether network requester service is enabled in this process.
+enabled = {{ network_requester.enabled }}
 
 [storage_paths] 
 

@@ -15,6 +15,7 @@ use nym_bin_common::output_format::OutputFormat;
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_mixnet_client::forwarder::{MixForwardingSender, PacketForwarder};
 use nym_network_defaults::NymNetworkDetails;
+use nym_network_requester::NRServiceProviderBuilder;
 use nym_pemstore::traits::PemStorableKeyPair;
 use nym_pemstore::KeyPairPath;
 use nym_statistics_common::collector::StatisticsSender;
@@ -255,6 +256,13 @@ impl<St> Gateway<St> {
             info!("Starting network requester...");
         }
 
+        let Some(nr_cfg) = &self.network_requester_config else {
+            return Err(GatewayError::UnspecifiedNetworkRequesterConfig)
+        };
+
+        // TODO: well, wire it up internally to gateway traffic, shutdowns, etc.
+        let nr_builder = NRServiceProviderBuilder::new(nr_cfg.clone(), false, false, None);
+        tokio::spawn(async move { nr_builder.run_service_provider().await });
         //
 
         Ok(())

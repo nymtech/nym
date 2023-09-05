@@ -157,7 +157,7 @@ impl ServiceProvider<Socks5Request> for NRServiceProvider {
 }
 
 impl NRServiceProviderBuilder {
-    pub async fn new(config: Config) -> NRServiceProviderBuilder {
+    pub fn new(config: Config) -> NRServiceProviderBuilder {
         let standard_list = StandardList::new();
 
         let allowed_hosts = StoredAllowedHosts::new(&config.storage_paths.allowed_list_location);

@@ -1,9 +1,10 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::config::persistence::paths::{GatewayPaths, KeysPaths};
-use crate::config::{Config, Debug, Gateway};
-use nym_bin_common::logging::LoggingSettings;
+use crate::config::old_config_v1_1_28::{
+    ConfigV1_1_28, DebugV1_1_28, GatewayPathsV1_1_28, GatewayV1_1_28, KeysPathsV1_1_28,
+    LoggingSettingsV1_1_28,
+};
 use nym_config::legacy_helpers::nym_config::MigrationNymConfig;
 use nym_validator_client::nyxd;
 use serde::{Deserialize, Serialize};
@@ -42,11 +43,10 @@ pub struct ConfigV1_1_20 {
     debug: DebugV1_1_20,
 }
 
-impl From<ConfigV1_1_20> for Config {
+impl From<ConfigV1_1_20> for ConfigV1_1_28 {
     fn from(value: ConfigV1_1_20) -> Self {
-        Config {
-            save_path: None,
-            gateway: Gateway {
+        ConfigV1_1_28 {
+            gateway: GatewayV1_1_28 {
                 version: value.gateway.version,
                 id: value.gateway.id,
                 only_coconut_credentials: value.gateway.only_coconut_credentials,
@@ -59,17 +59,15 @@ impl From<ConfigV1_1_20> for Config {
                 statistics_service_url: value.gateway.statistics_service_url,
                 cosmos_mnemonic: value.gateway.cosmos_mnemonic,
             },
-            storage_paths: GatewayPaths {
-                keys: KeysPaths {
+            storage_paths: GatewayPathsV1_1_28 {
+                keys: KeysPathsV1_1_28 {
                     private_identity_key_file: value.gateway.private_identity_key_file,
                     public_identity_key_file: value.gateway.public_identity_key_file,
                     private_sphinx_key_file: value.gateway.private_sphinx_key_file,
                     public_sphinx_key_file: value.gateway.public_sphinx_key_file,
                 },
                 clients_storage: value.gateway.persistent_storage,
-                network_requester_config: None,
             },
-            network_requester: Default::default(),
             logging: value.logging.into(),
             debug: value.debug.into(),
         }
@@ -144,9 +142,9 @@ impl Default for GatewayV1_1_20 {
 #[serde(deny_unknown_fields)]
 struct LoggingV1_1_20 {}
 
-impl From<LoggingV1_1_20> for LoggingSettings {
+impl From<LoggingV1_1_20> for LoggingSettingsV1_1_28 {
     fn from(_value: LoggingV1_1_20) -> Self {
-        LoggingSettings {}
+        LoggingSettingsV1_1_28 {}
     }
 }
 
@@ -167,9 +165,9 @@ struct DebugV1_1_20 {
     use_legacy_framed_packet_version: bool,
 }
 
-impl From<DebugV1_1_20> for Debug {
+impl From<DebugV1_1_20> for DebugV1_1_28 {
     fn from(value: DebugV1_1_20) -> Self {
-        Debug {
+        DebugV1_1_28 {
             packet_forwarding_initial_backoff: value.packet_forwarding_initial_backoff,
             packet_forwarding_maximum_backoff: value.packet_forwarding_maximum_backoff,
             initial_connection_timeout: value.initial_connection_timeout,

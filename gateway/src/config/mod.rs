@@ -21,6 +21,7 @@ use url::Url;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 pub(crate) mod old_config_v1_1_20;
+pub(crate) mod old_config_v1_1_28;
 pub mod persistence;
 mod template;
 
@@ -282,6 +283,7 @@ pub struct NetworkRequester {
     pub enabled: bool,
 }
 
+#[allow(clippy::derivable_impls)]
 impl Default for NetworkRequester {
     fn default() -> Self {
         NetworkRequester { enabled: false }

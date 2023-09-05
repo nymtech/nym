@@ -122,7 +122,7 @@ pub(crate) fn ensure_config_version_compatibility(cfg: &Config) -> Result<(), Ga
 }
 
 pub(crate) fn try_load_current_config(id: &str) -> Result<Config, GatewayError> {
-    upgrade_helpers::try_upgrade_v1_1_20_config(id)?;
+    upgrade_helpers::try_upgrade_config(id)?;
 
     Config::read_from_default_path(id).map_err(|err| {
         error!(

@@ -56,7 +56,7 @@ pub fn default_data_directory<P: AsRef<Path>>(id: P) -> PathBuf {
         .join(DEFAULT_DATA_DIR)
 }
 
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Config {
     #[serde(flatten)]

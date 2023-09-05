@@ -36,8 +36,8 @@ export type TClientContext = {
   setConnectionStats: (connectionStats: ConnectionStatsItem[] | undefined) => void;
   setConnectedSince: (connectedSince: DateTime | undefined) => void;
   setShowInfoModal: (show: boolean) => void;
-  setServiceProvider: () => void;
-  setGateway: () => void;
+  setServiceProvider: () => Promise<void>;
+  setGateway: () => Promise<void>;
   startConnecting: () => Promise<void>;
   startDisconnecting: () => Promise<void>;
   setUserDefinedGateway: React.Dispatch<React.SetStateAction<UserDefinedGateway>>;

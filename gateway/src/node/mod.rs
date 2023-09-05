@@ -261,7 +261,7 @@ impl<St> Gateway<St> {
         };
 
         // TODO: well, wire it up internally to gateway traffic, shutdowns, etc.
-        let nr_builder = NRServiceProviderBuilder::new(nr_cfg.clone(), false, false, None);
+        let nr_builder = NRServiceProviderBuilder::new(nr_cfg.clone());
         tokio::spawn(async move { nr_builder.run_service_provider().await });
         //
 

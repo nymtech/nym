@@ -38,7 +38,7 @@ export type TClientContext = {
   setShowInfoModal: (show: boolean) => void;
   setServiceProvider: () => void;
   setGateway: () => void;
-  startConnecting: () => Promise<void>;
+  startConnecting: (coconut_enabled: boolean) => Promise<void>;
   startDisconnecting: () => Promise<void>;
   setUserDefinedGateway: React.Dispatch<React.SetStateAction<UserDefinedGateway>>;
   setUserDefinedSPAddress: React.Dispatch<React.SetStateAction<UserDefinedSPAddress>>;
@@ -139,15 +139,6 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
     setGateways(fetchedGateways);
   };
 
-  useEvents({
-    onError: (e) => {
-      setError(e);
-      Sentry.captureException(e);
-    },
-    onGatewayPerformanceChange: (performance) => setGatewayPerformance(performance),
-    onStatusChange: (status) => setConnectionStatus(status),
-  });
-
   useEffect(() => {
     initialiseApp();
   }, []);
@@ -160,9 +151,9 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
     })();
   }, []);
 
-  const startConnecting = useCallback(async () => {
+  const startConnecting = useCallback(async (value: boolean) => {
     try {
-      await invoke('start_connecting');
+      await invoke('start_connecting', { coconutEnabled: value });
     } catch (e) {
       setError({ title: 'Could not connect', message: e as string });
       console.log(e);
@@ -242,6 +233,25 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
     // refresh user data
     await getUserData();
   };
+
+  const handleSchemeRequest = async () => {
+    if (connectionStatus === 'disconnected') {
+      await setServiceProvider();
+      await setGateway();
+      await startConnecting(true);
+      setConnectedSince(DateTime.now());
+    }
+  };
+
+  useEvents({
+    onError: (e) => {
+      setError(e);
+      Sentry.captureException(e);
+    },
+    onGatewayPerformanceChange: (performance) => setGatewayPerformance(performance),
+    onStatusChange: (status) => setConnectionStatus(status),
+    onSchemeRequest: handleSchemeRequest,
+  });
 
   const contextValue = useMemo(
     () => ({

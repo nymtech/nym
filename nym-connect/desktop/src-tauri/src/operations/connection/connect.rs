@@ -8,10 +8,11 @@ use tokio::sync::RwLock;
 
 #[tauri::command]
 pub async fn start_connecting(
+    coconut_enabled: bool,
     state: tauri::State<'_, Arc<RwLock<State>>>,
     window: tauri::Window<tauri::Wry>,
 ) -> Result<ConnectResult> {
-    log::trace!("Start connecting");
+    log::info!("Start connecting with coconut enabled: {}", coconut_enabled);
 
     let (msg_receiver, exit_status_receiver) = {
         let mut state_w = state.write().await;

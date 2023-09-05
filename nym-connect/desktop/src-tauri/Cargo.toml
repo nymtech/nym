@@ -21,6 +21,7 @@ tauri-macros = "^1.2.1"
 [dependencies]
 anyhow = "1.0"
 bip39 = { version = "2.0.0", features = ["zeroize"] }
+bs58 = "0.4"
 dirs = "4.0"
 eyre = "0.6.5"
 fix-path-env = { git = "https://github.com/tauri-apps/fix-path-env-rs", branch = "release"}
@@ -38,6 +39,7 @@ serde_json = "1.0"
 serde_repr = "0.1"
 tap = "1.0.1"
 tauri = { version = "^1.2.2", features = ["clipboard-write-text", "macos-private-api", "notification-all", "shell-open", "system-tray", "updater", "window-close", "window-minimize", "window-start-dragging"] }
+tauri-plugin-deep-link = "0.1.1"
 #tendermint-rpc = "0.23.0"
 thiserror = "1.0"
 time = { version = "0.3.17", features = ["local-offset"] }
@@ -51,6 +53,7 @@ dotenvy = "0.15.7"
 
 nym-client-core = { path = "../../../common/client-core" }
 nym-api-requests = { path = "../../../nym-api/nym-api-requests" }
+nym-cli-commands = { path = "../../../common/commands" }
 nym-contracts-common = { path = "../../../common/cosmwasm-smart-contracts/contracts-common"}
 nym-config = { path = "../../../common/config" }
 nym-crypto = { path = "../../../common/crypto" }

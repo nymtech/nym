@@ -111,6 +111,27 @@ pub enum BackendError {
         url: reqwest::Url,
         status_code: reqwest::StatusCode,
     },
+
+    #[error("the URL provided has an unrecognized scheme: {scheme}")]
+    InvalidURLScheme { scheme: String },
+
+    #[error("{source}")]
+    BS58DecodeError {
+        #[from]
+        source: bs58::decode::Error,
+    },
+
+    #[error("{source}")]
+    Bip39Error {
+        #[from]
+        source: bip39::Error,
+    },
+
+    #[error("{source}")]
+    ContextError {
+        #[from]
+        source: nym_cli_commands::context::errors::ContextError,
+    },
 }
 
 impl Serialize for BackendError {

@@ -19,7 +19,7 @@ export const ConnectionPage = () => {
           Sentry.captureMessage('start connect', 'info');
           await context.setServiceProvider();
           await context.setGateway();
-          await context.startConnecting();
+          await context.startConnecting(false);
           context.setConnectedSince(DateTime.now());
           context.setShowInfoModal(true);
           break;

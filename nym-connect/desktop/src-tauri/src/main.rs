@@ -18,6 +18,7 @@ use crate::window::window_toggle;
 
 mod config;
 mod constants;
+// mod deep_links;
 mod error;
 mod events;
 mod logging;
@@ -30,6 +31,7 @@ mod tasks;
 mod window;
 
 fn main() {
+    tauri_plugin_deep_link::prepare("nym-connect");
     dotenvy::dotenv().ok();
 
     setup_env(env::args().nth(1).map(PathBuf::from).as_ref());
@@ -112,7 +114,28 @@ fn main() {
                 );
             }
         })
-        .setup(move |app| Ok(crate::logging::setup_logging(app.app_handle(), monitoring)?))
+        .setup(move |app| {
+            let handle = app.handle();
+            tauri_plugin_deep_link::register(env!("CARGO_PKG_NAME"), move |request| {
+                let window = handle.windows();
+                log::info!("Windows: {:?}", window.keys());
+                if let Err(err) = window.emit("scheme-request-received", request) {
+                    log::error!("Failed to emit tauri event: {err}");
+                }
+            })
+            .unwrap();
+
+            // If you also need the url when the primary instance was started by the custom scheme, you currently have to read it yourself
+            #[cfg(not(target_os = "macos"))]
+            // on macos the plugin handles this (macos doesn't use cli args for the url)
+            if let Some(arg) = env::args().nth(1) {
+                if let Err(e) = deep_links::handle_url(&arg) {
+                    log::error!("Could not handle URL {}: {:?}", request, e);
+                }
+            }
+
+            Ok(crate::logging::setup_logging(app.app_handle(), monitoring)?)
+        })
         .system_tray(create_tray_menu())
         .on_system_tray_event(tray_menu_event_handler)
         .run(context)

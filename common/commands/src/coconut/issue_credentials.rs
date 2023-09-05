@@ -14,15 +14,15 @@ use std::path::PathBuf;
 pub struct Args {
     /// Config file of the client that is supposed to use the credential.
     #[clap(long)]
-    pub(crate) client_config: PathBuf,
+    pub client_config: PathBuf,
 
     /// The amount of utokens the credential will hold.
     #[clap(long, default_value = "0")]
-    pub(crate) amount: u64,
+    pub amount: u64,
 
     /// Path to a directory used to store recovery files for unconsumed deposits
     #[clap(long)]
-    pub(crate) recovery_dir: PathBuf,
+    pub recovery_dir: PathBuf,
 }
 
 pub async fn execute(args: Args, client: SigningClient) -> anyhow::Result<()> {

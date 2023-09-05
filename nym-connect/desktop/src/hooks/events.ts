@@ -11,10 +11,12 @@ export const useEvents = ({
   onError,
   onStatusChange,
   onGatewayPerformanceChange,
+  onSchemeRequest,
 }: {
   onError: (error: Error) => void;
   onStatusChange: (status: ConnectionStatusKind) => void;
   onGatewayPerformanceChange: (status: GatewayPerformance) => void;
+  onSchemeRequest: () => Promise<void>;
 }) => {
   const timerId = useRef<NodeJS.Timeout>();
 
@@ -61,6 +63,13 @@ export const useEvents = ({
     listen('socks5-connection-fail-event', (e: TauriEvent) => {
       onError({ title: 'Connection failed', message: `${e.payload.message} - Please disconnect and reconnect.` });
       onGatewayPerformanceChange('Poor');
+    }).then((result) => {
+      unlisten.push(result);
+    });
+
+    listen('scheme-request-received', (e: TauriEvent) => {
+      console.log(e);
+      onSchemeRequest();
     }).then((result) => {
       unlisten.push(result);
     });

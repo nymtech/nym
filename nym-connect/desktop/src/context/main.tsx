@@ -239,6 +239,13 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
 
   const setPrivacyLevel = async (value: PrivacyLevel) => {
     await invoke('set_privacy_level', { privacyLevel: value });
+    // refresh service providers list
+    const fetchedServices = await invoke<ServiceProvider[]>('get_services');
+    setServiceProviders(fetchedServices);
+    // reset any previous selected SP
+    await invoke('set_selected_sp', {
+      serviceProvider: { is_active: false },
+    });
     // refresh user data
     await getUserData();
   };

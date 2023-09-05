@@ -12,7 +12,7 @@ If you have built a project with Nym or are compiling and writing resources abou
 ## Variables
 There are some variables that are shared across this book, such as the current latest software version.
 
-Variables are denoted in the `.md` files wrapped in `{{}}` (e.g `{{platform_release_version}}` is the most recent release), and are located in the `book.toml` file under the `[preprocessor.variables.variables]` heading. If you are changing something like the software release version, minimum code versions in prerequisites, etc, **check in here first!**
+Variables are denoted in the `.md` files wrapped in `{{}}` (e.g `{{wallet_release_version}}`), and are located in the `book.toml` file under the `[preprocessor.variables.variables]` heading. If you are changing something like the software release version, minimum code versions in prerequisites, etc, **check in here first!**
 
 ## Building
 When working locally, it is recommended that you use `mdbook serve` to have a local version of the docs served on `localhost:3000`, with hot reloading on any changes made to files in the `src/` directory.

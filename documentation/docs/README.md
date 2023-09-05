@@ -16,7 +16,7 @@ To contribute tranlsations in a new language, please get in touch via [Matrix](h
 ### Variables
 There are some variables that are shared across the entire docs site, such as the current latest software version.
 
-Variables are denoted in the `.md` files wrapped in `{{}}` (e.g `{{platform_release_version}}` is the most recent release), and are located in the `book.toml` file under the `[preprocessor.variables.variables]` heading. If you are changing something like the software release version, minimum code versions in prerequisites, etc, **check in here first!**
+Variables are denoted in the `.md` files wrapped in `{{}}` (e.g `{{wallet_release_version}}`), and are located in the `book.toml` file under the `[preprocessor.variables.variables]` heading. If you are changing something like the software release version, minimum code versions in prerequisites, etc, **check in here first!**
 
 ### Diagrams
 Most diagrams are simply ascii. Copies are kept in `/diagrams/` for ease of reproducability. Created using [textik](https://textik.com/#).
@@ -26,12 +26,6 @@ Most diagrams are simply ascii. Copies are kept in `/diagrams/` for ease of repr
 Example files are inserted as per normal with mdbook.
 
 Some binary command outputs are generated using the [`cmdrun`](https://docs.rs/mdbook-cmdrun/latest/mdbook_cmdrun/) mdbook plugin.
-
-### Updating platform version
-
-When updating the version, make sure to change **both** the version in the `title` on line 2 of `book.toml`, as well as the `platform_release_version` variable in the same file.
-
-> In the future this will be dealt with something like a preprocessor widget (todo).
 
 ## Building
 When working locally, it is recommended that you use `mdbook serve` to have a local version of the docs served on `localhost:3000`, with hot reloading on any changes made to files in the `src/` directory.

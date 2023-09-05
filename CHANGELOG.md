@@ -4,6 +4,20 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [v1.1.30-twix] (2023-09-05)
+
+- geo_aware_provider: fix too much filtering of gateways ([#3826])
+- network-requester: add description to config ([#3799])
+- Speedy mode - selects gateway based on latency  in medium / speedy mode ([#3770])
+- Chore/enable versioning ([#3768])
+- Create explorer-client and use in geo aware provider ([#3824])
+
+[#3826]: https://github.com/nymtech/nym/pull/3826
+[#3799]: https://github.com/nymtech/nym/pull/3799
+[#3770]: https://github.com/nymtech/nym/issues/3770
+[#3768]: https://github.com/nymtech/nym/pull/3768
+[#3824]: https://github.com/nymtech/nym/pull/3824
+
 ## [v1.1.29-snickers] (2023-08-29)
 
 - Add EXPLORER_API configurable url ([#3810])

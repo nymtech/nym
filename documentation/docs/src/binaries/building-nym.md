@@ -39,7 +39,7 @@ If you really don't want to use the shell script installer, the [Rust installati
 ## Download and build Nym binaries
 The following commands will compile binaries into the `nym/target/release` directory:
 
-```
+```sh
 rustup update
 git clone https://github.com/nymtech/nym.git
 cd nym
@@ -47,10 +47,9 @@ cd nym
 git reset --hard # in case you made any changes on your branch
 git pull # in case you've checked it out before
 
-git checkout release/{{platform_release_version}} # checkout to the latest release branch: `develop` will most likely be incompatible with deployed public networks
+git checkout master # master branch has the latest release version: `develop` will most likely be incompatible with deployed public networks
 
 cargo build --release # build your binaries with **mainnet** configuration
-NETWORK=sandbox cargo build --release # build your binaries with **sandbox** configuration
 ```
 
 Quite a bit of stuff gets built. The key working parts are:

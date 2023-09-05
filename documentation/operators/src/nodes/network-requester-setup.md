@@ -190,7 +190,7 @@ Stop the running process with `CTRL-C`, and create a service file for the reques
 
 ```ini
 [Unit]
-Description=Nym Network Requester ({{platform_release_version}})
+Description=Nym Network Requester 
 StartLimitInterval=350
 StartLimitBurst=10
 

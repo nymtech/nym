@@ -15,6 +15,8 @@ use nym_bin_common::output_format::OutputFormat;
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_mixnet_client::forwarder::{MixForwardingSender, PacketForwarder};
 use nym_network_defaults::NymNetworkDetails;
+use nym_pemstore::traits::PemStorableKeyPair;
+use nym_pemstore::KeyPairPath;
 use nym_statistics_common::collector::StatisticsSender;
 use nym_task::{TaskClient, TaskManager};
 use nym_validator_client::{nyxd, DirectSigningHttpRpcNyxdClient};
@@ -22,6 +24,7 @@ use rand::seq::SliceRandom;
 use rand::thread_rng;
 use std::error::Error;
 use std::net::SocketAddr;
+use std::path::Path;
 use std::sync::Arc;
 
 pub(crate) mod client_handling;
@@ -30,9 +33,35 @@ pub(crate) mod statistics;
 pub(crate) mod storage;
 
 /// Wire up and create Gateway instance
-pub(crate) async fn create_gateway(config: Config) -> Gateway<PersistentStorage> {
+pub(crate) async fn create_gateway(config: Config) -> Result<Gateway, GatewayError> {
     let storage = initialise_storage(&config).await;
-    Gateway::new(config, storage).await
+
+    // don't attempt to read config if NR is disabled
+    let network_requester_config = if config.network_requester.enabled {
+        if let Some(path) = &config.storage_paths.network_requester_config {
+            Some(load_network_requester_config(&config.gateway.id, path)?)
+        } else {
+            // if NR is enabled, the config path must be specified
+            return Err(GatewayError::UnspecifiedNetworkRequesterConfig);
+        }
+    } else {
+        None
+    };
+    Gateway::new(config, network_requester_config, storage)
+}
+
+fn load_network_requester_config<P: AsRef<Path>>(
+    id: &str,
+    path: P,
+) -> Result<nym_network_requester::Config, GatewayError> {
+    let path = path.as_ref();
+    nym_network_requester::Config::read_from_toml_file(path).map_err(|err| {
+        GatewayError::NetworkRequesterConfigLoadFailure {
+            id: id.to_string(),
+            path: path.to_path_buf(),
+            source: err,
+        }
+    })
 }
 
 async fn initialise_storage(config: &Config) -> PersistentStorage {
@@ -44,8 +73,11 @@ async fn initialise_storage(config: &Config) -> PersistentStorage {
     }
 }
 
-pub(crate) struct Gateway<St> {
+pub(crate) struct Gateway<St = PersistentStorage> {
     config: Config,
+
+    network_requester_config: Option<nym_network_requester::Config>,
+
     /// ed25519 keypair used to assert one's identity.
     identity_keypair: Arc<identity::KeyPair>,
     /// x25519 keypair used for Diffie-Hellman. Currently only used for sphinx key derivation.
@@ -55,50 +87,64 @@ pub(crate) struct Gateway<St> {
 
 impl<St> Gateway<St> {
     /// Construct from the given `Config` instance.
-    pub async fn new(config: Config, storage: St) -> Self {
-        Gateway {
+    pub fn new(
+        config: Config,
+        network_requester_config: Option<nym_network_requester::Config>,
+        storage: St,
+    ) -> Result<Self, GatewayError> {
+        Ok(Gateway {
             storage,
-            identity_keypair: Arc::new(Self::load_identity_keys(&config)),
-            sphinx_keypair: Arc::new(Self::load_sphinx_keys(&config)),
+            identity_keypair: Arc::new(Self::load_identity_keys(&config)?),
+            sphinx_keypair: Arc::new(Self::load_sphinx_keys(&config)?),
             config,
-        }
+            network_requester_config,
+        })
     }
 
     #[cfg(test)]
     pub async fn new_from_keys_and_storage(
         config: Config,
+        network_requester_config: Option<nym_network_requester::Config>,
         identity_keypair: identity::KeyPair,
         sphinx_keypair: encryption::KeyPair,
         storage: St,
     ) -> Self {
         Gateway {
             config,
+            network_requester_config,
             identity_keypair: Arc::new(identity_keypair),
             sphinx_keypair: Arc::new(sphinx_keypair),
             storage,
         }
     }
 
+    fn load_keypair<T: PemStorableKeyPair>(
+        paths: KeyPairPath,
+        name: impl Into<String>,
+    ) -> Result<T, GatewayError> {
+        nym_pemstore::load_keypair(&paths).map_err(|err| GatewayError::KeyPairLoadFailure {
+            keys: name.into(),
+            paths,
+            err,
+        })
+    }
+
     /// Loads identity keys stored on disk
-    pub(crate) fn load_identity_keys(config: &Config) -> identity::KeyPair {
-        let identity_keypair: identity::KeyPair =
-            nym_pemstore::load_keypair(&nym_pemstore::KeyPairPath::new(
-                config.storage_paths.keys.private_identity_key(),
-                config.storage_paths.keys.public_identity_key(),
-            ))
-            .expect("Failed to read stored identity key files");
-        identity_keypair
+    pub(crate) fn load_identity_keys(config: &Config) -> Result<identity::KeyPair, GatewayError> {
+        let identity_paths = KeyPairPath::new(
+            config.storage_paths.keys.private_identity_key(),
+            config.storage_paths.keys.public_identity_key(),
+        );
+        Self::load_keypair(identity_paths, "gateway identity keys")
     }
 
     /// Loads Sphinx keys stored on disk
-    fn load_sphinx_keys(config: &Config) -> encryption::KeyPair {
-        let sphinx_keypair: encryption::KeyPair =
-            nym_pemstore::load_keypair(&nym_pemstore::KeyPairPath::new(
-                config.storage_paths.keys.private_encryption_key(),
-                config.storage_paths.keys.public_encryption_key(),
-            ))
-            .expect("Failed to read stored sphinx key files");
-        sphinx_keypair
+    fn load_sphinx_keys(config: &Config) -> Result<encryption::KeyPair, GatewayError> {
+        let sphinx_paths = KeyPairPath::new(
+            config.storage_paths.keys.private_encryption_key(),
+            config.storage_paths.keys.public_encryption_key(),
+        );
+        Self::load_keypair(sphinx_paths, "gateway sphinx keys")
     }
 
     pub(crate) fn print_node_details(&self, output: OutputFormat) {
@@ -109,12 +155,19 @@ impl<St> Gateway<St> {
             version: self.config.gateway.version.clone(),
             mix_port: self.config.gateway.mix_port,
             clients_port: self.config.gateway.clients_port,
+            config_path: self
+                .config
+                .save_path
+                .as_ref()
+                .map(|p| p.display().to_string())
+                .unwrap_or_default(),
             data_store: self
                 .config
                 .storage_paths
                 .clients_storage
                 .display()
                 .to_string(),
+            network_requester: None,
         };
 
         println!("{}", output.format(&node_details));
@@ -194,10 +247,20 @@ impl<St> Gateway<St> {
         packet_sender
     }
 
-    async fn wait_for_interrupt(
-        &self,
-        shutdown: TaskManager,
-    ) -> Result<(), Box<dyn Error + Send + Sync>> {
+    async fn maybe_start_network_requester(&self) -> Result<(), GatewayError> {
+        if !self.config.network_requester.enabled {
+            info!("network requester is disabled");
+            return Ok(());
+        } else {
+            info!("Starting network requester...");
+        }
+
+        //
+
+        Ok(())
+    }
+
+    async fn wait_for_interrupt(shutdown: TaskManager) -> Result<(), Box<dyn Error + Send + Sync>> {
         let res = shutdown.catch_interrupt().await;
         log::info!("Stopping nym gateway");
         res
@@ -293,6 +356,8 @@ impl<St> Gateway<St> {
             Arc::new(coconut_verifier),
         );
 
+        self.maybe_start_network_requester().await?;
+
         // Once this is a bit more mature, make this a commandline flag instead of a compile time
         // flag
         #[cfg(feature = "wireguard")]
@@ -300,6 +365,6 @@ impl<St> Gateway<St> {
 
         info!("Finished nym gateway startup procedure - it should now be able to receive mix and client traffic!");
 
-        self.wait_for_interrupt(shutdown).await
+        Self::wait_for_interrupt(shutdown).await
     }
 }

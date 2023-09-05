@@ -27,11 +27,11 @@ pub struct NetworkRequesterPaths {
 }
 
 impl NetworkRequesterPaths {
-    pub fn new_default<P: AsRef<Path>>(base_data_directory: P) -> Self {
+    pub fn new_base<P: AsRef<Path>>(base_data_directory: P) -> Self {
         let base_dir = base_data_directory.as_ref();
 
         NetworkRequesterPaths {
-            common_paths: CommonClientPaths::new_default(base_dir),
+            common_paths: CommonClientPaths::new_base(base_dir),
             allowed_list_location: base_dir.join(DEFAULT_ALLOWED_LIST_FILENAME),
             unknown_list_location: base_dir.join(DEFAULT_UNKNOWN_LIST_FILENAME),
             nr_description: base_dir.join(DEFAULT_DESCRIPTION_FILENAME),

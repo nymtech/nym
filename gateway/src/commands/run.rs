@@ -114,7 +114,7 @@ pub async fn execute(args: Run) -> Result<(), Box<dyn Error + Send + Sync>> {
         show_binding_warning(&config.gateway.listening_address.to_string());
     }
 
-    let mut gateway = crate::node::create_gateway(config).await;
+    let mut gateway = crate::node::create_gateway(config).await?;
     eprintln!(
         "\nTo bond your gateway you will need to install the Nym wallet, go to https://nymtech.net/get-involved and select the Download button.\n\
          Select the correct version and install it to your machine. You will need to provide the following: \n ");

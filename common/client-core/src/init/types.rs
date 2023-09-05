@@ -129,7 +129,7 @@ impl<T> GatewayDetails<T> {
     }
 }
 
-impl From<GatewayEndpointConfig> for GatewayDetails {
+impl<T> From<GatewayEndpointConfig> for GatewayDetails<T> {
     fn from(value: GatewayEndpointConfig) -> Self {
         GatewayDetails::Configured(value)
     }
@@ -164,8 +164,8 @@ impl<T> From<PersistedGatewayDetails<T>> for GatewayDetails<T> {
     }
 }
 
-#[derive(Copy, Clone, Default)]
-pub enum GatewaySelectionSpecification {
+#[derive(Clone, Default)]
+pub enum GatewaySelectionSpecification<T = EmptyCustomDetails> {
     /// Uniformly choose a random remote gateway.
     #[default]
     UniformRemote,
@@ -174,22 +174,25 @@ pub enum GatewaySelectionSpecification {
     RemoteByLatency,
 
     /// This client will handle the selection by itself
-    Custom,
+    Custom {
+        gateway_identity: String,
+        additional_data: T,
+    },
 }
 
-impl GatewaySelectionSpecification {
+impl<T> GatewaySelectionSpecification<T> {
     pub(crate) fn is_custom(&self) -> bool {
-        matches!(self, GatewaySelectionSpecification::Custom)
+        matches!(self, GatewaySelectionSpecification::Custom { .. })
     }
 }
 
-pub enum GatewaySetup {
+pub enum GatewaySetup<T = EmptyCustomDetails> {
     /// The gateway specification MUST BE loaded from the underlying storage.
     MustLoad,
 
     /// Specifies usage of a new, random, gateway.
     New {
-        specification: GatewaySelectionSpecification,
+        specification: GatewaySelectionSpecification<T>,
     },
 
     Specified {
@@ -199,7 +202,7 @@ pub enum GatewaySetup {
 
     Predefined {
         /// Full gateway configuration
-        details: GatewayDetails,
+        details: GatewayDetails<T>,
     },
 
     ReuseConnection {
@@ -232,7 +235,7 @@ impl Default for GatewaySetup {
     }
 }
 
-impl GatewaySetup {
+impl<T> GatewaySetup<T> {
     pub fn new_fresh(
         gateway_identity: Option<String>,
         latency_based_selection: Option<bool>,
@@ -258,37 +261,41 @@ impl GatewaySetup {
         matches!(self, GatewaySetup::Predefined { .. }) || self.is_must_load()
     }
 
-    // pub fn is_custom(&self) -> bool {
-    //     if let GatewaySetup::New { specification } = self {
-    //         specification.is_custom()
-    //     } else {
-    //         false
-    //     }
-    // }
+    pub fn is_custom_new(&self) -> bool {
+        if let GatewaySetup::New { specification } = self {
+            specification.is_custom()
+        } else {
+            false
+        }
+    }
 
     pub async fn choose_gateway(
-        &self,
+        self,
         gateways: &[gateway::Node],
-    ) -> Result<GatewayEndpointConfig, ClientCoreError> {
-        match self {
-            GatewaySetup::New { specification } => {
-                match specification {
-                    GatewaySelectionSpecification::UniformRemote => {
-                        let mut rng = OsRng;
-                        uniformly_random_gateway(&mut rng, gateways)
-                    }
-                    GatewaySelectionSpecification::RemoteByLatency => {
-                        let mut rng = OsRng;
-                        choose_gateway_by_latency(&mut rng, gateways).await
-                    }
-                    GatewaySelectionSpecification::Custom => {
-                        Err(ClientCoreError::CustomGatewaySelectionExpected)
-                    }
+    ) -> Result<GatewayDetails<T>, ClientCoreError> {
+        let cfg: GatewayEndpointConfig = match self {
+            GatewaySetup::New { specification } => match specification {
+                GatewaySelectionSpecification::UniformRemote => {
+                    let mut rng = OsRng;
+                    uniformly_random_gateway(&mut rng, gateways)
+                }
+                GatewaySelectionSpecification::RemoteByLatency => {
+                    let mut rng = OsRng;
+                    choose_gateway_by_latency(&mut rng, gateways).await
+                }
+                GatewaySelectionSpecification::Custom {
+                    gateway_identity,
+                    additional_data,
+                } => {
+                    return Ok(GatewayDetails::Custom(CustomGatewayDetails {
+                        gateway_id: gateway_identity,
+                        additional_data,
+                    }))
                 }
             }
             .map(Into::into),
             GatewaySetup::Specified { gateway_identity } => {
-                let user_gateway = identity::PublicKey::from_base58_string(gateway_identity)
+                let user_gateway = identity::PublicKey::from_base58_string(&gateway_identity)
                     .map_err(ClientCoreError::UnableToCreatePublicKeyFromGatewayId)?;
 
                 gateways
@@ -299,13 +306,14 @@ impl GatewaySetup {
             }
             .map(Into::into),
             _ => Err(ClientCoreError::UnexpectedGatewayDetails),
-        }
+        }?;
+        Ok(cfg.into())
     }
 
     pub async fn try_get_new_gateway_details(
-        &self,
+        self,
         validator_servers: &[Url],
-    ) -> Result<GatewayEndpointConfig, ClientCoreError> {
+    ) -> Result<GatewayDetails<T>, ClientCoreError> {
         let mut rng = OsRng;
         let gateways = current_gateways(&mut rng, validator_servers).await?;
         self.choose_gateway(&gateways).await

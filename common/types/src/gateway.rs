@@ -85,7 +85,10 @@ pub struct GatewayNodeDetailsResponse {
     pub version: String,
     pub mix_port: u16,
     pub clients_port: u16,
+    pub config_path: String,
     pub data_store: String,
+
+    pub network_requester: Option<GatewayNetworkRequesterDetails>,
 }
 
 impl fmt::Display for GatewayNodeDetailsResponse {
@@ -99,6 +102,31 @@ impl fmt::Display for GatewayNodeDetailsResponse {
             self.mix_port, self.clients_port
         )?;
 
-        writeln!(f, "Data store is at: {}", self.data_store)
+        writeln!(f, "Data store is at: {}", self.data_store)?;
+
+        if let Some(nr) = &self.network_requester {
+            nr.fmt(f)?;
+        }
+        Ok(())
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct GatewayNetworkRequesterDetails {
+    pub identity_key: String,
+    pub encryption_key: String,
+
+    // just a convenience wrapper around all the keys
+    pub address: String,
+    pub config_path: String,
+}
+
+impl fmt::Display for GatewayNetworkRequesterDetails {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(f, "Network requester:")?;
+        writeln!(f, "identity key: {}", self.identity_key)?;
+        writeln!(f, "encryption key: {}", self.encryption_key)?;
+        writeln!(f, "address: {}", self.address)?;
+        writeln!(f, "config file path: {}", self.config_path)
     }
 }

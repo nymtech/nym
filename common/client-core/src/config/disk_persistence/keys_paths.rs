@@ -35,7 +35,7 @@ pub struct ClientKeysPaths {
 }
 
 impl ClientKeysPaths {
-    pub fn new_default<P: AsRef<Path>>(base_data_directory: P) -> Self {
+    pub fn new_base<P: AsRef<Path>>(base_data_directory: P) -> Self {
         let base_dir = base_data_directory.as_ref();
 
         ClientKeysPaths {

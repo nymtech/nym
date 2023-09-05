@@ -12,9 +12,14 @@ pub const DEFAULT_PUBLIC_SPHINX_KEY_FILENAME: &str = "public_sphinx.pem";
 
 pub const DEFAULT_CLIENTS_STORAGE_FILENAME: &str = "db.sqlite";
 
-pub const DEFAULT_NETWORK_REQUESTER_CONFIG_FILENAME: &str = "network_requester_cfg.toml";
+pub const DEFAULT_NETWORK_REQUESTER_CONFIG_FILENAME: &str = "network_requester_config.toml";
+pub const DEFAULT_NETWORK_REQUESTER_DATA_DIR: &str = "network-requester-data";
 
 // pub const DEFAULT_DESCRIPTION_FILENAME: &str = "description.toml";
+
+pub fn default_network_requester_data_dir<P: AsRef<Path>>(id: P) -> PathBuf {
+    default_data_directory(id).join(DEFAULT_NETWORK_REQUESTER_DATA_DIR)
+}
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -54,6 +59,10 @@ impl GatewayPaths {
         self.with_network_requester_config(
             default_config_directory(id).join(DEFAULT_NETWORK_REQUESTER_CONFIG_FILENAME),
         )
+    }
+
+    pub fn network_requester_config(&self) -> &Option<PathBuf> {
+        &self.network_requester_config
     }
 
     pub fn private_identity_key(&self) -> &Path {

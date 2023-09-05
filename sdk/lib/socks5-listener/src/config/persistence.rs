@@ -15,12 +15,12 @@ pub struct MobileSocksClientPaths {
 impl MobileSocksClientPaths {
     pub fn new_default<P: AsRef<Path>>(base_data_directory: P) -> Self {
         MobileSocksClientPaths {
-            common_paths: CommonClientPaths::new_default(base_data_directory),
+            common_paths: CommonClientPaths::new_base(base_data_directory),
         }
     }
 
     pub fn change_root<P: AsRef<Path>, R: AsRef<Path>>(&mut self, new_root: P, id: R) {
         let new_data_dir = data_directory_from_root(new_root, id);
-        self.common_paths = CommonClientPaths::new_default(new_data_dir)
+        self.common_paths = CommonClientPaths::new_base(new_data_dir)
     }
 }

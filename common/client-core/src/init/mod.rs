@@ -10,7 +10,7 @@ use crate::client::key_manager::persistence::KeyStore;
 use crate::client::key_manager::ManagedKeys;
 use crate::error::ClientCoreError;
 use crate::init::helpers::current_gateways;
-use crate::init::types::{GatewaySetup, InitialisationResult};
+use crate::init::types::{GatewayDetails, GatewaySetup, InitialisationResult};
 use log::error;
 use nym_topology::gateway;
 use rand::rngs::OsRng;
@@ -154,7 +154,7 @@ where
                         // if there was some stored data and we can't overwrite it make sure it's exactly what we provided now
                         // (and that they match the key)
 
-                        if !existing_details.matches(&details) {
+                        if !existing_details.matches(details) {
                             return Err(ClientCoreError::MismatchedStoredGatewayDetails);
                         }
 
@@ -162,10 +162,9 @@ where
                     }
 
                     return Ok(InitialisationResult::new_loaded(
-                        details.clone().into(),
+                        details.clone(),
                         loaded_keys,
-                    )
-                    .into());
+                    ));
                 }
                 GatewaySetup::Specified { gateway_identity } => {
                     // if that data was already stored...
@@ -182,8 +181,7 @@ where
                             return Ok(InitialisationResult::new_loaded(
                                 cfg.details.into(),
                                 loaded_keys,
-                            )
-                            .into());
+                            ));
                         }
                     }
 
@@ -201,8 +199,7 @@ where
                         return Ok(InitialisationResult::new_loaded(
                             existing_gateway.into(),
                             loaded_keys,
-                        )
-                        .into());
+                        ));
                     }
 
                     // we didn't get full details from the store and we have loaded some keys
@@ -230,27 +227,48 @@ where
 
     // TODO: figure out how custom gateway fits into the below logic
 
+    // if setup.is_custom_new() {
+    //     todo!()
+    // }
+
     // choose gateway
     let gateway_details = setup.choose_gateway(gateways.unwrap_or_default()).await?;
 
     // get our identity key
     let our_identity = managed_keys.identity_keypair();
 
-    // Establish connection, authenticate and generate keys for talking with the gateway
-    let registration_result =
-        helpers::register_with_gateway(&gateway_details, our_identity).await?;
-    let shared_keys = registration_result.shared_keys;
+    // TODO: this match is disgusting
+    let (shared_keys, authenticated_ephemeral_client) = match &gateway_details {
+        GatewayDetails::Configured(gateway_config) => {
+            // Establish connection, authenticate and generate keys for talking with the gateway
+            let registration_result =
+                helpers::register_with_gateway(gateway_config, our_identity).await?;
+            (
+                Some(registration_result.shared_keys),
+                Some(registration_result.authenticated_ephemeral_client),
+            )
+        }
+        GatewayDetails::Custom(..) => (None, None),
+    };
 
-    let persisted_details =
-        PersistedGatewayDetails::new(gateway_details.into(), Some(shared_keys.deref()))?;
+    let persisted_details = PersistedGatewayDetails::new(gateway_details, shared_keys.as_deref())?;
 
-    // persist gateway keys
-    managed_keys
-        .deal_with_gateway_key(shared_keys, key_store)
-        .await
-        .map_err(|source| ClientCoreError::KeyStoreError {
-            source: Box::new(source),
-        })?;
+    // persist keys
+    if let Some(shared_keys) = shared_keys {
+        managed_keys
+            .deal_with_gateway_key(shared_keys, key_store)
+            .await
+            .map_err(|source| ClientCoreError::KeyStoreError {
+                source: Box::new(source),
+            })?;
+    } else {
+        managed_keys
+            .persist_if_not_stored(key_store)
+            .await
+            .map_err(|source| ClientCoreError::KeyStoreError {
+                source: Box::new(source),
+            })?;
+    }
 
     // persist gateway config
     _store_gateway_details(details_store, &persisted_details).await?;
@@ -258,7 +276,7 @@ where
     Ok(InitialisationResult {
         gateway_details: persisted_details.into(),
         managed_keys,
-        authenticated_ephemeral_client: Some(registration_result.authenticated_ephemeral_client),
+        authenticated_ephemeral_client,
     })
 }
 

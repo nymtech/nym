@@ -8,3 +8,19 @@ pub mod error;
 mod reply;
 mod socks5;
 mod statistics;
+
+pub use crate::core::{NRServiceProvider, NRServiceProviderBuilder};
+pub use config::Config;
+pub use nym_client_core::{
+    client::{
+        base_client::storage::{gateway_details::OnDiskGatewayDetails, OnDiskPersistent},
+        key_manager::persistence::OnDiskKeys,
+    },
+    init::{
+        setup_gateway, setup_gateway_from,
+        types::{
+            CustomGatewayDetails, GatewayDetails, GatewaySelectionSpecification, GatewaySetup,
+            InitResults, InitialisationResult,
+        },
+    },
+};

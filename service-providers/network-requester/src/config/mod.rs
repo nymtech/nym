@@ -84,10 +84,15 @@ impl Config {
         Config {
             base: BaseClientConfig::new(id.as_ref(), env!("CARGO_PKG_VERSION")),
             network_requester: Default::default(),
-            storage_paths: NetworkRequesterPaths::new_default(default_data_directory(id.as_ref())),
+            storage_paths: NetworkRequesterPaths::new_base(default_data_directory(id.as_ref())),
             network_requester_debug: Default::default(),
             logging: Default::default(),
         }
+    }
+
+    pub fn with_data_directory<P: AsRef<Path>>(mut self, data_directory: P) -> Self {
+        self.storage_paths = NetworkRequesterPaths::new_base(data_directory);
+        self
     }
 
     pub fn read_from_toml_file<P: AsRef<Path>>(path: P) -> io::Result<Self> {

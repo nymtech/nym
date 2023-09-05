@@ -45,6 +45,7 @@ pub struct ConfigV1_1_20 {
 impl From<ConfigV1_1_20> for Config {
     fn from(value: ConfigV1_1_20) -> Self {
         Config {
+            save_path: None,
             gateway: Gateway {
                 version: value.gateway.version,
                 id: value.gateway.id,

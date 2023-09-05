@@ -3,6 +3,7 @@
 
 use crate::config::persistence::paths::GatewayPaths;
 use crate::config::template::CONFIG_TEMPLATE;
+use log::debug;
 use nym_bin_common::logging::LoggingSettings;
 use nym_config::defaults::{DEFAULT_CLIENT_LISTENING_PORT, DEFAULT_MIX_LISTENING_PORT};
 use nym_config::helpers::inaddr_any;
@@ -65,6 +66,10 @@ pub fn default_data_directory<P: AsRef<Path>>(id: P) -> PathBuf {
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Config {
+    // additional metadata holding on-disk location of this config file
+    #[serde(skip)]
+    pub(crate) save_path: Option<PathBuf>,
+
     pub gateway: Gateway,
 
     pub storage_paths: GatewayPaths,
@@ -87,6 +92,7 @@ impl NymConfigTemplate for Config {
 impl Config {
     pub fn new<S: AsRef<str>>(id: S) -> Self {
         Config {
+            save_path: None,
             gateway: Gateway::new_default(id.as_ref()),
             storage_paths: GatewayPaths::new_default(id.as_ref()),
             network_requester: Default::default(),
@@ -95,12 +101,21 @@ impl Config {
         }
     }
 
+    // simple wrapper that reads config file and assigns path location
+    fn read_from_path<P: AsRef<Path>>(path: P) -> io::Result<Self> {
+        let path = path.as_ref();
+        let mut loaded: Config = read_config_from_toml_file(path)?;
+        loaded.save_path = Some(path.to_path_buf());
+        debug!("loaded config file from {}", path.display());
+        Ok(loaded)
+    }
+
     pub fn read_from_toml_file<P: AsRef<Path>>(path: P) -> io::Result<Self> {
-        read_config_from_toml_file(path)
+        Self::read_from_path(path)
     }
 
     pub fn read_from_default_path<P: AsRef<Path>>(id: P) -> io::Result<Self> {
-        Self::read_from_toml_file(default_config_filepath(id))
+        Self::read_from_path(default_config_filepath(id))
     }
 
     pub fn default_location(&self) -> PathBuf {

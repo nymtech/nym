@@ -9,10 +9,28 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub(crate) enum GatewayError {
+    #[error("failed to load {keys} keys from {:?} (private key) and {:?} (public key): {err}", .paths.private_key_path, .paths.public_key_path)]
+    KeyPairLoadFailure {
+        keys: String,
+        paths: nym_pemstore::KeyPairPath,
+        #[source]
+        err: std::io::Error,
+    },
+
     #[error(
         "failed to load config file for id {id} using path {path}. detailed message: {source}"
     )]
     ConfigLoadFailure {
+        id: String,
+        path: PathBuf,
+        #[source]
+        source: io::Error,
+    },
+
+    #[error(
+    "failed to load config file for network requester (gateway {id}) using path {path}. detailed message: {source}"
+    )]
+    NetworkRequesterConfigLoadFailure {
         id: String,
         path: PathBuf,
         #[source]
@@ -47,4 +65,7 @@ pub(crate) enum GatewayError {
         expected_prefix: String,
         actual_prefix: String,
     },
+
+    #[error("Path to network requester configuration file hasn't been specified.")]
+    UnspecifiedNetworkRequesterConfig,
 }

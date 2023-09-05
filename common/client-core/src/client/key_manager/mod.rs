@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::client::key_manager::persistence::KeyStore;
+use log::error;
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_gateway_requests::registration::handshake::SharedKeys;
 use nym_sphinx::acknowledgements::AckKey;
@@ -135,6 +136,15 @@ impl ManagedKeys {
                 panic!("derived fresh gateway shared key whilst already holding one!")
             }
         }
+    }
+
+    pub async fn persist_if_not_stored<S: KeyStore>(
+        &self,
+        key_store: &S,
+    ) -> Result<(), S::StorageError> {
+        error!("UNIMPLEMENTED");
+        Ok(())
+        // todo!()
     }
 
     pub async fn deal_with_gateway_key<S: KeyStore>(

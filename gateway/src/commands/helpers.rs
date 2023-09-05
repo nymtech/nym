@@ -3,13 +3,20 @@
 
 use crate::commands::upgrade_helpers;
 use crate::config::default_config_filepath;
+use crate::config::persistence::paths::default_network_requester_data_dir;
 use crate::config::Config;
 use crate::error::GatewayError;
-use log::error;
+use log::{error, info};
 use nym_bin_common::version_checker;
-use nym_config::OptionalSet;
+use nym_config::{save_formatted_config_to_file, OptionalSet};
+use nym_crypto::asymmetric::identity;
 use nym_network_defaults::var_names::NYXD;
 use nym_network_defaults::var_names::{BECH32_PREFIX, NYM_API, STATISTICS_SERVICE_DOMAIN_ADDRESS};
+use nym_network_requester::{
+    setup_gateway_from, CustomGatewayDetails, GatewayDetails, GatewaySelectionSpecification,
+    GatewaySetup, OnDiskGatewayDetails, OnDiskKeys,
+};
+use nym_types::gateway::GatewayNetworkRequesterDetails;
 use nym_validator_client::nyxd::AccountId;
 use std::net::IpAddr;
 use std::path::PathBuf;
@@ -129,7 +136,71 @@ pub(crate) fn try_load_current_config(id: &str) -> Result<Config, GatewayError> 
     })
 }
 
-pub(crate) fn initialise_local_network_requester() -> Result<(), GatewayError> {
+fn make_nr_id(gateway_id: &str) -> String {
+    format!("{gateway_id}-network-requester")
+}
+
+pub(crate) async fn initialise_local_network_requester(
+    gateway_config: &Config,
+    identity: identity::PublicKey,
+) -> Result<GatewayNetworkRequesterDetails, GatewayError> {
+    info!("initialising network requester...");
+    let Some(nr_cfg_path) = gateway_config.storage_paths.network_requester_config() else {
+        return Err(GatewayError::UnspecifiedNetworkRequesterConfig)
+    };
+
+    let id = &gateway_config.gateway.id;
+    let nr_data_dir = default_network_requester_data_dir(id);
+    let nr_cfg =
+        nym_network_requester::Config::new(make_nr_id(id)).with_data_directory(nr_data_dir);
+
+    let key_store = OnDiskKeys::new(nr_cfg.storage_paths.common_paths.keys.clone());
+    let details_store =
+        OnDiskGatewayDetails::new(&nr_cfg.storage_paths.common_paths.gateway_details);
+
+    // gateway setup here is way simpler as we're 'connecting' to ourselves
+    let init_res = setup_gateway_from(
+        GatewaySetup::New {
+            specification: GatewaySelectionSpecification::Custom {
+                gateway_identity: identity.to_base58_string(),
+                additional_data: Default::default(),
+            },
+        },
+        // GatewaySetup::Predefined {
+        //     details: GatewayDetails::Custom(CustomGatewayDetails {
+        //         gateway_id: identity.to_base58_string(),
+        //         additional_data: Default::default(),
+        //     }),
+        // },
+        &key_store,
+        &details_store,
+        false,
+        None,
+    )
+    .await
+    .expect("error handling");
+    let address = init_res.client_address().expect("error handling");
+
+    if let Err(err) = save_formatted_config_to_file(&nr_cfg, nr_cfg_path) {
+        log::error!("Failed to save the network requester config file: {err}");
+        panic!("unimplemented error handling")
+        // return Err(err.into());
+    };
+
     println!("here we're initialising network requester");
-    Ok(())
+
+    let res = GatewayNetworkRequesterDetails {
+        identity_key: address.identity().to_string(),
+        encryption_key: address.encryption_key().to_string(),
+        address: address.to_string(),
+        config_path: nr_cfg_path.display().to_string(),
+    };
+    println!("res:\n {res}");
+
+    Ok(GatewayNetworkRequesterDetails {
+        identity_key: address.identity().to_string(),
+        encryption_key: address.encryption_key().to_string(),
+        address: address.to_string(),
+        config_path: nr_cfg_path.display().to_string(),
+    })
 }

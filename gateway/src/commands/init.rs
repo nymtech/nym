@@ -120,7 +120,7 @@ pub async fn execute(args: Init) -> Result<(), Box<dyn Error + Send + Sync>> {
     let config = OverrideConfig::from(args).do_override(fresh_config)?;
 
     // if gateway was already initialised, don't generate new keys, et al.
-    if !already_init {
+    let nr_details = if !already_init {
         let mut rng = rand::rngs::OsRng;
 
         let identity_keys = identity::KeyPair::new(&mut rng);
@@ -144,12 +144,18 @@ pub async fn execute(args: Init) -> Result<(), Box<dyn Error + Send + Sync>> {
         )
         .expect("Failed to save sphinx keys");
 
+        let mut details = None;
         if config.network_requester.enabled {
-            initialise_local_network_requester()?;
+            details = Some(
+                initialise_local_network_requester(&config, *identity_keys.public_key()).await?,
+            );
         }
 
         eprintln!("Saved identity and mixnet sphinx keypairs");
-    }
+        details
+    } else {
+        None
+    };
 
     let config_save_location = config.default_location();
     config
@@ -162,7 +168,7 @@ pub async fn execute(args: Init) -> Result<(), Box<dyn Error + Send + Sync>> {
     eprintln!("Gateway configuration completed.\n\n\n");
 
     crate::node::create_gateway(config)
-        .await
+        .await?
         .print_node_details(output);
     Ok(())
 }
@@ -194,8 +200,9 @@ mod tests {
         };
         std::env::set_var(BECH32_PREFIX, "n");
 
+        let fresh_config = Config::new(&args.id);
         let config = OverrideConfig::from(args)
-            .do_override(Config::new(&args.id))
+            .do_override(fresh_config)
             .unwrap();
 
         let (identity_keys, sphinx_keys) = {
@@ -207,8 +214,13 @@ mod tests {
         };
 
         // The test is really if this instantiates with InMemStorage without panics
-        let _gateway =
-            Gateway::new_from_keys_and_storage(config, identity_keys, sphinx_keys, InMemStorage)
-                .await;
+        let _gateway = Gateway::new_from_keys_and_storage(
+            config,
+            None,
+            identity_keys,
+            sphinx_keys,
+            InMemStorage,
+        )
+        .await;
     }
 }

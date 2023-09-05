@@ -57,7 +57,7 @@ pub struct NRServiceProviderBuilder {
     allowed_hosts: StoredAllowedHosts,
 }
 
-struct NRServiceProvider {
+pub struct NRServiceProvider {
     config: Config,
 
     outbound_request_filter: OutboundRequestFilter,

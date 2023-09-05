@@ -186,7 +186,7 @@ impl NymClientBuilder {
             client_input: Arc::new(client_input),
             client_state: Arc::new(started_client.client_state),
             _full_topology: None,
-            _task_manager: started_client.task_manager,
+            _task_manager: started_client.task_handle,
             packet_type,
         })
     }

@@ -248,9 +248,13 @@ impl<St> Gateway<St> {
         packet_sender
     }
 
-    async fn maybe_start_network_requester(&self) -> Result<(), GatewayError> {
+    async fn maybe_start_network_requester(
+        &self,
+        mut shutdown: TaskClient,
+    ) -> Result<(), GatewayError> {
         if !self.config.network_requester.enabled {
             info!("network requester is disabled");
+            shutdown.mark_as_success();
             return Ok(());
         } else {
             info!("Starting network requester...");
@@ -261,7 +265,7 @@ impl<St> Gateway<St> {
         };
 
         // TODO: well, wire it up internally to gateway traffic, shutdowns, etc.
-        let nr_builder = NRServiceProviderBuilder::new(nr_cfg.clone());
+        let nr_builder = NRServiceProviderBuilder::new(nr_cfg.clone()).with_shutdown(shutdown);
         tokio::spawn(async move { nr_builder.run_service_provider().await });
         //
 
@@ -335,13 +339,14 @@ impl<St> Gateway<St> {
             CoconutVerifier::new(nyxd_client)
         };
 
-        let mix_forwarding_channel = self.start_packet_forwarder(shutdown.subscribe());
+        let mix_forwarding_channel =
+            self.start_packet_forwarder(shutdown.subscribe().named("PacketForwarder"));
 
         let active_clients_store = ActiveClientsStore::new();
         self.start_mix_socket_listener(
             mix_forwarding_channel.clone(),
             active_clients_store.clone(),
-            shutdown.subscribe(),
+            shutdown.subscribe().named("mixnet_handling::Listener"),
         );
 
         if self.config.gateway.enabled_statistics {
@@ -360,11 +365,12 @@ impl<St> Gateway<St> {
         self.start_client_websocket_listener(
             mix_forwarding_channel,
             active_clients_store,
-            shutdown.subscribe(),
+            shutdown.subscribe().named("websocket::Listener"),
             Arc::new(coconut_verifier),
         );
 
-        self.maybe_start_network_requester().await?;
+        self.maybe_start_network_requester(shutdown.subscribe().named("NetworkRequester"))
+            .await?;
 
         // Once this is a bit more mature, make this a commandline flag instead of a compile time
         // flag

@@ -1,11 +1,10 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use std::future::Future;
-use std::{error::Error, time::Duration};
-
 use futures::{future::pending, FutureExt, SinkExt, StreamExt};
 use log::{log, Level};
+use std::future::Future;
+use std::{error::Error, time::Duration};
 use tokio::{
     sync::{
         mpsc,
@@ -517,6 +516,59 @@ impl ClientOperatingMode {
             ListeningButDontReportHalt | Listening => ListeningButDontReportHalt,
             Dummy => Dummy,
         };
+    }
+}
+
+#[derive(Debug)]
+pub enum TaskHandle {
+    /// Full [`TaskManager`] that was created by the underlying task.
+    Internal(TaskManager),
+
+    /// `[TaskClient]` that was passed from an external task, that controls the shutdown process.
+    External(TaskClient),
+}
+
+impl From<TaskManager> for TaskHandle {
+    fn from(value: TaskManager) -> Self {
+        TaskHandle::Internal(value)
+    }
+}
+
+impl From<TaskClient> for TaskHandle {
+    fn from(value: TaskClient) -> Self {
+        TaskHandle::External(value)
+    }
+}
+
+impl Default for TaskHandle {
+    fn default() -> Self {
+        TaskHandle::Internal(TaskManager::default())
+    }
+}
+
+impl TaskHandle {
+    pub fn get_handle(&self) -> TaskClient {
+        match self {
+            TaskHandle::External(shutdown) => shutdown.clone(),
+            TaskHandle::Internal(shutdown) => shutdown.subscribe(),
+        }
+    }
+
+    pub fn try_into_task_manager(self) -> Option<TaskManager> {
+        match self {
+            TaskHandle::External(_) => None,
+            TaskHandle::Internal(shutdown) => Some(shutdown),
+        }
+    }
+
+    pub async fn wait_for_shutdown(self) -> Result<(), SentError> {
+        match self {
+            TaskHandle::Internal(task_manager) => task_manager.catch_interrupt().await,
+            TaskHandle::External(mut task_client) => {
+                task_client.recv().await;
+                Ok(())
+            }
+        }
     }
 }
 

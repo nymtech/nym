@@ -5,6 +5,7 @@ use super::{connection_state::BuilderState, Config, StoragePaths};
 use crate::bandwidth::BandwidthAcquireClient;
 use crate::mixnet::socks5_client::Socks5MixnetClient;
 use crate::mixnet::{CredentialStorage, MixnetClient, Recipient};
+use crate::NymNetworkDetails;
 use crate::{Error, Result};
 use futures::channel::mpsc;
 use futures::StreamExt;
@@ -20,9 +21,9 @@ use nym_client_core::{
     client::{base_client::BaseClientBuilder, replies::reply_storage::ReplyStorageBackend},
     config::GatewayEndpointConfig,
 };
-use nym_network_defaults::NymNetworkDetails;
 use nym_socks5_client_core::config::Socks5;
 use nym_task::manager::TaskStatus;
+use nym_task::{TaskClient, TaskHandle};
 use nym_topology::provider_trait::TopologyProvider;
 use nym_validator_client::{nyxd, QueryHttpRpcNyxdClient};
 use std::path::Path;
@@ -39,6 +40,7 @@ pub struct MixnetClientBuilder<S: MixnetClientStorage = Ephemeral> {
     gateway_config: Option<GatewayEndpointConfig>,
     socks5_config: Option<Socks5>,
     custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
+    custom_shutdown: Option<TaskClient>,
 
     // TODO: incorporate it properly into `MixnetClientStorage` (I will need it in wasm anyway)
     gateway_endpoint_config_path: Option<PathBuf>,
@@ -74,6 +76,7 @@ impl MixnetClientBuilder<OnDiskPersistent> {
                 .initialise_default_persistent_storage()
                 .await?,
             gateway_endpoint_config_path: None,
+            custom_shutdown: None,
         })
     }
 }
@@ -96,6 +99,7 @@ where
             gateway_config: None,
             socks5_config: None,
             custom_topology_provider: None,
+            custom_shutdown: None,
             gateway_endpoint_config_path: None,
             storage,
         }
@@ -110,6 +114,7 @@ where
             gateway_config: self.gateway_config,
             socks5_config: self.socks5_config,
             custom_topology_provider: self.custom_topology_provider,
+            custom_shutdown: self.custom_shutdown,
             gateway_endpoint_config_path: self.gateway_endpoint_config_path,
             storage,
         }
@@ -169,6 +174,13 @@ where
         self
     }
 
+    /// Use an externally managed shutdown mechanism.
+    #[must_use]
+    pub fn custom_shutdown(mut self, shutdown: TaskClient) -> Self {
+        self.custom_shutdown = Some(shutdown);
+        self
+    }
+
     /// Use custom mixnet sender that might not be the default websocket gateway connection.
 
     #[must_use]
@@ -192,6 +204,7 @@ where
             self.socks5_config,
             self.storage,
             self.custom_topology_provider,
+            self.custom_shutdown,
         )
         .await?;
 
@@ -227,6 +240,9 @@ where
 
     /// Alternative provider of network topology used for constructing sphinx packets.
     custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
+
+    /// Allows passing an externally controlled shutdown handle.
+    custom_shutdown: Option<TaskClient>,
 }
 
 impl<S> DisconnectedMixnetClient<S>
@@ -250,6 +266,7 @@ where
         socks5_config: Option<Socks5>,
         storage: S,
         custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
+        custom_shutdown: Option<TaskClient>,
     ) -> Result<DisconnectedMixnetClient<S>> {
         // don't create dkg client for the bandwidth controller if credentials are disabled
         let dkg_query_client = if config.enabled_credentials_mode {
@@ -271,6 +288,7 @@ where
             dkg_query_client,
             storage,
             custom_topology_provider,
+            custom_shutdown,
         })
     }
 
@@ -395,6 +413,10 @@ where
             base_builder = base_builder.with_topology_provider(topology_provider);
         }
 
+        if let Some(custom_shutdown) = self.custom_shutdown {
+            base_builder = base_builder.with_shutdown(custom_shutdown)
+        }
+
         let started_client = base_builder.start_base().await?;
         self.state = BuilderState::Registered {};
         let nym_address = started_client.address;
@@ -448,29 +470,34 @@ where
             client_output,
             client_state.clone(),
             nym_address,
-            started_client.task_manager.subscribe(),
+            started_client.task_handle.get_handle(),
             packet_type,
         );
-        started_client
-            .task_manager
-            .start_status_listener(socks5_status_tx)
-            .await;
-        match socks5_status_rx
-            .next()
-            .await
-            .ok_or(Error::Socks5NotStarted)?
-            .downcast_ref::<TaskStatus>()
-            .ok_or(Error::Socks5NotStarted)?
-        {
-            TaskStatus::Ready => {
-                log::debug!("Socks5 connected");
+
+        // TODO: more graceful handling here, surely both variants should work... I think?
+        if let TaskHandle::Internal(task_manager) = &mut started_client.task_handle {
+            task_manager.start_status_listener(socks5_status_tx).await;
+            match socks5_status_rx
+                .next()
+                .await
+                .ok_or(Error::Socks5NotStarted)?
+                .downcast_ref::<TaskStatus>()
+                .ok_or(Error::Socks5NotStarted)?
+            {
+                TaskStatus::Ready => {
+                    log::debug!("Socks5 connected");
+                }
             }
+        } else {
+            return Err(Error::new_unsupported(
+                "connecting with socks5 is currently unsupported with custom shutdown",
+            ));
         }
 
         Ok(Socks5MixnetClient {
             nym_address,
             client_state,
-            task_manager: started_client.task_manager,
+            task_handle: started_client.task_handle,
             socks5_config,
         })
     }
@@ -513,7 +540,7 @@ where
             client_output,
             client_state,
             reconstructed_receiver,
-            started_client.task_manager,
+            started_client.task_handle,
             None,
         ))
     }

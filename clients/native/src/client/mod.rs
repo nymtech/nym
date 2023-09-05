@@ -144,14 +144,14 @@ impl SocketClient {
             client_output,
             client_state,
             &self_address,
-            started_client.task_manager.subscribe(),
+            started_client.task_handle.subscribe(),
             packet_type,
         );
 
         info!("Client startup finished!");
         info!("The address of this client is: {self_address}");
 
-        Ok(started_client.task_manager)
+        Ok(started_client.task_handle)
     }
 
     pub async fn start_direct(self) -> Result<DirectClient, ClientError> {
@@ -182,7 +182,7 @@ impl SocketClient {
             _received_buffer_request_sender: client_output.received_buffer_request_sender,
             reconstructed_receiver,
             address,
-            shutdown_notifier: started_client.task_manager,
+            shutdown_notifier: started_client.task_handle,
             packet_type,
         })
     }

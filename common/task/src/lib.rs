@@ -7,7 +7,7 @@ pub mod manager;
 pub mod signal;
 pub mod spawn;
 
-pub use manager::{StatusReceiver, StatusSender, TaskClient, TaskManager};
+pub use manager::{StatusReceiver, StatusSender, TaskClient, TaskHandle, TaskManager};
 #[cfg(not(target_arch = "wasm32"))]
 pub use signal::wait_for_signal_and_error;
 

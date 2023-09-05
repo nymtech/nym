@@ -46,7 +46,7 @@ use nym_sphinx::addressing::nodes::NodeIdentity;
 use nym_sphinx::params::PacketType;
 use nym_sphinx::receiver::{ReconstructedMessage, SphinxMessageReceiver};
 use nym_task::connections::{ConnectionCommandReceiver, ConnectionCommandSender, LaneQueueLengths};
-use nym_task::{TaskClient, TaskManager};
+use nym_task::{TaskClient, TaskHandle, TaskManager};
 use nym_topology::provider_trait::TopologyProvider;
 use nym_topology::HardcodedTopologyProvider;
 use nym_validator_client::nyxd::contract_traits::DkgQueryClient;
@@ -165,6 +165,7 @@ pub struct BaseClientBuilder<'a, C, S: MixnetClientStorage> {
 
     custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
     custom_gateway_sender: Option<Box<dyn GatewaySender + Send>>,
+    shutdown: Option<TaskClient>,
 
     setup_method: GatewaySetup,
 }
@@ -185,6 +186,7 @@ where
             dkg_query_client,
             custom_topology_provider: None,
             custom_gateway_sender: None,
+            shutdown: None,
             setup_method: GatewaySetup::MustLoad,
         }
     }
@@ -207,6 +209,12 @@ where
     #[must_use]
     pub fn with_gateway_sender(mut self, sender: Box<dyn GatewaySender + Send>) -> Self {
         self.custom_gateway_sender = Some(sender);
+        self
+    }
+
+    #[must_use]
+    pub fn with_shutdown(mut self, shutdown: TaskClient) -> Self {
+        self.shutdown = Some(shutdown);
         self
     }
 
@@ -577,7 +585,7 @@ where
         let shared_topology_accessor = TopologyAccessor::new();
 
         // Shutdown notifier for signalling tasks to stop
-        let task_manager = TaskManager::default();
+        let shutdown: TaskHandle = self.shutdown.map(Into::into).unwrap_or_default();
 
         // channels responsible for dealing with reply-related fun
         let (reply_controller_sender, reply_controller_receiver) =
@@ -600,12 +608,12 @@ where
             bandwidth_controller,
             mixnet_messages_sender,
             ack_sender,
-            task_manager.subscribe(),
+            shutdown.get_handle(),
         )
         .await?;
 
         let reply_storage =
-            Self::setup_persistent_reply_storage(reply_storage_backend, task_manager.subscribe())
+            Self::setup_persistent_reply_storage(reply_storage_backend, shutdown.get_handle())
                 .await?;
 
         let topology_provider = Self::setup_topology_provider(
@@ -618,7 +626,7 @@ where
             topology_provider,
             self.config.debug.topology,
             shared_topology_accessor.clone(),
-            task_manager.subscribe(),
+            shutdown.get_handle(),
         )
         .await?;
 
@@ -628,7 +636,7 @@ where
             mixnet_messages_receiver,
             reply_storage.key_storage(),
             reply_controller_sender.clone(),
-            task_manager.subscribe(),
+            shutdown.get_handle(),
         );
 
         // The message_sender is the transmitter for any component generating sphinx packets
@@ -636,7 +644,7 @@ where
         // traffic stream.
         // The MixTrafficController then sends the actual traffic
         let message_sender =
-            Self::start_mix_traffic_controller(gateway_sender, task_manager.subscribe());
+            Self::start_mix_traffic_controller(gateway_sender, shutdown.get_handle());
 
         // Channels that the websocket listener can use to signal downstream to the real traffic
         // controller that connections are closed.
@@ -663,7 +671,7 @@ where
             reply_controller_receiver,
             shared_lane_queue_lengths.clone(),
             client_connection_rx,
-            task_manager.subscribe(),
+            shutdown.get_handle(),
             self.config.debug.traffic.packet_type,
         );
 
@@ -679,7 +687,7 @@ where
                 self_address,
                 shared_topology_accessor.clone(),
                 message_sender,
-                task_manager.subscribe(),
+                shutdown.get_handle(),
             );
         }
 
@@ -704,7 +712,7 @@ where
                 reply_controller_sender,
                 topology_accessor: shared_topology_accessor,
             },
-            task_manager,
+            task_handle: shutdown,
         })
     }
 }
@@ -715,5 +723,5 @@ pub struct BaseClient {
     pub client_output: ClientOutputStatus,
     pub client_state: ClientState,
 
-    pub task_manager: TaskManager,
+    pub task_handle: TaskHandle,
 }

@@ -4384,6 +4384,7 @@ dependencies = [
 name = "nym-socks5-client-core"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "dirs 4.0.0",
  "futures",
  "log",

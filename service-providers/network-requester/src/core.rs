@@ -35,7 +35,8 @@ use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nym_sphinx::params::PacketSize;
 use nym_statistics_common::collector::StatisticsSender;
 use nym_task::connections::LaneQueueLengths;
-use nym_task::{TaskClient, TaskManager};
+use nym_task::manager::TaskHandle;
+use nym_task::TaskClient;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 // Since it's an atomic, it's safe to be kept static and shared across threads
@@ -55,6 +56,8 @@ pub struct NRServiceProviderBuilder {
     outbound_request_filter: OutboundRequestFilter,
     standard_list: StandardList,
     allowed_hosts: StoredAllowedHosts,
+
+    shutdown: Option<TaskClient>,
 }
 
 pub struct NRServiceProvider {
@@ -66,7 +69,7 @@ pub struct NRServiceProvider {
     controller_sender: ControllerSender,
     mix_input_sender: MixProxySender<MixnetMessage>,
     stats_collector: Option<ServiceStatisticsCollector>,
-    shutdown: TaskManager,
+    shutdown: TaskHandle,
 }
 
 #[async_trait]
@@ -78,6 +81,7 @@ impl ServiceProvider<Socks5Request> for NRServiceProvider {
         sender: Option<AnonymousSenderTag>,
         request: Request<Socks5Request>,
     ) -> Result<(), Self::ServiceProviderError> {
+        // TODO: this should perhaps be parallelised
         log::debug!("on_request {:?}", request);
         if let Some(response) = self.handle_request(sender, request).await? {
             // TODO: this (i.e. `reply::MixnetAddress`) should be incorporated into the actual interface
@@ -172,7 +176,14 @@ impl NRServiceProviderBuilder {
             outbound_request_filter,
             standard_list,
             allowed_hosts,
+            shutdown: None,
         }
+    }
+
+    #[must_use]
+    pub fn with_shutdown(mut self, shutdown: TaskClient) -> Self {
+        self.shutdown = Some(shutdown);
+        self
     }
 
     /// Start all subsystems
@@ -186,22 +197,27 @@ impl NRServiceProviderBuilder {
             .transpose()
             .unwrap_or(None);
 
+        // Used to notify tasks to shutdown. Not all tasks fully supports this (yet).
+        let shutdown: TaskHandle = self.shutdown.map(Into::into).unwrap_or_default();
+
         // Connect to the mixnet
-        let mixnet_client =
-            create_mixnet_client(&self.config.base, &self.config.storage_paths.common_paths)
-                .await?;
+        let mixnet_client = create_mixnet_client(
+            &self.config.base,
+            shutdown.get_handle().named("nym_sdk::MixnetClient"),
+            &self.config.storage_paths.common_paths,
+        )
+        .await?;
 
         // channels responsible for managing messages that are to be sent to the mix network. The receiver is
         // going to be used by `mixnet_response_listener`
         let (mix_input_sender, mix_input_receiver) = tokio::sync::mpsc::channel::<MixnetMessage>(1);
 
-        // Used to notify tasks to shutdown. Not all tasks fully supports this (yet).
-        let shutdown = nym_task::TaskManager::default();
-
         // Controller for managing all active connections.
         let (mut active_connections_controller, controller_sender) = Controller::new(
             mixnet_client.connection_command_sender(),
-            shutdown.subscribe(),
+            shutdown
+                .get_handle()
+                .named("nym_socks5_proxy_helpers::connection_controller::Controller"),
         );
 
         tokio::spawn(async move {
@@ -243,12 +259,16 @@ impl NRServiceProviderBuilder {
                 .network_requester_debug
                 .standard_list_update_interval,
             self.standard_list,
-            shutdown.subscribe(),
+            shutdown.get_handle().named("StandardListUpdater"),
         )
         .start();
 
         // start the allowed.list watcher and updater
-        start_allowed_list_reloader(self.allowed_hosts, shutdown.subscribe()).await;
+        start_allowed_list_reloader(
+            self.allowed_hosts,
+            shutdown.get_handle().named("stored_allowed_hosts_reloader"),
+        )
+        .await;
 
         let service_provider = NRServiceProvider {
             config: self.config,
@@ -260,7 +280,7 @@ impl NRServiceProviderBuilder {
             shutdown,
         };
 
-        log::info!("The address of this client is: {}", self_address);
+        log::info!("The address of this client is: {self_address}");
         log::info!("All systems go. Press CTRL-C to stop the server.");
         service_provider.run().await
     }
@@ -458,7 +478,7 @@ impl NRServiceProvider {
         let controller_sender_clone = self.controller_sender.clone();
         let mix_input_sender_clone = self.mix_input_sender.clone();
         let lane_queue_lengths_clone = self.mixnet_client.shared_lane_queue_lengths();
-        let shutdown = self.shutdown.subscribe();
+        let shutdown = self.shutdown.get_handle();
 
         // and start the proxy for this connection
         tokio::spawn(async move {
@@ -508,6 +528,7 @@ impl NRServiceProvider {
 // We could however consider moving it to a crate in common in the future.
 async fn create_mixnet_client(
     config: &BaseClientConfig,
+    shutdown: TaskClient,
     paths: &CommonClientPaths,
 ) -> Result<nym_sdk::mixnet::MixnetClient, NetworkRequesterError> {
     let debug_config = config.debug;
@@ -519,7 +540,8 @@ async fn create_mixnet_client(
             .await
             .map_err(|err| NetworkRequesterError::FailedToSetupMixnetClient { source: err })?
             .network_details(NymNetworkDetails::new_from_env())
-            .debug_config(debug_config);
+            .debug_config(debug_config)
+            .custom_shutdown(shutdown);
     if !config.get_disabled_credentials_mode() {
         client_builder = client_builder.enable_credentials_mode();
     }

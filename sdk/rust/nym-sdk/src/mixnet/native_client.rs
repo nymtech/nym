@@ -3,7 +3,7 @@ use crate::mixnet::traits::MixnetMessageSender;
 use crate::{Error, Result};
 use async_trait::async_trait;
 use futures::{ready, Stream, StreamExt};
-use log::error;
+use log::{error, warn};
 use nym_client_core::client::{
     base_client::{ClientInput, ClientOutput, ClientState},
     inbound_messages::InputMessage,
@@ -13,7 +13,7 @@ use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::{params::PacketType, receiver::ReconstructedMessage};
 use nym_task::{
     connections::{ConnectionCommandSender, LaneQueueLengths},
-    TaskManager,
+    TaskHandle,
 };
 use nym_topology::NymTopology;
 use std::pin::Pin;
@@ -40,8 +40,8 @@ pub struct MixnetClient {
     /// A channel for messages arriving from the mixnet after they have been reconstructed.
     pub(crate) reconstructed_receiver: ReconstructedMessagesReceiver,
 
-    /// The task manager that controlls all the spawned tasks that the clients uses to do it's job.
-    pub(crate) task_manager: TaskManager,
+    /// The task manager that controls all the spawned tasks that the clients uses to do it's job.
+    pub(crate) task_handle: TaskHandle,
     pub(crate) packet_type: Option<PacketType>,
 
     // internal state used for the `Stream` implementation
@@ -55,7 +55,7 @@ impl MixnetClient {
         client_output: ClientOutput,
         client_state: ClientState,
         reconstructed_receiver: ReconstructedMessagesReceiver,
-        task_manager: TaskManager,
+        task_handle: TaskHandle,
         packet_type: Option<PacketType>,
     ) -> Self {
         Self {
@@ -64,7 +64,7 @@ impl MixnetClient {
             client_output,
             client_state,
             reconstructed_receiver,
-            task_manager,
+            task_handle,
             packet_type,
             _buffered: Vec::new(),
         }
@@ -158,9 +158,14 @@ impl MixnetClient {
 
     /// Disconnect from the mixnet. Currently it is not supported to reconnect a disconnected
     /// client.
-    pub async fn disconnect(&mut self) {
-        self.task_manager.signal_shutdown().ok();
-        self.task_manager.wait_for_shutdown().await;
+    pub async fn disconnect(mut self) {
+        if let TaskHandle::Internal(task_manager) = &mut self.task_handle {
+            task_manager.signal_shutdown().ok();
+            task_manager.wait_for_shutdown().await;
+        }
+
+        // note: it's important to take ownership of the struct as if the shutdown is `TaskHandle::External`,
+        // it must be dropped to finalize the shutdown
     }
 }
 

@@ -20,7 +20,12 @@ async function main() {
 
     for(const book of books)
     {
-        const filenames = await glob(path.resolve(distDir, book) + '/**/*.html');
+        // only process the root `index.html` files, because they have absolute paths instead of relative paths
+        const filenames = [ path.resolve(distDir, book, 'index.html') ];
+
+        // leaving this here for a future where other files need to be processed
+        // const filenames = await glob(path.resolve(distDir, book) + '/**/*.html');
+
         for (const f of filenames) {
             // Create a Rehype processor with the inspectUrls plugin
             const processor = unified()
@@ -39,7 +44,7 @@ async function main() {
                         let url;
 
                         if(rawUrl.includes('.html#')) {
-                            url = path.join(`/${relativeDirectory}`, rawUrl);
+                            url = path.join(`/${relativeDirectory}`, bareUrl);
                         } else if(rawUrl.startsWith('#')) {
                             url = path.join(`/`, relativeFilename + bareUrl);
                         } else {
@@ -76,7 +81,7 @@ async function main() {
         }
     }
 
-   // console.table(items.filter(i => i.rawUrl.startsWith('#')));
+   // console.table(items);
    // console.log();
 }
 

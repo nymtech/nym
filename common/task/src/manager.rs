@@ -5,6 +5,7 @@ use std::future::Future;
 use std::{error::Error, time::Duration};
 
 use futures::{future::pending, FutureExt, SinkExt, StreamExt};
+use log::{log, Level};
 use tokio::{
     sync::{
         mpsc,
@@ -207,8 +208,11 @@ impl TaskManager {
 
 /// Listen for shutdown notifications, and can send error and status messages back to the
 /// `TaskManager`
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct TaskClient {
+    // optional name assigned to the shutdown handle
+    name: Option<String>,
+
     // If a shutdown notification has been registered
     shutdown: bool,
 
@@ -229,7 +233,35 @@ pub struct TaskClient {
     mode: ClientOperatingMode,
 }
 
+impl Clone for TaskClient {
+    fn clone(&self) -> Self {
+        // make sure to not accidentally overflow the stack if we keep cloning the handle
+        let name = if let Some(name) = &self.name {
+            if name != Self::OVERFLOW_NAME && name.len() < Self::MAX_NAME_LENGTH {
+                Some(format!("{name}-child"))
+            } else {
+                Some(Self::OVERFLOW_NAME.to_string())
+            }
+        } else {
+            None
+        };
+
+        TaskClient {
+            name,
+            shutdown: self.shutdown,
+            notify: self.notify.clone(),
+            return_error: self.return_error.clone(),
+            drop_error: self.drop_error.clone(),
+            status_msg: self.status_msg.clone(),
+            mode: self.mode.clone(),
+        }
+    }
+}
+
 impl TaskClient {
+    const MAX_NAME_LENGTH: usize = 128;
+    const OVERFLOW_NAME: &'static str = "reached maximum TaskClient children name depth";
+
     #[cfg(not(target_arch = "wasm32"))]
     const SHUTDOWN_TIMEOUT_WAITING_FOR_SIGNAL_ON_EXIT: Duration = Duration::from_secs(5);
 
@@ -240,6 +272,7 @@ impl TaskClient {
         status_msg: StatusSender,
     ) -> TaskClient {
         TaskClient {
+            name: None,
             shutdown: false,
             notify,
             return_error,
@@ -247,6 +280,27 @@ impl TaskClient {
             status_msg,
             mode: ClientOperatingMode::Listening,
         }
+    }
+
+    // just a convenience wrapper for including the shutdown name when logging
+    // I really didn't want to create macros for that... because that seemed like an overkill.
+    // but I guess it would have resolved needing to call `format!` for additional msg arguments
+    fn log<S: Into<String>>(&self, level: Level, msg: S) {
+        let msg = msg.into();
+
+        let target = &if let Some(name) = &self.name {
+            format!("TaskClient-{name}")
+        } else {
+            "unnamed-TaskClient".to_string()
+        };
+
+        log!(target: target, level, "{msg}")
+    }
+
+    #[must_use]
+    pub fn named<S: Into<String>>(mut self, name: S) -> Self {
+        self.name = Some(name.into());
+        self
     }
 
     pub async fn run_future<Fut, T>(&mut self, fut: Fut) -> Option<T>
@@ -267,6 +321,7 @@ impl TaskClient {
         let (task_drop_tx, _task_drop_rx) = mpsc::unbounded_channel();
         let (task_status_tx, _task_status_rx) = futures::channel::mpsc::channel(128);
         TaskClient {
+            name: None,
             shutdown: false,
             notify: notify_rx,
             return_error: task_halt_tx,
@@ -336,8 +391,9 @@ impl TaskClient {
                 has_changed
             }
             Err(err) => {
-                log::error!("Polling shutdown failed: {err}");
-                log::error!("Assuming this means we should shutdown...");
+                self.log(Level::Error, format!("Polling shutdown failed: {err}"));
+                self.log(Level::Error, "Assuming this means we should shutdown...");
+
                 true
             }
         }
@@ -354,9 +410,11 @@ impl TaskClient {
         if self.mode.is_dummy() {
             return;
         }
-        log::trace!("Notifying we stopped: {err}");
+
+        self.log(Level::Trace, format!("Notifying we stopped: {err}"));
+
         if self.return_error.send(err).is_err() {
-            log::error!("Failed to send back error message");
+            self.log(Level::Error, "failed to send back error message");
         }
     }
 
@@ -372,11 +430,15 @@ impl TaskClient {
 
 impl Drop for TaskClient {
     fn drop(&mut self) {
+        self.log(Level::Debug, "the shutdown is getting dropped");
+
         if !self.mode.should_signal_on_drop() {
             return;
         }
+
         if !self.is_shutdown_poll() {
-            log::trace!("Notifying stop on unexpected drop");
+            self.log(Level::Trace, "Notifying stop on unexpected drop");
+
             // If we can't send, well then there is not much to do
             self.drop_error
                 .send(Box::new(TaskError::UnexpectedHalt))

@@ -24,10 +24,18 @@ pub type SentStatus = Box<dyn Error + Send + Sync>;
 pub type StatusSender = futures::channel::mpsc::Sender<SentStatus>;
 pub type StatusReceiver = futures::channel::mpsc::Receiver<SentStatus>;
 
+fn try_recover_name(name: &Option<String>) -> String {
+    if let Some(name) = name {
+        name.clone()
+    } else {
+        "unknown".to_string()
+    }
+}
+
 #[derive(thiserror::Error, Debug)]
 enum TaskError {
-    #[error("Task halted unexpectedly")]
-    UnexpectedHalt,
+    #[error("Task '{}' halted unexpectedly", try_recover_name(.shutdown_name))]
+    UnexpectedHalt { shutdown_name: Option<String> },
 }
 
 // TODO: possibly we should create a `Status` trait instead of reusing `Error`
@@ -455,7 +463,9 @@ impl Drop for TaskClient {
 
             // If we can't send, well then there is not much to do
             self.drop_error
-                .send(Box::new(TaskError::UnexpectedHalt))
+                .send(Box::new(TaskError::UnexpectedHalt {
+                    shutdown_name: self.name.clone(),
+                }))
                 .ok();
         }
     }

@@ -38,7 +38,7 @@ chapter-line-height       = "2em"
 section-line-height       = "1.5em"
 
 # if true, never read and touch the files in theme dir: this is used to stop the looping reload issue referred to in the readme
-turn-off = false
+turn-off = true
 
 [preprocessor.admonish]
 command = "mdbook-admonish"
@@ -90,7 +90,7 @@ git-repository-icon = "fa-github"
 # edit-url-template = "https://github.com/rust-lang/mdBook/edit/master/guide/{path}"
 # site-url = "/docs/"
 # cname = "nymtech.net"
-input-404 = "not-found.md" 
+input-404 = "not-found.md"
 
 [output.html.fold]
 enable = true    # whether or not to enable section folding

@@ -38,6 +38,7 @@ jobs:
       - name: Build all projects in documentation/ & move to ~/dist/docs/
         run: cd documentation && ./build_all_to_dist.sh
         continue-on-error: false
+
       - name: Deploy branch master to dev
         continue-on-error: true
         uses: easingthemes/ssh-deploy@main
@@ -49,6 +50,7 @@ jobs:
           REMOTE_USER: ${{ secrets.CD_WWW_REMOTE_USER }}
           TARGET: ${{ secrets.CD_WWW_REMOTE_TARGET }}/
           EXCLUDE: "/node_modules/"
+
       - name: Deploy branch master to prod
         if: github.ref == 'refs/heads/master'
         uses: easingthemes/ssh-deploy@main
@@ -60,6 +62,44 @@ jobs:
           REMOTE_USER: ${{ secrets.CD_WWW_REMOTE_USER }}
           TARGET: ${{ secrets.CD_WWW_REMOTE_TARGET }}/
           EXCLUDE: "/node_modules/"
+
+      - name: Post process
+        run: cd documentation && ./post_process.sh
+        continue-on-error: false
+
+      - name: Create Vercel project file
+        uses: mobiledevops/secret-to-file-action@v1
+        with:
+          base64-encoded-secret: ${{ secrets.VERCEL_PROJECT_JSON_BASE64 }}
+          filename: "project.json"
+          is-executable: true
+          working-directory: "./dist/docs/.vercel"
+
+      - name: Install Vercel CLI
+        run: npm install --global vercel@latest
+
+      - name: Pull Vercel Environment Information (preview)
+        if: github.ref != 'refs/heads/master'
+        run: vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
+        working-directory: dist/docs
+      - name: Pull Vercel Environment Information (production)
+        if: github.ref == 'refs/heads/master'
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+        working-directory: dist/docs
+
+      - name: Build Project Artifacts
+        run: vercel build --token=${{ secrets.VERCEL_TOKEN }}
+        working-directory: dist/docs
+
+      - name: Deploy Project Artifacts to Vercel (preview)
+        if: github.ref != 'refs/heads/master'
+        run: vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }}
+        working-directory: dist/docs
+      - name: Deploy Project Artifacts to Vercel (master)
+        if: github.ref == 'refs/heads/master'
+        run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+        working-directory: dist/docs
+
       - name: Matrix - Node Install
         run: npm install
         working-directory: .github/workflows/support-files

@@ -274,16 +274,19 @@ impl MixNode {
 
         let shutdown = TaskManager::default();
 
-        let (node_stats_pointer, node_stats_update_sender) =
-            self.start_node_stats_controller(shutdown.subscribe());
-        let delay_forwarding_channel = self
-            .start_packet_delay_forwarder(node_stats_update_sender.clone(), shutdown.subscribe());
+        let (node_stats_pointer, node_stats_update_sender) = self
+            .start_node_stats_controller(shutdown.subscribe().named("node_statistics::Controller"));
+        let delay_forwarding_channel = self.start_packet_delay_forwarder(
+            node_stats_update_sender.clone(),
+            shutdown.subscribe().named("DelayForwarder"),
+        );
         self.start_socket_listener(
             node_stats_update_sender,
             delay_forwarding_channel,
-            shutdown.subscribe(),
+            shutdown.subscribe().named("Listener"),
         );
-        let atomic_verloc_results = self.start_verloc_measurements(shutdown.subscribe());
+        let atomic_verloc_results =
+            self.start_verloc_measurements(shutdown.subscribe().named("VerlocMeasurer"));
 
         // Rocket handles shutdown on it's own, but its shutdown handling should be incorporated
         // with that of the rest of the tasks.

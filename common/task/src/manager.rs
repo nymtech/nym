@@ -282,6 +282,20 @@ impl TaskClient {
         }
     }
 
+    // TODO: not convinced about the name...
+    pub fn fork<S: Into<String>>(&self, child_suffix: S) -> Self {
+        let mut child = self.clone();
+        let suffix = child_suffix.into();
+        let child_name = if let Some(base) = &self.name {
+            format!("{base}-{suffix}")
+        } else {
+            format!("unknown-{suffix}")
+        };
+
+        child.name = Some(child_name);
+        child
+    }
+
     // just a convenience wrapper for including the shutdown name when logging
     // I really didn't want to create macros for that... because that seemed like an overkill.
     // but I guess it would have resolved needing to call `format!` for additional msg arguments

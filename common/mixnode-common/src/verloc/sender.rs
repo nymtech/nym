@@ -83,7 +83,7 @@ impl PacketSender {
         self: Arc<Self>,
         tested_node: TestedNode,
     ) -> Result<Measurement, RttError> {
-        let mut shutdown_listener = self.shutdown_listener.clone();
+        let mut shutdown_listener = self.shutdown_listener.fork(tested_node.address.to_string());
         shutdown_listener.mark_as_success();
 
         let mut conn = match tokio::time::timeout(

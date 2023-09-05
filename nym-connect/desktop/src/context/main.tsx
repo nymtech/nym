@@ -242,7 +242,7 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
     // refresh service providers list
     const fetchedServices = await invoke<ServiceProvider[]>('get_services');
     setServiceProviders(fetchedServices);
-    // reset any previous selected SP
+    // reset any previously selected SP
     await invoke('set_selected_sp', {
       serviceProvider: { is_active: false },
     });

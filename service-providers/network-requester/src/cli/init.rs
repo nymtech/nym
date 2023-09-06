@@ -27,6 +27,19 @@ pub(crate) struct Init {
     #[arg(long)]
     id: String,
 
+    /// Specifies whether this network requester should run in 'open-proxy' mode
+    #[arg(long)]
+    open_proxy: Option<bool>,
+
+    /// Enable service anonymized statistics that get sent to a statistics aggregator server
+    #[arg(long)]
+    enable_statistics: Option<bool>,
+
+    /// Mixnet client address where a statistics aggregator is running. The default value is a Nym
+    /// aggregator client
+    #[arg(long)]
+    statistics_recipient: Option<String>,
+
     /// Id of the gateway we are going to connect to.
     #[arg(long)]
     gateway: Option<identity::PublicKey>,
@@ -66,9 +79,11 @@ impl From<Init> for OverrideConfig {
             fastmode: false,
             no_cover: false,
             medium_toggle: false,
-
             nyxd_urls: init_config.nyxd_urls,
             enabled_credentials_mode: init_config.enabled_credentials_mode,
+            open_proxy: init_config.open_proxy,
+            enable_statistics: init_config.enabled_credentials_mode,
+            statistics_recipient: init_config.statistics_recipient,
         }
     }
 }

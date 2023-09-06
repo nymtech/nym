@@ -53,9 +53,6 @@ pub(crate) fn new_legacy_request_version() -> RequestVersion<Socks5Request> {
 pub struct NRServiceProviderBuilder {
     config: Config,
     outbound_request_filter: OutboundRequestFilter,
-    open_proxy: bool,
-    enable_statistics: bool,
-    stats_provider_addr: Option<Recipient>,
     standard_list: StandardList,
     allowed_hosts: StoredAllowedHosts,
 }
@@ -64,7 +61,6 @@ struct NRServiceProvider {
     config: Config,
 
     outbound_request_filter: OutboundRequestFilter,
-    open_proxy: bool,
     mixnet_client: nym_sdk::mixnet::MixnetClient,
 
     controller_sender: ControllerSender,
@@ -158,12 +154,7 @@ impl ServiceProvider<Socks5Request> for NRServiceProvider {
 }
 
 impl NRServiceProviderBuilder {
-    pub async fn new(
-        config: Config,
-        open_proxy: bool,
-        enable_statistics: bool,
-        stats_provider_addr: Option<Recipient>,
-    ) -> NRServiceProviderBuilder {
+    pub async fn new(config: Config) -> NRServiceProviderBuilder {
         let standard_list = StandardList::new();
 
         let allowed_hosts = StoredAllowedHosts::new(&config.storage_paths.allowed_list_location);
@@ -176,9 +167,6 @@ impl NRServiceProviderBuilder {
         NRServiceProviderBuilder {
             config,
             outbound_request_filter,
-            open_proxy,
-            enable_statistics,
-            stats_provider_addr,
             standard_list,
             allowed_hosts,
         }
@@ -186,6 +174,15 @@ impl NRServiceProviderBuilder {
 
     /// Start all subsystems
     pub async fn run_service_provider(self) -> Result<(), NetworkRequesterError> {
+        let stats_provider_addr = self
+            .config
+            .network_requester
+            .statistics_recipient
+            .as_ref()
+            .map(Recipient::try_from_base58_string)
+            .transpose()
+            .unwrap_or(None);
+
         // Connect to the mixnet
         let mixnet_client =
             create_mixnet_client(&self.config.base, &self.config.storage_paths.common_paths)
@@ -208,9 +205,9 @@ impl NRServiceProviderBuilder {
             active_connections_controller.run().await;
         });
 
-        let stats_collector = if self.enable_statistics {
+        let stats_collector = if self.config.network_requester.enabled_statistics {
             let stats_collector =
-                ServiceStatisticsCollector::new(self.stats_provider_addr, mix_input_sender.clone())
+                ServiceStatisticsCollector::new(stats_provider_addr, mix_input_sender.clone())
                     .await
                     .expect("Service statistics collector could not be bootstrapped");
             let mut stats_sender = StatisticsSender::new(stats_collector.clone());
@@ -253,7 +250,6 @@ impl NRServiceProviderBuilder {
         let service_provider = NRServiceProvider {
             config: self.config,
             outbound_request_filter: self.outbound_request_filter,
-            open_proxy: self.open_proxy,
             mixnet_client,
             controller_sender,
             mix_input_sender,
@@ -434,7 +430,8 @@ impl NRServiceProvider {
         let remote_addr = connect_req.remote_addr;
         let conn_id = connect_req.conn_id;
 
-        if !self.open_proxy && !self.outbound_request_filter.check(&remote_addr).await {
+        let open_proxy = self.config.network_requester.open_proxy;
+        if !open_proxy && !self.outbound_request_filter.check(&remote_addr).await {
             let log_msg = format!("Domain {remote_addr:?} failed filter check");
             log::info!("{}", log_msg);
             let msg = MixnetMessage::new_connection_error(
@@ -488,10 +485,11 @@ impl NRServiceProvider {
         query: QueryRequest,
     ) -> Result<Option<Socks5Response>, NetworkRequesterError> {
         let protocol_version = Socks5ProtocolVersion::default();
+
         let response = match query {
             QueryRequest::OpenProxy => Socks5Response::new_query(
                 protocol_version,
-                QueryResponse::OpenProxy(self.open_proxy),
+                QueryResponse::OpenProxy(self.config.network_requester.open_proxy),
             ),
             QueryRequest::Description => Socks5Response::new_query(
                 protocol_version,

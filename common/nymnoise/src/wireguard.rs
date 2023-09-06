@@ -97,8 +97,9 @@ impl WireGuardStream {
         let (msg, address) = self.recv_wg_msg().await?;
         println!("Rcv: {:?}", msg);
 
-        //let mut buf = vec![0u8; MAXMSGLEN];
-        handshake.read_message_no_payload(&msg[8..88])?;
+        let mut buf = vec![0u8; MAXMSGLEN];
+        let len = handshake.read_message(&msg[8..116], &mut buf)?;
+        println!("Timestamp : {:?} : {:?}", len, &buf[..len]);
         Ok((msg[4..8].try_into().unwrap(), address))
     }
 

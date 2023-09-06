@@ -1,0 +1,16 @@
+{
+  "name": "nym-docs-post-process",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "process": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "@jsdevtools/rehype-url-inspector": "^2.0.2",
+    "glob": "^10.3.4",
+    "rehype-parse": "^9.0.0",
+    "rehype-stringify": "^10.0.0",
+    "to-vfile": "^8.0.0",
+    "unified": "^11.0.2"
+  }
+}

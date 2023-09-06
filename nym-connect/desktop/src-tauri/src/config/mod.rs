@@ -8,6 +8,7 @@ use crate::error::{BackendError, Result};
 use nym_client_core::client::base_client::storage::gateway_details::OnDiskGatewayDetails;
 use nym_client_core::client::key_manager::persistence::OnDiskKeys;
 use nym_client_core::config::GatewayEndpointConfig;
+use nym_client_core::error::ClientCoreError;
 use nym_client_core::init::GatewaySetup;
 use nym_config::{
     must_get_home, read_config_from_toml_file, save_formatted_config_to_file, NymConfigTemplate,
@@ -138,14 +139,11 @@ fn init_paths(id: &str) -> io::Result<()> {
 }
 
 fn try_extract_version_for_upgrade_failure(err: BackendError) -> Option<String> {
-    if let BackendError::ClientCoreError { source } = err {
-        if let nym_client_core::error::ClientCoreError::UnableToUpgradeConfigFile { new_version } =
-            source
-        {
-            Some(new_version)
-        } else {
-            None
-        }
+    if let BackendError::ClientCoreError {
+        source: ClientCoreError::UnableToUpgradeConfigFile { new_version },
+    } = err
+    {
+        Some(new_version)
     } else {
         None
     }

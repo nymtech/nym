@@ -69,7 +69,7 @@ impl WireGuardStream {
     ) -> Result<(), NoiseError> {
         let mut buf = vec![0u8; MAXMSGLEN];
         let len = handshake.write_message(&[], &mut buf)?;
-        let msg = [&2u32.to_be_bytes(), &id_initiator, &[42u8; 4], &buf[..len]].concat();
+        let msg = [&2u32.to_le_bytes(), &[42u8; 4], &id_initiator, &buf[..len]].concat();
         //mac1 key
         let mut k_mac1 = Blake2s256::new();
         k_mac1.update(b"mac1----");
@@ -82,6 +82,7 @@ impl WireGuardStream {
         let mac1_bytes: [u8; 16] = hmac.finalize_fixed().into();
 
         let final_msg = [msg, mac1_bytes.to_vec(), vec![0u8; 16]].concat();
+        println!("Sending : {:?}", final_msg);
         self.send_wg_msg(&final_msg, address).await?;
 
         // self.inner_stream.write_u16(len.try_into()?).await?; //len is always < 2^16, so it shouldn't fail
@@ -93,7 +94,6 @@ impl WireGuardStream {
         &mut self,
         handshake: &mut HandshakeState,
     ) -> Result<([u8; 4], SocketAddr), NoiseError> {
-        println!("Hash 1 : {:?}", handshake.get_handshake_hash());
         let (msg, address) = self.recv_wg_msg().await?;
         println!("Rcv: {:?}", msg);
 
@@ -116,7 +116,7 @@ impl WireGuardStream {
 
     pub async fn recv(&mut self) -> Result<Vec<u8>, NoiseError> {
         let (msg, _) = self.recv_wg_msg().await?;
-        println!("Rcv: {:?}", msg);
+        println!("Rcv data: {:?}", msg);
 
         let mut buf = vec![0u8; MAXMSGLEN];
         if let Some(noise) = &mut self.noise {

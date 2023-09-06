@@ -24,7 +24,6 @@
 # Integrations
 
 - [Integration Options](integrations/integration-options.md)
-- [Integration FAQ](integrations/faq.md)
 - [Mixnet Integration](integrations/mixnet-integration.md)
 - [Payment Integration](integrations/payment-integration.md)
 
@@ -39,12 +38,17 @@
     - [Sending a Message Through the Mixnet](tutorials/simple-service-provider/sending-message.md)
 - [IPFS Service Provider (coming soon)](tutorials/ipfs-service-provider.md)
 
+# FAQ
+
+- [General](faq/general-faq.md)
+- [Integrations](faq/integrations-faq.md)
+- [Rewards & Token](faq/rewards-faq.md)
+
 # Community Resources
 
 - [Nym DevRel AMAs](community-resources/ama.md)
 - [Community Applications and Guides](community-resources/community-applications-and-guides.md)
 - [Change Service Grantee Information](info-request.md)
-- [Rewards FAQ](community-resources/rewards-faq.md)
 
 --- 
 # Misc.

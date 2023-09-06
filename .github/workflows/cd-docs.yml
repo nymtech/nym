@@ -87,8 +87,13 @@ jobs:
         run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
         working-directory: dist/docs
 
-      - name: Build Project Artifacts
+      - name: Build Project Artifacts (preview)
+        if: github.ref != 'refs/heads/master'
         run: vercel build --token=${{ secrets.VERCEL_TOKEN }}
+        working-directory: dist/docs
+      - name: Build Project Artifacts (production)
+        if: github.ref == 'refs/heads/master'
+        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
         working-directory: dist/docs
 
       - name: Deploy Project Artifacts to Vercel (preview)

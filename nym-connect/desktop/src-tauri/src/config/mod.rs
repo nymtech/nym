@@ -137,6 +137,20 @@ fn init_paths(id: &str) -> io::Result<()> {
     fs::create_dir_all(default_config_directory(id))
 }
 
+fn try_extract_version_for_upgrade_failure(err: BackendError) -> Option<String> {
+    if let BackendError::ClientCoreError { source } = err {
+        if let nym_client_core::error::ClientCoreError::UnableToUpgradeConfigFile { new_version } =
+            source
+        {
+            Some(new_version)
+        } else {
+            None
+        }
+    } else {
+        None
+    }
+}
+
 pub async fn init_socks5_config(provider_address: String, chosen_gateway_id: String) -> Result<()> {
     log::trace!("Initialising client...");
 
@@ -145,10 +159,29 @@ pub async fn init_socks5_config(provider_address: String, chosen_gateway_id: Str
     let _validated = identity::PublicKey::from_base58_string(&chosen_gateway_id)
         .map_err(|_| BackendError::UnableToParseGateway)?;
 
-    let already_init = if default_config_filepath(&id).exists() {
+    let config_path = default_config_filepath(&id);
+    let already_init = if config_path.exists() {
         // in case we're using old config, try to upgrade it
         // (if we're using the current version, it's a no-op)
-        try_upgrade_config(&id)?;
+        if let Err(err) = try_upgrade_config(&id) {
+            log::error!(
+                "Failed to upgrade config file {}: {:?}",
+                config_path.display(),
+                err
+            );
+            if let Some(failed_at_version) = try_extract_version_for_upgrade_failure(err) {
+                return Err(
+                    BackendError::CouldNotUpgradeExistingConfigurationFileAtVersion {
+                        file: config_path,
+                        failed_at_version,
+                    },
+                );
+            } else {
+                return Err(BackendError::CouldNotUpgradeExistingConfigurationFile {
+                    file: config_path,
+                });
+            }
+        };
         eprintln!("SOCKS5 client \"{id}\" was already initialised before");
         true
     } else {

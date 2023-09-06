@@ -1,4 +1,4 @@
-## Rewards FAQ
+# Rewards FAQ
 
 On this page you will find important information about participation in community activities which involve NYM token rewards, such as contests, giveaways, and promotions. Before participating in any such activity, make sure to read this page carefully. 
 

@@ -89,7 +89,7 @@ open_proxy = {{ network_requester.open_proxy }}
 enabled_statistics = {{ network_requester.enabled_statistics }}
 
 # in case of enabled statistics, specifies mixnet client address where a statistics aggregator is running
-statistics_recipient = {{ network_requester.statistics_recipient }}
+statistics_recipient = '{{ network_requester.statistics_recipient }}'
 
 # Disable Poisson sending rate, and only send cover traffic occasionally as keepalive messages.
 # This is equivalent to setting debug.traffic.disable_main_poisson_packet_distribution = true,

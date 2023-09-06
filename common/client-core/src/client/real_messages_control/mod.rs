@@ -224,6 +224,6 @@ impl RealMessagesController<OsRng> {
             debug!("The reply controller has finished execution!");
         });
 
-        ack_control.start_with_shutdown(shutdown, packet_type);
+        // ack_control.start_with_shutdown(shutdown, packet_type);
     }
 }

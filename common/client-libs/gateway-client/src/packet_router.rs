@@ -102,12 +102,12 @@ impl PacketRouter {
             }
         }
 
-        if !received_acks.is_empty() {
-            trace!("routing acks");
-            if let Err(err) = self.ack_sender.unbounded_send(received_acks) {
-                error!("failed to send ack: {err}");
-            };
-        }
+        // if !received_acks.is_empty() {
+        //     trace!("routing acks");
+        //     if let Err(err) = self.ack_sender.unbounded_send(received_acks) {
+        //         error!("failed to send ack: {err}");
+        //     };
+        // }
         Ok(())
     }
 }

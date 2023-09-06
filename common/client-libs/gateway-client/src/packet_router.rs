@@ -110,4 +110,32 @@ impl PacketRouter {
         }
         Ok(())
     }
+
+    pub fn route_mixnet_messages(
+        &self,
+        received_messages: Vec<Vec<u8>>,
+    ) -> Result<(), GatewayClientError> {
+        // check if the failure is due to the shutdown being in progress and  thus the receiver channel
+        // having already been dropped
+        //
+        return Err(GatewayClientError::ShutdownInProgress);
+
+        todo!()
+        // if let Err(err) = self.mixnet_message_sender.unbounded_send(received_messages) {
+        //     if self.shutdown.is_shutdown_poll() || self.shutdown.is_dummy() {
+        //         // This should ideally not happen, but it's ok
+        //         log::warn!("Failed to send mixnet message due to receiver task shutdown");
+        //         return Err(GatewayClientError::MixnetMsgSenderFailedToSend);
+        //     }
+        //     // This should never happen during ordinary operation the way it's currently used.
+        //     // Abort to be on the safe side
+        //     panic!("Failed to send mixnet message: {err}");
+        // }
+    }
+
+    pub fn route_acks(&self, received_acks: Vec<Vec<u8>>) -> Result<(), GatewayClientError> {
+        if let Err(err) = self.ack_sender.unbounded_send(received_acks) {
+            error!("failed to send ack: {err}");
+        };
+    }
 }

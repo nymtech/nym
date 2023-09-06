@@ -372,11 +372,7 @@ impl NRServiceProvider {
         {
             Ok(conn) => conn,
             Err(err) => {
-                log::error!(
-                    "error while connecting to {:?} ! - {:?}",
-                    remote_addr.clone(),
-                    err
-                );
+                log::error!("error while connecting to {remote_addr}: {err}",);
 
                 // inform the remote that the connection is closed before it even was established
                 let mixnet_message = MixnetMessage::new_network_data_response(
@@ -406,8 +402,7 @@ impl NRServiceProvider {
 
         let old_count = ACTIVE_PROXIES.fetch_add(1, Ordering::SeqCst);
         log::info!(
-            "Starting proxy for {} (currently there are {} proxies being handled)",
-            remote_addr,
+            "Starting proxy for {remote_addr} (currently there are {} proxies being handled)",
             old_count + 1
         );
 
@@ -429,8 +424,7 @@ impl NRServiceProvider {
 
         let old_count = ACTIVE_PROXIES.fetch_sub(1, Ordering::SeqCst);
         log::info!(
-            "Proxy for {} is finished  (currently there are {} proxies being handled)",
-            remote_addr,
+            "Proxy for {remote_addr} is finished  (currently there are {} proxies being handled)",
             old_count - 1
         );
     }

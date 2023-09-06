@@ -4,6 +4,7 @@
 use futures::{future::pending, FutureExt, SinkExt, StreamExt};
 use log::{log, Level};
 use std::future::Future;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::{error::Error, time::Duration};
 use tokio::{
     sync::{
@@ -237,7 +238,10 @@ pub struct TaskClient {
     name: Option<String>,
 
     // If a shutdown notification has been registered
-    shutdown: bool,
+    // the reason for having an atomic here is to be able to cheat and modify that value whilst
+    // holding an immutable reference to the `TaskClient`.
+    // note: using `Relaxed` ordering everywhere is fine since it's not shared between threads
+    shutdown: AtomicBool,
 
     // Listen for shutdown notifications, as well as a mechanism to report back that we have
     // finished (the receiver is closed).
@@ -271,7 +275,7 @@ impl Clone for TaskClient {
 
         TaskClient {
             name,
-            shutdown: self.shutdown,
+            shutdown: AtomicBool::new(self.shutdown.load(Ordering::Relaxed)),
             notify: self.notify.clone(),
             return_error: self.return_error.clone(),
             drop_error: self.drop_error.clone(),
@@ -296,7 +300,7 @@ impl TaskClient {
     ) -> TaskClient {
         TaskClient {
             name: None,
-            shutdown: false,
+            shutdown: AtomicBool::new(false),
             notify,
             return_error,
             drop_error,
@@ -359,7 +363,7 @@ impl TaskClient {
         let (task_status_tx, _task_status_rx) = futures::channel::mpsc::channel(128);
         TaskClient {
             name: None,
-            shutdown: false,
+            shutdown: AtomicBool::new(false),
             notify: notify_rx,
             return_error: task_halt_tx,
             drop_error: task_drop_tx,
@@ -376,7 +380,7 @@ impl TaskClient {
         if self.mode.is_dummy() {
             false
         } else {
-            self.shutdown
+            self.shutdown.load(Ordering::Relaxed)
         }
     }
 
@@ -384,11 +388,11 @@ impl TaskClient {
         if self.mode.is_dummy() {
             return pending().await;
         }
-        if self.shutdown {
+        if self.shutdown.load(Ordering::Relaxed) {
             return;
         }
         let _ = self.notify.changed().await;
-        self.shutdown = true;
+        self.shutdown.store(true, Ordering::Relaxed);
     }
 
     pub async fn recv_with_delay(&mut self) {
@@ -414,17 +418,17 @@ impl TaskClient {
         .expect("Task stopped without shutdown called");
     }
 
-    pub fn is_shutdown_poll(&mut self) -> bool {
+    pub fn is_shutdown_poll(&self) -> bool {
         if self.mode.is_dummy() {
             return false;
         }
-        if self.shutdown {
+        if self.shutdown.load(Ordering::Relaxed) {
             return true;
         }
         match self.notify.has_changed() {
             Ok(has_changed) => {
                 if has_changed {
-                    self.shutdown = true;
+                    self.shutdown.store(true, Ordering::Relaxed);
                 }
                 has_changed
             }

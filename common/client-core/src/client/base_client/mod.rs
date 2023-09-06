@@ -8,7 +8,7 @@ use crate::client::base_client::storage::MixnetClientStorage;
 use crate::client::cover_traffic_stream::LoopCoverTrafficStream;
 use crate::client::inbound_messages::{InputMessage, InputMessageReceiver, InputMessageSender};
 use crate::client::key_manager::persistence::KeyStore;
-use crate::client::mix_traffic::sender::{GatewaySender, RemoteGateway};
+use crate::client::mix_traffic::transceiver::{GatewayTransceiver, RemoteGateway};
 use crate::client::mix_traffic::{BatchMixMessageSender, MixTrafficController};
 use crate::client::real_messages_control;
 use crate::client::real_messages_control::RealMessagesController;
@@ -164,7 +164,7 @@ pub struct BaseClientBuilder<'a, C, S: MixnetClientStorage> {
     dkg_query_client: Option<C>,
 
     custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
-    custom_gateway_sender: Option<Box<dyn GatewaySender + Send>>,
+    custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send>>,
     shutdown: Option<TaskClient>,
 
     setup_method: GatewaySetup,
@@ -185,7 +185,7 @@ where
             client_store,
             dkg_query_client,
             custom_topology_provider: None,
-            custom_gateway_sender: None,
+            custom_gateway_transceiver: None,
             shutdown: None,
             setup_method: GatewaySetup::MustLoad,
         }
@@ -207,8 +207,8 @@ where
     }
 
     #[must_use]
-    pub fn with_gateway_sender(mut self, sender: Box<dyn GatewaySender + Send>) -> Self {
-        self.custom_gateway_sender = Some(sender);
+    pub fn with_gateway_transceiver(mut self, sender: Box<dyn GatewayTransceiver + Send>) -> Self {
+        self.custom_gateway_transceiver = Some(sender);
         self
     }
 
@@ -384,25 +384,25 @@ where
         Ok(gateway_client)
     }
 
-    async fn setup_gateway_sender(
-        custom_gateway_sender: Option<Box<dyn GatewaySender + Send>>,
+    async fn setup_gateway_transceiver(
+        custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send>>,
         config: &Config,
         initialisation_result: InitialisationResult,
         bandwidth_controller: Option<BandwidthController<C, S::CredentialStore>>,
         mixnet_message_sender: MixnetMessageSender,
         ack_sender: AcknowledgementSender,
         shutdown: TaskClient,
-    ) -> Result<Box<dyn GatewaySender + Send>, ClientCoreError>
+    ) -> Result<Box<dyn GatewayTransceiver + Send>, ClientCoreError>
     where
         <S::KeyStore as KeyStore>::StorageError: Send + Sync + 'static,
         <S::CredentialStore as CredentialStorage>::StorageError: Send + Sync + 'static,
     {
         // if we have setup custom gateway sender and persisted details agree with it, return it
-        if let Some(custom_gateway_sender) = custom_gateway_sender {
+        if let Some(custom_gateway_transceiver) = custom_gateway_transceiver {
             return if !initialisation_result.gateway_details.is_custom() {
                 Err(ClientCoreError::CustomGatewaySelectionExpected)
             } else {
-                Ok(custom_gateway_sender)
+                Ok(custom_gateway_transceiver)
             };
         }
 
@@ -485,11 +485,11 @@ where
     }
 
     fn start_mix_traffic_controller(
-        gateway_sender: Box<dyn GatewaySender + Send>,
+        gateway_transceiver: Box<dyn GatewayTransceiver + Send>,
         shutdown: TaskClient,
     ) -> BatchMixMessageSender {
         info!("Starting mix traffic controller...");
-        let (mix_traffic_controller, mix_tx) = MixTrafficController::new(gateway_sender);
+        let (mix_traffic_controller, mix_tx) = MixTrafficController::new(gateway_transceiver);
         mix_traffic_controller.start_with_shutdown(shutdown);
         mix_tx
     }
@@ -601,8 +601,8 @@ where
             .dkg_query_client
             .map(|client| BandwidthController::new(credential_store, client));
 
-        let gateway_sender = Self::setup_gateway_sender(
-            self.custom_gateway_sender,
+        let gateway_transceiver = Self::setup_gateway_transceiver(
+            self.custom_gateway_transceiver,
             self.config,
             init_res,
             bandwidth_controller,
@@ -644,7 +644,7 @@ where
         // traffic stream.
         // The MixTrafficController then sends the actual traffic
         let message_sender =
-            Self::start_mix_traffic_controller(gateway_sender, shutdown.get_handle());
+            Self::start_mix_traffic_controller(gateway_transceiver, shutdown.get_handle());
 
         // Channels that the websocket listener can use to signal downstream to the real traffic
         // controller that connections are closed.

@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::client::mix_traffic::sender::GatewaySender;
+use crate::client::mix_traffic::transceiver::GatewayTransceiver;
 use crate::spawn_future;
 use log::*;
 use nym_sphinx::forwarding::packet::MixPacket;
@@ -9,7 +9,7 @@ use nym_sphinx::forwarding::packet::MixPacket;
 pub type BatchMixMessageSender = tokio::sync::mpsc::Sender<Vec<MixPacket>>;
 pub type BatchMixMessageReceiver = tokio::sync::mpsc::Receiver<Vec<MixPacket>>;
 
-pub(crate) mod sender;
+pub(crate) mod transceiver;
 
 // We remind ourselves that 32 x 32kb = 1024kb, a reasonable size for a network buffer.
 pub const MIX_MESSAGE_RECEIVER_BUFFER_SIZE: usize = 32;
@@ -19,7 +19,7 @@ const MAX_FAILURE_COUNT: usize = 100;
 pub struct Empty;
 
 pub struct MixTrafficController {
-    gateway_sender: Box<dyn GatewaySender + Send>,
+    gateway_transceiver: Box<dyn GatewayTransceiver + Send>,
 
     mix_rx: BatchMixMessageReceiver,
 
@@ -29,15 +29,15 @@ pub struct MixTrafficController {
 }
 
 impl MixTrafficController {
-    pub fn new<T>(gateway_sender: T) -> (MixTrafficController, BatchMixMessageSender)
+    pub fn new<T>(gateway_transceiver: T) -> (MixTrafficController, BatchMixMessageSender)
     where
-        T: GatewaySender + Send + 'static,
+        T: GatewayTransceiver + Send + 'static,
     {
         let (message_sender, message_receiver) =
             tokio::sync::mpsc::channel(MIX_MESSAGE_RECEIVER_BUFFER_SIZE);
         (
             MixTrafficController {
-                gateway_sender: Box::new(gateway_sender),
+                gateway_transceiver: Box::new(gateway_transceiver),
                 mix_rx: message_receiver,
                 consecutive_gateway_failure_count: 0,
             },
@@ -46,13 +46,13 @@ impl MixTrafficController {
     }
 
     pub fn new_dynamic(
-        gateway_sender: Box<dyn GatewaySender + Send>,
+        gateway_transceiver: Box<dyn GatewayTransceiver + Send>,
     ) -> (MixTrafficController, BatchMixMessageSender) {
         let (message_sender, message_receiver) =
             tokio::sync::mpsc::channel(MIX_MESSAGE_RECEIVER_BUFFER_SIZE);
         (
             MixTrafficController {
-                gateway_sender,
+                gateway_transceiver,
                 mix_rx: message_receiver,
                 consecutive_gateway_failure_count: 0,
             },
@@ -65,9 +65,9 @@ impl MixTrafficController {
 
         let result = if mix_packets.len() == 1 {
             let mix_packet = mix_packets.pop().unwrap();
-            self.gateway_sender.send_mix_packet(mix_packet).await
+            self.gateway_transceiver.send_mix_packet(mix_packet).await
         } else {
-            self.gateway_sender
+            self.gateway_transceiver
                 .batch_send_mix_packets(mix_packets)
                 .await
         };

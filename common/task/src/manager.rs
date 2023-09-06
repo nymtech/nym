@@ -452,10 +452,11 @@ impl TaskClient {
 
 impl Drop for TaskClient {
     fn drop(&mut self) {
-        self.log(Level::Debug, "the shutdown is getting dropped");
-
         if !self.mode.should_signal_on_drop() {
+            self.log(Level::Debug, "the task client is getting dropped");
             return;
+        } else {
+            self.log(Level::Info, "the task client is getting dropped");
         }
 
         if !self.is_shutdown_poll() {

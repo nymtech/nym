@@ -6510,6 +6510,7 @@ dependencies = [
  "nym-task",
  "nym-types",
  "nym-validator-client",
+ "nym-wireguard",
  "once_cell",
  "pretty_env_logger",
  "rand 0.7.3",
@@ -7440,6 +7441,15 @@ dependencies = [
  "mix-fetch-wasm",
  "nym-client-wasm",
  "nym-node-tester-wasm",
+]
+
+[[package]]
+name = "nym-wireguard"
+version = "0.1.0"
+dependencies = [
+ "log",
+ "nym-task",
+ "tokio",
 ]
 
 [[package]]

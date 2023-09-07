@@ -194,6 +194,9 @@ impl<St> Gateway<St> {
         packet_sender
     }
 
+    fn start_wireguard_listener(&self) {
+    }
+
     async fn wait_for_interrupt(
         &self,
         shutdown: TaskManager,
@@ -292,6 +295,8 @@ impl<St> Gateway<St> {
             shutdown.subscribe(),
             Arc::new(coconut_verifier),
         );
+
+        nym_wireguard::start_wg_listener(shutdown.subscribe()).await;
 
         info!("Finished nym gateway startup procedure - it should now be able to receive mix and client traffic!");
 

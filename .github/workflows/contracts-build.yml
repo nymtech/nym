@@ -23,7 +23,7 @@ jobs:
         run: cargo install --version 0.112.0 wasm-opt
 
       - name: Build release contracts
-        run: make wasm
+        run: make contracts-wasm
 
       - name: Upload Mixnet Contract Artifact
         uses: actions/upload-artifact@v3

@@ -403,6 +403,7 @@ impl TaskClient {
 
     pub async fn recv_timeout(&mut self) {
         if self.mode.is_dummy() {
+            #[cfg_attr(target_arch = "wasm32", allow(clippy::needless_return))]
             return pending().await;
         }
         #[cfg(not(target_arch = "wasm32"))]

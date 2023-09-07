@@ -109,7 +109,7 @@ module.exports = {
       'root-import': {
         rootPathPrefix: '@',
         rootPathSuffix: 'src',
-        extensions: ['.js', '.ts', '.tsx', '.jsx', '.mdx'],
+        extensions: ['.js', '.ts', '.tsx', '.jsx', '.mdx', '.mjs'],
       },
     },
   },

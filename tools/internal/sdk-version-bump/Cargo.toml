@@ -1,0 +1,19 @@
+[package]
+name = "sdk-version-bump"
+version = "0.1.0"
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+edition.workspace = true
+license.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = { workspace = true }
+cargo-edit = "0.11.0"
+clap = { version = "4.3.19", features = ["derive", "string"] }
+semver = "1.0.18"
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }

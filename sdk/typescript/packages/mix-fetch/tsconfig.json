@@ -1,0 +1,45 @@
+{
+  "compileOnSave": false,
+  "compilerOptions": {
+    "lib": [
+      "es2021",
+      "dom",
+      "dom.iterable",
+      "esnext",
+      "webworker"
+    ],
+    "outDir": "./dist/",
+    "module": "esnext",
+    "target": "esnext",
+    "allowJs": false,
+    "strict": true,
+    "moduleResolution": "node",
+    "skipLibCheck": true,
+    "skipDefaultLibCheck": true,
+    "declaration": true,
+    "baseUrl": ".",
+    "downlevelIteration": true
+  },
+  "include": [
+    "src/**/*.ts",
+    "src/*.ts",
+    "typings"
+  ],
+  "exclude": [
+    "jest.config.js",
+    "webpack.config.js",
+    "webpack.prod.js",
+    "webpack.common.js",
+    "node_modules",
+    "**/node_modules",
+    "dist",
+    "**/dist",
+    "scripts",
+    "jest",
+    "__tests__",
+    "**/__tests__",
+    "__jest__",
+    "**/__jest__",
+    "config/*",
+  ]
+}

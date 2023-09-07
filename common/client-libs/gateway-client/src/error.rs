@@ -1,12 +1,12 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+#[cfg(target_arch = "wasm32")]
+use gloo_utils::errors::JsError;
 use nym_gateway_requests::registration::handshake::error::HandshakeError;
 use std::io;
 use thiserror::Error;
 use tungstenite::Error as WsError;
-#[cfg(target_arch = "wasm32")]
-use wasm_bindgen::JsValue;
 
 #[derive(Debug, Error)]
 pub enum GatewayClientError {
@@ -19,10 +19,9 @@ pub enum GatewayClientError {
     #[error("There was a network error - {0}")]
     NetworkError(#[from] WsError),
 
-    // TODO: see if `JsValue` is a reasonable type for this
     #[cfg(target_arch = "wasm32")]
     #[error("There was a network error")]
-    NetworkErrorWasm(JsValue),
+    NetworkErrorWasm(#[from] JsError),
 
     #[error("Invalid URL - {0}")]
     InvalidURL(String),

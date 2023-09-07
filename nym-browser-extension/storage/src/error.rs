@@ -1,10 +1,10 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use js_sys::Promise;
 use thiserror::Error;
-use wasm_bindgen::JsValue;
-use wasm_utils::simple_js_error;
-use wasm_utils::storage::error::StorageError;
+use wasm_storage::error::StorageError;
+use wasm_utils::wasm_error;
 
 #[derive(Debug, Error)]
 pub enum ExtensionStorageError {
@@ -30,8 +30,4 @@ pub enum ExtensionStorageError {
     },
 }
 
-impl From<ExtensionStorageError> for JsValue {
-    fn from(value: ExtensionStorageError) -> Self {
-        simple_js_error(value.to_string())
-    }
-}
+wasm_error!(ExtensionStorageError);

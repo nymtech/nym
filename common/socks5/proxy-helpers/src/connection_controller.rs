@@ -171,7 +171,7 @@ impl Controller {
 
             if let Some(payload) = active_connection.read_from_buf() {
                 if let Some(closed_at_index) = active_connection.closed_at_index {
-                    if payload.last_sequence > closed_at_index {
+                    if payload.last_sequence >= closed_at_index {
                         active_connection.is_closed = true;
                     }
                 }

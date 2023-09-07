@@ -243,7 +243,7 @@ mod message_receiver {
                 )
                 .unwrap(),
                 layer: Layer::One,
-                version: "0.8.0-dev".to_string(),
+                version: "0.8.0-dev".into(),
             }],
         );
 
@@ -263,7 +263,7 @@ mod message_receiver {
                 )
                 .unwrap(),
                 layer: Layer::Two,
-                version: "0.8.0-dev".to_string(),
+                version: "0.8.0-dev".into(),
             }],
         );
 
@@ -283,7 +283,7 @@ mod message_receiver {
                 )
                 .unwrap(),
                 layer: Layer::Three,
-                version: "0.8.0-dev".to_string(),
+                version: "0.8.0-dev".into(),
             }],
         );
 
@@ -303,7 +303,7 @@ mod message_receiver {
                     "EB42xvMFMD5rUCstE2CDazgQQJ22zLv8SPm1Luxni44c",
                 )
                 .unwrap(),
-                version: "0.8.0-dev".to_string(),
+                version: "0.8.0-dev".into(),
             }],
         )
     }

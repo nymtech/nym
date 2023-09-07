@@ -1,0 +1,14 @@
+{
+  "name": "@nymproject/mix-fetch-tester-parcel",
+  "version": "1.0.0",
+  "license": "Apache-2.0",
+  "source": "../src/index.html",
+  "dependencies": {
+    "@nymproject/mix-fetch": ">=1.2.0-rc.2 || ^1"
+  },
+  "scripts": {
+    "start": "npx parcel --no-cache",
+    "build": "npx parcel build --no-cache --no-content-hash",
+    "serve": "npx serve dist"
+  }
+}

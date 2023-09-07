@@ -197,12 +197,12 @@ impl VerlocMeasurer {
                 config.packet_timeout,
                 config.connection_timeout,
                 config.delay_between_packets,
-                shutdown_listener.clone(),
+                shutdown_listener.clone().named("VerlocPacketSender"),
             )),
             packet_listener: Arc::new(PacketListener::new(
                 config.listening_address,
                 Arc::clone(&identity),
-                shutdown_listener.clone(),
+                shutdown_listener.clone().named("VerlocPacketListener"),
             )),
             shutdown_listener,
             currently_used_api: 0,
@@ -241,7 +241,7 @@ impl VerlocMeasurer {
             return MeasurementOutcome::Done;
         }
 
-        let mut shutdown_listener = self.shutdown_listener.clone();
+        let mut shutdown_listener = self.shutdown_listener.clone().named("VerlocMeasurement");
         shutdown_listener.mark_as_success();
 
         for chunk in nodes_to_test.chunks(self.config.tested_nodes_batch_size) {

@@ -331,8 +331,9 @@ where
         <S::CredentialStore as CredentialStorage>::StorageError: Send + Sync + 'static,
     {
         let managed_keys = initialisation_result.managed_keys;
-        let GatewayDetails::Configured(gateway_config) = initialisation_result.gateway_details else {
-            return Err(ClientCoreError::UnexpectedPersistedCustomGatewayDetails)
+        let GatewayDetails::Configured(gateway_config) = initialisation_result.gateway_details
+        else {
+            return Err(ClientCoreError::UnexpectedPersistedCustomGatewayDetails);
         };
 
         let mut gateway_client =
@@ -389,7 +390,7 @@ where
         bandwidth_controller: Option<BandwidthController<C, S::CredentialStore>>,
         mixnet_message_sender: MixnetMessageSender,
         ack_sender: AcknowledgementSender,
-        shutdown: TaskClient,
+        mut shutdown: TaskClient,
     ) -> Result<Box<dyn GatewayTransceiver + Send>, ClientCoreError>
     where
         <S::KeyStore as KeyStore>::StorageError: Send + Sync + 'static,
@@ -400,6 +401,8 @@ where
             return if !initialisation_result.gateway_details.is_custom() {
                 Err(ClientCoreError::CustomGatewaySelectionExpected)
             } else {
+                // and make sure to invalidate the task client so we wouldn't cause premature shutdown
+                shutdown.mark_as_success();
                 Ok(custom_gateway_transceiver)
             };
         }
@@ -583,7 +586,11 @@ where
         let shared_topology_accessor = TopologyAccessor::new();
 
         // Shutdown notifier for signalling tasks to stop
-        let shutdown: TaskHandle = self.shutdown.map(Into::into).unwrap_or_default();
+        let shutdown = self
+            .shutdown
+            .map(Into::<TaskHandle>::into)
+            .unwrap_or_default()
+            .name_if_unnamed("BaseNymClient");
 
         // channels responsible for dealing with reply-related fun
         let (reply_controller_sender, reply_controller_receiver) =
@@ -606,13 +613,15 @@ where
             bandwidth_controller,
             mixnet_messages_sender,
             ack_sender,
-            shutdown.get_handle(),
+            shutdown.fork("gateway_transceiver"),
         )
         .await?;
 
-        let reply_storage =
-            Self::setup_persistent_reply_storage(reply_storage_backend, shutdown.get_handle())
-                .await?;
+        let reply_storage = Self::setup_persistent_reply_storage(
+            reply_storage_backend,
+            shutdown.fork("persistent_reply_storage"),
+        )
+        .await?;
 
         let topology_provider = Self::setup_topology_provider(
             self.custom_topology_provider.take(),
@@ -624,7 +633,7 @@ where
             topology_provider,
             self.config.debug.topology,
             shared_topology_accessor.clone(),
-            shutdown.get_handle(),
+            shutdown.fork("topology_refresher"),
         )
         .await?;
 
@@ -634,15 +643,17 @@ where
             mixnet_messages_receiver,
             reply_storage.key_storage(),
             reply_controller_sender.clone(),
-            shutdown.get_handle(),
+            shutdown.fork("received_messages_buffer"),
         );
 
         // The message_sender is the transmitter for any component generating sphinx packets
         // that are to be sent to the mixnet. They are used by cover traffic stream and real
         // traffic stream.
         // The MixTrafficController then sends the actual traffic
-        let message_sender =
-            Self::start_mix_traffic_controller(gateway_transceiver, shutdown.get_handle());
+        let message_sender = Self::start_mix_traffic_controller(
+            gateway_transceiver,
+            shutdown.fork("mix_traffic_controller"),
+        );
 
         // Channels that the websocket listener can use to signal downstream to the real traffic
         // controller that connections are closed.
@@ -669,7 +680,7 @@ where
             reply_controller_receiver,
             shared_lane_queue_lengths.clone(),
             client_connection_rx,
-            shutdown.get_handle(),
+            shutdown.fork("real_traffic_controller"),
             self.config.debug.traffic.packet_type,
         );
 
@@ -685,7 +696,7 @@ where
                 self_address,
                 shared_topology_accessor.clone(),
                 message_sender,
-                shutdown.get_handle(),
+                shutdown.fork("cover_traffic_stream"),
             );
         }
 

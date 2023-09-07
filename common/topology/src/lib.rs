@@ -14,7 +14,7 @@ use std::collections::BTreeMap;
 use std::convert::TryInto;
 use std::fmt::{self, Display, Formatter};
 use std::io;
-use std::net::{IpAddr, SocketAddr, ToSocketAddrs};
+use std::net::{IpAddr, Ipv4Addr, SocketAddr, ToSocketAddrs};
 use std::str::FromStr;
 
 #[cfg(feature = "serializable")]
@@ -431,6 +431,24 @@ pub fn nym_topology_from_detailed(
             }
         }
     }
+
+    // TODO: remove before creating PR. this is only for a test
+    gateways.push(gateway::Node {
+        owner: "".to_string(),
+        host: NetworkAddress::IpAddr("127.0.0.1".parse().unwrap()),
+        mix_host: "127.0.0.1:1789".parse().unwrap(),
+        clients_port: 9000,
+        identity_key: "GLRufXixqsDk26XeG5V5Ewrgcx4cgwr9HR5LKGzGPqqs"
+            .parse()
+            .unwrap(),
+        sphinx_key: "8RmAM95VqmpUVFNhTTZnvDdzPtDbeoYFnqSyHE6dCzzT"
+            .parse()
+            .unwrap(),
+        version: "1.1.28".to_string(),
+    });
+
+    // so that clippy reminds me of that
+    let unused_variable: usize = 42;
 
     NymTopology::new(mixes, gateways)
 }

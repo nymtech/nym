@@ -143,6 +143,17 @@ impl TaskManager {
         }
     }
 
+    pub fn subscribe_named<S: Into<String>>(&self, suffix: S) -> TaskClient {
+        let task_client = self.subscribe();
+        let suffix = suffix.into();
+        let child_name = if let Some(base) = &self.name {
+            format!("{base}-{suffix}")
+        } else {
+            format!("unknown-{suffix}")
+        };
+        task_client.named(child_name)
+    }
+
     pub fn signal_shutdown(&self) -> Result<(), SendError<()>> {
         self.notify_tx.send(())
     }
@@ -551,6 +562,41 @@ impl Default for TaskHandle {
 }
 
 impl TaskHandle {
+    #[must_use]
+    pub fn name_if_unnamed<S: Into<String>>(self, name: S) -> Self {
+        match self {
+            TaskHandle::Internal(task_manager) => {
+                if task_manager.name.is_none() {
+                    TaskHandle::Internal(task_manager.named(name))
+                } else {
+                    TaskHandle::Internal(task_manager)
+                }
+            }
+            TaskHandle::External(task_client) => {
+                if task_client.name.is_none() {
+                    TaskHandle::External(task_client.named(name))
+                } else {
+                    TaskHandle::External(task_client)
+                }
+            }
+        }
+    }
+
+    #[must_use]
+    pub fn named<S: Into<String>>(self, name: S) -> Self {
+        match self {
+            TaskHandle::Internal(task_manager) => TaskHandle::Internal(task_manager.named(name)),
+            TaskHandle::External(task_client) => TaskHandle::External(task_client.named(name)),
+        }
+    }
+
+    pub fn fork<S: Into<String>>(&self, child_suffix: S) -> TaskClient {
+        match self {
+            TaskHandle::External(shutdown) => shutdown.fork(child_suffix),
+            TaskHandle::Internal(shutdown) => shutdown.subscribe_named(child_suffix),
+        }
+    }
+
     pub fn get_handle(&self) -> TaskClient {
         match self {
             TaskHandle::External(shutdown) => shutdown.clone(),

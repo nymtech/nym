@@ -3,7 +3,6 @@
 
 use crate::cipher_export::StoredExportedStoreCipher;
 use crate::error::StorageError;
-use indexed_db_futures::IdbDatabase;
 use nym_store_cipher::{
     Aes256Gcm, Algorithm, EncryptedData, KdfInfo, KeySizeUser, Params, StoreCipher, Unsigned,
     Version,

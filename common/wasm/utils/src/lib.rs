@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use wasm_bindgen::prelude::*;
-use wasm_bindgen::JsValue;
 
 #[cfg(feature = "websocket")]
 pub mod websocket;
@@ -61,7 +60,7 @@ extern "C" {
 }
 
 #[cfg(feature = "sleep")]
-pub async fn sleep(ms: i32) -> Result<(), JsValue> {
+pub async fn sleep(ms: i32) -> Result<(), wasm_bindgen::JsValue> {
     let promise = js_sys::Promise::new(&mut |yes, _| {
         let win = web_sys::window().expect("no window available!");
         win.set_timeout_with_callback_and_timeout_and_arguments_0(&yes, ms)

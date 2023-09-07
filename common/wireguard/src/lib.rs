@@ -20,6 +20,7 @@ pub async fn start_wg_listener(mut task_client: TaskClient) -> Result<(), Box<dy
                 }
                 Ok((len, addr)) = udp4_socket.recv_from(&mut buf) => {
                     log::info!("Received {} bytes from {}", len, addr);
+                    handle_incoming_packet().await;
                 }
             }
         }
@@ -27,4 +28,11 @@ pub async fn start_wg_listener(mut task_client: TaskClient) -> Result<(), Box<dy
     });
 
     Ok(())
+}
+
+async fn handle_incoming_packet(packet: &[u8]) {
+
+}
+
+struct WireGuardTunnel {
 }

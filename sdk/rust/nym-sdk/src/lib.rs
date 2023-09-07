@@ -8,6 +8,7 @@ pub mod bandwidth;
 pub mod mixnet;
 
 pub use error::{Error, Result};
+pub use nym_client_core::client::mix_traffic::transceiver::*;
 pub use nym_network_defaults::{
     ChainDetails, DenomDetails, DenomDetailsOwned, NymContracts, NymNetworkDetails,
     ValidatorDetails,

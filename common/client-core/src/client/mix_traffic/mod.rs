@@ -9,7 +9,7 @@ use nym_sphinx::forwarding::packet::MixPacket;
 pub type BatchMixMessageSender = tokio::sync::mpsc::Sender<Vec<MixPacket>>;
 pub type BatchMixMessageReceiver = tokio::sync::mpsc::Receiver<Vec<MixPacket>>;
 
-pub(crate) mod transceiver;
+pub mod transceiver;
 
 // We remind ourselves that 32 x 32kb = 1024kb, a reasonable size for a network buffer.
 pub const MIX_MESSAGE_RECEIVER_BUFFER_SIZE: usize = 32;

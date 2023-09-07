@@ -125,12 +125,26 @@ impl ManagedKeys {
         }
     }
 
-    pub fn ensure_gateway_key(&self, gateway_shared_key: Arc<SharedKeys>) {
+    pub fn ensure_gateway_key(&self, gateway_shared_key: Option<Arc<SharedKeys>>) {
         if let ManagedKeys::FullyDerived(key_manager) = &self {
-            if !Arc::ptr_eq(
-                key_manager.must_get_gateway_shared_key(),
-                &gateway_shared_key,
-            ) || *key_manager.must_get_gateway_shared_key() != gateway_shared_key
+            if self.gateway_shared_key().is_none() && gateway_shared_key.is_none() {
+                // the key doesn't exist in either state
+                return;
+            }
+
+            if gateway_shared_key.is_some() && self.gateway_shared_key().is_none()
+                || gateway_shared_key.is_none() && self.gateway_shared_key().is_some()
+            {
+                // if one is provided whilst the other is not...
+                // TODO: should this actually panic or return an error? would this branch be possible
+                // under normal operation?
+                panic!("inconsistent re-derived gateway key")
+            }
+
+            // here we know both keys MUST exist
+            let provided = gateway_shared_key.unwrap();
+            if !Arc::ptr_eq(key_manager.must_get_gateway_shared_key(), &provided)
+                || *key_manager.must_get_gateway_shared_key() != provided
             {
                 // this should NEVER happen thus panic here
                 panic!("derived fresh gateway shared key whilst already holding one!")
@@ -138,23 +152,14 @@ impl ManagedKeys {
         }
     }
 
-    pub async fn persist_if_not_stored<S: KeyStore>(
-        &self,
-        key_store: &S,
-    ) -> Result<(), S::StorageError> {
-        error!("UNIMPLEMENTED");
-        Ok(())
-        // todo!()
-    }
-
     pub async fn deal_with_gateway_key<S: KeyStore>(
         &mut self,
-        gateway_shared_key: Arc<SharedKeys>,
+        gateway_shared_key: Option<Arc<SharedKeys>>,
         key_store: &S,
     ) -> Result<(), S::StorageError> {
         let key_manager = match std::mem::replace(self, ManagedKeys::Invalidated) {
             ManagedKeys::Initial(keys) => {
-                let key_manager = keys.insert_gateway_shared_key(gateway_shared_key);
+                let key_manager = keys.insert_maybe_gateway_shared_key(gateway_shared_key);
                 key_manager.persist_keys(key_store).await?;
                 key_manager
             }
@@ -196,11 +201,14 @@ impl KeyManagerBuilder {
         }
     }
 
-    pub fn insert_gateway_shared_key(self, gateway_shared_key: Arc<SharedKeys>) -> KeyManager {
+    pub fn insert_maybe_gateway_shared_key(
+        self,
+        gateway_shared_key: Option<Arc<SharedKeys>>,
+    ) -> KeyManager {
         KeyManager {
             identity_keypair: self.identity_keypair,
             encryption_keypair: self.encryption_keypair,
-            gateway_shared_key: Some(gateway_shared_key),
+            gateway_shared_key,
             ack_key: self.ack_key,
         }
     }

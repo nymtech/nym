@@ -15,6 +15,7 @@ pub use nym_client_core::{
     client::{
         base_client::storage::{gateway_details::OnDiskGatewayDetails, OnDiskPersistent},
         key_manager::persistence::OnDiskKeys,
+        mix_traffic::transceiver::*,
     },
     init::{
         setup_gateway, setup_gateway_from,

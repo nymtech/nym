@@ -5,6 +5,7 @@ use crate::config::GatewayEndpointConfig;
 use crate::error::ClientCoreError;
 use crate::init::types::{EmptyCustomDetails, GatewayDetails};
 use async_trait::async_trait;
+use log::error;
 use nym_gateway_requests::registration::handshake::SharedKeys;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -34,6 +35,34 @@ pub enum PersistedGatewayDetails<T = EmptyCustomDetails> {
 
     /// Custom gateway setup, such as for a client embedded inside gateway itself
     Custom(PersistedCustomGatewayDetails<T>),
+}
+
+impl<T> PersistedGatewayDetails<T> {
+    // TODO: this should probably allow for custom verification over T
+    pub fn validate(&self, shared_key: Option<&SharedKeys>) -> Result<(), ClientCoreError> {
+        match self {
+            PersistedGatewayDetails::Default(details) => {
+                if !details.verify(
+                    shared_key
+                        .ok_or(ClientCoreError::UnavailableSharedKey)?
+                        .deref(),
+                ) {
+                    Err(ClientCoreError::MismatchedGatewayDetails {
+                        gateway_id: details.details.gateway_id.clone(),
+                    })
+                } else {
+                    Ok(())
+                }
+            }
+            PersistedGatewayDetails::Custom(_) => {
+                if shared_key.is_some() {
+                    error!("using custom persisted gateway setup with shared key present - are you sure that's what you want?");
+                    // but technically we could still continue. just ignore the key
+                }
+                Ok(())
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

@@ -30,4 +30,7 @@ pub enum NetworkRequesterError {
 
     #[error("failed to connect to mixnet: {source}")]
     FailedToConnectToMixnet { source: nym_sdk::Error },
+
+    #[error("the entity wrapping the network requester has disconnected")]
+    DisconnectedParent,
 }

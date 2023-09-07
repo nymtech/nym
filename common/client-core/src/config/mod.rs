@@ -3,6 +3,7 @@
 
 use nym_config::defaults::NymNetworkDetails;
 use nym_crypto::asymmetric::identity;
+use nym_gateway_client::client::GatewayConfig;
 use nym_sphinx::{
     addressing::clients::Recipient,
     params::{PacketSize, PacketType},
@@ -239,6 +240,19 @@ pub struct GatewayEndpointConfig {
 
     /// Address of the gateway listener to which all client requests should be sent.
     pub gateway_listener: String,
+}
+
+impl TryFrom<GatewayEndpointConfig> for GatewayConfig {
+    type Error = ClientCoreError;
+
+    fn try_from(value: GatewayEndpointConfig) -> Result<Self, Self::Error> {
+        Ok(GatewayConfig {
+            gateway_identity: identity::PublicKey::from_base58_string(value.gateway_id)
+                .map_err(ClientCoreError::UnableToCreatePublicKeyFromGatewayId)?,
+            gateway_owner: value.gateway_owner,
+            gateway_listener: value.gateway_listener,
+        })
+    }
 }
 
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen)]

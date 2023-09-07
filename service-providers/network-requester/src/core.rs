@@ -11,9 +11,10 @@ use crate::reply::MixnetMessage;
 use crate::statistics::ServiceStatisticsCollector;
 use crate::{reply, socks5};
 use async_trait::async_trait;
-use futures::channel::mpsc;
+use futures::channel::{mpsc, oneshot};
 use log::warn;
 use nym_bin_common::bin_info_owned;
+use nym_client_core::client::mix_traffic::transceiver::GatewayTransceiver;
 use nym_client_core::config::disk_persistence::CommonClientPaths;
 use nym_network_defaults::NymNetworkDetails;
 use nym_sdk::mixnet::MixnetMessageSender;
@@ -57,7 +58,9 @@ pub struct NRServiceProviderBuilder {
     standard_list: StandardList,
     allowed_hosts: StoredAllowedHosts,
 
+    custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send + Sync>>,
     shutdown: Option<TaskClient>,
+    on_start: Option<oneshot::Sender<Recipient>>,
 }
 
 pub struct NRServiceProvider {
@@ -176,13 +179,30 @@ impl NRServiceProviderBuilder {
             outbound_request_filter,
             standard_list,
             allowed_hosts,
+            custom_gateway_transceiver: None,
             shutdown: None,
+            on_start: None,
         }
     }
 
     #[must_use]
     pub fn with_shutdown(mut self, shutdown: TaskClient) -> Self {
         self.shutdown = Some(shutdown);
+        self
+    }
+
+    #[must_use]
+    pub fn with_custom_gateway_transceiver(
+        mut self,
+        gateway_transceiver: Box<dyn GatewayTransceiver + Send + Sync>,
+    ) -> Self {
+        self.custom_gateway_transceiver = Some(gateway_transceiver);
+        self
+    }
+
+    #[must_use]
+    pub fn with_on_start(mut self, on_start: oneshot::Sender<Recipient>) -> Self {
+        self.on_start = Some(on_start);
         self
     }
 
@@ -204,6 +224,7 @@ impl NRServiceProviderBuilder {
         let mixnet_client = create_mixnet_client(
             &self.config.base,
             shutdown.get_handle().named("nym_sdk::MixnetClient"),
+            self.custom_gateway_transceiver,
             &self.config.storage_paths.common_paths,
         )
         .await?;
@@ -282,6 +303,13 @@ impl NRServiceProviderBuilder {
 
         log::info!("The address of this client is: {self_address}");
         log::info!("All systems go. Press CTRL-C to stop the server.");
+
+        if let Some(on_start) = self.on_start {
+            if on_start.send(self_address).is_err() {
+                return Err(NetworkRequesterError::DisconnectedParent);
+            }
+        }
+
         service_provider.run().await
     }
 }
@@ -523,6 +551,7 @@ impl NRServiceProvider {
 async fn create_mixnet_client(
     config: &BaseClientConfig,
     shutdown: TaskClient,
+    custom_transceiver: Option<Box<dyn GatewayTransceiver + Send + Sync>>,
     paths: &CommonClientPaths,
 ) -> Result<nym_sdk::mixnet::MixnetClient, NetworkRequesterError> {
     let debug_config = config.debug;
@@ -539,10 +568,12 @@ async fn create_mixnet_client(
     if !config.get_disabled_credentials_mode() {
         client_builder = client_builder.enable_credentials_mode();
     }
+    if let Some(gateway_transceiver) = custom_transceiver {
+        client_builder = client_builder.custom_gateway_transceiver(gateway_transceiver);
+    }
 
     let mixnet_client = client_builder
         .build()
-        .await
         .map_err(|err| NetworkRequesterError::FailedToSetupMixnetClient { source: err })?;
 
     mixnet_client

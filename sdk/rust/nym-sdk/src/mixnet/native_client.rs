@@ -86,8 +86,7 @@ impl MixnetClient {
     /// ```
     pub async fn connect_new() -> Result<Self> {
         MixnetClientBuilder::new_ephemeral()
-            .build()
-            .await?
+            .build()?
             .connect_to_mixnet()
             .await
     }

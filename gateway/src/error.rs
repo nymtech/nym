@@ -68,4 +68,7 @@ pub(crate) enum GatewayError {
 
     #[error("Path to network requester configuration file hasn't been specified.")]
     UnspecifiedNetworkRequesterConfig,
+
+    #[error("local network requester has been terminated")]
+    TerminatedNetworkRequester,
 }

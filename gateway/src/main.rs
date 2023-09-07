@@ -1,6 +1,9 @@
 // Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+#![warn(clippy::expect_used)]
+#![warn(clippy::unwrap_used)]
+
 use clap::{crate_name, crate_version, Parser};
 use colored::Colorize;
 use lazy_static::lazy_static;

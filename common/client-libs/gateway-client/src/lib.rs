@@ -12,11 +12,13 @@ pub use packet_router::{
     AcknowledgementReceiver, AcknowledgementSender, MixnetMessageReceiver, MixnetMessageSender,
     PacketRouter,
 };
+pub use traits::GatewayPacketRouter;
 
 pub mod client;
 pub mod error;
 pub mod packet_router;
 pub mod socket_state;
+pub mod traits;
 
 /// Helper method for reading from websocket stream. Helps to flatten the structure.
 pub(crate) fn cleanup_socket_message(

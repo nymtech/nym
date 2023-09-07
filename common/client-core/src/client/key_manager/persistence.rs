@@ -89,20 +89,20 @@ impl OnDiskKeys {
     pub fn ephemeral_load_gateway_keys(
         &self,
     ) -> Result<zeroize::Zeroizing<SharedKeys>, OnDiskKeysError> {
-        self.load_key(self.paths.gateway_shared_key(), "gateway shared keys")
+        self.load_key(self.paths.gateway_shared_key(), "gateway shared")
             .map(zeroize::Zeroizing::new)
     }
 
     #[doc(hidden)]
     pub fn load_encryption_keypair(&self) -> Result<encryption::KeyPair, OnDiskKeysError> {
         let encryption_paths = self.paths.encryption_key_pair_path();
-        self.load_keypair(encryption_paths, "encryption keys")
+        self.load_keypair(encryption_paths, "encryption")
     }
 
     #[doc(hidden)]
     pub fn load_identity_keypair(&self) -> Result<identity::KeyPair, OnDiskKeysError> {
         let identity_paths = self.paths.identity_key_pair_path();
-        self.load_keypair(identity_paths, "identity keys")
+        self.load_keypair(identity_paths, "identity")
     }
 
     fn load_key<T: PemStorableKey>(

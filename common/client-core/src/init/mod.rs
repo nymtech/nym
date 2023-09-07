@@ -69,29 +69,7 @@ fn ensure_valid_details(
     details: &PersistedGatewayDetails,
     loaded_keys: &ManagedKeys,
 ) -> Result<(), ClientCoreError> {
-    match details {
-        PersistedGatewayDetails::Default(details) => {
-            if !details.verify(
-                loaded_keys
-                    .gateway_shared_key()
-                    .ok_or(ClientCoreError::UnavailableSharedKey)?
-                    .deref(),
-            ) {
-                Err(ClientCoreError::MismatchedGatewayDetails {
-                    gateway_id: details.details.gateway_id.clone(),
-                })
-            } else {
-                Ok(())
-            }
-        }
-        PersistedGatewayDetails::Custom(_) => {
-            if loaded_keys.gateway_shared_key().is_some() {
-                error!("using custom persisted gateway setup with shared key present - are you sure that's what you want?");
-                // but technically we could still continue. just ignore the key
-            }
-            Ok(())
-        }
-    }
+    details.validate(loaded_keys.gateway_shared_key().as_deref())
 }
 
 pub async fn setup_gateway_from<K, D>(
@@ -238,7 +216,7 @@ where
     let our_identity = managed_keys.identity_keypair();
 
     // TODO: this match is disgusting
-    let (shared_keys, authenticated_ephemeral_client) = match &gateway_details {
+    let (maybe_shared_keys, authenticated_ephemeral_client) = match &gateway_details {
         GatewayDetails::Configured(gateway_config) => {
             // Establish connection, authenticate and generate keys for talking with the gateway
             let registration_result =
@@ -251,24 +229,16 @@ where
         GatewayDetails::Custom(..) => (None, None),
     };
 
-    let persisted_details = PersistedGatewayDetails::new(gateway_details, shared_keys.as_deref())?;
+    let persisted_details =
+        PersistedGatewayDetails::new(gateway_details, maybe_shared_keys.as_deref())?;
 
     // persist keys
-    if let Some(shared_keys) = shared_keys {
-        managed_keys
-            .deal_with_gateway_key(shared_keys, key_store)
-            .await
-            .map_err(|source| ClientCoreError::KeyStoreError {
-                source: Box::new(source),
-            })?;
-    } else {
-        managed_keys
-            .persist_if_not_stored(key_store)
-            .await
-            .map_err(|source| ClientCoreError::KeyStoreError {
-                source: Box::new(source),
-            })?;
-    }
+    managed_keys
+        .deal_with_gateway_key(maybe_shared_keys, key_store)
+        .await
+        .map_err(|source| ClientCoreError::KeyStoreError {
+            source: Box::new(source),
+        })?;
 
     // persist gateway config
     _store_gateway_details(details_store, &persisted_details).await?;

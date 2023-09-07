@@ -38,7 +38,7 @@ use nym_credential_storage::storage::Storage as CredentialStorage;
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_gateway_client::{
     AcknowledgementReceiver, AcknowledgementSender, GatewayClient, MixnetMessageReceiver,
-    MixnetMessageSender,
+    MixnetMessageSender, PacketRouter,
 };
 use nym_sphinx::acknowledgements::AckKey;
 use nym_sphinx::addressing::clients::Recipient;
@@ -345,28 +345,26 @@ where
                     shutdown,
                 )
             } else {
-                let gateway_address = gateway_config.gateway_listener.clone();
-                let gateway_id = gateway_config.gateway_id;
-
-                // TODO: in theory, at this point, this should be infallible
-                let gateway_identity = identity::PublicKey::from_base58_string(gateway_id)
-                    .map_err(ClientCoreError::UnableToCreatePublicKeyFromGatewayId)?;
-
-                GatewayClient::new(
-                    gateway_address,
-                    managed_keys.identity_keypair(),
-                    gateway_identity,
-                    Some(managed_keys.must_get_gateway_shared_key()),
-                    mixnet_message_sender,
+                let packet_router = PacketRouter::new(
                     ack_sender,
-                    config.debug.gateway_connection.gateway_response_timeout,
+                    mixnet_message_sender,
+                    shutdown.fork("packet-router"),
+                );
+
+                let cfg = gateway_config.try_into()?;
+                GatewayClient::new(
+                    cfg,
+                    managed_keys.identity_keypair(),
+                    Some(managed_keys.must_get_gateway_shared_key()),
+                    packet_router,
                     bandwidth_controller,
                     shutdown,
                 )
+                .with_disabled_credentials_mode(config.client.disabled_credentials_mode)
+                .with_response_timeout(config.debug.gateway_connection.gateway_response_timeout)
             };
 
         let gateway_id = gateway_client.gateway_identity();
-        gateway_client.set_disabled_credentials_mode(config.client.disabled_credentials_mode);
 
         let shared_key = gateway_client
             .authenticate_and_start()
@@ -379,7 +377,7 @@ where
                 }
             })?;
 
-        managed_keys.ensure_gateway_key(shared_key);
+        managed_keys.ensure_gateway_key(Some(shared_key));
 
         Ok(gateway_client)
     }

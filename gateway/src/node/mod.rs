@@ -10,12 +10,13 @@ use crate::node::client_handling::websocket::connection_handler::coconut::Coconu
 use crate::node::mixnet_handling::receiver::connection_handler::ConnectionHandler;
 use crate::node::statistics::collector::GatewayStatisticsCollector;
 use crate::node::storage::Storage;
+use futures::channel::oneshot;
 use log::*;
 use nym_bin_common::output_format::OutputFormat;
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_mixnet_client::forwarder::{MixForwardingSender, PacketForwarder};
 use nym_network_defaults::NymNetworkDetails;
-use nym_network_requester::NRServiceProviderBuilder;
+use nym_network_requester::{LocalGateway, NRServiceProviderBuilder};
 use nym_pemstore::traits::PemStorableKeyPair;
 use nym_pemstore::KeyPairPath;
 use nym_statistics_common::collector::StatisticsSender;
@@ -264,10 +265,29 @@ impl<St> Gateway<St> {
             return Err(GatewayError::UnspecifiedNetworkRequesterConfig)
         };
 
+        let transceiver = LocalGateway::new(*self.identity_keypair.public_key());
+
         // TODO: well, wire it up internally to gateway traffic, shutdowns, etc.
-        let nr_builder = NRServiceProviderBuilder::new(nr_cfg.clone()).with_shutdown(shutdown);
-        tokio::spawn(async move { nr_builder.run_service_provider().await });
-        //
+        let (on_start_tx, on_start_rx) = oneshot::channel();
+        let nr_builder = NRServiceProviderBuilder::new(nr_cfg.clone())
+            .with_shutdown(shutdown)
+            .with_custom_gateway_transceiver(Box::new(transceiver))
+            .with_on_start(on_start_tx);
+        tokio::spawn(async move {
+            if let Err(err) = nr_builder.run_service_provider().await {
+                // no need to panic as we have passed a task client to the NR so we're most likely
+                // already in the process of shutting down
+                error!("network requester has failed: {err}")
+            }
+        });
+
+        let nr_address = on_start_rx
+            .await
+            .map_err(|_| GatewayError::TerminatedNetworkRequester)?;
+
+        error!("local NR is {nr_address}");
+
+        // let gateway_destination = nr_address.identity().
 
         Ok(())
     }

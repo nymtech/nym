@@ -170,7 +170,7 @@ Check the status of the firewall:
 sudo ufw status
 ```
 
-For more information about your node's port configuration, check the [port reference table](https://nymtech.net/docs/nodes/gateway-setup.html#ports) below.
+For more information about your node's port configuration, check the [port reference table](./maintenance.md#gateway-port-reference) below.
 
 ### Automating your node with nohup, tmux and systemd
 

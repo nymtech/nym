@@ -19,7 +19,7 @@ On this page, you'll find links and frequently asked questions on how to get sta
 ## Wallet Installation 
 The Nym wallet can be downloaded [here](https://nymtech.net/download/). 
 
-You can find all the instructions related to setting up your wallet in the [docs](https://nymtech.net/docs/wallet.html), as well as instructions on how to build the wallet if there is not a downloadable version built for your operating system. 
+You can find all the instructions related to setting up your wallet in the [docs](https://nymtech.net/docs/wallet/desktop-wallet.html), as well as instructions on how to build the wallet if there is not a downloadable version built for your operating system. 
 
 ### What are the machine hardware requirements for Nym Wallet?
 About 16GB of RAM is recommended for the wallet. However you can expect an average memory usage of ~100MB.

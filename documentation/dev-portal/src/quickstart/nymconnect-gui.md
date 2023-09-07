@@ -11,7 +11,7 @@ Install NymConnect and select an application that you want to privacy-enhance fr
 **Please note that NymConnect is currently released in beta. Please report bugs via Github**. 
 
 ## Usage instuctions 
-* [Download](https://github.com/nymtech/nym/releases/tag/nym-connect-{{platform_release_version}}) and install NymConnect.
+* [Download](https://github.com/nymtech/nym/releases/) and install NymConnect.
 * Select your service provider from the dropdown menu.
 * Click `connect` - NymConnect will connect to a service provider and its SOCKS Proxy (IP) and Port will be displayed.
 * Click on IP or Port to copy their values to the clipboard.

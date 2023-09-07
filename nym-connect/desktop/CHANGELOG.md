@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [v1.1.20-twix] (2023-09-05)
+
+- nym-connect directory error handling ([#3830])
+- NC - it should not be possible to toggle speedy mode while the connection is active ([#3816])
+
+[#3830]: https://github.com/nymtech/nym/pull/3830
+[#3816]: https://github.com/nymtech/nym/issues/3816
+
 ## [v1.1.19-snickers] (2023-08-29)
 
 - NymConnect sometimes fails to connect because the gateway it fetches from the validator-api to use is running an old version (of the gateway binary) ([#3788])

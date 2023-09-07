@@ -22,6 +22,8 @@ class NymProxy {
         Log.i(tag, "loaded native library $nymNativeLib")
     }
 
+    // this is a blocking call as `startClient` is blocking and will releases when
+    // the socks5 connection has been terminated
     fun start(serviceProvider: String, onStartCbObj: Any, onStopCbObj: Any) {
         Log.d(tag, "calling $nymNativeLib:startClient")
         try {
@@ -40,6 +42,17 @@ class NymProxy {
             Log.e(tag, "$nymNativeLib:stopClient internal error: $e")
             Sentry.captureException(e)
         }
+    }
+
+    fun ping(): Boolean {
+        Log.d(tag, "calling $nymNativeLib:pingClient")
+        try {
+            return pingClient()
+        } catch (e: Throwable) {
+            Log.e(tag, "$nymNativeLib:pingClient internal error: $e")
+            Sentry.captureException(e)
+        }
+        return false
     }
 
     fun getState(): State {
@@ -66,4 +79,5 @@ class NymProxy {
 
     private external fun stopClient()
     private external fun getClientState(): Int
+    private external fun pingClient(): Boolean
 }

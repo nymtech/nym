@@ -13,8 +13,11 @@ pub enum ClientCoreError {
     #[error("I/O error: {0}")]
     IoError(#[from] std::io::Error),
 
-    #[error("Gateway client error: {0}")]
-    GatewayClientError(#[from] GatewayClientError),
+    #[error("Gateway client error ({gateway_id}): {source}")]
+    GatewayClientError {
+        gateway_id: String,
+        source: GatewayClientError,
+    },
 
     #[error("Ed25519 error: {0}")]
     Ed25519RecoveryError(#[from] Ed25519RecoveryError),

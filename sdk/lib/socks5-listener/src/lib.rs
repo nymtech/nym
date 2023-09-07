@@ -6,7 +6,7 @@ use crate::persistence::MobileClientStorage;
 use ::safer_ffi::prelude::*;
 use anyhow::{anyhow, Result};
 use lazy_static::lazy_static;
-use log::{info, warn};
+use log::{debug, info, warn};
 use nym_bin_common::logging::setup_logging;
 use nym_client_core::init::GatewaySetup;
 use nym_config_common::defaults::setup_env;
@@ -16,8 +16,10 @@ use std::marker::Send;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::runtime::Runtime;
 use tokio::sync::{Mutex, Notify};
+use tokio::time::{sleep, Instant};
 
 #[cfg(target_os = "android")]
 pub mod android;
@@ -25,11 +27,14 @@ mod config;
 mod persistence;
 
 static SOCKS5_CONFIG_ID: &str = "mobile-socks5-test";
+const ANDROID_HEALTHCHECK_INTERVAL: Duration = Duration::from_secs(5);
+const HEALTHCHECK_TIMEOUT: Duration = Duration::from_secs(10);
 
 // hehe, this is so disgusting : )
 lazy_static! {
     static ref CLIENT_SHUTDOWN_HANDLE: Mutex<Option<Arc<Notify>>> = Mutex::new(None);
     static ref RUNTIME: Runtime = Runtime::new().unwrap();
+    static ref LAST_HEALTHCHECK_PING: Mutex<Option<Instant>> = Mutex::new(None);
 }
 static ENV_SET: AtomicBool = AtomicBool::new(false);
 
@@ -136,6 +141,50 @@ pub fn stop_client() {
     RUNTIME.block_on(async move { stop_and_reset_shutdown_handle().await });
 }
 
+#[ffi_export]
+pub fn ping_client() {
+    RUNTIME.spawn(async {
+        let mut guard = LAST_HEALTHCHECK_PING.lock().await;
+        *guard = Some(Instant::now());
+    });
+}
+
+// Continusouly poll that we are being pinged from the outside. If the pings stop that means
+// that the higher layer somehow terminated without telling us.
+pub async fn health_check() {
+    // init the ping to now
+    let mut guard = LAST_HEALTHCHECK_PING.lock().await;
+    *guard = Some(Instant::now());
+    // release the mutex
+    drop(guard);
+
+    loop {
+        sleep(ANDROID_HEALTHCHECK_INTERVAL).await;
+
+        if !is_shutdown_handle_set().await {
+            debug!("client has been shutdown, cancelling healthcheck");
+            break;
+        }
+        let mut guard = LAST_HEALTHCHECK_PING.lock().await;
+        let Some(last_ping) = *guard else {
+            warn!("client has not been pinged yet - shutting down");
+            *guard = None;
+            stop_and_reset_shutdown_handle().await;
+            break;
+        };
+        if last_ping.elapsed() > HEALTHCHECK_TIMEOUT {
+            warn!(
+                "client has not been pinged for more than {} seconds - shutting down",
+                HEALTHCHECK_TIMEOUT.as_secs()
+            );
+            *guard = None;
+            stop_and_reset_shutdown_handle().await;
+            break;
+        }
+        debug!("✓ android app healthy");
+    }
+}
+
 pub fn blocking_run_client<'cb, F, S>(
     storage_directory: Option<char_p::Ref<'_>>,
     service_provider: Option<char_p::Ref<'_>>,
@@ -150,6 +199,10 @@ pub fn blocking_run_client<'cb, F, S>(
         return;
     }
 
+    // Spawn a task that monitors that we are continuously receiving pings from the outside,
+    // to make sure we don't end up with a runaway process
+    RUNTIME.spawn(async { health_check().await });
+
     let storage_dir = storage_directory.map(|s| s.to_string());
     let service_provider = service_provider.map(|s| s.to_string());
     RUNTIME
@@ -163,7 +216,10 @@ pub fn blocking_run_client<'cb, F, S>(
             )
             .await
         })
-        .unwrap();
+        .map_err(|err| {
+            warn!("failed to run client: {}", err);
+        })
+        .ok();
 }
 
 #[ffi_export]

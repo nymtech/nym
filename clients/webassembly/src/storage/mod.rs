@@ -1,8 +1,6 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use std::rc::Rc;
-
 use crate::client::config::Config;
 use crate::storage::error::ClientStorageError;
 use js_sys::Promise;
@@ -10,6 +8,7 @@ use nym_client_core::client::base_client::storage::gateway_details::PersistedGat
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_gateway_client::SharedKeys;
 use nym_sphinx::acknowledgements::AckKey;
+use std::sync::Arc;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::future_to_promise;
 use wasm_utils::storage::{IdbVersionChangeEvent, WasmStorage};
@@ -44,7 +43,7 @@ mod v1 {
 pub struct ClientStorage {
     #[allow(dead_code)]
     pub(crate) name: String,
-    pub(crate) inner: Rc<WasmStorage>,
+    pub(crate) inner: Arc<WasmStorage>,
 }
 
 #[wasm_bindgen]
@@ -89,7 +88,7 @@ impl ClientStorage {
         .await?;
 
         Ok(ClientStorage {
-            inner: Rc::new(inner),
+            inner: Arc::new(inner),
             name,
         })
     }

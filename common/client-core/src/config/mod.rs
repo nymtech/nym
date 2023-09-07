@@ -498,6 +498,15 @@ pub enum GroupBy {
     NymAddress(Recipient),
 }
 
+impl std::fmt::Display for GroupBy {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            GroupBy::CountryGroup(group) => write!(f, "group: {}", group),
+            GroupBy::NymAddress(address) => write!(f, "address: {}", address),
+        }
+    }
+}
+
 impl Default for Topology {
     fn default() -> Self {
         Topology {

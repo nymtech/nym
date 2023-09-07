@@ -27,7 +27,7 @@ The `mixnet` component currently exposes the logic of two clients: the [websocke
 The `coconut` component is currently being worked on. Right now it exposes logic allowing for the creation of coconut credentials on the Sandbox testnet.
 
 ## Websocket client examples
-> All the codeblocks below can be found in the `nym-sdk` [examples directory](https://github.com/nymtech/nym/tree/release/{{platform_release_version}}/sdk/rust/nym-sdk/examples) in the monorepo. Just navigate to `nym/sdk/rust/nym-sdk/examples/` and run the files from there. If you wish to run these outside of the workspace - such as if you want to use one as the basis for your own project - then make sure to import the `sdk`, `tokio`, and `nym_bin_common` crates.
+> All the codeblocks below can be found in the `nym-sdk` [examples directory](https://github.com/nymtech/nym/tree/master/sdk/rust/nym-sdk/examples) in the monorepo. Just navigate to `nym/sdk/rust/nym-sdk/examples/` and run the files from there. If you wish to run these outside of the workspace - such as if you want to use one as the basis for your own project - then make sure to import the `sdk`, `tokio`, and `nym_bin_common` crates.
 
 ### Different message types
 There are two methods for sending messages through the mixnet using your client: 
@@ -52,6 +52,26 @@ The example above involves ephemeral keys - if we want to create and then mainta
 
 As seen in the example above, the `mixnet::MixnetClientBuilder::new()` function handles checking for keys in a storage location, loading them if present, or creating them and storing them if not, making client key management very simple.
 
+Assuming our client config is stored in `/tmp/mixnet-client`, the following files are generated:
+```
+$ tree /tmp/mixnet-client
+
+mixnet-client
+├── ack_key.pem
+├── db.sqlite
+├── db.sqlite-shm
+├── db.sqlite-wal
+├── gateway_details.json
+├── gateway_shared.pem
+├── persistent_reply_store.sqlite
+├── private_encryption.pem
+├── private_identity.pem
+├── public_encryption.pem
+└── public_identity.pem
+
+1 directory, 11 files
+```
+
 ### Manually handling storage
 If you're integrating mixnet functionality into an existing app and want to integrate saving client configs and keys into your existing storage logic, you can manually perform the actions taken automatically above (`examples/manually_handle_keys_and_config.rs`)
 
@@ -62,7 +82,7 @@ If you're integrating mixnet functionality into an existing app and want to inte
 ### Anonymous replies with SURBs
 Both functions used to send messages through the mixnet (`send_message` and `send_plain_message`) send a pre-determined number of SURBs along with their messages by default.
 
-The number of SURBs is set [here](https://github.com/nymtech/nym/blob/release/{{platform_release_version}}/sdk/rust/nym-sdk/src/mixnet/client.rs#L34):
+The number of SURBs is set [here](https://github.com/nymtech/nym/blob/master/sdk/rust/nym-sdk/src/mixnet/client.rs#L33):
 
 ```rust,noplayground
 {{#include ../../../../sdk/rust/nym-sdk/src/mixnet/client.rs:34}}
@@ -70,7 +90,7 @@ The number of SURBs is set [here](https://github.com/nymtech/nym/blob/release/{{
 
 You can read more about how SURBs function under the hood [here](../architecture/traffic-flow.md#private-replies-using-surbs).
 
-In order to reply to an incoming message using SURBs, you can construct a `recipient` from the `sender_tag` sent along with the message you wish to reply to: 
+In order to reply to an incoming message using SURBs, you can construct a `recipient` from the `sender_tag` sent along with the message you wish to reply to:
 
 ```rust,noplayground
 {{#include ../../../../sdk/rust/nym-sdk/examples/surb-reply.rs}}

@@ -214,7 +214,12 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
 
   const setGateway = async () => {
     if (gateways) {
-      const randomGateway = getRandomFromList(gateways);
+      let randomGateway;
+      if (userData?.privacy_level === 'Medium') {
+        randomGateway = await invoke<Gateway>('select_gateway_with_low_latency_from_list', { gateways });
+      } else {
+        randomGateway = getRandomFromList(gateways);
+      }
       const withUserDefinitions = await buildGateway(randomGateway);
       await invoke('set_gateway', {
         gateway: shouldUseUserGateway ? userDefinedGateway.address : withUserDefinitions.identity,

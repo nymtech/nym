@@ -11,7 +11,6 @@ use nym_gateway_client::GatewayClient;
 use nym_topology::{filter::VersionFilterable, gateway};
 use rand::{seq::SliceRandom, Rng};
 use std::{sync::Arc, time::Duration};
-use tap::TapFallible;
 use tungstenite::Message;
 use url::Url;
 
@@ -149,7 +148,7 @@ async fn measure_latency(gateway: &gateway::Node) -> Result<GatewayWithLatency, 
     Ok(GatewayWithLatency::new(gateway, avg))
 }
 
-pub(super) async fn choose_gateway_by_latency<R: Rng>(
+pub async fn choose_gateway_by_latency<R: Rng>(
     rng: &mut R,
     gateways: &[gateway::Node],
 ) -> Result<gateway::Node, ClientCoreError> {
@@ -209,14 +208,26 @@ pub(super) async fn register_with_gateway(
         our_identity.clone(),
         timeout,
     );
-    gateway_client
-        .establish_connection()
-        .await
-        .tap_err(|_| log::warn!("Failed to establish connection with gateway!"))?;
+    gateway_client.establish_connection().await.map_err(|err| {
+        log::warn!("Failed to establish connection with gateway!");
+        ClientCoreError::GatewayClientError {
+            gateway_id: gateway.gateway_id.clone(),
+            source: err,
+        }
+    })?;
     let shared_keys = gateway_client
         .perform_initial_authentication()
         .await
-        .tap_err(|_| log::warn!("Failed to register with the gateway!"))?;
+        .map_err(|err| {
+            log::warn!(
+                "Failed to register with the gateway {}!",
+                gateway.gateway_id
+            );
+            ClientCoreError::GatewayClientError {
+                gateway_id: gateway.gateway_id.clone(),
+                source: err,
+            }
+        })?;
     Ok(RegistrationResult {
         shared_keys,
         authenticated_ephemeral_client: Some(gateway_client),

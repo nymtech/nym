@@ -10,11 +10,8 @@ import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequest
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.OutOfQuotaPolicy
-import androidx.work.WorkInfo
 import androidx.work.WorkManager
-import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -22,7 +19,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-@OptIn(DelicateCoroutinesApi::class)
 class MainViewModel(
     private val workManager: WorkManager,
     private val nymProxy: NymProxy
@@ -40,33 +36,7 @@ class MainViewModel(
             .setId(ProxyWorker.workId)
             .build()
 
-    init {
-        Log.d(tag, "____init")
 
-        // When the work is cancelled "externally" ie. when the user tap the
-        // "Stop" action on the notification, the underlying proxy process
-        // keeps running in background
-        // We have to manually call `stopClient` to kill it
-        workManager.getWorkInfoByIdLiveData(ProxyWorker.workId)
-            // watch "forever", ie. even when this viewModel has been cleared
-            .observeForever { workInfo ->
-                if (workInfo?.state == WorkInfo.State.CANCELLED || workInfo?.state == WorkInfo.State.FAILED) {
-                    // ⚠ here one could be tempted to call cancelProxyWork
-                    // but it uses viewModelScope which is cancelled when
-                    // this viewModel instance is cleared
-                    // use GlobalScope instead
-                    GlobalScope.launch(Dispatchers.IO) {
-                        // if the proxy process is still running ie. connected kill it
-                        if (nymProxy.getState() == NymProxy.Companion.State.CONNECTED) {
-                            Log.d(tag, "stopping proxy")
-                            nymProxy.stop()
-                            Log.i(tag, "proxy work cancelled")
-                        }
-                    }
-                    setDisconnected()
-                }
-            }
-    }
 
     data class ProxyState(
         val connected: Boolean = false,
@@ -77,7 +47,8 @@ class MainViewModel(
     private val _uiState = MutableStateFlow(ProxyState())
     val uiState: StateFlow<ProxyState> = _uiState.asStateFlow()
 
-    fun setConnected() {
+    fun setUiConnected() {
+        Log.d(tag, "____setUiConnected")
         _uiState.update { currentState ->
             currentState.copy(
                 connected = true,
@@ -86,7 +57,8 @@ class MainViewModel(
         }
     }
 
-    private fun setDisconnected() {
+    fun setUiDisconnected() {
+        Log.d(tag, "____setUiDisconnected")
         _uiState.update { currentState ->
             currentState.copy(
                 connected = false,
@@ -127,30 +99,7 @@ class MainViewModel(
             // wait a bit to be sure the proxy client has enough time to
             // close connection
             delay(2000)
-            setDisconnected()
-        }
-    }
-
-    fun checkStateSync() {
-        Log.d(tag, "check state sync")
-        viewModelScope.launch(Dispatchers.IO) {
-            val proxyState = nymProxy.getState()
-            val workInfo = workManager.getWorkInfoById(ProxyWorker.workId).get()
-            Log.d(tag, "proxy state $proxyState, work state ${workInfo?.state}")
-            if (proxyState == NymProxy.Companion.State.CONNECTED &&
-                workInfo?.state != WorkInfo.State.RUNNING
-            ) {
-                Log.w(tag, "⚠ state desync")
-                Log.i(tag, "stopping proxy")
-                cancelProxyWork()
-            }
-            if (proxyState == NymProxy.Companion.State.DISCONNECTED &&
-                workInfo?.state == WorkInfo.State.RUNNING
-            ) {
-                Log.w(tag, "⚠ state desync")
-                Log.i(tag, "stopping worker")
-                workManager.cancelAllWorkByTag(ProxyWorker.workTag)
-            }
+            setUiDisconnected()
         }
     }
 }

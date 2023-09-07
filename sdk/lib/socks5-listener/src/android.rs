@@ -89,3 +89,9 @@ pub unsafe extern "C" fn Java_net_nymtech_nyms5_NymProxy_getClientState(
         ClientState::Disconnected => 2,
     }
 }
+
+#[no_mangle]
+pub unsafe extern "C" fn Java_net_nymtech_nyms5_NymProxy_pingClient(_env: JNIEnv, _class: JClass) {
+    log::debug!("pong");
+    crate::ping_client();
+}

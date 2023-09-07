@@ -7,12 +7,12 @@ plugins {
 
 android {
     namespace = "net.nymtech.nyms5"
-    compileSdk = 33
+    compileSdk = 34
 
     defaultConfig {
         applicationId = "net.nymtech.nyms5"
         minSdk = 24
-        targetSdk = 33
+        targetSdk = 34
         versionCode = 1
         versionName = "1.0"
 

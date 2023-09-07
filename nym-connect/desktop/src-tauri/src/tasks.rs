@@ -57,7 +57,7 @@ fn override_config_from_env(config: &mut Config, privacy_level: &PrivacyLevel) {
             .provider_mix_address
             .parse()
             .expect("failed to parse provider mix address");
-        log::warn!("Using geo-aware mixnode selection baseon the location of: {address}");
+        log::warn!("Using geo-aware mixnode selection based on the location of: {address}");
         config
             .core
             .base

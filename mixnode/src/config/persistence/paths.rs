@@ -24,6 +24,10 @@ impl MixNodePaths {
     pub fn new_default<P: AsRef<Path>>(id: P) -> Self {
         MixNodePaths {
             keys: KeysPaths::new_default(id.as_ref()),
+            // TODO: next time there is a breaking change in the mixnode config, change this to
+            // `default_base_directory`.
+            // I'd rather not change this willy-nilly since it means a `mixnode init` will break
+            // the existing configurated description.
             node_description: default_config_directory(id).join(DEFAULT_DESCRIPTION_FILENAME),
         }
     }

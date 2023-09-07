@@ -16,11 +16,16 @@ import kotlinx.coroutines.launch
 import net.nymtech.nyms5.ui.theme.NymTheme
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
+import kotlinx.coroutines.DelicateCoroutinesApi
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.flow.map
 import net.nymtech.nyms5.ui.composables.HomeScreen
 
+@OptIn(DelicateCoroutinesApi::class)
 class MainActivity : ComponentActivity() {
     private val tag = "MainActivity"
+    private val nymProxy = App.nymProxy
 
     private val viewModel: MainViewModel by viewModels {
         MainViewModelFactory(
@@ -45,24 +50,50 @@ class MainActivity : ComponentActivity() {
         Log.d(tag, "____onCreate")
         Log.i(tag, "device SDK [${Build.VERSION.SDK_INT}]")
 
+        val workManager = WorkManager.getInstance(applicationContext)
+
         checkPermission()
 
         // observe proxy work progress
-        WorkManager.getInstance(applicationContext)
-            .getWorkInfoByIdLiveData(ProxyWorker.workId)
+        workManager.getWorkInfoByIdLiveData(ProxyWorker.workId)
             // this observer is tied to the activity lifecycle
             .observe(this) { workInfo ->
-                if (workInfo != null && workInfo.state == WorkInfo.State.RUNNING) {
-                    val progress =
-                        workInfo.progress.getString(ProxyWorker.State)
-                    when (progress) {
-                        ProxyWorker.Work.Status.CONNECTED.name -> {
-                            Log.i(tag, "Nym proxy $progress")
-                            viewModel.setConnected()
-                        }
-
-                        else -> Log.i(tag, "Nym proxy $progress")
+                lifecycleScope.launch(Dispatchers.IO) {
+                    val proxyState = App.nymProxy.getState()
+                    val workState = workInfo.state
+                    val workProgress = workInfo.progress.getString(ProxyWorker.State)
+                    Log.i(
+                        tag,
+                        "proxy state: $proxyState, work state: $workState, work progress: $workProgress"
+                    )
+                    if (proxyState == NymProxy.Companion.State.CONNECTED &&
+                        workState == WorkInfo.State.RUNNING
+                    ) {
+                        viewModel.setUiConnected()
                     }
+                }
+            }
+
+        // The work can be cancelled by the user from the dedicated notification
+        // by tapping the "Stop" action. When that happens the underlying proxy
+        // process keeps running in the background
+        // We have to manually call `stopClient` to kill it
+        workManager.getWorkInfoByIdLiveData(ProxyWorker.workId)
+            // watch "forever", ie. even when this viewModel has been cleared
+            .observeForever { workInfo ->
+                if (workInfo?.state == WorkInfo.State.CANCELLED || workInfo?.state == WorkInfo.State.FAILED) {
+                    // ⚠ here one could be tempted to call `viewModel.cancelProxyWork`
+                    // but it uses viewModelScope which is cancelled when
+                    // the app goes to background so use `GlobalScope` instead
+                    GlobalScope.launch(Dispatchers.IO) {
+                        // if the proxy process is still running kill it
+                        if (nymProxy.getState() == NymProxy.Companion.State.CONNECTED) {
+                            Log.i(tag, "⚠ work has been cancelled")
+                            nymProxy.stop()
+                        }
+                    }
+                    // update the UI
+                    viewModel.setUiDisconnected()
                 }
             }
 
@@ -98,11 +129,6 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
-    }
-
-    override fun onStart() {
-        super.onStart()
-        viewModel.checkStateSync()
     }
 
     private fun checkPermission() {

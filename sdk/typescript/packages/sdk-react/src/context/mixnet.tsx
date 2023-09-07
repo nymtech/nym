@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { createNymMixnetClient, Events, MimeTypes, NymClientConfig, NymMixnetClient } from '@nymproject/sdk';
+import { createNymMixnetClient, Events, MimeTypes, NymMixnetClient } from '@nymproject/sdk';
 
 export interface BinaryMessageHeaders {
   filename: string;

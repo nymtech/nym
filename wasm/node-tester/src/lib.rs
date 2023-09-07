@@ -3,16 +3,12 @@
 
 #[cfg(target_arch = "wasm32")]
 mod ephemeral_receiver;
-
 #[cfg(target_arch = "wasm32")]
 pub mod error;
-
 #[cfg(target_arch = "wasm32")]
 mod helpers;
-
 #[cfg(target_arch = "wasm32")]
 pub mod tester;
-
 #[cfg(target_arch = "wasm32")]
 pub mod types;
 

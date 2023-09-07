@@ -1,19 +1,14 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-// that's so stupid...
 #[cfg(target_arch = "wasm32")]
 pub mod config;
-
 #[cfg(target_arch = "wasm32")]
 pub mod error;
-
 #[cfg(target_arch = "wasm32")]
 pub mod helpers;
-
 #[cfg(target_arch = "wasm32")]
 pub mod storage;
-
 #[cfg(target_arch = "wasm32")]
 pub mod topology;
 
@@ -41,8 +36,8 @@ pub use nym_validator_client::client::IdentityKey;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
-#[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
+#[cfg(target_arch = "wasm32")]
 pub fn set_panic_hook() {
     // When the `console_error_panic_hook` feature is enabled, we can call the
     // `set_panic_hook` function at least once during initialization, and then

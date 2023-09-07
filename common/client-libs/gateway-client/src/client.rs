@@ -175,7 +175,9 @@ impl<C, St> GatewayClient<C, St> {
     pub async fn establish_connection(&mut self) -> Result<(), GatewayClientError> {
         let ws_stream = match JSWebsocket::new(&self.gateway_address) {
             Ok(ws_stream) => ws_stream,
-            Err(e) => return Err(GatewayClientError::NetworkErrorWasm(e)),
+            Err(e) => {
+                return Err(GatewayClientError::NetworkErrorWasm(e));
+            }
         };
 
         self.connection = SocketState::Available(Box::new(ws_stream));

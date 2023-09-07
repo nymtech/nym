@@ -14,15 +14,24 @@ var (
 	Promise  = js.Global().Get("Promise")
 	Reflect  = js.Global().Get("Reflect")
 	Object   = js.Global().Get("Object")
-	Origin   = js.Global().Get("location").Get("origin").String()
 	Response = js.Global().Get("Response")
 	Request  = js.Global().Get("Request")
 	Proxy    = js.Global().Get("Proxy")
 	Headers  = js.Global().Get("Headers")
 )
 
+func Origin() string {
+	// nodejs doesn't have origin
+	location := js.Global().Get("location")
+	if !location.IsUndefined() && !location.IsNull() {
+		return location.Get("origin").String()
+	} else {
+		return ""
+	}
+}
+
 func OriginUrl() *url.URL {
-	originUrl, originErr := url.Parse(Origin)
+	originUrl, originErr := url.Parse(Origin())
 	if originErr != nil {
 		panic(fmt.Sprintf("could not obtain origin: %s", originErr))
 	}

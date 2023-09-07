@@ -263,7 +263,7 @@ It is easy to add new domains and services to your network requester - simply fi
 How to go about this? Have a look in your nym-network-requester config directory:
 
 ```
-ls $HOME/.nym/service-providers/network-requester/
+ls -lt $HOME/.nym/service-providers/network-requester/*/data | grep "list"
 
 # returns: allowed.list  unknown.list
 ```

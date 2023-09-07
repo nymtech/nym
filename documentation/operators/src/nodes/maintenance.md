@@ -10,7 +10,7 @@ A `build-info` command prints the build information like commit hash, rust versi
 
 For example `./target/debug/nym-network-requester --no-banner build-info --output json` will return:
 
-```
+```sh
 {"binary_name":"nym-network-requester","build_timestamp":"2023-07-24T15:38:37.00657Z","build_version":"1.1.23","commit_sha":"c70149400206dce24cf20babb1e64f22202672dd","commit_timestamp":"2023-07-24T14:45:45Z","commit_branch":"feature/simplify-cli-parsing","rustc_version":"1.71.0","rustc_channel":"stable","cargo_profile":"debug"}
 ```
 
@@ -57,25 +57,25 @@ If you are running an existing network requester registered with nym-connect, up
 
 Initiate the new network requester:
 
-```
+```sh
 nym-network-requester init --id <YOUR_ID>
 ```
 
 Copy the old keys from your client to the network-requester configuration that was created above:
 
-```
+```sh
 cp -vr ~/.nym/clients/myoldclient/data/* ~/.nym/service-providers/network-requester/<YOUR_ID>/data
 ```
 
 Edit the configuration to match what you used on your client. Specifically, edit the configuration file at:
 
-```
+```sh
 ~/.nym/service-providers/network-requester/<YOUR_ID>/config/config.toml
 ```
 
 Ensure that the fields `gateway_id`, `gateway_owner`, `gateway_listener` in the new config match those in the old client config at:
 
-```
+```sh
 ~/.nym/clients/myoldclient/config/config.toml
 ```
 
@@ -115,7 +115,8 @@ Assuming both machines are remote VPS.
 
 * Make sure your `~/.ssh/<YOUR_KEY>.pub` is in both of the machines `~/.ssh/authorized_keys` file
 * Create a `mixnodes` folder in the target VPS. Ssh in from your terminal and run:
-```
+
+```sh
 # in case none of the nym configs was created previously
 mkdir ~/.nym
 
@@ -123,7 +124,7 @@ mkdir ~/.nym
 mkdir ~/.nym/mixnodes
 ```
 * Move the node data (keys) and config file to the new machine by opening a local terminal (as that one's ssh key is authorized in both of the machines) and running:
-```
+```sh
 scp -r -3 <SOURCE_USER_NAME>@<SOURCE_HOST_ADDRESS>:~/.nym/mixnodes/<YOUR_ID> <TARGET_USER_NAME>@<TARGET_HOST_ADDRESS>:~/.nym/mixnodes/
 ```
 * Re-run init (remember that init doesn't overwrite existing keys) to generate a config with the new listening address etc.
@@ -134,7 +135,7 @@ scp -r -3 <SOURCE_USER_NAME>@<SOURCE_HOST_ADDRESS>:~/.nym/mixnodes/<YOUR_ID> <TA
 ### Configure your firewall
 Although your `<NODE>` is now ready to receive traffic, your server may not be. The following commands will allow you to set up a firewall using `ufw`.
 
-```
+```sh
 # check if you have ufw installed
 ufw version
 
@@ -150,7 +151,7 @@ sudo ufw status
 
 Finally open your `<NODE>` p2p port, as well as ports for ssh and ports for verloc and measurement pings:
 
-```
+```sh
 # for mix node
 sudo ufw allow 1789,1790,8000,22/tcp
 
@@ -165,7 +166,7 @@ sudo ufw allow 1317,26656,26660,22,80,443/tcp
 ```
 
 Check the status of the firewall:
-```
+```sh
 sudo ufw status
 ```
 
@@ -179,7 +180,7 @@ Although it’s not totally necessary, it's useful to have the mix node automati
 
 `nohup` is a command with which your terminal is told to ignore the `HUP` or 'hangup' signal. This will stop the node process ending if you kill your session.
 
-```
+```sh
 nohup ./<NODE> run --id <YOUR_ID> # where `<YOUR_ID>` is the id you set during the `init` command and <NODE> depends on which node you starting
 ```
 
@@ -207,17 +208,17 @@ No when you installed tmux on your VPS, let's run a mix node on tmux, which allo
 
 * Pause your `<NODE>`
 * Start tmux with the command 
-```
+```sh
 tmux
 ```
 * The tmux terminal should open in the same working directory, just the layout changed into tmux default layout.
 * Start the `<NODE>` again with a command:
-```
+```sh
 ./<NODE> run --id <YOUR_ID>
 ```
 * Now, without closing the tmux window, you can close the whole terminal and the `<NODE>` (and any other process running in tmux) will stay active.
 * Next time just start your teminal, ssh into the VPS and run the following command to attach back to your previous session:
-```
+```sh
 tmux attach-session
 ```
 * To see keybinding options of tmux press `ctrl`+`b` and after 1 second `?`
@@ -293,7 +294,7 @@ WantedBy=multi-user.target
 
 Now enable and start your requester:
 
-```
+```sh
 systemctl enable nym-network-requester.service
 systemctl start nym-network-requester.service
 
@@ -313,10 +314,10 @@ StartLimitInterval=350
 StartLimitBurst=10
 
 [Service]
-User=nyx                                                          # change to your user
+User=<USER>                                                       # change to your user
 Type=simple
-Environment="LD_LIBRARY_PATH=/home/youruser/path/to/nyx/binaries" # change to correct path
-ExecStart=/home/youruser/path/to/nyx/binaries/nymd start          # change to correct path
+Environment="LD_LIBRARY_PATH=/home/<USER>/<PATH_TO_NYX_BINARIES>" # change to correct path
+ExecStart=/home/<USER>/<PATH_TO_NYX_BINARIES>/nymd start          # change to correct path
 Restart=on-failure
 RestartSec=30
 LimitNOFILE=infinity
@@ -327,11 +328,11 @@ WantedBy=multi-user.target
 
 Proceed to start it with:
 
-```
+```sh
 systemctl daemon-reload # to pickup the new unit file
 systemctl enable nymd   # to enable the service
 systemctl start nymd    # to actually start the service
-journalctl -f           # to monitor system logs showing the service start
+journalctl -f -u nymd # to monitor system logs showing the service start
 ```
 
 ##### Following steps for Nym Mixnet nodes
@@ -344,9 +345,13 @@ If you have built nym in the `$HOME` directory on your server, and your username
 
 Then run:
 
+```sh
+systemctl daemon-reload # to pickup the new unit file
 ```
+
+```sh
 # for mix node
-systemctl enable nym-mix node.service
+systemctl enable nym-mixnode.service
 
 # for gateway
 systemctl enable nym-gateway.service
@@ -354,7 +359,7 @@ systemctl enable nym-gateway.service
 
 Start your node:
 
-```
+```sh
 # for mix node
 service nym-mixnode start
 
@@ -364,6 +369,16 @@ service nym-gateway start
 ```
 
 This will cause your node to start at system boot time. If you restart your machine, the node will come back up automatically.
+
+You can monitor system logs of your node by running:
+```sh
+journalctl -f -u <NODE>.service
+```
+
+Or check a status by running:
+```sh
+systemctl status <NODE>.service
+```
 
 You can also do `service <NODE> stop` or `service <NODE> restart`.
 
@@ -383,7 +398,7 @@ Linux machines limit how many open files a user is allowed to have. This is call
 
 If you see errors such as:
 
-```
+```sh
 Failed to accept incoming connection - Os { code: 24, kind: Other, message: "Too many open files" }
 ```
 
@@ -397,8 +412,8 @@ The ulimit setup is relevant for maintenance of nym mix node only.
 
 Query the `ulimit` of your `<NODE>` with:
 
-```
-# for nym-, nym-gateway and nym-network requester:
+```sh
+# for nym-mixnode, nym-gateway and nym-network requester:
 grep -i "open files" /proc/$(ps -A -o pid,cmd|grep <NODE> | grep -v grep |head -n 1 | awk '{print $1}')/limits
 
 # for nyx validator:
@@ -409,7 +424,7 @@ grep -i "open files" /proc/$(ps -A -o pid,cmd|grep nymd | grep -v grep |head -n 
 
 You'll get back the hard and soft limits, which looks something like this:
 
-```
+```sh
 Max open files            65536                65536                files
 ```
 
@@ -417,26 +432,26 @@ If your output is **the same as above**, your node will not encounter any `ulimi
 
 However if either value is `1024`, you must raise the limit via the systemd service file. Add the line:
 
-```
+```sh
 LimitNOFILE=65536
 ```
 
 Reload the daemon:
 
-```
+```sh
 systemctl daemon-reload
 ```
 
 or execute this as root for system-wide setting of `ulimit`:
 
-```
+```sh
 echo "DefaultLimitNOFILE=65535" >> /etc/systemd/system.conf
 ```
 
 Reboot your machine and restart your node. When it comes back, use:
-```
+```sh
 # for nym-mixnode, nym-gateway and nym-network requester:
-cat /proc/$(pidof <NODE>)/limits | grep "Max open files"` to make sure the limit has changed to 65535.
+cat /proc/$(pidof <NODE>)/limits | grep "Max open files"
 
 # for validator
 cat /proc/$(pidof nym-validator)/limits | grep "Max open files"
@@ -447,7 +462,7 @@ Make sure the limit has changed to 65535.
 
 In case you chose tmux option for mix node automatization, see your `ulimit` list by running:
 
-```
+```sh
 ulimit -a
 
 # watch for the output line -n
@@ -456,13 +471,13 @@ ulimit -a
 
 You can change it either by running a command:
 
-```
+```sh
 ulimit -u -n 4096
 ```
 
 or editing `etc/security/conf` and add the following lines:
 
-```
+```sh
 # Example hard limit for max opened files
 username        hard nofile 4096
 
@@ -479,7 +494,7 @@ On some services (AWS, Google, etc) the machine's available bind address is not 
 
 For example, on a Google machine, you may see the following output from the `ifconfig` command:
 
-```
+```sh
 ens4: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1460
         inet 10.126.5.7  netmask 255.255.255.255  broadcast 0.0.0.0
         ...
@@ -492,7 +507,7 @@ The `ens4` interface has the IP `10.126.5.7`. But this isn't the public IP of th
 Trying `nym-mixnode init --host 36.68.243.18`, you'll get back a startup error saying `AddrNotAvailable`. This is because the mix node doesn't know how to bind to a host that's not in the output of `ifconfig`.
 
 The right thing to do in this situation is to init with a command:
-```
+```sh
 ./nym-mixnode init --host 10.126.5.7 --announce-host 36.68.243.18
 ```
 
@@ -513,13 +528,13 @@ The endpoint is a particularly common for mix node operators as it can provide a
 
 Using this API endpoint returns information about the Reward Estimation:
 
-```
+```sh
 /status/mixnode/<MIX_ID>/reward-estimation
 ```
 
 Query Response:
 
-```
+```sh
     "estimation": {
         "total_node_reward": "942035.916721770541325331",
         "operator": "161666.263307386408152071",
@@ -546,19 +561,19 @@ Query Response:
 
 Install `nginx` and allow the 'Nginx Full' rule in your firewall:
 
-```
+```sh
 sudo ufw allow 'Nginx Full'
 ```
 
 Check nginx is running via systemctl:
 
-```
+```sh
 systemctl status nginx
 ```
 
 Which should return:
 
-```
+```sh
 ● nginx.service - A high performance web server and a reverse proxy server
    Loaded: loaded (/lib/systemd/system/nginx.service; enabled; vendor preset: enabled)
    Active: active (running) since Fri 2018-04-20 16:08:19 UTC; 3 days ago
@@ -574,7 +589,7 @@ Which should return:
 
 Proxying your validator's port `26657` to nginx port `80` can then be done by creating a file with the following at `/etc/nginx/conf.d/validator.conf`:
 
-```
+```sh
 server {
   listen 80;
   listen [::]:80;
@@ -591,7 +606,7 @@ server {
 
 Followed by:
 
-```
+```sh
 sudo apt install certbot nginx python3
 certbot --nginx -d nym-validator.yourdomain.com -m you@yourdomain.com --agree-tos --noninteractive --redirect
 ```
@@ -606,7 +621,7 @@ These commands will get you an https encrypted nginx proxy in front of the API.
 
 Configure Prometheus with the following commands (adapted from NodesGuru's [Agoric setup guide](https://nodes.guru/agoric/setup-guide/en)):
 
-```
+```sh
 echo 'export OTEL_EXPORTER_PROMETHEUS_PORT=9464' >> $HOME/.bashrc
 source ~/.bashrc
 sed -i '/\[telemetry\]/{:a;n;/enabled/s/false/true/;Ta}' $HOME/.nymd/config/app.toml

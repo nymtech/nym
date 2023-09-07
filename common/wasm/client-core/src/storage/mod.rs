@@ -7,7 +7,6 @@ use async_trait::async_trait;
 use js_sys::{Array, Promise};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
-use std::sync::Arc;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::future_to_promise;
 use wasm_storage::traits::BaseWasmStorage;
@@ -25,7 +24,7 @@ const STORAGE_VERSION: u32 = 1;
 pub struct ClientStorage {
     #[allow(dead_code)]
     pub(crate) name: String,
-    pub(crate) inner: Arc<WasmStorage>,
+    pub(crate) inner: WasmStorage,
 }
 
 #[wasm_bindgen]
@@ -69,10 +68,7 @@ impl ClientStorage {
         )
         .await?;
 
-        Ok(ClientStorage {
-            inner: Arc::new(inner),
-            name,
-        })
+        Ok(ClientStorage { inner, name })
     }
 
     #[wasm_bindgen(constructor)]

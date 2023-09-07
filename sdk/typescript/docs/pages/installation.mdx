@@ -1,0 +1,79 @@
+import { Callout } from 'nextra/components'
+
+# Overview
+
+The Typescript SDK's different modules allow developers to start building browser-based applications quickly, by simply importing the SDK module of their choice - depending on the component from the Nym architecture they want to use - into their code via NPM as they would any other Typescript library.
+
+<Callout type="info" emoji="ℹ️">
+    SDK modules come in four different flavours (ESM, CJS, simple and full-fat). We will primarily focus on exemplifying simple ESM module versions during the installation walkthroughs given that they most likely will be the most used ones.
+</Callout>
+
+#### Install all
+
+```
+npm install @nymproject/contract-clients @cosmjs/cosmwasm-stargate @cosmjs/proto-signing @nymproject/sdk @nymproject/mix-fetch --save
+```
+
+## Nyx chain
+#### Overview
+The Nyx blockchain is a general-purpose CosmWasm-enabled smart contract platform, and the home of the smart contracts which keep track of the mixnet, amongst others.
+Information about the chain can be found on the [Nyx blockchain explorer](https://nym.explorers.guru/).
+
+Using the [contract clients](https://nymtech.net/docs/nyx/smart-contracts.html) (Mixnet, Vesting, Coconut), you will be able to query contract states or execute methods when providing a signing key.
+
+*You can learn about our different methods to interact with the chain [here](https://nymtech.net/docs/nyx/interacting-with-chain.html)*. 
+
+#### Installation: Contract Clients
+In order to query or execute on any of the Nyx contracts, you'll need to use the [`Contract Clients`](https://www.npmjs.com/package/@nymproject/contract-clients), which contains read-only query and signing clients for all Nyx's smart contracts.
+
+First install the package and its dependencies from Cosmos Stargate:
+
+```
+npm install @nymproject/contract-clients @cosmjs/cosmwasm-stargate @cosmjs/proto-signing --save
+```
+
+## Mixnet
+#### Overview
+The [Nym mixnet](https://nymtech.net/docs/architecture/network-overview.html) provides very strong security guarantees against network-level surveillance. It wraps into packets and mixes together IP traffic from many users inside the mixnet. It encrypts and mixes [Sphinx packet](https://cypherpunks.ca/~iang/pubs/Sphinx_Oakland09.pdf) traffic so that it cannot be determined who is communicating with whom. Our mixnet is based on a modified version of the Loopix design.
+
+*You can explore our mixnet using our [mixnet explorer](https://nymtech.net/docs/explorers/mixnet-explorer.html) here.*
+
+
+#### Installation: Mixnet Client
+In order to send or receive traffic over the mixnet, you'll need to use the [`Mixnet Client`](https://www.npmjs.com/package/@nymproject/sdk).
+
+First install the package and its dependencies:
+
+```
+npm install @nymproject/sdk --save
+```
+
+## MixFetch
+#### Overview
+MixFetch is a drop-in replacement for fetch that fetches responses through the Mixnet. It does this by grabbing the same arguments as traditional fetch and constructing the internal requests to a [Network Requester](https://nymtech.net/docs/nodes/network-requester.html).
+
+#### Installation: MixFetch package
+In order to fetch data through mixFetch you'll need to use the [`MixFetch package`](https://www.npmjs.com/package/@nymproject/mix-fetch).
+
+First install the package and its dependencies:
+
+```
+npm install @nymproject/mix-fetch --save
+```
+
+## Coconut
+#### Overview
+Coconut is a blinded, re-randomizable, selective disclosure threshold credential signature scheme that lets application programmers who are concerned with resource access control to think and code in a new way.
+
+*Learn more about [Coconut](https://nymtech.net/docs/coconut.html) here!*
+
+#### Installation: Coconut
+In order to make use of the Coconut signature scheme, you'll need to leverage the [`Coconut Client`]().
+
+First install the package and its dependencies:
+
+```
+npm install @nymproject/???
+```
+
+

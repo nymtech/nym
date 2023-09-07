@@ -1,0 +1,28 @@
+import { Callout } from 'nextra/components'
+
+## SDK overview
+The Typescript SDK allows developers to start building browser-based mixnet applications quickly, by simply importing the SDK modules into their code via NPM as they would any other Typescript library.
+
+Currently developers can use different packages from the Typescript SDK to do the following entirely in the browser:
+
+| Nym Component  | Functionality | ESM packages   | CJS packages   |
+| :-------------: | :----------: |  :---------: |  :---------: |
+| Nyx / Validator (all contracts) |  Create a simple query or query and execute client  on any Nyx smart contract  | [Smart Contract Clients - ESM](https://www.npmjs.com/package/@nymproject/contract-clients), [link]()  | [link](), [link]()
+| Mixnet (traffic) | Send & receive traffic over the mixnet |  [Mixnet Client - ESM](https://www.npmjs.com/package/@nymproject/sdk), [Mixnet Client - ESM full-fat](https://www.npmjs.com/package/@nymproject/sdk-full-fat)  | [Mixnet Client - CJS](https://www.npmjs.com/package/@nymproject/sdk-commonjs), [Mixnet Client - CJS full-fat](https://www.npmjs.com/package/@nymproject/sdk-commonjs-full-fat) 
+| MixFetch  |  Make HTTP requests over the mixnet via the SOCKS5 Network Requester service providers  |   [MixFetch - ESM](https://www.npmjs.com/package/@nymproject/mix-fetch), [MixFetch - ESM full-fat](https://www.npmjs.com/package/@nymproject/mix-fetch-full-fat) | [MixFetch - CJS](https://www.npmjs.com/package/@nymproject/mix-fetch-commonjs), [MixFetch - CJS full-fat](https://www.npmjs.com/package/@nymproject/mix-fetch-commonjs-full-fat)
+| Coconut (credentials) |  Create and consume Coconut credentials |   [link](), [link]() | [link](), [link]()
+
+
+
+## SDK module systems
+All packages come in four different variations:
+- **CommonJS**: These packages use the CommonJS module system. They need to be bundled to work properly in a browser environment;
+- **CommonJS full-fat**: These packages are already pre-bundled and also include inline WebAssembly (WASM) and web worker code;
+- **ESM**: These packages use the ECMAScript Modules (ESM) system. Like CommonJS, they require bundling for browser compatibility;
+- **ESM full-fat**: These ESM packages are pre-bundled and include inline WebAssembly and web worker code;
+
+ 
+<Callout type="info" emoji="⚠️">
+  As the Typescript SDK and associated modules are still a work in progress, note that the inline WASM and web worker versions are likely to have issues if the web site / app / extension has a strict CSP.
+</Callout>
+

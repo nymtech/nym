@@ -8,7 +8,7 @@ use crate::client::base_client::storage::MixnetClientStorage;
 use crate::client::cover_traffic_stream::LoopCoverTrafficStream;
 use crate::client::inbound_messages::{InputMessage, InputMessageReceiver, InputMessageSender};
 use crate::client::key_manager::persistence::KeyStore;
-use crate::client::mix_traffic::transceiver::{GatewayTransceiver, RemoteGateway};
+use crate::client::mix_traffic::transceiver::{GatewayReceiver, GatewayTransceiver, RemoteGateway};
 use crate::client::mix_traffic::{BatchMixMessageSender, MixTrafficController};
 use crate::client::real_messages_control;
 use crate::client::real_messages_control::RealMessagesController;
@@ -322,8 +322,7 @@ where
         config: &Config,
         initialisation_result: InitialisationResult,
         bandwidth_controller: Option<BandwidthController<C, S::CredentialStore>>,
-        mixnet_message_sender: MixnetMessageSender,
-        ack_sender: AcknowledgementSender,
+        packet_router: PacketRouter,
         shutdown: TaskClient,
     ) -> Result<GatewayClient<C, S::CredentialStore>, ClientCoreError>
     where
@@ -338,20 +337,8 @@ where
 
         let mut gateway_client =
             if let Some(existing_client) = initialisation_result.authenticated_ephemeral_client {
-                existing_client.upgrade(
-                    mixnet_message_sender,
-                    ack_sender,
-                    config.debug.gateway_connection.gateway_response_timeout,
-                    bandwidth_controller,
-                    shutdown,
-                )
+                existing_client.upgrade(packet_router, bandwidth_controller, shutdown)
             } else {
-                let packet_router = PacketRouter::new(
-                    ack_sender,
-                    mixnet_message_sender,
-                    shutdown.fork("packet-router"),
-                );
-
                 let cfg = gateway_config.try_into()?;
                 GatewayClient::new(
                     cfg,
@@ -388,8 +375,7 @@ where
         config: &Config,
         initialisation_result: InitialisationResult,
         bandwidth_controller: Option<BandwidthController<C, S::CredentialStore>>,
-        mixnet_message_sender: MixnetMessageSender,
-        ack_sender: AcknowledgementSender,
+        packet_router: PacketRouter,
         mut shutdown: TaskClient,
     ) -> Result<Box<dyn GatewayTransceiver + Send>, ClientCoreError>
     where
@@ -397,12 +383,13 @@ where
         <S::CredentialStore as CredentialStorage>::StorageError: Send + Sync + 'static,
     {
         // if we have setup custom gateway sender and persisted details agree with it, return it
-        if let Some(custom_gateway_transceiver) = custom_gateway_transceiver {
+        if let Some(mut custom_gateway_transceiver) = custom_gateway_transceiver {
             return if !initialisation_result.gateway_details.is_custom() {
                 Err(ClientCoreError::CustomGatewaySelectionExpected)
             } else {
                 // and make sure to invalidate the task client so we wouldn't cause premature shutdown
                 shutdown.mark_as_success();
+                custom_gateway_transceiver.set_packet_router(packet_router);
                 Ok(custom_gateway_transceiver)
             };
         }
@@ -412,8 +399,7 @@ where
             config,
             initialisation_result,
             bandwidth_controller,
-            mixnet_message_sender,
-            ack_sender,
+            packet_router,
             shutdown,
         )
         .await?;
@@ -606,13 +592,18 @@ where
             .dkg_query_client
             .map(|client| BandwidthController::new(credential_store, client));
 
+        let gateway_packet_router = PacketRouter::new(
+            ack_sender,
+            mixnet_messages_sender,
+            shutdown.get_handle().named("gateway-packet-router"),
+        );
+
         let gateway_transceiver = Self::setup_gateway_transceiver(
             self.custom_gateway_transceiver,
             self.config,
             init_res,
             bandwidth_controller,
-            mixnet_messages_sender,
-            ack_sender,
+            gateway_packet_router,
             shutdown.fork("gateway_transceiver"),
         )
         .await?;

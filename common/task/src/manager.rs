@@ -4,6 +4,7 @@
 use futures::{future::pending, FutureExt, SinkExt, StreamExt};
 use log::{log, Level};
 use std::future::Future;
+use std::process::exit;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::{error::Error, time::Duration};
 use tokio::{
@@ -355,6 +356,17 @@ impl TaskClient {
         self
     }
 
+    #[must_use]
+    pub fn with_suffix<S: Into<String>>(self, suffix: S) -> Self {
+        let suffix = suffix.into();
+        let name = if let Some(base) = &self.name {
+            format!("{base}-{suffix}")
+        } else {
+            format!("unknown-{suffix}")
+        };
+        self.named(name)
+    }
+
     pub async fn run_future<Fut, T>(&mut self, fut: Fut) -> Option<T>
     where
         Fut: Future<Output = T>,
@@ -420,13 +432,17 @@ impl TaskClient {
             #[cfg_attr(target_arch = "wasm32", allow(clippy::needless_return))]
             return pending().await;
         }
+
         #[cfg(not(target_arch = "wasm32"))]
-        tokio::time::timeout(
+        if let Err(timeout) = tokio::time::timeout(
             Self::SHUTDOWN_TIMEOUT_WAITING_FOR_SIGNAL_ON_EXIT,
             self.recv(),
         )
         .await
-        .expect("Task stopped without shutdown called");
+        {
+            self.log(Level::Error, "Task stopped without shutdown called");
+            panic!("{timeout}")
+        }
     }
 
     pub fn is_shutdown_poll(&self) -> bool {

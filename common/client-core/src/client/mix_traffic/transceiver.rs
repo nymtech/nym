@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use async_trait::async_trait;
-use log::{error, trace, warn};
+use futures::channel::mpsc;
+use log::{debug, error, trace, warn};
 use nym_crypto::asymmetric::identity;
 use nym_gateway_client::error::GatewayClientError;
-use nym_gateway_client::{
-    AcknowledgementSender, GatewayClient, GatewayPacketRouter, MixnetMessageSender,
-};
+use nym_gateway_client::{AcknowledgementSender, GatewayClient, MixnetMessageSender};
+pub use nym_gateway_client::{GatewayPacketRouter, PacketRouter};
 use nym_sphinx::addressing::nodes::MAX_NODE_ADDRESS_UNPADDED_LEN;
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_sphinx::params::PacketSize;
@@ -59,8 +59,15 @@ pub trait GatewaySender {
 
 /// this trait defines the functionality of being able to correctly route
 /// packets received from the mixnet, i.e. acks and 'proper' messages.
+// can't define routing behaviour on the trait itself since GatewayClient will clone the packet router
+// and send it to a `PartiallyDelegated` socket -> imo that should be redesigned...
 pub trait GatewayReceiver {
-    // type PacketRouter: GatewayPacketRouter;
+    fn route_received(&mut self, plaintexts: Vec<Vec<u8>>) -> Result<(), ErasedGatewayError>;
+
+    // ughhhh I really dislike this method, but couldn't come up wih anything better
+    fn set_packet_router(&mut self, _packet_router: PacketRouter) {
+        debug!("no-op packet router setup")
+    }
 }
 
 // to allow for dynamic dispatch
@@ -89,7 +96,15 @@ impl<G: GatewaySender + ?Sized + Send> GatewaySender for Box<G> {
 }
 
 impl<G: GatewayReceiver + ?Sized> GatewayReceiver for Box<G> {
-    // type PacketRouter = <G as GatewayReceiver>::PacketRouter;
+    #[inline]
+    fn route_received(&mut self, plaintexts: Vec<Vec<u8>>) -> Result<(), ErasedGatewayError> {
+        (**self).route_received(plaintexts)
+    }
+
+    #[inline]
+    fn set_packet_router(&mut self, packet_router: PacketRouter) {
+        (**self).set_packet_router(packet_router)
+    }
 }
 
 /// Gateway to which the client is connected through a socket.
@@ -141,23 +156,43 @@ where
 }
 
 impl<C, St> GatewayReceiver for RemoteGateway<C, St> {
+    fn route_received(&mut self, plaintexts: Vec<Vec<u8>>) -> Result<(), ErasedGatewayError> {
+        // self.gateway_client.set_packet_router(router)
+        todo!()
+    }
     // type PacketRouter = nym_gateway_client::PacketRouter;
 }
 
 /// Gateway running within the same process.
 pub struct LocalGateway {
+    /// Identity of the locally managed gateway
     local_identity: identity::PublicKey,
+
     // 'sender' part
-    // some channel or something
+    /// Channel responsible for taking mix packets and forwarding them further into the further mixnet layers.
+    // TODO: get the type alias from the mixnet client crate
+    packet_forwarder: mpsc::UnboundedSender<MixPacket>,
 
     // 'receiver' part
-    // ack_forwarder: AcknowledgementSender,
-    // mixnet_message_forwarder: MixnetMessageSender,
+    packet_router: Option<PacketRouter>,
+}
+
+impl Drop for LocalGateway {
+    fn drop(&mut self) {
+        error!("local gw is getting dropped");
+    }
 }
 
 impl LocalGateway {
-    pub fn new(local_identity: identity::PublicKey) -> Self {
-        LocalGateway { local_identity }
+    pub fn new(
+        local_identity: identity::PublicKey,
+        packet_forwarder: mpsc::UnboundedSender<MixPacket>,
+    ) -> Self {
+        LocalGateway {
+            local_identity,
+            packet_forwarder,
+            packet_router: None,
+        }
     }
 }
 
@@ -169,24 +204,29 @@ impl GatewayTransceiver for LocalGateway {
 
 #[async_trait]
 impl GatewaySender for LocalGateway {
-    async fn send_mix_packet(&mut self, _packet: MixPacket) -> Result<(), ErasedGatewayError> {
-        println!("here we are supposed to be sending a mix packet");
-        Ok(())
-    }
-
-    async fn batch_send_mix_packets(
-        &mut self,
-        _packets: Vec<MixPacket>,
-    ) -> Result<(), ErasedGatewayError> {
-        println!(
-            "here we are supposed to be sending {} mix packets",
-            _packets.len()
-        );
-        Ok(())
+    async fn send_mix_packet(&mut self, packet: MixPacket) -> Result<(), ErasedGatewayError> {
+        self.packet_forwarder
+            .unbounded_send(packet)
+            .map_err(|err| err.into_send_error())
+            .map_err(erase_err)
     }
 }
 
-impl GatewayReceiver for LocalGateway {}
+impl GatewayReceiver for LocalGateway {
+    fn route_received(&mut self, plaintexts: Vec<Vec<u8>>) -> Result<(), ErasedGatewayError> {
+        println!("routing!");
+        let Some(ref packet_router) = self.packet_router else {
+            todo!()
+        };
+        packet_router.route_received(plaintexts).map_err(erase_err)
+    }
+
+    fn set_packet_router(&mut self, packet_router: PacketRouter) {
+        warn!("setting packet router");
+        self.packet_router = Some(packet_router)
+    }
+    // TODO: or just a getter?
+}
 
 // if we ever decided to start writing unit tests... : )
 pub struct MockGateway {

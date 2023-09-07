@@ -500,7 +500,7 @@ impl<R: MessageReceiver + Clone + Send + 'static> ReceivedMessagesBufferControll
         let mut fragmented_message_receiver = self.fragmented_message_receiver;
         let mut request_receiver = self.request_receiver;
 
-        let shutdown_handle = shutdown.clone();
+        let shutdown_handle = shutdown.fork("fragmented_message_receiver");
         spawn_future(async move {
             match fragmented_message_receiver
                 .run_with_shutdown(shutdown_handle)
@@ -511,7 +511,9 @@ impl<R: MessageReceiver + Clone + Send + 'static> ReceivedMessagesBufferControll
             }
         });
         spawn_future(async move {
-            request_receiver.run_with_shutdown(shutdown).await;
+            request_receiver
+                .run_with_shutdown(shutdown.with_suffix("request_receiver"))
+                .await;
         });
     }
 }

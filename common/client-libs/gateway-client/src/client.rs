@@ -56,6 +56,7 @@ pub struct GatewayConfig {
     pub gateway_listener: String,
 }
 
+// TODO: this should be refactored into a state machine that keeps track of its authentication state
 pub struct GatewayClient<C, St = EphemeralCredentialStorage> {
     authenticated: bool,
     disabled_credentials_mode: bool,
@@ -787,12 +788,7 @@ pub struct InitOnly;
 
 impl GatewayClient<InitOnly, EphemeralCredentialStorage> {
     // for initialisation we do not need credential storage. Though it's still a bit weird we have to set the generic...
-    pub fn new_init(
-        gateway_address: String,
-        gateway_identity: identity::PublicKey,
-        local_identity: Arc<identity::KeyPair>,
-        response_timeout_duration: Duration,
-    ) -> Self {
+    pub fn new_init(config: GatewayConfig, local_identity: Arc<identity::KeyPair>) -> Self {
         use futures::channel::mpsc;
 
         // note: this packet_router is completely invalid in normal circumstances, but "works"
@@ -806,13 +802,13 @@ impl GatewayClient<InitOnly, EphemeralCredentialStorage> {
             authenticated: false,
             disabled_credentials_mode: true,
             bandwidth_remaining: 0,
-            gateway_address,
-            gateway_identity,
+            gateway_address: config.gateway_listener,
+            gateway_identity: config.gateway_identity,
             local_identity,
             shared_key: None,
             connection: SocketState::NotConnected,
             packet_router,
-            response_timeout_duration,
+            response_timeout_duration: DEFAULT_GATEWAY_RESPONSE_TIMEOUT,
             bandwidth_controller: None,
             should_reconnect_on_failure: false,
             reconnection_attempts: DEFAULT_RECONNECTION_ATTEMPTS,
@@ -823,9 +819,7 @@ impl GatewayClient<InitOnly, EphemeralCredentialStorage> {
 
     pub fn upgrade<C, St>(
         self,
-        mixnet_message_sender: MixnetMessageSender,
-        ack_sender: AcknowledgementSender,
-        response_timeout_duration: Duration,
+        packet_router: PacketRouter,
         bandwidth_controller: Option<BandwidthController<C, St>>,
         shutdown: TaskClient,
     ) -> GatewayClient<C, St> {
@@ -844,8 +838,8 @@ impl GatewayClient<InitOnly, EphemeralCredentialStorage> {
             local_identity: self.local_identity,
             shared_key: self.shared_key,
             connection: self.connection,
-            packet_router: PacketRouter::new(ack_sender, mixnet_message_sender, shutdown.clone()),
-            response_timeout_duration,
+            packet_router,
+            response_timeout_duration: self.response_timeout_duration,
             bandwidth_controller,
             should_reconnect_on_failure: self.should_reconnect_on_failure,
             reconnection_attempts: self.reconnection_attempts,

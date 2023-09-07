@@ -78,6 +78,11 @@ pub enum GatewayClientError {
     IncompatibleProtocol { gateway: Option<u8>, current: u8 },
 
     #[error(
+        "The packet router hasn't been set - are you sure you started up the client correctly?"
+    )]
+    PacketRouterUnavailable,
+
+    #[error(
         "this operation couldn't be completed as the program is in the process of shutting down"
     )]
     ShutdownInProgress,

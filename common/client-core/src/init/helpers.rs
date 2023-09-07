@@ -201,13 +201,9 @@ pub(super) async fn register_with_gateway(
     gateway: &GatewayEndpointConfig,
     our_identity: Arc<identity::KeyPair>,
 ) -> Result<RegistrationResult, ClientCoreError> {
-    let timeout = Duration::from_millis(1500);
-    let mut gateway_client = GatewayClient::new_init(
-        gateway.gateway_listener.clone(),
-        gateway.try_get_gateway_identity_key()?,
-        our_identity.clone(),
-        timeout,
-    );
+    let mut gateway_client =
+        GatewayClient::new_init(gateway.to_owned().try_into()?, our_identity.clone());
+
     gateway_client.establish_connection().await.map_err(|err| {
         log::warn!("Failed to establish connection with gateway!");
         ClientCoreError::GatewayClientError {

@@ -49,6 +49,9 @@ pub enum TaskStatus {
 /// shutdown. Keeps track of if task stop unexpectedly, such as in a panic.
 #[derive(Debug)]
 pub struct TaskManager {
+    // optional name assigned to the task manager that all subscribed task clients will inherit
+    name: Option<String>,
+
     // These channels have the dual purpose of signalling it's time to shutdown, but also to keep
     // track of which tasks we are still waiting for.
     notify_tx: watch::Sender<()>,
@@ -81,6 +84,7 @@ impl Default for TaskManager {
         // there is a listener.
         let (task_status_tx, task_status_rx) = futures::channel::mpsc::channel(128);
         Self {
+            name: None,
             notify_tx,
             notify_rx: Some(notify_rx),
             shutdown_timer_secs: DEFAULT_SHUTDOWN_TIMER_SECS,
@@ -102,6 +106,12 @@ impl TaskManager {
         }
     }
 
+    #[must_use]
+    pub fn named<S: Into<String>>(mut self, name: S) -> Self {
+        self.name = Some(name.into());
+        self
+    }
+
     #[cfg(not(target_arch = "wasm32"))]
     pub async fn catch_interrupt(mut self) -> Result<(), SentError> {
         let res = crate::wait_for_signal_and_error(&mut self).await;
@@ -116,7 +126,7 @@ impl TaskManager {
     }
 
     pub fn subscribe(&self) -> TaskClient {
-        TaskClient::new(
+        let task_client = TaskClient::new(
             self.notify_rx
                 .as_ref()
                 .expect("Unable to subscribe to shutdown notifier that is already shutdown")
@@ -124,7 +134,13 @@ impl TaskManager {
             self.task_return_error_tx.clone(),
             self.task_drop_tx.clone(),
             self.task_status_tx.clone(),
-        )
+        );
+
+        if let Some(name) = &self.name {
+            task_client.named(format!("{name}-child"))
+        } else {
+            task_client
+        }
     }
 
     pub fn signal_shutdown(&self) -> Result<(), SendError<()>> {

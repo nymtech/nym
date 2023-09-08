@@ -11,6 +11,8 @@ license.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+async-recursion = "1.0.4"
+base64 = "0.21.3"
 boringtun = "0.6.0"
 bytes = "1.5.0"
 futures = "0.3.28"

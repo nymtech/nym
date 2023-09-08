@@ -89,13 +89,23 @@ pub async fn start_wg_listener(
 }
 
 struct WireGuardTunnel {
-    peer_rx: tokio::sync::mpsc::UnboundedReceiver<Event>,
+    // Incoming data from the UDP socket
+    udp_rx: tokio::sync::mpsc::UnboundedReceiver<Event>,
+
+    // `boringtun` tunnel, used for crypto & WG protocol
+    wg_tunnel: boringtun::noise::Tunn,
 }
 
 impl WireGuardTunnel {
     fn new() -> (Self, mpsc::UnboundedSender<Event>) {
-        let (peer_tx, peer_rx) = tokio::sync::mpsc::unbounded_channel();
-        (Self { peer_rx }, peer_tx)
+        let (udp_tx, udp_rx) = tokio::sync::mpsc::unbounded_channel();
+        (
+            Self {
+                udp_rx,
+                wg_tunnel: todo!(),
+            },
+            udp_tx,
+        )
     }
 
     async fn spin_off(&mut self) {
@@ -105,15 +115,13 @@ impl WireGuardTunnel {
                     log::info!("WireGuard tunnel: shutting down");
                     break;
                 }
-                packet = self.peer_rx.recv() => {
+                packet = self.udp_rx.recv() => {
                     match packet {
                         Some(packet) => {
                             log::info!("WireGuard tunnel received: {packet}");
                             match packet {
-                                Event::IpPacket(data) => {
-                                },
-                                Event::WgPacket(data) => {
-                                },
+                                Event::IpPacket(data) => self.consume_eth(&data).await,
+                                Event::WgPacket(data) => self.consume_wg(&data).await,
                                 _ => {},
                             }
                         }
@@ -122,6 +130,16 @@ impl WireGuardTunnel {
                 }
             }
         }
+    }
+
+    async fn consume_eth(&self, data: &Bytes) {
+        log::info!("WireGuard tunnel: consume_eth");
+        todo!();
+    }
+
+    async fn consume_wg(&self, data: &Bytes) {
+        log::info!("WireGuard tunnel: consume_wg");
+        todo!();
     }
 }
 

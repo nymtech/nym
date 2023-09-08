@@ -48,6 +48,20 @@ fn init_static_dev_keys() -> (x25519::StaticSecret, x25519::PublicKey) {
     (static_private, peer_static_public)
 }
 
+fn start_wg_tunnel(
+    addr: SocketAddr,
+    udp: Arc<UdpSocket>,
+    static_private: x25519::StaticSecret,
+    peer_static_public: x25519::PublicKey,
+) -> (JoinHandle<SocketAddr>, mpsc::UnboundedSender<Event>) {
+    let (mut tunnel, peer_tx) = WireGuardTunnel::new(udp, addr, static_private, peer_static_public);
+    let join_handle = tokio::spawn(async move {
+        tunnel.spin_off().await;
+        addr
+    });
+    (join_handle, peer_tx)
+}
+
 pub async fn start_wg_listener(
     mut task_client: TaskClient,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
@@ -111,18 +125,4 @@ pub async fn start_wg_listener(
     });
 
     Ok(())
-}
-
-fn start_wg_tunnel(
-    addr: SocketAddr,
-    udp: Arc<UdpSocket>,
-    static_private: x25519::StaticSecret,
-    peer_static_public: x25519::PublicKey,
-) -> (JoinHandle<SocketAddr>, mpsc::UnboundedSender<Event>) {
-    let (mut tunnel, peer_tx) = WireGuardTunnel::new(udp, addr, static_private, peer_static_public);
-    let join_handle = tokio::spawn(async move {
-        tunnel.spin_off().await;
-        addr
-    });
-    (join_handle, peer_tx)
 }

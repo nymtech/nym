@@ -76,8 +76,8 @@ impl WireGuardTunnel {
                     Some(packet) => {
                         log::info!("WireGuard tunnel received: {packet}");
                         match packet {
-                            Event::IpPacket(data) => self.consume_eth(&data).await,
                             Event::WgPacket(data) => self.consume_wg(&data).await,
+                            Event::IpPacket(data) => self.consume_eth(&data).await,
                             _ => {},
                         }
                     },
@@ -94,6 +94,46 @@ impl WireGuardTunnel {
         timeout(Duration::from_millis(100), self.wg_tunnel.lock())
             .await
             .unwrap()
+    }
+
+    async fn consume_wg(&self, data: &[u8]) {
+        let mut send_buf = [0u8; MAX_PACKET];
+        let mut peer = self.wg_tunnel_lock().await;
+        match peer.decapsulate(None, data, &mut send_buf) {
+            TunnResult::WriteToNetwork(packet) => {
+                if let Err(err) = self.udp.send_to(packet, self.addr).await {
+                    error!("Failed to send decapsulation-instructed packet to WireGuard endpoint: {err:?}");
+                };
+                // Flush pending queue
+                loop {
+                    let mut send_buf = [0u8; MAX_PACKET];
+                    match peer.decapsulate(None, &[], &mut send_buf) {
+                        TunnResult::WriteToNetwork(packet) => {
+                            if let Err(err) = self.udp.send_to(packet, self.addr).await {
+                                error!("Failed to send decapsulation-instructed packet to WireGuard endpoint: {err:?}");
+                                break;
+                            };
+                        }
+                        _ => {
+                            break;
+                        }
+                    }
+                }
+            }
+            TunnResult::WriteToTunnelV4(packet, _) | TunnResult::WriteToTunnelV6(packet, _) => {
+                info!(
+                    "WireGuard endpoint sent IP packet of {} bytes",
+                    packet.len()
+                );
+                // TODO
+            }
+            x => warn!("{x:?}"),
+        }
+    }
+
+    async fn consume_eth(&self, _data: &Bytes) {
+        log::info!("WireGuard tunnel: consume_eth");
+        todo!();
     }
 
     async fn update_wg_timers(&mut self) {
@@ -132,45 +172,5 @@ impl WireGuardTunnel {
                 warn!("Unexpected WireGuard routine task state: {other:?}");
             }
         };
-    }
-
-    async fn consume_eth(&self, _data: &Bytes) {
-        log::info!("WireGuard tunnel: consume_eth");
-        todo!();
-    }
-
-    async fn consume_wg(&self, data: &[u8]) {
-        let mut send_buf = [0u8; MAX_PACKET];
-        let mut peer = self.wg_tunnel_lock().await;
-        match peer.decapsulate(None, data, &mut send_buf) {
-            TunnResult::WriteToNetwork(packet) => {
-                if let Err(err) = self.udp.send_to(packet, self.addr).await {
-                    error!("Failed to send decapsulation-instructed packet to WireGuard endpoint: {err:?}");
-                };
-                // Flush pending queue
-                loop {
-                    let mut send_buf = [0u8; MAX_PACKET];
-                    match peer.decapsulate(None, &[], &mut send_buf) {
-                        TunnResult::WriteToNetwork(packet) => {
-                            if let Err(err) = self.udp.send_to(packet, self.addr).await {
-                                error!("Failed to send decapsulation-instructed packet to WireGuard endpoint: {err:?}");
-                                break;
-                            };
-                        }
-                        _ => {
-                            break;
-                        }
-                    }
-                }
-            }
-            TunnResult::WriteToTunnelV4(packet, _) | TunnResult::WriteToTunnelV6(packet, _) => {
-                info!(
-                    "WireGuard endpoint sent IP packet of {} bytes",
-                    packet.len()
-                );
-                // TODO
-            }
-            x => warn!("{x:?}"),
-        }
     }
 }

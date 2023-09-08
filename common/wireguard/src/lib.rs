@@ -9,7 +9,10 @@ use bytes::Bytes;
 use futures::StreamExt;
 use nym_task::TaskClient;
 use tap::TapFallible;
-use tokio::{net::UdpSocket, sync::oneshot};
+use tokio::{
+    net::UdpSocket,
+    sync::{mpsc, oneshot},
+};
 
 //const WG_ADDRESS = "0.0.0.0:51820";
 const WG_ADDRESS: &str = "0.0.0.0:51822";
@@ -20,7 +23,7 @@ const PEERS: &[&str; 1] = &["mxV/mw7WZTe+0Msa0kvJHMHERDA/cSskiZWQce+TdEs="];
 
 pub async fn start_wg_listener(
     mut task_client: TaskClient,
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     log::info!("Starting wireguard listener on {}", WG_ADDRESS);
     let udp4_socket = Arc::new(UdpSocket::bind(WG_ADDRESS).await?);
 
@@ -63,8 +66,7 @@ pub async fn start_wg_listener(
                         log::info!("WireGuard listener: received packet from unknown peer");
 
                         // First setup new tunnel
-                        let (peer_tx, peer_rx) = tokio::sync::mpsc::unbounded_channel();
-                        let tunnel = WireGuardTunnel::new(peer_rx);
+                        let (mut tunnel, peer_tx) = WireGuardTunnel::new();
                         let join_handle = tokio::spawn(async move {
                             tunnel.spin_off().await;
                             addr
@@ -86,19 +88,37 @@ pub async fn start_wg_listener(
     Ok(())
 }
 
-struct WireGuardTunnel {}
+struct WireGuardTunnel {
+    peer_rx: tokio::sync::mpsc::UnboundedReceiver<Event>,
+}
 
 impl WireGuardTunnel {
-    fn new(peer_rx: tokio::sync::mpsc::UnboundedReceiver<Event>) -> Self {
-        Self {}
+    fn new() -> (Self, mpsc::UnboundedSender<Event>) {
+        let (peer_tx, peer_rx) = tokio::sync::mpsc::unbounded_channel();
+        (Self { peer_rx }, peer_tx)
     }
 
-    async fn spin_off(self) {
+    async fn spin_off(&mut self) {
         loop {
             tokio::select! {
                 _ = tokio::time::sleep(Duration::from_millis(2000)) => {
                     log::info!("WireGuard tunnel: shutting down");
                     break;
+                }
+                packet = self.peer_rx.recv() => {
+                    match packet {
+                        Some(packet) => {
+                            log::info!("WireGuard tunnel received: {packet}");
+                            match packet {
+                                Event::IpPacket(data) => {
+                                },
+                                Event::WgPacket(data) => {
+                                },
+                                _ => {},
+                            }
+                        }
+                        None => log::error!("none"),
+                    }
                 }
             }
         }

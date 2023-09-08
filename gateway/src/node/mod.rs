@@ -296,7 +296,7 @@ impl<St> Gateway<St> {
             Arc::new(coconut_verifier),
         );
 
-        nym_wireguard::start_wg_listener(shutdown.subscribe()).await;
+        nym_wireguard::start_wg_listener(shutdown.subscribe()).await?;
 
         info!("Finished nym gateway startup procedure - it should now be able to receive mix and client traffic!");
 

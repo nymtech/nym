@@ -8,7 +8,7 @@ use wasm_bindgen_futures::future_to_promise;
 use wasm_client_core::client::base_client::{ClientInput, ClientState};
 use wasm_client_core::client::inbound_messages::InputMessage;
 use wasm_client_core::error::WasmCoreError;
-use wasm_client_core::topology::WasmNymTopology;
+use wasm_client_core::topology::SerializableNymTopology;
 use wasm_client_core::{MixLayer, NymTopology};
 use wasm_utils::error::simple_js_error;
 use wasm_utils::{check_promise_result, console_log};
@@ -36,7 +36,7 @@ pub struct NymClientTestRequest {
 #[cfg(feature = "node-tester")]
 #[wasm_bindgen]
 impl NymClientTestRequest {
-    pub fn injectable_topology(&self) -> WasmNymTopology {
+    pub fn injectable_topology(&self) -> SerializableNymTopology {
         self.testable_topology.clone().into()
     }
 }
@@ -78,7 +78,7 @@ impl InputSender for Arc<ClientInput> {
 
 pub(crate) trait WasmTopologyExt {
     /// Changes the current network topology to the provided value.
-    fn change_hardcoded_topology(&self, topology: WasmNymTopology) -> Promise;
+    fn change_hardcoded_topology(&self, topology: SerializableNymTopology) -> Promise;
 
     /// Returns the current network topology.
     fn current_topology(&self) -> Promise;
@@ -99,7 +99,7 @@ pub(crate) trait WasmTopologyTestExt {
 }
 
 impl WasmTopologyExt for Arc<ClientState> {
-    fn change_hardcoded_topology(&self, topology: WasmNymTopology) -> Promise {
+    fn change_hardcoded_topology(&self, topology: SerializableNymTopology) -> Promise {
         let nym_topology: NymTopology = check_promise_result!(topology.try_into());
 
         let this = Arc::clone(self);
@@ -116,10 +116,10 @@ impl WasmTopologyExt for Arc<ClientState> {
         let this = Arc::clone(self);
         future_to_promise(async move {
             match this.topology_accessor.current_topology().await {
-                Some(topology) => Ok(serde_wasm_bindgen::to_value(&WasmNymTopology::from(
+                Some(topology) => Ok(serde_wasm_bindgen::to_value(&SerializableNymTopology::from(
                     topology,
                 ))
-                .expect("WasmNymTopology failed serialization")),
+                .expect("SerializableNymTopology failed serialization")),
                 None => Err(WasmCoreError::UnavailableNetworkTopology.into()),
             }
         })

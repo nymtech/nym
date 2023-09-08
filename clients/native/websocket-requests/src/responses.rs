@@ -230,8 +230,7 @@ impl ServerResponse {
 
         let error_kind = ErrorKind::try_from(b[1])?;
 
-        let message_len =
-            u64::from_be_bytes(b[2..2 + size_of::<u64>()].as_ref().try_into().unwrap());
+        let message_len = u64::from_be_bytes(b[2..2 + size_of::<u64>()].try_into().unwrap());
         let message = &b[2 + size_of::<u64>()..];
         if message.len() as u64 != message_len {
             return Err(error::Error::new(

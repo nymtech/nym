@@ -44,7 +44,9 @@ use nym_sphinx::receiver::{ReconstructedMessage, SphinxMessageReceiver};
 use nym_task::connections::{ConnectionCommandReceiver, ConnectionCommandSender, LaneQueueLengths};
 use nym_task::{TaskClient, TaskManager};
 use nym_topology::provider_trait::TopologyProvider;
+use nym_topology::HardcodedTopologyProvider;
 use nym_validator_client::nyxd::contract_traits::DkgQueryClient;
+use std::path::Path;
 use std::sync::Arc;
 use url::Url;
 
@@ -178,17 +180,28 @@ where
         }
     }
 
+    #[must_use]
     pub fn with_gateway_setup(mut self, setup: GatewaySetup) -> Self {
         self.setup_method = setup;
         self
     }
 
+    #[must_use]
     pub fn with_topology_provider(
         mut self,
         provider: Box<dyn TopologyProvider + Send + Sync>,
     ) -> Self {
         self.custom_topology_provider = Some(provider);
         self
+    }
+
+    pub fn with_stored_topology<P: AsRef<Path>>(
+        mut self,
+        file: P,
+    ) -> Result<Self, ClientCoreError> {
+        self.custom_topology_provider =
+            Some(Box::new(HardcodedTopologyProvider::new_from_file(file)?));
+        Ok(self)
     }
 
     // note: do **NOT** make this method public as its only valid usage is from within `start_base`

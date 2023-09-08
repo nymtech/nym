@@ -13,6 +13,7 @@ use nym_bin_common::version_checker::is_minor_version_compatible;
 use nym_crypto::asymmetric::identity;
 use std::error::Error;
 use std::net::IpAddr;
+use std::path::PathBuf;
 
 #[derive(Args, Clone)]
 pub(crate) struct Run {
@@ -25,7 +26,12 @@ pub(crate) struct Run {
     nyxd_urls: Option<Vec<url::Url>>,
 
     /// Comma separated list of rest endpoints of the API validators
-    #[clap(long, alias = "api_validators", value_delimiter = ',')]
+    #[clap(
+        long,
+        alias = "api_validators",
+        value_delimiter = ',',
+        group = "network"
+    )]
     // the alias here is included for backwards compatibility (1.1.4 and before)
     nym_apis: Option<Vec<url::Url>>,
 
@@ -45,6 +51,10 @@ pub(crate) struct Run {
     /// Ip for the socket (if applicable) to listen for requests.
     #[clap(long)]
     host: Option<IpAddr>,
+
+    /// Path to .json file containing custom network specification.
+    #[clap(long, group = "network", hide = true)]
+    custom_mixnet: Option<PathBuf>,
 
     /// Mostly debug-related option to increase default traffic rate so that you would not need to
     /// modify config post init
@@ -95,7 +105,7 @@ fn version_check(cfg: &Config) -> bool {
     }
 }
 
-pub(crate) async fn execute(args: &Run) -> Result<(), Box<dyn Error + Send + Sync>> {
+pub(crate) async fn execute(args: Run) -> Result<(), Box<dyn Error + Send + Sync>> {
     eprintln!("Starting client {}...", args.id);
 
     let mut config = try_load_current_config(&args.id)?;
@@ -106,5 +116,7 @@ pub(crate) async fn execute(args: &Run) -> Result<(), Box<dyn Error + Send + Syn
         return Err(Box::new(ClientError::FailedLocalVersionCheck));
     }
 
-    SocketClient::new(config).run_socket_forever().await
+    SocketClient::new(config, args.custom_mixnet)
+        .run_socket_forever()
+        .await
 }

@@ -24,7 +24,7 @@ use wasm_client_core::nym_task::connections::TransmissionLane;
 use wasm_client_core::nym_task::TaskManager;
 use wasm_client_core::storage::core_client_traits::FullWasmClientStorage;
 use wasm_client_core::storage::ClientStorage;
-use wasm_client_core::topology::WasmNymTopology;
+use wasm_client_core::topology::{SerializableNymTopology, SerializableTopologyExt};
 use wasm_client_core::{
     HardcodedTopologyProvider, IdentityKey, NymTopology, PacketType, QueryReqwestRpcNyxdClient,
     TopologyProvider,
@@ -95,7 +95,7 @@ impl NymClientBuilder {
     // NOTE: you most likely want to use `[NymNodeTester]` instead.
     #[cfg(feature = "node-tester")]
     pub fn new_tester(
-        topology: WasmNymTopology,
+        topology: SerializableNymTopology,
         on_message: js_sys::Function,
         gateway: Option<IdentityKey>,
     ) -> Result<NymClientBuilder, WasmClientError> {
@@ -315,7 +315,7 @@ impl NymClient {
             .mix_test_request(test_id, mixnode_identity, num_test_packets)
     }
 
-    pub fn change_hardcoded_topology(&self, topology: WasmNymTopology) -> Promise {
+    pub fn change_hardcoded_topology(&self, topology: SerializableNymTopology) -> Promise {
         self.client_state.change_hardcoded_topology(topology)
     }
 

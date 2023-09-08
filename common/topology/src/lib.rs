@@ -17,6 +17,9 @@ use std::io;
 use std::net::{IpAddr, SocketAddr, ToSocketAddrs};
 use std::str::FromStr;
 
+#[cfg(feature = "serializable")]
+use ::serde::{Deserialize, Deserializer, Serialize, Serializer};
+
 pub mod error;
 pub mod filter;
 pub mod gateway;
@@ -25,6 +28,12 @@ pub mod random_route_provider;
 
 #[cfg(feature = "provider-trait")]
 pub mod provider_trait;
+
+#[cfg(feature = "serializable")]
+pub(crate) mod serde;
+
+#[cfg(feature = "serializable")]
+pub use crate::serde::{SerializableNymTopology, SerializableTopologyError};
 
 #[cfg(feature = "provider-trait")]
 pub use provider_trait::{HardcodedTopologyProvider, TopologyProvider};
@@ -110,6 +119,12 @@ impl NymTopology {
         NymTopology { mixes, gateways }
     }
 
+    #[cfg(feature = "serializable")]
+    pub fn new_from_file<P: AsRef<std::path::Path>>(path: P) -> std::io::Result<Self> {
+        let file = std::fs::File::open(path)?;
+        serde_json::from_reader(file).map_err(Into::into)
+    }
+
     pub fn from_detailed(
         mix_details: Vec<MixNodeDetails>,
         gateway_bonds: Vec<GatewayBond>,
@@ -169,6 +184,10 @@ impl NymTopology {
 
     pub fn gateways(&self) -> &[gateway::Node] {
         &self.gateways
+    }
+
+    pub fn get_gateways(&self) -> Vec<gateway::Node> {
+        self.gateways.clone()
     }
 
     pub fn get_gateway(&self, gateway_identity: &NodeIdentity) -> Option<&gateway::Node> {
@@ -347,6 +366,27 @@ impl NymTopology {
             mixes: self.mixes.filter_by_version(expected_mix_version),
             gateways: self.gateways.clone(),
         }
+    }
+}
+
+#[cfg(feature = "serializable")]
+impl Serialize for NymTopology {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        crate::serde::SerializableNymTopology::from(self.clone()).serialize(serializer)
+    }
+}
+
+#[cfg(feature = "serializable")]
+impl<'de> Deserialize<'de> for NymTopology {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let serializable = crate::serde::SerializableNymTopology::deserialize(deserializer)?;
+        serializable.try_into().map_err(::serde::de::Error::custom)
     }
 }
 

@@ -150,6 +150,13 @@ impl PublicKey {
     }
 }
 
+#[cfg(feature = "sphinx")]
+impl From<PublicKey> for DestinationAddressBytes {
+    fn from(value: PublicKey) -> Self {
+        value.derive_destination_address()
+    }
+}
+
 impl FromStr for PublicKey {
     type Err = Ed25519RecoveryError;
 

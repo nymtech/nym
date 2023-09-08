@@ -70,9 +70,9 @@ impl<St: Storage> ConnectionHandler<St> {
     }
 
     fn update_clients_store_cache_entry(&mut self, client_address: DestinationAddressBytes) {
-        if let Some(client_senders) = self.active_clients_store.get(client_address) {
+        if let Some(client_senders) = self.active_clients_store.get_sender(client_address) {
             self.clients_store_cache
-                .insert(client_address, client_senders.mix_message_sender);
+                .insert(client_address, client_senders);
         }
     }
 
@@ -213,9 +213,13 @@ impl<St: Storage> ConnectionHandler<St> {
             }
         }
 
-        info!(
-            "Closing connection from {:?}",
-            framed_conn.into_inner().peer_addr()
-        );
+        match framed_conn.into_inner().peer_addr() {
+            Ok(peer_addr) => {
+                debug!("closing connection from {peer_addr}")
+            }
+            Err(err) => {
+                warn!("closing connection from an unknown peer: {err}")
+            }
+        }
     }
 }

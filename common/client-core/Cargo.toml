@@ -11,7 +11,7 @@ rust-version = "1.66"
 async-trait = { workspace = true }
 base64 = "0.21.2"
 cfg-if = "1.0.0"
-dashmap = "5.4.0"
+dashmap = { workspace = true }
 dirs = "4.0"
 futures = { workspace = true }
 humantime-serde = "1.0"

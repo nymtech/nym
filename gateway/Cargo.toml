@@ -22,7 +22,7 @@ bip39 = { workspace = true }
 bs58 = "0.4.0"
 clap = { version = "4.0", features = ["cargo", "derive"] }
 colored = "2.0"
-dashmap = "4.0"
+dashmap = { workspace = true }
 dirs = "4.0"
 dotenvy = { workspace = true }
 futures = { workspace = true }

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use async_trait::async_trait;
-use futures::channel::mpsc;
+use futures::channel::{mpsc, oneshot};
 use log::{debug, error, trace, warn};
 use nym_crypto::asymmetric::identity;
 use nym_gateway_client::error::GatewayClientError;
@@ -174,7 +174,7 @@ pub struct LocalGateway {
     packet_forwarder: mpsc::UnboundedSender<MixPacket>,
 
     // 'receiver' part
-    packet_router: Option<PacketRouter>,
+    packet_router_tx: Option<oneshot::Sender<PacketRouter>>,
 }
 
 impl Drop for LocalGateway {
@@ -187,11 +187,12 @@ impl LocalGateway {
     pub fn new(
         local_identity: identity::PublicKey,
         packet_forwarder: mpsc::UnboundedSender<MixPacket>,
+        packet_router_tx: oneshot::Sender<PacketRouter>,
     ) -> Self {
         LocalGateway {
             local_identity,
             packet_forwarder,
-            packet_router: None,
+            packet_router_tx: Some(packet_router_tx),
         }
     }
 }
@@ -214,16 +215,22 @@ impl GatewaySender for LocalGateway {
 
 impl GatewayReceiver for LocalGateway {
     fn route_received(&mut self, plaintexts: Vec<Vec<u8>>) -> Result<(), ErasedGatewayError> {
-        println!("routing!");
-        let Some(ref packet_router) = self.packet_router else {
-            todo!()
-        };
-        packet_router.route_received(plaintexts).map_err(erase_err)
+        todo!()
+        // println!("routing!");
+        // let Some(ref packet_router) = self.packet_router else {
+        //     todo!()
+        // };
+        // packet_router.route_received(plaintexts).map_err(erase_err)
     }
 
     fn set_packet_router(&mut self, packet_router: PacketRouter) {
-        warn!("setting packet router");
-        self.packet_router = Some(packet_router)
+        self.packet_router_tx
+            .take()
+            .expect("already used")
+            .send(packet_router)
+            .expect("TODO")
+        // warn!("setting packet router");
+        // self.packet_router = Some(packet_router)
     }
     // TODO: or just a getter?
 }

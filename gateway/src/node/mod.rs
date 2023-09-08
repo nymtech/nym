@@ -5,18 +5,24 @@ use self::storage::PersistentStorage;
 use crate::config::Config;
 use crate::error::GatewayError;
 use crate::node::client_handling::active_clients::ActiveClientsStore;
+use crate::node::client_handling::embedded_network_requester::{
+    LocalNetworkRequester, MessageRouter,
+};
 use crate::node::client_handling::websocket;
 use crate::node::client_handling::websocket::connection_handler::coconut::CoconutVerifier;
 use crate::node::mixnet_handling::receiver::connection_handler::ConnectionHandler;
 use crate::node::statistics::collector::GatewayStatisticsCollector;
 use crate::node::storage::Storage;
-use futures::channel::oneshot;
+use futures::channel::{mpsc, oneshot};
+use futures::StreamExt;
 use log::*;
 use nym_bin_common::output_format::OutputFormat;
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_mixnet_client::forwarder::{MixForwardingSender, PacketForwarder};
 use nym_network_defaults::NymNetworkDetails;
-use nym_network_requester::{LocalGateway, NRServiceProviderBuilder, PacketRouter};
+use nym_network_requester::{
+    GatewayPacketRouter, LocalGateway, NRServiceProviderBuilder, PacketRouter,
+};
 use nym_pemstore::traits::PemStorableKeyPair;
 use nym_pemstore::KeyPairPath;
 use nym_statistics_common::collector::StatisticsSender;
@@ -28,6 +34,8 @@ use std::error::Error;
 use std::net::SocketAddr;
 use std::path::Path;
 use std::sync::Arc;
+use std::time::Duration;
+use tokio::time::timeout;
 
 pub(crate) mod client_handling;
 pub(crate) mod mixnet_handling;
@@ -249,15 +257,16 @@ impl<St> Gateway<St> {
         packet_sender
     }
 
+    // TODO: rethink the logic in this function...
     async fn maybe_start_network_requester(
         &self,
         forwarding_channel: MixForwardingSender,
         mut shutdown: TaskClient,
-    ) -> Result<(), GatewayError> {
+    ) -> Result<Option<LocalNetworkRequester>, GatewayError> {
         if !self.config.network_requester.enabled {
             info!("network requester is disabled");
             shutdown.mark_as_success();
-            return Ok(());
+            return Ok(None);
         } else {
             info!("Starting network requester...");
         }
@@ -266,8 +275,17 @@ impl<St> Gateway<St> {
             return Err(GatewayError::UnspecifiedNetworkRequesterConfig)
         };
 
-        let transceiver =
-            LocalGateway::new(*self.identity_keypair.public_key(), forwarding_channel);
+        // this gateway, whenever it has anything to send to its local NR will use fake_client_tx
+        let (nr_mix_sender, nr_mix_receiver) = mpsc::unbounded();
+        let router_shutdown = shutdown.fork("message_router");
+
+        let (router_tx, router_rx) = oneshot::channel();
+
+        let transceiver = LocalGateway::new(
+            *self.identity_keypair.public_key(),
+            forwarding_channel,
+            router_tx,
+        );
 
         // TODO: well, wire it up internally to gateway traffic, shutdowns, etc.
         let (on_start_tx, on_start_rx) = oneshot::channel();
@@ -287,11 +305,18 @@ impl<St> Gateway<St> {
             .await
             .map_err(|_| GatewayError::TerminatedNetworkRequester)?;
 
+        // this should be instantaneous since the data is sent on this channel before the on start is called
+        let packet_router = timeout(Duration::from_millis(20), router_rx)
+            .await
+            .expect("TODO: timeout")
+            .expect("TODO: dropped sender");
+
+        MessageRouter::new(nr_mix_receiver, packet_router).start_with_shutdown(router_shutdown);
+
         error!("local NR is {nr_address}");
 
         // let gateway_destination = nr_address.identity().
-
-        Ok(())
+        Ok(Some(LocalNetworkRequester::new(nr_address, nr_mix_sender)))
     }
 
     async fn wait_for_interrupt(shutdown: TaskManager) -> Result<(), Box<dyn Error + Send + Sync>> {
@@ -384,18 +409,23 @@ impl<St> Gateway<St> {
             });
         }
 
+        if let Some(local_nr) = self
+            .maybe_start_network_requester(
+                mix_forwarding_channel.clone(),
+                shutdown.subscribe().named("NetworkRequester"),
+            )
+            .await?
+        {
+            // insert information about local NR to the active clients store
+            active_clients_store.insert_embedded(local_nr)
+        }
+
         self.start_client_websocket_listener(
-            mix_forwarding_channel.clone(),
+            mix_forwarding_channel,
             active_clients_store,
             shutdown.subscribe().named("websocket::Listener"),
             Arc::new(coconut_verifier),
         );
-
-        self.maybe_start_network_requester(
-            mix_forwarding_channel,
-            shutdown.subscribe().named("NetworkRequester"),
-        )
-        .await?;
 
         // Once this is a bit more mature, make this a commandline flag instead of a compile time
         // flag

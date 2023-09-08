@@ -21,7 +21,7 @@ const PEERS: &[&str; 1] = &["mxV/mw7WZTe+0Msa0kvJHMHERDA/cSskiZWQce+TdEs="];
 pub async fn start_wg_listener(
     mut task_client: TaskClient,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    log::info!("Starting Wireguard listener on {}", WG_ADDRESS);
+    log::info!("Starting wireguard listener on {}", WG_ADDRESS);
     let udp4_socket = Arc::new(UdpSocket::bind(WG_ADDRESS).await?);
 
     tokio::spawn(async move {
@@ -30,56 +30,54 @@ pub async fn start_wg_listener(
             tokio::sync::mpsc::UnboundedSender<Event>,
         > = HashMap::new();
         let mut active_peers_rx = futures::stream::FuturesUnordered::new();
-        // let mut active_peers_incoming = tokio::sync::mpsc::unbounded_channel();
-        // let (bus_tx, _) = tokio::sync::broadcast::channel(128);
         let mut buf = [0u8; 1024];
 
         while !task_client.is_shutdown() {
             tokio::select! {
                 _ = task_client.recv() => {
                     log::trace!("WireGuard listener: received shutdown");
+                    break;
                 }
-                addr = active_peers_rx.next() => {
-                    log::info!("WireGuard listener: received shutdown from {:?}", addr);
+                // Handle tunnel closing
+                Some(addr) = active_peers_rx.next() => {
                     match addr {
-                        Some(Ok(addr)) => {
+                        Ok(addr) => {
+                            log::info!("WireGuard listener: received shutdown from {:?}", addr);
                             active_peers.remove(&addr);
                         }
-                        Some(Err(err)) => {
+                        Err(err) => {
                             log::error!("WireGuard listener: error receiving shutdown from peer: {}", err);
                         }
-                        None => {}
                     }
                 }
+                // Handle incoming packets
                 Ok((len, addr)) = udp4_socket.recv_from(&mut buf) => {
                     log::info!("Received {} bytes from {}", len, addr);
 
-                    if let Some(tx) = active_peers.get_mut(&addr) {
+                    if let Some(peer_tx) = active_peers.get_mut(&addr) {
                         log::info!("WireGuard listener: received packet from known peer");
-                        tx.send(Event::WgPacket(buf[..len].to_vec().into()))
+                        peer_tx.send(Event::WgPacket(buf[..len].to_vec().into()))
                             .tap_err(|err| log::error!("{err}"))
                             .unwrap();
-                        // bus_tx.send(Event::WgPacket(buf[..len].to_vec().into()))
-                        //     .tap_err(|err| log::error!("{err}"))
-                        //     .unwrap();
                     } else {
                         log::info!("WireGuard listener: received packet from unknown peer");
+
+                        // First setup new tunnel
                         let (peer_tx, peer_rx) = tokio::sync::mpsc::unbounded_channel();
-                        active_peers.insert(addr, peer_tx);
                         let tunnel = WireGuardTunnel::new(peer_rx);
                         let join_handle = tokio::spawn(async move {
                             tunnel.spin_off().await;
                             addr
                         });
+
+                        peer_tx.send(Event::WgPacket(buf[..len].to_vec().into()))
+                            .tap_err(|err| log::error!("{err}"))
+                            .unwrap();
+
+                        active_peers.insert(addr, peer_tx);
                         active_peers_rx.push(join_handle);
-                        // bus_tx.send(Event::WgPacket(buf[..len].to_vec().into()))
-                        //     .tap_err(|err| log::error!("{err}"))
-                        //     .unwrap();
                     }
                 }
-                // oneshot channel from when we should remove the addr from active_peers
-                // (i.e. when the peer disconnects)
-
             }
         }
         log::info!("WireGuard listener: shutting down");

@@ -48,6 +48,7 @@ impl From<SerializableTopologyError> for JsValue {
 #[cfg_attr(feature = "wasm-serde-types", derive(Tsify))]
 #[cfg_attr(feature = "wasm-serde-types", tsify(into_wasm_abi, from_wasm_abi))]
 #[serde(rename_all = "camelCase")]
+#[serde(deny_unknown_fields)]
 pub struct SerializableNymTopology {
     pub mixnodes: BTreeMap<MixLayer, Vec<SerializableMixNode>>,
     pub gateways: Vec<SerializableGateway>,
@@ -95,15 +96,24 @@ impl From<NymTopology> for SerializableNymTopology {
 #[cfg_attr(feature = "wasm-serde-types", derive(Tsify))]
 #[cfg_attr(feature = "wasm-serde-types", tsify(into_wasm_abi, from_wasm_abi))]
 #[serde(rename_all = "camelCase")]
+#[serde(deny_unknown_fields)]
 pub struct SerializableMixNode {
     // this is a `MixId` but due to typescript issue, we're using u32 directly.
+    #[serde(alias = "mix_id")]
     pub mix_id: u32,
+
     pub owner: String,
+
     pub host: String,
 
     #[cfg_attr(feature = "wasm-serde-types", tsify(optional))]
+    #[serde(alias = "mix_port")]
     pub mix_port: Option<u16>,
+
+    #[serde(alias = "identity_key")]
     pub identity_key: String,
+
+    #[serde(alias = "sphinx_key")]
     pub sphinx_key: String,
 
     // this is a `MixLayer` but due to typescript issue, we're using u8 directly.
@@ -161,16 +171,24 @@ impl<'a> From<&'a mix::Node> for SerializableMixNode {
 #[cfg_attr(feature = "wasm-serde-types", derive(Tsify))]
 #[cfg_attr(feature = "wasm-serde-types", tsify(into_wasm_abi, from_wasm_abi))]
 #[serde(rename_all = "camelCase")]
+#[serde(deny_unknown_fields)]
 pub struct SerializableGateway {
     pub owner: String,
+
     pub host: String,
 
     #[cfg_attr(feature = "wasm-serde-types", tsify(optional))]
+    #[serde(alias = "mix_port")]
     pub mix_port: Option<u16>,
 
     #[cfg_attr(feature = "wasm-serde-types", tsify(optional))]
+    #[serde(alias = "clients_port")]
     pub clients_port: Option<u16>,
+
+    #[serde(alias = "identity_key")]
     pub identity_key: String,
+
+    #[serde(alias = "sphinx_key")]
     pub sphinx_key: String,
 
     #[cfg_attr(feature = "wasm-serde-types", tsify(optional))]

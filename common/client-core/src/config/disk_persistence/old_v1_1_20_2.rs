@@ -3,6 +3,7 @@
 
 use crate::config::disk_persistence::keys_paths::ClientKeysPaths;
 use crate::config::disk_persistence::{CommonClientPaths, DEFAULT_GATEWAY_DETAILS_FILENAME};
+use crate::error::ClientCoreError;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
@@ -15,16 +16,17 @@ pub struct CommonClientPathsV1_1_20_2 {
 }
 
 impl CommonClientPathsV1_1_20_2 {
-    pub fn upgrade_default(self) -> CommonClientPaths {
-        let data_dir = self
-            .reply_surb_database
-            .parent()
-            .expect("client paths upgrade failure");
-        CommonClientPaths {
+    pub fn upgrade_default(self) -> Result<CommonClientPaths, ClientCoreError> {
+        let data_dir = self.reply_surb_database.parent().ok_or_else(|| {
+            ClientCoreError::UnableToUpgradeConfigFile {
+                new_version: "1.1.20-2".to_string(),
+            }
+        })?;
+        Ok(CommonClientPaths {
             keys: self.keys,
             gateway_details: data_dir.join(DEFAULT_GATEWAY_DETAILS_FILENAME),
             credentials_database: self.credentials_database,
             reply_surb_database: self.reply_surb_database,
-        }
+        })
     }
 }

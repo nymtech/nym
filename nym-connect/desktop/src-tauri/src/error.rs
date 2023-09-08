@@ -81,6 +81,13 @@ pub enum BackendError {
     CouldNotGetConfigFilename,
     #[error("could not load existing gateway configuration")]
     CouldNotLoadExistingGatewayConfiguration(std::io::Error),
+    #[error("could not upgrade `{file}` to latest version")]
+    CouldNotUpgradeExistingConfigurationFile { file: std::path::PathBuf },
+    #[error("could not upgrade `{file}` to latest version (failed at {failed_at_version})")]
+    CouldNotUpgradeExistingConfigurationFileAtVersion {
+        file: std::path::PathBuf,
+        failed_at_version: String,
+    },
 
     #[error("no gateways found in directory")]
     NoGatewaysFoundInDirectory,

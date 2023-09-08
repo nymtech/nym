@@ -56,7 +56,7 @@ impl PacketForwarder {
                     log::trace!("PacketForwarder: Received shutdown");
                 }
                 Some(mix_packet) = self.packet_receiver.next() => {
-                     trace!("Going to forward packet to {:?}", mix_packet.next_hop());
+                     trace!("Going to forward packet to {}", mix_packet.next_hop());
 
                     let next_hop = mix_packet.next_hop();
                     let packet_type = mix_packet.packet_type();

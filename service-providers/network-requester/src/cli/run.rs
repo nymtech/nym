@@ -94,6 +94,6 @@ pub(crate) async fn execute(args: &Run) -> Result<(), NetworkRequesterError> {
     }
 
     log::info!("Starting socks5 service provider");
-    let server = crate::core::NRServiceProviderBuilder::new(config).await;
+    let server = crate::core::NRServiceProviderBuilder::new(config);
     server.run_service_provider().await
 }

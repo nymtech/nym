@@ -167,7 +167,7 @@ pub async fn execute(args: Init) -> Result<(), Box<dyn Error + Send + Sync>> {
     );
     eprintln!("Gateway configuration completed.\n\n\n");
 
-    crate::node::create_gateway(config)
+    crate::node::create_gateway(config, None)
         .await?
         .print_node_details(output);
     Ok(())

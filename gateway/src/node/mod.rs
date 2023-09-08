@@ -14,15 +14,12 @@ use crate::node::mixnet_handling::receiver::connection_handler::ConnectionHandle
 use crate::node::statistics::collector::GatewayStatisticsCollector;
 use crate::node::storage::Storage;
 use futures::channel::{mpsc, oneshot};
-use futures::StreamExt;
 use log::*;
 use nym_bin_common::output_format::OutputFormat;
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_mixnet_client::forwarder::{MixForwardingSender, PacketForwarder};
 use nym_network_defaults::NymNetworkDetails;
-use nym_network_requester::{
-    GatewayPacketRouter, LocalGateway, NRServiceProviderBuilder, PacketRouter,
-};
+use nym_network_requester::{LocalGateway, NRServiceProviderBuilder, PacketRouter};
 use nym_pemstore::traits::PemStorableKeyPair;
 use nym_pemstore::KeyPairPath;
 use nym_statistics_common::collector::StatisticsSender;
@@ -32,7 +29,7 @@ use rand::seq::SliceRandom;
 use rand::thread_rng;
 use std::error::Error;
 use std::net::SocketAddr;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::timeout;
@@ -43,7 +40,10 @@ pub(crate) mod statistics;
 pub(crate) mod storage;
 
 /// Wire up and create Gateway instance
-pub(crate) async fn create_gateway(config: Config) -> Result<Gateway, GatewayError> {
+pub(crate) async fn create_gateway(
+    config: Config,
+    custom_nr_mixnet: Option<PathBuf>,
+) -> Result<Gateway, GatewayError> {
     let storage = initialise_storage(&config).await;
 
     // don't attempt to read config if NR is disabled
@@ -57,7 +57,13 @@ pub(crate) async fn create_gateway(config: Config) -> Result<Gateway, GatewayErr
     } else {
         None
     };
-    Gateway::new(config, network_requester_config, storage)
+
+    let nr_opts = network_requester_config.map(|config| LocalNetworkRequesterOpts {
+        config,
+        custom_mixnet_path: custom_nr_mixnet,
+    });
+
+    Gateway::new(config, nr_opts, storage)
 }
 
 fn load_network_requester_config<P: AsRef<Path>>(
@@ -83,10 +89,20 @@ async fn initialise_storage(config: &Config) -> PersistentStorage {
     }
 }
 
+// TODO: refactor and move it elsewhere
+#[derive(Debug, Clone)]
+pub struct LocalNetworkRequesterOpts {
+    // TODO: add things like fastmode, open proxy, etc.
+    // TODO2: or maybe not since they're in the config already?. think it through...
+    config: nym_network_requester::Config,
+
+    custom_mixnet_path: Option<PathBuf>,
+}
+
 pub(crate) struct Gateway<St = PersistentStorage> {
     config: Config,
 
-    network_requester_config: Option<nym_network_requester::Config>,
+    network_requester_opts: Option<LocalNetworkRequesterOpts>,
 
     /// ed25519 keypair used to assert one's identity.
     identity_keypair: Arc<identity::KeyPair>,
@@ -99,7 +115,7 @@ impl<St> Gateway<St> {
     /// Construct from the given `Config` instance.
     pub fn new(
         config: Config,
-        network_requester_config: Option<nym_network_requester::Config>,
+        network_requester_opts: Option<LocalNetworkRequesterOpts>,
         storage: St,
     ) -> Result<Self, GatewayError> {
         Ok(Gateway {
@@ -107,21 +123,21 @@ impl<St> Gateway<St> {
             identity_keypair: Arc::new(Self::load_identity_keys(&config)?),
             sphinx_keypair: Arc::new(Self::load_sphinx_keys(&config)?),
             config,
-            network_requester_config,
+            network_requester_opts,
         })
     }
 
     #[cfg(test)]
     pub async fn new_from_keys_and_storage(
         config: Config,
-        network_requester_config: Option<nym_network_requester::Config>,
+        network_requester_opts: Option<LocalNetworkRequesterOpts>,
         identity_keypair: identity::KeyPair,
         sphinx_keypair: encryption::KeyPair,
         storage: St,
     ) -> Self {
         Gateway {
             config,
-            network_requester_config,
+            network_requester_opts,
             identity_keypair: Arc::new(identity_keypair),
             sphinx_keypair: Arc::new(sphinx_keypair),
             storage,
@@ -271,9 +287,16 @@ impl<St> Gateway<St> {
             info!("Starting network requester...");
         }
 
-        let Some(nr_cfg) = &self.network_requester_config else {
+        let Some(nr_opts) = &self.network_requester_opts else {
             return Err(GatewayError::UnspecifiedNetworkRequesterConfig)
         };
+
+        // TODO: one of many
+        let mut nr_opts = nr_opts.clone();
+        nr_opts.config.network_requester.open_proxy = true;
+        nr_opts.config.base.set_high_default_traffic_volume();
+        nr_opts.config.base.set_no_cover_traffic();
+        nr_opts.config.base.set_no_per_hop_delays();
 
         // this gateway, whenever it has anything to send to its local NR will use fake_client_tx
         let (nr_mix_sender, nr_mix_receiver) = mpsc::unbounded();
@@ -289,7 +312,7 @@ impl<St> Gateway<St> {
 
         // TODO: well, wire it up internally to gateway traffic, shutdowns, etc.
         let (on_start_tx, on_start_rx) = oneshot::channel();
-        let nr_builder = NRServiceProviderBuilder::new(nr_cfg.clone())
+        let nr_builder = NRServiceProviderBuilder::new(nr_opts.config.clone())
             .with_shutdown(shutdown)
             .with_custom_gateway_transceiver(Box::new(transceiver))
             .with_on_start(on_start_tx);

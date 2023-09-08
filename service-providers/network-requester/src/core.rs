@@ -16,6 +16,7 @@ use log::warn;
 use nym_bin_common::bin_info_owned;
 use nym_client_core::client::mix_traffic::transceiver::GatewayTransceiver;
 use nym_client_core::config::disk_persistence::CommonClientPaths;
+use nym_client_core::HardcodedTopologyProvider;
 use nym_network_defaults::NymNetworkDetails;
 use nym_sdk::mixnet::MixnetMessageSender;
 use nym_service_providers_common::interface::{
@@ -571,6 +572,12 @@ async fn create_mixnet_client(
     if let Some(gateway_transceiver) = custom_transceiver {
         client_builder = client_builder.custom_gateway_transceiver(gateway_transceiver);
     }
+
+    // TODO: do it properly later
+    client_builder = client_builder.custom_topology_provider(Box::new(
+        HardcodedTopologyProvider::new_from_file("/Users/jedrzej/workspace/local_network.json")
+            .unwrap(),
+    ));
 
     let mixnet_client = client_builder
         .build()

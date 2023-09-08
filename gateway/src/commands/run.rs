@@ -33,7 +33,12 @@ pub struct Run {
     datastore: Option<PathBuf>,
 
     /// Comma separated list of endpoints of nym APIs
-    #[clap(long, alias = "validator_apis", value_delimiter = ',')]
+    #[clap(
+        long,
+        alias = "validator_apis",
+        value_delimiter = ',',
+        group = "network"
+    )]
     // the alias here is included for backwards compatibility (1.1.4 and before)
     nym_apis: Option<Vec<url::Url>>,
 
@@ -68,6 +73,11 @@ pub struct Run {
     /// Allows this gateway to run an embedded network requester for minimal network overhead
     #[clap(long)]
     with_network_requester: Option<bool>,
+
+    /// Path to .json file containing custom network specification.
+    /// Only usable when local network requester is enabled.
+    #[clap(long, group = "network", hide = true)]
+    custom_mixnet: Option<PathBuf>,
 
     #[clap(short, long, default_value_t = OutputFormat::default())]
     output: OutputFormat,
@@ -107,6 +117,8 @@ pub async fn execute(args: Run) -> Result<(), Box<dyn Error + Send + Sync>> {
     eprintln!("Starting gateway {id}...");
 
     let output = args.output;
+    let custom_mixnet = args.custom_mixnet.clone();
+
     let config = build_config(id, args)?;
     ensure_config_version_compatibility(&config)?;
 
@@ -114,7 +126,7 @@ pub async fn execute(args: Run) -> Result<(), Box<dyn Error + Send + Sync>> {
         show_binding_warning(&config.gateway.listening_address.to_string());
     }
 
-    let mut gateway = crate::node::create_gateway(config).await?;
+    let mut gateway = crate::node::create_gateway(config, custom_mixnet).await?;
     eprintln!(
         "\nTo bond your gateway you will need to install the Nym wallet, go to https://nymtech.net/get-involved and select the Download button.\n\
          Select the correct version and install it to your machine. You will need to provide the following: \n ");

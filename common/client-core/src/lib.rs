@@ -5,6 +5,11 @@ pub mod config;
 pub mod error;
 pub mod init;
 
+pub use nym_topology::{
+    HardcodedTopologyProvider, NymTopology, NymTopologyError, SerializableNymTopology,
+    SerializableTopologyError, TopologyProvider,
+};
+
 #[cfg(target_arch = "wasm32")]
 pub(crate) fn spawn_future<F>(future: F)
 where

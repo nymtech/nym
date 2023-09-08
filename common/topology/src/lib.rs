@@ -14,7 +14,7 @@ use std::collections::BTreeMap;
 use std::convert::TryInto;
 use std::fmt::{self, Display, Formatter};
 use std::io;
-use std::net::{IpAddr, Ipv4Addr, SocketAddr, ToSocketAddrs};
+use std::net::{IpAddr, SocketAddr, ToSocketAddrs};
 use std::str::FromStr;
 
 #[cfg(feature = "serializable")]
@@ -444,7 +444,7 @@ pub fn nym_topology_from_detailed(
         sphinx_key: "8RmAM95VqmpUVFNhTTZnvDdzPtDbeoYFnqSyHE6dCzzT"
             .parse()
             .unwrap(),
-        version: "1.1.28".to_string(),
+        version: "1.1.28".into(),
     });
 
     // so that clippy reminds me of that

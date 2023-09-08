@@ -258,9 +258,39 @@ impl WireGuardTunnel {
         todo!();
     }
 
-    async fn consume_wg(&self, data: &Bytes) {
-        log::info!("WireGuard tunnel: consume_wg");
-        todo!();
+    async fn consume_wg(&self, data: &[u8]) {
+        let mut send_buf = [0u8; MAX_PACKET];
+        let mut peer = self.wg_tunnel_lock().await;
+        match peer.decapsulate(None, data, &mut send_buf) {
+            TunnResult::WriteToNetwork(packet) => {
+                if let Err(err) = self.udp.send_to(packet, self.addr).await {
+                    error!("Failed to send decapsulation-instructed packet to WireGuard endpoint: {err:?}");
+                };
+                // Flush pending queue
+                loop {
+                    let mut send_buf = [0u8; MAX_PACKET];
+                    match peer.decapsulate(None, &[], &mut send_buf) {
+                        TunnResult::WriteToNetwork(packet) => {
+                            if let Err(err) = self.udp.send_to(packet, self.addr).await {
+                                error!("Failed to send decapsulation-instructed packet to WireGuard endpoint: {err:?}");
+                                break;
+                            };
+                        }
+                        _ => {
+                            break;
+                        }
+                    }
+                }
+            }
+            TunnResult::WriteToTunnelV4(packet, _) | TunnResult::WriteToTunnelV6(packet, _) => {
+                info!(
+                    "WireGuard endpoint sent IP packet of {} bytes",
+                    packet.len()
+                );
+                // TODO
+            }
+            x => warn!("{x:?}"),
+        }
     }
 }
 

@@ -113,7 +113,7 @@ pub async fn start_nym_socks5_client(
         let result = tokio::runtime::Runtime::new()
             .expect("Failed to create runtime for SOCKS5 client")
             .block_on(async move {
-                let socks5_client = Socks5NymClient::new(config.core, storage);
+                let socks5_client = Socks5NymClient::new(config.core, storage, None);
 
                 socks5_client
                     .run_and_listen(socks5_ctrl_rx, socks5_status_tx)

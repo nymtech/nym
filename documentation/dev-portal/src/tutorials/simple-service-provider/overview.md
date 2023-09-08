@@ -6,7 +6,7 @@ This tutorial involves writing two pieces of code in Typescript:
 - A **User Client** (UC) with which you can access the mixnet through a browser on your local machine. You will use this to communicate with the second component outlined below.  
 - A **Service Provider** (SP) which can communicate with the UC via the mixnet.
 
-Additionally you will learn how to configure a pair of **Nym Websocket Clients** which both components use to connect to and communicate with the mixnet.
+Additionally you will learn how to configure a pair of **Nym Websocket Clients** which both components use to connect to and communicate with the Mixnet.
 
 > SPs usually run on remote servers to assure reliable uptime and to unlink sender and receiver metadata. For demonstration purposes however, you will run both components on your local machine, looping messages through the mixnet to yourself.  
 
@@ -58,7 +58,7 @@ Notice that this tutorial attempts to use very few external libraries (the User 
 ```admonish note title="Sidenote: What is a Service Provider?" 
 'Service Provider' is a catchall name used to refer to any type of app that can communicate with the mixnet via a Nym client. 
 
-The first SP to have been released is the [Network Requester](https://nymtech.net/docs/nodes/network-requester-setup.html) - a binary that receives a network request from the mixnet, performs that request (e.g. authenticating with a message server and receiving new messages for a user) and then passes the response back to the user who requested it anonymously, shielding their metadata from the message server. 
+The first SP to have been released is the [Network Requester](https://nymtech.net/docs/nodes/network-requester.html) - a binary that receives a network request from the mixnet, performs that request (e.g. authenticating with a message server and receiving new messages for a user) and then passes the response back to the user who requested it anonymously, shielding their metadata from the message server. 
 
 The SP you will build in this tutorial is far more simple than this. It is just to show you how to approach building something that can:
 * connect to the mixnet, 

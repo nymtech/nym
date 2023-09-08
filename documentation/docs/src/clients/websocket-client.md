@@ -122,7 +122,7 @@ All of these code examples will do the following:
 
 By varying the message content, you can easily build sophisticated service provider apps. For example, instead of printing the response received from the mixnet, your service provider might take some action on behalf of the user - perhaps initiating a network request, a blockchain transaction, or writing to a local data store.
 
-> You can find an example of building both frontend and service provider code with the websocket client in the [Simple Service Provider Tutorial](https://nymtech.net/developers/tutorials/simple-service-provider.html) in the Developer Portal.
+> You can find an example of building both frontend and service provider code with the websocket client in the [Simple Service Provider Tutorial](https://nymtech.net/developers/tutorials/simple-service-provider/simple-service-provider.html) in the Developer Portal.
 
 ### Message Types
 There are a small number of messages that your application sends up the websocket to interact with the native client, as follows.

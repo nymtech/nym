@@ -5,7 +5,7 @@ __Familiarise yourself with Nym's specific terms and jargon through our glossary
 ## A
 **[Address](https://nymtech.net/docs/stable/integrations/addresses-in-nym/)** - A unique string of characters generated from a client keypair. Used to identify clients in the mixnet.
 
-**[Ack](https://nymtech.net/docs/stable/architecture/traffic-flow/#acks)** - Short for "acknowledgement". Whenever a hop is completed, the recieving node will send back an 'ack', so that the sending node knows that the packet was recieved.
+**[Ack](https://nymtech.net/docs/architecture/traffic-flow.html#acks--package-retransmission)** - Short for "acknowledgement". Whenever a hop is completed, the recieving node will send back an 'ack', so that the sending node knows that the packet was recieved.
 
 **Attacker** - A person or entity who attempts to gain unauthorised access to a computer system, network, or other information resource.
 
@@ -46,7 +46,7 @@ __Familiarise yourself with Nym's specific terms and jargon through our glossary
 ## M
 **[Metadata](https://www.opendatasoft.com/en/blog/what-is-metadata-and-why-is-it-important-data)** - A set of data that describes and gives information about other data such as IP addresses, device types, geolocations etc.
 
-**[Mixnet](https://nymtech.net/docs/stable/architecture/traffic-flow/)** - A routing protocol which encrypts and mixes Sphinx packet traffic so that it cannot be determined who is communicating with whom. 
+**[Mixnet](https://nymtech.net/docs/architecture/traffic-flow.html#mixnet-traffic-flow-1)** - A routing protocol which encrypts and mixes Sphinx packet traffic so that it cannot be determined who is communicating with whom. 
 
 **[Mix Nodes](https://blog.nymtech.net/nym-mixnodes-deep-dive-d2b91917f097)** - The backbone of the Nym infrastructure, that are organised in a three-layer network referred to as the mixnet that network traffic passes through. It mixes, hides and reorders traffic and are rewarded in NYM tokens for their quality of service.
 
@@ -87,7 +87,7 @@ __Familiarise yourself with Nym's specific terms and jargon through our glossary
 
 **[Service Provider](https://nymtech.net/docs/stable/tutorials/nym-simple-websocket-tutorial/)** - Any type of app that can communicate with the mixnet via a Nym Client.
 
-**[SURBs](https://nymtech.net/docs/stable/architecture/traffic-flow)** - Stands for 'Single Use Reply Blocks'. They are a type of crytographic construct used to facilitate secure communication between parties and are designed to allow a sender to send a message to a recipient in sucha a way that the message can only be read by the intended recipient, and cannot be read by anyone else.
+**[SURBs](https://nymtech.net/docs/architecture/traffic-flow.html#private-replies-using-surbs)** - Stands for 'Single Use Reply Blocks'. They are a type of crytographic construct used to facilitate secure communication between parties and are designed to allow a sender to send a message to a recipient in sucha a way that the message can only be read by the intended recipient, and cannot be read by anyone else.
 
 **Sybil** - In the context of computer networks, a Sybil attach is a type of security attack in which an attacker creates multiple fake identities or "sybils" and uses them to manipulate a network thus gaining control of a network by overwhelming it.
 

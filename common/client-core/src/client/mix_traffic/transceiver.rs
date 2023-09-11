@@ -3,14 +3,11 @@
 
 use async_trait::async_trait;
 use futures::channel::{mpsc, oneshot};
-use log::{debug, error, trace, warn};
+use log::{debug, error};
 use nym_crypto::asymmetric::identity;
-use nym_gateway_client::error::GatewayClientError;
-use nym_gateway_client::{AcknowledgementSender, GatewayClient, MixnetMessageSender};
+use nym_gateway_client::GatewayClient;
 pub use nym_gateway_client::{GatewayPacketRouter, PacketRouter};
-use nym_sphinx::addressing::nodes::MAX_NODE_ADDRESS_UNPADDED_LEN;
 use nym_sphinx::forwarding::packet::MixPacket;
-use nym_sphinx::params::PacketSize;
 use std::fmt::{Debug, Formatter};
 use thiserror::Error;
 

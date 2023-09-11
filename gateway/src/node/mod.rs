@@ -19,7 +19,7 @@ use nym_bin_common::output_format::OutputFormat;
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_mixnet_client::forwarder::{MixForwardingSender, PacketForwarder};
 use nym_network_defaults::NymNetworkDetails;
-use nym_network_requester::{LocalGateway, NRServiceProviderBuilder, PacketRouter};
+use nym_network_requester::{LocalGateway, NRServiceProviderBuilder};
 use nym_pemstore::traits::PemStorableKeyPair;
 use nym_pemstore::KeyPairPath;
 use nym_statistics_common::collector::StatisticsSender;

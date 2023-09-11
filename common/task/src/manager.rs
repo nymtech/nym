@@ -4,7 +4,6 @@
 use futures::{future::pending, FutureExt, SinkExt, StreamExt};
 use log::{log, Level};
 use std::future::Future;
-use std::process::exit;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::{error::Error, time::Duration};
 use tokio::{

@@ -35,10 +35,9 @@ use futures::channel::mpsc;
 use log::{debug, info};
 use nym_bandwidth_controller::BandwidthController;
 use nym_credential_storage::storage::Storage as CredentialStorage;
-use nym_crypto::asymmetric::{encryption, identity};
+use nym_crypto::asymmetric::encryption;
 use nym_gateway_client::{
-    AcknowledgementReceiver, AcknowledgementSender, GatewayClient, MixnetMessageReceiver,
-    MixnetMessageSender, PacketRouter,
+    AcknowledgementReceiver, GatewayClient, MixnetMessageReceiver, PacketRouter,
 };
 use nym_sphinx::acknowledgements::AckKey;
 use nym_sphinx::addressing::clients::Recipient;

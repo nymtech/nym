@@ -11,11 +11,9 @@ use crate::client::key_manager::ManagedKeys;
 use crate::error::ClientCoreError;
 use crate::init::helpers::current_gateways;
 use crate::init::types::{GatewayDetails, GatewaySetup, InitialisationResult};
-use log::error;
 use nym_topology::gateway;
 use rand::rngs::OsRng;
 use serde::Serialize;
-use std::ops::Deref;
 use url::Url;
 
 pub mod helpers;

@@ -13,8 +13,8 @@ use nym_crypto::asymmetric::identity;
 use nym_network_defaults::var_names::NYXD;
 use nym_network_defaults::var_names::{BECH32_PREFIX, NYM_API, STATISTICS_SERVICE_DOMAIN_ADDRESS};
 use nym_network_requester::{
-    setup_gateway_from, CustomGatewayDetails, GatewayDetails, GatewaySelectionSpecification,
-    GatewaySetup, OnDiskGatewayDetails, OnDiskKeys,
+    setup_gateway_from, GatewaySelectionSpecification, GatewaySetup, OnDiskGatewayDetails,
+    OnDiskKeys,
 };
 use nym_types::gateway::GatewayNetworkRequesterDetails;
 use nym_validator_client::nyxd::AccountId;

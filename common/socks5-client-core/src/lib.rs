@@ -23,7 +23,7 @@ use nym_client_core::init::types::GatewaySetup;
 use nym_credential_storage::storage::Storage as CredentialStorage;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::params::PacketType;
-use nym_task::{TaskClient, TaskHandle, TaskManager};
+use nym_task::{TaskClient, TaskHandle};
 
 use anyhow::anyhow;
 use std::error::Error;

@@ -60,6 +60,14 @@ impl OutboundRequestFilter {
         }
     }
 
+    pub(crate) fn standard_list(&self) -> StandardList {
+        self.standard_list.clone()
+    }
+
+    pub(crate) fn allowed_hosts(&self) -> StoredAllowedHosts {
+        self.allowed_hosts.clone()
+    }
+
     async fn check_allowed_hosts(&self, host: &RequestHost) -> bool {
         let guard = self.allowed_hosts.get().await;
         self.check_group(&guard.data, host)

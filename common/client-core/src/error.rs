@@ -1,6 +1,7 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::client::mix_traffic::transceiver::ErasedGatewayError;
 use nym_crypto::asymmetric::identity::Ed25519RecoveryError;
 use nym_gateway_client::error::GatewayClientError;
 use nym_topology::gateway::GatewayConversionError;
@@ -17,6 +18,12 @@ pub enum ClientCoreError {
     GatewayClientError {
         gateway_id: String,
         source: GatewayClientError,
+    },
+
+    #[error("Custom gateway client error: {source}")]
+    ErasedGatewayClientError {
+        #[from]
+        source: ErasedGatewayError,
     },
 
     #[error("Ed25519 error: {0}")]

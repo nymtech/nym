@@ -45,7 +45,7 @@ use nym_sphinx::addressing::nodes::NodeIdentity;
 use nym_sphinx::params::PacketType;
 use nym_sphinx::receiver::{ReconstructedMessage, SphinxMessageReceiver};
 use nym_task::connections::{ConnectionCommandReceiver, ConnectionCommandSender, LaneQueueLengths};
-use nym_task::{TaskClient, TaskHandle, TaskManager};
+use nym_task::{TaskClient, TaskHandle};
 use nym_topology::provider_trait::TopologyProvider;
 use nym_topology::HardcodedTopologyProvider;
 use nym_validator_client::nyxd::contract_traits::DkgQueryClient;
@@ -388,7 +388,7 @@ where
             } else {
                 // and make sure to invalidate the task client so we wouldn't cause premature shutdown
                 shutdown.mark_as_success();
-                custom_gateway_transceiver.set_packet_router(packet_router);
+                custom_gateway_transceiver.set_packet_router(packet_router)?;
                 Ok(custom_gateway_transceiver)
             };
         }

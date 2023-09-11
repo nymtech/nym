@@ -132,7 +132,7 @@ impl Controller {
         } else {
             // check if there were any pending messages
             if let Some(pending) = self.pending_messages.remove(&conn_id) {
-                debug!("There were some pending messages for {}", conn_id);
+                debug!("There were some pending messages for {conn_id}");
                 for data in pending {
                     self.send_to_connection(data)
                 }
@@ -141,12 +141,9 @@ impl Controller {
     }
 
     fn remove_connection(&mut self, conn_id: ConnectionId) {
-        debug!("Removing {} from controller", conn_id);
+        debug!("Removing {conn_id} from controller");
         if self.active_connections.remove(&conn_id).is_none() {
-            error!(
-                "tried to remove non-existing connection with id: {:?}",
-                conn_id
-            )
+            error!("tried to remove non-existing connection with id: {conn_id}",)
         }
         self.recently_closed.insert(conn_id);
 

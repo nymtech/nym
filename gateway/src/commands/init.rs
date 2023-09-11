@@ -4,9 +4,9 @@
 use crate::commands::helpers::initialise_local_network_requester;
 use crate::config::{default_config_directory, default_config_filepath, default_data_directory};
 use crate::{commands::helpers::OverrideConfig, config::Config, OutputFormat};
+use anyhow::bail;
 use clap::Args;
 use nym_crypto::asymmetric::{encryption, identity};
-use std::error::Error;
 use std::net::IpAddr;
 use std::path::PathBuf;
 use std::{fs, io};
@@ -99,7 +99,7 @@ fn init_paths(id: &str) -> io::Result<()> {
     fs::create_dir_all(default_config_directory(id))
 }
 
-pub async fn execute(args: Init) -> Result<(), Box<dyn Error + Send + Sync>> {
+pub async fn execute(args: Init) -> anyhow::Result<()> {
     eprintln!("Initialising gateway {}...", args.id);
     let output = args.output;
 
@@ -126,23 +126,25 @@ pub async fn execute(args: Init) -> Result<(), Box<dyn Error + Send + Sync>> {
         let identity_keys = identity::KeyPair::new(&mut rng);
         let sphinx_keys = encryption::KeyPair::new(&mut rng);
 
-        nym_pemstore::store_keypair(
+        if let Err(err) = nym_pemstore::store_keypair(
             &identity_keys,
             &nym_pemstore::KeyPairPath::new(
                 config.storage_paths.private_identity_key(),
                 config.storage_paths.public_identity_key(),
             ),
-        )
-        .expect("Failed to save identity keys");
+        ) {
+            bail!("failed to save the identity keys: {err}")
+        }
 
-        nym_pemstore::store_keypair(
+        if let Err(err) = nym_pemstore::store_keypair(
             &sphinx_keys,
             &nym_pemstore::KeyPairPath::new(
                 config.storage_paths.private_encryption_key(),
                 config.storage_paths.public_encryption_key(),
             ),
-        )
-        .expect("Failed to save sphinx keys");
+        ) {
+            bail!("failed to save the sphinx keys: {err}")
+        }
 
         let mut details = None;
         if config.network_requester.enabled {
@@ -158,9 +160,10 @@ pub async fn execute(args: Init) -> Result<(), Box<dyn Error + Send + Sync>> {
     };
 
     let config_save_location = config.default_location();
-    config
-        .save_to_default_location()
-        .expect("Failed to save the config file");
+    if let Err(err) = config.save_to_default_location() {
+        bail!("failed to save the config file: {err}")
+    }
+
     eprintln!(
         "Saved configuration file to {}",
         config_save_location.display()
@@ -170,6 +173,11 @@ pub async fn execute(args: Init) -> Result<(), Box<dyn Error + Send + Sync>> {
     crate::node::create_gateway(config, None)
         .await?
         .print_node_details(output);
+
+    if let Some(network_requester_details) = nr_details {
+        println!("{}", output.format(&network_requester_details))
+    }
+
     Ok(())
 }
 

@@ -6,7 +6,7 @@ use crate::config::Config;
 use crate::error::GatewayError;
 use crate::node::client_handling::active_clients::ActiveClientsStore;
 use crate::node::client_handling::embedded_network_requester::{
-    LocalNetworkRequester, MessageRouter,
+    LocalNetworkRequesterHandle, MessageRouter,
 };
 use crate::node::client_handling::websocket;
 use crate::node::client_handling::websocket::connection_handler::coconut::CoconutVerifier;
@@ -31,8 +31,6 @@ use std::error::Error;
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::time::Duration;
-use tokio::time::timeout;
 
 pub(crate) mod client_handling;
 pub(crate) mod mixnet_handling;
@@ -44,8 +42,6 @@ pub(crate) async fn create_gateway(
     config: Config,
     custom_nr_mixnet: Option<PathBuf>,
 ) -> Result<Gateway, GatewayError> {
-    let storage = initialise_storage(&config).await;
-
     // don't attempt to read config if NR is disabled
     let network_requester_config = if config.network_requester.enabled {
         if let Some(path) = &config.storage_paths.network_requester_config {
@@ -57,6 +53,8 @@ pub(crate) async fn create_gateway(
     } else {
         None
     };
+
+    let storage = initialise_main_storage(&config).await;
 
     let nr_opts = network_requester_config.map(|config| LocalNetworkRequesterOpts {
         config,
@@ -80,7 +78,7 @@ fn load_network_requester_config<P: AsRef<Path>>(
     })
 }
 
-async fn initialise_storage(config: &Config) -> PersistentStorage {
+async fn initialise_main_storage(config: &Config) -> PersistentStorage {
     let path = &config.storage_paths.clients_storage;
     let retrieval_limit = config.debug.message_retrieval_limit;
     match PersistentStorage::init(path, retrieval_limit).await {
@@ -92,8 +90,6 @@ async fn initialise_storage(config: &Config) -> PersistentStorage {
 // TODO: refactor and move it elsewhere
 #[derive(Debug, Clone)]
 pub struct LocalNetworkRequesterOpts {
-    // TODO: add things like fastmode, open proxy, etc.
-    // TODO2: or maybe not since they're in the config already?. think it through...
     config: nym_network_requester::Config,
 
     custom_mixnet_path: Option<PathBuf>,
@@ -278,7 +274,7 @@ impl<St> Gateway<St> {
         &self,
         forwarding_channel: MixForwardingSender,
         mut shutdown: TaskClient,
-    ) -> Result<Option<LocalNetworkRequester>, GatewayError> {
+    ) -> Result<Option<LocalNetworkRequesterHandle>, GatewayError> {
         if !self.config.network_requester.enabled {
             info!("network requester is disabled");
             shutdown.mark_as_success();
@@ -287,6 +283,7 @@ impl<St> Gateway<St> {
             info!("Starting network requester...");
         }
 
+        // if network requester is enabled, configuration file must be provided!
         let Some(nr_opts) = &self.network_requester_opts else {
             return Err(GatewayError::UnspecifiedNetworkRequesterConfig)
         };
@@ -302,7 +299,7 @@ impl<St> Gateway<St> {
         let (nr_mix_sender, nr_mix_receiver) = mpsc::unbounded();
         let router_shutdown = shutdown.fork("message_router");
 
-        let (router_tx, router_rx) = oneshot::channel();
+        let (router_tx, mut router_rx) = oneshot::channel();
 
         let transceiver = LocalGateway::new(
             *self.identity_keypair.public_key(),
@@ -312,10 +309,15 @@ impl<St> Gateway<St> {
 
         // TODO: well, wire it up internally to gateway traffic, shutdowns, etc.
         let (on_start_tx, on_start_rx) = oneshot::channel();
-        let nr_builder = NRServiceProviderBuilder::new(nr_opts.config.clone())
+        let mut nr_builder = NRServiceProviderBuilder::new(nr_opts.config.clone())
             .with_shutdown(shutdown)
             .with_custom_gateway_transceiver(Box::new(transceiver))
             .with_on_start(on_start_tx);
+
+        if let Some(custom_mixnet) = &nr_opts.custom_mixnet_path {
+            nr_builder = nr_builder.with_stored_topology(custom_mixnet)?
+        }
+
         tokio::spawn(async move {
             if let Err(err) = nr_builder.run_service_provider().await {
                 // no need to panic as we have passed a task client to the NR so we're most likely
@@ -324,22 +326,26 @@ impl<St> Gateway<St> {
             }
         });
 
-        let nr_address = on_start_rx
+        let start_data = on_start_rx
             .await
-            .map_err(|_| GatewayError::TerminatedNetworkRequester)?;
+            .map_err(|_| GatewayError::NetworkRequesterStartupFailure)?;
 
-        // this should be instantaneous since the data is sent on this channel before the on start is called
-        let packet_router = timeout(Duration::from_millis(20), router_rx)
-            .await
-            .expect("TODO: timeout")
-            .expect("TODO: dropped sender");
+        // this should be instantaneous since the data is sent on this channel before the on start is called;
+        // the failure should be impossible
+        let Ok(Some(packet_router)) = router_rx.try_recv() else {
+            return Err(GatewayError::NetworkRequesterStartupFailure)
+        };
 
         MessageRouter::new(nr_mix_receiver, packet_router).start_with_shutdown(router_shutdown);
+        info!(
+            "the local network requester is running on {}",
+            start_data.address
+        );
 
-        error!("local NR is {nr_address}");
-
-        // let gateway_destination = nr_address.identity().
-        Ok(Some(LocalNetworkRequester::new(nr_address, nr_mix_sender)))
+        Ok(Some(LocalNetworkRequesterHandle::new(
+            start_data,
+            nr_mix_sender,
+        )))
     }
 
     async fn wait_for_interrupt(shutdown: TaskManager) -> Result<(), Box<dyn Error + Send + Sync>> {
@@ -348,37 +354,36 @@ impl<St> Gateway<St> {
         res
     }
 
-    fn random_api_client(&self) -> nym_validator_client::NymApiClient {
+    fn random_api_client(&self) -> Result<nym_validator_client::NymApiClient, GatewayError> {
         let endpoints = self.config.get_nym_api_endpoints();
         let nym_api = endpoints
             .choose(&mut thread_rng())
-            .expect("The list of validator apis is empty");
+            .ok_or(GatewayError::NoNymApisAvailable)?;
 
-        nym_validator_client::NymApiClient::new(nym_api.clone())
+        Ok(nym_validator_client::NymApiClient::new(nym_api.clone()))
     }
 
-    fn random_nyxd_client(&self) -> DirectSigningHttpRpcNyxdClient {
+    fn random_nyxd_client(&self) -> Result<DirectSigningHttpRpcNyxdClient, GatewayError> {
         let endpoints = self.config.get_nyxd_urls();
         let validator_nyxd = endpoints
             .choose(&mut thread_rng())
-            .expect("The list of validators is empty");
+            .ok_or(GatewayError::NoNyxdAvailable)?;
 
         let network_details = NymNetworkDetails::new_from_env();
-        let client_config = nyxd::Config::try_from_nym_network_details(&network_details)
-            .expect("failed to construct valid validator client config with the provided network");
+        let client_config = nyxd::Config::try_from_nym_network_details(&network_details)?;
 
         DirectSigningHttpRpcNyxdClient::connect_with_mnemonic(
             client_config,
             validator_nyxd.as_ref(),
             self.config.get_cosmos_mnemonic(),
         )
-        .expect("Could not connect with mnemonic")
+        .map_err(Into::into)
     }
 
     async fn check_if_bonded(&self) -> Result<bool, GatewayError> {
         // TODO: if anything, this should be getting data directly from the contract
         // as opposed to the validator API
-        let validator_client = self.random_api_client();
+        let validator_client = self.random_api_client()?;
         let existing_nodes = match validator_client.get_cached_gateways().await {
             Ok(nodes) => nodes,
             Err(err) => {
@@ -405,7 +410,7 @@ impl<St> Gateway<St> {
         let shutdown = TaskManager::new(10);
 
         let coconut_verifier = {
-            let nyxd_client = self.random_nyxd_client();
+            let nyxd_client = self.random_nyxd_client()?;
             CoconutVerifier::new(nyxd_client)
         };
 

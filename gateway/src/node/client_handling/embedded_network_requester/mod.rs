@@ -6,22 +6,25 @@ use crate::node::client_handling::websocket::message_receiver::{
 };
 use futures::StreamExt;
 use log::{debug, error};
+use nym_network_requester::core::OnStartData;
 use nym_network_requester::{GatewayPacketRouter, PacketRouter};
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::DestinationAddressBytes;
 use nym_task::TaskClient;
 
 #[derive(Debug)]
-pub(crate) struct LocalNetworkRequester {
+pub(crate) struct LocalNetworkRequesterHandle {
+    /// Nym address of the locally running network requester.
     pub(crate) address: Recipient,
 
+    /// Message channel used internally to forward any received mix packets to the network requester.
     pub(crate) mix_message_sender: MixMessageSender,
 }
 
-impl LocalNetworkRequester {
-    pub(crate) fn new(address: Recipient, mix_message_sender: MixMessageSender) -> Self {
+impl LocalNetworkRequesterHandle {
+    pub(crate) fn new(start_data: OnStartData, mix_message_sender: MixMessageSender) -> Self {
         Self {
-            address,
+            address: start_data.address,
             mix_message_sender,
         }
     }
@@ -29,18 +32,14 @@ impl LocalNetworkRequester {
     pub(crate) fn client_destination(&self) -> DestinationAddressBytes {
         self.address.identity().derive_destination_address()
     }
-
-    pub(crate) fn into_mix_message_sender(self) -> MixMessageSender {
-        self.mix_message_sender
-    }
 }
 
 // we could have just passed a `PacketRouter` around instead of creating a dedicated task for
 // calling the method. however, this would have caused slightly more complexity and more overhead
 // (due to more data being copied to every [mix] connection)
 //
-// task responsible for receiving messages for locally NR requester from multiple ix connections
-// and forwarding them via the router. kinda equivalent of a client socket handler
+/// task responsible for receiving messages for locally NR requester from multiple mix connections
+/// and forwarding them via the router. kinda equivalent of a client socket handler
 pub(crate) struct MessageRouter {
     mix_receiver: MixMessageReceiver,
     packet_router: PacketRouter,

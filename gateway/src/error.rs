@@ -1,6 +1,8 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use nym_network_requester::error::NetworkRequesterError;
+use nym_validator_client::nyxd::error::NyxdError;
 use nym_validator_client::nyxd::AccountId;
 use nym_validator_client::ValidatorClientError;
 use std::io;
@@ -66,9 +68,27 @@ pub(crate) enum GatewayError {
         actual_prefix: String,
     },
 
-    #[error("Path to network requester configuration file hasn't been specified.")]
+    #[error("Path to network requester configuration file hasn't been specified. Perhaps try to run `setup-network-requester`?")]
     UnspecifiedNetworkRequesterConfig,
 
-    #[error("local network requester has been terminated")]
-    TerminatedNetworkRequester,
+    #[error("there was an issue with the local network requester: {source}")]
+    NetworkRequesterFailure {
+        #[from]
+        source: NetworkRequesterError,
+    },
+
+    #[error("failed to startup local network requester")]
+    NetworkRequesterStartupFailure,
+
+    #[error("there are no nym APIs available")]
+    NoNymApisAvailable,
+
+    #[error("there are no nyxd APIs available")]
+    NoNyxdAvailable,
+
+    #[error("there was an issue attempting to use the validator [nyxd]: {source}")]
+    ValidatorFailure {
+        #[from]
+        source: NyxdError,
+    },
 }

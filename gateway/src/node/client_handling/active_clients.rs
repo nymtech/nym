@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::websocket::message_receiver::{IsActiveRequestSender, MixMessageSender};
-use crate::node::client_handling::embedded_network_requester::LocalNetworkRequester;
+use crate::node::client_handling::embedded_network_requester::LocalNetworkRequesterHandle;
 use dashmap::DashMap;
 use log::{error, warn};
 use nym_sphinx::DestinationAddressBytes;
@@ -11,8 +11,11 @@ use std::sync::Arc;
 // this should probably live in some global gateway error enum
 
 enum ActiveClient {
+    /// Handle to a remote client connected via a network socket.
     Remote(ClientIncomingChannels),
-    Embedded(LocalNetworkRequester),
+
+    /// Handle to a locally (inside the same process) running network requester client.
+    Embedded(LocalNetworkRequesterHandle),
 }
 
 impl ActiveClient {
@@ -159,7 +162,7 @@ impl ActiveClientsStore {
     }
 
     /// Inserts a handle to the locally running network requester
-    pub(crate) fn insert_embedded(&self, local_nr_handle: LocalNetworkRequester) {
+    pub(crate) fn insert_embedded(&self, local_nr_handle: LocalNetworkRequesterHandle) {
         let key = local_nr_handle.client_destination();
         let entry = ActiveClient::Embedded(local_nr_handle);
         if self.inner.insert(key, entry).is_some() {

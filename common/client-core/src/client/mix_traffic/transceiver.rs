@@ -5,24 +5,14 @@ use async_trait::async_trait;
 use futures::channel::{mpsc, oneshot};
 use log::{debug, error};
 use nym_crypto::asymmetric::identity;
+use nym_crypto::asymmetric::identity::PublicKey;
 use nym_gateway_client::GatewayClient;
 pub use nym_gateway_client::{GatewayPacketRouter, PacketRouter};
 use nym_sphinx::forwarding::packet::MixPacket;
-use std::fmt::{Debug, Formatter};
+use std::fmt::Debug;
 use thiserror::Error;
 
-// #[derive(Debug)]
-// pub struct TempInnerError;
-
-// impl std::fmt::Display for TempInnerError {
-//     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-//         <Self as Debug>::fmt(self, f)
-//     }
-// }
-//
-// impl std::error::Error for TempInnerError {}
-
-// we need to erase the error type since we can't have dynamic associated types in dynamic dispatch
+// we need to type erase the error type since we can't have dynamic associated types alongside dynamic dispatch
 #[derive(Debug, Error)]
 #[error(transparent)]
 pub struct ErasedGatewayError(Box<dyn std::error::Error + Send + Sync>);
@@ -47,6 +37,7 @@ pub trait GatewaySender {
         &mut self,
         packets: Vec<MixPacket>,
     ) -> Result<(), ErasedGatewayError> {
+        // allow for optimisation when sending multiple packets
         for packet in packets {
             self.send_mix_packet(packet).await?;
         }
@@ -56,14 +47,15 @@ pub trait GatewaySender {
 
 /// this trait defines the functionality of being able to correctly route
 /// packets received from the mixnet, i.e. acks and 'proper' messages.
-// can't define routing behaviour on the trait itself since GatewayClient will clone the packet router
-// and send it to a `PartiallyDelegated` socket -> imo that should be redesigned...
 pub trait GatewayReceiver {
-    fn route_received(&mut self, plaintexts: Vec<Vec<u8>>) -> Result<(), ErasedGatewayError>;
-
     // ughhhh I really dislike this method, but couldn't come up wih anything better
-    fn set_packet_router(&mut self, _packet_router: PacketRouter) {
-        debug!("no-op packet router setup")
+    // ideally this would have been an associated type, but heh. we can't.
+    fn set_packet_router(
+        &mut self,
+        _packet_router: PacketRouter,
+    ) -> Result<(), ErasedGatewayError> {
+        debug!("no-op packet router setup");
+        Ok(())
     }
 }
 
@@ -94,12 +86,7 @@ impl<G: GatewaySender + ?Sized + Send> GatewaySender for Box<G> {
 
 impl<G: GatewayReceiver + ?Sized> GatewayReceiver for Box<G> {
     #[inline]
-    fn route_received(&mut self, plaintexts: Vec<Vec<u8>>) -> Result<(), ErasedGatewayError> {
-        (**self).route_received(plaintexts)
-    }
-
-    #[inline]
-    fn set_packet_router(&mut self, packet_router: PacketRouter) {
+    fn set_packet_router(&mut self, packet_router: PacketRouter) -> Result<(), ErasedGatewayError> {
         (**self).set_packet_router(packet_router)
     }
 }
@@ -121,7 +108,6 @@ where
     C: Send,
     St: Send,
 {
-    // type Error = GatewayClientError;
     fn gateway_identity(&self) -> identity::PublicKey {
         self.gateway_client.gateway_identity()
     }
@@ -152,12 +138,15 @@ where
     }
 }
 
-impl<C, St> GatewayReceiver for RemoteGateway<C, St> {
-    fn route_received(&mut self, plaintexts: Vec<Vec<u8>>) -> Result<(), ErasedGatewayError> {
-        // self.gateway_client.set_packet_router(router)
-        todo!()
-    }
-    // type PacketRouter = nym_gateway_client::PacketRouter;
+impl<C, St> GatewayReceiver for RemoteGateway<C, St> {}
+
+#[derive(Debug, Error)]
+pub enum LocalGatewayError {
+    #[error("attempted to set the packet router for the second time")]
+    PacketRouterAlreadySet,
+
+    #[error("failed to setup packet router - has the receiver been dropped?")]
+    FailedPacketRouterSetup,
 }
 
 /// Gateway running within the same process.
@@ -168,16 +157,12 @@ pub struct LocalGateway {
     // 'sender' part
     /// Channel responsible for taking mix packets and forwarding them further into the further mixnet layers.
     // TODO: get the type alias from the mixnet client crate
+    unused_field: Option<()>,
+
     packet_forwarder: mpsc::UnboundedSender<MixPacket>,
 
     // 'receiver' part
     packet_router_tx: Option<oneshot::Sender<PacketRouter>>,
-}
-
-impl Drop for LocalGateway {
-    fn drop(&mut self) {
-        error!("local gw is getting dropped");
-    }
 }
 
 impl LocalGateway {
@@ -188,6 +173,7 @@ impl LocalGateway {
     ) -> Self {
         LocalGateway {
             local_identity,
+            unused_field: None,
             packet_forwarder,
             packet_router_tx: Some(packet_router_tx),
         }
@@ -211,30 +197,21 @@ impl GatewaySender for LocalGateway {
 }
 
 impl GatewayReceiver for LocalGateway {
-    fn route_received(&mut self, plaintexts: Vec<Vec<u8>>) -> Result<(), ErasedGatewayError> {
-        todo!()
-        // println!("routing!");
-        // let Some(ref packet_router) = self.packet_router else {
-        //     todo!()
-        // };
-        // packet_router.route_received(plaintexts).map_err(erase_err)
-    }
+    fn set_packet_router(&mut self, packet_router: PacketRouter) -> Result<(), ErasedGatewayError> {
+        let Some(packet_routex_tx) = self.packet_router_tx.take() else {
+            return Err(erase_err(LocalGatewayError::PacketRouterAlreadySet))
+        };
 
-    fn set_packet_router(&mut self, packet_router: PacketRouter) {
-        self.packet_router_tx
-            .take()
-            .expect("already used")
+        packet_routex_tx
             .send(packet_router)
-            .expect("TODO")
-        // warn!("setting packet router");
-        // self.packet_router = Some(packet_router)
+            .map_err(|_| erase_err(LocalGatewayError::FailedPacketRouterSetup))
     }
-    // TODO: or just a getter?
 }
 
 // if we ever decided to start writing unit tests... : )
 pub struct MockGateway {
     dummy_identity: identity::PublicKey,
+    packet_router: Option<PacketRouter>,
     sent: Vec<MixPacket>,
 }
 
@@ -244,31 +221,34 @@ impl Default for MockGateway {
             dummy_identity: "3ebjp1Fb9hdcS1AR6AZihgeJiMHkB5jjJUsvqNnfQwU7"
                 .parse()
                 .unwrap(),
+            packet_router: None,
             sent: vec![],
         }
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
+#[error("mock gateway error")]
 pub struct MockGatewayError;
 
-impl std::fmt::Display for MockGatewayError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        <Self as Debug>::fmt(self, f)
+impl GatewayReceiver for MockGateway {
+    // TODO: that's frustrating. can't do anything about the behaviour here since all the routing is in the `PacketRouter`...
+    fn set_packet_router(&mut self, packet_router: PacketRouter) -> Result<(), ErasedGatewayError> {
+        self.packet_router = Some(packet_router);
+        Ok(())
     }
 }
 
-impl std::error::Error for MockGatewayError {}
+#[async_trait]
+impl GatewaySender for MockGateway {
+    async fn send_mix_packet(&mut self, packet: MixPacket) -> Result<(), ErasedGatewayError> {
+        self.sent.push(packet);
+        Ok(())
+    }
+}
 
-// #[async_trait]
-// impl GatewayTransceiver for MockGateway {
-//     fn gateway_identity(&self) -> identity::PublicKey {
-//         self.dummy_identity
-//     }
-//     // type Error = MockGatewayError;
-//
-//     async fn send_mix_packet(&mut self, packet: MixPacket) -> Result<(), TempInnerError> {
-//         self.sent.push(packet);
-//         Ok(())
-//     }
-// }
+impl GatewayTransceiver for MockGateway {
+    fn gateway_identity(&self) -> PublicKey {
+        self.dummy_identity
+    }
+}

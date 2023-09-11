@@ -1,7 +1,6 @@
 // Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::allowed_hosts;
 use crate::allowed_hosts::standard_list::StandardListUpdater;
 use crate::allowed_hosts::stored_allowed_hosts::{start_allowed_list_reloader, StoredAllowedHosts};
 use crate::allowed_hosts::{OutboundRequestFilter, StandardList};
@@ -9,16 +8,17 @@ use crate::config::{BaseClientConfig, Config};
 use crate::error::NetworkRequesterError;
 use crate::reply::MixnetMessage;
 use crate::statistics::ServiceStatisticsCollector;
-use crate::{reply, socks5};
+use crate::{allowed_hosts, reply, socks5};
 use async_trait::async_trait;
 use futures::channel::{mpsc, oneshot};
-use log::warn;
+use futures::stream::StreamExt;
+use log::{debug, warn};
 use nym_bin_common::bin_info_owned;
 use nym_client_core::client::mix_traffic::transceiver::GatewayTransceiver;
 use nym_client_core::config::disk_persistence::CommonClientPaths;
 use nym_client_core::HardcodedTopologyProvider;
 use nym_network_defaults::NymNetworkDetails;
-use nym_sdk::mixnet::MixnetMessageSender;
+use nym_sdk::mixnet::{MixnetMessageSender, TopologyProvider};
 use nym_service_providers_common::interface::{
     BinaryInformation, ProviderInterfaceVersion, Request, RequestVersion,
 };
@@ -35,10 +35,12 @@ use nym_socks5_requests::{
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nym_sphinx::params::PacketSize;
+use nym_sphinx::receiver::ReconstructedMessage;
 use nym_statistics_common::collector::StatisticsSender;
 use nym_task::connections::LaneQueueLengths;
 use nym_task::manager::TaskHandle;
 use nym_task::TaskClient;
+use std::path::Path;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 // Since it's an atomic, it's safe to be kept static and shared across threads
@@ -51,26 +53,36 @@ pub(crate) fn new_legacy_request_version() -> RequestVersion<Socks5Request> {
     }
 }
 
+pub struct OnStartData {
+    // to add more fields as required
+    pub address: Recipient,
+}
+
+impl OnStartData {
+    fn new(address: Recipient) -> Self {
+        Self { address }
+    }
+}
+
 // TODO: 'Builder' is not the most appropriate name here, but I needed
 // ... something ...
 pub struct NRServiceProviderBuilder {
     config: Config,
     outbound_request_filter: OutboundRequestFilter,
-    standard_list: StandardList,
-    allowed_hosts: StoredAllowedHosts,
 
+    custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
     custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send + Sync>>,
     shutdown: Option<TaskClient>,
-    on_start: Option<oneshot::Sender<Recipient>>,
+    on_start: Option<oneshot::Sender<OnStartData>>,
 }
 
 pub struct NRServiceProvider {
     config: Config,
-
     outbound_request_filter: OutboundRequestFilter,
-    mixnet_client: nym_sdk::mixnet::MixnetClient,
 
+    mixnet_client: nym_sdk::mixnet::MixnetClient,
     controller_sender: ControllerSender,
+
     mix_input_sender: MixProxySender<MixnetMessage>,
     stats_collector: Option<ServiceStatisticsCollector>,
     shutdown: TaskHandle,
@@ -178,8 +190,7 @@ impl NRServiceProviderBuilder {
         NRServiceProviderBuilder {
             config,
             outbound_request_filter,
-            standard_list,
-            allowed_hosts,
+            custom_topology_provider: None,
             custom_gateway_transceiver: None,
             shutdown: None,
             on_start: None,
@@ -202,9 +213,27 @@ impl NRServiceProviderBuilder {
     }
 
     #[must_use]
-    pub fn with_on_start(mut self, on_start: oneshot::Sender<Recipient>) -> Self {
+    pub fn with_on_start(mut self, on_start: oneshot::Sender<OnStartData>) -> Self {
         self.on_start = Some(on_start);
         self
+    }
+
+    #[must_use]
+    pub fn with_custom_topology_provider(
+        mut self,
+        topology_provider: Box<dyn TopologyProvider + Send + Sync>,
+    ) -> Self {
+        self.custom_topology_provider = Some(topology_provider);
+        self
+    }
+
+    pub fn with_stored_topology<P: AsRef<Path>>(
+        mut self,
+        file: P,
+    ) -> Result<Self, NetworkRequesterError> {
+        self.custom_topology_provider =
+            Some(Box::new(HardcodedTopologyProvider::new_from_file(file)?));
+        Ok(self)
     }
 
     /// Start all subsystems
@@ -226,6 +255,7 @@ impl NRServiceProviderBuilder {
             &self.config.base,
             shutdown.get_handle().named("nym_sdk::MixnetClient"),
             self.custom_gateway_transceiver,
+            self.custom_topology_provider,
             &self.config.storage_paths.common_paths,
         )
         .await?;
@@ -280,19 +310,19 @@ impl NRServiceProviderBuilder {
             self.config
                 .network_requester_debug
                 .standard_list_update_interval,
-            self.standard_list,
+            self.outbound_request_filter.standard_list(),
             shutdown.get_handle().named("StandardListUpdater"),
         )
         .start();
 
         // start the allowed.list watcher and updater
         start_allowed_list_reloader(
-            self.allowed_hosts,
+            self.outbound_request_filter.allowed_hosts(),
             shutdown.get_handle().named("stored_allowed_hosts_reloader"),
         )
         .await;
 
-        let service_provider = NRServiceProvider {
+        let mut service_provider = NRServiceProvider {
             config: self.config,
             outbound_request_filter: self.outbound_request_filter,
             mixnet_client,
@@ -306,7 +336,8 @@ impl NRServiceProviderBuilder {
         log::info!("All systems go. Press CTRL-C to stop the server.");
 
         if let Some(on_start) = self.on_start {
-            if on_start.send(self_address).is_err() {
+            if on_start.send(OnStartData::new(self_address)).is_err() {
+                // the parent has dropped the channel before receiving the response
                 return Err(NetworkRequesterError::DisconnectedParent);
             }
         }
@@ -316,31 +347,44 @@ impl NRServiceProviderBuilder {
 }
 
 impl NRServiceProvider {
-    async fn run(mut self) -> Result<(), NetworkRequesterError> {
-        // TODO: incorporate graceful shutdowns
-        while let Some(reconstructed_messages) = self.mixnet_client.wait_for_messages().await {
-            for reconstructed in reconstructed_messages {
-                let sender = reconstructed.sender_tag;
-                let request = match Socks5ProviderRequest::try_from_bytes(&reconstructed.message) {
-                    Ok(req) => req,
-                    Err(err) => {
-                        // TODO: or should it even be further lowered to debug/trace?
-                        log::warn!("Failed to deserialize received message: {err}");
-                        continue;
+    async fn run(&mut self) -> Result<(), NetworkRequesterError> {
+        let mut shutdown = self.shutdown.fork("main_loop");
+        while !shutdown.is_shutdown() {
+            tokio::select! {
+                biased;
+                _ = shutdown.recv() => {
+                    debug!("NRServiceProvider [main loop]: received shutdown")
+                },
+                msg = self.mixnet_client.next() => match msg {
+                    Some(msg) => self.on_message(msg).await,
+                    None => {
+                        log::trace!("NRServiceProvider::run: Stopping since channel closed");
+                        break;
                     }
-                };
-
-                if let Err(err) = self.on_request(sender, request).await {
-                    // TODO: again, should it be a warning?
-                    // we should also probably log some information regarding the origin of the request
-                    // so that it would be easier to debug it
-                    log::warn!("failed to resolve the received request: {err}");
-                }
+                },
             }
         }
 
-        log::error!("Network requester exited unexpectedly");
         Ok(())
+    }
+
+    async fn on_message(&mut self, reconstructed: ReconstructedMessage) {
+        let sender = reconstructed.sender_tag;
+        let request = match Socks5ProviderRequest::try_from_bytes(&reconstructed.message) {
+            Ok(req) => req,
+            Err(err) => {
+                // TODO: or should it even be further lowered to debug/trace?
+                log::warn!("Failed to deserialize received message: {err}");
+                return;
+            }
+        };
+
+        if let Err(err) = self.on_request(sender, request).await {
+            // TODO: again, should it be a warning?
+            // we should also probably log some information regarding the origin of the request
+            // so that it would be easier to debug it
+            log::warn!("failed to resolve the received request: {err}");
+        }
     }
 
     /// Listens for any messages from `mix_reader` that should be written back to the mix network
@@ -466,12 +510,12 @@ impl NRServiceProvider {
     ) {
         let Some(return_address) =
             reply::MixnetAddress::new(connect_req.return_address, sender_tag)
-        else {
-            log::warn!(
+            else {
+                log::warn!(
                 "attempted to start connection with no way of returning data back to the sender"
             );
-            return;
-        };
+                return;
+            };
 
         let remote_addr = connect_req.remote_addr;
         let conn_id = connect_req.conn_id;
@@ -553,6 +597,7 @@ async fn create_mixnet_client(
     config: &BaseClientConfig,
     shutdown: TaskClient,
     custom_transceiver: Option<Box<dyn GatewayTransceiver + Send + Sync>>,
+    custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
     paths: &CommonClientPaths,
 ) -> Result<nym_sdk::mixnet::MixnetClient, NetworkRequesterError> {
     let debug_config = config.debug;
@@ -572,13 +617,9 @@ async fn create_mixnet_client(
     if let Some(gateway_transceiver) = custom_transceiver {
         client_builder = client_builder.custom_gateway_transceiver(gateway_transceiver);
     }
-
-    // TODO: do it properly later
-    let unused_variable = 42;
-    // client_builder = client_builder.custom_topology_provider(Box::new(
-    //     HardcodedTopologyProvider::new_from_file("/Users/jedrzej/workspace/local_network.json")
-    //         .unwrap(),
-    // ));
+    if let Some(topology_provider) = custom_topology_provider {
+        client_builder = client_builder.custom_topology_provider(topology_provider);
+    }
 
     let mixnet_client = client_builder
         .build()

@@ -402,8 +402,8 @@ pub fn nym_topology_from_detailed(
         let layer = bond.layer as MixLayer;
         if layer == 0 || layer > 3 {
             warn!(
-                "{} says it's on invalid layer {}!",
-                bond.mix_node.identity_key, layer
+                "{} says it's on invalid layer {layer}!",
+                bond.mix_node.identity_key
             );
             continue;
         }
@@ -414,7 +414,7 @@ pub fn nym_topology_from_detailed(
         match bond.try_into() {
             Ok(mix) => layer_entry.push(mix),
             Err(err) => {
-                warn!("Mix {mix_id} / {mix_identity} is malformed - {err}");
+                warn!("Mix {mix_id} / {mix_identity} is malformed: {err}");
                 continue;
             }
         }
@@ -426,26 +426,11 @@ pub fn nym_topology_from_detailed(
         match bond.try_into() {
             Ok(gate) => gateways.push(gate),
             Err(err) => {
-                warn!("Gateway {gate_id} is malformed - {err}");
+                warn!("Gateway {gate_id} is malformed: {err}");
                 continue;
             }
         }
     }
-
-    let another_unused_variable = 42;
-    gateways.push(gateway::Node {
-        owner: "n1cuay87au7mftzp472vyrp2ca8hsegtw6yxq0ht".to_string(),
-        host: "3.71.114.172".parse().unwrap(),
-        mix_host: "3.71.114.172:1789".parse().unwrap(),
-        clients_port: 9000,
-        identity_key: "DG2SCbTd56SCuYFHd9h2UdQgxmbAmewu8bHiJgSt65rc"
-            .parse()
-            .unwrap(),
-        sphinx_key: "9vApxi74h7r4NQvkHLCRrajgu9Lk6AJgcGFGEEREb4rS"
-            .parse()
-            .unwrap(),
-        version: Default::default(),
-    });
 
     NymTopology::new(mixes, gateways)
 }

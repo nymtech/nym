@@ -48,3 +48,5 @@ Send a message to another user (you will need to know their address at a Gateway
   const recipient = '<< RECIPIENT ADDRESS GOES HERE >>';
   await nym.client.send({ payload, recipient });
 ```
+
+{{>variants}}

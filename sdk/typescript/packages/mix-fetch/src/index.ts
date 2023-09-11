@@ -35,7 +35,11 @@ export const createMixFetch = async (opts?: SetupMixFetchOps) => {
  */
 export const mixFetch: IMixFetchFn = async (url, args) => {
   // ensure mixFetch instance exists
-  const instance = await createMixFetch();
+  const instance = await createMixFetch({
+    mixFetchOverride: {
+      requestTimeoutMs: 30_000,
+    },
+  });
 
   // execute user request
   return instance.mixFetch(url, args);

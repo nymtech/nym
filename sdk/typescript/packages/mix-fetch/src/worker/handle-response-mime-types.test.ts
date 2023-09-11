@@ -13,6 +13,27 @@ describe('handleResponseMimeTypes', () => {
     );
     expect(resp.text).toBe(TEXT);
   });
+  test('handles text (charset=utf-8)', async () => {
+    const TEXT = 'This is text';
+    const resp = await handleResponseMimeTypes(
+      new Response(TEXT, { headers: new Headers([['Content-Type', 'text/plain; charset=utf-8']]) }),
+    );
+    expect(resp.text).toBe(TEXT);
+  });
+  test('handles html', async () => {
+    const TEXT = 'This is html';
+    const resp = await handleResponseMimeTypes(
+      new Response(TEXT, { headers: new Headers([['Content-Type', 'text/html']]) }),
+    );
+    expect(resp.text).toBe(TEXT);
+  });
+  test('handles html (charset=utf-8)', async () => {
+    const TEXT = 'This is html';
+    const resp = await handleResponseMimeTypes(
+      new Response(TEXT, { headers: new Headers([['Content-Type', 'text/html; charset=utf-8']]) }),
+    );
+    expect(resp.text).toBe(TEXT);
+  });
   test('handles images', async () => {
     const DATA = new Uint8Array([0, 1, 2, 3]).buffer;
     const resp = await handleResponseMimeTypes(
@@ -39,6 +60,13 @@ describe('handleResponseMimeTypes', () => {
     const json = '{ "foo": "bar", "baz": 42 }';
     const resp = await handleResponseMimeTypes(
       new Response(json, { headers: new Headers([['Content-Type', 'application/json']]) }),
+    );
+    expect(resp.text).toBe(json);
+  });
+  test('handles JSON data (charset=utf-8)', async () => {
+    const json = '{ "foo": "bar", "baz": 42 }';
+    const resp = await handleResponseMimeTypes(
+      new Response(json, { headers: new Headers([['Content-Type', 'application/json; charset=utf-8']]) }),
     );
     expect(resp.text).toBe(json);
   });

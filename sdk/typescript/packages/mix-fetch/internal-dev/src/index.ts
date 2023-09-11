@@ -55,7 +55,7 @@ async function main() {
   appendOutput(JSON.stringify({ text }, null, 2));
 
   // get an image
-  url = 'https://nymtech.net/images/token/pie-classic-2.svg';
+  url = 'https://nymtech.net/favicon.svg';
   resp = await mixFetch(url, args);
   console.log({ resp });
   const buffer = await resp.arrayBuffer();

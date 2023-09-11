@@ -1,18 +1,11 @@
-# Nym SDK (Typescript)
+# Nym SDK (Typescript) - 🥛🥛🥛 Full Fat
 
-```
-⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠
-⚠ WARNING: ESM with inline blobs ⚠
-⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠
-```
+#### ⚠ WARNING: ESM with inline blobs ⚠
+#### Please note: this is an ESM package targeting ES6. Use this when you have bundling issues. It includes inline blobs that will interfere with CSPs that disallow them.
 
-### Please note: this is a CommonJS package targeting ES5. Use this for older projects or when you have bundling issues. It includes inline blobs that will interfere with CSPs that disallow them.
-
-If you are looking for an ESM version please use https://www.npmjs.com/package/@nymproject/sdk.
+{{>variants}}
 
 ----------------------------
-
-The Nym SDK for Typescript will get you creating apps that can use the Nym Mixnet and Coconut credentials quickly.
 
 ## TL;DR
 

@@ -55,10 +55,12 @@ rollup -c rollup-cjs-full-fat.config.mjs
 # CLEAN UP
 #-------------------------------------------------------
 
+rm -rf dist/worker
+
 # copy README
-cp README.md dist/esm
-cp README-CommonJS.md dist/cjs/README.md
-cp README-full-fat.md dist/esm-full-fat
-cp README-CommonJS-full-fat.md dist/cjs-full-fat/README.md
+node scripts/hbs.mjs README.md ./dist/esm/README.md
+node scripts/hbs.mjs README-CommonJS.md ./dist/cjs/README.md
+node scripts/hbs.mjs README-full-fat.md ./dist/esm-full-fat/README.md
+node scripts/hbs.mjs README-CommonJS-full-fat.md ./dist/cjs-full-fat/README.md
 
 

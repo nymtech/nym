@@ -22,7 +22,10 @@ const WG_ADDRESS: &str = "0.0.0.0:51822";
 const PRIVATE_KEY: &str = "AEqXrLFT4qjYq3wmX0456iv94uM6nDj5ugp6Jedcflg=";
 
 // The public keys of the registered peers (clients)
-const PEERS: &[&str; 1] = &["mxV/mw7WZTe+0Msa0kvJHMHERDA/cSskiZWQce+TdEs="];
+const PEERS: &[&str; 1] = &[
+    // Corresponding private key: "ILeN6gEh6vJ3Ju8RJ3HVswz+sPgkcKtAYTqzQRhTtlo="
+    "NCIhkgiqxFx1ckKl3Zuh595DzIFl8mxju1Vg995EZhI=", // "mxV/mw7WZTe+0Msa0kvJHMHERDA/cSskiZWQce+TdEs=",
+];
 
 const MAX_PACKET: usize = 65535;
 
@@ -110,7 +113,7 @@ pub async fn start_wg_listener(
                             .tap_err(|err| log::error!("{err}"))
                             .unwrap();
                     } else {
-                        log::info!("WireGuard listener: received packet from unknown peer");
+                        log::info!("WireGuard listener: received packet from unknown peer, starting tunnel");
                         let (join_handle, peer_tx) = start_wg_tunnel(
                             addr,
                             udp_socket.clone(),

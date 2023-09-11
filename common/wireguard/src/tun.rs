@@ -6,8 +6,12 @@ use boringtun::{
     x25519,
 };
 use bytes::Bytes;
-use log::{error, info, warn};
-use tokio::{net::UdpSocket, sync::mpsc, time::timeout};
+use log::{debug, error, info, warn};
+use tokio::{
+    net::UdpSocket,
+    sync::{broadcast, mpsc},
+    time::timeout,
+};
 
 use crate::event::Event;
 
@@ -25,9 +29,24 @@ pub struct WireGuardTunnel {
 
     // `boringtun` tunnel, used for crypto & WG protocol
     wg_tunnel: Arc<tokio::sync::Mutex<Tunn>>,
+
+    // Signal close
+    close_tx: broadcast::Sender<()>,
+    close_rx: broadcast::Receiver<()>,
+}
+
+impl Drop for WireGuardTunnel {
+    fn drop(&mut self) {
+        info!("WireGuard tunnel: dropping");
+        self.close();
+    }
 }
 
 impl WireGuardTunnel {
+    fn close(&self) {
+        let _ = self.close_tx.send(());
+    }
+
     pub fn new(
         udp: Arc<UdpSocket>,
         addr: SocketAddr,
@@ -54,11 +73,16 @@ impl WireGuardTunnel {
         // Channels with incoming data that is received by the main event loop
         let (udp_tx, udp_rx) = mpsc::unbounded_channel();
 
+        // Signal close tunnel
+        let (close_tx, mut close_rx) = broadcast::channel(1);
+
         let tunnel = WireGuardTunnel {
             udp_rx,
             udp,
             addr,
             wg_tunnel,
+            close_tx,
+            close_rx,
         };
 
         (tunnel, udp_tx)
@@ -67,27 +91,30 @@ impl WireGuardTunnel {
     pub async fn spin_off(&mut self) {
         loop {
             tokio::select! {
-                // WIP(JON): during dev only
-                _ = tokio::time::sleep(Duration::from_millis(2000)) => {
-                    log::info!("WireGuard tunnel: shutting down");
+                _ = self.close_rx.recv() => {
+                    info!("WireGuard tunnel: received msg to close");
                     break;
                 },
                 packet = self.udp_rx.recv() => match packet {
                     Some(packet) => {
-                        log::info!("WireGuard tunnel received: {packet}");
+                        info!("WireGuard tunnel received: {packet}");
                         match packet {
                             Event::WgPacket(data) => self.consume_wg(&data).await,
                             Event::IpPacket(data) => self.consume_eth(&data).await,
                             _ => {},
                         }
                     },
-                    None => log::error!("none"),
+                    None => {
+                        info!("WireGuard tunnel: incoming UDP stream closed, closing tunnel");
+                        break;
+                    },
                 },
                 _ = tokio::time::sleep(Duration::from_millis(250)) => {
                     self.update_wg_timers().await;
                 },
             }
         }
+        info!("WireGuard tunnel ({}): closed", self.addr);
     }
 
     async fn wg_tunnel_lock(&self) -> tokio::sync::MutexGuard<'_, Tunn> {
@@ -101,6 +128,7 @@ impl WireGuardTunnel {
         let mut peer = self.wg_tunnel_lock().await;
         match peer.decapsulate(None, data, &mut send_buf) {
             TunnResult::WriteToNetwork(packet) => {
+                debug!("WireGuard: writing to network");
                 if let Err(err) = self.udp.send_to(packet, self.addr).await {
                     error!("Failed to send decapsulation-instructed packet to WireGuard endpoint: {err:?}");
                 };
@@ -121,18 +149,24 @@ impl WireGuardTunnel {
                 }
             }
             TunnResult::WriteToTunnelV4(packet, _) | TunnResult::WriteToTunnelV6(packet, _) => {
+                debug!("WireGuard: writing to tunnel");
                 info!(
-                    "WireGuard endpoint sent IP packet of {} bytes",
+                    "WireGuard endpoint sent IP packet of {} bytes (not yet implemented)",
                     packet.len()
                 );
                 // TODO
             }
-            x => warn!("{x:?}"),
+            TunnResult::Done => {
+                debug!("WireGuard: decapsulate done");
+            }
+            TunnResult::Err(err) => {
+                error!("WireGuard: decapsulate error: {err:?}");
+            }
         }
     }
 
     async fn consume_eth(&self, _data: &Bytes) {
-        log::info!("WireGuard tunnel: consume_eth");
+        info!("WireGuard tunnel: consume_eth");
         todo!();
     }
 

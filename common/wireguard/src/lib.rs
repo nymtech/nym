@@ -17,8 +17,11 @@ mod tun;
 //const WG_ADDRESS = "0.0.0.0:51820";
 const WG_ADDRESS: &str = "0.0.0.0:51822";
 
+// The private key of the listener
+// Corresponding public key: "WM8s8bYegwMa0TJ+xIwhk+dImk2IpDUKslDBCZPizlE="
 const PRIVATE_KEY: &str = "AEqXrLFT4qjYq3wmX0456iv94uM6nDj5ugp6Jedcflg=";
 
+// The public keys of the registered peers (clients)
 const PEERS: &[&str; 1] = &["mxV/mw7WZTe+0Msa0kvJHMHERDA/cSskiZWQce+TdEs="];
 
 const MAX_PACKET: usize = 65535;
@@ -72,7 +75,10 @@ pub async fn start_wg_listener(
     let (static_private, peer_static_public) = init_static_dev_keys();
 
     tokio::spawn(async move {
+        // The set of active tunnels indexed by the peer's address
         let mut active_peers: HashMap<SocketAddr, mpsc::UnboundedSender<Event>> = HashMap::new();
+        // Each tunnel is run in its own task, and the task handle is stored here so we can remove
+        // it from `active_peers` when the tunnel is closed
         let mut active_peers_task_handles = futures::stream::FuturesUnordered::new();
         let mut buf = [0u8; MAX_PACKET];
 
@@ -86,7 +92,7 @@ pub async fn start_wg_listener(
                 Some(addr) = active_peers_task_handles.next() => {
                     match addr {
                         Ok(addr) => {
-                            info!("WireGuard listener: received shutdown from {addr:?}");
+                            info!("WireGuard listener: closed {addr:?}");
                             active_peers.remove(&addr);
                         }
                         Err(err) => {

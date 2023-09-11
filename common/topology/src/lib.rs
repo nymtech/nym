@@ -432,6 +432,21 @@ pub fn nym_topology_from_detailed(
         }
     }
 
+    let another_unused_variable = 42;
+    gateways.push(gateway::Node {
+        owner: "n1cuay87au7mftzp472vyrp2ca8hsegtw6yxq0ht".to_string(),
+        host: "3.71.114.172".parse().unwrap(),
+        mix_host: "3.71.114.172:1789".parse().unwrap(),
+        clients_port: 9000,
+        identity_key: "DG2SCbTd56SCuYFHd9h2UdQgxmbAmewu8bHiJgSt65rc"
+            .parse()
+            .unwrap(),
+        sphinx_key: "9vApxi74h7r4NQvkHLCRrajgu9Lk6AJgcGFGEEREb4rS"
+            .parse()
+            .unwrap(),
+        version: Default::default(),
+    });
+
     NymTopology::new(mixes, gateways)
 }
 

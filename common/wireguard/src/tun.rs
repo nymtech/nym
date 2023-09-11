@@ -74,7 +74,7 @@ impl WireGuardTunnel {
         let (udp_tx, udp_rx) = mpsc::unbounded_channel();
 
         // Signal close tunnel
-        let (close_tx, mut close_rx) = broadcast::channel(1);
+        let (close_tx, close_rx) = broadcast::channel(1);
 
         let tunnel = WireGuardTunnel {
             udp_rx,

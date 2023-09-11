@@ -71,3 +71,6 @@ sqlx = { version = "0.5", features = [
     "macros",
     "migrate",
 ] }
+
+[features]
+wireguard = []

@@ -574,10 +574,11 @@ async fn create_mixnet_client(
     }
 
     // TODO: do it properly later
-    client_builder = client_builder.custom_topology_provider(Box::new(
-        HardcodedTopologyProvider::new_from_file("/Users/jedrzej/workspace/local_network.json")
-            .unwrap(),
-    ));
+    let unused_variable = 42;
+    // client_builder = client_builder.custom_topology_provider(Box::new(
+    //     HardcodedTopologyProvider::new_from_file("/Users/jedrzej/workspace/local_network.json")
+    //         .unwrap(),
+    // ));
 
     let mixnet_client = client_builder
         .build()

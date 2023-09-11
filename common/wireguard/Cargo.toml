@@ -13,7 +13,11 @@ license.workspace = true
 [dependencies]
 async-recursion = "1.0.4"
 base64 = "0.21.3"
-boringtun = "0.6.0"
+# The latest version on crates.io at the time of writing this (6.0.0) has a
+# version mismatch with x25519-dalek/curve25519-dalek that is resolved in the
+# latest commit. So pick that for now.
+#boringtun = "0.6.0"
+boringtun = { git = "https://github.com/cloudflare/boringtun", rev = "e1d6360d6ab4529fc942a078e4c54df107abe2ba" }
 bytes = "1.5.0"
 futures = "0.3.28"
 log.workspace = true

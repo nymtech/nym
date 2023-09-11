@@ -523,7 +523,7 @@ impl NRServiceProvider {
         let open_proxy = self.config.network_requester.open_proxy;
         if !open_proxy && !self.outbound_request_filter.check(&remote_addr).await {
             let log_msg = format!("Domain {remote_addr:?} failed filter check");
-            log::info!("{}", log_msg);
+            log::info!("{log_msg}");
             let msg = MixnetMessage::new_connection_error(
                 return_address,
                 remote_version,

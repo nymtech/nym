@@ -249,7 +249,7 @@ impl TryFrom<GatewayEndpointConfig> for GatewayConfig {
         Ok(GatewayConfig {
             gateway_identity: identity::PublicKey::from_base58_string(value.gateway_id)
                 .map_err(ClientCoreError::UnableToCreatePublicKeyFromGatewayId)?,
-            gateway_owner: value.gateway_owner,
+            gateway_owner: Some(value.gateway_owner),
             gateway_listener: value.gateway_listener,
         })
     }

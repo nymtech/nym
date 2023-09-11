@@ -51,7 +51,7 @@ pub struct GatewayConfig {
     pub gateway_identity: identity::PublicKey,
 
     // currently a dead field
-    pub gateway_owner: String,
+    pub gateway_owner: Option<String>,
 
     pub gateway_listener: String,
 }

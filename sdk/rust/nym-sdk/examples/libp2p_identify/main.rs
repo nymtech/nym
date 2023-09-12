@@ -1,0 +1,123 @@
+// Copyright 2018 Parity Technologies (UK) Ltd.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the "Software"),
+// to deal in the Software without restriction, including without limitation
+// the rights to use, copy, modify, merge, publish, distribute, sublicense,
+// and/or sell copies of the Software, and to permit persons to whom the
+// Software is furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+// DEALINGS IN THE SOFTWARE.
+
+//! identify example
+//!
+//! In the first terminal window, run:
+//!
+//! ```sh
+//! cargo run
+//! ```
+//! It will print the [`PeerId`] and the listening addresses, e.g. `Listening on
+//! "/ip4/127.0.0.1/tcp/24915"`
+//!
+//! In the second terminal window, start a new instance of the example with:
+//!
+//! ```sh
+//! cargo run -- /ip4/127.0.0.1/tcp/24915
+//! ```
+//! The two nodes establish a connection, negotiate the identify protocol
+//! and will send each other identify info which is then printed to the console.
+
+use crate::rust_libp2p_nym::transport::NymTransport;
+use futures::{prelude::*, select};
+use libp2p::Multiaddr;
+use libp2p::{
+    core::muxing::StreamMuxerBox,
+    gossipsub, identity,
+    swarm::NetworkBehaviour,
+    swarm::{SwarmBuilder, SwarmEvent},
+    PeerId, Transport, identify
+};
+use nym_sdk::mixnet::MixnetClient;
+use std::collections::hash_map::DefaultHasher;
+use std::error::Error;
+use std::hash::{Hash, Hasher};
+use std::time::Duration;
+use tokio::io;
+use tokio_util::codec;
+use log::{debug, info, LevelFilter};
+
+#[path = "../libp2p_shared/lib.rs"]
+mod rust_libp2p_nym;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn Error>> {
+    pretty_env_logger::formatted_timed_builder()
+        .filter_level(log::LevelFilter::Warn)
+        .filter(Some("libp2p_identify"), LevelFilter::Info)
+        .init();
+
+    let local_key = identity::Keypair::generate_ed25519();
+    let local_peer_id = PeerId::from(local_key.public());
+    println!("Local peer id: {local_peer_id:?}");
+
+    // Create a identify network behaviour.
+    // TODO bring in other behaviour attributes (Ping, KeepAlive)
+    let behaviour = identify::Behaviour::new(identify::Config::new(
+        "/ipfs/id/2.0.0".to_string(),
+        local_key.public(),
+    ));
+
+    let client = MixnetClient::connect_new().await.unwrap();
+    let transport = NymTransport::new(client, local_key.clone()).await?;
+    let listen_addr = transport.listen_addr.clone();
+
+    let mut swarm = {
+        debug!("Running `identify` example using NymTransport");
+        use libp2p::core::{muxing::StreamMuxerBox, transport::Transport};
+        use libp2p::swarm::SwarmBuilder;
+
+        SwarmBuilder::with_tokio_executor(
+            transport
+                .map(|a, _| (a.0, StreamMuxerBox::new(a.1)))
+                .boxed(),
+            behaviour,
+            local_peer_id,
+        )
+            .build()
+    };
+
+    let _ = swarm.listen_on(listen_addr.clone())?;
+
+    // Dial the peer identified by the multi-address given as the second
+    // command-line argument, if any.
+    if let Some(addr) = std::env::args().nth(1) {
+        let remote: Multiaddr = addr.parse()?;
+        swarm.dial(remote)?;
+        println!("Dialed {addr}")
+    }
+
+    loop {
+        match swarm.select_next_some().await {
+            SwarmEvent::NewListenAddr { address, .. } => println!("Listening on {address:?}"),
+            // Prints peer id identify info is being sent to.
+            SwarmEvent::Behaviour(identify::Event::Sent { peer_id, .. }) => {
+                println!("Sent identify info to {peer_id:?}")
+            }
+            // Prints out the info received via the identify event
+            SwarmEvent::Behaviour(identify::Event::Received { info, .. }) => {
+                println!("Received {info:?}")
+            }
+            _ => { println!("got something else") }
+        }
+    }
+}
+

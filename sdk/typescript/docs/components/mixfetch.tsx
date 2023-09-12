@@ -5,24 +5,26 @@ import Input from "@mui/material/Input";
 import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
 
-import { createMixFetch } from "@nymproject/mix-fetch";
+import { createMixFetch } from "@nymproject/mix-fetch-full-fat";
 
 export const MixFetch = () => {
-  const [mixFetch, setMixFetch] = useState<any>();
+  const [client, setClient] = useState<any>();
   const [url, setUrl] = useState<string>();
   const [html, setHtml] = useState<any>();
 
   const connectMixFetch = async () => {
     const mixFetch = await createMixFetch();
-    setMixFetch(mixFetch);
-    console.log(mixFetch);
+    setClient(mixFetch);
   };
 
   useEffect(() => {
     connectMixFetch();
+    return () => {
+      client?.disconnect();
+    }
   }, []);
 
-  if (!mixFetch) {
+  if (!client) {
     return (
       <Box sx={{ display: "flex" }}>
         <CircularProgress />
@@ -37,10 +39,10 @@ export const MixFetch = () => {
         <Input type="text" onChange={(e) => setUrl(e.target.value)} />
         <Button
           variant="contained"
-          disabled={!url || !mixFetch}
+          disabled={!url || !client}
           sx={{ marginLeft: "1rem" }}
           onClick={async () => {
-            const response = await mixFetch(url);
+            const response = await client.mixFetch(url);
             const html = await response.text();
             setHtml(html);
           }}

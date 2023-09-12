@@ -113,11 +113,17 @@ sdk-wasm-build:
 	# client
 	$(MAKE) -C wasm/client build
 
+	# client (node)
+	$(MAKE) -C wasm/client build-node
+
 	# node-tester
 	$(MAKE) -C wasm/node-tester build
 
 	# mix-fetch
 	$(MAKE) -C wasm/mix-fetch build
+
+	# mix-fetch (node)
+	$(MAKE) -C wasm/mix-fetch build-node
 
 	# full
 	$(MAKE) -C wasm/full-nym-wasm build-full

@@ -2,6 +2,8 @@ import fs from 'fs';
 
 const packageJson = JSON.parse(fs.readFileSync('../../dist/node/wasm/mix-fetch/package.json').toString());
 
+packageJson.name = `${packageJson.name}-node`;
+
 if (!packageJson.files.includes('go_conn.wasm')) {
     packageJson.files.push('go_conn.wasm');
 }

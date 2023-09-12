@@ -155,10 +155,14 @@ fn make_nr_id(gateway_id: &str) -> String {
     format!("{gateway_id}-network-requester")
 }
 
-fn override_network_requester_config(
+pub(crate) fn override_network_requester_config(
     mut cfg: nym_network_requester::Config,
-    opts: OverrideNetworkRequesterConfig,
+    opts: Option<OverrideNetworkRequesterConfig>,
 ) -> nym_network_requester::Config {
+    let Some(opts) = opts else {
+        return cfg
+    };
+
     // as of 12.09.23 the below is true (not sure how this comment will rot in the future)
     // medium_toggle:
     // - sets secondary packet size to 16kb
@@ -216,7 +220,7 @@ pub(crate) async fn initialise_local_network_requester(
     let nr_id = make_nr_id(id);
     let nr_data_dir = default_network_requester_data_dir(id);
     let mut nr_cfg = nym_network_requester::Config::new(&nr_id).with_data_directory(nr_data_dir);
-    nr_cfg = override_network_requester_config(nr_cfg, opts);
+    nr_cfg = override_network_requester_config(nr_cfg, Some(opts));
 
     let key_store = OnDiskKeys::new(nr_cfg.storage_paths.common_paths.keys.clone());
     let details_store =

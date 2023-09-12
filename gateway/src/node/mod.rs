@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use self::storage::PersistentStorage;
+use crate::commands::helpers::{override_network_requester_config, OverrideNetworkRequesterConfig};
 use crate::config::Config;
 use crate::error::GatewayError;
 use crate::node::client_handling::active_clients::ActiveClientsStore;
@@ -40,12 +41,14 @@ pub(crate) mod storage;
 /// Wire up and create Gateway instance
 pub(crate) async fn create_gateway(
     config: Config,
+    nr_config_override: Option<OverrideNetworkRequesterConfig>,
     custom_nr_mixnet: Option<PathBuf>,
 ) -> Result<Gateway, GatewayError> {
     // don't attempt to read config if NR is disabled
     let network_requester_config = if config.network_requester.enabled {
         if let Some(path) = &config.storage_paths.network_requester_config {
-            Some(load_network_requester_config(&config.gateway.id, path)?)
+            let cfg = load_network_requester_config(&config.gateway.id, path)?;
+            Some(override_network_requester_config(cfg, nr_config_override))
         } else {
             // if NR is enabled, the config path must be specified
             return Err(GatewayError::UnspecifiedNetworkRequesterConfig);

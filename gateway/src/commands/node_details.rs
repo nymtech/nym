@@ -19,7 +19,7 @@ pub struct NodeDetails {
 pub async fn execute(args: NodeDetails) -> Result<(), Box<dyn Error + Send + Sync>> {
     let config = try_load_current_config(&args.id)?;
 
-    crate::node::create_gateway(config, None)
+    crate::node::create_gateway(config, None, None)
         .await?
         .print_node_details(args.output);
     Ok(())

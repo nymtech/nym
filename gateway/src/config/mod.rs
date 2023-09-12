@@ -261,6 +261,8 @@ pub struct Gateway {
 
 impl Gateway {
     pub fn new_default<S: Into<String>>(id: S) -> Self {
+        // allow usage of `expect` here as our default mainnet values should have been well-formed.
+        #[allow(clippy::expect_used)]
         Gateway {
             version: env!("CARGO_PKG_VERSION").to_string(),
             id: id.into(),
@@ -274,7 +276,8 @@ impl Gateway {
                 .expect("Invalid default statistics service URL"),
             nym_api_urls: vec![mainnet::NYM_API.parse().expect("Invalid default API URL")],
             nyxd_urls: vec![mainnet::NYXD_URL.parse().expect("Invalid default nyxd URL")],
-            cosmos_mnemonic: bip39::Mnemonic::generate(24).unwrap(),
+            cosmos_mnemonic: bip39::Mnemonic::generate(24)
+                .expect("failed to generate fresh mnemonic"),
         }
     }
 }

@@ -4,9 +4,9 @@
 use crate::var_names;
 use crate::{DenomDetails, ValidatorDetails};
 
-pub(crate) const NETWORK_NAME: &str = "mainnet";
+pub const NETWORK_NAME: &str = "mainnet";
 
-pub(crate) const BECH32_PREFIX: &str = "n";
+pub const BECH32_PREFIX: &str = "n";
 
 pub const MIX_DENOM: DenomDetails = DenomDetails::new("unym", "nym", 6);
 pub const STAKE_DENOM: DenomDetails = DenomDetails::new("unyx", "nyx", 6);
@@ -15,13 +15,12 @@ pub const MIXNET_CONTRACT_ADDRESS: &str =
     "n17srjznxl9dvzdkpwpw24gg668wc73val88a6m5ajg6ankwvz9wtst0cznr";
 pub const VESTING_CONTRACT_ADDRESS: &str =
     "n1nc5tatafv6eyq7llkr2gv50ff9e22mnf70qgjlv737ktmt4eswrq73f2nw";
-pub(crate) const COCONUT_BANDWIDTH_CONTRACT_ADDRESS: &str =
-    "n19lc9u84cz0yz3fww5283nucc9yvr8gsjmgeul0";
-pub(crate) const GROUP_CONTRACT_ADDRESS: &str = "n19lc9u84cz0yz3fww5283nucc9yvr8gsjmgeul0";
-pub(crate) const MULTISIG_CONTRACT_ADDRESS: &str = "n19lc9u84cz0yz3fww5283nucc9yvr8gsjmgeul0";
-pub(crate) const COCONUT_DKG_CONTRACT_ADDRESS: &str = "n19lc9u84cz0yz3fww5283nucc9yvr8gsjmgeul0";
-pub(crate) const EPHEMERA_CONTRACT_ADDRESS: &str = "n19lc9u84cz0yz3fww5283nucc9yvr8gsjmgeul0";
-pub(crate) const REWARDING_VALIDATOR_ADDRESS: &str = "n10yyd98e2tuwu0f7ypz9dy3hhjw7v772q6287gy";
+pub const COCONUT_BANDWIDTH_CONTRACT_ADDRESS: &str = "n19lc9u84cz0yz3fww5283nucc9yvr8gsjmgeul0";
+pub const GROUP_CONTRACT_ADDRESS: &str = "n19lc9u84cz0yz3fww5283nucc9yvr8gsjmgeul0";
+pub const MULTISIG_CONTRACT_ADDRESS: &str = "n19lc9u84cz0yz3fww5283nucc9yvr8gsjmgeul0";
+pub const COCONUT_DKG_CONTRACT_ADDRESS: &str = "n19lc9u84cz0yz3fww5283nucc9yvr8gsjmgeul0";
+pub const EPHEMERA_CONTRACT_ADDRESS: &str = "n19lc9u84cz0yz3fww5283nucc9yvr8gsjmgeul0";
+pub const REWARDING_VALIDATOR_ADDRESS: &str = "n10yyd98e2tuwu0f7ypz9dy3hhjw7v772q6287gy";
 
 pub const STATISTICS_SERVICE_DOMAIN_ADDRESS: &str = "https://mainnet-stats.nymte.ch:8090/";
 pub const NYXD_URL: &str = "https://rpc.nymtech.net";

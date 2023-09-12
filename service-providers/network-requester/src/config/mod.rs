@@ -17,6 +17,7 @@ use std::time::Duration;
 
 pub use nym_client_core::config::Config as BaseClientConfig;
 pub use nym_client_core::config::{DebugConfig, GatewayEndpointConfig};
+use nym_sphinx::params::PacketSize;
 
 pub mod old_config_v1_1_13;
 pub mod old_config_v1_1_20;
@@ -115,6 +116,15 @@ impl Config {
     pub fn validate(&self) -> bool {
         // no other sections have explicit requirements (yet)
         self.base.validate()
+    }
+
+    /// Enable medium mixnet traffic, for experiments only.
+    /// This includes things like disabling cover traffic, no per hop delays, etc.
+    #[doc(hidden)]
+    pub fn set_medium_toggle(&mut self) {
+        self.base.set_no_cover_traffic_with_keepalive();
+        self.base.set_no_per_hop_delays();
+        self.base.debug.traffic.secondary_packet_size = Some(PacketSize::ExtendedPacket16);
     }
 
     #[must_use]

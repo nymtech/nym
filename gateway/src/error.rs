@@ -1,7 +1,8 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use nym_network_requester::error::NetworkRequesterError;
+use crate::node::storage::error::StorageError;
+use nym_network_requester::error::{ClientCoreError, NetworkRequesterError};
 use nym_validator_client::nyxd::error::NyxdError;
 use nym_validator_client::nyxd::AccountId;
 use nym_validator_client::ValidatorClientError;
@@ -11,12 +12,12 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub(crate) enum GatewayError {
-    #[error("failed to load {keys} keys from {:?} (private key) and {:?} (public key): {err}", .paths.private_key_path, .paths.public_key_path)]
+    #[error("failed to load {keys} keys from {} (private key) and {} (public key): {err}", .paths.private_key_path.display(), .paths.public_key_path.display())]
     KeyPairLoadFailure {
         keys: String,
         paths: nym_pemstore::KeyPairPath,
         #[source]
-        err: std::io::Error,
+        err: io::Error,
     },
 
     #[error(
@@ -68,6 +69,12 @@ pub(crate) enum GatewayError {
         actual_prefix: String,
     },
 
+    #[error("storage failure: {source}")]
+    StorageError {
+        #[from]
+        source: StorageError,
+    },
+
     #[error("Path to network requester configuration file hasn't been specified. Perhaps try to run `setup-network-requester`?")]
     UnspecifiedNetworkRequesterConfig,
 
@@ -80,10 +87,10 @@ pub(crate) enum GatewayError {
     #[error("failed to startup local network requester")]
     NetworkRequesterStartupFailure,
 
-    #[error("there are no nym APIs available")]
+    #[error("there are no nym API endpoints available")]
     NoNymApisAvailable,
 
-    #[error("there are no nyxd APIs available")]
+    #[error("there are no nyxd endpoints available")]
     NoNyxdAvailable,
 
     #[error("there was an issue attempting to use the validator [nyxd]: {source}")]
@@ -91,4 +98,13 @@ pub(crate) enum GatewayError {
         #[from]
         source: NyxdError,
     },
+}
+
+impl From<ClientCoreError> for GatewayError {
+    fn from(value: ClientCoreError) -> Self {
+        // if we ever get a client core error, it must have come from the network requester
+        GatewayError::NetworkRequesterFailure {
+            source: value.into(),
+        }
+    }
 }

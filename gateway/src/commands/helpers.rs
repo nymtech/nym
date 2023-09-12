@@ -10,8 +10,10 @@ use log::{error, info};
 use nym_bin_common::version_checker;
 use nym_config::{save_formatted_config_to_file, OptionalSet};
 use nym_crypto::asymmetric::identity;
+use nym_network_defaults::mainnet;
 use nym_network_defaults::var_names::NYXD;
 use nym_network_defaults::var_names::{BECH32_PREFIX, NYM_API, STATISTICS_SERVICE_DOMAIN_ADDRESS};
+use nym_network_requester::config::BaseClientConfig;
 use nym_network_requester::{
     setup_gateway_from, GatewaySelectionSpecification, GatewaySetup, OnDiskGatewayDetails,
     OnDiskKeys,
@@ -82,10 +84,23 @@ impl OverrideConfig {
     }
 }
 
+#[derive(Default)]
+pub(crate) struct OverrideNetworkRequesterConfig {
+    pub(crate) fastmode: bool,
+    pub(crate) no_cover: bool,
+    pub(crate) medium_toggle: bool,
+
+    pub(crate) open_proxy: Option<bool>,
+    pub(crate) enable_statistics: Option<bool>,
+    pub(crate) statistics_recipient: Option<String>,
+}
+
 /// Ensures that a given bech32 address is valid
 pub(crate) fn ensure_correct_bech32_prefix(address: &AccountId) -> Result<(), GatewayError> {
-    let expected_prefix = std::env::var(BECH32_PREFIX).expect("bech32 prefix not set");
+    let expected_prefix =
+        std::env::var(BECH32_PREFIX).unwrap_or(mainnet::BECH32_PREFIX.to_string());
     let actual_prefix = address.prefix();
+
     if expected_prefix != actual_prefix {
         return Err(GatewayError::InvalidBech32AccountPrefix {
             account: address.to_owned(),
@@ -140,8 +155,56 @@ fn make_nr_id(gateway_id: &str) -> String {
     format!("{gateway_id}-network-requester")
 }
 
+fn override_network_requester_config(
+    mut cfg: nym_network_requester::Config,
+    opts: OverrideNetworkRequesterConfig,
+) -> nym_network_requester::Config {
+    // as of 12.09.23 the below is true (not sure how this comment will rot in the future)
+    // medium_toggle:
+    // - sets secondary packet size to 16kb
+    // - disables poisson distribution of the main traffic stream
+    // - sets the cover traffic stream to 1 packet / 5s (on average)
+    // - disables per hop delay
+    //
+    // fastmode:
+    // - sets average per hop delay to 10ms
+    // - sets the cover traffic stream to 1 packet / 2000s (on average); for all intents and purposes it disables the stream
+    // - sets the poisson distribution of the main traffic stream to 4ms, i.e. 250 packets / s on average
+    //
+    // no_cover:
+    // - disables poisson distribution of the main traffic stream
+    // - disables the secondary cover traffic stream
+
+    // those should be enforced by `clap` when parsing the arguments
+    if opts.medium_toggle {
+        debug_assert!(!opts.fastmode);
+        debug_assert!(!opts.no_cover);
+
+        cfg.set_medium_toggle();
+    }
+
+    cfg.with_base(
+        BaseClientConfig::with_high_default_traffic_volume,
+        opts.fastmode,
+    )
+    .with_base(BaseClientConfig::with_disabled_cover_traffic, opts.no_cover)
+    .with_optional(
+        nym_network_requester::Config::with_open_proxy,
+        opts.open_proxy,
+    )
+    .with_optional(
+        nym_network_requester::Config::with_enabled_statistics,
+        opts.enable_statistics,
+    )
+    .with_optional(
+        nym_network_requester::Config::with_statistics_recipient,
+        opts.statistics_recipient,
+    )
+}
+
 pub(crate) async fn initialise_local_network_requester(
     gateway_config: &Config,
+    opts: OverrideNetworkRequesterConfig,
     identity: identity::PublicKey,
 ) -> Result<GatewayNetworkRequesterDetails, GatewayError> {
     info!("initialising network requester...");
@@ -150,9 +213,10 @@ pub(crate) async fn initialise_local_network_requester(
     };
 
     let id = &gateway_config.gateway.id;
+    let nr_id = make_nr_id(id);
     let nr_data_dir = default_network_requester_data_dir(id);
-    let nr_cfg =
-        nym_network_requester::Config::new(make_nr_id(id)).with_data_directory(nr_data_dir);
+    let mut nr_cfg = nym_network_requester::Config::new(&nr_id).with_data_directory(nr_data_dir);
+    nr_cfg = override_network_requester_config(nr_cfg, opts);
 
     let key_store = OnDiskKeys::new(nr_cfg.storage_paths.common_paths.keys.clone());
     let details_store =
@@ -177,25 +241,18 @@ pub(crate) async fn initialise_local_network_requester(
         false,
         None,
     )
-    .await
-    .expect("error handling");
-    let address = init_res.client_address().expect("error handling");
+    .await?;
+
+    let address = init_res.client_address()?;
 
     if let Err(err) = save_formatted_config_to_file(&nr_cfg, nr_cfg_path) {
         log::error!("Failed to save the network requester config file: {err}");
-        panic!("unimplemented error handling")
-        // return Err(err.into());
+        return Err(GatewayError::ConfigSaveFailure {
+            id: nr_id,
+            path: nr_cfg_path.to_path_buf(),
+            source: err,
+        });
     };
-
-    println!("here we're initialising network requester");
-
-    let res = GatewayNetworkRequesterDetails {
-        identity_key: address.identity().to_string(),
-        encryption_key: address.encryption_key().to_string(),
-        address: address.to_string(),
-        config_path: nr_cfg_path.display().to_string(),
-    };
-    println!("res:\n {res}");
 
     Ok(GatewayNetworkRequesterDetails {
         identity_key: address.identity().to_string(),

@@ -10,6 +10,7 @@ use crate::node::client_handling::embedded_network_requester::{
 };
 use crate::node::client_handling::websocket;
 use crate::node::client_handling::websocket::connection_handler::coconut::CoconutVerifier;
+use crate::node::helpers::{initialise_main_storage, load_network_requester_config};
 use crate::node::mixnet_handling::receiver::connection_handler::ConnectionHandler;
 use crate::node::statistics::collector::GatewayStatisticsCollector;
 use crate::node::storage::Storage;
@@ -20,8 +21,6 @@ use nym_crypto::asymmetric::{encryption, identity};
 use nym_mixnet_client::forwarder::{MixForwardingSender, PacketForwarder};
 use nym_network_defaults::NymNetworkDetails;
 use nym_network_requester::{LocalGateway, NRServiceProviderBuilder};
-use nym_pemstore::traits::PemStorableKeyPair;
-use nym_pemstore::KeyPairPath;
 use nym_statistics_common::collector::StatisticsSender;
 use nym_task::{TaskClient, TaskManager};
 use nym_validator_client::{nyxd, DirectSigningHttpRpcNyxdClient};
@@ -29,10 +28,11 @@ use rand::seq::SliceRandom;
 use rand::thread_rng;
 use std::error::Error;
 use std::net::SocketAddr;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::Arc;
 
 pub(crate) mod client_handling;
+pub(crate) mod helpers;
 pub(crate) mod mixnet_handling;
 pub(crate) mod statistics;
 pub(crate) mod storage;
@@ -54,7 +54,7 @@ pub(crate) async fn create_gateway(
         None
     };
 
-    let storage = initialise_main_storage(&config).await;
+    let storage = initialise_main_storage(&config).await?;
 
     let nr_opts = network_requester_config.map(|config| LocalNetworkRequesterOpts {
         config,
@@ -64,30 +64,6 @@ pub(crate) async fn create_gateway(
     Gateway::new(config, nr_opts, storage)
 }
 
-fn load_network_requester_config<P: AsRef<Path>>(
-    id: &str,
-    path: P,
-) -> Result<nym_network_requester::Config, GatewayError> {
-    let path = path.as_ref();
-    nym_network_requester::Config::read_from_toml_file(path).map_err(|err| {
-        GatewayError::NetworkRequesterConfigLoadFailure {
-            id: id.to_string(),
-            path: path.to_path_buf(),
-            source: err,
-        }
-    })
-}
-
-async fn initialise_main_storage(config: &Config) -> PersistentStorage {
-    let path = &config.storage_paths.clients_storage;
-    let retrieval_limit = config.debug.message_retrieval_limit;
-    match PersistentStorage::init(path, retrieval_limit).await {
-        Err(err) => panic!("failed to initialise gateway storage: {err}"),
-        Ok(storage) => storage,
-    }
-}
-
-// TODO: refactor and move it elsewhere
 #[derive(Debug, Clone)]
 pub struct LocalNetworkRequesterOpts {
     config: nym_network_requester::Config,
@@ -116,8 +92,8 @@ impl<St> Gateway<St> {
     ) -> Result<Self, GatewayError> {
         Ok(Gateway {
             storage,
-            identity_keypair: Arc::new(Self::load_identity_keys(&config)?),
-            sphinx_keypair: Arc::new(Self::load_sphinx_keys(&config)?),
+            identity_keypair: Arc::new(helpers::load_identity_keys(&config)?),
+            sphinx_keypair: Arc::new(helpers::load_sphinx_keys(&config)?),
             config,
             network_requester_opts,
         })
@@ -138,35 +114,6 @@ impl<St> Gateway<St> {
             sphinx_keypair: Arc::new(sphinx_keypair),
             storage,
         }
-    }
-
-    fn load_keypair<T: PemStorableKeyPair>(
-        paths: KeyPairPath,
-        name: impl Into<String>,
-    ) -> Result<T, GatewayError> {
-        nym_pemstore::load_keypair(&paths).map_err(|err| GatewayError::KeyPairLoadFailure {
-            keys: name.into(),
-            paths,
-            err,
-        })
-    }
-
-    /// Loads identity keys stored on disk
-    pub(crate) fn load_identity_keys(config: &Config) -> Result<identity::KeyPair, GatewayError> {
-        let identity_paths = KeyPairPath::new(
-            config.storage_paths.keys.private_identity_key(),
-            config.storage_paths.keys.public_identity_key(),
-        );
-        Self::load_keypair(identity_paths, "gateway identity keys")
-    }
-
-    /// Loads Sphinx keys stored on disk
-    fn load_sphinx_keys(config: &Config) -> Result<encryption::KeyPair, GatewayError> {
-        let sphinx_paths = KeyPairPath::new(
-            config.storage_paths.keys.private_encryption_key(),
-            config.storage_paths.keys.public_encryption_key(),
-        );
-        Self::load_keypair(sphinx_paths, "gateway sphinx keys")
     }
 
     pub(crate) fn print_node_details(&self, output: OutputFormat) {

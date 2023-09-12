@@ -5,7 +5,6 @@ use async_trait::async_trait;
 use futures::channel::{mpsc, oneshot};
 use log::{debug, error};
 use nym_crypto::asymmetric::identity;
-use nym_crypto::asymmetric::identity::PublicKey;
 use nym_gateway_client::GatewayClient;
 pub use nym_gateway_client::{GatewayPacketRouter, PacketRouter};
 use nym_sphinx::forwarding::packet::MixPacket;
@@ -156,9 +155,6 @@ pub struct LocalGateway {
 
     // 'sender' part
     /// Channel responsible for taking mix packets and forwarding them further into the further mixnet layers.
-    // TODO: get the type alias from the mixnet client crate
-    unused_field: Option<()>,
-
     packet_forwarder: mpsc::UnboundedSender<MixPacket>,
 
     // 'receiver' part
@@ -173,7 +169,6 @@ impl LocalGateway {
     ) -> Self {
         LocalGateway {
             local_identity,
-            unused_field: None,
             packet_forwarder,
             packet_router_tx: Some(packet_router_tx),
         }
@@ -248,7 +243,7 @@ impl GatewaySender for MockGateway {
 }
 
 impl GatewayTransceiver for MockGateway {
-    fn gateway_identity(&self) -> PublicKey {
+    fn gateway_identity(&self) -> identity::PublicKey {
         self.dummy_identity
     }
 }

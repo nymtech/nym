@@ -38,16 +38,21 @@ pub(crate) struct Run {
 
     /// Mostly debug-related option to increase default traffic rate so that you would not need to
     /// modify config post init
-    #[arg(long, hide = true)]
+    #[arg(long, hide = true, conflicts_with = "medium-toggle")]
     fastmode: bool,
 
     /// Disable loop cover traffic and the Poisson rate limiter (for debugging only)
-    #[arg(long, hide = true)]
+    #[arg(long, hide = true, conflicts_with = "medium-toggle")]
     no_cover: bool,
 
     /// Enable medium mixnet traffic, for experiments only.
     /// This includes things like disabling cover traffic, no per hop delays, etc.
-    #[arg(long, hide = true)]
+    #[arg(
+        long,
+        hide = true,
+        conflicts_with = "no-cover",
+        conflicts_with = "fastmode"
+    )]
     medium_toggle: bool,
 }
 

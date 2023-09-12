@@ -4,8 +4,8 @@
 use crate::commands::helpers::{
     ensure_config_version_compatibility, ensure_correct_bech32_prefix, OverrideConfig,
 };
-use crate::config::persistence::paths::GatewayPaths;
 use crate::error::GatewayError;
+use crate::node::helpers::load_identity_keys;
 use crate::support::config::build_config;
 use anyhow::{bail, Result};
 use clap::{ArgGroup, Args};
@@ -64,16 +64,6 @@ impl TryFrom<Sign> for SignedTarget {
     }
 }
 
-pub fn load_identity_keys(paths: &GatewayPaths) -> identity::KeyPair {
-    let identity_keypair: identity::KeyPair =
-        nym_pemstore::load_keypair(&nym_pemstore::KeyPairPath::new(
-            paths.private_identity_key().to_owned(),
-            paths.public_identity_key().to_owned(),
-        ))
-        .expect("Failed to read stored identity key files");
-    identity_keypair
-}
-
 fn print_signed_address(
     private_key: &identity::PrivateKey,
     wallet_address: nyxd::AccountId,
@@ -90,14 +80,11 @@ fn print_signed_text(
     text: &str,
     output: OutputFormat,
 ) -> Result<(), GatewayError> {
-    eprintln!(
-        "Signing the text {:?} using your mixnode's Ed25519 identity key...",
-        text
-    );
+    eprintln!("Signing the text {text:?} using your mixnode's Ed25519 identity key...",);
 
     let signature = private_key.sign_text(text);
     let sign_output = ConsoleSigningOutput::new(text, signature);
-    println!("{}", output.format(&sign_output));
+    output.to_stdout(&sign_output);
 
     Ok(())
 }
@@ -139,7 +126,7 @@ pub fn execute(args: Sign) -> Result<(), Box<dyn Error + Send + Sync>> {
     let output = args.output;
     let signed_target = SignedTarget::try_from(args)?;
 
-    let identity_keypair = load_identity_keys(&config.storage_paths);
+    let identity_keypair = load_identity_keys(&config)?;
 
     match signed_target {
         SignedTarget::Text(text) => {

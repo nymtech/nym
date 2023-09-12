@@ -149,7 +149,12 @@ pub async fn execute(args: Init) -> anyhow::Result<()> {
         let mut details = None;
         if config.network_requester.enabled {
             details = Some(
-                initialise_local_network_requester(&config, *identity_keys.public_key()).await?,
+                initialise_local_network_requester(
+                    &config,
+                    Default::default(),
+                    *identity_keys.public_key(),
+                )
+                .await?,
             );
         }
 
@@ -175,7 +180,7 @@ pub async fn execute(args: Init) -> anyhow::Result<()> {
         .print_node_details(output);
 
     if let Some(network_requester_details) = nr_details {
-        println!("{}", output.format(&network_requester_details))
+        output.to_stdout(&network_requester_details)
     }
 
     Ok(())

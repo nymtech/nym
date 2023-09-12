@@ -88,40 +88,41 @@ pub(crate) struct OverrideConfig {
     statistics_recipient: Option<String>,
 }
 
-pub(crate) fn override_config(config: Config, args: OverrideConfig) -> Config {
-    // These flags have overlapping effects, meaning the order matters here. Making it a bit messy.
-    // Since a big chunk of these are hidden experimental flags there is hope we can remove them
-    // soonish and clean this up.
+pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Config {
+    // as of 12.09.23 the below is true (not sure how this comment will rot in the future)
+    // medium_toggle:
+    // - sets secondary packet size to 16kb
+    // - disables poisson distribution of the main traffic stream
+    // - sets the cover traffic stream to 1 packet / 5s (on average)
+    // - disables per hop delay
+    //
+    // fastmode:
+    // - sets average per hop delay to 10ms
+    // - sets the cover traffic stream to 1 packet / 2000s (on average); for all intents and purposes it disables the stream
+    // - sets the poisson distribution of the main traffic stream to 4ms, i.e. 250 packets / s on average
+    //
+    // no_cover:
+    // - disables poisson distribution of the main traffic stream
+    // - disables the secondary cover traffic stream
 
-    // This is the default
-    let disable_poisson_rate = config.network_requester.disable_poisson_rate;
+    // disable poisson rate in the BASE client if the NR option is enabled
+    if config.network_requester.disable_poisson_rate {
+        config.set_no_poisson_process();
+    }
 
-    // This is with the medium toggle
-    let disable_cover_traffic_with_keepalive = args.medium_toggle;
-    let secondary_packet_size = args.medium_toggle.then_some(PacketSize::ExtendedPacket16);
-    let no_per_hop_delays = args.medium_toggle;
+    // those should be enforced by `clap` when parsing the arguments
+    if args.medium_toggle {
+        assert!(!args.fastmode);
+        assert!(!args.no_cover);
+
+        config.set_medium_toggle();
+    }
 
     config
         .with_base(
             BaseClientConfig::with_high_default_traffic_volume,
             args.fastmode,
         )
-        .with_base(
-            // NOTE: This interacts with disabling cover traffic fully, so we want to this to be set before
-            BaseClientConfig::with_disabled_poisson_process,
-            disable_poisson_rate,
-        )
-        .with_base(
-            // NOTE: This interacts with disabling cover traffic fully, so we want to this to be set before
-            BaseClientConfig::with_disabled_cover_traffic_with_keepalive,
-            disable_cover_traffic_with_keepalive,
-        )
-        .with_base(
-            BaseClientConfig::with_secondary_packet_size,
-            secondary_packet_size,
-        )
-        .with_base(BaseClientConfig::with_no_per_hop_delays, no_per_hop_delays)
-        // NOTE: see comment above about the order of the other disble cover traffic config
         .with_base(BaseClientConfig::with_disabled_cover_traffic, args.no_cover)
         .with_optional_base_custom_env(
             BaseClientConfig::with_custom_nym_apis,

@@ -32,4 +32,14 @@ impl OutputFormat {
             OutputFormat::Json => serde_json::to_string(data).unwrap(),
         }
     }
+
+    #[cfg(feature = "output_format")]
+    pub fn to_stdout<T: serde::Serialize + ToString>(&self, data: &T) {
+        println!("{}", self.format(data))
+    }
+
+    #[cfg(feature = "output_format")]
+    pub fn to_stderr<T: serde::Serialize + ToString>(&self, data: &T) {
+        eprintln!("{}", self.format(data))
+    }
 }

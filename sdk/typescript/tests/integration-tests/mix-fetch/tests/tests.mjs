@@ -1,6 +1,8 @@
 /* eslint-disable no-await-in-loop */
 import puppeteer from 'puppeteer';
 
+const TIMEOUT = 30_000;
+
 function sleep(time) {
   return new Promise((resolve) => {
     setTimeout(resolve, time);
@@ -12,6 +14,7 @@ export async function runTests(log) {
   // launch Chrome and navigate
   const browser = await puppeteer.launch({ headless: 'new' });
   const page = await browser.newPage();
+  await page.setDefaultNavigationTimeout(TIMEOUT); // timeout 60 seconds now
 
   const errors = [];
 
@@ -69,7 +72,7 @@ export async function runTests(log) {
 
   console.log('  🟢 Started');
 
-  await page.waitForSelector('#text-output');
+  await page.waitForSelector('#text-output', { timeout: TIMEOUT });
   console.log('  🟢 Got text output');
   // await page.waitForSelector('#image-output');
   // console.log('  🟢 Got image output');

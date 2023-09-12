@@ -122,13 +122,15 @@ console.log('✅ Built\n');
 
 console.log('👀 Testing...');
 
+const summary = [];
+let totalTimeMilliseconds = 0;
 let failures = 0;
-for (const p of packages.filter((p) => !p.includes('full-fat'))) {
+for (const p of packages) {
   const dir = `${OUTPUT_DIR}/${p}`;
 
   const kinds = [
-    'parcel',
-    // 'webpack',
+    'parcel', // simple parcel project
+    'webpack', // webpack, sometimes with the CopyPlugin to add the WASM bundles
   ];
   for (const kind of kinds) {
     const project = `${dir}/${kind}`;
@@ -136,25 +138,51 @@ for (const p of packages.filter((p) => !p.includes('full-fat'))) {
 
     const server = await serve(path.resolve(project, 'dist'));
 
+    const start = performance.now();
+    let success = false;
+    let errors = [];
     try {
       console.log('🚀 About to run tests...');
-      const errors = await runTests(logTests);
+      errors = await runTests(logTests);
       if (errors.length > 0) {
         errors.forEach((e) => console.log(e.text));
-        throw new Error('Tests had errors', { cause: errors });
+      } else {
+        success = true;
       }
-      console.log('✅ OK');
     } catch (e) {
       failures += 1;
-      console.log(`❌ Tests failed for ${project}`);
-      console.error(e);
+      errors.push({ text: e.message, type: 'error' });
     } finally {
       server.closeAllConnections();
       server.close();
     }
+    const end = performance.now();
+    const duration = Math.floor(end - start);
+    totalTimeMilliseconds += duration;
+
+    if (errors.length) {
+      console.log(`❌ Tests failed for ${project} with ${errors.length} errors:`);
+      console.table(errors);
+    } else {
+      console.log('✅ OK');
+    }
+
+    summary.push({
+      variant: p,
+      bundler: kind,
+      duration: `${duration}ms`,
+      success: success ? '✅ OK' : `❌ Failed with ${errors.length} errors`,
+      errors: errors.map((e) => e.text).join('\n'),
+    });
 
     console.log();
   }
 }
 
+console.log();
+console.log('Summary:');
+console.table(summary);
+
+console.log();
+console.log(`Tests took ${Math.floor(totalTimeMilliseconds / 1000)} seconds to run`);
 console.log(`${failures > 0 ? `❌ Done with ${failures} errors` : '✅ Done'}`);

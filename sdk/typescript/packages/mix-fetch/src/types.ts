@@ -3,7 +3,7 @@ import type { MixFetchOpts } from '@nymproject/mix-fetch-wasm';
 type IMixFetchWorkerFn = (url: string, args: any) => Promise<MixFetchWebWorkerResponse>;
 
 // export type IMixFetchFn = typeof fetch;
-export type IMixFetchFn = (url: string, args: any) => Promise<Response>;
+export type IMixFetchFn = (url: string, args: any, opts?: SetupMixFetchOps) => Promise<Response>;
 
 export type SetupMixFetchOps = MixFetchOpts & {
   responseBodyConfigMap?: ResponseBodyConfigMap;

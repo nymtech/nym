@@ -28,7 +28,11 @@ async function main() {
   appendOutput(`Using mixFetch to get ${url}...`);
   const args = { mode: 'unsafe-ignore-cors' };
 
-  const resp = await mixFetch(url, args);
+  const resp = await mixFetch(url, args, {
+    preferredGateway: '2BuMSfMW3zpeAjKXyKLhmY4QW1DXurrtSPEJ6CjX3SEh',
+    preferredNetworkRequester:
+      'GiRjFWrMxt58pEMuusm4yT3RxoMD1MMPrR9M2N4VWRJP.3CNZBPq4vg7v7qozjGjdPMXcvDmkbWPCgbGCjQVw9n6Z@2xU4CBE6QiiYt6EyBXSALwxkNvM7gqJfjHXaMkjiFmYW',
+  });
   console.log({ resp });
   const text = await resp.text();
 

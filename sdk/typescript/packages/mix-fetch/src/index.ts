@@ -42,8 +42,8 @@ export const mixFetch: IMixFetchFn = async (url, args, opts?: SetupMixFetchOps) 
   const instance = await createMixFetch({
     mixFetchOverride: {
       requestTimeoutMs: REQUEST_TIMEOUT_MILLISECONDS,
-      ...opts,
     },
+    ...opts,
   });
 
   // execute user request

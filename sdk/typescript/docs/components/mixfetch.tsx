@@ -19,9 +19,6 @@ export const MixFetch = () => {
 
   useEffect(() => {
     connectMixFetch();
-    return () => {
-      client?.disconnect();
-    }
   }, []);
 
   if (!client) {

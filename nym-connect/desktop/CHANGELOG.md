@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [v1.1.21-kitkat] (2023-09-12)
+
+- NC - Handle failure when config is too old ([#3847])
+
+[#3847]: https://github.com/nymtech/nym/issues/3847
+
 ## [v1.1.20-twix] (2023-09-05)
 
 - nym-connect directory error handling ([#3830])

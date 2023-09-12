@@ -4,6 +4,22 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [v1.1.31-kitkat] (2023-09-12)
+
+- feat: add name to `TaskClient` ([#3844])
+- added 'open_proxy', 'enabled_statistics' and 'statistics_recipient' to NR config ([#3839])
+- MixFetch: initial prototype for insecure HTTP ([#3645])
+- MixFetch: prototype implementing TLS in WASM for HTTPS ([#3644])
+- SDK: build package for NodeJS ([#3558])
+- [Issue] There is already an open connection to this client ([#2845])
+
+[#3844]: https://github.com/nymtech/nym/pull/3844
+[#3839]: https://github.com/nymtech/nym/pull/3839
+[#3645]: https://github.com/nymtech/nym/issues/3645
+[#3644]: https://github.com/nymtech/nym/issues/3644
+[#3558]: https://github.com/nymtech/nym/issues/3558
+[#2845]: https://github.com/nymtech/nym/issues/2845
+
 ## [v1.1.30-twix] (2023-09-05)
 
 - geo_aware_provider: fix too much filtering of gateways ([#3826])

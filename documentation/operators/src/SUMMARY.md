@@ -19,7 +19,7 @@
 - [Maintenance](./nodes/maintenance.md)
 - [Troubleshooting](./nodes/troubleshooting.md)
 - [FAQ](./faq.md)
-- [Legal Advice](legal/legal-forum.md)
+- [Legal Forum](./legal/legal-forum.md)
 
 --- 
 # Misc.

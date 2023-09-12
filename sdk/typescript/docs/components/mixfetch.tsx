@@ -42,9 +42,15 @@ export const MixFetch = () => {
           disabled={!url || !client}
           sx={{ marginLeft: "1rem" }}
           onClick={async () => {
-            const response = await client.mixFetch(url);
-            const html = await response.text();
-            setHtml(html);
+            try {
+              const response = await client.mixFetch(url);
+              console.log(response);
+              const html = await response.text();
+              setHtml(html);
+            }
+            catch (err) {
+              console.log(err);
+            }
           }}
         >
           Fetch

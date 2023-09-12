@@ -1,12 +1,13 @@
 {
   "name": "@nymproject/contract-clients",
-  "version": "1.2.0-rc.1",
+  "version": "1.2.0-rc.3",
   "description": "A client for all Nym smart contracts",
   "main": "dist/index.js",
   "browser": "dist/index.js",
   "types": "./dist/index.d.ts",
   "scripts": {
-    "build": "tsc",
+    "build": "./scripts/build-prod.sh",
+    "build:tsc": "tsc",
     "build:autogen": "node build.mjs",
     "docs:dev": "run-p docs:watch docs:serve ",
     "docs:generate": "typedoc",
@@ -24,6 +25,6 @@
     "typedoc": "^0.24.8"
   },
   "keywords": [],
-  "author": "",
+  "author": "Nym Technologies SA",
   "license": "Apache-2.0"
 }

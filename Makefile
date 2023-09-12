@@ -124,9 +124,10 @@ sdk-wasm-build:
 
 # run this from npm/yarn to ensure tools are in the path, e.g. yarn build:sdk from root of repo
 sdk-typescript-build:
-	lerna run --scope @nymproject/sdk build --stream
-	lerna run --scope @nymproject/mix-fetch build --stream
-	lerna run --scope @nymproject/node-tester build --stream
+	npx lerna run --scope @nymproject/sdk build --stream
+	npx lerna run --scope @nymproject/mix-fetch build --stream
+	npx lerna run --scope @nymproject/node-tester build --stream
+	yarn --cwd sdk/typescript/codegen/contract-clients build
 
 sdk-wasm-test:
 #	# client

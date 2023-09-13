@@ -80,7 +80,7 @@ impl KeyStore for ClientStorage {
         Ok(KeyManager::from_keys(
             identity_keypair,
             encryption_keypair,
-            gateway_shared_key,
+            Some(gateway_shared_key),
             ack_keypair,
         ))
     }
@@ -93,8 +93,11 @@ impl KeyStore for ClientStorage {
         self.store_encryption_keypair(&keys.encryption_keypair())
             .await?;
         self.store_ack_key(&keys.ack_key()).await?;
-        self.store_gateway_shared_key(&keys.gateway_shared_key())
-            .await
+
+        if let Some(shared_keys) = keys.gateway_shared_key() {
+            self.store_gateway_shared_key(&shared_keys).await?;
+        }
+        Ok(())
     }
 }
 

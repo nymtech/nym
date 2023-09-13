@@ -1,26 +1,24 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-#[cfg(target_arch = "wasm32")]
+// #[cfg(target_arch = "wasm32")]
 pub mod config;
-#[cfg(target_arch = "wasm32")]
+// #[cfg(target_arch = "wasm32")]
 pub mod error;
-#[cfg(target_arch = "wasm32")]
+// #[cfg(target_arch = "wasm32")]
 pub mod helpers;
-#[cfg(target_arch = "wasm32")]
+// #[cfg(target_arch = "wasm32")]
 pub mod storage;
-#[cfg(target_arch = "wasm32")]
+// #[cfg(target_arch = "wasm32")]
 pub mod topology;
 
 // re-export types for ease of use
 pub use nym_bandwidth_controller::BandwidthController;
 pub use nym_client_core::*;
 pub use nym_client_core::{
-    client::key_manager::ManagedKeys,
-    error::ClientCoreError,
-    init::{InitialisationDetails, InitialisationResult},
+    client::key_manager::ManagedKeys, error::ClientCoreError, init::types::InitialisationResult,
 };
-pub use nym_gateway_client::{error::GatewayClientError, GatewayClient};
+pub use nym_gateway_client::{error::GatewayClientError, GatewayClient, GatewayConfig};
 pub use nym_sphinx::{
     addressing::{clients::Recipient, nodes::NodeIdentity},
     params::PacketType,

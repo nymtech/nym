@@ -8,7 +8,10 @@ use js_sys::Promise;
 use nym_client_core::client::replies::reply_storage::browser_backend;
 use nym_client_core::config;
 use nym_client_core::init::helpers::current_gateways;
-use nym_client_core::init::{setup_gateway_from, GatewaySetup, InitialisationResult};
+use nym_client_core::init::{
+    setup_gateway_from,
+    types::{GatewaySetup, InitialisationResult},
+};
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nym_topology::{gateway, NymTopology, SerializableNymTopology};

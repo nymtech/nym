@@ -19,7 +19,7 @@ use wasm_client_core::config::r#override::DebugWasmOverride;
 use wasm_client_core::helpers::{
     parse_recipient, parse_sender_tag, setup_from_topology, setup_gateway_from_api,
 };
-use wasm_client_core::init::GatewaySetup;
+use wasm_client_core::init::types::GatewaySetup;
 use wasm_client_core::nym_task::connections::TransmissionLane;
 use wasm_client_core::nym_task::TaskManager;
 use wasm_client_core::storage::core_client_traits::FullWasmClientStorage;
@@ -169,7 +169,7 @@ impl NymClientBuilder {
         if let Some(authenticated_ephemeral_client) = init_res.authenticated_ephemeral_client {
             base_builder = base_builder.with_gateway_setup(GatewaySetup::ReuseConnection {
                 authenticated_ephemeral_client,
-                details: init_res.details,
+                gateway_details: init_res.gateway_details,
             });
         }
 

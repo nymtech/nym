@@ -211,6 +211,9 @@ pub enum GatewaySetup<T = EmptyCustomDetails> {
 
         // Details of this pre-initialised client (i.e. gateway and keys)
         gateway_details: GatewayDetails,
+        
+        #[deprecated]
+        // rethink it. this field shouldn't be required as if you're reusing a connection, you must already have loaded keys in memory
         managed_keys: ManagedKeys,
     },
 }

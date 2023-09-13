@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use async_trait::async_trait;
-use futures::channel::{mpsc, oneshot};
 use log::{debug, error};
 use nym_crypto::asymmetric::identity;
 use nym_gateway_client::GatewayClient;
@@ -10,6 +9,9 @@ pub use nym_gateway_client::{GatewayPacketRouter, PacketRouter};
 use nym_sphinx::forwarding::packet::MixPacket;
 use std::fmt::Debug;
 use thiserror::Error;
+
+#[cfg(not(target_arch = "wasm32"))]
+use futures::channel::{mpsc, oneshot};
 
 // we need to type erase the error type since we can't have dynamic associated types alongside dynamic dispatch
 #[derive(Debug, Error)]
@@ -149,6 +151,7 @@ pub enum LocalGatewayError {
 }
 
 /// Gateway running within the same process.
+#[cfg(not(target_arch = "wasm32"))]
 pub struct LocalGateway {
     /// Identity of the locally managed gateway
     local_identity: identity::PublicKey,
@@ -161,6 +164,7 @@ pub struct LocalGateway {
     packet_router_tx: Option<oneshot::Sender<PacketRouter>>,
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 impl LocalGateway {
     pub fn new(
         local_identity: identity::PublicKey,
@@ -175,31 +179,39 @@ impl LocalGateway {
     }
 }
 
-impl GatewayTransceiver for LocalGateway {
-    fn gateway_identity(&self) -> identity::PublicKey {
-        self.local_identity
+#[cfg(not(target_arch = "wasm32"))]
+mod nonwasm_sealed {
+    use super::*;
+
+    impl GatewayTransceiver for LocalGateway {
+        fn gateway_identity(&self) -> identity::PublicKey {
+            self.local_identity
+        }
     }
-}
 
-#[async_trait]
-impl GatewaySender for LocalGateway {
-    async fn send_mix_packet(&mut self, packet: MixPacket) -> Result<(), ErasedGatewayError> {
-        self.packet_forwarder
-            .unbounded_send(packet)
-            .map_err(|err| err.into_send_error())
-            .map_err(erase_err)
+    #[async_trait]
+    impl GatewaySender for LocalGateway {
+        async fn send_mix_packet(&mut self, packet: MixPacket) -> Result<(), ErasedGatewayError> {
+            self.packet_forwarder
+                .unbounded_send(packet)
+                .map_err(|err| err.into_send_error())
+                .map_err(erase_err)
+        }
     }
-}
 
-impl GatewayReceiver for LocalGateway {
-    fn set_packet_router(&mut self, packet_router: PacketRouter) -> Result<(), ErasedGatewayError> {
-        let Some(packet_routex_tx) = self.packet_router_tx.take() else {
-            return Err(erase_err(LocalGatewayError::PacketRouterAlreadySet))
-        };
+    impl GatewayReceiver for LocalGateway {
+        fn set_packet_router(
+            &mut self,
+            packet_router: PacketRouter,
+        ) -> Result<(), ErasedGatewayError> {
+            let Some(packet_routex_tx) = self.packet_router_tx.take() else {
+                return Err(erase_err(LocalGatewayError::PacketRouterAlreadySet))
+            };
 
-        packet_routex_tx
-            .send(packet_router)
-            .map_err(|_| erase_err(LocalGatewayError::FailedPacketRouterSetup))
+            packet_routex_tx
+                .send(packet_router)
+                .map_err(|_| erase_err(LocalGatewayError::FailedPacketRouterSetup))
+        }
     }
 }
 
@@ -234,7 +246,8 @@ impl GatewayReceiver for MockGateway {
     }
 }
 
-#[async_trait]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl GatewaySender for MockGateway {
     async fn send_mix_packet(&mut self, packet: MixPacket) -> Result<(), ErasedGatewayError> {
         self.sent.push(packet);

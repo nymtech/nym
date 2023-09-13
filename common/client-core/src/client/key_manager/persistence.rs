@@ -4,7 +4,6 @@
 use crate::client::key_manager::KeyManager;
 use async_trait::async_trait;
 use std::error::Error;
-use std::ops::Deref;
 use tokio::sync::Mutex;
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -175,6 +174,8 @@ impl OnDiskKeys {
     }
 
     fn store_keys(&self, keys: &KeyManager) -> Result<(), OnDiskKeysError> {
+        use std::ops::Deref;
+
         let identity_paths = self.paths.identity_key_pair_path();
         let encryption_paths = self.paths.encryption_key_pair_path();
 

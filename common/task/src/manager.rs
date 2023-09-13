@@ -626,6 +626,7 @@ impl TaskHandle {
         }
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     pub async fn wait_for_shutdown(self) -> Result<(), SentError> {
         match self {
             TaskHandle::Internal(task_manager) => task_manager.catch_interrupt().await,

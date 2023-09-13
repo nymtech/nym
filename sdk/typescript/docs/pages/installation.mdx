@@ -50,7 +50,7 @@ npm install @nymproject/sdk --save
 
 ## MixFetch
 #### Overview
-MixFetch is a drop-in replacement for fetch that fetches responses through the Mixnet. It does this by grabbing the same arguments as traditional fetch and constructing the internal requests to a [Network Requester](https://nymtech.net/docs/nodes/network-requester.html).
+MixFetch is a drop-in replacement for [`fetch`](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch) that sends HTTP requests through the Mixnet. It does this by grabbing the same arguments as traditional fetch and constructing a SOCKS5 request that will be made to the destination host on the Internet via a [SOCKS5](https://nymtech.net/developers/quickstart/socks-proxy.html) [Network Requester](https://nymtech.net/docs/nodes/network-requester.html).
 
 #### Installation: MixFetch package
 In order to fetch data through mixFetch you'll need to use the [`MixFetch package`](https://www.npmjs.com/package/@nymproject/mix-fetch).

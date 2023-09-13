@@ -66,12 +66,13 @@ main();
 After instantiating the [`MixFetch package`](https://www.npmjs.com/package/@nymproject/mix-fetch), you will be able to use it as a drop-in replacement for `fetch`to send HTTP requests over the Nym Mixnet: 
 ````js
 import { createMixFetch } from '@nymproject/mix-fetch';
+````
 
-...
-
+````js
 const mixFetch = await createMixFetch();
 
 const response = await mixFetch('https://nymtech.net');
+
 const html = await response.text();
 ````
 

@@ -1,6 +1,3 @@
-import "@interchain-ui/react/styles"
-import {CosmosKit} from "../../components/cosmos-kit";
-
 # Cosmos Kit
 
 The wonderful people of Cosmology have made some [fantastic components](https://cosmoskit.com/) that can be used with
@@ -10,6 +7,35 @@ Nym, these include:
 - using the [Ledger hardware wallet](https://docs.cosmoskit.com/integrating-wallets/ledger) from the browser
 - any wallet that supports [Wallet Connect v2.0](https://docs.cosmoskit.com/integrating-wallets/adding-new-wallets)
 
-Below is an example that will connect your [Keplr wallet](https://www.keplr.app/) to this page:
+```ts
+import React from 'react';
+import { useChain } from '@cosmos-kit/react';
+import { assets, chains } from 'chain-registry';
+import { wallets } from '@cosmos-kit/keplr';
 
-<CosmosKit />
+export const MyComponent = () => {
+  const { wallet, address, connect, getOfflineSignerDirect } =
+    useChain('nyx');
+
+  React.useEffect(() => {
+    connect();
+  }, []);
+
+  const sign = async () => {
+    const doc = { ... };
+    return getOfflineSignerDirect().signDirect(address, doc);
+  };
+
+  return (
+    <div>
+      <div>
+        <strong>Connected to {wallet.prettyName}</strong>
+      </div>
+      <div>
+        Address: <code>{address}</code>
+      </div>
+    </div>
+  );
+}
+```
+

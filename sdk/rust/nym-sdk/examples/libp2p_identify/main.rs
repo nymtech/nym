@@ -37,23 +37,15 @@
 //! and will send each other identify info which is then printed to the console.
 
 use crate::rust_libp2p_nym::transport::NymTransport;
-use futures::{prelude::*, select};
+use futures::prelude::*;
+use libp2p::swarm::SwarmEvent::ListenerError;
+use libp2p::swarm::{keep_alive, KeepAlive, NetworkBehaviour};
 use libp2p::Multiaddr;
-use libp2p::{
-    core::muxing::StreamMuxerBox,
-    gossipsub, identity,
-    swarm::NetworkBehaviour,
-    swarm::{SwarmBuilder, SwarmEvent},
-    PeerId, Transport, identify
-};
+use libp2p::{identify, identity, ping, swarm::SwarmEvent, PeerId, Transport};
+use log::{debug, LevelFilter, info};
 use nym_sdk::mixnet::MixnetClient;
-use std::collections::hash_map::DefaultHasher;
 use std::error::Error;
-use std::hash::{Hash, Hasher};
-use std::time::Duration;
-use tokio::io;
-use tokio_util::codec;
-use log::{debug, info, LevelFilter};
+use tokio::time::Duration;
 
 #[path = "../libp2p_shared/lib.rs"]
 mod rust_libp2p_nym;
@@ -62,7 +54,7 @@ mod rust_libp2p_nym;
 async fn main() -> Result<(), Box<dyn Error>> {
     pretty_env_logger::formatted_timed_builder()
         .filter_level(log::LevelFilter::Warn)
-        .filter(Some("libp2p_identify"), LevelFilter::Info)
+        .filter(Some("libp2p_identify"), LevelFilter::Debug)
         .init();
 
     let local_key = identity::Keypair::generate_ed25519();
@@ -71,10 +63,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     // Create a identify network behaviour.
     // TODO bring in other behaviour attributes (Ping, KeepAlive)
-    let behaviour = identify::Behaviour::new(identify::Config::new(
-        "/ipfs/id/2.0.0".to_string(),
-        local_key.public(),
-    ));
+    // let behaviour = identify::Behaviour::new(identify::Config::new(
+    //     "/ipfs/id/2.0.0".to_string(),
+    //     local_key.public(),
+    // ));
 
     let client = MixnetClient::connect_new().await.unwrap();
     let transport = NymTransport::new(client, local_key.clone()).await?;
@@ -89,10 +81,20 @@ async fn main() -> Result<(), Box<dyn Error>> {
             transport
                 .map(|a, _| (a.0, StreamMuxerBox::new(a.1)))
                 .boxed(),
-            behaviour,
+            // behaviour,
+            MyBehaviour {
+                identify: identify::Behaviour::new(identify::Config::new(
+                    "/ipfs/id/2.0.0".to_string(),
+                    local_key.public(),
+                )),
+                ping: ping::Behaviour::new(
+                    ping::Config::new().with_interval(Duration::from_secs(1)),
+                ),
+                keep_alive: keep_alive::Behaviour,
+            },
             local_peer_id,
         )
-            .build()
+        .build()
     };
 
     let _ = swarm.listen_on(listen_addr.clone())?;
@@ -109,15 +111,62 @@ async fn main() -> Result<(), Box<dyn Error>> {
         match swarm.select_next_some().await {
             SwarmEvent::NewListenAddr { address, .. } => println!("Listening on {address:?}"),
             // Prints peer id identify info is being sent to.
-            SwarmEvent::Behaviour(identify::Event::Sent { peer_id, .. }) => {
-                println!("Sent identify info to {peer_id:?}")
+            SwarmEvent::Behaviour(MyBehaviourEvent::Identify(identify::Event::Sent {
+                peer_id,
+                ..
+            })) => {
+                info!("Sent identify info to {peer_id:?}")
             }
             // Prints out the info received via the identify event
-            SwarmEvent::Behaviour(identify::Event::Received { info, .. }) => {
-                println!("Received {info:?}")
+            SwarmEvent::Behaviour(MyBehaviourEvent::Identify(identify::Event::Received {
+                info,
+                ..
+            })) => {
+                info!("Received {info:?}")
             }
-            _ => { println!("got something else") }
+            // START DEBUG PRINTING TO FIND other
+            SwarmEvent::Dialing(peer_id) => {
+                info!("Dial attempt from {:?}", peer_id)
+            }
+            SwarmEvent::ConnectionClosed { peer_id, cause, .. } => {
+                info!(
+                    "Connection closed with peer: {:?} because: {:?}",
+                    peer_id, cause
+                )
+            }
+            SwarmEvent::IncomingConnection {
+                local_addr,
+                send_back_addr,
+            } => {
+                info!("Incoming connection from: {:?}, with sendback address: {:?}", local_addr, send_back_addr)
+            }
+            SwarmEvent::IncomingConnectionError { error, .. } => {
+                info!("Incoming connection error: {error:?}")
+            }
+            SwarmEvent::ExpiredListenAddr {
+                listener_id,
+                address,
+            } => {
+                info!("Expired listener {listener_id:?} {address:?}")
+            }
+            SwarmEvent::ListenerError { listener_id, error } => {
+                info!("{listener_id:?} stopped listening with {error:?}")
+            }
+            // END DEBUG PRINTING
+            _ => {
+                // println!("got something else")
+            }
         }
     }
 }
 
+/// Our network behaviour.
+///
+/// For illustrative purposes, this includes the [`KeepAlive`](behaviour::KeepAlive) behaviour so a continuous sequence of
+/// pings can be observed.
+#[derive(NetworkBehaviour)]
+struct MyBehaviour {
+    identify: identify::Behaviour,
+    keep_alive: keep_alive::Behaviour,
+    ping: ping::Behaviour,
+}

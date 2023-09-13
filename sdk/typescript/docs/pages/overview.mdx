@@ -7,11 +7,14 @@ Currently developers can use different packages from the Typescript SDK to do th
 
 | Nym Component  | Functionality | ESM packages   | CJS packages   |
 | :-------------: | :----------: |  :---------: |  :---------: |
-| Nyx / Validator (all contracts) |  Create a simple query or query and execute client  on any Nyx smart contract  | [Smart Contract Clients - ESM](https://www.npmjs.com/package/@nymproject/contract-clients), [link]()  | [link](), [link]()
+| Nyx / Validator (all contracts) |  Create a simple query or query and execute client  on any Nyx smart contract  | [Smart Contract Clients](https://www.npmjs.com/package/@nymproject/contract-clients)  | 
 | Mixnet (traffic) | Send & receive traffic over the mixnet |  [Mixnet Client - ESM](https://www.npmjs.com/package/@nymproject/sdk), [Mixnet Client - ESM full-fat](https://www.npmjs.com/package/@nymproject/sdk-full-fat)  | [Mixnet Client - CJS](https://www.npmjs.com/package/@nymproject/sdk-commonjs), [Mixnet Client - CJS full-fat](https://www.npmjs.com/package/@nymproject/sdk-commonjs-full-fat) 
 | MixFetch  |  Make HTTP requests over the mixnet via the SOCKS5 Network Requester service providers  |   [MixFetch - ESM](https://www.npmjs.com/package/@nymproject/mix-fetch), [MixFetch - ESM full-fat](https://www.npmjs.com/package/@nymproject/mix-fetch-full-fat) | [MixFetch - CJS](https://www.npmjs.com/package/@nymproject/mix-fetch-commonjs), [MixFetch - CJS full-fat](https://www.npmjs.com/package/@nymproject/mix-fetch-commonjs-full-fat)
 | Coconut (credentials) |  Create and consume Coconut credentials |   [link](), [link]() | [link](), [link]()
 
+<Callout type="info" emoji="⚠️">
+  Note that the Nyx `Contract clients` only come in one module system as they don't use WASM. 
+</Callout>
 
 
 ## SDK module systems

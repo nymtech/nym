@@ -235,7 +235,7 @@ impl<St> Gateway<St> {
 
         // if network requester is enabled, configuration file must be provided!
         let Some(nr_opts) = &self.network_requester_opts else {
-            return Err(GatewayError::UnspecifiedNetworkRequesterConfig)
+            return Err(GatewayError::UnspecifiedNetworkRequesterConfig);
         };
 
         // this gateway, whenever it has anything to send to its local NR will use fake_client_tx
@@ -276,7 +276,7 @@ impl<St> Gateway<St> {
         // this should be instantaneous since the data is sent on this channel before the on start is called;
         // the failure should be impossible
         let Ok(Some(packet_router)) = router_rx.try_recv() else {
-            return Err(GatewayError::NetworkRequesterStartupFailure)
+            return Err(GatewayError::NetworkRequesterStartupFailure);
         };
 
         MessageRouter::new(nr_mix_receiver, packet_router).start_with_shutdown(router_shutdown);

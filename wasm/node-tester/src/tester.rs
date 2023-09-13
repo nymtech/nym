@@ -158,7 +158,8 @@ impl NymNodeTesterBuilder {
 
         let client_store = ClientStorage::new_async(&storage_id, None).await?;
         let initialisation_result = self.gateway_info(&client_store).await?;
-        let GatewayDetails::Configured(gateway_endpoint) = initialisation_result.gateway_details else {
+        let GatewayDetails::Configured(gateway_endpoint) = initialisation_result.gateway_details
+        else {
             // don't bother supporting it
             panic!("unsupported custom gateway configuration in wasm node tester")
         };

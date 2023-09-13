@@ -158,9 +158,7 @@ pub(crate) fn override_network_requester_config(
     mut cfg: nym_network_requester::Config,
     opts: Option<OverrideNetworkRequesterConfig>,
 ) -> nym_network_requester::Config {
-    let Some(opts) = opts else {
-        return cfg
-    };
+    let Some(opts) = opts else { return cfg };
 
     // as of 12.09.23 the below is true (not sure how this comment will rot in the future)
     // medium_toggle:
@@ -212,7 +210,7 @@ pub(crate) async fn initialise_local_network_requester(
 ) -> Result<GatewayNetworkRequesterDetails, GatewayError> {
     info!("initialising network requester...");
     let Some(nr_cfg_path) = gateway_config.storage_paths.network_requester_config() else {
-        return Err(GatewayError::UnspecifiedNetworkRequesterConfig)
+        return Err(GatewayError::UnspecifiedNetworkRequesterConfig);
     };
 
     let id = &gateway_config.gateway.id;

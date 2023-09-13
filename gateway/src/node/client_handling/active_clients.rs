@@ -86,7 +86,7 @@ impl ActiveClientsStore {
 
         let ActiveClient::Remote(channels) = handle else {
             warn!("attempted to get a remote handle to a locally running network requester");
-            return None
+            return None;
         };
 
         // if the entry is stale, remove it from the map
@@ -104,7 +104,7 @@ impl ActiveClientsStore {
     /// It will also remove the entry from the map if its stale.
     pub(crate) fn is_active(&self, client: DestinationAddressBytes) -> bool {
         let Some(entry) = self.inner.get(&client) else {
-            return false
+            return false;
         };
         let handle = entry.value().get_sender_ref();
 

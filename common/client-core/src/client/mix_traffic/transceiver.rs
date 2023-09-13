@@ -205,7 +205,7 @@ mod nonwasm_sealed {
             packet_router: PacketRouter,
         ) -> Result<(), ErasedGatewayError> {
             let Some(packet_routex_tx) = self.packet_router_tx.take() else {
-                return Err(erase_err(LocalGatewayError::PacketRouterAlreadySet))
+                return Err(erase_err(LocalGatewayError::PacketRouterAlreadySet));
             };
 
             packet_routex_tx

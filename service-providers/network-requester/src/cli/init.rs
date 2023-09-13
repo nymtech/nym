@@ -202,7 +202,7 @@ pub(crate) async fn execute(args: &Init) -> Result<(), NetworkRequesterError> {
     log::info!("Client configuration completed.\n");
 
     let GatewayDetails::Configured(gateway_details) = init_details.gateway_details else {
-        return Err(ClientCoreError::UnexpectedPersistedCustomGatewayDetails)?
+        return Err(ClientCoreError::UnexpectedPersistedCustomGatewayDetails)?;
     };
     let init_results = InitResults::new(&config, &address, &gateway_details);
     println!("{}", args.output.format(&init_results));

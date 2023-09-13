@@ -525,12 +525,12 @@ impl NRServiceProvider {
     ) {
         let Some(return_address) =
             reply::MixnetAddress::new(connect_req.return_address, sender_tag)
-            else {
-                log::warn!(
+        else {
+            log::warn!(
                 "attempted to start connection with no way of returning data back to the sender"
             );
-                return;
-            };
+            return;
+        };
 
         let remote_addr = connect_req.remote_addr;
         let conn_id = connect_req.conn_id;

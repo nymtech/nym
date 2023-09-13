@@ -1,13 +1,13 @@
-import { useEffect, useState, useCallback } from "react";
-import CircularProgress from "@mui/material/CircularProgress";
-import Button from "@mui/material/Button";
-import TextField from "@mui/material/TextField";
-import Typography from "@mui/material/Typography";
-import Box from "@mui/material/Box";
+import React, { useState } from 'react';
+import CircularProgress from '@mui/material/CircularProgress';
+import Button from '@mui/material/Button';
+import TextField from '@mui/material/TextField';
+import Typography from '@mui/material/Typography';
+import Box from '@mui/material/Box';
 
-import { mixFetch } from "@nymproject/mix-fetch-full-fat";
-import Stack from "@mui/material/Stack";
-import Paper from "@mui/material/Paper";
+import { mixFetch } from '@nymproject/mix-fetch-full-fat';
+import Stack from '@mui/material/Stack';
+import Paper from '@mui/material/Paper';
 
 const defaultUrl = 'https://nymtech.net/favicon.svg';
 const args = { mode: 'unsafe-ignore-cors' };
@@ -31,43 +31,49 @@ export const MixFetch = () => {
       setHtml(undefined);
       const response = await mixFetch(url, args, mixFetchOptions);
       console.log(response);
-      const html = await response.text();
-      setHtml(html);
-    }
-    catch (err) {
+      const resHtml = await response.text();
+      setHtml(resHtml);
+    } catch (err) {
       console.log(err);
-    }
-    finally {
+    } finally {
       setBusy(false);
     }
   };
 
   return (
-    <div style={{ marginTop: "1rem" }}>
+    <div style={{ marginTop: '1rem' }}>
       <Stack direction="row">
-        <TextField disabled={busy} fullWidth label="URL" type="text" variant="outlined" defaultValue={defaultUrl} onChange={(e) => setUrl(e.target.value)} />
-        <Button
-          variant="outlined"
+        <TextField
           disabled={busy}
-          sx={{ marginLeft: "1rem" }}
-          onClick={handleFetch}
-        >
+          fullWidth
+          label="URL"
+          type="text"
+          variant="outlined"
+          defaultValue={defaultUrl}
+          onChange={(e) => setUrl(e.target.value)}
+        />
+        <Button variant="outlined" disabled={busy} sx={{ marginLeft: '1rem' }} onClick={handleFetch}>
           Fetch
         </Button>
       </Stack>
 
-      { busy &&
-          <Box mt={4}>
-              <CircularProgress/>
-          </Box>}
-      { html && <>
+      {busy && (
         <Box mt={4}>
-          <strong>Response</strong>
+          <CircularProgress />
         </Box>
-        <Paper sx={{ p: 2, mt: 1 }} elevation={4}>
-          <Typography fontFamily="monospace" fontSize="small">{html}</Typography>
-        </Paper>
-      </>}
+      )}
+      {html && (
+        <>
+          <Box mt={4}>
+            <strong>Response</strong>
+          </Box>
+          <Paper sx={{ p: 2, mt: 1 }} elevation={4}>
+            <Typography fontFamily="monospace" fontSize="small">
+              {html}
+            </Typography>
+          </Paper>
+        </>
+      )}
     </div>
   );
 };

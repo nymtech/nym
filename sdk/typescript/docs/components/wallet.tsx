@@ -1,17 +1,17 @@
-import { useState, useEffect, useCallback } from "react";
-import { contracts } from "@nymproject/contract-clients";
-import { SigningCosmWasmClient } from "@cosmjs/cosmwasm-stargate";
-import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
-import { Coin, GasPrice } from "@cosmjs/stargate";
-import { settings } from "./client";
-import Button from "@mui/material/Button";
-import Input from "@mui/material/Input";
-import Box from "@mui/material/Box";
+import React, { useState, useEffect, useCallback } from 'react';
+import { contracts } from '@nymproject/contract-clients';
+import { SigningCosmWasmClient } from '@cosmjs/cosmwasm-stargate';
+import { DirectSecp256k1HdWallet } from '@cosmjs/proto-signing';
+import { Coin, GasPrice } from '@cosmjs/stargate';
+import Button from '@mui/material/Button';
+import Input from '@mui/material/Input';
+import Box from '@mui/material/Box';
+import { settings } from './client';
 
 const signerAccount = async () => {
   // create a wallet to sign transactions with the mnemonic
   const signer = await DirectSecp256k1HdWallet.fromMnemonic(settings.mnemonic, {
-    prefix: "n",
+    prefix: 'n',
   });
 
   return signer;
@@ -21,11 +21,9 @@ const fetchSignerCosmosWasmClient = async () => {
   const signer = await signerAccount();
 
   // create a signing client we don't need to set the gas price conversion for queries
-  const cosmWasmClient = await SigningCosmWasmClient.connectWithSigner(
-    settings.url,
-    signer,
-    { gasPrice: GasPrice.fromString("0.025unym") }
-  );
+  const cosmWasmClient = await SigningCosmWasmClient.connectWithSigner(settings.url, signer, {
+    gasPrice: GasPrice.fromString('0.025unym'),
+  });
 
   return cosmWasmClient;
 };
@@ -35,11 +33,9 @@ const fetchSignerClient = async () => {
 
   // create a signing client we don't need to set the gas price conversion for queries
   // if you want to connect without signer you'd write ".connect" and "url" as param
-  const cosmWasmClient = await SigningCosmWasmClient.connectWithSigner(
-    settings.url,
-    signer,
-    { gasPrice: GasPrice.fromString("0.025unym") }
-  );
+  const cosmWasmClient = await SigningCosmWasmClient.connectWithSigner(settings.url, signer, {
+    gasPrice: GasPrice.fromString('0.025unym'),
+  });
 
   /** create a mixnet contract client
    * @param cosmWasmClient the client to use for signing and querying
@@ -51,7 +47,7 @@ const fetchSignerClient = async () => {
   const mixnetClient = new contracts.Mixnet.MixnetClient(
     cosmWasmClient,
     settings.address, // sender (that account of the signer)
-    settings.mixnetContractAddress // contract address (different on mainnet, QA, etc)
+    settings.mixnetContractAddress, // contract address (different on mainnet, QA, etc)
   );
 
   return mixnetClient;
@@ -62,18 +58,17 @@ export const Wallet = () => {
   const [signerClient, setSignerClient] = useState<any>();
   const [account, setAccount] = useState<string>();
   const [delegations, setDelegations] = useState<any>();
-  const [delegationsTotal, setDelegationsTotal] = useState<number>(0);
   const [log, setLog] = useState<React.ReactNode[]>([]);
   const [balance, setBalance] = useState<Coin>();
   const [tokensToSend, setTokensToSend] = useState<string>();
-  const [recipientAddress, setRecipientAddress] = useState<string>("");
+  const [recipientAddress, setRecipientAddress] = useState<string>('');
   const [delegationNodeId, setDelegationNodeId] = useState<number>();
   const [amountToBeDelegated, setAmountToBeDelegated] = useState<number>();
 
   const getBalance = useCallback(async () => {
     try {
-      const balance = await signerCosmosWasmClient?.getBalance(account, "unym");
-      setBalance(balance);
+      const newBalance = await signerCosmosWasmClient?.getBalance(account, 'unym');
+      setBalance(newBalance);
     } catch (error) {
       console.error(error);
     }
@@ -101,10 +96,10 @@ export const Wallet = () => {
   };
 
   const getDelegations = useCallback(async () => {
-    const delegations = await signerClient.getDelegatorDelegations({
+    const newDelegations = await signerClient.getDelegatorDelegations({
       delegator: settings.address,
     });
-    setDelegations(delegations);
+    setDelegations(newDelegations);
   }, [signerClient]);
 
   useEffect(() => {
@@ -122,7 +117,7 @@ export const Wallet = () => {
 
   useEffect(() => {
     if (signerClient && !delegations) {
-      console.log("getDelegations");
+      console.log('getDelegations');
       getDelegations();
     }
   }, [signerClient, getDelegations, delegations]);
@@ -131,43 +126,31 @@ export const Wallet = () => {
     if (!signerClient) {
       return;
     }
-    console.log("delegations", delegations);
+    console.log('delegations', delegations);
     try {
+      // eslint-disable-next-line no-restricted-syntax
       for (const delegation of delegations.delegations) {
-        await signerClient.undelegateFromMixnode(
-          { mixId: delegation.mix_id },
-          "auto"
-        );
+        // eslint-disable-next-line no-await-in-loop
+        await signerClient.undelegateFromMixnode({ mixId: delegation.mix_id }, 'auto');
       }
     } catch (error) {
       console.error(error);
     }
   };
 
-  const doDelegate = async ({
-    mixId,
-    amount,
-  }: {
-    mixId: number;
-    amount: number;
-  }) => {
+  const doDelegate = async ({ mixId, amount }: { mixId: number; amount: number }) => {
     if (!signerClient) {
       return;
     }
     try {
-      const res = await signerClient.delegateToMixnode(
-        { mixId },
-        "auto",
-        undefined,
-        [{ amount: `${amount}`, denom: "unym" }]
-      );
-      console.log("res", res);
+      const res = await signerClient.delegateToMixnode({ mixId }, 'auto', undefined, [
+        { amount: `${amount}`, denom: 'unym' },
+      ]);
+      console.log('res', res);
       setLog((prev) => [
         ...prev,
         <div key={JSON.stringify(res, null, 2)}>
-          <code style={{ marginRight: "2rem" }}>
-            {new Date().toLocaleTimeString()}
-          </code>
+          <code style={{ marginRight: '2rem' }}>{new Date().toLocaleTimeString()}</code>
           <pre>{JSON.stringify(res, null, 2)}</pre>
         </div>,
       ]);
@@ -179,22 +162,20 @@ export const Wallet = () => {
 
   // Sending tokens
   const doSendTokens = async () => {
-    const memo = "test sending tokens";
+    const memo = 'test sending tokens';
 
     try {
       const res = await signerCosmosWasmClient.sendTokens(
         account,
         recipientAddress,
-        [{ amount: tokensToSend, denom: "unym" }],
-        "auto",
-        memo
+        [{ amount: tokensToSend, denom: 'unym' }],
+        'auto',
+        memo,
       );
       setLog((prev) => [
         ...prev,
         <div key={JSON.stringify(res, null, 2)}>
-          <code style={{ marginRight: "2rem" }}>
-            {new Date().toLocaleTimeString()}
-          </code>
+          <code style={{ marginRight: '2rem' }}>{new Date().toLocaleTimeString()}</code>
           <pre>{JSON.stringify(res, null, 2)}</pre>
         </div>,
       ]);
@@ -202,23 +183,19 @@ export const Wallet = () => {
       console.error(error);
     }
   };
-  //End send tokens
+  // End send tokens
 
   // Withdraw Rewards
   const doWithdrawRewards = async () => {
-    const delegatorAddress = "";
-    const validatorAdress = "";
-    const memo = "test sending tokens";
-    const res = await signerCosmosWasmClient.withdrawRewards(
-      delegatorAddress,
-      validatorAdress,
-      "auto",
-      memo
-    );
+    const delegatorAddress = '';
+    const validatorAdress = '';
+    const memo = 'test sending tokens';
+    const res = await signerCosmosWasmClient.withdrawRewards(delegatorAddress, validatorAdress, 'auto', memo);
+    console.log({ res });
   };
 
   return (
-    <Box style={{ marginTop: "1rem" }}>
+    <Box style={{ marginTop: '1rem' }}>
       <p>Address: {account}</p>
       <p>
         Balance: {balance?.amount} {balance?.denom}
@@ -226,11 +203,7 @@ export const Wallet = () => {
       {/* <p>Delegations: {delegations}</p> */}
       <Box>
         <p>Send Tokens</p>
-        <Input
-          type="text"
-          placeholder="Recipient Address"
-          onChange={(e) => setRecipientAddress(e.target.value)}
-        />
+        <Input type="text" placeholder="Recipient Address" onChange={(e) => setRecipientAddress(e.target.value)} />
         <Input
           type="number"
           placeholder="Amount"
@@ -247,23 +220,13 @@ export const Wallet = () => {
       )}
       <Box>
         <p>Delegate</p>
-        <Input
-          type="number"
-          placeholder="Mix ID"
-          onChange={(e) => setDelegationNodeId(parseInt(e.target.value, 10))}
-        />
+        <Input type="number" placeholder="Mix ID" onChange={(e) => setDelegationNodeId(parseInt(e.target.value, 10))} />
         <Input
           type="number"
           placeholder="Amount"
           onChange={(e) => setAmountToBeDelegated(parseInt(e.target.value, 10))}
         />
-        <Button
-          onClick={() =>
-            doDelegate({ mixId: delegationNodeId, amount: amountToBeDelegated })
-          }
-        >
-          Delegate
-        </Button>
+        <Button onClick={() => doDelegate({ mixId: delegationNodeId, amount: amountToBeDelegated })}>Delegate</Button>
       </Box>
       <Box>
         <Button onClick={() => doWithdrawRewards()}>Withdraw rewards</Button>

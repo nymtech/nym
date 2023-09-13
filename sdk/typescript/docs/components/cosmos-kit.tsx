@@ -1,7 +1,6 @@
-import * as React from 'react';
-
+import React from 'react';
 import { ChainProvider, useChain } from '@cosmos-kit/react';
-import { chains, assets } from 'chain-registry';
+import { assets, chains } from 'chain-registry';
 import { wallets } from '@cosmos-kit/keplr';
 import Button from '@mui/material/Button';
 import CircularProgress from '@mui/material/CircularProgress';

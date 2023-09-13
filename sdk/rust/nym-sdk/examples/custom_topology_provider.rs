@@ -60,7 +60,6 @@ async fn main() {
     let mut client = mixnet::MixnetClientBuilder::new_ephemeral()
         .custom_topology_provider(Box::new(my_topology_provider))
         .build()
-        .await
         .unwrap()
         .connect_to_mixnet()
         .await

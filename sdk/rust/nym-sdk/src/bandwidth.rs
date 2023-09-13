@@ -13,7 +13,6 @@
 //!     let mixnet_client = mixnet::MixnetClientBuilder::new_ephemeral()
 //!         .enable_credentials_mode()
 //!         .build()
-//!         .await
 //!         .unwrap();
 //!
 //!     let bandwidth_client = mixnet_client.create_bandwidth_client(String::from("my super secret mnemonic")).unwrap();

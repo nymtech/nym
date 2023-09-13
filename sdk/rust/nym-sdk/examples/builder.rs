@@ -9,7 +9,6 @@ async fn main() {
     // where you don't want to connect just yet.
     let client = mixnet::MixnetClientBuilder::new_ephemeral()
         .build()
-        .await
         .unwrap();
 
     // Now we connect to the mixnet, using ephemeral keys already created

@@ -9,7 +9,8 @@ use nym_client_core::client::base_client::storage::gateway_details::OnDiskGatewa
 use nym_client_core::client::key_manager::persistence::OnDiskKeys;
 use nym_client_core::config::GatewayEndpointConfig;
 use nym_client_core::error::ClientCoreError;
-use nym_client_core::init::GatewaySetup;
+use nym_client_core::init::helpers::current_gateways;
+use nym_client_core::init::types::{GatewaySelectionSpecification, GatewaySetup};
 use nym_config::{
     must_get_home, read_config_from_toml_file, save_formatted_config_to_file, NymConfigTemplate,
     DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, DEFAULT_DATA_DIR, NYM_DIR,
@@ -203,7 +204,15 @@ pub async fn init_socks5_config(provider_address: String, chosen_gateway_id: Str
     }
 
     let gateway_setup = if register_gateway {
-        GatewaySetup::new_fresh(Some(chosen_gateway_id), None)
+        let selection_spec = GatewaySelectionSpecification::new(Some(chosen_gateway_id), None);
+        let mut rng = rand_07::thread_rng();
+        let available_gateways =
+            current_gateways(&mut rng, &config.core.base.client.nym_api_urls).await?;
+        GatewaySetup::New {
+            specification: selection_spec,
+            available_gateways,
+            overwrite_data: register_gateway,
+        }
     } else {
         GatewaySetup::MustLoad
     };
@@ -212,21 +221,18 @@ pub async fn init_socks5_config(provider_address: String, chosen_gateway_id: Str
     let key_store = OnDiskKeys::new(config.storage_paths.common_paths.keys.clone());
     let details_store =
         OnDiskGatewayDetails::new(&config.storage_paths.common_paths.gateway_details);
-    let init_details = nym_client_core::init::setup_gateway(
-        gateway_setup,
-        &key_store,
-        &details_store,
-        register_gateway,
-        Some(&config.core.base.client.nym_api_urls),
-    )
-    .await?
-    .details;
+    let init_details =
+        nym_client_core::init::setup_gateway(gateway_setup, &key_store, &details_store).await?;
+    let gateway_endpoint = init_details
+        .gateway_details
+        .try_get_configured_endpoint()
+        .unwrap();
 
     config.save_to_default_location().tap_err(|_| {
         log::error!("Failed to save the config file");
     })?;
 
-    print_saved_config(&config, &init_details.gateway_details);
+    print_saved_config(&config, gateway_endpoint);
 
     let address = init_details.client_address()?;
     log::info!("The address of this client is: {address}");

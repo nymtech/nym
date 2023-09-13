@@ -1,4 +1,4 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use futures::{
@@ -10,6 +10,7 @@ use nym_crypto::asymmetric::identity;
 use nym_gateway_requests::authentication::encrypted_address::{
     EncryptedAddressBytes, EncryptedAddressConversionError,
 };
+use nym_gateway_requests::registration::handshake::shared_key::SharedKeyConversionError;
 use nym_gateway_requests::{
     iv::{IVConversionError, IV},
     registration::handshake::{error::HandshakeError, gateway_handshake, SharedKeys},
@@ -42,6 +43,15 @@ use crate::node::{
 pub(crate) enum InitialAuthenticationError {
     #[error("Internal gateway storage error")]
     StorageError(#[from] StorageError),
+
+    #[error(
+        "our datastore is corrupted. the stored key for client {client_id} is malformed: {source}"
+    )]
+    MalformedStoredSharedKey {
+        client_id: String,
+        #[source]
+        source: SharedKeyConversionError,
+    },
 
     #[error("Failed to perform registration handshake: {0}")]
     HandshakeError(#[from] HandshakeError),
@@ -316,13 +326,19 @@ where
         let shared_keys = self.storage.get_shared_keys(client_address).await?;
 
         if let Some(shared_keys) = shared_keys {
-            // the unwrap here is fine as we only ever construct persisted shared keys ourselves when inserting
+            // this should never fail as we only ever construct persisted shared keys ourselves when inserting
             // data to the storage. The only way it could fail is if we somehow changed implementation without
             // performing proper migration
             let keys = SharedKeys::try_from_base58_string(
                 shared_keys.derived_aes128_ctr_blake3_hmac_keys_bs58,
             )
-            .unwrap();
+            .map_err(|source| {
+                InitialAuthenticationError::MalformedStoredSharedKey {
+                    client_id: client_address.as_base58_string(),
+                    source,
+                }
+            })?;
+
             // TODO: SECURITY:
             // this is actually what we have been doing in the past, however,
             // after looking deeper into implementation it seems that only checks the encryption

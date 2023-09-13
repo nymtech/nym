@@ -6,6 +6,7 @@ use crate::node::client_handling::websocket::message_receiver::MixMessageSender;
 use crate::node::mixnet_handling::receiver::packet_processing::PacketProcessor;
 use crate::node::storage::error::StorageError;
 use crate::node::storage::Storage;
+use futures::channel::mpsc::SendError;
 use futures::StreamExt;
 use log::*;
 use nym_mixnet_client::forwarder::MixForwardingSender;
@@ -17,8 +18,16 @@ use nym_sphinx::DestinationAddressBytes;
 use nym_task::TaskClient;
 use std::collections::HashMap;
 use std::net::SocketAddr;
+use thiserror::Error;
 use tokio::net::TcpStream;
 use tokio_util::codec::Framed;
+
+// defines errors that warrant a panic if not thrown in the context of a shutdown
+#[derive(Debug, Error)]
+enum CriticalPacketProcessingError {
+    #[error("failed to forward an ack")]
+    AckForwardingFailure { source: SendError },
+}
 
 pub(crate) struct ConnectionHandler<St: Storage> {
     packet_processor: PacketProcessor,
@@ -97,11 +106,14 @@ impl<St: Storage> ConnectionHandler<St> {
         match self.clients_store_cache.get(&client_address) {
             None => Err(message),
             Some(sender_channel) => {
-                sender_channel
-                    .unbounded_send(vec![message])
-                    // right now it's a "simpler" case here as we're only ever sending 1 message
-                    // at the time, but the channel itself could accept arbitrary many messages at once
-                    .map_err(|try_send_err| try_send_err.into_inner().pop().unwrap())
+                if let Err(unsent) = sender_channel.unbounded_send(vec![message]) {
+                    // the unwrap here is fine as the original message got returned;
+                    // plus we're only ever sending 1 message at the time (for now)
+                    #[allow(clippy::unwrap_used)]
+                    return Err(unsent.into_inner().pop().unwrap());
+                } else {
+                    Ok(())
+                }
             }
         }
     }
@@ -116,26 +128,33 @@ impl<St: Storage> ConnectionHandler<St> {
         self.storage.store_message(client_address, message).await
     }
 
-    fn forward_ack(&self, forward_ack: Option<MixPacket>, client_address: DestinationAddressBytes) {
+    fn forward_ack(
+        &self,
+        forward_ack: Option<MixPacket>,
+        client_address: DestinationAddressBytes,
+    ) -> Result<(), CriticalPacketProcessingError> {
         if let Some(forward_ack) = forward_ack {
-            trace!(
-                "Sending ack from packet for {} to {}",
-                client_address,
-                forward_ack.next_hop()
-            );
+            let next_hop = forward_ack.next_hop();
+            trace!("Sending ack from packet for {client_address} to {next_hop}",);
 
-            self.ack_sender.unbounded_send(forward_ack).unwrap();
+            self.ack_sender
+                .unbounded_send(forward_ack)
+                .map_err(
+                    |source| CriticalPacketProcessingError::AckForwardingFailure {
+                        source: source.into_send_error(),
+                    },
+                )?;
         }
+        Ok(())
     }
 
-    async fn handle_processed_packet(&mut self, processed_final_hop: ProcessedFinalHop) {
+    async fn handle_processed_packet(
+        &mut self,
+        processed_final_hop: ProcessedFinalHop,
+    ) -> Result<(), CriticalPacketProcessingError> {
         let client_address = processed_final_hop.destination;
         let message = processed_final_hop.message;
         let forward_ack = processed_final_hop.forward_ack;
-
-        // if client_address = self.local_sp {
-        //  // send there
-        // }
 
         // we failed to push message directly to the client - it's probably offline.
         // we should store it on the disk instead.
@@ -153,10 +172,13 @@ impl<St: Storage> ConnectionHandler<St> {
         // if we managed to either push message directly to the [online] client or store it at
         // its inbox, it means that it must exist at this gateway, hence we can send the
         // received ack back into the network
-        self.forward_ack(forward_ack, client_address);
+        self.forward_ack(forward_ack, client_address)
     }
 
-    async fn handle_received_packet(&mut self, framed_sphinx_packet: FramedNymPacket) {
+    async fn handle_received_packet(
+        &mut self,
+        framed_sphinx_packet: FramedNymPacket,
+    ) -> Result<(), CriticalPacketProcessingError> {
         //
         // TODO: here be replay attack detection - it will require similar key cache to the one in
         // packet processor for vpn packets,
@@ -167,7 +189,7 @@ impl<St: Storage> ConnectionHandler<St> {
         {
             Err(err) => {
                 debug!("We failed to process received sphinx packet - {err}");
-                return;
+                return Ok(());
             }
             Ok(processed_final_hop) => processed_final_hop,
         };
@@ -199,7 +221,11 @@ impl<St: Storage> ConnectionHandler<St> {
                             // in theory we could process multiple sphinx packet from the same connection in parallel,
                             // but we already handle multiple concurrent connections so if anything, making
                             // that change would only slow things down
-                            self.handle_received_packet(framed_sphinx_packet).await;
+                            if let Err(critical_err) = self.handle_received_packet(framed_sphinx_packet).await {
+                                if !shutdown.is_shutdown() {
+                                    panic!("experienced critical failure when processing received packet: {critical_err}")
+                                }
+                            }
                         }
                         Some(Err(err)) => {
                             error!(

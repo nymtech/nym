@@ -170,9 +170,9 @@ impl TaskManager {
             crate::spawn::spawn(async move {
                 loop {
                     if let Some(msg) = task_status_rx.next().await {
-                        log::trace!("Got msg: {}", msg);
+                        log::trace!("Got msg: {msg}");
                         if let Err(msg) = sender.send(msg).await {
-                            log::error!("Error sending status message: {}", msg);
+                            log::error!("Error sending status message: {msg}");
                         }
                     } else {
                         log::trace!("Stopping since channel closed");

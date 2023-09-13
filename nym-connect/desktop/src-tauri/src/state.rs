@@ -257,7 +257,13 @@ impl State {
         let (control_tx, msg_rx, exit_status_rx, used_gateway) =
             tasks::start_nym_socks5_client(&id, &privacy_level).await?;
         self.socks5_client_sender = Some(control_tx);
-        self.gateway = Some(used_gateway.gateway_id);
+        self.gateway = Some(
+            used_gateway
+                .try_get_configured_endpoint()
+                .unwrap()
+                .gateway_id
+                .clone(),
+        );
         Ok((msg_rx, exit_status_rx))
     }
 

@@ -375,21 +375,24 @@ where
     async fn handle_pong(&mut self, msg: Vec<u8>) {
         if let Ok(msg) = msg.try_into() {
             let msg = u64::from_be_bytes(msg);
-            trace!("Received pong from client: {}", msg);
+            trace!("Received pong from client: {msg}");
             if let Some((tag, _)) = &self.is_active_ping_pending_reply {
                 if tag == &msg {
                     debug!("Reporting back to the handler that the client is still active");
+                    // safety:
+                    // the unwrap here is fine as we can only enter this if branch if `self.is_active_ping_pending_reply`
+                    // was a `Some`
+                    #[allow(clippy::unwrap_used)]
                     let tx = self.is_active_ping_pending_reply.take().unwrap().1;
                     if let Err(err) = tx.send(IsActive::Active) {
                         warn!("Failed to send pong reply back to the requesting handler: {err:?}");
                     }
                 } else {
-                    warn!(
-                        "Received pong reply from the client with unexpected tag: {}",
-                        msg
-                    );
+                    warn!("Received pong reply from the client with unexpected tag: {msg}",);
                 }
             }
+        } else {
+            warn!("the received pong message was not a valid u64")
         }
     }
 

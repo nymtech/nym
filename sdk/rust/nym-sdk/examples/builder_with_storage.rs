@@ -16,7 +16,6 @@ async fn main() {
         .await
         .unwrap()
         .build()
-        .await
         .unwrap();
 
     // Now we connect to the mixnet, using keys now stored in the paths provided.

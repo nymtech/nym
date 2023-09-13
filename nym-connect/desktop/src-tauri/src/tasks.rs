@@ -1,9 +1,10 @@
 use futures::{channel::mpsc, StreamExt};
+use nym_client_core::init::types::GatewayDetails;
 use nym_client_core::{
     client::base_client::storage::{
         gateway_details::GatewayDetailsStore, MixnetClientStorage, OnDiskPersistent,
     },
-    config::{GatewayEndpointConfig, GroupBy, TopologyStructure},
+    config::{GroupBy, TopologyStructure},
     error::ClientCoreStatusMessage,
 };
 use nym_socks5_client_core::{NymClient as Socks5NymClient, Socks5ControlMessageSender};
@@ -73,7 +74,7 @@ pub async fn start_nym_socks5_client(
     Socks5ControlMessageSender,
     nym_task::StatusReceiver,
     ExitStatusReceiver,
-    GatewayEndpointConfig,
+    GatewayDetails,
 )> {
     log::info!("Loading config from file: {id}");
     let mut config = Config::read_from_default_path(id)

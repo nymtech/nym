@@ -11,11 +11,10 @@ async fn main() {
     let sending_client = mixnet::MixnetClientBuilder::new_ephemeral()
         .socks5_config(socks5_config)
         .build()
-        .await
         .unwrap();
 
     println!("Connecting sender");
-    let mut sending_client = sending_client.connect_to_mixnet_via_socks5().await.unwrap();
+    let sending_client = sending_client.connect_to_mixnet_via_socks5().await.unwrap();
 
     let proxy = reqwest::Proxy::all(sending_client.socks5_url()).unwrap();
     let reqwest_client = reqwest::Client::builder().proxy(proxy).build().unwrap();

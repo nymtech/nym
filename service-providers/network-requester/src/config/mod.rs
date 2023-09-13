@@ -91,6 +91,9 @@ impl Config {
         }
     }
 
+    // this is a false positive, this method is actually called when used as a library
+    // but clippy complains about it when building the binary
+    #[allow(unused)]
     pub fn with_data_directory<P: AsRef<Path>>(mut self, data_directory: P) -> Self {
         self.storage_paths = NetworkRequesterPaths::new_base(data_directory);
         self

@@ -16,8 +16,7 @@ async fn main() -> anyhow::Result<()> {
     let mixnet_client = mixnet::MixnetClientBuilder::new_ephemeral()
         .network_details(sandbox_network)
         .enable_credentials_mode()
-        .build()
-        .await?;
+        .build()?;
 
     let bandwidth_client = mixnet_client.create_bandwidth_client(mnemonic)?;
 

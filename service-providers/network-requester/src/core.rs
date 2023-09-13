@@ -198,12 +198,18 @@ impl NRServiceProviderBuilder {
     }
 
     #[must_use]
+    // this is a false positive, this method is actually called when used as a library
+    // but clippy complains about it when building the binary
+    #[allow(unused)]
     pub fn with_shutdown(mut self, shutdown: TaskClient) -> Self {
         self.shutdown = Some(shutdown);
         self
     }
 
     #[must_use]
+    // this is a false positive, this method is actually called when used as a library
+    // but clippy complains about it when building the binary
+    #[allow(unused)]
     pub fn with_custom_gateway_transceiver(
         mut self,
         gateway_transceiver: Box<dyn GatewayTransceiver + Send + Sync>,
@@ -213,12 +219,18 @@ impl NRServiceProviderBuilder {
     }
 
     #[must_use]
+    // this is a false positive, this method is actually called when used as a library
+    // but clippy complains about it when building the binary
+    #[allow(unused)]
     pub fn with_on_start(mut self, on_start: oneshot::Sender<OnStartData>) -> Self {
         self.on_start = Some(on_start);
         self
     }
 
     #[must_use]
+    // this is a false positive, this method is actually called when used as a library
+    // but clippy complains about it when building the binary
+    #[allow(unused)]
     pub fn with_custom_topology_provider(
         mut self,
         topology_provider: Box<dyn TopologyProvider + Send + Sync>,
@@ -227,6 +239,9 @@ impl NRServiceProviderBuilder {
         self
     }
 
+    // this is a false positive, this method is actually called when used as a library
+    // but clippy complains about it when building the binary
+    #[allow(unused)]
     pub fn with_stored_topology<P: AsRef<Path>>(
         mut self,
         file: P,

@@ -16,7 +16,6 @@ async fn main() {
     let mock_storage = MockClientStorage::empty();
     let mut client = mixnet::MixnetClientBuilder::new_with_storage(mock_storage)
         .build()
-        .await
         .unwrap()
         .connect_to_mixnet()
         .await

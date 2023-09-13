@@ -112,6 +112,7 @@ fn print_signed_contract_msg(
     };
 
     // if this is a valid json, it MUST be a valid string
+    #[allow(clippy::unwrap_used)]
     let decoded_string = String::from_utf8(decoded.clone()).unwrap();
     let signature = private_key.sign(&decoded).to_base58_string();
 

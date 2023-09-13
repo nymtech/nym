@@ -123,6 +123,14 @@ impl<T> CustomGatewayDetails<T> {
 }
 
 impl<T> GatewayDetails<T> {
+    pub fn try_get_configured_endpoint(&self) -> Option<&GatewayEndpointConfig> {
+        if let GatewayDetails::Configured(endpoint) = &self {
+            Some(endpoint)
+        } else {
+            None
+        }
+    }
+
     pub fn is_custom(&self) -> bool {
         matches!(self, GatewayDetails::Custom(_))
     }

@@ -1,17 +1,5 @@
-# Mixnodes
-
-import { Mixnodes } from '../../components/mixnodes';
-import Paper from '@mui/material/Paper';
-import code from './code.txt';
-
-Here is a list of Mixnodes stemming from a query of the Nyx Mixnet client :
-
-<Mixnodes />
-
-// Todo make the code appear in the code snippet
-{console.log(code)}
-<Paper sx={{ maxHeight: 350, overflowY:'auto' }}>
-```ts
+//Step 0 -> introduce the client file
+// In order to query, use thhe mixnetClient from the client file, import below:
 import { useEffect, useState } from "react";
 
 import { contracts } from "@nymproject/contract-clients";
@@ -65,7 +53,3 @@ export const Mixnodes = () => {
     </div>
   );
 };
-
-```
-</Paper>
-

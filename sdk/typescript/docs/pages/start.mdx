@@ -1,9 +1,9 @@
 import { Callout } from 'nextra/components'
 
-## Nyx chain
+## Nym Smart Contracts
 
-After having installed your client from the [`Contract Clients`](https://www.npmjs.com/package/@nymproject/contract-clients) to query any of the Nyx contracts, you can import the packages and execute some methods, signing them with a mnemonic:
-````js 
+After having installed your client from the [`Contract Clients`](https://www.npmjs.com/package/@nymproject/contract-clients) to query any of the Nym smart contracts, you can import the packages and execute some methods, signing them with a mnemonic:
+````js
 import { contracts } from '@nymproject/contract-clients';
 import { SigningCosmWasmClient } from "@cosmjs/cosmwasm-stargate";
 import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
@@ -14,7 +14,7 @@ async function main() {
   const accounts = await signer.getAccounts();
 
   // make a signing client for the Nym Mixnet contract on mainnet
-  const cosmWasmSigningClient = await SigningCosmWasmClient.connectWithSigner("rpc.nymtech.net:443", signer);
+  const cosmWasmSigningClient = await SigningCosmWasmClient.connectWithSigner("https://rpc.nymtech.net:443", signer);
   const client = new contracts.Mixnet.MixnetClient(cosmWasmSigningClient, accounts[0].address, 'n17srjznxl9dvzdkpwpw24gg668wc73val88a6m5ajg6ankwvz9wtst0cznr');
 
   // delegate 1 NYM to mixnode with id 100
@@ -24,7 +24,7 @@ async function main() {
 }
 ````
 
-## Mixnet
+## Mixnet Client
 After instantiating the [`Mixnet Client`](https://www.npmjs.com/package/@nymproject/sdk), you can use it and send messages to yourself and output them in the console by following these steps:
 ````js
 import { createNymMixnetClient } from "@nymproject/sdk";
@@ -63,22 +63,25 @@ main();
 
 ## MixFetch
 
-After instantiating the [`MixFetch package`](https://www.npmjs.com/package/@nymproject/mix-fetch), you will be able to use it as a drop-in replacement for `fetch`to send HTTP requests over the Nym Mixnet: 
-````js
-import { createMixFetch } from '@nymproject/mix-fetch';
-````
+Use the [`mixFetch`](https://www.npmjs.com/package/@nymproject/mix-fetch) package as a drop-in replacement for `fetch`to send HTTP requests over the Nym Mixnet:
 
-````js
-const mixFetch = await createMixFetch();
+```ts
+import { mixFetch } from '@nymproject/mix-fetch';
 
+// HTTP GET
 const response = await mixFetch('https://nymtech.net');
-
 const html = await response.text();
-````
 
+// HTTP POST
+const apiResponse = await mixFetch('https://api.example.com', {
+  method: 'POST',
+  body: JSON.stringify({ foo: 'bar' }),
+  headers: { [`Content-Type`]: 'application/json', Authorization: `Bearer ${AUTH_TOKEN}` }
+});
+```
 
-## Coconut
-x
+Check the [standard allowed list](https://nymtech.net/.wellknown/network-requester/standard-allowed-list.txt) to see
+if the host you want to `mixFetch` from is allowed.
 
 
 

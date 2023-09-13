@@ -1,5 +1,6 @@
 import React from 'react'
 import { DocsThemeConfig } from 'nextra-theme-docs'
+import { Footer } from "./components/footer";
 
 const config: DocsThemeConfig = {
   logo: <span>NYM TypeScript SDK</span>,
@@ -11,7 +12,7 @@ const config: DocsThemeConfig = {
   },
   docsRepositoryBase: 'https://github.com/shuding/nextra-docs-template',
   footer: {
-    text: 'Nym TS SDK',
+    text: Footer,
   },
 }
 

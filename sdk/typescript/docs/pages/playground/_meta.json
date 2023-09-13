@@ -1,0 +1,6 @@
+{
+  "mixnodes":  "1. Query mixnet contract for a list of mix nodes",
+  "wallet": "2. Basic wallet operations",
+  "traffic":  "3. Send traffic over the mixnet",
+  "mixfetch": "4. Use mixFetch"
+}

@@ -1,40 +1,39 @@
-
 import { Callout } from 'nextra/components'
 
-# Nyx
+# Nym Smart Contract Clients
 
-As previously mentioned, to query or execute on any of the Nyx contracts, you'll need to use one of the [`Contract Clients`](https://www.npmjs.com/package/@nymproject/contract-clients), which contains read-only query and signing clients for all of Nyx's smart contracts.
+As previously mentioned, to query or execute on any of the Nym contracts, you'll need to use one of the [`Contract Clients`](https://www.npmjs.com/package/@nymproject/contract-clients), which contains read-only query and signing clients for all of Nym's smart contracts.
 
 ##### Contract Clients list
 Lists of the diffent available clients and methods from the `Contract Clients` can be found in the `.client.js` files:
-| Client name             | Functionality| Methods list | 
+| Client name             | Functionality| Methods list |
 | :-------------:         | :----------: | :----------: |
 | Coconut Bandwidth Client| Manages the depositing and release of funds. Tracks double spending.             | [Link]() |
 | Coconut DKG Client      | Allows signers partcipating in issuing Coconut credentials to derive keys to be used.             | [Link]() |
-| Cw3FlexMultisig Client  | [This](https://github.com/CosmWasm/cw-plus/tree/main/contracts/cw3-flex-multisig) is a multisig contract that is backed by the cw4 (group) contract, which independently maintains the voter set.             | [Link]() |
-| Cw4Group Client         | [Cw4 Group](https://github.com/CosmWasm/cw-plus/tree/main/contracts/cw4-group) stores a set of members along with an admin, and allows the admin to update the state.              | [Link]() |
+| Cw3FlexMultisig Client  | Used by the Coconut APIs to issue credentials. [This](https://github.com/CosmWasm/cw-plus/tree/main/contracts/cw3-flex-multisig) is a multisig contract that is backed by the cw4 (group) contract, which independently maintains the voter set.             | [Link]() |
+| Cw4Group Client         | Used by the Coconut APIs to issue credentials. [Cw4 Group](https://github.com/CosmWasm/cw-plus/tree/main/contracts/cw4-group) stores a set of members along with an admin, and allows the admin to update the state.              | [Link]() |
 | Mixnet Client           | Manages the network topology of the mixnet, tracking delegations and rewarding            | [Link]() |
 | Name Service Client     | Operates as a directory of user-defined aliases, analogous to a Domain Name System (DNS).              | [Link]() |
 | Service provider Directory Client| Allows users to register their service provider in a public directory.      | [Link]() |
-| Vesting Client          |     Manages NYM token vesting functionality         | [Link]() |
+| Vesting Client          |     Manages NYM token vesting functionality.         | [Link]() |
 
 
-Depending on your app or project's architecture, this could be any of the ESM or CJS versions of the `Contract Clients`. 
+Depending on your app or project's architecture, this could be any of the ESM or CJS versions of the `Contract Clients`.
 
-##### Set-up your environment 
+##### Set-up your environment
 Create your directory and set-up your app environment:
 ```
 npx create-react-app my-app
 ```
 
-##### Installation 
+##### Installation
 Install the package and its dependencies from Cosmos Stargate:
 ```
 npm install @nymproject/contract-clients @cosmjs/cosmwasm-stargate @cosmjs/proto-signing
 ```
 ## Query clients
 
-##### Imports 
+##### Imports
 Import the contracts' client in your app:
 ````js
 import { contracts } from '@nymproject/contract-clients';
@@ -43,7 +42,7 @@ import { SigningCosmWasmClient } from "@cosmjs/cosmwasm-stargate";
 
 ##### Polyfills
 
-You will need to install: 
+You will need to install:
 
 `npm install --save url fs assert crypto-browserify stream-http https-browserify os-browserify buffer stream-browserify process react-app-rewired`
 
@@ -73,7 +72,7 @@ module.exports = function override(config, env) {
 }
 ```
 Update your `package.json` file:
-```json  
+```json
 "scripts": {
     "start": "react-app-rewired start",
     "build": "react-app-rewired build",
@@ -89,7 +88,7 @@ Update your `package.json` file:
 
 
 ##### Example: using the Mixnet smart contract client to query
-In this example, we will use the `MixnetQueryClient`from the `Contract Clients` to simply query the contract and return a list of Mixnodes. 
+In this example, we will use the `MixnetQueryClient`from the `Contract Clients` to simply query the contract and return a list of Mixnodes.
 
 ```js
 import "./App.css";
@@ -100,7 +99,7 @@ import { useEffect, useState } from "react";
 export default function Mixnodes() {
 
     const [mixnodes, setMixnodes] = useState(null);
-  
+
   async function fetchMixnodes(){
     // Set-up the CosmWasm Client
     const cosmWasmClient = await SigningCosmWasmClient.connect("wss://rpc.nymtech.net:443");
@@ -108,7 +107,7 @@ export default function Mixnodes() {
     const client = new contracts.Mixnet.MixnetQueryClient(
       cosmWasmClient,
       "n17srjznxl9dvzdkpwpw24gg668wc73val88a6m5ajg6ankwvz9wtst0cznr" // the contract address (which is different on mainnet, QA, etc)
-    ); 
+    );
     console.log("client:", client)
     const result = await client.getMixNodesDetailed({});
     console.log(result)
@@ -143,7 +142,7 @@ export default function Mixnodes() {
 
 ## Execute clients
 
-##### Imports 
+##### Imports
 Import the contracts' execute clients in your app:
 ````js
 import { contracts } from '@nymproject/contract-clients';
@@ -164,7 +163,7 @@ export const mySettings = {
     address: <ENTER NYM ADDRESS HERE>
 };
 
-export const settings = mySettings; 
+export const settings = mySettings;
 ```
 
 

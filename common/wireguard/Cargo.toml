@@ -23,4 +23,5 @@ futures = "0.3.28"
 log.workspace = true
 nym-task = { path = "../task" }
 tap.workspace = true
+thiserror.workspace = true
 tokio = { workspace = true, features = ["rt-multi-thread", "net"]}

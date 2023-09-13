@@ -7,13 +7,14 @@ use boringtun::{
 };
 use bytes::Bytes;
 use log::{debug, error, info, warn};
+use tap::TapFallible;
 use tokio::{
     net::UdpSocket,
     sync::{broadcast, mpsc},
     time::timeout,
 };
 
-use crate::event::Event;
+use crate::{event::Event, WgError};
 
 const MAX_PACKET: usize = 65535;
 
@@ -99,7 +100,11 @@ impl WireGuardTunnel {
                     Some(packet) => {
                         info!("WireGuard tunnel received: {packet}");
                         match packet {
-                            Event::WgPacket(data) => self.consume_wg(&data).await,
+                            Event::WgPacket(data) => {
+                                let _ = self.consume_wg(&data)
+                                    .await
+                                    .tap_err(|err| error!("WireGuard tunnel: consume_wg error: {err}"));
+                            },
                             Event::IpPacket(data) => self.consume_eth(&data).await,
                             _ => {},
                         }
@@ -110,22 +115,24 @@ impl WireGuardTunnel {
                     },
                 },
                 _ = tokio::time::sleep(Duration::from_millis(250)) => {
-                    self.update_wg_timers().await;
+                    let _ = self.update_wg_timers()
+                        .await
+                        .map_err(|err| error!("WireGuard tunnel: update_wg_timers error: {err}"));
                 },
             }
         }
         info!("WireGuard tunnel ({}): closed", self.addr);
     }
 
-    async fn wg_tunnel_lock(&self) -> tokio::sync::MutexGuard<'_, Tunn> {
+    async fn wg_tunnel_lock(&self) -> Result<tokio::sync::MutexGuard<'_, Tunn>, WgError> {
         timeout(Duration::from_millis(100), self.wg_tunnel.lock())
             .await
-            .unwrap()
+            .map_err(|_| WgError::UnableToGetTunnel)
     }
 
-    async fn consume_wg(&self, data: &[u8]) {
+    async fn consume_wg(&self, data: &[u8]) -> Result<(), WgError> {
         let mut send_buf = [0u8; MAX_PACKET];
-        let mut peer = self.wg_tunnel_lock().await;
+        let mut peer = self.wg_tunnel_lock().await?;
         match peer.decapsulate(None, data, &mut send_buf) {
             TunnResult::WriteToNetwork(packet) => {
                 debug!("WireGuard: writing to network");
@@ -163,6 +170,7 @@ impl WireGuardTunnel {
                 error!("WireGuard: decapsulate error: {err:?}");
             }
         }
+        Ok(())
     }
 
     async fn consume_eth(&self, _data: &Bytes) {
@@ -170,11 +178,12 @@ impl WireGuardTunnel {
         todo!();
     }
 
-    async fn update_wg_timers(&mut self) {
+    async fn update_wg_timers(&mut self) -> Result<(), WgError> {
         let mut send_buf = [0u8; MAX_PACKET];
-        let mut tun = self.wg_tunnel_lock().await;
+        let mut tun = self.wg_tunnel_lock().await?;
         let tun_result = tun.update_timers(&mut send_buf);
         self.handle_routine_tun_result(tun_result).await;
+        Ok(())
     }
 
     #[async_recursion]
@@ -192,10 +201,12 @@ impl WireGuardTunnel {
             TunnResult::Err(WireGuardError::ConnectionExpired) => {
                 warn!("Wireguard handshake has expired!");
                 let mut buf = vec![0u8; MAX_PACKET];
-                let result = self
-                    .wg_tunnel_lock()
-                    .await
-                    .format_handshake_initiation(&mut buf[..], false);
+                let Ok(mut peer) = self.wg_tunnel_lock().await else {
+                    warn!("Failed to lock WireGuard peer, closing tunnel");
+                    self.close();
+                    return;
+                };
+                peer.format_handshake_initiation(&mut buf[..], false);
                 self.handle_routine_tun_result(result).await
             }
             TunnResult::Err(err) => {

@@ -11,6 +11,9 @@ use tun::WireGuardTunnel;
 
 use crate::event::Event;
 
+pub use error::WgError;
+
+mod error;
 mod event;
 mod tun;
 

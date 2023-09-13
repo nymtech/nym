@@ -1302,7 +1302,7 @@ dependencies = [
 
 [[package]]
 name = "nym-mixnet-contract"
-version = "1.5.0"
+version = "1.5.1"
 dependencies = [
  "bs58",
  "cosmwasm-derive",

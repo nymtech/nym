@@ -238,13 +238,6 @@ impl<St> Gateway<St> {
             return Err(GatewayError::UnspecifiedNetworkRequesterConfig)
         };
 
-        // TODO: one of many
-        let mut nr_opts = nr_opts.clone();
-        nr_opts.config.network_requester.open_proxy = true;
-        nr_opts.config.base.set_high_default_traffic_volume();
-        nr_opts.config.base.set_no_cover_traffic();
-        nr_opts.config.base.set_no_per_hop_delays();
-
         // this gateway, whenever it has anything to send to its local NR will use fake_client_tx
         let (nr_mix_sender, nr_mix_receiver) = mpsc::unbounded();
         let router_shutdown = shutdown.fork("message_router");

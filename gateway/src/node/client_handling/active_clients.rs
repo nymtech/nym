@@ -4,11 +4,9 @@
 use super::websocket::message_receiver::{IsActiveRequestSender, MixMessageSender};
 use crate::node::client_handling::embedded_network_requester::LocalNetworkRequesterHandle;
 use dashmap::DashMap;
-use log::{error, warn};
+use log::warn;
 use nym_sphinx::DestinationAddressBytes;
 use std::sync::Arc;
-
-// this should probably live in some global gateway error enum
 
 enum ActiveClient {
     /// Handle to a remote client connected via a network socket.
@@ -22,20 +20,14 @@ impl ActiveClient {
     fn get_sender_ref(&self) -> &MixMessageSender {
         match self {
             ActiveClient::Remote(remote) => &remote.mix_message_sender,
-            ActiveClient::Embedded(embedded) => {
-                error!("getting embedded sender ref!");
-                &embedded.mix_message_sender
-            }
+            ActiveClient::Embedded(embedded) => &embedded.mix_message_sender,
         }
     }
 
     fn get_sender(&self) -> MixMessageSender {
         match self {
             ActiveClient::Remote(remote) => remote.mix_message_sender.clone(),
-            ActiveClient::Embedded(embedded) => {
-                error!("getting embedded sender!");
-                embedded.mix_message_sender.clone()
-            }
+            ActiveClient::Embedded(embedded) => embedded.mix_message_sender.clone(),
         }
     }
 }
@@ -98,7 +90,6 @@ impl ActiveClientsStore {
         };
 
         // if the entry is stale, remove it from the map
-        // if handle.is_valid() {
         if !channels.mix_message_sender.is_closed() {
             Some(channels.clone())
         } else {
@@ -112,15 +103,12 @@ impl ActiveClientsStore {
     /// Checks whether there's already an active connection to this client.
     /// It will also remove the entry from the map if its stale.
     pub(crate) fn is_active(&self, client: DestinationAddressBytes) -> bool {
-        // embedded NR is always active
-
         let Some(entry) = self.inner.get(&client) else {
             return false
         };
         let handle = entry.value().get_sender_ref();
 
         // if the entry is stale, remove it from the map
-        // if handle.is_valid() {
         if !handle.is_closed() {
             true
         } else {

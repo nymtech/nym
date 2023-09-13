@@ -20,7 +20,6 @@ use nym_client_core::client::key_manager::persistence::OnDiskKeys;
 use nym_client_core::config::GatewayEndpointConfig;
 use nym_client_core::error::ClientCoreError;
 use nym_config::OptionalSet;
-use nym_sphinx::params::PacketSize;
 
 mod build_info;
 mod init;

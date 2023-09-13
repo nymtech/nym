@@ -1,5 +1,3 @@
-use std::fmt;
-
 use clap::{Parser, ValueEnum};
 use nym_bin_common::output_format::OutputFormat;
 use nym_sdk::mixnet::{self, IncludedSurbs, MixnetMessageSender};
@@ -10,6 +8,7 @@ use nym_socks5_requests::{
     QueryRequest, QueryResponse, Socks5ProtocolVersion, Socks5Request, Socks5Response,
 };
 use serde::Serialize;
+use std::fmt;
 use tokio::time::{timeout, Duration};
 
 const RESPONSE_TIMEOUT: Duration = Duration::from_secs(10);
@@ -109,7 +108,6 @@ async fn connect_to_mixnet(gateway: Option<mixnet::NodeIdentity>) -> mixnet::Mix
         Some(gateway) => mixnet::MixnetClientBuilder::new_ephemeral()
             .request_gateway(gateway.to_base58_string())
             .build()
-            .await
             .expect("Failed to create mixnet client")
             .connect_to_mixnet()
             .await

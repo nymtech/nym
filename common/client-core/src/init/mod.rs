@@ -8,25 +8,34 @@ use crate::client::base_client::storage::gateway_details::{
 };
 use crate::client::key_manager::persistence::KeyStore;
 use crate::client::key_manager::ManagedKeys;
+use crate::config::GatewayEndpointConfig;
 use crate::error::ClientCoreError;
-use crate::init::helpers::current_gateways;
-use crate::init::types::{GatewayDetails, GatewaySetup, InitialisationResult};
+use crate::init::helpers::{
+    choose_gateway_by_latency, get_specified_gateway, uniformly_random_gateway,
+};
+use crate::init::types::{
+    CustomGatewayDetails, GatewayDetails, GatewaySelectionSpecification, GatewaySetup,
+    InitialisationResult,
+};
+use nym_gateway_client::client::InitGatewayClient;
 use nym_topology::gateway;
 use rand::rngs::OsRng;
+use serde::de::DeserializeOwned;
 use serde::Serialize;
-use url::Url;
+use std::sync::Arc;
 
 pub mod helpers;
 pub mod types;
 
 // helpers for error wrapping
-async fn _store_gateway_details<D>(
+async fn _store_gateway_details<T, D>(
     details_store: &D,
-    details: &PersistedGatewayDetails,
+    details: &PersistedGatewayDetails<T>,
 ) -> Result<(), ClientCoreError>
 where
-    D: GatewayDetailsStore,
+    D: GatewayDetailsStore<T>,
     D::StorageError: Send + Sync + 'static,
+    T: Serialize + Send + Sync,
 {
     details_store
         .store_gateway_details(details)
@@ -36,12 +45,13 @@ where
         })
 }
 
-async fn _load_gateway_details<D>(
+async fn _load_gateway_details<T, D>(
     details_store: &D,
-) -> Result<PersistedGatewayDetails, ClientCoreError>
+) -> Result<PersistedGatewayDetails<T>, ClientCoreError>
 where
-    D: GatewayDetailsStore,
+    D: GatewayDetailsStore<T>,
     D::StorageError: Send + Sync + 'static,
+    T: DeserializeOwned + Send + Sync,
 {
     details_store
         .load_gateway_details()
@@ -63,215 +73,165 @@ where
         })
 }
 
-fn ensure_valid_details(
-    details: &PersistedGatewayDetails,
+fn ensure_valid_details<T>(
+    details: &PersistedGatewayDetails<T>,
     loaded_keys: &ManagedKeys,
 ) -> Result<(), ClientCoreError> {
     details.validate(loaded_keys.gateway_shared_key().as_deref())
 }
 
-pub async fn setup_gateway_from<K, D>(
-    setup: GatewaySetup,
+async fn setup_new_gateway<T, K, D>(
     key_store: &K,
     details_store: &D,
     overwrite_data: bool,
-    gateways: Option<&[gateway::Node]>,
-) -> Result<InitialisationResult, ClientCoreError>
+    selection_specification: GatewaySelectionSpecification<T>,
+    available_gateways: Vec<gateway::Node>,
+) -> Result<InitialisationResult<T>, ClientCoreError>
 where
     K: KeyStore,
-    D: GatewayDetailsStore,
+    D: GatewayDetailsStore<T>,
     K::StorageError: Send + Sync + 'static,
     D::StorageError: Send + Sync + 'static,
+    T: DeserializeOwned + Serialize + Send + Sync,
 {
-    // I don't like how we can't deal with this variant in the match below, but we need to take ownership of internal values.
-    if let GatewaySetup::ReuseConnection {
-        authenticated_ephemeral_client,
-        gateway_details,
-        managed_keys,
-    } = setup
-    {
-        // if we have already performed the full setup, forward the details.
-        // it's up to the caller to ensure persistence
-        return Ok(InitialisationResult {
-            gateway_details,
-            managed_keys,
-            authenticated_ephemeral_client: Some(authenticated_ephemeral_client),
-        });
+    // if we're setting up new gateway, failing to load existing information is fine.
+    // as a matter of fact, it's only potentially a problem if we DO succeed
+    if _load_gateway_details(details_store).await.is_ok() && !overwrite_data {
+        return Err(ClientCoreError::ForbiddenKeyOverwrite);
+    }
+    if _load_managed_keys(key_store).await.is_ok() && !overwrite_data {
+        return Err(ClientCoreError::ForbiddenKeyOverwrite);
     }
 
     let mut rng = OsRng;
+    let mut new_keys = ManagedKeys::generate_new(&mut rng);
 
-    // try load gateway details
-    let loaded_details = _load_gateway_details(details_store).await;
-
-    // try load keys and decide what to do based on the GatewaySetup
-    let mut managed_keys = match ManagedKeys::try_load(key_store).await {
-        Ok(loaded_keys) => {
-            match &setup {
-                GatewaySetup::MustLoad => {
-                    // get EVERYTHING from the storage
-                    let details = loaded_details?;
-                    ensure_valid_details(&details, &loaded_keys)?;
-
-                    // no need to persist anything as we got everything from the storage
-                    return Ok(InitialisationResult::new_loaded(
-                        details.into(),
-                        loaded_keys,
-                    ));
-                }
-                GatewaySetup::Predefined { details } => {
-                    // if nothing was stored or we're allowed to overwrite what's there, just persist the passed data
-                    if overwrite_data || loaded_details.is_err() {
-                        let shared_key = loaded_keys.gateway_shared_key();
-                        let storable =
-                            PersistedGatewayDetails::new(details.clone(), shared_key.as_deref())?;
-                        _store_gateway_details(details_store, &storable).await?;
-                    } else if let Ok(existing_details) = loaded_details {
-                        // if there was some stored data and we can't overwrite it make sure it's exactly what we provided now
-                        // (and that they match the key)
-
-                        if !existing_details.matches(details) {
-                            return Err(ClientCoreError::MismatchedStoredGatewayDetails);
-                        }
-
-                        ensure_valid_details(&existing_details, &loaded_keys)?;
-                    }
-
-                    return Ok(InitialisationResult::new_loaded(
-                        details.clone(),
-                        loaded_keys,
-                    ));
-                }
-                GatewaySetup::Specified { gateway_identity } => {
-                    // if that data was already stored...
-                    if let Ok(existing_gateway) = loaded_details {
-                        ensure_valid_details(&existing_gateway, &loaded_keys)?;
-                        let PersistedGatewayDetails::Default(cfg) = existing_gateway else {
-                            return Err(ClientCoreError::UnexpectedPersistedCustomGatewayDetails);
-                        };
-                        if &cfg.details.gateway_id != gateway_identity && !overwrite_data {
-                            // if our loaded details don't match requested value and we CANT overwrite it...
-                            return Err(ClientCoreError::UnexpectedGatewayDetails);
-                        } else if &cfg.details.gateway_id == gateway_identity {
-                            // if they do match up, just return it
-                            return Ok(InitialisationResult::new_loaded(
-                                cfg.details.into(),
-                                loaded_keys,
-                            ));
-                        }
-                    }
-
-                    // we didn't get full details from the store and we have loaded some keys
-                    // so we can only continue if we're allowed to overwrite keys
-                    if overwrite_data {
-                        ManagedKeys::generate_new(&mut rng)
-                    } else {
-                        return Err(ClientCoreError::ForbiddenKeyOverwrite);
-                    }
-                }
-                GatewaySetup::New { .. } => {
-                    if let Ok(existing_gateway) = loaded_details {
-                        ensure_valid_details(&existing_gateway, &loaded_keys)?;
-                        return Ok(InitialisationResult::new_loaded(
-                            existing_gateway.into(),
-                            loaded_keys,
-                        ));
-                    }
-
-                    // we didn't get full details from the store and we have loaded some keys
-                    // so we can only continue if we're allowed to overwrite keys
-                    if overwrite_data {
-                        ManagedKeys::generate_new(&mut rng)
-                    } else {
-                        return Err(ClientCoreError::ForbiddenKeyOverwrite);
-                    }
-                }
-                GatewaySetup::ReuseConnection { .. } => {
-                    unreachable!("the reuse connection variant was already manually covered")
-                }
-            }
+    let gateway_details = match selection_specification {
+        GatewaySelectionSpecification::UniformRemote => {
+            let gateway = uniformly_random_gateway(&mut rng, &available_gateways)?;
+            GatewayDetails::Configured(GatewayEndpointConfig::from(gateway))
         }
-        Err(_) => {
-            // if we failed to load the keys, ensure we didn't provide gateway details in some form
-            // (in that case we CAN'T generate new keys
-            if setup.has_full_details() {
-                return Err(ClientCoreError::UnavailableSharedKey);
-            }
-            ManagedKeys::generate_new(&mut rng)
+        GatewaySelectionSpecification::RemoteByLatency => {
+            let gateway = choose_gateway_by_latency(&mut rng, &available_gateways).await?;
+            GatewayDetails::Configured(GatewayEndpointConfig::from(gateway))
         }
+        GatewaySelectionSpecification::Specified { identity } => {
+            let gateway = get_specified_gateway(&identity, &available_gateways)?;
+            GatewayDetails::Configured(GatewayEndpointConfig::from(gateway))
+        }
+        GatewaySelectionSpecification::Custom {
+            gateway_identity,
+            additional_data,
+        } => GatewayDetails::Custom(CustomGatewayDetails::new(gateway_identity, additional_data)),
     };
 
-    // TODO: figure out how custom gateway fits into the below logic
-
-    // if setup.is_custom_new() {
-    //     todo!()
-    // }
-
-    // choose gateway
-    let gateway_details = setup.choose_gateway(gateways.unwrap_or_default()).await?;
-
-    // get our identity key
-    let our_identity = managed_keys.identity_keypair();
-
-    // TODO: this match is disgusting
-    let (maybe_shared_keys, authenticated_ephemeral_client) = match &gateway_details {
-        GatewayDetails::Configured(gateway_config) => {
-            // Establish connection, authenticate and generate keys for talking with the gateway
-            let registration_result =
-                helpers::register_with_gateway(gateway_config, our_identity).await?;
-            (
-                Some(registration_result.shared_keys),
-                Some(registration_result.authenticated_ephemeral_client),
-            )
-        }
-        GatewayDetails::Custom(..) => (None, None),
+    let registration_result = if let GatewayDetails::Configured(gateway_cfg) = &gateway_details {
+        // if we're using a 'normal' gateway setup, do register
+        let our_identity = new_keys.identity_keypair();
+        Some(helpers::register_with_gateway(gateway_cfg, our_identity).await?)
+    } else {
+        None
     };
+
+    let maybe_shared_keys = registration_result
+        .as_ref()
+        .map(|r| Arc::clone(&r.shared_keys));
 
     let persisted_details =
         PersistedGatewayDetails::new(gateway_details, maybe_shared_keys.as_deref())?;
 
-    // persist keys
-    managed_keys
+    // persist the keys
+    new_keys
         .deal_with_gateway_key(maybe_shared_keys, key_store)
         .await
         .map_err(|source| ClientCoreError::KeyStoreError {
             source: Box::new(source),
         })?;
 
-    // persist gateway config
+    // persist gateway configs
     _store_gateway_details(details_store, &persisted_details).await?;
 
     Ok(InitialisationResult {
         gateway_details: persisted_details.into(),
-        managed_keys,
-        authenticated_ephemeral_client,
+        managed_keys: new_keys,
+        authenticated_ephemeral_client: registration_result
+            .map(|r| r.authenticated_ephemeral_client),
     })
 }
 
-pub async fn setup_gateway<K, D>(
-    setup: GatewaySetup,
+async fn use_loaded_gateway_details<T, K, D>(
     key_store: &K,
     details_store: &D,
-    overwrite_data: bool,
-    validator_servers: Option<&[Url]>,
-) -> Result<InitialisationResult, ClientCoreError>
+) -> Result<InitialisationResult<T>, ClientCoreError>
 where
     K: KeyStore,
-    D: GatewayDetailsStore,
+    D: GatewayDetailsStore<T>,
     K::StorageError: Send + Sync + 'static,
     D::StorageError: Send + Sync + 'static,
+    T: DeserializeOwned + Send + Sync,
 {
-    let mut rng = OsRng;
-    let gateways = current_gateways(&mut rng, validator_servers.unwrap_or_default()).await?;
+    let loaded_details = _load_gateway_details(details_store).await?;
+    let loaded_keys = _load_managed_keys(key_store).await?;
 
-    setup_gateway_from(
-        setup,
-        key_store,
-        details_store,
-        overwrite_data,
-        Some(&gateways),
-    )
-    .await
+    ensure_valid_details(&loaded_details, &loaded_keys)?;
+
+    // no need to persist anything as we got everything from the storage
+    Ok(InitialisationResult::new_loaded(
+        loaded_details.into(),
+        loaded_keys,
+    ))
+}
+
+fn reuse_gateway_connection<T>(
+    authenticated_ephemeral_client: InitGatewayClient,
+    gateway_details: GatewayDetails<T>,
+    managed_keys: ManagedKeys,
+) -> InitialisationResult<T> {
+    InitialisationResult {
+        gateway_details,
+        managed_keys,
+        authenticated_ephemeral_client: Some(authenticated_ephemeral_client),
+    }
+}
+
+pub async fn setup_gateway<T, K, D>(
+    setup: GatewaySetup<T>,
+    key_store: &K,
+    details_store: &D,
+) -> Result<InitialisationResult<T>, ClientCoreError>
+where
+    K: KeyStore,
+    D: GatewayDetailsStore<T>,
+    K::StorageError: Send + Sync + 'static,
+    D::StorageError: Send + Sync + 'static,
+    T: DeserializeOwned + Serialize + Send + Sync,
+{
+    match setup {
+        GatewaySetup::MustLoad => use_loaded_gateway_details(key_store, details_store).await,
+        GatewaySetup::New {
+            specification,
+            available_gateways,
+            overwrite_data,
+        } => {
+            setup_new_gateway(
+                key_store,
+                details_store,
+                overwrite_data,
+                specification,
+                available_gateways,
+            )
+            .await
+        }
+        GatewaySetup::ReuseConnection {
+            authenticated_ephemeral_client,
+            gateway_details,
+            managed_keys,
+        } => Ok(reuse_gateway_connection(
+            authenticated_ephemeral_client,
+            gateway_details,
+            managed_keys,
+        )),
+    }
 }
 
 pub fn output_to_json<T: Serialize>(init_results: &T, output_file: &str) {

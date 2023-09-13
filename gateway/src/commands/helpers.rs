@@ -15,8 +15,7 @@ use nym_network_defaults::var_names::NYXD;
 use nym_network_defaults::var_names::{BECH32_PREFIX, NYM_API, STATISTICS_SERVICE_DOMAIN_ADDRESS};
 use nym_network_requester::config::BaseClientConfig;
 use nym_network_requester::{
-    setup_gateway_from, GatewaySelectionSpecification, GatewaySetup, OnDiskGatewayDetails,
-    OnDiskKeys,
+    setup_gateway, GatewaySelectionSpecification, GatewaySetup, OnDiskGatewayDetails, OnDiskKeys,
 };
 use nym_types::gateway::GatewayNetworkRequesterDetails;
 use nym_validator_client::nyxd::AccountId;
@@ -227,23 +226,17 @@ pub(crate) async fn initialise_local_network_requester(
         OnDiskGatewayDetails::new(&nr_cfg.storage_paths.common_paths.gateway_details);
 
     // gateway setup here is way simpler as we're 'connecting' to ourselves
-    let init_res = setup_gateway_from(
+    let init_res = setup_gateway(
         GatewaySetup::New {
             specification: GatewaySelectionSpecification::Custom {
                 gateway_identity: identity.to_base58_string(),
                 additional_data: Default::default(),
             },
+            available_gateways: vec![],
+            overwrite_data: false,
         },
-        // GatewaySetup::Predefined {
-        //     details: GatewayDetails::Custom(CustomGatewayDetails {
-        //         gateway_id: identity.to_base58_string(),
-        //         additional_data: Default::default(),
-        //     }),
-        // },
         &key_store,
         &details_store,
-        false,
-        None,
     )
     .await?;
 

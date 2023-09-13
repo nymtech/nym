@@ -17,7 +17,7 @@ use nym_client_core::client::key_manager::persistence::OnDiskKeys;
 use nym_client_core::config::GatewayEndpointConfig;
 use nym_client_core::error::ClientCoreError;
 use nym_client_core::init::helpers::current_gateways;
-use nym_client_core::init::types::{GatewayDetails, GatewaySetup};
+use nym_client_core::init::types::{GatewayDetails, GatewaySelectionSpecification, GatewaySetup};
 use nym_crypto::asymmetric::identity;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_topology::NymTopology;
@@ -167,7 +167,7 @@ pub(crate) async fn execute(args: Init) -> Result<(), ClientError> {
     // re-registering if wanted.
     let user_wants_force_register = args.force_register_gateway;
     if user_wants_force_register {
-        eprintln!("Instructed to force registering gateway. This might overwrite keys!");
+        eprintln!("Instructed to force registering gateway. This will overwrite keys!");
     }
 
     // If the client was already initialized, don't generate new keys and don't re-register with
@@ -177,7 +177,7 @@ pub(crate) async fn execute(args: Init) -> Result<(), ClientError> {
 
     // Attempt to use a user-provided gateway, if possible
     let user_chosen_gateway_id = args.gateway;
-    let gateway_setup = GatewaySetup::new_fresh(
+    let selection_spec = GatewaySelectionSpecification::new(
         user_chosen_gateway_id.map(|id| id.to_base58_string()),
         Some(args.latency_based_selection),
     );
@@ -191,7 +191,7 @@ pub(crate) async fn execute(args: Init) -> Result<(), ClientError> {
     let details_store =
         OnDiskGatewayDetails::new(&config.storage_paths.common_paths.gateway_details);
 
-    let network_gateways = if let Some(hardcoded_topology) = args
+    let available_gateways = if let Some(hardcoded_topology) = args
         .custom_mixnet
         .map(NymTopology::new_from_file)
         .transpose()?
@@ -203,15 +203,16 @@ pub(crate) async fn execute(args: Init) -> Result<(), ClientError> {
         current_gateways(&mut rng, &config.base.client.nym_api_urls).await?
     };
 
-    let init_details = nym_client_core::init::setup_gateway_from(
-        gateway_setup,
-        &key_store,
-        &details_store,
-        register_gateway,
-        Some(&network_gateways),
-    )
-    .await
-    .tap_err(|err| eprintln!("Failed to setup gateway\nError: {err}"))?;
+    let gateway_setup = GatewaySetup::New {
+        specification: selection_spec,
+        available_gateways,
+        overwrite_data: register_gateway,
+    };
+
+    let init_details =
+        nym_client_core::init::setup_gateway(gateway_setup, &key_store, &details_store)
+            .await
+            .tap_err(|err| eprintln!("Failed to setup gateway\nError: {err}"))?;
 
     let config_save_location = config.default_location();
     config.save_to_default_location().tap_err(|_| {

@@ -18,7 +18,8 @@ use nym_client_core::client::base_client::storage::{
 use nym_client_core::client::base_client::BaseClient;
 use nym_client_core::client::key_manager::persistence::KeyStore;
 use nym_client_core::config::DebugConfig;
-use nym_client_core::init::types::GatewaySetup;
+use nym_client_core::init::helpers::current_gateways;
+use nym_client_core::init::types::{GatewaySelectionSpecification, GatewaySetup};
 use nym_client_core::{
     client::{base_client::BaseClientBuilder, replies::reply_storage::ReplyStorageBackend},
     config::GatewayEndpointConfig,
@@ -28,6 +29,7 @@ use nym_task::manager::TaskStatus;
 use nym_task::{TaskClient, TaskHandle};
 use nym_topology::provider_trait::TopologyProvider;
 use nym_validator_client::{nyxd, QueryHttpRpcNyxdClient};
+use rand::rngs::OsRng;
 use std::path::Path;
 use std::path::PathBuf;
 use url::Url;
@@ -385,7 +387,16 @@ where
         let gateway_setup = if self.has_valid_gateway_info().await {
             GatewaySetup::MustLoad
         } else {
-            GatewaySetup::new_fresh(self.config.user_chosen_gateway.clone(), None)
+            let selection_spec =
+                GatewaySelectionSpecification::new(self.config.user_chosen_gateway.clone(), None);
+
+            let mut rng = OsRng;
+
+            GatewaySetup::New {
+                specification: selection_spec,
+                available_gateways: current_gateways(&mut rng, &api_endpoints).await?,
+                overwrite_data: !self.config.key_mode.is_keep(),
+            }
         };
 
         // this will perform necessary key and details load and optional store
@@ -393,8 +404,6 @@ where
             gateway_setup,
             self.storage.key_store(),
             self.storage.gateway_details_store(),
-            !self.config.key_mode.is_keep(),
-            Some(&api_endpoints),
         )
         .await?;
 
@@ -433,7 +442,7 @@ where
         // a temporary workaround
         let base_config = self
             .config
-            .as_base_client_config(nyxd_endpoints, nym_api_endpoints);
+            .as_base_client_config(nyxd_endpoints, nym_api_endpoints.clone());
 
         let known_gateway = self.has_valid_gateway_info().await;
 
@@ -441,10 +450,17 @@ where
             BaseClientBuilder::new(&base_config, self.storage, self.dkg_query_client);
 
         if !known_gateway {
-            base_builder = base_builder.with_gateway_setup(GatewaySetup::new_fresh(
-                self.config.user_chosen_gateway,
-                None,
-            ))
+            let selection_spec =
+                GatewaySelectionSpecification::new(self.config.user_chosen_gateway, None);
+
+            let mut rng = OsRng;
+            let setup = GatewaySetup::New {
+                specification: selection_spec,
+                available_gateways: current_gateways(&mut rng, &nym_api_endpoints).await?,
+                overwrite_data: !self.config.key_mode.is_keep(),
+            };
+
+            base_builder = base_builder.with_gateway_setup(setup)
         }
 
         if let Some(topology_provider) = self.custom_topology_provider {

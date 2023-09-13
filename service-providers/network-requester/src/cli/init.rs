@@ -14,8 +14,9 @@ use nym_client_core::client::base_client::storage::gateway_details::OnDiskGatewa
 use nym_client_core::client::key_manager::persistence::OnDiskKeys;
 use nym_client_core::config::GatewayEndpointConfig;
 use nym_client_core::error::ClientCoreError;
-use nym_client_core::init::types::GatewayDetails;
+use nym_client_core::init::helpers::current_gateways;
 use nym_client_core::init::types::GatewaySetup;
+use nym_client_core::init::types::{GatewayDetails, GatewaySelectionSpecification};
 use nym_crypto::asymmetric::identity;
 use nym_sphinx::addressing::clients::Recipient;
 use serde::Serialize;
@@ -156,7 +157,7 @@ pub(crate) async fn execute(args: &Init) -> Result<(), NetworkRequesterError> {
 
     // Attempt to use a user-provided gateway, if possible
     let user_chosen_gateway_id = args.gateway;
-    let gateway_setup = GatewaySetup::new_fresh(
+    let selection_spec = GatewaySelectionSpecification::new(
         user_chosen_gateway_id.map(|id| id.to_base58_string()),
         Some(args.latency_based_selection),
     );
@@ -170,15 +171,22 @@ pub(crate) async fn execute(args: &Init) -> Result<(), NetworkRequesterError> {
     let key_store = OnDiskKeys::new(config.storage_paths.common_paths.keys.clone());
     let details_store =
         OnDiskGatewayDetails::new(&config.storage_paths.common_paths.gateway_details);
-    let init_details = nym_client_core::init::setup_gateway(
-        gateway_setup,
-        &key_store,
-        &details_store,
-        register_gateway,
-        Some(&config.base.client.nym_api_urls),
-    )
-    .await
-    .tap_err(|err| log::error!("Failed to setup gateway\nError: {err}"))?;
+
+    let available_gateways = {
+        let mut rng = rand::thread_rng();
+        current_gateways(&mut rng, &config.base.client.nym_api_urls).await?
+    };
+
+    let gateway_setup = GatewaySetup::New {
+        specification: selection_spec,
+        available_gateways,
+        overwrite_data: register_gateway,
+    };
+
+    let init_details =
+        nym_client_core::init::setup_gateway(gateway_setup, &key_store, &details_store)
+            .await
+            .tap_err(|err| log::error!("Failed to setup gateway\nError: {err}"))?;
 
     let config_save_location = config.default_location();
     config.save_to_default_location().tap_err(|_| {

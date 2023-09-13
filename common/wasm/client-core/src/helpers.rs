@@ -8,8 +8,9 @@ use js_sys::Promise;
 use nym_client_core::client::replies::reply_storage::browser_backend;
 use nym_client_core::config;
 use nym_client_core::init::helpers::current_gateways;
+use nym_client_core::init::types::GatewaySelectionSpecification;
 use nym_client_core::init::{
-    setup_gateway_from,
+    self,
     types::{GatewaySetup, InitialisationResult},
 };
 use nym_sphinx::addressing::clients::Recipient;
@@ -91,10 +92,16 @@ async fn setup_gateway(
     let setup = if client_store.has_full_gateway_info().await? {
         GatewaySetup::MustLoad
     } else {
-        GatewaySetup::new_fresh(chosen_gateway.clone(), None)
+        let selection_spec = GatewaySelectionSpecification::new(chosen_gateway.clone(), None);
+
+        GatewaySetup::New {
+            specification: selection_spec,
+            available_gateways: gateways.to_vec(),
+            overwrite_data: false,
+        }
     };
 
-    setup_gateway_from(setup, client_store, client_store, false, Some(gateways))
+    init::setup_gateway(setup, client_store, client_store)
         .await
         .map_err(Into::into)
 }

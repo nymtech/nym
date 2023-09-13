@@ -1,4 +1,4 @@
-// Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2022-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::client::mix_traffic::transceiver::ErasedGatewayError;
@@ -38,14 +38,8 @@ pub enum ClientCoreError {
     #[error("No gateways on network")]
     NoGatewaysOnNetwork,
 
-    #[error("Failed to setup gateway")]
-    FailedToSetupGateway,
-
     #[error("List of nym apis is empty")]
     ListOfNymApisIsEmpty,
-
-    #[error("Could not load existing gateway configuration: {0}")]
-    CouldNotLoadExistingGatewayConfiguration(std::io::Error),
 
     #[error("The current network topology seem to be insufficient to route any packets through")]
     InsufficientNetworkTopology(#[from] NymTopologyError),
@@ -67,15 +61,6 @@ pub enum ClientCoreError {
 
     #[error("The gateway id is invalid - {0}")]
     UnableToCreatePublicKeyFromGatewayId(Ed25519RecoveryError),
-
-    #[error("The identity of the gateway is unknown - did you run init?")]
-    GatewayIdUnknown,
-
-    #[error("The owner of the gateway is unknown - did you run init?")]
-    GatewayOwnerUnknown,
-
-    #[error("The address of the gateway is unknown - did you run init?")]
-    GatewayAddressUnknown,
 
     #[error("The gateway is malformed: {source}")]
     MalformedGateway {
@@ -138,6 +123,9 @@ pub enum ClientCoreError {
 
     #[error("the persisted gateway details were set for a custom setup")]
     UnexpectedPersistedCustomGatewayDetails,
+
+    #[error("this client has performed gateway initialisation in another session")]
+    NoInitClientPresent,
 }
 
 /// Set of messages that the client can send to listeners via the task manager

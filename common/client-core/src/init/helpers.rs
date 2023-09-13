@@ -24,6 +24,7 @@ use tokio_tungstenite::connect_async;
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 #[cfg(not(target_arch = "wasm32"))]
 type WsConn = WebSocketStream<MaybeTlsStream<TcpStream>>;
+use nym_validator_client::client::IdentityKeyRef;
 #[cfg(not(target_arch = "wasm32"))]
 use tokio::time::sleep;
 
@@ -194,6 +195,20 @@ pub(super) fn uniformly_random_gateway<R: Rng>(
     gateways
         .choose(rng)
         .ok_or(ClientCoreError::NoGatewaysOnNetwork)
+        .cloned()
+}
+
+pub(super) fn get_specified_gateway(
+    gateway_identity: IdentityKeyRef,
+    gateways: &[gateway::Node],
+) -> Result<gateway::Node, ClientCoreError> {
+    let user_gateway = identity::PublicKey::from_base58_string(gateway_identity)
+        .map_err(ClientCoreError::UnableToCreatePublicKeyFromGatewayId)?;
+
+    gateways
+        .iter()
+        .find(|gateway| gateway.identity_key == user_gateway)
+        .ok_or_else(|| ClientCoreError::NoGatewayWithId(gateway_identity.to_string()))
         .cloned()
 }
 

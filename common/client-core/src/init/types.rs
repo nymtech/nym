@@ -8,28 +8,24 @@ use crate::client::key_manager::persistence::KeyStore;
 use crate::client::key_manager::ManagedKeys;
 use crate::config::{Config, GatewayEndpointConfig};
 use crate::error::ClientCoreError;
-use crate::init::helpers::{choose_gateway_by_latency, current_gateways, uniformly_random_gateway};
-use crate::init::{_load_gateway_details, _load_managed_keys};
-use nym_crypto::asymmetric::identity;
-use nym_gateway_client::client::InitOnly;
-use nym_gateway_client::GatewayClient;
+use crate::init::{_load_gateway_details, _load_managed_keys, setup_gateway};
+use nym_gateway_client::client::InitGatewayClient;
 use nym_gateway_requests::registration::handshake::SharedKeys;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::addressing::nodes::NodeIdentity;
 use nym_topology::gateway;
 use nym_validator_client::client::IdentityKey;
-use rand::rngs::OsRng;
+use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
 use std::sync::Arc;
-use url::Url;
 
 /// Result of registering with a gateway:
 /// - shared keys derived between ourselves and the node
 /// - an authenticated handle of an ephemeral handle created for the purposes of registration
 pub struct RegistrationResult {
     pub shared_keys: Arc<SharedKeys>,
-    pub authenticated_ephemeral_client: GatewayClient<InitOnly>,
+    pub authenticated_ephemeral_client: InitGatewayClient,
 }
 
 /// Result of fully initialising a client:
@@ -37,14 +33,14 @@ pub struct RegistrationResult {
 /// - all loaded (or derived) keys
 /// - an optional authenticated handle of an ephemeral gateway handle created for the purposes of registration,
 ///   if this was the first time this client registered
-pub struct InitialisationResult {
-    pub gateway_details: GatewayDetails,
+pub struct InitialisationResult<T = EmptyCustomDetails> {
+    pub gateway_details: GatewayDetails<T>,
     pub managed_keys: ManagedKeys,
-    pub authenticated_ephemeral_client: Option<GatewayClient<InitOnly>>,
+    pub authenticated_ephemeral_client: Option<InitGatewayClient>,
 }
 
-impl InitialisationResult {
-    pub fn new_loaded(gateway_details: GatewayDetails, managed_keys: ManagedKeys) -> Self {
+impl<T> InitialisationResult<T> {
+    pub fn new_loaded(gateway_details: GatewayDetails<T>, managed_keys: ManagedKeys) -> Self {
         InitialisationResult {
             gateway_details,
             managed_keys,
@@ -55,9 +51,10 @@ impl InitialisationResult {
     pub async fn try_load<K, D>(key_store: &K, details_store: &D) -> Result<Self, ClientCoreError>
     where
         K: KeyStore,
-        D: GatewayDetailsStore,
+        D: GatewayDetailsStore<T>,
         K::StorageError: Send + Sync + 'static,
         D::StorageError: Send + Sync + 'static,
+        T: DeserializeOwned + Send + Sync,
     {
         let loaded_details = _load_gateway_details(details_store).await?;
         let loaded_keys = _load_managed_keys(key_store).await?;
@@ -116,6 +113,15 @@ pub struct CustomGatewayDetails<T = EmptyCustomDetails> {
     pub additional_data: T,
 }
 
+impl<T> CustomGatewayDetails<T> {
+    pub fn new(gateway_id: String, additional_data: T) -> Self {
+        Self {
+            gateway_id,
+            additional_data,
+        }
+    }
+}
+
 impl<T> GatewayDetails<T> {
     pub fn is_custom(&self) -> bool {
         matches!(self, GatewayDetails::Custom(_))
@@ -129,7 +135,7 @@ impl<T> GatewayDetails<T> {
     }
 }
 
-impl<T> From<GatewayEndpointConfig> for GatewayDetails<T> {
+impl From<GatewayEndpointConfig> for GatewayDetails {
     fn from(value: GatewayEndpointConfig) -> Self {
         GatewayDetails::Configured(value)
     }
@@ -173,7 +179,12 @@ pub enum GatewaySelectionSpecification<T = EmptyCustomDetails> {
     /// Should the new, remote, gateway be selected based on latency.
     RemoteByLatency,
 
-    /// This client will handle the selection by itself
+    /// Gateway with this specific identity should be chosen.
+    // JS: I don't really like the name of this enum variant but couldn't think of anything better at the time
+    Specified { identity: IdentityKey },
+
+    // TODO: this doesn't really fit in here..., but where else to put it?
+    /// This client has handled the selection by itself
     Custom {
         gateway_identity: String,
         additional_data: T,
@@ -181,79 +192,90 @@ pub enum GatewaySelectionSpecification<T = EmptyCustomDetails> {
 }
 
 impl<T> GatewaySelectionSpecification<T> {
-    pub(crate) fn is_custom(&self) -> bool {
-        matches!(self, GatewaySelectionSpecification::Custom { .. })
+    pub fn new(gateway_identity: Option<String>, latency_based_selection: Option<bool>) -> Self {
+        if let Some(identity) = gateway_identity {
+            GatewaySelectionSpecification::Specified { identity }
+        } else if let Some(true) = latency_based_selection {
+            GatewaySelectionSpecification::RemoteByLatency
+        } else {
+            GatewaySelectionSpecification::UniformRemote
+        }
     }
 }
 
 pub enum GatewaySetup<T = EmptyCustomDetails> {
-    /// The gateway specification MUST BE loaded from the underlying storage.
+    /// The gateway specification (details + keys) MUST BE loaded from the underlying storage.
     MustLoad,
 
-    /// Specifies usage of a new, random, gateway.
+    /// Specifies usage of a new gateway
     New {
         specification: GatewaySelectionSpecification<T>,
-    },
 
-    Specified {
-        /// Identity key of the gateway we want to try to use, if applicable
-        gateway_identity: IdentityKey,
-    },
+        // TODO: seems to be a bit inefficient to pass them by value
+        available_gateways: Vec<gateway::Node>,
 
-    Predefined {
-        /// Full gateway configuration
-        details: GatewayDetails<T>,
+        /// Specifies whether old data should be overwritten whilst setting up new gateway client.
+        overwrite_data: bool,
     },
 
     ReuseConnection {
         /// The authenticated ephemeral client that was created during `init`
-        authenticated_ephemeral_client: GatewayClient<InitOnly>,
+        authenticated_ephemeral_client: InitGatewayClient,
 
         // Details of this pre-initialised client (i.e. gateway and keys)
-        gateway_details: GatewayDetails,
-        
-        #[deprecated]
-        // rethink it. this field shouldn't be required as if you're reusing a connection, you must already have loaded keys in memory
+        gateway_details: GatewayDetails<T>,
+
         managed_keys: ManagedKeys,
     },
 }
 
-impl From<GatewayDetails> for GatewaySetup {
-    fn from(details: GatewayDetails) -> Self {
-        GatewaySetup::Predefined { details }
-    }
-}
-
-impl From<IdentityKey> for GatewaySetup {
-    fn from(gateway_identity: IdentityKey) -> Self {
-        GatewaySetup::Specified { gateway_identity }
-    }
-}
-
-impl Default for GatewaySetup {
-    fn default() -> Self {
-        GatewaySetup::New {
-            specification: Default::default(),
-        }
-    }
-}
-
 impl<T> GatewaySetup<T> {
-    pub fn new_fresh(
-        gateway_identity: Option<String>,
-        latency_based_selection: Option<bool>,
-    ) -> Self {
-        if let Some(gateway_identity) = gateway_identity {
-            GatewaySetup::Specified { gateway_identity }
-        } else {
-            let specification = if let Some(true) = latency_based_selection {
-                GatewaySelectionSpecification::RemoteByLatency
-            } else {
-                GatewaySelectionSpecification::UniformRemote
-            };
+    // pub fn new_fresh(
+    //     gateway_identity: Option<String>,
+    //     latency_based_selection: Option<bool>,
+    //     gateways: Vec<gateway::Node>,
+    //     can_overwrite: bool,
+    // ) -> Self {
+    //     if let Some(gateway_identity) = gateway_identity {
+    //         GatewaySetup::Specified { gateway_identity }
+    //     } else {
+    //         let specification = if let Some(true) = latency_based_selection {
+    //             GatewaySelectionSpecification::RemoteByLatency
+    //         } else {
+    //             GatewaySelectionSpecification::UniformRemote
+    //         };
+    //
+    //         GatewaySetup::New { specification }
+    //     }
+    // }
 
-            GatewaySetup::New { specification }
+    pub fn try_reuse_connection(
+        init_res: InitialisationResult<T>,
+    ) -> Result<Self, ClientCoreError> {
+        if let Some(authenticated_ephemeral_client) = init_res.authenticated_ephemeral_client {
+            Ok(GatewaySetup::ReuseConnection {
+                authenticated_ephemeral_client,
+                gateway_details: init_res.gateway_details,
+                managed_keys: init_res.managed_keys,
+            })
+        } else {
+            Err(ClientCoreError::NoInitClientPresent)
         }
+    }
+
+    pub async fn try_setup<K, D>(
+        self,
+        key_store: &K,
+        details_store: &D,
+    ) -> Result<InitialisationResult<T>, ClientCoreError>
+    where
+        K: KeyStore,
+        D: GatewayDetailsStore<T>,
+        K::StorageError: Send + Sync + 'static,
+        D::StorageError: Send + Sync + 'static,
+        T: DeserializeOwned + Serialize + Send + Sync,
+    {
+        setup_gateway(self, key_store, details_store).await
     }
 
     pub fn is_must_load(&self) -> bool {
@@ -261,66 +283,67 @@ impl<T> GatewaySetup<T> {
     }
 
     pub fn has_full_details(&self) -> bool {
-        matches!(self, GatewaySetup::Predefined { .. }) || self.is_must_load()
+        self.is_must_load()
     }
 
-    pub fn is_custom_new(&self) -> bool {
-        if let GatewaySetup::New { specification } = self {
-            specification.is_custom()
-        } else {
-            false
-        }
-    }
+    // pub fn is_custom_new(&self) -> bool {
+    //     if let GatewaySetup::New { specification } = self {
+    //         specification.is_custom()
+    //     } else {
+    //         false
+    //     }
+    // }
 
-    pub async fn choose_gateway(
-        self,
-        gateways: &[gateway::Node],
-    ) -> Result<GatewayDetails<T>, ClientCoreError> {
-        let cfg: GatewayEndpointConfig = match self {
-            GatewaySetup::New { specification } => match specification {
-                GatewaySelectionSpecification::UniformRemote => {
-                    let mut rng = OsRng;
-                    uniformly_random_gateway(&mut rng, gateways)
-                }
-                GatewaySelectionSpecification::RemoteByLatency => {
-                    let mut rng = OsRng;
-                    choose_gateway_by_latency(&mut rng, gateways).await
-                }
-                GatewaySelectionSpecification::Custom {
-                    gateway_identity,
-                    additional_data,
-                } => {
-                    return Ok(GatewayDetails::Custom(CustomGatewayDetails {
-                        gateway_id: gateway_identity,
-                        additional_data,
-                    }))
-                }
-            }
-            .map(Into::into),
-            GatewaySetup::Specified { gateway_identity } => {
-                let user_gateway = identity::PublicKey::from_base58_string(&gateway_identity)
-                    .map_err(ClientCoreError::UnableToCreatePublicKeyFromGatewayId)?;
+    // pub async fn choose_gateway(
+    //     self,
+    //     gateways: &[gateway::Node],
+    // ) -> Result<GatewayDetails<T>, ClientCoreError> {
+    //     let cfg: GatewayEndpointConfig = match self {
+    //         GatewaySetup::New { specification } => match specification {
+    //             GatewaySelectionSpecification::UniformRemote => {
+    //                 let mut rng = OsRng;
+    //                 uniformly_random_gateway(&mut rng, gateways)
+    //             }
+    //             GatewaySelectionSpecification::RemoteByLatency => {
+    //                 let mut rng = OsRng;
+    //                 choose_gateway_by_latency(&mut rng, gateways).await
+    //             }
+    //             GatewaySelectionSpecification::Custom {
+    //                 gateway_identity,
+    //                 additional_data,
+    //             } => {
+    //                 return Ok(GatewayDetails::Custom(CustomGatewayDetails {
+    //                     gateway_id: gateway_identity,
+    //                     additional_data,
+    //                 }))
+    //             }
+    //         }
+    //         .map(Into::into),
+    //         GatewaySetup::Specified { gateway_identity } => {
+    //             let user_gateway = identity::PublicKey::from_base58_string(&gateway_identity)
+    //                 .map_err(ClientCoreError::UnableToCreatePublicKeyFromGatewayId)?;
+    //
+    //             gateways
+    //                 .iter()
+    //                 .find(|gateway| gateway.identity_key == user_gateway)
+    //                 .ok_or_else(|| ClientCoreError::NoGatewayWithId(gateway_identity.to_string()))
+    //                 .cloned()
+    //         }
+    //         .map(Into::into),
+    //         _ => Err(ClientCoreError::UnexpectedGatewayDetails),
+    //     }?;
+    //     Ok(cfg.into())
+    // }
 
-                gateways
-                    .iter()
-                    .find(|gateway| gateway.identity_key == user_gateway)
-                    .ok_or_else(|| ClientCoreError::NoGatewayWithId(gateway_identity.to_string()))
-                    .cloned()
-            }
-            .map(Into::into),
-            _ => Err(ClientCoreError::UnexpectedGatewayDetails),
-        }?;
-        Ok(cfg.into())
-    }
-
-    pub async fn try_get_new_gateway_details(
-        self,
-        validator_servers: &[Url],
-    ) -> Result<GatewayDetails<T>, ClientCoreError> {
-        let mut rng = OsRng;
-        let gateways = current_gateways(&mut rng, validator_servers).await?;
-        self.choose_gateway(&gateways).await
-    }
+    // #[deprecated]
+    // pub async fn try_get_new_gateway_details(
+    //     self,
+    //     validator_servers: &[Url],
+    // ) -> Result<GatewayDetails<T>, ClientCoreError> {
+    //     let mut rng = OsRng;
+    //     let gateways = current_gateways(&mut rng, validator_servers).await?;
+    //     self.choose_gateway(&gateways).await
+    // }
 }
 
 /// Struct describing the results of the client initialization procedure.

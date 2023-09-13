@@ -7,6 +7,7 @@ use crate::init::types::{EmptyCustomDetails, GatewayDetails};
 use async_trait::async_trait;
 use log::error;
 use nym_gateway_requests::registration::handshake::SharedKeys;
+use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::error::Error;
@@ -16,15 +17,19 @@ use zeroize::Zeroizing;
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-pub trait GatewayDetailsStore {
+pub trait GatewayDetailsStore<T = EmptyCustomDetails> {
     type StorageError: Error;
 
-    async fn load_gateway_details(&self) -> Result<PersistedGatewayDetails, Self::StorageError>;
+    async fn load_gateway_details(&self) -> Result<PersistedGatewayDetails<T>, Self::StorageError>
+    where
+        T: DeserializeOwned + Send + Sync;
 
     async fn store_gateway_details(
         &self,
-        details: &PersistedGatewayDetails,
-    ) -> Result<(), Self::StorageError>;
+        details: &PersistedGatewayDetails<T>,
+    ) -> Result<(), Self::StorageError>
+    where
+        T: Serialize + Send + Sync;
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -107,17 +112,6 @@ impl PersistedGatewayConfig {
         let key_hash = key_hasher.finalize();
 
         self.key_hash == key_hash.deref()
-    }
-}
-
-impl From<PersistedGatewayDetails> for GatewayEndpointConfig {
-    // TODO: change this into a `TryFrom` trait
-    fn from(value: PersistedGatewayDetails) -> Self {
-        if let PersistedGatewayDetails::Default(config) = value {
-            config.details
-        } else {
-            panic!("unhandled exception: got custom gateway configuration")
-        }
     }
 }
 
@@ -215,7 +209,10 @@ impl OnDiskGatewayDetails {
         }
     }
 
-    pub fn load_from_disk(&self) -> Result<PersistedGatewayDetails, OnDiskGatewayDetailsError> {
+    pub fn load_from_disk<T>(&self) -> Result<PersistedGatewayDetails<T>, OnDiskGatewayDetailsError>
+    where
+        T: DeserializeOwned,
+    {
         let file = std::fs::File::open(&self.file_location).map_err(|err| {
             OnDiskGatewayDetailsError::LoadFailure {
                 path: self.file_location.display().to_string(),
@@ -226,10 +223,13 @@ impl OnDiskGatewayDetails {
         Ok(serde_json::from_reader(file)?)
     }
 
-    pub fn store_to_disk(
+    pub fn store_to_disk<T>(
         &self,
-        details: &PersistedGatewayDetails,
-    ) -> Result<(), OnDiskGatewayDetailsError> {
+        details: &PersistedGatewayDetails<T>,
+    ) -> Result<(), OnDiskGatewayDetailsError>
+    where
+        T: Serialize,
+    {
         // ensure the whole directory structure exists
         if let Some(parent_dir) = &self.file_location.parent() {
             std::fs::create_dir_all(parent_dir).map_err(|err| {
@@ -269,8 +269,8 @@ impl GatewayDetailsStore for OnDiskGatewayDetails {
 }
 
 #[derive(Default)]
-pub struct InMemGatewayDetails {
-    details: Mutex<Option<PersistedGatewayDetails>>,
+pub struct InMemGatewayDetails<T = EmptyCustomDetails> {
+    details: Mutex<Option<PersistedGatewayDetails<T>>>,
 }
 
 #[derive(Debug, thiserror::Error)]

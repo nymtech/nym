@@ -784,6 +784,9 @@ impl<C, St> GatewayClient<C, St> {
     }
 }
 
+// type alias for an ease of use
+pub type InitGatewayClient = GatewayClient<InitOnly>;
+
 pub struct InitOnly;
 
 impl GatewayClient<InitOnly, EphemeralCredentialStorage> {

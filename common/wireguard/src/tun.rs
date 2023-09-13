@@ -6,6 +6,7 @@ use boringtun::{
     x25519,
 };
 use bytes::Bytes;
+use etherparse::{InternetSlice, SlicedPacket};
 use log::{debug, error, info, warn};
 use tap::TapFallible;
 use tokio::{
@@ -20,7 +21,7 @@ const MAX_PACKET: usize = 65535;
 
 pub struct WireGuardTunnel {
     // Incoming data from the UDP socket received in the main event loop
-    udp_rx: mpsc::UnboundedReceiver<Event>,
+    peer_rx: mpsc::UnboundedReceiver<Event>,
 
     // UDP socket used for sending data
     udp: Arc<UdpSocket>,
@@ -34,6 +35,9 @@ pub struct WireGuardTunnel {
     // Signal close
     close_tx: broadcast::Sender<()>,
     close_rx: broadcast::Receiver<()>,
+
+    // Send data to the task that handles sending data through the tun device
+    tunnel_tx: mpsc::UnboundedSender<Vec<u8>>,
 }
 
 impl Drop for WireGuardTunnel {
@@ -53,6 +57,7 @@ impl WireGuardTunnel {
         addr: SocketAddr,
         static_private: x25519::StaticSecret,
         peer_static_public: x25519::PublicKey,
+        tunnel_tx: mpsc::UnboundedSender<Vec<u8>>,
     ) -> (Self, mpsc::UnboundedSender<Event>) {
         let preshared_key = None;
         let persistent_keepalive = None;
@@ -72,21 +77,22 @@ impl WireGuardTunnel {
         ));
 
         // Channels with incoming data that is received by the main event loop
-        let (udp_tx, udp_rx) = mpsc::unbounded_channel();
+        let (peer_tx, peer_rx) = mpsc::unbounded_channel();
 
         // Signal close tunnel
         let (close_tx, close_rx) = broadcast::channel(1);
 
         let tunnel = WireGuardTunnel {
-            udp_rx,
+            peer_rx,
             udp,
             addr,
             wg_tunnel,
             close_tx,
             close_rx,
+            tunnel_tx,
         };
 
-        (tunnel, udp_tx)
+        (tunnel, peer_tx)
     }
 
     pub async fn spin_off(&mut self) {
@@ -96,7 +102,7 @@ impl WireGuardTunnel {
                     info!("WireGuard tunnel: received msg to close");
                     break;
                 },
-                packet = self.udp_rx.recv() => match packet {
+                packet = self.peer_rx.recv() => match packet {
                     Some(packet) => {
                         info!("WireGuard tunnel received: {packet}");
                         match packet {
@@ -158,10 +164,22 @@ impl WireGuardTunnel {
             TunnResult::WriteToTunnelV4(packet, _) | TunnResult::WriteToTunnelV6(packet, _) => {
                 debug!("WireGuard: writing to tunnel");
                 info!(
-                    "WireGuard endpoint sent IP packet of {} bytes (not yet implemented)",
+                    "WireGuard endpoint sent IP packet of {} bytes",
                     packet.len()
                 );
-                // TODO
+
+                // Parse the `packet` and inspect it's contents.
+                let headers = SlicedPacket::from_ip(packet).unwrap();
+                let (source_addr, destination_addr) = match headers.ip.unwrap() {
+                    InternetSlice::Ipv4(ip, _) => (ip.source_addr(), ip.destination_addr()),
+                    _ => unimplemented!(),
+                };
+                info!("{source_addr} -> {destination_addr}");
+
+                // Here we need to store the source addr for the peer so we can relay back
+                // responses.
+
+                self.tunnel_tx.send(packet.to_vec()).unwrap();
             }
             TunnResult::Done => {
                 debug!("WireGuard: decapsulate done");
@@ -173,9 +191,28 @@ impl WireGuardTunnel {
         Ok(())
     }
 
-    async fn consume_eth(&self, _data: &Bytes) {
+    async fn consume_eth(&self, data: &Bytes) {
         info!("WireGuard tunnel: consume_eth");
-        todo!();
+
+        let encapsulated_packet = self.encapsulate_packet(data).await;
+        self.udp
+            .send_to(&encapsulated_packet, self.addr)
+            .await
+            .unwrap();
+    }
+
+    async fn encapsulate_packet(&self, payload: &[u8]) -> Vec<u8> {
+        let len = 148.max(payload.len() + 32);
+        let mut dst = vec![0; len];
+        let mut wg_tunnel = self.wg_tunnel_lock().await.unwrap();
+        let packet = wg_tunnel.encapsulate(payload, &mut dst);
+        match packet {
+            TunnResult::WriteToNetwork(p) => p.to_vec(),
+            unexpected => {
+                error!("{:?}", unexpected);
+                vec![]
+            }
+        }
     }
 
     async fn update_wg_timers(&mut self) -> Result<(), WgError> {

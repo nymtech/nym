@@ -12,7 +12,7 @@ const links = [
 ];
 export const Footer = () => (
   <Stack direction="row" spacing={3}>
-    {links.map(link => <a href={link[1]}>
+    {links.map(link => <a key={link[1]} href={link[1]}>
       {link[0]}
     </a>)}
   </Stack>

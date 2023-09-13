@@ -1,5 +1,6 @@
 {
   "nym-smart-contracts": "1. Nym Smart Contracts",
   "mixnet": "2. Mixnet Client",
-  "mix-fetch": "3. mixFetch"
+  "mix-fetch": "3. mixFetch",
+  "cosmos-kit": "4. Cosmos Kit"
 }

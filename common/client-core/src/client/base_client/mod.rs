@@ -32,7 +32,7 @@ use crate::init::{
 };
 use crate::{config, spawn_future};
 use futures::channel::mpsc;
-use log::{debug, info};
+use log::{debug, error, info};
 use nym_bandwidth_controller::BandwidthController;
 use nym_credential_storage::storage::Storage as CredentialStorage;
 use nym_crypto::asymmetric::encryption;
@@ -433,6 +433,7 @@ where
         topology_provider: Box<dyn TopologyProvider + Send + Sync>,
         topology_config: config::Topology,
         topology_accessor: TopologyAccessor,
+        local_gateway: &NodeIdentity,
         mut shutdown: TaskClient,
     ) -> Result<(), ClientCoreError> {
         let topology_refresher_config =
@@ -454,6 +455,14 @@ where
                 - check if enough nodes and a gateway are online - source: {err}"
             );
             return Err(ClientCoreError::InsufficientNetworkTopology(err));
+        }
+
+        if let Err(err) = topology_refresher
+            .ensure_contains_gateway(local_gateway)
+            .await
+        {
+            error!("the gateway we're supposedly connected to does not exist. We'll not be able to send any packets to ourselves: {err}");
+            return Err(err.into());
         }
 
         if topology_config.disable_refreshing {
@@ -580,6 +589,21 @@ where
             .dkg_query_client
             .map(|client| BandwidthController::new(credential_store, client));
 
+        let topology_provider = Self::setup_topology_provider(
+            self.custom_topology_provider.take(),
+            self.config.debug.topology.topology_structure,
+            self.config.get_nym_api_endpoints(),
+        );
+
+        Self::start_topology_refresher(
+            topology_provider,
+            self.config.debug.topology,
+            shared_topology_accessor.clone(),
+            self_address.gateway(),
+            shutdown.fork("topology_refresher"),
+        )
+        .await?;
+
         let gateway_packet_router = PacketRouter::new(
             ack_sender,
             mixnet_messages_sender,
@@ -599,20 +623,6 @@ where
         let reply_storage = Self::setup_persistent_reply_storage(
             reply_storage_backend,
             shutdown.fork("persistent_reply_storage"),
-        )
-        .await?;
-
-        let topology_provider = Self::setup_topology_provider(
-            self.custom_topology_provider.take(),
-            self.config.debug.topology.topology_structure,
-            self.config.get_nym_api_endpoints(),
-        );
-
-        Self::start_topology_refresher(
-            topology_provider,
-            self.config.debug.topology,
-            shared_topology_accessor.clone(),
-            shutdown.fork("topology_refresher"),
         )
         .await?;
 

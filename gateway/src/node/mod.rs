@@ -81,6 +81,7 @@ pub(crate) struct Gateway<St = PersistentStorage> {
 
     /// ed25519 keypair used to assert one's identity.
     identity_keypair: Arc<identity::KeyPair>,
+
     /// x25519 keypair used for Diffie-Hellman. Currently only used for sphinx key derivation.
     sphinx_keypair: Arc<encryption::KeyPair>,
     storage: St,

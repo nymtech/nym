@@ -5,6 +5,7 @@ use crate::spawn_future;
 pub(crate) use accessor::{TopologyAccessor, TopologyReadPermit};
 use futures::StreamExt;
 use log::*;
+use nym_sphinx::addressing::nodes::NodeIdentity;
 use nym_topology::provider_trait::TopologyProvider;
 use nym_topology::NymTopologyError;
 use std::time::Duration;
@@ -84,6 +85,24 @@ impl TopologyRefresher {
 
     pub async fn ensure_topology_is_routable(&self) -> Result<(), NymTopologyError> {
         self.topology_accessor.ensure_is_routable().await
+    }
+
+    pub async fn ensure_contains_gateway(
+        &self,
+        gateway: &NodeIdentity,
+    ) -> Result<(), NymTopologyError> {
+        let topology = self
+            .topology_accessor
+            .current_topology()
+            .await
+            .ok_or(NymTopologyError::EmptyNetworkTopology)?;
+        if !topology.gateway_exists(gateway) {
+            return Err(NymTopologyError::NonExistentGatewayError {
+                identity_key: gateway.to_base58_string(),
+            });
+        }
+
+        Ok(())
     }
 
     pub fn start_with_shutdown(mut self, mut shutdown: nym_task::TaskClient) {

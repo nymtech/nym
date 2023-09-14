@@ -241,6 +241,10 @@ pub struct KeyManager {
     encryption_keypair: Arc<encryption::KeyPair>,
 
     /// shared key derived with the gateway during "registration handshake"
+    // I'm not a fan of how we broke the nice transition of `KeyManagerBuilder` -> `KeyManager`
+    // by making this field optional.
+    // However, it has to be optional for when we use embedded NR inside a gateway,
+    // since it won't have a shared key (because why would it?)
     gateway_shared_key: Option<Arc<SharedKeys>>,
 
     /// key used for producing and processing acknowledgement packets.

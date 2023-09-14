@@ -9,6 +9,9 @@ pub mod receiver;
 pub mod tester;
 
 pub use message::{Empty, TestMessage};
+pub use nym_sphinx::{
+    chunking::fragment::FragmentIdentifier, params::PacketSize, preparer::PreparedFragment,
+};
 pub use tester::NodeTester;
 
 // it feels wrong to redefine it, but I don't want to import the whole of contract commons just for this one type

@@ -19,6 +19,7 @@ use nym_client_core::client::base_client::storage::gateway_details::{
 use nym_client_core::client::key_manager::persistence::OnDiskKeys;
 use nym_client_core::config::GatewayEndpointConfig;
 use nym_client_core::error::ClientCoreError;
+use nym_config::OptionalSet;
 use nym_sphinx::params::PacketSize;
 
 mod build_info;
@@ -81,6 +82,10 @@ pub(crate) struct OverrideConfig {
     medium_toggle: bool,
     nyxd_urls: Option<Vec<url::Url>>,
     enabled_credentials_mode: Option<bool>,
+
+    open_proxy: Option<bool>,
+    enable_statistics: Option<bool>,
+    statistics_recipient: Option<String>,
 }
 
 pub(crate) fn override_config(config: Config, args: OverrideConfig) -> Config {
@@ -126,6 +131,9 @@ pub(crate) fn override_config(config: Config, args: OverrideConfig) -> Config {
             BaseClientConfig::with_disabled_credentials,
             args.enabled_credentials_mode.map(|b| !b),
         )
+        .with_optional(Config::with_open_proxy, args.open_proxy)
+        .with_optional(Config::with_enabled_statistics, args.enable_statistics)
+        .with_optional(Config::with_statistics_recipient, args.statistics_recipient)
 }
 
 pub(crate) async fn execute(args: Cli) -> Result<(), NetworkRequesterError> {
@@ -179,7 +187,7 @@ fn try_upgrade_v1_1_13_config(id: &str) -> Result<bool, NetworkRequesterError> {
 
     let updated_step1: ConfigV1_1_20 = old_config.into();
     let updated_step2: ConfigV1_1_20_2 = updated_step1.into();
-    let (updated, gateway_config) = updated_step2.upgrade();
+    let (updated, gateway_config) = updated_step2.upgrade()?;
     persist_gateway_details(&updated, gateway_config)?;
 
     updated.save_to_default_location()?;
@@ -201,7 +209,7 @@ fn try_upgrade_v1_1_20_config(id: &str) -> Result<bool, NetworkRequesterError> {
     info!("It is going to get updated to the current specification.");
 
     let updated_step1: ConfigV1_1_20_2 = old_config.into();
-    let (updated, gateway_config) = updated_step1.upgrade();
+    let (updated, gateway_config) = updated_step1.upgrade()?;
     persist_gateway_details(&updated, gateway_config)?;
 
     updated.save_to_default_location()?;
@@ -220,7 +228,7 @@ fn try_upgrade_v1_1_20_2_config(id: &str) -> Result<bool, NetworkRequesterError>
     info!("It seems the client is using <= v1.1.20_2 config template.");
     info!("It is going to get updated to the current specification.");
 
-    let (updated, gateway_config) = old_config.upgrade();
+    let (updated, gateway_config) = old_config.upgrade()?;
     persist_gateway_details(&updated, gateway_config)?;
 
     updated.save_to_default_location()?;

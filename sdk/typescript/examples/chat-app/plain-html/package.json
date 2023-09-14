@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "license": "Apache-2.0",
   "dependencies": {
-    "@nymproject/sdk": "1"
+    "@nymproject/sdk": "1.2.0-rc.1"
   },
   "devDependencies": {
     "@babel/core": "^7.15.0",

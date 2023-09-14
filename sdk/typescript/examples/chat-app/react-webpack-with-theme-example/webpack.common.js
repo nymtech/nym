@@ -1,6 +1,6 @@
 const path = require('path');
 const { mergeWithRules } = require('webpack-merge');
-const { webpackCommon } = require('../.webpack/webpack.base');
+const { webpackCommon } = require('../../.webpack/webpack.base');
 
 module.exports = mergeWithRules({
   module: {

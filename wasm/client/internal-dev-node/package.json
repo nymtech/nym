@@ -1,0 +1,16 @@
+{
+  "name": "internal-dev-node",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "node src/index.mjs"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@nymproject/nym-client-wasm": "file:../../../dist/node/wasm/client",
+    "indexeddbshim": "^13.0.0-pre.1",
+    "ws": "^8.13.0"
+  }
+}

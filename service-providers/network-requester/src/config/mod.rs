@@ -112,6 +112,24 @@ impl Config {
         self.base.validate()
     }
 
+    #[must_use]
+    pub fn with_open_proxy(mut self, open_proxy: bool) -> Self {
+        self.network_requester.open_proxy = open_proxy;
+        self
+    }
+
+    #[must_use]
+    pub fn with_enabled_statistics(mut self, enabled_statistics: bool) -> Self {
+        self.network_requester.enabled_statistics = enabled_statistics;
+        self
+    }
+
+    #[must_use]
+    pub fn with_statistics_recipient(mut self, statistics_recipient: String) -> Self {
+        self.network_requester.statistics_recipient = Some(statistics_recipient);
+        self
+    }
+
     // poor man's 'builder' method
     pub fn with_base<F, T>(mut self, f: F, val: T) -> Self
     where
@@ -162,12 +180,28 @@ impl Config {
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct NetworkRequester {
+    /// specifies whether this network requester should run in 'open-proxy' mode
+    /// and thus would attempt to resolve **ANY** request it receives.
+    pub open_proxy: bool,
+
+    /// specifies whether this network requester would send anonymized statistics to a statistics aggregator server
+    pub enabled_statistics: bool,
+
+    /// in case of enabled statistics, specifies mixnet client address where a statistics aggregator is running
+    pub statistics_recipient: Option<String>,
+
+    /// Disable Poisson sending rate, and only send cover traffic occasionally as keepalive messages.
+    /// This is equivalent to setting debug.traffic.disable_main_poisson_packet_distribution = true,
+    /// and debug.cover_traffic.loop_cover_traffic_average_delay = 5s.
     pub disable_poisson_rate: bool,
 }
 
 impl Default for NetworkRequester {
     fn default() -> Self {
         NetworkRequester {
+            open_proxy: false,
+            enabled_statistics: false,
+            statistics_recipient: None,
             disable_poisson_rate: true,
         }
     }

@@ -1,17 +1,21 @@
 # Default target
 all: test
 
-test: clippy-all cargo-test wasm fmt
+test: clippy-all cargo-test contracts-wasm sdk-wasm-test fmt
 
 test-all: test cargo-test-expensive
 
-no-clippy: build cargo-test wasm fmt
+no-clippy: build cargo-test contracts-wasm fmt fmt-browser-extension-storage
 
 happy: fmt clippy-happy test
 
+build: sdk-wasm-build build-browser-extension-storage
+
 # Building release binaries is a little manual as we can't just build --release
 # on all workspaces.
-build-release: build-release-main wasm
+build-release: build-release-main contracts-wasm
+
+clippy: sdk-wasm-lint clippy-browser-extension-storage
 
 # Deprecated
 # For backwards compatibility
@@ -42,6 +46,9 @@ test-$(1):
 
 test-expensive-$(1):
 	cargo test --manifest-path $(2)/Cargo.toml --workspace -- --ignored
+
+build-standalone-$(1):
+	cargo build --manifest-path $(2)/Cargo.toml $(3)
 
 build-$(1):
 	cargo build --manifest-path $(2)/Cargo.toml --workspace $(3)
@@ -74,7 +81,7 @@ endef
 
 $(eval $(call add_cargo_workspace,main,.))
 $(eval $(call add_cargo_workspace,contracts,contracts,--lib --target wasm32-unknown-unknown))
-$(eval $(call add_cargo_workspace,wasm-client,clients/webassembly,--target wasm32-unknown-unknown))
+#$(eval $(call add_cargo_workspace,wasm-client,clients/webassembly,--target wasm32-unknown-unknown))
 $(eval $(call add_cargo_workspace,wallet,nym-wallet,))
 $(eval $(call add_cargo_workspace,connect,nym-connect/desktop))
 
@@ -88,6 +95,67 @@ build-explorer-api:
 build-nym-cli:
 	cargo build -p nym-cli --release
 
+build-browser-extension-storage:
+	cargo build -p extension-storage --target wasm32-unknown-unknown
+
+fmt-browser-extension-storage:
+	cargo fmt -p extension-storage -- --check
+
+clippy-browser-extension-storage:
+	cargo clippy -p extension-storage --target wasm32-unknown-unknown -- -Dwarnings
+
+sdk-wasm: sdk-wasm-build sdk-wasm-test sdk-wasm-lint
+
+sdk-wasm-build:
+	# browser storage
+	$(MAKE) -C nym-browser-extension/storage wasm-pack
+
+	# client
+	$(MAKE) -C wasm/client build
+
+	# node-tester
+	$(MAKE) -C wasm/node-tester build
+
+	# mix-fetch
+	$(MAKE) -C wasm/mix-fetch build
+
+	# full
+	$(MAKE) -C wasm/full-nym-wasm build-full
+
+# run this from npm/yarn to ensure tools are in the path, e.g. yarn build:sdk from root of repo
+sdk-typescript-build:
+	lerna run --scope @nymproject/sdk build --stream
+	lerna run --scope @nymproject/mix-fetch build --stream
+	lerna run --scope @nymproject/node-tester build --stream
+
+sdk-wasm-test:
+#	# client
+#	cargo test -p nym-client-wasm --target wasm32-unknown-unknown
+#
+#	# node-tester
+#	cargo test -p nym-node-tester-wasm --target wasm32-unknown-unknown
+#
+#	# mix-fetch
+#	#cargo test -p nym-wasm-sdk --target wasm32-unknown-unknown
+#
+#	# full
+#	cargo test -p nym-wasm-sdk --target wasm32-unknown-unknown
+
+
+sdk-wasm-lint:
+	# client
+	cargo clippy -p nym-client-wasm --target wasm32-unknown-unknown -- -Dwarnings
+
+	# node-tester
+	cargo clippy -p nym-node-tester-wasm --target wasm32-unknown-unknown -- -Dwarnings
+
+	# mix-fetch
+	$(MAKE) -C wasm/mix-fetch check-fmt
+
+	# full
+	cargo clippy -p nym-wasm-sdk --target wasm32-unknown-unknown -- -Dwarnings
+
+
 # -----------------------------------------------------------------------------
 # Build contracts ready for deploy
 # -----------------------------------------------------------------------------
@@ -98,12 +166,12 @@ MIXNET_CONTRACT=$(CONTRACTS_OUT_DIR)/mixnet_contract.wasm
 SERVICE_PROVIDER_DIRECTORY_CONTRACT=$(CONTRACTS_OUT_DIR)/nym_service_provider_directory.wasm
 NAME_SERVICE_CONTRACT=$(CONTRACTS_OUT_DIR)/nym_name_service.wasm
 
-wasm: wasm-build wasm-opt
+contracts-wasm: contracts-wasm-build contracts-wasm-opt
 
-wasm-build:
+contracts-wasm-build:
 	RUSTFLAGS='-C link-arg=-s' cargo build --lib --manifest-path contracts/Cargo.toml --release --target wasm32-unknown-unknown
 
-wasm-opt:
+contracts-wasm-opt:
 	wasm-opt --disable-sign-ext -Os $(VESTING_CONTRACT) -o $(VESTING_CONTRACT)
 	wasm-opt --disable-sign-ext -Os $(MIXNET_CONTRACT) -o $(MIXNET_CONTRACT)
 	wasm-opt --disable-sign-ext -Os $(SERVICE_PROVIDER_DIRECTORY_CONTRACT) -o $(SERVICE_PROVIDER_DIRECTORY_CONTRACT)
@@ -117,7 +185,7 @@ contract-schema:
 # -----------------------------------------------------------------------------
 
 # NOTE: this seems deprecated an not needed anymore?
-mixnet-opt: wasm
+mixnet-opt: contracts-wasm
 	cd contracts/mixnet && make opt
 
 generate-typescript:

@@ -81,11 +81,20 @@ nr_description = '{{ storage_paths.nr_description }}'
 
 [network_requester]
 
+# specifies whether this network requester should run in 'open-proxy' mode
+# and thus would attempt to resolve **ANY** request it receives.
+open_proxy = {{ network_requester.open_proxy }}
+
+# specifies whether this network requester would send anonymized statistics to a statistics aggregator server
+enabled_statistics = {{ network_requester.enabled_statistics }}
+
+# in case of enabled statistics, specifies mixnet client address where a statistics aggregator is running
+statistics_recipient = '{{ network_requester.statistics_recipient }}'
+
 # Disable Poisson sending rate, and only send cover traffic occasionally as keepalive messages.
 # This is equivalent to setting debug.traffic.disable_main_poisson_packet_distribution = true,
 # and debug.cover_traffic.loop_cover_traffic_average_delay = 5s.
 disable_poisson_rate = {{ network_requester.disable_poisson_rate }}
-
 
 ##### logging configuration options #####
 

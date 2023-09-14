@@ -44,3 +44,5 @@ envs/qwerty.env
 **/.DS_Store
 cpu-cycles/libcpucycles/build
 foxyfox.env
+
+.next

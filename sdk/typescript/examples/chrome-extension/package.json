@@ -1,5 +1,5 @@
 {
-  "name": "chrome-extension",
+  "name": "@nymproject/sdk-example-chrome-extension",
   "version": "1.0.0",
   "description": "This is an example of how Nym can be used within the context of a Chrome extension.",
   "main": "index.js",
@@ -15,6 +15,6 @@
     "webpack-cli": "^5.1.4"
   },
   "dependencies": {
-    "@nymproject/sdk": "^1.1.8"
+    "@nymproject/sdk": "1.2.0-rc.1"
   }
 }

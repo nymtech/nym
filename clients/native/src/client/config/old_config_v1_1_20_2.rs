@@ -1,8 +1,13 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::client::config::persistence::ClientPaths;
-use crate::client::config::{default_config_filepath, Config, Socket, SocketType};
+use crate::{
+    client::config::{
+        default_config_filepath, persistence::ClientPaths, Config, Socket, SocketType,
+    },
+    error::ClientError,
+};
+
 use nym_bin_common::logging::LoggingSettings;
 use nym_client_core::config::disk_persistence::old_v1_1_20_2::CommonClientPathsV1_1_20_2;
 use nym_client_core::config::old_config_v1_1_20_2::ConfigV1_1_20_2 as BaseConfigV1_1_20_2;
@@ -43,18 +48,18 @@ impl ConfigV1_1_20_2 {
 
     // in this upgrade, gateway endpoint configuration was moved out of the config file,
     // so its returned to be stored elsewhere.
-    pub fn upgrade(self) -> (Config, GatewayEndpointConfig) {
+    pub fn upgrade(self) -> Result<(Config, GatewayEndpointConfig), ClientError> {
         let gateway_details = self.base.client.gateway_endpoint.clone().into();
         let config = Config {
             base: self.base.into(),
             socket: self.socket.into(),
             storage_paths: ClientPaths {
-                common_paths: self.storage_paths.common_paths.upgrade_default(),
+                common_paths: self.storage_paths.common_paths.upgrade_default()?,
             },
             logging: self.logging,
         };
 
-        (config, gateway_details)
+        Ok((config, gateway_details))
     }
 }
 

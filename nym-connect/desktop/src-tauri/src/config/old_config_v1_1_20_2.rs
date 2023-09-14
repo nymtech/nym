@@ -3,6 +3,7 @@
 
 use crate::config::persistence::NymConnectPaths;
 use crate::config::{default_config_filepath, Config};
+use crate::error::Result;
 use nym_bin_common::logging::LoggingSettings;
 use nym_client_core::config::disk_persistence::old_v1_1_20_2::CommonClientPathsV1_1_20_2;
 use nym_client_core::config::GatewayEndpointConfig;
@@ -39,16 +40,16 @@ impl ConfigV1_1_20_2 {
 
     // in this upgrade, gateway endpoint configuration was moved out of the config file,
     // so its returned to be stored elsewhere.
-    pub fn upgrade(self) -> (Config, GatewayEndpointConfig) {
+    pub fn upgrade(self) -> Result<(Config, GatewayEndpointConfig)> {
         let gateway_details = self.core.base.client.gateway_endpoint.clone().into();
         let config = Config {
             core: self.core.into(),
             storage_paths: NymConnectPaths {
-                common_paths: self.storage_paths.common_paths.upgrade_default(),
+                common_paths: self.storage_paths.common_paths.upgrade_default()?,
             },
             // logging: self.logging,
         };
 
-        (config, gateway_details)
+        Ok((config, gateway_details))
     }
 }

@@ -1,6 +1,6 @@
 [package]
 name = "nym-connect"
-version = "1.1.20"
+version = "1.1.21"
 description = "nym-connect"
 authors = ["Nym Technologies SA"]
 license = ""
@@ -37,7 +37,8 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 serde_repr = "0.1"
 tap = "1.0.1"
-tauri = { version = "^1.2.2", features = ["clipboard-write-text", "macos-private-api", "notification-all", "shell-open", "system-tray", "updater", "window-close", "window-minimize", "window-start-dragging"] }
+# 07.07.23: JS: I changed the version from ^1.2.2 to fix up indirect import of web-sys
+tauri = { version = "1.4.1", features = ["clipboard-write-text", "macos-private-api", "notification-all", "shell-open", "system-tray", "updater", "window-close", "window-minimize", "window-start-dragging"] }
 #tendermint-rpc = "0.23.0"
 thiserror = "1.0"
 time = { version = "0.3.17", features = ["local-offset"] }

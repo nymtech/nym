@@ -1,7 +1,7 @@
 import React, { useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { Box, Button } from '@mui/material';
 import { Download } from '@mui/icons-material';
-import { NodeTestResultResponse, NodeTester, TestStatus, createNodeTesterClient } from '@nymproject/sdk';
+import { NodeTestResultResponse, NodeTester, createNodeTesterClient } from '@nymproject/node-tester';
 import { format } from 'date-fns';
 import { AppContext, useBondingContext } from 'src/context';
 import { LoadingModal } from 'src/components/Modals/LoadingModal';
@@ -9,6 +9,7 @@ import { Results } from 'src/components/TestNode/Results';
 import { ErrorModal } from 'src/components/Modals/ErrorModal';
 import { PrintResults } from 'src/components/TestNode/PrintResults';
 import { MAINNET_VALIDATOR_URL, QA_VALIDATOR_URL } from 'src/constants';
+import { TestStatus } from 'src/components/TestNode/types';
 
 export const NodeTestPage = () => {
   const [nodeTestClient, setNodeTestClient] = useState<NodeTester>();

@@ -6,7 +6,7 @@ Nym is the first system we're aware of which provides integrated protection on b
 
 The diagram and brief explainer texts below give a high level overview of the difference between Nym and other comparable systems. 
 
-> If you want to dig more deeply into the way traffic is packetised and moved through the mixnet, check out the [Mixnet Traffic Flow](https://nymtech.net/docs/stable/architecture/traffic-flow) page of the docs. 
+> If you want to dig more deeply into the way traffic is packetised and moved through the mixnet, check out the [Mixnet Traffic Flow](https://nymtech.net/docs/architecture/traffic-flow.html) page of the docs. 
 
 <img src="../images/nym-vs-animation.gif"/>
 

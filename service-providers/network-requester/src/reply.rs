@@ -140,9 +140,6 @@ impl MixnetMessage {
         data: Vec<u8>,
         closed_socket: bool,
     ) -> Self {
-        if seq == 0 && data.is_empty() {
-            println!("new empty response with 0 seq")
-        }
         let response_content = SocketData::new(seq, connection_id, closed_socket, data);
         Self::new_network_data_response(address, request_version, connection_id, response_content)
     }

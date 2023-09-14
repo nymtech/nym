@@ -9,6 +9,7 @@ use nym_service_providers_common::interface::{Serializable, ServiceProviderReque
 use nym_sphinx_addressing::clients::{Recipient, RecipientFormattingError};
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
+use std::fmt::{Debug, Formatter};
 use tap::TapFallible;
 use thiserror::Error;
 
@@ -75,12 +76,25 @@ impl RequestDeserializationError {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct ConnectRequest {
     // TODO: is connection_id redundant now?
     pub conn_id: ConnectionId,
     pub remote_addr: RemoteAddress,
     pub return_address: Option<Recipient>,
+}
+
+impl Debug for ConnectRequest {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ConnectRequest")
+            .field("conn_id", &self.conn_id)
+            .field("remote_addr", &self.remote_addr)
+            .field(
+                "return_address",
+                &self.return_address.map(|r| r.to_string()),
+            )
+            .finish()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

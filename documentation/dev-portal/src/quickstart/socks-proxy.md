@@ -12,7 +12,7 @@ If you are using a different operating system, head over to the [Building from S
 
 ### Initialise your socks5 client
 
-Use the following command to initialise your socks5 client with the address of a Nym-operated [Network Requester](https://nymtech.net/docs/nodes/network-requester-setup.html) as a provider (the endpoint that will be proxying your traffic out of the mixnet) for ease:
+Use the following command to initialise your socks5 client with the address of a Nym-operated [Network Requester](https://nymtech.net/docs/nodes/network-requester.html) as a provider (the endpoint that will be proxying your traffic out of the mixnet) for ease:
 
 ```
 ./nym-socks5-client init --id quickstart --provider Entztfv6Uaz2hpYHQJ6JKoaCTpDL5dja18SuQWVJAmmx.Cvhn9rBJw5Ay9wgHcbgCnVg89MPSV5s2muPV2YF1BXYu@Fo4f4SQLdoyoGkFae5TpVhRVoXCF8UiypLVGtGjujVPf

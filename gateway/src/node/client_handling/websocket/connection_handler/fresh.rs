@@ -1,32 +1,42 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::node::client_handling::active_clients::ActiveClientsStore;
-use crate::node::client_handling::websocket::connection_handler::coconut::CoconutVerifier;
-use crate::node::client_handling::websocket::connection_handler::{
-    AuthenticatedHandler, ClientDetails, InitialAuthResult, SocketStream,
+use futures::{
+    channel::{mpsc, oneshot},
+    SinkExt, StreamExt,
 };
-use crate::node::storage::error::StorageError;
-use crate::node::storage::Storage;
-use futures::{channel::mpsc, SinkExt, StreamExt};
 use log::*;
 use nym_crypto::asymmetric::identity;
 use nym_gateway_requests::authentication::encrypted_address::{
     EncryptedAddressBytes, EncryptedAddressConversionError,
 };
-use nym_gateway_requests::iv::{IVConversionError, IV};
-use nym_gateway_requests::registration::handshake::error::HandshakeError;
-use nym_gateway_requests::registration::handshake::{gateway_handshake, SharedKeys};
-use nym_gateway_requests::types::{ClientControlRequest, ServerResponse};
-use nym_gateway_requests::{BinaryResponse, PROTOCOL_VERSION};
+use nym_gateway_requests::{
+    iv::{IVConversionError, IV},
+    registration::handshake::{error::HandshakeError, gateway_handshake, SharedKeys},
+    types::{ClientControlRequest, ServerResponse},
+    BinaryResponse, PROTOCOL_VERSION,
+};
 use nym_mixnet_client::forwarder::MixForwardingSender;
 use nym_sphinx::DestinationAddressBytes;
 use rand::{CryptoRng, Rng};
-use std::convert::TryFrom;
-use std::sync::Arc;
+use std::{convert::TryFrom, sync::Arc, time::Duration};
 use thiserror::Error;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_tungstenite::tungstenite::{protocol::Message, Error as WsError};
+
+use crate::node::{
+    client_handling::{
+        active_clients::ActiveClientsStore,
+        websocket::{
+            connection_handler::{
+                coconut::CoconutVerifier, AuthenticatedHandler, ClientDetails, InitialAuthResult,
+                SocketStream,
+            },
+            message_receiver::{IsActive, IsActiveRequestSender},
+        },
+    },
+    storage::{error::StorageError, Storage},
+};
 
 #[derive(Debug, Error)]
 pub(crate) enum InitialAuthenticationError {
@@ -394,6 +404,59 @@ where
         }
     }
 
+    async fn handle_duplicate_client(
+        &mut self,
+        address: DestinationAddressBytes,
+        mut is_active_request_tx: IsActiveRequestSender,
+    ) -> Result<(), InitialAuthenticationError> {
+        // Ask the other connection to ping if they are still active.
+        // Use a oneshot channel to return the result to us
+        let (ping_result_sender, ping_result_receiver) = oneshot::channel();
+        log::debug!("Asking other connection handler to ping the connected client to see if it is still active");
+        if let Err(err) = is_active_request_tx.send(ping_result_sender).await {
+            warn!("Failed to send ping request to other handler: {err}");
+        }
+
+        // Wait for the reply
+        match tokio::time::timeout(Duration::from_millis(2000), ping_result_receiver).await {
+            Ok(Ok(res)) => {
+                match res {
+                    IsActive::NotActive => {
+                        // The other handler reported that the client is not active, so we can
+                        // disconnect the other client and continue with this connection.
+                        log::debug!("Other handler reports it is not active");
+                        self.active_clients_store.disconnect(address);
+                    }
+                    IsActive::Active => {
+                        // The other handled reported a positive reply, so we have to assume it's
+                        // still active and disconnect this connection.
+                        log::info!("Other handler reports it is active");
+                        return Err(InitialAuthenticationError::DuplicateConnection);
+                    }
+                    IsActive::BusyPinging => {
+                        // The other handler is already busy pinging the client, so we have to
+                        // assume it's still active and disconnect this connection.
+                        log::debug!("Other handler reports it is already busy pinging the client");
+                        return Err(InitialAuthenticationError::DuplicateConnection);
+                    }
+                }
+            }
+            Ok(Err(_)) => {
+                // Other channel failed to reply (the channel sender probably dropped)
+                log::info!("Other connection failed to reply, disconnecting it in favour of this new connection");
+                self.active_clients_store.disconnect(address);
+            }
+            Err(_) => {
+                // Timeout waiting for reply
+                log::warn!(
+                    "Other connection timed out, disconnecting it in favour of this new connection"
+                );
+                self.active_clients_store.disconnect(address);
+            }
+        }
+        Ok(())
+    }
+
     /// Tries to handle the received authentication request by checking correctness of the received data.
     ///
     /// # Arguments
@@ -418,8 +481,11 @@ where
         let encrypted_address = EncryptedAddressBytes::try_from_base58_string(enc_address)?;
         let iv = IV::try_from_base58_string(iv)?;
 
-        if self.active_clients_store.get(address).is_some() {
-            return Err(InitialAuthenticationError::DuplicateConnection);
+        // Check for duplicate clients
+        if let Some(client_tx) = self.active_clients_store.get(address) {
+            log::warn!("Detected duplicate connection for client: {}", address);
+            self.handle_duplicate_client(address, client_tx.is_active_request_sender)
+                .await?;
         }
 
         let shared_keys = self
@@ -606,12 +672,19 @@ where
                             }
 
                             return if let Some(client_details) = auth_result.client_details {
-                                self.active_clients_store
-                                    .insert(client_details.address, mix_sender);
+                                // Channel for handlers to ask other handlers if they are still active.
+                                let (is_active_request_sender, is_active_request_receiver) =
+                                    mpsc::unbounded();
+                                self.active_clients_store.insert(
+                                    client_details.address,
+                                    mix_sender,
+                                    is_active_request_sender,
+                                );
                                 Some(AuthenticatedHandler::upgrade(
                                     self,
                                     client_details,
                                     mix_receiver,
+                                    is_active_request_receiver,
                                 ))
                             } else {
                                 None

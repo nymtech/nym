@@ -242,8 +242,7 @@ impl PrivateKey {
     /// Signs text with the provided Ed25519 private key, returning a base58 signature
     pub fn sign_text(&self, text: &str) -> String {
         let signature_bytes = self.sign(text.as_ref()).to_bytes();
-        let signature = bs58::encode(signature_bytes).into_string();
-        signature
+        bs58::encode(signature_bytes).into_string()
     }
 }
 

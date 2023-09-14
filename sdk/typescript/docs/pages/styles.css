@@ -1,27 +1,27 @@
 
-/* Dark mode */
-/* html.dark > ._next div {
-    background-color: #121726;
-} */
+/* DARK MODE */
 
+/*General*/
 html.dark > body > div {
+    background-color: #121726;
+ }  
+
+.dark footer, .dark nav {
     background-color: #121726 !important;
  }  
 
-.dark footer, nav {
-    background-color: #121726;
- }  
-
- .dark footer {
-    background-color: #121726 !important; 
- }  
+ .dark div .nx-sticky {
+    background-color: #121726 !important;
+}
 
 
- /* .nx-sticky.nx-bottom-0.nx-bg-white.dark{
+/* Code blocks*/
+.nx-absolute.nx-top-0 {
+    background: #fb6e4e !important;
+}
 
-    background-color: #121726;
-} */
 
+/* LIGHT MODE */
 
 .nextra-code-block > div {
     background: #eee;

@@ -9,6 +9,7 @@ import Paper from '@mui/material/Paper';
 import Box from '@mui/material/Box';
 import { settings } from './client';
 import { TextField, Typography } from '@mui/material';
+import Divider from '@mui/material/Divider';
 
 const signerAccount = async (mnemonic) => {
   // create a wallet to sign transactions with the mnemonic
@@ -200,61 +201,114 @@ export const Wallet = () => {
   };
 
   return (
-    <Paper style={{ marginTop: '1rem', padding: '1rem' }}>
-      <Typography variant="h5" textAlign="center">
-        Basic Wallet
-      </Typography>
-      <Box marginY="1rem">
-        <Typography variant="body1">Enter the mnemonic</Typography>
-        <TextField type="text" placeholder="mnemonic" onChange={(e) => setMnemonic(e.target.value)} fullWidth />
-      </Box>
-      {account && balance ? (
-        <Box marginY="1rem">
-          <Typography variant="body1">Address: {account}</Typography>
-          <Typography variant="body1">
-            Balance: {balance?.amount} {balance?.denom}
-          </Typography>
+    <Box padding={3}>
+      <Paper style={{ marginTop: '1rem', padding: '1rem' }}>
+        <Typography variant="h5" textAlign="center">
+          Basic Wallet
+        </Typography>
+        <Box padding={3}>
+          <Typography variant="h6">Your account</Typography>
+          <Box marginY={3}>
+            <Typography variant="body1" marginBottom={3}>
+              Enter the mnemonic
+            </Typography>
+            <TextField type="text" placeholder="mnemonic" onChange={(e) => setMnemonic(e.target.value)} fullWidth />
+          </Box>
+          {account && balance ? (
+            <Box>
+              <Typography variant="body1">Address: {account}</Typography>
+              <Typography variant="body1">
+                Balance: {balance?.amount} {balance?.denom}
+              </Typography>
+            </Box>
+          ) : (
+            <Box>
+              <Typography variant="body1">Please, enter your nemonic to receive your account info</Typography>
+            </Box>
+          )}
         </Box>
-      ) : (
-        <Box marginY="1rem">
-          <Typography variant="body1">Please, enter your nemonic to receive this info</Typography>
+        <Divider />
+        <Box padding={3}>
+          <Typography variant="h6">Send Tokens</Typography>
+          <Box marginTop={3} display="flex" flexDirection="column">
+            <Input type="text" placeholder="Recipient Address" onChange={(e) => setRecipientAddress(e.target.value)} />
+            <Box marginY={3} display="flex" justifyContent="space-between">
+              <Input
+                type="number"
+                placeholder="Amount"
+                onChange={(e) => {
+                  setTokensToSend(e.target.value);
+                }}
+              />
+              <Button variant="outlined" onClick={() => doSendTokens()}>
+                SendTokens
+              </Button>
+            </Box>
+          </Box>
         </Box>
-      )}
-      {/* <p>Delegations: {delegations}</p> */}
-      <Box>
-        <p>Send Tokens</p>
-        <Input type="text" placeholder="Recipient Address" onChange={(e) => setRecipientAddress(e.target.value)} />
-        <Input
-          type="number"
-          placeholder="Amount"
-          onChange={(e) => {
-            setTokensToSend(e.target.value);
-          }}
-        />
-        <Button onClick={() => doSendTokens()}>SendTokens</Button>
-      </Box>
-      {delegations && (
-        <Box>
-          <Button onClick={doUndelegateAll}>Undelegate All</Button>
+        <Divider />
+        <Box padding={3}>
+          <Box>
+            <Typography variant="h6">Delegations</Typography>
+            <Box marginY={3} display="flex" flexDirection="column">
+              <Typography marginBottom={3} variant="body1">
+                Make a delegation
+              </Typography>
+              <Input
+                type="number"
+                placeholder="Mixnode ID"
+                onChange={(e) => setDelegationNodeId(parseInt(e.target.value, 10))}
+              />
+              <Box marginTop={3} display="flex" justifyContent="space-between">
+                <Input
+                  type="number"
+                  placeholder="Amount"
+                  onChange={(e) => setAmountToBeDelegated(parseInt(e.target.value, 10))}
+                />
+                <Button
+                  variant="outlined"
+                  onClick={() => doDelegate({ mixId: delegationNodeId, amount: amountToBeDelegated })}
+                >
+                  Delegate
+                </Button>
+              </Box>
+            </Box>
+          </Box>
+          <Box marginBottom={3}>
+          <Typography marginBottom={3} variant="body1">
+                Your delegations:
+              </Typography>
+            <Box marginY={3} display="flex" flexDirection="column">
+              {!delegations?.delegations?.length ? (
+                <Typography>You don't have delegations</Typography>
+              ) : (
+                delegations?.delegations.map((delegation: any) => (
+                  <Box>
+                    <Typography>Mix ID: {delegation.mix_id}</Typography>
+                  </Box>
+                ))
+              )}
+            </Box>
+            {delegations && (
+              <Box marginBottom={3}>
+                <Button variant="outlined" onClick={doUndelegateAll}>
+                  Undelegate All
+                </Button>
+              </Box>
+            )}
+            <Box>
+              <Button variant="outlined" onClick={() => doWithdrawRewards()}>
+                Withdraw rewards
+              </Button>
+            </Box>
+          </Box>
         </Box>
-      )}
-      <Box>
-        <p>Delegate</p>
-        <Input type="number" placeholder="Mix ID" onChange={(e) => setDelegationNodeId(parseInt(e.target.value, 10))} />
-        <Input
-          type="number"
-          placeholder="Amount"
-          onChange={(e) => setAmountToBeDelegated(parseInt(e.target.value, 10))}
-        />
-        <Button onClick={() => doDelegate({ mixId: delegationNodeId, amount: amountToBeDelegated })}>Delegate</Button>
-      </Box>
-      <Box>
-        <Button onClick={() => doWithdrawRewards()}>Withdraw rewards</Button>
-      </Box>
-      <Box>
-        <h3>Log</h3>
+      </Paper>
+
+      <Box marginTop={3}>
+        <Typography variant="h5">Transaction Logs:</Typography>
         {log}
       </Box>
-    </Paper>
+    </Box>
   );
 };

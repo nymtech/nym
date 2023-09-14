@@ -1,5 +1,16 @@
 import React from 'react';
-import { Box, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TableSortLabel } from '@mui/material';
+import {
+  Box,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  TableSortLabel,
+  Typography,
+} from '@mui/material';
 import { visuallyHidden } from '@mui/utils';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import { orderBy as _orderBy } from 'lodash';
@@ -9,6 +20,7 @@ import { isDelegation, isPendingDelegation, TDelegations } from '../../context/d
 import { DelegationItem } from './DelegationItem';
 import { PendingDelegationItem } from './PendingDelegationItem';
 import { LoadingModal } from '../Modals/LoadingModal';
+import { InfoTooltip } from '../InfoToolTip';
 
 type Order = 'asc' | 'desc';
 type AdditionalTypes = { profit_margin_percent: number; operating_cost: number };
@@ -22,7 +34,7 @@ interface EnhancedTableProps {
 
 interface HeadCell {
   id: string;
-  label: string;
+  label: string | React.ReactNode;
   sortable: boolean;
   disablePadding?: boolean;
   align: 'left' | 'center' | 'right';
@@ -34,7 +46,17 @@ const headCells: HeadCell[] = [
   { id: 'profit_margin_percent', label: 'Profit margin', sortable: true, align: 'left' },
   { id: 'operating_cost', label: 'Operating Cost', sortable: true, align: 'left' },
   { id: 'stake_saturation', label: 'Stake saturation', sortable: true, align: 'left' },
-  { id: 'delegated_on_iso_datetime', label: 'Delegated on', sortable: true, align: 'left' },
+  {
+    id: 'delegated_on_iso_datetime',
+    label: (
+      <Stack direction="row" alignItems="center" gap={1}>
+        <InfoTooltip title="The date you made your delegation. Once you claim rewards for a node, the delegation date resets to the date you claim the reward." />
+        <Typography variant="body2">Delegated on</Typography>
+      </Stack>
+    ),
+    sortable: true,
+    align: 'left',
+  },
   { id: 'amount', label: 'Delegation', sortable: true, align: 'left' },
   { id: 'unclaimed_rewards', label: 'Reward', sortable: true, align: 'left' },
   { id: 'uses_locked_tokens', label: '', sortable: false, align: 'left' },

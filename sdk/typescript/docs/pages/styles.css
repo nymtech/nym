@@ -1,64 +1,8 @@
-
-/* DARK MODE */
-html.dark > body > div {
-    background-color: #121726;
- }  
-
-.dark footer, .dark nav {
-    background-color: #121726 !important;
- }  
-
- .dark div .nx-sticky {
-    background-color: #121726 !important;
-}
-
-
-
-/* LIGHT MODE */
-.nextra-code-block > div {
-    background: #eee;
+div.nextra-code-block > div  {
+    background:hsl(30, 95%, 55%) !important;
 }
 
 .nextra-code-block > pre {
     max-height: 350px;
     scroll-y: auto;
-}
-
-
-
-/* DARK AND LIGHT*/ 
-
-/* Code blocks*/
-.nx-absolute.nx-top-0 {
-    background: #fb6e4e !important;
-}
-
-aside ul > li > a:hover{
-    background: #fb6e4ea9 !important;
-}
-
-aside ul > li > a:active{
-    background: #fb6e4e !important;
-}
-
-
-/* Side bar */
-.open button:hover {
-    background: #fb6e4ea9 !important;
-    color:rgb(0, 0, 0);
-}
-
-.open button:active {
-    background: #fb6e4ea9 !important;
-    color:rgb(0, 0, 0);
-}
-
-.nx-flex a:active {
-    background: #fb6e4e !important;
-    color:rgb(0, 0, 0);
-}
-
-button:hover {
-    background: #fb6e4ea9 !important;
-    color:rgb(0, 0, 0);
 }

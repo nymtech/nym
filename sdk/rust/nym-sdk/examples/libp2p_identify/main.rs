@@ -31,7 +31,7 @@
 //! In the second terminal window, start a new instance of the example with:
 //!
 //! ```sh
-//! cargo run -- /nym/<NYM_ADDRESS>  
+//! cargo run -- /nym/<NYM_ADDRESS>
 //! ```
 //! The two nodes establish a connection, negotiate the identify protocol
 //! and will send each other identify info which is then printed to the console.
@@ -40,11 +40,10 @@ use crate::rust_libp2p_nym::transport::NymTransport;
 use futures::prelude::*;
 use libp2p::swarm::{keep_alive, NetworkBehaviour};
 use libp2p::Multiaddr;
-use libp2p::{identify, identity, ping, swarm::SwarmEvent, PeerId};
+use libp2p::{identify, identity, swarm::SwarmEvent, PeerId};
 use log::{debug, LevelFilter, info};
 use nym_sdk::mixnet::{MixnetClientBuilder, NymNetworkDetails};
 use std::error::Error;
-use tokio::time::Duration;
 use nym_network_defaults::setup_env;
 
 #[path = "../libp2p_shared/lib.rs"]
@@ -64,7 +63,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // setup a mixnet client using the sandbox testnet instead of mainnet (reliability check)
     setup_env(Some("../../../envs/sandbox.env"));
     let sandbox_network = NymNetworkDetails::new_from_env();
-    let _mnemonic = String::from("my super secret mnemonic");
+    let _mnemonic = String::from("load from file IRL obviously");
     let mixnet_client = MixnetClientBuilder::new_ephemeral()
         .network_details(sandbox_network)
         .build()
@@ -84,7 +83,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 .boxed(),
             MyBehaviour {
                 identify: identify::Behaviour::new(identify::Config::new(
-                    "/ipfs/id/2.0.0".to_string(),
+                    // "/ipfs/id/2.0.0".to_string(),
+                    "/protocol/berg/demo".to_string(),
                     local_key.public(),
                 )),
                 keep_alive: keep_alive::Behaviour,

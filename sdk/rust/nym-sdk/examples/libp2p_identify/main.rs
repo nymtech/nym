@@ -38,14 +38,14 @@
 
 use crate::rust_libp2p_nym::transport::NymTransport;
 use futures::prelude::*;
-use libp2p::swarm::SwarmEvent::ListenerError;
-use libp2p::swarm::{keep_alive, KeepAlive, NetworkBehaviour};
+use libp2p::swarm::{keep_alive, NetworkBehaviour};
 use libp2p::Multiaddr;
-use libp2p::{identify, identity, ping, swarm::SwarmEvent, PeerId, Transport};
+use libp2p::{identify, identity, ping, swarm::SwarmEvent, PeerId};
 use log::{debug, LevelFilter, info};
-use nym_sdk::mixnet::MixnetClient;
+use nym_sdk::mixnet::{MixnetClientBuilder, NymNetworkDetails};
 use std::error::Error;
 use tokio::time::Duration;
+use nym_network_defaults::setup_env;
 
 #[path = "../libp2p_shared/lib.rs"]
 mod rust_libp2p_nym;
@@ -61,26 +61,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let local_peer_id = PeerId::from(local_key.public());
     println!("Local peer id: {local_peer_id:?}");
 
-    // Create a identify network behaviour.
-    // TODO bring in other behaviour attributes (Ping, KeepAlive)
-    // let behaviour = identify::Behaviour::new(identify::Config::new(
-    //     "/ipfs/id/2.0.0".to_string(),
-    //     local_key.public(),
-    // ));
-
-    // TODO setup a client with sandbox instead of mainnet to check for speed
-    // setup_env(Some("../../../envs/sandbox.env"));
-    //
-    // let sandbox_network = mixnet::NymNetworkDetails::new_from_env();
-    // let mnemonic = String::from("my super secret mnemonic");
-    //
-    // let mixnet_client = mixnet::MixnetClientBuilder::new_ephemeral()
-    //     .network_details(sandbox_network)
-    //     .enable_credentials_mode()
-    //     .build()
-    //     .await?;
-
-    let client = MixnetClient::connect_new().await.unwrap();
+    // setup a mixnet client using the sandbox testnet instead of mainnet (reliability check)
+    setup_env(Some("../../../envs/sandbox.env"));
+    let sandbox_network = NymNetworkDetails::new_from_env();
+    let _mnemonic = String::from("my super secret mnemonic");
+    let mixnet_client = MixnetClientBuilder::new_ephemeral()
+        .network_details(sandbox_network)
+        .build()
+        .await?;
+    let client = mixnet_client.connect_to_mixnet().await?;
     let transport = NymTransport::new(client, local_key.clone()).await?;
     let listen_addr = transport.listen_addr.clone();
 
@@ -136,7 +125,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
             })) => {
                 info!("Received {info:?}")
             }
-            // START DEBUG PRINTING TO FIND other
             SwarmEvent::Dialing(peer_id) => {
                 info!("Dial attempt from {:?}", peer_id)
             }
@@ -164,9 +152,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
             SwarmEvent::ListenerError { listener_id, error } => {
                 info!("{listener_id:?} stopped listening with {error:?}")
             }
-            // END DEBUG PRINTING
             _ => {
-                // println!("got something else")
+                info!("Unhandled incoming")
             }
         }
     }

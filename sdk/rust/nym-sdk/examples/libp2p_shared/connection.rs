@@ -153,8 +153,12 @@ impl Connection {
         }
 
         // notify substream that it's closed
-        let close_tx = self.substream_close_txs.remove(&substream_id);
-        close_tx.unwrap().send(()).unwrap();
+        let mut close_tx = self.substream_close_txs.remove(&substream_id);
+        match close_tx {
+            Some(Error) => { println!("substream already dropped") }
+            _ => { println!("other") }
+        }
+        // close_tx.unwrap().send(()).expect("substream to be able to close");
 
         // notify poll_close that the substream is closed
         self.close_tx

@@ -126,6 +126,20 @@ pub fn setup_mix_fetch_with_config(config: MixFetchConfig, opts: MixFetchOptsSim
     })
 }
 
+#[wasm_bindgen(js_name = disconnectMixFetch)]
+pub async fn disconnect_mix_fetch() -> Promise {
+    future_to_promise(async move {
+        disconnect_mix_fetch_async()
+            .await
+            .map(|_| JsValue::undefined())
+            .map_promise_err()
+    })
+}
+
+async fn disconnect_mix_fetch_async() -> Result<(), MixFetchError> {
+    mix_fetch_client()?.disconnect().await
+}
+
 pub(super) fn set_mix_fetch_client(mix_fetch_client: MixFetchClient) -> Result<(), MixFetchError> {
     MIX_FETCH
         .set(mix_fetch_client)
@@ -133,7 +147,12 @@ pub(super) fn set_mix_fetch_client(mix_fetch_client: MixFetchClient) -> Result<(
 }
 
 pub(super) fn mix_fetch_client() -> Result<&'static MixFetchClient, MixFetchError> {
-    MIX_FETCH.get().ok_or(MixFetchError::Uninitialised)
+    let mix_fetch = MIX_FETCH.get().ok_or(MixFetchError::Uninitialised)?;
+    if !mix_fetch.active() {
+        return Err(MixFetchError::Disconnected);
+    }
+
+    Ok(mix_fetch)
 }
 
 async fn setup_mix_fetch_async(

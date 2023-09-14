@@ -10,6 +10,8 @@ use crate::socks_helpers::{socks5_connect_request, socks5_data_request};
 use crate::{config, RequestId};
 use js_sys::Promise;
 use nym_socks5_requests::RemoteAddress;
+use std::sync::atomic::{AtomicBool, Ordering};
+use tokio::sync::Mutex;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::future_to_promise;
 use wasm_client_core::client::base_client::{BaseClientBuilder, ClientInput, ClientOutput};
@@ -26,6 +28,8 @@ use wasm_utils::error::PromisableResult;
 
 #[wasm_bindgen]
 pub struct MixFetchClient {
+    invalidated: AtomicBool,
+
     mix_fetch_config: config::MixFetch,
 
     self_address: Recipient,
@@ -34,9 +38,8 @@ pub struct MixFetchClient {
 
     requests: ActiveRequests,
 
-    // even though we don't use graceful shutdowns, other components rely on existence of this struct
-    // and if it's dropped, everything will start going offline
-    _task_manager: TaskManager,
+    // this has to be guarded by a mutex to be able to disconnect with an immutable reference
+    _task_manager: Mutex<TaskManager>,
 }
 
 #[wasm_bindgen]
@@ -126,12 +129,13 @@ impl MixFetchClientBuilder {
         Self::start_reconstructor(client_output, active_requests.clone());
 
         Ok(MixFetchClient {
+            invalidated: AtomicBool::new(false),
             mix_fetch_config: self.config.mix_fetch,
             self_address,
             client_input,
             requests: active_requests,
             // this cannot failed as we haven't passed an external task manager
-            _task_manager: started_client.task_handle.try_into_task_manager().unwrap(),
+            _task_manager: Mutex::new(started_client.task_handle.try_into_task_manager().unwrap()),
         })
     }
 }
@@ -162,6 +166,26 @@ impl MixFetchClient {
                 .await
                 .into_promise_result()
         })
+    }
+
+    pub fn active(&self) -> bool {
+        !self.invalidated.load(Ordering::Relaxed)
+    }
+
+    pub async fn disconnect(&self) -> Result<(), MixFetchError> {
+        self.invalidated.store(true, Ordering::Relaxed);
+
+        console_log!("sending shutdown signal");
+        let mut shutdown_guard = self._task_manager.lock().await;
+        shutdown_guard.signal_shutdown().ok();
+
+        console_log!("waiting for shutdown to complete");
+        shutdown_guard.wait_for_shutdown().await;
+
+        self.requests.invalidate_all().await;
+
+        console_log!("done");
+        Ok(())
     }
 
     pub fn self_address(&self) -> String {

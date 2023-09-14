@@ -6,13 +6,16 @@ use log::{log, Level};
 use std::future::Future;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::{error::Error, time::Duration};
-use tokio::{
-    sync::{
-        mpsc,
-        watch::{self, error::SendError},
-    },
-    time::sleep,
+use tokio::sync::{
+    mpsc,
+    watch::{self, error::SendError},
 };
+
+#[cfg(not(target_arch = "wasm32"))]
+use tokio::time::{sleep, timeout};
+
+#[cfg(target_arch = "wasm32")]
+use wasmtimer::tokio::{sleep, timeout};
 
 const DEFAULT_SHUTDOWN_TIMER_SECS: u64 = 5;
 
@@ -216,16 +219,10 @@ impl TaskManager {
         #[cfg(not(target_arch = "wasm32"))]
         let interrupt_future = tokio::signal::ctrl_c();
 
-        // in wasm we'll never get our shutdown anyway...
         #[cfg(target_arch = "wasm32")]
         let interrupt_future = futures::future::pending::<()>();
 
-        #[cfg(not(target_arch = "wasm32"))]
-        let wait_future = tokio::time::sleep(Duration::from_secs(self.shutdown_timer_secs));
-
-        // TODO: we should be using a `Delay` here for wasm
-        #[cfg(target_arch = "wasm32")]
-        let wait_future = futures::future::pending::<()>();
+        let wait_future = sleep(Duration::from_secs(self.shutdown_timer_secs));
 
         tokio::select! {
             _ = self.notify_tx.closed() => {
@@ -300,7 +297,6 @@ impl TaskClient {
     const MAX_NAME_LENGTH: usize = 128;
     const OVERFLOW_NAME: &'static str = "reached maximum TaskClient children name depth";
 
-    #[cfg(not(target_arch = "wasm32"))]
     const SHUTDOWN_TIMEOUT_WAITING_FOR_SIGNAL_ON_EXIT: Duration = Duration::from_secs(5);
 
     fn new(
@@ -428,12 +424,10 @@ impl TaskClient {
 
     pub async fn recv_timeout(&mut self) {
         if self.mode.is_dummy() {
-            #[cfg_attr(target_arch = "wasm32", allow(clippy::needless_return))]
             return pending().await;
         }
 
-        #[cfg(not(target_arch = "wasm32"))]
-        if let Err(timeout) = tokio::time::timeout(
+        if let Err(timeout) = timeout(
             Self::SHUTDOWN_TIMEOUT_WAITING_FOR_SIGNAL_ON_EXIT,
             self.recv(),
         )

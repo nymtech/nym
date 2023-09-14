@@ -55,7 +55,7 @@ func setLoggingLevel(_ js.Value, args []js.Value) any {
 
 func mixFetch(_ js.Value, args []js.Value) (any, error) {
 	if !rust_bridge.RsIsInitialised() {
-		return nil, errors.New("mix fetch hasn't been initialised")
+		return nil, errors.New("mix fetch is not available")
 	}
 
 	if len(args) == 0 {

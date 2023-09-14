@@ -111,13 +111,13 @@ export const DelegationContextProvider: FC<{
         },
       }));
 
-      const totalDelegationsAndRewards = (+data.total_delegations.amount + +data.total_rewards.amount).toFixed(6);
+      const delegationsAndRewards = (+data.total_delegations.amount + +data.total_rewards.amount).toFixed(6);
 
       setPendingDelegations(pending);
       setDelegations([...items, ...pendingOnNewNodes]);
       setTotalDelegations(`${data.total_delegations.amount} ${data.total_delegations.denom}`);
       setTotalRewards(`${data.total_rewards.amount} ${data.total_rewards.denom}`);
-      setTotalDelegationsAndRewards(`${totalDelegationsAndRewards} ${data.total_delegations.denom}`);
+      setTotalDelegationsAndRewards(`${delegationsAndRewards} ${data.total_delegations.denom}`);
     } catch (e) {
       Console.error(e);
     }

@@ -89,7 +89,7 @@ export const DelegationsActionsMenu: FCWithChildren<{
       />
       <ActionsMenuItem title="Undelegate" Icon={<Undelegate />} onClick={() => handleActionSelect('undelegate')} />
       <ActionsMenuItem
-        title="Claim"
+        title="Claim rewards"
         description="Transfer your rewards to your balance"
         Icon={<Typography sx={{ pl: 1, fontWeight: 700 }}>C</Typography>}
         onClick={() => handleActionSelect('redeem')}

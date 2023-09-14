@@ -1,16 +1,5 @@
 import React from 'react';
-import {
-  Box,
-  Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  TableSortLabel,
-  Typography,
-} from '@mui/material';
+import { Box, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, TableSortLabel } from '@mui/material';
 import { visuallyHidden } from '@mui/utils';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import { orderBy as _orderBy } from 'lodash';
@@ -20,7 +9,6 @@ import { isDelegation, isPendingDelegation, TDelegations } from '../../context/d
 import { DelegationItem } from './DelegationItem';
 import { PendingDelegationItem } from './PendingDelegationItem';
 import { LoadingModal } from '../Modals/LoadingModal';
-import { InfoTooltip } from '../InfoToolTip';
 
 type Order = 'asc' | 'desc';
 type AdditionalTypes = { profit_margin_percent: number; operating_cost: number };
@@ -48,12 +36,7 @@ const headCells: HeadCell[] = [
   { id: 'stake_saturation', label: 'Stake saturation', sortable: true, align: 'left' },
   {
     id: 'delegated_on_iso_datetime',
-    label: (
-      <Stack direction="row" alignItems="center" gap={1}>
-        <InfoTooltip title="The date you made your delegation. Once you claim rewards for a node, the delegation date resets to the date you claim the reward." />
-        <Typography variant="body2">Delegated on</Typography>
-      </Stack>
-    ),
+    label: 'Delegated on',
     sortable: true,
     align: 'left',
   },

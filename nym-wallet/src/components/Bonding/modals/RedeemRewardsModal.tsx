@@ -37,9 +37,9 @@ export const RedeemRewardsModal = ({
   return (
     <SimpleModal
       open
-      header="Redeem rewards"
+      header="Claim rewards"
       subHeader="Claim you rewards"
-      okLabel="Redeem"
+      okLabel="Claim"
       okDisabled={isFeeLoading}
       onOk={handleOnOK}
       onClose={onClose}

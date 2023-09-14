@@ -5,8 +5,10 @@ import { DirectSecp256k1HdWallet } from '@cosmjs/proto-signing';
 import { Coin, GasPrice } from '@cosmjs/stargate';
 import Button from '@mui/material/Button';
 import Input from '@mui/material/Input';
+import Paper from '@mui/material/Paper';
 import Box from '@mui/material/Box';
 import { settings } from './client';
+import { TextField, Typography } from '@mui/material';
 
 const signerAccount = async (mnemonic) => {
   // create a wallet to sign transactions with the mnemonic
@@ -198,12 +200,26 @@ export const Wallet = () => {
   };
 
   return (
-    <Box style={{ marginTop: '1rem' }}>
-      <Input type="text" placeholder="add your mnemonic" onChange={(e) => setMnemonic(e.target.value)} />
-      <p>Address: {account}</p>
-      <p>
-        Balance: {balance?.amount} {balance?.denom}
-      </p>
+    <Paper style={{ marginTop: '1rem', padding: '1rem' }}>
+      <Typography variant="h5" textAlign="center">
+        Basic Wallet
+      </Typography>
+      <Box marginY="1rem">
+        <Typography variant="body1">Enter the mnemonic</Typography>
+        <TextField type="text" placeholder="mnemonic" onChange={(e) => setMnemonic(e.target.value)} fullWidth />
+      </Box>
+      {account && balance ? (
+        <Box marginY="1rem">
+          <Typography variant="body1">Address: {account}</Typography>
+          <Typography variant="body1">
+            Balance: {balance?.amount} {balance?.denom}
+          </Typography>
+        </Box>
+      ) : (
+        <Box marginY="1rem">
+          <Typography variant="body1">Please, enter your nemonic to receive this info</Typography>
+        </Box>
+      )}
       {/* <p>Delegations: {delegations}</p> */}
       <Box>
         <p>Send Tokens</p>
@@ -239,6 +255,6 @@ export const Wallet = () => {
         <h3>Log</h3>
         {log}
       </Box>
-    </Box>
+    </Paper>
   );
 };

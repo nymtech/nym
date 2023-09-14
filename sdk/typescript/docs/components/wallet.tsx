@@ -10,6 +10,8 @@ import Box from '@mui/material/Box';
 import { settings } from './client';
 import { TextField, Typography } from '@mui/material';
 import Divider from '@mui/material/Divider';
+import Table from '@mui/material/Table';
+import { TableBody, TableCell, TableHead, TableRow } from '@mui/material';
 
 const signerAccount = async (mnemonic) => {
   // create a wallet to sign transactions with the mnemonic
@@ -200,6 +202,8 @@ export const Wallet = () => {
     console.log({ res });
   };
 
+  console.log(delegations?.delegations);
+
   return (
     <Box padding={3}>
       <Paper style={{ marginTop: '1rem', padding: '1rem' }}>
@@ -248,8 +252,8 @@ export const Wallet = () => {
         </Box>
         <Divider />
         <Box padding={3}>
-          <Box>
-            <Typography variant="h6">Delegations</Typography>
+          <Typography variant="h6">Delegations</Typography>
+          <Box marginY={3}>
             <Box marginY={3} display="flex" flexDirection="column">
               <Typography marginBottom={3} variant="body1">
                 Make a delegation
@@ -274,19 +278,34 @@ export const Wallet = () => {
               </Box>
             </Box>
           </Box>
-          <Box marginBottom={3}>
-          <Typography marginBottom={3} variant="body1">
-                Your delegations:
-              </Typography>
-            <Box marginY={3} display="flex" flexDirection="column">
+          <Box marginTop={3}>
+            <Typography variant="body1">Your delegations</Typography>
+            <Box marginBottom={3} display="flex" flexDirection="column">
               {!delegations?.delegations?.length ? (
                 <Typography>You don't have delegations</Typography>
               ) : (
-                delegations?.delegations.map((delegation: any) => (
-                  <Box>
-                    <Typography>Mix ID: {delegation.mix_id}</Typography>
-                  </Box>
-                ))
+                <Box>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>MixId</TableCell>
+                        <TableCell>Owner</TableCell>
+                        <TableCell>Amount</TableCell>
+                        <TableCell>Cumulative Reward Ratio</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {delegations?.delegations.map((delegation: any) => (
+                        <TableRow>
+                          <TableCell>{delegation.mix_id}</TableCell>
+                          <TableCell>{delegation.owner}</TableCell>
+                          <TableCell>{delegation.amount.amount}</TableCell>
+                          <TableCell>{delegation.cumulative_reward_ratio}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </Box>
               )}
             </Box>
             {delegations && (

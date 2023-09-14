@@ -14,6 +14,10 @@ const config: DocsThemeConfig = {
   footer: {
     text: Footer,
   },
+  darkMode: false,
+  nextThemes: {
+    forcedTheme: 'dark',
+  },
   primaryHue: {
     dark: 30,
     light: 30,

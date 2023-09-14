@@ -1,14 +1,18 @@
 import React from 'react';
 import { ChainProvider, useChain } from '@cosmos-kit/react';
 import { assets, chains } from 'chain-registry';
-import { wallets } from '@cosmos-kit/keplr';
+import { wallets as keplr } from '@cosmos-kit/keplr';
+import { wallets as ledger } from '@cosmos-kit/ledger';
 import Button from '@mui/material/Button';
 import CircularProgress from '@mui/material/CircularProgress';
 import Box from '@mui/material/Box';
 import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
 import { SignDoc } from 'cosmjs-types/cosmos/tx/v1beta1/tx';
+import { AminoMsg, makeSignDoc } from '@cosmjs/amino';
 import { fromHex } from '@cosmjs/encoding';
+import { Alert } from '@mui/material';
+import { MsgSend } from 'cosmjs-types/cosmos/bank/v1beta1/tx';
 
 const CosmosKitSetup: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const assetsFixedUp = React.useMemo(() => {
@@ -39,15 +43,30 @@ const CosmosKitSetup: React.FC<{ children: React.ReactNode }> = ({ children }) =
   }, [chains]);
 
   return (
-    <ChainProvider chains={chainsFixedUp} assetLists={assetsFixedUp} wallets={wallets}>
+    <ChainProvider chains={chainsFixedUp} assetLists={assetsFixedUp} wallets={[...ledger, ...keplr]}>
       {children}
     </ChainProvider>
   );
 };
 
 const CosmosKitInner = () => {
-  const { wallet, address, connect, disconnect, getOfflineSignerDirect, isWalletConnecting, isWalletDisconnected } =
-    useChain('nyx');
+  const {
+    wallet,
+    address,
+    connect,
+    disconnect,
+    getSigningStargateClient,
+    getOfflineSigner,
+    getOfflineSignerDirect,
+    getOfflineSignerAmino,
+    signAmino,
+    signArbitrary,
+    isWalletConnecting,
+    isWalletDisconnected,
+    isWalletError,
+    isWalletNotExist,
+    isWalletRejected,
+  } = useChain('nyx');
   const [signResponse, setSignResponse] = React.useState<any>();
 
   const sign = async () => {
@@ -59,6 +78,42 @@ const CosmosKitInner = () => {
       '0a4e0a460a1f2f636f736d6f732e63727970746f2e736563703235366b312e5075624b657912230a21034f04181eeba35391b858633a765c4a0c189697b40d216354d50890d350c7029012040a02080112130a0d0a0575636f736d12043230303010c09a0c',
     );
 
+    if (wallet.mode === 'ledger') {
+      console.log('Using ledger to sign...');
+      const chainId = 'nyx';
+      // const msg: AminoMsg = {
+      //   type: 'cosmos-sdk/MsgSend',
+      //   value: {
+      //     from_address: address,
+      //     to_address: 'cosmos1pkptre7fdkl6gfrzlesjjvhxhlc3r4gmmk8rs6',
+      //     amount: [{ amount: '1234567', denom: 'ucosm' }],
+      //   },
+      // };
+      const msg = {
+        typeUrl: '/cosmos.bank.v1beta1.MsgSend',
+        value: MsgSend.fromPartial({
+          fromAddress: address,
+          toAddress: 'cosmos1pkptre7fdkl6gfrzlesjjvhxhlc3r4gmmk8rs6',
+          amount: [{ amount: '1234567', denom: 'ucosm' }],
+        }),
+      };
+      const fee = {
+        amount: [{ amount: '2000', denom: 'ucosm' }],
+        gas: '180000', // 180k
+      };
+      const memo = 'Use your power wisely';
+      // const accountNumber = 15;
+      // const sequence = 16;
+
+      // const signDoc = makeSignDoc([msg], fee, chainId, memo, accountNumber, sequence);
+      // return getOfflineSignerAmino().signAmino(address, signDoc);
+      // return signAmino(address, signDoc);
+
+      const tx = await (await getSigningStargateClient()).sign(address, [msg], fee, memo);
+      return tx;
+      // return signArbitrary(address, 'hello world');
+    }
+
     const doc = SignDoc.fromPartial({ accountNumber: address, chainId: 'nyx', bodyBytes, authInfoBytes });
     return getOfflineSignerDirect().signDirect(address, doc);
   };
@@ -66,6 +121,45 @@ const CosmosKitInner = () => {
   const handleSign = async () => {
     setSignResponse(await sign());
   };
+
+  if (isWalletError) {
+    return (
+      <Box mt={4} mb={2}>
+        <Alert severity="error">Oh no! Something went wrong.</Alert>
+        <Box mt={4}>
+          <Button variant="outlined" onClick={disconnect}>
+            Disconnect
+          </Button>
+        </Box>
+      </Box>
+    );
+  }
+
+  if (isWalletNotExist) {
+    return (
+      <Box mt={4} mb={2}>
+        <Alert severity="error">Oh no! Could not connect to that wallet.</Alert>
+        <Box mt={4}>
+          <Button variant="outlined" onClick={disconnect}>
+            Disconnect
+          </Button>
+        </Box>
+      </Box>
+    );
+  }
+
+  if (isWalletRejected) {
+    return (
+      <Box mt={4} mb={2}>
+        <Alert severity="error">Oh no! Did you authorize the connection to your wallet?</Alert>
+        <Box mt={4}>
+          <Button variant="outlined" onClick={disconnect}>
+            Disconnect
+          </Button>
+        </Box>
+      </Box>
+    );
+  }
 
   if (isWalletDisconnected) {
     return (
@@ -83,7 +177,9 @@ const CosmosKitInner = () => {
     <Paper sx={{ mt: 4, py: 4, px: 2 }} elevation={2}>
       <Box display="flex" justifyContent="space-between">
         <Box>
-          <strong>Connected to {wallet.prettyName}</strong>
+          <strong>
+            Connected to {wallet.prettyName} ({wallet.name})
+          </strong>
           <Typography>
             Address: <code>{address}</code>{' '}
           </Typography>

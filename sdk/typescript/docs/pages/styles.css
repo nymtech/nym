@@ -1,0 +1,7 @@
+.nextra-code-block > div {
+    background: #eee;
+}
+.nextra-code-block > pre {
+    max-height: 350px;
+    scroll-y: auto;
+}

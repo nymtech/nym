@@ -54,7 +54,7 @@ mod rust_libp2p_nym;
 async fn main() -> Result<(), Box<dyn Error>> {
     pretty_env_logger::formatted_timed_builder()
         .filter_level(log::LevelFilter::Warn)
-        .filter(Some("libp2p_identify"), LevelFilter::Debug)
+        .filter(Some("libp2p_identify"), LevelFilter::Info)
         .init();
 
     let local_key = identity::Keypair::generate_ed25519();
@@ -67,6 +67,18 @@ async fn main() -> Result<(), Box<dyn Error>> {
     //     "/ipfs/id/2.0.0".to_string(),
     //     local_key.public(),
     // ));
+
+    // TODO setup a client with sandbox instead of mainnet to check for speed
+    // setup_env(Some("../../../envs/sandbox.env"));
+    //
+    // let sandbox_network = mixnet::NymNetworkDetails::new_from_env();
+    // let mnemonic = String::from("my super secret mnemonic");
+    //
+    // let mixnet_client = mixnet::MixnetClientBuilder::new_ephemeral()
+    //     .network_details(sandbox_network)
+    //     .enable_credentials_mode()
+    //     .build()
+    //     .await?;
 
     let client = MixnetClient::connect_new().await.unwrap();
     let transport = NymTransport::new(client, local_key.clone()).await?;

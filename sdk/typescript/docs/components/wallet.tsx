@@ -8,17 +8,17 @@ import Input from '@mui/material/Input';
 import Box from '@mui/material/Box';
 import { settings } from './client';
 
-const signerAccount = async () => {
+const signerAccount = async (mnemonic) => {
   // create a wallet to sign transactions with the mnemonic
-  const signer = await DirectSecp256k1HdWallet.fromMnemonic(settings.mnemonic, {
+  const signer = await DirectSecp256k1HdWallet.fromMnemonic(mnemonic, {
     prefix: 'n',
   });
 
   return signer;
 };
 
-const fetchSignerCosmosWasmClient = async () => {
-  const signer = await signerAccount();
+const fetchSignerCosmosWasmClient = async (mnemonic) => {
+  const signer = await signerAccount(mnemonic);
 
   // create a signing client we don't need to set the gas price conversion for queries
   const cosmWasmClient = await SigningCosmWasmClient.connectWithSigner(settings.url, signer, {
@@ -28,8 +28,8 @@ const fetchSignerCosmosWasmClient = async () => {
   return cosmWasmClient;
 };
 
-const fetchSignerClient = async () => {
-  const signer = await signerAccount();
+const fetchSignerClient = async (mnemonic) => {
+  const signer = await signerAccount(mnemonic);
 
   // create a signing client we don't need to set the gas price conversion for queries
   // if you want to connect without signer you'd write ".connect" and "url" as param
@@ -54,6 +54,7 @@ const fetchSignerClient = async () => {
 };
 
 export const Wallet = () => {
+  const [mnemonic, setMnemonic] = useState<string>();
   const [signerCosmosWasmClient, setSignerCosmosWasmClient] = useState<any>();
   const [signerClient, setSignerClient] = useState<any>();
   const [account, setAccount] = useState<string>();
@@ -76,7 +77,7 @@ export const Wallet = () => {
 
   const getSignerAccount = async () => {
     try {
-      const signer = await signerAccount();
+      const signer = await signerAccount(mnemonic);
       const accounts = await signer.getAccounts();
       if (accounts[0]) {
         setAccount(accounts[0].address);
@@ -88,8 +89,8 @@ export const Wallet = () => {
 
   const getClients = async () => {
     try {
-      setSignerCosmosWasmClient(await fetchSignerCosmosWasmClient());
-      setSignerClient(await fetchSignerClient());
+      setSignerCosmosWasmClient(await fetchSignerCosmosWasmClient(mnemonic));
+      setSignerClient(await fetchSignerClient(mnemonic));
     } catch (error) {
       console.error(error);
     }
@@ -103,9 +104,11 @@ export const Wallet = () => {
   }, [signerClient]);
 
   useEffect(() => {
-    getSignerAccount();
-    getClients();
-  });
+    if (mnemonic) {
+      getSignerAccount();
+      getClients();
+    }
+  }, [mnemonic]);
 
   useEffect(() => {
     if (account && signerCosmosWasmClient) {
@@ -196,6 +199,7 @@ export const Wallet = () => {
 
   return (
     <Box style={{ marginTop: '1rem' }}>
+      <Input type="text" placeholder="add your mnemonic" onChange={(e) => setMnemonic(e.target.value)} />
       <p>Address: {account}</p>
       <p>
         Balance: {balance?.amount} {balance?.denom}

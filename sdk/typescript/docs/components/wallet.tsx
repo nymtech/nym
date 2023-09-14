@@ -198,11 +198,19 @@ export const Wallet = () => {
     const delegatorAddress = '';
     const validatorAdress = '';
     const memo = 'test sending tokens';
-    const res = await signerCosmosWasmClient.withdrawRewards(delegatorAddress, validatorAdress, 'auto', memo);
-    console.log({ res });
+    try {
+      const res = await signerCosmosWasmClient.withdrawRewards(delegatorAddress, validatorAdress, 'auto', memo);
+      setLog((prev) => [
+        ...prev,
+        <div key={JSON.stringify(res, null, 2)}>
+          <code style={{ marginRight: '2rem' }}>{new Date().toLocaleTimeString()}</code>
+          <pre>{JSON.stringify(res, null, 2)}</pre>
+        </div>,
+      ]);
+    } catch (error) {
+      console.error(error);
+    }
   };
-
-  console.log(delegations?.delegations);
 
   return (
     <Box padding={3}>
@@ -296,7 +304,7 @@ export const Wallet = () => {
                     </TableHead>
                     <TableBody>
                       {delegations?.delegations.map((delegation: any) => (
-                        <TableRow>
+                        <TableRow key={delegation.mix_id}>
                           <TableCell>{delegation.mix_id}</TableCell>
                           <TableCell>{delegation.owner}</TableCell>
                           <TableCell>{delegation.amount.amount}</TableCell>

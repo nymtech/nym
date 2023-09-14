@@ -64,7 +64,7 @@ export const Mixnodes = () => {
           </TableHead>
           <TableBody>
             {mixnodes.map((mixnode: any) => (
-              <TableRow>
+              <TableRow key={mixnode.bond_information.mix_id}>
                 <TableCell>{mixnode.bond_information.mix_id}</TableCell>
                 <TableCell>{mixnode.bond_information.owner}</TableCell>
                 <TableCell>{mixnode.bond_information.layer}</TableCell>

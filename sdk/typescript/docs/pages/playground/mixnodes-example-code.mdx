@@ -1,6 +1,9 @@
+```ts copy filename="example.ts"
 //Step 0 -> introduce the client file
 // In order to query, use thhe mixnetClient from the client file, import below:
 import { useEffect, useState } from "react";
+
+...
 
 import { contracts } from "@nymproject/contract-clients";
 import { SigningCosmWasmClient } from "@cosmjs/cosmwasm-stargate";
@@ -53,3 +56,4 @@ export const Mixnodes = () => {
     </div>
   );
 };
+```

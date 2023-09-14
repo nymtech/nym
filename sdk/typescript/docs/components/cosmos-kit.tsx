@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import React from 'react';
 import { ChainProvider, useChain } from '@cosmos-kit/react';
 import { assets, chains } from 'chain-registry';

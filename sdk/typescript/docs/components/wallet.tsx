@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { contracts } from '@nymproject/contract-clients';
 import { SigningCosmWasmClient } from '@cosmjs/cosmwasm-stargate';
 import { DirectSecp256k1HdWallet } from '@cosmjs/proto-signing';
@@ -7,11 +7,10 @@ import Button from '@mui/material/Button';
 import Input from '@mui/material/Input';
 import Paper from '@mui/material/Paper';
 import Box from '@mui/material/Box';
-import { settings } from './client';
-import { TextField, Typography } from '@mui/material';
+import { TableBody, TableCell, TableHead, TableRow, TextField, Typography } from '@mui/material';
 import Divider from '@mui/material/Divider';
 import Table from '@mui/material/Table';
-import { TableBody, TableCell, TableHead, TableRow } from '@mui/material';
+import { settings } from './client';
 
 const signerAccount = async (mnemonic) => {
   // create a wallet to sign transactions with the mnemonic
@@ -290,7 +289,7 @@ export const Wallet = () => {
             <Typography variant="body1">Your delegations</Typography>
             <Box marginBottom={3} display="flex" flexDirection="column">
               {!delegations?.delegations?.length ? (
-                <Typography>You don't have delegations</Typography>
+                <Typography>You do not have delegations</Typography>
               ) : (
                 <Box>
                   <Table size="small">

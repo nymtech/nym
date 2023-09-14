@@ -1,17 +1,17 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import React from 'react';
-import { ChainProvider, useChain } from '@cosmos-kit/react';
+import { ChainProvider, useChain, useWalletClient } from '@cosmos-kit/react';
 import { assets, chains } from 'chain-registry';
 import { wallets as keplr } from '@cosmos-kit/keplr';
-import { wallets as ledger } from '@cosmos-kit/ledger';
+import { wallets as ledger, ledgerUSB } from '@cosmos-kit/ledger';
 import Button from '@mui/material/Button';
 import CircularProgress from '@mui/material/CircularProgress';
 import Box from '@mui/material/Box';
 import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
 import { SignDoc } from 'cosmjs-types/cosmos/tx/v1beta1/tx';
-import { AminoMsg, makeSignDoc } from '@cosmjs/amino';
-import { fromHex } from '@cosmjs/encoding';
+import { AminoMsg, makeSignDoc, serializeSignDoc, decodeSignature, decodeAminoPubkey, pubkeyType } from '@cosmjs/amino';
+import { fromHex, toBase64 } from '@cosmjs/encoding';
 import { Alert } from '@mui/material';
 import { MsgSend } from 'cosmjs-types/cosmos/bank/v1beta1/tx';
 
@@ -44,7 +44,14 @@ const CosmosKitSetup: React.FC<{ children: React.ReactNode }> = ({ children }) =
   }, [chains]);
 
   return (
-    <ChainProvider chains={chainsFixedUp} assetLists={assetsFixedUp} wallets={[...ledger, ...keplr]}>
+    <ChainProvider
+      chains={chainsFixedUp}
+      assetLists={assetsFixedUp}
+      wallets={[...ledger, ...keplr]}
+      signerOptions={{
+        preferredSignType: (chain) => 'amino',
+      }}
+    >
       {children}
     </ChainProvider>
   );
@@ -68,6 +75,7 @@ const CosmosKitInner = () => {
     isWalletNotExist,
     isWalletRejected,
   } = useChain('nyx');
+  const { client, message, status } = useWalletClient(wallet?.name);
   const [signResponse, setSignResponse] = React.useState<any>();
 
   const sign = async () => {
@@ -90,12 +98,12 @@ const CosmosKitInner = () => {
       //     amount: [{ amount: '1234567', denom: 'ucosm' }],
       //   },
       // };
-      const msg = {
-        typeUrl: '/cosmos.bank.v1beta1.MsgSend',
+      const msg: AminoMsg = {
+        type: '/cosmos.bank.v1beta1.MsgSend',
         value: MsgSend.fromPartial({
           fromAddress: address,
-          toAddress: 'cosmos1pkptre7fdkl6gfrzlesjjvhxhlc3r4gmmk8rs6',
-          amount: [{ amount: '1234567', denom: 'ucosm' }],
+          toAddress: 'n1nn8tghp94n8utsgyg3kfttlxm0exgjrsqkuwu9',
+          amount: [{ amount: '1000', denom: 'unym' }],
         }),
       };
       const fee = {
@@ -103,16 +111,39 @@ const CosmosKitInner = () => {
         gas: '180000', // 180k
       };
       const memo = 'Use your power wisely';
-      // const accountNumber = 15;
-      // const sequence = 16;
+      const accountNumber = 15;
+      const sequence = 16;
 
-      // const signDoc = makeSignDoc([msg], fee, chainId, memo, accountNumber, sequence);
+      const signDoc = makeSignDoc([msg], fee, chainId, memo, accountNumber, sequence);
+      const serialized = serializeSignDoc(signDoc);
       // return getOfflineSignerAmino().signAmino(address, signDoc);
       // return signAmino(address, signDoc);
 
-      const tx = await (await getSigningStargateClient()).sign(address, [msg], fee, memo);
-      return tx;
-      // return signArbitrary(address, 'hello world');
+      // const tx = await (await getSigningStargateClient()).sign(address, [msg], fee, memo);
+      // return tx;
+      const account = await client.getAccount('nyx');
+
+      console.log({ status });
+      console.log({ client });
+      console.log('Accounts: ', account);
+      console.log('Info', await (client as any).client.getAppConfiguration());
+      const sigAmino = await (client as any).client.sign(account.username, serialized);
+      const sig = {
+        signature: toBase64(sigAmino.signature),
+        pub_key: {
+          type: pubkeyType.secp256k1,
+          value: toBase64(account.pubkey),
+        },
+      };
+      console.log('Sign', { sigAmino, sig });
+      // try {
+      //   const res = await client.sign(signDoc);
+      //   return res;
+      // } catch (e) {
+      //   console.error(e);
+      // }
+
+      return { signature: sig };
     }
 
     const doc = SignDoc.fromPartial({ accountNumber: address, chainId: 'nyx', bodyBytes, authInfoBytes });
@@ -144,6 +175,7 @@ const CosmosKitInner = () => {
           <Button variant="outlined" onClick={disconnect}>
             Disconnect
           </Button>
+          {message}
         </Box>
       </Box>
     );
@@ -157,6 +189,7 @@ const CosmosKitInner = () => {
           <Button variant="outlined" onClick={disconnect}>
             Disconnect
           </Button>
+          {message}
         </Box>
       </Box>
     );
@@ -189,6 +222,7 @@ const CosmosKitInner = () => {
           <Button variant="outlined" onClick={disconnect}>
             Disconnect
           </Button>
+          {message}
         </Box>
       </Box>
 
@@ -204,7 +238,7 @@ const CosmosKitInner = () => {
         <Box mt={2}>
           <strong>Signature:</strong>
           <Box sx={{ overflowX: 'auto' }}>
-            <pre>{JSON.stringify(signResponse.signature, null, 2)}</pre>
+            <pre>{JSON.stringify(signResponse?.signature, null, 2)}</pre>
           </Box>
         </Box>
       )}

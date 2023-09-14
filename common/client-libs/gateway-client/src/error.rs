@@ -13,17 +13,17 @@ pub enum GatewayClientError {
     #[error("Connection to the gateway is not established")]
     ConnectionNotEstablished,
 
-    #[error("Gateway returned an error response - {0}")]
+    #[error("Gateway returned an error response: {0}")]
     GatewayError(String),
 
-    #[error("There was a network error - {0}")]
+    #[error("There was a network error: {0}")]
     NetworkError(#[from] WsError),
 
     #[cfg(target_arch = "wasm32")]
-    #[error("There was a network error")]
+    #[error("There was a network error: {0}")]
     NetworkErrorWasm(#[from] JsError),
 
-    #[error("Invalid URL - {0}")]
+    #[error("Invalid URL: {0}")]
     InvalidURL(String),
 
     #[error("No shared key was provided or obtained")]
@@ -32,7 +32,7 @@ pub enum GatewayClientError {
     #[error("No bandwidth controller provided")]
     NoBandwidthControllerAvailable,
 
-    #[error("Bandwidth controller error - {0}")]
+    #[error("Bandwidth controller error: {0}")]
     BandwidthControllerError(#[from] nym_bandwidth_controller::error::BandwidthControllerError),
 
     #[error("Connection was abruptly closed")]
@@ -62,7 +62,7 @@ pub enum GatewayClientError {
     #[error("Connection is in an invalid state - please send a bug report")]
     ConnectionInInvalidState,
 
-    #[error("Failed to finish registration handshake - {0}")]
+    #[error("Failed to finish registration handshake: {0}")]
     RegistrationFailure(HandshakeError),
 
     #[error("Authentication failure")]

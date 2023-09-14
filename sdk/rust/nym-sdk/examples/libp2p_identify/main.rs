@@ -26,12 +26,12 @@
 //! cargo run
 //! ```
 //! It will print the [`PeerId`] and the listening addresses, e.g. `Listening on
-//! "/ip4/127.0.0.1/tcp/24915"`
+//! "/nym/<NYM_ADDRESS>"`
 //!
 //! In the second terminal window, start a new instance of the example with:
 //!
 //! ```sh
-//! cargo run -- /ip4/127.0.0.1/tcp/24915
+//! cargo run -- /nym/<NYM_ADDRESS>  
 //! ```
 //! The two nodes establish a connection, negotiate the identify protocol
 //! and will send each other identify info which is then printed to the console.
@@ -82,15 +82,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
             transport
                 .map(|a, _| (a.0, StreamMuxerBox::new(a.1)))
                 .boxed(),
-            // behaviour,
             MyBehaviour {
                 identify: identify::Behaviour::new(identify::Config::new(
                     "/ipfs/id/2.0.0".to_string(),
                     local_key.public(),
                 )),
-                ping: ping::Behaviour::new(
-                    ping::Config::new().with_interval(Duration::from_secs(1)),
-                ),
                 keep_alive: keep_alive::Behaviour,
             },
             local_peer_id,
@@ -125,6 +121,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
             })) => {
                 info!("Received {info:?}")
             }
+            SwarmEvent::Behaviour(MyBehaviourEvent::Identify(identify::Event::Error {
+                peer_id,
+                error
+            })) => {
+                info!("Identify Error: {peer_id:?} {error:?}")
+            }
             SwarmEvent::Dialing(peer_id) => {
                 info!("Dial attempt from {:?}", peer_id)
             }
@@ -143,6 +145,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
             SwarmEvent::IncomingConnectionError { error, .. } => {
                 info!("Incoming connection error: {error:?}")
             }
+            SwarmEvent::ConnectionEstablished {
+                peer_id,
+                num_established,
+                concurrent_dial_errors,
+                endpoint,
+                ..
+            } => {
+                info!("Established connection with {peer_id:?} @ {endpoint:?} with {concurrent_dial_errors:?} errors and {num_established:?} connections")
+            }
             SwarmEvent::ExpiredListenAddr {
                 listener_id,
                 address,
@@ -152,8 +163,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
             SwarmEvent::ListenerError { listener_id, error } => {
                 info!("{listener_id:?} stopped listening with {error:?}")
             }
-            _ => {
-                info!("Unhandled incoming")
+            other => {
+                info!("Unhandled incoming: {other:?}")
             }
         }
     }
@@ -167,5 +178,4 @@ async fn main() -> Result<(), Box<dyn Error>> {
 struct MyBehaviour {
     identify: identify::Behaviour,
     keep_alive: keep_alive::Behaviour,
-    ping: ping::Behaviour,
 }

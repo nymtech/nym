@@ -1,7 +1,35 @@
+
+/* Dark mode */
+/* html.dark > ._next div {
+    background-color: #121726;
+} */
+
+html.dark > body > div {
+    background-color: #121726 !important;
+ }  
+
+.dark footer, nav {
+    background-color: #121726;
+ }  
+
+ .dark footer {
+    background-color: #121726 !important; 
+ }  
+
+
+ /* .nx-sticky.nx-bottom-0.nx-bg-white.dark{
+
+    background-color: #121726;
+} */
+
+
 .nextra-code-block > div {
     background: #eee;
 }
+
 .nextra-code-block > pre {
     max-height: 350px;
     scroll-y: auto;
 }
+
+

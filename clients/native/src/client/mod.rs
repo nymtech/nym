@@ -21,6 +21,7 @@ use nym_task::connections::TransmissionLane;
 use nym_task::TaskManager;
 use nym_validator_client::QueryHttpRpcNyxdClient;
 use std::error::Error;
+use std::path::PathBuf;
 use tokio::sync::watch::error::SendError;
 
 pub use nym_sphinx::addressing::clients::Recipient;
@@ -34,11 +35,17 @@ pub struct SocketClient {
     /// Client configuration options, including, among other things, packet sending rates,
     /// key filepaths, etc.
     config: Config,
+
+    /// Optional path to a .json file containing standalone network details.
+    custom_mixnet: Option<PathBuf>,
 }
 
 impl SocketClient {
-    pub fn new(config: Config) -> Self {
-        SocketClient { config }
+    pub fn new(config: Config, custom_mixnet: Option<PathBuf>) -> Self {
+        SocketClient {
+            config,
+            custom_mixnet,
+        }
     }
 
     fn start_websocket_listener(
@@ -109,7 +116,11 @@ impl SocketClient {
 
         let storage = self.initialise_storage().await?;
 
-        let base_client = BaseClientBuilder::new(&self.config.base, storage, dkg_query_client);
+        let mut base_client = BaseClientBuilder::new(&self.config.base, storage, dkg_query_client);
+
+        if let Some(custom_mixnet) = &self.custom_mixnet {
+            base_client = base_client.with_stored_topology(custom_mixnet)?;
+        }
 
         Ok(base_client)
     }

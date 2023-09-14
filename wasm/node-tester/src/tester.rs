@@ -24,7 +24,7 @@ use wasm_client_core::helpers::{
     current_network_topology_async, setup_from_topology, EphemeralCredentialStorage,
 };
 use wasm_client_core::storage::ClientStorage;
-use wasm_client_core::topology::WasmNymTopology;
+use wasm_client_core::topology::SerializableNymTopology;
 use wasm_client_core::{
     nym_task, BandwidthController, GatewayClient, IdentityKey, InitialisationDetails,
     InitialisationResult, ManagedKeys, NodeIdentity, NymTopology, QueryReqwestRpcNyxdClient,
@@ -95,7 +95,7 @@ pub struct NymNodeTesterOpts {
     nym_api: Option<String>,
 
     #[tsify(optional)]
-    topology: Option<WasmNymTopology>,
+    topology: Option<SerializableNymTopology>,
 
     #[tsify(optional)]
     gateway: Option<String>,

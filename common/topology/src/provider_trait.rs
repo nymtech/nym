@@ -22,6 +22,11 @@ pub struct HardcodedTopologyProvider {
 }
 
 impl HardcodedTopologyProvider {
+    #[cfg(feature = "serializable")]
+    pub fn new_from_file<P: AsRef<std::path::Path>>(path: P) -> std::io::Result<Self> {
+        NymTopology::new_from_file(path).map(Self::new)
+    }
+
     pub fn new(topology: NymTopology) -> Self {
         HardcodedTopologyProvider { topology }
     }

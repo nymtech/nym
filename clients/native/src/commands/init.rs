@@ -15,12 +15,15 @@ use nym_bin_common::output_format::OutputFormat;
 use nym_client_core::client::base_client::storage::gateway_details::OnDiskGatewayDetails;
 use nym_client_core::client::key_manager::persistence::OnDiskKeys;
 use nym_client_core::config::GatewayEndpointConfig;
+use nym_client_core::init::helpers::current_gateways;
 use nym_client_core::init::GatewaySetup;
 use nym_crypto::asymmetric::identity;
 use nym_sphinx::addressing::clients::Recipient;
+use nym_topology::NymTopology;
 use serde::Serialize;
 use std::fmt::Display;
 use std::net::IpAddr;
+use std::path::PathBuf;
 use std::{fs, io};
 use tap::TapFallible;
 
@@ -49,7 +52,12 @@ pub(crate) struct Init {
     nyxd_urls: Option<Vec<url::Url>>,
 
     /// Comma separated list of rest endpoints of the API validators
-    #[clap(long, alias = "api_validators", value_delimiter = ',')]
+    #[clap(
+        long,
+        alias = "api_validators",
+        value_delimiter = ',',
+        group = "network"
+    )]
     // the alias here is included for backwards compatibility (1.1.4 and before)
     nym_apis: Option<Vec<url::Url>>,
 
@@ -64,6 +72,10 @@ pub(crate) struct Init {
     /// Ip for the socket (if applicable) to listen for requests.
     #[clap(long)]
     host: Option<IpAddr>,
+
+    /// Path to .json file containing custom network specification.
+    #[clap(long, group = "network", hide = true)]
+    custom_mixnet: Option<PathBuf>,
 
     /// Mostly debug-related option to increase default traffic rate so that you would not need to
     /// modify config post init
@@ -130,7 +142,7 @@ fn init_paths(id: &str) -> io::Result<()> {
     fs::create_dir_all(default_config_directory(id))
 }
 
-pub(crate) async fn execute(args: &Init) -> Result<(), ClientError> {
+pub(crate) async fn execute(args: Init) -> Result<(), ClientError> {
     eprintln!("Initialising client...");
 
     let id = &args.id;
@@ -173,12 +185,25 @@ pub(crate) async fn execute(args: &Init) -> Result<(), ClientError> {
     let key_store = OnDiskKeys::new(config.storage_paths.common_paths.keys.clone());
     let details_store =
         OnDiskGatewayDetails::new(&config.storage_paths.common_paths.gateway_details);
-    let init_details = nym_client_core::init::setup_gateway(
+
+    let network_gateways = if let Some(hardcoded_topology) = args
+        .custom_mixnet
+        .map(NymTopology::new_from_file)
+        .transpose()?
+    {
+        // hardcoded_topology
+        hardcoded_topology.get_gateways()
+    } else {
+        let mut rng = rand::thread_rng();
+        current_gateways(&mut rng, &config.base.client.nym_api_urls).await?
+    };
+
+    let init_details = nym_client_core::init::setup_gateway_from(
         gateway_setup,
         &key_store,
         &details_store,
         register_gateway,
-        Some(&config.base.client.nym_api_urls),
+        Some(&network_gateways),
     )
     .await
     .tap_err(|err| eprintln!("Failed to setup gateway\nError: {err}"))?

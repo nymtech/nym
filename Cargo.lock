@@ -7102,6 +7102,7 @@ dependencies = [
  "nym-sphinx",
  "nym-topology",
  "pretty_env_logger",
+ "rand 0.7.3",
  "serde",
  "serde_json",
  "tap",
@@ -7392,6 +7393,7 @@ dependencies = [
  "bs58 0.4.0",
  "log",
  "nym-bin-common",
+ "nym-config",
  "nym-crypto",
  "nym-mixnet-contract-common",
  "nym-sphinx-addressing",
@@ -7399,7 +7401,12 @@ dependencies = [
  "nym-sphinx-types",
  "rand 0.7.3",
  "semver 0.11.0",
+ "serde",
+ "serde_json",
  "thiserror",
+ "tsify",
+ "wasm-bindgen",
+ "wasm-utils",
 ]
 
 [[package]]

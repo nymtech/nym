@@ -19,6 +19,14 @@ thiserror = "1.0.37"
 async-trait = { workspace = true, optional = true }
 semver = "0.11"
 
+# 'serializable' feature
+serde = { workspace = true, features = ["derive"], optional = true }
+serde_json = { workspace = true, optional = true }
+
+# 'wasm-serde-types' feature
+tsify = { workspace = true, features = ["js"], optional = true }
+wasm-bindgen = { workspace = true, optional = true }
+
 ## internal
 nym-crypto = { path = "../crypto", features = ["sphinx", "outfox"] }
 nym-mixnet-contract-common = { path = "../cosmwasm-smart-contracts/mixnet-contract" }
@@ -27,6 +35,14 @@ nym-sphinx-types = { path = "../nymsphinx/types", features = ["sphinx", "outfox"
 nym-sphinx-routing = { path = "../nymsphinx/routing" }
 nym-bin-common = { path = "../bin-common" }
 
+# 'serializable' feature
+nym-config = { path = "../config", optional = true }
+
+# 'wasm-serde-types' feature
+wasm-utils = { path = "../wasm/utils", default-features = false, optional = true }
+
 [features]
 default = ["provider-trait"]
 provider-trait = ["async-trait"]
+wasm-serde-types = ["tsify", "wasm-bindgen", "wasm-utils"]
+serializable = ["serde", "nym-config", "serde_json"]

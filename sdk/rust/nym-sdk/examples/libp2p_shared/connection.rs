@@ -1,5 +1,5 @@
 use libp2p::core::{muxing::StreamMuxerEvent, PeerId, StreamMuxer};
-use log::debug;
+use log::{debug, info};
 use nym_sphinx::addressing::clients::Recipient;
 use std::{
     collections::{HashMap, HashSet},
@@ -153,12 +153,12 @@ impl Connection {
         }
 
         // notify substream that it's closed
-        let mut close_tx = self.substream_close_txs.remove(&substream_id);
+        let close_tx = self.substream_close_txs.remove(&substream_id);
         match close_tx {
-            Some(Error) => { println!("substream already dropped") }
-            _ => { println!("other") }
+            Some(error) => { info!("Substream already dropped, cannot notify") }
+            other => { info!("{other:?}") }
         }
-        // close_tx.unwrap().send(()).expect("substream to be able to close");
+        // close_tx.unwrap().send(()).expect("substream already dropped; cannot notify");
 
         // notify poll_close that the substream is closed
         self.close_tx

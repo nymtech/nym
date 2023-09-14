@@ -39,8 +39,8 @@ nextra.webpack = (config, options) => {
 
 const config = {
   ...nextra,
-  output: 'export',
-  rewrites: undefined,
+  // output: 'export',
+  // rewrites: undefined,
   images: {
     unoptimized: true,
   },

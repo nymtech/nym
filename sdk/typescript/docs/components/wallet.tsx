@@ -10,6 +10,8 @@ import Box from '@mui/material/Box';
 import { TableBody, TableCell, TableHead, TableRow, TextField, Typography } from '@mui/material';
 import Divider from '@mui/material/Divider';
 import Table from '@mui/material/Table';
+import LoadingButton from '@mui/lab/LoadingButton';
+import SaveIcon from '@mui/icons-material/Save';
 import { settings } from './client';
 
 const signerAccount = async (mnemonic) => {
@@ -62,9 +64,11 @@ export const Wallet = () => {
   const [signerCosmosWasmClient, setSignerCosmosWasmClient] = useState<any>();
   const [signerClient, setSignerClient] = useState<any>();
   const [account, setAccount] = useState<string>();
+  const [accountLoading, setAccountLoading] = useState<boolean>(false);
+  const [balance, setBalance] = useState<Coin>();
+  const [balanceLoading, setBalanceLoading] = useState<boolean>(false);
   const [delegations, setDelegations] = useState<any>();
   const [log, setLog] = useState<React.ReactNode[]>([]);
-  const [balance, setBalance] = useState<Coin>();
   const [tokensToSend, setTokensToSend] = useState<string>();
   const [recipientAddress, setRecipientAddress] = useState<string>('');
   const [delegationNodeId, setDelegationNodeId] = useState<string>();
@@ -108,14 +112,18 @@ export const Wallet = () => {
   }, [signerClient]);
 
   const connect = () => {
+    setAccountLoading(true);
     getSignerAccount();
     getClients();
+    setAccountLoading(false);
   };
 
   useEffect(() => {
     if (account && signerCosmosWasmClient) {
       if (!balance) {
+        setBalanceLoading(true);
         getBalance();
+        setBalanceLoading(false);
       }
     }
   }, [account, signerCosmosWasmClient, balance, getBalance]);
@@ -231,9 +239,15 @@ export const Wallet = () => {
               sx={{ marginBottom: 3 }}
             />
 
-            <Button variant="outlined" onClick={() => connect()} disabled={!mnemonic}>
-              Connect
-            </Button>
+            {accountLoading ? (
+              <LoadingButton loading loadingPosition="start" startIcon={<SaveIcon />} variant="outlined">
+                Save
+              </LoadingButton>
+            ) : (
+              <Button variant="outlined" onClick={() => connect()} disabled={!mnemonic}>
+                Connect
+              </Button>
+            )}
           </Box>
           {account && balance ? (
             <Box>

@@ -8,13 +8,17 @@ div.nextra-code-block > div  {
 }
 
 
-
-/* DARK AND LIGHT*/ 
-
 /* Code blocks*/
 .nx-absolute.nx-top-0 {
     background: #fb6e4e !important;
+    color: #121726 !important;
 }
+
+
+:is(html[class~=dark] .dark\:nx-bg-primary-300\/10) {
+    background-color: hsl(var(black)100% 77%/.1);
+}
+
 
 aside ul > li > a:hover{
     background: #fb6e4ea9 !important;

@@ -59,3 +59,13 @@ button:hover {
     background: #fb6e4e !important;
     color: #121726 !important;
 }
+
+
+/* Links*/
+.nx-text-primary-600.nx-underline.nx-decoration-from-font {
+    color: #fb6e4e !important;
+}
+
+.MuiTypography-root.MuiTypography-inherit.MuiLink-root.MuiLink-underlineAlways.css-1xr3c94-MuiTypography-root-MuiLink-root {
+    color: #fb6e4e !important;
+}

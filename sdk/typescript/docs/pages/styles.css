@@ -7,7 +7,6 @@ div.nextra-code-block > div  {
     scroll-y: auto;
 }
 
-
 /* Code blocks*/
 .nx-absolute.nx-top-0 {
     background: #fb6e4e !important;
@@ -76,4 +75,12 @@ div.nextra-code-block > div  {
 
 .MuiCircularProgress-root {
     color:#fb6e4e;
+}
+
+.nextra-scrollbar.nx-sticky{
+    color: #ff5722 !important; 
+}
+
+.nx-text-primary-600 {
+    color: #ff5722 !important;
 }

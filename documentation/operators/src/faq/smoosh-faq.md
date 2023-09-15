@@ -3,15 +3,15 @@
 > We aim on purpose to make minimal changes to reward scheme and software. We're just 'smooshing' together stuff we already debugged and know works.
 > -- Harry Halpin,  Nym CEO
 
-This page refer to the changes which are planned for Q3 and Q4 2023. As this is a transition period in the beginning (September 2023) the [Mix Nodes FAQ page](./mixnodes-faq.md) holds more answersd to the current setup as project smoosh refers to the eventual setup. As project smoosh gets progressively implemented the answers on this page will become to be more relevant to the current state and eventually this FAQ page will become to be the main Mix Nodesd FAQ page. 
+This page refer to the changes which are planned for Q3 and Q4 2023. As this is a transition period in the beginning (September 2023) the [Mix Nodes FAQ page](./mixnodes-faq.md) holds more answered to the current setup as project Smoosh refers to the eventual setup. As project Smoosh gets progressively implemented the answers on this page will become to be more relevant to the current state and eventually this FAQ page will become to be the main Mix Nodes FAQ page. 
 
-If any questions are not answered or it's not clear for you in which stage project smoosh is right now, please reach out in Node Operators [Matrix room](https://matrix.to/#/#operators:nymtech.chat).
+If any questions are not answered or it's not clear for you in which stage project Smoosh is right now, please reach out in Node Operators [Matrix room](https://matrix.to/#/#operators:nymtech.chat).
 
 ## Overview
 
-### What is project smoosh?
+### What is project Smoosh?
 
-As we shared in our blog post article [*What does it take to build the wolds most powerful VPN*](please read this [blog post](https://blog.nymtech.net/what-does-it-take-to-build-the-worlds-most-powerful-vpn-d351a76ec4e6), Project smoosh is:  
+As we shared in our blog post article [*What does it take to build the wolds most powerful VPN*](https://blog.nymtech.net/what-does-it-take-to-build-the-worlds-most-powerful-vpn-d351a76ec4e6), project Smoosh is:  
 
 *"...a nick-name by CTO Dave Hrycyszyn and Chief Scientist Claudia Diaz for the work they are currently doing to “smoosh” Nym nodes so that the same operator can serve alternately as mix node, gateway or VPN node. This requires careful calibration of the Nym token economics, for example, only nodes with the highest reputation for good quality service will be in the VPN set and have the chance to earn higher rewards.
 
@@ -58,7 +58,7 @@ We are considering to turn off the rewards for non-open gateways to incentivize 
 The more roles an operator will allow their node to provide the bigger reward ratio which will have huge performance benefits for the end-users.
 
 
-### How will be the staking and inflation after project smoosh?
+### How will be the staking and inflation after project Smoosh?
 
 We must run tests to see how many users pay. We may need to keep inflation on if not enough people pay to keep high quality gateways on in the early stage of the transition. That would mean keeping staking on for gateways. Staking will always be on for mix nodes.
 
@@ -68,7 +68,7 @@ Yes, the same pool. Nym's aim is to do minimal modifications. The only real modi
 
 ### What does this mean for the current delegators?
 
-From an operator standpoint, it shall just be a standard Nym upgrade, a new optiion to run the gateway software on your node. Delegators should not have to re-delegate.
+From an operator standpoint, it shall just be a standard Nym upgrade, a new option to run the gateway software on your node. Delegators should not have to re-delegate.
 
 ## Legal Questions
 

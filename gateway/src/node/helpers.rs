@@ -5,9 +5,82 @@ use crate::config::Config;
 use crate::error::GatewayError;
 use crate::node::storage::PersistentStorage;
 use nym_crypto::asymmetric::{encryption, identity};
-use nym_pemstore::traits::PemStorableKeyPair;
+use nym_pemstore::traits::{PemStorableKey, PemStorableKeyPair};
 use nym_pemstore::KeyPairPath;
+use nym_sphinx::addressing::clients::Recipient;
+use nym_types::gateway::{GatewayNetworkRequesterDetails, GatewayNodeDetailsResponse};
 use std::path::Path;
+
+fn display_maybe_path<P: AsRef<Path>>(path: Option<P>) -> String {
+    path.as_ref()
+        .map(|p| p.as_ref().display().to_string())
+        .unwrap_or_default()
+}
+
+fn display_path<P: AsRef<Path>>(path: P) -> String {
+    path.as_ref().display().to_string()
+}
+
+pub(crate) fn node_details(config: &Config) -> Result<GatewayNodeDetailsResponse, GatewayError> {
+    let gateway_identity_public_key: identity::PublicKey = load_public_key(
+        &config.storage_paths.keys.public_identity_key_file,
+        "gateway identity",
+    )?;
+
+    let gateway_sphinx_public_key: encryption::PublicKey = load_public_key(
+        &config.storage_paths.keys.public_sphinx_key_file,
+        "gateway sphinx",
+    )?;
+
+    let network_requester =
+        if let Some(nr_cfg_path) = &config.storage_paths.network_requester_config {
+            let cfg = load_network_requester_config(&config.gateway.id, nr_cfg_path)?;
+
+            let nr_identity_public_key: identity::PublicKey = load_public_key(
+                &cfg.storage_paths.common_paths.keys.public_identity_key_file,
+                "network requester identity",
+            )?;
+
+            let nr_encryption_key: encryption::PublicKey = load_public_key(
+                &cfg.storage_paths
+                    .common_paths
+                    .keys
+                    .public_encryption_key_file,
+                "network requester encryption",
+            )?;
+
+            let address = Recipient::new(
+                nr_identity_public_key,
+                nr_encryption_key,
+                gateway_identity_public_key,
+            );
+
+            Some(GatewayNetworkRequesterDetails {
+                enabled: config.network_requester.enabled,
+                identity_key: nr_identity_public_key.to_base58_string(),
+                encryption_key: nr_encryption_key.to_base58_string(),
+                open_proxy: cfg.network_requester.open_proxy,
+                enabled_statistics: cfg.network_requester.enabled_statistics,
+                address: address.to_string(),
+                config_path: display_path(nr_cfg_path),
+                allow_list_path: display_path(&cfg.storage_paths.allowed_list_location),
+                unknown_list_path: display_path(&cfg.storage_paths.unknown_list_location),
+            })
+        } else {
+            None
+        };
+
+    Ok(GatewayNodeDetailsResponse {
+        identity_key: gateway_identity_public_key.to_base58_string(),
+        sphinx_key: gateway_sphinx_public_key.to_base58_string(),
+        bind_address: config.gateway.listening_address.to_string(),
+        mix_port: config.gateway.mix_port,
+        clients_port: config.gateway.clients_port,
+        config_path: display_maybe_path(config.save_path.as_ref()),
+        data_store: display_path(&config.storage_paths.clients_storage),
+        network_requester,
+    })
+}
 
 pub(crate) fn load_network_requester_config<P: AsRef<Path>>(
     id: &str,
@@ -39,6 +112,19 @@ pub(crate) fn load_keypair<T: PemStorableKeyPair>(
     nym_pemstore::load_keypair(&paths).map_err(|err| GatewayError::KeyPairLoadFailure {
         keys: name.into(),
         paths,
+        err,
+    })
+}
+
+pub(crate) fn load_public_key<T, P, S>(path: P, name: S) -> Result<T, GatewayError>
+where
+    T: PemStorableKey,
+    P: AsRef<Path>,
+    S: Into<String>,
+{
+    nym_pemstore::load_key(path.as_ref()).map_err(|err| GatewayError::PublicKeyLoadFailure {
+        key: name.into(),
+        path: path.as_ref().to_path_buf(),
         err,
     })
 }

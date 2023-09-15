@@ -20,6 +20,14 @@ pub(crate) enum GatewayError {
         err: io::Error,
     },
 
+    #[error("failed to load {key} public key from {}: {err}", .path.display())]
+    PublicKeyLoadFailure {
+        key: String,
+        path: PathBuf,
+        #[source]
+        err: io::Error,
+    },
+
     #[error(
         "failed to load config file for id {id} using path {path}. detailed message: {source}"
     )]

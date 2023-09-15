@@ -5,6 +5,7 @@ use crate::commands::helpers::{
     initialise_local_network_requester, OverrideNetworkRequesterConfig,
 };
 use crate::config::{default_config_directory, default_config_filepath, default_data_directory};
+use crate::node::helpers::node_details;
 use crate::{commands::helpers::OverrideConfig, config::Config, OutputFormat};
 use anyhow::bail;
 use clap::Args;
@@ -177,10 +178,10 @@ pub async fn execute(args: Init) -> anyhow::Result<()> {
     // Initialising the config structure is just overriding a default constructed one
     let fresh_config = Config::new(&args.id);
     let nr_opts = (&args).into();
-    let config = OverrideConfig::from(args).do_override(fresh_config)?;
+    let mut config = OverrideConfig::from(args).do_override(fresh_config)?;
 
     // if gateway was already initialised, don't generate new keys, et al.
-    let nr_details = if !already_init {
+    if !already_init {
         let mut rng = rand::rngs::OsRng;
 
         let identity_keys = identity::KeyPair::new(&mut rng);
@@ -206,24 +207,19 @@ pub async fn execute(args: Init) -> anyhow::Result<()> {
             bail!("failed to save the sphinx keys: {err}")
         }
 
-        let mut details = None;
         if config.network_requester.enabled {
-            details = Some(
-                initialise_local_network_requester(&config, nr_opts, *identity_keys.public_key())
-                    .await?,
-            );
+            initialise_local_network_requester(&config, nr_opts, *identity_keys.public_key())
+                .await?;
         }
 
         eprintln!("Saved identity and mixnet sphinx keypairs");
-        details
-    } else {
-        None
-    };
+    }
 
     let config_save_location = config.default_location();
     if let Err(err) = config.save_to_default_location() {
         bail!("failed to save the config file: {err}")
     }
+    config.save_path = Some(config_save_location.clone());
 
     eprintln!(
         "Saved configuration file to {}",
@@ -231,13 +227,7 @@ pub async fn execute(args: Init) -> anyhow::Result<()> {
     );
     eprintln!("Gateway configuration completed.\n\n\n");
 
-    crate::node::create_gateway(config, None, None)
-        .await?
-        .print_node_details(output);
-
-    if let Some(network_requester_details) = nr_details {
-        output.to_stdout(&network_requester_details)
-    }
+    output.to_stdout(&node_details(&config)?);
 
     Ok(())
 }

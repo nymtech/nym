@@ -82,7 +82,6 @@ pub struct GatewayNodeDetailsResponse {
     pub identity_key: String,
     pub sphinx_key: String,
     pub bind_address: String,
-    pub version: String,
     pub mix_port: u16,
     pub clients_port: u16,
     pub config_path: String,
@@ -93,16 +92,17 @@ pub struct GatewayNodeDetailsResponse {
 
 impl fmt::Display for GatewayNodeDetailsResponse {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(f, "Identity Key: {}", self.identity_key)?;
-        writeln!(f, "Sphinx Key: {}", self.sphinx_key)?;
-        writeln!(f, "Version: {}", self.version)?;
+        writeln!(f, "config path: {}", self.config_path)?;
+        writeln!(f, "identity key: {}", self.identity_key)?;
+        writeln!(f, "sphinx key: {}", self.sphinx_key)?;
+        writeln!(f, "bind address: {}", self.bind_address)?;
         writeln!(
             f,
-            "Mix Port: {}, Clients port: {}",
+            "mix Port: {}, clients port: {}",
             self.mix_port, self.clients_port
         )?;
 
-        writeln!(f, "Data store is at: {}", self.data_store)?;
+        writeln!(f, "data store is at: {}", self.data_store)?;
 
         if let Some(nr) = &self.network_requester {
             nr.fmt(f)?;
@@ -113,20 +113,36 @@ impl fmt::Display for GatewayNodeDetailsResponse {
 
 #[derive(Serialize, Deserialize)]
 pub struct GatewayNetworkRequesterDetails {
+    pub enabled: bool,
+
     pub identity_key: String,
     pub encryption_key: String,
 
+    pub open_proxy: bool,
+    pub enabled_statistics: bool,
+
     // just a convenience wrapper around all the keys
     pub address: String,
+
     pub config_path: String,
+    pub allow_list_path: String,
+    pub unknown_list_path: String,
 }
 
 impl fmt::Display for GatewayNetworkRequesterDetails {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         writeln!(f, "Network requester:")?;
-        writeln!(f, "identity key: {}", self.identity_key)?;
-        writeln!(f, "encryption key: {}", self.encryption_key)?;
-        writeln!(f, "address: {}", self.address)?;
-        writeln!(f, "config file path: {}", self.config_path)
+        writeln!(f, "\tenabled: {}", self.enabled)?;
+        writeln!(f, "\tconfig path: {}", self.config_path)?;
+
+        writeln!(f, "\tidentity key: {}", self.identity_key)?;
+        writeln!(f, "\tencryption key: {}", self.encryption_key)?;
+        writeln!(f, "\taddress: {}", self.address)?;
+
+        writeln!(f, "\t uses open proxy: {}", self.open_proxy)?;
+        writeln!(f, "\t sends statistics: {}", self.enabled_statistics)?;
+
+        writeln!(f, "\t allow list path: {}", self.allow_list_path)?;
+        writeln!(f, "\t unknown list path: {}", self.allow_list_path)
     }
 }

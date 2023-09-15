@@ -17,7 +17,6 @@ use crate::node::statistics::collector::GatewayStatisticsCollector;
 use crate::node::storage::Storage;
 use futures::channel::{mpsc, oneshot};
 use log::*;
-use nym_bin_common::output_format::OutputFormat;
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_mixnet_client::forwarder::{MixForwardingSender, PacketForwarder};
 use nym_network_defaults::NymNetworkDetails;
@@ -118,32 +117,6 @@ impl<St> Gateway<St> {
             sphinx_keypair: Arc::new(sphinx_keypair),
             storage,
         }
-    }
-
-    pub(crate) fn print_node_details(&self, output: OutputFormat) {
-        let node_details = nym_types::gateway::GatewayNodeDetailsResponse {
-            identity_key: self.identity_keypair.public_key().to_base58_string(),
-            sphinx_key: self.sphinx_keypair.public_key().to_base58_string(),
-            bind_address: self.config.gateway.listening_address.to_string(),
-            version: self.config.gateway.version.clone(),
-            mix_port: self.config.gateway.mix_port,
-            clients_port: self.config.gateway.clients_port,
-            config_path: self
-                .config
-                .save_path
-                .as_ref()
-                .map(|p| p.display().to_string())
-                .unwrap_or_default(),
-            data_store: self
-                .config
-                .storage_paths
-                .clients_storage
-                .display()
-                .to_string(),
-            network_requester: None,
-        };
-
-        println!("{}", output.format(&node_details));
     }
 
     fn start_mix_socket_listener(
@@ -341,7 +314,7 @@ impl<St> Gateway<St> {
         }))
     }
 
-    pub async fn run(&mut self) -> Result<(), Box<dyn Error + Send + Sync>>
+    pub async fn run(self) -> Result<(), Box<dyn Error + Send + Sync>>
     where
         St: Storage + Clone + 'static,
     {

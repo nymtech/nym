@@ -4,7 +4,7 @@
 use crate::commands::helpers::{
     initialise_local_network_requester, try_load_current_config, OverrideNetworkRequesterConfig,
 };
-use crate::node::helpers::load_identity_keys;
+use crate::node::helpers::load_public_key;
 use clap::Args;
 use nym_bin_common::output_format::OutputFormat;
 use std::path::PathBuf;
@@ -95,10 +95,11 @@ pub async fn execute(args: CmdArgs) -> anyhow::Result<()> {
         config = config.with_default_network_requester_config_path()
     }
 
-    // TODO: this should really only be loading the PUBLIC key
-    let identity_keypair = load_identity_keys(&config)?;
-    let details =
-        initialise_local_network_requester(&config, opts, *identity_keypair.public_key()).await?;
+    let identity_public_key = load_public_key(
+        &config.storage_paths.keys.public_identity_key_file,
+        "gateway identity",
+    )?;
+    let details = initialise_local_network_requester(&config, opts, identity_public_key).await?;
 
     args.output.to_stdout(&details);
 

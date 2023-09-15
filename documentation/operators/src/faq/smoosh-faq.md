@@ -1,0 +1,88 @@
+# Project Smoosh - FAQ
+
+> We aim on purpose to make minimal changes to reward scheme and software. We're just 'smooshing' together stuff we already debugged and know works.
+> -- Harry Halpin,  Nym CEO
+
+This page refer to the changes which are planned for Q3 and Q4 2023. As this is a transition period in the beginning (September 2023) the [Mix Nodes FAQ page](./mixnodes-faq.md) holds more answersd to the current setup as project smoosh refers to the eventual setup. As project smoosh gets progressively implemented the answers on this page will become to be more relevant to the current state and eventually this FAQ page will become to be the main Mix Nodesd FAQ page. 
+
+If any questions are not answered or it's not clear for you in which stage project smoosh is right now, please reach out in Node Operators [Matrix room](https://matrix.to/#/#operators:nymtech.chat).
+
+## Overview
+
+### What is project smoosh?
+
+As we shared in our blog post article [*What does it take to build the wolds most powerful VPN*](please read this [blog post](https://blog.nymtech.net/what-does-it-take-to-build-the-worlds-most-powerful-vpn-d351a76ec4e6), Project smoosh is:  
+
+*"...a nick-name by CTO Dave Hrycyszyn and Chief Scientist Claudia Diaz for the work they are currently doing to “smoosh” Nym nodes so that the same operator can serve alternately as mix node, gateway or VPN node. This requires careful calibration of the Nym token economics, for example, only nodes with the highest reputation for good quality service will be in the VPN set and have the chance to earn higher rewards.
+
+By simplifying the components, adding VPN features and supporting new node operators, the aim is to widen the geographical coverage of nodes and have significant redundancy, meaning plenty of operators to be able to meet demand. This requires strong token economic incentives as well as training and support for new node operators."*
+
+## Technical Questions
+
+### What are the changes?
+
+_Project smoosh will have three steps:_
+
+1. Combine the `gateway` and `network-requester`.
+2. Combine all the nodes in the Nym Mixnet into one binary, that is `mixnode`, `gateway` (entry and exit) and `network-requester`.
+3. Make a selection button (command/argument/flag) for operators to choose whether they want their node to provide all or just some of the functions nodes have in the Nym Mixnet. Not everyone will be able/want to run an exit `gateway` for example.
+
+The softwarte will be the same, just instead of multiple binaries, there will be one Nym Mixnet node binary. Delegations will remain on as they are now, per our token economics (staking, saturation etc)
+
+### What is the change from allow list to deny list?
+
+The operators running `gateways` would have to “open” their nodes to a wider range of online services, in a similar fashion to Tor exit relays. The main change will be to expand the original short allow list to a more permissive setup. An exit policy will constrain the hosts that the users of the Nym VPN and Mixnet can connect to. This will be done in an effort to protect the operators, as Gateways will act both as SOCKS5 Network Requesters, and exit nodes for IP traffic from Nym VPN and Mixnet clients.
+
+### Can I run a mix node only?
+
+Yes, to run a mix node only is an option. However it will be less rewarded as nodes providing option for gateway due to the work and risk their operators have.
+
+## Token Economics & Rewards
+
+### What are the incentives for the node operator?
+
+In the original setup there were no incentives to run a `network-requester`. After the transition all the users will buy multiple tickets of zkNyms credentials and use those as [anonymous e-cash](https://arxiv.org/abs/2303.08221) to pay for their data traffic (Nym API will do the do cryptographical checks to prevent double-spending). All collected fees get distributed to all active nodes proportionally to their work by the end of each epoch.
+
+### How does this change the token economics?
+
+The token economics will stay the same as they are, same goes for the reward algorithm. In practice the distribution of rewards will benefit more the operators who run open gateways.
+
+### How are the rewards distributed?
+
+As each operator can choose what roles their nodes provide, the nodes which work as open gateways will have higher rewards because they are the most important to keep up and stable. Besides that the operators of gateways may be exposed to more complication and possible legal risks.
+ 
+The nodes which are initialized to run as mix nodes and gateways will be chosen to be on top of the active set before the ones working only as a mix node. 
+
+We are considering to turn off the rewards for non-open gateways to incentivize operators to run the open ones. Mix nodes on 'standby' will not be rewarded (as they are not being used). 
+
+The more roles an operator will allow their node to provide the bigger reward ratio which will have huge performance benefits for the end-users.
+
+
+### How will be the staking and inflation after project smoosh?
+
+We must run tests to see how many users pay. We may need to keep inflation on if not enough people pay to keep high quality gateways on in the early stage of the transition. That would mean keeping staking on for gateways. Staking will always be on for mix nodes.
+
+### When project smooth will be launched, it would be the mixmining pool that will pay for the gateway rewards based on amount of traffic routed ?
+
+Yes, the same pool. Nym's aim is to do minimal modifications. The only real modification on the smart contract side will be to get into top X of 'active set' operators will need to have open gateway function enabled.
+
+### What does this mean for the current delegators?
+
+From an operator standpoint, it shall just be a standard Nym upgrade, a new optiion to run the gateway software on your node. Delegators should not have to re-delegate.
+
+## Legal Questions
+
+### Are there any legal concerns for the operators?
+
+So far the general line is running a gateway is not illegal (unless you are in Iran, China, and a few other places) and due to encryption/mixing less risky than running a normal VPN node. For mix nodes, its very safe as they have no idea what packets they are mixing.  
+
+There are several legal questions regarding to this and we would like to ask you to fill this [short survey](https://nymtech.typeform.com/exitnode).
+
+We'll have a thorough legal analysis out before hand and various resources from and for the community which we started to gather in the [Community Legal Forum](../legal/legal-forum.md).
+
+## Other Questions
+
+### What is the ETA of this transition?
+
+The step \#1 shall be done by the end of September, the rest will follow. Smoosh shall be finalized by the end of 2023 with our VPN. We should have the paper on sybil-resistant performance measurement techniques out in December.
+

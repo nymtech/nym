@@ -49,3 +49,17 @@ export const mixFetch: IMixFetchFn = async (url, args, opts?: SetupMixFetchOps) 
   // execute user request
   return instance.mixFetch(url, args);
 };
+
+/**
+ * Stops the usage of mixFetch and disconnect the client from the mixnet.
+ */
+export const disconnectMixFetch = async (): Promise<void> => {
+  // JS: I'm ignoring this lint (no-else-return) because I want to explicitly state
+  // that `__mixFetchGlobal` is definitely not null in the else branch.
+  if (!window.__mixFetchGlobal) {
+    return Promise.reject(new Error("mixFetch hasn't been setup"));
+    // eslint-disable-next-line no-else-return
+  } else {
+    return window.__mixFetchGlobal.disconnectMixFetch();
+  }
+};

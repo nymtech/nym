@@ -70,6 +70,7 @@ export const createMixFetch = async (): Promise<IMixFetch> => {
       const body = Object.values(workerResponse.body)[0]; // we are expecting only one value to be set in `.body`
       return new Response(body, { headers, status, statusText });
     },
+    disconnectMixFetch: wrappedWorker.disconnectMixFetch,
   };
 
   return mixFetchWebWorker;

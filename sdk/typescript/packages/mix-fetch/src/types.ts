@@ -12,11 +12,13 @@ export type SetupMixFetchOps = MixFetchOpts & {
 export interface IMixFetchWebWorker {
   mixFetch: IMixFetchWorkerFn;
   setupMixFetch: (opts?: SetupMixFetchOps) => Promise<void>;
+  disconnectMixFetch: () => Promise<void>;
 }
 
 export interface IMixFetch {
   mixFetch: IMixFetchFn;
   setupMixFetch: (opts?: SetupMixFetchOps) => Promise<void>;
+  disconnectMixFetch: () => Promise<void>;
 }
 
 export enum EventKinds {

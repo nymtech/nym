@@ -65,25 +65,33 @@ export const Wallet = () => {
   const [signerClient, setSignerClient] = useState<any>();
   const [account, setAccount] = useState<string>();
   const [accountLoading, setAccountLoading] = useState<boolean>(false);
+  const [clientLoading, setClientLoading] = useState<boolean>(false);
   const [balance, setBalance] = useState<Coin>();
   const [balanceLoading, setBalanceLoading] = useState<boolean>(false);
-  const [delegations, setDelegations] = useState<any>();
   const [log, setLog] = useState<React.ReactNode[]>([]);
   const [tokensToSend, setTokensToSend] = useState<string>();
+  const [sendingTokensLoader, setSendingTokensLoader] = useState<boolean>(false);
+  const [delegations, setDelegations] = useState<any>();
   const [recipientAddress, setRecipientAddress] = useState<string>('');
   const [delegationNodeId, setDelegationNodeId] = useState<string>();
   const [amountToBeDelegated, setAmountToBeDelegated] = useState<string>();
+  const [delegationLoader, setDelegationLoader] = useState<boolean>(false);
+  const [undeledationLoader, setUndeledationLoader] = useState<boolean>(false);
+  const [withdrawLoading, setWithdrawLoading] = useState<boolean>(false);
 
   const getBalance = useCallback(async () => {
+    setBalanceLoading(true);
     try {
       const newBalance = await signerCosmosWasmClient?.getBalance(account, 'unym');
       setBalance(newBalance);
     } catch (error) {
       console.error(error);
     }
+    setBalanceLoading(false);
   }, [account, signerCosmosWasmClient]);
 
   const getSignerAccount = async () => {
+    setAccountLoading(true);
     try {
       const signer = await signerAccount(mnemonic);
       const accounts = await signer.getAccounts();
@@ -93,15 +101,18 @@ export const Wallet = () => {
     } catch (error) {
       console.error(error);
     }
+    setAccountLoading(false);
   };
 
   const getClients = async () => {
+    setClientLoading(true);
     try {
       setSignerCosmosWasmClient(await fetchSignerCosmosWasmClient(mnemonic));
       setSignerClient(await fetchSignerClient(mnemonic));
     } catch (error) {
       console.error(error);
     }
+    setClientLoading(false);
   };
 
   const getDelegations = useCallback(async () => {
@@ -112,34 +123,15 @@ export const Wallet = () => {
   }, [signerClient]);
 
   const connect = () => {
-    setAccountLoading(true);
     getSignerAccount();
     getClients();
-    setAccountLoading(false);
   };
-
-  useEffect(() => {
-    if (account && signerCosmosWasmClient) {
-      if (!balance) {
-        setBalanceLoading(true);
-        getBalance();
-        setBalanceLoading(false);
-      }
-    }
-  }, [account, signerCosmosWasmClient, balance, getBalance]);
-
-  useEffect(() => {
-    if (signerClient && !delegations) {
-      console.log('getDelegations');
-      getDelegations();
-    }
-  }, [signerClient, getDelegations, delegations]);
 
   const doUndelegateAll = async () => {
     if (!signerClient) {
       return;
     }
-    console.log('delegations', delegations);
+    setUndeledationLoader(true);
     try {
       // eslint-disable-next-line no-restricted-syntax
       for (const delegation of delegations.delegations) {
@@ -149,12 +141,14 @@ export const Wallet = () => {
     } catch (error) {
       console.error(error);
     }
+    setUndeledationLoader(false);
   };
 
   const doDelegate = async ({ mixId, amount }: { mixId: number; amount: number }) => {
     if (!signerClient) {
       return;
     }
+    setDelegationLoader(true);
     try {
       const res = await signerClient.delegateToMixnode({ mixId }, 'auto', undefined, [
         { amount: `${amount}`, denom: 'unym' },
@@ -170,13 +164,14 @@ export const Wallet = () => {
     } catch (error) {
       console.error(error);
     }
+    setDelegationLoader(false);
   };
   // End delegate
 
   // Sending tokens
   const doSendTokens = async () => {
     const memo = 'test sending tokens';
-
+    setSendingTokensLoader(true);
     try {
       const res = await signerCosmosWasmClient.sendTokens(
         account,
@@ -195,6 +190,7 @@ export const Wallet = () => {
     } catch (error) {
       console.error(error);
     }
+    setSendingTokensLoader(false);
   };
   // End send tokens
 
@@ -203,6 +199,7 @@ export const Wallet = () => {
     const delegatorAddress = '';
     const validatorAdress = '';
     const memo = 'test sending tokens';
+    setWithdrawLoading(true);
     try {
       const res = await signerCosmosWasmClient.withdrawRewards(delegatorAddress, validatorAdress, 'auto', memo);
       setLog((prev) => [
@@ -215,7 +212,25 @@ export const Wallet = () => {
     } catch (error) {
       console.error(error);
     }
+    setWithdrawLoading(false);
   };
+
+  useEffect(() => {
+    if (account && signerCosmosWasmClient) {
+      if (!balance) {
+        setBalanceLoading(true);
+        getBalance();
+        setBalanceLoading(false);
+      }
+    }
+  }, [account, signerCosmosWasmClient, balance, getBalance]);
+
+  useEffect(() => {
+    if (signerClient && !delegations) {
+      console.log('getDelegations');
+      getDelegations();
+    }
+  }, [signerClient, getDelegations, delegations]);
 
   return (
     <Box padding={3}>
@@ -238,16 +253,13 @@ export const Wallet = () => {
               maxRows={4}
               sx={{ marginBottom: 3 }}
             />
-
-            {accountLoading ? (
-              <LoadingButton loading loadingPosition="start" startIcon={<SaveIcon />} variant="outlined">
-                Save
-              </LoadingButton>
-            ) : (
-              <Button variant="outlined" onClick={() => connect()} disabled={!mnemonic}>
-                Connect
-              </Button>
-            )}
+            <Button
+              variant="outlined"
+              onClick={() => connect()}
+              disabled={!mnemonic || accountLoading || clientLoading || balanceLoading}
+            >
+              {accountLoading || clientLoading ? 'Loading...' : !balanceLoading ? 'Connect' : 'Connected'}
+            </Button>
           </Box>
           {account && balance ? (
             <Box>
@@ -279,8 +291,8 @@ export const Wallet = () => {
                 onChange={(e) => setTokensToSend(e.target.value)}
                 size="small"
               />
-              <Button variant="outlined" onClick={() => doSendTokens()}>
-                SendTokens
+              <Button variant="outlined" onClick={() => doSendTokens()} disabled={sendingTokensLoader}>
+                {sendingTokensLoader ? 'Sending...' : 'SendTokens'}
               </Button>
             </Box>
           </Box>
@@ -311,8 +323,9 @@ export const Wallet = () => {
                   onClick={() =>
                     doDelegate({ mixId: parseInt(delegationNodeId, 10), amount: parseInt(amountToBeDelegated, 10) })
                   }
+                  disabled={delegationLoader}
                 >
-                  Delegate
+                  {delegationLoader ? 'Delegation in process...' : 'Delegate'}
                 </Button>
               </Box>
             </Box>
@@ -349,14 +362,14 @@ export const Wallet = () => {
             </Box>
             {delegations && (
               <Box marginBottom={3}>
-                <Button variant="outlined" onClick={doUndelegateAll}>
-                  Undelegate All
+                <Button variant="outlined" onClick={() => doUndelegateAll()} disabled={undeledationLoader}>
+                  {undeledationLoader ? 'Undelegating...' : 'Undelegate All'}
                 </Button>
               </Box>
             )}
             <Box>
-              <Button variant="outlined" onClick={() => doWithdrawRewards()}>
-                Withdraw rewards
+              <Button variant="outlined" onClick={() => doWithdrawRewards()} disabled={withdrawLoading}>
+                {withdrawLoading ? 'Doing withdraw...' : 'Withdraw rewards'}
               </Button>
             </Box>
           </Box>

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::config::{default_config_directory, default_data_directory};
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use std::path::{Path, PathBuf};
 
 pub const DEFAULT_PRIVATE_IDENTITY_KEY_FILENAME: &str = "private_identity.pem";
@@ -21,6 +21,19 @@ pub fn default_network_requester_data_dir<P: AsRef<Path>>(id: P) -> PathBuf {
     default_data_directory(id).join(DEFAULT_NETWORK_REQUESTER_DATA_DIR)
 }
 
+/// makes sure that an empty path is converted into a `None` as opposed to `Some("")`
+fn de_maybe_path<'de, D>(deserializer: D) -> Result<Option<PathBuf>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let path = PathBuf::deserialize(deserializer)?;
+    if path.as_os_str().is_empty() {
+        Ok(None)
+    } else {
+        Ok(Some(path))
+    }
+}
+
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct GatewayPaths {
@@ -32,6 +45,7 @@ pub struct GatewayPaths {
     pub clients_storage: PathBuf,
 
     /// Path to the configuration of the locally running network requester.
+    #[serde(deserialize_with = "de_maybe_path")]
     pub network_requester_config: Option<PathBuf>,
     // pub node_description: PathBuf,
 

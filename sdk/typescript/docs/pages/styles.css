@@ -20,45 +20,19 @@ div.nextra-code-block > div  {
 }
 
 
-aside ul > li > a:hover{
-    background: #fb6e4ea9 !important;
-}
-
-aside ul > li > a:active{
-    background: #fb6e4e !important;
-}
-
-
-/* Side bar */
-.open button:hover {
-    background: #fb6e4ea9 !important;
-    color:rgb(0, 0, 0);
-}
-
-.open button:active {
-    background: #fb6e4ea9 !important;
-    color:rgb(0, 0, 0);
-}
-
-.active nx-flex nx-flex-col nx-gap-1 {
-    background: #fb6e4ea9 !important;
-    color:rgb(0, 0, 0);
-}
-
-button:hover {
-    background: #fb6e4ea9 !important;
-    color:rgb(0, 0, 0);
-}
-
-.active > li > a {
-    background: #fb6e4ea9 !important;
-    color:rgb(0, 0, 0);
-}
-
+/* Sidebar buttons */
 :is(html .dark\:nx-bg-primary-400\/10){
     background: #fb6e4e !important;
     color: #121726 !important;
 }
+
+/* aside ul > li > a:hover{
+    background: #fb6e4ea9 !important;
+} */
+
+/* aside ul > li > a:active{
+    background: #fb6e4e !important;
+} */
 
 
 /* Links*/
@@ -79,12 +53,27 @@ button:hover {
     color: #fb6e4e !important;
 }
 
-/* Secondary */
+/* Callout Secondary */
 :is(html .dark\:nx-border-yellow-200\/30) {
     border-color: transparent !important;
 }
 
-/* Primary */
+/* Callout Primary */
 :is(html .dark\:nx-border-blue-200\/30) {
     border-color: #fb6e4e !important;
+}
+
+/* Chips*/
+.css-sv2u65-MuiChip-root {
+    background-color:  #fb6e4e;
+}
+
+/* Buttons */
+.MuiButton-root {
+    color:  #fb6e4e;
+    border-color:  #fb6e4e;
+}
+
+.MuiCircularProgress-root {
+    color:#fb6e4e;
 }

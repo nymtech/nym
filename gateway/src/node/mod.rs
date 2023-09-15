@@ -15,6 +15,7 @@ use crate::node::helpers::{initialise_main_storage, load_network_requester_confi
 use crate::node::mixnet_handling::receiver::connection_handler::ConnectionHandler;
 use crate::node::statistics::collector::GatewayStatisticsCollector;
 use crate::node::storage::Storage;
+use anyhow::bail;
 use futures::channel::{mpsc, oneshot};
 use log::*;
 use nym_crypto::asymmetric::{encryption, identity};
@@ -314,7 +315,7 @@ impl<St> Gateway<St> {
         }))
     }
 
-    pub async fn run(self) -> Result<(), Box<dyn Error + Send + Sync>>
+    pub async fn run(self) -> anyhow::Result<()>
     where
         St: Storage + Clone + 'static,
     {
@@ -375,10 +376,17 @@ impl<St> Gateway<St> {
         // Once this is a bit more mature, make this a commandline flag instead of a compile time
         // flag
         #[cfg(feature = "wireguard")]
-        nym_wireguard::start_wg_listener(shutdown.subscribe()).await?;
+        if let Err(err) = nym_wireguard::start_wg_listener(shutdown.subscribe()).await {
+            // that's a nasty workaround, but anyhow errors are generally nicer, especially on exit
+            bail!("{err}")
+        }
 
         info!("Finished nym gateway startup procedure - it should now be able to receive mix and client traffic!");
 
-        Self::wait_for_interrupt(shutdown).await
+        if let Err(err) = Self::wait_for_interrupt(shutdown).await {
+            // that's a nasty workaround, but anyhow errors are generally nicer, especially on exit
+            bail!("{err}")
+        }
+        Ok(())
     }
 }

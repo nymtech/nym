@@ -12,7 +12,7 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub(crate) enum GatewayError {
-    #[error("failed to load {keys} keys from {} (private key) and {} (public key): {err}", .paths.private_key_path.display(), .paths.public_key_path.display())]
+    #[error("failed to load {keys} keys from '{}' (private key) and '{}' (public key): {err}", .paths.private_key_path.display(), .paths.public_key_path.display())]
     KeyPairLoadFailure {
         keys: String,
         paths: nym_pemstore::KeyPairPath,
@@ -20,7 +20,7 @@ pub(crate) enum GatewayError {
         err: io::Error,
     },
 
-    #[error("failed to load {key} public key from {}: {err}", .path.display())]
+    #[error("failed to load {key} public key from '{}': {err}", .path.display())]
     PublicKeyLoadFailure {
         key: String,
         path: PathBuf,
@@ -29,7 +29,7 @@ pub(crate) enum GatewayError {
     },
 
     #[error(
-        "failed to load config file for id {id} using path {path}. detailed message: {source}"
+        "failed to load config file for id {id} using path '{}'. detailed message: {source}", path.display()
     )]
     ConfigLoadFailure {
         id: String,
@@ -39,7 +39,7 @@ pub(crate) enum GatewayError {
     },
 
     #[error(
-    "failed to load config file for network requester (gateway {id}) using path {path}. detailed message: {source}"
+    "failed to load config file for network requester (gateway-id: '{id}') using path '{}'. detailed message: {source}", path.display()
     )]
     NetworkRequesterConfigLoadFailure {
         id: String,
@@ -49,7 +49,7 @@ pub(crate) enum GatewayError {
     },
 
     #[error(
-        "failed to save config file for id {id} using path {path}. detailed message: {source}"
+        "failed to save config file for id {id} using path '{}'. detailed message: {source}", path.display()
     )]
     ConfigSaveFailure {
         id: String,

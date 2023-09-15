@@ -13,7 +13,6 @@ use nym_bin_common::output_format::OutputFormat;
 use nym_crypto::asymmetric::identity;
 use nym_types::helpers::ConsoleSigningOutput;
 use nym_validator_client::nyxd;
-use std::error::Error;
 
 #[derive(Args, Clone)]
 #[clap(group(ArgGroup::new("sign").required(true).args(&["wallet_address", "text", "contract_msg"])))]
@@ -120,7 +119,7 @@ fn print_signed_contract_msg(
     println!("{}", output.format(&sign_output));
 }
 
-pub fn execute(args: Sign) -> Result<(), Box<dyn Error + Send + Sync>> {
+pub fn execute(args: Sign) -> anyhow::Result<()> {
     let config = build_config(args.id.clone(), OverrideConfig::default())?;
     ensure_config_version_compatibility(&config)?;
 

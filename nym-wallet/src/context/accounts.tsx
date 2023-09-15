@@ -17,7 +17,7 @@ type TAccounts = {
   handleAddAccount: (data: { accountName: string; mnemonic: string; password: string }) => void;
   setDialogToDisplay: (dialog?: TAccountsDialog) => void;
   handleSelectAccount: (data: { accountName: string; password: string }) => Promise<boolean>;
-  handleAccountToEdit: (accountId: string) => void;
+  handleAccountToEdit: (accountId: string | undefined) => void;
   handleEditAccount: (account: AccountEntry) => void;
   handleImportAccount: (account: AccountEntry) => void;
   handleGetAccountMnemonic: (data: { password: string; accountName: string }) => void;
@@ -72,7 +72,7 @@ export const AccountsProvider: FCWithChildren = ({ children }) => {
 
   const handleImportAccount = (account: AccountEntry) => setAccounts((accs) => [...(accs ? [...accs] : []), account]);
 
-  const handleAccountToEdit = (accountName: string) =>
+  const handleAccountToEdit = (accountName: string | undefined) =>
     setAccountToEdit(accounts?.find((acc) => acc.id === accountName));
 
   const handleSelectAccount = async ({ accountName, password }: { accountName: string; password: string }) => {

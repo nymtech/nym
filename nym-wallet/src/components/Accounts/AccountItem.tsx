@@ -1,5 +1,15 @@
 import React, { useContext } from 'react';
-import { Box, ListItem, ListItemAvatar, ListItemButton, ListItemText, Tooltip, Typography } from '@mui/material';
+import EditIcon from '@mui/icons-material/Create';
+import {
+  Box,
+  IconButton,
+  ListItem,
+  ListItemAvatar,
+  ListItemButton,
+  ListItemText,
+  Tooltip,
+  Typography,
+} from '@mui/material';
 import { useClipboard } from 'use-clipboard-copy';
 import { AccountsContext } from 'src/context';
 import { AccountAvatar } from './AccountAvatar';
@@ -13,13 +23,24 @@ export const AccountItem = ({
   address: string;
   onSelectAccount: () => void;
 }) => {
-  const { selectedAccount, setDialogToDisplay, setAccountMnemonic } = useContext(AccountsContext);
+  const { selectedAccount, setDialogToDisplay, setAccountMnemonic, handleAccountToEdit } = useContext(AccountsContext);
   const { copy, copied } = useClipboard({ copiedTimeout: 1000 });
   return (
     <ListItem
       disablePadding
       disableGutters
       sx={selectedAccount?.id === name ? { bgcolor: 'rgba(33, 208, 115, 0.1)' } : {}}
+      secondaryAction={
+        <IconButton
+          sx={{ mr: 2, color: 'nym.text.dark' }}
+          onClick={() => {
+            handleAccountToEdit(name);
+            setDialogToDisplay('Edit');
+          }}
+        >
+          <EditIcon fontSize="small" />
+        </IconButton>
+      }
     >
       <ListItemButton disableRipple onClick={onSelectAccount}>
         <ListItemAvatar sx={{ minWidth: 0, mr: 2 }}>
@@ -59,17 +80,6 @@ export const AccountItem = ({
             </Box>
           }
         />
-        {/* edit and remove accounts todo */}
-        {/* <ListItemIcon>
-          <IconButton
-            onClick={(e) => {
-              e.stopPropagation();
-              handleAccountToEdit(name);
-            }}
-          >
-            <Edit />
-          </IconButton>
-        </ListItemIcon> */}
       </ListItemButton>
     </ListItem>
   );

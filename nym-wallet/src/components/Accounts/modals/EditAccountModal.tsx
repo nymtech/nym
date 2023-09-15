@@ -14,16 +14,18 @@ import {
 import { Close } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { AccountsContext } from 'src/context';
+import { StyledBackButton } from 'src/components/StyledBackButton';
 
 export const EditAccountModal = () => {
+  const { accountToEdit, dialogToDisplay, setDialogToDisplay, handleEditAccount, handleAccountToEdit } =
+    useContext(AccountsContext);
   const [accountName, setAccountName] = useState('');
 
-  const { accountToEdit, dialogToDisplay, setDialogToDisplay, handleEditAccount } = useContext(AccountsContext);
-
   const theme = useTheme();
-
   useEffect(() => {
-    setAccountName(accountToEdit ? accountToEdit?.id : '');
+    if (accountToEdit) {
+      setAccountName(accountToEdit.id);
+    }
   }, [accountToEdit]);
 
   return (
@@ -38,17 +40,15 @@ export const EditAccountModal = () => {
       <Paper>
         <DialogTitle>
           <Box display="flex" justifyContent="space-between" alignItems="center">
-            <Typography variant="h6">Edit account name</Typography>
+            <Typography variant="h6">Rename account</Typography>
             <IconButton onClick={() => setDialogToDisplay('Accounts')}>
               <Close />
             </IconButton>
           </Box>
-          <Typography fontSize="small" sx={{ color: 'grey.600' }}>
-            New wallet address
-          </Typography>
         </DialogTitle>
         <DialogContent sx={{ p: 0 }}>
           <Box sx={{ px: 3, mt: 1 }}>
+            <Typography sx={{ mb: 2 }}>Type the new name for your account</Typography>
             <TextField
               label="Account name"
               fullWidth
@@ -59,7 +59,13 @@ export const EditAccountModal = () => {
             />
           </Box>
         </DialogContent>
-        <DialogActions sx={{ p: 3 }}>
+        <DialogActions sx={{ p: 3, gap: 2 }}>
+          <StyledBackButton
+            onBack={() => {
+              handleAccountToEdit(undefined);
+              setDialogToDisplay('Accounts');
+            }}
+          />
           <Button
             fullWidth
             disableElevation
@@ -73,7 +79,7 @@ export const EditAccountModal = () => {
             }}
             disabled={!accountName?.length}
           >
-            Edit
+            Rename
           </Button>
         </DialogActions>
       </Paper>

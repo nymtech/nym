@@ -67,8 +67,8 @@ export const Wallet = () => {
   const [balance, setBalance] = useState<Coin>();
   const [tokensToSend, setTokensToSend] = useState<string>();
   const [recipientAddress, setRecipientAddress] = useState<string>('');
-  const [delegationNodeId, setDelegationNodeId] = useState<number>();
-  const [amountToBeDelegated, setAmountToBeDelegated] = useState<number>();
+  const [delegationNodeId, setDelegationNodeId] = useState<string>();
+  const [amountToBeDelegated, setAmountToBeDelegated] = useState<string>();
 
   const getBalance = useCallback(async () => {
     try {
@@ -107,12 +107,10 @@ export const Wallet = () => {
     setDelegations(newDelegations);
   }, [signerClient]);
 
-  useEffect(() => {
-    if (mnemonic) {
-      getSignerAccount();
-      getClients();
-    }
-  }, [mnemonic]);
+  const connect = () => {
+    getSignerAccount();
+    getClients();
+  };
 
   useEffect(() => {
     if (account && signerCosmosWasmClient) {
@@ -223,7 +221,19 @@ export const Wallet = () => {
             <Typography variant="body1" marginBottom={3}>
               Enter the mnemonic
             </Typography>
-            <TextField type="text" placeholder="mnemonic" onChange={(e) => setMnemonic(e.target.value)} fullWidth />
+            <TextField
+              type="text"
+              placeholder="mnemonic"
+              onChange={(e) => setMnemonic(e.target.value)}
+              fullWidth
+              multiline
+              maxRows={4}
+              sx={{ marginBottom: 3 }}
+            />
+
+            <Button variant="outlined" onClick={() => connect()} disabled={!mnemonic}>
+              Connect
+            </Button>
           </Box>
           {account && balance ? (
             <Box>
@@ -242,14 +252,18 @@ export const Wallet = () => {
         <Box padding={3}>
           <Typography variant="h6">Send Tokens</Typography>
           <Box marginTop={3} display="flex" flexDirection="column">
-            <Input type="text" placeholder="Recipient Address" onChange={(e) => setRecipientAddress(e.target.value)} />
+            <TextField
+              type="text"
+              placeholder="Recipient Address"
+              onChange={(e) => setRecipientAddress(e.target.value)}
+              size="small"
+            />
             <Box marginY={3} display="flex" justifyContent="space-between">
-              <Input
-                type="number"
+              <TextField
+                type="text"
                 placeholder="Amount"
-                onChange={(e) => {
-                  setTokensToSend(e.target.value);
-                }}
+                onChange={(e) => setTokensToSend(e.target.value)}
+                size="small"
               />
               <Button variant="outlined" onClick={() => doSendTokens()}>
                 SendTokens
@@ -265,20 +279,24 @@ export const Wallet = () => {
               <Typography marginBottom={3} variant="body1">
                 Make a delegation
               </Typography>
-              <Input
-                type="number"
+              <TextField
+                type="text"
                 placeholder="Mixnode ID"
-                onChange={(e) => setDelegationNodeId(parseInt(e.target.value, 10))}
+                onChange={(e) => setDelegationNodeId(e.target.value)}
+                size="small"
               />
               <Box marginTop={3} display="flex" justifyContent="space-between">
-                <Input
-                  type="number"
+                <TextField
+                  type="text"
                   placeholder="Amount"
-                  onChange={(e) => setAmountToBeDelegated(parseInt(e.target.value, 10))}
+                  onChange={(e) => setAmountToBeDelegated(e.target.value)}
+                  size="small"
                 />
                 <Button
                   variant="outlined"
-                  onClick={() => doDelegate({ mixId: delegationNodeId, amount: amountToBeDelegated })}
+                  onClick={() =>
+                    doDelegate({ mixId: parseInt(delegationNodeId, 10), amount: parseInt(amountToBeDelegated, 10) })
+                  }
                 >
                   Delegate
                 </Button>

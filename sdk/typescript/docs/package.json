@@ -26,6 +26,7 @@
     "@cosmjs/encoding": "^0.31.1",
     "@cosmjs/proto-signing": "^0.31.1",
     "@cosmjs/stargate": "^0.31.0",
+    "@cosmos-kit/core": "^2.6.2",
     "@cosmos-kit/keplr": "^2.3.9",
     "@cosmos-kit/ledger": "^2.4.3",
     "@cosmos-kit/react": "^2.8.0",
@@ -49,10 +50,10 @@
   },
   "devDependencies": {
     "@types/node": "18.11.10",
+    "copy-webpack-plugin": "^11.0.0",
     "eslint": "8.46.0",
     "eslint-config-next": "13.4.13",
     "raw-loader": "^4.0.2",
-    "typescript": "^4.9.3",
-    "copy-webpack-plugin": "^11.0.0"
+    "typescript": "^4.9.3"
   }
 }

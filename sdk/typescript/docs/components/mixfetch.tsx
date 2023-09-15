@@ -4,8 +4,7 @@ import Button from '@mui/material/Button';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
-
-import { mixFetch } from '@nymproject/mix-fetch';
+import { mixFetch } from '@nymproject/mix-fetch-full-fat';
 import Stack from '@mui/material/Stack';
 import Paper from '@mui/material/Paper';
 

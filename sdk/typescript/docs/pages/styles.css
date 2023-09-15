@@ -1,22 +1,5 @@
-
-/* DARK MODE */
-html.dark > body > div {
-    background-color: #121726;
- }  
-
-.dark footer, .dark nav {
-    background-color: #121726 !important;
- }  
-
- .dark div .nx-sticky {
-    background-color: #121726 !important;
-}
-
-
-
-/* LIGHT MODE */
-.nextra-code-block > div {
-    background: #eee;
+div.nextra-code-block > div  {
+    background:hsl(30, 100%, 40%) !important;
 }
 
 .nextra-code-block > pre {

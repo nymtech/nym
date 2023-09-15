@@ -1,6 +1,6 @@
-import React from 'react'
-import { DocsThemeConfig } from 'nextra-theme-docs'
-import { Footer } from "./components/footer";
+import React from 'react';
+import { DocsThemeConfig } from 'nextra-theme-docs';
+import { Footer } from './components/footer';
 
 const config: DocsThemeConfig = {
   logo: <span>Nym TypeScript SDK</span>,
@@ -14,6 +14,14 @@ const config: DocsThemeConfig = {
   footer: {
     text: Footer,
   },
-}
+  darkMode: false,
+  nextThemes: {
+    forcedTheme: 'dark',
+  },
+  primaryHue: {
+    dark: 30,
+    light: 30,
+  },
+};
 
-export default config
+export default config;

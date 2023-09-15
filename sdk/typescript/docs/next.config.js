@@ -39,14 +39,12 @@ nextra.webpack = (config, options) => {
 
 const config = {
   ...nextra,
-  output: 'export',
-  rewrites: undefined,
+  // output: 'export', // static HTML files, has problems with Vercel
+  // rewrites: undefined,
   images: {
     unoptimized: true,
   },
   transpilePackages: ['@nymproject/contract-clients'],
 };
-
-// config.images.unoptimized = true;
 
 module.exports = config;

@@ -69,3 +69,22 @@ button:hover {
 .MuiTypography-root.MuiTypography-inherit.MuiLink-root.MuiLink-underlineAlways.css-1xr3c94-MuiTypography-root-MuiLink-root {
     color: #fb6e4e !important;
 }
+
+/* Callouts */
+.nextra-callout {
+    background-color: #fb6e4e21 !important;
+}
+
+.nx-mt-6 .nx-leading-7 > p {
+    color: #fb6e4e !important;
+}
+
+/* Secondary */
+:is(html .dark\:nx-border-yellow-200\/30) {
+    border-color: transparent !important;
+}
+
+/* Primary */
+:is(html .dark\:nx-border-blue-200\/30) {
+    border-color: #fb6e4e !important;
+}

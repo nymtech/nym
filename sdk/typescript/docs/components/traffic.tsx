@@ -2,6 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { createNymMixnetClient, NymMixnetClient, Payload } from '@nymproject/sdk-full-fat';
 import Box from '@mui/material/Box';
 import CircularProgress from '@mui/material/CircularProgress';
+import Paper from '@mui/material/Paper';
+import Typography from '@mui/material/Typography';
+import Stack from '@mui/material/Stack';
+import TextField from '@mui/material/TextField';
+import Button from '@mui/material/Button';
 // download full-fat SDK to avoid worker file error from: https://www.npmjs.com/package/@nymproject/sdk-full-fat
 
 const nymApiUrl = 'https://validator.nymtech.net/api';
@@ -63,19 +68,37 @@ export const Traffic = () => {
   }
 
   return (
-    <div>
-      <h1>Use this tool to experiment with the Mixnet: send and receive messages!</h1>
-      <p style={{ border: '1px solid black' }}>My self address is: {selfAddress || 'loading'}</p>
-      <div style={{ border: '1px solid black' }}>
-        {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
-        <label>Recipient Address</label>
-        <input type="text" onChange={(e) => setRecipient(e.target.value)} />
-        <input type="text" onChange={(e) => setPayload({ message: e.target.value, mimeType: 'text/plain' })} />
-        <button type="button" onClick={() => send()}>
-          Send
-        </button>
-      </div>
-      <p>Received message: {receivedMessage}</p>
-    </div>
+    <Box padding={3}>
+      <Paper style={{ marginTop: '1rem', padding: '2rem' }}>
+        <Stack spacing={3}>
+          <Typography variant="body1">My self address is:</Typography>
+          <Typography variant="body1">{selfAddress || 'loading'}</Typography>
+          <Typography variant="h5">Communication through the Mixnet</Typography>
+          <TextField
+            type="text"
+            placeholder="Recipient Address"
+            onChange={(e) => setRecipient(e.target.value)}
+            size="small"
+          />
+          <TextField
+            type="text"
+            placeholder="Message to send"
+            multiline
+            rows={4}
+            onChange={(e) => setPayload({ message: e.target.value, mimeType: 'text/plain' })}
+            size="small"
+          />
+          <Button variant="outlined" onClick={() => send()} disabled={!payload || !recipient} sx={{width: 'fit-content'}}>
+            Send
+          </Button>
+        </Stack>
+        {receivedMessage && (
+          <Stack spacing={3} style={{ marginTop: '1rem' }}>
+            <Typography variant="h5">Message Received!</Typography>
+            <Typography fontFamily="monospace">{receivedMessage}</Typography>
+          </Stack>
+        )}
+      </Paper>
+    </Box>
   );
 };

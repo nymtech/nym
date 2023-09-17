@@ -27,6 +27,3 @@ mix-fetch = ["mix-fetch-wasm"]
 [package.metadata.wasm-pack.profile.release]
 wasm-opt = false
 
-[profile.release]
-lto = true
-opt-level = 'z'

@@ -35,7 +35,3 @@ wasm-utils = { path = "../../common/wasm/utils" }
 
 [package.metadata.wasm-pack.profile.release]
 wasm-opt = false
-
-[profile.release]
-lto = true
-opt-level = 'z'

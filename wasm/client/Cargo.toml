@@ -40,7 +40,3 @@ node-tester = ["nym-node-tester-wasm", "nym-node-tester-utils"]
 
 [package.metadata.wasm-pack.profile.release]
 wasm-opt = false
-
-[profile.release]
-lto = true
-opt-level = 'z'

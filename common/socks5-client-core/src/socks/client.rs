@@ -507,8 +507,8 @@ impl SocksClient {
                 );
             }
 
-            SocksCommand::Bind => unimplemented!(), // not handled
-            SocksCommand::UdpAssociate => unimplemented!(), // not handled
+            SocksCommand::Bind => return Err(SocksProxyError::BindNotSupported), // not handled
+            SocksCommand::UdpAssociate => return Err(SocksProxyError::UdpNotSupported),
         };
 
         Ok(())

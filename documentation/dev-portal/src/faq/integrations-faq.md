@@ -1,4 +1,4 @@
-# Integration FAQ
+# Integrations FAQ
 
 On this page, you'll find links and frequently asked questions on how to get started on integrating your project with Nym's Mixnet and its blockchain, Nyx. 
 

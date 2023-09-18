@@ -21,6 +21,7 @@ pub struct CmdArgs {
 
     /// Specify whether the network requester should be enabled.
     // (you might want to create all the configs, generate keys, etc. but not actually run the NR just yet)
+    #[arg(long)]
     enabled: Option<bool>,
 
     // note: those flags are set as bools as we want to explicitly override any settings values

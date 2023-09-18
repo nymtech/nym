@@ -46,7 +46,7 @@ export const Mixnodes = () => {
     <div style={{ marginTop: "1rem" }}>
       {mixnodes?.length &&
         mixnodes.map((mixnode: any) => (
-          <Box key={mixnode.bond_information.mix_id}>
+          <Box className="codeBox" key={mixnode.bond_information.mix_id}>
             <span
               style={{ marginRight: "1rem" }}
             >{`id: ${mixnode.bond_information.mix_id}`}</span>

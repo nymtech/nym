@@ -190,9 +190,8 @@ pub struct NetworkRequester {
     /// in case of enabled statistics, specifies mixnet client address where a statistics aggregator is running
     pub statistics_recipient: Option<String>,
 
-    /// Disable Poisson sending rate, and only send cover traffic occasionally as keepalive messages.
+    /// Disable Poisson sending rate.
     /// This is equivalent to setting debug.traffic.disable_main_poisson_packet_distribution = true,
-    /// and debug.cover_traffic.loop_cover_traffic_average_delay = 5s.
     pub disable_poisson_rate: bool,
 }
 

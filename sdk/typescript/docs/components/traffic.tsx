@@ -16,6 +16,7 @@ export const Traffic = () => {
   const [recipient, setRecipient] = useState<string>();
   const [payload, setPayload] = useState<Payload>();
   const [receivedMessage, setReceivedMessage] = useState<string>();
+  const [buttonEnabled, setButtonEnabled] = useState<boolean>(false);
 
   const init = async () => {
     const client = await createNymMixnetClient();
@@ -58,6 +59,14 @@ export const Traffic = () => {
     };
   }, []);
 
+  useEffect(() => {
+    if (recipient && payload) {
+      setButtonEnabled(true);
+    } else {
+      setButtonEnabled(false);
+    }
+  }, [recipient, payload]);
+
   if (!nym || !selfAddress) {
     return (
       <Box sx={{ display: 'flex' }}>
@@ -87,7 +96,7 @@ export const Traffic = () => {
             onChange={(e) => setPayload({ message: e.target.value, mimeType: 'text/plain' })}
             size="small"
           />
-          <Button variant="outlined" onClick={() => send()} disabled={!payload || !recipient} sx={{width: 'fit-content'}}>
+          <Button variant="outlined" onClick={() => send()} disabled={!buttonEnabled} sx={{ width: 'fit-content' }}>
             Send
           </Button>
         </Stack>

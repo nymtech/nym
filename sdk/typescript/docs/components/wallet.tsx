@@ -4,14 +4,11 @@ import { SigningCosmWasmClient } from '@cosmjs/cosmwasm-stargate';
 import { DirectSecp256k1HdWallet } from '@cosmjs/proto-signing';
 import { Coin, GasPrice } from '@cosmjs/stargate';
 import Button from '@mui/material/Button';
-import Input from '@mui/material/Input';
 import Paper from '@mui/material/Paper';
 import Box from '@mui/material/Box';
 import { TableBody, TableCell, TableHead, TableRow, TextField, Typography } from '@mui/material';
 import Divider from '@mui/material/Divider';
 import Table from '@mui/material/Table';
-import LoadingButton from '@mui/lab/LoadingButton';
-import SaveIcon from '@mui/icons-material/Save';
 import { settings } from './client';
 
 const signerAccount = async (mnemonic) => {
@@ -23,7 +20,7 @@ const signerAccount = async (mnemonic) => {
   return signer;
 };
 
-const fetchSignerCosmosWasmClient = async (mnemonic) => {
+const fetchSignerCosmosWasmClient = async (mnemonic: string) => {
   const signer = await signerAccount(mnemonic);
 
   // create a signing client we don't need to set the gas price conversion for queries
@@ -78,6 +75,7 @@ export const Wallet = () => {
   const [delegationLoader, setDelegationLoader] = useState<boolean>(false);
   const [undeledationLoader, setUndeledationLoader] = useState<boolean>(false);
   const [withdrawLoading, setWithdrawLoading] = useState<boolean>(false);
+  const [connectButtonText, setConnectButtonText] = useState<string>('Connect');
 
   const getBalance = useCallback(async () => {
     setBalanceLoading(true);
@@ -232,6 +230,15 @@ export const Wallet = () => {
     }
   }, [signerClient, getDelegations, delegations]);
 
+  useEffect(() => {
+    if (accountLoading || clientLoading || balanceLoading) {
+      setConnectButtonText('Loading...');
+    } else if (balance) {
+      setConnectButtonText('Connected');
+    }
+    setConnectButtonText('Connect');
+  }, [accountLoading, clientLoading, balanceLoading]);
+
   return (
     <Box padding={3}>
       <Paper style={{ marginTop: '1rem', padding: '1rem' }}>
@@ -258,7 +265,7 @@ export const Wallet = () => {
               onClick={() => connect()}
               disabled={!mnemonic || accountLoading || clientLoading || balanceLoading}
             >
-              {accountLoading || clientLoading ? 'Loading...' : !balanceLoading ? 'Connect' : 'Connected'}
+              {connectButtonText}
             </Button>
           </Box>
           {account && balance ? (

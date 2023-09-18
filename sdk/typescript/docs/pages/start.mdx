@@ -9,56 +9,53 @@ import { SigningCosmWasmClient } from "@cosmjs/cosmwasm-stargate";
 import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
 
 async function main() {
-  // generate a signer from a mnemonic
+  // Generate a signer from a mnemonic
   const signer = await DirectSecp256k1HdWallet.fromMnemonic("...");
   const accounts = await signer.getAccounts();
 
-  // make a signing client for the Nym Mixnet contract on mainnet
+  // Make a signing client for the Nym Mixnet contract on mainnet
   const cosmWasmSigningClient = await SigningCosmWasmClient.connectWithSigner("https://rpc.nymtech.net:443", signer);
   const client = new contracts.Mixnet.MixnetClient(cosmWasmSigningClient, accounts[0].address, 'n17srjznxl9dvzdkpwpw24gg668wc73val88a6m5ajg6ankwvz9wtst0cznr');
 
-  // delegate 1 NYM to mixnode with id 100
+  // Delegate 1 NYM to mixnode with id 100
   const result = await client.delegateToMixnode({ mixId: 100 }, 'auto', undefined, [{ amount: `${1_000_000}`, denom: 'unym' }]);
 
   console.log(`Tx Hash = ${result.transactionHash}`);
-}
+};
 ````
 
 ## Mixnet Client
 After instantiating the [`Mixnet Client`](https://www.npmjs.com/package/@nymproject/sdk), you can use it and send messages to yourself and output them in the console by following these steps:
 ````js
-import { createNymMixnetClient } from "@nymproject/sdk";
-
-const nymApiUrl = "https://validator.nymtech.net/api";
+import { createNymMixnetClient } from '@nymproject/sdk';
 
 const main = async () => {
-  // create a new client
   const nym = await createNymMixnetClient();
-  console.log("Client >>>", nym);
 
-  // start the client and wait 3 seconds for it to connect to the network
-  await nym.client.start({ nymApiUrl, clientId: "My awesome client" });
-  await new Promise((resolve) => setTimeout(resolve, 3000));
+  const nymApiUrl = 'https://validator.nymtech.net/api';
 
-  // get the client's address
-  const selfAddress = await nym.client.selfAddress();
-  console.log("Self address", selfAddress);
-
-  // listen for incoming messages
-  nym.events.subscribeToTextMessageReceivedEvent((event) => {
-    console.log("Received a message!", event.args.payload);
+  // Show message payload content when received 
+  nym.events.subscribeToTextMessageReceivedEvent((e) => {
+    console.log('Got a message: ', e.args.payload);
   });
 
-  // send a message to yourself
-  console.log("Sending a message to myself...");
-  nym.client.send({
-    payload: { message: "Hello mixnet", mimeType: "text/plain" },
-    recipient: selfAddress,
+  // Start the client and connect to a gateway
+  await nym.client.start({
+    clientId: 'My awesome client',
+    nymApiUrl,
   });
+
+  // Stop the client connection
+  const stop = async () => {
+    await nym?.client.stop();
+  };
+
+  // Send a message to yourself
+  const payload = 'Hello mixnet';
+  const recipient = nym.client.selfAddress();
+  nym.client.send({ payload, recipient });
+  
 };
-
-// Start the app
-main();
 ````
 
 ## MixFetch

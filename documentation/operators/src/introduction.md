@@ -22,5 +22,5 @@ If you want to dive deeper into Nym's architecture, clients, nodes, and SDK exam
 **Maintenance, troubleshooting and FAQ**
 * [Maintenance](./nodes/maintenance.md)
 * [Troubleshooting](./nodes/troubleshooting.md)
-* [FAQ](./faq.md)
+* [FAQ](./faq/mixnodes-faq.md)
 

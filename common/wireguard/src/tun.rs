@@ -29,6 +29,9 @@ pub struct WireGuardTunnel {
     // Peer endpoint
     addr: SocketAddr,
 
+    // The source address of the last packet received from the peer
+    source_addr: Option<std::net::Ipv4Addr>,
+
     // `boringtun` tunnel, used for crypto & WG protocol
     wg_tunnel: Arc<tokio::sync::Mutex<Tunn>>,
 
@@ -48,10 +51,6 @@ impl Drop for WireGuardTunnel {
 }
 
 impl WireGuardTunnel {
-    fn close(&self) {
-        let _ = self.close_tx.send(());
-    }
-
     pub fn new(
         udp: Arc<UdpSocket>,
         addr: SocketAddr,
@@ -86,6 +85,7 @@ impl WireGuardTunnel {
             peer_rx,
             udp,
             addr,
+            source_addr: None,
             wg_tunnel,
             close_tx,
             close_rx,
@@ -93,6 +93,10 @@ impl WireGuardTunnel {
         };
 
         (tunnel, peer_tx)
+    }
+
+    fn close(&self) {
+        let _ = self.close_tx.send(());
     }
 
     pub async fn spin_off(&mut self) {
@@ -112,7 +116,6 @@ impl WireGuardTunnel {
                                     .tap_err(|err| error!("WireGuard tunnel: consume_wg error: {err}"));
                             },
                             Event::IpPacket(data) => self.consume_eth(&data).await,
-                            _ => {},
                         }
                     },
                     None => {
@@ -136,58 +139,64 @@ impl WireGuardTunnel {
             .map_err(|_| WgError::UnableToGetTunnel)
     }
 
-    async fn consume_wg(&self, data: &[u8]) -> Result<(), WgError> {
+    async fn consume_wg(&mut self, data: &[u8]) -> Result<(), WgError> {
         let mut send_buf = [0u8; MAX_PACKET];
-        let mut peer = self.wg_tunnel_lock().await?;
-        match peer.decapsulate(None, data, &mut send_buf) {
-            TunnResult::WriteToNetwork(packet) => {
-                debug!("WireGuard: writing to network");
-                if let Err(err) = self.udp.send_to(packet, self.addr).await {
-                    error!("Failed to send decapsulation-instructed packet to WireGuard endpoint: {err:?}");
-                };
-                // Flush pending queue
-                loop {
-                    let mut send_buf = [0u8; MAX_PACKET];
-                    match peer.decapsulate(None, &[], &mut send_buf) {
-                        TunnResult::WriteToNetwork(packet) => {
-                            if let Err(err) = self.udp.send_to(packet, self.addr).await {
-                                error!("Failed to send decapsulation-instructed packet to WireGuard endpoint: {err:?}");
+        let mut sent_source_addr = None;
+        {
+            let mut peer = self.wg_tunnel_lock().await?;
+            match peer.decapsulate(None, data, &mut send_buf) {
+                TunnResult::WriteToNetwork(packet) => {
+                    debug!("WireGuard: writing to network");
+                    if let Err(err) = self.udp.send_to(packet, self.addr).await {
+                        error!("Failed to send decapsulation-instructed packet to WireGuard endpoint: {err:?}");
+                    };
+                    // Flush pending queue
+                    loop {
+                        let mut send_buf = [0u8; MAX_PACKET];
+                        match peer.decapsulate(None, &[], &mut send_buf) {
+                            TunnResult::WriteToNetwork(packet) => {
+                                if let Err(err) = self.udp.send_to(packet, self.addr).await {
+                                    error!("Failed to send decapsulation-instructed packet to WireGuard endpoint: {err:?}");
+                                    break;
+                                };
+                            }
+                            _ => {
                                 break;
-                            };
-                        }
-                        _ => {
-                            break;
+                            }
                         }
                     }
                 }
-            }
-            TunnResult::WriteToTunnelV4(packet, _) | TunnResult::WriteToTunnelV6(packet, _) => {
-                debug!("WireGuard: writing to tunnel");
-                info!(
-                    "WireGuard endpoint sent IP packet of {} bytes",
-                    packet.len()
-                );
+                TunnResult::WriteToTunnelV4(packet, _) | TunnResult::WriteToTunnelV6(packet, _) => {
+                    debug!("WireGuard: writing to tunnel");
+                    info!(
+                        "WireGuard endpoint sent IP packet of {} bytes",
+                        packet.len()
+                    );
 
-                // Parse the `packet` and inspect it's contents.
-                let headers = SlicedPacket::from_ip(packet).unwrap();
-                let (source_addr, destination_addr) = match headers.ip.unwrap() {
-                    InternetSlice::Ipv4(ip, _) => (ip.source_addr(), ip.destination_addr()),
-                    _ => unimplemented!(),
-                };
-                info!("{source_addr} -> {destination_addr}");
+                    // Parse the `packet` and inspect it's contents.
+                    let headers = SlicedPacket::from_ip(packet).unwrap();
+                    let (source_addr, destination_addr) = match headers.ip.unwrap() {
+                        InternetSlice::Ipv4(ip, _) => (ip.source_addr(), ip.destination_addr()),
+                        _ => unimplemented!(),
+                    };
+                    info!("{source_addr} -> {destination_addr}");
 
-                // Here we need to store the source addr for the peer so we can relay back
-                // responses.
+                    // TODO: consider doing this outside the lock so we can store the addr before
+                    // sending.
+                    self.tunnel_tx.send(packet.to_vec()).unwrap();
 
-                self.tunnel_tx.send(packet.to_vec()).unwrap();
-            }
-            TunnResult::Done => {
-                debug!("WireGuard: decapsulate done");
-            }
-            TunnResult::Err(err) => {
-                error!("WireGuard: decapsulate error: {err:?}");
+                    // Store the source addr for the peer so we can relay back responses.
+                    sent_source_addr = Some(source_addr);
+                }
+                TunnResult::Done => {
+                    debug!("WireGuard: decapsulate done");
+                }
+                TunnResult::Err(err) => {
+                    error!("WireGuard: decapsulate error: {err:?}");
+                }
             }
         }
+        self.source_addr = sent_source_addr;
         Ok(())
     }
 

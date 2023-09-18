@@ -44,6 +44,8 @@ const PEERS: &[&str; 1] = &[
 
 const MAX_PACKET: usize = 65535;
 
+type ActivePeers = DashMap<SocketAddr, mpsc::UnboundedSender<Event>>;
+
 fn init_static_dev_keys() -> (x25519::StaticSecret, x25519::PublicKey) {
     // TODO: this is a temporary solution for development
     let static_private_bytes: [u8; 32] = general_purpose::STANDARD
@@ -98,7 +100,6 @@ fn setup_tokio_tun_device() -> tokio_tun::Tun {
         .expect("Failed to setup tun device, do you have permission?")
 }
 
-// TODO: add TaskClient
 fn start_tun_listener(active_peers: Arc<ActivePeers>) -> UnboundedSender<Vec<u8>> {
     let tun = setup_tokio_tun_device();
     log::info!("Created TUN device: {}", tun.name());
@@ -147,6 +148,7 @@ fn start_tun_listener(active_peers: Arc<ActivePeers>) -> UnboundedSender<Vec<u8>
                     tun_tx.write_all(&data).await.unwrap();
                 }
             }
+            log::info!("tun device: shutting down");
         }
     });
     tun_task_tx
@@ -164,8 +166,6 @@ async fn start_udp_listener(
     let (static_private, peer_static_public) = init_static_dev_keys();
 
     tokio::spawn(async move {
-        // The set of active tunnels indexed by the peer's address
-        // let mut active_peers: HashMap<SocketAddr, mpsc::UnboundedSender<Event>> = HashMap::new();
         // Each tunnel is run in its own task, and the task handle is stored here so we can remove
         // it from `active_peers` when the tunnel is closed
         let mut active_peers_task_handles = futures::stream::FuturesUnordered::new();
@@ -223,29 +223,15 @@ async fn start_udp_listener(
     Ok(())
 }
 
-type ActivePeers = DashMap<SocketAddr, mpsc::UnboundedSender<Event>>;
-
 pub async fn start_wireguard(
     task_client: TaskClient,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let active_peers: Arc<ActivePeers> = Arc::new(DashMap::new());
+    // The set of active tunnels indexed by the peer's address
+    let active_peers: Arc<ActivePeers> = Arc::new(ActivePeers::new());
 
     let tun_task_tx = start_tun_listener(active_peers.clone());
 
     start_udp_listener(tun_task_tx, active_peers, task_client).await?;
-
-    // mpsc channel for sending events to the tunnel
-    // let (tun_task_tx, mut tun_task_rx) = mpsc::unbounded_channel::<Vec<u8>>();
-    //tokio::spawn(async move {
-    //    loop {
-    //        tokio::select! {
-    //            Some(data) = tun_task_rx.recv() => {
-    //                log::info!("WireGuard listener: received data for sending to tun");
-    //                tun_tx.write_all(&data).await.unwrap();
-    //            }
-    //        }
-    //    }
-    //});
 
     Ok(())
 }

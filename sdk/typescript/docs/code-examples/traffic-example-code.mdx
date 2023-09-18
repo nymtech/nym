@@ -1,4 +1,4 @@
-```ts copy filename="Sending traffic example code:"
+```ts copy filename="MixnetWASMClientExample.tsx"
 import React, { useEffect, useState } from 'react';
 import { createNymMixnetClient, NymMixnetClient, Payload } from '@nymproject/sdk-full-fat';
 import Box from '@mui/material/Box';
@@ -21,7 +21,7 @@ export const Traffic = () => {
   const init = async () => {
     const client = await createNymMixnetClient();
     setNym(client);
-  
+
     await client?.client.start({
       clientId: crypto.randomUUID(),
       nymApiUrl,

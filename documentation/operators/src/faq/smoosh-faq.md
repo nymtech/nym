@@ -35,7 +35,7 @@ The operators running `gateways` would have to “open” their nodes to a wider
 
 ### Can I run a mix node only?
 
-Yes, to run a mix node only is an option. However it will be less rewarded as nodes providing option for gateway due to the work and risk their operators have.
+Yes, to run a mix node only is an option. However it will be less rewarded as nodes providing option for `gateway` - meaning the *new smooshed gateway* (previously `gateway` and `network requester`)- due to the work and risk the operators have in comparison to running a `mixnode` only.
 
 ## Token Economics & Rewards
 

@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [v1.2.8] (2023-08-23)
+
+- [hotfix]: don't assign invalid fields when crossing the JS boundary ([#3805])
+
+[#3805]: https://github.com/nymtech/nym/pull/3805
+
 ## [1.2.7] (2023-08-17)
 - release due to schema changes in the contract
 

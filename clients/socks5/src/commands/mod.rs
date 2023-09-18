@@ -87,8 +87,8 @@ pub(crate) async fn execute(args: Cli) -> Result<(), Box<dyn Error + Send + Sync
     let bin_name = "nym-socks5-client";
 
     match args.command {
-        Commands::Init(m) => init::execute(&m).await?,
-        Commands::Run(m) => run::execute(&m).await?,
+        Commands::Init(m) => init::execute(m).await?,
+        Commands::Run(m) => run::execute(m).await?,
         Commands::BuildInfo(m) => build_info::execute(m),
         Commands::Completions(s) => s.generate(&mut Cli::command(), bin_name),
         Commands::GenerateFigSpec => fig_generate(&mut Cli::command(), bin_name),
@@ -199,7 +199,7 @@ fn try_upgrade_v1_1_13_config(id: &str) -> Result<bool, Socks5ClientError> {
 
     let updated_step1: ConfigV1_1_20 = old_config.into();
     let updated_step2: ConfigV1_1_20_2 = updated_step1.into();
-    let (updated, gateway_config) = updated_step2.upgrade();
+    let (updated, gateway_config) = updated_step2.upgrade()?;
     persist_gateway_details(&updated, gateway_config)?;
 
     updated.save_to_default_location()?;
@@ -219,7 +219,7 @@ fn try_upgrade_v1_1_20_config(id: &str) -> Result<bool, Socks5ClientError> {
     info!("It is going to get updated to the current specification.");
 
     let updated_step1: ConfigV1_1_20_2 = old_config.into();
-    let (updated, gateway_config) = updated_step1.upgrade();
+    let (updated, gateway_config) = updated_step1.upgrade()?;
     persist_gateway_details(&updated, gateway_config)?;
 
     updated.save_to_default_location()?;
@@ -236,7 +236,7 @@ fn try_upgrade_v1_1_20_2_config(id: &str) -> Result<bool, Socks5ClientError> {
     info!("It seems the client is using <= v1.1.20_2 config template.");
     info!("It is going to get updated to the current specification.");
 
-    let (updated, gateway_config) = old_config.upgrade();
+    let (updated, gateway_config) = old_config.upgrade()?;
     persist_gateway_details(&updated, gateway_config)?;
 
     updated.save_to_default_location()?;

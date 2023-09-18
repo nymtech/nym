@@ -264,7 +264,7 @@ where
 
     let config = load_or_generate_base_config(storage_dir, client_id, service_provider).await?;
     let storage = MobileClientStorage::new(&config);
-    let socks5_client = Socks5NymClient::new(config.core, storage)
+    let socks5_client = Socks5NymClient::new(config.core, storage, None)
         .with_gateway_setup(GatewaySetup::New { by_latency: false });
 
     eprintln!("starting the socks5 client");

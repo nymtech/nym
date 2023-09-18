@@ -144,7 +144,7 @@ pub struct PendingIntervalEventData {
 #[cw_serde]
 pub enum PendingIntervalEventKind {
     /// Request to update cost parameters of given mixnode.
-    #[serde(alias = "PendingIntervalEventKind")]
+    #[serde(alias = "ChangeMixCostParams")]
     ChangeMixCostParams {
         /// The id of the mixnode that will have its cost parameters updated.
         mix_id: MixId,

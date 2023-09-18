@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-gateway"
-version = "1.1.28"
+version = "1.1.29"
 authors = [
     "Dave Hrycyszyn <futurechimp@users.noreply.github.com>",
     "Jędrzej Stuczyński <andrew@nymtech.net>",
@@ -61,6 +61,7 @@ nym-statistics-common = { path = "../common/statistics" }
 nym-task = { path = "../common/task" }
 nym-types = { path = "../common/types" }
 nym-validator-client = { path = "../common/client-libs/validator-client" }
+nym-wireguard = { path = "../common/wireguard" }
 
 [build-dependencies]
 tokio = { version = "1.24.1", features = ["rt-multi-thread", "macros"] }
@@ -70,3 +71,6 @@ sqlx = { version = "0.5", features = [
     "macros",
     "migrate",
 ] }
+
+[features]
+wireguard = []

@@ -40,7 +40,7 @@ nym-gateway-requests = { path = "../../gateway/gateway-requests" }
 nym-nonexhaustive-delayqueue = { path = "../nonexhaustive-delayqueue" }
 nym-sphinx = { path = "../nymsphinx" }
 nym-pemstore = { path = "../pemstore" }
-nym-topology = { path = "../topology" }
+nym-topology = { path = "../topology", features = ["serializable"] }
 nym-validator-client = { path = "../client-libs/validator-client", default-features = false }
 nym-task = { path = "../task" }
 nym-credential-storage = { path = "../credential-storage" }

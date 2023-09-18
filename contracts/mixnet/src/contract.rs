@@ -606,7 +606,7 @@ pub fn query(
 
 #[entry_point]
 pub fn migrate(
-    mut deps: DepsMut<'_>,
+    deps: DepsMut<'_>,
     _env: Env,
     msg: MigrateMsg,
 ) -> Result<Response, MixnetContractError> {
@@ -632,7 +632,6 @@ pub fn migrate(
 
         // If state structure changed in any contract version in the way migration is needed, it
         // should occur here, for example anything from `crate::queued_migrations::`
-        crate::queued_migrations::insert_pending_pledge_changes(deps.branch())?;
     }
 
     // due to circular dependency on contract addresses (i.e. mixnet contract requiring vesting contract address

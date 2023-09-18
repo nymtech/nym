@@ -55,3 +55,4 @@ We understand that the early days of the Nyx blockchain will face possible vulne
 ### Why does Nym do many airdrops?
 
 It is part of ensuring decentralisation - we need to avoid a handful of people having too much control over the token and market. Of course ideally people will stake the tokens and contribute to the project at this stage. We run surveys to better understand what people are doing with their tokens and what usability issues there are for staking. Any feedback is appreciated as it helps us improve all aspects of using the token and participating in the ecosystem.
+

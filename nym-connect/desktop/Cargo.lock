@@ -4026,7 +4026,7 @@ dependencies = [
 
 [[package]]
 name = "nym-connect"
-version = "1.1.20"
+version = "1.1.21"
 dependencies = [
  "anyhow",
  "bip39",
@@ -4604,6 +4604,7 @@ dependencies = [
  "bs58 0.4.0",
  "log",
  "nym-bin-common",
+ "nym-config",
  "nym-crypto",
  "nym-mixnet-contract-common",
  "nym-sphinx-addressing",
@@ -4611,6 +4612,8 @@ dependencies = [
  "nym-sphinx-types",
  "rand 0.7.3",
  "semver 0.11.0",
+ "serde",
+ "serde_json",
  "thiserror",
 ]
 

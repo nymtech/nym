@@ -1,8 +1,14 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::config::persistence::NetworkRequesterPaths;
-use crate::config::{default_config_filepath, Config, Debug, NetworkRequester};
+use crate::{
+    config::{
+        default_config_filepath, persistence::NetworkRequesterPaths, Config, Debug,
+        NetworkRequester,
+    },
+    error::NetworkRequesterError,
+};
+
 use log::trace;
 use nym_bin_common::logging::LoggingSettings;
 use nym_client_core::config::disk_persistence::old_v1_1_20_2::CommonClientPathsV1_1_20_2;
@@ -58,7 +64,7 @@ impl ConfigV1_1_20_2 {
 
     // in this upgrade, gateway endpoint configuration was moved out of the config file,
     // so its returned to be stored elsewhere.
-    pub fn upgrade(self) -> (Config, GatewayEndpointConfig) {
+    pub fn upgrade(self) -> Result<(Config, GatewayEndpointConfig), NetworkRequesterError> {
         trace!("Upgrading from v1.1.20_2");
         let gateway_details = self.base.client.gateway_endpoint.clone().into();
         let nr_description = self
@@ -72,7 +78,7 @@ impl ConfigV1_1_20_2 {
         let config = Config {
             base: self.base.into(),
             storage_paths: NetworkRequesterPaths {
-                common_paths: self.storage_paths.common_paths.upgrade_default(),
+                common_paths: self.storage_paths.common_paths.upgrade_default()?,
                 allowed_list_location: self.storage_paths.allowed_list_location,
                 unknown_list_location: self.storage_paths.unknown_list_location,
                 nr_description,
@@ -82,7 +88,7 @@ impl ConfigV1_1_20_2 {
             network_requester: self.network_requester.into(),
         };
 
-        (config, gateway_details)
+        Ok((config, gateway_details))
     }
 }
 

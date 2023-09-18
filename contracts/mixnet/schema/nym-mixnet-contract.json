@@ -1,6 +1,6 @@
 {
   "contract_name": "nym-mixnet-contract",
-  "contract_version": "1.5.0",
+  "contract_version": "1.5.1",
   "idl_version": "1.0.0",
   "instantiate": {
     "$schema": "http://json-schema.org/draft-07/schema#",

@@ -15,6 +15,7 @@ use nym_client_core::client::topology_control::geo_aware_provider::CountryGroup;
 use nym_crypto::asymmetric::identity;
 use nym_socks5_client_core::NymClient;
 use nym_sphinx::addressing::clients::Recipient;
+use std::path::PathBuf;
 
 #[derive(Args, Clone)]
 pub(crate) struct Run {
@@ -45,12 +46,16 @@ pub(crate) struct Run {
     nyxd_urls: Option<Vec<url::Url>>,
 
     /// Comma separated list of rest endpoints of the Nym APIs
-    #[clap(long, value_delimiter = ',')]
+    #[clap(long, value_delimiter = ',', group = "network")]
     nym_apis: Option<Vec<url::Url>>,
 
     /// Port for the socket to listen on
     #[clap(short, long)]
     port: Option<u16>,
+
+    /// Path to .json file containing custom network specification.
+    #[clap(long, group = "network", group = "routing", hide = true)]
+    custom_mixnet: Option<PathBuf>,
 
     /// Mostly debug-related option to increase default traffic rate so that you would not need to
     /// modify config post init
@@ -62,7 +67,7 @@ pub(crate) struct Run {
     no_cover: bool,
 
     /// Set geo-aware mixnode selection when sending mixnet traffic, for experiments only.
-    #[clap(long, hide = true, value_parser = validate_country_group)]
+    #[clap(long, hide = true, value_parser = validate_country_group, group="routing")]
     geo_routing: Option<CountryGroup>,
 
     /// Enable medium mixnet traffic, for experiments only.
@@ -124,7 +129,7 @@ fn version_check(cfg: &Config) -> bool {
     }
 }
 
-pub(crate) async fn execute(args: &Run) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+pub(crate) async fn execute(args: Run) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     eprintln!("Starting client {}...", args.id);
 
     let mut config = try_load_current_config(&args.id)?;
@@ -138,5 +143,7 @@ pub(crate) async fn execute(args: &Run) -> Result<(), Box<dyn std::error::Error 
     let storage =
         OnDiskPersistent::from_paths(config.storage_paths.common_paths, &config.core.base.debug)
             .await?;
-    NymClient::new(config.core, storage).run_forever().await
+    NymClient::new(config.core, storage, args.custom_mixnet)
+        .run_forever()
+        .await
 }

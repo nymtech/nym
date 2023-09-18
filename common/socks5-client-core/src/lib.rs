@@ -26,6 +26,7 @@ use nym_sphinx::params::PacketType;
 use nym_task::{TaskClient, TaskManager};
 
 use std::error::Error;
+use std::path::PathBuf;
 
 pub mod config;
 pub mod error;
@@ -57,6 +58,9 @@ pub struct NymClient<S> {
     storage: S,
 
     setup_method: GatewaySetup,
+
+    /// Optional path to a .json file containing standalone network details.
+    custom_mixnet: Option<PathBuf>,
 }
 
 impl<S> NymClient<S>
@@ -68,11 +72,12 @@ where
     <S::GatewayDetailsStore as GatewayDetailsStore>::StorageError: Sync + Send,
     <S::KeyStore as KeyStore>::StorageError: Send + Sync,
 {
-    pub fn new(config: Config, storage: S) -> Self {
+    pub fn new(config: Config, storage: S, custom_mixnet: Option<PathBuf>) -> Self {
         NymClient {
             config,
             storage,
             setup_method: GatewaySetup::MustLoad,
+            custom_mixnet,
         }
     }
 
@@ -210,9 +215,13 @@ where
             Some(default_query_dkg_client_from_config(&self.config.base))
         };
 
-        let base_builder =
+        let mut base_builder =
             BaseClientBuilder::new(&self.config.base, self.storage, dkg_query_client)
                 .with_gateway_setup(self.setup_method);
+
+        if let Some(custom_mixnet) = &self.custom_mixnet {
+            base_builder = base_builder.with_stored_topology(custom_mixnet)?;
+        }
 
         let packet_type = self.config.base.debug.traffic.packet_type;
         let mut started_client = base_builder.start_base().await?;

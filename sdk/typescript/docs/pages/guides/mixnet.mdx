@@ -1,0 +1,106 @@
+import { Callout } from 'nextra/components'
+
+# Mixnet Client
+
+As you know by now, in order to send or receive messages over the mixnet, you'll need to use the [`SDK Client`](https://www.npmjs.com/package/@nymproject/sdk), which will allow you to create apps that can use the Nym Mixnet and Coconut credentials.
+
+This client is message based - it can only send a one-way message to another client's address.
+
+Replying can be done in two ways:
+- reveal the sender's address to the recipient (as part of the payload)
+- use a SURB (single use reply block) that allows the recipient to reply to the sender without compromising the identity of either party
+
+##### Imports
+Import the SDK's Mixnet Client as well as the payload in your app:
+````js
+import { createNymMixnetClient, NymMixnetClient, Payload } from "@nymproject/sdk-full-fat";
+````
+
+##### Example: using the SDK's Mixnet Client to send and receive messages over the Nym Mixnet
+<Callout type="info" emoji="ℹ️">
+    For this example, we will be using the `full-fat` version of the ESM SDK. If you'd like to use the unbundled ESM one, make sure your [bundler configuration](../../bundling) copies the WebAssembly (WASM) and web worker files to the output bundle.
+</Callout>
+
+
+```ts
+import { useEffect, useState } from "react";
+import {
+  createNymMixnetClient,
+  NymMixnetClient,
+  Payload,
+} from "@nymproject/sdk-full-fat";
+
+const nymApiUrl = "https://validator.nymtech.net/api";
+
+export const Traffic = () => {
+  const [nym, setNym] = useState<NymMixnetClient>();
+  const [selfAddress, setSelfAddress] = useState<string>();
+  const [recipient, setRecipient] = useState<string>();
+  const [payload, setPayload] = useState<Payload>();
+  const [receivedMessage, setReceivedMessage] = useState<string>();
+
+  const init = async () => {
+    const nym = await createNymMixnetClient();
+    setNym(nym);
+
+    // start the client and connect to a gateway
+    await nym?.client.start({
+      clientId: crypto.randomUUID(),
+      nymApiUrl,
+    });
+
+    // check when is connected and set the self address
+    nym?.events.subscribeToConnected((e) => {
+      const { address } = e.args;
+      setSelfAddress(address);
+    });
+
+    // show whether the client is ready or not
+    nym?.events.subscribeToLoaded((e) => {
+      console.log("Client ready: ", e.args);
+    });
+
+    // show message payload content when received
+    nym?.events.subscribeToTextMessageReceivedEvent((e) => {
+      console.log(e.args.payload);
+      setReceivedMessage(e.args.payload);
+    });
+  };
+
+  const send = () => nym.client.send({ payload, recipient });
+
+  useEffect(() => {
+    init();
+  }, []);
+
+  if (!nym) return <div>waiting for the mixnet client...</div>;
+
+  if (!selfAddress) return <div>connecting...</div>;
+
+  return (
+    <div>
+      <h1>Send messages through the Mixnet</h1>
+      <p style={{ border: "1px solid black" }}>
+        My self address is: {selfAddress ? selfAddress : "loading"}
+      </p>
+      <div style={{ border: "1px solid black" }}>
+        <label>Recipient Address</label>
+        <input
+          type="text"
+          onChange={(e) => setRecipient(e.target.value)}
+        ></input>
+        <input
+          type="text"
+          onChange={(e) =>
+            setPayload({ message: e.target.value, mimeType: "text/plain" })
+          }
+        ></input>
+        <button onClick={() => send()}>Send</button>
+      </div>
+      <p>Received message: {receivedMessage}</p>
+    </div>
+  );
+};
+
+
+```

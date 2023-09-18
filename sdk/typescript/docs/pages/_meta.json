@@ -1,6 +1,16 @@
 {
   "index": "Introduction",
-  "sdk": "Typescript SDK",
-  "examples": "Example usage and apps",
-  "blockchain": "Nym Cosmos chain"
+  "overview": "SDK overview",
+  "installation": "Installation",
+  "start": "Getting started",
+  "guides": "Examples",
+  "playground": "Live Playground",
+
+
+  "contact": {
+    "title": "Contact ↗",
+    "type": "page",
+    "href": "https://nymtech.net/",
+    "newWindow": true
+  }
 }

@@ -1,0 +1,41 @@
+# Cosmos Kit
+
+The wonderful people of Cosmology have made some [fantastic components](https://cosmoskit.com/) that can be used with
+Nym, these include:
+
+- using the wallets such as Keplr, Cosmostation and others from your React application
+- using the [Ledger hardware wallet](https://docs.cosmoskit.com/integrating-wallets/ledger) from the browser
+- any wallet that supports [Wallet Connect v2.0](https://docs.cosmoskit.com/integrating-wallets/adding-new-wallets)
+
+```ts
+import React from 'react';
+import { useChain } from '@cosmos-kit/react';
+import { assets, chains } from 'chain-registry';
+import { wallets } from '@cosmos-kit/keplr';
+
+export const MyComponent = () => {
+  const { wallet, address, connect, getOfflineSignerDirect } =
+    useChain('nyx');
+
+  React.useEffect(() => {
+    connect();
+  }, []);
+
+  const sign = async () => {
+    const doc = { ... };
+    return getOfflineSignerDirect().signDirect(address, doc);
+  };
+
+  return (
+    <div>
+      <div>
+        <strong>Connected to {wallet.prettyName}</strong>
+      </div>
+      <div>
+        Address: <code>{address}</code>
+      </div>
+    </div>
+  );
+}
+```
+

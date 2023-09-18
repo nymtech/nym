@@ -1,0 +1,342 @@
+import { Callout } from 'nextra/components'
+
+# Nym Smart Contract Clients
+
+As previously mentioned, to query or execute on any of the Nym contracts, you'll need to use one of the [`Contract Clients`](https://www.npmjs.com/package/@nymproject/contract-clients), which contains read-only query and signing clients for all of Nym's smart contracts.
+
+##### Contract Clients list
+Lists of the diffent available clients and methods from the `Contract Clients` can be found in the `.client.ts` files:
+| Client name             | Functionality| Methods list |
+| :-------------:         | :----------: | :----------: |
+| Coconut Bandwidth Client| Manages the depositing and release of funds. Tracks double spending.             | [Coconut Bandwidth](https://github.com/nymtech/nym/blob/develop/sdk/typescript/codegen/contract-clients/src/CoconutBandwidth.client.ts) |
+| Coconut DKG Client      | Allows signers partcipating in issuing Coconut credentials to derive keys to be used.             | [Coconut DKG](https://github.com/nymtech/nym/blob/develop/sdk/typescript/codegen/contract-clients/src/CoconutDkg.client.ts) |
+| Cw3FlexMultisig Client  | Used by the Coconut APIs to issue credentials. [This](https://github.com/CosmWasm/cw-plus/tree/main/contracts/cw3-flex-multisig) is a multisig contract that is backed by the cw4 (group) contract, which independently maintains the voter set.             | [Cw3Flex Multisig](https://github.com/nymtech/nym/blob/develop/sdk/typescript/codegen/contract-clients/src/Cw3FlexMultisig.client.ts) |
+| Cw4Group Client         | Used by the Coconut APIs to issue credentials. [Cw4 Group](https://github.com/CosmWasm/cw-plus/tree/main/contracts/cw4-group) stores a set of members along with an admin, and allows the admin to update the state.              | [Cw4Group](https://github.com/nymtech/nym/blob/develop/sdk/typescript/codegen/contract-clients/src/Cw4Group.client.ts) |
+| Mixnet Client           | Manages the network topology of the mixnet, tracking delegations and rewarding            | [Mixnet](https://github.com/nymtech/nym/blob/develop/sdk/typescript/codegen/contract-clients/src/Mixnet.client.ts) |
+| Name Service Client     | Operates as a directory of user-defined aliases, analogous to a Domain Name System (DNS).              | [Name service](https://github.com/nymtech/nym/blob/develop/sdk/typescript/codegen/contract-clients/src/NameService.client.ts) |
+| Service provider Directory Client| Allows users to register their service provider in a public directory.      | [Service Provider](https://github.com/nymtech/nym/blob/develop/sdk/typescript/codegen/contract-clients/src/ServiceProviderDirectory.client.ts) |
+| Vesting Client          |     Manages NYM token vesting functionality.         | [Vesting](https://github.com/nymtech/nym/blob/develop/sdk/typescript/codegen/contract-clients/src/Vesting.client.ts) |
+
+
+Depending on your app or project's architecture, this could be any of the ESM or CJS versions of the `Contract Clients`.
+
+##### Set-up your environment
+Create your directory and set-up your app environment:
+```
+npx create-react-app my-app
+```
+
+##### Installation
+Install the package and its dependencies from Cosmos Stargate:
+```
+npm install @nymproject/contract-clients @cosmjs/cosmwasm-stargate @cosmjs/proto-signing
+```
+## Query clients
+
+##### Imports
+Import the contracts' client in your app:
+````js
+import { contracts } from '@nymproject/contract-clients';
+import { SigningCosmWasmClient } from "@cosmjs/cosmwasm-stargate";
+````
+
+##### Polyfills
+
+You will need to install:
+
+`npm install --save url fs assert crypto-browserify stream-http https-browserify os-browserify buffer stream-browserify process react-app-rewired`
+
+and create a `config-overrides.js`file:
+```js
+const webpack = require('webpack');
+module.exports = function override(config, env) {
+    config.resolve.fallback = {
+        url: require.resolve('url'),
+        fs: require.resolve('fs'),
+        assert: require.resolve('assert'),
+        crypto: require.resolve('crypto-browserify'),
+        http: require.resolve('stream-http'),
+        https: require.resolve('https-browserify'),
+        os: require.resolve('os-browserify/browser'),
+        buffer: require.resolve('buffer'),
+        stream: require.resolve('stream-browserify'),
+    };
+    config.plugins.push(
+        new webpack.ProvidePlugin({
+            process: 'process/browser',
+            Buffer: ['buffer', 'Buffer'],
+        }),
+    );
+
+    return config;
+}
+```
+Update your `package.json` file:
+```json
+"scripts": {
+    "start": "react-app-rewired start",
+    "build": "react-app-rewired build",
+    "test": "react-app-rewired test",
+    "eject": "react-scripts eject" // don't change the eject
+  },
+  ```
+
+
+
+
+
+
+
+##### Example: using the Mixnet smart contract client to query
+In this example, we will use the `MixnetQueryClient`from the `Contract Clients` to simply query the contract and return a list of Mixnodes.
+
+```js
+import "./App.css";
+import { contracts } from "@nymproject/contract-clients";
+import { SigningCosmWasmClient } from "@cosmjs/cosmwasm-stargate";
+import { useEffect, useState } from "react";
+
+export default function Mixnodes() {
+
+    const [mixnodes, setMixnodes] = useState(null);
+
+  async function fetchMixnodes(){
+    // Set-up the CosmWasm Client
+    const cosmWasmClient = await SigningCosmWasmClient.connect("wss://rpc.nymtech.net:443");
+
+    const client = new contracts.Mixnet.MixnetQueryClient(
+      cosmWasmClient,
+      "n17srjznxl9dvzdkpwpw24gg668wc73val88a6m5ajg6ankwvz9wtst0cznr" // the contract address (which is different on mainnet, QA, etc)
+    );
+    console.log("client:", client)
+    const result = await client.getMixNodesDetailed({});
+    console.log(result)
+    setMixnodes(result.nodes)
+
+  }
+
+  useEffect(() => {
+    fetchMixnodes();
+  }, [])
+
+    return(
+      <>
+        <table>
+          <tbody>
+            {mixnodes?.map((value, index) => {
+              return(
+                  <tr key={index}>
+                    <td> {value?.bond_information?.mix_node?.identity_key} </td>
+                  </tr>
+                )
+              })
+            }
+          </tbody>
+        </table>
+      </>
+    )
+  }
+  ```
+
+
+
+## Execute clients
+
+##### Imports
+Import the contracts' execute clients in your app:
+````js
+import { contracts } from '@nymproject/contract-clients';
+import { SigningCosmWasmClient } from "@cosmjs/cosmwasm-stargate";
+import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
+````
+
+##### Example: using the Mixnet smart contract client to execute methods
+In this example, we will use the `MixnetClient`and the `signer` from the [`Contract Clients`](https://www.npmjs.com/package/@nymproject/contract-clients) to execute methods.
+
+Note that for the `settings.ts` file, we have used the following structure:
+```json
+
+export const mySettings = {
+    url: "wss://rpc.nymtech.net:443",
+    mixnetContractAddress: <ENTER MIXNET CONTACT ADDRESS HERE>,
+    mnemonic: '<ENTER MNEMONIC HERE>,
+    address: <ENTER NYM ADDRESS HERE>
+};
+
+export const settings = mySettings;
+```
+
+
+```js
+
+import "./App.css";
+import { contracts } from "@nymproject/contract-clients";
+import { SigningCosmWasmClient } from "@cosmjs/cosmwasm-stargate";
+import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
+import { GasPrice } from "@cosmjs/stargate";
+import { settings } from "./settings.ts";
+
+export default function Exec() {
+  let signer = null;
+  let address = null;
+  let signerMixnetClient = null;
+  let cosmWasmSigningClient = null;
+  let mixId = null;
+  let amountToDelegate = null;
+  let balance = null;
+  let nodeAddress = null;
+  let amountToSend = null;
+  let delegations = null;
+
+  async function ExecuteOnNyx() {
+    // Signer
+    try {
+      // Generate a signer from a mnemonic
+      signer = await DirectSecp256k1HdWallet.fromMnemonic(settings.mnemonic, {
+        prefix: "n",
+      });
+      const accounts = await signer.getAccounts();
+      address = accounts[0].address;
+    } catch (error) {
+      console.error("Problem getting the signer: ", error);
+    }
+
+    try {
+      const cosmWasmClient = await SigningCosmWasmClient.connectWithSigner(
+        settings.url,
+        signer,
+        {
+          gasPrice: GasPrice.fromString("0.025unym"),
+        }
+      );
+      cosmWasmSigningClient = cosmWasmClient;
+      try {
+        balance = await cosmWasmSigningClient?.getBalance(address, "unym");
+        console.log("balance", balance);
+      } catch (error) {
+        console.error("problem geting the balance: ", error);
+      }
+
+      const mixnetClient = new contracts.Mixnet.MixnetClient(
+        cosmWasmSigningClient,
+        settings.address, // sender (that account of the signer)
+        settings.mixnetContractAddress // contract address (different on mainnet, QA, etc)
+      );
+      signerMixnetClient = mixnetClient;
+    } catch (error) {
+      console.error("Problem getting the cosmWasmSigningClient: ", error);
+    }
+  }
+
+  // Get delegations
+  const getDelegations = async () => {
+    if (!signerMixnetClient) {
+      return;
+    }
+    const delegationsObject = await signerMixnetClient.getDelegatorDelegations({
+      delegator: settings.address,
+    });
+    delegations = delegationsObject;
+  };
+
+  // Make delegation
+  const doDelegation = async () => {
+    if (!signerMixnetClient) {
+      return;
+    }
+    try {
+      const res = await signerMixnetClient.delegateToMixnode(
+        { mixId },
+        "auto",
+        undefined,
+        [{ amount: `${amountToDelegate}`, denom: "unym" }]
+      );
+      console.log("delegations: ", res);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  // Undelegate all
+  const doUndelegateAll = async () => {
+    if (!signerMixnetClient) {
+      return;
+    }
+    console.log("delegations", delegations);
+    try {
+      for (const delegation of delegations.delegations) {
+        await signerMixnetClient.undelegateFromMixnode(
+          { mixId: delegation.mix_id },
+          "auto"
+        );
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  // Sending tokens
+  const doSendTokens = async () => {
+    const memo = "test sending tokens";
+
+    try {
+      const res = await cosmWasmSigningClient.sendTokens(
+        settings.address,
+        nodeAddress,
+        [{ amount: amountToSend, denom: "unym" }],
+        "auto",
+        memo
+      );
+      console.log("res", res);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  ExecuteOnNyx();
+  setTimeout(() => getDelegations(), 1000);
+
+  return (
+    <div>
+      <p>Exec</p>
+      <div>
+        <p>Send Tokens</p>
+        <input
+          type="string"
+          placeholder="Node Address"
+          onChange={(e) => (nodeAddress = e.target.value)}
+        />
+        <input
+          type="number"
+          placeholder="Amount"
+          onChange={(e) => (amountToSend = e.target.value)}
+        />
+        <div>
+          <button onClick={() => doSendTokens()}>Send Tokens</button>
+        </div>
+      </div>
+      <div>
+        <p>Delegate</p>
+        <input
+          type="number"
+          placeholder="Mixnode Id"
+          onChange={(e) => (mixId = e.target.value)}
+        />
+        <input
+          type="number"
+          placeholder="Amount"
+          onChange={(e) => (amountToDelegate = e.target.value)}
+        />
+        <div>
+          <button onClick={() => doDelegation()}>Delegate</button>
+        </div>
+        <div>
+          <button onClick={() => doUndelegateAll()}>Undelegate All</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+```
+

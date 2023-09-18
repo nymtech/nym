@@ -1,21 +1,50 @@
+// const path = require('path');
+// const CopyPlugin = require('copy-webpack-plugin');
+
 const withNextra = require('nextra')({
   theme: 'nextra-theme-docs',
   themeConfig: './theme.config.tsx',
 });
 
-console.dir(withNextra(), { depth: 30 });
-console.dir(withNextra().rewrites, { depth: 30 });
+const nextra = withNextra();
+nextra.webpack = (config, options) => {
+  // generate Nextra's webpack config
+  const newConfig = withNextra().webpack(config, options);
+
+  newConfig.module.rules.push({
+    test: /\.txt$/i,
+    use: 'raw-loader',
+  });
+
+  // TODO: figure out how to properly bundle WASM and workers with Nextra
+  // newConfig.plugins.push(
+  //   new CopyPlugin({
+  //     patterns: [
+  //       {
+  //         from: path.resolve(path.dirname(require.resolve('@nymproject/mix-fetch/package.json')), '*.wasm'),
+  //         to: '[name][ext]',
+  //         context: path.resolve(__dirname, 'out'),
+  //       },
+  //       {
+  //         from: path.resolve(path.dirname(require.resolve('@nymproject/mix-fetch/package.json')), '*worker*.js'),
+  //         to: '[name][ext]',
+  //         context: path.resolve(__dirname, 'out'),
+  //       },
+  //     ],
+  //   }),
+  // );
+
+  return newConfig;
+};
 
 const config = {
-  ...withNextra(),
-  output: 'export',
-  rewrites: undefined,
+  ...nextra,
+  // output: 'export', // static HTML files, has problems with Vercel
+  // rewrites: undefined,
   images: {
     unoptimized: true,
   },
-  basePath: process.env.NODE_ENV === 'development' ? undefined : '/docs/sdk/typescript', // this makes the SDK docs appear at https://nymtech.net/docs/sdk/typescript
+  transpilePackages: ['@nymproject/contract-clients'],
 };
-
-// config.images.unoptimized = true;
 
 module.exports = config;

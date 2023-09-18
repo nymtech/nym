@@ -16,7 +16,6 @@ import SaveIcon from '@mui/icons-material/Save';
 import { settings } from './client';
 
 const signerAccount = async (mnemonic) => {
-  // create a wallet to sign transactions with the mnemonic
   const signer = await DirectSecp256k1HdWallet.fromMnemonic(mnemonic, {
     prefix: 'n',
   });
@@ -27,7 +26,6 @@ const signerAccount = async (mnemonic) => {
 const fetchSignerCosmosWasmClient = async (mnemonic) => {
   const signer = await signerAccount(mnemonic);
 
-  // create a signing client we don't need to set the gas price conversion for queries
   const cosmWasmClient = await SigningCosmWasmClient.connectWithSigner(settings.url, signer, {
     gasPrice: GasPrice.fromString('0.025unym'),
   });
@@ -38,8 +36,6 @@ const fetchSignerCosmosWasmClient = async (mnemonic) => {
 const fetchSignerClient = async (mnemonic) => {
   const signer = await signerAccount(mnemonic);
 
-  // create a signing client we don't need to set the gas price conversion for queries
-  // if you want to connect without signer you'd write ".connect" and "url" as param
   const cosmWasmClient = await SigningCosmWasmClient.connectWithSigner(settings.url, signer, {
     gasPrice: GasPrice.fromString('0.025unym'),
   });

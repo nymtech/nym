@@ -1,3 +1,4 @@
+```ts copy filename="Sending traffic example code:"
 import React, { useEffect, useState } from 'react';
 import { createNymMixnetClient, NymMixnetClient, Payload } from '@nymproject/sdk-full-fat';
 import Box from '@mui/material/Box';
@@ -20,25 +21,22 @@ export const Traffic = () => {
   const init = async () => {
     const client = await createNymMixnetClient();
     setNym(client);
-
-    // start the client and connect to a gateway
+  
     await client?.client.start({
       clientId: crypto.randomUUID(),
       nymApiUrl,
     });
 
-    // check when is connected and set the self address
     client?.events.subscribeToConnected((e) => {
       const { address } = e.args;
       setSelfAddress(address);
     });
 
-    // show whether the client is ready or not
     client?.events.subscribeToLoaded((e) => {
       console.log('Client ready: ', e.args);
     });
 
-    // show message payload content when received
+
     client?.events.subscribeToTextMessageReceivedEvent((e) => {
       console.log(e.args.payload);
       setReceivedMessage(e.args.payload);
@@ -101,3 +99,4 @@ export const Traffic = () => {
     </Box>
   );
 };
+```

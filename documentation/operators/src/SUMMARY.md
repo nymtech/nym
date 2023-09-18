@@ -18,7 +18,11 @@
 - [Nyx Validator Setup](./nodes/validator-setup.md)
 - [Maintenance](./nodes/maintenance.md)
 - [Troubleshooting](./nodes/troubleshooting.md)
-- [FAQ](./faq.md)
+
+# FAQ
+
+- [Mix Nodes](./faq/mixnodes-faq.md)
+- [Project Smoosh](./faq/smoosh-faq.md)
 
 --- 
 # Misc.

@@ -3,7 +3,7 @@
 
 use crate::config::persistence::paths::GatewayPaths;
 use crate::config::template::CONFIG_TEMPLATE;
-use log::debug;
+use log::{debug, warn};
 use nym_bin_common::logging::LoggingSettings;
 use nym_config::defaults::{DEFAULT_CLIENT_LISTENING_PORT, DEFAULT_MIX_LISTENING_PORT};
 use nym_config::helpers::inaddr_any;
@@ -129,6 +129,15 @@ impl Config {
     pub fn save_to_default_location(&self) -> io::Result<()> {
         let config_save_location: PathBuf = self.default_location();
         save_formatted_config_to_file(self, config_save_location)
+    }
+
+    pub fn try_save(&self) -> io::Result<()> {
+        if let Some(save_location) = &self.save_path {
+            save_formatted_config_to_file(self, save_location)
+        } else {
+            warn!("config file save location is unknown. falling back to the default");
+            self.save_to_default_location()
+        }
     }
 
     pub fn with_enabled_network_requester(mut self, enabled_network_requester: bool) -> Self {

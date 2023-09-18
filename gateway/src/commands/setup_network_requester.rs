@@ -101,6 +101,7 @@ pub async fn execute(args: CmdArgs) -> anyhow::Result<()> {
         "gateway identity",
     )?;
     let details = initialise_local_network_requester(&config, opts, identity_public_key).await?;
+    config.try_save()?;
 
     args.output.to_stdout(&details);
 

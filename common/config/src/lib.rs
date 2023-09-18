@@ -63,7 +63,7 @@ where
     C: NymConfigTemplate,
     P: AsRef<Path>,
 {
-    log::trace!("trying to save config file to {}", path.as_ref().display());
+    log::debug!("trying to save config file to {}", path.as_ref().display());
     let file = File::create(path.as_ref())?;
 
     // TODO: check for whether any of our configs stores anything sensitive

@@ -3,7 +3,7 @@
 > We aim on purpose to make minimal changes to reward scheme and software. We're just 'smooshing' together stuff we already debugged and know works.  
 > -- Harry Halpin,  Nym CEO
 
-This page refer to the changes which are planned for Q3 and Q4 2023. As this is a transition period in the beginning (September 2023) the [Mix Nodes FAQ page](./mixnodes-faq.md) holds more answered to the current setup as project Smoosh refers to the eventual setup. As project Smoosh gets progressively implemented the answers on this page will become to be more relevant to the current state and eventually this FAQ page will become to be the main Mix Nodes FAQ page. 
+This page refer to the changes which are planned to take place over Q3 and Q4 2023. As this is a transition period in the beginning (Q3 2023) the [Mix Nodes FAQ page](./mixnodes-faq.md) holds more answers to the current setup as project Smoosh refers to the eventual setup. As project Smoosh gets progressively implemented the answers on this page will become to be more relevant to the current state and eventually this FAQ page will be merged with the still relevant parts of the main Mix Nodes FAQ page. 
 
 If any questions are not answered or it's not clear for you in which stage project Smoosh is right now, please reach out in Node Operators [Matrix room](https://matrix.to/#/#operators:nymtech.chat).
 
@@ -80,10 +80,4 @@ So far the general line is running a gateway is not illegal (unless you are in I
 There are several legal questions regarding to this and we would like to ask you to fill this [short survey](https://nymtech.typeform.com/exitnode).
 
 We'll have a thorough legal analysis out before hand and various resources from and for the community. <!-- which we started to gather in the [Community Legal Forum](../legal/legal-forum.md). Uncomment when the legal forum get's merged -->
-
-## Other Questions
-
-### What is the ETA of this transition?
-
-The step \#1 shall be done by the end of September, the rest will follow. Smoosh shall be finalized by the end of 2023 with our VPN. We should have the paper on sybil-resistant performance measurement techniques out in December.
 

@@ -117,26 +117,30 @@ fn start_tun_listener(active_peers: Arc<ActivePeers>) -> UnboundedSender<Vec<u8>
                     log::info!("tun device: read {} bytes from tun", len);
                     log::info!("tun device: sending data to peers (NOT IMPLEMENTED)");
 
-                    // Figure out out the peer it's meant for.
-                    let packet = &buf[..len].to_vec();
-                    let headers = SlicedPacket::from_ip(&packet).unwrap();
-                    match headers.ip.unwrap() {
+                    // Figure out the peer it's meant for.
+                    let packet = &buf[..len];
+                    let headers = SlicedPacket::from_ip(packet).unwrap();
+                    let peer = match headers.ip.unwrap() {
                         InternetSlice::Ipv4(ip, _) => {
                             let source_addr = ip.source_addr();
                             let destination_addr = ip.destination_addr();
                             log::info!("IPv4: {source_addr} -> {destination_addr}");
+
+                            active_peers.get(&SocketAddr::new(
+                                std::net::IpAddr::V4(destination_addr),
+                                51822, // WIP(JON): store this as well
+                            ))
                         },
                         InternetSlice::Ipv6(ip, _) => {
                             let source_addr = ip.source_addr();
                             let destination_addr = ip.destination_addr();
-                            log::info!("IPv6: {source_addr} -> {destination_addr}");
+                            log::info!("IPv6: {source_addr} -> {destination_addr} (NOT IMPLEMENTED)");
+                            continue;
                         },
                     };
 
-                    // Get the relevant peer_tx
-                    // TODO(JON): just use the single only one for now
-                    let Some(peer) = active_peers.iter().next() else {
-                        log::warn!("No peers connected, dropping packet");
+                    let Some(peer) = peer else {
+                        log::warn!("No matching peers connected, dropping packet");
                         continue;
                     };
 
@@ -144,7 +148,7 @@ fn start_tun_listener(active_peers: Arc<ActivePeers>) -> UnboundedSender<Vec<u8>
                     peer.send(Event::IpPacket(buf[..len].to_vec().into())).unwrap();
                 },
                 Some(data) = tun_task_rx.recv() => {
-                    log::info!("WireGuard listener: received data for sending to tun");
+                    log::info!("tun device: writing {} bytes to tun", data.len());
                     tun_tx.write_all(&data).await.unwrap();
                 }
             }

@@ -5,12 +5,12 @@ import { Footer } from './components/footer';
 const config: DocsThemeConfig = {
   logo: <span>Nym TypeScript SDK</span>,
   project: {
-    link: 'https://github.com/nymtech/',
+    link: 'https://github.com/nymtech/nym',
   },
   chat: {
-    link: 'https://discord.com',
+    link: 'https://discord.gg/nym',
   },
-  docsRepositoryBase: 'https://github.com/shuding/nextra-docs-template',
+  docsRepositoryBase: 'https://github.com/nymtech/nym/tree/develop/sdk/typescript/docs',
   footer: {
     text: Footer,
   },

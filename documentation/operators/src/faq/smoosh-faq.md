@@ -78,7 +78,7 @@ So far the general line is running a gateway is not illegal (unless you are in I
 
 There are several legal questions regarding to this and we would like to ask you to fill this [short survey](https://nymtech.typeform.com/exitnode).
 
-We'll have a thorough legal analysis out before hand and various resources from and for the community which we started to gather in the [Community Legal Forum](../legal/legal-forum.md).
+We'll have a thorough legal analysis out before hand and various resources from and for the community. <!-- which we started to gather in the [Community Legal Forum](../legal/legal-forum.md). Uncomment when the legal forum get's merged -->
 
 ## Other Questions
 

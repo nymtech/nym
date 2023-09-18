@@ -21,13 +21,14 @@ As we shared in our blog post article [*What does it take to build the wolds mos
 
 ### What are the changes?
 
-_Project smoosh will have three steps:_
+Project smoosh will have three steps:
 
 1. Combine the `gateway` and `network-requester`.
 2. Combine all the nodes in the Nym Mixnet into one binary, that is `mixnode`, `gateway` (entry and exit) and `network-requester`.
 3. Make a selection button (command/argument/flag) for operators to choose whether they want their node to provide all or just some of the functions nodes have in the Nym Mixnet. Not everyone will be able/want to run an exit `gateway` for example.
 
-The software will be the same, just instead of multiple binaries, there will be one Nym Mixnet node binary. Delegations will remain on as they are now, per our token economics (staking, saturation etc)
+These three steps will be staggered over time - period of several months, and will be implemented one by one with enough time to take in feedback and fix bugs in between.  
+Generally, the software will be the same, just instead of multiple binaries, there will be one Nym Mixnet node binary. Delegations will remain on as they are now, per our token economics (staking, saturation etc)
 
 ### What is the change from allow list to deny list?
 

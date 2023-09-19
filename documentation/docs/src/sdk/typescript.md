@@ -47,7 +47,7 @@ There are multiple example projects in [`nym/sdk/typescript/examples/`](https://
 The best place to start if you just want to quickly get a basic frontend up and running with which to experiment is `examples/plain-html`:
 
 ```typescript
-{{#include ../../../../sdk/typescript/examples/chat-app/plain-html/src/index.ts}}
+{{#include ../../../../sdk/typescript/examples/shared/index.ts}}
 ```
 
 As you can see, all that is required to create an ephemeral keypair and connect to the mixnet is creating a client and then subscribing to the mixnet events coming down the websocket, and adding logic to deal with them.

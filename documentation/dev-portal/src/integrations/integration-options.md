@@ -3,7 +3,7 @@ If you've already gone through the different [Quick Start](../quickstart/overvie
 
 This section assumes you wish to integrate with Nym into your application code. 
 
-The [integrations FAQ](./faq.md) has a list of common questions regarding integrating with Nym and Nyx, as well as commonly required links. _This is a good place to start to get an overall idea of the tools and software avaliable to you_. 
+The [integrations FAQ](../faq/integrations-faq.md) has a list of common questions regarding integrating with Nym and Nyx, as well as commonly required links. _This is a good place to start to get an overall idea of the tools and software avaliable to you_. 
 
 If you wish to integrate with Nym to use the mixnet for application traffic, start with the [mixnet integration](./mixnet-integration.md) page. 
 

@@ -293,65 +293,6 @@ impl<T> GatewaySetup<T> {
     pub fn has_full_details(&self) -> bool {
         self.is_must_load()
     }
-
-    // pub fn is_custom_new(&self) -> bool {
-    //     if let GatewaySetup::New { specification } = self {
-    //         specification.is_custom()
-    //     } else {
-    //         false
-    //     }
-    // }
-
-    // pub async fn choose_gateway(
-    //     self,
-    //     gateways: &[gateway::Node],
-    // ) -> Result<GatewayDetails<T>, ClientCoreError> {
-    //     let cfg: GatewayEndpointConfig = match self {
-    //         GatewaySetup::New { specification } => match specification {
-    //             GatewaySelectionSpecification::UniformRemote => {
-    //                 let mut rng = OsRng;
-    //                 uniformly_random_gateway(&mut rng, gateways)
-    //             }
-    //             GatewaySelectionSpecification::RemoteByLatency => {
-    //                 let mut rng = OsRng;
-    //                 choose_gateway_by_latency(&mut rng, gateways).await
-    //             }
-    //             GatewaySelectionSpecification::Custom {
-    //                 gateway_identity,
-    //                 additional_data,
-    //             } => {
-    //                 return Ok(GatewayDetails::Custom(CustomGatewayDetails {
-    //                     gateway_id: gateway_identity,
-    //                     additional_data,
-    //                 }))
-    //             }
-    //         }
-    //         .map(Into::into),
-    //         GatewaySetup::Specified { gateway_identity } => {
-    //             let user_gateway = identity::PublicKey::from_base58_string(&gateway_identity)
-    //                 .map_err(ClientCoreError::UnableToCreatePublicKeyFromGatewayId)?;
-    //
-    //             gateways
-    //                 .iter()
-    //                 .find(|gateway| gateway.identity_key == user_gateway)
-    //                 .ok_or_else(|| ClientCoreError::NoGatewayWithId(gateway_identity.to_string()))
-    //                 .cloned()
-    //         }
-    //         .map(Into::into),
-    //         _ => Err(ClientCoreError::UnexpectedGatewayDetails),
-    //     }?;
-    //     Ok(cfg.into())
-    // }
-
-    // #[deprecated]
-    // pub async fn try_get_new_gateway_details(
-    //     self,
-    //     validator_servers: &[Url],
-    // ) -> Result<GatewayDetails<T>, ClientCoreError> {
-    //     let mut rng = OsRng;
-    //     let gateways = current_gateways(&mut rng, validator_servers).await?;
-    //     self.choose_gateway(&gateways).await
-    // }
 }
 
 /// Struct describing the results of the client initialization procedure.

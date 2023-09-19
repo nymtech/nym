@@ -103,3 +103,6 @@ input:focus-visible {
 border-color: var(--colorPrimary) !important;
 } 
 
+a.MuiLink-root {
+    color: var(--colorPrimary) !important;
+}

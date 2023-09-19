@@ -4,12 +4,12 @@ body {
 }
 
 div.nextra-code-block > div  {
-    background:var(--colorPrimary)!important;
+    background:var(--colorPrimary) !important;
 }
 
 .nextra-code-block > pre {
-    max-height: 350px;
-    scroll-y: auto;
+    max-height: 350px !important;
+    scroll-y: auto !important;
 }
 
 /* Code blocks*/
@@ -20,7 +20,7 @@ div.nextra-code-block > div  {
 
 
 :is(html[class~=dark] .dark\:nx-bg-primary-300\/10) {
-    background-color: hsl(var(black)100% 77%/.1);
+    background-color: hsl(var(black)100% 77%/.1) !important;
 }
 
 
@@ -69,7 +69,7 @@ div.nextra-code-block > div  {
 
 /* Chips*/
 .css-sv2u65-MuiChip-root {
-    background-color: var(--colorPrimary);
+    background-color: var(--colorPrimary) !important;
 }
 
 /* Buttons */
@@ -84,7 +84,7 @@ div.nextra-code-block > div  {
 }
 
 .MuiCircularProgress-root {
-    color: var(--colorPrimary);
+    color: var(--colorPrimary) !important;
 }
 
 .nextra-scrollbar.nx-sticky{

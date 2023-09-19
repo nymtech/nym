@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
 # takes one manadatory arg and one optional arg: wallet release and minimum rust versions
 # it then uses sed to bump them in the three book.toml files.
 #

@@ -7,35 +7,88 @@ Nym, these include:
 - using the [Ledger hardware wallet](https://docs.cosmoskit.com/integrating-wallets/ledger) from the browser
 - any wallet that supports [Wallet Connect v2.0](https://docs.cosmoskit.com/integrating-wallets/adding-new-wallets)
 
+```bash
+npm install @cosmos-kit/react @cosmos-kit/keplr @cosmos-kit/ledger chain-registry
+```
+
+You need to polyfill some nodejs modules in order to use keplr and ledger wallets by modifying your vite.config.js:
+```bash
+npm install @esbuild-plugins/node-globals-polyfill
+```
+
+```js
+// vite.config.js
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+import { NodeGlobalsPolyfillPlugin } from '@esbuild-plugins/node-globals-polyfill'
+export default defineConfig({
+  plugins: [react()],
+  optimizeDeps: {
+        esbuildOptions: {
+            define: {
+                global: 'globalThis'
+            },
+            plugins: [
+                NodeGlobalsPolyfillPlugin({
+                    buffer: true
+                })
+            ]
+        }
+    }
+})
+```
+
+Your components have to be wrapped into a [ChainProvider](https://docs.cosmoskit.com/chain-provider),
+in order to use the `useChain('nyx')` hook. The nyx chain is provided in the 'chain-registry' NPM package by default.
+
 ```ts
 import React from 'react';
-import { useChain } from '@cosmos-kit/react';
+import { ChainProvider, useChain } from '@cosmos-kit/react';
 import { assets, chains } from 'chain-registry';
-import { wallets } from '@cosmos-kit/keplr';
-
-export const MyComponent = () => {
-  const { wallet, address, connect, getOfflineSignerDirect } =
-    useChain('nyx');
+import { wallets as ledger } from '@cosmos-kit/ledger';
+import { wallets as keplr } from '@cosmos-kit/keplr';
+function MyComponent() {
+  const {wallet, address, connect, getOfflineSignerDirect } =
+  useChain('nyx');
 
   React.useEffect(() => {
     connect();
   }, []);
 
   const sign = async () => {
-    const doc = { ... };
+    const doc = {foo: 'bar'};
     return getOfflineSignerDirect().signDirect(address, doc);
   };
 
   return (
     <div>
       <div>
-        <strong>Connected to {wallet.prettyName}</strong>
+        <strong>Connected to {wallet?.prettyName}</strong>
       </div>
       <div>
-        Address: <code>{address}</code>
+        { wallet && <div>Address: <code>{address}</code> </div>}
       </div>
+      <button onClick={() => {connect()}}>Connect wallet</button>
     </div>
+
   );
 }
-```
 
+export default function App() {
+  return (
+     <ChainProvider
+      chains={[chains.find((c) => c.chain_id === 'nyx')]}
+      assetLists={[assets.find((a) => a.chain_name === 'nyx')]}
+      wallets={[...ledger, ...keplr]}
+      signerOptions={{
+        preferredSignType: () => 'amino',
+      }}
+    >
+
+        <MyComponent/>
+    </ChainProvider>
+
+  )
+}
+
+```

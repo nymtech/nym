@@ -5,14 +5,14 @@ import { Callout } from 'nextra/components'
 The Typescript SDK's different modules allow developers to start building browser-based applications quickly, by simply importing the SDK module of their choice - depending on the component from the Nym architecture they want to use - into their code via NPM as they would any other Typescript library.
 
 <Callout type="info" emoji="ℹ️">
-    SDK modules come in four different flavours (ESM, CJS and full-fat for ESM and CJS).
-    This documentation only shows instructions and examples for the unbundled ESM variant.
+    Other than the `Contract Clients`, SDK modules come in four different flavours (ESM, CJS and full-fat for ESM and CJS).
+    This documentation focuses on examples using the `full-fat` versions.
 </Callout>
 
 #### Install all
 
 ```
-npm install @nymproject/contract-clients @cosmjs/cosmwasm-stargate @cosmjs/proto-signing @nymproject/sdk @nymproject/mix-fetch --save
+npm install @nymproject/contract-clients @cosmjs/cosmwasm-stargate @cosmjs/proto-signing @nymproject/sdk-full-fat @nymproject/mix-fetch-full-fat --save
 ```
 
 ## Nym Smart Contracts
@@ -46,7 +46,7 @@ In order to send or receive traffic over the mixnet, you'll need to use the [`Mi
 First install the package and its dependencies:
 
 ```
-npm install @nymproject/sdk --save
+npm install @nymproject/sdk-full-fat --save
 ```
 
 ## MixFetch
@@ -59,7 +59,7 @@ In order to fetch data through mixFetch you'll need to use the [`MixFetch packag
 First install the package and its dependencies:
 
 ```
-npm install @nymproject/mix-fetch --save
+npm install @nymproject/mix-fetch-full-fat --save
 ```
 
 

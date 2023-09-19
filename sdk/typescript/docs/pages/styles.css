@@ -68,7 +68,7 @@ div.nextra-code-block > div  {
 }
 
 /* Chips*/
-.css-sv2u65-MuiChip-root {
+.chipContained{
     background-color: var(--colorPrimary) !important;
 }
 

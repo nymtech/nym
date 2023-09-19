@@ -44,7 +44,7 @@ pub struct GatewayPaths {
     #[serde(alias = "persistent_storage")]
     pub clients_storage: PathBuf,
 
-    /// Path to the configuration of the locally running network requester.
+    /// Path to the configuration of the embedded network requester.
     #[serde(deserialize_with = "de_maybe_path")]
     pub network_requester_config: Option<PathBuf>,
     // pub node_description: PathBuf,

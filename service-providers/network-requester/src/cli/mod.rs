@@ -95,7 +95,7 @@ pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Confi
     // - sets the cover traffic stream to 1 packet / 5s (on average)
     // - disables per hop delay
     //
-    // fastmode:
+    // fastmode (to be renamed to `fast-poisson`):
     // - sets average per hop delay to 10ms
     // - sets the cover traffic stream to 1 packet / 2000s (on average); for all intents and purposes it disables the stream
     // - sets the poisson distribution of the main traffic stream to 4ms, i.e. 250 packets / s on average

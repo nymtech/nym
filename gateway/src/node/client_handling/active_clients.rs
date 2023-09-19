@@ -85,7 +85,7 @@ impl ActiveClientsStore {
         let handle = entry.value();
 
         let ActiveClient::Remote(channels) = handle else {
-            warn!("attempted to get a remote handle to a locally running network requester");
+            warn!("attempted to get a remote handle to a embedded network requester");
             return None;
         };
 
@@ -149,7 +149,7 @@ impl ActiveClientsStore {
         }
     }
 
-    /// Inserts a handle to the locally running network requester
+    /// Inserts a handle to the embedded network requester
     pub(crate) fn insert_embedded(&self, local_nr_handle: LocalNetworkRequesterHandle) {
         let key = local_nr_handle.client_destination();
         let entry = ActiveClient::Embedded(local_nr_handle);

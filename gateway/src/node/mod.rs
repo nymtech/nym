@@ -195,18 +195,12 @@ impl<St> Gateway<St> {
     }
 
     // TODO: rethink the logic in this function...
-    async fn maybe_start_network_requester(
+    async fn start_network_requester(
         &self,
         forwarding_channel: MixForwardingSender,
-        mut shutdown: TaskClient,
-    ) -> Result<Option<LocalNetworkRequesterHandle>, GatewayError> {
-        if !self.config.network_requester.enabled {
-            info!("network requester is disabled");
-            shutdown.mark_as_success();
-            return Ok(None);
-        } else {
-            info!("Starting network requester...");
-        }
+        shutdown: TaskClient,
+    ) -> Result<LocalNetworkRequesterHandle, GatewayError> {
+        info!("Starting network requester...");
 
         // if network requester is enabled, configuration file must be provided!
         let Some(nr_opts) = &self.network_requester_opts else {
@@ -260,10 +254,7 @@ impl<St> Gateway<St> {
             start_data.address
         );
 
-        Ok(Some(LocalNetworkRequesterHandle::new(
-            start_data,
-            nr_mix_sender,
-        )))
+        Ok(LocalNetworkRequesterHandle::new(start_data, nr_mix_sender))
     }
 
     async fn wait_for_interrupt(shutdown: TaskManager) -> Result<(), Box<dyn Error + Send + Sync>> {
@@ -355,15 +346,17 @@ impl<St> Gateway<St> {
             });
         }
 
-        if let Some(local_nr) = self
-            .maybe_start_network_requester(
-                mix_forwarding_channel.clone(),
-                shutdown.subscribe().named("NetworkRequester"),
-            )
-            .await?
-        {
-            // insert information about local NR to the active clients store
-            active_clients_store.insert_embedded(local_nr)
+        if self.config.network_requester.enabled {
+            let embedded_nr = self
+                .start_network_requester(
+                    mix_forwarding_channel.clone(),
+                    shutdown.subscribe().named("NetworkRequester"),
+                )
+                .await?;
+            // insert information about embedded NR to the active clients store
+            active_clients_store.insert_embedded(embedded_nr)
+        } else {
+            info!("embedded network requester is disabled");
         }
 
         self.start_client_websocket_listener(

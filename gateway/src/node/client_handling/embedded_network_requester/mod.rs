@@ -14,7 +14,7 @@ use nym_task::TaskClient;
 
 #[derive(Debug)]
 pub(crate) struct LocalNetworkRequesterHandle {
-    /// Nym address of the locally running network requester.
+    /// Nym address of the embedded network requester.
     pub(crate) address: Recipient,
 
     /// Message channel used internally to forward any received mix packets to the network requester.

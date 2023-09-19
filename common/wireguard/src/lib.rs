@@ -87,35 +87,40 @@ fn start_wg_tunnel(
     (join_handle, peer_tx)
 }
 
-fn setup_tokio_tun_device() -> tokio_tun::Tun {
+fn setup_tokio_tun_device(name: &str, address: Ipv4Addr, netmask: Ipv4Addr) -> tokio_tun::Tun {
     tokio_tun::Tun::builder()
-        .name("jontun%d")
+        .name(name)
         .tap(false)
         .packet_info(false)
         .mtu(1350)
         .up()
-        .address(Ipv4Addr::new(10, 0, 0, 1))
-        .netmask(Ipv4Addr::new(255, 255, 255, 0))
+        .address(address)
+        .netmask(netmask)
         .try_build()
         .expect("Failed to setup tun device, do you have permission?")
 }
 
-fn start_tun_listener(active_peers: Arc<ActivePeers>) -> UnboundedSender<Vec<u8>> {
-    let tun = setup_tokio_tun_device();
+fn start_tun_device(active_peers: Arc<ActivePeers>) -> UnboundedSender<Vec<u8>> {
+    let tun = setup_tokio_tun_device(
+        "nymtun%d",
+        Ipv4Addr::new(10, 0, 0, 1),
+        Ipv4Addr::new(255, 255, 255, 0),
+    );
     log::info!("Created TUN device: {}", tun.name());
 
-    let (mut tun_rx, mut tun_tx) = tokio::io::split(tun);
+    let (mut tun_device_rx, mut tun_device_tx) = tokio::io::split(tun);
 
-    // Since we can't clone tun_tx
+    // Channels to communicate with the other tasks
     let (tun_task_tx, mut tun_task_rx) = mpsc::unbounded_channel::<Vec<u8>>();
 
     tokio::spawn(async move {
         let mut buf = [0u8; 1024];
         loop {
             tokio::select! {
-                Ok(len) = tun_rx.read(&mut buf) => {
+                // Reading from the TUN device
+                Ok(len) = tun_device_rx.read(&mut buf) => {
                     log::info!("tun device: read {} bytes from tun", len);
-                    log::info!("tun device: sending data to peers (NOT IMPLEMENTED)");
+                    log::info!("tun device: sending data to peers");
 
                     // Figure out the peer it's meant for.
                     let packet = &buf[..len];
@@ -147,9 +152,10 @@ fn start_tun_listener(active_peers: Arc<ActivePeers>) -> UnboundedSender<Vec<u8>
                     // Forward to the peer
                     peer.send(Event::IpPacket(buf[..len].to_vec().into())).unwrap();
                 },
+                // Writing to the TUN device
                 Some(data) = tun_task_rx.recv() => {
                     log::info!("tun device: writing {} bytes to tun", data.len());
-                    tun_tx.write_all(&data).await.unwrap();
+                    tun_device_tx.write_all(&data).await.unwrap();
                 }
             }
             log::info!("tun device: shutting down");
@@ -233,8 +239,10 @@ pub async fn start_wireguard(
     // The set of active tunnels indexed by the peer's address
     let active_peers: Arc<ActivePeers> = Arc::new(ActivePeers::new());
 
-    let tun_task_tx = start_tun_listener(active_peers.clone());
+    // Start the tun device that is used to relay traffic outbound
+    let tun_task_tx = start_tun_device(active_peers.clone());
 
+    // Start the UDP listener that clients connect to
     start_udp_listener(tun_task_tx, active_peers, task_client).await?;
 
     Ok(())

@@ -74,13 +74,13 @@ div.nextra-code-block > div  {
 
 /* Buttons */
 .MuiButton-root {
-    color:  var(--colorPrimary);
-    border-color:  var(--colorPrimary);
+    color:  var(--colorPrimary) !important;
+    border-color:  var(--colorPrimary) !important;
 }
 
 .MuiButton-root:hover {
-    color:  white;
-    background-color: var(--colorPrimary);
+    color:  white !important;
+    background-color: var(--colorPrimary) !important;
 }
 
 .MuiCircularProgress-root {

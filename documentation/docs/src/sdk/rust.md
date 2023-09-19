@@ -82,10 +82,11 @@ If you're integrating mixnet functionality into an existing app and want to inte
 ### Anonymous replies with SURBs
 Both functions used to send messages through the mixnet (`send_message` and `send_plain_message`) send a pre-determined number of SURBs along with their messages by default.
 
-The number of SURBs is set [here](https://github.com/nymtech/nym/blob/master/sdk/rust/nym-sdk/src/mixnet/client.rs#L33):
+The number of SURBs is set [here](https://github.com/nymtech/nym/blob/master/sdk/rust/nym-sdk/src/mixnet/client.rs#L33).
+
 
 ```rust,noplayground
-{{#include ../../../../sdk/rust/nym-sdk/src/mixnet/client.rs:34}}
+{{#include ../../../../sdk/rust/nym-sdk/src/mixnet/client.rs:33}}
 ```
 
 You can read more about how SURBs function under the hood [here](../architecture/traffic-flow.md#private-replies-using-surbs).

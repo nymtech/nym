@@ -10,6 +10,12 @@ Replying can be done in two ways:
 - reveal the sender's address to the recipient (as part of the payload)
 - use a SURB (single use reply block) that allows the recipient to reply to the sender without compromising the identity of either party
 
+##### Set-up your environment
+Create your directory and set-up your app environment:
+```bash
+npm create vite@latest
+```
+
 ##### Imports
 Import the SDK's Mixnet Client as well as the payload in your app:
 ````js
@@ -32,7 +38,7 @@ import {
 
 const nymApiUrl = "https://validator.nymtech.net/api";
 
-export const Traffic = () => {
+export default function Traffic() {
   const [nym, setNym] = useState<NymMixnetClient>();
   const [selfAddress, setSelfAddress] = useState<string>();
   const [recipient, setRecipient] = useState<string>();
@@ -101,6 +107,4 @@ export const Traffic = () => {
     </div>
   );
 };
-
-
 ```

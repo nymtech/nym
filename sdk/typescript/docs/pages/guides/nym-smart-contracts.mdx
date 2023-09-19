@@ -21,15 +21,16 @@ Lists of the diffent available clients and methods from the `Contract Clients` c
 Depending on your app or project's architecture, this could be any of the ESM or CJS versions of the `Contract Clients`.
 
 ##### Set-up your environment
+
 Create your directory and set-up your app environment:
-```
-npx create-react-app my-app
+```bash
+npm create vite@latest
 ```
 
 ##### Installation
 Install the package and its dependencies from Cosmos Stargate:
-```
-npm install @nymproject/contract-clients @cosmjs/cosmwasm-stargate @cosmjs/proto-signing
+```bash
+npm install @nymproject/contract-clients @cosmjs/cosmwasm-stargate @cosmjs/proto-signing --save
 ```
 ## Query clients
 
@@ -39,53 +40,6 @@ Import the contracts' client in your app:
 import { contracts } from '@nymproject/contract-clients';
 import { SigningCosmWasmClient } from "@cosmjs/cosmwasm-stargate";
 ````
-
-##### Polyfills
-
-You will need to install:
-
-`npm install --save url fs assert crypto-browserify stream-http https-browserify os-browserify buffer stream-browserify process react-app-rewired`
-
-and create a `config-overrides.js`file:
-```js
-const webpack = require('webpack');
-module.exports = function override(config, env) {
-    config.resolve.fallback = {
-        url: require.resolve('url'),
-        fs: require.resolve('fs'),
-        assert: require.resolve('assert'),
-        crypto: require.resolve('crypto-browserify'),
-        http: require.resolve('stream-http'),
-        https: require.resolve('https-browserify'),
-        os: require.resolve('os-browserify/browser'),
-        buffer: require.resolve('buffer'),
-        stream: require.resolve('stream-browserify'),
-    };
-    config.plugins.push(
-        new webpack.ProvidePlugin({
-            process: 'process/browser',
-            Buffer: ['buffer', 'Buffer'],
-        }),
-    );
-
-    return config;
-}
-```
-Update your `package.json` file:
-```json
-"scripts": {
-    "start": "react-app-rewired start",
-    "build": "react-app-rewired build",
-    "test": "react-app-rewired test",
-    "eject": "react-scripts eject" // don't change the eject
-  },
-  ```
-
-
-
-
-
-
 
 ##### Example: using the Mixnet smart contract client to query
 In this example, we will use the `MixnetQueryClient`from the `Contract Clients` to simply query the contract and return a list of Mixnodes.
@@ -158,9 +112,9 @@ Note that for the `settings.ts` file, we have used the following structure:
 
 export const mySettings = {
     url: "wss://rpc.nymtech.net:443",
-    mixnetContractAddress: <ENTER MIXNET CONTACT ADDRESS HERE>,
-    mnemonic: '<ENTER MNEMONIC HERE>,
-    address: <ENTER NYM ADDRESS HERE>
+    mixnetContractAddress: '<ENTER MIXNET CONTACT ADDRESS HERE>',
+    mnemonic: '<ENTER MNEMONIC HERE>',
+    address: '<ENTER NYM ADDRESS HERE>'
 };
 
 export const settings = mySettings;
@@ -337,6 +291,4 @@ export default function Exec() {
     </div>
   );
 }
-
 ```
-

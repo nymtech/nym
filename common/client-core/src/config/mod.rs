@@ -279,15 +279,29 @@ impl GatewayEndpointConfig {
         identity::PublicKey::from_base58_string(&self.gateway_id)
             .map_err(ClientCoreError::UnableToCreatePublicKeyFromGatewayId)
     }
-}
 
-impl From<nym_topology::gateway::Node> for GatewayEndpointConfig {
-    fn from(node: nym_topology::gateway::Node) -> GatewayEndpointConfig {
-        let gateway_listener = node.clients_address();
+    pub fn from_node(node: nym_topology::gateway::Node, use_tls: bool) -> Self {
+        // TODO: in the future this shall return a Result and explicit `use_tls` will be removed in favour of the tls info being available on the struct
+        if use_tls {
+            Self::from_topology_node_tls(node)
+        } else {
+            Self::from_topology_node_no_tls(node)
+        }
+    }
+
+    pub fn from_topology_node_no_tls(node: nym_topology::gateway::Node) -> Self {
         GatewayEndpointConfig {
             gateway_id: node.identity_key.to_base58_string(),
+            gateway_listener: node.clients_address(),
             gateway_owner: node.owner,
-            gateway_listener,
+        }
+    }
+
+    pub fn from_topology_node_tls(node: nym_topology::gateway::Node) -> Self {
+        GatewayEndpointConfig {
+            gateway_id: node.identity_key.to_base58_string(),
+            gateway_listener: node.clients_address_tls(),
+            gateway_owner: node.owner,
         }
     }
 }

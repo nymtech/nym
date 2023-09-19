@@ -107,17 +107,20 @@ where
     let mut new_keys = ManagedKeys::generate_new(&mut rng);
 
     let gateway_details = match selection_specification {
-        GatewaySelectionSpecification::UniformRemote => {
+        GatewaySelectionSpecification::UniformRemote { must_use_tls } => {
             let gateway = uniformly_random_gateway(&mut rng, &available_gateways)?;
-            GatewayDetails::Configured(GatewayEndpointConfig::from(gateway))
+            GatewayDetails::Configured(GatewayEndpointConfig::from_node(gateway, must_use_tls))
         }
-        GatewaySelectionSpecification::RemoteByLatency => {
+        GatewaySelectionSpecification::RemoteByLatency { must_use_tls } => {
             let gateway = choose_gateway_by_latency(&mut rng, &available_gateways).await?;
-            GatewayDetails::Configured(GatewayEndpointConfig::from(gateway))
+            GatewayDetails::Configured(GatewayEndpointConfig::from_node(gateway, must_use_tls))
         }
-        GatewaySelectionSpecification::Specified { identity } => {
+        GatewaySelectionSpecification::Specified {
+            must_use_tls,
+            identity,
+        } => {
             let gateway = get_specified_gateway(&identity, &available_gateways)?;
-            GatewayDetails::Configured(GatewayEndpointConfig::from(gateway))
+            GatewayDetails::Configured(GatewayEndpointConfig::from_node(gateway, must_use_tls))
         }
         GatewaySelectionSpecification::Custom {
             gateway_identity,

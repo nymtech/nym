@@ -9,6 +9,10 @@ ifndef $(TINYGOROOT)
     export TINYGOROOT
 endif
 
+build-debug-dev:
+	GOOS=js GOARCH=wasm go build -o build/go_conn.wasm ./cmd/wasm
+	cp "$(GOROOT)/misc/wasm/wasm_exec.js" build
+
 build-go:
 	GOOS=js GOARCH=wasm go build -o ../../../dist/wasm/mix-fetch/go_conn.wasm ./cmd/wasm
 	cp "$(GOROOT)/misc/wasm/wasm_exec.js" ../../../dist/wasm/mix-fetch

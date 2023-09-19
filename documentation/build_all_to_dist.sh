@@ -1,4 +1,9 @@
-#!/bin/bash
+#!/usr/bin/env bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
+
 # this is a script called by the github CI and CD workflows to build all 3 docs projects
 # and move them to /dist/ in the root of the monorepo. They are rsynced to various servers
 # from there by subsequent workflow tasks.

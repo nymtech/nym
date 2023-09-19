@@ -27,7 +27,7 @@ mod error;
 mod event;
 mod tun;
 
-//const WG_ADDRESS = "0.0.0.0:51820";
+// const WG_ADDRESS: &str = "0.0.0.0:51820";
 const WG_ADDRESS: &str = "0.0.0.0:51822";
 
 // The private key of the listener

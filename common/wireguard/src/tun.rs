@@ -140,11 +140,14 @@ impl WireGuardTunnel {
     }
 
     fn set_source_addr(&self, source_addr: std::net::Ipv4Addr) {
-        let stored_source_addr = self.source_addr.read().unwrap();
-        let to_update = stored_source_addr
-            .map(|sa| sa != source_addr)
-            .unwrap_or(true);
+        let to_update = {
+            let stored_source_addr = self.source_addr.read().unwrap();
+            stored_source_addr
+                .map(|sa| sa != source_addr)
+                .unwrap_or(true)
+        };
         if to_update {
+            log::debug!("Setting source_addr: {source_addr}");
             *self.source_addr.write().unwrap() = Some(source_addr);
         }
     }

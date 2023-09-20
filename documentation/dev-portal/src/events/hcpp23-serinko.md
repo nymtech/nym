@@ -91,15 +91,20 @@ chmod +x ./<BINARY_NAME>
 # for example: chmod +x ./nym-network-requester
 ```
 
-### Initialize Sock5 Client and Network Requester
+## Initialize Sock5 Client and Network Requester
 
-Whether you build the entire platform or downloaded binaries, they need to be initialised with `init` before being `run`.
+```admonish info
+If you want to run your applications over NymConnect skip this chapter. `nym-socks5-client` and `nym-network-requester` is a must if you want to run ircd through the Mixnet.
+```
+Whether you build the entire platform or downloaded binaries, `nym-socks5-client` and `nym-network-requester` need to be initialised with `init` before being `run`.
 
-Navigate in your terminal to the directory where you have your `nym-socks5-client` and `nym-network-requester`. In case you build the entire platform it's in `nym/target/release` - you can change directory from the one where you build by:
+In your terminal navigate to the directory where you have your `nym-socks5-client` and `nym-network-requester`. In case you build the entire platform it's in `nym/target/release` - you can change directory from the one where you build by:
 
 ```sh
 cd target/release
 ```
+
+**Network Requester**
 
 The `init` command is usually where you pass flags specifying configuration arguments such as the gateway you wish to communicate with, the ports you wish your binary to listen on, etc. 
 
@@ -107,7 +112,62 @@ The `init` command will also create the necessary keypairs and configuration fil
 
 You can reconfigure your binaries at any time by editing the config file located at `~/.nym/<BINARY_TYPE>/<BINARY_ID>/config/config.toml` and restarting the binary process. 
 
+
+To run [ircd](https://darkrenaissance.github.io/darkfi/clients/nym_outbound.html) through the Mixnet you need to run your own [Network Requester](https://nymtech.net/operators/nodes/network-requester-setup.html) is needed to add known peer's domains/addresses to `~/.nym/service-providers/network-requester/allowed.list`. For all other applications `nym-socks5-client` (or NymCOnnect) is enough, no need to initialize and run `nym-network-requester`.
+
+Here are the steps to initialize `nym-network-requester`:
+
+```sh
+1. cd to the directory with your binaries
+2. ./nym-network-requester init --id <CHOOSE_ANY_NAME_AS_ID>
+```
+This will print you information about your client `<ADDRESS>`, it will look like:
+```sh
+The address of this client is: 8hUvtEyZK8umsdxxPS2BizQhEDmbNeXEPBZLgscE57Zh.5P2bWn6WybVL8QgoPEUHf6h2zXktmwrWaqaucEBZy7Vb@5vC8spDvw5VDQ8Zvd9fVvBhbUDv9jABR4cXzd4Kh5vz
+```
+
+**Socks5 Client**
+
+If you run `nym-socks5-client` instead of NymConnect, you can choose your `--provider` [here](https://explorer.nymtech.net/network-components/service-providers) or leave that flag empty and your client will chose one randomly. To run ircd, you will need to connect it to your `nym-network-requester` by using your `<ADDRESS>` for your `nym-socks5-client` initialisation and add a flag `--use-reply-surbs true`. Run the command in the next terminal window:
+
+```sh
+# to connect to your nym-network-requester
+./nym-socks5-client init --use-reply-surbs true --id <CHOSE_ANY_NAME_AS_ID> --provider <ADDRESS>
+
+# to run just the socks5 client
+./nym-socks5-client init --id <CHOSE_ANY_NAME_AS_ID>
+```
+
+**Run Clients**
+
 Once you have run `init`, you can start your binary with the `run` command, usually only accompanied by the `id` of the binary that you specified. 
 
 This `id` is **never** transmitted over the network, and is used to select which local config and key files to use for startup. 
 
+```sh
+# network requester
+./nym-network-requester run --id <ID>
+
+# socks5 client (in other terminal window)
+./nym-socks5-client run --id <ID>
+```
+
+## Connect Privacy Enhanced Applications (PEApps)
+
+For simplification Electrum, Monero wallet and Matrix (Element) will be connected over NymConnect and ircd over `nym-socks5-client`. Whichever way you want to use, make sure it's connected to the Mixnet.
+
+```admonish info
+This aims to connect your favourite applications Nym Mixnet, therefore does not include how to install these applications.
+```
+
+### Electrum Bitcoin wallet
+
+To download the Electrum visit the [official webpage](https://electrum.org/#download). To connect to the Mixnet follow these steps:
+
+1. Start and connect NymConnect (or `nym-socks5-client`)
+2. Start your Electrum Bitcoin wallet
+3. Go to: *Tools* -> *Network* -> *Proxy*
+4. Set *Use proxy* to ✅, choose `SOCKS5` from the drop-down and add the values from your NymConnect application
+5. Now your Electrum Bitcoin wallet will be connected only if your NymConnect or `nym-socks5-client` are connected.
+
+![Electrum Bitcoin wallet setup](../images/electrum_tutorial/electrum.gif)

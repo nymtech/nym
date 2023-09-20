@@ -28,6 +28,9 @@ packages=(
 "wasm/node-tester"
 "wasm/extension-storage"
 
+"node/wasm/client"
+"node/wasm/mix-fetch"
+
 "ts/sdk/mix-fetch/cjs"
 "ts/sdk/mix-fetch/cjs-full-fat"
 "ts/sdk/mix-fetch/esm"

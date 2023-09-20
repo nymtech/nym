@@ -130,6 +130,11 @@ impl Config {
         self.base.debug.traffic.secondary_packet_size = Some(PacketSize::ExtendedPacket16);
     }
 
+    #[doc(hidden)]
+    pub fn set_no_poisson_process(&mut self) {
+        self.base.set_no_poisson_process()
+    }
+
     #[must_use]
     pub fn with_open_proxy(mut self, open_proxy: bool) -> Self {
         self.network_requester.open_proxy = open_proxy;

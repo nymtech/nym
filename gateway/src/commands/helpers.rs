@@ -154,6 +154,7 @@ fn make_nr_id(gateway_id: &str) -> String {
     format!("{gateway_id}-network-requester")
 }
 
+// NOTE: make sure this is in sync with service-providers/network-requester/src/cli/mod.rs::override_config
 pub(crate) fn override_network_requester_config(
     mut cfg: nym_network_requester::Config,
     opts: Option<OverrideNetworkRequesterConfig>,
@@ -176,10 +177,15 @@ pub(crate) fn override_network_requester_config(
     // - disables poisson distribution of the main traffic stream
     // - disables the secondary cover traffic stream
 
+    // disable poisson rate in the BASE client if the NR option is enabled
+    if cfg.network_requester.disable_poisson_rate {
+        cfg.set_no_poisson_process();
+    }
+
     // those should be enforced by `clap` when parsing the arguments
     if opts.medium_toggle {
-        debug_assert!(!opts.fastmode);
-        debug_assert!(!opts.no_cover);
+        assert!(!opts.fastmode);
+        assert!(!opts.no_cover);
 
         cfg.set_medium_toggle();
     }

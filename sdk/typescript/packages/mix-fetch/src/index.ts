@@ -63,3 +63,9 @@ export const disconnectMixFetch = async (): Promise<void> => {
     return window.__mixFetchGlobal.disconnectMixFetch();
   }
 };
+
+window.onunload = async () => {
+  if (window.__mixFetchGlobal) {
+    await disconnectMixFetch();
+  }
+};

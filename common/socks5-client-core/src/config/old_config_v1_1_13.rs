@@ -17,7 +17,7 @@ use std::path::PathBuf;
 //
 // //
 // // impl NymConfig for OldConfigV1_1_13 {
-// //     fn template() -> &'static str {
+// //     fn template(&self) -> &'static str {
 // //         // not intended to be used
 // //         unimplemented!()
 // //     }

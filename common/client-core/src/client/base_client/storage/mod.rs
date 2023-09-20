@@ -38,9 +38,6 @@ pub trait MixnetClientStorage {
     type CredentialStore: CredentialStorage;
     type GatewayDetailsStore: GatewayDetailsStore;
 
-    // this is a TERRIBLE name...
-    // fn into_split(self) -> (Self::KeyStore, Self::ReplyStore, Self::CredentialStore, Self::GatewayDetailsStore);
-
     fn into_runtime_stores(self) -> (Self::ReplyStore, Self::CredentialStore);
 
     fn key_store(&self) -> &Self::KeyStore;

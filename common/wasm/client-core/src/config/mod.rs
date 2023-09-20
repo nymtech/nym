@@ -356,6 +356,10 @@ pub struct TopologyWasm {
     /// did not reach its destination.
     pub topology_resolution_timeout_ms: u32,
 
+    /// Defines how long the client is going to wait on startup for its gateway to come online,
+    /// before abandoning the procedure.
+    pub max_startup_gateway_waiting_period_ms: u32,
+
     /// Specifies whether the client should not refresh the network topology after obtaining
     /// the first valid instance.
     /// Supersedes `topology_refresh_rate_ms`.
@@ -376,6 +380,9 @@ impl From<TopologyWasm> for ConfigTopology {
                 topology.topology_resolution_timeout_ms as u64,
             ),
             disable_refreshing: topology.disable_refreshing,
+            max_startup_gateway_waiting_period: Duration::from_millis(
+                topology.max_startup_gateway_waiting_period_ms as u64,
+            ),
             topology_structure: Default::default(),
         }
     }
@@ -386,6 +393,9 @@ impl From<ConfigTopology> for TopologyWasm {
         TopologyWasm {
             topology_refresh_rate_ms: topology.topology_refresh_rate.as_millis() as u32,
             topology_resolution_timeout_ms: topology.topology_resolution_timeout.as_millis() as u32,
+            max_startup_gateway_waiting_period_ms: topology
+                .max_startup_gateway_waiting_period
+                .as_millis() as u32,
             disable_refreshing: topology.disable_refreshing,
         }
     }

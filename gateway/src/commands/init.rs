@@ -1,15 +1,15 @@
 // Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::config::{default_config_directory, default_config_filepath, default_data_directory};
-use crate::{
-    commands::{override_config, OverrideConfig},
-    config::Config,
-    OutputFormat,
+use crate::commands::helpers::{
+    initialise_local_network_requester, OverrideNetworkRequesterConfig,
 };
+use crate::config::{default_config_directory, default_config_filepath, default_data_directory};
+use crate::node::helpers::node_details;
+use crate::{commands::helpers::OverrideConfig, config::Config, OutputFormat};
+use anyhow::bail;
 use clap::Args;
 use nym_crypto::asymmetric::{encryption, identity};
-use std::error::Error;
 use std::net::IpAddr;
 use std::path::PathBuf;
 use std::{fs, io};
@@ -17,32 +17,32 @@ use std::{fs, io};
 #[derive(Args, Clone)]
 pub struct Init {
     /// Id of the gateway we want to create config for
-    #[clap(long)]
+    #[arg(long)]
     id: String,
 
     /// The custom host on which the gateway will be running for receiving sphinx packets
-    #[clap(long)]
+    #[arg(long)]
     host: IpAddr,
 
     /// The port on which the gateway will be listening for sphinx packets
-    #[clap(long)]
+    #[arg(long)]
     mix_port: Option<u16>,
 
     /// The port on which the gateway will be listening for clients gateway-requests
-    #[clap(long)]
+    #[arg(long)]
     clients_port: Option<u16>,
 
     /// Path to sqlite database containing all gateway persistent data
-    #[clap(long)]
+    #[arg(long)]
     datastore: Option<PathBuf>,
 
     /// Comma separated list of endpoints of nym APIs
-    #[clap(long, alias = "validator_apis", value_delimiter = ',')]
+    #[arg(long, alias = "validator_apis", value_delimiter = ',')]
     // the alias here is included for backwards compatibility (1.1.4 and before)
     nym_apis: Option<Vec<url::Url>>,
 
     /// Comma separated list of endpoints of the validator
-    #[clap(
+    #[arg(
         long,
         alias = "validators",
         alias = "nyxd_validators",
@@ -53,23 +53,71 @@ pub struct Init {
     nyxd_urls: Option<Vec<url::Url>>,
 
     /// Cosmos wallet mnemonic needed for double spending protection
-    #[clap(long)]
+    #[arg(long)]
     mnemonic: Option<bip39::Mnemonic>,
 
     /// Set this gateway to work only with coconut credentials; that would disallow clients to
     /// bypass bandwidth credential requirement
-    #[clap(long, hide = true)]
+    #[arg(long, hide = true)]
     only_coconut_credentials: Option<bool>,
 
     /// Enable/disable gateway anonymized statistics that get sent to a statistics aggregator server
-    #[clap(long)]
+    #[arg(long)]
     enabled_statistics: Option<bool>,
 
     /// URL where a statistics aggregator is running. The default value is a Nym aggregator server
-    #[clap(long)]
+    #[arg(long)]
     statistics_service_url: Option<url::Url>,
 
-    #[clap(short, long, default_value_t = OutputFormat::default())]
+    /// Allows this gateway to run an embedded network requester for minimal network overhead
+    #[arg(long)]
+    with_network_requester: bool,
+
+    // ##### NETWORK REQUESTER FLAGS #####
+    /// Specifies whether this network requester should run in 'open-proxy' mode
+    #[arg(long, requires = "with_network_requester")]
+    open_proxy: Option<bool>,
+
+    /// Enable service anonymized statistics that get sent to a statistics aggregator server
+    #[arg(long, requires = "with_network_requester")]
+    enable_statistics: Option<bool>,
+
+    /// Mixnet client address where a statistics aggregator is running. The default value is a Nym
+    /// aggregator client
+    #[arg(long, requires = "with_network_requester")]
+    statistics_recipient: Option<String>,
+
+    /// Mostly debug-related option to increase default traffic rate so that you would not need to
+    /// modify config post init
+    #[arg(
+        long,
+        hide = true,
+        conflicts_with = "medium_toggle",
+        requires = "with_network_requester"
+    )]
+    fastmode: bool,
+
+    /// Disable loop cover traffic and the Poisson rate limiter (for debugging only)
+    #[arg(
+        long,
+        hide = true,
+        conflicts_with = "medium_toggle",
+        requires = "with_network_requester"
+    )]
+    no_cover: bool,
+
+    /// Enable medium mixnet traffic, for experiments only.
+    /// This includes things like disabling cover traffic, no per hop delays, etc.
+    #[arg(
+        long,
+        hide = true,
+        conflicts_with = "no_cover",
+        conflicts_with = "fastmode",
+        requires = "with_network_requester"
+    )]
+    medium_toggle: bool,
+
+    #[arg(short, long, default_value_t = OutputFormat::default())]
     output: OutputFormat,
 }
 
@@ -88,6 +136,20 @@ impl From<Init> for OverrideConfig {
 
             nyxd_urls: init_config.nyxd_urls,
             only_coconut_credentials: init_config.only_coconut_credentials,
+            with_network_requester: Some(init_config.with_network_requester),
+        }
+    }
+}
+
+impl<'a> From<&'a Init> for OverrideNetworkRequesterConfig {
+    fn from(value: &'a Init) -> Self {
+        OverrideNetworkRequesterConfig {
+            fastmode: value.fastmode,
+            no_cover: value.no_cover,
+            medium_toggle: value.medium_toggle,
+            open_proxy: value.open_proxy,
+            enable_statistics: value.enable_statistics,
+            statistics_recipient: value.statistics_recipient.clone(),
         }
     }
 }
@@ -97,8 +159,9 @@ fn init_paths(id: &str) -> io::Result<()> {
     fs::create_dir_all(default_config_directory(id))
 }
 
-pub async fn execute(args: Init) -> Result<(), Box<dyn Error + Send + Sync>> {
+pub async fn execute(args: Init) -> anyhow::Result<()> {
     eprintln!("Initialising gateway {}...", args.id);
+    let output = args.output;
 
     let already_init = if default_config_filepath(&args.id).exists() {
         eprintln!(
@@ -112,52 +175,60 @@ pub async fn execute(args: Init) -> Result<(), Box<dyn Error + Send + Sync>> {
         false
     };
 
-    let override_config_fields = OverrideConfig::from(args.clone());
-
     // Initialising the config structure is just overriding a default constructed one
-    let config = override_config(Config::new(&args.id), override_config_fields)?;
+    let fresh_config = Config::new(&args.id);
+    let nr_opts = (&args).into();
+    let mut config = OverrideConfig::from(args).do_override(fresh_config)?;
 
-    // if gateway was already initialised, don't generate new keys
+    // if gateway was already initialised, don't generate new keys, et al.
     if !already_init {
         let mut rng = rand::rngs::OsRng;
 
         let identity_keys = identity::KeyPair::new(&mut rng);
         let sphinx_keys = encryption::KeyPair::new(&mut rng);
 
-        nym_pemstore::store_keypair(
+        if let Err(err) = nym_pemstore::store_keypair(
             &identity_keys,
             &nym_pemstore::KeyPairPath::new(
                 config.storage_paths.private_identity_key(),
                 config.storage_paths.public_identity_key(),
             ),
-        )
-        .expect("Failed to save identity keys");
+        ) {
+            bail!("failed to save the identity keys: {err}")
+        }
 
-        nym_pemstore::store_keypair(
+        if let Err(err) = nym_pemstore::store_keypair(
             &sphinx_keys,
             &nym_pemstore::KeyPairPath::new(
                 config.storage_paths.private_encryption_key(),
                 config.storage_paths.public_encryption_key(),
             ),
-        )
-        .expect("Failed to save sphinx keys");
+        ) {
+            bail!("failed to save the sphinx keys: {err}")
+        }
+
+        if config.network_requester.enabled {
+            initialise_local_network_requester(&config, nr_opts, *identity_keys.public_key())
+                .await?;
+        }
 
         eprintln!("Saved identity and mixnet sphinx keypairs");
     }
 
     let config_save_location = config.default_location();
-    config
-        .save_to_default_location()
-        .expect("Failed to save the config file");
+    if let Err(err) = config.save_to_default_location() {
+        bail!("failed to save the config file: {err}")
+    }
+    config.save_path = Some(config_save_location.clone());
+
     eprintln!(
         "Saved configuration file to {}",
         config_save_location.display()
     );
     eprintln!("Gateway configuration completed.\n\n\n");
 
-    crate::node::create_gateway(config)
-        .await
-        .print_node_details(args.output);
+    output.to_stdout(&node_details(&config)?);
+
     Ok(())
 }
 
@@ -184,11 +255,20 @@ mod tests {
             nyxd_urls: None,
             only_coconut_credentials: None,
             output: Default::default(),
+            with_network_requester: false,
+            open_proxy: None,
+            enable_statistics: None,
+            statistics_recipient: None,
+            fastmode: false,
+            no_cover: false,
+            medium_toggle: false,
         };
         std::env::set_var(BECH32_PREFIX, "n");
 
-        let config = Config::new(&args.id);
-        let config = override_config(config, OverrideConfig::from(args.clone())).unwrap();
+        let fresh_config = Config::new(&args.id);
+        let config = OverrideConfig::from(args)
+            .do_override(fresh_config)
+            .unwrap();
 
         let (identity_keys, sphinx_keys) = {
             let mut rng = rand::rngs::OsRng;
@@ -199,8 +279,13 @@ mod tests {
         };
 
         // The test is really if this instantiates with InMemStorage without panics
-        let _gateway =
-            Gateway::new_from_keys_and_storage(config, identity_keys, sphinx_keys, InMemStorage)
-                .await;
+        let _gateway = Gateway::new_from_keys_and_storage(
+            config,
+            None,
+            identity_keys,
+            sphinx_keys,
+            InMemStorage,
+        )
+        .await;
     }
 }

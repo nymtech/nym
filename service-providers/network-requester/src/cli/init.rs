@@ -13,7 +13,10 @@ use nym_bin_common::output_format::OutputFormat;
 use nym_client_core::client::base_client::storage::gateway_details::OnDiskGatewayDetails;
 use nym_client_core::client::key_manager::persistence::OnDiskKeys;
 use nym_client_core::config::GatewayEndpointConfig;
-use nym_client_core::init::GatewaySetup;
+use nym_client_core::error::ClientCoreError;
+use nym_client_core::init::helpers::current_gateways;
+use nym_client_core::init::types::GatewaySetup;
+use nym_client_core::init::types::{GatewayDetails, GatewaySelectionSpecification};
 use nym_crypto::asymmetric::identity;
 use nym_sphinx::addressing::clients::Recipient;
 use serde::Serialize;
@@ -91,14 +94,18 @@ impl From<Init> for OverrideConfig {
 #[derive(Debug, Serialize)]
 pub struct InitResults {
     #[serde(flatten)]
-    client_core: nym_client_core::init::InitResults,
+    client_core: nym_client_core::init::types::InitResults,
     client_address: String,
 }
 
 impl InitResults {
     fn new(config: &Config, address: &Recipient, gateway: &GatewayEndpointConfig) -> Self {
         Self {
-            client_core: nym_client_core::init::InitResults::new(&config.base, address, gateway),
+            client_core: nym_client_core::init::types::InitResults::new(
+                &config.base,
+                address,
+                gateway,
+            ),
             client_address: address.to_string(),
         }
     }
@@ -150,7 +157,7 @@ pub(crate) async fn execute(args: &Init) -> Result<(), NetworkRequesterError> {
 
     // Attempt to use a user-provided gateway, if possible
     let user_chosen_gateway_id = args.gateway;
-    let gateway_setup = GatewaySetup::new_fresh(
+    let selection_spec = GatewaySelectionSpecification::new(
         user_chosen_gateway_id.map(|id| id.to_base58_string()),
         Some(args.latency_based_selection),
     );
@@ -164,16 +171,22 @@ pub(crate) async fn execute(args: &Init) -> Result<(), NetworkRequesterError> {
     let key_store = OnDiskKeys::new(config.storage_paths.common_paths.keys.clone());
     let details_store =
         OnDiskGatewayDetails::new(&config.storage_paths.common_paths.gateway_details);
-    let init_details = nym_client_core::init::setup_gateway(
-        gateway_setup,
-        &key_store,
-        &details_store,
-        register_gateway,
-        Some(&config.base.client.nym_api_urls),
-    )
-    .await
-    .tap_err(|err| log::error!("Failed to setup gateway\nError: {err}"))?
-    .details;
+
+    let available_gateways = {
+        let mut rng = rand::thread_rng();
+        current_gateways(&mut rng, &config.base.client.nym_api_urls).await?
+    };
+
+    let gateway_setup = GatewaySetup::New {
+        specification: selection_spec,
+        available_gateways,
+        overwrite_data: register_gateway,
+    };
+
+    let init_details =
+        nym_client_core::init::setup_gateway(gateway_setup, &key_store, &details_store)
+            .await
+            .tap_err(|err| log::error!("Failed to setup gateway\nError: {err}"))?;
 
     let config_save_location = config.default_location();
     config.save_to_default_location().tap_err(|_| {
@@ -188,7 +201,10 @@ pub(crate) async fn execute(args: &Init) -> Result<(), NetworkRequesterError> {
 
     log::info!("Client configuration completed.\n");
 
-    let init_results = InitResults::new(&config, &address, &init_details.gateway_details);
+    let GatewayDetails::Configured(gateway_details) = init_details.gateway_details else {
+        return Err(ClientCoreError::UnexpectedPersistedCustomGatewayDetails)?;
+    };
+    let init_results = InitResults::new(&config, &address, &gateway_details);
     println!("{}", args.output.format(&init_results));
 
     Ok(())

@@ -1,4 +1,4 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use futures::{
@@ -10,6 +10,7 @@ use nym_crypto::asymmetric::identity;
 use nym_gateway_requests::authentication::encrypted_address::{
     EncryptedAddressBytes, EncryptedAddressConversionError,
 };
+use nym_gateway_requests::registration::handshake::shared_key::SharedKeyConversionError;
 use nym_gateway_requests::{
     iv::{IVConversionError, IV},
     registration::handshake::{error::HandshakeError, gateway_handshake, SharedKeys},
@@ -43,26 +44,35 @@ pub(crate) enum InitialAuthenticationError {
     #[error("Internal gateway storage error")]
     StorageError(#[from] StorageError),
 
-    #[error("Failed to perform registration handshake - {0}")]
+    #[error(
+        "our datastore is corrupted. the stored key for client {client_id} is malformed: {source}"
+    )]
+    MalformedStoredSharedKey {
+        client_id: String,
+        #[source]
+        source: SharedKeyConversionError,
+    },
+
+    #[error("Failed to perform registration handshake: {0}")]
     HandshakeError(#[from] HandshakeError),
 
-    #[error("Provided client address is malformed - {0}")]
-    // sphinx error is not used here directly as it's messaging might be confusing to people
+    #[error("Provided client address is malformed: {0}")]
+    // sphinx error is not used here directly as its messaging might be confusing to people
     MalformedClientAddress(String),
 
-    #[error("Provided encrypted client address is malformed - {0}")]
+    #[error("Provided encrypted client address is malformed: {0}")]
     MalformedEncryptedAddress(#[from] EncryptedAddressConversionError),
 
     #[error("There is already an open connection to this client")]
     DuplicateConnection,
 
-    #[error("Provided authentication IV is malformed - {0}")]
+    #[error("Provided authentication IV is malformed: {0}")]
     MalformedIV(#[from] IVConversionError),
 
     #[error("Only 'Register' or 'Authenticate' requests are allowed")]
     InvalidRequest,
 
-    #[error("Experienced connection error - {0}")]
+    #[error("Experienced connection error: {0}")]
     ConnectionError(#[from] WsError),
 
     #[error("Attempted to negotiate connection with client using incompatible protocol version. Ours is {current} and the client reports {client:?}")]
@@ -316,13 +326,19 @@ where
         let shared_keys = self.storage.get_shared_keys(client_address).await?;
 
         if let Some(shared_keys) = shared_keys {
-            // the unwrap here is fine as we only ever construct persisted shared keys ourselves when inserting
+            // this should never fail as we only ever construct persisted shared keys ourselves when inserting
             // data to the storage. The only way it could fail is if we somehow changed implementation without
             // performing proper migration
             let keys = SharedKeys::try_from_base58_string(
                 shared_keys.derived_aes128_ctr_blake3_hmac_keys_bs58,
             )
-            .unwrap();
+            .map_err(|source| {
+                InitialAuthenticationError::MalformedStoredSharedKey {
+                    client_id: client_address.as_base58_string(),
+                    source,
+                }
+            })?;
+
             // TODO: SECURITY:
             // this is actually what we have been doing in the past, however,
             // after looking deeper into implementation it seems that only checks the encryption
@@ -482,8 +498,8 @@ where
         let iv = IV::try_from_base58_string(iv)?;
 
         // Check for duplicate clients
-        if let Some(client_tx) = self.active_clients_store.get(address) {
-            log::warn!("Detected duplicate connection for client: {}", address);
+        if let Some(client_tx) = self.active_clients_store.get_remote_client(address) {
+            log::warn!("Detected duplicate connection for client: {address}");
             self.handle_duplicate_client(address, client_tx.is_active_request_sender)
                 .await?;
         }
@@ -569,7 +585,7 @@ where
         let remote_identity = Self::extract_remote_identity_from_register_init(&init_data)?;
         let remote_address = remote_identity.derive_destination_address();
 
-        if self.active_clients_store.get(remote_address).is_some() {
+        if self.active_clients_store.is_active(remote_address) {
             return Err(InitialAuthenticationError::DuplicateConnection);
         }
 
@@ -675,7 +691,7 @@ where
                                 // Channel for handlers to ask other handlers if they are still active.
                                 let (is_active_request_sender, is_active_request_receiver) =
                                     mpsc::unbounded();
-                                self.active_clients_store.insert(
+                                self.active_clients_store.insert_remote(
                                     client_details.address,
                                     mix_sender,
                                     is_active_request_sender,

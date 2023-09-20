@@ -76,6 +76,16 @@ pub enum GatewayClientError {
 
     #[error("Attempted to negotiate connection with gateway using incompatible protocol version. Ours is {current} and the gateway reports {gateway:?}")]
     IncompatibleProtocol { gateway: Option<u8>, current: u8 },
+
+    #[error(
+        "The packet router hasn't been set - are you sure you started up the client correctly?"
+    )]
+    PacketRouterUnavailable,
+
+    #[error(
+        "this operation couldn't be completed as the program is in the process of shutting down"
+    )]
+    ShutdownInProgress,
 }
 
 impl GatewayClientError {

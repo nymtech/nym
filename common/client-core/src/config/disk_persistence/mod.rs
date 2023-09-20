@@ -29,14 +29,14 @@ pub struct CommonClientPaths {
 }
 
 impl CommonClientPaths {
-    pub fn new_default<P: AsRef<Path>>(base_data_directory: P) -> Self {
+    pub fn new_base<P: AsRef<Path>>(base_data_directory: P) -> Self {
         let base_dir = base_data_directory.as_ref();
 
         CommonClientPaths {
             credentials_database: base_dir.join(DEFAULT_CREDENTIALS_DB_FILENAME),
             reply_surb_database: base_dir.join(DEFAULT_REPLY_SURB_DB_FILENAME),
             gateway_details: base_dir.join(DEFAULT_GATEWAY_DETAILS_FILENAME),
-            keys: ClientKeysPaths::new_default(base_data_directory),
+            keys: ClientKeysPaths::new_base(base_data_directory),
         }
     }
 }

@@ -17,6 +17,7 @@ use std::time::Duration;
 
 pub use nym_client_core::config::Config as BaseClientConfig;
 pub use nym_client_core::config::{DebugConfig, GatewayEndpointConfig};
+use nym_sphinx::params::PacketSize;
 
 pub mod old_config_v1_1_13;
 pub mod old_config_v1_1_20;
@@ -56,7 +57,7 @@ pub fn default_data_directory<P: AsRef<Path>>(id: P) -> PathBuf {
         .join(DEFAULT_DATA_DIR)
 }
 
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Config {
     #[serde(flatten)]
@@ -74,7 +75,7 @@ pub struct Config {
 }
 
 impl NymConfigTemplate for Config {
-    fn template() -> &'static str {
+    fn template(&self) -> &'static str {
         CONFIG_TEMPLATE
     }
 }
@@ -84,10 +85,18 @@ impl Config {
         Config {
             base: BaseClientConfig::new(id.as_ref(), env!("CARGO_PKG_VERSION")),
             network_requester: Default::default(),
-            storage_paths: NetworkRequesterPaths::new_default(default_data_directory(id.as_ref())),
+            storage_paths: NetworkRequesterPaths::new_base(default_data_directory(id.as_ref())),
             network_requester_debug: Default::default(),
             logging: Default::default(),
         }
+    }
+
+    // this is a false positive, this method is actually called when used as a library
+    // but clippy complains about it when building the binary
+    #[allow(unused)]
+    pub fn with_data_directory<P: AsRef<Path>>(mut self, data_directory: P) -> Self {
+        self.storage_paths = NetworkRequesterPaths::new_base(data_directory);
+        self
     }
 
     pub fn read_from_toml_file<P: AsRef<Path>>(path: P) -> io::Result<Self> {
@@ -110,6 +119,20 @@ impl Config {
     pub fn validate(&self) -> bool {
         // no other sections have explicit requirements (yet)
         self.base.validate()
+    }
+
+    /// Enable medium mixnet traffic, for experiments only.
+    /// This includes things like disabling cover traffic, no per hop delays, etc.
+    #[doc(hidden)]
+    pub fn set_medium_toggle(&mut self) {
+        self.base.set_no_cover_traffic_with_keepalive();
+        self.base.set_no_per_hop_delays();
+        self.base.debug.traffic.secondary_packet_size = Some(PacketSize::ExtendedPacket16);
+    }
+
+    #[doc(hidden)]
+    pub fn set_no_poisson_process(&mut self) {
+        self.base.set_no_poisson_process()
     }
 
     #[must_use]

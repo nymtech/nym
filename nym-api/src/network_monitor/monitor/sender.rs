@@ -16,8 +16,11 @@ use nym_bandwidth_controller::BandwidthController;
 use nym_config::defaults::REMAINING_BANDWIDTH_THRESHOLD;
 use nym_credential_storage::persistent_storage::PersistentStorage;
 use nym_crypto::asymmetric::identity::{self, PUBLIC_KEY_LENGTH};
+use nym_gateway_client::client::GatewayConfig;
 use nym_gateway_client::error::GatewayClientError;
-use nym_gateway_client::{AcknowledgementReceiver, GatewayClient, MixnetMessageReceiver};
+use nym_gateway_client::{
+    AcknowledgementReceiver, GatewayClient, MixnetMessageReceiver, PacketRouter,
+};
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_task::TaskClient;
 use pin_project::pin_project;
@@ -52,6 +55,14 @@ impl GatewayPackets {
             clients_address,
             pub_key,
             packets,
+        }
+    }
+
+    pub(crate) fn gateway_config(&self) -> GatewayConfig {
+        GatewayConfig {
+            gateway_identity: self.pub_key,
+            gateway_owner: None,
+            gateway_listener: self.clients_address.clone(),
         }
     }
 
@@ -169,13 +180,16 @@ impl PacketSender {
     }
 
     fn new_gateway_client_handle(
-        address: String,
-        identity: identity::PublicKey,
+        config: GatewayConfig,
         fresh_gateway_client_data: &FreshGatewayClientData,
     ) -> (
         GatewayClientHandle,
         (MixnetMessageReceiver, AcknowledgementReceiver),
     ) {
+        // I think the proper one should be passed around instead...
+        let task_client =
+            nym_task::TaskClient::dummy().named(format!("gateway-{}", config.gateway_identity));
+
         // TODO: future optimization: if we're remaking client for a gateway to which we used to be connected in the past,
         // use old shared keys
         let (message_sender, message_receiver) = mpsc::unbounded();
@@ -184,20 +198,22 @@ impl PacketSender {
         // so that the gateway client would not crash
         let (ack_sender, ack_receiver) = mpsc::unbounded();
 
-        let mut gateway_client = GatewayClient::new(
-            address,
-            Arc::clone(&fresh_gateway_client_data.local_identity),
-            identity,
-            None,
-            message_sender,
+        let gateway_packet_router = PacketRouter::new(
             ack_sender,
-            fresh_gateway_client_data.gateway_response_timeout,
-            Some(fresh_gateway_client_data.bandwidth_controller.clone()),
-            nym_task::TaskClient::dummy(),
+            message_sender,
+            task_client.fork("packet-router"),
         );
 
-        gateway_client
-            .set_disabled_credentials_mode(fresh_gateway_client_data.disabled_credentials_mode);
+        let gateway_client = GatewayClient::new(
+            config,
+            Arc::clone(&fresh_gateway_client_data.local_identity),
+            None,
+            gateway_packet_router,
+            Some(fresh_gateway_client_data.bandwidth_controller.clone()),
+            task_client,
+        )
+        .with_disabled_credentials_mode(fresh_gateway_client_data.disabled_credentials_mode)
+        .with_response_timeout(fresh_gateway_client_data.gateway_response_timeout);
 
         (
             GatewayClientHandle::new(gateway_client),
@@ -265,16 +281,16 @@ impl PacketSender {
     }
 
     async fn create_new_gateway_client_handle_and_authenticate(
-        address: String,
-        identity: identity::PublicKey,
+        config: GatewayConfig,
         fresh_gateway_client_data: &FreshGatewayClientData,
         gateway_connection_timeout: Duration,
     ) -> Option<(
         GatewayClientHandle,
         (MixnetMessageReceiver, AcknowledgementReceiver),
     )> {
+        let gateway_identity = config.gateway_identity;
         let (new_client, (message_receiver, ack_receiver)) =
-            Self::new_gateway_client_handle(address, identity, fresh_gateway_client_data);
+            Self::new_gateway_client_handle(config, fresh_gateway_client_data);
 
         // Put this in timeout in case the gateway has incorrectly set their ulimit and our connection
         // gets stuck in their TCP queue and just hangs on our end but does not terminate
@@ -295,19 +311,12 @@ impl PacketSender {
                 Some((new_client, (message_receiver, ack_receiver)))
             }
             Ok(Err(err)) => {
-                warn!(
-                    "failed to authenticate with new gateway ({}) - {}",
-                    identity.to_base58_string(),
-                    err
-                );
+                warn!("failed to authenticate with new gateway ({gateway_identity}): {err}",);
                 // we failed to create a client, can't do much here
                 None
             }
             Err(_) => {
-                warn!(
-                    "timed out while trying to authenticate with new gateway ({})",
-                    identity.to_base58_string()
-                );
+                warn!("timed out while trying to authenticate with new gateway {gateway_identity}",);
                 None
             }
         }
@@ -349,8 +358,7 @@ impl PacketSender {
         } else {
             let (client, gateway_channels) =
                 Self::create_new_gateway_client_handle_and_authenticate(
-                    packets.clients_address,
-                    packets.pub_key,
+                    packets.gateway_config(),
                     &fresh_gateway_client_data,
                     gateway_connection_timeout,
                 )

@@ -2,20 +2,23 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::GatewayClientError;
-pub use client::GatewayClient;
 use log::warn;
 use nym_gateway_requests::BinaryResponse;
-pub use packet_router::{
-    AcknowledgementReceiver, AcknowledgementSender, MixnetMessageReceiver, MixnetMessageSender,
-};
 use tungstenite::{protocol::Message, Error as WsError};
 
+pub use client::{GatewayClient, GatewayConfig};
 pub use nym_gateway_requests::registration::handshake::SharedKeys;
+pub use packet_router::{
+    AcknowledgementReceiver, AcknowledgementSender, MixnetMessageReceiver, MixnetMessageSender,
+    PacketRouter,
+};
+pub use traits::GatewayPacketRouter;
 
 pub mod client;
 pub mod error;
 pub mod packet_router;
 pub mod socket_state;
+pub mod traits;
 
 /// Helper method for reading from websocket stream. Helps to flatten the structure.
 pub(crate) fn cleanup_socket_message(

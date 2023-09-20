@@ -3,6 +3,7 @@
 
 use crate::error::GatewayClientError;
 use crate::packet_router::PacketRouter;
+use crate::traits::GatewayPacketRouter;
 use crate::{cleanup_socket_messages, try_decrypt_binary_message};
 use futures::channel::oneshot;
 use futures::stream::{SplitSink, SplitStream};

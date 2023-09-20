@@ -3,6 +3,7 @@
 
 use crate::config::persistence::paths::GatewayPaths;
 use crate::config::template::CONFIG_TEMPLATE;
+use log::{debug, warn};
 use nym_bin_common::logging::LoggingSettings;
 use nym_config::defaults::{DEFAULT_CLIENT_LISTENING_PORT, DEFAULT_MIX_LISTENING_PORT};
 use nym_config::helpers::inaddr_any;
@@ -20,6 +21,7 @@ use url::Url;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 pub(crate) mod old_config_v1_1_20;
+pub(crate) mod old_config_v1_1_28;
 pub mod persistence;
 mod template;
 
@@ -65,9 +67,15 @@ pub fn default_data_directory<P: AsRef<Path>>(id: P) -> PathBuf {
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Config {
+    // additional metadata holding on-disk location of this config file
+    #[serde(skip)]
+    pub(crate) save_path: Option<PathBuf>,
+
     pub gateway: Gateway,
 
     pub storage_paths: GatewayPaths,
+
+    pub network_requester: NetworkRequester,
 
     #[serde(default)]
     pub logging: LoggingSettings,
@@ -77,7 +85,7 @@ pub struct Config {
 }
 
 impl NymConfigTemplate for Config {
-    fn template() -> &'static str {
+    fn template(&self) -> &'static str {
         CONFIG_TEMPLATE
     }
 }
@@ -85,19 +93,33 @@ impl NymConfigTemplate for Config {
 impl Config {
     pub fn new<S: AsRef<str>>(id: S) -> Self {
         Config {
+            save_path: None,
             gateway: Gateway::new_default(id.as_ref()),
             storage_paths: GatewayPaths::new_default(id.as_ref()),
+            network_requester: Default::default(),
             logging: Default::default(),
             debug: Default::default(),
         }
     }
 
+    // simple wrapper that reads config file and assigns path location
+    fn read_from_path<P: AsRef<Path>>(path: P) -> io::Result<Self> {
+        let path = path.as_ref();
+        let mut loaded: Config = read_config_from_toml_file(path)?;
+        loaded.save_path = Some(path.to_path_buf());
+        debug!("loaded config file from {}", path.display());
+        Ok(loaded)
+    }
+
+    // currently this is dead code, but once we allow loading configs from custom paths
+    // well, we will have to be using it
+    #[allow(dead_code)]
     pub fn read_from_toml_file<P: AsRef<Path>>(path: P) -> io::Result<Self> {
-        read_config_from_toml_file(path)
+        Self::read_from_path(path)
     }
 
     pub fn read_from_default_path<P: AsRef<Path>>(id: P) -> io::Result<Self> {
-        Self::read_from_toml_file(default_config_filepath(id))
+        Self::read_from_path(default_config_filepath(id))
     }
 
     pub fn default_location(&self) -> PathBuf {
@@ -107,6 +129,27 @@ impl Config {
     pub fn save_to_default_location(&self) -> io::Result<()> {
         let config_save_location: PathBuf = self.default_location();
         save_formatted_config_to_file(self, config_save_location)
+    }
+
+    pub fn try_save(&self) -> io::Result<()> {
+        if let Some(save_location) = &self.save_path {
+            save_formatted_config_to_file(self, save_location)
+        } else {
+            warn!("config file save location is unknown. falling back to the default");
+            self.save_to_default_location()
+        }
+    }
+
+    pub fn with_enabled_network_requester(mut self, enabled_network_requester: bool) -> Self {
+        self.network_requester.enabled = enabled_network_requester;
+        self
+    }
+
+    pub fn with_default_network_requester_config_path(mut self) -> Self {
+        self.storage_paths = self
+            .storage_paths
+            .with_default_network_requester_config(&self.gateway.id);
+        self
     }
 
     pub fn with_only_coconut_credentials(mut self, only_coconut_credentials: bool) -> Self {
@@ -227,6 +270,8 @@ pub struct Gateway {
 
 impl Gateway {
     pub fn new_default<S: Into<String>>(id: S) -> Self {
+        // allow usage of `expect` here as our default mainnet values should have been well-formed.
+        #[allow(clippy::expect_used)]
         Gateway {
             version: env!("CARGO_PKG_VERSION").to_string(),
             id: id.into(),
@@ -240,8 +285,23 @@ impl Gateway {
                 .expect("Invalid default statistics service URL"),
             nym_api_urls: vec![mainnet::NYM_API.parse().expect("Invalid default API URL")],
             nyxd_urls: vec![mainnet::NYXD_URL.parse().expect("Invalid default nyxd URL")],
-            cosmos_mnemonic: bip39::Mnemonic::generate(24).unwrap(),
+            cosmos_mnemonic: bip39::Mnemonic::generate(24)
+                .expect("failed to generate fresh mnemonic"),
         }
+    }
+}
+
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[serde(default)]
+pub struct NetworkRequester {
+    /// Specifies whether network requester service is enabled in this process.
+    pub enabled: bool,
+}
+
+#[allow(clippy::derivable_impls)]
+impl Default for NetworkRequester {
+    fn default() -> Self {
+        NetworkRequester { enabled: false }
     }
 }
 

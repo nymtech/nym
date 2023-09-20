@@ -11,7 +11,7 @@ rust-version = "1.66"
 async-trait = { workspace = true }
 base64 = "0.21.2"
 cfg-if = "1.0.0"
-dashmap = "5.4.0"
+dashmap = { workspace = true }
 dirs = "4.0"
 futures = { workspace = true }
 humantime-serde = "1.0"
@@ -35,7 +35,6 @@ nym-config = { path = "../config" }
 nym-crypto = { path = "../crypto" }
 nym-explorer-client = { path = "../../explorer-api/explorer-client" }
 nym-gateway-client = { path = "../client-libs/gateway-client" }
-#gateway-client = { path = "../../common/client-libs/gateway-client", default-features = false, features = ["wasm", "coconut"] }
 nym-gateway-requests = { path = "../../gateway/gateway-requests" }
 nym-nonexhaustive-delayqueue = { path = "../nonexhaustive-delayqueue" }
 nym-sphinx = { path = "../nymsphinx" }

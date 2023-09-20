@@ -8,9 +8,11 @@ use anyhow::{anyhow, Result};
 use lazy_static::lazy_static;
 use log::{debug, info, warn};
 use nym_bin_common::logging::setup_logging;
-use nym_client_core::init::GatewaySetup;
+use nym_client_core::init::helpers::current_gateways;
+use nym_client_core::init::types::{GatewaySelectionSpecification, GatewaySetup};
 use nym_config_common::defaults::setup_env;
 use nym_socks5_client_core::NymClient as Socks5NymClient;
+use rand::rngs::OsRng;
 use safer_ffi::char_p::char_p_boxed;
 use std::marker::Send;
 use std::path::PathBuf;
@@ -258,17 +260,25 @@ where
     F: FnMut(String),
     S: FnMut(),
 {
+    let mut rng = OsRng;
+
     set_default_env();
     let stop_handle = Arc::new(Notify::new());
     set_shutdown_handle(stop_handle.clone()).await;
 
     let config = load_or_generate_base_config(storage_dir, client_id, service_provider).await?;
+    let nym_apis = config.core.base.client.nym_api_urls.clone();
+
     let storage = MobileClientStorage::new(&config);
-    let socks5_client = Socks5NymClient::new(config.core, storage, None)
-        .with_gateway_setup(GatewaySetup::New { by_latency: false });
+    let socks5_client =
+        Socks5NymClient::new(config.core, storage, None).with_gateway_setup(GatewaySetup::New {
+            specification: GatewaySelectionSpecification::UniformRemote,
+            available_gateways: current_gateways(&mut rng, &nym_apis).await?,
+            overwrite_data: false,
+        });
 
     eprintln!("starting the socks5 client");
-    let mut started_client = socks5_client.start().await?;
+    let started_client = socks5_client.start().await?;
     eprintln!("the client has started!");
 
     // invoke the callback since we've started!
@@ -278,8 +288,12 @@ where
     stop_handle.notified().await;
 
     // and then do graceful shutdown of all tasks
-    started_client.shutdown_handle.signal_shutdown().ok();
-    started_client.shutdown_handle.wait_for_shutdown().await;
+    let mut task_manager = started_client
+        .shutdown_handle
+        .try_into_task_manager()
+        .unwrap();
+    task_manager.signal_shutdown().ok();
+    task_manager.wait_for_shutdown().await;
 
     // and the corresponding one for shutdown!
     on_shutdown_callback();

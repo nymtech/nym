@@ -13,7 +13,7 @@ use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::{params::PacketType, receiver::ReconstructedMessage};
 use nym_task::{
     connections::{ConnectionCommandSender, LaneQueueLengths},
-    TaskManager,
+    TaskHandle,
 };
 use nym_topology::NymTopology;
 use std::pin::Pin;
@@ -24,7 +24,7 @@ pub struct MixnetClient {
     /// The nym address of this connected client.
     pub(crate) nym_address: Recipient,
 
-    /// Input to the client from the users perspective. This can be either data to send or controll
+    /// Input to the client from the users perspective. This can be either data to send or control
     /// messages.
     pub(crate) client_input: ClientInput,
 
@@ -40,8 +40,8 @@ pub struct MixnetClient {
     /// A channel for messages arriving from the mixnet after they have been reconstructed.
     pub(crate) reconstructed_receiver: ReconstructedMessagesReceiver,
 
-    /// The task manager that controlls all the spawned tasks that the clients uses to do it's job.
-    pub(crate) task_manager: TaskManager,
+    /// The task manager that controls all the spawned tasks that the clients uses to do it's job.
+    pub(crate) task_handle: TaskHandle,
     pub(crate) packet_type: Option<PacketType>,
 
     // internal state used for the `Stream` implementation
@@ -55,7 +55,7 @@ impl MixnetClient {
         client_output: ClientOutput,
         client_state: ClientState,
         reconstructed_receiver: ReconstructedMessagesReceiver,
-        task_manager: TaskManager,
+        task_handle: TaskHandle,
         packet_type: Option<PacketType>,
     ) -> Self {
         Self {
@@ -64,7 +64,7 @@ impl MixnetClient {
             client_output,
             client_state,
             reconstructed_receiver,
-            task_manager,
+            task_handle,
             packet_type,
             _buffered: Vec::new(),
         }
@@ -86,8 +86,7 @@ impl MixnetClient {
     /// ```
     pub async fn connect_new() -> Result<Self> {
         MixnetClientBuilder::new_ephemeral()
-            .build()
-            .await?
+            .build()?
             .connect_to_mixnet()
             .await
     }
@@ -158,9 +157,14 @@ impl MixnetClient {
 
     /// Disconnect from the mixnet. Currently it is not supported to reconnect a disconnected
     /// client.
-    pub async fn disconnect(&mut self) {
-        self.task_manager.signal_shutdown().ok();
-        self.task_manager.wait_for_shutdown().await;
+    pub async fn disconnect(mut self) {
+        if let TaskHandle::Internal(task_manager) = &mut self.task_handle {
+            task_manager.signal_shutdown().ok();
+            task_manager.wait_for_shutdown().await;
+        }
+
+        // note: it's important to take ownership of the struct as if the shutdown is `TaskHandle::External`,
+        // it must be dropped to finalize the shutdown
     }
 }
 

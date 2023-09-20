@@ -19,7 +19,7 @@ use wasm_client_core::config::r#override::DebugWasmOverride;
 use wasm_client_core::helpers::{
     parse_recipient, parse_sender_tag, setup_from_topology, setup_gateway_from_api,
 };
-use wasm_client_core::init::GatewaySetup;
+use wasm_client_core::init::types::GatewaySetup;
 use wasm_client_core::nym_task::connections::TransmissionLane;
 use wasm_client_core::nym_task::TaskManager;
 use wasm_client_core::storage::core_client_traits::FullWasmClientStorage;
@@ -166,11 +166,9 @@ impl NymClientBuilder {
         if let Some(topology_provider) = maybe_topology_provider {
             base_builder = base_builder.with_topology_provider(topology_provider);
         }
-        if let Some(authenticated_ephemeral_client) = init_res.authenticated_ephemeral_client {
-            base_builder = base_builder.with_gateway_setup(GatewaySetup::ReuseConnection {
-                authenticated_ephemeral_client,
-                details: init_res.details,
-            });
+
+        if let Ok(reuse_setup) = GatewaySetup::try_reuse_connection(init_res) {
+            base_builder = base_builder.with_gateway_setup(reuse_setup);
         }
 
         let mut started_client = base_builder.start_base().await?;
@@ -186,7 +184,8 @@ impl NymClientBuilder {
             client_input: Arc::new(client_input),
             client_state: Arc::new(started_client.client_state),
             _full_topology: None,
-            _task_manager: started_client.task_manager,
+            // this cannot failed as we haven't passed an external task manager
+            _task_manager: started_client.task_handle.try_into_task_manager().unwrap(),
             packet_type,
         })
     }

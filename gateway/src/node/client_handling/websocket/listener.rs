@@ -78,7 +78,7 @@ impl Listener {
                                 active_clients_store.clone(),
                                 Arc::clone(&self.coconut_verifier),
                             );
-                            let shutdown = shutdown.clone();
+                            let shutdown = shutdown.clone().named(format!("ClientConnectionHandler_{remote_addr}"));
                             tokio::spawn(async move { handle.start_handling(shutdown).await });
                         }
                         Err(err) => warn!("failed to get client: {err}"),

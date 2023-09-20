@@ -53,7 +53,11 @@ nyxd_urls = [
     {{/each}}
 ]
 
-cosmos_mnemonic = "{{ gateway.cosmos_mnemonic }}"
+cosmos_mnemonic = '{{ gateway.cosmos_mnemonic }}'
+
+[network_requester]
+# Specifies whether network requester service is enabled in this process.
+enabled = {{ network_requester.enabled }}
 
 [storage_paths] 
 
@@ -72,6 +76,9 @@ keys.public_sphinx_key_file = '{{ storage_paths.keys.public_sphinx_key_file }}'
 # Path to sqlite database containing all persistent data: messages for offline clients,
 # derived shared keys and available client bandwidths.
 clients_storage = '{{ storage_paths.clients_storage }}'
+
+# Path to the configuration of the embedded network requester.
+network_requester_config = '{{ storage_paths.network_requester_config }}'
 
 ##### logging configuration options #####
 

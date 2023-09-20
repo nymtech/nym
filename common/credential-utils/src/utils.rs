@@ -71,7 +71,7 @@ pub async fn setup_recovery_storage(recovery_dir: PathBuf) -> RecoveryStorage {
 
 pub async fn setup_persistent_storage(client_home_directory: PathBuf) -> PersistentStorage {
     let data_dir = client_home_directory.join(DEFAULT_DATA_DIR);
-    let paths = CommonClientPaths::new_default(data_dir);
+    let paths = CommonClientPaths::new_base(data_dir);
     let db_path = paths.credentials_database;
 
     nym_credential_storage::initialise_persistent_storage(db_path).await

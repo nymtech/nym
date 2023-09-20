@@ -3,7 +3,7 @@
 
 use crate::config::GatewayEndpointConfig;
 use crate::error::ClientCoreError;
-use crate::init::RegistrationResult;
+use crate::init::types::RegistrationResult;
 use futures::{SinkExt, StreamExt};
 use log::{debug, info, trace, warn};
 use nym_crypto::asymmetric::identity;
@@ -24,6 +24,7 @@ use tokio_tungstenite::connect_async;
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 #[cfg(not(target_arch = "wasm32"))]
 type WsConn = WebSocketStream<MaybeTlsStream<TcpStream>>;
+use nym_validator_client::client::IdentityKeyRef;
 #[cfg(not(target_arch = "wasm32"))]
 use tokio::time::sleep;
 
@@ -197,17 +198,27 @@ pub(super) fn uniformly_random_gateway<R: Rng>(
         .cloned()
 }
 
+pub(super) fn get_specified_gateway(
+    gateway_identity: IdentityKeyRef,
+    gateways: &[gateway::Node],
+) -> Result<gateway::Node, ClientCoreError> {
+    let user_gateway = identity::PublicKey::from_base58_string(gateway_identity)
+        .map_err(ClientCoreError::UnableToCreatePublicKeyFromGatewayId)?;
+
+    gateways
+        .iter()
+        .find(|gateway| gateway.identity_key == user_gateway)
+        .ok_or_else(|| ClientCoreError::NoGatewayWithId(gateway_identity.to_string()))
+        .cloned()
+}
+
 pub(super) async fn register_with_gateway(
     gateway: &GatewayEndpointConfig,
     our_identity: Arc<identity::KeyPair>,
 ) -> Result<RegistrationResult, ClientCoreError> {
-    let timeout = Duration::from_millis(1500);
-    let mut gateway_client = GatewayClient::new_init(
-        gateway.gateway_listener.clone(),
-        gateway.try_get_gateway_identity_key()?,
-        our_identity.clone(),
-        timeout,
-    );
+    let mut gateway_client =
+        GatewayClient::new_init(gateway.to_owned().try_into()?, our_identity.clone());
+
     gateway_client.establish_connection().await.map_err(|err| {
         log::warn!("Failed to establish connection with gateway!");
         ClientCoreError::GatewayClientError {
@@ -230,6 +241,6 @@ pub(super) async fn register_with_gateway(
         })?;
     Ok(RegistrationResult {
         shared_keys,
-        authenticated_ephemeral_client: Some(gateway_client),
+        authenticated_ephemeral_client: gateway_client,
     })
 }

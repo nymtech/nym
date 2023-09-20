@@ -14,7 +14,7 @@ pub struct NymConnectPaths {
 impl NymConnectPaths {
     pub fn new_default<P: AsRef<Path>>(base_data_directory: P) -> Self {
         NymConnectPaths {
-            common_paths: CommonClientPaths::new_default(base_data_directory),
+            common_paths: CommonClientPaths::new_base(base_data_directory),
         }
     }
 }

@@ -260,7 +260,7 @@ where
         let mut sent_notification_listener = self.sent_notification_listener;
         let mut action_controller = self.action_controller;
 
-        let shutdown_handle = shutdown.clone();
+        let shutdown_handle = shutdown.fork("acknowledgement_listener");
         spawn_future(async move {
             acknowledgement_listener
                 .run_with_shutdown(shutdown_handle)
@@ -268,7 +268,7 @@ where
             debug!("The acknowledgement listener has finished execution!");
         });
 
-        let shutdown_handle = shutdown.clone();
+        let shutdown_handle = shutdown.fork("input_message_listener");
         spawn_future(async move {
             input_message_listener
                 .run_with_shutdown(shutdown_handle)
@@ -276,7 +276,7 @@ where
             debug!("The input listener has finished execution!");
         });
 
-        let shutdown_handle = shutdown.clone();
+        let shutdown_handle = shutdown.fork("retransmission_request_listener");
         spawn_future(async move {
             retransmission_request_listener
                 .run_with_shutdown(shutdown_handle, packet_type)
@@ -284,7 +284,7 @@ where
             debug!("The retransmission request listener has finished execution!");
         });
 
-        let shutdown_handle = shutdown.clone();
+        let shutdown_handle = shutdown.fork("sent_notification_listener");
         spawn_future(async move {
             sent_notification_listener
                 .run_with_shutdown(shutdown_handle)
@@ -293,7 +293,9 @@ where
         });
 
         spawn_future(async move {
-            action_controller.run_with_shutdown(shutdown).await;
+            action_controller
+                .run_with_shutdown(shutdown.with_suffix("action_controller"))
+                .await;
             debug!("The controller has finished execution!");
         });
     }

@@ -402,8 +402,8 @@ pub fn nym_topology_from_detailed(
         let layer = bond.layer as MixLayer;
         if layer == 0 || layer > 3 {
             warn!(
-                "{} says it's on invalid layer {}!",
-                bond.mix_node.identity_key, layer
+                "{} says it's on invalid layer {layer}!",
+                bond.mix_node.identity_key
             );
             continue;
         }
@@ -414,7 +414,7 @@ pub fn nym_topology_from_detailed(
         match bond.try_into() {
             Ok(mix) => layer_entry.push(mix),
             Err(err) => {
-                warn!("Mix {} / {} is malformed - {err}", mix_id, mix_identity);
+                warn!("Mix {mix_id} / {mix_identity} is malformed: {err}");
                 continue;
             }
         }
@@ -426,7 +426,7 @@ pub fn nym_topology_from_detailed(
         match bond.try_into() {
             Ok(gate) => gateways.push(gate),
             Err(err) => {
-                warn!("Gateway {} is malformed - {err}", gate_id);
+                warn!("Gateway {gate_id} is malformed: {err}");
                 continue;
             }
         }

@@ -1,24 +1,26 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::client::mix_traffic::transceiver::GatewayTransceiver;
 use crate::spawn_future;
 use log::*;
-use nym_credential_storage::storage::Storage;
-use nym_gateway_client::GatewayClient;
 use nym_sphinx::forwarding::packet::MixPacket;
-use nym_validator_client::nyxd::contract_traits::DkgQueryClient;
 
 pub type BatchMixMessageSender = tokio::sync::mpsc::Sender<Vec<MixPacket>>;
 pub type BatchMixMessageReceiver = tokio::sync::mpsc::Receiver<Vec<MixPacket>>;
+
+pub mod transceiver;
 
 // We remind ourselves that 32 x 32kb = 1024kb, a reasonable size for a network buffer.
 pub const MIX_MESSAGE_RECEIVER_BUFFER_SIZE: usize = 32;
 const MAX_FAILURE_COUNT: usize = 100;
 
-pub struct MixTrafficController<C, St: Storage> {
-    // TODO: most likely to be replaced by some higher level construct as
-    // later on gateway_client will need to be accessible by other entities
-    gateway_client: GatewayClient<C, St>,
+// that's also disgusting.
+pub struct Empty;
+
+pub struct MixTrafficController {
+    gateway_transceiver: Box<dyn GatewayTransceiver + Send>,
+
     mix_rx: BatchMixMessageReceiver,
 
     // TODO: this is temporary work-around.
@@ -26,20 +28,31 @@ pub struct MixTrafficController<C, St: Storage> {
     consecutive_gateway_failure_count: usize,
 }
 
-impl<C, St> MixTrafficController<C, St>
-where
-    C: DkgQueryClient + Sync + Send + 'static,
-    St: Storage + 'static,
-    <St as Storage>::StorageError: Send + Sync + 'static,
-{
-    pub fn new(
-        gateway_client: GatewayClient<C, St>,
-    ) -> (MixTrafficController<C, St>, BatchMixMessageSender) {
+impl MixTrafficController {
+    pub fn new<T>(gateway_transceiver: T) -> (MixTrafficController, BatchMixMessageSender)
+    where
+        T: GatewayTransceiver + Send + 'static,
+    {
         let (message_sender, message_receiver) =
             tokio::sync::mpsc::channel(MIX_MESSAGE_RECEIVER_BUFFER_SIZE);
         (
             MixTrafficController {
-                gateway_client,
+                gateway_transceiver: Box::new(gateway_transceiver),
+                mix_rx: message_receiver,
+                consecutive_gateway_failure_count: 0,
+            },
+            message_sender,
+        )
+    }
+
+    pub fn new_dynamic(
+        gateway_transceiver: Box<dyn GatewayTransceiver + Send>,
+    ) -> (MixTrafficController, BatchMixMessageSender) {
+        let (message_sender, message_receiver) =
+            tokio::sync::mpsc::channel(MIX_MESSAGE_RECEIVER_BUFFER_SIZE);
+        (
+            MixTrafficController {
+                gateway_transceiver,
                 mix_rx: message_receiver,
                 consecutive_gateway_failure_count: 0,
             },
@@ -52,16 +65,16 @@ where
 
         let result = if mix_packets.len() == 1 {
             let mix_packet = mix_packets.pop().unwrap();
-            self.gateway_client.send_mix_packet(mix_packet).await
+            self.gateway_transceiver.send_mix_packet(mix_packet).await
         } else {
-            self.gateway_client
+            self.gateway_transceiver
                 .batch_send_mix_packets(mix_packets)
                 .await
         };
 
         match result {
             Err(err) => {
-                error!("Failed to send sphinx packet(s) to the gateway! - {err}");
+                error!("Failed to send sphinx packet(s) to the gateway: {err}");
                 self.consecutive_gateway_failure_count += 1;
                 if self.consecutive_gateway_failure_count == MAX_FAILURE_COUNT {
                     // todo: in the future this should initiate a 'graceful' shutdown or try

@@ -18,7 +18,12 @@ impl InboxManager {
     /// # Arguments
     ///
     /// * `connection_pool`: database connection pool to use.
-    pub(crate) fn new(connection_pool: sqlx::SqlitePool, retrieval_limit: i64) -> Self {
+    pub(crate) fn new(connection_pool: sqlx::SqlitePool, mut retrieval_limit: i64) -> Self {
+        // TODO: make this into a hard error instead
+        if retrieval_limit == 0 {
+            retrieval_limit = 100;
+        }
+
         InboxManager {
             connection_pool,
             retrieval_limit,
@@ -99,7 +104,8 @@ impl InboxManager {
 
         if res.len() > self.retrieval_limit as usize {
             res.truncate(self.retrieval_limit as usize);
-            // assuming retrieval_limit > 0, unwrap will not fail
+            // given retrieval_limit > 0, unwrap will not fail
+            #[allow(clippy::unwrap_used)]
             let start_after = res.last().unwrap().id;
             Ok((res, Some(start_after)))
             //

@@ -5,10 +5,8 @@
 // I will gladly take any suggestions on how to rename this.
 
 use crate::error::GatewayClientError;
+use crate::GatewayPacketRouter;
 use futures::channel::mpsc;
-use log::*;
-use nym_sphinx::addressing::nodes::MAX_NODE_ADDRESS_UNPADDED_LEN;
-use nym_sphinx::params::packet_sizes::PacketSize;
 use nym_task::TaskClient;
 
 pub type MixnetMessageSender = mpsc::UnboundedSender<Vec<Vec<u8>>>;
@@ -37,77 +35,52 @@ impl PacketRouter {
         }
     }
 
-    pub fn route_received(
-        &mut self,
-        unwrapped_packets: Vec<Vec<u8>>,
+    pub fn route_mixnet_messages(
+        &self,
+        received_messages: Vec<Vec<u8>>,
     ) -> Result<(), GatewayClientError> {
-        let mut received_messages = Vec::new();
-        let mut received_acks = Vec::new();
-
-        // remember: gateway removes final layer of sphinx encryption and from the unwrapped
-        // data he takes the SURB-ACK and first hop address.
-        // currently SURB-ACKs are attached in EVERY packet, even cover, so this is always true
-        let ack_overhead = PacketSize::AckPacket.size() + MAX_NODE_ADDRESS_UNPADDED_LEN;
-        let outfox_ack_overhead =
-            PacketSize::OutfoxAckPacket.size() + MAX_NODE_ADDRESS_UNPADDED_LEN;
-
-        for received_packet in unwrapped_packets {
-            if received_packet.len() == PacketSize::AckPacket.plaintext_size()
-            // we don't know the real size of the payload, it could be anything <= 48 bytes
-                || received_packet.len() <= PacketSize::OutfoxAckPacket.plaintext_size()
-            {
-                received_acks.push(received_packet);
-            } else if received_packet.len()
-                == PacketSize::RegularPacket.plaintext_size() - ack_overhead
-                || received_packet.len()
-                    == PacketSize::OutfoxRegularPacket.plaintext_size() - outfox_ack_overhead
-                || received_packet.len()
-                    == PacketSize::OutfoxRegularPacket.size() - outfox_ack_overhead
-            {
-                trace!("routing regular packet");
-                received_messages.push(received_packet);
-            } else if received_packet.len()
-                == PacketSize::ExtendedPacket8.plaintext_size() - ack_overhead
-            {
-                trace!("routing extended8 packet");
-                received_messages.push(received_packet);
-            } else if received_packet.len()
-                == PacketSize::ExtendedPacket16.plaintext_size() - ack_overhead
-            {
-                trace!("routing extended16 packet");
-                received_messages.push(received_packet);
-            } else if received_packet.len()
-                == PacketSize::ExtendedPacket32.plaintext_size() - ack_overhead
-            {
-                trace!("routing extended32 packet");
-                received_messages.push(received_packet);
-            } else {
-                // this can happen if other clients are not padding their messages
-                warn!("Received message of unexpected size. Probably from an outdated client... len: {}", received_packet.len());
-                received_messages.push(received_packet);
+        if let Err(err) = self.mixnet_message_sender.unbounded_send(received_messages) {
+            // check if the failure is due to the shutdown being in progress and thus the receiver channel
+            // having already been dropped
+            if self.shutdown.is_shutdown_poll() || self.shutdown.is_dummy() {
+                // This should ideally not happen, but it's ok
+                log::warn!("Failed to send mixnet messages due to receiver task shutdown");
+                return Err(GatewayClientError::ShutdownInProgress);
             }
-        }
-
-        if !received_messages.is_empty() {
-            trace!("routing 'real'");
-            if let Err(err) = self.mixnet_message_sender.unbounded_send(received_messages) {
-                if self.shutdown.is_shutdown_poll() || self.shutdown.is_dummy() {
-                    // This should ideally not happen, but it's ok
-                    log::warn!("Failed to send mixnet message due to receiver task shutdown");
-                    return Err(GatewayClientError::MixnetMsgSenderFailedToSend);
-                }
-                // This should never happen during ordinary operation the way it's currently used.
-                // Abort to be on the safe side
-                panic!("Failed to send mixnet message: {err}");
-            }
-        }
-
-        if !received_acks.is_empty() {
-            trace!("routing acks");
-            if let Err(err) = self.ack_sender.unbounded_send(received_acks) {
-                error!("failed to send ack: {err}");
-            };
+            // This should never happen during ordinary operation the way it's currently used.
+            // Abort to be on the safe side
+            panic!("Failed to send mixnet message: {err}");
         }
         Ok(())
+    }
+
+    pub fn route_acks(&self, received_acks: Vec<Vec<u8>>) -> Result<(), GatewayClientError> {
+        if let Err(err) = self.ack_sender.unbounded_send(received_acks) {
+            // check if the failure is due to the shutdown being in progress and thus the receiver channel
+            // having already been dropped
+            if self.shutdown.is_shutdown_poll() || self.shutdown.is_dummy() {
+                // This should ideally not happen, but it's ok
+                log::warn!("Failed to send acks due to receiver task shutdown");
+                return Err(GatewayClientError::ShutdownInProgress);
+            }
+            // This should never happen during ordinary operation the way it's currently used.
+            // Abort to be on the safe side
+            panic!("Failed to send acks: {err}");
+        }
+        Ok(())
+    }
+}
+
+impl GatewayPacketRouter for PacketRouter {
+    type Error = GatewayClientError;
+
+    // note: this trait tries to decide whether a given message is an ack or a data message
+
+    fn route_mixnet_messages(&self, received_messages: Vec<Vec<u8>>) -> Result<(), Self::Error> {
+        self.route_mixnet_messages(received_messages)
+    }
+
+    fn route_acks(&self, received_acks: Vec<Vec<u8>>) -> Result<(), Self::Error> {
+        self.route_acks(received_acks)
     }
 }

@@ -228,6 +228,11 @@ pub struct TopologyWasmOverride {
     #[tsify(optional)]
     pub topology_resolution_timeout_ms: Option<u32>,
 
+    /// Defines how long the client is going to wait on startup for its gateway to come online,
+    /// before abandoning the procedure.
+    #[tsify(optional)]
+    pub max_startup_gateway_waiting_period_ms: Option<u32>,
+
     /// Specifies whether the client should not refresh the network topology after obtaining
     /// the first valid instance.
     /// Supersedes `topology_refresh_rate_ms`.
@@ -246,6 +251,9 @@ impl From<TopologyWasmOverride> for TopologyWasm {
             topology_resolution_timeout_ms: value
                 .topology_resolution_timeout_ms
                 .unwrap_or(def.topology_resolution_timeout_ms),
+            max_startup_gateway_waiting_period_ms: value
+                .max_startup_gateway_waiting_period_ms
+                .unwrap_or(def.max_startup_gateway_waiting_period_ms),
             disable_refreshing: value.disable_refreshing.unwrap_or(def.disable_refreshing),
         }
     }

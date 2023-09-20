@@ -2,8 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::config::GatewayEndpointConfig;
+use crate::error::ClientCoreError;
+use crate::init::types::{EmptyCustomDetails, GatewayDetails};
 use async_trait::async_trait;
+use log::error;
 use nym_gateway_requests::registration::handshake::SharedKeys;
+use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::error::Error;
@@ -13,19 +17,61 @@ use zeroize::Zeroizing;
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-pub trait GatewayDetailsStore {
+pub trait GatewayDetailsStore<T = EmptyCustomDetails> {
     type StorageError: Error;
 
-    async fn load_gateway_details(&self) -> Result<PersistedGatewayDetails, Self::StorageError>;
+    async fn load_gateway_details(&self) -> Result<PersistedGatewayDetails<T>, Self::StorageError>
+    where
+        T: DeserializeOwned + Send + Sync;
 
     async fn store_gateway_details(
         &self,
-        details: &PersistedGatewayDetails,
-    ) -> Result<(), Self::StorageError>;
+        details: &PersistedGatewayDetails<T>,
+    ) -> Result<(), Self::StorageError>
+    where
+        T: Serialize + Send + Sync;
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PersistedGatewayDetails {
+#[serde(untagged)]
+pub enum PersistedGatewayDetails<T = EmptyCustomDetails> {
+    /// Standard details of a remote gateway
+    Default(PersistedGatewayConfig),
+
+    /// Custom gateway setup, such as for a client embedded inside gateway itself
+    Custom(PersistedCustomGatewayDetails<T>),
+}
+
+impl<T> PersistedGatewayDetails<T> {
+    // TODO: this should probably allow for custom verification over T
+    pub fn validate(&self, shared_key: Option<&SharedKeys>) -> Result<(), ClientCoreError> {
+        match self {
+            PersistedGatewayDetails::Default(details) => {
+                if !details.verify(
+                    shared_key
+                        .ok_or(ClientCoreError::UnavailableSharedKey)?
+                        .deref(),
+                ) {
+                    Err(ClientCoreError::MismatchedGatewayDetails {
+                        gateway_id: details.details.gateway_id.clone(),
+                    })
+                } else {
+                    Ok(())
+                }
+            }
+            PersistedGatewayDetails::Custom(_) => {
+                if shared_key.is_some() {
+                    error!("using custom persisted gateway setup with shared key present - are you sure that's what you want?");
+                    // but technically we could still continue. just ignore the key
+                }
+                Ok(())
+            }
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PersistedGatewayConfig {
     // TODO: should we also verify correctness of the details themselves?
     // i.e. we could include a checksum or tag (via the shared keys)
     // counterargument: if we wanted to modify, say, the host information in the stored file on disk,
@@ -38,13 +84,16 @@ pub struct PersistedGatewayDetails {
     pub(crate) details: GatewayEndpointConfig,
 }
 
-impl From<PersistedGatewayDetails> for GatewayEndpointConfig {
-    fn from(value: PersistedGatewayDetails) -> Self {
-        value.details
-    }
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PersistedCustomGatewayDetails<T> {
+    // whatever custom method is used, gateway's identity must be known
+    pub gateway_id: String,
+
+    #[serde(flatten)]
+    pub additional_data: T,
 }
 
-impl PersistedGatewayDetails {
+impl PersistedGatewayConfig {
     pub fn new(details: GatewayEndpointConfig, shared_key: &SharedKeys) -> Self {
         let key_bytes = Zeroizing::new(shared_key.to_bytes());
 
@@ -52,7 +101,7 @@ impl PersistedGatewayDetails {
         key_hasher.update(&key_bytes);
         let key_hash = key_hasher.finalize().to_vec();
 
-        PersistedGatewayDetails { key_hash, details }
+        PersistedGatewayConfig { key_hash, details }
     }
 
     pub fn verify(&self, shared_key: &SharedKeys) -> bool {
@@ -63,6 +112,50 @@ impl PersistedGatewayDetails {
         let key_hash = key_hasher.finalize();
 
         self.key_hash == key_hash.deref()
+    }
+}
+
+impl<T> PersistedGatewayDetails<T> {
+    pub fn new(
+        details: GatewayDetails<T>,
+        shared_key: Option<&SharedKeys>,
+    ) -> Result<Self, ClientCoreError> {
+        match details {
+            GatewayDetails::Configured(cfg) => {
+                let shared_key = shared_key.ok_or(ClientCoreError::UnavailableSharedKey)?;
+                Ok(PersistedGatewayDetails::Default(
+                    PersistedGatewayConfig::new(cfg, shared_key),
+                ))
+            }
+            GatewayDetails::Custom(custom) => Ok(PersistedGatewayDetails::Custom(custom.into())),
+        }
+    }
+
+    pub fn is_custom(&self) -> bool {
+        matches!(self, PersistedGatewayDetails::Custom(..))
+    }
+
+    pub fn matches(&self, other: &GatewayDetails<T>) -> bool
+    where
+        T: PartialEq,
+    {
+        match self {
+            PersistedGatewayDetails::Default(default) => {
+                if let GatewayDetails::Configured(other_configured) = other {
+                    &default.details == other_configured
+                } else {
+                    false
+                }
+            }
+            PersistedGatewayDetails::Custom(custom) => {
+                if let GatewayDetails::Custom(other_custom) = other {
+                    custom.gateway_id == other_custom.gateway_id
+                        && custom.additional_data == other_custom.additional_data
+                } else {
+                    false
+                }
+            }
+        }
     }
 }
 
@@ -116,7 +209,10 @@ impl OnDiskGatewayDetails {
         }
     }
 
-    pub fn load_from_disk(&self) -> Result<PersistedGatewayDetails, OnDiskGatewayDetailsError> {
+    pub fn load_from_disk<T>(&self) -> Result<PersistedGatewayDetails<T>, OnDiskGatewayDetailsError>
+    where
+        T: DeserializeOwned,
+    {
         let file = std::fs::File::open(&self.file_location).map_err(|err| {
             OnDiskGatewayDetailsError::LoadFailure {
                 path: self.file_location.display().to_string(),
@@ -127,10 +223,13 @@ impl OnDiskGatewayDetails {
         Ok(serde_json::from_reader(file)?)
     }
 
-    pub fn store_to_disk(
+    pub fn store_to_disk<T>(
         &self,
-        details: &PersistedGatewayDetails,
-    ) -> Result<(), OnDiskGatewayDetailsError> {
+        details: &PersistedGatewayDetails<T>,
+    ) -> Result<(), OnDiskGatewayDetailsError>
+    where
+        T: Serialize,
+    {
         // ensure the whole directory structure exists
         if let Some(parent_dir) = &self.file_location.parent() {
             std::fs::create_dir_all(parent_dir).map_err(|err| {
@@ -170,8 +269,8 @@ impl GatewayDetailsStore for OnDiskGatewayDetails {
 }
 
 #[derive(Default)]
-pub struct InMemGatewayDetails {
-    details: Mutex<Option<PersistedGatewayDetails>>,
+pub struct InMemGatewayDetails<T = EmptyCustomDetails> {
+    details: Mutex<Option<PersistedGatewayDetails<T>>>,
 }
 
 #[derive(Debug, thiserror::Error)]

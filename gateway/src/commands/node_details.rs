@@ -1,11 +1,10 @@
 // Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::commands::OverrideConfig;
-use crate::support::config::build_config;
+use crate::commands::helpers::try_load_current_config;
+use crate::node::helpers::node_details;
 use clap::Args;
 use nym_bin_common::output_format::OutputFormat;
-use std::error::Error;
 
 #[derive(Args, Clone)]
 pub struct NodeDetails {
@@ -17,11 +16,9 @@ pub struct NodeDetails {
     output: OutputFormat,
 }
 
-pub async fn execute(args: NodeDetails) -> Result<(), Box<dyn Error + Send + Sync>> {
-    let config = build_config(args.id.clone(), OverrideConfig::default())?;
+pub async fn execute(args: NodeDetails) -> anyhow::Result<()> {
+    let config = try_load_current_config(&args.id)?;
+    args.output.to_stdout(&node_details(&config)?);
 
-    crate::node::create_gateway(config)
-        .await
-        .print_node_details(args.output);
     Ok(())
 }

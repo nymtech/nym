@@ -3,6 +3,7 @@
 
 use nym_config::defaults::NymNetworkDetails;
 use nym_crypto::asymmetric::identity;
+use nym_gateway_client::client::GatewayConfig;
 use nym_sphinx::{
     addressing::clients::Recipient,
     params::{PacketSize, PacketType},
@@ -29,6 +30,8 @@ const DEFAULT_MESSAGE_STREAM_AVERAGE_DELAY: Duration = Duration::from_millis(20)
 const DEFAULT_AVERAGE_PACKET_DELAY: Duration = Duration::from_millis(50);
 const DEFAULT_TOPOLOGY_REFRESH_RATE: Duration = Duration::from_secs(5 * 60); // every 5min
 const DEFAULT_TOPOLOGY_RESOLUTION_TIMEOUT: Duration = Duration::from_millis(5_000);
+const DEFAULT_MAX_STARTUP_GATEWAY_WAITING_PERIOD: Duration = Duration::from_secs(70 * 60); // 70min -> full epoch (1h) + a bit of overhead
+
 // Set this to a high value for now, so that we don't risk sporadic timeouts that might cause
 // bought bandwidth tokens to not have time to be spent; Once we remove the gateway from the
 // bandwidth bridging protocol, we can come back to a smaller timeout value
@@ -239,6 +242,19 @@ pub struct GatewayEndpointConfig {
 
     /// Address of the gateway listener to which all client requests should be sent.
     pub gateway_listener: String,
+}
+
+impl TryFrom<GatewayEndpointConfig> for GatewayConfig {
+    type Error = ClientCoreError;
+
+    fn try_from(value: GatewayEndpointConfig) -> Result<Self, Self::Error> {
+        Ok(GatewayConfig {
+            gateway_identity: identity::PublicKey::from_base58_string(value.gateway_id)
+                .map_err(ClientCoreError::UnableToCreatePublicKeyFromGatewayId)?,
+            gateway_owner: Some(value.gateway_owner),
+            gateway_listener: value.gateway_listener,
+        })
+    }
 }
 
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
@@ -498,6 +514,11 @@ pub struct Topology {
     /// Supersedes `topology_refresh_rate_ms`.
     pub disable_refreshing: bool,
 
+    /// Defines how long the client is going to wait on startup for its gateway to come online,
+    /// before abandoning the procedure.
+    #[serde(with = "humantime_serde")]
+    pub max_startup_gateway_waiting_period: Duration,
+
     /// Specifies the mixnode topology to be used for sending packets.
     pub topology_structure: TopologyStructure,
 }
@@ -532,6 +553,7 @@ impl Default for Topology {
             topology_refresh_rate: DEFAULT_TOPOLOGY_REFRESH_RATE,
             topology_resolution_timeout: DEFAULT_TOPOLOGY_RESOLUTION_TIMEOUT,
             disable_refreshing: false,
+            max_startup_gateway_waiting_period: DEFAULT_MAX_STARTUP_GATEWAY_WAITING_PERIOD,
             topology_structure: TopologyStructure::default(),
         }
     }

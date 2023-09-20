@@ -1,6 +1,12 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+// I'm not convinced by the lint (on Arc<WasmStorage>).
+// Sure. wasm is currently single threaded and does not require `Send` or `Sync`
+// but this data is moved across futures, so imo we should leave the Arc as it is,
+// because it might cause us headache in the future
+#![allow(clippy::arc_with_non_send_sync)]
+
 use crate::ExtensionStorageError;
 use js_sys::Promise;
 use std::sync::Arc;

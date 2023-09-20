@@ -2,19 +2,26 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use self::storage::PersistentStorage;
+use crate::commands::helpers::{override_network_requester_config, OverrideNetworkRequesterConfig};
 use crate::config::Config;
 use crate::error::GatewayError;
 use crate::node::client_handling::active_clients::ActiveClientsStore;
+use crate::node::client_handling::embedded_network_requester::{
+    LocalNetworkRequesterHandle, MessageRouter,
+};
 use crate::node::client_handling::websocket;
 use crate::node::client_handling::websocket::connection_handler::coconut::CoconutVerifier;
+use crate::node::helpers::{initialise_main_storage, load_network_requester_config};
 use crate::node::mixnet_handling::receiver::connection_handler::ConnectionHandler;
 use crate::node::statistics::collector::GatewayStatisticsCollector;
 use crate::node::storage::Storage;
+use anyhow::bail;
+use futures::channel::{mpsc, oneshot};
 use log::*;
-use nym_bin_common::output_format::OutputFormat;
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_mixnet_client::forwarder::{MixForwardingSender, PacketForwarder};
 use nym_network_defaults::NymNetworkDetails;
+use nym_network_requester::{LocalGateway, NRServiceProviderBuilder};
 use nym_statistics_common::collector::StatisticsSender;
 use nym_task::{TaskClient, TaskManager};
 use nym_validator_client::{nyxd, DirectSigningHttpRpcNyxdClient};
@@ -22,32 +29,59 @@ use rand::seq::SliceRandom;
 use rand::thread_rng;
 use std::error::Error;
 use std::net::SocketAddr;
+use std::path::PathBuf;
 use std::sync::Arc;
 
 pub(crate) mod client_handling;
+pub(crate) mod helpers;
 pub(crate) mod mixnet_handling;
 pub(crate) mod statistics;
 pub(crate) mod storage;
 
 /// Wire up and create Gateway instance
-pub(crate) async fn create_gateway(config: Config) -> Gateway<PersistentStorage> {
-    let storage = initialise_storage(&config).await;
-    Gateway::new(config, storage).await
-}
-
-async fn initialise_storage(config: &Config) -> PersistentStorage {
-    let path = &config.storage_paths.clients_storage;
-    let retrieval_limit = config.debug.message_retrieval_limit;
-    match PersistentStorage::init(path, retrieval_limit).await {
-        Err(err) => panic!("failed to initialise gateway storage: {err}"),
-        Ok(storage) => storage,
-    }
-}
-
-pub(crate) struct Gateway<St> {
+pub(crate) async fn create_gateway(
     config: Config,
+    nr_config_override: Option<OverrideNetworkRequesterConfig>,
+    custom_nr_mixnet: Option<PathBuf>,
+) -> Result<Gateway, GatewayError> {
+    // don't attempt to read config if NR is disabled
+    let network_requester_config = if config.network_requester.enabled {
+        if let Some(path) = &config.storage_paths.network_requester_config {
+            let cfg = load_network_requester_config(&config.gateway.id, path)?;
+            Some(override_network_requester_config(cfg, nr_config_override))
+        } else {
+            // if NR is enabled, the config path must be specified
+            return Err(GatewayError::UnspecifiedNetworkRequesterConfig);
+        }
+    } else {
+        None
+    };
+
+    let storage = initialise_main_storage(&config).await?;
+
+    let nr_opts = network_requester_config.map(|config| LocalNetworkRequesterOpts {
+        config,
+        custom_mixnet_path: custom_nr_mixnet,
+    });
+
+    Gateway::new(config, nr_opts, storage)
+}
+
+#[derive(Debug, Clone)]
+pub struct LocalNetworkRequesterOpts {
+    config: nym_network_requester::Config,
+
+    custom_mixnet_path: Option<PathBuf>,
+}
+
+pub(crate) struct Gateway<St = PersistentStorage> {
+    config: Config,
+
+    network_requester_opts: Option<LocalNetworkRequesterOpts>,
+
     /// ed25519 keypair used to assert one's identity.
     identity_keypair: Arc<identity::KeyPair>,
+
     /// x25519 keypair used for Diffie-Hellman. Currently only used for sphinx key derivation.
     sphinx_keypair: Arc<encryption::KeyPair>,
     storage: St,
@@ -55,69 +89,35 @@ pub(crate) struct Gateway<St> {
 
 impl<St> Gateway<St> {
     /// Construct from the given `Config` instance.
-    pub async fn new(config: Config, storage: St) -> Self {
-        Gateway {
+    pub fn new(
+        config: Config,
+        network_requester_opts: Option<LocalNetworkRequesterOpts>,
+        storage: St,
+    ) -> Result<Self, GatewayError> {
+        Ok(Gateway {
             storage,
-            identity_keypair: Arc::new(Self::load_identity_keys(&config)),
-            sphinx_keypair: Arc::new(Self::load_sphinx_keys(&config)),
+            identity_keypair: Arc::new(helpers::load_identity_keys(&config)?),
+            sphinx_keypair: Arc::new(helpers::load_sphinx_keys(&config)?),
             config,
-        }
+            network_requester_opts,
+        })
     }
 
     #[cfg(test)]
     pub async fn new_from_keys_and_storage(
         config: Config,
+        network_requester_opts: Option<LocalNetworkRequesterOpts>,
         identity_keypair: identity::KeyPair,
         sphinx_keypair: encryption::KeyPair,
         storage: St,
     ) -> Self {
         Gateway {
             config,
+            network_requester_opts,
             identity_keypair: Arc::new(identity_keypair),
             sphinx_keypair: Arc::new(sphinx_keypair),
             storage,
         }
-    }
-
-    /// Loads identity keys stored on disk
-    pub(crate) fn load_identity_keys(config: &Config) -> identity::KeyPair {
-        let identity_keypair: identity::KeyPair =
-            nym_pemstore::load_keypair(&nym_pemstore::KeyPairPath::new(
-                config.storage_paths.keys.private_identity_key(),
-                config.storage_paths.keys.public_identity_key(),
-            ))
-            .expect("Failed to read stored identity key files");
-        identity_keypair
-    }
-
-    /// Loads Sphinx keys stored on disk
-    fn load_sphinx_keys(config: &Config) -> encryption::KeyPair {
-        let sphinx_keypair: encryption::KeyPair =
-            nym_pemstore::load_keypair(&nym_pemstore::KeyPairPath::new(
-                config.storage_paths.keys.private_encryption_key(),
-                config.storage_paths.keys.public_encryption_key(),
-            ))
-            .expect("Failed to read stored sphinx key files");
-        sphinx_keypair
-    }
-
-    pub(crate) fn print_node_details(&self, output: OutputFormat) {
-        let node_details = nym_types::gateway::GatewayNodeDetailsResponse {
-            identity_key: self.identity_keypair.public_key().to_base58_string(),
-            sphinx_key: self.sphinx_keypair.public_key().to_base58_string(),
-            bind_address: self.config.gateway.listening_address.to_string(),
-            version: self.config.gateway.version.clone(),
-            mix_port: self.config.gateway.mix_port,
-            clients_port: self.config.gateway.clients_port,
-            data_store: self
-                .config
-                .storage_paths
-                .clients_storage
-                .display()
-                .to_string(),
-        };
-
-        println!("{}", output.format(&node_details));
     }
 
     fn start_mix_socket_listener(
@@ -194,46 +194,106 @@ impl<St> Gateway<St> {
         packet_sender
     }
 
-    async fn wait_for_interrupt(
+    // TODO: rethink the logic in this function...
+    async fn start_network_requester(
         &self,
-        shutdown: TaskManager,
-    ) -> Result<(), Box<dyn Error + Send + Sync>> {
+        forwarding_channel: MixForwardingSender,
+        shutdown: TaskClient,
+    ) -> Result<LocalNetworkRequesterHandle, GatewayError> {
+        info!("Starting network requester...");
+
+        // if network requester is enabled, configuration file must be provided!
+        let Some(nr_opts) = &self.network_requester_opts else {
+            return Err(GatewayError::UnspecifiedNetworkRequesterConfig);
+        };
+
+        // this gateway, whenever it has anything to send to its local NR will use fake_client_tx
+        let (nr_mix_sender, nr_mix_receiver) = mpsc::unbounded();
+        let router_shutdown = shutdown.fork("message_router");
+
+        let (router_tx, mut router_rx) = oneshot::channel();
+
+        let transceiver = LocalGateway::new(
+            *self.identity_keypair.public_key(),
+            forwarding_channel,
+            router_tx,
+        );
+
+        // TODO: well, wire it up internally to gateway traffic, shutdowns, etc.
+        let (on_start_tx, on_start_rx) = oneshot::channel();
+        let mut nr_builder = NRServiceProviderBuilder::new(nr_opts.config.clone())
+            .with_shutdown(shutdown)
+            .with_custom_gateway_transceiver(Box::new(transceiver))
+            .with_wait_for_gateway(true)
+            .with_on_start(on_start_tx);
+
+        if let Some(custom_mixnet) = &nr_opts.custom_mixnet_path {
+            nr_builder = nr_builder.with_stored_topology(custom_mixnet)?
+        }
+
+        tokio::spawn(async move {
+            if let Err(err) = nr_builder.run_service_provider().await {
+                // no need to panic as we have passed a task client to the NR so we're most likely
+                // already in the process of shutting down
+                error!("network requester has failed: {err}")
+            }
+        });
+
+        let start_data = on_start_rx
+            .await
+            .map_err(|_| GatewayError::NetworkRequesterStartupFailure)?;
+
+        // this should be instantaneous since the data is sent on this channel before the on start is called;
+        // the failure should be impossible
+        let Ok(Some(packet_router)) = router_rx.try_recv() else {
+            return Err(GatewayError::NetworkRequesterStartupFailure);
+        };
+
+        MessageRouter::new(nr_mix_receiver, packet_router).start_with_shutdown(router_shutdown);
+        info!(
+            "the local network requester is running on {}",
+            start_data.address
+        );
+
+        Ok(LocalNetworkRequesterHandle::new(start_data, nr_mix_sender))
+    }
+
+    async fn wait_for_interrupt(shutdown: TaskManager) -> Result<(), Box<dyn Error + Send + Sync>> {
         let res = shutdown.catch_interrupt().await;
         log::info!("Stopping nym gateway");
         res
     }
 
-    fn random_api_client(&self) -> nym_validator_client::NymApiClient {
+    fn random_api_client(&self) -> Result<nym_validator_client::NymApiClient, GatewayError> {
         let endpoints = self.config.get_nym_api_endpoints();
         let nym_api = endpoints
             .choose(&mut thread_rng())
-            .expect("The list of validator apis is empty");
+            .ok_or(GatewayError::NoNymApisAvailable)?;
 
-        nym_validator_client::NymApiClient::new(nym_api.clone())
+        Ok(nym_validator_client::NymApiClient::new(nym_api.clone()))
     }
 
-    fn random_nyxd_client(&self) -> DirectSigningHttpRpcNyxdClient {
+    fn random_nyxd_client(&self) -> Result<DirectSigningHttpRpcNyxdClient, GatewayError> {
         let endpoints = self.config.get_nyxd_urls();
         let validator_nyxd = endpoints
             .choose(&mut thread_rng())
-            .expect("The list of validators is empty");
+            .ok_or(GatewayError::NoNyxdAvailable)?;
 
         let network_details = NymNetworkDetails::new_from_env();
-        let client_config = nyxd::Config::try_from_nym_network_details(&network_details)
-            .expect("failed to construct valid validator client config with the provided network");
+        let client_config = nyxd::Config::try_from_nym_network_details(&network_details)?;
 
         DirectSigningHttpRpcNyxdClient::connect_with_mnemonic(
             client_config,
             validator_nyxd.as_ref(),
             self.config.get_cosmos_mnemonic(),
         )
-        .expect("Could not connect with mnemonic")
+        .map_err(Into::into)
     }
 
     async fn check_if_bonded(&self) -> Result<bool, GatewayError> {
         // TODO: if anything, this should be getting data directly from the contract
         // as opposed to the validator API
-        let validator_client = self.random_api_client();
+        let validator_client = self.random_api_client()?;
         let existing_nodes = match validator_client.get_cached_gateways().await {
             Ok(nodes) => nodes,
             Err(err) => {
@@ -247,7 +307,7 @@ impl<St> Gateway<St> {
         }))
     }
 
-    pub async fn run(&mut self) -> Result<(), Box<dyn Error + Send + Sync>>
+    pub async fn run(self) -> anyhow::Result<()>
     where
         St: Storage + Clone + 'static,
     {
@@ -260,17 +320,18 @@ impl<St> Gateway<St> {
         let shutdown = TaskManager::new(10);
 
         let coconut_verifier = {
-            let nyxd_client = self.random_nyxd_client();
+            let nyxd_client = self.random_nyxd_client()?;
             CoconutVerifier::new(nyxd_client)
         };
 
-        let mix_forwarding_channel = self.start_packet_forwarder(shutdown.subscribe());
+        let mix_forwarding_channel =
+            self.start_packet_forwarder(shutdown.subscribe().named("PacketForwarder"));
 
         let active_clients_store = ActiveClientsStore::new();
         self.start_mix_socket_listener(
             mix_forwarding_channel.clone(),
             active_clients_store.clone(),
-            shutdown.subscribe(),
+            shutdown.subscribe().named("mixnet_handling::Listener"),
         );
 
         if self.config.gateway.enabled_statistics {
@@ -286,20 +347,40 @@ impl<St> Gateway<St> {
             });
         }
 
+        if self.config.network_requester.enabled {
+            let embedded_nr = self
+                .start_network_requester(
+                    mix_forwarding_channel.clone(),
+                    shutdown.subscribe().named("NetworkRequester"),
+                )
+                .await?;
+            // insert information about embedded NR to the active clients store
+            active_clients_store.insert_embedded(embedded_nr)
+        } else {
+            info!("embedded network requester is disabled");
+        }
+
         self.start_client_websocket_listener(
             mix_forwarding_channel,
             active_clients_store,
-            shutdown.subscribe(),
+            shutdown.subscribe().named("websocket::Listener"),
             Arc::new(coconut_verifier),
         );
 
         // Once this is a bit more mature, make this a commandline flag instead of a compile time
         // flag
         #[cfg(feature = "wireguard")]
-        nym_wireguard::start_wg_listener(shutdown.subscribe()).await?;
+        if let Err(err) = nym_wireguard::start_wg_listener(shutdown.subscribe()).await {
+            // that's a nasty workaround, but anyhow errors are generally nicer, especially on exit
+            bail!("{err}")
+        }
 
         info!("Finished nym gateway startup procedure - it should now be able to receive mix and client traffic!");
 
-        self.wait_for_interrupt(shutdown).await
+        if let Err(err) = Self::wait_for_interrupt(shutdown).await {
+            // that's a nasty workaround, but anyhow errors are generally nicer, especially on exit
+            bail!("{err}")
+        }
+        Ok(())
     }
 }

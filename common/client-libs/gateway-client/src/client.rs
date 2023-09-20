@@ -7,6 +7,7 @@ pub use crate::packet_router::{
     AcknowledgementReceiver, AcknowledgementSender, MixnetMessageReceiver, MixnetMessageSender,
 };
 use crate::socket_state::{PartiallyDelegated, SocketState};
+use crate::traits::GatewayPacketRouter;
 use crate::{cleanup_socket_message, try_decrypt_binary_message};
 use futures::{SinkExt, StreamExt};
 use log::*;
@@ -39,9 +40,23 @@ use wasm_utils::websocket::JSWebsocket;
 #[cfg(target_arch = "wasm32")]
 use wasmtimer::tokio::sleep;
 
+// Set this to a high value for now, so that we don't risk sporadic timeouts that might cause
+// bought bandwidth tokens to not have time to be spent; Once we remove the gateway from the
+// bandwidth bridging protocol, we can come back to a smaller timeout value
+const DEFAULT_GATEWAY_RESPONSE_TIMEOUT: Duration = Duration::from_secs(5 * 60);
 const DEFAULT_RECONNECTION_ATTEMPTS: usize = 10;
 const DEFAULT_RECONNECTION_BACKOFF: Duration = Duration::from_secs(5);
 
+pub struct GatewayConfig {
+    pub gateway_identity: identity::PublicKey,
+
+    // currently a dead field
+    pub gateway_owner: Option<String>,
+
+    pub gateway_listener: String,
+}
+
+// TODO: this should be refactored into a state machine that keeps track of its authentication state
 pub struct GatewayClient<C, St = EphemeralCredentialStorage> {
     authenticated: bool,
     disabled_credentials_mode: bool,
@@ -69,17 +84,12 @@ pub struct GatewayClient<C, St = EphemeralCredentialStorage> {
 }
 
 impl<C, St> GatewayClient<C, St> {
-    // TODO: put it all in a Config struct
-    #[allow(clippy::too_many_arguments)]
     pub fn new(
-        gateway_address: String,
+        config: GatewayConfig,
         local_identity: Arc<identity::KeyPair>,
-        gateway_identity: identity::PublicKey,
         // TODO: make it mandatory. if you don't want to pass it, use `new_init`
         shared_key: Option<Arc<SharedKeys>>,
-        mixnet_message_sender: MixnetMessageSender,
-        ack_sender: AcknowledgementSender,
-        response_timeout_duration: Duration,
+        packet_router: PacketRouter,
         bandwidth_controller: Option<BandwidthController<C, St>>,
         shutdown: TaskClient,
     ) -> Self {
@@ -87,13 +97,13 @@ impl<C, St> GatewayClient<C, St> {
             authenticated: false,
             disabled_credentials_mode: true,
             bandwidth_remaining: 0,
-            gateway_address,
-            gateway_identity,
+            gateway_address: config.gateway_listener,
+            gateway_identity: config.gateway_identity,
             local_identity,
             shared_key,
             connection: SocketState::NotConnected,
-            packet_router: PacketRouter::new(ack_sender, mixnet_message_sender, shutdown.clone()),
-            response_timeout_duration,
+            packet_router,
+            response_timeout_duration: DEFAULT_GATEWAY_RESPONSE_TIMEOUT,
             bandwidth_controller,
             should_reconnect_on_failure: true,
             reconnection_attempts: DEFAULT_RECONNECTION_ATTEMPTS,
@@ -102,21 +112,34 @@ impl<C, St> GatewayClient<C, St> {
         }
     }
 
-    pub fn set_disabled_credentials_mode(&mut self, disabled_credentials_mode: bool) {
+    #[must_use]
+    pub fn with_disabled_credentials_mode(mut self, disabled_credentials_mode: bool) -> Self {
         self.disabled_credentials_mode = disabled_credentials_mode;
+        self
     }
 
-    // TODO: later convert into proper builder methods
-    pub fn with_reconnection_on_failure(&mut self, should_reconnect_on_failure: bool) {
-        self.should_reconnect_on_failure = should_reconnect_on_failure
+    #[must_use]
+    pub fn with_reconnection_on_failure(mut self, should_reconnect_on_failure: bool) -> Self {
+        self.should_reconnect_on_failure = should_reconnect_on_failure;
+        self
     }
 
-    pub fn with_reconnection_attempts(&mut self, reconnection_attempts: usize) {
-        self.reconnection_attempts = reconnection_attempts
+    #[must_use]
+    pub fn with_response_timeout(mut self, response_timeout_duration: Duration) -> Self {
+        self.response_timeout_duration = response_timeout_duration;
+        self
     }
 
-    pub fn with_reconnection_backoff(&mut self, backoff: Duration) {
-        self.reconnection_backoff = backoff
+    #[must_use]
+    pub fn with_reconnection_attempts(mut self, reconnection_attempts: usize) -> Self {
+        self.reconnection_attempts = reconnection_attempts;
+        self
+    }
+
+    #[must_use]
+    pub fn with_reconnection_backoff(mut self, backoff: Duration) -> Self {
+        self.reconnection_backoff = backoff;
+        self
     }
 
     pub fn gateway_identity(&self) -> identity::PublicKey {
@@ -761,16 +784,14 @@ impl<C, St> GatewayClient<C, St> {
     }
 }
 
+// type alias for an ease of use
+pub type InitGatewayClient = GatewayClient<InitOnly>;
+
 pub struct InitOnly;
 
 impl GatewayClient<InitOnly, EphemeralCredentialStorage> {
     // for initialisation we do not need credential storage. Though it's still a bit weird we have to set the generic...
-    pub fn new_init(
-        gateway_address: String,
-        gateway_identity: identity::PublicKey,
-        local_identity: Arc<identity::KeyPair>,
-        response_timeout_duration: Duration,
-    ) -> Self {
+    pub fn new_init(config: GatewayConfig, local_identity: Arc<identity::KeyPair>) -> Self {
         use futures::channel::mpsc;
 
         // note: this packet_router is completely invalid in normal circumstances, but "works"
@@ -784,13 +805,13 @@ impl GatewayClient<InitOnly, EphemeralCredentialStorage> {
             authenticated: false,
             disabled_credentials_mode: true,
             bandwidth_remaining: 0,
-            gateway_address,
-            gateway_identity,
+            gateway_address: config.gateway_listener,
+            gateway_identity: config.gateway_identity,
             local_identity,
             shared_key: None,
             connection: SocketState::NotConnected,
             packet_router,
-            response_timeout_duration,
+            response_timeout_duration: DEFAULT_GATEWAY_RESPONSE_TIMEOUT,
             bandwidth_controller: None,
             should_reconnect_on_failure: false,
             reconnection_attempts: DEFAULT_RECONNECTION_ATTEMPTS,
@@ -801,9 +822,7 @@ impl GatewayClient<InitOnly, EphemeralCredentialStorage> {
 
     pub fn upgrade<C, St>(
         self,
-        mixnet_message_sender: MixnetMessageSender,
-        ack_sender: AcknowledgementSender,
-        response_timeout_duration: Duration,
+        packet_router: PacketRouter,
         bandwidth_controller: Option<BandwidthController<C, St>>,
         shutdown: TaskClient,
     ) -> GatewayClient<C, St> {
@@ -822,8 +841,8 @@ impl GatewayClient<InitOnly, EphemeralCredentialStorage> {
             local_identity: self.local_identity,
             shared_key: self.shared_key,
             connection: self.connection,
-            packet_router: PacketRouter::new(ack_sender, mixnet_message_sender, shutdown.clone()),
-            response_timeout_duration,
+            packet_router,
+            response_timeout_duration: self.response_timeout_duration,
             bandwidth_controller,
             should_reconnect_on_failure: self.should_reconnect_on_failure,
             reconnection_attempts: self.reconnection_attempts,

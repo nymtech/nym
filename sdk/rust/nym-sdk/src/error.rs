@@ -93,6 +93,17 @@ pub enum Error {
 
     #[error("failed to send the provided message")]
     MessageSendingFailure,
+
+    #[error("this operation is currently unsupported: {details}")]
+    Unsupported { details: String },
+}
+
+impl Error {
+    pub fn new_unsupported<S: Into<String>>(details: S) -> Self {
+        Error::Unsupported {
+            details: details.into(),
+        }
+    }
 }
 
 pub type Result<T, E = Error> = std::result::Result<T, E>;

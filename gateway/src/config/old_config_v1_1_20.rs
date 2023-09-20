@@ -1,13 +1,14 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::config::persistence::paths::{GatewayPaths, KeysPaths};
-use crate::config::{Config, Debug, Gateway};
-use nym_bin_common::logging::LoggingSettings;
+use crate::config::old_config_v1_1_28::{
+    ConfigV1_1_28, DebugV1_1_28, GatewayPathsV1_1_28, GatewayV1_1_28, KeysPathsV1_1_28,
+    LoggingSettingsV1_1_28,
+};
 use nym_config::legacy_helpers::nym_config::MigrationNymConfig;
 use nym_validator_client::nyxd;
 use serde::{Deserialize, Serialize};
-use std::net::IpAddr;
+use std::net::{IpAddr, Ipv4Addr};
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::time::Duration;
@@ -28,8 +29,9 @@ const DEFAULT_MAXIMUM_CONNECTION_BUFFER_SIZE: usize = 2000;
 const DEFAULT_STORED_MESSAGE_FILENAME_LENGTH: u16 = 16;
 const DEFAULT_MESSAGE_RETRIEVAL_LIMIT: i64 = 100;
 
+/// returns a `0.0.0.0` / INADDR_ANY
 fn bind_all_address() -> IpAddr {
-    "0.0.0.0".parse().unwrap()
+    IpAddr::V4(Ipv4Addr::UNSPECIFIED)
 }
 
 #[derive(Debug, Default, Deserialize, PartialEq, Serialize)]
@@ -42,10 +44,10 @@ pub struct ConfigV1_1_20 {
     debug: DebugV1_1_20,
 }
 
-impl From<ConfigV1_1_20> for Config {
+impl From<ConfigV1_1_20> for ConfigV1_1_28 {
     fn from(value: ConfigV1_1_20) -> Self {
-        Config {
-            gateway: Gateway {
+        ConfigV1_1_28 {
+            gateway: GatewayV1_1_28 {
                 version: value.gateway.version,
                 id: value.gateway.id,
                 only_coconut_credentials: value.gateway.only_coconut_credentials,
@@ -58,8 +60,8 @@ impl From<ConfigV1_1_20> for Config {
                 statistics_service_url: value.gateway.statistics_service_url,
                 cosmos_mnemonic: value.gateway.cosmos_mnemonic,
             },
-            storage_paths: GatewayPaths {
-                keys: KeysPaths {
+            storage_paths: GatewayPathsV1_1_28 {
+                keys: KeysPathsV1_1_28 {
                     private_identity_key_file: value.gateway.private_identity_key_file,
                     public_identity_key_file: value.gateway.public_identity_key_file,
                     private_sphinx_key_file: value.gateway.private_sphinx_key_file,
@@ -75,6 +77,8 @@ impl From<ConfigV1_1_20> for Config {
 
 impl MigrationNymConfig for ConfigV1_1_20 {
     fn default_root_directory() -> PathBuf {
+        // unless this is run on some esoteric system, it should not fail thus the expect is fine
+        #[allow(clippy::expect_used)]
         dirs::home_dir()
             .expect("Failed to evaluate $HOME value")
             .join(".nym")
@@ -112,6 +116,8 @@ pub struct GatewayV1_1_20 {
 
 impl Default for GatewayV1_1_20 {
     fn default() -> Self {
+        // allow usage of `expect` here as our default mainnet values should have been well-formed.
+        #[allow(clippy::expect_used)]
         GatewayV1_1_20 {
             version: env!("CARGO_PKG_VERSION").to_string(),
             id: "".to_string(),
@@ -129,7 +135,8 @@ impl Default for GatewayV1_1_20 {
                 .expect("Invalid default statistics service URL"),
             nym_api_urls: vec![Url::from_str(NYM_API).expect("Invalid default API URL")],
             nyxd_urls: vec![Url::from_str(NYXD_URL).expect("Invalid default nyxd URL")],
-            cosmos_mnemonic: bip39::Mnemonic::generate(24).unwrap(),
+            cosmos_mnemonic: bip39::Mnemonic::generate(24)
+                .expect("failed to generate fresh mnemonic"),
             nym_root_directory: ConfigV1_1_20::default_root_directory(),
             persistent_storage: Default::default(),
             wallet_address: None,
@@ -141,9 +148,9 @@ impl Default for GatewayV1_1_20 {
 #[serde(deny_unknown_fields)]
 struct LoggingV1_1_20 {}
 
-impl From<LoggingV1_1_20> for LoggingSettings {
+impl From<LoggingV1_1_20> for LoggingSettingsV1_1_28 {
     fn from(_value: LoggingV1_1_20) -> Self {
-        LoggingSettings {}
+        LoggingSettingsV1_1_28 {}
     }
 }
 
@@ -164,9 +171,9 @@ struct DebugV1_1_20 {
     use_legacy_framed_packet_version: bool,
 }
 
-impl From<DebugV1_1_20> for Debug {
+impl From<DebugV1_1_20> for DebugV1_1_28 {
     fn from(value: DebugV1_1_20) -> Self {
-        Debug {
+        DebugV1_1_28 {
             packet_forwarding_initial_backoff: value.packet_forwarding_initial_backoff,
             packet_forwarding_maximum_backoff: value.packet_forwarding_maximum_backoff,
             initial_connection_timeout: value.initial_connection_timeout,

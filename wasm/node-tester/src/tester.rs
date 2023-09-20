@@ -20,15 +20,16 @@ use tokio::sync::Mutex as AsyncMutex;
 use tsify::Tsify;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::future_to_promise;
+use wasm_client_core::client::mix_traffic::transceiver::PacketRouter;
 use wasm_client_core::helpers::{
     current_network_topology_async, setup_from_topology, EphemeralCredentialStorage,
 };
+use wasm_client_core::init::types::GatewayDetails;
 use wasm_client_core::storage::ClientStorage;
 use wasm_client_core::topology::SerializableNymTopology;
 use wasm_client_core::{
-    nym_task, BandwidthController, GatewayClient, IdentityKey, InitialisationDetails,
-    InitialisationResult, ManagedKeys, NodeIdentity, NymTopology, QueryReqwestRpcNyxdClient,
-    Recipient,
+    nym_task, BandwidthController, GatewayClient, GatewayConfig, IdentityKey, InitialisationResult,
+    ManagedKeys, NodeIdentity, NymTopology, QueryReqwestRpcNyxdClient, Recipient,
 };
 use wasm_utils::check_promise_result;
 use wasm_utils::error::PromisableResult;
@@ -136,8 +137,8 @@ impl NymNodeTesterBuilder {
         &self,
         client_store: &ClientStorage,
     ) -> Result<InitialisationResult, NodeTesterError> {
-        if let Ok(loaded) = InitialisationDetails::try_load(client_store, client_store).await {
-            Ok(loaded.into())
+        if let Ok(loaded) = InitialisationResult::try_load(client_store, client_store).await {
+            Ok(loaded)
         } else {
             Ok(
                 setup_from_topology(self.gateway.clone(), &self.base_topology, client_store)
@@ -157,38 +158,46 @@ impl NymNodeTesterBuilder {
 
         let client_store = ClientStorage::new_async(&storage_id, None).await?;
         let initialisation_result = self.gateway_info(&client_store).await?;
-        let init_details = initialisation_result.details;
-        let managed_keys = init_details.managed_keys;
-        let gateway_endpoint = init_details.gateway_details;
-        let gateway_identity = gateway_endpoint.try_get_gateway_identity_key()?;
+        let GatewayDetails::Configured(gateway_endpoint) = initialisation_result.gateway_details
+        else {
+            // don't bother supporting it
+            panic!("unsupported custom gateway configuration in wasm node tester")
+        };
+
+        let managed_keys = initialisation_result.managed_keys;
 
         let (mixnet_message_sender, mixnet_message_receiver) = mpsc::unbounded();
         let (ack_sender, ack_receiver) = mpsc::unbounded();
 
+        let gateway_task = task_manager.subscribe().named("gateway_client");
+        let packet_router = PacketRouter::new(
+            ack_sender,
+            mixnet_message_sender,
+            gateway_task.fork("packet_router"),
+        );
+
+        let gateway_config: GatewayConfig = gateway_endpoint.try_into()?;
+        let gateway_identity = gateway_config.gateway_identity;
+
         let mut gateway_client =
             if let Some(existing_client) = initialisation_result.authenticated_ephemeral_client {
                 existing_client.upgrade(
-                    mixnet_message_sender,
-                    ack_sender,
-                    Duration::from_secs(10),
+                    packet_router,
                     self.bandwidth_controller.take(),
-                    task_manager.subscribe(),
+                    gateway_task,
                 )
             } else {
                 GatewayClient::new(
-                    gateway_endpoint.gateway_listener,
+                    gateway_config,
                     managed_keys.identity_keypair(),
-                    gateway_identity,
                     Some(managed_keys.must_get_gateway_shared_key()),
-                    mixnet_message_sender,
-                    ack_sender,
-                    Duration::from_secs(10),
+                    packet_router,
                     self.bandwidth_controller.take(),
-                    task_manager.subscribe(),
+                    gateway_task,
                 )
-            };
+            }
+            .with_disabled_credentials_mode(true);
 
-        gateway_client.set_disabled_credentials_mode(true);
         gateway_client.authenticate_and_start().await?;
 
         // TODO: make those values configurable later

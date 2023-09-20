@@ -5,9 +5,12 @@ use super::{connection_state::BuilderState, Config, StoragePaths};
 use crate::bandwidth::BandwidthAcquireClient;
 use crate::mixnet::socks5_client::Socks5MixnetClient;
 use crate::mixnet::{CredentialStorage, MixnetClient, Recipient};
+use crate::GatewayTransceiver;
+use crate::NymNetworkDetails;
 use crate::{Error, Result};
 use futures::channel::mpsc;
 use futures::StreamExt;
+use log::warn;
 use nym_client_core::client::base_client::storage::gateway_details::GatewayDetailsStore;
 use nym_client_core::client::base_client::storage::{
     Ephemeral, MixnetClientStorage, OnDiskPersistent,
@@ -15,16 +18,18 @@ use nym_client_core::client::base_client::storage::{
 use nym_client_core::client::base_client::BaseClient;
 use nym_client_core::client::key_manager::persistence::KeyStore;
 use nym_client_core::config::DebugConfig;
-use nym_client_core::init::GatewaySetup;
+use nym_client_core::init::helpers::current_gateways;
+use nym_client_core::init::types::{GatewaySelectionSpecification, GatewaySetup};
 use nym_client_core::{
     client::{base_client::BaseClientBuilder, replies::reply_storage::ReplyStorageBackend},
     config::GatewayEndpointConfig,
 };
-use nym_network_defaults::NymNetworkDetails;
 use nym_socks5_client_core::config::Socks5;
 use nym_task::manager::TaskStatus;
+use nym_task::{TaskClient, TaskHandle};
 use nym_topology::provider_trait::TopologyProvider;
 use nym_validator_client::{nyxd, QueryHttpRpcNyxdClient};
+use rand::rngs::OsRng;
 use std::path::Path;
 use std::path::PathBuf;
 use url::Url;
@@ -38,7 +43,11 @@ pub struct MixnetClientBuilder<S: MixnetClientStorage = Ephemeral> {
     storage_paths: Option<StoragePaths>,
     gateway_config: Option<GatewayEndpointConfig>,
     socks5_config: Option<Socks5>,
+
+    wait_for_gateway: bool,
     custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
+    custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send + Sync>>,
+    custom_shutdown: Option<TaskClient>,
 
     // TODO: incorporate it properly into `MixnetClientStorage` (I will need it in wasm anyway)
     gateway_endpoint_config_path: Option<PathBuf>,
@@ -69,11 +78,14 @@ impl MixnetClientBuilder<OnDiskPersistent> {
             storage_paths: None,
             gateway_config: None,
             socks5_config: None,
+            wait_for_gateway: false,
             custom_topology_provider: None,
             storage: storage_paths
                 .initialise_default_persistent_storage()
                 .await?,
             gateway_endpoint_config_path: None,
+            custom_shutdown: None,
+            custom_gateway_transceiver: None,
         })
     }
 }
@@ -95,7 +107,10 @@ where
             storage_paths: None,
             gateway_config: None,
             socks5_config: None,
+            wait_for_gateway: false,
             custom_topology_provider: None,
+            custom_gateway_transceiver: None,
+            custom_shutdown: None,
             gateway_endpoint_config_path: None,
             storage,
         }
@@ -109,7 +124,10 @@ where
             storage_paths: self.storage_paths,
             gateway_config: self.gateway_config,
             socks5_config: self.socks5_config,
+            wait_for_gateway: self.wait_for_gateway,
             custom_topology_provider: self.custom_topology_provider,
+            custom_gateway_transceiver: self.custom_gateway_transceiver,
+            custom_shutdown: self.custom_shutdown,
             gateway_endpoint_config_path: self.gateway_endpoint_config_path,
             storage,
         }
@@ -169,6 +187,31 @@ where
         self
     }
 
+    /// Use an externally managed shutdown mechanism.
+    #[must_use]
+    pub fn custom_shutdown(mut self, shutdown: TaskClient) -> Self {
+        self.custom_shutdown = Some(shutdown);
+        self
+    }
+
+    /// Attempt to wait for the selected gateway (if applicable) to come online if its currently not bonded.
+    #[must_use]
+    pub fn with_wait_for_gateway(mut self, wait_for_gateway: bool) -> Self {
+        self.wait_for_gateway = wait_for_gateway;
+        self
+    }
+
+    /// Use custom mixnet sender that might not be the default websocket gateway connection.
+    /// only for advanced use
+    #[must_use]
+    pub fn custom_gateway_transceiver(
+        mut self,
+        gateway_transceiver: Box<dyn GatewayTransceiver + Send + Sync>,
+    ) -> Self {
+        self.custom_gateway_transceiver = Some(gateway_transceiver);
+        self
+    }
+
     /// Use specified file for storing gateway configuration.
     pub fn gateway_endpoint_config_path<P: AsRef<Path>>(mut self, path: P) -> Self {
         self.gateway_endpoint_config_path = Some(path.as_ref().to_owned());
@@ -176,14 +219,12 @@ where
     }
 
     /// Construct a [`DisconnectedMixnetClient`] from the setup specified.
-    pub async fn build(self) -> Result<DisconnectedMixnetClient<S>> {
-        let client = DisconnectedMixnetClient::new(
-            self.config,
-            self.socks5_config,
-            self.storage,
-            self.custom_topology_provider,
-        )
-        .await?;
+    pub fn build(self) -> Result<DisconnectedMixnetClient<S>> {
+        let client = DisconnectedMixnetClient::new(self.config, self.socks5_config, self.storage)?
+            .custom_gateway_transceiver(self.custom_gateway_transceiver)
+            .custom_topology_provider(self.custom_topology_provider)
+            .custom_shutdown(self.custom_shutdown)
+            .wait_for_gateway(self.wait_for_gateway);
 
         Ok(client)
     }
@@ -217,6 +258,15 @@ where
 
     /// Alternative provider of network topology used for constructing sphinx packets.
     custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
+
+    /// advanced usage of custom gateways
+    custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send + Sync>>,
+
+    /// Attempt to wait for the selected gateway (if applicable) to come online if its currently not bonded.
+    wait_for_gateway: bool,
+
+    /// Allows passing an externally controlled shutdown handle.
+    custom_shutdown: Option<TaskClient>,
 }
 
 impl<S> DisconnectedMixnetClient<S>
@@ -235,11 +285,10 @@ where
     /// Callers have the option of supplying further parameters to:
     /// - store persistent identities at a location on-disk, if desired;
     /// - use SOCKS5 mode
-    async fn new(
+    fn new(
         config: Config,
         socks5_config: Option<Socks5>,
         storage: S,
-        custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
     ) -> Result<DisconnectedMixnetClient<S>> {
         // don't create dkg client for the bandwidth controller if credentials are disabled
         let dkg_query_client = if config.enabled_credentials_mode {
@@ -260,8 +309,41 @@ where
             state: BuilderState::New,
             dkg_query_client,
             storage,
-            custom_topology_provider,
+            custom_topology_provider: None,
+            custom_gateway_transceiver: None,
+            wait_for_gateway: false,
+            custom_shutdown: None,
         })
+    }
+
+    #[must_use]
+    pub fn custom_shutdown(mut self, shutdown: Option<TaskClient>) -> Self {
+        self.custom_shutdown = shutdown;
+        self
+    }
+
+    #[must_use]
+    pub fn custom_topology_provider(
+        mut self,
+        provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
+    ) -> Self {
+        self.custom_topology_provider = provider;
+        self
+    }
+
+    #[must_use]
+    pub fn custom_gateway_transceiver(
+        mut self,
+        gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send + Sync>>,
+    ) -> Self {
+        self.custom_gateway_transceiver = gateway_transceiver;
+        self
+    }
+
+    #[must_use]
+    pub fn wait_for_gateway(mut self, wait_for_gateway: bool) -> Self {
+        self.wait_for_gateway = wait_for_gateway;
+        self
     }
 
     fn get_api_endpoints(&self) -> Vec<Url> {
@@ -288,16 +370,34 @@ where
     /// key, however, is created during the gateway registration handshake so it might not
     /// necessarily be available.
     /// Furthermore, it has to be coupled with particular gateway's config.
-    async fn has_gateway_info(&self) -> bool {
-        let has_keys = self.storage.key_store().load_keys().await.is_ok();
-        let has_gateway_details = self
+    async fn has_valid_gateway_info(&self) -> bool {
+        let keys = match self.storage.key_store().load_keys().await {
+            Ok(keys) => keys,
+            Err(err) => {
+                warn!("failed to load stored keys: {err}");
+                return false;
+            }
+        };
+
+        let gateway_details = match self
             .storage
             .gateway_details_store()
             .load_gateway_details()
             .await
-            .is_ok();
+        {
+            Ok(details) => details,
+            Err(err) => {
+                warn!("failed to load stored gateway details: {err}");
+                return false;
+            }
+        };
 
-        has_keys && has_gateway_details
+        if let Err(err) = gateway_details.validate(keys.gateway_shared_key().as_deref()) {
+            warn!("stored key verification failure: {err}");
+            return false;
+        }
+
+        true
     }
 
     /// Register with a gateway. If a gateway is provided in the config then that will try to be
@@ -316,10 +416,19 @@ where
 
         let api_endpoints = self.get_api_endpoints();
 
-        let gateway_setup = if self.has_gateway_info().await {
+        let gateway_setup = if self.has_valid_gateway_info().await {
             GatewaySetup::MustLoad
         } else {
-            GatewaySetup::new_fresh(self.config.user_chosen_gateway.clone(), None)
+            let selection_spec =
+                GatewaySelectionSpecification::new(self.config.user_chosen_gateway.clone(), None);
+
+            let mut rng = OsRng;
+
+            GatewaySetup::New {
+                specification: selection_spec,
+                available_gateways: current_gateways(&mut rng, &api_endpoints).await?,
+                overwrite_data: !self.config.key_mode.is_keep(),
+            }
         };
 
         // this will perform necessary key and details load and optional store
@@ -327,8 +436,6 @@ where
             gateway_setup,
             self.storage.key_store(),
             self.storage.gateway_details_store(),
-            !self.config.key_mode.is_keep(),
-            Some(&api_endpoints),
         )
         .await?;
 
@@ -367,22 +474,38 @@ where
         // a temporary workaround
         let base_config = self
             .config
-            .as_base_client_config(nyxd_endpoints, nym_api_endpoints);
+            .as_base_client_config(nyxd_endpoints, nym_api_endpoints.clone());
 
-        let known_gateway = self.has_gateway_info().await;
+        let known_gateway = self.has_valid_gateway_info().await;
 
         let mut base_builder: BaseClientBuilder<_, _> =
-            BaseClientBuilder::new(&base_config, self.storage, self.dkg_query_client);
+            BaseClientBuilder::new(&base_config, self.storage, self.dkg_query_client)
+                .with_wait_for_gateway(self.wait_for_gateway);
 
         if !known_gateway {
-            base_builder = base_builder.with_gateway_setup(GatewaySetup::new_fresh(
-                self.config.user_chosen_gateway,
-                None,
-            ))
+            let selection_spec =
+                GatewaySelectionSpecification::new(self.config.user_chosen_gateway, None);
+
+            let mut rng = OsRng;
+            let setup = GatewaySetup::New {
+                specification: selection_spec,
+                available_gateways: current_gateways(&mut rng, &nym_api_endpoints).await?,
+                overwrite_data: !self.config.key_mode.is_keep(),
+            };
+
+            base_builder = base_builder.with_gateway_setup(setup)
         }
 
         if let Some(topology_provider) = self.custom_topology_provider {
             base_builder = base_builder.with_topology_provider(topology_provider);
+        }
+
+        if let Some(custom_shutdown) = self.custom_shutdown {
+            base_builder = base_builder.with_shutdown(custom_shutdown)
+        }
+
+        if let Some(gateway_transceiver) = self.custom_gateway_transceiver {
+            base_builder = base_builder.with_gateway_transceiver(gateway_transceiver);
         }
 
         let started_client = base_builder.start_base().await?;
@@ -412,7 +535,6 @@ where
     ///     let client = mixnet::MixnetClientBuilder::new_ephemeral()
     ///         .socks5_config(socks5_config)
     ///         .build()
-    ///         .await
     ///         .unwrap();
     ///     let client = client.connect_to_mixnet_via_socks5().await.unwrap();
     /// }
@@ -438,29 +560,34 @@ where
             client_output,
             client_state.clone(),
             nym_address,
-            started_client.task_manager.subscribe(),
+            started_client.task_handle.get_handle(),
             packet_type,
         );
-        started_client
-            .task_manager
-            .start_status_listener(socks5_status_tx)
-            .await;
-        match socks5_status_rx
-            .next()
-            .await
-            .ok_or(Error::Socks5NotStarted)?
-            .downcast_ref::<TaskStatus>()
-            .ok_or(Error::Socks5NotStarted)?
-        {
-            TaskStatus::Ready => {
-                log::debug!("Socks5 connected");
+
+        // TODO: more graceful handling here, surely both variants should work... I think?
+        if let TaskHandle::Internal(task_manager) = &mut started_client.task_handle {
+            task_manager.start_status_listener(socks5_status_tx).await;
+            match socks5_status_rx
+                .next()
+                .await
+                .ok_or(Error::Socks5NotStarted)?
+                .downcast_ref::<TaskStatus>()
+                .ok_or(Error::Socks5NotStarted)?
+            {
+                TaskStatus::Ready => {
+                    log::debug!("Socks5 connected");
+                }
             }
+        } else {
+            return Err(Error::new_unsupported(
+                "connecting with socks5 is currently unsupported with custom shutdown",
+            ));
         }
 
         Ok(Socks5MixnetClient {
             nym_address,
             client_state,
-            task_manager: started_client.task_manager,
+            task_handle: started_client.task_handle,
             socks5_config,
         })
     }
@@ -481,7 +608,6 @@ where
     /// async fn main() {
     ///     let client = mixnet::MixnetClientBuilder::new_ephemeral()
     ///         .build()
-    ///         .await
     ///         .unwrap();
     ///     let client = client.connect_to_mixnet().await.unwrap();
     /// }
@@ -503,7 +629,7 @@ where
             client_output,
             client_state,
             reconstructed_receiver,
-            started_client.task_manager,
+            started_client.task_handle,
             None,
         ))
     }

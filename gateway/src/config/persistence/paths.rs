@@ -1,8 +1,8 @@
 // Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::config::default_data_directory;
-use serde::{Deserialize, Serialize};
+use crate::config::{default_config_directory, default_data_directory};
+use serde::{Deserialize, Deserializer, Serialize};
 use std::path::{Path, PathBuf};
 
 pub const DEFAULT_PRIVATE_IDENTITY_KEY_FILENAME: &str = "private_identity.pem";
@@ -12,7 +12,27 @@ pub const DEFAULT_PUBLIC_SPHINX_KEY_FILENAME: &str = "public_sphinx.pem";
 
 pub const DEFAULT_CLIENTS_STORAGE_FILENAME: &str = "db.sqlite";
 
+pub const DEFAULT_NETWORK_REQUESTER_CONFIG_FILENAME: &str = "network_requester_config.toml";
+pub const DEFAULT_NETWORK_REQUESTER_DATA_DIR: &str = "network-requester-data";
+
 // pub const DEFAULT_DESCRIPTION_FILENAME: &str = "description.toml";
+
+pub fn default_network_requester_data_dir<P: AsRef<Path>>(id: P) -> PathBuf {
+    default_data_directory(id).join(DEFAULT_NETWORK_REQUESTER_DATA_DIR)
+}
+
+/// makes sure that an empty path is converted into a `None` as opposed to `Some("")`
+fn de_maybe_path<'de, D>(deserializer: D) -> Result<Option<PathBuf>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let path = PathBuf::deserialize(deserializer)?;
+    if path.as_os_str().is_empty() {
+        Ok(None)
+    } else {
+        Ok(Some(path))
+    }
+}
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -23,6 +43,10 @@ pub struct GatewayPaths {
     /// derived shared keys and available client bandwidths.
     #[serde(alias = "persistent_storage")]
     pub clients_storage: PathBuf,
+
+    /// Path to the configuration of the embedded network requester.
+    #[serde(deserialize_with = "de_maybe_path")]
+    pub network_requester_config: Option<PathBuf>,
     // pub node_description: PathBuf,
 
     // pub cosmos_bip39_mnemonic: PathBuf,
@@ -34,7 +58,25 @@ impl GatewayPaths {
             keys: KeysPaths::new_default(id.as_ref()),
             clients_storage: default_data_directory(id).join(DEFAULT_CLIENTS_STORAGE_FILENAME),
             // node_description: default_config_filepath(id).join(DEFAULT_DESCRIPTION_FILENAME),
+            network_requester_config: None,
         }
+    }
+
+    #[must_use]
+    pub fn with_network_requester_config<P: AsRef<Path>>(mut self, path: P) -> Self {
+        self.network_requester_config = Some(path.as_ref().into());
+        self
+    }
+
+    #[must_use]
+    pub fn with_default_network_requester_config<P: AsRef<Path>>(self, id: P) -> Self {
+        self.with_network_requester_config(
+            default_config_directory(id).join(DEFAULT_NETWORK_REQUESTER_CONFIG_FILENAME),
+        )
+    }
+
+    pub fn network_requester_config(&self) -> &Option<PathBuf> {
+        &self.network_requester_config
     }
 
     pub fn private_identity_key(&self) -> &Path {

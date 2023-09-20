@@ -33,18 +33,17 @@ pub fn may_get_home() -> Option<PathBuf> {
 }
 
 pub trait NymConfigTemplate: Serialize {
-    fn template() -> &'static str;
+    fn template(&self) -> &'static str;
 
     fn format_to_string(&self) -> String {
         // it is responsibility of whoever is implementing the trait to ensure the template is valid
         Handlebars::new()
-            .render_template(Self::template(), &self)
+            .render_template(self.template(), &self)
             .unwrap()
     }
 
     fn format_to_writer<W: Write>(&self, writer: W) -> io::Result<()> {
-        if let Err(err) =
-            Handlebars::new().render_template_to_write(Self::template(), &self, writer)
+        if let Err(err) = Handlebars::new().render_template_to_write(self.template(), &self, writer)
         {
             match err {
                 TemplateRenderError::IOError(err, _) => return Err(err),
@@ -64,7 +63,7 @@ where
     C: NymConfigTemplate,
     P: AsRef<Path>,
 {
-    log::trace!("trying to save config file to {}", path.as_ref().display());
+    log::debug!("trying to save config file to {}", path.as_ref().display());
     let file = File::create(path.as_ref())?;
 
     // TODO: check for whether any of our configs stores anything sensitive
@@ -108,7 +107,7 @@ where
 //
 //
 // pub trait NymConfig: Default + Serialize + DeserializeOwned {
-//     fn template() -> &'static str;
+//     fn template(&self) -> &'static str;
 //
 //     fn config_file_name() -> String {
 //         "config.toml".to_string()

@@ -1,4 +1,4 @@
-use nym_client_core::error::ClientCoreError;
+pub use nym_client_core::error::ClientCoreError;
 use nym_socks5_requests::Socks5RequestError;
 
 #[derive(thiserror::Error, Debug)]
@@ -30,4 +30,7 @@ pub enum NetworkRequesterError {
 
     #[error("failed to connect to mixnet: {source}")]
     FailedToConnectToMixnet { source: nym_sdk::Error },
+
+    #[error("the entity wrapping the network requester has disconnected")]
+    DisconnectedParent,
 }

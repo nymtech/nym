@@ -110,7 +110,7 @@ impl<'a> From<&'a Config> for NymNetworkDetails {
 }
 
 impl NymConfigTemplate for Config {
-    fn template() -> &'static str {
+    fn template(&self) -> &'static str {
         CONFIG_TEMPLATE
     }
 }

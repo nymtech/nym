@@ -213,17 +213,17 @@ impl RealMessagesController<OsRng> {
         let ack_control = self.ack_control;
         let mut reply_control = self.reply_control;
 
-        let shutdown_handle = shutdown.clone();
+        let shutdown_handle = shutdown.fork("out_queue_control");
         spawn_future(async move {
             out_queue_control.run_with_shutdown(shutdown_handle).await;
             debug!("The out queue controller has finished execution!");
         });
-        let shutdown_handle = shutdown.clone();
+        let shutdown_handle = shutdown.fork("reply_control");
         spawn_future(async move {
             reply_control.run_with_shutdown(shutdown_handle).await;
             debug!("The reply controller has finished execution!");
         });
 
-        ack_control.start_with_shutdown(shutdown, packet_type);
+        ack_control.start_with_shutdown(shutdown.with_suffix("ack_control"), packet_type);
     }
 }

@@ -10,6 +10,7 @@ use nym_client_core::client::key_manager::persistence::OnDiskKeys;
 use nym_client_core::client::key_manager::KeyManager;
 use nym_crypto::asymmetric::identity;
 
+#[allow(unused)]
 pub async fn get_identity_key(
     state: &tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<Arc<identity::KeyPair>> {

@@ -93,8 +93,11 @@ pub(crate) fn override_config(config: Config, args: OverrideConfig) -> Config {
     // Since a big chunk of these are hidden experimental flags there is hope we can remove them
     // soonish and clean this up.
 
-    let disable_cover_traffic_with_keepalive =
-        config.network_requester.disable_poisson_rate || args.medium_toggle;
+    // This is the default
+    let disable_poisson_rate = config.network_requester.disable_poisson_rate;
+
+    // This is with the medium toggle
+    let disable_cover_traffic_with_keepalive = args.medium_toggle;
     let secondary_packet_size = args.medium_toggle.then_some(PacketSize::ExtendedPacket16);
     let no_per_hop_delays = args.medium_toggle;
 
@@ -102,6 +105,11 @@ pub(crate) fn override_config(config: Config, args: OverrideConfig) -> Config {
         .with_base(
             BaseClientConfig::with_high_default_traffic_volume,
             args.fastmode,
+        )
+        .with_base(
+            // NOTE: This interacts with disabling cover traffic fully, so we want to this to be set before
+            BaseClientConfig::with_disabled_poisson_process,
+            disable_poisson_rate,
         )
         .with_base(
             // NOTE: This interacts with disabling cover traffic fully, so we want to this to be set before

@@ -137,6 +137,17 @@ impl Config {
         self.debug.traffic.message_sending_average_delay = Duration::from_millis(4);
     }
 
+    pub fn with_disabled_poisson_process(mut self, disabled: bool) -> Self {
+        if disabled {
+            self.set_no_poisson_process()
+        }
+        self
+    }
+
+    pub fn set_no_poisson_process(&mut self) {
+        self.debug.traffic.disable_main_poisson_packet_distribution = true;
+    }
+
     pub fn with_disabled_cover_traffic(mut self, disabled: bool) -> Self {
         if disabled {
             self.set_no_cover_traffic()

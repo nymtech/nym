@@ -57,7 +57,7 @@ export const disconnectMixFetch = async (): Promise<void> => {
   // JS: I'm ignoring this lint (no-else-return) because I want to explicitly state
   // that `__mixFetchGlobal` is definitely not null in the else branch.
   if (!window.__mixFetchGlobal) {
-    return Promise.reject(new Error("mixFetch hasn't been setup"));
+    throw new Error("mixFetch hasn't been setup");
     // eslint-disable-next-line no-else-return
   } else {
     return window.__mixFetchGlobal.disconnectMixFetch();

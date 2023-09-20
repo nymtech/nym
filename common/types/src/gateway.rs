@@ -139,10 +139,10 @@ impl fmt::Display for GatewayNetworkRequesterDetails {
         writeln!(f, "\tencryption key: {}", self.encryption_key)?;
         writeln!(f, "\taddress: {}", self.address)?;
 
-        writeln!(f, "\t uses open proxy: {}", self.open_proxy)?;
-        writeln!(f, "\t sends statistics: {}", self.enabled_statistics)?;
+        writeln!(f, "\tuses open proxy: {}", self.open_proxy)?;
+        writeln!(f, "\tsends statistics: {}", self.enabled_statistics)?;
 
-        writeln!(f, "\t allow list path: {}", self.allow_list_path)?;
-        writeln!(f, "\t unknown list path: {}", self.allow_list_path)
+        writeln!(f, "\tallow list path: {}", self.allow_list_path)?;
+        writeln!(f, "\tunknown list path: {}", self.allow_list_path)
     }
 }

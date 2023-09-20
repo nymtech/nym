@@ -21,6 +21,9 @@ pub enum NymTopologyError {
     #[error("Gateway with identity key {identity_key} doesn't exist")]
     NonExistentGatewayError { identity_key: String },
 
+    #[error("timed out while waiting for gateway '{identity_key}' to come online")]
+    TimedOutWaitingForGateway { identity_key: String },
+
     #[error("Wanted to create a mix route with {requested} hops, while only {available} layers are available")]
     InvalidNumberOfHopsError { available: usize, requested: usize },
 

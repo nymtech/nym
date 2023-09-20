@@ -43,6 +43,8 @@ pub struct MixnetClientBuilder<S: MixnetClientStorage = Ephemeral> {
     storage_paths: Option<StoragePaths>,
     gateway_config: Option<GatewayEndpointConfig>,
     socks5_config: Option<Socks5>,
+
+    wait_for_gateway: bool,
     custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
     custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send + Sync>>,
     custom_shutdown: Option<TaskClient>,
@@ -76,6 +78,7 @@ impl MixnetClientBuilder<OnDiskPersistent> {
             storage_paths: None,
             gateway_config: None,
             socks5_config: None,
+            wait_for_gateway: false,
             custom_topology_provider: None,
             storage: storage_paths
                 .initialise_default_persistent_storage()
@@ -104,6 +107,7 @@ where
             storage_paths: None,
             gateway_config: None,
             socks5_config: None,
+            wait_for_gateway: false,
             custom_topology_provider: None,
             custom_gateway_transceiver: None,
             custom_shutdown: None,
@@ -120,6 +124,7 @@ where
             storage_paths: self.storage_paths,
             gateway_config: self.gateway_config,
             socks5_config: self.socks5_config,
+            wait_for_gateway: self.wait_for_gateway,
             custom_topology_provider: self.custom_topology_provider,
             custom_gateway_transceiver: self.custom_gateway_transceiver,
             custom_shutdown: self.custom_shutdown,
@@ -189,6 +194,13 @@ where
         self
     }
 
+    /// Attempt to wait for the selected gateway (if applicable) to come online if its currently not bonded.
+    #[must_use]
+    pub fn with_wait_for_gateway(mut self, wait_for_gateway: bool) -> Self {
+        self.wait_for_gateway = wait_for_gateway;
+        self
+    }
+
     /// Use custom mixnet sender that might not be the default websocket gateway connection.
     /// only for advanced use
     #[must_use]
@@ -208,14 +220,11 @@ where
 
     /// Construct a [`DisconnectedMixnetClient`] from the setup specified.
     pub fn build(self) -> Result<DisconnectedMixnetClient<S>> {
-        let client = DisconnectedMixnetClient::new(
-            self.config,
-            self.socks5_config,
-            self.storage,
-            self.custom_topology_provider,
-            self.custom_shutdown,
-        )?
-        .custom_gateway_transceiver(self.custom_gateway_transceiver);
+        let client = DisconnectedMixnetClient::new(self.config, self.socks5_config, self.storage)?
+            .custom_gateway_transceiver(self.custom_gateway_transceiver)
+            .custom_topology_provider(self.custom_topology_provider)
+            .custom_shutdown(self.custom_shutdown)
+            .wait_for_gateway(self.wait_for_gateway);
 
         Ok(client)
     }
@@ -253,6 +262,9 @@ where
     /// advanced usage of custom gateways
     custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send + Sync>>,
 
+    /// Attempt to wait for the selected gateway (if applicable) to come online if its currently not bonded.
+    wait_for_gateway: bool,
+
     /// Allows passing an externally controlled shutdown handle.
     custom_shutdown: Option<TaskClient>,
 }
@@ -277,8 +289,6 @@ where
         config: Config,
         socks5_config: Option<Socks5>,
         storage: S,
-        custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
-        custom_shutdown: Option<TaskClient>,
     ) -> Result<DisconnectedMixnetClient<S>> {
         // don't create dkg client for the bandwidth controller if credentials are disabled
         let dkg_query_client = if config.enabled_credentials_mode {
@@ -299,10 +309,26 @@ where
             state: BuilderState::New,
             dkg_query_client,
             storage,
-            custom_topology_provider,
+            custom_topology_provider: None,
             custom_gateway_transceiver: None,
-            custom_shutdown,
+            wait_for_gateway: false,
+            custom_shutdown: None,
         })
+    }
+
+    #[must_use]
+    pub fn custom_shutdown(mut self, shutdown: Option<TaskClient>) -> Self {
+        self.custom_shutdown = shutdown;
+        self
+    }
+
+    #[must_use]
+    pub fn custom_topology_provider(
+        mut self,
+        provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
+    ) -> Self {
+        self.custom_topology_provider = provider;
+        self
     }
 
     #[must_use]
@@ -311,6 +337,12 @@ where
         gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send + Sync>>,
     ) -> Self {
         self.custom_gateway_transceiver = gateway_transceiver;
+        self
+    }
+
+    #[must_use]
+    pub fn wait_for_gateway(mut self, wait_for_gateway: bool) -> Self {
+        self.wait_for_gateway = wait_for_gateway;
         self
     }
 
@@ -447,7 +479,8 @@ where
         let known_gateway = self.has_valid_gateway_info().await;
 
         let mut base_builder: BaseClientBuilder<_, _> =
-            BaseClientBuilder::new(&base_config, self.storage, self.dkg_query_client);
+            BaseClientBuilder::new(&base_config, self.storage, self.dkg_query_client)
+                .with_wait_for_gateway(self.wait_for_gateway);
 
         if !known_gateway {
             let selection_spec =

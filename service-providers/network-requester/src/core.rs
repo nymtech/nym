@@ -70,6 +70,7 @@ pub struct NRServiceProviderBuilder {
     config: Config,
     outbound_request_filter: OutboundRequestFilter,
 
+    wait_for_gateway: bool,
     custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
     custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send + Sync>>,
     shutdown: Option<TaskClient>,
@@ -190,6 +191,7 @@ impl NRServiceProviderBuilder {
         NRServiceProviderBuilder {
             config,
             outbound_request_filter,
+            wait_for_gateway: false,
             custom_topology_provider: None,
             custom_gateway_transceiver: None,
             shutdown: None,
@@ -215,6 +217,15 @@ impl NRServiceProviderBuilder {
         gateway_transceiver: Box<dyn GatewayTransceiver + Send + Sync>,
     ) -> Self {
         self.custom_gateway_transceiver = Some(gateway_transceiver);
+        self
+    }
+
+    #[must_use]
+    // this is a false positive, this method is actually called when used as a library
+    // but clippy complains about it when building the binary
+    #[allow(unused)]
+    pub fn with_wait_for_gateway(mut self, wait_for_gateway: bool) -> Self {
+        self.wait_for_gateway = wait_for_gateway;
         self
     }
 
@@ -271,6 +282,7 @@ impl NRServiceProviderBuilder {
             shutdown.get_handle().named("nym_sdk::MixnetClient"),
             self.custom_gateway_transceiver,
             self.custom_topology_provider,
+            self.wait_for_gateway,
             &self.config.storage_paths.common_paths,
         )
         .await?;
@@ -608,11 +620,13 @@ impl NRServiceProvider {
 // Helper function to create the mixnet client.
 // This is NOT in the SDK since we don't want to expose any of the client-core config types.
 // We could however consider moving it to a crate in common in the future.
+// TODO: refactor this function and its arguments
 async fn create_mixnet_client(
     config: &BaseClientConfig,
     shutdown: TaskClient,
     custom_transceiver: Option<Box<dyn GatewayTransceiver + Send + Sync>>,
     custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
+    wait_for_gateway: bool,
     paths: &CommonClientPaths,
 ) -> Result<nym_sdk::mixnet::MixnetClient, NetworkRequesterError> {
     let debug_config = config.debug;
@@ -625,7 +639,8 @@ async fn create_mixnet_client(
             .map_err(|err| NetworkRequesterError::FailedToSetupMixnetClient { source: err })?
             .network_details(NymNetworkDetails::new_from_env())
             .debug_config(debug_config)
-            .custom_shutdown(shutdown);
+            .custom_shutdown(shutdown)
+            .with_wait_for_gateway(wait_for_gateway);
     if !config.get_disabled_credentials_mode() {
         client_builder = client_builder.enable_credentials_mode();
     }

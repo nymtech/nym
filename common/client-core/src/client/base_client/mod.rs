@@ -162,6 +162,7 @@ pub struct BaseClientBuilder<'a, C, S: MixnetClientStorage> {
     client_store: S,
     dkg_query_client: Option<C>,
 
+    wait_for_gateway: bool,
     custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
     custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send>>,
     shutdown: Option<TaskClient>,
@@ -183,6 +184,7 @@ where
             config: base_config,
             client_store,
             dkg_query_client,
+            wait_for_gateway: false,
             custom_topology_provider: None,
             custom_gateway_transceiver: None,
             shutdown: None,
@@ -193,6 +195,12 @@ where
     #[must_use]
     pub fn with_gateway_setup(mut self, setup: GatewaySetup) -> Self {
         self.setup_method = setup;
+        self
+    }
+
+    #[must_use]
+    pub fn with_wait_for_gateway(mut self, wait_for_gateway: bool) -> Self {
+        self.wait_for_gateway = wait_for_gateway;
         self
     }
 
@@ -434,6 +442,7 @@ where
         topology_config: config::Topology,
         topology_accessor: TopologyAccessor,
         local_gateway: &NodeIdentity,
+        wait_for_gateway: bool,
         mut shutdown: TaskClient,
     ) -> Result<(), ClientCoreError> {
         let topology_refresher_config =
@@ -457,10 +466,28 @@ where
             return Err(ClientCoreError::InsufficientNetworkTopology(err));
         }
 
+        let gateway_wait_timeout = if wait_for_gateway {
+            Some(topology_config.max_startup_gateway_waiting_period)
+        } else {
+            None
+        };
+
         if let Err(err) = topology_refresher
             .ensure_contains_gateway(local_gateway)
             .await
         {
+            if let Some(waiting_timeout) = gateway_wait_timeout {
+                if let Err(err) = topology_refresher
+                    .wait_for_gateway(local_gateway, waiting_timeout)
+                    .await
+                {
+                    error!(
+                        "the gateway did not come back online within the specified timeout: {err}"
+                    );
+                    return Err(err.into());
+                }
+            }
+
             error!("the gateway we're supposedly connected to does not exist. We'll not be able to send any packets to ourselves: {err}");
             return Err(err.into());
         }
@@ -595,11 +622,13 @@ where
             self.config.get_nym_api_endpoints(),
         );
 
+        // needs to be started as the first thing to block if required waiting for the gateway
         Self::start_topology_refresher(
             topology_provider,
             self.config.debug.topology,
             shared_topology_accessor.clone(),
             self_address.gateway(),
+            self.wait_for_gateway,
             shutdown.fork("topology_refresher"),
         )
         .await?;

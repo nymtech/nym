@@ -224,6 +224,7 @@ impl<St> Gateway<St> {
         let mut nr_builder = NRServiceProviderBuilder::new(nr_opts.config.clone())
             .with_shutdown(shutdown)
             .with_custom_gateway_transceiver(Box::new(transceiver))
+            .with_wait_for_gateway(true)
             .with_on_start(on_start_tx);
 
         if let Some(custom_mixnet) = &nr_opts.custom_mixnet_path {

@@ -10,6 +10,12 @@ use nym_topology::provider_trait::TopologyProvider;
 use nym_topology::NymTopologyError;
 use std::time::Duration;
 
+#[cfg(not(target_arch = "wasm32"))]
+use tokio::time::sleep;
+
+#[cfg(target_arch = "wasm32")]
+use wasmtimer::tokio::sleep;
+
 mod accessor;
 pub mod geo_aware_provider;
 pub(crate) mod nym_api_provider;
@@ -103,6 +109,36 @@ impl TopologyRefresher {
         }
 
         Ok(())
+    }
+
+    pub async fn wait_for_gateway(
+        &mut self,
+        gateway: &NodeIdentity,
+        timeout_duration: Duration,
+    ) -> Result<(), NymTopologyError> {
+        info!(
+            "going to wait for at most {timeout_duration:?} for gateway '{gateway}' to come online"
+        );
+
+        let deadline = sleep(timeout_duration);
+        tokio::pin!(deadline);
+
+        loop {
+            tokio::select! {
+                _ = &mut deadline => {
+                    return Err(NymTopologyError::TimedOutWaitingForGateway {
+                        identity_key: gateway.to_base58_string()
+                    })
+                }
+                _ = self.try_refresh() => {
+                    if self.ensure_contains_gateway(gateway).await.is_ok() {
+                        return Ok(())
+                    }
+                    info!("gateway '{gateway}' is still not online...");
+                    sleep(self.refresh_rate).await
+                }
+            }
+        }
     }
 
     pub fn start_with_shutdown(mut self, mut shutdown: nym_task::TaskClient) {

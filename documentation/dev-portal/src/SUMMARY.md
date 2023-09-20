@@ -50,6 +50,9 @@
 		- [Sending a Message Through the Mixnet](tutorials/simple-service-provider/sending-message.md)
 
 
+# Events
+- [HCPP23-serinko](./events/hcpp23-serinko.md)
+
 # FAQ
 
 - [General](faq/general-faq.md)

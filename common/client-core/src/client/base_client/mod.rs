@@ -486,10 +486,10 @@ where
                     );
                     return Err(err.into());
                 }
+            } else {
+                error!("the gateway we're supposedly connected to does not exist. We'll not be able to send any packets to ourselves: {err}");
+                return Err(err.into());
             }
-
-            error!("the gateway we're supposedly connected to does not exist. We'll not be able to send any packets to ourselves: {err}");
-            return Err(err.into());
         }
 
         if topology_config.disable_refreshing {

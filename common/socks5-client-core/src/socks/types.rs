@@ -83,6 +83,12 @@ pub enum SocksProxyError {
         #[from]
         source: Socks5RequestError,
     },
+
+    #[error("SOCKS5 UDP not (yet) supported")]
+    UdpNotSupported,
+
+    #[error("SOCKS5 BIND not (yet) supported")]
+    BindNotSupported,
 }
 
 /// DST.addr variant types

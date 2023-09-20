@@ -59,17 +59,25 @@ impl NymContractCache {
     ) {
         match time::timeout(Duration::from_millis(100), self.inner.write()).await {
             Ok(mut cache) => {
-                cache.mixnodes.update(mixnodes);
-                cache.gateways.update(gateways);
-                cache.rewarded_set.update(rewarded_set);
-                cache.active_set.update(active_set);
-                cache.current_reward_params.update(Some(rewarding_params));
-                cache.current_interval.update(Some(current_interval));
-                cache.mix_to_family.update(mix_to_family);
+                cache.mixnodes.unchecked_update(mixnodes);
+                cache.gateways.unchecked_update(gateways);
+                cache.rewarded_set.unchecked_update(rewarded_set);
+                cache.active_set.unchecked_update(active_set);
+                cache
+                    .current_reward_params
+                    .unchecked_update(Some(rewarding_params));
+                cache
+                    .current_interval
+                    .unchecked_update(Some(current_interval));
+                cache.mix_to_family.unchecked_update(mix_to_family);
                 // Just return empty lists when these are not available
-                cache.service_providers.update(services.unwrap_or_default());
-                cache.registered_names.update(names.unwrap_or_default());
-                cache.contracts_info.update(nym_contracts_info)
+                cache
+                    .service_providers
+                    .unchecked_update(services.unwrap_or_default());
+                cache
+                    .registered_names
+                    .unchecked_update(names.unwrap_or_default());
+                cache.contracts_info.unchecked_update(nym_contracts_info)
             }
             Err(err) => {
                 error!("{err}");
@@ -79,7 +87,7 @@ impl NymContractCache {
 
     pub async fn mixnodes_blacklist(&self) -> Cache<HashSet<MixId>> {
         match time::timeout(Duration::from_millis(100), self.inner.read()).await {
-            Ok(cache) => cache.mixnodes_blacklist.clone(),
+            Ok(cache) => cache.mixnodes_blacklist.clone_cache(),
             Err(err) => {
                 error!("{err}");
                 Cache::new(HashSet::new())
@@ -89,7 +97,7 @@ impl NymContractCache {
 
     pub async fn gateways_blacklist(&self) -> Cache<HashSet<IdentityKey>> {
         match time::timeout(Duration::from_millis(100), self.inner.read()).await {
-            Ok(cache) => cache.gateways_blacklist.clone(),
+            Ok(cache) => cache.gateways_blacklist.clone_cache(),
             Err(err) => {
                 error!("{err}");
                 Cache::new(HashSet::new())
@@ -99,11 +107,7 @@ impl NymContractCache {
 
     pub async fn update_mixnodes_blacklist(&self, add: HashSet<MixId>, remove: HashSet<MixId>) {
         let blacklist = self.mixnodes_blacklist().await;
-        let mut blacklist = blacklist
-            .value
-            .union(&add)
-            .cloned()
-            .collect::<HashSet<MixId>>();
+        let mut blacklist = blacklist.union(&add).cloned().collect::<HashSet<MixId>>();
         let to_remove = blacklist
             .intersection(&remove)
             .cloned()
@@ -113,7 +117,7 @@ impl NymContractCache {
         }
         match time::timeout(Duration::from_millis(100), self.inner.write()).await {
             Ok(mut cache) => {
-                cache.mixnodes_blacklist.update(blacklist);
+                cache.mixnodes_blacklist.unchecked_update(blacklist);
             }
             Err(err) => {
                 error!("Failed to update mixnodes blacklist: {err}");
@@ -128,7 +132,6 @@ impl NymContractCache {
     ) {
         let blacklist = self.gateways_blacklist().await;
         let mut blacklist = blacklist
-            .value
             .union(&add)
             .cloned()
             .collect::<HashSet<IdentityKey>>();
@@ -141,7 +144,7 @@ impl NymContractCache {
         }
         match time::timeout(Duration::from_millis(100), self.inner.write()).await {
             Ok(mut cache) => {
-                cache.gateways_blacklist.update(blacklist);
+                cache.gateways_blacklist.unchecked_update(blacklist);
             }
             Err(err) => {
                 error!("Failed to update gateways blacklist: {err}");
@@ -159,7 +162,7 @@ impl NymContractCache {
         if !blacklist.is_empty() {
             mixnodes
                 .into_iter()
-                .filter(|mix| !blacklist.value.contains(&mix.mix_id()))
+                .filter(|mix| !blacklist.contains(&mix.mix_id()))
                 .collect()
         } else {
             mixnodes
@@ -168,7 +171,7 @@ impl NymContractCache {
 
     pub async fn mixnodes_all(&self) -> Vec<MixNodeDetails> {
         match time::timeout(Duration::from_millis(100), self.inner.read()).await {
-            Ok(cache) => cache.mixnodes.clone().value,
+            Ok(cache) => cache.mixnodes.clone(),
             Err(err) => {
                 error!("{err}");
                 Vec::new()
@@ -181,7 +184,6 @@ impl NymContractCache {
             Ok(cache) => cache
                 .mixnodes
                 .clone()
-                .into_inner()
                 .into_iter()
                 .map(|bond| bond.bond_information)
                 .collect(),
@@ -203,7 +205,7 @@ impl NymContractCache {
         if !blacklist.is_empty() {
             gateways
                 .into_iter()
-                .filter(|mix| !blacklist.value.contains(mix.identity()))
+                .filter(|mix| !blacklist.contains(mix.identity()))
                 .collect()
         } else {
             gateways
@@ -212,7 +214,7 @@ impl NymContractCache {
 
     pub async fn gateways_all(&self) -> Vec<GatewayBond> {
         match time::timeout(Duration::from_millis(100), self.inner.read()).await {
-            Ok(cache) => cache.gateways.value.clone(),
+            Ok(cache) => cache.gateways.clone(),
             Err(err) => {
                 error!("{err}");
                 Vec::new()
@@ -222,7 +224,7 @@ impl NymContractCache {
 
     pub async fn rewarded_set(&self) -> Cache<Vec<MixNodeDetails>> {
         match time::timeout(Duration::from_millis(100), self.inner.read()).await {
-            Ok(cache) => cache.rewarded_set.clone(),
+            Ok(cache) => cache.rewarded_set.clone_cache(),
             Err(err) => {
                 error!("{err}");
                 Cache::new(Vec::new())
@@ -232,7 +234,7 @@ impl NymContractCache {
 
     pub async fn active_set(&self) -> Cache<Vec<MixNodeDetails>> {
         match time::timeout(Duration::from_millis(100), self.inner.read()).await {
-            Ok(cache) => cache.active_set.clone(),
+            Ok(cache) => cache.active_set.clone_cache(),
             Err(err) => {
                 error!("{err}");
                 Cache::new(Vec::new())
@@ -242,7 +244,7 @@ impl NymContractCache {
 
     pub async fn mix_to_family(&self) -> Cache<Vec<(IdentityKey, FamilyHead)>> {
         match time::timeout(Duration::from_millis(100), self.inner.read()).await {
-            Ok(cache) => cache.mix_to_family.clone(),
+            Ok(cache) => cache.mix_to_family.clone_cache(),
             Err(err) => {
                 error!("{err}");
                 Cache::new(Vec::new())
@@ -252,7 +254,7 @@ impl NymContractCache {
 
     pub(crate) async fn interval_reward_params(&self) -> Cache<Option<RewardingParams>> {
         match time::timeout(Duration::from_millis(100), self.inner.read()).await {
-            Ok(cache) => cache.current_reward_params.clone(),
+            Ok(cache) => cache.current_reward_params.clone_cache(),
             Err(err) => {
                 error!("{err}");
                 Cache::new(None)
@@ -262,7 +264,7 @@ impl NymContractCache {
 
     pub(crate) async fn current_interval(&self) -> Cache<Option<Interval>> {
         match time::timeout(Duration::from_millis(100), self.inner.read()).await {
-            Ok(cache) => cache.current_interval.clone(),
+            Ok(cache) => cache.current_interval.clone_cache(),
             Err(err) => {
                 error!("{err}");
                 Cache::new(None)
@@ -272,7 +274,7 @@ impl NymContractCache {
 
     pub(crate) async fn contract_details(&self) -> Cache<CachedContractsInfo> {
         match time::timeout(Duration::from_millis(100), self.inner.read()).await {
-            Ok(cache) => cache.contracts_info.clone(),
+            Ok(cache) => cache.contracts_info.clone_cache(),
             Err(err) => {
                 error!("{err}");
                 Cache::default()
@@ -284,12 +286,12 @@ impl NymContractCache {
         // it might not be the most optimal to possibly iterate the entire vector to find (or not)
         // the relevant value. However, the vectors are relatively small (< 10_000 elements, < 1000 for active set)
 
-        let active_set = &self.active_set().await.value;
+        let active_set = &self.active_set().await;
         if let Some(bond) = active_set.iter().find(|mix| mix.mix_id() == mix_id) {
             return (Some(bond.clone()), MixnodeStatus::Active);
         }
 
-        let rewarded_set = &self.rewarded_set().await.value;
+        let rewarded_set = &self.rewarded_set().await;
         if let Some(bond) = rewarded_set.iter().find(|mix| mix.mix_id() == mix_id) {
             return (Some(bond.clone()), MixnodeStatus::Standby);
         }
@@ -308,7 +310,7 @@ impl NymContractCache {
 
     pub(crate) async fn services(&self) -> Cache<Vec<Service>> {
         match time::timeout(Duration::from_millis(100), self.inner.read()).await {
-            Ok(cache) => cache.service_providers.clone(),
+            Ok(cache) => cache.service_providers.clone_cache(),
             Err(err) => {
                 error!("{err}");
                 Cache::new(Vec::new())
@@ -318,7 +320,7 @@ impl NymContractCache {
 
     pub(crate) async fn names(&self) -> Cache<Vec<RegisteredName>> {
         match time::timeout(Duration::from_millis(100), self.inner.read()).await {
-            Ok(cache) => cache.registered_names.clone(),
+            Ok(cache) => cache.registered_names.clone_cache(),
             Err(err) => {
                 error!("{err}");
                 Cache::new(Vec::new())

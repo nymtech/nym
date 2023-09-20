@@ -180,6 +180,7 @@ pub(crate) async fn annotate_gateways_with_details(
         annotated.push(GatewayBondAnnotated {
             blacklisted: blacklist.contains(&gateway_bond.gateway.identity_key),
             gateway_bond,
+            self_described: None,
             performance,
             node_performance,
         });

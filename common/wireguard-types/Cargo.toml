@@ -1,0 +1,42 @@
+[package]
+name = "nym-wireguard-types"
+version = "0.1.0"
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+edition.workspace = true
+license.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+base64 = { workspace = true }
+boringtun = { workspace = true }
+dashmap = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+thiserror = { workspace = true }
+
+nym-crypto = { path = "../crypto", features = ["asymmetric"] }
+
+# feature-specific dependencies:
+
+## verify:
+hmac = { version = "0.12.1", optional = true }
+sha2 = { version = "0.10.8", optional = true }
+
+## openapi:
+utoipa = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true }
+
+
+[dev-dependencies]
+rand = "0.7.3"
+nym-crypto = { path = "../crypto", features = ["rand"]}
+
+
+[features]
+default = ["verify"]
+openapi = ["utoipa", "serde_json"]
+# this is moved to a separate feature as we really need clients to import it (especially, *cough*, wasm)
+verify = ["hmac", "sha2"]

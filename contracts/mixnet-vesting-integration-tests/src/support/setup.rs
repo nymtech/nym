@@ -243,7 +243,7 @@ impl TestSetup {
             ContractMessageContent::new(Addr::unchecked(owner), proxy, vec![stake], payload);
         let sign_payload = SignableMixNodeBondingMsg::new(signing_nonce, content);
         let plaintext = sign_payload.to_plaintext().unwrap();
-        let signature = keypair.private_key().sign(&plaintext);
+        let signature = keypair.private_key().sign(plaintext);
         let msg_signature = MessageSignature::from(signature.to_bytes().as_ref());
 
         (mixnode, msg_signature)

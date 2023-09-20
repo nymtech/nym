@@ -51,7 +51,11 @@ where
     if T::pem_type() != key_pem.tag {
         return Err(io::Error::new(
             io::ErrorKind::Other,
-            "unexpected key pem tag",
+            format!(
+                "unexpected key pem tag. Got '{}', expected: '{}'",
+                key_pem.tag,
+                T::pem_type()
+            ),
         ));
     }
 

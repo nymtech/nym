@@ -294,7 +294,8 @@ mod message_receiver {
                 owner: "foomp4".to_string(),
                 host: "1.2.3.4".parse().unwrap(),
                 mix_host: "1.2.3.4:1789".parse().unwrap(),
-                clients_port: 9000,
+                clients_ws_port: 9000,
+                clients_wss_port: None,
                 identity_key: identity::PublicKey::from_base58_string(
                     "FioFa8nMmPpQnYi7JyojoTuwGLeyNS8BF4ChPr29zUML",
                 )

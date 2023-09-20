@@ -29,7 +29,7 @@ pub fn ed25519_sign_message<T: Serialize + SigningPurpose>(
     match message.algorithm {
         SigningAlgorithm::Ed25519 => {
             let plaintext = message.to_plaintext().unwrap();
-            let signature = private_key.sign(&plaintext);
+            let signature = private_key.sign(plaintext);
             MessageSignature::from(signature.to_bytes().as_ref())
         }
         SigningAlgorithm::Secp256k1 => {

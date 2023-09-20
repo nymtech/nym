@@ -1,11 +1,11 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use clap::Parser;
-use comfy_table::Table;
-
 use crate::context::QueryClientWithNyxd;
 use crate::utils::{pretty_cosmwasm_coin, show_error};
+use clap::Parser;
+use comfy_table::Table;
+use nym_validator_client::client::NymApiClientExt;
 
 #[derive(Debug, Parser)]
 pub struct Args {

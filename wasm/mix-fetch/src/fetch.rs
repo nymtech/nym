@@ -13,7 +13,6 @@ use wasm_bindgen::prelude::wasm_bindgen;
 use wasm_bindgen::JsValue;
 use wasm_bindgen_futures::future_to_promise;
 use wasm_client_core::config::r#override::DebugWasmOverride;
-use wasm_client_core::topology::SerializableGateway;
 use wasm_utils::console_log;
 use wasm_utils::error::PromisableResultError;
 
@@ -44,9 +43,6 @@ pub struct MixFetchOpts {
 
     #[tsify(optional)]
     pub(crate) mix_fetch_override: Option<MixFetchDebugOverride>,
-
-    #[tsify(optional)]
-    pub(crate) extra: HackOpts,
 }
 
 #[derive(Tsify, Debug, Clone, Serialize, Deserialize)]
@@ -65,15 +61,6 @@ pub struct MixFetchOptsSimple {
 
     #[tsify(optional)]
     pub(crate) storage_passphrase: Option<String>,
-}
-
-#[derive(Tsify, Debug, Default, Clone, Serialize, Deserialize)]
-#[tsify(into_wasm_abi, from_wasm_abi)]
-#[serde(rename_all = "camelCase")]
-#[doc(hidden)]
-pub struct HackOpts {
-    #[tsify(optional)]
-    pub(crate) hidden_gateways: Option<Vec<SerializableGateway>>,
 }
 
 impl<'a> From<&'a MixFetchOpts> for MixFetchConfigOpts {
@@ -118,7 +105,7 @@ pub fn setup_mix_fetch(opts: MixFetchOpts) -> Promise {
             config.override_mix_fetch_debug(dbg)
         }
 
-        setup_mix_fetch_async(config, opts.base, opts.extra)
+        setup_mix_fetch_async(config, opts.base)
             .await
             .map(|_| JsValue::undefined())
             .map_promise_err()
@@ -132,7 +119,7 @@ pub fn setup_mix_fetch_with_config(config: MixFetchConfig, opts: MixFetchOptsSim
     }
 
     future_to_promise(async move {
-        setup_mix_fetch_async(config, opts, Default::default())
+        setup_mix_fetch_async(config, opts)
             .await
             .map(|_| JsValue::undefined())
             .map_promise_err()
@@ -171,19 +158,12 @@ pub(super) fn mix_fetch_client() -> Result<&'static MixFetchClient, MixFetchErro
 async fn setup_mix_fetch_async(
     config: MixFetchConfig,
     opts: MixFetchOptsSimple,
-    hack_opts: HackOpts,
 ) -> Result<(), MixFetchError> {
     let preferred_gateway = opts.preferred_gateway;
     let storage_passphrase = opts.storage_passphrase;
     let force_tls = opts.force_tls.unwrap_or_default();
-    let client = MixFetchClient::new_async(
-        config,
-        force_tls,
-        preferred_gateway,
-        storage_passphrase,
-        Some(hack_opts),
-    )
-    .await?;
+    let client =
+        MixFetchClient::new_async(config, force_tls, preferred_gateway, storage_passphrase).await?;
     set_mix_fetch_client(client)?;
     Ok(())
 }

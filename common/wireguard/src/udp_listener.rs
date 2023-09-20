@@ -7,7 +7,7 @@ use boringtun::{
 use futures::StreamExt;
 use log::error;
 use nym_task::TaskClient;
-use nym_types::{gateway_client_registration::GatewayClientRegistry, wireguard::PeerPublicKey};
+use nym_wireguard_types::{registration::GatewayClientRegistry, PeerPublicKey};
 use tap::TapFallible;
 use tokio::{
     net::UdpSocket,

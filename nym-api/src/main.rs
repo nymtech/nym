@@ -6,7 +6,9 @@ extern crate rocket;
 
 use crate::epoch_operations::RewardedSetUpdater;
 use crate::network::models::NetworkDetails;
+use crate::node_describe_cache::DescribedNodes;
 use crate::node_status_api::uptime_updater::HistoricalUptimeUpdater;
+use crate::support::caching::cache::SharedCache;
 use crate::support::cli;
 use crate::support::cli::CliArgs;
 use crate::support::config::Config;
@@ -34,8 +36,10 @@ mod ephemera;
 mod epoch_operations;
 pub(crate) mod network;
 mod network_monitor;
+pub(crate) mod node_describe_cache;
 pub(crate) mod node_status_api;
 pub(crate) mod nym_contract_cache;
+pub(crate) mod nym_nodes;
 pub(crate) mod support;
 
 struct ShutdownHandles {
@@ -90,6 +94,19 @@ async fn start_nym_api_tasks(
     let node_status_cache_state = rocket.state::<NodeStatusCache>().unwrap();
     let circulating_supply_cache_state = rocket.state::<CirculatingSupplyCache>().unwrap();
     let maybe_storage = rocket.state::<NymApiStorage>();
+    let described_nodes_state = rocket.state::<SharedCache<DescribedNodes>>().unwrap();
+
+    // start note describe cache refresher
+    // we should be doing the below, but can't due to our current startup structure
+    // let refresher = node_describe_cache::new_refresher(&config.topology_cacher);
+    // let cache = refresher.get_shared_cache();
+    node_describe_cache::new_refresher_with_initial_value(
+        &config.topology_cacher,
+        nym_contract_cache_state.clone(),
+        described_nodes_state.to_owned(),
+    )
+    .named("node-self-described-data-refresher")
+    .start(shutdown.subscribe_named("node-self-described-data-refresher"));
 
     // start all the caches first
     let nym_contract_cache_listener = nym_contract_cache::start_refresher(
@@ -98,6 +115,7 @@ async fn start_nym_api_tasks(
         nyxd_client.clone(),
         &shutdown,
     );
+
     node_status_api::start_cache_refresh(
         &config.node_status_api,
         nym_contract_cache_state,

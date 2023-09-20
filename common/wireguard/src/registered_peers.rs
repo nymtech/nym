@@ -1,7 +1,7 @@
 use std::{collections::HashMap, sync::Arc};
 
 use ip_network::IpNetwork;
-use nym_types::wireguard::PeerPublicKey;
+use nym_wireguard_types::PeerPublicKey;
 
 pub(crate) type PeerIdx = u32;
 

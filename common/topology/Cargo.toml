@@ -15,7 +15,7 @@ documentation = { workspace = true }
 bs58 = "0.4"
 log = { workspace = true }
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
-thiserror = "1.0.37"
+thiserror = { workspace = true }
 async-trait = { workspace = true, optional = true }
 semver = "0.11"
 
@@ -34,6 +34,10 @@ nym-sphinx-addressing = { path = "../nymsphinx/addressing" }
 nym-sphinx-types = { path = "../nymsphinx/types", features = ["sphinx", "outfox"] }
 nym-sphinx-routing = { path = "../nymsphinx/routing" }
 nym-bin-common = { path = "../bin-common" }
+
+# I'm not sure how to feel about pulling in this dependency here...
+nym-api-requests = { path = "../../nym-api/nym-api-requests" }
+
 
 # 'serializable' feature
 nym-config = { path = "../config", optional = true }

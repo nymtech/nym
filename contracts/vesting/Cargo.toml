@@ -48,8 +48,5 @@ cosmwasm-crypto = { workspace = true }
 [build-dependencies]
 vergen = { version = "=7.4.3", default-features = false, features = ["build", "git", "rustc"] }
 
-[profile.release]
-overflow-checks = true
-
 [features]
 schema-gen = ["vesting-contract-common/schema", "cosmwasm-schema"]

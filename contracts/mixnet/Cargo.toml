@@ -54,8 +54,3 @@ vergen = { version = "=7.4.3", default-features = false, features = ["build", "g
 default = []
 contract-testing = ["mixnet-contract-common/contract-testing"]
 schema-gen = ["mixnet-contract-common/schema", "cosmwasm-schema"]
-
-[profile.release]
-overflow-checks = true
-
-

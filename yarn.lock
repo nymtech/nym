@@ -2979,21 +2979,6 @@
   dependencies:
     nx "15.9.6"
 
-"@nymproject/mix-fetch-wasm@>=1.2.0-rc.0 || 1":
-  version "1.2.0-rc.5"
-  resolved "https://registry.yarnpkg.com/@nymproject/mix-fetch-wasm/-/mix-fetch-wasm-1.2.0-rc.5.tgz#0c5907f01612e9c5f1e0099d6b46eaffb2d30bba"
-  integrity sha512-HuSMsXUN/i2qUptEGBd9CQLkzurpa6e6kDLgHFZqKex38kldONceEsFeb5SwZgQrxU+YLYC9ngS2tSFlM/l6uw==
-
-"@nymproject/nym-client-wasm@>=1.2.0-rc.0 || ^1":
-  version "1.2.0-rc.5"
-  resolved "https://registry.yarnpkg.com/@nymproject/nym-client-wasm/-/nym-client-wasm-1.2.0-rc.5.tgz#d0eca98aac5c1868566f6f8da7f777c68782409b"
-  integrity sha512-FyIaODnAJ9o2PMd1uLLSsSrX0hGq2K41Q+XmdYjuH6cFU1Yt8mTOcqrhoB98lR2RTjyJnmrIT80Ayxvpok2zJg==
-
-"@nymproject/nym-node-tester-wasm@>=1.2.0-rc.0 || ^1":
-  version "1.2.0-rc.5"
-  resolved "https://registry.yarnpkg.com/@nymproject/nym-node-tester-wasm/-/nym-node-tester-wasm-1.2.0-rc.5.tgz#68ed8c98873e3a1130fd82785c01e6fc860b3ac5"
-  integrity sha512-d11VwnkeQHP3KzjaQhDBMPRiLheLD4MIGo7DTnHuI9yYu8E0WHli6lvo3Z2Jfv8H5VXk3P1Oev97BmyyPG13mQ==
-
 "@nymproject/nym-client-wasm-node@>=1.2.0-rc.5 || ^1":
   version "1.2.0-rc.5"
   resolved "https://registry.yarnpkg.com/@nymproject/nym-client-wasm-node/-/nym-client-wasm-node-1.2.0-rc.5.tgz#464cc905a029cedb3acbe5513f60d47c22a28137"
@@ -11383,19 +11368,7 @@ handle-thing@^2.0.0:
   resolved "https://registry.yarnpkg.com/handle-thing/-/handle-thing-2.0.1.tgz#857f79ce359580c340d43081cc648970d0bb234e"
   integrity sha512-9Qn4yBxelxoh2Ow62nP+Ka/kMnOXRi8BXnRaUwezLNhqelnN49xKz4F/dPP8OYLxLxq6JDtZb2i9XznUQbNPTg==
 
-handlebars@^4.7.7:
-  version "4.7.8"
-  resolved "https://registry.yarnpkg.com/handlebars/-/handlebars-4.7.8.tgz#41c42c18b1be2365439188c77c6afae71c0cd9e9"
-  integrity sha512-vafaFqs8MZkRrSX7sFVUdo3ap/eNiLnb4IakshzvP56X5Nr1iGKAIqdX6tMlm6HcNRIkr6AxO5jFEoJzzpT8aQ==
-  dependencies:
-    minimist "^1.2.5"
-    neo-async "^2.6.2"
-    source-map "^0.6.1"
-    wordwrap "^1.0.0"
-  optionalDependencies:
-    uglify-js "^3.1.4"
-
-handlebars@^4.7.8:
+handlebars@^4.7.7, handlebars@^4.7.8:
   version "4.7.8"
   resolved "https://registry.yarnpkg.com/handlebars/-/handlebars-4.7.8.tgz#41c42c18b1be2365439188c77c6afae71c0cd9e9"
   integrity sha512-vafaFqs8MZkRrSX7sFVUdo3ap/eNiLnb4IakshzvP56X5Nr1iGKAIqdX6tMlm6HcNRIkr6AxO5jFEoJzzpT8aQ==

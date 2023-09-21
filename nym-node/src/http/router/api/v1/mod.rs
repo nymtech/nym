@@ -3,6 +3,7 @@
 
 use crate::http::router::api::v1::build_info::build_info;
 use crate::http::router::api::v1::roles::roles;
+use crate::http::state::AppState;
 use axum::routing::get;
 use axum::Router;
 use nym_bin_common::build_information::BinaryBuildInformationOwned;
@@ -30,7 +31,7 @@ pub struct Config {
     pub network_requester: network_requester::Config,
 }
 
-pub(super) fn routes(config: Config) -> Router {
+pub(super) fn routes(config: Config) -> Router<AppState> {
     Router::new()
         .nest(routes::GATEWAY, gateway::routes(config.gateway))
         .nest(routes::MIXNODE, mixnode::routes(config.mixnide))

@@ -29,6 +29,7 @@ opentelemetry-jaeger = { version = "0.18.0", optional = true, features = [
     "isahc_collector_client",
 ] }
 tracing-opentelemetry = { version = "0.19.0", optional = true }
+utoipa = { workspace = true, optional = true }
 opentelemetry = { version = "0.19.0", optional = true, features = ["rt-tokio"] }
 
 
@@ -42,6 +43,7 @@ vergen = { version = "=7.4.3", default-features = false, features = [
 
 [features]
 default = []
+openapi = ["utoipa"]
 output_format = ["serde_json"]
 tracing = [
     "tracing-subscriber",

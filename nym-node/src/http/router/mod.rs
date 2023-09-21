@@ -3,6 +3,7 @@
 
 use crate::error::NymNodeError;
 use crate::http::middleware::logging;
+use crate::http::state::AppState;
 use axum::routing::IntoMakeService;
 use axum::Router;
 use hyper::server::conn::AddrIncoming;
@@ -47,7 +48,8 @@ impl NymNodeRouter {
                 .nest(routes::LANDING_PAGE, landing_page::routes(config.landing))
                 .nest(routes::POLICY, policy::routes(config.policy))
                 .nest(routes::API, api::routes(config.api))
-                .layer(axum::middleware::from_fn(logging::logger)),
+                .layer(axum::middleware::from_fn(logging::logger))
+                .with_state(AppState::new_dummy()),
         }
     }
 

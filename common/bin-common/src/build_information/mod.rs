@@ -81,6 +81,7 @@ impl BinaryBuildInformation {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct BinaryBuildInformationOwned {
     /// Provides the name of the binary, i.e. the content of `CARGO_PKG_NAME` environmental variable.
     pub binary_name: String,

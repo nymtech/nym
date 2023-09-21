@@ -1,11 +1,13 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::http::state::AppState;
 use axum::http::{header, HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::{Json, Router};
 use bytes::{BufMut, BytesMut};
 use serde::{Deserialize, Serialize};
+use utoipa::{IntoParams, ToSchema};
 
 pub mod v1;
 
@@ -19,13 +21,31 @@ pub struct Config {
     pub v1_config: v1::Config,
 }
 
-pub(super) fn routes(config: Config) -> Router {
-    Router::new().nest_service(routes::V1, v1::routes(config.v1_config))
+pub(super) fn routes(config: Config) -> Router<AppState> {
+    Router::new().nest(routes::V1, v1::routes(config.v1_config))
     // .nest(routes::SWAGGER, openapi::route())
     // .nest(routes::SWAGGER, openapi::route())
 }
 
-#[derive(Default, Debug, Serialize, Deserialize, Copy, Clone)]
+#[derive(Debug, Clone, ToSchema)]
+pub enum FormattedResponse<T> {
+    Json(Json<T>),
+    Yaml(Yaml<T>),
+}
+
+impl<T> IntoResponse for FormattedResponse<T>
+where
+    T: Serialize,
+{
+    fn into_response(self) -> Response {
+        match self {
+            FormattedResponse::Json(json_response) => json_response.into_response(),
+            FormattedResponse::Yaml(yaml_response) => yaml_response.into_response(),
+        }
+    }
+}
+
+#[derive(Default, Debug, Serialize, Deserialize, Copy, Clone, ToSchema)]
 #[serde(rename_all = "lowercase")]
 pub enum Output {
     #[default]
@@ -33,11 +53,17 @@ pub enum Output {
     Yaml,
 }
 
+#[derive(Default, Debug, Serialize, Deserialize, Copy, Clone, IntoParams, ToSchema)]
+#[serde(default)]
+pub struct OutputParams {
+    pub output: Option<Output>,
+}
+
 impl Output {
-    pub fn to_response<T: Serialize + 'static>(self, data: T) -> Box<dyn IntoResponse> {
+    pub fn to_response<T: Serialize>(self, data: T) -> FormattedResponse<T> {
         match self {
-            Output::Json => Box::new(Json(data)),
-            Output::Yaml => Box::new(Yaml(data)),
+            Output::Json => FormattedResponse::Json(Json(data)),
+            Output::Yaml => FormattedResponse::Yaml(Yaml(data)),
         }
     }
 }

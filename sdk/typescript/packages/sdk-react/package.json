@@ -1,6 +1,6 @@
 {
   "name": "@nymproject/sdk-react",
-  "version": "1.2.0-rc.5",
+  "version": "1.2.0-rc.6",
   "license": "Apache-2.0",
   "author": "Nym Technologies SA",
   "files": [
@@ -20,7 +20,7 @@
     "tsc": "tsc --noEmit true"
   },
   "dependencies": {
-    "@nymproject/sdk": ">=1.2.0-rc.2 || ^1"
+    "@nymproject/sdk": ">=1.2.0-rc.6 || ^1"
   },
   "devDependencies": {
     "@babel/core": "^7.17.5",

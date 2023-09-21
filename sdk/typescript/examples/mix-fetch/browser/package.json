@@ -5,7 +5,7 @@
   "source": "src/index.html",
   "dependencies": {
     "parcel": "^2.9.3",
-    "@nymproject/mix-fetch": ">=1.2.0-rc.5 || ^1"
+    "@nymproject/mix-fetch": ">=1.2.0-rc.6 || ^1"
   },
   "scripts": {
     "start": "parcel --no-cache",

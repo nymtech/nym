@@ -150,6 +150,7 @@ fn start_tun_device(active_peers: Arc<ActivePeers>) -> UnboundedSender<Vec<u8>> 
                             // NOTE: I think we should probably use the allowed IP here instead to
                             // route the packet to the correct peer
                             // Consier using ip_network_table crate
+                            dbg!(&active_peers);
                             active_peers.get(&SocketAddr::new(
                                 std::net::IpAddr::V4(destination_addr),
                                 WG_PORT,

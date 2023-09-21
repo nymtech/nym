@@ -21,6 +21,7 @@ use nym_types::gateway::GatewayNetworkRequesterDetails;
 use nym_validator_client::nyxd::AccountId;
 use std::net::IpAddr;
 use std::path::PathBuf;
+use thiserror::__private::PathAsDisplay;
 
 // Configuration that can be overridden.
 #[derive(Default)]
@@ -253,7 +254,12 @@ pub(crate) async fn initialise_local_network_requester(
             path: nr_cfg_path.to_path_buf(),
             source: err,
         });
-    };
+    } else {
+        eprintln!(
+            "Saved network requester configuration file to {}",
+            nr_cfg_path.as_display()
+        )
+    }
 
     Ok(GatewayNetworkRequesterDetails {
         enabled: gateway_config.network_requester.enabled,

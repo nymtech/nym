@@ -18,14 +18,12 @@ if (elem) {
     <ErrorBoundary FallbackComponent={ErrorFallback}>
       <Router>
         <ClientContextProvider>
-          <TestAndEarnContextProvider>
-            <GlobalStyles styles={{ html: { borderRadius: 10 } }} />
-            <NymMixnetTheme mode="dark">
-              <AppWindowFrame>
-                <AppRoutes />
-              </AppWindowFrame>
-            </NymMixnetTheme>
-          </TestAndEarnContextProvider>
+          <GlobalStyles styles={{ html: { borderRadius: 10 } }} />
+          <NymMixnetTheme mode="dark">
+            <AppWindowFrame>
+              <AppRoutes />
+            </AppWindowFrame>
+          </NymMixnetTheme>
         </ClientContextProvider>
       </Router>
     </ErrorBoundary>,

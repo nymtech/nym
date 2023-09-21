@@ -41,6 +41,11 @@ pub enum BackendError {
         source: ClientCoreError,
     },
     #[error("{source}")]
+    ApiClientError {
+        #[from]
+        source: crate::operations::growth::api_client::ApiClientError,
+    },
+    #[error("{source}")]
     EnvError {
         #[from]
         source: std::env::VarError,

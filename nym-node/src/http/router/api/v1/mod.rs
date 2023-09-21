@@ -21,11 +21,12 @@ pub(crate) mod routes {
     pub(crate) const NETWORK_REQUESTER: &str = "/network-requester";
     pub(crate) const BUILD_INFO: &str = "/build-info";
     pub(crate) const ROLES: &str = "/roles";
+    pub(crate) const SWAGGER: &str = "/swagger";
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct Config {
-    pub build_information: Option<BinaryBuildInformationOwned>,
+    pub build_information: BinaryBuildInformationOwned,
     pub gateway: gateway::Config,
     pub mixnide: mixnode::Config,
     pub network_requester: network_requester::Config,

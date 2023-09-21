@@ -16,7 +16,7 @@ pub(crate) mod routes {
     pub(crate) const SWAGGER: &str = "/swagger";
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct Config {
     pub v1_config: v1::Config,
 }

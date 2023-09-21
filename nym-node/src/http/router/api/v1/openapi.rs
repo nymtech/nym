@@ -11,15 +11,31 @@ use utoipa_swagger_ui::SwaggerUi;
 #[derive(OpenApi)]
 #[openapi(
     info(title = "NymNode API"),
-    paths(api::v1::build_info::build_info,),
+    paths(api::v1::build_info::build_info, api::v1::gateway::root::root_gateway,),
     components(schemas(api::Output, api::OutputParams, BinaryBuildInformationOwned))
 )]
+/*
+#[derive(OpenApi)]
+#[openapi(
+    info(title = "NymNode API"),
+    paths(
+        api::v1::build_info::build_info,
+    ),
+    components(
+        schemas(
+            api::Output,
+            api::OutputParams,
+            BinaryBuildInformationOwned
+        )
+    )
+)]
+ */
 pub(crate) struct ApiDoc;
 
 pub(crate) fn route() -> Router<AppState> {
     // provide absolute path to the openapi.json
     let config = utoipa_swagger_ui::Config::from("/api/v1/api-docs/openapi.json");
-    SwaggerUi::new("/swagger")
+    SwaggerUi::new(super::routes::SWAGGER)
         .url("/api-docs/openapi.json", ApiDoc::openapi())
         .config(config)
         .into()

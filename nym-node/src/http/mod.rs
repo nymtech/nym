@@ -5,7 +5,7 @@ pub mod middleware;
 pub mod router;
 pub mod state;
 
-pub use router::{Config, NymNodeRouter};
+pub use router::{Config, NymNodeRouter, api, landing_page, policy};
 
 // pub struct Config {
 //     router_config: router::Config,

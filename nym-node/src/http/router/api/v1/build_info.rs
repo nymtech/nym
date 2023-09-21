@@ -4,30 +4,28 @@
 use crate::http::router::api::{FormattedResponse, OutputParams};
 use crate::http::state::AppState;
 use axum::extract::{Query, State};
-use axum::response::IntoResponse;
 use nym_bin_common::build_information::BinaryBuildInformationOwned;
 
-/// Description of the path
+/// Returns build metadata of the binary running the API
 #[utoipa::path(
     get,
     path = "/build-info",
     context_path = "/api/v1",
     responses(
-        (status=200, content(
+        (status = 200, content(
             ("application/json" = BinaryBuildInformationOwned),
             ("application/yaml" = BinaryBuildInformationOwned)
         ))
     ),
     params(OutputParams)
 )]
-pub async fn build_info(
+pub(crate) async fn build_info(
     State(state): State<AppState>,
     Query(output): Query<OutputParams>,
-) -> FormattedResponse<BinaryBuildInformationOwned> {
+) -> BuildInfoResponse {
     let output = output.output.unwrap_or_default();
-    // todo!()
     // TODO: get rid of the clone since it's getting serialized anyway
     output.to_response(state.build_information.clone())
 }
 
-pub struct BuildInfoResponse(BinaryBuildInformationOwned);
+pub type BuildInfoResponse = FormattedResponse<BinaryBuildInformationOwned>;

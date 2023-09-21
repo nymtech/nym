@@ -20,9 +20,12 @@ pub async fn logger<B>(req: Request<B>, next: Next<B>) -> impl IntoResponse {
 
     let host = header_map(req.headers().get(HOST), "Unknown Host".to_string());
 
-    info!("[{host}] requester {method}: {uri} via {agent}");
+    let res = next.run(req).await;
+    let status = res.status();
 
-    next.run(req).await
+    info!("[{host}] {method} '{uri}': {status} / agent: {agent}");
+
+    res
 }
 
 fn header_map(header: Option<&HeaderValue>, msg: String) -> String {

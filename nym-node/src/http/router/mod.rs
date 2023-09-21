@@ -12,7 +12,7 @@ use std::net::SocketAddr;
 
 pub mod api;
 pub mod landing_page;
-mod policy;
+pub mod policy;
 
 pub(crate) mod routes {
     pub(crate) const LANDING_PAGE: &str = "/";
@@ -24,7 +24,7 @@ pub(crate) mod routes {
 // TODO: can it be made nicer?
 pub type NymNodeHTTPServer = Server<AddrIncoming, IntoMakeService<Router>>;
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct Config {
     pub landing: landing_page::Config,
     pub policy: policy::Config,
@@ -32,24 +32,20 @@ pub struct Config {
 }
 
 pub struct NymNodeRouter {
-    // landing_page_assets: Option<PathBuf>,
     inner: Router,
 }
 
 impl NymNodeRouter {
     pub fn new(config: Config) -> NymNodeRouter {
-        /*
-        .merge(SwaggerUi::new("/swagger-ui")
-        .url("/api-docs/openapi.json", ApiDoc::openapi()));
-        */
-        use utoipa::OpenApi;
+        let state = AppState::new(config.api.v1_config.build_information.clone());
+
         NymNodeRouter {
             inner: Router::new()
                 .nest(routes::LANDING_PAGE, landing_page::routes(config.landing))
                 .nest(routes::POLICY, policy::routes(config.policy))
                 .nest(routes::API, api::routes(config.api))
                 .layer(axum::middleware::from_fn(logging::logger))
-                .with_state(AppState::new_dummy()),
+                .with_state(state),
         }
     }
 

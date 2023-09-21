@@ -8,11 +8,12 @@ use clap::{crate_name, crate_version, Parser};
 use colored::Colorize;
 use lazy_static::lazy_static;
 use log::error;
-use nym_bin_common::bin_info;
 use nym_bin_common::logging::{maybe_print_banner, setup_logging};
 use nym_bin_common::output_format::OutputFormat;
+use nym_bin_common::{bin_info, bin_info_owned};
 use nym_network_defaults::setup_env;
 use std::error::Error;
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
 mod commands;
 mod config;
@@ -49,10 +50,21 @@ struct Cli {
 async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     setup_logging();
 
-    let config = nym_node::http::Config::default();
+    let config = nym_node::http::Config {
+        landing: Default::default(),
+        policy: Default::default(),
+        api: nym_node::http::api::Config {
+            v1_config: nym_node::http::api::v1::Config {
+                build_information: bin_info_owned!(),
+                gateway: Default::default(),
+                mixnide: Default::default(),
+                network_requester: Default::default(),
+            },
+        },
+    };
     let mut router = nym_node::http::NymNodeRouter::new(config);
 
-    let address = "127.0.0.1:12345".parse().unwrap();
+    let address = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 12345);
     let server = router.build_server(&address)?;
     server.await?;
 

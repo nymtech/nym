@@ -11,4 +11,7 @@ pub enum NymNodeError {
         bind_address: SocketAddr,
         source: hyper::Error,
     },
+
+    #[error("unimplemented")]
+    Unimplemented,
 }

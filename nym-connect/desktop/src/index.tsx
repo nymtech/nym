@@ -7,7 +7,6 @@ import { ClientContextProvider } from './context/main';
 import { ErrorFallback } from './components/Error';
 import { NymMixnetTheme } from './theme';
 import { AppWindowFrame } from './components/AppWindowFrame';
-import { TestAndEarnContextProvider } from './components/Growth/context/TestAndEarnContext';
 import { AppRoutes } from './routes';
 
 const elem = document.getElementById('root');

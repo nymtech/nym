@@ -1,5 +1,5 @@
 import React from 'react';
-import ReactDOM from 'react-dom';
+import { createRoot } from 'react-dom/client';
 import { ErrorBoundary } from 'react-error-boundary';
 import { LogViewer } from './components/LogViewer';
 import { ErrorFallback } from './components/ErrorFallback';
@@ -13,6 +13,9 @@ const Log = () => (
   </ErrorBoundary>
 );
 
-const root = document.getElementById('root-log');
+const elem = document.getElementById('root-log');
 
-ReactDOM.render(<Log />, root);
+if (elem) {
+  const root = createRoot(elem);
+  root.render(<Log />);
+}

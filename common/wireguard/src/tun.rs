@@ -257,16 +257,18 @@ impl WireGuardTunnel {
     async fn handle_routine_tun_result<'a: 'async_recursion>(&self, result: TunnResult<'a>) {
         match result {
             TunnResult::WriteToNetwork(packet) => {
-                info!(
-                    "Sending routine packet of {} bytes to WireGuard endpoint",
+                log::info!(
+                    "routine: write to network: {}: {}",
+                    self.endpoint,
                     packet.len()
                 );
                 if let Err(err) = self.udp.send_to(packet, self.endpoint).await {
-                    error!("Failed to send routine packet to WireGuard endpoint: {err:?}",);
+                    error!("routine: failed to send packet: {err:?}");
                 };
             }
             TunnResult::Err(WireGuardError::ConnectionExpired) => {
                 warn!("Wireguard handshake has expired!");
+                // WIP(JON): consider just closing the tunnel here
                 let mut buf = vec![0u8; MAX_PACKET];
                 let Ok(mut peer) = self.wg_tunnel_lock().await else {
                     warn!("Failed to lock WireGuard peer, closing tunnel");

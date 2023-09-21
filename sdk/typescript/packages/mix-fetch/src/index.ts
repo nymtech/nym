@@ -22,10 +22,20 @@ declare global {
  * @param opts Optional settings
  */
 export const createMixFetch = async (opts?: SetupMixFetchOps) => {
+  if (!window) {
+    throw new Error('`window` is not defined');
+  }
+
   if (!window.__mixFetchGlobal) {
     // load the worker and set up mixFetch with defaults
     window.__mixFetchGlobal = await createMixFetchInternal();
     await window.__mixFetchGlobal.setupMixFetch(opts);
+
+    window.onunload = async () => {
+      if (window.__mixFetchGlobal) {
+        await window.__mixFetchGlobal.disconnectMixFetch();
+      }
+    };
   }
   return window.__mixFetchGlobal;
 };
@@ -54,6 +64,10 @@ export const mixFetch: IMixFetchFn = async (url, args, opts?: SetupMixFetchOps) 
  * Stops the usage of mixFetch and disconnect the client from the mixnet.
  */
 export const disconnectMixFetch = async (): Promise<void> => {
+  if (!window) {
+    throw new Error('`window` is not defined');
+  }
+
   // JS: I'm ignoring this lint (no-else-return) because I want to explicitly state
   // that `__mixFetchGlobal` is definitely not null in the else branch.
   if (!window.__mixFetchGlobal) {
@@ -61,11 +75,5 @@ export const disconnectMixFetch = async (): Promise<void> => {
     // eslint-disable-next-line no-else-return
   } else {
     return window.__mixFetchGlobal.disconnectMixFetch();
-  }
-};
-
-window.onunload = async () => {
-  if (window.__mixFetchGlobal) {
-    await window.__mixFetchGlobal.disconnectMixFetch();
   }
 };

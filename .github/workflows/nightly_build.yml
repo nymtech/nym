@@ -3,6 +3,7 @@ name: Nightly builds
 on:
   schedule:
     - cron: '14 1 * * *'
+  workflow_dispatch:
 jobs:
   matrix_prep:
     runs-on: ubuntu-20.04

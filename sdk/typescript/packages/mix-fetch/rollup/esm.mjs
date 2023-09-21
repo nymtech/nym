@@ -23,12 +23,16 @@ export const getConfig = (opts) => ({
     replace({
       // when loading the web worker as a full ES module, tell pass `new Worker({ type: 'module'})` to tell
       // the browser to load and allow imports inside the worker code. Also load as a URL so relative paths work.
-      values: opts.inline
-        ? undefined
-        : {
-            "createURLWorkerFactory('web-worker-0.js')":
-              "createURLWorkerFactory(new URL('web-worker-0.js', import.meta.url))",
-          },
+      // values: opts.inline
+      //   ? undefined
+      //   : {
+      //       "createURLWorkerFactory('web-worker-0.js')":
+      //         "createURLWorkerFactory(new URL('web-worker-0.js', import.meta.url))",
+      //     },
+      values: {
+        "createURLWorkerFactory('web-worker-0.js')":
+          "createURLWorkerFactory(new URL('web-worker-0.js', import.meta.url))",
+      },
       delimiters: ['', ''],
       preventAssignment: true,
     }),

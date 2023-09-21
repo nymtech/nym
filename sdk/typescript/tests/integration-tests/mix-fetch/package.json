@@ -1,0 +1,8 @@
+{
+  "name": "mix-fetch-tests-runner",
+  "version": "1.0.0",
+  "dependencies": {
+    "serve-handler": "^6.1.5",
+    "puppeteer": "^21.1.1"
+  }
+}

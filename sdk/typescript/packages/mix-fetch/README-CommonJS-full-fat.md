@@ -5,11 +5,9 @@ This package is a drop-in replacement for `fetch` to send HTTP requests over the
 ## Usage
 
 ```js
-const { createMixFetch } = require('@nymproject/mix-fetch');
+const { mixFetch } = require('@nymproject/mix-fetch');
 
 ...
-
-const mixFetch = await createMixFetch();
 
 const response = await mixFetch('https://nymtech.net');
 const html = await response.text();

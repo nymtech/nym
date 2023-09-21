@@ -23,7 +23,7 @@ async function main() {
   const accounts = await signer.getAccounts();
 
   // make a signing client for the Nym Mixnet contract on mainnet
-  const cosmWasmSigningClient = await SigningCosmWasmClient.connectWithSigner("rpc.nymtech.net:443", signer);
+  const cosmWasmSigningClient = await SigningCosmWasmClient.connectWithSigner("https://rpc.nymtech.net:443", signer);
   const client = new contracts.Mixnet.MixnetClient(cosmWasmSigningClient, accounts[0].address, 'n17srjznxl9dvzdkpwpw24gg668wc73val88a6m5ajg6ankwvz9wtst0cznr');
 
   // delegate 1 NYM to mixnode with id 100

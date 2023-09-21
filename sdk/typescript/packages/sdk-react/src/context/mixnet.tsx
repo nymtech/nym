@@ -52,7 +52,7 @@ export const MixnetContextProvider: FCWithChildren<{
     (async () => {
       nym.current = await createNymMixnetClient();
       if (nym.current?.events) {
-        nym.current.events.subscribeToConnected((e) => {
+        nym.current.events.subscribeToConnected((e: any) => {
           setAddress(e.args.address);
           setReady(true);
         });
@@ -64,11 +64,16 @@ export const MixnetContextProvider: FCWithChildren<{
             nymApiUrl,
             preferredGatewayIdentityKey,
           })
-          .catch((e) => console.error('Failed to start client', e));
+          .catch((e: any) => console.error('Failed to start client', e));
       }
     })();
 
-    //
+    // on unmount stop the client
+    return () => {
+      if (nym.current) {
+        nym.current.client.stop();
+      }
+    };
   }, []);
 
   const sendTextMessage = async (args: { payload: string; recipient: string }) => {

@@ -1,6 +1,6 @@
 {
   "name": "@nymproject/mix-fetch",
-  "version": "1.2.0-rc.2",
+  "version": "1.2.0-rc.5",
   "description": "This package is a drop-in replacement for `fetch` to send HTTP requests over the Nym Mixnet.",
   "license": "Apache-2.0",
   "author": "Nym Technologies SA",
@@ -17,6 +17,7 @@
     "build:dev:esm": "MIX_FETCH_DEV_MODE=true scripts/build-dev-esm.sh",
     "build:dev:esm-no-inline": "scripts/build-dev-esm.sh",
     "build:worker": "rollup -c rollup-worker.config.mjs",
+    "build:worker:full-fat": "rollup -c rollup-worker-full-fat.config.mjs",
     "clean": "rimraf dist",
     "docs:dev": "run-p docs:watch docs:serve ",
     "docs:generate": "typedoc",

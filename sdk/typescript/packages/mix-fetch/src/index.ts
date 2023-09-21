@@ -2,6 +2,9 @@
 import type { SetupMixFetchOps, IMixFetchFn, IMixFetch } from './types';
 import { createMixFetch as createMixFetchInternal } from './create-mix-fetch';
 
+// this is the default timeout for getting a response
+const REQUEST_TIMEOUT_MILLISECONDS = 60_000;
+
 export * from './types';
 
 declare global {
@@ -32,10 +35,16 @@ export const createMixFetch = async (opts?: SetupMixFetchOps) => {
  *
  * @param url  The URL to fetch from.
  * @param args Fetch options.
+ * @param opts Optionally configure mixFetch when it gets created. This only happens once, the first time it gets used.
  */
-export const mixFetch: IMixFetchFn = async (url, args) => {
+export const mixFetch: IMixFetchFn = async (url, args, opts?: SetupMixFetchOps) => {
   // ensure mixFetch instance exists
-  const instance = await createMixFetch();
+  const instance = await createMixFetch({
+    mixFetchOverride: {
+      requestTimeoutMs: REQUEST_TIMEOUT_MILLISECONDS,
+    },
+    ...opts,
+  });
 
   // execute user request
   return instance.mixFetch(url, args);

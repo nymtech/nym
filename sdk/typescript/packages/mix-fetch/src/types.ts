@@ -3,7 +3,7 @@ import type { MixFetchOpts } from '@nymproject/mix-fetch-wasm';
 type IMixFetchWorkerFn = (url: string, args: any) => Promise<MixFetchWebWorkerResponse>;
 
 // export type IMixFetchFn = typeof fetch;
-export type IMixFetchFn = (url: string, args: any) => Promise<Response>;
+export type IMixFetchFn = (url: string, args: any, opts?: SetupMixFetchOps) => Promise<Response>;
 
 export type SetupMixFetchOps = MixFetchOpts & {
   responseBodyConfigMap?: ResponseBodyConfigMap;
@@ -77,8 +77,8 @@ export interface ResponseBodyConfigMap {
  */
 export const ResponseBodyConfigMapDefaults: ResponseBodyConfigMap = {
   uint8array: ['application/octet-stream'],
-  json: ['application/json', 'text/json'],
-  text: ['text/plain', /test\/plain\+.*/, 'text/html', /test\/html\+.*/],
+  json: ['application/json', 'text/json', /application\/json.*/, /text\/json\+.*/],
+  text: ['text/plain', /text\/plain.*/, 'text/html', /text\/html.*/],
   formData: ['application/x-www-form-urlencoded', 'multipart/form-data'],
   blob: [/image\/.*/, /video\/.*/],
   fallback: 'blob',

@@ -22,6 +22,12 @@ console.log(`Replacing files in "${path.resolve(basePathToFindFilesIn)}"...`);
 
 Object.keys(replaceConfig).forEach((filename) => {
   const absFilename = path.resolve(basePathToFindFilesIn, filename);
+
+  if (!fs.existsSync(absFilename)) {
+    console.log(`Skipping replacing ${filename} as does not exist`);
+    return;
+  }
+
   const content = fs.readFileSync(absFilename).toString();
 
   console.log(`Replacing values in "${absFilename}"...`);

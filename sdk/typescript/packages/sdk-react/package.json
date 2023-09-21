@@ -1,6 +1,6 @@
 {
   "name": "@nymproject/sdk-react",
-  "version": "1.2.0-rc.2",
+  "version": "1.2.0-rc.5",
   "license": "Apache-2.0",
   "author": "Nym Technologies SA",
   "files": [
@@ -8,7 +8,8 @@
   ],
   "browser": "dist/index.js",
   "scripts": {
-    "build": "tsc --noEmit false",
+    "build:old": "./scripts/build.sh",
+    "build:tsc": "tsc --noEmit false",
     "clean": "rimraf dist",
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
@@ -19,7 +20,7 @@
     "tsc": "tsc --noEmit true"
   },
   "dependencies": {
-    "@nymproject/sdk": ">=1.2.0-rc.1 || ^1"
+    "@nymproject/sdk": ">=1.2.0-rc.2 || ^1"
   },
   "devDependencies": {
     "@babel/core": "^7.17.5",

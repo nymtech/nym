@@ -26,7 +26,7 @@ yarn start
 Or do a single build:
 
 ```
-yarn build:dev:esm
+yarn build:dev:esm-no-inline
 ```
 
 Then, in another terminal:

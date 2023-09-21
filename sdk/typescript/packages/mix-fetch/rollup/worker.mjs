@@ -5,12 +5,19 @@ import replace from '@rollup/plugin-replace';
 
 const extensions = ['.js', '.jsx', '.ts', '.tsx'];
 
-export default {
+/**
+ * Configure worker output
+ *
+ * @param opts
+ *      `format`: `es` or `cjs`,
+ *      `inlineWasm`: true or false,
+ *      `tsTarget`: `es5` or `es6`
+ */
+export const getConfig = (opts) => ({
   input: 'src/worker/index.ts',
   output: {
     dir: 'dist',
-    format: process.env.MIX_FETCH_BUNDLE_INLINE_WORKER === true ? 'cjs' : 'es',
-    // format: 'cjs',
+    format: opts?.format || 'es',
   },
   plugins: [
     resolve({ extensions }),
@@ -20,18 +27,17 @@ export default {
       delimiters: ['', ''],
       preventAssignment: true,
     }),
-    wasm({
-      targetEnv: 'browser',
-      fileName: '[name].wasm',
-      // force the wasm plugin to embed the wasm bundle - this means no downstream bundlers have to worry about handling it
-      maxFileSize: process.env.MIX_FETCH_BUNDLE_INLINE_WASM === 'true' ? 10000000 : undefined,
-    }),
+    opts?.inlineWasm === true
+      ? wasm({ maxFileSize: 10_000_000, targetEnv: 'browser' }) // force the wasm plugin to embed the wasm bundle - this means no downstream bundlers have to worry about handling it
+      : wasm({
+          targetEnv: 'browser',
+          fileName: '[name].wasm',
+        }),
     typescript({
       compilerOptions: {
         declaration: false,
-        target: process.env.MIX_FETCH_BUNDLE_INLINE_WORKER === true ? 'es5' : 'es6',
-        // target: 'es5',
+        target: opts?.tsTarget || 'es6',
       },
     }),
   ],
-};
+});

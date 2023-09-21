@@ -1,14 +1,9 @@
 # Nym SDK (Typescript) CommonJS and ES5
 
-```
-⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠
-⚠ WARNING: ES5 & CommonJS ⚠
-⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠⚠
-```
+#### ⚠ WARNING: ES5 & CommonJS that requires bundling ⚠
+#### Please note: this is a CommonJS package targeting ES5. Use this for older projects that can't process `import` syntax. You will need to handle bundling of the web-workers and WASM.
 
-### Please note: this is a CommonJS package targeting ES5. Use this for older projects or when you have bundling issues
-
-If you are looking for an ESM version please use https://www.npmjs.com/package/@nymproject/sdk.
+{{>variants}}
 
 ----------------------------
 
@@ -24,8 +19,8 @@ npm install @nymproject/sdk-commonjs
 
 Open a connection to a Gateway on the Nym Mixnet:
 
-```ts
-import { createNymMixnetClient } from '@nymproject/sdk-commonjs';
+```js
+const { createNymMixnetClient } = require('@nymproject/sdk-commonjs');
 
 const main = async () => {
   const nym = await createNymMixnetClient();

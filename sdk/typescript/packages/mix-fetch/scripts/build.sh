@@ -31,6 +31,9 @@ mv dist/*.wasm dist/worker
 # build the SDK as a ESM bundle
 rollup -c rollup-esm.config.mjs
 
+# move WASM files into place
+cp dist/worker/*.wasm dist/esm
+
 #-------------------------------------------------------
 # COMMON JS
 #-------------------------------------------------------
@@ -41,8 +44,23 @@ rollup -c rollup-esm.config.mjs
 rollup -c rollup-cjs.config.mjs
 
 # move WASM files into place
-cp dist/worker/*.wasm dist/esm
+cp dist/worker/*.wasm dist/cjs
 node scripts/postBuildReplace.mjs dist
+
+#-------------------------------------------------------
+# WEB WORKER (full-fat)
+#-------------------------------------------------------
+
+# build the worker
+rollup -c rollup-worker-full-fat.config.mjs
+
+# move it next to the Typescript `src/index.ts` so it can be inlined by rollup
+rm -f src/worker/*.js
+rm -f src/worker/*.wasm
+mv dist/index.js src/worker/worker.js
+
+# move WASM files out of build area
+mkdir -p dist/worker
 
 #-------------------------------------------------------
 # ESM (full-fat)

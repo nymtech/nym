@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-const RUST_WASM_URL = "nym_mix_fetch_bg.wasm"
-const GO_WASM_URL = "main.wasm"
+const RUST_WASM_URL = "mix_fetch_wasm_bg.wasm"
+const GO_WASM_URL = "go_conn.wasm"
 
-importScripts('nym_mix_fetch.js');
+importScripts('mix_fetch_wasm.js');
 importScripts('wasm_exec.js');
 
 console.log('Initializing worker');
@@ -159,7 +159,15 @@ async function nativeSetup() {
         requestTimeoutMs: 10000
     }
 
-    await setupMixFetch(mixFetchNetworkRequesterAddress, { storagePassphrase: "foomp", nymApiUrl: validator, clientId: "my-client", clientOverride: noCoverTrafficOverride, mixFetchOverride })
+    await setupMixFetch({
+        // preferredNetworkRequester,
+        storagePassphrase: "foomp",
+        // forceTls: true,
+        // nymApiUrl: validator,
+        clientId: "my-client",
+        clientOverride: noCoverTrafficOverride,
+        mixFetchOverride
+    })
 }
 
 async function testMixFetch() {
@@ -179,17 +187,8 @@ async function testMixFetch() {
                     const {target} = event.data.args;
                     const url = target;
 
-                    const controller = new AbortController();
-                    const signal = controller.signal;
-
-                    const args = { mode: "cors", redirect: "manual", signal }
+                    const args = { mode: "cors", redirect: "manual" }
                     // const args = { mode: "unsafe-ignore-cors" }
-
-                    setTimeout(() => {
-                        console.warn("timeout")
-                        controller.abort()
-                    }, 10000)
-
 
                     try {
                         console.log('using mixFetch...');

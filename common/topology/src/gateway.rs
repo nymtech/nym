@@ -69,6 +69,10 @@ impl Node {
     pub fn clients_address(&self) -> String {
         format!("ws://{}:{}", self.host, self.clients_port)
     }
+
+    pub fn clients_address_tls(&self) -> String {
+        format!("wss://{}:{}", self.host, self.clients_port)
+    }
 }
 
 impl fmt::Display for Node {

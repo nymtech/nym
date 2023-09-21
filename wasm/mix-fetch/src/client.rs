@@ -43,6 +43,7 @@ pub struct MixFetchClient {
 pub struct MixFetchClientBuilder {
     config: MixFetchConfig,
     preferred_gateway: Option<IdentityKey>,
+    force_tls: bool,
 
     storage_passphrase: Option<String>,
 }
@@ -52,12 +53,14 @@ impl MixFetchClientBuilder {
     #[wasm_bindgen(constructor)]
     pub fn new(
         config: MixFetchConfig,
+        force_tls: bool,
         preferred_gateway: Option<IdentityKey>,
         storage_passphrase: Option<String>,
     ) -> Self {
         MixFetchClientBuilder {
             config,
             preferred_gateway,
+            force_tls,
             storage_passphrase,
         }
     }
@@ -91,8 +94,14 @@ impl MixFetchClientBuilder {
                 .await?;
 
         let user_chosen = self.preferred_gateway.clone();
-        let init_res =
-            setup_gateway_from_api(&client_store, user_chosen, &nym_api_endpoints).await?;
+        let init_res = setup_gateway_from_api(
+            &client_store,
+            self.force_tls,
+            user_chosen,
+            &nym_api_endpoints,
+        )
+        .await?;
+
         let storage = Self::initialise_storage(&self.config, client_store);
 
         let mut base_builder = BaseClientBuilder::<QueryReqwestRpcNyxdClient, _>::new(
@@ -131,10 +140,11 @@ impl MixFetchClientBuilder {
 impl MixFetchClient {
     pub(crate) async fn new_async(
         config: MixFetchConfig,
+        force_tls: bool,
         preferred_gateway: Option<IdentityKey>,
         storage_passphrase: Option<String>,
     ) -> Result<MixFetchClient, MixFetchError> {
-        MixFetchClientBuilder::new(config, preferred_gateway, storage_passphrase)
+        MixFetchClientBuilder::new(config, force_tls, preferred_gateway, storage_passphrase)
             .start_client_async()
             .await
     }
@@ -143,11 +153,12 @@ impl MixFetchClient {
     #[allow(clippy::new_ret_no_self)]
     pub fn new(
         config: MixFetchConfig,
+        force_tls: bool,
         preferred_gateway: Option<IdentityKey>,
         storage_passphrase: Option<String>,
     ) -> Promise {
         future_to_promise(async move {
-            Self::new_async(config, preferred_gateway, storage_passphrase)
+            Self::new_async(config, force_tls, preferred_gateway, storage_passphrase)
                 .await
                 .into_promise_result()
         })

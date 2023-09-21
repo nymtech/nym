@@ -178,18 +178,20 @@ impl<T> From<PersistedGatewayDetails<T>> for GatewayDetails<T> {
     }
 }
 
-#[derive(Clone, Default)]
+#[derive(Clone)]
 pub enum GatewaySelectionSpecification<T = EmptyCustomDetails> {
     /// Uniformly choose a random remote gateway.
-    #[default]
-    UniformRemote,
+    UniformRemote { must_use_tls: bool },
 
     /// Should the new, remote, gateway be selected based on latency.
-    RemoteByLatency,
+    RemoteByLatency { must_use_tls: bool },
 
     /// Gateway with this specific identity should be chosen.
     // JS: I don't really like the name of this enum variant but couldn't think of anything better at the time
-    Specified { identity: IdentityKey },
+    Specified {
+        must_use_tls: bool,
+        identity: IdentityKey,
+    },
 
     // TODO: this doesn't really fit in here..., but where else to put it?
     /// This client has handled the selection by itself
@@ -199,14 +201,29 @@ pub enum GatewaySelectionSpecification<T = EmptyCustomDetails> {
     },
 }
 
+impl<T> Default for GatewaySelectionSpecification<T> {
+    fn default() -> Self {
+        GatewaySelectionSpecification::UniformRemote {
+            must_use_tls: false,
+        }
+    }
+}
+
 impl<T> GatewaySelectionSpecification<T> {
-    pub fn new(gateway_identity: Option<String>, latency_based_selection: Option<bool>) -> Self {
+    pub fn new(
+        gateway_identity: Option<String>,
+        latency_based_selection: Option<bool>,
+        must_use_tls: bool,
+    ) -> Self {
         if let Some(identity) = gateway_identity {
-            GatewaySelectionSpecification::Specified { identity }
+            GatewaySelectionSpecification::Specified {
+                identity,
+                must_use_tls,
+            }
         } else if let Some(true) = latency_based_selection {
-            GatewaySelectionSpecification::RemoteByLatency
+            GatewaySelectionSpecification::RemoteByLatency { must_use_tls }
         } else {
-            GatewaySelectionSpecification::UniformRemote
+            GatewaySelectionSpecification::UniformRemote { must_use_tls }
         }
     }
 }
@@ -238,25 +255,6 @@ pub enum GatewaySetup<T = EmptyCustomDetails> {
 }
 
 impl<T> GatewaySetup<T> {
-    // pub fn new_fresh(
-    //     gateway_identity: Option<String>,
-    //     latency_based_selection: Option<bool>,
-    //     gateways: Vec<gateway::Node>,
-    //     can_overwrite: bool,
-    // ) -> Self {
-    //     if let Some(gateway_identity) = gateway_identity {
-    //         GatewaySetup::Specified { gateway_identity }
-    //     } else {
-    //         let specification = if let Some(true) = latency_based_selection {
-    //             GatewaySelectionSpecification::RemoteByLatency
-    //         } else {
-    //             GatewaySelectionSpecification::UniformRemote
-    //         };
-    //
-    //         GatewaySetup::New { specification }
-    //     }
-    // }
-
     pub fn try_reuse_connection(
         init_res: InitialisationResult<T>,
     ) -> Result<Self, ClientCoreError> {

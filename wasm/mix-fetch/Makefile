@@ -2,6 +2,10 @@ build: build-go-opt build-rust build-package-json
 
 check-fmt: check-fmt-go check-fmt-rust
 
+build-debug-dev:
+	wasm-pack build --scope nymproject --target no-modules
+	$(MAKE) -C go-mix-conn build-debug-dev
+
 build-go:
 	$(MAKE) -C go-mix-conn build-go
 

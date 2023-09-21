@@ -37,6 +37,11 @@ pub struct NymNodeRouter {
 
 impl NymNodeRouter {
     pub fn new(config: Config) -> NymNodeRouter {
+        /*
+        .merge(SwaggerUi::new("/swagger-ui")
+        .url("/api-docs/openapi.json", ApiDoc::openapi()));
+        */
+        use utoipa::OpenApi;
         NymNodeRouter {
             inner: Router::new()
                 .nest(routes::LANDING_PAGE, landing_page::routes(config.landing))

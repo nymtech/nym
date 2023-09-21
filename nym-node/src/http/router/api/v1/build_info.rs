@@ -5,7 +5,17 @@ use crate::http::router::api::Output;
 use axum::extract::Query;
 use axum::response::IntoResponse;
 
-pub async fn build_info(output: Query<Option<Output>>) -> impl IntoResponse {
+#[utoipa::path(
+    get,
+    path = "/",
+    responses(
+        (status=200, description ="", body = ())
+    ),
+    params(
+        ("output" = Option<Output>, Query, description = "")
+    )
+)]
+pub async fn build_info(Query(output): Query<Option<Output>>) -> impl IntoResponse {
     let output = output.unwrap_or_default();
 
     todo!()

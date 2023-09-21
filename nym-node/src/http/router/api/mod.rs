@@ -11,6 +11,7 @@ pub mod v1;
 
 pub(crate) mod routes {
     pub(crate) const V1: &str = "/v1";
+    pub(crate) const SWAGGER: &str = "/swagger";
 }
 
 #[derive(Debug, Clone, Default)]
@@ -20,6 +21,8 @@ pub struct Config {
 
 pub(super) fn routes(config: Config) -> Router {
     Router::new().nest_service(routes::V1, v1::routes(config.v1_config))
+    // .nest(routes::SWAGGER, openapi::route())
+    // .nest(routes::SWAGGER, openapi::route())
 }
 
 #[derive(Default, Debug, Serialize, Deserialize, Copy, Clone)]

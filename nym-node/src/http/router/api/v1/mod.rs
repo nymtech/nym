@@ -11,6 +11,7 @@ pub mod build_info;
 pub mod gateway;
 pub mod mixnode;
 pub mod network_requester;
+pub mod openapi;
 pub mod roles;
 
 pub(crate) mod routes {
@@ -39,4 +40,5 @@ pub(super) fn routes(config: Config) -> Router {
         )
         .route(routes::BUILD_INFO, get(build_info))
         .route(routes::ROLES, get(roles))
+        .merge(openapi::route())
 }

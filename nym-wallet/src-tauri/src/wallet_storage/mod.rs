@@ -425,6 +425,20 @@ fn remove_account_from_login_at_file(
     }
 }
 
+/// Rename an account inside the encrypted login.
+/// - If the encrypted login is just a single account, abort to be on the safe side.
+/// - If the name already exists, abort.
+pub(crate) fn rename_account_in_login(
+    id: &LoginId,
+    account_id: &AccountId,
+    new_account_id: &AccountId,
+    password: &UserPassword,
+) -> Result<(), BackendError> {
+    let store_dir = get_storage_directory()?;
+    let filepath = store_dir.join(WALLET_INFO_FILENAME);
+    rename_account_in_login_at_file(&filepath, id, account_id, new_account_id, password)
+}
+
 fn rename_account_in_login_at_file(
     filepath: &Path,
     id: &LoginId,

@@ -1513,8 +1513,60 @@ mod tests {
         .unwrap();
 
         assert!(matches!(
-            append_account_to_login_at_file(&wallet_file, account1, hd_path, id1, id2, &password,),
+            append_account_to_login_at_file(&wallet_file, account1, hd_path, id1, id2, &password),
             Err(BackendError::WalletMnemonicAlreadyExistsInWalletLogin),
+        ))
+    }
+
+    #[test]
+    fn append_the_same_account_name_twice_fails() {
+        let _ = pretty_env_logger::init();
+
+        let store_dir = tempdir().unwrap();
+        let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
+        let mnemonic1 = Mnemonic::generate(24).unwrap();
+        let mnemonic2 = Mnemonic::generate(24).unwrap();
+        let mnemonic3 = Mnemonic::generate(24).unwrap();
+        let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
+        let password = UserPassword::new("password".to_string());
+        // The top-level login id. NOTE: the first account id is always set to default.
+        let login_id = LoginId::new("my_login_id".to_string());
+
+        // Store the first account under login_id. The first account id is always set to default
+        // name.
+        store_login_with_multiple_accounts_at_file(
+            &wallet_file,
+            mnemonic1.clone(),
+            hd_path.clone(),
+            login_id.clone(),
+            &password,
+        )
+        .unwrap();
+
+        // Append another account (account2) to the same login (login_id)
+        let account2 = AccountId::new("account_2".to_string());
+
+        append_account_to_login_at_file(
+            &wallet_file,
+            mnemonic2.clone(),
+            hd_path.clone(),
+            login_id.clone(),
+            account2.clone(),
+            &password,
+        )
+        .unwrap();
+
+        // Appending the third account, with same account id will fail
+        assert!(matches!(
+            append_account_to_login_at_file(
+                &wallet_file,
+                mnemonic3.clone(),
+                hd_path,
+                login_id,
+                account2,
+                &password,
+            ),
+            Err(BackendError::WalletAccountIdAlreadyExistsInWalletLogin),
         ))
     }
 

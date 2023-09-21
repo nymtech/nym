@@ -1563,8 +1563,6 @@ mod tests {
 
     #[test]
     fn append_the_same_account_name_twice_fails() {
-        let _ = pretty_env_logger::init();
-
         let store_dir = tempdir().unwrap();
         let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
         let mnemonic1 = Mnemonic::generate(24).unwrap();

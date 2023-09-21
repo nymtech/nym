@@ -42,3 +42,24 @@ root CA certificate you need in our list. [Send us a PR](https://github.com/nymt
 3. If you are using `mixFetch` in a web app with HTTPS you will need to use a gateway that has Secure Websockets to
 avoid getting a [mixed content](https://developer.mozilla.org/en-US/docs/Web/Security/Mixed_content) error.
 
+4. Workaround for Mixed Content Errors because you might be using `mixFetch` from web app served from HTTPS while
+connecting a gateway that only listens on a plain websocket, without HTTPS/TLS.
+
+We are currently working on a feature that adds a Secure Websocket (WSS) listener with HTTPS (automatically generated with LetsEncrypt) to Nym's
+gateways.
+
+While we are adding this feature, you can use a gateway that has Caddy providing HTTPS/WSS by adding this to the options when settings up `mixFetch`:
+
+```ts
+import type { SetupMixFetchOps } from '@nymproject/mix-fetch';
+
+const mixFetchOptions: SetupMixFetchOps = {
+  preferredGateway: 'E3mvZTHQCdBvhfr178Swx9g4QG3kkRUun7YnToLMcMbM', // with WSS
+  preferredNetworkRequester:
+  'GiRjFWrMxt58pEMuusm4yT3RxoMD1MMPrR9M2N4VWRJP.3CNZBPq4vg7v7qozjGjdPMXcvDmkbWPCgbGCjQVw9n6Z@2xU4CBE6QiiYt6EyBXSALwxkNvM7gqJfjHXaMkjiFmYW',
+  mixFetchOverride: {
+    requestTimeoutMs: 60_000,
+  },
+  forceTls: true, // force WSS
+};
+```

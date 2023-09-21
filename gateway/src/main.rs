@@ -17,6 +17,7 @@ use std::error::Error;
 mod commands;
 mod config;
 pub(crate) mod error;
+mod http;
 mod node;
 pub(crate) mod support;
 
@@ -46,22 +47,35 @@ struct Cli {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
-    let args = Cli::parse();
-    setup_env(args.config_env_file.as_ref());
-
-    if !args.no_banner {
-        maybe_print_banner(crate_name!(), crate_version!());
-    }
     setup_logging();
 
-    commands::execute(args).await.map_err(|err| {
-        if atty::is(atty::Stream::Stdout) {
-            let error_message = format!("{err}").red();
-            error!("{error_message}");
-            error!("Exiting...");
-        }
-        err
-    })
+    let config = nym_node::http::Config::default();
+    let mut router = nym_node::http::NymNodeRouter::new(config);
+
+    let address = "127.0.0.1:12345".parse().unwrap();
+    let server = router.build_server(&address)?;
+    server.await?;
+
+    Ok(())
+
+    //
+    //
+    // let args = Cli::parse();
+    // setup_env(args.config_env_file.as_ref());
+    //
+    // if !args.no_banner {
+    //     maybe_print_banner(crate_name!(), crate_version!());
+    // }
+    // setup_logging();
+    //
+    // commands::execute(args).await.map_err(|err| {
+    //     if atty::is(atty::Stream::Stdout) {
+    //         let error_message = format!("{err}").red();
+    //         error!("{error_message}");
+    //         error!("Exiting...");
+    //     }
+    //     err
+    // })
 }
 
 #[cfg(test)]

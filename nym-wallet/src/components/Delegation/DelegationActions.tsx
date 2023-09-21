@@ -46,7 +46,7 @@ export const DelegationActions: FCWithChildren<{
           <Undelegate fontSize="small" />
         </Button>
       </Tooltip>
-      <Tooltip title={disableRedeemingRewards ? 'There are no rewards to redeem' : 'Redeem rewards'} arrow>
+      <Tooltip title={disableRedeemingRewards ? 'There are no rewards to claim' : 'Claim rewards'} arrow>
         <span>
           <Button
             disabled={disableRedeemingRewards}
@@ -55,7 +55,7 @@ export const DelegationActions: FCWithChildren<{
             color="secondary"
             sx={{ maxWidth: BUTTON_SIZE, minWidth: BUTTON_SIZE, height: BUTTON_SIZE, padding: 0 }}
           >
-            R
+            C
           </Button>
         </span>
       </Tooltip>
@@ -89,9 +89,9 @@ export const DelegationsActionsMenu: FCWithChildren<{
       />
       <ActionsMenuItem title="Undelegate" Icon={<Undelegate />} onClick={() => handleActionSelect('undelegate')} />
       <ActionsMenuItem
-        title="Redeem"
+        title="Claim rewards"
         description="Transfer your rewards to your balance"
-        Icon={<Typography sx={{ pl: 1, fontWeight: 700 }}>R</Typography>}
+        Icon={<Typography sx={{ pl: 1, fontWeight: 700 }}>C</Typography>}
         onClick={() => handleActionSelect('redeem')}
         disabled={disableRedeemingRewards}
       />

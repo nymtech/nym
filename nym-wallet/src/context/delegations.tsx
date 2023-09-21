@@ -25,6 +25,7 @@ export type TDelegationContext = {
   pendingDelegations?: WrappedDelegationEvent[];
   totalDelegations?: string;
   totalRewards?: string;
+  totalDelegationsAndRewards?: string;
   refresh: () => Promise<void>;
   addDelegation: (
     data: { mix_id: number; amount: DecCoin },
@@ -71,6 +72,7 @@ export const DelegationContextProvider: FC<{
   const [delegations, setDelegations] = useState<undefined | TDelegations>();
   const [totalDelegations, setTotalDelegations] = useState<undefined | string>();
   const [totalRewards, setTotalRewards] = useState<undefined | string>();
+  const [totalDelegationsAndRewards, setTotalDelegationsAndRewards] = useState<undefined | string>();
   const [pendingDelegations, setPendingDelegations] = useState<WrappedDelegationEvent[]>();
 
   const addDelegation = async (data: { mix_id: number; amount: DecCoin }, tokenPool: TPoolOption, fee?: FeeDetails) => {
@@ -109,10 +111,13 @@ export const DelegationContextProvider: FC<{
         },
       }));
 
+      const delegationsAndRewards = (+data.total_delegations.amount + +data.total_rewards.amount).toFixed(6);
+
       setPendingDelegations(pending);
       setDelegations([...items, ...pendingOnNewNodes]);
       setTotalDelegations(`${data.total_delegations.amount} ${data.total_delegations.denom}`);
       setTotalRewards(`${data.total_rewards.amount} ${data.total_rewards.denom}`);
+      setTotalDelegationsAndRewards(`${delegationsAndRewards} ${data.total_delegations.denom}`);
     } catch (e) {
       Console.error(e);
     }
@@ -130,12 +135,13 @@ export const DelegationContextProvider: FC<{
       pendingDelegations,
       totalDelegations,
       totalRewards,
+      totalDelegationsAndRewards,
       refresh,
       addDelegation,
       undelegate: undelegateFromMixnode,
       undelegateVesting: vestingUndelegateFromMixnode,
     }),
-    [isLoading, delegations, pendingDelegations, totalDelegations],
+    [isLoading, delegations, pendingDelegations, totalDelegations, totalRewards, totalDelegationsAndRewards],
   );
 
   return <DelegationContext.Provider value={memoizedValue}>{children}</DelegationContext.Provider>;

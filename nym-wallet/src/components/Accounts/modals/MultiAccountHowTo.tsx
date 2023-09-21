@@ -19,7 +19,6 @@ export const MultiAccountHowTo = ({ show, handleClose }: { show: boolean; handle
             In order to import or create account(s) you need to log in with password
           </Typography>
         }
-        bgColor="#fff"
       />
       <Typography>
         If you don’t have a password set for your account, go to the Settings, under Security tab create a password

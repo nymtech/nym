@@ -22,7 +22,7 @@ interface EnhancedTableProps {
 
 interface HeadCell {
   id: string;
-  label: string;
+  label: string | React.ReactNode;
   sortable: boolean;
   disablePadding?: boolean;
   align: 'left' | 'center' | 'right';
@@ -34,7 +34,12 @@ const headCells: HeadCell[] = [
   { id: 'profit_margin_percent', label: 'Profit margin', sortable: true, align: 'left' },
   { id: 'operating_cost', label: 'Operating Cost', sortable: true, align: 'left' },
   { id: 'stake_saturation', label: 'Stake saturation', sortable: true, align: 'left' },
-  { id: 'delegated_on_iso_datetime', label: 'Delegated on', sortable: true, align: 'left' },
+  {
+    id: 'delegated_on_iso_datetime',
+    label: 'Delegated on',
+    sortable: true,
+    align: 'left',
+  },
   { id: 'amount', label: 'Delegation', sortable: true, align: 'left' },
   { id: 'unclaimed_rewards', label: 'Reward', sortable: true, align: 'left' },
   { id: 'uses_locked_tokens', label: '', sortable: false, align: 'left' },

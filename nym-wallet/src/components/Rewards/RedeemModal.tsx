@@ -47,7 +47,7 @@ export const RedeemModal: FCWithChildren<{
       onOk={handleOk}
       header={message}
       subHeader="Rewards from delegations"
-      okLabel="Redeem rewards"
+      okLabel="Claim rewards"
       sx={sx}
       backdropProps={backdropProps}
     >

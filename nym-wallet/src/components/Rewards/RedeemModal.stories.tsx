@@ -82,7 +82,7 @@ export const RedeemRewardForMixnode = () => {
         open={open}
         onClose={() => setOpen(false)}
         onOk={async () => setOpen(false)}
-        message="Redeem rewards"
+        message="Claim rewards"
         denom="nym"
         mixId={1234}
         identityKey="D88RfeY8DttMD3CQKoayV6mss5a5FC3RoH75Kmcujaaa"
@@ -128,7 +128,7 @@ export const FeeIsMoreThanMixnodeReward = () => {
         onOk={async () => setOpen(false)}
         mixId={1234}
         identityKey="D88RfeY8DttMD3CQKoayV6mss5a5FC3RoH75Kmcujaaa"
-        message="Redeem rewards"
+        message="Claim rewards"
         denom="nym"
         amount={0.001}
         {...storybookStyles(theme)}

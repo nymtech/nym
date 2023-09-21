@@ -354,16 +354,18 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
                 Delegations
               </Typography>
               {!!delegations?.length && (
-                <Link
-                  href={`${urls(network).networkExplorer}/network-components/mixnodes/`}
-                  target="_blank"
-                  rel="noreferrer"
-                  text="Network Explorer"
-                  fontSize={14}
-                  fontWeight={theme.palette.mode === 'light' ? 400 : 600}
-                  noIcon
-                  marginTop={1.5}
-                />
+                <Stack marginTop={1.5} gap={0.5} direction="row" alignItems="center">
+                  <Typography fontSize={14}>Select nodes to delegate to using the</Typography>
+                  <Link
+                    href={`${urls(network).networkExplorer}/network-components/mixnodes/`}
+                    target="_blank"
+                    rel="noreferrer"
+                    text="network Explorer"
+                    fontSize={14}
+                    fontWeight={theme.palette.mode === 'light' ? 400 : 600}
+                    noIcon
+                  />
+                </Stack>
               )}
             </Box>
             {!!delegations?.length && (
@@ -445,7 +447,7 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
           open={showRedeemRewardsModal}
           onClose={() => setShowRedeemRewardsModal(false)}
           onOk={(mixId, identity, fee) => handleRedeem(mixId, identity, fee)}
-          message="Redeem rewards"
+          message="Claim rewards"
           denom={clientDetails?.display_mix_denom || 'nym'}
           mixId={currentDelegationListActionItem.mix_id}
           identityKey={currentDelegationListActionItem?.node_identity}

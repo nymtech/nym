@@ -253,7 +253,12 @@ pub(crate) async fn initialise_local_network_requester(
             path: nr_cfg_path.to_path_buf(),
             source: err,
         });
-    };
+    } else {
+        eprintln!(
+            "Saved network requester configuration file to {}",
+            nr_cfg_path.display()
+        )
+    }
 
     Ok(GatewayNetworkRequesterDetails {
         enabled: gateway_config.network_requester.enabled,

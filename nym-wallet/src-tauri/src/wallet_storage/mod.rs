@@ -425,6 +425,35 @@ fn remove_account_from_login_at_file(
     }
 }
 
+fn rename_account_in_login_at_file(
+    filepath: &Path,
+    id: &LoginId,
+    account_id: &AccountId,
+    new_account_id: &AccountId,
+    password: &UserPassword,
+) -> Result<(), BackendError> {
+    log::info!("Renaming associated account in login account: {id}");
+    let mut stored_wallet = load_existing_wallet_at_file(filepath)?;
+
+    let mut decrypted_login = stored_wallet.decrypt_login(id, password)?;
+
+    // Rename the account
+    match decrypted_login {
+        StoredLogin::Mnemonic(_) => {
+            log::warn!("Encountered mnemonic login instead of list of accounts, aborting");
+            return Err(BackendError::WalletUnexpectedMnemonicAccount);
+        }
+        StoredLogin::Multiple(ref mut accounts) => {
+            accounts.rename(account_id, new_account_id)?;
+        }
+    };
+
+    // Encrypt the new updated login and write to file
+    let encrypted_accounts = EncryptedLogin::encrypt(id.clone(), &decrypted_login, password)?;
+    stored_wallet.replace_encrypted_login(encrypted_accounts)?;
+    write_to_file(filepath, &stored_wallet)
+}
+
 #[cfg(test)]
 mod tests {
     use crate::wallet_storage::account_data::{MnemonicAccount, WalletAccount};
@@ -1891,6 +1920,80 @@ mod tests {
         let account = loaded_login.as_mnemonic_account().unwrap();
         assert_eq!(account.mnemonic(), &acc1);
         assert_eq!(account.hd_path(), &hd_path);
+    }
+
+    #[test]
+    fn rename_one_account_in_login_with_two_accounts() {
+        let store_dir = tempdir().unwrap();
+        let wallet = store_dir.path().join(WALLET_INFO_FILENAME);
+        let account1 = Mnemonic::generate(24).unwrap();
+        let account2 = Mnemonic::generate(24).unwrap();
+        let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
+        let password = UserPassword::new("password".to_string());
+        let login_id = LoginId::new("first".to_string());
+        let account_id2 = AccountId::new("second".to_string());
+        let renamed_account_id2 = AccountId::new("new_second".to_string());
+
+        store_login_with_multiple_accounts_at_file(
+            &wallet,
+            account1.clone(),
+            hd_path.clone(),
+            login_id.clone(),
+            &password,
+        )
+        .unwrap();
+
+        append_account_to_login_at_file(
+            &wallet,
+            account2.clone(),
+            hd_path.clone(),
+            login_id.clone(),
+            account_id2.clone(),
+            &password,
+        )
+        .unwrap();
+
+        // Load and confirm
+        let loaded_login = load_existing_login_at_file(&wallet, &login_id, &password).unwrap();
+        let loaded_accounts = loaded_login.as_multiple_accounts().unwrap();
+        let expected = vec![
+            WalletAccount::new(
+                DEFAULT_FIRST_ACCOUNT_NAME.into(),
+                MnemonicAccount::new(account1.clone(), hd_path.clone()),
+            ),
+            WalletAccount::new(
+                account_id2.clone(),
+                MnemonicAccount::new(account2.clone(), hd_path.clone()),
+            ),
+        ]
+        .into();
+        assert_eq!(loaded_accounts, &expected);
+
+        // Rename the second account to a new name
+        rename_account_in_login_at_file(
+            &wallet,
+            &login_id,
+            &account_id2,
+            &renamed_account_id2,
+            &password,
+        )
+        .unwrap();
+
+        // Load and confirm
+        let loaded_login = load_existing_login_at_file(&wallet, &login_id, &password).unwrap();
+        let loaded_accounts = loaded_login.as_multiple_accounts().unwrap();
+        let expected = vec![
+            WalletAccount::new(
+                DEFAULT_FIRST_ACCOUNT_NAME.into(),
+                MnemonicAccount::new(account1, hd_path.clone()),
+            ),
+            WalletAccount::new(
+                renamed_account_id2.clone(),
+                MnemonicAccount::new(account2, hd_path.clone()),
+            ),
+        ]
+        .into();
+        assert_eq!(loaded_accounts, &expected);
     }
 
     // Test to that decrypts a stored file from the repo, to make sure we are able to decrypt stored

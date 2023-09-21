@@ -560,12 +560,7 @@ pub async fn rename_account_for_password(
     let login_id = wallet_storage::LoginId::new(DEFAULT_LOGIN_ID.to_string());
     let account_id = wallet_storage::AccountId::new(account_id.to_string());
     let new_account_id = wallet_storage::AccountId::new(new_account_id.to_string());
-    wallet_storage::rename_account_in_login(
-        &login_id,
-        &account_id,
-        &new_account_id,
-        &password,
-    )?;
+    wallet_storage::rename_account_in_login(&login_id, &account_id, &new_account_id, &password)?;
 
     // Load from storage to reset the internal tuari state
     let stored_login = wallet_storage::load_existing_login(&login_id, &password)?;

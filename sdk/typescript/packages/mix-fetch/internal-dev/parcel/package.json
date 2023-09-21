@@ -4,7 +4,7 @@
   "license": "Apache-2.0",
   "source": "../src/index.html",
   "dependencies": {
-    "@nymproject/mix-fetch": ">=1.2.0-rc.6 || ^1"
+    "@nymproject/mix-fetch": ">=1.2.0-rc.7 || ^1"
   },
   "scripts": {
     "start": "npx parcel --no-cache",

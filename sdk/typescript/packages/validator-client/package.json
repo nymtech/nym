@@ -1,6 +1,6 @@
 {
   "name": "@nymproject/nym-validator-client",
-  "version": "1.2.0-rc.6",
+  "version": "1.2.0-rc.7",
   "description": "A TypeScript client for interacting with smart contracts in Nym validators",
   "license": "Apache-2.0",
   "author": "Nym Technologies SA (https://nymtech.net)",

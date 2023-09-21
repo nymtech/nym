@@ -279,6 +279,9 @@ impl MultipleAccounts {
     }
 
     pub(crate) fn rename(&mut self, id: &AccountId, new_id: &AccountId) -> Result<(), BackendError> {
+        if self.get_account(new_id).is_some() {
+            return Err(BackendError::WalletAccountIdAlreadyExistsInWalletLogin);
+        }
         let account = self
             .get_account_mut(id)
             .ok_or(BackendError::WalletNoSuchAccountIdInWalletLogin)?;

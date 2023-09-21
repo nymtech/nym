@@ -1,0 +1,50 @@
+[
+  {
+    "os":"ubuntu-20.04",
+    "rust":"stable",
+    "runOnEvent":"workflow_dispatch"
+  },
+
+  {
+    "os":"windows10",
+    "rust":"stable",
+    "runOnEvent":"workflow_dispatch"
+  },
+  {
+    "os":"macos-latest",
+    "rust":"stable",
+    "runOnEvent":"workflow_dispatch"
+  },
+
+  {
+    "os":"ubuntu-20.04",
+    "rust":"beta",
+    "runOnEvent":"workflow_dispatch"
+  },
+  {
+    "os":"windows10",
+    "rust":"beta",
+    "runOnEvent":"workflow_dispatch"
+  },
+  {
+    "os":"macos-latest",
+    "rust":"beta",
+    "runOnEvent":"workflow_dispatch"
+  },
+
+  {
+    "os":"ubuntu-20.04",
+    "rust":"nightly",
+    "runOnEvent":"workflow_dispatch"
+  },
+  {
+    "os":"windows10",
+    "rust":"nightly",
+    "runOnEvent":"workflow_dispatch"
+  },
+  {
+    "os":"macos-latest",
+    "rust":"nightly",
+    "runOnEvent":"workflow_dispatch"
+  }
+]

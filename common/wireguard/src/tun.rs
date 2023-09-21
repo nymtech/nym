@@ -27,7 +27,7 @@ pub struct WireGuardTunnel {
     udp: Arc<UdpSocket>,
 
     // Peer endpoint
-    addr: SocketAddr,
+    endpoint: SocketAddr,
 
     // The source address of the last packet received from the peer
     source_addr: Arc<std::sync::RwLock<Option<std::net::Ipv4Addr>>>,
@@ -53,11 +53,12 @@ impl Drop for WireGuardTunnel {
 impl WireGuardTunnel {
     pub fn new(
         udp: Arc<UdpSocket>,
-        addr: SocketAddr,
+        endpoint: SocketAddr,
         static_private: x25519::StaticSecret,
         peer_static_public: x25519::PublicKey,
         tunnel_tx: mpsc::UnboundedSender<Vec<u8>>,
     ) -> (Self, mpsc::UnboundedSender<Event>) {
+        log::info!("New wg tunnel: endpoint: {endpoint}, udp: {udp:?}");
         let preshared_key = None;
         let persistent_keepalive = None;
         let index = 0;
@@ -84,7 +85,7 @@ impl WireGuardTunnel {
         let tunnel = WireGuardTunnel {
             peer_rx,
             udp,
-            addr,
+            endpoint,
             source_addr: Default::default(),
             wg_tunnel,
             close_tx,
@@ -108,7 +109,7 @@ impl WireGuardTunnel {
                 },
                 packet = self.peer_rx.recv() => match packet {
                     Some(packet) => {
-                        info!("WireGuard tunnel received: {packet}");
+                        info!("event loop: {packet}");
                         match packet {
                             Event::WgPacket(data) => {
                                 let _ = self.consume_wg(&data)
@@ -130,7 +131,7 @@ impl WireGuardTunnel {
                 },
             }
         }
-        info!("WireGuard tunnel ({}): closed", self.addr);
+        info!("WireGuard tunnel ({}): closed", self.endpoint);
     }
 
     async fn wg_tunnel_lock(&self) -> Result<tokio::sync::MutexGuard<'_, Tunn>, WgError> {
@@ -147,26 +148,35 @@ impl WireGuardTunnel {
                 .unwrap_or(true)
         };
         if to_update {
-            log::debug!("Setting source_addr: {source_addr}");
+            log::debug!("wg tunnel set_source_addr: {source_addr}");
             *self.source_addr.write().unwrap() = Some(source_addr);
         }
     }
 
     async fn consume_wg(&mut self, data: &[u8]) -> Result<(), WgError> {
         let mut send_buf = [0u8; MAX_PACKET];
-        let mut peer = self.wg_tunnel_lock().await?;
-        match peer.decapsulate(None, data, &mut send_buf) {
+        let mut tunnel = self.wg_tunnel_lock().await?;
+        match tunnel.decapsulate(None, data, &mut send_buf) {
             TunnResult::WriteToNetwork(packet) => {
-                debug!("WireGuard: writing to network");
-                if let Err(err) = self.udp.send_to(packet, self.addr).await {
+                log::info!(
+                    "consume_wg: write to network: endpoint: {}: {}",
+                    self.endpoint,
+                    packet.len()
+                );
+                if let Err(err) = self.udp.send_to(packet, self.endpoint).await {
                     error!("Failed to send decapsulation-instructed packet to WireGuard endpoint: {err:?}");
                 };
                 // Flush pending queue
                 loop {
                     let mut send_buf = [0u8; MAX_PACKET];
-                    match peer.decapsulate(None, &[], &mut send_buf) {
+                    match tunnel.decapsulate(None, &[], &mut send_buf) {
                         TunnResult::WriteToNetwork(packet) => {
-                            if let Err(err) = self.udp.send_to(packet, self.addr).await {
+                            log::info!(
+                                "consume_wg: write to network: endpoint: {}: {}",
+                                self.endpoint,
+                                packet.len()
+                            );
+                            if let Err(err) = self.udp.send_to(packet, self.endpoint).await {
                                 error!("Failed to send decapsulation-instructed packet to WireGuard endpoint: {err:?}");
                                 break;
                             };
@@ -178,7 +188,7 @@ impl WireGuardTunnel {
                 }
             }
             TunnResult::WriteToTunnelV4(packet, _) | TunnResult::WriteToTunnelV6(packet, _) => {
-                debug!("WireGuard: writing to tunnel");
+                log::info!("consume_wg: write to tunnel: {}", packet.len());
 
                 // Parse the `packet` and inspect it's contents.
                 let headers = SlicedPacket::from_ip(packet).unwrap();
@@ -187,7 +197,7 @@ impl WireGuardTunnel {
                     InternetSlice::Ipv6(_, _) => unimplemented!(),
                 };
 
-                info!(
+                log::info!(
                     "{source_addr} -> {destination_addr}: {} bytes",
                     packet.len()
                 );
@@ -205,22 +215,29 @@ impl WireGuardTunnel {
     }
 
     async fn consume_eth(&self, data: &Bytes) {
-        info!("WireGuard tunnel: consume_eth");
-
+        info!("consume_eth: raw packet size: {}", data.len());
         let encapsulated_packet = self.encapsulate_packet(data).await;
+        info!(
+            "consume_eth: after encapsulate: {}",
+            encapsulated_packet.len()
+        );
+
+        info!("consume_eth: send to {}: {}", self.endpoint, data.len());
         self.udp
-            .send_to(&encapsulated_packet, self.addr)
+            .send_to(&encapsulated_packet, self.endpoint)
             .await
             .unwrap();
     }
 
     async fn encapsulate_packet(&self, payload: &[u8]) -> Vec<u8> {
+        // TODO: use fixed dst and src buffers that we can reuse
         let len = 148.max(payload.len() + 32);
         let mut dst = vec![0; len];
+
         let mut wg_tunnel = self.wg_tunnel_lock().await.unwrap();
-        let packet = wg_tunnel.encapsulate(payload, &mut dst);
-        match packet {
-            TunnResult::WriteToNetwork(p) => p.to_vec(),
+
+        match wg_tunnel.encapsulate(payload, &mut dst) {
+            TunnResult::WriteToNetwork(packet) => packet.to_vec(),
             unexpected => {
                 error!("{:?}", unexpected);
                 vec![]
@@ -244,7 +261,7 @@ impl WireGuardTunnel {
                     "Sending routine packet of {} bytes to WireGuard endpoint",
                     packet.len()
                 );
-                if let Err(err) = self.udp.send_to(packet, self.addr).await {
+                if let Err(err) = self.udp.send_to(packet, self.endpoint).await {
                     error!("Failed to send routine packet to WireGuard endpoint: {err:?}",);
                 };
             }

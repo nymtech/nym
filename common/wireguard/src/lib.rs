@@ -30,6 +30,8 @@ mod tun;
 // const WG_ADDRESS: &str = "0.0.0.0:51820";
 const WG_ADDRESS: &str = "0.0.0.0:51822";
 
+const WG_PORT: u16 = 51822;
+
 // The private key of the listener
 // Corresponding public key: "WM8s8bYegwMa0TJ+xIwhk+dImk2IpDUKslDBCZPizlE="
 const PRIVATE_KEY: &str = "AEqXrLFT4qjYq3wmX0456iv94uM6nDj5ugp6Jedcflg=";
@@ -41,6 +43,10 @@ const PEERS: &[&str; 1] = &[
     // Another key
     // "mxV/mw7WZTe+0Msa0kvJHMHERDA/cSskiZWQce+TdEs=",
 ];
+
+const TUN_BASE_NAME: &str = "nymtun";
+const TUN_DEVICE_ADDRESS: &str = "10.0.0.1";
+const TUN_DEVICE_NETMASK: &str = "255.255.255.0";
 
 const MAX_PACKET: usize = 65535;
 
@@ -72,22 +78,23 @@ fn init_static_dev_keys() -> (x25519::StaticSecret, x25519::PublicKey) {
 }
 
 fn start_wg_tunnel(
-    addr: SocketAddr,
+    endpoint: SocketAddr,
     udp: Arc<UdpSocket>,
     static_private: x25519::StaticSecret,
     peer_static_public: x25519::PublicKey,
     tunnel_tx: UnboundedSender<Vec<u8>>,
 ) -> (JoinHandle<SocketAddr>, mpsc::UnboundedSender<Event>) {
     let (mut tunnel, peer_tx) =
-        WireGuardTunnel::new(udp, addr, static_private, peer_static_public, tunnel_tx);
+        WireGuardTunnel::new(udp, endpoint, static_private, peer_static_public, tunnel_tx);
     let join_handle = tokio::spawn(async move {
         tunnel.spin_off().await;
-        addr
+        endpoint
     });
     (join_handle, peer_tx)
 }
 
 fn setup_tokio_tun_device(name: &str, address: Ipv4Addr, netmask: Ipv4Addr) -> tokio_tun::Tun {
+    log::info!("Creating TUN device with: address={address}, netmask={netmask}");
     tokio_tun::Tun::builder()
         .name(name)
         .tap(false)
@@ -102,9 +109,12 @@ fn setup_tokio_tun_device(name: &str, address: Ipv4Addr, netmask: Ipv4Addr) -> t
 
 fn start_tun_device(active_peers: Arc<ActivePeers>) -> UnboundedSender<Vec<u8>> {
     let tun = setup_tokio_tun_device(
-        "nymtun%d",
-        Ipv4Addr::new(10, 0, 0, 1),
-        Ipv4Addr::new(255, 255, 255, 0),
+        format!("{}%d", TUN_BASE_NAME).as_str(),
+        // "nymtun%d",
+        // Ipv4Addr::new(10, 0, 0, 1),
+        TUN_DEVICE_ADDRESS.parse().unwrap(),
+        // Ipv4Addr::new(255, 255, 255, 0),
+        TUN_DEVICE_NETMASK.parse().unwrap(),
     );
     log::info!("Created TUN device: {}", tun.name());
 
@@ -118,12 +128,17 @@ fn start_tun_device(active_peers: Arc<ActivePeers>) -> UnboundedSender<Vec<u8>> 
         loop {
             tokio::select! {
                 // Reading from the TUN device
+                // TODO: handle Err(_)
                 Ok(len) = tun_device_rx.read(&mut buf) => {
                     log::info!("tun device: read {} bytes from tun", len);
                     log::info!("tun device: sending data to peers");
 
                     // Figure out the peer it's meant for.
                     let packet = &buf[..len];
+
+                    let boringtun_parsed_dst_address = boringtun::noise::Tunn::dst_address(packet).unwrap();
+                    log::info!("borintun parsed dst address: {boringtun_parsed_dst_address}");
+
                     let headers = SlicedPacket::from_ip(packet).unwrap();
                     let peer = match headers.ip.unwrap() {
                         InternetSlice::Ipv4(ip, _) => {
@@ -131,9 +146,13 @@ fn start_tun_device(active_peers: Arc<ActivePeers>) -> UnboundedSender<Vec<u8>> 
                             let destination_addr = ip.destination_addr();
                             log::info!("IPv4: {source_addr} -> {destination_addr}");
 
+                            log::info!("Mapping to peer using: {destination_addr}:{WG_PORT}");
+                            // NOTE: I think we should probably use the allowed IP here instead to
+                            // route the packet to the correct peer
+                            // Consier using ip_network_table crate
                             active_peers.get(&SocketAddr::new(
                                 std::net::IpAddr::V4(destination_addr),
-                                51822, // WIP(JON): store this as well
+                                WG_PORT,
                             ))
                         },
                         InternetSlice::Ipv6(ip, _) => {
@@ -150,6 +169,7 @@ fn start_tun_device(active_peers: Arc<ActivePeers>) -> UnboundedSender<Vec<u8>> 
                     };
 
                     // Forward to the peer
+                    log::info!("Forward to peer: {len}");
                     peer.send(Event::IpPacket(buf[..len].to_vec().into())).unwrap();
                 },
                 // Writing to the TUN device
@@ -191,7 +211,7 @@ async fn start_udp_listener(
                 Some(addr) = active_peers_task_handles.next() => {
                     match addr {
                         Ok(addr) => {
-                            info!("WireGuard listener: closed {addr:?}");
+                            info!("Removing peer: {addr:?}");
                             active_peers.remove(&addr);
                         }
                         Err(err) => {
@@ -221,6 +241,9 @@ async fn start_udp_listener(
                             .tap_err(|err| log::error!("{err}"))
                             .unwrap();
 
+                        // WIP(JON): active peers should probably be keyed by peer_static_public
+                        // instead. Does this current setup lead to any vulnerabilities?
+                        log::info!("Adding peer: {addr}");
                         active_peers.insert(addr, peer_tx);
                         active_peers_task_handles.push(join_handle);
                     }

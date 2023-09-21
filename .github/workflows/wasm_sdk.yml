@@ -9,7 +9,7 @@ on:
 
 jobs:
   wasm:
-    runs-on: ubuntu-20.04
+    runs-on: [custom-runner-linux]
     steps:
       - uses: actions/checkout@v2
 

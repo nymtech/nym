@@ -91,14 +91,14 @@ jobs:
           command: test
           args: --workspace -- --ignored
 
-      - uses: actions-rs/clippy-check@v1
-        name: Clippy checks
+      - name: Annotate with clippy checks
+        uses: actions-rs/clippy-check@v1
         continue-on-error: true
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           args: --workspace
 
-      - name: Run clippy
+      - name: Clippy
         uses: actions-rs/cargo@v1
         with:
           command: clippy

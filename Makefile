@@ -191,10 +191,6 @@ contract-schema:
 # Misc
 # -----------------------------------------------------------------------------
 
-# NOTE: this seems deprecated an not needed anymore?
-mixnet-opt: contracts-wasm
-	cd contracts/mixnet && make opt
-
 generate-typescript:
 	cd tools/ts-rs-cli && cargo run && cd ../..
 	yarn types:lint:fix

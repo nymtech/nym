@@ -1,4 +1,4 @@
-name: CI for Network Explorer
+name: ci-nym-network-explorer
 
 on:
   workflow_dispatch:

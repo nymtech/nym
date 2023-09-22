@@ -28,8 +28,15 @@ export const MockAccountsProvider: FCWithChildren = ({ children }) => {
       setIsLoading(false);
     }
   };
-  const handleEditAccount = (account: AccountEntry) =>
-    setAccounts((accs) => accs?.map((acc) => (acc.address === account.address ? account : acc)));
+  const handleEditAccount = async ({
+    password,
+    account,
+    newAccountName,
+  }: {
+    password: string;
+    account: AccountEntry;
+    newAccountName: string;
+  }) => {};
 
   const handleImportAccount = (account: AccountEntry) => setAccounts((accs) => [...(accs ? [...accs] : []), account]);
 

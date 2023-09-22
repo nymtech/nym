@@ -15,23 +15,58 @@ import { Close } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { AccountsContext } from 'src/context';
 import { StyledBackButton } from 'src/components/StyledBackButton';
+import { ConfirmPasswordModal } from './ConfirmPasswordModal';
 
 export const EditAccountModal = () => {
-  const { accountToEdit, dialogToDisplay, setDialogToDisplay, handleEditAccount, handleAccountToEdit } =
+  const { accountToEdit, dialogToDisplay, setDialogToDisplay, handleEditAccount, handleAccountToEdit, setError } =
     useContext(AccountsContext);
+
   const [accountName, setAccountName] = useState('');
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const theme = useTheme();
+
   useEffect(() => {
     if (accountToEdit) {
       setAccountName(accountToEdit.id);
     }
   }, [accountToEdit]);
 
+  const handleClose = () => {
+    handleAccountToEdit(undefined);
+    setDialogToDisplay('Accounts');
+  };
+
+  const onConfirmPassword = async (password: string) => {
+    if (accountToEdit) {
+      try {
+        await handleEditAccount({ account: accountToEdit, newAccountName: accountName, password });
+        setShowConfirmPassword(false);
+      } catch (e) {
+        setError(`Error editing account: ${e}`);
+      }
+    }
+  };
+
+  if (showConfirmPassword) {
+    return (
+      <ConfirmPasswordModal
+        modalTitle="Rename account"
+        accountName={accountToEdit?.id}
+        buttonTitle="Confirm"
+        onClose={() => {
+          setShowConfirmPassword(false);
+          setError(undefined);
+        }}
+        onConfirm={onConfirmPassword}
+      />
+    );
+  }
+
   return (
     <Dialog
       open={dialogToDisplay === 'Edit'}
-      onClose={() => setDialogToDisplay('Accounts')}
+      onClose={handleClose}
       fullWidth
       PaperProps={{
         style: { border: `1px solid ${theme.palette.nym.nymWallet.modal.border}` },
@@ -41,7 +76,7 @@ export const EditAccountModal = () => {
         <DialogTitle>
           <Box display="flex" justifyContent="space-between" alignItems="center">
             <Typography variant="h6">Rename account</Typography>
-            <IconButton onClick={() => setDialogToDisplay('Accounts')}>
+            <IconButton onClick={handleClose}>
               <Close />
             </IconButton>
           </Box>
@@ -60,22 +95,14 @@ export const EditAccountModal = () => {
           </Box>
         </DialogContent>
         <DialogActions sx={{ p: 3, gap: 2 }}>
-          <StyledBackButton
-            onBack={() => {
-              handleAccountToEdit(undefined);
-              setDialogToDisplay('Accounts');
-            }}
-          />
+          <StyledBackButton onBack={handleClose} />
           <Button
             fullWidth
             disableElevation
             variant="contained"
             size="large"
             onClick={() => {
-              if (accountToEdit) {
-                handleEditAccount({ ...accountToEdit, id: accountName });
-                setDialogToDisplay('Accounts');
-              }
+              setShowConfirmPassword(true);
             }}
             disabled={!accountName?.length}
           >

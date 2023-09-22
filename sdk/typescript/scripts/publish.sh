@@ -69,10 +69,13 @@ done
 echo ""
 echo ""
 
+COUNTER=0
+
 for item in "${packages[@]}"
 do
+  (( COUNTER++ ))
   pushd "$item"
-  echo "🚀 Publishing $item..."
+  echo "🚀 Publishing $item... (${COUNTER} of ${#packages[@]})"
   cat package.json | jq -r '. | .name + " " +.version'
   npm publish --access=public
   popd

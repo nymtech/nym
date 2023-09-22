@@ -1,6 +1,6 @@
 [package]
 name = "extension-storage"
-version = "1.2.0-rc.8"
+version = "1.2.0-rc.9"
 edition = "2021"
 license = "Apache-2.0"
 repository = "https://github.com/nymtech/nym"

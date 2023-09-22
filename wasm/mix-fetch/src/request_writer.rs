@@ -9,13 +9,17 @@ use nym_socks5_requests::{Socks5ProviderResponse, Socks5ResponseContent};
 use wasm_bindgen_futures::spawn_local;
 use wasm_client_core::client::base_client::ClientOutput;
 use wasm_client_core::client::received_buffer::{
-    ReceivedBufferMessage, ReconstructedMessagesReceiver,
+    ReceivedBufferMessage, ReceivedBufferRequestSender, ReconstructedMessagesReceiver,
 };
 use wasm_client_core::ReconstructedMessage;
 use wasm_utils::console_error;
 
 pub(crate) struct RequestWriter {
     reconstructed_receiver: ReconstructedMessagesReceiver,
+
+    // we need to keep that channel alive as not to trigger the shutdown
+    _received_buffer_request_sender: ReceivedBufferRequestSender,
+
     requests: ActiveRequests,
 }
 
@@ -34,6 +38,7 @@ impl RequestWriter {
 
         RequestWriter {
             reconstructed_receiver,
+            _received_buffer_request_sender: client_output.received_buffer_request_sender,
             requests,
         }
     }

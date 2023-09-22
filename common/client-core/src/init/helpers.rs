@@ -8,7 +8,7 @@ use futures::{SinkExt, StreamExt};
 use log::{debug, info, trace, warn};
 use nym_crypto::asymmetric::identity;
 use nym_gateway_client::GatewayClient;
-use nym_topology::{filter::VersionFilterable, gateway};
+use nym_topology::{filter::VersionFilterable, gateway, mix};
 use rand::{seq::SliceRandom, Rng};
 use std::{sync::Arc, time::Duration};
 use tungstenite::Message;
@@ -76,6 +76,28 @@ pub async fn current_gateways<R: Rng>(
     // we were always filtering by version so I'm not removing that 'feature'
     let filtered_gateways = valid_gateways.filter_by_version(env!("CARGO_PKG_VERSION"));
     Ok(filtered_gateways)
+}
+
+pub async fn current_mixnodes<R: Rng>(
+    rng: &mut R,
+    nym_apis: &[Url],
+) -> Result<Vec<mix::Node>, ClientCoreError> {
+    let nym_api = nym_apis
+        .choose(rng)
+        .ok_or(ClientCoreError::ListOfNymApisIsEmpty)?;
+    let client = nym_validator_client::client::NymApiClient::new(nym_api.clone());
+
+    log::trace!("Fetching list of mixnodes from: {nym_api}");
+
+    let mixnodes = client.get_cached_mixnodes().await?;
+    let valid_mixnodes = mixnodes
+        .into_iter()
+        .filter_map(|mixnode| (&mixnode.bond_information).try_into().ok())
+        .collect::<Vec<mix::Node>>();
+
+    // we were always filtering by version so I'm not removing that 'feature'
+    let filtered_mixnodes = valid_mixnodes.filter_by_version(env!("CARGO_PKG_VERSION"));
+    Ok(filtered_mixnodes)
 }
 
 #[cfg(not(target_arch = "wasm32"))]

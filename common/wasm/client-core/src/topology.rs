@@ -2,10 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use nym_client_core::config::GatewayEndpointConfig;
-pub use nym_topology::SerializableNymTopology;
 use nym_topology::SerializableTopologyError;
 use nym_validator_client::client::IdentityKeyRef;
 use wasm_utils::console_log;
+
+pub use nym_topology::{
+    gateway, mix, SerializableGateway, SerializableMixNode, SerializableNymTopology,
+};
 
 // redeclare this as a type alias for easy of use
 pub type WasmTopologyError = SerializableTopologyError;

@@ -33,7 +33,9 @@ pub mod provider_trait;
 pub(crate) mod serde;
 
 #[cfg(feature = "serializable")]
-pub use crate::serde::{SerializableNymTopology, SerializableTopologyError};
+pub use crate::serde::{
+    SerializableGateway, SerializableMixNode, SerializableNymTopology, SerializableTopologyError,
+};
 
 #[cfg(feature = "provider-trait")]
 pub use provider_trait::{HardcodedTopologyProvider, TopologyProvider};
@@ -116,6 +118,17 @@ pub struct NymTopology {
 
 impl NymTopology {
     pub fn new(mixes: BTreeMap<MixLayer, Vec<mix::Node>>, gateways: Vec<gateway::Node>) -> Self {
+        NymTopology { mixes, gateways }
+    }
+
+    pub fn new_unordered(unordered_mixes: Vec<mix::Node>, gateways: Vec<gateway::Node>) -> Self {
+        let mut mixes = BTreeMap::new();
+        for node in unordered_mixes.into_iter() {
+            let layer = node.layer as MixLayer;
+            let layer_entry = mixes.entry(layer).or_insert_with(Vec::new);
+            layer_entry.push(node)
+        }
+
         NymTopology { mixes, gateways }
     }
 

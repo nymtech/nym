@@ -1,3 +1,14 @@
+# Top-level Makefile for the nym monorepo
+#
+# Common targets:
+#
+#   - `make` build all binaries and tests
+#   - `make test`: same as default target
+#   - `make clippy`: run clippy for all workspaces
+#   - `make build`: build all workspaces
+#   - `make build-release`: build binaries in release mode
+#
+
 # Default target
 all: test
 
@@ -5,17 +16,20 @@ test: clippy cargo-test contracts-wasm sdk-wasm-test fmt
 
 test-all: test cargo-test-expensive
 
-no-clippy: build cargo-test contracts-wasm fmt fmt-browser-extension-storage
+no-clippy: build cargo-test contracts-wasm fmt
 
+# Deprecated? Since it includes test is also includes non-happy clippy...
 happy: fmt clippy-happy test
 
-build: sdk-wasm-build build-browser-extension-storage
+# Meta target for building all binaries (in debug mode)
+build:
 
 # Building release binaries is a little manual as we can't just build --release
 # on all workspaces.
 build-release: build-release-main contracts-wasm
 
-clippy: sdk-wasm-lint clippy-browser-extension-storage
+# Meta target for clippy
+clippy:
 
 # -----------------------------------------------------------------------------
 # Define targets for a given workspace
@@ -77,52 +91,41 @@ endef
 
 $(eval $(call add_cargo_workspace,main,.))
 $(eval $(call add_cargo_workspace,contracts,contracts,--lib --target wasm32-unknown-unknown))
-#$(eval $(call add_cargo_workspace,wasm-client,clients/webassembly,--target wasm32-unknown-unknown))
 $(eval $(call add_cargo_workspace,wallet,nym-wallet,))
 $(eval $(call add_cargo_workspace,connect,nym-connect/desktop))
 
 # -----------------------------------------------------------------------------
-# Convenience targets for crates that are already part of the main workspace
+# Browser extension
 # -----------------------------------------------------------------------------
 
-build-explorer-api:
-	cargo build -p explorer-api
-
-build-nym-cli:
-	cargo build -p nym-cli --release
-
+# Binary is part of main workspace, but not as wasm32-unknown-unknown
+# NOTE: do we need this? I'd imagine wasm-pack is the one actually used
 build-browser-extension-storage:
 	cargo build -p extension-storage --target wasm32-unknown-unknown
 
-fmt-browser-extension-storage:
-	cargo fmt -p extension-storage -- --check
+wasm-pack-browser-extension-storage:
+	$(MAKE) -C nym-browser-extension/storage wasm-pack
 
+# Target is part of main workspace, but not as wasm32-unknown-unknown
 clippy-browser-extension-storage:
 	cargo clippy -p extension-storage --target wasm32-unknown-unknown -- -Dwarnings
 
+# Add to meta targets
+build: build-browser-extension-storage
+clippy: clippy-browser-extension-storage
+
+# -----------------------------------------------------------------------------
+# SDK
+# -----------------------------------------------------------------------------
+
 sdk-wasm: sdk-wasm-build sdk-wasm-test sdk-wasm-lint
 
-sdk-wasm-build:
-	# browser storage
-	$(MAKE) -C nym-browser-extension/storage wasm-pack
-
-	# client
-	$(MAKE) -C wasm/client build
-
-	# client (node)
-	$(MAKE) -C wasm/client build-node
-
-	# node-tester
-	$(MAKE) -C wasm/node-tester build
-
-	# mix-fetch
-	$(MAKE) -C wasm/mix-fetch build
-
-	# mix-fetch (node)
-	$(MAKE) -C wasm/mix-fetch build-node
-
-	# full
-	$(MAKE) -C wasm/full-nym-wasm build-full
+# NOTE: think about this dependency, is it needed?
+sdk-wasm-build: wasm-pack-browser-extension-storage
+	$(MAKE) -C wasm/client
+	$(MAKE) -C wasm/node-tester
+	$(MAKE) -C wasm/mix-fetch
+	$(MAKE) -C wasm/full-nym-wasm
 
 # run this from npm/yarn to ensure tools are in the path, e.g. yarn build:sdk from root of repo
 sdk-typescript-build:
@@ -145,22 +148,19 @@ sdk-wasm-test:
 #	cargo test -p nym-wasm-sdk --target wasm32-unknown-unknown
 
 
+# NOTE: These targets are part of the main workspace (but not as wasm32-unknown-unknown)
+WASM_CRATES = nym-client-wasm nym-node-tester-wasm nym-wasm-sdk
+
 sdk-wasm-lint:
-	# client
-	cargo clippy -p nym-client-wasm --target wasm32-unknown-unknown -- -Dwarnings
-
-	# node-tester
-	cargo clippy -p nym-node-tester-wasm --target wasm32-unknown-unknown -- -Dwarnings
-
-	# mix-fetch
+	cargo clippy $(addprefix -p , $(WASM_CRATES)) --target wasm32-unknown-unknown -- -Dwarnings
 	$(MAKE) -C wasm/mix-fetch check-fmt
 
-	# full
-	cargo clippy -p nym-wasm-sdk --target wasm32-unknown-unknown -- -Dwarnings
-
+# Add to meta targets
+build: sdk-wasm-build
+clippy: sdk-wasm-lint
 
 # -----------------------------------------------------------------------------
-# Build contracts ready for deploy
+# Contracts
 # -----------------------------------------------------------------------------
 
 CONTRACTS_OUT_DIR=contracts/target/wasm32-unknown-unknown/release
@@ -184,6 +184,16 @@ contract-schema:
 	$(MAKE) -C contracts schema
 
 # -----------------------------------------------------------------------------
+# Convenience targets for crates that are already part of the main workspace
+# -----------------------------------------------------------------------------
+
+build-explorer-api:
+	cargo build -p explorer-api
+
+build-nym-cli:
+	cargo build -p nym-cli --release
+
+# -----------------------------------------------------------------------------
 # Misc
 # -----------------------------------------------------------------------------
 
@@ -193,3 +203,4 @@ generate-typescript:
 
 run-api-tests:
 	cd nym-api/tests/functional_test && yarn test:qa
+

@@ -1,3 +1,8 @@
+# Default target
+all: build build-node
+
+# --- non-nodejs ---
+
 build: build-go-opt build-rust build-package-json
 
 check-fmt: check-fmt-go check-fmt-rust
@@ -26,7 +31,7 @@ check-fmt-rust:
 	cargo fmt --check
 	cargo clippy --target wasm32-unknown-unknown -- -Dwarnings
 
-###### NODEJS
+# --- nodejs ---
 
 build-rust-node:
 	wasm-pack build --scope nymproject --target nodejs --out-dir ../../dist/node/wasm/mix-fetch

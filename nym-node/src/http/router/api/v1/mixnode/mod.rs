@@ -2,13 +2,27 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::http::state::AppState;
-use axum::http::StatusCode;
 use axum::routing::get;
 use axum::Router;
 
-#[derive(Debug, Clone, Default)]
-pub struct Config {}
+pub mod root;
+pub mod types;
 
-pub(crate) fn routes(_config: Config) -> Router<AppState> {
-    Router::new().route("/", get(|| async { StatusCode::NOT_IMPLEMENTED }))
+pub(crate) mod routes {
+    pub(crate) const ROOT: &str = "/";
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct Config {
+    pub details: Option<types::Mixnode>,
+}
+
+pub(crate) fn routes(config: Config) -> Router<AppState> {
+    Router::new().route(
+        routes::ROOT,
+        get({
+            let mixnode_details = config.details;
+            move |query| root::root_mixnode(mixnode_details, query)
+        }),
+    )
 }

@@ -1,7 +1,6 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use nym_bin_common::build_information::BinaryBuildInformationOwned;
 use std::ops::Deref;
 use std::sync::Arc;
 
@@ -10,10 +9,12 @@ pub(crate) struct AppState {
     inner: Arc<AppStateInner>,
 }
 
+// TODO: https://docs.rs/axum/latest/axum/extract/struct.State.html#substates
+
 impl AppState {
-    pub fn new(build_information: BinaryBuildInformationOwned) -> Self {
+    pub fn new() -> Self {
         AppState {
-            inner: Arc::new(AppStateInner { build_information }),
+            inner: Arc::new(AppStateInner {}),
         }
     }
 }
@@ -28,7 +29,4 @@ impl Deref for AppState {
 }
 
 #[derive(Debug)]
-pub(crate) struct AppStateInner {
-    // TODO: split it based on routes?
-    pub(crate) build_information: BinaryBuildInformationOwned,
-}
+pub(crate) struct AppStateInner {}

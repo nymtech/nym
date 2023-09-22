@@ -13,6 +13,7 @@ license.workspace = true
 [dependencies]
 anyhow = { workspace = true }
 bytes = "1.5.0"
+colored = "2"
 serde = { workspace = true, features = ["derive"] }
 serde_yaml = "0.9.25"
 serde_json = { workspace = true }

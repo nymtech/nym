@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::http::router::api::{FormattedResponse, OutputParams};
-use crate::http::state::AppState;
-use axum::extract::{Query, State};
+use axum::extract::Query;
 use nym_bin_common::build_information::BinaryBuildInformationOwned;
 
 /// Returns build metadata of the binary running the API
@@ -11,6 +10,7 @@ use nym_bin_common::build_information::BinaryBuildInformationOwned;
     get,
     path = "/build-info",
     context_path = "/api/v1",
+    tag = "Base",
     responses(
         (status = 200, content(
             ("application/json" = BinaryBuildInformationOwned),
@@ -20,12 +20,11 @@ use nym_bin_common::build_information::BinaryBuildInformationOwned;
     params(OutputParams)
 )]
 pub(crate) async fn build_info(
-    State(state): State<AppState>,
+    build_information: BinaryBuildInformationOwned,
     Query(output): Query<OutputParams>,
 ) -> BuildInfoResponse {
     let output = output.output.unwrap_or_default();
-    // TODO: get rid of the clone since it's getting serialized anyway
-    output.to_response(state.build_information.clone())
+    output.to_response(build_information)
 }
 
 pub type BuildInfoResponse = FormattedResponse<BinaryBuildInformationOwned>;

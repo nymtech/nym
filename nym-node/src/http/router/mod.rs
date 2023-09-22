@@ -37,7 +37,7 @@ pub struct NymNodeRouter {
 
 impl NymNodeRouter {
     pub fn new(config: Config) -> NymNodeRouter {
-        let state = AppState::new(config.api.v1_config.build_information.clone());
+        let state = AppState::new();
 
         NymNodeRouter {
             inner: Router::new()

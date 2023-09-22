@@ -12,6 +12,7 @@ use nym_bin_common::logging::{maybe_print_banner, setup_logging};
 use nym_bin_common::output_format::OutputFormat;
 use nym_bin_common::{bin_info, bin_info_owned};
 use nym_network_defaults::setup_env;
+use nym_node::http::api::v1::roles::NodeRoles;
 use std::error::Error;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
@@ -56,8 +57,18 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
         api: nym_node::http::api::Config {
             v1_config: nym_node::http::api::v1::Config {
                 build_information: bin_info_owned!(),
-                gateway: Default::default(),
-                mixnide: Default::default(),
+                roles: NodeRoles {
+                    mixnode_enabled: false,
+                    gateway_enabled: false,
+                    network_requester_enabled: false,
+                },
+                gateway: nym_node::http::api::v1::gateway::Config {
+                    details: Some(nym_node::http::api::v1::gateway::types::Gateway {
+                        encoded_identity_key: "aaa".to_string(),
+                        encoded_sphinx_key: "bbb".to_string(),
+                    }),
+                },
+                mixnode: Default::default(),
                 network_requester: Default::default(),
             },
         },

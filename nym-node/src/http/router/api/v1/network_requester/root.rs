@@ -1,33 +1,33 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::http::api::v1::gateway::types::Gateway;
+use crate::http::api::v1::network_requester::types::NetworkRequester;
 use crate::http::router::api::{FormattedResponse, OutputParams};
 use axum::extract::Query;
 use axum::http::StatusCode;
 
-/// Returns root gateway information
+/// Returns root network requester information
 #[utoipa::path(
     get,
     path = "",
-    context_path = "/api/v1/gateway",
-    tag = "Gateway",
+    context_path = "/api/v1/network-requester",
+    tag = "Network Requester",
     responses(
         (status = 501, description = "the endpoint hasn't been implemented yet"),
         (status = 200, content(
-            ("application/json" = Gateway),
-            ("application/yaml" = Gateway)
+            ("application/json" = NetworkRequester),
+            ("application/yaml" = NetworkRequester)
         ))
     ),
     params(OutputParams)
 )]
-pub(crate) async fn root_gateway(
-    details: Option<Gateway>,
+pub(crate) async fn root_network_requester(
+    details: Option<NetworkRequester>,
     Query(output): Query<OutputParams>,
-) -> Result<GatewayResponse, StatusCode> {
+) -> Result<NetworkRequesterResponse, StatusCode> {
     let details = details.ok_or(StatusCode::NOT_IMPLEMENTED)?;
     let output = output.output.unwrap_or_default();
     Ok(output.to_response(details))
 }
 
-pub type GatewayResponse = FormattedResponse<Gateway>;
+pub type NetworkRequesterResponse = FormattedResponse<NetworkRequester>;

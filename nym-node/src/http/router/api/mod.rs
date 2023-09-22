@@ -13,7 +13,6 @@ pub mod v1;
 
 pub(crate) mod routes {
     pub(crate) const V1: &str = "/v1";
-    pub(crate) const SWAGGER: &str = "/swagger";
 }
 
 #[derive(Debug, Clone)]

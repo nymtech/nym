@@ -6,14 +6,23 @@ use axum::routing::get;
 use axum::Router;
 
 pub mod root;
+pub mod types;
 
 pub(crate) mod routes {
     pub(crate) const ROOT: &str = "/";
 }
 
 #[derive(Debug, Clone, Default)]
-pub struct Config {}
+pub struct Config {
+    pub details: Option<types::Gateway>,
+}
 
-pub(crate) fn routes(_config: Config) -> Router<AppState> {
-    Router::new().route(routes::ROOT, get(root::root_gateway))
+pub(crate) fn routes(config: Config) -> Router<AppState> {
+    Router::new().route(
+        routes::ROOT,
+        get({
+            let gateway_details = config.details;
+            move |query| root::root_gateway(gateway_details, query)
+        }),
+    )
 }

@@ -1,6 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use super::roles::NodeRoles;
 use crate::http::router::api;
 use crate::http::state::AppState;
 use axum::Router;
@@ -11,25 +12,24 @@ use utoipa_swagger_ui::SwaggerUi;
 #[derive(OpenApi)]
 #[openapi(
     info(title = "NymNode API"),
-    paths(api::v1::build_info::build_info, api::v1::gateway::root::root_gateway,),
-    components(schemas(api::Output, api::OutputParams, BinaryBuildInformationOwned))
-)]
-/*
-#[derive(OpenApi)]
-#[openapi(
-    info(title = "NymNode API"),
     paths(
         api::v1::build_info::build_info,
+        api::v1::roles::roles,
+        api::v1::gateway::root::root_gateway,
+        api::v1::mixnode::root::root_mixnode,
+        api::v1::network_requester::root::root_network_requester,
     ),
-    components(
-        schemas(
-            api::Output,
-            api::OutputParams,
-            BinaryBuildInformationOwned
-        )
-    )
+    components(schemas(
+        api::Output,
+        api::OutputParams,
+        BinaryBuildInformationOwned,
+        NodeRoles,
+        api::v1::gateway::types::Gateway,
+        api::v1::mixnode::types::Mixnode,
+        api::v1::network_requester::types::NetworkRequester,
+    ))
 )]
- */
+
 pub(crate) struct ApiDoc;
 
 pub(crate) fn route() -> Router<AppState> {

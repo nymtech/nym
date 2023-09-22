@@ -1,4 +1,4 @@
-name: Typescript SDK docs
+name: ci-sdk-docs-typescript
 
 on:
   push:

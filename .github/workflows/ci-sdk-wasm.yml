@@ -1,4 +1,4 @@
-name: Wasm Client
+name: ci-sdk-wasm
 
 on:
   pull_request:

@@ -1,4 +1,4 @@
-name: CI for ts-packages
+name: ci-build-ts
 
 on:
   push:

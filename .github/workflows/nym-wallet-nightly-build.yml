@@ -29,7 +29,8 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: ${{ matrix.rust }}
+          # There is an issue with 1.72.0 where clippy crashes on nym-wallet-types. Pin to 1.71.0 for now
+          toolchain: 1.71.0
           override: true
           components: rustfmt, clippy
 
@@ -51,8 +52,8 @@ jobs:
       #     command: test
       #     args: --workspace
       #
-      # - uses: actions-rs/clippy-check@v1
-      #   name: Clippy checks
+      # - name: Annotate with clippy warnings
+      #   uses: actions-rs/clippy-check@v1
       #   continue-on-error: true
       #   with:
       #     token: ${{ secrets.GITHUB_TOKEN }}

@@ -22,6 +22,8 @@ axum-macros = "0.3.8" # Useful for debugging axum Handler trait errors
 fastrand = "2"
 x25519-dalek = { version = "2.0.0", features = ["static_secrets"] }
 base64 = "0.21.4"
+
+
 anyhow = { workspace = true }
 async-trait = { workspace = true }
 atty = "0.2"
@@ -48,7 +50,7 @@ sqlx = { version = "0.5", features = [
     "migrate",
 ] }
 subtle-encoding = { version = "0.5", features = ["bech32-preview"] }
-thiserror = "1"
+thiserror = { workspace = true }
 tokio = { workspace = true, features = [
     "rt-multi-thread",
     "net",

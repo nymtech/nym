@@ -23,15 +23,14 @@ tokio = { workspace = true, features = ["macros"] }
 
 # HTTP API:
 axum = { workspace = true }
-
 # useful for `#[axum_macros::debug_handler]`
 #axum-macros = "0.3.8"
 mime = "0.3.17"
 hyper = { workspace = true }
 tower = { version = "0.4.13" }
 tower-http = { version = "0.4.4", features = ["fs"] }
-utoipa = { workspace = true, features = ["axum_extras"] }
-utoipa-swagger-ui = { version = "3.1.5", features = ["axum"] }
+utoipa = { workspace = true, features = [] } # can't use `"axum_extras"` feature because ephemera uses `"actix_extras"` -.-'
+utoipa-swagger-ui = { workspace = true, features = ["axum"] }
 
 # if we ever wanted redoc/rapidoc bridges:
 #utoipa-redoc = { version = "0.1.0", features = ["axum"] }

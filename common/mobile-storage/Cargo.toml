@@ -7,5 +7,5 @@ edition = "2021"
 
 [dependencies]
 async-trait = { workspace = true }
-thiserror = "1.0"
+thiserror = { workspace = true }
 

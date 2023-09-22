@@ -16,7 +16,7 @@ reqwest = { workspace = true }
 schemars = { version = "0.8", features = ["preserve_order"] }
 serde = { workspace = true, features = ["derive"] } # for config serialization/deserialization
 tap = "1.0.1"
-thiserror = "1.0.34"
+thiserror = { workspace = true }
 tokio = { version = "1.24.1", features = ["rt-multi-thread", "net", "signal"] }
 url = { workspace = true }
 

@@ -15,5 +15,5 @@ bytecodec = "0.4.15"
 httpcodec = "0.2.3"
 bytes = "1"
 http = "0.2.9"
-thiserror = "1"
+thiserror = { workspace = true }
 url = "2"

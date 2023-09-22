@@ -22,7 +22,7 @@ cw-utils = { workspace = true }
 
 schemars = "0.8"
 serde = { version = "1.0.103", default-features = false, features = ["derive"] }
-thiserror = "1.0.23"
+thiserror = { workspace = true }
 
 nym-coconut-bandwidth = { path = "../coconut-bandwidth" }
 nym-coconut-dkg = { path = "../coconut-dkg" }

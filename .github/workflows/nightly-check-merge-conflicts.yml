@@ -1,4 +1,4 @@
-name: check-merge-conflicts
+name: nightly-check-merge-conflicts
 
 # Check that the latest release branch merges into master and develop without
 # any conflicts that git is not able to resolve

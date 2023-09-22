@@ -1,43 +1,21 @@
-name: Build and upload binaries to CI
+name: ci-contracts-upload-binaries
 
 on:
   workflow_dispatch:
   push:
     paths:
-      - 'clients/**'
       - 'common/**'
       - 'contracts/**'
-      - 'explorer-api/**'
-      - 'gateway/**'
-      - 'integrations/**'
-      - 'mixnode/**'
-      - 'sdk/rust/nym-sdk/**'
-      - 'service-providers/**'
-      - 'nym-api/**'
-      - 'nym-outfox/**'
-      - 'tools/nym-cli/**'
-      - 'tools/ts-rs-cli/**'
   pull_request:
     paths:
-      - 'clients/**'
       - 'common/**'
       - 'contracts/**'
-      - 'explorer-api/**'
-      - 'gateway/**'
-      - 'integrations/**'
-      - 'mixnode/**'
-      - 'sdk/rust/nym-sdk/**'
-      - 'service-providers/**'
-      - 'nym-api/**'
-      - 'nym-outfox/**'
-      - 'tools/nym-cli/**'
-      - 'tools/ts-rs-cli/**'
 
 env:
   NETWORK: mainnet
 
 jobs:
-  publish-nym:
+  publish-nym-contracts:
     strategy:
       fail-fast: false
       matrix:
@@ -50,9 +28,9 @@ jobs:
       - name: Prepare build output directory
         shell: bash
         env:
-          OUTPUT_DIR: ci-builds/${{ github.ref_name }}
+          OUTPUT_DIR: ci-contract-builds/${{ github.ref_name }}
         run: |
-          rm -rf ci-builds || true
+          rm -rf ci-contract-builds || true
           mkdir -p $OUTPUT_DIR
           echo $OUTPUT_DIR
 
@@ -64,20 +42,8 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           toolchain: 1.69.0
-
-      - name: Build all binaries
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --workspace --release --all
-
-      - name: Install Rust stable
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: 1.69.0
           target: wasm32-unknown-unknown
           override: true
-          components: rustfmt, clippy
 
       - name: Install wasm-opt
         run: cargo install --version 0.112.0 wasm-opt
@@ -88,18 +54,8 @@ jobs:
       - name: Prepare build output
         shell: bash
         env:
-          OUTPUT_DIR: ci-builds/${{ github.ref_name }}
+          OUTPUT_DIR: ci-contract-builds/${{ github.ref_name }}
         run: |
-          cp target/release/nym-client $OUTPUT_DIR
-          cp target/release/nym-gateway $OUTPUT_DIR
-          cp target/release/nym-mixnode $OUTPUT_DIR
-          cp target/release/nym-socks5-client $OUTPUT_DIR
-          cp target/release/nym-api $OUTPUT_DIR
-          cp target/release/nym-network-requester $OUTPUT_DIR
-          cp target/release/nym-network-statistics $OUTPUT_DIR
-          cp target/release/nym-cli $OUTPUT_DIR
-          cp target/release/explorer-api $OUTPUT_DIR
-          
           cp contracts/target/wasm32-unknown-unknown/release/mixnet_contract.wasm $OUTPUT_DIR
           cp contracts/target/wasm32-unknown-unknown/release/vesting_contract.wasm $OUTPUT_DIR
           cp contracts/target/wasm32-unknown-unknown/release/nym_coconut_bandwidth.wasm $OUTPUT_DIR
@@ -116,7 +72,7 @@ jobs:
         env:
           SSH_PRIVATE_KEY: ${{ secrets.CI_WWW_SSH_PRIVATE_KEY }}
           ARGS: "-avzr"
-          SOURCE: "ci-builds/"
+          SOURCE: "ci-contract-builds/"
           REMOTE_HOST: ${{ secrets.CI_WWW_REMOTE_HOST }}
           REMOTE_USER: ${{ secrets.CI_WWW_REMOTE_USER }}
           TARGET: ${{ secrets.CI_WWW_REMOTE_TARGET }}/builds/

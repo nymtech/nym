@@ -1,7 +1,7 @@
 # Default target
 all: test
 
-test: clippy-all cargo-test contracts-wasm sdk-wasm-test fmt
+test: clippy cargo-test contracts-wasm sdk-wasm-test fmt
 
 test-all: test cargo-test-expensive
 
@@ -16,10 +16,6 @@ build: sdk-wasm-build build-browser-extension-storage
 build-release: build-release-main contracts-wasm
 
 clippy: sdk-wasm-lint clippy-browser-extension-storage
-
-# Deprecated
-# For backwards compatibility
-clippy-all: clippy
 
 # -----------------------------------------------------------------------------
 # Define targets for a given workspace
@@ -190,10 +186,6 @@ contract-schema:
 # -----------------------------------------------------------------------------
 # Misc
 # -----------------------------------------------------------------------------
-
-# NOTE: this seems deprecated an not needed anymore?
-mixnet-opt: contracts-wasm
-	cd contracts/mixnet && make opt
 
 generate-typescript:
 	cd tools/ts-rs-cli && cargo run && cd ../..

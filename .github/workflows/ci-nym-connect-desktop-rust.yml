@@ -1,4 +1,4 @@
-name: Nym Connect - desktop (Rust)
+name: ci-nym-connect-desktop-rust
 
 on:
   push:

@@ -1,4 +1,4 @@
-name: Check Contract Schema
+name: ci-contracts-schema
 
 on:
   push:

@@ -1,4 +1,4 @@
-name: CI for linting Typescript
+name: ci-lint-typescript
 
 on:
   push:

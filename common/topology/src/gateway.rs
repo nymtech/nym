@@ -8,6 +8,7 @@ use nym_sphinx_addressing::nodes::{NodeIdentity, NymNodeRoutingAddress};
 use nym_sphinx_types::Node as SphinxNode;
 use std::convert::{TryFrom, TryInto};
 use std::fmt;
+use std::fmt::Formatter;
 use std::io;
 use std::net::SocketAddr;
 use thiserror::Error;
@@ -28,7 +29,7 @@ pub enum GatewayConversionError {
     },
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Node {
     pub owner: String,
     pub host: NetworkAddress,
@@ -39,6 +40,20 @@ pub struct Node {
     pub identity_key: identity::PublicKey,
     pub sphinx_key: encryption::PublicKey, // TODO: or nymsphinx::PublicKey? both are x25519
     pub version: NodeVersion,
+}
+
+impl std::fmt::Debug for Node {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("gateway::Node")
+            .field("host", &self.host)
+            .field("owner", &self.owner)
+            .field("mix_host", &self.mix_host)
+            .field("clients_port", &self.clients_port)
+            .field("identity_key", &self.identity_key.to_base58_string())
+            .field("sphinx_key", &self.sphinx_key.to_base58_string())
+            .field("version", &self.version)
+            .finish()
+    }
 }
 
 impl Node {

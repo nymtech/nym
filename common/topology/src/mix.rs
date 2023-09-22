@@ -8,6 +8,7 @@ use nym_mixnet_contract_common::{MixId, MixNodeBond};
 use nym_sphinx_addressing::nodes::NymNodeRoutingAddress;
 use nym_sphinx_types::Node as SphinxNode;
 use std::convert::{TryFrom, TryInto};
+use std::fmt::Formatter;
 use std::io;
 use std::net::SocketAddr;
 use thiserror::Error;
@@ -28,7 +29,7 @@ pub enum MixnodeConversionError {
     },
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Node {
     pub mix_id: MixId,
     pub owner: String,
@@ -40,6 +41,21 @@ pub struct Node {
     pub sphinx_key: encryption::PublicKey, // TODO: or nymsphinx::PublicKey? both are x25519
     pub layer: Layer,
     pub version: NodeVersion,
+}
+
+impl std::fmt::Debug for Node {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("mix::Node")
+            .field("mix_id", &self.mix_id)
+            .field("owner", &self.owner)
+            .field("host", &self.host)
+            .field("mix_host", &self.mix_host)
+            .field("identity_key", &self.identity_key.to_base58_string())
+            .field("sphinx_key", &self.sphinx_key.to_base58_string())
+            .field("layer", &self.layer)
+            .field("version", &self.version)
+            .finish()
+    }
 }
 
 impl Node {

@@ -36,7 +36,19 @@ export const MockAccountsProvider: FCWithChildren = ({ children }) => {
     password: string;
     account: AccountEntry;
     newAccountName: string;
-  }) => {};
+  }) => {
+    if (password) {
+      setIsLoading(true);
+      try {
+        setAccounts((accs) => accs.map((acc) => (acc.id === account.id ? { ...acc, id: newAccountName } : acc)));
+        setDialogToDisplay('Accounts');
+      } catch (e) {
+        setError(`Error adding account: ${e}`);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+  };
 
   const handleImportAccount = (account: AccountEntry) => setAccounts((accs) => [...(accs ? [...accs] : []), account]);
 

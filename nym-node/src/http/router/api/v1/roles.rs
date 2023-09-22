@@ -6,7 +6,7 @@ use axum::extract::Query;
 use serde::Serialize;
 use utoipa::ToSchema;
 
-#[derive(Clone, Debug, Copy, ToSchema, Serialize)]
+#[derive(Clone, Default, Debug, Copy, ToSchema, Serialize)]
 pub struct NodeRoles {
     pub mixnode_enabled: bool,
     pub gateway_enabled: bool,

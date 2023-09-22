@@ -14,7 +14,7 @@ use nym_config::{
 use nym_network_defaults::mainnet;
 use serde::{Deserialize, Serialize};
 use std::io;
-use std::net::IpAddr;
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 use url::Url;
@@ -22,6 +22,7 @@ use zeroize::{Zeroize, ZeroizeOnDrop};
 
 pub(crate) mod old_config_v1_1_20;
 pub(crate) mod old_config_v1_1_28;
+pub(crate) mod old_config_v1_1_29;
 pub mod persistence;
 mod template;
 
@@ -71,6 +72,9 @@ pub struct Config {
     #[serde(skip)]
     pub(crate) save_path: Option<PathBuf>,
 
+    #[serde(default)]
+    pub http: Http,
+
     pub gateway: Gateway,
 
     pub storage_paths: GatewayPaths,
@@ -94,6 +98,7 @@ impl Config {
     pub fn new<S: AsRef<str>>(id: S) -> Self {
         Config {
             save_path: None,
+            http: Default::default(),
             gateway: Gateway::new_default(id.as_ref()),
             storage_paths: GatewayPaths::new_default(id.as_ref()),
             network_requester: Default::default(),
@@ -216,6 +221,22 @@ impl Config {
 
     pub fn get_cosmos_mnemonic(&self) -> bip39::Mnemonic {
         self.gateway.cosmos_mnemonic.clone()
+    }
+}
+
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[serde(default)]
+pub struct Http {
+    /// Socket address this node will use for binding its http API.
+    /// default: `0.0.0.0:80`
+    pub bind_address: SocketAddr,
+}
+
+impl Default for Http {
+    fn default() -> Self {
+        Http {
+            bind_address: SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 80),
+        }
     }
 }
 

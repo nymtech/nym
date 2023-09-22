@@ -26,6 +26,12 @@ pub(super) fn routes(config: Config) -> Router<AppState> {
     // .nest(routes::SWAGGER, openapi::route())
 }
 
+// #[derive(Debug, Clone, ToSchema)]
+// pub struct SignedResponse<T>{
+//     encoded_signature: String,
+//     data: T,
+// }
+
 #[derive(Debug, Clone, ToSchema)]
 pub enum FormattedResponse<T> {
     Json(Json<T>),

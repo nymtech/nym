@@ -1,19 +1,59 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use axum::routing::IntoMakeService;
+use axum::Router;
+use hyper::server::conn::AddrIncoming;
+use hyper::Server;
+use nym_task::TaskClient;
+use tracing::{debug, error, info};
+
 pub mod middleware;
 pub mod router;
 pub mod state;
 
-pub use router::{Config, NymNodeRouter, api, landing_page, policy};
+pub use router::{api, landing_page, policy, Config, NymNodeRouter};
 
-// pub struct Config {
-//     router_config: router::Config,
-//     bind_address: SocketAddr,
-// }
-//
-// async fn run(config: Config) -> Result<(), NymNodeError> {
-//     NymNodeRouter::new(config.router_config)
-//         .start_server(&config.bind_address)
-//         .await
-// }
+pub struct NymNodeHTTPServer {
+    task_client: Option<TaskClient>,
+    inner: Server<AddrIncoming, IntoMakeService<Router>>,
+}
+
+impl NymNodeHTTPServer {
+    pub(crate) fn new(inner: Server<AddrIncoming, IntoMakeService<Router>>) -> Self {
+        NymNodeHTTPServer {
+            task_client: None,
+            inner,
+        }
+    }
+
+    #[must_use]
+    pub fn with_task_client(mut self, task_client: TaskClient) -> Self {
+        self.task_client = Some(task_client);
+        self
+    }
+
+    async fn run_server_forever(server: Server<AddrIncoming, IntoMakeService<Router>>) {
+        if let Err(err) = server.await {
+            error!("the HTTP server has terminated with the error: {err}");
+        } else {
+            error!("the HTTP server has terminated with producing any errors");
+        }
+    }
+
+    pub async fn run(self) {
+        info!("Started NymNodeHTTPServer on {}", self.inner.local_addr());
+        if let Some(mut task_client) = self.task_client {
+            tokio::select! {
+                _ = task_client.recv_with_delay() => {
+                    debug!("NymNodeHTTPServer: Received shutdown");
+                }
+                _ = Self::run_server_forever(self.inner) => { }
+            }
+        } else {
+            Self::run_server_forever(self.inner).await
+        }
+
+        debug!("NymNodeHTTPServer: Exiting");
+    }
+}

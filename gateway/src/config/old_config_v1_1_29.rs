@@ -1,14 +1,13 @@
 // Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::config::old_config_v1_1_29::{
-    ConfigV1_1_29, DebugV1_1_29, GatewayPathsV1_1_29, GatewayV1_1_29, KeysPathsV1_1_29,
-    LoggingSettingsV1_1_29,
-};
+use crate::config::persistence::paths::{GatewayPaths, KeysPaths};
+use crate::config::{Config, Debug, Gateway, NetworkRequester};
+use nym_bin_common::logging::LoggingSettings;
 use nym_config::{
     must_get_home, read_config_from_toml_file, DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, NYM_DIR,
 };
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use std::io;
 use std::net::IpAddr;
 use std::path::{Path, PathBuf};
@@ -46,52 +45,75 @@ pub fn default_config_filepath<P: AsRef<Path>>(id: P) -> PathBuf {
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct KeysPathsV1_1_28 {
+pub struct KeysPathsV1_1_29 {
     pub private_identity_key_file: PathBuf,
     pub public_identity_key_file: PathBuf,
     pub private_sphinx_key_file: PathBuf,
     pub public_sphinx_key_file: PathBuf,
 }
 
+fn de_maybe_path<'de, D>(deserializer: D) -> Result<Option<PathBuf>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let path = PathBuf::deserialize(deserializer)?;
+    if path.as_os_str().is_empty() {
+        Ok(None)
+    } else {
+        Ok(Some(path))
+    }
+}
+
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct GatewayPathsV1_1_28 {
-    pub keys: KeysPathsV1_1_28,
+pub struct GatewayPathsV1_1_29 {
+    pub keys: KeysPathsV1_1_29,
+
     #[serde(alias = "persistent_storage")]
     pub clients_storage: PathBuf,
+
+    #[serde(deserialize_with = "de_maybe_path")]
+    pub network_requester_config: Option<PathBuf>,
 }
 
 #[derive(Debug, Default, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct LoggingSettingsV1_1_28 {}
+pub struct LoggingSettingsV1_1_29 {}
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct ConfigV1_1_28 {
-    pub gateway: GatewayV1_1_28,
+pub struct ConfigV1_1_29 {
+    #[serde(skip)]
+    pub save_path: Option<PathBuf>,
 
-    pub storage_paths: GatewayPathsV1_1_28,
+    pub gateway: GatewayV1_1_29,
+
+    pub storage_paths: GatewayPathsV1_1_29,
+
+    pub network_requester: NetworkRequesterV1_1_29,
 
     #[serde(default)]
-    pub logging: LoggingSettingsV1_1_28,
+    pub logging: LoggingSettingsV1_1_29,
 
     #[serde(default)]
-    pub debug: DebugV1_1_28,
+    pub debug: DebugV1_1_29,
 }
 
-impl ConfigV1_1_28 {
+impl ConfigV1_1_29 {
     pub fn read_from_default_path<P: AsRef<Path>>(id: P) -> io::Result<Self> {
         read_config_from_toml_file(default_config_filepath(id))
     }
 }
 
-impl From<ConfigV1_1_28> for ConfigV1_1_29 {
-    fn from(value: ConfigV1_1_28) -> Self {
-        ConfigV1_1_29 {
+impl From<ConfigV1_1_29> for Config {
+    fn from(value: ConfigV1_1_29) -> Self {
+        Config {
+            save_path: value.save_path,
+
             // \/ ADDED
-            save_path: None,
+            http: Default::default(),
             // /\ ADDED
-            gateway: GatewayV1_1_29 {
+            gateway: Gateway {
                 version: value.gateway.version,
                 id: value.gateway.id,
                 only_coconut_credentials: value.gateway.only_coconut_credentials,
@@ -104,25 +126,21 @@ impl From<ConfigV1_1_28> for ConfigV1_1_29 {
                 statistics_service_url: value.gateway.statistics_service_url,
                 cosmos_mnemonic: value.gateway.cosmos_mnemonic,
             },
-            storage_paths: GatewayPathsV1_1_29 {
-                keys: KeysPathsV1_1_29 {
+            storage_paths: GatewayPaths {
+                keys: KeysPaths {
                     private_identity_key_file: value.storage_paths.keys.private_identity_key_file,
                     public_identity_key_file: value.storage_paths.keys.public_identity_key_file,
                     private_sphinx_key_file: value.storage_paths.keys.private_sphinx_key_file,
                     public_sphinx_key_file: value.storage_paths.keys.public_sphinx_key_file,
                 },
                 clients_storage: value.storage_paths.clients_storage,
-
-                // \/ ADDED
-                network_requester_config: None,
-                // /\ ADDED
+                network_requester_config: value.storage_paths.network_requester_config,
             },
-
-            // \/ ADDED
-            network_requester: Default::default(),
-            // /\ ADDED
-            logging: LoggingSettingsV1_1_29 {},
-            debug: DebugV1_1_29 {
+            network_requester: NetworkRequester {
+                enabled: value.network_requester.enabled,
+            },
+            logging: LoggingSettings {},
+            debug: Debug {
                 packet_forwarding_initial_backoff: value.debug.packet_forwarding_initial_backoff,
                 packet_forwarding_maximum_backoff: value.debug.packet_forwarding_maximum_backoff,
                 initial_connection_timeout: value.debug.initial_connection_timeout,
@@ -137,7 +155,7 @@ impl From<ConfigV1_1_28> for ConfigV1_1_29 {
 }
 
 #[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
-pub struct GatewayV1_1_28 {
+pub struct GatewayV1_1_29 {
     /// Version of the gateway for which this configuration was created.
     pub version: String,
 
@@ -182,7 +200,20 @@ pub struct GatewayV1_1_28 {
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(default)]
-pub struct DebugV1_1_28 {
+pub struct NetworkRequesterV1_1_29 {
+    pub enabled: bool,
+}
+
+#[allow(clippy::derivable_impls)]
+impl Default for NetworkRequesterV1_1_29 {
+    fn default() -> Self {
+        NetworkRequesterV1_1_29 { enabled: false }
+    }
+}
+
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[serde(default)]
+pub struct DebugV1_1_29 {
     /// Initial value of an exponential backoff to reconnect to dropped TCP connection when
     /// forwarding sphinx packets.
     #[serde(with = "humantime_serde")]
@@ -217,9 +248,9 @@ pub struct DebugV1_1_28 {
     pub use_legacy_framed_packet_version: bool,
 }
 
-impl Default for DebugV1_1_28 {
+impl Default for DebugV1_1_29 {
     fn default() -> Self {
-        DebugV1_1_28 {
+        DebugV1_1_29 {
             packet_forwarding_initial_backoff: DEFAULT_PACKET_FORWARDING_INITIAL_BACKOFF,
             packet_forwarding_maximum_backoff: DEFAULT_PACKET_FORWARDING_MAXIMUM_BACKOFF,
             initial_connection_timeout: DEFAULT_INITIAL_CONNECTION_TIMEOUT,

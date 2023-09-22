@@ -55,6 +55,11 @@ nyxd_urls = [
 
 cosmos_mnemonic = '{{ gateway.cosmos_mnemonic }}'
 
+[http]
+# Socket address this node will use for binding its http API.
+# default: `0.0.0.0:80`
+bind_address = '{{ http.bind_address }}'
+
 [network_requester]
 # Specifies whether network requester service is enabled in this process.
 enabled = {{ network_requester.enabled }}

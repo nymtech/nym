@@ -11,4 +11,7 @@ pub struct NetworkRequester {
 
     /// Base58-encoded x25519 public key used for performing key exchange with remote clients.
     pub encoded_sphinx_key: String,
+
+    /// Nym address of this network requester.
+    pub address: String,
 }

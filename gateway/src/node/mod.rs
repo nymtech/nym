@@ -6,6 +6,7 @@ use self::storage::PersistentStorage;
 use crate::commands::helpers::{override_network_requester_config, OverrideNetworkRequesterConfig};
 use crate::config::Config;
 use crate::error::GatewayError;
+use crate::http::start_http_api;
 use crate::node::client_handling::active_clients::ActiveClientsStore;
 use crate::node::client_handling::embedded_network_requester::{
     LocalNetworkRequesterHandle, MessageRouter,
@@ -332,6 +333,12 @@ impl<St> Gateway<St> {
             let nyxd_client = self.random_nyxd_client()?;
             CoconutVerifier::new(nyxd_client)
         };
+
+        start_http_api(
+            &self.config,
+            self.network_requester_opts.as_ref().map(|o| &o.config),
+            shutdown.subscribe().named("http-api"),
+        )?;
 
         let mix_forwarding_channel =
             self.start_packet_forwarder(shutdown.subscribe().named("PacketForwarder"));

@@ -1,4 +1,4 @@
-name: Build and upload binaries to CI
+name: ci-build-upload-binaries
 
 on:
   workflow_dispatch:
@@ -6,7 +6,6 @@ on:
     paths:
       - 'clients/**'
       - 'common/**'
-      - 'contracts/**'
       - 'explorer-api/**'
       - 'gateway/**'
       - 'integrations/**'
@@ -21,7 +20,6 @@ on:
     paths:
       - 'clients/**'
       - 'common/**'
-      - 'contracts/**'
       - 'explorer-api/**'
       - 'gateway/**'
       - 'integrations/**'
@@ -62,28 +60,12 @@ jobs:
 
       - name: Install Rust stable
         uses: actions-rs/toolchain@v1
-        with:
-          toolchain: 1.69.0
 
       - name: Build all binaries
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --workspace --release --all
-
-      - name: Install Rust stable
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: 1.69.0
-          target: wasm32-unknown-unknown
-          override: true
-          components: rustfmt, clippy
-
-      - name: Install wasm-opt
-        run: cargo install --version 0.112.0 wasm-opt
-
-      - name: Build release contracts
-        run: make contracts-wasm
+          args: --workspace --release
 
       - name: Prepare build output
         shell: bash
@@ -99,16 +81,6 @@ jobs:
           cp target/release/nym-network-statistics $OUTPUT_DIR
           cp target/release/nym-cli $OUTPUT_DIR
           cp target/release/explorer-api $OUTPUT_DIR
-          
-          cp contracts/target/wasm32-unknown-unknown/release/mixnet_contract.wasm $OUTPUT_DIR
-          cp contracts/target/wasm32-unknown-unknown/release/vesting_contract.wasm $OUTPUT_DIR
-          cp contracts/target/wasm32-unknown-unknown/release/nym_coconut_bandwidth.wasm $OUTPUT_DIR
-          cp contracts/target/wasm32-unknown-unknown/release/nym_coconut_dkg.wasm $OUTPUT_DIR
-          cp contracts/target/wasm32-unknown-unknown/release/cw3_flex_multisig.wasm $OUTPUT_DIR
-          cp contracts/target/wasm32-unknown-unknown/release/cw4_group.wasm $OUTPUT_DIR
-          cp contracts/target/wasm32-unknown-unknown/release/nym_service_provider_directory.wasm $OUTPUT_DIR
-          cp contracts/target/wasm32-unknown-unknown/release/nym_name_service.wasm $OUTPUT_DIR
-          cp contracts/target/wasm32-unknown-unknown/release/nym_ephemera.wasm $OUTPUT_DIR
 
       - name: Deploy branch to CI www
         continue-on-error: true

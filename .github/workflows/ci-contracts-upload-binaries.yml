@@ -28,9 +28,9 @@ jobs:
       - name: Prepare build output directory
         shell: bash
         env:
-          OUTPUT_DIR: ci-builds/${{ github.ref_name }}
+          OUTPUT_DIR: ci-contract-builds/${{ github.ref_name }}
         run: |
-          rm -rf ci-builds || true
+          rm -rf ci-contract-builds || true
           mkdir -p $OUTPUT_DIR
           echo $OUTPUT_DIR
 
@@ -55,7 +55,7 @@ jobs:
       - name: Prepare build output
         shell: bash
         env:
-          OUTPUT_DIR: ci-builds/${{ github.ref_name }}
+          OUTPUT_DIR: ci-contract-builds/${{ github.ref_name }}
         run: |
           cp contracts/target/wasm32-unknown-unknown/release/mixnet_contract.wasm $OUTPUT_DIR
           cp contracts/target/wasm32-unknown-unknown/release/vesting_contract.wasm $OUTPUT_DIR
@@ -73,7 +73,7 @@ jobs:
         env:
           SSH_PRIVATE_KEY: ${{ secrets.CI_WWW_SSH_PRIVATE_KEY }}
           ARGS: "-avzr"
-          SOURCE: "ci-builds/"
+          SOURCE: "ci-contract-builds/"
           REMOTE_HOST: ${{ secrets.CI_WWW_REMOTE_HOST }}
           REMOTE_USER: ${{ secrets.CI_WWW_REMOTE_USER }}
           TARGET: ${{ secrets.CI_WWW_REMOTE_TARGET }}/builds/

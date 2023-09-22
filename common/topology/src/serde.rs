@@ -8,6 +8,7 @@ use nym_config::defaults::{DEFAULT_CLIENT_LISTENING_PORT, DEFAULT_MIX_LISTENING_
 use nym_crypto::asymmetric::{encryption, identity};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
+use std::net::{IpAddr, SocketAddr};
 use thiserror::Error;
 
 #[cfg(feature = "wasm-serde-types")]
@@ -177,6 +178,12 @@ pub struct SerializableGateway {
 
     pub host: String,
 
+    // optional ip address in the case of host being a hostname that can't be resolved
+    // (thank you wasm)
+    #[cfg_attr(feature = "wasm-serde-types", tsify(optional))]
+    #[serde(alias = "explicit_ip")]
+    pub explicit_ip: Option<IpAddr>,
+
     #[cfg_attr(feature = "wasm-serde-types", tsify(optional))]
     #[serde(alias = "mix_port")]
     pub mix_port: Option<u16>,
@@ -207,7 +214,11 @@ impl TryFrom<SerializableGateway> for gateway::Node {
 
         // try to completely resolve the host in the mix situation to avoid doing it every
         // single time we want to construct a path
-        let mix_host = gateway::Node::extract_mix_host(&host, mix_port)?;
+        let mix_host = if let Some(explicit_ip) = value.explicit_ip {
+            SocketAddr::new(explicit_ip, mix_port)
+        } else {
+            gateway::Node::extract_mix_host(&host, mix_port)?
+        };
 
         Ok(gateway::Node {
             owner: value.owner,
@@ -228,6 +239,7 @@ impl<'a> From<&'a gateway::Node> for SerializableGateway {
         SerializableGateway {
             owner: value.owner.clone(),
             host: value.host.to_string(),
+            explicit_ip: Some(value.mix_host.ip()),
             mix_port: Some(value.mix_host.port()),
             clients_port: Some(value.clients_port),
             identity_key: value.identity_key.to_base58_string(),

@@ -160,14 +160,28 @@ async function nativeSetup() {
         requestTimeoutMs: 10000
     }
 
+    const extra = {
+        hiddenGateways: [
+            {
+                owner: "LoveIslandEnjoyer",
+                host: "gateway1.nymtech.net",
+                explicitIp: "213.219.38.119",
+                identityKey: "E3mvZTHQCdBvhfr178Swx9g4QG3kkRUun7YnToLMcMbM",
+                sphinxKey: "CYcrjoJ8GT7Dp54zViUyyRUfegeRCyPifWQZHRgMZrfX"
+            }
+        ]
+    }
+
     await setupMixFetch({
         // preferredNetworkRequester,
+        preferredGateway: "E3mvZTHQCdBvhfr178Swx9g4QG3kkRUun7YnToLMcMbM",
         storagePassphrase: "foomp",
-        // forceTls: true,
+        forceTls: true,
         // nymApiUrl: validator,
         clientId: "my-client",
         clientOverride: noCoverTrafficOverride,
-        mixFetchOverride
+        mixFetchOverride,
+        extra
     })
 }
 
@@ -203,20 +217,20 @@ async function testMixFetch() {
                         console.error("mix fetch request failure: ", e)
                     }
 
-                    console.log("will disconnect");
-                    await disconnectMixFetch()
-
-                    try {
-                        console.log('using mixFetch...');
-                        const mixFetchRes = await mixFetch(url, args)
-                        console.log(">>> MIX FETCH")
-                        await logFetchResult(mixFetchRes)
-
-                        console.log('done')
-
-                    } catch(e) {
-                        console.error("mix fetch request failure: ", e)
-                    }
+                    // console.log("will disconnect");
+                    // await disconnectMixFetch()
+                    //
+                    // try {
+                    //     console.log('using mixFetch...');
+                    //     const mixFetchRes = await mixFetch(url, args)
+                    //     console.log(">>> MIX FETCH")
+                    //     await logFetchResult(mixFetchRes)
+                    //
+                    //     console.log('done')
+                    //
+                    // } catch(e) {
+                    //     console.error("mix fetch request failure: ", e)
+                    // }
 
 
                     // try {

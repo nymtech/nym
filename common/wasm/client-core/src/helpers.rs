@@ -84,7 +84,7 @@ pub fn current_network_topology(nym_api_url: String) -> Promise {
     })
 }
 
-async fn setup_gateway(
+pub async fn setup_gateway_wasm(
     client_store: &ClientStorage,
     force_tls: bool,
     chosen_gateway: Option<IdentityKey>,
@@ -116,7 +116,7 @@ pub async fn setup_gateway_from_api(
 ) -> Result<InitialisationResult, WasmCoreError> {
     let mut rng = thread_rng();
     let gateways = current_gateways(&mut rng, nym_apis).await?;
-    setup_gateway(client_store, force_tls, chosen_gateway, &gateways).await
+    setup_gateway_wasm(client_store, force_tls, chosen_gateway, &gateways).await
 }
 
 pub async fn setup_from_topology(
@@ -126,5 +126,5 @@ pub async fn setup_from_topology(
     client_store: &ClientStorage,
 ) -> Result<InitialisationResult, WasmCoreError> {
     let gateways = topology.gateways();
-    setup_gateway(client_store, force_tls, explicit_gateway, gateways).await
+    setup_gateway_wasm(client_store, force_tls, explicit_gateway, gateways).await
 }

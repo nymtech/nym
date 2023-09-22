@@ -4,7 +4,9 @@
 use crate::active_requests::ActiveRequests;
 use crate::config::MixFetchConfig;
 use crate::error::MixFetchError;
+use crate::fetch::HackOpts;
 use crate::go_bridge::goWasmSetMixFetchRequestTimeout;
+use crate::helpers::{_hack__get_topology_provider, get_combined_gateways};
 use crate::request_writer::RequestWriter;
 use crate::socks_helpers::{socks5_connect_request, socks5_data_request};
 use crate::{config, RequestId};
@@ -16,12 +18,13 @@ use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::future_to_promise;
 use wasm_client_core::client::base_client::{BaseClientBuilder, ClientInput, ClientOutput};
 use wasm_client_core::client::inbound_messages::InputMessage;
-use wasm_client_core::helpers::setup_gateway_from_api;
+use wasm_client_core::helpers::setup_gateway_wasm;
 use wasm_client_core::init::types::GatewaySetup;
 use wasm_client_core::nym_task::connections::TransmissionLane;
 use wasm_client_core::nym_task::TaskManager;
 use wasm_client_core::storage::core_client_traits::FullWasmClientStorage;
 use wasm_client_core::storage::ClientStorage;
+use wasm_client_core::topology::SerializableGateway;
 use wasm_client_core::{IdentityKey, QueryReqwestRpcNyxdClient, Recipient};
 use wasm_utils::console_log;
 use wasm_utils::error::PromisableResult;
@@ -47,6 +50,7 @@ pub struct MixFetchClientBuilder {
     config: MixFetchConfig,
     preferred_gateway: Option<IdentityKey>,
     force_tls: bool,
+    hidden_gateways: Vec<SerializableGateway>,
 
     storage_passphrase: Option<String>,
 }
@@ -59,11 +63,16 @@ impl MixFetchClientBuilder {
         force_tls: bool,
         preferred_gateway: Option<IdentityKey>,
         storage_passphrase: Option<String>,
+        hack_opts: Option<HackOpts>,
     ) -> Self {
         MixFetchClientBuilder {
             config,
             preferred_gateway,
             force_tls,
+            hidden_gateways: hack_opts
+                .unwrap_or_default()
+                .hidden_gateways
+                .unwrap_or_default(),
             storage_passphrase,
         }
     }
@@ -96,14 +105,11 @@ impl MixFetchClientBuilder {
             ClientStorage::new_async(&self.config.base.client.id, self.storage_passphrase.take())
                 .await?;
 
+        let uses_hidden = !self.hidden_gateways.is_empty();
         let user_chosen = self.preferred_gateway.clone();
-        let init_res = setup_gateway_from_api(
-            &client_store,
-            self.force_tls,
-            user_chosen,
-            &nym_api_endpoints,
-        )
-        .await?;
+        let gateways = get_combined_gateways(self.hidden_gateways, &nym_api_endpoints).await?;
+        let init_res =
+            setup_gateway_wasm(&client_store, self.force_tls, user_chosen, &gateways).await?;
 
         let storage = Self::initialise_storage(&self.config, client_store);
 
@@ -115,6 +121,11 @@ impl MixFetchClientBuilder {
 
         if let Ok(reuse_setup) = GatewaySetup::try_reuse_connection(init_res) {
             base_builder = base_builder.with_gateway_setup(reuse_setup);
+        }
+        if uses_hidden {
+            base_builder = base_builder.with_topology_provider(Box::new(
+                _hack__get_topology_provider(gateways, &nym_api_endpoints).await?,
+            ))
         }
 
         let mut started_client = base_builder.start_base().await?;
@@ -147,10 +158,17 @@ impl MixFetchClient {
         force_tls: bool,
         preferred_gateway: Option<IdentityKey>,
         storage_passphrase: Option<String>,
+        hack_opts: Option<HackOpts>,
     ) -> Result<MixFetchClient, MixFetchError> {
-        MixFetchClientBuilder::new(config, force_tls, preferred_gateway, storage_passphrase)
-            .start_client_async()
-            .await
+        MixFetchClientBuilder::new(
+            config,
+            force_tls,
+            preferred_gateway,
+            storage_passphrase,
+            hack_opts,
+        )
+        .start_client_async()
+        .await
     }
 
     #[wasm_bindgen(constructor)]
@@ -160,11 +178,18 @@ impl MixFetchClient {
         force_tls: bool,
         preferred_gateway: Option<IdentityKey>,
         storage_passphrase: Option<String>,
+        hack_opts: Option<HackOpts>,
     ) -> Promise {
         future_to_promise(async move {
-            Self::new_async(config, force_tls, preferred_gateway, storage_passphrase)
-                .await
-                .into_promise_result()
+            Self::new_async(
+                config,
+                force_tls,
+                preferred_gateway,
+                storage_passphrase,
+                hack_opts,
+            )
+            .await
+            .into_promise_result()
         })
     }
 

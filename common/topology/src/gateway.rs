@@ -86,7 +86,7 @@ impl Node {
     }
 
     pub fn clients_address_tls(&self) -> String {
-        format!("wss://{}:{}", self.host, self.clients_port)
+        format!("wss://{}:443", self.host)
     }
 }
 

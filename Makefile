@@ -12,23 +12,29 @@
 # Default target
 all: test
 
-test: clippy cargo-test contracts-wasm sdk-wasm-test fmt
+# -----------------------------------------------------------------------------
+# Meta targets
+# -----------------------------------------------------------------------------
+
+test: clippy cargo-test fmt
 
 test-all: test cargo-test-expensive
 
-no-clippy: build cargo-test contracts-wasm fmt
+no-clippy: build cargo-test fmt
 
 # Deprecated? Since it includes test is also includes non-happy clippy...
 happy: fmt clippy-happy test
 
-# Meta target for building all binaries (in debug mode)
+# Building release binaries is a little manual as we can't just build --release
+# on all workspaces. Cherry-pick these two.
+build-release: build-release-main contracts
+
+# Not a meta target, more of a top-level target for building all binaries (in
+# debug mode). Listed here for visibility. The deps are appended successively
 build:
 
-# Building release binaries is a little manual as we can't just build --release
-# on all workspaces.
-build-release: build-release-main contracts-wasm
-
-# Meta target for clippy
+# Not a meta target, more of a top-level target for clippy. Listed here for
+# visibility. The deps are appended successively.
 clippy:
 
 # -----------------------------------------------------------------------------
@@ -36,41 +42,42 @@ clippy:
 #  $(1): name
 #  $(2): path to workspace
 #  $(3): extra arguments to cargo
+#  $(4): prefix env
 # -----------------------------------------------------------------------------
 define add_cargo_workspace
 
 clippy-happy-$(1):
-	cargo clippy --manifest-path $(2)/Cargo.toml $(3)
+	$(4) cargo clippy --manifest-path $(2)/Cargo.toml $(3)
 
 clippy-$(1):
-	cargo clippy --manifest-path $(2)/Cargo.toml --workspace $(3) -- -D warnings
+	$(4) cargo clippy --manifest-path $(2)/Cargo.toml --workspace $(3) -- -D warnings
 
 clippy-examples-$(1):
-	cargo clippy --manifest-path $(2)/Cargo.toml --workspace --examples -- -D warnings
+	$(4) cargo clippy --manifest-path $(2)/Cargo.toml --workspace --examples -- -D warnings
 
 check-$(1):
-	cargo check --manifest-path $(2)/Cargo.toml --workspace $(3)
+	$(4) cargo check --manifest-path $(2)/Cargo.toml --workspace $(3)
 
 test-$(1):
-	cargo test --manifest-path $(2)/Cargo.toml --workspace
+	$(4) cargo test --manifest-path $(2)/Cargo.toml --workspace
 
 test-expensive-$(1):
-	cargo test --manifest-path $(2)/Cargo.toml --workspace -- --ignored
+	$(4) cargo test --manifest-path $(2)/Cargo.toml --workspace -- --ignored
 
 build-standalone-$(1):
-	cargo build --manifest-path $(2)/Cargo.toml $(3)
+	$(4) cargo build --manifest-path $(2)/Cargo.toml $(3)
 
 build-$(1):
-	cargo build --manifest-path $(2)/Cargo.toml --workspace $(3)
+	$(4) cargo build --manifest-path $(2)/Cargo.toml --workspace $(3)
 
 build-examples-$(1):
-	cargo build --manifest-path $(2)/Cargo.toml --workspace --examples
+	$(4) cargo build --manifest-path $(2)/Cargo.toml --workspace --examples
 
 build-release-$(1):
-	cargo build --manifest-path $(2)/Cargo.toml --workspace --release $(3)
+	$(4) cargo build --manifest-path $(2)/Cargo.toml --workspace --release $(3)
 
 fmt-$(1):
-	cargo fmt --manifest-path $(2)/Cargo.toml --all
+	$(4) cargo fmt --manifest-path $(2)/Cargo.toml --all
 
 clippy-happy: clippy-happy-$(1)
 clippy: clippy-$(1) clippy-examples-$(1)
@@ -90,7 +97,7 @@ endef
 # Generate targets for the various cargo workspaces
 
 $(eval $(call add_cargo_workspace,main,.))
-$(eval $(call add_cargo_workspace,contracts,contracts,--lib --target wasm32-unknown-unknown))
+$(eval $(call add_cargo_workspace,contracts,contracts,--lib --target wasm32-unknown-unknown,RUSTFLAGS='-C link-arg=-s'))
 $(eval $(call add_cargo_workspace,wallet,nym-wallet,))
 $(eval $(call add_cargo_workspace,connect,nym-connect/desktop))
 
@@ -110,7 +117,7 @@ wasm-pack-browser-extension-storage:
 clippy-browser-extension-storage:
 	cargo clippy -p extension-storage --target wasm32-unknown-unknown -- -Dwarnings
 
-# Add to meta targets
+# Add to top-level targets
 build: build-browser-extension-storage
 clippy: clippy-browser-extension-storage
 
@@ -134,52 +141,37 @@ sdk-typescript-build:
 	npx lerna run --scope @nymproject/node-tester build --stream
 	yarn --cwd sdk/typescript/codegen/contract-clients build
 
-sdk-wasm-test:
-#	# client
-#	cargo test -p nym-client-wasm --target wasm32-unknown-unknown
-#
-#	# node-tester
-#	cargo test -p nym-node-tester-wasm --target wasm32-unknown-unknown
-#
-#	# mix-fetch
-#	#cargo test -p nym-wasm-sdk --target wasm32-unknown-unknown
-#
-#	# full
-#	cargo test -p nym-wasm-sdk --target wasm32-unknown-unknown
-
-
 # NOTE: These targets are part of the main workspace (but not as wasm32-unknown-unknown)
 WASM_CRATES = nym-client-wasm nym-node-tester-wasm nym-wasm-sdk
+
+sdk-wasm-test:
+	#cargo test $(addprefix -p , $(WASM_CRATES)) --target wasm32-unknown-unknown -- -Dwarnings
 
 sdk-wasm-lint:
 	cargo clippy $(addprefix -p , $(WASM_CRATES)) --target wasm32-unknown-unknown -- -Dwarnings
 	$(MAKE) -C wasm/mix-fetch check-fmt
 
-# Add to meta targets
+# Add to top-level targets
 build: sdk-wasm-build
+cargo-test: sdk-wasm-test
 clippy: sdk-wasm-lint
 
 # -----------------------------------------------------------------------------
-# Contracts
+# Build contracts ready for deploy
 # -----------------------------------------------------------------------------
 
+CONTRACTS=vesting_contract mixnet_contract nym_service_provider_directory nym_name_service
+CONTRACTS_WASM=$(addsuffix .wasm, $(CONTRACTS))
 CONTRACTS_OUT_DIR=contracts/target/wasm32-unknown-unknown/release
-VESTING_CONTRACT=$(CONTRACTS_OUT_DIR)/vesting_contract.wasm
-MIXNET_CONTRACT=$(CONTRACTS_OUT_DIR)/mixnet_contract.wasm
-SERVICE_PROVIDER_DIRECTORY_CONTRACT=$(CONTRACTS_OUT_DIR)/nym_service_provider_directory.wasm
-NAME_SERVICE_CONTRACT=$(CONTRACTS_OUT_DIR)/nym_name_service.wasm
 
-contracts-wasm: contracts-wasm-build contracts-wasm-opt
+contracts: build-release-contracts wasm-opt-contracts
 
-contracts-wasm-build:
-	RUSTFLAGS='-C link-arg=-s' cargo build --lib --manifest-path contracts/Cargo.toml --release --target wasm32-unknown-unknown
+wasm-opt-contracts:
+	for contract in $(CONTRACTS_WASM); do \
+	  wasm-opt --disable-sign-ext -Os $(CONTRACTS_OUT_DIR)/$$contract -o $(CONTRACTS_OUT_DIR)/$$contract; \
+	done
 
-contracts-wasm-opt:
-	wasm-opt --disable-sign-ext -Os $(VESTING_CONTRACT) -o $(VESTING_CONTRACT)
-	wasm-opt --disable-sign-ext -Os $(MIXNET_CONTRACT) -o $(MIXNET_CONTRACT)
-	wasm-opt --disable-sign-ext -Os $(SERVICE_PROVIDER_DIRECTORY_CONTRACT) -o $(SERVICE_PROVIDER_DIRECTORY_CONTRACT)
-	wasm-opt --disable-sign-ext -Os $(NAME_SERVICE_CONTRACT) -o $(NAME_SERVICE_CONTRACT)
-
+# Consider adding 's' to make plural consistent (beware: used in github workflow)
 contract-schema:
 	$(MAKE) -C contracts schema
 

@@ -148,7 +148,7 @@ impl WireGuardTunnel {
                 .unwrap_or(true)
         };
         if to_update {
-            log::debug!("wg tunnel set_source_addr: {source_addr}");
+            log::info!("wg tunnel set_source_addr: {source_addr}");
             *self.source_addr.write().unwrap() = Some(source_addr);
         }
     }

@@ -1,4 +1,4 @@
-name: Nym Wallet (rust)
+name: ci-nym-wallet-rust
 
 on:
   push:

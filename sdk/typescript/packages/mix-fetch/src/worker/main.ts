@@ -1,5 +1,5 @@
 /* eslint-disable no-restricted-globals */
-import { setupMixFetch } from '@nymproject/mix-fetch-wasm';
+import { setupMixFetch, disconnectMixFetch } from '@nymproject/mix-fetch-wasm';
 import * as Comlink from 'comlink';
 import type { IMixFetchWebWorker, LoadedEvent } from '../types';
 import { EventKinds, ResponseBodyConfigMap, ResponseBodyConfigMapDefaults } from '../types';
@@ -52,6 +52,11 @@ export async function run() {
         responseBodyConfigMap = opts.responseBodyConfigMap;
       }
       await setupMixFetch(opts || {});
+    },
+    disconnectMixFetch: async () => {
+      console.log('[Worker] --- disconnectMixFetch ---');
+
+      await disconnectMixFetch();
     },
   };
 

@@ -40,6 +40,9 @@ pub enum MixFetchError {
     #[error("mix fetch has already been initialised before")]
     AlreadyInitialised,
 
+    #[error("mix fetch client has already been disconnected")]
+    Disconnected,
+
     #[error("provided mix fetch url wasn't a string")]
     NotStringMixFetchUrl,
 

@@ -1,4 +1,4 @@
-import { createMixFetch } from '@nymproject/mix-fetch';
+import { createMixFetch, disconnectMixFetch } from '@nymproject/mix-fetch';
 
 function appendOutput(value: string) {
   const el = document.getElementById('output') as HTMLPreElement;
@@ -53,6 +53,10 @@ async function main() {
 
   appendOutput(JSON.stringify(resp, null, 2));
   appendOutput(JSON.stringify({ text }, null, 2));
+
+  console.log('disconnecting');
+  await disconnectMixFetch();
+  console.log('disconnected! all further usages should fail');
 
   // get an image
   url = 'https://nymtech.net/favicon.svg';

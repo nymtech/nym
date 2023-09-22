@@ -39,6 +39,14 @@ impl ActiveRequests {
         request_id
     }
 
+    pub async fn invalidate_all(&self) {
+        let mut guard = self.inner.lock().await;
+        for (id, _req) in guard.drain() {
+            let err = MixFetchError::AbortedRequest { request_id: id };
+            goWasmInjectConnError(id.to_string(), err.to_string())
+        }
+    }
+
     pub async fn get_sending_sequence(&self, id: RequestId) -> Option<u64> {
         let mut guard = self.inner.lock().await;
         if let Some(req) = guard.get_mut(&id) {

@@ -1,7 +1,8 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{mix_fetch_client, MIX_FETCH};
+use crate::error::MixFetchError;
+use crate::mix_fetch_client;
 use js_sys::Promise;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsValue;
@@ -26,7 +27,7 @@ pub fn send_client_data(stringified_request_id: String, data: Vec<u8>) -> Promis
     future_to_promise(async move {
         // this error should be impossible in normal use
         // (unless, of course, user is messing around, but then it's their fault for this panic)
-        let mix_fetch = mix_fetch_client().expect("mix fetch hasn't been setup");
+        let mix_fetch = mix_fetch_client().map_err(JsValue::from)?;
         mix_fetch.forward_request_content(request_id, data).await?;
         Ok(JsValue::undefined())
     })
@@ -44,7 +45,7 @@ pub fn start_new_mixnet_connection(target: String) -> Promise {
     future_to_promise(async move {
         // this error should be impossible in normal use
         // (unless, of course, user is messing around, but then it's their fault for this panic)
-        let mix_fetch = mix_fetch_client().expect("mix fetch hasn't been setup");
+        let mix_fetch = mix_fetch_client().map_err(JsValue::from)?;
         mix_fetch
             .connect_to_mixnet(target)
             .await
@@ -54,8 +55,9 @@ pub fn start_new_mixnet_connection(target: String) -> Promise {
 }
 
 #[wasm_bindgen]
-pub fn mix_fetch_initialised() -> bool {
-    MIX_FETCH.get().is_some()
+pub fn mix_fetch_initialised() -> Result<bool, MixFetchError> {
+    mix_fetch_client()?;
+    Ok(true)
 }
 
 /// Called by go runtime whenever it's done with a connection
@@ -76,7 +78,7 @@ pub fn finish_mixnet_connection(stringified_request_id: String) -> Promise {
     future_to_promise(async move {
         // this error should be impossible in normal use
         // (unless, of course, user is messing around, but then it's their fault for this panic)
-        let mix_fetch = mix_fetch_client().expect("mix fetch hasn't been setup");
+        let mix_fetch = mix_fetch_client().map_err(JsValue::from)?;
         mix_fetch.disconnect_from_mixnet(request_id).await?;
         Ok(JsValue::undefined())
     })

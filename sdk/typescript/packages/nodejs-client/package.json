@@ -27,7 +27,7 @@
     "tsc": "tsc --noEmit true"
   },
   "dependencies": {
-    "@nymproject/nym-client-wasm-node": ">=1.2.0-rc.5 || ^1",
+    "@nymproject/nym-client-wasm-node": ">=1.2.0-rc.7 || ^1",
     "comlink": "^4.3.1"
   },
   "devDependencies": {

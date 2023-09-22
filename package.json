@@ -5,6 +5,7 @@
   "license": "Apache 2.0",
   "workspaces": [
     "dist/wasm/**",
+    "dist/node/**",
     "sdk/typescript/packages/**",
     "ts-packages/*",
     "nym-wallet",

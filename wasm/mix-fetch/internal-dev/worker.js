@@ -33,6 +33,7 @@ const {
     send_client_data,
     start_new_mixnet_connection,
     setupMixFetch,
+    disconnectMixFetch,
     setupMixFetchWithConfig,
     mix_fetch_initialised,
     finish_mixnet_connection} = wasm_bindgen;
@@ -120,12 +121,12 @@ async function wasm_bindgenSetup() {
 }
 
 async function nativeSetup() {
-    const preferredGateway = "6qQYb4ArXANU6HJDxzH4PFCUqYb39Dae2Gem2KpxescM";
-    const validator = 'https://qa-nym-api.qa.nymte.ch/api';
+    // const preferredGateway = "6qQYb4ArXANU6HJDxzH4PFCUqYb39Dae2Gem2KpxescM";
+    // const validator = 'https://qa-nym-api.qa.nymte.ch/api';
 
     // local
-    const mixFetchNetworkRequesterAddress= "2o47bhnXWna6VEyt4mXMGQQAbXfpKmX7BkjkxUz8uQVi.6uQGnCqSczpXwh86NdbsCoDDXuqZQM9Uwko8GE7uC9g8@6qQYb4ArXANU6HJDxzH4PFCUqYb39Dae2Gem2KpxescM";
-    // const mixFetchNetworkRequesterAddress= "GqiGWmKRCbGQFSqH88BzLKijvZgipnqhmbNFsmkZw84t.4L8sXFuAUyUYyHZYgMdM3AtiusKnYUft6Pd8e41rrCHA@6qQYb4ArXANU6HJDxzH4PFCUqYb39Dae2Gem2KpxescM";
+    // const preferredNetworkRequester= "2o47bhnXWna6VEyt4mXMGQQAbXfpKmX7BkjkxUz8uQVi.6uQGnCqSczpXwh86NdbsCoDDXuqZQM9Uwko8GE7uC9g8@6qQYb4ArXANU6HJDxzH4PFCUqYb39Dae2Gem2KpxescM";
+    // const preferredNetworkRequester= "GqiGWmKRCbGQFSqH88BzLKijvZgipnqhmbNFsmkZw84t.4L8sXFuAUyUYyHZYgMdM3AtiusKnYUft6Pd8e41rrCHA@6qQYb4ArXANU6HJDxzH4PFCUqYb39Dae2Gem2KpxescM";
 
     // those are just some examples, there are obviously more permutations;
     // note, the extra optional argument is of the following type:
@@ -147,9 +148,9 @@ async function nativeSetup() {
      */
 
     // #1
-    // await setupMixFetch(mixFetchNetworkRequesterAddress)
+    // await setupMixFetch(preferredNetworkRequester)
     // #2
-    // await setupMixFetch(mixFetchNetworkRequesterAddress, { nymApiUrl: validator })
+    // await setupMixFetch(preferredNetworkRequester, { nymApiUrl: validator })
     // // #3
     const noCoverTrafficOverride = {
         traffic: { disableMainPoissonPacketDistribution: true },
@@ -187,17 +188,36 @@ async function testMixFetch() {
                     const {target} = event.data.args;
                     const url = target;
 
-                    const args = { mode: "cors", redirect: "manual" }
-                    // const args = { mode: "unsafe-ignore-cors" }
+                    // const args = { mode: "ors", redirect: "manual", signal }
+                    const args = { mode: "unsafe-ignore-cors" }
 
                     try {
                         console.log('using mixFetch...');
                         const mixFetchRes = await mixFetch(url, args)
                         console.log(">>> MIX FETCH")
                         await logFetchResult(mixFetchRes)
+
+                        console.log('done')
+
                     } catch(e) {
                         console.error("mix fetch request failure: ", e)
                     }
+
+                    console.log("will disconnect");
+                    await disconnectMixFetch()
+
+                    try {
+                        console.log('using mixFetch...');
+                        const mixFetchRes = await mixFetch(url, args)
+                        console.log(">>> MIX FETCH")
+                        await logFetchResult(mixFetchRes)
+
+                        console.log('done')
+
+                    } catch(e) {
+                        console.error("mix fetch request failure: ", e)
+                    }
+
 
                     // try {
                     //     console.log('using normal Fetch...');

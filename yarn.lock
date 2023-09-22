@@ -2844,11 +2844,6 @@
   resolved "https://registry.yarnpkg.com/@nx/nx-win32-x64-msvc/-/nx-win32-x64-msvc-16.8.1.tgz#6ec1930aaf4d9dea19149d6b3d100b2c7e69d582"
   integrity sha512-yHZ5FAcx54rVc31R0yIpniepkHMPwaxG23l8E/ZYbL1iPwE/Wc1HeUzUvxUuSXtguRp7ihcRhaUEPkcSl2EAVw==
 
-"@nymproject/nym-client-wasm-node@>=1.2.0-rc.5 || ^1":
-  version "1.2.0-rc.5"
-  resolved "https://registry.yarnpkg.com/@nymproject/nym-client-wasm-node/-/nym-client-wasm-node-1.2.0-rc.5.tgz#464cc905a029cedb3acbe5513f60d47c22a28137"
-  integrity sha512-NF15b+DVfLgC3zx3wszZkxdyaDvQcxxxNF4sr6y5osQDMXbixRMU/rNDF8kEa/cSDNipxf8G5Z0ApJSGKjcehQ==
-
 "@nymproject/nym-validator-client@^0.18.0":
   version "0.18.0"
   resolved "https://registry.yarnpkg.com/@nymproject/nym-validator-client/-/nym-validator-client-0.18.0.tgz#4dd72bafdf6c72b603242f32c0bb9a1f9e475b98"

@@ -40,31 +40,30 @@ jobs:
           command: fmt
           args: --all -- --check
 
-      # - name: Build all binaries
-      #   uses: actions-rs/cargo@v1
-      #   with:
-      #     command: build
-      #     args: --workspace
-      #
-      # - name: Run all tests
-      #   uses: actions-rs/cargo@v1
-      #   with:
-      #     command: test
-      #     args: --workspace
-      #
-      # - name: Annotate with clippy warnings
-      #   uses: actions-rs/clippy-check@v1
-      #   continue-on-error: true
-      #   with:
-      #     token: ${{ secrets.GITHUB_TOKEN }}
-      #     args: --workspace
-      #
-      # - name: Run clippy
-      #   uses: actions-rs/cargo@v1
-      #   if: ${{ matrix.rust != 'nightly' }}
-      #   with:
-      #     command: clippy
-      #     args: --workspace --all-targets -- -D warnings
+      - name: Build
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --workspace
+
+      - name: Unit tests
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --workspace
+
+      - name: Annotate with clippy warnings
+        uses: actions-rs/clippy-check@v1
+        continue-on-error: true
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          args: --workspace
+
+      - name: Clippy
+        uses: actions-rs/cargo@v1
+        with:
+          command: clippy
+          args: --workspace --all-targets -- -D warnings
 
   # notification:
   #   needs: build

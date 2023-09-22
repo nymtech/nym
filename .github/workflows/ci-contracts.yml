@@ -16,12 +16,12 @@ jobs:
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
-      # creates the matrix strategy from ci-contract-matrix-includes.json
+      # creates the matrix strategy from ci-contracts-matrix-includes.json
       - uses: actions/checkout@v2
       - id: set-matrix
         uses: JoshuaTheMiller/conditional-build-matrix@main
         with:
-          inputFile: '.github/workflows/ci-contract-matrix-includes.json'
+          inputFile: '.github/workflows/ci-contracts-matrix-includes.json'
           filter: '[?runOnEvent==`${{ github.event_name }}` || runOnEvent==`always`]'
   build:
     # since it's going to be compiled into wasm, there's absolutely

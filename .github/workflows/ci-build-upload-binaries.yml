@@ -60,6 +60,8 @@ jobs:
 
       - name: Install Rust stable
         uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
 
       - name: Build all binaries
         uses: actions-rs/cargo@v1

@@ -1,4 +1,4 @@
-name: Publish SDK to NPM
+name: publish-sdk-npm
 on:
   workflow_dispatch:
 

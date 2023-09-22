@@ -182,16 +182,21 @@ fn initialise_internal_packages<P: AsRef<Path>>(root: P) -> InternalPackages {
     packages.register_json("sdk/typescript/packages/sdk-react");
     packages.register_json("sdk/typescript/packages/validator-client");
     packages.register_json("sdk/typescript/codegen/contract-clients");
+    packages.register_json("sdk/typescript/docs");
 
     // dependencies that will have their versions adjusted in the above packages
     packages.register_known_js_dependency("@nymproject/mix-fetch");
+    packages.register_known_js_dependency("@nymproject/mix-fetch-full-fat");
     packages.register_known_js_dependency("@nymproject/mui-theme");
     packages.register_known_js_dependency("@nymproject/node-tester");
     packages.register_known_js_dependency("@nymproject/react-components");
     packages.register_known_js_dependency("@nymproject/sdk");
+    packages.register_known_js_dependency("@nymproject/sdk-full-fat");
     packages.register_known_js_dependency("@nymproject/sdk-react");
     packages.register_known_js_dependency("@nymproject/react");
     packages.register_known_js_dependency("@nymproject/nym-validator-client");
+    packages.register_known_js_dependency("@nymproject/ts-sdk-docs");
+    packages.register_known_js_dependency("@nymproject/contract-clients");
 
     packages
 }

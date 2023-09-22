@@ -1,7 +1,7 @@
 {
-  "name": "nextra-docs-template",
-  "version": "0.0.1",
-  "description": "Nextra docs template",
+  "name": "@nymproject/ts-sdk-docs",
+  "version": "1.2.0-rc.8",
+  "description": "Nym Typescript SDK Docs",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -9,16 +9,8 @@
     "lint": "next lint",
     "lint:fix": "next lint --fix"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/shuding/nextra-docs-template.git"
-  },
-  "author": "Shu Ding <g@shud.in>",
-  "license": "MIT",
-  "bugs": {
-    "url": "https://github.com/shuding/nextra-docs-template/issues"
-  },
-  "homepage": "https://github.com/shuding/nextra-docs-template#readme",
+  "license": "Apache-2.0",
+  "author": "Nym Technologies SA",
   "dependencies": {
     "@cosmjs/amino": "^0.31.1",
     "@cosmjs/cosmwasm-launchpad": "^0.25.6",

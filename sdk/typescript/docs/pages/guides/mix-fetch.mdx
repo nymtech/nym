@@ -27,7 +27,7 @@ import { mixFetch } from '@nymproject/mix-fetch-full-fat';
 import React from 'react';
 
 export function HttpGET() {
-  const [html, setHtml] = React.useState('')
+  const [html, setHtml] = React.useState<string>('')
     async function get () {
       const response = await mixFetch('https://nymtech.net')
       const text = await response.text()

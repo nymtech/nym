@@ -77,6 +77,7 @@ function MyComponent() {
         { wallet && <div>Address: <code>{address}</code> </div>}
       </div>
       <button onClick={() => {connect()}}>Connect wallet</button>
+      {address && <button onClick={() => {sign()}}>Sign message</button> }
     </div>
 
   );
@@ -98,5 +99,4 @@ export default function App() {
 
   )
 }
-
 ```

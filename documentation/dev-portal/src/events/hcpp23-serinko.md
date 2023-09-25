@@ -76,7 +76,7 @@ element-desktop --proxy-server=socks5://127.0.0.1:1080
 
 **Mac**
 
-```zsh
+```sh
 open -a Element --args --proxy-server=socks5://127.0.0.1:1080
 ```
 

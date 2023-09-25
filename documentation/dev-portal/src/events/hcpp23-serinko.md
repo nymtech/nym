@@ -85,11 +85,9 @@ To setup your own alias or key-binding see our [*Matrix NymConnect Integration* 
 
 ## Building Nym Platform
 
-If you prefer to run to run `nym-socks5-client` the possibility is to download the pre-build binary or build the entire platform. To run ircd through the mixnet `nym-socks5-client` and `nym-network-requester` are mandatory. Before you start with donwload and installation, make sure you are on the same machine from which you connect to ircd.
+If you prefer to run to run `nym-socks5-client` the possibility is to download the pre-build binary or build the entire platform. To run ircd through the Mixnet `nym-socks5-client` and `nym-network-requester` are mandatory. Before you start with download and installation, make sure you are on the same machine from which you will connect to ircd.
 
-If you prefer to run to run `nym-socks5-client` the possibility is to download the pre-build binary or build the entire platform. To run ircd through the mixnet `nym-socks5-client` and `nym-network-requester` are mandatory. Before you start with download and installation, make sure you are on the same machine from which you connect to ircd.
-
-We recommend to clone and build the entire platform instead of individual binaries as it offers an easier update and more options down the road, however it takes a basic commandline knowledge and longer time. The [Nym platform](https://github.com/nymtech/nym) is written in Rust. For that to work we will need a few pre-requisities. If you prefer to download individual pre-build binaries, skip this part and go directly that chapter. 
+We recommend to clone and build the entire platform instead of individual binaries as it offers an easier update and more options down the road, however it takes a basic command-line knowledge and more time. The [Nym platform](https://github.com/nymtech/nym) is written in Rust. For that to work we will need a few pre-requisities. If you prefer to download individual pre-build binaries, skip this part and go directly that chapter. 
 
 ### Prerequisites 
 - Debian/Ubuntu: `pkg-config`, `build-essential`, `libssl-dev`, `curl`, `jq`, `git`
@@ -117,7 +115,7 @@ We recommend using the [Rust shell script installer](https://www.rust-lang.org/t
 
 If you really don't want to use the shell script installer, the [Rust installation docs](https://forge.rust-lang.org/infra/other-installation-methods.html) contain instructions for many platforms.
 
-### Download and build Nym binaries
+### Download and Compile Nym
 The following commands will compile binaries into the `nym/target/release` directory:
 
 ```sh
@@ -148,14 +146,11 @@ chmod +x ./<BINARY_NAME>
 # for example: chmod +x ./nym-network-requester
 ```
 
-## Initialize Sock5 Client and Network Requester
+## Initialize Socks5 Client and Network Requester
 
-```admonish info
-If you want to run your applications over NymConnect skip this chapter. `nym-socks5-client` and `nym-network-requester` is a must if you want to run ircd through the Mixnet.
-```
 Whether you build the entire platform or downloaded binaries, `nym-socks5-client` and `nym-network-requester` need to be initialised with `init` before being `run`.
 
-In your terminal navigate to the directory where you have your `nym-socks5-client` and `nym-network-requester`. In case you build the entire platform it's in `nym/target/release` - you can change directory from the one where you build by:
+In your terminal navigate to the directory where you have your `nym-socks5-client` and `nym-network-requester`. In case you built the entire platform it's in `nym/target/release` - you can change directory from the one where you build by:
 
 ```sh
 cd target/release
@@ -208,5 +203,5 @@ This `id` is **never** transmitted over the network, and is used to select which
 # socks5 client (in other terminal window)
 ./nym-socks5-client run --id <ID>
 ```
-
+### Configuration
 

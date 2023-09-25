@@ -1,12 +1,12 @@
 # HCPP 2023 - Securing the Lunarpunks Workshop
 
-The workshop will introduce ***why*** and ***how to use Nym platform as a network protection*** layer when using some of our favorite privacy applications. This page serves as an accessible guide alongside the talk and it includes all the steps, per-requizities and dependencies needed. Preferably the users interested in this setup start downloading and building the tools before the workshop or in the beginning of it so the limited time can be used for questions and addressing problems. This guide will stay online for another week after the event just in case people were not finished and want to catch up later.  
+[Serinko's](https://resistance.hcpp.cz/) [workshop](ttps://cfp.paralelnipolis.cz/hcpp23/talk/LLPWXW/) will introduce ***why*** and ***how to use [Nym](https://nymtech.net) platform as a network protection*** layer when using some of our favorite privacy applications. This page serves as an accessible guide alongside the talk and it includes all the steps, pre-requisities and dependencies needed. Preferably the users interested in this setup start downloading and building the tools before the workshop or in the beginning of it. We can use the limited time for questions and addressing problems. This guide will stay online after the event just in case people were not finished and want to catch up later.  
 
-This page is a *how to guide* so it contains the setup steps only, to see the entire presentation please come to XXX at YYY.
+This page is a *how to guide* so it contains the setup only, to see the entire presentation join in at [HCPP 2023](https://resistance.hcpp.cz/) on [Sunday](https://cfp.paralelnipolis.cz/hcpp23/talk/LLPWXW/).
 
 ## Preparation
 
-During this workshop we will introduce NymConnect and Socks5 client. The difference between them is that the Socks5 client does everything Nymconnect does, but it has more optionality as it's run in a commandline. NymConnect is a one-button GUI application that wraps around the `nym-socks5-client` for proxying application traffic through the Mixnet.  
+During this workshop we will introduce NymConnect and Socks5 client. The difference between them is that the Socks5 client does everything Nymconnect does, but it has more optionality and it's run from a commandline. NymConnect is a one-button GUI application that wraps around the `nym-socks5-client` for proxying application traffic through the Mixnet.  
 
 We will learn how to run over Nym Mixnet the following applications: Electrum Bitcoin wallet, Monero wallet (desktop and CLI), Matrix (Element app) and ircd chat. For those who want to run ircd through the Mixnet, `nym-socks5-client` client is a must. For all other applications you can choose if you settle with our slick app NymConnect which does all the job in the background or you prefer Socks5 client.
 
@@ -14,17 +14,47 @@ We will learn how to run over Nym Mixnet the following applications: Electrum Bi
 
 ## NymConnect Installation
 
-NymConnect for everyone who does not want to install and run `nym-socks5-client`. NymConnect is plug and play - fast and easy to download and run. It connects automatically to Electrum Bitcoin wallet, Monero wallet (desktop and CLI) and Matrix (Element app) after we set them up.
+NymConnect application for everyone who does not want to install and run `nym-socks5-client`. NymConnect is plug-and-play, fast and easy to download and run. Electrum Bitcoin wallet, Monero wallet (desktop and CLI) and Matrix (Element app) connects through NymConnect automatically to the Mixnet.
 
 1. [Download](https://nymtech.net/download/nymconnect) NymConnect
 2. On Linux and Mac, make executable by opening terminal in the same directory and run:
+
 ```sh
 chmod +x ./nym-connect_<VERSION>.AppImage
-``` 
+```
+
 3. Start the application
 4. Click on `Connect` button to initialize the connection with the Mixnet
 5. Anytime later you'll need to setup Host and Port in your applications, click on `IP` and `Port` to copy the values to clipboard
 6. In case you have problems such as `Gateway Issues`, try to reconnect or restart the application
+
+## Connect Privacy Enhanced Applications (PEApps)
+
+For simplification in this guide we connect Electrum, Monero wallet and Matrix (Element) using NymConnect and ircd over `nym-socks5-client`. Of course if your choice is to run `nym-socks5-client` all these apps will connect through that and you don't need to install NymConnect.
+
+```admonish info
+This aims to connect your favourite applications Nym Mixnet, therefore does not include how to install these applications.
+```
+
+### Electrum Bitcoin wallet via NymConnect
+
+To download the Electrum visit the [official webpage](https://electrum.org/#download). To connect to the Mixnet follow these steps:
+
+1. Start and connect NymConnect (or `nym-socks5-client`)
+2. Start your Electrum Bitcoin wallet
+3. Go to: *Tools* -> *Network* -> *Proxy*
+4. Set *Use proxy* to ✅, choose `SOCKS5` from the drop-down and add the values from your NymConnect application
+5. Now your Electrum Bitcoin wallet will be connected only if your NymConnect or `nym-socks5-client` are connected.
+
+![Electrum Bitcoin wallet setup](../images/electrum_tutorial/electrum.gif)
+
+### Monero wallet via NymConnect
+
+<!--- NEEDS A MANUAL --->
+
+### Matrix (Element) via NymConnect
+
+<!-- NEEDS A MANUAL -->
 
 ## Building Nym Platform
 
@@ -152,22 +182,4 @@ This `id` is **never** transmitted over the network, and is used to select which
 ./nym-socks5-client run --id <ID>
 ```
 
-## Connect Privacy Enhanced Applications (PEApps)
 
-For simplification Electrum, Monero wallet and Matrix (Element) will be connected over NymConnect and ircd over `nym-socks5-client`. Whichever way you want to use, make sure it's connected to the Mixnet.
-
-```admonish info
-This aims to connect your favourite applications Nym Mixnet, therefore does not include how to install these applications.
-```
-
-### Electrum Bitcoin wallet
-
-To download the Electrum visit the [official webpage](https://electrum.org/#download). To connect to the Mixnet follow these steps:
-
-1. Start and connect NymConnect (or `nym-socks5-client`)
-2. Start your Electrum Bitcoin wallet
-3. Go to: *Tools* -> *Network* -> *Proxy*
-4. Set *Use proxy* to ✅, choose `SOCKS5` from the drop-down and add the values from your NymConnect application
-5. Now your Electrum Bitcoin wallet will be connected only if your NymConnect or `nym-socks5-client` are connected.
-
-![Electrum Bitcoin wallet setup](../images/electrum_tutorial/electrum.gif)

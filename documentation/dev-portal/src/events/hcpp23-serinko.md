@@ -38,7 +38,7 @@ This guide aims to connect your favourite applications to Nym Mixnet, therefore 
 
 ### Electrum Bitcoin wallet via NymConnect
 
-To download the Electrum visit the [official webpage](https://electrum.org/#download). To connect to the Mixnet follow these steps:
+To download Electrum visit the [official webpage](https://electrum.org/#download). To connect to the Mixnet follow these steps:
 
 1. Start and connect NymConnect (or `nym-socks5-client`)
 2. Start your Electrum Bitcoin wallet
@@ -50,7 +50,7 @@ To download the Electrum visit the [official webpage](https://electrum.org/#down
 
 ### Monero wallet via NymConnect
 
-To download the Monero wallet visit the [getmonero.org](https://www.getmonero.org/downloads/). To connect to the Mixnet follow these steps:
+To download Monero wallet visit [getmonero.org](https://www.getmonero.org/downloads/). To connect to the Mixnet follow these steps:
 
 1. Start and connect NymConnect (or `nym-socks5-client`)
 2. Start your Monero wallet
@@ -63,7 +63,25 @@ If you prefer to run Monero-CLI wallet with Monerod, please check out [this guid
 
 ### Matrix (Element) via NymConnect
 
-<!-- NEEDS A MANUAL -->
+To download Element (chat client for Matrix) wallet visit [element.io](https://element.io/download). To connect to the Mixnet follow these steps:
+
+1. Start and connect NymConnect (or `nym-socks5-client`)
+2. Start `element-desktop` with `--proxy-server` argument:
+
+**Linux**
+
+```sh
+element-desktop --proxy-server=socks5://127.0.0.1:1080
+```
+
+**Mac**
+
+```zsh
+open -a Element --args --proxy-server=socks5://127.0.0.1:1080
+```
+
+To setup your own alias or key-binding see our [*Matrix NymConnect Integration* guide](https://nymtech.net/developers/tutorials/matrix.html#optimise-setup-with-a-keybinding--alias).
+
 
 ## Building Nym Platform
 

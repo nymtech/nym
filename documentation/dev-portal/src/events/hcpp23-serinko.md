@@ -33,7 +33,7 @@ chmod +x ./nym-connect_<VERSION>.AppImage
 For simplification in this guide we connect Electrum, Monero wallet and Matrix (Element) using NymConnect and ircd over `nym-socks5-client`. Of course if your choice is to run `nym-socks5-client` all these apps will connect through that and you don't need to install NymConnect.
 
 ```admonish info
-This aims to connect your favourite applications Nym Mixnet, therefore does not include how to install these applications.
+This guide aims to connect your favourite applications to Nym Mixnet, therefore it does not include how to install these applications.
 ```
 
 ### Electrum Bitcoin wallet via NymConnect
@@ -50,7 +50,7 @@ To download the Electrum visit the [official webpage](https://electrum.org/#down
 
 ### Monero wallet via NymConnect
 
-<!--- NEEDS A MANUAL --->
+![](../images/monero_tutorial/monero-gui-NC.gif)
 
 ### Matrix (Element) via NymConnect
 

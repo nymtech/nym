@@ -33,7 +33,7 @@ chmod +x ./nym-connect_<VERSION>.AppImage
 For simplification in this guide we connect Electrum, Monero wallet and Matrix (Element) using NymConnect and ircd over `nym-socks5-client`. Of course if your choice is to run `nym-socks5-client` all these apps will connect through that and you don't need to install NymConnect.
 
 ```admonish info
-This guide aims to connect your favourite applications to Nym Mixnet, therefore it does not include how to install these applications.
+This guide aims to connect your favourite applications to Nym Mixnet, therefore we do not include detailed guides on how to install these applications, only reference to the official pages.
 ```
 
 ### Electrum Bitcoin wallet via NymConnect
@@ -209,5 +209,14 @@ This `id` is **never** transmitted over the network, and is used to select which
 # socks5 client (in other terminal window)
 ./nym-socks5-client run --id <ID>
 ```
-## Configuration of Nym and ircd
+## ircd
+
+[Dark.fi](htps://dark.fi) built a fully anymous and p2p instance of IRC chat called [ircd](https://darkrenaissance.github.io/darkfi/misc/ircd/ircd.html). The team is just finishing their new instance of the program darkirc which we hope to see in production soon.
+
+```admonish info
+It is highly recomended to install [dark.fi architecture](https://github.com/darkrenaissance/darkfi) prior to the workshop following the [documentation](https://darkrenaissance.github.io/darkfi/misc/ircd/ircd.html) so we have enough time for the network configuration.
+```
+
+### ircd configuration
+
 

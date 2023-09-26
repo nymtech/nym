@@ -52,9 +52,9 @@
 
 # Events
 - [HCPP23-serinko](./events/hcpp23-serinko.md)
+- [HCPP23-max](./events/hcpp23-max.md)
 
 # FAQ
-
 - [General](faq/general-faq.md)
 - [Integrations](faq/integrations-faq.md)
 - [Rewards & Token](faq/rewards-faq.md)

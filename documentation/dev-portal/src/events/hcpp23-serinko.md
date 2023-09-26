@@ -217,6 +217,24 @@ This `id` is **never** transmitted over the network, and is used to select which
 It is highly recomended to install [dark.fi architecture](https://github.com/darkrenaissance/darkfi) prior to the workshop following the [documentation](https://darkrenaissance.github.io/darkfi/misc/ircd/ircd.html) so we have enough time for the network configuration.
 ```
 
-### ircd configuration
+### Configuration
+
+Make sure to have [ircd installed](https://darkrenaissance.github.io/darkfi/misc/ircd/ircd.html) on the same machine like your `nym-socks5-client` (`nym-network-requester` can run anywhere). 
+
+Currently `nym-network-requester` automatically connnects only to the [whitelisted URLs](https://nymtech.net/.wellknown/network-requester/standard-allowed-list.txt). This will [change soon](https://nymtech.net/operators/faq/smoosh-faq.html) into a more opened setup. This list can be changed by an operator running a node. 
+
+**Alow list**
+
+1. Open a text file and there known peers
+2. Save it as `allowed.list` in `~/.nym/service-providers/network-requester/<NETWORK-REQUESTER-ID>/allowed.list`
+3. Restart your `nym-network-requester`
+```sh
+./nym-network-requester run --id <ID>
+```
+4. Make sure both `nym-socks5-client` and `nym-network-requester` are running and connected
+
+> Note that for peer discovery you'll have to whitelist some known peers and the seed itself.
+
+**ircd setup**
 
 

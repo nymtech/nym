@@ -1,32 +1,34 @@
 # Top-level Makefile for the nym monorepo
-#
-# Common targets:
-#
-#   - `make` build all binaries and tests
-#   - `make test`: same as default target
-#   - `make clippy`: run clippy for all workspaces
-#   - `make build`: build all workspaces
-#   - `make build-release`: build binaries in release mode
-#
 
-# Default target
+# Default target. Probably what you want to run in normal day-to-day usage when
+# you want to check all backend code in one step.
 all: test
+
+help:
+	@echo "The main targets are"
+	@echo "  - build: all binaries and tests"
+	@echo "  - test: same as default target"
+	@echo "  - clippy: run clippy for all workspaces"
+	@echo "  - build: build all workspaces"
+	@echo "  - build-release: build platform binaries and contracts in release mode"
 
 # -----------------------------------------------------------------------------
 # Meta targets
 # -----------------------------------------------------------------------------
 
+# Run clippy for all workspaces, run all tests, format all Rust code
 test: clippy cargo-test fmt
 
+# Same as test, but also runs slow tests
 test-all: test cargo-test-expensive
 
+# List `test`, but builds instead of running clippy
 no-clippy: build cargo-test fmt
 
-# Deprecated? Since it includes test is also includes non-happy clippy...
-happy: fmt clippy-happy test
-
-# Building release binaries is a little manual as we can't just build --release
-# on all workspaces. Cherry-pick these two.
+# Build release binaries for the main workspace (platform binaries) and the
+# contracts, including running wasm-opt.
+# Producing release versions of other components is deferred to their
+# respective toolchains.
 build-release: build-release-main contracts
 
 # Not a meta target, more of a top-level target for building all binaries (in
@@ -37,57 +39,56 @@ build:
 # visibility. The deps are appended successively.
 clippy:
 
+# Deprecated? Since it includes test is also includes non-happy clippy...
+happy: fmt clippy-happy test
+
 # -----------------------------------------------------------------------------
 # Define targets for a given workspace
 #  $(1): name
 #  $(2): path to workspace
 #  $(3): extra arguments to cargo
-#  $(4): prefix env
+#  $(4): RUSTFLAGS prefix env
 # -----------------------------------------------------------------------------
 define add_cargo_workspace
 
 clippy-happy-$(1):
-	$(4) cargo clippy --manifest-path $(2)/Cargo.toml $(3)
+	cargo $$($(1)_CLIPPY_TOOLCHAIN) clippy --manifest-path $(2)/Cargo.toml $(3)
 
 clippy-$(1):
-	$(4) cargo clippy --manifest-path $(2)/Cargo.toml --workspace $(3) -- -D warnings
+	cargo $$($(1)_CLIPPY_TOOLCHAIN) clippy --manifest-path $(2)/Cargo.toml --workspace $(3) -- -D warnings
 
-clippy-examples-$(1):
-	$(4) cargo clippy --manifest-path $(2)/Cargo.toml --workspace --examples -- -D warnings
+clippy-extra-$(1):
+	cargo $$($(1)_CLIPPY_TOOLCHAIN) clippy --manifest-path $(2)/Cargo.toml --workspace --examples --tests -- -D warnings
 
 check-$(1):
-	$(4) cargo check --manifest-path $(2)/Cargo.toml --workspace $(3)
+	cargo check --manifest-path $(2)/Cargo.toml --workspace $(3)
 
 test-$(1):
-	$(4) cargo test --manifest-path $(2)/Cargo.toml --workspace
+	cargo test --manifest-path $(2)/Cargo.toml --workspace
 
 test-expensive-$(1):
-	$(4) cargo test --manifest-path $(2)/Cargo.toml --workspace -- --ignored
-
-build-standalone-$(1):
-	$(4) cargo build --manifest-path $(2)/Cargo.toml $(3)
+	cargo test --manifest-path $(2)/Cargo.toml --workspace -- --ignored
 
 build-$(1):
-	$(4) cargo build --manifest-path $(2)/Cargo.toml --workspace $(3)
+	cargo build --manifest-path $(2)/Cargo.toml --workspace $(3)
 
-build-examples-$(1):
-	$(4) cargo build --manifest-path $(2)/Cargo.toml --workspace --examples
+build-extra-$(1):
+	cargo build --manifest-path $(2)/Cargo.toml --workspace --examples --tests
 
 build-release-$(1):
-	$(4) cargo build --manifest-path $(2)/Cargo.toml --workspace --release $(3)
+	$(4) cargo $$($(1)_BUILD_RELEASE_TOOLCHAIN) build --manifest-path $(2)/Cargo.toml --workspace --release $(3)
 
 fmt-$(1):
-	$(4) cargo fmt --manifest-path $(2)/Cargo.toml --all
+	cargo fmt --manifest-path $(2)/Cargo.toml --all
 
 clippy-happy: clippy-happy-$(1)
-clippy: clippy-$(1) clippy-examples-$(1)
+clippy: clippy-$(1) clippy-extra-$(1)
 check: check-$(1)
 cargo-test: test-$(1)
 cargo-test-expensive: test-expensive-$(1)
-build: build-$(1) build-examples-$(1)
+build: build-$(1) build-extra-$(1)
 build-release-all: build-release-$(1)
 fmt: fmt-$(1)
-
 endef
 
 # -----------------------------------------------------------------------------
@@ -98,28 +99,16 @@ endef
 
 $(eval $(call add_cargo_workspace,main,.))
 $(eval $(call add_cargo_workspace,contracts,contracts,--lib --target wasm32-unknown-unknown,RUSTFLAGS='-C link-arg=-s'))
-$(eval $(call add_cargo_workspace,wallet,nym-wallet,))
+$(eval $(call add_cargo_workspace,wallet,nym-wallet))
 $(eval $(call add_cargo_workspace,connect,nym-connect/desktop))
 
-# -----------------------------------------------------------------------------
-# Browser extension
-# -----------------------------------------------------------------------------
+# OVERRIDE: there is an issue where clippy crashes on nym-wallet-types with the latest
+# stable toolchain. So pin to 1.71.0 until that is resolved.
+wallet_CLIPPY_TOOLCHAIN := +1.71.0
 
-# Binary is part of main workspace, but not as wasm32-unknown-unknown
-# NOTE: do we need this? I'd imagine wasm-pack is the one actually used
-build-browser-extension-storage:
-	cargo build -p extension-storage --target wasm32-unknown-unknown
-
-wasm-pack-browser-extension-storage:
-	$(MAKE) -C nym-browser-extension/storage wasm-pack
-
-# Target is part of main workspace, but not as wasm32-unknown-unknown
-clippy-browser-extension-storage:
-	cargo clippy -p extension-storage --target wasm32-unknown-unknown -- -Dwarnings
-
-# Add to top-level targets
-build: build-browser-extension-storage
-clippy: clippy-browser-extension-storage
+# OVERRIDE: wasm-opt fails if the binary has been built with the latest rustc.
+# Pin to the last working version.
+contracts_BUILD_RELEASE_TOOLCHAIN := +1.69.0
 
 # -----------------------------------------------------------------------------
 # SDK
@@ -127,8 +116,8 @@ clippy: clippy-browser-extension-storage
 
 sdk-wasm: sdk-wasm-build sdk-wasm-test sdk-wasm-lint
 
-# NOTE: think about this dependency, is it needed?
-sdk-wasm-build: wasm-pack-browser-extension-storage
+sdk-wasm-build:
+	$(MAKE) -C nym-browser-extension/storage wasm-pack
 	$(MAKE) -C wasm/client
 	$(MAKE) -C wasm/node-tester
 	$(MAKE) -C wasm/mix-fetch
@@ -142,7 +131,7 @@ sdk-typescript-build:
 	yarn --cwd sdk/typescript/codegen/contract-clients build
 
 # NOTE: These targets are part of the main workspace (but not as wasm32-unknown-unknown)
-WASM_CRATES = nym-client-wasm nym-node-tester-wasm nym-wasm-sdk
+WASM_CRATES = extension-storage nym-client-wasm nym-node-tester-wasm nym-wasm-sdk
 
 sdk-wasm-test:
 	#cargo test $(addprefix -p , $(WASM_CRATES)) --target wasm32-unknown-unknown -- -Dwarnings

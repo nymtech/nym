@@ -189,10 +189,10 @@ The address of this client is: 8hUvtEyZK8umsdxxPS2BizQhEDmbNeXEPBZLgscE57Zh.5P2b
 If you run `nym-socks5-client` instead of NymConnect, you can choose your `--provider` [here](https://explorer.nymtech.net/network-components/service-providers) or leave that flag empty and your client will chose one randomly. To run ircd, you will need to connect it to your `nym-network-requester` by using your `<ADDRESS>` for your `nym-socks5-client` initialisation and add a flag `--use-reply-surbs true`. Run the command in the next terminal window:
 
 ```sh
-# to connect to your nym-network-requester for ircd
+# to connect to your nym-network-requester as a provider for ircd
 ./nym-socks5-client init --use-reply-surbs true --id <CHOSE_ANY_NAME_AS_ID> --provider <ADDRESS>
 
-# to init just the socks5 client for other apps
+# simple socks5 client init (random provider) for other apps
 ./nym-socks5-client init --id <CHOSE_ANY_NAME_AS_ID>
 ```
 

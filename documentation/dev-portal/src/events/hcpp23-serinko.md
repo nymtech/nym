@@ -92,20 +92,20 @@ We recommend to clone and build the entire platform instead of individual binari
 ### Prerequisites 
 - Debian/Ubuntu: `pkg-config`, `build-essential`, `libssl-dev`, `curl`, `jq`, `git`
 
-```
+```sh
 apt install pkg-config build-essential libssl-dev curl jq git
 ```
 
 - Arch/Manjaro: `base-devel`
 
-```
+```sh
 pacman -S base-devel
 ```
 
 - Mac OS X: `pkg-config` , `brew`, `openss1`, `protobuf`, `curl`, `git`
 Running the following the script installs Homebrew and the above dependencies:
 
-```
+```sh
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 ```
 
@@ -171,13 +171,13 @@ The `init` command will also create the necessary keypairs and configuration fil
 You can reconfigure your binaries at any time by editing the config file located at `~/.nym/<BINARY_TYPE>/<BINARY_ID>/config/config.toml` and restarting the binary process. 
 
 
-To run [ircd](https://darkrenaissance.github.io/darkfi/clients/nym_outbound.html) through the Mixnet you need to run your own [Network Requester](https://nymtech.net/operators/nodes/network-requester-setup.html) is needed to add known peer's domains/addresses to `~/.nym/service-providers/network-requester/allowed.list`. For all other applications `nym-socks5-client` (or NymCOnnect) is enough, no need to initialize and run `nym-network-requester`.
+To run [ircd](https://darkrenaissance.github.io/darkfi/clients/nym_outbound.html) through the Mixnet you need to run your own [Network Requester](https://nymtech.net/operators/nodes/network-requester-setup.html) is needed to add known peer's domains/addresses to `~/.nym/service-providers/network-requester//<NETWORK-REQUESTER-ID>/data/allowed.list`. For all other applications `nym-socks5-client` (or NymCOnnect) is enough, no need to initialize and run `nym-network-requester`.
 
 Here are the steps to initialize `nym-network-requester`:
 
 ```sh
-1. cd to the directory with your binaries
-2. ./nym-network-requester init --id <CHOOSE_ANY_NAME_AS_ID>
+# open the directory with your binaries
+./nym-network-requester init --id <CHOOSE_ANY_NAME_AS_ID>
 ```
 This will print you information about your client `<ADDRESS>`, it will look like:
 ```sh
@@ -209,6 +209,34 @@ This `id` is **never** transmitted over the network, and is used to select which
 # socks5 client (in other terminal window)
 ./nym-socks5-client run --id <ID>
 ```
+
+**Troubleshooting**
+
+In case your `nym-socks5-client` has a problem to connect to your `nym-network-requester` try to setup a firewall by running these commands:
+
+```sh
+# check if you have ufw installed
+ufw version
+
+# if it is not installed, install with
+sudo apt install ufw -y
+
+# enable ufw
+sudo ufw enable
+
+# check the status of the firewall
+sudo ufw status
+
+# open firewall ports for network requester
+sudo ufw allow 22,9000/tcp
+
+# re-check the ufw status
+sudo ufw status
+```
+
+Restart your network requester.
+
+
 ## ircd
 
 [Dark.fi](htps://dark.fi) built a fully anymous and p2p instance of IRC chat called [ircd](https://darkrenaissance.github.io/darkfi/misc/ircd/ircd.html). The team is just finishing their new instance of the program darkirc which we hope to see in production soon.
@@ -223,14 +251,13 @@ Make sure to have [ircd installed](https://darkrenaissance.github.io/darkfi/misc
 
 Currently `nym-network-requester` automatically connnects only to the [whitelisted URLs](https://nymtech.net/.wellknown/network-requester/standard-allowed-list.txt). This will [change soon](https://nymtech.net/operators/faq/smoosh-faq.html) into a more opened setup. This list can be changed by an operator running a node. 
 
-**Alow list**
+**Allow list**
 
-1. Open a text file and there known peers by inserting:
+1. Open a text editor and add:
 ```yaml
-irc0.dark.fi
-irc1.dark.fi
+dasman.xyz
 ```
-2. Save it as `allowed.list` in `~/.nym/service-providers/network-requester/<NETWORK-REQUESTER-ID>/allowed.list`
+2. Save it as `allowed.list` in `~/.nym/service-providers/network-requester/<NETWORK-REQUESTER-ID>/data/allowed.list`
 3. Restart your `nym-network-requester`
 ```sh
 ./nym-network-requester run --id <ID>
@@ -268,12 +295,28 @@ rm ~/.config/darkfi/ircd_config.toml
 6. Coment the line with `seeds`
 7. Add line:
 ```yaml
-peers = ["tcp+tls://irc0.dark.fi:11001","tcp+tls://irc1.dark.fi:11001"]
+peers = ["nym://dasman.xyz:25552"]
 ```
 8. Change `outbond_transports` to:
 ```yaml
 outbond_transports = ["nym"]
 ```
-9. Save and restart `ircd`
+9. Make sure that
+```yaml
+outbound_connections = 0
+```
+10. Save and restart `ircd`
 
 Observe the ircd deamon to see that the communication is running through the mixnet.
+
+## Bonus
+
+Now, when you setup Darkfi's ircd over the Nym Mixnet you can join public and fully anonymous channel `#hcpp23`. To do so, follow one of the two possibilities:
+
+1. Run a command in your weechat:
+```sh
+/join #hcpp23
+```
+2. Open `~/.config/darkfi/ircd_config.toml` and add `"#hcpp23"` to the `autojoin = [brackets]`, restart your ircd.
+
+

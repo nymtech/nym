@@ -311,7 +311,7 @@ Observe the ircd deamon to see that the communication is running through the mix
 
 ## Bonus
 
-Now, when you setup Darkfi's ircd over the Nym Mixnet you can join public and fully anonymous channel `#hcpp23`. To do so, follow one of the two possibilities:
+Now, when your Darkfi's ircd runs through Nym Mixnet, you can join public and fully anonymous channel `#hcpp23`. To do so, follow one of the two possibilities:
 
 1. Run a command in your weechat:
 ```sh

@@ -256,7 +256,7 @@ rm Cargo.lock
 make ircd
 
 # remove the config file (rename it if you want to safe any values first)
-rm ~/.config/darkfi ircd_config.toml
+rm ~/.config/darkfi/ircd_config.toml
 
 # rerun ircd to generate new config file
 ./ircd

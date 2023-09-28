@@ -225,7 +225,11 @@ Currently `nym-network-requester` automatically connnects only to the [whitelist
 
 **Alow list**
 
-1. Open a text file and there known peers
+1. Open a text file and there known peers by inserting:
+```yaml
+irc0.dark.fi
+irc1.dark.fi
+```
 2. Save it as `allowed.list` in `~/.nym/service-providers/network-requester/<NETWORK-REQUESTER-ID>/allowed.list`
 3. Restart your `nym-network-requester`
 ```sh
@@ -237,4 +241,39 @@ Currently `nym-network-requester` automatically connnects only to the [whitelist
 
 **ircd setup**
 
+In case your ircd has problems to start or connect, run the following:
 
+```sh
+# cd to darkfi repo
+git pull
+git checkout c4b78ead5111b0423fca3bd53cb7185acd6f0faa
+
+# compile ircd
+make ircd
+
+# in case of dependency error: "failed to load source for dependency `halo2_gadgets`"
+rm Cargo.lock
+make ircd
+
+# remove the config file (rename it if you want to safe any values first)
+rm ~/.config/darkfi ircd_config.toml
+
+# rerun ircd to generate new config file
+./ircd
+
+# add your custom values from the old config file
+```
+
+5. Open `~/.config/darkfi/ircd_config.toml`
+6. Coment the line with `seeds`
+7. Add line:
+```yaml
+peers = ["tcp+tls://irc0.dark.fi:11001","tcp+tls://irc1.dark.fi:11001"]
+```
+8. Change `outbond_transports` to:
+```yaml
+outbond_transports = ["nym"]
+```
+9. Save and restart `ircd`
+
+Observe the ircd deamon to see that the communication is running through the mixnet.

@@ -6,15 +6,15 @@ This page is a *how to guide* so it contains the setup only, to see the entire p
 
 ## Preparation
 
-During this workshop we will introduce NymConnect and Socks5 client. The difference between them is that the Socks5 client does everything Nymconnect does, but it has more optionality and it's run from a commandline. NymConnect is a one-button GUI application that wraps around the `nym-socks5-client` for proxying application traffic through the Mixnet.  
+During this workshop we will introduce [NymConnect](https://nymtech.net/developers/quickstart/nymconnect-gui.html) and [Socks5 client](https://nymtech.net/docs/clients/socks5-client.html). The difference between them is that the Socks5 client does everything Nymconnect does, but it has more optionality and it's run from a commandline. NymConnect is a one-button GUI application that wraps around the `nym-socks5-client` for proxying application traffic through the Mixnet.  
 
-We will learn how to run over Nym Mixnet the following applications: Electrum Bitcoin wallet, Monero wallet (desktop and CLI), Matrix (Element app) and ircd chat. For those who want to run ircd through the Mixnet, `nym-socks5-client` client is a must. For all other applications you can choose if you settle with our slick app NymConnect which does all the job in the background or you prefer Socks5 client.
+We will learn how to run through [Nym Mixnet](https://nymtech.net/docs/architecture/network-overview.html) the following applications: Electrum Bitcoin wallet, Monero wallet (desktop and CLI), Matrix (Element app) and ircd chat. For those who want to run ircd through the Mixnet, `nym-socks5-client` client is a must. For all other applications you can choose if you settle with our slick app NymConnect which does all the job in the background or you prefer Socks5 client.
 
 > Any syntax in `<>` brackets is a user's/version unique variable. Exchange with a corresponding name without the `<>` brackets.
 
 ## NymConnect Installation
 
-NymConnect application for everyone who does not want to install and run `nym-socks5-client`. NymConnect is plug-and-play, fast and easy to download and run. Electrum Bitcoin wallet, Monero wallet (desktop and CLI) and Matrix (Element app) connects through NymConnect automatically to the Mixnet.
+NymConnect application is for everyone who does not want to install and run `nym-socks5-client`. NymConnect is plug-and-play, fast and easy use. Electrum Bitcoin wallet, Monero wallet (desktop and CLI) and Matrix (Element app) connects through NymConnect automatically to the Mixnet.
 
 1. [Download](https://nymtech.net/download/nymconnect) NymConnect
 2. On Linux and Mac, make executable by opening terminal in the same directory and run:
@@ -24,8 +24,8 @@ chmod +x ./nym-connect_<VERSION>.AppImage
 ```
 
 3. Start the application
-4. Click on `Connect` button to initialize the connection with the Mixnet
-5. Anytime later you'll need to setup Host and Port in your applications, click on `IP` and `Port` to copy the values to clipboard
+4. Click on `Connect` button to initialise the connection with the Mixnet
+5. Anytime you'll need to setup Host and Port in your applications, click on `IP` and `Port` to copy the values to clipboard
 6. In case you have problems such as `Gateway Issues`, try to reconnect or restart the application
 
 ## Connect Privacy Enhanced Applications (PEApps)
@@ -33,18 +33,18 @@ chmod +x ./nym-connect_<VERSION>.AppImage
 For simplification in this guide we connect Electrum, Monero wallet and Matrix (Element) using NymConnect and ircd over `nym-socks5-client`. Of course if your choice is to run `nym-socks5-client` all these apps will connect through that and you don't need to install NymConnect.
 
 ```admonish info
-This guide aims to connect your favourite applications to Nym Mixnet, therefore we do not include detailed guides on how to install these applications, only reference to the official pages.
+This guide aims to connect your favourite applications to Nym Mixnet, therefore we do not include detailed guides on how to install them, only reference to the source pages.
 ```
 
 ### Electrum Bitcoin wallet via NymConnect
 
 To download Electrum visit the [official webpage](https://electrum.org/#download). To connect to the Mixnet follow these steps:
 
-1. Start and connect NymConnect (or `nym-socks5-client`)
+1. Start and connect [NymConnect](./hcpp23-serinko.html#nymconnect-installation) (or [`nym-socks5-client`](./hcpp23-serinko.html#building-nym-platform))
 2. Start your Electrum Bitcoin wallet
 3. Go to: *Tools* -> *Network* -> *Proxy*
 4. Set *Use proxy* to ✅, choose `SOCKS5` from the drop-down and add the values from your NymConnect application
-5. Now your Electrum Bitcoin wallet runs through the Mixnet it will be connected only if your NymConnect or `nym-socks5-client` are connected.
+5. Now your Electrum Bitcoin wallet runs through the Mixnet and it will be connected only if your NymConnect or `nym-socks5-client` are connected.
 
 ![Electrum Bitcoin wallet setup](../images/electrum_tutorial/electrum.gif)
 
@@ -52,10 +52,10 @@ To download Electrum visit the [official webpage](https://electrum.org/#download
 
 To download Monero wallet visit [getmonero.org](https://www.getmonero.org/downloads/). To connect to the Mixnet follow these steps:
 
-1. Start and connect NymConnect (or `nym-socks5-client`)
+1. Start and connect [NymConnect](./hcpp23-serinko.html#nymconnect-installation) (or [`nym-socks5-client`](./hcpp23-serinko.html#building-nym-platform))
 2. Start your Monero wallet
 3. Go to: *Settings* -> *Interface* -> *Socks5 proxy* -> Add values: IP address `127.0.0.1`, Port `1080` (the values copied from NymConnect)
-5. Now your Monero wallet runs through the Mixnet and it will be connected only if your NymConnect or `nym-socks5-client`.
+5. Now your Monero wallet runs through the Mixnet and it will be connected only if your NymConnect or `nym-socks5-client` are connected.
 
 ![Monero wallet setup](../images/monero_tutorial/monero-gui-NC.gif)
 
@@ -63,9 +63,9 @@ If you prefer to run Monero-CLI wallet with Monerod, please check out [this guid
 
 ### Matrix (Element) via NymConnect
 
-To download Element (chat client for Matrix) wallet visit [element.io](https://element.io/download). To connect to the Mixnet follow these steps:
+To download Element (chat client for Matrix) visit [element.io](https://element.io/download). To connect to the Mixnet follow these steps:
 
-1. Start and connect NymConnect (or `nym-socks5-client`)
+1. Start and connect [NymConnect](./hcpp23-serinko.html#nymconnect-installation) (or [`nym-socks5-client`](./hcpp23-serinko.html#building-nym-platform))
 2. Start `element-desktop` with `--proxy-server` argument:
 
 **Linux**
@@ -87,7 +87,7 @@ To setup your own alias or key-binding see our [*Matrix NymConnect Integration* 
 
 If you prefer to run to run `nym-socks5-client` the possibility is to download the pre-build binary or build the entire platform. To run ircd through the Mixnet `nym-socks5-client` and `nym-network-requester` are mandatory. Before you start with download and installation, make sure you are on the same machine from which you will connect to ircd.
 
-We recommend to clone and build the entire platform instead of individual binaries as it offers an easier update and more options down the road, however it takes a basic command-line knowledge and more time. The [Nym platform](https://github.com/nymtech/nym) is written in Rust. For that to work we will need a few pre-requisities. If you prefer to download individual pre-build binaries, skip this part and go directly that chapter. 
+We recommend to clone and build the entire platform instead of individual binaries as it offers an easier update and more options down the road, however it takes a basic command-line knowledge and more time. The [Nym platform](https://github.com/nymtech/nym) is written in Rust. For that to work we will need a few pre-requisities. If you prefer to download individual pre-build binaries, skip this part and go directly [that chapter](./hcpp23-serinko.html#pre-built-binaries). 
 
 ### Prerequisites 
 - Debian/Ubuntu: `pkg-config`, `build-essential`, `libssl-dev`, `curl`, `jq`, `git`
@@ -116,6 +116,7 @@ We recommend using the [Rust shell script installer](https://www.rust-lang.org/t
 If you really don't want to use the shell script installer, the [Rust installation docs](https://forge.rust-lang.org/infra/other-installation-methods.html) contain instructions for many platforms.
 
 ### Download and Compile Nym
+
 The following commands will compile binaries into the `nym/target/release` directory:
 
 ```sh
@@ -135,13 +136,13 @@ Quite a bit of stuff gets built. The key working parts for the workshop are:
 
 The [Github releases page](https://github.com/nymtech/nym/releases) has pre-built binaries which should work on Ubuntu 20.04 and other Debian-based systems, but at this stage cannot be guaranteed to work everywhere.
 
-**Download:** Find the binary of your choice, right click on the binary, select *Copy Link* (this will save the binary url to your clipboard), and on your machine run:
+**Download:** Find the binary of your choice, right click on the binary, select *Copy Link*. This will save the binary `<URL>` to clipboard. Run the following commands on your machine:
 
 ```
 wget <URL> # to download the binary
 ```
 
-If the pre-built binaries don't work or are unavailable for your system, you will need to build the platform yourself.
+If the pre-built binaries don't work or are unavailable for your system, you will need to [build the platform](./hcpp23-serinko.html#building-nym-platform) yourself.
 
 All Nym binaries must first be made executable. 
 
@@ -156,9 +157,10 @@ chmod +x ./<BINARY_NAME>
 
 Whether you build the entire platform or downloaded binaries, `nym-socks5-client` and `nym-network-requester` need to be initialised with `init` before being `run`.
 
-In your terminal navigate to the directory where you have your `nym-socks5-client` and `nym-network-requester`. In case you built the entire platform it's in `nym/target/release` - you can change directory from the one where you build by:
+In your terminal navigate to the directory where you have your `nym-socks5-client` and `nym-network-requester`. In case you built the entire platform it's in `nym/target/release`.
 
 ```sh
+# change directory from nym repo
 cd target/release
 ```
 
@@ -166,12 +168,9 @@ cd target/release
 
 The `init` command is usually where you pass flags specifying configuration arguments such as the gateway you wish to communicate with, the ports you wish your binary to listen on, etc. 
 
-The `init` command will also create the necessary keypairs and configuration files at `~/.nym/<BINARY_TYPE>/<BINARY_ID>/` if these files do not already exist. **It will not overwrite existing keypairs if they are present.** 
+The `init` command will also create the necessary keypairs and configuration files at `~/.nym/<BINARY_TYPE>/<BINARY_ID>/` if these files do not already exist. **It will NOT overwrite existing keypairs if they are present.** 
 
-You can reconfigure your binaries at any time by editing the config file located at `~/.nym/<BINARY_TYPE>/<BINARY_ID>/config/config.toml` and restarting the binary process. 
-
-
-To run [ircd](https://darkrenaissance.github.io/darkfi/clients/nym_outbound.html) through the Mixnet you need to run your own [Network Requester](https://nymtech.net/operators/nodes/network-requester-setup.html) is needed to add known peer's domains/addresses to `~/.nym/service-providers/network-requester//<NETWORK-REQUESTER-ID>/data/allowed.list`. For all other applications `nym-socks5-client` (or NymCOnnect) is enough, no need to initialize and run `nym-network-requester`.
+To run [ircd](https://darkrenaissance.github.io/darkfi/clients/nym_outbound.html) through the Mixnet you need to run your own [Network Requester](https://nymtech.net/operators/nodes/network-requester-setup.html) and add known peer's domains/addresses to `~/.nym/service-providers/network-requester/<NETWORK-REQUESTER-ID>/data/allowed.list`. For all other applications `nym-socks5-client` (or NymCOnnect) is enough, no need to initialize and run `nym-network-requester`.
 
 Here are the steps to initialize `nym-network-requester`:
 
@@ -196,9 +195,13 @@ If you run `nym-socks5-client` instead of NymConnect, you can choose your `--pro
 ./nym-socks5-client init --id <CHOSE_ANY_NAME_AS_ID>
 ```
 
+```admonish info
+You can reconfigure your binaries at any time by editing the config file located at `~/.nym/service-providers/<BINARY_TYPE>/<BINARY_ID>/config/config.toml` and restarting the binary process. 
+```
+
 **Run Clients**
 
-Once you have run `init`, you can start your binary with the `run` command, usually only accompanied by the `id` of the binary that you specified. 
+Once you have run `init`, you can start your binary with the `run` command, accompanied by the `id` of the binary that you specified. 
 
 This `id` is **never** transmitted over the network, and is used to select which local config and key files to use for startup. 
 
@@ -239,7 +242,7 @@ Restart your network requester.
 
 ## ircd
 
-[Dark.fi](htps://dark.fi) built a fully anymous and p2p instance of IRC chat called [ircd](https://darkrenaissance.github.io/darkfi/misc/ircd/ircd.html). The team is just finishing their new instance of the program darkirc which we hope to see in production soon.
+[Dark.fi](htps://dark.fi) built a fully anonymous and p2p instance of IRC chat called [ircd](https://darkrenaissance.github.io/darkfi/misc/ircd/ircd.html). The team is just finishing their new instance of the program darkirc which we hope to see in production soon.
 
 ```admonish info
 It is highly recomended to install [dark.fi architecture](https://github.com/darkrenaissance/darkfi) prior to the workshop following the [documentation](https://darkrenaissance.github.io/darkfi/misc/ircd/ircd.html) so we have enough time for the network configuration.
@@ -251,20 +254,18 @@ Make sure to have [ircd installed](https://darkrenaissance.github.io/darkfi/misc
 
 Currently `nym-network-requester` automatically connnects only to the [whitelisted URLs](https://nymtech.net/.wellknown/network-requester/standard-allowed-list.txt). This will [change soon](https://nymtech.net/operators/faq/smoosh-faq.html) into a more opened setup. This list can be changed by an operator running a node. 
 
-**Allow list**
+**Edit allowed.list**
 
 1. Open a text editor and add:
 ```yaml
 dasman.xyz
 ```
-2. Save it as `allowed.list` in `~/.nym/service-providers/network-requester/<NETWORK-REQUESTER-ID>/data/allowed.list`
+2. Save it as `allowed.list` in `~/.nym/service-providers/network-requester/<NETWORK-REQUESTER-ID>/data/`
 3. Restart your `nym-network-requester`
 ```sh
 ./nym-network-requester run --id <ID>
 ```
 4. Make sure both `nym-socks5-client` and `nym-network-requester` are running and connected
-
-> Note that for peer discovery you'll have to whitelist some known peers and the seed itself.
 
 **ircd setup**
 
@@ -309,7 +310,7 @@ outbound_connections = 0
 
 Observe the ircd deamon to see that the communication is running through the mixnet.
 
-## Bonus
+## Bonus: Join hcpp23 channel
 
 Now, when your Darkfi's ircd runs through Nym Mixnet, you can join public and fully anonymous channel `#hcpp23`. To do so, follow one of the two possibilities:
 
@@ -317,6 +318,6 @@ Now, when your Darkfi's ircd runs through Nym Mixnet, you can join public and fu
 ```sh
 /join #hcpp23
 ```
-2. Open `~/.config/darkfi/ircd_config.toml` and add `"#hcpp23"` to the `autojoin = [brackets]`, restart your ircd.
+2. Open `~/.config/darkfi/ircd_config.toml` and add `"#hcpp23"` to the `autojoin = []` brackets, restart your ircd.
 
 

@@ -318,6 +318,6 @@ Now, when your Darkfi's ircd runs through Nym Mixnet, you can join public and fu
 ```sh
 /join #hcpp23
 ```
-2. Open `~/.config/darkfi/ircd_config.toml` and add `"#hcpp23"` to the `autojoin = []` brackets, restart your ircd.
+2. Open `~/.config/darkfi/ircd_config.toml` and add `"#hcpp23"` to the `autojoin = []` brackets, save and restart ircd.
 
 

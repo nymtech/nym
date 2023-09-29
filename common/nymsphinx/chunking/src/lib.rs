@@ -80,7 +80,7 @@ pub fn number_of_required_fragments(
     let max_linked = linked_fragment_payload_max_len(plaintext_per_fragment);
 
     match set::total_number_of_sets(message_len, plaintext_per_fragment) {
-        n if n == 1 => {
+        1 => {
             // is if it's a single fragment message
             if message_len < max_unlinked {
                 return (1, max_unlinked - message_len);

@@ -196,7 +196,7 @@ impl Controller {
             let pending = self
                 .pending_messages
                 .entry(hdr.connection_id)
-                .or_insert_with(Vec::new);
+                .or_default();
             pending.push(message);
         } else if !hdr.local_socket_closed {
             error!(

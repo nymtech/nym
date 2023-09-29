@@ -10,7 +10,7 @@ jobs:
     runs-on: [self-hosted, custom-runner-linux]
     steps:
       - uses: actions/checkout@v2
-      
+
       - name: Install Rust stable
         uses: actions-rs/toolchain@v1
         with:
@@ -23,7 +23,7 @@ jobs:
         run: cargo install --version 0.112.0 wasm-opt
 
       - name: Build release contracts
-        run: make contracts-wasm
+        run: make contracts
 
       - name: Upload Mixnet Contract Artifact
         uses: actions/upload-artifact@v3

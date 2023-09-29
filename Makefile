@@ -6,11 +6,12 @@ all: test
 
 help:
 	@echo "The main targets are"
-	@echo "  - build: all binaries and tests"
-	@echo "  - test: same as default target"
-	@echo "  - clippy: run clippy for all workspaces"
-	@echo "  - build: build all workspaces"
-	@echo "  - build-release: build platform binaries and contracts in release mode"
+	@echo "  all: the default target. Alias for test"
+	@echo "  build: build all binaries"
+	@echo "  build-release: build platform binaries and contracts in release mode"
+	@echo "  clippy: run clippy for all workspaces"
+	@echo "  test: run clippy, unit tests, and formatting."
+	@echo "  test-all: like test, but also includes the expensive tests"
 
 # -----------------------------------------------------------------------------
 # Meta targets
@@ -21,9 +22,6 @@ test: clippy cargo-test fmt
 
 # Same as test, but also runs slow tests
 test-all: test cargo-test-expensive
-
-# List `test`, but builds instead of running clippy
-no-clippy: build cargo-test fmt
 
 # Build release binaries for the main workspace (platform binaries) and the
 # contracts, including running wasm-opt.
@@ -39,9 +37,6 @@ build:
 # visibility. The deps are appended successively.
 clippy:
 
-# Deprecated? Since it includes test is also includes non-happy clippy...
-happy: fmt clippy-happy test
-
 # -----------------------------------------------------------------------------
 # Define targets for a given workspace
 #  $(1): name
@@ -50,9 +45,6 @@ happy: fmt clippy-happy test
 #  $(4): RUSTFLAGS prefix env
 # -----------------------------------------------------------------------------
 define add_cargo_workspace
-
-clippy-happy-$(1):
-	cargo $$($(1)_CLIPPY_TOOLCHAIN) clippy --manifest-path $(2)/Cargo.toml $(3)
 
 clippy-$(1):
 	cargo $$($(1)_CLIPPY_TOOLCHAIN) clippy --manifest-path $(2)/Cargo.toml --workspace $(3) -- -D warnings
@@ -81,7 +73,6 @@ build-release-$(1):
 fmt-$(1):
 	cargo fmt --manifest-path $(2)/Cargo.toml --all
 
-clippy-happy: clippy-happy-$(1)
 clippy: clippy-$(1) clippy-extra-$(1)
 check: check-$(1)
 cargo-test: test-$(1)

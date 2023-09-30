@@ -27,7 +27,6 @@ jobs:
     # since it's going to be compiled into wasm, there's absolutely
     # no point in running CI on different OS-es
     runs-on: ubuntu-20.04
-    continue-on-error: ${{ matrix.rust == 'nightly' }}
     needs: matrix_prep
     strategy:
       fail-fast: false
@@ -61,7 +60,6 @@ jobs:
           args: --manifest-path contracts/Cargo.toml --all -- --check
 
       - uses: actions-rs/cargo@v1
-        if: ${{ matrix.rust != 'nightly' }}
         with:
           command: clippy
           args: --lib --manifest-path contracts/Cargo.toml --workspace --all-targets -- -D warnings

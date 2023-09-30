@@ -19,20 +19,33 @@ Lists of the diffent available clients and methods from the `Contract Clients` c
 
 
 Depending on your app or project's architecture, this could be any of the ESM or CJS versions of the `Contract Clients`.
-
+<Callout type="info" emoji="ℹ️">
+    This and the following examples will use the ESbuild bundler as they should work off the bat without any polyfill need.
+    If you'd like to use another one, we will document different bundlers in the [bundling](https://sdk.nymtech.net/bundling) page.
+</Callout>
 ##### Set-up your environment
 
 Create your directory and set-up your app environment:
 ```bash
 npm create vite@latest
 ```
+Select `React` and later `Typescript` as you go to your environment set-up if you want your app to work off the bat following this tutorial. 
+Then, 
+```bash
+cd <app_name>
+npm i 
+npm run dev
+```
 
 ##### Installation
-Install the package and its dependencies from Cosmos Stargate:
+Install the packages and their dependencies if you don't already have them:
 ```bash
-npm install @nymproject/contract-clients @cosmjs/cosmwasm-stargate @cosmjs/proto-signing --save
+npm install @nymproject/contract-clients @cosmjs/cosmwasm-stargate 
 ```
+
 ## Query clients
+
+In the `src` folder, open the `App.tsx` file and delete all the code.
 
 ##### Imports
 Import the contracts' client in your app:
@@ -49,11 +62,10 @@ import "./App.css";
 import { contracts } from "@nymproject/contract-clients";
 import { SigningCosmWasmClient } from "@cosmjs/cosmwasm-stargate";
 import { useEffect, useState } from "react";
-import { MixnodeDetails } from '@nymproject/types';
 
 export default function Mixnodes() {
 
-  const [mixnodes, setMixnodes] = useState<MixnodeDetails[]>([]);
+  const [mixnodes, setMixnodes] = useState<any>([]);
 
   async function fetchMixnodes(){
     // Set-up the CosmWasm Client
@@ -89,9 +101,20 @@ export default function Mixnodes() {
 }
 ```
 
+By pasting the above code in the `App.tsx` file and `npm run dev` your app from the terminal, you should see an unstyled printed list of Nym mixnodes!
+
+
 
 
 ## Execute clients
+
+##### Installation
+Install the packages and their dependencies if you don't already have them:
+
+```bash
+npm install @nymproject/contract-clients @cosmjs/cosmwasm-stargate @cosmjs/proto-signing
+```
+
 
 ##### Imports
 Import the contracts' execute clients in your app:
@@ -104,7 +127,7 @@ import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
 ##### Example: using the Mixnet smart contract client to execute methods
 In this example, we will use the `MixnetClient`and the `signer` from the [`Contract Clients`](https://www.npmjs.com/package/@nymproject/contract-clients) to execute methods.
 
-Note that for the `settings.ts` file, we have used the following structure:
+Note that you will need to create a `settings.ts` file (here created in the same directory), using the following structure:
 ```json
 
 export const mySettings = {
@@ -123,23 +146,8 @@ import { contracts } from "@nymproject/contract-clients";
 import { SigningCosmWasmClient } from "@cosmjs/cosmwasm-stargate";
 import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
 import { GasPrice } from "@cosmjs/stargate";
+import { settings } from "./settings";
 
-import { MixnetClient } from '@nymproject/types';
- const mainnetSettings = {
-    url: "wss://rpc.nymtech.net:443",
-    mixnetContractAddress: 'n17srjznxl9dvzdkpwpw24gg668wc73val88a6m5ajg6ankwvz9wtst0cznr',
-    mnemonic: 'charge solid adjust talk rose there because bridge screen next swear rose uphold hammer grant agree slam damp lazy position coconut cabbage endless welcome',
-    address: 'n1c7y676pe3av76r5usala759xgj0yplmvngu8u8'
-};
-
- const qaSettings = {
-    url: "wss://sandbox-validator1.nymtech.net/",
-    mixnetContractAddress: 'n1xr3rq8yvd7qplsw5yx90ftsr2zdhg4e9z60h5duusgxpv72hud3sjkxkav',
-    mnemonic: 'summer under connect sadness unveil region charge feed tank grant drift mass side ramp winter fit verb rare huge high garment moment achieve since',
-    address: 'n13uryxldwdllpakevsmt6n0uyfn3kgr2wvj5dnf'
-};
-
- const settings = qaSettings;
 export default function Exec() {
   let signer: DirectSecp256k1HdWallet;
   let signerMixnetClient: MixnetClient;
@@ -149,7 +157,7 @@ export default function Exec() {
   let nodeAddress: string;
   let amountToSend: string;
   let delegations: any;
-
+ 
   async function ExecuteOnNyx() {
     // cosmos client
     signer = await DirectSecp256k1HdWallet.fromMnemonic(settings.mnemonic, {
@@ -164,7 +172,7 @@ export default function Exec() {
     );
     // save globally
     cosmWasmSigningClient = cosmWasmClient;
-
+ 
     // nym client
     const mixnetClient = new contracts.Mixnet.MixnetClient(
       cosmWasmSigningClient,
@@ -173,9 +181,9 @@ export default function Exec() {
     );
     // save globally
     signerMixnetClient = mixnetClient;
-
+ 
   }
-
+ 
   // Get delegations
   const getDelegations = async () => {
     if (!signerMixnetClient) {
@@ -186,7 +194,7 @@ export default function Exec() {
     });
     delegations = delegationsObject;
   };
-
+ 
   // Make delegation
   const doDelegation = async () => {
     if (!signerMixnetClient) {
@@ -200,7 +208,7 @@ export default function Exec() {
     );
     console.log(res);
   };
-
+ 
   // Undelegate all
   const doUndelegateAll = async () => {
     for (const delegation of delegations.delegations) {
@@ -210,7 +218,7 @@ export default function Exec() {
       );
     }
   };
-
+ 
   // Sending tokens
   const doSendTokens = async () => {
     const memo = "test sending tokens";
@@ -223,10 +231,10 @@ export default function Exec() {
     );
     console.log(res);
   };
-
+ 
   ExecuteOnNyx();
   setTimeout(() => getDelegations(), 1000);
-
+ 
   return (
     <div>
       <p>Exec</p>

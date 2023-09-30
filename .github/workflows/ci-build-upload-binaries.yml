@@ -42,6 +42,8 @@ jobs:
         platform: [ubuntu-20.04]
 
     runs-on: ${{ matrix.platform }}
+    # a push event from the origin repo, or a PR from external repo
+    if: ${{ github.event_name == 'push' || github.event.pull_request.head.repo.full_name != 'nymtech/nym' }}
     steps:
       - uses: actions/checkout@v3
 

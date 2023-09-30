@@ -30,21 +30,5 @@
     "os":"custom-runner-mac-m1",
     "rust":"beta",
     "runOnEvent":"schedule"
-  },
-
-  {
-    "os":"custom-linux",
-    "rust":"nightly",
-    "runOnEvent":"schedule"
-  },
-  {
-    "os":"windows10",
-    "rust":"nightly",
-    "runOnEvent":"schedule"
-  },
-  {
-    "os":"custom-runner-mac-m1",
-    "rust":"nightly",
-    "runOnEvent":"schedule"
   }
 ]

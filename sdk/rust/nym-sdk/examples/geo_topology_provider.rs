@@ -1,10 +1,6 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use nym_client_core::client::topology_control::geo_aware_provider::{
-    CountryGroup, GeoAwareTopologyProvider,
-};
-use nym_client_core::config::GroupBy;
 use nym_sdk::mixnet;
 use nym_sdk::mixnet::MixnetMessageSender;
 
@@ -15,13 +11,13 @@ async fn main() {
     let nym_api = "https://validator.nymtech.net/api/".parse().unwrap();
 
     // We can group on something which is to a first approximation a continent.
-    let group_by = GroupBy::CountryGroup(CountryGroup::Europe);
+    let group_by = mixnet::GroupBy::CountryGroup(mixnet::CountryGroup::Europe);
 
     // ... or on a nym-address. This means we use the geo location of the gateway that the
     // nym-address is connected to.
     //let group_by = GroupBy::NymAddress("id.enc@gateway".parse().unwrap());
 
-    let geo_topology_provider = GeoAwareTopologyProvider::new(
+    let geo_topology_provider = mixnet::GeoAwareTopologyProvider::new(
         vec![nym_api],
         // We filter on the version of the mixnodes. Be prepared to manually update
         // this to keep this example working, as we can't (currently) fetch to current

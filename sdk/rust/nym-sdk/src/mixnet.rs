@@ -54,8 +54,9 @@ pub use nym_client_core::{
             fs_backend::Backend as ReplyStorage, CombinedReplyStorage, Empty as EmptyReplyStorage,
             ReplyStorageBackend,
         },
+        topology_control::geo_aware_provider::{CountryGroup, GeoAwareTopologyProvider},
     },
-    config::GatewayEndpointConfig,
+    config::{GatewayEndpointConfig, GroupBy},
 };
 pub use nym_credential_storage::{
     ephemeral_storage::EphemeralStorage as EphemeralCredentialStorage, models::CoconutCredential,

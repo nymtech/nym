@@ -1,6 +1,7 @@
 name: Nightly builds
 
 on:
+  workflow_dispatch:
   schedule:
     - cron: '14 1 * * *'
 jobs:

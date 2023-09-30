@@ -11,15 +11,23 @@ Replying can be done in two ways:
 - use a SURB (single use reply block) that allows the recipient to reply to the sender without compromising the identity of either party
 
 ##### Set-up your environment
+
 Create your directory and set-up your app environment:
 ```bash
 npm create vite@latest
+```
+Select `React` and later `Typescript` as you go to your environment set-up if you want your app to work off the bat following this tutorial. 
+Then, 
+```bash
+cd <app_name>
+npm i 
+npm run dev
 ```
 
 ##### Installation
 Install the required package:
 ```bash
-npm install @nymproject/sdk-full-fat --save
+npm install @nymproject/sdk-full-fat 
 ```
 
 ##### Imports
@@ -79,7 +87,8 @@ export default function Traffic() {
     });
   };
 
-  const send = () => nym.client.send({ payload, recipient });
+  const send = () => 
+    payload && recipient && nym?.client.send({ payload, recipient });
 
   useEffect(() => {
     init();

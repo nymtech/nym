@@ -5,7 +5,7 @@
     "runOnEvent":"schedule"
   },
   {
-    "os":"custom-linux",
+    "os":"ubuntu-20.04",
     "rust":"stable",
     "runOnEvent":"workflow_dispatch"
   },
@@ -16,9 +16,20 @@
     "runOnEvent":"schedule"
   },
   {
+    "os":"windows10",
+    "rust":"stable",
+    "runOnEvent":"workflow_dispatch"
+  },
+
+  {
     "os":"custom-runner-mac-m1",
     "rust":"stable",
     "runOnEvent":"schedule"
+  },
+  {
+    "os":"custom-runner-mac-m1",
+    "rust":"stable",
+    "runOnEvent":"workflow_dispatch"
   },
 
   {

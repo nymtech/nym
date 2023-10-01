@@ -55,7 +55,7 @@ import {
 
 const nymApiUrl = "https://validator.nymtech.net/api";
 
-export default function Traffic() {
+export function MixnetClient() {
   const [nym, setNym] = useState<NymMixnetClient>();
   const [selfAddress, setSelfAddress] = useState<string>();
   const [recipient, setRecipient] = useState<string>();
@@ -90,11 +90,16 @@ export default function Traffic() {
     });
   };
 
-  const send = () => 
-    payload && recipient && nym?.client.send({ payload, recipient });
+  const send = () => {
+    if (!nym || !payload || !recipient) return
+    nym.client.send({ payload, recipient });
+  }
 
   useEffect(() => {
     init();
+    return () => {
+        nym?.client.stop();
+    }
   }, []);
 
   if (!nym) return <div>waiting for the mixnet client...</div>;
@@ -125,6 +130,14 @@ export default function Traffic() {
     </div>
   );
 };
+
+export default function App () {
+  return (
+    <>
+    <MixnetClient/>
+    </>
+  )
+}
 ```
 
 

@@ -50,7 +50,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --workspace
+          args: --release --workspace
 
       # - name: Reclaim some disk space
       #   uses: actions-rs/cargo@v1
@@ -62,7 +62,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --workspace --examples
+          args: --release --workspace --examples
 
       # - name: Reclaim some disk space
       #   uses: actions-rs/cargo@v1
@@ -74,7 +74,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --workspace
+          args: --release --workspace
           #args: --workspace -- --ignored
 
       # - name: Reclaim some disk space
@@ -88,7 +88,7 @@ jobs:
         # if: ${{ matrix.rust != 'nightly' }}
         with:
           command: clippy
-          args: --workspace --all-targets -- -D warnings
+          args: --release --workspace --all-targets -- -D warnings
 
       # - name: Reclaim some disk space
       #   uses: actions-rs/cargo@v1

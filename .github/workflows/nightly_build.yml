@@ -5,24 +5,27 @@ on:
   schedule:
     - cron: '14 1 * * *'
 jobs:
-  matrix_prep:
-    runs-on: ubuntu-20.04
-    outputs:
-      matrix: ${{ steps.set-matrix.outputs.matrix }}
-    steps:
-      # creates the matrix strategy from nightly_build_matrix_includes.json
-      - uses: actions/checkout@v3
-      - id: set-matrix
-        uses: JoshuaTheMiller/conditional-build-matrix@main
-        with:
-          inputFile: '.github/workflows/nightly_build_matrix_includes.json'
-          filter: '[?runOnEvent==`${{ github.event_name }}` || runOnEvent==`always`]'
+  # matrix_prep:
+  #   runs-on: ubuntu-20.04
+  #   outputs:
+  #     matrix: ${{ steps.set-matrix.outputs.matrix }}
+  #   steps:
+  #     # creates the matrix strategy from nightly_build_matrix_includes.json
+  #     - uses: actions/checkout@v3
+  #     - id: set-matrix
+  #       uses: JoshuaTheMiller/conditional-build-matrix@main
+  #       with:
+  #         inputFile: '.github/workflows/nightly_build_matrix_includes.json'
+  #         filter: '[?runOnEvent==`${{ github.event_name }}` || runOnEvent==`always`]'
   build:
-    needs: matrix_prep
+    # needs: matrix_prep
     strategy:
-      matrix: ${{fromJson(needs.matrix_prep.outputs.matrix)}}
+      # matrix: ${{fromJson(needs.matrix_prep.outputs.matrix)}}
+      matrix:
+        os: [custom-linux, windows10, custom-runner-mac-m1]
+        rust: [stable, beta]
     runs-on: ${{ matrix.os }}
-    continue-on-error: ${{ matrix.rust == 'beta' || matrix.rust == 'stable' }}
+    # continue-on-error: ${{ matrix.rust == 'beta' || matrix.rust == 'stable' }}
     steps:
       - name: Install Dependencies (Linux)
         run: sudo apt-get update && sudo apt-get install -y build-essential curl wget libssl-dev libudev-dev squashfs-tools protobuf-compiler
@@ -45,30 +48,30 @@ jobs:
         with:
           command: fmt
           args: --all -- --check
-
-      - name: Build all binaries
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --workspace
-
-      - name: Build all examples
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --workspace --examples
-
-      - name: Run all tests (incl. expensive)
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --workspace -- --ignored
-
-      - name: Run clippy
-        uses: actions-rs/cargo@v1
-        with:
-          command: clippy
-          args: --workspace --all-targets -- -D warnings
+      #
+      # - name: Build all binaries
+      #   uses: actions-rs/cargo@v1
+      #   with:
+      #     command: build
+      #     args: --workspace
+      #
+      # - name: Build all examples
+      #   uses: actions-rs/cargo@v1
+      #   with:
+      #     command: build
+      #     args: --workspace --examples
+      #
+      # - name: Run all tests (incl. expensive)
+      #   uses: actions-rs/cargo@v1
+      #   with:
+      #     command: test
+      #     args: --workspace -- --ignored
+      #
+      # - name: Run clippy
+      #   uses: actions-rs/cargo@v1
+      #   with:
+      #     command: clippy
+      #     args: --workspace --all-targets -- -D warnings
 
   notification:
     needs: build

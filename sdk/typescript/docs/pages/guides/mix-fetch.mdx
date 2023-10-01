@@ -136,11 +136,10 @@ export function HttpGET() {
 
 export function HttpPOST() {
     async function post () {
-      const apiResponse = await mixFetch('https://api.example.com', {
+      const apiResponse = await mixFetch('https://postman-echo.com/post', {
         method: 'POST',
-        mode: 'unsafe-ignore-cors',
         body: JSON.stringify({ foo: 'bar' }),
-        headers: { [`Content-Type`]: 'application/json', Authorization: `Bearer ${process.env.AUTH_TOKEN}` }
+  headers: { 'Content-Type': 'application/json' }
       }, mixFetchOptions)
       console.log(apiResponse)
     }
@@ -159,6 +158,5 @@ export default function App() {
     </>
   )
 }
-
 ```
 

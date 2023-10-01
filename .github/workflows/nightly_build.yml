@@ -50,51 +50,25 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --release --workspace
-
-      # - name: Reclaim some disk space
-      #   uses: actions-rs/cargo@v1
-      #   if: ${{ matrix.os == 'windows-latest' || matrix.os == 'custom-linux' }}
-      #   with:
-      #     command: clean
+          args: --workspace
 
       - name: Build all examples
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --release --workspace --examples
-
-      # - name: Reclaim some disk space
-      #   uses: actions-rs/cargo@v1
-      #   if: ${{ matrix.os == 'windows-latest' || matrix.os == 'custom-linux' }}
-      #   with:
-      #     command: clean
+          args: --workspace --examples
 
       - name: Run all tests (incl. expensive)
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --release --workspace
-          #args: --workspace -- --ignored
-
-      # - name: Reclaim some disk space
-      #   uses: actions-rs/cargo@v1
-      #   if: ${{ matrix.os == 'windows-latest' || matrix.os == 'custom-linux' }}
-      #   with:
-      #     command: clean
+          args: --workspace -- --ignored
 
       - name: Run clippy
         uses: actions-rs/cargo@v1
-        # if: ${{ matrix.rust != 'nightly' }}
         with:
           command: clippy
-          args: --release --workspace --all-targets -- -D warnings
-
-      # - name: Reclaim some disk space
-      #   uses: actions-rs/cargo@v1
-      #   if: ${{ matrix.os == 'windows-latest' || matrix.os == 'custom-linux' }}
-      #   with:
-      #     command: clean
+          args: --workspace --all-targets -- -D warnings
 
   notification:
     needs: build

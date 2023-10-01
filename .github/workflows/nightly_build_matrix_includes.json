@@ -5,7 +5,7 @@
     "runOnEvent":"schedule"
   },
   {
-    "os":"ubuntu-20.04",
+    "os":"custom-linux",
     "rust":"stable",
     "runOnEvent":"workflow_dispatch"
   },

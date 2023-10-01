@@ -4,6 +4,11 @@
     "rust":"stable",
     "runOnEvent":"schedule"
   },
+  {
+    "os":"custom-linux",
+    "rust":"stable",
+    "runOnEvent":"workflow_dispatch"
+  },
 
   {
     "os":"windows10",

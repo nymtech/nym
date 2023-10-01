@@ -1,6 +1,7 @@
 name: ci-contracts-schema
 
 on:
+  workflow_dispatch:
   push:
     paths:
       - 'contracts/**'

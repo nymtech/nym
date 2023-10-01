@@ -6,7 +6,7 @@ on:
       - 'contracts/**'
       - 'common/**'
   pull_request:
-    paths-ignore:
+    paths:
       - 'contracts/**'
       - 'common/**'
 

@@ -7,6 +7,7 @@ on:
 jobs:
   build:
     strategy:
+      fail-fast: false
       matrix:
         os: [custom-linux, windows10, custom-runner-mac-m1]
         rust: [stable, beta]

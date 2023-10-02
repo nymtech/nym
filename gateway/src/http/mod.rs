@@ -11,9 +11,17 @@ use nym_sphinx::addressing::clients::Recipient;
 use nym_task::TaskClient;
 
 fn load_gateway_details(
-    _config: &Config,
+    config: &Config,
 ) -> Result<http::api::v1::gateway::types::Gateway, GatewayError> {
-    Ok(http::api::v1::gateway::types::Gateway {})
+    Ok(http::api::v1::gateway::types::Gateway {
+        client_interfaces: http::api::v1::gateway::types::ClientInterfaces {
+            wireguard: None,
+            mixnet_websockets: Some(http::api::v1::gateway::types::WebSockets {
+                ws_port: config.gateway.clients_port,
+                wss_port: None,
+            }),
+        },
+    })
 }
 
 fn load_host_details(
@@ -31,7 +39,7 @@ fn load_host_details(
 
     Ok(http::api::v1::node::types::HostInformation {
         // TODO: this should be extracted differently, i.e. it's the issue of the public/private address
-        ip_address: vec![config.gateway.listening_address],
+        ip_address: vec![config.gateway.listening_address.to_string()],
         hostname: None,
         keys: http::api::v1::node::types::HostKeys {
             ed25519: identity_public_key.to_base58_string(),
@@ -69,7 +77,7 @@ fn load_network_requester_details(
 
     Ok(http::api::v1::network_requester::types::NetworkRequester {
         encoded_identity_key: identity_public_key.to_base58_string(),
-        encoded_sphinx_key: dh_public_key.to_base58_string(),
+        encoded_x25519_key: dh_public_key.to_base58_string(),
         address: Recipient::new(
             identity_public_key,
             dh_public_key,
@@ -91,6 +99,7 @@ pub(crate) fn start_http_api(
     // and makes the code a bit nicer to manage. on top of it, all of it will refactored anyway at some point
     // (famous last words, eh? - 22.09.23)
 
+    // TODO: load private key, set zeroizing wrapper and sign whatever responses we need to sign
     let mut config =
         nym_node::http::Config::new(bin_info_owned!(), load_host_details(gateway_config)?)
             .with_gateway(load_gateway_details(gateway_config)?);

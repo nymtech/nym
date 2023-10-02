@@ -3,7 +3,6 @@
 
 pub(crate) use nym_bin_common::build_information::BinaryBuildInformationOwned;
 use serde::Serialize;
-use std::net::IpAddr;
 use utoipa::ToSchema;
 
 #[derive(Clone, Default, Debug, Copy, ToSchema, Serialize)]
@@ -16,7 +15,7 @@ pub struct NodeRoles {
 #[derive(Clone, Default, Debug, ToSchema, Serialize)]
 pub struct HostInformation {
     /// Ip address(es) of this host, such as `1.1.1.1`.
-    pub ip_address: Vec<IpAddr>,
+    pub ip_address: Vec<String>,
 
     /// Optional hostname of this node, for example `nymtech.net`.
     pub hostname: Option<String>,

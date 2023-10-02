@@ -6,10 +6,29 @@ use utoipa::ToSchema;
 
 #[derive(Serialize, Debug, Clone, ToSchema)]
 pub struct Gateway {
-    // /// Base58 encoded ed25519 EdDSA public key of the gateway used for deriving shared keys with clients
-    // /// and for signing any messages
-    // pub encoded_identity_key: String,
-    //
-    // /// Base58-encoded x25519 public key used for sphinx key derivation.
-    // pub encoded_sphinx_key: String,
+    pub client_interfaces: ClientInterfaces,
+}
+
+#[derive(Serialize, Debug, Clone, ToSchema)]
+pub struct Wireguard {
+    #[schema(example = 1234, default = 51820)]
+    pub port: u16,
+
+    pub public_key: String,
+}
+
+#[derive(Serialize, Debug, Clone, ToSchema)]
+pub struct ClientInterfaces {
+    pub wireguard: Option<Wireguard>,
+
+    pub mixnet_websockets: Option<WebSockets>,
+    // pub mixnet_tcp:
+}
+
+#[derive(Serialize, Debug, Clone, Copy, ToSchema)]
+pub struct WebSockets {
+    #[schema(example = 1234, default = 9000)]
+    pub ws_port: u16,
+
+    pub wss_port: Option<u16>,
 }

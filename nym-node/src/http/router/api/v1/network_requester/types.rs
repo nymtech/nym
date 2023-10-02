@@ -10,8 +10,21 @@ pub struct NetworkRequester {
     pub encoded_identity_key: String,
 
     /// Base58-encoded x25519 public key used for performing key exchange with remote clients.
-    pub encoded_sphinx_key: String,
+    pub encoded_x25519_key: String,
 
     /// Nym address of this network requester.
     pub address: String,
 }
+
+// #[derive(Serialize, Debug, Clone, ToSchema)]
+// pub struct ExitPolicy {
+//     // pub allowed_ports:
+//     // pub deny_list: DenyList,
+// }
+//
+// #[derive(Serialize, Debug, Clone, ToSchema)]
+// pub struct DenyListEntry {
+//     // pub ports:
+//     // pub ips:
+//     pub description: String,
+// }

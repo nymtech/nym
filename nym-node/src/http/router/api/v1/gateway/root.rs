@@ -25,6 +25,7 @@ pub(crate) async fn root_gateway(
     details: Option<Gateway>,
     Query(output): Query<OutputParams>,
 ) -> Result<GatewayResponse, StatusCode> {
+    println!("query: {:?}", output);
     let details = details.ok_or(StatusCode::NOT_IMPLEMENTED)?;
     let output = output.output.unwrap_or_default();
     Ok(output.to_response(details))

@@ -4,6 +4,7 @@
 use crate::http::router::api;
 use crate::http::state::AppState;
 use axum::Router;
+use nym_node_requests::api as api_requests;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
@@ -24,17 +25,17 @@ use utoipa_swagger_ui::SwaggerUi;
     components(schemas(
         api::Output,
         api::OutputParams,
-        api::v1::node::types::BinaryBuildInformationOwned,
-        api::v1::node::types::SignedHostInformation,
-        api::v1::node::types::HostInformation,
-        api::v1::node::types::HostKeys,
-        api::v1::node::types::NodeRoles,
-        api::v1::gateway::types::Gateway,
-        api::v1::gateway::types::Wireguard,
-        api::v1::gateway::types::ClientInterfaces,
-        api::v1::gateway::types::WebSockets,
-        api::v1::mixnode::types::Mixnode,
-        api::v1::network_requester::types::NetworkRequester,
+        api_requests::v1::node::models::BinaryBuildInformationOwned,
+        api_requests::v1::node::models::SignedHostInformation,
+        api_requests::v1::node::models::HostInformation,
+        api_requests::v1::node::models::HostKeys,
+        api_requests::v1::node::models::NodeRoles,
+        api_requests::v1::gateway::models::Gateway,
+        api_requests::v1::gateway::models::Wireguard,
+        api_requests::v1::gateway::models::ClientInterfaces,
+        api_requests::v1::gateway::models::WebSockets,
+        api_requests::v1::mixnode::models::Mixnode,
+        api_requests::v1::network_requester::models::NetworkRequester,
     ))
 )]
 pub(crate) struct ApiDoc;

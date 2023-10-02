@@ -2,15 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::NymNodeError;
-use crate::http::api::v1::gateway::types::Gateway;
-use crate::http::api::v1::mixnode::types::Mixnode;
-use crate::http::api::v1::network_requester::types::NetworkRequester;
-use crate::http::api::v1::node::types::SignedHostInformation;
 use crate::http::middleware::logging;
 use crate::http::state::AppState;
 use crate::http::NymNodeHTTPServer;
 use axum::Router;
-use nym_bin_common::build_information::BinaryBuildInformationOwned;
+use nym_node_requests::api::v1::gateway::models::Gateway;
+use nym_node_requests::api::v1::mixnode::models::Mixnode;
+use nym_node_requests::api::v1::network_requester::models::NetworkRequester;
+use nym_node_requests::api::v1::node::models;
+use nym_node_requests::api::SignedHostInformation;
 use std::net::SocketAddr;
 
 pub mod api;
@@ -33,7 +33,7 @@ pub struct Config {
 
 impl Config {
     pub fn new(
-        build_information: BinaryBuildInformationOwned,
+        build_information: models::BinaryBuildInformationOwned,
         host_information: SignedHostInformation,
     ) -> Self {
         Config {

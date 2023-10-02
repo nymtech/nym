@@ -4,16 +4,14 @@
 use crate::http::api::v1::node::build_information::build_information;
 use crate::http::api::v1::node::host_information::host_information;
 use crate::http::api::v1::node::roles::roles;
-use crate::http::api::v1::node::types::{NodeRoles, SignedHostInformation};
 use crate::http::state::AppState;
 use axum::routing::get;
 use axum::Router;
-use nym_bin_common::build_information::BinaryBuildInformationOwned;
+use nym_node_requests::api::v1::node::models;
 
 pub mod build_information;
 pub mod host_information;
 pub mod roles;
-pub mod types;
 
 pub(crate) mod routes {
     pub(crate) const ROLES: &str = "/roles";
@@ -23,9 +21,9 @@ pub(crate) mod routes {
 
 #[derive(Debug, Clone)]
 pub struct Config {
-    pub build_information: BinaryBuildInformationOwned,
-    pub host_information: SignedHostInformation,
-    pub roles: NodeRoles,
+    pub build_information: models::BinaryBuildInformationOwned,
+    pub host_information: models::SignedHostInformation,
+    pub roles: models::NodeRoles,
 }
 
 pub(super) fn routes(config: Config) -> Router<AppState> {

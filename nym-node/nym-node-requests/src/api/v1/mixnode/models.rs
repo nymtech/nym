@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use serde::Serialize;
-use utoipa::ToSchema;
 
-#[derive(Serialize, Debug, Clone, ToSchema)]
+#[derive(Serialize, Debug, Clone)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct Mixnode {
     // /// Base58 encoded ed25519 EdDSA public key of the mixnode.
     // pub encoded_identity_key: String,

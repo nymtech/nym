@@ -1,9 +1,9 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::http::api::v1::node::types::SignedHostInformation;
 use crate::http::api::{FormattedResponse, OutputParams};
 use axum::extract::Query;
+use nym_node_requests::api::v1::node::models::SignedHostInformation;
 
 /// Returns host information of this node.
 #[utoipa::path(

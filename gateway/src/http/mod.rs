@@ -6,19 +6,20 @@ use crate::error::GatewayError;
 use crate::node::helpers::{load_identity_keys, load_public_key};
 use nym_bin_common::bin_info_owned;
 use nym_crypto::asymmetric::{encryption, identity};
-use nym_node::http;
-use nym_node::http::api::SignedHostInformation;
+use nym_node::error::NymNodeError;
+use nym_node::http::api::api_requests;
+use nym_node::http::api::api_requests::SignedHostInformation;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_task::TaskClient;
 use zeroize::Zeroize;
 
 fn load_gateway_details(
     config: &Config,
-) -> Result<http::api::v1::gateway::types::Gateway, GatewayError> {
-    Ok(http::api::v1::gateway::types::Gateway {
-        client_interfaces: http::api::v1::gateway::types::ClientInterfaces {
+) -> Result<api_requests::v1::gateway::models::Gateway, GatewayError> {
+    Ok(api_requests::v1::gateway::models::Gateway {
+        client_interfaces: api_requests::v1::gateway::models::ClientInterfaces {
             wireguard: None,
-            mixnet_websockets: Some(http::api::v1::gateway::types::WebSockets {
+            mixnet_websockets: Some(api_requests::v1::gateway::models::WebSockets {
                 ws_port: config.gateway.clients_port,
                 wss_port: None,
             }),
@@ -28,7 +29,7 @@ fn load_gateway_details(
 
 fn load_host_details(
     config: &Config,
-) -> Result<http::api::v1::node::types::SignedHostInformation, GatewayError> {
+) -> Result<api_requests::v1::node::models::SignedHostInformation, GatewayError> {
     let mut identity_keypair = load_identity_keys(config)?;
 
     let sphinx_public_key: encryption::PublicKey = load_public_key(
@@ -36,17 +37,18 @@ fn load_host_details(
         "gateway sphinx",
     )?;
 
-    let host_info = http::api::v1::node::types::HostInformation {
+    let host_info = api_requests::v1::node::models::HostInformation {
         // TODO: this should be extracted differently, i.e. it's the issue of the public/private address
         ip_address: vec![config.gateway.listening_address.to_string()],
         hostname: None,
-        keys: http::api::v1::node::types::HostKeys {
+        keys: api_requests::v1::node::models::HostKeys {
             ed25519: identity_keypair.public_key().to_base58_string(),
             x25519: sphinx_public_key.to_base58_string(),
         },
     };
 
-    let signed_info = SignedHostInformation::new(host_info, identity_keypair.private_key())?;
+    let signed_info = SignedHostInformation::new(host_info, identity_keypair.private_key())
+        .map_err(NymNodeError::from)?;
     identity_keypair.zeroize();
     Ok(signed_info)
 }
@@ -54,7 +56,7 @@ fn load_host_details(
 fn load_network_requester_details(
     config: &Config,
     network_requester_config: &nym_network_requester::Config,
-) -> Result<http::api::v1::network_requester::types::NetworkRequester, GatewayError> {
+) -> Result<api_requests::v1::network_requester::models::NetworkRequester, GatewayError> {
     let identity_public_key: identity::PublicKey = load_public_key(
         &network_requester_config
             .storage_paths
@@ -78,16 +80,18 @@ fn load_network_requester_details(
         "gateway identity",
     )?;
 
-    Ok(http::api::v1::network_requester::types::NetworkRequester {
-        encoded_identity_key: identity_public_key.to_base58_string(),
-        encoded_x25519_key: dh_public_key.to_base58_string(),
-        address: Recipient::new(
-            identity_public_key,
-            dh_public_key,
-            gateway_identity_public_key,
-        )
-        .to_string(),
-    })
+    Ok(
+        api_requests::v1::network_requester::models::NetworkRequester {
+            encoded_identity_key: identity_public_key.to_base58_string(),
+            encoded_x25519_key: dh_public_key.to_base58_string(),
+            address: Recipient::new(
+                identity_public_key,
+                dh_public_key,
+                gateway_identity_public_key,
+            )
+            .to_string(),
+        },
+    )
 }
 
 pub(crate) fn start_http_api(

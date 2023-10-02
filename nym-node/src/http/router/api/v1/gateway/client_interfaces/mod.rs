@@ -1,13 +1,13 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::http::api::v1::gateway::types::{ClientInterfaces, WebSockets, Wireguard};
 use crate::http::api::{FormattedResponse, OutputParams};
 use crate::http::state::AppState;
 use axum::extract::Query;
 use axum::http::StatusCode;
 use axum::routing::get;
 use axum::Router;
+use nym_node_requests::api::v1::gateway::models::{ClientInterfaces, WebSockets, Wireguard};
 
 pub(crate) mod routes {
     pub(crate) const INTERFACES: &str = "/";

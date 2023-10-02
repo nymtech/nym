@@ -1,19 +1,17 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::error::NymNodeError;
-use crate::http::api::v1::node::types::HostInformation;
 use crate::http::state::AppState;
 use axum::http::{header, HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::{Json, Router};
 use bytes::{BufMut, BytesMut};
-use nym_crypto::asymmetric::identity;
 use serde::{Deserialize, Serialize};
-use std::ops::Deref;
 use utoipa::{IntoParams, ToSchema};
 
 pub mod v1;
+
+pub use nym_node_requests::api as api_requests;
 
 pub(crate) mod routes {
     pub(crate) const V1: &str = "/v1";
@@ -26,47 +24,6 @@ pub struct Config {
 
 pub(super) fn routes(config: Config) -> Router<AppState> {
     Router::new().nest(routes::V1, v1::routes(config.v1_config))
-}
-
-#[derive(Debug, Clone, ToSchema, Serialize)]
-#[aliases(SignedHostInformation = SignedData<HostInformation>)]
-pub struct SignedData<T> {
-    // #[serde(flatten)]
-    pub data: T,
-    pub signature: String,
-}
-
-impl<T> SignedData<T> {
-    pub fn new(data: T, key: &identity::PrivateKey) -> Result<Self, NymNodeError>
-    where
-        T: Serialize,
-    {
-        let plaintext = serde_json::to_string(&data)?;
-        let signature = key.sign(plaintext).to_base58_string();
-        Ok(SignedData { data, signature })
-    }
-
-    pub fn verify(&self, key: &identity::PublicKey) -> bool
-    where
-        T: Serialize,
-    {
-        let Ok(plaintext) = serde_json::to_string(&self.data) else {
-            return false;
-        };
-        let Ok(signature) = identity::Signature::from_base58_string(&self.signature) else {
-            return false;
-        };
-
-        key.verify(plaintext, &signature).is_ok()
-    }
-}
-
-impl<T> Deref for SignedData<T> {
-    type Target = T;
-
-    fn deref(&self) -> &Self::Target {
-        &self.data
-    }
 }
 
 #[derive(Debug, Clone, ToSchema)]

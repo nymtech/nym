@@ -3,7 +3,7 @@
 
 use crate::http::router::api::{FormattedResponse, OutputParams};
 use axum::extract::Query;
-use nym_bin_common::build_information::BinaryBuildInformationOwned;
+use nym_node_requests::api::v1::node::models::BinaryBuildInformationOwned;
 
 /// Returns build metadata of the binary running the API
 #[utoipa::path(

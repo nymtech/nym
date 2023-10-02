@@ -1,10 +1,10 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::http::api::v1::mixnode::types::Mixnode;
 use crate::http::router::api::{FormattedResponse, OutputParams};
 use axum::extract::Query;
 use axum::http::StatusCode;
+use nym_node_requests::api::v1::mixnode::models::Mixnode;
 
 /// Returns root mixnode information
 #[utoipa::path(

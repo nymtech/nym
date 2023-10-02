@@ -4,9 +4,9 @@
 use crate::http::state::AppState;
 use axum::routing::get;
 use axum::Router;
+use nym_node_requests::api::v1::mixnode::models;
 
 pub mod root;
-pub mod types;
 
 pub(crate) mod routes {
     pub(crate) const ROOT: &str = "/";
@@ -14,7 +14,7 @@ pub(crate) mod routes {
 
 #[derive(Debug, Clone, Default)]
 pub struct Config {
-    pub details: Option<types::Mixnode>,
+    pub details: Option<models::Mixnode>,
 }
 
 pub(crate) fn routes(config: Config) -> Router<AppState> {

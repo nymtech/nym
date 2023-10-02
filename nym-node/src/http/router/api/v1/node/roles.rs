@@ -1,9 +1,9 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::http::api::v1::node::types::NodeRoles;
 use crate::http::router::api::{FormattedResponse, OutputParams};
 use axum::extract::Query;
+use nym_node_requests::api::v1::node::models::NodeRoles;
 
 /// Returns roles supported by this node
 #[utoipa::path(

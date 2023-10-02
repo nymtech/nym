@@ -14,11 +14,12 @@ This page serves as an accessible list of references mentioned during the talk.
 * [Tor + VPN comparison](https://nymtech.net/developers/infrastructure/nym-vs-others.html)
 * [Addressing system](https://nymtech.net/docs/clients/addressing-system.html)
 
-### Nym - libp2p
+### Nym \<\> ETH 2.0
 
 * [Chainsafe Rust libp2p Nym intergarion repo](https://github.com/ChainSafe/rust-libp2p-nym)
 * [rust-libp2p-nym Transport Specification](https://hackmd.io/@nZ-twauPRISEa6G9zg3XRw/HkE8sHuns)
 * [Lighthouse PoC](https://github.com/ChainSafe/lighthouse/blob/nym/USE_NYM.md)
+* [Nym \<\> Aztec partnership](https://blog.nymtech.net/nym-partners-with-aztec-to-provide-integral-infrastructure-privacy-in-ethereum-chains-694963c55192)
 
 ### Rust Examples
 

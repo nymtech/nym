@@ -7,6 +7,7 @@ on:
 jobs:
   build:
     strategy:
+      fail-fast: false
       matrix:
         os: [custom-linux, windows10, custom-runner-mac-m1]
         rust: [stable, beta]
@@ -34,25 +35,31 @@ jobs:
           command: fmt
           args: --all -- --check
 
-      - name: Build all binaries
+      - name: Build binaries
         uses: actions-rs/cargo@v1
         with:
           command: build
           args: --workspace
 
-      - name: Build all examples
+      - name: Build examples
         uses: actions-rs/cargo@v1
         with:
           command: build
           args: --workspace --examples
 
-      - name: Run all tests (incl. expensive)
+      - name: Run unit tests
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --workspace
+
+      - name: Run slow unit tests
         uses: actions-rs/cargo@v1
         with:
           command: test
           args: --workspace -- --ignored
 
-      - name: Run clippy
+      - name: Clippy
         uses: actions-rs/cargo@v1
         with:
           command: clippy

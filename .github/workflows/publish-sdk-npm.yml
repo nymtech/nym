@@ -1,4 +1,4 @@
-name: publish-sdk-npm
+name: Publish Typescript SDK
 on:
   workflow_dispatch:
 
@@ -28,8 +28,10 @@ jobs:
       - name: Install dependencies
         run: yarn
 
-      - name: Build and publish
+      - name: Build WASM and Typescript SDK
+        run: yarn sdk:build
+
+      - name: Publish to NPM
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
-        working-directory: ./sdk/typescript/packages/sdk
-        run: scripts/publish.sh
+        run: ./sdk/typescript/scripts/publish.sh

@@ -4,7 +4,7 @@
 use crate::http::api::v1::node::build_information::build_information;
 use crate::http::api::v1::node::host_information::host_information;
 use crate::http::api::v1::node::roles::roles;
-use crate::http::api::v1::node::types::{HostInformation, NodeRoles};
+use crate::http::api::v1::node::types::{NodeRoles, SignedHostInformation};
 use crate::http::state::AppState;
 use axum::routing::get;
 use axum::Router;
@@ -24,7 +24,7 @@ pub(crate) mod routes {
 #[derive(Debug, Clone)]
 pub struct Config {
     pub build_information: BinaryBuildInformationOwned,
-    pub host_information: HostInformation,
+    pub host_information: SignedHostInformation,
     pub roles: NodeRoles,
 }
 

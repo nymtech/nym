@@ -12,6 +12,12 @@ pub enum NymNodeError {
         source: hyper::Error,
     },
 
+    #[error("failed to serialize json data: {source}")]
+    JsonSerializationFailure {
+        #[from]
+        source: serde_json::Error,
+    },
+
     #[error("unimplemented")]
     Unimplemented,
 }

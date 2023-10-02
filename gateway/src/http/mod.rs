@@ -3,12 +3,14 @@
 
 use crate::config::Config;
 use crate::error::GatewayError;
-use crate::node::helpers::load_public_key;
+use crate::node::helpers::{load_identity_keys, load_public_key};
 use nym_bin_common::bin_info_owned;
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_node::http;
+use nym_node::http::api::SignedHostInformation;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_task::TaskClient;
+use zeroize::Zeroize;
 
 fn load_gateway_details(
     config: &Config,
@@ -26,26 +28,27 @@ fn load_gateway_details(
 
 fn load_host_details(
     config: &Config,
-) -> Result<http::api::v1::node::types::HostInformation, GatewayError> {
-    let identity_public_key: identity::PublicKey = load_public_key(
-        &config.storage_paths.keys.public_identity_key_file,
-        "gateway identity",
-    )?;
+) -> Result<http::api::v1::node::types::SignedHostInformation, GatewayError> {
+    let mut identity_keypair = load_identity_keys(config)?;
 
     let sphinx_public_key: encryption::PublicKey = load_public_key(
         &config.storage_paths.keys.public_sphinx_key_file,
         "gateway sphinx",
     )?;
 
-    Ok(http::api::v1::node::types::HostInformation {
+    let host_info = http::api::v1::node::types::HostInformation {
         // TODO: this should be extracted differently, i.e. it's the issue of the public/private address
         ip_address: vec![config.gateway.listening_address.to_string()],
         hostname: None,
         keys: http::api::v1::node::types::HostKeys {
-            ed25519: identity_public_key.to_base58_string(),
+            ed25519: identity_keypair.public_key().to_base58_string(),
             x25519: sphinx_public_key.to_base58_string(),
         },
-    })
+    };
+
+    let signed_info = SignedHostInformation::new(host_info, identity_keypair.private_key())?;
+    identity_keypair.zeroize();
+    Ok(signed_info)
 }
 
 fn load_network_requester_details(

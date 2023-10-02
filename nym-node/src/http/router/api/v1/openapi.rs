@@ -25,6 +25,7 @@ use utoipa_swagger_ui::SwaggerUi;
         api::Output,
         api::OutputParams,
         api::v1::node::types::BinaryBuildInformationOwned,
+        api::v1::node::types::SignedHostInformation,
         api::v1::node::types::HostInformation,
         api::v1::node::types::HostKeys,
         api::v1::node::types::NodeRoles,

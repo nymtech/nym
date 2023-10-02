@@ -1,6 +1,8 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::error::NymNodeError;
+use crate::http::api::v1::node::types::HostInformation;
 use crate::http::state::AppState;
 use axum::http::{header, HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
@@ -24,40 +26,31 @@ pub struct Config {
 
 pub(super) fn routes(config: Config) -> Router<AppState> {
     Router::new().nest(routes::V1, v1::routes(config.v1_config))
-    // .nest(routes::SWAGGER, openapi::route())
-    // .nest(routes::SWAGGER, openapi::route())
 }
 
-// #[derive(Debug, Clone, ToSchema)]
-// pub struct SignedResponse<T>{
-//     encoded_signature: String,
-//     data: T,
-// }
-
-#[derive(Debug, Clone, ToSchema)]
-pub struct SignedResponse<T> {
-    pub response: T,
+#[derive(Debug, Clone, ToSchema, Serialize)]
+#[aliases(SignedHostInformation = SignedData<HostInformation>)]
+pub struct SignedData<T> {
+    // #[serde(flatten)]
+    pub data: T,
     pub signature: String,
 }
 
-impl<T> SignedResponse<T> {
-    pub fn new(response: T, key: &identity::PrivateKey) -> serde_json::Result<Self>
+impl<T> SignedData<T> {
+    pub fn new(data: T, key: &identity::PrivateKey) -> Result<Self, NymNodeError>
     where
         T: Serialize,
     {
-        let plaintext = serde_json::to_string(&response)?;
+        let plaintext = serde_json::to_string(&data)?;
         let signature = key.sign(plaintext).to_base58_string();
-        Ok(SignedResponse {
-            response,
-            signature,
-        })
+        Ok(SignedData { data, signature })
     }
 
     pub fn verify(&self, key: &identity::PublicKey) -> bool
     where
         T: Serialize,
     {
-        let Ok(plaintext) = serde_json::to_string(&self.response) else {
+        let Ok(plaintext) = serde_json::to_string(&self.data) else {
             return false;
         };
         let Ok(signature) = identity::Signature::from_base58_string(&self.signature) else {
@@ -68,11 +61,11 @@ impl<T> SignedResponse<T> {
     }
 }
 
-impl<T> Deref for SignedResponse<T> {
+impl<T> Deref for SignedData<T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
-        &self.response
+        &self.data
     }
 }
 

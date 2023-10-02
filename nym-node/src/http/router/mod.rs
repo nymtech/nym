@@ -5,7 +5,7 @@ use crate::error::NymNodeError;
 use crate::http::api::v1::gateway::types::Gateway;
 use crate::http::api::v1::mixnode::types::Mixnode;
 use crate::http::api::v1::network_requester::types::NetworkRequester;
-use crate::http::api::v1::node::types::HostInformation;
+use crate::http::api::v1::node::types::SignedHostInformation;
 use crate::http::middleware::logging;
 use crate::http::state::AppState;
 use crate::http::NymNodeHTTPServer;
@@ -34,7 +34,7 @@ pub struct Config {
 impl Config {
     pub fn new(
         build_information: BinaryBuildInformationOwned,
-        host_information: HostInformation,
+        host_information: SignedHostInformation,
     ) -> Self {
         Config {
             landing: Default::default(),

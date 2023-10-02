@@ -1,7 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::http::api::v1::node::types::HostInformation;
+use crate::http::api::v1::node::types::SignedHostInformation;
 use crate::http::api::{FormattedResponse, OutputParams};
 use axum::extract::Query;
 
@@ -13,18 +13,18 @@ use axum::extract::Query;
     tag = "Node",
     responses(
         (status = 200, content(
-            ("application/json" = HostInformation),
-            ("application/yaml" = HostInformation)
+            ("application/json" = SignedHostInformation),
+            ("application/yaml" = SignedHostInformation)
         ))
     ),
     params(OutputParams)
 )]
 pub(crate) async fn host_information(
-    host_information: HostInformation,
+    host_information: SignedHostInformation,
     Query(output): Query<OutputParams>,
 ) -> HostInformationResponse {
     let output = output.output.unwrap_or_default();
     output.to_response(host_information)
 }
 
-pub type HostInformationResponse = FormattedResponse<HostInformation>;
+pub type HostInformationResponse = FormattedResponse<SignedHostInformation>;

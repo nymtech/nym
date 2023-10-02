@@ -1,0 +1,59 @@
+# Welcome to the TS SDK FAQ!
+
+#### __How can I interact with Nym?__
+
+##### For existing projects:
+You'd like to integrate parts of the Nym stack to your existing app? Please check our dedicated Integrations page.
+
+##### For builders:
+###### SDKs
+You'd like to build or Nymify existing solutions? If you develop in Rust or TS/JS, then our SDKs are your go-to. 
+Please refer [here](https://nymtech.net/developers/tutorials/rust-sdk.html) for more RUST information and tutorials and here (you are there) for using the TypeScript SDK.
+These SDKs abstract away much of the messaging and core logic from your app, and allow you to run a Nym client as part of your application process, instead of having to run them seperately.
+
+###### Nym clients: Websocket, WebAssembly, SOCKS5
+Alternatively, you can also use one of the three Nym clients to connect your application to the mixnet. These clients do the majority of the heavy-lifting with regards to cryptographic operations and routing under the hood, and all do basically the same thing: create a connection to a gateway, encrypt and decrypt packets sent to and received from the mixnet, and send cover traffic to hide the flow of actual app traffic from observers. You can learn more about the Nym clients [here](https://nymtech.net/developers/integrations/mixnet-integration.html).
+
+###### Network requesters: 
+In order to ensure uptime and reliability, it is recommended that you run some pieces of mixnet infrastructure. What infrastructure is necessary to run depends on the architecture of your application, and the endpoints that it needs to hit!
+
+- If you’re running a purely P2P application, then just integrating clients and having some method of sharing addresses should be enough to route your traffic through the mixnet.
+- If you’re wanting to place the mixnet between your users’ application instances and a server-based backend, you can use the [network requester service provider binary](https://nymtech.net/operators/nodes/network-requester-setup.html) to proxy these requests to your application backend, with the mixnet ‘between’ the user and your service, in order to prevent metadata leakage being broadcast to the internet.
+- If you’re wanting to route RPC requests through the mixnet to a blockchain, you will need to look into setting up some sort of service that does the transaction broadcasting for you. You can find examples of such projects on the [community applications page](https://nymtech.net/developers/community-resources/community-applications-and-guides.html).
+
+#### __Why gateways?__
+Nym apps have a stable, potentially long-lasting relation to a gateway node. A client will register itself with a gateway, and get back an authentication token that it can then use to retrieve messages from the gateway later on.
+
+Gateways serve a few different functions:
+
+- They act as an end-to-end encrypted message store in case your app goes offline;
+- They send encrypted surb-acks for potentially offline recipients, to ensure reliable message delivery;
+- They offer a stable addressing location for apps, although the IP may change frequently;
+
+If you want to learn more about gateways, you can check [this page.](https://nymtech.net/developers/integrations/mixnet-integration.html)
+
+
+#### __Why and when does the mixnet client complain about insufficient topology?__
+
+It will in one of the following cases:
+- There are empty Mix layers (rare);
+- The gateway you've registered with does not appear in the network topology -> it is either unbonded or got blacklisted;
+- The gateway you want to send packets to does not appear in the network topology -> it is either unbonded or got blacklisted;
+
+To avoid the last two, you need to make sure the gateway you are calling is bonded and whitelisted.
+
+#### __How can I check whether the gateway I am connecting to is bonded and not blacklisted?__
+
+The easiest way of checking what gateway you're registered with is to look at you client address. 
+Client addresses are in the format of:
+`client-id . client-dh @ gateway-id. ` 
+
+To illustrate this: `DpB3cHAchJiNBQi5FrZx2csXb1mrHkpYh9Wzf8Rjsuko.ANNWrvHqMYuertHGHUrZdBntQhpzfbWekB39qez9U2Vx@2BuMSfMW3zpeAjKXyKLhmY4QW1DXurrtSPEJ6CjX3SEh `
+
+- `DpB3cHAchJiNBQi5FrZx2csXb1mrHkpYh9Wzf8Rjsuko`: is the client's identity key;
+- `ANNWrvHqMYuertHGHUrZdBntQhpzfbWekB39qez9U2Vx`: is the client's Diffie Hellman key;
+- `2BuMSfMW3zpeAjKXyKLhmY4QW1DXurrtSPEJ6CjX3SEh`: is the gateway's identity, which is what you'll need to check the state of the gateway in the [Nym Explorer](https://explorer.nymtech.net/network-components/gateways). 
+
+
+#### __How can I get my service URL whitelisted?__
+

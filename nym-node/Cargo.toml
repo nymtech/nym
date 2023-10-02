@@ -38,4 +38,5 @@ utoipa-swagger-ui = { workspace = true, features = ["axum"] }
 
 
 nym-bin-common = { path = "../common/bin-common", features = ["openapi"] }
+nym-crypto = { path = "../common/crypto", features = ["asymmetric"] }
 nym-task = { path = "../common/task" }

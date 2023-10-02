@@ -6,7 +6,9 @@ use axum::http::{header, HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::{Json, Router};
 use bytes::{BufMut, BytesMut};
+use nym_crypto::asymmetric::identity;
 use serde::{Deserialize, Serialize};
+use std::ops::Deref;
 use utoipa::{IntoParams, ToSchema};
 
 pub mod v1;
@@ -31,6 +33,48 @@ pub(super) fn routes(config: Config) -> Router<AppState> {
 //     encoded_signature: String,
 //     data: T,
 // }
+
+#[derive(Debug, Clone, ToSchema)]
+pub struct SignedResponse<T> {
+    pub response: T,
+    pub signature: String,
+}
+
+impl<T> SignedResponse<T> {
+    pub fn new(response: T, key: &identity::PrivateKey) -> serde_json::Result<Self>
+    where
+        T: Serialize,
+    {
+        let plaintext = serde_json::to_string(&response)?;
+        let signature = key.sign(plaintext).to_base58_string();
+        Ok(SignedResponse {
+            response,
+            signature,
+        })
+    }
+
+    pub fn verify(&self, key: &identity::PublicKey) -> bool
+    where
+        T: Serialize,
+    {
+        let Ok(plaintext) = serde_json::to_string(&self.response) else {
+            return false;
+        };
+        let Ok(signature) = identity::Signature::from_base58_string(&self.signature) else {
+            return false;
+        };
+
+        key.verify(plaintext, &signature).is_ok()
+    }
+}
+
+impl<T> Deref for SignedResponse<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        &self.response
+    }
+}
 
 #[derive(Debug, Clone, ToSchema)]
 pub enum FormattedResponse<T> {

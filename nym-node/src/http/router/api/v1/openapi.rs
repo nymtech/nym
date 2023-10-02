@@ -12,6 +12,7 @@ use utoipa_swagger_ui::SwaggerUi;
     info(title = "NymNode API"),
     paths(
         api::v1::node::build_information::build_information,
+        api::v1::node::host_information::host_information,
         api::v1::node::roles::roles,
         api::v1::gateway::root::root_gateway,
         api::v1::mixnode::root::root_mixnode,
@@ -21,13 +22,14 @@ use utoipa_swagger_ui::SwaggerUi;
         api::Output,
         api::OutputParams,
         api::v1::node::types::BinaryBuildInformationOwned,
+        api::v1::node::types::HostInformation,
+        api::v1::node::types::HostKeys,
         api::v1::node::types::NodeRoles,
         api::v1::gateway::types::Gateway,
         api::v1::mixnode::types::Mixnode,
         api::v1::network_requester::types::NetworkRequester,
     ))
 )]
-
 pub(crate) struct ApiDoc;
 
 pub(crate) fn route() -> Router<AppState> {

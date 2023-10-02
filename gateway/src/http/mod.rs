@@ -11,8 +11,14 @@ use nym_sphinx::addressing::clients::Recipient;
 use nym_task::TaskClient;
 
 fn load_gateway_details(
-    config: &Config,
+    _config: &Config,
 ) -> Result<http::api::v1::gateway::types::Gateway, GatewayError> {
+    Ok(http::api::v1::gateway::types::Gateway {})
+}
+
+fn load_host_details(
+    config: &Config,
+) -> Result<http::api::v1::node::types::HostInformation, GatewayError> {
     let identity_public_key: identity::PublicKey = load_public_key(
         &config.storage_paths.keys.public_identity_key_file,
         "gateway identity",
@@ -23,9 +29,14 @@ fn load_gateway_details(
         "gateway sphinx",
     )?;
 
-    Ok(http::api::v1::gateway::types::Gateway {
-        encoded_identity_key: identity_public_key.to_base58_string(),
-        encoded_sphinx_key: sphinx_public_key.to_base58_string(),
+    Ok(http::api::v1::node::types::HostInformation {
+        // TODO: this should be extracted differently, i.e. it's the issue of the public/private address
+        ip_address: vec![config.gateway.listening_address],
+        hostname: None,
+        keys: http::api::v1::node::types::HostKeys {
+            ed25519: identity_public_key.to_base58_string(),
+            x25519: sphinx_public_key.to_base58_string(),
+        },
     })
 }
 
@@ -80,8 +91,9 @@ pub(crate) fn start_http_api(
     // and makes the code a bit nicer to manage. on top of it, all of it will refactored anyway at some point
     // (famous last words, eh? - 22.09.23)
 
-    let mut config = nym_node::http::Config::new(bin_info_owned!())
-        .with_gateway(load_gateway_details(gateway_config)?);
+    let mut config =
+        nym_node::http::Config::new(bin_info_owned!(), load_host_details(gateway_config)?)
+            .with_gateway(load_gateway_details(gateway_config)?);
 
     if let Some(nr_config) = network_requester_config {
         config = config

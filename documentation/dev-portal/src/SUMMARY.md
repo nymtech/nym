@@ -51,6 +51,8 @@
 
 
 # Events
+
+- [Web3Privacy Now](./events/web3-privacy.md)
 - [HCPP23-serinko](./events/hcpp23-serinko.md)
 - [HCPP23-max](./events/hcpp23-max.md)
 

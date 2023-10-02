@@ -37,8 +37,10 @@ impl Config {
             policy: Default::default(),
             api: api::Config {
                 v1_config: api::v1::Config {
-                    build_information: binary_info,
-                    roles: Default::default(),
+                    node: api::v1::node::Config {
+                        build_information: binary_info,
+                        roles: Default::default(),
+                    },
                     gateway: Default::default(),
                     mixnode: Default::default(),
                     network_requester: Default::default(),
@@ -49,21 +51,21 @@ impl Config {
 
     #[must_use]
     pub fn with_gateway(mut self, gateway: Gateway) -> Self {
-        self.api.v1_config.roles.gateway_enabled = true;
+        self.api.v1_config.node.roles.gateway_enabled = true;
         self.api.v1_config.gateway.details = Some(gateway);
         self
     }
 
     #[must_use]
     pub fn with_mixnode(mut self, mixnode: Mixnode) -> Self {
-        self.api.v1_config.roles.mixnode_enabled = true;
+        self.api.v1_config.node.roles.mixnode_enabled = true;
         self.api.v1_config.mixnode.details = Some(mixnode);
         self
     }
 
     #[must_use]
     pub fn with_network_requester(mut self, network_requester: NetworkRequester) -> Self {
-        self.api.v1_config.roles.network_requester_enabled = true;
+        self.api.v1_config.node.roles.network_requester_enabled = true;
         self.api.v1_config.network_requester.details = Some(network_requester);
         self
     }

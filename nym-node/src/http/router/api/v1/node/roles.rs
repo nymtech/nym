@@ -1,24 +1,16 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::http::api::v1::node::types::NodeRoles;
 use crate::http::router::api::{FormattedResponse, OutputParams};
 use axum::extract::Query;
-use serde::Serialize;
-use utoipa::ToSchema;
-
-#[derive(Clone, Default, Debug, Copy, ToSchema, Serialize)]
-pub struct NodeRoles {
-    pub mixnode_enabled: bool,
-    pub gateway_enabled: bool,
-    pub network_requester_enabled: bool,
-}
 
 /// Returns roles supported by this node
 #[utoipa::path(
     get,
     path = "/roles",
     context_path = "/api/v1",
-    tag = "Base",
+    tag = "Node",
     responses(
         (status = 200, content(
             ("application/json" = NodeRoles),

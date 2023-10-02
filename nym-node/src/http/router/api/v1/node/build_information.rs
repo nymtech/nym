@@ -8,9 +8,9 @@ use nym_bin_common::build_information::BinaryBuildInformationOwned;
 /// Returns build metadata of the binary running the API
 #[utoipa::path(
     get,
-    path = "/build-info",
+    path = "/build-information",
     context_path = "/api/v1",
-    tag = "Base",
+    tag = "Node",
     responses(
         (status = 200, content(
             ("application/json" = BinaryBuildInformationOwned),
@@ -19,12 +19,12 @@ use nym_bin_common::build_information::BinaryBuildInformationOwned;
     ),
     params(OutputParams)
 )]
-pub(crate) async fn build_info(
+pub(crate) async fn build_information(
     build_information: BinaryBuildInformationOwned,
     Query(output): Query<OutputParams>,
-) -> BuildInfoResponse {
+) -> BuildInformationResponse {
     let output = output.output.unwrap_or_default();
     output.to_response(build_information)
 }
 
-pub type BuildInfoResponse = FormattedResponse<BinaryBuildInformationOwned>;
+pub type BuildInformationResponse = FormattedResponse<BinaryBuildInformationOwned>;

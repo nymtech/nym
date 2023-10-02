@@ -1,11 +1,9 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use super::roles::NodeRoles;
 use crate::http::router::api;
 use crate::http::state::AppState;
 use axum::Router;
-use nym_bin_common::build_information::BinaryBuildInformationOwned;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
@@ -13,8 +11,8 @@ use utoipa_swagger_ui::SwaggerUi;
 #[openapi(
     info(title = "NymNode API"),
     paths(
-        api::v1::build_info::build_info,
-        api::v1::roles::roles,
+        api::v1::node::build_information::build_information,
+        api::v1::node::roles::roles,
         api::v1::gateway::root::root_gateway,
         api::v1::mixnode::root::root_mixnode,
         api::v1::network_requester::root::root_network_requester,
@@ -22,8 +20,8 @@ use utoipa_swagger_ui::SwaggerUi;
     components(schemas(
         api::Output,
         api::OutputParams,
-        BinaryBuildInformationOwned,
-        NodeRoles,
+        api::v1::node::types::BinaryBuildInformationOwned,
+        api::v1::node::types::NodeRoles,
         api::v1::gateway::types::Gateway,
         api::v1::mixnode::types::Mixnode,
         api::v1::network_requester::types::NetworkRequester,

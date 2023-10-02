@@ -8,12 +8,16 @@ use wasm_bindgen::JsValue;
 use wasm_bindgen_futures::spawn_local;
 use wasm_client_core::client::base_client::ClientOutput;
 use wasm_client_core::client::received_buffer::{
-    ReceivedBufferMessage, ReconstructedMessagesReceiver,
+    ReceivedBufferMessage, ReceivedBufferRequestSender, ReconstructedMessagesReceiver,
 };
 use wasm_utils::console_error;
 
 pub(crate) struct ResponsePusher {
     reconstructed_receiver: ReconstructedMessagesReceiver,
+
+    // we need to keep that channel alive as not to trigger the shutdown
+    _received_buffer_request_sender: ReceivedBufferRequestSender,
+
     on_message: js_sys::Function,
 }
 
@@ -36,12 +40,17 @@ impl ResponsePusher {
 
         ResponsePusher {
             reconstructed_receiver,
+            _received_buffer_request_sender: client_output.received_buffer_request_sender,
             on_message,
         }
     }
 
     pub(crate) fn start(mut self) {
         spawn_local(async move {
+            // for some reason if this channel is not explicitly moved into the block,
+            // it gets dropped when spawning the promise
+            let _request_sender = self._received_buffer_request_sender;
+
             let this = JsValue::null();
 
             while let Some(reconstructed) = self.reconstructed_receiver.next().await {

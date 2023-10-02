@@ -22,7 +22,7 @@ module.exports = {
             patterns: [
                 'index.html',
                 {
-                    from: '../../../dist/wasm/client/*.(js|wasm)',
+                    from: '../pkg/*.(js|wasm)',
                     to: '[name][ext]',
                 },
             ],

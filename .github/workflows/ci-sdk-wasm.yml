@@ -10,6 +10,8 @@ on:
 jobs:
   wasm:
     runs-on: [custom-runner-linux]
+    env:
+      CARGO_TERM_COLOR: always
     steps:
       - uses: actions/checkout@v2
 

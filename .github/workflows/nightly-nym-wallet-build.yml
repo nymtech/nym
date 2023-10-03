@@ -16,6 +16,8 @@ jobs:
       matrix:
         os: [custom-linux, macos-latest, windows10]
     runs-on: ${{ matrix.os }}
+    env:
+      CARGO_TERM_COLOR: always
     continue-on-error: true
     steps:
       - name: Check out repository code

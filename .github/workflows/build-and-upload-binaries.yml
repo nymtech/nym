@@ -20,6 +20,8 @@ jobs:
         platform: [ubuntu-20.04]
 
     runs-on: ${{ matrix.platform }}
+    env:
+      CARGO_TERM_COLOR: always
     steps:
       - uses: actions/checkout@v3
 

@@ -58,7 +58,10 @@ impl WireGuardTunnel {
         peer_static_public: x25519::PublicKey,
         tunnel_tx: mpsc::UnboundedSender<Vec<u8>>,
     ) -> (Self, mpsc::UnboundedSender<Event>) {
-        log::info!("New wg tunnel: endpoint: {endpoint}, udp: {udp:?}");
+        let local_addr = udp.local_addr().unwrap();
+        let peer_addr = udp.peer_addr();
+        log::info!("New wg tunnel: endpoint: {endpoint}, local_addr: {local_addr}, peer_addr: {peer_addr:?}");
+
         let preshared_key = None;
         let persistent_keepalive = None;
         let index = 0;
@@ -158,11 +161,7 @@ impl WireGuardTunnel {
         let mut tunnel = self.wg_tunnel_lock().await?;
         match tunnel.decapsulate(None, data, &mut send_buf) {
             TunnResult::WriteToNetwork(packet) => {
-                log::info!(
-                    "consume_wg: write to network: endpoint: {}: {}",
-                    self.endpoint,
-                    packet.len()
-                );
+                log::info!("udp: send {} bytes to {}", packet.len(), self.endpoint);
                 if let Err(err) = self.udp.send_to(packet, self.endpoint).await {
                     error!("Failed to send decapsulation-instructed packet to WireGuard endpoint: {err:?}");
                 };
@@ -171,11 +170,7 @@ impl WireGuardTunnel {
                     let mut send_buf = [0u8; MAX_PACKET];
                     match tunnel.decapsulate(None, &[], &mut send_buf) {
                         TunnResult::WriteToNetwork(packet) => {
-                            log::info!(
-                                "consume_wg: write to network: endpoint: {}: {}",
-                                self.endpoint,
-                                packet.len()
-                            );
+                            log::info!("udp: send {} bytes to {}", packet.len(), self.endpoint);
                             if let Err(err) = self.udp.send_to(packet, self.endpoint).await {
                                 error!("Failed to send decapsulation-instructed packet to WireGuard endpoint: {err:?}");
                                 break;
@@ -188,19 +183,11 @@ impl WireGuardTunnel {
                 }
             }
             TunnResult::WriteToTunnelV4(packet, _) | TunnResult::WriteToTunnelV6(packet, _) => {
-                log::info!("consume_wg: write to tunnel: {}", packet.len());
-
-                // Parse the `packet` and inspect it's contents.
                 let headers = SlicedPacket::from_ip(packet).unwrap();
-                let (source_addr, destination_addr) = match headers.ip.unwrap() {
+                let (source_addr, _destination_addr) = match headers.ip.unwrap() {
                     InternetSlice::Ipv4(ip, _) => (ip.source_addr(), ip.destination_addr()),
                     InternetSlice::Ipv6(_, _) => unimplemented!(),
                 };
-
-                log::info!(
-                    "{source_addr} -> {destination_addr}: {} bytes",
-                    packet.len()
-                );
                 self.set_source_addr(source_addr);
                 self.tun_task_tx.send(packet.to_vec()).unwrap();
             }

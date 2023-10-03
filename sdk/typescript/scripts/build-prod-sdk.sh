@@ -17,10 +17,4 @@ yarn build:wasm
 yarn build:sdk
 
 # build documentation
-cd sdk/typescript/docs
-npm i
-npm run docs:prod:build
-cd ../../..
-
-# build examples
-pwd
+yarn docs:prod:build

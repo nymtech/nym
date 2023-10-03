@@ -35,6 +35,6 @@
     "webpack-dev-server": "^4.7.4"
   },
   "dependencies": {
-    "@nymproject/nym-client-wasm": "file:../../../dist/wasm/client"
+    "@nymproject/nym-client-wasm": "file:../pkg"
   }
 }

@@ -34,8 +34,8 @@ serde_json = { workspace = true }
 sqlx = { version = "0.6.1", features = ["runtime-tokio-rustls", "chrono"]}
 tap = { workspace = true }
 thiserror = "1.0"
-tokio = { version = "1.24.1", features = [ "net", "rt-multi-thread", "macros" ] }
-tokio-tungstenite = "0.17.2"
+tokio = { workspace = true, features = [ "net", "rt-multi-thread", "macros" ] }
+tokio-tungstenite = { workspace = true }
 url = { workspace = true }
 
 # internal

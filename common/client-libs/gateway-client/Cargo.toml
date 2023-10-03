@@ -31,7 +31,7 @@ serde = { workspace = true, features = ["derive"] }
 
 
 [dependencies.tungstenite]
-version = "0.13"
+workspace = true
 default-features = false
 
 # non-wasm-only dependencies
@@ -44,7 +44,7 @@ version = "0.1.11"
 features = ["net", "sync", "time"]
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio-tungstenite]
-version = "0.14"
+workspace = true
 
 # wasm-only dependencies
 [target."cfg(target_arch = \"wasm32\")".dependencies.wasm-bindgen]

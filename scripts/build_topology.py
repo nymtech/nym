@@ -3,11 +3,6 @@ import os.path
 import sys
 
 
-def get_gateway_data(base_dir):
-    with open(base_dir + "gateway" + ".json", "r") as json_blob:
-        return json.load(json_blob)
-
-
 def add_mixnode(base_network, base_dir, mix_id):
     with open(os.path.join(base_dir, "mix" + str(mix_id) + ".json"), "r") as json_blob:
         mix_data = json.load(json_blob)

@@ -29,11 +29,11 @@ impl PersistentStorage {
             database_path.as_ref().as_os_str()
         );
 
-        let mut opts = sqlx::sqlite::SqliteConnectOptions::new()
+        let opts = sqlx::sqlite::SqliteConnectOptions::new()
             .filename(database_path)
             .create_if_missing(true);
 
-        opts.disable_statement_logging();
+        let opts = opts.disable_statement_logging();
 
         let connection_pool = match sqlx::SqlitePool::connect_with(opts).await {
             Ok(db) => db,

@@ -26,11 +26,11 @@ impl NetworkStatisticsStorage {
     pub async fn init(base_dir: &PathBuf) -> Result<Self, NetworkStatisticsStorageError> {
         std::fs::create_dir_all(base_dir)?;
         let database_path = base_dir.join("db.sqlite");
-        let mut opts = sqlx::sqlite::SqliteConnectOptions::new()
+        let opts = sqlx::sqlite::SqliteConnectOptions::new()
             .filename(database_path)
             .create_if_missing(true);
 
-        opts.disable_statement_logging();
+        let opts = opts.disable_statement_logging();
 
         let connection_pool = sqlx::SqlitePool::connect_with(opts).await?;
 

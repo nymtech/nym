@@ -34,7 +34,7 @@ pretty_env_logger = "0.4"
 rand = "0.7"
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
-sqlx = { version = "0.5", features = [ "runtime-tokio-rustls", "sqlite", "macros", "migrate", ] }
+sqlx = { workspace = true, features = [ "runtime-tokio-rustls", "sqlite", "macros", "migrate", ] }
 subtle-encoding = { version = "0.5", features = ["bech32-preview"] }
 thiserror = "1"
 tokio = { workspace = true, features = [ "rt-multi-thread", "net", "signal", "fs", "time" ] }
@@ -66,7 +66,7 @@ nym-wireguard = { path = "../common/wireguard" }
 
 [build-dependencies]
 tokio = { version = "1.24.1", features = ["rt-multi-thread", "macros"] }
-sqlx = { version = "0.5", features = [
+sqlx = { workspace = true, features = [
     "runtime-tokio-rustls",
     "sqlite",
     "macros",

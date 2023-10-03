@@ -25,6 +25,8 @@ on:
 jobs:
   build:
     runs-on: [self-hosted, custom-linux]
+    env:
+      CARGO_TERM_COLOR: always
     # env:
     #   RUSTC_WRAPPER: /home/ubuntu/.cargo/bin/sccache
     # a push event from the origin repo, or a PR from external repo

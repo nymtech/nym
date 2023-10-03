@@ -41,6 +41,8 @@ on:
 jobs:
   build:
     runs-on: [ self-hosted, custom-linux ]
+    env:
+      CARGO_TERM_COLOR: always
     # Enable sccache via environment variable
     # env:
       # RUSTC_WRAPPER: /home/ubuntu/.cargo/bin/sccache

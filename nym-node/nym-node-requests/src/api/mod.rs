@@ -7,7 +7,12 @@ use nym_crypto::asymmetric::identity;
 use serde::Serialize;
 use std::ops::Deref;
 
+#[cfg(feature = "client")]
+pub mod client;
 pub mod v1;
+
+#[cfg(feature = "client")]
+pub use client::Client;
 
 #[derive(Debug, Clone, Serialize)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]

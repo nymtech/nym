@@ -19,6 +19,7 @@ use nym_api_requests::models::{
 use nym_network_defaults::NymNetworkDetails;
 use url::Url;
 
+pub use crate::nym_api::NymApiClientExt;
 pub use nym_mixnet_contract_common::{
     mixnode::MixNodeDetails, GatewayBond, IdentityKey, IdentityKeyRef, MixId,
 };
@@ -177,7 +178,7 @@ impl<C, S> Client<C, S> {
     }
 
     pub fn change_nym_api(&mut self, new_endpoint: Url) {
-        self.nym_api.change_url(new_endpoint)
+        self.nym_api.change_base_url(new_endpoint)
     }
 
     pub async fn get_cached_mixnodes(&self) -> Result<Vec<MixNodeDetails>, ValidatorClientError> {
@@ -251,7 +252,7 @@ impl NymApiClient {
     }
 
     pub fn change_nym_api(&mut self, new_endpoint: Url) {
-        self.nym_api.change_url(new_endpoint);
+        self.nym_api.change_base_url(new_endpoint);
     }
 
     pub async fn get_cached_active_mixnodes(

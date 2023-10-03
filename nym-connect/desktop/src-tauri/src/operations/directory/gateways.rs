@@ -8,6 +8,7 @@ use nym_bin_common::version_checker::is_minor_version_compatible;
 use nym_config::defaults::var_names::NYM_API;
 use nym_contracts_common::types::Percent;
 use nym_topology::gateway;
+use nym_validator_client::client::NymApiClientExt;
 use nym_validator_client::nym_api::Client as ApiClient;
 use std::str::FromStr;
 use url::Url;

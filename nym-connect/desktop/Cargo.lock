@@ -2965,6 +2965,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "http-api-client"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
 name = "http-body"
 version = "0.4.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4634,6 +4645,7 @@ dependencies = [
  "eyre",
  "flate2",
  "futures",
+ "http-api-client",
  "itertools",
  "log",
  "nym-api-requests",

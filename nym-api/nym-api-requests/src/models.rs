@@ -11,6 +11,7 @@ use nym_mixnet_contract_common::{
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use std::fmt::{Display, Formatter};
 use std::{fmt, time::Duration};
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, JsonSchema)]
@@ -27,6 +28,12 @@ impl RequestError {
 
     pub fn message(&self) -> &str {
         &self.message
+    }
+}
+
+impl Display for RequestError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        self.message.fmt(f)
     }
 }
 

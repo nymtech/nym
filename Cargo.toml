@@ -46,7 +46,7 @@ members = [
     "common/crypto",
     "common/dkg",
     "common/execute",
-    "common/http-requests",
+    "common/http-api-client",
     "common/inclusion-probability",
     "common/ledger",
     "common/mixnode-common",

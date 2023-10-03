@@ -3,6 +3,7 @@
 
 use crate::error::MixFetchError;
 use crate::harbourmaster;
+use crate::harbourmaster::HarbourMasterApiClientExt;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use std::collections::HashMap;
@@ -23,7 +24,7 @@ pub(crate) async fn get_network_requester(
         return Ok(sp);
     }
 
-    let client = harbourmaster::Client::new(HARBOUR_MASTER)?;
+    let client = harbourmaster::Client::new_url(HARBOUR_MASTER)?;
     let providers = client.get_services_new().await?;
     console_log!(
         "obtained list of {} service providers on the network",

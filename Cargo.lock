@@ -3863,6 +3863,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "http-api-client"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
 name = "http-body"
 version = "0.4.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5550,13 +5561,14 @@ dependencies = [
 name = "mix-fetch-wasm"
 version = "1.2.0-rc.10"
 dependencies = [
+ "async-trait",
  "futures",
+ "http-api-client",
  "js-sys",
  "nym-ordered-buffer",
  "nym-service-providers-common",
  "nym-socks5-requests",
  "rand 0.7.3",
- "reqwest",
  "serde",
  "serde-wasm-bindgen",
  "thiserror",
@@ -6614,21 +6626,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "nym-http-requests"
-version = "0.1.0"
-dependencies = [
- "bytecodec",
- "bytes",
- "http",
- "httpcodec",
- "nym-ordered-buffer",
- "nym-service-providers-common",
- "nym-socks5-requests",
- "thiserror",
- "url",
-]
-
-[[package]]
 name = "nym-inclusion-probability"
 version = "0.1.0"
 dependencies = [
@@ -7401,6 +7398,7 @@ dependencies = [
  "eyre",
  "flate2",
  "futures",
+ "http-api-client",
  "itertools",
  "log",
  "nym-api-requests",

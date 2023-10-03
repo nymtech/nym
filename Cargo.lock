@@ -173,7 +173,7 @@ dependencies = [
  "serde_urlencoded",
  "smallvec",
  "socket2 0.4.9",
- "time 0.3.25",
+ "time",
  "url",
 ]
 
@@ -515,7 +515,7 @@ dependencies = [
  "num-traits",
  "rusticata-macros",
  "thiserror",
- "time 0.3.25",
+ "time",
 ]
 
 [[package]]
@@ -531,7 +531,7 @@ dependencies = [
  "num-traits",
  "rusticata-macros",
  "thiserror",
- "time 0.3.25",
+ "time",
 ]
 
 [[package]]
@@ -1335,18 +1335,17 @@ dependencies = [
 
 [[package]]
 name = "chrono"
-version = "0.4.26"
+version = "0.4.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ec837a71355b28f6556dbd569b37b3f363091c0bd4b2e735674521b4c5fd9bc5"
+checksum = "7f2c685bad3eb3d45a01354cedb7d5faa66194d1d58ba6e267a8de788f79db38"
 dependencies = [
  "android-tzdata",
  "iana-time-zone",
  "js-sys",
  "num-traits",
  "serde",
- "time 0.1.45",
  "wasm-bindgen",
- "winapi",
+ "windows-targets 0.48.1",
 ]
 
 [[package]]
@@ -1658,7 +1657,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e859cd57d0710d9e06c381b550c06e76992472a8c6d527aecd2fc673dcc231fb"
 dependencies = [
  "percent-encoding",
- "time 0.3.25",
+ "time",
  "version_check",
 ]
 
@@ -1669,7 +1668,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7efb37c3e1ccb1ff97164ad95ac1606e8ccd35b3fa0a7d99a304c7f4a428cc24"
 dependencies = [
  "percent-encoding",
- "time 0.3.25",
+ "time",
  "version_check",
 ]
 
@@ -6073,7 +6072,7 @@ dependencies = [
  "tap",
  "tempfile",
  "thiserror",
- "time 0.3.25",
+ "time",
  "tokio",
  "tokio-stream",
  "ts-rs",
@@ -6217,7 +6216,7 @@ dependencies = [
  "serde_json",
  "tap",
  "thiserror",
- "time 0.3.25",
+ "time",
  "toml 0.5.11",
  "url",
 ]
@@ -6294,7 +6293,7 @@ dependencies = [
  "tap",
  "tempfile",
  "thiserror",
- "time 0.3.25",
+ "time",
  "tokio",
  "tokio-stream",
  "tokio-tungstenite",
@@ -6721,7 +6720,7 @@ dependencies = [
  "serde-json-wasm",
  "serde_repr",
  "thiserror",
- "time 0.3.25",
+ "time",
  "ts-rs",
 ]
 
@@ -8719,7 +8718,7 @@ checksum = "6413f3de1edee53342e6138e75b56d32e7bc6e332b3bd62d497b1929d4cfbcdd"
 dependencies = [
  "pem 1.1.1",
  "ring",
- "time 0.3.25",
+ "time",
  "x509-parser 0.13.2",
  "yasna",
 ]
@@ -8732,7 +8731,7 @@ checksum = "ffbe84efe2f38dea12e9bfc1f65377fdf03e53a18cb3b995faedf7934c7e785b"
 dependencies = [
  "pem 1.1.1",
  "ring",
- "time 0.3.25",
+ "time",
  "yasna",
 ]
 
@@ -8819,7 +8818,7 @@ dependencies = [
  "serde",
  "siphasher",
  "thiserror",
- "time 0.3.25",
+ "time",
  "toml 0.7.6",
  "url",
  "walkdir",
@@ -9005,7 +9004,7 @@ dependencies = [
  "serde_json",
  "state",
  "tempfile",
- "time 0.3.25",
+ "time",
  "tokio",
  "tokio-stream",
  "tokio-util",
@@ -9067,7 +9066,7 @@ dependencies = [
  "smallvec",
  "stable-pattern",
  "state",
- "time 0.3.25",
+ "time",
  "tokio",
  "uncased",
 ]
@@ -10507,7 +10506,7 @@ dependencies = [
  "subtle 2.4.1",
  "subtle-encoding",
  "tendermint-proto",
- "time 0.3.25",
+ "time",
  "zeroize",
 ]
 
@@ -10540,7 +10539,7 @@ dependencies = [
  "serde",
  "serde_bytes",
  "subtle-encoding",
- "time 0.3.25",
+ "time",
 ]
 
 [[package]]
@@ -10570,7 +10569,7 @@ dependencies = [
  "tendermint-config",
  "tendermint-proto",
  "thiserror",
- "time 0.3.25",
+ "time",
  "tokio",
  "tracing",
  "url",
@@ -10653,17 +10652,6 @@ dependencies = [
  "log",
  "ordered-float",
  "threadpool",
-]
-
-[[package]]
-name = "time"
-version = "0.1.45"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1b797afad3f312d1c66a56d11d0316f916356d11bd158fbc6ca6389ff6bf805a"
-dependencies = [
- "libc",
- "wasi 0.10.0+wasi-snapshot-preview1",
- "winapi",
 ]
 
 [[package]]
@@ -11579,7 +11567,7 @@ dependencies = [
  "rustc_version 0.4.0",
  "rustversion",
  "thiserror",
- "time 0.3.25",
+ "time",
 ]
 
 [[package]]
@@ -11633,12 +11621,6 @@ name = "wasi"
 version = "0.9.0+wasi-snapshot-preview1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cccddf32554fecc6acb585f82a32a72e28b48f8c4c1883ddfeeeaa96f7d8e519"
-
-[[package]]
-name = "wasi"
-version = "0.10.0+wasi-snapshot-preview1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1a143597ca7c7793eff794def352d41792a93c481eb1042423ff7ff72ba2c31f"
 
 [[package]]
 name = "wasi"
@@ -11910,7 +11892,7 @@ dependencies = [
  "sha2 0.10.7",
  "stun",
  "thiserror",
- "time 0.3.25",
+ "time",
  "tokio",
  "turn",
  "url",
@@ -12412,7 +12394,7 @@ dependencies = [
  "ring",
  "rusticata-macros",
  "thiserror",
- "time 0.3.25",
+ "time",
 ]
 
 [[package]]
@@ -12430,7 +12412,7 @@ dependencies = [
  "oid-registry 0.6.1",
  "rusticata-macros",
  "thiserror",
- "time 0.3.25",
+ "time",
 ]
 
 [[package]]
@@ -12465,7 +12447,7 @@ version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e17bb3549cc1321ae1296b9cdc2698e2b6cb1992adfa19a8c72e5b7a738f44cd"
 dependencies = [
- "time 0.3.25",
+ "time",
 ]
 
 [[package]]

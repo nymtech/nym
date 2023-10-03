@@ -6495,6 +6495,7 @@ dependencies = [
  "once_cell",
  "pretty_env_logger",
  "rand 0.7.3",
+ "rocket",
  "serde",
  "serde_json",
  "sqlx 0.5.11",

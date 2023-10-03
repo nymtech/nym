@@ -12,6 +12,7 @@ use crate::node::client_handling::embedded_network_requester::{
 use crate::node::client_handling::websocket;
 use crate::node::client_handling::websocket::connection_handler::coconut::CoconutVerifier;
 use crate::node::helpers::{initialise_main_storage, load_network_requester_config};
+use crate::node::http::{client, clients, not_found, register};
 use crate::node::mixnet_handling::receiver::connection_handler::ConnectionHandler;
 use crate::node::statistics::collector::GatewayStatisticsCollector;
 use crate::node::storage::Storage;
@@ -27,13 +28,18 @@ use nym_task::{TaskClient, TaskManager};
 use nym_validator_client::{nyxd, DirectSigningHttpRpcNyxdClient};
 use rand::seq::SliceRandom;
 use rand::thread_rng;
+use rocket::{catchers, routes};
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::error::Error;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
+use tokio::sync::RwLock;
 
 pub(crate) mod client_handling;
 pub(crate) mod helpers;
+pub(crate) mod http;
 pub(crate) mod mixnet_handling;
 pub(crate) mod statistics;
 pub(crate) mod storage;
@@ -74,6 +80,15 @@ pub struct LocalNetworkRequesterOpts {
     custom_mixnet_path: Option<PathBuf>,
 }
 
+#[derive(Deserialize, Debug, Serialize, Clone)]
+pub(crate) struct Client {
+    // Using a string for now, until we figure out which pubkey struct to use
+    pub_key: String,
+    socket: SocketAddr,
+}
+
+pub(crate) type ClientRegistry = HashMap<SocketAddr, Client>;
+
 pub(crate) struct Gateway<St = PersistentStorage> {
     config: Config,
 
@@ -85,6 +100,8 @@ pub(crate) struct Gateway<St = PersistentStorage> {
     /// x25519 keypair used for Diffie-Hellman. Currently only used for sphinx key derivation.
     sphinx_keypair: Arc<encryption::KeyPair>,
     storage: St,
+
+    client_registry: Arc<RwLock<ClientRegistry>>,
 }
 
 impl<St> Gateway<St> {
@@ -100,6 +117,7 @@ impl<St> Gateway<St> {
             sphinx_keypair: Arc::new(helpers::load_sphinx_keys(&config)?),
             config,
             network_requester_opts,
+            client_registry: Arc::new(RwLock::new(HashMap::new())),
         })
     }
 
@@ -117,6 +135,7 @@ impl<St> Gateway<St> {
             identity_keypair: Arc::new(identity_keypair),
             sphinx_keypair: Arc::new(sphinx_keypair),
             storage,
+            client_registry: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 
@@ -307,6 +326,31 @@ impl<St> Gateway<St> {
         }))
     }
 
+    fn start_http_api(&self) {
+        info!(
+            "Starting HTTP API on http://{}:{}",
+            self.config.gateway.listening_address, self.config.gateway.http_api_port
+        );
+
+        let mut config = rocket::config::Config::release_default();
+
+        // bind to the same address as we are using for mixnodes
+        config.address = self.config.gateway.listening_address;
+        config.port = self.config.gateway.http_api_port;
+
+        let client_registry = Arc::clone(&self.client_registry);
+
+        tokio::spawn(async move {
+            rocket::build()
+                .configure(config)
+                .mount("/", routes![client, clients, register])
+                .register("/", catchers![not_found])
+                .manage(client_registry)
+                .launch()
+                .await
+        });
+    }
+
     pub async fn run(self) -> anyhow::Result<()>
     where
         St: Storage + Clone + 'static,
@@ -374,6 +418,8 @@ impl<St> Gateway<St> {
             // that's a nasty workaround, but anyhow errors are generally nicer, especially on exit
             bail!("{err}")
         }
+
+        self.start_http_api();
 
         info!("Finished nym gateway startup procedure - it should now be able to receive mix and client traffic!");
 

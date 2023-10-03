@@ -9,8 +9,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [custom-linux, windows10, custom-runner-mac-m1]
         rust: [stable, beta]
+        os: [custom-linux, windows10, custom-runner-mac-m1]
     runs-on: ${{ matrix.os }}
     continue-on-error: true
     steps:

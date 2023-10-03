@@ -4,6 +4,28 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [2023.1-milka] (2023-09-24)
+
+- custom Debug impl for mix::Node and gateway::Node ([#3930])
+- added forceTls argument to 'MixFetchOptsSimple' ([#3907])
+- Enable loop cover traffic by default in NR ([#3904])
+- Fix all the cargo warnings ([#3899])
+- [Issue] nym-socks5-client crash on UDP request ([#3898])
+- Feature/gateway inbuilt nr ([#3877])
+- removed queued mixnet migration that was already run ([#3872])
+- [feat] Socks5 and Native client: run with hardcoded topology ([#3866])
+- Introduce a local network requester directly inside a gateway ([#3838])
+
+[#3930]: https://github.com/nymtech/nym/pull/3930
+[#3907]: https://github.com/nymtech/nym/pull/3907
+[#3904]: https://github.com/nymtech/nym/pull/3904
+[#3899]: https://github.com/nymtech/nym/pull/3899
+[#3898]: https://github.com/nymtech/nym/issues/3898
+[#3877]: https://github.com/nymtech/nym/pull/3877
+[#3872]: https://github.com/nymtech/nym/pull/3872
+[#3866]: https://github.com/nymtech/nym/pull/3866
+[#3838]: https://github.com/nymtech/nym/issues/3838
+
 ## [v1.1.31-kitkat] (2023-09-12)
 
 - feat: add name to `TaskClient` ([#3844])

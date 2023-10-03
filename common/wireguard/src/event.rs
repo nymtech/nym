@@ -2,6 +2,7 @@ use std::fmt::{Display, Formatter};
 
 use bytes::Bytes;
 
+#[allow(unused)]
 #[derive(Debug, Clone)]
 pub enum Event {
     /// IP packet received from the WireGuard tunnel that should be passed through to the corresponding virtual device/internet.

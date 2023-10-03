@@ -23,7 +23,7 @@ This page serves as an accessible list of references mentioned during the talk.
 
 ### Rust Examples
 
-* [Dev tutoral: chain service](https://nymtech.net/developers/tutorials/cosmos-service/intro.html)
+* [Dev tutorial: chain service](https://nymtech.net/developers/tutorials/cosmos-service/intro.html)
 
 ### Clients
 
@@ -33,6 +33,6 @@ This page serves as an accessible list of references mentioned during the talk.
 
 * [Nym Developer Portal](https://nymtech.net/developers)
 * [Nym Operators Guide](https://nymtech.net/operators)
-* [Nym Docs](https://nymtech.net/docs)
+* [Nym technical Documentation](https://nymtech.net/docs)
 
 

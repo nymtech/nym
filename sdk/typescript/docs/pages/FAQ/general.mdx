@@ -15,14 +15,20 @@ These SDKs abstract away much of the messaging and core logic from your app, and
 Alternatively, you can also use one of the three Nym clients to connect your application to the mixnet. These clients do the majority of the heavy-lifting with regards to cryptographic operations and routing under the hood, and all do basically the same thing: create a connection to a gateway, encrypt and decrypt packets sent to and received from the mixnet, and send cover traffic to hide the flow of actual app traffic from observers. You can learn more about the Nym clients [here](https://nymtech.net/developers/integrations/mixnet-integration.html).
 
 ###### Network requesters: 
-In order to ensure uptime and reliability, it is recommended that you run some pieces of mixnet infrastructure. What infrastructure is necessary to run depends on the architecture of your application, and the endpoints that it needs to hit!
+Network requesters are a type of Service Provider, that in essence, act as a form of proxy (somewhat analagous to a Tor exit node). If you have access to a server, you can run the Network Requester, which allows Nym users to send outbound requests from their local machine through the mixnet to a server, which then makes the request on their behalf, shielding them (and their metadata) from clearnet, untrusted and unknown infrastructure, such as email or message client servers.
 
-- If you’re running a purely P2P application, then just integrating clients and having some method of sharing addresses should be enough to route your traffic through the mixnet.
-- If you’re wanting to place the mixnet between your users’ application instances and a server-based backend, you can use the [network requester service provider binary](https://nymtech.net/operators/nodes/network-requester-setup.html) to proxy these requests to your application backend, with the mixnet ‘between’ the user and your service, in order to prevent metadata leakage being broadcast to the internet.
-- If you’re wanting to route RPC requests through the mixnet to a blockchain, you will need to look into setting up some sort of service that does the transaction broadcasting for you. You can find examples of such projects on the [community applications page](https://nymtech.net/developers/community-resources/community-applications-and-guides.html).
+By default the Network Requester is not an open proxy but rather uses a local and global [allow list](https://nymtech.net/.wellknown/network-requester/standard-allowed-list.txt) to whitelist host access.
+
+#### __Which Service Provider to run?__
+In order to ensure uptime and reliability, it is recommended that you run some pieces of mixnet infrastructure. What infrastructure is necessary to run depends on the architecture of your application, and the endpoints that it needs to hit:
+
+- No Service Provider (Network Requester) needed: If you’re running a purely P2P application, then just integrating clients and having some method of sharing addresses should be enough to route your traffic through the mixnet.
+- Network Requester needed (existing or own): If you’re wanting to place the mixnet between your users’ application instances and a server-based backend, you will need a Network Requester. In this case, if your app supports SOCKS5, you could either use an existing NR or, if your app supports SOCKS5 but needs more extensive whitelisting, you could  use the [network requester service provider binary](https://nymtech.net/operators/nodes/network-requester-setup.html) to proxy these requests to your application backend yourself, with the mixnet ‘between’ the user and your service, in order to prevent metadata leakage being broadcast to the internet.
+- Running your own Service Provider: If your usecase is more complex, you’re wanting to route RPC requests through the mixnet to a blockchain for example, you will need to look into setting up some sort of Service that does the transaction broadcasting for you. You can find examples of such projects on the [community applications page](https://nymtech.net/developers/community-resources/community-applications-and-guides.html).
+
 
 #### __Why gateways?__
-Nym apps have a stable, potentially long-lasting relation to a gateway node. A client will register itself with a gateway, and get back an authentication token that it can then use to retrieve messages from the gateway later on.
+Nym apps have a stable, potentially long-lasting relation to a gateway node. A client will establish a symmetric key share with a gateway that can be verified on subsequent connection attempts.
 
 Gateways serve a few different functions:
 
@@ -44,7 +50,7 @@ To avoid the last two, you need to make sure the gateway you are calling is bond
 
 #### __How can I check whether the gateway I am connecting to is bonded and not blacklisted?__
 
-The easiest way of checking what gateway you're registered with is to look at you client address. 
+The easiest way of checking what gateway you're registered with is to look at your client address. 
 Client addresses are in the format of:
 `client-id . client-dh @ gateway-id. ` 
 
@@ -55,5 +61,9 @@ To illustrate this: `DpB3cHAchJiNBQi5FrZx2csXb1mrHkpYh9Wzf8Rjsuko.ANNWrvHqMYuert
 - `2BuMSfMW3zpeAjKXyKLhmY4QW1DXurrtSPEJ6CjX3SEh`: is the gateway's identity, which is what you'll need to check the state of the gateway in the [Nym Explorer](https://explorer.nymtech.net/network-components/gateways). 
 
 
-#### __How can I get my service URL whitelisted?__
-
+#### __How can I get my service host whitelisted?__
+Currently, the different options are: 
+- You can get it added to the local list of an existing Network Requester;
+- You can ask the Nym team to add it to the global [allow list](https://nymtech.net/.wellknown/network-requester/standard-allowed-list.txt) if it's not already there;
+- You can run your own Network Requester and locally configure it to allow the hosts you need to connect to;
+If you'd like to learn more about Network Requesters and the global allow list, you can [visit this page](https://nymtech.net/operators/nodes/network-requester-setup.html).

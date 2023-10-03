@@ -1,1 +1,91 @@
 # Integrations page
+
+### Existing resources
+If you'd like to learn more about potential integrations, please first make sure to read:
+- The [integrations FAQ](https://nymtech.net/developers/faq/integrations-faq.html): which lists a set of common questions regarding integrating Nym and Nyx;
+- The [Mixnet integration page](https://nymtech.net/developers/integrations/mixnet-integration.html): which will help you integrate with Nym to use the mixnet for application traffic;
+- The [payment integration page](https://nymtech.net/developers/integrations/payment-integration.html): which will help you integrate with the Nyx blockchain and use Nym for payments;
+
+### Integrations options
+If you're unsure where to start, the following set of questions should help you determine which path to follow in regards to integrations: 
+ 
+ __1. Does your app mostly rely on the `fetch` method?__
+
+If yes, explore implementing `mixfetch`to route app traffic through the mixnet.
+
+If not:
+__2. Is your app developed in TS/JS or Rust?__
+ 
+ If yes, you can use one of our SDKs and leverage either `mixfetch`or the `sdk client`to route app traffic through the mixnet. 
+ 
+ If it is developed in another language:
+ __3. You can use one of our Nym clients__
+ 
+ All Nym client packages present basically the same capabilities to the privacy application developer. They need to run as a persistent process in order to stay connected and ready to receive any incoming messages from their gateway nodes. They register and authenticate to gateways, and encrypt Sphinx packets.
+ You can find more information about the different clients and the ways to interact with them [in this page](https://nymtech.net/developers/integrations/mixnet-integration.html). 
+
+
+```
+For integration entry points:
+
+            ,----------------------.              
+            |SPA/WebApp fetch-based|              
+            |----------------------|              
+            `----------------------'              
+                |             |
+                yes            no                  
+                |             |                    
+            ,--------.   ,----------.             
+            |mixFetch|   |Rust or TS|             
+            |--------|   |----------| ------------------.            
+            `--------'   `----------'                   |
+                                |                       |
+                            yes----------.         no:other language
+                            |            |           |
+                            |            |           |
+                            yes:TS/JS    yes:RUST       |
+                            |            |      ,----------.
+                            ,------.   ,--------.  |Nym-client|
+                            |TS SDK|   |Rust SDK|  |----------|
+                            |------|   |--------|  |          |
+                            `------'   `--------'  `----------'
+
+   ```
+
+### How to deal with Service Providers? 
+ In a nutshell: that depends on your app's goal and architecture (and the endpoint it needs to hit).
+Again, as detailed in the FAQ: 
+
+- No Service Provider (Network Requester) needed: If you’re running a purely P2P application, then just integrating clients and having some method of sharing addresses should be enough to route your traffic through the mixnet.
+- Network Requester needed (existing or own): If you’re wanting to place the mixnet between your users’ application instances and a server-based backend, you will need a Network Requester. In this case, if your app supports SOCKS5, you could either use an existing NR or, if your app supports SOCKS5 but needs more extensive whitelisting, you could  use the [network requester service provider binary](https://nymtech.net/operators/nodes/network-requester-setup.html) to proxy these requests to your application backend yourself, with the mixnet ‘between’ the user and your service, in order to prevent metadata leakage being broadcast to the internet.
+- Running your own Service Provider: If your usecase is more complex, you’re wanting to route RPC requests through the mixnet to a blockchain for example, you will need to look into setting up some sort of Service that does the transaction broadcasting for you. You can find examples of such projects on the [community applications page](https://nymtech.net/developers/community-resources/community-applications-and-guides.html).
+
+```
+                            ,--------------------.         
+                            |App supports SOCKS5?|         
+                            |--------------------|         
+                            `--------------------'         
+                                |               |
+                                yes             no
+                                |               |                                                      
+                        ,------------.   ,-----------------.
+                        |App use case|   |Set Client + SP  |
+                        |------------|   |-----------------|
+                        `------------'   `-----------------'                
+                        |         |     
+                        needs     needs
+                        |         |                             
+            ,----------------.  ,-------------------.        
+            |Simple whitelist|  |Extensive whitelist|        
+            |----------------|  |-------------------|        
+            `----------------'  `-------------------'        
+                    |                     |                 
+                    |                     |             
+            ,-----------.           ,-------------.              
+            |Existing NR|           |Run own SP/NR|              
+            |-----------|           |-------------|              
+            `-----------'           `-------------'        
+                                       
+
+```
+

@@ -31,7 +31,7 @@
     "@nymproject/contract-clients": "^1.2.0-rc.9",
     "@nymproject/mix-fetch": "^1.2.0-rc.9",
     "@nymproject/mix-fetch-full-fat": "^1.2.0-rc.9",
-    "@nymproject/sdk-full-fat": "^1.2.0-rc.9",
+    "@nymproject/sdk-full-fat": "^1.2.0-rc.10",
     "chain-registry": "^1.19.0",
     "cosmjs-types": "^0.8.0",
     "next": "^13.4.19",

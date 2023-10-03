@@ -16,7 +16,7 @@ If yes, explore implementing `mixfetch`to route app traffic through the mixnet.
 If not:
 __2. Is your app developed in TS/JS or Rust?__
  
- If yes, you can use one of our SDKs and leverage either `mixfetch`or the `sdk client`to route app traffic through the mixnet. 
+ If yes, you can use one of our SDKs and leverage either `mixfetch` (note that this only works for JS/TS at the moment, as we do not currently have a RUST implementation of it) or the `sdk client`to route app traffic through the mixnet. 
  
  If it is developed in another language:
  __3. You can use one of our Nym clients__
@@ -33,7 +33,7 @@ For integration entry points:
             |----------------------|              
             `----------------------'              
                 |             |
-                yes            no                  
+                yes           no                  
                 |             |                    
             ,--------.   ,----------.             
             |mixFetch|   |Rust or TS|             
@@ -43,7 +43,7 @@ For integration entry points:
                             yes----------.            no:other language
                             |            |              |
                             |            |              |
-                            yes:TS/JS    yes:RUST       |
+                         yes:TS/JS    yes:RUST          |
                             |            |         ,----------.
                             ,------.   ,--------.  |Nym-client|
                             |TS SDK|   |Rust SDK|  |----------|

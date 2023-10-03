@@ -370,7 +370,7 @@ impl<St> Gateway<St> {
         // Once this is a bit more mature, make this a commandline flag instead of a compile time
         // flag
         #[cfg(feature = "wireguard")]
-        if let Err(err) = nym_wireguard::start_wg_listener(shutdown.subscribe()).await {
+        if let Err(err) = nym_wireguard::start_wireguard(shutdown.subscribe()).await {
             // that's a nasty workaround, but anyhow errors are generally nicer, especially on exit
             bail!("{err}")
         }

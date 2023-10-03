@@ -50,8 +50,7 @@ export const Traffic = () => {
     await nym?.client.stop();
   };
 
-  const send = () => 
-    payload && recipient && nym?.client.send({ payload, recipient });
+  const send = () => payload && recipient && nym?.client.send({ payload, recipient });
 
   useEffect(() => {
     init();

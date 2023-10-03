@@ -6,7 +6,6 @@ use nym_network_requester::error::{ClientCoreError, NetworkRequesterError};
 use nym_validator_client::nyxd::error::NyxdError;
 use nym_validator_client::nyxd::AccountId;
 use nym_validator_client::ValidatorClientError;
-use rocket::response::Responder;
 use std::io;
 use std::path::PathBuf;
 use thiserror::Error;
@@ -107,12 +106,6 @@ pub(crate) enum GatewayError {
         #[from]
         source: NyxdError,
     },
-}
-
-#[derive(Debug, Responder)]
-pub(crate) enum GatewayHttpApiError {
-    #[response(status = 500)]
-    ServerError(String),
 }
 
 impl From<ClientCoreError> for GatewayError {

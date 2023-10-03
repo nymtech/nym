@@ -11,7 +11,7 @@ use nym_config::{
     must_get_home, read_config_from_toml_file, save_formatted_config_to_file, NymConfigTemplate,
     DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, DEFAULT_DATA_DIR, NYM_DIR,
 };
-use nym_network_defaults::{mainnet, DEFAULT_HTTP_API_LISTENING_PORT};
+use nym_network_defaults::mainnet;
 use serde::{Deserialize, Serialize};
 use std::io;
 use std::net::IpAddr;
@@ -266,8 +266,6 @@ pub struct Gateway {
     // #[deprecated(note = "move to storage")]
     // TODO: I don't think this should be stored directly in the config...
     pub cosmos_mnemonic: bip39::Mnemonic,
-
-    pub http_api_port: u16,
 }
 
 impl Gateway {
@@ -289,7 +287,6 @@ impl Gateway {
             nyxd_urls: vec![mainnet::NYXD_URL.parse().expect("Invalid default nyxd URL")],
             cosmos_mnemonic: bip39::Mnemonic::generate(24)
                 .expect("failed to generate fresh mnemonic"),
-            http_api_port: DEFAULT_HTTP_API_LISTENING_PORT,
         }
     }
 }

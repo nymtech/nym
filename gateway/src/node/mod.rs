@@ -12,7 +12,7 @@ use crate::node::client_handling::embedded_network_requester::{
 use crate::node::client_handling::websocket;
 use crate::node::client_handling::websocket::connection_handler::coconut::CoconutVerifier;
 use crate::node::helpers::{initialise_main_storage, load_network_requester_config};
-use crate::node::http::{client, clients, not_found, register};
+use crate::node::http::start_http_api;
 use crate::node::mixnet_handling::receiver::connection_handler::ConnectionHandler;
 use crate::node::statistics::collector::GatewayStatisticsCollector;
 use crate::node::storage::Storage;
@@ -28,7 +28,6 @@ use nym_task::{TaskClient, TaskManager};
 use nym_validator_client::{nyxd, DirectSigningHttpRpcNyxdClient};
 use rand::seq::SliceRandom;
 use rand::thread_rng;
-use rocket::{catchers, routes};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::error::Error;
@@ -326,31 +325,6 @@ impl<St> Gateway<St> {
         }))
     }
 
-    fn start_http_api(&self) {
-        info!(
-            "Starting HTTP API on http://{}:{}",
-            self.config.gateway.listening_address, self.config.gateway.http_api_port
-        );
-
-        let mut config = rocket::config::Config::release_default();
-
-        // bind to the same address as we are using for mixnodes
-        config.address = self.config.gateway.listening_address;
-        config.port = self.config.gateway.http_api_port;
-
-        let client_registry = Arc::clone(&self.client_registry);
-
-        tokio::spawn(async move {
-            rocket::build()
-                .configure(config)
-                .mount("/", routes![client, clients, register])
-                .register("/", catchers![not_found])
-                .manage(client_registry)
-                .launch()
-                .await
-        });
-    }
-
     pub async fn run(self) -> anyhow::Result<()>
     where
         St: Storage + Clone + 'static,
@@ -419,7 +393,7 @@ impl<St> Gateway<St> {
             bail!("{err}")
         }
 
-        self.start_http_api();
+        tokio::spawn(start_http_api(Arc::clone(&self.client_registry)));
 
         info!("Finished nym gateway startup procedure - it should now be able to receive mix and client traffic!");
 

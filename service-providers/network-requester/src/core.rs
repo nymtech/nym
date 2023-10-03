@@ -186,7 +186,7 @@ impl NRServiceProviderBuilder {
             allowed_hosts::HostsStore::new(&config.storage_paths.unknown_list_location);
 
         let outbound_request_filter =
-            OutboundRequestFilter::new(allowed_hosts.clone(), standard_list.clone(), unknown_hosts);
+            OutboundRequestFilter::new(allowed_hosts, standard_list, unknown_hosts);
 
         NRServiceProviderBuilder {
             config,

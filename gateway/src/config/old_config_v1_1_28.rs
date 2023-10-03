@@ -7,7 +7,6 @@ use nym_bin_common::logging::LoggingSettings;
 use nym_config::{
     must_get_home, read_config_from_toml_file, DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, NYM_DIR,
 };
-use nym_network_defaults::DEFAULT_HTTP_API_LISTENING_PORT;
 use serde::{Deserialize, Serialize};
 use std::io;
 use std::net::IpAddr;
@@ -101,7 +100,6 @@ impl From<ConfigV1_1_28> for Config {
                 nyxd_urls: value.gateway.nyxd_urls,
                 statistics_service_url: value.gateway.statistics_service_url,
                 cosmos_mnemonic: value.gateway.cosmos_mnemonic,
-                http_api_port: DEFAULT_HTTP_API_LISTENING_PORT,
             },
             storage_paths: GatewayPaths {
                 keys: KeysPaths {

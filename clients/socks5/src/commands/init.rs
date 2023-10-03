@@ -64,7 +64,12 @@ pub(crate) struct Init {
     nyxd_urls: Option<Vec<url::Url>>,
 
     /// Comma separated list of rest endpoints of the API validators
-    #[clap(long, alias = "api_validators", value_delimiter = ',')]
+    #[clap(
+        long,
+        alias = "api_validators",
+        value_delimiter = ',',
+        group = "network"
+    )]
     // the alias here is included for backwards compatibility (1.1.4 and before)
     nym_apis: Option<Vec<url::Url>>,
 

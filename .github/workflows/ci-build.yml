@@ -72,36 +72,37 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --workspace
+          # Enable wireguard by default on linux only
+          args: --workspace --features wireguard
 
       - name: Build all examples
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --workspace --examples
+          args: --workspace --examples --features wireguard
 
       - name: Run all tests
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --workspace
+          args: --workspace --features wireguard
 
       - name: Run expensive tests
         if: github.ref == 'refs/heads/develop' || github.event.pull_request.base.ref == 'develop' || github.event.pull_request.base.ref == 'master'
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --workspace -- --ignored
+          args: --workspace --features wireguard -- --ignored
 
       - name: Annotate with clippy checks
         uses: actions-rs/clippy-check@v1
         continue-on-error: true
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          args: --workspace
+          args: --workspace --features wireguard
 
       - name: Clippy
         uses: actions-rs/cargo@v1
         with:
           command: clippy
-          args: --workspace --all-targets -- -D warnings
+          args: --workspace --all-targets --features wireguard -- -D warnings

@@ -275,3 +275,22 @@ impl WireGuardTunnel {
         };
     }
 }
+
+pub fn start_wg_tunnel(
+    endpoint: SocketAddr,
+    udp: Arc<UdpSocket>,
+    static_private: x25519::StaticSecret,
+    peer_static_public: x25519::PublicKey,
+    tunnel_tx: mpsc::UnboundedSender<Vec<u8>>,
+) -> (
+    tokio::task::JoinHandle<SocketAddr>,
+    mpsc::UnboundedSender<Event>,
+) {
+    let (mut tunnel, peer_tx) =
+        WireGuardTunnel::new(udp, endpoint, static_private, peer_static_public, tunnel_tx);
+    let join_handle = tokio::spawn(async move {
+        tunnel.spin_off().await;
+        endpoint
+    });
+    (join_handle, peer_tx)
+}

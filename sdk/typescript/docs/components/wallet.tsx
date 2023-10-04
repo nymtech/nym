@@ -277,7 +277,7 @@ export const Wallet = () => {
             </Box>
           ) : (
             <Box>
-              <Typography variant="body1">Please, enter your nemonic to receive your account info</Typography>
+              <Typography variant="body1">Please, enter your mnemonic to receive your account information</Typography>
             </Box>
           )}
         </Box>

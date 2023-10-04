@@ -54,7 +54,7 @@ For integration entry points:
 
 ### How to deal with Service Providers? 
  In a nutshell: that depends on your app's goal and architecture (and the endpoint it needs to hit).
-Again, as detailed in the FAQ: 
+Again, as detailed in the [FAQ](../FAQ/general): 
 
 - No Service Provider (Network Requester) needed: If you’re running a purely P2P application, then just integrating clients and having some method of sharing addresses should be enough to route your traffic through the mixnet.
 - Network Requester needed (existing or own): If you’re wanting to place the mixnet between your users’ application instances and a server-based backend, you will need a Network Requester. In this case, if your app supports SOCKS5, you could either use an existing NR or, if your app supports SOCKS5 but needs more extensive whitelisting, you could  use the [network requester service provider binary](https://nymtech.net/operators/nodes/network-requester-setup.html) to proxy these requests to your application backend yourself, with the mixnet ‘between’ the user and your service, in order to prevent metadata leakage being broadcast to the internet.

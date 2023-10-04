@@ -2,11 +2,11 @@ import { Callout } from 'nextra/components'
 
 # Mixnet Client
 
-As you know by now, in order to send or receive messages over the mixnet, you'll need to use the [`SDK Client`](https://www.npmjs.com/package/@nymproject/sdk), which will allow you to create apps that can use the Nym Mixnet and Coconut credentials.
+As you know by now, in order to send or receive messages over the mixnet, you'll need to use the [`SDK Client`](https://www.npmjs.com/package/@nymproject/sdk), which will allow you to create apps that can use the Nym mixnet and Coconut credentials.
 
 This client is message based - it can only send a one-way message to another client's address.
 
-Replying can be done in two ways:
+Replying can be achieved in two ways:
 - reveal the sender's address to the recipient (as part of the payload)
 - use a SURB (single use reply block) that allows the recipient to reply to the sender without compromising the identity of either party
 
@@ -38,10 +38,10 @@ Import the SDK's Mixnet Client in your app:
 import { createNymMixnetClient, NymMixnetClient, Payload } from "@nymproject/sdk-full-fat";
 ````
 
-##### Example: using the SDK's Mixnet Client to send and receive messages over the Nym Mixnet
+##### Example: using the SDK's Mixnet Client to send and receive messages over the Nym mixnet
 By pasting the below code example, you should be able to send and receive messages through the mixnet through an unstyled mixnet app template!
 <Callout type="info" emoji="ℹ️">
-    For this example, we will be using the `full-fat` version of the ESM SDK. If you'd like to use the unbundled ESM one, make sure your [bundler configuration](../../bundling) copies the WebAssembly (WASM) and web worker files to the output bundle.
+    For this example, we will be using the `full-fat` version of the ESM SDK. If you'd like to use the unbundled version of the ESM one, make sure your [bundler configuration](../../bundling/bundling) copies the WebAssembly (WASM) and web worker files to the output bundle.
 </Callout>
 
 

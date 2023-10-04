@@ -60,7 +60,7 @@ const main = async () => {
 
 ## MixFetch
 
-Use the [`mixFetch`](https://www.npmjs.com/package/@nymproject/mix-fetch) package as a drop-in replacement for `fetch`to send HTTP requests over the Nym Mixnet:
+Use the [`mixFetch`](https://www.npmjs.com/package/@nymproject/mix-fetch) package as a drop-in replacement for `fetch`to send HTTP requests over the Nym mixnet:
 
 ```ts
 import { mixFetch } from '@nymproject/mix-fetch';
@@ -78,7 +78,7 @@ const apiResponse = await mixFetch('https://api.example.com', {
 ```
 
 Check the [standard allowed list](https://nymtech.net/.wellknown/network-requester/standard-allowed-list.txt) to see
-if the host you want to `mixFetch` from is allowed.
+if the host you want to `mixFetch` from is whitelisted.
 
 
 

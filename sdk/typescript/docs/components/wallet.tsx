@@ -3,12 +3,12 @@ import { contracts } from '@nymproject/contract-clients';
 import { SigningCosmWasmClient } from '@cosmjs/cosmwasm-stargate';
 import { DirectSecp256k1HdWallet } from '@cosmjs/proto-signing';
 import { Coin, GasPrice } from '@cosmjs/stargate';
-import Button from '@mui/material/Button';
-import Paper from '@mui/material/Paper';
 import Box from '@mui/material/Box';
-import { TableBody, TableCell, TableHead, TableRow, TextField, Typography } from '@mui/material';
-import Table from '@mui/material/Table';
+import Typography from '@mui/material/Typography';
 import { settings } from './client';
+import { ConnectWallet } from './wallet/connect';
+import { SendTokes } from './wallet/sendTokens';
+import { Delegations } from './wallet/delegations';
 
 const signerAccount = async (mnemonic) => {
   // create a wallet to sign transactions with the mnemonic
@@ -55,7 +55,7 @@ const fetchSignerClient = async (mnemonic) => {
   return mixnetClient;
 };
 
-export const Wallet = () => {
+export const Wallet = ({ type }: { type: 'connect' | 'sendTokens' | 'delegations' }) => {
   const [mnemonic, setMnemonic] = useState<string>();
   const [signerCosmosWasmClient, setSignerCosmosWasmClient] = useState<any>();
   const [signerClient, setSignerClient] = useState<any>();
@@ -240,154 +240,48 @@ export const Wallet = () => {
 
   return (
     <Box padding={3}>
-      <Paper style={{ marginTop: '1rem', padding: '1rem' }}>
-        <Typography variant="h5" textAlign="center">
-          Connect to your account
-        </Typography>
-        <Box padding={3}>
-          <Typography variant="h6">Your account</Typography>
-          <Box marginY={3}>
-            <Typography variant="body1" marginBottom={3}>
-              Enter the mnemonic
-            </Typography>
-            <TextField
-              type="text"
-              placeholder="mnemonic"
-              onChange={(e) => setMnemonic(e.target.value)}
-              fullWidth
-              multiline
-              maxRows={4}
-              sx={{ marginBottom: 3 }}
-            />
-            <Button
-              variant="outlined"
-              onClick={() => connect()}
-              disabled={!mnemonic || accountLoading || clientLoading || balanceLoading}
-            >
-              {connectButtonText}
-            </Button>
-          </Box>
-          {account && balance ? (
-            <Box>
-              <Typography variant="body1">Address: {account}</Typography>
-              <Typography variant="body1">
-                Balance: {balance?.amount} {balance?.denom}
-              </Typography>
-            </Box>
-          ) : (
-            <Box>
-              <Typography variant="body1">Please, enter your mnemonic to receive your account information</Typography>
-            </Box>
-          )}
+      {type === 'connect' && (
+        <ConnectWallet
+          setMnemonic={setMnemonic}
+          connect={connect}
+          mnemonic={mnemonic}
+          accountLoading={accountLoading}
+          clientLoading={clientLoading}
+          balanceLoading={balanceLoading}
+          account={account}
+          balance={balance}
+          connectButtonText={connectButtonText}
+        />
+      )}
+      {type === 'sendTokens' && (
+        <SendTokes
+          setRecipientAddress={setRecipientAddress}
+          setTokensToSend={setTokensToSend}
+          doSendTokens={doSendTokens}
+          sendingTokensLoader={sendingTokensLoader}
+        />
+      )}
+      {type === 'delegations' && (
+        <Delegations
+          delegations={delegations}
+          setDelegationNodeId={setDelegationNodeId}
+          setAmountToBeDelegated={setAmountToBeDelegated}
+          amountToBeDelegated={amountToBeDelegated}
+          delegationNodeId={delegationNodeId}
+          doDelegate={doDelegate}
+          delegationLoader={delegationLoader}
+          undeledationLoader={undeledationLoader}
+          doUndelegateAll={doUndelegateAll}
+          doWithdrawRewards={doWithdrawRewards}
+          withdrawLoading={withdrawLoading}
+        />
+      )}
+      {log.length > 0 && (
+        <Box marginTop={3}>
+          <Typography variant="h5">Transaction Logs:</Typography>
+          {log}
         </Box>
-      </Paper>
-      <Paper style={{ marginTop: '1rem', padding: '1rem' }}>
-        <Box padding={3}>
-          <Typography variant="h6">Send Tokens</Typography>
-          <Box marginTop={3} display="flex" flexDirection="column">
-            <TextField
-              type="text"
-              placeholder="Recipient Address"
-              onChange={(e) => setRecipientAddress(e.target.value)}
-              size="small"
-            />
-            <Box marginY={3} display="flex" justifyContent="space-between">
-              <TextField
-                type="text"
-                placeholder="Amount"
-                onChange={(e) => setTokensToSend(e.target.value)}
-                size="small"
-              />
-              <Button variant="outlined" onClick={() => doSendTokens()} disabled={sendingTokensLoader}>
-                {sendingTokensLoader ? 'Sending...' : 'SendTokens'}
-              </Button>
-            </Box>
-          </Box>
-        </Box>
-      </Paper>
-      <Paper style={{ marginTop: '1rem', padding: '1rem' }}>
-        <Box padding={3}>
-          <Typography variant="h6">Delegations</Typography>
-          <Box marginY={3}>
-            <Box marginY={3} display="flex" flexDirection="column">
-              <Typography marginBottom={3} variant="body1">
-                Make a delegation
-              </Typography>
-              <TextField
-                type="text"
-                placeholder="Mixnode ID"
-                onChange={(e) => setDelegationNodeId(e.target.value)}
-                size="small"
-              />
-              <Box marginTop={3} display="flex" justifyContent="space-between">
-                <TextField
-                  type="text"
-                  placeholder="Amount"
-                  onChange={(e) => setAmountToBeDelegated(e.target.value)}
-                  size="small"
-                />
-                <Button
-                  variant="outlined"
-                  onClick={() =>
-                    doDelegate({ mixId: parseInt(delegationNodeId, 10), amount: parseInt(amountToBeDelegated, 10) })
-                  }
-                  disabled={delegationLoader}
-                >
-                  {delegationLoader ? 'Delegation in process...' : 'Delegate'}
-                </Button>
-              </Box>
-            </Box>
-          </Box>
-          <Box marginTop={3}>
-            <Typography variant="body1">Your delegations</Typography>
-            <Box marginBottom={3} display="flex" flexDirection="column">
-              {!delegations?.delegations?.length ? (
-                <Typography>You do not have delegations</Typography>
-              ) : (
-                <Box>
-                  <Table size="small">
-                    <TableHead>
-                      <TableRow>
-                        <TableCell>MixId</TableCell>
-                        <TableCell>Owner</TableCell>
-                        <TableCell>Amount</TableCell>
-                        <TableCell>Cumulative Reward Ratio</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {delegations?.delegations.map((delegation: any) => (
-                        <TableRow key={delegation.mix_id}>
-                          <TableCell>{delegation.mix_id}</TableCell>
-                          <TableCell>{delegation.owner}</TableCell>
-                          <TableCell>{delegation.amount.amount}</TableCell>
-                          <TableCell>{delegation.cumulative_reward_ratio}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </Box>
-              )}
-            </Box>
-            {delegations && (
-              <Box marginBottom={3}>
-                <Button variant="outlined" onClick={() => doUndelegateAll()} disabled={undeledationLoader}>
-                  {undeledationLoader ? 'Undelegating...' : 'Undelegate All'}
-                </Button>
-              </Box>
-            )}
-            <Box>
-              <Button variant="outlined" onClick={() => doWithdrawRewards()} disabled={withdrawLoading}>
-                {withdrawLoading ? 'Doing withdraw...' : 'Withdraw rewards'}
-              </Button>
-            </Box>
-          </Box>
-        </Box>
-      </Paper>
-
-      <Box marginTop={3}>
-        <Typography variant="h5">Transaction Logs:</Typography>
-        {log}
-      </Box>
+      )}
     </Box>
   );
 };

@@ -65,12 +65,9 @@ export const Wallet = ({ type }: { type: 'connect' | 'sendTokens' | 'delegations
   const [balance, setBalance] = useState<Coin>();
   const [balanceLoading, setBalanceLoading] = useState<boolean>(false);
   const [log, setLog] = useState<React.ReactNode[]>([]);
-  const [tokensToSend, setTokensToSend] = useState<string>();
   const [sendingTokensLoader, setSendingTokensLoader] = useState<boolean>(false);
   const [delegations, setDelegations] = useState<any>();
   const [recipientAddress, setRecipientAddress] = useState<string>('');
-  const [delegationNodeId, setDelegationNodeId] = useState<string>();
-  const [amountToBeDelegated, setAmountToBeDelegated] = useState<string>();
   const [delegationLoader, setDelegationLoader] = useState<boolean>(false);
   const [undeledationLoader, setUndeledationLoader] = useState<boolean>(false);
   const [withdrawLoading, setWithdrawLoading] = useState<boolean>(false);
@@ -124,6 +121,7 @@ export const Wallet = ({ type }: { type: 'connect' | 'sendTokens' | 'delegations
     getClients();
   };
 
+  // Start Undelgate All
   const doUndelegateAll = async () => {
     if (!signerClient) {
       return;
@@ -140,7 +138,9 @@ export const Wallet = ({ type }: { type: 'connect' | 'sendTokens' | 'delegations
     }
     setUndeledationLoader(false);
   };
+  // End Undelgate All
 
+  // Start Delegate
   const doDelegate = async ({ mixId, amount }: { mixId: number; amount: number }) => {
     if (!signerClient) {
       return;
@@ -166,14 +166,14 @@ export const Wallet = ({ type }: { type: 'connect' | 'sendTokens' | 'delegations
   // End delegate
 
   // Sending tokens
-  const doSendTokens = async () => {
+  const doSendTokens = async (amount: string) => {
     const memo = 'test sending tokens';
     setSendingTokensLoader(true);
     try {
       const res = await signerCosmosWasmClient.sendTokens(
         account,
         recipientAddress,
-        [{ amount: tokensToSend, denom: 'unym' }],
+        [{ amount, denom: 'unym' }],
         'auto',
         memo,
       );
@@ -191,7 +191,7 @@ export const Wallet = ({ type }: { type: 'connect' | 'sendTokens' | 'delegations
   };
   // End send tokens
 
-  // Withdraw Rewards
+  // Start Withdraw Rewards
   const doWithdrawRewards = async () => {
     const delegatorAddress = '';
     const validatorAdress = '';
@@ -211,6 +211,7 @@ export const Wallet = ({ type }: { type: 'connect' | 'sendTokens' | 'delegations
     }
     setWithdrawLoading(false);
   };
+  // End Withdraw Rewards
 
   useEffect(() => {
     if (account && signerCosmosWasmClient) {
@@ -256,7 +257,6 @@ export const Wallet = ({ type }: { type: 'connect' | 'sendTokens' | 'delegations
       {type === 'sendTokens' && (
         <SendTokes
           setRecipientAddress={setRecipientAddress}
-          setTokensToSend={setTokensToSend}
           doSendTokens={doSendTokens}
           sendingTokensLoader={sendingTokensLoader}
         />
@@ -264,10 +264,6 @@ export const Wallet = ({ type }: { type: 'connect' | 'sendTokens' | 'delegations
       {type === 'delegations' && (
         <Delegations
           delegations={delegations}
-          setDelegationNodeId={setDelegationNodeId}
-          setAmountToBeDelegated={setAmountToBeDelegated}
-          amountToBeDelegated={amountToBeDelegated}
-          delegationNodeId={delegationNodeId}
           doDelegate={doDelegate}
           delegationLoader={delegationLoader}
           undeledationLoader={undeledationLoader}

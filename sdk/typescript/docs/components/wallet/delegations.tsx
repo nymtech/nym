@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import Button from '@mui/material/Button';
 import Paper from '@mui/material/Paper';
 import Box from '@mui/material/Box';
@@ -7,29 +7,24 @@ import Table from '@mui/material/Table';
 
 export const Delegations = ({
   delegations,
-  setDelegationNodeId,
-  setAmountToBeDelegated,
-  amountToBeDelegated,
-  delegationNodeId,
   doDelegate,
   delegationLoader,
-  undeledationLoader,
   doUndelegateAll,
+  undeledationLoader,
   doWithdrawRewards,
   withdrawLoading,
 }: {
   delegations: any;
-  setDelegationNodeId: (value: string) => void;
-  setAmountToBeDelegated: (value: string) => void;
-  amountToBeDelegated: string;
-  delegationNodeId: string;
   doDelegate: ({ mixId, amount }: { mixId: number; amount: number }) => void;
   delegationLoader: boolean;
-  undeledationLoader: boolean;
   doUndelegateAll: () => void;
+  undeledationLoader: boolean;
   doWithdrawRewards: () => void;
   withdrawLoading: boolean;
 }) => {
+  const [delegationNodeId, setDelegationNodeId] = useState<string>();
+  const [amountToBeDelegated, setAmountToBeDelegated] = useState<string>();
+
   return (
     <Paper style={{ marginTop: '1rem', padding: '1rem' }}>
       <Box padding={3}>

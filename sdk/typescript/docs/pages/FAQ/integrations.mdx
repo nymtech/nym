@@ -9,7 +9,7 @@ If you'd like to learn more about potential integrations, please first make sure
 ### Integrations options
 If you're unsure where to start, the following set of questions should help you determine which path to follow in regards to integrations: 
  
- __1. Does your app mostly rely on the `fetch` method?__
+ __1. Does your app rely on using `fetch` for its network traffic and remote connections?__
 
 If yes, explore implementing `mixfetch`to route app traffic through the mixnet.
 
@@ -19,10 +19,10 @@ __2. Is your app developed in TS/JS or Rust?__
  If yes, you can use one of our SDKs and leverage either `mixfetch` (note that this only works for JS/TS at the moment, as we do not currently have a RUST implementation of it) or the `sdk client`to route app traffic through the mixnet. 
  
  If it is developed in another language:
- __3. You can use one of our Nym clients__
+ __3. You can use one of our standalone Nym clients__
  
  All Nym client packages present basically the same capabilities to the privacy application developer. They need to run as a persistent process in order to stay connected and ready to receive any incoming messages from their gateway nodes. They register and authenticate to gateways, and encrypt Sphinx packets.
- You can find more information about the different clients and the ways to interact with them [in this page](https://nymtech.net/developers/integrations/mixnet-integration.html). 
+ You can find more information about the different standalone clients and the ways to interact with them [in this page](https://nymtech.net/developers/integrations/mixnet-integration.html). 
 
 
 ```
@@ -44,11 +44,11 @@ For integration entry points:
                             |            |              |
                             |            |              |
                          yes:TS/JS    yes:RUST          |
-                            |            |         ,----------.
-                            ,------.   ,--------.  |Nym-client|
-                            |TS SDK|   |Rust SDK|  |----------|
-                            |------|   |--------|  |          |
-                            `------'   `--------'  `----------'
+                            |            |         ,----------------------.
+                            ,------.   ,--------.  |Nym  standalone client|
+                            |TS SDK|   |Rust SDK|  |----------------------|
+                            |------|   |--------|  |                      |
+                            `------'   `--------'  `----------------------'
 
    ```
 
@@ -68,10 +68,10 @@ Again, as detailed in the [FAQ](../FAQ/general):
                                 |               |
                                 yes             no
                                 |               |                                                      
-                        ,------------.   ,-----------------.
-                        |App use case|   | Set Client + SP |
-                        |------------|   |-----------------|
-                        `------------'   `-----------------'                
+                        ,------------.   ,----------------------------.
+                        |App use case|   | Set standalone Client + SP |
+                        |------------|   |----------------------------|
+                        `------------'   `----------------------------'                
                         |         |     
                         needs     needs
                         |         |                             
@@ -86,6 +86,5 @@ Again, as detailed in the [FAQ](../FAQ/general):
             |-----------|           |-------------|              
             `-----------'           `-------------'        
                                        
-
 ```
 

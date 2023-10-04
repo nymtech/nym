@@ -7,7 +7,6 @@ import Button from '@mui/material/Button';
 import Paper from '@mui/material/Paper';
 import Box from '@mui/material/Box';
 import { TableBody, TableCell, TableHead, TableRow, TextField, Typography } from '@mui/material';
-import Divider from '@mui/material/Divider';
 import Table from '@mui/material/Table';
 import { settings } from './client';
 
@@ -243,7 +242,7 @@ export const Wallet = () => {
     <Box padding={3}>
       <Paper style={{ marginTop: '1rem', padding: '1rem' }}>
         <Typography variant="h5" textAlign="center">
-          Basic Wallet
+          Connect to your account
         </Typography>
         <Box padding={3}>
           <Typography variant="h6">Your account</Typography>
@@ -281,7 +280,8 @@ export const Wallet = () => {
             </Box>
           )}
         </Box>
-        <Divider />
+      </Paper>
+      <Paper style={{ marginTop: '1rem', padding: '1rem' }}>
         <Box padding={3}>
           <Typography variant="h6">Send Tokens</Typography>
           <Box marginTop={3} display="flex" flexDirection="column">
@@ -304,7 +304,8 @@ export const Wallet = () => {
             </Box>
           </Box>
         </Box>
-        <Divider />
+      </Paper>
+      <Paper style={{ marginTop: '1rem', padding: '1rem' }}>
         <Box padding={3}>
           <Typography variant="h6">Delegations</Typography>
           <Box marginY={3}>

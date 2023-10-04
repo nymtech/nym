@@ -380,7 +380,6 @@ impl<St> Gateway<St> {
             panic!("wireguard is not supported on this platform")
         }
 
-
         info!("Finished nym gateway startup procedure - it should now be able to receive mix and client traffic!");
 
         if let Err(err) = Self::wait_for_interrupt(shutdown).await {

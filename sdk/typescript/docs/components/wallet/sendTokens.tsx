@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import Button from '@mui/material/Button';
 import Paper from '@mui/material/Paper';
 import Box from '@mui/material/Box';
@@ -7,15 +7,15 @@ import TextField from '@mui/material/TextField';
 
 export const SendTokes = ({
   setRecipientAddress,
-  setTokensToSend,
   doSendTokens,
   sendingTokensLoader,
 }: {
   setRecipientAddress: (value: string) => void;
-  setTokensToSend: (value: string) => void;
-  doSendTokens: () => void;
+  doSendTokens: (amount: string) => void;
   sendingTokensLoader: boolean;
 }) => {
+  const [tokensToSend, setTokensToSend] = useState<string>();
+
   return (
     <Paper style={{ marginTop: '1rem', padding: '1rem' }}>
       <Box padding={3}>
@@ -34,7 +34,7 @@ export const SendTokes = ({
               onChange={(e) => setTokensToSend(e.target.value)}
               size="small"
             />
-            <Button variant="outlined" onClick={() => doSendTokens()} disabled={sendingTokensLoader}>
+            <Button variant="outlined" onClick={() => doSendTokens(tokensToSend)} disabled={sendingTokensLoader}>
               {sendingTokensLoader ? 'Sending...' : 'SendTokens'}
             </Button>
           </Box>

@@ -3,16 +3,16 @@
 #### __How can I interact with Nym?__
 
 ##### For existing projects:
-You'd like to integrate parts of the Nym stack to your existing app? Please check our dedicated Integrations page.
+You'd like to integrate parts of the Nym stack to your existing app? Please check the dedicated [integrations page](../FAQ/integrations).
 
 ##### For builders:
 ###### SDKs
 You'd like to build or Nymify existing solutions? If you develop in Rust or TS/JS, then our SDKs are your go-to. 
-Please refer [here](https://nymtech.net/developers/tutorials/rust-sdk.html) for more RUST information and tutorials and here (you are there) for using the TypeScript SDK.
+Please visit the [RUST SDK documentation](https://nymtech.net/developers/tutorials/rust-sdk.html) for more RUST-related information and tutorials and go to the [TS SDK handbook](../) (you are here) for using the TypeScript SDK.
 These SDKs abstract away much of the messaging and core logic from your app, and allow you to run a Nym client as part of your application process, instead of having to run them seperately.
 
 ###### Nym clients: Websocket, WebAssembly, SOCKS5
-Alternatively, you can also use one of the three Nym clients to connect your application to the mixnet. These clients do the majority of the heavy-lifting with regards to cryptographic operations and routing under the hood, and all do basically the same thing: create a connection to a gateway, encrypt and decrypt packets sent to and received from the mixnet, and send cover traffic to hide the flow of actual app traffic from observers. You can learn more about the Nym clients [here](https://nymtech.net/developers/integrations/mixnet-integration.html).
+Alternatively, you can also use one of the three Nym clients to connect your application to the mixnet. These clients do the majority of the heavy-lifting with regards to cryptographic operations and routing under the hood, and all do basically the same thing: create a connection to a gateway, encrypt and decrypt packets sent to and received from the mixnet, and send cover traffic to hide the flow of actual app traffic from observers. You can learn more about the Nym clients in this [Nym integration page](https://nymtech.net/developers/integrations/mixnet-integration.html).
 
 ###### Network requesters: 
 Network requesters are a type of Service Provider, that in essence, act as a form of proxy (somewhat analagous to a Tor exit node). If you have access to a server, you can run the Network Requester, which allows Nym users to send outbound requests from their local machine through the mixnet to a server, which then makes the request on their behalf, shielding them (and their metadata) from clearnet, untrusted and unknown infrastructure, such as email or message client servers.
@@ -36,7 +36,7 @@ Gateways serve a few different functions:
 - They send encrypted surb-acks for potentially offline recipients, to ensure reliable message delivery;
 - They offer a stable addressing location for apps, although the IP may change frequently;
 
-If you want to learn more about gateways, you can check [this page.](https://nymtech.net/developers/integrations/mixnet-integration.html)
+If you want to learn more about gateways, you can check the [mixnet integration page](https://nymtech.net/developers/integrations/mixnet-integration.html).
 
 
 #### __Why and when does the mixnet client complain about insufficient topology?__
@@ -66,4 +66,4 @@ Currently, the different options are:
 - You can get it added to the local list of an existing Network Requester;
 - You can ask the Nym team to add it to the global [allow list](https://nymtech.net/.wellknown/network-requester/standard-allowed-list.txt) if it's not already there;
 - You can run your own Network Requester and locally configure it to allow the hosts you need to connect to;
-If you'd like to learn more about Network Requesters and the global allow list, you can [visit this page](https://nymtech.net/operators/nodes/network-requester-setup.html).
+If you'd like to learn more about Network Requesters and the global allow list, you can visit the [network requester set-up page](https://nymtech.net/operators/nodes/network-requester-setup.html).

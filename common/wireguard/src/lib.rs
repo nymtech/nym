@@ -1,3 +1,5 @@
+#![cfg(target_os = "linux")]
+
 use std::{
     net::{Ipv4Addr, SocketAddr},
     sync::Arc,

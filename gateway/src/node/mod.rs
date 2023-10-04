@@ -370,10 +370,16 @@ impl<St> Gateway<St> {
         // Once this is a bit more mature, make this a commandline flag instead of a compile time
         // flag
         #[cfg(feature = "wireguard")]
-        if let Err(err) = nym_wireguard::start_wireguard(shutdown.subscribe()).await {
-            // that's a nasty workaround, but anyhow errors are generally nicer, especially on exit
-            bail!("{err}")
+        {
+            #[cfg(target_os = "linux")]
+            if let Err(err) = nym_wireguard::start_wireguard(shutdown.subscribe()).await {
+                // that's a nasty workaround, but anyhow errors are generally nicer, especially on exit
+                bail!("{err}")
+            }
+            #[cfg(not(target_os = "linux"))]
+            panic!("wireguard is not supported on this platform")
         }
+
 
         info!("Finished nym gateway startup procedure - it should now be able to receive mix and client traffic!");
 

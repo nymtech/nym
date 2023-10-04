@@ -5,6 +5,7 @@ use crate::http::router::api;
 use crate::http::state::AppState;
 use axum::Router;
 use nym_node_requests::api as api_requests;
+use nym_node_requests::routes::api::v1;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
@@ -43,7 +44,7 @@ pub(crate) struct ApiDoc;
 pub(crate) fn route() -> Router<AppState> {
     // provide absolute path to the openapi.json
     let config = utoipa_swagger_ui::Config::from("/api/v1/api-docs/openapi.json");
-    SwaggerUi::new(super::routes::SWAGGER)
+    SwaggerUi::new(v1::SWAGGER)
         .url("/api-docs/openapi.json", ApiDoc::openapi())
         .config(config)
         .into()

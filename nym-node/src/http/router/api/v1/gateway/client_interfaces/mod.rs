@@ -8,31 +8,26 @@ use axum::http::StatusCode;
 use axum::routing::get;
 use axum::Router;
 use nym_node_requests::api::v1::gateway::models::{ClientInterfaces, WebSockets, Wireguard};
-
-pub(crate) mod routes {
-    pub(crate) const INTERFACES: &str = "/";
-    pub(crate) const WIREGUARD: &str = "/wireguard";
-    pub(crate) const WEBSOCKETS: &str = "/mixnet-websockets";
-}
+use nym_node_requests::routes::api::v1::gateway::client_interfaces;
 
 pub(crate) fn routes(interfaces: Option<ClientInterfaces>) -> Router<AppState> {
     Router::new()
         .route(
-            routes::INTERFACES,
+            "/",
             get({
                 let interfaces = interfaces.clone();
                 move |query| client_interfaces(interfaces, query)
             }),
         )
         .route(
-            routes::WEBSOCKETS,
+            client_interfaces::WEBSOCKETS,
             get({
                 let websockets = interfaces.as_ref().and_then(|i| i.mixnet_websockets);
                 move |query| mixnet_websockets(websockets, query)
             }),
         )
         .route(
-            routes::WIREGUARD,
+            client_interfaces::WIREGUARD,
             get({
                 let wireguard_info = interfaces.and_then(|i| i.wireguard);
                 move |query| wireguard(wireguard_info, query)

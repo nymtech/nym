@@ -11,23 +11,15 @@ use nym_node_requests::api::v1::mixnode::models::Mixnode;
 use nym_node_requests::api::v1::network_requester::models::NetworkRequester;
 use nym_node_requests::api::v1::node::models;
 use nym_node_requests::api::SignedHostInformation;
+use nym_node_requests::routes;
 use std::net::SocketAddr;
 
 pub mod api;
 pub mod landing_page;
-pub mod policy;
-
-pub(crate) mod routes {
-    pub(crate) const LANDING_PAGE: &str = "/";
-    pub(crate) const POLICY: &str = "/policy";
-
-    pub(crate) const API: &str = "/api";
-}
 
 #[derive(Debug, Clone)]
 pub struct Config {
     pub landing: landing_page::Config,
-    pub policy: policy::Config,
     pub api: api::Config,
 }
 
@@ -38,7 +30,6 @@ impl Config {
     ) -> Self {
         Config {
             landing: Default::default(),
-            policy: Default::default(),
             api: api::Config {
                 v1_config: api::v1::Config {
                     node: api::v1::node::Config {
@@ -87,7 +78,6 @@ impl NymNodeRouter {
         NymNodeRouter {
             inner: Router::new()
                 .nest(routes::LANDING_PAGE, landing_page::routes(config.landing))
-                .nest(routes::POLICY, policy::routes(config.policy))
                 .nest(routes::API, api::routes(config.api))
                 .layer(axum::middleware::from_fn(logging::logger))
                 .with_state(state),

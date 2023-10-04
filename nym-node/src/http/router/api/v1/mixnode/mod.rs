@@ -8,10 +8,6 @@ use nym_node_requests::api::v1::mixnode::models;
 
 pub mod root;
 
-pub(crate) mod routes {
-    pub(crate) const ROOT: &str = "/";
-}
-
 #[derive(Debug, Clone, Default)]
 pub struct Config {
     pub details: Option<models::Mixnode>,
@@ -19,7 +15,7 @@ pub struct Config {
 
 pub(crate) fn routes(config: Config) -> Router<AppState> {
     Router::new().route(
-        routes::ROOT,
+        "/",
         get({
             let mixnode_details = config.details;
             move |query| root::root_mixnode(mixnode_details, query)

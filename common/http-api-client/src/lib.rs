@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use async_trait::async_trait;
-use reqwest::{IntoUrl, Response, StatusCode, Url};
+use reqwest::{IntoUrl, Response, StatusCode};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
 use thiserror::Error;
+use url::Url;
 
 pub type PathSegments<'a> = &'a [&'a str];
 pub type Params<'a, K, V> = &'a [(K, V)];
@@ -19,6 +20,12 @@ pub enum HttpClientError<E: Display = String> {
     ReqwestClientError {
         #[from]
         source: reqwest::Error,
+    },
+
+    #[error("provided url is malformed: {source}")]
+    MalformedUrl {
+        #[from]
+        source: url::ParseError,
     },
 
     #[error("not found")]
@@ -92,7 +99,7 @@ impl Client {
         Ok(self.reqwest_client.post(url).json(json_body).send().await?)
     }
 
-    pub async fn get_json_endpoint<T, K, V, E>(
+    pub async fn get_json<T, K, V, E>(
         &self,
         path: PathSegments<'_>,
         params: Params<'_, K, V>,
@@ -107,7 +114,7 @@ impl Client {
         parse_response(res).await
     }
 
-    pub async fn post_json_endpoint<B, T, K, V, E>(
+    pub async fn post_json<B, T, K, V, E>(
         &self,
         path: PathSegments<'_>,
         params: Params<'_, K, V>,
@@ -123,12 +130,48 @@ impl Client {
         let res = self.send_post_request(path, params, json_body).await?;
         parse_response(res).await
     }
+
+    pub async fn get_json_endpoint<T, S, E>(&self, endpoint: S) -> Result<T, HttpClientError<E>>
+    where
+        for<'a> T: Deserialize<'a>,
+        E: Display + DeserializeOwned,
+        S: AsRef<str>,
+    {
+        let res = self
+            .reqwest_client
+            .get(self.base_url.join(endpoint.as_ref())?)
+            .send()
+            .await?;
+        parse_response(res).await
+    }
+
+    pub async fn post_json_endpoint<B, T, S, E>(
+        &self,
+        endpoint: S,
+        json_body: &B,
+    ) -> Result<T, HttpClientError<E>>
+    where
+        B: Serialize + ?Sized,
+        for<'a> T: Deserialize<'a>,
+        E: Display + DeserializeOwned,
+        S: AsRef<str>,
+    {
+        let res = self
+            .reqwest_client
+            .post(self.base_url.join(endpoint.as_ref())?)
+            .json(json_body)
+            .send()
+            .await?;
+        parse_response(res).await
+    }
 }
 
 // define those methods on the trait for nicer extensions (and not having to type the thing twice)
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait ApiClient {
+    /// 'get' json data from the segment-defined path, i.e. for example `["api", "v1", "mixnodes"]`,
+    /// with tuple defined key-value parameters, i.e. for example `[("since", "12345")]`
     async fn get_json<T, K, V, E>(
         &self,
         path: PathSegments<'_>,
@@ -152,6 +195,24 @@ pub trait ApiClient {
         K: AsRef<str> + Sync,
         V: AsRef<str> + Sync,
         E: Display + DeserializeOwned;
+
+    /// `get` json data from the provided absolute endpoint, i.e. for example `"/api/v1/mixnodes?since=12345"`
+    async fn get_json_from<T, S, E>(&self, endpoint: S) -> Result<T, HttpClientError<E>>
+    where
+        for<'a> T: Deserialize<'a>,
+        E: Display + DeserializeOwned,
+        S: AsRef<str> + Sync + Send;
+
+    async fn post_json_data_to<B, T, S, E>(
+        &self,
+        endpoint: S,
+        json_body: &B,
+    ) -> Result<T, HttpClientError<E>>
+    where
+        B: Serialize + ?Sized + Sync,
+        for<'a> T: Deserialize<'a>,
+        E: Display + DeserializeOwned,
+        S: AsRef<str> + Sync + Send;
 }
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
@@ -168,7 +229,7 @@ impl ApiClient for Client {
         V: AsRef<str> + Sync,
         E: Display + DeserializeOwned,
     {
-        self.get_json_endpoint(path, params).await
+        self.get_json(path, params).await
     }
 
     async fn post_json<B, T, K, V, E>(
@@ -184,7 +245,30 @@ impl ApiClient for Client {
         V: AsRef<str> + Sync,
         E: Display + DeserializeOwned,
     {
-        self.post_json_endpoint(path, params, json_body).await
+        self.post_json(path, params, json_body).await
+    }
+
+    async fn get_json_from<T, S, E>(&self, endpoint: S) -> Result<T, HttpClientError<E>>
+    where
+        for<'a> T: Deserialize<'a>,
+        E: Display + DeserializeOwned,
+        S: AsRef<str> + Sync + Send,
+    {
+        self.get_json_endpoint(endpoint).await
+    }
+
+    async fn post_json_data_to<B, T, S, E>(
+        &self,
+        endpoint: S,
+        json_body: &B,
+    ) -> Result<T, HttpClientError<E>>
+    where
+        B: Serialize + ?Sized + Sync,
+        for<'a> T: Deserialize<'a>,
+        E: Display + DeserializeOwned,
+        S: AsRef<str> + Sync + Send,
+    {
+        self.post_json_endpoint(endpoint, json_body).await
     }
 }
 

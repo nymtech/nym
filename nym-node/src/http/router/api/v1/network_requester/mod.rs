@@ -8,10 +8,6 @@ use nym_node_requests::api::v1::network_requester::models;
 
 pub mod root;
 
-pub(crate) mod routes {
-    pub(crate) const ROOT: &str = "/";
-}
-
 #[derive(Debug, Clone, Default)]
 pub struct Config {
     pub details: Option<models::NetworkRequester>,
@@ -19,7 +15,7 @@ pub struct Config {
 
 pub(crate) fn routes(config: Config) -> Router<AppState> {
     Router::new().route(
-        routes::ROOT,
+        "/",
         get({
             let network_requester_details = config.details;
             move |query| root::root_network_requester(network_requester_details, query)

@@ -8,16 +8,11 @@ use crate::http::state::AppState;
 use axum::routing::get;
 use axum::Router;
 use nym_node_requests::api::v1::node::models;
+use nym_node_requests::routes::api::v1;
 
 pub mod build_information;
 pub mod host_information;
 pub mod roles;
-
-pub(crate) mod routes {
-    pub(crate) const ROLES: &str = "/roles";
-    pub(crate) const BUILD_INFO: &str = "/build-information";
-    pub(crate) const HOST_INFO: &str = "/host-information";
-}
 
 #[derive(Debug, Clone)]
 pub struct Config {
@@ -29,21 +24,21 @@ pub struct Config {
 pub(super) fn routes(config: Config) -> Router<AppState> {
     Router::new()
         .route(
-            routes::BUILD_INFO,
+            v1::BUILD_INFO,
             get({
                 let build_info = config.build_information;
                 move |query| build_information(build_info, query)
             }),
         )
         .route(
-            routes::ROLES,
+            v1::ROLES,
             get({
                 let node_roles = config.roles;
                 move |query| roles(node_roles, query)
             }),
         )
         .route(
-            routes::HOST_INFO,
+            v1::HOST_INFO,
             get({
                 let host_info = config.host_information;
                 move |query| host_information(host_info, query)

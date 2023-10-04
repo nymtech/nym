@@ -12,10 +12,7 @@ use utoipa::{IntoParams, ToSchema};
 pub mod v1;
 
 pub use nym_node_requests::api as api_requests;
-
-pub(crate) mod routes {
-    pub(crate) const V1: &str = "/v1";
-}
+use nym_node_requests::routes;
 
 #[derive(Debug, Clone)]
 pub struct Config {
@@ -23,7 +20,7 @@ pub struct Config {
 }
 
 pub(super) fn routes(config: Config) -> Router<AppState> {
-    Router::new().nest(routes::V1, v1::routes(config.v1_config))
+    Router::new().nest(routes::api::V1, v1::routes(config.v1_config))
 }
 
 #[derive(Debug, Clone, ToSchema)]

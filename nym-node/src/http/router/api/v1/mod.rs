@@ -3,19 +3,13 @@
 
 use crate::http::state::AppState;
 use axum::Router;
+use nym_node_requests::routes::api::v1;
 
 pub mod gateway;
 pub mod mixnode;
 pub mod network_requester;
 pub mod node;
 pub mod openapi;
-
-pub(crate) mod routes {
-    pub(crate) const GATEWAY: &str = "/gateway";
-    pub(crate) const MIXNODE: &str = "/mixnode";
-    pub(crate) const NETWORK_REQUESTER: &str = "/network-requester";
-    pub(crate) const SWAGGER: &str = "/swagger";
-}
 
 #[derive(Debug, Clone)]
 pub struct Config {
@@ -27,10 +21,10 @@ pub struct Config {
 
 pub(super) fn routes(config: Config) -> Router<AppState> {
     Router::new()
-        .nest(routes::GATEWAY, gateway::routes(config.gateway))
-        .nest(routes::MIXNODE, mixnode::routes(config.mixnode))
+        .nest(v1::GATEWAY, gateway::routes(config.gateway))
+        .nest(v1::MIXNODE, mixnode::routes(config.mixnode))
         .nest(
-            routes::NETWORK_REQUESTER,
+            v1::NETWORK_REQUESTER,
             network_requester::routes(config.network_requester),
         )
         .merge(node::routes(config.node))

@@ -5,14 +5,10 @@ use crate::http::state::AppState;
 use axum::routing::get;
 use axum::Router;
 use nym_node_requests::api::v1::gateway::models;
+use nym_node_requests::routes::api::v1::gateway;
 
 pub mod client_interfaces;
 pub mod root;
-
-pub(crate) mod routes {
-    pub(crate) const ROOT: &str = "/";
-    pub(crate) const CLIENT_INTERFACES: &str = "/client-interfaces";
-}
 
 #[derive(Debug, Clone, Default)]
 pub struct Config {
@@ -22,14 +18,14 @@ pub struct Config {
 pub(crate) fn routes(config: Config) -> Router<AppState> {
     Router::new()
         .route(
-            routes::ROOT,
+            "/",
             get({
                 let gateway_details = config.details.clone();
                 move |query| root::root_gateway(gateway_details, query)
             }),
         )
         .nest(
-            routes::CLIENT_INTERFACES,
+            gateway::CLIENT_INTERFACES,
             client_interfaces::routes(config.details.map(|g| g.client_interfaces)),
         )
 }

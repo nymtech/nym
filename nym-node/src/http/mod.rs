@@ -12,7 +12,7 @@ pub mod middleware;
 pub mod router;
 pub mod state;
 
-pub use router::{api, landing_page, policy, Config, NymNodeRouter};
+pub use router::{api, landing_page, Config, NymNodeRouter};
 
 pub struct NymNodeHTTPServer {
     task_client: Option<TaskClient>,

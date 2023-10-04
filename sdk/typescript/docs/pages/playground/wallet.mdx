@@ -2,10 +2,18 @@
 
 import { Wallet } from '../../components/wallet';
 import Box from '@mui/material/Box';
-import FormattedWalletExampleCode from '../../code-examples/wallet-example-code.mdx';
+import FormattedWalletConnectCode from '../../code-examples/wallet-connect-code.mdx';
+import FormattedWalletSendTokensCode from '../../code-examples/wallet-sendTokens-code.mdx';
+import FormattedWalletDelegationsCode from '../../code-examples/wallet-delegations-code.mdx';
 
 Here's a small wallet example for you to test out!
 
 
-<Wallet/>
-<FormattedWalletExampleCode />
+<Wallet type="connect"/>
+<FormattedWalletConnectCode />
+
+<Wallet type="sendTokens"/>
+<FormattedWalletSendTokensCode />
+
+<Wallet type="delegations"/>
+<FormattedWalletDelegationsCode />

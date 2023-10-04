@@ -4,7 +4,7 @@ import { Callout } from 'nextra/components'
 
 An easy way to secure parts or all of your web app is to replace calls to [`fetch`](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch) with `mixFetch`:
 
-MixFetch works the same as vanilla `fetch` as it's a proxied wrapper around the original function. Read [this article](https://blog.nymtech.net/mixfetch-like-the-fetch-api-but-via-the-mixnet-82acfd435c62) to learn more about mixFetch.
+MixFetch works the same as vanilla `fetch` as it's a proxied wrapper around the original function. 
 Sounds great, are there any catches? Well, there are a few (for now):
 
 1. Currently, the operators of Network Requesters that make the final request at the egress part of the Nym mixnet to
@@ -19,10 +19,13 @@ avoid getting a [mixed content](https://developer.mozilla.org/en-US/docs/Web/Sec
 4. Workaround for Mixed Content Errors because you might be using `mixFetch` from web app served from HTTPS while
 connecting a gateway that only listens on a plain websocket, without HTTPS/TLS.
 
-We are currently working on a feature that adds a Secure Websocket (WSS) listener with HTTPS (automatically generated with LetsEncrypt) to Nym's
-gateways.
+Read [this article](https://blog.nymtech.net/mixfetch-like-the-fetch-api-but-via-the-mixnet-82acfd435c62) to learn more about mixFetch.
 
-While we are adding this feature, you can use a gateway that has Caddy providing HTTPS/WSS by adding this to the options when settings up `mixFetch`:
+<Callout type="info" emoji="ℹ️">
+  We are currently working on a feature that adds a Secure Websocket (WSS) listener with HTTPS (automatically generated with LetsEncrypt) to Nym's
+  gateways.
+  While we are adding this feature, you can use a gateway that has Caddy providing HTTPS/WSS by adding this to the options when settings up `mixFetch`:
+</Callout>
 
 ```ts
 import type { SetupMixFetchOps } from '@nymproject/mix-fetch';

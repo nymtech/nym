@@ -6,8 +6,12 @@ use reqwest::{IntoUrl, Response, StatusCode};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
+use std::time::Duration;
 use thiserror::Error;
+use tracing::warn;
 use url::Url;
+
+pub const DEFAULT_TIMEOUT: Duration = Duration::from_secs(3);
 
 pub type PathSegments<'a> = &'a [&'a str];
 pub type Params<'a, K, V> = &'a [(K, V)];
@@ -28,14 +32,20 @@ pub enum HttpClientError<E: Display = String> {
         source: url::ParseError,
     },
 
-    #[error("not found")]
+    #[error("the requested resource could not be found")]
     NotFound,
 
     #[error("request failed with error message: {0}")]
     GenericRequestFailure(String),
 
-    #[error("failed to resolve request. status code: {status}, additional error message: {error}")]
-    EndpointFailure { status: u16, error: E },
+    #[error("the request failed with status '{status}'. no additional error message provided")]
+    RequestFailure { status: StatusCode },
+
+    #[error("the returned response was empty. status: '{status}'")]
+    EmptyResponse { status: StatusCode },
+
+    #[error("failed to resolve request. status: '{status}', additional error message: {error}")]
+    EndpointFailure { status: StatusCode, error: E },
 }
 
 /// A simple extendable client wrapper for http request with extra url sanitization.
@@ -46,19 +56,35 @@ pub struct Client {
 }
 
 impl Client {
-    pub fn new(base_url: Url) -> Self {
+    pub fn new(base_url: Url, timeout: Option<Duration>) -> Self {
         Client {
             base_url,
-            reqwest_client: reqwest::Client::new(),
+
+            // TODO: we should probably be propagating the error rather than panicking,
+            // but that'd break bunch of things due to type changes
+            reqwest_client: reqwest::ClientBuilder::new()
+                .timeout(timeout.unwrap_or(DEFAULT_TIMEOUT))
+                .build()
+                .expect("Client::new()"),
         }
     }
 
-    pub fn new_url<U, E>(url: U) -> Result<Self, HttpClientError<E>>
+    pub fn new_url<U, E>(url: U, timeout: Option<Duration>) -> Result<Self, HttpClientError<E>>
     where
         U: IntoUrl,
         E: Display,
     {
-        Ok(Self::new(url.into_url()?))
+        // a naive check: if the provided URL does not start with http(s), add that scheme
+        let str_url = url.as_str();
+
+        if !str_url.starts_with("http") {
+            let alt = format!("http://{str_url}");
+            warn!("the provided url ('{str_url}') does not contain scheme information. Changing it to '{alt}' ...");
+            // TODO: or should we maybe default to https?
+            Self::new_url(alt, timeout)
+        } else {
+            Ok(Self::new(url.into_url()?, timeout))
+        }
     }
 
     pub fn change_base_url(&mut self, new_url: Url) {
@@ -111,7 +137,7 @@ impl Client {
         E: Display + DeserializeOwned,
     {
         let res = self.send_get_request(path, params).await?;
-        parse_response(res).await
+        parse_response(res, false).await
     }
 
     pub async fn post_json<B, T, K, V, E>(
@@ -128,7 +154,7 @@ impl Client {
         E: Display + DeserializeOwned,
     {
         let res = self.send_post_request(path, params, json_body).await?;
-        parse_response(res).await
+        parse_response(res, true).await
     }
 
     pub async fn get_json_endpoint<T, S, E>(&self, endpoint: S) -> Result<T, HttpClientError<E>>
@@ -142,7 +168,7 @@ impl Client {
             .get(self.base_url.join(endpoint.as_ref())?)
             .send()
             .await?;
-        parse_response(res).await
+        parse_response(res, false).await
     }
 
     pub async fn post_json_endpoint<B, T, S, E>(
@@ -162,7 +188,7 @@ impl Client {
             .json(json_body)
             .send()
             .await?;
-        parse_response(res).await
+        parse_response(res, true).await
     }
 }
 
@@ -299,22 +325,31 @@ pub fn sanitize_url<K: AsRef<str>, V: AsRef<str>>(
     url
 }
 
-async fn parse_response<T, E>(res: Response) -> Result<T, HttpClientError<E>>
+async fn parse_response<T, E>(res: Response, allow_empty: bool) -> Result<T, HttpClientError<E>>
 where
     T: DeserializeOwned,
     E: DeserializeOwned + Display,
 {
     let status = res.status();
 
+    if !allow_empty {
+        if let Some(0) = res.content_length() {
+            return Err(HttpClientError::EmptyResponse { status });
+        }
+    }
+
     if res.status().is_success() {
         Ok(res.json().await?)
     } else if res.status() == StatusCode::NOT_FOUND {
         Err(HttpClientError::NotFound)
     } else {
-        let plaintext = res.text().await?;
+        let Ok(plaintext) = res.text().await else {
+            return Err(HttpClientError::RequestFailure { status });
+        };
+
         if let Ok(request_error) = serde_json::from_str(&plaintext) {
             Err(HttpClientError::EndpointFailure {
-                status: status.as_u16(),
+                status,
                 error: request_error,
             })
         } else {

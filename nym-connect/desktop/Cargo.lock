@@ -2973,6 +2973,7 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror",
+ "tracing",
  "url",
 ]
 
@@ -3886,6 +3887,7 @@ dependencies = [
  "getset",
  "nym-coconut-interface",
  "nym-mixnet-contract-common",
+ "nym-node-requests",
  "schemars",
  "serde",
 ]
@@ -4320,6 +4322,18 @@ dependencies = [
  "serde",
  "thiserror",
  "url",
+]
+
+[[package]]
+name = "nym-node-requests"
+version = "0.1.0"
+dependencies = [
+ "nym-bin-common",
+ "nym-crypto",
+ "schemars",
+ "serde",
+ "serde_json",
+ "thiserror",
 ]
 
 [[package]]

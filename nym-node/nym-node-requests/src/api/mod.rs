@@ -1,11 +1,13 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::api::v1::node::models::HostInformation;
 use crate::error::Error;
 use nym_crypto::asymmetric::identity;
 use serde::Serialize;
 use std::ops::Deref;
+
+#[cfg(feature = "openapi")]
+use crate::api::v1::node::models::HostInformation;
 
 #[cfg(feature = "client")]
 pub mod client;

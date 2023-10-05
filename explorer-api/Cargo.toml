@@ -24,7 +24,7 @@ reqwest = { workspace = true }
 rocket = { version = "0.5.0-rc.2", features = ["json"] }
 rocket_cors = { git="https://github.com/lawliet89/rocket_cors", rev="dfd3662c49e2f6fc37df35091cb94d82f7fb5915" }
 rocket_okapi = { version = "0.8.0-rc.2", features = ["swagger"] }
-schemars = { version = "0.8", features = ["preserve_order"] }
+schemars = { workspace = true, features = ["preserve_order"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }

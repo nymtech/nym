@@ -1,9 +1,10 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct Mixnode {
     // /// Base58 encoded ed25519 EdDSA public key of the mixnode.

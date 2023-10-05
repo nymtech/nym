@@ -148,7 +148,7 @@ impl Client<ReqwestRpcClient> {
 
 impl<C> Client<C> {
     pub fn new_with_rpc_client(config: Config, rpc_client: C) -> Self {
-        let nym_api_client = nym_api::Client::new(config.api_url.clone());
+        let nym_api_client = nym_api::Client::new(config.api_url.clone(), None);
 
         Client {
             nym_api: nym_api_client,
@@ -162,7 +162,7 @@ impl<C, S> Client<C, S> {
     where
         S: OfflineSigner,
     {
-        let nym_api_client = nym_api::Client::new(config.api_url.clone());
+        let nym_api_client = nym_api::Client::new(config.api_url.clone(), None);
 
         Client {
             nym_api: nym_api_client,
@@ -242,7 +242,7 @@ pub struct NymApiClient {
 
 impl NymApiClient {
     pub fn new(api_url: Url) -> Self {
-        let nym_api = nym_api::Client::new(api_url);
+        let nym_api = nym_api::Client::new(api_url, None);
 
         NymApiClient { nym_api }
     }

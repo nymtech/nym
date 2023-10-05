@@ -1,13 +1,14 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "openapi")]
 pub use crate::api::SignedHostInformation;
 pub use nym_bin_common::build_information::BinaryBuildInformationOwned;
 
-#[derive(Clone, Default, Debug, Copy, Serialize, Deserialize)]
+#[derive(Clone, Default, Debug, Copy, Serialize, Deserialize, JsonSchema)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct NodeRoles {
     pub mixnode_enabled: bool,
@@ -15,7 +16,7 @@ pub struct NodeRoles {
     pub network_requester_enabled: bool,
 }
 
-#[derive(Clone, Default, Debug, Serialize, Deserialize)]
+#[derive(Clone, Default, Debug, Serialize, Deserialize, JsonSchema)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct HostInformation {
     /// Ip address(es) of this host, such as `1.1.1.1`.
@@ -28,7 +29,7 @@ pub struct HostInformation {
     pub keys: HostKeys,
 }
 
-#[derive(Clone, Default, Debug, Serialize, Deserialize)]
+#[derive(Clone, Default, Debug, Serialize, Deserialize, JsonSchema)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct HostKeys {
     /// Base58-encoded ed25519 public key of this node. Currently it corresponds to either mixnode's or gateway's identity.

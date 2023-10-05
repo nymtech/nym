@@ -126,6 +126,7 @@ impl From<ConfigV1_1_21> for Config {
             topology_cacher: TopologyCacher {
                 debug: TopologyCacherDebug {
                     caching_interval: value.topology_cacher.caching_interval,
+                    ..Default::default()
                 },
             },
             circulating_supply_cacher: CirculatingSupplyCacher {

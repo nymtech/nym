@@ -67,24 +67,24 @@ export function MixnetClient() {
     const client = await createNymMixnetClient();
     setNym(client);
  
-    // start the client and connect to a gateway
+    // Start the client and connect to a gateway
     await client?.client.start({
       clientId: crypto.randomUUID(),
       nymApiUrl,
     });
  
-    // check when is connected and set the self address
+    // Check when is connected and set the self address
     client?.events.subscribeToConnected((e) => {
       const { address } = e.args;
       setSelfAddress(address);
     });
  
-    // show whether the client is ready or not
+    // Show whether the client is ready or not
     client?.events.subscribeToLoaded((e) => {
       console.log("Client ready: ", e.args);
     });
 
-    // show message payload content when received
+    // Show message payload content when received
     client?.events.subscribeToTextMessageReceivedEvent((e) => {
       console.log(e.args.payload);
       setReceivedMessage(e.args.payload);

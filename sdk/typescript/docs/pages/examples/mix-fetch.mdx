@@ -86,10 +86,13 @@ import { mixFetch } from "@nymproject/mix-fetch-full-fat";
 ##### Example: using the `mixFetch` client:
 
 <Callout type="info" emoji="ℹ️">
-    Again, for this example, we will be using the `full-fat` version of the ESM SDK.
+    Again, for this example, we will be using the `full-fat` version of the ESM SDK. 
 </Callout>
 
+`Get` and `Post` outputs will be observable from your console. 
+
 ```ts
+import "./App.css";
 import { mixFetch, SetupMixFetchOps } from '@nymproject/mix-fetch-full-fat';
 import React from 'react';
 
@@ -120,7 +123,8 @@ const mixFetchOptions: SetupMixFetchOps = {
 export function HttpGET() {
   const [html, setHtml] = React.useState('')
     async function get () {
-      const response = await mixFetch('https://nymtech.net', { mode: 'unsafe-ignore-cors' }, mixFetchOptions)
+       //Make sure the URL is whitelisted (see 'standard allowed list') otherwise you will get a network requester filter check error
+      const response = await mixFetch('https://nymtech.net/favicon.svg', { mode: 'unsafe-ignore-cors' }, mixFetchOptions)
       const text = await response.text()
       console.log('response was', text)
       setHtml(html)
@@ -135,6 +139,7 @@ export function HttpGET() {
 
 export function HttpPOST() {
     async function post () {
+       //Make sure the URL is whitelisted (see 'standard allowed list') otherwise you will get a network requester filter check error
       const apiResponse = await mixFetch('https://postman-echo.com/post', {
         method: 'POST',
         body: JSON.stringify({ foo: 'bar' }),

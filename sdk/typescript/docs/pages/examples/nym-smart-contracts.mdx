@@ -160,7 +160,7 @@ export default function Exec() {
   let delegations: any;
  
   async function ExecuteOnNyx() {
-    // cosmos client
+    // Cosmos client
     signer = await DirectSecp256k1HdWallet.fromMnemonic(settings.mnemonic, {
       prefix: "n",
     });
@@ -171,16 +171,16 @@ export default function Exec() {
         gasPrice: GasPrice.fromString("0.025unym"),
       }
     );
-    // save globally
+    // Save globally
     cosmWasmSigningClient = cosmWasmClient;
  
-    // nym client
+    // Nym client
     const mixnetClient = new contracts.Mixnet.MixnetClient(
       cosmWasmSigningClient,
       settings.address, // sender (that account of the signer)
       settings.mixnetContractAddress // contract address (different on mainnet, QA, etc)
     );
-    // save globally
+    // Save globally
     signerMixnetClient = mixnetClient;
  
   }

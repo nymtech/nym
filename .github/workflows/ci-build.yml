@@ -37,6 +37,7 @@ on:
       - 'tools/nym-nr-query/**'
       - 'tools/ts-rs-cli/**'
       - 'Cargo.toml'
+  workflow_dispatch:
 
 jobs:
   build:
@@ -66,6 +67,11 @@ jobs:
           toolchain: stable
           override: true
           components: rustfmt, clippy
+
+      - name: Cargo clean
+        uses: actions-rs/cargo@v1
+        with:
+          command: clean
 
       - name: Check formatting
         uses: actions-rs/cargo@v1

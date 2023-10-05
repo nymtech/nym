@@ -30,6 +30,7 @@ pub struct WireGuardTunnel {
     endpoint: SocketAddr,
 
     // The source address of the last packet received from the peer
+    // WIP(JON): remove this, instead update `endpoint`
     source_addr: Arc<std::sync::RwLock<Option<std::net::Ipv4Addr>>>,
 
     // `boringtun` tunnel, used for crypto & WG protocol

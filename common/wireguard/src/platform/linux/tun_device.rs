@@ -57,6 +57,10 @@ pub fn start_tun_device(_active_peers: Arc<ActivePeers>) -> UnboundedSender<Vec<
 
                         // TODO: route packet to the correct peer.
                         log::info!("...forward packet to the correct peer (NOT YET IMPLEMENTED)");
+
+                        // Here we need to consult the allowed_ips to find the correct tunnel
+                        // (peer)
+
                     },
                     Err(err) => {
                         log::info!("iface: read error: {err}");

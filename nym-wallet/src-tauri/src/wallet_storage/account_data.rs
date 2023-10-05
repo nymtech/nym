@@ -226,6 +226,10 @@ impl MultipleAccounts {
         self.accounts.iter().find(|account| &account.id == id)
     }
 
+    pub(crate) fn get_account_mut(&mut self, id: &AccountId) -> Option<&mut WalletAccount> {
+        self.accounts.iter_mut().find(|account| &account.id == id)
+    }
+
     pub(crate) fn get_account_with_mnemonic(
         &self,
         mnemonic: &bip39::Mnemonic,
@@ -273,6 +277,21 @@ impl MultipleAccounts {
         self.accounts.retain(|accounts| &accounts.id != id);
         Ok(())
     }
+
+    pub(crate) fn rename(
+        &mut self,
+        id: &AccountId,
+        new_id: &AccountId,
+    ) -> Result<(), BackendError> {
+        if self.get_account(new_id).is_some() {
+            return Err(BackendError::WalletAccountIdAlreadyExistsInWalletLogin);
+        }
+        let account = self
+            .get_account_mut(id)
+            .ok_or(BackendError::WalletNoSuchAccountIdInWalletLogin)?;
+        account.rename_id(new_id.clone());
+        Ok(())
+    }
 }
 
 impl From<Vec<WalletAccount>> for MultipleAccounts {
@@ -298,6 +317,10 @@ impl WalletAccount {
 
     pub(crate) fn id(&self) -> &AccountId {
         &self.id
+    }
+
+    pub(crate) fn rename_id(&mut self, new_id: AccountId) {
+        self.id = new_id;
     }
 
     pub(crate) fn mnemonic(&self) -> &bip39::Mnemonic {

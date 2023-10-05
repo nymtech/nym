@@ -37,6 +37,7 @@ on:
       - 'tools/nym-nr-query/**'
       - 'tools/ts-rs-cli/**'
       - 'Cargo.toml'
+  workflow_dispatch:
 
 jobs:
   build:

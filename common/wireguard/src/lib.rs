@@ -40,7 +40,7 @@ pub async fn start_wireguard(
     let peers_by_ip = std::sync::Arc::new(std::sync::Mutex::new(AllowedIps::new()));
 
     // Start the tun device that is used to relay traffic outbound
-    let tun_task_tx = tun_device::start_tun_device(active_peers.clone());
+    let tun_task_tx = tun_device::start_tun_device(peers_by_ip.clone());
 
     // Start the UDP listener that clients connect to
     udp_listener::start_udp_listener(tun_task_tx, active_peers, peers_by_ip, task_client).await?;

@@ -122,6 +122,7 @@ members = [
     #    "wasm/full-nym-wasm",
     "wasm/mix-fetch",
     "wasm/node-tester",
+    "wasm/credentials"
 ]
 
 default-members = [

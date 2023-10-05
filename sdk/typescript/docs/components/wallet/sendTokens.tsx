@@ -6,55 +6,8 @@ import Typography from '@mui/material/Typography';
 import TextField from '@mui/material/TextField';
 import { useWalletContext } from '../context/wallet';
 
-export const SendTokes = ({
-  // setRecipientAddress,
-  // signerCosmosWasmClient,
-  // account,
-  // recipientAddress,
-}: {
-  // setRecipientAddress: (value: string) => void;
-  // signerCosmosWasmClient: any;
-  // account: string;
-  // recipientAddress: string;
-}) => {
-  const { cosmWasmSigner, cosmWasmSignerClient, nymWasmSignerClient, setConnectWithMnemonic } = useWalletContext();
-  const [recipientAddress, setRecipientAddress] = useState<string>('');
-  const [tokensToSend, setTokensToSend] = useState<string>();
-  const [sendingTokensLoader, setSendingTokensLoader] = useState<boolean>(false);
-  const [log, setLog] = useState<React.ReactNode[]>([]);
-
-  // Sending tokens
-  // const doSendTokens = async () => {
-  //   const memo = 'test sending tokens';
-  //   setSendingTokensLoader(true);
-  //   try {
-  //     console.log('signerCosmosWasmClient', signerCosmosWasmClient);
-  //     const res = await signerCosmosWasmClient.sendTokens(
-  //       account,
-  //       recipientAddress,
-  //       [{ amount: tokensToSend, denom: 'unym' }],
-  //       'auto',
-  //       memo,
-  //     );
-  //     setLog((prev) => [
-  //       ...prev,
-  //       <div key={JSON.stringify(res, null, 2)}>
-  //         <code style={{ marginRight: '2rem' }}>{new Date().toLocaleTimeString()}</code>
-  //         <pre>{JSON.stringify(res, null, 2)}</pre>
-  //       </div>,
-  //     ]);
-  //   } catch (error) {
-  //     console.error(error);
-  //   }
-  //   setSendingTokensLoader(false);
-  // };
-  // End send tokens
-
-  // console.log('signerCosmosWasmClient', signerCosmosWasmClient);
-
-  // useEffect(() => {
-  //   console.log('signerCosmosWasmClient', signerCosmosWasmClient, 'account', account);
-  // }, [signerCosmosWasmClient, account]);
+export const SendTokes = () => {
+  const { setRecipientAddress, setTokensToSend, sendingTokensLoading, doSendTokens, log } = useWalletContext();
 
   return (
     <Box>
@@ -75,9 +28,9 @@ export const SendTokes = ({
                 onChange={(e) => setTokensToSend(e.target.value)}
                 size="small"
               />
-              {/* <Button variant="outlined" onClick={() => doSendTokens()} disabled={sendingTokensLoader}>
-                {sendingTokensLoader ? 'Sending...' : 'Send tokens'}
-              </Button> */}
+              <Button variant="outlined" onClick={() => doSendTokens()} disabled={sendingTokensLoading}>
+                {sendingTokensLoading ? 'Sending...' : 'Send tokens'}
+              </Button>
             </Box>
           </Box>
         </Box>

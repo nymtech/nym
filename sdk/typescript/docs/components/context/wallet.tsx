@@ -62,7 +62,10 @@ interface ApiState<RESPONSE> {
 
 interface WalletState {
   cosmWasmSigner?: { getAccounts: () => void };
-  cosmWasmSignerClient?: { getBalance: (account: string, denom: string) => Coin };
+  cosmWasmSignerClient?: {
+    getBalance: (account: string, denom: string) => Coin;
+    sendTokens: (account: string, recipientAddress: string, amount: [Coin], type: 'auto', memo: string) => void;
+  };
   nymWasmSignerClient?: ApiState<any>;
   accountLoading: boolean;
   account: string;
@@ -70,6 +73,11 @@ interface WalletState {
   setConnectWithMnemonic?: (value: string) => void;
   balance?: Coin;
   balanceLoading: boolean;
+  setRecipientAddress?: (value: string) => void;
+  setTokensToSend?: (value: string) => void;
+  sendingTokensLoading: boolean;
+  log: React.ReactNode[];
+  doSendTokens?: () => void;
 }
 
 export const WalletContext = React.createContext<WalletState>({
@@ -77,6 +85,8 @@ export const WalletContext = React.createContext<WalletState>({
   account: '',
   clientsAreLoading: false,
   balanceLoading: false,
+  sendingTokensLoading: false,
+  log: [],
 });
 
 export const useWalletContext = (): React.ContextType<typeof WalletContext> =>
@@ -92,9 +102,12 @@ export const WalletContextProvider = ({ children }: { children: JSX.Element }) =
   const [nymWasmSignerClient, setNymWasmSignerClient] = React.useState<any>();
   const [balance, setBalance] = React.useState<Coin>();
   const [balanceLoading, setBalanceLoading] = React.useState<boolean>(false);
+  const [recipientAddress, setRecipientAddress] = React.useState<string>('');
+  const [tokensToSend, setTokensToSend] = React.useState<string>();
+  const [sendingTokensLoading, setSendingTokensLoading] = React.useState<boolean>(false);
+  const [log, setLog] = React.useState<React.ReactNode[]>([]);
 
   const getSignerAccount = async () => {
-    console.log('getSignerAccount');
     setAccountLoading(true);
     try {
       const signer = await signerAccount(connectWithMnemonic);
@@ -110,6 +123,7 @@ export const WalletContextProvider = ({ children }: { children: JSX.Element }) =
   const getClients = async () => {
     setClientsAreLoading(true);
     try {
+      console.log('setCosmWasmSignerClient');
       setCosmWasmSignerClient(await fetchSignerCosmosWasmClient(connectWithMnemonic));
       setNymWasmSignerClient(await fetchSignerClient(connectWithMnemonic));
     } catch (error) {
@@ -129,12 +143,48 @@ export const WalletContextProvider = ({ children }: { children: JSX.Element }) =
     setBalanceLoading(false);
   }, [account, cosmWasmSignerClient]);
 
+  // Sending tokens
+  const doSendTokens = React.useCallback(async () => {
+    const memo = 'test sending tokens';
+    setSendingTokensLoading(true);
+    try {
+      console.log('cosmWasmSignerClient', cosmWasmSignerClient, account, recipientAddress);
+      const res = await cosmWasmSignerClient.sendTokens(
+        account,
+        recipientAddress,
+        [{ amount: tokensToSend, denom: 'unym' }],
+        'auto',
+        memo,
+      );
+      setLog((prev) => [
+        ...prev,
+        <div key={JSON.stringify(res, null, 2)}>
+          <code style={{ marginRight: '2rem' }}>{new Date().toLocaleTimeString()}</code>
+          <pre>{JSON.stringify(res, null, 2)}</pre>
+        </div>,
+      ]);
+    } catch (error) {
+      console.error(error);
+    }
+    setSendingTokensLoading(false);
+  }, [account, cosmWasmSignerClient]);
+  // End send tokens
+
   React.useEffect(() => {
     if (connectWithMnemonic) {
       // when the mnemonic changes, remove all previous data
       Promise.all([getSignerAccount(), getClients()]);
     }
   }, [connectWithMnemonic]);
+
+  React.useEffect(() => {
+    console.log('cosmWasmSignerClient', cosmWasmSignerClient);
+  }, [cosmWasmSignerClient]);
+
+  React.useEffect(() => {
+console.log('tokensToSend', tokensToSend);
+
+  },[tokensToSend])
 
   React.useEffect(() => {
     if (account && cosmWasmSignerClient) {
@@ -154,6 +204,11 @@ export const WalletContextProvider = ({ children }: { children: JSX.Element }) =
       setConnectWithMnemonic,
       balance,
       balanceLoading,
+      setRecipientAddress,
+      setTokensToSend,
+      sendingTokensLoading,
+      log,
+      doSendTokens,
     }),
     [
       accountLoading,
@@ -164,6 +219,11 @@ export const WalletContextProvider = ({ children }: { children: JSX.Element }) =
       setConnectWithMnemonic,
       balance,
       balanceLoading,
+      setRecipientAddress,
+      setTokensToSend,
+      sendingTokensLoading,
+      log,
+      doSendTokens,
     ],
   );
 

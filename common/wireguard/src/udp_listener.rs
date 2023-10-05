@@ -1,4 +1,4 @@
-use std::{net::{SocketAddr, IpAddr, Ipv4Addr}, sync::Arc};
+use std::{net::SocketAddr, sync::Arc};
 
 use futures::StreamExt;
 use log::error;
@@ -8,7 +8,7 @@ use tokio::{net::UdpSocket, sync::mpsc::UnboundedSender};
 
 use crate::{
     event::Event,
-    setup::{WG_ADDRESS, WG_PORT},
+    setup::{self, WG_ADDRESS, WG_PORT},
     ActivePeers, PeersByIp,
 };
 
@@ -25,12 +25,9 @@ pub(crate) async fn start_udp_listener(
     let udp_socket = Arc::new(UdpSocket::bind(wg_address).await?);
 
     // Setup some static keys for development
-    let (static_private, peer_static_public) = crate::setup::init_static_dev_keys();
-
-    // The hardcoded peer is has 0.0.0.0/0 as its AllowedIPs
-    let key = IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0));
-    let cidr = 0;
-    let peer_allowed_ip = ip_network::IpNetwork::new_truncate(key, cidr as u8).unwrap();
+    let static_private = setup::server_static_private_key();
+    let peer_static_public = setup::peer_static_public_key();
+    let peer_allowed_ips = setup::peer_allowed_ips();
 
     tokio::spawn(async move {
         // Each tunnel is run in its own task, and the task handle is stored here so we can remove
@@ -78,15 +75,10 @@ pub(crate) async fn start_udp_listener(
                             udp_socket.clone(),
                             static_private.clone(),
                             peer_static_public,
-                            // allowed_ips,
                             tun_task_tx.clone(),
                         );
 
-                        peers_by_ip
-                            .lock()
-                            .unwrap()
-                            .ips
-                            .insert(peer_allowed_ip, peer_tx.clone());
+                        peers_by_ip.lock().unwrap().ips.insert(peer_allowed_ips, peer_tx.clone());
 
                         peer_tx.send(Event::WgPacket(buf[..len].to_vec().into()))
                             .tap_err(|err| log::error!("{err}"))

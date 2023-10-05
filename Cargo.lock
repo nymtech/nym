@@ -6335,6 +6335,32 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-credential-client-wasm"
+version = "1.2.0-rc.9"
+dependencies = [
+ "anyhow",
+ "futures",
+ "js-sys",
+ "nym-bandwidth-controller",
+ "nym-coconut-interface",
+ "nym-credentials",
+ "nym-crypto",
+ "nym-network-defaults",
+ "nym-validator-client",
+ "rand 0.7.3",
+ "serde",
+ "serde-wasm-bindgen",
+ "serde_json",
+ "thiserror",
+ "tsify",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "wasm-bindgen-test",
+ "wasm-client-core",
+ "wasm-utils",
+]
+
+[[package]]
 name = "nym-credential-storage"
 version = "0.1.0"
 dependencies = [

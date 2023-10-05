@@ -18,9 +18,11 @@ use nym_client_core::init::helpers::current_gateways;
 use nym_client_core::init::types::GatewaySetup;
 use nym_client_core::init::types::{GatewayDetails, GatewaySelectionSpecification};
 use nym_crypto::asymmetric::identity;
+use nym_sdk::mixnet::NymTopology;
 use nym_sphinx::addressing::clients::Recipient;
 use serde::Serialize;
 use std::fmt::Display;
+use std::path::PathBuf;
 use std::{fs, io};
 use tap::TapFallible;
 
@@ -62,9 +64,18 @@ pub(crate) struct Init {
     nyxd_urls: Option<Vec<url::Url>>,
 
     /// Comma separated list of rest endpoints of the API validators
-    #[arg(long, alias = "api_validators", value_delimiter = ',')]
+    #[arg(
+        long,
+        alias = "api_validators",
+        value_delimiter = ',',
+        group = "network"
+    )]
     // the alias here is included for backwards compatibility (1.1.4 and before)
     nym_apis: Option<Vec<url::Url>>,
+
+    /// Path to .json file containing custom network specification.
+    #[clap(long, group = "network", hide = true)]
+    custom_mixnet: Option<PathBuf>,
 
     /// Set this client to work in a enabled credentials mode that would attempt to use gateway
     /// with bandwidth credential requirement.
@@ -173,7 +184,15 @@ pub(crate) async fn execute(args: &Init) -> Result<(), NetworkRequesterError> {
     let details_store =
         OnDiskGatewayDetails::new(&config.storage_paths.common_paths.gateway_details);
 
-    let available_gateways = {
+    let available_gateways = if let Some(hardcoded_topology) = args
+        .custom_mixnet
+        .as_ref()
+        .map(NymTopology::new_from_file)
+        .transpose()?
+    {
+        // hardcoded_topology
+        hardcoded_topology.get_gateways()
+    } else {
         let mut rng = rand::thread_rng();
         current_gateways(&mut rng, &config.base.client.nym_api_urls).await?
     };

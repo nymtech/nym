@@ -26,9 +26,8 @@ jobs:
         with:
           toolchain: stable
 
-
       - name: Generate the schema
         run: make contract-schema
 
       - name: Check for diff
-        run: git diff --exit-code -- contracts/*/schema
+        run: git diff --exit-code -- contracts/**/schema

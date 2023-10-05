@@ -1,4 +1,4 @@
-use std::{net::SocketAddr, sync::Arc};
+use std::{net::{SocketAddr, IpAddr, Ipv4Addr}, sync::Arc};
 
 use futures::StreamExt;
 use log::error;
@@ -14,7 +14,7 @@ use crate::{
 
 const MAX_PACKET: usize = 65535;
 
-pub async fn start_udp_listener(
+pub(crate) async fn start_udp_listener(
     tun_task_tx: UnboundedSender<Vec<u8>>,
     active_peers: Arc<ActivePeers>,
     peers_by_ip: Arc<std::sync::Mutex<PeersByIp>>,
@@ -27,8 +27,8 @@ pub async fn start_udp_listener(
     // Setup some static keys for development
     let (static_private, peer_static_public) = crate::setup::init_static_dev_keys();
 
-    // let mut allowed_ips = AllowedIps::new();
-    let key = std::net::IpAddr::V4(std::net::Ipv4Addr::new(0, 0, 0, 0));
+    // The hardcoded peer is has 0.0.0.0/0 as its AllowedIPs
+    let key = IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0));
     let cidr = 0;
     let peer_allowed_ip = ip_network::IpNetwork::new_truncate(key, cidr as u8).unwrap();
 
@@ -50,6 +50,7 @@ pub async fn start_udp_listener(
                         Ok(addr) => {
                             log::info!("Removing peer: {addr:?}");
                             active_peers.remove(&addr);
+                            // TODO: remove from peer_allowed_ip
                         }
                         Err(err) => {
                             error!("WireGuard UDP listener: error receiving shutdown from peer: {err}");

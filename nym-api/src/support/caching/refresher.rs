@@ -21,6 +21,8 @@ pub trait CacheItemProvider {
     type Item;
     type Error: std::error::Error;
 
+    async fn wait_until_ready(&self) {}
+
     async fn try_refresh(&self) -> Result<Self::Item, Self::Error>;
 }
 
@@ -110,6 +112,8 @@ where
     }
 
     pub async fn run(&self, mut task_client: TaskClient) {
+        self.provider.wait_until_ready().await;
+        
         let mut refresh_interval = interval(self.refreshing_interval);
         while !task_client.is_shutdown() {
             tokio::select! {

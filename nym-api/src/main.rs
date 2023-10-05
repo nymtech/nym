@@ -102,6 +102,7 @@ async fn start_nym_api_tasks(
     // let cache = refresher.get_shared_cache();
     node_describe_cache::new_refresher_with_initial_value(
         &config.topology_cacher,
+        nym_contract_cache_state.clone(),
         described_nodes_state.to_owned(),
     )
     .named("node-self-described-data-refresher")

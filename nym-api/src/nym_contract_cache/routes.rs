@@ -49,7 +49,7 @@ pub async fn get_gateways(cache: &State<NymContractCache>) -> Json<Vec<GatewayBo
 #[openapi(tag = "contract-cache")]
 #[get("/mixnodes/rewarded")]
 pub async fn get_rewarded_set(cache: &State<NymContractCache>) -> Json<Vec<MixNodeDetails>> {
-    Json(cache.rewarded_set().await.value)
+    Json(cache.rewarded_set().await.clone())
 }
 
 // DEPRECATED: this endpoint now lives in `node_status_api`. Once all consumers are updated,
@@ -70,7 +70,7 @@ pub async fn get_rewarded_set_detailed(
 #[openapi(tag = "contract-cache")]
 #[get("/mixnodes/active")]
 pub async fn get_active_set(cache: &State<NymContractCache>) -> Json<Vec<MixNodeDetails>> {
-    Json(cache.active_set().await.value)
+    Json(cache.active_set().await.clone())
 }
 
 // DEPRECATED: this endpoint now lives in `node_status_api`. Once all consumers are updated,
@@ -93,7 +93,7 @@ pub async fn get_active_set_detailed(
 pub async fn get_blacklisted_mixnodes(
     cache: &State<NymContractCache>,
 ) -> Json<Option<HashSet<MixId>>> {
-    let blacklist = cache.mixnodes_blacklist().await.value;
+    let blacklist = cache.mixnodes_blacklist().await.clone();
     if blacklist.is_empty() {
         Json(None)
     } else {
@@ -106,7 +106,7 @@ pub async fn get_blacklisted_mixnodes(
 pub async fn get_blacklisted_gateways(
     cache: &State<NymContractCache>,
 ) -> Json<Option<HashSet<String>>> {
-    let blacklist = cache.gateways_blacklist().await.value;
+    let blacklist = cache.gateways_blacklist().await.clone();
     if blacklist.is_empty() {
         Json(None)
     } else {
@@ -119,25 +119,25 @@ pub async fn get_blacklisted_gateways(
 pub async fn get_interval_reward_params(
     cache: &State<NymContractCache>,
 ) -> Json<Option<RewardingParams>> {
-    Json(cache.interval_reward_params().await.value)
+    Json(cache.interval_reward_params().await.clone())
 }
 
 #[openapi(tag = "contract-cache")]
 #[get("/epoch/current")]
 pub async fn get_current_epoch(cache: &State<NymContractCache>) -> Json<Option<Interval>> {
-    Json(cache.current_interval().await.value)
+    Json(cache.current_interval().await.clone())
 }
 
 #[openapi(tag = "contract-cache")]
 #[get("/services")]
 pub async fn get_services(cache: &State<NymContractCache>) -> Json<ServicesListResponse> {
-    let services = cache.services().await.value;
+    let services = cache.services().await.clone();
     Json(services.as_slice().into())
 }
 
 #[openapi(tag = "contract-cache")]
 #[get("/names")]
 pub async fn get_registered_names(cache: &State<NymContractCache>) -> Json<NamesListResponse> {
-    let names = cache.names().await.value;
+    let names = cache.names().await.clone();
     Json(names.as_slice().into())
 }

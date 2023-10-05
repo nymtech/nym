@@ -34,7 +34,7 @@ impl<T> SharedCache<T> {
     pub(crate) async fn update(&self, value: T) {
         let mut guard = self.0.write().await;
         if let Some(ref mut existing) = guard.inner {
-            existing.update(value)
+            existing.unchecked_update(value)
         } else {
             guard.inner = Some(Cache::new(value))
         }
@@ -78,20 +78,35 @@ impl<T> From<Cache<T>> for CachedItem<T> {
     }
 }
 
+// don't use this directly!
+// opt for SharedCache<T> instead
 pub struct Cache<T> {
     value: T,
     as_at: i64,
 }
 
 impl<T> Cache<T> {
-    fn new(value: T) -> Self {
+    // ugh. I hate to expose it, but it'd have broken pre-existing code
+    pub(crate) fn new(value: T) -> Self {
         Cache {
             value,
             as_at: current_unix_timestamp(),
         }
     }
 
-    fn update(&mut self, value: T) {
+    // ugh. I hate to expose it, but it'd have broken pre-existing code
+    pub(crate) fn clone_cache(&self) -> Self
+    where
+        T: Clone,
+    {
+        Cache {
+            value: self.value.clone(),
+            as_at: self.as_at,
+        }
+    }
+
+    // ugh. I hate to expose it, but it'd have broken pre-existing code
+    pub(crate) fn unchecked_update(&mut self, value: T) {
         self.value = value;
         self.as_at = current_unix_timestamp()
     }

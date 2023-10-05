@@ -70,7 +70,7 @@ pub(crate) async fn start_udp_listener(
                         // TODO: rework this before production! This is likely not secure!
                         log::warn!("Assuming peer_static_public is known");
                         log::warn!("SECURITY: Rework me to do proper handshake before creating the tunnel!");
-                        let (join_handle, peer_tx) = crate::tun::start_wg_tunnel(
+                        let (join_handle, peer_tx) = crate::wg_tunnel::start_wg_tunnel(
                             addr,
                             udp_socket.clone(),
                             static_private.clone(),

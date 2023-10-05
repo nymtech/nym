@@ -6,7 +6,7 @@ mod error;
 mod event;
 mod platform;
 mod setup;
-mod tun;
+mod wg_tunnel;
 mod udp_listener;
 
 // Currently the module related to setting up the virtual network device is platform specific.

@@ -73,7 +73,7 @@ export default function Mixnodes() {
     const cosmWasmClient = await SigningCosmWasmClient.connect("wss://rpc.nymtech.net:443");
     const client = new contracts.Mixnet.MixnetQueryClient(
       cosmWasmClient,
-      "n17srjznxl9dvzdkpwpw24gg668wc73val88a6m5ajg6ankwvz9wtst0cznr" // the contract address (which is different on mainnet, QA, etc)
+      "n17srjznxl9dvzdkpwpw24gg668wc73val88a6m5ajg6ankwvz9wtst0cznr" // the mainnet mixnet contract address (which will be different on mainnet, QA, etc)
     );
     const result = await client.getMixNodesDetailed({});
     setMixnodes(result.nodes)

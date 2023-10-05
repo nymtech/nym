@@ -30,10 +30,10 @@ export const ConnectWallet = ({
     return (
       <Paper style={{ marginTop: '1rem', padding: '1rem' }}>
         <Typography variant="h5" textAlign="center">
-          Connect to your account
+          Connect to your testnet account
         </Typography>
         <Box padding={3}>
-          <Typography variant="h6">Your account</Typography>
+          <Typography variant="h6">Your testnet account:</Typography>
           <Box marginY={3}>
             <Typography variant="body1" marginBottom={3}>
               Enter the mnemonic

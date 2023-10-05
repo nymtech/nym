@@ -1,20 +1,18 @@
+#![cfg_attr(not(target_os = "linux"), allow(dead_code))]
+
 use nym_task::TaskClient;
 
-pub use error::WgError;
-
 mod error;
-#[cfg(target_os = "linux")]
 mod event;
-#[cfg(target_os = "linux")]
+mod platform;
 mod setup;
-#[cfg(target_os = "linux")]
 mod tun;
-#[cfg(target_os = "linux")]
-mod tun_device;
-#[cfg(target_os = "linux")]
 mod udp_listener;
 
+// Currently the module related to setting up the virtual network device is platform specific.
 #[cfg(target_os = "linux")]
+use platform::linux::tun_device;
+
 type ActivePeers =
     dashmap::DashMap<std::net::SocketAddr, tokio::sync::mpsc::UnboundedSender<crate::event::Event>>;
 

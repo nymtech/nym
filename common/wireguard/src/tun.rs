@@ -15,7 +15,7 @@ use tokio::{
     time::timeout,
 };
 
-use crate::{event::Event, WgError};
+use crate::{error::WgError, event::Event};
 
 const MAX_PACKET: usize = 65535;
 

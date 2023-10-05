@@ -46,74 +46,78 @@ By pasting the below code example, you should be able to send and receive messag
 
 
 ```ts
+import "./App.css";
 import { useEffect, useState } from "react";
 import {
   createNymMixnetClient,
   NymMixnetClient,
   Payload,
 } from "@nymproject/sdk-full-fat";
-
+ 
 const nymApiUrl = "https://validator.nymtech.net/api";
-
+ 
 export function MixnetClient() {
   const [nym, setNym] = useState<NymMixnetClient>();
   const [selfAddress, setSelfAddress] = useState<string>();
   const [recipient, setRecipient] = useState<string>();
   const [payload, setPayload] = useState<Payload>();
   const [receivedMessage, setReceivedMessage] = useState<string>();
-
+ 
   const init = async () => {
-    const nym = await createNymMixnetClient();
-    setNym(nym);
-
+    const client = await createNymMixnetClient();
+    setNym(client);
+ 
     // start the client and connect to a gateway
-    await nym?.client.start({
+    await client?.client.start({
       clientId: crypto.randomUUID(),
       nymApiUrl,
     });
-
+ 
     // check when is connected and set the self address
-    nym?.events.subscribeToConnected((e) => {
+    client?.events.subscribeToConnected((e) => {
       const { address } = e.args;
       setSelfAddress(address);
     });
-
+ 
     // show whether the client is ready or not
-    nym?.events.subscribeToLoaded((e) => {
+    client?.events.subscribeToLoaded((e) => {
       console.log("Client ready: ", e.args);
     });
 
     // show message payload content when received
-    nym?.events.subscribeToTextMessageReceivedEvent((e) => {
+    client?.events.subscribeToTextMessageReceivedEvent((e) => {
       console.log(e.args.payload);
       setReceivedMessage(e.args.payload);
     });
   };
 
-  const send = () => {
-    if (!nym || !payload || !recipient) return
-    nym.client.send({ payload, recipient });
-  }
 
+  const stop = async () => {
+    await nym?.client.stop();
+  };
+
+  const send = () => nym.client.send({ payload, recipient });
+ 
   useEffect(() => {
     init();
     return () => {
-        nym?.client.stop();
-    }
+      stop();
+    };
   }, []);
+ 
+  if (!nym) return <div>Waiting for the mixnet client...</div>;
+ 
+  if (!selfAddress) return <div>Connecting...</div>;
 
-  if (!nym) return <div>waiting for the mixnet client...</div>;
-
-  if (!selfAddress) return <div>connecting...</div>;
-
+ 
   return (
     <div>
-      <h1>Send messages through the Mixnet</h1>
+      <h1>Send messages through the Nym mixnet</h1>
       <p style={{ border: "1px solid black" }}>
         My self address is: {selfAddress ? selfAddress : "loading"}
       </p>
       <div style={{ border: "1px solid black" }}>
-        <label>Recipient Address</label>
+        <label>Recipient Address: </label>
         <input
           type="text"
           onChange={(e) => setRecipient(e.target.value)}
@@ -130,7 +134,7 @@ export function MixnetClient() {
     </div>
   );
 };
-
+ 
 export default function App () {
   return (
     <>
@@ -138,6 +142,7 @@ export default function App () {
     </>
   )
 }
+
 ```
 
 

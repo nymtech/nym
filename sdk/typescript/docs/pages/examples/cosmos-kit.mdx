@@ -68,7 +68,7 @@ import { wallets as ledger } from '@cosmos-kit/ledger';
 import { wallets as keplr } from '@cosmos-kit/keplr';
 import { AminoMsg, makeSignDoc } from '@cosmjs/amino';
 import { MsgSend } from 'cosmjs-types/cosmos/bank/v1beta1/tx';
-
+ 
 export const getDoc = (address: string) => {
   const chainId = 'nyx';
   const msg: AminoMsg = {
@@ -89,35 +89,43 @@ export const getDoc = (address: string) => {
   const doc = makeSignDoc([msg], fee, chainId, memo, accountNumber, sequence);
   return doc
 };
-
+ 
 function MyComponent() {
-  const {wallet, address, connect, getOfflineSignerAmino } =
+  const {wallet, address, connect, disconnect, getOfflineSignerAmino } =
   useChain('nyx');
-
+ 
   React.useEffect(() => {
     connect();
+    disconnect();
   }, []);
-
+ 
   const sign = async () => {
     if (!address) return
     const doc = getDoc(address);
     return getOfflineSignerAmino().signAmino(address, doc);
   };
-
+ 
   return (
     <div>
       <div>
         <strong>Connected to {wallet?.prettyName}</strong>
       </div>
       <div>
-        { wallet && <div>Address: <code>{address}</code> </div>}
+        {wallet && <div>Address: <code>{address}</code></div>}
       </div>
-      <button onClick={() => {connect()}}>Connect wallet</button>
+      {wallet ? (
+        <div>
+          <button onClick={() => disconnect()}>Disconnect wallet</button>
+        </div>
+      ) : (
+        <div>
+          <button onClick={() => connect()}>Connect wallet</button>
+        </div>
+      )}
     </div>
-
   );
 }
-
+ 
 export default function App() {
     const assetsFixedUp = React.useMemo(() => {
     const nyx = assets.find((a) => a.chain_name === 'nyx');
@@ -130,7 +138,7 @@ export default function App() {
     }
     return assets;
   }, [assets]);
-
+ 
   return (
      <ChainProvider
       chains={[chains.find((c) => c.chain_id === 'nyx')!]}
@@ -140,11 +148,11 @@ export default function App() {
         preferredSignType: () => 'amino',
       }}
     >
-
+ 
         <MyComponent/>
     </ChainProvider>
-
+ 
   )
 }
-
+ 
 ```

@@ -47,7 +47,7 @@ pub(crate) async fn start_udp_listener(
                         Ok(addr) => {
                             log::info!("Removing peer: {addr:?}");
                             active_peers.remove(&addr);
-                            // TODO: remove from peer_allowed_ip
+                            // TODO: remove from peers_by_ip
                         }
                         Err(err) => {
                             error!("WireGuard UDP listener: error receiving shutdown from peer: {err}");
@@ -75,6 +75,7 @@ pub(crate) async fn start_udp_listener(
                             udp_socket.clone(),
                             static_private.clone(),
                             peer_static_public,
+                            peer_allowed_ips,
                             tun_task_tx.clone(),
                         );
 

@@ -6,7 +6,6 @@ use boringtun::{
     x25519,
 };
 use bytes::Bytes;
-use etherparse::{InternetSlice, SlicedPacket};
 use log::{debug, error, info, warn};
 use tap::TapFallible;
 use tokio::{
@@ -15,7 +14,7 @@ use tokio::{
     time::timeout,
 };
 
-use crate::{error::WgError, event::Event};
+use crate::{error::WgError, event::Event, AllowedIps};
 
 const MAX_PACKET: usize = 65535;
 
@@ -28,6 +27,9 @@ pub struct WireGuardTunnel {
 
     // Peer endpoint
     endpoint: Arc<tokio::sync::RwLock<SocketAddr>>,
+
+    // AllowedIPs for this peer
+    allowed_ips: AllowedIps<()>,
 
     // `boringtun` tunnel, used for crypto & WG protocol
     wg_tunnel: Arc<tokio::sync::Mutex<Tunn>>,
@@ -53,6 +55,7 @@ impl WireGuardTunnel {
         endpoint: SocketAddr,
         static_private: x25519::StaticSecret,
         peer_static_public: x25519::PublicKey,
+        peer_allowed_ips: ip_network::IpNetwork,
         tunnel_tx: mpsc::UnboundedSender<Vec<u8>>,
     ) -> (Self, mpsc::UnboundedSender<Event>) {
         let local_addr = udp.local_addr().unwrap();
@@ -82,10 +85,14 @@ impl WireGuardTunnel {
         // Signal close tunnel
         let (close_tx, close_rx) = broadcast::channel(1);
 
+        let mut allowed_ips = AllowedIps::new();
+        allowed_ips.ips.insert(peer_allowed_ips, ());
+
         let tunnel = WireGuardTunnel {
             peer_rx,
             udp,
             endpoint: Arc::new(tokio::sync::RwLock::new(endpoint)),
+            allowed_ips,
             wg_tunnel,
             close_tx,
             close_rx,
@@ -139,18 +146,13 @@ impl WireGuardTunnel {
             .map_err(|_| WgError::UnableToGetTunnel)
     }
 
-    //fn set_endpoint(&self, addr: std::net::Ipv4Addr) {
-    //    let to_update = {
-    //        let stored_source_addr = self.endpoint.read().unwrap();
-    //        stored_source_addr
-    //            .map(|sa| sa != source_addr)
-    //            .unwrap_or(true)
-    //    };
-    //    if to_update {
-    //        log::info!("wg tunnel set_source_addr: {source_addr}");
-    //        *self.source_addr.write().unwrap() = Some(source_addr);
-    //    }
-    //}
+    #[allow(unused)]
+    async fn set_endpoint(&self, addr: SocketAddr) {
+        if *self.endpoint.read().await != addr {
+            log::info!("wg tunnel update endpoint: {addr}");
+            *self.endpoint.write().await = addr;
+        }
+    }
 
     async fn consume_wg(&mut self, data: &[u8]) -> Result<(), WgError> {
         let mut send_buf = [0u8; MAX_PACKET];
@@ -179,15 +181,23 @@ impl WireGuardTunnel {
                     }
                 }
             }
-            TunnResult::WriteToTunnelV4(packet, _) | TunnResult::WriteToTunnelV6(packet, _) => {
-                let headers = SlicedPacket::from_ip(packet).unwrap();
-                let (_source_addr, _destination_addr) = match headers.ip.unwrap() {
-                    InternetSlice::Ipv4(ip, _) => (ip.source_addr(), ip.destination_addr()),
-                    InternetSlice::Ipv6(_, _) => unimplemented!(),
-                };
-                // TODO: enable this
-                // self.set_endpoint(source_addr);
-                self.tun_task_tx.send(packet.to_vec()).unwrap();
+            TunnResult::WriteToTunnelV4(packet, addr) => {
+                // TODO: once the flow is redone, we should add updating the endpoint dynamically
+                // self.set_endpoint(addr);
+                if self.allowed_ips.ips.longest_match_ipv4(addr).is_some() {
+                    self.tun_task_tx.send(packet.to_vec()).unwrap();
+                } else {
+                    warn!("Packet from {addr} not in allowed_ips");
+                }
+            }
+            TunnResult::WriteToTunnelV6(packet, addr) => {
+                // TODO: once the flow is redone, we should add updating the endpoint dynamically
+                // self.set_endpoint(addr);
+                if self.allowed_ips.ips.longest_match_ipv6(addr).is_some() {
+                    self.tun_task_tx.send(packet.to_vec()).unwrap();
+                } else {
+                    warn!("Packet (v6) from {addr} not in allowed_ips");
+                }
             }
             TunnResult::Done => {
                 debug!("WireGuard: decapsulate done");
@@ -277,13 +287,20 @@ pub fn start_wg_tunnel(
     udp: Arc<UdpSocket>,
     static_private: x25519::StaticSecret,
     peer_static_public: x25519::PublicKey,
+    peer_allowed_ips: ip_network::IpNetwork,
     tunnel_tx: mpsc::UnboundedSender<Vec<u8>>,
 ) -> (
     tokio::task::JoinHandle<SocketAddr>,
     mpsc::UnboundedSender<Event>,
 ) {
-    let (mut tunnel, peer_tx) =
-        WireGuardTunnel::new(udp, endpoint, static_private, peer_static_public, tunnel_tx);
+    let (mut tunnel, peer_tx) = WireGuardTunnel::new(
+        udp,
+        endpoint,
+        static_private,
+        peer_static_public,
+        peer_allowed_ips,
+        tunnel_tx,
+    );
     let join_handle = tokio::spawn(async move {
         tunnel.spin_off().await;
         endpoint

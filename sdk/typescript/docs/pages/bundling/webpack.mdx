@@ -1,9 +1,10 @@
+import { Callout } from 'nextra/components';
 
 # Troubleshooting bundling with Webpack
 
 ## Webpack > 5 ESM
 
-You´ll need the following rule in your `webpack.config.js` above version 5:
+For any project using Webpack, you´ll need the following rule in your `webpack.config.js` above version 5:
 ```json
 {
         test: /\.(m?js)$/,
@@ -15,20 +16,30 @@ You´ll need the following rule in your `webpack.config.js` above version 5:
 
 ### Create-react-app
 
-Create-react-app doesn´t allow you access to the Webpack config without ejecting, which you override as follows:
+#### General cases
+
+If you wish to use Webpack for your app with the code provided in the step-by-step examples section, you'll need to:
 
 ```bash
 npx create-react-app nymapp --template typescript
 cd nymapp
 ```
+You'll then need to install the needed dependencies, head to your app's `App.tsx` file and paste the code provided in the step-by-step section. 
 
-#### Install contract-clients dependencies
+#### Contract client
 
+<Callout type="info" emoji="ℹ️">
+    Using webpack, the `Contract client` for querying or executing might need polyfills. As create-react-app doesn´t allow you access to the Webpack config without ejecting, you'll overwrite it as follow:
+</Callout>
+
+##### Install contract-clients dependencies
 ```bash
 npm install @nymproject/contract-clients @cosmjs/cosmwasm-stargate @cosmjs/proto-signing 
 ```
 
-#### Polyfilling
+Head to you app's `App.tsx` file and replace the code by the one provided in the step-by-step examples section.
+
+##### Polyfilling
 
 Copy the following to your terminal and run:
 

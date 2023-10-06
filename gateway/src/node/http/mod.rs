@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use axum::{
     routing::{get, post},
@@ -11,13 +11,14 @@ use tokio::sync::RwLock;
 mod api;
 use api::v1::client_registry::*;
 
-use super::ClientRegistry;
+use super::{ClientPublicKey, ClientRegistry};
 
 const ROUTE_PREFIX: &str = "/api/v1/gateway/client-interfaces/wireguard";
 
 pub struct ApiState {
     client_registry: Arc<RwLock<ClientRegistry>>,
     sphinx_key_pair: Arc<encryption::KeyPair>,
+    registration_in_progress: Arc<RwLock<HashMap<ClientPublicKey, u64>>>,
 }
 
 pub(crate) async fn start_http_api(
@@ -34,6 +35,7 @@ pub(crate) async fn start_http_api(
     let state = Arc::new(ApiState {
         client_registry,
         sphinx_key_pair,
+        registration_in_progress: Arc::new(RwLock::new(HashMap::new())),
     });
 
     let routes = Router::new()

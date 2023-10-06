@@ -794,6 +794,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "axum-macros"
+version = "0.3.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cdca6a10ecad987bda04e95606ef85a5417dcaac1a78455242d72e031e2b6b62"
+dependencies = [
+ "heck 0.4.1",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.28",
+]
+
+[[package]]
 name = "backtrace"
 version = "0.3.68"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6468,6 +6480,7 @@ dependencies = [
  "async-trait",
  "atty",
  "axum",
+ "axum-macros",
  "base64 0.21.4",
  "bip39",
  "bs58 0.4.0",
@@ -6476,6 +6489,7 @@ dependencies = [
  "dashmap",
  "dirs 4.0.0",
  "dotenvy",
+ "fastrand 2.0.0",
  "futures",
  "hmac 0.12.1",
  "humantime-serde",

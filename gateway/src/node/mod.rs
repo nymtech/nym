@@ -35,6 +35,8 @@ use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 use std::collections::HashMap;
 use std::error::Error;
+use std::fmt;
+use std::hash::{Hash, Hasher};
 use std::net::SocketAddr;
 use std::ops::Deref;
 use std::path::PathBuf;
@@ -86,6 +88,18 @@ pub struct LocalNetworkRequesterOpts {
     custom_mixnet_path: Option<PathBuf>,
 }
 
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(untagged)]
+pub(crate) enum ClientMessage {
+    Init(InitMessage),
+    Final(Client),
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub(crate) struct InitMessage {
+    pub_key: ClientPublicKey,
+}
+
 // Client that wants to register sends its PublicKey and SocketAddr bytes mac digest encrypted with a DH shared secret.
 // Gateway can then verify pub_key payload using the sme process
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -93,6 +107,8 @@ pub(crate) struct Client {
     // base64 encoded public key, using x25519-dalek for impl
     pub_key: ClientPublicKey,
     socket: SocketAddr,
+    #[serde(skip_serializing)]
+    nonce: u64,
     mac: ClientMac,
 }
 
@@ -110,6 +126,7 @@ impl Client {
         mac.update(self.pub_key.as_bytes());
         mac.update(self.socket.ip().to_string().as_bytes());
         mac.update(self.socket.port().to_string().as_bytes());
+        mac.update(&self.nonce.to_le_bytes());
         Ok(mac.verify_slice(&*self.mac)?)
     }
 }
@@ -125,6 +142,18 @@ impl Deref for ClientMac {
 
     fn deref(&self) -> &Self::Target {
         &self.0
+    }
+}
+
+impl fmt::Display for ClientPublicKey {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", general_purpose::STANDARD.encode(self.0.as_bytes()))
+    }
+}
+
+impl Hash for ClientPublicKey {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.0.as_bytes().hash(state)
     }
 }
 

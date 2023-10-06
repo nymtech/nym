@@ -57,7 +57,7 @@ impl ShutdownManager {
             .map(|(i, h)| (i + 1, h))
         {
             match handle.await.unwrap() {
-                Ok(_) => info!("Task {i} finished successfully"),
+                Ok(()) => info!("Task {i} finished successfully"),
                 Err(e) => info!("Task {i} finished with error: {e}",),
             }
         }

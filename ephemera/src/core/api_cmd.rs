@@ -132,7 +132,7 @@ impl ApiCmdProcessor {
             .send_ephemera_event(EphemeraEvent::StoreInDht { key, value })
             .await
         {
-            Ok(_) => Ok(()),
+            Ok(()) => Ok(()),
             Err(err) => {
                 error!("Error sending StoreInDht to network: {:?}", err);
                 Err(ApiError::Internal("Failed to store in DHT".to_string()))
@@ -153,7 +153,7 @@ impl ApiCmdProcessor {
             .send_ephemera_event(EphemeraEvent::QueryDht { key: key.clone() })
             .await
         {
-            Ok(_) => {
+            Ok(()) => {
                 //Save the reply channel in a map and send the reply when we get the response from the network
                 ephemera
                     .api_cmd_processor
@@ -278,7 +278,7 @@ impl ApiCmdProcessor {
                 // Send to BlockManager to verify it and put into memory pool
                 let ephemera_msg: message::EphemeraMessage = (*api_msg).into();
                 match ephemera.block_manager.on_new_message(ephemera_msg.clone()) {
-                    Ok(_) => {
+                    Ok(()) => {
                         //Gossip to network for other nodes to receive
                         match ephemera
                             .to_network
@@ -287,7 +287,7 @@ impl ApiCmdProcessor {
                             ))
                             .await
                         {
-                            Ok(_) => Ok(()),
+                            Ok(()) => Ok(()),
                             Err(err) => {
                                 error!("Error sending EphemeraMessage to network: {:?}", err);
                                 Err(ApiError::Internal("Failed to submit message".to_string()))

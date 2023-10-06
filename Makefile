@@ -46,20 +46,8 @@ clippy:
 # -----------------------------------------------------------------------------
 define add_cargo_workspace
 
-clippy-$(1):
-	cargo $$($(1)_CLIPPY_TOOLCHAIN) clippy --manifest-path $(2)/Cargo.toml --workspace $(3) -- -D warnings
-
-clippy-extra-$(1):
-	cargo $$($(1)_CLIPPY_TOOLCHAIN) clippy --manifest-path $(2)/Cargo.toml --workspace --examples --tests -- -D warnings
-
 check-$(1):
 	cargo check --manifest-path $(2)/Cargo.toml --workspace $(3)
-
-test-$(1):
-	cargo test --manifest-path $(2)/Cargo.toml --workspace
-
-test-expensive-$(1):
-	cargo test --manifest-path $(2)/Cargo.toml --workspace -- --ignored
 
 build-$(1):
 	cargo build --manifest-path $(2)/Cargo.toml --workspace $(3)
@@ -70,15 +58,27 @@ build-extra-$(1):
 build-release-$(1):
 	$(4) cargo $$($(1)_BUILD_RELEASE_TOOLCHAIN) build --manifest-path $(2)/Cargo.toml --workspace --release $(3)
 
+test-$(1):
+	cargo test --manifest-path $(2)/Cargo.toml --workspace
+
+test-expensive-$(1):
+	cargo test --manifest-path $(2)/Cargo.toml --workspace -- --ignored
+
+clippy-$(1):
+	cargo $$($(1)_CLIPPY_TOOLCHAIN) clippy --manifest-path $(2)/Cargo.toml --workspace $(3) -- -D warnings
+
+clippy-extra-$(1):
+	cargo $$($(1)_CLIPPY_TOOLCHAIN) clippy --manifest-path $(2)/Cargo.toml --workspace --examples --tests -- -D warnings
+
 fmt-$(1):
 	cargo fmt --manifest-path $(2)/Cargo.toml --all
 
-clippy: clippy-$(1) clippy-extra-$(1)
 check: check-$(1)
-cargo-test: test-$(1)
-cargo-test-expensive: test-expensive-$(1)
 build: build-$(1) build-extra-$(1)
 build-release-all: build-release-$(1)
+cargo-test: test-$(1)
+cargo-test-expensive: test-expensive-$(1)
+clippy: clippy-$(1) clippy-extra-$(1)
 fmt: fmt-$(1)
 endef
 
@@ -92,10 +92,6 @@ $(eval $(call add_cargo_workspace,main,.))
 $(eval $(call add_cargo_workspace,contracts,contracts,--lib --target wasm32-unknown-unknown,RUSTFLAGS='-C link-arg=-s'))
 $(eval $(call add_cargo_workspace,wallet,nym-wallet))
 $(eval $(call add_cargo_workspace,connect,nym-connect/desktop))
-
-# OVERRIDE: there is an issue where clippy crashes on nym-wallet-types with the latest
-# stable toolchain. So pin to 1.71.0 until that is resolved.
-wallet_CLIPPY_TOOLCHAIN := +1.71.0
 
 # OVERRIDE: wasm-opt fails if the binary has been built with the latest rustc.
 # Pin to the last working version.

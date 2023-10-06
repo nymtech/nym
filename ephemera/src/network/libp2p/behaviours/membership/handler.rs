@@ -309,7 +309,7 @@ impl ConnectionHandler for Handler {
         match event {
             ConnectionEvent::FullyNegotiatedInbound(FullyNegotiatedInbound {
                 protocol: stream,
-                info: _,
+                info: (),
             }) => {
                 if self.inbound_substream_attempts > MAX_SUBSTREAM_ATTEMPTS {
                     log::warn!("Too many inbound substream attempts, refusing stream");
@@ -320,7 +320,7 @@ impl ConnectionHandler for Handler {
             }
             ConnectionEvent::FullyNegotiatedOutbound(FullyNegotiatedOutbound {
                 protocol,
-                info: _,
+                info: (),
             }) => {
                 if self.outbound_substream_attempts > MAX_SUBSTREAM_ATTEMPTS {
                     log::warn!("Too many outbound substream attempts, refusing stream");

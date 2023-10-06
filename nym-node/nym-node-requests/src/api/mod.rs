@@ -1,13 +1,11 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::api::v1::node::models::HostInformation;
 use crate::error::Error;
 use nym_crypto::asymmetric::identity;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::ops::Deref;
-
-#[cfg(feature = "openapi")]
-use crate::api::v1::node::models::HostInformation;
 
 #[cfg(feature = "client")]
 pub mod client;
@@ -16,7 +14,11 @@ pub mod v1;
 #[cfg(feature = "client")]
 pub use client::Client;
 
-#[derive(Debug, Clone, Serialize)]
+// create the type alias manually if openapi is not enabled
+#[cfg(not(feature = "openapi"))]
+pub type SignedHostInformation = SignedData<HostInformation>;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[cfg_attr(feature = "openapi", aliases(SignedHostInformation = SignedData<HostInformation>))]
 pub struct SignedData<T> {
@@ -47,6 +49,16 @@ impl<T> SignedData<T> {
         };
 
         key.verify(plaintext, &signature).is_ok()
+    }
+}
+
+impl SignedHostInformation {
+    pub fn verify_host_information(&self) -> bool {
+        let Ok(pub_key) = identity::PublicKey::from_base58_string(&self.keys.ed25519) else {
+            return false;
+        };
+        
+        self.verify(&pub_key)
     }
 }
 

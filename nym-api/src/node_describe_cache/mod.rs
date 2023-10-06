@@ -11,7 +11,6 @@ use nym_api_requests::models::NymNodeDescription;
 use nym_contracts_common::IdentityKey;
 use nym_mixnet_contract_common::Gateway;
 use nym_node_requests::api::client::{NymNodeApiClientError, NymNodeApiClientExt};
-use nym_node_requests::api::v1::gateway::models::WebSockets;
 use std::collections::HashMap;
 use thiserror::Error;
 
@@ -43,6 +42,10 @@ pub enum NodeDescribeCacheError {
         #[source]
         source: NymNodeApiClientError,
     },
+
+    // TODO: perhaps include more details here like whether key/signature/payload was malformed
+    #[error("could not verify signed host information for gateway '{gateway}'")]
+    MissignedHostInformation { gateway: IdentityKey },
 }
 
 pub struct NodeDescriptionProvider {
@@ -68,9 +71,9 @@ impl NodeDescriptionProvider {
     }
 }
 
-async fn get_gateway_websocket_support(
+async fn get_gateway_description(
     gateway: Gateway,
-) -> Result<(IdentityKey, WebSockets), NodeDescribeCacheError> {
+) -> Result<(IdentityKey, NymNodeDescription), NodeDescribeCacheError> {
     let client = match nym_node_requests::api::Client::new_url(&gateway.host, None) {
         Ok(client) => client,
         Err(err) => {
@@ -82,6 +85,21 @@ async fn get_gateway_websocket_support(
         }
     };
 
+    let host_info =
+        client
+            .get_host_information()
+            .await
+            .map_err(|err| NodeDescribeCacheError::ApiFailure {
+                gateway: gateway.identity_key.clone(),
+                source: err,
+            })?;
+
+    if !host_info.verify_host_information() {
+        return Err(NodeDescribeCacheError::MissignedHostInformation {
+            gateway: gateway.identity_key,
+        });
+    }
+
     let websockets =
         client
             .get_mixnet_websockets()
@@ -91,7 +109,12 @@ async fn get_gateway_websocket_support(
                 source: err,
             })?;
 
-    Ok((gateway.identity_key, websockets))
+    let description = NymNodeDescription {
+        host_information: host_info.data,
+        mixnet_websockets: websockets,
+    };
+
+    Ok((gateway.identity_key, description))
 }
 
 #[async_trait]
@@ -120,14 +143,12 @@ impl CacheItemProvider for NodeDescriptionProvider {
                 // .clone()
                 .into_iter()
                 .map(|bond| bond.gateway)
-                .map(get_gateway_websocket_support),
+                .map(get_gateway_description),
         )
         .buffer_unordered(self.batch_size)
         .filter_map(|res| async move {
             match res {
-                Ok((identity, mixnet_websockets)) => {
-                    Some((identity, NymNodeDescription { mixnet_websockets }))
-                }
+                Ok((identity, description)) => Some((identity, description)),
                 Err(err) => {
                     // TODO: reduce it to trace/debug before PR
                     warn!("{err}");

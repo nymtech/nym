@@ -10,6 +10,7 @@ use nym_mixnet_contract_common::{
     GatewayBond, IdentityKey, Interval, MixId, MixNode, Percent, RewardedSetNodeStatus,
 };
 use nym_node_requests::api::v1::gateway::models::WebSockets;
+use nym_node_requests::api::v1::node::models::HostInformation;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
@@ -357,6 +358,8 @@ pub struct CirculatingSupplyResponse {
 
 #[derive(Clone, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct NymNodeDescription {
+    pub host_information: HostInformation,
+
     // for now we only care about their ws/wss situation, nothing more
     pub mixnet_websockets: WebSockets,
 }

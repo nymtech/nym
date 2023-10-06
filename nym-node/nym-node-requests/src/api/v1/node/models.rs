@@ -4,7 +4,6 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-#[cfg(feature = "openapi")]
 pub use crate::api::SignedHostInformation;
 pub use nym_bin_common::build_information::BinaryBuildInformationOwned;
 

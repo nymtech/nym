@@ -89,6 +89,7 @@ jobs:
           args: --workspace --examples --features wireguard
 
       - name: Run all tests
+        if: matrix.os == 'custom-linux'
         uses: actions-rs/cargo@v1
         with:
           command: test

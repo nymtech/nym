@@ -19,9 +19,12 @@ pub trait NymNodeApiClientExt: ApiClient {
         self.get_json_from(routes::api::v1::host_info_absolute())
             .await
     }
-    
-    async fn get_build_information(&self) -> Result<BinaryBuildInformationOwned, NymNodeApiClientError> {
-        self.get_json_from(routes::api::v1::build_info_absolute()).await
+
+    async fn get_build_information(
+        &self,
+    ) -> Result<BinaryBuildInformationOwned, NymNodeApiClientError> {
+        self.get_json_from(routes::api::v1::build_info_absolute())
+            .await
     }
 
     // TODO: implement calls for other endpoints; for now I only care about the wss

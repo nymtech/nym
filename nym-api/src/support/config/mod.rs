@@ -53,7 +53,6 @@ const DEFAULT_CIRCULATING_SUPPLY_CACHE_INTERVAL: Duration = Duration::from_secs(
 pub(crate) const DEFAULT_NODE_DESCRIBE_CACHE_INTERVAL: Duration = Duration::from_secs(4500);
 pub(crate) const DEFAULT_NODE_DESCRIBE_BATCH_SIZE: usize = 50;
 
-
 const DEFAULT_MONITOR_THRESHOLD: u8 = 60;
 const DEFAULT_MIN_MIXNODE_RELIABILITY: u8 = 50;
 const DEFAULT_MIN_GATEWAY_RELIABILITY: u8 = 20;
@@ -459,7 +458,7 @@ pub struct TopologyCacherDebug {
 
     #[serde(with = "humantime_serde")]
     pub node_describe_caching_interval: Duration,
-    
+
     pub node_describe_batch_size: usize,
 }
 

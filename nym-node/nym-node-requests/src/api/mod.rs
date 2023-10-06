@@ -57,7 +57,7 @@ impl SignedHostInformation {
         let Ok(pub_key) = identity::PublicKey::from_base58_string(&self.keys.ed25519) else {
             return false;
         };
-        
+
         self.verify(&pub_key)
     }
 }

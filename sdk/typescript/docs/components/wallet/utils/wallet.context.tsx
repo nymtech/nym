@@ -1,60 +1,8 @@
 import * as React from 'react';
-import { contracts } from '@nymproject/contract-clients';
-import { SigningCosmWasmClient } from '@cosmjs/cosmwasm-stargate';
-import { DirectSecp256k1HdWallet } from '@cosmjs/proto-signing';
-import { Coin, GasPrice } from '@cosmjs/stargate';
-import { settings } from '../client';
+import { Coin } from '@cosmjs/stargate';
+import { settings } from '../../client';
+import { signerAccount, fetchSignerCosmosWasmClient, fetchSignerClient } from './wallet.methods';
 
-const signerAccount = async (mnemonic: string) => {
-  // create a wallet to sign transactions with the mnemonic
-  const signer = await DirectSecp256k1HdWallet.fromMnemonic(mnemonic, {
-    prefix: 'n',
-  });
-
-  return signer;
-};
-
-const fetchSignerCosmosWasmClient = async (mnemonic: string) => {
-  const signer = await signerAccount(mnemonic);
-
-  // create a signing client we don't need to set the gas price conversion for queries
-  const cosmWasmClient = await SigningCosmWasmClient.connectWithSigner(settings.url, signer, {
-    gasPrice: GasPrice.fromString('0.025unym'),
-  });
-
-  return cosmWasmClient;
-};
-
-const fetchSignerClient = async (mnemonic) => {
-  const signer = await signerAccount(mnemonic);
-
-  // create a signing client we don't need to set the gas price conversion for queries
-  // if you want to connect without signer you'd write ".connect" and "url" as param
-  const cosmWasmClient = await SigningCosmWasmClient.connectWithSigner(settings.url, signer, {
-    gasPrice: GasPrice.fromString('0.025unym'),
-  });
-
-  /** create a mixnet contract client
-   * @param cosmWasmClient the client to use for signing and querying
-   * @param settings.address the bech32 address prefix (human readable part)
-   * @param settings.mixnetContractAddress the bech32 address prefix (human readable part)
-   * @returns the client in MixnetClient form
-   */
-
-  const mixnetClient = new contracts.Mixnet.MixnetClient(
-    cosmWasmClient,
-    settings.address, // sender (that account of the signer)
-    settings.mixnetContractAddress, // contract address (different on mainnet, QA, etc)
-  );
-
-  return mixnetClient;
-};
-
-interface ApiState<RESPONSE> {
-  isLoading: boolean;
-  data?: RESPONSE;
-  error?: Error;
-}
 
 /**
  * This context provides the state for wallet.
@@ -75,6 +23,10 @@ interface WalletState {
   delegations?: any;
   unDelegateAll?: () => void;
   unDelegateAllLoading?: boolean;
+  doDelegate?: ({ mixId, amount }: { mixId: number; amount: number }) => void;
+  delegationLoader?: boolean;
+  withdrawLoading?: boolean;
+  withdrawRewards?: () => void;
 }
 
 export const WalletContext = React.createContext<WalletState>({
@@ -94,6 +46,7 @@ let nymWasmSignerClient;
 let account;
 
 export const WalletContextProvider = ({ children }: { children: JSX.Element }) => {
+
   const [accountLoading, setAccountLoading] = React.useState<boolean>(false);
   const [delegations, setDelegations] = React.useState<any>();
   const [clientsAreLoading, setClientsAreLoading] = React.useState<boolean>(false);
@@ -101,7 +54,9 @@ export const WalletContextProvider = ({ children }: { children: JSX.Element }) =
   const [balanceLoading, setBalanceLoading] = React.useState<boolean>(false);
   const [sendingTokensLoading, setSendingTokensLoading] = React.useState<boolean>(false);
   const [log, setLog] = React.useState<React.ReactNode[]>([]);
+  const [delegationLoader, setDelegationLoader] = React.useState<boolean>(false);
   const [unDelegateAllLoading, setUnDelegateAllLoading] = React.useState<boolean>(false);
+  const [withdrawLoading, setWithdrawLoading] = React.useState<boolean>(false);
 
   const Reset = () => {
     setAccountLoading(false);
@@ -188,7 +143,50 @@ export const WalletContextProvider = ({ children }: { children: JSX.Element }) =
     [account, cosmWasmSignerClient],
   );
 
-    const undelegateAll = async () => {
+  const doDelegate = async ({ mixId, amount }: { mixId: number; amount: number }) => {
+    if (!nymWasmSignerClient) {
+      return;
+    }
+    setDelegationLoader(true);
+    try {
+      const res = await nymWasmSignerClient.delegateToMixnode({ mixId }, 'auto', undefined, [
+        { amount: `${amount}`, denom: 'unym' },
+      ]);
+      console.log('res', res);
+      setLog((prev) => [
+        ...prev,
+        <div key={JSON.stringify(res, null, 2)}>
+          <code style={{ marginRight: '2rem' }}>{new Date().toLocaleTimeString()}</code>
+          <pre>{JSON.stringify(res, null, 2)}</pre>
+        </div>,
+      ]);
+    } catch (error) {
+      console.error(error);
+    }
+    setDelegationLoader(false);
+  };
+
+  const withdrawRewards = async () => {
+    const delegatorAddress = '';
+    const validatorAdress = '';
+    const memo = 'test withdraw rewards';
+    setWithdrawLoading(true);
+    try {
+      const res = await cosmWasmSignerClient.withdrawRewards(delegatorAddress, validatorAdress, 'auto', memo);
+      setLog((prev) => [
+        ...prev,
+        <div key={JSON.stringify(res, null, 2)}>
+          <code style={{ marginRight: '2rem' }}>{new Date().toLocaleTimeString()}</code>
+          <pre>{JSON.stringify(res, null, 2)}</pre>
+        </div>,
+      ]);
+    } catch (error) {
+      console.error(error);
+    }
+    setWithdrawLoading(false);
+  };
+
+  const undelegateAll = async () => {
     if (!nymWasmSignerClient) {
       return;
     }
@@ -237,6 +235,10 @@ export const WalletContextProvider = ({ children }: { children: JSX.Element }) =
       delegations,
       undelegateAll,
       unDelegateAllLoading,
+      doDelegate,
+      delegationLoader,
+      withdrawRewards,
+      withdrawLoading
     }),
     [
       accountLoading,
@@ -251,6 +253,10 @@ export const WalletContextProvider = ({ children }: { children: JSX.Element }) =
       delegations,
       undelegateAll,
       unDelegateAllLoading,
+      doDelegate,
+      delegationLoader,
+      withdrawRewards,
+      withdrawLoading
     ],
   );
 

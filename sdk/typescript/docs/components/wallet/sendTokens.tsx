@@ -4,7 +4,7 @@ import Paper from '@mui/material/Paper';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import TextField from '@mui/material/TextField';
-import { useWalletContext } from '../context/wallet';
+import { useWalletContext } from './utils/wallet.context';
 
 export const SendTokes = () => {
   const { sendingTokensLoading, sendTokens, log } = useWalletContext();

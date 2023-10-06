@@ -106,6 +106,16 @@ pub(crate) enum GatewayError {
         #[from]
         source: NyxdError,
     },
+    #[error("Error verifying hmac digest")]
+    HmacDigestError {
+        #[from]
+        source: hmac::digest::MacError,
+    },
+    #[error("Invalid hmac length")]
+    HmacInvalidLength {
+        #[from]
+        source: hmac::digest::InvalidLength,
+    },
 }
 
 impl From<ClientCoreError> for GatewayError {

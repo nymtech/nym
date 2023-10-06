@@ -16,8 +16,10 @@ rust-version = "1.56"
 
 [dependencies]
 axum = "0.6.20"
+sha2 = "0.10.8"
+hmac = "0.12.1"
 # axum-macros = "0.3.8" # Useful for debugging axum Handler trait errors
-x25519-dalek = "2.0.0"
+x25519-dalek = { version = "2.0.0", features = ["static_secrets"] }
 base64 = "0.21.4"
 anyhow = { workspace = true }
 async-trait = { workspace = true }

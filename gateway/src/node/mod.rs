@@ -19,7 +19,9 @@ use crate::node::storage::Storage;
 use anyhow::bail;
 use base64::{engine::general_purpose, Engine as _};
 use futures::channel::{mpsc, oneshot};
+use hmac::{Hmac, Mac};
 use log::*;
+use nym_crypto::asymmetric::encryption::PrivateKey;
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_mixnet_client::forwarder::{MixForwardingSender, PacketForwarder};
 use nym_network_defaults::NymNetworkDetails;
@@ -30,13 +32,16 @@ use nym_validator_client::{nyxd, DirectSigningHttpRpcNyxdClient};
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use serde::{Deserialize, Serialize};
+use sha2::Sha256;
 use std::collections::HashMap;
 use std::error::Error;
 use std::net::SocketAddr;
+use std::ops::Deref;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::Arc;
 use tokio::sync::RwLock;
+use x25519_dalek::StaticSecret;
 
 pub(crate) mod client_handling;
 pub(crate) mod helpers;
@@ -81,17 +86,82 @@ pub struct LocalNetworkRequesterOpts {
     custom_mixnet_path: Option<PathBuf>,
 }
 
-#[derive(Deserialize, Debug, Serialize, Clone)]
+// Client that wants to register sends its PublicKey and SocketAddr bytes mac digest encrypted with a DH shared secret.
+// Gateway can then verify pub_key payload using the sme process
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub(crate) struct Client {
     // base64 encoded public key, using x25519-dalek for impl
     pub_key: ClientPublicKey,
     socket: SocketAddr,
-    signature: String,
+    mac: ClientMac,
+}
+
+type HmacSha256 = Hmac<Sha256>;
+
+impl Client {
+    // Reusable secret should be gateways Wireguard PK
+    // Client should perform this step when generating its payload, using its own WG PK
+    fn verify(&self, gateway_key: &PrivateKey) -> Result<(), GatewayError> {
+        #[allow(clippy::expect_used)]
+        let static_secret =
+            StaticSecret::try_from(gateway_key.to_bytes()).expect("This is infalliable");
+        let dh = static_secret.diffie_hellman(&self.pub_key);
+        let mut mac = HmacSha256::new_from_slice(dh.as_bytes())?;
+        mac.update(self.pub_key.as_bytes());
+        mac.update(self.socket.ip().to_string().as_bytes());
+        mac.update(self.socket.port().to_string().as_bytes());
+        Ok(mac.verify_slice(&*self.mac)?)
+    }
 }
 
 // This should go into nym-wireguard crate
 #[derive(Debug, Clone, Eq, PartialEq)]
-struct ClientPublicKey(x25519_dalek::PublicKey);
+pub struct ClientPublicKey(x25519_dalek::PublicKey);
+#[derive(Debug, Clone)]
+struct ClientMac([u8; 64]);
+
+impl Deref for ClientMac {
+    type Target = [u8; 64];
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl FromStr for ClientMac {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let mac_bytes: [u8; 64] = general_purpose::STANDARD
+            .decode(s)
+            .map_err(|_| "Could not base64 decode public key mac representation".to_string())?
+            .try_into()
+            .map_err(|_| "Invalid key length".to_string())?;
+        Ok(ClientMac(mac_bytes))
+    }
+}
+
+impl Serialize for ClientMac {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let encoded_key = general_purpose::STANDARD.encode(self.0);
+        serializer.serialize_str(&encoded_key)
+    }
+}
+
+impl<'de> Deserialize<'de> for ClientMac {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let encoded_key = String::deserialize(deserializer)?;
+        ClientMac::from_str(&encoded_key).map_err(serde::de::Error::custom)
+    }
+}
+
+impl Deref for ClientPublicKey {
+    type Target = x25519_dalek::PublicKey;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
 
 impl FromStr for ClientPublicKey {
     type Err = String;
@@ -427,7 +497,11 @@ impl<St> Gateway<St> {
             bail!("{err}")
         }
 
-        tokio::spawn(start_http_api(Arc::clone(&self.client_registry)));
+        // This should likely be wireguard feature gated, but its easier to test if it hangs in here
+        tokio::spawn(start_http_api(
+            Arc::clone(&self.client_registry),
+            Arc::clone(&self.sphinx_keypair),
+        ));
 
         info!("Finished nym gateway startup procedure - it should now be able to receive mix and client traffic!");
 

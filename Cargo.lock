@@ -872,7 +872,7 @@ dependencies = [
  "pbkdf2",
  "rand_core 0.6.4",
  "ripemd",
- "sha2 0.10.7",
+ "sha2 0.10.8",
  "subtle 2.4.1",
  "zeroize",
 ]
@@ -1080,7 +1080,7 @@ version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f5353f36341f7451062466f0b755b96ac3a9547e4d7f6b70d603fc721a7d7896"
 dependencies = [
- "sha2 0.10.7",
+ "sha2 0.10.8",
 ]
 
 [[package]]
@@ -1743,7 +1743,7 @@ dependencies = [
  "schemars",
  "serde",
  "serde-json-wasm",
- "sha2 0.10.7",
+ "sha2 0.10.8",
  "thiserror",
 ]
 
@@ -4369,7 +4369,7 @@ dependencies = [
  "cfg-if",
  "ecdsa 0.14.8",
  "elliptic-curve 0.12.3",
- "sha2 0.10.7",
+ "sha2 0.10.8",
 ]
 
 [[package]]
@@ -4382,7 +4382,7 @@ dependencies = [
  "ecdsa 0.16.8",
  "elliptic-curve 0.13.5",
  "once_cell",
- "sha2 0.10.7",
+ "sha2 0.10.8",
  "signature 2.1.0",
 ]
 
@@ -4616,7 +4616,7 @@ dependencies = [
  "rand 0.8.5",
  "rw-stream-sink 0.3.0 (git+https://github.com/ChainSafe/rust-libp2p.git?rev=e3440d25681df380c9f0f8cfdcfd5ecc0a4f2fb6)",
  "sec1 0.3.0",
- "sha2 0.10.7",
+ "sha2 0.10.8",
  "smallvec",
  "thiserror",
  "unsigned-varint",
@@ -4702,7 +4702,7 @@ dependencies = [
  "prost-codec",
  "rand 0.8.5",
  "regex",
- "sha2 0.10.7",
+ "sha2 0.10.8",
  "smallvec",
  "thiserror",
  "unsigned-varint",
@@ -4734,7 +4734,7 @@ dependencies = [
  "rand 0.8.5",
  "regex",
  "serde",
- "sha2 0.10.7",
+ "sha2 0.10.8",
  "smallvec",
  "thiserror",
  "unsigned-varint",
@@ -4777,7 +4777,7 @@ dependencies = [
  "quick-protobuf",
  "rand 0.8.5",
  "serde",
- "sha2 0.10.7",
+ "sha2 0.10.8",
  "thiserror",
  "zeroize",
 ]
@@ -4803,7 +4803,7 @@ dependencies = [
  "quick-protobuf",
  "rand 0.8.5",
  "serde",
- "sha2 0.10.7",
+ "sha2 0.10.8",
  "smallvec",
  "thiserror",
  "uint",
@@ -4908,7 +4908,7 @@ dependencies = [
  "prost",
  "prost-build",
  "rand 0.8.5",
- "sha2 0.10.7",
+ "sha2 0.10.8",
  "snow",
  "static_assertions",
  "thiserror",
@@ -4931,7 +4931,7 @@ dependencies = [
  "once_cell",
  "quick-protobuf",
  "rand 0.8.5",
- "sha2 0.10.7",
+ "sha2 0.10.8",
  "snow",
  "static_assertions",
  "thiserror",
@@ -5620,7 +5620,7 @@ dependencies = [
  "multihash-derive",
  "serde",
  "serde-big-array",
- "sha2 0.10.7",
+ "sha2 0.10.8",
  "unsigned-varint",
 ]
 
@@ -6197,7 +6197,7 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
- "sha2 0.10.7",
+ "sha2 0.10.8",
  "sqlx 0.6.3",
  "tap",
  "tempfile",
@@ -6477,6 +6477,7 @@ dependencies = [
  "dirs 4.0.0",
  "dotenvy",
  "futures",
+ "hmac 0.12.1",
  "humantime-serde",
  "lazy_static",
  "log",
@@ -6503,6 +6504,7 @@ dependencies = [
  "rand 0.7.3",
  "serde",
  "serde_json",
+ "sha2 0.10.8",
  "sqlx 0.5.11",
  "subtle-encoding",
  "thiserror",
@@ -7701,7 +7703,7 @@ checksum = "51f44edd08f51e2ade572f141051021c5af22677e42b7dd28a88155151c33594"
 dependencies = [
  "ecdsa 0.14.8",
  "elliptic-curve 0.12.3",
- "sha2 0.10.7",
+ "sha2 0.10.8",
 ]
 
 [[package]]
@@ -7712,7 +7714,7 @@ checksum = "dfc8c5bf642dde52bb9e87c0ecd8ca5a76faac2eeed98dedb7c717997e1080aa"
 dependencies = [
  "ecdsa 0.14.8",
  "elliptic-curve 0.12.3",
- "sha2 0.10.7",
+ "sha2 0.10.8",
 ]
 
 [[package]]
@@ -7946,7 +7948,7 @@ checksum = "56af0a30af74d0445c0bf6d9d051c979b516a1a5af790d251daee76005420a48"
 dependencies = [
  "once_cell",
  "pest",
- "sha2 0.10.7",
+ "sha2 0.10.8",
 ]
 
 [[package]]
@@ -9082,7 +9084,7 @@ version = "7.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "512b0ab6853f7e14e3c8754acb43d6f748bb9ced66aa5915a6553ac8213f7731"
 dependencies = [
- "sha2 0.10.7",
+ "sha2 0.10.8",
  "walkdir",
 ]
 
@@ -9657,9 +9659,9 @@ dependencies = [
 
 [[package]]
 name = "sha2"
-version = "0.10.7"
+version = "0.10.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "479fb9d862239e610720565ca91403019f2f00410f1864c5aa7479b950a76ed8"
+checksum = "793db75ad2bcafc3ffa7c68b215fee268f537982cd901d132f89c6343f3a3dc8"
 dependencies = [
  "cfg-if",
  "cpufeatures",
@@ -9813,7 +9815,7 @@ dependencies = [
  "rand_core 0.6.4",
  "ring",
  "rustc_version 0.4.0",
- "sha2 0.10.7",
+ "sha2 0.10.8",
  "subtle 2.4.1",
 ]
 
@@ -9999,7 +10001,7 @@ dependencies = [
  "paste",
  "percent-encoding",
  "rustls 0.19.1",
- "sha2 0.10.7",
+ "sha2 0.10.8",
  "smallvec",
  "sqlformat 0.1.8",
  "sqlx-rt 0.5.13",
@@ -10047,7 +10049,7 @@ dependencies = [
  "percent-encoding",
  "rustls 0.20.8",
  "rustls-pemfile",
- "sha2 0.10.7",
+ "sha2 0.10.8",
  "smallvec",
  "sqlformat 0.2.1",
  "sqlx-rt 0.6.3",
@@ -10070,7 +10072,7 @@ dependencies = [
  "once_cell",
  "proc-macro2",
  "quote",
- "sha2 0.10.7",
+ "sha2 0.10.8",
  "sqlx-core 0.5.13",
  "sqlx-rt 0.5.13",
  "syn 1.0.109",
@@ -10089,7 +10091,7 @@ dependencies = [
  "once_cell",
  "proc-macro2",
  "quote",
- "sha2 0.10.7",
+ "sha2 0.10.8",
  "sqlx-core 0.6.3",
  "sqlx-rt 0.6.3",
  "syn 1.0.109",
@@ -10391,7 +10393,7 @@ dependencies = [
  "serde_bytes",
  "serde_json",
  "serde_repr",
- "sha2 0.10.7",
+ "sha2 0.10.8",
  "signature 2.1.0",
  "subtle 2.4.1",
  "subtle-encoding",
@@ -11779,7 +11781,7 @@ dependencies = [
  "sdp",
  "serde",
  "serde_json",
- "sha2 0.10.7",
+ "sha2 0.10.8",
  "stun",
  "thiserror",
  "time",
@@ -11842,7 +11844,7 @@ dependencies = [
  "sec1 0.3.0",
  "serde",
  "sha1",
- "sha2 0.10.7",
+ "sha2 0.10.8",
  "signature 1.6.4",
  "subtle 2.4.1",
  "thiserror",

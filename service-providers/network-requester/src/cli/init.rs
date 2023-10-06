@@ -171,7 +171,6 @@ pub(crate) async fn execute(args: &Init) -> Result<(), NetworkRequesterError> {
     let selection_spec = GatewaySelectionSpecification::new(
         user_chosen_gateway_id.map(|id| id.to_base58_string()),
         Some(args.latency_based_selection),
-        false,
     );
 
     // Load and potentially override config

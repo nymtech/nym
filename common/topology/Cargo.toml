@@ -35,6 +35,10 @@ nym-sphinx-types = { path = "../nymsphinx/types", features = ["sphinx", "outfox"
 nym-sphinx-routing = { path = "../nymsphinx/routing" }
 nym-bin-common = { path = "../bin-common" }
 
+# I'm not sure how to feel about pulling in this dependency here...
+nym-api-requests = { path = "../../nym-api/nym-api-requests" }
+
+
 # 'serializable' feature
 nym-config = { path = "../config", optional = true }
 

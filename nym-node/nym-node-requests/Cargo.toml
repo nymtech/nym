@@ -25,7 +25,7 @@ http-api-client = { path = "../../common/http-api-client", optional = true }
 
 ## openapi:
 utoipa = { workspace = true, optional = true }
-nym-bin-common = { path = "../../common/bin-common" }
+nym-bin-common = { path = "../../common/bin-common", features = ["bin_info_schema"] }
 
 [features]
 default = ["client"]

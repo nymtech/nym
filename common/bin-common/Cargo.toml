@@ -15,6 +15,7 @@ clap_complete_fig = "4.0"
 log = { workspace = true }
 pretty_env_logger = "0.4.0"
 semver = "0.11"
+schemars = { workspace = true, features = ["preserve_order"], optional = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, optional = true }
 
@@ -45,6 +46,7 @@ vergen = { version = "=7.4.3", default-features = false, features = [
 default = []
 openapi = ["utoipa"]
 output_format = ["serde_json"]
+bin_info_schema = ["schemars"]
 tracing = [
     "tracing-subscriber",
     "tracing-tree",

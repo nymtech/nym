@@ -419,11 +419,8 @@ where
         let gateway_setup = if self.has_valid_gateway_info().await {
             GatewaySetup::MustLoad
         } else {
-            let selection_spec = GatewaySelectionSpecification::new(
-                self.config.user_chosen_gateway.clone(),
-                None,
-                false,
-            );
+            let selection_spec =
+                GatewaySelectionSpecification::new(self.config.user_chosen_gateway.clone(), None);
 
             let mut rng = OsRng;
 
@@ -487,7 +484,7 @@ where
 
         if !known_gateway {
             let selection_spec =
-                GatewaySelectionSpecification::new(self.config.user_chosen_gateway, None, false);
+                GatewaySelectionSpecification::new(self.config.user_chosen_gateway, None);
 
             let mut rng = OsRng;
             let setup = GatewaySetup::New {

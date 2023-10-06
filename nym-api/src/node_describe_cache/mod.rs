@@ -100,6 +100,15 @@ async fn get_gateway_description(
         });
     }
 
+    let build_info =
+        client
+            .get_build_information()
+            .await
+            .map_err(|err| NodeDescribeCacheError::ApiFailure {
+                gateway: gateway.identity_key.clone(),
+                source: err,
+            })?;
+
     let websockets =
         client
             .get_mixnet_websockets()
@@ -111,6 +120,7 @@ async fn get_gateway_description(
 
     let description = NymNodeDescription {
         host_information: host_info.data,
+        build_information: build_info,
         mixnet_websockets: websockets,
     };
 

@@ -8,13 +8,7 @@ use http_api_client::{ApiClient, NO_PARAMS};
 use nym_api_requests::coconut::{
     BlindSignRequestBody, BlindedSignatureResponse, VerifyCredentialBody, VerifyCredentialResponse,
 };
-use nym_api_requests::models::{
-    ComputeRewardEstParam, GatewayBondAnnotated, GatewayCoreStatusResponse,
-    GatewayStatusReportResponse, GatewayUptimeHistoryResponse, InclusionProbabilityResponse,
-    MixNodeBondAnnotated, MixnodeCoreStatusResponse, MixnodeStatusReportResponse,
-    MixnodeStatusResponse, MixnodeUptimeHistoryResponse, RewardEstimationResponse,
-    StakeSaturationResponse, UptimeResponse,
-};
+use nym_api_requests::models::{ComputeRewardEstParam, DescribedGateway, GatewayBondAnnotated, GatewayCoreStatusResponse, GatewayStatusReportResponse, GatewayUptimeHistoryResponse, InclusionProbabilityResponse, MixNodeBondAnnotated, MixnodeCoreStatusResponse, MixnodeStatusReportResponse, MixnodeStatusResponse, MixnodeUptimeHistoryResponse, RewardEstimationResponse, StakeSaturationResponse, UptimeResponse};
 use nym_mixnet_contract_common::mixnode::MixNodeDetails;
 use nym_mixnet_contract_common::{GatewayBond, IdentityKeyRef, MixId};
 use nym_name_service_common::response::NamesListResponse;
@@ -77,6 +71,14 @@ pub trait NymApiClientExt: ApiClient {
     async fn get_gateways(&self) -> Result<Vec<GatewayBond>, NymAPIError> {
         self.get_json(&[routes::API_VERSION, routes::GATEWAYS], NO_PARAMS)
             .await
+    }
+
+    async fn get_gateways_described(&self) -> Result<Vec<DescribedGateway>, NymAPIError> {
+        self.get_json(
+            &[routes::API_VERSION, routes::GATEWAYS, routes::DESCRIBED],
+            NO_PARAMS,
+        )
+        .await
     }
 
     async fn get_active_mixnodes(&self) -> Result<Vec<MixNodeDetails>, NymAPIError> {

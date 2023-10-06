@@ -181,17 +181,14 @@ impl<T> From<PersistedGatewayDetails<T>> for GatewayDetails<T> {
 #[derive(Clone)]
 pub enum GatewaySelectionSpecification<T = EmptyCustomDetails> {
     /// Uniformly choose a random remote gateway.
-    UniformRemote { must_use_tls: bool },
+    UniformRemote,
 
     /// Should the new, remote, gateway be selected based on latency.
-    RemoteByLatency { must_use_tls: bool },
+    RemoteByLatency,
 
     /// Gateway with this specific identity should be chosen.
     // JS: I don't really like the name of this enum variant but couldn't think of anything better at the time
-    Specified {
-        must_use_tls: bool,
-        identity: IdentityKey,
-    },
+    Specified { identity: IdentityKey },
 
     // TODO: this doesn't really fit in here..., but where else to put it?
     /// This client has handled the selection by itself
@@ -203,27 +200,18 @@ pub enum GatewaySelectionSpecification<T = EmptyCustomDetails> {
 
 impl<T> Default for GatewaySelectionSpecification<T> {
     fn default() -> Self {
-        GatewaySelectionSpecification::UniformRemote {
-            must_use_tls: false,
-        }
+        GatewaySelectionSpecification::UniformRemote
     }
 }
 
 impl<T> GatewaySelectionSpecification<T> {
-    pub fn new(
-        gateway_identity: Option<String>,
-        latency_based_selection: Option<bool>,
-        must_use_tls: bool,
-    ) -> Self {
+    pub fn new(gateway_identity: Option<String>, latency_based_selection: Option<bool>) -> Self {
         if let Some(identity) = gateway_identity {
-            GatewaySelectionSpecification::Specified {
-                identity,
-                must_use_tls,
-            }
+            GatewaySelectionSpecification::Specified { identity }
         } else if let Some(true) = latency_based_selection {
-            GatewaySelectionSpecification::RemoteByLatency { must_use_tls }
+            GatewaySelectionSpecification::RemoteByLatency
         } else {
-            GatewaySelectionSpecification::UniformRemote { must_use_tls }
+            GatewaySelectionSpecification::UniformRemote
         }
     }
 }

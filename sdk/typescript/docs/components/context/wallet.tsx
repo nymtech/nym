@@ -71,6 +71,7 @@ interface WalletState {
   account: string;
   clientsAreLoading: boolean;
   setConnectWithMnemonic?: (value: string) => void;
+  connect?: () => void;
   balance?: Coin;
   balanceLoading: boolean;
   setRecipientAddress?: (value: string) => void;
@@ -96,13 +97,13 @@ export const WalletContextProvider = ({ children }: { children: JSX.Element }) =
   // wallet mnemonic
   const [connectWithMnemonic, setConnectWithMnemonic] = React.useState<string>();
   const [accountLoading, setAccountLoading] = React.useState<boolean>(false);
-  const [account, setAccount] = React.useState<string>();
+  const [account, setAccount] = React.useState<string>(null);
   const [clientsAreLoading, setClientsAreLoading] = React.useState<boolean>(false);
-  const [cosmWasmSignerClient, setCosmWasmSignerClient] = React.useState<any>();
-  const [nymWasmSignerClient, setNymWasmSignerClient] = React.useState<any>();
-  const [balance, setBalance] = React.useState<Coin>();
+  const [cosmWasmSignerClient, setCosmWasmSignerClient] = React.useState<any>(null);
+  const [nymWasmSignerClient, setNymWasmSignerClient] = React.useState<any>(null);
+  const [balance, setBalance] = React.useState<Coin>(null);
   const [balanceLoading, setBalanceLoading] = React.useState<boolean>(false);
-  const [recipientAddress, setRecipientAddress] = React.useState<string>('');
+  const [recipientAddress, setRecipientAddress] = React.useState<string>();
   const [tokensToSend, setTokensToSend] = React.useState<string>();
   const [sendingTokensLoading, setSendingTokensLoading] = React.useState<boolean>(false);
   const [log, setLog] = React.useState<React.ReactNode[]>([]);
@@ -120,10 +121,10 @@ export const WalletContextProvider = ({ children }: { children: JSX.Element }) =
     }
     setAccountLoading(false);
   };
+
   const getClients = async () => {
     setClientsAreLoading(true);
     try {
-      console.log('setCosmWasmSignerClient');
       setCosmWasmSignerClient(await fetchSignerCosmosWasmClient(connectWithMnemonic));
       setNymWasmSignerClient(await fetchSignerClient(connectWithMnemonic));
     } catch (error) {
@@ -147,8 +148,8 @@ export const WalletContextProvider = ({ children }: { children: JSX.Element }) =
   const doSendTokens = React.useCallback(async () => {
     const memo = 'test sending tokens';
     setSendingTokensLoading(true);
+    console.log('cosmWasmSignerClient', cosmWasmSignerClient, account, recipientAddress);
     try {
-      console.log('cosmWasmSignerClient', cosmWasmSignerClient, account, recipientAddress);
       const res = await cosmWasmSignerClient.sendTokens(
         account,
         recipientAddress,
@@ -170,29 +171,19 @@ export const WalletContextProvider = ({ children }: { children: JSX.Element }) =
   }, [account, cosmWasmSignerClient]);
   // End send tokens
 
+  
+
   React.useEffect(() => {
     if (connectWithMnemonic) {
-      // when the mnemonic changes, remove all previous data
       Promise.all([getSignerAccount(), getClients()]);
     }
   }, [connectWithMnemonic]);
 
   React.useEffect(() => {
-    console.log('cosmWasmSignerClient', cosmWasmSignerClient);
-  }, [cosmWasmSignerClient]);
-
-  React.useEffect(() => {
-console.log('tokensToSend', tokensToSend);
-
-  },[tokensToSend])
-
-  React.useEffect(() => {
-    if (account && cosmWasmSignerClient) {
-      if (!balance) {
-        getBalance();
-      }
+    if (cosmWasmSignerClient) {
+      getBalance();
     }
-  }, [account, cosmWasmSignerClient, balance, getBalance]);
+  }, [cosmWasmSignerClient]);
 
   const state = React.useMemo<WalletState>(
     () => ({

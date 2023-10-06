@@ -73,7 +73,7 @@ export default function Mixnodes() {
     const cosmWasmClient = await SigningCosmWasmClient.connect("wss://rpc.nymtech.net:443");
     const client = new contracts.Mixnet.MixnetQueryClient(
       cosmWasmClient,
-      "n17srjznxl9dvzdkpwpw24gg668wc73val88a6m5ajg6ankwvz9wtst0cznr" // the mainnet mixnet contract address (which will be different on mainnet, QA, etc)
+      "n17srjznxl9dvzdkpwpw24gg668wc73val88a6m5ajg6ankwvz9wtst0cznr" // The mainnet mixnet contract address (which will be different on mainnet, QA, etc)
     );
     const result = await client.getMixNodesDetailed({});
     setMixnodes(result.nodes)
@@ -177,8 +177,8 @@ export default function Exec() {
     // Nym client
     const mixnetClient = new contracts.Mixnet.MixnetClient(
       cosmWasmSigningClient,
-      settings.address, // sender (that account of the signer)
-      settings.mixnetContractAddress // contract address (different on mainnet, QA, etc)
+      settings.address, // Sender (that account of the signer)
+      settings.mixnetContractAddress // Contract address (different on mainnet, QA, etc)
     );
     // Save globally
     signerMixnetClient = mixnetClient;

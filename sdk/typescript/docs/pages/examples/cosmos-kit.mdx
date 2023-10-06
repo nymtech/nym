@@ -106,12 +106,13 @@ function MyComponent() {
   };
  
   return (
-    <div>
+    <div>  
       <div>
-        <strong>Connected to {wallet?.prettyName}</strong>
-      </div>
-      <div>
-        {wallet && <div>Address: <code>{address}</code></div>}
+        {wallet && 
+        <div> 
+          <div>Connected to {wallet?.prettyName} </div> 
+          <div>Address: <code>{address}</code></div>
+        </div>}
       </div>
       {wallet ? (
         <div>

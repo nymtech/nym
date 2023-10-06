@@ -46,6 +46,10 @@ pub enum HttpClientError<E: Display = String> {
 
     #[error("failed to resolve request. status: '{status}', additional error message: {error}")]
     EndpointFailure { status: StatusCode, error: E },
+
+    #[cfg(target_arch = "wasm32")]
+    #[error("the request has timed out")]
+    RequestTimeout,
 }
 
 /// A simple extendable client wrapper for http request with extra url sanitization.
@@ -53,19 +57,31 @@ pub enum HttpClientError<E: Display = String> {
 pub struct Client {
     base_url: Url,
     reqwest_client: reqwest::Client,
+
+    #[cfg(target_arch = "wasm32")]
+    request_timeout: Duration,
 }
 
 impl Client {
+    // no timeout until https://github.com/seanmonstar/reqwest/issues/1135 is fixed
     pub fn new(base_url: Url, timeout: Option<Duration>) -> Self {
+        #[cfg(target_arch = "wasm32")]
+        let reqwest_client = reqwest::Client::new();
+
+        // TODO: we should probably be propagating the error rather than panicking,
+        // but that'd break bunch of things due to type changes
+        #[cfg(not(target_arch = "wasm32"))]
+        let reqwest_client = reqwest::ClientBuilder::new()
+            .timeout(timeout.unwrap_or(DEFAULT_TIMEOUT))
+            .build()
+            .expect("Client::new()");
+
         Client {
             base_url,
+            reqwest_client,
 
-            // TODO: we should probably be propagating the error rather than panicking,
-            // but that'd break bunch of things due to type changes
-            reqwest_client: reqwest::ClientBuilder::new()
-                .timeout(timeout.unwrap_or(DEFAULT_TIMEOUT))
-                .build()
-                .expect("Client::new()"),
+            #[cfg(target_arch = "wasm32")]
+            request_timeout: timeout.unwrap_or(DEFAULT_TIMEOUT),
         }
     }
 
@@ -106,7 +122,23 @@ impl Client {
         E: Display,
     {
         let url = sanitize_url(&self.base_url, path, params);
-        Ok(self.reqwest_client.get(url).send().await?)
+
+        #[cfg(target_arch = "wasm32")]
+        {
+            Ok(
+                wasmtimer::tokio::timeout(
+                    self.request_timeout,
+                    self.reqwest_client.get(url).send(),
+                )
+                .await
+                .map_err(|_timeout| HttpClientError::RequestTimeout)??,
+            )
+        }
+
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            Ok(self.reqwest_client.get(url).send().await?)
+        }
     }
 
     async fn send_post_request<B, K, V, E>(
@@ -122,7 +154,21 @@ impl Client {
         E: Display,
     {
         let url = sanitize_url(&self.base_url, path, params);
-        Ok(self.reqwest_client.post(url).json(json_body).send().await?)
+
+        #[cfg(target_arch = "wasm32")]
+        {
+            Ok(wasmtimer::tokio::timeout(
+                self.request_timeout,
+                self.reqwest_client.post(url).json(json_body).send(),
+            )
+            .await
+            .map_err(|_timeout| HttpClientError::RequestTimeout)??)
+        }
+
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            Ok(self.reqwest_client.post(url).json(json_body).send().await?)
+        }
     }
 
     pub async fn get_json<T, K, V, E>(
@@ -163,11 +209,26 @@ impl Client {
         E: Display + DeserializeOwned,
         S: AsRef<str>,
     {
-        let res = self
-            .reqwest_client
-            .get(self.base_url.join(endpoint.as_ref())?)
-            .send()
-            .await?;
+        #[cfg(target_arch = "wasm32")]
+        let res = {
+            wasmtimer::tokio::timeout(
+                self.request_timeout,
+                self.reqwest_client
+                    .get(self.base_url.join(endpoint.as_ref())?)
+                    .send(),
+            )
+            .await
+            .map_err(|_timeout| HttpClientError::RequestTimeout)??
+        };
+
+        #[cfg(not(target_arch = "wasm32"))]
+        let res = {
+            self.reqwest_client
+                .get(self.base_url.join(endpoint.as_ref())?)
+                .send()
+                .await?
+        };
+
         parse_response(res, false).await
     }
 
@@ -182,12 +243,28 @@ impl Client {
         E: Display + DeserializeOwned,
         S: AsRef<str>,
     {
-        let res = self
-            .reqwest_client
-            .post(self.base_url.join(endpoint.as_ref())?)
-            .json(json_body)
-            .send()
-            .await?;
+        #[cfg(target_arch = "wasm32")]
+        let res = {
+            wasmtimer::tokio::timeout(
+                self.request_timeout,
+                self.reqwest_client
+                    .post(self.base_url.join(endpoint.as_ref())?)
+                    .json(json_body)
+                    .send(),
+            )
+            .await
+            .map_err(|_timeout| HttpClientError::RequestTimeout)??
+        };
+
+        #[cfg(not(target_arch = "wasm32"))]
+        let res = {
+            self.reqwest_client
+                .post(self.base_url.join(endpoint.as_ref())?)
+                .json(json_body)
+                .send()
+                .await?
+        };
+
         parse_response(res, true).await
     }
 }

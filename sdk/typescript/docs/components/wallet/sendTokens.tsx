@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import Button from '@mui/material/Button';
 import Paper from '@mui/material/Paper';
 import Box from '@mui/material/Box';
@@ -7,7 +7,10 @@ import TextField from '@mui/material/TextField';
 import { useWalletContext } from '../context/wallet';
 
 export const SendTokes = () => {
-  const { setRecipientAddress, setTokensToSend, sendingTokensLoading, doSendTokens, log } = useWalletContext();
+  const { sendingTokensLoading, sendTokens, log } = useWalletContext();
+
+  const [recipientAddress, setRecipientAddress] = React.useState<string>();
+  const [tokensToSend, setTokensToSend] = React.useState<string>();
 
   return (
     <Box>
@@ -28,7 +31,11 @@ export const SendTokes = () => {
                 onChange={(e) => setTokensToSend(e.target.value)}
                 size="small"
               />
-              <Button variant="outlined" onClick={() => doSendTokens()} disabled={sendingTokensLoading}>
+              <Button
+                variant="outlined"
+                onClick={() => sendTokens(recipientAddress, tokensToSend)}
+                disabled={sendingTokensLoading}
+              >
                 {sendingTokensLoading ? 'Sending...' : 'Send tokens'}
               </Button>
             </Box>

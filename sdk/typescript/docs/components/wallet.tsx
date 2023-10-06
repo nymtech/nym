@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState, createContext } from 'react';
+import React from 'react';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import { ConnectWallet } from './wallet/connect';
@@ -6,16 +6,24 @@ import { SendTokes } from './wallet/sendTokens';
 import { Delegations } from './wallet/delegations';
 import { WalletContextProvider } from './context/wallet';
 
-export const Wallet = ({ type }: { type: 'connect' | 'sendTokens' | 'delegations' }) => (
-  <WalletContextProvider>
+export const Wallet = ({ type }: { type: 'connect' | 'sendTokens' | 'delegations' }) => {
+  return (
     <Box padding={3}>
-      {type === 'connect' && <ConnectWallet />}
-      {type === 'sendTokens' && <SendTokes />}
-      {/* {type === 'delegations' && (
-        <WalletContext.Provider value={WalletContext}>
+      {type === 'connect' && (
+        <WalletContextProvider>
+          <ConnectWallet />
+        </WalletContextProvider>
+      )}
+      {type === 'sendTokens' && (
+        <WalletContextProvider>
+          <SendTokes />
+        </WalletContextProvider>
+      )}
+      {type === 'delegations' && (
+        <WalletContextProvider>
           <Delegations />
-        </WalletContext.Provider>
-      )} */}
+        </WalletContextProvider>
+      )}
       {/* {log.length > 0 && (
         <Box marginTop={3}>
           <Typography variant="h5">Transaction Logs:</Typography>
@@ -23,5 +31,5 @@ export const Wallet = ({ type }: { type: 'connect' | 'sendTokens' | 'delegations
         </Box>
       )} */}
     </Box>
-  </WalletContextProvider>
-);
+  );
+};

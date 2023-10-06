@@ -7,8 +7,7 @@ import TextField from '@mui/material/TextField';
 import { useWalletContext } from '../context/wallet';
 
 export const ConnectWallet = () => {
-  const { balance, balanceLoading, accountLoading, setConnectWithMnemonic, account, clientsAreLoading } =
-    useWalletContext();
+  const { connect, balance, balanceLoading, accountLoading, account, clientsAreLoading } = useWalletContext();
 
   const [mnemonic, setMnemonic] = useState<string>();
   const [connectButtonText, setConnectButtonText] = useState<string>('Connect');
@@ -44,7 +43,7 @@ export const ConnectWallet = () => {
           />
           <Button
             variant="outlined"
-            onClick={() => setConnectWithMnemonic(mnemonic)}
+            onClick={() => connect(mnemonic)}
             disabled={!mnemonic || accountLoading || clientsAreLoading || balanceLoading}
           >
             {connectButtonText}

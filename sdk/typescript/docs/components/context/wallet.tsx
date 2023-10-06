@@ -61,24 +61,20 @@ interface ApiState<RESPONSE> {
  */
 
 interface WalletState {
-  cosmWasmSigner?: { getAccounts: () => void };
-  cosmWasmSignerClient?: {
-    getBalance: (account: string, denom: string) => Coin;
-    sendTokens: (account: string, recipientAddress: string, amount: [Coin], type: 'auto', memo: string) => void;
-  };
-  nymWasmSignerClient?: ApiState<any>;
   accountLoading: boolean;
   account: string;
   clientsAreLoading: boolean;
-  setConnectWithMnemonic?: (value: string) => void;
-  connect?: () => void;
+  connect?: (mnemonic: string) => void;
   balance?: Coin;
   balanceLoading: boolean;
   setRecipientAddress?: (value: string) => void;
   setTokensToSend?: (value: string) => void;
   sendingTokensLoading: boolean;
   log: React.ReactNode[];
-  doSendTokens?: () => void;
+  sendTokens?: (recipientAddress: string, tokensToSend: string) => void;
+  delegations?: any;
+  unDelegateAll?: () => void;
+  unDelegateAllLoading?: boolean;
 }
 
 export const WalletContext = React.createContext<WalletState>({
@@ -93,28 +89,36 @@ export const WalletContext = React.createContext<WalletState>({
 export const useWalletContext = (): React.ContextType<typeof WalletContext> =>
   React.useContext<WalletState>(WalletContext);
 
+let cosmWasmSignerClient;
+let nymWasmSignerClient;
+let account;
+
 export const WalletContextProvider = ({ children }: { children: JSX.Element }) => {
-  // wallet mnemonic
-  const [connectWithMnemonic, setConnectWithMnemonic] = React.useState<string>();
   const [accountLoading, setAccountLoading] = React.useState<boolean>(false);
-  const [account, setAccount] = React.useState<string>(null);
+  const [delegations, setDelegations] = React.useState<any>();
   const [clientsAreLoading, setClientsAreLoading] = React.useState<boolean>(false);
-  const [cosmWasmSignerClient, setCosmWasmSignerClient] = React.useState<any>(null);
-  const [nymWasmSignerClient, setNymWasmSignerClient] = React.useState<any>(null);
   const [balance, setBalance] = React.useState<Coin>(null);
   const [balanceLoading, setBalanceLoading] = React.useState<boolean>(false);
-  const [recipientAddress, setRecipientAddress] = React.useState<string>();
-  const [tokensToSend, setTokensToSend] = React.useState<string>();
   const [sendingTokensLoading, setSendingTokensLoading] = React.useState<boolean>(false);
   const [log, setLog] = React.useState<React.ReactNode[]>([]);
+  const [unDelegateAllLoading, setUnDelegateAllLoading] = React.useState<boolean>(false);
 
-  const getSignerAccount = async () => {
+  const Reset = () => {
+    setAccountLoading(false);
+    setClientsAreLoading(false);
+    setBalance(null);
+    setBalanceLoading(false);
+    setSendingTokensLoading(false);
+    setLog([]);
+  };
+
+  const getSignerAccount = async (mnemonic: string) => {
     setAccountLoading(true);
     try {
-      const signer = await signerAccount(connectWithMnemonic);
+      const signer = await signerAccount(mnemonic);
       const accounts = await signer.getAccounts();
       if (accounts[0]) {
-        setAccount(accounts[0].address);
+        account = accounts[0].address;
       }
     } catch (error) {
       console.error(error);
@@ -122,16 +126,21 @@ export const WalletContextProvider = ({ children }: { children: JSX.Element }) =
     setAccountLoading(false);
   };
 
-  const getClients = async () => {
+  const getClients = async (mnemonic: string) => {
     setClientsAreLoading(true);
     try {
-      setCosmWasmSignerClient(await fetchSignerCosmosWasmClient(connectWithMnemonic));
-      setNymWasmSignerClient(await fetchSignerClient(connectWithMnemonic));
+      cosmWasmSignerClient = await fetchSignerCosmosWasmClient(mnemonic);
+      nymWasmSignerClient = await fetchSignerClient(mnemonic);
     } catch (error) {
       console.error(error);
     }
     setClientsAreLoading(false);
   };
+
+  const connect = React.useCallback(async (mnemonic: string) => {
+    getSignerAccount(mnemonic);
+    getClients(mnemonic);
+  }, []);
 
   const getBalance = React.useCallback(async () => {
     setBalanceLoading(true);
@@ -144,40 +153,63 @@ export const WalletContextProvider = ({ children }: { children: JSX.Element }) =
     setBalanceLoading(false);
   }, [account, cosmWasmSignerClient]);
 
-  // Sending tokens
-  const doSendTokens = React.useCallback(async () => {
-    const memo = 'test sending tokens';
-    setSendingTokensLoading(true);
-    console.log('cosmWasmSignerClient', cosmWasmSignerClient, account, recipientAddress);
+  const getDelegations = React.useCallback(async () => {
+    const delegations = await nymWasmSignerClient.getDelegatorDelegations({
+      delegator: settings.address,
+    });
+    console.log('delegations', delegations);
+    setDelegations(delegations);
+  }, [nymWasmSignerClient]);
+
+  const sendTokens = React.useCallback(
+    async (recipientAddress: string, tokensToSend: string) => {
+      const memo = 'test sending tokens';
+      setSendingTokensLoading(true);
+      try {
+        const res = await cosmWasmSignerClient.sendTokens(
+          account,
+          recipientAddress,
+          [{ amount: tokensToSend, denom: 'unym' }],
+          'auto',
+          memo,
+        );
+        setLog((prev) => [
+          ...prev,
+          <div key={JSON.stringify(res, null, 2)}>
+            <code style={{ marginRight: '2rem' }}>{new Date().toLocaleTimeString()}</code>
+            <pre>{JSON.stringify(res, null, 2)}</pre>
+          </div>,
+        ]);
+      } catch (error) {
+        console.error(error);
+      }
+      setSendingTokensLoading(false);
+    },
+    [account, cosmWasmSignerClient],
+  );
+
+    const undelegateAll = async () => {
+    if (!nymWasmSignerClient) {
+      return;
+    }
+    setUnDelegateAllLoading(true);
     try {
-      const res = await cosmWasmSignerClient.sendTokens(
-        account,
-        recipientAddress,
-        [{ amount: tokensToSend, denom: 'unym' }],
-        'auto',
-        memo,
-      );
-      setLog((prev) => [
-        ...prev,
-        <div key={JSON.stringify(res, null, 2)}>
-          <code style={{ marginRight: '2rem' }}>{new Date().toLocaleTimeString()}</code>
-          <pre>{JSON.stringify(res, null, 2)}</pre>
-        </div>,
-      ]);
+      // eslint-disable-next-line no-restricted-syntax
+      for (const delegation of delegations.delegations) {
+        // eslint-disable-next-line no-await-in-loop
+        await nymWasmSignerClient.undelegateFromMixnode({ mixId: delegation.mix_id }, 'auto');
+      }
     } catch (error) {
       console.error(error);
     }
-    setSendingTokensLoading(false);
-  }, [account, cosmWasmSignerClient]);
-  // End send tokens
-
-  
+    setUnDelegateAllLoading(false);
+  };
 
   React.useEffect(() => {
-    if (connectWithMnemonic) {
-      Promise.all([getSignerAccount(), getClients()]);
-    }
-  }, [connectWithMnemonic]);
+    return () => {
+      Reset();
+    };
+  }, []);
 
   React.useEffect(() => {
     if (cosmWasmSignerClient) {
@@ -185,36 +217,40 @@ export const WalletContextProvider = ({ children }: { children: JSX.Element }) =
     }
   }, [cosmWasmSignerClient]);
 
+  React.useEffect(() => {
+    if (nymWasmSignerClient) {
+      getDelegations();
+    }
+  }, [nymWasmSignerClient]);
+
   const state = React.useMemo<WalletState>(
     () => ({
       accountLoading,
       account,
       clientsAreLoading,
-      cosmWasmSignerClient,
-      nymWasmSignerClient,
-      setConnectWithMnemonic,
+      connect,
       balance,
       balanceLoading,
-      setRecipientAddress,
-      setTokensToSend,
       sendingTokensLoading,
       log,
-      doSendTokens,
+      sendTokens,
+      delegations,
+      undelegateAll,
+      unDelegateAllLoading,
     }),
     [
       accountLoading,
       account,
       clientsAreLoading,
-      cosmWasmSignerClient,
-      nymWasmSignerClient,
-      setConnectWithMnemonic,
+      connect,
       balance,
       balanceLoading,
-      setRecipientAddress,
-      setTokensToSend,
       sendingTokensLoading,
       log,
-      doSendTokens,
+      sendTokens,
+      delegations,
+      undelegateAll,
+      unDelegateAllLoading,
     ],
   );
 

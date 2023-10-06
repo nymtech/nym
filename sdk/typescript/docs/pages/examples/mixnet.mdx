@@ -96,7 +96,10 @@ export function MixnetClient() {
     await nym?.client.stop();
   };
 
-  const send = () => nym.client.send({ payload, recipient });
+ const send = () => {
+    if (!nym || !payload || !recipient) return
+    nym.client.send({ payload, recipient });
+  }
  
   useEffect(() => {
     init();
@@ -142,7 +145,8 @@ export default function App () {
     </>
   )
 }
-
 ```
 
-
+<Callout type="info" emoji="ℹ️">
+    If you experience a Gateway client error and a hard refresh isn't enough, you may need to open your console, go to `Application` and delete the databases under "IndexedDB".
+</Callout>

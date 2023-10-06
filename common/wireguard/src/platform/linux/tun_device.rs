@@ -10,7 +10,7 @@ use tokio::{
 use crate::{
     event::Event,
     setup::{TUN_BASE_NAME, TUN_DEVICE_ADDRESS, TUN_DEVICE_NETMASK},
-    PeersByIp,
+    udp_listener::PeersByIp,
 };
 
 fn setup_tokio_tun_device(name: &str, address: Ipv4Addr, netmask: Ipv4Addr) -> tokio_tun::Tun {

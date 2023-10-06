@@ -1,18 +1,25 @@
 use std::{net::SocketAddr, sync::Arc};
 
+use dashmap::DashMap;
 use futures::StreamExt;
 use log::error;
 use nym_task::TaskClient;
 use tap::TapFallible;
-use tokio::{net::UdpSocket, sync::mpsc::UnboundedSender};
+use tokio::{
+    net::UdpSocket,
+    sync::mpsc::{self, UnboundedSender},
+};
 
 use crate::{
     event::Event,
+    network_table::NetworkTable,
     setup::{self, WG_ADDRESS, WG_PORT},
-    ActivePeers, PeersByIp,
 };
 
 const MAX_PACKET: usize = 65535;
+
+pub(crate) type ActivePeers = DashMap<SocketAddr, mpsc::UnboundedSender<Event>>;
+pub(crate) type PeersByIp = NetworkTable<mpsc::UnboundedSender<Event>>;
 
 pub(crate) async fn start_udp_listener(
     tun_task_tx: UnboundedSender<Vec<u8>>,

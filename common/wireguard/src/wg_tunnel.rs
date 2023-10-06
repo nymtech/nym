@@ -14,7 +14,7 @@ use tokio::{
     time::timeout,
 };
 
-use crate::{error::WgError, event::Event, NetworkTable};
+use crate::{error::WgError, event::Event, network_table::NetworkTable};
 
 const MAX_PACKET: usize = 65535;
 

@@ -120,7 +120,7 @@ impl<A: Application> Ephemera<A> {
         while !shutdown.is_shutdown() {
             tokio::select! {
                 biased;
-                _ = shutdown.recv() => {
+                () = shutdown.recv() => {
                     trace!("UpdateHandler: Received shutdown");
                     self.shutdown_manager.stop().await;
                     break;

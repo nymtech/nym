@@ -278,7 +278,7 @@ impl BlockManager {
         }
 
         match self.message_pool.remove_messages(&block.messages) {
-            Ok(_) => {
+            Ok(()) => {
                 self.block_chain_state
                     .mark_last_produced_block_as_committed();
             }

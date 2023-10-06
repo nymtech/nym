@@ -7,7 +7,7 @@ use tokio::sync::RwLock;
 
 use crate::node::{Client, ClientRegistry};
 
-pub(crate) async fn register(
+pub(crate) async fn register_client(
     State(registry): State<Arc<RwLock<ClientRegistry>>>,
     Json(payload): Json<Client>,
 ) -> StatusCode {
@@ -16,14 +16,14 @@ pub(crate) async fn register(
     StatusCode::OK
 }
 
-pub(crate) async fn clients(
+pub(crate) async fn get_all_clients(
     State(registry): State<Arc<RwLock<ClientRegistry>>>,
 ) -> Json<ClientRegistry> {
     let registry_ro = registry.read().await;
     Json(registry_ro.clone())
 }
 
-pub(crate) async fn client(
+pub(crate) async fn get_client(
     Path(pub_key): Path<String>,
     State(registry): State<Arc<RwLock<ClientRegistry>>>,
 ) -> Json<Vec<Client>> {

@@ -140,13 +140,10 @@ impl NymNodeTesterBuilder {
         if let Ok(loaded) = InitialisationResult::try_load(client_store, client_store).await {
             Ok(loaded)
         } else {
-            Ok(setup_from_topology(
-                self.gateway.clone(),
-                false,
-                &self.base_topology,
-                client_store,
+            Ok(
+                setup_from_topology(self.gateway.clone(), &self.base_topology, client_store)
+                    .await?,
             )
-            .await?)
         }
     }
 

@@ -149,9 +149,9 @@ impl NymClientBuilder {
 
         // if we provided hardcoded topology, get gateway from it, otherwise get it the 'standard' way
         let init_res = if let Some(topology) = &self.custom_topology {
-            setup_from_topology(user_chosen, false, topology, &client_store).await?
+            setup_from_topology(user_chosen, topology, &client_store).await?
         } else {
-            setup_gateway_from_api(&client_store, false, user_chosen, &nym_api_endpoints).await?
+            setup_gateway_from_api(&client_store, user_chosen, &nym_api_endpoints).await?
         };
 
         let packet_type = self.config.base.debug.traffic.packet_type;

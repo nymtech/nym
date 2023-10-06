@@ -24,7 +24,7 @@ pub(crate) async fn get_network_requester(
         return Ok(sp);
     }
 
-    let client = harbourmaster::Client::new_url(HARBOUR_MASTER)?;
+    let client = harbourmaster::Client::new_url(HARBOUR_MASTER, None)?;
     let providers = client.get_services_new().await?;
     console_log!(
         "obtained list of {} service providers on the network",

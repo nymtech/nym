@@ -17,6 +17,8 @@ rust-version = "1.56"
 [dependencies]
 axum = "0.6.20"
 # axum-macros = "0.3.8" # Useful for debugging axum Handler trait errors
+x25519-dalek = "2.0.0"
+base64 = "0.21.4"
 anyhow = { workspace = true }
 async-trait = { workspace = true }
 atty = "0.2"

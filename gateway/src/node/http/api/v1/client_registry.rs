@@ -3,9 +3,10 @@ use std::sync::Arc;
 
 use axum::http::StatusCode;
 use axum::{extract::State, Json};
+use std::str::FromStr;
 use tokio::sync::RwLock;
 
-use crate::node::{Client, ClientRegistry};
+use crate::node::{Client, ClientPublicKey, ClientRegistry};
 
 pub(crate) async fn register_client(
     State(registry): State<Arc<RwLock<ClientRegistry>>>,
@@ -18,15 +19,19 @@ pub(crate) async fn register_client(
 
 pub(crate) async fn get_all_clients(
     State(registry): State<Arc<RwLock<ClientRegistry>>>,
-) -> Json<ClientRegistry> {
+) -> (StatusCode, Json<ClientRegistry>) {
     let registry_ro = registry.read().await;
-    Json(registry_ro.clone())
+    (StatusCode::OK, Json(registry_ro.clone()))
 }
 
 pub(crate) async fn get_client(
     Path(pub_key): Path<String>,
     State(registry): State<Arc<RwLock<ClientRegistry>>>,
-) -> Json<Vec<Client>> {
+) -> (StatusCode, Json<Vec<Client>>) {
+    let pub_key = match ClientPublicKey::from_str(&pub_key) {
+        Ok(pub_key) => pub_key,
+        Err(_) => return (StatusCode::BAD_REQUEST, Json(vec![])),
+    };
     let registry_ro = registry.read().await;
     let clients = registry_ro
         .iter()
@@ -38,5 +43,8 @@ pub(crate) async fn get_client(
             }
         })
         .collect::<Vec<Client>>();
-    Json(clients)
+    if clients.is_empty() {
+        return (StatusCode::NOT_FOUND, Json(clients));
+    }
+    (StatusCode::OK, Json(clients))
 }

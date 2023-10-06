@@ -6468,6 +6468,7 @@ dependencies = [
  "async-trait",
  "atty",
  "axum",
+ "base64 0.21.4",
  "bip39",
  "bs58 0.4.0",
  "clap 4.3.21",
@@ -6510,6 +6511,7 @@ dependencies = [
  "tokio-tungstenite",
  "tokio-util",
  "url",
+ "x25519-dalek 2.0.0",
  "zeroize",
 ]
 

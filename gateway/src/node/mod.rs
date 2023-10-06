@@ -17,6 +17,7 @@ use crate::node::mixnet_handling::receiver::connection_handler::ConnectionHandle
 use crate::node::statistics::collector::GatewayStatisticsCollector;
 use crate::node::storage::Storage;
 use anyhow::bail;
+use base64::{engine::general_purpose, Engine as _};
 use futures::channel::{mpsc, oneshot};
 use log::*;
 use nym_crypto::asymmetric::{encryption, identity};
@@ -33,6 +34,7 @@ use std::collections::HashMap;
 use std::error::Error;
 use std::net::SocketAddr;
 use std::path::PathBuf;
+use std::str::FromStr;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -81,9 +83,41 @@ pub struct LocalNetworkRequesterOpts {
 
 #[derive(Deserialize, Debug, Serialize, Clone)]
 pub(crate) struct Client {
-    // Using a string for now, until we figure out which pubkey struct to use
-    pub_key: String,
+    // base64 encoded public key, using x25519-dalek for impl
+    pub_key: ClientPublicKey,
     socket: SocketAddr,
+    signature: String,
+}
+
+// This should go into nym-wireguard crate
+#[derive(Debug, Clone, Eq, PartialEq)]
+struct ClientPublicKey(x25519_dalek::PublicKey);
+
+impl FromStr for ClientPublicKey {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let key_bytes: [u8; 32] = general_purpose::STANDARD
+            .decode(s)
+            .map_err(|_| "Could not base64 decode public key representation".to_string())?
+            .try_into()
+            .map_err(|_| "Invalid key length".to_string())?;
+        Ok(ClientPublicKey(x25519_dalek::PublicKey::from(key_bytes)))
+    }
+}
+
+impl Serialize for ClientPublicKey {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        let encoded_key = general_purpose::STANDARD.encode(self.0.as_bytes());
+        serializer.serialize_str(&encoded_key)
+    }
+}
+
+impl<'de> Deserialize<'de> for ClientPublicKey {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let encoded_key = String::deserialize(deserializer)?;
+        Ok(ClientPublicKey::from_str(&encoded_key).map_err(serde::de::Error::custom))?
+    }
 }
 
 pub(crate) type ClientRegistry = HashMap<SocketAddr, Client>;

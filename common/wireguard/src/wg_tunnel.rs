@@ -14,7 +14,7 @@ use tokio::{
     time::timeout,
 };
 
-use crate::{error::WgError, event::Event, AllowedIps};
+use crate::{error::WgError, event::Event, NetworkTable};
 
 const MAX_PACKET: usize = 65535;
 
@@ -29,7 +29,7 @@ pub struct WireGuardTunnel {
     endpoint: Arc<tokio::sync::RwLock<SocketAddr>>,
 
     // AllowedIPs for this peer
-    allowed_ips: AllowedIps<()>,
+    allowed_ips: NetworkTable<()>,
 
     // `boringtun` tunnel, used for crypto & WG protocol
     wg_tunnel: Arc<tokio::sync::Mutex<Tunn>>,
@@ -85,7 +85,7 @@ impl WireGuardTunnel {
         // Signal close tunnel
         let (close_tx, close_rx) = broadcast::channel(1);
 
-        let mut allowed_ips = AllowedIps::new();
+        let mut allowed_ips = NetworkTable::new();
         allowed_ips.ips.insert(peer_allowed_ips, ());
 
         let tunnel = WireGuardTunnel {

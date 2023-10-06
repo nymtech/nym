@@ -93,10 +93,6 @@ $(eval $(call add_cargo_workspace,contracts,contracts,--lib --target wasm32-unkn
 $(eval $(call add_cargo_workspace,wallet,nym-wallet))
 $(eval $(call add_cargo_workspace,connect,nym-connect/desktop))
 
-# OVERRIDE: there is an issue where clippy crashes on nym-wallet-types with the latest
-# stable toolchain. So pin to 1.71.0 until that is resolved.
-wallet_CLIPPY_TOOLCHAIN := +1.71.0
-
 # OVERRIDE: wasm-opt fails if the binary has been built with the latest rustc.
 # Pin to the last working version.
 contracts_BUILD_RELEASE_TOOLCHAIN := +1.69.0

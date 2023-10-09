@@ -12,6 +12,15 @@ mod wg_tunnel;
 #[cfg(target_os = "linux")]
 use platform::linux::tun_device;
 
+#[derive(Clone)]
+struct TunTaskTx(tokio::sync::mpsc::UnboundedSender<Vec<u8>>);
+
+impl TunTaskTx {
+    fn send(&self, packet: Vec<u8>) -> Result<(), tokio::sync::mpsc::error::SendError<Vec<u8>>> {
+        self.0.send(packet)
+    }
+}
+
 #[cfg(target_os = "linux")]
 pub async fn start_wireguard(
     task_client: nym_task::TaskClient,

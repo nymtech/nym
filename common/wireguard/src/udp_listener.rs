@@ -7,13 +7,14 @@ use nym_task::TaskClient;
 use tap::TapFallible;
 use tokio::{
     net::UdpSocket,
-    sync::mpsc::{self, UnboundedSender},
+    sync::mpsc::{self},
 };
 
 use crate::{
     event::Event,
     network_table::NetworkTable,
     setup::{self, WG_ADDRESS, WG_PORT},
+    TunTaskTx,
 };
 
 const MAX_PACKET: usize = 65535;
@@ -22,7 +23,7 @@ pub(crate) type ActivePeers = DashMap<SocketAddr, mpsc::UnboundedSender<Event>>;
 pub(crate) type PeersByIp = NetworkTable<mpsc::UnboundedSender<Event>>;
 
 pub(crate) async fn start_udp_listener(
-    tun_task_tx: UnboundedSender<Vec<u8>>,
+    tun_task_tx: TunTaskTx,
     active_peers: Arc<ActivePeers>,
     peers_by_ip: Arc<std::sync::Mutex<PeersByIp>>,
     mut task_client: TaskClient,

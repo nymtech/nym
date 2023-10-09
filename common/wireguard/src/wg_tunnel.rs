@@ -14,7 +14,7 @@ use tokio::{
     time::timeout,
 };
 
-use crate::{error::WgError, event::Event, network_table::NetworkTable};
+use crate::{error::WgError, event::Event, network_table::NetworkTable, TunTaskTx};
 
 const MAX_PACKET: usize = 65535;
 
@@ -39,7 +39,7 @@ pub struct WireGuardTunnel {
     close_rx: broadcast::Receiver<()>,
 
     // Send data to the task that handles sending data through the tun device
-    tun_task_tx: mpsc::UnboundedSender<Vec<u8>>,
+    tun_task_tx: TunTaskTx,
 }
 
 impl Drop for WireGuardTunnel {
@@ -50,13 +50,13 @@ impl Drop for WireGuardTunnel {
 }
 
 impl WireGuardTunnel {
-    pub fn new(
+    pub(crate) fn new(
         udp: Arc<UdpSocket>,
         endpoint: SocketAddr,
         static_private: x25519::StaticSecret,
         peer_static_public: x25519::PublicKey,
         peer_allowed_ips: ip_network::IpNetwork,
-        tunnel_tx: mpsc::UnboundedSender<Vec<u8>>,
+        tunnel_tx: TunTaskTx,
     ) -> (Self, mpsc::UnboundedSender<Event>) {
         let local_addr = udp.local_addr().unwrap();
         let peer_addr = udp.peer_addr();
@@ -282,13 +282,13 @@ impl WireGuardTunnel {
     }
 }
 
-pub fn start_wg_tunnel(
+pub(crate) fn start_wg_tunnel(
     endpoint: SocketAddr,
     udp: Arc<UdpSocket>,
     static_private: x25519::StaticSecret,
     peer_static_public: x25519::PublicKey,
     peer_allowed_ips: ip_network::IpNetwork,
-    tunnel_tx: mpsc::UnboundedSender<Vec<u8>>,
+    tunnel_tx: TunTaskTx,
 ) -> (
     tokio::task::JoinHandle<SocketAddr>,
     mpsc::UnboundedSender<Event>,

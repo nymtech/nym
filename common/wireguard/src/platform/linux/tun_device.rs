@@ -4,13 +4,14 @@ use etherparse::{InternetSlice, SlicedPacket};
 use tap::TapFallible;
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
-    sync::mpsc::{self, UnboundedSender},
+    sync::mpsc::{self},
 };
 
 use crate::{
     event::Event,
     setup::{TUN_BASE_NAME, TUN_DEVICE_ADDRESS, TUN_DEVICE_NETMASK},
     udp_listener::PeersByIp,
+    TunTaskTx,
 };
 
 fn setup_tokio_tun_device(name: &str, address: Ipv4Addr, netmask: Ipv4Addr) -> tokio_tun::Tun {
@@ -27,9 +28,7 @@ fn setup_tokio_tun_device(name: &str, address: Ipv4Addr, netmask: Ipv4Addr) -> t
         .expect("Failed to setup tun device, do you have permission?")
 }
 
-pub(crate) fn start_tun_device(
-    peers_by_ip: Arc<std::sync::Mutex<PeersByIp>>,
-) -> UnboundedSender<Vec<u8>> {
+pub(crate) fn start_tun_device(peers_by_ip: Arc<std::sync::Mutex<PeersByIp>>) -> TunTaskTx {
     let tun = setup_tokio_tun_device(
         format!("{}%d", TUN_BASE_NAME).as_str(),
         TUN_DEVICE_ADDRESS.parse().unwrap(),
@@ -41,6 +40,7 @@ pub(crate) fn start_tun_device(
 
     // Channels to communicate with the other tasks
     let (tun_task_tx, mut tun_task_rx) = mpsc::unbounded_channel::<Vec<u8>>();
+    let tun_task_tx = TunTaskTx(tun_task_tx);
 
     tokio::spawn(async move {
         let mut buf = [0u8; 1024];

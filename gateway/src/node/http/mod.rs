@@ -11,7 +11,7 @@ use tokio::sync::RwLock;
 mod api;
 use api::v1::client_registry::*;
 
-use super::{ClientPublicKey, ClientRegistry};
+use super::client_handling::client_registration::{ClientPublicKey, ClientRegistry};
 
 const ROUTE_PREFIX: &str = "/api/v1/gateway/client-interfaces/wireguard";
 

@@ -3,30 +3,34 @@ use std::sync::Arc;
 
 use axum::http::StatusCode;
 use axum::{extract::State, Json};
-use axum_macros::debug_handler;
 use std::str::FromStr;
 
+// use axum_macros::debug_handler;
+
+use crate::node::client_handling::client_registration::{
+    Client, ClientMessage, ClientPublicKey, InitMessage,
+};
 use crate::node::http::ApiState;
-use crate::node::{Client, ClientMessage, ClientPublicKey, InitMessage};
 
 async fn process_final_message(client: Client, state: Arc<ApiState>) -> StatusCode {
     let preshared_nonce = {
         let in_progress_ro = state.registration_in_progress.read().await;
-        if let Some(nonce) = in_progress_ro.get(&client.pub_key) {
+        if let Some(nonce) = in_progress_ro.get(client.pub_key()) {
             *nonce
         } else {
             return StatusCode::BAD_REQUEST;
         }
     };
-    if preshared_nonce == client.nonce && client.verify(state.sphinx_key_pair.private_key()).is_ok()
+    if preshared_nonce == client.nonce()
+        && client.verify(state.sphinx_key_pair.private_key()).is_ok()
     {
         {
             let mut in_progress_rw = state.registration_in_progress.write().await;
-            in_progress_rw.remove(&client.pub_key);
+            in_progress_rw.remove(client.pub_key());
         }
         {
             let mut registry_rw = state.client_registry.write().await;
-            registry_rw.insert(client.socket, client);
+            registry_rw.insert(client.socket(), client);
         }
         return StatusCode::OK;
     }
@@ -37,11 +41,11 @@ async fn process_final_message(client: Client, state: Arc<ApiState>) -> StatusCo
 async fn process_init_message(init_message: InitMessage, state: Arc<ApiState>) -> u64 {
     let nonce: u64 = fastrand::u64(..);
     let mut registry_rw = state.registration_in_progress.write().await;
-    registry_rw.insert(init_message.pub_key, nonce);
+    registry_rw.insert(init_message.pub_key().clone(), nonce);
     nonce
 }
 
-#[debug_handler]
+// #[debug_handler]
 pub(crate) async fn register_client(
     State(state): State<Arc<ApiState>>,
     Json(payload): Json<ClientMessage>,
@@ -67,7 +71,7 @@ pub(crate) async fn get_all_clients(
         Json(
             registry_ro
                 .values()
-                .map(|c| c.pub_key.clone())
+                .map(|c| c.pub_key().clone())
                 .collect::<Vec<ClientPublicKey>>(),
         ),
     )
@@ -85,7 +89,7 @@ pub(crate) async fn get_client(
     let clients = registry_ro
         .iter()
         .filter_map(|(_, c)| {
-            if c.pub_key == pub_key {
+            if c.pub_key() == &pub_key {
                 Some(c.clone())
             } else {
                 None

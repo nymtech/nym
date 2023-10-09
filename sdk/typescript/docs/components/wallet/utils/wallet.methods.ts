@@ -26,7 +26,7 @@ export const fetchSignerCosmosWasmClient = async (mnemonic: string) => {
   };
   
   
-export const fetchSignerClient = async (mnemonic) => {
+export const fetchSignerClient = async (mnemonic: string) => {
     const signer = await signerAccount(mnemonic);
   
     // create a signing client we don't need to set the gas price conversion for queries

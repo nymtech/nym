@@ -1,4 +1,4 @@
-import React from 'react';
+import { useState, useEffect } from 'react';
 import Button from '@mui/material/Button';
 import Paper from '@mui/material/Paper';
 import Box from '@mui/material/Box';
@@ -9,8 +9,19 @@ import { useWalletContext } from './utils/wallet.context';
 export const SendTokes = () => {
   const { sendingTokensLoading, sendTokens, log } = useWalletContext();
 
-  const [recipientAddress, setRecipientAddress] = React.useState<string>();
-  const [tokensToSend, setTokensToSend] = React.useState<string>();
+  const [recipientAddress, setRecipientAddress] = useState<string>();
+  const [tokensToSend, setTokensToSend] = useState<string>();
+
+  const cleanFields = () => {
+    setRecipientAddress('');
+    setTokensToSend('');
+  };
+
+  useEffect(() => {
+    return () => {
+      cleanFields();
+    };
+  }, []);
 
   return (
     <Box>
@@ -33,7 +44,10 @@ export const SendTokes = () => {
               />
               <Button
                 variant="outlined"
-                onClick={() => sendTokens(recipientAddress, tokensToSend)}
+                onClick={() => {
+                  sendTokens(recipientAddress, tokensToSend);
+                  cleanFields();
+                }}
                 disabled={sendingTokensLoading}
               >
                 {sendingTokensLoading ? 'Sending...' : 'Send tokens'}

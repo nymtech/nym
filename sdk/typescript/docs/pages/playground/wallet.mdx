@@ -1,19 +1,24 @@
 # Wallet
 
-import { Wallet, Log } from '../../components/wallet';
 import Box from '@mui/material/Box';
+
+import { WalletContextProvider } from '../../components/wallet/utils/wallet.context';
+import { ConnectWallet } from '../../components/wallet/connect';
+import { SendTokes } from '../../components/wallet/sendTokens';
+import { Delegations } from '../../components/wallet/delegations';
 import FormattedWalletConnectCode from '../../code-examples/wallet-connect-code.mdx';
 import FormattedWalletSendTokensCode from '../../code-examples/wallet-sendTokens-code.mdx';
 import FormattedWalletDelegationsCode from '../../code-examples/wallet-delegations-code.mdx';
 
 Here's a small wallet example using testnet for you to test out!
 
-<Wallet type="connect" />
-<FormattedWalletConnectCode />
+<WalletContextProvider>
+    <ConnectWallet />
+    <FormattedWalletConnectCode />
 
-<Wallet type="sendTokens" />
-<FormattedWalletSendTokensCode />
+    <SendTokes />
+    <FormattedWalletSendTokensCode />
 
-<Wallet type="delegations" />
-<FormattedWalletDelegationsCode />
-
+    <Delegations />
+    <FormattedWalletDelegationsCode />
+</WalletContextProvider>

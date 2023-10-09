@@ -6,26 +6,22 @@ import { TableBody, TableCell, TableHead, TableRow, TextField, Typography } from
 import Table from '@mui/material/Table';
 import { useWalletContext, WalletContextProvider } from './utils/wallet.context';
 
-const DelegationsComponent = () => {
-  const {
-    delegations,
-    doDelegate,
-    delegationLoader,
-    withdrawLoading,
-    withdrawRewards,
-    unDelegateAll,
-    unDelegateAllLoading,
-    log,
-  } = useWalletContext();
+export const Delegations = () => {
+  const { delegations, doDelegate, delegationLoader, unDelegateAll, unDelegateAllLoading, log } = useWalletContext();
+
   const [delegationNodeId, setDelegationNodeId] = useState<string>();
   const [amountToBeDelegated, setAmountToBeDelegated] = useState<string>();
 
+  const cleanFields = () => {
+    setDelegationNodeId('');
+    setAmountToBeDelegated('');
+  };
+
   useEffect(() => {
     return () => {
-      setDelegationNodeId('');
-      setAmountToBeDelegated('');
+      cleanFields();
     };
-  }, [delegations]);
+  }, []);
 
   return (
     <Box>
@@ -53,9 +49,8 @@ const DelegationsComponent = () => {
                 <Button
                   variant="outlined"
                   onClick={() => {
-                    doDelegate({ mixId: parseInt(delegationNodeId, 10), amount: parseInt(amountToBeDelegated, 10) });
-                    setDelegationNodeId('');
-                    setAmountToBeDelegated('');
+                    doDelegate({ mixId: delegationNodeId, amount: amountToBeDelegated });
+                    cleanFields();
                   }}
                   disabled={delegationLoader}
                 >
@@ -68,9 +63,9 @@ const DelegationsComponent = () => {
             <Typography variant="body1">Your delegations:</Typography>
             <Box marginBottom={3} display="flex" flexDirection="column">
               {!delegations?.delegations?.length ? (
-                <Typography variant='body2'>You do not have delegations</Typography>
+                <Typography variant="body2">You do not have delegations</Typography>
               ) : (
-                <Box>
+                <Box overflow='auto'>
                   <Table size="small">
                     <TableHead>
                       <TableRow>
@@ -111,13 +106,5 @@ const DelegationsComponent = () => {
         </Box>
       )}
     </Box>
-  );
-};
-
-export const Delegations = () => {
-  return (
-    <WalletContextProvider>
-      <DelegationsComponent />
-    </WalletContextProvider>
   );
 };

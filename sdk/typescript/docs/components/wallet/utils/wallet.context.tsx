@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, useEffect, useMemo } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { Coin } from '@cosmjs/stargate';
 import { SigningCosmWasmClient } from '@cosmjs/cosmwasm-stargate';
 import { settings } from '../../client';
@@ -23,10 +23,8 @@ interface WalletState {
   delegations?: any;
   unDelegateAll?: () => void;
   unDelegateAllLoading?: boolean;
-  doDelegate?: ({ mixId, amount }: { mixId: number; amount: number }) => void;
+  doDelegate?: ({ mixId, amount }: { mixId: string; amount: string }) => void;
   delegationLoader?: boolean;
-  withdrawLoading?: boolean;
-  withdrawRewards?: () => void;
 }
 
 export const WalletContext = createContext<WalletState>({
@@ -40,11 +38,10 @@ export const WalletContext = createContext<WalletState>({
 
 export const useWalletContext = (): React.ContextType<typeof WalletContext> => useContext<WalletState>(WalletContext);
 
-let cosmWasmSignerClient: SigningCosmWasmClient;
-let nymWasmSignerClient: any;
-let account: string;
-
 export const WalletContextProvider = ({ children }: { children: JSX.Element }) => {
+  const [cosmWasmSignerClient, setCosmWasmSignerClient] = useState<SigningCosmWasmClient>(null);
+  const [nymWasmSignerClient, setNymWasmSignerClient] = useState<any>(null);
+  const [account, setAccount] = useState<string>('');
   const [accountLoading, setAccountLoading] = useState<boolean>(false);
   const [delegations, setDelegations] = useState<any>();
   const [clientsAreLoading, setClientsAreLoading] = useState<boolean>(false);
@@ -54,7 +51,6 @@ export const WalletContextProvider = ({ children }: { children: JSX.Element }) =
   const [log, setLog] = useState<React.ReactNode[]>([]);
   const [delegationLoader, setDelegationLoader] = useState<boolean>(false);
   const [unDelegateAllLoading, setUnDelegateAllLoading] = useState<boolean>(false);
-  const [withdrawLoading, setWithdrawLoading] = useState<boolean>(false);
 
   const Reset = () => {
     setAccountLoading(false);
@@ -72,7 +68,7 @@ export const WalletContextProvider = ({ children }: { children: JSX.Element }) =
       const signer = await signerAccount(mnemonic);
       const accounts = await signer.getAccounts();
       if (accounts[0]) {
-        account = accounts[0].address;
+        setAccount(accounts[0].address);
       }
     } catch (error) {
       console.error(error);
@@ -83,8 +79,8 @@ export const WalletContextProvider = ({ children }: { children: JSX.Element }) =
   const getClients = async (mnemonic: string) => {
     setClientsAreLoading(true);
     try {
-      cosmWasmSignerClient = await fetchSignerCosmosWasmClient(mnemonic);
-      nymWasmSignerClient = await fetchSignerClient(mnemonic);
+      setCosmWasmSignerClient(await fetchSignerCosmosWasmClient(mnemonic));
+      setNymWasmSignerClient(await fetchSignerClient(mnemonic));
     } catch (error) {
       console.error(error);
     }
@@ -111,14 +107,12 @@ export const WalletContextProvider = ({ children }: { children: JSX.Element }) =
     const delegations = await nymWasmSignerClient.getDelegatorDelegations({
       delegator: settings.address,
     });
-    console.log('delegations', delegations);
     setDelegations(delegations);
   }, [nymWasmSignerClient]);
 
   const sendTokens = async (recipientAddress: string, tokensToSend: string) => {
-    const memo = 'test sending tokens';
+    const memo: string = 'test sending tokens';
     setSendingTokensLoading(true);
-    console.log([{ amount: tokensToSend, denom: 'unym' }],)
     try {
       const res = await cosmWasmSignerClient.sendTokens(
         account,
@@ -140,11 +134,13 @@ export const WalletContextProvider = ({ children }: { children: JSX.Element }) =
     setSendingTokensLoading(false);
   };
 
-  const doDelegate = async ({ mixId, amount }: { mixId: number; amount: number }) => {
+  const doDelegate = async ({ mixId, amount }: { mixId: string; amount: string }) => {
     setDelegationLoader(true);
+    const memo: string = 'test delegation';
+    const coinAmount: Coin = { amount: amount, denom: 'unym' };
     try {
-      const res = await nymWasmSignerClient.delegateToMixnode({ mixId }, 'auto', undefined, [
-        { amount: `${amount}`, denom: 'unym' },
+      const res = await nymWasmSignerClient.delegateToMixnode({ mixId: parseInt(mixId, 10) }, 'auto', memo, [
+        coinAmount,
       ]);
       setLog((prev) => [
         ...prev,
@@ -162,7 +158,7 @@ export const WalletContextProvider = ({ children }: { children: JSX.Element }) =
   const withdrawRewards = async () => {
     const validatorAdress = '';
     const memo = 'test withdraw rewards';
-    setWithdrawLoading(true);
+    // setWithdrawLoading(true);
     try {
       const res = await cosmWasmSignerClient.withdrawRewards(account, validatorAdress, 'auto', memo);
       setLog((prev) => [
@@ -175,13 +171,10 @@ export const WalletContextProvider = ({ children }: { children: JSX.Element }) =
     } catch (error) {
       console.error(error);
     }
-    setWithdrawLoading(false);
+    // setWithdrawLoading(false);
   };
 
   const undelegateAll = async () => {
-    if (!nymWasmSignerClient) {
-      return;
-    }
     setUnDelegateAllLoading(true);
     try {
       // eslint-disable-next-line no-restricted-syntax
@@ -229,8 +222,6 @@ export const WalletContextProvider = ({ children }: { children: JSX.Element }) =
       unDelegateAllLoading,
       doDelegate,
       delegationLoader,
-      withdrawRewards,
-      withdrawLoading,
     }),
     [
       accountLoading,
@@ -247,8 +238,6 @@ export const WalletContextProvider = ({ children }: { children: JSX.Element }) =
       unDelegateAllLoading,
       doDelegate,
       delegationLoader,
-      withdrawRewards,
-      withdrawLoading,
     ],
   );
 

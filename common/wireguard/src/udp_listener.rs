@@ -86,7 +86,7 @@ pub(crate) async fn start_udp_listener(
                             tun_task_tx.clone(),
                         );
 
-                        peers_by_ip.lock().unwrap().ips.insert(peer_allowed_ips, peer_tx.clone());
+                        peers_by_ip.lock().unwrap().insert(peer_allowed_ips, peer_tx.clone());
 
                         peer_tx.send(Event::WgPacket(buf[..len].to_vec().into()))
                             .tap_err(|err| log::error!("{err}"))

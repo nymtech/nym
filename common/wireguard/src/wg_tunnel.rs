@@ -86,7 +86,7 @@ impl WireGuardTunnel {
         let (close_tx, close_rx) = broadcast::channel(1);
 
         let mut allowed_ips = NetworkTable::new();
-        allowed_ips.ips.insert(peer_allowed_ips, ());
+        allowed_ips.insert(peer_allowed_ips, ());
 
         let tunnel = WireGuardTunnel {
             peer_rx,
@@ -184,7 +184,7 @@ impl WireGuardTunnel {
             TunnResult::WriteToTunnelV4(packet, addr) => {
                 // TODO: once the flow is redone, we should add updating the endpoint dynamically
                 // self.set_endpoint(addr);
-                if self.allowed_ips.ips.longest_match_ipv4(addr).is_some() {
+                if self.allowed_ips.longest_match(addr).is_some() {
                     self.tun_task_tx.send(packet.to_vec()).unwrap();
                 } else {
                     warn!("Packet from {addr} not in allowed_ips");
@@ -193,7 +193,7 @@ impl WireGuardTunnel {
             TunnResult::WriteToTunnelV6(packet, addr) => {
                 // TODO: once the flow is redone, we should add updating the endpoint dynamically
                 // self.set_endpoint(addr);
-                if self.allowed_ips.ips.longest_match_ipv6(addr).is_some() {
+                if self.allowed_ips.longest_match(addr).is_some() {
                     self.tun_task_tx.send(packet.to_vec()).unwrap();
                 } else {
                     warn!("Packet (v6) from {addr} not in allowed_ips");

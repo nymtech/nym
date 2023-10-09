@@ -60,7 +60,7 @@ pub(crate) fn start_tun_device(
                         log::info!("iface: read Packet({src_addr} -> {dst_addr}, {len} bytes)");
 
                         // Route packet to the correct peer.
-                        if let Some(peer_tx) = peers_by_ip.lock().unwrap().ips.longest_match(dst_addr).map(|(_, tx)| tx) {
+                        if let Some(peer_tx) = peers_by_ip.lock().unwrap().longest_match(dst_addr).map(|(_, tx)| tx) {
                             log::info!("Forward packet to wg tunnel");
                             peer_tx
                                 .send(Event::IpPacket(packet.to_vec().into()))

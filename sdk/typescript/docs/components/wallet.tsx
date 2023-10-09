@@ -6,8 +6,11 @@ import { SendTokes } from './wallet/sendTokens';
 import { Delegations } from './wallet/delegations';
 import { WalletContextProvider, useWalletContext } from './wallet/utils/wallet.context';
 
-export const Logs = () => {
+export const LogUI = () => {
   const { log } = useWalletContext();
+  React.useEffect(() => {
+    console.log('log', log);
+  }, [log]);
   return (
     log.length > 0 && (
       <Box marginTop={3}>
@@ -17,6 +20,12 @@ export const Logs = () => {
     )
   );
 };
+
+export const Log = () => (
+  <WalletContextProvider>
+    <LogUI />
+  </WalletContextProvider>
+);
 
 export const Wallet = ({ type }: { type: 'connect' | 'sendTokens' | 'delegations' | 'logs' }) => {
   const [component, setComponent] = React.useState<React.ReactNode>();
@@ -32,8 +41,6 @@ export const Wallet = ({ type }: { type: 'connect' | 'sendTokens' | 'delegations
       case 'delegations':
         setComponent(<Delegations />);
         break;
-      case 'logs':
-      setComponent(<Logs />);
       default:
         null;
     }

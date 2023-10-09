@@ -44,7 +44,6 @@ pub(crate) struct Client {
     // base64 encoded public key, using x25519-dalek for impl
     pub(crate) pub_key: ClientPublicKey,
     pub(crate) socket: SocketAddr,
-    pub(crate) nonce: u64,
     pub(crate) mac: ClientMac,
 }
 
@@ -53,7 +52,7 @@ pub type HmacSha256 = Hmac<Sha256>;
 impl Client {
     // Reusable secret should be gateways Wireguard PK
     // Client should perform this step when generating its payload, using its own WG PK
-    pub fn verify(&self, gateway_key: &PrivateKey) -> Result<(), GatewayError> {
+    pub fn verify(&self, gateway_key: &PrivateKey, nonce: u64) -> Result<(), GatewayError> {
         #[allow(clippy::expect_used)]
         let static_secret =
             StaticSecret::try_from(gateway_key.to_bytes()).expect("This is infalliable");
@@ -62,16 +61,12 @@ impl Client {
         mac.update(self.pub_key.as_bytes());
         mac.update(self.socket.ip().to_string().as_bytes());
         mac.update(self.socket.port().to_string().as_bytes());
-        mac.update(&self.nonce.to_le_bytes());
+        mac.update(&nonce.to_le_bytes());
         Ok(mac.verify_slice(&self.mac)?)
     }
 
     pub fn pub_key(&self) -> &ClientPublicKey {
         &self.pub_key
-    }
-
-    pub fn nonce(&self) -> u64 {
-        self.nonce
     }
 
     pub fn socket(&self) -> SocketAddr {

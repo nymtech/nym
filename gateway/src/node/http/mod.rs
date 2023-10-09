@@ -83,6 +83,13 @@ mod test {
 
     #[tokio::test]
     async fn registration() {
+        // 1. Provision random keys for gateway and client
+        // 2. Generate DH shared secret
+        // 3. Client submits its public key to the gateway to start the handshake process, gateway responds with nonce
+        // 4. Client generates mac digest using DH shared secret, its own public key, socket address and port, and nonce
+        // 5. Client sends its public key, socket address and port, nonce and mac digest to the gateway
+        // 6. Gateway verifies mac digest and nonce, and stores client's public key and socket address and port
+
         let mut rng = rand::thread_rng();
 
         let gateway_key_pair = encryption::KeyPair::new(&mut rng);
@@ -146,7 +153,6 @@ mod test {
         let finalized_message = ClientMessage::Final(Client {
             pub_key: ClientPublicKey::new(client_static_public),
             socket: SocketAddr::from_str("127.0.0.1:8080").unwrap(),
-            nonce: nonce.unwrap(),
             mac: ClientMac::new(mac.as_slice().to_vec()),
         });
 
@@ -154,9 +160,7 @@ mod test {
             .method("POST")
             .uri(format!("{}/client", ROUTE_PREFIX))
             .header("Content-type", "application/json")
-            .body(Body::from(
-                serde_json::to_string(&finalized_message).unwrap(),
-            ))
+            .body(Body::from(serde_json::to_vec(&finalized_message).unwrap()))
             .unwrap();
 
         let response = ServiceExt::<Request<Body>>::ready(&mut app)

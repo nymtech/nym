@@ -21,8 +21,10 @@ async fn process_final_message(client: Client, state: Arc<ApiState>) -> StatusCo
             return StatusCode::BAD_REQUEST;
         }
     };
-    if preshared_nonce == client.nonce()
-        && client.verify(state.sphinx_key_pair.private_key()).is_ok()
+
+    if client
+        .verify(state.sphinx_key_pair.private_key(), preshared_nonce)
+        .is_ok()
     {
         {
             let mut in_progress_rw = state.registration_in_progress.write().await;

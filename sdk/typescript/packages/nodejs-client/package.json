@@ -6,11 +6,10 @@
   "files": [
     "dist/**/*"
   ],
-  "main": "dist/index.mjs",
+  "main": "dist/cjs/index.js",
   "scripts": {
     "build": "scripts/build-prod.sh",
     "build:dev": "scripts/build.sh",
-    "build:dev:esm": "scripts/build-dev-esm.sh",
     "build:worker": "rollup -c rollup-worker.config.mjs",
     "clean": "rimraf dist",
     "docs:dev": "run-p docs:watch docs:serve ",
@@ -23,12 +22,14 @@
     "lint:fix": "eslint src --fix",
     "start": "tsc -w",
     "start:dev": "nodemon --watch src -e ts,json --exec 'yarn build:dev:esm'",
-    "test": "node --experimental-vm-modules --no-warnings node_modules/jest/bin/jest.js -c=jest.config.mjs --no-cache",
     "tsc": "tsc --noEmit true"
   },
   "dependencies": {
-    "@nymproject/nym-client-wasm-node": ">=1.2.0-rc.10 || ^1",
-    "comlink": "^4.3.1"
+    "@nymproject/nym-client-wasm-node": "^1.2.0",
+    "comlink": "^4.3.1",
+    "fake-indexeddb": "^4.0.2",
+    "rollup-plugin-polyfill": "^4.2.0",
+    "ws": "^8.14.2"
   },
   "devDependencies": {
     "@babel/core": "^7.15.0",
@@ -68,6 +69,7 @@
     "rimraf": "^3.0.2",
     "rollup": "^3.9.1",
     "rollup-plugin-base64": "^1.0.1",
+    "rollup-plugin-modify": "^3.0.0",
     "rollup-plugin-web-worker-loader": "^1.6.1",
     "ts-jest": "^29.1.0",
     "ts-loader": "^9.4.2",
@@ -75,6 +77,5 @@
     "typescript": "^4.8.4"
   },
   "private": false,
-  "type": "module",
   "types": "./dist/index.d.ts"
 }

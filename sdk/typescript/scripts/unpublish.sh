@@ -23,6 +23,8 @@ packages2=(
 "ts/sdk/mix-fetch/esm"
 "ts/sdk/mix-fetch/esm-full-fat"
 
+"ts/sdk/nodejs-client/cjs"
+
 "ts/sdk/node-tester/cjs"
 "ts/sdk/node-tester/cjs-full-fat"
 "ts/sdk/node-tester/esm"

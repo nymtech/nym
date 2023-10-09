@@ -18,7 +18,7 @@ interface WalletState {
   setRecipientAddress?: (value: string) => void;
   setTokensToSend?: (value: string) => void;
   sendingTokensLoading: boolean;
-  log: React.ReactNode[];
+  log?: { type: 'delegate' | 'sendTokens'; node: React.ReactNode[] };
   sendTokens?: (recipientAddress: string, tokensToSend: string) => void;
   delegations?: any;
   doDelegate?: (mixId: string, amount: string) => void;
@@ -33,7 +33,6 @@ export const WalletContext = createContext<WalletState>({
   clientsAreLoading: false,
   balanceLoading: false,
   sendingTokensLoading: false,
-  log: [],
 });
 
 export const useWalletContext = (): React.ContextType<typeof WalletContext> => useContext<WalletState>(WalletContext);
@@ -48,7 +47,7 @@ export const WalletContextProvider = ({ children }: { children: JSX.Element }) =
   const [balance, setBalance] = useState<Coin>(null);
   const [balanceLoading, setBalanceLoading] = useState<boolean>(false);
   const [sendingTokensLoading, setSendingTokensLoading] = useState<boolean>(false);
-  const [log, setLog] = useState<React.ReactNode[]>([]);
+  const [log, setLog] = useState<{ type: 'delegate' | 'sendTokens'; node: React.ReactNode[] }>();
   const [delegationLoader, setDelegationLoader] = useState<boolean>(false);
   const [unDelegateAllLoading, setUnDelegateAllLoading] = useState<boolean>(false);
 
@@ -121,13 +120,15 @@ export const WalletContextProvider = ({ children }: { children: JSX.Element }) =
         'auto',
         memo,
       );
-      setLog((prev) => [
-        ...prev,
-        <div key={JSON.stringify(res, null, 2)}>
-          <code style={{ marginRight: '2rem' }}>{new Date().toLocaleTimeString()}</code>
-          <pre>{JSON.stringify(res, null, 2)}</pre>
-        </div>,
-      ]);
+      setLog({
+        type: 'sendTokens',
+        node: [
+          <div key={JSON.stringify(res, null, 2)}>
+            <code style={{ marginRight: '2rem' }}>{new Date().toLocaleTimeString()}</code>
+            <pre>{JSON.stringify(res, null, 2)}</pre>
+          </div>,
+        ],
+      });
     } catch (error) {
       console.error(error);
     }
@@ -142,13 +143,15 @@ export const WalletContextProvider = ({ children }: { children: JSX.Element }) =
       const res = await nymWasmSignerClient.delegateToMixnode({ mixId: parseInt(mixId, 10) }, 'auto', memo, [
         coinAmount,
       ]);
-      setLog((prev) => [
-        ...prev,
-        <div key={JSON.stringify(res, null, 2)}>
-          <code style={{ marginRight: '2rem' }}>{new Date().toLocaleTimeString()}</code>
-          <pre>{JSON.stringify(res, null, 2)}</pre>
-        </div>,
-      ]);
+      setLog({
+        type: 'delegate',
+        node: [
+          <div key={JSON.stringify(res, null, 2)}>
+            <code style={{ marginRight: '2rem' }}>{new Date().toLocaleTimeString()}</code>
+            <pre>{JSON.stringify(res, null, 2)}</pre>
+          </div>,
+        ],
+      });
     } catch (error) {
       console.error(error);
     }
@@ -158,19 +161,23 @@ export const WalletContextProvider = ({ children }: { children: JSX.Element }) =
   const unDelegateAll = async () => {
     setUnDelegateAllLoading(true);
     try {
+      const logs: React.ReactNode[] = [];
       // eslint-disable-next-line no-restricted-syntax
       for (const delegation of delegations.delegations) {
         // eslint-disable-next-line no-await-in-loop
         const res = await nymWasmSignerClient.undelegateFromMixnode({ mixId: delegation.mix_id }, 'auto');
         setUnDelegateAllLoading(false);
-        setLog((prev) => [
-          ...prev,
+        logs.push(
           <div key={JSON.stringify(res, null, 2)}>
             <code style={{ marginRight: '2rem' }}>{new Date().toLocaleTimeString()}</code>
             <pre>{JSON.stringify(res, null, 2)}</pre>
           </div>,
-        ]);
+        );
       }
+      setLog({
+        type: 'delegate',
+        node: logs,
+      });
     } catch (error) {
       console.error(error);
       setUnDelegateAllLoading(false);
@@ -183,13 +190,15 @@ export const WalletContextProvider = ({ children }: { children: JSX.Element }) =
     // setWithdrawLoading(true);
     try {
       const res = await cosmWasmSignerClient.withdrawRewards(account, validatorAdress, 'auto', memo);
-      setLog((prev) => [
-        ...prev,
-        <div key={JSON.stringify(res, null, 2)}>
-          <code style={{ marginRight: '2rem' }}>{new Date().toLocaleTimeString()}</code>
-          <pre>{JSON.stringify(res, null, 2)}</pre>
-        </div>,
-      ]);
+      setLog({
+        type: 'delegate',
+        node: [
+          <div key={JSON.stringify(res, null, 2)}>
+            <code style={{ marginRight: '2rem' }}>{new Date().toLocaleTimeString()}</code>
+            <pre>{JSON.stringify(res, null, 2)}</pre>
+          </div>,
+        ],
+      });
     } catch (error) {
       console.error(error);
     }

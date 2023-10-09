@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Button from '@mui/material/Button';
 import Paper from '@mui/material/Paper';
 import Box from '@mui/material/Box';
@@ -24,6 +24,12 @@ export const Delegations = () => {
     setAmountToBeDelegated('');
     setInfoText('');
   };
+
+  useEffect(() => {
+    return () => {
+      cleanFields();
+    };
+  }, []);
 
   return (
     <Box>
@@ -92,7 +98,7 @@ export const Delegations = () => {
                 </Box>
               )}
             </Box>
-            {delegations?.delegations?.lenght > 0 && (
+            {delegations?.delegations.length > 0 && (
               <Box marginBottom={3}>
                 <Button
                   variant="outlined"
@@ -111,10 +117,10 @@ export const Delegations = () => {
           </Box>
         </Box>
       </Paper>
-      {log.length > 0 && (
+      {log?.node?.length > 0 && log.type === 'delegate' && (
         <Box marginTop={3}>
           <Typography variant="h5">Transaction Logs:</Typography>
-          {log}
+          {log.node}
         </Box>
       )}
     </Box>

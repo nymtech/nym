@@ -57,10 +57,10 @@ export const SendTokes = () => {
         </Box>
       </Paper>
 
-      {log.length > 0 && (
+      {log?.node?.length > 0 &&  log.type === 'sendTokens' && (
         <Box marginTop={3}>
           <Typography variant="h5">Transaction Logs:</Typography>
-          {log}
+          {log.node}
         </Box>
       )}
     </Box>

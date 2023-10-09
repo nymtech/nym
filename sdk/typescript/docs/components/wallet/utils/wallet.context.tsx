@@ -21,10 +21,10 @@ interface WalletState {
   log: React.ReactNode[];
   sendTokens?: (recipientAddress: string, tokensToSend: string) => void;
   delegations?: any;
+  doDelegate?: (mixId: string, amount: string) => void;
+  delegationLoader?: boolean;
   unDelegateAll?: () => void;
   unDelegateAllLoading?: boolean;
-  doDelegate?: ({ mixId, amount }: { mixId: string; amount: string }) => void;
-  delegationLoader?: boolean;
 }
 
 export const WalletContext = createContext<WalletState>({
@@ -43,7 +43,7 @@ export const WalletContextProvider = ({ children }: { children: JSX.Element }) =
   const [nymWasmSignerClient, setNymWasmSignerClient] = useState<any>(null);
   const [account, setAccount] = useState<string>('');
   const [accountLoading, setAccountLoading] = useState<boolean>(false);
-  const [delegations, setDelegations] = useState<any>();
+  const [delegations, setDelegations] = useState<{ delegations: any[]; start_next_after: any }>();
   const [clientsAreLoading, setClientsAreLoading] = useState<boolean>(false);
   const [balance, setBalance] = useState<Coin>(null);
   const [balanceLoading, setBalanceLoading] = useState<boolean>(false);
@@ -134,7 +134,7 @@ export const WalletContextProvider = ({ children }: { children: JSX.Element }) =
     setSendingTokensLoading(false);
   };
 
-  const doDelegate = async ({ mixId, amount }: { mixId: string; amount: string }) => {
+  const doDelegate = async (mixId: string, amount: string) => {
     setDelegationLoader(true);
     const memo: string = 'test delegation';
     const coinAmount: Coin = { amount: amount, denom: 'unym' };
@@ -155,6 +155,28 @@ export const WalletContextProvider = ({ children }: { children: JSX.Element }) =
     setDelegationLoader(false);
   };
 
+  const unDelegateAll = async () => {
+    setUnDelegateAllLoading(true);
+    try {
+      // eslint-disable-next-line no-restricted-syntax
+      for (const delegation of delegations.delegations) {
+        // eslint-disable-next-line no-await-in-loop
+        const res = await nymWasmSignerClient.undelegateFromMixnode({ mixId: delegation.mix_id }, 'auto');
+        setUnDelegateAllLoading(false);
+        setLog((prev) => [
+          ...prev,
+          <div key={JSON.stringify(res, null, 2)}>
+            <code style={{ marginRight: '2rem' }}>{new Date().toLocaleTimeString()}</code>
+            <pre>{JSON.stringify(res, null, 2)}</pre>
+          </div>,
+        ]);
+      }
+    } catch (error) {
+      console.error(error);
+      setUnDelegateAllLoading(false);
+    }
+  };
+
   const withdrawRewards = async () => {
     const validatorAdress = '';
     const memo = 'test withdraw rewards';
@@ -172,20 +194,6 @@ export const WalletContextProvider = ({ children }: { children: JSX.Element }) =
       console.error(error);
     }
     // setWithdrawLoading(false);
-  };
-
-  const undelegateAll = async () => {
-    setUnDelegateAllLoading(true);
-    try {
-      // eslint-disable-next-line no-restricted-syntax
-      for (const delegation of delegations.delegations) {
-        // eslint-disable-next-line no-await-in-loop
-        await nymWasmSignerClient.undelegateFromMixnode({ mixId: delegation.mix_id }, 'auto');
-      }
-    } catch (error) {
-      console.error(error);
-    }
-    setUnDelegateAllLoading(false);
   };
 
   useEffect(() => {
@@ -218,10 +226,10 @@ export const WalletContextProvider = ({ children }: { children: JSX.Element }) =
       log,
       sendTokens,
       delegations,
-      undelegateAll,
-      unDelegateAllLoading,
       doDelegate,
       delegationLoader,
+      unDelegateAll,
+      unDelegateAllLoading,
     }),
     [
       accountLoading,
@@ -234,10 +242,10 @@ export const WalletContextProvider = ({ children }: { children: JSX.Element }) =
       log,
       sendTokens,
       delegations,
-      undelegateAll,
-      unDelegateAllLoading,
       doDelegate,
       delegationLoader,
+      unDelegateAll,
+      unDelegateAllLoading,
     ],
   );
 

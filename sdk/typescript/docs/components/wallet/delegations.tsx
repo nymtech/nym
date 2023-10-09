@@ -1,27 +1,29 @@
-import React, { use, useEffect, useState } from 'react';
+import { useState } from 'react';
 import Button from '@mui/material/Button';
 import Paper from '@mui/material/Paper';
 import Box from '@mui/material/Box';
-import { TableBody, TableCell, TableHead, TableRow, TextField, Typography } from '@mui/material';
+import Typography from '@mui/material/Typography';
+import TextField from '@mui/material/TextField';
+import Alert from '@mui/material/Alert';
 import Table from '@mui/material/Table';
-import { useWalletContext, WalletContextProvider } from './utils/wallet.context';
+import TableBody from '@mui/material/TableBody';
+import TableCell from '@mui/material/TableCell';
+import TableHead from '@mui/material/TableHead';
+import TableRow from '@mui/material/TableRow';
+import { useWalletContext } from './utils/wallet.context';
 
 export const Delegations = () => {
   const { delegations, doDelegate, delegationLoader, unDelegateAll, unDelegateAllLoading, log } = useWalletContext();
 
   const [delegationNodeId, setDelegationNodeId] = useState<string>();
   const [amountToBeDelegated, setAmountToBeDelegated] = useState<string>();
+  const [infoText, setInfoText] = useState<string>('');
 
   const cleanFields = () => {
     setDelegationNodeId('');
     setAmountToBeDelegated('');
+    setInfoText('');
   };
-
-  useEffect(() => {
-    return () => {
-      cleanFields();
-    };
-  }, []);
 
   return (
     <Box>
@@ -49,7 +51,8 @@ export const Delegations = () => {
                 <Button
                   variant="outlined"
                   onClick={() => {
-                    doDelegate({ mixId: delegationNodeId, amount: amountToBeDelegated });
+                    doDelegate(delegationNodeId, amountToBeDelegated);
+                    setInfoText('Changes will be visible after the next epoch');
                     cleanFields();
                   }}
                   disabled={delegationLoader}
@@ -65,7 +68,7 @@ export const Delegations = () => {
               {!delegations?.delegations?.length ? (
                 <Typography variant="body2">You do not have delegations</Typography>
               ) : (
-                <Box overflow='auto'>
+                <Box overflow="auto">
                   <Table size="small">
                     <TableHead>
                       <TableRow>
@@ -89,13 +92,22 @@ export const Delegations = () => {
                 </Box>
               )}
             </Box>
-            {delegations && (
+            {delegations?.delegations?.lenght > 0 && (
               <Box marginBottom={3}>
-                <Button variant="outlined" onClick={() => unDelegateAll()} disabled={unDelegateAllLoading}>
-                  {unDelegateAllLoading ? 'Undelegating...' : 'Undelegate All'}
+                <Button
+                  variant="outlined"
+                  onClick={() => {
+                    unDelegateAll();
+                    setInfoText('Changes will be visible after the next epoch');
+                  }}
+                  disabled={unDelegateAllLoading}
+                >
+                  Undelegate All
                 </Button>
               </Box>
             )}
+
+            {infoText && <Alert severity="info">{infoText}</Alert>}
           </Box>
         </Box>
       </Paper>

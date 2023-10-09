@@ -33,7 +33,7 @@ pub async fn start_wireguard(
 
 #[cfg(not(target_os = "linux"))]
 pub async fn start_wireguard(
-    _task_client: TaskClient,
+    _task_client: nym_task::TaskClient,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     todo!("WireGuard is currently only supported on Linux")
 }

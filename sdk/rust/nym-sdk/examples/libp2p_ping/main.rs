@@ -45,7 +45,6 @@ use libp2p::ping::Success;
 use libp2p::swarm::{keep_alive, NetworkBehaviour, SwarmEvent};
 use libp2p::{identity, ping, Multiaddr, PeerId};
 use log::{debug, info, LevelFilter};
-use nym_sdk::mixnet::MixnetClient;
 use std::error::Error;
 use std::time::Duration;
 
@@ -70,7 +69,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         use libp2p::swarm::SwarmBuilder;
         use rust_libp2p_nym::transport::NymTransport;
 
-        let client = MixnetClient::connect_new().await.unwrap();
+        let client = nym_sdk::mixnet::MixnetClient::connect_new().await.unwrap();
 
         let transport = NymTransport::new(client, local_key.clone()).await?;
         SwarmBuilder::with_tokio_executor(

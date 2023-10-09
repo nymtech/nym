@@ -932,6 +932,14 @@ mod tests {
             MixnetExecuteMsg::TestingResolveAllPendingEvents {} => {
                 client.testing_resolve_all_pending_events(None).ignore()
             }
+
+            // We add this entry purely to try to make rust-analyzer happy
+            #[cfg(not(feature = "nym_mixnet_contract_common/contract-testing"))]
+            _ => {
+                unimplemented!(
+                    "testing functionality is only available in contract-testing feature"
+                )
+            }
         };
     }
 }

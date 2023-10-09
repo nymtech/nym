@@ -17,7 +17,6 @@ use x25519_dalek::StaticSecret;
 use crate::error::GatewayError;
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
-#[serde(untagged)]
 pub(crate) enum ClientMessage {
     Init(InitMessage),
     Final(Client),
@@ -32,6 +31,10 @@ impl InitMessage {
     pub fn pub_key(&self) -> &ClientPublicKey {
         &self.pub_key
     }
+    #[allow(dead_code)]
+    pub fn new(pub_key: ClientPublicKey) -> Self {
+        InitMessage { pub_key }
+    }
 }
 
 // Client that wants to register sends its PublicKey and SocketAddr bytes mac digest encrypted with a DH shared secret.
@@ -39,14 +42,13 @@ impl InitMessage {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub(crate) struct Client {
     // base64 encoded public key, using x25519-dalek for impl
-    pub_key: ClientPublicKey,
-    socket: SocketAddr,
-    #[serde(skip_serializing)]
-    nonce: u64,
-    mac: ClientMac,
+    pub(crate) pub_key: ClientPublicKey,
+    pub(crate) socket: SocketAddr,
+    pub(crate) nonce: u64,
+    pub(crate) mac: ClientMac,
 }
 
-type HmacSha256 = Hmac<Sha256>;
+pub type HmacSha256 = Hmac<Sha256>;
 
 impl Client {
     // Reusable secret should be gateways Wireguard PK
@@ -61,7 +63,7 @@ impl Client {
         mac.update(self.socket.ip().to_string().as_bytes());
         mac.update(self.socket.port().to_string().as_bytes());
         mac.update(&self.nonce.to_le_bytes());
-        Ok(mac.verify_slice(&*self.mac)?)
+        Ok(mac.verify_slice(&self.mac)?)
     }
 
     pub fn pub_key(&self) -> &ClientPublicKey {
@@ -81,10 +83,17 @@ impl Client {
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct ClientPublicKey(x25519_dalek::PublicKey);
 #[derive(Debug, Clone)]
-struct ClientMac([u8; 64]);
+pub(crate) struct ClientMac(Vec<u8>);
+
+impl ClientMac {
+    #[allow(dead_code)]
+    pub fn new(mac: Vec<u8>) -> Self {
+        ClientMac(mac)
+    }
+}
 
 impl Deref for ClientMac {
-    type Target = [u8; 64];
+    type Target = Vec<u8>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -107,18 +116,16 @@ impl FromStr for ClientMac {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let mac_bytes: [u8; 64] = general_purpose::STANDARD
+        let mac_bytes: Vec<u8> = general_purpose::STANDARD
             .decode(s)
-            .map_err(|_| "Could not base64 decode public key mac representation".to_string())?
-            .try_into()
-            .map_err(|_| "Invalid key length".to_string())?;
+            .map_err(|_| "Could not base64 decode public key mac representation".to_string())?;
         Ok(ClientMac(mac_bytes))
     }
 }
 
 impl Serialize for ClientMac {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        let encoded_key = general_purpose::STANDARD.encode(self.0);
+        let encoded_key = general_purpose::STANDARD.encode(self.0.clone());
         serializer.serialize_str(&encoded_key)
     }
 }
@@ -127,6 +134,17 @@ impl<'de> Deserialize<'de> for ClientMac {
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let encoded_key = String::deserialize(deserializer)?;
         ClientMac::from_str(&encoded_key).map_err(serde::de::Error::custom)
+    }
+}
+
+impl ClientPublicKey {
+    #[allow(dead_code)]
+    pub fn new(key: x25519_dalek::PublicKey) -> Self {
+        ClientPublicKey(key)
+    }
+
+    pub fn as_bytes(&self) -> &[u8] {
+        self.0.as_bytes()
     }
 }
 

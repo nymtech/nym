@@ -11,6 +11,7 @@ use nym_socks5_requests::{
 };
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
+use nym_sphinx::params::PacketType;
 use nym_task::connections::TransmissionLane;
 use std::fmt::{Debug, Formatter};
 
@@ -148,8 +149,9 @@ impl MixnetMessage {
         self.data.len()
     }
 
-    pub(crate) fn into_input_message(self) -> InputMessage {
-        self.address.send_back_to(self.data, self.connection_id)
+    pub(crate) fn into_input_message(self, packet_type: PacketType) -> InputMessage {
+        self.address
+            .send_back_to(self.data, self.connection_id, packet_type)
     }
 }
 
@@ -175,17 +177,28 @@ impl MixnetAddress {
         None
     }
 
-    pub(super) fn send_back_to(self, message: Vec<u8>, connection_id: u64) -> InputMessage {
+    pub(super) fn send_back_to(
+        self,
+        message: Vec<u8>,
+        connection_id: u64,
+        packet_type: PacketType,
+    ) -> InputMessage {
         match self {
-            MixnetAddress::Known(recipient) => InputMessage::Regular {
-                recipient: *recipient,
-                data: message,
-                lane: TransmissionLane::ConnectionId(connection_id),
+            MixnetAddress::Known(recipient) => InputMessage::MessageWrapper {
+                message: Box::new(InputMessage::Regular {
+                    recipient: *recipient,
+                    data: message,
+                    lane: TransmissionLane::ConnectionId(connection_id),
+                }),
+                packet_type,
             },
-            MixnetAddress::Anonymous(sender_tag) => InputMessage::Reply {
-                recipient_tag: sender_tag,
-                data: message,
-                lane: TransmissionLane::ConnectionId(connection_id),
+            MixnetAddress::Anonymous(sender_tag) => InputMessage::MessageWrapper {
+                message: Box::new(InputMessage::Reply {
+                    recipient_tag: sender_tag,
+                    data: message,
+                    lane: TransmissionLane::ConnectionId(connection_id),
+                }),
+                packet_type,
             },
         }
     }

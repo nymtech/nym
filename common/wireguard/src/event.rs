@@ -5,10 +5,10 @@ use bytes::Bytes;
 #[allow(unused)]
 #[derive(Debug)]
 pub enum Event {
-    /// IP packet received from the WireGuard tunnel that should be passed through to the corresponding virtual device/internet.
-    /// Original implementation also has protocol here since it understands it, but we'll have to infer it downstream
+    /// IP packet received from the WireGuard tunnel that should be passed through to the
+    /// corresponding virtual device/internet.
     Wg(Bytes),
-    /// IP packet received from the UDP listener that was verified as part of the handshake
+    /// IP packet received from the WireGuard tunnel that was verified as part of the handshake.
     WgVerified(Bytes),
     /// IP packet to be sent through the WireGuard tunnel as crafted by the virtual device.
     Ip(Bytes),
@@ -19,15 +19,15 @@ impl Display for Event {
         match self {
             Event::Wg(data) => {
                 let size = data.len();
-                write!(f, "WgPacket{{ size={size} }}")
+                write!(f, "Wg{{ size={size} }}")
             }
             Event::WgVerified(data) => {
                 let size = data.len();
-                write!(f, "WgVerifiedPacket{{ size={size} }}")
+                write!(f, "WgVerified{{ size={size} }}")
             }
             Event::Ip(data) => {
                 let size = data.len();
-                write!(f, "IpPacket{{ size={size} }}")
+                write!(f, "Ip{{ size={size} }}")
             }
         }
     }

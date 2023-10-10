@@ -27,15 +27,13 @@ pub async fn start_wireguard(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     use std::sync::Arc;
 
-    // The set of active tunnels indexed by the peer's address
-    let active_peers = Arc::new(udp_listener::ActivePeers::new());
     let peers_by_ip = Arc::new(std::sync::Mutex::new(network_table::NetworkTable::new()));
 
     // Start the tun device that is used to relay traffic outbound
     let tun_task_tx = tun_device::start_tun_device(peers_by_ip.clone());
 
     // Start the UDP listener that clients connect to
-    udp_listener::start_udp_listener(tun_task_tx, active_peers, peers_by_ip, task_client).await?;
+    udp_listener::start_udp_listener(tun_task_tx, peers_by_ip, task_client).await?;
 
     Ok(())
 }

@@ -86,4 +86,5 @@ required-features = ["http-client"]
 default = ["http-client"]
 http-client = ["cosmrs/rpc", "openssl"]
 generate-ts = []
+contract-testing = ["nym-mixnet-contract-common/contract-testing"]
 

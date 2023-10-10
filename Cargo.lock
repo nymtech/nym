@@ -7470,6 +7470,8 @@ dependencies = [
  "dashmap",
  "etherparse",
  "futures",
+ "ip_network",
+ "ip_network_table",
  "log",
  "nym-task",
  "tap",

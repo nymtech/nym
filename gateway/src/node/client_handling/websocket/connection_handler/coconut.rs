@@ -91,7 +91,7 @@ impl CoconutVerifier {
         let req = nym_api_requests::coconut::VerifyCredentialBody::new(
             credential.clone(),
             proposal_id,
-            self.nyxd_client.address().clone(),
+            self.nyxd_client.address(),
         );
         for client in api_clients {
             self.nyxd_client

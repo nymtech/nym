@@ -1,6 +1,7 @@
 // Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use self::client_handling::client_registration::ClientRegistry;
 use self::storage::PersistentStorage;
 use crate::commands::helpers::{override_network_requester_config, OverrideNetworkRequesterConfig};
 use crate::config::Config;
@@ -12,6 +13,7 @@ use crate::node::client_handling::embedded_network_requester::{
 use crate::node::client_handling::websocket;
 use crate::node::client_handling::websocket::connection_handler::coconut::CoconutVerifier;
 use crate::node::helpers::{initialise_main_storage, load_network_requester_config};
+use crate::node::http::start_http_api;
 use crate::node::mixnet_handling::receiver::connection_handler::ConnectionHandler;
 use crate::node::statistics::collector::GatewayStatisticsCollector;
 use crate::node::storage::Storage;
@@ -27,13 +29,16 @@ use nym_task::{TaskClient, TaskManager};
 use nym_validator_client::{nyxd, DirectSigningHttpRpcNyxdClient};
 use rand::seq::SliceRandom;
 use rand::thread_rng;
+use std::collections::HashMap;
 use std::error::Error;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
+use tokio::sync::RwLock;
 
 pub(crate) mod client_handling;
 pub(crate) mod helpers;
+pub(crate) mod http;
 pub(crate) mod mixnet_handling;
 pub(crate) mod statistics;
 pub(crate) mod storage;
@@ -85,6 +90,8 @@ pub(crate) struct Gateway<St = PersistentStorage> {
     /// x25519 keypair used for Diffie-Hellman. Currently only used for sphinx key derivation.
     sphinx_keypair: Arc<encryption::KeyPair>,
     storage: St,
+
+    client_registry: Arc<RwLock<ClientRegistry>>,
 }
 
 impl<St> Gateway<St> {
@@ -100,6 +107,7 @@ impl<St> Gateway<St> {
             sphinx_keypair: Arc::new(helpers::load_sphinx_keys(&config)?),
             config,
             network_requester_opts,
+            client_registry: Arc::new(RwLock::new(HashMap::new())),
         })
     }
 
@@ -117,6 +125,7 @@ impl<St> Gateway<St> {
             identity_keypair: Arc::new(identity_keypair),
             sphinx_keypair: Arc::new(sphinx_keypair),
             storage,
+            client_registry: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 
@@ -374,6 +383,12 @@ impl<St> Gateway<St> {
             // that's a nasty workaround, but anyhow errors are generally nicer, especially on exit
             bail!("{err}")
         }
+
+        // This should likely be wireguard feature gated, but its easier to test if it hangs in here
+        tokio::spawn(start_http_api(
+            Arc::clone(&self.client_registry),
+            Arc::clone(&self.sphinx_keypair),
+        ));
 
         info!("Finished nym gateway startup procedure - it should now be able to receive mix and client traffic!");
 

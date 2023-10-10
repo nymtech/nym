@@ -3,6 +3,9 @@
 Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+- add client registry to Gateway ([#3955])
+- add HTTP API to Gateway ([#3955])
+- add `/client/<pub-key>`, `clients` and `register` routes to the gateway ([#3955])
 
 ## [2023.1-milka] (2023-09-24)
 

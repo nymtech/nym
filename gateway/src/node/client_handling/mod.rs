@@ -3,6 +3,7 @@
 
 pub(crate) mod active_clients;
 mod bandwidth;
+pub(crate) mod client_registration;
 pub(crate) mod embedded_network_requester;
 pub(crate) mod websocket;
 

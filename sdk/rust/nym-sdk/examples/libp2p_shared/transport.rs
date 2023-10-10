@@ -80,6 +80,7 @@ pub struct NymTransport {
 
 impl NymTransport {
     /// New transport.
+    #[allow(unused)]
     pub async fn new(client: MixnetClient, keypair: Keypair) -> Result<Self, Error> {
         Self::new_maybe_with_notify_inbound(client, keypair, None, None).await
     }

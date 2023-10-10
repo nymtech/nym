@@ -1,0 +1,47 @@
+import React, { useState } from 'react';
+import TextField from '@mui/material/TextField';
+import Button from '@mui/material/Button';
+import Stack from '@mui/material/Stack';
+import Box from '@mui/material/Box';
+
+export const GitHubRepoSearch = () => {
+  const [repoUrl, setRepoUrl] = useState('');
+  
+  const handleSearch = () => {
+    if(!repoUrl || repoUrl.length < 1 ) {
+        return window.alert("Please enter a valid Github URL!")
+    } 
+    const matchedRepo = repoUrl.match(/https:\/\/github\.com\/(.*)/)[1]
+
+    // Construct the search URL
+    const searchUrl = `https://github.com/search?q=repo:${matchedRepo} fetch(&type=code`;
+
+    // Redirect the user to the search results page
+    window.location.href = searchUrl;
+  };
+
+  return (
+    <Box padding={3}>
+      <Box>
+        <TextField
+          type="text"
+          placeholder="Enter GitHub Repo URL"
+          value={repoUrl}
+          onChange={(e) => setRepoUrl(e.target.value)}
+          size="small"
+          sx={{width: "400px"}}
+        />
+  
+        <Button
+          variant="outlined"
+          onClick={handleSearch}
+          size="medium"
+          sx={{ marginLeft: 2, marginTop: 0.2 }}
+        >
+          Check mixFetch
+        </Button>
+      </Box>
+    </Box>
+  );
+}
+

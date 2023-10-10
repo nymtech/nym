@@ -1,3 +1,6 @@
+import Box from '@mui/material/Box';
+import { GitHubRepoSearch } from '../../code-snippets/mixfetchurl';
+
 # Integrations page
 
 ### Existing resources
@@ -11,7 +14,13 @@ If you're unsure where to start, the following set of questions should help you 
  
  __1. Does your app rely on using `fetch` for its network traffic and remote connections?__
 
-If yes, explore implementing `mixfetch`to route app traffic through the mixnet.
+ Check whether mixFetch can be used by entering your repository's URL below:
+
+<GitHubRepoSearch />
+
+If yes, explore implementing `mixfetch` to route app traffic through the mixnet.
+
+
 
 If not:
 __2. Is your app developed in TS/JS or Rust?__

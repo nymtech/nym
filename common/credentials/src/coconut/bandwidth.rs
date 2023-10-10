@@ -6,6 +6,8 @@
 // right now this has no double-spending protection, spender binding, etc
 // it's the simplest possible case
 
+use super::utils::prepare_credential_for_spending;
+use crate::error::Error;
 use cosmrs::tendermint::hash::Algorithm;
 use cosmrs::tendermint::Hash;
 use nym_coconut_interface::{
@@ -13,9 +15,7 @@ use nym_coconut_interface::{
     PrivateAttribute, PublicAttribute, Signature, VerificationKey,
 };
 use nym_crypto::asymmetric::{encryption, identity};
-
-use super::utils::prepare_credential_for_spending;
-use crate::error::Error;
+use std::fmt::{self, Debug, Formatter};
 
 pub const PUBLIC_ATTRIBUTES: u32 = 2;
 pub const PRIVATE_ATTRIBUTES: u32 = 2;
@@ -42,6 +42,27 @@ pub struct BandwidthVoucher {
     encryption_key: encryption::PrivateKey,
     pedersen_commitments_openings: Vec<Attribute>,
     blind_sign_request: BlindSignRequest,
+}
+
+impl Debug for BandwidthVoucher {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("BandwidthVoucher")
+            .field("serial_number", &self.serial_number)
+            .field("binding_number", &self.binding_number)
+            .field("voucher_value", &self.voucher_value)
+            .field("voucher_value_plain", &self.voucher_value_plain)
+            .field("voucher_info", &self.voucher_info)
+            .field("voucher_info_plain", &self.voucher_info_plain)
+            .field("tx_hash", &self.tx_hash)
+            .field("signing_key", &self.signing_key.to_base58_string())
+            .field("encryption_key", &self.encryption_key.to_base58_string())
+            .field(
+                "pedersen_commitments_openings",
+                &self.pedersen_commitments_openings,
+            )
+            .field("blind_sign_request", &self.blind_sign_request)
+            .finish()
+    }
 }
 
 impl BandwidthVoucher {
@@ -114,7 +135,7 @@ impl BandwidthVoucher {
     pub fn try_from_bytes(bytes: &[u8]) -> Result<Self, Error> {
         if bytes.len() < 32 * 5 + 4 * 8 {
             return Err(Error::BandwidthVoucherDeserializationError(format!(
-                "Less then {} bytes needed",
+                "Less than {} bytes needed",
                 32 * 5 + 4 * 8
             )));
         }

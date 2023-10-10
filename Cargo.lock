@@ -6338,26 +6338,23 @@ dependencies = [
 name = "nym-credential-client-wasm"
 version = "1.2.0-rc.9"
 dependencies = [
- "anyhow",
- "futures",
+ "bip39",
  "js-sys",
  "nym-bandwidth-controller",
  "nym-coconut-interface",
+ "nym-credential-storage",
  "nym-credentials",
- "nym-crypto",
  "nym-network-defaults",
  "nym-validator-client",
- "rand 0.7.3",
  "serde",
  "serde-wasm-bindgen",
- "serde_json",
  "thiserror",
  "tsify",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "wasm-bindgen-test",
- "wasm-client-core",
  "wasm-utils",
+ "zeroize",
 ]
 
 [[package]]
@@ -6832,7 +6829,9 @@ dependencies = [
  "schemars",
  "serde",
  "thiserror",
+ "tsify",
  "url",
+ "wasm-bindgen",
 ]
 
 [[package]]
@@ -11931,7 +11930,6 @@ name = "wasm-client-core"
 version = "0.1.0"
 dependencies = [
  "async-trait",
- "console_error_panic_hook",
  "js-sys",
  "nym-bandwidth-controller",
  "nym-client-core",
@@ -11992,6 +11990,7 @@ dependencies = [
 name = "wasm-utils"
 version = "0.1.0"
 dependencies = [
+ "console_error_panic_hook",
  "futures",
  "getrandom 0.2.10",
  "gloo-net",

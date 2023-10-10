@@ -1,7 +1,7 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct CoconutCredential {
     #[allow(dead_code)]
     pub id: i64,

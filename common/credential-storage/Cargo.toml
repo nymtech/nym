@@ -7,10 +7,9 @@ edition = "2021"
 
 [dependencies]
 async-trait = { workspace = true }
-
 log = { workspace = true }
 thiserror = { workspace = true }
-tokio = { version = "1.24.1", features = ["sync"]}
+tokio = { workspace = true, features = ["sync"]}
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.sqlx]
 version = "0.5"
@@ -23,4 +22,4 @@ features = [ "rt-multi-thread", "net", "signal", "fs" ]
 
 [build-dependencies]
 sqlx = { version = "0.5", features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"] }
-tokio = { version = "1.24.1", features = ["rt-multi-thread", "macros"] }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }

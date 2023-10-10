@@ -19,7 +19,10 @@ use std::str::FromStr;
 
 pub mod state;
 
-pub async fn deposit<C>(client: &C, amount: Coin) -> Result<State, BandwidthControllerError>
+pub async fn deposit<C>(
+    client: &C,
+    amount: impl Into<Coin>,
+) -> Result<State, BandwidthControllerError>
 where
     C: CoconutBandwidthSigningClient + Sync,
 {
@@ -27,6 +30,7 @@ where
     let signing_keypair = KeyPair::from(identity::KeyPair::new(&mut rng));
     let encryption_keypair = KeyPair::from(encryption::KeyPair::new(&mut rng));
     let params = Parameters::new(TOTAL_ATTRIBUTES).unwrap();
+    let amount = amount.into();
     let voucher_value = amount.amount.to_string();
 
     let tx_hash = client

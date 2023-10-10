@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Button from '@mui/material/Button';
 import Paper from '@mui/material/Paper';
 import Box from '@mui/material/Box';
@@ -25,11 +25,12 @@ export const Delegations = () => {
     setInfoText('');
   };
 
-  useEffect(() => {
-    return () => {
+  useEffect(
+    () => () => {
       cleanFields();
-    };
-  }, []);
+    },
+    [],
+  );
 
   return (
     <Box>

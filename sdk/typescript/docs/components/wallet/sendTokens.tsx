@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import Button from '@mui/material/Button';
 import Paper from '@mui/material/Paper';
 import Box from '@mui/material/Box';
@@ -17,11 +17,12 @@ export const SendTokes = () => {
     setTokensToSend('');
   };
 
-  useEffect(() => {
-    return () => {
+  useEffect(
+    () => () => {
       cleanFields();
-    };
-  }, []);
+    },
+    [],
+  );
 
   return (
     <Box>
@@ -57,7 +58,7 @@ export const SendTokes = () => {
         </Box>
       </Paper>
 
-      {log?.node?.length > 0 &&  log.type === 'sendTokens' && (
+      {log?.node?.length > 0 && log.type === 'sendTokens' && (
         <Box marginTop={3}>
           <Typography variant="h5">Transaction Logs:</Typography>
           {log.node}

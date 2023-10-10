@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useMemo } from 'react';
 import { Coin } from '@cosmjs/stargate';
 import { SigningCosmWasmClient } from '@cosmjs/cosmwasm-stargate';
 import { settings } from '../../client';
@@ -58,7 +58,6 @@ export const WalletContextProvider = ({ children }: { children: JSX.Element }) =
     setBalance(null);
     setBalanceLoading(false);
     setSendingTokensLoading(false);
-    setLog([]);
   };
 
   const getSignerAccount = async (mnemonic: string) => {
@@ -103,10 +102,10 @@ export const WalletContextProvider = ({ children }: { children: JSX.Element }) =
   }, [account, cosmWasmSignerClient]);
 
   const getDelegations = useCallback(async () => {
-    const delegations = await nymWasmSignerClient.getDelegatorDelegations({
+    const delegationsReceived = await nymWasmSignerClient.getDelegatorDelegations({
       delegator: settings.address,
     });
-    setDelegations(delegations);
+    setDelegations(delegationsReceived);
   }, [nymWasmSignerClient]);
 
   const sendTokens = async (recipientAddress: string, tokensToSend: string) => {
@@ -138,7 +137,7 @@ export const WalletContextProvider = ({ children }: { children: JSX.Element }) =
   const doDelegate = async (mixId: string, amount: string) => {
     setDelegationLoader(true);
     const memo: string = 'test delegation';
-    const coinAmount: Coin = { amount: amount, denom: 'unym' };
+    const coinAmount: Coin = { amount, denom: 'unym' };
     try {
       const res = await nymWasmSignerClient.delegateToMixnode({ mixId: parseInt(mixId, 10) }, 'auto', memo, [
         coinAmount,
@@ -184,32 +183,33 @@ export const WalletContextProvider = ({ children }: { children: JSX.Element }) =
     }
   };
 
-  const withdrawRewards = async () => {
-    const validatorAdress = '';
-    const memo = 'test withdraw rewards';
-    // setWithdrawLoading(true);
-    try {
-      const res = await cosmWasmSignerClient.withdrawRewards(account, validatorAdress, 'auto', memo);
-      setLog({
-        type: 'delegate',
-        node: [
-          <div key={JSON.stringify(res, null, 2)}>
-            <code style={{ marginRight: '2rem' }}>{new Date().toLocaleTimeString()}</code>
-            <pre>{JSON.stringify(res, null, 2)}</pre>
-          </div>,
-        ],
-      });
-    } catch (error) {
-      console.error(error);
-    }
-    // setWithdrawLoading(false);
-  };
+  // const withdrawRewards = async () => {
+  //   const validatorAdress = '';
+  //   const memo = 'test withdraw rewards';
+  //   setWithdrawLoading(true);
+  //   try {
+  //     const res = await cosmWasmSignerClient.withdrawRewards(account, validatorAdress, 'auto', memo);
+  //     setLog({
+  //       type: 'delegate',
+  //       node: [
+  //         <div key={JSON.stringify(res, null, 2)}>
+  //           <code style={{ marginRight: '2rem' }}>{new Date().toLocaleTimeString()}</code>
+  //           <pre>{JSON.stringify(res, null, 2)}</pre>
+  //         </div>,
+  //       ],
+  //     });
+  //   } catch (error) {
+  //     console.error(error);
+  //   }
+  //   setWithdrawLoading(false);
+  // };
 
-  useEffect(() => {
-    return () => {
+  useEffect(
+    () => () => {
       Reset();
-    };
-  }, []);
+    },
+    [],
+  );
 
   useEffect(() => {
     if (cosmWasmSignerClient) {

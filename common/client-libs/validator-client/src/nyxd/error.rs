@@ -44,7 +44,7 @@ pub enum NyxdError {
     #[error("{0} is not a valid tx hash")]
     InvalidTxHash(String),
 
-    #[error("Tendermint RPC request failed - {0}")]
+    #[error("Tendermint RPC request failed: {0}")]
     TendermintErrorRpc(#[from] TendermintRpcError),
 
     #[error("tendermint library failure: {0}")]
@@ -56,22 +56,22 @@ pub enum NyxdError {
     #[error("Failed when attempting to deserialize data ({0})")]
     DeserializationError(String),
 
-    #[error("Failed when attempting to encode our protobuf data - {0}")]
+    #[error("Failed when attempting to encode our protobuf data: {0}")]
     ProtobufEncodingError(#[from] prost::EncodeError),
 
-    #[error("Failed to decode our protobuf data - {0}")]
+    #[error("Failed to decode our protobuf data: {0}")]
     ProtobufDecodingError(#[from] prost::DecodeError),
 
-    #[error("Account {0} does not exist on the chain")]
+    #[error("Account '{0}' does not exist on the chain")]
     NonExistentAccountError(AccountId),
 
-    #[error("Failed on json serialization/deserialization - {0}")]
+    #[error("Failed on json serialization/deserialization: {0}")]
     SerdeJsonError(#[from] serde_json::Error),
 
-    #[error("Account {0} is not a valid account address")]
+    #[error("Account '{0}' is not a valid account address")]
     MalformedAccountAddress(String),
 
-    #[error("Account {0} has an invalid associated public key")]
+    #[error("Account '{0}' has an invalid associated public key")]
     InvalidPublicKey(AccountId),
 
     #[error("Queried contract (code_id: {0}) did not have any code information attached")]
@@ -86,7 +86,7 @@ pub enum NyxdError {
     #[error("Block has an invalid height (either negative or larger than i64::MAX")]
     InvalidHeight,
 
-    #[error("Failed to compress provided wasm code - {0}")]
+    #[error("Failed to compress provided wasm code: {0}")]
     WasmCompressionError(io::Error),
 
     #[error("Logs returned from the validator were malformed")]

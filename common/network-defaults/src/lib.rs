@@ -11,39 +11,96 @@ use std::{
     ffi::OsStr,
     ops::Not,
 };
-use url::Url;
+pub use url::{ParseError as UrlParseError, Url};
+
+#[cfg(feature = "wasm-serde-types")]
+use tsify::Tsify;
+
+#[cfg(feature = "wasm-serde-types")]
+use wasm_bindgen::prelude::wasm_bindgen;
 
 pub mod mainnet;
 pub mod var_names;
 
 #[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize, JsonSchema)]
+#[cfg_attr(feature = "wasm-serde-types", derive(Tsify))]
+#[cfg_attr(feature = "wasm-serde-types", tsify(into_wasm_abi, from_wasm_abi))]
+#[serde(rename_all = "camelCase")]
+#[serde(deny_unknown_fields)]
 pub struct ChainDetails {
+    #[serde(alias = "bech32_account_prefix")]
     pub bech32_account_prefix: String,
+
+    #[serde(alias = "mix_denom")]
     pub mix_denom: DenomDetailsOwned,
+
+    #[serde(alias = "stake_denom")]
     pub stake_denom: DenomDetailsOwned,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Eq, Hash, PartialEq, Serialize, JsonSchema)]
+#[cfg_attr(feature = "wasm-serde-types", derive(Tsify))]
+#[cfg_attr(feature = "wasm-serde-types", tsify(into_wasm_abi, from_wasm_abi))]
+#[serde(rename_all = "camelCase")]
+#[serde(deny_unknown_fields)]
 pub struct NymContracts {
+    #[cfg_attr(feature = "wasm-serde-types", tsify(optional))]
+    #[serde(alias = "mixnet_contract_address")]
     pub mixnet_contract_address: Option<String>,
+
+    #[cfg_attr(feature = "wasm-serde-types", tsify(optional))]
+    #[serde(alias = "vesting_contract_address")]
     pub vesting_contract_address: Option<String>,
+
+    #[cfg_attr(feature = "wasm-serde-types", tsify(optional))]
+    #[serde(alias = "coconut_bandwidth_contract_address")]
     pub coconut_bandwidth_contract_address: Option<String>,
+
+    #[cfg_attr(feature = "wasm-serde-types", tsify(optional))]
+    #[serde(alias = "group_contract_address")]
     pub group_contract_address: Option<String>,
+
+    #[cfg_attr(feature = "wasm-serde-types", tsify(optional))]
+    #[serde(alias = "multisig_contract_address")]
     pub multisig_contract_address: Option<String>,
+
+    #[cfg_attr(feature = "wasm-serde-types", tsify(optional))]
+    #[serde(alias = "coconut_dkg_contract_address")]
     pub coconut_dkg_contract_address: Option<String>,
+
+    #[cfg_attr(feature = "wasm-serde-types", tsify(optional))]
+    #[serde(alias = "ephemera_contract_address")]
     pub ephemera_contract_address: Option<String>,
+
+    #[cfg_attr(feature = "wasm-serde-types", tsify(optional))]
+    #[serde(alias = "service_provider_directory_contract_address")]
     pub service_provider_directory_contract_address: Option<String>,
+
+    #[cfg_attr(feature = "wasm-serde-types", tsify(optional))]
+    #[serde(alias = "name_service_contract_address")]
     pub name_service_contract_address: Option<String>,
 }
 
 // I wanted to use the simpler `NetworkDetails` name, but there's a clash
 // with `NetworkDetails` defined in all.rs...
 #[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize, JsonSchema)]
+#[cfg_attr(feature = "wasm-serde-types", derive(Tsify))]
+#[cfg_attr(feature = "wasm-serde-types", tsify(into_wasm_abi, from_wasm_abi))]
+#[serde(rename_all = "camelCase")]
+#[serde(deny_unknown_fields)]
 pub struct NymNetworkDetails {
+    #[serde(alias = "network_name")]
     pub network_name: String,
+
+    #[serde(alias = "chain_details")]
     pub chain_details: ChainDetails,
+
     pub endpoints: Vec<ValidatorDetails>,
+
     pub contracts: NymContracts,
+
+    #[cfg_attr(feature = "wasm-serde-types", tsify(optional))]
+    #[serde(alias = "explorer_api")]
     pub explorer_api: Option<String>,
 }
 
@@ -316,10 +373,17 @@ impl DenomDetails {
 }
 
 #[derive(Debug, Serialize, Deserialize, Hash, Clone, PartialEq, Eq, JsonSchema)]
+#[cfg_attr(feature = "wasm-serde-types", derive(Tsify))]
+#[cfg_attr(feature = "wasm-serde-types", tsify(into_wasm_abi, from_wasm_abi))]
+#[serde(rename_all = "camelCase")]
+#[serde(deny_unknown_fields)]
 pub struct DenomDetailsOwned {
     pub base: String,
+
     pub display: String,
+
     // i.e. display_amount * 10^display_exponent = base_amount
+    #[serde(alias = "display_exponent")]
     pub display_exponent: u32,
 }
 
@@ -344,14 +408,24 @@ impl DenomDetailsOwned {
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize, JsonSchema)]
+#[cfg_attr(feature = "wasm-serde-types", derive(Tsify))]
+#[cfg_attr(feature = "wasm-serde-types", tsify(into_wasm_abi, from_wasm_abi))]
+#[serde(rename_all = "camelCase")]
+#[serde(deny_unknown_fields)]
+#[non_exhaustive]
 pub struct ValidatorDetails {
     // it is assumed those values are always valid since they're being provided in our defaults file
+    #[serde(alias = "nyxd_url")]
     pub nyxd_url: String,
-    //
+
+    #[cfg_attr(feature = "wasm-serde-types", tsify(optional))]
+    #[serde(alias = "websocket_url")]
     pub websocket_url: Option<String>,
 
     // Right now api_url is optional as we are not running the api reliably on all validators
     // however, later on it should be a mandatory field
+    #[cfg_attr(feature = "wasm-serde-types", tsify(optional))]
+    #[serde(alias = "api_url")]
     pub api_url: Option<String>,
     // TODO: I'd argue this one should also have a field like `gas_price` since its a validator-specific setting
 }
@@ -373,16 +447,26 @@ impl ValidatorDetails {
         }
     }
 
+    pub fn try_nyxd_url(&self) -> Result<Url, url::ParseError> {
+        self.nyxd_url.parse()
+    }
+
     pub fn nyxd_url(&self) -> Url {
-        self.nyxd_url
-            .parse()
+        self.try_nyxd_url()
             .expect("the provided nyxd url is invalid!")
     }
 
+    pub fn try_api_url(&self) -> Option<Result<Url, url::ParseError>> {
+        self.api_url.as_ref().map(|url| url.parse())
+    }
+
     pub fn api_url(&self) -> Option<Url> {
-        self.api_url
-            .as_ref()
-            .map(|url| url.parse().expect("the provided api url is invalid!"))
+        self.try_api_url()
+            .map(|url| url.expect("the provided api url is invalid!"))
+    }
+
+    pub fn try_websocket_url(&self) -> Option<Result<Url, url::ParseError>> {
+        self.websocket_url.as_ref().map(|url| url.parse())
     }
 
     pub fn websocket_url(&self) -> Option<Url> {

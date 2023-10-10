@@ -24,24 +24,6 @@ const {
 } = wasm_bindgen;
 
 async function testGetCredential() {
-    // const preferredGateway = "6pXQcG1Jt9hxBzMgTbQL5Y58z6mu4KXVRbA1idmibwsw";
-    // const nymApi = 'https://qa-nym-api.qa.nymte.ch/api';
-    //
-    // // A) construct with hardcoded topology
-    // const topology = dummyTopology()
-    //
-    // // optional arguments: id, gateway
-    // // mandatory (one of) arguments: topology, nymApi
-    // const nodeTester = await new NymNodeTester({ id: "foomp", topology: topology });
-    //
-    // // B) first get topology directly from nym-api
-    // // const topology = await currentNetworkTopology(nymApi)
-    // // const nodeTester = await new NymNodeTester({topology});
-    //
-    // // C) use nym-api in the constructor (note: it does no filtering for 'good' nodes on other layers)
-    // // const validator = 'https://qa-nym-api.qa.nymte.ch/api';
-    // // const nodeTester = await new NymNodeTester({nymApi});
-    //
     self.onmessage = async event => {
         if (event.data && event.data.kind) {
             switch (event.data.kind) {

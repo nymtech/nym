@@ -4,6 +4,8 @@
 use crate::http::api::v1::gateway::client_interfaces::wireguard::{
     WireguardAppState, WireguardAppStateInner,
 };
+use crate::http::router::types::RequestError;
+use crate::wireguard::error::WireguardError;
 use crate::wireguard::types::{
     Client, ClientMessage, ClientMessageRequest, ClientPublicKey, InitMessage,
 };
@@ -11,15 +13,20 @@ use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::Json;
 use std::str::FromStr;
-use tracing::warn;
 
-async fn process_final_message(client: Client, state: &WireguardAppStateInner) -> StatusCode {
+async fn process_final_message(
+    client: Client,
+    state: &WireguardAppStateInner,
+) -> Result<StatusCode, RequestError> {
     let preshared_nonce = {
         let in_progress_ro = state.registration_in_progress.read().await;
         if let Some(nonce) = in_progress_ro.get(&client.pub_key()) {
             *nonce
         } else {
-            return StatusCode::BAD_REQUEST;
+            return Err(RequestError::from_err(
+                WireguardError::RegistrationNotInProgress,
+                StatusCode::BAD_REQUEST,
+            ));
         }
     };
 
@@ -35,10 +42,13 @@ async fn process_final_message(client: Client, state: &WireguardAppStateInner) -
             let mut registry_rw = state.client_registry.write().await;
             registry_rw.insert(client.socket(), client);
         }
-        return StatusCode::OK;
+        Ok(StatusCode::OK)
+    } else {
+        Err(RequestError::from_err(
+            WireguardError::MacVerificationFailure,
+            StatusCode::BAD_REQUEST,
+        ))
     }
-
-    StatusCode::BAD_REQUEST
 }
 
 async fn process_init_message(init_message: InitMessage, state: &WireguardAppStateInner) -> u64 {
@@ -51,25 +61,22 @@ async fn process_init_message(init_message: InitMessage, state: &WireguardAppSta
 pub(crate) async fn register_client(
     State(state): State<WireguardAppState>,
     Json(payload): Json<ClientMessageRequest>,
-) -> (StatusCode, Json<Option<u64>>) {
+) -> Result<(StatusCode, Json<Option<u64>>), RequestError> {
     let Some(state) = state.inner() else {
-        return (StatusCode::NOT_IMPLEMENTED, Json(None));
+        return Ok((StatusCode::NOT_IMPLEMENTED, Json(None)));
     };
 
     match ClientMessage::try_from(payload) {
         Ok(payload) => match payload {
-            ClientMessage::Init(i) => (
+            ClientMessage::Init(i) => Ok((
                 StatusCode::OK,
                 Json(Some(process_init_message(i, state).await)),
-            ),
-            ClientMessage::Final(client) => {
-                (process_final_message(client, state).await, Json(None))
-            }
+            )),
+            ClientMessage::Final(client) => process_final_message(client, state)
+                .await
+                .map(|code| (code, Json(None))),
         },
-        Err(err) => {
-            warn!("failed to deserialize received request: {err}");
-            (StatusCode::BAD_REQUEST, Json(None))
-        }
+        Err(err) => Err(RequestError::from_err(err, StatusCode::BAD_REQUEST)),
     }
 }
 
@@ -97,13 +104,13 @@ pub(crate) async fn get_all_clients(
 pub(crate) async fn get_client(
     Path(pub_key): Path<String>,
     State(state): State<WireguardAppState>,
-) -> (StatusCode, Json<Vec<Client>>) {
+) -> Result<(StatusCode, Json<Vec<Client>>), RequestError> {
     let Some(state) = state.inner() else {
-        return (StatusCode::NOT_IMPLEMENTED, Json(Vec::new()));
+        return Ok((StatusCode::NOT_IMPLEMENTED, Json(Vec::new())));
     };
     let pub_key = match ClientPublicKey::from_str(&pub_key) {
         Ok(pub_key) => pub_key,
-        Err(_) => return (StatusCode::BAD_REQUEST, Json(vec![])),
+        Err(err) => return Err(RequestError::from_err(err, StatusCode::BAD_REQUEST)),
     };
 
     let registry_ro = state.client_registry.read().await;
@@ -118,9 +125,9 @@ pub(crate) async fn get_client(
         })
         .collect::<Vec<Client>>();
     if clients.is_empty() {
-        return (StatusCode::NOT_FOUND, Json(clients));
+        return Ok((StatusCode::NOT_FOUND, Json(clients)));
     }
-    (StatusCode::OK, Json(clients))
+    Ok((StatusCode::OK, Json(clients)))
 }
 
 // pub type ClientResponse = FormattedResponse<()>;

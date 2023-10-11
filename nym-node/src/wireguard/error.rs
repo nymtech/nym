@@ -40,4 +40,10 @@ pub enum WireguardError {
         #[source]
         source: AddrParseError,
     },
+
+    #[error("the client is currently not in the process of being registered")]
+    RegistrationNotInProgress,
+
+    #[error("the client mac failed to get verified correctly")]
+    MacVerificationFailure,
 }

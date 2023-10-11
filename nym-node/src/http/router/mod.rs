@@ -17,6 +17,7 @@ use std::net::SocketAddr;
 
 pub mod api;
 pub mod landing_page;
+pub mod types;
 
 #[derive(Debug, Clone)]
 pub struct Config {

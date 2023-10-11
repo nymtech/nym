@@ -69,3 +69,8 @@ impl<T> Deref for SignedData<T> {
         &self.data
     }
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ErrorResponse {
+    pub message: String,
+}

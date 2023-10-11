@@ -61,6 +61,7 @@ impl WireGuardTunnel {
         peer_static_public: x25519::PublicKey,
         peer_allowed_ips: ip_network::IpNetwork,
         index: PeerIdx,
+        // rate_limiter: Option<RateLimiter>,
         tunnel_tx: TunTaskTx,
     ) -> (Self, mpsc::UnboundedSender<Event>) {
         let local_addr = udp.local_addr().unwrap();

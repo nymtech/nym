@@ -28,8 +28,8 @@ pub(crate) type PeerIdx = u32;
 pub(crate) type ActivePeers = DashMap<x25519::PublicKey, mpsc::UnboundedSender<Event>>;
 pub(crate) type PeersByIp = NetworkTable<mpsc::UnboundedSender<Event>>;
 
+#[derive(Debug)]
 struct RegisteredPeer {
-    // peer_tx: mpsc::UnboundedSender<Event>,
     public_key: x25519::PublicKey,
     allowed_ips: IpNetwork,
     // endpoint: SocketAddr,
@@ -37,7 +37,6 @@ struct RegisteredPeer {
 
 pub(crate) async fn start_udp_listener(
     tun_task_tx: TunTaskTx,
-    // active_peers: Arc<ActivePeers>,
     active_peers: Arc<ActivePeers>,
     peers_by_ip: Arc<std::sync::Mutex<PeersByIp>>,
     mut task_client: TaskClient,
@@ -78,8 +77,6 @@ pub(crate) async fn start_udp_listener(
         let mut buf = [0u8; MAX_PACKET];
         let mut dst_buf = [0u8; MAX_PACKET];
 
-        // let mut buf2 = [0u8; MAX_PACKET];
-
         while !task_client.is_shutdown() {
             tokio::select! {
                 _ = task_client.recv() => {
@@ -102,25 +99,27 @@ pub(crate) async fn start_udp_listener(
                 // Handle incoming packets
                 Ok((len, addr)) = udp_socket.recv_from(&mut buf) => {
                     log::trace!("udp: received {} bytes from {}", len, addr);
+
+                    // Verify the incoming packet
                     let verified_packet = match rate_limiter.verify_packet(Some(addr.ip()), &buf[..len], &mut dst_buf) {
                         Ok(packet) => packet,
                         Err(TunnResult::WriteToNetwork(cookie)) => {
                             log::info!("WireGuard UDP listener: send back cookie");
                             udp_socket.send_to(cookie, addr).await.unwrap();
-                            return;
+                            continue;
                         }
                         Err(err) => {
                             log::warn!("{err:?}");
-                            return;
+                            continue;
                         }
                     };
 
-                    // Check if this is a registered peer, if not just drop
+                    // Check if this is a registered peer, if not, just skip
                     let registered_peer = match verified_packet {
                         boringtun::noise::Packet::HandshakeInit(ref packet) => {
-                            let Ok(handshake) = parse_handshake_anon(&static_private, &static_public, &packet) else {
+                            let Ok(handshake) = parse_handshake_anon(&static_private, &static_public, packet) else {
                                 log::warn!("Handshake failed");
-                                return;
+                                continue;
                             };
                             registered_peers.get(&x25519::PublicKey::from(handshake.peer_static_public))
                         },
@@ -138,19 +137,22 @@ pub(crate) async fn start_udp_listener(
                         },
                     };
 
-                    let Some(registered_peer) = registered_peer else {
+                    let registered_peer = if let Some(registered_peer) = registered_peer {
+                        registered_peer.lock().await
+                    } else {
                         log::warn!("Peer not registered");
-                        return;
+                        continue;
                     };
-                    let registered_peer = registered_peer.lock().await;
 
                     // Look up if the peer is already connected
                     if let Some(peer_tx) = active_peers.get_mut(&registered_peer.public_key) {
+                        // If it is, send it the packet to deal with
                         log::info!("udp: received {len} bytes from {addr} from known peer");
                         peer_tx.send(Event::WgVerifiedPacket(buf[..len].to_vec().into()))
                             .tap_err(|err| log::error!("{err}"))
                             .unwrap();
                     } else {
+                        // If it isn't, start a new tunnel
                         log::info!("udp: received {len} bytes from {addr} from unknown peer, starting tunnel");
                         let (join_handle, peer_tx) = crate::wg_tunnel::start_wg_tunnel(
                             addr,

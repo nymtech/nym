@@ -31,7 +31,7 @@ pub async fn logger<B>(req: Request<B>, next: Next<B>) -> impl IntoResponse {
         status.to_string().yellow()
     };
 
-    info!("[{host}] {method} '{uri}': {print_status} / agent: {agent}");
+    info!(target: "incoming request", "[{host}] {method} '{uri}': {print_status} / agent: {agent}");
 
     res
 }

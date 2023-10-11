@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::NymNodeError;
+pub use crate::http::api::v1::gateway::client_interfaces::wireguard::WireguardAppState;
 use crate::http::middleware::logging;
 use crate::http::state::AppState;
 use crate::http::NymNodeHTTPServer;
@@ -72,13 +73,17 @@ pub struct NymNodeRouter {
 }
 
 impl NymNodeRouter {
-    pub fn new(config: Config) -> NymNodeRouter {
+    // TODO: move the wg state to a builder
+    pub fn new(config: Config, initial_wg_state: Option<WireguardAppState>) -> NymNodeRouter {
         let state = AppState::new();
 
         NymNodeRouter {
             inner: Router::new()
                 .nest(routes::LANDING_PAGE, landing_page::routes(config.landing))
-                .nest(routes::API, api::routes(config.api))
+                .nest(
+                    routes::API,
+                    api::routes(config.api, initial_wg_state.unwrap_or_default()),
+                )
                 .layer(axum::middleware::from_fn(logging::logger))
                 .with_state(state),
         }

@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::http::router::api;
-use crate::http::state::AppState;
 use axum::Router;
 use nym_node_requests::api as api_requests;
 use nym_node_requests::routes::api::v1;
@@ -18,7 +17,7 @@ use utoipa_swagger_ui::SwaggerUi;
         api::v1::node::roles::roles,
         api::v1::gateway::root::root_gateway,
         api::v1::gateway::client_interfaces::client_interfaces,
-        api::v1::gateway::client_interfaces::wireguard,
+        api::v1::gateway::client_interfaces::wireguard_info,
         api::v1::gateway::client_interfaces::mixnet_websockets,
         api::v1::mixnode::root::root_mixnode,
         api::v1::network_requester::root::root_network_requester,
@@ -41,7 +40,7 @@ use utoipa_swagger_ui::SwaggerUi;
 )]
 pub(crate) struct ApiDoc;
 
-pub(crate) fn route() -> Router<AppState> {
+pub(crate) fn route<S: Send + Sync + 'static + Clone>() -> Router<S> {
     // provide absolute path to the openapi.json
     let config = utoipa_swagger_ui::Config::from("/api/v1/api-docs/openapi.json");
     SwaggerUi::new(v1::SWAGGER)

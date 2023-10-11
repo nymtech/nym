@@ -63,6 +63,16 @@ pub mod routes {
                         client_interfaces_absolute(),
                         WEBSOCKETS
                     );
+
+                    pub mod wireguard {
+                        use super::*;
+
+                        pub const CLIENT: &str = "/client";
+                        pub const CLIENTS: &str = "/clients";
+
+                        absolute_route!(client_absolute, wireguard_absolute(), CLIENT);
+                        absolute_route!(clients_absolute, wireguard_absolute(), CLIENTS);
+                    }
                 }
             }
 

@@ -1,6 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::wireguard::error::WireguardError;
 use std::net::SocketAddr;
 use thiserror::Error;
 
@@ -16,6 +17,12 @@ pub enum NymNodeError {
     RequestError {
         #[from]
         source: nym_node_requests::error::Error,
+    },
+
+    #[error(transparent)]
+    WireguardError {
+        #[from]
+        source: WireguardError,
     },
 
     #[error("unimplemented")]

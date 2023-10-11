@@ -1,8 +1,8 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::http::api::v1::gateway::client_interfaces::wireguard::WireguardAppState;
 use crate::http::api::{FormattedResponse, OutputParams};
-use crate::http::state::AppState;
 use axum::extract::Query;
 use axum::http::StatusCode;
 use axum::routing::get;
@@ -10,7 +10,12 @@ use axum::Router;
 use nym_node_requests::api::v1::gateway::models::{ClientInterfaces, WebSockets, Wireguard};
 use nym_node_requests::routes::api::v1::gateway::client_interfaces;
 
-pub(crate) fn routes(interfaces: Option<ClientInterfaces>) -> Router<AppState> {
+pub(crate) mod wireguard;
+
+pub(crate) fn routes<S: Send + Sync + 'static + Clone>(
+    interfaces: Option<ClientInterfaces>,
+    initial_wg_state: WireguardAppState,
+) -> Router<S> {
     Router::new()
         .route(
             "/",
@@ -26,11 +31,15 @@ pub(crate) fn routes(interfaces: Option<ClientInterfaces>) -> Router<AppState> {
                 move |query| mixnet_websockets(websockets, query)
             }),
         )
+        .nest(
+            client_interfaces::WIREGUARD,
+            wireguard::routes(initial_wg_state),
+        )
         .route(
             client_interfaces::WIREGUARD,
             get({
-                let wireguard_info = interfaces.and_then(|i| i.wireguard);
-                move |query| wireguard(wireguard_info, query)
+                let wireguard_cfg_info = interfaces.and_then(|i| i.wireguard);
+                move |query| wireguard_info(wireguard_cfg_info, query)
             }),
         )
 }
@@ -76,7 +85,7 @@ pub type ClientInterfacesResponse = FormattedResponse<ClientInterfaces>;
     ),
     params(OutputParams)
 )]
-pub(crate) async fn wireguard(
+pub(crate) async fn wireguard_info(
     wireguard: Option<Wireguard>,
     Query(output): Query<OutputParams>,
 ) -> Result<WireguardResponse, StatusCode> {

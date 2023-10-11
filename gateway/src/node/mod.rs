@@ -1,7 +1,6 @@
 // Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use self::client_handling::client_registration::ClientRegistry;
 use self::storage::PersistentStorage;
 use crate::commands::helpers::{override_network_requester_config, OverrideNetworkRequesterConfig};
 use crate::config::Config;
@@ -14,7 +13,6 @@ use crate::node::client_handling::embedded_network_requester::{
 use crate::node::client_handling::websocket;
 use crate::node::client_handling::websocket::connection_handler::coconut::CoconutVerifier;
 use crate::node::helpers::{initialise_main_storage, load_network_requester_config};
-use crate::node::http::start_http_api;
 use crate::node::mixnet_handling::receiver::connection_handler::ConnectionHandler;
 use crate::node::statistics::collector::GatewayStatisticsCollector;
 use crate::node::storage::Storage;
@@ -25,6 +23,7 @@ use nym_crypto::asymmetric::{encryption, identity};
 use nym_mixnet_client::forwarder::{MixForwardingSender, PacketForwarder};
 use nym_network_defaults::NymNetworkDetails;
 use nym_network_requester::{LocalGateway, NRServiceProviderBuilder};
+use nym_node::wireguard::types::ClientRegistry;
 use nym_statistics_common::collector::StatisticsSender;
 use nym_task::{TaskClient, TaskManager};
 use nym_validator_client::{nyxd, DirectSigningHttpRpcNyxdClient};
@@ -39,7 +38,6 @@ use tokio::sync::RwLock;
 
 pub(crate) mod client_handling;
 pub(crate) mod helpers;
-pub(crate) mod http;
 pub(crate) mod mixnet_handling;
 pub(crate) mod statistics;
 pub(crate) mod storage;
@@ -337,6 +335,9 @@ impl<St> Gateway<St> {
         start_http_api(
             &self.config,
             self.network_requester_opts.as_ref().map(|o| &o.config),
+            self.client_registry.clone(),
+            self.identity_keypair.as_ref(),
+            self.sphinx_keypair.clone(),
             shutdown.subscribe().named("http-api"),
         )?;
 
@@ -390,12 +391,6 @@ impl<St> Gateway<St> {
             // that's a nasty workaround, but anyhow errors are generally nicer, especially on exit
             bail!("{err}")
         }
-
-        // This should likely be wireguard feature gated, but its easier to test if it hangs in here
-        tokio::spawn(start_http_api(
-            Arc::clone(&self.client_registry),
-            Arc::clone(&self.sphinx_keypair),
-        ));
 
         info!("Finished nym gateway startup procedure - it should now be able to receive mix and client traffic!");
 

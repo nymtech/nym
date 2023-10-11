@@ -4,7 +4,6 @@
 use crate::http::api::v1::node::build_information::build_information;
 use crate::http::api::v1::node::host_information::host_information;
 use crate::http::api::v1::node::roles::roles;
-use crate::http::state::AppState;
 use axum::routing::get;
 use axum::Router;
 use nym_node_requests::api::v1::node::models;
@@ -21,7 +20,7 @@ pub struct Config {
     pub roles: models::NodeRoles,
 }
 
-pub(super) fn routes(config: Config) -> Router<AppState> {
+pub(super) fn routes<S: Send + Sync + 'static + Clone>(config: Config) -> Router<S> {
     Router::new()
         .route(
             v1::BUILD_INFO,

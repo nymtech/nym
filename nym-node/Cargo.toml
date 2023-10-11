@@ -19,7 +19,15 @@ serde_yaml = "0.9.25"
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
-tokio = { workspace = true, features = ["macros"] }
+tokio = { workspace = true, features = ["macros", "sync"] }
+
+# Wireguard:
+base64 = "0.21.4"
+sha2 = "0.10.8"
+hmac = "0.12.1"
+fastrand = "2"
+x25519-dalek = { version = "2.0.0", features = ["static_secrets"] }
+
 
 # HTTP API:
 axum = { workspace = true }
@@ -41,6 +49,11 @@ utoipa-swagger-ui = { workspace = true, features = ["axum"] }
 #utoipa-redoc = { version = "0.1.0", features = ["axum"] }
 #utoipa-rapidoc = { version = "0.1.0", features = ["axum"] }
 
-
+nym-crypto = { path = "../common/crypto", features = ["asymmetric" ]}
 nym-node-requests = { path = "nym-node-requests", default-features = false, features = ["openapi"]}
 nym-task = { path = "../common/task" }
+
+
+[dev-dependencies]
+rand = "0.7.3"
+nym-crypto = { path = "../common/crypto", features = ["rand" ]}

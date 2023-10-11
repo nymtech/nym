@@ -1,7 +1,6 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::http::state::AppState;
 use axum::http::{header, HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::{Json, Router};
@@ -11,6 +10,7 @@ use utoipa::{IntoParams, ToSchema};
 
 pub mod v1;
 
+use crate::http::api::v1::gateway::client_interfaces::wireguard::WireguardAppState;
 pub use nym_node_requests::api as api_requests;
 use nym_node_requests::routes;
 
@@ -19,8 +19,14 @@ pub struct Config {
     pub v1_config: v1::Config,
 }
 
-pub(super) fn routes(config: Config) -> Router<AppState> {
-    Router::new().nest(routes::api::V1, v1::routes(config.v1_config))
+pub(super) fn routes<S: Send + Sync + 'static + Clone>(
+    config: Config,
+    initial_wg_state: WireguardAppState,
+) -> Router<S> {
+    Router::new().nest(
+        routes::api::V1,
+        v1::routes(config.v1_config, initial_wg_state),
+    )
 }
 
 #[derive(Debug, Clone, ToSchema)]

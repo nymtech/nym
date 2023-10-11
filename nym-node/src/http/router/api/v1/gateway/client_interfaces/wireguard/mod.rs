@@ -1,85 +1,111 @@
-use std::{collections::HashMap, sync::Arc};
+// Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
 
-use axum::{
-    routing::{get, post},
-    Router,
+use crate::http::api::v1::gateway::client_interfaces::wireguard::client_registry::{
+    get_all_clients, get_client, register_client,
 };
-use log::info;
+use crate::wireguard::types::{ClientRegistry, PendingRegistrations};
+use axum::routing::{get, post};
+use axum::Router;
 use nym_crypto::asymmetric::encryption;
+use nym_node_requests::routes::api::v1::gateway::client_interfaces::wireguard;
+use std::sync::Arc;
 use tokio::sync::RwLock;
 
-mod api;
-use api::v1::client_registry::*;
+pub(crate) mod client_registry;
 
-use super::client_handling::client_registration::{ClientPublicKey, ClientRegistry};
-
-const ROUTE_PREFIX: &str = "/api/v1/gateway/client-interfaces/wireguard";
-
-pub struct ApiState {
-    client_registry: Arc<RwLock<ClientRegistry>>,
-    sphinx_key_pair: Arc<encryption::KeyPair>,
-    registration_in_progress: Arc<RwLock<HashMap<ClientPublicKey, u64>>>,
+// I don't see any reason why this state should be accessible to any routes outside /wireguard
+// if anyone finds compelling reason, it could be moved to the `AppState` struct instead
+#[derive(Clone, Default)]
+pub struct WireguardAppState {
+    inner: Option<WireguardAppStateInner>,
 }
 
-fn router_with_state(state: Arc<ApiState>) -> Router {
+impl WireguardAppState {
+    pub fn new(
+        dh_keypair: Arc<encryption::KeyPair>,
+        client_registry: Arc<RwLock<ClientRegistry>>,
+        registration_in_progress: Arc<RwLock<PendingRegistrations>>,
+    ) -> Self {
+        WireguardAppState {
+            inner: Some(WireguardAppStateInner {
+                dh_keypair,
+                client_registry,
+                registration_in_progress,
+            }),
+        }
+    }
+
+    #[allow(dead_code)]
+    pub(crate) fn dh_keypair(&self) -> Option<&encryption::KeyPair> {
+        self.inner.as_ref().map(|s| s.dh_keypair.as_ref())
+    }
+
+    #[allow(dead_code)]
+    pub(crate) fn client_registry(&self) -> Option<&RwLock<ClientRegistry>> {
+        self.inner.as_ref().map(|s| s.client_registry.as_ref())
+    }
+
+    #[allow(dead_code)]
+    pub(crate) fn registration_in_progress(&self) -> Option<&RwLock<PendingRegistrations>> {
+        self.inner
+            .as_ref()
+            .map(|s| s.registration_in_progress.as_ref())
+    }
+
+    // not sure what to feel about exposing this method
+    pub(crate) fn inner(&self) -> Option<&WireguardAppStateInner> {
+        self.inner.as_ref()
+    }
+}
+
+// helper macro to deal with missing wg state (if not being exposed by the node)
+#[macro_export]
+macro_rules! get_state {
+    ( $state: ident, $field: ident ) => {{
+        let Some(ref inner) = $state.inner else {
+            return ::axum::http::StatusCode::NOT_IMPLEMENTED;
+        };
+        inner.$field.as_ref()
+    }};
+}
+
+#[derive(Clone)]
+pub(crate) struct WireguardAppStateInner {
+    dh_keypair: Arc<encryption::KeyPair>,
+    client_registry: Arc<RwLock<ClientRegistry>>,
+    registration_in_progress: Arc<RwLock<PendingRegistrations>>,
+}
+
+pub(crate) fn routes<S>(initial_state: WireguardAppState) -> Router<S> {
     Router::new()
-        .route(&format!("{}/clients", ROUTE_PREFIX), get(get_all_clients))
-        .route(&format!("{}/client", ROUTE_PREFIX), post(register_client))
-        .route(
-            &format!("{}/client/:pub_key", ROUTE_PREFIX),
-            get(get_client),
-        )
-        .with_state(state)
-}
-
-pub(crate) async fn start_http_api(
-    client_registry: Arc<RwLock<ClientRegistry>>,
-    sphinx_key_pair: Arc<encryption::KeyPair>,
-) {
-    // Port should be 80 post smoosh
-    let port = 8000;
-
-    info!("Started HTTP API on port {}", port);
-
-    let client_registry = Arc::clone(&client_registry);
-
-    let state = Arc::new(ApiState {
-        client_registry,
-        sphinx_key_pair,
-        registration_in_progress: Arc::new(RwLock::new(HashMap::new())),
-    });
-
-    let routes = router_with_state(state);
-
-    #[allow(clippy::unwrap_used)]
-    axum::Server::bind(&format!("0.0.0.0:{}", port).parse().unwrap())
-        .serve(routes.into_make_service())
-        .await
-        .unwrap();
+        // .route("/", get())
+        .route(wireguard::CLIENTS, get(get_all_clients))
+        .route(wireguard::CLIENT, post(register_client))
+        .route(&format!("{}/:pub_key", wireguard::CLIENT), get(get_client))
+        .with_state(initial_state)
 }
 
 #[cfg(test)]
 mod test {
-    use std::net::SocketAddr;
-    use std::str::FromStr;
-    use std::{collections::HashMap, sync::Arc};
-
+    use crate::http::api::v1::gateway::client_interfaces::wireguard::{
+        routes, WireguardAppState, WireguardAppStateInner,
+    };
+    use crate::wireguard::types::{
+        ClientMac, ClientMessageRequest, ClientPublicKey, ClientRequest, HmacSha256,
+        InitMessageRequest,
+    };
     use axum::body::Body;
     use axum::http::Request;
     use axum::http::StatusCode;
     use hmac::Mac;
+    use nym_crypto::asymmetric::encryption;
+    use nym_node_requests::routes::api::v1::gateway::client_interfaces::wireguard;
+    use std::{collections::HashMap, sync::Arc};
+    use tokio::sync::RwLock;
     use tower::Service;
     use tower::ServiceExt;
-
-    use nym_crypto::asymmetric::encryption;
-    use tokio::sync::RwLock;
     use x25519_dalek::{PublicKey, StaticSecret};
-
-    use crate::node::client_handling::client_registration::{
-        Client, ClientMac, ClientMessage, InitMessage,
-    };
-    use crate::node::client_handling::client_registration::{ClientPublicKey, HmacSha256};
-    use crate::node::http::{router_with_state, ApiState, ROUTE_PREFIX};
 
     #[tokio::test]
     async fn registration() {
@@ -108,22 +134,25 @@ mod test {
         let registration_in_progress = Arc::new(RwLock::new(HashMap::new()));
         let client_registry = Arc::new(RwLock::new(HashMap::new()));
 
-        let state = Arc::new(ApiState {
-            client_registry: Arc::clone(&client_registry),
-            sphinx_key_pair: Arc::new(gateway_key_pair),
-            registration_in_progress: Arc::clone(&registration_in_progress),
-        });
+        let state = WireguardAppState {
+            inner: Some(WireguardAppStateInner {
+                client_registry: Arc::clone(&client_registry),
+                dh_keypair: Arc::new(gateway_key_pair),
+                registration_in_progress: Arc::clone(&registration_in_progress),
+            }),
+        };
 
         // `Router` implements `tower::Service<Request<Body>>` so we can
         // call it like any tower service, no need to run an HTTP server.
-        let mut app = router_with_state(state);
+        let mut app = routes(state);
 
-        let init_message =
-            ClientMessage::Init(InitMessage::new(ClientPublicKey::new(client_static_public)));
+        let init_message = ClientMessageRequest::Initial(InitMessageRequest {
+            pub_key: ClientPublicKey::new(client_static_public).to_string(),
+        });
 
         let init_request = Request::builder()
             .method("POST")
-            .uri(format!("{}/client", ROUTE_PREFIX))
+            .uri(wireguard::CLIENT)
             .header("Content-type", "application/json")
             .body(Body::from(serde_json::to_vec(&init_message).unwrap()))
             .unwrap();
@@ -150,15 +179,15 @@ mod test {
         mac.update(&nonce.unwrap().to_le_bytes());
         let mac = mac.finalize().into_bytes();
 
-        let finalized_message = ClientMessage::Final(Client {
-            pub_key: ClientPublicKey::new(client_static_public),
-            socket: SocketAddr::from_str("127.0.0.1:8080").unwrap(),
-            mac: ClientMac::new(mac.as_slice().to_vec()),
+        let finalized_message = ClientMessageRequest::Final(ClientRequest {
+            pub_key: ClientPublicKey::new(client_static_public).to_string(),
+            socket: "127.0.0.1:8080".to_string(),
+            mac: ClientMac::new(mac.as_slice().to_vec()).to_string(),
         });
 
         let final_request = Request::builder()
             .method("POST")
-            .uri(format!("{}/client", ROUTE_PREFIX))
+            .uri(wireguard::CLIENT)
             .header("Content-type", "application/json")
             .body(Body::from(serde_json::to_vec(&finalized_message).unwrap()))
             .unwrap();
@@ -175,7 +204,7 @@ mod test {
 
         let clients_request = Request::builder()
             .method("GET")
-            .uri(format!("{}/clients", ROUTE_PREFIX))
+            .uri(wireguard::CLIENTS)
             .body(Body::empty())
             .unwrap();
 

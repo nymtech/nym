@@ -4,6 +4,7 @@
 use crate::api::v1::node::models::HostInformation;
 use crate::error::Error;
 use nym_crypto::asymmetric::identity;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::ops::Deref;
 
@@ -70,7 +71,8 @@ impl<T> Deref for SignedData<T> {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct ErrorResponse {
     pub message: String,
 }

@@ -4,7 +4,7 @@
 use crate::http::api::v1::gateway::client_interfaces::wireguard::{
     WireguardAppState, WireguardAppStateInner,
 };
-use crate::http::router::types::RequestError;
+use crate::http::router::types::{ErrorResponse, RequestError};
 use crate::wireguard::error::WireguardError;
 use crate::wireguard::types::{
     Client, ClientMessage, ClientMessageRequest, ClientPublicKey, InitMessage,
@@ -58,6 +58,22 @@ async fn process_init_message(init_message: InitMessage, state: &WireguardAppSta
     nonce
 }
 
+/// Perform wireguard client registration.
+#[utoipa::path(
+    post,
+    path = "/client",
+    context_path = "/api/v1/gateway/client-interfaces/wireguard",
+    tag = "Wireguard (EXPERIMENTAL AND UNSTABLE)",
+    responses(
+        (status = 501, description = "the endpoint hasn't been implemented yet"),
+        (status = 400, response = RequestError),
+        (status = 200, content(
+            ("application/json" = Option<u64>),
+            // ("application/yaml" = ClientInterfaces)
+        ))
+    ),
+    // params(OutputParams)
+)]
 pub(crate) async fn register_client(
     State(state): State<WireguardAppState>,
     Json(payload): Json<ClientMessageRequest>,
@@ -81,6 +97,22 @@ pub(crate) async fn register_client(
 }
 
 // pub type RegisterClientResponse = FormattedResponse<()>;
+
+/// Get public keys of all registered wireguard clients.
+#[utoipa::path(
+    get,
+    path = "/clients",
+    context_path = "/api/v1/gateway/client-interfaces/wireguard",
+    tag = "Wireguard (EXPERIMENTAL AND UNSTABLE)",
+    responses(
+        (status = 501, description = "the endpoint hasn't been implemented yet"),
+        (status = 200, content(
+            ("application/json" = Vec<ClientPublicKey>),
+            // ("application/yaml" = ClientInterfaces)
+        ))
+    ),
+    // params(OutputParams)
+)]
 pub(crate) async fn get_all_clients(
     State(state): State<WireguardAppState>,
 ) -> (StatusCode, Json<Vec<ClientPublicKey>>) {
@@ -101,6 +133,26 @@ pub(crate) async fn get_all_clients(
 
 // pub type AllClientsResponse = FormattedResponse<()>;
 
+/// Get client details of the registered wireguard client by its public key.
+#[utoipa::path(
+    get,
+    path = "/client/{pub_key}",
+    context_path = "/api/v1/gateway/client-interfaces/wireguard",
+    tag = "Wireguard (EXPERIMENTAL AND UNSTABLE)",
+    params(
+        ("pub_key", description = "The public key of the client"),
+    ),
+    responses(
+        (status = 501, description = "the endpoint hasn't been implemented yet"),
+        (status = 404, description = "there are no clients with the provided public key"),
+        (status = 400, response = RequestError),
+        (status = 200, content(
+            ("application/json" = Vec<Client>),
+            // ("application/yaml" = ClientInterfaces)
+        ))
+    ),
+    // params(OutputParams)
+)]
 pub(crate) async fn get_client(
     Path(pub_key): Path<String>,
     State(state): State<WireguardAppState>,

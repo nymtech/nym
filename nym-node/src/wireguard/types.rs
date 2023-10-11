@@ -5,7 +5,7 @@ use crate::wireguard::error::WireguardError;
 use base64::{engine::general_purpose, Engine};
 use hmac::{Hmac, Mac};
 use nym_crypto::asymmetric::encryption::PrivateKey;
-pub(crate) use nym_node_requests::api::v1::gateway::client_interefaces::wireguard::models::{
+pub(crate) use nym_node_requests::api::v1::gateway::client_interfaces::wireguard::models::{
     Client as ClientRequest, ClientMessage as ClientMessageRequest,
     InitMessage as InitMessageRequest,
 };
@@ -73,7 +73,7 @@ impl InitMessage {
 // Gateway can then verify pub_key payload using the sme process
 #[derive(Debug, Clone)]
 // TEMP:
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 pub struct Client {
     // base64 encoded public key, using x25519-dalek for impl
     pub pub_key: ClientPublicKey,

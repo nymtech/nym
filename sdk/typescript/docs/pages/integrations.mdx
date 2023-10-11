@@ -1,39 +1,43 @@
 import Box from '@mui/material/Box';
+import { Steps } from 'nextra/components'
+import { Tabs } from 'nextra/components'
 import { GitHubRepoSearch } from '../code-snippets/mixfetchurl';
 
 # Integrations page
 
-### How can I integrate Nym into my app? 
+## How can I integrate Nym into my app? 
 If you're unsure where to start, the following set of questions should help you determine which path to follow in regards to integrations: 
  
- __1. Does your app rely on using `fetch` for its network traffic and remote connections?__
+<Steps>
+### Is your app developed in TS/JS or Rust?
 
+<Tabs items={['YES', 'NO']}>
+  <Tabs.Tab >**Yes - TS/JS or RUST**: If yes, you can use one of our SDKs and leverage either `mixfetch` (note that this only works for JS/TS at the moment, as we do not currently have a RUST implementation of it) or the `sdk client` to route app traffic through the mixnet.</Tabs.Tab>
+  <Tabs.Tab>**No**: You'll most likely need to use FFI or one of our [standalone clients](https://nymtech.net/developers/integrations/mixnet-integration.html).</Tabs.Tab>
+</Tabs>
+
+ 
+ 
+### Does your TS/JS app rely on using `fetch` for its network traffic and remote connections?
  Check whether `mixFetch` can be used to route your traffic through the mixnet by entering your repository's URL below:
 
 <GitHubRepoSearch />
 
-This should open a window showcasing all your repo's files calling the `fetch` method. The best way to integrate Nym into your application will be where external network calls and RPC happens, for example, something in the lines of `sendRawTransaction` if you have an ETH-compatible wallet or `JsonRpcClient` if you use CosmJS.
-
-Although you can simply search for any JS `fetch` calls in your code (using our tool above) that are easily replaceable with `mixFetch`, keep in mind that `fetch` is not the only way to make `JSONRPC` or `XHR` calls.
-
-We advise to approach the integration process in a semantic way, searching for a module that is the common denominator for external communication in the codebase. Usually these are API controllers, middlewares or repositories.
-
-While mixFetch is the shortest and easiest way to integrate Nym, a well-modularized codebase should permit the integration of one of our SDK components, which allow much more flexibility and control.
+<Tabs items={['YES', 'NO']}>
+  <Tabs.Tab >**Yes - `fetch`**: The best way to integrate Nym into your application will be where external network calls and RPC happens, for example, something in the lines of `sendRawTransaction` if you have an ETH-compatible wallet or `JsonRpcClient` if you use CosmJS. Although you can simply search for any JS `fetch` calls in your code (using our tool above) that are easily replaceable with `mixFetch`, keep in mind that `fetch` is not the only way to make `JSONRPC` or `XHR` calls. We advise to approach the integration process in a semantic way, searching for a module that is the common denominator for external communication in the codebase. Usually these are API controllers, middlewares or repositories.</Tabs.Tab>
+  <Tabs.Tab>**No**: While mixFetch is the shortest and easiest way to integrate Nym, a well-modularized codebase should permit the integration of one of our SDK components, which allow much more flexibility and control.</Tabs.Tab>
+</Tabs>
 
 
 
-If not:
-
-__2. Is your app developed in TS/JS or Rust?__
- 
- If yes, you can use one of our SDKs and leverage either `mixfetch` (note that this only works for JS/TS at the moment, as we do not currently have a RUST implementation of it) or the `sdk client` to route app traffic through the mixnet. 
- 
- If it is developed in another language:
-
- __3. You can use one of our standalone Nym clients__
- 
- All Nym client packages present basically the same capabilities to the privacy application developer. They need to run as a persistent process in order to stay connected and ready to receive any incoming messages from their gateway nodes. They register and authenticate to gateways, and encrypt Sphinx packets.
+ ### Use one of our standalone Nym clients
+ If you've answered 'No' to all of the above, you may need to use one of our standalone clients. All Nym client packages present basically the same capabilities to the privacy application developer. They need to run as a persistent process in order to stay connected and ready to receive any incoming messages from their gateway nodes. They register and authenticate to gateways, and encrypt Sphinx packets.
  You can find more information about the different standalone clients and the ways to interact with them [in this page](https://nymtech.net/developers/integrations/mixnet-integration.html). 
+
+
+
+</Steps>
+
 
 
 ```
@@ -63,7 +67,7 @@ For integration entry points:
 
    ```
 
-### How to deal with Service Providers? 
+## How to deal with Service Providers? 
  In a nutshell: that depends on your app's goal and architecture (and the endpoint it needs to hit).
 Again, as detailed in the [FAQ](../FAQ/general): 
 
@@ -99,8 +103,8 @@ Again, as detailed in the [FAQ](../FAQ/general):
                                        
 ```
 
-### Other resources
-If you'd like to learn more about potential integrations, please first make sure to read:
+## Other resources
+If you'd like to learn more about potential integrations, please make sure to read:
 - The [integrations FAQ](https://nymtech.net/developers/faq/integrations-faq.html): which lists a set of common questions regarding integrating Nym and Nyx;
-- The [Mixnet integration page](https://nymtech.net/developers/integrations/mixnet-integration.html): which will help you integrate with Nym to use the mixnet for application traffic;
+- The [mixnet integration page](https://nymtech.net/developers/integrations/mixnet-integration.html): which will help you integrate with Nym to use the mixnet for application traffic;
 - The [payment integration page](https://nymtech.net/developers/integrations/payment-integration.html): which will help you integrate with the Nyx blockchain and use Nym for payments;

@@ -25,11 +25,11 @@ export const GitHubRepoSearch = () => {
       <Box>
         <TextField
           type="text"
-          placeholder="Enter GitHub Repo URL: https://github.com/nymtech/nym/"
+          placeholder="Enter GitHub repo URL: https://github.com/nymtech/nym/"
           value={repoUrl}
           onChange={(e) => setRepoUrl(e.target.value)}
           size="small"
-          sx={{width: "400px"}}
+          sx={{width: "450px"}}
         />
   
         <Button

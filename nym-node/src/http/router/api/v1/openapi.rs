@@ -3,7 +3,6 @@
 
 use crate::http::router::api;
 use crate::http::router::types::{ErrorResponse, RequestError};
-use crate::wireguard::types::Client;
 use axum::Router;
 use nym_node_requests::api as api_requests;
 use nym_node_requests::routes::api::v1;
@@ -46,7 +45,6 @@ use utoipa_swagger_ui::SwaggerUi;
             api_requests::v1::gateway::client_interfaces::wireguard::models::Client,
             api_requests::v1::mixnode::models::Mixnode,
             api_requests::v1::network_requester::models::NetworkRequester,
-            Client,
         ),
         responses(RequestError)
     )

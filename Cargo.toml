@@ -132,6 +132,7 @@ license = "Apache-2.0"
 anyhow = "1.0.71"
 async-trait = "0.1.68"
 axum = "0.6.20"
+base64 = "0.21.4"
 bip39 = { version = "2.0.0", features = ["zeroize"] }
 cfg-if = "1.0.0"
 cosmwasm-derive = "=1.3.0"

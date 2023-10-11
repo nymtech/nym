@@ -6869,11 +6869,9 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "axum",
- "base64 0.21.4",
  "bytes",
  "colored",
  "fastrand 2.0.0",
- "hmac 0.12.1",
  "hyper",
  "mime",
  "nym-crypto",
@@ -6883,7 +6881,6 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_yaml",
- "sha2 0.10.8",
  "thiserror",
  "tokio",
  "tower",
@@ -6891,7 +6888,6 @@ dependencies = [
  "tracing",
  "utoipa",
  "utoipa-swagger-ui",
- "x25519-dalek 2.0.0",
 ]
 
 [[package]]
@@ -6899,14 +6895,19 @@ name = "nym-node-requests"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "base64 0.21.4",
+ "hmac 0.12.1",
  "http-api-client",
  "nym-bin-common",
  "nym-crypto",
+ "rand 0.7.3",
  "schemars",
  "serde",
  "serde_json",
+ "sha2 0.10.8",
  "thiserror",
  "utoipa",
+ "x25519-dalek 2.0.0",
 ]
 
 [[package]]

@@ -11,11 +11,16 @@ license.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+base64 = { workspace = true }
 schemars = { workspace = true, features = ["preserve_order"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 nym-crypto = { path = "../../common/crypto", features = ["asymmetric"] }
+# temporary until we upgrade nym-crypto; we need it for the x25519 pubkey type
+x25519-dalek = { version = "2.0.0" }
+hmac = { version = "0.12.1", optional = true }
+sha2 = { version = "0.10.8", optional = true }
 
 # feature-specific dependencies:
 
@@ -27,7 +32,12 @@ http-api-client = { path = "../../common/http-api-client", optional = true }
 utoipa = { workspace = true, optional = true }
 nym-bin-common = { path = "../../common/bin-common", features = ["bin_info_schema"] }
 
+[dev-dependencies]
+rand = "0.7.3"
+nym-crypto = { path = "../../common/crypto", features = ["rand"]}
+
 [features]
 default = ["client"]
 client = ["http-api-client", "async-trait"]
 openapi = ["utoipa", "nym-bin-common/openapi"]
+wireguard-verify = ["hmac", "x25519-dalek/static_secrets", "sha2"]

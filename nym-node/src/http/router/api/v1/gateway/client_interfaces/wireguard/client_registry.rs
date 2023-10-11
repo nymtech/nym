@@ -4,15 +4,14 @@
 use crate::http::api::v1::gateway::client_interfaces::wireguard::{
     WireguardAppState, WireguardAppStateInner,
 };
-use crate::http::router::types::{ErrorResponse, RequestError};
+use crate::http::router::types::RequestError;
 use crate::wireguard::error::WireguardError;
-use crate::wireguard::types::{
-    Client, ClientMessage, ClientMessageRequest, ClientPublicKey, InitMessage,
-};
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::Json;
-use std::str::FromStr;
+use nym_node_requests::api::v1::gateway::client_interfaces::wireguard::models::{
+    Client, ClientMessage, ClientPublicKey, InitMessage, Nonce,
+};
 
 async fn process_final_message(
     client: Client,
@@ -51,10 +50,10 @@ async fn process_final_message(
     }
 }
 
-async fn process_init_message(init_message: InitMessage, state: &WireguardAppStateInner) -> u64 {
+async fn process_init_message(init_message: InitMessage, state: &WireguardAppStateInner) -> Nonce {
     let nonce: u64 = fastrand::u64(..);
     let mut registry_rw = state.registration_in_progress.write().await;
-    registry_rw.insert(*init_message.pub_key(), nonce);
+    registry_rw.insert(init_message.pub_key(), nonce);
     nonce
 }
 
@@ -64,9 +63,14 @@ async fn process_init_message(init_message: InitMessage, state: &WireguardAppSta
     path = "/client",
     context_path = "/api/v1/gateway/client-interfaces/wireguard",
     tag = "Wireguard (EXPERIMENTAL AND UNSTABLE)",
+    request_body(
+        content = ClientMessage,
+        description = "Data used for proceeding with client wireguard registration",
+        content_type = "application/json"
+    ),
     responses(
         (status = 501, description = "the endpoint hasn't been implemented yet"),
-        (status = 400, response = RequestError),
+        (status = 400, body = ErrorResponse),
         (status = 200, content(
             ("application/json" = Option<u64>),
             // ("application/yaml" = ClientInterfaces)
@@ -76,23 +80,20 @@ async fn process_init_message(init_message: InitMessage, state: &WireguardAppSta
 )]
 pub(crate) async fn register_client(
     State(state): State<WireguardAppState>,
-    Json(payload): Json<ClientMessageRequest>,
-) -> Result<(StatusCode, Json<Option<u64>>), RequestError> {
+    Json(payload): Json<ClientMessage>,
+) -> Result<(StatusCode, Json<Option<Nonce>>), RequestError> {
     let Some(state) = state.inner() else {
         return Ok((StatusCode::NOT_IMPLEMENTED, Json(None)));
     };
 
-    match ClientMessage::try_from(payload) {
-        Ok(payload) => match payload {
-            ClientMessage::Init(i) => Ok((
-                StatusCode::OK,
-                Json(Some(process_init_message(i, state).await)),
-            )),
-            ClientMessage::Final(client) => process_final_message(client, state)
-                .await
-                .map(|code| (code, Json(None))),
-        },
-        Err(err) => Err(RequestError::from_err(err, StatusCode::BAD_REQUEST)),
+    match payload {
+        ClientMessage::Initial(init) => Ok((
+            StatusCode::OK,
+            Json(Some(process_init_message(init, state).await)),
+        )),
+        ClientMessage::Final(finalize) => process_final_message(finalize, state)
+            .await
+            .map(|code| (code, Json(None))),
     }
 }
 
@@ -107,7 +108,7 @@ pub(crate) async fn register_client(
     responses(
         (status = 501, description = "the endpoint hasn't been implemented yet"),
         (status = 200, content(
-            ("application/json" = Vec<ClientPublicKey>),
+            ("application/json" = Vec<String>),
             // ("application/yaml" = ClientInterfaces)
         ))
     ),
@@ -145,7 +146,7 @@ pub(crate) async fn get_all_clients(
     responses(
         (status = 501, description = "the endpoint hasn't been implemented yet"),
         (status = 404, description = "there are no clients with the provided public key"),
-        (status = 400, response = RequestError),
+        (status = 400, body = ErrorResponse),
         (status = 200, content(
             ("application/json" = Vec<Client>),
             // ("application/yaml" = ClientInterfaces)
@@ -154,15 +155,11 @@ pub(crate) async fn get_all_clients(
     // params(OutputParams)
 )]
 pub(crate) async fn get_client(
-    Path(pub_key): Path<String>,
+    Path(pub_key): Path<ClientPublicKey>,
     State(state): State<WireguardAppState>,
 ) -> Result<(StatusCode, Json<Vec<Client>>), RequestError> {
     let Some(state) = state.inner() else {
         return Ok((StatusCode::NOT_IMPLEMENTED, Json(Vec::new())));
-    };
-    let pub_key = match ClientPublicKey::from_str(&pub_key) {
-        Ok(pub_key) => pub_key,
-        Err(err) => return Err(RequestError::from_err(err, StatusCode::BAD_REQUEST)),
     };
 
     let registry_ro = state.client_registry.read().await;

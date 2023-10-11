@@ -16,8 +16,8 @@ export const GitHubRepoSearch = () => {
     // Construct the search URL
     const searchUrl = `https://github.com/search?q=repo:${matchedRepo} fetch(&type=code`;
 
-    // Redirect the user to the search results page
-    window.location.href = searchUrl;
+    // Redirect the user to a new search results page
+    window.open(searchUrl, "_blank");
   };
 
   return (

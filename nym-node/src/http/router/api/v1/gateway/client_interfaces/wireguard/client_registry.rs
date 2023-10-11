@@ -4,13 +4,14 @@
 use crate::http::api::v1::gateway::client_interfaces::wireguard::{
     WireguardAppState, WireguardAppStateInner,
 };
+use crate::http::api::{FormattedResponse, OutputParams};
 use crate::http::router::types::RequestError;
 use crate::wireguard::error::WireguardError;
-use axum::extract::{Path, State};
+use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::Json;
 use nym_node_requests::api::v1::gateway::client_interfaces::wireguard::models::{
-    Client, ClientMessage, ClientPublicKey, InitMessage, Nonce,
+    Client, ClientMessage, ClientPublicKey, ClientRegistrationResponse, InitMessage, Nonce,
 };
 
 async fn process_final_message(
@@ -69,35 +70,45 @@ async fn process_init_message(init_message: InitMessage, state: &WireguardAppSta
         content_type = "application/json"
     ),
     responses(
-        (status = 501, description = "the endpoint hasn't been implemented yet"),
+        (status = 501, body = ErrorResponse, description = "the endpoint hasn't been implemented yet"),
         (status = 400, body = ErrorResponse),
         (status = 200, content(
-            ("application/json" = Option<u64>),
-            // ("application/yaml" = ClientInterfaces)
+            ("application/json" = ClientRegistrationResponse),
+            ("application/yaml" = ClientRegistrationResponse)
         ))
     ),
-    // params(OutputParams)
+    params(OutputParams)
 )]
 pub(crate) async fn register_client(
     State(state): State<WireguardAppState>,
+    Query(output): Query<OutputParams>,
     Json(payload): Json<ClientMessage>,
-) -> Result<(StatusCode, Json<Option<Nonce>>), RequestError> {
+) -> Result<RegisterClientResponse, RequestError> {
+    let output = output.output.unwrap_or_default();
+
     let Some(state) = state.inner() else {
-        return Ok((StatusCode::NOT_IMPLEMENTED, Json(None)));
+        return Err(RequestError::new_status(StatusCode::NOT_IMPLEMENTED));
     };
 
     match payload {
-        ClientMessage::Initial(init) => Ok((
-            StatusCode::OK,
-            Json(Some(process_init_message(init, state).await)),
-        )),
-        ClientMessage::Final(finalize) => process_final_message(finalize, state)
-            .await
-            .map(|code| (code, Json(None))),
+        ClientMessage::Initial(init) => {
+            let nonce = process_init_message(init, state).await;
+            let response = ClientRegistrationResponse::PendingRegistration { nonce };
+            Ok(output.to_response(response))
+        }
+        ClientMessage::Final(finalize) => {
+            let result = process_final_message(finalize, state).await?;
+            if result.is_success() {
+                let response = ClientRegistrationResponse::Registered { success: true };
+                Ok(output.to_response(response))
+            } else {
+                Err(RequestError::new_status(result))
+            }
+        }
     }
 }
 
-// pub type RegisterClientResponse = FormattedResponse<()>;
+pub type RegisterClientResponse = FormattedResponse<ClientRegistrationResponse>;
 
 /// Get public keys of all registered wireguard clients.
 #[utoipa::path(
@@ -106,33 +117,34 @@ pub(crate) async fn register_client(
     context_path = "/api/v1/gateway/client-interfaces/wireguard",
     tag = "Wireguard (EXPERIMENTAL AND UNSTABLE)",
     responses(
-        (status = 501, description = "the endpoint hasn't been implemented yet"),
+        (status = 501, body = ErrorResponse, description = "the endpoint hasn't been implemented yet"),
         (status = 200, content(
             ("application/json" = Vec<String>),
-            // ("application/yaml" = ClientInterfaces)
+            ("application/yaml" = Vec<String>)
         ))
     ),
-    // params(OutputParams)
+    params(OutputParams)
 )]
 pub(crate) async fn get_all_clients(
+    Query(output): Query<OutputParams>,
     State(state): State<WireguardAppState>,
-) -> (StatusCode, Json<Vec<ClientPublicKey>>) {
+) -> Result<AllClientsResponse, RequestError> {
+    let output = output.output.unwrap_or_default();
+
     let Some(state) = state.inner() else {
-        return (StatusCode::NOT_IMPLEMENTED, Json(Vec::new()));
+        return Err(RequestError::new_status(StatusCode::NOT_IMPLEMENTED));
     };
+
     let registry_ro = state.client_registry.read().await;
-    (
-        StatusCode::OK,
-        Json(
-            registry_ro
-                .values()
-                .map(|c| c.pub_key())
-                .collect::<Vec<ClientPublicKey>>(),
-        ),
-    )
+    let clients = registry_ro
+        .values()
+        .map(|c| c.pub_key())
+        .collect::<Vec<ClientPublicKey>>();
+
+    Ok(output.to_response(clients))
 }
 
-// pub type AllClientsResponse = FormattedResponse<()>;
+pub type AllClientsResponse = FormattedResponse<Vec<ClientPublicKey>>;
 
 /// Get client details of the registered wireguard client by its public key.
 #[utoipa::path(
@@ -144,22 +156,25 @@ pub(crate) async fn get_all_clients(
         ("pub_key", description = "The public key of the client"),
     ),
     responses(
-        (status = 501, description = "the endpoint hasn't been implemented yet"),
-        (status = 404, description = "there are no clients with the provided public key"),
+        (status = 501, body = ErrorResponse, description = "the endpoint hasn't been implemented yet"),
+        (status = 404, body = ErrorResponse, description = "there are no clients with the provided public key"),
         (status = 400, body = ErrorResponse),
         (status = 200, content(
             ("application/json" = Vec<Client>),
-            // ("application/yaml" = ClientInterfaces)
+            ("application/yaml" = Vec<Client>)
         ))
     ),
-    // params(OutputParams)
+    params(OutputParams)
 )]
 pub(crate) async fn get_client(
     Path(pub_key): Path<ClientPublicKey>,
+    Query(output): Query<OutputParams>,
     State(state): State<WireguardAppState>,
-) -> Result<(StatusCode, Json<Vec<Client>>), RequestError> {
+) -> Result<ClientResponse, RequestError> {
+    let output = output.output.unwrap_or_default();
+
     let Some(state) = state.inner() else {
-        return Ok((StatusCode::NOT_IMPLEMENTED, Json(Vec::new())));
+        return Err(RequestError::new_status(StatusCode::NOT_IMPLEMENTED));
     };
 
     let registry_ro = state.client_registry.read().await;
@@ -173,10 +188,12 @@ pub(crate) async fn get_client(
             }
         })
         .collect::<Vec<Client>>();
+
     if clients.is_empty() {
-        return Ok((StatusCode::NOT_FOUND, Json(clients)));
+        return Err(RequestError::new_status(StatusCode::NOT_FOUND));
     }
-    Ok((StatusCode::OK, Json(clients)))
+
+    Ok(output.to_response(clients))
 }
 
-// pub type ClientResponse = FormattedResponse<()>;
+pub type ClientResponse = FormattedResponse<Vec<Client>>;

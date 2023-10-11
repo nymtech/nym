@@ -48,6 +48,14 @@ impl InitMessage {
     }
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(tag = "type", rename_all = "camelCase")]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub enum ClientRegistrationResponse {
+    PendingRegistration { nonce: u64 },
+    Registered { success: bool },
+}
+
 /// Client that wants to register sends its PublicKey and SocketAddr bytes mac digest encrypted with a DH shared secret.
 /// Gateway/Nym node can then verify pub_key payload using the same process
 #[derive(Serialize, Deserialize, Debug, Clone)]

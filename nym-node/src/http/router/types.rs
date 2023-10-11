@@ -25,6 +25,15 @@ impl RequestError {
         }
     }
 
+    pub(crate) fn new_status(status: StatusCode) -> Self {
+        RequestError {
+            inner: ErrorResponse {
+                message: String::new(),
+            },
+            status,
+        }
+    }
+
     pub(crate) fn from_err<E: std::error::Error>(err: E, status: StatusCode) -> Self {
         Self::new(err.to_string(), status)
     }

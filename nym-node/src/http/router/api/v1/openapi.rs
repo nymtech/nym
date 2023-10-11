@@ -43,6 +43,7 @@ use utoipa_swagger_ui::SwaggerUi;
             api_requests::v1::gateway::client_interfaces::wireguard::models::ClientMessage,
             api_requests::v1::gateway::client_interfaces::wireguard::models::InitMessage,
             api_requests::v1::gateway::client_interfaces::wireguard::models::Client,
+            api_requests::v1::gateway::client_interfaces::wireguard::models::ClientRegistrationResponse,
             api_requests::v1::mixnode::models::Mixnode,
             api_requests::v1::network_requester::models::NetworkRequester,
         ),

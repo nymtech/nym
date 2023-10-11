@@ -2844,6 +2844,26 @@
   resolved "https://registry.yarnpkg.com/@nx/nx-win32-x64-msvc/-/nx-win32-x64-msvc-16.8.1.tgz#6ec1930aaf4d9dea19149d6b3d100b2c7e69d582"
   integrity sha512-yHZ5FAcx54rVc31R0yIpniepkHMPwaxG23l8E/ZYbL1iPwE/Wc1HeUzUvxUuSXtguRp7ihcRhaUEPkcSl2EAVw==
 
+"@nymproject/mix-fetch-wasm@>=1.2.0-rc.7 || 1":
+  version "1.2.0"
+  resolved "https://registry.yarnpkg.com/@nymproject/mix-fetch-wasm/-/mix-fetch-wasm-1.2.0.tgz#cb05ca595b0a6b2c097d7ba38c98dac7bb0c66fb"
+  integrity sha512-7cwk+042FjBVtBLHWlxi0fWWymwQSWxSDAFgF2xQ6aMeWm/4b/lNxj5sgqlHi/skv2FotYRLmYHdezbE/PskPA==
+
+"@nymproject/nym-client-wasm-node@>=1.2.0-rc.10 || ^1":
+  version "1.2.0"
+  resolved "https://registry.yarnpkg.com/@nymproject/nym-client-wasm-node/-/nym-client-wasm-node-1.2.0.tgz#46abe6b7535e80107d837bc6cc47edc1734aa773"
+  integrity sha512-L2hvMuudTQJgS/ZGGCSCD2oroccf7jWYXrq/E0Qqu0IxLlyjnTJ1xWWwXzUuwzBs+V5YZb0VIdB0kAovGLA+VA==
+
+"@nymproject/nym-client-wasm@>=1.2.0-rc.7 || ^1":
+  version "1.2.0"
+  resolved "https://registry.yarnpkg.com/@nymproject/nym-client-wasm/-/nym-client-wasm-1.2.0.tgz#149cfec33f4ecb5e3aef93c501c952facb7bef2f"
+  integrity sha512-Ht+JeEtUYtxCav362XejcCIazq5pW1oHyIdl8X73I4a4ugD6M0NUAfrgspElDHT42chn0+Vfz45oRIitMjQJ3w==
+
+"@nymproject/nym-node-tester-wasm@>=1.2.0-rc.7 || ^1":
+  version "1.2.0"
+  resolved "https://registry.yarnpkg.com/@nymproject/nym-node-tester-wasm/-/nym-node-tester-wasm-1.2.0.tgz#96948197531edad1d45830e74b1b0e61fdf20d90"
+  integrity sha512-UEr+1ipu9JYGPBqqEQ8zi/My/7YPdzKK9ZZURaCfxBn+jux78wJ54RTeDaRPA3WQFjoeyJqdGKkIv3nItH3cXA==
+
 "@nymproject/nym-validator-client@^0.18.0":
   version "0.18.0"
   resolved "https://registry.yarnpkg.com/@nymproject/nym-validator-client/-/nym-validator-client-0.18.0.tgz#4dd72bafdf6c72b603242f32c0bb9a1f9e475b98"

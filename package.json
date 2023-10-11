@@ -6,7 +6,10 @@
   "workspaces": [
     "dist/wasm/**",
     "dist/node/**",
-    "sdk/typescript/packages/**",
+    "dist/ts/**",
+    "sdk/typescript/packages/mui-theme",
+    "sdk/typescript/packages/react-components",
+    "sdk/typescript/packages/validator-client",
     "ts-packages/*",
     "nym-wallet",
     "nym-connect/**",
@@ -16,6 +19,7 @@
   ],
   "scripts": {
     "nuke": "npx rimraf **/node_modules node_modules",
+    "scrub": "npx rimraf **/dist dist",
     "clean": "lerna run clean",
 
     "build:ci:sdk": "run-s build:types build:packages build:wasm build:sdk:ci",
@@ -23,7 +27,6 @@
 
     "build": "run-s build:types build:packages",
     "build:wasm": "make sdk-wasm-build",
-    "build:sdk": "make sdk-typescript-build",
     "build:types": "lerna run --scope @nymproject/types build --stream",
     "build:packages": "run-s build:packages:theme build:packages:react",
     "build:packages:theme": "lerna run --scope @nymproject/mui-theme build",

@@ -40,7 +40,7 @@ import { createNymMixnetClient, NymMixnetClient, Payload } from "@nymproject/sdk
 
 ##### Example: using the SDK's Mixnet Client to send and receive messages over the Nym mixnet
 By pasting the below code example, you should be able to send and receive messages through the mixnet through an unstyled mixnet app template!
-<Callout type="info" emoji="ℹ️">
+<Callout type="warning" emoji="ℹ️">
     For this example, we will be using the `full-fat` version of the ESM SDK. If you'd like to use the unbundled version of the ESM one, make sure your [bundler configuration](../../bundling/bundling) copies the WebAssembly (WASM) and web worker files to the output bundle.
 </Callout>
 
@@ -146,7 +146,7 @@ export default function App () {
 }
 ```
 
-<Callout type="info" emoji="ℹ️">
+<Callout type="info" emoji="⚠️">
   If you encounter a Gateway client error that persists even after a hard refresh, you may need to take the following steps: Open your browser's console => Navigate to the "Application" tab => Delete the databases listed under "IndexedDB".
   Additionally, please be aware that the mixnet client is currently limited to functioning in local development environments due to SSL-related issues.
 </Callout>

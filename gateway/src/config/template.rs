@@ -60,6 +60,9 @@ cosmos_mnemonic = '{{ gateway.cosmos_mnemonic }}'
 # default: `0.0.0.0:80`
 bind_address = '{{ http.bind_address }}'
 
+# Path to assets directory of custom landing page of this node
+landing_page_assets_path = '{{ http.landing_page_assets_path }}'
+
 [network_requester]
 # Specifies whether network requester service is enabled in this process.
 enabled = {{ network_requester.enabled }}

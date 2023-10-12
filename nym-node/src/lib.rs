@@ -9,3 +9,4 @@
 pub mod error;
 pub mod http;
 pub mod wireguard;
+pub mod config;

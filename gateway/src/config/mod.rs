@@ -12,9 +12,10 @@ use nym_config::{
     DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, DEFAULT_DATA_DIR, NYM_DIR,
 };
 use nym_network_defaults::mainnet;
+use nym_node::config;
 use serde::{Deserialize, Serialize};
 use std::io;
-use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use std::net::IpAddr;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 use url::Url;
@@ -73,7 +74,7 @@ pub struct Config {
     pub(crate) save_path: Option<PathBuf>,
 
     #[serde(default)]
-    pub http: Http,
+    pub http: config::Http,
 
     pub gateway: Gateway,
 
@@ -221,22 +222,6 @@ impl Config {
 
     pub fn get_cosmos_mnemonic(&self) -> bip39::Mnemonic {
         self.gateway.cosmos_mnemonic.clone()
-    }
-}
-
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
-#[serde(default)]
-pub struct Http {
-    /// Socket address this node will use for binding its http API.
-    /// default: `0.0.0.0:80`
-    pub bind_address: SocketAddr,
-}
-
-impl Default for Http {
-    fn default() -> Self {
-        Http {
-            bind_address: SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 80),
-        }
     }
 }
 

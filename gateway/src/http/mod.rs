@@ -115,7 +115,8 @@ pub(crate) fn start_http_api(
             identity_keypair,
         )?,
     )
-    .with_gateway(load_gateway_details(gateway_config)?);
+    .with_gateway(load_gateway_details(gateway_config)?)
+    .with_landing_page_assets(gateway_config.http.landing_page_assets_path.as_ref());
 
     if let Some(nr_config) = network_requester_config {
         config = config

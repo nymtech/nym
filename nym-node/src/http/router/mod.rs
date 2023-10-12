@@ -14,6 +14,7 @@ use nym_node_requests::api::v1::node::models;
 use nym_node_requests::api::SignedHostInformation;
 use nym_node_requests::routes;
 use std::net::SocketAddr;
+use std::path::Path;
 
 pub mod api;
 pub mod landing_page;
@@ -45,6 +46,12 @@ impl Config {
                 },
             },
         }
+    }
+
+    #[must_use]
+    pub fn with_landing_page_assets<P: AsRef<Path>>(mut self, assets_path: Option<P>) -> Self {
+        self.landing.assets_path = assets_path.map(|p| p.as_ref().to_path_buf());
+        self
     }
 
     #[must_use]

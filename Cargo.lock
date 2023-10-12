@@ -6872,6 +6872,7 @@ dependencies = [
  "bytes",
  "colored",
  "fastrand 2.0.0",
+ "hmac 0.12.1",
  "hyper",
  "mime",
  "nym-crypto",
@@ -6888,6 +6889,7 @@ dependencies = [
  "tracing",
  "utoipa",
  "utoipa-swagger-ui",
+ "x25519-dalek 2.0.0",
 ]
 
 [[package]]

@@ -39,35 +39,39 @@ If you're unsure where to start, the following set of questions should help you 
 </Steps>
 
 
-
+```ascii
+                           +-----------------------------------+
+                           |                                   |      +---------------------+
+                           | Is app JS/TS or another language? +------+Go / C / C++ / Swift +-----------------------+
+                           |                                   |      +---------------------+                       |
+                           +--------+-----------------+--------+                                                    |
+                                    |                 |                                                             |
+                                    |                 |                                                             |
+                               +----+----+         +--+---+                                                         |
+                               |  TS/JS  |         | Rust +--------------------------------------+                  |
+                               +----+----+         +------+                                      |                  |
+                                    |                                                            |                  |
+                  +----+------------+---------------------+--------+--------------+              |                  |
+            +-----+----+                                  +--------+              |              |                  |
+            | Browser  |                                  | Server |              |              |                  |
+            +-----+----+                                  +---+----+              |              |                  |
+                  |                                           |                   |              |                  |
+          +-------+--------+                              +---+----+              |              |                  |
+          |  HTTP requests |                              | nodeJS |              |              |                  |
+      +---+-------+--------+----+                         +---+----+              |              |                  |
+      |           |             |                             |                   |              |                  |
+   +--+--+   +----+----+  +-----+----------+                  |                   |              |                  |
+   | yes |   |websocket|  | webRTC or other|                  |                   |              |                  |
+   +--+--+   +----+----+  +------+---------+                  |                   |              |                  |
+      |           |              |                            |                   |              |                  |
++-----v---+ +-----v-----+   +----v-------+           +--------v---------+    +----v---+     +----v-----+   +--------v---------+
+|mixFetch | |Talk to us |   | No support |           | mixFetch nodeJS  |    | TS SDK |     | Rust SDK |   |    FFI / Nym     |
++---------+ +-----------+   +------------+           +------------------+    +--------+     +----------+   | standalone client|
+                                                                                                           +------------------+
+ 
 ```
-For integration entry points:
 
-            ,----------------------.              
-            |SPA/WebApp fetch-based|              
-            |----------------------|              
-            `----------------------'              
-                |             |
-                yes           no                  
-                |             |                    
-            ,--------.   ,----------.             
-            |mixFetch|   |Rust or TS|             
-            |--------|   |----------| ------------------.            
-            `--------'   `----------'                   |
-                                |                       |
-                            yes----------.            no:other language
-                            |            |              |
-                            |            |              |
-                         yes:TS/JS    yes:RUST          |
-                            |            |         ,----------------------.
-                            ,------.   ,--------.  |Nym  standalone client|
-                            |TS SDK|   |Rust SDK|  |----------------------|
-                            |------|   |--------|  |                      |
-                            `------'   `--------'  `----------------------'
-
-   ```
-
-## How to deal with Service Providers? 
+## When do I need Service Providers? 
 If you decide to interact with one of the Nym [standalone clients](https://nymtech.net/docs/clients/overview.html), then you most likely will need to set-up a Service Provider. The need for a Service Provider mostly depends on your app's goal and architecture (and the endpoint it needs to hit).
 Again, as detailed in the [FAQ](../FAQ/general): 
 
@@ -75,33 +79,30 @@ Again, as detailed in the [FAQ](../FAQ/general):
 - Network Requester needed (existing or own): If you’re wanting to place the mixnet between your users’ application instances and a server-based backend, you will need a Network Requester. In this case, if your app supports SOCKS5, you could either use an existing NR or, if your app supports SOCKS5 but needs more extensive whitelisting, you could  use the [network requester service provider binary](https://nymtech.net/operators/nodes/network-requester-setup.html) to proxy these requests to your application backend yourself, with the mixnet ‘between’ the user and your service, in order to prevent metadata leakage being broadcast to the internet.
 - Running your own Service Provider: If your usecase is more complex, you’re wanting to route RPC requests through the mixnet to a blockchain for example, you will need to look into setting up some sort of Service that does the transaction broadcasting for you. You can find examples of such projects on the [community applications page](https://nymtech.net/developers/community-resources/community-applications-and-guides.html).
 
-```
-                            ,--------------------.         
-                            |App supports SOCKS5?|         
-                            |--------------------|         
-                            `--------------------'         
-                                |               |
-                                yes             no
-                                |               |                                                      
-                        ,------------.   ,----------------------------.
-                        |App use case|   | Set standalone Client + SP |
-                        |------------|   |----------------------------|
-                        `------------'   `----------------------------'                
-                        |         |     
-                        needs     needs
-                        |         |                             
-            ,----------------.  ,-------------------.        
-            |Simple whitelist|  |Extensive whitelist|        
-            |----------------|  |-------------------|        
-            `----------------'  `-------------------'        
-                    |                     |                 
-                    |                     |             
-            ,-----------.           ,-------------.              
-            |Existing NR|           |Run own SP/NR|              
-            |-----------|           |-------------|              
-            `-----------'           `-------------'        
+``` ascii
+                           +----------------------+
+                     +----+| App supports SOCKS5? |+-----+
+                     |     +----------------------+      |
+                  +--+--+                             +--+--+
+                  | yes |                             |  no |
+                  +-----+                             +-----+
+                     |                                   |
+               +------------+                   +-----------------------+
+         +----+|App use case|+--+               | Set standalone client |
+         |     +------------+   |               |         + SP          |
+       needs                  needs             +-----------------------+
+         |                      |
+ +-------+--------+   +---------+---------+
+ |simple whitelist|   |extensive whitelist|
+ +----------------+   +-+---------------+-+
+         |                      |
++------------------+    +---------------+
+| use existing NR  |    | run own NR/SP |
++------------------+    +---------------+
                                        
 ```
+
+
 
 ## Other resources
 If you'd like to learn more about potential integrations, please make sure to read:

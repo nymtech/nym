@@ -44,7 +44,6 @@ By pasting the below code example, you should be able to send and receive messag
     For this example, we will be using the `full-fat` version of the ESM SDK. If you'd like to use the unbundled version of the ESM one, make sure your [bundler configuration](../../bundling/bundling) copies the WebAssembly (WASM) and web worker files to the output bundle.
 </Callout>
 
-
 ```ts
 import "./App.css";
 import { useEffect, useState } from "react";
@@ -148,5 +147,6 @@ export default function App () {
 ```
 
 <Callout type="info" emoji="ℹ️">
-    If you experience a Gateway client error and a hard refresh isn't enough, you may need to open your console, go to `Application` and delete the databases under "IndexedDB".
+  If you encounter a Gateway client error that persists even after a hard refresh, you may need to take the following steps: Open your browser's console => Navigate to the "Application" tab => Delete the databases listed under "IndexedDB".
+  Additionally, please be aware that the mixnet client is currently limited to functioning in local development environments due to SSL-related issues.
 </Callout>

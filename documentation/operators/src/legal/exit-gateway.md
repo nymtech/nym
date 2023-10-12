@@ -1,7 +1,7 @@
 # Nym operators - Running Exit Gateway
 
 ```admonish-info
-**The entire content of this page is under [Creative Commons Attribution 4.0 International Public License](https://creativecommons.org/licenses/by/4.0/).**
+The entire content of this page is under [Creative Commons Attribution 4.0 International Public License](https://creativecommons.org/licenses/by/4.0/).
 ```
 
 This page is a part of Nym Community Legal Forum and its content is composed by shared advices in [Node Operators Matrix channel](https://matrix.to/#/#operators:nymtech.chat) as well as though direct pull requests done by the node operators directly to our repository.
@@ -37,13 +37,13 @@ To achieve this, operators running “gateways” would have to “open” their
 
 ## Pros and cons of the initiative
 
-Previous setup setup: Running nodes supporting strict SOCKS5 app-based traffic
+Previous setup: Running nodes supporting strict SOCKS5 app-based traffic
 
 | **Dimension** | **Pros** | **Cons** |
 | :--- | :--- | :--- |
-| Aspirational |   | - Very limited use cases, not supportive of the “Privacy for everyone everywhere” aspiration\ - Limited appeal to users, low competitiveness in the market, thus low usage |
+| Aspirational |   | - Very limited use cases, not supportive of the “Privacy for everyone everywhere” aspiration<br>- Limited appeal to users, low competitiveness in the market, thus low usage |
 | Technical | - No changes required in technical setup |   |
-| Operational | - No impact on operators operations (e.g., relationships with VPS providers)\ - Low overhead\ - Can be run as an individual |   |
+| Operational | - No impact on operators operations (e.g., relationships with VPS providers)<br>- Low overhead<br> - Can be run as an individual |   |
 | Legal | - Limited legal risks for operators |    |
 | Financial |    | - Low revenues for operators due to limited product traction | 
 

@@ -24,6 +24,10 @@
 - [Mix Nodes](./faq/mixnodes-faq.md)
 - [Project Smoosh](./faq/smoosh-faq.md)
 
+# Legal Forum
+
+- [Exit Gateway](./legal/exit-gateway.md)
+
 --- 
 # Misc.
 - [Code of Conduct](coc.md)

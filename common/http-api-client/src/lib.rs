@@ -73,6 +73,7 @@ impl Client {
         #[cfg(not(target_arch = "wasm32"))]
         let reqwest_client = reqwest::ClientBuilder::new()
             .timeout(timeout.unwrap_or(DEFAULT_TIMEOUT))
+            .user_agent(format!("nym-http-api-client/{}", env!("CARGO_PKG_VERSION")))
             .build()
             .expect("Client::new()");
 

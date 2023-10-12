@@ -1,10 +1,10 @@
 # Nym operators - Running Exit Gateway
 
-```admonish-info
+```admonish info
 The entire content of this page is under [Creative Commons Attribution 4.0 International Public License](https://creativecommons.org/licenses/by/4.0/).
 ```
 
-This page is a part of Nym Community Legal Forum and its content is composed by shared advices in [Node Operators Matrix channel](https://matrix.to/#/#operators:nymtech.chat) as well as though direct pull requests done by the node operators directly to our repository.
+This page is a part of Nym Community Legal Forum and its content is composed by shared advices in [Node Operators Matrix channel](https://matrix.to/#/#operators:nymtech.chat) as well as though direct pull requests done by the node operators directly to our [repository](https://github.com/nymtech/nym/tree/develop/documentation/operators/src).
 
 This document presents an initiative to further support Nym’s mission of allowing privacy for everyone everywhere. This would be achieved with the support of Nym node operators operating gateways and opening these to any online service with the safeguards of the [Tor Null ‘deny’ list](https://tornull.org/).
 
@@ -43,9 +43,27 @@ Previous setup: Running nodes supporting strict SOCKS5 app-based traffic
 | :--- | :--- | :--- |
 | Aspirational |   | - Very limited use cases, not supportive of the “Privacy for everyone everywhere” aspiration<br>- Limited appeal to users, low competitiveness in the market, thus low usage |
 | Technical | - No changes required in technical setup |   |
-| Operational | - No impact on operators operations (e.g., relationships with VPS providers)<br>- Low overhead<br> - Can be run as an individual |   |
+| Operational | - No impact on operators operations (e.g., relationships with VPS providers)<br>- Low overhead<br>- Can be run as an individual |   |
 | Legal | - Limited legal risks for operators |    |
 | Financial |    | - Low revenues for operators due to limited product traction | 
+
+
+The new setup: Running nodes supporting traffic of any online service (with safeguards in the form of an denylist)
+
+| **Dimension** | **Pros** | **Cons** |
+| :--- | :--- | :--- |
+| Aspirational | - Higher market appeal of a fully-fledged product able to answer all users’ use cases<br>- Relevance in the market, driving higher usage |   |
+| Technical | - Very limited changes required in the technical setup (changes in the allow -> denylist) | - Increased monitoring required to detect and prevent abuse (e.g. spam) |
+| Operational |    | - Higher operational overhead, such as dealing with DMCA / abuse complaints, managing the VPS provider questions, or helping the community to maintain the denylist <br>- Administrative overhead if running nodes as a company or an entity |
+| Legal |   | - Ideally requires to check legal environment with local privacy association or lawyer | Financial | - Higher revenue potential for operators due to the increase in network usage | - If not running VPS with an unlimited bandwidth plan, higher costs due to higher network usage |
+
+## New gateway setup
+
+In our previous technical setup, network requesters acted as a proxy, and only made requests that match an allow list. That was a default IP based list of allowed domains stored at Nym page in a centralised fashion possibly re-defined by any Network requester operator. 
+
+This restricts the hosts that the NymConnect app can connect to and has the effect of selectively supporting messaging services (e.g. Telegram, Matrix) or crypto wallets (e.g. Electrum or Monero). Operators of network requesters can have confidence that the infrastructure they run only connects to a limited set of public internet hosts.
+
+In the new setup, the main change is to expand this short allow list to a more permissive setup. An exit policy will constrain the hosts that the users of the Nym Mixnet and Nym VPN can connect to. This will be done in an effort to protect the operators, as Gateways will act both as SOCKS5 Network Requesters, and exit nodes for IP traffic from Nym Mixnet VPN and VPN clients (both wrapped in the same app). 
 
 
 

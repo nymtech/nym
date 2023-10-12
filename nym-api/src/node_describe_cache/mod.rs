@@ -160,8 +160,7 @@ impl CacheItemProvider for NodeDescriptionProvider {
             match res {
                 Ok((identity, description)) => Some((identity, description)),
                 Err(err) => {
-                    // TODO: reduce it to trace/debug before PR
-                    warn!("{err}");
+                    debug!("{err}");
                     None
                 }
             }

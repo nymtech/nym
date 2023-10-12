@@ -4,29 +4,27 @@ import { appendOutput, appendImageOutput } from './utils';
 async function main() {
   // options for mixFetch (you can also set these with the `createMixFetch` function
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const extra = {
-    hiddenGateways: [
-      {
-        owner: 'n1ns3v70ul9gnl9l9fkyz8cyxfq75vjcmx8el0t3',
-        host: 'sandbox-gateway1.nymtech.net',
-        explicitIp: '35.158.238.80',
-        identityKey: 'HjNEDJuotWV8VD4ufeA1jeheTnfNJ7Jorevp57hgaZua',
-        sphinxKey: 'BoXeUD7ERGmzRauMjJD3itVNnQiH42ncUb6kcVLrb3dy',
-      },
-    ],
-  };
-
-
   const mixFetchOptionsForSandbox: SetupMixFetchOps = {
     preferredGateway: 'HjNEDJuotWV8VD4ufeA1jeheTnfNJ7Jorevp57hgaZua', // with WSS
     preferredNetworkRequester:
+      // 'AzGdJ4MU78Ex22NEWfeycbN7bt3PFZr1MtKstAdhfELG.GSxnKnvKPjjQm3FdtsgG5KyhP6adGbPHRmFWDH4XfUpP@HjNEDJuotWV8VD4ufeA1jeheTnfNJ7Jorevp57hgaZua',
       'AzGdJ4MU78Ex22NEWfeycbN7bt3PFZr1MtKstAdhfELG.GSxnKnvKPjjQm3FdtsgG5KyhP6adGbPHRmFWDH4XfUpP@HjNEDJuotWV8VD4ufeA1jeheTnfNJ7Jorevp57hgaZua',
     mixFetchOverride: {
-      requestTimeoutMs: 60_000,
+      requestTimeoutMs: 120_000,
+    },
+    extra: {
+      hiddenGateways: [
+        {
+          owner: 'n1ns3v70ul9gnl9l9fkyz8cyxfq75vjcmx8el0t3',
+          explicitIp: '35.158.238.80',
+          host: 'sandbox-gateway1.nymtech.net',
+          sphinxKey: 'BoXeUD7ERGmzRauMjJD3itVNnQiH42ncUb6kcVLrb3dy',
+          identityKey: 'HjNEDJuotWV8VD4ufeA1jeheTnfNJ7Jorevp57hgaZua',
+        },
+      ],
     },
     nymApiUrl: 'https://sandbox-nym-api1.nymtech.net/api',
-    extra,
-    forceTls: true
+    forceTls: true, // force WSS
   };
 
   // options for mixFetch (you can also set these with the `createMixFetch` function

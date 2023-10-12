@@ -2,16 +2,27 @@ import { orderBy as _orderBy } from 'lodash';
 import { Order, SortingKeys } from 'src/components/Delegation/DelegationList';
 import { TDelegations, isDelegation } from 'src/context/delegations';
 
+type MappedTypes = 'delegationValue' | 'operatorReward' | 'profitMarginValue' | 'operatorCostValue';
+
 export const useSortDelegations = (delegationItems: TDelegations, order: Order, orderBy: SortingKeys) => {
   const unbondedDelegations = delegationItems.filter((delegation) => !delegation.node_identity);
   const delegations = delegationItems.filter((delegation) => delegation.node_identity);
 
-  const mapOrderBy = (key: SortingKeys) => {
-    if (key === 'amount') return 'delegationValue';
-    if (key === 'unclaimed_rewards') return 'operatorReward';
-    if (key === 'profit_margin_percent') return 'profitMarginValue';
-    if (key === 'operating_cost') return 'operatorCostValue';
-    return key;
+  // example of a mapped type in typescript
+
+  const mapOrderBy = (key: SortingKeys): MappedTypes | SortingKeys => {
+    switch (key) {
+      case 'amount':
+        return 'delegationValue';
+      case 'unclaimed_rewards':
+        return 'operatorReward';
+      case 'profit_margin_percent':
+        return 'profitMarginValue';
+      case 'operating_cost':
+        return 'operatorCostValue';
+      default:
+        return key;
+    }
   };
 
   const mapAndSort = (_items: TDelegations) => {

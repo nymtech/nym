@@ -119,13 +119,13 @@ pub async fn get_blacklisted_gateways(
 pub async fn get_interval_reward_params(
     cache: &State<NymContractCache>,
 ) -> Json<Option<RewardingParams>> {
-    Json(cache.interval_reward_params().await.clone())
+    Json(*cache.interval_reward_params().await)
 }
 
 #[openapi(tag = "contract-cache")]
 #[get("/epoch/current")]
 pub async fn get_current_epoch(cache: &State<NymContractCache>) -> Json<Option<Interval>> {
-    Json(cache.current_interval().await.clone())
+    Json(*cache.current_interval().await)
 }
 
 #[openapi(tag = "contract-cache")]

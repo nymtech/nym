@@ -229,7 +229,7 @@ mod test {
         assert_eq!(
             ro_clients
                 .values()
-                .map(|c| c.pub_key().clone())
+                .map(|c| c.pub_key())
                 .collect::<Vec<ClientPublicKey>>(),
             clients
         )

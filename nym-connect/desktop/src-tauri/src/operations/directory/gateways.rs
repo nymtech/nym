@@ -17,7 +17,7 @@ use url::Url;
 const GATEWAY_PERFORMANCE_SCORE_THRESHOLD: u64 = 90;
 
 async fn fetch_all_gateways() -> Result<Vec<GatewayBondAnnotated>> {
-    let api_client = ApiClient::new(Url::from_str(&std::env::var(NYM_API)?)?);
+    let api_client = ApiClient::new(Url::from_str(&std::env::var(NYM_API)?)?, None);
     let gateways = api_client.get_gateways_detailed().await?;
     if gateways.is_empty() {
         Err(BackendError::NoGatewaysFoundInDirectory)

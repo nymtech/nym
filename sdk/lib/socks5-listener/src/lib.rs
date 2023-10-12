@@ -272,9 +272,7 @@ where
     let storage = MobileClientStorage::new(&config);
     let socks5_client =
         Socks5NymClient::new(config.core, storage, None).with_gateway_setup(GatewaySetup::New {
-            specification: GatewaySelectionSpecification::UniformRemote {
-                must_use_tls: false,
-            },
+            specification: GatewaySelectionSpecification::UniformRemote,
             available_gateways: current_gateways(&mut rng, &nym_apis).await?,
             overwrite_data: false,
         });

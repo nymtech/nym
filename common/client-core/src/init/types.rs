@@ -178,8 +178,9 @@ impl<T> From<PersistedGatewayDetails<T>> for GatewayDetails<T> {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub enum GatewaySelectionSpecification<T = EmptyCustomDetails> {
+    #[default]
     /// Uniformly choose a random remote gateway.
     UniformRemote,
 
@@ -196,12 +197,6 @@ pub enum GatewaySelectionSpecification<T = EmptyCustomDetails> {
         gateway_identity: String,
         additional_data: T,
     },
-}
-
-impl<T> Default for GatewaySelectionSpecification<T> {
-    fn default() -> Self {
-        GatewaySelectionSpecification::UniformRemote
-    }
 }
 
 impl<T> GatewaySelectionSpecification<T> {

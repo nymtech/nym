@@ -6,7 +6,7 @@
 
 // this crate will eventually get converted into proper binary
 
+pub mod config;
 pub mod error;
 pub mod http;
 pub mod wireguard;
-pub mod config;

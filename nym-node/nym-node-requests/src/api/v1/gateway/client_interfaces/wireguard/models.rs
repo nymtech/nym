@@ -20,7 +20,7 @@ use hmac::{Hmac, Mac};
 use sha2::Sha256;
 
 #[cfg(feature = "wireguard-verify")]
-type HmacSha256 = Hmac<Sha256>;
+pub type HmacSha256 = Hmac<Sha256>;
 
 pub type Nonce = u64;
 

@@ -52,3 +52,5 @@ nym-task = { path = "../common/task" }
 [dev-dependencies]
 rand = "0.7.3"
 nym-crypto = { path = "../common/crypto", features = ["rand"]}
+hmac = "0.12.1"
+x25519-dalek = { version = "2.0.0" }

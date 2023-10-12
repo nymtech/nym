@@ -91,15 +91,15 @@ mod test {
     use crate::http::api::v1::gateway::client_interfaces::wireguard::{
         routes, WireguardAppState, WireguardAppStateInner,
     };
-    use crate::wireguard::types::{
-        ClientMac, ClientMessageRequest, ClientPublicKey, ClientRequest, HmacSha256,
-        InitMessageRequest,
-    };
     use axum::body::Body;
     use axum::http::Request;
     use axum::http::StatusCode;
     use hmac::Mac;
     use nym_crypto::asymmetric::encryption;
+    use nym_node_requests::api::v1::gateway::client_interfaces::wireguard::models::{
+        Client, ClientMac, ClientMessage, ClientPublicKey, ClientRegistrationResponse, HmacSha256,
+        InitMessage,
+    };
     use nym_node_requests::routes::api::v1::gateway::client_interfaces::wireguard;
     use std::{collections::HashMap, sync::Arc};
     use tokio::sync::RwLock;
@@ -146,8 +146,8 @@ mod test {
         // call it like any tower service, no need to run an HTTP server.
         let mut app = routes(state);
 
-        let init_message = ClientMessageRequest::Initial(InitMessageRequest {
-            pub_key: ClientPublicKey::new(client_static_public).to_string(),
+        let init_message = ClientMessage::Initial(InitMessage {
+            pub_key: ClientPublicKey::new(client_static_public),
         });
 
         let init_request = Request::builder()
@@ -167,22 +167,24 @@ mod test {
         assert_eq!(response.status(), StatusCode::OK);
         assert!(!registration_in_progress.read().await.is_empty());
 
-        let nonce: Option<u64> =
+        let ClientRegistrationResponse::PendingRegistration { nonce } =
             serde_json::from_slice(&hyper::body::to_bytes(response.into_body()).await.unwrap())
-                .unwrap();
-        assert!(nonce.is_some());
+                .unwrap()
+        else {
+            panic!("invalid response")
+        };
 
         let mut mac = HmacSha256::new_from_slice(client_dh.as_bytes()).unwrap();
         mac.update(client_static_public.as_bytes());
         mac.update("127.0.0.1".as_bytes());
         mac.update("8080".as_bytes());
-        mac.update(&nonce.unwrap().to_le_bytes());
+        mac.update(&nonce.to_le_bytes());
         let mac = mac.finalize().into_bytes();
 
-        let finalized_message = ClientMessageRequest::Final(ClientRequest {
-            pub_key: ClientPublicKey::new(client_static_public).to_string(),
-            socket: "127.0.0.1:8080".to_string(),
-            mac: ClientMac::new(mac.as_slice().to_vec()).to_string(),
+        let finalized_message = ClientMessage::Final(Client {
+            pub_key: ClientPublicKey::new(client_static_public),
+            socket: "127.0.0.1:8080".parse().unwrap(),
+            mac: ClientMac::new(mac.as_slice().to_vec()),
         });
 
         let final_request = Request::builder()

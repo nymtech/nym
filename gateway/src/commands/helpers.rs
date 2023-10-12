@@ -41,7 +41,7 @@ pub(crate) struct OverrideConfig {
 impl OverrideConfig {
     pub(crate) fn do_override(self, mut config: Config) -> Result<Config, GatewayError> {
         config = config
-            .with_optional(Config::with_listening_address, self.host)
+            .with_optional(Config::with_host, self.host)
             .with_optional(Config::with_mix_port, self.mix_port)
             .with_optional(Config::with_clients_port, self.clients_port)
             .with_optional_custom_env(

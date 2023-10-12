@@ -1,24 +1,43 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use serde::{Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Serialize};
+use serde_helpers::*;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::path::PathBuf;
 
-fn de_maybe_path<'de, D>(deserializer: D) -> Result<Option<PathBuf>, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let path = PathBuf::deserialize(deserializer)?;
-    if path.as_os_str().is_empty() {
-        Ok(None)
-    } else {
-        Ok(Some(path))
+pub mod persistence;
+mod serde_helpers;
+
+pub const DEFAULT_WIREGUARD_PORT: u16 = 51820;
+
+// TODO: this is very much a WIP. we need proper ssl certificate support here
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[serde(default)]
+#[serde(deny_unknown_fields)]
+pub struct Host {
+    /// Ip address(es) of this host, such as 1.1.1.1 that external clients will use for connections.
+    pub public_ips: Vec<IpAddr>,
+
+    /// Optional hostname of this node, for example nymtech.net.
+    // TODO: this is temporary. to be replaced by pulling the data directly from the certs.
+    #[serde(deserialize_with = "de_maybe_string")]
+    pub hostname: Option<String>,
+}
+
+#[allow(clippy::derivable_impls)]
+impl Default for Host {
+    fn default() -> Self {
+        Host {
+            public_ips: vec![],
+            hostname: None,
+        }
     }
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(default)]
+#[serde(deny_unknown_fields)]
 pub struct Http {
     /// Socket address this node will use for binding its http API.
     /// default: `0.0.0.0:80`
@@ -34,6 +53,39 @@ impl Default for Http {
         Http {
             bind_address: SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 80),
             landing_page_assets_path: None,
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[serde(default)]
+#[serde(deny_unknown_fields)]
+pub struct Wireguard {
+    /// Specifies whether the wireguard service is enabled on this node.
+    pub enabled: bool,
+
+    /// Socket address this node will use for binding its wireguard interface.
+    /// default: `0.0.0.0:51820`
+    pub bind_address: SocketAddr,
+
+    /// Port announced to external clients wishing to connect to the wireguard interface.
+    /// Useful in the instances where the node is behind a proxy.
+    pub announced_port: u16,
+
+    /// Paths for wireguard keys, client registries, etc.
+    pub storage_paths: persistence::WireguardPaths,
+}
+
+impl Default for Wireguard {
+    fn default() -> Self {
+        Wireguard {
+            enabled: false,
+            bind_address: SocketAddr::new(
+                IpAddr::V4(Ipv4Addr::UNSPECIFIED),
+                DEFAULT_WIREGUARD_PORT,
+            ),
+            announced_port: DEFAULT_WIREGUARD_PORT,
+            storage_paths: persistence::WireguardPaths {},
         }
     }
 }

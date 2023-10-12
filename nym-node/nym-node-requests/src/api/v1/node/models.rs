@@ -3,6 +3,7 @@
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use std::net::IpAddr;
 
 pub use crate::api::SignedHostInformation;
 pub use nym_bin_common::build_information::BinaryBuildInformationOwned;
@@ -19,9 +20,11 @@ pub struct NodeRoles {
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct HostInformation {
     /// Ip address(es) of this host, such as `1.1.1.1`.
-    pub ip_address: Vec<String>,
+    #[cfg_attr(feature = "openapi", schema(value_type = Vec<String>, format = Byte, example = json!(["1.1.1.1"])))]
+    pub ip_address: Vec<IpAddr>,
 
     /// Optional hostname of this node, for example `nymtech.net`.
+    #[cfg_attr(feature = "openapi", schema(example = "nymtech.net"))]
     pub hostname: Option<String>,
 
     /// Public keys associated with this node.

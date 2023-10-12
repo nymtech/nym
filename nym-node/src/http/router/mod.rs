@@ -7,7 +7,7 @@ use crate::http::middleware::logging;
 use crate::http::state::AppState;
 use crate::http::NymNodeHTTPServer;
 use axum::Router;
-use nym_node_requests::api::v1::gateway::models::Gateway;
+use nym_node_requests::api::v1::gateway::models::{Gateway, Wireguard};
 use nym_node_requests::api::v1::mixnode::models::Mixnode;
 use nym_node_requests::api::v1::network_requester::models::NetworkRequester;
 use nym_node_requests::api::v1::node::models;
@@ -15,6 +15,7 @@ use nym_node_requests::api::SignedHostInformation;
 use nym_node_requests::routes;
 use std::net::SocketAddr;
 use std::path::Path;
+use tracing::warn;
 
 pub mod api;
 pub mod landing_page;
@@ -46,6 +47,18 @@ impl Config {
                 },
             },
         }
+    }
+
+    pub fn with_wireguard_interface(mut self, wireguard: Wireguard) -> Self {
+        match &mut self.api.v1_config.gateway.details {
+            Some(gw) => gw.client_interfaces.wireguard = Some(wireguard),
+            None => {
+                warn!(
+                    "can't add wireguard interface information as the gateway role is not enabled."
+                );
+            }
+        }
+        self
     }
 
     #[must_use]

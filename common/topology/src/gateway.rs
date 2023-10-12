@@ -189,15 +189,6 @@ impl<'a> TryFrom<&'a DescribedGateway> for Node {
             });
         }
 
-        let ips = ips
-            .iter()
-            .map(|ip| ip.parse())
-            .collect::<Result<Vec<_>, _>>()
-            .map_err(|err| GatewayConversionError::MalformedIpAddress {
-                gateway: value.bond.gateway.identity_key.clone(),
-                err,
-            })?;
-
         let host = match &self_described.host_information.hostname {
             None => NetworkAddress::IpAddr(ips[0]),
             Some(hostname) => NetworkAddress::Hostname(hostname.clone()),

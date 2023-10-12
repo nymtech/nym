@@ -13,9 +13,9 @@ use nym_config::{
 };
 use nym_network_defaults::mainnet;
 use nym_node::config;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use std::io;
-use std::net::IpAddr;
+use std::net::{IpAddr, SocketAddr};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 use url::Url;
@@ -39,6 +39,18 @@ const DEFAULT_MAXIMUM_CONNECTION_BUFFER_SIZE: usize = 2000;
 
 const DEFAULT_STORED_MESSAGE_FILENAME_LENGTH: u16 = 16;
 const DEFAULT_MESSAGE_RETRIEVAL_LIMIT: i64 = 100;
+
+fn de_maybe_port<'de, D>(deserializer: D) -> Result<Option<u16>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let port = u16::deserialize(deserializer)?;
+    if port == 0 {
+        Ok(None)
+    } else {
+        Ok(Some(port))
+    }
+}
 
 /// Derive default path to gateway's config directory.
 /// It should get resolved to `$HOME/.nym/gateways/<id>/config`
@@ -73,10 +85,16 @@ pub struct Config {
     #[serde(skip)]
     pub(crate) save_path: Option<PathBuf>,
 
+    pub host: config::Host,
+
     #[serde(default)]
     pub http: config::Http,
 
     pub gateway: Gateway,
+
+    #[serde(default)]
+    // currently not really used for anything useful
+    pub wireguard: config::Wireguard,
 
     pub storage_paths: GatewayPaths,
 
@@ -97,10 +115,16 @@ impl NymConfigTemplate for Config {
 
 impl Config {
     pub fn new<S: AsRef<str>>(id: S) -> Self {
+        let default_gateway = Gateway::new_default(id.as_ref());
         Config {
             save_path: None,
+            host: config::Host {
+                public_ips: vec![default_gateway.listening_address],
+                ..Default::default()
+            },
             http: Default::default(),
-            gateway: Gateway::new_default(id.as_ref()),
+            gateway: default_gateway,
+            wireguard: Default::default(),
             storage_paths: GatewayPaths::new_default(id.as_ref()),
             network_requester: Default::default(),
             logging: Default::default(),
@@ -188,8 +212,16 @@ impl Config {
         self
     }
 
-    pub fn with_listening_address(mut self, listening_address: IpAddr) -> Self {
+    pub fn with_host(mut self, listening_address: IpAddr) -> Self {
         self.gateway.listening_address = listening_address;
+
+        // temporary workaround
+        self.host.public_ips = vec![listening_address];
+        let http_port = self.http.bind_address.port();
+        self.http.bind_address = SocketAddr::new(listening_address, http_port);
+        let wg_port = self.wireguard.bind_address.port();
+        self.wireguard.bind_address = SocketAddr::new(listening_address, wg_port);
+
         self
     }
 
@@ -251,6 +283,11 @@ pub struct Gateway {
     /// (default: 9000)
     pub clients_port: u16,
 
+    /// If applicable, announced port for listening for secure websocket client traffic.
+    /// (default: None)
+    #[serde(deserialize_with = "de_maybe_port")]
+    pub clients_wss_port: Option<u16>,
+
     /// Whether gateway collects and sends anonymized statistics
     pub enabled_statistics: bool,
 
@@ -285,6 +322,7 @@ impl Gateway {
             listening_address: inaddr_any(),
             mix_port: DEFAULT_MIX_LISTENING_PORT,
             clients_port: DEFAULT_CLIENT_LISTENING_PORT,
+            clients_wss_port: None,
             enabled_statistics: false,
             statistics_service_url: mainnet::STATISTICS_SERVICE_DOMAIN_ADDRESS
                 .parse()

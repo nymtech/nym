@@ -19,12 +19,21 @@ use tokio::sync::RwLock;
 fn load_gateway_details(
     config: &Config,
 ) -> Result<api_requests::v1::gateway::models::Gateway, GatewayError> {
+    let wireguard = if config.wireguard.enabled {
+        Some(api_requests::v1::gateway::models::Wireguard {
+            port: config.wireguard.announced_port,
+            public_key: "placeholder key value".to_string(),
+        })
+    } else {
+        None
+    };
+
     Ok(api_requests::v1::gateway::models::Gateway {
         client_interfaces: api_requests::v1::gateway::models::ClientInterfaces {
-            wireguard: None,
+            wireguard,
             mixnet_websockets: Some(api_requests::v1::gateway::models::WebSockets {
                 ws_port: config.gateway.clients_port,
-                wss_port: None,
+                wss_port: config.gateway.clients_wss_port,
             }),
         },
     })
@@ -37,8 +46,8 @@ fn load_host_details(
 ) -> Result<api_requests::v1::node::models::SignedHostInformation, GatewayError> {
     let host_info = api_requests::v1::node::models::HostInformation {
         // TODO: this should be extracted differently, i.e. it's the issue of the public/private address
-        ip_address: vec![config.gateway.listening_address.to_string()],
-        hostname: None,
+        ip_address: config.host.public_ips.clone(),
+        hostname: config.host.hostname.clone(),
         keys: api_requests::v1::node::models::HostKeys {
             ed25519: identity_keypair.public_key().to_base58_string(),
             x25519: sphinx_key.to_base58_string(),

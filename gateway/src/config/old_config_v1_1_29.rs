@@ -111,6 +111,13 @@ impl From<ConfigV1_1_29> for Config {
             save_path: value.save_path,
 
             // \/ ADDED
+            host: nym_node::config::Host {
+                public_ips: vec![value.gateway.listening_address],
+                ..Default::default()
+            },
+            // /\ ADDED
+
+            // \/ ADDED
             http: Default::default(),
             // /\ ADDED
             gateway: Gateway {
@@ -120,12 +127,19 @@ impl From<ConfigV1_1_29> for Config {
                 listening_address: value.gateway.listening_address,
                 mix_port: value.gateway.mix_port,
                 clients_port: value.gateway.clients_port,
+
+                // \/ ADDED
+                clients_wss_port: None,
+                // /\ ADDED
                 enabled_statistics: value.gateway.enabled_statistics,
                 nym_api_urls: value.gateway.nym_api_urls,
                 nyxd_urls: value.gateway.nyxd_urls,
                 statistics_service_url: value.gateway.statistics_service_url,
                 cosmos_mnemonic: value.gateway.cosmos_mnemonic,
             },
+            // \/ ADDED
+            wireguard: Default::default(),
+            // /\ ADDED
             storage_paths: GatewayPaths {
                 keys: KeysPaths {
                     private_identity_key_file: value.storage_paths.keys.private_identity_key_file,

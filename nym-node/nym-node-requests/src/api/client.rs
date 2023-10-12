@@ -3,14 +3,15 @@
 
 use crate::api::v1::gateway::models::WebSockets;
 use crate::api::v1::node::models::SignedHostInformation;
+use crate::api::ErrorResponse;
 use crate::routes;
 use async_trait::async_trait;
 use http_api_client::{ApiClient, HttpClientError};
-
-pub use http_api_client::Client;
 use nym_bin_common::build_information::BinaryBuildInformationOwned;
 
-pub type NymNodeApiClientError = HttpClientError;
+pub use http_api_client::Client;
+
+pub type NymNodeApiClientError = HttpClientError<ErrorResponse>;
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]

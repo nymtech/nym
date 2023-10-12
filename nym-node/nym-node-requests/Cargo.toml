@@ -35,6 +35,7 @@ nym-bin-common = { path = "../../common/bin-common", features = ["bin_info_schem
 [dev-dependencies]
 rand = "0.7.3"
 nym-crypto = { path = "../../common/crypto", features = ["rand"]}
+tokio = { workspace = true, features = ["full"] }
 
 [features]
 default = ["client"]

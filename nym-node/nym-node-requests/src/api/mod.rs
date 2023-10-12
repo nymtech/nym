@@ -6,6 +6,7 @@ use crate::error::Error;
 use nym_crypto::asymmetric::identity;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use std::fmt::{Display, Formatter};
 use std::ops::Deref;
 
 #[cfg(feature = "client")]
@@ -75,4 +76,10 @@ impl<T> Deref for SignedData<T> {
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct ErrorResponse {
     pub message: String,
+}
+
+impl Display for ErrorResponse {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        self.message.fmt(f)
+    }
 }

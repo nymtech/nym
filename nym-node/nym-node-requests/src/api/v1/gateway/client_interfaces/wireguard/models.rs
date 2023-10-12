@@ -3,7 +3,6 @@
 
 use crate::error::Error;
 use base64::{engine::general_purpose, Engine};
-use nym_crypto::asymmetric::encryption::{PrivateKey, PublicKey};
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::hash::Hash;
@@ -11,6 +10,9 @@ use std::hash::Hasher;
 use std::net::SocketAddr;
 use std::ops::Deref;
 use std::str::FromStr;
+
+#[cfg(feature = "wireguard-verify")]
+use nym_crypto::asymmetric::encryption::{PrivateKey, PublicKey};
 
 #[cfg(feature = "wireguard-verify")]
 use hmac::{Hmac, Mac};

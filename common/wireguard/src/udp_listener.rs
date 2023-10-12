@@ -19,6 +19,7 @@ use crate::{
 
 const MAX_PACKET: usize = 65535;
 
+pub(crate) type PeerIdx = u32;
 pub(crate) type ActivePeers = DashMap<SocketAddr, mpsc::UnboundedSender<Event>>;
 pub(crate) type PeersByIp = NetworkTable<mpsc::UnboundedSender<Event>>;
 
@@ -32,10 +33,13 @@ pub(crate) async fn start_udp_listener(
     log::info!("Starting wireguard UDP listener on {wg_address}");
     let udp_socket = Arc::new(UdpSocket::bind(wg_address).await?);
 
-    // Setup some static keys for development
+    // Setup static key for development
     let static_private = setup::server_static_private_key();
+
+    // A single hardcoded peer
     let peer_static_public = setup::peer_static_public_key();
     let peer_allowed_ips = setup::peer_allowed_ips();
+    let peer_index = 0;
 
     tokio::spawn(async move {
         // Each tunnel is run in its own task, and the task handle is stored here so we can remove
@@ -84,6 +88,7 @@ pub(crate) async fn start_udp_listener(
                             static_private.clone(),
                             peer_static_public,
                             peer_allowed_ips,
+                            peer_index,
                             tun_task_tx.clone(),
                         );
 

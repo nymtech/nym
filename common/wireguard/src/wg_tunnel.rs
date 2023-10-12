@@ -2,7 +2,7 @@ use std::{net::SocketAddr, sync::Arc, time::Duration};
 
 use async_recursion::async_recursion;
 use boringtun::{
-    noise::{errors::WireGuardError, Tunn, TunnResult},
+    noise::{errors::WireGuardError, rate_limiter::RateLimiter, Tunn, TunnResult},
     x25519,
 };
 use bytes::Bytes;
@@ -14,7 +14,11 @@ use tokio::{
     time::timeout,
 };
 
-use crate::{error::WgError, event::Event, network_table::NetworkTable, TunTaskTx};
+use crate::{
+    error::WgError, event::Event, network_table::NetworkTable, udp_listener::PeerIdx, TunTaskTx,
+};
+
+const HANDSHAKE_MAX_RATE: u64 = 10;
 
 const MAX_PACKET: usize = 65535;
 
@@ -56,6 +60,7 @@ impl WireGuardTunnel {
         static_private: x25519::StaticSecret,
         peer_static_public: x25519::PublicKey,
         peer_allowed_ips: ip_network::IpNetwork,
+        index: PeerIdx,
         tunnel_tx: TunTaskTx,
     ) -> (Self, mpsc::UnboundedSender<Event>) {
         let local_addr = udp.local_addr().unwrap();
@@ -64,8 +69,12 @@ impl WireGuardTunnel {
 
         let preshared_key = None;
         let persistent_keepalive = None;
-        let index = 0;
-        let rate_limiter = None;
+
+        let static_public = x25519::PublicKey::from(&static_private);
+        let rate_limiter = Some(Arc::new(RateLimiter::new(
+            &static_public,
+            HANDSHAKE_MAX_RATE,
+        )));
 
         let wg_tunnel = Arc::new(tokio::sync::Mutex::new(
             Tunn::new(
@@ -288,6 +297,7 @@ pub(crate) fn start_wg_tunnel(
     static_private: x25519::StaticSecret,
     peer_static_public: x25519::PublicKey,
     peer_allowed_ips: ip_network::IpNetwork,
+    peer_index: PeerIdx,
     tunnel_tx: TunTaskTx,
 ) -> (
     tokio::task::JoinHandle<SocketAddr>,
@@ -299,6 +309,7 @@ pub(crate) fn start_wg_tunnel(
         static_private,
         peer_static_public,
         peer_allowed_ips,
+        peer_index,
         tunnel_tx,
     );
     let join_handle = tokio::spawn(async move {

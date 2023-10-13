@@ -59,8 +59,8 @@ impl WireGuardTunnel {
         endpoint: SocketAddr,
         static_private: x25519::StaticSecret,
         peer_static_public: x25519::PublicKey,
-        peer_allowed_ips: ip_network::IpNetwork,
         index: PeerIdx,
+        peer_allowed_ips: ip_network::IpNetwork,
         // rate_limiter: Option<RateLimiter>,
         tunnel_tx: TunTaskTx,
     ) -> (Self, mpsc::UnboundedSender<Event>) {
@@ -305,8 +305,8 @@ pub(crate) fn start_wg_tunnel(
     udp: Arc<UdpSocket>,
     static_private: x25519::StaticSecret,
     peer_static_public: x25519::PublicKey,
-    peer_allowed_ips: ip_network::IpNetwork,
     peer_index: PeerIdx,
+    peer_allowed_ips: ip_network::IpNetwork,
     tunnel_tx: TunTaskTx,
 ) -> (
     tokio::task::JoinHandle<x25519::PublicKey>,
@@ -317,8 +317,8 @@ pub(crate) fn start_wg_tunnel(
         endpoint,
         static_private,
         peer_static_public,
-        peer_allowed_ips,
         peer_index,
+        peer_allowed_ips,
         tunnel_tx,
     );
     let join_handle = tokio::spawn(async move {

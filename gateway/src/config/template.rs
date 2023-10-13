@@ -72,7 +72,7 @@ cosmos_mnemonic = '{{ gateway.cosmos_mnemonic }}'
 
 [http]
 # Socket address this node will use for binding its http API.
-# default: `0.0.0.0:80`
+# default: `0.0.0.0:8080`
 bind_address = '{{ http.bind_address }}'
 
 # Path to assets directory of custom landing page of this node

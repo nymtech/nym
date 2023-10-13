@@ -10,6 +10,7 @@ pub mod persistence;
 mod serde_helpers;
 
 pub const DEFAULT_WIREGUARD_PORT: u16 = 51820;
+pub const DEFAULT_HTTP_PORT: u16 = 8080;
 
 // TODO: this is very much a WIP. we need proper ssl certificate support here
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
@@ -40,7 +41,7 @@ impl Default for Host {
 #[serde(deny_unknown_fields)]
 pub struct Http {
     /// Socket address this node will use for binding its http API.
-    /// default: `0.0.0.0:80`
+    /// default: `0.0.0.0:8080`
     pub bind_address: SocketAddr,
 
     /// Path to assets directory of custom landing page of this node.
@@ -51,7 +52,7 @@ pub struct Http {
 impl Default for Http {
     fn default() -> Self {
         Http {
-            bind_address: SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 80),
+            bind_address: SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), DEFAULT_HTTP_PORT),
             landing_page_assets_path: None,
         }
     }

@@ -1,6 +1,7 @@
 // Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use std::net::IpAddr;
 use crate::commands::try_load_current_config;
 use crate::config::Config;
 use crate::{
@@ -53,6 +54,10 @@ pub(crate) struct Run {
     #[clap(short, long)]
     port: Option<u16>,
 
+    /// The custom host on which the socks5 client will be listening for requests
+    #[clap(long)]
+    host: Option<IpAddr>,
+
     /// Path to .json file containing custom network specification.
     #[clap(long, group = "network", group = "routing", hide = true)]
     custom_mixnet: Option<PathBuf>,
@@ -88,6 +93,7 @@ impl From<Run> for OverrideConfig {
     fn from(run_config: Run) -> Self {
         OverrideConfig {
             nym_apis: run_config.nym_apis,
+            ip: run_config.host,
             port: run_config.port,
             use_anonymous_replies: run_config.use_anonymous_replies,
             fastmode: run_config.fastmode,

@@ -6875,6 +6875,7 @@ dependencies = [
  "hmac 0.12.1",
  "hyper",
  "mime",
+ "nym-config",
  "nym-crypto",
  "nym-node-requests",
  "nym-task",

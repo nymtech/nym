@@ -8,6 +8,7 @@ use crate::support::config;
 use crate::support::config::DEFAULT_NODE_DESCRIBE_BATCH_SIZE;
 use futures_util::{stream, StreamExt};
 use nym_api_requests::models::NymNodeDescription;
+use nym_config::defaults::DEFAULT_NYM_NODE_HTTP_PORT;
 use nym_contracts_common::IdentityKey;
 use nym_mixnet_contract_common::Gateway;
 use nym_node_requests::api::client::{NymNodeApiClientError, NymNodeApiClientExt};
@@ -74,7 +75,10 @@ impl NodeDescriptionProvider {
 async fn get_gateway_description(
     gateway: Gateway,
 ) -> Result<(IdentityKey, NymNodeDescription), NodeDescribeCacheError> {
-    let client = match nym_node_requests::api::Client::new_url(&gateway.host, None) {
+    let client = match nym_node_requests::api::Client::new_url(
+        format!("{}:{}", gateway.host, DEFAULT_NYM_NODE_HTTP_PORT),
+        None,
+    ) {
         Ok(client) => client,
         Err(err) => {
             return Err(NodeDescribeCacheError::MalformedHost {

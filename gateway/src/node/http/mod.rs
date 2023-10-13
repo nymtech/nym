@@ -1,12 +1,12 @@
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
 
 use axum::{
     routing::{get, post},
     Router,
 };
+use dashmap::DashMap;
 use log::info;
 use nym_crypto::asymmetric::encryption;
-use tokio::sync::RwLock;
 
 mod api;
 use api::v1::client_registry::*;
@@ -16,9 +16,9 @@ use super::client_handling::client_registration::{ClientPublicKey, ClientRegistr
 const ROUTE_PREFIX: &str = "/api/v1/gateway/client-interfaces/wireguard";
 
 pub struct ApiState {
-    client_registry: Arc<RwLock<ClientRegistry>>,
+    client_registry: Arc<ClientRegistry>,
     sphinx_key_pair: Arc<encryption::KeyPair>,
-    registration_in_progress: Arc<RwLock<HashMap<ClientPublicKey, u64>>>,
+    registration_in_progress: Arc<DashMap<ClientPublicKey, u64>>,
 }
 
 fn router_with_state(state: Arc<ApiState>) -> Router {
@@ -33,7 +33,7 @@ fn router_with_state(state: Arc<ApiState>) -> Router {
 }
 
 pub(crate) async fn start_http_api(
-    client_registry: Arc<RwLock<ClientRegistry>>,
+    client_registry: Arc<ClientRegistry>,
     sphinx_key_pair: Arc<encryption::KeyPair>,
 ) {
     // Port should be 80 post smoosh
@@ -46,7 +46,7 @@ pub(crate) async fn start_http_api(
     let state = Arc::new(ApiState {
         client_registry,
         sphinx_key_pair,
-        registration_in_progress: Arc::new(RwLock::new(HashMap::new())),
+        registration_in_progress: Arc::new(DashMap::new()),
     });
 
     let routes = router_with_state(state);
@@ -62,17 +62,17 @@ pub(crate) async fn start_http_api(
 mod test {
     use std::net::SocketAddr;
     use std::str::FromStr;
-    use std::{collections::HashMap, sync::Arc};
+    use std::sync::Arc;
 
     use axum::body::Body;
     use axum::http::Request;
     use axum::http::StatusCode;
+    use dashmap::DashMap;
     use hmac::Mac;
     use tower::Service;
     use tower::ServiceExt;
 
     use nym_crypto::asymmetric::encryption;
-    use tokio::sync::RwLock;
     use x25519_dalek::{PublicKey, StaticSecret};
 
     use crate::node::client_handling::client_registration::{
@@ -105,8 +105,8 @@ mod test {
 
         let client_dh = client_static_private.diffie_hellman(&gateway_static_public);
 
-        let registration_in_progress = Arc::new(RwLock::new(HashMap::new()));
-        let client_registry = Arc::new(RwLock::new(HashMap::new()));
+        let registration_in_progress = Arc::new(DashMap::new());
+        let client_registry = Arc::new(DashMap::new());
 
         let state = Arc::new(ApiState {
             client_registry: Arc::clone(&client_registry),
@@ -136,7 +136,7 @@ mod test {
             .unwrap();
 
         assert_eq!(response.status(), StatusCode::OK);
-        assert!(!registration_in_progress.read().await.is_empty());
+        assert!(!registration_in_progress.is_empty());
 
         let nonce: Option<u64> =
             serde_json::from_slice(&hyper::body::to_bytes(response.into_body()).await.unwrap())
@@ -171,7 +171,7 @@ mod test {
             .unwrap();
 
         assert_eq!(response.status(), StatusCode::OK);
-        assert!(!client_registry.read().await.is_empty());
+        assert!(!client_registry.is_empty());
 
         let clients_request = Request::builder()
             .method("GET")
@@ -194,11 +194,10 @@ mod test {
 
         assert!(!clients.is_empty());
 
-        let ro_clients = client_registry.read().await.clone();
         assert_eq!(
-            ro_clients
-                .values()
-                .map(|c| c.pub_key().clone())
+            client_registry
+                .iter()
+                .map(|c| c.value().pub_key().clone())
                 .collect::<Vec<ClientPublicKey>>(),
             clients
         )

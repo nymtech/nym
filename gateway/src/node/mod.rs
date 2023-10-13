@@ -18,6 +18,7 @@ use crate::node::mixnet_handling::receiver::connection_handler::ConnectionHandle
 use crate::node::statistics::collector::GatewayStatisticsCollector;
 use crate::node::storage::Storage;
 use anyhow::bail;
+use dashmap::DashMap;
 use futures::channel::{mpsc, oneshot};
 use log::*;
 use nym_crypto::asymmetric::{encryption, identity};
@@ -29,12 +30,10 @@ use nym_task::{TaskClient, TaskManager};
 use nym_validator_client::{nyxd, DirectSigningHttpRpcNyxdClient};
 use rand::seq::SliceRandom;
 use rand::thread_rng;
-use std::collections::HashMap;
 use std::error::Error;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
-use tokio::sync::RwLock;
 
 pub(crate) mod client_handling;
 pub(crate) mod helpers;
@@ -91,7 +90,7 @@ pub(crate) struct Gateway<St = PersistentStorage> {
     sphinx_keypair: Arc<encryption::KeyPair>,
     storage: St,
 
-    client_registry: Arc<RwLock<ClientRegistry>>,
+    client_registry: Arc<ClientRegistry>,
 }
 
 impl<St> Gateway<St> {
@@ -107,7 +106,7 @@ impl<St> Gateway<St> {
             sphinx_keypair: Arc::new(helpers::load_sphinx_keys(&config)?),
             config,
             network_requester_opts,
-            client_registry: Arc::new(RwLock::new(HashMap::new())),
+            client_registry: Arc::new(DashMap::new()),
         })
     }
 
@@ -125,7 +124,7 @@ impl<St> Gateway<St> {
             identity_keypair: Arc::new(identity_keypair),
             sphinx_keypair: Arc::new(sphinx_keypair),
             storage,
-            client_registry: Arc::new(RwLock::new(HashMap::new())),
+            client_registry: Arc::new(DashMap::new()),
         }
     }
 

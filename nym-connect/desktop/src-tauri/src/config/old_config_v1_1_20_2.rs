@@ -9,6 +9,7 @@ use nym_client_core::config::disk_persistence::old_v1_1_20_2::CommonClientPathsV
 use nym_client_core::config::GatewayEndpointConfig;
 use nym_config::read_config_from_toml_file;
 pub use nym_socks5_client_core::config::old_config_v1_1_20_2::ConfigV1_1_20_2 as CoreConfigV1_1_20_2;
+pub use nym_socks5_client_core::config::old_config_v1_1_30::ConfigV1_1_30 as CoreConfigV1_1_30;
 use serde::{Deserialize, Serialize};
 use std::io;
 use std::path::Path;
@@ -43,7 +44,7 @@ impl ConfigV1_1_20_2 {
     pub fn upgrade(self) -> Result<(Config, GatewayEndpointConfig)> {
         let gateway_details = self.core.base.client.gateway_endpoint.clone().into();
         let config = Config {
-            core: self.core.into(),
+            core: CoreConfigV1_1_30::from(self.core).into(),
             storage_paths: NymConnectPaths {
                 common_paths: self.storage_paths.common_paths.upgrade_default()?,
             },

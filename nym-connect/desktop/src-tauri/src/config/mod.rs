@@ -254,7 +254,7 @@ fn print_saved_config(config: &Config, gateway_details: &GatewayEndpointConfig) 
     );
     log::info!(
         "Service provider port: {}",
-        config.core.socks5.listening_port
+        config.core.socks5.bind_adddress.port()
     );
     log::info!("Client configuration completed.");
 }

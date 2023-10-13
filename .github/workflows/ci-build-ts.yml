@@ -7,7 +7,7 @@ on:
 
 jobs:
   build:
-    runs-on: custom-runner-linux
+    runs-on: ubuntu-20.04-16-core
     steps:
     - uses: actions/checkout@v2
     - name: Install rsync

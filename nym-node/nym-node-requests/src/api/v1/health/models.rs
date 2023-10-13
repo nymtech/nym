@@ -23,6 +23,7 @@ impl NodeHealth {
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[serde(rename_all = "camelCase")]
 pub enum NodeStatus {
     Up,
 }

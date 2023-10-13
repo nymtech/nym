@@ -9,6 +9,7 @@ use async_trait::async_trait;
 use http_api_client::{ApiClient, HttpClientError};
 use nym_bin_common::build_information::BinaryBuildInformationOwned;
 
+use crate::api::v1::health::models::NodeHealth;
 pub use http_api_client::Client;
 
 pub type NymNodeApiClientError = HttpClientError<ErrorResponse>;
@@ -16,6 +17,10 @@ pub type NymNodeApiClientError = HttpClientError<ErrorResponse>;
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait NymNodeApiClientExt: ApiClient {
+    async fn get_health(&self) -> Result<NodeHealth, NymNodeApiClientError> {
+        self.get_json_from(routes::api::v1::health_absolute()).await
+    }
+
     async fn get_host_information(&self) -> Result<SignedHostInformation, NymNodeApiClientError> {
         self.get_json_from(routes::api::v1::host_info_absolute())
             .await

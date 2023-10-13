@@ -36,6 +36,9 @@ pub enum NodeDescribeCacheError {
         source: NymNodeApiClientError,
     },
 
+    #[error("gateway '{gateway}' with host '{host}' doesn't seem to expose any of the standard API ports, i.e.: 80, 443 or {}", DEFAULT_NYM_NODE_HTTP_PORT)]
+    NoHttpPortsAvailable { host: String, gateway: IdentityKey },
+
     #[error("failed to query gateway '{gateway}': {source}")]
     ApiFailure {
         gateway: IdentityKey,
@@ -72,22 +75,49 @@ impl NodeDescriptionProvider {
     }
 }
 
+async fn try_get_client(
+    gateway: &Gateway,
+) -> Result<nym_node_requests::api::Client, NodeDescribeCacheError> {
+    let gateway_host = &gateway.host;
+
+    // first try the standard port in case the operator didn't put the node behind the proxy,
+    // then default https (443)
+    // finally default http (80)
+    let addresses_to_try = vec![
+        format!("http://{gateway_host}:{DEFAULT_NYM_NODE_HTTP_PORT}"),
+        format!("https://{gateway_host}"),
+        format!("http://{gateway_host}"),
+    ];
+
+    for address in addresses_to_try {
+        // if provided host was malformed, no point in continuing
+        let client = match nym_node_requests::api::Client::new_url(address, None) {
+            Ok(client) => client,
+            Err(err) => {
+                return Err(NodeDescribeCacheError::MalformedHost {
+                    host: gateway_host.clone(),
+                    gateway: gateway.identity_key.clone(),
+                    source: err,
+                });
+            }
+        };
+        if let Ok(health) = client.get_health().await {
+            if health.status.is_up() {
+                return Ok(client);
+            }
+        }
+    }
+
+    Err(NodeDescribeCacheError::NoHttpPortsAvailable {
+        host: gateway_host.clone(),
+        gateway: gateway.identity_key.clone(),
+    })
+}
+
 async fn get_gateway_description(
     gateway: Gateway,
 ) -> Result<(IdentityKey, NymNodeDescription), NodeDescribeCacheError> {
-    let client = match nym_node_requests::api::Client::new_url(
-        format!("{}:{}", gateway.host, DEFAULT_NYM_NODE_HTTP_PORT),
-        None,
-    ) {
-        Ok(client) => client,
-        Err(err) => {
-            return Err(NodeDescribeCacheError::MalformedHost {
-                host: gateway.host,
-                gateway: gateway.identity_key,
-                source: err,
-            });
-        }
-    };
+    let client = try_get_client(&gateway).await?;
 
     let host_info =
         client

@@ -26,3 +26,9 @@ impl NodeHealth {
 pub enum NodeStatus {
     Up,
 }
+
+impl NodeStatus {
+    pub fn is_up(&self) -> bool {
+        matches!(self, NodeStatus::Up)
+    }
+}

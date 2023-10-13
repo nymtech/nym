@@ -1,7 +1,6 @@
 // Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use std::net::IpAddr;
 use crate::commands::try_load_current_config;
 use crate::config::Config;
 use crate::{
@@ -16,6 +15,7 @@ use nym_client_core::client::topology_control::geo_aware_provider::CountryGroup;
 use nym_crypto::asymmetric::identity;
 use nym_socks5_client_core::NymClient;
 use nym_sphinx::addressing::clients::Recipient;
+use std::net::IpAddr;
 use std::path::PathBuf;
 
 #[derive(Args, Clone)]

@@ -40,10 +40,36 @@ struct RegisteredPeer {
     // endpoint: SocketAddr,
 }
 
-fn add_test_peer(
-    registered_peers: &mut HashMap<x25519::PublicKey, Arc<tokio::sync::Mutex<RegisteredPeer>>>,
-    registered_peers_by_idx: &mut HashMap<PeerIdx, Arc<tokio::sync::Mutex<RegisteredPeer>>>,
-) {
+#[derive(Debug, Default)]
+struct RegisteredPeers {
+    peers: HashMap<x25519::PublicKey, Arc<tokio::sync::Mutex<RegisteredPeer>>>,
+    peers_by_idx: HashMap<PeerIdx, Arc<tokio::sync::Mutex<RegisteredPeer>>>,
+}
+
+impl RegisteredPeers {
+    async fn insert(
+        &mut self,
+        public_key: x25519::PublicKey,
+        peer: Arc<tokio::sync::Mutex<RegisteredPeer>>,
+    ) {
+        let peer_idx = { peer.lock().await.index };
+        self.peers.insert(public_key, Arc::clone(&peer));
+        self.peers_by_idx.insert(peer_idx, peer);
+    }
+
+    fn get_by_key(
+        &self,
+        public_key: &x25519::PublicKey,
+    ) -> Option<&Arc<tokio::sync::Mutex<RegisteredPeer>>> {
+        self.peers.get(public_key)
+    }
+
+    fn get_by_idx(&self, peer_idx: &PeerIdx) -> Option<&Arc<tokio::sync::Mutex<RegisteredPeer>>> {
+        self.peers_by_idx.get(peer_idx)
+    }
+}
+
+async fn add_test_peer(registered_peers: &mut RegisteredPeers) {
     let peer_static_public = setup::peer_static_public_key();
     let peer_index = 0;
     let peer_allowed_ips = setup::peer_allowed_ips();
@@ -52,8 +78,7 @@ fn add_test_peer(
         index: peer_index,
         allowed_ips: peer_allowed_ips,
     }));
-    registered_peers.insert(peer_static_public, Arc::clone(&test_peer));
-    registered_peers_by_idx.insert(peer_index, test_peer);
+    registered_peers.insert(peer_static_public, test_peer).await;
 }
 
 pub(crate) async fn start_udp_listener(
@@ -71,12 +96,9 @@ pub(crate) async fn start_udp_listener(
     let handshake_max_rate = 100u64;
     let rate_limiter = RateLimiter::new(&static_public, handshake_max_rate);
 
-    // Set of registered peers
-    let mut registered_peers = HashMap::new();
-    let mut registered_peers_by_idx = HashMap::new();
-
     // Create a test peer for dev
-    add_test_peer(&mut registered_peers, &mut registered_peers_by_idx);
+    let mut registered_peers = RegisteredPeers::default();
+    add_test_peer(&mut registered_peers).await;
 
     tokio::spawn(async move {
         // The set of active tunnels indexed by the peer's address
@@ -145,19 +167,19 @@ pub(crate) async fn start_udp_listener(
                                     log::warn!("Handshake failed: {addr}");
                                     continue;
                                 };
-                                registered_peers.get(&x25519::PublicKey::from(handshake.peer_static_public))
+                                registered_peers.get_by_key(&x25519::PublicKey::from(handshake.peer_static_public))
                             },
                             noise::Packet::HandshakeResponse(packet) => {
                                 let peer_idx = packet.receiver_idx >> 8;
-                                registered_peers_by_idx.get(&peer_idx)
+                                registered_peers.get_by_idx(&peer_idx)
                             },
                             noise::Packet::PacketCookieReply(packet) => {
                                 let peer_idx = packet.receiver_idx >> 8;
-                                registered_peers_by_idx.get(&peer_idx)
+                                registered_peers.get_by_idx(&peer_idx)
                             },
                             noise::Packet::PacketData(packet) => {
                                 let peer_idx = packet.receiver_idx >> 8;
-                                registered_peers_by_idx.get(&peer_idx)
+                                registered_peers.get_by_idx(&peer_idx)
                             },
                         };
 

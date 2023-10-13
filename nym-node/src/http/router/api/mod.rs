@@ -11,6 +11,7 @@ use utoipa::{IntoParams, ToSchema};
 pub mod v1;
 
 use crate::http::api::v1::gateway::client_interfaces::wireguard::WireguardAppState;
+use crate::http::state::AppState;
 pub use nym_node_requests::api as api_requests;
 use nym_node_requests::routes;
 
@@ -19,10 +20,7 @@ pub struct Config {
     pub v1_config: v1::Config,
 }
 
-pub(super) fn routes<S: Send + Sync + 'static + Clone>(
-    config: Config,
-    initial_wg_state: WireguardAppState,
-) -> Router<S> {
+pub(super) fn routes(config: Config, initial_wg_state: WireguardAppState) -> Router<AppState> {
     Router::new().nest(
         routes::api::V1,
         v1::routes(config.v1_config, initial_wg_state),

@@ -2,10 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::http::api::v1::gateway::client_interfaces::wireguard::WireguardAppState;
+use crate::http::state::AppState;
+use axum::routing::get;
 use axum::Router;
 use nym_node_requests::routes::api::v1;
 
 pub mod gateway;
+pub mod health;
 pub mod mixnode;
 pub mod network_requester;
 pub mod node;
@@ -19,11 +22,9 @@ pub struct Config {
     pub network_requester: network_requester::Config,
 }
 
-pub(super) fn routes<S: Send + Sync + 'static + Clone>(
-    config: Config,
-    initial_wg_state: WireguardAppState,
-) -> Router<S> {
+pub(super) fn routes(config: Config, initial_wg_state: WireguardAppState) -> Router<AppState> {
     Router::new()
+        .route(v1::HEALTH, get(health::root_health))
         .nest(
             v1::GATEWAY,
             gateway::routes(config.gateway, initial_wg_state),

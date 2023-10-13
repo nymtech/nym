@@ -1,8 +1,11 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use tokio::time::Instant;
+
 #[derive(Debug, Clone)]
 pub(crate) struct AppState {
+    pub(crate) startup_time: Instant,
     // wireguard: WireguardAppState,
 }
 
@@ -24,6 +27,12 @@ pub(crate) struct AppState {
 
 impl AppState {
     pub fn new() -> Self {
-        AppState {}
+        AppState {
+            // is it 100% accurate?
+            // no.
+            // does it have to be?
+            // also no.
+            startup_time: Instant::now(),
+        }
     }
 }

@@ -29,12 +29,14 @@ pub mod routes {
             pub const BUILD_INFO: &str = "/build-information";
             pub const HOST_INFO: &str = "/host-information";
 
+            pub const HEALTH: &str = "/health";
             pub const GATEWAY: &str = "/gateway";
             pub const MIXNODE: &str = "/mixnode";
             pub const NETWORK_REQUESTER: &str = "/network-requester";
             pub const SWAGGER: &str = "/swagger";
 
             // define helper functions to get absolute routes
+            absolute_route!(health_absolute, v1_absolute(), HEALTH);
             absolute_route!(roles_absolute, v1_absolute(), ROLES);
             absolute_route!(build_info_absolute, v1_absolute(), BUILD_INFO);
             absolute_route!(host_info_absolute, v1_absolute(), HOST_INFO);

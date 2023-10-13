@@ -49,7 +49,7 @@ jobs:
         run: yarn
 
       - name: Build packages
-        run: yarn build:ci:sdk
+        run: yarn build:ci
 
       - name: Lint
         run: yarn lint

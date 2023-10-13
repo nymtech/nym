@@ -6,7 +6,7 @@ use crate::http::state::AppState;
 use axum::extract::{Query, State};
 use nym_node_requests::api::v1::health::models::NodeHealth;
 
-/// Returns root network requester information
+/// Returns health status of this node.
 #[utoipa::path(
     get,
     path = "/health",

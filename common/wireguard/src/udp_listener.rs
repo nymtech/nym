@@ -75,12 +75,12 @@ pub(crate) async fn start_udp_listener(
 
         while !task_client.is_shutdown() {
             tokio::select! {
-                _ = task_client.recv() => {
+                () = task_client.recv() => {
                     log::trace!("WireGuard UDP listener: received shutdown");
                     break;
                 }
                 // Reset the rate limiter every 1 sec
-                _ = tokio::time::sleep(Duration::from_secs(1)) => {
+                () = tokio::time::sleep(Duration::from_secs(1)) => {
                     rate_limiter.reset_count();
                 },
                 // Handle tunnel closing
@@ -138,15 +138,15 @@ pub(crate) async fn start_udp_listener(
                             },
                             noise::Packet::HandshakeResponse(packet) => {
                                 let peer_idx = packet.receiver_idx >> 8;
-                                registered_peers.get_by_idx(&peer_idx)
+                                registered_peers.get_by_idx(peer_idx)
                             },
                             noise::Packet::PacketCookieReply(packet) => {
                                 let peer_idx = packet.receiver_idx >> 8;
-                                registered_peers.get_by_idx(&peer_idx)
+                                registered_peers.get_by_idx(peer_idx)
                             },
                             noise::Packet::PacketData(packet) => {
                                 let peer_idx = packet.receiver_idx >> 8;
-                                registered_peers.get_by_idx(&peer_idx)
+                                registered_peers.get_by_idx(peer_idx)
                             },
                         };
 

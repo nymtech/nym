@@ -145,7 +145,7 @@ impl WireGuardTunnel {
                         break;
                     },
                 },
-                _ = tokio::time::sleep(Duration::from_millis(250)) => {
+                () = tokio::time::sleep(Duration::from_millis(250)) => {
                     let _ = self.update_wg_timers()
                         .await
                         .map_err(|err| error!("WireGuard tunnel: update_wg_timers error: {err}"));
@@ -287,7 +287,7 @@ impl WireGuardTunnel {
                     return;
                 };
                 peer.format_handshake_initiation(&mut buf[..], false);
-                self.handle_routine_tun_result(result).await
+                self.handle_routine_tun_result(result).await;
             }
             TunnResult::Err(err) => {
                 error!("Failed to prepare routine packet for WireGuard endpoint: {err:?}");

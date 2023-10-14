@@ -30,7 +30,7 @@ fn setup_tokio_tun_device(name: &str, address: Ipv4Addr, netmask: Ipv4Addr) -> t
 
 pub(crate) fn start_tun_device(peers_by_ip: Arc<std::sync::Mutex<PeersByIp>>) -> TunTaskTx {
     let tun = setup_tokio_tun_device(
-        format!("{}%d", TUN_BASE_NAME).as_str(),
+        format!("{TUN_BASE_NAME}%d").as_str(),
         TUN_DEVICE_ADDRESS.parse().unwrap(),
         TUN_DEVICE_NETMASK.parse().unwrap(),
     );

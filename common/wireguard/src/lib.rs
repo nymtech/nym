@@ -1,4 +1,7 @@
 #![cfg_attr(not(target_os = "linux"), allow(dead_code))]
+// #![warn(clippy::pedantic)]
+// #![warn(clippy::expect_used)]
+// #![warn(clippy::unwrap_used)]
 
 mod error;
 mod event;
@@ -22,6 +25,11 @@ impl TunTaskTx {
     }
 }
 
+/// Start wireguard UDP listener and TUN device
+///
+/// # Errors
+///
+/// This function will return an error if either the UDP listener of the TUN device fails to start.
 #[cfg(target_os = "linux")]
 pub async fn start_wireguard(
     task_client: nym_task::TaskClient,

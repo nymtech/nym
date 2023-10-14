@@ -49,8 +49,8 @@ impl RegisteredPeers {
 
     pub(crate) fn get_by_idx(
         &self,
-        peer_idx: &PeerIdx,
+        peer_idx: PeerIdx,
     ) -> Option<&Arc<tokio::sync::Mutex<RegisteredPeer>>> {
-        self.peers_by_idx.get(peer_idx)
+        self.peers_by_idx.get(&peer_idx)
     }
 }

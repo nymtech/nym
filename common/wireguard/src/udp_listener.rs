@@ -50,7 +50,7 @@ pub(crate) async fn start_udp_listener(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     let wg_address = SocketAddr::new(WG_ADDRESS.parse().unwrap(), WG_PORT);
     log::info!("Starting wireguard UDP listener on {wg_address}");
-    let udp_socket = Arc::new(UdpSocket::bind(wg_address).await?);
+    let udp = Arc::new(UdpSocket::bind(wg_address).await?);
 
     // Setup our own keys
     let static_private = setup::server_static_private_key();
@@ -98,7 +98,7 @@ pub(crate) async fn start_udp_listener(
                     }
                 },
                 // Handle incoming packets
-                Ok((len, addr)) = udp_socket.recv_from(&mut buf) => {
+                Ok((len, addr)) = udp.recv_from(&mut buf) => {
                     log::trace!("udp: received {} bytes from {}", len, addr);
 
                     // If this addr has already been encountered, send directly to tunnel
@@ -108,7 +108,7 @@ pub(crate) async fn start_udp_listener(
                         log::info!("udp: received {len} bytes from {addr} from known peer");
                         peer_tx
                             .send(Event::Wg(buf[..len].to_vec().into()))
-                            .tap_err(|err| log::error!("{err}"))
+                            .tap_err(|e| log::error!("{e}"))
                             .ok();
                     }
 
@@ -117,7 +117,7 @@ pub(crate) async fn start_udp_listener(
                         Ok(packet) => packet,
                         Err(TunnResult::WriteToNetwork(cookie)) => {
                             log::info!("Send back cookie to: {addr}");
-                            udp_socket.send_to(cookie, addr).await.unwrap();
+                            udp.send_to(cookie, addr).await.tap_err(|e| log::error!("{e}")).ok();
                             continue;
                         }
                         Err(err) => {
@@ -174,7 +174,7 @@ pub(crate) async fn start_udp_listener(
                         log::warn!("Creating new rate limiter, consider re-using");
                         let (join_handle, peer_tx) = crate::wg_tunnel::start_wg_tunnel(
                             addr,
-                            udp_socket.clone(),
+                            udp.clone(),
                             static_private.clone(),
                             registered_peer.public_key,
                             registered_peer.index,
@@ -186,7 +186,7 @@ pub(crate) async fn start_udp_listener(
                         active_peers_by_addr.insert(addr, peer_tx.clone());
 
                         peer_tx.send(Event::Wg(buf[..len].to_vec().into()))
-                            .tap_err(|err| log::error!("{err}"))
+                            .tap_err(|e| log::error!("{e}"))
                             .ok();
 
                         log::info!("Adding peer: {addr}");

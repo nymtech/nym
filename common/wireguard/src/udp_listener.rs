@@ -15,6 +15,7 @@ use tokio::{
 };
 
 use crate::{
+    error::WgError,
     event::Event,
     network_table::NetworkTable,
     registered_peers::{RegisteredPeer, RegisteredPeers},
@@ -128,36 +129,21 @@ pub(crate) async fn start_udp_listener(
                     };
 
                     // Check if this is a registered peer, if not, just skip
-                    let registered_peer = {
-                        let reg_peer = match verified_packet {
-                            noise::Packet::HandshakeInit(ref packet) => {
-                                let Ok(handshake) = parse_handshake_anon(&static_private, &static_public, packet) else {
-                                    log::warn!("Handshake failed: {addr}");
-                                    continue;
-                                };
-                                registered_peers.get_by_key(&x25519::PublicKey::from(handshake.peer_static_public))
-                            },
-                            noise::Packet::HandshakeResponse(packet) => {
-                                let peer_idx = packet.receiver_idx >> 8;
-                                registered_peers.get_by_idx(peer_idx)
-                            },
-                            noise::Packet::PacketCookieReply(packet) => {
-                                let peer_idx = packet.receiver_idx >> 8;
-                                registered_peers.get_by_idx(peer_idx)
-                            },
-                            noise::Packet::PacketData(packet) => {
-                                let peer_idx = packet.receiver_idx >> 8;
-                                registered_peers.get_by_idx(peer_idx)
-                            },
-                        };
-
-                        match reg_peer {
-                            Some(reg_peer) => reg_peer.lock().await,
-                            None => {
-                                log::warn!("Peer not registered: {addr}");
-                                continue;
-                            }
+                    let registered_peer = match parse_peer(
+                        verified_packet,
+                        &registered_peers,
+                        &static_private,
+                        &static_public
+                    ) {
+                        Ok(Some(peer)) => peer.lock().await,
+                        Ok(None) => {
+                            log::warn!("Peer not registered: {addr}");
+                            continue;
                         }
+                        Err(err) => {
+                            log::error!("{err}");
+                            continue;
+                        },
                     };
 
                     // Look up if the peer is already connected
@@ -201,4 +187,33 @@ pub(crate) async fn start_udp_listener(
     });
 
     Ok(())
+}
+
+fn parse_peer<'a>(
+    verified_packet: noise::Packet,
+    registered_peers: &'a RegisteredPeers,
+    static_private: &x25519::StaticSecret,
+    static_public: &x25519::PublicKey,
+) -> Result<Option<&'a Arc<tokio::sync::Mutex<RegisteredPeer>>>, WgError> {
+    let registered_peer = match verified_packet {
+        noise::Packet::HandshakeInit(ref packet) => {
+            let Ok(handshake) = parse_handshake_anon(static_private, static_public, packet) else {
+                return Err(WgError::HandshakeFailed);
+            };
+            registered_peers.get_by_key(&x25519::PublicKey::from(handshake.peer_static_public))
+        }
+        noise::Packet::HandshakeResponse(packet) => {
+            let peer_idx = packet.receiver_idx >> 8;
+            registered_peers.get_by_idx(peer_idx)
+        }
+        noise::Packet::PacketCookieReply(packet) => {
+            let peer_idx = packet.receiver_idx >> 8;
+            registered_peers.get_by_idx(peer_idx)
+        }
+        noise::Packet::PacketData(packet) => {
+            let peer_idx = packet.receiver_idx >> 8;
+            registered_peers.get_by_idx(peer_idx)
+        }
+    };
+    Ok(registered_peer)
 }

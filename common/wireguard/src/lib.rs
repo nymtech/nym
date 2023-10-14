@@ -4,6 +4,7 @@ mod error;
 mod event;
 mod network_table;
 mod platform;
+mod registered_peers;
 mod setup;
 mod udp_listener;
 mod wg_tunnel;

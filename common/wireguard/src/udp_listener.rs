@@ -1,4 +1,4 @@
-use std::{net::SocketAddr, sync::Arc};
+use std::{net::SocketAddr, sync::Arc, time::Duration};
 
 use boringtun::{
     noise::{self, handshake::parse_handshake_anon, rate_limiter::RateLimiter, TunnResult},
@@ -79,6 +79,10 @@ pub(crate) async fn start_udp_listener(
                     log::trace!("WireGuard UDP listener: received shutdown");
                     break;
                 }
+                // Reset the rate limiter every 1 sec
+                _ = tokio::time::sleep(Duration::from_secs(1)) => {
+                    rate_limiter.reset_count();
+                },
                 // Handle tunnel closing
                 Some(public_key) = active_peers_task_handles.next() => {
                     match public_key {

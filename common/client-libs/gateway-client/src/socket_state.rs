@@ -97,7 +97,6 @@ impl PartiallyDelegated {
         let mixnet_receiver_future = async move {
             let mut notify_receiver = notify_receiver;
             let mut chunk_stream = (&mut stream).ready_chunks(8);
-            let mut packet_router = packet_router;
 
             let ret_err = loop {
                 tokio::select! {

@@ -74,7 +74,7 @@ impl PartiallyDelegated {
 
     fn route_socket_messages(
         ws_msgs: Vec<Message>,
-        packet_router: &mut PacketRouter,
+        packet_router: &PacketRouter,
         shared_key: &SharedKeys,
     ) -> Result<(), GatewayClientError> {
         let plaintexts = Self::recover_received_plaintexts(ws_msgs, shared_key);

@@ -15,7 +15,7 @@
 class WebWorkerClient {
   worker = null;
 
-  constructor() {
+  constructor(onComplete) {
     this.worker = new Worker("./worker.js");
 
     this.worker.onmessage = (ev) => {
@@ -25,6 +25,9 @@ class WebWorkerClient {
             const { rawString } = ev.data.args;
             displayReceivedRawString(rawString);
             break;
+        }
+        if(onComplete) {
+          onComplete();
         }
       }
     };
@@ -48,51 +51,52 @@ class WebWorkerClient {
 let client = null;
 
 async function main() {
-  client = new WebWorkerClient();
+  client = new WebWorkerClient(() => {
+    fetchButton.disabled = false;
+  });
 
-  const fetchButtonText = document.querySelector("#fetch-button");
-  fetchButtonText.onclick = function (e) {
+  const fetchButton = document.querySelector("#fetch-button");
+
+  fetchButton.onclick = function (e) {
+    if (fetchButton.disabled) {
+      alert("Processing... Please wait!");
+      return;
+    }
+
     document.getElementById("output").innerHTML = "";
+
     if ($("#fetch_payload").val().trim() === "") {
       e.preventDefault();
       let errorDiv = document.createElement("div");
       let paragraph = document.createElement("p");
       paragraph.style.color = "red";
-      paragraph.innerText = "please enter a valid request!!";
+      paragraph.innerText = "Please enter a valid request!!";
 
       errorDiv.appendChild(paragraph);
       document.getElementById("output").appendChild(errorDiv);
       return false;
     }
 
-    doFetch();
+    fetchButton.disabled = true;
+
+    client.doFetch($("#fetch_payload").val().trim());
   };
 }
 
 async function doFetch() {
-  const url = document.getElementById("fetch_payload").value;
-  const returnJson = document.getElementById("returnJsonToggle").checked;
+  document
+    .getElementById("fetch-button")
+    .addEventListener("click", async () => {
+      const url = document.getElementById("fetch_payload").value;
+      //introduce toggle in the future
+      //const returnJson = document.getElementById("returnJsonToggle").checked;
 
-  displaySend(`Fetching: ${url}`);
-
-  try {
-    const response = await fetch(url);
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! Status: ${response.status}`);
-    }
-
-    let data;
-    if (returnJson) {
-      data = await response.json();
-    } else {
-      data = await response.text();
-    }
-
-    displayReceivedRawString(data);
-  } catch (error) {
-    console.error("There was a problem fetching the data:", error);
-  }
+      try {
+        await client.doFetch(url);
+      } catch (error) {
+        console.error("There was a problem fetching the data:", error);
+      }
+    });
 }
 
 /**

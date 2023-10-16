@@ -181,11 +181,6 @@ async function nativeSetup() {
     ],
   };
 
-  console.log(extra);
-  console.log(preferredGateway);
-  console.log(validator);
-  console.log(preferredNetworkRequester);
-
   await setupMixFetch({
     preferredNetworkRequester,
     preferredGateway: preferredGateway,
@@ -311,7 +306,7 @@ async function main() {
   goWasmSetLogging("trace");
 
   // test mixFetch
-  // await testMixFetch();
+  await testMixFetch();
   //
   // // run test on simplified and dedicated tester:
   // // await testWithTester()

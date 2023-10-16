@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::HostsStore;
-use crate::allowed_hosts::group::HostsGroup;
-use crate::allowed_hosts::standard_list::StandardList;
-use crate::allowed_hosts::stored_allowed_hosts::StoredAllowedHosts;
+use crate::request_filter::allowed_hosts::group::HostsGroup;
+use crate::request_filter::allowed_hosts::standard_list::StandardList;
+use crate::request_filter::allowed_hosts::stored_allowed_hosts::StoredAllowedHosts;
 use std::net::{IpAddr, SocketAddr};
 
 #[derive(Debug)]

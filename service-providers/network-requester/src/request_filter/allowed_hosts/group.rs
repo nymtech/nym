@@ -1,7 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::allowed_hosts::host::Host;
+use crate::request_filter::allowed_hosts::host::Host;
 use ipnetwork::IpNetwork;
 use std::collections::HashSet;
 use std::net::IpAddr;

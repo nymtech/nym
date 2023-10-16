@@ -1,5 +1,5 @@
 use super::host::Host;
-use crate::allowed_hosts::group::HostsGroup;
+use crate::request_filter::allowed_hosts::group::HostsGroup;
 use ipnetwork::IpNetwork;
 use std::{
     fs::{self, File, OpenOptions},

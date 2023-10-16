@@ -47,7 +47,7 @@ nym-config = { path = "../../common/config" }
 nym-credential-storage = { path = "../../common/credential-storage" }
 nym-crypto = { path = "../../common/crypto" }
 nym-network-defaults = { path = "../../common/network-defaults" }
-nym-ordered-buffer = {path = "../../common/socks5/ordered-buffer"}
+nym-ordered-buffer = { path = "../../common/socks5/ordered-buffer" }
 nym-sdk = { path = "../../sdk/rust/nym-sdk" }
 nym-service-providers-common = { path = "../common" }
 nym-socks5-proxy-helpers = { path = "../../common/socks5/proxy-helpers" }
@@ -56,7 +56,8 @@ nym-sphinx = { path = "../../common/nymsphinx" }
 nym-statistics-common = { path = "../../common/statistics" }
 nym-task = { path = "../../common/task" }
 nym-types = { path = "../../common/types" }
+nym-exit-policy = { path = "../../common/exit-policy" }
 
 [dev-dependencies]
 tempfile = "3.5.0"
-anyhow = "1.0.68"
+anyhow = { workspace = true }

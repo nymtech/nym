@@ -1,14 +1,16 @@
 // Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::allowed_hosts::standard_list::StandardListUpdater;
-use crate::allowed_hosts::stored_allowed_hosts::{start_allowed_list_reloader, StoredAllowedHosts};
-use crate::allowed_hosts::{OutboundRequestFilter, StandardList};
 use crate::config::{BaseClientConfig, Config};
 use crate::error::NetworkRequesterError;
 use crate::reply::MixnetMessage;
+use crate::request_filter::allowed_hosts::standard_list::StandardListUpdater;
+use crate::request_filter::allowed_hosts::stored_allowed_hosts::{
+    start_allowed_list_reloader, StoredAllowedHosts,
+};
+use crate::request_filter::allowed_hosts::{OutboundRequestFilter, StandardList};
 use crate::statistics::ServiceStatisticsCollector;
-use crate::{allowed_hosts, reply, socks5};
+use crate::{reply, request_filter::allowed_hosts, socks5};
 use async_trait::async_trait;
 use futures::channel::{mpsc, oneshot};
 use futures::stream::StreamExt;

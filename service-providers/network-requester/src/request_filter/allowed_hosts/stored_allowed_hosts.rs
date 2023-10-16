@@ -1,7 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::allowed_hosts::HostsStore;
+use crate::request_filter::allowed_hosts::HostsStore;
 use async_file_watcher::{AsyncFileWatcher, FileWatcherEventReceiver};
 use futures::channel::mpsc;
 use futures::StreamExt;

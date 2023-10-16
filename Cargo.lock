@@ -6814,6 +6814,7 @@ dependencies = [
  "nym-config",
  "nym-credential-storage",
  "nym-crypto",
+ "nym-exit-policy",
  "nym-network-defaults",
  "nym-ordered-buffer",
  "nym-sdk",

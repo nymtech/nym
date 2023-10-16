@@ -15,6 +15,13 @@ rust-version = "1.56"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+axum = "0.6.20"
+sha2 = "0.10.8"
+hmac = "0.12.1"
+axum-macros = "0.3.8" # Useful for debugging axum Handler trait errors
+fastrand = "2"
+x25519-dalek = { version = "2.0.0", features = ["static_secrets"] }
+base64 = "0.21.4"
 anyhow = { workspace = true }
 async-trait = { workspace = true }
 atty = "0.2"
@@ -34,10 +41,21 @@ pretty_env_logger = "0.4"
 rand = "0.7"
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
-sqlx = { version = "0.5", features = [ "runtime-tokio-rustls", "sqlite", "macros", "migrate", ] }
+sqlx = { version = "0.5", features = [
+    "runtime-tokio-rustls",
+    "sqlite",
+    "macros",
+    "migrate",
+] }
 subtle-encoding = { version = "0.5", features = ["bech32-preview"] }
 thiserror = "1"
-tokio = { workspace = true, features = [ "rt-multi-thread", "net", "signal", "fs", "time" ] }
+tokio = { workspace = true, features = [
+    "rt-multi-thread",
+    "net",
+    "signal",
+    "fs",
+    "time",
+] }
 tokio-stream = { version = "0.1.11", features = ["fs"] }
 tokio-tungstenite = { version = "0.20.1" }
 tokio-util = { version = "0.7.4", features = ["codec"] }
@@ -63,6 +81,11 @@ nym-task = { path = "../common/task" }
 nym-types = { path = "../common/types" }
 nym-validator-client = { path = "../common/client-libs/validator-client" }
 nym-wireguard = { path = "../common/wireguard", optional = true }
+
+[dev-dependencies]
+tower = "0.4.13"
+rand = "0.8.5"
+hyper = "0.14.27"
 
 [build-dependencies]
 tokio = { version = "1.24.1", features = ["rt-multi-thread", "macros"] }

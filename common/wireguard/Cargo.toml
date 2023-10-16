@@ -22,6 +22,8 @@ bytes = "1.5.0"
 dashmap = "5.5.3"
 etherparse = "0.13.0"
 futures = "0.3.28"
+ip_network = "0.4.1"
+ip_network_table = "0.2.0"
 log.workspace = true
 nym-task = { path = "../task" }
 tap.workspace = true

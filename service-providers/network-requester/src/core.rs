@@ -34,7 +34,7 @@ use nym_socks5_requests::{
 };
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
-use nym_sphinx::params::PacketSize;
+use nym_sphinx::params::{PacketSize, PacketType};
 use nym_sphinx::receiver::ReconstructedMessage;
 use nym_statistics_common::collector::StatisticsSender;
 use nym_task::connections::LaneQueueLengths;
@@ -186,7 +186,7 @@ impl NRServiceProviderBuilder {
             allowed_hosts::HostsStore::new(&config.storage_paths.unknown_list_location);
 
         let outbound_request_filter =
-            OutboundRequestFilter::new(allowed_hosts.clone(), standard_list.clone(), unknown_hosts);
+            OutboundRequestFilter::new(allowed_hosts, standard_list, unknown_hosts);
 
         NRServiceProviderBuilder {
             config,
@@ -321,6 +321,7 @@ impl NRServiceProviderBuilder {
         let stats_collector_clone = stats_collector.clone();
         let mixnet_client_sender = mixnet_client.split_sender();
         let self_address = *mixnet_client.nym_address();
+        let packet_type = self.config.base.debug.traffic.packet_type;
 
         // start the listener for mix messages
         tokio::spawn(async move {
@@ -328,6 +329,7 @@ impl NRServiceProviderBuilder {
                 mixnet_client_sender,
                 mix_input_receiver,
                 stats_collector_clone,
+                packet_type,
             )
             .await;
         });
@@ -420,6 +422,7 @@ impl NRServiceProvider {
         mixnet_client_sender: nym_sdk::mixnet::MixnetClientSender,
         mut mix_input_reader: MixProxyReader<MixnetMessage>,
         stats_collector: Option<ServiceStatisticsCollector>,
+        packet_type: PacketType,
     ) {
         loop {
             tokio::select! {
@@ -440,7 +443,7 @@ impl NRServiceProvider {
                             }
                         }
 
-                        let response_message = msg.into_input_message();
+                        let response_message = msg.into_input_message(packet_type);
                         mixnet_client_sender.send(response_message).await.unwrap();
                     } else {
                         log::error!("Exiting: channel closed!");

@@ -40,7 +40,7 @@ Yes, to run a mix node only is an option. However it will be less rewarded as no
 
 ### What are the incentives for the node operator?
 
-In the original setup there were no incentives to run a `network-requester`. After the transition all the users will buy multiple tickets of zkNyms credentials and use those as [anonymous e-cash](https://arxiv.org/abs/2303.08221) to pay for their data traffic (`[Nym API](https://github.com/nymtech/nym/tree/master/nym-api)` will do the do cryptographical checks to prevent double-spending). All collected fees get distributed to all active nodes proportionally to their work by the end of each epoch.
+In the original setup there were no incentives to run a `network-requester`. After the transition all the users will buy multiple tickets of zkNyms credentials and use those as [anonymous e-cash](https://arxiv.org/abs/2303.08221) to pay for their data traffic ([`Nym API`](https://github.com/nymtech/nym/tree/master/nym-api) will do the do cryptographical checks to prevent double-spending). All collected fees get distributed to all active nodes proportionally to their work by the end of each epoch.
 
 ### How does this change the token economics?
 

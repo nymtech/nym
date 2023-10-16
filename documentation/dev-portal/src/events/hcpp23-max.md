@@ -17,8 +17,7 @@ This is a *reference page*, to see the entire presentation join Max's talk at [H
 ## SDKs
 
 * [Rust SDK](https://nymtech.net/docs/sdk/rust.html)
-* [Typescript SDK](https://nymtech.net/docs/sdk/typescript.html)
-* [Interactive Typescript SDK docs](https://sdk.nymtech.net)
+* [Typescript SDK](https://sdk.nymtech.net/)
 
 ### Rust examples
 

@@ -81,7 +81,60 @@ The Gateways will display an HTML page similar to that suggested by [Tor](https:
 
 We also recommend operators to check the technical advice from [Tor](https://community.torproject.org/relay/setup/exit/).
 
+## Tor legal advice
+
+Giving the legal similarity between Nym exit gateways and Tor exit relays, it is helpful to have a look in [Tor community Exit Guidelines](https://community.torproject.org/relay/community-resources/tor-exit-guidelines/). This chapter is an exert of tor page.
+
+Note that Tor states: 
+> This FAQ is for informational purposes only and does not constitute legal advice.
+
+*Check legal advice prior to running an exit relay*  
+
+* Understand the risks associated with running an exit relay; E.g., know legal paragraphs relevant in the country of operations:
+    - US [DMCA 512](https://www.law.cornell.edu/uscode/text/17/512); see [EFF's Legal FAQ for TOr Operators](https://community.torproject.org/relay/community-resources/eff-tor-legal-faq) (a very good and relevant read for other countries as well)
+    - Germany’s [TeleMedienGesetz 8](http://www.gesetze-im-internet.de/tmg/__8.html) and [15](http://www.gesetze-im-internet.de/tmg/__15.html)
+    - Netherlands: [Artikel 6:196c BW](http://wetten.overheid.nl/BWBR0005289/Boek6/Titel3/Afdeling4A/Artikel196c/)
+    - Austria: [E-Commerce-Gesetz 13](http://www.ris.bka.gv.at/Dokument.wxe?Abfrage=Bundesnormen&Dokumentnummer=NOR40025809)
+    - Sweden: [16-19 2002:562](https://lagen.nu/2002:562#P16S1)
+* Top 3 advice
+    - Have an abuse response letter
+    - Run relay from a location that is not home
+    - Read through the legal resources that Tor-supportive lawyers put together: https://www.eff.org/pages/legal-faq-tor-relay-operators or https://www.noisebridge.net/wiki/Noisebridge_Tor/FBI
+* Consult a lawyer / local digital rights association / the EFF prior to operating an exit relay, especially in a place where exit relay operators have been harassed or not operating before. Note that Tor DOES NOT provide legal advice for specific countries. It only provides general advice (itself or in partnership), eventually skewed towards [US audiences](https://www.eff.org/pages/legal-faq-tor-relay-operators).
+
+
+*Run an exit relay within an entity*  
+
+As an organisation - it might help from a liability perspective  
+* Within your university
+* With a node operators’ association (e.g., a Torservers.net partner)
+* Within a company
+
+*Be ready to respond to abuse complaints*
+
+* Make your contact details (email, phone, or even fax) available, instead of those of the ISP
+* Reply in a timely manner (e.g., 24 hours) using the [provided templates](https://community.torproject.org/relay/community-resources/tor-abuse-templates)
+* Note that Tor states: *“We are not aware of any case that made it near a court, and we will do everything in our power to support you if it does.”*
+* Document experience with ISPs at [community.torproject.org/relay/community-resources/good-bad-isps](https://community.torproject.org/relay/community-resources/good-bad-isps/)
+
+Useful links:  
+
+* Tor abuse templates:
+    - [community.torproject.org/relay/community-resources/tor-abuse-templates/](https://community.torproject.org/relay/community-resources/tor-abuse-templates/)
+    - [gitlab.torproject.org/legacy/trac/-/wikis/doc/TorAbuseTemplates](https://gitlab.torproject.org/legacy/trac/-/wikis/doc/TorAbuseTemplates) (from 2020)
+    - [github.com/coldhakca/abuse-templates/blob/master/generic.template](https://github.com/coldhakca/abuse-templates/blob/master/generic.template)
+
+* DMCA response templates:
+    - [community.torproject.org/relay/community-resources/eff-tor-legal-faq/tor-dmca-response/](https://community.torproject.org/relay/community-resources/eff-tor-legal-faq/tor-dmca-response/)
+    - [2019.www.torproject.org/eff/tor-dmca-response.html](https://2019.www.torproject.org/eff/tor-dmca-response.html) (from 2011)
+    - [github.com/coldhakca/abuse-templates/blob/master/dmca.template](https://github.com/coldhakca/abuse-templates/blob/master/dmca.template)
+
+
 ## Legal environment - Findings from our legal team
+
+```admonish warning
+Nym core team cannot provide comprehensive legal advice across all jurisdictions. Knowledge and experience with the legalities are being built up with the help of our counsel and with you, the community of Nym node operators. We encourage Nym node operators to join the operator channels ([Element](https://matrix.to/#/#operators:nymtech.chat), [Discord](https://discord.com/invite/nym), [Telegram](https://t.me/nymchan_help_chat)) to share best practices and experiences.
+```
 
 The Swiss legal counsel and US legal counsel have so far provided the following advice:
 

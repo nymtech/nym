@@ -1,5 +1,4 @@
 use std::{
-    collections::HashMap,
     fmt,
     hash::{Hash, Hasher},
     net::SocketAddr,
@@ -8,6 +7,7 @@ use std::{
 };
 
 use base64::{engine::general_purpose, Engine};
+use dashmap::DashMap;
 use hmac::{Hmac, Mac};
 use nym_crypto::asymmetric::encryption::PrivateKey;
 use serde::{Deserialize, Serialize};
@@ -178,4 +178,4 @@ impl<'de> Deserialize<'de> for ClientPublicKey {
     }
 }
 
-pub(crate) type ClientRegistry = HashMap<SocketAddr, Client>;
+pub(crate) type ClientRegistry = DashMap<SocketAddr, Client>;

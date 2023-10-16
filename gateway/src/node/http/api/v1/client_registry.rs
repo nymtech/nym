@@ -14,8 +14,7 @@ use crate::node::http::ApiState;
 
 async fn process_final_message(client: Client, state: Arc<ApiState>) -> StatusCode {
     let preshared_nonce = {
-        let in_progress_ro = state.registration_in_progress.read().await;
-        if let Some(nonce) = in_progress_ro.get(client.pub_key()) {
+        if let Some(nonce) = state.registration_in_progress.get(client.pub_key()) {
             *nonce
         } else {
             return StatusCode::BAD_REQUEST;
@@ -27,12 +26,10 @@ async fn process_final_message(client: Client, state: Arc<ApiState>) -> StatusCo
         .is_ok()
     {
         {
-            let mut in_progress_rw = state.registration_in_progress.write().await;
-            in_progress_rw.remove(client.pub_key());
+            state.registration_in_progress.remove(client.pub_key());
         }
         {
-            let mut registry_rw = state.client_registry.write().await;
-            registry_rw.insert(client.socket(), client);
+            state.client_registry.insert(client.socket(), client);
         }
         return StatusCode::OK;
     }
@@ -42,8 +39,9 @@ async fn process_final_message(client: Client, state: Arc<ApiState>) -> StatusCo
 
 async fn process_init_message(init_message: InitMessage, state: Arc<ApiState>) -> u64 {
     let nonce: u64 = fastrand::u64(..);
-    let mut registry_rw = state.registration_in_progress.write().await;
-    registry_rw.insert(init_message.pub_key().clone(), nonce);
+    state
+        .registration_in_progress
+        .insert(init_message.pub_key().clone(), nonce);
     nonce
 }
 
@@ -67,12 +65,12 @@ pub(crate) async fn register_client(
 pub(crate) async fn get_all_clients(
     State(state): State<Arc<ApiState>>,
 ) -> (StatusCode, Json<Vec<ClientPublicKey>>) {
-    let registry_ro = state.client_registry.read().await;
     (
         StatusCode::OK,
         Json(
-            registry_ro
-                .values()
+            state
+                .client_registry
+                .iter()
                 .map(|c| c.pub_key().clone())
                 .collect::<Vec<ClientPublicKey>>(),
         ),
@@ -87,12 +85,13 @@ pub(crate) async fn get_client(
         Ok(pub_key) => pub_key,
         Err(_) => return (StatusCode::BAD_REQUEST, Json(vec![])),
     };
-    let registry_ro = state.client_registry.read().await;
-    let clients = registry_ro
+    let clients = state
+        .client_registry
         .iter()
-        .filter_map(|(_, c)| {
-            if c.pub_key() == &pub_key {
-                Some(c.clone())
+        .filter_map(|r| {
+            let client = r.value();
+            if client.pub_key() == &pub_key {
+                Some(client.clone())
             } else {
                 None
             }

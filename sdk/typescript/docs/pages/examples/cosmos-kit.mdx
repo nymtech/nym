@@ -1,0 +1,158 @@
+# Cosmos Kit
+
+The wonderful people of Cosmology have made some [fantastic components](https://cosmoskit.com/) that can be used with
+Nym. These include:
+
+- Using the wallets such as Keplr, Cosmostation and others from your React application;
+- Using the [Ledger hardware wallet](https://docs.cosmoskit.com/integrating-wallets/ledger) from your browser;
+- Any wallet that supports [Wallet Connect v2.0](https://docs.cosmoskit.com/integrating-wallets/adding-new-wallets);
+
+##### Environment Setup
+Begin by creating a directory and configuring your application environment:
+
+```bash
+npm create vite@latest
+```
+
+During the environment setup, choose React and subsequently opt for Typescript if you want your application to function smoothly following this tutorial. Next, navigate to your application directory and run the following commands:
+```bash
+cd < YOUR_APP >
+npm i 
+npm run dev
+```
+
+##### Installation
+Install the required package:
+```bash
+npm install @cosmos-kit/react @cosmos-kit/keplr @cosmos-kit/ledger chain-registry
+```
+
+You need to polyfill some nodejs modules in order to use keplr and ledger wallets by modifying your `vite.config.js` file:
+```bash
+npm install @esbuild-plugins/node-globals-polyfill
+```
+
+```js
+// vite.config.js
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+import { NodeGlobalsPolyfillPlugin } from '@esbuild-plugins/node-globals-polyfill'
+export default defineConfig({
+  plugins: [react()],
+  optimizeDeps: {
+        esbuildOptions: {
+            define: {
+                global: 'globalThis'
+            },
+            plugins: [
+                NodeGlobalsPolyfillPlugin({
+                    buffer: true
+                })
+            ]
+        }
+    }
+})
+```
+
+Your components have to be wrapped into a [ChainProvider](https://docs.cosmoskit.com/chain-provider),
+in order to use the `useChain('nyx')` hook. The nyx chain is provided in the 'chain-registry' NPM package by default.
+
+Now, go to the `src` folder and open your `App.tsx` file to replace all the code with the following, which will allow you to connect and disconnect a Ledger or Keplr wallet to Nyx: 
+
+```ts
+import "./App.css";
+import React from 'react';
+import { ChainProvider, useChain } from '@cosmos-kit/react';
+import { assets, chains } from 'chain-registry';
+import { wallets as ledger } from '@cosmos-kit/ledger';
+import { wallets as keplr } from '@cosmos-kit/keplr';
+import { AminoMsg, makeSignDoc } from '@cosmjs/amino';
+import { MsgSend } from 'cosmjs-types/cosmos/bank/v1beta1/tx';
+ 
+export const getDoc = (address: string) => {
+  const chainId = 'nyx';
+  const msg: AminoMsg = {
+    type: '/cosmos.bank.v1beta1.MsgSend',
+    value: MsgSend.fromPartial({
+      fromAddress: address,
+      toAddress: 'n1nn8tghp94n8utsgyg3kfttlxm0exgjrsqkuwu9',
+      amount: [{ amount: '1000', denom: 'unym' }],
+    }),
+  };
+  const fee = {
+    amount: [{ amount: '2000', denom: 'ucosm' }],
+    gas: '180000', // 180k
+  };
+  const memo = 'Use your power wisely';
+  const accountNumber = 15;
+  const sequence = 16;
+  const doc = makeSignDoc([msg], fee, chainId, memo, accountNumber, sequence);
+  return doc
+};
+ 
+function MyComponent() {
+  const {wallet, address, connect, disconnect, getOfflineSignerAmino } =
+  useChain('nyx');
+ 
+  React.useEffect(() => {
+    connect();
+    disconnect();
+  }, []);
+ 
+  const sign = async () => {
+    if (!address) return
+    const doc = getDoc(address);
+    return getOfflineSignerAmino().signAmino(address, doc);
+  };
+ 
+  return (
+    <div>  
+      <div>
+        {wallet && 
+        <div> 
+          <div>Connected to {wallet?.prettyName} </div> 
+          <div>Address: <code>{address}</code></div>
+        </div>}
+      </div>
+      {wallet ? (
+        <div>
+          <button onClick={() => disconnect()}>Disconnect wallet</button>
+        </div>
+      ) : (
+        <div>
+          <button onClick={() => connect()}>Connect wallet</button>
+        </div>
+      )}
+    </div>
+  );
+}
+ 
+export default function App() {
+    const assetsFixedUp = React.useMemo(() => {
+    const nyx = assets.find((a) => a.chain_name === 'nyx');
+    if (nyx) {
+      const nyxCoin = nyx.assets.find((a) => a.name === 'nyx');
+      if (nyxCoin) {
+        nyxCoin.coingecko_id = 'nyx';
+      }
+      nyx.assets = nyx.assets.reverse();
+    }
+    return assets;
+  }, [assets]);
+ 
+  return (
+     <ChainProvider
+      chains={[chains.find((c) => c.chain_id === 'nyx')!]}
+      assetLists={assetsFixedUp}
+      wallets={[...ledger, ...keplr]}
+      signerOptions={{
+        preferredSignType: () => 'amino',
+      }}
+    >
+ 
+        <MyComponent/>
+    </ChainProvider>
+ 
+  )
+}
+```

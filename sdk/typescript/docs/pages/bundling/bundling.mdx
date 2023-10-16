@@ -1,4 +1,4 @@
-# Troubleshooting Bundling
+# Troubleshooting bundling
 
 You might need some help bundling packages from the Nym Typescript SDK into your package.
 
@@ -41,7 +41,7 @@ list. Use `[name][ext]` to preserve the output filename, because the package exp
 
 ## ESM not supported
 
-If your bundler does not support ECMAScript Modules (ESM) we provide CommonJS packages for most parts of the SDK.
+If your bundler does not support ECMAScript Modules (ESM), CommonJS packages are supported for most parts of the SDK.
 
 For those that don't have ESM versions, you will need to use a tool like [Babel](https://babeljs.io/) to convert
 ESM to CommonJS.
@@ -52,4 +52,3 @@ If you are using a `*-full-fat` package, or if you inline WASM or web workers, y
 [CSP](https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP) prevents WASM from being instantiated from a string.
 
 You'll have to experiment with either adjusting the CSP or use another variant that is unbundled.
-

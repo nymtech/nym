@@ -1,11 +1,24 @@
 # Wallet
 
-import { Wallet } from '../../components/wallet'
 import Box from '@mui/material/Box';
-import FormattedWalletExampleCode from '../../code-examples/wallet-example-code.mdx';
 
-Here's a small wallet example for you to test some of the methods of our clients. 
-You can use the testnet address provided as recipient address, and to delegate just go to the Mixnodes list and paste in the Mix ID number of the Mixnode you'd like to delegate to. 
+import { WalletContextProvider } from '../../components/wallet/utils/wallet.context';
+import { ConnectWallet } from '../../components/wallet/connect';
+import { SendTokes } from '../../components/wallet/sendTokens';
+import { Delegations } from '../../components/wallet/delegations';
+import FormattedWalletConnectCode from '../../code-examples/wallet-connect-code.mdx';
+import FormattedWalletSendTokensCode from '../../code-examples/wallet-sendTokens-code.mdx';
+import FormattedWalletDelegationsCode from '../../code-examples/wallet-delegations-code.mdx';
 
-<Wallet />
-<FormattedWalletExampleCode />
+Here's a small wallet example using testnet for you to test out!
+
+<WalletContextProvider>
+    <ConnectWallet />
+    <FormattedWalletConnectCode />
+
+    <SendTokes />
+    <FormattedWalletSendTokensCode />
+
+    <Delegations />
+    <FormattedWalletDelegationsCode />
+</WalletContextProvider>

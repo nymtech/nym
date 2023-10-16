@@ -46,6 +46,7 @@ members = [
     "common/crypto",
     "common/dkg",
     "common/execute",
+    "common/exit-policy",
     "common/http-api-client",
     "common/inclusion-probability",
     "common/ledger",

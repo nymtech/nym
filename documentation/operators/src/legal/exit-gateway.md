@@ -100,3 +100,53 @@ As outlined in Part A, the United States treats VPNs as telecommunications netwo
 However, as discussed in Part B-C, VPN operators are subject to law enforcement requests for access or assistance in obtaining access to data relevant to an investigation into allegedly unlawful conduct that was facilitated by the network as an intermediary. As shown in Part C, governments may also request assistance from node operators for certain high-level and national security targets.
 
 Finally, as outlined in Parts D-G, VPN operators may also be subject to non-criminal liability including (Part D) failing to respond to notices under the DMCA, (Part E) privacy and data protection law, (Part F) third party lawsuits stemming from wrongful acts committed using the network, and (G) export control violations.
+
+
+## How to add legal information
+
+Our aim is to establish a strong community network, sharing legal findings with each other. We would like to encourage all the current and future operators to do research about the situation in the jurisdiction they operate and update this page.
+
+First of all, please join our [Node Operators Legal Forum](https://matrix.to/#/!YfoUFsJjsXbWmijbPG:nymtech.chat?via=nymtech.chat&via=matrix.org) (Matrix chat) and post any information or questions there.
+
+To add your information to this book, you can create a pull request directly to our [repository](https://github.com/nymtech/nym/tree/develop/documentation/operators/src), than ping the admins in the [Legal Forum chat](https://matrix.to/#/!YfoUFsJjsXbWmijbPG:nymtech.chat?via=nymtech.chat&via=matrix.org) and we will review it as fast as possible. 
+
+To do so, follow the steps below:
+
+1. Write your legal findings down in a text editor (Soon we will share a template)
+2. Clone `nymtech/nym` repository and switch to develop branch
+
+```sh
+# Clone the repository
+git clone https://github.com/nymtech/nym
+
+# Go to the directory nym
+cd nym
+
+# Switch to branch develop
+git checkout develop
+
+# Update the repository
+git pull origin develop
+```
+
+3. Make your own branch based off `develop` and swith to it
+
+```sh
+git branch operators/legal-forum/<MY_BRANCH_NAME> # choose a descriptive and consiose name without using <>
+git checkout operators/legal-forum/<MY_BRANCH_NAME>
+
+# you can double check that you are on the right branch
+git branch
+```
+
+4. Save your legal findings as `<FILE_NAME>.md` to `/nym/documentation/operators/src/legal`
+5. Don't change anything in `SUMMARY.md`, the admins will do it when merging
+6. Add, commit and push your changes
+
+```sh
+cd documentation/operators/src/legal
+git add <FILE_NAME>.md
+git commit -am "<describe your changes>"
+git push origin operators/legal-forum/<MY_BRANCH_NAME>
+```
+7. Notify others in the [Node Operators Legal Forum](https://matrix.to/#/!YfoUFsJjsXbWmijbPG:nymtech.chat?via=nymtech.chat&via=matrix.org) (Matrix chat)

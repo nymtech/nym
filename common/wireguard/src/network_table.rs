@@ -4,7 +4,7 @@ use ip_network::IpNetwork;
 use ip_network_table::IpNetworkTable;
 
 #[derive(Default)]
-pub(crate) struct NetworkTable<T> {
+pub struct NetworkTable<T> {
     ips: IpNetworkTable<T>,
 }
 

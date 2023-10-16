@@ -156,6 +156,12 @@ impl<St> Gateway<St> {
         mixnet_handling::Listener::new(listening_address, shutdown).start(connection_handler);
     }
 
+    #[cfg(feature = "wireguard")]
+    async fn start_wireguard(&self, shutdown: TaskClient) {
+        let wg_udp_listener = nym_wireguard::new_wireguard2().await.unwrap();
+        wg_udp_listener.start(shutdown);
+    }
+
     fn start_client_websocket_listener(
         &self,
         forwarding_channel: MixForwardingSender,
@@ -378,10 +384,11 @@ impl<St> Gateway<St> {
         // Once this is a bit more mature, make this a commandline flag instead of a compile time
         // flag
         #[cfg(feature = "wireguard")]
-        if let Err(err) = nym_wireguard::start_wireguard(shutdown.subscribe()).await {
-            // that's a nasty workaround, but anyhow errors are generally nicer, especially on exit
-            bail!("{err}")
-        }
+        self.start_wireguard(shutdown.subscribe().named("wireguard")).await;
+        // if let Err(err) = nym_wireguard::start_wireguard(shutdown.subscribe()).await {
+        // that's a nasty workaround, but anyhow errors are generally nicer, especially on exit
+        // bail!("{err}")
+        // }
 
         // This should likely be wireguard feature gated, but its easier to test if it hangs in here
         tokio::spawn(start_http_api(

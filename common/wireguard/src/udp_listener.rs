@@ -40,26 +40,50 @@ async fn add_test_peer(registered_peers: &mut RegisteredPeers) {
     registered_peers.insert(peer_static_public, test_peer).await;
 }
 
-pub(crate) async fn start_udp_listener(
+pub struct WgUdpListener {
     tun_task_tx: TunTaskTx,
     peers_by_ip: Arc<std::sync::Mutex<PeersByIp>>,
-    mut task_client: TaskClient,
-) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let wg_address = SocketAddr::new(WG_ADDRESS.parse().unwrap(), WG_PORT);
-    log::info!("Starting wireguard UDP listener on {wg_address}");
-    let udp = Arc::new(UdpSocket::bind(wg_address).await?);
 
-    // Setup our own keys
-    let static_private = setup::server_static_private_key();
-    let static_public = x25519::PublicKey::from(&static_private);
-    let handshake_max_rate = 100u64;
-    let rate_limiter = RateLimiter::new(&static_public, handshake_max_rate);
+    udp: Arc<UdpSocket>,
+    rate_limiter: RateLimiter,
+    registered_peers: RegisteredPeers,
+    static_private: x25519::StaticSecret,
+    static_public: x25519::PublicKey,
+}
 
-    // Create a test peer for dev
-    let mut registered_peers = RegisteredPeers::default();
-    add_test_peer(&mut registered_peers).await;
+impl WgUdpListener {
+    pub async fn new(
+        tun_task_tx: TunTaskTx,
+        peers_by_ip: Arc<std::sync::Mutex<PeersByIp>>,
+    ) -> Result<Self, Box<dyn std::error::Error + Send + Sync + 'static>> {
+        let wg_address = SocketAddr::new(WG_ADDRESS.parse().unwrap(), WG_PORT);
+        log::info!("Starting wireguard UDP listener on {wg_address}");
+        let udp = Arc::new(UdpSocket::bind(wg_address).await?);
 
-    tokio::spawn(async move {
+        // Setup our own keys
+        let static_private = setup::server_static_private_key();
+        let static_public = x25519::PublicKey::from(&static_private);
+        let handshake_max_rate = 100u64;
+        let rate_limiter = RateLimiter::new(&static_public, handshake_max_rate);
+
+        // Create a test peer for dev
+        let mut registered_peers = RegisteredPeers::default();
+        add_test_peer(&mut registered_peers).await;
+
+        Ok(Self {
+            tun_task_tx,
+            peers_by_ip,
+
+            udp,
+            rate_limiter,
+            registered_peers,
+            static_private,
+            static_public,
+        })
+    }
+
+    pub async fn run(&mut self, mut task_client: TaskClient) {
+        log::info!("run!");
         // The set of active tunnels
         let active_peers = ActivePeers::default();
         // Each tunnel is run in its own task, and the task handle is stored here so we can remove
@@ -77,7 +101,7 @@ pub(crate) async fn start_udp_listener(
                 }
                 // Reset the rate limiter every 1 sec
                 () = tokio::time::sleep(Duration::from_secs(1)) => {
-                    rate_limiter.reset_count();
+                    self.rate_limiter.reset_count();
                 },
                 // Handle tunnel closing
                 Some(public_key) = active_peers_task_handles.next() => {
@@ -91,7 +115,7 @@ pub(crate) async fn start_udp_listener(
                     }
                 },
                 // Handle incoming packets
-                Ok((len, addr)) = udp.recv_from(&mut buf) => {
+                Ok((len, addr)) = self.udp.recv_from(&mut buf) => {
                     log::trace!("udp: received {} bytes from {}", len, addr);
 
                     // If this addr has already been encountered, send directly to tunnel
@@ -107,11 +131,11 @@ pub(crate) async fn start_udp_listener(
                     }
 
                     // Verify the incoming packet
-                    let verified_packet = match rate_limiter.verify_packet(Some(addr.ip()), &buf[..len], &mut dst_buf) {
+                    let verified_packet = match self.rate_limiter.verify_packet(Some(addr.ip()), &buf[..len], &mut dst_buf) {
                         Ok(packet) => packet,
                         Err(TunnResult::WriteToNetwork(cookie)) => {
                             log::info!("Send back cookie to: {addr}");
-                            udp.send_to(cookie, addr).await.tap_err(|e| log::error!("{e}")).ok();
+                            self.udp.send_to(cookie, addr).await.tap_err(|e| log::error!("{e}")).ok();
                             continue;
                         }
                         Err(err) => {
@@ -123,9 +147,9 @@ pub(crate) async fn start_udp_listener(
                     // Check if this is a registered peer, if not, just skip
                     let registered_peer = match parse_peer(
                         verified_packet,
-                        &registered_peers,
-                        &static_private,
-                        &static_public
+                        &self.registered_peers,
+                        &self.static_private,
+                        &self.static_public
                     ) {
                         Ok(Some(peer)) => peer.lock().await,
                         Ok(None) => {
@@ -153,15 +177,15 @@ pub(crate) async fn start_udp_listener(
                         log::warn!("Creating new rate limiter, consider re-using?");
                         let (join_handle, peer_tx) = crate::wg_tunnel::start_wg_tunnel(
                             addr,
-                            udp.clone(),
-                            static_private.clone(),
+                            self.udp.clone(),
+                            self.static_private.clone(),
                             registered_peer.public_key,
                             registered_peer.index,
                             registered_peer.allowed_ips,
-                            tun_task_tx.clone(),
+                            self.tun_task_tx.clone(),
                         );
 
-                        peers_by_ip.lock().unwrap().insert(registered_peer.allowed_ips, peer_tx.clone());
+                        self.peers_by_ip.lock().unwrap().insert(registered_peer.allowed_ips, peer_tx.clone());
 
                         peer_tx.send(Event::Wg(buf[..len].to_vec().into()))
                             .tap_err(|e| log::error!("{e}"))
@@ -175,9 +199,12 @@ pub(crate) async fn start_udp_listener(
             }
         }
         log::info!("WireGuard listener: shutting down");
-    });
+    }
 
-    Ok(())
+    pub fn start(mut self, task_client: TaskClient) {
+        log::info!("start!");
+        tokio::spawn(async move { self.run(task_client).await });
+    }
 }
 
 fn parse_peer<'a>(

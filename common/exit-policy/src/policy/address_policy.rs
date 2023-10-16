@@ -11,6 +11,7 @@ use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::str::FromStr;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(rename_all = "lowercase")]
 pub enum AddressPolicyAction {
     /// A rule that accepts matching address:port combinations on IPv4 and IPv6.
@@ -83,6 +84,7 @@ impl Display for AddressPolicyAction {
 ///  reject *:*
 /// ```
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct AddressPolicy {
     /// A list of rules to apply to find out whether an address is
     /// contained by this policy.
@@ -142,6 +144,7 @@ impl AddressPolicy {
 ///
 /// Contains a pattern, what to do with things that match it.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct AddressPolicyRule {
     /// What do we do with items that match the pattern?
     action: AddressPolicyAction,
@@ -196,9 +199,11 @@ impl Display for AddressPolicyRule {
 /// assert!(!pat.matches(&not_localhost, 22));
 /// ```
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct AddressPortPattern {
     /// A pattern to match somewhere between zero and all IP addresses.
     #[serde(with = "stringified_ip_pattern")]
+    #[cfg_attr(feature = "openapi", schema(example = "1.2.3.6/16", value_type = String))]
     pub(crate) pattern: IpPattern,
 
     /// A pattern to match a range of ports.
@@ -427,6 +432,7 @@ impl FromStr for IpPattern {
 /// assert!(! r.contains(8001));
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct PortRange {
     /// The first port in this range.
     pub start: u16,

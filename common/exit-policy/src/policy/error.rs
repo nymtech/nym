@@ -6,9 +6,16 @@ use std::net::AddrParseError;
 use thiserror::Error;
 
 /// Error from an unparsable or invalid policy.
-#[derive(Debug, Error, Clone, PartialEq)]
+#[derive(Debug, Error)]
 #[non_exhaustive]
 pub enum PolicyError {
+    #[cfg(feature = "client")]
+    #[error("failed to fetch the remote policy: {source}")]
+    ClientError {
+        #[from]
+        source: reqwest::Error,
+    },
+
     #[error("/{mask} is not a valid mask for an IpV4 address")]
     InvalidIpV4Mask { mask: u8 },
 

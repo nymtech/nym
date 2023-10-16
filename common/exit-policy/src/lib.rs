@@ -3,12 +3,17 @@
 
 pub mod policy;
 
+#[cfg(feature = "client")]
+pub mod client;
+
 use crate::policy::{AddressPolicy, AddressPolicyRule, PolicyError};
 
 pub(crate) const EXIT_POLICY_FIELD_NAME: &str = "ExitPolicy";
 const COMMENT_CHAR: char = '#';
 
-pub fn parse_exit_policy<S: AsRef<str>>(exit_policy: S) -> Result<AddressPolicy, PolicyError> {
+pub type ExitPolicy = AddressPolicy;
+
+pub fn parse_exit_policy<S: AsRef<str>>(exit_policy: S) -> Result<ExitPolicy, PolicyError> {
     let rules = exit_policy
         .as_ref()
         .lines()

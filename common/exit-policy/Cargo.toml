@@ -14,5 +14,19 @@ license.workspace = true
 serde = { workspace = true, features = ["derive"] }
 thiserror = { workspace = true }
 
+# feature-specific dependencies:
+
+## client feature
+reqwest = { workspace = true, optional = true }
+
+## openapi feature
+serde_json = { workspace = true, optional = true }
+utoipa = { workspace = true, optional = true }
+
 [dev-dependencies]
 serde_json = { workspace = true }
+
+[features]
+default = []
+client = ["reqwest"]
+openapi = ["utoipa", "serde_json"]

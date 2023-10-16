@@ -3,8 +3,7 @@ import ConfigHandler from "../../config/configHandler";
 import { RestClient } from "../../restClient/RestClient";
 
 export abstract class APIClient {
-  protected constructor(serviceUrl: string) {
-    const baseUrl: string = this.config.environmentConfig.api_base_url;
+  protected constructor(baseUrl: string, serviceUrl: string) {
     this.url = baseUrl + serviceUrl;
     this.restClient = new RestClient(this.url);
     this.serviceName = this.constructor.toString().match(/\w+/g)[1];

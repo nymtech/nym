@@ -83,7 +83,7 @@ export class RestClient {
         data,
         additionalConfigs,
         params,
-      })
+      }),
     );
 
     await this.axiosInstance
@@ -214,7 +214,7 @@ export class RestClient {
 
     if (isSet(additionalConfigs)) {
       logRecord = `${logRecord}\nAdditional Configuration: ${stringify(
-        additionalConfigs
+        additionalConfigs,
       )}`;
     }
 

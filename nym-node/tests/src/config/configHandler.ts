@@ -10,6 +10,8 @@ class ConfigHandler {
 
   public commonConfig: { request_headers: object };
 
+  private currentEnvironment: string;
+
   public environment: string;
 
   public environmentConfig: {
@@ -36,7 +38,7 @@ class ConfigHandler {
   private setCommonConfig(): void {
     try {
       this.commonConfig = YAML.parse(
-        readFileSync("src/config/config.yaml", "utf8")
+        readFileSync("src/config/config.yaml", "utf8"),
       ).common;
     } catch (error) {
       throw Error(`Error reading common config: (${error})`);
@@ -47,11 +49,18 @@ class ConfigHandler {
     this.ensureEnvironmentIsValid(environment);
     try {
       this.environmentConfig = YAML.parse(
-        readFileSync("src/config/config.yaml", "utf8")
+        readFileSync("src/config/config.yaml", "utf8"),
       )[environment];
     } catch (error) {
       throw Error(`Error reading environment config: (${error})`);
     }
+  }
+
+  public getEnvironmentConfig(environment: string): any {
+    return (
+      this.environmentConfig ||
+      YAML.parse(readFileSync("src/config/config.yaml", "utf8"))[environment]
+    );
   }
 
   private ensureEnvironmentIsValid(environment: string): void {

@@ -148,7 +148,7 @@ pub(crate) async fn start_udp_listener(
                     if let Some(peer_tx) = active_peers.get_mut(&registered_peer.public_key) {
                         // If it is, send it the packet to deal with
                         log::info!("udp: received {len} bytes from {addr} from known peer");
-                        peer_tx.send(Event::WgVerifiedPacket(buf[..len].to_vec().into()))
+                        peer_tx.send(Event::WgVerified(buf[..len].to_vec().into()))
                             .tap_err(|err| log::error!("{err}"))
                             .unwrap();
                     } else {
@@ -166,7 +166,7 @@ pub(crate) async fn start_udp_listener(
 
                         peers_by_ip.lock().unwrap().insert(registered_peer.allowed_ips, peer_tx.clone());
 
-                        peer_tx.send(Event::WgPacket(buf[..len].to_vec().into()))
+                        peer_tx.send(Event::Wg(buf[..len].to_vec().into()))
                             .tap_err(|err| log::error!("{err}"))
                             .unwrap();
 

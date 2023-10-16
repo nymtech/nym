@@ -127,17 +127,17 @@ impl WireGuardTunnel {
                     Some(packet) => {
                         info!("event loop: {packet}");
                         match packet {
-                            Event::WgPacket(data) => {
+                            Event::Wg(data) => {
                                 let _ = self.consume_wg(&data)
                                     .await
                                     .tap_err(|err| error!("WireGuard tunnel: consume_wg error: {err}"));
                             },
-                            Event::WgVerifiedPacket(data) => {
+                            Event::WgVerified(data) => {
                                 let _ = self.consume_verified_wg(&data)
                                     .await
                                     .tap_err(|err| error!("WireGuard tunnel: consume_verified_wg error: {err}"));
                             }
-                            Event::IpPacket(data) => self.consume_eth(&data).await,
+                            Event::Ip(data) => self.consume_eth(&data).await,
                         }
                     },
                     None => {

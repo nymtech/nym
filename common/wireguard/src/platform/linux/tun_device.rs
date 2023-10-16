@@ -63,7 +63,7 @@ pub(crate) fn start_tun_device(peers_by_ip: Arc<std::sync::Mutex<PeersByIp>>) ->
                         if let Some(peer_tx) = peers_by_ip.lock().unwrap().longest_match(dst_addr).map(|(_, tx)| tx) {
                             log::info!("Forward packet to wg tunnel");
                             peer_tx
-                                .send(Event::IpPacket(packet.to_vec().into()))
+                                .send(Event::Ip(packet.to_vec().into()))
                                 .tap_err(|err| log::error!("{err}"))
                                 .unwrap();
                         } else {

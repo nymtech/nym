@@ -3,6 +3,7 @@
 // #![warn(clippy::expect_used)]
 // #![warn(clippy::unwrap_used)]
 
+mod active_peers;
 mod error;
 mod event;
 mod network_table;

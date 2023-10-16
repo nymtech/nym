@@ -4,7 +4,6 @@ use boringtun::{
     noise::{self, handshake::parse_handshake_anon, rate_limiter::RateLimiter, TunnResult},
     x25519,
 };
-use dashmap::DashMap;
 use futures::StreamExt;
 use log::error;
 use nym_task::TaskClient;
@@ -15,6 +14,7 @@ use tokio::{
 };
 
 use crate::{
+    active_peers::ActivePeers,
     error::WgError,
     event::Event,
     network_table::NetworkTable,
@@ -27,10 +27,6 @@ const MAX_PACKET: usize = 65535;
 
 // Registered peers
 pub(crate) type PeersByIp = NetworkTable<mpsc::UnboundedSender<Event>>;
-
-// Active peers
-pub(crate) type ActivePeers = DashMap<x25519::PublicKey, mpsc::UnboundedSender<Event>>;
-pub(crate) type PeersByAddr = DashMap<SocketAddr, mpsc::UnboundedSender<Event>>;
 
 async fn add_test_peer(registered_peers: &mut RegisteredPeers) {
     let peer_static_public = setup::peer_static_public_key();
@@ -64,9 +60,8 @@ pub(crate) async fn start_udp_listener(
     add_test_peer(&mut registered_peers).await;
 
     tokio::spawn(async move {
-        // The set of active tunnels indexed by the peer's address
-        let active_peers = Arc::new(ActivePeers::new());
-        let active_peers_by_addr = PeersByAddr::new();
+        // The set of active tunnels
+        let active_peers = ActivePeers::default();
         // Each tunnel is run in its own task, and the task handle is stored here so we can remove
         // it from `active_peers` when the tunnel is closed
         let mut active_peers_task_handles = futures::stream::FuturesUnordered::new();
@@ -88,10 +83,7 @@ pub(crate) async fn start_udp_listener(
                 Some(public_key) = active_peers_task_handles.next() => {
                     match public_key {
                         Ok(public_key) => {
-                            log::info!("Removing peer: {public_key:?}");
                             active_peers.remove(&public_key);
-                            log::warn!("TODO: remove from peers_by_ip?");
-                            log::warn!("TODO: remove from peers_by_addr");
                         }
                         Err(err) => {
                             error!("WireGuard UDP listener: error receiving shutdown from peer: {err}");
@@ -105,7 +97,7 @@ pub(crate) async fn start_udp_listener(
                     // If this addr has already been encountered, send directly to tunnel
                     // TODO: optimization opportunity to instead create a connected UDP socket
                     // inside the wg tunnel, where you can recv the data directly.
-                    if let Some(peer_tx) = active_peers_by_addr.get(&addr) {
+                    if let Some(peer_tx) = active_peers.get_by_addr(&addr) {
                         log::info!("udp: received {len} bytes from {addr} from known peer");
                         peer_tx
                             .send(Event::Wg(buf[..len].to_vec().into()))
@@ -147,7 +139,7 @@ pub(crate) async fn start_udp_listener(
                     };
 
                     // Look up if the peer is already connected
-                    if let Some(peer_tx) = active_peers.get_mut(&registered_peer.public_key) {
+                    if let Some(peer_tx) = active_peers.get_by_key_mut(&registered_peer.public_key) {
                         // We found the peer as connected, even though the addr was not known
                         log::info!("udp: received {len} bytes from {addr} which is a known peer with unknown addr");
                         peer_tx.send(Event::WgVerified(buf[..len].to_vec().into()))
@@ -170,14 +162,13 @@ pub(crate) async fn start_udp_listener(
                         );
 
                         peers_by_ip.lock().unwrap().insert(registered_peer.allowed_ips, peer_tx.clone());
-                        active_peers_by_addr.insert(addr, peer_tx.clone());
 
                         peer_tx.send(Event::Wg(buf[..len].to_vec().into()))
                             .tap_err(|e| log::error!("{e}"))
                             .ok();
 
-                        log::info!("Adding peer: {addr}");
-                        active_peers.insert(registered_peer.public_key, peer_tx);
+                        log::info!("Adding peer: {:?}: {addr}", registered_peer.public_key);
+                        active_peers.insert(registered_peer.public_key, addr, peer_tx);
                         active_peers_task_handles.push(join_handle);
                     }
                 },
@@ -187,86 +178,6 @@ pub(crate) async fn start_udp_listener(
     });
 
     Ok(())
-}
-
-fn handle_packet() {
-    // If this addr has already been encountered, send directly to tunnel
-    // TODO: optimization opportunity to instead create a connected UDP socket
-    // inside the wg tunnel, where you can recv the data directly.
-    if let Some(peer_tx) = active_peers_by_addr.get(&addr) {
-        log::info!("udp: received {len} bytes from {addr} from known peer");
-        peer_tx
-            .send(Event::Wg(buf[..len].to_vec().into()))
-            .tap_err(|e| log::error!("{e}"))
-            .ok();
-    }
-
-    // Verify the incoming packet
-    let verified_packet = match rate_limiter.verify_packet(Some(addr.ip()), &buf[..len], &mut dst_buf) {
-        Ok(packet) => packet,
-        Err(TunnResult::WriteToNetwork(cookie)) => {
-            log::info!("Send back cookie to: {addr}");
-            udp.send_to(cookie, addr).await.tap_err(|e| log::error!("{e}")).ok();
-            continue;
-        }
-        Err(err) => {
-            log::warn!("{err:?}");
-            continue;
-        }
-    };
-
-    // Check if this is a registered peer, if not, just skip
-    let registered_peer = match parse_peer(
-        verified_packet,
-        &registered_peers,
-        &static_private,
-        &static_public
-    ) {
-        Ok(Some(peer)) => peer.lock().await,
-        Ok(None) => {
-            log::warn!("Peer not registered: {addr}");
-            continue;
-        }
-        Err(err) => {
-            log::error!("{err}");
-            continue;
-        },
-    };
-
-    // Look up if the peer is already connected
-    if let Some(peer_tx) = active_peers.get_mut(&registered_peer.public_key) {
-        // We found the peer as connected, even though the addr was not known
-        log::info!("udp: received {len} bytes from {addr} which is a known peer with unknown addr");
-        peer_tx.send(Event::WgVerified(buf[..len].to_vec().into()))
-            .tap_err(|err| log::error!("{err}"))
-            .ok();
-    } else {
-        // If it isn't, start a new tunnel
-        log::info!("udp: received {len} bytes from {addr} from unknown peer, starting tunnel");
-        // NOTE: we are NOT passing in the existing rate_limiter. Re-visit this
-        // choice later.
-        log::warn!("Creating new rate limiter, consider re-using");
-        let (join_handle, peer_tx) = crate::wg_tunnel::start_wg_tunnel(
-            addr,
-            udp.clone(),
-            static_private.clone(),
-            registered_peer.public_key,
-            registered_peer.index,
-            registered_peer.allowed_ips,
-            tun_task_tx.clone(),
-        );
-
-        peers_by_ip.lock().unwrap().insert(registered_peer.allowed_ips, peer_tx.clone());
-        active_peers_by_addr.insert(addr, peer_tx.clone());
-
-        peer_tx.send(Event::Wg(buf[..len].to_vec().into()))
-            .tap_err(|e| log::error!("{e}"))
-            .ok();
-
-        log::info!("Adding peer: {addr}");
-        active_peers.insert(registered_peer.public_key, peer_tx);
-        active_peers_task_handles.push(join_handle);
-    }
 }
 
 fn parse_peer<'a>(

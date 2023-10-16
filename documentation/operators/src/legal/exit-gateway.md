@@ -74,7 +74,7 @@ In the new setup, the main change is to expand this short allow list to a more p
 As of now we the gateways will be defaulted to Tornull’s (note: Not affiliated with Tor) deny list - reproduction permitted under Creative Commons Attribution 3.0 United States License which is IP-based, e.g., `ExitPolicy reject 5.188.10.0/23:*`. Whether we will stick with this list, do modifications (likely) or compile another one is still a subject of discussion.
 
 <:--
-These policies will be either reused without modification from Tor / Tornull (license permitting), or customised and updated in a Nym crowdsourced community effort.
+These policies will be either reused without modification from Tor / Tornull (license permitting), or customized and updated in a Nym crowd-sourced community effort.
 -->
 
 The Gateways will display an HTML page similar to that suggested by [Tor](https://gitlab.torproject.org/tpo/core/tor/-/raw/HEAD/contrib/operator-tools/tor-exit-notice.html) for exit relays on port 80 and port 443. This will allow the operator to provide information about their Gateway, possibly including the currently configured exit policy, without having to actively communicate with law enforcement or regulatory authorities. It also makes the behaviour of the Gateway transparent and even computable (a possible feature would be to offer a machine readable form of the notice in JSON or YAML).
@@ -129,7 +129,7 @@ git checkout develop
 git pull origin develop
 ```
 
-3. Make your own branch based off `develop` and swith to it
+3. Make your own branch based off `develop` and switch to it
 
 ```sh
 git branch operators/legal-forum/<MY_BRANCH_NAME> # choose a descriptive and consiose name without using <>

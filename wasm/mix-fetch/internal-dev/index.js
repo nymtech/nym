@@ -13,55 +13,86 @@
 // limitations under the License.
 
 class WebWorkerClient {
-    worker = null;
+  worker = null;
 
-    constructor() {
-        this.worker = new Worker('./worker.js');
+  constructor() {
+    this.worker = new Worker("./worker.js");
 
-        this.worker.onmessage = (ev) => {
-            if (ev.data && ev.data.kind) {
-                switch (ev.data.kind) {
-                    case 'DisplayString':
-                        const { rawString } = ev.data.args;
-                        displayReceivedRawString(rawString)
-                        break;
-                }
-            }
-        };
-    }
-
-    doFetch = (target) => {
-        if (!this.worker) {
-            console.error('Could not send message because worker does not exist');
-            return;
+    this.worker.onmessage = (ev) => {
+      if (ev.data && ev.data.kind) {
+        switch (ev.data.kind) {
+          case "DisplayString":
+            const { rawString } = ev.data.args;
+            displayReceivedRawString(rawString);
+            break;
         }
+      }
+    };
+  }
 
-        this.worker.postMessage({
-            kind: 'FetchPayload',
-            args: {
-                target,
-            },
-        });
+  doFetch = (target) => {
+    if (!this.worker) {
+      console.error("Could not send message because worker does not exist");
+      return;
     }
+
+    this.worker.postMessage({
+      kind: "FetchPayload",
+      args: {
+        target,
+      },
+    });
+  };
 }
 
 let client = null;
 
 async function main() {
-    client = new WebWorkerClient();
+  client = new WebWorkerClient();
 
-    const fetchButton = document.querySelector('#fetch-button');
-    fetchButton.onclick = function () {
-        doFetch();
+  const fetchButtonText = document.querySelector("#fetch-button");
+  fetchButtonText.onclick = function (e) {
+    document.getElementById("output").innerHTML = "";
+    if ($("#fetch_payload").val().trim() === "") {
+      e.preventDefault();
+      let errorDiv = document.createElement("div");
+      let paragraph = document.createElement("p");
+      paragraph.style.color = "red";
+      paragraph.innerText = "please enter a valid request!!";
+
+      errorDiv.appendChild(paragraph);
+      document.getElementById("output").appendChild(errorDiv);
+      return false;
     }
+
+    doFetch();
+  };
 }
 
-
 async function doFetch() {
-    const payload = document.getElementById('fetch_payload').value;
-    await client.doFetch(payload)
+  const url = document.getElementById("fetch_payload").value;
+  const returnJson = document.getElementById("returnJsonToggle").checked;
 
-    displaySend(`clicked the button and the payload is: ${payload}...`);
+  displaySend(`Fetching: ${url}`);
+
+  try {
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! Status: ${response.status}`);
+    }
+
+    let data;
+    if (returnJson) {
+      data = await response.json();
+    } else {
+      data = await response.text();
+    }
+
+    displayReceivedRawString(data);
+  } catch (error) {
+    console.error("There was a problem fetching the data:", error);
+  }
 }
 
 /**
@@ -70,27 +101,34 @@ async function doFetch() {
  * @param {string} message
  */
 function displaySend(message) {
-    let timestamp = new Date().toISOString().substr(11, 12);
+  let timestamp = new Date().toISOString().substr(11, 12);
 
-    let sendDiv = document.createElement('div');
-    let paragraph = document.createElement('p');
-    paragraph.setAttribute('style', 'color: blue');
-    let paragraphContent = document.createTextNode(timestamp + ' sent >>> ' + message);
-    paragraph.appendChild(paragraphContent);
+  let sendDiv = document.createElement("div");
+  let paragraph = document.createElement("p");
+  paragraph.style.color = "blue";
+  paragraph.innerText = timestamp + " sent >>> " + message;
 
-    sendDiv.appendChild(paragraph);
-    document.getElementById('output').appendChild(sendDiv);
+  sendDiv.appendChild(paragraph);
+  document.getElementById("output").appendChild(sendDiv);
 }
 
 function displayReceivedRawString(raw) {
-    let timestamp = new Date().toISOString().substr(11, 12);
-    let receivedDiv = document.createElement('div');
-    let paragraph = document.createElement('p');
-    paragraph.setAttribute('style', 'color: green');
-    let paragraphContent = document.createTextNode(timestamp + ' received >>> ' + raw);
-    paragraph.appendChild(paragraphContent);
-    receivedDiv.appendChild(paragraph);
-    document.getElementById('output').appendChild(receivedDiv);
+  let timestamp = new Date().toISOString().substr(11, 12);
+  let receivedDiv = document.createElement("div");
+  receivedDiv.style.overflow = "auto";
+  receivedDiv.style.wordWrap = "break-word";
+
+  let paragraph = document.createElement("p");
+  paragraph.style.color = "green";
+  paragraph.style.fontWeight = "bold";
+  paragraph.innerText = timestamp + " received >>> " + JSON.stringify(raw);
+
+  receivedDiv.appendChild(paragraph);
+
+  document.getElementById("output").appendChild(receivedDiv);
+
+  let lineBreak = document.createElement("br");
+  document.getElementById("output").appendChild(lineBreak);
 }
 
 main();

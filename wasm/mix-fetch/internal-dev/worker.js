@@ -12,31 +12,32 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-const RUST_WASM_URL = "mix_fetch_wasm_bg.wasm"
-const GO_WASM_URL = "go_conn.wasm"
+const RUST_WASM_URL = "mix_fetch_wasm_bg.wasm";
+const GO_WASM_URL = "go_conn.wasm";
 
-importScripts('mix_fetch_wasm.js');
-importScripts('wasm_exec.js');
+importScripts("mix_fetch_wasm.js");
+importScripts("wasm_exec.js");
 
-console.log('Initializing worker');
+console.log("Initializing worker");
 
 // wasm_bindgen creates a global variable (with the exports attached) that is in scope after `importScripts`
 const {
-    default_debug,
-    no_cover_debug,
-    NymClient,
-    set_panic_hook,
-    Config,
-    GatewayEndpointConfig,
-    ClientStorage,
-    MixFetchConfig,
-    send_client_data,
-    start_new_mixnet_connection,
-    setupMixFetch,
-    disconnectMixFetch,
-    setupMixFetchWithConfig,
-    mix_fetch_initialised,
-    finish_mixnet_connection} = wasm_bindgen;
+  default_debug,
+  no_cover_debug,
+  NymClient,
+  set_panic_hook,
+  Config,
+  GatewayEndpointConfig,
+  ClientStorage,
+  MixFetchConfig,
+  send_client_data,
+  start_new_mixnet_connection,
+  setupMixFetch,
+  disconnectMixFetch,
+  setupMixFetchWithConfig,
+  mix_fetch_initialised,
+  finish_mixnet_connection,
+} = wasm_bindgen;
 
 let client = null;
 let tester = null;
@@ -44,93 +45,101 @@ const go = new Go(); // Defined in wasm_exec.js
 var goWasm;
 
 async function logFetchResult(res) {
-    console.log(res)
-    let text = await res.text()
-    console.log("HEADERS:     ", ...res.headers)
-    console.log("STATUS:      ", res.status)
-    console.log("STATUS TEXT: ", res.statusText)
-    console.log("OK:          ", res.ok)
-    console.log("TYPE:        ", res.type)
-    console.log("URL:         ", res.url)
-    console.log("BODYUSED:    ", res.bodyUsed)
-    console.log("REDIRECTED:  ", res.redirected)
-    console.log("TEXT:        ", text)
+  let text = await res.text();
+  console.log("HEADERS:     ", ...res.headers);
+  console.log("STATUS:      ", res.status);
+  console.log("STATUS TEXT: ", res.statusText);
+  console.log("OK:          ", res.ok);
+  console.log("TYPE:        ", res.type);
+  console.log("URL:         ", res.url);
+  console.log("BODYUSED:    ", res.bodyUsed);
+  console.log("REDIRECTED:  ", res.redirected);
+  console.log("TEXT:        ", text);
+
+  try {
+    console.log(text);
 
     self.postMessage({
-        kind: 'DisplayString',
-        args: {
-            rawString: text,
-        },
+      kind: "DisplayString",
+      args: {
+        rawString: text,
+      },
     });
+  } catch (error) {
+    console.error("Error: ", error);
+  }
 }
 
 async function wasm_bindgenSetup() {
-    const preferredGateway = "6qQYb4ArXANU6HJDxzH4PFCUqYb39Dae2Gem2KpxescM";
-    const validator = 'https://qa-nym-api.qa.nymte.ch/api';
+  const preferredGateway = env.process.PREFERRED_GATEWAY;
+  const validator = env.process.PREFERRED_VALIDATOR;
 
-    // local
-    const mixFetchNetworkRequesterAddress= "2o47bhnXWna6VEyt4mXMGQQAbXfpKmX7BkjkxUz8uQVi.6uQGnCqSczpXwh86NdbsCoDDXuqZQM9Uwko8GE7uC9g8@6qQYb4ArXANU6HJDxzH4PFCUqYb39Dae2Gem2KpxescM";
-    // const mixFetchNetworkRequesterAddress= "GqiGWmKRCbGQFSqH88BzLKijvZgipnqhmbNFsmkZw84t.4L8sXFuAUyUYyHZYgMdM3AtiusKnYUft6Pd8e41rrCHA@6qQYb4ArXANU6HJDxzH4PFCUqYb39Dae2Gem2KpxescM";
+  // local
+  const mixFetchNetworkRequesterAddress =
+    env.process.PREFFERED_NETWORK_REQUESTER;
+  // const mixFetchNetworkRequesterAddress= "GqiGWmKRCbGQFSqH88BzLKijvZgipnqhmbNFsmkZw84t.4L8sXFuAUyUYyHZYgMdM3AtiusKnYUft6Pd8e41rrCHA@6qQYb4ArXANU6HJDxzH4PFCUqYb39Dae2Gem2KpxescM";
 
-    // STEP 1. construct config
-    // those are just some examples, there are obviously more permutations;
-    // note, the extra optional argument is of the following type:
-    // /*
-    //     export interface MixFetchConfigOpts {
-    //         id?: string;
-    //         nymApi?: string;
-    //         nyxd?: string;
-    //         debug?: DebugWasm;
-    //     }
-    //  */
-    //
-    // const debug = no_cover_debug()
-    //
-    // #1
-    // const config = new MixFetchConfig(mixFetchNetworkRequesterAddress, { id: 'my-awesome-mix-fetch-client', nymApi: validator, debug: debug} );
-    // #2
-    // const config = new MixFetchConfig(mixFetchNetworkRequesterAddress, { nymApi: validator, debug: debug} );
-    // #3
-    // const config = new MixFetchConfig(mixFetchNetworkRequesterAddress, { id: 'my-awesome-mix-fetch-client' } );
-    //
-    // #4
-    const differentDebug = default_debug()
-    const updatedTraffic = differentDebug.traffic;
-    updatedTraffic.use_extended_packet_size = true
-    updatedTraffic.average_packet_delay_ms = 666;
-    differentDebug.traffic = updatedTraffic;
+  // STEP 1. construct config
+  // those are just some examples, there are obviously more permutations;
+  // note, the extra optional argument is of the following type:
+  // /*
+  //     export interface MixFetchConfigOpts {
+  //         id?: string;
+  //         nymApi?: string;
+  //         nyxd?: string;
+  //         debug?: DebugWasm;
+  //     }
+  //  */
+  //
+  // const debug = no_cover_debug()
+  //
+  // #1
+  // const config = new MixFetchConfig(mixFetchNetworkRequesterAddress, { id: 'my-awesome-mix-fetch-client', nymApi: validator, debug: debug} );
+  // #2
+  // const config = new MixFetchConfig(mixFetchNetworkRequesterAddress, { nymApi: validator, debug: debug} );
+  // #3
+  // const config = new MixFetchConfig(mixFetchNetworkRequesterAddress, { id: 'my-awesome-mix-fetch-client' } );
+  //
+  // #4
+  const differentDebug = default_debug();
+  const updatedTraffic = differentDebug.traffic;
+  updatedTraffic.use_extended_packet_size = true;
+  updatedTraffic.average_packet_delay_ms = 666;
+  differentDebug.traffic = updatedTraffic;
 
-    const config = new MixFetchConfig(mixFetchNetworkRequesterAddress, { debug: differentDebug } );
-    //
-    // // STEP 2. setup the client
-    // // note, the extra optional argument is of the following type:
-    // /*
-    //     export interface MixFetchOptsSimple {
-    //         preferredGateway?: string;
-    //         storagePassphrase?: string;
-    //     }
-    //  */
-    // #1
-    await setupMixFetchWithConfig(config)
-    //
-    // #2
-    // await setupMixFetchWithConfig(config, { storagePassphrase: "foomp" })
-    //
-    // #3
-    // await setupMixFetchWithConfig(config, { storagePassphrase: "foomp", preferredGateway })
+  const config = new MixFetchConfig(mixFetchNetworkRequesterAddress, {
+    debug: differentDebug,
+  });
+  //
+  // // STEP 2. setup the client
+  // // note, the extra optional argument is of the following type:
+  // /*
+  //     export interface MixFetchOptsSimple {
+  //         preferredGateway?: string;
+  //         storagePassphrase?: string;
+  //     }
+  //  */
+  // #1
+  await setupMixFetchWithConfig(config);
+  //
+  // #2
+  // await setupMixFetchWithConfig(config, { storagePassphrase: "foomp" })
+  //
+  // #3
+  // await setupMixFetchWithConfig(config, { storagePassphrase: "foomp", preferredGateway })
 }
 
 async function nativeSetup() {
-    // const preferredGateway = "6qQYb4ArXANU6HJDxzH4PFCUqYb39Dae2Gem2KpxescM";
-    // const validator = 'https://qa-nym-api.qa.nymte.ch/api';
+  const preferredGateway = process.env.PREFERRED_GATEWAY;
+  const validator = process.env.PREFERRED_VALIDATOR;
 
-    // local
-    // const preferredNetworkRequester= "2o47bhnXWna6VEyt4mXMGQQAbXfpKmX7BkjkxUz8uQVi.6uQGnCqSczpXwh86NdbsCoDDXuqZQM9Uwko8GE7uC9g8@6qQYb4ArXANU6HJDxzH4PFCUqYb39Dae2Gem2KpxescM";
-    // const preferredNetworkRequester= "GqiGWmKRCbGQFSqH88BzLKijvZgipnqhmbNFsmkZw84t.4L8sXFuAUyUYyHZYgMdM3AtiusKnYUft6Pd8e41rrCHA@6qQYb4ArXANU6HJDxzH4PFCUqYb39Dae2Gem2KpxescM";
+  // local
+  const preferredNetworkRequester = process.env.PREFFERED_NETWORK_REQUESTER;
+  // const preferredNetworkRequester= "GqiGWmKRCbGQFSqH88BzLKijvZgipnqhmbNFsmkZw84t.4L8sXFuAUyUYyHZYgMdM3AtiusKnYUft6Pd8e41rrCHA@6qQYb4ArXANU6HJDxzH4PFCUqYb39Dae2Gem2KpxescM";
 
-    // those are just some examples, there are obviously more permutations;
-    // note, the extra optional argument is of the following type:
-    /*
+  // those are just some examples, there are obviously more permutations;
+  // note, the extra optional argument is of the following type:
+  /*
         export interface MixFetchOpts extends MixFetchOptsSimple {
             clientId?: string;
             nymApiUrl?: string;
@@ -147,164 +156,173 @@ async function nativeSetup() {
     	and `DebugWasmOverride` is a rather nested struct that you can look up yourself : )
      */
 
-    // #1
-    // await setupMixFetch(preferredNetworkRequester)
-    // #2
-    // await setupMixFetch(preferredNetworkRequester, { nymApiUrl: validator })
-    // // #3
-    const noCoverTrafficOverride = {
-        traffic: { disableMainPoissonPacketDistribution: true },
-        coverTraffic: { disableLoopCoverTrafficStream: true },
-    }
-    const mixFetchOverride = {
-        requestTimeoutMs: 10000
-    }
+  // #1
+  // await setupMixFetch(preferredNetworkRequester)
+  // #2
+  // await setupMixFetch(preferredNetworkRequester, { nymApiUrl: validator })
+  // // #3
+  const noCoverTrafficOverride = {
+    traffic: { disableMainPoissonPacketDistribution: true },
+    coverTraffic: { disableLoopCoverTrafficStream: true },
+  };
+  const mixFetchOverride = {
+    requestTimeoutMs: 10000,
+  };
 
-    const extra = {
-        hiddenGateways: [
-            {
-                owner: "LoveIslandEnjoyer",
-                host: "gateway1.nymtech.net",
-                explicitIp: "213.219.38.119",
-                identityKey: "E3mvZTHQCdBvhfr178Swx9g4QG3kkRUun7YnToLMcMbM",
-                sphinxKey: "CYcrjoJ8GT7Dp54zViUyyRUfegeRCyPifWQZHRgMZrfX"
-            }
-        ]
-    }
+  const extra = {
+    hiddenGateways: [
+      {
+        owner: process.env.HIDDEN_GATEWAY_OWNER,
+        explicitIp: process.env.HIDDEN_GATEWAY_EXPLICIT_IP,
+        host: process.env.HIDDEN_GATEWAY_HOST,
+        sphinxKey: process.env.HIDDEN_GATEWAY_SPHINX_KEY,
+        identityKey: process.env.HIDDEN_GATEWAY_IDENTITY_KEY,
+      },
+    ],
+  };
 
-    await setupMixFetch({
-        // preferredNetworkRequester,
-        preferredGateway: "E3mvZTHQCdBvhfr178Swx9g4QG3kkRUun7YnToLMcMbM",
-        storagePassphrase: "foomp",
-        forceTls: true,
-        // nymApiUrl: validator,
-        clientId: "my-client",
-        clientOverride: noCoverTrafficOverride,
-        mixFetchOverride,
-        extra
-    })
+  console.log(extra);
+  console.log(preferredGateway);
+  console.log(validator);
+  console.log(preferredNetworkRequester);
+
+  await setupMixFetch({
+    preferredNetworkRequester,
+    preferredGateway: preferredGateway,
+    storagePassphrase: "foomp",
+    forceTls: true,
+    nymApiUrl: validator,
+    clientId: "my-client",
+    clientOverride: noCoverTrafficOverride,
+    mixFetchOverride,
+    extra,
+  });
 }
 
 async function testMixFetch() {
-    console.log('Instantiating Mix Fetch...');
-    // await wasm_bindgenSetup()
+  console.log("Instantiating Mix Fetch...");
+  // await wasm_bindgenSetup()
 
-    await nativeSetup()
+  await nativeSetup();
 
+  console.log("Mix Fetch client running!");
 
-    console.log('Mix Fetch client running!');
+  // Set callback to handle messages passed to the worker.
+  self.onmessage = async (event) => {
+    if (event.data && event.data.kind) {
+      switch (event.data.kind) {
+        case "FetchPayload": {
+          const { target } = event.data.args;
+          const url = target;
 
-    // Set callback to handle messages passed to the worker.
-    self.onmessage = async event => {
-        if (event.data && event.data.kind) {
-            switch (event.data.kind) {
-                case 'FetchPayload': {
-                    const {target} = event.data.args;
-                    const url = target;
+          // const args = { mode: "ors", redirect: "manual", signal }
+          const args = {
+            mode: "unsafe-ignore-cors",
+            headers: {
+              "Content-Type": "application/json",
+            },
+          };
 
-                    // const args = { mode: "ors", redirect: "manual", signal }
-                    const args = { mode: "unsafe-ignore-cors" }
+          try {
+            console.log("using mixFetch...");
+            const mixFetchRes = await mixFetch(url, args);
+            console.log(">>> MIX FETCH");
+            await logFetchResult(mixFetchRes);
+            console.log("done");
+          } catch (e) {
+            console.error("mix fetch request failure: ", e);
+          }
 
-                    try {
-                        console.log('using mixFetch...');
-                        const mixFetchRes = await mixFetch(url, args)
-                        console.log(">>> MIX FETCH")
-                        await logFetchResult(mixFetchRes)
+          // console.log("will disconnect");
+          // await disconnectMixFetch()
+          //
+          // try {
+          //     console.log('using mixFetch...');
+          //     const mixFetchRes = await mixFetch(url, args)
+          //     console.log(">>> MIX FETCH")
+          //     await logFetchResult(mixFetchRes)
+          //
+          //     console.log('done')
+          //
+          // } catch(e) {
+          //     console.error("mix fetch request failure: ", e)
+          // }
 
-                        console.log('done')
-
-                    } catch(e) {
-                        console.error("mix fetch request failure: ", e)
-                    }
-
-                    // console.log("will disconnect");
-                    // await disconnectMixFetch()
-                    //
-                    // try {
-                    //     console.log('using mixFetch...');
-                    //     const mixFetchRes = await mixFetch(url, args)
-                    //     console.log(">>> MIX FETCH")
-                    //     await logFetchResult(mixFetchRes)
-                    //
-                    //     console.log('done')
-                    //
-                    // } catch(e) {
-                    //     console.error("mix fetch request failure: ", e)
-                    // }
-
-
-                    // try {
-                    //     console.log('using normal Fetch...');
-                    //     const fetchRes = await fetch(url, args)
-                    //     console.log(">>> NORMAL FETCH")
-                    //     await logFetchResult(fetchRes)
-                    // } catch(e) {
-                    //     console.error("fetch request failure: ", e)
-                    // }
-                }
-            }
+          // try {
+          //     console.log('using normal Fetch...');
+          //     const fetchRes = await fetch(url, args)
+          //     console.log(">>> NORMAL FETCH")
+          //     await logFetchResult(fetchRes)
+          // } catch(e) {
+          //     console.error("fetch request failure: ", e)
+          // }
         }
-    };
+      }
+    }
+  };
 }
-
 
 // TODO: look into https://www.aaron-powell.com/posts/2019-02-08-golang-wasm-5-compiling-with-webpack/
 async function loadGoWasm() {
-    const resp = await fetch(GO_WASM_URL);
+  const resp = await fetch(GO_WASM_URL);
 
-    if ('instantiateStreaming' in WebAssembly) {
-        const wasmObj = await WebAssembly.instantiateStreaming(resp, go.importObject)
-        goWasm = wasmObj.instance
-        go.run(goWasm)
-    } else {
-        const bytes  = await resp.arrayBuffer()
-        const wasmObj = await WebAssembly.instantiate(bytes, go.importObject)
-        goWasm = wasmObj.instance
-        go.run(goWasm)
-    }
+  if ("instantiateStreaming" in WebAssembly) {
+    const wasmObj = await WebAssembly.instantiateStreaming(
+      resp,
+      go.importObject
+    );
+    goWasm = wasmObj.instance;
+    go.run(goWasm);
+  } else {
+    const bytes = await resp.arrayBuffer();
+    const wasmObj = await WebAssembly.instantiate(bytes, go.importObject);
+    goWasm = wasmObj.instance;
+    go.run(goWasm);
+  }
 }
 
 function setupRsGoBridge() {
-    // (note: reason for intermediate `__rs_go_bridge__` object is to decrease global scope bloat
-    // and to discourage users from trying to call those methods directly)
-    self.__rs_go_bridge__ = {}
-    self.__rs_go_bridge__.send_client_data = send_client_data
-    self.__rs_go_bridge__.start_new_mixnet_connection = start_new_mixnet_connection
-    self.__rs_go_bridge__.mix_fetch_initialised = mix_fetch_initialised
-    self.__rs_go_bridge__.finish_mixnet_connection = finish_mixnet_connection
+  // (note: reason for intermediate `__rs_go_bridge__` object is to decrease global scope bloat
+  // and to discourage users from trying to call those methods directly)
+  self.__rs_go_bridge__ = {};
+  self.__rs_go_bridge__.send_client_data = send_client_data;
+  self.__rs_go_bridge__.start_new_mixnet_connection =
+    start_new_mixnet_connection;
+  self.__rs_go_bridge__.mix_fetch_initialised = mix_fetch_initialised;
+  self.__rs_go_bridge__.finish_mixnet_connection = finish_mixnet_connection;
 }
 
 async function main() {
-    console.log(">>>>>>>>>>>>>>>>>>>>> JS WORKER MAIN START");
+  console.log(">>>>>>>>>>>>>>>>>>>>> JS WORKER MAIN START");
 
-    // load rust WASM package
-    await wasm_bindgen(RUST_WASM_URL);
-    console.log('Loaded RUST WASM');
+  // load rust WASM package
+  await wasm_bindgen(RUST_WASM_URL);
+  console.log("Loaded RUST WASM");
 
-    // load go WASM package
-    await loadGoWasm();
-    console.log("Loaded GO WASM");
+  // load go WASM package
+  await loadGoWasm();
+  console.log("Loaded GO WASM");
 
-    // sets up better stack traces in case of in-rust panics
-    set_panic_hook();
+  // sets up better stack traces in case of in-rust panics
+  set_panic_hook();
 
-    setupRsGoBridge();
+  setupRsGoBridge();
 
-    goWasmSetLogging("trace")
+  goWasmSetLogging("trace");
 
-    // test mixFetch
-    await testMixFetch();
-    //
-    // // run test on simplified and dedicated tester:
-    // // await testWithTester()
-    //
-    // // hook-up the whole client for testing
-    // // await testWithNymClient()
-    //
-    // // 'Normal' client setup (to send 'normal' messages)
-    // // await normalNymClientUsage()
-    //
-    console.log(">>>>>>>>>>>>>>>>>>>>> JS WORKER MAIN END")
+  // test mixFetch
+  // await testMixFetch();
+  //
+  // // run test on simplified and dedicated tester:
+  // // await testWithTester()
+  //
+  // // hook-up the whole client for testing
+  // // await testWithNymClient()
+  //
+  // // 'Normal' client setup (to send 'normal' messages)
+  // // await normalNymClientUsage()
+  //
+  console.log(">>>>>>>>>>>>>>>>>>>>> JS WORKER MAIN END");
 }
 
 // Let's get started!

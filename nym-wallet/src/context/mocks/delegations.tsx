@@ -26,11 +26,11 @@ let mockDelegations: DelegationWithEverything[] = [
     cost_params: {
       profit_margin_percent: '0.04',
       interval_operating_cost: {
-        amount: '40',
+        amount: '20',
         denom: 'nym',
       },
     },
-    stake_saturation: '0.5',
+    stake_saturation: '0.2',
     avg_uptime_percent: 0.5,
     accumulated_by_delegates: { amount: '0', denom: 'nym' },
     accumulated_by_operator: { amount: '0', denom: 'nym' },
@@ -51,7 +51,7 @@ let mockDelegations: DelegationWithEverything[] = [
     cost_params: {
       profit_margin_percent: '0.04',
       interval_operating_cost: {
-        amount: '40',
+        amount: '60',
         denom: 'nym',
       },
     },

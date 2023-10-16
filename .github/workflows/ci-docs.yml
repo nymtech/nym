@@ -32,7 +32,7 @@ jobs:
       - name: Install mdbook plugins
         run: |
           cargo install --vers "=0.2.2" mdbook-variables && cargo install \
-            --vers "^1.8.0" mdbook-admonish install && cargo install --vers \
+            --vers "^1.8.0" mdbook-admonish install --force && cargo install --vers \
             "^0.1.2" mdbook-last-changed && cargo install --vers "^0.1.2" mdbook-theme \
             && cargo install --vers "^0.7.7" mdbook-linkcheck
       - name: Build all projects in documentation/ & move to ~/dist/docs/

@@ -50,7 +50,7 @@ pub fn peer_static_public_key() -> x25519::PublicKey {
     let peer_static_public_bytes: [u8; 32] = decode_base64_key(PEER);
     let peer_static_public = x25519::PublicKey::try_from(peer_static_public_bytes).unwrap();
     info!(
-        "peer public key: {}",
+        "Adding wg peer public key: {}",
         general_purpose::STANDARD.encode(peer_static_public)
     );
     peer_static_public

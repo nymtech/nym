@@ -110,6 +110,7 @@ pub(crate) async fn start_udp_listener(
                             .send(Event::Wg(buf[..len].to_vec().into()))
                             .tap_err(|e| log::error!("{e}"))
                             .ok();
+                        continue;
                     }
 
                     // Verify the incoming packet
@@ -171,7 +172,7 @@ pub(crate) async fn start_udp_listener(
                         log::info!("udp: received {len} bytes from {addr} from unknown peer, starting tunnel");
                         // NOTE: we are NOT passing in the existing rate_limiter. Re-visit this
                         // choice later.
-                        log::warn!("Creating new rate limiter, consider re-using");
+                        log::warn!("Creating new rate limiter, consider re-using?");
                         let (join_handle, peer_tx) = crate::wg_tunnel::start_wg_tunnel(
                             addr,
                             udp.clone(),

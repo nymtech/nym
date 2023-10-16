@@ -210,7 +210,7 @@ export const PageMixnodes: FCWithChildren = () => {
           component={RRDLink}
           to={`/network-components/mixnode/${params.row.mix_id}`}
         >
-          {params.value}
+          {params.value}%
         </MuiLink>
       ),
     },
@@ -233,7 +233,7 @@ export const PageMixnodes: FCWithChildren = () => {
           component={RRDLink}
           to={`/network-components/mixnode/${params.row.mix_id}`}
         >
-          {params.value}
+          {params.value} NYM
         </MuiLink>
       ),
     },
@@ -256,7 +256,7 @@ export const PageMixnodes: FCWithChildren = () => {
           component={RRDLink}
           to={`/network-components/mixnode/${params.row.mix_id}`}
         >
-          {params.value}
+          {params.value}%
         </MuiLink>
       ),
     },

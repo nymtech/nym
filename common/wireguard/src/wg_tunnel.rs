@@ -15,7 +15,7 @@ use tokio::{
 };
 
 use crate::{
-    error::WgError, event::Event, network_table::NetworkTable, udp_listener::PeerIdx, TunTaskTx,
+    error::WgError, event::Event, network_table::NetworkTable, registered_peers::PeerIdx, TunTaskTx,
 };
 
 const HANDSHAKE_MAX_RATE: u64 = 10;
@@ -59,8 +59,8 @@ impl WireGuardTunnel {
         endpoint: SocketAddr,
         static_private: x25519::StaticSecret,
         peer_static_public: x25519::PublicKey,
-        peer_allowed_ips: ip_network::IpNetwork,
         index: PeerIdx,
+        peer_allowed_ips: ip_network::IpNetwork,
         // rate_limiter: Option<RateLimiter>,
         tunnel_tx: TunTaskTx,
     ) -> (Self, mpsc::UnboundedSender<Event>) {
@@ -145,7 +145,7 @@ impl WireGuardTunnel {
                         break;
                     },
                 },
-                _ = tokio::time::sleep(Duration::from_millis(250)) => {
+                () = tokio::time::sleep(Duration::from_millis(250)) => {
                     let _ = self.update_wg_timers()
                         .await
                         .map_err(|err| error!("WireGuard tunnel: update_wg_timers error: {err}"));
@@ -287,7 +287,7 @@ impl WireGuardTunnel {
                     return;
                 };
                 peer.format_handshake_initiation(&mut buf[..], false);
-                self.handle_routine_tun_result(result).await
+                self.handle_routine_tun_result(result).await;
             }
             TunnResult::Err(err) => {
                 error!("Failed to prepare routine packet for WireGuard endpoint: {err:?}");
@@ -305,8 +305,8 @@ pub(crate) fn start_wg_tunnel(
     udp: Arc<UdpSocket>,
     static_private: x25519::StaticSecret,
     peer_static_public: x25519::PublicKey,
-    peer_allowed_ips: ip_network::IpNetwork,
     peer_index: PeerIdx,
+    peer_allowed_ips: ip_network::IpNetwork,
     tunnel_tx: TunTaskTx,
 ) -> (
     tokio::task::JoinHandle<x25519::PublicKey>,
@@ -317,8 +317,8 @@ pub(crate) fn start_wg_tunnel(
         endpoint,
         static_private,
         peer_static_public,
-        peer_allowed_ips,
         peer_index,
+        peer_allowed_ips,
         tunnel_tx,
     );
     let join_handle = tokio::spawn(async move {

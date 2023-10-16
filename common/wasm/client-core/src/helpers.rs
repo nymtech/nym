@@ -86,13 +86,15 @@ pub fn current_network_topology(nym_api_url: String) -> Promise {
 
 pub async fn setup_gateway_wasm(
     client_store: &ClientStorage,
+    force_tls: bool,
     chosen_gateway: Option<IdentityKey>,
     gateways: &[gateway::Node],
 ) -> Result<InitialisationResult, WasmCoreError> {
     let setup = if client_store.has_full_gateway_info().await? {
         GatewaySetup::MustLoad
     } else {
-        let selection_spec = GatewaySelectionSpecification::new(chosen_gateway.clone(), None);
+        let selection_spec =
+            GatewaySelectionSpecification::new(chosen_gateway.clone(), None, force_tls);
 
         GatewaySetup::New {
             specification: selection_spec,
@@ -108,19 +110,21 @@ pub async fn setup_gateway_wasm(
 
 pub async fn setup_gateway_from_api(
     client_store: &ClientStorage,
+    force_tls: bool,
     chosen_gateway: Option<IdentityKey>,
     nym_apis: &[Url],
 ) -> Result<InitialisationResult, WasmCoreError> {
     let mut rng = thread_rng();
     let gateways = current_gateways(&mut rng, nym_apis).await?;
-    setup_gateway_wasm(client_store, chosen_gateway, &gateways).await
+    setup_gateway_wasm(client_store, force_tls, chosen_gateway, &gateways).await
 }
 
 pub async fn setup_from_topology(
     explicit_gateway: Option<IdentityKey>,
+    force_tls: bool,
     topology: &NymTopology,
     client_store: &ClientStorage,
 ) -> Result<InitialisationResult, WasmCoreError> {
     let gateways = topology.gateways();
-    setup_gateway_wasm(client_store, explicit_gateway, gateways).await
+    setup_gateway_wasm(client_store, force_tls, explicit_gateway, gateways).await
 }

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 pub mod gateway;
+pub mod health;
 pub mod mixnode;
 pub mod network_requester;
 pub mod node;

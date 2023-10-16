@@ -61,6 +61,9 @@ pub struct MixFetchOptsSimple {
     pub(crate) preferred_network_requester: Option<String>,
 
     #[tsify(optional)]
+    pub(crate) force_tls: Option<bool>,
+
+    #[tsify(optional)]
     pub(crate) storage_passphrase: Option<String>,
 }
 
@@ -172,8 +175,10 @@ async fn setup_mix_fetch_async(
 ) -> Result<(), MixFetchError> {
     let preferred_gateway = opts.preferred_gateway;
     let storage_passphrase = opts.storage_passphrase;
+    let force_tls = opts.force_tls.unwrap_or_default();
     let client = MixFetchClient::new_async(
         config,
+        force_tls,
         preferred_gateway,
         storage_passphrase,
         Some(hack_opts),

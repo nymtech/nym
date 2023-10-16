@@ -174,7 +174,10 @@ async fn measure_latency(gateway: &gateway::Node) -> Result<GatewayWithLatency, 
 pub async fn choose_gateway_by_latency<R: Rng>(
     rng: &mut R,
     gateways: &[gateway::Node],
+    must_use_tls: bool,
 ) -> Result<gateway::Node, ClientCoreError> {
+    let gateways = filter_by_tls(gateways, must_use_tls)?;
+
     info!(
         "choosing gateway by latency, pinging {} gateways ...",
         gateways.len()
@@ -210,28 +213,57 @@ pub async fn choose_gateway_by_latency<R: Rng>(
     Ok(chosen.gateway.clone())
 }
 
+fn filter_by_tls(
+    gateways: &[gateway::Node],
+    must_use_tls: bool,
+) -> Result<Vec<&gateway::Node>, ClientCoreError> {
+    if must_use_tls {
+        let filtered = gateways
+            .iter()
+            .filter(|g| g.clients_wss_port.is_some())
+            .collect::<Vec<_>>();
+
+        if filtered.is_empty() {
+            return Err(ClientCoreError::NoWssGateways);
+        }
+
+        Ok(filtered)
+    } else {
+        Ok(gateways.iter().collect())
+    }
+}
+
 pub(super) fn uniformly_random_gateway<R: Rng>(
     rng: &mut R,
     gateways: &[gateway::Node],
+    must_use_tls: bool,
 ) -> Result<gateway::Node, ClientCoreError> {
-    gateways
+    filter_by_tls(gateways, must_use_tls)?
         .choose(rng)
         .ok_or(ClientCoreError::NoGatewaysOnNetwork)
-        .cloned()
+        .map(|&r| r.clone())
 }
 
 pub(super) fn get_specified_gateway(
     gateway_identity: IdentityKeyRef,
     gateways: &[gateway::Node],
+    must_use_tls: bool,
 ) -> Result<gateway::Node, ClientCoreError> {
     let user_gateway = identity::PublicKey::from_base58_string(gateway_identity)
         .map_err(ClientCoreError::UnableToCreatePublicKeyFromGatewayId)?;
 
-    gateways
+    let gateway = gateways
         .iter()
         .find(|gateway| gateway.identity_key == user_gateway)
-        .ok_or_else(|| ClientCoreError::NoGatewayWithId(gateway_identity.to_string()))
-        .cloned()
+        .ok_or_else(|| ClientCoreError::NoGatewayWithId(gateway_identity.to_string()))?;
+
+    if must_use_tls && gateway.clients_wss_port.is_none() {
+        return Err(ClientCoreError::UnsupportedWssProtocol {
+            gateway: gateway_identity.to_string(),
+        });
+    }
+
+    Ok(gateway.clone())
 }
 
 pub(super) async fn register_with_gateway(

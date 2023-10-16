@@ -49,6 +49,7 @@ pub struct MixFetchClient {
 pub struct MixFetchClientBuilder {
     config: MixFetchConfig,
     preferred_gateway: Option<IdentityKey>,
+    force_tls: bool,
     hidden_gateways: Vec<SerializableGateway>,
 
     storage_passphrase: Option<String>,
@@ -59,6 +60,7 @@ impl MixFetchClientBuilder {
     #[wasm_bindgen(constructor)]
     pub fn new(
         config: MixFetchConfig,
+        force_tls: bool,
         preferred_gateway: Option<IdentityKey>,
         storage_passphrase: Option<String>,
         hack_opts: Option<HackOpts>,
@@ -66,6 +68,7 @@ impl MixFetchClientBuilder {
         MixFetchClientBuilder {
             config,
             preferred_gateway,
+            force_tls,
             hidden_gateways: hack_opts
                 .unwrap_or_default()
                 .hidden_gateways
@@ -105,7 +108,8 @@ impl MixFetchClientBuilder {
         let uses_hidden = !self.hidden_gateways.is_empty();
         let user_chosen = self.preferred_gateway.clone();
         let gateways = get_combined_gateways(self.hidden_gateways, &nym_api_endpoints).await?;
-        let init_res = setup_gateway_wasm(&client_store, user_chosen, &gateways).await?;
+        let init_res =
+            setup_gateway_wasm(&client_store, self.force_tls, user_chosen, &gateways).await?;
 
         let storage = Self::initialise_storage(&self.config, client_store);
 
@@ -151,27 +155,41 @@ impl MixFetchClientBuilder {
 impl MixFetchClient {
     pub(crate) async fn new_async(
         config: MixFetchConfig,
+        force_tls: bool,
         preferred_gateway: Option<IdentityKey>,
         storage_passphrase: Option<String>,
         hack_opts: Option<HackOpts>,
     ) -> Result<MixFetchClient, MixFetchError> {
-        MixFetchClientBuilder::new(config, preferred_gateway, storage_passphrase, hack_opts)
-            .start_client_async()
-            .await
+        MixFetchClientBuilder::new(
+            config,
+            force_tls,
+            preferred_gateway,
+            storage_passphrase,
+            hack_opts,
+        )
+        .start_client_async()
+        .await
     }
 
     #[wasm_bindgen(constructor)]
     #[allow(clippy::new_ret_no_self)]
     pub fn new(
         config: MixFetchConfig,
+        force_tls: bool,
         preferred_gateway: Option<IdentityKey>,
         storage_passphrase: Option<String>,
         hack_opts: Option<HackOpts>,
     ) -> Promise {
         future_to_promise(async move {
-            Self::new_async(config, preferred_gateway, storage_passphrase, hack_opts)
-                .await
-                .into_promise_result()
+            Self::new_async(
+                config,
+                force_tls,
+                preferred_gateway,
+                storage_passphrase,
+                hack_opts,
+            )
+            .await
+            .into_promise_result()
         })
     }
 

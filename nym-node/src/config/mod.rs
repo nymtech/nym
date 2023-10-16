@@ -1,6 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use nym_config::defaults::DEFAULT_NYM_NODE_HTTP_PORT;
 use serde::{Deserialize, Serialize};
 use serde_helpers::*;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
@@ -10,7 +11,7 @@ pub mod persistence;
 mod serde_helpers;
 
 pub const DEFAULT_WIREGUARD_PORT: u16 = 51820;
-pub const DEFAULT_HTTP_PORT: u16 = 8080;
+pub const DEFAULT_HTTP_PORT: u16 = DEFAULT_NYM_NODE_HTTP_PORT;
 
 // TODO: this is very much a WIP. we need proper ssl certificate support here
 #[derive(Debug, Deserialize, PartialEq, Serialize)]

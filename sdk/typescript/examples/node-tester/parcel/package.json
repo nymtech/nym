@@ -6,7 +6,7 @@
   "source": "src/index.html",
   "browserslist": "> 0.5%, last 2 versions, not dead",
   "dependencies": {
-    "@nymproject/sdk": "1.2.0-rc.1"
+    "@nymproject/sdk": ">=1.2.0-rc.10 || ^1"
   },
   "devDependencies": {
     "@types/jest": "^27.0.1",

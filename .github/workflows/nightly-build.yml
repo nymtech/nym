@@ -1,37 +1,30 @@
-name: Nightly builds
+name: nightly-build
 
 on:
+  workflow_dispatch:
   schedule:
     - cron: '14 1 * * *'
 jobs:
-  matrix_prep:
-    runs-on: ubuntu-20.04
-    outputs:
-      matrix: ${{ steps.set-matrix.outputs.matrix }}
-    steps:
-      # creates the matrix strategy from nightly_build_matrix_includes.json
-      - uses: actions/checkout@v3
-      - id: set-matrix
-        uses: JoshuaTheMiller/conditional-build-matrix@main
-        with:
-          inputFile: '.github/workflows/nightly_build_matrix_includes.json'
-          filter: '[?runOnEvent==`${{ github.event_name }}` || runOnEvent==`always`]'
   build:
-    needs: matrix_prep
     strategy:
-      matrix: ${{fromJson(needs.matrix_prep.outputs.matrix)}}
+      fail-fast: false
+      matrix:
+        rust: [stable, beta]
+        os: [custom-linux, windows10, custom-runner-mac-m1]
     runs-on: ${{ matrix.os }}
-    continue-on-error: ${{ matrix.rust == 'nightly' || matrix.rust == 'beta' || matrix.rust == 'stable' }}
+    env:
+      CARGO_TERM_COLOR: always
+    continue-on-error: true
     steps:
       - name: Install Dependencies (Linux)
-        run: sudo apt-get update && sudo apt-get install libwebkit2gtk-4.0-dev build-essential curl wget libssl-dev libgtk-3-dev libudev-dev squashfs-tools protobuf-compiler
+        run: sudo apt-get update && sudo apt-get install -y build-essential curl wget libssl-dev libudev-dev squashfs-tools protobuf-compiler
         continue-on-error: true
         if: matrix.os == 'custom-linux'
 
       - name: Check out repository code
         uses: actions/checkout@v3
 
-      - name: Install rust toolchain
+      - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
@@ -45,74 +38,35 @@ jobs:
           command: fmt
           args: --all -- --check
 
-      - name: Build all binaries
+      - name: Build binaries
         uses: actions-rs/cargo@v1
         with:
           command: build
           args: --workspace
 
-      - name: Reclaim some disk space
-        uses: actions-rs/cargo@v1
-        if: ${{ matrix.os == 'windows-latest' || matrix.os == 'custom-linux' }}
-        with:
-          command: clean
-
-      - name: Build all examples
+      - name: Build examples
         uses: actions-rs/cargo@v1
         with:
           command: build
           args: --workspace --examples
 
-      - name: Reclaim some disk space
-        uses: actions-rs/cargo@v1
-        if: ${{ matrix.os == 'windows-latest' || matrix.os == 'custom-linux' }}
-        with:
-          command: clean
-
-      - name: Run all tests
+      - name: Run unit tests
         uses: actions-rs/cargo@v1
         with:
           command: test
           args: --workspace
 
-      - name: Reclaim some disk space
-        uses: actions-rs/cargo@v1
-        if: ${{ matrix.os == 'windows-latest' || matrix.os == 'custom-linux' }}
-        with:
-          command: clean
-
-      - name: Run expensive tests
-        if: github.ref == 'refs/heads/develop' || github.event.pull_request.base.ref == 'develop' || github.event.pull_request.base.ref == 'master'
+      - name: Run slow unit tests
         uses: actions-rs/cargo@v1
         with:
           command: test
           args: --workspace -- --ignored
 
-      - name: Reclaim some disk space
+      - name: Clippy
         uses: actions-rs/cargo@v1
-        if: ${{ matrix.os == 'windows-latest' || matrix.os == 'custom-linux' }}
-        with:
-          command: clean
-
-      - uses: actions-rs/clippy-check@v1
-        name: Clippy checks
-        continue-on-error: true
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          args: --workspace
-
-      - name: Run clippy
-        uses: actions-rs/cargo@v1
-        if: ${{ matrix.rust != 'nightly' }}
         with:
           command: clippy
           args: --workspace --all-targets -- -D warnings
-
-      - name: Reclaim some disk space
-        uses: actions-rs/cargo@v1
-        if: ${{ matrix.os == 'windows-latest' || matrix.os == 'custom-linux' }}
-        with:
-          command: clean
 
   notification:
     needs: build

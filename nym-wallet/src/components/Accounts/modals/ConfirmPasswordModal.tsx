@@ -6,10 +6,14 @@ import { AccountsContext } from 'src/context';
 
 export const ConfirmPasswordModal = ({
   accountName,
+  modalTitle,
   onClose,
   onConfirm,
+  buttonTitle,
 }: {
   accountName?: string;
+  modalTitle: string;
+  buttonTitle: string;
   onClose: () => void;
   onConfirm: (password: string) => Promise<void>;
 }) => {
@@ -27,7 +31,7 @@ export const ConfirmPasswordModal = ({
     >
       <Paper>
         <DialogTitle>
-          <Typography variant="h6">Switch account</Typography>
+          <Typography variant="h6">{modalTitle}</Typography>
           <Typography fontSize="small" sx={{ color: 'grey.600' }}>
             Confirm password
           </Typography>
@@ -36,7 +40,7 @@ export const ConfirmPasswordModal = ({
           onConfirm={onConfirm}
           error={error}
           isLoading={isLoading}
-          buttonTitle="Switch account"
+          buttonTitle={buttonTitle}
           onCancel={onClose}
         />
       </Paper>

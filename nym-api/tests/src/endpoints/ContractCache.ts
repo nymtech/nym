@@ -5,6 +5,7 @@ import {
   EpochRewardParams,
   CurrentEpoch,
   ServiceProviders,
+  NymAddressNames,
 } from "../types/ContractCacheTypes";
 import { APIClient } from "./abstracts/APIClient";
 
@@ -94,6 +95,13 @@ export default class ContractCache extends APIClient {
   public async getServiceProviders(): Promise<ServiceProviders> {
     const response = await this.restClient.sendGet({
       route: `services`,
+    });
+    return response.data;
+  }
+
+  public async getNymAddressNames(): Promise<NymAddressNames> {
+    const response = await this.restClient.sendGet({
+      route: `names`,
     });
     return response.data;
   }

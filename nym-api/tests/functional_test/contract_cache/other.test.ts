@@ -21,4 +21,18 @@ describe("Get service provider info", (): void => {
       return;
     }
   });
+
+  it("Get Nym address names", async (): Promise<void> => {
+    const response = await contract.getNymAddressNames();
+    if ("[id]" in response) {
+      response.names.forEach((x) => {
+        expect(typeof x.name.name).toBe("string");
+        expect(typeof x.name.address.gateway_id).toBe("string");
+        expect(typeof x.id).toBe("number");
+        
+      });
+    } else if ("[ ]" in response) {
+      return;
+    }
+  });
 });

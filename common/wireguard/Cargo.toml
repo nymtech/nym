@@ -19,9 +19,14 @@ base64 = "0.21.3"
 #boringtun = "0.6.0"
 boringtun = { git = "https://github.com/cloudflare/boringtun", rev = "e1d6360d6ab4529fc942a078e4c54df107abe2ba" }
 bytes = "1.5.0"
+dashmap = "5.5.3"
+etherparse = "0.13.0"
 futures = "0.3.28"
 log.workspace = true
 nym-task = { path = "../task" }
 tap.workspace = true
 thiserror.workspace = true
-tokio = { workspace = true, features = ["rt-multi-thread", "net"]}
+tokio = { workspace = true, features = ["rt-multi-thread", "net", "io-util"] }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+tokio-tun = "0.9.0"

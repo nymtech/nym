@@ -6,7 +6,7 @@ export interface AllMixnodes {
 export interface BondInformation {
   mix_id: number;
   owner: string;
-  original_pledge: OriginalPledge;
+  original_pledge: DenominationAndAmount;
   layer: number;
   mix_node: Mixnode;
   proxy: string;
@@ -26,24 +26,13 @@ export interface RewardingDetails {
 
 export interface CostParams {
   profit_margin_percent: string;
-  interval_operating_cost: IntervalOperatingCost;
+  interval_operating_cost: DenominationAndAmount;
 }
 
-export interface IntervalOperatingCost {
+export interface DenominationAndAmount {
   denom: string;
   amount: string;
 }
-
-export interface OriginalPledge {
-  denom: string;
-  amount: string;
-}
-
-export interface TotalDelegation {
-  denom: string;
-  amount: string;
-}
-
 export interface Mixnode {
   host: string;
   mix_port: number;
@@ -55,8 +44,8 @@ export interface Mixnode {
 }
 
 export interface MixnodeBond {
-  pledge_amount: OriginalPledge;
-  total_delegation: TotalDelegation;
+  pledge_amount: DenominationAndAmount;
+  total_delegation: DenominationAndAmount;
   owner: string;
   layer: string;
   block_height: string;
@@ -86,7 +75,7 @@ export interface Gateway {
 }
 
 export interface AllGateways {
-  pledge_amount: OriginalPledge;
+  pledge_amount: DenominationAndAmount;
   owner: string;
   block_height: number;
   gateway: Gateway;
@@ -136,12 +125,30 @@ export interface Service {
   service_type: string;
   announcer: string;
   block_height: number;
-  deposit: Deposit;
+  deposit: DenominationAndAmount;
 }
 export interface NymAddress {
   address: string;
 }
-export interface Deposit {
-  denom: string;
-  amount: string;
+
+export interface NymAddressNames {
+  names: Names[];
+}
+export interface Names {
+  id: number;
+  name: Name;
+  owner: string;
+  block_height: number;
+  deposit: DenominationAndAmount;
+}
+export interface Name {
+  name: string;
+  address: NameAddress;
+  identity_key: string;
+}
+
+export interface NameAddress {
+  client_id: string;
+  client_enc: string;
+  gateway_id: string;
 }

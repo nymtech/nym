@@ -267,7 +267,7 @@ impl<A: Application> EphemeraStarterWithApplication<A> {
                 }
                 ws_stopped = websocket.run() => {
                     match ws_stopped {
-                        Ok(_) => info!("Websocket stopped unexpectedly"),
+                        Ok(()) => info!("Websocket stopped unexpectedly"),
                         Err(e) => error!("Websocket stopped with error: {}", e),
                     }
                 }
@@ -293,7 +293,7 @@ impl<A: Application> EphemeraStarterWithApplication<A> {
                 }
                 http_stopped = http => {
                     match http_stopped {
-                        Ok(_) => info!("Http server stopped unexpectedly"),
+                        Ok(()) => info!("Http server stopped unexpectedly"),
                         Err(e) => error!("Http server stopped with error: {}", e),
                     }
                 }
@@ -330,7 +330,7 @@ impl<A: Application> EphemeraStarterWithApplication<A> {
                 }
                 nw_stopped = network.start() => {
                     match nw_stopped {
-                        Ok(_) => info!("Network stopped unexpectedly"),
+                        Ok(()) => info!("Network stopped unexpectedly"),
                         Err(e) => error!("Network stopped with error: {e}",),
                     }
                 }

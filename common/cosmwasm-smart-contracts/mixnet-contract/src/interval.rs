@@ -572,7 +572,7 @@ mod tests {
         let env = mock_env();
 
         // epoch just begun
-        let interval = Interval {
+        let mut interval = Interval {
             id: 0,
             epochs_in_interval: 100,
             current_epoch_start: OffsetDateTime::from_unix_timestamp(
@@ -586,19 +586,16 @@ mod tests {
         assert!(!interval.is_current_epoch_over(&env));
 
         // current time == current epoch start
-        let mut interval = interval;
         interval.current_epoch_start =
             OffsetDateTime::from_unix_timestamp(env.block.time.seconds() as i64).unwrap();
         assert!(!interval.is_current_epoch_over(&env));
 
         // epoch HASN'T yet begun (weird edge case, but can happen if we decide to manually adjust things)
-        let mut interval = interval;
         interval.current_epoch_start =
             OffsetDateTime::from_unix_timestamp(env.block.time.seconds() as i64 + 100).unwrap();
         assert!(!interval.is_current_epoch_over(&env));
 
         // current_time = EXACTLY end of the epoch
-        let mut interval = interval;
         interval.current_epoch_start =
             OffsetDateTime::from_unix_timestamp(env.block.time.seconds() as i64).unwrap()
                 - interval.epoch_length;

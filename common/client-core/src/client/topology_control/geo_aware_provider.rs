@@ -199,7 +199,7 @@ fn group_mixnodes_by_country_code(
             if let Some(ref location) = m.location {
                 let country_code = location.two_letter_iso_country_code.clone();
                 let group_code = CountryGroup::new(country_code.as_str());
-                let mixnodes = acc.entry(group_code).or_insert_with(Vec::new);
+                let mixnodes = acc.entry(group_code).or_default();
                 mixnodes.push(m.mix_id);
             }
             acc

@@ -52,11 +52,11 @@ export interface ComputeRewardEstimation {
   active_in_rewarded_set: boolean;
   pledge_amount: number;
   total_delegation: number;
-  interval_operating_cost: IntervalOperatingCost;
+  interval_operating_cost: DenominationAndAmount;
   profit_margin_percent: string;
 }
 
-export interface IntervalOperatingCost {
+export interface DenominationAndAmount {
   denom: string;
   amount: string;
 }
@@ -138,11 +138,6 @@ export interface ActiveStatus {
   status: string;
 }
 
-export interface PledgeAmount {
-  denom: string;
-  amount: string;
-}
-
 export interface Gateway {
   host: string;
   mix_port: number;
@@ -154,7 +149,7 @@ export interface Gateway {
 }
 
 export interface GatewayBond {
-  pledge_amount: PledgeAmount;
+  pledge_amount: DenominationAndAmount;
   owner: string;
   block_height: number;
   gateway: Gateway;
@@ -179,11 +174,6 @@ export interface DetailedGateway {
   node_performance: nodePerformance;
 }
 
-export interface OriginalPledge {
-  denom: string;
-  amount: string;
-}
-
 export interface MixNode {
   host: string;
   mix_port: number;
@@ -197,7 +187,7 @@ export interface MixNode {
 export interface BondInformation {
   mix_id: number;
   owner: string;
-  original_pledge: OriginalPledge;
+  original_pledge: DenominationAndAmount;
   layer: string;
   mix_node: MixNode;
   proxy: string;
@@ -205,14 +195,9 @@ export interface BondInformation {
   is_unbonding: boolean;
 }
 
-export interface IntervalOperatingCost {
-  denom: string;
-  amount: string;
-}
-
 export interface CostParams {
   profit_margin_percent: string;
-  interval_operating_cost: IntervalOperatingCost;
+  interval_operating_cost: DenominationAndAmount;
 }
 
 export interface RewardingDetails {

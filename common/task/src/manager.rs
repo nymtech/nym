@@ -434,7 +434,7 @@ impl TaskClient {
         .await
         {
             self.log(Level::Error, "Task stopped without shutdown called");
-            panic!("{timeout}")
+            panic!("{:?}: {timeout}", self.name)
         }
     }
 

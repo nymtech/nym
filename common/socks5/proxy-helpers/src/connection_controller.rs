@@ -193,10 +193,7 @@ impl Controller {
             }
         } else if !self.recently_closed.contains(&hdr.connection_id) {
             debug!("Received a 'Send' before 'Connect' - going to buffer the data");
-            let pending = self
-                .pending_messages
-                .entry(hdr.connection_id)
-                .or_insert_with(Vec::new);
+            let pending = self.pending_messages.entry(hdr.connection_id).or_default();
             pending.push(message);
         } else if !hdr.local_socket_closed {
             error!(

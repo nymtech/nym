@@ -28,6 +28,6 @@ nym-coconut-interface = { path = "../../common/coconut-interface" }
 nym-credentials = { path = "../../common/credentials" }
 
 [dependencies.tungstenite]
-version = "0.13.0"
+workspace = true
 default-features = false
 

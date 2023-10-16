@@ -2,7 +2,7 @@ use std::{net::SocketAddr, sync::Arc, time::Duration};
 
 use async_recursion::async_recursion;
 use boringtun::{
-    noise::{errors::WireGuardError, Tunn, TunnResult},
+    noise::{errors::WireGuardError, rate_limiter::RateLimiter, Tunn, TunnResult},
     x25519,
 };
 use bytes::Bytes;
@@ -14,7 +14,11 @@ use tokio::{
     time::timeout,
 };
 
-use crate::{error::WgError, event::Event, network_table::NetworkTable, TunTaskTx};
+use crate::{
+    error::WgError, event::Event, network_table::NetworkTable, registered_peers::PeerIdx, TunTaskTx,
+};
+
+const HANDSHAKE_MAX_RATE: u64 = 10;
 
 const MAX_PACKET: usize = 65535;
 
@@ -55,7 +59,9 @@ impl WireGuardTunnel {
         endpoint: SocketAddr,
         static_private: x25519::StaticSecret,
         peer_static_public: x25519::PublicKey,
+        index: PeerIdx,
         peer_allowed_ips: ip_network::IpNetwork,
+        // rate_limiter: Option<RateLimiter>,
         tunnel_tx: TunTaskTx,
     ) -> (Self, mpsc::UnboundedSender<Event>) {
         let local_addr = udp.local_addr().unwrap();
@@ -64,8 +70,12 @@ impl WireGuardTunnel {
 
         let preshared_key = None;
         let persistent_keepalive = None;
-        let index = 0;
-        let rate_limiter = None;
+
+        let static_public = x25519::PublicKey::from(&static_private);
+        let rate_limiter = Some(Arc::new(RateLimiter::new(
+            &static_public,
+            HANDSHAKE_MAX_RATE,
+        )));
 
         let wg_tunnel = Arc::new(tokio::sync::Mutex::new(
             Tunn::new(
@@ -117,12 +127,17 @@ impl WireGuardTunnel {
                     Some(packet) => {
                         info!("event loop: {packet}");
                         match packet {
-                            Event::WgPacket(data) => {
+                            Event::Wg(data) => {
                                 let _ = self.consume_wg(&data)
                                     .await
                                     .tap_err(|err| error!("WireGuard tunnel: consume_wg error: {err}"));
                             },
-                            Event::IpPacket(data) => self.consume_eth(&data).await,
+                            Event::WgVerified(data) => {
+                                let _ = self.consume_verified_wg(&data)
+                                    .await
+                                    .tap_err(|err| error!("WireGuard tunnel: consume_verified_wg error: {err}"));
+                            }
+                            Event::Ip(data) => self.consume_eth(&data).await,
                         }
                     },
                     None => {
@@ -130,7 +145,7 @@ impl WireGuardTunnel {
                         break;
                     },
                 },
-                _ = tokio::time::sleep(Duration::from_millis(250)) => {
+                () = tokio::time::sleep(Duration::from_millis(250)) => {
                     let _ = self.update_wg_timers()
                         .await
                         .map_err(|err| error!("WireGuard tunnel: update_wg_timers error: {err}"));
@@ -182,8 +197,6 @@ impl WireGuardTunnel {
                 }
             }
             TunnResult::WriteToTunnelV4(packet, addr) => {
-                // TODO: once the flow is redone, we should add updating the endpoint dynamically
-                // self.set_endpoint(addr);
                 if self.allowed_ips.longest_match(addr).is_some() {
                     self.tun_task_tx.send(packet.to_vec()).unwrap();
                 } else {
@@ -191,8 +204,6 @@ impl WireGuardTunnel {
                 }
             }
             TunnResult::WriteToTunnelV6(packet, addr) => {
-                // TODO: once the flow is redone, we should add updating the endpoint dynamically
-                // self.set_endpoint(addr);
                 if self.allowed_ips.longest_match(addr).is_some() {
                     self.tun_task_tx.send(packet.to_vec()).unwrap();
                 } else {
@@ -207,6 +218,13 @@ impl WireGuardTunnel {
             }
         }
         Ok(())
+    }
+
+    async fn consume_verified_wg(&mut self, data: &[u8]) -> Result<(), WgError> {
+        // Potentially we could take some shortcuts here in the name of performance, but currently
+        // I don't see that the needed functions in boringtun is exposed in the public API.
+        // TODO: make sure we don't put double pressure on the rate limiter!
+        self.consume_wg(data).await
     }
 
     async fn consume_eth(&self, data: &Bytes) {
@@ -269,7 +287,7 @@ impl WireGuardTunnel {
                     return;
                 };
                 peer.format_handshake_initiation(&mut buf[..], false);
-                self.handle_routine_tun_result(result).await
+                self.handle_routine_tun_result(result).await;
             }
             TunnResult::Err(err) => {
                 error!("Failed to prepare routine packet for WireGuard endpoint: {err:?}");
@@ -287,10 +305,11 @@ pub(crate) fn start_wg_tunnel(
     udp: Arc<UdpSocket>,
     static_private: x25519::StaticSecret,
     peer_static_public: x25519::PublicKey,
+    peer_index: PeerIdx,
     peer_allowed_ips: ip_network::IpNetwork,
     tunnel_tx: TunTaskTx,
 ) -> (
-    tokio::task::JoinHandle<SocketAddr>,
+    tokio::task::JoinHandle<x25519::PublicKey>,
     mpsc::UnboundedSender<Event>,
 ) {
     let (mut tunnel, peer_tx) = WireGuardTunnel::new(
@@ -298,12 +317,13 @@ pub(crate) fn start_wg_tunnel(
         endpoint,
         static_private,
         peer_static_public,
+        peer_index,
         peer_allowed_ips,
         tunnel_tx,
     );
     let join_handle = tokio::spawn(async move {
         tunnel.spin_off().await;
-        endpoint
+        peer_static_public
     });
     (join_handle, peer_tx)
 }

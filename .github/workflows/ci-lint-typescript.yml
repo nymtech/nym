@@ -22,7 +22,7 @@ on:
 
 jobs:
   build:
-    runs-on: custom-runner-linux
+    runs-on: ubuntu-20.04-16-core
     steps:
       - uses: actions/checkout@v2
       - uses: rlespinasse/github-slug-action@v3.x
@@ -39,6 +39,8 @@ jobs:
           toolchain: stable
       - name: Install wasm-pack
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+      - name: Install wasm-opt
+        run: cargo install wasm-opt
 
       - name: Set up Go
         uses: actions/setup-go@v4
@@ -49,7 +51,7 @@ jobs:
         run: yarn
 
       - name: Build packages
-        run: yarn build:ci:sdk
+        run: yarn build:ci
 
       - name: Lint
         run: yarn lint

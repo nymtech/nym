@@ -683,13 +683,14 @@ pub trait MixnetSigningClient {
         .await
     }
 
-    #[cfg(feature = "nym_mixnet_contract_common/contract-testing")]
+    #[cfg(feature = "contract-testing")]
     async fn testing_resolve_all_pending_events(
+        &self,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
         self.execute_mixnet_contract(
             fee,
-            MixnetExecuteMsg::TestingResolveAllPendingEvents {},
+            MixnetExecuteMsg::TestingResolveAllPendingEvents { limit: None },
             vec![],
         )
         .await
@@ -928,8 +929,8 @@ mod tests {
                 .withdraw_delegator_reward_on_behalf(owner.parse().unwrap(), mix_id, None)
                 .ignore(),
 
-            #[cfg(feature = "nym_mixnet_contract_common/contract-testing")]
-            MixnetExecuteMsg::TestingResolveAllPendingEvents {} => {
+            #[cfg(feature = "contract-testing")]
+            MixnetExecuteMsg::TestingResolveAllPendingEvents { .. } => {
                 client.testing_resolve_all_pending_events(None).ignore()
             }
         };

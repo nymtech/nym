@@ -74,7 +74,7 @@ impl PartiallyDelegated {
 
     fn route_socket_messages(
         ws_msgs: Vec<Message>,
-        packet_router: &mut PacketRouter,
+        packet_router: &PacketRouter,
         shared_key: &SharedKeys,
     ) -> Result<(), GatewayClientError> {
         let plaintexts = Self::recover_received_plaintexts(ws_msgs, shared_key);
@@ -97,7 +97,6 @@ impl PartiallyDelegated {
         let mixnet_receiver_future = async move {
             let mut notify_receiver = notify_receiver;
             let mut chunk_stream = (&mut stream).ready_chunks(8);
-            let mut packet_router = packet_router;
 
             let ret_err = loop {
                 tokio::select! {
@@ -115,7 +114,7 @@ impl PartiallyDelegated {
                             Ok(msgs) => msgs
                         };
 
-                        if let Err(err) = Self::route_socket_messages(ws_msgs, &mut packet_router, shared_key.as_ref()) {
+                        if let Err(err) = Self::route_socket_messages(ws_msgs, &packet_router, shared_key.as_ref()) {
                             log::warn!("Route socket messages failed: {err}");
                         }
                     }

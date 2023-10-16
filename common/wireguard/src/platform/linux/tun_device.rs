@@ -30,7 +30,7 @@ fn setup_tokio_tun_device(name: &str, address: Ipv4Addr, netmask: Ipv4Addr) -> t
 
 pub(crate) fn start_tun_device(peers_by_ip: Arc<std::sync::Mutex<PeersByIp>>) -> TunTaskTx {
     let tun = setup_tokio_tun_device(
-        format!("{}%d", TUN_BASE_NAME).as_str(),
+        format!("{TUN_BASE_NAME}%d").as_str(),
         TUN_DEVICE_ADDRESS.parse().unwrap(),
         TUN_DEVICE_NETMASK.parse().unwrap(),
     );
@@ -63,7 +63,7 @@ pub(crate) fn start_tun_device(peers_by_ip: Arc<std::sync::Mutex<PeersByIp>>) ->
                         if let Some(peer_tx) = peers_by_ip.lock().unwrap().longest_match(dst_addr).map(|(_, tx)| tx) {
                             log::info!("Forward packet to wg tunnel");
                             peer_tx
-                                .send(Event::IpPacket(packet.to_vec().into()))
+                                .send(Event::Ip(packet.to_vec().into()))
                                 .tap_err(|err| log::error!("{err}"))
                                 .unwrap();
                         } else {

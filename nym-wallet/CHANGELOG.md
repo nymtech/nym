@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [v1.2.9] (2023-10-10)
+
+- Wallet: Introduce edit account name ([#3895])
+
+[#3895]: https://github.com/nymtech/nym/pull/3895
+
 ## [v1.2.8] (2023-08-23)
 
 - [hotfix]: don't assign invalid fields when crossing the JS boundary ([#3805])

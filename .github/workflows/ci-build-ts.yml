@@ -3,11 +3,12 @@ name: ci-build-ts
 on:
   push:
     paths:
-      - 'ts-packages/**'
+      - "ts-packages/**"
+      - "sdk/typescript/**"
 
 jobs:
   build:
-    runs-on: custom-runner-linux
+    runs-on: ubuntu-20.04-16-core
     steps:
     - uses: actions/checkout@v2
     - name: Install rsync
@@ -20,7 +21,7 @@ jobs:
     - name: Setup yarn
       run: npm install -g yarn
     - name: Build
-      run: yarn && yarn build && yarn build:ci
+      run: yarn && yarn build && yarn build:ci:storybook
     - name: Deploy branch to CI www (storybook)
       continue-on-error: true
       uses: easingthemes/ssh-deploy@main

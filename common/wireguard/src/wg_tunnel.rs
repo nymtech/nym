@@ -61,6 +61,7 @@ impl WireGuardTunnel {
         peer_static_public: x25519::PublicKey,
         peer_allowed_ips: ip_network::IpNetwork,
         index: PeerIdx,
+        // rate_limiter: Option<RateLimiter>,
         tunnel_tx: TunTaskTx,
     ) -> (Self, mpsc::UnboundedSender<Event>) {
         let local_addr = udp.local_addr().unwrap();
@@ -126,12 +127,17 @@ impl WireGuardTunnel {
                     Some(packet) => {
                         info!("event loop: {packet}");
                         match packet {
-                            Event::WgPacket(data) => {
+                            Event::Wg(data) => {
                                 let _ = self.consume_wg(&data)
                                     .await
                                     .tap_err(|err| error!("WireGuard tunnel: consume_wg error: {err}"));
                             },
-                            Event::IpPacket(data) => self.consume_eth(&data).await,
+                            Event::WgVerified(data) => {
+                                let _ = self.consume_verified_wg(&data)
+                                    .await
+                                    .tap_err(|err| error!("WireGuard tunnel: consume_verified_wg error: {err}"));
+                            }
+                            Event::Ip(data) => self.consume_eth(&data).await,
                         }
                     },
                     None => {
@@ -191,8 +197,6 @@ impl WireGuardTunnel {
                 }
             }
             TunnResult::WriteToTunnelV4(packet, addr) => {
-                // TODO: once the flow is redone, we should add updating the endpoint dynamically
-                // self.set_endpoint(addr);
                 if self.allowed_ips.longest_match(addr).is_some() {
                     self.tun_task_tx.send(packet.to_vec()).unwrap();
                 } else {
@@ -200,8 +204,6 @@ impl WireGuardTunnel {
                 }
             }
             TunnResult::WriteToTunnelV6(packet, addr) => {
-                // TODO: once the flow is redone, we should add updating the endpoint dynamically
-                // self.set_endpoint(addr);
                 if self.allowed_ips.longest_match(addr).is_some() {
                     self.tun_task_tx.send(packet.to_vec()).unwrap();
                 } else {
@@ -216,6 +218,13 @@ impl WireGuardTunnel {
             }
         }
         Ok(())
+    }
+
+    async fn consume_verified_wg(&mut self, data: &[u8]) -> Result<(), WgError> {
+        // Potentially we could take some shortcuts here in the name of performance, but currently
+        // I don't see that the needed functions in boringtun is exposed in the public API.
+        // TODO: make sure we don't put double pressure on the rate limiter!
+        self.consume_wg(data).await
     }
 
     async fn consume_eth(&self, data: &Bytes) {
@@ -300,7 +309,7 @@ pub(crate) fn start_wg_tunnel(
     peer_index: PeerIdx,
     tunnel_tx: TunTaskTx,
 ) -> (
-    tokio::task::JoinHandle<SocketAddr>,
+    tokio::task::JoinHandle<x25519::PublicKey>,
     mpsc::UnboundedSender<Event>,
 ) {
     let (mut tunnel, peer_tx) = WireGuardTunnel::new(
@@ -314,7 +323,7 @@ pub(crate) fn start_wg_tunnel(
     );
     let join_handle = tokio::spawn(async move {
         tunnel.spin_off().await;
-        endpoint
+        peer_static_public
     });
     (join_handle, peer_tx)
 }

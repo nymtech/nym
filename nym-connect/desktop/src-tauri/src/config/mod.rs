@@ -204,7 +204,8 @@ pub async fn init_socks5_config(provider_address: String, chosen_gateway_id: Str
     }
 
     let gateway_setup = if register_gateway {
-        let selection_spec = GatewaySelectionSpecification::new(Some(chosen_gateway_id), None);
+        let selection_spec =
+            GatewaySelectionSpecification::new(Some(chosen_gateway_id), None, false);
         let mut rng = rand_07::thread_rng();
         let available_gateways =
             current_gateways(&mut rng, &config.core.base.client.nym_api_urls).await?;

@@ -126,6 +126,12 @@ pub enum ClientCoreError {
 
     #[error("this client has performed gateway initialisation in another session")]
     NoInitClientPresent,
+
+    #[error("there are no gateways supporting the wss protocol available")]
+    NoWssGateways,
+
+    #[error("the specified gateway '{gateway}' does not support the wss protocol")]
+    UnsupportedWssProtocol { gateway: String },
 }
 
 /// Set of messages that the client can send to listeners via the task manager

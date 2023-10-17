@@ -9,7 +9,7 @@ on:
 
 jobs:
   wasm:
-    runs-on: [custom-linux]
+    runs-on: custom-linux
     env:
       CARGO_TERM_COLOR: always
     steps:

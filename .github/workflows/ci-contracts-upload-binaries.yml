@@ -12,12 +12,7 @@ env:
 
 jobs:
   publish-nym-contracts:
-    strategy:
-      fail-fast: false
-      matrix:
-        platform: [ubuntu-20.04]
-
-    runs-on: ${{ matrix.platform }}
+    runs-on: ubuntu-20.04-16-core
     env:
       CARGO_TERM_COLOR: always
     steps:

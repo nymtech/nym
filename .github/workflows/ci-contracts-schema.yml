@@ -10,7 +10,7 @@ on:
 jobs:
   check-schema:
     name: Generate and check schema
-    runs-on: custom-linux
+    runs-on: ubuntu-20.04
     env:
       CARGO_TERM_COLOR: always
     steps:

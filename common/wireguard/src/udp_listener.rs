@@ -82,7 +82,7 @@ impl WgUdpListener {
         })
     }
 
-    pub async fn run(&mut self, mut task_client: TaskClient) {
+    pub async fn run(self, mut task_client: TaskClient) {
         log::info!("run!");
         // The set of active tunnels
         let active_peers = ActivePeers::default();
@@ -201,7 +201,7 @@ impl WgUdpListener {
         log::info!("WireGuard listener: shutting down");
     }
 
-    pub fn start(mut self, task_client: TaskClient) {
+    pub fn start(self, task_client: TaskClient) {
         log::info!("start!");
         tokio::spawn(async move { self.run(task_client).await });
     }

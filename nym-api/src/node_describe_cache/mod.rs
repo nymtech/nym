@@ -7,6 +7,7 @@ use crate::support::caching::refresher::{CacheItemProvider, CacheRefresher};
 use crate::support::config;
 use crate::support::config::DEFAULT_NODE_DESCRIBE_BATCH_SIZE;
 use futures_util::{stream, StreamExt};
+use log::{error, info, warn};
 use nym_api_requests::models::NymNodeDescription;
 use nym_config::defaults::DEFAULT_NYM_NODE_HTTP_PORT;
 use nym_contracts_common::IdentityKey;
@@ -90,6 +91,8 @@ async fn try_get_client(
     ];
 
     for address in addresses_to_try {
+        info!("trying '{address}'...");
+
         // if provided host was malformed, no point in continuing
         let client = match nym_node_requests::api::Client::new_url(address, None) {
             Ok(client) => client,
@@ -101,9 +104,18 @@ async fn try_get_client(
                 });
             }
         };
-        if let Ok(health) = client.get_health().await {
-            if health.status.is_up() {
-                return Ok(client);
+
+        match client.get_health().await {
+            Ok(health) => {
+                info!("obtained node health: {health:?}");
+                if health.status.is_up() {
+                    return Ok(client);
+                } else {
+                    warn!("but the status it not 'up' : (")
+                }
+            }
+            Err(err) => {
+                warn!("failed to obtain node health: {err}")
             }
         }
     }
@@ -194,7 +206,7 @@ impl CacheItemProvider for NodeDescriptionProvider {
             match res {
                 Ok((identity, description)) => Some((identity, description)),
                 Err(err) => {
-                    debug!("{err}");
+                    error!("{err}");
                     None
                 }
             }

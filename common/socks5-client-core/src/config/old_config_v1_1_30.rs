@@ -1,8 +1,8 @@
 // Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use super::old_config_v1_1_20_2::BaseClientConfigV1_1_20_2;
 use super::{Config, Socks5, Socks5Debug};
+pub use nym_client_core::config::old_config_v1_1_30::ConfigV1_1_30 as BaseClientConfigV1_1_30;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
@@ -18,8 +18,7 @@ const DEFAULT_PER_REQUEST_SURBS: u32 = 3;
 #[serde(deny_unknown_fields)]
 pub struct ConfigV1_1_30 {
     #[serde(flatten)]
-    // base client config hasn't changed between v1.1.20 and v1.1.30
-    pub base: BaseClientConfigV1_1_20_2,
+    pub base: BaseClientConfigV1_1_30,
 
     pub socks5: Socks5V1_1_30,
 }

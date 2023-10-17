@@ -250,7 +250,7 @@ fn try_upgrade_v1_1_20_2_config(id: &str) -> Result<bool, Socks5ClientError> {
 }
 
 fn try_upgrade_v1_1_30_config(id: &str) -> Result<bool, Socks5ClientError> {
-    // explicitly load it as v1.1.20_2 (which is incompatible with the current one, i.e. +1.1.21)
+    // explicitly load it as v1.1.30 (which is incompatible with the current one, i.e. +1.1.31)
     let Ok(old_config) = ConfigV1_1_30::read_from_default_path(id) else {
         // if we failed to load it, there might have been nothing to upgrade
         // or maybe it was an even older file. in either way. just ignore it and carry on with our day

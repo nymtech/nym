@@ -1,10 +1,11 @@
-// Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{client::topology_control::geo_aware_provider::CountryGroup, error::ClientCoreError};
-use nym_config::defaults::NymNetworkDetails;
-use nym_crypto::asymmetric::identity;
-use nym_gateway_client::client::GatewayConfig;
+use crate::client::topology_control::geo_aware_provider::CountryGroup;
+use crate::config::{
+    Acknowledgements, Client, Config, CoverTraffic, DebugConfig, GatewayConnection, GroupBy,
+    ReplySurbs, Topology, TopologyStructure, Traffic,
+};
 use nym_sphinx::{
     addressing::clients::Recipient,
     params::{PacketSize, PacketType},
@@ -12,15 +13,6 @@ use nym_sphinx::{
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use url::Url;
-
-#[cfg(target_arch = "wasm32")]
-use wasm_bindgen::prelude::*;
-
-pub mod disk_persistence;
-pub mod old_config_v1_1_13;
-pub mod old_config_v1_1_20;
-pub mod old_config_v1_1_20_2;
-pub mod old_config_v1_1_30;
 
 // 'DEBUG'
 const DEFAULT_ACK_WAIT_MULTIPLIER: f64 = 1.5;
@@ -65,244 +57,106 @@ const DEFAULT_MAXIMUM_REPLY_KEY_AGE: Duration = Duration::from_secs(24 * 60 * 60
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct Config {
-    pub client: Client,
+pub struct ConfigV1_1_30 {
+    pub client: ClientV1_1_30,
 
     #[serde(default)]
-    pub debug: DebugConfig,
+    pub debug: DebugConfigV1_1_30,
 }
 
-impl Config {
-    pub fn new<S1, S2>(id: S1, version: S2) -> Self
-    where
-        S1: Into<String>,
-        S2: Into<String>,
-    {
+impl From<ConfigV1_1_30> for Config {
+    fn from(value: ConfigV1_1_30) -> Self {
         Config {
-            client: Client::new_default(id, version),
-            debug: Default::default(),
-        }
-    }
-
-    pub fn from_client_config(client: Client, debug: DebugConfig) -> Self {
-        Config { client, debug }
-    }
-
-    pub fn validate(&self) -> bool {
-        self.debug.validate()
-    }
-
-    pub fn with_debug_config(mut self, debug: DebugConfig) -> Self {
-        self.debug = debug;
-        self
-    }
-
-    pub fn with_disabled_credentials(mut self, disabled_credentials_mode: bool) -> Self {
-        self.client.disabled_credentials_mode = disabled_credentials_mode;
-        self
-    }
-
-    pub fn with_custom_nyxd(mut self, urls: Vec<Url>) -> Self {
-        self.client.nyxd_urls = urls;
-        self
-    }
-
-    pub fn set_custom_nyxd(&mut self, nyxd_urls: Vec<Url>) {
-        self.client.nyxd_urls = nyxd_urls;
-    }
-
-    pub fn with_custom_nym_apis(mut self, nym_api_urls: Vec<Url>) -> Self {
-        self.client.nym_api_urls = nym_api_urls;
-        self
-    }
-
-    pub fn set_custom_nym_apis(&mut self, nym_api_urls: Vec<Url>) {
-        self.client.nym_api_urls = nym_api_urls;
-    }
-
-    pub fn with_high_default_traffic_volume(mut self, enabled: bool) -> Self {
-        if enabled {
-            self.set_high_default_traffic_volume();
-        }
-        self
-    }
-
-    pub fn with_packet_type(mut self, packet_type: PacketType) -> Self {
-        self.debug.traffic.packet_type = packet_type;
-        self
-    }
-
-    pub fn set_high_default_traffic_volume(&mut self) {
-        self.debug.traffic.average_packet_delay = Duration::from_millis(10);
-        // basically don't really send cover messages
-        self.debug.cover_traffic.loop_cover_traffic_average_delay =
-            Duration::from_millis(2_000_000);
-        // 250 "real" messages / s
-        self.debug.traffic.message_sending_average_delay = Duration::from_millis(4);
-    }
-
-    pub fn with_disabled_poisson_process(mut self, disabled: bool) -> Self {
-        if disabled {
-            self.set_no_poisson_process()
-        }
-        self
-    }
-
-    pub fn set_no_poisson_process(&mut self) {
-        self.debug.traffic.disable_main_poisson_packet_distribution = true;
-    }
-
-    pub fn with_disabled_cover_traffic(mut self, disabled: bool) -> Self {
-        if disabled {
-            self.set_no_cover_traffic()
-        }
-        self
-    }
-
-    pub fn set_no_cover_traffic(&mut self) {
-        self.debug.cover_traffic.disable_loop_cover_traffic_stream = true;
-        self.debug.traffic.disable_main_poisson_packet_distribution = true;
-    }
-
-    pub fn with_disabled_cover_traffic_with_keepalive(mut self, disabled: bool) -> Self {
-        if disabled {
-            self.set_no_cover_traffic_with_keepalive()
-        }
-        self
-    }
-    pub fn set_no_cover_traffic_with_keepalive(&mut self) {
-        self.debug.traffic.disable_main_poisson_packet_distribution = true;
-        self.debug.cover_traffic.loop_cover_traffic_average_delay = Duration::from_secs(5);
-    }
-
-    pub fn with_disabled_topology_refresh(mut self, disable_topology_refresh: bool) -> Self {
-        self.debug.topology.disable_refreshing = disable_topology_refresh;
-        self
-    }
-
-    pub fn with_topology_structure(mut self, topology_structure: TopologyStructure) -> Self {
-        self.set_topology_structure(topology_structure);
-        self
-    }
-
-    pub fn set_topology_structure(&mut self, topology_structure: TopologyStructure) {
-        self.debug.topology.topology_structure = topology_structure;
-    }
-
-    pub fn with_no_per_hop_delays(mut self, no_per_hop_delays: bool) -> Self {
-        if no_per_hop_delays {
-            self.set_no_per_hop_delays()
-        }
-        self
-    }
-
-    pub fn set_no_per_hop_delays(&mut self) {
-        self.debug.traffic.average_packet_delay = Duration::ZERO;
-        self.debug.acknowledgements.average_ack_delay = Duration::ZERO;
-    }
-
-    pub fn with_secondary_packet_size(mut self, secondary_packet_size: Option<PacketSize>) -> Self {
-        self.set_secondary_packet_size(secondary_packet_size);
-        self
-    }
-
-    pub fn set_secondary_packet_size(&mut self, secondary_packet_size: Option<PacketSize>) {
-        self.debug.traffic.secondary_packet_size = secondary_packet_size;
-    }
-
-    pub fn set_custom_version(&mut self, version: &str) {
-        self.client.version = version.to_string();
-    }
-
-    pub fn get_id(&self) -> String {
-        self.client.id.clone()
-    }
-
-    pub fn get_disabled_credentials_mode(&self) -> bool {
-        self.client.disabled_credentials_mode
-    }
-
-    pub fn get_validator_endpoints(&self) -> Vec<Url> {
-        self.client.nyxd_urls.clone()
-    }
-
-    pub fn get_nym_api_endpoints(&self) -> Vec<Url> {
-        self.client.nym_api_urls.clone()
-    }
-}
-
-#[derive(Clone, Debug, Default, Deserialize, PartialEq, Eq, Serialize)]
-#[cfg_attr(target_arch = "wasm32", wasm_bindgen(getter_with_clone))]
-pub struct GatewayEndpointConfig {
-    /// gateway_id specifies ID of the gateway to which the client should send messages.
-    /// If initially omitted, a random gateway will be chosen from the available topology.
-    pub gateway_id: String,
-
-    /// Address of the gateway owner to which the client should send messages.
-    pub gateway_owner: String,
-
-    /// Address of the gateway listener to which all client requests should be sent.
-    pub gateway_listener: String,
-}
-
-impl TryFrom<GatewayEndpointConfig> for GatewayConfig {
-    type Error = ClientCoreError;
-
-    fn try_from(value: GatewayEndpointConfig) -> Result<Self, Self::Error> {
-        Ok(GatewayConfig {
-            gateway_identity: identity::PublicKey::from_base58_string(value.gateway_id)
-                .map_err(ClientCoreError::UnableToCreatePublicKeyFromGatewayId)?,
-            gateway_owner: Some(value.gateway_owner),
-            gateway_listener: value.gateway_listener,
-        })
-    }
-}
-
-#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
-impl GatewayEndpointConfig {
-    #[cfg_attr(target_arch = "wasm32", wasm_bindgen(constructor))]
-    pub fn new(
-        gateway_id: String,
-        gateway_owner: String,
-        gateway_listener: String,
-    ) -> GatewayEndpointConfig {
-        GatewayEndpointConfig {
-            gateway_id,
-            gateway_owner,
-            gateway_listener,
-        }
-    }
-}
-
-// separate block so it wouldn't be exported via wasm bindgen
-impl GatewayEndpointConfig {
-    pub fn try_get_gateway_identity_key(&self) -> Result<identity::PublicKey, ClientCoreError> {
-        identity::PublicKey::from_base58_string(&self.gateway_id)
-            .map_err(ClientCoreError::UnableToCreatePublicKeyFromGatewayId)
-    }
-
-    pub fn from_node(node: nym_topology::gateway::Node, use_tls: bool) -> Self {
-        // TODO: in the future this shall return a Result and explicit `use_tls` will be removed in favour of the tls info being available on the struct
-        if use_tls {
-            Self::from_topology_node_tls(node)
-        } else {
-            Self::from_topology_node_no_tls(node)
-        }
-    }
-
-    pub fn from_topology_node_no_tls(node: nym_topology::gateway::Node) -> Self {
-        GatewayEndpointConfig {
-            gateway_id: node.identity_key.to_base58_string(),
-            gateway_listener: node.clients_address(),
-            gateway_owner: node.owner,
-        }
-    }
-
-    pub fn from_topology_node_tls(node: nym_topology::gateway::Node) -> Self {
-        GatewayEndpointConfig {
-            gateway_id: node.identity_key.to_base58_string(),
-            gateway_listener: node.clients_address_tls(),
-            gateway_owner: node.owner,
+            client: Client {
+                version: value.client.version,
+                id: value.client.id,
+                disabled_credentials_mode: value.client.disabled_credentials_mode,
+                nyxd_urls: value.client.nyxd_urls,
+                nym_api_urls: value.client.nym_api_urls,
+            },
+            debug: DebugConfig {
+                traffic: Traffic {
+                    average_packet_delay: value.debug.traffic.average_packet_delay,
+                    message_sending_average_delay: value
+                        .debug
+                        .traffic
+                        .message_sending_average_delay,
+                    disable_main_poisson_packet_distribution: value
+                        .debug
+                        .traffic
+                        .disable_main_poisson_packet_distribution,
+                    primary_packet_size: value.debug.traffic.primary_packet_size,
+                    secondary_packet_size: value.debug.traffic.secondary_packet_size,
+                    packet_type: value.debug.traffic.packet_type,
+                },
+                cover_traffic: CoverTraffic {
+                    loop_cover_traffic_average_delay: value
+                        .debug
+                        .cover_traffic
+                        .loop_cover_traffic_average_delay,
+                    cover_traffic_primary_size_ratio: value
+                        .debug
+                        .cover_traffic
+                        .cover_traffic_primary_size_ratio,
+                    disable_loop_cover_traffic_stream: value
+                        .debug
+                        .cover_traffic
+                        .disable_loop_cover_traffic_stream,
+                },
+                gateway_connection: GatewayConnection {
+                    gateway_response_timeout: value
+                        .debug
+                        .gateway_connection
+                        .gateway_response_timeout,
+                },
+                acknowledgements: Acknowledgements {
+                    average_ack_delay: value.debug.acknowledgements.average_ack_delay,
+                    ack_wait_multiplier: value.debug.acknowledgements.ack_wait_multiplier,
+                    ack_wait_addition: value.debug.acknowledgements.ack_wait_addition,
+                },
+                topology: Topology {
+                    topology_refresh_rate: value.debug.topology.topology_refresh_rate,
+                    topology_resolution_timeout: value.debug.topology.topology_resolution_timeout,
+                    disable_refreshing: value.debug.topology.disable_refreshing,
+                    max_startup_gateway_waiting_period: value
+                        .debug
+                        .topology
+                        .max_startup_gateway_waiting_period,
+                    topology_structure: value.debug.topology.topology_structure.into(),
+                },
+                reply_surbs: ReplySurbs {
+                    minimum_reply_surb_storage_threshold: value
+                        .debug
+                        .reply_surbs
+                        .minimum_reply_surb_storage_threshold,
+                    maximum_reply_surb_storage_threshold: value
+                        .debug
+                        .reply_surbs
+                        .maximum_reply_surb_storage_threshold,
+                    minimum_reply_surb_request_size: value
+                        .debug
+                        .reply_surbs
+                        .minimum_reply_surb_request_size,
+                    maximum_reply_surb_request_size: value
+                        .debug
+                        .reply_surbs
+                        .maximum_reply_surb_request_size,
+                    maximum_allowed_reply_surb_request_size: value
+                        .debug
+                        .reply_surbs
+                        .maximum_allowed_reply_surb_request_size,
+                    maximum_reply_surb_rerequest_waiting_period: value
+                        .debug
+                        .reply_surbs
+                        .maximum_reply_surb_rerequest_waiting_period,
+                    maximum_reply_surb_drop_waiting_period: value
+                        .debug
+                        .reply_surbs
+                        .maximum_reply_surb_drop_waiting_period,
+                    maximum_reply_surb_age: value.debug.reply_surbs.maximum_reply_surb_age,
+                    maximum_reply_key_age: value.debug.reply_surbs.maximum_reply_key_age,
+                },
+            },
         }
     }
 }
@@ -310,7 +164,7 @@ impl GatewayEndpointConfig {
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 // note: the deny_unknown_fields is VITAL here to allow upgrades from v1.1.20_2
 #[serde(deny_unknown_fields)]
-pub struct Client {
+pub struct ClientV1_1_30 {
     /// Version of the client for which this configuration was created.
     pub version: String,
 
@@ -332,52 +186,9 @@ pub struct Client {
     pub nym_api_urls: Vec<Url>,
 }
 
-impl Client {
-    pub fn new_default<S1, S2>(id: S1, version: S2) -> Self
-    where
-        S1: Into<String>,
-        S2: Into<String>,
-    {
-        let network = NymNetworkDetails::new_mainnet();
-        let nyxd_urls = network
-            .endpoints
-            .iter()
-            .map(|validator| validator.nyxd_url())
-            .collect();
-        let nym_api_urls = network
-            .endpoints
-            .iter()
-            .filter_map(|validator| validator.api_url())
-            .collect::<Vec<_>>();
-
-        Client {
-            version: version.into(),
-            id: id.into(),
-            disabled_credentials_mode: true,
-            nyxd_urls,
-            nym_api_urls,
-        }
-    }
-
-    pub fn new<S: Into<String>>(
-        id: S,
-        disabled_credentials_mode: bool,
-        nyxd_urls: Vec<Url>,
-        nym_api_urls: Vec<Url>,
-    ) -> Self {
-        Client {
-            version: env!("CARGO_PKG_VERSION").to_string(),
-            id: id.into(),
-            disabled_credentials_mode,
-            nyxd_urls,
-            nym_api_urls,
-        }
-    }
-}
-
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Serialize)]
 #[serde(default, deny_unknown_fields)]
-pub struct Traffic {
+pub struct TrafficV1_1_30 {
     /// The parameter of Poisson distribution determining how long, on average,
     /// sent packet is going to be delayed at any given mix node.
     /// So for a packet going through three mix nodes, on average, it will take three times this value
@@ -408,22 +219,9 @@ pub struct Traffic {
     pub packet_type: PacketType,
 }
 
-impl Traffic {
-    pub fn validate(&self) -> bool {
-        if let Some(secondary_packet_size) = self.secondary_packet_size {
-            if secondary_packet_size == PacketSize::AckPacket
-                || secondary_packet_size == self.primary_packet_size
-            {
-                return false;
-            }
-        }
-        true
-    }
-}
-
-impl Default for Traffic {
+impl Default for TrafficV1_1_30 {
     fn default() -> Self {
-        Traffic {
+        TrafficV1_1_30 {
             average_packet_delay: DEFAULT_AVERAGE_PACKET_DELAY,
             message_sending_average_delay: DEFAULT_MESSAGE_STREAM_AVERAGE_DELAY,
             disable_main_poisson_packet_distribution: false,
@@ -436,7 +234,7 @@ impl Default for Traffic {
 
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Serialize)]
 #[serde(default, deny_unknown_fields)]
-pub struct CoverTraffic {
+pub struct CoverTrafficV1_1_30 {
     /// The parameter of Poisson distribution determining how long, on average,
     /// it is going to take for another loop cover traffic message to be sent.
     #[serde(with = "humantime_serde")]
@@ -451,9 +249,9 @@ pub struct CoverTraffic {
     pub disable_loop_cover_traffic_stream: bool,
 }
 
-impl Default for CoverTraffic {
+impl Default for CoverTrafficV1_1_30 {
     fn default() -> Self {
-        CoverTraffic {
+        CoverTrafficV1_1_30 {
             loop_cover_traffic_average_delay: DEFAULT_LOOP_COVER_STREAM_AVERAGE_DELAY,
             cover_traffic_primary_size_ratio: DEFAULT_COVER_TRAFFIC_PRIMARY_SIZE_RATIO,
             disable_loop_cover_traffic_stream: false,
@@ -463,16 +261,16 @@ impl Default for CoverTraffic {
 
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Serialize)]
 #[serde(default, deny_unknown_fields)]
-pub struct GatewayConnection {
+pub struct GatewayConnectionV1_1_30 {
     /// How long we're willing to wait for a response to a message sent to the gateway,
     /// before giving up on it.
     #[serde(with = "humantime_serde")]
     pub gateway_response_timeout: Duration,
 }
 
-impl Default for GatewayConnection {
+impl Default for GatewayConnectionV1_1_30 {
     fn default() -> Self {
-        GatewayConnection {
+        GatewayConnectionV1_1_30 {
             gateway_response_timeout: DEFAULT_GATEWAY_RESPONSE_TIMEOUT,
         }
     }
@@ -480,7 +278,7 @@ impl Default for GatewayConnection {
 
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Serialize)]
 #[serde(default, deny_unknown_fields)]
-pub struct Acknowledgements {
+pub struct AcknowledgementsV1_1_30 {
     /// The parameter of Poisson distribution determining how long, on average,
     /// sent acknowledgement is going to be delayed at any given mix node.
     /// So for an ack going through three mix nodes, on average, it will take three times this value
@@ -500,9 +298,9 @@ pub struct Acknowledgements {
     pub ack_wait_addition: Duration,
 }
 
-impl Default for Acknowledgements {
+impl Default for AcknowledgementsV1_1_30 {
     fn default() -> Self {
-        Acknowledgements {
+        AcknowledgementsV1_1_30 {
             average_ack_delay: DEFAULT_AVERAGE_PACKET_DELAY,
             ack_wait_multiplier: DEFAULT_ACK_WAIT_MULTIPLIER,
             ack_wait_addition: DEFAULT_ACK_WAIT_ADDITION,
@@ -512,7 +310,7 @@ impl Default for Acknowledgements {
 
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Serialize)]
 #[serde(default, deny_unknown_fields)]
-pub struct Topology {
+pub struct TopologyV1_1_30 {
     /// The uniform delay every which clients are querying the directory server
     /// to try to obtain a compatible network topology to send sphinx packets through.
     #[serde(with = "humantime_serde")]
@@ -535,48 +333,68 @@ pub struct Topology {
     pub max_startup_gateway_waiting_period: Duration,
 
     /// Specifies the mixnode topology to be used for sending packets.
-    pub topology_structure: TopologyStructure,
+    pub topology_structure: TopologyStructureV1_1_30,
 }
 
 #[allow(clippy::large_enum_variant)]
 #[derive(Default, Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub enum TopologyStructure {
+pub enum TopologyStructureV1_1_30 {
     #[default]
     NymApi,
-    GeoAware(GroupBy),
+    GeoAware(GroupByV1_1_30),
 }
 
-#[allow(clippy::large_enum_variant)]
-#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub enum GroupBy {
-    CountryGroup(CountryGroup),
-    NymAddress(Recipient),
-}
-
-impl std::fmt::Display for GroupBy {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            GroupBy::CountryGroup(group) => write!(f, "group: {}", group),
-            GroupBy::NymAddress(address) => write!(f, "address: {}", address),
+impl From<TopologyStructureV1_1_30> for TopologyStructure {
+    fn from(value: TopologyStructureV1_1_30) -> Self {
+        match value {
+            TopologyStructureV1_1_30::NymApi => TopologyStructure::NymApi,
+            TopologyStructureV1_1_30::GeoAware(group_by) => {
+                TopologyStructure::GeoAware(group_by.into())
+            }
         }
     }
 }
 
-impl Default for Topology {
+#[allow(clippy::large_enum_variant)]
+#[derive(Copy, Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub enum GroupByV1_1_30 {
+    CountryGroup(CountryGroup),
+    NymAddress(Recipient),
+}
+
+impl From<GroupByV1_1_30> for GroupBy {
+    fn from(value: GroupByV1_1_30) -> Self {
+        match value {
+            GroupByV1_1_30::CountryGroup(country) => GroupBy::CountryGroup(country),
+            GroupByV1_1_30::NymAddress(addr) => GroupBy::NymAddress(addr),
+        }
+    }
+}
+
+impl std::fmt::Display for GroupByV1_1_30 {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            GroupByV1_1_30::CountryGroup(group) => write!(f, "group: {}", group),
+            GroupByV1_1_30::NymAddress(address) => write!(f, "address: {}", address),
+        }
+    }
+}
+
+impl Default for TopologyV1_1_30 {
     fn default() -> Self {
-        Topology {
+        TopologyV1_1_30 {
             topology_refresh_rate: DEFAULT_TOPOLOGY_REFRESH_RATE,
             topology_resolution_timeout: DEFAULT_TOPOLOGY_RESOLUTION_TIMEOUT,
             disable_refreshing: false,
             max_startup_gateway_waiting_period: DEFAULT_MAX_STARTUP_GATEWAY_WAITING_PERIOD,
-            topology_structure: TopologyStructure::default(),
+            topology_structure: TopologyStructureV1_1_30::default(),
         }
     }
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Serialize)]
 #[serde(default, deny_unknown_fields)]
-pub struct ReplySurbs {
+pub struct ReplySurbsV1_1_30 {
     /// Defines the minimum number of reply surbs the client wants to keep in its storage at all times.
     /// It can only allow to go below that value if its to request additional reply surbs.
     pub minimum_reply_surb_storage_threshold: usize,
@@ -614,9 +432,9 @@ pub struct ReplySurbs {
     pub maximum_reply_key_age: Duration,
 }
 
-impl Default for ReplySurbs {
+impl Default for ReplySurbsV1_1_30 {
     fn default() -> Self {
-        ReplySurbs {
+        ReplySurbsV1_1_30 {
             minimum_reply_surb_storage_threshold: DEFAULT_MINIMUM_REPLY_SURB_STORAGE_THRESHOLD,
             maximum_reply_surb_storage_threshold: DEFAULT_MAXIMUM_REPLY_SURB_STORAGE_THRESHOLD,
             minimum_reply_surb_request_size: DEFAULT_MINIMUM_REPLY_SURB_REQUEST_SIZE,
@@ -631,47 +449,24 @@ impl Default for ReplySurbs {
     }
 }
 
-#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, Default, Clone, Copy, Deserialize, PartialEq, Serialize)]
 #[serde(default, deny_unknown_fields)]
-pub struct DebugConfig {
+pub struct DebugConfigV1_1_30 {
     /// Defines all configuration options related to traffic streams.
-    pub traffic: Traffic,
+    pub traffic: TrafficV1_1_30,
 
     /// Defines all configuration options related to cover traffic stream(s).
-    pub cover_traffic: CoverTraffic,
+    pub cover_traffic: CoverTrafficV1_1_30,
 
     /// Defines all configuration options related to the gateway connection.
-    pub gateway_connection: GatewayConnection,
+    pub gateway_connection: GatewayConnectionV1_1_30,
 
     /// Defines all configuration options related to acknowledgements, such as delays or wait timeouts.
-    pub acknowledgements: Acknowledgements,
+    pub acknowledgements: AcknowledgementsV1_1_30,
 
     /// Defines all configuration options related topology, such as refresh rates or timeouts.
-    pub topology: Topology,
+    pub topology: TopologyV1_1_30,
 
     /// Defines all configuration options related to reply SURBs.
-    pub reply_surbs: ReplySurbs,
-}
-
-impl DebugConfig {
-    pub fn validate(&self) -> bool {
-        // no other sections have explicit requirements (yet)
-        self.traffic.validate()
-    }
-}
-
-// it could be derived, sure, but I'd rather have an explicit implementation in case we had to change
-// something manually at some point
-#[allow(clippy::derivable_impls)]
-impl Default for DebugConfig {
-    fn default() -> Self {
-        DebugConfig {
-            traffic: Default::default(),
-            cover_traffic: Default::default(),
-            gateway_connection: Default::default(),
-            acknowledgements: Default::default(),
-            topology: Default::default(),
-            reply_surbs: Default::default(),
-        }
-    }
+    pub reply_surbs: ReplySurbsV1_1_30,
 }

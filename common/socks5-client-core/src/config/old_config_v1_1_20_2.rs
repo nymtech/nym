@@ -23,7 +23,7 @@ pub struct ConfigV1_1_20_2 {
 impl From<ConfigV1_1_20_2> for ConfigV1_1_30 {
     fn from(value: ConfigV1_1_20_2) -> Self {
         ConfigV1_1_30 {
-            base: value.base,
+            base: value.base.into(),
             socks5: value.socks5.into(),
         }
     }

@@ -28,10 +28,14 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
+
       - name: Install wasm-pack
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+
       - name: Install wasm-opt
-        run: cargo install wasm-opt
+        uses: ./.github/actions/install-wasm-opt
+        with:
+          version: '116'
 
       - name: Set up Go
         uses: actions/setup-go@v4

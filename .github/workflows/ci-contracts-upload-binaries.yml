@@ -40,7 +40,9 @@ jobs:
           override: true
 
       - name: Install wasm-opt
-        run: cargo install --version 0.112.0 wasm-opt
+        uses: ./.github/actions/install-wasm-opt
+        with:
+          version: '112'
 
       - name: Build release contracts
         run: make contracts

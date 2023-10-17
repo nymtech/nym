@@ -36,7 +36,9 @@ jobs:
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 
       - name: Install wasm-opt
-        run: cargo install wasm-opt
+        uses: ./.github/actions/install-wasm-opt
+        with:
+          version: '116'
 
       - name: Install wasm-bindgen-cli
         run: cargo install wasm-bindgen-cli

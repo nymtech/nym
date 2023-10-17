@@ -34,7 +34,8 @@ jobs:
           cargo install --vers "=0.2.2" mdbook-variables && cargo install \
             --vers "^1.8.0" mdbook-admonish --force && cargo install --vers \
             "^0.1.2" mdbook-last-changed && cargo install --vers "^0.1.2" mdbook-theme \
-            && cargo install --vers "^0.7.7" mdbook-linkcheck
+            && cargo install --vers "^0.7.7" mdbook-linkcheck \
+            && mdbook-admonish install
       - name: Build all projects in documentation/ & move to ~/dist/docs/
         run: cd documentation && ./build_all_to_dist.sh
         continue-on-error: false

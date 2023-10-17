@@ -62,6 +62,51 @@ impl TunDevice {
         (tun_device, tun_task_tx)
     }
 
+    fn handle_tun_read(&self, packet: &[u8]) {
+        let dst_addr = boringtun::noise::Tunn::dst_address(packet).unwrap();
+
+        let headers = SlicedPacket::from_ip(packet).unwrap();
+        let src_addr = match headers.ip.unwrap() {
+            InternetSlice::Ipv4(ip, _) => ip.source_addr().to_string(),
+            InternetSlice::Ipv6(ip, _) => ip.source_addr().to_string(),
+        };
+        log::info!(
+            "iface: read Packet({src_addr} -> {dst_addr}, {} bytes)",
+            packet.len(),
+        );
+
+        // Route packet to the correct peer.
+        if let Some(peer_tx) = self
+            .peers_by_ip
+            .lock()
+            .unwrap()
+            .longest_match(dst_addr)
+            .map(|(_, tx)| tx)
+        {
+            log::info!("Forward packet to wg tunnel");
+            peer_tx
+                .send(Event::Ip(packet.to_vec().into()))
+                .tap_err(|err| log::error!("{err}"))
+                .unwrap();
+        } else {
+            log::info!("No peer found, packet dropped");
+        }
+    }
+
+    async fn handle_tun_write(&mut self, data: Vec<u8>) {
+        let headers = SlicedPacket::from_ip(&data).unwrap();
+        let (source_addr, destination_addr) = match headers.ip.unwrap() {
+            InternetSlice::Ipv4(ip, _) => (ip.source_addr(), ip.destination_addr()),
+            InternetSlice::Ipv6(_, _) => unimplemented!(),
+        };
+
+        log::info!(
+            "iface: write Packet({source_addr} -> {destination_addr}, {} bytes)",
+            data.len()
+        );
+        self.tun.write_all(&data).await.unwrap();
+    }
+
     pub async fn run(mut self) {
         let mut buf = [0u8; 1024];
 
@@ -71,45 +116,16 @@ impl TunDevice {
                 len = self.tun.read(&mut buf) => match len {
                     Ok(len) => {
                         let packet = &buf[..len];
-                        let dst_addr = boringtun::noise::Tunn::dst_address(packet).unwrap();
-
-                        let headers = SlicedPacket::from_ip(packet).unwrap();
-                        let src_addr = match headers.ip.unwrap() {
-                            InternetSlice::Ipv4(ip, _) => ip.source_addr().to_string(),
-                            InternetSlice::Ipv6(ip, _) => ip.source_addr().to_string(),
-                        };
-                        log::info!("iface: read Packet({src_addr} -> {dst_addr}, {len} bytes)");
-
-                        // Route packet to the correct peer.
-                        if let Some(peer_tx) = self.peers_by_ip.lock().unwrap().longest_match(dst_addr).map(|(_, tx)| tx) {
-                            log::info!("Forward packet to wg tunnel");
-                            peer_tx
-                                .send(Event::Ip(packet.to_vec().into()))
-                                .tap_err(|err| log::error!("{err}"))
-                                .unwrap();
-                        } else {
-                            log::info!("No peer found, packet dropped");
-                        }
+                        self.handle_tun_read(packet);
                     },
                     Err(err) => {
                         log::info!("iface: read error: {err}");
                         break;
                     }
                 },
-
                 // Writing to the TUN device
                 Some(data) = self.tun_task_rx.recv() => {
-                    let headers = SlicedPacket::from_ip(&data).unwrap();
-                    let (source_addr, destination_addr) = match headers.ip.unwrap() {
-                        InternetSlice::Ipv4(ip, _) => (ip.source_addr(), ip.destination_addr()),
-                        InternetSlice::Ipv6(_, _) => unimplemented!(),
-                    };
-
-                    log::info!(
-                        "iface: write Packet({source_addr} -> {destination_addr}, {} bytes)",
-                        data.len()
-                    );
-                    self.tun.write_all(&data).await.unwrap();
+                    self.handle_tun_write(data).await;
                 }
             }
         }

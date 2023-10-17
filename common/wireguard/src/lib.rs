@@ -52,22 +52,6 @@ pub async fn start_wireguard(
     Ok(())
 }
 
-#[cfg(target_os = "linux")]
-pub async fn new_wireguard2(
-) -> Result<udp_listener::WgUdpListener, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    use std::sync::Arc;
-
-    let peers_by_ip = Arc::new(std::sync::Mutex::new(network_table::NetworkTable::new()));
-
-    // Start the tun device that is used to relay traffic outbound
-    let tun_task_tx = tun_device::start_tun_device(peers_by_ip.clone());
-
-    // Start the UDP listener that clients connect to
-    let udp_listener = udp_listener::WgUdpListener::new(tun_task_tx, peers_by_ip).await?;
-    Ok(udp_listener)
-    // Ok(udp_listener::start_udp_listener(tun_task_tx, peers_by_ip, task_client).await?)
-}
-
 #[cfg(not(target_os = "linux"))]
 pub async fn start_wireguard(
     _task_client: nym_task::TaskClient,

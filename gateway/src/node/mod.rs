@@ -387,7 +387,6 @@ impl<St> Gateway<St> {
         // Once this is a bit more mature, make this a commandline flag instead of a compile time
         // flag
         #[cfg(feature = "wireguard")]
-        // self.start_wireguard(shutdown.subscribe().named("wireguard")).await;
         if let Err(err) = self
             .start_wireguard(shutdown.subscribe().named("wireguard"))
             .await

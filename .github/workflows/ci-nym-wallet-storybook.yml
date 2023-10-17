@@ -1,7 +1,7 @@
 name: Nym Wallet Storybook
 
 on:
-  push:
+  pull_request:
     paths:
       - 'nym-wallet/**'
 

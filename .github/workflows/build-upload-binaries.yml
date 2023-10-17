@@ -1,16 +1,16 @@
-name: Build and upload binaries to artifact storage
+name: build-upload-binaries
 
 on:
   workflow_dispatch:
-    inputs:  
+    inputs:
       add_tokio_unstable:
         description: 'True to add RUSTFLAGS="--cfg tokio_unstable"'
         required: true
         default: false
-        type: boolean 
-    
+        type: boolean
+
 env:
-  NETWORK: mainnet    
+  NETWORK: mainnet
 
 jobs:
   publish-nym:

@@ -70,7 +70,7 @@ jobs:
 
   notification:
     needs: build
-    runs-on: custom-runner-linux
+    runs-on: custom-linux
     steps:
       - name: Collect jobs status
         uses: technote-space/workflow-conclusion-action@v2

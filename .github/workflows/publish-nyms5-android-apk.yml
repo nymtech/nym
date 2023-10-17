@@ -94,7 +94,7 @@ jobs:
   gh-release:
     name: Publish APK (GH release)
     needs: build
-    runs-on: custom-runner-linux
+    runs-on: custom-linux
     steps:
       - name: Checkout
         uses: actions/checkout@v3

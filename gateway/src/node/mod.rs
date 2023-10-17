@@ -158,8 +158,9 @@ impl<St> Gateway<St> {
 
     #[cfg(feature = "wireguard")]
     async fn start_wireguard(&self, shutdown: TaskClient) {
-        let wg_udp_listener = nym_wireguard::new_wireguard2().await.unwrap();
-        wg_udp_listener.start(shutdown);
+        // let wg_udp_listener = nym_wireguard::new_wireguard2().await.unwrap();
+        // wg_udp_listener.start(shutdown);
+        nym_wireguard::start_wireguard(shutdown).await.unwrap();
     }
 
     fn start_client_websocket_listener(

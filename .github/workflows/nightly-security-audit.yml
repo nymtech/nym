@@ -1,4 +1,4 @@
-name: Daily security audit
+name: nightly-security-audit
 
 on:
   schedule:

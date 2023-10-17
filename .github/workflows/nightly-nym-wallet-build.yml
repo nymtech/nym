@@ -35,6 +35,9 @@ jobs:
           override: true
           components: rustfmt, clippy
 
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v2
+
       - name: Check formatting
         uses: actions-rs/cargo@v1
         with:

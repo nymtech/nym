@@ -25,6 +25,7 @@ use tap::TapFallible;
 mod old_config_v1_1_13;
 mod old_config_v1_1_20;
 mod old_config_v1_1_20_2;
+mod old_config_v1_1_30;
 mod persistence;
 mod template;
 mod upgrade;

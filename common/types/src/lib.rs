@@ -9,10 +9,12 @@ pub mod error;
 pub mod fees;
 pub mod gas;
 pub mod gateway;
+#[cfg(feature = "wireguard")]
 pub mod gateway_client_registration;
 pub mod helpers;
 pub mod mixnode;
 pub mod pending_events;
 pub mod transaction;
 pub mod vesting;
+#[cfg(feature = "wireguard")]
 pub mod wireguard;

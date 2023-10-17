@@ -8,7 +8,7 @@ rust-version = "1.58"
 
 [dependencies]
 base64 = "0.21.4"
-boringtun = { workspace = true }
+boringtun = { workspace = true, optional = true }
 dashmap = "5.5.3"
 eyre = "0.6.5"
 hmac = "0.12.1"
@@ -41,3 +41,4 @@ tempfile = "3.3.0"
 [features]
 default = []
 generate-ts = ["nym-mixnet-contract-common/generate-ts"]
+wireguard = ["boringtun"]

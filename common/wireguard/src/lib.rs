@@ -48,8 +48,12 @@ pub async fn start_wireguard(
     tun.start();
 
     // Start the UDP listener that clients connect to
-    let udp_listener =
-        udp_listener::WgUdpListener::new(tun_task_tx, peers_by_ip, gateway_client_registry).await?;
+    let udp_listener = udp_listener::WgUdpListener::new(
+        tun_task_tx,
+        peers_by_ip,
+        Arc::clone(&gateway_client_registry),
+    )
+    .await?;
     udp_listener.start(task_client);
 
     Ok(())

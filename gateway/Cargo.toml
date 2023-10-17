@@ -97,4 +97,4 @@ sqlx = { version = "0.5", features = [
 ] }
 
 [features]
-wireguard = ["nym-wireguard"]
+wireguard = ["nym-wireguard", "nym-types/wireguard"]

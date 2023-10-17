@@ -162,7 +162,7 @@ impl<St> Gateway<St> {
         shutdown: TaskClient,
     ) -> Result<(), Box<dyn Error + Send + Sync>> {
         // TODO: possibly we should start the UDP listener and TUN device explicitly here
-        nym_wireguard::start_wireguard(shutdown).await
+        nym_wireguard::start_wireguard(shutdown, Arc::clone(&self.client_registry)).await
     }
 
     fn start_client_websocket_listener(
@@ -388,10 +388,7 @@ impl<St> Gateway<St> {
         // flag
         #[cfg(feature = "wireguard")]
         if let Err(err) = self
-            .start_wireguard(
-                shutdown.subscribe().named("wireguard"),
-                Arc::clone(&self.client_registry),
-            )
+            .start_wireguard(shutdown.subscribe().named("wireguard"))
             .await
         {
             // that's a nasty workaround, but anyhow errors are generally nicer, especially on exit

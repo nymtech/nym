@@ -41,14 +41,26 @@ async fn add_test_peer(registered_peers: &mut RegisteredPeers) {
 }
 
 pub struct WgUdpListener {
-    tun_task_tx: TunTaskTx,
+    // Our private key
+    static_private: x25519::StaticSecret,
+
+    // Our public key
+    static_public: x25519::PublicKey,
+
+    // The list of registered peers that we allow
+    registered_peers: RegisteredPeers,
+
+    // The routing table, as defined by wireguard
     peers_by_ip: Arc<std::sync::Mutex<PeersByIp>>,
 
+    // The UDP socket to the peer
     udp: Arc<UdpSocket>,
+
+    // Send data to the TUN device for sending
+    tun_task_tx: TunTaskTx,
+
+    // Wireguard rate limiter
     rate_limiter: RateLimiter,
-    registered_peers: RegisteredPeers,
-    static_private: x25519::StaticSecret,
-    static_public: x25519::PublicKey,
 }
 
 impl WgUdpListener {
@@ -71,19 +83,17 @@ impl WgUdpListener {
         add_test_peer(&mut registered_peers).await;
 
         Ok(Self {
-            tun_task_tx,
-            peers_by_ip,
-
-            udp,
-            rate_limiter,
-            registered_peers,
             static_private,
             static_public,
+            registered_peers,
+            peers_by_ip,
+            udp,
+            tun_task_tx,
+            rate_limiter,
         })
     }
 
     pub async fn run(self, mut task_client: TaskClient) {
-        log::info!("run!");
         // The set of active tunnels
         let active_peers = ActivePeers::default();
         // Each tunnel is run in its own task, and the task handle is stored here so we can remove
@@ -202,7 +212,6 @@ impl WgUdpListener {
     }
 
     pub fn start(self, task_client: TaskClient) {
-        log::info!("start!");
         tokio::spawn(async move { self.run(task_client).await });
     }
 }

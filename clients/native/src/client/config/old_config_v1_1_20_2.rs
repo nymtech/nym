@@ -11,6 +11,7 @@ use crate::{
 use nym_bin_common::logging::LoggingSettings;
 use nym_client_core::config::disk_persistence::old_v1_1_20_2::CommonClientPathsV1_1_20_2;
 use nym_client_core::config::old_config_v1_1_20_2::ConfigV1_1_20_2 as BaseConfigV1_1_20_2;
+use nym_client_core::config::old_config_v1_1_30::ConfigV1_1_30 as BaseConfigV1_1_30;
 use nym_client_core::config::GatewayEndpointConfig;
 use nym_config::read_config_from_toml_file;
 use nym_network_defaults::DEFAULT_WEBSOCKET_LISTENING_PORT;
@@ -51,7 +52,7 @@ impl ConfigV1_1_20_2 {
     pub fn upgrade(self) -> Result<(Config, GatewayEndpointConfig), ClientError> {
         let gateway_details = self.base.client.gateway_endpoint.clone().into();
         let config = Config {
-            base: self.base.into(),
+            base: BaseConfigV1_1_30::from(self.base).into(),
             socket: self.socket.into(),
             storage_paths: ClientPaths {
                 common_paths: self.storage_paths.common_paths.upgrade_default()?,

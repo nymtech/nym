@@ -31,9 +31,6 @@ on:
       - 'tools/nym-cli/**'
       - 'tools/ts-rs-cli/**'
 
-env:
-  NETWORK: mainnet
-
 jobs:
   publish-nym:
     strategy:

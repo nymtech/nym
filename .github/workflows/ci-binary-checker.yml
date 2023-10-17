@@ -32,7 +32,7 @@ jobs:
       fail-fast: false
       matrix:
         platform: [custom-linux]
-         
+
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v3
@@ -45,12 +45,12 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
-          
+
       - name: Branch name
         run: echo running on branch ${GITHUB_REF##*/}
-                    
+
       - name: Run tests against binaries
         run: ./build_and_run.sh ${{ github.head_ref || github.ref_name }}
         working-directory: tests/
-        
-      
+
+

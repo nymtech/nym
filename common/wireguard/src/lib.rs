@@ -3,6 +3,7 @@
 // #![warn(clippy::expect_used)]
 // #![warn(clippy::unwrap_used)]
 
+mod active_peers;
 mod error;
 mod event;
 mod network_table;
@@ -17,7 +18,7 @@ mod wg_tunnel;
 use platform::linux::tun_device;
 
 #[derive(Clone)]
-struct TunTaskTx(tokio::sync::mpsc::UnboundedSender<Vec<u8>>);
+pub struct TunTaskTx(tokio::sync::mpsc::UnboundedSender<Vec<u8>>);
 
 impl TunTaskTx {
     fn send(&self, packet: Vec<u8>) -> Result<(), tokio::sync::mpsc::error::SendError<Vec<u8>>> {
@@ -39,10 +40,12 @@ pub async fn start_wireguard(
     let peers_by_ip = Arc::new(std::sync::Mutex::new(network_table::NetworkTable::new()));
 
     // Start the tun device that is used to relay traffic outbound
-    let tun_task_tx = tun_device::start_tun_device(peers_by_ip.clone());
+    let (tun, tun_task_tx) = tun_device::TunDevice::new(peers_by_ip.clone());
+    tun.start();
 
     // Start the UDP listener that clients connect to
-    udp_listener::start_udp_listener(tun_task_tx, peers_by_ip, task_client).await?;
+    let udp_listener = udp_listener::WgUdpListener::new(tun_task_tx, peers_by_ip).await?;
+    udp_listener.start(task_client);
 
     Ok(())
 }

@@ -4,7 +4,6 @@ use boringtun::{
     noise::{self, handshake::parse_handshake_anon, rate_limiter::RateLimiter, TunnResult},
     x25519,
 };
-use dashmap::DashMap;
 use futures::StreamExt;
 use log::error;
 use nym_task::TaskClient;
@@ -15,6 +14,8 @@ use tokio::{
 };
 
 use crate::{
+    active_peers::ActivePeers,
+    error::WgError,
     event::Event,
     network_table::NetworkTable,
     registered_peers::{RegisteredPeer, RegisteredPeers},
@@ -26,10 +27,6 @@ const MAX_PACKET: usize = 65535;
 
 // Registered peers
 pub(crate) type PeersByIp = NetworkTable<mpsc::UnboundedSender<Event>>;
-
-// Active peers
-pub(crate) type ActivePeers = DashMap<x25519::PublicKey, mpsc::UnboundedSender<Event>>;
-pub(crate) type PeersByAddr = DashMap<SocketAddr, mpsc::UnboundedSender<Event>>;
 
 async fn add_test_peer(registered_peers: &mut RegisteredPeers) {
     let peer_static_public = setup::peer_static_public_key();
@@ -43,29 +40,62 @@ async fn add_test_peer(registered_peers: &mut RegisteredPeers) {
     registered_peers.insert(peer_static_public, test_peer).await;
 }
 
-pub(crate) async fn start_udp_listener(
-    tun_task_tx: TunTaskTx,
+pub struct WgUdpListener {
+    // Our private key
+    static_private: x25519::StaticSecret,
+
+    // Our public key
+    static_public: x25519::PublicKey,
+
+    // The list of registered peers that we allow
+    registered_peers: RegisteredPeers,
+
+    // The routing table, as defined by wireguard
     peers_by_ip: Arc<std::sync::Mutex<PeersByIp>>,
-    mut task_client: TaskClient,
-) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let wg_address = SocketAddr::new(WG_ADDRESS.parse().unwrap(), WG_PORT);
-    log::info!("Starting wireguard UDP listener on {wg_address}");
-    let udp = Arc::new(UdpSocket::bind(wg_address).await?);
 
-    // Setup our own keys
-    let static_private = setup::server_static_private_key();
-    let static_public = x25519::PublicKey::from(&static_private);
-    let handshake_max_rate = 100u64;
-    let rate_limiter = RateLimiter::new(&static_public, handshake_max_rate);
+    // The UDP socket to the peer
+    udp: Arc<UdpSocket>,
 
-    // Create a test peer for dev
-    let mut registered_peers = RegisteredPeers::default();
-    add_test_peer(&mut registered_peers).await;
+    // Send data to the TUN device for sending
+    tun_task_tx: TunTaskTx,
 
-    tokio::spawn(async move {
-        // The set of active tunnels indexed by the peer's address
-        let active_peers = Arc::new(ActivePeers::new());
-        let active_peers_by_addr = PeersByAddr::new();
+    // Wireguard rate limiter
+    rate_limiter: RateLimiter,
+}
+
+impl WgUdpListener {
+    pub async fn new(
+        tun_task_tx: TunTaskTx,
+        peers_by_ip: Arc<std::sync::Mutex<PeersByIp>>,
+    ) -> Result<Self, Box<dyn std::error::Error + Send + Sync + 'static>> {
+        let wg_address = SocketAddr::new(WG_ADDRESS.parse().unwrap(), WG_PORT);
+        log::info!("Starting wireguard UDP listener on {wg_address}");
+        let udp = Arc::new(UdpSocket::bind(wg_address).await?);
+
+        // Setup our own keys
+        let static_private = setup::server_static_private_key();
+        let static_public = x25519::PublicKey::from(&static_private);
+        let handshake_max_rate = 100u64;
+        let rate_limiter = RateLimiter::new(&static_public, handshake_max_rate);
+
+        // Create a test peer for dev
+        let mut registered_peers = RegisteredPeers::default();
+        add_test_peer(&mut registered_peers).await;
+
+        Ok(Self {
+            static_private,
+            static_public,
+            registered_peers,
+            peers_by_ip,
+            udp,
+            tun_task_tx,
+            rate_limiter,
+        })
+    }
+
+    pub async fn run(self, mut task_client: TaskClient) {
+        // The set of active tunnels
+        let active_peers = ActivePeers::default();
         // Each tunnel is run in its own task, and the task handle is stored here so we can remove
         // it from `active_peers` when the tunnel is closed
         let mut active_peers_task_handles = futures::stream::FuturesUnordered::new();
@@ -81,16 +111,13 @@ pub(crate) async fn start_udp_listener(
                 }
                 // Reset the rate limiter every 1 sec
                 () = tokio::time::sleep(Duration::from_secs(1)) => {
-                    rate_limiter.reset_count();
+                    self.rate_limiter.reset_count();
                 },
                 // Handle tunnel closing
                 Some(public_key) = active_peers_task_handles.next() => {
                     match public_key {
                         Ok(public_key) => {
-                            log::info!("Removing peer: {public_key:?}");
                             active_peers.remove(&public_key);
-                            log::warn!("TODO: remove from peers_by_ip?");
-                            log::warn!("TODO: remove from peers_by_addr");
                         }
                         Err(err) => {
                             error!("WireGuard UDP listener: error receiving shutdown from peer: {err}");
@@ -98,13 +125,13 @@ pub(crate) async fn start_udp_listener(
                     }
                 },
                 // Handle incoming packets
-                Ok((len, addr)) = udp.recv_from(&mut buf) => {
+                Ok((len, addr)) = self.udp.recv_from(&mut buf) => {
                     log::trace!("udp: received {} bytes from {}", len, addr);
 
                     // If this addr has already been encountered, send directly to tunnel
                     // TODO: optimization opportunity to instead create a connected UDP socket
                     // inside the wg tunnel, where you can recv the data directly.
-                    if let Some(peer_tx) = active_peers_by_addr.get(&addr) {
+                    if let Some(peer_tx) = active_peers.get_by_addr(&addr) {
                         log::info!("udp: received {len} bytes from {addr} from known peer");
                         peer_tx
                             .send(Event::Wg(buf[..len].to_vec().into()))
@@ -114,11 +141,11 @@ pub(crate) async fn start_udp_listener(
                     }
 
                     // Verify the incoming packet
-                    let verified_packet = match rate_limiter.verify_packet(Some(addr.ip()), &buf[..len], &mut dst_buf) {
+                    let verified_packet = match self.rate_limiter.verify_packet(Some(addr.ip()), &buf[..len], &mut dst_buf) {
                         Ok(packet) => packet,
                         Err(TunnResult::WriteToNetwork(cookie)) => {
                             log::info!("Send back cookie to: {addr}");
-                            udp.send_to(cookie, addr).await.tap_err(|e| log::error!("{e}")).ok();
+                            self.udp.send_to(cookie, addr).await.tap_err(|e| log::error!("{e}")).ok();
                             continue;
                         }
                         Err(err) => {
@@ -128,40 +155,25 @@ pub(crate) async fn start_udp_listener(
                     };
 
                     // Check if this is a registered peer, if not, just skip
-                    let registered_peer = {
-                        let reg_peer = match verified_packet {
-                            noise::Packet::HandshakeInit(ref packet) => {
-                                let Ok(handshake) = parse_handshake_anon(&static_private, &static_public, packet) else {
-                                    log::warn!("Handshake failed: {addr}");
-                                    continue;
-                                };
-                                registered_peers.get_by_key(&x25519::PublicKey::from(handshake.peer_static_public))
-                            },
-                            noise::Packet::HandshakeResponse(packet) => {
-                                let peer_idx = packet.receiver_idx >> 8;
-                                registered_peers.get_by_idx(peer_idx)
-                            },
-                            noise::Packet::PacketCookieReply(packet) => {
-                                let peer_idx = packet.receiver_idx >> 8;
-                                registered_peers.get_by_idx(peer_idx)
-                            },
-                            noise::Packet::PacketData(packet) => {
-                                let peer_idx = packet.receiver_idx >> 8;
-                                registered_peers.get_by_idx(peer_idx)
-                            },
-                        };
-
-                        match reg_peer {
-                            Some(reg_peer) => reg_peer.lock().await,
-                            None => {
-                                log::warn!("Peer not registered: {addr}");
-                                continue;
-                            }
+                    let registered_peer = match parse_peer(
+                        verified_packet,
+                        &self.registered_peers,
+                        &self.static_private,
+                        &self.static_public
+                    ) {
+                        Ok(Some(peer)) => peer.lock().await,
+                        Ok(None) => {
+                            log::warn!("Peer not registered: {addr}");
+                            continue;
                         }
+                        Err(err) => {
+                            log::error!("{err}");
+                            continue;
+                        },
                     };
 
                     // Look up if the peer is already connected
-                    if let Some(peer_tx) = active_peers.get_mut(&registered_peer.public_key) {
+                    if let Some(peer_tx) = active_peers.get_by_key_mut(&registered_peer.public_key) {
                         // We found the peer as connected, even though the addr was not known
                         log::info!("udp: received {len} bytes from {addr} which is a known peer with unknown addr");
                         peer_tx.send(Event::WgVerified(buf[..len].to_vec().into()))
@@ -175,30 +187,60 @@ pub(crate) async fn start_udp_listener(
                         log::warn!("Creating new rate limiter, consider re-using?");
                         let (join_handle, peer_tx) = crate::wg_tunnel::start_wg_tunnel(
                             addr,
-                            udp.clone(),
-                            static_private.clone(),
+                            self.udp.clone(),
+                            self.static_private.clone(),
                             registered_peer.public_key,
                             registered_peer.index,
                             registered_peer.allowed_ips,
-                            tun_task_tx.clone(),
+                            self.tun_task_tx.clone(),
                         );
 
-                        peers_by_ip.lock().unwrap().insert(registered_peer.allowed_ips, peer_tx.clone());
-                        active_peers_by_addr.insert(addr, peer_tx.clone());
+                        self.peers_by_ip.lock().unwrap().insert(registered_peer.allowed_ips, peer_tx.clone());
 
                         peer_tx.send(Event::Wg(buf[..len].to_vec().into()))
                             .tap_err(|e| log::error!("{e}"))
                             .ok();
 
-                        log::info!("Adding peer: {addr}");
-                        active_peers.insert(registered_peer.public_key, peer_tx);
+                        log::info!("Adding peer: {:?}: {addr}", registered_peer.public_key);
+                        active_peers.insert(registered_peer.public_key, addr, peer_tx);
                         active_peers_task_handles.push(join_handle);
                     }
                 },
             }
         }
         log::info!("WireGuard listener: shutting down");
-    });
+    }
 
-    Ok(())
+    pub fn start(self, task_client: TaskClient) {
+        tokio::spawn(async move { self.run(task_client).await });
+    }
+}
+
+fn parse_peer<'a>(
+    verified_packet: noise::Packet,
+    registered_peers: &'a RegisteredPeers,
+    static_private: &x25519::StaticSecret,
+    static_public: &x25519::PublicKey,
+) -> Result<Option<&'a Arc<tokio::sync::Mutex<RegisteredPeer>>>, WgError> {
+    let registered_peer = match verified_packet {
+        noise::Packet::HandshakeInit(ref packet) => {
+            let Ok(handshake) = parse_handshake_anon(static_private, static_public, packet) else {
+                return Err(WgError::HandshakeFailed);
+            };
+            registered_peers.get_by_key(&x25519::PublicKey::from(handshake.peer_static_public))
+        }
+        noise::Packet::HandshakeResponse(packet) => {
+            let peer_idx = packet.receiver_idx >> 8;
+            registered_peers.get_by_idx(peer_idx)
+        }
+        noise::Packet::PacketCookieReply(packet) => {
+            let peer_idx = packet.receiver_idx >> 8;
+            registered_peers.get_by_idx(peer_idx)
+        }
+        noise::Packet::PacketData(packet) => {
+            let peer_idx = packet.receiver_idx >> 8;
+            registered_peers.get_by_idx(peer_idx)
+        }
+    };
+    Ok(registered_peer)
 }

@@ -156,6 +156,15 @@ impl<St> Gateway<St> {
         mixnet_handling::Listener::new(listening_address, shutdown).start(connection_handler);
     }
 
+    #[cfg(feature = "wireguard")]
+    async fn start_wireguard(
+        &self,
+        shutdown: TaskClient,
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
+        // TODO: possibly we should start the UDP listener and TUN device explicitly here
+        nym_wireguard::start_wireguard(shutdown).await
+    }
+
     fn start_client_websocket_listener(
         &self,
         forwarding_channel: MixForwardingSender,
@@ -378,7 +387,10 @@ impl<St> Gateway<St> {
         // Once this is a bit more mature, make this a commandline flag instead of a compile time
         // flag
         #[cfg(feature = "wireguard")]
-        if let Err(err) = nym_wireguard::start_wireguard(shutdown.subscribe()).await {
+        if let Err(err) = self
+            .start_wireguard(shutdown.subscribe().named("wireguard"))
+            .await
+        {
             // that's a nasty workaround, but anyhow errors are generally nicer, especially on exit
             bail!("{err}")
         }

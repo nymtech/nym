@@ -4,4 +4,6 @@ use thiserror::Error;
 pub enum WgError {
     #[error("unable to get tunnel")]
     UnableToGetTunnel,
+    #[error("handshake failed")]
+    HandshakeFailed,
 }

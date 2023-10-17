@@ -1,5 +1,6 @@
 pub use nym_client_core::error::ClientCoreError;
-use nym_socks5_requests::Socks5RequestError;
+use nym_socks5_requests::{RemoteAddress, Socks5RequestError};
+use std::net::SocketAddr;
 
 #[derive(thiserror::Error, Debug)]
 pub enum NetworkRequesterError {
@@ -33,4 +34,18 @@ pub enum NetworkRequesterError {
 
     #[error("the entity wrapping the network requester has disconnected")]
     DisconnectedParent,
+
+    #[error("the provided socket address, '{addr}' is not covered by the exit policy!")]
+    AddressNotCoveredByExitPolicy { addr: SocketAddr },
+
+    #[error(
+        "could not resolve socket address for the provided remote address '{remote}': {source}"
+    )]
+    CouldNotResolveHost {
+        remote: RemoteAddress,
+        source: std::io::Error,
+    },
+
+    #[error("the provided address: '{remote}' was somehow resolved to an empty list of socket addresses")]
+    EmptyResolvedAddresses { remote: RemoteAddress },
 }

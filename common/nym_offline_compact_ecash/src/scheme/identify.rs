@@ -11,33 +11,30 @@ pub enum IdentifyResult {
     DoubleSpendingPublicKeys(PublicKeyUser),
 }
 
-
-pub fn identify(params: &Parameters, public_keys_u: &[PublicKeyUser], verification_key: &VerificationKeyAuth, payment1: Payment, payment2: Payment, pay_info1: PayInfo, pay_info2: PayInfo) -> Result<IdentifyResult> {
+pub fn identify(params: &Parameters, verification_key: &VerificationKeyAuth, payment1: Payment, payment2: Payment, pay_info1: PayInfo, pay_info2: PayInfo) -> Result<IdentifyResult> {
     let mut k = 0;
     let mut j = 0;
-    'outer: for (id1, pay1_ss) in payment1.ss.iter().enumerate() {
-        'inner: for (id2, pay2_ss) in payment2.ss.iter().enumerate() {
+    for (id1, pay1_ss) in payment1.ss.iter().enumerate() {
+        for (id2, pay2_ss) in payment2.ss.iter().enumerate() {
             if pay1_ss == pay2_ss {
-                k = id1.clone();
-                j = id2.clone();
-                break 'outer;
+                k = id1;
+                j = id2;
+                break;
             }
         }
-        return Ok(IdentifyResult::NotADuplicatePayment);
     }
-    return if pay_info1 == pay_info2 {
-        Ok(IdentifyResult::DuplicatePayInfo(pay_info1))
-    } else {
-        let pk = (payment2.tt[j] * payment1.rr[k] - payment1.tt[k] * payment2.rr[j]) * ((payment1.rr[k] - payment2.rr[j]).invert().unwrap());
-        let pk_user = PublicKeyUser { pk: pk.clone() };
-        if public_keys_u.contains(&pk_user) {
-            Ok(IdentifyResult::DoubleSpendingPublicKeys(pk_user))
+    if payment1.ss.iter().any(|pay1_ss| payment2.ss.contains(pay1_ss)) {
+        if pay_info1 == pay_info2 {
+            Ok(IdentifyResult::DuplicatePayInfo(pay_info1))
         } else {
-            Err(CompactEcashError::Identify(
-                "A duplicate serial number was detected, the pay_info1 and pay_info2 are different, but we failed to identify the double-spending public key".to_string(),
-            ))
+            let rr_diff = payment1.rr[k] - payment2.rr[j];
+            let pk = (payment2.tt[j] * payment1.rr[k] - payment1.tt[k] * payment2.rr[j]) * rr_diff.invert().unwrap();
+            let pk_user = PublicKeyUser { pk };
+            Ok(IdentifyResult::DoubleSpendingPublicKeys(pk_user))
         }
-    };
+    } else {
+        Ok(IdentifyResult::NotADuplicatePayment)
+    }
 }
 
 #[cfg(test)]
@@ -116,7 +113,7 @@ mod tests {
             .unwrap());
 
         let pay_info2 = pay_info1.clone();
-        let identify_result = identify(&params, &[user_keypair.public_key()], &verification_key, payment1, payment2, pay_info1.clone(), pay_info2.clone()).unwrap();
+        let identify_result = identify(&params, &verification_key, payment1, payment2, pay_info1.clone(), pay_info2.clone()).unwrap();
         assert_eq!(identify_result, IdentifyResult::DuplicatePayInfo(pay_info1.clone()));
     }
 
@@ -196,7 +193,7 @@ mod tests {
             .spend_verify(&params, &verification_key, &pay_info2)
             .unwrap());
 
-        let identify_result = identify(&params, &[user_keypair.public_key()], &verification_key, payment1, payment2, pay_info1.clone(), pay_info2.clone()).unwrap();
+        let identify_result = identify(&params, &verification_key, payment1, payment2, pay_info1.clone(), pay_info2.clone()).unwrap();
         assert_eq!(identify_result, IdentifyResult::NotADuplicatePayment);
     }
 
@@ -291,7 +288,7 @@ mod tests {
             .spend_verify(&params, &verification_key, &pay_info2)
             .unwrap());
 
-        let identify_result = identify(&params, &public_keys, &verification_key, payment1, payment2, pay_info1.clone(), pay_info2.clone()).unwrap();
+        let identify_result = identify(&params, &verification_key, payment1, payment2, pay_info1.clone(), pay_info2.clone()).unwrap();
         assert_eq!(identify_result, IdentifyResult::DoubleSpendingPublicKeys(user_keypair.public_key()));
     }
 
@@ -381,7 +378,7 @@ mod tests {
         ).unwrap();
 
 
-        let identify_result = identify(&params, &public_keys, &verification_key, payment1, payment2, pay_info1.clone(), pay_info2.clone()).unwrap();
+        let identify_result = identify(&params, &verification_key, payment1, payment2, pay_info1.clone(), pay_info2.clone()).unwrap();
         assert_eq!(identify_result, IdentifyResult::DoubleSpendingPublicKeys(user_keypair.public_key()));
     }
 }

@@ -31,7 +31,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: [custom-runner-linux]
+        platform: [custom-linux]
          
     runs-on: ${{ matrix.platform }}
     steps:

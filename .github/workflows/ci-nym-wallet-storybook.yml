@@ -7,7 +7,7 @@ on:
 
 jobs:
   build:
-    runs-on: custom-runner-linux
+    runs-on: custom-linux
     steps:
     - uses: actions/checkout@v2
     - name: Install rsync

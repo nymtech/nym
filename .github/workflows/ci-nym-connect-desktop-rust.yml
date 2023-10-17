@@ -1,16 +1,6 @@
 name: ci-nym-connect-desktop-rust
 
 on:
-  push:
-    paths:
-      - "nym-connect/desktop/src-tauri/**"
-      - "nym-connect/desktop/src-tauri/Cargo.toml"
-      - "clients/client-core/**"
-      - "clients/socks5/**"
-      - "common/**"
-      - "gateway/gateway-requests/**"
-      - "contracts/vesting/**"
-      - "nym-api/nym-api-requests/**"
   pull_request:
     paths:
       - "nym-connect/desktop/src-tauri/**"

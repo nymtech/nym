@@ -1,15 +1,6 @@
 name: ci-lint-typescript
 
 on:
-  push:
-    paths:
-      - "ts-packages/**"
-      - "sdk/typescript/**"
-      - "nym-connect/desktop/src/**"
-      - "nym-connect/desktop/package.json"
-      - "nym-wallet/src/**"
-      - "nym-wallet/package.json"
-      - "explorer/**"
   pull_request:
     paths:
       - "ts-packages/**"

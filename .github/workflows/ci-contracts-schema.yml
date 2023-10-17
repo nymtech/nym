@@ -2,10 +2,6 @@ name: ci-contracts-schema
 
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - 'contracts/**'
-      - 'common/**'
   pull_request:
     paths:
       - 'contracts/**'

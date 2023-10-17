@@ -2,10 +2,6 @@ name: ci-contracts-upload-binaries
 
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - 'common/**'
-      - 'contracts/**'
   pull_request:
     paths:
       - 'common/**'

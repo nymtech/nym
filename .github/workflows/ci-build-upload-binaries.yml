@@ -2,20 +2,6 @@ name: ci-build-upload-binaries
 
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - 'clients/**'
-      - 'common/**'
-      - 'explorer-api/**'
-      - 'gateway/**'
-      - 'integrations/**'
-      - 'mixnode/**'
-      - 'sdk/rust/nym-sdk/**'
-      - 'service-providers/**'
-      - 'nym-api/**'
-      - 'nym-outfox/**'
-      - 'tools/nym-cli/**'
-      - 'tools/ts-rs-cli/**'
   pull_request:
     paths:
       - 'clients/**'

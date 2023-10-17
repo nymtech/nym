@@ -1,4 +1,4 @@
-name: Nym Wallet Storybook
+name: ci-nym-wallet-storybook
 
 on:
   pull_request:

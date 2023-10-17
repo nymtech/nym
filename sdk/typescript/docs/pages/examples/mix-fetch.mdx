@@ -11,13 +11,11 @@ Sounds great, are there any catches? Well, there are a few (for now):
 the internet use a [standard allow list](https://nymtech.net/.wellknown/network-requester/standard-allowed-list.txt)
 in combination with their own configuration. If you are trying to access something that is not on the allow list, please check the FAQ page.
 
-2. CA certificates in `mixFetch` are periodically updated, so if you get a certificate error, the root certificate you need might not be in the [standard allow list](https://nymtech.net/.wellknown/network-requester/standard-allowed-list.txt). If that's the case, [send a PR](https://github.com/nymtech/nym/pulls) if you need changes.
+2. CA certificates in `mixFetch` are periodically updated, so if you get a certificate error, the root certificate you need might not be valid. If that's the case, [send a PR](https://github.com/nymtech/nym/pulls) if you need changes to the Certificates.
 
 3. If you are using `mixFetch` in a web app with HTTPS you will need to use a gateway that has Secure Websockets to
 avoid getting a [mixed content](https://developer.mozilla.org/en-US/docs/Web/Security/Mixed_content) error.
 
-4. Workaround for Mixed Content Errors because you might be using `mixFetch` from web app served from HTTPS while
-connecting a gateway that only listens on a plain websocket, without HTTPS/TLS.
 
 Read [this article](https://blog.nymtech.net/mixfetch-like-the-fetch-api-but-via-the-mixnet-82acfd435c62) to learn more about mixFetch.
 

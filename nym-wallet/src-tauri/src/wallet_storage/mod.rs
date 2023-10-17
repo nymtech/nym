@@ -1577,7 +1577,7 @@ mod tests {
         // name.
         store_login_with_multiple_accounts_at_file(
             &wallet_file,
-            mnemonic1.clone(),
+            mnemonic1,
             hd_path.clone(),
             login_id.clone(),
             &password,
@@ -1589,7 +1589,7 @@ mod tests {
 
         append_account_to_login_at_file(
             &wallet_file,
-            mnemonic2.clone(),
+            mnemonic2,
             hd_path.clone(),
             login_id.clone(),
             account2.clone(),
@@ -1601,7 +1601,7 @@ mod tests {
         assert!(matches!(
             append_account_to_login_at_file(
                 &wallet_file,
-                mnemonic3.clone(),
+                mnemonic3,
                 hd_path,
                 login_id,
                 account2,
@@ -1967,7 +1967,7 @@ mod tests {
             &wallet,
             &login_id,
             &DEFAULT_FIRST_ACCOUNT_NAME.into(),
-            &renamed_account.clone(),
+            &renamed_account,
             &password,
         )
         .unwrap();
@@ -1975,8 +1975,8 @@ mod tests {
         let loaded_login = load_existing_login_at_file(&wallet, &login_id, &password).unwrap();
         let loaded_accounts = loaded_login.as_multiple_accounts().unwrap();
         let expected = vec![WalletAccount::new(
-            renamed_account.clone(),
-            MnemonicAccount::new(account1.clone(), hd_path.clone()),
+            renamed_account,
+            MnemonicAccount::new(account1, hd_path),
         )]
         .into();
         assert_eq!(loaded_accounts, &expected);
@@ -2047,10 +2047,7 @@ mod tests {
                 DEFAULT_FIRST_ACCOUNT_NAME.into(),
                 MnemonicAccount::new(account1, hd_path.clone()),
             ),
-            WalletAccount::new(
-                renamed_account_id2.clone(),
-                MnemonicAccount::new(account2, hd_path.clone()),
-            ),
+            WalletAccount::new(renamed_account_id2, MnemonicAccount::new(account2, hd_path)),
         ]
         .into();
         assert_eq!(loaded_accounts, &expected);
@@ -2123,10 +2120,7 @@ mod tests {
                 DEFAULT_FIRST_ACCOUNT_NAME.into(),
                 MnemonicAccount::new(account1, hd_path.clone()),
             ),
-            WalletAccount::new(
-                account_id2.clone(),
-                MnemonicAccount::new(account2, hd_path.clone()),
-            ),
+            WalletAccount::new(account_id2, MnemonicAccount::new(account2, hd_path)),
         ]
         .into();
         assert_eq!(loaded_accounts, &expected);

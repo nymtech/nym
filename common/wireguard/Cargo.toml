@@ -17,10 +17,9 @@ base64 = "0.21.3"
 # version mismatch with x25519-dalek/curve25519-dalek that is resolved in the
 # latest commit. So pick that for now.
 #boringtun = "0.6.0"
-boringtun = { git = "https://github.com/cloudflare/boringtun", rev = "e1d6360d6ab4529fc942a078e4c54df107abe2ba" }
+boringtun = { workspace = true }
 bytes = "1.5.0"
 dashmap = "5.5.3"
-etherparse = "0.13.0"
 futures = "0.3.28"
 ip_network = "0.4.1"
 ip_network_table = "0.2.0"
@@ -29,6 +28,8 @@ nym-task = { path = "../task" }
 tap.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, features = ["rt-multi-thread", "net", "io-util"] }
+serde = { workspace = true, features = ["derive"] }
+nym-types = { path = "../types" }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 tokio-tun = "0.9.0"

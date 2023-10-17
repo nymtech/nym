@@ -1,4 +1,6 @@
 use axum::extract::Path;
+use nym_types::gateway_client_registration::{ClientMessage, GatewayClient, InitMessage};
+use nym_types::wireguard::PeerPublicKey;
 use std::sync::Arc;
 
 use axum::http::StatusCode;
@@ -7,12 +9,9 @@ use std::str::FromStr;
 
 // use axum_macros::debug_handler;
 
-use crate::node::client_handling::client_registration::{
-    Client, ClientMessage, ClientPublicKey, InitMessage,
-};
 use crate::node::http::ApiState;
 
-async fn process_final_message(client: Client, state: Arc<ApiState>) -> StatusCode {
+async fn process_final_message(client: GatewayClient, state: Arc<ApiState>) -> StatusCode {
     let preshared_nonce = {
         if let Some(nonce) = state.registration_in_progress.get(client.pub_key()) {
             *nonce
@@ -29,7 +28,9 @@ async fn process_final_message(client: Client, state: Arc<ApiState>) -> StatusCo
             state.registration_in_progress.remove(client.pub_key());
         }
         {
-            state.client_registry.insert(client.socket(), client);
+            state
+                .client_registry
+                .insert(client.pub_key().clone(), client);
         }
         return StatusCode::OK;
     }
@@ -64,7 +65,7 @@ pub(crate) async fn register_client(
 
 pub(crate) async fn get_all_clients(
     State(state): State<Arc<ApiState>>,
-) -> (StatusCode, Json<Vec<ClientPublicKey>>) {
+) -> (StatusCode, Json<Vec<PeerPublicKey>>) {
     (
         StatusCode::OK,
         Json(
@@ -72,7 +73,7 @@ pub(crate) async fn get_all_clients(
                 .client_registry
                 .iter()
                 .map(|c| c.pub_key().clone())
-                .collect::<Vec<ClientPublicKey>>(),
+                .collect::<Vec<PeerPublicKey>>(),
         ),
     )
 }
@@ -80,8 +81,8 @@ pub(crate) async fn get_all_clients(
 pub(crate) async fn get_client(
     Path(pub_key): Path<String>,
     State(state): State<Arc<ApiState>>,
-) -> (StatusCode, Json<Vec<Client>>) {
-    let pub_key = match ClientPublicKey::from_str(&pub_key) {
+) -> (StatusCode, Json<Vec<GatewayClient>>) {
+    let pub_key = match PeerPublicKey::from_str(&pub_key) {
         Ok(pub_key) => pub_key,
         Err(_) => return (StatusCode::BAD_REQUEST, Json(vec![])),
     };
@@ -96,7 +97,7 @@ pub(crate) async fn get_client(
                 None
             }
         })
-        .collect::<Vec<Client>>();
+        .collect::<Vec<GatewayClient>>();
     if clients.is_empty() {
         return (StatusCode::NOT_FOUND, Json(clients));
     }

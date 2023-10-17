@@ -10,15 +10,15 @@ use nym_crypto::asymmetric::encryption;
 
 mod api;
 use api::v1::client_registry::*;
-
-use super::client_handling::client_registration::{ClientPublicKey, ClientRegistry};
+use nym_types::gateway_client_registration::GatewayClientRegistry;
+use nym_types::wireguard::PeerPublicKey;
 
 const ROUTE_PREFIX: &str = "/api/v1/gateway/client-interfaces/wireguard";
 
 pub struct ApiState {
-    client_registry: Arc<ClientRegistry>,
+    client_registry: Arc<GatewayClientRegistry>,
     sphinx_key_pair: Arc<encryption::KeyPair>,
-    registration_in_progress: Arc<DashMap<ClientPublicKey, u64>>,
+    registration_in_progress: Arc<DashMap<PeerPublicKey, u64>>,
 }
 
 fn router_with_state(state: Arc<ApiState>) -> Router {
@@ -33,7 +33,7 @@ fn router_with_state(state: Arc<ApiState>) -> Router {
 }
 
 pub(crate) async fn start_http_api(
-    client_registry: Arc<ClientRegistry>,
+    client_registry: Arc<GatewayClientRegistry>,
     sphinx_key_pair: Arc<encryption::KeyPair>,
 ) {
     // Port should be 80 post smoosh
@@ -69,16 +69,18 @@ mod test {
     use axum::http::StatusCode;
     use dashmap::DashMap;
     use hmac::Mac;
+    use nym_types::gateway_client_registration::ClientMac;
+    use nym_types::gateway_client_registration::ClientMessage;
+    use nym_types::gateway_client_registration::GatewayClient;
+    use nym_types::gateway_client_registration::HmacSha256;
+    use nym_types::gateway_client_registration::InitMessage;
+    use nym_types::wireguard::PeerPublicKey;
     use tower::Service;
     use tower::ServiceExt;
 
     use nym_crypto::asymmetric::encryption;
     use x25519_dalek::{PublicKey, StaticSecret};
 
-    use crate::node::client_handling::client_registration::{
-        Client, ClientMac, ClientMessage, InitMessage,
-    };
-    use crate::node::client_handling::client_registration::{ClientPublicKey, HmacSha256};
     use crate::node::http::{router_with_state, ApiState, ROUTE_PREFIX};
 
     #[tokio::test]
@@ -119,7 +121,7 @@ mod test {
         let mut app = router_with_state(state);
 
         let init_message =
-            ClientMessage::Init(InitMessage::new(ClientPublicKey::new(client_static_public)));
+            ClientMessage::Init(InitMessage::new(PeerPublicKey::new(client_static_public)));
 
         let init_request = Request::builder()
             .method("POST")
@@ -150,8 +152,8 @@ mod test {
         mac.update(&nonce.unwrap().to_le_bytes());
         let mac = mac.finalize().into_bytes();
 
-        let finalized_message = ClientMessage::Final(Client {
-            pub_key: ClientPublicKey::new(client_static_public),
+        let finalized_message = ClientMessage::Final(GatewayClient {
+            pub_key: PeerPublicKey::new(client_static_public),
             socket: SocketAddr::from_str("127.0.0.1:8080").unwrap(),
             mac: ClientMac::new(mac.as_slice().to_vec()),
         });
@@ -188,7 +190,7 @@ mod test {
 
         assert_eq!(response.status(), StatusCode::OK);
 
-        let clients: Vec<ClientPublicKey> =
+        let clients: Vec<PeerPublicKey> =
             serde_json::from_slice(&hyper::body::to_bytes(response.into_body()).await.unwrap())
                 .unwrap();
 
@@ -198,7 +200,7 @@ mod test {
             client_registry
                 .iter()
                 .map(|c| c.value().pub_key().clone())
-                .collect::<Vec<ClientPublicKey>>(),
+                .collect::<Vec<PeerPublicKey>>(),
             clients
         )
     }

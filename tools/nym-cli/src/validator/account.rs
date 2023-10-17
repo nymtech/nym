@@ -64,9 +64,7 @@ fn get_account_from_mnemonic(
     address: Option<AccountId>,
 ) -> anyhow::Result<Option<AccountId>> {
     Ok(address.or(Some(
-        create_signing_client(global_args, network_details)?
-            .address()
-            .clone(),
+        create_signing_client(global_args, network_details)?.address(),
     )))
 }
 

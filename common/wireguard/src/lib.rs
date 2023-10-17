@@ -13,6 +13,9 @@ mod setup;
 mod udp_listener;
 mod wg_tunnel;
 
+use nym_types::gateway_client_registration::GatewayClientRegistry;
+use std::sync::Arc;
+
 // Currently the module related to setting up the virtual network device is platform specific.
 #[cfg(target_os = "linux")]
 use platform::linux::tun_device;
@@ -34,6 +37,7 @@ impl TunTaskTx {
 #[cfg(target_os = "linux")]
 pub async fn start_wireguard(
     task_client: nym_task::TaskClient,
+    gateway_client_registry: Arc<GatewayClientRegistry>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     use std::sync::Arc;
 
@@ -44,7 +48,8 @@ pub async fn start_wireguard(
     tun.start();
 
     // Start the UDP listener that clients connect to
-    let udp_listener = udp_listener::WgUdpListener::new(tun_task_tx, peers_by_ip).await?;
+    let udp_listener =
+        udp_listener::WgUdpListener::new(tun_task_tx, peers_by_ip, gateway_client_registry).await?;
     udp_listener.start(task_client);
 
     Ok(())
@@ -53,6 +58,7 @@ pub async fn start_wireguard(
 #[cfg(not(target_os = "linux"))]
 pub async fn start_wireguard(
     _task_client: nym_task::TaskClient,
+    _gateway_client_registry: Arc<GatewayClientRegistry>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     todo!("WireGuard is currently only supported on Linux")
 }

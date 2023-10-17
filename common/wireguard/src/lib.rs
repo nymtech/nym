@@ -39,7 +39,6 @@ pub async fn start_wireguard(
     task_client: nym_task::TaskClient,
     gateway_client_registry: Arc<GatewayClientRegistry>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-
     let peers_by_ip = Arc::new(std::sync::Mutex::new(network_table::NetworkTable::new()));
 
     // Start the tun device that is used to relay traffic outbound

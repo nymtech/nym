@@ -2933,6 +2933,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "etherparse"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "827292ea592108849932ad8e30218f8b1f21c0dfd0696698a18b5d0aed62d990"
+dependencies = [
+ "arrayvec",
+]
+
+[[package]]
 name = "event-listener"
 version = "2.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7483,6 +7492,7 @@ dependencies = [
  "boringtun",
  "bytes",
  "dashmap",
+ "etherparse",
  "futures",
  "ip_network",
  "ip_network_table",

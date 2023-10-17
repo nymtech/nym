@@ -20,6 +20,7 @@ base64 = "0.21.3"
 boringtun = { workspace = true }
 bytes = "1.5.0"
 dashmap = "5.5.3"
+etherparse = "0.13.0"
 futures = "0.3.28"
 ip_network = "0.4.1"
 ip_network_table = "0.2.0"

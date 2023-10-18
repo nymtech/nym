@@ -37,6 +37,7 @@ packages=(
 "ts/sdk/mix-fetch/esm-full-fat"
 
 "ts/sdk/nodejs-client/cjs"
+"ts/sdk/mix-fetch-node/cjs"
 
 "ts/sdk/node-tester/cjs"
 "ts/sdk/node-tester/cjs-full-fat"

@@ -38,7 +38,7 @@ mod proofs;
 mod scheme;
 pub mod tests;
 mod traits;
-mod utils;
+pub mod utils;
 
 pub type Attribute = Scalar;
 pub type PrivateAttribute = Attribute;

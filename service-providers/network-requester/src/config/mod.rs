@@ -14,6 +14,7 @@ use std::io;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::time::Duration;
+use url::Url;
 
 pub use nym_client_core::config::Config as BaseClientConfig;
 pub use nym_client_core::config::{DebugConfig, GatewayEndpointConfig};
@@ -216,6 +217,14 @@ pub struct NetworkRequester {
     /// Disable Poisson sending rate.
     /// This is equivalent to setting debug.traffic.disable_main_poisson_packet_distribution = true,
     pub disable_poisson_rate: bool,
+
+    /// Specifies whether this network requester should be using the deprecated allow-list,
+    /// as opposed to the new ExitPolicy.
+    /// Note: this field will be removed in a near future.
+    pub use_deprecated_allow_list: bool,
+
+    /// Specifies the url for an upstream source of the exit policy used by this node.
+    pub upstream_exit_policy_url: Option<Url>,
 }
 
 impl Default for NetworkRequester {
@@ -225,6 +234,8 @@ impl Default for NetworkRequester {
             enabled_statistics: false,
             statistics_recipient: None,
             disable_poisson_rate: true,
+            use_deprecated_allow_list: true,
+            upstream_exit_policy_url: None,
         }
     }
 }
@@ -233,6 +244,7 @@ impl Default for NetworkRequester {
 #[serde(default, deny_unknown_fields)]
 pub struct Debug {
     /// Defines how often the standard allow list should get updated
+    /// Deprecated
     #[serde(with = "humantime_serde")]
     pub standard_list_update_interval: Duration,
 }

@@ -55,4 +55,7 @@ pub enum NetworkRequesterError {
         #[from]
         source: PolicyError,
     },
+
+    #[error("can't setup an exit policy without any upstream urls")]
+    NoUpstreamExitPolicy,
 }

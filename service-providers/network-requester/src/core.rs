@@ -9,8 +9,10 @@ use crate::request_filter::allowed_hosts::stored_allowed_hosts::{
     start_allowed_list_reloader, StoredAllowedHosts,
 };
 use crate::request_filter::allowed_hosts::{OutboundRequestFilter, StandardList};
+use crate::request_filter::exit_policy::ExitPolicyRequestFilter;
+use crate::request_filter::RequestFilter;
 use crate::statistics::ServiceStatisticsCollector;
-use crate::{reply, request_filter::allowed_hosts, socks5};
+use crate::{config, reply, request_filter::allowed_hosts, socks5};
 use async_trait::async_trait;
 use futures::channel::{mpsc, oneshot};
 use futures::stream::StreamExt;
@@ -70,7 +72,6 @@ impl OnStartData {
 // ... something ...
 pub struct NRServiceProviderBuilder {
     config: Config,
-    outbound_request_filter: OutboundRequestFilter,
 
     wait_for_gateway: bool,
     custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
@@ -81,7 +82,7 @@ pub struct NRServiceProviderBuilder {
 
 pub struct NRServiceProvider {
     config: Config,
-    outbound_request_filter: OutboundRequestFilter,
+    request_filter: RequestFilter,
 
     mixnet_client: nym_sdk::mixnet::MixnetClient,
     controller_sender: ControllerSender,
@@ -181,23 +182,49 @@ impl ServiceProvider<Socks5Request> for NRServiceProvider {
 
 impl NRServiceProviderBuilder {
     pub fn new(config: Config) -> NRServiceProviderBuilder {
+        NRServiceProviderBuilder {
+            config,
+            wait_for_gateway: false,
+            custom_topology_provider: None,
+            custom_gateway_transceiver: None,
+            shutdown: None,
+            on_start: None,
+        }
+    }
+
+    fn setup_allow_list_request_filter(config: &Config) -> OutboundRequestFilter {
         let standard_list = StandardList::new();
 
         let allowed_hosts = StoredAllowedHosts::new(&config.storage_paths.allowed_list_location);
         let unknown_hosts =
             allowed_hosts::HostsStore::new(&config.storage_paths.unknown_list_location);
 
-        let outbound_request_filter =
-            OutboundRequestFilter::new(allowed_hosts, standard_list, unknown_hosts);
+        OutboundRequestFilter::new(allowed_hosts, standard_list, unknown_hosts)
+    }
 
-        NRServiceProviderBuilder {
-            config,
-            outbound_request_filter,
-            wait_for_gateway: false,
-            custom_topology_provider: None,
-            custom_gateway_transceiver: None,
-            shutdown: None,
-            on_start: None,
+    async fn setup_exit_policy_filter(
+        config: &Config,
+    ) -> Result<ExitPolicyRequestFilter, NetworkRequesterError> {
+        ExitPolicyRequestFilter::new(
+            config
+                .network_requester
+                .upstream_exit_policy_url
+                .as_ref()
+                .ok_or(NetworkRequesterError::NoUpstreamExitPolicy)?
+                .clone(),
+        )
+        .await
+    }
+
+    async fn setup_request_filter(config: &Config) -> Result<RequestFilter, NetworkRequesterError> {
+        if config.network_requester.use_deprecated_allow_list {
+            Ok(RequestFilter::AllowList(
+                Self::setup_allow_list_request_filter(config),
+            ))
+        } else {
+            Self::setup_exit_policy_filter(config)
+                .await
+                .map(RequestFilter::ExitPolicy)
         }
     }
 
@@ -262,6 +289,36 @@ impl NRServiceProviderBuilder {
         self.custom_topology_provider =
             Some(Box::new(HardcodedTopologyProvider::new_from_file(file)?));
         Ok(self)
+    }
+
+    async fn start_request_filter_tasks(
+        config: &config::Debug,
+        request_filter: &RequestFilter,
+        task_handle: &TaskHandle,
+    ) {
+        match request_filter {
+            RequestFilter::AllowList(allow_list_filter) => {
+                // start the standard list updater
+                StandardListUpdater::new(
+                    config.standard_list_update_interval,
+                    allow_list_filter.standard_list(),
+                    task_handle.get_handle().named("StandardListUpdater"),
+                )
+                .start();
+
+                // start the allowed.list watcher and updater
+                start_allowed_list_reloader(
+                    allow_list_filter.allowed_hosts(),
+                    task_handle
+                        .get_handle()
+                        .named("stored_allowed_hosts_reloader"),
+                )
+                .await;
+            }
+            RequestFilter::ExitPolicy(_) => {
+                // nothing to do for the exit policy (yet; we might add a refresher at some point)
+            }
+        }
     }
 
     /// Start all subsystems
@@ -336,26 +393,17 @@ impl NRServiceProviderBuilder {
             .await;
         });
 
-        // start the standard list updater
-        StandardListUpdater::new(
-            self.config
-                .network_requester_debug
-                .standard_list_update_interval,
-            self.outbound_request_filter.standard_list(),
-            shutdown.get_handle().named("StandardListUpdater"),
-        )
-        .start();
-
-        // start the allowed.list watcher and updater
-        start_allowed_list_reloader(
-            self.outbound_request_filter.allowed_hosts(),
-            shutdown.get_handle().named("stored_allowed_hosts_reloader"),
+        let request_filter = Self::setup_request_filter(&self.config).await?;
+        Self::start_request_filter_tasks(
+            &self.config.network_requester_debug,
+            &request_filter,
+            &shutdown,
         )
         .await;
 
         let mut service_provider = NRServiceProvider {
             config: self.config,
-            outbound_request_filter: self.outbound_request_filter,
+            request_filter,
             mixnet_client,
             controller_sender,
             mix_input_sender,
@@ -553,7 +601,7 @@ impl NRServiceProvider {
         let conn_id = connect_req.conn_id;
 
         let open_proxy = self.config.network_requester.open_proxy;
-        if !open_proxy && !self.outbound_request_filter.check(&remote_addr).await {
+        if !open_proxy && !self.request_filter.check_address(&remote_addr).await {
             let log_msg = format!("Domain {remote_addr:?} failed filter check");
             log::info!("{log_msg}");
             let msg = MixnetMessage::new_connection_error(

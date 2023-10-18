@@ -252,6 +252,7 @@ mod tests {
             host: "1.1.1.1".parse().unwrap(),
             mix_port: Some(42),
             clients_port: Some(43),
+            http_api_port: Some(44),
             datastore: Some("/foo-datastore".parse().unwrap()),
             nym_apis: None,
             mnemonic: None,

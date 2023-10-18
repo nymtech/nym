@@ -5,8 +5,9 @@ use crate::config::persistence::NetworkRequesterPaths;
 use crate::config::template::CONFIG_TEMPLATE;
 use nym_bin_common::logging::LoggingSettings;
 use nym_config::{
-    must_get_home, read_config_from_toml_file, save_formatted_config_to_file, NymConfigTemplate,
-    OptionalSet, DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, DEFAULT_DATA_DIR, NYM_DIR,
+    must_get_home, read_config_from_toml_file, save_formatted_config_to_file,
+    serde_helpers::de_maybe_stringified, NymConfigTemplate, OptionalSet, DEFAULT_CONFIG_DIR,
+    DEFAULT_CONFIG_FILENAME, DEFAULT_DATA_DIR, NYM_DIR,
 };
 use nym_service_providers_common::DEFAULT_SERVICE_PROVIDERS_DIR;
 use serde::{Deserialize, Serialize};
@@ -18,6 +19,7 @@ use url::Url;
 
 pub use nym_client_core::config::Config as BaseClientConfig;
 pub use nym_client_core::config::{DebugConfig, GatewayEndpointConfig};
+use nym_network_defaults::mainnet;
 use nym_sphinx::params::PacketSize;
 
 pub mod old_config_v1_1_13;
@@ -224,6 +226,7 @@ pub struct NetworkRequester {
     pub use_deprecated_allow_list: bool,
 
     /// Specifies the url for an upstream source of the exit policy used by this node.
+    #[serde(deserialize_with = "de_maybe_stringified")]
     pub upstream_exit_policy_url: Option<Url>,
 }
 
@@ -235,7 +238,11 @@ impl Default for NetworkRequester {
             statistics_recipient: None,
             disable_poisson_rate: true,
             use_deprecated_allow_list: true,
-            upstream_exit_policy_url: None,
+            upstream_exit_policy_url: Some(
+                mainnet::EXIT_POLICY_URL
+                    .parse()
+                    .expect("invalid default exit policy URL"),
+            ),
         }
     }
 }

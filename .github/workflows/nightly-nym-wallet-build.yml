@@ -25,7 +25,7 @@ jobs:
 
       - name: Install Dependencies (Linux)
         run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.0-dev build-essential curl wget libssl-dev libgtk-3-dev libudev-dev squashfs-tools protobuf-compiler
-        if: matrix.os == 'custom-linux'
+        if: matrix.os == 'custom-ubuntu-20.04'
 
       - name: Install rust toolchain
         uses: actions-rs/toolchain@v1
@@ -37,6 +37,7 @@ jobs:
 
       - name: Install Protoc
         uses: arduino/setup-protoc@v2
+        if: matrix.os == 'macos-latest'
 
       - name: Check formatting
         uses: actions-rs/cargo@v1

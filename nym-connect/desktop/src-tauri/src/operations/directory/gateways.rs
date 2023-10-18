@@ -101,7 +101,7 @@ pub async fn get_gateways() -> Result<Vec<Gateway>> {
     log::debug!("Received {} gateways", all_gateways.len());
     log::trace!("Received: {:#?}", all_gateways);
 
-    let gateways_filtered = filter_out_low_performance_gateways(all_gateways.clone())?
+    let gateways_filtered = filter_out_low_performance_gateways(all_gateways)?
         .into_iter()
         .map(|g| Gateway {
             identity: g.identity().clone(),

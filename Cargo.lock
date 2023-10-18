@@ -7364,13 +7364,18 @@ dependencies = [
 name = "nym-types"
 version = "1.0.0"
 dependencies = [
+ "base64 0.21.4",
+ "boringtun",
  "cosmrs",
  "cosmwasm-std",
+ "dashmap",
  "eyre",
- "itertools 0.10.5",
+ "hmac 0.12.1",
+ "itertools 0.11.0",
  "log",
  "nym-coconut-interface",
  "nym-config",
+ "nym-crypto",
  "nym-mixnet-contract-common",
  "nym-validator-client",
  "nym-vesting-contract-common",
@@ -7378,11 +7383,13 @@ dependencies = [
  "schemars",
  "serde",
  "serde_json",
- "strum 0.23.0",
+ "sha2 0.10.8",
+ "strum 0.25.0",
  "tempfile",
  "thiserror",
  "ts-rs",
  "url",
+ "x25519-dalek 2.0.0",
 ]
 
 [[package]]
@@ -7491,6 +7498,8 @@ dependencies = [
  "ip_network_table",
  "log",
  "nym-task",
+ "nym-types",
+ "serde",
  "tap",
  "thiserror",
  "tokio",
@@ -10227,6 +10236,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "063e6045c0e62079840579a7e47a355ae92f60eb74daaf156fb1e84ba164e63f"
 
 [[package]]
+name = "strum"
+version = "0.25.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "290d54ea6f91c969195bdbcd7442c8c2a2ba87da8bf60a7ee86a235d4bc1e125"
+dependencies = [
+ "strum_macros 0.25.3",
+]
+
+[[package]]
 name = "strum_macros"
 version = "0.23.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -10250,6 +10268,19 @@ dependencies = [
  "quote",
  "rustversion",
  "syn 1.0.109",
+]
+
+[[package]]
+name = "strum_macros"
+version = "0.25.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "23dc1fa9ac9c169a78ba62f0b841814b7abae11bdd047b9c58f893439e309ea0"
+dependencies = [
+ "heck 0.4.1",
+ "proc-macro2",
+ "quote",
+ "rustversion",
+ "syn 2.0.38",
 ]
 
 [[package]]

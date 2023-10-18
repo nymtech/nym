@@ -1,7 +1,6 @@
 // Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use self::client_handling::client_registration::ClientRegistry;
 use self::storage::PersistentStorage;
 use crate::commands::helpers::{override_network_requester_config, OverrideNetworkRequesterConfig};
 use crate::config::Config;
@@ -27,6 +26,7 @@ use nym_network_defaults::NymNetworkDetails;
 use nym_network_requester::{LocalGateway, NRServiceProviderBuilder};
 use nym_statistics_common::collector::StatisticsSender;
 use nym_task::{TaskClient, TaskManager};
+use nym_types::gateway_client_registration::GatewayClientRegistry;
 use nym_validator_client::{nyxd, DirectSigningHttpRpcNyxdClient};
 use rand::seq::SliceRandom;
 use rand::thread_rng;
@@ -90,7 +90,7 @@ pub(crate) struct Gateway<St = PersistentStorage> {
     sphinx_keypair: Arc<encryption::KeyPair>,
     storage: St,
 
-    client_registry: Arc<ClientRegistry>,
+    client_registry: Arc<GatewayClientRegistry>,
 }
 
 impl<St> Gateway<St> {
@@ -162,7 +162,7 @@ impl<St> Gateway<St> {
         shutdown: TaskClient,
     ) -> Result<(), Box<dyn Error + Send + Sync>> {
         // TODO: possibly we should start the UDP listener and TUN device explicitly here
-        nym_wireguard::start_wireguard(shutdown).await
+        nym_wireguard::start_wireguard(shutdown, Arc::clone(&self.client_registry)).await
     }
 
     fn start_client_websocket_listener(

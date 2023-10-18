@@ -1,17 +1,19 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::config::default_config_filepath;
+use crate::config::old_config_v1_1_30::ConfigV1_1_30;
 use crate::config::persistence::NymConnectPaths;
-use crate::config::{default_config_filepath, Config};
 use crate::error::Result;
 use nym_bin_common::logging::LoggingSettings;
 use nym_client_core::config::disk_persistence::old_v1_1_20_2::CommonClientPathsV1_1_20_2;
 use nym_client_core::config::GatewayEndpointConfig;
 use nym_config::read_config_from_toml_file;
-pub use nym_socks5_client_core::config::old_config_v1_1_20_2::ConfigV1_1_20_2 as CoreConfigV1_1_20_2;
 use serde::{Deserialize, Serialize};
 use std::io;
 use std::path::Path;
+
+pub use nym_socks5_client_core::config::old_config_v1_1_20_2::ConfigV1_1_20_2 as CoreConfigV1_1_20_2;
 
 #[derive(Debug, Deserialize, PartialEq, Eq, Serialize, Clone)]
 pub struct SocksClientPathsV1_1_20_2 {
@@ -40,9 +42,9 @@ impl ConfigV1_1_20_2 {
 
     // in this upgrade, gateway endpoint configuration was moved out of the config file,
     // so its returned to be stored elsewhere.
-    pub fn upgrade(self) -> Result<(Config, GatewayEndpointConfig)> {
+    pub fn upgrade(self) -> Result<(ConfigV1_1_30, GatewayEndpointConfig)> {
         let gateway_details = self.core.base.client.gateway_endpoint.clone().into();
-        let config = Config {
+        let config = ConfigV1_1_30 {
             core: self.core.into(),
             storage_paths: NymConnectPaths {
                 common_paths: self.storage_paths.common_paths.upgrade_default()?,

@@ -56,7 +56,7 @@ impl Socks5MixnetClient {
 
     /// Get the SOCKS5 proxy URL that a HTTP(S) client can connect to.
     pub fn socks5_url(&self) -> String {
-        format!("socks5h://127.0.0.1:{}", self.socks5_config.listening_port)
+        format!("socks5h://{}", self.socks5_config.bind_adddress)
     }
 
     /// Get a shallow clone of [`LaneQueueLengths`]. This is useful to manually implement some form

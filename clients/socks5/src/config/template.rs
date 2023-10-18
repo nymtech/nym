@@ -75,8 +75,9 @@ gateway_details = '{{ storage_paths.gateway_details }}'
 # The mix address of the provider to which all requests are going to be sent.
 provider_mix_address = '{{ core.socks5.provider_mix_address }}'
 
-# The port on which the client will be listening for incoming requests
-listening_port = {{ core.socks5.listening_port }}
+# The address on which the client will be listening for incoming requests
+# (default: 127.0.0.1:1080)
+bind_adddress = '{{ core.socks5.bind_adddress }}'
 
 # Specifies whether this client is going to use an anonymous sender tag for communication with the service provider.
 # While this is going to hide its actual address information, it will make the actual communication

@@ -18,7 +18,7 @@ pub fn parse_exit_policy<S: AsRef<str>>(exit_policy: S) -> Result<ExitPolicy, Po
         .as_ref()
         .lines()
         .map(|maybe_rule| {
-            if let Some(comment_start) = maybe_rule.rfind(COMMENT_CHAR) {
+            if let Some(comment_start) = maybe_rule.find(COMMENT_CHAR) {
                 &maybe_rule[..comment_start]
             } else {
                 maybe_rule
@@ -65,6 +65,8 @@ ExitPolicy accept *:53 # DNS
 ExitPolicy accept6 *6:119
 ExitPolicy accept *4:120
 ExitPolicy reject6 [FC00::]/7:*
+
+#ExitPolicy accept *:8080 #and another comment here
 
 ExitPolicy reject FE80:0000:0000:0000:0202:B3FF:FE1E:8329:*
 ExitPolicy reject FE80:0000:0000:0000:0202:B3FF:FE1E:8328:1234

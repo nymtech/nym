@@ -33,12 +33,10 @@ fn router_with_state(state: Arc<ApiState>) -> Router {
 }
 
 pub(crate) async fn start_http_api(
+    port: u16,
     client_registry: Arc<ClientRegistry>,
     sphinx_key_pair: Arc<encryption::KeyPair>,
 ) {
-    // Port should be 80 post smoosh
-    let port = 8000;
-
     info!("Started HTTP API on port {}", port);
 
     let client_registry = Arc::clone(&client_registry);

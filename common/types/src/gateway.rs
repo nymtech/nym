@@ -84,6 +84,7 @@ pub struct GatewayNodeDetailsResponse {
     pub bind_address: String,
     pub mix_port: u16,
     pub clients_port: u16,
+    pub http_api_port: u16,
     pub config_path: String,
     pub data_store: String,
 

@@ -33,6 +33,10 @@ mix_port = {{ gateway.mix_port }}
 # (default: 9000)
 clients_port = {{ gateway.clients_port }}
 
+# Port used for listening for http requests.
+# (default: 8000)
+http_api_port = {{ gateway.http_api_port }}
+
 # Wheather gateway collects and sends anonymized statistics
 enabled_statistics = {{ gateway.enabled_statistics }}
 

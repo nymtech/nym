@@ -397,6 +397,7 @@ impl<St> Gateway<St> {
 
         // This should likely be wireguard feature gated, but its easier to test if it hangs in here
         tokio::spawn(start_http_api(
+            self.config.gateway.http_api_port,
             Arc::clone(&self.client_registry),
             Arc::clone(&self.sphinx_keypair),
         ));

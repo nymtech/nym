@@ -26,6 +26,10 @@ pub struct Run {
     #[clap(long)]
     mix_port: Option<u16>,
 
+    /// The port on which the gateway will be listening for http requests
+    #[clap(long)]
+    http_api_port: Option<u16>,
+
     /// The port on which the gateway will be listening for clients gateway-requests
     #[clap(long)]
     clients_port: Option<u16>,
@@ -124,6 +128,7 @@ impl From<Run> for OverrideConfig {
             host: run_config.host,
             mix_port: run_config.mix_port,
             clients_port: run_config.clients_port,
+            http_api_port: run_config.http_api_port,
             datastore: run_config.datastore,
             nym_apis: run_config.nym_apis,
             mnemonic: run_config.mnemonic,

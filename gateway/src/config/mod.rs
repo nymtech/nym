@@ -5,7 +5,9 @@ use crate::config::persistence::paths::GatewayPaths;
 use crate::config::template::CONFIG_TEMPLATE;
 use log::{debug, warn};
 use nym_bin_common::logging::LoggingSettings;
-use nym_config::defaults::{DEFAULT_CLIENT_LISTENING_PORT, DEFAULT_MIX_LISTENING_PORT};
+use nym_config::defaults::{
+    DEFAULT_CLIENT_LISTENING_PORT, DEFAULT_HTTP_API_LISTENING_PORT, DEFAULT_MIX_LISTENING_PORT,
+};
 use nym_config::helpers::inaddr_any;
 use nym_config::{
     must_get_home, read_config_from_toml_file, save_formatted_config_to_file, NymConfigTemplate,
@@ -22,6 +24,7 @@ use zeroize::{Zeroize, ZeroizeOnDrop};
 
 pub(crate) mod old_config_v1_1_20;
 pub(crate) mod old_config_v1_1_28;
+pub(crate) mod old_config_v1_1_30;
 pub mod persistence;
 mod template;
 
@@ -197,6 +200,11 @@ impl Config {
         self
     }
 
+    pub fn with_http_api_port(mut self, port: u16) -> Self {
+        self.gateway.http_api_port = port;
+        self
+    }
+
     pub fn with_custom_persistent_store(mut self, store_dir: PathBuf) -> Self {
         self.storage_paths.clients_storage = store_dir;
         self
@@ -245,6 +253,10 @@ pub struct Gateway {
     /// (default: 9000)
     pub clients_port: u16,
 
+    /// Port used for listening for http requests.
+    /// (default: 8000)
+    pub http_api_port: u16,
+
     /// Whether gateway collects and sends anonymized statistics
     pub enabled_statistics: bool,
 
@@ -279,6 +291,7 @@ impl Gateway {
             listening_address: inaddr_any(),
             mix_port: DEFAULT_MIX_LISTENING_PORT,
             clients_port: DEFAULT_CLIENT_LISTENING_PORT,
+            http_api_port: DEFAULT_HTTP_API_LISTENING_PORT,
             enabled_statistics: false,
             statistics_service_url: mainnet::STATISTICS_SERVICE_DOMAIN_ADDRESS
                 .parse()

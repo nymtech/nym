@@ -28,6 +28,7 @@ pub(crate) struct OverrideConfig {
     pub(crate) host: Option<IpAddr>,
     pub(crate) mix_port: Option<u16>,
     pub(crate) clients_port: Option<u16>,
+    pub(crate) http_api_port: Option<u16>,
     pub(crate) datastore: Option<PathBuf>,
     pub(crate) enabled_statistics: Option<bool>,
     pub(crate) statistics_service_url: Option<url::Url>,
@@ -44,6 +45,7 @@ impl OverrideConfig {
             .with_optional(Config::with_listening_address, self.host)
             .with_optional(Config::with_mix_port, self.mix_port)
             .with_optional(Config::with_clients_port, self.clients_port)
+            .with_optional(Config::with_http_api_port, self.http_api_port)
             .with_optional_custom_env(
                 Config::with_custom_nym_apis,
                 self.nym_apis,

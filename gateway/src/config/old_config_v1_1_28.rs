@@ -1,8 +1,9 @@
 // Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::config::old_config_v1_1_30::{ConfigV1_1_30, GatewayV1_1_30};
 use crate::config::persistence::paths::{GatewayPaths, KeysPaths};
-use crate::config::{Config, Debug, Gateway};
+use crate::config::Debug;
 use nym_bin_common::logging::LoggingSettings;
 use nym_config::{
     must_get_home, read_config_from_toml_file, DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, NYM_DIR,
@@ -84,11 +85,11 @@ impl ConfigV1_1_28 {
     }
 }
 
-impl From<ConfigV1_1_28> for Config {
+impl From<ConfigV1_1_28> for ConfigV1_1_30 {
     fn from(value: ConfigV1_1_28) -> Self {
-        Config {
+        ConfigV1_1_30 {
             save_path: None,
-            gateway: Gateway {
+            gateway: GatewayV1_1_30 {
                 version: value.gateway.version,
                 id: value.gateway.id,
                 only_coconut_credentials: value.gateway.only_coconut_credentials,

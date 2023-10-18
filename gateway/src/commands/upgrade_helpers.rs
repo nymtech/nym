@@ -3,6 +3,7 @@
 
 use crate::config::old_config_v1_1_20::ConfigV1_1_20;
 use crate::config::old_config_v1_1_28::ConfigV1_1_28;
+use crate::config::old_config_v1_1_30::ConfigV1_1_30;
 use crate::config::{default_config_filepath, Config};
 use crate::error::GatewayError;
 use log::info;
@@ -20,7 +21,8 @@ fn try_upgrade_v1_1_20_config(id: &str) -> Result<bool, GatewayError> {
     info!("It is going to get updated to the current specification.");
 
     let updated_step1: ConfigV1_1_28 = old_config.into();
-    let updated: Config = updated_step1.into();
+    let updated_step2: ConfigV1_1_30 = updated_step1.into();
+    let updated: Config = updated_step2.into();
     updated
         .save_to_default_location()
         .map_err(|err| GatewayError::ConfigSaveFailure {
@@ -42,6 +44,33 @@ fn try_upgrade_v1_1_28_config(id: &str) -> Result<bool, GatewayError> {
     info!("It seems the gateway is using <= v1.1.28 config template.");
     info!("It is going to get updated to the current specification.");
 
+    let updated_step1: ConfigV1_1_30 = old_config.into();
+    let updated: Config = updated_step1.into();
+    updated
+        .save_to_default_location()
+        .map_err(|err| GatewayError::ConfigSaveFailure {
+            path: default_config_filepath(id),
+            id: id.to_string(),
+            source: err,
+        })?;
+
+    Ok(true)
+}
+
+fn try_upgrade_v1_1_30_config(id: &str) -> Result<bool, GatewayError> {
+    // if current configuration can be loaded, there is no need to try the upgrade
+    if Config::read_from_default_path(id).is_ok() {
+        return Ok(true);
+    }
+    // explicitly load it as v1.1.32 (which is incompatible with the current, i.e. 1.1.33+)
+    let Ok(old_config) = ConfigV1_1_30::read_from_default_path(id) else {
+        // if we failed to load it, there might have been nothing to upgrade
+        // or maybe it was an even older file. in either way. just ignore it and carry on with our day
+        return Ok(false);
+    };
+    info!("It seems the gateway is using <= v1.1.32 config template.");
+    info!("It is going to get updated to the current specification.");
+
     let updated: Config = old_config.into();
     updated
         .save_to_default_location()
@@ -59,6 +88,9 @@ pub(crate) fn try_upgrade_config(id: &str) -> Result<(), GatewayError> {
         return Ok(());
     }
     if try_upgrade_v1_1_28_config(id)? {
+        return Ok(());
+    }
+    if try_upgrade_v1_1_30_config(id)? {
         return Ok(());
     }
 

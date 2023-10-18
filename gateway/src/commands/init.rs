@@ -32,6 +32,10 @@ pub struct Init {
     #[arg(long)]
     clients_port: Option<u16>,
 
+    /// The port on which the gateway will be listening for http requests
+    #[clap(long)]
+    http_api_port: Option<u16>,
+
     /// Path to sqlite database containing all gateway persistent data
     #[arg(long)]
     datastore: Option<PathBuf>,
@@ -127,6 +131,7 @@ impl From<Init> for OverrideConfig {
             host: Some(init_config.host),
             mix_port: init_config.mix_port,
             clients_port: init_config.clients_port,
+            http_api_port: init_config.http_api_port,
             datastore: init_config.datastore,
             nym_apis: init_config.nym_apis,
             mnemonic: init_config.mnemonic,

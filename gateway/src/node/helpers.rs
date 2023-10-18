@@ -76,6 +76,7 @@ pub(crate) fn node_details(config: &Config) -> Result<GatewayNodeDetailsResponse
         bind_address: config.gateway.listening_address.to_string(),
         mix_port: config.gateway.mix_port,
         clients_port: config.gateway.clients_port,
+        http_api_port: config.gateway.http_api_port,
         config_path: display_maybe_path(config.save_path.as_ref()),
         data_store: display_path(&config.storage_paths.clients_storage),
         network_requester,

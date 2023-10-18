@@ -95,6 +95,8 @@ pub(crate) struct OverrideNetworkRequesterConfig {
     pub(crate) medium_toggle: bool,
 
     pub(crate) open_proxy: Option<bool>,
+    pub(crate) enable_exit_policy: Option<bool>,
+
     pub(crate) enable_statistics: Option<bool>,
     pub(crate) statistics_recipient: Option<String>,
 }
@@ -203,6 +205,10 @@ pub(crate) fn override_network_requester_config(
     .with_optional(
         nym_network_requester::Config::with_open_proxy,
         opts.open_proxy,
+    )
+    .with_optional(
+        nym_network_requester::Config::with_old_allow_list,
+        opts.enable_exit_policy.map(|e| !e),
     )
     .with_optional(
         nym_network_requester::Config::with_enabled_statistics,

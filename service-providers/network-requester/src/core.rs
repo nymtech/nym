@@ -16,7 +16,7 @@ use crate::{config, reply, request_filter::allowed_hosts, socks5};
 use async_trait::async_trait;
 use futures::channel::{mpsc, oneshot};
 use futures::stream::StreamExt;
-use log::{debug, warn};
+use log::{debug, info, warn};
 use nym_bin_common::bin_info_owned;
 use nym_client_core::client::mix_traffic::transceiver::GatewayTransceiver;
 use nym_client_core::config::disk_persistence::CommonClientPaths;
@@ -218,10 +218,12 @@ impl NRServiceProviderBuilder {
 
     async fn setup_request_filter(config: &Config) -> Result<RequestFilter, NetworkRequesterError> {
         if config.network_requester.use_deprecated_allow_list {
+            info!("setting up allow-list based 'OutboundRequestFilter'...");
             Ok(RequestFilter::AllowList(
                 Self::setup_allow_list_request_filter(config),
             ))
         } else {
+            info!("setting up ExitPolicy based request filter...");
             Self::setup_exit_policy_filter(config)
                 .await
                 .map(RequestFilter::ExitPolicy)

@@ -96,9 +96,22 @@ pub struct AddressPolicy {
 }
 
 impl AddressPolicy {
-    /// Create a new AddrPolicy that matches nothing.
+    /// Create a new AddressPolicy that matches nothing.
     pub const fn new() -> Self {
         AddressPolicy { rules: Vec::new() }
+    }
+
+    /// Create a new AddressPolicy that matches everything.
+    pub fn new_open() -> Self {
+        AddressPolicy {
+            rules: vec![AddressPolicyRule::new(
+                AddressPolicyAction::Accept,
+                AddressPortPattern {
+                    pattern: IpPattern::Star,
+                    ports: PortRange::new_all(),
+                },
+            )],
+        }
     }
 
     /// Attempts to parse the AddressPolicy out of raw torrc representation.

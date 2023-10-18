@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::NetworkRequesterError;
+use nym_exit_policy::client::get_exit_policy;
 use nym_exit_policy::ExitPolicy;
 use nym_socks5_requests::RemoteAddress;
+use reqwest::IntoUrl;
 use tokio::net::lookup_host;
 
 pub(crate) struct ExitPolicyRequestFilter {
@@ -11,11 +13,17 @@ pub(crate) struct ExitPolicyRequestFilter {
 }
 
 impl ExitPolicyRequestFilter {
+    pub(crate) async fn new(url: impl IntoUrl) -> Result<Self, NetworkRequesterError> {
+        Ok(ExitPolicyRequestFilter {
+            policy: get_exit_policy(url).await?,
+        })
+    }
+
     pub(crate) async fn check(
         &self,
         remote: &RemoteAddress,
     ) -> Result<bool, NetworkRequesterError> {
-        // try to convert remote to a proper socket address
+        // try to convert the remote to a proper socket address
         let addrs = lookup_host(remote)
             .await
             .map_err(|source| NetworkRequesterError::CouldNotResolveHost {

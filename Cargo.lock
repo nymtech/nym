@@ -6485,6 +6485,7 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror",
+ "tracing",
  "utoipa",
 ]
 

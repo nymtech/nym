@@ -13,6 +13,7 @@ license.workspace = true
 [dependencies]
 serde = { workspace = true, features = ["derive"] }
 thiserror = { workspace = true }
+tracing = { workspace = true }
 
 # feature-specific dependencies:
 

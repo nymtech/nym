@@ -1,4 +1,5 @@
 pub use nym_client_core::error::ClientCoreError;
+use nym_exit_policy::policy::PolicyError;
 use nym_socks5_requests::{RemoteAddress, Socks5RequestError};
 use std::net::SocketAddr;
 
@@ -48,4 +49,10 @@ pub enum NetworkRequesterError {
 
     #[error("the provided address: '{remote}' was somehow resolved to an empty list of socket addresses")]
     EmptyResolvedAddresses { remote: RemoteAddress },
+
+    #[error("failed to apply the exit policy: {source}")]
+    ExitPolicyFailure {
+        #[from]
+        source: PolicyError,
+    },
 }

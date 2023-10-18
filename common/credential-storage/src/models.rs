@@ -13,3 +13,14 @@ pub struct CoconutCredential {
     pub epoch_id: String,
     pub consumed: bool,
 }
+
+#[derive(Clone)]
+pub struct EcashCredential {
+    #[allow(dead_code)]
+    pub id: i64,
+    pub voucher_value: String,
+    pub voucher_info: String,
+    pub wallet: String,
+    pub epoch_id: String,
+    pub consumed: bool,
+}

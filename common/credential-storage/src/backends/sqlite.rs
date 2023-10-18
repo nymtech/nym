@@ -45,6 +45,29 @@ impl CoconutCredentialManager {
         Ok(())
     }
 
+    /// Inserts provided signature into the database.
+    ///
+    /// # Arguments
+    ///
+    /// * `voucher_value`: Plaintext bandwidth value of the credential.
+    /// * `voucher_info`: Plaintext information of the credential.
+    /// * `signature`: Coconut credential in the form of a signature.
+    pub async fn insert_ecash_credential(
+        &self,
+        voucher_value: String,
+        voucher_info: String,
+        wallet: String,
+        epoch_id: String,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query!(
+            "INSERT INTO ecash_credentials(voucher_value, voucher_info, wallet, epoch_id, consumed) VALUES (?, ?, ?, ?, ?)",
+            voucher_value, voucher_info, wallet, epoch_id, false
+        )
+        .execute(&self.connection_pool)
+        .await?;
+        Ok(())
+    }
+
     /// Tries to retrieve one of the stored, unused credentials.
     pub async fn get_next_coconut_credential(
         &self,

@@ -8,7 +8,7 @@ edition = "2021"
 
 [dependencies]
 #bls12_381 = { git = "https://github.com/jstuczyn/bls12_381", branch = "gt-serialisation", default-features = false, features = ["alloc", "pairings", "experimental", "zeroize"] }
-bls12_381 = { path = "/Users/ania/Documents/Git/andrew_bls12_381", default-features = false, features = ["alloc", "pairings", "experimental", "zeroize"] }
+bls12_381 = { path = "/Users/simon/Documents/Nym/github/andrew_bls12_381", default-features = false, features = ["alloc", "pairings", "experimental", "zeroize"] }
 itertools = "0.10"
 digest = "0.9"
 rand = "0.8"

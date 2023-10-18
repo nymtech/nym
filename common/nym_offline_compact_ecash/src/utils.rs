@@ -6,10 +6,10 @@ use core::ops::Mul;
 use std::convert::{TryFrom, TryInto};
 use std::ops::Neg;
 
-use bls12_381::{
-    G1Affine, G1Projective, G2Affine, G2Prepared, G2Projective, multi_miller_loop, Scalar,
-};
 use bls12_381::hash_to_curve::{ExpandMsgXmd, HashToCurve, HashToField};
+use bls12_381::{
+    multi_miller_loop, G1Affine, G1Projective, G2Affine, G2Prepared, G2Projective, Scalar,
+};
 use ff::Field;
 use group::{Curve, Group};
 
@@ -85,9 +85,9 @@ pub(crate) fn perform_lagrangian_interpolation_at_origin<T>(
     points: &[SignerIndex],
     values: &[T],
 ) -> Result<T>
-    where
-        T: Sum,
-        for<'a> &'a T: Mul<Scalar, Output=T>,
+where
+    T: Sum,
+    for<'a> &'a T: Mul<Scalar, Output = T>,
 {
     if points.is_empty() || values.is_empty() {
         return Err(CompactEcashError::Interpolation(
@@ -275,6 +275,51 @@ impl Bytable for Signature {
 #[derive(Debug)]
 #[cfg_attr(test, derive(PartialEq))]
 pub struct BlindedSignature(pub(crate) G1Projective, pub(crate) G1Projective);
+
+impl TryFrom<&[u8]> for BlindedSignature {
+    type Error = CompactEcashError;
+
+    fn try_from(bytes: &[u8]) -> Result<BlindedSignature> {
+        if bytes.len() != 96 {
+            return Err(CompactEcashError::Deserialization(format!(
+                "BlindedSignature must be exactly 96 bytes, got {}",
+                bytes.len()
+            )));
+        }
+
+        let bsig1_bytes: &[u8; 48] = &bytes[..48].try_into().expect("Slice size != 48");
+        let bsig2_bytes: &[u8; 48] = &bytes[48..].try_into().expect("Slice size != 48");
+
+        let bsig1 = try_deserialize_g1_projective(
+            bsig1_bytes,
+            CompactEcashError::Deserialization(
+                "Failed to deserialize compressed bsig1".to_string(),
+            ),
+        )?;
+
+        let bsig2 = try_deserialize_g1_projective(
+            bsig2_bytes,
+            CompactEcashError::Deserialization(
+                "Failed to deserialize compressed bsig2".to_string(),
+            ),
+        )?;
+
+        Ok(BlindedSignature(bsig1, bsig2))
+    }
+}
+
+impl BlindedSignature {
+    pub fn to_bytes(&self) -> [u8; 96] {
+        let mut bytes = [0u8; 96];
+        bytes[..48].copy_from_slice(&self.0.to_affine().to_compressed());
+        bytes[48..].copy_from_slice(&self.1.to_affine().to_compressed());
+        bytes
+    }
+
+    pub fn from_bytes(bytes: &[u8]) -> Result<BlindedSignature> {
+        BlindedSignature::try_from(bytes)
+    }
+}
 
 pub struct SignatureShare {
     signature: Signature,

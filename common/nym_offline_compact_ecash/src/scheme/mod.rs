@@ -3,15 +3,16 @@ use std::cell::Cell;
 use bls12_381::{G1Projective, G2Prepared, G2Projective, Scalar};
 use group::Curve;
 
-use crate::Attribute;
 use crate::error::{CompactEcashError, Result};
 use crate::proofs::proof_spend::{SpendInstance, SpendProof, SpendWitness};
 use crate::scheme::keygen::{SecretKeyUser, VerificationKeyAuth};
 use crate::scheme::setup::{GroupParameters, Parameters};
+use crate::traits::Bytable;
 use crate::utils::{
-    check_bilinear_pairing, hash_to_scalar, Signature, SignerIndex,
-    try_deserialize_g1_projective, try_deserialize_scalar, try_deserialize_g2_projective,
+    check_bilinear_pairing, hash_to_scalar, try_deserialize_g1_projective,
+    try_deserialize_g2_projective, try_deserialize_scalar, Signature, SignerIndex,
 };
+use crate::{Attribute, Base58};
 
 pub mod aggregation;
 pub mod identify;
@@ -36,7 +37,7 @@ impl PartialWallet {
     pub fn index(&self) -> Option<SignerIndex> {
         self.idx
     }
-    pub fn to_bytes(&self) -> [u8; 136]{
+    pub fn to_bytes(&self) -> [u8; 136] {
         let mut bytes = [0u8; 136];
         bytes[0..96].copy_from_slice(&self.sig.to_bytes());
         bytes[96..128].copy_from_slice(&self.v.to_bytes());
@@ -66,15 +67,11 @@ impl TryFrom<&[u8]> for PartialWallet {
         let sig = Signature::try_from(sig_bytes.as_slice()).unwrap();
         let v = Scalar::from_bytes(&v_bytes).unwrap();
         let idx = None;
-        if !idx_bytes.iter().all(|&x| x == 0){
+        if !idx_bytes.iter().all(|&x| x == 0) {
             let idx = Some(u64::from_le_bytes(*idx_bytes));
         }
 
-        Ok(PartialWallet{
-            sig,
-            v,
-            idx,
-        })
+        Ok(PartialWallet { sig, v, idx })
     }
 }
 
@@ -98,7 +95,7 @@ impl Wallet {
         self.l.get()
     }
 
-    pub fn to_bytes(&self) -> [u8; 136]{
+    pub fn to_bytes(&self) -> [u8; 136] {
         let mut bytes = [0u8; 136];
         bytes[0..96].copy_from_slice(&self.sig.to_bytes());
         bytes[96..128].copy_from_slice(&self.v.to_bytes());
@@ -108,7 +105,6 @@ impl Wallet {
     fn up(&self) {
         self.l.set(self.l.get() + 1);
     }
-
 
     pub fn spend(
         &self,
@@ -144,7 +140,6 @@ impl Wallet {
         // compute commitments C
         let cc = grparams.gen1() * o_c + grparams.gamma1() * self.v();
 
-
         let mut aa: Vec<G1Projective> = Default::default();
         let mut ss: Vec<G1Projective> = Default::default();
         let mut tt: Vec<G1Projective> = Default::default();
@@ -172,8 +167,8 @@ impl Wallet {
             // evaluate the pseudorandom functions
             let ss_k = pseudorandom_f_delta_v(&grparams, self.v(), self.l() + k);
             ss.push(ss_k);
-            let tt_k =
-                grparams.gen1() * sk_user.sk + pseudorandom_f_g_v(&grparams, self.v(), self.l() + k) * rr_k;
+            let tt_k = grparams.gen1() * sk_user.sk
+                + pseudorandom_f_g_v(&grparams, self.v(), self.l() + k) * rr_k;
             tt.push(tt_k);
 
             // compute values mu, o_mu, lambda, o_lambda
@@ -197,7 +192,6 @@ impl Wallet {
                 + params.pk_rp().beta * Scalar::from(self.l() + k);
             kappa_k_vec.push(kappa_k);
         }
-
 
         // construct the zkp proof
         let spend_instance = SpendInstance {
@@ -274,13 +268,21 @@ impl TryFrom<&[u8]> for Wallet {
         let v = Scalar::from_bytes(&v_bytes).unwrap();
         let l = Cell::new(u64::from_le_bytes(*l_bytes));
 
-        Ok(Wallet{
-            sig,
-            v,
-            l
-        })
+        Ok(Wallet { sig, v, l })
     }
 }
+
+impl Bytable for Wallet {
+    fn to_byte_vec(&self) -> Vec<u8> {
+        self.to_bytes().to_vec()
+    }
+
+    fn try_from_byte_slice(slice: &[u8]) -> std::result::Result<Self, CompactEcashError> {
+        Wallet::try_from(slice)
+    }
+}
+
+impl Base58 for Wallet {}
 
 pub fn pseudorandom_f_delta_v(params: &GroupParameters, v: Scalar, l: u64) -> G1Projective {
     let pow = (v + Scalar::from(l) + Scalar::from(1)).invert().unwrap();
@@ -301,10 +303,10 @@ pub fn compute_kappa(
     params.gen2() * blinding_factor
         + verification_key.alpha
         + attributes
-        .iter()
-        .zip(verification_key.beta_g2.iter())
-        .map(|(priv_attr, beta_i)| beta_i * priv_attr)
-        .sum::<G2Projective>()
+            .iter()
+            .zip(verification_key.beta_g2.iter())
+            .map(|(priv_attr, beta_i)| beta_i * priv_attr)
+            .sum::<G2Projective>()
 }
 
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -405,24 +407,37 @@ impl Payment {
         let sig_bytes = self.sig.to_bytes();
         let cc_bytes = self.cc.to_affine().to_compressed();
         let vv_bytes: [u8; 8] = self.vv.to_le_bytes();
-        let ss_len =  self.ss.len() as u64;
-        let tt_len =  self.tt.len() as u64;
-        let aa_len =  self.aa.len() as u64;
-        let rr_len =  self.rr.len() as u64;
+        let ss_len = self.ss.len() as u64;
+        let tt_len = self.tt.len() as u64;
+        let aa_len = self.aa.len() as u64;
+        let rr_len = self.rr.len() as u64;
         let kappa_k_len = self.kappa_k.len() as u64;
         let sig_lk_len = self.sig_lk.len() as u64;
         let zk_proof_bytes = self.zk_proof.to_bytes();
         let zk_proof_bytes_len = self.zk_proof.to_bytes().len() as u64;
 
         let mut bytes: Vec<u8> = Vec::with_capacity(
-            (96 + 96 + 48 + 8 + ss_len * 48 + 8 + tt_len * 48 + 8 + aa_len * 48 + 8 + rr_len * 32 + 8 + kappa_k_len * 96 + 8 + sig_lk_len * 96 + zk_proof_bytes_len) as usize);
-
+            (96 + 96
+                + 48
+                + 8
+                + ss_len * 48
+                + 8
+                + tt_len * 48
+                + 8
+                + aa_len * 48
+                + 8
+                + rr_len * 32
+                + 8
+                + kappa_k_len * 96
+                + 8
+                + sig_lk_len * 96
+                + zk_proof_bytes_len) as usize,
+        );
 
         bytes.extend_from_slice(&kappa_bytes);
         bytes.extend_from_slice(&sig_bytes);
         bytes.extend_from_slice(&cc_bytes);
         bytes.extend_from_slice(&vv_bytes);
-
 
         let ss_len_bytes = ss_len.to_le_bytes();
         bytes.extend_from_slice(&ss_len_bytes);
@@ -506,7 +521,7 @@ impl TryFrom<&[u8]> for Payment {
             idx += 48;
         }
 
-        let tt_len = u64::from_le_bytes(bytes[idx..idx+8].try_into().unwrap()) as usize;
+        let tt_len = u64::from_le_bytes(bytes[idx..idx + 8].try_into().unwrap()) as usize;
         idx += 8;
         let mut tt = Vec::with_capacity(tt_len);
         for _ in 0..tt_len {
@@ -519,7 +534,7 @@ impl TryFrom<&[u8]> for Payment {
             idx += 48;
         }
 
-        let aa_len = u64::from_le_bytes(bytes[idx..idx+8].try_into().unwrap()) as usize;
+        let aa_len = u64::from_le_bytes(bytes[idx..idx + 8].try_into().unwrap()) as usize;
         idx += 8;
         let mut aa = Vec::with_capacity(aa_len);
         for _ in 0..aa_len {
@@ -532,7 +547,7 @@ impl TryFrom<&[u8]> for Payment {
             idx += 48;
         }
 
-        let rr_len = u64::from_le_bytes(bytes[idx..idx+8].try_into().unwrap()) as usize;
+        let rr_len = u64::from_le_bytes(bytes[idx..idx + 8].try_into().unwrap()) as usize;
         idx += 8;
         let mut rr = Vec::with_capacity(rr_len);
         for _ in 0..rr_len {
@@ -545,21 +560,23 @@ impl TryFrom<&[u8]> for Payment {
             idx += 32;
         }
 
-        let kappa_k_len = u64::from_le_bytes(bytes[idx..idx+8].try_into().unwrap()) as usize;
+        let kappa_k_len = u64::from_le_bytes(bytes[idx..idx + 8].try_into().unwrap()) as usize;
         idx += 8;
         let mut kappa_k = Vec::with_capacity(kappa_k_len);
         for _ in 0..kappa_k_len {
             let kappa_k_bytes: [u8; 96] = bytes[idx..idx + 96].try_into().unwrap();
             let kappa_k_elem = try_deserialize_g2_projective(
                 &kappa_k_bytes,
-                CompactEcashError::Deserialization("Failed to deserialize kappa_k element".to_string()),
+                CompactEcashError::Deserialization(
+                    "Failed to deserialize kappa_k element".to_string(),
+                ),
             )?;
             kappa_k.push(kappa_k_elem);
             idx += 96;
         }
 
         // sig_lk
-        let sig_lk_len = u64::from_le_bytes(bytes[idx..idx+8].try_into().unwrap()) as usize;
+        let sig_lk_len = u64::from_le_bytes(bytes[idx..idx + 8].try_into().unwrap()) as usize;
         idx += 8;
         let mut sig_lk = Vec::with_capacity(sig_lk_len);
         for _ in 0..sig_lk_len {

@@ -67,11 +67,11 @@ impl TunDevice {
 
     fn handle_tun_read(&self, packet: &[u8]) {
         let Some(dst_addr) = boringtun::noise::Tunn::dst_address(packet) else {
-            log::error!("Unable to parse dst_address in packet that was supposed to be written to tun device");
+            log::error!("Unable to parse dst_address in packet that was read from tun device");
             return;
         };
         let Some(src_addr) = parse_src_address(packet) else {
-            log::error!("Unable to parse src_address in packet that was supposed to be written to tun device");
+            log::error!("Unable to parse src_address in packet that was read from tun device");
             return;
         };
         log::info!(

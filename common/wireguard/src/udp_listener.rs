@@ -37,7 +37,7 @@ async fn add_test_peer(registered_peers: &mut RegisteredPeers) {
     let peer_index = 0;
     let peer_allowed_ips = setup::peer_allowed_ips();
     let test_peer = Arc::new(tokio::sync::Mutex::new(RegisteredPeer {
-        public_key: peer_static_public.clone(),
+        public_key: peer_static_public,
         index: peer_index,
         allowed_ips: peer_allowed_ips,
     }));
@@ -247,7 +247,7 @@ async fn parse_peer<'a>(
             } else if gateway_client_registry.contains_key(&peer_public_key) {
                 let peer_idx = registered_peers.next_idx();
                 let peer = Arc::new(Mutex::new(RegisteredPeer {
-                    public_key: peer_public_key.clone(),
+                    public_key: peer_public_key,
                     index: peer_idx,
                     allowed_ips: setup::peer_allowed_ips(),
                 }));

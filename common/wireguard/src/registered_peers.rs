@@ -30,7 +30,7 @@ impl RegisteredPeers {
 
     pub(crate) async fn insert(&mut self, peer: Arc<tokio::sync::Mutex<RegisteredPeer>>) {
         let peer_idx = { peer.lock().await.index };
-        let public_key = { peer.lock().await.public_key.clone() };
+        let public_key = { peer.lock().await.public_key };
         self.peers.insert(public_key, Arc::clone(&peer));
         self.peers_by_idx.insert(peer_idx, peer);
     }

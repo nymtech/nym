@@ -1,0 +1,12 @@
+common:
+  request_headers:
+    Accept: application/json
+    Content-Type: application/json
+sandbox:
+  api_base_url: https://sandbox-nym-api1.nymtech.net/api/v1
+  log_level: error
+  time_zone: utc
+prod:
+  api_base_url: https://validator.nymtech.net/api/v1
+  log_level: error
+  time_zone: utc

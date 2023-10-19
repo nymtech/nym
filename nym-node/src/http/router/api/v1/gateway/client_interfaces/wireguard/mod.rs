@@ -228,7 +228,7 @@ mod test {
         assert_eq!(
             client_registry
                 .iter()
-                .map(|c| c.value().pub_key().clone())
+                .map(|c| c.value().pub_key())
                 .collect::<Vec<PeerPublicKey>>(),
             clients
         )

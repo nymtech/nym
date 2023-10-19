@@ -106,16 +106,10 @@ pub(crate) enum GatewayError {
         #[from]
         source: NyxdError,
     },
-    #[error("Error verifying hmac digest")]
-    HmacDigestError {
-        #[from]
-        source: hmac::digest::MacError,
-    },
-    #[error("Invalid hmac length")]
-    HmacInvalidLength {
-        #[from]
-        source: hmac::digest::InvalidLength,
-    },
+
+    // TODO: in the future this should work the other way, i.e. NymNode depending on Gateway errors
+    #[error(transparent)]
+    NymNodeError(#[from] nym_node::error::NymNodeError),
 }
 
 impl From<ClientCoreError> for GatewayError {

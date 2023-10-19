@@ -39,7 +39,7 @@ cw-storage-plus = { workspace = true }
 
 bs58 = "0.4.0"
 serde = { version = "1.0.103", default-features = false, features = ["derive"] }
-thiserror = { version = "1.0.23" }
+thiserror = { workspace = true }
 time = { version = "0.3", features = ["macros"] }
 semver = { version = "1.0.16", default-features = false }
 

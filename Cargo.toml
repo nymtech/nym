@@ -46,7 +46,7 @@ members = [
     "common/crypto",
     "common/dkg",
     "common/execute",
-    "common/http-requests",
+    "common/http-api-client",
     "common/inclusion-probability",
     "common/ledger",
     "common/mixnode-common",
@@ -78,6 +78,7 @@ members = [
     "common/wasm/storage",
     "common/wasm/utils",
     "common/wireguard",
+    "common/wireguard-types",
     "explorer-api",
     "explorer-api/explorer-api-requests",
     "explorer-api/explorer-client",
@@ -93,6 +94,8 @@ members = [
     "nym-api",
     "nym-browser-extension/storage",
     "nym-api/nym-api-requests",
+    "nym-node",
+    "nym-node/nym-node-requests",
     "nym-outfox",
     "tools/internal/ssl-inject",
     "tools/internal/sdk-version-bump",
@@ -129,6 +132,8 @@ license = "Apache-2.0"
 [workspace.dependencies]
 anyhow = "1.0.71"
 async-trait = "0.1.68"
+axum = "0.6.20"
+base64 = "0.21.4"
 bip39 = { version = "2.0.0", features = ["zeroize"] }
 boringtun = { git = "https://github.com/cloudflare/boringtun", rev = "e1d6360d6ab4529fc942a078e4c54df107abe2ba" }
 cfg-if = "1.0.0"
@@ -152,22 +157,27 @@ dotenvy = "0.15.6"
 futures = "0.3.28"
 generic-array = "0.14.7"
 getrandom = "0.2.10"
+hyper = "0.14.27"
 k256 = "0.13"
 lazy_static = "1.4.0"
 log = "0.4"
 once_cell = "1.7.2"
 parking_lot = "0.12.1"
 rand = "0.8.5"
-reqwest = "0.11.18"
+reqwest = "0.11.22"
+schemars = "0.8.1"
 serde = "1.0.152"
 serde_json = "1.0.91"
 tap = "1.0.1"
 tendermint-rpc = "0.32" # same version as used by cosmrs
-thiserror = "1.0.38"
+thiserror = "1.0.48"
 tokio = "1.24.1"
 tokio-tungstenite = "0.20.1"
+tracing = "0.1.37"
 tungstenite = { version = "0.20.1", default-features = false }
 ts-rs = "7.0.0"
+utoipa = "3.5.0"
+utoipa-swagger-ui = "3.1.5"
 url = "2.4"
 zeroize = "1.6.0"
 

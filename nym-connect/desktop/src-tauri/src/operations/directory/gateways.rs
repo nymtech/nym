@@ -8,6 +8,7 @@ use nym_bin_common::version_checker::is_minor_version_compatible;
 use nym_config::defaults::var_names::NYM_API;
 use nym_contracts_common::types::Percent;
 use nym_topology::gateway;
+use nym_validator_client::client::NymApiClientExt;
 use nym_validator_client::nym_api::Client as ApiClient;
 use std::str::FromStr;
 use url::Url;
@@ -16,7 +17,7 @@ use url::Url;
 const GATEWAY_PERFORMANCE_SCORE_THRESHOLD: u64 = 90;
 
 async fn fetch_all_gateways() -> Result<Vec<GatewayBondAnnotated>> {
-    let api_client = ApiClient::new(Url::from_str(&std::env::var(NYM_API)?)?);
+    let api_client = ApiClient::new(Url::from_str(&std::env::var(NYM_API)?)?, None);
     let gateways = api_client.get_gateways_detailed().await?;
     if gateways.is_empty() {
         Err(BackendError::NoGatewaysFoundInDirectory)
@@ -87,9 +88,12 @@ async fn select_gateway_by_latency(gateways: Vec<GatewayBondAnnotated>) -> Resul
         .collect();
 
     let mut rng = rand_07::rngs::OsRng;
-    let selected_gateway =
-        nym_client_core::init::helpers::choose_gateway_by_latency(&mut rng, &gateways_as_nodes)
-            .await?;
+    let selected_gateway = nym_client_core::init::helpers::choose_gateway_by_latency(
+        &mut rng,
+        &gateways_as_nodes,
+        false,
+    )
+    .await?;
     Ok(selected_gateway)
 }
 

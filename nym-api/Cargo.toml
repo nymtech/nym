@@ -16,7 +16,7 @@ rust-version = "1.56"
 
 [dependencies]
 async-trait = { workspace = true }
-bs58 = {version = "0.4.0" }
+bs58 = { version = "0.4.0" }
 bip39 = { workspace = true }
 cfg-if = "1.0"
 clap = { version = "4.0", features = ["cargo", "derive"] }
@@ -27,7 +27,6 @@ humantime-serde = "1.0"
 lazy_static = "1.4.0"
 log = { workspace = true }
 pin-project = "1.0"
-pretty_env_logger = "0.4.0"
 rand = "0.8.5"
 rand-07 = { package = "rand", version = "0.7.3" } # required for compatibility
 reqwest = { workspace = true, features = ["json"] }
@@ -49,7 +48,7 @@ url = { workspace = true }
 
 ts-rs = { workspace = true, optional = true}
 
-anyhow = "1.0"
+anyhow = { workspace = true }
 getset = "0.1.1"
 
 sqlx = { version = "0.6.2", features = [
@@ -61,7 +60,7 @@ sqlx = { version = "0.6.2", features = [
 
 okapi = { version = "0.7.0-rc.1", features = ["impl_json_schema"] }
 rocket_okapi = { version = "0.8.0-rc.2", features = ["swagger"] }
-schemars = { version = "0.8", features = ["preserve_order"] }
+schemars = { workspace = true, features = ["preserve_order"] }
 zeroize = { workspace = true }
 
 ## ephemera-specific
@@ -106,13 +105,14 @@ nym-api-requests = { path = "nym-api-requests" }
 nym-validator-client = { path = "../common/client-libs/validator-client" }
 nym-bin-common = { path = "../common/bin-common" }
 nym-node-tester-utils = { path = "../common/node-tester-utils" }
+nym-node-requests = { path = "../nym-node/nym-node-requests" }
 
 [features]
 no-reward = []
 generate-ts = ["ts-rs"]
 
 [build-dependencies]
-tokio = { version = "1.24.1", features = ["rt-multi-thread", "macros"] }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
 sqlx = { version = "0.6.2", features = [
     "runtime-tokio-rustls",
     "sqlite",

@@ -13,7 +13,7 @@ mod setup;
 mod udp_listener;
 mod wg_tunnel;
 
-use nym_types::gateway_client_registration::GatewayClientRegistry;
+use nym_wireguard_types::registration::GatewayClientRegistry;
 use std::sync::Arc;
 
 // Currently the module related to setting up the virtual network device is platform specific.

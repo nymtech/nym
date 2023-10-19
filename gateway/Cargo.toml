@@ -15,13 +15,6 @@ rust-version = "1.56"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-axum = "0.6.20"
-sha2 = "0.10.8"
-hmac = "0.12.1"
-axum-macros = "0.3.8" # Useful for debugging axum Handler trait errors
-fastrand = "2"
-x25519-dalek = { version = "2.0.0", features = ["static_secrets"] }
-base64 = "0.21.4"
 anyhow = { workspace = true }
 async-trait = { workspace = true }
 atty = "0.2"
@@ -48,7 +41,7 @@ sqlx = { version = "0.5", features = [
     "migrate",
 ] }
 subtle-encoding = { version = "0.5", features = ["bech32-preview"] }
-thiserror = "1"
+thiserror = { workspace = true }
 tokio = { workspace = true, features = [
     "rt-multi-thread",
     "net",
@@ -63,6 +56,8 @@ url = { version = "2.2", features = ["serde"] }
 zeroize = { workspace = true }
 
 # internal
+nym-node = { path = "../nym-node" }
+
 nym-api-requests = { path = "../nym-api/nym-api-requests" }
 nym-bin-common = { path = "../common/bin-common", features = ["output_format"] }
 nym-coconut-interface = { path = "../common/coconut-interface" }
@@ -97,4 +92,4 @@ sqlx = { version = "0.5", features = [
 ] }
 
 [features]
-wireguard = ["nym-wireguard", "nym-types/wireguard"]
+wireguard = ["nym-wireguard"]

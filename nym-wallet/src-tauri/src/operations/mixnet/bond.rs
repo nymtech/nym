@@ -14,6 +14,7 @@ use nym_types::currency::DecCoin;
 use nym_types::gateway::GatewayBond;
 use nym_types::mixnode::{MixNodeCostParams, MixNodeDetails};
 use nym_types::transaction::TransactionExecuteResult;
+use nym_validator_client::client::NymApiClientExt;
 use nym_validator_client::nyxd::contract_traits::{MixnetQueryClient, MixnetSigningClient};
 use nym_validator_client::nyxd::Fee;
 use serde::{Deserialize, Serialize};

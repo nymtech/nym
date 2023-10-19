@@ -9,7 +9,18 @@ pub(crate) const CONFIG_TEMPLATE: &str = r#"
 # This is a TOML config file.
 # For more information, see https://github.com/toml-lang/toml
 
-##### main base mixnode config options #####
+##### main base gateway config options #####
+
+[host]
+# Ip address(es) of this host, such as 1.1.1.1 that external clients will use for connections.
+public_ips = [
+    {{#each host.public_ips }}
+        '{{this}}',
+    {{/each}}
+]
+
+# (temporary) Optional hostname of this node, for example nymtech.net.
+hostname = '{{ host.hostname }}'
 
 [gateway]
 # Version of the gateway for which this configuration was created.
@@ -33,6 +44,10 @@ mix_port = {{ gateway.mix_port }}
 # (default: 9000)
 clients_port = {{ gateway.clients_port }}
 
+# If applicable, announced port for listening for secure websocket client traffic.
+# (default: 0 - disabled)
+clients_wss_port ={{#if gateway.clients_wss_port }} {{ gateway.clients_wss_port }} {{else}} 0 {{/if}}
+    
 # Wheather gateway collects and sends anonymized statistics
 enabled_statistics = {{ gateway.enabled_statistics }}
 
@@ -54,6 +69,14 @@ nyxd_urls = [
 ]
 
 cosmos_mnemonic = '{{ gateway.cosmos_mnemonic }}'
+
+[http]
+# Socket address this node will use for binding its http API.
+# default: `0.0.0.0:8080`
+bind_address = '{{ http.bind_address }}'
+
+# Path to assets directory of custom landing page of this node
+landing_page_assets_path = '{{ http.landing_page_assets_path }}'
 
 [network_requester]
 # Specifies whether network requester service is enabled in this process.

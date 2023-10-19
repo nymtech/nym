@@ -190,7 +190,12 @@ pub struct SerializableGateway {
 
     #[cfg_attr(feature = "wasm-serde-types", tsify(optional))]
     #[serde(alias = "clients_port")]
-    pub clients_port: Option<u16>,
+    #[serde(alias = "clients_ws_port")]
+    pub clients_ws_port: Option<u16>,
+
+    #[cfg_attr(feature = "wasm-serde-types", tsify(optional))]
+    #[serde(alias = "clients_wss_port")]
+    pub clients_wss_port: Option<u16>,
 
     #[serde(alias = "identity_key")]
     pub identity_key: String,
@@ -209,7 +214,9 @@ impl TryFrom<SerializableGateway> for gateway::Node {
         let host = gateway::Node::parse_host(&value.host)?;
 
         let mix_port = value.mix_port.unwrap_or(DEFAULT_MIX_LISTENING_PORT);
-        let clients_port = value.clients_port.unwrap_or(DEFAULT_CLIENT_LISTENING_PORT);
+        let clients_ws_port = value
+            .clients_ws_port
+            .unwrap_or(DEFAULT_CLIENT_LISTENING_PORT);
         let version = value.version.map(|v| v.as_str().into()).unwrap_or_default();
 
         // try to completely resolve the host in the mix situation to avoid doing it every
@@ -224,7 +231,8 @@ impl TryFrom<SerializableGateway> for gateway::Node {
             owner: value.owner,
             host,
             mix_host,
-            clients_port,
+            clients_ws_port,
+            clients_wss_port: value.clients_wss_port,
             identity_key: identity::PublicKey::from_base58_string(&value.identity_key)
                 .map_err(GatewayConversionError::from)?,
             sphinx_key: encryption::PublicKey::from_base58_string(&value.sphinx_key)
@@ -241,7 +249,8 @@ impl<'a> From<&'a gateway::Node> for SerializableGateway {
             host: value.host.to_string(),
             explicit_ip: Some(value.mix_host.ip()),
             mix_port: Some(value.mix_host.port()),
-            clients_port: Some(value.clients_port),
+            clients_ws_port: Some(value.clients_ws_port),
+            clients_wss_port: value.clients_wss_port,
             identity_key: value.identity_key.to_base58_string(),
             sphinx_key: value.sphinx_key.to_base58_string(),
             version: Some(value.version.to_string()),

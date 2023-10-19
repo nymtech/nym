@@ -9,7 +9,7 @@ repository = { workspace = true }
 
 [dependencies]
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
-thiserror = "1.0.37"
+thiserror = { workspace = true }
 
 nym-crypto = { path = "../../crypto" }
 nym-sphinx-acknowledgements = { path = "../acknowledgements" }

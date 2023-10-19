@@ -30,7 +30,7 @@ tap.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, features = ["rt-multi-thread", "net", "io-util"] }
 serde = { workspace = true, features = ["derive"] }
-nym-types = { path = "../types", features = ["wireguard"] }
+nym-wireguard-types = { path = "../wireguard-types" }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 tokio-tun = "0.9.0"

@@ -281,29 +281,24 @@ impl GatewayEndpointConfig {
             .map_err(ClientCoreError::UnableToCreatePublicKeyFromGatewayId)
     }
 
-    pub fn from_node(node: nym_topology::gateway::Node, use_tls: bool) -> Self {
-        // TODO: in the future this shall return a Result and explicit `use_tls` will be removed in favour of the tls info being available on the struct
-        if use_tls {
-            Self::from_topology_node_tls(node)
+    pub fn from_node(
+        node: nym_topology::gateway::Node,
+        must_use_tls: bool,
+    ) -> Result<Self, ClientCoreError> {
+        let gateway_listener = if must_use_tls {
+            node.clients_address_tls()
+                .ok_or(ClientCoreError::UnsupportedWssProtocol {
+                    gateway: node.identity_key.to_base58_string(),
+                })?
         } else {
-            Self::from_topology_node_no_tls(node)
-        }
-    }
+            node.clients_address()
+        };
 
-    pub fn from_topology_node_no_tls(node: nym_topology::gateway::Node) -> Self {
-        GatewayEndpointConfig {
+        Ok(GatewayEndpointConfig {
             gateway_id: node.identity_key.to_base58_string(),
-            gateway_listener: node.clients_address(),
+            gateway_listener,
             gateway_owner: node.owner,
-        }
-    }
-
-    pub fn from_topology_node_tls(node: nym_topology::gateway::Node) -> Self {
-        GatewayEndpointConfig {
-            gateway_id: node.identity_key.to_base58_string(),
-            gateway_listener: node.clients_address_tls(),
-            gateway_owner: node.owner,
-        }
+        })
     }
 }
 

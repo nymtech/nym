@@ -9,8 +9,11 @@ use nym_mixnet_contract_common::rewarding::RewardEstimate;
 use nym_mixnet_contract_common::{
     GatewayBond, IdentityKey, Interval, MixId, MixNode, Percent, RewardedSetNodeStatus,
 };
+use nym_node_requests::api::v1::gateway::models::WebSockets;
+use nym_node_requests::api::v1::node::models::{BinaryBuildInformationOwned, HostInformation};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use std::fmt::{Display, Formatter};
 use std::{fmt, time::Duration};
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, JsonSchema)]
@@ -27,6 +30,12 @@ impl RequestError {
 
     pub fn message(&self) -> &str {
         &self.message
+    }
+}
+
+impl Display for RequestError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        self.message.fmt(f)
     }
 }
 
@@ -135,6 +144,10 @@ impl MixNodeBondAnnotated {
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct GatewayBondAnnotated {
     pub gateway_bond: GatewayBond,
+
+    #[serde(default)]
+    pub self_described: Option<GatewayDescription>,
+
     // NOTE: the performance field is deprecated in favour of node_performance
     pub performance: Performance,
     pub node_performance: NodePerformance,
@@ -149,6 +162,11 @@ impl GatewayBondAnnotated {
     pub fn owner(&self) -> &Addr {
         self.gateway_bond.owner()
     }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+pub struct GatewayDescription {
+    // for now only expose what we need. this struct will evolve in the future (or be incorporated into nym-node properly)
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
@@ -336,4 +354,30 @@ pub struct CirculatingSupplyResponse {
     pub mixmining_reserve: Coin,
     pub vesting_tokens: Coin,
     pub circulating_supply: Coin,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+pub struct NymNodeDescription {
+    pub host_information: HostInformation,
+
+    // TODO: do we really care about ALL build info or just the version?
+    pub build_information: BinaryBuildInformationOwned,
+
+    // for now we only care about their ws/wss situation, nothing more
+    pub mixnet_websockets: WebSockets,
+}
+
+#[derive(Clone, Serialize, Deserialize, schemars::JsonSchema)]
+pub struct DescribedGateway {
+    pub bond: GatewayBond,
+    pub self_described: Option<NymNodeDescription>,
+}
+
+impl From<GatewayBond> for DescribedGateway {
+    fn from(bond: GatewayBond) -> Self {
+        DescribedGateway {
+            bond,
+            self_described: None,
+        }
+    }
 }

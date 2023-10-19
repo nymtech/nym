@@ -8,6 +8,6 @@ description = "Crutch library until there is proper SerDe support for coconut st
 bs58 = "0.4.0"
 getset = "0.1.1"
 serde = { workspace = true, features = ["derive"] }
-thiserror = "1"
+thiserror = { workspace = true }
 
 nym-coconut = {path = "../nymcoconut" }

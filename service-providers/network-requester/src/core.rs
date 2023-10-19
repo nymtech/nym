@@ -4,19 +4,13 @@
 use crate::config::{BaseClientConfig, Config};
 use crate::error::NetworkRequesterError;
 use crate::reply::MixnetMessage;
-use crate::request_filter::allowed_hosts::standard_list::StandardListUpdater;
-use crate::request_filter::allowed_hosts::stored_allowed_hosts::{
-    start_allowed_list_reloader, StoredAllowedHosts,
-};
-use crate::request_filter::allowed_hosts::{OutboundRequestFilter, StandardList};
-use crate::request_filter::exit_policy::ExitPolicyRequestFilter;
 use crate::request_filter::RequestFilter;
 use crate::statistics::ServiceStatisticsCollector;
-use crate::{config, reply, request_filter::allowed_hosts, socks5};
+use crate::{reply, socks5};
 use async_trait::async_trait;
 use futures::channel::{mpsc, oneshot};
 use futures::stream::StreamExt;
-use log::{debug, info, warn};
+use log::{debug, warn};
 use nym_bin_common::bin_info_owned;
 use nym_client_core::client::mix_traffic::transceiver::GatewayTransceiver;
 use nym_client_core::config::disk_persistence::CommonClientPaths;
@@ -192,44 +186,6 @@ impl NRServiceProviderBuilder {
         }
     }
 
-    fn setup_allow_list_request_filter(config: &Config) -> OutboundRequestFilter {
-        let standard_list = StandardList::new();
-
-        let allowed_hosts = StoredAllowedHosts::new(&config.storage_paths.allowed_list_location);
-        let unknown_hosts =
-            allowed_hosts::HostsStore::new(&config.storage_paths.unknown_list_location);
-
-        OutboundRequestFilter::new(allowed_hosts, standard_list, unknown_hosts)
-    }
-
-    async fn setup_exit_policy_filter(
-        config: &Config,
-    ) -> Result<ExitPolicyRequestFilter, NetworkRequesterError> {
-        ExitPolicyRequestFilter::new(
-            config
-                .network_requester
-                .upstream_exit_policy_url
-                .as_ref()
-                .ok_or(NetworkRequesterError::NoUpstreamExitPolicy)?
-                .clone(),
-        )
-        .await
-    }
-
-    async fn setup_request_filter(config: &Config) -> Result<RequestFilter, NetworkRequesterError> {
-        if config.network_requester.use_deprecated_allow_list {
-            info!("setting up allow-list based 'OutboundRequestFilter'...");
-            Ok(RequestFilter::AllowList(
-                Self::setup_allow_list_request_filter(config),
-            ))
-        } else {
-            info!("setting up ExitPolicy based request filter...");
-            Self::setup_exit_policy_filter(config)
-                .await
-                .map(RequestFilter::ExitPolicy)
-        }
-    }
-
     #[must_use]
     // this is a false positive, this method is actually called when used as a library
     // but clippy complains about it when building the binary
@@ -291,36 +247,6 @@ impl NRServiceProviderBuilder {
         self.custom_topology_provider =
             Some(Box::new(HardcodedTopologyProvider::new_from_file(file)?));
         Ok(self)
-    }
-
-    async fn start_request_filter_tasks(
-        config: &config::Debug,
-        request_filter: &RequestFilter,
-        task_handle: &TaskHandle,
-    ) {
-        match request_filter {
-            RequestFilter::AllowList(allow_list_filter) => {
-                // start the standard list updater
-                StandardListUpdater::new(
-                    config.standard_list_update_interval,
-                    allow_list_filter.standard_list(),
-                    task_handle.get_handle().named("StandardListUpdater"),
-                )
-                .start();
-
-                // start the allowed.list watcher and updater
-                start_allowed_list_reloader(
-                    allow_list_filter.allowed_hosts(),
-                    task_handle
-                        .get_handle()
-                        .named("stored_allowed_hosts_reloader"),
-                )
-                .await;
-            }
-            RequestFilter::ExitPolicy(_) => {
-                // nothing to do for the exit policy (yet; we might add a refresher at some point)
-            }
-        }
     }
 
     /// Start all subsystems
@@ -395,13 +321,10 @@ impl NRServiceProviderBuilder {
             .await;
         });
 
-        let request_filter = Self::setup_request_filter(&self.config).await?;
-        Self::start_request_filter_tasks(
-            &self.config.network_requester_debug,
-            &request_filter,
-            &shutdown,
-        )
-        .await;
+        let request_filter = RequestFilter::new(&self.config).await?;
+        request_filter
+            .start_update_tasks(&self.config.network_requester_debug, &shutdown)
+            .await;
 
         let mut service_provider = NRServiceProvider {
             config: self.config,
@@ -585,7 +508,7 @@ impl NRServiceProvider {
     }
 
     async fn handle_proxy_connect(
-        &mut self,
+        &self,
         remote_version: RequestVersion<Socks5Request>,
         sender_tag: Option<AnonymousSenderTag>,
         connect_req: Box<ConnectRequest>,
@@ -601,24 +524,6 @@ impl NRServiceProvider {
 
         let remote_addr = connect_req.remote_addr;
         let conn_id = connect_req.conn_id;
-
-        let open_proxy = self.config.network_requester.open_proxy;
-        if !open_proxy && !self.request_filter.check_address(&remote_addr).await {
-            let log_msg = format!("Domain {remote_addr:?} failed filter check");
-            log::info!("{log_msg}");
-            let msg = MixnetMessage::new_connection_error(
-                return_address,
-                remote_version,
-                conn_id,
-                log_msg,
-            );
-            self.mix_input_sender
-                .send(msg)
-                .await
-                .expect("InputMessageReceiver has stopped receiving!");
-            return;
-        }
-
         let traffic_config = self.config.base.debug.traffic;
         let packet_size = traffic_config
             .secondary_packet_size
@@ -627,10 +532,34 @@ impl NRServiceProvider {
         let controller_sender_clone = self.controller_sender.clone();
         let mix_input_sender_clone = self.mix_input_sender.clone();
         let lane_queue_lengths_clone = self.mixnet_client.shared_lane_queue_lengths();
-        let shutdown = self.shutdown.get_handle();
+        let mut shutdown = self.shutdown.get_handle();
 
-        // and start the proxy for this connection
+        // we're just cloning the underlying pointer, nothing expensive is happening here
+        let request_filter = self.request_filter.clone();
+
+        // at this point move it into the separate task
+        // because we might have to resolve the underlying address and it can take some time
+        // during which we don't want to block other incoming requests
         tokio::spawn(async move {
+            if !request_filter.check_address(&remote_addr).await {
+                let log_msg = format!("Domain {remote_addr:?} failed filter check");
+                log::info!("{log_msg}");
+                let error_msg = MixnetMessage::new_connection_error(
+                    return_address,
+                    remote_version,
+                    conn_id,
+                    log_msg,
+                );
+
+                mix_input_sender_clone
+                    .send(error_msg)
+                    .await
+                    .expect("InputMessageReceiver has stopped receiving!");
+                shutdown.mark_as_success();
+                return;
+            }
+
+            // if all is good, start the proxy for this connection
             Self::start_proxy(
                 remote_version,
                 conn_id,

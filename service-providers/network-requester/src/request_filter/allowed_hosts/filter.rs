@@ -6,6 +6,7 @@ use crate::request_filter::allowed_hosts::group::HostsGroup;
 use crate::request_filter::allowed_hosts::standard_list::StandardList;
 use crate::request_filter::allowed_hosts::stored_allowed_hosts::StoredAllowedHosts;
 use std::net::{IpAddr, SocketAddr};
+use tokio::sync::Mutex;
 
 #[derive(Debug)]
 enum RequestHost {
@@ -31,7 +32,7 @@ pub(crate) struct OutboundRequestFilter {
     pub(super) allowed_hosts: StoredAllowedHosts,
     pub(super) standard_list: StandardList,
     root_domain_list: publicsuffix::List,
-    unknown_hosts: HostsStore,
+    unknown_hosts: Mutex<HostsStore>,
 }
 
 impl OutboundRequestFilter {
@@ -56,7 +57,7 @@ impl OutboundRequestFilter {
             allowed_hosts,
             standard_list,
             root_domain_list: domain_list,
-            unknown_hosts,
+            unknown_hosts: Mutex::new(unknown_hosts),
         }
     }
 
@@ -86,11 +87,12 @@ impl OutboundRequestFilter {
         }
     }
 
-    fn add_to_unknown_hosts(&mut self, host: RequestHost) {
+    async fn add_to_unknown_hosts(&self, host: RequestHost) {
+        let mut guard = self.unknown_hosts.lock().await;
         match host {
-            RequestHost::IpAddr(ip_addr) => self.unknown_hosts.add_ip(ip_addr),
-            RequestHost::SocketAddr(socket_addr) => self.unknown_hosts.add_ip(socket_addr.ip()),
-            RequestHost::RootDomain(domain) => self.unknown_hosts.add_domain(&domain),
+            RequestHost::IpAddr(ip_addr) => guard.add_ip(ip_addr),
+            RequestHost::SocketAddr(socket_addr) => guard.add_ip(socket_addr.ip()),
+            RequestHost::RootDomain(domain) => guard.add_domain(&domain),
         }
     }
 
@@ -112,7 +114,7 @@ impl OutboundRequestFilter {
         }
     }
 
-    async fn check_request_host(&mut self, request_host: &RequestHost) -> bool {
+    async fn check_request_host(&self, request_host: &RequestHost) -> bool {
         // first check our own allow list
         let local_allowed = self.check_allowed_hosts(request_host).await;
 
@@ -128,12 +130,12 @@ impl OutboundRequestFilter {
     /// Returns `true` if a host's root domain is in the `allowed_hosts` list.
     ///
     /// If it's not in the list, return `false` and write it to the `unknown_hosts` storefile.
-    pub(crate) async fn check(&mut self, host: &str) -> bool {
+    pub(crate) async fn check(&self, host: &str) -> bool {
         let allowed = match self.parse_request_host(host) {
             Some(request_host) => {
                 let res = self.check_request_host(&request_host).await;
                 if !res {
-                    self.add_to_unknown_hosts(request_host)
+                    self.add_to_unknown_hosts(request_host).await
                 }
                 res
             }
@@ -361,11 +363,23 @@ mod tests {
             let host = "unknown.com";
             let mut filter = setup_empty();
             filter.check(host).await;
-            assert_eq!(1, filter.unknown_hosts.data.domains.len());
-            assert!(filter.unknown_hosts.data.domains.contains("unknown.com"));
+            assert_eq!(1, filter.unknown_hosts.lock().await.data.domains.len());
+            assert!(filter
+                .unknown_hosts
+                .lock()
+                .await
+                .data
+                .domains
+                .contains("unknown.com"));
             filter.check(host).await;
-            assert_eq!(1, filter.unknown_hosts.data.domains.len());
-            assert!(filter.unknown_hosts.data.domains.contains("unknown.com"));
+            assert_eq!(1, filter.unknown_hosts.lock().await.data.domains.len());
+            assert!(filter
+                .unknown_hosts
+                .lock()
+                .await
+                .data
+                .domains
+                .contains("unknown.com"));
         }
     }
 

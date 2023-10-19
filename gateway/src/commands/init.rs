@@ -282,6 +282,7 @@ mod tests {
             fastmode: false,
             no_cover: false,
             medium_toggle: false,
+            with_exit_policy: None,
         };
         std::env::set_var(BECH32_PREFIX, "n");
 

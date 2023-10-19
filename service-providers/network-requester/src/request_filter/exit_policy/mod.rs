@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::NetworkRequesterError;
+use log::trace;
 use nym_exit_policy::client::get_exit_policy;
 use nym_exit_policy::ExitPolicy;
 use nym_socks5_requests::RemoteAddress;
@@ -40,6 +41,10 @@ impl ExitPolicyRequestFilter {
             });
         }
 
+        trace!("{remote} has been resolved to {addrs:?}");
+
+        // if the remote decided to give us an address that can resolve to multiple socket addresses,
+        // they'd better make sure all of them are allowed by the exit policy.
         for addr in addrs {
             if !self
                 .policy
@@ -51,5 +56,11 @@ impl ExitPolicyRequestFilter {
         }
 
         Ok(true)
+    }
+}
+
+impl From<ExitPolicy> for ExitPolicyRequestFilter {
+    fn from(policy: ExitPolicy) -> Self {
+        ExitPolicyRequestFilter { policy }
     }
 }

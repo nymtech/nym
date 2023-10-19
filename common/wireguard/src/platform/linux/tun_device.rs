@@ -14,7 +14,7 @@ use crate::{
     event::Event,
     setup::{TUN_BASE_NAME, TUN_DEVICE_ADDRESS, TUN_DEVICE_NETMASK},
     udp_listener::PeersByIp,
-    TunTaskTx,
+    TunTaskTx, TunTaskRx,
 };
 
 fn setup_tokio_tun_device(name: &str, address: Ipv4Addr, netmask: Ipv4Addr) -> tokio_tun::Tun {
@@ -36,11 +36,15 @@ pub struct TunDevice {
     tun: tokio_tun::Tun,
 
     // Incoming data that we should send
-    tun_task_rx: mpsc::UnboundedReceiver<Vec<u8>>,
+    // tun_task_rx: mpsc::UnboundedReceiver<Vec<u8>>,
+    tun_task_rx: TunTaskRx,
 
     // The routing table.
     // An alternative would be to do NAT by just matching incoming with outgoing.
     peers_by_ip: Arc<std::sync::Mutex<PeersByIp>>,
+
+    // nat_table: HashMap<IpAddr, UnboundedSender<Event>>,
+
 }
 
 impl TunDevice {
@@ -55,6 +59,7 @@ impl TunDevice {
         // Channels to communicate with the other tasks
         let (tun_task_tx, tun_task_rx) = mpsc::unbounded_channel::<Vec<u8>>();
         let tun_task_tx = TunTaskTx(tun_task_tx);
+        let tun_task_rx = TunTaskRx(tun_task_rx);
 
         let tun_device = TunDevice {
             tun_task_rx,
@@ -108,6 +113,12 @@ impl TunDevice {
             "iface: write Packet({src_addr} -> {dst_addr}, {} bytes)",
             data.len()
         );
+        self.tun.write_all(&data).await.unwrap();
+
+        // Here we should store src_addr in map
+        // Something like:
+        // Map<src_addr, peer_tx>
+
         self.tun
             .write_all(&data)
             .await

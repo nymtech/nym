@@ -20,14 +20,25 @@ use std::sync::Arc;
 #[cfg(target_os = "linux")]
 use platform::linux::tun_device;
 
+type TunTaskPayload = Vec<u8>;
+
 #[derive(Clone)]
-pub struct TunTaskTx(tokio::sync::mpsc::UnboundedSender<Vec<u8>>);
+pub struct TunTaskTx(tokio::sync::mpsc::UnboundedSender<TunTaskPayload>);
 
 impl TunTaskTx {
-    fn send(&self, packet: Vec<u8>) -> Result<(), tokio::sync::mpsc::error::SendError<Vec<u8>>> {
+    fn send(&self, packet: Vec<u8>) -> Result<(), tokio::sync::mpsc::error::SendError<TunTaskPayload>> {
         self.0.send(packet)
     }
 }
+
+pub struct TunTaskRx(tokio::sync::mpsc::UnboundedReceiver<TunTaskPayload>);
+
+impl TunTaskRx {
+    async fn recv(&mut self) -> Option<TunTaskPayload> {
+        self.0.recv().await
+    }
+}
+
 
 /// Start wireguard UDP listener and TUN device
 ///

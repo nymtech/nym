@@ -6884,7 +6884,6 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "base64 0.21.4",
- "boringtun",
  "http-api-client",
  "nym-bin-common",
  "nym-crypto",
@@ -7564,6 +7563,7 @@ dependencies = [
  "sha2 0.10.8",
  "thiserror",
  "utoipa",
+ "x25519-dalek 2.0.0",
 ]
 
 [[package]]

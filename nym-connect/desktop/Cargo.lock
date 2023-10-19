@@ -4430,7 +4430,6 @@ name = "nym-node-requests"
 version = "0.1.0"
 dependencies = [
  "base64 0.21.4",
- "boringtun",
  "nym-bin-common",
  "nym-crypto",
  "nym-wireguard-types",
@@ -4818,6 +4817,7 @@ dependencies = [
  "nym-crypto",
  "serde",
  "thiserror",
+ "x25519-dalek 2.0.0",
 ]
 
 [[package]]

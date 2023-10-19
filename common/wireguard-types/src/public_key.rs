@@ -4,12 +4,19 @@
 use crate::Error;
 use base64::engine::general_purpose;
 use base64::Engine;
-use boringtun::x25519::PublicKey as BoringtunPublicKey;
 use serde::Serialize;
 use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::ops::Deref;
 use std::str::FromStr;
+
+// underneath the same library is being used, i.e. x25519-dalek 2.0,
+// which is being reexported by boringtun but wasm hates internals of boringtun
+#[cfg(target_arch = "wasm32")]
+use x25519_dalek::PublicKey as BoringtunPublicKey;
+
+#[cfg(not(target_arch = "wasm32"))]
+use boringtun::x25519::PublicKey as BoringtunPublicKey;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub struct PeerPublicKey(BoringtunPublicKey);

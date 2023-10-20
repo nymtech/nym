@@ -130,7 +130,12 @@ pub(crate) fn start_http_api(
             .with_network_requester(load_network_requester_details(gateway_config, nr_config)?)
     }
 
-    let wg_state = WireguardAppState::new(sphinx_keypair, client_registry, Default::default());
+    let wg_state = WireguardAppState::new(
+        sphinx_keypair,
+        client_registry,
+        Default::default(),
+        Arc::new(gateway_config.wireguard.bind_address),
+    );
     let router = nym_node::http::NymNodeRouter::new(config, Some(wg_state));
 
     let server = router

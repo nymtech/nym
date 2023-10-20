@@ -54,8 +54,13 @@ impl InitMessage {
 #[serde(tag = "type", rename_all = "camelCase")]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub enum ClientRegistrationResponse {
-    PendingRegistration { nonce: u64 },
-    Registered { success: bool },
+    PendingRegistration {
+        nonce: u64,
+        gateway_data: GatewayClient,
+    },
+    Registered {
+        success: bool,
+    },
 }
 
 /// Client that wants to register sends its PublicKey and SocketAddr bytes mac digest encrypted with a DH shared secret.

@@ -9,6 +9,7 @@ use axum::routing::{get, post};
 use axum::Router;
 use nym_crypto::asymmetric::encryption;
 use nym_node_requests::routes::api::v1::gateway::client_interfaces::wireguard;
+use std::net::SocketAddr;
 use std::sync::Arc;
 
 pub(crate) mod client_registry;
@@ -25,12 +26,14 @@ impl WireguardAppState {
         dh_keypair: Arc<encryption::KeyPair>,
         client_registry: Arc<GatewayClientRegistry>,
         registration_in_progress: Arc<PendingRegistrations>,
+        socket_address: Arc<SocketAddr>,
     ) -> Self {
         WireguardAppState {
             inner: Some(WireguardAppStateInner {
                 dh_keypair,
                 client_registry,
                 registration_in_progress,
+                socket_address,
             }),
         }
     }
@@ -74,6 +77,7 @@ pub(crate) struct WireguardAppStateInner {
     dh_keypair: Arc<encryption::KeyPair>,
     client_registry: Arc<GatewayClientRegistry>,
     registration_in_progress: Arc<PendingRegistrations>,
+    socket_address: Arc<SocketAddr>,
 }
 
 pub(crate) fn routes<S>(initial_state: WireguardAppState) -> Router<S> {
@@ -102,6 +106,7 @@ mod test {
     };
     use nym_node_requests::routes::api::v1::gateway::client_interfaces::wireguard;
     use nym_wireguard_types::registration::HmacSha256;
+    use std::net::{IpAddr, Ipv4Addr, SocketAddr};
     use std::sync::Arc;
     use tower::Service;
     use tower::ServiceExt;
@@ -139,6 +144,10 @@ mod test {
                 client_registry: Arc::clone(&client_registry),
                 dh_keypair: Arc::new(gateway_key_pair),
                 registration_in_progress: Arc::clone(&registration_in_progress),
+                socket_address: Arc::new(SocketAddr::new(
+                    IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
+                    8080,
+                )),
             }),
         };
 
@@ -167,12 +176,17 @@ mod test {
         assert_eq!(response.status(), StatusCode::OK);
         assert!(!registration_in_progress.is_empty());
 
-        let ClientRegistrationResponse::PendingRegistration { nonce } =
-            serde_json::from_slice(&hyper::body::to_bytes(response.into_body()).await.unwrap())
-                .unwrap()
+        let ClientRegistrationResponse::PendingRegistration {
+            nonce,
+            gateway_data,
+        } = serde_json::from_slice(&hyper::body::to_bytes(response.into_body()).await.unwrap())
+            .unwrap()
         else {
             panic!("invalid response")
         };
+        assert!(gateway_data
+            .verify(client_key_pair.private_key(), nonce)
+            .is_ok());
 
         let mut mac = HmacSha256::new_from_slice(client_dh.as_bytes()).unwrap();
         mac.update(client_static_public.as_bytes());

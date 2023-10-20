@@ -16,10 +16,12 @@ use nym_coconut_bandwidth_contract_common::spend_credential::{
     funds_from_cosmos_msgs, SpendCredentialStatus,
 };
 use nym_coconut_dkg_common::types::EpochId;
-use nym_coconut_interface::KeyPair as CoconutKeyPair;
-use nym_coconut_interface::{
-    Attribute, BlindSignRequest, BlindedSignature, Parameters, VerificationKey,
-};
+
+use nym_compact_ecash::scheme::keygen::{KeyPairAuth, SecretKeyAuth};
+use nym_compact_ecash::scheme::withdrawal::WithdrawalRequest;
+use nym_compact_ecash::setup::GroupParameters;
+use nym_compact_ecash::utils::BlindedSignature;
+use nym_compact_ecash::{PublicKeyUser, VerificationKeyAuth};
 use nym_config::defaults::NYM_API_VERSION;
 use nym_credentials::coconut::params::{
     NymApiCredentialEncryptionAlgorithm, NymApiCredentialHkdfAlgorithm,
@@ -135,7 +137,10 @@ impl State {
         }
     }
 
-    pub async fn verification_key(&self, epoch_id: EpochId) -> Result<VerificationKey> {
+    pub async fn verification_key(
+        &self,
+        epoch_id: EpochId,
+    ) -> Result<nym_coconut_interface::VerificationKey> {
         self.comm_channel
             .aggregated_verification_key(epoch_id)
             .await
@@ -144,25 +149,20 @@ impl State {
 
 #[derive(Getters, CopyGetters, Debug)]
 pub(crate) struct InternalSignRequest {
-    // Total number of parameters to generate for
-    #[getset(get_copy)]
-    total_params: u32,
     #[getset(get)]
-    public_attributes: Vec<Attribute>,
+    withdrawal_request: WithdrawalRequest,
     #[getset(get)]
-    blind_sign_request: BlindSignRequest,
+    ecash_pubkey: PublicKeyUser,
 }
 
 impl InternalSignRequest {
     pub fn new(
-        total_params: u32,
-        public_attributes: Vec<Attribute>,
-        blind_sign_request: BlindSignRequest,
+        withdrawal_request: WithdrawalRequest,
+        ecash_pubkey: PublicKeyUser,
     ) -> InternalSignRequest {
         InternalSignRequest {
-            total_params,
-            public_attributes,
-            blind_sign_request,
+            withdrawal_request,
+            ecash_pubkey,
         }
     }
 
@@ -188,13 +188,13 @@ impl InternalSignRequest {
     }
 }
 
-fn blind_sign(request: InternalSignRequest, key_pair: &CoconutKeyPair) -> Result<BlindedSignature> {
-    let params = Parameters::new(request.total_params())?;
-    Ok(nym_coconut_interface::blind_sign(
+fn blind_sign(request: InternalSignRequest, key_pair: KeyPairAuth) -> Result<BlindedSignature> {
+    let params = GroupParameters::new()?;
+    Ok(nym_compact_ecash::scheme::withdrawal::issue_wallet(
         &params,
-        &key_pair.secret_key(),
-        request.blind_sign_request(),
-        request.public_attributes(),
+        key_pair.secret_key(),
+        request.ecash_pubkey().clone(),
+        request.withdrawal_request(),
     )?)
 }
 
@@ -217,12 +217,17 @@ pub async fn post_blind_sign(
         .await?;
     let encryption_key = extract_encryption_key(&blind_sign_request_body, tx).await?;
     let internal_request = InternalSignRequest::new(
-        *blind_sign_request_body.total_params(),
-        blind_sign_request_body.public_attributes(),
-        blind_sign_request_body.blind_sign_request().clone(),
+        blind_sign_request_body.withdrawal_request().clone(),
+        PublicKeyUser::from_base58_string(blind_sign_request_body.ecash_pubkey())?,
     );
     let blinded_signature = if let Some(keypair) = state.key_pair.get().await.as_ref() {
-        blind_sign(internal_request, keypair)?
+        let secret_key_auth = SecretKeyAuth::from_bytes(&keypair.secret_key().to_bytes())?;
+        let verification_key_auth =
+            VerificationKeyAuth::from_bytes(&keypair.verification_key().to_bytes())?;
+        let index = keypair.index;
+
+        let keypair_auth = KeyPairAuth::new(secret_key_auth, verification_key_auth, index);
+        blind_sign(internal_request, keypair_auth)?
     } else {
         return Err(CoconutError::KeyPairNotDerivedYet);
     };

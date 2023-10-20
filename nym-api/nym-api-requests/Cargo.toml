@@ -15,6 +15,7 @@ serde = { workspace = true, features = ["derive"] }
 ts-rs = { workspace = true, optional = true }
 
 nym-coconut-interface = { path = "../../common/coconut-interface" }
+nym_compact_ecash = { path = "../../common/nym_offline_compact_ecash" }
 nym-mixnet-contract-common = { path= "../../common/cosmwasm-smart-contracts/mixnet-contract" }
 nym-node-requests = { path = "../../nym-node/nym-node-requests", default-features = false }
 

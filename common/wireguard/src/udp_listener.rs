@@ -1,4 +1,4 @@
-use std::{net::SocketAddr, sync::Arc, time::Duration};
+use std::{collections::HashMap, net::SocketAddr, sync::Arc, time::Duration};
 
 use boringtun::{
     noise::{self, handshake::parse_handshake_anon, rate_limiter::RateLimiter, TunnResult},
@@ -24,7 +24,7 @@ use crate::{
     network_table::NetworkTable,
     registered_peers::{RegisteredPeer, RegisteredPeers},
     setup::{self, WG_ADDRESS, WG_PORT},
-    tun_task_channel::TunTaskTx,
+    tun_task_channel::{TunTaskRx, TunTaskTx},
     wg_tunnel::PeersByTag,
 };
 
@@ -43,6 +43,27 @@ async fn add_test_peer(registered_peers: &mut RegisteredPeers) {
         allowed_ips: peer_allowed_ips,
     }));
     registered_peers.insert(test_peer).await;
+}
+
+// The tun device sends to this device, which in turn forwards it to the correct tunnel
+struct TunClient {
+    // Send to/from the tun device
+    // tun_task_tx: TunTaskTx,
+    tun_task_rx: TunTaskRx,
+
+    peers_by_tag: HashMap<u64, mpsc::UnboundedSender<Event>>,
+}
+
+impl TunClient {
+    fn new(
+        tun_task_rx: TunTaskRx,
+        peers_by_tag: HashMap<u64, mpsc::UnboundedSender<Event>>,
+    ) -> Self {
+        Self {
+            tun_task_rx,
+            peers_by_tag,
+        }
+    }
 }
 
 pub struct WgUdpListener {

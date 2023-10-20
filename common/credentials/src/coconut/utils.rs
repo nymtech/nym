@@ -6,9 +6,12 @@ use crate::coconut::params::{NymApiCredentialEncryptionAlgorithm, NymApiCredenti
 use crate::error::Error;
 use log::{debug, warn};
 use nym_api_requests::coconut::BlindSignRequestBody;
-use nym_coconut_interface::{
-    aggregate_signature_shares, aggregate_verification_keys, prove_bandwidth_credential, Attribute,
-    BlindedSignature, Credential, Parameters, Signature, SignatureShare, VerificationKey,
+use nym_compact_ecash::scheme::Wallet;
+use nym_compact_ecash::setup::GroupParameters;
+use nym_compact_ecash::utils::BlindedSignature;
+use nym_compact_ecash::{
+    aggregate_verification_keys, aggregate_wallets, issue_verify, PartialWallet,
+    VerificationKeyAuth,
 };
 use nym_crypto::asymmetric::encryption::PublicKey;
 use nym_crypto::shared_key::recompute_shared_key;
@@ -17,7 +20,7 @@ use nym_validator_client::client::CoconutApiClient;
 
 pub async fn obtain_aggregate_verification_key(
     api_clients: &[CoconutApiClient],
-) -> Result<VerificationKey, Error> {
+) -> Result<nym_coconut_interface::VerificationKey, Error> {
     if api_clients.is_empty() {
         return Err(Error::NoValidatorsAvailable);
     }
@@ -31,27 +34,31 @@ pub async fn obtain_aggregate_verification_key(
         .map(|api_client| api_client.verification_key.clone())
         .collect();
 
-    Ok(aggregate_verification_keys(&shares, Some(&indices))?)
+    Ok(nym_coconut_interface::aggregate_verification_keys(
+        &shares,
+        Some(&indices),
+    )?)
 }
 
 async fn obtain_partial_credential(
-    params: &Parameters,
+    params: &GroupParameters,
     attributes: &BandwidthVoucher,
     client: &nym_validator_client::client::NymApiClient,
-    validator_vk: &VerificationKey,
-) -> Result<Signature, Error> {
-    let public_attributes = attributes.get_public_attributes();
+    validator_vk: &VerificationKeyAuth,
+) -> Result<PartialWallet, Error> {
+    //let public_attributes = attributes.get_public_attributes();
     let public_attributes_plain = attributes.get_public_attributes_plain();
-    let private_attributes = attributes.get_private_attributes();
-    let blind_sign_request = attributes.blind_sign_request();
+    //let private_attributes = attributes.get_private_attributes();
+    let withdrawal_request = attributes.withdrawal_request();
 
     let blind_sign_request_body = BlindSignRequestBody::new(
-        blind_sign_request,
+        withdrawal_request,
         attributes.tx_hash().to_string(),
-        attributes.sign(blind_sign_request).to_base58_string(),
-        &public_attributes,
-        public_attributes_plain,
-        (public_attributes.len() + private_attributes.len()) as u32,
+        attributes.sign(withdrawal_request).to_base58_string(),
+        attributes.ecash_keypair().public_key().to_base58_string(),
+        // &public_attributes,
+        public_attributes_plain.clone(),
+        (public_attributes_plain.len()) as u32,
     );
     let response = client.blind_sign(&blind_sign_request_body).await?;
     let encrypted_signature = response.encrypted_signature;
@@ -70,34 +77,35 @@ async fn obtain_partial_credential(
 
     let blinded_signature = BlindedSignature::from_bytes(&blinded_signature_bytes)?;
 
-    let unblinded_signature = blinded_signature.unblind(
+    let unblinded_signature = issue_verify(
         params,
         validator_vk,
-        &private_attributes,
-        &public_attributes,
-        &blind_sign_request.get_commitment_hash(),
-        attributes.pedersen_commitments_openings(),
+        &attributes.ecash_keypair().secret_key(),
+        &blinded_signature,
+        attributes.withdrawal_request_info(),
     )?;
 
     Ok(unblinded_signature)
 }
 
 pub async fn obtain_aggregate_signature(
-    params: &Parameters,
+    params: &GroupParameters,
     attributes: &BandwidthVoucher,
     coconut_api_clients: &[CoconutApiClient],
     threshold: u64,
-) -> Result<Signature, Error> {
+) -> Result<Wallet, Error> {
     if coconut_api_clients.is_empty() {
         return Err(Error::NoValidatorsAvailable);
     }
-    let public_attributes = attributes.get_public_attributes();
-    let private_attributes = attributes.get_private_attributes();
+    //let public_attributes = attributes.get_public_attributes();
+    //let private_attributes = attributes.get_private_attributes();
 
-    let mut shares = Vec::with_capacity(coconut_api_clients.len());
+    let mut wallets = Vec::with_capacity(coconut_api_clients.len());
     let validators_partial_vks: Vec<_> = coconut_api_clients
         .iter()
-        .map(|api_client| api_client.verification_key.clone())
+        .map(|api_client| {
+            VerificationKeyAuth::from_bytes(&api_client.verification_key.to_bytes()).unwrap()
+        }) //SW : THIS IS TEMPORARY, VERIFICATION KEY AND VERIFICATIONKEYAUTH ARE IDENTICAL
         .collect();
     let indices: Vec<_> = coconut_api_clients
         .iter()
@@ -116,14 +124,12 @@ pub async fn obtain_aggregate_signature(
             params,
             attributes,
             &coconut_api_client.api_client,
-            &coconut_api_client.verification_key,
+            &VerificationKeyAuth::from_bytes(&coconut_api_client.verification_key.to_bytes())
+                .unwrap(), //SW : THIS IS TEMPORARY, VERIFICATION KEY AND VERIFICATIONKEYAUTH ARE IDENTICAL
         )
         .await
         {
-            Ok(signature) => {
-                let share = SignatureShare::new(signature, coconut_api_client.node_id);
-                shares.push(share)
-            }
+            Ok(wallet) => wallets.push(wallet),
             Err(err) => {
                 warn!(
                     "failed to obtain partial credential from {}: {err}",
@@ -132,31 +138,37 @@ pub async fn obtain_aggregate_signature(
             }
         };
     }
-    if shares.len() < threshold as usize {
+    if wallets.len() < threshold as usize {
         return Err(Error::NotEnoughShares);
     }
 
-    let mut attributes = Vec::with_capacity(private_attributes.len() + public_attributes.len());
-    attributes.extend_from_slice(&private_attributes);
-    attributes.extend_from_slice(&public_attributes);
+    // let mut attributes = Vec::with_capacity(private_attributes.len() + public_attributes.len());
+    // attributes.extend_from_slice(&private_attributes);
+    // attributes.extend_from_slice(&public_attributes);
 
-    aggregate_signature_shares(params, &verification_key, &attributes, &shares)
-        .map_err(Error::SignatureAggregationError)
+    aggregate_wallets(
+        params,
+        &verification_key,
+        &attributes.ecash_keypair().secret_key(),
+        &wallets,
+        attributes.withdrawal_request_info(),
+    )
+    .map_err(Error::CompactEcashError)
 }
 
 // TODO: better type flow
 #[allow(clippy::too_many_arguments)]
 pub fn prepare_credential_for_spending(
-    params: &Parameters,
+    params: &nym_coconut_interface::Parameters,
     voucher_value: u64,
     voucher_info: String,
-    serial_number: Attribute,
-    binding_number: Attribute,
+    serial_number: nym_coconut_interface::Attribute,
+    binding_number: nym_coconut_interface::Attribute,
     epoch_id: u64,
-    signature: &Signature,
-    verification_key: &VerificationKey,
-) -> Result<Credential, Error> {
-    let theta = prove_bandwidth_credential(
+    signature: &nym_coconut_interface::Signature,
+    verification_key: &nym_coconut_interface::VerificationKey,
+) -> Result<nym_coconut_interface::Credential, Error> {
+    let theta = nym_coconut_interface::prove_bandwidth_credential(
         params,
         verification_key,
         signature,
@@ -164,7 +176,7 @@ pub fn prepare_credential_for_spending(
         binding_number,
     )?;
 
-    Ok(Credential::new(
+    Ok(nym_coconut_interface::Credential::new(
         PUBLIC_ATTRIBUTES + PRIVATE_ATTRIBUTES,
         theta,
         voucher_value,

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use nym_coconut_interface::CoconutError;
+use nym_compact_ecash::error::CompactEcashError;
 use nym_crypto::asymmetric::encryption::KeyRecoveryError;
 use nym_validator_client::ValidatorClientError;
 
@@ -20,6 +21,9 @@ pub enum Error {
 
     #[error("Ran into a coconut error - {0}")]
     CoconutError(#[from] CoconutError),
+
+    #[error("Ran into a Compact ecash error - {0}")]
+    CompactEcashError(#[from] CompactEcashError),
 
     #[error("Ran into a validator client error - {0}")]
     ValidatorClientError(#[from] ValidatorClientError),

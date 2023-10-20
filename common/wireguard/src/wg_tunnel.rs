@@ -15,7 +15,8 @@ use tokio::{
 };
 
 use crate::{
-    error::WgError, event::Event, network_table::NetworkTable, registered_peers::PeerIdx, TunTaskTx,
+    error::WgError, event::Event, network_table::NetworkTable, registered_peers::PeerIdx,
+    tun_task_channel::TunTaskTx,
 };
 
 const HANDSHAKE_MAX_RATE: u64 = 10;

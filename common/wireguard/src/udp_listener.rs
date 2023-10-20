@@ -24,8 +24,8 @@ use crate::{
     network_table::NetworkTable,
     registered_peers::{RegisteredPeer, RegisteredPeers},
     setup::{self, WG_ADDRESS, WG_PORT},
+    tun_task_channel::TunTaskTx,
     wg_tunnel::PeersByTag,
-    TunTaskTx,
 };
 
 const MAX_PACKET: usize = 65535;

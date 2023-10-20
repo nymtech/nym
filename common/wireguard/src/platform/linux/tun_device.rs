@@ -6,17 +6,14 @@ use std::{
 
 use etherparse::{InternetSlice, SlicedPacket};
 use tap::TapFallible;
-use tokio::{
-    io::{AsyncReadExt, AsyncWriteExt},
-    sync::mpsc::{self},
-};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 use crate::{
     event::Event,
     setup::{TUN_BASE_NAME, TUN_DEVICE_ADDRESS, TUN_DEVICE_NETMASK},
+    tun_task_channel::{tun_task_channel, TunTaskPayload, TunTaskRx, TunTaskTx},
     udp_listener::PeersByIp,
     wg_tunnel::PeersByTag,
-    TunTaskPayload, TunTaskRx, TunTaskTx,
 };
 
 fn setup_tokio_tun_device(name: &str, address: Ipv4Addr, netmask: Ipv4Addr) -> tokio_tun::Tun {
@@ -38,7 +35,6 @@ pub struct TunDevice {
     tun: tokio_tun::Tun,
 
     // Incoming data that we should send
-    // tun_task_rx: mpsc::UnboundedReceiver<Vec<u8>>,
     tun_task_rx: TunTaskRx,
 
     // The routing table.
@@ -62,9 +58,7 @@ impl TunDevice {
         log::info!("Created TUN device: {}", tun.name());
 
         // Channels to communicate with the other tasks
-        let (tun_task_tx, tun_task_rx) = mpsc::unbounded_channel();
-        let tun_task_tx = TunTaskTx(tun_task_tx);
-        let tun_task_rx = TunTaskRx(tun_task_rx);
+        let (tun_task_tx, tun_task_rx) = tun_task_channel();
 
         let tun_device = TunDevice {
             tun_task_rx,

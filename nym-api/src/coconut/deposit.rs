@@ -6,7 +6,6 @@ use nym_coconut_bandwidth_contract_common::events::{
     DEPOSITED_FUNDS_EVENT_TYPE, DEPOSIT_ENCRYPTION_KEY, DEPOSIT_IDENTITY_KEY, DEPOSIT_INFO,
     DEPOSIT_VALUE,
 };
-use nym_credentials::coconut::bandwidth::BandwidthVoucher;
 use nym_crypto::asymmetric::encryption;
 use nym_crypto::asymmetric::identity::{self, Signature};
 use nym_validator_client::nyxd::TxResponse;
@@ -17,16 +16,16 @@ pub async fn extract_encryption_key(
     blind_sign_request_body: &BlindSignRequestBody,
     tx: TxResponse,
 ) -> Result<encryption::PublicKey> {
-    let blind_sign_request = blind_sign_request_body.blind_sign_request();
-    let public_attributes = blind_sign_request_body.public_attributes();
+    let withdrawal_request = blind_sign_request_body.withdrawal_request();
+    //let public_attributes = blind_sign_request_body.public_attributes();
     let public_attributes_plain = blind_sign_request_body.public_attributes_plain();
 
-    if !BandwidthVoucher::verify_against_plain(&public_attributes, public_attributes_plain) {
-        return Err(CoconutError::InconsistentPublicAttributes);
-    }
+    // if !BandwidthVoucher::verify_against_plain(&public_attributes, public_attributes_plain) {
+    //     return Err(CoconutError::InconsistentPublicAttributes);
+    // }
 
     let tx_hash_str = blind_sign_request_body.tx_hash();
-    let mut message = blind_sign_request.to_bytes();
+    let mut message = withdrawal_request.to_bytes();
     message.extend_from_slice(tx_hash_str.as_bytes());
 
     let signature = Signature::from_base58_string(blind_sign_request_body.signature())?;
@@ -93,7 +92,8 @@ pub async fn extract_encryption_key(
 mod test {
     use super::*;
     use crate::coconut::tests::tx_entry_fixture;
-    use nym_coconut::{prepare_blind_sign, BlindSignRequest, Parameters};
+    use nym_compact_ecash::generate_keypair_user;
+    use nym_compact_ecash::setup::GroupParameters;
     use nym_config::defaults::VOUCHER_INFO;
     use nym_validator_client::nyxd::Hash;
     use nym_validator_client::nyxd::{Event, EventAttribute};
@@ -106,7 +106,7 @@ mod test {
             Hash::from_str("6B27412050B823E58BB38447D7870BBC8CBE3C51C905BEA89D459ACCDA80A00E")
                 .unwrap();
         let mut tx_entry = tx_entry_fixture(&tx_hash.to_string());
-        let params = Parameters::new(4).unwrap();
+        let params = GroupParametersParameters::new().unwrap();
         let mut rng = OsRng;
         let voucher = BandwidthVoucher::new(
             &params,
@@ -123,6 +123,7 @@ mod test {
                 &encryption::KeyPair::new(&mut rng).private_key().to_bytes(),
             )
             .unwrap(),
+            generate_keypair_user(&params),
         );
         let (_, blind_sign_req) = prepare_blind_sign(
             &params,

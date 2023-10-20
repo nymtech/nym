@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::str::FromStr;
-use tracing::trace;
+use tracing::{info, trace};
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
@@ -86,6 +86,7 @@ impl Display for AddressPolicyAction {
 /// ```
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[cfg_attr(feature = "openapi", aliases(ExitPolicy))]
 pub struct AddressPolicy {
     /// A list of rules to apply to find out whether an address is
     /// contained by this policy.
@@ -107,7 +108,7 @@ impl AddressPolicy {
             rules: vec![AddressPolicyRule::new(
                 AddressPolicyAction::Accept,
                 AddressPortPattern {
-                    pattern: IpPattern::Star,
+                    ip_pattern: IpPattern::Star,
                     ports: PortRange::new_all(),
                 },
             )],
@@ -130,7 +131,7 @@ impl AddressPolicy {
             .iter()
             .find(|rule| rule.pattern.matches(addr, port))
             .map(|rule| {
-                trace!("'{addr}:{port}' is covered by rule '{rule}'");
+                info!("'{addr}:{port}' is covered by rule '{rule}'");
                 rule.action.is_accept()
             })
     }
@@ -221,7 +222,7 @@ pub struct AddressPortPattern {
     /// A pattern to match somewhere between zero and all IP addresses.
     #[serde(with = "stringified_ip_pattern")]
     #[cfg_attr(feature = "openapi", schema(example = "1.2.3.6/16", value_type = String))]
-    pub(crate) pattern: IpPattern,
+    pub(crate) ip_pattern: IpPattern,
 
     /// A pattern to match a range of ports.
     pub(crate) ports: PortRange,
@@ -245,7 +246,7 @@ mod stringified_ip_pattern {
 impl AddressPortPattern {
     /// Return true iff this pattern matches a given address and port.
     pub fn matches(&self, addr: &IpAddr, port: u16) -> bool {
-        self.pattern.matches(addr) && self.ports.contains(port)
+        self.ip_pattern.matches(addr) && self.ports.contains(port)
     }
 
     /// As matches, but accept a SocketAddr.
@@ -256,7 +257,7 @@ impl AddressPortPattern {
 
 impl Display for AddressPortPattern {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}:{}", self.pattern, self.ports)
+        write!(f, "{}:{}", self.ip_pattern, self.ports)
     }
 }
 
@@ -273,10 +274,10 @@ impl FromStr for AddressPortPattern {
             return Err(PolicyError::MalformedAddressPortPattern { raw: s.to_string() });
         }
 
-        let pattern = s[..last_colon].parse()?;
+        let ip_pattern = s[..last_colon].parse()?;
         let ports = s[last_colon + 1..].parse()?;
 
-        Ok(AddressPortPattern { pattern, ports })
+        Ok(AddressPortPattern { ip_pattern, ports })
     }
 }
 
@@ -452,9 +453,11 @@ impl FromStr for IpPattern {
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct PortRange {
     /// The first port in this range.
+    #[cfg_attr(feature = "openapi", schema(example = 80))]
     pub start: u16,
 
     /// The last port in this range.
+    #[cfg_attr(feature = "openapi", schema(example = 81))]
     pub end: u16,
 }
 

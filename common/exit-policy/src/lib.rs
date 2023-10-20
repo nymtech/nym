@@ -6,7 +6,10 @@ pub mod policy;
 #[cfg(feature = "client")]
 pub mod client;
 
-use crate::policy::{AddressPolicy, AddressPolicyRule, PolicyError};
+pub use crate::policy::{
+    AddressPolicy, AddressPolicyAction, AddressPolicyRule, AddressPortPattern, PolicyError,
+    PortRange,
+};
 
 pub(crate) const EXIT_POLICY_FIELD_NAME: &str = "ExitPolicy";
 const COMMENT_CHAR: char = '#';
@@ -86,7 +89,7 @@ ExitPolicy reject *:*
         expected.push(
             Reject,
             AddressPortPattern {
-                pattern: IpPattern::V4 {
+                ip_pattern: IpPattern::V4 {
                     addr_prefix: "1.2.3.4".parse().unwrap(),
                     mask: 32,
                 },
@@ -98,7 +101,7 @@ ExitPolicy reject *:*
         expected.push(
             Reject,
             AddressPortPattern {
-                pattern: IpPattern::V4 {
+                ip_pattern: IpPattern::V4 {
                     addr_prefix: "1.2.3.5".parse().unwrap(),
                     mask: 32,
                 },
@@ -110,7 +113,7 @@ ExitPolicy reject *:*
         expected.push(
             Reject,
             AddressPortPattern {
-                pattern: IpPattern::V4 {
+                ip_pattern: IpPattern::V4 {
                     addr_prefix: "1.2.3.6".parse().unwrap(),
                     mask: 16,
                 },
@@ -122,7 +125,7 @@ ExitPolicy reject *:*
         expected.push(
             Reject,
             AddressPortPattern {
-                pattern: IpPattern::V4 {
+                ip_pattern: IpPattern::V4 {
                     addr_prefix: "1.2.3.6".parse().unwrap(),
                     mask: 16,
                 },
@@ -134,7 +137,7 @@ ExitPolicy reject *:*
         expected.push(
             Accept,
             AddressPortPattern {
-                pattern: IpPattern::Star,
+                ip_pattern: IpPattern::Star,
                 ports: PortRange::new_singleton(53),
             },
         );
@@ -143,7 +146,7 @@ ExitPolicy reject *:*
         expected.push(
             Accept6,
             AddressPortPattern {
-                pattern: IpPattern::V6Star,
+                ip_pattern: IpPattern::V6Star,
                 ports: PortRange::new_singleton(119),
             },
         );
@@ -152,7 +155,7 @@ ExitPolicy reject *:*
         expected.push(
             Accept,
             AddressPortPattern {
-                pattern: IpPattern::V4Star,
+                ip_pattern: IpPattern::V4Star,
                 ports: PortRange::new_singleton(120),
             },
         );
@@ -161,7 +164,7 @@ ExitPolicy reject *:*
         expected.push(
             Reject6,
             AddressPortPattern {
-                pattern: IpPattern::V6 {
+                ip_pattern: IpPattern::V6 {
                     addr_prefix: "FC00::".parse().unwrap(),
                     mask: 7,
                 },
@@ -173,7 +176,7 @@ ExitPolicy reject *:*
         expected.push(
             Reject,
             AddressPortPattern {
-                pattern: IpPattern::V6 {
+                ip_pattern: IpPattern::V6 {
                     addr_prefix: "FE80:0000:0000:0000:0202:B3FF:FE1E:8329".parse().unwrap(),
                     mask: 128,
                 },
@@ -185,7 +188,7 @@ ExitPolicy reject *:*
         expected.push(
             Reject,
             AddressPortPattern {
-                pattern: IpPattern::V6 {
+                ip_pattern: IpPattern::V6 {
                     addr_prefix: "FE80:0000:0000:0000:0202:B3FF:FE1E:8328".parse().unwrap(),
                     mask: 128,
                 },
@@ -197,7 +200,7 @@ ExitPolicy reject *:*
         expected.push(
             Reject,
             AddressPortPattern {
-                pattern: IpPattern::V6 {
+                ip_pattern: IpPattern::V6 {
                     addr_prefix: "FE80:0000:0000:0000:0202:B3FF:FE1E:8328".parse().unwrap(),
                     mask: 64,
                 },
@@ -208,7 +211,7 @@ ExitPolicy reject *:*
         expected.push(
             Reject,
             AddressPortPattern {
-                pattern: IpPattern::Star,
+                ip_pattern: IpPattern::Star,
                 ports: PortRange::new_all(),
             },
         );

@@ -6900,6 +6900,7 @@ dependencies = [
  "http-api-client",
  "nym-bin-common",
  "nym-crypto",
+ "nym-exit-policy",
  "nym-wireguard-types",
  "schemars",
  "serde",

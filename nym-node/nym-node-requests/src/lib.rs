@@ -86,7 +86,15 @@ pub mod routes {
             }
 
             pub mod network_requester {
-                // use super::*;
+                use super::*;
+
+                pub const EXIT_POLICY: &str = "/exit-policy";
+
+                absolute_route!(
+                    exit_policy_absolute,
+                    network_requester_absolute(),
+                    EXIT_POLICY
+                );
             }
         }
     }

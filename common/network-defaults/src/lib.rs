@@ -434,6 +434,8 @@ pub const BANDWIDTH_VALUE: u64 = UTOKENS_TO_BURN * BYTES_PER_UTOKEN;
 
 pub const VOUCHER_INFO: &str = "BandwidthVoucher";
 
+pub const ECASH_INFO: &str = "TicketBook";
+
 pub const ETH_MIN_BLOCK_DEPTH: usize = 7;
 
 /// Defaults Cosmos Hub/ATOM path

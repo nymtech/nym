@@ -1006,6 +1006,23 @@ dependencies = [
 [[package]]
 name = "bls12_381"
 version = "0.6.0"
+<<<<<<< HEAD
+=======
+dependencies = [
+ "digest 0.9.0",
+ "ff 0.11.1",
+ "group 0.11.0",
+ "pairing 0.21.0",
+ "rand_core 0.6.4",
+ "subtle 2.4.1",
+ "zeroize",
+]
+
+[[package]]
+name = "bls12_381"
+version = "0.6.0"
+source = "git+https://github.com/jstuczyn/bls12_381?branch=gt-serialisation#10fb6f700bfda17c8475af3bfd31e3fec15f2278"
+>>>>>>> d6ab65512 (issuance cli side)
 dependencies = [
  "digest 0.9.0",
 <<<<<<< HEAD
@@ -6069,6 +6086,7 @@ dependencies = [
  "nym-topology",
  "nym-validator-client",
  "nym-vesting-contract-common",
+ "nym_compact_ecash",
  "okapi",
  "pin-project",
  "rand 0.7.3",
@@ -6104,7 +6122,11 @@ dependencies = [
  "getset",
  "nym-coconut-interface",
  "nym-mixnet-contract-common",
+<<<<<<< HEAD
  "nym-node-requests",
+=======
+ "nym_compact_ecash",
+>>>>>>> d6ab65512 (issuance cli side)
  "schemars",
  "serde",
  "ts-rs",
@@ -6121,6 +6143,7 @@ dependencies = [
  "nym-crypto",
  "nym-network-defaults",
  "nym-validator-client",
+ "nym_compact_ecash",
  "rand 0.7.3",
  "thiserror",
  "url",
@@ -6359,7 +6382,7 @@ dependencies = [
 name = "nym-coconut"
 version = "0.5.0"
 dependencies = [
- "bls12_381 0.6.0",
+ "bls12_381 0.6.0 (git+https://github.com/jstuczyn/bls12_381?branch=gt-serialisation)",
  "bs58 0.4.0",
  "criterion 0.4.0",
  "digest 0.9.0",
@@ -6473,6 +6496,7 @@ dependencies = [
  "nym-coconut-interface",
  "nym-crypto",
  "nym-validator-client",
+ "nym_compact_ecash",
  "rand 0.7.3",
  "thiserror",
 ]
@@ -6525,7 +6549,7 @@ name = "nym-dkg"
 version = "0.1.0"
 dependencies = [
  "bitvec",
- "bls12_381 0.6.0",
+ "bls12_381 0.6.0 (git+https://github.com/jstuczyn/bls12_381?branch=gt-serialisation)",
  "bs58 0.4.0",
  "criterion 0.4.0",
  "ff 0.11.1",
@@ -7720,8 +7744,12 @@ name = "nym_compact_ecash"
 version = "0.1.0"
 dependencies = [
 <<<<<<< HEAD
+<<<<<<< HEAD
  "bls12_381 0.5.0",
 <<<<<<< HEAD
+=======
+ "bls12_381 0.6.0",
+>>>>>>> d6ab65512 (issuance cli side)
  "bs58 0.4.0",
  "criterion 0.3.6",
 =======
@@ -7742,6 +7770,7 @@ dependencies = [
  "itertools",
 >>>>>>> 0b58e0ae2 (Small updates and code cleaning)
  "rand 0.8.5",
+ "serde",
  "sha2 0.9.9",
  "thiserror",
 ]

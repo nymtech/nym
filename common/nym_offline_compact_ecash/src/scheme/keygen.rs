@@ -17,6 +17,7 @@ use crate::utils::{
     try_deserialize_g1_projective, try_deserialize_g2_projective, try_deserialize_scalar,
     try_deserialize_scalar_vec,
 };
+use crate::Base58;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct SecretKeyAuth {
@@ -319,6 +320,18 @@ impl VerificationKeyAuth {
         VerificationKeyAuth::try_from(bytes)
     }
 }
+
+impl Bytable for VerificationKeyAuth {
+    fn to_byte_vec(&self) -> Vec<u8> {
+        self.to_bytes().to_vec()
+    }
+
+    fn try_from_byte_slice(slice: &[u8]) -> std::result::Result<Self, CompactEcashError> {
+        Self::from_bytes(slice)
+    }
+}
+
+impl Base58 for VerificationKeyAuth {}
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct SecretKeyUser {

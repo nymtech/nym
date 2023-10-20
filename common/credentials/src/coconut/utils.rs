@@ -20,7 +20,7 @@ use nym_validator_client::client::CoconutApiClient;
 
 pub async fn obtain_aggregate_verification_key(
     api_clients: &[CoconutApiClient],
-) -> Result<nym_coconut_interface::VerificationKey, Error> {
+) -> Result<VerificationKeyAuth, Error> {
     if api_clients.is_empty() {
         return Err(Error::NoValidatorsAvailable);
     }
@@ -34,10 +34,7 @@ pub async fn obtain_aggregate_verification_key(
         .map(|api_client| api_client.verification_key.clone())
         .collect();
 
-    Ok(nym_coconut_interface::aggregate_verification_keys(
-        &shares,
-        Some(&indices),
-    )?)
+    Ok(aggregate_verification_keys(&shares, Some(&indices))?)
 }
 
 async fn obtain_partial_credential(
@@ -103,9 +100,7 @@ pub async fn obtain_aggregate_signature(
     let mut wallets = Vec::with_capacity(coconut_api_clients.len());
     let validators_partial_vks: Vec<_> = coconut_api_clients
         .iter()
-        .map(|api_client| {
-            VerificationKeyAuth::from_bytes(&api_client.verification_key.to_bytes()).unwrap()
-        }) //SW : THIS IS TEMPORARY, VERIFICATION KEY AND VERIFICATIONKEYAUTH ARE IDENTICAL
+        .map(|api_client| api_client.verification_key.clone())
         .collect();
     let indices: Vec<_> = coconut_api_clients
         .iter()
@@ -124,8 +119,7 @@ pub async fn obtain_aggregate_signature(
             params,
             attributes,
             &coconut_api_client.api_client,
-            &VerificationKeyAuth::from_bytes(&coconut_api_client.verification_key.to_bytes())
-                .unwrap(), //SW : THIS IS TEMPORARY, VERIFICATION KEY AND VERIFICATIONKEYAUTH ARE IDENTICAL
+            &coconut_api_client.verification_key,
         )
         .await
         {

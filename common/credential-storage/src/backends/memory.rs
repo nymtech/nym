@@ -1,13 +1,14 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::models::CoconutCredential;
+use crate::models::{CoconutCredential, EcashCredential};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
 #[derive(Clone)]
 pub struct CoconutCredentialManager {
     inner: Arc<RwLock<Vec<CoconutCredential>>>,
+    ecash: Arc<RwLock<Vec<EcashCredential>>>,
 }
 
 impl CoconutCredentialManager {
@@ -15,6 +16,7 @@ impl CoconutCredentialManager {
     pub fn new() -> Self {
         CoconutCredentialManager {
             inner: Arc::new(RwLock::new(Vec::new())),
+            ecash: Arc::new(RwLock::new(Vec::new())),
         }
     }
 
@@ -45,6 +47,34 @@ impl CoconutCredentialManager {
             serial_number,
             binding_number,
             signature,
+            epoch_id,
+            consumed: false,
+        });
+    }
+
+    /// Inserts provided signature into the database.
+    ///
+    /// # Arguments
+    ///
+    /// * `voucher_value`: Plaintext bandwidth value of the credential.
+    /// * `voucher_info`: Plaintext information of the credential.
+    /// * `serial_number`: Base58 representation of the serial number attribute.
+    /// * `binding_number`: Base58 representation of the binding number attribute.
+    /// * `signature`: Coconut credential in the form of a signature.
+    pub async fn insert_ecash_credential(
+        &self,
+        voucher_value: String,
+        voucher_info: String,
+        wallet: String,
+        epoch_id: String,
+    ) {
+        let mut creds = self.ecash.write().await;
+        let id = creds.len() as i64;
+        creds.push(EcashCredential {
+            id,
+            voucher_value,
+            voucher_info,
+            wallet,
             epoch_id,
             consumed: false,
         });

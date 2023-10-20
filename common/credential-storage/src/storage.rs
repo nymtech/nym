@@ -29,6 +29,22 @@ pub trait Storage: Send + Sync {
         epoch_id: String,
     ) -> Result<(), Self::StorageError>;
 
+    /// Inserts provided wallet into the database.
+    ///
+    /// # Arguments
+    ///
+    /// * `voucher_value`: How much bandwidth is in the credential.
+    /// * `voucher_info`: What type of credential it is.
+    /// * `signature`: Ecash wallet credential in the form of a wallet.
+    /// * `epoch_id`: The epoch when it was signed.
+    async fn insert_ecash_credential(
+        &self,
+        voucher_value: String,
+        voucher_info: String,
+        signature: String,
+        epoch_id: String,
+    ) -> Result<(), Self::StorageError>;
+
     /// Tries to retrieve one of the stored, unused credentials.
     async fn get_next_coconut_credential(&self) -> Result<CoconutCredential, Self::StorageError>;
 

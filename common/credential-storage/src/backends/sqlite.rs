@@ -1,7 +1,7 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::models::CoconutCredential;
+use crate::models::{CoconutCredential, EcashCredential};
 
 #[derive(Clone)]
 pub struct CoconutCredentialManager {
@@ -66,6 +66,16 @@ impl CoconutCredentialManager {
         .execute(&self.connection_pool)
         .await?;
         Ok(())
+    }
+
+    /// Tries to retrieve one of the stored, unused credentials.
+    pub async fn get_next_ecash_credential(&self) -> Result<Option<EcashCredential>, sqlx::Error> {
+        sqlx::query_as!(
+            EcashCredential,
+            "SELECT * FROM ecash_credentials WHERE NOT consumed"
+        )
+        .fetch_optional(&self.connection_pool)
+        .await
     }
 
     /// Tries to retrieve one of the stored, unused credentials.

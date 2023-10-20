@@ -6,10 +6,14 @@ use crate::proofs::proof_withdrawal::{
     WithdrawalReqInstance, WithdrawalReqProof, WithdrawalReqWitness,
 };
 use crate::scheme::keygen::{PublicKeyUser, SecretKeyAuth, SecretKeyUser, VerificationKeyAuth};
-use crate::scheme::PartialWallet;
 use crate::scheme::setup::GroupParameters;
-use crate::utils::{check_bilinear_pairing, hash_g1, try_deserialize_g1_projective};
+use crate::scheme::PartialWallet;
+use crate::traits::Bytable;
+use crate::utils::{
+    check_bilinear_pairing, hash_g1, try_deserialize_g1_projective, try_deserialize_scalar,
+};
 use crate::utils::{BlindedSignature, Signature};
+use crate::Base58;
 
 #[derive(Debug, PartialEq)]
 pub struct WithdrawalRequest {
@@ -20,13 +24,14 @@ pub struct WithdrawalRequest {
 }
 
 impl WithdrawalRequest {
-    pub fn to_bytes(&self) -> Vec<u8>{
+    pub fn to_bytes(&self) -> Vec<u8> {
         let com_hash_bytes = self.com_hash.to_affine().to_compressed();
         let com_bytes = self.com.to_affine().to_compressed();
         let pr_coms_len = self.pc_coms.len() as u64;
         let zk_proof_bytes = self.zk_proof.to_bytes();
 
-        let mut bytes = Vec::with_capacity(48 + 48 + 8 + pr_coms_len as usize * 48 + zk_proof_bytes.len());
+        let mut bytes =
+            Vec::with_capacity(48 + 48 + 8 + pr_coms_len as usize * 48 + zk_proof_bytes.len());
         bytes.extend_from_slice(&com_hash_bytes);
         bytes.extend_from_slice(&com_bytes);
         bytes.extend_from_slice(&pr_coms_len.to_le_bytes());
@@ -37,7 +42,6 @@ impl WithdrawalRequest {
         bytes.extend_from_slice(&zk_proof_bytes);
 
         bytes
-
     }
 }
 
@@ -45,7 +49,7 @@ impl TryFrom<&[u8]> for WithdrawalRequest {
     type Error = CompactEcashError;
 
     fn try_from(bytes: &[u8]) -> Result<WithdrawalRequest> {
-        if bytes.len() < 48 + 48 + 8 + 48{
+        if bytes.len() < 48 + 48 + 8 + 48 {
             return Err(CompactEcashError::DeserializationMinLength {
                 min: 48 + 48 + 8 + 48,
                 actual: bytes.len(),
@@ -100,7 +104,7 @@ impl TryFrom<&[u8]> for WithdrawalRequest {
 
         let zk_proof = WithdrawalReqProof::try_from(&bytes[j + pc_len as usize * 48..])?;
 
-        Ok(WithdrawalRequest{
+        Ok(WithdrawalRequest {
             com_hash,
             com,
             pc_coms,
@@ -108,6 +112,18 @@ impl TryFrom<&[u8]> for WithdrawalRequest {
         })
     }
 }
+
+impl Bytable for WithdrawalRequest {
+    fn to_byte_vec(&self) -> Vec<u8> {
+        self.to_bytes()
+    }
+
+    fn try_from_byte_slice(slice: &[u8]) -> Result<Self> {
+        WithdrawalRequest::try_from(slice)
+    }
+}
+
+impl Base58 for WithdrawalRequest {}
 
 pub struct RequestInfo {
     com_hash: G1Projective,
@@ -129,6 +145,104 @@ impl RequestInfo {
     pub fn get_v(&self) -> Scalar {
         self.v
     }
+
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let com_hash_bytes = self.com_hash.to_affine().to_compressed();
+        let com_opening_bytes = self.com_opening.to_bytes();
+        let pr_coms_openings_len = self.pc_coms_openings.len() as u64;
+        let v_bytes = self.v.to_bytes();
+
+        let mut bytes = Vec::with_capacity(48 + 32 + 8 + pr_coms_openings_len as usize * 32 + 32);
+        bytes.extend_from_slice(&com_hash_bytes);
+        bytes.extend_from_slice(&com_opening_bytes);
+        bytes.extend_from_slice(&pr_coms_openings_len.to_le_bytes());
+        for c in &self.pc_coms_openings {
+            bytes.extend_from_slice(&c.to_bytes());
+        }
+
+        bytes.extend_from_slice(&v_bytes);
+
+        bytes
+    }
+}
+
+impl TryFrom<&[u8]> for RequestInfo {
+    type Error = CompactEcashError;
+
+    fn try_from(bytes: &[u8]) -> Result<RequestInfo> {
+        if bytes.len() < 48 + 32 + 8 + 32 {
+            return Err(CompactEcashError::DeserializationMinLength {
+                min: 48 + 32 + 8 + 32,
+                actual: bytes.len(),
+            });
+        }
+
+        let mut j = 0;
+        let commitment_hash_bytes_len = 48;
+        let com_hash_bytes = bytes[j..j + commitment_hash_bytes_len].try_into().unwrap();
+        let com_hash = try_deserialize_g1_projective(
+            &com_hash_bytes,
+            CompactEcashError::Deserialization(
+                "Failed to deserialize compressed commitment hash".to_string(),
+            ),
+        )?;
+        j += commitment_hash_bytes_len;
+
+        let com_opening_bytes_len = 32;
+        let com_opening_bytes = bytes[j..j + com_opening_bytes_len].try_into().unwrap();
+        let com_opening = try_deserialize_scalar(
+            &com_opening_bytes,
+            CompactEcashError::Deserialization(
+                "Failed to deserialize commitment opening".to_string(),
+            ),
+        )?;
+        j += com_opening_bytes_len;
+
+        let pc_coms_openings_len = u64::from_le_bytes(bytes[j..j + 8].try_into().unwrap());
+        j += 8;
+        if bytes[j..].len() < pc_coms_openings_len as usize * 32 {
+            return Err(CompactEcashError::DeserializationMinLength {
+                min: pc_coms_openings_len as usize * 32,
+                actual: bytes[j..].len(),
+            });
+        }
+        let mut pc_coms_openings = Vec::with_capacity(pc_coms_openings_len as usize);
+        for i in 0..pc_coms_openings_len as usize {
+            let start = j + i * 32;
+            let end = start + 32;
+
+            let pc_com_opening_bytes = bytes[start..end].try_into().unwrap();
+            let pc_com_opening = try_deserialize_scalar(
+                &pc_com_opening_bytes,
+                CompactEcashError::Deserialization(
+                    "Failed to deserialize compressed Pedersen commitment opening".to_string(),
+                ),
+            )?;
+
+            pc_coms_openings.push(pc_com_opening)
+        }
+        j += pc_coms_openings_len as usize * 32;
+
+        let v_len = 32;
+        if bytes[j..].len() != v_len {
+            return Err(CompactEcashError::DeserializationMinLength {
+                min: v_len,
+                actual: bytes[j..].len(),
+            });
+        }
+        let v_bytes = bytes[j..j + v_len].try_into().unwrap();
+        let v = try_deserialize_scalar(
+            v_bytes,
+            CompactEcashError::Deserialization("Failed to deserialize v".to_string()),
+        )?;
+
+        Ok(RequestInfo {
+            com_hash,
+            com_opening,
+            pc_coms_openings,
+            v,
+        })
+    }
 }
 
 pub fn withdrawal_request(
@@ -142,10 +256,10 @@ pub fn withdrawal_request(
     let com_opening = params.random_scalar();
     let com = params.gen1() * com_opening
         + attributes
-        .iter()
-        .zip(gammas)
-        .map(|(&m, gamma)| gamma * m)
-        .sum::<G1Projective>();
+            .iter()
+            .zip(gammas)
+            .map(|(&m, gamma)| gamma * m)
+            .sum::<G1Projective>();
 
     // Value h in the paper
     let com_hash = hash_g1(com.to_bytes());
@@ -286,4 +400,3 @@ pub fn issue_verify(
         idx: None,
     })
 }
-

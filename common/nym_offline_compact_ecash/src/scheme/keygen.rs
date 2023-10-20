@@ -5,17 +5,18 @@ use std::convert::TryFrom;
 use std::convert::TryInto;
 
 use bls12_381::{G1Projective, G2Projective, Scalar};
-use group::Curve;
+use group::{Curve, GroupEncoding};
 
 use crate::error::{CompactEcashError, Result};
 use crate::scheme::aggregation::aggregate_verification_keys;
 use crate::scheme::setup::GroupParameters;
 use crate::scheme::SignerIndex;
+use crate::traits::Bytable;
+use crate::utils::Polynomial;
 use crate::utils::{
     try_deserialize_g1_projective, try_deserialize_g2_projective, try_deserialize_scalar,
     try_deserialize_scalar_vec,
 };
-use crate::utils::Polynomial;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct SecretKeyAuth {
@@ -242,13 +243,13 @@ impl<'a> Mul<Scalar> for &'a VerificationKeyAuth {
 }
 
 impl<T> Sum<T> for VerificationKeyAuth
-    where
-        T: Borrow<VerificationKeyAuth>,
+where
+    T: Borrow<VerificationKeyAuth>,
 {
     #[inline]
     fn sum<I>(iter: I) -> Self
-        where
-            I: Iterator<Item=T>,
+    where
+        I: Iterator<Item = T>,
     {
         let mut peekable = iter.peekable();
         let head_attributes = match peekable.peek() {
@@ -330,11 +331,53 @@ impl SecretKeyUser {
             pk: params.gen1() * self.sk,
         }
     }
+
+    pub fn to_bytes(&self) -> Vec<u8> {
+        self.sk.to_bytes().to_vec()
+    }
+
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
+        let sk = Scalar::try_from_byte_slice(bytes)?;
+        Ok(SecretKeyUser { sk })
+    }
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, Hash)]
 pub struct PublicKeyUser {
     pub(crate) pk: G1Projective,
+}
+
+impl PublicKeyUser {
+    pub fn to_base58_string(&self) -> String {
+        bs58::encode(&self.pk.to_bytes()).into_string()
+    }
+
+    pub fn from_base58_string<I: AsRef<[u8]>>(val: I) -> Result<Self> {
+        let bytes = bs58::decode(val)
+            .into_vec()
+            .map_err(|source| CompactEcashError::Deserialization(source.to_string()))?;
+        Self::from_bytes(&bytes)
+    }
+
+    pub fn to_bytes(&self) -> Vec<u8> {
+        self.pk.to_affine().to_compressed().to_vec()
+    }
+
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
+        if bytes.len() != 48 {
+            return Err(CompactEcashError::Deserialization(
+                "Failed to deserialize : Invalid length".to_string(),
+            ));
+        }
+        let pk_bytes: &[u8; 48] = bytes[..48].try_into().unwrap();
+        let pk = try_deserialize_g1_projective(
+            pk_bytes,
+            CompactEcashError::Deserialization(
+                "Failed to deserialize verification key G1 point".to_string(),
+            ),
+        )?;
+        Ok(PublicKeyUser { pk })
+    }
 }
 
 pub struct KeyPairAuth {
@@ -345,6 +388,17 @@ pub struct KeyPairAuth {
 }
 
 impl KeyPairAuth {
+    pub fn new(
+        sk: SecretKeyAuth,
+        vk: VerificationKeyAuth,
+        index: Option<SignerIndex>,
+    ) -> KeyPairAuth {
+        KeyPairAuth {
+            secret_key: sk,
+            verification_key: vk,
+            index,
+        }
+    }
     pub fn secret_key(&self) -> SecretKeyAuth {
         self.secret_key.clone()
     }
@@ -366,6 +420,24 @@ impl KeyPairUser {
 
     pub fn public_key(&self) -> PublicKeyUser {
         self.public_key.clone()
+    }
+
+    pub fn to_bytes(&self) -> Vec<u8> {
+        [self.secret_key.to_bytes(), self.public_key.to_bytes()].concat()
+    }
+
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
+        if bytes.len() != 32 + 48 {
+            return Err(CompactEcashError::Deserialization(
+                "Failed to deserialize keypair : Invalid length".to_string(),
+            ));
+        }
+        let sk = SecretKeyUser::from_bytes(&bytes[..32])?;
+        let pk = PublicKeyUser::from_bytes(&bytes[32..32 + 48])?;
+        Ok(KeyPairUser {
+            secret_key: sk,
+            public_key: pk,
+        })
     }
 }
 

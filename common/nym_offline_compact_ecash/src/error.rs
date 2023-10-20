@@ -31,10 +31,13 @@ pub enum CompactEcashError {
     #[error("Identify Verification related error: {0}")]
     Identify(String),
 
+    #[error("Could not decode base 58 string - {0}")]
+    MalformedString(#[from] bs58::decode::Error),
+
     #[error(
-    "Deserailization error, expected at least {} bytes, got {}",
-    min,
-    actual
+        "Deserailization error, expected at least {} bytes, got {}",
+        min,
+        actual
     )]
     DeserializationMinLength { min: usize, actual: usize },
 

@@ -81,6 +81,12 @@ impl CoconutCredentialManager {
     }
 
     /// Tries to retrieve one of the stored, unused credentials.
+    pub async fn get_next_ecash_credential(&self) -> Option<EcashCredential> {
+        let creds = self.ecash.read().await;
+        creds.iter().find(|c| !c.consumed).cloned()
+    }
+
+    /// Tries to retrieve one of the stored, unused credentials.
     pub async fn get_next_coconut_credential(&self) -> Option<CoconutCredential> {
         let creds = self.inner.read().await;
         creds.iter().find(|c| !c.consumed).cloned()

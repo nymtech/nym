@@ -3,7 +3,7 @@
 
 use crate::backends::memory::CoconutCredentialManager;
 use crate::error::StorageError;
-use crate::models::CoconutCredential;
+use crate::models::{CoconutCredential, EcashCredential};
 use crate::storage::Storage;
 use async_trait::async_trait;
 
@@ -62,6 +62,16 @@ impl Storage for EphemeralStorage {
             .await;
 
         Ok(())
+    }
+
+    async fn get_next_ecash_credential(&self) -> Result<EcashCredential, StorageError> {
+        let credential = self
+            .coconut_credential_manager
+            .get_next_ecash_credential()
+            .await
+            .ok_or(StorageError::NoCredential)?;
+
+        Ok(credential)
     }
 
     async fn get_next_coconut_credential(&self) -> Result<CoconutCredential, StorageError> {

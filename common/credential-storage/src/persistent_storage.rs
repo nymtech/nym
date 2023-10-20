@@ -1,9 +1,9 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::backends::sqlite::CoconutCredentialManager;
 use crate::error::StorageError;
 use crate::storage::Storage;
+use crate::{backends::sqlite::CoconutCredentialManager, models::EcashCredential};
 
 use crate::models::CoconutCredential;
 use async_trait::async_trait;
@@ -93,6 +93,16 @@ impl Storage for PersistentStorage {
             .await?;
 
         Ok(())
+    }
+
+    async fn get_next_ecash_credential(&self) -> Result<EcashCredential, StorageError> {
+        let credential = self
+            .coconut_credential_manager
+            .get_next_ecash_credential()
+            .await?
+            .ok_or(StorageError::NoCredential)?;
+
+        Ok(credential)
     }
 
     async fn get_next_coconut_credential(&self) -> Result<CoconutCredential, StorageError> {

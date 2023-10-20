@@ -1,4 +1,4 @@
-use std::{net::SocketAddr, sync::Arc, time::Duration};
+use std::{collections::HashMap, net::SocketAddr, sync::Arc, time::Duration};
 
 use async_recursion::async_recursion;
 use boringtun::{
@@ -22,6 +22,9 @@ const HANDSHAKE_MAX_RATE: u64 = 10;
 
 const MAX_PACKET: usize = 65535;
 
+// We index the tunnels by tag
+pub(crate) type PeersByTag = HashMap<u64, mpsc::UnboundedSender<Event>>;
+
 pub struct WireGuardTunnel {
     // Incoming data from the UDP socket received in the main event loop
     peer_rx: mpsc::UnboundedReceiver<Event>,
@@ -44,6 +47,8 @@ pub struct WireGuardTunnel {
 
     // Send data to the task that handles sending data through the tun device
     tun_task_tx: TunTaskTx,
+
+    tag: u64,
 }
 
 impl Drop for WireGuardTunnel {
@@ -63,7 +68,7 @@ impl WireGuardTunnel {
         peer_allowed_ips: ip_network::IpNetwork,
         // rate_limiter: Option<RateLimiter>,
         tunnel_tx: TunTaskTx,
-    ) -> (Self, mpsc::UnboundedSender<Event>) {
+    ) -> (Self, mpsc::UnboundedSender<Event>, u64) {
         let local_addr = udp.local_addr().unwrap();
         let peer_addr = udp.peer_addr();
         log::info!("New wg tunnel: endpoint: {endpoint}, local_addr: {local_addr}, peer_addr: {peer_addr:?}");
@@ -98,6 +103,11 @@ impl WireGuardTunnel {
         let mut allowed_ips = NetworkTable::new();
         allowed_ips.insert(peer_allowed_ips, ());
 
+        // random u64
+        use rand::RngCore;
+        let mut rng = rand::rngs::OsRng;
+        let tag = rng.next_u64();
+
         let tunnel = WireGuardTunnel {
             peer_rx,
             udp,
@@ -107,9 +117,10 @@ impl WireGuardTunnel {
             close_tx,
             close_rx,
             tun_task_tx: tunnel_tx,
+            tag,
         };
 
-        (tunnel, peer_tx)
+        (tunnel, peer_tx, tag)
     }
 
     fn close(&self) {
@@ -198,14 +209,14 @@ impl WireGuardTunnel {
             }
             TunnResult::WriteToTunnelV4(packet, addr) => {
                 if self.allowed_ips.longest_match(addr).is_some() {
-                    self.tun_task_tx.send(packet.to_vec()).unwrap();
+                    self.tun_task_tx.send((self.tag, packet.to_vec())).unwrap();
                 } else {
                     warn!("Packet from {addr} not in allowed_ips");
                 }
             }
             TunnResult::WriteToTunnelV6(packet, addr) => {
                 if self.allowed_ips.longest_match(addr).is_some() {
-                    self.tun_task_tx.send(packet.to_vec()).unwrap();
+                    self.tun_task_tx.send((self.tag, packet.to_vec())).unwrap();
                 } else {
                     warn!("Packet (v6) from {addr} not in allowed_ips");
                 }
@@ -311,8 +322,9 @@ pub(crate) fn start_wg_tunnel(
 ) -> (
     tokio::task::JoinHandle<x25519::PublicKey>,
     mpsc::UnboundedSender<Event>,
+    u64,
 ) {
-    let (mut tunnel, peer_tx) = WireGuardTunnel::new(
+    let (mut tunnel, peer_tx, tag) = WireGuardTunnel::new(
         udp,
         endpoint,
         static_private,
@@ -325,5 +337,5 @@ pub(crate) fn start_wg_tunnel(
         tunnel.spin_off().await;
         peer_static_public
     });
-    (join_handle, peer_tx)
+    (join_handle, peer_tx, tag)
 }

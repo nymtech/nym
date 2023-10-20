@@ -10,6 +10,7 @@ mod network_table;
 mod platform;
 mod registered_peers;
 mod setup;
+mod tun_task_channel;
 mod udp_listener;
 mod wg_tunnel;
 
@@ -19,28 +20,6 @@ use std::sync::Arc;
 // Currently the module related to setting up the virtual network device is platform specific.
 #[cfg(target_os = "linux")]
 use platform::linux::tun_device;
-
-type TunTaskPayload = (u64, Vec<u8>);
-
-#[derive(Clone)]
-pub struct TunTaskTx(tokio::sync::mpsc::UnboundedSender<TunTaskPayload>);
-
-impl TunTaskTx {
-    fn send(
-        &self,
-        data: TunTaskPayload,
-    ) -> Result<(), tokio::sync::mpsc::error::SendError<TunTaskPayload>> {
-        self.0.send(data)
-    }
-}
-
-pub struct TunTaskRx(tokio::sync::mpsc::UnboundedReceiver<TunTaskPayload>);
-
-impl TunTaskRx {
-    async fn recv(&mut self) -> Option<TunTaskPayload> {
-        self.0.recv().await
-    }
-}
 
 /// Start wireguard UDP listener and TUN device
 ///

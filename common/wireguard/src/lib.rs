@@ -20,14 +20,17 @@ use std::sync::Arc;
 #[cfg(target_os = "linux")]
 use platform::linux::tun_device;
 
-type TunTaskPayload = Vec<u8>;
+type TunTaskPayload = (u64, Vec<u8>);
 
 #[derive(Clone)]
 pub struct TunTaskTx(tokio::sync::mpsc::UnboundedSender<TunTaskPayload>);
 
 impl TunTaskTx {
-    fn send(&self, packet: Vec<u8>) -> Result<(), tokio::sync::mpsc::error::SendError<TunTaskPayload>> {
-        self.0.send(packet)
+    fn send(
+        &self,
+        data: TunTaskPayload,
+    ) -> Result<(), tokio::sync::mpsc::error::SendError<TunTaskPayload>> {
+        self.0.send(data)
     }
 }
 
@@ -39,7 +42,6 @@ impl TunTaskRx {
     }
 }
 
-
 /// Start wireguard UDP listener and TUN device
 ///
 /// # Errors
@@ -50,16 +52,21 @@ pub async fn start_wireguard(
     task_client: nym_task::TaskClient,
     gateway_client_registry: Arc<GatewayClientRegistry>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    // We can either index peers by their IP like standard wireguard
     let peers_by_ip = Arc::new(std::sync::Mutex::new(network_table::NetworkTable::new()));
 
+    // ... or by their tunnel tag, which is a random number assigned to them
+    let peers_by_tag = Arc::new(std::sync::Mutex::new(wg_tunnel::PeersByTag::new()));
+
     // Start the tun device that is used to relay traffic outbound
-    let (tun, tun_task_tx) = tun_device::TunDevice::new(peers_by_ip.clone());
+    let (tun, tun_task_tx) = tun_device::TunDevice::new(peers_by_ip.clone(), peers_by_tag.clone());
     tun.start();
 
     // Start the UDP listener that clients connect to
     let udp_listener = udp_listener::WgUdpListener::new(
         tun_task_tx,
         peers_by_ip,
+        peers_by_tag,
         Arc::clone(&gateway_client_registry),
     )
     .await?;

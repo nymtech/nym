@@ -24,6 +24,7 @@ use crate::{
     network_table::NetworkTable,
     registered_peers::{RegisteredPeer, RegisteredPeers},
     setup::{self, WG_ADDRESS, WG_PORT},
+    wg_tunnel::PeersByTag,
     TunTaskTx,
 };
 
@@ -57,6 +58,9 @@ pub struct WgUdpListener {
     // The routing table, as defined by wireguard
     peers_by_ip: Arc<std::sync::Mutex<PeersByIp>>,
 
+    // ... or alternatively we can map peers by their tag
+    peers_by_tag: Arc<std::sync::Mutex<PeersByTag>>,
+
     // The UDP socket to the peer
     udp: Arc<UdpSocket>,
 
@@ -73,6 +77,7 @@ impl WgUdpListener {
     pub async fn new(
         tun_task_tx: TunTaskTx,
         peers_by_ip: Arc<std::sync::Mutex<PeersByIp>>,
+        peers_by_tag: Arc<std::sync::Mutex<PeersByTag>>,
         gateway_client_registry: Arc<GatewayClientRegistry>,
     ) -> Result<Self, Box<dyn std::error::Error + Send + Sync + 'static>> {
         let wg_address = SocketAddr::new(WG_ADDRESS.parse().unwrap(), WG_PORT);
@@ -94,6 +99,7 @@ impl WgUdpListener {
             static_public,
             registered_peers,
             peers_by_ip,
+            peers_by_tag,
             udp,
             tun_task_tx,
             rate_limiter,
@@ -194,7 +200,7 @@ impl WgUdpListener {
                         // NOTE: we are NOT passing in the existing rate_limiter. Re-visit this
                         // choice later.
                         log::warn!("Creating new rate limiter, consider re-using?");
-                        let (join_handle, peer_tx) = crate::wg_tunnel::start_wg_tunnel(
+                        let (join_handle, peer_tx, tag) = crate::wg_tunnel::start_wg_tunnel(
                             addr,
                             self.udp.clone(),
                             self.static_private.clone(),
@@ -205,6 +211,7 @@ impl WgUdpListener {
                         );
 
                         self.peers_by_ip.lock().unwrap().insert(registered_peer.allowed_ips, peer_tx.clone());
+                        self.peers_by_tag.lock().unwrap().insert(tag, peer_tx.clone());
 
                         peer_tx.send(Event::Wg(buf[..len].to_vec().into()))
                             .tap_err(|e| log::error!("{e}"))

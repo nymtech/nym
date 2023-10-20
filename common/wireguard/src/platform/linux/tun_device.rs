@@ -1,4 +1,5 @@
 use std::{
+    collections::HashMap,
     net::{IpAddr, Ipv4Addr},
     sync::Arc,
 };
@@ -14,7 +15,8 @@ use crate::{
     event::Event,
     setup::{TUN_BASE_NAME, TUN_DEVICE_ADDRESS, TUN_DEVICE_NETMASK},
     udp_listener::PeersByIp,
-    TunTaskTx, TunTaskRx,
+    wg_tunnel::PeersByTag,
+    TunTaskPayload, TunTaskRx, TunTaskTx,
 };
 
 fn setup_tokio_tun_device(name: &str, address: Ipv4Addr, netmask: Ipv4Addr) -> tokio_tun::Tun {
@@ -43,12 +45,15 @@ pub struct TunDevice {
     // An alternative would be to do NAT by just matching incoming with outgoing.
     peers_by_ip: Arc<std::sync::Mutex<PeersByIp>>,
 
-    // nat_table: HashMap<IpAddr, UnboundedSender<Event>>,
-
+    nat_table: HashMap<IpAddr, u64>,
+    peers_by_tag: Arc<std::sync::Mutex<PeersByTag>>,
 }
 
 impl TunDevice {
-    pub fn new(peers_by_ip: Arc<std::sync::Mutex<PeersByIp>>) -> (Self, TunTaskTx) {
+    pub fn new(
+        peers_by_ip: Arc<std::sync::Mutex<PeersByIp>>,
+        peers_by_tag: Arc<std::sync::Mutex<PeersByTag>>,
+    ) -> (Self, TunTaskTx) {
         let tun = setup_tokio_tun_device(
             format!("{TUN_BASE_NAME}%d").as_str(),
             TUN_DEVICE_ADDRESS.parse().unwrap(),
@@ -57,7 +62,7 @@ impl TunDevice {
         log::info!("Created TUN device: {}", tun.name());
 
         // Channels to communicate with the other tasks
-        let (tun_task_tx, tun_task_rx) = mpsc::unbounded_channel::<Vec<u8>>();
+        let (tun_task_tx, tun_task_rx) = mpsc::unbounded_channel();
         let tun_task_tx = TunTaskTx(tun_task_tx);
         let tun_task_rx = TunTaskRx(tun_task_rx);
 
@@ -65,6 +70,8 @@ impl TunDevice {
             tun_task_rx,
             tun,
             peers_by_ip,
+            nat_table: HashMap::new(),
+            peers_by_tag,
         };
 
         (tun_device, tun_task_tx)
@@ -85,42 +92,56 @@ impl TunDevice {
         );
 
         // Route packet to the correct peer.
-        let Ok(peers) = self.peers_by_ip.lock() else {
-            log::error!("Failed to lock peers_by_ip, aborting tun device read");
-            return;
-        };
-        if let Some(peer_tx) = peers.longest_match(dst_addr).map(|(_, tx)| tx) {
-            log::info!("Forward packet to wg tunnel");
-            peer_tx
-                .send(Event::Ip(packet.to_vec().into()))
-                .tap_err(|err| log::error!("{err}"))
-                .ok();
-        } else {
-            log::info!("No peer found, packet dropped");
+        if false {
+            let Ok(peers) = self.peers_by_ip.lock() else {
+                log::error!("Failed to lock peers_by_ip, aborting tun device read");
+                return;
+            };
+            if let Some(peer_tx) = peers.longest_match(dst_addr).map(|(_, tx)| tx) {
+                log::info!("Forward packet to wg tunnel");
+                peer_tx
+                    .send(Event::Ip(packet.to_vec().into()))
+                    .tap_err(|err| log::error!("{err}"))
+                    .ok();
+                return;
+            }
         }
+
+        {
+            if let Some(tag) = self.nat_table.get(&dst_addr) {
+                log::info!("Forward packet to wg tunnel with tag: {tag}");
+                self.peers_by_tag.lock().unwrap().get(tag).and_then(|tx| {
+                    tx.send(Event::Ip(packet.to_vec().into()))
+                        .tap_err(|err| log::error!("{err}"))
+                        .ok()
+                });
+                return;
+            }
+        }
+
+        log::info!("No peer found, packet dropped");
     }
 
-    async fn handle_tun_write(&mut self, data: Vec<u8>) {
-        let Some(dst_addr) = boringtun::noise::Tunn::dst_address(&data) else {
+    async fn handle_tun_write(&mut self, data: TunTaskPayload) {
+        let (tag, packet) = data;
+        let Some(dst_addr) = boringtun::noise::Tunn::dst_address(&packet) else {
             log::error!("Unable to parse dst_address in packet that was supposed to be written to tun device");
             return;
         };
-        let Some(src_addr) = parse_src_address(&data) else {
+        let Some(src_addr) = parse_src_address(&packet) else {
             log::error!("Unable to parse src_address in packet that was supposed to be written to tun device");
             return;
         };
         log::info!(
             "iface: write Packet({src_addr} -> {dst_addr}, {} bytes)",
-            data.len()
+            packet.len()
         );
-        self.tun.write_all(&data).await.unwrap();
 
-        // Here we should store src_addr in map
-        // Something like:
-        // Map<src_addr, peer_tx>
+        // TODO: expire old entries
+        self.nat_table.insert(src_addr, tag);
 
         self.tun
-            .write_all(&data)
+            .write_all(&packet)
             .await
             .tap_err(|err| {
                 log::error!("iface: write error: {err}");

@@ -33,6 +33,7 @@ futures = { workspace = true }
 openssl = { version = "^0.10.55", features = ["vendored"], optional = true }
 
 nym-coconut-interface = { path = "../../coconut-interface" }
+nym_compact_ecash = { path = "../../nym_offline_compact_ecash" }
 nym-network-defaults = { path = "../../network-defaults" }
 nym-api-requests = { path = "../../../nym-api/nym-api-requests" }
 

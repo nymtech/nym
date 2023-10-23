@@ -1,0 +1,38 @@
+{
+  "name": "nym-vpn-ui",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "dev:app": "tauri dev",
+    "dev:browser": "vite --mode dev-browser",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "lint": "eslint --ext .ts,.tsx src/",
+    "lint:fix": "eslint --ext .js,.ts --fix src/",
+    "fmt": "prettier --check --ignore-unknown \"**/*\"",
+    "fmt:fix": "prettier --write --ignore-unknown \"**/*\"",
+    "typecheck": "tsc --noEmit",
+    "tauri": "tauri"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^1.5.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^1.5.0",
+    "@types/react": "^18.2.15",
+    "@types/react-dom": "^18.2.7",
+    "@typescript-eslint/eslint-plugin": "^6.8.0",
+    "@typescript-eslint/parser": "^6.8.0",
+    "@vitejs/plugin-react-swc": "^3.3.2",
+    "eslint": "^8.52.0",
+    "eslint-config-prettier": "^9.0.0",
+    "eslint-plugin-react": "^7.33.2",
+    "prettier": "^3.0.3",
+    "typescript": "^5.0.2",
+    "vite": "^4.4.5"
+  }
+}

@@ -119,7 +119,7 @@ default-members = [
     "explorer-api",
 ]
 
-exclude = ["explorer", "contracts", "nym-wallet", "nym-connect/mobile/src-tauri", "nym-connect/desktop", "cpu-cycles"]
+exclude = ["explorer", "contracts", "nym-wallet", "nym-connect/mobile/src-tauri", "nym-connect/desktop", "nym-vpn/ui/src-tauri", "cpu-cycles"]
 
 [workspace.package]
 authors = ["Nym Technologies SA"]

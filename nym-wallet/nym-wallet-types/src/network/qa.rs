@@ -12,23 +12,23 @@ pub(crate) const STAKE_DENOM: DenomDetails = DenomDetails::new("unyx", "nyx", 6)
 // -- Contract addresses --
 
 pub(crate) const MIXNET_CONTRACT_ADDRESS: &str =
-    "n10qt8wg0n7z740ssvf3urmvgtjhxpyp74hxqvqt7z226gykuus7eq5u9pvq";
+    "n14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9sjyvg3g";
 pub(crate) const VESTING_CONTRACT_ADDRESS: &str =
-    "n1vguuxez2h5ekltfj9gjd62fs5k4rl2zy5hfrncasykzw08rezpfstk9xtk";
+    "n1nc5tatafv6eyq7llkr2gv50ff9e22mnf70qgjlv737ktmt4eswrq73f2nw";
 pub(crate) const COCONUT_BANDWIDTH_CONTRACT_ADDRESS: &str =
-    "n1ghd753shjuwexxywmgs4xz7x2q732vcn7ty4yw";
+    "n1w798gp0zqv3s9hjl3jlnwxtwhykga6rn93p46q2crsdqhaj3y4gs68f74j";
 pub(crate) const GROUP_CONTRACT_ADDRESS: &str =
-    "n1g4xlpqy29m50j5y69reguae328tc9y83l4299pf2wmjn0xczq5js3704ql";
+    "n1sthrn5ep8ls5vzz8f9gp89khhmedahhdqd244dh9uqzk3hx2pzrsvf7zgk";
 pub(crate) const MULTISIG_CONTRACT_ADDRESS: &str =
-    "n1p54qvfde6mpnqvz3dnpa78x2qyyr5k4sgw9qr97mxjgklc5gze9sv6t964";
+    "n1sr06m8yqg0wzqqyqvzvp5t07dj4nevx9u8qc7j4qa72qu8e3ct8qledthy";
 pub(crate) const COCONUT_DKG_CONTRACT_ADDRESS: &str =
-    "n1xqkp8x4gqwjnhemtemc5dqhwll6w6rrgpywvhka7sh8vz8swul9sp3lv3w";
+    "n1udfs22xpxle475m2nz7u47jfa3vngncdegmczwwdx00cmetypa3s7uyuqn";
 pub(crate) const EPHEMERA_CONTRACT_ADDRESS: &str =
-    "n1xqkp8x4gqwjnhemtemc5dqhwll6w6rrgpywvhka7sh8vz8swul9sp3lv3w";
+    "n19lc9u84cz0yz3fww5283nucc9yvr8gsjmgeul0";
 pub(crate) const SERVICE_PROVIDER_DIRECTORY_CONTRACT_ADDRESS: &str =
-    "n1nhdr07kmjns2x8dnp53tdk4qxreze8zdxj6xucyvkdj9tta73rjqa96wps";
+    "n13ehuhysn5mqjeaheeuew2gjs785f6k7jm8vfsqg3jhtpkwppcmzq6m2hmz";
 pub(crate) const NAME_SERVICE_CONTRACT_ADDRESS: &str =
-    "n1uz24lsnwxvhep8m3gjec7ev86twlhlqrf5rphlgn3rda3zu048ssjqr5w9";
+    "n1qum2tr7hh4y7ruzew68c64myjec0dq2s2njf6waja5t0w879lutqadamme";
 
 // -- Constructor functions --
 
@@ -39,7 +39,7 @@ pub(crate) fn validators() -> Vec<ValidatorDetails> {
     )]
 }
 
-pub(crate) const EXPLORER_API: &str = "https://qa-explorer.qa.nymte.ch/api/";
+pub(crate) const EXPLORER_API: &str = "https://qa-network-explorer.qa.nymte.ch/api/";
 
 pub(crate) fn network_details() -> nym_network_defaults::NymNetworkDetails {
     nym_network_defaults::NymNetworkDetails {

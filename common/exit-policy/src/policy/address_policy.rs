@@ -115,6 +115,19 @@ impl AddressPolicy {
         }
     }
 
+    /// Check whether this AddressPolicy matches all patterns.
+    pub fn is_open(&self) -> bool {
+        if self.rules.len() != 1 {
+            return false;
+        }
+
+        let rule = &self.rules[0];
+
+        rule.action == AddressPolicyAction::Accept
+            && rule.pattern.ip_pattern == IpPattern::Star
+            && rule.pattern.ports.is_all()
+    }
+
     /// Attempts to parse the AddressPolicy out of raw torrc representation.
     pub fn parse_from_torrc<S: AsRef<str>>(raw: S) -> Result<Self, PolicyError> {
         crate::parse_exit_policy(raw)

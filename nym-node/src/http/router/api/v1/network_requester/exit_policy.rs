@@ -19,9 +19,12 @@ use nym_node_requests::api::v1::network_requester::exit_policy::models::UsedExit
     ),
     params(OutputParams)
 )]
-pub(crate) async fn node_exit_policy(Query(output): Query<OutputParams>) -> ExitPolicyResponse {
+pub(crate) async fn node_exit_policy(
+    policy: UsedExitPolicy,
+    Query(output): Query<OutputParams>,
+) -> ExitPolicyResponse {
     let output = output.output.unwrap_or_default();
-    output.to_response(UsedExitPolicy::default())
+    output.to_response(policy)
 }
 
 pub type ExitPolicyResponse = FormattedResponse<UsedExitPolicy>;

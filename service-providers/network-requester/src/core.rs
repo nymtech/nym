@@ -54,11 +54,16 @@ pub(crate) fn new_legacy_request_version() -> RequestVersion<Socks5Request> {
 pub struct OnStartData {
     // to add more fields as required
     pub address: Recipient,
+
+    pub request_filter: RequestFilter,
 }
 
 impl OnStartData {
-    fn new(address: Recipient) -> Self {
-        Self { address }
+    fn new(address: Recipient, request_filter: RequestFilter) -> Self {
+        Self {
+            address,
+            request_filter,
+        }
     }
 }
 
@@ -328,7 +333,7 @@ impl NRServiceProviderBuilder {
 
         let mut service_provider = NRServiceProvider {
             config: self.config,
-            request_filter,
+            request_filter: request_filter.clone(),
             mixnet_client,
             controller_sender,
             mix_input_sender,
@@ -340,7 +345,10 @@ impl NRServiceProviderBuilder {
         log::info!("All systems go. Press CTRL-C to stop the server.");
 
         if let Some(on_start) = self.on_start {
-            if on_start.send(OnStartData::new(self_address)).is_err() {
+            if on_start
+                .send(OnStartData::new(self_address, request_filter))
+                .is_err()
+            {
                 // the parent has dropped the channel before receiving the response
                 return Err(NetworkRequesterError::DisconnectedParent);
             }

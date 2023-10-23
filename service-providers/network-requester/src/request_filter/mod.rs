@@ -30,7 +30,7 @@ enum RequestFilterInner {
 }
 
 #[derive(Clone)]
-pub(crate) struct RequestFilter {
+pub struct RequestFilter {
     inner: Arc<RequestFilterInner>,
 }
 
@@ -42,6 +42,13 @@ impl RequestFilter {
         } else {
             info!("setting up ExitPolicy based request filter...");
             Self::new_exit_policy_filter(config).await
+        }
+    }
+
+    pub fn current_exit_policy_filter(&self) -> Option<&ExitPolicyRequestFilter> {
+        match &*self.inner {
+            RequestFilterInner::AllowList { .. } => None,
+            RequestFilterInner::ExitPolicy { policy_filter } => Some(policy_filter),
         }
     }
 
@@ -99,17 +106,14 @@ impl RequestFilter {
 
     async fn new_exit_policy_filter(config: &Config) -> Result<Self, NetworkRequesterError> {
         let policy_filter = if config.network_requester.open_proxy {
-            ExitPolicy::new_open().into()
+            ExitPolicyRequestFilter::new(ExitPolicy::new_open())
         } else {
-            ExitPolicyRequestFilter::new(
-                config
-                    .network_requester
-                    .upstream_exit_policy_url
-                    .as_ref()
-                    .ok_or(NetworkRequesterError::NoUpstreamExitPolicy)?
-                    .clone(),
-            )
-            .await?
+            let upstream_url = config
+                .network_requester
+                .upstream_exit_policy_url
+                .as_ref()
+                .ok_or(NetworkRequesterError::NoUpstreamExitPolicy)?;
+            ExitPolicyRequestFilter::new_upstream(upstream_url.clone()).await?
         };
         Ok(RequestFilter {
             inner: Arc::new(RequestFilterInner::ExitPolicy { policy_filter }),

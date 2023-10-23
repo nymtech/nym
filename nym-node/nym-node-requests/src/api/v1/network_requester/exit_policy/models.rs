@@ -17,7 +17,7 @@ pub struct UsedExitPolicy {
     /// Source URL from which the exit policy was obtained
     #[cfg_attr(
         feature = "openapi",
-        schema(example = "https://nymtech.net/.wellknown/exit-policy")
+        schema(example = "https://nymtech.net/.wellknown/network-requester/exit-policy.txt")
     )]
     pub upstream_source: String,
 

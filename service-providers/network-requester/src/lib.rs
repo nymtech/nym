@@ -25,3 +25,4 @@ pub use nym_client_core::{
         },
     },
 };
+pub use request_filter::RequestFilter;

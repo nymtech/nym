@@ -8,16 +8,38 @@ use nym_exit_policy::ExitPolicy;
 use nym_socks5_requests::RemoteAddress;
 use reqwest::IntoUrl;
 use tokio::net::lookup_host;
+use url::Url;
 
-pub(crate) struct ExitPolicyRequestFilter {
+pub struct ExitPolicyRequestFilter {
+    upstream: Option<Url>,
     policy: ExitPolicy,
 }
 
 impl ExitPolicyRequestFilter {
-    pub(crate) async fn new(url: impl IntoUrl) -> Result<Self, NetworkRequesterError> {
+    pub(crate) async fn new_upstream(url: impl IntoUrl) -> Result<Self, NetworkRequesterError> {
+        let url = url
+            .into_url()
+            .map_err(|source| NetworkRequesterError::MalformedExitPolicyUpstreamUrl { source })?;
+
         Ok(ExitPolicyRequestFilter {
+            upstream: Some(url.clone()),
             policy: get_exit_policy(url).await?,
         })
+    }
+
+    pub(crate) fn new(policy: ExitPolicy) -> Self {
+        ExitPolicyRequestFilter {
+            upstream: None,
+            policy,
+        }
+    }
+
+    pub fn policy(&self) -> &ExitPolicy {
+        &self.policy
+    }
+
+    pub fn upstream(&self) -> Option<&Url> {
+        self.upstream.as_ref()
     }
 
     pub(crate) async fn check(
@@ -56,11 +78,5 @@ impl ExitPolicyRequestFilter {
         }
 
         Ok(true)
-    }
-}
-
-impl From<ExitPolicy> for ExitPolicyRequestFilter {
-    fn from(policy: ExitPolicy) -> Self {
-        ExitPolicyRequestFilter { policy }
     }
 }

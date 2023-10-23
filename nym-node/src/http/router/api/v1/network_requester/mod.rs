@@ -4,6 +4,7 @@
 use crate::http::api::v1::network_requester::exit_policy::node_exit_policy;
 use axum::routing::get;
 use axum::Router;
+use nym_node_requests::api::v1::network_requester::exit_policy::models::UsedExitPolicy;
 use nym_node_requests::api::v1::network_requester::models;
 use nym_node_requests::routes::api::v1::network_requester;
 
@@ -13,6 +14,7 @@ pub mod root;
 #[derive(Debug, Clone, Default)]
 pub struct Config {
     pub details: Option<models::NetworkRequester>,
+    pub exit_policy: Option<UsedExitPolicy>,
 }
 
 pub(crate) fn routes<S: Send + Sync + 'static + Clone>(config: Config) -> Router<S> {
@@ -24,5 +26,11 @@ pub(crate) fn routes<S: Send + Sync + 'static + Clone>(config: Config) -> Router
                 move |query| root::root_network_requester(network_requester_details, query)
             }),
         )
-        .route(network_requester::EXIT_POLICY, get(node_exit_policy))
+        .route(
+            network_requester::EXIT_POLICY,
+            get({
+                let policy = config.exit_policy.unwrap_or_default();
+                move |query| node_exit_policy(policy, query)
+            }),
+        )
 }

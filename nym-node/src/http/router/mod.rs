@@ -9,6 +9,7 @@ use crate::http::NymNodeHTTPServer;
 use axum::Router;
 use nym_node_requests::api::v1::gateway::models::{Gateway, Wireguard};
 use nym_node_requests::api::v1::mixnode::models::Mixnode;
+use nym_node_requests::api::v1::network_requester::exit_policy::models::UsedExitPolicy;
 use nym_node_requests::api::v1::network_requester::models::NetworkRequester;
 use nym_node_requests::api::v1::node::models;
 use nym_node_requests::api::SignedHostInformation;
@@ -85,6 +86,12 @@ impl Config {
     pub fn with_network_requester(mut self, network_requester: NetworkRequester) -> Self {
         self.api.v1_config.node.roles.network_requester_enabled = true;
         self.api.v1_config.network_requester.details = Some(network_requester);
+        self
+    }
+
+    #[must_use]
+    pub fn with_used_exit_policy(mut self, exit_policy: UsedExitPolicy) -> Self {
+        self.api.v1_config.network_requester.exit_policy = Some(exit_policy);
         self
     }
 }

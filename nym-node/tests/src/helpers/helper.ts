@@ -1,5 +1,5 @@
 import axios from "axios";
-import ConfigHandler from "../config/configHandler";
+import ConfigHandler from "../../../../common/api-test-utils/config/configHandler"
 
 // Get the current env from configHandler
 const configHandler = ConfigHandler.getInstance();

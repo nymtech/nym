@@ -24,7 +24,7 @@ function isSet(property): boolean {
 }
 
 export class RestClient {
-  private static authToken: string;
+  public static authToken: string;
 
   private axiosInstance: AxiosInstance;
 

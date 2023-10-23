@@ -1,4 +1,6 @@
+import { dir } from "console";
 import { readFileSync } from "fs";
+import { dirname } from "path";
 import { TLogLevelName } from "tslog";
 
 import YAML from "yaml";
@@ -37,8 +39,10 @@ class ConfigHandler {
 
   private setCommonConfig(): void {
     try {
+      const baseWorkingDirectory = __dirname;
+      console.log(`Base Working Directory: ${baseWorkingDirectory}`);
       this.commonConfig = YAML.parse(
-        readFileSync("src/config/config.yaml", "utf8"),
+        readFileSync("/Users/benedetta/nym/workspace/nym/common/api-test-utils/config/config.yaml", "utf8"),
       ).common;
     } catch (error) {
       throw Error(`Error reading common config: (${error})`);
@@ -49,9 +53,10 @@ class ConfigHandler {
     this.ensureEnvironmentIsValid(environment);
     try {
       this.environmentConfig = YAML.parse(
-        readFileSync("src/config/config.yaml", "utf8"),
+        readFileSync("/Users/benedetta/nym/workspace/nym/common/api-test-utils/config/config.yaml", "utf8"),
       )[environment];
     } catch (error) {
+      console.log("fadsfasdfasdfsdfsa")
       throw Error(`Error reading environment config: (${error})`);
     }
   }
@@ -59,7 +64,7 @@ class ConfigHandler {
   public getEnvironmentConfig(environment: string): any {
     return (
       this.environmentConfig ||
-      YAML.parse(readFileSync("src/config/config.yaml", "utf8"))[environment]
+      YAML.parse(readFileSync("api-test-utils/config/config.yaml", "utf8"))[environment]
     );
   }
 

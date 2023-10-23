@@ -1,6 +1,8 @@
 import { Logger } from "tslog";
-import ConfigHandler from "../../config/configHandler";
-import { RestClient } from "../../restClient/RestClient";
+import ConfigHandler from "../../../../../common/api-test-utils/config/configHandler";
+import { RestClient } from "../../../../../common/api-test-utils/restClient/RestClient";
+// import { ConfigHandler, RestClient } from '../../../../../common/api-test-utils';
+
 
 export abstract class APIClient {
   protected constructor(baseUrl: string, serviceUrl: string) {

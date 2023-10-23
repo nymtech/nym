@@ -14,7 +14,8 @@
     "moduleResolution": "node",
     "allowSyntheticDefaultImports": true,
     "paths": {
-      "*": ["types/*"]
+      "*": ["types/*"],
+      "common/api-test-utils": ["../../common/api-test-utils/index.ts"]
     },
     "baseUrl": "./",
     "typeRoots": ["node_modules/@types"],

@@ -11,7 +11,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use crate::{
     event::Event,
     setup::{TUN_BASE_NAME, TUN_DEVICE_ADDRESS, TUN_DEVICE_NETMASK},
-    tun_task_channel::{tun_task_channel, TunTaskPayload, TunTaskRx, TunTaskTx},
+    tun_task_channel::{tun_task_channel, TunTaskPayload, TunTaskResponseTx, TunTaskRx, TunTaskTx},
     udp_listener::PeersByIp,
     wg_tunnel::PeersByTag,
 };
@@ -36,6 +36,9 @@ pub struct TunDevice {
 
     // Incoming data that we should send
     tun_task_rx: TunTaskRx,
+
+    // And when we get replies, this is where we should send it
+    tun_task_response_tx: TunTaskResponseTx,
 
     // The routing table.
     // An alternative would be to do NAT by just matching incoming with outgoing.

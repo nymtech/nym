@@ -23,8 +23,7 @@ pub(crate) const MULTISIG_CONTRACT_ADDRESS: &str =
     "n1sr06m8yqg0wzqqyqvzvp5t07dj4nevx9u8qc7j4qa72qu8e3ct8qledthy";
 pub(crate) const COCONUT_DKG_CONTRACT_ADDRESS: &str =
     "n1udfs22xpxle475m2nz7u47jfa3vngncdegmczwwdx00cmetypa3s7uyuqn";
-pub(crate) const EPHEMERA_CONTRACT_ADDRESS: &str =
-    "n19lc9u84cz0yz3fww5283nucc9yvr8gsjmgeul0";
+pub(crate) const EPHEMERA_CONTRACT_ADDRESS: &str = "n19lc9u84cz0yz3fww5283nucc9yvr8gsjmgeul0";
 pub(crate) const SERVICE_PROVIDER_DIRECTORY_CONTRACT_ADDRESS: &str =
     "n13ehuhysn5mqjeaheeuew2gjs785f6k7jm8vfsqg3jhtpkwppcmzq6m2hmz";
 pub(crate) const NAME_SERVICE_CONTRACT_ADDRESS: &str =

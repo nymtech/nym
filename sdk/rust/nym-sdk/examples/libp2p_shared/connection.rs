@@ -95,6 +95,7 @@ impl Connection {
     fn new_outbound_substream(&mut self) -> Result<Substream, Error> {
         let substream_id = SubstreamId::generate();
         let nonce = self.message_nonce.fetch_add(1, Ordering::SeqCst);
+        info!("sending OPENREQUEST with id {:#?}", substream_id.clone());
 
         // send the substream open request that requests to open a substream with the given ID
         self.mixnet_outbound_tx
@@ -155,7 +156,7 @@ impl Connection {
         // notify substream that it's closed
         let close_tx = self.substream_close_txs.remove(&substream_id);
         match close_tx {
-            Some(error) => { info!("Substream already dropped, cannot notify") }
+            Some(error) => { info!("Substream ID {:#?} already dropped, cannot notify", substream_id.clone()) }
             other => { info!("{other:?}") }
         }
         // close_tx.unwrap().send(()).expect("substream already dropped; cannot notify");
@@ -204,6 +205,7 @@ impl StreamMuxer for Connection {
         while let Poll::Ready(Some(msg)) = self.inbound_rx.poll_recv(cx) {
             match msg.message_type {
                 SubstreamMessageType::OpenRequest => {
+                    info!("recieved OPENREQUEST with ID {:#?}", msg.substream_id);
                     // create a new substream with the given ID
                     let substream = self.new_substream(msg.substream_id.clone())?;
                     let nonce = self.message_nonce.fetch_add(1, Ordering::SeqCst);
@@ -222,24 +224,25 @@ impl StreamMuxer for Connection {
                             }),
                         })
                         .map_err(|e| Error::OutboundSendError(e.to_string()))?;
-                    debug!("wrote OpenResponse for substream: {:?}", &msg.substream_id);
+                    info!("wrote OPENRESPONSE for substream: {:?}", &msg.substream_id); // was debug
 
                     // send the substream to our own channel to be returned in poll_inbound
                     self.inbound_open_tx
                         .send(substream)
                         .map_err(|e| Error::InboundSendError(e.to_string()))?;
 
-                    debug!("new inbound substream: {:?}", &msg.substream_id);
+                    info!("new inbound substream: {:?}", &msg.substream_id); // was debug
                 }
                 SubstreamMessageType::OpenResponse => {
                     if !self.pending_substreams.remove(&msg.substream_id) {
-                        debug!(
+                        info!( // was debug
                             "SubstreamMessageType::OpenResponse no substream pending for ID: {:?}",
                             &msg.substream_id
                         );
                     }
                 }
                 SubstreamMessageType::Close => {
+                    info!("received SubstreamMessageType ******CLOSE****** for substream {:#?}", msg.substream_id.clone());
                     self.handle_close(msg.substream_id)?;
                 }
                 SubstreamMessageType::Data(data) => {

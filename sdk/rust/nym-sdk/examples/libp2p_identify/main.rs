@@ -112,7 +112,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 peer_id,
                 ..
             })) => {
-                info!("Sent identify info to {peer_id:?}")
+                info!("Sent self identify info to {peer_id:?}")
+            }
+            SwarmEvent::Behaviour(MyBehaviourEvent::Identify(identify::Event::Pushed {
+                peer_id,
+                ..
+            })) => {
+                info!("Pushed identify info to {peer_id:?}")
             }
             // Prints out the info received via the identify event
             SwarmEvent::Behaviour(MyBehaviourEvent::Identify(identify::Event::Received {

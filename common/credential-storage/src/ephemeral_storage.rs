@@ -91,4 +91,12 @@ impl Storage for EphemeralStorage {
 
         Ok(())
     }
+
+    async fn update_ecash_credential(&self, wallet: String, id: i64) -> Result<(), StorageError> {
+        // self.coconut_credential_manager
+        //     .update_ecash_credential(wallet, id)
+        //     .await;
+        //S W: TBD
+        Ok(())
+    }
 }

@@ -567,18 +567,18 @@ impl<C, St> GatewayClient<C, St> {
             return self.try_claim_testnet_bandwidth().await;
         }
 
-        let (credential, credential_id) = self
+        let (payment, new_wallet, new_wallet_id) = self
             .bandwidth_controller
             .as_ref()
             .unwrap()
-            .prepare_coconut_credential()
+            .prepare_ecash_credential()
             .await?;
 
-        self.claim_coconut_bandwidth(credential).await?;
+        //self.claim_ecash_bandwidth(payment).await?;
         self.bandwidth_controller
             .as_ref()
             .unwrap()
-            .consume_credential(credential_id)
+            .update_ecash_credential(new_wallet, new_wallet_id)
             .await?;
 
         Ok(())

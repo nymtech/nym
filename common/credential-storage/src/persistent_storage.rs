@@ -122,4 +122,11 @@ impl Storage for PersistentStorage {
 
         Ok(())
     }
+
+    async fn update_ecash_credential(&self, release: String, id: i64) -> Result<(), StorageError> {
+        // self.coconut_credential_manager
+        ////    .await?;
+        /// SW: TBD
+        Ok(())
+    }
 }

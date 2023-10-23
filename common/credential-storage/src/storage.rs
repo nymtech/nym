@@ -57,4 +57,17 @@ pub trait Storage: Send + Sync {
     ///
     /// * `id`: Id of the credential to be consumed.
     async fn consume_coconut_credential(&self, id: i64) -> Result<(), Self::StorageError>;
+
+    /// Update in the database the specified credential.
+    ///
+    /// # Arguments
+    ///
+    /// * `wallet` : New Ecash wallet credential
+    /// * `id`: Id of the credential to be consumed.
+    ///
+    async fn update_ecash_credential(
+        &self,
+        wallet: String,
+        id: i64,
+    ) -> Result<(), Self::StorageError>;
 }

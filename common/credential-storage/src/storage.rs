@@ -33,15 +33,15 @@ pub trait Storage: Send + Sync {
     ///
     /// # Arguments
     ///
-    /// * `voucher_value`: How much bandwidth is in the credential.
     /// * `voucher_info`: What type of credential it is.
     /// * `signature`: Ecash wallet credential in the form of a wallet.
+    /// * `secret_key`: The secret key with which this credential has been created.
     /// * `epoch_id`: The epoch when it was signed.
     async fn insert_ecash_credential(
         &self,
-        voucher_value: String,
         voucher_info: String,
         signature: String,
+        secret_key: String,
         epoch_id: String,
     ) -> Result<(), Self::StorageError>;
 

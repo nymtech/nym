@@ -41,8 +41,6 @@ impl<C, St: Storage> BandwidthController<C, St> {
             .get_next_ecash_credential()
             .await
             .map_err(|err| BandwidthControllerError::CredentialStorageError(Box::new(err)))?;
-        let voucher_value = u64::from_str(&ecash_credential.voucher_value)
-            .map_err(|_| StorageError::InconsistentData)?;
         let voucher_info = ecash_credential.voucher_info.clone();
         let wallet = Wallet::try_from_bs58(ecash_credential.wallet)?;
         let epoch_id = u64::from_str(&ecash_credential.epoch_id)

@@ -49,19 +49,21 @@ impl CoconutCredentialManager {
     ///
     /// # Arguments
     ///
-    /// * `voucher_value`: Plaintext bandwidth value of the credential.
-    /// * `voucher_info`: Plaintext information of the credential.
-    /// * `signature`: Coconut credential in the form of a signature.
+    /// * `voucher_info`: What type of credential it is.
+    /// * `signature`: Ecash wallet credential in the form of a wallet.
+    /// * `secret_key`: The secret key with which this credential has been created.
+    /// * `epoch_id`: The epoch when it was signed.
+
     pub async fn insert_ecash_credential(
         &self,
-        voucher_value: String,
         voucher_info: String,
         wallet: String,
+        secret_key: String,
         epoch_id: String,
     ) -> Result<(), sqlx::Error> {
         sqlx::query!(
-            "INSERT INTO ecash_credentials(voucher_value, voucher_info, wallet, epoch_id, consumed) VALUES (?, ?, ?, ?, ?)",
-            voucher_value, voucher_info, wallet, epoch_id, false
+            "INSERT INTO ecash_credentials(voucher_info, wallet, secret_key, epoch_id, consumed) VALUES (?, ?, ?, ?, ?)",
+            voucher_info, wallet, secret_key, epoch_id, false
         )
         .execute(&self.connection_pool)
         .await?;

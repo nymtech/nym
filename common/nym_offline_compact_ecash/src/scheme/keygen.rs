@@ -355,6 +355,18 @@ impl SecretKeyUser {
     }
 }
 
+impl Bytable for SecretKeyUser {
+    fn to_byte_vec(&self) -> Vec<u8> {
+        self.to_bytes().to_vec()
+    }
+
+    fn try_from_byte_slice(slice: &[u8]) -> std::result::Result<Self, CompactEcashError> {
+        Self::from_bytes(slice)
+    }
+}
+
+impl Base58 for SecretKeyUser {}
+
 #[derive(Debug, Eq, PartialEq, Clone, Hash)]
 pub struct PublicKeyUser {
     pub(crate) pk: G1Projective,

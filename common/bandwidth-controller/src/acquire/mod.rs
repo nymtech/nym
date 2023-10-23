@@ -85,9 +85,9 @@ where
     .await?;
     storage
         .insert_ecash_credential(
-            state.voucher.get_voucher_value(),
             ECASH_INFO.to_string(),
             wallet.to_bs58(),
+            state.voucher.ecash_keypair().secret_key().to_bs58(),
             epoch_id.to_string(),
         )
         .await

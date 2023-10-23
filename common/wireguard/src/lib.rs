@@ -21,8 +21,6 @@ use std::sync::Arc;
 #[cfg(target_os = "linux")]
 use platform::linux::tun_device;
 
-
-
 /// Start wireguard UDP listener and TUN device
 ///
 /// # Errors
@@ -43,9 +41,14 @@ pub async fn start_wireguard(
     let (tun, tun_task_tx) = tun_device::TunDevice::new(peers_by_ip.clone(), peers_by_tag.clone());
     tun.start();
 
+    let (packet_relayer, packet_tx) = udp_listener::PacketRelayer::new(
+        tun_task_tx.clone(),
+        peers_by_tag.clone(),
+    );
+
     // Start the UDP listener that clients connect to
     let udp_listener = udp_listener::WgUdpListener::new(
-        tun_task_tx,
+        packet_tx,
         peers_by_ip,
         peers_by_tag,
         Arc::clone(&gateway_client_registry),

@@ -47,7 +47,8 @@ pub struct WireGuardTunnel {
     close_rx: broadcast::Receiver<()>,
 
     // Send data to the task that handles sending data through the tun device
-    tun_task_tx: TunTaskTx,
+    // tun_task_tx: TunTaskTx,
+    packet_tx: mpsc::Sender<(u64, Vec<u8>)>,
 
     tag: u64,
 }
@@ -68,7 +69,7 @@ impl WireGuardTunnel {
         index: PeerIdx,
         peer_allowed_ips: ip_network::IpNetwork,
         // rate_limiter: Option<RateLimiter>,
-        tunnel_tx: TunTaskTx,
+        packet_tx: mpsc::Sender<(u64, Vec<u8>)>,
     ) -> (Self, mpsc::UnboundedSender<Event>, u64) {
         let local_addr = udp.local_addr().unwrap();
         let peer_addr = udp.peer_addr();
@@ -117,7 +118,7 @@ impl WireGuardTunnel {
             wg_tunnel,
             close_tx,
             close_rx,
-            tun_task_tx: tunnel_tx,
+            packet_tx,
             tag,
         };
 
@@ -210,14 +211,14 @@ impl WireGuardTunnel {
             }
             TunnResult::WriteToTunnelV4(packet, addr) => {
                 if self.allowed_ips.longest_match(addr).is_some() {
-                    self.tun_task_tx.send((self.tag, packet.to_vec())).unwrap();
+                    self.packet_tx.send((self.tag, packet.to_vec())).await.unwrap();
                 } else {
                     warn!("Packet from {addr} not in allowed_ips");
                 }
             }
             TunnResult::WriteToTunnelV6(packet, addr) => {
                 if self.allowed_ips.longest_match(addr).is_some() {
-                    self.tun_task_tx.send((self.tag, packet.to_vec())).unwrap();
+                    self.packet_tx.send((self.tag, packet.to_vec())).await.unwrap();
                 } else {
                     warn!("Packet (v6) from {addr} not in allowed_ips");
                 }
@@ -319,7 +320,7 @@ pub(crate) fn start_wg_tunnel(
     peer_static_public: x25519::PublicKey,
     peer_index: PeerIdx,
     peer_allowed_ips: ip_network::IpNetwork,
-    tunnel_tx: TunTaskTx,
+    packet_tx: mpsc::Sender<(u64, Vec<u8>)>,
 ) -> (
     tokio::task::JoinHandle<x25519::PublicKey>,
     mpsc::UnboundedSender<Event>,
@@ -332,7 +333,7 @@ pub(crate) fn start_wg_tunnel(
         peer_static_public,
         peer_index,
         peer_allowed_ips,
-        tunnel_tx,
+        packet_tx,
     );
     let join_handle = tokio::spawn(async move {
         tunnel.spin_off().await;

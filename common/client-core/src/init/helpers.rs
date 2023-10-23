@@ -67,7 +67,7 @@ pub async fn current_gateways<R: Rng>(
 
     log::trace!("Fetching list of gateways from: {nym_api}");
 
-    let gateways = client.get_cached_described_gateways().await?;
+    let gateways = client.get_cached_gateways().await?;
     let valid_gateways = gateways
         .into_iter()
         .filter_map(|gateway| gateway.try_into().ok())

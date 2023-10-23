@@ -7,6 +7,7 @@ mod active_peers;
 mod error;
 mod event;
 mod network_table;
+mod packet_relayer;
 mod platform;
 mod registered_peers;
 mod setup;
@@ -41,10 +42,9 @@ pub async fn start_wireguard(
     let (tun, tun_task_tx) = tun_device::TunDevice::new(peers_by_ip.clone(), peers_by_tag.clone());
     tun.start();
 
-    let (packet_relayer, packet_tx) = udp_listener::PacketRelayer::new(
-        tun_task_tx.clone(),
-        peers_by_tag.clone(),
-    );
+    let (packet_relayer, packet_tx) =
+        packet_relayer::PacketRelayer::new(tun_task_tx.clone(), peers_by_tag.clone());
+    packet_relayer.start();
 
     // Start the UDP listener that clients connect to
     let udp_listener = udp_listener::WgUdpListener::new(

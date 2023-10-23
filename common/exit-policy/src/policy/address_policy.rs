@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::str::FromStr;
-use tracing::{info, trace};
+use tracing::trace;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
@@ -149,7 +149,7 @@ impl AddressPolicy {
             .iter()
             .find(|rule| rule.pattern.matches(addr, port))
             .map(|rule| {
-                info!("'{addr}:{port}' is covered by rule '{rule}'");
+                trace!("'{addr}:{port}' is covered by rule '{rule}'");
                 rule.action.is_accept()
             })
     }

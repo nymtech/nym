@@ -7192,6 +7192,7 @@ version = "0.1.0"
 dependencies = [
  "bincode",
  "log",
+ "nym-exit-policy",
  "nym-service-providers-common",
  "nym-sphinx-addressing",
  "serde",

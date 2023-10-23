@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-anyhow = "1.0.68"
+anyhow = { workspace = true }
 clap = {version = "4.0", features = ["cargo", "derive"]}
 log = { workspace = true }
 nym-bin-common = { path = "../../common/bin-common", features = ["output_format"] }

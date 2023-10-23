@@ -35,6 +35,18 @@ pub fn parse_exit_policy<S: AsRef<str>>(exit_policy: S) -> Result<ExitPolicy, Po
     Ok(AddressPolicy { rules })
 }
 
+pub fn format_exit_policy(policy: &ExitPolicy) -> String {
+    policy
+        .rules
+        .iter()
+        .map(|rule| format!("{EXIT_POLICY_FIELD_NAME} {rule}"))
+        .fold(String::new(), |accumulator, rule| {
+            accumulator + &rule + "\n"
+        })
+        .trim_end()
+        .to_string()
+}
+
 fn parse_address_policy_rule(rule: &str) -> Result<AddressPolicyRule, PolicyError> {
     // each exit policy rule must begin with 'ExitPolicy' followed by the actual rule
     rule.strip_prefix(EXIT_POLICY_FIELD_NAME)

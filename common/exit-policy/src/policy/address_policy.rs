@@ -84,7 +84,7 @@ impl Display for AddressPolicyAction {
 ///  accept *:9000-65535
 ///  reject *:*
 /// ```
-#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[cfg_attr(feature = "openapi", aliases(ExitPolicy))]
 pub struct AddressPolicy {
@@ -133,6 +133,11 @@ impl AddressPolicy {
         crate::parse_exit_policy(raw)
     }
 
+    /// Formats the AddressPolicy with torrc representation
+    pub fn format_as_torrc(&self) -> String {
+        crate::format_exit_policy(self)
+    }
+
     /// Apply this policy to an address:port combination
     ///
     /// We do this by applying each rule in sequence, until one
@@ -174,7 +179,7 @@ impl AddressPolicy {
 /// A single rule in an address policy.
 ///
 /// Contains a pattern, what to do with things that match it.
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct AddressPolicyRule {
     /// What do we do with items that match the pattern?
@@ -229,7 +234,7 @@ impl Display for AddressPolicyRule {
 /// assert!(pat.matches(&localhost, 22));
 /// assert!(!pat.matches(&not_localhost, 22));
 /// ```
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct AddressPortPattern {
     /// A pattern to match somewhere between zero and all IP addresses.
@@ -295,7 +300,7 @@ impl FromStr for AddressPortPattern {
 }
 
 /// A pattern that matches one or more IP addresses.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum IpPattern {
     /// Match all addresses.
     Star,

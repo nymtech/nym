@@ -604,6 +604,28 @@ impl NRServiceProvider {
                 protocol_version,
                 QueryResponse::Description("Description (placeholder)".to_string()),
             ),
+            QueryRequest::ExitPolicy => {
+                let response = match self.request_filter.current_exit_policy_filter() {
+                    Some(exit_policy_filter) => QueryResponse::ExitPolicy {
+                        enabled: true,
+                        upstream: exit_policy_filter
+                            .upstream()
+                            .map(|u| u.to_string())
+                            .unwrap_or_default(),
+                        policy: Some(exit_policy_filter.policy().clone()),
+                    },
+                    None => QueryResponse::ExitPolicy {
+                        enabled: false,
+                        upstream: "".to_string(),
+                        policy: None,
+                    },
+                };
+
+                Socks5Response::new_query(protocol_version, response)
+            }
+            _ => {
+                Socks5Response::new_query_error(protocol_version, "received unknown query variant")
+            }
         };
         Ok(Some(response))
     }

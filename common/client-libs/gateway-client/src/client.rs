@@ -567,7 +567,7 @@ impl<C, St> GatewayClient<C, St> {
             return self.try_claim_testnet_bandwidth().await;
         }
 
-        let (payment, new_wallet, new_wallet_id) = self
+        let (_payment, new_wallet, new_wallet_id) = self
             .bandwidth_controller
             .as_ref()
             .unwrap()

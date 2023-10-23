@@ -3,8 +3,8 @@
 
 use crate::error::BandwidthControllerError;
 use nym_compact_ecash::scheme::{Payment, Wallet};
-use nym_compact_ecash::setup::{setup, GroupParameters};
-use nym_compact_ecash::{generate_keypair_user, Base58, PayInfo};
+use nym_compact_ecash::setup::setup;
+use nym_compact_ecash::{Base58, PayInfo, SecretKeyUser};
 use nym_credential_storage::error::StorageError;
 use nym_credential_storage::storage::Storage;
 use nym_credentials::obtain_aggregate_verification_key;
@@ -41,7 +41,7 @@ impl<C, St: Storage> BandwidthController<C, St> {
             .get_next_ecash_credential()
             .await
             .map_err(|err| BandwidthControllerError::CredentialStorageError(Box::new(err)))?;
-        let voucher_info = ecash_credential.voucher_info.clone();
+        //let voucher_info = ecash_credential.voucher_info.clone();
         let wallet = Wallet::try_from_bs58(ecash_credential.wallet)?;
         let epoch_id = u64::from_str(&ecash_credential.epoch_id)
             .map_err(|_| StorageError::InconsistentData)?;
@@ -50,9 +50,9 @@ impl<C, St: Storage> BandwidthController<C, St> {
 
         let verification_key = obtain_aggregate_verification_key(&coconut_api_clients).await?;
 
-        let some_L_I_guess = 100; //SW: TEMPORARY VALUE
-        let params = setup(some_L_I_guess);
-        let sk_user = generate_keypair_user(&GroupParameters::new()?).secret_key(); //SW : TODO Retreive key fro mcredential storage
+        let some_l_i_guess = 100; //SW: TEMPORARY VALUE
+        let params = setup(some_l_i_guess);
+        let sk_user = SecretKeyUser::try_from_bs58(ecash_credential.secret_key)?;
         let pay_info = PayInfo { info: [0u8; 32] }; //SW: TEMPORARY VALUE. Waiting for actual computation
         let nb_tickets = 1u64; //SW: TEMPORARY VALUE, what should we put there?
 
@@ -66,8 +66,6 @@ impl<C, St: Storage> BandwidthController<C, St> {
             false,
             nb_tickets,
         )?;
-
-        //SW : TODO Store new wallet
 
         Ok((payment, wallet.to_bs58(), ecash_credential.id))
     }

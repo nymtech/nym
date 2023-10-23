@@ -106,4 +106,26 @@ impl CoconutCredentialManager {
         .await?;
         Ok(())
     }
+
+    /// Consumes in the database the specified credential.
+    ///
+    /// # Arguments
+    ///
+    /// * `wallet` : New wallet string to update with
+    /// * `id`: Database id.
+    ///
+    pub async fn update_ecash_credential(
+        &self,
+        wallet: String,
+        id: i64,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query!(
+            "UPDATE ecash_credentials SET wallet = ? WHERE id = ?",
+            wallet,
+            id
+        )
+        .execute(&self.connection_pool)
+        .await?;
+        Ok(())
+    }
 }

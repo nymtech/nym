@@ -1,9 +1,9 @@
 /* eslint-disable import/no-extraneous-dependencies */
-import typescript from '@rollup/plugin-typescript';
-import resolve from '@rollup/plugin-node-resolve';
-import { wasm } from '@rollup/plugin-wasm';
-import webWorkerLoader from 'rollup-plugin-web-worker-loader';
 import replace from '@rollup/plugin-replace';
+import resolve from '@rollup/plugin-node-resolve';
+import typescript from '@rollup/plugin-typescript';
+import webWorkerLoader from 'rollup-plugin-web-worker-loader';
+import { wasm } from '@rollup/plugin-wasm';
 
 export default {
   input: 'src/index.ts',

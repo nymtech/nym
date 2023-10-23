@@ -21,8 +21,8 @@ import nodeEndpoint from './node-adapter';
 
 /**
  * Create a client to send and receive traffic from the Nym mixnet.
- * @required
- * @returns
+ * @param options - An optional  of options
+ * @returns { Promise<NymMixnetClient> } A new instance of the NymMixnetClient.
  * @example
  * ```typescript
  * const client = await createNymMixnetClient();

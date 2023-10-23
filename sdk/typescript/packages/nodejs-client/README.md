@@ -5,15 +5,13 @@ This package is a NodeJS client that uses the wasm from the [Sphinx webassembly 
 ## Usage
 
 ```js
-const { createNymMixnetClient } = require('../dist/cjs/index.js');
+const { createNymMixnetClient } = require('@nymproject/nodejs-client-commonjs');
 
 async () => {
   const nym = await createNymMixnetClient();
 
   nym.events.subscribeToTextMessageReceivedEvent(async (e) => {
-    if (e.args.payload === 'Hello') {
-      await nym.client.stop();
-    }
+    console.log("message received", e.args.payload);
   });
 
   const nymApiUrl = 'https://validator.nymtech.net/api/';

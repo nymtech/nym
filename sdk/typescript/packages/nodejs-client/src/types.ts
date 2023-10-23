@@ -10,7 +10,6 @@ import type { DebugWasm } from '@nymproject/nym-client-wasm-node';
  * });
  * ```
  */
-
 export interface NymMixnetClientOptions {
   autoConvertStringMimeTypes?: string[] | MimeTypes[];
 }
@@ -18,7 +17,8 @@ export interface NymMixnetClientOptions {
 /**
  * The client for the Nym mixnet which gives access to client methods and event subscriptions.
  * Returned by the {@link createNymMixnetClient} function.
- *
+ * @property client - The sphinx nym wasm client.
+ * @property events - Different streams of events provided by the client.
  */
 export interface NymMixnetClient {
   client: Client;

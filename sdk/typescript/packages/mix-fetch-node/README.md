@@ -5,7 +5,7 @@ This package is a drop-in replacement for `fetch` in NodeJS to send HTTP request
 ## Usage
 
 ```js
-const { mixFetch } = require('@nymproject/mix-fetch-node');
+const { mixFetch } = require('@nymproject/mix-fetch-node-commonjs');
 
 ...
 

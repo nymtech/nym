@@ -1,5 +1,4 @@
 /* eslint-disable no-underscore-dangle */
-
 import type { SetupMixFetchOps, IMixFetchFn } from './types';
 import { createMixFetch as createMixFetchInternal } from './create-mix-fetch';
 

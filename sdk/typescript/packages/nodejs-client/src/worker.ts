@@ -1,9 +1,6 @@
-// eslint-disable-next-line import/first
+import './polyfill';
+
 import * as Comlink from 'comlink';
-import * as crypto from 'node:crypto';
-import * as fs from 'node:fs';
-import * as process from 'node:process';
-import { indexedDB } from 'fake-indexeddb';
 import { parentPort } from 'worker_threads';
 import '@nymproject/nym-client-wasm-node/nym_client_wasm_bg.wasm';
 
@@ -31,19 +28,6 @@ import type {
 import nodeEndpoint from './node-adapter';
 import { EventKinds, MimeTypes } from './types';
 
-// polyfill setup
-const globalVar =
-  // eslint-disable-next-line @typescript-eslint/no-implied-eval, no-restricted-globals, no-nested-ternary
-  typeof WorkerGlobalScope !== 'undefined' ? self : typeof global !== 'undefined' ? global : Function('return this;')();
-
-globalVar.indexedDB = indexedDB;
-globalVar.fs = fs;
-globalVar.process = process;
-globalVar.performance = performance;
-globalVar.TextEncoder = TextEncoder;
-globalVar.TextDecoder = TextDecoder;
-globalVar.crypto = crypto;
-
 // eslint-disable-next-line no-console
 console.log('[Nym WASM client] Starting Nym WASM web worker...');
 
@@ -52,7 +36,6 @@ console.log('[Nym WASM client] Starting Nym WASM web worker...');
  * @param event   The strongly typed message to send back to the calling thread.
  * see https://nodejs.org/api/worker_threads.html#workerparentport
  */
-// eslint-disable-next-line no-restricted-globals
 const postMessageWithType = <E>(event: E) => parentPort?.postMessage(event);
 
 /**
@@ -152,8 +135,7 @@ class ClientWrapper {
       return;
     }
     // TODO: currently we don't do anything with the result, it needs some typing and exposed back on the main thread
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const res = await this.client.send_anonymous_message(payload, recipient, replySurbs);
+    await this.client.send_anonymous_message(payload, recipient, replySurbs);
   };
 }
 

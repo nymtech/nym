@@ -1,4 +1,5 @@
 import './polyfill';
+
 import { loadWasm } from './wasm-loading';
 import { run } from './main';
 

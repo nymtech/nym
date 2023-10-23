@@ -1,8 +1,8 @@
+import { TextDecoder, TextEncoder } from 'node:util';
 import * as crypto from 'node:crypto';
 import * as fs from 'node:fs';
 import WebSocket from 'ws';
 import fetch, { Headers, Request, Response } from 'node-fetch';
-import { TextDecoder, TextEncoder } from 'node:util';
 import { Worker } from 'node:worker_threads';
 import { indexedDB } from 'fake-indexeddb';
 
@@ -18,7 +18,6 @@ import { indexedDB } from 'fake-indexeddb';
 (globalThis as any).Headers = Headers;
 (globalThis as any).Request = Request;
 (globalThis as any).Response = Response;
-(globalThis as any).Headers = Headers;
 (globalThis as any).fs = fs;
 (globalThis as any).crypto = crypto;
 (globalThis as any).WebSocket = WebSocket;

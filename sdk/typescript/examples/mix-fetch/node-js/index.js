@@ -1,4 +1,4 @@
-import { createMixFetch, disconnectMixFetch } from '../dist/cjs/index.js';
+const { createMixFetch, disconnectMixFetch } = require('@nymproject/mix-fetch-node-commonjs');
 
 /**
  * The main entry point

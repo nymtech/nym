@@ -207,7 +207,8 @@ impl AsyncWrite for Substream {
                 message: Message::TransportMessage(TransportMessage {
                     nonce,
                     id: self.connection_id.clone(),
-                    message: SubstreamMessage::new_close(self.substream_id.clone()),
+                    message: SubstreamMessage::
+                    new_close(self.substream_id.clone()),
                 }),
             })
             .map_err(|e| {

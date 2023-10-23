@@ -45,6 +45,7 @@ use log::{debug, LevelFilter, info};
 use nym_sdk::mixnet::{MixnetClientBuilder, NymNetworkDetails};
 use std::error::Error;
 use nym_network_defaults::setup_env;
+use crate::rust_libp2p_nym::connection::Connection;
 
 #[path = "../libp2p_shared/lib.rs"]
 mod rust_libp2p_nym;
@@ -83,8 +84,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 .boxed(),
             MyBehaviour {
                 identify: identify::Behaviour::new(identify::Config::new(
-                    // "/ipfs/id/2.0.0".to_string(),
-                    "/protocol/berg/demo".to_string(),
+                    "/demo/".to_string(),
                     local_key.public(),
                 )),
                 keep_alive: keep_alive::Behaviour,
@@ -112,7 +112,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 peer_id,
                 ..
             })) => {
-                info!("Sent self identify info to {peer_id:?}")
+                info!("Sent self identify info to {peer_id:?}");
             }
             SwarmEvent::Behaviour(MyBehaviourEvent::Identify(identify::Event::Pushed {
                 peer_id,

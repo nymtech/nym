@@ -156,10 +156,10 @@ impl Connection {
         // notify substream that it's closed
         let close_tx = self.substream_close_txs.remove(&substream_id);
         match close_tx {
-            Some(error) => { info!("Substream ID {:#?} already dropped, cannot notify", substream_id.clone()) }
+            Some(error) => { info!("Substream ID {:#?} already dropped, cannot notify (SHOULD PANIC): {:#?}", substream_id.clone(), error) }
             other => { info!("{other:?}") }
         }
-        // close_tx.unwrap().send(()).expect("substream already dropped; cannot notify");
+        // close_tx.unwrap().send(()).unwrap();
 
         // notify poll_close that the substream is closed
         self.close_tx

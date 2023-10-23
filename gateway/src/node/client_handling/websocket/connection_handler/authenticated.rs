@@ -250,7 +250,13 @@ where
         let aggregated_verification_key =
             nym_credentials::obtain_aggregate_verification_key(&credential_api_clients).await?;
 
-        if !credential.verify(&aggregated_verification_key) {
+        let aggregated_verification_key_converted =
+            nym_coconut_interface::VerificationKey::try_from(
+                aggregated_verification_key.to_bytes().as_slice(),
+            )
+            .expect("converstion should not fail"); //SW : TEMPORARY workaround for type conversion
+
+        if !credential.verify(&aggregated_verification_key_converted) {
             return Err(RequestHandlingError::InvalidBandwidthCredential(
                 String::from("credential failed to verify on gateway"),
             ));

@@ -12,6 +12,7 @@ use keypair::KeyPair;
 use nym_api_requests::coconut::{
     BlindSignRequestBody, BlindedSignatureResponse, VerifyCredentialBody, VerifyCredentialResponse,
 };
+use nym_coconut::VerificationKey;
 use nym_coconut_bandwidth_contract_common::spend_credential::{
     funds_from_cosmos_msgs, SpendCredentialStatus,
 };
@@ -137,10 +138,7 @@ impl State {
         }
     }
 
-    pub async fn verification_key(
-        &self,
-        epoch_id: EpochId,
-    ) -> Result<nym_coconut_interface::VerificationKey> {
+    pub async fn verification_key(&self, epoch_id: EpochId) -> Result<VerificationKeyAuth> {
         self.comm_channel
             .aggregated_verification_key(epoch_id)
             .await
@@ -281,9 +279,14 @@ pub async fn verify_bandwidth_credential(
     let verification_key = state
         .verification_key(*verify_credential_body.credential().epoch_id())
         .await?;
+
+    let verification_key_converted =
+        VerificationKey::try_from(verification_key.to_bytes().as_slice())
+            .expect("converstion should not fail"); //SW : TEMPORARY workaround for type conversion
+
     let mut vote_yes = verify_credential_body
         .credential()
-        .verify(&verification_key);
+        .verify(&verification_key_converted);
 
     vote_yes &= Coin::from(proposed_release_funds)
         == Coin::new(

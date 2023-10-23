@@ -7658,6 +7658,7 @@ dependencies = [
  "nym-network-defaults",
  "nym-service-provider-directory-common",
  "nym-vesting-contract-common",
+ "nym_compact_ecash",
  "openssl",
  "prost 0.12.1",
  "reqwest",

@@ -3,8 +3,6 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import './styles.css';
 
-console.log(import.meta.env.MODE);
-
 if (import.meta.env.MODE === 'dev-browser') {
   console.log('Running in dev-browser mode. Mocking tauri window and IPCs');
   import('./dev/setup');

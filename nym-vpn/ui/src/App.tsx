@@ -1,7 +1,24 @@
-import { useState } from 'react';
-import reactLogo from './assets/react.svg';
+import React, { useState } from 'react';
 import { invoke } from '@tauri-apps/api/tauri';
-import './App.css';
+import { Button as BaseButton, ButtonProps } from '@mui/base/Button';
+import clsx from 'clsx';
+
+// eslint-disable-next-line react/display-name
+const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
+  (props, ref) => {
+    const { className, ...other } = props;
+    return (
+      <BaseButton
+        ref={ref}
+        className={clsx(
+          'cursor-pointer disabled:cursor-not-allowed text-sm font-sans bg-violet-500 hover:bg-violet-600 active:bg-violet-700 text-white rounded-lg font-semibold px-4 py-2 border-none disabled:opacity-50',
+          className,
+        )}
+        {...other}
+      />
+    );
+  },
+);
 
 function App() {
   const [greetMsg, setGreetMsg] = useState('');
@@ -13,25 +30,10 @@ function App() {
   }
 
   return (
-    <div className="container">
+    <div>
       <h1>Welcome to Tauri!</h1>
 
-      <div className="row">
-        <a href="https://vitejs.dev" rel="noreferrer" target="_blank">
-          <img src="/vite.svg" className="logo vite" alt="Vite logo" />
-        </a>
-        <a href="https://tauri.app" rel="noreferrer" target="_blank">
-          <img src="/tauri.svg" className="logo tauri" alt="Tauri logo" />
-        </a>
-        <a href="https://reactjs.org" rel="noreferrer" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-
-      <p>Click on the Tauri, Vite, and React logos to learn more.</p>
-
       <form
-        className="row"
         onSubmit={(e) => {
           e.preventDefault();
           greet();
@@ -42,7 +44,7 @@ function App() {
           onChange={(e) => setName(e.currentTarget.value)}
           placeholder="Enter a name..."
         />
-        <button type="submit">Greet</button>
+        <Button type="submit">Greet</Button>
       </form>
 
       <p>{greetMsg}</p>

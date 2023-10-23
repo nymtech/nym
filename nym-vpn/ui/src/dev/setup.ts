@@ -6,6 +6,6 @@ mockWindows('main');
 mockIPC(async (cmd, args) => {
   console.log(`IPC call mocked "${cmd}"`);
   if (cmd === 'greet') {
-    return greet(args.name as string)
+    return greet(args.name as string);
   }
 });

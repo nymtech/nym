@@ -82,7 +82,7 @@ pub(crate) struct Init {
     #[clap(long)]
     enabled_credentials_mode: Option<bool>,
 
-    /// Specifies whether this network requester will run using the default ExitPolicy 
+    /// Specifies whether this network requester will run using the default ExitPolicy
     /// as opposed to the allow list.
     /// Note: this setting will become the default in the future releases.
     #[clap(long)]

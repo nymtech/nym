@@ -58,7 +58,7 @@ impl PacketRelayer {
             tokio::select! {
                 Some((tag, packet)) = self.packet_rx.0.recv() => {
                     log::info!("Sent packet to tun device with tag: {tag}");
-                    self.tun_task_tx.send((tag, packet)).unwrap();
+                    self.tun_task_tx.send((tag, packet)).await.tap_err(|e| log::error!("{e}")).ok();
                 },
                 Some((tag, packet)) = self.tun_task_response_rx.recv() => {
                     log::info!("Received response from tun device with tag: {tag}");

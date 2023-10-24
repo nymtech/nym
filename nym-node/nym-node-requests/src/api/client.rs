@@ -8,6 +8,7 @@ use crate::routes;
 use async_trait::async_trait;
 use http_api_client::{ApiClient, HttpClientError};
 use nym_bin_common::build_information::BinaryBuildInformationOwned;
+use nym_wireguard_types::{ClientMessage, ClientRegistrationResponse};
 
 use crate::api::v1::health::models::NodeHealth;
 pub use http_api_client::Client;
@@ -37,6 +38,17 @@ pub trait NymNodeApiClientExt: ApiClient {
     async fn get_mixnet_websockets(&self) -> Result<WebSockets, NymNodeApiClientError> {
         self.get_json_from(
             routes::api::v1::gateway::client_interfaces::mixnet_websockets_absolute(),
+        )
+        .await
+    }
+
+    async fn post_gateway_register_client(
+        &self,
+        client_message: &ClientMessage,
+    ) -> Result<ClientRegistrationResponse, NymNodeApiClientError> {
+        self.post_json_data_to(
+            routes::api::v1::gateway::client_interfaces::wireguard::client_absolute(),
+            client_message,
         )
         .await
     }

@@ -9,17 +9,14 @@ use bytes::Bytes;
 use log::{debug, error, info, warn};
 use rand::RngCore;
 use tap::TapFallible;
-use tokio::{
-    net::UdpSocket,
-    sync::{broadcast, mpsc},
-    time::timeout,
-};
+use tokio::{net::UdpSocket, sync::broadcast, time::timeout};
 
 use crate::{
     active_peers::{peer_event_channel, PeerEventReceiver, PeerEventSender},
     error::WgError,
     event::Event,
     network_table::NetworkTable,
+    packet_relayer::PacketRelaySender,
     registered_peers::PeerIdx,
 };
 
@@ -51,8 +48,7 @@ pub struct WireGuardTunnel {
     close_rx: broadcast::Receiver<()>,
 
     // Send data to the task that handles sending data through the tun device
-    // tun_task_tx: TunTaskTx,
-    packet_tx: mpsc::Sender<(u64, Vec<u8>)>,
+    packet_tx: PacketRelaySender,
 
     tag: u64,
 }
@@ -73,7 +69,7 @@ impl WireGuardTunnel {
         index: PeerIdx,
         peer_allowed_ips: ip_network::IpNetwork,
         // rate_limiter: Option<RateLimiter>,
-        packet_tx: mpsc::Sender<(u64, Vec<u8>)>,
+        packet_tx: PacketRelaySender,
     ) -> (Self, PeerEventSender, u64) {
         let local_addr = udp.local_addr().unwrap();
         let peer_addr = udp.peer_addr();
@@ -218,6 +214,7 @@ impl WireGuardTunnel {
             TunnResult::WriteToTunnelV4(packet, addr) => {
                 if self.allowed_ips.longest_match(addr).is_some() {
                     self.packet_tx
+                        .0
                         .send((self.tag, packet.to_vec()))
                         .await
                         .unwrap();
@@ -228,6 +225,7 @@ impl WireGuardTunnel {
             TunnResult::WriteToTunnelV6(packet, addr) => {
                 if self.allowed_ips.longest_match(addr).is_some() {
                     self.packet_tx
+                        .0
                         .send((self.tag, packet.to_vec()))
                         .await
                         .unwrap();
@@ -332,7 +330,7 @@ pub(crate) fn start_wg_tunnel(
     peer_static_public: x25519::PublicKey,
     peer_index: PeerIdx,
     peer_allowed_ips: ip_network::IpNetwork,
-    packet_tx: mpsc::Sender<(u64, Vec<u8>)>,
+    packet_tx: PacketRelaySender,
 ) -> (
     tokio::task::JoinHandle<x25519::PublicKey>,
     PeerEventSender,

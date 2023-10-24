@@ -9,6 +9,15 @@ use crate::{
     tun_task_channel::{TunTaskResponseRx, TunTaskTx},
 };
 
+#[derive(Clone)]
+pub struct PacketRelaySender(pub(crate) mpsc::Sender<(u64, Vec<u8>)>);
+pub(crate) struct PacketRelayReceiver(pub(crate) mpsc::Receiver<(u64, Vec<u8>)>);
+
+pub(crate) fn packet_relay_channel() -> (PacketRelaySender, PacketRelayReceiver) {
+    let (tx, rx) = mpsc::channel(16);
+    (PacketRelaySender(tx), PacketRelayReceiver(rx))
+}
+
 // The tunnels send packets to the packet relayer, which then relays it to the tun device. And
 // conversely, it's where the tun device send responses to, which are relayed back to the correct
 // tunnel.
@@ -26,16 +35,13 @@ pub(crate) struct PacketRelayer {
     peers_by_tag: Arc<std::sync::Mutex<HashMap<u64, PeerEventSender>>>,
 }
 
-pub(crate) type PacketRelaySender = mpsc::Sender<(u64, Vec<u8>)>;
-pub(crate) type PacketRelayReceiver = mpsc::Receiver<(u64, Vec<u8>)>;
-
 impl PacketRelayer {
     pub(crate) fn new(
         tun_task_tx: TunTaskTx,
         tun_task_response_rx: TunTaskResponseRx,
         peers_by_tag: Arc<std::sync::Mutex<HashMap<u64, PeerEventSender>>>,
     ) -> (Self, PacketRelaySender) {
-        let (packet_tx, packet_rx) = mpsc::channel(16);
+        let (packet_tx, packet_rx) = packet_relay_channel();
         (
             Self {
                 packet_rx,
@@ -50,7 +56,7 @@ impl PacketRelayer {
     pub(crate) async fn run(mut self) {
         loop {
             tokio::select! {
-                Some((tag, packet)) = self.packet_rx.recv() => {
+                Some((tag, packet)) = self.packet_rx.0.recv() => {
                     log::info!("Sent packet to tun device with tag: {tag}");
                     self.tun_task_tx.send((tag, packet)).unwrap();
                 },

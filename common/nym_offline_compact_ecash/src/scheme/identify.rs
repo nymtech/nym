@@ -107,7 +107,7 @@ mod tests {
         .unwrap();
 
         // Let's try to spend some coins
-        let pay_info1 = PayInfo { info: [6u8; 32] };
+        let pay_info1 = PayInfo { info: [6u8; 88] };
         let spend_vv = 1;
 
         let (payment1, _upd_wallet) = aggr_wallet
@@ -188,7 +188,7 @@ mod tests {
         .unwrap();
 
         // Let's try to spend some coins
-        let pay_info1 = PayInfo { info: [6u8; 32] };
+        let pay_info1 = PayInfo { info: [6u8; 88] };
         let spend_vv = 1;
 
         let (payment1, upd_wallet) = aggr_wallet
@@ -206,17 +206,16 @@ mod tests {
             .spend_verify(&params, &verification_key, &pay_info1)
             .unwrap());
 
-        let pay_info2 = PayInfo { info: [7u8; 32] };
-        let (payment2, _) = upd_wallet
-            .spend(
-                &params,
-                &verification_key,
-                &user_keypair.secret_key(),
-                &pay_info2,
-                false,
-                spend_vv,
-            )
-            .unwrap();
+
+        let pay_info2 = PayInfo { info: [7u8; 88] };
+        let (payment2, _) = upd_wallet.spend(
+            &params,
+            &verification_key,
+            &user_keypair.secret_key(),
+            &pay_info2,
+            false,
+            spend_vv,
+        ).unwrap();
 
         assert!(payment2
             .spend_verify(&params, &verification_key, &pay_info2)
@@ -284,7 +283,7 @@ mod tests {
         .unwrap();
 
         // Let's try to spend some coins
-        let pay_info1 = PayInfo { info: [6u8; 32] };
+        let pay_info1 = PayInfo { info: [6u8; 88] };
         let spend_vv = 1;
 
         let (payment1, _upd_wallet) = aggr_wallet
@@ -306,7 +305,7 @@ mod tests {
         let current_l = aggr_wallet.l.get();
         aggr_wallet.l.set(current_l - 1);
 
-        let pay_info2 = PayInfo { info: [7u8; 32] };
+        let pay_info2 = PayInfo { info: [7u8; 88] };
 
         let (payment2, _) = aggr_wallet
             .spend(
@@ -388,7 +387,7 @@ mod tests {
         .unwrap();
 
         // Let's try to spend some coins
-        let pay_info1 = PayInfo { info: [6u8; 32] };
+        let pay_info1 = PayInfo { info: [6u8; 88] };
         let spend_vv = 10;
 
         let (payment1, _) = aggr_wallet
@@ -410,17 +409,15 @@ mod tests {
         let current_l = aggr_wallet.l.get();
         aggr_wallet.l.set(current_l - 10);
 
-        let pay_info2 = PayInfo { info: [7u8; 32] };
-        let (payment2, _) = aggr_wallet
-            .spend(
-                &params,
-                &verification_key,
-                &user_keypair.secret_key(),
-                &pay_info2,
-                false,
-                spend_vv,
-            )
-            .unwrap();
+        let pay_info2 = PayInfo { info: [7u8; 88] };
+        let (payment2, _) = aggr_wallet.spend(
+            &params,
+            &verification_key,
+            &user_keypair.secret_key(),
+            &pay_info2,
+            false,
+            spend_vv,
+        ).unwrap();
 
         let identify_result =
             identify(payment1, payment2, pay_info1.clone(), pay_info2.clone()).unwrap();

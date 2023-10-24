@@ -70,7 +70,7 @@ fn main() -> Result<(), CompactEcashError> {
     assert_eq!(aggr_wallet, wallet);
 
     // Let's try to spend some coins
-    let pay_info = PayInfo { info: [6u8; 32] };
+    let pay_info = PayInfo { info: [6u8; 88] };
     let spend_vv = 1;
 
     let (payment, _) = aggr_wallet.spend(

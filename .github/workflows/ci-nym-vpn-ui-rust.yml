@@ -30,6 +30,10 @@ jobs:
           override: true
           components: rustfmt, clippy
 
+      - name: Prepare build
+        working-directory: nym-vpn/ui/
+        run: mkdir dist
+
       - name: Check build
         working-directory: nym-vpn/ui/src-tauri
         run: cargo build --release --lib --features custom-protocol

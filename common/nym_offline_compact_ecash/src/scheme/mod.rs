@@ -3,6 +3,8 @@ use std::cell::Cell;
 use bls12_381::{G1Projective, G2Prepared, G2Projective, Scalar};
 use group::Curve;
 
+use getset::{CopyGetters, Getters};
+
 use crate::error::{CompactEcashError, Result};
 use crate::proofs::proof_spend::{SpendInstance, SpendProof, SpendWitness};
 use crate::scheme::keygen::{SecretKeyUser, VerificationKeyAuth};
@@ -606,5 +608,43 @@ impl TryFrom<&[u8]> for Payment {
         };
 
         Ok(payment)
+    }
+}
+
+#[derive(Debug, Getters, CopyGetters, Clone, PartialEq)]
+pub struct EcashCredential {
+    #[getset(get = "pub")]
+    payment: Payment,
+    //pub pay_info : PayInfo, ?
+    //pub L : u64, ?
+    #[getset(get = "pub")]
+    epoch_id: u64,
+}
+
+impl EcashCredential {
+    pub fn new(payment: Payment, epoch_id: u64) -> Self {
+        EcashCredential { payment, epoch_id }
+    }
+
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut ecash_bytes = self.payment.to_bytes();
+        ecash_bytes.extend_from_slice(&self.epoch_id.to_be_bytes());
+
+        ecash_bytes
+    }
+}
+
+impl TryFrom<&[u8]> for EcashCredential {
+    type Error = CompactEcashError;
+    fn try_from(bytes: &[u8]) -> Result<Self> {
+        if bytes.len() < 8 {
+            return Err(CompactEcashError::Deserialization(
+                "Invalid byte array for EcashCredential deserialization".to_string(),
+            ));
+        }
+        let payment_bytes = &bytes[..bytes.len() - 8];
+        let payment = Payment::try_from(payment_bytes)?;
+        let epoch_id = u64::from_be_bytes(bytes[bytes.len() - 8..].try_into().unwrap());
+        Ok(EcashCredential { payment, epoch_id })
     }
 }

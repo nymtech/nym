@@ -6665,6 +6665,7 @@ dependencies = [
  "nym-types",
  "nym-validator-client",
  "nym-wireguard",
+ "nym_compact_ecash",
  "once_cell",
  "pretty_env_logger",
  "rand 0.7.3",
@@ -6701,6 +6702,7 @@ dependencies = [
  "nym-sphinx",
  "nym-task",
  "nym-validator-client",
+ "nym_compact_ecash",
  "rand 0.7.3",
  "serde",
  "thiserror",
@@ -6728,6 +6730,7 @@ dependencies = [
  "nym-crypto",
  "nym-pemstore",
  "nym-sphinx",
+ "nym_compact_ecash",
  "rand 0.7.3",
  "serde",
  "serde_json",
@@ -7762,8 +7765,14 @@ dependencies = [
 >>>>>>> b6a43787b (Add bilinear equations into the zk proof; the last eq passes the tests)
  "digest 0.9.0",
 <<<<<<< HEAD
+<<<<<<< HEAD
  "ff 0.10.1",
  "group 0.10.0",
+=======
+ "ff 0.11.1",
+ "getset",
+ "group 0.11.0",
+>>>>>>> be4119370 (impl payment flow)
  "itertools 0.10.5",
 =======
  "ff 0.11.0",

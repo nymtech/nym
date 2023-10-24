@@ -13,7 +13,7 @@ jobs:
     runs-on: [self-hosted, custom-linux]
     env:
       CARGO_TERM_COLOR: always
-      CARGOTOML_PATH: nym-vpn/ui/src-tauri/Cargo.toml
+      CARGOTOML_PATH: ./nym-vpn/ui/src-tauri/Cargo.toml
     steps:
       - name: Install Dependencies (Linux)
         run: sudo apt-get update && sudo apt-get -y install libwebkit2gtk-4.0-dev build-essential curl wget libssl-dev libgtk-3-dev squashfs-tools libayatana-appindicator3-dev
@@ -42,23 +42,23 @@ jobs:
 #        uses: actions-rs/cargo@v1
 #        with:
 #          command: test
-#          args: --manifest-path nym-connect/desktop/Cargo.toml --workspace
+#          args: --manifest-path ${{ env.CARGOTOML_PATH }} --workspace
 
       - name: Check formatting
         uses: actions-rs/cargo@v1
         with:
           command: fmt
-          args: --manifest-path $CARGOTOML_PATH --all -- --check
+          args: --manifest-path ${{ env.CARGOTOML_PATH }} --all -- --check
 
       - uses: actions-rs/clippy-check@v1
         name: Clippy checks
         continue-on-error: true
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          args: --manifest-path $CARGOTOML_PATH --workspace --all-features
+          args: --manifest-path ${{ env.CARGOTOML_PATH }} --workspace --all-features
 
       - name: Run clippy
         uses: actions-rs/cargo@v1
         with:
           command: clippy
-          args: --manifest-path $CARGOTOML_PATH --workspace --all-features -- -D warnings
+          args: --manifest-path ${{ env.CARGOTOML_PATH }} --workspace --all-features -- -D warnings

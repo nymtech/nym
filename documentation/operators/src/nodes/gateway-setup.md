@@ -9,6 +9,8 @@
 <!-- cmdrun ../../../../target/release/nym-gateway --version | grep "Build Version" | cut -b 21-26  -->
 ```
 
+As a result of [Project Smoosh](../faq/smoosh-faq.md), the current version of `nym-gateway` binary also contains `nym-network-requester` function which can be turned on or off byt the operator, to set the gateway as an exit node. More info on these changes [below](). 
+
 ## Preliminary steps
 
 Make sure you do the preparation listed in the [preliminary steps page](../preliminary-steps.md) before setting up your gateway.
@@ -56,22 +58,90 @@ To check available configuration options use:
 ```
 ~~~
 
-The following command returns a gateway on your current IP with the `id` of `supergateway`:
+The following command returns a gateway on your current IP with the `<ID>` of `supergateway`:
 
 ```
-./nym-gateway init --id supergateway --host $(curl ifconfig.me) --wallet-address n1eufxdlgt0puwrwptgjfqne8pj4nhy2u5ft62uq
+./nym-gateway init --id supergateway --host $(curl ifconfig.me)
 ```
 
 ~~~admonish example collapsible=true title="Console output"
 ```
-<!-- cmdrun ../../../../target/release/nym-gateway init --id supergateway --host $(curl ifconfig.me) --wallet-address n1eufxdlgt0puwrwptgjfqne8pj4nhy2u5ft62uq -->
+<!-- cmdrun ../../../../target/release/nym-gateway init --id supergateway --host $(curl ifconfig.me) -->
 ```
 ~~~
 
 The `$(curl ifconfig.me)` command above returns your IP automatically using an external service. Alternatively, you can enter your IP manually if you wish. If you do this, remember to enter your IP **without** any port information.
 
+
+#### Initialising gateway with network requester
+
+As some of the [Project Smoosh](../faq/smoosh-faq.md) changes getting implemented, the gateways now can work also as a network requesters at the same time. Such combination creates an exit gateway node, needed for new more open setup. 
+
+An operator can initialise the gateway and network requester together by running:
+
+```
+./nym-gateway init --id <ID> --host $(curl ifconfig.me) --with-network-requester
+```
+
+If we follow the previous example with `<ID>` chosen `supergateway`, adding the `--with-network-requester` flag, the outcome will be:
+
+
+~~~admonish example collapsible=true title="Console output"
+```
+<!-- cmdrun ../../../../target/release/nym-gateway init --id supergateway --host $(curl ifconfig.me) --with-network-requester -->
+```
+~~~
+
+You can see that the printed information besides identity and sphinx keys also includes a long string called address. This is the addressto be provided to your local [socks5 client](https://nymtech.net/docs/clients/socks5-client.html) as a `--provider` if you wish to connect to your own exit gateway.  
+
+#### Add network requester to existing gateway
+
+If you already have a gateway and got it [upgraded](./maintenance.md#upgrading-your-node) to the [newest version](./gateway-setup.md#current-version), you can easily add a network requester by stopping your gateway and running a command `setup-network-requester`.
+
+See the options:
+
+```
+./nym-gateway setup-network-requester --help
+```
+
+~~~admonish example collapsible=true title="Console output"
+```
+<!-- cmdrun ../../../../target/release/nym-gateway setup-network-requester --help -->
+```
+~~~
+
+Run with `--enabled true` flag (using same placeholders like above):
+
+```
+./nym-gateway setup-network-requester --enabled true --id supergateway --host $(curl ifconfig.me)
+```
+
+~~~admonish example collapsible=true title="Console output"
+```
+<!-- cmdrun ../../../../target/release/nym-gateway setup-network-requester --enabled true --id supergateway --host $(curl ifconfig.me)-->
+```
+~~~
+
+In case there are any problems, you can also change it manually by editing the gateway config stored in `/home/user/.nym/gateways/<ID>/config/config.toml` where the line under `[network_requester]` needs to be edited from `false` to `true`, it shall look like this:  
+
+```
+[network_requester]
+# Specifies whether network requester service is enabled in this process.
+enabled = true
+```
+
+Save, exit and restart your gateway.
+
+All information about your network requester connected to your gateway is in `/home/user/.nym/gateways/snus/config/network_requester_config.toml`.
+
+```admonish info
+Before you bond and run your gateway, please make sure the [firewall configuration](./maintenance.md#configure-your-firewall) is setup so your gateway can be reached from the outside.
+```
+
 ### Bonding your gateway
+
 #### Via the Desktop wallet
+
 You can bond your gateway via the Desktop wallet.
 
 1. Open your wallet, and head to the `Bonding` page, then select the node type `Gateway` and input your node details (Location format is <CITY>, <COUNTRY>). Press `Next`
@@ -81,7 +151,7 @@ You can bond your gateway via the Desktop wallet.
 3. You will be asked to run a the `sign` command with your `gateway` - copy and paste the long signature as the value of `--contract-msg` and run it. 
 
 ```
-./nym-mixnode sign --id <YOUR_ID> --contract-msg <PAYLOAD_GENERATED_BY_THE_WALLET>
+./nym-gatewway sign --id <YOUR_ID> --contract-msg <PAYLOAD_GENERATED_BY_THE_WALLET>
 ```
 
 It will look something like this:

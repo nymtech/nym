@@ -6,9 +6,9 @@ Discover the workings of Nym's privacy-enhancing mixnet infrastructure through t
 
 ### Where do I go from here? 💭
 
-For more in-depth information on the network architecture, head to the [Network Overview page](https://nymtech.net/docs/architecture/network-overview.html). 
+For more in-depth information on the network architecture, head to the [Network Overview page](https://nymtech.net/docs/architecture/network-overview.html), and check out the [Operators book](https://nymtech.net/operators) if you want to run a node yourself. 
 
 If you would like to concentrate on building an application that uses the mixnet:
-* Get started with using the Nym Mixnet quickly and easily by exploring the [Quickstart](../quickstart/overview.md) options.
-* Go the [Tutorials](../tutorials) section . 
+* Explore the [Quickstart](../quickstart/overview.md) options.
 * Check out examples of [Community Apps](../community-resources/community-applications-and-guides.md). 
+* Run through one of the [tutorials](../tutorials).  

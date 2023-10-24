@@ -299,15 +299,13 @@ You don't have to do any additional configuration for your node to implement thi
 
 ### My gateway seems to be running but appears offline
 
-Check if your [firewall status](./maintenance.md#configure-your-firewall) is active and if the needed ports are allowed.
+Check your [firewall](./maintenance.md#configure-your-firewall) is active and if the necessary ports are open / allowed.
 
-### My gateway (with network requester) "is still not online..."
+### My exit gateway "is still not online..."
 
-Remember the epoch takes up to 1h. It's important to run your node right after bonding so it responds positively on our API ping tests. Otherwise it may be blacklisted.
+The Nyx chain epoch takes up to 60 min. To prevent the gateway getting blacklisted, it's important to run it right after the bonding process to return positive response our API testing it's routing score.
 
-You may want to disconnect the network requester and let it run as a gatewy alone for some time to regain better routing score. 
-
-If it won't help, simply un-bond, delete the config and initialize a new one.
+You may want to disconnect the network requester and let it run as a gatewy alone for some time to regain better routing score and then areturn to the full [exit gateway finctionality](./gateway-setup.md#initialising-gateway-with-network-requester).
 
 
 ## Validators

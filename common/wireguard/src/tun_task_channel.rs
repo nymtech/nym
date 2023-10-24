@@ -47,5 +47,8 @@ impl TunTaskResponseRx {
 
 pub(crate) fn tun_task_response_channel() -> (TunTaskResponseTx, TunTaskResponseRx) {
     let (tun_task_tx, tun_task_rx) = tokio::sync::mpsc::channel(16);
-    (TunTaskResponseTx(tun_task_tx), TunTaskResponseRx(tun_task_rx))
+    (
+        TunTaskResponseTx(tun_task_tx),
+        TunTaskResponseRx(tun_task_rx),
+    )
 }

@@ -22,6 +22,7 @@ atty = "0.2"
 bip39 = { workspace = true }
 bs58 = "0.4.0"
 clap = { workspace = true, features = ["cargo", "derive"] }
+chrono = "0.4.19"
 colored = "2.0"
 dashmap = { workspace = true }
 dirs = "4.0"

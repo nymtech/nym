@@ -70,20 +70,21 @@ fn main() -> Result<(), CompactEcashError> {
     assert_eq!(aggr_wallet, wallet);
 
     // Let's try to spend some coins
-    let pay_info = PayInfo { info: [6u8; 88] };
+    let provider_keypair = generate_keypair_user(&grparams);
+    let payinfo = PayInfo::generate_payinfo(provider_keypair.public_key());
     let spend_vv = 1;
 
     let (payment, _) = aggr_wallet.spend(
         &params,
         &verification_key,
         &user_keypair.secret_key(),
-        &pay_info,
+        &payinfo,
         false,
         spend_vv,
     )?;
 
     assert!(payment
-        .spend_verify(&params, &verification_key, &pay_info)
+        .spend_verify(&params, &verification_key, &payinfo)
         .unwrap());
 
     let payment_bytes = payment.to_bytes();

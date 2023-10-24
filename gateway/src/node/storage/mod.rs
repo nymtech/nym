@@ -413,4 +413,8 @@ impl Storage for InMemStorage {
     ) -> Result<(), StorageError> {
         todo!()
     }
+
+    async fn insert_credential(&self, _credential: EcashCredential) -> Result<(), StorageError> {
+        todo!()
+    }
 }

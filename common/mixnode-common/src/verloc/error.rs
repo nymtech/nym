@@ -1,81 +1,50 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use std::fmt::{self, Display, Formatter};
 use std::io;
+use thiserror::Error;
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum RttError {
+    #[error("the received echo packet had unexpected size")]
     UnexpectedEchoPacketSize,
+
+    #[error("the received reply packet had unexpected size")]
     UnexpectedReplyPacketSize,
 
+    #[error("the received echo packet had malformed sender")]
     MalformedSenderIdentity,
 
+    #[error("the received echo packet had malformed signature")]
     MalformedEchoSignature,
+
+    #[error("the received reply packet had malformed signature")]
     MalformedReplySignature,
 
+    #[error("the received echo packet had invalid signature")]
     InvalidEchoSignature,
+
+    #[error("the received reply packet had invalid signature")]
     InvalidReplySignature,
 
-    UnreachableNode(String, io::Error),
-    UnexpectedConnectionFailureWrite(String, io::Error),
-    UnexpectedConnectionFailureRead(String, io::Error),
+    #[error("could not establish connection to {0}: {1}")]
+    UnreachableNode(String, #[source] io::Error),
+
+    #[error("failed to write echo packet to {0}: {1}")]
+    UnexpectedConnectionFailureWrite(String, #[source] io::Error),
+
+    #[error("failed to read reply packet from {0}: {1}")]
+    UnexpectedConnectionFailureRead(String, #[source] io::Error),
+
+    #[error("timed out while trying to read reply packet from {0}")]
     ConnectionReadTimeout(String),
+
+    #[error("timed out while trying to write echo packet to {0}")]
     ConnectionWriteTimeout(String),
 
+    #[error("the received reply packet had an unexpected sequence number")]
     UnexpectedReplySequence,
 
+    #[error("shutdown signal received")]
     ShutdownReceived,
 }
-
-impl Display for RttError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        match self {
-            RttError::UnexpectedEchoPacketSize => {
-                write!(f, "The received echo packet had unexpected size")
-            }
-            RttError::UnexpectedReplyPacketSize => {
-                write!(f, "The received reply packet had unexpected size")
-            }
-            RttError::MalformedSenderIdentity => {
-                write!(f, "The received echo packet had malformed sender")
-            }
-            RttError::MalformedEchoSignature => {
-                write!(f, "The received echo packet had malformed signature")
-            }
-            RttError::MalformedReplySignature => {
-                write!(f, "The received reply packet had malformed signature")
-            }
-            RttError::InvalidEchoSignature => {
-                write!(f, "The received echo packet had invalid signature")
-            }
-            RttError::InvalidReplySignature => {
-                write!(f, "The received reply packet had invalid signature")
-            }
-            RttError::UnreachableNode(id, err) => {
-                write!(f, "Could not establish connection to {id} - {err}")
-            }
-            RttError::UnexpectedConnectionFailureWrite(id, err) => {
-                write!(f, "Failed to write echo packet to {id} - {err}")
-            }
-            RttError::UnexpectedConnectionFailureRead(id, err) => {
-                write!(f, "Failed to read reply packet from {id} - {err}")
-            }
-            RttError::ConnectionReadTimeout(id) => {
-                write!(f, "Timed out while trying to read reply packet from {id}")
-            }
-            RttError::ConnectionWriteTimeout(id) => {
-                write!(f, "Timed out while trying to write echo packet to {id}")
-            }
-            RttError::UnexpectedReplySequence => write!(
-                f,
-                "The received reply packet had an unexpected sequence number"
-            ),
-            RttError::ShutdownReceived => {
-                write!(f, "Shutdown signal received")
-            }
-        }
-    }
-}
-
-impl std::error::Error for RttError {}

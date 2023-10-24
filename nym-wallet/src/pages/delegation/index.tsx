@@ -302,16 +302,15 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
   };
 
   const delegationsComponent = (delegationItems: TDelegations | undefined) => {
-    if (delegationItems && Boolean(delegationItems?.length)) {
-      return (
-        <DelegationList
-          explorerUrl={urls(network).networkExplorer}
-          isLoading={isLoading && !isActionModalOpen}
-          items={delegationItems}
-          onItemActionClick={handleDelegationItemActionClick}
-        />
-      );
-    }
+    return (
+      <DelegationList
+        explorerUrl={urls(network).networkExplorer}
+        isLoading={isLoading && !isActionModalOpen}
+        items={delegationItems || []}
+        onItemActionClick={handleDelegationItemActionClick}
+      />
+    );
+
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-end' }}>
         <Box marginRight={3} width={1}>

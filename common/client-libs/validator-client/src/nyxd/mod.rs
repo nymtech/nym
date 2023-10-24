@@ -34,7 +34,6 @@ pub use crate::nyxd::fee::Fee;
 pub use crate::rpc::TendermintRpcClient;
 pub use coin::Coin;
 pub use cosmrs::bank::MsgSend;
-pub use cosmrs::rpc::query::Query;
 pub use cosmrs::tendermint::abci::{response::DeliverTx, Event, EventAttribute};
 pub use cosmrs::tendermint::block::Height;
 pub use cosmrs::tendermint::hash::{self, Algorithm, Hash};
@@ -49,6 +48,7 @@ pub use cosmwasm_std::Coin as CosmWasmCoin;
 pub use fee::{gas_price::GasPrice, GasAdjustable, GasAdjustment};
 pub use tendermint_rpc::{
     endpoint::{tx::Response as TxResponse, validators::Response as ValidatorResponse},
+    query::Query,
     Paging,
 };
 pub use tendermint_rpc::{Request, Response, SimpleRequest};

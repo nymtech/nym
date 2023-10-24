@@ -163,7 +163,7 @@ impl Wallet {
             lk.push(Scalar::from(self.l() + k));
 
             // compute hashes R_k of the payment info
-            let rr_k = hash_to_scalar(pay_info.info);
+            let rr_k = hash_to_scalar(pay_info.payinfo);
             rr.push(rr_k);
 
             let o_a_k = grparams.random_scalar();
@@ -311,26 +311,27 @@ pub fn compute_kappa(
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct PayInfo {
-    pub info: [u8; 88],
+    pub payinfo: [u8; 88],
 }
 
-pub fn generate_payinfo(provider_pk: PublicKeyUser) -> PayInfo{
-    let mut info = [0u8; 88];
+impl PayInfo {
+    pub fn generate_payinfo(provider_pk: PublicKeyUser) -> PayInfo {
+        let mut payinfo = [0u8; 88];
 
-    // Generating random bytes
-    thread_rng().fill(&mut info[..32]);
+        // Generating random bytes
+        thread_rng().fill(&mut payinfo[..32]);
 
-    // Adding timestamp bytes
-    let timestamp = Utc::now().timestamp();
-    info[32..40].copy_from_slice(&timestamp.to_be_bytes());
+        // Adding timestamp bytes
+        let timestamp = Utc::now().timestamp();
+        payinfo[32..40].copy_from_slice(&timestamp.to_be_bytes());
 
-    // Adding provider public key bytes
-    let ppk_bytes = provider_pk.pk.to_affine().to_compressed();
-    info[40..].copy_from_slice(&ppk_bytes);
+        // Adding provider public key bytes
+        let ppk_bytes = provider_pk.pk.to_affine().to_compressed();
+        payinfo[40..].copy_from_slice(&ppk_bytes);
 
-    PayInfo { info }
+        PayInfo { payinfo }
+    }
 }
-
 #[derive(Debug, Clone, PartialEq)]
 pub struct Payment {
     pub kappa: G2Projective,
@@ -388,7 +389,7 @@ impl Payment {
                 ));
             }
             // verify integrity of R_k
-            if !(self.rr[k as usize] == hash_to_scalar(pay_info.info)) {
+            if !(self.rr[k as usize] == hash_to_scalar(pay_info.payinfo)) {
                 return Err(CompactEcashError::Spend(
                     "Integrity of R_k does not hold".to_string(),
                 ));

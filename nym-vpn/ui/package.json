@@ -12,8 +12,8 @@
     "preview": "vite preview",
     "lint": "eslint --ext .ts,.tsx src/",
     "lint:fix": "eslint --ext .js,.ts --fix src/",
-    "fmt": "prettier --check --ignore-unknown \"**/*\"",
-    "fmt:fix": "prettier --write --ignore-unknown \"**/*\"",
+    "fmt": "prettier --write --ignore-unknown \"**/*\"",
+    "fmt:check": "prettier --check --ignore-unknown \"**/*\"",
     "typecheck": "tsc --noEmit",
     "tauri": "tauri"
   },

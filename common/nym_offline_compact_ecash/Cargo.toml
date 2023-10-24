@@ -7,6 +7,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+chrono = "0.4.19"
 #bls12_381 = { version = "0.5", default-features = false, features = ["pairings", "alloc", "experimental"] }
 bls12_381 = { path = "/Users/simon/Documents/Nym/github/andrew_bls12_381", default-features = false, features = ["alloc", "pairings", "experimental", "zeroize"] }
 itertools = "0.10"

@@ -6442,8 +6442,14 @@ name = "nym-compact-ecash"
 version = "0.1.0"
 dependencies = [
  "bls12_381 0.6.0",
+<<<<<<< HEAD
  "bs58 0.4.0",
  "criterion 0.3.6",
+=======
+ "bs58",
+ "chrono",
+ "criterion",
+>>>>>>> 4a54fd93f (Add function generating the payinfo)
  "digest 0.9.0",
  "ff 0.11.1",
  "getset",

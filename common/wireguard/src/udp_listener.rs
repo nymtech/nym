@@ -24,7 +24,6 @@ use crate::{
     network_table::NetworkTable,
     registered_peers::{RegisteredPeer, RegisteredPeers},
     setup::{self, WG_ADDRESS, WG_PORT},
-    tun_task_channel::TunTaskTx,
     wg_tunnel::PeersByTag,
 };
 
@@ -65,7 +64,8 @@ pub struct WgUdpListener {
     udp: Arc<UdpSocket>,
 
     // Send data to the TUN device for sending
-    tun_task_tx: TunTaskTx,
+    // tun_task_tx: TunTaskTx,
+    packet_tx: mpsc::Sender<(u64, Vec<u8>)>,
 
     // Wireguard rate limiter
     rate_limiter: RateLimiter,
@@ -75,7 +75,7 @@ pub struct WgUdpListener {
 
 impl WgUdpListener {
     pub async fn new(
-        tun_task_tx: TunTaskTx,
+        packet_tx: mpsc::Sender<(u64, Vec<u8>)>,
         peers_by_ip: Arc<std::sync::Mutex<PeersByIp>>,
         peers_by_tag: Arc<std::sync::Mutex<PeersByTag>>,
         gateway_client_registry: Arc<GatewayClientRegistry>,
@@ -101,7 +101,7 @@ impl WgUdpListener {
             peers_by_ip,
             peers_by_tag,
             udp,
-            tun_task_tx,
+            packet_tx,
             rate_limiter,
             gateway_client_registry,
         })
@@ -207,7 +207,8 @@ impl WgUdpListener {
                             *registered_peer.public_key,
                             registered_peer.index,
                             registered_peer.allowed_ips,
-                            self.tun_task_tx.clone(),
+                            // self.tun_task_tx.clone(),
+                            self.packet_tx.clone(),
                         );
 
                         self.peers_by_ip.lock().unwrap().insert(registered_peer.allowed_ips, peer_tx.clone());

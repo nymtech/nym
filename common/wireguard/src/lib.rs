@@ -7,6 +7,7 @@ mod active_peers;
 mod error;
 mod event;
 mod network_table;
+mod packet_relayer;
 mod platform;
 mod registered_peers;
 mod setup;
@@ -38,12 +39,26 @@ pub async fn start_wireguard(
     let peers_by_tag = Arc::new(std::sync::Mutex::new(wg_tunnel::PeersByTag::new()));
 
     // Start the tun device that is used to relay traffic outbound
-    let (tun, tun_task_tx) = tun_device::TunDevice::new(peers_by_ip.clone(), peers_by_tag.clone());
+    let (tun, tun_task_tx, tun_task_response_rx) = tun_device::TunDevice::new(peers_by_ip.clone());
     tun.start();
+
+    // If we want to have the tun device on a separate host, it's the tun_task and
+    // tun_task_response channels that needs to be sent over the network to the host where the tun
+    // device is running.
+
+    // The packet relayer's responsibility is to route packets between the correct tunnel and the
+    // tun device. The tun device may or may not be on a separate host, which is why we can't do
+    // this routing in the tun device itself.
+    let (packet_relayer, packet_tx) = packet_relayer::PacketRelayer::new(
+        tun_task_tx.clone(),
+        tun_task_response_rx,
+        peers_by_tag.clone(),
+    );
+    packet_relayer.start();
 
     // Start the UDP listener that clients connect to
     let udp_listener = udp_listener::WgUdpListener::new(
-        tun_task_tx,
+        packet_tx,
         peers_by_ip,
         peers_by_tag,
         Arc::clone(&gateway_client_registry),

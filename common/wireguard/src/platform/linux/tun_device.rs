@@ -11,9 +11,11 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use crate::{
     event::Event,
     setup::{TUN_BASE_NAME, TUN_DEVICE_ADDRESS, TUN_DEVICE_NETMASK},
-    tun_task_channel::{tun_task_channel, TunTaskPayload, TunTaskRx, TunTaskTx},
+    tun_task_channel::{
+        tun_task_channel, tun_task_response_channel, TunTaskPayload, TunTaskResponseRx,
+        TunTaskResponseTx, TunTaskRx, TunTaskTx,
+    },
     udp_listener::PeersByIp,
-    wg_tunnel::PeersByTag,
 };
 
 fn setup_tokio_tun_device(name: &str, address: Ipv4Addr, netmask: Ipv4Addr) -> tokio_tun::Tun {
@@ -37,19 +39,21 @@ pub struct TunDevice {
     // Incoming data that we should send
     tun_task_rx: TunTaskRx,
 
-    // The routing table.
-    // An alternative would be to do NAT by just matching incoming with outgoing.
+    // And when we get replies, this is where we should send it
+    tun_task_response_tx: TunTaskResponseTx,
+
+    // The routing table, as how wireguard does it
     peers_by_ip: Arc<std::sync::Mutex<PeersByIp>>,
 
+    // This is an alternative to the routing table, where we just match outgoing source IP with
+    // incoming destination IP.
     nat_table: HashMap<IpAddr, u64>,
-    peers_by_tag: Arc<std::sync::Mutex<PeersByTag>>,
 }
 
 impl TunDevice {
     pub fn new(
         peers_by_ip: Arc<std::sync::Mutex<PeersByIp>>,
-        peers_by_tag: Arc<std::sync::Mutex<PeersByTag>>,
-    ) -> (Self, TunTaskTx) {
+    ) -> (Self, TunTaskTx, TunTaskResponseRx) {
         let tun = setup_tokio_tun_device(
             format!("{TUN_BASE_NAME}%d").as_str(),
             TUN_DEVICE_ADDRESS.parse().unwrap(),
@@ -59,63 +63,20 @@ impl TunDevice {
 
         // Channels to communicate with the other tasks
         let (tun_task_tx, tun_task_rx) = tun_task_channel();
+        let (tun_task_response_tx, tun_task_response_rx) = tun_task_response_channel();
 
         let tun_device = TunDevice {
             tun_task_rx,
+            tun_task_response_tx,
             tun,
             peers_by_ip,
             nat_table: HashMap::new(),
-            peers_by_tag,
         };
 
-        (tun_device, tun_task_tx)
+        (tun_device, tun_task_tx, tun_task_response_rx)
     }
 
-    fn handle_tun_read(&self, packet: &[u8]) {
-        let Some(dst_addr) = boringtun::noise::Tunn::dst_address(packet) else {
-            log::error!("Unable to parse dst_address in packet that was read from tun device");
-            return;
-        };
-        let Some(src_addr) = parse_src_address(packet) else {
-            log::error!("Unable to parse src_address in packet that was read from tun device");
-            return;
-        };
-        log::info!(
-            "iface: read Packet({src_addr} -> {dst_addr}, {} bytes)",
-            packet.len(),
-        );
-
-        // Route packet to the correct peer.
-        if false {
-            let Ok(peers) = self.peers_by_ip.lock() else {
-                log::error!("Failed to lock peers_by_ip, aborting tun device read");
-                return;
-            };
-            if let Some(peer_tx) = peers.longest_match(dst_addr).map(|(_, tx)| tx) {
-                log::info!("Forward packet to wg tunnel");
-                peer_tx
-                    .send(Event::Ip(packet.to_vec().into()))
-                    .tap_err(|err| log::error!("{err}"))
-                    .ok();
-                return;
-            }
-        }
-
-        {
-            if let Some(tag) = self.nat_table.get(&dst_addr) {
-                log::info!("Forward packet to wg tunnel with tag: {tag}");
-                self.peers_by_tag.lock().unwrap().get(tag).and_then(|tx| {
-                    tx.send(Event::Ip(packet.to_vec().into()))
-                        .tap_err(|err| log::error!("{err}"))
-                        .ok()
-                });
-                return;
-            }
-        }
-
-        log::info!("No peer found, packet dropped");
-    }
-
+    // Send outbound packets out on the wild internet
     async fn handle_tun_write(&mut self, data: TunTaskPayload) {
         let (tag, packet) = data;
         let Some(dst_addr) = boringtun::noise::Tunn::dst_address(&packet) else {
@@ -143,6 +104,55 @@ impl TunDevice {
             .ok();
     }
 
+    // Receive reponse packets from the wild internet
+    async fn handle_tun_read(&self, packet: &[u8]) {
+        let Some(dst_addr) = boringtun::noise::Tunn::dst_address(packet) else {
+            log::error!("Unable to parse dst_address in packet that was read from tun device");
+            return;
+        };
+        let Some(src_addr) = parse_src_address(packet) else {
+            log::error!("Unable to parse src_address in packet that was read from tun device");
+            return;
+        };
+        log::info!(
+            "iface: read Packet({src_addr} -> {dst_addr}, {} bytes)",
+            packet.len(),
+        );
+
+        // Route packet to the correct peer.
+
+        // This is how wireguard does it, by consulting the AllowedIPs table.
+        if false {
+            let Ok(peers) = self.peers_by_ip.lock() else {
+                log::error!("Failed to lock peers_by_ip, aborting tun device read");
+                return;
+            };
+            if let Some(peer_tx) = peers.longest_match(dst_addr).map(|(_, tx)| tx) {
+                log::info!("Forward packet to wg tunnel");
+                peer_tx
+                    .send(Event::Ip(packet.to_vec().into()))
+                    .tap_err(|err| log::error!("{err}"))
+                    .ok();
+                return;
+            }
+        }
+
+        // But we do it by consulting the NAT table.
+        {
+            if let Some(tag) = self.nat_table.get(&dst_addr) {
+                log::info!("Forward packet to wg tunnel with tag: {tag}");
+                self.tun_task_response_tx
+                    .send((*tag, packet.to_vec()))
+                    .await
+                    .tap_err(|err| log::error!("{err}"))
+                    .ok();
+                return;
+            }
+        }
+
+        log::info!("No peer found, packet dropped");
+    }
+
     pub async fn run(mut self) {
         let mut buf = [0u8; 1024];
 
@@ -152,7 +162,7 @@ impl TunDevice {
                 len = self.tun.read(&mut buf) => match len {
                     Ok(len) => {
                         let packet = &buf[..len];
-                        self.handle_tun_read(packet);
+                        self.handle_tun_read(packet).await;
                     },
                     Err(err) => {
                         log::info!("iface: read error: {err}");

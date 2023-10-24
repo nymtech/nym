@@ -67,11 +67,7 @@ impl<C, St: Storage> BandwidthController<C, St> {
             nb_tickets,
         )?;
 
-        let credential = EcashCredential::new(
-            payment, //pay_info,
-            //some_l_i_guess,
-            epoch_id,
-        );
+        let credential = EcashCredential::new(payment, pay_info, epoch_id);
 
         Ok((credential, wallet.to_bs58(), ecash_credential.id))
     }

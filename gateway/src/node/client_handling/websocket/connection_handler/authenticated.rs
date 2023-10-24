@@ -251,16 +251,15 @@ where
             nym_credentials::obtain_aggregate_verification_key(&credential_api_clients).await?;
 
         let params = setup(100); //SW: TEMPORARY VALUE, Take from credential?
-        let pay_info = PayInfo { info: [0u8; 32] }; //SW: TEMPORARY VALUE, Take from credential?
 
         credential
             .payment()
-            .spend_verify(&params, &aggregated_verification_key, &pay_info)
-            .map_err(|_| {
-                RequestHandlingError::InvalidBandwidthCredential(String::from(
-                    "credential failed to verify on gateway",
-                ))
-            })?;
+            .spend_verify(
+                &params,
+                &aggregated_verification_key,
+                &credential.pay_info(),
+            )
+            .map_err(|err| RequestHandlingError::InvalidBandwidthCredential(err.to_string()))?; //SW : Temporary error message to understand what's going on
 
         // self.inner
         //     .coconut_verifier

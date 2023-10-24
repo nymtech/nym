@@ -4,7 +4,7 @@
 
 
 ```admonish info
-As a result of [Project Smoosh](../faq/smoosh-faq.md), the current version of `nym-gateway` binary also contains `nym-network-requester` function which can be turned on or off [by the operator](./gateway-setup.md#initialising-gateway-with-network-requester). This combination is a basis of Nym exit gateway node - an essential piece in our new setup. Please read more in our [Project Smoosh FAQ](../faq/smoosh-faq.md) and [Exit Gateways Page](../legal/exit-gateway.md). We recommend operators to start shifting to that model instead of running gateway and network requester as two separated binaries.
+As a result of [Project Smoosh](../faq/smoosh-faq.md), the current version of `nym-gateway` binary also contains `nym-network-requester` functionality which can be enabled [by the operator](./gateway-setup.md#initialising-gateway-with-network-requester). This combination is a basis of Nym exit gateway node - an essential piece in our new setup. Please read more in our [Project Smoosh FAQ](../faq/smoosh-faq.md) and [Exit Gateways Page](../legal/exit-gateway.md). We recommend operators begin to shift their setups to this new combined node, instead of operating two separate binaries.
 ```
 > Any syntax in `<>` brackets is a user's unique variable. Exchange with a corresponding name without the `<>` brackets.
 
@@ -77,9 +77,9 @@ The `$(curl ifconfig.me)` command above returns your IP automatically using an e
 
 #### Initialising gateway with network requester
 
-As some of the [Project Smoosh](../faq/smoosh-faq.md) changes getting implemented, the gateways now can work also as a network requesters at the same time. Such combination creates an exit gateway node, needed for new more open setup. 
+As some of the [Project Smoosh](../faq/smoosh-faq.md) changes getting implemented, network requester is smooshed with gateways. Such combination creates an exit gateway node, needed for new more open setup. 
 
-An operator can initialise the gateway and network requester together by running:
+An operator can initialise the exit gateway functionality by:
 
 ```
 ./nym-gateway init --id <ID> --host $(curl ifconfig.me) --with-network-requester
@@ -94,11 +94,11 @@ If we follow the previous example with `<ID>` chosen `superexitgateway`, adding 
 ```
 ~~~
 
-You can see that the printed information besides identity and sphinx keys also includes a long string called address. This is the address to be provided to your local [socks5 client](https://nymtech.net/docs/clients/socks5-client.html) as a `--provider` if you wish to connect to your own exit gateway.  
+You can see that the printed information besides *identity* and *sphinx keys* also includes a long string called *address*. This is the address to be provided to your local [socks5 client](https://nymtech.net/docs/clients/socks5-client.html) as a `--provider` if you wish to connect to your own exit gateway.  
 
 #### Add network requester to existing gateway
 
-If you already have a gateway and got it [upgraded](./maintenance.md#upgrading-your-node) to the [newest version](./gateway-setup.md#current-version), you can easily add a network requester by stopping your gateway and running a command `setup-network-requester`.
+If you already run a gateway and got it [upgraded](./maintenance.md#upgrading-your-node) to the [newest version](./gateway-setup.md#current-version), you can easily change its functionality to exit gateway. PAuse the gateway and run a command `setup-network-requester`.
 
 See the options:
 
@@ -124,7 +124,7 @@ Run with `--enabled true` flag choosing `<ID>` as `supergateway`:
 ```
 ~~~
 
-In case there are any problems, you can also change it manually by editing the gateway config stored in `/home/user/.nym/gateways/<ID>/config/config.toml` where the line under `[network_requester]` needs to be edited from `false` to `true`, it shall look like this:  
+In case there are any problems, you can also change it manually by editing the gateway config stored in `/home/user/.nym/gateways/<ID>/config/config.toml` where the line under `[network_requester]` needs to be edited from `false` to `true`.
 
 ```
 [network_requester]
@@ -132,9 +132,9 @@ In case there are any problems, you can also change it manually by editing the g
 enabled = true
 ```
 
-Save, exit and restart your gateway.
+Save, exit and restart your gateway. Now it is a post-smooshed exit gateway.
 
-All information about your network requester connected to your gateway is in `/home/user/.nym/gateways/snus/config/network_requester_config.toml`.
+All information about network requester part of your exit gateway is in `/home/user/.nym/gateways/snus/config/network_requester_config.toml`.
 
 To read more about the configuration like whitelisted outbound requesters in `allowed.list` and other useful information, see the page [*Network Requester Whitelist*](network-requester-setup.md#using-your-network-requester).
 
@@ -149,7 +149,7 @@ Before you bond and run your gateway, please make sure the [firewall configurati
 
 You can bond your gateway via the Desktop wallet.
 
-1. Open your wallet, and head to the `Bonding` page, then select the node type `Gateway` and input your node details. Press `Next`
+1. Open your wallet, and head to the `Bonding` page, then select the node type `Gateway` and input your node details. Press `Next`.
 
 2. Enter the `Amount`, `Operating cost` and press `Next`.
 

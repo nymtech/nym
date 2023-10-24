@@ -9,7 +9,7 @@
 <!-- cmdrun ../../../../target/release/nym-gateway --version | grep "Build Version" | cut -b 21-26  -->
 ```
 
-As a result of [Project Smoosh](../faq/smoosh-faq.md), the current version of `nym-gateway` binary also contains `nym-network-requester` function which can be turned on or off byt the operator, to set the gateway as an exit node. More info on these changes [below](). 
+As a result of [Project Smoosh](../faq/smoosh-faq.md), the current version of `nym-gateway` binary also contains `nym-network-requester` function which can be turned on or off byt the operator, to set the gateway as an exit node. More info on these changes [below](./gateway-setup.md#initialising-gateway-with-network-requester). 
 
 ## Preliminary steps
 
@@ -83,12 +83,12 @@ An operator can initialise the gateway and network requester together by running
 ./nym-gateway init --id <ID> --host $(curl ifconfig.me) --with-network-requester
 ```
 
-If we follow the previous example with `<ID>` chosen `supergateway`, adding the `--with-network-requester` flag, the outcome will be:
+If we follow the previous example with `<ID>` chosen `superexitgateway`, adding the `--with-network-requester` flag, the outcome will be:
 
 
 ~~~admonish example collapsible=true title="Console output"
 ```
-<!-- cmdrun ../../../../target/release/nym-gateway init --id supergateway --host $(curl ifconfig.me) --with-network-requester -->
+<!-- cmdrun ../../../../target/release/nym-gateway init --id superexitgateway --host $(curl ifconfig.me) --with-network-requester -->
 ```
 ~~~
 
@@ -110,15 +110,15 @@ See the options:
 ```
 ~~~
 
-Run with `--enabled true` flag (using same placeholders like above):
+Run with `--enabled true` flag chosing `<ID>` as `supergateway`:
 
 ```
-./nym-gateway setup-network-requester --enabled true --id supergateway --host $(curl ifconfig.me)
+./nym-gateway setup-network-requester --enabled true --id supergateway 
 ```
 
 ~~~admonish example collapsible=true title="Console output"
 ```
-<!-- cmdrun ../../../../target/release/nym-gateway setup-network-requester --enabled true --id supergateway --host $(curl ifconfig.me)-->
+<!-- cmdrun ../../../../target/release/nym-gateway setup-network-requester --enabled true --id supergateway -->
 ```
 ~~~
 
@@ -198,7 +198,7 @@ If you want to bond your mix node via the CLI, then check out the [relevant sect
 The `run` command starts the gateway:
 
 ```
-./nym-gateway run --id <YOUR_ID>
+./nym-gateway run --id <ID>
 ```
 ## Maintenance
 

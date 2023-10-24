@@ -6,6 +6,7 @@ use futures::{
     FutureExt, StreamExt,
 };
 use log::*;
+use nym_compact_ecash::{setup::setup, PayInfo};
 use nym_gateway_requests::{
     iv::{IVConversionError, IV},
     types::{BinaryRequest, ServerResponse},
@@ -23,7 +24,6 @@ use std::{convert::TryFrom, process, time::Duration};
 
 use crate::node::{
     client_handling::{
-        bandwidth::Bandwidth,
         websocket::{
             connection_handler::{ClientDetails, FreshHandler},
             message_receiver::{
@@ -215,7 +215,7 @@ where
     ///
     /// # Arguments
     ///
-    /// * `enc_credential`: raw encrypted bandwidth credential to verify.
+    /// * `enc_credential`: raw encrypted credential to verify.
     /// * `iv`: fresh iv used for the credential.
     async fn handle_bandwidth(
         &mut self,
@@ -223,7 +223,7 @@ where
         iv: Vec<u8>,
     ) -> Result<ServerResponse, RequestHandlingError> {
         let iv = IV::try_from_bytes(&iv)?;
-        let credential = ClientControlRequest::try_from_enc_coconut_bandwidth_credential(
+        let credential = ClientControlRequest::try_from_enc_ecash_credential(
             enc_credential,
             &self.client.shared_keys,
             iv,
@@ -250,35 +250,37 @@ where
         let aggregated_verification_key =
             nym_credentials::obtain_aggregate_verification_key(&credential_api_clients).await?;
 
-        let aggregated_verification_key_converted =
-            nym_coconut_interface::VerificationKey::try_from(
-                aggregated_verification_key.to_bytes().as_slice(),
-            )
-            .expect("converstion should not fail"); //SW : TEMPORARY workaround for type conversion
+        let params = setup(100); //SW: TEMPORARY VALUE, Take from credential?
+        let pay_info = PayInfo { info: [0u8; 32] }; //SW: TEMPORARY VALUE, Take from credential?
 
-        if !credential.verify(&aggregated_verification_key_converted) {
-            return Err(RequestHandlingError::InvalidBandwidthCredential(
-                String::from("credential failed to verify on gateway"),
-            ));
-        }
+        credential
+            .payment()
+            .spend_verify(&params, &aggregated_verification_key, &pay_info)
+            .map_err(|_| {
+                RequestHandlingError::InvalidBandwidthCredential(String::from(
+                    "credential failed to verify on gateway",
+                ))
+            })?;
 
-        self.inner
-            .coconut_verifier
-            .release_funds(current_api_clients, &credential)
-            .await?;
+        // self.inner
+        //     .coconut_verifier
+        //     .release_funds(current_api_clients, &credential)
+        //     .await?;
 
-        let bandwidth = Bandwidth::from(credential);
-        let bandwidth_value = bandwidth.value();
+        // let bandwidth = Bandwidth::from(credential);
+        // let bandwidth_value = bandwidth.value();
 
-        if bandwidth_value > i64::MAX as u64 {
-            // note that this would have represented more than 1 exabyte,
-            // which is like 125,000 worth of hard drives so I don't think we have
-            // to worry about it for now...
-            warn!("Somehow we received bandwidth value higher than 9223372036854775807. We don't really want to deal with this now");
-            return Err(RequestHandlingError::UnsupportedBandwidthValue(
-                bandwidth_value,
-            ));
-        }
+        // if bandwidth_value > i64::MAX as u64 {
+        //     // note that this would have represented more than 1 exabyte,
+        //     // which is like 125,000 worth of hard drives so I don't think we have
+        //     // to worry about it for now...
+        //     warn!("Somehow we received bandwidth value higher than 9223372036854775807. We don't really want to deal with this now");
+        //     return Err(RequestHandlingError::UnsupportedBandwidthValue(
+        //         bandwidth_value,
+        //     ));
+        // }
+
+        let bandwidth_value = 500000;
 
         self.increase_bandwidth(bandwidth_value as i64).await?;
         let available_total = self.get_available_bandwidth().await?;
@@ -363,7 +365,7 @@ where
         match ClientControlRequest::try_from(raw_request) {
             Err(e) => RequestHandlingError::InvalidTextRequest(e).into_error_message(),
             Ok(request) => match request {
-                ClientControlRequest::BandwidthCredential { enc_credential, iv } => self
+                ClientControlRequest::EcashCredential { enc_credential, iv } => self
                     .handle_bandwidth(enc_credential, iv)
                     .await
                     .into_ws_message(),

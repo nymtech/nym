@@ -12,7 +12,7 @@ use crate::{cleanup_socket_message, try_decrypt_binary_message};
 use futures::{SinkExt, StreamExt};
 use log::*;
 use nym_bandwidth_controller::BandwidthController;
-use nym_coconut_interface::Credential;
+use nym_compact_ecash::scheme::EcashCredential;
 use nym_credential_storage::ephemeral_storage::EphemeralStorage as EphemeralCredentialStorage;
 use nym_credential_storage::storage::Storage as CredentialStorage;
 use nym_crypto::asymmetric::identity;
@@ -513,14 +513,14 @@ impl<C, St> GatewayClient<C, St> {
         }
     }
 
-    async fn claim_coconut_bandwidth(
+    async fn claim_ecash_bandwidth(
         &mut self,
-        credential: Credential,
+        credential: EcashCredential,
     ) -> Result<(), GatewayClientError> {
         let mut rng = OsRng;
         let iv = IV::new_random(&mut rng);
 
-        let msg = ClientControlRequest::new_enc_coconut_bandwidth_credential(
+        let msg = ClientControlRequest::new_enc_ecash_credential(
             &credential,
             self.shared_key.as_ref().unwrap(),
             iv,
@@ -567,18 +567,18 @@ impl<C, St> GatewayClient<C, St> {
             return self.try_claim_testnet_bandwidth().await;
         }
 
-        let (_payment, new_wallet, new_wallet_id) = self
+        let (credential, new_wallet, wallet_id) = self
             .bandwidth_controller
             .as_ref()
             .unwrap()
             .prepare_ecash_credential()
             .await?;
 
-        //self.claim_ecash_bandwidth(payment).await?;
+        self.claim_ecash_bandwidth(credential).await?;
         self.bandwidth_controller
             .as_ref()
             .unwrap()
-            .update_ecash_credential(new_wallet, new_wallet_id)
+            .update_ecash_credential(new_wallet, wallet_id)
             .await?;
 
         Ok(())

@@ -7,6 +7,7 @@ use crate::registration::handshake::SharedKeys;
 use crate::{GatewayMacSize, PROTOCOL_VERSION};
 use log::error;
 use nym_coconut_interface::Credential;
+use nym_compact_ecash::scheme::EcashCredential;
 use nym_crypto::generic_array::typenum::Unsigned;
 use nym_crypto::hmac::recompute_keyed_hmac_and_verify_tag;
 use nym_crypto::symmetric::stream_cipher;
@@ -137,6 +138,10 @@ pub enum ClientControlRequest {
         enc_credential: Vec<u8>,
         iv: Vec<u8>,
     },
+    EcashCredential {
+        enc_credential: Vec<u8>,
+        iv: Vec<u8>,
+    },
     ClaimFreeTestnetBandwidth,
 }
 
@@ -175,6 +180,30 @@ impl ClientControlRequest {
     ) -> Result<Credential, GatewayRequestsError> {
         let credential_bytes = shared_key.decrypt_tagged(&enc_credential, Some(iv.inner()))?;
         Credential::from_bytes(&credential_bytes)
+            .map_err(|_| GatewayRequestsError::MalformedEncryption)
+    }
+
+    pub fn new_enc_ecash_credential(
+        credential: &EcashCredential,
+        shared_key: &SharedKeys,
+        iv: IV,
+    ) -> Self {
+        let serialized_credential = credential.to_bytes();
+        let enc_credential = shared_key.encrypt_and_tag(&serialized_credential, Some(iv.inner()));
+
+        ClientControlRequest::EcashCredential {
+            enc_credential,
+            iv: iv.to_bytes(),
+        }
+    }
+
+    pub fn try_from_enc_ecash_credential(
+        enc_credential: Vec<u8>,
+        shared_key: &SharedKeys,
+        iv: IV,
+    ) -> Result<EcashCredential, GatewayRequestsError> {
+        let credential_bytes = shared_key.decrypt_tagged(&enc_credential, Some(iv.inner()))?;
+        EcashCredential::try_from(credential_bytes.as_slice())
             .map_err(|_| GatewayRequestsError::MalformedEncryption)
     }
 }

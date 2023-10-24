@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::BandwidthControllerError;
-use nym_compact_ecash::scheme::{Payment, Wallet};
+use nym_compact_ecash::scheme::{EcashCredential, Wallet};
 use nym_compact_ecash::setup::setup;
 use nym_compact_ecash::{Base58, PayInfo, SecretKeyUser};
 use nym_credential_storage::error::StorageError;
@@ -31,7 +31,7 @@ impl<C, St: Storage> BandwidthController<C, St> {
 
     pub async fn prepare_ecash_credential(
         &self,
-    ) -> Result<(Payment, String, i64), BandwidthControllerError>
+    ) -> Result<(EcashCredential, String, i64), BandwidthControllerError>
     where
         C: DkgQueryClient + Sync + Send,
         <St as Storage>::StorageError: Send + Sync + 'static,
@@ -67,7 +67,13 @@ impl<C, St: Storage> BandwidthController<C, St> {
             nb_tickets,
         )?;
 
-        Ok((payment, wallet.to_bs58(), ecash_credential.id))
+        let credential = EcashCredential::new(
+            payment, //pay_info,
+            //some_l_i_guess,
+            epoch_id,
+        );
+
+        Ok((credential, wallet.to_bs58(), ecash_credential.id))
     }
 
     pub async fn update_ecash_credential(

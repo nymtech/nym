@@ -16,6 +16,7 @@ thiserror = "1.0"
 sha2 = "0.9"
 bs58 = "0.4.0"
 serde = "1.0.189"
+getset = "0.1.1"
 
 [dev-dependencies]
 criterion = { version = "0.3", features = ["html_reports"] }

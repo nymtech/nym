@@ -94,6 +94,8 @@ impl TunDevice {
         );
 
         // Route packet to the correct peer.
+
+        // This is how wireguard does it, by consulting the AllowedIPs table.
         if false {
             let Ok(peers) = self.peers_by_ip.lock() else {
                 log::error!("Failed to lock peers_by_ip, aborting tun device read");
@@ -109,6 +111,7 @@ impl TunDevice {
             }
         }
 
+        // But we do it by consulting the NAT table.
         {
             if let Some(tag) = self.nat_table.get(&dst_addr) {
                 log::info!("Forward packet to wg tunnel with tag: {tag}");

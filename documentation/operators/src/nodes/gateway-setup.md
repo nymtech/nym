@@ -94,7 +94,7 @@ If we follow the previous example with `<ID>` chosen `superexitgateway`, adding 
 ```
 ~~~
 
-You can see that the printed information besides identity and sphinx keys also includes a long string called address. This is the addressto be provided to your local [socks5 client](https://nymtech.net/docs/clients/socks5-client.html) as a `--provider` if you wish to connect to your own exit gateway.  
+You can see that the printed information besides identity and sphinx keys also includes a long string called address. This is the address to be provided to your local [socks5 client](https://nymtech.net/docs/clients/socks5-client.html) as a `--provider` if you wish to connect to your own exit gateway.  
 
 #### Add network requester to existing gateway
 
@@ -112,7 +112,7 @@ See the options:
 ```
 ~~~
 
-Run with `--enabled true` flag chosing `<ID>` as `supergateway`:
+Run with `--enabled true` flag choosing `<ID>` as `supergateway`:
 
 ```
 ./nym-gateway setup-network-requester --enabled true --id supergateway 
@@ -136,7 +136,7 @@ Save, exit and restart your gateway.
 
 All information about your network requester connected to your gateway is in `/home/user/.nym/gateways/snus/config/network_requester_config.toml`.
 
-To read more about the configuration like whitelisted outbound requestes in `allowed.list` and other useful information, see the page [*Network Requester Whitelist*](network-requester-setup.md#using-your-network-requester).
+To read more about the configuration like whitelisted outbound requesters in `allowed.list` and other useful information, see the page [*Network Requester Whitelist*](network-requester-setup.md#using-your-network-requester).
 
 
 ```admonish info

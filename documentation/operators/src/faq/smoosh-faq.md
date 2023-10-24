@@ -74,9 +74,7 @@ From an operator standpoint, it shall just be a standard Nym upgrade, a new opti
 
 ### Are there any legal concerns for the operators?
 
-So far the general line is running a gateway is not illegal (unless you are in Iran, China, and a few other places) and due to encryption/mixing less risky than running a normal VPN node. For mix nodes, its very safe as they have no idea what packets they are mixing.  
+So far the general line is that running a gateway is not illegal (unless you are in Iran, China, and a few other places) and due to encryption/mixing less risky than running a normal VPN node. For mix nodes, it's very safe as they have "no idea" what packets they are mixing.  
 
-There are several legal questions regarding to this and we would like to ask you to fill this [short survey](https://nymtech.typeform.com/exitnode).
-
-We'll have a thorough legal analysis out before hand and various resources from and for the community. <!-- which we started to gather in the [Community Legal Forum](../legal/legal-forum.md). Uncomment when the legal forum get's merged -->
+There are several legal questions and analysis to be made for different jurisdictions. To be able to share resources and findings between the operators themselves we created a [Community Legal Forum](../legal/exit-gateway.md). 
 

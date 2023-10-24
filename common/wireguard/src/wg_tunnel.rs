@@ -121,6 +121,7 @@ impl WireGuardTunnel {
     }
 
     fn new_tag() -> u64 {
+        // TODO: check for collisions
         rand::thread_rng().next_u64()
     }
 

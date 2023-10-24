@@ -615,19 +615,25 @@ impl TryFrom<&[u8]> for Payment {
 pub struct EcashCredential {
     #[getset(get = "pub")]
     payment: Payment,
-    //pub pay_info : PayInfo, ?
+    #[getset(get = "pub")]
+    pay_info: PayInfo,
     //pub L : u64, ?
     #[getset(get = "pub")]
     epoch_id: u64,
 }
 
 impl EcashCredential {
-    pub fn new(payment: Payment, epoch_id: u64) -> Self {
-        EcashCredential { payment, epoch_id }
+    pub fn new(payment: Payment, pay_info: PayInfo, epoch_id: u64) -> Self {
+        EcashCredential {
+            payment,
+            pay_info,
+            epoch_id,
+        }
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut ecash_bytes = self.payment.to_bytes();
+        ecash_bytes.extend_from_slice(&self.pay_info.info);
         ecash_bytes.extend_from_slice(&self.epoch_id.to_be_bytes());
 
         ecash_bytes
@@ -637,14 +643,23 @@ impl EcashCredential {
 impl TryFrom<&[u8]> for EcashCredential {
     type Error = CompactEcashError;
     fn try_from(bytes: &[u8]) -> Result<Self> {
-        if bytes.len() < 8 {
+        if bytes.len() < 32 + 8 {
             return Err(CompactEcashError::Deserialization(
                 "Invalid byte array for EcashCredential deserialization".to_string(),
             ));
         }
-        let payment_bytes = &bytes[..bytes.len() - 8];
+        let payment_bytes = &bytes[..bytes.len() - 32 - 8];
         let payment = Payment::try_from(payment_bytes)?;
+        let pay_info = PayInfo {
+            info: bytes[bytes.len() - 32 - 8..bytes.len() - 8]
+                .try_into()
+                .unwrap(),
+        };
         let epoch_id = u64::from_be_bytes(bytes[bytes.len() - 8..].try_into().unwrap());
-        Ok(EcashCredential { payment, epoch_id })
+        Ok(EcashCredential {
+            payment,
+            pay_info,
+            epoch_id,
+        })
     }
 }

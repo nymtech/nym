@@ -2,14 +2,16 @@
 
 > The Nym gateway was built in the [building nym](../binaries/building-nym.md) section. If you haven't yet built Nym and want to run the code, go there first.
 
+
+```admonish info
+As a result of [Project Smoosh](../faq/smoosh-faq.md), the current version of `nym-gateway` binary also contains `nym-network-requester` function which can be turned on or off [by the operator](./gateway-setup.md#initialising-gateway-with-network-requester). This combination is a basis of Nym exit gateway node - an essential piece in our new setup. Please read more in our [Project Smoosh FAQ](../faq/smoosh-faq.md) and [Exit Gateways Page](../legal/exit-gateway.md). We recommend operators to start shifting to that model instead of running gateway and network requester as two separated binaries.
+```
 > Any syntax in `<>` brackets is a user's unique variable. Exchange with a corresponding name without the `<>` brackets.
 
 ## Current version
 ```
 <!-- cmdrun ../../../../target/release/nym-gateway --version | grep "Build Version" | cut -b 21-26  -->
 ```
-
-As a result of [Project Smoosh](../faq/smoosh-faq.md), the current version of `nym-gateway` binary also contains `nym-network-requester` function which can be turned on or off byt the operator, to set the gateway as an exit node. More info on these changes [below](./gateway-setup.md#initialising-gateway-with-network-requester). 
 
 ## Preliminary steps
 
@@ -133,6 +135,9 @@ enabled = true
 Save, exit and restart your gateway.
 
 All information about your network requester connected to your gateway is in `/home/user/.nym/gateways/snus/config/network_requester_config.toml`.
+
+To read more about the configuration like whitelisted outbound requestes in `allowed.list` and other useful information, see the page [*Network Requester Whitelist*](network-requester-setup.md#using-your-network-requester).
+
 
 ```admonish info
 Before you bond and run your gateway, please make sure the [firewall configuration](./maintenance.md#configure-your-firewall) is setup so your gateway can be reached from the outside.

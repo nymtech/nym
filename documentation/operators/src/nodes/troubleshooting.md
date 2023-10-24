@@ -301,6 +301,15 @@ You don't have to do any additional configuration for your node to implement thi
 
 Check if your [firewall status](./maintenance.md#configure-your-firewall) is active and if the needed ports are allowed.
 
+### My gateway (with network requester) "is still not online..."
+
+Remember the epoch takes up to 1h. It's important to run your node right after bonding so it responds positively on our API ping tests. Otherwise it may be blacklisted.
+
+You may want to diconnect the network requester and let it run as a gatewy alone for some time to regain better routing score. 
+
+If it won't help, simply unbond, delete the config and initialize a new one.
+
+
 ## Validators
 
 ### Common reasons for your validator being jailed

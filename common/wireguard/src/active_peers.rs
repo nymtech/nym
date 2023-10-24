@@ -9,8 +9,27 @@ use tokio::sync::mpsc::{self};
 
 use crate::event::Event;
 
-pub(crate) type PeerEventSender = mpsc::UnboundedSender<Event>;
-pub(crate) type PeerEventReceiver = mpsc::UnboundedReceiver<Event>;
+// Channels that are used to communicate with the various tunnels
+#[derive(Clone)]
+pub struct PeerEventSender(mpsc::UnboundedSender<Event>);
+pub(crate) struct PeerEventReceiver(mpsc::UnboundedReceiver<Event>);
+
+impl PeerEventSender {
+    pub(crate) fn send(&self, event: Event) -> Result<(), mpsc::error::SendError<Event>> {
+        self.0.send(event)
+    }
+}
+
+impl PeerEventReceiver {
+    pub(crate) async fn recv(&mut self) -> Option<Event> {
+        self.0.recv().await
+    }
+}
+
+pub(crate) fn peer_event_channel() -> (PeerEventSender, PeerEventReceiver) {
+    let (tx, rx) = mpsc::unbounded_channel();
+    (PeerEventSender(tx), PeerEventReceiver(rx))
+}
 
 pub(crate) type PeersByKey = DashMap<x25519::PublicKey, PeerEventSender>;
 pub(crate) type PeersByAddr = DashMap<SocketAddr, PeerEventSender>;
@@ -33,7 +52,7 @@ impl ActivePeers {
         &self,
         public_key: x25519::PublicKey,
         addr: SocketAddr,
-        peer_tx: mpsc::UnboundedSender<Event>,
+        peer_tx: PeerEventSender,
     ) {
         self.active_peers.insert(public_key, peer_tx.clone());
         self.active_peers_by_addr.insert(addr, peer_tx);

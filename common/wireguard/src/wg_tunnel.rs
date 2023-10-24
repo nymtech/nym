@@ -16,7 +16,7 @@ use tokio::{
 };
 
 use crate::{
-    active_peers::{PeerEventReceiver, PeerEventSender},
+    active_peers::{PeerEventReceiver, PeerEventSender, peer_event_channel},
     error::WgError,
     event::Event,
     network_table::NetworkTable,
@@ -101,7 +101,7 @@ impl WireGuardTunnel {
         ));
 
         // Channels with incoming data that is received by the main event loop
-        let (peer_tx, peer_rx) = mpsc::unbounded_channel();
+        let (peer_tx, peer_rx) = peer_event_channel();
 
         // Signal close tunnel
         let (close_tx, close_rx) = broadcast::channel(1);

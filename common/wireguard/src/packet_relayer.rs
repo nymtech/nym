@@ -2,7 +2,10 @@ use std::{collections::HashMap, sync::Arc};
 
 use tokio::sync::mpsc::{self};
 
-use crate::{event::Event, tun_task_channel::TunTaskTx};
+use crate::{
+    event::Event,
+    tun_task_channel::{TunTaskResponseRx, TunTaskTx},
+};
 
 // The tunnels send packets to the packet relayer, which then relays it to the tun device. And
 // conversely, it's where the tun device send responses to, which are relayed back to the correct
@@ -15,7 +18,7 @@ pub(crate) struct PacketRelayer {
     tun_task_tx: TunTaskTx,
 
     // Receive responses from the tun device
-    // tun_task_rx: TunTaskRx,
+    tun_task_response_rx: TunTaskResponseRx,
 
     // After receiving from the tun device, relay back to the correct tunnel
     peers_by_tag: Arc<std::sync::Mutex<HashMap<u64, mpsc::UnboundedSender<Event>>>>,
@@ -24,7 +27,7 @@ pub(crate) struct PacketRelayer {
 impl PacketRelayer {
     pub(crate) fn new(
         tun_task_tx: TunTaskTx,
-        // tun_task_rx: TunTaskRx,
+        tun_task_response_rx: TunTaskResponseRx,
         peers_by_tag: Arc<std::sync::Mutex<HashMap<u64, mpsc::UnboundedSender<Event>>>>,
     ) -> (Self, mpsc::Sender<(u64, Vec<u8>)>) {
         let (packet_tx, packet_rx) = mpsc::channel(16);
@@ -32,7 +35,7 @@ impl PacketRelayer {
             Self {
                 packet_rx,
                 tun_task_tx,
-                // tun_task_rx,
+                tun_task_response_rx,
                 peers_by_tag,
             },
             packet_tx,

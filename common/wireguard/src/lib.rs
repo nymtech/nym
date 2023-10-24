@@ -39,11 +39,15 @@ pub async fn start_wireguard(
     let peers_by_tag = Arc::new(std::sync::Mutex::new(wg_tunnel::PeersByTag::new()));
 
     // Start the tun device that is used to relay traffic outbound
-    let (tun, tun_task_tx) = tun_device::TunDevice::new(peers_by_ip.clone(), peers_by_tag.clone());
+    let (tun, tun_task_tx, tun_task_response_rx) =
+        tun_device::TunDevice::new(peers_by_ip.clone(), peers_by_tag.clone());
     tun.start();
 
-    let (packet_relayer, packet_tx) =
-        packet_relayer::PacketRelayer::new(tun_task_tx.clone(), peers_by_tag.clone());
+    let (packet_relayer, packet_tx) = packet_relayer::PacketRelayer::new(
+        tun_task_tx.clone(),
+        tun_task_response_rx,
+        peers_by_tag.clone(),
+    );
     packet_relayer.start();
 
     // Start the UDP listener that clients connect to

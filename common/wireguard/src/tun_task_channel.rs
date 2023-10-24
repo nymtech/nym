@@ -4,7 +4,6 @@ pub(crate) type TunTaskPayload = (u64, Vec<u8>);
 
 #[derive(Clone)]
 pub struct TunTaskTx(mpsc::UnboundedSender<TunTaskPayload>);
-
 pub(crate) struct TunTaskRx(mpsc::UnboundedReceiver<TunTaskPayload>);
 
 impl TunTaskTx {
@@ -29,7 +28,7 @@ pub(crate) fn tun_task_channel() -> (TunTaskTx, TunTaskRx) {
 
 // Send responses back from the tun device back to the PacketRelayer
 pub(crate) struct TunTaskResponseTx(mpsc::Sender<TunTaskPayload>);
-pub(crate) struct TunTaskResponseRx(mpsc::Receiver<TunTaskPayload>);
+pub struct TunTaskResponseRx(mpsc::Receiver<TunTaskPayload>);
 
 impl TunTaskResponseTx {
     pub(crate) async fn send(
@@ -44,4 +43,9 @@ impl TunTaskResponseRx {
     pub(crate) async fn recv(&mut self) -> Option<TunTaskPayload> {
         self.0.recv().await
     }
+}
+
+pub(crate) fn tun_task_response_channel() -> (TunTaskResponseTx, TunTaskResponseRx) {
+    let (tun_task_tx, tun_task_rx) = tokio::sync::mpsc::channel(16);
+    (TunTaskResponseTx(tun_task_tx), TunTaskResponseRx(tun_task_rx))
 }

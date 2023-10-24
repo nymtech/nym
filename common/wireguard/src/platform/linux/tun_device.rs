@@ -11,7 +11,10 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use crate::{
     event::Event,
     setup::{TUN_BASE_NAME, TUN_DEVICE_ADDRESS, TUN_DEVICE_NETMASK},
-    tun_task_channel::{tun_task_channel, TunTaskPayload, TunTaskResponseTx, TunTaskRx, TunTaskTx},
+    tun_task_channel::{
+        tun_task_channel, tun_task_response_channel, TunTaskPayload, TunTaskResponseRx,
+        TunTaskResponseTx, TunTaskRx, TunTaskTx,
+    },
     udp_listener::PeersByIp,
     wg_tunnel::PeersByTag,
 };
@@ -52,7 +55,7 @@ impl TunDevice {
     pub fn new(
         peers_by_ip: Arc<std::sync::Mutex<PeersByIp>>,
         peers_by_tag: Arc<std::sync::Mutex<PeersByTag>>,
-    ) -> (Self, TunTaskTx) {
+    ) -> (Self, TunTaskTx, TunTaskResponseRx) {
         let tun = setup_tokio_tun_device(
             format!("{TUN_BASE_NAME}%d").as_str(),
             TUN_DEVICE_ADDRESS.parse().unwrap(),
@@ -62,16 +65,18 @@ impl TunDevice {
 
         // Channels to communicate with the other tasks
         let (tun_task_tx, tun_task_rx) = tun_task_channel();
+        let (tun_task_response_tx, tun_task_response_rx) = tun_task_response_channel();
 
         let tun_device = TunDevice {
             tun_task_rx,
+            tun_task_response_tx,
             tun,
             peers_by_ip,
             nat_table: HashMap::new(),
             peers_by_tag,
         };
 
-        (tun_device, tun_task_tx)
+        (tun_device, tun_task_tx, tun_task_response_rx)
     }
 
     fn handle_tun_read(&self, packet: &[u8]) {

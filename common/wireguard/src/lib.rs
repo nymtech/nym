@@ -42,6 +42,10 @@ pub async fn start_wireguard(
     let (tun, tun_task_tx, tun_task_response_rx) = tun_device::TunDevice::new(peers_by_ip.clone());
     tun.start();
 
+    // If we want to have the tun device on a separate host, it's the tun_task and
+    // tun_task_response channels that needs to be sent over the network to the host where the tun
+    // device is running.
+
     // The packet relayer's responsibility is to route packets between the correct tunnel and the
     // tun device. The tun device may or may not be on a separate host, which is why we can't do
     // this routing in the tun device itself.

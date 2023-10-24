@@ -7,6 +7,7 @@ use boringtun::{
 };
 use bytes::Bytes;
 use log::{debug, error, info, warn};
+use rand::RngCore;
 use tap::TapFallible;
 use tokio::{
     net::UdpSocket,
@@ -90,7 +91,7 @@ impl WireGuardTunnel {
                 index,
                 rate_limiter,
             )
-            .unwrap(),
+            .expect("failed to create Tunn instance"),
         ));
 
         // Channels with incoming data that is received by the main event loop
@@ -102,10 +103,7 @@ impl WireGuardTunnel {
         let mut allowed_ips = NetworkTable::new();
         allowed_ips.insert(peer_allowed_ips, ());
 
-        // random u64
-        use rand::RngCore;
-        let mut rng = rand::rngs::OsRng;
-        let tag = rng.next_u64();
+        let tag = Self::new_tag();
 
         let tunnel = WireGuardTunnel {
             peer_rx,
@@ -120,6 +118,10 @@ impl WireGuardTunnel {
         };
 
         (tunnel, peer_tx, tag)
+    }
+
+    fn new_tag() -> u64 {
+        rand::thread_rng().next_u64()
     }
 
     fn close(&self) {

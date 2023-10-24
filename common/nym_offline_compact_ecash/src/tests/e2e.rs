@@ -70,7 +70,8 @@ fn main() -> Result<(), CompactEcashError> {
     assert_eq!(aggr_wallet, wallet);
 
     // Let's try to spend some coins
-    let payinfo = PayInfo { payinfo: [6u8; 88] };
+    let provider_keypair = generate_keypair_user(&grparams);
+    let payinfo = PayInfo::generate_payinfo(provider_keypair.public_key());
     let spend_vv = 1;
 
     let (payment, _) = aggr_wallet.spend(

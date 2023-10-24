@@ -91,7 +91,8 @@ mod tests {
         ).unwrap();
 
         // Let's try to spend some coins
-        let pay_info1 = PayInfo { payinfo: [6u8; 88] };
+        let provider_keypair = generate_keypair_user(&grparams);
+        let pay_info1 = PayInfo::generate_payinfo(provider_keypair.public_key());
         let spend_vv = 1;
 
         let (payment1, _upd_wallet) = aggr_wallet.spend(
@@ -162,7 +163,8 @@ mod tests {
         ).unwrap();
 
         // Let's try to spend some coins
-        let pay_info1 = PayInfo { payinfo: [6u8; 88] };
+        let provider_keypair = generate_keypair_user(&grparams);
+        let pay_info1 = PayInfo::generate_payinfo(provider_keypair.public_key());
         let spend_vv = 1;
 
         let (payment1, upd_wallet) = aggr_wallet.spend(
@@ -179,7 +181,7 @@ mod tests {
             .unwrap());
 
 
-        let pay_info2 = PayInfo { payinfo: [7u8; 88] };
+        let pay_info2 = PayInfo::generate_payinfo(provider_keypair.public_key());
         let (payment2, _) = upd_wallet.spend(
             &params,
             &verification_key,
@@ -253,7 +255,8 @@ mod tests {
         ).unwrap();
 
         // Let's try to spend some coins
-        let pay_info1 = PayInfo { payinfo: [6u8; 88] };
+        let provider_keypair = generate_keypair_user(&grp);
+        let pay_info1 = PayInfo::generate_payinfo(provider_keypair.public_key());
         let spend_vv = 1;
 
         let (payment1, _upd_wallet) = aggr_wallet.spend(
@@ -273,7 +276,7 @@ mod tests {
         let current_l = aggr_wallet.l.get();
         aggr_wallet.l.set(current_l - 1);
 
-        let pay_info2 = PayInfo { payinfo: [7u8; 88] };
+        let pay_info2 = PayInfo::generate_payinfo(provider_keypair.public_key());
 
         let (payment2, _) = aggr_wallet.spend(
             &params,
@@ -347,7 +350,8 @@ mod tests {
         ).unwrap();
 
         // Let's try to spend some coins
-        let pay_info1 = PayInfo { payinfo: [6u8; 88] };
+        let provider_keypair = generate_keypair_user(&grp);
+        let pay_info1 = PayInfo::generate_payinfo(provider_keypair.public_key());
         let spend_vv = 10;
 
         let (payment1, _) = aggr_wallet.spend(
@@ -367,7 +371,7 @@ mod tests {
         let current_l = aggr_wallet.l.get();
         aggr_wallet.l.set(current_l - 10);
 
-        let pay_info2 = PayInfo { payinfo: [7u8; 88] };
+        let pay_info2 = PayInfo::generate_payinfo(provider_keypair.public_key());
         let (payment2, _) = aggr_wallet.spend(
             &params,
             &verification_key,

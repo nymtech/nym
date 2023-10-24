@@ -23,7 +23,7 @@ jobs:
         with:
           node-version: 18
       - name: Install Yarn
-        run: npm install -g yarn
+        run: npm install -g yarn typescript
       - name: Install dependencies
         run: yarn
       - name: Type-check

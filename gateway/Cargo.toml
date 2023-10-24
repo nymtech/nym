@@ -31,8 +31,7 @@ humantime-serde = "1.0.1"
 ipnetwork = "0.16"
 lazy_static = "1.4.0"
 log = { workspace = true }
-once_cell = "1.7.2"
-pretty_env_logger = "0.4"
+once_cell = { workspace = true }
 rand = "0.7"
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
@@ -51,9 +50,9 @@ tokio = { workspace = true, features = [
     "fs",
     "time",
 ] }
-tokio-stream = { version = "0.1.11", features = ["fs"] }
-tokio-tungstenite = { version = "0.20.1" }
-tokio-util = { version = "0.7.4", features = ["codec"] }
+tokio-stream = { workspace = true, features = ["fs"] }
+tokio-tungstenite = { workspace = true }
+tokio-util = { workspace = true, features = ["codec"] }
 url = { workspace = true, features = ["serde"] }
 zeroize = { workspace = true }
 

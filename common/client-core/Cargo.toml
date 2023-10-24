@@ -47,7 +47,7 @@ nym-credential-storage = { path = "../credential-storage" }
 nym-network-defaults = { path = "../network-defaults" }
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio-stream]
-version = "0.1.11"
+workspace = true
 features = ["time"]
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio]
@@ -55,7 +55,7 @@ workspace = true
 features = ["time"]
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio-tungstenite]
-version = "0.20.1"
+workspace = true
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.sqlx]
 version = "0.6.2"

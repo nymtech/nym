@@ -10,7 +10,7 @@ edition = "2021"
 futures = { workspace = true }
 log = { workspace = true }
 tokio = { version = "1.24.1", features = ["time", "net", "rt"] }
-tokio-util = { version = "0.7.4", features = ["codec"] }
+tokio-util = { workspace = true, features = ["codec"] }
 
 # internal
 nym-sphinx = { path = "../../nymsphinx" }

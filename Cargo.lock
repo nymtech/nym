@@ -6521,7 +6521,6 @@ dependencies = [
  "nym-validator-client",
  "nym-wireguard",
  "once_cell",
- "pretty_env_logger",
  "rand 0.7.3",
  "rand 0.8.5",
  "serde",

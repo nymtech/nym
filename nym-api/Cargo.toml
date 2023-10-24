@@ -38,13 +38,13 @@ serde_json = { workspace = true }
 tap = "1.0"
 thiserror = { workspace = true }
 time = { workspace = true, features = ["serde-human-readable", "parsing"] }
-tokio = { version = "1.24.1", features = [
+tokio = { workspace = true, features = [
     "rt-multi-thread",
     "macros",
     "signal",
     "time",
 ] }
-tokio-stream = "0.1.11"
+tokio-stream = { workspace = true }
 url = { workspace = true }
 
 ts-rs = { workspace = true, optional = true}

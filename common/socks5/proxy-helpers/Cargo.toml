@@ -9,7 +9,7 @@ edition = "2021"
 [dependencies]
 bytes = "1.0"
 tokio = { version = "1.24.1", features = [ "net", "io-util", "sync", "macros", "time", "rt-multi-thread" ] }
-tokio-util = { version = "0.7.4", features = [ "io" ] } # reason for getting this guy is to to able to port to tokio 1.X more quickly by being able to use
+tokio-util = { workspace = true, features = [ "io" ] } # reason for getting this guy is to to able to port to tokio 1.X more quickly by being able to use
 # their `read_buf` [from the util crate] replacement rather than having to rethink/reimplement `AvailableReader` with the new AsyncRead trait definition.
 # In the long run, the dependency should probably get removed in favour of pure-tokio implementation, but for time being it's fine.
 futures = { workspace = true }

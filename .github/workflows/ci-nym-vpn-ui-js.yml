@@ -23,8 +23,9 @@ jobs:
         with:
           node-version: 18
       - name: Install Yarn
-        run: npm install -g yarn typescript
+        run: npm install -g yarn
       - name: Install dependencies
+        working-directory: nym-vpn/ui
         run: yarn
       - name: Type-check
         working-directory: nym-vpn/ui

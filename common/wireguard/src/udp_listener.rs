@@ -18,7 +18,7 @@ use tokio::{
 };
 
 use crate::{
-    active_peers::ActivePeers,
+    active_peers::{ActivePeers, PeerEventSender},
     error::WgError,
     event::Event,
     network_table::NetworkTable,
@@ -30,7 +30,7 @@ use crate::{
 const MAX_PACKET: usize = 65535;
 
 // Registered peers
-pub(crate) type PeersByIp = NetworkTable<mpsc::UnboundedSender<Event>>;
+pub(crate) type PeersByIp = NetworkTable<PeerEventSender>;
 
 async fn add_test_peer(registered_peers: &mut RegisteredPeers) {
     let peer_static_public = PeerPublicKey::new(setup::peer_static_public_key());

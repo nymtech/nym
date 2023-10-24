@@ -4,6 +4,7 @@ use tap::TapFallible;
 use tokio::sync::mpsc::{self};
 
 use crate::{
+    active_peers::PeerEventSender,
     event::Event,
     tun_task_channel::{TunTaskResponseRx, TunTaskTx},
 };
@@ -22,14 +23,14 @@ pub(crate) struct PacketRelayer {
     tun_task_response_rx: TunTaskResponseRx,
 
     // After receiving from the tun device, relay back to the correct tunnel
-    peers_by_tag: Arc<std::sync::Mutex<HashMap<u64, mpsc::UnboundedSender<Event>>>>,
+    peers_by_tag: Arc<std::sync::Mutex<HashMap<u64, PeerEventSender>>>,
 }
 
 impl PacketRelayer {
     pub(crate) fn new(
         tun_task_tx: TunTaskTx,
         tun_task_response_rx: TunTaskResponseRx,
-        peers_by_tag: Arc<std::sync::Mutex<HashMap<u64, mpsc::UnboundedSender<Event>>>>,
+        peers_by_tag: Arc<std::sync::Mutex<HashMap<u64, PeerEventSender>>>,
     ) -> (Self, mpsc::Sender<(u64, Vec<u8>)>) {
         let (packet_tx, packet_rx) = mpsc::channel(16);
         (

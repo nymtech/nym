@@ -9,8 +9,11 @@ use tokio::sync::mpsc::{self};
 
 use crate::event::Event;
 
-pub(crate) type PeersByKey = DashMap<x25519::PublicKey, mpsc::UnboundedSender<Event>>;
-pub(crate) type PeersByAddr = DashMap<SocketAddr, mpsc::UnboundedSender<Event>>;
+pub(crate) type PeerEventSender = mpsc::UnboundedSender<Event>;
+pub(crate) type PeerEventReceiver = mpsc::UnboundedReceiver<Event>;
+
+pub(crate) type PeersByKey = DashMap<x25519::PublicKey, PeerEventSender>;
+pub(crate) type PeersByAddr = DashMap<SocketAddr, PeerEventSender>;
 
 #[derive(Default)]
 pub(crate) struct ActivePeers {
@@ -39,14 +42,14 @@ impl ActivePeers {
     pub(crate) fn get_by_key_mut(
         &self,
         public_key: &x25519::PublicKey,
-    ) -> Option<RefMut<'_, x25519::PublicKey, mpsc::UnboundedSender<Event>>> {
+    ) -> Option<RefMut<'_, x25519::PublicKey, PeerEventSender>> {
         self.active_peers.get_mut(public_key)
     }
 
     pub(crate) fn get_by_addr(
         &self,
         addr: &SocketAddr,
-    ) -> Option<Ref<'_, SocketAddr, mpsc::UnboundedSender<Event>>> {
+    ) -> Option<Ref<'_, SocketAddr, PeerEventSender>> {
         self.active_peers_by_addr.get(addr)
     }
 }

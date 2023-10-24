@@ -15,18 +15,24 @@ use tokio::{
     time::timeout,
 };
 
-use crate::{error::WgError, event::Event, network_table::NetworkTable, registered_peers::PeerIdx};
+use crate::{
+    active_peers::{PeerEventReceiver, PeerEventSender},
+    error::WgError,
+    event::Event,
+    network_table::NetworkTable,
+    registered_peers::PeerIdx,
+};
 
 const HANDSHAKE_MAX_RATE: u64 = 10;
 
 const MAX_PACKET: usize = 65535;
 
 // We index the tunnels by tag
-pub(crate) type PeersByTag = HashMap<u64, mpsc::UnboundedSender<Event>>;
+pub(crate) type PeersByTag = HashMap<u64, PeerEventSender>;
 
 pub struct WireGuardTunnel {
     // Incoming data from the UDP socket received in the main event loop
-    peer_rx: mpsc::UnboundedReceiver<Event>,
+    peer_rx: PeerEventReceiver,
 
     // UDP socket used for sending data
     udp: Arc<UdpSocket>,
@@ -68,7 +74,7 @@ impl WireGuardTunnel {
         peer_allowed_ips: ip_network::IpNetwork,
         // rate_limiter: Option<RateLimiter>,
         packet_tx: mpsc::Sender<(u64, Vec<u8>)>,
-    ) -> (Self, mpsc::UnboundedSender<Event>, u64) {
+    ) -> (Self, PeerEventSender, u64) {
         let local_addr = udp.local_addr().unwrap();
         let peer_addr = udp.peer_addr();
         log::info!("New wg tunnel: endpoint: {endpoint}, local_addr: {local_addr}, peer_addr: {peer_addr:?}");
@@ -329,7 +335,7 @@ pub(crate) fn start_wg_tunnel(
     packet_tx: mpsc::Sender<(u64, Vec<u8>)>,
 ) -> (
     tokio::task::JoinHandle<x25519::PublicKey>,
-    mpsc::UnboundedSender<Event>,
+    PeerEventSender,
     u64,
 ) {
     let (mut tunnel, peer_tx, tag) = WireGuardTunnel::new(

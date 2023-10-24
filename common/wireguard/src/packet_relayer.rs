@@ -14,7 +14,7 @@ use crate::{
 // tunnel.
 pub(crate) struct PacketRelayer {
     // Receive packets from the various tunnels
-    packet_rx: mpsc::Receiver<(u64, Vec<u8>)>,
+    packet_rx: PacketRelayReceiver,
 
     // After receive from tunnels, send to the tun device
     tun_task_tx: TunTaskTx,
@@ -26,12 +26,15 @@ pub(crate) struct PacketRelayer {
     peers_by_tag: Arc<std::sync::Mutex<HashMap<u64, PeerEventSender>>>,
 }
 
+pub(crate) type PacketRelaySender = mpsc::Sender<(u64, Vec<u8>)>;
+pub(crate) type PacketRelayReceiver = mpsc::Receiver<(u64, Vec<u8>)>;
+
 impl PacketRelayer {
     pub(crate) fn new(
         tun_task_tx: TunTaskTx,
         tun_task_response_rx: TunTaskResponseRx,
         peers_by_tag: Arc<std::sync::Mutex<HashMap<u64, PeerEventSender>>>,
-    ) -> (Self, mpsc::Sender<(u64, Vec<u8>)>) {
+    ) -> (Self, PacketRelaySender) {
         let (packet_tx, packet_rx) = mpsc::channel(16);
         (
             Self {

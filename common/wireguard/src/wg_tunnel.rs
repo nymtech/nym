@@ -16,7 +16,7 @@ use tokio::{
 };
 
 use crate::{
-    active_peers::{PeerEventReceiver, PeerEventSender, peer_event_channel},
+    active_peers::{peer_event_channel, PeerEventReceiver, PeerEventSender},
     error::WgError,
     event::Event,
     network_table::NetworkTable,

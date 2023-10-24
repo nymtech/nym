@@ -6,12 +6,14 @@ use group::Curve;
 use crate::Attribute;
 use crate::error::{CompactEcashError, Result};
 use crate::proofs::proof_spend::{SpendInstance, SpendProof, SpendWitness};
-use crate::scheme::keygen::{SecretKeyUser, VerificationKeyAuth};
+use crate::scheme::keygen::{SecretKeyUser, VerificationKeyAuth, PublicKeyUser};
 use crate::scheme::setup::{GroupParameters, Parameters};
 use crate::utils::{
     check_bilinear_pairing, hash_to_scalar, Signature, SignerIndex,
     try_deserialize_g1_projective, try_deserialize_scalar, try_deserialize_g2_projective,
 };
+use chrono::{Utc, Timelike};
+use rand::{Rng, thread_rng};
 
 pub mod aggregation;
 pub mod identify;
@@ -310,6 +312,24 @@ pub fn compute_kappa(
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct PayInfo {
     pub info: [u8; 32],
+}
+
+pub fn generate_payinfo(provider_pk: PublicKeyUser) -> Vec<u8>{
+    let mut rng = thread_rng();
+    let mut rbytes = [0u8; 32];
+    rng.fill(&mut rbytes);
+
+    let timestamp = Utc::now().timestamp();
+    let timestamp_bytes: [u8; 8] = timestamp.to_be_bytes();
+
+    let ppk_bytes = provider_pk.pk.to_affine().to_compressed();
+
+    let mut payinfo = Vec::with_capacity(32 + 8 +48);
+    payinfo.extend_from_slice(&rbytes);
+    payinfo.extend_from_slice(&timestamp_bytes);
+    payinfo.extend_from_slice(&ppk_bytes);
+    
+    payinfo
 }
 
 #[derive(Debug, Clone, PartialEq)]

@@ -18,7 +18,7 @@ use crate::{DirectSigningReqwestRpcNyxdClient, QueryReqwestRpcNyxdClient, Reqwes
 use async_trait::async_trait;
 use cosmrs::cosmwasm;
 use cosmrs::tendermint::{abci, evidence::Evidence, Genesis};
-use cosmrs::tx::{Msg, Raw, SignDoc};
+use cosmrs::tx::{Raw, SignDoc};
 use cosmwasm_std::Addr;
 use nym_network_defaults::{ChainDetails, NymNetworkDetails};
 use serde::{de::DeserializeOwned, Serialize};
@@ -34,11 +34,13 @@ pub use crate::nyxd::fee::Fee;
 pub use crate::rpc::TendermintRpcClient;
 pub use coin::Coin;
 pub use cosmrs::bank::MsgSend;
+pub use cosmrs::rpc::query::Query;
 pub use cosmrs::tendermint::abci::{response::DeliverTx, Event, EventAttribute};
 pub use cosmrs::tendermint::block::Height;
 pub use cosmrs::tendermint::hash::{self, Algorithm, Hash};
 pub use cosmrs::tendermint::validator::Info as TendermintValidatorInfo;
 pub use cosmrs::tendermint::Time as TendermintTime;
+pub use cosmrs::tx::Msg;
 pub use cosmrs::tx::{self};
 pub use cosmrs::Coin as CosmosCoin;
 pub use cosmrs::Gas;
@@ -57,7 +59,6 @@ use crate::http_client;
 use crate::{DirectSigningHttpRpcNyxdClient, QueryHttpRpcNyxdClient};
 #[cfg(feature = "http-client")]
 use cosmrs::rpc::{HttpClient, HttpClientUrl};
-use tendermint_rpc::query::Query;
 
 pub mod coin;
 pub mod contract_traits;

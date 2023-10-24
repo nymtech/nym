@@ -8,6 +8,7 @@ use crate::nyxd::cosmwasm_client::types::{
     Account, CodeDetails, Contract, ContractCodeId, SequenceResponse, SimulateResponse,
 };
 use crate::nyxd::error::NyxdError;
+use crate::nyxd::Query;
 use crate::rpc::TendermintRpcClient;
 use async_trait::async_trait;
 use cosmrs::cosmwasm::{CodeInfoResponse, ContractCodeHistoryEntry};
@@ -35,7 +36,6 @@ use std::convert::TryFrom;
 use std::time::Duration;
 use tendermint_rpc::{
     endpoint::{block::Response as BlockResponse, broadcast, tx::Response as TxResponse},
-    query::Query,
     Order,
 };
 

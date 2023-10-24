@@ -291,7 +291,7 @@ Finally, restart your node. You should see if the mix node is using the port you
 
 ### What is `verloc` and do I have to configure my mix node to implement it?
 
-`verloc` is short for _verifiable location_. Mixnodes and gateways now measure speed-of-light distances to each other, in an attempt to verify how far apart they are. In later releases, this will allow us to algorithmically verify node locations in a non-fakeable and trustworthy manner.
+`verloc` is short for _verifiable location_. Mixnodes and gateways now measure speed-of-light distances to each other, in an attempt to verify how far apart they are. In later releases, this will allow us to algorithmically verify node locations in a non-fake-able and trustworthy manner.
 
 You don't have to do any additional configuration for your node to implement this, it is a passive process that runs in the background of the mixnet from version `0.10.1` onward.
 
@@ -305,9 +305,9 @@ Check if your [firewall status](./maintenance.md#configure-your-firewall) is act
 
 Remember the epoch takes up to 1h. It's important to run your node right after bonding so it responds positively on our API ping tests. Otherwise it may be blacklisted.
 
-You may want to diconnect the network requester and let it run as a gatewy alone for some time to regain better routing score. 
+You may want to disconnect the network requester and let it run as a gatewy alone for some time to regain better routing score. 
 
-If it won't help, simply unbond, delete the config and initialize a new one.
+If it won't help, simply un-bond, delete the config and initialize a new one.
 
 
 ## Validators

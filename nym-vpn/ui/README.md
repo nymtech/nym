@@ -34,9 +34,11 @@ app directly in the browser
 yarn dev:browser
 ```
 
+Then press `o` to open the app in the browser.
+
 #### Tauri commands mock
 
-In browser mode requires all tauri [commands](https://tauri.app/v1/guides/features/command) (IPC calls) in use to be mocked.
+Browser mode requires all tauri [commands](https://tauri.app/v1/guides/features/command) (IPC calls) to be mocked.
 When creating new tauri command, be sure to add the corresponding
 mock definition into `nym-vpn/ui/src/dev/tauri-cmd-mocks/` and
 update `nym-vpn/ui/src/dev/setup.ts` accordingly.

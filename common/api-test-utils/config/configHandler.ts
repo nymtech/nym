@@ -40,9 +40,8 @@ class ConfigHandler {
   private setCommonConfig(): void {
     try {
       const baseWorkingDirectory = __dirname;
-      console.log(`Base Working Directory: ${baseWorkingDirectory}`);
       this.commonConfig = YAML.parse(
-        readFileSync("/Users/benedetta/nym/workspace/nym/common/api-test-utils/config/config.yaml", "utf8"),
+        readFileSync(baseWorkingDirectory + "/config.yaml", "utf8"),
       ).common;
     } catch (error) {
       throw Error(`Error reading common config: (${error})`);
@@ -52,8 +51,9 @@ class ConfigHandler {
   private setEnvironmentConfig(environment: string): void {
     this.ensureEnvironmentIsValid(environment);
     try {
+      const baseWorkingDirectory = __dirname;
       this.environmentConfig = YAML.parse(
-        readFileSync("/Users/benedetta/nym/workspace/nym/common/api-test-utils/config/config.yaml", "utf8"),
+        readFileSync(baseWorkingDirectory + "/config.yaml", "utf8"),
       )[environment];
     } catch (error) {
       console.log("fadsfasdfasdfsdfsa")
@@ -62,9 +62,10 @@ class ConfigHandler {
   }
 
   public getEnvironmentConfig(environment: string): any {
+    const baseWorkingDirectory = __dirname;
     return (
       this.environmentConfig ||
-      YAML.parse(readFileSync("api-test-utils/config/config.yaml", "utf8"))[environment]
+      YAML.parse(readFileSync(baseWorkingDirectory + "/config.yaml", "utf8"))[environment]
     );
   }
 

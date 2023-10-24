@@ -7,7 +7,7 @@ describe("Get gateway related info", (): void => {
     beforeAll(async (): Promise<void> => {
         try {
             gatewayHosts = await getGatewayIPAddresses();
-            // console.log(gatewayHosts);
+            console.log(gatewayHosts);
         } catch (error) {
             throw new Error(`Error fetching gateway IP addresses: ${error.message}`);
         }

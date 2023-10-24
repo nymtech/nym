@@ -1,10 +1,10 @@
 import { Logger } from "tslog";
-import ConfigHandler from "../../config/configHandler";
-import { RestClient } from "../../restClient/RestClient";
+import ConfigHandler from "../../../../../common/api-test-utils/config/configHandler";
+import { RestClient } from "../../../../../common/api-test-utils/restClient/RestClient";
 
 export abstract class APIClient {
   protected constructor(serviceUrl: string) {
-    const baseUrl: string = this.config.environmnetConfig.api_base_url;
+    const baseUrl: string = this.config.environmentConfig.api_base_url;
     this.url = baseUrl + serviceUrl;
     this.restClient = new RestClient(this.url);
     this.serviceName = this.constructor.toString().match(/\w+/g)[1];
@@ -16,9 +16,9 @@ export abstract class APIClient {
   protected config = ConfigHandler.getInstance();
 
   protected log: Logger = new Logger({
-    minLevel: this.config.environmnetConfig.log_level,
+    minLevel: this.config.environmentConfig.log_level,
     dateTimeTimezone:
-      this.config.environmnetConfig.time_zone ||
+      this.config.environmentConfig.time_zone ||
       Intl.DateTimeFormat().resolvedOptions().timeZone,
   });
 

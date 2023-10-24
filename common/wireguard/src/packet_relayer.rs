@@ -1,5 +1,6 @@
 use std::{collections::HashMap, sync::Arc};
 
+use tap::TapFallible;
 use tokio::sync::mpsc::{self};
 
 use crate::{
@@ -46,7 +47,14 @@ impl PacketRelayer {
         loop {
             tokio::select! {
                 Some((tag, packet)) = self.packet_rx.recv() => {
+                    log::info!("Sent packet to tun device with tag: {tag}");
                     self.tun_task_tx.send((tag, packet)).unwrap();
+                },
+                Some((tag, packet)) = self.tun_task_response_rx.recv() => {
+                    log::info!("Received response from tun device with tag: {tag}");
+                    self.peers_by_tag.lock().unwrap().get(&tag).and_then(|tx| {
+                        tx.send(Event::Ip(packet.into())).tap_err(|e| log::error!("{e}")).ok()
+                    });
                 }
             }
         }

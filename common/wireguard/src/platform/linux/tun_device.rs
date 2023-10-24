@@ -16,7 +16,6 @@ use crate::{
         TunTaskResponseTx, TunTaskRx, TunTaskTx,
     },
     udp_listener::PeersByIp,
-    wg_tunnel::PeersByTag,
 };
 
 fn setup_tokio_tun_device(name: &str, address: Ipv4Addr, netmask: Ipv4Addr) -> tokio_tun::Tun {
@@ -43,18 +42,17 @@ pub struct TunDevice {
     // And when we get replies, this is where we should send it
     tun_task_response_tx: TunTaskResponseTx,
 
-    // The routing table.
-    // An alternative would be to do NAT by just matching incoming with outgoing.
+    // The routing table, as how wireguard does it
     peers_by_ip: Arc<std::sync::Mutex<PeersByIp>>,
 
+    // This is an alternative to the routing table, where we just match outgoing source IP with
+    // incoming destination IP.
     nat_table: HashMap<IpAddr, u64>,
-    peers_by_tag: Arc<std::sync::Mutex<PeersByTag>>,
 }
 
 impl TunDevice {
     pub fn new(
         peers_by_ip: Arc<std::sync::Mutex<PeersByIp>>,
-        peers_by_tag: Arc<std::sync::Mutex<PeersByTag>>,
     ) -> (Self, TunTaskTx, TunTaskResponseRx) {
         let tun = setup_tokio_tun_device(
             format!("{TUN_BASE_NAME}%d").as_str(),
@@ -73,13 +71,41 @@ impl TunDevice {
             tun,
             peers_by_ip,
             nat_table: HashMap::new(),
-            peers_by_tag,
         };
 
         (tun_device, tun_task_tx, tun_task_response_rx)
     }
 
-    fn handle_tun_read(&self, packet: &[u8]) {
+    // Send outbound packets out on the wild internet
+    async fn handle_tun_write(&mut self, data: TunTaskPayload) {
+        let (tag, packet) = data;
+        let Some(dst_addr) = boringtun::noise::Tunn::dst_address(&packet) else {
+            log::error!("Unable to parse dst_address in packet that was supposed to be written to tun device");
+            return;
+        };
+        let Some(src_addr) = parse_src_address(&packet) else {
+            log::error!("Unable to parse src_address in packet that was supposed to be written to tun device");
+            return;
+        };
+        log::info!(
+            "iface: write Packet({src_addr} -> {dst_addr}, {} bytes)",
+            packet.len()
+        );
+
+        // TODO: expire old entries
+        self.nat_table.insert(src_addr, tag);
+
+        self.tun
+            .write_all(&packet)
+            .await
+            .tap_err(|err| {
+                log::error!("iface: write error: {err}");
+            })
+            .ok();
+    }
+
+    // Receive reponse packets from the wild internet
+    async fn handle_tun_read(&self, packet: &[u8]) {
         let Some(dst_addr) = boringtun::noise::Tunn::dst_address(packet) else {
             log::error!("Unable to parse dst_address in packet that was read from tun device");
             return;
@@ -115,43 +141,16 @@ impl TunDevice {
         {
             if let Some(tag) = self.nat_table.get(&dst_addr) {
                 log::info!("Forward packet to wg tunnel with tag: {tag}");
-                self.peers_by_tag.lock().unwrap().get(tag).and_then(|tx| {
-                    tx.send(Event::Ip(packet.to_vec().into()))
-                        .tap_err(|err| log::error!("{err}"))
-                        .ok()
-                });
+                self.tun_task_response_tx
+                    .send((*tag, packet.to_vec()))
+                    .await
+                    .tap_err(|err| log::error!("{err}"))
+                    .ok();
                 return;
             }
         }
 
         log::info!("No peer found, packet dropped");
-    }
-
-    async fn handle_tun_write(&mut self, data: TunTaskPayload) {
-        let (tag, packet) = data;
-        let Some(dst_addr) = boringtun::noise::Tunn::dst_address(&packet) else {
-            log::error!("Unable to parse dst_address in packet that was supposed to be written to tun device");
-            return;
-        };
-        let Some(src_addr) = parse_src_address(&packet) else {
-            log::error!("Unable to parse src_address in packet that was supposed to be written to tun device");
-            return;
-        };
-        log::info!(
-            "iface: write Packet({src_addr} -> {dst_addr}, {} bytes)",
-            packet.len()
-        );
-
-        // TODO: expire old entries
-        self.nat_table.insert(src_addr, tag);
-
-        self.tun
-            .write_all(&packet)
-            .await
-            .tap_err(|err| {
-                log::error!("iface: write error: {err}");
-            })
-            .ok();
     }
 
     pub async fn run(mut self) {
@@ -163,7 +162,7 @@ impl TunDevice {
                 len = self.tun.read(&mut buf) => match len {
                     Ok(len) => {
                         let packet = &buf[..len];
-                        self.handle_tun_read(packet);
+                        self.handle_tun_read(packet).await;
                     },
                     Err(err) => {
                         log::info!("iface: read error: {err}");

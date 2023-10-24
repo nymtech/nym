@@ -14,10 +14,7 @@ use tokio::{
     time::timeout,
 };
 
-use crate::{
-    error::WgError, event::Event, network_table::NetworkTable, registered_peers::PeerIdx,
-    tun_task_channel::TunTaskTx,
-};
+use crate::{error::WgError, event::Event, network_table::NetworkTable, registered_peers::PeerIdx};
 
 const HANDSHAKE_MAX_RATE: u64 = 10;
 
@@ -211,14 +208,20 @@ impl WireGuardTunnel {
             }
             TunnResult::WriteToTunnelV4(packet, addr) => {
                 if self.allowed_ips.longest_match(addr).is_some() {
-                    self.packet_tx.send((self.tag, packet.to_vec())).await.unwrap();
+                    self.packet_tx
+                        .send((self.tag, packet.to_vec()))
+                        .await
+                        .unwrap();
                 } else {
                     warn!("Packet from {addr} not in allowed_ips");
                 }
             }
             TunnResult::WriteToTunnelV6(packet, addr) => {
                 if self.allowed_ips.longest_match(addr).is_some() {
-                    self.packet_tx.send((self.tag, packet.to_vec())).await.unwrap();
+                    self.packet_tx
+                        .send((self.tag, packet.to_vec()))
+                        .await
+                        .unwrap();
                 } else {
                     warn!("Packet (v6) from {addr} not in allowed_ips");
                 }

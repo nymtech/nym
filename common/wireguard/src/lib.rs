@@ -33,10 +33,10 @@ pub async fn start_wireguard(
     gateway_client_registry: Arc<GatewayClientRegistry>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     // We can either index peers by their IP like standard wireguard
-    let peers_by_ip = Arc::new(std::sync::Mutex::new(network_table::NetworkTable::new()));
+    let peers_by_ip = Arc::new(tokio::sync::Mutex::new(network_table::NetworkTable::new()));
 
     // ... or by their tunnel tag, which is a random number assigned to them
-    let peers_by_tag = Arc::new(std::sync::Mutex::new(wg_tunnel::PeersByTag::new()));
+    let peers_by_tag = Arc::new(tokio::sync::Mutex::new(wg_tunnel::PeersByTag::new()));
 
     // Start the tun device that is used to relay traffic outbound
     let (tun, tun_task_tx, tun_task_response_rx) = tun_device::TunDevice::new(peers_by_ip.clone());

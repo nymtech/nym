@@ -32,14 +32,14 @@ pub(crate) struct PacketRelayer {
     tun_task_response_rx: TunTaskResponseRx,
 
     // After receiving from the tun device, relay back to the correct tunnel
-    peers_by_tag: Arc<std::sync::Mutex<HashMap<u64, PeerEventSender>>>,
+    peers_by_tag: Arc<tokio::sync::Mutex<HashMap<u64, PeerEventSender>>>,
 }
 
 impl PacketRelayer {
     pub(crate) fn new(
         tun_task_tx: TunTaskTx,
         tun_task_response_rx: TunTaskResponseRx,
-        peers_by_tag: Arc<std::sync::Mutex<HashMap<u64, PeerEventSender>>>,
+        peers_by_tag: Arc<tokio::sync::Mutex<HashMap<u64, PeerEventSender>>>,
     ) -> (Self, PacketRelaySender) {
         let (packet_tx, packet_rx) = packet_relay_channel();
         (
@@ -62,9 +62,9 @@ impl PacketRelayer {
                 },
                 Some((tag, packet)) = self.tun_task_response_rx.recv() => {
                     log::info!("Received response from tun device with tag: {tag}");
-                    self.peers_by_tag.lock().unwrap().get(&tag).and_then(|tx| {
-                        tx.send(Event::Ip(packet.into())).tap_err(|e| log::error!("{e}")).ok()
-                    });
+                    if let Some(tx) = self.peers_by_tag.lock().await.get(&tag) {
+                        tx.send(Event::Ip(packet.into())).await.tap_err(|e| log::error!("{e}")).ok();
+                    }
                 }
             }
         }

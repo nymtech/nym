@@ -11,12 +11,12 @@ use crate::event::Event;
 
 // Channels that are used to communicate with the various tunnels
 #[derive(Clone)]
-pub struct PeerEventSender(mpsc::UnboundedSender<Event>);
-pub(crate) struct PeerEventReceiver(mpsc::UnboundedReceiver<Event>);
+pub struct PeerEventSender(mpsc::Sender<Event>);
+pub(crate) struct PeerEventReceiver(mpsc::Receiver<Event>);
 
 impl PeerEventSender {
-    pub(crate) fn send(&self, event: Event) -> Result<(), mpsc::error::SendError<Event>> {
-        self.0.send(event)
+    pub(crate) async fn send(&self, event: Event) -> Result<(), mpsc::error::SendError<Event>> {
+        self.0.send(event).await
     }
 }
 
@@ -27,7 +27,7 @@ impl PeerEventReceiver {
 }
 
 pub(crate) fn peer_event_channel() -> (PeerEventSender, PeerEventReceiver) {
-    let (tx, rx) = mpsc::unbounded_channel();
+    let (tx, rx) = mpsc::channel(16);
     (PeerEventSender(tx), PeerEventReceiver(rx))
 }
 

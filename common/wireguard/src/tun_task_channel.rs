@@ -3,15 +3,15 @@ use tokio::sync::mpsc;
 pub(crate) type TunTaskPayload = (u64, Vec<u8>);
 
 #[derive(Clone)]
-pub struct TunTaskTx(mpsc::UnboundedSender<TunTaskPayload>);
-pub(crate) struct TunTaskRx(mpsc::UnboundedReceiver<TunTaskPayload>);
+pub struct TunTaskTx(mpsc::Sender<TunTaskPayload>);
+pub(crate) struct TunTaskRx(mpsc::Receiver<TunTaskPayload>);
 
 impl TunTaskTx {
-    pub(crate) fn send(
+    pub(crate) async fn send(
         &self,
         data: TunTaskPayload,
     ) -> Result<(), tokio::sync::mpsc::error::SendError<TunTaskPayload>> {
-        self.0.send(data)
+        self.0.send(data).await
     }
 }
 
@@ -22,7 +22,7 @@ impl TunTaskRx {
 }
 
 pub(crate) fn tun_task_channel() -> (TunTaskTx, TunTaskRx) {
-    let (tun_task_tx, tun_task_rx) = tokio::sync::mpsc::unbounded_channel();
+    let (tun_task_tx, tun_task_rx) = tokio::sync::mpsc::channel(16);
     (TunTaskTx(tun_task_tx), TunTaskRx(tun_task_rx))
 }
 

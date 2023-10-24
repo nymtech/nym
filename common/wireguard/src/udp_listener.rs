@@ -50,10 +50,10 @@ pub struct WgUdpListener {
     registered_peers: RegisteredPeers,
 
     // The routing table, as defined by wireguard
-    peers_by_ip: Arc<std::sync::Mutex<PeersByIp>>,
+    peers_by_ip: Arc<tokio::sync::Mutex<PeersByIp>>,
 
     // ... or alternatively we can map peers by their tag
-    peers_by_tag: Arc<std::sync::Mutex<PeersByTag>>,
+    peers_by_tag: Arc<tokio::sync::Mutex<PeersByTag>>,
 
     // The UDP socket to the peer
     udp: Arc<UdpSocket>,
@@ -70,8 +70,8 @@ pub struct WgUdpListener {
 impl WgUdpListener {
     pub async fn new(
         packet_tx: PacketRelaySender,
-        peers_by_ip: Arc<std::sync::Mutex<PeersByIp>>,
-        peers_by_tag: Arc<std::sync::Mutex<PeersByTag>>,
+        peers_by_ip: Arc<tokio::sync::Mutex<PeersByIp>>,
+        peers_by_tag: Arc<tokio::sync::Mutex<PeersByTag>>,
         gateway_client_registry: Arc<GatewayClientRegistry>,
     ) -> Result<Self, Box<dyn std::error::Error + Send + Sync + 'static>> {
         let wg_address = SocketAddr::new(WG_ADDRESS.parse().unwrap(), WG_PORT);
@@ -143,6 +143,7 @@ impl WgUdpListener {
                         log::info!("udp: received {len} bytes from {addr} from known peer");
                         peer_tx
                             .send(Event::Wg(buf[..len].to_vec().into()))
+                            .await
                             .tap_err(|e| log::error!("{e}"))
                             .ok();
                         continue;
@@ -186,6 +187,7 @@ impl WgUdpListener {
                         // We found the peer as connected, even though the addr was not known
                         log::info!("udp: received {len} bytes from {addr} which is a known peer with unknown addr");
                         peer_tx.send(Event::WgVerified(buf[..len].to_vec().into()))
+                            .await
                             .tap_err(|err| log::error!("{err}"))
                             .ok();
                     } else {
@@ -205,10 +207,11 @@ impl WgUdpListener {
                             self.packet_tx.clone(),
                         );
 
-                        self.peers_by_ip.lock().unwrap().insert(registered_peer.allowed_ips, peer_tx.clone());
-                        self.peers_by_tag.lock().unwrap().insert(tag, peer_tx.clone());
+                        self.peers_by_ip.lock().await.insert(registered_peer.allowed_ips, peer_tx.clone());
+                        self.peers_by_tag.lock().await.insert(tag, peer_tx.clone());
 
                         peer_tx.send(Event::Wg(buf[..len].to_vec().into()))
+                            .await
                             .tap_err(|e| log::error!("{e}"))
                             .ok();
 

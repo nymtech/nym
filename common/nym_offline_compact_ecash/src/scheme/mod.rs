@@ -311,25 +311,24 @@ pub fn compute_kappa(
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct PayInfo {
-    pub info: [u8; 32],
+    pub info: [u8; 88],
 }
 
-pub fn generate_payinfo(provider_pk: PublicKeyUser) -> Vec<u8>{
-    let mut rng = thread_rng();
-    let mut rbytes = [0u8; 32];
-    rng.fill(&mut rbytes);
+pub fn generate_payinfo(provider_pk: PublicKeyUser) -> PayInfo{
+    let mut info = [0u8; 88];
 
+    // Generating random bytes
+    thread_rng().fill(&mut info[..32]);
+
+    // Adding timestamp bytes
     let timestamp = Utc::now().timestamp();
-    let timestamp_bytes: [u8; 8] = timestamp.to_be_bytes();
+    info[32..40].copy_from_slice(&timestamp.to_be_bytes());
 
+    // Adding provider public key bytes
     let ppk_bytes = provider_pk.pk.to_affine().to_compressed();
+    info[40..].copy_from_slice(&ppk_bytes);
 
-    let mut payinfo = Vec::with_capacity(32 + 8 +48);
-    payinfo.extend_from_slice(&rbytes);
-    payinfo.extend_from_slice(&timestamp_bytes);
-    payinfo.extend_from_slice(&ppk_bytes);
-    
-    payinfo
+    PayInfo { info }
 }
 
 #[derive(Debug, Clone, PartialEq)]

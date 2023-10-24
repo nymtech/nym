@@ -21,7 +21,7 @@ export const Bond = ({
     >
       <Typography variant="body2">
         Bond a mix node or a gateway. Learn how to set up and run a node{' '}
-        <Link href="https://nymtech.net/operators/nodes/setup-guides.html" target="_blank">
+        <Link href="https://nymtech.net/operators/nodes/mix-node-setup.html" target="_blank">
           here
         </Link>
       </Typography>

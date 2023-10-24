@@ -9,19 +9,14 @@ use log::error;
 use nym_task::TaskClient;
 use nym_wireguard_types::{registration::GatewayClientRegistry, PeerPublicKey};
 use tap::TapFallible;
-use tokio::{
-    net::UdpSocket,
-    sync::{
-        mpsc::{self},
-        Mutex,
-    },
-};
+use tokio::{net::UdpSocket, sync::Mutex};
 
 use crate::{
-    active_peers::ActivePeers,
+    active_peers::{ActivePeers, PeerEventSender},
     error::WgError,
     event::Event,
     network_table::NetworkTable,
+    packet_relayer::PacketRelaySender,
     registered_peers::{RegisteredPeer, RegisteredPeers},
     setup::{self, WG_ADDRESS, WG_PORT},
     wg_tunnel::PeersByTag,
@@ -30,7 +25,7 @@ use crate::{
 const MAX_PACKET: usize = 65535;
 
 // Registered peers
-pub(crate) type PeersByIp = NetworkTable<mpsc::UnboundedSender<Event>>;
+pub(crate) type PeersByIp = NetworkTable<PeerEventSender>;
 
 async fn add_test_peer(registered_peers: &mut RegisteredPeers) {
     let peer_static_public = PeerPublicKey::new(setup::peer_static_public_key());
@@ -64,8 +59,7 @@ pub struct WgUdpListener {
     udp: Arc<UdpSocket>,
 
     // Send data to the TUN device for sending
-    // tun_task_tx: TunTaskTx,
-    packet_tx: mpsc::Sender<(u64, Vec<u8>)>,
+    packet_tx: PacketRelaySender,
 
     // Wireguard rate limiter
     rate_limiter: RateLimiter,
@@ -75,7 +69,7 @@ pub struct WgUdpListener {
 
 impl WgUdpListener {
     pub async fn new(
-        packet_tx: mpsc::Sender<(u64, Vec<u8>)>,
+        packet_tx: PacketRelaySender,
         peers_by_ip: Arc<std::sync::Mutex<PeersByIp>>,
         peers_by_tag: Arc<std::sync::Mutex<PeersByTag>>,
         gateway_client_registry: Arc<GatewayClientRegistry>,

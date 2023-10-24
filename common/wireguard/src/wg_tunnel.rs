@@ -9,24 +9,27 @@ use bytes::Bytes;
 use log::{debug, error, info, warn};
 use rand::RngCore;
 use tap::TapFallible;
-use tokio::{
-    net::UdpSocket,
-    sync::{broadcast, mpsc},
-    time::timeout,
-};
+use tokio::{net::UdpSocket, sync::broadcast, time::timeout};
 
-use crate::{error::WgError, event::Event, network_table::NetworkTable, registered_peers::PeerIdx};
+use crate::{
+    active_peers::{peer_event_channel, PeerEventReceiver, PeerEventSender},
+    error::WgError,
+    event::Event,
+    network_table::NetworkTable,
+    packet_relayer::PacketRelaySender,
+    registered_peers::PeerIdx,
+};
 
 const HANDSHAKE_MAX_RATE: u64 = 10;
 
 const MAX_PACKET: usize = 65535;
 
 // We index the tunnels by tag
-pub(crate) type PeersByTag = HashMap<u64, mpsc::UnboundedSender<Event>>;
+pub(crate) type PeersByTag = HashMap<u64, PeerEventSender>;
 
 pub struct WireGuardTunnel {
     // Incoming data from the UDP socket received in the main event loop
-    peer_rx: mpsc::UnboundedReceiver<Event>,
+    peer_rx: PeerEventReceiver,
 
     // UDP socket used for sending data
     udp: Arc<UdpSocket>,
@@ -45,8 +48,7 @@ pub struct WireGuardTunnel {
     close_rx: broadcast::Receiver<()>,
 
     // Send data to the task that handles sending data through the tun device
-    // tun_task_tx: TunTaskTx,
-    packet_tx: mpsc::Sender<(u64, Vec<u8>)>,
+    packet_tx: PacketRelaySender,
 
     tag: u64,
 }
@@ -67,8 +69,8 @@ impl WireGuardTunnel {
         index: PeerIdx,
         peer_allowed_ips: ip_network::IpNetwork,
         // rate_limiter: Option<RateLimiter>,
-        packet_tx: mpsc::Sender<(u64, Vec<u8>)>,
-    ) -> (Self, mpsc::UnboundedSender<Event>, u64) {
+        packet_tx: PacketRelaySender,
+    ) -> (Self, PeerEventSender, u64) {
         let local_addr = udp.local_addr().unwrap();
         let peer_addr = udp.peer_addr();
         log::info!("New wg tunnel: endpoint: {endpoint}, local_addr: {local_addr}, peer_addr: {peer_addr:?}");
@@ -95,7 +97,7 @@ impl WireGuardTunnel {
         ));
 
         // Channels with incoming data that is received by the main event loop
-        let (peer_tx, peer_rx) = mpsc::unbounded_channel();
+        let (peer_tx, peer_rx) = peer_event_channel();
 
         // Signal close tunnel
         let (close_tx, close_rx) = broadcast::channel(1);
@@ -212,6 +214,7 @@ impl WireGuardTunnel {
             TunnResult::WriteToTunnelV4(packet, addr) => {
                 if self.allowed_ips.longest_match(addr).is_some() {
                     self.packet_tx
+                        .0
                         .send((self.tag, packet.to_vec()))
                         .await
                         .unwrap();
@@ -222,6 +225,7 @@ impl WireGuardTunnel {
             TunnResult::WriteToTunnelV6(packet, addr) => {
                 if self.allowed_ips.longest_match(addr).is_some() {
                     self.packet_tx
+                        .0
                         .send((self.tag, packet.to_vec()))
                         .await
                         .unwrap();
@@ -326,10 +330,10 @@ pub(crate) fn start_wg_tunnel(
     peer_static_public: x25519::PublicKey,
     peer_index: PeerIdx,
     peer_allowed_ips: ip_network::IpNetwork,
-    packet_tx: mpsc::Sender<(u64, Vec<u8>)>,
+    packet_tx: PacketRelaySender,
 ) -> (
     tokio::task::JoinHandle<x25519::PublicKey>,
-    mpsc::UnboundedSender<Event>,
+    PeerEventSender,
     u64,
 ) {
     let (mut tunnel, peer_tx, tag) = WireGuardTunnel::new(

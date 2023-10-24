@@ -22,7 +22,7 @@ If you have access to a server, you can run the network requester, which allows 
 
 By default the network requester is **not** an open proxy (although it can be used as one). It uses a file called `allowed.list` (located in `~/.nym/service-providers/network-requester/<NETWORK-REQUESTER-ID>/`) as a whitelist for outbound requests.
 
-**Note:** If you run network requester as a part of the gateway the `allowed.list` will be stored in `~/.nym/gateways/snus/data/network-requester-data/allowed.list`.
+**Note:** If you run network requester as a part of the exit gateway (suggested setup) the `allowed.list` will be stored in `~/.nym/gateways/<ID>/data/network-requester-data/allowed.list`.
 
 Any request to a URL which is not on this list will be blocked.
 

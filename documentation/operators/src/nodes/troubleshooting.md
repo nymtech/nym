@@ -262,7 +262,7 @@ thread 'tokio-runtime-worker' panicked at 'Failed to create TCP listener: Os { c
 
 Then you need to `--announce-host <PUBLIC_IP>` and `--host <LOCAL_IP>` on startup. This issue is addressed [above](./troubleshooting.md#missing-`announce-host`-flag)
 
-### Can I use a port other than 1789 ?
+### Can I use a port other than 1789?
 
 Yes! Here is what you will need to do:
 

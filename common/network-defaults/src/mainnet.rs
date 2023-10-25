@@ -28,7 +28,8 @@ pub const NYM_API: &str = "https://validator.nymtech.net/api/";
 pub const EXPLORER_API: &str = "https://explorer.nymtech.net/api/";
 
 // I'm making clippy mad on purpose, because that url HAS TO be updated and deployed before merging
-pub const EXIT_POLICY_URL: &str = &*"http://localhost:8001/sample_policy";
+pub const EXIT_POLICY_URL: &str =
+    "https://nymtech.net/.wellknown/network-requester/exit-policy.txt";
 
 pub(crate) fn validators() -> Vec<ValidatorDetails> {
     vec![ValidatorDetails::new(NYXD_URL, Some(NYM_API))]

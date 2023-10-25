@@ -41,7 +41,7 @@ pub enum CompactEcashError {
     )]
     DeserializationMinLength { min: usize, actual: usize },
 
-    #[error("Tried to deserialize {object} with bytes of invalid length. Expected {actual} < {} or {modulus_target} % {modulus} == 0")]
+    #[error("Tried to deserialize {object} with bytes of invalid length. Expected {actual} < {target} or {modulus_target} % {modulus} == 0")]
     DeserializationInvalidLength {
         actual: usize,
         target: usize,

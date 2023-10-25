@@ -106,7 +106,7 @@ pub struct Parameters {
     /// Public Key for range proof verification
     pk_rp: PublicKeyRP,
     /// Max value of wallet
-    L: u64,
+    ll: u64,
     /// list of signatures for values l in [0, L]
     signs: HashMap<u64, Signature>,
 }
@@ -118,22 +118,20 @@ impl Parameters {
     pub fn pk_rp(&self) -> &PublicKeyRP {
         &self.pk_rp
     }
-    pub fn L(&self) -> u64 {
-        self.L
+    pub fn ll(&self) -> u64 {
+        self.ll
     }
     pub fn signs(&self) -> &HashMap<u64, Signature> {
         &self.signs
     }
     pub fn get_sign_by_idx(&self, idx: u64) -> Result<&Signature> {
         match self.signs.get(&idx) {
-            Some(val) => return Ok(val),
-            None => {
-                return Err(CompactEcashError::RangeProofOutOfBound(
-                    "Cannot find the range proof signature for the given value. \
+            Some(val) => Ok(val),
+            None => Err(CompactEcashError::RangeProofOutOfBound(
+                "Cannot find the range proof signature for the given value. \
                         Check if the requested value is within the bound 0..L"
-                        .to_string(),
-                ));
-            }
+                    .to_string(),
+            )),
         }
     }
 
@@ -141,7 +139,7 @@ impl Parameters {
         //we omit grp as it is fixed
         let pk_rp_alpha_bytes = self.pk_rp.alpha.to_affine().to_compressed();
         let pk_rp_beta_bytes = self.pk_rp.beta.to_affine().to_compressed();
-        let l_bytes = self.L.to_be_bytes();
+        let l_bytes = self.ll.to_be_bytes();
 
         let signs_bytes: Vec<u8> = self
             .signs
@@ -207,33 +205,27 @@ impl TryFrom<&[u8]> for Parameters {
         Ok(Self {
             grp: grp_params,
             pk_rp,
-            L: ll,
+            ll,
             signs,
         })
     }
 }
-pub fn setup(L: u64) -> Parameters {
+pub fn setup(ll: u64) -> Parameters {
     let grp = GroupParameters::new().unwrap();
     let x = grp.random_scalar();
     let y = grp.random_scalar();
     let sk_rp = SecretKeyRP { x, y };
     let pk_rp = sk_rp.public_key(&grp);
     let mut signs = HashMap::new();
-    for l in 0..L {
+    for l in 0..ll {
         let r = grp.random_scalar();
         let h = grp.gen1() * r;
-        signs.insert(
-            l,
-            Signature {
-                0: h,
-                1: h * (x + y * Scalar::from(l)),
-            },
-        );
+        signs.insert(l, Signature(h, h * (x + y * Scalar::from(l))));
     }
     Parameters {
         grp,
         pk_rp,
-        L,
+        ll,
         signs,
     }
 }

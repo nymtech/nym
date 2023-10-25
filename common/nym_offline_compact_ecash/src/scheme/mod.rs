@@ -67,10 +67,10 @@ impl TryFrom<&[u8]> for PartialWallet {
         let idx_bytes: &[u8; 8] = &bytes[128..136].try_into().expect("Slice size != 8");
 
         let sig = Signature::try_from(sig_bytes.as_slice()).unwrap();
-        let v = Scalar::from_bytes(&v_bytes).unwrap();
-        let idx = None;
+        let v = Scalar::from_bytes(v_bytes).unwrap();
+        let mut idx = None;
         if !idx_bytes.iter().all(|&x| x == 0) {
-            let idx = Some(u64::from_le_bytes(*idx_bytes));
+            idx = Some(u64::from_le_bytes(*idx_bytes));
         }
 
         Ok(PartialWallet { sig, v, idx })
@@ -117,7 +117,7 @@ impl Wallet {
         bench_flag: bool,
         spend_vv: u64,
     ) -> Result<(Payment, &Self)> {
-        if self.l() + spend_vv > params.L() {
+        if self.l() + spend_vv > params.ll() {
             return Err(CompactEcashError::Spend(
                 "The counter l is higher than max L".to_string(),
             ));
@@ -130,8 +130,8 @@ impl Wallet {
         let attributes = vec![sk_user.sk, self.v()];
         // compute kappa
         let kappa = compute_kappa(
-            &grparams,
-            &verification_key,
+            grparams,
+            verification_key,
             &attributes,
             sign_blinding_factor,
         );
@@ -167,10 +167,10 @@ impl Wallet {
             aa.push(aa_k);
 
             // evaluate the pseudorandom functions
-            let ss_k = pseudorandom_f_delta_v(&grparams, self.v(), self.l() + k);
+            let ss_k = pseudorandom_f_delta_v(grparams, self.v(), self.l() + k);
             ss.push(ss_k);
             let tt_k = grparams.gen1() * sk_user.sk
-                + pseudorandom_f_g_v(&grparams, self.v(), self.l() + k) * rr_k;
+                + pseudorandom_f_g_v(grparams, self.v(), self.l() + k) * rr_k;
             tt.push(tt_k);
 
             // compute values mu, o_mu, lambda, o_lambda
@@ -215,10 +215,10 @@ impl Wallet {
             r_k: r_k_vec,
         };
         let zk_proof = SpendProof::construct(
-            &params,
+            params,
             &spend_instance,
             &spend_witness,
-            &verification_key,
+            verification_key,
             &rr,
         );
 
@@ -267,7 +267,7 @@ impl TryFrom<&[u8]> for Wallet {
         let l_bytes: &[u8; 8] = &bytes[128..136].try_into().expect("Slice size != 8");
 
         let sig = Signature::try_from(sig_bytes.as_slice()).unwrap();
-        let v = Scalar::from_bytes(&v_bytes).unwrap();
+        let v = Scalar::from_bytes(v_bytes).unwrap();
         let l = Cell::new(u64::from_le_bytes(*l_bytes));
 
         Ok(Wallet { sig, v, l })
@@ -394,7 +394,7 @@ impl Payment {
 
         if !self
             .zk_proof
-            .verify(&params, &instance, &verification_key, &self.rr)
+            .verify(params, &instance, verification_key, &self.rr)
         {
             return Err(CompactEcashError::Spend(
                 "ZkProof verification failed".to_string(),

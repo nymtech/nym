@@ -83,7 +83,7 @@ impl SecretKeyAuth {
 
     pub fn to_bytes(&self) -> Vec<u8> {
         let ys_len = self.ys.len();
-        let mut bytes = Vec::with_capacity(8 + (ys_len + 1) as usize * 32);
+        let mut bytes = Vec::with_capacity(8 + (ys_len + 1) * 32);
         bytes.extend_from_slice(&self.x.to_bytes());
         bytes.extend_from_slice(&ys_len.to_le_bytes());
         for y in self.ys.iter() {
@@ -144,7 +144,7 @@ impl TryFrom<&[u8]> for VerificationKeyAuth {
         let mut beta_g1_end: u64 = 0;
         for i in 0..betas_len {
             let start = (104 + i * 48) as usize;
-            let end = (start + 48) as usize;
+            let end = start + 48;
             let beta_i_bytes = bytes[start..end].try_into().unwrap();
             let beta_i = try_deserialize_g1_projective(
                 &beta_i_bytes,
@@ -160,7 +160,7 @@ impl TryFrom<&[u8]> for VerificationKeyAuth {
         let mut beta_g2 = Vec::with_capacity(betas_len as usize);
         for i in 0..betas_len {
             let start = (beta_g1_end + i * 96) as usize;
-            let end = (start + 96) as usize;
+            let end = start + 96;
             let beta_i_bytes = bytes[start..end].try_into().unwrap();
             let beta_i = try_deserialize_g2_projective(
                 &beta_i_bytes,

@@ -86,7 +86,7 @@ impl GeoIp {
                 })?
                 .next()
                 .ok_or_else(|| {
-                    error!("Fail to resolve IP address from {}:{}", &address, p);
+                    debug!("Fail to resolve IP address from {}:{}", &address, p);
                     GeoIpError::NoValidIP
                 })?;
             let ip = socket_addr.ip();

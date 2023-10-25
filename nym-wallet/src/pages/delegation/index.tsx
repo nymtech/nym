@@ -9,6 +9,7 @@ import { TPoolOption } from 'src/components';
 import { Console } from 'src/utils/console';
 import { OverSaturatedBlockerModal } from 'src/components/Delegation/DelegateBlocker';
 import { getSpendableCoins, userBalance } from 'src/requests';
+import { LoadingModal } from 'src/components/Modals/LoadingModal';
 import { getIntervalAsDate, toPercentIntegerString } from 'src/utils';
 import { RewardsSummary } from '../../components/Rewards/RewardsSummary';
 import { DelegationContextProvider, TDelegations, useDelegationContext } from '../../context/delegations';
@@ -19,7 +20,6 @@ import { DelegationListItemActions } from '../../components/Delegation/Delegatio
 import { RedeemModal } from '../../components/Rewards/RedeemModal';
 import { DelegationModal, DelegationModalProps } from '../../components/Delegation/DelegationModal';
 import { backDropStyles, modalStyles } from '../../../.storybook/storiesStyles';
-import { LoadingModal } from 'src/components/Modals/LoadingModal';
 
 const storybookStyles = (theme: Theme, isStorybook?: boolean, backdropProps?: object) =>
   isStorybook

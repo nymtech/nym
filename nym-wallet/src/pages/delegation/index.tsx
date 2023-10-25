@@ -19,6 +19,7 @@ import { DelegationListItemActions } from '../../components/Delegation/Delegatio
 import { RedeemModal } from '../../components/Rewards/RedeemModal';
 import { DelegationModal, DelegationModalProps } from '../../components/Delegation/DelegationModal';
 import { backDropStyles, modalStyles } from '../../../.storybook/storiesStyles';
+import { LoadingModal } from 'src/components/Modals/LoadingModal';
 
 const storybookStyles = (theme: Theme, isStorybook?: boolean, backdropProps?: object) =>
   isStorybook
@@ -302,14 +303,16 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
   };
 
   const delegationsComponent = (delegationItems: TDelegations | undefined) => {
-    return (
-      <DelegationList
-        explorerUrl={urls(network).networkExplorer}
-        isLoading={isLoading && !isActionModalOpen}
-        items={delegationItems || []}
-        onItemActionClick={handleDelegationItemActionClick}
-      />
-    );
+    if (delegationItems && Boolean(delegationItems?.length)) {
+      return (
+        <DelegationList
+          explorerUrl={urls(network).networkExplorer}
+          isLoading={isLoading && !isActionModalOpen}
+          items={delegationItems}
+          onItemActionClick={handleDelegationItemActionClick}
+        />
+      );
+    }
 
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-end' }}>
@@ -341,6 +344,10 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
       </Box>
     );
   };
+
+  if (isLoading) {
+    return <LoadingModal />;
+  }
 
   return (
     <>

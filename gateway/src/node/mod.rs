@@ -15,7 +15,7 @@ use crate::node::client_handling::embedded_network_requester::{
     LocalNetworkRequesterHandle, MessageRouter,
 };
 use crate::node::client_handling::websocket;
-use crate::node::client_handling::websocket::connection_handler::coconut::CoconutVerifier;
+use crate::node::client_handling::websocket::connection_handler::coconut::EcashVerifier;
 use crate::node::helpers::{initialise_main_storage, load_network_requester_config};
 use crate::node::mixnet_handling::receiver::connection_handler::ConnectionHandler;
 use crate::node::statistics::collector::GatewayStatisticsCollector;
@@ -215,7 +215,7 @@ impl<St> Gateway<St> {
         forwarding_channel: MixForwardingSender,
         active_clients_store: ActiveClientsStore,
         shutdown: TaskClient,
-        coconut_verifier: Arc<CoconutVerifier>,
+        ecash_verifier: Arc<EcashVerifier>,
     ) where
         St: Storage + Clone + 'static,
     {
@@ -230,7 +230,7 @@ impl<St> Gateway<St> {
             listening_address,
             Arc::clone(&self.identity_keypair),
             self.config.gateway.only_coconut_credentials,
-            coconut_verifier,
+            ecash_verifier,
         )
         .start(
             forwarding_channel,
@@ -449,9 +449,9 @@ impl<St> Gateway<St> {
 
         let shutdown = TaskManager::new(10);
 
-        let coconut_verifier = {
+        let ecash_verifier = {
             let nyxd_client = self.random_nyxd_client()?;
-            CoconutVerifier::new(nyxd_client)
+            EcashVerifier::new(nyxd_client)
         };
 
         let mix_forwarding_channel =
@@ -520,6 +520,13 @@ impl<St> Gateway<St> {
         .with_maybe_network_requester(self.network_requester_opts.as_ref().map(|o| &o.config))
         .with_maybe_network_request_filter(nr_request_filter)
         .start(shutdown.subscribe().named("http-api"))?;
+
+        self.start_client_websocket_listener(
+            mix_forwarding_channel,
+            active_clients_store,
+            shutdown.subscribe().named("websocket::Listener"),
+            Arc::new(ecash_verifier),
+        );
 
         // Once this is a bit more mature, make this a commandline flag instead of a compile time
         // flag

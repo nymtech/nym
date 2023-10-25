@@ -63,7 +63,7 @@ nym-node = { path = "../nym-node" }
 nym-api-requests = { path = "../nym-api/nym-api-requests" }
 nym-bin-common = { path = "../common/bin-common", features = ["output_format"] }
 nym-coconut-interface = { path = "../common/coconut-interface" }
-nym_compact_ecash = { path = "../common/nym_offline_compact_ecash" }
+nym-compact-ecash = { path = "../common/nym_offline_compact_ecash" }
 nym-config = { path = "../common/config" }
 nym-credentials = { path = "../common/credentials" }
 nym-crypto = { path = "../common/crypto" }

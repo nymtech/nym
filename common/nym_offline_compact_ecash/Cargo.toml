@@ -1,5 +1,5 @@
 [package]
-name = "nym_compact_ecash"
+name = "nym-compact-ecash"
 version = "0.1.0"
 authors = ["Ania Piotrowska <ania@nymtech.net>"]
 edition = "2021"

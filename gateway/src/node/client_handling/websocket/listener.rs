@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::node::client_handling::active_clients::ActiveClientsStore;
-use crate::node::client_handling::websocket::connection_handler::coconut::CoconutVerifier;
+use crate::node::client_handling::websocket::connection_handler::coconut::EcashVerifier;
 use crate::node::client_handling::websocket::connection_handler::FreshHandler;
 use crate::node::storage::Storage;
 use log::*;
@@ -18,7 +18,7 @@ pub(crate) struct Listener {
     address: SocketAddr,
     local_identity: Arc<identity::KeyPair>,
     only_coconut_credentials: bool,
-    pub(crate) coconut_verifier: Arc<CoconutVerifier>,
+    pub(crate) ecash_verifier: Arc<EcashVerifier>,
 }
 
 impl Listener {
@@ -26,13 +26,13 @@ impl Listener {
         address: SocketAddr,
         local_identity: Arc<identity::KeyPair>,
         only_coconut_credentials: bool,
-        coconut_verifier: Arc<CoconutVerifier>,
+        ecash_verifier: Arc<EcashVerifier>,
     ) -> Self {
         Listener {
             address,
             local_identity,
             only_coconut_credentials,
-            coconut_verifier,
+            ecash_verifier,
         }
     }
 
@@ -76,7 +76,7 @@ impl Listener {
                                 Arc::clone(&self.local_identity),
                                 storage.clone(),
                                 active_clients_store.clone(),
-                                Arc::clone(&self.coconut_verifier),
+                                Arc::clone(&self.ecash_verifier),
                             );
                             let shutdown = shutdown.clone().named(format!("ClientConnectionHandler_{remote_addr}"));
                             tokio::spawn(async move { handle.start_handling(shutdown).await });

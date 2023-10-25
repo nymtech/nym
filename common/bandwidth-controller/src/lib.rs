@@ -8,7 +8,7 @@ use nym_compact_ecash::{Base58, PayInfo, SecretKeyUser};
 use nym_credential_storage::error::StorageError;
 use nym_credential_storage::storage::Storage;
 use nym_credentials::obtain_aggregate_verification_key;
-use nym_validator_client::coconut::all_coconut_api_clients;
+use nym_validator_client::coconut::all_ecash_api_clients;
 use nym_validator_client::nyxd::contract_traits::DkgQueryClient;
 use std::str::FromStr;
 
@@ -46,9 +46,9 @@ impl<C, St: Storage> BandwidthController<C, St> {
         let epoch_id = u64::from_str(&ecash_credential.epoch_id)
             .map_err(|_| StorageError::InconsistentData)?;
 
-        let coconut_api_clients = all_coconut_api_clients(&self.client, epoch_id).await?;
+        let ecash_api_clients = all_ecash_api_clients(&self.client, epoch_id).await?;
 
-        let verification_key = obtain_aggregate_verification_key(&coconut_api_clients).await?;
+        let verification_key = obtain_aggregate_verification_key(&ecash_api_clients).await?;
 
         let some_l_i_guess = 100; //SW: TEMPORARY VALUE
         let params = setup(some_l_i_guess);
@@ -67,7 +67,7 @@ impl<C, St: Storage> BandwidthController<C, St> {
             nb_tickets,
         )?;
 
-        let credential = EcashCredential::new(payment, pay_info, epoch_id);
+        let credential = EcashCredential::new(params, payment, pay_info, epoch_id);
 
         Ok((credential, wallet.to_bs58(), ecash_credential.id))
     }

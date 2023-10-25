@@ -5,10 +5,12 @@ use group::GroupEncoding;
 use itertools::izip;
 
 use crate::error::{CompactEcashError, Result};
-use crate::proofs::{ChallengeDigest, compute_challenge, produce_response, produce_responses};
+use crate::proofs::{compute_challenge, produce_response, produce_responses, ChallengeDigest};
 use crate::scheme::keygen::PublicKeyUser;
 use crate::scheme::setup::GroupParameters;
-use crate::utils::{try_deserialize_g1_projective, try_deserialize_scalar_vec, try_deserialize_scalar};
+use crate::utils::{
+    try_deserialize_g1_projective, try_deserialize_scalar, try_deserialize_scalar_vec,
+};
 
 #[derive(Debug)]
 #[cfg_attr(test, derive(PartialEq))]
@@ -59,7 +61,7 @@ impl TryFrom<&[u8]> for WithdrawalReqInstance {
         let mut pc_coms_end: usize = 0;
         for i in 0..pc_coms_len {
             let start = (104 + i * 48) as usize;
-            let end = (start + 48) as usize;
+            let end = start + 48;
             let pc_i_bytes = bytes[start..end].try_into().unwrap();
             let pc_i = try_deserialize_g1_projective(
                 &pc_i_bytes,
@@ -90,7 +92,7 @@ impl TryFrom<&[u8]> for WithdrawalReqInstance {
 impl WithdrawalReqInstance {
     pub(crate) fn to_bytes(&self) -> Vec<u8> {
         let pc_coms_len = self.pc_coms.len();
-        let mut bytes = Vec::with_capacity(8 + (pc_coms_len + 3) as usize * 48);
+        let mut bytes = Vec::with_capacity(8 + (pc_coms_len + 3) * 48);
         bytes.extend_from_slice(self.com.to_bytes().as_ref());
         bytes.extend_from_slice(self.h.to_bytes().as_ref());
         bytes.extend_from_slice(&pc_coms_len.to_le_bytes());
@@ -137,10 +139,10 @@ impl WithdrawalReqProof {
         // compute zkp commitments for each instance
         let zkcm_com = params.gen1() * r_com_opening
             + r_attributes
-            .iter()
-            .zip(params.gammas().iter())
-            .map(|(rm_i, gamma_i)| gamma_i * rm_i)
-            .sum::<G1Projective>();
+                .iter()
+                .zip(params.gammas().iter())
+                .map(|(rm_i, gamma_i)| gamma_i * rm_i)
+                .sum::<G1Projective>();
 
         let zkcm_pedcom = r_pedcom_openings
             .iter()
@@ -202,21 +204,21 @@ impl WithdrawalReqProof {
         let zkcm_com = instance.com * self.challenge
             + params.gen1() * self.response_opening
             + self
-            .response_attributes
-            .iter()
-            .zip(params.gammas().iter())
-            .map(|(m_i, gamma_i)| gamma_i * m_i)
-            .sum::<G1Projective>();
+                .response_attributes
+                .iter()
+                .zip(params.gammas().iter())
+                .map(|(m_i, gamma_i)| gamma_i * m_i)
+                .sum::<G1Projective>();
 
         let zkcm_pedcom = izip!(
             instance.pc_coms.iter(),
             self.response_openings.iter(),
             self.response_attributes.iter()
         )
-            .map(|(cm_j, resp_o_j, resp_m_j)| {
-                cm_j * self.challenge + params.gen1() * resp_o_j + instance.h * resp_m_j
-            })
-            .collect::<Vec<_>>();
+        .map(|(cm_j, resp_o_j, resp_m_j)| {
+            cm_j * self.challenge + params.gen1() * resp_o_j + instance.h * resp_m_j
+        })
+        .collect::<Vec<_>>();
 
         let zk_commitment_user_sk =
             instance.pk_user.pk * self.challenge + params.gen1() * self.response_attributes[0];
@@ -246,13 +248,14 @@ impl WithdrawalReqProof {
         challenge == self.challenge
     }
 
-    pub fn to_bytes(&self) -> Vec<u8>{
+    pub fn to_bytes(&self) -> Vec<u8> {
         let challenge_bytes = self.challenge.to_bytes();
         let response_opening_bytes = self.response_opening.to_bytes();
         let ro_len = self.response_openings.len() as u64;
         let ra_len = self.response_attributes.len() as u64;
 
-        let mut bytes = Vec::with_capacity(32 + 32 + 8 + ro_len as usize * 32 + 8 + ra_len as usize * 32);
+        let mut bytes =
+            Vec::with_capacity(32 + 32 + 8 + ro_len as usize * 32 + 8 + ra_len as usize * 32);
         bytes.extend_from_slice(&challenge_bytes);
         bytes.extend_from_slice(&response_opening_bytes);
         bytes.extend_from_slice(&ro_len.to_le_bytes());
@@ -273,8 +276,7 @@ impl TryFrom<&[u8]> for WithdrawalReqProof {
     fn try_from(bytes: &[u8]) -> Result<WithdrawalReqProof> {
         if bytes.len() < 32 + 32 + 16 + 32 + 32 || (bytes.len() - 16) % 32 != 0 {
             return Err(CompactEcashError::Deserialization(
-                "tried to deserialize proof of withdrawal with bytes of invalid length"
-                    .to_string(),
+                "tried to deserialize proof of withdrawal with bytes of invalid length".to_string(),
             ));
         }
 
@@ -299,26 +301,29 @@ impl TryFrom<&[u8]> for WithdrawalReqProof {
         let ro_len = u64::from_le_bytes(bytes[idx..idx + 8].try_into().unwrap());
         idx += 8;
         if bytes[idx..].len() < ro_len as usize * 32 + 8 {
-            return Err(
-                CompactEcashError::Deserialization(
-                    "tried to deserialize response openings".to_string()),
-            );
+            return Err(CompactEcashError::Deserialization(
+                "tried to deserialize response openings".to_string(),
+            ));
         }
         let ro_end = idx + ro_len as usize * 32;
         let response_openings = try_deserialize_scalar_vec(
             ro_len,
             &bytes[idx..ro_end],
-            CompactEcashError::Deserialization("Failed to deserialize openings response".to_string()),
+            CompactEcashError::Deserialization(
+                "Failed to deserialize openings response".to_string(),
+            ),
         )?;
 
         let ra_len = u64::from_le_bytes(bytes[ro_end..ro_end + 8].try_into().unwrap());
         let response_attributes = try_deserialize_scalar_vec(
             ra_len,
             &bytes[ro_end + 8..],
-            CompactEcashError::Deserialization("Failed to deserialize attributes response".to_string()),
+            CompactEcashError::Deserialization(
+                "Failed to deserialize attributes response".to_string(),
+            ),
         )?;
 
-        Ok(WithdrawalReqProof{
+        Ok(WithdrawalReqProof {
             challenge,
             response_opening,
             response_openings,
@@ -326,7 +331,6 @@ impl TryFrom<&[u8]> for WithdrawalReqProof {
         })
     }
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -374,10 +378,10 @@ mod tests {
         let com_opening = params.random_scalar();
         let com = params.gen1() * com_opening
             + attr
-            .iter()
-            .zip(params.gammas())
-            .map(|(&m, gamma)| gamma * m)
-            .sum::<G1Projective>();
+                .iter()
+                .zip(params.gammas())
+                .map(|(&m, gamma)| gamma * m)
+                .sum::<G1Projective>();
         let h = hash_g1(com.to_bytes());
 
         let pc_openings = params.n_random_scalars(attr.len());

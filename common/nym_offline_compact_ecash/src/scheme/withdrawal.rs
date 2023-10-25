@@ -290,7 +290,7 @@ pub fn withdrawal_request(
         pc_coms_openings: pc_coms_openings.clone(),
     };
 
-    let zk_proof = WithdrawalReqProof::construct(&params, &instance, &witness);
+    let zk_proof = WithdrawalReqProof::construct(params, &instance, &witness);
 
     let req = WithdrawalRequest {
         com_hash,
@@ -329,7 +329,7 @@ pub fn issue_wallet(
         pc_coms: withdrawal_req.pc_coms.clone(),
         pk_user,
     };
-    if !withdrawal_req.zk_proof.verify(&params, &instance) {
+    if !withdrawal_req.zk_proof.verify(params, &instance) {
         return Err(CompactEcashError::WithdrawalRequestVerification(
             "Failed to verify the proof of knowledge".to_string(),
         ));
@@ -374,7 +374,7 @@ pub fn issue_verify(
 
     let unblinded_c = c - blinding_removers;
 
-    let attr = vec![sk_user.sk, req_info.v];
+    let attr = [sk_user.sk, req_info.v];
 
     let signed_attributes = attr
         .iter()

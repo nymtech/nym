@@ -12,7 +12,7 @@ thiserror = "1.0"
 url = { workspace = true }
 
 nym-coconut-interface = { path = "../coconut-interface" }
-nym_compact_ecash = { path = "../nym_offline_compact_ecash" }
+nym-compact-ecash = { path = "../nym_offline_compact_ecash" }
 nym-credential-storage = { path = "../credential-storage" }
 nym-credentials = { path = "../credentials" }
 nym-crypto = { path = "../crypto", features = ["rand", "asymmetric", "symmetric", "aes", "hashing"] }

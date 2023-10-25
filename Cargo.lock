@@ -6123,6 +6123,7 @@ dependencies = [
  "nym-coconut-bandwidth-contract-common",
  "nym-coconut-dkg-common",
  "nym-coconut-interface",
+ "nym-compact-ecash",
  "nym-config",
  "nym-contracts-common",
  "nym-credential-storage",
@@ -6143,7 +6144,6 @@ dependencies = [
  "nym-topology",
  "nym-validator-client",
  "nym-vesting-contract-common",
- "nym_compact_ecash",
  "okapi",
  "pin-project",
  "pretty_env_logger",
@@ -6179,8 +6179,8 @@ dependencies = [
  "cosmwasm-std",
  "getset",
  "nym-coconut-interface",
+ "nym-compact-ecash",
  "nym-mixnet-contract-common",
- "nym_compact_ecash",
  "schemars",
  "serde",
  "ts-rs",
@@ -6192,12 +6192,12 @@ version = "0.1.0"
 dependencies = [
  "bip39",
  "nym-coconut-interface",
+ "nym-compact-ecash",
  "nym-credential-storage",
  "nym-credentials",
  "nym-crypto",
  "nym-network-defaults",
  "nym-validator-client",
- "nym_compact_ecash",
  "rand 0.7.3",
  "thiserror",
  "url",
@@ -6484,6 +6484,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-compact-ecash"
+version = "0.1.0"
+dependencies = [
+ "bls12_381 0.6.0",
+ "bs58 0.4.0",
+ "criterion 0.3.6",
+ "digest 0.9.0",
+ "ff 0.11.1",
+ "getset",
+ "group 0.11.0",
+ "itertools 0.10.5",
+ "rand 0.8.5",
+ "serde",
+ "sha2 0.9.9",
+ "thiserror",
+]
+
+[[package]]
 name = "nym-config"
 version = "0.1.0"
 dependencies = [
@@ -6544,9 +6562,9 @@ dependencies = [
  "log",
  "nym-api-requests",
  "nym-coconut-interface",
+ "nym-compact-ecash",
  "nym-crypto",
  "nym-validator-client",
- "nym_compact_ecash",
  "rand 0.7.3",
  "thiserror",
 ]
@@ -6664,6 +6682,7 @@ dependencies = [
  "nym-api-requests",
  "nym-bin-common",
  "nym-coconut-interface",
+ "nym-compact-ecash",
  "nym-config",
  "nym-credentials",
  "nym-crypto",
@@ -6679,7 +6698,6 @@ dependencies = [
  "nym-types",
  "nym-validator-client",
  "nym-wireguard",
- "nym_compact_ecash",
  "once_cell",
  "pretty_env_logger",
  "rand 0.7.3",
@@ -6706,6 +6724,7 @@ dependencies = [
  "log",
  "nym-bandwidth-controller",
  "nym-coconut-interface",
+ "nym-compact-ecash",
  "nym-credential-storage",
  "nym-crypto",
  "nym-gateway-requests",
@@ -6714,7 +6733,6 @@ dependencies = [
  "nym-sphinx",
  "nym-task",
  "nym-validator-client",
- "nym_compact_ecash",
  "rand 0.7.3",
  "serde",
  "thiserror",
@@ -6738,11 +6756,11 @@ dependencies = [
  "generic-array 0.14.7",
  "log",
  "nym-coconut-interface",
+ "nym-compact-ecash",
  "nym-credentials",
  "nym-crypto",
  "nym-pemstore",
  "nym-sphinx",
- "nym_compact_ecash",
  "rand 0.7.3",
  "serde",
  "serde_json",
@@ -7556,6 +7574,7 @@ dependencies = [
  "nym-coconut-bandwidth-contract-common",
  "nym-coconut-dkg-common",
  "nym-coconut-interface",
+ "nym-compact-ecash",
  "nym-config",
  "nym-contracts-common",
  "nym-ephemera-common",
@@ -7566,7 +7585,6 @@ dependencies = [
  "nym-network-defaults",
  "nym-service-provider-directory-common",
  "nym-vesting-contract-common",
- "nym_compact_ecash",
  "openssl",
  "prost",
  "reqwest",
@@ -7638,24 +7656,6 @@ dependencies = [
  "tap",
  "thiserror",
  "tokio",
-]
-
-[[package]]
-name = "nym_compact_ecash"
-version = "0.1.0"
-dependencies = [
- "bls12_381 0.6.0",
- "bs58 0.4.0",
- "criterion 0.3.6",
- "digest 0.9.0",
- "ff 0.11.1",
- "getset",
- "group 0.11.0",
- "itertools 0.10.5",
- "rand 0.8.5",
- "serde",
- "sha2 0.9.9",
- "thiserror",
 ]
 
 [[package]]

@@ -354,14 +354,14 @@ mod tests {
         #[tokio::test]
         async fn are_not_allowed() {
             let host = "unknown.com";
-            let mut filter = setup_empty();
+            let filter = setup_empty();
             assert!(!filter.check(host).await);
         }
 
         #[tokio::test]
         async fn get_appended_once_to_the_unknown_hosts_list() {
             let host = "unknown.com";
-            let mut filter = setup_empty();
+            let filter = setup_empty();
             filter.check(host).await;
             assert_eq!(1, filter.unknown_hosts.lock().await.data.domains.len());
             assert!(filter
@@ -391,7 +391,7 @@ mod tests {
         async fn are_allowed() {
             let host = "nymtech.net";
 
-            let mut filter = setup_with_allowed(&["nymtech.net"]);
+            let filter = setup_with_allowed(&["nymtech.net"]);
             assert!(filter.check(host).await);
         }
 
@@ -399,13 +399,13 @@ mod tests {
         async fn are_allowed_for_subdomains() {
             let host = "foomp.nymtech.net";
 
-            let mut filter = setup_with_allowed(&["nymtech.net"]);
+            let filter = setup_with_allowed(&["nymtech.net"]);
             assert!(filter.check(host).await);
         }
 
         #[tokio::test]
         async fn are_not_appended_to_file() {
-            let mut filter = setup_with_allowed(&["nymtech.net"]);
+            let filter = setup_with_allowed(&["nymtech.net"]);
 
             // test initial state
             let lines =
@@ -428,7 +428,7 @@ mod tests {
             let address_good_port = "1.1.1.1:1234";
             let address_bad = "1.1.1.2";
 
-            let mut filter = setup_with_allowed(&["1.1.1.1"]);
+            let filter = setup_with_allowed(&["1.1.1.1"]);
             assert!(filter.check(address_good).await);
             assert!(filter.check(address_good_port).await);
             assert!(!filter.check(address_bad).await);
@@ -445,9 +445,8 @@ mod tests {
 
             let ip_v6_loopback_port = "[::1]:1234";
 
-            let mut filter1 = setup_with_allowed(&[ip_v6_full, ip_v6_semi, "::1"]);
-            let mut filter2 =
-                setup_with_allowed(&[ip_v6_full_rendered, ip_v6_semi_rendered, "::1"]);
+            let filter1 = setup_with_allowed(&[ip_v6_full, ip_v6_semi, "::1"]);
+            let filter2 = setup_with_allowed(&[ip_v6_full_rendered, ip_v6_semi_rendered, "::1"]);
 
             assert!(filter1.check(ip_v6_full).await);
             assert!(filter1.check(ip_v6_full_rendered).await);
@@ -474,7 +473,7 @@ mod tests {
 
             let outside_range2 = "1.2.2.4";
 
-            let mut filter = setup_with_allowed(&[range1, range2]);
+            let filter = setup_with_allowed(&[range1, range2]);
             assert!(filter.check("127.0.0.1").await);
             assert!(filter.check("127.0.0.1:1234").await);
             assert!(filter.check(bottom_range2).await);
@@ -492,7 +491,7 @@ mod tests {
             let top = "2620:0:ffff:ffff:ffff:ffff:ffff:ffff";
             let mid = "2620:0:42::42";
 
-            let mut filter = setup_with_allowed(&[range]);
+            let filter = setup_with_allowed(&[range]);
             assert!(filter.check(bottom1).await);
             assert!(filter.check(bottom2).await);
             assert!(filter.check(top).await);

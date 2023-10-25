@@ -75,7 +75,7 @@ impl Display for AddressPolicyAction {
 ///
 /// An example IPv4 policy might be:
 ///
-/// ```ignore
+/// ```text
 ///  reject *:25
 ///  reject 127.0.0.0/8:*
 ///  reject 192.168.0.0/16:*

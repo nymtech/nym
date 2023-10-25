@@ -3,7 +3,6 @@
 
 use nym_mixnet_contract_common::{Decimal, Fraction};
 use std::env;
-use std::fs;
 use std::fs::OpenOptions;
 use std::io::Write;
 
@@ -16,13 +15,6 @@ pub(crate) fn best_effort_small_dec_to_f64(dec: Decimal) -> f64 {
 pub fn failed_ips_filepath() -> String {
     let home_dir = env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
     format!("{}/failed_ips.txt", home_dir)
-}
-
-pub fn ip_exists_in_file(address: &str) -> bool {
-    if let Ok(content) = fs::read_to_string(failed_ips_filepath()) {
-        return content.contains(address);
-    }
-    false
 }
 
 pub fn append_ip_to_file(address: &str) {

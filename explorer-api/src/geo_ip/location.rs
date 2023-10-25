@@ -1,10 +1,12 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::helpers::{append_ip_to_file, ip_exists_in_file};
+use crate::helpers::append_ip_to_file;
 use isocountry::CountryCode;
 use log::warn;
 use maxminddb::{geoip2::City, MaxMindDBError, Reader};
+use std::collections::HashSet;
+use std::sync::Mutex;
 use std::{
     net::{IpAddr, ToSocketAddrs},
     str::FromStr,
@@ -27,6 +29,7 @@ pub enum GeoIpError {
 // and an error will be logged.
 pub(crate) struct GeoIp {
     pub(crate) db: Option<Reader<Vec<u8>>>,
+    failed_addresses: FailedIpAddresses,
 }
 
 #[derive(Clone)]
@@ -43,6 +46,17 @@ pub(crate) struct Location {
     pub(crate) longitude: Option<f64>,
 }
 
+pub(crate) struct FailedIpAddresses {
+    failed_ips: Arc<Mutex<HashSet<String>>>,
+}
+
+impl FailedIpAddresses {
+    pub fn new() -> Self {
+        FailedIpAddresses {
+            failed_ips: Arc::new(Mutex::new(HashSet::new())),
+        }
+    }
+}
 impl From<Location> for nym_explorer_api_requests::Location {
     fn from(location: Location) -> Self {
         nym_explorer_api_requests::Location {
@@ -69,7 +83,13 @@ impl GeoIp {
                 error!("Fail to open GeoLite2 database file {}: {}", db_path, e);
             })
             .ok();
-        GeoIp { db: reader }
+
+        let failed_addresses = FailedIpAddresses::new();
+
+        GeoIp {
+            db: reader,
+            failed_addresses,
+        }
     }
 
     pub fn query(&self, address: &str, port: Option<u16>) -> Result<Option<Location>, GeoIpError> {
@@ -87,7 +107,8 @@ impl GeoIp {
                         Ok(ip)
                     } else {
                         debug!("Fail to resolve IP address from {}:{}", &address, p);
-                        if !ip_exists_in_file(address) {
+                        let mut failed_ips_guard = self.failed_addresses.failed_ips.lock().unwrap();
+                        if failed_ips_guard.insert(address.to_string()) {
                             append_ip_to_file(address);
                         }
                         Err(GeoIpError::NoValidIP)
@@ -95,7 +116,8 @@ impl GeoIp {
                 }
                 Err(_) => {
                     debug!("Fail to resolve IP address from {}:{}.", &address, p);
-                    if !ip_exists_in_file(address) {
+                    let mut failed_ips_guard = self.failed_addresses.failed_ips.lock().unwrap();
+                    if failed_ips_guard.insert(address.to_string()) {
                         append_ip_to_file(address);
                     }
                     Err(GeoIpError::NoValidIP)

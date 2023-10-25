@@ -1,6 +1,7 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::helpers::{append_ip_to_file, ip_exists_in_file};
 use isocountry::CountryCode;
 use log::warn;
 use maxminddb::{geoip2::City, MaxMindDBError, Reader};
@@ -78,20 +79,28 @@ impl GeoIp {
                 &address
             );
             let p = port.unwrap_or(FAKE_PORT);
-            let socket_addr = (address, p)
-                .to_socket_addrs()
-                .map_err(|e| {
-                    error!("Fail to resolve IP address from {}:{}: {}", &address, p, e);
-                    GeoIpError::NoValidIP
-                })?
-                .next()
-                .ok_or_else(|| {
-                    debug!("Fail to resolve IP address from {}:{}", &address, p);
-                    GeoIpError::NoValidIP
-                })?;
-            let ip = socket_addr.ip();
-            debug!("Internal lookup succeed, resolved ip: {}", ip);
-            Ok(ip)
+            match (address, p).to_socket_addrs() {
+                Ok(mut addrs) => {
+                    if let Some(socket_addr) = addrs.next() {
+                        let ip = socket_addr.ip();
+                        debug!("Internal lookup succeeded, resolved ip: {}", ip);
+                        Ok(ip)
+                    } else {
+                        debug!("Fail to resolve IP address from {}:{}", &address, p);
+                        if !ip_exists_in_file(address) {
+                            append_ip_to_file(address);
+                        }
+                        Err(GeoIpError::NoValidIP)
+                    }
+                }
+                Err(_) => {
+                    debug!("Fail to resolve IP address from {}:{}.", &address, p);
+                    if !ip_exists_in_file(address) {
+                        append_ip_to_file(address);
+                    }
+                    Err(GeoIpError::NoValidIP)
+                }
+            }
         })?;
         let result = self
             .db

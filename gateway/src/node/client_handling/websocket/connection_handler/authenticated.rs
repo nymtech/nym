@@ -250,12 +250,10 @@ where
         let aggregated_verification_key =
             nym_credentials::obtain_aggregate_verification_key(&credential_api_clients).await?;
 
-        let params = setup(100); //SW: TEMPORARY VALUE, Take from credential?
-
         credential
             .payment()
             .spend_verify(
-                &params,
+                &credential.params(),
                 &aggregated_verification_key,
                 &credential.pay_info(),
             )

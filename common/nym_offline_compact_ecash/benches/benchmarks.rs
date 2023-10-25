@@ -4,20 +4,22 @@
 use std::ops::Neg;
 use std::time::Duration;
 
-use bls12_381::{G1Affine, G1Projective, G2Affine, G2Prepared, G2Projective, Gt, multi_miller_loop, Scalar};
-use criterion::{Criterion, criterion_group, criterion_main};
+use bls12_381::{
+    multi_miller_loop, G1Affine, G1Projective, G2Affine, G2Prepared, G2Projective, Gt, Scalar,
+};
+use criterion::{criterion_group, criterion_main, Criterion};
 use ff::Field;
 use group::{Curve, Group};
 use itertools::izip;
 use rand::seq::SliceRandom;
 
-use nym_compact_ecash::{
-    aggregate_verification_keys, aggregate_wallets, generate_keypair_user,
-    issue_verify, issue_wallet, PartialWallet,
-    PayInfo, PublicKeyUser, SecretKeyUser, ttp_keygen, VerificationKeyAuth, withdrawal_request,
-};
 use nym_compact_ecash::identify::{identify, IdentifyResult};
 use nym_compact_ecash::setup::setup;
+use nym_compact_ecash::{
+    aggregate_verification_keys, aggregate_wallets, generate_keypair_user, issue_verify,
+    issue_wallet, ttp_keygen, withdrawal_request, PartialWallet, PayInfo, PublicKeyUser,
+    SecretKeyUser, VerificationKeyAuth,
+};
 
 #[allow(unused)]
 fn double_pairing(g11: &G1Affine, g21: &G2Affine, g12: &G1Affine, g22: &G2Affine) {
@@ -121,9 +123,7 @@ fn bench_pairings(c: &mut Criterion) {
         b.iter(|| exponent_in_gt(gt, r))
     });
 
-    group.bench_function("single pairing", |b| {
-        b.iter(|| single_pairing(&g11, &g21))
-    });
+    group.bench_function("single pairing", |b| b.iter(|| single_pairing(&g11, &g21)));
 
     group.bench_function("double pairing", |b| {
         b.iter(|| double_pairing(&g11, &g21, &g12, &g22))
@@ -230,8 +230,8 @@ fn bench_compact_ecash(c: &mut Criterion) {
         wallet_blinded_signatures.iter(),
         verification_keys_auth.iter()
     )
-        .map(|(w, vk)| issue_verify(&grp, vk, &user_keypair.secret_key(), w, &req_info).unwrap())
-        .collect();
+    .map(|(w, vk)| issue_verify(&grp, vk, &user_keypair.secret_key(), w, &req_info).unwrap())
+    .collect();
 
     // CLIENT BENCHMARK: aggregating all partial wallets
     // group.bench_function(
@@ -261,7 +261,7 @@ fn bench_compact_ecash(c: &mut Criterion) {
         &unblinded_wallet_shares,
         &req_info,
     )
-        .unwrap();
+    .unwrap();
 
     // SPENDING PHASE
     let pay_info = PayInfo { info: [6u8; 32] };
@@ -321,14 +321,16 @@ fn bench_compact_ecash(c: &mut Criterion) {
     aggr_wallet.l.set(current_l - case.spend_vv);
 
     let pay_info2 = PayInfo { info: [7u8; 32] };
-    let (payment2, _) = aggr_wallet.spend(
-        &params,
-        &verification_key,
-        &user_keypair.secret_key(),
-        &pay_info2,
-        true,
-        case.spend_vv,
-    ).unwrap();
+    let (payment2, _) = aggr_wallet
+        .spend(
+            &params,
+            &verification_key,
+            &user_keypair.secret_key(),
+            &pay_info2,
+            true,
+            case.spend_vv,
+        )
+        .unwrap();
 
     //  GENERATE KEYS FOR OTHER USERS
     let mut public_keys: Vec<PublicKeyUser> = Default::default();
@@ -344,16 +346,28 @@ fn bench_compact_ecash(c: &mut Criterion) {
     group.bench_function(
         &format!(
             "[Merchant] identify_L_{}_threshold_{}_spend_vv_{}_pks_{}",
-            case.L, case.threshold_p, case.spend_vv, public_keys.len()
+            case.L,
+            case.threshold_p,
+            case.spend_vv,
+            public_keys.len()
         ),
         |b| {
             b.iter(|| {
-                identify(&params, &verification_key, payment.clone(), payment2.clone(), pay_info.clone(), pay_info2.clone()).unwrap()
+                identify(
+                    payment.clone(),
+                    payment2.clone(),
+                    pay_info.clone(),
+                    pay_info2.clone(),
+                )
+                .unwrap()
             })
         },
     );
-    let identify_result = identify(&params, &verification_key, payment, payment2, pay_info.clone(), pay_info2.clone()).unwrap();
-    assert_eq!(identify_result, IdentifyResult::DoubleSpendingPublicKeys(user_keypair.public_key()));
+    let identify_result = identify(payment, payment2, pay_info.clone(), pay_info2.clone()).unwrap();
+    assert_eq!(
+        identify_result,
+        IdentifyResult::DoubleSpendingPublicKeys(user_keypair.public_key())
+    );
 }
 
 criterion_group!(benches, bench_compact_ecash);

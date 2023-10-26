@@ -34,7 +34,7 @@ Generally, the software will be the same, just instead of multiple binaries, the
 
 We are exploring two potential methods for implementing binary functionality in practice and will provide information in advance. The options are:
 
-1. Make a selection button (command/argument/flag) for operators to choose whether they want their node to provide all or just some of the functions nodes have in the Nym Mixnet. Those nodes functioning as exit gateway (in that epoch) will then have bigger rewards due to their larger risk exposure and overhead work with the setup.
+1. Make a selection button (command/argument/flag) for operators to choose whether they want their node to provide all or just some of the functions nodes have in the Nym Mixnet. Nodes functioning as exit gateways (in that epoch) will then have bigger rewards due to their larger risk exposure and overhead work with the setup.
 
 2. All nodes will be required to have the exit gateway functionality. All nodes are rewarded the same as now, and the difference is that a node sometimes (some epochs) may be performing as exit gateway sometimes as mix node or entry gateway adjusted according the network demand by an algorithm.
 

@@ -48,14 +48,12 @@ export const validateAmount = async (
 };
 
 export const isValidHostname = (value: string) => {
-  const trimmedValue = value.trim();
-
   const hostnameSchema = Joi.alternatives().try(
     Joi.string().hostname(),
     Joi.string().ip({ version: ['ipv4', 'ipv6'] }),
   );
 
-  const result = hostnameSchema.validate(trimmedValue);
+  const result = hostnameSchema.validate(value);
   return !result.error;
 };
 

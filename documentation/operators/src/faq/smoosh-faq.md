@@ -32,7 +32,7 @@ Generally, the software will be the same, just instead of multiple binaries, the
 
 ### What does it mean for Nym nodes operators?
 
-We are looking into two possible ways how such binary will work in practice and will inform in advance. These are the options:
+We are exploring two potential methods for implementing binary functionality in practice and will provide information in advance. The options are:
 
 1. Make a selection button (command/argument/flag) for operators to choose whether they want their node to provide all or just some of the functions nodes have in the Nym Mixnet. Those nodes functioning as exit gateway (in that epoch) will then have bigger rewards due to their larger risk exposure and overhead work with the setup.
 

@@ -118,12 +118,12 @@ impl GeoIp {
     }
 
     pub fn query(&self, address: &str, port: Option<u16>) -> Result<Option<Location>, GeoIpError> {
-        let ip: IpAddr = FromStr::from_str(address).or_else(|_| {
+        let p = port.unwrap_or(FAKE_PORT);
+        let ip_result: Result<IpAddr, GeoIpError> = FromStr::from_str(address).or_else(|_| {
             debug!(
                 "Fail to create IpAddr from {}. Trying using internal lookup...",
                 &address
             );
-            let p = port.unwrap_or(FAKE_PORT);
             match (address, p).to_socket_addrs() {
                 Ok(mut addrs) => {
                     if let Some(socket_addr) = addrs.next() {
@@ -142,7 +142,10 @@ impl GeoIp {
                     Err(GeoIpError::NoValidIP)
                 }
             }
-        })?;
+        });
+
+        let ip = ip_result?;
+
         let result = self
             .db
             .as_ref()

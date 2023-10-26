@@ -101,6 +101,11 @@ pub(crate) struct OverrideNetworkRequesterConfig {
     pub(crate) statistics_recipient: Option<String>,
 }
 
+#[derive(Default)]
+pub(crate) struct OverrideIpForwarderConfig {
+    // TODO
+}
+
 /// Ensures that a given bech32 address is valid
 pub(crate) fn ensure_correct_bech32_prefix(address: &AccountId) -> Result<(), GatewayError> {
     let expected_prefix =
@@ -218,6 +223,13 @@ pub(crate) fn override_network_requester_config(
         nym_network_requester::Config::with_statistics_recipient,
         opts.statistics_recipient,
     )
+}
+
+pub(crate) fn override_ip_forwarder_config(
+    cfg: nym_ip_forwarder::Config,
+    _opts: Option<OverrideIpForwarderConfig>,
+) -> nym_ip_forwarder::Config {
+    cfg
 }
 
 pub(crate) async fn initialise_local_network_requester(

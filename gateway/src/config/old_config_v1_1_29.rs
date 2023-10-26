@@ -150,10 +150,14 @@ impl From<ConfigV1_1_29> for Config {
                 },
                 clients_storage: value.storage_paths.clients_storage,
                 network_requester_config: value.storage_paths.network_requester_config,
+                // WIP: make proper conversion
+                ip_forwarder_config: Default::default(),
             },
             network_requester: NetworkRequester {
                 enabled: value.network_requester.enabled,
             },
+            // WIP: make proper conversion
+            ip_forwarder: Default::default(),
             logging: LoggingSettings {},
             debug: Debug {
                 packet_forwarding_initial_backoff: value.debug.packet_forwarding_initial_backoff,

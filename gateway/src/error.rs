@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::node::storage::error::StorageError;
+use nym_ip_forwarder::error::IpForwarderError;
 use nym_network_requester::error::{ClientCoreError, NetworkRequesterError};
 use nym_validator_client::nyxd::error::NyxdError;
 use nym_validator_client::nyxd::AccountId;
@@ -49,6 +50,17 @@ pub(crate) enum GatewayError {
     },
 
     #[error(
+        "failed to load config file for ip forwarder (gateway-id: '{id}') using path '{}'. detailed message: {source}",
+        path.display()
+    )]
+    IpForwarderConfigLoadFailure {
+        id: String,
+        path: PathBuf,
+        #[source]
+        source: io::Error,
+    },
+
+    #[error(
         "failed to save config file for id {id} using path '{}'. detailed message: {source}", path.display()
     )]
     ConfigSaveFailure {
@@ -86,14 +98,26 @@ pub(crate) enum GatewayError {
     #[error("Path to network requester configuration file hasn't been specified. Perhaps try to run `setup-network-requester`?")]
     UnspecifiedNetworkRequesterConfig,
 
+    #[error("Path to ip forwarder configuration file hasn't been specified. Perhaps try to run `setup-ip-forwarder`?")]
+    UnspecifiedIpForwarderConfig,
+
     #[error("there was an issue with the local network requester: {source}")]
     NetworkRequesterFailure {
         #[from]
         source: NetworkRequesterError,
     },
 
+    #[error("there was an issue with the local ip forwarder: {source}")]
+    IpForwarederFailure {
+        #[from]
+        source: IpForwarderError,
+    },
+
     #[error("failed to startup local network requester")]
     NetworkRequesterStartupFailure,
+
+    #[error("failed to startup local ip forwarder")]
+    IpForwarderStartupFailure,
 
     #[error("there are no nym API endpoints available")]
     NoNymApisAvailable,

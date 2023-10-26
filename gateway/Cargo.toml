@@ -76,6 +76,7 @@ nym-task = { path = "../common/task" }
 nym-types = { path = "../common/types" }
 nym-validator-client = { path = "../common/client-libs/validator-client" }
 nym-wireguard = { path = "../common/wireguard", optional = true }
+nym-ip-forwarder = { path = "../service-providers/ip-forwarder" }
 
 [dev-dependencies]
 tower = "0.4.13"

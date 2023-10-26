@@ -6540,6 +6540,7 @@ dependencies = [
  "nym-credentials",
  "nym-crypto",
  "nym-gateway-requests",
+ "nym-ip-forwarder",
  "nym-mixnet-client",
  "nym-mixnode-common",
  "nym-network-defaults",

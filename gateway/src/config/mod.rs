@@ -100,6 +100,8 @@ pub struct Config {
 
     pub network_requester: NetworkRequester,
 
+    pub ip_forwarder: IpForwarder,
+
     #[serde(default)]
     pub logging: LoggingSettings,
 
@@ -128,6 +130,7 @@ impl Config {
             wireguard: Default::default(),
             storage_paths: GatewayPaths::new_default(id.as_ref()),
             network_requester: Default::default(),
+            ip_forwarder: Default::default(),
             logging: Default::default(),
             debug: Default::default(),
         }
@@ -357,6 +360,20 @@ pub struct NetworkRequester {
 impl Default for NetworkRequester {
     fn default() -> Self {
         NetworkRequester { enabled: false }
+    }
+}
+
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[serde(default)]
+pub struct IpForwarder {
+    /// Specifies whether ip forwarder service is enabled in this process.
+    pub enabled: bool,
+}
+
+#[allow(clippy::derivable_impls)]
+impl Default for IpForwarder {
+    fn default() -> Self {
+        Self { enabled: false }
     }
 }
 

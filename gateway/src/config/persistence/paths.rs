@@ -50,6 +50,10 @@ pub struct GatewayPaths {
     // pub node_description: PathBuf,
 
     // pub cosmos_bip39_mnemonic: PathBuf,
+
+    /// Path to the configuration of the embedded ip forwarder.
+    #[serde(deserialize_with = "de_maybe_path")]
+    pub ip_forwarder_config: Option<PathBuf>,
 }
 
 impl GatewayPaths {
@@ -59,6 +63,7 @@ impl GatewayPaths {
             clients_storage: default_data_directory(id).join(DEFAULT_CLIENTS_STORAGE_FILENAME),
             // node_description: default_config_filepath(id).join(DEFAULT_DESCRIPTION_FILENAME),
             network_requester_config: None,
+            ip_forwarder_config: None,
         }
     }
 

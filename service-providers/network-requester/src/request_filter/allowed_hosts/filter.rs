@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::HostsStore;
-use crate::allowed_hosts::group::HostsGroup;
-use crate::allowed_hosts::standard_list::StandardList;
-use crate::allowed_hosts::stored_allowed_hosts::StoredAllowedHosts;
+use crate::request_filter::allowed_hosts::group::HostsGroup;
+use crate::request_filter::allowed_hosts::standard_list::StandardList;
+use crate::request_filter::allowed_hosts::stored_allowed_hosts::StoredAllowedHosts;
 use std::net::{IpAddr, SocketAddr};
+use tokio::sync::Mutex;
 
 #[derive(Debug)]
 enum RequestHost {
@@ -31,7 +32,7 @@ pub(crate) struct OutboundRequestFilter {
     pub(super) allowed_hosts: StoredAllowedHosts,
     pub(super) standard_list: StandardList,
     root_domain_list: publicsuffix::List,
-    unknown_hosts: HostsStore,
+    unknown_hosts: Mutex<HostsStore>,
 }
 
 impl OutboundRequestFilter {
@@ -56,7 +57,7 @@ impl OutboundRequestFilter {
             allowed_hosts,
             standard_list,
             root_domain_list: domain_list,
-            unknown_hosts,
+            unknown_hosts: Mutex::new(unknown_hosts),
         }
     }
 
@@ -86,11 +87,12 @@ impl OutboundRequestFilter {
         }
     }
 
-    fn add_to_unknown_hosts(&mut self, host: RequestHost) {
+    async fn add_to_unknown_hosts(&self, host: RequestHost) {
+        let mut guard = self.unknown_hosts.lock().await;
         match host {
-            RequestHost::IpAddr(ip_addr) => self.unknown_hosts.add_ip(ip_addr),
-            RequestHost::SocketAddr(socket_addr) => self.unknown_hosts.add_ip(socket_addr.ip()),
-            RequestHost::RootDomain(domain) => self.unknown_hosts.add_domain(&domain),
+            RequestHost::IpAddr(ip_addr) => guard.add_ip(ip_addr),
+            RequestHost::SocketAddr(socket_addr) => guard.add_ip(socket_addr.ip()),
+            RequestHost::RootDomain(domain) => guard.add_domain(&domain),
         }
     }
 
@@ -112,7 +114,7 @@ impl OutboundRequestFilter {
         }
     }
 
-    async fn check_request_host(&mut self, request_host: &RequestHost) -> bool {
+    async fn check_request_host(&self, request_host: &RequestHost) -> bool {
         // first check our own allow list
         let local_allowed = self.check_allowed_hosts(request_host).await;
 
@@ -128,12 +130,12 @@ impl OutboundRequestFilter {
     /// Returns `true` if a host's root domain is in the `allowed_hosts` list.
     ///
     /// If it's not in the list, return `false` and write it to the `unknown_hosts` storefile.
-    pub(crate) async fn check(&mut self, host: &str) -> bool {
+    pub(crate) async fn check(&self, host: &str) -> bool {
         let allowed = match self.parse_request_host(host) {
             Some(request_host) => {
                 let res = self.check_request_host(&request_host).await;
                 if !res {
-                    self.add_to_unknown_hosts(request_host)
+                    self.add_to_unknown_hosts(request_host).await
                 }
                 res
             }
@@ -352,20 +354,32 @@ mod tests {
         #[tokio::test]
         async fn are_not_allowed() {
             let host = "unknown.com";
-            let mut filter = setup_empty();
+            let filter = setup_empty();
             assert!(!filter.check(host).await);
         }
 
         #[tokio::test]
         async fn get_appended_once_to_the_unknown_hosts_list() {
             let host = "unknown.com";
-            let mut filter = setup_empty();
+            let filter = setup_empty();
             filter.check(host).await;
-            assert_eq!(1, filter.unknown_hosts.data.domains.len());
-            assert!(filter.unknown_hosts.data.domains.contains("unknown.com"));
+            assert_eq!(1, filter.unknown_hosts.lock().await.data.domains.len());
+            assert!(filter
+                .unknown_hosts
+                .lock()
+                .await
+                .data
+                .domains
+                .contains("unknown.com"));
             filter.check(host).await;
-            assert_eq!(1, filter.unknown_hosts.data.domains.len());
-            assert!(filter.unknown_hosts.data.domains.contains("unknown.com"));
+            assert_eq!(1, filter.unknown_hosts.lock().await.data.domains.len());
+            assert!(filter
+                .unknown_hosts
+                .lock()
+                .await
+                .data
+                .domains
+                .contains("unknown.com"));
         }
     }
 
@@ -377,7 +391,7 @@ mod tests {
         async fn are_allowed() {
             let host = "nymtech.net";
 
-            let mut filter = setup_with_allowed(&["nymtech.net"]);
+            let filter = setup_with_allowed(&["nymtech.net"]);
             assert!(filter.check(host).await);
         }
 
@@ -385,13 +399,13 @@ mod tests {
         async fn are_allowed_for_subdomains() {
             let host = "foomp.nymtech.net";
 
-            let mut filter = setup_with_allowed(&["nymtech.net"]);
+            let filter = setup_with_allowed(&["nymtech.net"]);
             assert!(filter.check(host).await);
         }
 
         #[tokio::test]
         async fn are_not_appended_to_file() {
-            let mut filter = setup_with_allowed(&["nymtech.net"]);
+            let filter = setup_with_allowed(&["nymtech.net"]);
 
             // test initial state
             let lines =
@@ -414,7 +428,7 @@ mod tests {
             let address_good_port = "1.1.1.1:1234";
             let address_bad = "1.1.1.2";
 
-            let mut filter = setup_with_allowed(&["1.1.1.1"]);
+            let filter = setup_with_allowed(&["1.1.1.1"]);
             assert!(filter.check(address_good).await);
             assert!(filter.check(address_good_port).await);
             assert!(!filter.check(address_bad).await);
@@ -431,9 +445,8 @@ mod tests {
 
             let ip_v6_loopback_port = "[::1]:1234";
 
-            let mut filter1 = setup_with_allowed(&[ip_v6_full, ip_v6_semi, "::1"]);
-            let mut filter2 =
-                setup_with_allowed(&[ip_v6_full_rendered, ip_v6_semi_rendered, "::1"]);
+            let filter1 = setup_with_allowed(&[ip_v6_full, ip_v6_semi, "::1"]);
+            let filter2 = setup_with_allowed(&[ip_v6_full_rendered, ip_v6_semi_rendered, "::1"]);
 
             assert!(filter1.check(ip_v6_full).await);
             assert!(filter1.check(ip_v6_full_rendered).await);
@@ -460,7 +473,7 @@ mod tests {
 
             let outside_range2 = "1.2.2.4";
 
-            let mut filter = setup_with_allowed(&[range1, range2]);
+            let filter = setup_with_allowed(&[range1, range2]);
             assert!(filter.check("127.0.0.1").await);
             assert!(filter.check("127.0.0.1:1234").await);
             assert!(filter.check(bottom_range2).await);
@@ -478,7 +491,7 @@ mod tests {
             let top = "2620:0:ffff:ffff:ffff:ffff:ffff:ffff";
             let mid = "2620:0:42::42";
 
-            let mut filter = setup_with_allowed(&[range]);
+            let filter = setup_with_allowed(&[range]);
             assert!(filter.check(bottom1).await);
             assert!(filter.check(bottom2).await);
             assert!(filter.check(top).await);

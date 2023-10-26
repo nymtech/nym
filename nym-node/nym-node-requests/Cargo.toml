@@ -18,6 +18,7 @@ serde_json = { workspace = true }
 thiserror = { workspace = true }
 
 nym-crypto = { path = "../../common/crypto", features = ["asymmetric"] }
+nym-exit-policy = { path = "../../common/exit-policy" }
 nym-wireguard-types = { path = "../../common/wireguard-types", default-features = false }
 
 # feature-specific dependencies:
@@ -36,4 +37,4 @@ tokio = { workspace = true, features = ["full"] }
 [features]
 default = ["client"]
 client = ["http-api-client", "async-trait"]
-openapi = ["utoipa", "nym-bin-common/openapi", "nym-wireguard-types/openapi"]
+openapi = ["utoipa", "nym-bin-common/openapi", "nym-wireguard-types/openapi", "nym-exit-policy/openapi"]

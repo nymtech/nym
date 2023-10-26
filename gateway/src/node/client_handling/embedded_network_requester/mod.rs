@@ -6,7 +6,6 @@ use crate::node::client_handling::websocket::message_receiver::{
 };
 use futures::StreamExt;
 use log::{debug, error};
-use nym_network_requester::core::OnStartData;
 use nym_network_requester::{GatewayPacketRouter, PacketRouter};
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::DestinationAddressBytes;
@@ -22,9 +21,9 @@ pub(crate) struct LocalNetworkRequesterHandle {
 }
 
 impl LocalNetworkRequesterHandle {
-    pub(crate) fn new(start_data: OnStartData, mix_message_sender: MixMessageSender) -> Self {
+    pub(crate) fn new(address: Recipient, mix_message_sender: MixMessageSender) -> Self {
         Self {
-            address: start_data.address,
+            address,
             mix_message_sender,
         }
     }

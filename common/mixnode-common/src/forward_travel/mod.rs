@@ -93,36 +93,45 @@ impl AllowedAddressesProvider {
         }
     }
 
+    fn add_node_ips(raw_host: &str, identity: &str, set: &mut HashSet<IpAddr>) {
+        if let Ok(ip) = IpAddr::from_str(raw_host) {
+            set.insert(ip);
+        } else {
+            // this might still be a valid hostname
+            //
+            // annoyingly there exists a method of looking up a socket address but not an ip address,
+            // so append any port and perform the lookup
+            let Ok(sockets) = format!("{raw_host}:1789").to_socket_addrs() else {
+                warn!("failed to resolve ip address of node '{identity}' (hostname: {raw_host})");
+                return;
+            };
+
+            for socket in sockets {
+                set.insert(socket.ip());
+            }
+        }
+    }
+
+    fn get_all_addresses(nodes: &[MixNodeBond], gateways: &[GatewayBond]) -> HashSet<IpAddr> {
+        let mut allowed = HashSet::new();
+
+        for node in nodes.iter() {
+            Self::add_node_ips(&node.mix_node.host, node.identity(), &mut allowed);
+        }
+
+        for gateway in gateways.iter() {
+            Self::add_node_ips(&gateway.gateway.host, gateway.identity(), &mut allowed);
+        }
+
+        allowed
+    }
+
     /// Gets ip addresses of all mixnodes on given layer
     fn get_addresses_on_layer(layer: Layer, nodes: &[MixNodeBond]) -> HashSet<IpAddr> {
         let mut allowed = HashSet::new();
 
         for node in nodes.iter().filter(|m| m.layer == layer) {
-            match IpAddr::from_str(&node.mix_node.host) {
-                Ok(ip) => {
-                    allowed.insert(ip);
-                }
-                Err(_) => {
-                    // this might still be a valid hostname
-
-                    // annoyingly there exists a method of looking up a socket address but not an ip address,
-                    // so append any port and perform the lookup
-                    let Ok(sockets) = format!("{}:{}", node.mix_node.host, node.mix_node.mix_port)
-                        .to_socket_addrs()
-                    else {
-                        warn!(
-                            "failed to resolve ip address of mixnode '{}' (hostname: {})",
-                            node.identity(),
-                            node.mix_node.host
-                        );
-                        continue;
-                    };
-
-                    for socket in sockets {
-                        allowed.insert(socket.ip());
-                    }
-                }
-            }
+            Self::add_node_ips(&node.mix_node.host, node.identity(), &mut allowed);
         }
 
         allowed
@@ -132,32 +141,7 @@ impl AllowedAddressesProvider {
         let mut allowed = HashSet::new();
 
         for gateway in gateways.iter() {
-            match IpAddr::from_str(&gateway.gateway.host) {
-                Ok(ip) => {
-                    allowed.insert(ip);
-                }
-                Err(_) => {
-                    // this might still be a valid hostname
-
-                    // annoyingly there exists a method of looking up a socket address but not an ip address,
-                    // so append any port and perform the lookup
-                    let Ok(sockets) =
-                        format!("{}:{}", gateway.gateway.host, gateway.gateway.mix_port)
-                            .to_socket_addrs()
-                    else {
-                        warn!(
-                            "failed to resolve ip address of gateway '{}' (hostname: {})",
-                            gateway.identity(),
-                            gateway.gateway.host
-                        );
-                        continue;
-                    };
-
-                    for socket in sockets {
-                        allowed.insert(socket.ip());
-                    }
-                }
-            }
+            Self::add_node_ips(&gateway.gateway.host, gateway.identity(), &mut allowed);
         }
 
         allowed
@@ -198,17 +182,7 @@ impl AllowedAddressesProvider {
         let next_mix_layer = our_mix_layer.map(|l| l.try_next()).flatten();
 
         let (allowed_ingress, allowed_egress) = match (previous_mix_layer, next_mix_layer) {
-            (Some(previous), Some(next)) => (
-                Self::get_addresses_on_layer(previous, &mixnodes),
-                Self::get_addresses_on_layer(next, &mixnodes),
-            ),
-            (Some(previous), None) => {
-                let gateways = client.get_all_gateways().await?;
-                (
-                    Self::get_addresses_on_layer(previous, &mixnodes),
-                    Self::gateway_addresses(&gateways),
-                )
-            }
+            // layer 1
             (None, Some(next)) => {
                 let gateways = client.get_all_gateways().await?;
 
@@ -217,8 +191,40 @@ impl AllowedAddressesProvider {
                     Self::get_addresses_on_layer(next, &mixnodes),
                 )
             }
+            // layer 2
+            (Some(previous), Some(next)) => (
+                Self::get_addresses_on_layer(previous, &mixnodes),
+                Self::get_addresses_on_layer(next, &mixnodes),
+            ),
+            // layer 3
+            (Some(previous), None) => {
+                let gateways = client.get_all_gateways().await?;
+                (
+                    Self::get_addresses_on_layer(previous, &mixnodes),
+                    Self::gateway_addresses(&gateways),
+                )
+            }
+            // gateway (or not bonded)
+            (None, None) => {
+                let gateways = client.get_all_gateways().await?;
 
-            _ => unreachable!("both previous and next layers are set to be gateways!"),
+                if self.is_gateway(&gateways) {
+                    let mut base_ingress = Self::get_addresses_on_layer(Layer::Three, &mixnodes);
+                    let mut base_egress = Self::get_addresses_on_layer(Layer::One, &mixnodes);
+
+                    // TODO: this extension should be conditional on whether the node is running the vpn module
+                    let gw_extension = Self::gateway_addresses(&gateways);
+
+                    base_ingress.extend(gw_extension.clone());
+                    base_egress.extend(gw_extension.clone());
+
+                    (base_ingress, base_egress)
+                } else {
+                    warn!("our node doesn't appear to be bonded - going to permit traffic from ALL mixnodes and gateways");
+                    let all = Self::get_all_addresses(&mixnodes, &gateways);
+                    (all.clone(), all)
+                }
+            }
         };
 
         self.current_epoch = current_epoch;

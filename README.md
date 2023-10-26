@@ -53,7 +53,7 @@ Node, node operator and delegator rewards are determined according to the princi
 |<img src="https://render.githubusercontent.com/render/math?math=\alpha#gh-light-mode-only"><img src="https://render.githubusercontent.com/render/math?math=\color{white}\alpha#gh-dark-mode-only">|A Sybil attack resistance parameter - the higher this parameter is set, the stronger the reduction in competitiveness for a Sybil attacker.
 |<img src="https://render.githubusercontent.com/render/math?math=PM_{i}#gh-light-mode-only"><img src="https://render.githubusercontent.com/render/math?math=\color{white}PM_{i}#gh-dark-mode-only">|declared profit margin of operator `i`, defaults to 10%.
 |<img src="https://render.githubusercontent.com/render/math?math=PF_{i}#gh-light-mode-only"><img src="https://render.githubusercontent.com/render/math?math=\color{white}PF_{i}#gh-dark-mode-only">|uptime of node `i`, scaled to 0 - 1, for the rewarding epoch
-|<img src="https://render.githubusercontent.com/render/math?math=PP_{i}#gh-light-mode-only"><img src="https://render.githubusercontent.com/render/math?math=\color{white}PP_{i}#gh-dark-mode-only">|cost of operating node `i` for the duration of the rewarding epoch, set to 40 NYMTs.
+|<img src="https://render.githubusercontent.com/render/math?math=PP_{i}#gh-light-mode-only"><img src="https://render.githubusercontent.com/render/math?math=\color{white}PP_{i}#gh-dark-mode-only">|cost of operating node `i` for the duration of the rewarding epoch, set to 40 NYMs.
 
 Node reward for node `i` is determined as:
 

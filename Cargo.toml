@@ -90,6 +90,7 @@ members = [
     "sdk/lib/socks5-listener",
     "sdk/rust/nym-sdk",
     "service-providers/common",
+    "service-providers/ip-forwarder",
     "service-providers/network-requester",
     "service-providers/network-statistics",
     "nym-api",

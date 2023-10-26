@@ -6644,6 +6644,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-ip-forwarder"
+version = "0.1.0"
+dependencies = [
+ "futures",
+ "log",
+ "nym-client-core",
+ "nym-config",
+ "nym-sdk",
+ "nym-sphinx",
+ "nym-task",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
 name = "nym-mixnet-client"
 version = "0.1.0"
 dependencies = [

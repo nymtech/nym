@@ -1,12 +1,12 @@
 # Legal environment: United States
 
 ```admonish warning
-The following part is for informational purposes only. Nym core team cannot provide comprehensive legal advice across all jurisdictions. Knowledge and experience with the legalities are being built up with the help of our counsel and with you, the community of Nym node operators. We encourage Nym node operators to join the [Node Operator](https://matrix.to/#/#operators:nymtech.chat) and [Operators LEgal Forum](https://matrix.to/#/!YfoUFsJjsXbWmijbPG:nymtech.chat?via=nymtech.chat&via=matrix.org) channels on Element to share best practices and experiences.
+The following part is for informational purposes only. Nym core team cannot provide comprehensive legal advice across all jurisdictions. Knowledge and experience with the legalities are being built up with the help of our counsel and with you, the community of Nym node operators. We encourage Nym node operators to join the [Node Operator](https://matrix.to/#/#operators:nymtech.chat) and [Operators Legal Forum](https://matrix.to/#/!YfoUFsJjsXbWmijbPG:nymtech.chat?via=nymtech.chat&via=matrix.org) channels on Element to share best practices and experiences.
 ```
 
 ## Findings from our legal team
 
-**Note:** The information shared below is in the stage of conclusions upon final confirmation.
+> **Note:** The information shared below is in the stage of conclusions upon final confirmation. The text is a not edited exert from a legal counsel. Nym core team is asking for more clarifications. 
 
 The US legal counsel have so far provided the following advice:
 

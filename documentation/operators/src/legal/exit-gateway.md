@@ -128,12 +128,12 @@ Useful links:
 
 ## Legal environment - Findings from our legal team
 
-The Node Operators Legal Forum are divided into pages according the regions:
+The Node Operators Legal Forum pages are divided into pages according the region:
 
 - [Switzerland](./swiss.md)
 - [United States](./united-states.md)
 
-See the next chapter to learn how to edit or add the Legal Forum pages.
+See the next chapter to learn how to edit information or add findings about your jurisdiction.
 
 ## How to edit or add legal information
 

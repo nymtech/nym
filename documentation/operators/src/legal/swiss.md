@@ -1,12 +1,12 @@
 # Legal environment: Switzerland
 
 ```admonish warning
-The following part is for informational purposes only. Nym core team cannot provide comprehensive legal advice across all jurisdictions. Knowledge and experience with the legalities are being built up with the help of our counsel and with you, the community of Nym node operators. We encourage Nym node operators to join the [Node Operator](https://matrix.to/#/#operators:nymtech.chat) and [Operators LEgal Forum](https://matrix.to/#/!YfoUFsJjsXbWmijbPG:nymtech.chat?via=nymtech.chat&via=matrix.org) channels on Element to share best practices and experiences.
+The following part is for informational purposes only. Nym core team cannot provide comprehensive legal advice across all jurisdictions. Knowledge and experience with the legalities are being built up with the help of our counsel and with you, the community of Nym node operators. We encourage Nym node operators to join the [Node Operator](https://matrix.to/#/#operators:nymtech.chat) and [Operators Legal Forum](https://matrix.to/#/!YfoUFsJjsXbWmijbPG:nymtech.chat?via=nymtech.chat&via=matrix.org) channels on Element to share best practices and experiences.
 ```
 
 ## Findings from our legal team
 
-**Note:** The information shared below is in the stage of conclusions upon final confirmation. The text is a not edited exert from a legal counsel. Nym core team is asking for more clarifications. 
+> **Note:** The information shared below is in the stage of conclusions upon final confirmation. The text is a not edited exert from a legal counsel. Nym core team is asking for more clarifications. 
 
 ### Operators of Exit Nodes
 
@@ -15,7 +15,7 @@ The following part is for informational purposes only. Nym core team cannot prov
 As well as operators of normal mixnet nodes, operators of exit nodes might be considered telecommunications providers according to the broad term of the telecommunications act (TCA).
 The regulatory consequences have already been laid out in section 5.1.2.2.1 above.
 
-####Telecoms Surveillance Law
+#### Telecoms Surveillance Law
 
 Unlike normal mixnet nodes, exit nodes might have information about the communication party which uses the respective exit node (in particular its IP address). They might therefore be a target for surveillance authorities, at least at first glance.
 

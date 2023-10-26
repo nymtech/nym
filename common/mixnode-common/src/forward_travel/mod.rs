@@ -22,8 +22,8 @@ use url::Url;
 
 pub mod error;
 
-pub type Ingress = AllowedPaths;
-pub type Egress = AllowedPaths;
+pub type AllowedIngress = AllowedPaths;
+pub type AllowedEgress = AllowedPaths;
 
 pub struct AllowedAddressesProvider {
     current_epoch: EpochId,
@@ -35,8 +35,8 @@ pub struct AllowedAddressesProvider {
     /// URLs to the nyxd validators for obtaining unfiltered network topology.
     nyxd_endpoints: Vec<Url>,
 
-    ingress: Ingress,
-    egress: Egress,
+    ingress: AllowedIngress,
+    egress: AllowedEgress,
 }
 
 impl AllowedAddressesProvider {
@@ -81,14 +81,14 @@ impl AllowedAddressesProvider {
         Err(last_error.into())
     }
 
-    pub fn ingress(&self) -> Ingress {
-        Ingress {
+    pub fn ingress(&self) -> AllowedIngress {
+        AllowedIngress {
             inner: Arc::clone(&self.ingress.inner),
         }
     }
 
-    pub fn egress(&self) -> Egress {
-        Egress {
+    pub fn egress(&self) -> AllowedEgress {
+        AllowedEgress {
             inner: Arc::clone(&self.egress.inner),
         }
     }

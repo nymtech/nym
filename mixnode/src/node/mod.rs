@@ -17,7 +17,7 @@ use nym_bin_common::output_format::OutputFormat;
 use nym_bin_common::version_checker::parse_version;
 use nym_config::defaults::NymNetworkDetails;
 use nym_crypto::asymmetric::{encryption, identity};
-use nym_mixnode_common::forward_travel::{AllowedAddressesProvider, Egress, Ingress};
+use nym_mixnode_common::forward_travel::{AllowedAddressesProvider, AllowedEgress, AllowedIngress};
 use nym_mixnode_common::verloc::{self, AtomicVerlocResult, VerlocMeasurer};
 use nym_task::{TaskClient, TaskManager};
 use rand::seq::SliceRandom;
@@ -103,6 +103,7 @@ impl MixNode {
         &self,
         node_stats_update_sender: node_statistics::UpdateSender,
         delay_forwarding_channel: PacketDelayForwardSender,
+        ingress: AllowedIngress,
         shutdown: TaskClient,
     ) {
         info!("Starting socket listener...");
@@ -117,13 +118,13 @@ impl MixNode {
             self.config.mixnode.mix_port,
         );
 
-        Listener::new(listening_address, shutdown).start(connection_handler);
+        Listener::new(listening_address, ingress, shutdown).start(connection_handler);
     }
 
     fn start_allowed_addresses_provider(
         &self,
         task_client: TaskClient,
-    ) -> Result<(Ingress, Egress), MixnodeError> {
+    ) -> Result<(AllowedIngress, AllowedEgress), MixnodeError> {
         let identity = self.identity_keypair.public_key().to_base58_string();
         let nyxd_endpoints = self.config.mixnode.nyxd_urls.clone();
 
@@ -251,6 +252,10 @@ impl MixNode {
 
         let shutdown = TaskManager::default();
 
+        let (ingress, egress) = self.start_allowed_addresses_provider(
+            shutdown.subscribe().named("AllowedAddressesProvider"),
+        )?;
+
         let (node_stats_pointer, node_stats_update_sender) = self
             .start_node_stats_controller(shutdown.subscribe().named("node_statistics::Controller"));
         let delay_forwarding_channel = self.start_packet_delay_forwarder(
@@ -260,6 +265,7 @@ impl MixNode {
         self.start_socket_listener(
             node_stats_update_sender,
             delay_forwarding_channel,
+            ingress,
             shutdown.subscribe().named("Listener"),
         );
         let atomic_verloc_results =

@@ -3,6 +3,7 @@
 
 use crate::node::listener::connection_handler::ConnectionHandler;
 use log::{error, info, warn};
+use nym_mixnode_common::forward_travel::AllowedIngress;
 use std::net::SocketAddr;
 use std::process;
 use tokio::net::TcpListener;
@@ -14,12 +15,21 @@ pub(crate) mod connection_handler;
 
 pub(crate) struct Listener {
     address: SocketAddr,
+    allowed_ingress: AllowedIngress,
     shutdown: TaskClient,
 }
 
 impl Listener {
-    pub(crate) fn new(address: SocketAddr, shutdown: TaskClient) -> Self {
-        Listener { address, shutdown }
+    pub(crate) fn new(
+        address: SocketAddr,
+        allowed_ingress: AllowedIngress,
+        shutdown: TaskClient,
+    ) -> Self {
+        Listener {
+            address,
+            allowed_ingress,
+            shutdown,
+        }
     }
 
     async fn run(&mut self, connection_handler: ConnectionHandler) {
@@ -41,6 +51,14 @@ impl Listener {
                 connection = listener.accept() => {
                     match connection {
                         Ok((socket, remote_addr)) => {
+                            // even though this is an async method, we shouldn't be blocked for too long
+                            // since we're just getting a read permit to rwlock,
+                            // while the write task should only be running every hour or so (epoch length)
+                            if !self.allowed_ingress.is_allowed(remote_addr.ip()).await {
+                                warn!("received an incoming connection from {remote_addr}, but this address does not belong to any node on the previous layer - dropping the connection");
+                                continue
+                            }
+
                             let handler = connection_handler.clone();
                             tokio::spawn(handler.handle_connection(socket, remote_addr, self.shutdown.clone()));
                         }

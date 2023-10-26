@@ -51,7 +51,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --workspace --release
+          args: --workspace --release --features wireguard
 
       - name: Prepare build output
         shell: bash

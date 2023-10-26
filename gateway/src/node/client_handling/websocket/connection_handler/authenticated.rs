@@ -15,11 +15,11 @@ use nym_sphinx::forwarding::packet::MixPacket;
 use nym_task::TaskClient;
 use nym_validator_client::coconut::CoconutApiError;
 use rand::{CryptoRng, Rng};
+use std::net::SocketAddr;
+use std::{convert::TryFrom, process, time::Duration};
 use thiserror::Error;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_tungstenite::tungstenite::{protocol::Message, Error as WsError};
-
-use std::{convert::TryFrom, process, time::Duration};
 
 use crate::node::{
     client_handling::{
@@ -40,13 +40,13 @@ pub(crate) enum RequestHandlingError {
     #[error("Internal gateway storage error")]
     StorageError(#[from] StorageError),
 
-    #[error("Provided bandwidth IV is malformed - {0}")]
+    #[error("Provided bandwidth IV is malformed: {0}")]
     MalformedIV(#[from] IVConversionError),
 
-    #[error("Provided binary request was malformed - {0}")]
+    #[error("Provided binary request was malformed: {0}")]
     InvalidBinaryRequest(#[from] GatewayRequestsError),
 
-    #[error("Provided binary request was malformed - {0}")]
+    #[error("Provided binary request was malformed: {0}")]
     InvalidTextRequest(<ClientControlRequest as TryFrom<String>>::Error),
 
     #[error("The received request is not valid in the current context")]
@@ -61,10 +61,10 @@ pub(crate) enum RequestHandlingError {
     #[error("This gateway is only accepting coconut credentials for bandwidth")]
     OnlyCoconutCredentials,
 
-    #[error("Nyxd Error - {0}")]
+    #[error("Nyxd Error: {0}")]
     NyxdError(#[from] nym_validator_client::nyxd::error::NyxdError),
 
-    #[error("Validator API error - {0}")]
+    #[error("Validator API error: {0}")]
     APIError(#[from] nym_validator_client::ValidatorClientError),
 
     #[error("Not enough nym API endpoints provided. Needed {needed}, received {received}")]
@@ -73,14 +73,17 @@ pub(crate) enum RequestHandlingError {
     #[error("There was a problem with the proposal id: {reason}")]
     ProposalIdError { reason: String },
 
-    #[error("Coconut interface error - {0}")]
+    #[error("Coconut interface error: {0}")]
     CoconutInterfaceError(#[from] nym_coconut_interface::error::CoconutInterfaceError),
 
     #[error("coconut api query failure: {0}")]
     CoconutApiError(#[from] CoconutApiError),
 
-    #[error("Credential error - {0}")]
+    #[error("Credential error: {0}")]
     CredentialError(#[from] nym_credentials::error::Error),
+
+    #[error("the outbound address of the received packet ('{address}') is forbidden as there are no nodes with that address on the next layer")]
+    InvalidForwardHop { address: SocketAddr },
 }
 
 impl RequestHandlingError {
@@ -203,11 +206,25 @@ where
     /// # Arguments
     ///
     /// * `mix_packet`: packet received from the client that should get forwarded into the network.
-    fn forward_packet(&self, mix_packet: MixPacket) {
+    fn forward_packet(&self, mix_packet: MixPacket) -> Result<(), RequestHandlingError> {
+        let next_hop: SocketAddr = mix_packet.next_hop().into();
+
+        // TODO: another option is to move this filter
+        // (which is used by EVERY `ConnectionHandler`, so potentially hundreds of times)
+        // to packet forwarder where we could be filtering at the time of attempting to open new outbound connections
+        // However, in that case we wouldn't be able to return an error message to the client
+        if !self.inner.allowed_egress.is_allowed(next_hop.ip()) {
+            // TODO: perhaps this should get lowered in severity?
+            warn!("received an packet that was meant to get forwarded to {next_hop}, but this address does not belong to any node on the next layer - dropping the packet");
+            return Err(RequestHandlingError::InvalidForwardHop { address: next_hop });
+        }
+
         if let Err(err) = self.inner.outbound_mix_sender.unbounded_send(mix_packet) {
             error!("We failed to forward requested mix packet - {err}. Presumably our mix forwarder has crashed. We cannot continue.");
             process::exit(1);
         }
+
+        Ok(())
     }
 
     /// Tries to handle the received bandwidth request by checking correctness of the received data
@@ -317,7 +334,7 @@ where
         }
 
         self.consume_bandwidth(consumed_bandwidth).await?;
-        self.forward_packet(mix_packet);
+        self.forward_packet(mix_packet)?;
 
         Ok(ServerResponse::Send {
             remaining_bandwidth: available_bandwidth - consumed_bandwidth,

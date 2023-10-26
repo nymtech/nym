@@ -8,6 +8,7 @@ use crate::node::storage::Storage;
 use log::*;
 use nym_crypto::asymmetric::identity;
 use nym_mixnet_client::forwarder::MixForwardingSender;
+use nym_mixnode_common::forward_travel::AllowedEgress;
 use rand::rngs::OsRng;
 use std::net::SocketAddr;
 use std::process;
@@ -16,6 +17,7 @@ use tokio::task::JoinHandle;
 
 pub(crate) struct Listener {
     address: SocketAddr,
+    allowed_egress: AllowedEgress,
     local_identity: Arc<identity::KeyPair>,
     only_coconut_credentials: bool,
     pub(crate) coconut_verifier: Arc<CoconutVerifier>,
@@ -24,12 +26,14 @@ pub(crate) struct Listener {
 impl Listener {
     pub(crate) fn new(
         address: SocketAddr,
+        allowed_egress: AllowedEgress,
         local_identity: Arc<identity::KeyPair>,
         only_coconut_credentials: bool,
         coconut_verifier: Arc<CoconutVerifier>,
     ) -> Self {
         Listener {
             address,
+            allowed_egress,
             local_identity,
             only_coconut_credentials,
             coconut_verifier,
@@ -71,6 +75,7 @@ impl Listener {
                             let handle = FreshHandler::new(
                                 OsRng,
                                 socket,
+                                self.allowed_egress.clone(),
                                 self.only_coconut_credentials,
                                 outbound_mix_sender.clone(),
                                 Arc::clone(&self.local_identity),

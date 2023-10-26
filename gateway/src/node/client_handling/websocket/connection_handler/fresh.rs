@@ -18,6 +18,7 @@ use nym_gateway_requests::{
     BinaryResponse, PROTOCOL_VERSION,
 };
 use nym_mixnet_client::forwarder::MixForwardingSender;
+use nym_mixnode_common::forward_travel::AllowedEgress;
 use nym_sphinx::DestinationAddressBytes;
 use rand::{CryptoRng, Rng};
 use std::{convert::TryFrom, sync::Arc, time::Duration};
@@ -89,6 +90,7 @@ impl InitialAuthenticationError {
 pub(crate) struct FreshHandler<R, S, St> {
     rng: R,
     local_identity: Arc<identity::KeyPair>,
+    pub(crate) allowed_egress: AllowedEgress,
     pub(crate) only_coconut_credentials: bool,
     pub(crate) active_clients_store: ActiveClientsStore,
     pub(crate) outbound_mix_sender: MixForwardingSender,
@@ -110,6 +112,7 @@ where
     pub(crate) fn new(
         rng: R,
         conn: S,
+        allowed_egress: AllowedEgress,
         only_coconut_credentials: bool,
         outbound_mix_sender: MixForwardingSender,
         local_identity: Arc<identity::KeyPair>,
@@ -126,6 +129,7 @@ where
             local_identity,
             storage,
             coconut_verifier,
+            allowed_egress,
         }
     }
 

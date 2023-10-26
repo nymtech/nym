@@ -1,4 +1,4 @@
-# Nym operators - Running Exit Gateway
+# Nym Operators Legal Forum: Running Exit Gateway
 
 ```admonish info
 The entire content of this page is under [Creative Commons Attribution 4.0 International Public License](https://creativecommons.org/licenses/by/4.0/).

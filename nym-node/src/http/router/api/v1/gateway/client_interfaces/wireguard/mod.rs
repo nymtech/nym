@@ -9,7 +9,6 @@ use axum::routing::{get, post};
 use axum::Router;
 use nym_crypto::asymmetric::encryption;
 use nym_node_requests::routes::api::v1::gateway::client_interfaces::wireguard;
-use std::net::SocketAddr;
 use std::sync::Arc;
 
 pub(crate) mod client_registry;
@@ -26,14 +25,14 @@ impl WireguardAppState {
         dh_keypair: Arc<encryption::KeyPair>,
         client_registry: Arc<GatewayClientRegistry>,
         registration_in_progress: Arc<PendingRegistrations>,
-        socket_address: Arc<SocketAddr>,
+        binding_port: u16,
     ) -> Self {
         WireguardAppState {
             inner: Some(WireguardAppStateInner {
                 dh_keypair,
                 client_registry,
                 registration_in_progress,
-                socket_address,
+                binding_port,
             }),
         }
     }
@@ -77,7 +76,7 @@ pub(crate) struct WireguardAppStateInner {
     dh_keypair: Arc<encryption::KeyPair>,
     client_registry: Arc<GatewayClientRegistry>,
     registration_in_progress: Arc<PendingRegistrations>,
-    socket_address: Arc<SocketAddr>,
+    binding_port: u16,
 }
 
 pub(crate) fn routes<S>(initial_state: WireguardAppState) -> Router<S> {
@@ -106,7 +105,6 @@ mod test {
     };
     use nym_node_requests::routes::api::v1::gateway::client_interfaces::wireguard;
     use nym_wireguard_types::registration::HmacSha256;
-    use std::net::{IpAddr, Ipv4Addr, SocketAddr};
     use std::sync::Arc;
     use tower::Service;
     use tower::ServiceExt;
@@ -144,10 +142,7 @@ mod test {
                 client_registry: Arc::clone(&client_registry),
                 dh_keypair: Arc::new(gateway_key_pair),
                 registration_in_progress: Arc::clone(&registration_in_progress),
-                socket_address: Arc::new(SocketAddr::new(
-                    IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
-                    8080,
-                )),
+                binding_port: 8080,
             }),
         };
 
@@ -179,6 +174,7 @@ mod test {
         let ClientRegistrationResponse::PendingRegistration {
             nonce,
             gateway_data,
+            wg_port: 8080,
         } = serde_json::from_slice(&hyper::body::to_bytes(response.into_body()).await.unwrap())
             .unwrap()
         else {
@@ -190,14 +186,11 @@ mod test {
 
         let mut mac = HmacSha256::new_from_slice(client_dh.as_bytes()).unwrap();
         mac.update(client_static_public.as_bytes());
-        mac.update("127.0.0.1".as_bytes());
-        mac.update("8080".as_bytes());
         mac.update(&nonce.to_le_bytes());
         let mac = mac.finalize().into_bytes();
 
         let finalized_message = ClientMessage::Final(GatewayClient {
             pub_key: PeerPublicKey::new(client_static_public),
-            socket: "127.0.0.1:8080".parse().unwrap(),
             mac: ClientMac::new(mac.as_slice().to_vec()),
         });
 

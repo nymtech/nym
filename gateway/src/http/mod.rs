@@ -134,7 +134,7 @@ pub(crate) fn start_http_api(
         sphinx_keypair,
         client_registry,
         Default::default(),
-        Arc::new(gateway_config.wireguard.bind_address),
+        gateway_config.wireguard.bind_address.port(),
     );
     let router = nym_node::http::NymNodeRouter::new(config, Some(wg_state));
 

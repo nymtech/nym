@@ -91,15 +91,12 @@ pub(crate) async fn register_client(
             let remote_public = PublicKey::from_bytes(init.pub_key().as_bytes())
                 .map_err(|_| RequestError::new_status(StatusCode::BAD_REQUEST))?;
             let nonce = process_init_message(init, state).await;
-            let gateway_data = GatewayClient::new(
-                state.dh_keypair.private_key(),
-                remote_public,
-                *state.socket_address,
-                nonce,
-            );
+            let gateway_data =
+                GatewayClient::new(state.dh_keypair.private_key(), remote_public, nonce);
             let response = ClientRegistrationResponse::PendingRegistration {
                 nonce,
                 gateway_data,
+                wg_port: state.binding_port,
             };
             Ok(output.to_response(response))
         }

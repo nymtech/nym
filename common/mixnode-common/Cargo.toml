@@ -19,11 +19,11 @@ tokio = { workspace = true, features = [
     "rt",
     "net",
     "io-util",
-    "sync"
 ] }
 tokio-util = { workspace = true, features = ["codec"] }
 url = { workspace = true }
 thiserror = { workspace = true }
+parking_lot = { workspace = true }
 
 ## tracing
 tracing = { workspace = true, optional = true }

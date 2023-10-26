@@ -51,10 +51,7 @@ impl Listener {
                 connection = listener.accept() => {
                     match connection {
                         Ok((socket, remote_addr)) => {
-                            // even though this is an async method, we shouldn't be blocked for too long
-                            // since we're just getting a read permit to rwlock,
-                            // while the write task should only be running every hour or so (epoch length)
-                            if !self.allowed_ingress.is_allowed(remote_addr.ip()).await {
+                            if !self.allowed_ingress.is_allowed(remote_addr.ip()) {
                                 warn!("received an incoming connection from {remote_addr}, but this address does not belong to any node on the previous layer - dropping the connection");
                                 continue
                             }

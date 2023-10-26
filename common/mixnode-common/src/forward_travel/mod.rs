@@ -9,6 +9,7 @@ use nym_task::TaskClient;
 use nym_validator_client::client::IdentityKey;
 use nym_validator_client::nyxd::contract_traits::{MixnetQueryClient, PagedMixnetQueryClient};
 use nym_validator_client::{nyxd, QueryHttpRpcNyxdClient};
+use parking_lot::RwLock;
 use rand::seq::SliceRandom;
 use rand::{thread_rng, Rng};
 use std::collections::HashSet;
@@ -17,7 +18,7 @@ use std::net::{IpAddr, ToSocketAddrs};
 use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::{sync::RwLock, time::sleep};
+use tokio::time::sleep;
 use url::Url;
 
 pub mod error;
@@ -235,11 +236,9 @@ impl AllowedAddressesProvider {
 
         self.current_epoch = current_epoch;
         self.ingress
-            .advance_epoch(allowed_ingress, has_epoch_deviated)
-            .await;
+            .advance_epoch(allowed_ingress, has_epoch_deviated);
         self.egress
-            .advance_epoch(allowed_egress, has_epoch_deviated)
-            .await;
+            .advance_epoch(allowed_egress, has_epoch_deviated);
 
         Ok(())
     }
@@ -298,6 +297,7 @@ impl AllowedAddressesProvider {
     }
 }
 
+#[derive(Clone)]
 pub struct AllowedPaths {
     inner: Arc<RwLock<AllowedPathsInner>>,
 }
@@ -312,13 +312,13 @@ impl AllowedPaths {
         }
     }
 
-    pub async fn is_allowed(&self, address: IpAddr) -> bool {
-        let guard = self.inner.read().await;
+    pub fn is_allowed(&self, address: IpAddr) -> bool {
+        let guard = self.inner.read();
         guard.current_epoch.contains(&address) || guard.previous_epoch.contains(&address)
     }
 
-    async fn advance_epoch(&self, current_epoch: HashSet<IpAddr>, reset_previous: bool) {
-        let mut guard = self.inner.write().await;
+    fn advance_epoch(&self, current_epoch: HashSet<IpAddr>, reset_previous: bool) {
+        let mut guard = self.inner.write();
 
         let old_current = mem::replace(&mut guard.current_epoch, current_epoch);
 

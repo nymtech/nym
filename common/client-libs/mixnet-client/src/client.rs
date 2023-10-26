@@ -123,13 +123,10 @@ impl Client {
         // We could have as well used conn.send_all(receiver.map(Ok)), but considering we don't care
         // about neither receiver nor the connection, it doesn't matter which one gets consumed
         if let Err(err) = receiver.map(Ok).forward(conn).await {
-            warn!("Failed to forward packets to {} - {err}", address);
+            warn!("Failed to forward packets to {address} - {err}");
         }
 
-        debug!(
-            "connection manager to {} is finished. Either the connection failed or mixnet client got dropped",
-            address
-        );
+        debug!("connection manager to {address} is finished. Either the connection failed or mixnet client got dropped");
     }
 
     /// If we're trying to reconnect, determine how long we should wait.
@@ -207,7 +204,7 @@ impl SendWithoutResponse for Client {
         if let Some(sender) = self.conn_new.get_mut(&address) {
             if let Err(err) = sender.channel.try_send(framed_packet) {
                 if err.is_full() {
-                    debug!("Connection to {} seems to not be able to handle all the traffic - dropping the current packet", address);
+                    debug!("Connection to {address} seems to not be able to handle all the traffic - dropping the current packet");
                     // it's not a 'big' error, but we did not manage to send the packet
                     // if the queue is full, we can't really do anything but to drop the packet
                     Err(io::Error::new(
@@ -215,10 +212,8 @@ impl SendWithoutResponse for Client {
                         "connection queue is full",
                     ))
                 } else if err.is_disconnected() {
-                    debug!(
-                        "Connection to {} seems to be dead. attempting to re-establish it...",
-                        address
-                    );
+                    debug!("Connection to {address} seems to be dead. attempting to re-establish it...");
+
                     // it's not a 'big' error, but we did not manage to send the packet, but queue
                     // it up to send it as soon as the connection is re-established
                     self.make_connection(address, err.into_inner());
@@ -238,7 +233,7 @@ impl SendWithoutResponse for Client {
             }
         } else {
             // there was never a connection to begin with
-            debug!("establishing initial connection to {}", address);
+            debug!("establishing initial connection to {address}");
             // it's not a 'big' error, but we did not manage to send the packet, but queue the packet
             // for sending for as soon as the connection is created
             self.make_connection(address, framed_packet);

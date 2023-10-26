@@ -56,6 +56,9 @@ pub use tendermint_rpc::{
 pub use tendermint_rpc::{Request, Response, SimpleRequest};
 
 #[cfg(feature = "http-client")]
+pub use tendermint_rpc::Url as RpcUrl;
+
+#[cfg(feature = "http-client")]
 use crate::http_client;
 #[cfg(feature = "http-client")]
 use crate::{DirectSigningHttpRpcNyxdClient, QueryHttpRpcNyxdClient};

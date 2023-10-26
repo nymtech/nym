@@ -623,6 +623,24 @@ pub enum Layer {
     Three = 3,
 }
 
+impl Layer {
+    pub fn try_next(&self) -> Option<Self> {
+        match self {
+            Layer::One => Some(Layer::Two),
+            Layer::Two => Some(Layer::Three),
+            Layer::Three => None,
+        }
+    }
+
+    pub fn try_previous(&self) -> Option<Self> {
+        match self {
+            Layer::One => None,
+            Layer::Two => Some(Layer::One),
+            Layer::Three => Some(Layer::Two),
+        }
+    }
+}
+
 impl From<Layer> for String {
     fn from(layer: Layer) -> Self {
         (layer as u8).to_string()

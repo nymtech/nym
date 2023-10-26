@@ -19,6 +19,7 @@ tokio = { workspace = true, features = [
     "rt",
     "net",
     "io-util",
+    "sync"
 ] }
 tokio-util = { workspace = true, features = ["codec"] }
 url = { workspace = true }
@@ -37,6 +38,7 @@ nym-sphinx-params = { path = "../nymsphinx/params" }
 nym-sphinx-types = { path = "../nymsphinx/types" }
 nym-task = { path = "../task" }
 nym-validator-client = { path = "../client-libs/validator-client" }
+nym-mixnet-contract-common = { path = "../cosmwasm-smart-contracts/mixnet-contract" }
 nym-bin-common = { path = "../bin-common" }
 
 cfg-if = "1.0.0"

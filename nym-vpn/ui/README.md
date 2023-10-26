@@ -43,6 +43,22 @@ When creating new tauri command, be sure to add the corresponding
 mock definition into `nym-vpn/ui/src/dev/tauri-cmd-mocks/` and
 update `nym-vpn/ui/src/dev/setup.ts` accordingly.
 
+## Type bindings
+
+[ts-rs](https://github.com/Aleph-Alpha/ts-rs) can be used to generate
+TS type definitions from Rust types
+
+To generate bindings, first
+[annotate](https://github.com/Aleph-Alpha/ts-rs/blob/main/example/src/lib.rs)
+Rust types, then run
+
+```
+cd src-tauri
+cargo test
+```
+
+Generated TS types will be located in `src-tauri/bindings/`
+
 ## Build
 
 To build as a **shared library**

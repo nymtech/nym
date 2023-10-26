@@ -12,10 +12,12 @@ export const mixnodeValidationSchema = Yup.object().shape({
 
   host: Yup.string()
     .required('A host is required')
+    .test('no-whitespace', 'Host cannot contain whitespace', (value) => !/\s/.test(value || ''))
     .test('valid-host', 'A valid host is required', (value) => (value ? isValidHostname(value) : false)),
 
   version: Yup.string()
     .required('A version is required')
+    .test('no-whitespace', 'A version cannot contain whitespace', (value) => !/\s/.test(value || ''))
     .test('valid-version', 'A valid version is required', (value) => (value ? validateVersion(value) : false)),
 
   mixPort: Yup.number()
@@ -65,10 +67,12 @@ export const amountSchema = Yup.object().shape({
 export const bondedInfoParametersValidationSchema = Yup.object().shape({
   host: Yup.string()
     .required('A host is required')
+    .test('no-whitespace', 'Host cannot contain whitespace', (value) => !/\s/.test(value || ''))
     .test('valid-host', 'A valid host is required', (value) => (value ? isValidHostname(value) : false)),
 
   version: Yup.string()
     .required('A version is required')
+    .test('no-whitespace', 'A version cannot contain whitespace', (value) => !/\s/.test(value || ''))
     .test('valid-version', 'A valid version is required', (value) => (value ? validateVersion(value) : false)),
 
   mixPort: Yup.number()

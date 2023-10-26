@@ -18,11 +18,18 @@ pub fn failed_ips_filepath() -> String {
 }
 
 pub fn append_ip_to_file(address: &str) {
-    if let Ok(mut file) = OpenOptions::new()
+    match OpenOptions::new()
         .append(true)
         .create(true)
         .open(failed_ips_filepath())
     {
-        writeln!(file, "{}", address).expect("Failed to write to file");
+        Ok(mut file) => {
+            if let Err(e) = writeln!(file, "{}", address) {
+                error!("Failed to write to file: {}", e);
+            }
+        }
+        Err(e) => {
+            error!("Failed to open or create the file: {}", e);
+        }
     }
 }

@@ -107,18 +107,24 @@ impl GeoIp {
                         Ok(ip)
                     } else {
                         debug!("Fail to resolve IP address from {}:{}", &address, p);
-                        let mut failed_ips_guard = self.failed_addresses.failed_ips.lock().unwrap();
-                        if failed_ips_guard.insert(address.to_string()) {
-                            append_ip_to_file(address);
+                        if let Ok(mut failed_ips_guard) = self.failed_addresses.failed_ips.lock() {
+                            if failed_ips_guard.insert(address.to_string()) {
+                                append_ip_to_file(address);
+                            }
+                        } else {
+                            error!("Failed to acquire lock on failed_ips");
                         }
                         Err(GeoIpError::NoValidIP)
                     }
                 }
                 Err(_) => {
                     debug!("Fail to resolve IP address from {}:{}.", &address, p);
-                    let mut failed_ips_guard = self.failed_addresses.failed_ips.lock().unwrap();
-                    if failed_ips_guard.insert(address.to_string()) {
-                        append_ip_to_file(address);
+                    if let Ok(mut failed_ips_guard) = self.failed_addresses.failed_ips.lock() {
+                        if failed_ips_guard.insert(address.to_string()) {
+                            append_ip_to_file(address);
+                        }
+                    } else {
+                        error!("Failed to acquire lock on failed_ips");
                     }
                     Err(GeoIpError::NoValidIP)
                 }

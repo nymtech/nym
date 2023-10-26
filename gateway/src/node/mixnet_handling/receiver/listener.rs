@@ -4,6 +4,7 @@
 use crate::node::mixnet_handling::receiver::connection_handler::ConnectionHandler;
 use crate::node::storage::Storage;
 use log::*;
+use nym_mixnode_common::forward_travel::AllowedIngress;
 use nym_task::TaskClient;
 use std::net::SocketAddr;
 use std::process;
@@ -11,13 +12,22 @@ use tokio::task::JoinHandle;
 
 pub(crate) struct Listener {
     address: SocketAddr,
+    allowed_ingress: AllowedIngress,
     shutdown: TaskClient,
 }
 
 // TODO: this file is nearly identical to the one in mixnode
 impl Listener {
-    pub(crate) fn new(address: SocketAddr, shutdown: TaskClient) -> Self {
-        Listener { address, shutdown }
+    pub(crate) fn new(
+        address: SocketAddr,
+        allowed_ingress: AllowedIngress,
+        shutdown: TaskClient,
+    ) -> Self {
+        Listener {
+            address,
+            allowed_ingress,
+            shutdown,
+        }
     }
 
     pub(crate) async fn run<St>(&mut self, connection_handler: ConnectionHandler<St>)
@@ -42,6 +52,12 @@ impl Listener {
                 connection = tcp_listener.accept() => {
                     match connection {
                         Ok((socket, remote_addr)) => {
+                             if !self.allowed_ingress.is_allowed(remote_addr.ip()) {
+                                // TODO: perhaps this should get lowered in severity?
+                                warn!("received an incoming connection from {remote_addr}, but this address does not belong to any node on the previous layer - dropping the connection");
+                                continue
+                            }
+
                             let handler = connection_handler.clone();
                             tokio::spawn(handler.handle_connection(socket, remote_addr, self.shutdown.clone().named(format!("MixnetConnectionHandler_{remote_addr}"))));
                         }

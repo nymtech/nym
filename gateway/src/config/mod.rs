@@ -328,7 +328,8 @@ pub struct Gateway {
     #[zeroize(skip)]
     pub nym_api_urls: Vec<Url>,
 
-    /// Addresses to validators which the node uses to check for double spending of ERC20 tokens.
+    /// Addresses to nyxd validators via which the node can communicate with the chain directly,
+    /// including for checking for double spending of coconut credentials.
     #[serde(alias = "validator_nymd_urls")]
     #[zeroize(skip)]
     pub nyxd_urls: Vec<Url>,

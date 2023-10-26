@@ -3,6 +3,7 @@
 
 use crate::node::storage::error::StorageError;
 use nym_ip_packet_router::error::IpPacketRouterError;
+use nym_mixnode_common::forward_travel::error::ForwardTravelError;
 use nym_network_requester::error::{ClientCoreError, NetworkRequesterError};
 use nym_validator_client::nyxd::error::NyxdError;
 use nym_validator_client::nyxd::AccountId;
@@ -129,6 +130,12 @@ pub(crate) enum GatewayError {
     ValidatorFailure {
         #[from]
         source: NyxdError,
+    },
+
+    #[error("failure in enforcing forward travel of mix packets: {source}")]
+    ForwardTravel {
+        #[from]
+        source: ForwardTravelError,
     },
 
     // TODO: in the future this should work the other way, i.e. NymNode depending on Gateway errors

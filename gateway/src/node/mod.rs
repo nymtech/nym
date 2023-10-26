@@ -28,6 +28,7 @@ use futures::channel::{mpsc, oneshot};
 use log::*;
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_mixnet_client::forwarder::{MixForwardingSender, PacketForwarder};
+use nym_mixnode_common::forward_travel::{AllowedAddressesProvider, AllowedEgress, AllowedIngress};
 use nym_network_defaults::NymNetworkDetails;
 use nym_network_requester::{LocalGateway, NRServiceProviderBuilder, RequestFilter};
 use nym_node::wireguard::types::GatewayClientRegistry;
@@ -178,6 +179,7 @@ impl<St> Gateway<St> {
         &self,
         ack_sender: MixForwardingSender,
         active_clients_store: ActiveClientsStore,
+        ingress: AllowedIngress,
         shutdown: TaskClient,
     ) where
         St: Storage + Clone + 'static,
@@ -199,7 +201,8 @@ impl<St> Gateway<St> {
             self.config.gateway.mix_port,
         );
 
-        mixnet_handling::Listener::new(listening_address, shutdown).start(connection_handler);
+        mixnet_handling::Listener::new(listening_address, ingress, shutdown)
+            .start(connection_handler);
     }
 
     #[cfg(feature = "wireguard")]
@@ -238,6 +241,23 @@ impl<St> Gateway<St> {
             active_clients_store,
             shutdown,
         );
+    }
+
+    async fn start_allowed_addresses_provider(
+        &self,
+        task_client: TaskClient,
+    ) -> Result<(AllowedIngress, AllowedEgress), GatewayError> {
+        let identity = self.identity_keypair.public_key().to_base58_string();
+        let nyxd_endpoints = self.config.gateway.nyxd_urls.clone();
+
+        let network = NymNetworkDetails::new_from_env();
+        let mut provider =
+            AllowedAddressesProvider::new(identity, nyxd_endpoints, Some(network)).await?;
+
+        let filters = (provider.ingress(), provider.egress());
+
+        tokio::spawn(async move { provider.run(task_client).await });
+        Ok(filters)
     }
 
     fn start_packet_forwarder(&self, shutdown: TaskClient) -> MixForwardingSender {
@@ -449,6 +469,12 @@ impl<St> Gateway<St> {
 
         let shutdown = TaskManager::new(10);
 
+        let (ingress, egress) = self
+            .start_allowed_addresses_provider(
+                shutdown.subscribe().named("AllowedAddressesProvider"),
+            )
+            .await?;
+
         let coconut_verifier = {
             let nyxd_client = self.random_nyxd_client()?;
             CoconutVerifier::new(nyxd_client)
@@ -461,6 +487,7 @@ impl<St> Gateway<St> {
         self.start_mix_socket_listener(
             mix_forwarding_channel.clone(),
             active_clients_store.clone(),
+            ingress,
             shutdown.subscribe().named("mixnet_handling::Listener"),
         );
 

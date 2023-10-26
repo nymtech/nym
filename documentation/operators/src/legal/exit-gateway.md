@@ -6,7 +6,7 @@ The entire content of this page is under [Creative Commons Attribution 4.0 Inter
 
 This page is a part of Nym Community Legal Forum and its content is composed by shared advices in [Node Operators Legal Forum](https://matrix.to/#/!YfoUFsJjsXbWmijbPG:nymtech.chat?via=nymtech.chat&via=matrix.org) (Matrix chat) as well as though pull requests done by the node operators directly to our [repository](https://github.com/nymtech/nym/tree/develop/documentation/operators/src), reviewed by Nym DevRels.
 
-This document presents an initiative to further support Nym’s mission of allowing privacy for everyone everywhere. This would be achieved with the support of Nym node operators operating gateways and opening these to any online service with the safeguards of the [Tor Null ‘deny’ list](https://tornull.org/).
+This document presents an initiative to further support Nym’s mission of allowing privacy for everyone everywhere. This would be achieved with the support of Nym node operators operating gateways and opening these to any online service. Such setup needs a **clear policy**, one which will remain the **same for all operators** running Nym nodes. The [proposed **Exit policy**](https://nymtech.net/.wellknown/network-requester/exit-policy.txt) is a combination of two existing safeguards: [Tor Null ‘deny’ list](https://tornull.org/) and [Tor reduced policy](https://tornull.org/tor-reduced-reduced-exit-policy.php).
 
 
 ```admonish warning
@@ -22,7 +22,7 @@ Nym core team cannot provide comprehensive legal advice across all jurisdictions
 
 * Currently, Nym Gateway nodes only enable access to apps and services that are on an ‘allow’ list that is maintained by the core team. 
 
-* To decentralise and enable privacy for a broader range of services, this initiative will have to transition from the current ‘allow’ list to a ‘deny’ list (based on the [Tor Null advisory BL](https://tornull.org/)). 
+* To decentralise and enable privacy for a broader range of services, this initiative will have to transition from the current ‘allow’ list to a ‘deny’ list - [Exit policy]((https://nymtech.net/.wellknown/network-requester/exit-policy.txt). Based on two existing safeguards: [Tor Null ‘deny’ list](https://tornull.org/) and [Tor reduced policy](https://tornull.org/tor-reduced-reduced-exit-policy.php). 
 
 * This will enhance the usage and appeal of Nym products for end users. As a result, increased usage will ultimately lead to higher revenues for Nym operators.
 
@@ -39,7 +39,7 @@ Nym core team cannot provide comprehensive legal advice across all jurisdictions
 
 To offer a better and more private everyday experience for its users, Nym would like them to use any online services they please, without limiting its access to a few messaging apps or crypto wallets.
 
-To achieve this, operators running “gateways” would have to “open” their nodes to a wider range of online services, in a similar fashion to Tor exit relays.
+To achieve this, operators running exit gateways would have to “open” their nodes to a wider range of online services, in a similar fashion to Tor exit relays following this [Exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt).
 
 ## Pros and cons of the initiative
 
@@ -63,21 +63,17 @@ The new setup: Running nodes supporting traffic of any online service (with safe
 | Operational |    | - Higher operational overhead, such as dealing with DMCA / abuse complaints, managing the VPS provider questions, or helping the community to maintain the denylist <br>- Administrative overhead if running nodes as a company or an entity |
 | Legal |   | - Ideally requires to check legal environment with local privacy association or lawyer | Financial | - Higher revenue potential for operators due to the increase in network usage | - If not running VPS with an unlimited bandwidth plan, higher costs due to higher network usage |
 
-## New gateway setup
+## Exit gateways: New setup
 
 In our previous technical setup, network requesters acted as a proxy, and only made requests that match an allow list. That was a default IP based list of allowed domains stored at Nym page in a centralised fashion possibly re-defined by any Network requester operator. 
 
 This restricts the hosts that the NymConnect app can connect to and has the effect of selectively supporting messaging services (e.g. Telegram, Matrix) or crypto wallets (e.g. Electrum or Monero). Operators of network requesters can have confidence that the infrastructure they run only connects to a limited set of public internet hosts.
 
-In the new setup, the main change is to expand this short allow list to a more permissive setup. An exit policy will constrain the hosts that the users of the Nym Mixnet and Nym VPN can connect to. This will be done in an effort to protect the operators, as Gateways will act both as SOCKS5 Network Requesters, and exit nodes for IP traffic from Nym Mixnet VPN and VPN clients (both wrapped in the same app). 
+In the new setup, the main change is to expand this short allow list to a more permissive setup. An [Exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt) will constrain the hosts that the users of the Nym Mixnet and Nym VPN can connect to. This will be done in an effort to protect the operators, as Gateways will act both as SOCKS5 Network Requesters, and exit nodes for IP traffic from Nym Mixnet VPN and VPN clients (both wrapped in the same app). 
 
-As of now we the gateways will be defaulted to Tornull’s (note: Not affiliated with Tor) deny list - reproduction permitted under Creative Commons Attribution 3.0 United States License which is IP-based, e.g., `ExitPolicy reject 5.188.10.0/23:*`. Whether we will stick with this list, do modifications (likely) or compile another one is still a subject of discussion.
+As of now we the gateways will be defaulted to a combination of [Tor Null ‘deny’ list](https://tornull.org/) (note: Not affiliated with Tor) - reproduction permitted under Creative Commons Attribution 3.0 United States License which is IP-based, e.g., `ExitPolicy reject 5.188.10.0/23:*` and [Tor reduced policy](https://tornull.org/tor-reduced-reduced-exit-policy.php). Whether we will stick with this list, do modifications or compile another one is still a subject of discussion. In all cases, this policy will remain the same for all the nodes, without any option to modify it by Nym node operators to secure stable and reliable service for the end users.
 
-<:--
-These policies will be either reused without modification from Tor / Tornull (license permitting), or customized and updated in a Nym crowd-sourced community effort.
--->
-
-The Gateways will display an HTML page similar to that suggested by [Tor](https://gitlab.torproject.org/tpo/core/tor/-/raw/HEAD/contrib/operator-tools/tor-exit-notice.html) for exit relays on port 80 and port 443. This will allow the operator to provide information about their Gateway, possibly including the currently configured exit policy, without having to actively communicate with law enforcement or regulatory authorities. It also makes the behaviour of the Gateway transparent and even computable (a possible feature would be to offer a machine readable form of the notice in JSON or YAML).
+The Gateways will display an HTML page similar to that suggested by [Tor](https://gitlab.torproject.org/tpo/core/tor/-/raw/HEAD/contrib/operator-tools/tor-exit-notice.html) for exit relays on port 80 and port 443. This will allow the operator to provide information about their Gateway, possibly including the currently configured exit policy, without having to actively communicate with law enforcement or regulatory authorities. It also makes the behaviour of exit gateways transparent and even computable (a possible feature would be to offer a machine readable form of the notice in JSON or YAML).
 
 We also recommend operators to check the technical advice from [Tor](https://community.torproject.org/relay/setup/exit/).
 
@@ -133,14 +129,14 @@ Useful links:
 ## Legal environment - Findings from our legal team
 
 ```admonish warning
-Nym core team cannot provide comprehensive legal advice across all jurisdictions. Knowledge and experience with the legalities are being built up with the help of our counsel and with you, the community of Nym node operators. We encourage Nym node operators to join the operator channels ([Element](https://matrix.to/#/#operators:nymtech.chat), [Discord](https://discord.com/invite/nym), [Telegram](https://t.me/nymchan_help_chat)) to share best practices and experiences.
+The following part is for informational purposes only. Nym core team cannot provide comprehensive legal advice across all jurisdictions. Knowledge and experience with the legalities are being built up with the help of our counsel and with you, the community of Nym node operators. We encourage Nym node operators to join the [Node Operator](https://matrix.to/#/#operators:nymtech.chat) and [Operators LEgal Forum](https://matrix.to/#/!YfoUFsJjsXbWmijbPG:nymtech.chat?via=nymtech.chat&via=matrix.org) channels on Element to share best practices and experiences.
 ```
 
 The Swiss legal counsel and US legal counsel have so far provided the following advice:
 
 ### Switzerland
 
-TBD soon.
+
 
 ### United States
 

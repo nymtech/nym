@@ -15,10 +15,17 @@ pub const DEFAULT_CLIENTS_STORAGE_FILENAME: &str = "db.sqlite";
 pub const DEFAULT_NETWORK_REQUESTER_CONFIG_FILENAME: &str = "network_requester_config.toml";
 pub const DEFAULT_NETWORK_REQUESTER_DATA_DIR: &str = "network-requester-data";
 
+pub const DEFAULT_IP_FORWARDER_CONFIG_FILENAME: &str = "ip_forwarder_config.toml";
+pub const DEFAULT_IP_FORWARDER_DATA_DIR: &str = "ip-forwarder-data";
+
 // pub const DEFAULT_DESCRIPTION_FILENAME: &str = "description.toml";
 
 pub fn default_network_requester_data_dir<P: AsRef<Path>>(id: P) -> PathBuf {
     default_data_directory(id).join(DEFAULT_NETWORK_REQUESTER_DATA_DIR)
+}
+
+pub fn default_ip_forwarder_data_dir<P: AsRef<Path>>(id: P) -> PathBuf {
+    default_data_directory(id).join(DEFAULT_IP_FORWARDER_DATA_DIR)
 }
 
 /// makes sure that an empty path is converted into a `None` as opposed to `Some("")`
@@ -80,8 +87,25 @@ impl GatewayPaths {
         )
     }
 
+    #[must_use]
+    pub fn with_ip_forwarder_config<P: AsRef<Path>>(mut self, path: P) -> Self {
+        self.ip_forwarder_config = Some(path.as_ref().into());
+        self
+    }
+
+    #[must_use]
+    pub fn with_default_ip_forwarder_config<P: AsRef<Path>>(self, id: P) -> Self {
+        self.with_ip_forwarder_config(
+            default_config_directory(id).join(DEFAULT_IP_FORWARDER_CONFIG_FILENAME),
+        )
+    }
+
     pub fn network_requester_config(&self) -> &Option<PathBuf> {
         &self.network_requester_config
+    }
+
+    pub fn ip_forwarder_config(&self) -> &Option<PathBuf> {
+        &self.ip_forwarder_config
     }
 
     pub fn private_identity_key(&self) -> &Path {

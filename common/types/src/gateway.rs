@@ -146,3 +146,28 @@ impl fmt::Display for GatewayNetworkRequesterDetails {
         writeln!(f, "\tunknown list path: {}", self.unknown_list_path)
     }
 }
+
+#[derive(Serialize, Deserialize)]
+pub struct GatewayIpForwarderDetails {
+    pub enabled: bool,
+
+    pub identity_key: String,
+    pub encryption_key: String,
+
+    // just a convenience wrapper around all the keys
+    pub address: String,
+
+    pub config_path: String,
+}
+
+impl fmt::Display for GatewayIpForwarderDetails {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(f, "IP forwarder:")?;
+        writeln!(f, "\tenabled: {}", self.enabled)?;
+        writeln!(f, "\tconfig path: {}", self.config_path)?;
+
+        writeln!(f, "\tidentity key: {}", self.identity_key)?;
+        writeln!(f, "\tencryption key: {}", self.encryption_key)?;
+        writeln!(f, "\taddress: {}", self.address)
+    }
+}

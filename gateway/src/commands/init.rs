@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::commands::helpers::{
-    initialise_local_network_requester, OverrideNetworkRequesterConfig,
+    initialise_local_ip_forwarder, initialise_local_network_requester,
+    OverrideNetworkRequesterConfig,
 };
 use crate::config::{default_config_directory, default_config_filepath, default_data_directory};
 use crate::node::helpers::node_details;
@@ -13,6 +14,8 @@ use nym_crypto::asymmetric::{encryption, identity};
 use std::net::IpAddr;
 use std::path::PathBuf;
 use std::{fs, io};
+
+use super::helpers::OverrideIpForwarderConfig;
 
 #[derive(Args, Clone)]
 pub struct Init {
@@ -79,8 +82,12 @@ pub struct Init {
     statistics_service_url: Option<url::Url>,
 
     /// Allows this gateway to run an embedded network requester for minimal network overhead
-    #[clap(long)]
+    #[clap(long, conflicts_with = "with_ip_forwarder")]
     with_network_requester: bool,
+
+    /// Allows this gateway to run an embedded network requester for minimal network overhead
+    #[clap(long, conflicts_with = "with_network_requester")]
+    with_ip_forwarder: bool,
 
     // ##### NETWORK REQUESTER FLAGS #####
     /// Specifies whether this network requester should run in 'open-proxy' mode
@@ -154,6 +161,7 @@ impl From<Init> for OverrideConfig {
             nyxd_urls: init_config.nyxd_urls,
             only_coconut_credentials: init_config.only_coconut_credentials,
             with_network_requester: Some(init_config.with_network_requester),
+            with_ip_forwarder: Some(init_config.with_ip_forwarder),
         }
     }
 }
@@ -169,6 +177,12 @@ impl<'a> From<&'a Init> for OverrideNetworkRequesterConfig {
             enable_statistics: value.enable_statistics,
             statistics_recipient: value.statistics_recipient.clone(),
         }
+    }
+}
+
+impl From<&Init> for OverrideIpForwarderConfig {
+    fn from(_value: &Init) -> Self {
+        OverrideIpForwarderConfig {}
     }
 }
 
@@ -196,6 +210,7 @@ pub async fn execute(args: Init) -> anyhow::Result<()> {
     // Initialising the config structure is just overriding a default constructed one
     let fresh_config = Config::new(&args.id);
     let nr_opts = (&args).into();
+    let ip_opts = (&args).into();
     let mut config = OverrideConfig::from(args).do_override(fresh_config)?;
 
     // if gateway was already initialised, don't generate new keys, et al.
@@ -228,6 +243,8 @@ pub async fn execute(args: Init) -> anyhow::Result<()> {
         if config.network_requester.enabled {
             initialise_local_network_requester(&config, nr_opts, *identity_keys.public_key())
                 .await?;
+        } else if config.ip_forwarder.enabled {
+            initialise_local_ip_forwarder(&config, ip_opts, *identity_keys.public_key()).await?;
         }
 
         eprintln!("Saved identity and mixnet sphinx keypairs");

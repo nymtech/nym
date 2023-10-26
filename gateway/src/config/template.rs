@@ -82,6 +82,10 @@ landing_page_assets_path = '{{ http.landing_page_assets_path }}'
 # Specifies whether network requester service is enabled in this process.
 enabled = {{ network_requester.enabled }}
 
+[ip_forwarder]
+# Specifies whether ip forwarder service is enabled in this process.
+enabled = {{ ip_forwarder.enabled }}
+
 [storage_paths] 
 
 # Path to file containing private identity key.
@@ -102,6 +106,9 @@ clients_storage = '{{ storage_paths.clients_storage }}'
 
 # Path to the configuration of the embedded network requester.
 network_requester_config = '{{ storage_paths.network_requester_config }}'
+
+# Path to the configuration of the embedded ip forwarder.
+ip_forwarder_config = '{{ storage_paths.ip_forwarder_config }}'
 
 ##### logging configuration options #####
 

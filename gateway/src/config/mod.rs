@@ -100,6 +100,7 @@ pub struct Config {
 
     pub network_requester: NetworkRequester,
 
+    #[serde(default)]
     pub ip_forwarder: IpForwarder,
 
     #[serde(default)]
@@ -195,6 +196,18 @@ impl Config {
         self.storage_paths = self
             .storage_paths
             .with_default_network_requester_config(&self.gateway.id);
+        self
+    }
+
+    pub fn with_enabled_ip_forwarder(mut self, enabled_ip_forwarder: bool) -> Self {
+        self.ip_forwarder.enabled = enabled_ip_forwarder;
+        self
+    }
+
+    pub fn with_default_ip_forwarder_config_path(mut self) -> Self {
+        self.storage_paths = self
+            .storage_paths
+            .with_default_ip_forwarder_config(&self.gateway.id);
         self
     }
 

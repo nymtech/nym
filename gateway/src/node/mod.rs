@@ -253,73 +253,6 @@ impl<St> Gateway<St> {
         packet_sender
     }
 
-    async fn start_ip_service_provider(
-        &self,
-        forwarding_channel: MixForwardingSender,
-        shutdown: TaskClient,
-    ) -> Result<LocalNetworkRequesterHandle, GatewayError> {
-        info!("Starting IP service provider...");
-
-        // if network requester is enabled, configuration file must be provided!
-        let Some(ip_opts) = &self.ip_forwarder_opts else {
-            return Err(GatewayError::UnspecifiedIpForwarderConfig);
-        };
-
-        // this gateway, whenever it has anything to send to its local NR will use fake_client_tx
-        let (nr_mix_sender, nr_mix_receiver) = mpsc::unbounded();
-        let router_shutdown = shutdown.fork("message_router");
-
-        let (router_tx, mut router_rx) = oneshot::channel();
-
-        let transceiver = LocalGateway::new(
-            *self.identity_keypair.public_key(),
-            forwarding_channel,
-            router_tx,
-        );
-
-        // TODO: well, wire it up internally to gateway traffic, shutdowns, etc.
-        let (on_start_tx, on_start_rx) = oneshot::channel();
-        // let mut nr_builder = nym_ip_forwarder::IpForwarderBuilder::new(nr_opts.config.clone())
-        let mut ip_builder = nym_ip_forwarder::IpForwarderBuilder::new(ip_opts.config.clone())
-            .with_shutdown(shutdown)
-            .with_custom_gateway_transceiver(Box::new(transceiver))
-            .with_wait_for_gateway(true)
-            .with_on_start(on_start_tx);
-
-        if let Some(custom_mixnet) = &ip_opts.custom_mixnet_path {
-            ip_builder = ip_builder.with_stored_topology(custom_mixnet)?
-        }
-
-        tokio::spawn(async move {
-            if let Err(err) = ip_builder.run_service_provider().await {
-                // no need to panic as we have passed a task client to the ip forwarder so we're
-                // most likely already in the process of shutting down
-                error!("ip forwarder has failed: {err}")
-            }
-        });
-
-        let start_data = on_start_rx
-            .await
-            .map_err(|_| GatewayError::IpForwarderStartupFailure)?;
-
-        // this should be instantaneous since the data is sent on this channel before the on start is called;
-        // the failure should be impossible
-        let Ok(Some(packet_router)) = router_rx.try_recv() else {
-            return Err(GatewayError::IpForwarderStartupFailure);
-        };
-
-        MessageRouter::new(nr_mix_receiver, packet_router).start_with_shutdown(router_shutdown);
-        info!(
-            "the local ip forwarder is running on {}",
-            start_data.address
-        );
-
-        Ok(LocalNetworkRequesterHandle::new_ip(
-            start_data,
-            nr_mix_sender,
-        ))
-    }
-
     // TODO: rethink the logic in this function...
     async fn start_network_requester(
         &self,
@@ -382,6 +315,74 @@ impl<St> Gateway<St> {
             used_request_filter: start_data.request_filter,
             handle: LocalNetworkRequesterHandle::new(address, nr_mix_sender),
         })
+    }
+
+    async fn start_ip_service_provider(
+        &self,
+        forwarding_channel: MixForwardingSender,
+        shutdown: TaskClient,
+    ) -> Result<LocalNetworkRequesterHandle, GatewayError> {
+        info!("Starting IP service provider...");
+
+        // if network requester is enabled, configuration file must be provided!
+        let Some(ip_opts) = &self.ip_forwarder_opts else {
+            log::error!("IP service provider is enabled but no configuration file was provided!");
+            return Err(GatewayError::UnspecifiedIpForwarderConfig);
+        };
+
+        // this gateway, whenever it has anything to send to its local NR will use fake_client_tx
+        let (nr_mix_sender, nr_mix_receiver) = mpsc::unbounded();
+        let router_shutdown = shutdown.fork("message_router");
+
+        let (router_tx, mut router_rx) = oneshot::channel();
+
+        let transceiver = LocalGateway::new(
+            *self.identity_keypair.public_key(),
+            forwarding_channel,
+            router_tx,
+        );
+
+        // TODO: well, wire it up internally to gateway traffic, shutdowns, etc.
+        let (on_start_tx, on_start_rx) = oneshot::channel();
+        // let mut nr_builder = nym_ip_forwarder::IpForwarderBuilder::new(nr_opts.config.clone())
+        let mut ip_builder = nym_ip_forwarder::IpForwarderBuilder::new(ip_opts.config.clone())
+            .with_shutdown(shutdown)
+            .with_custom_gateway_transceiver(Box::new(transceiver))
+            .with_wait_for_gateway(true)
+            .with_on_start(on_start_tx);
+
+        if let Some(custom_mixnet) = &ip_opts.custom_mixnet_path {
+            ip_builder = ip_builder.with_stored_topology(custom_mixnet)?
+        }
+
+        tokio::spawn(async move {
+            if let Err(err) = ip_builder.run_service_provider().await {
+                // no need to panic as we have passed a task client to the ip forwarder so we're
+                // most likely already in the process of shutting down
+                error!("ip forwarder has failed: {err}")
+            }
+        });
+
+        let start_data = on_start_rx
+            .await
+            .map_err(|_| GatewayError::IpForwarderStartupFailure)?;
+
+        // this should be instantaneous since the data is sent on this channel before the on start is called;
+        // the failure should be impossible
+        let Ok(Some(packet_router)) = router_rx.try_recv() else {
+            return Err(GatewayError::IpForwarderStartupFailure);
+        };
+
+        MessageRouter::new(nr_mix_receiver, packet_router).start_with_shutdown(router_shutdown);
+        info!(
+            "the local ip forwarder is running on {}",
+            start_data.address
+        );
+
+        Ok(LocalNetworkRequesterHandle::new_ip(
+            start_data,
+            nr_mix_sender,
+        ))
     }
 
     async fn wait_for_interrupt(shutdown: TaskManager) -> Result<(), Box<dyn Error + Send + Sync>> {
@@ -490,16 +491,6 @@ impl<St> Gateway<St> {
             None
         };
 
-        HttpApiBuilder::new(
-            &self.config,
-            self.identity_keypair.as_ref(),
-            self.sphinx_keypair.clone(),
-        )
-        .with_wireguard_client_registry(self.client_registry.clone())
-        .with_maybe_network_requester(self.network_requester_opts.as_ref().map(|o| &o.config))
-        .with_maybe_network_request_filter(nr_request_filter)
-        .start(shutdown.subscribe().named("http-api"))?;
-
         if true {
             let embedded_ip_sp = self
                 .start_ip_service_provider(
@@ -509,6 +500,16 @@ impl<St> Gateway<St> {
                 .await?;
             active_clients_store.insert_embedded(embedded_ip_sp);
         }
+
+        HttpApiBuilder::new(
+            &self.config,
+            self.identity_keypair.as_ref(),
+            self.sphinx_keypair.clone(),
+        )
+        .with_wireguard_client_registry(self.client_registry.clone())
+        .with_maybe_network_requester(self.network_requester_opts.as_ref().map(|o| &o.config))
+        .with_maybe_network_request_filter(nr_request_filter)
+        .start(shutdown.subscribe().named("http-api"))?;
 
         self.start_client_websocket_listener(
             mix_forwarding_channel,

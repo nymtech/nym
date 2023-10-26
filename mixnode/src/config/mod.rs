@@ -231,6 +231,9 @@ pub struct MixNode {
 
     /// Addresses to nym APIs from which the node gets the view of the network.
     pub nym_api_urls: Vec<Url>,
+
+    /// Addresses to nyxd validators via which the node can communicate with the chain directly.
+    pub nyxd_urls: Vec<Url>,
 }
 
 impl MixNode {
@@ -242,6 +245,7 @@ impl MixNode {
             mix_port: DEFAULT_MIX_LISTENING_PORT,
             verloc_port: DEFAULT_VERLOC_LISTENING_PORT,
             nym_api_urls: vec![Url::from_str(mainnet::NYM_API).expect("Invalid default API URL")],
+            nyxd_urls: vec![Url::from_str(mainnet::NYXD_URL).expect("Invalid default nyxd URL")],
         }
     }
 }

@@ -40,8 +40,20 @@ pub struct AllowedAddressesProvider {
 }
 
 impl AllowedAddressesProvider {
-    fn new(&self, network_details: Option<NymNetworkDetails>) -> Result<Self, ForwardTravelError> {
-        todo!()
+    pub fn new(
+        identity: IdentityKey,
+        nyxd_endpoints: Vec<Url>,
+        network_details: Option<NymNetworkDetails>,
+    ) -> Result<Self, ForwardTravelError> {
+        let network = network_details.unwrap_or(NymNetworkDetails::new_mainnet());
+        Ok(AllowedAddressesProvider {
+            current_epoch: 0,
+            identity,
+            client_config: nyxd::Config::try_from_nym_network_details(&network)?,
+            nyxd_endpoints,
+            ingress: AllowedPaths::new(),
+            egress: AllowedPaths::new(),
+        })
     }
 
     fn ephemeral_nyxd_client(&self) -> Result<QueryHttpRpcNyxdClient, ForwardTravelError> {
@@ -246,7 +258,7 @@ impl AllowedAddressesProvider {
         Ok(())
     }
 
-    async fn run(&mut self, mut task_client: TaskClient) {
+    pub async fn run(&mut self, mut task_client: TaskClient) {
         debug!("Started ValidAddressesProvider with graceful shutdown support");
         while !task_client.is_shutdown() {
             tokio::select! {

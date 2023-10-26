@@ -1,6 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use nym_mixnode_common::forward_travel::error::ForwardTravelError;
 use std::io;
 use std::path::PathBuf;
 use thiserror::Error;
@@ -44,7 +45,24 @@ pub enum MixnodeError {
         source: io::Error,
     },
 
+    #[error("experienced an error during shutdown: {message}")]
+    ShutdownFailure { message: String },
+
+    #[error("failure in enforcing forward travel of mix packets: {source}")]
+    ForwardTravel {
+        #[from]
+        source: ForwardTravelError,
+    },
+
     // TODO: in the future this should work the other way, i.e. NymNode depending on Gateway errors
     #[error(transparent)]
     NymNodeError(#[from] nym_node::error::NymNodeError),
+}
+
+impl MixnodeError {
+    pub(crate) fn shutdown_failure(err: Box<dyn std::error::Error + Send + Sync>) -> Self {
+        MixnodeError::ShutdownFailure {
+            message: err.to_string(),
+        }
+    }
 }

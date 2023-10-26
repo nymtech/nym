@@ -15,7 +15,9 @@ use crate::node::packet_delayforwarder::{DelayForwarder, PacketDelayForwardSende
 use log::{error, info, warn};
 use nym_bin_common::output_format::OutputFormat;
 use nym_bin_common::version_checker::parse_version;
+use nym_config::defaults::NymNetworkDetails;
 use nym_crypto::asymmetric::{encryption, identity};
+use nym_mixnode_common::forward_travel::{AllowedAddressesProvider, Egress, Ingress};
 use nym_mixnode_common::verloc::{self, AtomicVerlocResult, VerlocMeasurer};
 use nym_task::{TaskClient, TaskManager};
 use rand::seq::SliceRandom;
@@ -118,6 +120,22 @@ impl MixNode {
         Listener::new(listening_address, shutdown).start(connection_handler);
     }
 
+    fn start_allowed_addresses_provider(
+        &self,
+        task_client: TaskClient,
+    ) -> Result<(Ingress, Egress), MixnodeError> {
+        let identity = self.identity_keypair.public_key().to_base58_string();
+        let nyxd_endpoints = self.config.mixnode.nyxd_urls.clone();
+
+        let network = NymNetworkDetails::new_from_env();
+        let mut provider = AllowedAddressesProvider::new(identity, nyxd_endpoints, Some(network))?;
+
+        let filters = (provider.ingress(), provider.egress());
+
+        tokio::spawn(async move { provider.run(task_client).await });
+        Ok(filters)
+    }
+
     fn start_packet_delay_forwarder(
         &mut self,
         node_stats_update_sender: node_statistics::UpdateSender,
@@ -215,12 +233,16 @@ impl MixNode {
         })
     }
 
-    async fn wait_for_interrupt(&self, shutdown: TaskManager) {
-        let _res = shutdown.catch_interrupt().await;
-        log::info!("Stopping nym mixnode");
+    async fn wait_for_interrupt(
+        &self,
+        shutdown: TaskManager,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        let res = shutdown.catch_interrupt().await;
+        log::info!("Stopping nym gateway");
+        res
     }
 
-    pub async fn run(&mut self) -> Result<(), MixnodeError> {
+    pub(crate) async fn run(&mut self) -> Result<(), MixnodeError> {
         info!("Starting nym mixnode");
 
         if self.check_if_bonded().await {
@@ -253,7 +275,9 @@ impl MixNode {
         )?;
 
         info!("Finished nym mixnode startup procedure - it should now be able to receive mix traffic!");
-        self.wait_for_interrupt(shutdown).await;
-        Ok(())
+
+        self.wait_for_interrupt(shutdown)
+            .await
+            .map_err(MixnodeError::shutdown_failure)
     }
 }

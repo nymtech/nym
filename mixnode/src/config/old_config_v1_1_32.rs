@@ -75,6 +75,8 @@ impl ConfigV1_1_32 {
 
 impl From<ConfigV1_1_32> for Config {
     fn from(value: ConfigV1_1_32) -> Self {
+        let network = nym_config::defaults::NymNetworkDetails::new_from_env();
+
         Config {
             // \/ ADDED
             save_path: None,
@@ -104,6 +106,18 @@ impl From<ConfigV1_1_32> for Config {
                 mix_port: value.mixnode.mix_port,
                 verloc_port: value.mixnode.verloc_port,
                 nym_api_urls: value.mixnode.nym_api_urls,
+
+                // \/ ADDED
+                nyxd_urls: network
+                    .endpoints
+                    .into_iter()
+                    .map(|e| {
+                        e.nyxd_url
+                            .parse()
+                            .expect("malformed nyxd url in environment")
+                    })
+                    .collect(),
+                // /\ ADDED
             },
             storage_paths: value.storage_paths,
             verloc: value.verloc.into(),

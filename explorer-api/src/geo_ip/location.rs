@@ -50,7 +50,7 @@ pub(crate) struct Location {
 }
 
 pub(crate) struct FailedIpAddresses {
-    failed_ips: Arc<Mutex<HashSet<String>>>,
+    failed_ips: Mutex<HashSet<String>>,
 }
 
 impl FailedIpAddresses {
@@ -68,7 +68,7 @@ impl FailedIpAddresses {
         }
 
         FailedIpAddresses {
-            failed_ips: Arc::new(Mutex::new(failed_ips)),
+            failed_ips: Mutex::new(failed_ips),
         }
     }
 }

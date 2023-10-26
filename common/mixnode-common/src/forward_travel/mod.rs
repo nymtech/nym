@@ -164,8 +164,7 @@ impl AllowedAddressesProvider {
     fn is_gateway(&self, gateways: &[GatewayBond]) -> bool {
         gateways
             .iter()
-            .find(|g| g.gateway.identity_key == self.identity)
-            .is_some()
+            .any(|g| g.gateway.identity_key == self.identity)
     }
 
     async fn update_state(
@@ -185,8 +184,8 @@ impl AllowedAddressesProvider {
         let mixnodes = client.get_all_mixnode_bonds().await?;
         let our_mix_layer = self.locate_layer(&mixnodes);
 
-        let previous_mix_layer = our_mix_layer.map(|l| l.try_previous()).flatten();
-        let next_mix_layer = our_mix_layer.map(|l| l.try_next()).flatten();
+        let previous_mix_layer = our_mix_layer.and_then(|l| l.try_previous());
+        let next_mix_layer = our_mix_layer.and_then(|l| l.try_next());
 
         let (allowed_ingress, allowed_egress) = match (previous_mix_layer, next_mix_layer) {
             // layer 1

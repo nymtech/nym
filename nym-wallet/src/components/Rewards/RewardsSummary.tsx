@@ -4,6 +4,36 @@ import { useTheme } from '@mui/material/styles';
 import { useDelegationContext } from 'src/context/delegations';
 import { InfoTooltip } from '../InfoToolTip';
 
+const RewardSummaryField = ({
+  title,
+  value,
+  Tooltip,
+  isLoading,
+}: {
+  title: string;
+  value: string;
+  Tooltip?: React.ReactNode;
+  isLoading?: boolean;
+}) => {
+  const breakpoint = useMediaQuery(useTheme().breakpoints.down('xl'));
+  const alignProps: { gap: number; direction: StackProps['direction'] } = {
+    gap: breakpoint ? 0 : 1,
+    direction: breakpoint ? 'column' : 'row',
+  };
+
+  return (
+    <Stack {...alignProps} alignItems="start">
+      <Stack direction="row" alignItems="center" gap={1}>
+        {Tooltip}
+        <Typography>{title}:</Typography>
+      </Stack>
+      <Typography fontWeight={600} fontSize={16} textTransform="uppercase">
+        {isLoading ? <CircularProgress size={16} /> : value}
+      </Typography>
+    </Stack>
+  );
+};
+
 export const RewardsSummary: FCWithChildren<{
   isLoading?: boolean;
   totalDelegation?: string;
@@ -36,36 +66,6 @@ export const RewardsSummary: FCWithChildren<{
           }
         />
       </Stack>
-    </Stack>
-  );
-};
-
-const RewardSummaryField = ({
-  title,
-  value,
-  Tooltip,
-  isLoading,
-}: {
-  title: string;
-  value: string;
-  Tooltip?: React.ReactNode;
-  isLoading?: boolean;
-}) => {
-  const breakpoint = useMediaQuery(useTheme().breakpoints.down('xl'));
-  const alignProps: { gap: number; direction: StackProps['direction'] } = {
-    gap: breakpoint ? 0 : 1,
-    direction: breakpoint ? 'column' : 'row',
-  };
-
-  return (
-    <Stack {...alignProps} alignItems="start">
-      <Stack direction="row" alignItems="center" gap={1}>
-        {Tooltip}
-        <Typography>{title}:</Typography>
-      </Stack>
-      <Typography fontWeight={600} fontSize={16} textTransform="uppercase">
-        {isLoading ? <CircularProgress size={16} /> : value}
-      </Typography>
     </Stack>
   );
 };

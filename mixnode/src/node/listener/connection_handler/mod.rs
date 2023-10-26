@@ -7,8 +7,8 @@ use crate::node::listener::connection_handler::packet_processing::{
 use crate::node::packet_delayforwarder::PacketDelayForwardSender;
 use crate::node::TaskClient;
 use futures::StreamExt;
-use log::debug;
-use log::{error, info, warn};
+use log::{debug, error, info, warn};
+use nym_mixnode_common::forward_travel::AllowedEgress;
 use nym_mixnode_common::measure;
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_sphinx::framing::codec::NymCodec;
@@ -26,22 +26,37 @@ pub(crate) mod packet_processing;
 
 #[derive(Clone)]
 pub(crate) struct ConnectionHandler {
+    allowed_egress: AllowedEgress,
     packet_processor: PacketProcessor,
     delay_forwarding_channel: PacketDelayForwardSender,
 }
 
 impl ConnectionHandler {
     pub(crate) fn new(
+        allowed_egress: AllowedEgress,
         packet_processor: PacketProcessor,
         delay_forwarding_channel: PacketDelayForwardSender,
     ) -> Self {
         ConnectionHandler {
+            allowed_egress,
             packet_processor,
             delay_forwarding_channel,
         }
     }
 
     fn delay_and_forward_packet(&self, mix_packet: MixPacket, delay: Option<SphinxDelay>) {
+        let next_hop: SocketAddr = mix_packet.next_hop().into();
+
+        // TODO: another option is to move this filter
+        // (which is used by EVERY `ConnectionHandler`, so potentially hundreds of times)
+        // to the mixnet client where we could be filtering at the time of attempting to open new outbound connections
+        // However, in that case we'd have gone through the troubles of possibly unnecessarily delaying the packet
+        if !self.allowed_egress.is_allowed(next_hop.ip()) {
+            // TODO: perhaps this should get lowered in severity?
+            warn!("received an packet that was meant to get forwarded to {next_hop}, but this address does not belong to any node on the next layer - dropping the packet");
+            return;
+        }
+
         // determine instant at which packet should get forwarded. this way we minimise effect of
         // being stuck in the queue [of the channel] to get inserted into the delay queue
         let forward_instant = delay.map(|delay| Instant::now() + delay.to_duration());

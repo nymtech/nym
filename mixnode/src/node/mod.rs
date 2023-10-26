@@ -104,6 +104,7 @@ impl MixNode {
         node_stats_update_sender: node_statistics::UpdateSender,
         delay_forwarding_channel: PacketDelayForwardSender,
         ingress: AllowedIngress,
+        egress: AllowedEgress,
         shutdown: TaskClient,
     ) {
         info!("Starting socket listener...");
@@ -111,7 +112,8 @@ impl MixNode {
         let packet_processor =
             PacketProcessor::new(self.sphinx_keypair.private_key(), node_stats_update_sender);
 
-        let connection_handler = ConnectionHandler::new(packet_processor, delay_forwarding_channel);
+        let connection_handler =
+            ConnectionHandler::new(egress, packet_processor, delay_forwarding_channel);
 
         let listening_address = SocketAddr::new(
             self.config.mixnode.listening_address,
@@ -269,6 +271,7 @@ impl MixNode {
             node_stats_update_sender,
             delay_forwarding_channel,
             ingress,
+            egress,
             shutdown.subscribe().named("Listener"),
         );
         let atomic_verloc_results =

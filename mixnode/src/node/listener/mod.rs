@@ -52,6 +52,7 @@ impl Listener {
                     match connection {
                         Ok((socket, remote_addr)) => {
                             if !self.allowed_ingress.is_allowed(remote_addr.ip()) {
+                                // TODO: perhaps this should get lowered in severity?
                                 warn!("received an incoming connection from {remote_addr}, but this address does not belong to any node on the previous layer - dropping the connection");
                                 continue
                             }

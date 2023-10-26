@@ -121,7 +121,7 @@ impl MixNode {
         Listener::new(listening_address, ingress, shutdown).start(connection_handler);
     }
 
-    fn start_allowed_addresses_provider(
+    async fn start_allowed_addresses_provider(
         &self,
         task_client: TaskClient,
     ) -> Result<(AllowedIngress, AllowedEgress), MixnodeError> {
@@ -129,7 +129,8 @@ impl MixNode {
         let nyxd_endpoints = self.config.mixnode.nyxd_urls.clone();
 
         let network = NymNetworkDetails::new_from_env();
-        let mut provider = AllowedAddressesProvider::new(identity, nyxd_endpoints, Some(network))?;
+        let mut provider =
+            AllowedAddressesProvider::new(identity, nyxd_endpoints, Some(network)).await?;
 
         let filters = (provider.ingress(), provider.egress());
 
@@ -252,9 +253,11 @@ impl MixNode {
 
         let shutdown = TaskManager::default();
 
-        let (ingress, egress) = self.start_allowed_addresses_provider(
-            shutdown.subscribe().named("AllowedAddressesProvider"),
-        )?;
+        let (ingress, egress) = self
+            .start_allowed_addresses_provider(
+                shutdown.subscribe().named("AllowedAddressesProvider"),
+            )
+            .await?;
 
         let (node_stats_pointer, node_stats_update_sender) = self
             .start_node_stats_controller(shutdown.subscribe().named("node_statistics::Controller"));

@@ -40,20 +40,26 @@ pub struct AllowedAddressesProvider {
 }
 
 impl AllowedAddressesProvider {
-    pub fn new(
+    pub async fn new(
         identity: IdentityKey,
         nyxd_endpoints: Vec<Url>,
         network_details: Option<NymNetworkDetails>,
     ) -> Result<Self, ForwardTravelError> {
         let network = network_details.unwrap_or(NymNetworkDetails::new_mainnet());
-        Ok(AllowedAddressesProvider {
+        let mut provider = AllowedAddressesProvider {
             current_epoch: 0,
             identity,
             client_config: nyxd::Config::try_from_nym_network_details(&network)?,
             nyxd_endpoints,
             ingress: AllowedPaths::new(),
             egress: AllowedPaths::new(),
-        })
+        };
+
+        // set initial values for ingress/egress
+        let client = provider.ephemeral_nyxd_client()?;
+        provider.update_state(client).await?;
+
+        Ok(provider)
     }
 
     fn ephemeral_nyxd_client(&self) -> Result<QueryHttpRpcNyxdClient, ForwardTravelError> {

@@ -22,7 +22,7 @@ Nym core team cannot provide comprehensive legal advice across all jurisdictions
 
 * Currently, Nym Gateway nodes only enable access to apps and services that are on an ‘allow’ list that is maintained by the core team. 
 
-* To decentralise and enable privacy for a broader range of services, this initiative will have to transition from the current ‘allow’ list to a ‘deny’ list - [Exit policy]((https://nymtech.net/.wellknown/network-requester/exit-policy.txt). Based on two existing safeguards: [Tor Null ‘deny’ list](https://tornull.org/) and [Tor reduced policy](https://tornull.org/tor-reduced-reduced-exit-policy.php). 
+* To decentralise and enable privacy for a broader range of services, this initiative will have to transition from the current ‘allow’ list to a ‘deny’ list - [Exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt). Based on two existing safeguards: [Tor Null ‘deny’ list](https://tornull.org/) and [Tor reduced policy](https://tornull.org/tor-reduced-reduced-exit-policy.php). 
 
 * This will enhance the usage and appeal of Nym products for end users. As a result, increased usage will ultimately lead to higher revenues for Nym operators.
 

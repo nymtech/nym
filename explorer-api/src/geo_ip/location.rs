@@ -1,11 +1,14 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::helpers::append_ip_to_file;
+use crate::helpers::{append_ip_to_file, failed_ips_filepath};
 use isocountry::CountryCode;
 use log::warn;
 use maxminddb::{geoip2::City, MaxMindDBError, Reader};
 use std::collections::HashSet;
+use std::fs::File;
+use std::io::{self, BufRead};
+use std::path::Path;
 use std::sync::Mutex;
 use std::{
     net::{IpAddr, ToSocketAddrs},
@@ -52,8 +55,20 @@ pub(crate) struct FailedIpAddresses {
 
 impl FailedIpAddresses {
     pub fn new() -> Self {
+        let mut failed_ips = HashSet::new();
+        let file_path = failed_ips_filepath();
+
+        if Path::new(&file_path).exists() {
+            if let Ok(file) = File::open(&file_path) {
+                let lines = io::BufReader::new(file).lines();
+                for ip in lines.flatten() {
+                    failed_ips.insert(ip);
+                }
+            }
+        }
+
         FailedIpAddresses {
-            failed_ips: Arc::new(Mutex::new(HashSet::new())),
+            failed_ips: Arc::new(Mutex::new(failed_ips)),
         }
     }
 }
@@ -92,6 +107,16 @@ impl GeoIp {
         }
     }
 
+    fn handle_failed_ip(&self, address: &str) {
+        if let Ok(mut failed_ips_guard) = self.failed_addresses.failed_ips.lock() {
+            if failed_ips_guard.insert(address.to_string()) {
+                append_ip_to_file(address);
+            }
+        } else {
+            error!("Failed to acquire lock on failed_ips");
+        }
+    }
+
     pub fn query(&self, address: &str, port: Option<u16>) -> Result<Option<Location>, GeoIpError> {
         let ip: IpAddr = FromStr::from_str(address).or_else(|_| {
             debug!(
@@ -107,25 +132,13 @@ impl GeoIp {
                         Ok(ip)
                     } else {
                         debug!("Fail to resolve IP address from {}:{}", &address, p);
-                        if let Ok(mut failed_ips_guard) = self.failed_addresses.failed_ips.lock() {
-                            if failed_ips_guard.insert(address.to_string()) {
-                                append_ip_to_file(address);
-                            }
-                        } else {
-                            error!("Failed to acquire lock on failed_ips");
-                        }
+                        self.handle_failed_ip(address);
                         Err(GeoIpError::NoValidIP)
                     }
                 }
                 Err(_) => {
                     debug!("Fail to resolve IP address from {}:{}.", &address, p);
-                    if let Ok(mut failed_ips_guard) = self.failed_addresses.failed_ips.lock() {
-                        if failed_ips_guard.insert(address.to_string()) {
-                            append_ip_to_file(address);
-                        }
-                    } else {
-                        error!("Failed to acquire lock on failed_ips");
-                    }
+                    self.handle_failed_ip(address);
                     Err(GeoIpError::NoValidIP)
                 }
             }

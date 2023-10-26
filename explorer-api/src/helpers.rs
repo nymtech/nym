@@ -5,6 +5,7 @@ use nym_mixnet_contract_common::{Decimal, Fraction};
 use std::env;
 use std::fs::OpenOptions;
 use std::io::Write;
+use std::path::PathBuf;
 
 pub(crate) fn best_effort_small_dec_to_f64(dec: Decimal) -> f64 {
     let num = dec.numerator().u128() as f64;
@@ -14,7 +15,9 @@ pub(crate) fn best_effort_small_dec_to_f64(dec: Decimal) -> f64 {
 
 pub fn failed_ips_filepath() -> String {
     let home_dir = env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
-    format!("{}/failed_ips.txt", home_dir)
+    let mut path = PathBuf::from(home_dir);
+    path.push("failed_ips.txt");
+    path.to_string_lossy().into_owned()
 }
 
 pub fn append_ip_to_file(address: &str) {

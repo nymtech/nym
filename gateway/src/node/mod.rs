@@ -156,6 +156,7 @@ impl<St> Gateway<St> {
     pub async fn new_from_keys_and_storage(
         config: Config,
         network_requester_opts: Option<LocalNetworkRequesterOpts>,
+        ip_forwarder_opts: Option<LocalIpForwarderOpts>,
         identity_keypair: identity::KeyPair,
         sphinx_keypair: encryption::KeyPair,
         storage: St,
@@ -163,6 +164,7 @@ impl<St> Gateway<St> {
         Gateway {
             config,
             network_requester_opts,
+            ip_forwarder_opts,
             identity_keypair: Arc::new(identity_keypair),
             sphinx_keypair: Arc::new(sphinx_keypair),
             storage,

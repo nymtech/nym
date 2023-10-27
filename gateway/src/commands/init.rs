@@ -293,6 +293,7 @@ mod tests {
             only_coconut_credentials: None,
             output: Default::default(),
             with_network_requester: false,
+            with_ip_forwarder: false,
             open_proxy: None,
             enable_statistics: None,
             statistics_recipient: None,
@@ -319,6 +320,7 @@ mod tests {
         // The test is really if this instantiates with InMemStorage without panics
         let _gateway = Gateway::new_from_keys_and_storage(
             config,
+            None,
             None,
             identity_keys,
             sphinx_keys,

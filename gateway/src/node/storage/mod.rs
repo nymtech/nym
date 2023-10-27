@@ -2,18 +2,22 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::node::storage::bandwidth::BandwidthManager;
+use crate::node::storage::credential::CredentialManager;
 use crate::node::storage::error::StorageError;
 use crate::node::storage::inboxes::InboxManager;
 use crate::node::storage::models::{PersistedSharedKeys, StoredMessage};
 use crate::node::storage::shared_keys::SharedKeysManager;
 use async_trait::async_trait;
 use log::{debug, error};
+use nym_compact_ecash::scheme::EcashCredential;
+use nym_compact_ecash::Base58;
 use nym_gateway_requests::registration::handshake::SharedKeys;
 use nym_sphinx::DestinationAddressBytes;
 use sqlx::ConnectOptions;
 use std::path::Path;
 
 mod bandwidth;
+mod credential;
 pub(crate) mod error;
 mod inboxes;
 mod models;
@@ -134,6 +138,13 @@ pub(crate) trait Storage: Send + Sync {
         client_address: DestinationAddressBytes,
         amount: i64,
     ) -> Result<(), StorageError>;
+
+    /// Stored the accepted credential
+    ///
+    /// # Arguments
+    ///
+    /// * `credential`: credential to store
+    async fn insert_credential(&self, credential: EcashCredential) -> Result<(), StorageError>;
 }
 
 // note that clone here is fine as upon cloning the same underlying pool will be used
@@ -142,6 +153,7 @@ pub(crate) struct PersistentStorage {
     shared_key_manager: SharedKeysManager,
     inbox_manager: InboxManager,
     bandwidth_manager: BandwidthManager,
+    credential_manager: CredentialManager,
 }
 
 impl PersistentStorage {
@@ -187,7 +199,8 @@ impl PersistentStorage {
         Ok(PersistentStorage {
             shared_key_manager: SharedKeysManager::new(connection_pool.clone()),
             inbox_manager: InboxManager::new(connection_pool.clone(), message_retrieval_limit),
-            bandwidth_manager: BandwidthManager::new(connection_pool),
+            bandwidth_manager: BandwidthManager::new(connection_pool.clone()),
+            credential_manager: CredentialManager::new(connection_pool),
         })
     }
 }
@@ -301,6 +314,13 @@ impl Storage for PersistentStorage {
     ) -> Result<(), StorageError> {
         self.bandwidth_manager
             .decrease_available_bandwidth(&client_address.as_base58_string(), amount)
+            .await?;
+        Ok(())
+    }
+
+    async fn insert_credential(&self, credential: EcashCredential) -> Result<(), StorageError> {
+        self.credential_manager
+            .insert_credential(credential.to_bs58())
             .await?;
         Ok(())
     }

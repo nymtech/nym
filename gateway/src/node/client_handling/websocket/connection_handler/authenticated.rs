@@ -266,10 +266,13 @@ where
                 ))
             })?;
 
+        //SW PUT that in a new threads, ensuring it eventually gets sent
         self.inner
             .ecash_verifier
-            .post_and_store_credential(current_api_clients, credential)
+            .post_credential(current_api_clients, credential.clone())
             .await?;
+
+        self.inner.storage.insert_credential(credential).await?;
 
         let bandwidth_value = 500000;
 

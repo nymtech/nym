@@ -18,8 +18,10 @@ use nym_coconut_bandwidth_contract_common::spend_credential::{
 };
 use nym_coconut_dkg_common::types::EpochId;
 
+use nym_compact_ecash::error::CompactEcashError;
 use nym_compact_ecash::scheme::keygen::{KeyPairAuth, SecretKeyAuth};
 use nym_compact_ecash::scheme::withdrawal::WithdrawalRequest;
+use nym_compact_ecash::scheme::EcashCredential;
 use nym_compact_ecash::setup::GroupParameters;
 use nym_compact_ecash::utils::BlindedSignature;
 use nym_compact_ecash::{PublicKeyUser, VerificationKeyAuth};
@@ -31,7 +33,7 @@ use nym_crypto::asymmetric::encryption;
 use nym_crypto::shared_key::new_ephemeral_shared_key;
 use nym_crypto::symmetric::stream_cipher;
 use nym_validator_client::nym_api::routes::{BANDWIDTH, COCONUT_ROUTES};
-use nym_validator_client::nyxd::{Coin, Fee};
+use nym_validator_client::nyxd::{AccountId, Coin, Fee};
 use rand_07::rngs::OsRng;
 use rocket::fairing::AdHoc;
 use rocket::serde::json::Json;
@@ -143,6 +145,17 @@ impl State {
             .aggregated_verification_key(epoch_id)
             .await
     }
+
+    pub async fn store_credential(
+        &self,
+        credential: &EcashCredential,
+        gateway_addr: &AccountId,
+    ) -> Result<()> {
+        self.storage
+            .insert_credential(credential, gateway_addr)
+            .await
+            .map_err(|err| err.into())
+    }
 }
 
 #[derive(Getters, CopyGetters, Debug)]
@@ -250,15 +263,23 @@ pub async fn verify_bandwidth_credential(
         .verification_key(*verify_credential_body.credential().epoch_id())
         .await?;
 
-    if let Err(err) = verify_credential_body.credential().payment().spend_verify(
+    if let Err(_) = verify_credential_body.credential().payment().spend_verify(
         verify_credential_body.credential().params(),
         &verification_key,
         verify_credential_body.credential().pay_info(),
     ) {
-        return Err(CoconutError::CompactEcashInternalError(err));
+        return Err(CoconutError::CompactEcashInternalError(
+            CompactEcashError::PaymentVerification,
+        ));
     }
 
     //store credential
+    state
+        .store_credential(
+            verify_credential_body.credential(),
+            verify_credential_body.gateway_cosmos_addr(),
+        )
+        .await?;
 
     Ok(Json(VerifyCredentialResponse::new(true)))
 }

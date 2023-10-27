@@ -34,6 +34,9 @@ pub enum CompactEcashError {
     #[error("Could not decode base 58 string - {0}")]
     MalformedString(#[from] bs58::decode::Error),
 
+    #[error("Payment did not verify")]
+    PaymentVerification,
+
     #[error(
         "Deserailization error, expected at least {} bytes, got {}",
         min,

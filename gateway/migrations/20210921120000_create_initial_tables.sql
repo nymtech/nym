@@ -23,3 +23,9 @@ CREATE TABLE available_bandwidth
 );
 
 CREATE INDEX `message_store_index` ON `message_store` (`client_address_bs58`, `content`);
+
+CREATE TABLE credentials
+(
+    id                  INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    credentials          TEXT NOT NULL
+);

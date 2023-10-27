@@ -49,6 +49,13 @@ nym_api_urls = [
     {{/each}}
 ]
 
+# Addresses to nyxd validators via which the node can communicate with the chain directly.
+nyxd_urls = [
+    {{#each mixnode.nyxd_urls }}
+        '{{this}}',
+    {{/each}}
+]
+
 [http]
 # Socket address this node will use for binding its http API.
 # default: `0.0.0.0:8000`

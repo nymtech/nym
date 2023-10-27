@@ -109,7 +109,7 @@ impl AllowedAddressesProvider {
             // annoyingly there exists a method of looking up a socket address but not an ip address,
             // so append any port and perform the lookup
             let Ok(sockets) = format!("{raw_host}:1789").to_socket_addrs() else {
-                warn!("failed to resolve ip address of node '{identity}' (hostname: {raw_host})");
+                warn!("failed to resolve ip address of node '{identity}' (hostname: '{raw_host}')");
                 return;
             };
 

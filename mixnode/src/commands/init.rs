@@ -40,6 +40,10 @@ pub(crate) struct Init {
     #[arg(long, alias = "validators", value_delimiter = ',')]
     nym_apis: Option<Vec<url::Url>>,
 
+    /// Comma separated list of endpoints of the nyxd validators
+    #[arg(long, value_delimiter = ',')]
+    nyxd_urls: Option<Vec<url::Url>>,
+
     /// Specifies whether this node should accepts and send out packets that would only go to nodes
     /// on the next mix layer
     #[arg(long)]
@@ -59,6 +63,7 @@ impl From<Init> for OverrideConfig {
             http_api_port: init_config.http_api_port,
             enforce_forward_travel: Some(init_config.enforce_forward_travel),
             nym_apis: init_config.nym_apis,
+            nyxd_urls: init_config.nyxd_urls,
         }
     }
 }

@@ -182,6 +182,12 @@ impl Config {
     }
 
     #[must_use]
+    pub fn with_custom_nyxd(mut self, nyxd_urls: Vec<Url>) -> Self {
+        self.mixnode.nyxd_urls = nyxd_urls;
+        self
+    }
+
+    #[must_use]
     pub fn with_listening_address(mut self, listening_address: IpAddr) -> Self {
         self.mixnode.listening_address = listening_address;
 

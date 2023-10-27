@@ -10,7 +10,7 @@ use colored::Colorize;
 use log::{error, info, warn};
 use nym_bin_common::completions::{fig_generate, ArgShell};
 use nym_bin_common::version_checker;
-use nym_config::defaults::var_names::{BECH32_PREFIX, NYM_API};
+use nym_config::defaults::var_names;
 use nym_config::OptionalSet;
 use nym_crypto::bech32_address_validation;
 use std::net::IpAddr;
@@ -60,6 +60,7 @@ struct OverrideConfig {
     http_api_port: Option<u16>,
     enforce_forward_travel: Option<bool>,
     nym_apis: Option<Vec<url::Url>>,
+    nyxd_urls: Option<Vec<url::Url>>,
 }
 
 pub(crate) async fn execute(args: Cli) -> anyhow::Result<()> {
@@ -91,19 +92,25 @@ fn override_config(config: Config, args: OverrideConfig) -> Config {
         .with_optional_custom_env(
             Config::with_custom_nym_apis,
             args.nym_apis,
-            NYM_API,
+            var_names::NYM_API,
+            nym_config::parse_urls,
+        )
+        .with_optional_custom_env(
+            Config::with_custom_nyxd,
+            args.nyxd_urls,
+            var_names::NYXD,
             nym_config::parse_urls,
         )
 }
 
 /// Ensures that a given bech32 address is valid, or exits
 pub(crate) fn validate_bech32_address_or_exit(address: &str) {
-    let prefix = std::env::var(BECH32_PREFIX).expect("bech32 prefix not set");
+    let prefix = std::env::var(var_names::BECH32_PREFIX).expect("bech32 prefix not set");
     if let Err(bech32_address_validation::Bech32Error::DecodeFailed(err)) =
         bech32_address_validation::try_bech32_decode(address)
     {
         let error_message = format!("Error: wallet address decoding failed: {err}").red();
-        error!("{}", error_message);
+        error!("{error_message}");
         error!("Exiting...");
         process::exit(1);
     }
@@ -112,7 +119,7 @@ pub(crate) fn validate_bech32_address_or_exit(address: &str) {
         bech32_address_validation::validate_bech32_prefix(&prefix, address)
     {
         let error_message = format!("Error: wallet address type is wrong, {err}").red();
-        error!("{}", error_message);
+        error!("{error_message}");
         error!("Exiting...");
         process::exit(1);
     }

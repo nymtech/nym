@@ -9,7 +9,7 @@ use nym_credentials::coconut::bandwidth::BandwidthVoucher;
 use nym_credentials::coconut::utils::obtain_aggregate_signature;
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_network_defaults::ECASH_INFO;
-use nym_validator_client::coconut::all_coconut_api_clients;
+use nym_validator_client::coconut::all_ecash_api_clients;
 use nym_validator_client::nyxd::contract_traits::CoconutBandwidthSigningClient;
 use nym_validator_client::nyxd::contract_traits::DkgQueryClient;
 use nym_validator_client::nyxd::Coin;
@@ -74,15 +74,11 @@ where
         .await?
         .ok_or(BandwidthControllerError::NoThreshold)?;
 
-    let coconut_api_clients = all_coconut_api_clients(client, epoch_id).await?;
+    let ecash_api_clients = all_ecash_api_clients(client, epoch_id).await?;
 
-    let wallet = obtain_aggregate_signature(
-        &state.params,
-        &state.voucher,
-        &coconut_api_clients,
-        threshold,
-    )
-    .await?;
+    let wallet =
+        obtain_aggregate_signature(&state.params, &state.voucher, &ecash_api_clients, threshold)
+            .await?;
     storage
         .insert_ecash_credential(
             ECASH_INFO.to_string(),

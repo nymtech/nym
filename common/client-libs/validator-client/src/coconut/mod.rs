@@ -73,7 +73,7 @@ impl TryFrom<ContractVKShare> for CoconutApiClient {
     }
 }
 
-pub async fn all_coconut_api_clients<C>(
+pub async fn all_ecash_api_clients<C>(
     client: &C,
     epoch_id: EpochId,
 ) -> Result<Vec<CoconutApiClient>, CoconutApiError>

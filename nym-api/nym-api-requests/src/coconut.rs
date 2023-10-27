@@ -3,29 +3,32 @@
 
 use cosmrs::AccountId;
 use getset::{CopyGetters, Getters};
-use nym_coconut_interface::{Credential, VerificationKey};
-use nym_compact_ecash::{error::CompactEcashError, scheme::withdrawal::WithdrawalRequest};
+use nym_compact_ecash::{
+    error::CompactEcashError,
+    scheme::{withdrawal::WithdrawalRequest, EcashCredential},
+    VerificationKeyAuth,
+};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Getters, CopyGetters)]
 pub struct VerifyCredentialBody {
     #[getset(get = "pub")]
-    credential: Credential,
-    #[getset(get = "pub")]
-    proposal_id: u64,
+    credential: EcashCredential,
+    //#[getset(get = "pub")]
+    //proposal_id: u64,
     #[getset(get = "pub")]
     gateway_cosmos_addr: AccountId,
 }
 
 impl VerifyCredentialBody {
     pub fn new(
-        credential: Credential,
-        proposal_id: u64,
+        credential: EcashCredential,
+        //proposal_id: u64,
         gateway_cosmos_addr: AccountId,
     ) -> VerifyCredentialBody {
         VerifyCredentialBody {
             credential,
-            proposal_id,
+            //proposal_id,
             gateway_cosmos_addr,
         }
     }
@@ -142,11 +145,11 @@ impl BlindedSignatureResponse {
 
 #[derive(Serialize, Deserialize)]
 pub struct VerificationKeyResponse {
-    pub key: VerificationKey,
+    pub key: VerificationKeyAuth,
 }
 
 impl VerificationKeyResponse {
-    pub fn new(key: VerificationKey) -> VerificationKeyResponse {
+    pub fn new(key: VerificationKeyAuth) -> VerificationKeyResponse {
         VerificationKeyResponse { key }
     }
 }

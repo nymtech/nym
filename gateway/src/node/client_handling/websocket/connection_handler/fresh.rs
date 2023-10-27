@@ -30,7 +30,7 @@ use crate::node::{
         active_clients::ActiveClientsStore,
         websocket::{
             connection_handler::{
-                coconut::CoconutVerifier, AuthenticatedHandler, ClientDetails, InitialAuthResult,
+                coconut::EcashVerifier, AuthenticatedHandler, ClientDetails, InitialAuthResult,
                 SocketStream,
             },
             message_receiver::{IsActive, IsActiveRequestSender},
@@ -94,7 +94,7 @@ pub(crate) struct FreshHandler<R, S, St> {
     pub(crate) outbound_mix_sender: MixForwardingSender,
     pub(crate) socket_connection: SocketStream<S>,
     pub(crate) storage: St,
-    pub(crate) coconut_verifier: Arc<CoconutVerifier>,
+    pub(crate) ecash_verifier: Arc<EcashVerifier>,
 }
 
 impl<R, S, St> FreshHandler<R, S, St>
@@ -115,7 +115,7 @@ where
         local_identity: Arc<identity::KeyPair>,
         storage: St,
         active_clients_store: ActiveClientsStore,
-        coconut_verifier: Arc<CoconutVerifier>,
+        ecash_verifier: Arc<EcashVerifier>,
     ) -> Self {
         FreshHandler {
             rng,
@@ -125,7 +125,7 @@ where
             socket_connection: SocketStream::RawTcp(conn),
             local_identity,
             storage,
-            coconut_verifier,
+            ecash_verifier,
         }
     }
 

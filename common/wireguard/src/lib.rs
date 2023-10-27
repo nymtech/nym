@@ -11,7 +11,7 @@ mod packet_relayer;
 mod platform;
 mod registered_peers;
 mod setup;
-mod tun_task_channel;
+pub mod tun_task_channel;
 mod udp_listener;
 mod wg_tunnel;
 
@@ -20,7 +20,7 @@ use std::sync::Arc;
 
 // Currently the module related to setting up the virtual network device is platform specific.
 #[cfg(target_os = "linux")]
-use platform::linux::tun_device;
+pub use platform::linux::tun_device;
 
 /// Start wireguard UDP listener and TUN device
 ///
@@ -39,7 +39,8 @@ pub async fn start_wireguard(
     let peers_by_tag = Arc::new(tokio::sync::Mutex::new(wg_tunnel::PeersByTag::new()));
 
     // Start the tun device that is used to relay traffic outbound
-    let (tun, tun_task_tx, tun_task_response_rx) = tun_device::TunDevice::new(peers_by_ip.clone());
+    let (tun, tun_task_tx, tun_task_response_rx) =
+        tun_device::TunDevice::new(Some(peers_by_ip.clone()));
     tun.start();
 
     // If we want to have the tun device on a separate host, it's the tun_task and

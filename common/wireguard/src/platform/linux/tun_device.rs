@@ -43,7 +43,7 @@ pub struct TunDevice {
     tun_task_response_tx: TunTaskResponseTx,
 
     // The routing table, as how wireguard does it
-    peers_by_ip: Arc<tokio::sync::Mutex<PeersByIp>>,
+    peers_by_ip: Option<Arc<tokio::sync::Mutex<PeersByIp>>>,
 
     // This is an alternative to the routing table, where we just match outgoing source IP with
     // incoming destination IP.
@@ -52,7 +52,7 @@ pub struct TunDevice {
 
 impl TunDevice {
     pub fn new(
-        peers_by_ip: Arc<tokio::sync::Mutex<PeersByIp>>,
+        peers_by_ip: Option<Arc<tokio::sync::Mutex<PeersByIp>>>,
     ) -> (Self, TunTaskTx, TunTaskResponseRx) {
         let tun = setup_tokio_tun_device(
             format!("{TUN_BASE_NAME}%d").as_str(),
@@ -123,7 +123,7 @@ impl TunDevice {
 
         // This is how wireguard does it, by consulting the AllowedIPs table.
         if false {
-            let peers = self.peers_by_ip.lock().await;
+            let peers = self.peers_by_ip.as_ref().unwrap().lock().await;
             if let Some(peer_tx) = peers.longest_match(dst_addr).map(|(_, tx)| tx) {
                 log::info!("Forward packet to wg tunnel");
                 peer_tx

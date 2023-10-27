@@ -1,12 +1,13 @@
 use std::path::Path;
 
 use error::IpForwarderError;
-use futures::channel::oneshot;
+use futures::{channel::oneshot, StreamExt};
 use nym_client_core::{
     client::mix_traffic::transceiver::GatewayTransceiver,
     config::disk_persistence::CommonClientPaths, HardcodedTopologyProvider, TopologyProvider,
 };
 use nym_sdk::{mixnet::Recipient, NymNetworkDetails};
+use nym_sphinx::receiver::ReconstructedMessage;
 use nym_task::{TaskClient, TaskHandle};
 
 use crate::config::BaseClientConfig;
@@ -95,12 +96,12 @@ impl IpForwarderBuilder {
 
     pub async fn run_service_provider(self) -> Result<(), IpForwarderError> {
         // Used to notify tasks to shutdown. Not all tasks fully supports this (yet).
-        let shutdown: TaskHandle = self.shutdown.map(Into::into).unwrap_or_default();
+        let task_handle: TaskHandle = self.shutdown.map(Into::into).unwrap_or_default();
 
         // Connect to the mixnet
         let mixnet_client = create_mixnet_client(
             &self.config.base,
-            shutdown.get_handle().named("nym_sdk::MixnetClient"),
+            task_handle.get_handle().named("nym_sdk::MixnetClient"),
             self.custom_gateway_transceiver,
             self.custom_topology_provider,
             self.wait_for_gateway,
@@ -109,6 +110,19 @@ impl IpForwarderBuilder {
         .await?;
 
         let self_address = *mixnet_client.nym_address();
+
+        // Create the TUN device that we interact with the rest of the world with
+        let (tun, tun_task_tx, tun_task_response_rx) =
+            nym_wireguard::tun_device::TunDevice::new(None);
+
+        let ip_forwarder_service = IpForwarderService {
+            config: self.config,
+            tun,
+            tun_task_tx,
+            tun_task_response_rx,
+            mixnet_client,
+            task_handle,
+        };
 
         log::info!("The address of this client is: {self_address}");
         log::info!("All systems go. Press CTRL-C to stop the server.");
@@ -120,6 +134,41 @@ impl IpForwarderBuilder {
             }
         }
 
+        ip_forwarder_service.run().await
+    }
+}
+
+struct IpForwarderService {
+    config: Config,
+    tun: nym_wireguard::tun_device::TunDevice,
+    tun_task_tx: nym_wireguard::tun_task_channel::TunTaskTx,
+    tun_task_response_rx: nym_wireguard::tun_task_channel::TunTaskResponseRx,
+    mixnet_client: nym_sdk::mixnet::MixnetClient,
+    task_handle: TaskHandle,
+}
+
+impl IpForwarderService {
+    async fn run(mut self) -> Result<(), IpForwarderError> {
+        let mut task_client = self.task_handle.fork("main_loop");
+        while !task_client.is_shutdown() {
+            tokio::select! {
+                _ = task_client.recv() => {
+                    log::debug!("IpForwarderService [main loop]: received shutdown");
+                },
+                msg = self.mixnet_client.next() => match msg {
+                    Some(msg) => self.on_message(msg).await,
+                    None => {
+                        log::trace!("IpForwarderService [main loop]: stopping since channel closed");
+                        break;
+                    },
+                }
+            }
+        }
+        log::info!("IpForwarderService: stopping");
+        Ok(())
+    }
+
+    async fn on_message(&mut self, reconstructed: ReconstructedMessage) {
         todo!();
     }
 }

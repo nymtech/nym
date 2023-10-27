@@ -11,7 +11,7 @@ import {
 
 export const gatewayValidationSchema = Yup.object().shape({
   identityKey: Yup.string()
-    .required('An indentity key is required')
+    .required('An identity key is required')
     .test('valid-id-key', 'A valid identity key is required', (value) => validateKey(value || '', 32)),
 
   sphinxKey: Yup.string()
@@ -20,10 +20,12 @@ export const gatewayValidationSchema = Yup.object().shape({
 
   host: Yup.string()
     .required('A host is required')
+    .test('no-whitespace', 'Host cannot contain whitespace', (value) => !/\s/.test(value || ''))
     .test('valid-host', 'A valid host is required', (value) => (value ? isValidHostname(value) : false)),
 
   version: Yup.string()
     .required('A version is required')
+    .test('no-whitespace', 'A version cannot contain whitespace', (value) => !/\s/.test(value || ''))
     .test('valid-version', 'A valid version is required', (value) => (value ? validateVersion(value) : false)),
 
   location: Yup.string()
@@ -70,6 +72,7 @@ export const amountSchema = Yup.object().shape({
 export const updateGatewayValidationSchema = Yup.object().shape({
   host: Yup.string()
     .required('A host is required')
+    .test('no-whitespace', 'Host cannot contain whitespace', (value) => !/\s/.test(value || ''))
     .test('valid-host', 'A valid host is required', (value) => (value ? isValidHostname(value) : false)),
 
   mixPort: Yup.number()
@@ -82,7 +85,7 @@ export const updateGatewayValidationSchema = Yup.object().shape({
   location: Yup.string().test('valid-location', 'A valid location is required', (value) =>
     value ? validateLocation(value) : false,
   ),
-  version: Yup.string().test('valid-version', 'A valid version is required', (value) =>
-    value ? validateVersion(value) : false,
-  ),
+  version: Yup.string()
+    .test('no-whitespace', 'A version cannot contain whitespace', (value) => !/\s/.test(value || ''))
+    .test('valid-version', 'A valid version is required', (value) => (value ? validateVersion(value) : false)),
 });

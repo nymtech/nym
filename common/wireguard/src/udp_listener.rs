@@ -7,7 +7,7 @@ use boringtun::{
 use futures::StreamExt;
 use log::error;
 use nym_task::TaskClient;
-use nym_wireguard_types::{registration::GatewayClientRegistry, PeerPublicKey};
+use nym_wireguard_types::{registration::GatewayClientRegistry, PeerPublicKey, WG_PORT};
 use tap::TapFallible;
 use tokio::{net::UdpSocket, sync::Mutex};
 
@@ -18,7 +18,7 @@ use crate::{
     network_table::NetworkTable,
     packet_relayer::PacketRelaySender,
     registered_peers::{RegisteredPeer, RegisteredPeers},
-    setup::{self, WG_ADDRESS, WG_PORT},
+    setup::{self, WG_ADDRESS},
     wg_tunnel::PeersByTag,
 };
 

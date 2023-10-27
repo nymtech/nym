@@ -6,7 +6,6 @@ use log::info;
 
 // The wireguard UDP listener
 pub const WG_ADDRESS: &str = "0.0.0.0";
-pub const WG_PORT: u16 = 51822;
 
 // The interface used to route traffic
 pub const TUN_BASE_NAME: &str = "nymtun";

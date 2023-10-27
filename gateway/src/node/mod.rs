@@ -476,9 +476,7 @@ impl<St> Gateway<St> {
             });
         }
 
-        // WIP(JON)
-        // let nr_request_filter = if self.config.network_requester.enabled {
-        let nr_request_filter = if false {
+        let nr_request_filter = if self.config.network_requester.enabled {
             let embedded_nr = self
                 .start_network_requester(
                     mix_forwarding_channel.clone(),
@@ -493,7 +491,9 @@ impl<St> Gateway<St> {
             None
         };
 
-        if true {
+        // NOTE: this is mutually exclusive with the network requester (for now). This is reflected
+        // in the command line arguments as well.
+        if self.config.ip_forwarder.enabled {
             let embedded_ip_sp = self
                 .start_ip_service_provider(
                     mix_forwarding_channel.clone(),

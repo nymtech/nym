@@ -86,7 +86,7 @@ pub struct Init {
     with_network_requester: bool,
 
     /// Allows this gateway to run an embedded network requester for minimal network overhead
-    #[clap(long, conflicts_with = "with_network_requester")]
+    #[clap(long, hide = true, conflicts_with = "with_network_requester")]
     with_ip_forwarder: bool,
 
     // ##### NETWORK REQUESTER FLAGS #####

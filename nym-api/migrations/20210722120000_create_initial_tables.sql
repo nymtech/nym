@@ -76,6 +76,14 @@ create table gateway_ipv6_status
     FOREIGN KEY (gateway_details_id) REFERENCES gateway_details (id)
 );
 
+create table credentials
+(
+    id                  INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    credential          TEXT NOT NULL,
+    gateway_address     TEXT NOT NULL
+
+);
+
 -- indices for faster lookups
 CREATE
 INDEX `mixnode_ipv4_status_index` ON `mixnode_ipv4_status` (`mixnode_details_id`, `timestamp` desc);

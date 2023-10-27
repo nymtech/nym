@@ -10,7 +10,10 @@ use crate::node_status_api::models::{
 use crate::node_status_api::{ONE_DAY, ONE_HOUR};
 use crate::storage::manager::StorageManager;
 use crate::storage::models::{NodeStatus, TestingRoute};
+use nym_compact_ecash::scheme::EcashCredential;
+use nym_compact_ecash::Base58;
 use nym_mixnet_contract_common::MixId;
+use nym_validator_client::nyxd::AccountId;
 use rocket::fairing::AdHoc;
 use sqlx::ConnectOptions;
 use std::path::Path;
@@ -734,6 +737,17 @@ impl NymApiStorage {
     ) -> Result<(), NymApiStorageError> {
         self.manager
             .insert_blinded_signature_response(tx_hash, blinded_signature_response)
+            .await
+            .map_err(|err| err.into())
+    }
+
+    pub(crate) async fn insert_credential(
+        &self,
+        credential: &EcashCredential,
+        gateway_addr: &AccountId,
+    ) -> Result<(), NymApiStorageError> {
+        self.manager
+            .insert_credential(credential.to_bs58(), gateway_addr.to_string())
             .await
             .map_err(|err| err.into())
     }

@@ -18,3 +18,7 @@ pub(crate) struct PersistedBandwidth {
     pub(crate) client_address_bs58: String,
     pub(crate) available: i64,
 }
+
+pub(crate) struct Credentials {
+    pub(crate) credential: String,
+}

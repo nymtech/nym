@@ -1013,4 +1013,25 @@ impl StorageManager {
 
         Ok(blinded_signature_response)
     }
+
+    /// Creates new credential entry for a given gateway addr.
+    ///
+    /// # Arguments
+    ///
+    /// * `credential`: base58 repr of a credential.
+    /// * `gateway_addr`: cosmos address of the gateway
+    pub(crate) async fn insert_credential(
+        &self,
+        credential: String,
+        gateway_addr: String,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query!(
+            "INSERT INTO credentials(credential, gateway_address) VALUES (?, ?)",
+            credential,
+            gateway_addr
+        )
+        .execute(&self.connection_pool)
+        .await?;
+        Ok(())
+    }
 }

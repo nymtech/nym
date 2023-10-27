@@ -24,17 +24,11 @@ const MAX_FEEGRANT_UNYM: u128 = 10000;
 
 pub(crate) struct EcashVerifier {
     nyxd_client: DirectSigningHttpRpcNyxdClient,
-    mix_denom_base: String,
 }
 
 impl EcashVerifier {
     pub fn new(nyxd_client: DirectSigningHttpRpcNyxdClient) -> Self {
-        let mix_denom_base = nyxd_client.current_chain_details().mix_denom.base.clone();
-
-        EcashVerifier {
-            nyxd_client,
-            mix_denom_base,
-        }
+        EcashVerifier { nyxd_client }
     }
 
     pub async fn all_current_ecash_api_clients(
@@ -60,7 +54,7 @@ impl EcashVerifier {
         Ok(())
     }
 
-    pub async fn post_and_store_credential(
+    pub async fn post_credential(
         &self,
         api_clients: Vec<CoconutApiClient>,
         credential: EcashCredential,
@@ -71,28 +65,22 @@ impl EcashVerifier {
         );
 
         for client in api_clients {
-            let ret = client.api_client.verify_bandwidth_credential(&req).await; //SW PUT that in a new threads, ensuring it eventually gets sent
-            warn!(
-                "Return from {} : {:?}",
-                client.api_client.nym_api.current_url(),
-                ret
-            );
-            // match ret {
-            //     Ok(res) => {
-            //         if !res.verification_result {
-            //             debug!(
-            //                 "Validator {} didn't accept the credential.",
-            //                 client.api_client.nym_api.current_url()
-            //             );
-            //         }
-            //     }
-            //     Err(e) => {
-            //         warn!("Validator {} could not be reached. There might be a problem with the coconut endpoint - {:?}", client.api_client.nym_api.current_url(), e);
-            //     }
-            // }
-        }
+            let ret = client.api_client.verify_bandwidth_credential(&req).await;
 
-        //store credential
+            match ret {
+                Ok(res) => {
+                    if !res.verification_result {
+                        debug!(
+                            "Validator {} didn't accept the credential.",
+                            client.api_client.nym_api.current_url()
+                        );
+                    }
+                }
+                Err(e) => {
+                    warn!("Validator {} could not be reached. There might be a problem with the coconut endpoint - {:?}", client.api_client.nym_api.current_url(), e);
+                }
+            }
+        }
 
         Ok(())
     }

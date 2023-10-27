@@ -88,28 +88,28 @@ async fn obtain_partial_credential(
 pub async fn obtain_aggregate_signature(
     params: &GroupParameters,
     attributes: &BandwidthVoucher,
-    coconut_api_clients: &[CoconutApiClient],
+    ecash_api_clients: &[CoconutApiClient],
     threshold: u64,
 ) -> Result<Wallet, Error> {
-    if coconut_api_clients.is_empty() {
+    if ecash_api_clients.is_empty() {
         return Err(Error::NoValidatorsAvailable);
     }
     //let public_attributes = attributes.get_public_attributes();
     //let private_attributes = attributes.get_private_attributes();
 
-    let mut wallets = Vec::with_capacity(coconut_api_clients.len());
-    let validators_partial_vks: Vec<_> = coconut_api_clients
+    let mut wallets = Vec::with_capacity(ecash_api_clients.len());
+    let validators_partial_vks: Vec<_> = ecash_api_clients
         .iter()
         .map(|api_client| api_client.verification_key.clone())
         .collect();
-    let indices: Vec<_> = coconut_api_clients
+    let indices: Vec<_> = ecash_api_clients
         .iter()
         .map(|api_client| api_client.node_id)
         .collect();
     let verification_key =
         aggregate_verification_keys(&validators_partial_vks, Some(indices.as_ref()))?;
 
-    for coconut_api_client in coconut_api_clients.iter() {
+    for coconut_api_client in ecash_api_clients.iter() {
         debug!(
             "attempting to obtain partial credential from {}",
             coconut_api_client.api_client.api_url()

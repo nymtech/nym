@@ -246,68 +246,90 @@ pub async fn verify_bandwidth_credential(
     verify_credential_body: Json<VerifyCredentialBody>,
     state: &RocketState<State>,
 ) -> Result<Json<VerifyCredentialResponse>> {
-    let proposal_id = *verify_credential_body.proposal_id();
-    let proposal = state.client.get_proposal(proposal_id).await?;
-    // Proposal description is the blinded serial number
-    if !verify_credential_body
-        .credential()
-        .has_blinded_serial_number(&proposal.description)?
-    {
-        return Err(CoconutError::IncorrectProposal {
-            reason: String::from("incorrect blinded serial number in description"),
-        });
-    }
-    let proposed_release_funds =
-        funds_from_cosmos_msgs(proposal.msgs).ok_or(CoconutError::IncorrectProposal {
-            reason: String::from("action is not to release funds"),
-        })?;
-    // Credential has not been spent before, and is on its way of being spent
-    let credential_status = state
-        .client
-        .get_spent_credential(verify_credential_body.credential().blinded_serial_number())
-        .await?
-        .spend_credential
-        .ok_or(CoconutError::InvalidCredentialStatus {
-            status: String::from("Inexistent"),
-        })?
-        .status();
-    if credential_status != SpendCredentialStatus::InProgress {
-        return Err(CoconutError::InvalidCredentialStatus {
-            status: format!("{:?}", credential_status),
-        });
-    }
     let verification_key = state
         .verification_key(*verify_credential_body.credential().epoch_id())
         .await?;
 
-    let verification_key_converted =
-        VerificationKey::try_from(verification_key.to_bytes().as_slice())
-            .expect("converstion should not fail"); //SW : TEMPORARY workaround for type conversion
+    if let Err(err) = verify_credential_body.credential().payment().spend_verify(
+        verify_credential_body.credential().params(),
+        &verification_key,
+        verify_credential_body.credential().pay_info(),
+    ) {
+        return Err(CoconutError::CompactEcashInternalError(err));
+    }
 
-    let mut vote_yes = verify_credential_body
-        .credential()
-        .verify(&verification_key_converted);
+    //store credential
 
-    vote_yes &= Coin::from(proposed_release_funds)
-        == Coin::new(
-            verify_credential_body.credential().voucher_value() as u128,
-            state.mix_denom.clone(),
-        );
-
-    // Vote yes or no on the proposal based on the verification result
-    let ret = state
-        .client
-        .vote_proposal(
-            proposal_id,
-            vote_yes,
-            Some(Fee::new_payer_granter_auto(
-                None,
-                None,
-                Some(verify_credential_body.gateway_cosmos_addr().to_owned()),
-            )),
-        )
-        .await;
-    accepted_vote_err(ret)?;
-
-    Ok(Json(VerifyCredentialResponse::new(vote_yes)))
+    Ok(Json(VerifyCredentialResponse::new(true)))
 }
+
+// #[post("/verify-bandwidth-credential", data = "<verify_credential_body>")]
+// pub async fn verify_bandwidth_credential(
+//     verify_credential_body: Json<VerifyCredentialBody>,
+//     state: &RocketState<State>,
+// ) -> Result<Json<VerifyCredentialResponse>> {
+//     let proposal_id = *verify_credential_body.proposal_id();
+//     let proposal = state.client.get_proposal(proposal_id).await?;
+//     // Proposal description is the blinded serial number
+//     if !verify_credential_body
+//         .credential()
+//         .has_blinded_serial_number(&proposal.description)?
+//     {
+//         return Err(CoconutError::IncorrectProposal {
+//             reason: String::from("incorrect blinded serial number in description"),
+//         });
+//     }
+//     let proposed_release_funds =
+//         funds_from_cosmos_msgs(proposal.msgs).ok_or(CoconutError::IncorrectProposal {
+//             reason: String::from("action is not to release funds"),
+//         })?;
+//     // Credential has not been spent before, and is on its way of being spent
+//     let credential_status = state
+//         .client
+//         .get_spent_credential(verify_credential_body.credential().blinded_serial_number())
+//         .await?
+//         .spend_credential
+//         .ok_or(CoconutError::InvalidCredentialStatus {
+//             status: String::from("Inexistent"),
+//         })?
+//         .status();
+//     if credential_status != SpendCredentialStatus::InProgress {
+//         return Err(CoconutError::InvalidCredentialStatus {
+//             status: format!("{:?}", credential_status),
+//         });
+//     }
+//     let verification_key = state
+//         .verification_key(*verify_credential_body.credential().epoch_id())
+//         .await?;
+
+//     let verification_key_converted =
+//         VerificationKey::try_from(verification_key.to_bytes().as_slice())
+//             .expect("converstion should not fail"); //SW : TEMPORARY workaround for type conversion
+
+//     let mut vote_yes = verify_credential_body
+//         .credential()
+//         .verify(&verification_key_converted);
+
+//     vote_yes &= Coin::from(proposed_release_funds)
+//         == Coin::new(
+//             verify_credential_body.credential().voucher_value() as u128,
+//             state.mix_denom.clone(),
+//         );
+
+//     // Vote yes or no on the proposal based on the verification result
+//     let ret = state
+//         .client
+//         .vote_proposal(
+//             proposal_id,
+//             vote_yes,
+//             Some(Fee::new_payer_granter_auto(
+//                 None,
+//                 None,
+//                 Some(verify_credential_body.gateway_cosmos_addr().to_owned()),
+//             )),
+//         )
+//         .await;
+//     accepted_vote_err(ret)?;
+
+//     Ok(Json(VerifyCredentialResponse::new(vote_yes)))
+// }

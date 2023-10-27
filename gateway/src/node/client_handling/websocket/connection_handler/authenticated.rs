@@ -6,7 +6,6 @@ use futures::{
     FutureExt, StreamExt,
 };
 use log::*;
-use nym_compact_ecash::{setup::setup, PayInfo};
 use nym_gateway_requests::{
     iv::{IVConversionError, IV},
     types::{BinaryRequest, ServerResponse},
@@ -232,13 +231,13 @@ where
         // Get the latest coconut signers and their VK
         let credential_api_clients = self
             .inner
-            .coconut_verifier
-            .all_coconut_api_clients(*credential.epoch_id())
+            .ecash_verifier
+            .all_ecash_api_clients(*credential.epoch_id())
             .await?;
         let current_api_clients = self
             .inner
-            .coconut_verifier
-            .all_current_coconut_api_clients()
+            .ecash_verifier
+            .all_current_ecash_api_clients()
             .await?;
         if credential_api_clients.is_empty() || current_api_clients.is_empty() {
             return Err(RequestHandlingError::NotEnoughNymAPIs {
@@ -250,6 +249,10 @@ where
         let aggregated_verification_key =
             nym_credentials::obtain_aggregate_verification_key(&credential_api_clients).await?;
 
+        self.inner
+            .ecash_verifier
+            .verify_pay_info(&credential.pay_info())?;
+
         credential
             .payment()
             .spend_verify(
@@ -257,25 +260,16 @@ where
                 &aggregated_verification_key,
                 &credential.pay_info(),
             )
-            .map_err(|err| RequestHandlingError::InvalidBandwidthCredential(err.to_string()))?; //SW : Temporary error message to understand what's going on
+            .map_err(|_| {
+                RequestHandlingError::InvalidBandwidthCredential(String::from(
+                    "credential failed to verify on gateway",
+                ))
+            })?;
 
-        // self.inner
-        //     .coconut_verifier
-        //     .release_funds(current_api_clients, &credential)
-        //     .await?;
-
-        // let bandwidth = Bandwidth::from(credential);
-        // let bandwidth_value = bandwidth.value();
-
-        // if bandwidth_value > i64::MAX as u64 {
-        //     // note that this would have represented more than 1 exabyte,
-        //     // which is like 125,000 worth of hard drives so I don't think we have
-        //     // to worry about it for now...
-        //     warn!("Somehow we received bandwidth value higher than 9223372036854775807. We don't really want to deal with this now");
-        //     return Err(RequestHandlingError::UnsupportedBandwidthValue(
-        //         bandwidth_value,
-        //     ));
-        // }
+        self.inner
+            .ecash_verifier
+            .post_and_store_credential(current_api_clients, credential)
+            .await?;
 
         let bandwidth_value = 500000;
 

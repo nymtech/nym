@@ -373,6 +373,14 @@ impl TaskClient {
         }
     }
 
+    pub async fn wait(&mut self, duration: Duration) {
+        tokio::select! {
+            biased;
+            _ = self.recv() => (),
+            _ = sleep(duration) => (),
+        }
+    }
+
     // Create a dummy that will never report that we should shutdown.
     pub fn dummy() -> TaskClient {
         let (_notify_tx, notify_rx) = watch::channel(());

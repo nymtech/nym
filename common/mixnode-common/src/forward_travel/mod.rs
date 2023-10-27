@@ -279,14 +279,9 @@ impl AllowedAddressesProvider {
                 res = self.update_allowed_addresses() => {
                     if let Err(err) = res {
                         warn!("failed to update the allowed addresses: {err}");
+
                         // don't retry immediately in case it was a network failure, wait a bit instead.
-                        tokio::select! {
-                            biased;
-                            _ = task_client.recv() => {
-                                trace!("ValidAddressesProvider: Received shutdown");
-                            }
-                            _ = sleep(Duration::from_secs(5 * 60)) => {}
-                        }
+                        task_client.wait(Duration::from_secs(5 * 60)).await
                     }
                 }
             }

@@ -4,9 +4,12 @@ pub(crate) mod state;
 pub(crate) mod stats;
 pub(crate) mod verloc;
 
-use rocket::Request;
+use axum::http::{StatusCode, Uri};
+use axum::response::IntoResponse;
 
-#[catch(404)]
-pub(crate) fn not_found(req: &Request<'_>) -> String {
-    format!("I couldn't find '{}'. Try something else?", req.uri())
+pub(crate) async fn not_found_axum(uri: Uri) -> impl IntoResponse {
+    (
+        StatusCode::NOT_FOUND,
+        format!("I couldn't find '{uri}'. Try something else?"),
+    )
 }

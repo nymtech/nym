@@ -1,6 +1,8 @@
+use super::TaskClient;
 use futures::channel::mpsc;
 use futures::lock::Mutex;
 use futures::StreamExt;
+use log::{debug, info, trace};
 use serde::Serialize;
 use std::collections::HashMap;
 use std::ops::DerefMut;
@@ -8,8 +10,6 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 use tokio::sync::{RwLock, RwLockReadGuard};
-
-use super::TaskClient;
 
 // convenience aliases
 type PacketsMap = HashMap<String, u64>;

@@ -1,9 +1,6 @@
-use crate::node::http::state::MixnodeAppState;
 use crate::node::node_statistics::{NodeStats, NodeStatsSimple, SharedNodeStats};
 use axum::extract::{Query, State};
 use nym_node::http::api::{FormattedResponse, Output};
-use rocket::serde::json::Json;
-use rocket::State as RocketState;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize)]
@@ -11,24 +8,6 @@ use serde::{Deserialize, Serialize};
 pub enum NodeStatsResponse {
     Full(NodeStats),
     Simple(NodeStatsSimple),
-}
-
-/// Returns a running stats of the node.
-#[get("/stats?<debug>")]
-pub(crate) async fn stats(
-    stats: &RocketState<SharedNodeStats>,
-    debug: Option<bool>,
-) -> Json<NodeStatsResponse> {
-    let snapshot_data = stats.clone_data().await;
-
-    // there's no point in returning the entire hashmap of sending destinations in regular mode
-    if let Some(debug) = debug {
-        if debug {
-            return Json(NodeStatsResponse::Full(snapshot_data));
-        }
-    }
-
-    Json(NodeStatsResponse::Simple(snapshot_data.simplify()))
 }
 
 pub(crate) async fn stats_axum(

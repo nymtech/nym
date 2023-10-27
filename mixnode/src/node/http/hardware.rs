@@ -1,7 +1,6 @@
 use axum::extract::Query;
 use cupid::TopologyType;
 use nym_node::http::api::{FormattedResponse, OutputParams};
-use rocket::serde::json::Json;
 use serde::Serialize;
 use sysinfo::{System, SystemExt};
 
@@ -25,13 +24,7 @@ pub(crate) struct CryptoHardware {
 }
 
 /// Provides hardware information which Nym can use to optimize mixnet speed over time (memory, crypto hardware, CPU, cores, etc).
-#[get("/hardware")]
-pub(crate) fn hardware() -> Json<Option<Hardware>> {
-    Json(hardware_info())
-}
-
-/// Provides hardware information which Nym can use to optimize mixnet speed over time (memory, crypto hardware, CPU, cores, etc).
-pub(crate) fn hardware_axum(Query(output): Query<OutputParams>) -> MixnodeHardwareResponse {
+pub(crate) async fn hardware_axum(Query(output): Query<OutputParams>) -> MixnodeHardwareResponse {
     let output = output.output.unwrap_or_default();
     output.to_response(hardware_info())
 }

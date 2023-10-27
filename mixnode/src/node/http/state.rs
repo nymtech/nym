@@ -1,17 +1,18 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::node::http::verloc::VerlocState;
 use crate::node::node_statistics::SharedNodeStats;
 use axum::extract::FromRef;
-use nym_mixnode_common::verloc::AtomicVerlocResult;
 
 // this is a temporary thing for the transition period
+#[derive(Clone)]
 pub(crate) struct MixnodeAppState {
-    verloc: AtomicVerlocResult,
-    stats: SharedNodeStats,
+    pub(crate) verloc: VerlocState,
+    pub(crate) stats: SharedNodeStats,
 }
 
-impl FromRef<MixnodeAppState> for AtomicVerlocResult {
+impl FromRef<MixnodeAppState> for VerlocState {
     fn from_ref(app_state: &MixnodeAppState) -> Self {
         app_state.verloc.clone()
     }

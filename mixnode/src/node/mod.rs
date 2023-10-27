@@ -2,32 +2,32 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::config::Config;
-use crate::node::http::{
-    description::description,
-    hardware::hardware,
-    not_found,
-    stats::stats,
-    verloc::{verloc as verloc_route, VerlocState},
-};
+use crate::node::http::description::description_axum;
+use crate::node::http::hardware::hardware_axum;
+use crate::node::http::not_found_axum;
+use crate::node::http::state::MixnodeAppState;
+use crate::node::http::stats::stats_axum;
+use crate::node::http::verloc::{verloc_axum, VerlocState};
 use crate::node::listener::connection_handler::packet_processing::PacketProcessor;
 use crate::node::listener::connection_handler::ConnectionHandler;
 use crate::node::listener::Listener;
 use crate::node::node_description::NodeDescription;
 use crate::node::node_statistics::SharedNodeStats;
 use crate::node::packet_delayforwarder::{DelayForwarder, PacketDelayForwardSender};
+use axum::routing::get;
+use axum::Router;
+use log::{error, info, warn};
 use nym_bin_common::output_format::OutputFormat;
 use nym_bin_common::version_checker::parse_version;
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_mixnode_common::verloc::{self, AtomicVerlocResult, VerlocMeasurer};
+use nym_node::http::middleware::logging;
 use nym_task::{TaskClient, TaskManager};
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use std::net::SocketAddr;
 use std::process;
 use std::sync::Arc;
-
-#[cfg(feature = "cpucycles")]
-use tracing::{error, info, warn};
 
 mod http;
 mod listener;
@@ -99,29 +99,36 @@ impl MixNode {
         atomic_verloc_result: AtomicVerlocResult,
         node_stats_pointer: SharedNodeStats,
     ) {
-        info!(
-            "Starting HTTP API on http://{}:{}",
-            self.config.mixnode.listening_address, self.config.mixnode.http_api_port
+        let bind_address = SocketAddr::new(
+            self.config.mixnode.listening_address,
+            self.config.mixnode.http_api_port,
         );
 
-        let mut config = rocket::config::Config::release_default();
+        info!("Starting HTTP API on http://{bind_address}",);
 
-        // bind to the same address as we are using for mixnodes
-        config.address = self.config.mixnode.listening_address;
-        config.port = self.config.mixnode.http_api_port;
+        let state = MixnodeAppState {
+            verloc: VerlocState::new(atomic_verloc_result),
+            stats: node_stats_pointer,
+        };
 
-        let verloc_state = VerlocState::new(atomic_verloc_result);
-        let descriptor = self.descriptor.clone();
+        let router = Router::new()
+            .route("/verloc", get(verloc_axum))
+            .route(
+                "/description",
+                get({
+                    let description = self.descriptor.clone();
+                    move |query| description_axum(description, query)
+                }),
+            )
+            .route("/stats", get(stats_axum))
+            .route("/hardware", get(hardware_axum))
+            .fallback(not_found_axum)
+            .layer(axum::middleware::from_fn(logging::logger))
+            .with_state(state);
 
         tokio::spawn(async move {
-            rocket::build()
-                .configure(config)
-                .mount("/", routes![verloc_route, description, stats, hardware])
-                .register("/", catchers![not_found])
-                .manage(verloc_state)
-                .manage(descriptor)
-                .manage(node_stats_pointer)
-                .launch()
+            axum::Server::bind(&bind_address)
+                .serve(router.into_make_service_with_connect_info::<SocketAddr>())
                 .await
         });
     }

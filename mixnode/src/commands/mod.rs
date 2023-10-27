@@ -7,6 +7,7 @@ use anyhow::anyhow;
 use clap::CommandFactory;
 use clap::Subcommand;
 use colored::Colorize;
+use log::{error, info, warn};
 use nym_bin_common::completions::{fig_generate, ArgShell};
 use nym_bin_common::version_checker;
 use nym_config::defaults::var_names::{BECH32_PREFIX, NYM_API};

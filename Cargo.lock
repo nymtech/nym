@@ -6728,7 +6728,6 @@ dependencies = [
  "opentelemetry",
  "pretty_env_logger",
  "rand 0.7.3",
- "rocket",
  "serde",
  "serde_json",
  "sysinfo",

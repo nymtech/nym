@@ -20,6 +20,7 @@ use tracing::instrument;
 
 mod commands;
 mod config;
+pub(crate) mod error;
 mod node;
 
 lazy_static! {

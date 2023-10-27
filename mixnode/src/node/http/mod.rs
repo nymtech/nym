@@ -1,5 +1,6 @@
 pub(crate) mod description;
 pub(crate) mod hardware;
+pub(crate) mod state;
 pub(crate) mod stats;
 pub(crate) mod verloc;
 

@@ -80,7 +80,7 @@ impl SharedNodeStats {
 }
 
 #[derive(Serialize, Clone)]
-pub(crate) struct NodeStats {
+pub struct NodeStats {
     #[serde(serialize_with = "humantime_serde::serialize")]
     update_time: SystemTime,
 
@@ -126,7 +126,7 @@ impl NodeStats {
 }
 
 #[derive(Serialize, Clone)]
-pub(crate) struct NodeStatsSimple {
+pub struct NodeStatsSimple {
     #[serde(serialize_with = "humantime_serde::serialize")]
     update_time: SystemTime,
 

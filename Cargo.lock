@@ -6697,6 +6697,7 @@ name = "nym-mixnode"
 version = "1.1.31"
 dependencies = [
  "anyhow",
+ "axum",
  "bs58 0.4.0",
  "cfg-if",
  "clap 4.4.6",
@@ -6714,6 +6715,7 @@ dependencies = [
  "nym-crypto",
  "nym-mixnet-client",
  "nym-mixnode-common",
+ "nym-node",
  "nym-nonexhaustive-delayqueue",
  "nym-pemstore",
  "nym-sphinx",
@@ -6730,6 +6732,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sysinfo",
+ "thiserror",
  "tokio",
  "tokio-util",
  "toml 0.5.11",

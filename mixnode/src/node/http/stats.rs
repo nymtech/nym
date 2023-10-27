@@ -10,7 +10,7 @@ pub enum NodeStatsResponse {
     Simple(NodeStatsSimple),
 }
 
-pub(crate) async fn stats_axum(
+pub(crate) async fn stats(
     Query(params): Query<StatsQueryParams>,
     State(stats): State<SharedNodeStats>,
 ) -> MixnodeStatsResponse {

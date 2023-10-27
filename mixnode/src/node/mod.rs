@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::config::Config;
-use crate::node::http::description::description_axum;
-use crate::node::http::hardware::hardware_axum;
-use crate::node::http::not_found_axum;
+use crate::node::http::description::description;
+use crate::node::http::hardware::hardware;
+use crate::node::http::not_found;
 use crate::node::http::state::MixnodeAppState;
-use crate::node::http::stats::stats_axum;
-use crate::node::http::verloc::{verloc_axum, VerlocState};
+use crate::node::http::stats::stats;
+use crate::node::http::verloc::{verloc, VerlocState};
 use crate::node::listener::connection_handler::packet_processing::PacketProcessor;
 use crate::node::listener::connection_handler::ConnectionHandler;
 use crate::node::listener::Listener;
@@ -112,17 +112,17 @@ impl MixNode {
         };
 
         let router = Router::new()
-            .route("/verloc", get(verloc_axum))
+            .route("/verloc", get(verloc))
             .route(
                 "/description",
                 get({
-                    let description = self.descriptor.clone();
-                    move |query| description_axum(description, query)
+                    let descriptor = self.descriptor.clone();
+                    move |query| description(descriptor, query)
                 }),
             )
-            .route("/stats", get(stats_axum))
-            .route("/hardware", get(hardware_axum))
-            .fallback(not_found_axum)
+            .route("/stats", get(stats))
+            .route("/hardware", get(hardware))
+            .fallback(not_found)
             .layer(axum::middleware::from_fn(logging::logger))
             .with_state(state);
 

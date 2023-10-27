@@ -17,7 +17,7 @@ impl VerlocState {
 
 /// Provides verifiable location (verloc) measurements for this mixnode - a list of the
 /// round-trip times, in milliseconds, for all other mixnodes that this node knows about.
-pub(crate) async fn verloc_axum(
+pub(crate) async fn verloc(
     State(verloc): State<VerlocState>,
     Query(output): Query<OutputParams>,
 ) -> MixnodeVerlocResponse {

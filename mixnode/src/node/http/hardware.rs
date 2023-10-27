@@ -24,7 +24,7 @@ pub(crate) struct CryptoHardware {
 }
 
 /// Provides hardware information which Nym can use to optimize mixnet speed over time (memory, crypto hardware, CPU, cores, etc).
-pub(crate) async fn hardware_axum(Query(output): Query<OutputParams>) -> MixnodeHardwareResponse {
+pub(crate) async fn hardware(Query(output): Query<OutputParams>) -> MixnodeHardwareResponse {
     let output = output.output.unwrap_or_default();
     output.to_response(hardware_info())
 }

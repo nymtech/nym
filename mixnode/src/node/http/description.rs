@@ -3,7 +3,7 @@ use axum::extract::Query;
 use nym_node::http::api::{FormattedResponse, OutputParams};
 
 /// Returns a description of the node and why someone might want to delegate stake to it.
-pub(crate) async fn description_axum(
+pub(crate) async fn description(
     description: NodeDescription,
     Query(output): Query<OutputParams>,
 ) -> MixnodeDescriptionResponse {

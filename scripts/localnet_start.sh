@@ -8,6 +8,7 @@ localnetdir="$HOME/.nym/localnets/localnet.$suffix"
 mkdir -p "$localnetdir"
 
 echo "Using $localnetdir for the localnet"
+cargo build --release
 
 # initialise mixnet
 echo "initialising mixnode1..."

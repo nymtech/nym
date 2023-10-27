@@ -20,8 +20,8 @@ pub enum ForwardTravelError {
     NyxdFailure {
         #[from]
         source: NyxdError,
-    }, 
-    
+    },
+
     #[error("the current epoch appears to be stuck")]
     StuckEpoch,
 }

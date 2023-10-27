@@ -1,4 +1,5 @@
 use crate::scheme::withdrawal::WithdrawalRequest;
+use crate::scheme::EcashCredential;
 use crate::traits::Bytable;
 
 macro_rules! impl_clone {
@@ -12,3 +13,4 @@ macro_rules! impl_clone {
 }
 
 impl_clone!(WithdrawalRequest);
+impl_clone!(EcashCredential);

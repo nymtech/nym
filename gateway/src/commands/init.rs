@@ -20,41 +20,41 @@ use super::helpers::OverrideIpPacketRouterConfig;
 #[derive(Args, Clone)]
 pub struct Init {
     /// Id of the gateway we want to create config for
-    #[clap(long)]
+    #[arg(long)]
     id: String,
 
     /// The listening address on which the gateway will be receiving sphinx packets and listening for client data
-    #[clap(long, alias = "host")]
+    #[arg(long, alias = "host")]
     listening_address: IpAddr,
 
     /// Comma separated list of public ip addresses that will announced to the nym-api and subsequently to the clients.
     /// In nearly all circumstances, it's going to be identical to the address you're going to use for bonding.
-    #[clap(long, value_delimiter = ',')]
+    #[arg(long, value_delimiter = ',')]
     public_ips: Option<Vec<IpAddr>>,
 
     /// Optional hostname associated with this gateway that will announced to the nym-api and subsequently to the clients
-    #[clap(long)]
+    #[arg(long)]
     hostname: Option<String>,
 
     /// The port on which the gateway will be listening for sphinx packets
-    #[clap(long)]
+    #[arg(long)]
     mix_port: Option<u16>,
 
     /// The port on which the gateway will be listening for clients gateway-requests
-    #[clap(long)]
+    #[arg(long)]
     clients_port: Option<u16>,
 
     /// Path to sqlite database containing all gateway persistent data
-    #[clap(long)]
+    #[arg(long)]
     datastore: Option<PathBuf>,
 
     /// Comma separated list of endpoints of nym APIs
-    #[clap(long, alias = "validator_apis", value_delimiter = ',')]
+    #[arg(long, alias = "validator_apis", value_delimiter = ',')]
     // the alias here is included for backwards compatibility (1.1.4 and before)
     nym_apis: Option<Vec<url::Url>>,
 
     /// Comma separated list of endpoints of the validator
-    #[clap(
+    #[arg(
         long,
         alias = "validators",
         alias = "nyxd_validators",
@@ -65,47 +65,52 @@ pub struct Init {
     nyxd_urls: Option<Vec<url::Url>>,
 
     /// Cosmos wallet mnemonic needed for double spending protection
-    #[clap(long)]
+    #[arg(long)]
     mnemonic: Option<bip39::Mnemonic>,
 
     /// Set this gateway to work only with coconut credentials; that would disallow clients to
     /// bypass bandwidth credential requirement
-    #[clap(long, hide = true)]
+    #[arg(long, hide = true)]
     only_coconut_credentials: Option<bool>,
 
     /// Enable/disable gateway anonymized statistics that get sent to a statistics aggregator server
-    #[clap(long)]
+    #[arg(long)]
     enabled_statistics: Option<bool>,
 
     /// URL where a statistics aggregator is running. The default value is a Nym aggregator server
-    #[clap(long)]
+    #[arg(long)]
     statistics_service_url: Option<url::Url>,
 
+    /// Specifies whether this node should accepts and send out packets that would only go to nodes
+    /// on the next mix layer
+    #[arg(long)]
+    enforce_forward_travel: bool,
+
     /// Allows this gateway to run an embedded network requester for minimal network overhead
-    #[clap(long, conflicts_with = "with_ip_packet_router")]
+    #[arg(long, conflicts_with = "with_ip_packet_router")]
     with_network_requester: bool,
 
     /// Allows this gateway to run an embedded network requester for minimal network overhead
-    #[clap(long, hide = true, conflicts_with = "with_network_requester")]
+    #[arg(long, hide = true, conflicts_with = "with_network_requester")]
     with_ip_packet_router: bool,
 
     // ##### NETWORK REQUESTER FLAGS #####
     /// Specifies whether this network requester should run in 'open-proxy' mode
-    #[clap(long, requires = "with_network_requester")]
+    #[arg(long, requires = "with_network_requester")]
     open_proxy: Option<bool>,
 
     /// Enable service anonymized statistics that get sent to a statistics aggregator server
-    #[clap(long, requires = "with_network_requester")]
+    #[arg(long, requires = "with_network_requester")]
     enable_statistics: Option<bool>,
 
     /// Mixnet client address where a statistics aggregator is running. The default value is a Nym
     /// aggregator client
-    #[clap(long, requires = "with_network_requester")]
+    #[arg(long, requires = "with_network_requester")]
     statistics_recipient: Option<String>,
 
     /// Mostly debug-related option to increase default traffic rate so that you would not need to
     /// modify config post init
-    #[clap(
+    #[arg(
         long,
         hide = true,
         conflicts_with = "medium_toggle",
@@ -114,7 +119,7 @@ pub struct Init {
     fastmode: bool,
 
     /// Disable loop cover traffic and the Poisson rate limiter (for debugging only)
-    #[clap(
+    #[arg(
         long,
         hide = true,
         conflicts_with = "medium_toggle",
@@ -124,7 +129,7 @@ pub struct Init {
 
     /// Enable medium mixnet traffic, for experiments only.
     /// This includes things like disabling cover traffic, no per hop delays, etc.
-    #[clap(
+    #[arg(
         long,
         hide = true,
         conflicts_with = "no_cover",
@@ -136,10 +141,10 @@ pub struct Init {
     /// Specifies whether this network requester will run using the default ExitPolicy
     /// as opposed to the allow list.
     /// Note: this setting will become the default in the future releases.
-    #[clap(long)]
+    #[arg(long)]
     with_exit_policy: Option<bool>,
 
-    #[clap(short, long, default_value_t = OutputFormat::default())]
+    #[arg(short, long, default_value_t = OutputFormat::default())]
     output: OutputFormat,
 }
 
@@ -154,6 +159,7 @@ impl From<Init> for OverrideConfig {
             datastore: init_config.datastore,
             nym_apis: init_config.nym_apis,
             mnemonic: init_config.mnemonic,
+            enforce_forward_travel: Some(init_config.enforce_forward_travel),
 
             enabled_statistics: init_config.enabled_statistics,
             statistics_service_url: init_config.statistics_service_url,

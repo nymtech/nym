@@ -163,6 +163,7 @@ impl From<ConfigV1_1_31> for Config {
                 presence_sending_delay: value.debug.presence_sending_delay,
                 stored_messages_filename_length: value.debug.stored_messages_filename_length,
                 message_retrieval_limit: value.debug.message_retrieval_limit,
+                enforce_forward_travel: false,
                 use_legacy_framed_packet_version: value.debug.use_legacy_framed_packet_version,
             },
         }

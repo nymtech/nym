@@ -257,6 +257,7 @@ impl From<DebugV1_1_32> for Debug {
             packet_forwarding_maximum_backoff: value.packet_forwarding_maximum_backoff,
             initial_connection_timeout: value.initial_connection_timeout,
             maximum_connection_buffer_size: value.maximum_connection_buffer_size,
+            enforce_forward_travel: false,
             use_legacy_framed_packet_version: value.use_legacy_framed_packet_version,
         }
     }

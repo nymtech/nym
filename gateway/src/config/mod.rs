@@ -188,11 +188,13 @@ impl Config {
         self
     }
 
+    #[must_use]
     pub fn with_enabled_network_requester(mut self, enabled_network_requester: bool) -> Self {
         self.network_requester.enabled = enabled_network_requester;
         self
     }
 
+    #[must_use]
     pub fn with_default_network_requester_config_path(mut self) -> Self {
         self.storage_paths = self
             .storage_paths
@@ -212,36 +214,43 @@ impl Config {
         self
     }
 
+    #[must_use]
     pub fn with_only_coconut_credentials(mut self, only_coconut_credentials: bool) -> Self {
         self.gateway.only_coconut_credentials = only_coconut_credentials;
         self
     }
 
+    #[must_use]
     pub fn with_enabled_statistics(mut self, enabled_statistics: bool) -> Self {
         self.gateway.enabled_statistics = enabled_statistics;
         self
     }
 
+    #[must_use]
     pub fn with_custom_statistics_service_url(mut self, statistics_service_url: Url) -> Self {
         self.gateway.statistics_service_url = statistics_service_url;
         self
     }
 
+    #[must_use]
     pub fn with_custom_nym_apis(mut self, nym_api_urls: Vec<Url>) -> Self {
         self.gateway.nym_api_urls = nym_api_urls;
         self
     }
 
+    #[must_use]
     pub fn with_custom_validator_nyxd(mut self, validator_nyxd_urls: Vec<Url>) -> Self {
         self.gateway.nyxd_urls = validator_nyxd_urls;
         self
     }
 
+    #[must_use]
     pub fn with_cosmos_mnemonic(mut self, cosmos_mnemonic: bip39::Mnemonic) -> Self {
         self.gateway.cosmos_mnemonic = cosmos_mnemonic;
         self
     }
 
+    #[must_use]
     pub fn with_listening_address(mut self, listening_address: IpAddr) -> Self {
         self.gateway.listening_address = listening_address;
 
@@ -253,16 +262,25 @@ impl Config {
         self
     }
 
+    #[must_use]
     pub fn with_mix_port(mut self, port: u16) -> Self {
         self.gateway.mix_port = port;
         self
     }
 
+    #[must_use]
     pub fn with_clients_port(mut self, port: u16) -> Self {
         self.gateway.clients_port = port;
         self
     }
 
+    #[must_use]
+    pub fn with_enforce_forward_travel(mut self, forward_travel: bool) -> Self {
+        self.debug.enforce_forward_travel = forward_travel;
+        self
+    }
+
+    #[must_use]
     pub fn with_custom_persistent_store(mut self, store_dir: PathBuf) -> Self {
         self.storage_paths.clients_storage = store_dir;
         self
@@ -422,6 +440,10 @@ pub struct Debug {
     /// Number of messages from offline client that can be pulled at once from the storage.
     pub message_retrieval_limit: i64,
 
+    /// Specifies whether this node should accepts and send out packets that would only go to nodes
+    /// on the next mix layer.
+    pub enforce_forward_travel: bool,
+
     /// Specifies whether the mixnode should be using the legacy framing for the sphinx packets.
     // it's set to true by default. The reason for that decision is to preserve compatibility with the
     // existing nodes whilst everyone else is upgrading and getting the code for handling the new field.
@@ -439,6 +461,9 @@ impl Default for Debug {
             maximum_connection_buffer_size: DEFAULT_MAXIMUM_CONNECTION_BUFFER_SIZE,
             stored_messages_filename_length: DEFAULT_STORED_MESSAGE_FILENAME_LENGTH,
             message_retrieval_limit: DEFAULT_MESSAGE_RETRIEVAL_LIMIT,
+
+            // let's keep it disabled for now to not surprise operators/users
+            enforce_forward_travel: false,
             use_legacy_framed_packet_version: false,
         }
     }

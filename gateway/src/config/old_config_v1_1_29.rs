@@ -166,6 +166,10 @@ impl From<ConfigV1_1_29> for ConfigV1_1_31 {
                 stored_messages_filename_length: value.debug.stored_messages_filename_length,
                 message_retrieval_limit: value.debug.message_retrieval_limit,
                 use_legacy_framed_packet_version: value.debug.use_legacy_framed_packet_version,
+
+                // \/ ADDED
+                // enforce forward travel, et al.
+                ..Default::default() // /\ ADDED
             },
         }
     }

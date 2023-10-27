@@ -253,8 +253,13 @@ impl<St> Gateway<St> {
         let nyxd_endpoints = self.config.gateway.nyxd_urls.clone();
 
         let network = NymNetworkDetails::new_from_env();
-        let mut provider =
-            AllowedAddressesProvider::new(identity, nyxd_endpoints, Some(network)).await?;
+        let mut provider = AllowedAddressesProvider::new(
+            identity,
+            nyxd_endpoints,
+            !self.config.debug.enforce_forward_travel,
+            Some(network),
+        )
+        .await?;
 
         let filters = (provider.ingress(), provider.egress());
 

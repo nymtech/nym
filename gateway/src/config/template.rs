@@ -116,4 +116,10 @@ ip_packet_router_config = '{{ storage_paths.ip_packet_router_config }}'
 
 # TODO
 
+[debug]
+
+# Specifies whether this node should accepts and send out packets that would only go to nodes
+# on the next mix layer.
+enforce_forward_travel = {{ debug.enforce_forward_travel }}
+
 "#;

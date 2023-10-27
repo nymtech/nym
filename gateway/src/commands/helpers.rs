@@ -38,6 +38,7 @@ pub(crate) struct OverrideConfig {
     pub(crate) statistics_service_url: Option<url::Url>,
     pub(crate) nym_apis: Option<Vec<url::Url>>,
     pub(crate) mnemonic: Option<bip39::Mnemonic>,
+    pub(crate) enforce_forward_travel: Option<bool>,
     pub(crate) nyxd_urls: Option<Vec<url::Url>>,
     pub(crate) only_coconut_credentials: Option<bool>,
     pub(crate) with_network_requester: Option<bool>,
@@ -52,6 +53,10 @@ impl OverrideConfig {
             .with_optional(Config::with_listening_address, self.listening_address)
             .with_optional(Config::with_mix_port, self.mix_port)
             .with_optional(Config::with_clients_port, self.clients_port)
+            .with_optional(
+                Config::with_enforce_forward_travel,
+                self.enforce_forward_travel,
+            )
             .with_optional_custom_env(
                 Config::with_custom_nym_apis,
                 self.nym_apis,

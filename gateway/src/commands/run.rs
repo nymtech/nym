@@ -108,6 +108,11 @@ pub struct Run {
     #[arg(long)]
     statistics_recipient: Option<String>,
 
+    /// Specifies whether this node should accepts and send out packets that would only go to nodes
+    /// on the next mix layer
+    #[arg(long)]
+    enforce_forward_travel: Option<bool>,
+
     /// Mostly debug-related option to increase default traffic rate so that you would not need to
     /// modify config post init
     #[arg(long, hide = true, conflicts_with = "medium_toggle")]
@@ -157,6 +162,7 @@ impl From<Run> for OverrideConfig {
             datastore: run_config.datastore,
             nym_apis: run_config.nym_apis,
             mnemonic: run_config.mnemonic,
+            enforce_forward_travel: run_config.enforce_forward_travel,
 
             enabled_statistics: run_config.enabled_statistics,
             statistics_service_url: run_config.statistics_service_url,

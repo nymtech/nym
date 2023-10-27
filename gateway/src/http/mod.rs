@@ -224,7 +224,12 @@ impl<'a> HttpApiBuilder<'a> {
         }
 
         let wg_state = self.client_registry.map(|client_registry| {
-            WireguardAppState::new(self.sphinx_keypair, client_registry, Default::default())
+            WireguardAppState::new(
+                self.sphinx_keypair,
+                client_registry,
+                Default::default(),
+                self.gateway_config.wireguard.bind_address.port(),
+            )
         });
 
         let router = nym_node::http::NymNodeRouter::new(config, wg_state);

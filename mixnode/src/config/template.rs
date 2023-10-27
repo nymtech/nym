@@ -87,4 +87,10 @@ node_description = '{{ storage_paths.node_description }}'
 
 # TODO
 
+[debug]
+
+# Specifies whether this node should accepts and send out packets that would only go to nodes
+# on the next mix layer.
+enforce_forward_travel = {{ debug.enforce_forward_travel }}
+
 "#;

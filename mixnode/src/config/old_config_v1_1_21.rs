@@ -232,6 +232,7 @@ impl From<DebugV1_1_21> for DebugV1_1_32 {
             initial_connection_timeout: value.initial_connection_timeout,
             maximum_connection_buffer_size: value.maximum_connection_buffer_size,
             use_legacy_framed_packet_version: value.use_legacy_framed_packet_version,
+            ..Default::default()
         }
     }
 }

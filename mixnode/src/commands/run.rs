@@ -14,35 +14,40 @@ use std::net::IpAddr;
 #[derive(Args, Clone)]
 pub(crate) struct Run {
     /// Id of the nym-mixnode we want to run
-    #[clap(long)]
+    #[arg(long)]
     id: String,
 
     /// The custom host on which the mixnode will be running
-    #[clap(long)]
+    #[arg(long)]
     host: Option<IpAddr>,
 
     /// The wallet address you will use to bond this mixnode, e.g. nymt1z9egw0knv47nmur0p8vk4rcx59h9gg4zuxrrr9
-    #[clap(long)]
+    #[arg(long)]
     wallet_address: Option<nyxd::AccountId>,
 
     /// The port on which the mixnode will be listening for mix packets
-    #[clap(long)]
+    #[arg(long)]
     mix_port: Option<u16>,
 
     /// The port on which the mixnode will be listening for verloc packets
-    #[clap(long)]
+    #[arg(long)]
     verloc_port: Option<u16>,
 
     /// The port on which the mixnode will be listening for http requests
-    #[clap(long)]
+    #[arg(long)]
     http_api_port: Option<u16>,
 
     /// Comma separated list of nym-api endpoints of the validators
     // the alias here is included for backwards compatibility (1.1.4 and before)
-    #[clap(long, alias = "validators", value_delimiter = ',')]
+    #[arg(long, alias = "validators", value_delimiter = ',')]
     nym_apis: Option<Vec<url::Url>>,
 
-    #[clap(short, long, default_value_t = OutputFormat::default())]
+    /// Specifies whether this node should accepts and send out packets that would only go to nodes
+    /// on the next mix layer
+    #[arg(long)]
+    enforce_forward_travel: Option<bool>,
+
+    #[arg(short, long, default_value_t = OutputFormat::default())]
     output: OutputFormat,
 }
 
@@ -54,6 +59,7 @@ impl From<Run> for OverrideConfig {
             mix_port: run_config.mix_port,
             verloc_port: run_config.verloc_port,
             http_api_port: run_config.http_api_port,
+            enforce_forward_travel: run_config.enforce_forward_travel,
             nym_apis: run_config.nym_apis,
         }
     }

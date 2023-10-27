@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::forward_travel::error::ForwardTravelError;
-use log::{debug, error, trace, warn};
+use log::{debug, error, info, trace, warn};
 use nym_mixnet_contract_common::{EpochId, GatewayBond, Layer, MixNodeBond};
 use nym_network_defaults::NymNetworkDetails;
 use nym_task::TaskClient;
@@ -44,6 +44,7 @@ impl AllowedAddressesProvider {
     pub async fn new(
         identity: IdentityKey,
         nyxd_endpoints: Vec<Url>,
+        allow_all: bool,
         network_details: Option<NymNetworkDetails>,
     ) -> Result<Self, ForwardTravelError> {
         let network = network_details.unwrap_or(NymNetworkDetails::new_mainnet());
@@ -52,13 +53,15 @@ impl AllowedAddressesProvider {
             identity,
             client_config: nyxd::Config::try_from_nym_network_details(&network)?,
             nyxd_endpoints,
-            ingress: AllowedPaths::new(),
-            egress: AllowedPaths::new(),
+            ingress: AllowedPaths::new(allow_all),
+            egress: AllowedPaths::new(allow_all),
         };
 
-        // set initial values for ingress/egress
-        let client = provider.ephemeral_nyxd_client()?;
-        provider.update_state(client).await?;
+        if !allow_all {
+            // set initial values for ingress/egress
+            let client = provider.ephemeral_nyxd_client()?;
+            provider.update_state(client).await?;
+        }
 
         Ok(provider)
     }
@@ -89,15 +92,11 @@ impl AllowedAddressesProvider {
     }
 
     pub fn ingress(&self) -> AllowedIngress {
-        AllowedIngress {
-            inner: Arc::clone(&self.ingress.inner),
-        }
+        self.ingress.clone()
     }
 
     pub fn egress(&self) -> AllowedEgress {
-        AllowedEgress {
-            inner: Arc::clone(&self.egress.inner),
-        }
+        self.egress.clone()
     }
 
     fn add_node_ips(raw_host: &str, identity: &str, set: &mut HashSet<IpAddr>) {
@@ -269,6 +268,14 @@ impl AllowedAddressesProvider {
     }
 
     pub async fn run(&mut self, mut task_client: TaskClient) {
+        if self.ingress.allow_all {
+            debug_assert!(self.egress.allow_all);
+
+            info!("the forward travel is currently disabled - there's no point in starting the route refresher");
+            task_client.mark_as_success();
+            return;
+        }
+
         debug!("Started ValidAddressesProvider with graceful shutdown support");
         while !task_client.is_shutdown() {
             tokio::select! {
@@ -293,12 +300,16 @@ impl AllowedAddressesProvider {
 
 #[derive(Clone)]
 pub struct AllowedPaths {
+    // this is fine that this value is not wrapped in an Arc and is not atomic given
+    // it's not expected to be modified at runtime
+    allow_all: bool,
     inner: Arc<RwLock<AllowedPathsInner>>,
 }
 
 impl AllowedPaths {
-    fn new() -> Self {
+    fn new(allow_all: bool) -> Self {
         AllowedPaths {
+            allow_all,
             inner: Arc::new(RwLock::new(AllowedPathsInner {
                 previous_epoch: HashSet::new(),
                 current_epoch: HashSet::new(),
@@ -307,11 +318,19 @@ impl AllowedPaths {
     }
 
     pub fn is_allowed(&self, address: IpAddr) -> bool {
+        if self.allow_all {
+            return true;
+        }
+
         let guard = self.inner.read();
         guard.current_epoch.contains(&address) || guard.previous_epoch.contains(&address)
     }
 
     fn advance_epoch(&self, current_epoch: HashSet<IpAddr>, reset_previous: bool) {
+        // if this is triggered, it's an implementation bug;
+        // we shouldn't be updating data if we're allowing everything regardless
+        debug_assert!(!self.allow_all);
+
         let mut guard = self.inner.write();
 
         let old_current = mem::replace(&mut guard.current_epoch, current_epoch);

@@ -16,31 +16,36 @@ use std::{fs, io};
 #[derive(Args, Clone)]
 pub(crate) struct Init {
     /// Id of the mixnode we want to create config for
-    #[clap(long)]
+    #[arg(long)]
     id: String,
 
     /// The host on which the mixnode will be running
-    #[clap(long)]
+    #[arg(long)]
     host: IpAddr,
 
     /// The port on which the mixnode will be listening for mix packets
-    #[clap(long)]
+    #[arg(long)]
     mix_port: Option<u16>,
 
     /// The port on which the mixnode will be listening for verloc packets
-    #[clap(long)]
+    #[arg(long)]
     verloc_port: Option<u16>,
 
     /// The port on which the mixnode will be listening for http requests
-    #[clap(long)]
+    #[arg(long)]
     http_api_port: Option<u16>,
 
     /// Comma separated list of nym-api endpoints of the validators
     // the alias here is included for backwards compatibility (1.1.4 and before)
-    #[clap(long, alias = "validators", value_delimiter = ',')]
+    #[arg(long, alias = "validators", value_delimiter = ',')]
     nym_apis: Option<Vec<url::Url>>,
 
-    #[clap(short, long, default_value_t = OutputFormat::default())]
+    /// Specifies whether this node should accepts and send out packets that would only go to nodes
+    /// on the next mix layer
+    #[arg(long)]
+    enforce_forward_travel: bool,
+
+    #[arg(short, long, default_value_t = OutputFormat::default())]
     output: OutputFormat,
 }
 
@@ -52,6 +57,7 @@ impl From<Init> for OverrideConfig {
             mix_port: init_config.mix_port,
             verloc_port: init_config.verloc_port,
             http_api_port: init_config.http_api_port,
+            enforce_forward_travel: Some(init_config.enforce_forward_travel),
             nym_apis: init_config.nym_apis,
         }
     }

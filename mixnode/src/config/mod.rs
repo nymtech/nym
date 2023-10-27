@@ -175,11 +175,13 @@ impl Config {
     }
 
     // builder methods
+    #[must_use]
     pub fn with_custom_nym_apis(mut self, nym_api_urls: Vec<Url>) -> Self {
         self.mixnode.nym_api_urls = nym_api_urls;
         self
     }
 
+    #[must_use]
     pub fn with_listening_address(mut self, listening_address: IpAddr) -> Self {
         self.mixnode.listening_address = listening_address;
 
@@ -189,19 +191,28 @@ impl Config {
         self
     }
 
+    #[must_use]
     pub fn with_mix_port(mut self, port: u16) -> Self {
         self.mixnode.mix_port = port;
         self
     }
 
+    #[must_use]
     pub fn with_verloc_port(mut self, port: u16) -> Self {
         self.mixnode.verloc_port = port;
         self
     }
 
+    #[must_use]
     pub fn with_http_api_port(mut self, port: u16) -> Self {
         let http_ip = self.http.bind_address.ip();
         self.http.bind_address = SocketAddr::new(http_ip, port);
+        self
+    }
+
+    #[must_use]
+    pub fn with_enforce_forward_travel(mut self, forward_travel: bool) -> Self {
+        self.debug.enforce_forward_travel = forward_travel;
         self
     }
 
@@ -323,6 +334,10 @@ pub struct Debug {
     /// Maximum number of packets that can be stored waiting to get sent to a particular connection.
     pub maximum_connection_buffer_size: usize,
 
+    /// Specifies whether this node should accepts and send out packets that would only go to nodes
+    /// on the next mix layer.
+    pub enforce_forward_travel: bool,
+
     /// Specifies whether the mixnode should be using the legacy framing for the sphinx packets.
     // it's set to true by default. The reason for that decision is to preserve compatibility with the
     // existing nodes whilst everyone else is upgrading and getting the code for handling the new field.
@@ -339,6 +354,9 @@ impl Default for Debug {
             packet_forwarding_maximum_backoff: DEFAULT_PACKET_FORWARDING_MAXIMUM_BACKOFF,
             initial_connection_timeout: DEFAULT_INITIAL_CONNECTION_TIMEOUT,
             maximum_connection_buffer_size: DEFAULT_MAXIMUM_CONNECTION_BUFFER_SIZE,
+
+            // let's keep it disabled for now to not surprise operators/users
+            enforce_forward_travel: false,
             use_legacy_framed_packet_version: false,
         }
     }

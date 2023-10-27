@@ -58,6 +58,7 @@ struct OverrideConfig {
     mix_port: Option<u16>,
     verloc_port: Option<u16>,
     http_api_port: Option<u16>,
+    enforce_forward_travel: Option<bool>,
     nym_apis: Option<Vec<url::Url>>,
 }
 
@@ -83,6 +84,10 @@ fn override_config(config: Config, args: OverrideConfig) -> Config {
         .with_optional(Config::with_mix_port, args.mix_port)
         .with_optional(Config::with_verloc_port, args.verloc_port)
         .with_optional(Config::with_http_api_port, args.http_api_port)
+        .with_optional(
+            Config::with_enforce_forward_travel,
+            args.enforce_forward_travel,
+        )
         .with_optional_custom_env(
             Config::with_custom_nym_apis,
             args.nym_apis,

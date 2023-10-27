@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::{net::IpAddr, path::Path};
 
 use error::IpForwarderError;
 use futures::{channel::oneshot, StreamExt};
@@ -6,9 +6,13 @@ use nym_client_core::{
     client::mix_traffic::transceiver::GatewayTransceiver,
     config::disk_persistence::CommonClientPaths, HardcodedTopologyProvider, TopologyProvider,
 };
-use nym_sdk::{mixnet::Recipient, NymNetworkDetails};
+use nym_sdk::{
+    mixnet::{InputMessage, MixnetMessageSender, Recipient},
+    NymNetworkDetails,
+};
 use nym_sphinx::receiver::ReconstructedMessage;
 use nym_task::{TaskClient, TaskHandle};
+use tap::TapFallible;
 
 use crate::config::BaseClientConfig;
 
@@ -115,7 +119,7 @@ impl IpForwarderBuilder {
         let (tun, tun_task_tx, tun_task_response_rx) =
             nym_wireguard::tun_device::TunDevice::new(None);
 
-        let ip_forwarder_service = IpForwarderService {
+        let ip_forwarder_service = IpForwarder {
             config: self.config,
             tun,
             tun_task_tx,
@@ -138,7 +142,7 @@ impl IpForwarderBuilder {
     }
 }
 
-struct IpForwarderService {
+struct IpForwarder {
     config: Config,
     tun: nym_wireguard::tun_device::TunDevice,
     tun_task_tx: nym_wireguard::tun_task_channel::TunTaskTx,
@@ -147,7 +151,7 @@ struct IpForwarderService {
     task_handle: TaskHandle,
 }
 
-impl IpForwarderService {
+impl IpForwarder {
     async fn run(mut self) -> Result<(), IpForwarderError> {
         let mut task_client = self.task_handle.fork("main_loop");
         while !task_client.is_shutdown() {
@@ -155,21 +159,75 @@ impl IpForwarderService {
                 _ = task_client.recv() => {
                     log::debug!("IpForwarderService [main loop]: received shutdown");
                 },
-                msg = self.mixnet_client.next() => match msg {
-                    Some(msg) => self.on_message(msg).await,
-                    None => {
+                msg = self.mixnet_client.next() => {
+                    if let Some(msg) = msg {
+                        self.on_message(msg).await.ok();
+                    } else {
                         log::trace!("IpForwarderService [main loop]: stopping since channel closed");
                         break;
-                    },
+                    };
+                },
+                packet = self.tun_task_response_rx.recv() => {
+                    if let Some((tag, packet)) = packet {
+                        // let input_message = InputMessage {
+                        // };
+                        // self.mixnet_client
+                        //     .send(input_message)
+                        //     .await
+                        //     .tap_err(|err| {
+                        //         log::error!("IpForwarderService [main loop]: failed to send packet to mixnet: {err}");
+                        //     })
+                        //     .ok();
+                    } else {
+                        log::trace!("IpForwarderService [main loop]: stopping since channel closed");
+                        break;
+                    }
                 }
+
             }
         }
         log::info!("IpForwarderService: stopping");
         Ok(())
     }
 
-    async fn on_message(&mut self, reconstructed: ReconstructedMessage) {
-        todo!();
+    async fn on_message(
+        &mut self,
+        reconstructed: ReconstructedMessage,
+    ) -> Result<(), IpForwarderError> {
+        log::info!("Received message: {:?}", reconstructed.sender_tag);
+
+        let headers = etherparse::SlicedPacket::from_ip(&reconstructed.message).map_err(|err| {
+            log::warn!("Received non-IP packet: {err}");
+            IpForwarderError::PacketParseFailed { source: err }
+        })?;
+
+        let (src_addr, dst_addr): (IpAddr, IpAddr) = match headers.ip {
+            Some(etherparse::InternetSlice::Ipv4(ipv4_header, _)) => (
+                ipv4_header.source_addr().into(),
+                ipv4_header.destination_addr().into(),
+            ),
+            Some(etherparse::InternetSlice::Ipv6(ipv6_header, _)) => (
+                ipv6_header.source_addr().into(),
+                ipv6_header.destination_addr().into(),
+            ),
+            None => {
+                log::warn!("Received non-IP packet");
+                return Err(IpForwarderError::PacketMissingHeader);
+            }
+        };
+        log::info!("Received packet: {src_addr} -> {dst_addr}");
+
+        // TODO: set the tag correctly. Can we just reuse sender_tag?
+        let tag = 0;
+        self.tun_task_tx
+            .send((tag, reconstructed.message))
+            .await
+            .tap_err(|err| {
+                log::error!("Failed to send packet to tun device: {err}");
+            })
+            .ok();
+
+        Ok(())
     }
 }
 

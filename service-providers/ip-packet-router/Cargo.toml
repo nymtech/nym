@@ -9,6 +9,7 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
+etherparse = "0.13.0"
 futures = { workspace = true }
 log = { workspace = true }
 nym-bin-common = { path = "../../common/bin-common" }
@@ -22,5 +23,6 @@ nym-wireguard = { path = "../../common/wireguard" }
 nym-wireguard-types = { path = "../../common/wireguard-types" }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
+tap.workspace = true
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "net", "io-util"] }

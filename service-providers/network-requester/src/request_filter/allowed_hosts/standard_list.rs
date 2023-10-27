@@ -1,8 +1,8 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::allowed_hosts::group::HostsGroup;
-use crate::allowed_hosts::host::Host;
+use crate::request_filter::allowed_hosts::group::HostsGroup;
+use crate::request_filter::allowed_hosts::host::Host;
 use nym_task::TaskClient;
 use regex::Regex;
 use std::sync::Arc;

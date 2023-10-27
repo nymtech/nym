@@ -386,12 +386,16 @@ pub fn sanitize_url<K: AsRef<str>, V: AsRef<str>>(
     let mut path_segments = url
         .path_segments_mut()
         .expect("provided validator url does not have a base!");
+
+    path_segments.pop_if_empty();
+
     for segment in segments {
         let segment = segment.strip_prefix('/').unwrap_or(segment);
         let segment = segment.strip_suffix('/').unwrap_or(segment);
 
         path_segments.push(segment);
     }
+
     // I don't understand why compiler couldn't figure out that it's no longer used
     // and can be dropped
     drop(path_segments);

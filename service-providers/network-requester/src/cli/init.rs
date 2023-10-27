@@ -29,42 +29,42 @@ use tap::TapFallible;
 #[derive(Args, Clone)]
 pub(crate) struct Init {
     /// Id of the nym-mixnet-client we want to create config for.
-    #[arg(long)]
+    #[clap(long)]
     id: String,
 
     /// Specifies whether this network requester should run in 'open-proxy' mode
-    #[arg(long)]
+    #[clap(long)]
     open_proxy: Option<bool>,
 
     /// Enable service anonymized statistics that get sent to a statistics aggregator server
-    #[arg(long)]
+    #[clap(long)]
     enable_statistics: Option<bool>,
 
     /// Mixnet client address where a statistics aggregator is running. The default value is a Nym
     /// aggregator client
-    #[arg(long)]
+    #[clap(long)]
     statistics_recipient: Option<String>,
 
     /// Id of the gateway we are going to connect to.
-    #[arg(long)]
+    #[clap(long)]
     gateway: Option<identity::PublicKey>,
 
     /// Specifies whether the new gateway should be determined based by latency as opposed to being chosen
     /// uniformly.
-    #[arg(long, conflicts_with = "gateway")]
+    #[clap(long, conflicts_with = "gateway")]
     latency_based_selection: bool,
 
     /// Force register gateway. WARNING: this will overwrite any existing keys for the given id,
     /// potentially causing loss of access.
-    #[arg(long)]
+    #[clap(long)]
     force_register_gateway: bool,
 
     /// Comma separated list of rest endpoints of the nyxd validators
-    #[arg(long, alias = "nymd_validators", value_delimiter = ',')]
+    #[clap(long, alias = "nymd_validators", value_delimiter = ',')]
     nyxd_urls: Option<Vec<url::Url>>,
 
     /// Comma separated list of rest endpoints of the API validators
-    #[arg(
+    #[clap(
         long,
         alias = "api_validators",
         value_delimiter = ',',
@@ -79,10 +79,16 @@ pub(crate) struct Init {
 
     /// Set this client to work in a enabled credentials mode that would attempt to use gateway
     /// with bandwidth credential requirement.
-    #[arg(long)]
+    #[clap(long)]
     enabled_credentials_mode: Option<bool>,
 
-    #[arg(short, long, default_value_t = OutputFormat::default())]
+    /// Specifies whether this network requester will run using the default ExitPolicy
+    /// as opposed to the allow list.
+    /// Note: this setting will become the default in the future releases.
+    #[clap(long)]
+    with_exit_policy: Option<bool>,
+
+    #[clap(short, long, default_value_t = OutputFormat::default())]
     output: OutputFormat,
 }
 
@@ -95,6 +101,7 @@ impl From<Init> for OverrideConfig {
             medium_toggle: false,
             nyxd_urls: init_config.nyxd_urls,
             enabled_credentials_mode: init_config.enabled_credentials_mode,
+            enable_exit_policy: init_config.with_exit_policy,
             open_proxy: init_config.open_proxy,
             enable_statistics: init_config.enabled_credentials_mode,
             statistics_recipient: init_config.statistics_recipient,

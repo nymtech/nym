@@ -1,9 +1,15 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::helpers::{append_ip_to_file, failed_ips_filepath};
 use isocountry::CountryCode;
 use log::warn;
 use maxminddb::{geoip2::City, MaxMindDBError, Reader};
+use std::collections::HashSet;
+use std::fs::File;
+use std::io::{self, BufRead};
+use std::path::Path;
+use std::sync::Mutex;
 use std::{
     net::{IpAddr, ToSocketAddrs},
     str::FromStr,
@@ -26,6 +32,7 @@ pub enum GeoIpError {
 // and an error will be logged.
 pub(crate) struct GeoIp {
     pub(crate) db: Option<Reader<Vec<u8>>>,
+    failed_addresses: FailedIpAddresses,
 }
 
 #[derive(Clone)]
@@ -42,6 +49,29 @@ pub(crate) struct Location {
     pub(crate) longitude: Option<f64>,
 }
 
+pub(crate) struct FailedIpAddresses {
+    failed_ips: Mutex<HashSet<String>>,
+}
+
+impl FailedIpAddresses {
+    pub fn new() -> Self {
+        let mut failed_ips = HashSet::new();
+        let file_path = failed_ips_filepath();
+
+        if Path::new(&file_path).exists() {
+            if let Ok(file) = File::open(&file_path) {
+                let lines = io::BufReader::new(file).lines();
+                for ip in lines.flatten() {
+                    failed_ips.insert(ip);
+                }
+            }
+        }
+
+        FailedIpAddresses {
+            failed_ips: Mutex::new(failed_ips),
+        }
+    }
+}
 impl From<Location> for nym_explorer_api_requests::Location {
     fn from(location: Location) -> Self {
         nym_explorer_api_requests::Location {
@@ -68,31 +98,54 @@ impl GeoIp {
                 error!("Fail to open GeoLite2 database file {}: {}", db_path, e);
             })
             .ok();
-        GeoIp { db: reader }
+
+        let failed_addresses = FailedIpAddresses::new();
+
+        GeoIp {
+            db: reader,
+            failed_addresses,
+        }
+    }
+
+    fn handle_failed_ip(&self, address: &str) {
+        if let Ok(mut failed_ips_guard) = self.failed_addresses.failed_ips.lock() {
+            if failed_ips_guard.insert(address.to_string()) {
+                append_ip_to_file(address);
+            }
+        } else {
+            error!("Failed to acquire lock on failed_ips");
+        }
     }
 
     pub fn query(&self, address: &str, port: Option<u16>) -> Result<Option<Location>, GeoIpError> {
-        let ip: IpAddr = FromStr::from_str(address).or_else(|_| {
+        let p = port.unwrap_or(FAKE_PORT);
+        let ip_result: Result<IpAddr, GeoIpError> = FromStr::from_str(address).or_else(|_| {
             debug!(
                 "Fail to create IpAddr from {}. Trying using internal lookup...",
                 &address
             );
-            let p = port.unwrap_or(FAKE_PORT);
-            let socket_addr = (address, p)
-                .to_socket_addrs()
-                .map_err(|e| {
-                    error!("Fail to resolve IP address from {}:{}: {}", &address, p, e);
-                    GeoIpError::NoValidIP
-                })?
-                .next()
-                .ok_or_else(|| {
-                    error!("Fail to resolve IP address from {}:{}", &address, p);
-                    GeoIpError::NoValidIP
-                })?;
-            let ip = socket_addr.ip();
-            debug!("Internal lookup succeed, resolved ip: {}", ip);
-            Ok(ip)
-        })?;
+            match (address, p).to_socket_addrs() {
+                Ok(mut addrs) => {
+                    if let Some(socket_addr) = addrs.next() {
+                        let ip = socket_addr.ip();
+                        debug!("Internal lookup succeeded, resolved ip: {}", ip);
+                        Ok(ip)
+                    } else {
+                        debug!("Fail to resolve IP address from {}:{}", &address, p);
+                        self.handle_failed_ip(address);
+                        Err(GeoIpError::NoValidIP)
+                    }
+                }
+                Err(_) => {
+                    debug!("Fail to resolve IP address from {}:{}.", &address, p);
+                    self.handle_failed_ip(address);
+                    Err(GeoIpError::NoValidIP)
+                }
+            }
+        });
+
+        let ip = ip_result?;
+
         let result = self
             .db
             .as_ref()

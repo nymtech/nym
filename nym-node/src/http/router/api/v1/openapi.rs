@@ -26,6 +26,7 @@ use utoipa_swagger_ui::SwaggerUi;
         api::v1::gateway::client_interfaces::wireguard::client_registry::get_client,
         api::v1::mixnode::root::root_mixnode,
         api::v1::network_requester::root::root_network_requester,
+        api::v1::network_requester::exit_policy::node_exit_policy,
     ),
     components(
         schemas(
@@ -49,6 +50,12 @@ use utoipa_swagger_ui::SwaggerUi;
             api_requests::v1::gateway::client_interfaces::wireguard::models::ClientRegistrationResponse,
             api_requests::v1::mixnode::models::Mixnode,
             api_requests::v1::network_requester::models::NetworkRequester,
+            api_requests::v1::network_requester::exit_policy::models::AddressPolicy,
+            api_requests::v1::network_requester::exit_policy::models::AddressPolicyRule,
+            api_requests::v1::network_requester::exit_policy::models::AddressPolicyAction,
+            api_requests::v1::network_requester::exit_policy::models::AddressPortPattern,
+            api_requests::v1::network_requester::exit_policy::models::PortRange,
+            api_requests::v1::network_requester::exit_policy::models::UsedExitPolicy,
         ),
         responses(RequestError)
     )

@@ -6478,6 +6478,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-exit-policy"
+version = "0.1.0"
+dependencies = [
+ "reqwest",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tracing",
+ "utoipa",
+]
+
+[[package]]
 name = "nym-explorer-api-requests"
 version = "0.1.0"
 dependencies = [
@@ -6628,6 +6640,22 @@ version = "0.1.0"
 dependencies = [
  "log",
  "rand 0.8.5",
+ "thiserror",
+]
+
+[[package]]
+name = "nym-ip-forwarder"
+version = "0.1.0"
+dependencies = [
+ "futures",
+ "log",
+ "nym-client-core",
+ "nym-config",
+ "nym-sdk",
+ "nym-sphinx",
+ "nym-task",
+ "serde",
+ "serde_json",
  "thiserror",
 ]
 
@@ -6803,6 +6831,7 @@ dependencies = [
  "nym-config",
  "nym-credential-storage",
  "nym-crypto",
+ "nym-exit-policy",
  "nym-network-defaults",
  "nym-ordered-buffer",
  "nym-sdk",
@@ -6887,6 +6916,7 @@ dependencies = [
  "http-api-client",
  "nym-bin-common",
  "nym-crypto",
+ "nym-exit-policy",
  "nym-wireguard-types",
  "schemars",
  "serde",
@@ -7178,6 +7208,7 @@ version = "0.1.0"
 dependencies = [
  "bincode",
  "log",
+ "nym-exit-policy",
  "nym-service-providers-common",
  "nym-sphinx-addressing",
  "serde",

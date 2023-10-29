@@ -6,7 +6,7 @@ use tracing::{debug, instrument, trace};
 
 use crate::{
     error::CommandError,
-    states::app::{ConnectionState, SharedAppState},
+    states::{app::ConnectionState, SharedAppState},
 };
 
 #[instrument]

@@ -1,10 +1,7 @@
-use std::sync::Arc;
-
 use serde::{Deserialize, Serialize};
-use tokio::sync::Mutex;
 use ts_rs::TS;
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct NodeConfig {
     pub id: String,
     pub country: String,
@@ -21,7 +18,7 @@ pub enum ConnectionState {
     Error,
 }
 
-#[derive(Default, Debug, Serialize, Deserialize, TS)]
+#[derive(Default, Debug, Serialize, Deserialize, TS, Clone)]
 #[ts(export)]
 pub enum PrivacyMode {
     High,
@@ -45,5 +42,3 @@ pub struct AppState {
     pub exit_node: Option<NodeConfig>,
     pub tunnel: Option<TunnelConfig>,
 }
-
-pub type SharedAppState = Arc<Mutex<AppState>>;

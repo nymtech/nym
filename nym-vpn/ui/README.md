@@ -25,6 +25,25 @@ yarn
 yarn dev:app
 ```
 
+or
+
+```
+cd src-tauri
+cargo tauri dev
+```
+
+#### Logging
+
+Rust logging (standard output) is controlled by the `RUST_LOG`
+env variable
+
+Example:
+
+```
+cd src-tauri
+RUST_LOG=trace cargo tauri dev
+```
+
 ## Dev in the browser
 
 For convenience and better development experience, we can run the

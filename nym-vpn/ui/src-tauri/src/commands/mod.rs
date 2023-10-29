@@ -1,6 +1,7 @@
 use tracing::{debug, instrument};
 
 pub mod connection;
+pub mod settings;
 
 #[instrument]
 #[tauri::command]

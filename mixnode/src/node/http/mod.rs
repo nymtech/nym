@@ -10,7 +10,6 @@ use nym_node::error::NymNodeError;
 use nym_node::http::api::api_requests;
 use nym_node::http::api::api_requests::SignedHostInformation;
 use nym_task::TaskClient;
-use std::net::SocketAddr;
 
 pub(crate) mod legacy;
 
@@ -81,10 +80,7 @@ impl<'a> HttpApiBuilder<'a> {
     }
 
     pub(crate) fn start(self, task_client: TaskClient) -> Result<(), MixnodeError> {
-        let bind_address = SocketAddr::new(
-            self.mixnode_config.mixnode.listening_address,
-            self.mixnode_config.mixnode.http_api_port,
-        );
+        let bind_address = self.mixnode_config.http.bind_address;
         info!("Starting HTTP API on http://{bind_address}",);
 
         let config = nym_node::http::Config::new(
@@ -95,7 +91,8 @@ impl<'a> HttpApiBuilder<'a> {
                 self.identity_keypair,
             )?,
         )
-        .with_mixnode(load_mixnode_details(self.mixnode_config)?);
+        .with_mixnode(load_mixnode_details(self.mixnode_config)?)
+        .with_landing_page_assets(self.mixnode_config.http.landing_page_assets_path.as_ref());
 
         let router = nym_node::http::NymNodeRouter::new(config, None);
         let server = router

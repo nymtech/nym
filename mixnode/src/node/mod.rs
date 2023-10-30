@@ -61,7 +61,7 @@ impl MixNode {
             bind_address: self.config.mixnode.listening_address,
             version: self.config.mixnode.version.clone(),
             mix_port: self.config.mixnode.mix_port,
-            http_api_port: self.config.mixnode.http_api_port,
+            http_api_port: self.config.http.bind_address.port(),
             verloc_port: self.config.mixnode.verloc_port,
         };
 

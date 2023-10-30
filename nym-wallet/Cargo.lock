@@ -3432,6 +3432,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-exit-policy"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "thiserror",
+ "tracing",
+]
+
+[[package]]
 name = "nym-group-contract-common"
 version = "0.1.0"
 dependencies = [
@@ -3510,6 +3519,7 @@ dependencies = [
  "base64 0.21.4",
  "nym-bin-common",
  "nym-crypto",
+ "nym-exit-policy",
  "nym-wireguard-types",
  "schemars",
  "serde",

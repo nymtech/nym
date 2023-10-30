@@ -24,6 +24,26 @@ pub enum MixnodeError {
         err: io::Error,
     },
 
+    #[error(
+    "failed to load config file for id {id} using path '{}'. detailed message: {source}", path.display()
+    )]
+    ConfigLoadFailure {
+        id: String,
+        path: PathBuf,
+        #[source]
+        source: io::Error,
+    },
+
+    #[error(
+    "failed to save config file for id {id} using path '{}'. detailed message: {source}", path.display()
+    )]
+    ConfigSaveFailure {
+        id: String,
+        path: PathBuf,
+        #[source]
+        source: io::Error,
+    },
+
     // TODO: in the future this should work the other way, i.e. NymNode depending on Gateway errors
     #[error(transparent)]
     NymNodeError(#[from] nym_node::error::NymNodeError),

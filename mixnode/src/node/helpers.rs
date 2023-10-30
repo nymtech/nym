@@ -19,6 +19,7 @@ pub(crate) fn load_keypair<T: PemStorableKeyPair>(
     })
 }
 
+#[allow(unused)]
 pub(crate) fn load_public_key<T, P, S>(path: P, name: S) -> Result<T, MixnodeError>
 where
     T: PemStorableKey,

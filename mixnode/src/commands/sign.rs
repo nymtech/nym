@@ -3,7 +3,6 @@
 
 use crate::commands::{try_load_current_config, validate_bech32_address_or_exit};
 use crate::node::helpers::load_identity_keys;
-use crate::node::MixNode;
 use anyhow::{bail, Result};
 use clap::{ArgGroup, Args};
 use log::error;

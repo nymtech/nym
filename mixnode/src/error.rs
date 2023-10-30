@@ -15,6 +15,7 @@ pub enum MixnodeError {
         err: io::Error,
     },
 
+    #[allow(dead_code)]
     #[error("failed to load {key} public key from '{}': {err}", .path.display())]
     PublicKeyLoadFailure {
         key: String,

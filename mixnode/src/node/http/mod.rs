@@ -1,10 +1,8 @@
 use crate::config::Config;
 use crate::error::MixnodeError;
-use crate::node::http::legacy::state::MixnodeAppState;
 use crate::node::http::legacy::verloc::VerlocState;
 use crate::node::node_description::NodeDescription;
 use crate::node::node_statistics::SharedNodeStats;
-use axum::response::IntoResponse;
 use log::info;
 use nym_bin_common::bin_info_owned;
 use nym_crypto::asymmetric::{encryption, identity};

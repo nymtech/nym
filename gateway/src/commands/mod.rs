@@ -34,6 +34,7 @@ pub(crate) enum Commands {
 
     /// Add ip forwarder support to this gateway
     // essentially an option to include ip forwarder without having to setup fresh gateway
+    #[command(hide = true)]
     SetupIpForwarder(setup_ip_forwarder::CmdArgs),
 
     /// Sign text to prove ownership of this mixnode

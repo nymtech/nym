@@ -80,6 +80,9 @@ pub(crate) enum RequestHandlingError {
 
     #[error("Credential error - {0}")]
     CredentialError(#[from] nym_credentials::error::Error),
+
+    #[error("Internal error")]
+    InternalError,
 }
 
 impl RequestHandlingError {
@@ -251,20 +254,8 @@ where
 
         self.inner
             .ecash_verifier
-            .verify_pay_info(&credential.pay_info())?;
-
-        credential
-            .payment()
-            .spend_verify(
-                &credential.params(),
-                &aggregated_verification_key,
-                &credential.pay_info(),
-            )
-            .map_err(|_| {
-                RequestHandlingError::InvalidBandwidthCredential(String::from(
-                    "credential failed to verify on gateway",
-                ))
-            })?;
+            .check_payment(&credential, &aggregated_verification_key)
+            .await?;
 
         //SW PUT that in a new threads, ensuring it eventually gets sent
         self.inner

@@ -335,6 +335,10 @@ impl PayInfo {
 
         PayInfo { payinfo }
     }
+
+    pub fn timestamp(&self) -> i64 {
+        i64::from_be_bytes(self.payinfo[32..40].try_into().unwrap())
+    }
 }
 #[derive(Debug, Clone, PartialEq)]
 pub struct Payment {

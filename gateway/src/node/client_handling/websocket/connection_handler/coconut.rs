@@ -2,33 +2,38 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::authenticated::RequestHandlingError;
+use chrono::Utc;
 use log::*;
 use nym_compact_ecash::scheme::EcashCredential;
-use nym_compact_ecash::PayInfo;
+use nym_compact_ecash::{PayInfo, VerificationKeyAuth};
 use nym_validator_client::coconut::all_ecash_api_clients;
 use nym_validator_client::{
     nyxd::{
-        contract_traits::{
-            CoconutBandwidthSigningClient, DkgQueryClient, MultisigQueryClient,
-            MultisigSigningClient,
-        },
+        contract_traits::{DkgQueryClient, MultisigQueryClient, MultisigSigningClient},
         cosmwasm_client::logs::{find_attribute, BANDWIDTH_PROPOSAL_ID},
         Coin, Fee,
     },
     CoconutApiClient, DirectSigningHttpRpcNyxdClient,
 };
-use std::time::{Duration, SystemTime};
+use std::sync::Arc;
+use std::sync::Mutex;
+use std::time::SystemTime;
 
 const ONE_HOUR_SEC: u64 = 3600;
 const MAX_FEEGRANT_UNYM: u128 = 10000;
+const TIME_RANGE_SEC: i64 = 30;
 
 pub(crate) struct EcashVerifier {
     nyxd_client: DirectSigningHttpRpcNyxdClient,
+    pay_infos: Arc<Mutex<Vec<PayInfo>>>,
 }
 
 impl EcashVerifier {
     pub fn new(nyxd_client: DirectSigningHttpRpcNyxdClient) -> Self {
-        EcashVerifier { nyxd_client }
+        EcashVerifier {
+            nyxd_client,
+            pay_infos: Arc::new(Mutex::new(Vec::new())),
+        }
     }
 
     pub async fn all_current_ecash_api_clients(
@@ -45,12 +50,107 @@ impl EcashVerifier {
         Ok(all_ecash_api_clients(&self.nyxd_client, epoch_id).await?)
     }
 
-    pub fn verify_pay_info(&self, pay_info: &PayInfo) -> Result<(), RequestHandlingError> {
-        //SW : TODO implement Payinfo checking here.
-        //SW : Centralized component with respect to clients handler
-        // RequestHandlingError::InvalidBandwidthCredential(String::from(
-        //     "credential failed to verify on gateway",
-        // ))
+    //Check for duplicate pay_info, then check the payment, then insert pay_info if everything succeeded
+    pub async fn check_payment(
+        &self,
+        credential: &EcashCredential,
+        aggregated_verification_key: &VerificationKeyAuth,
+    ) -> Result<(), RequestHandlingError> {
+        let insert_index = self.verify_pay_info(credential.pay_info().clone()).await?;
+
+        credential
+            .payment()
+            .spend_verify(
+                &credential.params(),
+                aggregated_verification_key,
+                &credential.pay_info(),
+            )
+            .map_err(|_| {
+                RequestHandlingError::InvalidBandwidthCredential(String::from(
+                    "credential failed to verify on gateway",
+                ))
+            })?;
+
+        self.insert_pay_info(credential.pay_info().clone(), insert_index)
+            .await
+    }
+
+    pub async fn verify_pay_info(&self, pay_info: PayInfo) -> Result<usize, RequestHandlingError> {
+        //SW : TODO : implement Public key check (once an actual public key exist)
+
+        let mut inner = self
+            .pay_infos
+            .lock()
+            .map_err(|_| RequestHandlingError::InternalError)?;
+
+        //Timestamp range check
+        let timestamp = Utc::now().timestamp();
+        let tmin = timestamp - TIME_RANGE_SEC;
+        let tmax = timestamp + TIME_RANGE_SEC;
+        if pay_info.timestamp() > tmax || pay_info.timestamp() < tmin {
+            return Err(RequestHandlingError::InvalidBandwidthCredential(
+                String::from("credential failed to verify on gateway - invalid timestamp"),
+            ));
+        }
+
+        //Cleanup inner
+        let low = inner.partition_point(|x| x.timestamp() < tmin);
+        let high = inner.partition_point(|x| x.timestamp() < tmax);
+        drop(inner.drain(low..high));
+
+        //Duplicate check
+        match inner.binary_search_by(|info| info.timestamp().cmp(&pay_info.timestamp())) {
+            Result::Err(index) => Ok(index),
+            Result::Ok(index) => {
+                if inner[index] == pay_info {
+                    return Err(RequestHandlingError::InvalidBandwidthCredential(
+                        String::from("credential failed to verify on gateway - duplicate payInfo"),
+                    ));
+                }
+                //tbh, I don't expect ending up here if all parties are honest
+                //binary search returns an arbitrary match, so we have to check for potential multiple matches
+                let mut i = index - 1;
+                while inner[i].timestamp() == pay_info.timestamp() {
+                    if inner[i] == pay_info {
+                        return Err(RequestHandlingError::InvalidBandwidthCredential(
+                            String::from(
+                                "credential failed to verify on gateway - duplicate payInfo",
+                            ),
+                        ));
+                    }
+                    i -= 1
+                }
+
+                let mut i = index + 1;
+                while inner[i].timestamp() == pay_info.timestamp() {
+                    if inner[i] == pay_info {
+                        return Err(RequestHandlingError::InvalidBandwidthCredential(
+                            String::from(
+                                "credential failed to verify on gateway - duplicate payInfo",
+                            ),
+                        ));
+                    }
+                    i += 1
+                }
+                Ok(index)
+            }
+        }
+    }
+
+    pub async fn insert_pay_info(
+        &self,
+        pay_info: PayInfo,
+        index: usize,
+    ) -> Result<(), RequestHandlingError> {
+        let mut inner = self
+            .pay_infos
+            .lock()
+            .map_err(|_| RequestHandlingError::InternalError)?;
+        if index > inner.len() {
+            inner.push(pay_info);
+            return Ok(());
+        }
+        inner.insert(index, pay_info);
         Ok(())
     }
 

@@ -24,6 +24,7 @@ use serde::de::DeserializeOwned;
 use serde::Serialize;
 use std::sync::Arc;
 
+pub mod client_init;
 pub mod helpers;
 pub mod types;
 

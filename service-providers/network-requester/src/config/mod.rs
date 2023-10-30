@@ -17,8 +17,10 @@ use std::str::FromStr;
 use std::time::Duration;
 use url::Url;
 
+use nym_client_core::config::disk_persistence::CommonClientPaths;
 pub use nym_client_core::config::Config as BaseClientConfig;
 pub use nym_client_core::config::{DebugConfig, GatewayEndpointConfig};
+use nym_client_core::init::client_init::ClientConfig;
 use nym_network_defaults::mainnet;
 use nym_sphinx::params::PacketSize;
 
@@ -80,6 +82,24 @@ pub struct Config {
 impl NymConfigTemplate for Config {
     fn template(&self) -> &'static str {
         CONFIG_TEMPLATE
+    }
+}
+
+impl ClientConfig for Config {
+    fn common_paths(&self) -> &CommonClientPaths {
+        &self.storage_paths.common_paths
+    }
+
+    fn core_config(&self) -> &BaseClientConfig {
+        &self.base
+    }
+
+    fn default_store_location(&self) -> PathBuf {
+        self.default_location()
+    }
+
+    fn save_to<P: AsRef<Path>>(&self, path: P) -> io::Result<()> {
+        save_formatted_config_to_file(self, path)
     }
 }
 

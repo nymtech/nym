@@ -296,16 +296,17 @@ impl<T> GatewaySetup<T> {
 /// Struct describing the results of the client initialization procedure.
 #[derive(Debug, Serialize)]
 pub struct InitResults {
-    version: String,
-    id: String,
-    identity_key: String,
-    encryption_key: String,
-    gateway_id: String,
-    gateway_listener: String,
+    pub version: String,
+    pub id: String,
+    pub identity_key: String,
+    pub encryption_key: String,
+    pub gateway_id: String,
+    pub gateway_listener: String,
+    pub address: Recipient,
 }
 
 impl InitResults {
-    pub fn new(config: &Config, address: &Recipient, gateway: &GatewayEndpointConfig) -> Self {
+    pub fn new(config: &Config, address: Recipient, gateway: &GatewayEndpointConfig) -> Self {
         Self {
             version: config.client.version.clone(),
             id: config.client.id.clone(),
@@ -313,6 +314,7 @@ impl InitResults {
             encryption_key: address.encryption_key().to_base58_string(),
             gateway_id: gateway.gateway_id.clone(),
             gateway_listener: gateway.gateway_listener.clone(),
+            address,
         }
     }
 }

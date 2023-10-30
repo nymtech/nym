@@ -13,7 +13,7 @@ license.workspace = true
 [dependencies]
 anyhow = { workspace = true }
 cargo-edit = "0.11.0"
-clap = { version = "4.3.19", features = ["derive", "string"] }
+clap = { workspace = true, features = ["derive", "string"] }
 semver = "1.0.18"
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }

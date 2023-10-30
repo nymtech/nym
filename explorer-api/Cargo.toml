@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 chrono = { version = "0.4.31", features = ["serde"] }
-clap = { version = "4.0", features = ["cargo", "derive"] }
+clap = { workspace = true, features = ["cargo", "derive"] }
 dotenvy = "0.15.6"
 humantime-serde = "1.0"
 isocountry = "0.3.2"

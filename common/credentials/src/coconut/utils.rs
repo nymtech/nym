@@ -151,30 +151,30 @@ pub async fn obtain_aggregate_signature(
 }
 
 // TODO: better type flow
-#[allow(clippy::too_many_arguments)]
-pub fn prepare_credential_for_spending(
-    params: &nym_coconut_interface::Parameters,
-    voucher_value: u64,
-    voucher_info: String,
-    serial_number: nym_coconut_interface::Attribute,
-    binding_number: nym_coconut_interface::Attribute,
-    epoch_id: u64,
-    signature: &nym_coconut_interface::Signature,
-    verification_key: &nym_coconut_interface::VerificationKey,
-) -> Result<nym_coconut_interface::Credential, Error> {
-    let theta = nym_coconut_interface::prove_bandwidth_credential(
-        params,
-        verification_key,
-        signature,
-        serial_number,
-        binding_number,
-    )?;
+// #[allow(clippy::too_many_arguments)]
+// pub fn prepare_credential_for_spending(
+//     params: &nym_coconut_interface::Parameters,
+//     voucher_value: u64,
+//     voucher_info: String,
+//     serial_number: nym_coconut_interface::Attribute,
+//     binding_number: nym_coconut_interface::Attribute,
+//     epoch_id: u64,
+//     signature: &nym_coconut_interface::Signature,
+//     verification_key: &nym_coconut_interface::VerificationKey,
+// ) -> Result<nym_coconut_interface::Credential, Error> {
+//     let theta = nym_coconut_interface::prove_bandwidth_credential(
+//         params,
+//         verification_key,
+//         signature,
+//         serial_number,
+//         binding_number,
+//     )?;
 
-    Ok(nym_coconut_interface::Credential::new(
-        PUBLIC_ATTRIBUTES + PRIVATE_ATTRIBUTES,
-        theta,
-        voucher_value,
-        voucher_info,
-        epoch_id,
-    ))
-}
+//     Ok(nym_coconut_interface::Credential::new(
+//         PUBLIC_ATTRIBUTES + PRIVATE_ATTRIBUTES,
+//         theta,
+//         voucher_value,
+//         voucher_info,
+//         epoch_id,
+//     ))
+// }

@@ -18,7 +18,6 @@ use nym_compact_ecash::{
 };
 use nym_crypto::asymmetric::{encryption, identity};
 
-use super::utils::prepare_credential_for_spending;
 use crate::error::Error;
 
 pub const PUBLIC_ATTRIBUTES: u32 = 2;
@@ -261,28 +260,28 @@ impl BandwidthVoucher {
     }
 }
 
-pub fn prepare_for_spending(
-    voucher_value: u64,
-    voucher_info: String,
-    serial_number: nym_coconut_interface::PrivateAttribute,
-    binding_number: nym_coconut_interface::PrivateAttribute,
-    epoch_id: u64,
-    signature: &nym_coconut_interface::Signature,
-    verification_key: &nym_coconut_interface::VerificationKey,
-) -> Result<nym_coconut_interface::Credential, Error> {
-    let params = nym_coconut_interface::Parameters::new(TOTAL_ATTRIBUTES)?;
+// pub fn prepare_for_spending(
+//     voucher_value: u64,
+//     voucher_info: String,
+//     serial_number: nym_coconut_interface::PrivateAttribute,
+//     binding_number: nym_coconut_interface::PrivateAttribute,
+//     epoch_id: u64,
+//     signature: &nym_coconut_interface::Signature,
+//     verification_key: &nym_coconut_interface::VerificationKey,
+// ) -> Result<nym_coconut_interface::Credential, Error> {
+//     let params = nym_coconut_interface::Parameters::new(TOTAL_ATTRIBUTES)?;
 
-    prepare_credential_for_spending(
-        &params,
-        voucher_value,
-        voucher_info,
-        serial_number,
-        binding_number,
-        epoch_id,
-        signature,
-        verification_key,
-    )
-}
+//     prepare_credential_for_spending(
+//         &params,
+//         voucher_value,
+//         voucher_info,
+//         serial_number,
+//         binding_number,
+//         epoch_id,
+//         signature,
+//         verification_key,
+//     )
+// }
 
 #[cfg(test)]
 mod test {

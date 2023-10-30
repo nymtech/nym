@@ -84,13 +84,13 @@ pub(crate) async fn execute(args: &Run) -> anyhow::Result<()> {
         show_binding_warning(&config.mixnode.listening_address.to_string());
     }
 
-    let mut mixnode = MixNode::new(config);
+    let mut mixnode = MixNode::new(config)?;
 
     eprintln!(
         "\nTo bond your mixnode you will need to install the Nym wallet, go to https://nymtech.net/get-involved and select the Download button.\n\
          Select the correct version and install it to your machine. You will need to provide the following: \n ");
     mixnode.print_node_details(args.output);
 
-    mixnode.run().await;
+    mixnode.run().await?;
     Ok(())
 }

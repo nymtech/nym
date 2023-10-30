@@ -62,7 +62,7 @@ fn init_paths(id: &str) -> io::Result<()> {
     fs::create_dir_all(default_config_directory(id))
 }
 
-pub(crate) fn execute(args: &Init) {
+pub(crate) fn execute(args: &Init) -> anyhow::Result<()> {
     let override_config_fields = OverrideConfig::from(args.clone());
     let id = override_config_fields.id.clone();
     eprintln!("Initialising mixnode {id}...");
@@ -118,5 +118,6 @@ pub(crate) fn execute(args: &Init) {
     );
     eprintln!("Mixnode configuration completed.\n\n\n");
 
-    MixNode::new(config).print_node_details(args.output)
+    MixNode::new(config)?.print_node_details(args.output);
+    Ok(())
 }

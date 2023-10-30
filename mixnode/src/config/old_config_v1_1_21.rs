@@ -82,6 +82,13 @@ impl From<ConfigV1_1_21> for Config {
                 http_api_port: value.mixnode.http_api_port,
                 nym_api_urls: value.mixnode.nym_api_urls,
             },
+            // \/ ADDED
+            host: nym_node::config::Host {
+                // this is a very bad default!
+                public_ips: vec![value.mixnode.listening_address],
+                hostname: None,
+            },
+            // /\ ADDED
             storage_paths: MixNodePaths {
                 keys: KeysPaths {
                     private_identity_key_file: value.mixnode.private_identity_key_file,

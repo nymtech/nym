@@ -65,7 +65,7 @@ pub(crate) async fn execute(args: Cli) -> anyhow::Result<()> {
 
     match args.command {
         Commands::Describe(m) => describe::execute(m)?,
-        Commands::Init(m) => init::execute(&m),
+        Commands::Init(m) => init::execute(&m)?,
         Commands::Run(m) => run::execute(&m).await?,
         Commands::Sign(m) => sign::execute(&m)?,
         Commands::NodeDetails(m) => node_details::execute(&m)?,

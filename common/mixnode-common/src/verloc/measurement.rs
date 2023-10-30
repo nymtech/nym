@@ -9,12 +9,12 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct AtomicVerlocResult {
     inner: Arc<RwLock<VerlocResult>>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Default)]
 pub struct VerlocResult {
     total_tested: usize,
     #[serde(with = "humantime_serde")]

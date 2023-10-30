@@ -13,6 +13,7 @@ use nym_config::{
     must_get_home, read_config_from_toml_file, save_formatted_config_to_file, NymConfigTemplate,
     DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, DEFAULT_DATA_DIR, NYM_DIR,
 };
+use nym_node::config;
 use serde::{Deserialize, Serialize};
 use std::io;
 use std::net::IpAddr;
@@ -75,6 +76,8 @@ pub fn default_data_directory<P: AsRef<Path>>(id: P) -> PathBuf {
 pub struct Config {
     pub mixnode: MixNode,
 
+    pub host: config::Host,
+
     pub storage_paths: MixNodePaths,
 
     #[serde(default)]
@@ -95,8 +98,15 @@ impl NymConfigTemplate for Config {
 
 impl Config {
     pub fn new<S: AsRef<str>>(id: S) -> Self {
+        let default_mixnode = MixNode::new_default(id.as_ref());
+
         Config {
-            mixnode: MixNode::new_default(id.as_ref()),
+            host: config::Host {
+                // this is a very bad default!
+                public_ips: vec![default_mixnode.listening_address],
+                hostname: None,
+            },
+            mixnode: default_mixnode,
             storage_paths: MixNodePaths::new_default(id.as_ref()),
             verloc: Default::default(),
             logging: Default::default(),

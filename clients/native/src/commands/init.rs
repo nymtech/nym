@@ -68,15 +68,6 @@ pub(crate) struct Init {
     #[clap(long)]
     host: Option<IpAddr>,
 
-    /// Mostly debug-related option to increase default traffic rate so that you would not need to
-    /// modify config post init
-    #[clap(long, hide = true)]
-    fastmode: bool,
-
-    /// Disable loop cover traffic and the Poisson rate limiter (for debugging only)
-    #[clap(long, hide = true)]
-    no_cover: bool,
-
     #[clap(short, long, default_value_t = OutputFormat::default())]
     output: OutputFormat,
 }
@@ -94,8 +85,8 @@ impl From<Init> for OverrideConfig {
             disable_socket: init_config.disable_socket,
             port: init_config.port,
             host: init_config.host,
-            fastmode: init_config.fastmode,
-            no_cover: init_config.no_cover,
+            fastmode: init_config.common_args.fastmode,
+            no_cover: init_config.common_args.no_cover,
 
             nyxd_urls: init_config.common_args.nyxd_urls,
             enabled_credentials_mode: init_config.common_args.enabled_credentials_mode,

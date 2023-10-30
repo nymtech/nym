@@ -88,6 +88,15 @@ pub struct CommonClientInitArgs {
     /// with bandwidth credential requirement.
     #[cfg_attr(feature = "cli", clap(long, hide = true))]
     pub enabled_credentials_mode: Option<bool>,
+
+    /// Mostly debug-related option to increase default traffic rate so that you would not need to
+    /// modify config post init
+    #[cfg_attr(feature = "cli", clap(long, hide = true))]
+    pub fastmode: bool,
+
+    /// Disable loop cover traffic and the Poisson rate limiter (for debugging only)
+    #[cfg_attr(feature = "cli", clap(long, hide = true))]
+    pub no_cover: bool,
 }
 
 pub struct InitResultsWithConfig<T> {

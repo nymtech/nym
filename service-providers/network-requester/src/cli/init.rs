@@ -80,8 +80,8 @@ impl From<Init> for OverrideConfig {
     fn from(init_config: Init) -> Self {
         OverrideConfig {
             nym_apis: init_config.common_args.nym_apis,
-            fastmode: false,
-            no_cover: false,
+            fastmode: init_config.common_args.fastmode,
+            no_cover: init_config.common_args.no_cover,
             medium_toggle: false,
             nyxd_urls: init_config.common_args.nyxd_urls,
             enabled_credentials_mode: init_config.common_args.enabled_credentials_mode,

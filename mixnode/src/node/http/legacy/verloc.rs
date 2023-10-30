@@ -2,7 +2,7 @@ use axum::extract::{Query, State};
 use nym_mixnode_common::verloc::{AtomicVerlocResult, VerlocResult};
 use nym_node::http::api::{FormattedResponse, OutputParams};
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub(crate) struct VerlocState {
     shared: AtomicVerlocResult,
 }

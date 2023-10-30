@@ -11,6 +11,19 @@ pub(crate) const CONFIG_TEMPLATE: &str = r#"
 
 ##### main base mixnode config options #####
 
+[host]
+# Ip address(es) of this host, such as 1.1.1.1 that external clients will use for connections.
+# currently not in active use for mixnodes
+public_ips = [
+    {{#each host.public_ips }}
+        '{{this}}',
+    {{/each}}
+]
+
+# (temporary) Optional hostname of this node, for example nymtech.net.
+# currently not in active use for mixnodes
+hostname = '{{ host.hostname }}'
+
 [mixnode]
 # Version of the mixnode for which this configuration was created.
 version = '{{ mixnode.version }}'
@@ -29,16 +42,20 @@ mix_port = {{ mixnode.mix_port }}
 # (default: 1790)
 verloc_port = {{ mixnode.verloc_port }}
 
-# Port used for listening for http requests.
-# (default: 8000)
-http_api_port = {{ mixnode.http_api_port }}
-
 # Addresses to APIs running on validator from which the node gets the view of the network.
 nym_api_urls = [
     {{#each mixnode.nym_api_urls }}
         '{{this}}',
     {{/each}}
 ]
+
+[http]
+# Socket address this node will use for binding its http API.
+# default: `0.0.0.0:8000`
+bind_address = '{{ http.bind_address }}'
+
+# Path to assets directory of custom landing page of this node
+landing_page_assets_path = '{{ http.landing_page_assets_path }}'
 
 [storage_paths] 
 

@@ -16,7 +16,7 @@ type PacketsMap = HashMap<String, u64>;
 type PacketDataReceiver = mpsc::UnboundedReceiver<PacketEvent>;
 type PacketDataSender = mpsc::UnboundedSender<PacketEvent>;
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub(crate) struct SharedNodeStats {
     inner: Arc<RwLock<NodeStats>>,
 }
@@ -102,6 +102,21 @@ pub struct NodeStats {
 
     // we know for sure we dropped packets to those destinations
     packets_explicitly_dropped_since_last_update: PacketsMap,
+}
+
+impl Default for NodeStats {
+    fn default() -> Self {
+        NodeStats {
+            update_time: SystemTime::UNIX_EPOCH,
+            previous_update_time: SystemTime::UNIX_EPOCH,
+            packets_received_since_startup: 0,
+            packets_sent_since_startup: Default::default(),
+            packets_explicitly_dropped_since_startup: Default::default(),
+            packets_received_since_last_update: 0,
+            packets_sent_since_last_update: Default::default(),
+            packets_explicitly_dropped_since_last_update: Default::default(),
+        }
+    }
 }
 
 impl NodeStats {

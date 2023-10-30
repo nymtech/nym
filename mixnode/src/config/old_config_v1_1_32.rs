@@ -1,32 +1,18 @@
-// Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::config::persistence::paths::MixNodePaths;
-use crate::config::template::CONFIG_TEMPLATE;
-use log::{debug, warn};
+use crate::config::{Config, Debug, MixNode, Verloc};
 use nym_bin_common::logging::LoggingSettings;
-use nym_config::defaults::{
-    mainnet, DEFAULT_HTTP_API_LISTENING_PORT, DEFAULT_MIX_LISTENING_PORT,
-    DEFAULT_VERLOC_LISTENING_PORT,
-};
-use nym_config::helpers::inaddr_any;
 use nym_config::{
-    must_get_home, read_config_from_toml_file, save_formatted_config_to_file, NymConfigTemplate,
-    DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, DEFAULT_DATA_DIR, NYM_DIR,
+    must_get_home, read_config_from_toml_file, DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, NYM_DIR,
 };
-use nym_node::config;
 use serde::{Deserialize, Serialize};
 use std::io;
-use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use std::net::{IpAddr, SocketAddr};
 use std::path::{Path, PathBuf};
-use std::str::FromStr;
 use std::time::Duration;
 use url::Url;
-
-pub(crate) mod old_config_v1_1_21;
-pub(crate) mod old_config_v1_1_32;
-pub mod persistence;
-mod template;
 
 const DEFAULT_MIXNODES_DIR: &str = "mixnodes";
 
@@ -49,7 +35,7 @@ const DEFAULT_MAXIMUM_CONNECTION_BUFFER_SIZE: usize = 2000;
 
 /// Derive default path to mixnodes's config directory.
 /// It should get resolved to `$HOME/.nym/mixnodes/<id>/config`
-pub fn default_config_directory<P: AsRef<Path>>(id: P) -> PathBuf {
+fn default_config_directory<P: AsRef<Path>>(id: P) -> PathBuf {
     must_get_home()
         .join(NYM_DIR)
         .join(DEFAULT_MIXNODES_DIR)
@@ -59,158 +45,76 @@ pub fn default_config_directory<P: AsRef<Path>>(id: P) -> PathBuf {
 
 /// Derive default path to mixnodes's config file.
 /// It should get resolved to `$HOME/.nym/mixnodes/<id>/config/config.toml`
-pub fn default_config_filepath<P: AsRef<Path>>(id: P) -> PathBuf {
+fn default_config_filepath<P: AsRef<Path>>(id: P) -> PathBuf {
     default_config_directory(id).join(DEFAULT_CONFIG_FILENAME)
-}
-
-/// Derive default path to mixnodes's data directory where files, such as keys, are stored.
-/// It should get resolved to `$HOME/.nym/mixnodes/<id>/data`
-pub fn default_data_directory<P: AsRef<Path>>(id: P) -> PathBuf {
-    must_get_home()
-        .join(NYM_DIR)
-        .join(DEFAULT_MIXNODES_DIR)
-        .join(id)
-        .join(DEFAULT_DATA_DIR)
-}
-
-fn default_mixnode_http_config() -> config::Http {
-    config::Http {
-        bind_address: SocketAddr::new(
-            IpAddr::V4(Ipv4Addr::UNSPECIFIED),
-            DEFAULT_HTTP_API_LISTENING_PORT,
-        ),
-        landing_page_assets_path: None,
-    }
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct Config {
-    // additional metadata holding on-disk location of this config file
-    #[serde(skip)]
-    pub(crate) save_path: Option<PathBuf>,
+pub struct ConfigV1_1_32 {
+    pub mixnode: MixNodeV1_1_32,
 
-    pub host: config::Host,
-
-    #[serde(default = "default_mixnode_http_config")]
-    pub http: config::Http,
-
-    pub mixnode: MixNode,
-
+    // i hope this laziness is not going to backfire...
     pub storage_paths: MixNodePaths,
 
     #[serde(default)]
-    pub verloc: Verloc,
+    pub verloc: VerlocV1_1_32,
 
     #[serde(default)]
     pub logging: LoggingSettings,
 
     #[serde(default)]
-    pub debug: Debug,
+    pub debug: DebugV1_1_32,
 }
 
-impl NymConfigTemplate for Config {
-    fn template(&self) -> &'static str {
-        CONFIG_TEMPLATE
+impl ConfigV1_1_32 {
+    pub fn read_from_default_path<P: AsRef<Path>>(id: P) -> io::Result<Self> {
+        read_config_from_toml_file(default_config_filepath(id))
     }
 }
 
-impl Config {
-    pub fn new<S: AsRef<str>>(id: S) -> Self {
-        let default_mixnode = MixNode::new_default(id.as_ref());
-
+impl From<ConfigV1_1_32> for Config {
+    fn from(value: ConfigV1_1_32) -> Self {
         Config {
+            // \/ ADDED
             save_path: None,
-            host: config::Host {
+            // /\ ADDED
+
+            // \/ ADDED
+            host: nym_node::config::Host {
                 // this is a very bad default!
-                public_ips: vec![default_mixnode.listening_address],
+                public_ips: vec![value.mixnode.listening_address],
                 hostname: None,
             },
-            http: default_mixnode_http_config(),
-            mixnode: default_mixnode,
-            storage_paths: MixNodePaths::new_default(id.as_ref()),
-            verloc: Default::default(),
-            logging: Default::default(),
-            debug: Default::default(),
+            // /\ ADDED
+
+            // \/ ADDED
+            http: nym_node::config::Http {
+                bind_address: SocketAddr::new(
+                    value.mixnode.listening_address,
+                    value.mixnode.http_api_port,
+                ),
+                landing_page_assets_path: None,
+            },
+            // /\ ADDED
+            mixnode: MixNode {
+                version: value.mixnode.version,
+                id: value.mixnode.id,
+                listening_address: value.mixnode.listening_address,
+                mix_port: value.mixnode.mix_port,
+                verloc_port: value.mixnode.verloc_port,
+                nym_api_urls: value.mixnode.nym_api_urls,
+            },
+            storage_paths: value.storage_paths,
+            verloc: value.verloc.into(),
+            logging: value.logging,
+            debug: value.debug.into(),
         }
-    }
-
-    // simple wrapper that reads config file and assigns path location
-    fn read_from_path<P: AsRef<Path>>(path: P) -> io::Result<Self> {
-        let path = path.as_ref();
-        let mut loaded: Config = read_config_from_toml_file(path)?;
-        loaded.save_path = Some(path.to_path_buf());
-        debug!("loaded config file from {}", path.display());
-        Ok(loaded)
-    }
-
-    // currently this is dead code, but once we allow loading configs from custom paths
-    // well, we will have to be using it
-    #[allow(dead_code)]
-    pub fn read_from_toml_file<P: AsRef<Path>>(path: P) -> io::Result<Self> {
-        Self::read_from_path(path)
-    }
-
-    pub fn read_from_default_path<P: AsRef<Path>>(id: P) -> io::Result<Self> {
-        Self::read_from_path(default_config_filepath(id))
-    }
-
-    pub fn default_location(&self) -> PathBuf {
-        default_config_filepath(&self.mixnode.id)
-    }
-
-    pub fn save_to_default_location(&self) -> io::Result<()> {
-        let config_save_location: PathBuf = self.default_location();
-        save_formatted_config_to_file(self, config_save_location)
-    }
-
-    pub fn try_save(&self) -> io::Result<()> {
-        if let Some(save_location) = &self.save_path {
-            save_formatted_config_to_file(self, save_location)
-        } else {
-            warn!("config file save location is unknown. falling back to the default");
-            self.save_to_default_location()
-        }
-    }
-
-    // builder methods
-    pub fn with_custom_nym_apis(mut self, nym_api_urls: Vec<Url>) -> Self {
-        self.mixnode.nym_api_urls = nym_api_urls;
-        self
-    }
-
-    pub fn with_listening_address(mut self, listening_address: IpAddr) -> Self {
-        self.mixnode.listening_address = listening_address;
-
-        let http_port = self.http.bind_address.port();
-        self.http.bind_address = SocketAddr::new(listening_address, http_port);
-
-        self
-    }
-
-    pub fn with_mix_port(mut self, port: u16) -> Self {
-        self.mixnode.mix_port = port;
-        self
-    }
-
-    pub fn with_verloc_port(mut self, port: u16) -> Self {
-        self.mixnode.verloc_port = port;
-        self
-    }
-
-    pub fn with_http_api_port(mut self, port: u16) -> Self {
-        let http_ip = self.http.bind_address.ip();
-        self.http.bind_address = SocketAddr::new(http_ip, port);
-        self
-    }
-
-    pub fn get_nym_api_endpoints(&self) -> Vec<Url> {
-        self.mixnode.nym_api_urls.clone()
     }
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
-pub struct MixNode {
+pub struct MixNodeV1_1_32 {
     /// Version of the mixnode for which this configuration was created.
     pub version: String,
 
@@ -228,26 +132,17 @@ pub struct MixNode {
     /// (default: 1790)
     pub verloc_port: u16,
 
+    /// Port used for listening for http requests.
+    /// (default: 8000)
+    pub http_api_port: u16,
+
     /// Addresses to nym APIs from which the node gets the view of the network.
     pub nym_api_urls: Vec<Url>,
 }
 
-impl MixNode {
-    pub fn new_default<S: Into<String>>(id: S) -> Self {
-        MixNode {
-            version: env!("CARGO_PKG_VERSION").to_string(),
-            id: id.into(),
-            listening_address: inaddr_any(),
-            mix_port: DEFAULT_MIX_LISTENING_PORT,
-            verloc_port: DEFAULT_VERLOC_LISTENING_PORT,
-            nym_api_urls: vec![Url::from_str(mainnet::NYM_API).expect("Invalid default API URL")],
-        }
-    }
-}
-
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct Verloc {
+pub struct VerlocV1_1_32 {
     /// Specifies number of echo packets sent to each node during a measurement run.
     pub packets_per_node: usize,
 
@@ -276,9 +171,23 @@ pub struct Verloc {
     pub retry_timeout: Duration,
 }
 
-impl Default for Verloc {
-    fn default() -> Self {
+impl From<VerlocV1_1_32> for Verloc {
+    fn from(value: VerlocV1_1_32) -> Self {
         Verloc {
+            packets_per_node: value.packets_per_node,
+            connection_timeout: value.connection_timeout,
+            packet_timeout: value.packet_timeout,
+            delay_between_packets: value.delay_between_packets,
+            tested_nodes_batch_size: value.tested_nodes_batch_size,
+            testing_interval: value.testing_interval,
+            retry_timeout: value.retry_timeout,
+        }
+    }
+}
+
+impl Default for VerlocV1_1_32 {
+    fn default() -> Self {
+        VerlocV1_1_32 {
             packets_per_node: DEFAULT_PACKETS_PER_NODE,
             connection_timeout: DEFAULT_CONNECTION_TIMEOUT,
             packet_timeout: DEFAULT_PACKET_TIMEOUT,
@@ -292,7 +201,7 @@ impl Default for Verloc {
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(default)]
-pub struct Debug {
+pub struct DebugV1_1_32 {
     /// Delay between each subsequent node statistics being logged to the console
     #[serde(with = "humantime_serde")]
     pub node_stats_logging_delay: Duration,
@@ -325,9 +234,23 @@ pub struct Debug {
     pub use_legacy_framed_packet_version: bool,
 }
 
-impl Default for Debug {
-    fn default() -> Self {
+impl From<DebugV1_1_32> for Debug {
+    fn from(value: DebugV1_1_32) -> Self {
         Debug {
+            node_stats_logging_delay: value.node_stats_logging_delay,
+            node_stats_updating_delay: value.node_stats_updating_delay,
+            packet_forwarding_initial_backoff: value.packet_forwarding_initial_backoff,
+            packet_forwarding_maximum_backoff: value.packet_forwarding_maximum_backoff,
+            initial_connection_timeout: value.initial_connection_timeout,
+            maximum_connection_buffer_size: value.maximum_connection_buffer_size,
+            use_legacy_framed_packet_version: value.use_legacy_framed_packet_version,
+        }
+    }
+}
+
+impl Default for DebugV1_1_32 {
+    fn default() -> Self {
+        DebugV1_1_32 {
             node_stats_logging_delay: DEFAULT_NODE_STATS_LOGGING_DELAY,
             node_stats_updating_delay: DEFAULT_NODE_STATS_UPDATING_DELAY,
             packet_forwarding_initial_backoff: DEFAULT_PACKET_FORWARDING_INITIAL_BACKOFF,

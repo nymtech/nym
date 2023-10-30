@@ -1,12 +1,12 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::node::http::verloc::VerlocState;
+use crate::node::http::legacy::verloc::VerlocState;
 use crate::node::node_statistics::SharedNodeStats;
 use axum::extract::FromRef;
 
 // this is a temporary thing for the transition period
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub(crate) struct MixnodeAppState {
     pub(crate) verloc: VerlocState,
     pub(crate) stats: SharedNodeStats,

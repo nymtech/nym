@@ -82,7 +82,6 @@ impl EcashVerifier {
             .pay_infos
             .lock()
             .map_err(|_| RequestHandlingError::InternalError)?;
-
         //Timestamp range check
         let timestamp = Utc::now().timestamp();
         let tmin = timestamp - TIME_RANGE_SEC;
@@ -96,7 +95,8 @@ impl EcashVerifier {
         //Cleanup inner
         let low = inner.partition_point(|x| x.timestamp() < tmin);
         let high = inner.partition_point(|x| x.timestamp() < tmax);
-        drop(inner.drain(low..high));
+        inner.truncate(high);
+        drop(inner.drain(..low));
 
         //Duplicate check
         match inner.binary_search_by(|info| info.timestamp().cmp(&pay_info.timestamp())) {
@@ -109,20 +109,20 @@ impl EcashVerifier {
                 }
                 //tbh, I don't expect ending up here if all parties are honest
                 //binary search returns an arbitrary match, so we have to check for potential multiple matches
-                let mut i = index - 1;
-                while inner[i].timestamp() == pay_info.timestamp() {
-                    if inner[i] == pay_info {
+                let mut i = index as i64;
+                while i >= 0 && inner[i as usize].timestamp() == pay_info.timestamp() {
+                    if inner[i as usize] == pay_info {
                         return Err(RequestHandlingError::InvalidBandwidthCredential(
                             String::from(
                                 "credential failed to verify on gateway - duplicate payInfo",
                             ),
                         ));
                     }
-                    i -= 1
+                    i -= 1;
                 }
 
                 let mut i = index + 1;
-                while inner[i].timestamp() == pay_info.timestamp() {
+                while i < inner.len() && inner[i].timestamp() == pay_info.timestamp() {
                     if inner[i] == pay_info {
                         return Err(RequestHandlingError::InvalidBandwidthCredential(
                             String::from(
@@ -130,7 +130,7 @@ impl EcashVerifier {
                             ),
                         ));
                     }
-                    i += 1
+                    i += 1;
                 }
                 Ok(index)
             }

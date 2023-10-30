@@ -25,6 +25,13 @@ import { Footer } from './Footer';
 import { NymVpnIcon } from '../icons/NymVpn';
 import { DarkLightSwitchDesktop } from './Switch';
 import { NavOptionType } from '../context/nav';
+import ConnectKeplrWallet from './ConnectKeplrWallet';
+import { assets, chains } from 'chain-registry';
+import { ChainProvider } from '@cosmos-kit/react';
+import { wallets as keplr } from '@cosmos-kit/keplr';
+import { useMemo } from 'react';
+
+import '@interchain-ui/react/styles';
 
 const drawerWidth = 255;
 const bannerHeight = 80;
@@ -272,6 +279,33 @@ export const Nav: FCWithChildren = ({ children }) => {
       setDrawerToOpen(false);
     }
   };
+
+  const assetsFixedUp = useMemo(() => {
+    const nyx = assets.find((a) => a.chain_name === 'nyx');
+    if (nyx) {
+      const nyxCoin = nyx.assets.find((a) => a.name === 'nyx');
+      if (nyxCoin) {
+        nyxCoin.coingecko_id = 'nyx';
+      }
+      nyx.assets = nyx.assets.reverse();
+    }
+    return assets;
+  }, [assets]);
+
+  const chainsFixedUp = useMemo(() => {
+    const nyx = chains.find((c) => c.chain_id === 'nyx');
+    if (nyx) {
+      if (!nyx.staking) {
+        nyx.staking = {
+          staking_tokens: [{ denom: 'unyx' }],
+          lock_duration: {
+            blocks: 10000,
+          },
+        };
+      }
+    }
+    return chains;
+  }, [chains]);
 
   return (
     <Box sx={{ display: 'flex' }}>

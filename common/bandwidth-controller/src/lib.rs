@@ -4,7 +4,7 @@
 use crate::error::BandwidthControllerError;
 use nym_compact_ecash::scheme::{EcashCredential, Wallet};
 use nym_compact_ecash::setup::setup;
-use nym_compact_ecash::{Base58, PayInfo, SecretKeyUser};
+use nym_compact_ecash::{Base58, PayInfo, PublicKeyUser, SecretKeyUser};
 use nym_credential_storage::error::StorageError;
 use nym_credential_storage::storage::Storage;
 use nym_credentials::obtain_aggregate_verification_key;
@@ -31,6 +31,7 @@ impl<C, St: Storage> BandwidthController<C, St> {
 
     pub async fn prepare_ecash_credential(
         &self,
+        provider_pk: PublicKeyUser,
     ) -> Result<(EcashCredential, String, i64), BandwidthControllerError>
     where
         C: DkgQueryClient + Sync + Send,
@@ -53,7 +54,7 @@ impl<C, St: Storage> BandwidthController<C, St> {
         let some_l_i_guess = 100; //SW: TEMPORARY VALUE
         let params = setup(some_l_i_guess);
         let sk_user = SecretKeyUser::try_from_bs58(ecash_credential.secret_key)?;
-        let pay_info = PayInfo { info: [0u8; 32] }; //SW: TEMPORARY VALUE. Waiting for actual computation
+        let pay_info = PayInfo::generate_payinfo(provider_pk);
         let nb_tickets = 1u64; //SW: TEMPORARY VALUE, what should we put there?
 
         // the below would only be executed once we know where we want to spend it (i.e. which gateway and stuff)

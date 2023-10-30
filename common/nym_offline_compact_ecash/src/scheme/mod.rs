@@ -7,7 +7,7 @@ use getset::{CopyGetters, Getters};
 
 use crate::error::{CompactEcashError, Result};
 use crate::proofs::proof_spend::{SpendInstance, SpendProof, SpendWitness};
-use crate::scheme::keygen::{SecretKeyUser, VerificationKeyAuth};
+use crate::scheme::keygen::{PublicKeyUser, SecretKeyUser, VerificationKeyAuth};
 use crate::scheme::setup::{GroupParameters, Parameters};
 use crate::traits::Bytable;
 use crate::utils::{
@@ -15,6 +15,8 @@ use crate::utils::{
     try_deserialize_g2_projective, try_deserialize_scalar, Signature, SignerIndex,
 };
 use crate::{Attribute, Base58};
+use chrono::Utc;
+use rand::{thread_rng, Rng};
 
 pub mod aggregation;
 pub mod identify;
@@ -158,7 +160,7 @@ impl Wallet {
             lk.push(Scalar::from(self.l() + k));
 
             // compute hashes R_k of the payment info
-            let rr_k = hash_to_scalar(pay_info.info);
+            let rr_k = hash_to_scalar(pay_info.payinfo);
             rr.push(rr_k);
 
             let o_a_k = grparams.random_scalar();
@@ -313,9 +315,27 @@ pub fn compute_kappa(
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct PayInfo {
-    pub info: [u8; 32],
+    pub payinfo: [u8; 88],
 }
 
+impl PayInfo {
+    pub fn generate_payinfo(provider_pk: PublicKeyUser) -> PayInfo {
+        let mut payinfo = [0u8; 88];
+
+        // Generating random bytes
+        thread_rng().fill(&mut payinfo[..32]);
+
+        // Adding timestamp bytes
+        let timestamp = Utc::now().timestamp();
+        payinfo[32..40].copy_from_slice(&timestamp.to_be_bytes());
+
+        // Adding provider public key bytes
+        let ppk_bytes = provider_pk.pk.to_affine().to_compressed();
+        payinfo[40..].copy_from_slice(&ppk_bytes);
+
+        PayInfo { payinfo }
+    }
+}
 #[derive(Debug, Clone, PartialEq)]
 pub struct Payment {
     pub kappa: G2Projective,
@@ -373,7 +393,7 @@ impl Payment {
                 ));
             }
             // verify integrity of R_k
-            if !(self.rr[k as usize] == hash_to_scalar(pay_info.info)) {
+            if !(self.rr[k as usize] == hash_to_scalar(pay_info.payinfo)) {
                 return Err(CompactEcashError::Spend(
                     "Integrity of R_k does not hold".to_string(),
                 ));
@@ -638,13 +658,13 @@ impl EcashCredential {
         let payment_bytes = self.payment.to_bytes();
 
         let mut bytes =
-            Vec::with_capacity(params_bytes.len() + payment_bytes.len() + 32 + 8 + 8 + 8);
+            Vec::with_capacity(params_bytes.len() + payment_bytes.len() + 88 + 8 + 8 + 8);
 
         bytes.extend_from_slice(&(params_bytes.len() as u64).to_be_bytes());
         bytes.extend_from_slice(&self.params.to_bytes());
         bytes.extend_from_slice(&(payment_bytes.len() as u64).to_be_bytes());
         bytes.extend_from_slice(&self.payment.to_bytes());
-        bytes.extend_from_slice(&self.pay_info.info);
+        bytes.extend_from_slice(&self.pay_info.payinfo);
         bytes.extend_from_slice(&self.epoch_id.to_be_bytes());
 
         bytes
@@ -654,7 +674,7 @@ impl EcashCredential {
 impl TryFrom<&[u8]> for EcashCredential {
     type Error = CompactEcashError;
     fn try_from(bytes: &[u8]) -> Result<Self> {
-        if bytes.len() < 32 + 8 + 8 + 8 {
+        if bytes.len() < 88 + 8 + 8 + 8 {
             return Err(CompactEcashError::Deserialization(
                 "Invalid byte array for EcashCredential deserialization".to_string(),
             ));
@@ -683,16 +703,16 @@ impl TryFrom<&[u8]> for EcashCredential {
         let payment = Payment::try_from(&bytes[index..index + payment_len])?;
         index += payment_len;
 
-        if bytes[index..].len() != 32 + 8 {
+        if bytes[index..].len() != 88 + 8 {
             return Err(CompactEcashError::Deserialization(
                 "Invalid byte array for EcashCredential deserialization".to_string(),
             ));
         }
 
         let pay_info = PayInfo {
-            info: bytes[index..index + 32].try_into().unwrap(),
+            payinfo: bytes[index..index + 88].try_into().unwrap(),
         };
-        index += 32;
+        index += 88;
         let epoch_id = u64::from_be_bytes(bytes[index..index + 8].try_into().unwrap());
         Ok(EcashCredential {
             params,

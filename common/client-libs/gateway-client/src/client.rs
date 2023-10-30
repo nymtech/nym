@@ -12,7 +12,9 @@ use crate::{cleanup_socket_message, try_decrypt_binary_message};
 use futures::{SinkExt, StreamExt};
 use log::*;
 use nym_bandwidth_controller::BandwidthController;
+use nym_compact_ecash::generate_keypair_user;
 use nym_compact_ecash::scheme::EcashCredential;
+use nym_compact_ecash::setup::GroupParameters;
 use nym_credential_storage::ephemeral_storage::EphemeralStorage as EphemeralCredentialStorage;
 use nym_credential_storage::storage::Storage as CredentialStorage;
 use nym_crypto::asymmetric::identity;
@@ -571,7 +573,9 @@ impl<C, St> GatewayClient<C, St> {
             .bandwidth_controller
             .as_ref()
             .unwrap()
-            .prepare_ecash_credential()
+            .prepare_ecash_credential(
+                generate_keypair_user(&GroupParameters::new().unwrap()).public_key(),
+            ) //SW Temporary, this should be embedded in the GatewayClient, similarly to gateway_identity
             .await?;
 
         self.claim_ecash_bandwidth(credential).await?;

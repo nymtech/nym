@@ -46,16 +46,14 @@ pub struct CommonClientRunArgs {
 
     /// Mostly debug-related option to increase default traffic rate so that you would not need to
     /// modify config post init
-    #[cfg_attr(
-        feature = "cli",
-        clap(long, hide = true, conflicts_with = "medium_toggle")
-    )]
+    // note: we removed the 'conflicts_with = medium_toggle', but that's fine since NR
+    // has defined the conflict on that field itself
+    #[cfg_attr(feature = "cli", clap(long, hide = true))]
     pub fastmode: bool,
 
     /// Disable loop cover traffic and the Poisson rate limiter (for debugging only)
-    #[cfg_attr(
-        feature = "cli",
-        clap(long, hide = true, conflicts_with = "medium_toggle")
-    )]
+    // note: we removed the 'conflicts_with = medium_toggle', but that's fine since NR
+    // has defined the conflict on that field itself
+    #[cfg_attr(feature = "cli", clap(long, hide = true))]
     pub no_cover: bool,
 }

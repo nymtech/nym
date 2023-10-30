@@ -32,10 +32,10 @@ pub(crate) mod api_routes {
     pub(crate) const HARDWARE: &str = "/hardware";
 }
 
-pub(crate) fn routes(
+pub(crate) fn routes<S: Send + Sync + 'static + Clone>(
     state: MixnodeAppState,
     descriptor: NodeDescription,
-) -> Router<MixnodeAppState> {
+) -> Router<S> {
     Router::new()
         .route(api_routes::VERLOC, get(verloc))
         .route(

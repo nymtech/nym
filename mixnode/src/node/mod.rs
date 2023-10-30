@@ -77,6 +77,7 @@ impl MixNode {
         HttpApiBuilder::new(&self.config, &self.identity_keypair, &self.sphinx_keypair)
             .with_verloc(VerlocState::new(atomic_verloc_result))
             .with_mixing_stats(node_stats_pointer)
+            .with_descriptor(self.descriptor.clone())
             .start(task_client)
     }
 

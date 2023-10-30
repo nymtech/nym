@@ -1,6 +1,8 @@
 use crate::config::Config;
 use crate::error::MixnodeError;
+use crate::node::http::legacy::state::MixnodeAppState;
 use crate::node::http::legacy::verloc::VerlocState;
+use crate::node::node_description::NodeDescription;
 use crate::node::node_statistics::SharedNodeStats;
 use axum::response::IntoResponse;
 use log::info;
@@ -44,6 +46,7 @@ pub(crate) struct HttpApiBuilder<'a> {
     identity_keypair: &'a identity::KeyPair,
     sphinx_keypair: &'a encryption::KeyPair,
     legacy_mixnode: legacy::state::MixnodeAppState,
+    legacy_descriptor: NodeDescription,
 }
 
 impl<'a> HttpApiBuilder<'a> {
@@ -57,6 +60,7 @@ impl<'a> HttpApiBuilder<'a> {
             identity_keypair,
             sphinx_keypair,
             legacy_mixnode: legacy::state::MixnodeAppState::default(),
+            legacy_descriptor: Default::default(),
         }
     }
 
@@ -69,6 +73,12 @@ impl<'a> HttpApiBuilder<'a> {
     #[must_use]
     pub(crate) fn with_mixing_stats(mut self, stats: SharedNodeStats) -> Self {
         self.legacy_mixnode.stats = stats;
+        self
+    }
+
+    #[must_use]
+    pub(crate) fn with_descriptor(mut self, descriptor: NodeDescription) -> Self {
+        self.legacy_descriptor = descriptor;
         self
     }
 
@@ -91,6 +101,7 @@ impl<'a> HttpApiBuilder<'a> {
 
         let router = nym_node::http::NymNodeRouter::new(config, None);
         let server = router
+            .with_merged(legacy::routes(self.legacy_mixnode, self.legacy_descriptor))
             .build_server(&bind_address)?
             .with_task_client(task_client);
         tokio::spawn(async move { server.run().await });

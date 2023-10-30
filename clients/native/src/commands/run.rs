@@ -10,7 +10,7 @@ use crate::{
 use clap::Args;
 use log::*;
 use nym_bin_common::version_checker::is_minor_version_compatible;
-use nym_client_core::init::client_run::CommonClientRunArgs;
+use nym_client_core::cli_helpers::client_run::CommonClientRunArgs;
 use std::error::Error;
 use std::net::IpAddr;
 

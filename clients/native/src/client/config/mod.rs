@@ -4,6 +4,8 @@
 use crate::client::config::persistence::ClientPaths;
 use crate::client::config::template::CONFIG_TEMPLATE;
 use nym_bin_common::logging::LoggingSettings;
+use nym_client_core::cli_helpers::client_init::ClientConfig;
+use nym_client_core::config::disk_persistence::CommonClientPaths;
 use nym_config::defaults::DEFAULT_WEBSOCKET_LISTENING_PORT;
 use nym_config::{
     must_get_home, read_config_from_toml_file, save_formatted_config_to_file, NymConfigTemplate,
@@ -16,10 +18,8 @@ use std::net::{IpAddr, Ipv4Addr};
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
-use nym_client_core::config::disk_persistence::CommonClientPaths;
 pub use nym_client_core::config::Config as BaseClientConfig;
 pub use nym_client_core::config::{DebugConfig, GatewayEndpointConfig};
-use nym_client_core::init::client_init::ClientConfig;
 
 pub mod old_config_v1_1_13;
 pub mod old_config_v1_1_20;

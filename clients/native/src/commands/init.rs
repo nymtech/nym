@@ -12,7 +12,7 @@ use crate::{
 };
 use clap::Args;
 use nym_bin_common::output_format::OutputFormat;
-use nym_client_core::init::client_init::{
+use nym_client_core::cli_helpers::client_init::{
     initialise_client, CommonClientInitArgs, InitResultsWithConfig, InitialisableClient,
 };
 use serde::Serialize;

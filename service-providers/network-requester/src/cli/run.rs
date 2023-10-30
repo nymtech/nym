@@ -8,7 +8,7 @@ use crate::{
 };
 use clap::Args;
 use log::error;
-use nym_client_core::init::client_run::CommonClientRunArgs;
+use nym_client_core::cli_helpers::client_run::CommonClientRunArgs;
 
 const ENABLE_STATISTICS: &str = "enable-statistics";
 

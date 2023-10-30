@@ -9,6 +9,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
 
+#[derive(Clone)]
 pub struct AtomicVerlocResult {
     inner: Arc<RwLock<VerlocResult>>,
 }
@@ -32,13 +33,6 @@ impl AtomicVerlocResult {
                 run_finished: None,
                 results: Vec::new(),
             })),
-        }
-    }
-
-    // this could have also been achieved with a normal #[derive(Clone)] but I prefer to be explicit about it
-    pub(crate) fn clone_data_pointer(&self) -> Self {
-        AtomicVerlocResult {
-            inner: Arc::clone(&self.inner),
         }
     }
 

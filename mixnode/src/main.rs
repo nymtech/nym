@@ -1,12 +1,10 @@
 // Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-#[macro_use]
-extern crate rocket;
-
 use ::nym_config::defaults::setup_env;
 use clap::{crate_name, crate_version, Parser};
 use lazy_static::lazy_static;
+use log::info;
 use nym_bin_common::bin_info;
 
 #[allow(unused_imports)]
@@ -20,6 +18,7 @@ use tracing::instrument;
 
 mod commands;
 mod config;
+pub(crate) mod error;
 mod node;
 
 lazy_static! {

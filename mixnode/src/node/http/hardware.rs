@@ -1,10 +1,11 @@
+use axum::extract::Query;
 use cupid::TopologyType;
-use rocket::serde::{json::Json, Serialize};
+use nym_node::http::api::{FormattedResponse, OutputParams};
+use serde::Serialize;
 use sysinfo::{System, SystemExt};
 
 #[derive(Serialize, Debug)]
-#[serde(crate = "rocket::serde")]
-pub(crate) struct Hardware {
+pub struct Hardware {
     ram: String,
     num_cores: usize,
     crypto_hardware: Option<CryptoHardware>,
@@ -12,7 +13,6 @@ pub(crate) struct Hardware {
 
 #[allow(clippy::struct_excessive_bools)]
 #[derive(Serialize, Debug)]
-#[serde(crate = "rocket::serde")]
 pub(crate) struct CryptoHardware {
     aesni: bool,
     avx2: bool,
@@ -24,10 +24,12 @@ pub(crate) struct CryptoHardware {
 }
 
 /// Provides hardware information which Nym can use to optimize mixnet speed over time (memory, crypto hardware, CPU, cores, etc).
-#[get("/hardware")]
-pub(crate) fn hardware() -> Json<Option<Hardware>> {
-    Json(hardware_info())
+pub(crate) async fn hardware(Query(output): Query<OutputParams>) -> MixnodeHardwareResponse {
+    let output = output.output.unwrap_or_default();
+    output.to_response(hardware_info())
 }
+
+pub type MixnodeHardwareResponse = FormattedResponse<Option<Hardware>>;
 
 /// Gives back a summary report of whatever system hardware info we can get for this platform.
 fn hardware_info() -> Option<Hardware> {

@@ -1,6 +1,8 @@
+use super::TaskClient;
 use futures::channel::mpsc;
 use futures::lock::Mutex;
 use futures::StreamExt;
+use log::{debug, info, trace};
 use serde::Serialize;
 use std::collections::HashMap;
 use std::ops::DerefMut;
@@ -8,8 +10,6 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 use tokio::sync::{RwLock, RwLockReadGuard};
-
-use super::TaskClient;
 
 // convenience aliases
 type PacketsMap = HashMap<String, u64>;
@@ -80,7 +80,7 @@ impl SharedNodeStats {
 }
 
 #[derive(Serialize, Clone)]
-pub(crate) struct NodeStats {
+pub struct NodeStats {
     #[serde(serialize_with = "humantime_serde::serialize")]
     update_time: SystemTime,
 
@@ -126,7 +126,7 @@ impl NodeStats {
 }
 
 #[derive(Serialize, Clone)]
-pub(crate) struct NodeStatsSimple {
+pub struct NodeStatsSimple {
     #[serde(serialize_with = "humantime_serde::serialize")]
     update_time: SystemTime,
 

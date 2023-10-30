@@ -5,14 +5,12 @@ use crate::commands::{try_load_current_config, validate_bech32_address_or_exit};
 use crate::node::MixNode;
 use anyhow::{bail, Result};
 use clap::{ArgGroup, Args};
+use log::error;
 use nym_bin_common::output_format::OutputFormat;
 use nym_crypto::asymmetric::identity;
 use nym_types::helpers::ConsoleSigningOutput;
 use nym_validator_client::nyxd;
 use std::convert::TryFrom;
-
-#[cfg(feature = "cpucycles")]
-use tracing::error;
 
 use super::version_check;
 

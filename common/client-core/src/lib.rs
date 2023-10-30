@@ -1,5 +1,6 @@
 use std::future::Future;
 
+#[cfg(not(target_arch = "wasm32"))]
 pub mod cli_helpers;
 pub mod client;
 pub mod config;

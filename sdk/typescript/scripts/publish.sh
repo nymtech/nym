@@ -39,7 +39,7 @@ COUNTER=0
 
 for item in "${packages[@]}"
 do
-  (( COUNTER++ ))
+  (( COUNTER+=1 ))
   pushd "$item"
   echo "🚀 Publishing $item... (${COUNTER} of ${#packages[@]})"
   jq -r '. | .name + " " +.version' < package.json
@@ -49,4 +49,3 @@ do
 done
 echo ""
 echo "✅ Done"
-

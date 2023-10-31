@@ -3,6 +3,9 @@
 
 use crate::error::{Error, Result};
 use nym_bandwidth_controller::acquire::state::State;
+use nym_compact_ecash::generate_keypair_user;
+use nym_compact_ecash::scheme::keygen::KeyPairUser;
+use nym_compact_ecash::setup::GroupParameters;
 use nym_credential_storage::storage::Storage;
 use nym_credentials::coconut::bandwidth::BandwidthVoucher;
 use nym_network_defaults::NymNetworkDetails;
@@ -22,6 +25,7 @@ pub type VoucherBlob = Vec<u8>;
 pub struct BandwidthAcquireClient<'a, St: Storage> {
     network_details: NymNetworkDetails,
     client: DirectSigningHttpRpcNyxdClient,
+    ecash_keypair: KeyPairUser,
     storage: &'a St,
 }
 
@@ -43,9 +47,11 @@ where
             nyxd_url,
             mnemonic.parse()?,
         )?;
+        let ecash_keypair = generate_keypair_user(&GroupParameters::new().unwrap());
         Ok(Self {
             network_details,
             client,
+            ecash_keypair,
             storage,
         })
     }
@@ -56,7 +62,12 @@ where
     /// associated bandwidth credential, using [`Self::recover`].
     pub async fn acquire(&self, amount: u128) -> Result<()> {
         let amount = Coin::new(amount, &self.network_details.chain_details.mix_denom.base);
-        let state = nym_bandwidth_controller::acquire::deposit(&self.client, amount).await?;
+        let state = nym_bandwidth_controller::acquire::deposit(
+            &self.client,
+            amount,
+            self.ecash_keypair.clone(),
+        )
+        .await?;
         nym_bandwidth_controller::acquire::get_credential(&state, &self.client, self.storage)
             .await
             .map_err(|reason| Error::UnconvertedDeposit {

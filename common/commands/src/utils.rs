@@ -123,6 +123,18 @@ impl CommonConfigsWrapper {
         }
     }
 
+    pub(crate) fn try_get_ecash_key(&self) -> anyhow::Result<nym_pemstore::KeyPairPath> {
+        match self {
+            CommonConfigsWrapper::NymClients(cfg) => {
+                Ok(cfg.storage_paths.inner.keys.ecash_key_pair_path())
+            }
+            CommonConfigsWrapper::NymApi(cfg) => {
+                todo!() //SW implement ecash key for nym-api
+            }
+            CommonConfigsWrapper::Unknown(cfg) => cfg.try_get_ecash_key(),
+        }
+    }
+
     pub(crate) fn try_get_credentials_store(&self) -> anyhow::Result<PathBuf> {
         match self {
             CommonConfigsWrapper::NymClients(cfg) => {
@@ -213,6 +225,10 @@ impl UnknownConfigWrapper {
         } else {
             bail!("no id field present in the config")
         }
+    }
+
+    pub(crate) fn try_get_ecash_key(&self) -> anyhow::Result<nym_pemstore::KeyPairPath> {
+        todo!()
     }
 
     pub(crate) fn try_get_credentials_store(&self) -> anyhow::Result<PathBuf> {

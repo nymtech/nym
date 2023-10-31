@@ -467,7 +467,7 @@ impl KeyPairAuth {
     }
 }
 
-#[derive(Zeroize, ZeroizeOnDrop)]
+#[derive(Zeroize, ZeroizeOnDrop, Debug, Clone, PartialEq)]
 pub struct KeyPairUser {
     secret_key: SecretKeyUser,
     #[zeroize(skip)]

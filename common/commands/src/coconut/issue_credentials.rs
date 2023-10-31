@@ -36,6 +36,14 @@ pub async fn execute(args: Args, client: SigningClient) -> anyhow::Result<()> {
         bail!("the loaded config does not have a credentials store information")
     };
 
+    let Ok(ecash_key_path) = loaded.try_get_ecash_key() else {
+        bail!("the loaded config does not have an ecash key path information")
+    };
+
+    let Ok(ecash_keypair) = nym_pemstore::load_keypair(&ecash_key_path) else {
+        bail!("invalid secret key in the config path")
+    };
+
     println!(
         "using credentials store at '{}'",
         credentials_store.display()
@@ -45,7 +53,14 @@ pub async fn execute(args: Args, client: SigningClient) -> anyhow::Result<()> {
     let coin = Coin::new(args.amount as u128, denom);
 
     let persistent_storage = initialise_persistent_storage(credentials_store).await;
-    utils::issue_credential(&client, coin, &persistent_storage, args.recovery_dir).await?;
+    utils::issue_credential(
+        &client,
+        coin,
+        ecash_keypair,
+        &persistent_storage,
+        args.recovery_dir,
+    )
+    .await?;
 
     Ok(())
 }

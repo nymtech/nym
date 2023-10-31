@@ -24,7 +24,7 @@ As we shared in our blog post article [*What does it take to build the wolds mos
 Project smoosh will have three steps:
 
 1. Combine the `gateway` and `network-requester` into one binary ✅
-2. Create [exit gateway](../legal/exit-gateway.md): Take the gateway binary including network requester combined in \#1 and switch from *allowed.list* to a new [exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt) ✅
+2. Create [exit gateway](../legal/exit-gateway.md): Take the gateway binary including network requester combined in \#1 and switch from [*allowed.list*](https://nymtech.net/.wellknown/network-requester/standard-allowed-list.txt) to a new [exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt) ✅
 3. Combine all the nodes in the Nym Mixnet into one binary, that is `mixnode`, `gateway` (entry and exit) and `network-requester`.
 
 These three steps will be staggered over time - period of several months, and will be implemented one by one with enough time to take in feedback and fix bugs in between.  
@@ -37,6 +37,14 @@ We are exploring two potential methods for implementing binary functionality in 
 1. Make a selection button (command/argument/flag) for operators to choose whether they want their node to provide all or just some of the functions nodes have in the Nym Mixnet. Nodes functioning as exit gateways (in that epoch) will then have bigger rewards due to their larger risk exposure and overhead work with the setup.
 
 2. All nodes will be required to have the exit gateway functionality. All nodes are rewarded the same as now, and the difference is that a node sometimes (some epochs) may be performing as exit gateway sometimes as mix node or entry gateway adjusted according the network demand by an algorithm.
+
+### How will the design be implemented?
+
+The progression will have three steps:
+
+1. By default the [exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt) filtering will be disabled and the current [*allow.list*](https://nymtech.net/.wellknown/network-requester/standard-allowed-list.txt) filtering is going to continue be used. This is to prevent operators getting surprised by upgrading their gateways/network requesters and suddenly be widely open to the internet. To enable the new exit policy, operators must use `--with-exit-policy` flag or modify the *config.toml* file. ✅
+2. Relatively soon the exit policy will become the default.
+3. Further down the line, it will be the only option. Then the *allowed.list* will be completely removed.
 
 ### Where can I read more about the exit gateway setup?
 

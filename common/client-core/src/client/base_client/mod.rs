@@ -50,6 +50,7 @@ use nym_topology::provider_trait::TopologyProvider;
 use nym_topology::HardcodedTopologyProvider;
 use nym_validator_client::nyxd::contract_traits::DkgQueryClient;
 use std::fmt::Debug;
+use std::ops::Deref;
 use std::path::Path;
 use std::sync::Arc;
 use url::Url;
@@ -612,9 +613,13 @@ where
 
         // the components are started in very specific order. Unless you know what you are doing,
         // do not change that.
-        let bandwidth_controller = self
-            .dkg_query_client
-            .map(|client| BandwidthController::new(credential_store, client));
+        let bandwidth_controller = self.dkg_query_client.map(|client| {
+            BandwidthController::new(
+                credential_store,
+                client,
+                Some(init_res.managed_keys.ecash_keypair().deref().clone()),
+            )
+        });
 
         let topology_provider = Self::setup_topology_provider(
             self.custom_topology_provider.take(),

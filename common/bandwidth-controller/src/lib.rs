@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::BandwidthControllerError;
+use nym_compact_ecash::scheme::keygen::KeyPairUser;
 use nym_compact_ecash::scheme::{EcashCredential, Wallet};
 use nym_compact_ecash::setup::setup;
 use nym_compact_ecash::{Base58, PayInfo, SecretKeyUser};
@@ -18,11 +19,16 @@ pub mod error;
 pub struct BandwidthController<C, St> {
     storage: St,
     client: C,
+    ecash_keypair: Option<KeyPairUser>,
 }
 
 impl<C, St: Storage> BandwidthController<C, St> {
-    pub fn new(storage: St, client: C) -> Self {
-        BandwidthController { storage, client }
+    pub fn new(storage: St, client: C, ecash_keypair: Option<KeyPairUser>) -> Self {
+        BandwidthController {
+            storage,
+            client,
+            ecash_keypair,
+        }
     }
 
     pub fn storage(&self) -> &St {
@@ -53,7 +59,11 @@ impl<C, St: Storage> BandwidthController<C, St> {
 
         let some_l_i_guess = 100; //SW: TEMPORARY VALUE
         let params = setup(some_l_i_guess);
-        let sk_user = SecretKeyUser::try_from_bs58(ecash_credential.secret_key)?;
+        let sk_user = self
+            .ecash_keypair
+            .clone()
+            .ok_or(BandwidthControllerError::NoEcashKey)?
+            .secret_key();
         let pay_info = PayInfo::generate_payinfo(provider_pk);
         let nb_tickets = 1u64; //SW: TEMPORARY VALUE, what should we put there?
 
@@ -99,6 +109,7 @@ where
         BandwidthController {
             storage: self.storage.clone(),
             client: self.client.clone(),
+            ecash_keypair: self.ecash_keypair.clone(),
         }
     }
 }

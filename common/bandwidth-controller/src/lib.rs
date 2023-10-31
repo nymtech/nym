@@ -31,6 +31,7 @@ impl<C, St: Storage> BandwidthController<C, St> {
 
     pub async fn prepare_ecash_credential(
         &self,
+        provider_pk: [u8; 32],
     ) -> Result<(EcashCredential, String, i64), BandwidthControllerError>
     where
         C: DkgQueryClient + Sync + Send,

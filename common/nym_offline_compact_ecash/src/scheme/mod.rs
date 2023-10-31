@@ -315,12 +315,12 @@ pub fn compute_kappa(
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct PayInfo {
-    pub payinfo: [u8; 88],
+    pub payinfo: [u8; 72],
 }
 
 impl PayInfo {
-    pub fn generate_payinfo(provider_pk: PublicKeyUser) -> PayInfo {
-        let mut payinfo = [0u8; 88];
+    pub fn generate_payinfo(provider_pk: [u8; 32]) -> PayInfo {
+        let mut payinfo = [0u8; 72];
 
         // Generating random bytes
         thread_rng().fill(&mut payinfo[..32]);
@@ -330,14 +330,17 @@ impl PayInfo {
         payinfo[32..40].copy_from_slice(&timestamp.to_be_bytes());
 
         // Adding provider public key bytes
-        let ppk_bytes = provider_pk.pk.to_affine().to_compressed();
-        payinfo[40..].copy_from_slice(&ppk_bytes);
+        payinfo[40..].copy_from_slice(&provider_pk);
 
         PayInfo { payinfo }
     }
 
     pub fn timestamp(&self) -> i64 {
         i64::from_be_bytes(self.payinfo[32..40].try_into().unwrap())
+    }
+
+    pub fn pk(&self) -> [u8; 32] {
+        self.payinfo[40..].try_into().unwrap()
     }
 }
 #[derive(Debug, Clone, PartialEq)]
@@ -662,7 +665,7 @@ impl EcashCredential {
         let payment_bytes = self.payment.to_bytes();
 
         let mut bytes =
-            Vec::with_capacity(params_bytes.len() + payment_bytes.len() + 32 + 8 + 8 + 8);
+            Vec::with_capacity(params_bytes.len() + payment_bytes.len() + 72 + 8 + 8 + 8);
 
         bytes.extend_from_slice(&(params_bytes.len() as u64).to_be_bytes());
         bytes.extend_from_slice(&self.params.to_bytes());
@@ -678,7 +681,7 @@ impl EcashCredential {
 impl TryFrom<&[u8]> for EcashCredential {
     type Error = CompactEcashError;
     fn try_from(bytes: &[u8]) -> Result<Self> {
-        if bytes.len() < 32 + 8 + 8 + 8 {
+        if bytes.len() < 72 + 8 + 8 + 8 {
             return Err(CompactEcashError::Deserialization(
                 "Invalid byte array for EcashCredential deserialization".to_string(),
             ));
@@ -707,16 +710,16 @@ impl TryFrom<&[u8]> for EcashCredential {
         let payment = Payment::try_from(&bytes[index..index + payment_len])?;
         index += payment_len;
 
-        if bytes[index..].len() != 32 + 8 {
+        if bytes[index..].len() != 72 + 8 {
             return Err(CompactEcashError::Deserialization(
                 "Invalid byte array for EcashCredential deserialization".to_string(),
             ));
         }
 
         let pay_info = PayInfo {
-            info: bytes[index..index + 32].try_into().unwrap(),
+            payinfo: bytes[index..index + 72].try_into().unwrap(),
         };
-        index += 32;
+        index += 72;
         let epoch_id = u64::from_be_bytes(bytes[index..index + 8].try_into().unwrap());
         Ok(EcashCredential {
             params,

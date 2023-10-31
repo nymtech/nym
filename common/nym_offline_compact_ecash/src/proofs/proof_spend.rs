@@ -744,7 +744,9 @@ mod tests {
         let cc = g1 * o_c + gamma1 * v;
 
         // compute hash of the payment info
-        let pay_info = PayInfo { payinfo: [37u8; 88] };
+        let pay_info = PayInfo {
+            payinfo: [37u8; 72],
+        };
         let rr = hash_to_scalar(pay_info.payinfo);
 
         // evaluate the pseudorandom functions

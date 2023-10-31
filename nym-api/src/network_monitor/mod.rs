@@ -98,6 +98,7 @@ impl<'a> NetworkMonitorBuilder<'a> {
                 )
                 .await,
                 self.nyxd_client.clone(),
+                None,
             )
         };
 

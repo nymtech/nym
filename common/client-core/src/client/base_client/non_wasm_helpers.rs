@@ -119,7 +119,7 @@ pub fn create_bandwidth_controller_with_urls<St: CredentialStorage>(
 ) -> BandwidthController<QueryHttpRpcNyxdClient, St> {
     let client = default_query_dkg_client(nyxd_url);
 
-    BandwidthController::new(storage, client)
+    BandwidthController::new(storage, client, None)
 }
 
 pub fn default_query_dkg_client_from_config(config: &Config) -> QueryHttpRpcNyxdClient {

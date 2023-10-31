@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::BandwidthControllerError;
+use nym_compact_ecash::scheme::keygen::KeyPairUser;
 use nym_compact_ecash::scheme::{EcashCredential, Wallet};
 use nym_compact_ecash::setup::setup;
 use nym_compact_ecash::{Base58, PayInfo, SecretKeyUser};
@@ -18,11 +19,16 @@ pub mod error;
 pub struct BandwidthController<C, St> {
     storage: St,
     client: C,
+    ecash_keypair: Option<KeyPairUser>,
 }
 
 impl<C, St: Storage> BandwidthController<C, St> {
-    pub fn new(storage: St, client: C) -> Self {
-        BandwidthController { storage, client }
+    pub fn new(storage: St, client: C, ecash_keypair: Option<KeyPairUser>) -> Self {
+        BandwidthController {
+            storage,
+            client,
+            ecash_keypair,
+        }
     }
 
     pub fn storage(&self) -> &St {
@@ -99,6 +105,7 @@ where
         BandwidthController {
             storage: self.storage.clone(),
             client: self.client.clone(),
+            ecash_keypair: self.ecash_keypair.clone(),
         }
     }
 }

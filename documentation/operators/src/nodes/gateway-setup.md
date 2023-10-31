@@ -4,7 +4,7 @@
 
 
 ```admonish info
-As a result of [Project Smoosh](../faq/smoosh-faq.md), the current version of `nym-gateway` binary also contains `nym-network-requester` functionality which can be enabled [by the operator](./gateway-setup.md#initialising-gateway-with-network-requester). This combination is a basis of Nym exit gateway node - an essential piece in our new setup. Please read more in our [Project Smoosh FAQ](../faq/smoosh-faq.md) and [Exit Gateways Page](../legal/exit-gateway.md). We recommend operators begin to shift their setups to this new combined node, instead of operating two separate binaries.
+As a result of [Project Smoosh](../faq/smoosh-faq.md), the current version of `nym-gateway` binary also contains `nym-network-requester` functionality which can be enabled [by the operator](./gateway-setup.md#initialising-gateway-with-network-requester). This combination is a basis of ***Nym Exit Gateway*** node - an essential piece in our new setup. Please read more in our [Project Smoosh FAQ](../faq/smoosh-faq.md) and [Exit Gateway](../legal/exit-gateway.md) pages. We recommend operators begin to shift their setups to this new combined node, instead of operating two separate binaries.
 ```
 
 > Any syntax in `<>` brackets is a user's unique variable. Exchange with a corresponding name without the `<>` brackets.
@@ -48,42 +48,17 @@ You can also check the various arguments required for individual commands with:
 ```
 > Adding `--no-banner` startup flag will prevent Nym banner being printed even if run in tty environment.
 
-### Initialising your gateway
-To check available configuration options use:
+## Initialising your Gateway
+
+As Nym developers build towards [Exit Gateway](../legal/exit-gateway.md) functionality, operators can now run their `nym-gateway` binary with in-build Network requester. Considering the plan to [*smoosh*](../faq/smoosh-faq.md) all the nodes into one binary and have wide opened Exit Gateways, we recommend this setup, instead of operating two separate binaries. 
+
+
+### Initialising Exit Gateway
+
+An operator can initialise the Exit Gateway functionality by:
 
 ```
- ./nym-gateway init --help
-```
-
-~~~admonish example collapsible=true title="Console output"
-```
-<!-- cmdrun ../../../../target/release/nym-gateway init --help -->
-```
-~~~
-
-The following command returns a gateway on your current IP with the `<ID>` of `supergateway`:
-
-```
-./nym-gateway init --id supergateway --host $(curl ifconfig.me)
-```
-
-~~~admonish example collapsible=true title="Console output"
-```
-<!-- cmdrun ../../../../target/release/nym-gateway init --id supergateway --host $(curl ifconfig.me) -->
-```
-~~~
-
-The `$(curl ifconfig.me)` command above returns your IP automatically using an external service. Alternatively, you can enter your IP manually if you wish. If you do this, remember to enter your IP **without** any port information.
-
-
-#### Initialising gateway with network requester
-
-As some of the [Project Smoosh](../faq/smoosh-faq.md) changes getting implemented, network requester is smooshed with gateways. Such combination creates an exit gateway node, needed for new more open setup. 
-
-An operator can initialise the exit gateway functionality by:
-
-```
-./nym-gateway init --id <ID> --host $(curl ifconfig.me) --with-network-requester
+./nym-gateway init --id <ID> --host $(curl icanhazip.com) --with-network-requester
 ```
 
 If we follow the previous example with `<ID>` chosen `superexitgateway`, adding the `--with-network-requester` flag, the outcome will be:
@@ -91,15 +66,17 @@ If we follow the previous example with `<ID>` chosen `superexitgateway`, adding 
 
 ~~~admonish example collapsible=true title="Console output"
 ```
-<!-- cmdrun ../../../../target/release/nym-gateway init --id superexitgateway --host $(curl ifconfig.me) --with-network-requester -->
+<!-- cmdrun ../../../../target/release/nym-gateway init --id superexitgateway --host $(curl icanhazip.com) --with-network-requester -->
 ```
 ~~~
 
 You can see that the printed information besides *identity* and *sphinx keys* also includes a long string called *address*. This is the address to be provided to your local [socks5 client](https://nymtech.net/docs/clients/socks5-client.html) as a `--provider` if you wish to connect to your own exit gateway.  
 
-#### Add network requester to existing gateway
+Additionally 
 
-If you already run a gateway and got it [upgraded](./maintenance.md#upgrading-your-node) to the [newest version](./gateway-setup.md#current-version), you can easily change its functionality to exit gateway. PAuse the gateway and run a command `setup-network-requester`.
+#### Add Network requester to existing Gateway
+
+If you already run a gateway and got it [upgraded](./maintenance.md#upgrading-your-node) to the [newest version](./gateway-setup.md#current-version), you can easily change its functionality to exit gateway. Pause the gateway and run a command `setup-network-requester`.
 
 See the options:
 
@@ -143,6 +120,37 @@ To read more about the configuration like whitelisted outbound requesters in `al
 ```admonish info
 Before you bond and run your gateway, please make sure the [firewall configuration](./maintenance.md#configure-your-firewall) is setup so your gateway can be reached from the outside.
 ```
+
+#### Initialising Gateway without Network requester
+
+In case you don't want to run your Gateway with the Exit Gateway functionality, you still can run a simple Gateway.
+
+To check available configuration options use:
+
+```
+ ./nym-gateway init --help
+```
+
+~~~admonish example collapsible=true title="Console output"
+```
+<!-- cmdrun ../../../../target/release/nym-gateway init --help -->
+```
+~~~
+
+The following command returns a gateway on your current IP with the `<ID>` of `supergateway`:
+
+```
+./nym-gateway init --id supergateway --host $(curl icanhazip.com)
+```
+
+~~~admonish example collapsible=true title="Console output"
+```
+<!-- cmdrun ../../../../target/release/nym-gateway init --id supergateway --host $(curl icanhazip.com) -->
+```
+~~~
+
+The `$(curl icanhazip.com)` command above returns your IP automatically using an external service. Alternatively, you can enter your IP manually if you wish. If you do this, remember to enter your IP **without** any port information.
+
 
 ### Bonding your gateway
 

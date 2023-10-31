@@ -42,7 +42,7 @@ jobs:
       - name: Install wasm-opt
         uses: ./.github/actions/install-wasm-opt
         with:
-          version: '112'
+          version: '114'
 
       - name: Build release contracts
         run: make contracts

@@ -6,7 +6,9 @@ use clap::Parser;
 
 pub(crate) mod cli;
 
-fn main() {
+fn main() -> anyhow::Result<()> {
     let args = Cli::parse();
     println!("{args:#?}");
+
+    args.execute()
 }

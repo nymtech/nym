@@ -1,6 +1,12 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+mod add_upgrade;
+mod build_info;
+mod config;
+mod init;
+mod run;
+
 use clap::{Parser, Subcommand};
 use lazy_static::lazy_static;
 use nym_bin_common::bin_info;
@@ -23,11 +29,23 @@ pub(crate) struct Cli {
     command: Commands,
 }
 
+impl Cli {
+    pub(crate) fn execute(self) -> anyhow::Result<()> {
+        match self.command {
+            Commands::Init(args) => init::execute(args),
+            Commands::Run(args) => run::execute(args),
+            Commands::BuildInfo(args) => build_info::execute(args),
+            Commands::AddUpgrade(args) => add_upgrade::execute(args),
+            Commands::Config(args) => config::execute(args),
+        }
+    }
+}
+
 #[derive(Subcommand, Debug)]
 pub(crate) enum Commands {
-    Init,
-    Run,
-    BuildInfo,
-    AddUpgrade,
-    Config,
+    Init(init::Args),
+    Run(run::Args),
+    BuildInfo(build_info::Args),
+    AddUpgrade(add_upgrade::Args),
+    Config(config::Args),
 }

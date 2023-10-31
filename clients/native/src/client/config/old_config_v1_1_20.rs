@@ -5,7 +5,7 @@ use crate::client::config::old_config_v1_1_20_2::{
     ClientPathsV1_1_20_2, ConfigV1_1_20_2, SocketTypeV1_1_20_2, SocketV1_1_20_2,
 };
 use nym_bin_common::logging::LoggingSettings;
-use nym_client_core::config::disk_persistence::keys_paths::ClientKeysPaths;
+use nym_client_core::config::disk_persistence::keys_paths::{self, ClientKeysPaths};
 use nym_client_core::config::disk_persistence::old_v1_1_20_2::CommonClientPathsV1_1_20_2;
 use nym_client_core::config::old_config_v1_1_20::ConfigV1_1_20 as BaseConfigV1_1_20;
 use nym_client_core::config::old_config_v1_1_20_2::{
@@ -13,6 +13,7 @@ use nym_client_core::config::old_config_v1_1_20_2::{
 };
 use nym_config::defaults::DEFAULT_WEBSOCKET_LISTENING_PORT;
 use nym_config::legacy_helpers::nym_config::MigrationNymConfig;
+use nym_sphinx::crypto::keys;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use std::net::{IpAddr, Ipv4Addr};
@@ -65,6 +66,8 @@ impl From<ConfigV1_1_20> for ConfigV1_1_20_2 {
                         public_identity_key_file: value.base.client.public_identity_key_file,
                         private_encryption_key_file: value.base.client.private_encryption_key_file,
                         public_encryption_key_file: value.base.client.public_encryption_key_file,
+                        private_ecash_key_file: PathBuf::new(),
+                        public_ecash_key_file: PathBuf::new(),
                         gateway_shared_key_file: value.base.client.gateway_shared_key_file,
                         ack_key_file: value.base.client.ack_key_file,
                     },

@@ -6315,6 +6315,7 @@ dependencies = [
  "humantime-serde",
  "log",
  "nym-bandwidth-controller",
+ "nym-compact-ecash",
  "nym-config",
  "nym-credential-storage",
  "nym-crypto",
@@ -6455,10 +6456,12 @@ dependencies = [
  "getset",
  "group 0.11.0",
  "itertools 0.10.5",
+ "nym-pemstore",
  "rand 0.8.5",
  "serde",
  "sha2 0.9.9",
  "thiserror",
+ "zeroize",
 ]
 
 [[package]]

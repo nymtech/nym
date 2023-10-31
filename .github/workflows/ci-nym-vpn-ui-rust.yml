@@ -1,6 +1,7 @@
 name: ci-nym-vpn-ui-rust
 
 on:
+  workflow_dispatch:
   push:
     paths:
       - 'nym-vpn/ui/src-tauri/**'

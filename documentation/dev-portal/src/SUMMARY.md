@@ -57,6 +57,11 @@
       	- [Building Your Service Provider](tutorials/simple-service-provider/service-provider.md)
       	- [Sending a Message Through the Mixnet](tutorials/simple-service-provider/sending-message.md)
 
+# Shipyard Builders Hackathon 2023 
+- [General Info & Resources](shipyard/general.md)
+- [Hackathon Challenges](shipyard/challenges-overview.md)
+- [A Note on Infrastructure](shipyard/infra.md)
+- [Submission Guidelines](shipyard/guidelines.md)
 
 # Events
 

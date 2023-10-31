@@ -1,11 +1,7 @@
 name: ci-nym-vpn-ui-js
 
 on:
-  push:
-    paths:
-      - 'nym-vpn/ui/src/**'
-      - 'nym-vpn/ui/package.json'
-      - 'nym-vpn/ui/index.html'
+  workflow_dispatch:
   pull_request:
     paths:
       - 'nym-vpn/ui/src/**'
@@ -14,7 +10,7 @@ on:
 
 jobs:
   check:
-    runs-on: [ self-hosted, custom-linux ]
+    runs-on: custom-linux
     steps:
       - name: Checkout
         uses: actions/checkout@v4

@@ -2,16 +2,13 @@ name: ci-nym-vpn-ui-rust
 
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - 'nym-vpn/ui/src-tauri/**'
   pull_request:
     paths:
       - 'nym-vpn/ui/src-tauri/**'
 
 jobs:
   build:
-    runs-on: [self-hosted, custom-linux]
+    runs-on: custom-linux
     env:
       CARGO_TERM_COLOR: always
       CARGOTOML_PATH: ./nym-vpn/ui/src-tauri/Cargo.toml
@@ -32,18 +29,19 @@ jobs:
           components: rustfmt, clippy
 
       - name: Prepare build
-        working-directory: nym-vpn/ui/
-        run: mkdir dist
+        run: mkdir nym-vpn/ui/dist
 
-      - name: Check build
-        working-directory: nym-vpn/ui/src-tauri
-        run: cargo build --release --lib --features custom-protocol
+      - name: Build
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --manifest-path ${{ env.CARGOTOML_PATH }} --lib --features custom-protocol
 
 #      - name: Run all tests
 #        uses: actions-rs/cargo@v1
 #        with:
 #          command: test
-#          args: --manifest-path ${{ env.CARGOTOML_PATH }} --workspace
+#          args: --manifest-path ${{ env.CARGOTOML_PATH }}
 
       - name: Check formatting
         uses: actions-rs/cargo@v1
@@ -51,15 +49,15 @@ jobs:
           command: fmt
           args: --manifest-path ${{ env.CARGOTOML_PATH }} --all -- --check
 
-      - uses: actions-rs/clippy-check@v1
-        name: Clippy checks
+      - name: Annotate with clippy checks
+        uses: actions-rs/clippy-check@v1
         continue-on-error: true
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          args: --manifest-path ${{ env.CARGOTOML_PATH }} --workspace --all-features
+          args: --manifest-path ${{ env.CARGOTOML_PATH }} --all-features
 
-      - name: Run clippy
+      - name: Clippy
         uses: actions-rs/cargo@v1
         with:
           command: clippy
-          args: --manifest-path ${{ env.CARGOTOML_PATH }} --workspace --all-features -- -D warnings
+          args: --manifest-path ${{ env.CARGOTOML_PATH }} --all-features --all-targets -- -D warnings

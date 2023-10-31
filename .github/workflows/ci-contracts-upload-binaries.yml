@@ -35,14 +35,14 @@ jobs:
       - name: Install Rust stable
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: 1.69.0
+          toolchain: stable
           target: wasm32-unknown-unknown
           override: true
 
       - name: Install wasm-opt
         uses: ./.github/actions/install-wasm-opt
         with:
-          version: '112'
+          version: '114'
 
       - name: Build release contracts
         run: make contracts

@@ -321,7 +321,7 @@ impl<St> Gateway<St> {
 
         let ecash_verifier = {
             let nyxd_client = self.random_nyxd_client()?;
-            EcashVerifier::new(nyxd_client)
+            EcashVerifier::new(nyxd_client, self.identity_keypair.public_key().to_bytes())
         };
 
         let mix_forwarding_channel =

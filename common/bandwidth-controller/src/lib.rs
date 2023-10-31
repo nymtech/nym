@@ -4,7 +4,7 @@
 use crate::error::BandwidthControllerError;
 use nym_compact_ecash::scheme::{EcashCredential, Wallet};
 use nym_compact_ecash::setup::setup;
-use nym_compact_ecash::{Base58, PayInfo, PublicKeyUser, SecretKeyUser};
+use nym_compact_ecash::{Base58, PayInfo, SecretKeyUser};
 use nym_credential_storage::error::StorageError;
 use nym_credential_storage::storage::Storage;
 use nym_credentials::obtain_aggregate_verification_key;
@@ -31,7 +31,7 @@ impl<C, St: Storage> BandwidthController<C, St> {
 
     pub async fn prepare_ecash_credential(
         &self,
-        provider_pk: PublicKeyUser,
+        provider_pk: [u8; 32],
     ) -> Result<(EcashCredential, String, i64), BandwidthControllerError>
     where
         C: DkgQueryClient + Sync + Send,

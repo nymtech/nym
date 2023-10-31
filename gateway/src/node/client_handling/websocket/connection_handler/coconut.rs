@@ -25,13 +25,15 @@ const TIME_RANGE_SEC: i64 = 30;
 
 pub(crate) struct EcashVerifier {
     nyxd_client: DirectSigningHttpRpcNyxdClient,
+    pk_bytes: [u8; 32], //bytes represenation of a pub key representing the verifier
     pay_infos: Arc<Mutex<Vec<PayInfo>>>,
 }
 
 impl EcashVerifier {
-    pub fn new(nyxd_client: DirectSigningHttpRpcNyxdClient) -> Self {
+    pub fn new(nyxd_client: DirectSigningHttpRpcNyxdClient, pk_bytes: [u8; 32]) -> Self {
         EcashVerifier {
             nyxd_client,
+            pk_bytes,
             pay_infos: Arc::new(Mutex::new(Vec::new())),
         }
     }
@@ -76,12 +78,13 @@ impl EcashVerifier {
     }
 
     pub async fn verify_pay_info(&self, pay_info: PayInfo) -> Result<usize, RequestHandlingError> {
-        //SW : TODO : implement Public key check (once an actual public key exist)
+        //Public key check
+        if pay_info.pk() != self.pk_bytes {
+            return Err(RequestHandlingError::InvalidBandwidthCredential(
+                String::from("credential failed to verify on gateway - invalid provider pk"),
+            ));
+        }
 
-        let mut inner = self
-            .pay_infos
-            .lock()
-            .map_err(|_| RequestHandlingError::InternalError)?;
         //Timestamp range check
         let timestamp = Utc::now().timestamp();
         let tmin = timestamp - TIME_RANGE_SEC;
@@ -91,6 +94,11 @@ impl EcashVerifier {
                 String::from("credential failed to verify on gateway - invalid timestamp"),
             ));
         }
+
+        let mut inner = self
+            .pay_infos
+            .lock()
+            .map_err(|_| RequestHandlingError::InternalError)?;
 
         //Cleanup inner
         let low = inner.partition_point(|x| x.timestamp() < tmin);

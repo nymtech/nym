@@ -26,9 +26,11 @@ import { DarkLightSwitchDesktop } from './Switch';
 import { NavOptionType } from '../context/nav';
 import ConnectKeplrWallet from './ConnectKeplrWallet';
 import { assets, chains } from 'chain-registry';
-import { useChain, useWallet, ChainProvider } from '@cosmos-kit/react';
+import { ChainProvider } from '@cosmos-kit/react';
 import { wallets as keplr } from '@cosmos-kit/keplr';
-import { useEffect, useState, useMemo } from 'react';
+import { useMemo } from 'react';
+
+import '@interchain-ui/react/styles';
 
 const drawerWidth = 255;
 const bannerHeight = 80;

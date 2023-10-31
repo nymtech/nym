@@ -4,7 +4,6 @@ import { PageOverview } from '../pages/Overview';
 import { PageMixnodesMap } from '../pages/MixnodesMap';
 import { Page404 } from '../pages/404';
 import { NetworkComponentsRoutes } from './network-components';
-import ConnectKeplrWallet from '../components/ConnectKeplrWallet';
 
 export const Routes: FCWithChildren = () => (
   <ReactRouterRoutes>

@@ -71,7 +71,7 @@ pub fn default_config_filepath<P: AsRef<Path>>(id: P) -> PathBuf {
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct ConfigV1_1_30 {
+pub struct ConfigV1_1_31 {
     // additional metadata holding on-disk location of this config file
     #[serde(skip)]
     pub(crate) save_path: Option<PathBuf>,
@@ -81,31 +81,31 @@ pub struct ConfigV1_1_30 {
     #[serde(default)]
     pub http: nym_node::config::Http,
 
-    pub gateway: GatewayV1_1_30,
+    pub gateway: GatewayV1_1_31,
 
     #[serde(default)]
     // currently not really used for anything useful
-    pub wireguard: WireguardV1_1_30,
+    pub wireguard: WireguardV1_1_31,
 
-    pub storage_paths: GatewayPathsV1_1_30,
+    pub storage_paths: GatewayPathsV1_1_31,
 
-    pub network_requester: NetworkRequesterV1_1_30,
-
-    #[serde(default)]
-    pub logging: LoggingSettingsV1_1_30,
+    pub network_requester: NetworkRequesterV1_1_31,
 
     #[serde(default)]
-    pub debug: DebugV1_1_30,
+    pub logging: LoggingSettingsV1_1_31,
+
+    #[serde(default)]
+    pub debug: DebugV1_1_31,
 }
 
-impl ConfigV1_1_30 {
+impl ConfigV1_1_31 {
     pub fn read_from_default_path<P: AsRef<Path>>(id: P) -> io::Result<Self> {
         read_config_from_toml_file(default_config_filepath(id))
     }
 }
 
-impl From<ConfigV1_1_30> for Config {
-    fn from(value: ConfigV1_1_30) -> Self {
+impl From<ConfigV1_1_31> for Config {
+    fn from(value: ConfigV1_1_31) -> Self {
         Self {
             save_path: value.save_path,
             host: value.host,
@@ -169,7 +169,7 @@ impl From<ConfigV1_1_30> for Config {
 }
 
 #[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
-pub struct GatewayV1_1_30 {
+pub struct GatewayV1_1_31 {
     /// Version of the gateway for which this configuration was created.
     pub version: String,
 
@@ -220,7 +220,7 @@ pub struct GatewayV1_1_30 {
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(default)]
 #[serde(deny_unknown_fields)]
-pub struct WireguardV1_1_30 {
+pub struct WireguardV1_1_31 {
     /// Specifies whether the wireguard service is enabled on this node.
     pub enabled: bool,
 
@@ -233,10 +233,10 @@ pub struct WireguardV1_1_30 {
     pub announced_port: u16,
 
     /// Paths for wireguard keys, client registries, etc.
-    pub storage_paths: WireguardPathsV1_1_30,
+    pub storage_paths: WireguardPathsV1_1_31,
 }
 
-impl Default for WireguardV1_1_30 {
+impl Default for WireguardV1_1_31 {
     fn default() -> Self {
         Self {
             enabled: false,
@@ -245,21 +245,21 @@ impl Default for WireguardV1_1_30 {
                 nym_node::config::DEFAULT_WIREGUARD_PORT,
             ),
             announced_port: nym_node::config::DEFAULT_WIREGUARD_PORT,
-            storage_paths: WireguardPathsV1_1_30 {},
+            storage_paths: WireguardPathsV1_1_31 {},
         }
     }
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct WireguardPathsV1_1_30 {
+pub struct WireguardPathsV1_1_31 {
     // pub keys:
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct GatewayPathsV1_1_30 {
-    pub keys: KeysPathsV1_1_30,
+pub struct GatewayPathsV1_1_31 {
+    pub keys: KeysPathsV1_1_31,
 
     /// Path to sqlite database containing all persistent data: messages for offline clients,
     /// derived shared keys and available client bandwidths.
@@ -275,7 +275,7 @@ pub struct GatewayPathsV1_1_30 {
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
-pub struct KeysPathsV1_1_30 {
+pub struct KeysPathsV1_1_31 {
     /// Path to file containing private identity key.
     pub private_identity_key_file: PathBuf,
 
@@ -291,13 +291,13 @@ pub struct KeysPathsV1_1_30 {
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(default)]
-pub struct NetworkRequesterV1_1_30 {
+pub struct NetworkRequesterV1_1_31 {
     /// Specifies whether network requester service is enabled in this process.
     pub enabled: bool,
 }
 
 #[allow(clippy::derivable_impls)]
-impl Default for NetworkRequesterV1_1_30 {
+impl Default for NetworkRequesterV1_1_31 {
     fn default() -> Self {
         Self { enabled: false }
     }
@@ -305,13 +305,13 @@ impl Default for NetworkRequesterV1_1_30 {
 
 #[derive(Debug, Default, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct LoggingSettingsV1_1_30 {
+pub struct LoggingSettingsV1_1_31 {
     // well, we need to implement something here at some point...
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(default)]
-pub struct DebugV1_1_30 {
+pub struct DebugV1_1_31 {
     /// Initial value of an exponential backoff to reconnect to dropped TCP connection when
     /// forwarding sphinx packets.
     #[serde(with = "humantime_serde")]
@@ -346,7 +346,7 @@ pub struct DebugV1_1_30 {
     pub use_legacy_framed_packet_version: bool,
 }
 
-impl Default for DebugV1_1_30 {
+impl Default for DebugV1_1_31 {
     fn default() -> Self {
         Self {
             packet_forwarding_initial_backoff: DEFAULT_PACKET_FORWARDING_INITIAL_BACKOFF,

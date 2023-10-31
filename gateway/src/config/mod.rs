@@ -24,7 +24,7 @@ use zeroize::{Zeroize, ZeroizeOnDrop};
 pub(crate) mod old_config_v1_1_20;
 pub(crate) mod old_config_v1_1_28;
 pub(crate) mod old_config_v1_1_29;
-pub(crate) mod old_config_v1_1_30;
+pub(crate) mod old_config_v1_1_31;
 pub mod persistence;
 mod template;
 

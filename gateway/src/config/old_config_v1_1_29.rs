@@ -11,9 +11,9 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 use url::Url;
 
-use super::old_config_v1_1_30::{
-    ConfigV1_1_30, DebugV1_1_30, GatewayPathsV1_1_30, GatewayV1_1_30, KeysPathsV1_1_30,
-    LoggingSettingsV1_1_30, NetworkRequesterV1_1_30,
+use super::old_config_v1_1_31::{
+    ConfigV1_1_31, DebugV1_1_31, GatewayPathsV1_1_31, GatewayV1_1_31, KeysPathsV1_1_31,
+    LoggingSettingsV1_1_31, NetworkRequesterV1_1_31,
 };
 
 const DEFAULT_GATEWAYS_DIR: &str = "gateways";
@@ -107,9 +107,9 @@ impl ConfigV1_1_29 {
     }
 }
 
-impl From<ConfigV1_1_29> for ConfigV1_1_30 {
+impl From<ConfigV1_1_29> for ConfigV1_1_31 {
     fn from(value: ConfigV1_1_29) -> Self {
-        ConfigV1_1_30 {
+        ConfigV1_1_31 {
             save_path: value.save_path,
 
             // \/ ADDED
@@ -123,7 +123,7 @@ impl From<ConfigV1_1_29> for ConfigV1_1_30 {
             // \/ ADDED
             http: Default::default(),
             // /\ ADDED
-            gateway: GatewayV1_1_30 {
+            gateway: GatewayV1_1_31 {
                 version: value.gateway.version,
                 id: value.gateway.id,
                 only_coconut_credentials: value.gateway.only_coconut_credentials,
@@ -143,8 +143,8 @@ impl From<ConfigV1_1_29> for ConfigV1_1_30 {
             // \/ ADDED
             wireguard: Default::default(),
             // /\ ADDED
-            storage_paths: GatewayPathsV1_1_30 {
-                keys: KeysPathsV1_1_30 {
+            storage_paths: GatewayPathsV1_1_31 {
+                keys: KeysPathsV1_1_31 {
                     private_identity_key_file: value.storage_paths.keys.private_identity_key_file,
                     public_identity_key_file: value.storage_paths.keys.public_identity_key_file,
                     private_sphinx_key_file: value.storage_paths.keys.private_sphinx_key_file,
@@ -153,11 +153,11 @@ impl From<ConfigV1_1_29> for ConfigV1_1_30 {
                 clients_storage: value.storage_paths.clients_storage,
                 network_requester_config: value.storage_paths.network_requester_config,
             },
-            network_requester: NetworkRequesterV1_1_30 {
+            network_requester: NetworkRequesterV1_1_31 {
                 enabled: value.network_requester.enabled,
             },
-            logging: LoggingSettingsV1_1_30 {},
-            debug: DebugV1_1_30 {
+            logging: LoggingSettingsV1_1_31 {},
+            debug: DebugV1_1_31 {
                 packet_forwarding_initial_backoff: value.debug.packet_forwarding_initial_backoff,
                 packet_forwarding_maximum_backoff: value.debug.packet_forwarding_maximum_backoff,
                 initial_connection_timeout: value.debug.initial_connection_timeout,

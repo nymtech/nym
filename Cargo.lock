@@ -6540,6 +6540,7 @@ dependencies = [
  "nym-credentials",
  "nym-crypto",
  "nym-gateway-requests",
+ "nym-ip-packet-router",
  "nym-mixnet-client",
  "nym-mixnode-common",
  "nym-network-defaults",
@@ -6644,14 +6645,16 @@ dependencies = [
 ]
 
 [[package]]
-name = "nym-ip-forwarder"
+name = "nym-ip-packet-router"
 version = "0.1.0"
 dependencies = [
  "futures",
  "log",
+ "nym-bin-common",
  "nym-client-core",
  "nym-config",
  "nym-sdk",
+ "nym-service-providers-common",
  "nym-sphinx",
  "nym-task",
  "serde",

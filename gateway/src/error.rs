@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::node::storage::error::StorageError;
+use nym_ip_packet_router::error::IpForwarderError;
 use nym_network_requester::error::{ClientCoreError, NetworkRequesterError};
 use nym_validator_client::nyxd::error::NyxdError;
 use nym_validator_client::nyxd::AccountId;
@@ -49,6 +50,17 @@ pub(crate) enum GatewayError {
     },
 
     #[error(
+        "failed to load config file for ip packet router (gateway-id: '{id}') using path '{}'. detailed message: {source}",
+        path.display()
+    )]
+    IpPacketRouterConfigLoadFailure {
+        id: String,
+        path: PathBuf,
+        #[source]
+        source: io::Error,
+    },
+
+    #[error(
         "failed to save config file for id {id} using path '{}'. detailed message: {source}", path.display()
     )]
     ConfigSaveFailure {
@@ -86,14 +98,26 @@ pub(crate) enum GatewayError {
     #[error("Path to network requester configuration file hasn't been specified. Perhaps try to run `setup-network-requester`?")]
     UnspecifiedNetworkRequesterConfig,
 
+    #[error("Path to ip packet router configuration file hasn't been specified. Perhaps try to run `setup-ip-packet-router`?")]
+    UnspecifiedIpPacketRouterConfig,
+
     #[error("there was an issue with the local network requester: {source}")]
     NetworkRequesterFailure {
         #[from]
         source: NetworkRequesterError,
     },
 
+    #[error("there was an issue with the local ip packet router: {source}")]
+    IpPacketRouterFailure {
+        #[from]
+        source: IpForwarderError,
+    },
+
     #[error("failed to startup local network requester")]
     NetworkRequesterStartupFailure,
+
+    #[error("failed to startup local ip packet router")]
+    IpPacketRouterStartupFailure,
 
     #[error("there are no nym API endpoints available")]
     NoNymApisAvailable,

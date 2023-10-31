@@ -11,7 +11,7 @@ jobs:
       fail-fast: false
       matrix:
         rust: [stable, beta]
-        os: [ubuntu-20.04, windows10, custom-runner-mac-m1]
+        os: [ubuntu-20.04, windows10, macos-latest]
     runs-on: ${{ matrix.os }}
     env:
       CARGO_TERM_COLOR: always
@@ -31,6 +31,12 @@ jobs:
           toolchain: ${{ matrix.rust }}
           override: true
           components: rustfmt, clippy
+
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v2
+        if: matrix.os == 'macos-latest'
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Check formatting
         uses: actions-rs/cargo@v1

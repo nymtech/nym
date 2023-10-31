@@ -18,21 +18,21 @@
 
 # User Manuals
 
-- [NymConnect Monero](tutorials/monero.md)
-- [NymConnect Matrix](tutorials/matrix.md)
-- [NymConnect Telegram](tutorials/telegram.md)
+- [NymConnect X Monero](tutorials/monero.md)
+- [NymConnect X Matrix](tutorials/matrix.md)
+- [NymConnect X Telegram](tutorials/telegram.md)
 
 # Code Examples 
 
-- [Rust](examples/rust.md)
-- [Typescript](examples/typescript.md)
-- [Nym Demos](examples/demos.md)
-- [Community Apps](examples/community-apps.md)
+- [Custom Service Providers](examples/custom-services.md)
+- [Apps Using Network Requesters](examples/using-nrs.md)
+- [Browser only](examples/browser-only.md)
+- [Monorepo examples](examples/monorepo-examples.md)
 
 # Integrations
 
 - [Integration Options](integrations/integration-options.md)
-- [Mixnet Integration](integrations/mixnet-integration.md)
+[//]: # (- [Mixnet Integration]&#40;integrations/mixnet-integration.md&#41;)
 - [Payment Integration](integrations/payment-integration.md)
 
 # Tutorials
@@ -47,14 +47,15 @@
 		- [Preparing Your Service](tutorials/cosmos-service/service.md)
 		- [Preparing Your Service pt2](tutorials/cosmos-service/service-src.md)
 		- [Querying the Chain](tutorials/cosmos-service/querying.md)
+   
 - [Typescript](tutorials/typescript.md)
-	    - [[DEPRECATED] Simple Service Provider](tutorials/simple-service-provider/simple-service-provider.md)
-		- [Tutorial Overview](tutorials/simple-service-provider/overview.md)
-		- [Preparing Your User Client Environment](tutorials/simple-service-provider/preparating-env.md)
-		- [Building Your User Client](tutorials/simple-service-provider/user-client.md)
-		- [Preparing Your Service Provider Environment](tutorials/simple-service-provider/preparating-env2.md)
-		- [Building Your Service Provider](tutorials/simple-service-provider/service-provider.md)
-		- [Sending a Message Through the Mixnet](tutorials/simple-service-provider/sending-message.md)
+    - [[DEPRECATED] Simple Service Provider](tutorials/simple-service-provider/simple-service-provider.md) 
+      	- [Tutorial Overview](tutorials/simple-service-provider/overview.md)
+      	- [Preparing Your User Client Environment](tutorials/simple-service-provider/preparating-env.md)
+      	- [Building Your User Client](tutorials/simple-service-provider/user-client.md)
+      	- [Preparing Your Service Provider Environment](tutorials/simple-service-provider/preparating-env2.md)
+      	- [Building Your Service Provider](tutorials/simple-service-provider/service-provider.md)
+      	- [Sending a Message Through the Mixnet](tutorials/simple-service-provider/sending-message.md)
 
 
 # Events

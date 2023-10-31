@@ -82,9 +82,9 @@ landing_page_assets_path = '{{ http.landing_page_assets_path }}'
 # Specifies whether network requester service is enabled in this process.
 enabled = {{ network_requester.enabled }}
 
-[ip_forwarder]
-# Specifies whether ip forwarder service is enabled in this process.
-enabled = {{ ip_forwarder.enabled }}
+[ip_packet_router]
+# Specifies whether ip packet router service is enabled in this process.
+enabled = {{ ip_packet_router.enabled }}
 
 [storage_paths] 
 

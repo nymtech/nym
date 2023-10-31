@@ -102,7 +102,7 @@ pub struct Config {
     pub network_requester: NetworkRequester,
 
     #[serde(default)]
-    pub ip_forwarder: IpForwarder,
+    pub ip_packet_router: IpPacketRouter,
 
     #[serde(default)]
     pub logging: LoggingSettings,
@@ -132,7 +132,7 @@ impl Config {
             wireguard: Default::default(),
             storage_paths: GatewayPaths::new_default(id.as_ref()),
             network_requester: Default::default(),
-            ip_forwarder: Default::default(),
+            ip_packet_router: Default::default(),
             logging: Default::default(),
             debug: Default::default(),
         }
@@ -200,15 +200,15 @@ impl Config {
         self
     }
 
-    pub fn with_enabled_ip_forwarder(mut self, enabled_ip_forwarder: bool) -> Self {
-        self.ip_forwarder.enabled = enabled_ip_forwarder;
+    pub fn with_enabled_ip_packet_router(mut self, enabled_ip_packet_router: bool) -> Self {
+        self.ip_packet_router.enabled = enabled_ip_packet_router;
         self
     }
 
-    pub fn with_default_ip_forwarder_config_path(mut self) -> Self {
+    pub fn with_default_ip_packet_router_config_path(mut self) -> Self {
         self.storage_paths = self
             .storage_paths
-            .with_default_ip_forwarder_config(&self.gateway.id);
+            .with_default_ip_packet_router_config(&self.gateway.id);
         self
     }
 
@@ -379,13 +379,13 @@ impl Default for NetworkRequester {
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(default)]
-pub struct IpForwarder {
+pub struct IpPacketRouter {
     /// Specifies whether ip forwarder service is enabled in this process.
     pub enabled: bool,
 }
 
 #[allow(clippy::derivable_impls)]
-impl Default for IpForwarder {
+impl Default for IpPacketRouter {
     fn default() -> Self {
         Self { enabled: false }
     }

@@ -15,8 +15,8 @@ pub const DEFAULT_CLIENTS_STORAGE_FILENAME: &str = "db.sqlite";
 pub const DEFAULT_NETWORK_REQUESTER_CONFIG_FILENAME: &str = "network_requester_config.toml";
 pub const DEFAULT_NETWORK_REQUESTER_DATA_DIR: &str = "network-requester-data";
 
-pub const DEFAULT_IP_FORWARDER_CONFIG_FILENAME: &str = "ip_forwarder_config.toml";
-pub const DEFAULT_IP_FORWARDER_DATA_DIR: &str = "ip-forwarder-data";
+pub const DEFAULT_IP_PACKET_ROUTER_CONFIG_FILENAME: &str = "ip_packet_router_config.toml";
+pub const DEFAULT_IP_PACKET_ROUTER_DATA_DIR: &str = "ip-packet-router-data";
 
 // pub const DEFAULT_DESCRIPTION_FILENAME: &str = "description.toml";
 
@@ -24,8 +24,8 @@ pub fn default_network_requester_data_dir<P: AsRef<Path>>(id: P) -> PathBuf {
     default_data_directory(id).join(DEFAULT_NETWORK_REQUESTER_DATA_DIR)
 }
 
-pub fn default_ip_forwarder_data_dir<P: AsRef<Path>>(id: P) -> PathBuf {
-    default_data_directory(id).join(DEFAULT_IP_FORWARDER_DATA_DIR)
+pub fn default_ip_packet_router_data_dir<P: AsRef<Path>>(id: P) -> PathBuf {
+    default_data_directory(id).join(DEFAULT_IP_PACKET_ROUTER_DATA_DIR)
 }
 
 /// makes sure that an empty path is converted into a `None` as opposed to `Some("")`
@@ -59,7 +59,7 @@ pub struct GatewayPaths {
     // pub cosmos_bip39_mnemonic: PathBuf,
     /// Path to the configuration of the embedded ip forwarder.
     #[serde(deserialize_with = "de_maybe_path")]
-    pub ip_forwarder_config: Option<PathBuf>,
+    pub ip_packet_router_config: Option<PathBuf>,
 }
 
 impl GatewayPaths {
@@ -69,7 +69,7 @@ impl GatewayPaths {
             clients_storage: default_data_directory(id).join(DEFAULT_CLIENTS_STORAGE_FILENAME),
             // node_description: default_config_filepath(id).join(DEFAULT_DESCRIPTION_FILENAME),
             network_requester_config: None,
-            ip_forwarder_config: None,
+            ip_packet_router_config: None,
         }
     }
 
@@ -87,15 +87,15 @@ impl GatewayPaths {
     }
 
     #[must_use]
-    pub fn with_ip_forwarder_config<P: AsRef<Path>>(mut self, path: P) -> Self {
-        self.ip_forwarder_config = Some(path.as_ref().into());
+    pub fn with_ip_packet_router_config<P: AsRef<Path>>(mut self, path: P) -> Self {
+        self.ip_packet_router_config = Some(path.as_ref().into());
         self
     }
 
     #[must_use]
-    pub fn with_default_ip_forwarder_config<P: AsRef<Path>>(self, id: P) -> Self {
-        self.with_ip_forwarder_config(
-            default_config_directory(id).join(DEFAULT_IP_FORWARDER_CONFIG_FILENAME),
+    pub fn with_default_ip_packet_router_config<P: AsRef<Path>>(self, id: P) -> Self {
+        self.with_ip_packet_router_config(
+            default_config_directory(id).join(DEFAULT_IP_PACKET_ROUTER_CONFIG_FILENAME),
         )
     }
 
@@ -103,8 +103,8 @@ impl GatewayPaths {
         &self.network_requester_config
     }
 
-    pub fn ip_forwarder_config(&self) -> &Option<PathBuf> {
-        &self.ip_forwarder_config
+    pub fn ip_packet_router_config(&self) -> &Option<PathBuf> {
+        &self.ip_packet_router_config
     }
 
     pub fn private_identity_key(&self) -> &Path {

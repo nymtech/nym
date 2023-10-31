@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::commands::helpers::{
-    initialise_local_ip_forwarder, try_load_current_config, OverrideIpForwarderConfig,
+    initialise_local_ip_packet_router, try_load_current_config, OverrideIpForwarderConfig,
 };
 use crate::node::helpers::load_public_key;
 use clap::Args;
@@ -43,22 +43,22 @@ pub async fn execute(args: CmdArgs) -> anyhow::Result<()> {
     // but it might be nice to be able to move files around.
     if let Some(custom_config_path) = args.custom_config_path {
         // if you specified anything as the argument, overwrite whatever was already in the config file
-        config.storage_paths.ip_forwarder_config = Some(custom_config_path);
+        config.storage_paths.ip_packet_router_config = Some(custom_config_path);
     }
 
     if let Some(override_enabled) = args.enabled {
-        config.ip_forwarder.enabled = override_enabled;
+        config.ip_packet_router.enabled = override_enabled;
     }
 
-    if config.storage_paths.ip_forwarder_config.is_none() {
-        config = config.with_default_ip_forwarder_config_path()
+    if config.storage_paths.ip_packet_router_config.is_none() {
+        config = config.with_default_ip_packet_router_config_path()
     }
 
     let identity_public_key = load_public_key(
         &config.storage_paths.keys.public_identity_key_file,
         "gateway identity",
     )?;
-    let details = initialise_local_ip_forwarder(&config, opts, identity_public_key).await?;
+    let details = initialise_local_ip_packet_router(&config, opts, identity_public_key).await?;
     config.try_save()?;
 
     args.output.to_stdout(&details);

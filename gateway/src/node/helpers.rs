@@ -96,12 +96,12 @@ pub(crate) fn load_network_requester_config<P: AsRef<Path>>(
     })
 }
 
-pub(crate) fn load_ip_forwarder_config<P: AsRef<Path>>(
+pub(crate) fn load_ip_packet_router_config<P: AsRef<Path>>(
     id: &str,
     path: P,
-) -> Result<nym_ip_forwarder::Config, GatewayError> {
+) -> Result<nym_ip_packet_router::Config, GatewayError> {
     let path = path.as_ref();
-    nym_ip_forwarder::Config::read_from_toml_file(path).map_err(|err| {
+    nym_ip_packet_router::Config::read_from_toml_file(path).map_err(|err| {
         GatewayError::IpForwarderConfigLoadFailure {
             id: id.to_string(),
             path: path.to_path_buf(),

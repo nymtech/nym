@@ -30,7 +30,7 @@ impl LocalNetworkRequesterHandle {
 
     // TODO: generalize this whole thing to be general. And change the name(s).
     pub(crate) fn new_ip(
-        start_data: nym_ip_forwarder::OnStartData,
+        start_data: nym_ip_packet_router::OnStartData,
         mix_message_sender: MixMessageSender,
     ) -> Self {
         Self {

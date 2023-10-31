@@ -142,14 +142,14 @@ impl From<ConfigV1_1_31> for Config {
                 clients_storage: value.storage_paths.clients_storage,
                 network_requester_config: value.storage_paths.network_requester_config,
                 // \/ ADDED
-                ip_forwarder_config: Default::default(),
+                ip_packet_router_config: Default::default(),
                 // /\ ADDED
             },
             network_requester: NetworkRequester {
                 enabled: value.network_requester.enabled,
             },
             // \/ ADDED
-            ip_forwarder: Default::default(),
+            ip_packet_router: Default::default(),
             // /\ ADDED
             logging: LoggingSettings {
                 // no fields (yet)

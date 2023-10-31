@@ -4,7 +4,7 @@
 use crate::commands::upgrade_helpers;
 use crate::config::default_config_filepath;
 use crate::config::persistence::paths::{
-    default_ip_forwarder_data_dir, default_network_requester_data_dir,
+    default_ip_packet_router_data_dir, default_network_requester_data_dir,
 };
 use crate::config::Config;
 use crate::error::GatewayError;
@@ -41,7 +41,7 @@ pub(crate) struct OverrideConfig {
     pub(crate) nyxd_urls: Option<Vec<url::Url>>,
     pub(crate) only_coconut_credentials: Option<bool>,
     pub(crate) with_network_requester: Option<bool>,
-    pub(crate) with_ip_forwarder: Option<bool>,
+    pub(crate) with_ip_packet_router: Option<bool>,
 }
 
 impl OverrideConfig {
@@ -80,15 +80,15 @@ impl OverrideConfig {
                 Config::with_enabled_network_requester,
                 self.with_network_requester,
             )
-            .with_optional(Config::with_enabled_ip_forwarder, self.with_ip_forwarder);
+            .with_optional(Config::with_enabled_ip_packet_router, self.with_ip_packet_router);
 
         if config.network_requester.enabled
             && config.storage_paths.network_requester_config.is_none()
         {
             Ok(config.with_default_network_requester_config_path())
-        } else if config.ip_forwarder.enabled && config.storage_paths.ip_forwarder_config.is_none()
+        } else if config.ip_packet_router.enabled && config.storage_paths.ip_packet_router_config.is_none()
         {
-            Ok(config.with_default_ip_forwarder_config_path())
+            Ok(config.with_default_ip_packet_router_config_path())
         } else {
             Ok(config)
         }
@@ -236,10 +236,10 @@ pub(crate) fn override_network_requester_config(
     )
 }
 
-pub(crate) fn override_ip_forwarder_config(
-    cfg: nym_ip_forwarder::Config,
+pub(crate) fn override_ip_packet_router_config(
+    cfg: nym_ip_packet_router::Config,
     _opts: Option<OverrideIpForwarderConfig>,
-) -> nym_ip_forwarder::Config {
+) -> nym_ip_packet_router::Config {
     cfg
 }
 
@@ -315,21 +315,21 @@ pub(crate) async fn initialise_local_network_requester(
     })
 }
 
-pub(crate) async fn initialise_local_ip_forwarder(
+pub(crate) async fn initialise_local_ip_packet_router(
     gateway_config: &Config,
     opts: OverrideIpForwarderConfig,
     identity: identity::PublicKey,
 ) -> Result<GatewayIpForwarderDetails, GatewayError> {
     info!("initialising ip forwarder...");
-    let Some(ip_cfg_path) = gateway_config.storage_paths.ip_forwarder_config() else {
+    let Some(ip_cfg_path) = gateway_config.storage_paths.ip_packet_router_config() else {
         return Err(GatewayError::UnspecifiedIpForwarderConfig);
     };
 
     let id = &gateway_config.gateway.id;
     let ip_id = make_ip_id(id);
-    let ip_data_dir = default_ip_forwarder_data_dir(id);
-    let mut ip_cfg = nym_ip_forwarder::Config::new(&ip_id).with_data_directory(ip_data_dir);
-    ip_cfg = override_ip_forwarder_config(ip_cfg, Some(opts));
+    let ip_data_dir = default_ip_packet_router_data_dir(id);
+    let mut ip_cfg = nym_ip_packet_router::Config::new(&ip_id).with_data_directory(ip_data_dir);
+    ip_cfg = override_ip_packet_router_config(ip_cfg, Some(opts));
 
     let key_store = OnDiskKeys::new(ip_cfg.storage_paths.common_paths.keys.clone());
     let details_store =
@@ -367,7 +367,7 @@ pub(crate) async fn initialise_local_ip_forwarder(
     }
 
     Ok(GatewayIpForwarderDetails {
-        enabled: gateway_config.ip_forwarder.enabled,
+        enabled: gateway_config.ip_packet_router.enabled,
         identity_key: address.identity().to_string(),
         encryption_key: address.encryption_key().to_string(),
         address: address.to_string(),

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::commands::helpers::{
-    initialise_local_ip_forwarder, initialise_local_network_requester,
+    initialise_local_ip_packet_router, initialise_local_network_requester,
     OverrideNetworkRequesterConfig,
 };
 use crate::config::{default_config_directory, default_config_filepath, default_data_directory};
@@ -82,12 +82,12 @@ pub struct Init {
     statistics_service_url: Option<url::Url>,
 
     /// Allows this gateway to run an embedded network requester for minimal network overhead
-    #[clap(long, conflicts_with = "with_ip_forwarder")]
+    #[clap(long, conflicts_with = "with_ip_packet_router")]
     with_network_requester: bool,
 
     /// Allows this gateway to run an embedded network requester for minimal network overhead
     #[clap(long, hide = true, conflicts_with = "with_network_requester")]
-    with_ip_forwarder: bool,
+    with_ip_packet_router: bool,
 
     // ##### NETWORK REQUESTER FLAGS #####
     /// Specifies whether this network requester should run in 'open-proxy' mode
@@ -161,7 +161,7 @@ impl From<Init> for OverrideConfig {
             nyxd_urls: init_config.nyxd_urls,
             only_coconut_credentials: init_config.only_coconut_credentials,
             with_network_requester: Some(init_config.with_network_requester),
-            with_ip_forwarder: Some(init_config.with_ip_forwarder),
+            with_ip_packet_router: Some(init_config.with_ip_packet_router),
         }
     }
 }
@@ -243,8 +243,8 @@ pub async fn execute(args: Init) -> anyhow::Result<()> {
         if config.network_requester.enabled {
             initialise_local_network_requester(&config, nr_opts, *identity_keys.public_key())
                 .await?;
-        } else if config.ip_forwarder.enabled {
-            initialise_local_ip_forwarder(&config, ip_opts, *identity_keys.public_key()).await?;
+        } else if config.ip_packet_router.enabled {
+            initialise_local_ip_packet_router(&config, ip_opts, *identity_keys.public_key()).await?;
         }
 
         eprintln!("Saved identity and mixnet sphinx keypairs");
@@ -293,7 +293,7 @@ mod tests {
             only_coconut_credentials: None,
             output: Default::default(),
             with_network_requester: false,
-            with_ip_forwarder: false,
+            with_ip_packet_router: false,
             open_proxy: None,
             enable_statistics: None,
             statistics_recipient: None,

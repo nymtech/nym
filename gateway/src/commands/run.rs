@@ -87,12 +87,12 @@ pub struct Run {
     statistics_service_url: Option<url::Url>,
 
     /// Allows this gateway to run an embedded network requester for minimal network overhead
-    #[arg(long, conflicts_with = "with_ip_forwarder")]
+    #[arg(long, conflicts_with = "with_ip_packet_router")]
     with_network_requester: Option<bool>,
 
     /// Allows this gateway to run an embedded network requester for minimal network overhead
     #[arg(long, hide = true, conflicts_with = "with_network_requester")]
-    with_ip_forwarder: Option<bool>,
+    with_ip_packet_router: Option<bool>,
 
     // ##### NETWORK REQUESTER FLAGS #####
     /// Specifies whether this network requester should run in 'open-proxy' mode
@@ -163,7 +163,7 @@ impl From<Run> for OverrideConfig {
             nyxd_urls: run_config.nyxd_urls,
             only_coconut_credentials: run_config.only_coconut_credentials,
             with_network_requester: run_config.with_network_requester,
-            with_ip_forwarder: run_config.with_ip_forwarder,
+            with_ip_packet_router: run_config.with_ip_packet_router,
         }
     }
 }

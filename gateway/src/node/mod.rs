@@ -1,10 +1,10 @@
 // Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use self::helpers::load_ip_forwarder_config;
+use self::helpers::load_ip_packet_router_config;
 use self::storage::PersistentStorage;
 use crate::commands::helpers::{
-    override_ip_forwarder_config, override_network_requester_config, OverrideIpForwarderConfig,
+    override_ip_packet_router_config, override_network_requester_config, OverrideIpForwarderConfig,
     OverrideNetworkRequesterConfig,
 };
 use crate::config::Config;
@@ -75,10 +75,10 @@ pub(crate) async fn create_gateway(
     };
 
     // don't attempt to read config if NR is disabled
-    let ip_forwarder_config = if config.ip_forwarder.enabled {
-        if let Some(path) = &config.storage_paths.ip_forwarder_config {
-            let cfg = load_ip_forwarder_config(&config.gateway.id, path)?;
-            Some(override_ip_forwarder_config(cfg, ip_config_override))
+    let ip_packet_router_config = if config.ip_packet_router.enabled {
+        if let Some(path) = &config.storage_paths.ip_packet_router_config {
+            let cfg = load_ip_packet_router_config(&config.gateway.id, path)?;
+            Some(override_ip_packet_router_config(cfg, ip_config_override))
         } else {
             // if NR is enabled, the config path must be specified
             return Err(GatewayError::UnspecifiedIpForwarderConfig);
@@ -94,7 +94,7 @@ pub(crate) async fn create_gateway(
         custom_mixnet_path: custom_mixnet.clone(),
     });
 
-    let ip_opts = ip_forwarder_config.map(|config| LocalIpForwarderOpts {
+    let ip_opts = ip_packet_router_config.map(|config| LocalIpForwarderOpts {
         config,
         custom_mixnet_path: custom_mixnet,
     });
@@ -111,7 +111,7 @@ pub struct LocalNetworkRequesterOpts {
 
 #[derive(Debug, Clone)]
 pub struct LocalIpForwarderOpts {
-    config: nym_ip_forwarder::Config,
+    config: nym_ip_packet_router::Config,
 
     custom_mixnet_path: Option<PathBuf>,
 }
@@ -121,7 +121,7 @@ pub(crate) struct Gateway<St = PersistentStorage> {
 
     network_requester_opts: Option<LocalNetworkRequesterOpts>,
 
-    ip_forwarder_opts: Option<LocalIpForwarderOpts>,
+    ip_packet_router_opts: Option<LocalIpForwarderOpts>,
 
     /// ed25519 keypair used to assert one's identity.
     identity_keypair: Arc<identity::KeyPair>,
@@ -138,7 +138,7 @@ impl<St> Gateway<St> {
     pub fn new(
         config: Config,
         network_requester_opts: Option<LocalNetworkRequesterOpts>,
-        ip_forwarder_opts: Option<LocalIpForwarderOpts>,
+        ip_packet_router_opts: Option<LocalIpForwarderOpts>,
         storage: St,
     ) -> Result<Self, GatewayError> {
         Ok(Gateway {
@@ -147,7 +147,7 @@ impl<St> Gateway<St> {
             sphinx_keypair: Arc::new(helpers::load_sphinx_keys(&config)?),
             config,
             network_requester_opts,
-            ip_forwarder_opts,
+            ip_packet_router_opts,
             client_registry: Arc::new(DashMap::new()),
         })
     }
@@ -156,7 +156,7 @@ impl<St> Gateway<St> {
     pub async fn new_from_keys_and_storage(
         config: Config,
         network_requester_opts: Option<LocalNetworkRequesterOpts>,
-        ip_forwarder_opts: Option<LocalIpForwarderOpts>,
+        ip_packet_router_opts: Option<LocalIpForwarderOpts>,
         identity_keypair: identity::KeyPair,
         sphinx_keypair: encryption::KeyPair,
         storage: St,
@@ -164,7 +164,7 @@ impl<St> Gateway<St> {
         Gateway {
             config,
             network_requester_opts,
-            ip_forwarder_opts,
+            ip_packet_router_opts,
             identity_keypair: Arc::new(identity_keypair),
             sphinx_keypair: Arc::new(sphinx_keypair),
             storage,
@@ -327,7 +327,7 @@ impl<St> Gateway<St> {
         info!("Starting IP service provider...");
 
         // if network requester is enabled, configuration file must be provided!
-        let Some(ip_opts) = &self.ip_forwarder_opts else {
+        let Some(ip_opts) = &self.ip_packet_router_opts else {
             log::error!("IP service provider is enabled but no configuration file was provided!");
             return Err(GatewayError::UnspecifiedIpForwarderConfig);
         };
@@ -346,8 +346,8 @@ impl<St> Gateway<St> {
 
         // TODO: well, wire it up internally to gateway traffic, shutdowns, etc.
         let (on_start_tx, on_start_rx) = oneshot::channel();
-        // let mut nr_builder = nym_ip_forwarder::IpForwarderBuilder::new(nr_opts.config.clone())
-        let mut ip_builder = nym_ip_forwarder::IpForwarderBuilder::new(ip_opts.config.clone())
+        // let mut nr_builder = nym_ip_packet_router::IpForwarderBuilder::new(nr_opts.config.clone())
+        let mut ip_builder = nym_ip_packet_router::IpForwarderBuilder::new(ip_opts.config.clone())
             .with_shutdown(shutdown)
             .with_custom_gateway_transceiver(Box::new(transceiver))
             .with_wait_for_gateway(true)
@@ -493,7 +493,7 @@ impl<St> Gateway<St> {
 
         // NOTE: this is mutually exclusive with the network requester (for now). This is reflected
         // in the command line arguments as well.
-        if self.config.ip_forwarder.enabled {
+        if self.config.ip_packet_router.enabled {
             let embedded_ip_sp = self
                 .start_ip_service_provider(
                     mix_forwarding_channel.clone(),

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::node::storage::error::StorageError;
-use nym_ip_forwarder::error::IpForwarderError;
+use nym_ip_packet_router::error::IpForwarderError;
 use nym_network_requester::error::{ClientCoreError, NetworkRequesterError};
 use nym_validator_client::nyxd::error::NyxdError;
 use nym_validator_client::nyxd::AccountId;

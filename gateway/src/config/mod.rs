@@ -380,7 +380,7 @@ impl Default for NetworkRequester {
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(default)]
 pub struct IpPacketRouter {
-    /// Specifies whether ip forwarder service is enabled in this process.
+    /// Specifies whether ip packet router service is enabled in this process.
     pub enabled: bool,
 }
 

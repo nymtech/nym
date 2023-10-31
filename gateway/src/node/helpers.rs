@@ -102,7 +102,7 @@ pub(crate) fn load_ip_packet_router_config<P: AsRef<Path>>(
 ) -> Result<nym_ip_packet_router::Config, GatewayError> {
     let path = path.as_ref();
     nym_ip_packet_router::Config::read_from_toml_file(path).map_err(|err| {
-        GatewayError::IpForwarderConfigLoadFailure {
+        GatewayError::IpPacketRouterConfigLoadFailure {
             id: id.to_string(),
             path: path.to_path_buf(),
             source: err,

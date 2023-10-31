@@ -4,7 +4,7 @@
 use self::helpers::load_ip_packet_router_config;
 use self::storage::PersistentStorage;
 use crate::commands::helpers::{
-    override_ip_packet_router_config, override_network_requester_config, OverrideIpForwarderConfig,
+    override_ip_packet_router_config, override_network_requester_config, OverrideIpPacketRouterConfig,
     OverrideNetworkRequesterConfig,
 };
 use crate::config::Config;
@@ -58,7 +58,7 @@ struct StartedNetworkRequester {
 pub(crate) async fn create_gateway(
     config: Config,
     nr_config_override: Option<OverrideNetworkRequesterConfig>,
-    ip_config_override: Option<OverrideIpForwarderConfig>,
+    ip_config_override: Option<OverrideIpPacketRouterConfig>,
     custom_mixnet: Option<PathBuf>,
 ) -> Result<Gateway, GatewayError> {
     // don't attempt to read config if NR is disabled
@@ -81,7 +81,7 @@ pub(crate) async fn create_gateway(
             Some(override_ip_packet_router_config(cfg, ip_config_override))
         } else {
             // if NR is enabled, the config path must be specified
-            return Err(GatewayError::UnspecifiedIpForwarderConfig);
+            return Err(GatewayError::UnspecifiedIpPacketRouterConfig);
         }
     } else {
         None
@@ -94,7 +94,7 @@ pub(crate) async fn create_gateway(
         custom_mixnet_path: custom_mixnet.clone(),
     });
 
-    let ip_opts = ip_packet_router_config.map(|config| LocalIpForwarderOpts {
+    let ip_opts = ip_packet_router_config.map(|config| LocalIpPacketRouterOpts {
         config,
         custom_mixnet_path: custom_mixnet,
     });
@@ -110,7 +110,7 @@ pub struct LocalNetworkRequesterOpts {
 }
 
 #[derive(Debug, Clone)]
-pub struct LocalIpForwarderOpts {
+pub struct LocalIpPacketRouterOpts {
     config: nym_ip_packet_router::Config,
 
     custom_mixnet_path: Option<PathBuf>,
@@ -121,7 +121,7 @@ pub(crate) struct Gateway<St = PersistentStorage> {
 
     network_requester_opts: Option<LocalNetworkRequesterOpts>,
 
-    ip_packet_router_opts: Option<LocalIpForwarderOpts>,
+    ip_packet_router_opts: Option<LocalIpPacketRouterOpts>,
 
     /// ed25519 keypair used to assert one's identity.
     identity_keypair: Arc<identity::KeyPair>,
@@ -138,7 +138,7 @@ impl<St> Gateway<St> {
     pub fn new(
         config: Config,
         network_requester_opts: Option<LocalNetworkRequesterOpts>,
-        ip_packet_router_opts: Option<LocalIpForwarderOpts>,
+        ip_packet_router_opts: Option<LocalIpPacketRouterOpts>,
         storage: St,
     ) -> Result<Self, GatewayError> {
         Ok(Gateway {
@@ -156,7 +156,7 @@ impl<St> Gateway<St> {
     pub async fn new_from_keys_and_storage(
         config: Config,
         network_requester_opts: Option<LocalNetworkRequesterOpts>,
-        ip_packet_router_opts: Option<LocalIpForwarderOpts>,
+        ip_packet_router_opts: Option<LocalIpPacketRouterOpts>,
         identity_keypair: identity::KeyPair,
         sphinx_keypair: encryption::KeyPair,
         storage: St,
@@ -319,17 +319,17 @@ impl<St> Gateway<St> {
         })
     }
 
-    async fn start_ip_service_provider(
+    async fn start_ip_packet_router(
         &self,
         forwarding_channel: MixForwardingSender,
         shutdown: TaskClient,
     ) -> Result<LocalNetworkRequesterHandle, GatewayError> {
-        info!("Starting IP service provider...");
+        info!("Starting IP packet provider...");
 
         // if network requester is enabled, configuration file must be provided!
         let Some(ip_opts) = &self.ip_packet_router_opts else {
-            log::error!("IP service provider is enabled but no configuration file was provided!");
-            return Err(GatewayError::UnspecifiedIpForwarderConfig);
+            log::error!("IP packet router is enabled but no configuration file was provided!");
+            return Err(GatewayError::UnspecifiedIpPacketRouterConfig);
         };
 
         // this gateway, whenever it has anything to send to its local NR will use fake_client_tx
@@ -346,7 +346,6 @@ impl<St> Gateway<St> {
 
         // TODO: well, wire it up internally to gateway traffic, shutdowns, etc.
         let (on_start_tx, on_start_rx) = oneshot::channel();
-        // let mut nr_builder = nym_ip_packet_router::IpForwarderBuilder::new(nr_opts.config.clone())
         let mut ip_builder = nym_ip_packet_router::IpForwarderBuilder::new(ip_opts.config.clone())
             .with_shutdown(shutdown)
             .with_custom_gateway_transceiver(Box::new(transceiver))
@@ -359,25 +358,25 @@ impl<St> Gateway<St> {
 
         tokio::spawn(async move {
             if let Err(err) = ip_builder.run_service_provider().await {
-                // no need to panic as we have passed a task client to the ip forwarder so we're
-                // most likely already in the process of shutting down
-                error!("ip forwarder has failed: {err}")
+                // no need to panic as we have passed a task client to the ip packet router so
+                // we're most likely already in the process of shutting down
+                error!("ip packet router has failed: {err}")
             }
         });
 
         let start_data = on_start_rx
             .await
-            .map_err(|_| GatewayError::IpForwarderStartupFailure)?;
+            .map_err(|_| GatewayError::IpPacketRouterStartupFailure)?;
 
         // this should be instantaneous since the data is sent on this channel before the on start is called;
         // the failure should be impossible
         let Ok(Some(packet_router)) = router_rx.try_recv() else {
-            return Err(GatewayError::IpForwarderStartupFailure);
+            return Err(GatewayError::IpPacketRouterStartupFailure);
         };
 
         MessageRouter::new(nr_mix_receiver, packet_router).start_with_shutdown(router_shutdown);
         info!(
-            "the local ip forwarder is running on {}",
+            "the local ip packet router is running on {}",
             start_data.address
         );
 
@@ -495,7 +494,7 @@ impl<St> Gateway<St> {
         // in the command line arguments as well.
         if self.config.ip_packet_router.enabled {
             let embedded_ip_sp = self
-                .start_ip_service_provider(
+                .start_ip_packet_router(
                     mix_forwarding_channel.clone(),
                     shutdown.subscribe().named("ip_service_provider"),
                 )

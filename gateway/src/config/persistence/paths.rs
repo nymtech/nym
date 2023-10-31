@@ -57,7 +57,7 @@ pub struct GatewayPaths {
     // pub node_description: PathBuf,
 
     // pub cosmos_bip39_mnemonic: PathBuf,
-    /// Path to the configuration of the embedded ip forwarder.
+    /// Path to the configuration of the embedded ip packet router.
     #[serde(deserialize_with = "de_maybe_path")]
     pub ip_packet_router_config: Option<PathBuf>,
 }

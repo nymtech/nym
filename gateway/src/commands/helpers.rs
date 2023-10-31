@@ -19,7 +19,7 @@ use nym_network_requester::config::BaseClientConfig;
 use nym_network_requester::{
     setup_gateway, GatewaySelectionSpecification, GatewaySetup, OnDiskGatewayDetails, OnDiskKeys,
 };
-use nym_types::gateway::{GatewayIpForwarderDetails, GatewayNetworkRequesterDetails};
+use nym_types::gateway::{GatewayIpPacketRouterDetails, GatewayNetworkRequesterDetails};
 use nym_validator_client::nyxd::AccountId;
 use std::net::IpAddr;
 use std::path::PathBuf;
@@ -109,7 +109,7 @@ pub(crate) struct OverrideNetworkRequesterConfig {
 }
 
 #[derive(Default)]
-pub(crate) struct OverrideIpForwarderConfig {
+pub(crate) struct OverrideIpPacketRouterConfig {
     // TODO
 }
 
@@ -174,7 +174,7 @@ fn make_nr_id(gateway_id: &str) -> String {
 }
 
 fn make_ip_id(gateway_id: &str) -> String {
-    format!("{gateway_id}-ip-forwarder")
+    format!("{gateway_id}-ip-packet-router")
 }
 
 // NOTE: make sure this is in sync with service-providers/network-requester/src/cli/mod.rs::override_config
@@ -238,7 +238,7 @@ pub(crate) fn override_network_requester_config(
 
 pub(crate) fn override_ip_packet_router_config(
     cfg: nym_ip_packet_router::Config,
-    _opts: Option<OverrideIpForwarderConfig>,
+    _opts: Option<OverrideIpPacketRouterConfig>,
 ) -> nym_ip_packet_router::Config {
     cfg
 }
@@ -317,12 +317,12 @@ pub(crate) async fn initialise_local_network_requester(
 
 pub(crate) async fn initialise_local_ip_packet_router(
     gateway_config: &Config,
-    opts: OverrideIpForwarderConfig,
+    opts: OverrideIpPacketRouterConfig,
     identity: identity::PublicKey,
-) -> Result<GatewayIpForwarderDetails, GatewayError> {
-    info!("initialising ip forwarder...");
+) -> Result<GatewayIpPacketRouterDetails, GatewayError> {
+    info!("initialising ip packet router...");
     let Some(ip_cfg_path) = gateway_config.storage_paths.ip_packet_router_config() else {
-        return Err(GatewayError::UnspecifiedIpForwarderConfig);
+        return Err(GatewayError::UnspecifiedIpPacketRouterConfig);
     };
 
     let id = &gateway_config.gateway.id;
@@ -353,7 +353,7 @@ pub(crate) async fn initialise_local_ip_packet_router(
     let address = init_res.client_address()?;
 
     if let Err(err) = save_formatted_config_to_file(&ip_cfg, ip_cfg_path) {
-        log::error!("Failed to save the ip forwarder config file: {err}");
+        log::error!("Failed to save the ip packet router config file: {err}");
         return Err(GatewayError::ConfigSaveFailure {
             id: ip_id,
             path: ip_cfg_path.to_path_buf(),
@@ -361,12 +361,12 @@ pub(crate) async fn initialise_local_ip_packet_router(
         });
     } else {
         eprintln!(
-            "Saved ip forwarder configuration file to {}",
+            "Saved ip packet router configuration file to {}",
             ip_cfg_path.display()
         )
     }
 
-    Ok(GatewayIpForwarderDetails {
+    Ok(GatewayIpPacketRouterDetails {
         enabled: gateway_config.ip_packet_router.enabled,
         identity_key: address.identity().to_string(),
         encryption_key: address.encryption_key().to_string(),

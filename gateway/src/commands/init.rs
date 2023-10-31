@@ -15,7 +15,7 @@ use std::net::IpAddr;
 use std::path::PathBuf;
 use std::{fs, io};
 
-use super::helpers::OverrideIpForwarderConfig;
+use super::helpers::OverrideIpPacketRouterConfig;
 
 #[derive(Args, Clone)]
 pub struct Init {
@@ -180,9 +180,9 @@ impl<'a> From<&'a Init> for OverrideNetworkRequesterConfig {
     }
 }
 
-impl From<&Init> for OverrideIpForwarderConfig {
+impl From<&Init> for OverrideIpPacketRouterConfig {
     fn from(_value: &Init) -> Self {
-        OverrideIpForwarderConfig {}
+        OverrideIpPacketRouterConfig {}
     }
 }
 

@@ -50,10 +50,10 @@ pub(crate) enum GatewayError {
     },
 
     #[error(
-        "failed to load config file for ip forwarder (gateway-id: '{id}') using path '{}'. detailed message: {source}",
+        "failed to load config file for ip packet router (gateway-id: '{id}') using path '{}'. detailed message: {source}",
         path.display()
     )]
-    IpForwarderConfigLoadFailure {
+    IpPacketRouterConfigLoadFailure {
         id: String,
         path: PathBuf,
         #[source]
@@ -98,8 +98,8 @@ pub(crate) enum GatewayError {
     #[error("Path to network requester configuration file hasn't been specified. Perhaps try to run `setup-network-requester`?")]
     UnspecifiedNetworkRequesterConfig,
 
-    #[error("Path to ip forwarder configuration file hasn't been specified. Perhaps try to run `setup-ip-forwarder`?")]
-    UnspecifiedIpForwarderConfig,
+    #[error("Path to ip packet router configuration file hasn't been specified. Perhaps try to run `setup-ip-packet-router`?")]
+    UnspecifiedIpPacketRouterConfig,
 
     #[error("there was an issue with the local network requester: {source}")]
     NetworkRequesterFailure {
@@ -107,8 +107,8 @@ pub(crate) enum GatewayError {
         source: NetworkRequesterError,
     },
 
-    #[error("there was an issue with the local ip forwarder: {source}")]
-    IpForwarederFailure {
+    #[error("there was an issue with the local ip packet router: {source}")]
+    IpPacketRouterFailure {
         #[from]
         source: IpForwarderError,
     },
@@ -116,8 +116,8 @@ pub(crate) enum GatewayError {
     #[error("failed to startup local network requester")]
     NetworkRequesterStartupFailure,
 
-    #[error("failed to startup local ip forwarder")]
-    IpForwarderStartupFailure,
+    #[error("failed to startup local ip packet router")]
+    IpPacketRouterStartupFailure,
 
     #[error("there are no nym API endpoints available")]
     NoNymApisAvailable,

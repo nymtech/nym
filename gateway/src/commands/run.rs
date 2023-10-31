@@ -15,7 +15,7 @@ use nym_node::error::NymNodeError;
 use std::net::IpAddr;
 use std::path::PathBuf;
 
-use super::helpers::OverrideIpForwarderConfig;
+use super::helpers::OverrideIpPacketRouterConfig;
 
 #[derive(Args, Clone)]
 pub struct Run {
@@ -182,9 +182,9 @@ impl<'a> From<&'a Run> for OverrideNetworkRequesterConfig {
     }
 }
 
-impl From<&Run> for OverrideIpForwarderConfig {
+impl From<&Run> for OverrideIpPacketRouterConfig {
     fn from(_value: &Run) -> Self {
-        OverrideIpForwarderConfig {}
+        OverrideIpPacketRouterConfig {}
     }
 }
 

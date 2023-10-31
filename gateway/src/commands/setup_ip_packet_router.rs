@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::commands::helpers::{
-    initialise_local_ip_packet_router, try_load_current_config, OverrideIpForwarderConfig,
+    initialise_local_ip_packet_router, try_load_current_config, OverrideIpPacketRouterConfig,
 };
 use crate::node::helpers::load_public_key;
 use clap::Args;
@@ -11,15 +11,15 @@ use std::path::PathBuf;
 
 #[derive(Args, Clone)]
 pub struct CmdArgs {
-    /// The id of the gateway you want to initialise local ip forwarder for.
+    /// The id of the gateway you want to initialise local ip packet router for.
     #[arg(long)]
     id: String,
 
-    /// Path to custom location for ip forward's config.
+    /// Path to custom location for ip packet routers' config.
     #[arg(long)]
     custom_config_path: Option<PathBuf>,
 
-    /// Specify whether the ip forwarder should be enabled.
+    /// Specify whether the ip packet router should be enabled.
     // (you might want to create all the configs, generate keys, etc. but not actually run the NR just yet)
     #[arg(long)]
     enabled: Option<bool>,
@@ -28,9 +28,9 @@ pub struct CmdArgs {
     output: OutputFormat,
 }
 
-impl From<&CmdArgs> for OverrideIpForwarderConfig {
+impl From<&CmdArgs> for OverrideIpPacketRouterConfig {
     fn from(_value: &CmdArgs) -> Self {
-        OverrideIpForwarderConfig {}
+        OverrideIpPacketRouterConfig {}
     }
 }
 

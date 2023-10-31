@@ -107,7 +107,7 @@ clients_storage = '{{ storage_paths.clients_storage }}'
 # Path to the configuration of the embedded network requester.
 network_requester_config = '{{ storage_paths.network_requester_config }}'
 
-# Path to the configuration of the embedded ip forwarder.
+# Path to the configuration of the embedded ip packet router.
 ip_packet_router_config = '{{ storage_paths.ip_packet_router_config }}'
 
 ##### logging configuration options #####

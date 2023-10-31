@@ -148,7 +148,7 @@ impl fmt::Display for GatewayNetworkRequesterDetails {
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct GatewayIpForwarderDetails {
+pub struct GatewayIpPacketRouterDetails {
     pub enabled: bool,
 
     pub identity_key: String,
@@ -160,9 +160,9 @@ pub struct GatewayIpForwarderDetails {
     pub config_path: String,
 }
 
-impl fmt::Display for GatewayIpForwarderDetails {
+impl fmt::Display for GatewayIpPacketRouterDetails {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        writeln!(f, "IP forwarder:")?;
+        writeln!(f, "IP packet router:")?;
         writeln!(f, "\tenabled: {}", self.enabled)?;
         writeln!(f, "\tconfig path: {}", self.config_path)?;
 

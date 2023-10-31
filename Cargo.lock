@@ -7603,6 +7603,7 @@ dependencies = [
  "lazy_static",
  "nix 0.27.1",
  "nym-bin-common",
+ "tokio",
 ]
 
 [[package]]

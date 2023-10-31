@@ -1,6 +1,8 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use tokio::runtime;
+
 #[derive(clap::Args, Debug)]
 pub(crate) struct Args {
     #[clap(trailing_var_arg = true)]
@@ -9,14 +11,20 @@ pub(crate) struct Args {
 }
 
 pub(crate) fn execute(args: Args) -> anyhow::Result<()> {
-    println!("run");
+    // TODO: experiment with the minimal runtime
+    let rt = runtime::Builder::new_current_thread().enable_io().build()?;
 
-    let mut child = std::process::Command::new("echo")
-        .args(args.daemon_args)
-        .spawn()?;
+    // spawn the root task
+    rt.block_on(async {
+        println!("run");
 
-    let status = child.wait()?;
+        let mut child = tokio::process::Command::new("echo")
+            .args(args.daemon_args)
+            .spawn()?;
 
-    println!("{:?}", status);
-    Ok(())
+        let status = child.wait().await?;
+
+        println!("{:?}", status);
+        Ok(())
+    })
 }

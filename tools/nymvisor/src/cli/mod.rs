@@ -43,9 +43,18 @@ impl Cli {
 
 #[derive(Subcommand, Debug)]
 pub(crate) enum Commands {
+    /// TODO: document the command
     Init(init::Args),
+
+    /// TODO: document the command
     Run(run::Args),
+
+    /// TODO: document the command
     BuildInfo(build_info::Args),
+
+    /// TODO: document the command
     AddUpgrade(add_upgrade::Args),
+
+    /// TODO: document the command
     Config(config::Args),
 }

@@ -15,5 +15,6 @@ anyhow = { workspace = true }
 clap = { workspace = true, features = ["derive"] }
 lazy_static = { workspace = true }
 nix = "0.27.1"
+tokio = { workspace = true, features = ["rt", "macros", "signal", "process"] }
 
 nym-bin-common = { path = "../../common/bin-common", features = ["output_format"] }

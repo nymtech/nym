@@ -51,11 +51,12 @@ The operators running Gateways would have to “open” their nodes to a wider r
 The progression will have three steps:
 
 1. By default the [exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt) filtering will be disabled and the current [*allowed.list*](https://nymtech.net/.wellknown/network-requester/standard-allowed-list.txt) filtering is going to continue be used. This is to prevent operators getting surprised by upgrading their gateways/network requesters and suddenly be widely open to the internet. To enable the new exit policy, operators must use `--with-exit-policy` flag or modify the *config.toml* file. ✅
-2. Relatively soon the exit policy will become the default.
+2. Relatively soon the exit policy will become the default. To disable this exit policy, operators must use `--disable-network-requester` flag.
 3. Further down the line, it will be the only option. Then the *allowed.list* will be completely removed.
 
-### Can I run a mix node only?
+Keep in mind this only relates to changes happening on Gateway and Network Requester side. Whether this will be optional or mandatory depends on the chosen [design](./smoosh-faq.md#what-does-it-mean-for-nym-nodes-operators).
 
+### Can I run a mix node only?
 
 Depends which [design](./smoosh-faq.md#what-does-it-mean-for-nym-nodes-operators) will be the final one. In case of the first one - yes. In case of the second option, all the nodes will be setup with gateway functionality turned on.
 

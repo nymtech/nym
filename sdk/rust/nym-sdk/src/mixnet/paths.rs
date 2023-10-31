@@ -28,6 +28,12 @@ pub struct StoragePaths {
     /// Client public encryption key
     pub public_encryption: PathBuf,
 
+    /// Client private ecash key
+    pub private_ecash: PathBuf,
+
+    /// Client public ecash key
+    pub public_ecash: PathBuf,
+
     /// Key for handling acks
     pub ack_key: PathBuf,
 
@@ -62,6 +68,8 @@ impl StoragePaths {
             public_identity: dir.join("public_identity.pem"),
             private_encryption: dir.join("private_encryption.pem"),
             public_encryption: dir.join("public_encryption.pem"),
+            private_ecash: dir.join("private_ecash.pem"),
+            public_ecash: dir.join("public_ecash.pem"),
             ack_key: dir.join("ack_key.pem"),
             gateway_shared_key: dir.join("gateway_shared.pem"),
             credential_database_path: dir.join("db.sqlite"),
@@ -139,6 +147,8 @@ impl StoragePaths {
             public_identity_key_file: self.public_identity.clone(),
             private_encryption_key_file: self.private_encryption.clone(),
             public_encryption_key_file: self.public_encryption.clone(),
+            private_ecash_key_file: self.private_ecash.clone(),
+            public_ecash_key_file: self.public_ecash.clone(),
             gateway_shared_key_file: self.gateway_shared_key.clone(),
             ack_key_file: self.ack_key.clone(),
         }
@@ -153,6 +163,8 @@ impl From<StoragePaths> for CommonClientPaths {
                 public_identity_key_file: value.public_identity,
                 private_encryption_key_file: value.private_encryption,
                 public_encryption_key_file: value.public_encryption,
+                private_ecash_key_file: value.private_ecash,
+                public_ecash_key_file: value.public_ecash,
                 gateway_shared_key_file: value.gateway_shared_key,
                 ack_key_file: value.ack_key,
             },
@@ -170,6 +182,8 @@ impl From<CommonClientPaths> for StoragePaths {
             public_identity: value.keys.public_identity_key_file,
             private_encryption: value.keys.private_encryption_key_file,
             public_encryption: value.keys.public_encryption_key_file,
+            private_ecash: value.keys.private_ecash_key_file,
+            public_ecash: value.keys.public_ecash_key_file,
             ack_key: value.keys.ack_key_file,
             gateway_shared_key: value.keys.gateway_shared_key_file,
             credential_database_path: value.credentials_database,

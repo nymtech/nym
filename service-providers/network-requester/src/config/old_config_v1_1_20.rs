@@ -52,6 +52,8 @@ impl From<ConfigV1_1_20> for ConfigV1_1_20_2 {
                         public_identity_key_file: value.base.client.public_identity_key_file,
                         private_encryption_key_file: value.base.client.private_encryption_key_file,
                         public_encryption_key_file: value.base.client.public_encryption_key_file,
+                        private_ecash_key_file: PathBuf::new(),
+                        public_ecash_key_file: PathBuf::new(),
                         gateway_shared_key_file: value.base.client.gateway_shared_key_file,
                         ack_key_file: value.base.client.ack_key_file,
                     },

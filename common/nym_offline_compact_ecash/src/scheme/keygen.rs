@@ -1,6 +1,7 @@
 use core::borrow::Borrow;
 use core::iter::Sum;
 use core::ops::{Add, Mul};
+use nym_pemstore::traits::{PemStorableKey, PemStorableKeyPair};
 use std::convert::TryFrom;
 use std::convert::TryInto;
 
@@ -18,6 +19,7 @@ use crate::utils::{
     try_deserialize_scalar_vec,
 };
 use crate::Base58;
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct SecretKeyAuth {
@@ -333,7 +335,7 @@ impl Bytable for VerificationKeyAuth {
 
 impl Base58 for VerificationKeyAuth {}
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Zeroize, ZeroizeOnDrop)]
 pub struct SecretKeyUser {
     pub sk: Scalar,
 }
@@ -366,6 +368,22 @@ impl Bytable for SecretKeyUser {
 }
 
 impl Base58 for SecretKeyUser {}
+
+impl PemStorableKey for SecretKeyUser {
+    type Error = CompactEcashError;
+
+    fn pem_type() -> &'static str {
+        "ECASH PRIVATE KEY"
+    }
+
+    fn to_bytes(&self) -> Vec<u8> {
+        self.to_bytes().to_vec()
+    }
+
+    fn from_bytes(bytes: &[u8]) -> Result<Self> {
+        Self::from_bytes(bytes)
+    }
+}
 
 #[derive(Debug, Eq, PartialEq, Clone, Hash)]
 pub struct PublicKeyUser {
@@ -405,6 +423,22 @@ impl PublicKeyUser {
     }
 }
 
+impl PemStorableKey for PublicKeyUser {
+    type Error = CompactEcashError;
+
+    fn pem_type() -> &'static str {
+        "ECASH PUBLIC KEY"
+    }
+
+    fn to_bytes(&self) -> Vec<u8> {
+        self.to_bytes().to_vec()
+    }
+
+    fn from_bytes(bytes: &[u8]) -> Result<Self> {
+        Self::from_bytes(bytes)
+    }
+}
+
 pub struct KeyPairAuth {
     secret_key: SecretKeyAuth,
     verification_key: VerificationKeyAuth,
@@ -433,8 +467,10 @@ impl KeyPairAuth {
     }
 }
 
+#[derive(Zeroize, ZeroizeOnDrop)]
 pub struct KeyPairUser {
     secret_key: SecretKeyUser,
+    #[zeroize(skip)]
     public_key: PublicKeyUser,
 }
 
@@ -463,6 +499,26 @@ impl KeyPairUser {
             secret_key: sk,
             public_key: pk,
         })
+    }
+}
+
+impl PemStorableKeyPair for KeyPairUser {
+    type PrivatePemKey = SecretKeyUser;
+    type PublicPemKey = PublicKeyUser;
+
+    fn private_key(&self) -> &Self::PrivatePemKey {
+        &self.secret_key
+    }
+
+    fn public_key(&self) -> &Self::PublicPemKey {
+        &self.public_key
+    }
+
+    fn from_keys(private_key: Self::PrivatePemKey, public_key: Self::PublicPemKey) -> Self {
+        KeyPairUser {
+            secret_key: private_key,
+            public_key,
+        }
     }
 }
 

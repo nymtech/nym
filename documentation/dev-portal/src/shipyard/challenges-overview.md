@@ -1,5 +1,5 @@
 # Hackathon Challenges
-There are a few different challenges to choose from, each with different approaches. It is also recommended to check out the _**Examples**_ directory above for inspiration, and if you have questions ask in the [Builders channel]() on Matrix. 
+There are a few different challenges to choose from, each with different approaches. It is also recommended to check out the _**Examples**_ directory above for inspiration. 
 
 ## Tooling challenge
 The tooling challenge involves creating tooling for users, operators, or developers of Nym.

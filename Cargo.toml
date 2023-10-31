@@ -105,6 +105,7 @@ members = [
     "tools/internal/sdk-version-bump",
     "tools/nym-cli",
     "tools/nym-nr-query",
+    "tools/nymvisor",
     "tools/ts-rs-cli",
     "wasm/client",
 #    "wasm/full-nym-wasm",

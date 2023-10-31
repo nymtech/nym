@@ -5,27 +5,24 @@ on:
   schedule:
     - cron: '14 1 * * *'
 
-defaults:
-  run:
-    working-directory: nym-wallet
-
 jobs:
   build:
     strategy:
       fail-fast: false
       matrix:
-        os: [custom-ubuntu-20.04, macos-latest, windows10]
+        os: [ubuntu-20.04, macos-latest, windows10]
     runs-on: ${{ matrix.os }}
     env:
       CARGO_TERM_COLOR: always
+      MANIFEST_PATH: --manifest-path nym-wallet/Cargo.toml
     continue-on-error: true
     steps:
       - name: Check out repository code
         uses: actions/checkout@v3
 
       - name: Install Dependencies (Linux)
-        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.0-dev build-essential curl wget libssl-dev libgtk-3-dev libudev-dev squashfs-tools protobuf-compiler
-        if: matrix.os == 'custom-ubuntu-20.04'
+        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.0-dev build-essential curl wget libssl-dev libgtk-3-dev squashfs-tools
+        if: matrix.os == 'ubuntu-20.04'
 
       - name: Install rust toolchain
         uses: actions-rs/toolchain@v1
@@ -35,40 +32,29 @@ jobs:
           override: true
           components: rustfmt, clippy
 
-      - name: Install Protoc
-        uses: arduino/setup-protoc@v2
-        if: matrix.os == 'macos-latest'
-
       - name: Check formatting
         uses: actions-rs/cargo@v1
         with:
           command: fmt
-          args: --all -- --check
+          args: ${{ env.MANIFEST_PATH }} --all -- --check
 
       - name: Build
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --workspace
+          args: ${{ env.MANIFEST_PATH }} --release --workspace
 
       - name: Unit tests
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --workspace
-
-      - name: Annotate with clippy warnings
-        uses: actions-rs/clippy-check@v1
-        continue-on-error: true
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          args: --workspace
+          args: ${{ env.MANIFEST_PATH }} --workspace
 
       - name: Clippy
         uses: actions-rs/cargo@v1
         with:
           command: clippy
-          args: --workspace --all-targets -- -D warnings
+          args: ${{ env.MANIFEST_PATH }} --workspace --all-targets -- -D warnings
 
   notification:
     needs: build

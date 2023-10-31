@@ -108,7 +108,7 @@ clients_storage = '{{ storage_paths.clients_storage }}'
 network_requester_config = '{{ storage_paths.network_requester_config }}'
 
 # Path to the configuration of the embedded ip forwarder.
-ip_forwarder_config = '{{ storage_paths.ip_forwarder_config }}'
+ip_packet_router_config = '{{ storage_paths.ip_packet_router_config }}'
 
 ##### logging configuration options #####
 

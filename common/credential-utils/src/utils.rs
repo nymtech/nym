@@ -3,6 +3,7 @@ use crate::recovery_storage::RecoveryStorage;
 use log::*;
 use nym_bandwidth_controller::acquire::state::State;
 use nym_client_core::config::disk_persistence::CommonClientPaths;
+use nym_compact_ecash::scheme::keygen::KeyPairUser;
 use nym_config::DEFAULT_DATA_DIR;
 use nym_credential_storage::persistent_storage::PersistentStorage;
 use nym_validator_client::nyxd::contract_traits::{CoconutBandwidthSigningClient, DkgQueryClient};
@@ -16,6 +17,7 @@ const SAFETY_BUFFER_SECS: u64 = 60; // 1 minute
 pub async fn issue_credential<C>(
     client: &C,
     amount: Coin,
+    ecash_keypair: KeyPairUser,
     persistent_storage: &PersistentStorage,
     recovery_storage_path: PathBuf,
 ) -> Result<()>
@@ -39,7 +41,8 @@ where
         }
     };
 
-    let state = nym_bandwidth_controller::acquire::deposit(client, amount.clone()).await?;
+    let state =
+        nym_bandwidth_controller::acquire::deposit(client, amount.clone(), ecash_keypair).await?;
 
     if nym_bandwidth_controller::acquire::get_credential(&state, client, persistent_storage)
         .await

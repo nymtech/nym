@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::BandwidthControllerError;
+use nym_compact_ecash::scheme::keygen::KeyPairUser;
 use nym_compact_ecash::setup::GroupParameters;
-use nym_compact_ecash::{generate_keypair_user, Base58};
+use nym_compact_ecash::Base58;
 use nym_credential_storage::storage::Storage;
 use nym_credentials::coconut::bandwidth::BandwidthVoucher;
 use nym_credentials::coconut::utils::obtain_aggregate_signature;
@@ -20,7 +21,11 @@ use std::str::FromStr;
 
 pub mod state;
 
-pub async fn deposit<C>(client: &C, amount: Coin) -> Result<State, BandwidthControllerError>
+pub async fn deposit<C>(
+    client: &C,
+    amount: Coin,
+    ecash_keypair: KeyPairUser,
+) -> Result<State, BandwidthControllerError>
 where
     C: CoconutBandwidthSigningClient + Sync,
 {
@@ -28,7 +33,6 @@ where
     let signing_keypair = KeyPair::from(identity::KeyPair::new(&mut rng));
     let encryption_keypair = KeyPair::from(encryption::KeyPair::new(&mut rng));
     let params = GroupParameters::new().unwrap();
-    let ecash_keypair = generate_keypair_user(&params);
     let voucher_value = amount.amount.to_string();
 
     let tx_hash = client

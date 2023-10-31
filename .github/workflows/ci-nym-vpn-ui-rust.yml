@@ -31,10 +31,6 @@ jobs:
       - name: Prepare build
         run: mkdir nym-vpn/ui/dist
 
-      # - name: Check build
-      #   working-directory: nym-vpn/ui/src-tauri
-      #   run: cargo build --release --lib --features custom-protocol
-      #
       - name: Build
         uses: actions-rs/cargo@v1
         with:
@@ -53,14 +49,14 @@ jobs:
           command: fmt
           args: --manifest-path ${{ env.CARGOTOML_PATH }} --all -- --check
 
-      - uses: actions-rs/clippy-check@v1
-        name: Clippy checks
+      - name: Annotate with clippy checks
+        uses: actions-rs/clippy-check@v1
         continue-on-error: true
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           args: --manifest-path ${{ env.CARGOTOML_PATH }} --all-features
 
-      - name: Run clippy
+      - name: Clippy
         uses: actions-rs/cargo@v1
         with:
           command: clippy

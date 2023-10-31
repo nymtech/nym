@@ -123,7 +123,7 @@ impl CommonConfigsWrapper {
         }
     }
 
-    pub(crate) fn try_get_ecash_key(&self) -> anyhow::Result<PathBuf> {
+    pub(crate) fn try_get_ecash_key(&self) -> anyhow::Result<nym_pemstore::KeyPairPath> {
         match self {
             CommonConfigsWrapper::NymClients(cfg) => {
                 Ok(cfg.storage_paths.inner.keys.ecash_key_pair_path())
@@ -227,7 +227,7 @@ impl UnknownConfigWrapper {
         }
     }
 
-    pub(crate) fn try_get_ecash_key(&self) -> anyhow::Result<PathBuf> {
+    pub(crate) fn try_get_ecash_key(&self) -> anyhow::Result<nym_pemstore::KeyPairPath> {
         todo!()
     }
 

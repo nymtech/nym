@@ -40,7 +40,7 @@ pub async fn execute(args: Args, client: SigningClient) -> anyhow::Result<()> {
         bail!("the loaded config does not have an ecash key path information")
     };
 
-    let Ok(ecash_keypair) = nym_pemstore::load_keypair(ecash_key_path) else {
+    let Ok(ecash_keypair) = nym_pemstore::load_keypair(&ecash_key_path) else {
         bail!("invalid secret key in the config path")
     };
 

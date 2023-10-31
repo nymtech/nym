@@ -26,7 +26,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --workspace --release --all
+          args: --workspace --release
       - name: Install mdbook
         run: (test -x $HOME/.cargo/bin/mdbook || cargo install --vers "^0.4.35" mdbook)
       - name: Install mdbook plugins

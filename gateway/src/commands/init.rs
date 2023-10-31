@@ -244,7 +244,8 @@ pub async fn execute(args: Init) -> anyhow::Result<()> {
             initialise_local_network_requester(&config, nr_opts, *identity_keys.public_key())
                 .await?;
         } else if config.ip_packet_router.enabled {
-            initialise_local_ip_packet_router(&config, ip_opts, *identity_keys.public_key()).await?;
+            initialise_local_ip_packet_router(&config, ip_opts, *identity_keys.public_key())
+                .await?;
         }
 
         eprintln!("Saved identity and mixnet sphinx keypairs");

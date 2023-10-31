@@ -4,8 +4,8 @@
 use self::helpers::load_ip_packet_router_config;
 use self::storage::PersistentStorage;
 use crate::commands::helpers::{
-    override_ip_packet_router_config, override_network_requester_config, OverrideIpPacketRouterConfig,
-    OverrideNetworkRequesterConfig,
+    override_ip_packet_router_config, override_network_requester_config,
+    OverrideIpPacketRouterConfig, OverrideNetworkRequesterConfig,
 };
 use crate::config::Config;
 use crate::error::GatewayError;

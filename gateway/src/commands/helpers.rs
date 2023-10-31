@@ -80,13 +80,17 @@ impl OverrideConfig {
                 Config::with_enabled_network_requester,
                 self.with_network_requester,
             )
-            .with_optional(Config::with_enabled_ip_packet_router, self.with_ip_packet_router);
+            .with_optional(
+                Config::with_enabled_ip_packet_router,
+                self.with_ip_packet_router,
+            );
 
         if config.network_requester.enabled
             && config.storage_paths.network_requester_config.is_none()
         {
             Ok(config.with_default_network_requester_config_path())
-        } else if config.ip_packet_router.enabled && config.storage_paths.ip_packet_router_config.is_none()
+        } else if config.ip_packet_router.enabled
+            && config.storage_paths.ip_packet_router_config.is_none()
         {
             Ok(config.with_default_ip_packet_router_config_path())
         } else {

@@ -38,14 +38,6 @@ We are exploring two potential methods for implementing binary functionality in 
 
 2. All nodes will be required to have the exit gateway functionality. All nodes are rewarded the same as now, and the difference is that a node sometimes (some epochs) may be performing as exit gateway sometimes as mix node or entry gateway adjusted according the network demand by an algorithm.
 
-### How will the design be implemented?
-
-The progression will have three steps:
-
-1. By default the [exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt) filtering will be disabled and the current [*allow.list*](https://nymtech.net/.wellknown/network-requester/standard-allowed-list.txt) filtering is going to continue be used. This is to prevent operators getting surprised by upgrading their gateways/network requesters and suddenly be widely open to the internet. To enable the new exit policy, operators must use `--with-exit-policy` flag or modify the *config.toml* file. ✅
-2. Relatively soon the exit policy will become the default.
-3. Further down the line, it will be the only option. Then the *allowed.list* will be completely removed.
-
 ### Where can I read more about the exit gateway setup?
 
 We created an [entire page](../legal/exit-gateway.md) about the technical and legal questions around exit gateway. 
@@ -54,7 +46,16 @@ We created an [entire page](../legal/exit-gateway.md) about the technical and le
 
 The operators running `gateways` would have to “open” their nodes to a wider range of online services, in a similar fashion to Tor exit relays. The main change will be to expand the original short allow list to a more permissive setup. An [exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt) will constrain the hosts that the users of the Nym VPN and Mixnet can connect to. This will be done in an effort to protect the operators, as Gateways will act both as SOCKS5 Network Requesters, and exit nodes for IP traffic from Nym VPN and Mixnet clients.
 
+### How will the design be implemented?
+
+The progression will have three steps:
+
+1. By default the [exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt) filtering will be disabled and the current [*allow.list*](https://nymtech.net/.wellknown/network-requester/standard-allowed-list.txt) filtering is going to continue be used. This is to prevent operators getting surprised by upgrading their gateways/network requesters and suddenly be widely open to the internet. To enable the new exit policy, operators must use `--with-exit-policy` flag or modify the *config.toml* file. ✅
+2. Relatively soon the exit policy will become the default.
+3. Further down the line, it will be the only option. Then the *allowed.list* will be completely removed.
+
 ### Can I run a mix node only?
+
 
 Depends which [design](./smoosh-faq.md#what-does-it-mean-for-nym-nodes-operators) will be the final one. In case of the first one - yes. In case of the second option, all the nodes will be setup with gateway functionality turned on.
 

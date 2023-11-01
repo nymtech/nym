@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 anyhow = { workspace = true }
-clap = {version = "4.0", features = ["cargo", "derive"]}
+clap = { workspace = true, features = ["cargo", "derive"]}
 log = { workspace = true }
 nym-bin-common = { path = "../../common/bin-common", features = ["output_format"] }
 nym-network-defaults = { path = "../../common/network-defaults" }

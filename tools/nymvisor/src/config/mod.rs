@@ -25,6 +25,7 @@ const DEFAULT_SHUTDOWN_GRACE_PERIOD: Duration = Duration::from_secs(10);
 pub(crate) const NYMVISOR_DIR: &str = "nymvisor";
 pub(crate) const BACKUP_DIR: &str = "backups";
 pub(crate) const GENESIS_DIR: &str = "genesis";
+pub(crate) const CURRENT_DIR: &str = "current";
 pub(crate) const BIN_DIR: &str = "bin";
 pub(crate) const UPGRADES_DIR: &str = "upgrades";
 pub(crate) const DEFAULT_NYMVISORS_DIR: &str = "nymvisors";
@@ -168,6 +169,16 @@ impl Config {
 
     pub fn genesis_daemon_dir(&self) -> PathBuf {
         self.upgrade_data_dir().join(GENESIS_DIR)
+    }
+
+    pub fn genesis_daemon_binary(&self) -> PathBuf {
+        self.genesis_daemon_dir()
+            .join(BIN_DIR)
+            .join(&self.daemon.name)
+    }
+
+    pub fn current_daemon_dir(&self) -> PathBuf {
+        self.upgrade_data_dir().join(CURRENT_DIR)
     }
 
     pub fn upgrades_dir(&self) -> PathBuf {

@@ -64,6 +64,22 @@ pub(crate) enum NymvisorError {
         source: ParseIntError,
     },
 
+    #[error("failed to copy daemon binary from '{}' to '{}': {source}", source_path.display(), target_path.display())]
+    DaemonBinaryCopyFailure {
+        source_path: PathBuf,
+        target_path: PathBuf,
+        #[source]
+        source: io::Error,
+    },
+
+    #[error("failed to create symlink from '{}' to '{}': {source}", source_path.display(), target_path.display())]
+    SymlinkCreationFailure {
+        source_path: PathBuf,
+        target_path: PathBuf,
+        #[source]
+        source: io::Error,
+    },
+
     #[error("the value of daemon home has to be provided by either `--daemon-home` flag or `$DAEMON_HOME` environmental variable")]
     DaemonHomeUnavailable,
 

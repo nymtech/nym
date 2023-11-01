@@ -102,18 +102,19 @@ pub(crate) struct Args {
 }
 
 impl Args {
-    pub(crate) fn override_config(self, config: &mut Config) {
-        if let Some(nymvisor_id) = self.id {
-            config.nymvisor.id = nymvisor_id;
+    pub(crate) fn override_config(&self, config: &mut Config) {
+        if let Some(nymvisor_id) = &self.id {
+            config.nymvisor.id = nymvisor_id.clone();
         }
         if self.disable_nymvisor_logs {
             config.nymvisor.debug.disable_logs = self.disable_nymvisor_logs;
         }
-        if let Some(nymvisor_upgrade_data_directory) = self.upgrade_data_directory {
-            config.nymvisor.debug.upgrade_data_directory = Some(nymvisor_upgrade_data_directory);
+        if let Some(nymvisor_upgrade_data_directory) = &self.upgrade_data_directory {
+            config.nymvisor.debug.upgrade_data_directory =
+                Some(nymvisor_upgrade_data_directory.clone());
         }
-        if let Some(daemon_home) = self.daemon_home {
-            config.daemon.home = daemon_home;
+        if let Some(daemon_home) = &self.daemon_home {
+            config.daemon.home = daemon_home.clone();
         }
         if let Some(daemon_allow_binaries_download) = self.allow_download_upgrade_binaries {
             config.daemon.debug.allow_binaries_download = daemon_allow_binaries_download;
@@ -139,8 +140,8 @@ impl Args {
         if let Some(daemon_shutdown_grace_period) = self.daemon_shutdown_grace_period {
             config.daemon.debug.shutdown_grace_period = daemon_shutdown_grace_period;
         }
-        if let Some(daemon_backup_data_directory) = self.daemon_backup_data_directory {
-            config.daemon.debug.backup_data_directory = Some(daemon_backup_data_directory);
+        if let Some(daemon_backup_data_directory) = &self.daemon_backup_data_directory {
+            config.daemon.debug.backup_data_directory = Some(daemon_backup_data_directory.clone());
         }
         if self.unsafe_skip_backup {
             config.daemon.debug.unsafe_skip_backup = self.unsafe_skip_backup;
@@ -149,12 +150,12 @@ impl Args {
 }
 
 fn try_build_config(
-    args: Args,
+    args: &Args,
     env: &Env,
     daemon_info: &BinaryBuildInformationOwned,
 ) -> Result<Config, NymvisorError> {
     let daemon_name = &daemon_info.binary_name;
-    let daemon_home = daemon_home(&args, env)?;
+    let daemon_home = daemon_home(args, env)?;
 
     let mut config = Config::new(daemon_name, daemon_home);
 
@@ -205,6 +206,46 @@ fn init_paths(config: &Config) -> Result<(), NymvisorError> {
     Ok(())
 }
 
+fn copy_genesis_binary(config: &Config, source_dir: &Path) -> Result<(), NymvisorError> {
+    // TODO: setup initial upgrade-info.json file
+    let target = config.genesis_daemon_binary();
+    fs::copy(source_dir, &target).map_err(|source| NymvisorError::DaemonBinaryCopyFailure {
+        source_path: source_dir.to_path_buf(),
+        target_path: target,
+        source,
+    })?;
+    Ok(())
+}
+
+fn create_current_symlink(config: &Config) -> Result<(), NymvisorError> {
+    let original = config.genesis_daemon_dir();
+    let link = config.current_daemon_dir();
+    std::os::unix::fs::symlink(&original, &link).map_err(|source| {
+        NymvisorError::SymlinkCreationFailure {
+            source_path: original,
+            target_path: link,
+            source,
+        }
+    })
+}
+
+fn save_config(config: Config, env: &Env) -> Result<(), NymvisorError> {
+    let id = &config.nymvisor.id;
+    let config_save_location = env
+        .nymvisor_config_path
+        .clone()
+        .unwrap_or(default_config_filepath(id));
+
+    config
+        .save_to_path(&config_save_location)
+        .map_err(|err| NymvisorError::ConfigSaveFailure {
+            path: config_save_location,
+            id: id.to_string(),
+            source: err,
+        })?;
+    Ok(())
+}
+
 /// Initialise the nymvisor by performing the following:
 /// - [✅] executing the `build-info` command on the daemon executable to check its validity and obtain its name
 /// - [✅] creating `<DAEMON_HOME>/nymvisor` folder if it doesn't yet exist
@@ -212,8 +253,8 @@ fn init_paths(config: &Config) -> Result<(), NymvisorError> {
 /// - [✅] creating `<NYMVISOR_UPGRADE_DATA_DIRECTORY>` folder if it doesn't yet exist
 /// - [✅] creating `<NYMVISOR_UPGRADE_DATA_DIRECTORY>/<DAEMON_NAME>/genesis/bin` folder if it doesn't yet exist
 /// - [✅] creating `<NYMVISOR_UPGRADE_DATA_DIRECTORY>/<DAEMON_NAME>/upgrades` folder if it doesn't yet exist
-/// - [❌] copying the provided executable to `<NYMVISOR_UPGRADE_DATA_DIRECTORY>/<DAEMON_NAME>/genesis/bin/<DAEMON_NAME>`
-/// - [❌] creating a `<NYMVISOR_UPGRADE_DATA_DIRECTORY>/<DAEMON_NAME>/current` symlink pointing to `<NYMVISOR_UPGRADE_DATA_DIRECTORY>/<DAEMON_NAME>/genesis`
+/// - [⚠️] copying the provided executable to `<NYMVISOR_UPGRADE_DATA_DIRECTORY>/<DAEMON_NAME>/genesis/bin/<DAEMON_NAME>`
+/// - [✅] creating a `<NYMVISOR_UPGRADE_DATA_DIRECTORY>/<DAEMON_NAME>/current` symlink pointing to `<NYMVISOR_UPGRADE_DATA_DIRECTORY>/<DAEMON_NAME>/genesis`
 /// - [✅] saving nymvisor's config file to `<NYMVISOR_CONFIG_PATH>` and creating the full directory structure.
 ///
 /// note: it requires either passing `--daemon-home` flag or setting the `$DAEMON_HOME` environmental variable
@@ -229,22 +270,12 @@ pub(crate) fn execute(args: Args) -> Result<(), NymvisorError> {
     // 2. we check if valid executable was provided
     let daemon_info = get_daemon_build_information(&args.daemon_binary)?;
 
-    let config = try_build_config(args, &env, &daemon_info)?;
-    let id = &config.nymvisor.id;
-    let config_save_location = env
-        .nymvisor_config_path
-        .clone()
-        .unwrap_or(default_config_filepath(id));
+    let config = try_build_config(&args, &env, &daemon_info)?;
 
     init_paths(&config)?;
-
-    config
-        .save_to_path(&config_save_location)
-        .map_err(|err| NymvisorError::ConfigSaveFailure {
-            path: config_save_location,
-            id: id.to_string(),
-            source: err,
-        })?;
+    copy_genesis_binary(&config, &args.daemon_binary)?;
+    create_current_symlink(&config)?;
+    save_config(config, &env)?;
 
     println!("init");
     Ok(())

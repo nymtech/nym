@@ -50,23 +50,29 @@ You can also check the various arguments required for individual commands with:
 
 ## Initialising your Gateway
 
-As Nym developers build towards [Exit Gateway](../legal/exit-gateway.md) functionality, operators can now run their `nym-gateway` binary with in-build Network requester. Considering the plan to [*smoosh*](../faq/smoosh-faq.md) all the nodes into one binary and have wide opened Exit Gateways, we recommend this setup, instead of operating two separate binaries. 
+As Nym developers build towards [Exit Gateway](../legal/exit-gateway.md) functionality, operators can now run their `nym-gateway` binary with in-build Network requester and include the our new [exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt). Considering the plan to [*smoosh*](../faq/smoosh-faq.md) all the nodes into one binary and have wide opened Exit Gateways, we recommend this setup, instead of operating two separate binaries. 
 
+```admonish warning
+Before you start an Exit Gateway, read our [Operators Legal Forum](../legal/exit-gateway.md) page and [*Project Smoosh FAQ*](../faq/smoosh-faq.md).
+```
+
+```admonish info
+There has been an ongoing development with dynamic upgrades. Follow the status of the Project Smoosh [changes](../faq/smoosh-faq.md#what-are-the-changes) and the progression state of Exit policy [implementation](../faq/smoosh-faq.html#how-will-the-exit-policy-be-implemented) to be up to date with the current design.
+```
 
 ### Initialising Exit Gateway
 
-An operator can initialise the Exit Gateway functionality by:
+An operator can initialise the Exit Gateway functionality by adding Network requester with the new exit policy option:
 
 ```
-./nym-gateway init --id <ID> --host $(curl icanhazip.com) --with-network-requester
+./nym-gateway init --id <ID> --host $(curl icanhazip.com) --with-network-requester --with-exit-policy
 ```
 
-If we follow the previous example with `<ID>` chosen `superexitgateway`, adding the `--with-network-requester` flag, the outcome will be:
-
+If we follow the previous example with `<ID>` chosen `superexitgateway`, adding the `--with-network-requester` and `--with-exit-policy` flags, the outcome will be:
 
 ~~~admonish example collapsible=true title="Console output"
 ```
-<!-- cmdrun ../../../../target/release/nym-gateway init --id superexitgateway --host $(curl icanhazip.com) --with-network-requester -->
+<!-- cmdrun ../../../../target/release/nym-gateway init --id superexitgateway --host $(curl icanhazip.com) --with-network-requester --with-exit-policy true -->
 ```
 ~~~
 

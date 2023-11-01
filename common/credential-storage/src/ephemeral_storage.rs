@@ -54,11 +54,10 @@ impl Storage for EphemeralStorage {
         &self,
         voucher_info: String,
         wallet: String,
-        secret_key: String,
         epoch_id: String,
     ) -> Result<(), StorageError> {
         self.coconut_credential_manager
-            .insert_ecash_credential(voucher_info, wallet, secret_key, epoch_id)
+            .insert_ecash_credential(voucher_info, wallet, epoch_id)
             .await;
 
         Ok(())

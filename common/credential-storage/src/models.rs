@@ -20,7 +20,6 @@ pub struct EcashCredential {
     pub id: i64,
     pub voucher_info: String,
     pub wallet: String,
-    pub secret_key: String,
     pub epoch_id: String,
     pub consumed: bool,
 }

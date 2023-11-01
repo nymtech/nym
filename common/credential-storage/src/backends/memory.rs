@@ -58,13 +58,11 @@ impl CoconutCredentialManager {
     ///
     /// * `voucher_info`: What type of credential it is.
     /// * `signature`: Ecash wallet credential in the form of a wallet.
-    /// * `secret_key`: The secret key with which this credential has been created.
     /// * `epoch_id`: The epoch when it was signed.
     pub async fn insert_ecash_credential(
         &self,
         voucher_info: String,
         wallet: String,
-        secret_key: String,
         epoch_id: String,
     ) {
         let mut creds = self.ecash.write().await;
@@ -73,7 +71,6 @@ impl CoconutCredentialManager {
             id,
             voucher_info,
             wallet,
-            secret_key,
             epoch_id,
             consumed: false,
         });

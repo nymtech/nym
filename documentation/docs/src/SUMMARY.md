@@ -37,10 +37,12 @@
     - [Simple Send](sdk/rust/examples/simple.md)
     - [Create and Store Keys](sdk/rust/examples/keys.md)
     - [Manual Storage](sdk/rust/examples/storage.md)
+    - [Anonymous Replies](sdk/rust/examples/surbs.md)
     - [Use Custom Network Topology](sdk/rust/examples/custom-network.md)
     - [Socks Proxy](sdk/rust/examples/socks.md)
     - [Split Send and Receive](sdk/rust/examples/split-send.md)
     - [Testnet Bandwidth Cred](sdk/rust/examples/credential.md)
+    - [Example Cargo file](sdk/rust/examples/cargo.md)
 
 # Wallet
 - [Desktop Wallet](wallet/desktop-wallet.md)

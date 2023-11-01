@@ -11,7 +11,7 @@ jobs:
       fail-fast: false
       matrix:
         rust: [stable, beta]
-        os: [ubuntu-20.04, windows10, macos-latest]
+        os: [ubuntu-20.04, windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     env:
       CARGO_TERM_COLOR: always
@@ -34,7 +34,7 @@ jobs:
 
       - name: Install Protoc
         uses: arduino/setup-protoc@v2
-        if: matrix.os == 'macos-latest'
+        if: matrix.os == 'macos-latest' || matrix.os == 'windows-latest'
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -56,9 +56,18 @@ jobs:
           command: build
           args: --release --workspace --examples
 
-      - name: Set debug to false
+      # To avoid running out of disk space, skip generating debug symbols
+      - name: Set debug to false (unix)
+        if: matrix.os == 'ubuntu-20.04' || matrix.os == 'macos-latest'
         run: |
           sed -i.bak 's/\[profile.dev\]/\[profile.dev\]\ndebug = false/' Cargo.toml
+          git diff
+
+      - name: Set debug to false (win)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          (Get-Content Cargo.toml) -replace '\[profile.dev\]', "`$&`ndebug = false" | Set-Content Cargo.toml
           git diff
 
       - name: Run unit tests

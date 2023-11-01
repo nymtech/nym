@@ -82,7 +82,7 @@ Additionally
 
 #### Add Network requester to an existing Gateway
 
-If you already [upgraded](./maintenance.md#upgrading-your-node) your Gateway to the [newest version](./gateway-setup.md#current-version) and initialised without a Network requester, you can easily change its functionality to Exit Gateway with a command `setup-network-requester`.
+If you already [upgraded](./maintenance.md#upgrading-your-node) your Gateway to the [latest version](./gateway-setup.md#current-version) and initialised without a Network requester, you can easily change its functionality to Exit Gateway with a command `setup-network-requester`.
 
 See the options:
 
@@ -168,7 +168,7 @@ The `$(curl -4 https://ifconfig.me)` command above returns your IP automatically
 ### Bonding your gateway
 
 ```admonish info
-Before you bond and run your Gateway, please make sure the [firewall configuration](./maintenance.md#configure-your-firewall) is setup so your gateway can be reached from the outside.
+Before you bond and re-run your Gateway, please make sure the [firewall configuration](./maintenance.md#configure-your-firewall) is setup so your gateway can be reached from the outside. You can also setup WSS on your Gateway, the steps are on the [Maintenance page](./maintenance.md#configure-your-firewall) below.
 ```
 
 #### Via the Desktop wallet

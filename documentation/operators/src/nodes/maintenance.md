@@ -103,36 +103,120 @@ Running the command `df -H` will return the size of the various partitions of yo
 
 If the `/dev/sda` partition is almost full, try pruning some of the `.gz` syslog archives and restart your validator process.
 
-## Moving a node
 
-In case of a need to move a node from one machine to another and avoiding to lose the delegation, here are few steps how to do it.
+## Run Web Secure Socket (WSS) on Gateway
 
-The following examples transfers a mix node (in case of other nodes, change the `mixnodes` in the command for the `<NODE>` of your desire.
+Now you can run WSS on your Gateway. 
 
-* Pause your node process.
+### WSS on an existing Gateway
 
-Assuming both machines are remote VPS.
+In case you already run a working Gateway and want to add WSS on it, here are the pre-requisites to running WSS on Gateways:
 
-* Make sure your `~/.ssh/<YOUR_KEY>.pub` is in both of the machines `~/.ssh/authorized_keys` file
-* Create a `mixnodes` folder in the target VPS. Ssh in from your terminal and run:
+* You need to use the latest `nym-gateway` binary [version](./gateway-setup.md#current-version) and restart it.
+* That will add the relevant fields to update your config.
+* These two values will be added and need to be amended in your config.toml:
 
 ```sh
-# in case none of the nym configs was created previously
-mkdir ~/.nym
-
-#in case no nym mix node was initialized previously
-mkdir ~/.nym/mixnodes
+clients_wss_port = 0
+hostname = ""
 ```
-* Move the node data (keys) and config file to the new machine by opening a local terminal (as that one's ssh key is authorized in both of the machines) and running:
+
+Then you can run this:
+
 ```sh
-scp -r -3 <SOURCE_USER_NAME>@<SOURCE_HOST_ADDRESS>:~/.nym/mixnodes/<YOUR_ID> <TARGET_USER_NAME>@<TARGET_HOST_ADDRESS>:~/.nym/mixnodes/
-```
-* Re-run init (remember that init doesn't overwrite existing keys) to generate a config with the new listening address etc.
-* Change the node smart contract info via the wallet interface. Otherwise the keys will point to the old IP address in the smart contract, and the node will not be able to be connected, and it will fail up-time checks.
-* Re-run the node from the new location. 
+port=$1 // in the example below we will use 9001
+host=$2 = // this would be a domain name registered for your Gateway for example: mainnet-gateway2.nymtech.net
 
-## VPS Setup and Automation
-### Configure your firewall
+
+sed -i "s/clients_wss_port = 0/clients_wss_port = ${port}/" ${HOME}/.nym/gateways/*/config/config.toml
+sed -i "s|hostname = ''|hostname = '${host}'|" ${HOME}/.nym/gateways/*/config/config.toml
+```
+The following shell script can be run:
+
+```sh
+#!/bin/bash
+
+if [ "$#" -ne 2 ]; then
+    echo "Usage: sudo ./install_run_caddy.sh <host_name> <port_to_run_wss>"
+    exit 1
+fi
+
+host=$1
+port_value=$2
+
+apt install -y debian-keyring debian-archive-keyring apt-transport-https
+apt --fix-broken install
+
+curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | sudo gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+
+curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | sudo tee /etc/apt/sources.list.d/caddy-stable.list
+
+apt update
+apt install caddy
+
+systemctl enable caddy.service 
+
+cd /etc/caddy
+
+# check if Caddyfile exists, if it does, remove and insert a new one
+if [ -f Caddyfile ]; then
+    echo "removing caddyfile inserting a new one"
+    rm -f Caddyfile
+fi
+
+cat  <<EOF >> Caddyfile 
+${host}:${port_value} {
+	@websockets {
+		header Connection *Upgrade*
+		header Upgrade websocket
+	}
+	reverse_proxy @websockets localhost:9000
+}
+EOF
+
+cat Caddyfile
+
+echo "script completed successfully!"
+
+systemctl restart caddy.service
+echo "have a nice day!"
+exit 0
+
+```
+
+Although your gateway is Now ready to use its `wss_port`, your server may not be ready - the following commands will allow you to set up a properly configured firewall using `ufw`:
+
+```sh
+ufw allow 9001/tcp
+```
+
+Lastly don't forget to restart your Gateway, now the API will render the WSS details for this gateway:
+
+
+### WSS on a new Gateway
+
+These steps are for an operator who is setting up a Gateway for the first time and wants to run it with WSS.
+
+New flags will need to be added to the `init` and `run` command. The `--host` option is still accepted for now, but can and should be replaced with `--listening-address`, this is the IP address which is used for receiving sphinx packets and listening to client data. 
+
+Another flag `--public-ips` is required; it's a comma separated list of IP’s that are announced to the `nym-api`, it is usually the address which is used for bonding. 
+
+If the operator wishes to run WSS, an optional `--hostname` flag is also required, that can be something like `mainnet-gateway2.nymtech.net`. Make sure to enable all necessary [ports](maintenance.md#configure-your-firewall) on the Gateway. 
+
+The gateway will then be accessible on something like: *http://85.159.211.99:8080/api/v1/swagger/index.html*
+
+Are you seeing something like: *this node attempted to announce an invalid public address: 0.0.0.0.*? 
+
+Please modify `[host.public_ips]` section of your config file stored as `~/.nym/gateways/<ID>/config/config.toml`.
+
+If so the flags are going to be slightly different:
+
+```
+--listening-address "0.0.0.0" --public-ips "$(curl -4 https://ifconfig.me)"
+```
+
+## Configure your firewall
+
 Although your `<NODE>` is now ready to receive traffic, your server may not be. The following commands will allow you to set up a firewall using `ufw`.
 
 ```sh
@@ -153,7 +237,7 @@ Finally open your `<NODE>` p2p port, as well as ports for ssh and ports for verl
 
 ```sh
 # for mix node, gateway and network requester
-sudo ufw allow 1789,1790,8000,9000,22/tcp
+sudo ufw allow 1789,1790,8000,9000,9001,22/tcp
 
 # for validator
 sudo ufw allow 1317,26656,26660,22,80,443/tcp
@@ -165,6 +249,8 @@ sudo ufw status
 ```
 
 For more information about your node's port configuration, check the [port reference table](./maintenance.md#gateway-port-reference) below.
+
+## VPS Setup and Automation
 
 ### Automating your node with nohup, tmux and systemd
 
@@ -398,7 +484,7 @@ Failed to accept incoming connection - Os { code: 24, kind: Other, message: "Too
 
 This means that the operating system is preventing network connections from being made.
 
-#### Set the ulimit via `systemd` service file
+#### Set the `ulimit` via `systemd` service file
 
 > Replace `<NODE>` variable with `nym-mixnode`, `nym-gateway` or `nym-network-requester` according the node you running on your machine.
 
@@ -480,6 +566,35 @@ username        soft nofile 4096
 ```
 
 Then reboot your server and restart your mix node.
+
+## Moving a node
+
+In case of a need to move a node from one machine to another and avoiding to lose the delegation, here are few steps how to do it.
+
+The following examples transfers a mix node (in case of other nodes, change the `mixnodes` in the command for the `<NODE>` of your desire.
+
+* Pause your node process.
+
+Assuming both machines are remote VPS.
+
+* Make sure your `~/.ssh/<YOUR_KEY>.pub` is in both of the machines `~/.ssh/authorized_keys` file
+* Create a `mixnodes` folder in the target VPS. Ssh in from your terminal and run:
+
+```sh
+# in case none of the nym configs was created previously
+mkdir ~/.nym
+
+#in case no nym mix node was initialized previously
+mkdir ~/.nym/mixnodes
+```
+* Move the node data (keys) and config file to the new machine by opening a local terminal (as that one's ssh key is authorized in both of the machines) and running:
+```sh
+scp -r -3 <SOURCE_USER_NAME>@<SOURCE_HOST_ADDRESS>:~/.nym/mixnodes/<YOUR_ID> <TARGET_USER_NAME>@<TARGET_HOST_ADDRESS>:~/.nym/mixnodes/
+```
+* Re-run init (remember that init doesn't overwrite existing keys) to generate a config with the new listening address etc.
+* Change the node smart contract info via the wallet interface. Otherwise the keys will point to the old IP address in the smart contract, and the node will not be able to be connected, and it will fail up-time checks.
+* Re-run the node from the new location. 
+
 
 ## Virtual IPs and hosting via Google & AWS
 For true internet decentralization we encourage operators to use diverse VPS providers instead of the largest companies offering such services. If for some reasons you have already running AWS or Google and want to setup a `<NODE>` there, please read the following.
@@ -680,6 +795,7 @@ All `<NODE>`-specific port configuration can be found in `$HOME/.nym/<NODE>/<YOU
 |--------------|---------------------------|
 | `1789`       | Listen for Mixnet traffic |
 | `9000`       | Listen for Client traffic |
+| `9001`       | WSS                       |
 
 ### Network requester port reference
 

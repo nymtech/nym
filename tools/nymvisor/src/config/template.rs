@@ -17,22 +17,22 @@ id = '{{ nymvisor.id }}'
 # If set to true, this will disable `nymvisor` logs (but not the underlying process)
 # default: false
 # Can be overridden with $NYMVISOR_DISABLE_LOGS environmental variable.
-disable_logs = {{ nymvisor.debug.disable_logs }}
+disable_logs = {{ nymvisor.disable_logs }}
 
 # Set custom directory for upgrade data - binaries and upgrade plans.
 # If not set, the global nymvisors' data directory will be used instead.
-# Can be overridden with $NYMVISOR_DATA_UPGRADE_DIRECTORY environmental variable.
-data_upgrade_directory = '{{ nymvisor.debug.data_upgrade_directory }}'
+# Can be overridden with $NYMVISOR_UPGRADE_DATA_DIRECTORY environmental variable.
+data_upgrade_directory = '{{ nymvisor.data_upgrade_directory }}'
 
 # The name of the managed binary itself (e.g. nym-api, nym-mixnode, nym-gateway, etc.)
 # Can be overridden with $DAEMON_NAME environmental variable.
-name = '{{ nymvisor.debug.name }}'
+name = '{{ nymvisor.name }}'
 
 # The location where the `nymvisor/` directory is kept that contains the auxiliary files associated
 # with the underlying daemon, such as any backups or current version information.
 # (e.g. $HOME/.nym/nym-api/my-nym-api, $HOME/.nym/mixnodes/my-mixnode, etc.).
 # Can be overridden with $DAEMON_HOME environmental variable.
-home = '{{ nymvisor.debug.home }}'
+home = '{{ nymvisor.home }}'
 
 ##### main base daemon config options #####
 
@@ -53,25 +53,25 @@ home = '{{ daemon.home }}'
 # If set to true, this will enable auto-downloading of new binaries using the url provided in the `upgrade-info.json`
 # default: true
 # Can be overridden with $DAEMON_ALLOW_BINARIES_DOWNLOAD environmental variable.
-allow_binaries_download = {{ daemon.debug.allow_binaries_download }}
+allow_binaries_download = {{ daemon.allow_binaries_download }}
 
 # If enabled nymvisor will require that a checksum is provided in the upgrade plan for the binary to be downloaded.
 # If disabled, nymvisor will not require a checksum to be provided, but still check the checksum if one is provided.
 # default: true
 # Can be overridden with $DAEMON_ENFORCE_DOWNLOAD_CHECKSUM environmental variable.
-enforce_download_checksum = {{ daemon.debug.enforce_download_checksum }}
+enforce_download_checksum = {{ daemon.enforce_download_checksum }}
 
 # If enabled, nymvisor will restart the subprocess with the same command-line arguments and flags (but with the new binary) after a successful upgrade.
 # Otherwise (if disabled), nymvisor will stop running after an upgrade and will require the system administrator to manually restart it.
 # Note restart is only after the upgrade and does not auto-restart the subprocess after an error occurs.
 # default: true
 # Can be overridden with $DAEMON_RESTART_AFTER_UPGRADE environmental variable.
-restart_after_upgrade = {{ daemon.debug.restart_after_upgrade }}
+restart_after_upgrade = {{ daemon.restart_after_upgrade }}
 
 # If enabled, nymvisor will restart the subprocess with the same command-line arguments and flags after it has crashed
 # default: false
 # Can be overridden with $DAEMON_RESTART_ON_FAILURE environmental variable.
-restart_on_failure = {{ daemon.debug.restart_on_failure }}
+restart_on_failure = {{ daemon.restart_on_failure }}
 
 # If `restart_on_failure` is enabled, the following value defines the amount of time `nymvisor` shall wait before
 # restarting the subprocess.
@@ -100,12 +100,12 @@ startup_period_duration = '{{ daemon.startup_period_duration }}'
 shutdown_grace_period = '{{ daemon.shutdown_grace_period }}'
 
 # Set custom backup directory for daemon data. If not set, the daemon's home directory will be used instead.
-# Can be overridden with $DAEMON_DATA_BACKUP_DIRECTORY environmental variable.
-data_backup_directory: Option<PathBuf>,
+# Can be overridden with $DAEMON_BACKUP_DATA_DIRECTORY environmental variable.
+data_backup_directory = '{{ daemon.data_backup_directory }}'
 
 # If enabled, `nymvisor` will perform upgrades directly without performing any backups.
 # default: false
 # Can be overridden with $DAEMON_UNSAFE_SKIP_BACKUP environmental variable.
-unsafe_skip_backup = {{ daemon.debug.unsafe_skip_backup }}
+unsafe_skip_backup = {{ daemon.unsafe_skip_backup }}
 
 "#;

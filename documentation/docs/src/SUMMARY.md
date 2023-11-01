@@ -29,7 +29,18 @@
 
 # SDK
 - [Typescript SDK](sdk/typescript.md)
-- [Rust SDK](sdk/rust.md)
+- [Rust SDK](sdk/rust/rust.md)
+  - [Message Types](sdk/rust/message-types.md)
+  - [Message Helpers](sdk/rust/message-helpers.md)
+  - [Troubleshooting](sdk/rust/troubleshooting.md)
+  - [Examples](sdk/rust/examples.md)
+    - [Simple Send](sdk/rust/examples/simple.md)
+    - [Create and Store Keys](sdk/rust/examples/keys.md)
+    - [Manual Storage](sdk/rust/examples/storage.md)
+    - [Use Custom Network Topology](sdk/rust/examples/custom-network.md)
+    - [Socks Proxy](sdk/rust/examples/socks.md)
+    - [Split Send and Receive](sdk/rust/examples/split-send.md)
+    - [Testnet Bandwidth Cred](sdk/rust/examples/credential.md)
 
 # Wallet
 - [Desktop Wallet](wallet/desktop-wallet.md)

@@ -1,20 +1,9 @@
 # Rust SDK
 The Rust SDK allows developers building applications in Rust to import and interact with Nym clients as they would any other dependency, instead of running the client as a separate process on their machine. This makes both developing and running applications much easier, reducing complexity in the development process (not having to restart another client in a separate console window/tab) and being able to have a single binary for other people to use.
 
-Currently developers can use the Rust SDK to import either websocket client ([`nym-client`](../clients/websocket-client.md)) or [`socks-client`](../clients/socks5-client.md) functionality into their Rust code.
+Currently developers can use the Rust SDK to import either websocket client ([`nym-client`](../../clients/websocket-client.md)) or [`socks-client`](../../clients/socks5-client.md) functionality into their Rust code.
 
-## Development status
-The SDK is still somewhat a work in progress: interfaces are fairly stable but still may change in subsequent releases.
-
-The `nym-sdk` crate is **not yet available via [crates.io](https://crates.io)**. As such, in order to import the crate you must specify the Nym monorepo in your `Cargo.toml` file:
-
-```toml
-nym-sdk = { git = "https://github.com/nymtech/nym" }
-```
-
-In order to generate the crate docs run `cargo doc --open` from `nym/sdk/rust/nym-sdk/`
-
-In the future the SDK will be made up of several components, each of which will allow developers to interact with different parts of Nym's infrastructure.
+In the future the SDK will be made up of several components, each of which will allow developers to interact with different parts of Nym infrastructure.
 
 | Component | Functionality                                                                         | Released |
 |-----------|---------------------------------------------------------------------------------------|----------|
@@ -22,17 +11,26 @@ In the future the SDK will be made up of several components, each of which will 
 | Coconut   | Create & verify Coconut credentials                                                   | 🛠️      |
 | Validator | Sign & broadcast Nyx blockchain transactions, query the blockchain                    | ❌        |
 
-The `mixnet` component currently exposes the logic of two clients: the [websocket client](../clients/websocket-client.md), and the [socks](../clients/socks5-client.md) client.
+The `mixnet` component currently exposes the logic of two clients: the [websocket client](../../clients/websocket-client.md), and the [socks](../../clients/socks5-client.md) client.
 
 The `coconut` component is currently being worked on. Right now it exposes logic allowing for the creation of coconut credentials on the Sandbox testnet.
 
+### Development status
+The SDK is still somewhat a work in progress: interfaces are fairly stable but still may change in subsequent releases.
+
+### Installation 
+The `nym-sdk` crate is **not yet available via [crates.io](https://crates.io)**. As such, in order to import the crate you must specify the Nym monorepo in your `Cargo.toml` file:
+
+TODO add note on branch import for stability - `master` should be last release 
+```toml
+nym-sdk = { git = "https://github.com/nymtech/nym" }
+```
+
+### Generate Crate Docs 
+In order to generate the crate docs run `cargo doc --open` from `nym/sdk/rust/nym-sdk/`
+
 ## Websocket client examples
 > All the codeblocks below can be found in the `nym-sdk` [examples directory](https://github.com/nymtech/nym/tree/master/sdk/rust/nym-sdk/examples) in the monorepo. Just navigate to `nym/sdk/rust/nym-sdk/examples/` and run the files from there. If you wish to run these outside of the workspace - such as if you want to use one as the basis for your own project - then make sure to import the `sdk`, `tokio`, and `nym_bin_common` crates.
-
-### Different message types
-There are two methods for sending messages through the mixnet using your client: 
-* `send_plain_message()` is the most simple: pass the recipient address and the message you wish to send as a string (this was previously `send_str()`). This is a nicer-to-use wrapper around `send_message()`. 
-* `send_message()` allows you to also define the amount of SURBs to send along with your message (which is sent as bytes). 
 
 ### Simple example 
 Lets look at a very simple example of how you can import and use the websocket client in a piece of Rust code (`examples/simple.rs`):
@@ -89,7 +87,7 @@ The number of SURBs is set [here](https://github.com/nymtech/nym/blob/master/sdk
 {{#include ../../../../sdk/rust/nym-sdk/src/mixnet/client.rs:33}}
 ```
 
-You can read more about how SURBs function under the hood [here](../architecture/traffic-flow.md#private-replies-using-surbs).
+You can read more about how SURBs function under the hood [here](../../architecture/traffic-flow.md#private-replies-using-surbs).
 
 In order to reply to an incoming message using SURBs, you can construct a `recipient` from the `sender_tag` sent along with the message you wish to reply to:
 
@@ -124,7 +122,7 @@ If you need to split the different actions of your client across different tasks
 ```
 
 ## Socks client example
-There is also the option to embed the [`socks5-client`](../clients/socks5-client.md) into your app code (`examples/socks5.rs`):
+There is also the option to embed the [`socks5-client`](../../clients/socks5-client.md) into your app code (`examples/socks5.rs`):
 
 ```rust,noplayground
 {{#include ../../../../sdk/rust/nym-sdk/examples/socks5.rs}}
@@ -135,10 +133,12 @@ If you are looking at implementing Nym as a transport layer for a crypto wallet 
 ```
 
 ## Coconut credential generation
-The following code shows how you can use the SDK to create and use a [credential](../bandwidth-credentials.md) representing paid bandwidth on the Sandbox testnet.
+The following code shows how you can use the SDK to create and use a [credential](../../bandwidth-credentials.md) representing paid bandwidth on the Sandbox testnet.
 
 ```rust,noplayground
 {{#include ../../../../sdk/rust/nym-sdk/examples/bandwidth.rs}}
 ```
 
-You can read more about Coconut credentials (also referred to as `zk-Nym`) [here](../coconut.md).
+You can read more about Coconut credentials (also referred to as `zk-Nym`) [here](../../coconut.md).
+
+

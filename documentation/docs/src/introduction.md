@@ -15,7 +15,7 @@ If you're specically looking for TypeScript/JavaScript related information such 
 
 **SDK examples:**
 * [Typescript SDK](https://sdk.nymtech.net/)
-* [Rust SDK](./sdk/rust.md)
+* [Rust SDK](sdk/rust/rust.md)
 
 **Nyx**
 * [Interacting with the Nyx chain](./nyx/interacting-with-chain.md)

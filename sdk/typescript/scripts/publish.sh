@@ -80,7 +80,7 @@ do
   pushd "$item"
   echo "🚀 Publishing $item... (${COUNTER} of ${#packages[@]})"
   cat package.json | jq -r '. | .name + " " +.version'
-  npm publish --access=public --verbose --workspaces false
+  npm publish --access=public --verbose --workspaces false || true
   popd
   echo ""
 done

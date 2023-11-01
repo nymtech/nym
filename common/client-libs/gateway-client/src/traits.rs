@@ -42,7 +42,9 @@ pub trait GatewayPacketRouter {
                 }
 
                 n if n
-                    == PacketSize::OutfoxRegularPacket.plaintext_size() - outfox_ack_overhead =>
+                    == PacketSize::OutfoxRegularPacket
+                        .plaintext_size()
+                        .saturating_sub(outfox_ack_overhead) =>
                 {
                     trace!("received regular outfox packet");
                     received_messages.push(received_packet);

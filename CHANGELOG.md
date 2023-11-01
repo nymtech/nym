@@ -4,6 +4,28 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [2023.3-kinder] (2023-10-31)
+
+- suppress error output ([#4056])
+- Update frontend type for current vesting period ([#4042])
+- re-exported additional types for tx queries ([#4036])
+- fixed fmt::Display impl for GatewayNetworkRequesterDetails ([#4033])
+- Add exit node policy from TorNull and Tor Exit Node Policy ([#4024])
+- basic self-described api for gateways to dynamically announce its details + nym-api aggregation ([#4017])
+- use saturating sub in case outfox is not enabled ([#3986])
+- Fix sorting for mixnodes and gateways ([#3985])
+- Gateway client registry and api routes ([#3955])
+
+[#4056]: https://github.com/nymtech/nym/pull/4056
+[#4042]: https://github.com/nymtech/nym/pull/4042
+[#4036]: https://github.com/nymtech/nym/pull/4036
+[#4033]: https://github.com/nymtech/nym/pull/4033
+[#4024]: https://github.com/nymtech/nym/issues/4024
+[#4017]: https://github.com/nymtech/nym/issues/4017
+[#3986]: https://github.com/nymtech/nym/pull/3986
+[#3985]: https://github.com/nymtech/nym/pull/3985
+[#3955]: https://github.com/nymtech/nym/pull/3955
+
 ## [2023.1-milka] (2023-09-24)
 
 - custom Debug impl for mix::Node and gateway::Node ([#3930])

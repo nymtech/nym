@@ -1,6 +1,12 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use self::cache::refresher::NodeStatusCacheRefresher;
+use crate::support::config;
+use crate::{
+    nym_contract_cache::cache::NymContractCache,
+    support::{self, storage},
+};
 pub(crate) use cache::NodeStatusCache;
 use nym_task::TaskManager;
 use okapi::openapi3::OpenApi;
@@ -8,13 +14,6 @@ use rocket::Route;
 use rocket_okapi::{openapi_get_routes_spec, settings::OpenApiSettings};
 use std::time::Duration;
 
-use crate::support::config;
-use crate::{
-    nym_contract_cache::cache::NymContractCache,
-    support::{self, storage},
-};
-
-use self::cache::refresher::NodeStatusCacheRefresher;
 pub(crate) mod cache;
 pub(crate) mod helpers;
 pub(crate) mod local_guard;

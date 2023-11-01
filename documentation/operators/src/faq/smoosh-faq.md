@@ -2,9 +2,10 @@
 
 > We aim on purpose to make minimal changes to reward scheme and software. We're just 'smooshing' together stuff we already debugged and know works.  
 > -- Harry Halpin,  Nym CEO  
-<p>
+<p></p>
+
 This page refer to the changes which are planned to take place over Q3 and Q4 2023. As this is a transition period in the beginning (Q3 2023) the [Mix Nodes FAQ page](./mixnodes-faq.md) holds more answers to the current setup as project Smoosh refers to the eventual setup. As project Smoosh gets progressively implemented the answers on this page will become to be more relevant to the current state and eventually this FAQ page will be merged with the still relevant parts of the main Mix Nodes FAQ page. 
-</p>
+
 If any questions are not answered or it's not clear for you in which stage project Smoosh is right now, please reach out in Node Operators [Matrix room](https://matrix.to/#/#operators:nymtech.chat).
 
 ## Overview
@@ -40,7 +41,7 @@ Yes, to run a mix node only is an option. However it will be less rewarded as no
 
 ### What are the incentives for the node operator?
 
-In the original setup there were no incentives to run a `network-requester`. After the transition all the users will buy multiple tickets of zkNyms credentials and use those as [anonymous e-cash](https://arxiv.org/abs/2303.08221) to pay for their data traffic (`[Nym API](https://github.com/nymtech/nym/tree/master/nym-api)` will do the do cryptographical checks to prevent double-spending). All collected fees get distributed to all active nodes proportionally to their work by the end of each epoch.
+In the original setup there were no incentives to run a `network-requester`. After the transition all the users will buy multiple tickets of zkNyms credentials and use those as [anonymous e-cash](https://arxiv.org/abs/2303.08221) to pay for their data traffic ([`Nym API`](https://github.com/nymtech/nym/tree/master/nym-api) will do the do cryptographical checks to prevent double-spending). All collected fees get distributed to all active nodes proportionally to their work by the end of each epoch.
 
 ### How does this change the token economics?
 
@@ -73,9 +74,7 @@ From an operator standpoint, it shall just be a standard Nym upgrade, a new opti
 
 ### Are there any legal concerns for the operators?
 
-So far the general line is running a gateway is not illegal (unless you are in Iran, China, and a few other places) and due to encryption/mixing less risky than running a normal VPN node. For mix nodes, its very safe as they have no idea what packets they are mixing.  
+So far the general line is that running a gateway is not illegal (unless you are in Iran, China, and a few other places) and due to encryption/mixing less risky than running a normal VPN node. For mix nodes, it's very safe as they have "no idea" what packets they are mixing.  
 
-There are several legal questions regarding to this and we would like to ask you to fill this [short survey](https://nymtech.typeform.com/exitnode).
-
-We'll have a thorough legal analysis out before hand and various resources from and for the community. <!-- which we started to gather in the [Community Legal Forum](../legal/legal-forum.md). Uncomment when the legal forum get's merged -->
+There are several legal questions and analysis to be made for different jurisdictions. To be able to share resources and findings between the operators themselves we created a [Community Legal Forum](../legal/exit-gateway.md). 
 

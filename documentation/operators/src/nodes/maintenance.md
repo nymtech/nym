@@ -152,14 +152,8 @@ sudo ufw status
 Finally open your `<NODE>` p2p port, as well as ports for ssh and ports for verloc and measurement pings:
 
 ```sh
-# for mix node
-sudo ufw allow 1789,1790,8000,22/tcp
-
-# for gateway
-sudo ufw allow 1789,22,9000/tcp
-
-# for network requester
-sudo ufw allow 22,9000/tcp
+# for mix node, gateway and network requester
+sudo ufw allow 1789,1790,8000,9000,22/tcp
 
 # for validator
 sudo ufw allow 1317,26656,26660,22,80,443/tcp

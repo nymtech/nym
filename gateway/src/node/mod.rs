@@ -5,6 +5,7 @@ use self::storage::PersistentStorage;
 use crate::commands::helpers::{override_network_requester_config, OverrideNetworkRequesterConfig};
 use crate::config::Config;
 use crate::error::GatewayError;
+use crate::http::HttpApiBuilder;
 use crate::node::client_handling::active_clients::ActiveClientsStore;
 use crate::node::client_handling::embedded_network_requester::{
     LocalNetworkRequesterHandle, MessageRouter,
@@ -16,12 +17,14 @@ use crate::node::mixnet_handling::receiver::connection_handler::ConnectionHandle
 use crate::node::statistics::collector::GatewayStatisticsCollector;
 use crate::node::storage::Storage;
 use anyhow::bail;
+use dashmap::DashMap;
 use futures::channel::{mpsc, oneshot};
 use log::*;
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_mixnet_client::forwarder::{MixForwardingSender, PacketForwarder};
 use nym_network_defaults::NymNetworkDetails;
-use nym_network_requester::{LocalGateway, NRServiceProviderBuilder};
+use nym_network_requester::{LocalGateway, NRServiceProviderBuilder, RequestFilter};
+use nym_node::wireguard::types::GatewayClientRegistry;
 use nym_statistics_common::collector::StatisticsSender;
 use nym_task::{TaskClient, TaskManager};
 use nym_validator_client::{nyxd, DirectSigningHttpRpcNyxdClient};
@@ -37,6 +40,15 @@ pub(crate) mod helpers;
 pub(crate) mod mixnet_handling;
 pub(crate) mod statistics;
 pub(crate) mod storage;
+
+// TODO: should this struct live here?
+struct StartedNetworkRequester {
+    /// Request filter, either an exit policy or the allow list, used by the network requester.
+    used_request_filter: RequestFilter,
+
+    /// Handle to interact with the local network requester
+    handle: LocalNetworkRequesterHandle,
+}
 
 /// Wire up and create Gateway instance
 pub(crate) async fn create_gateway(
@@ -85,6 +97,8 @@ pub(crate) struct Gateway<St = PersistentStorage> {
     /// x25519 keypair used for Diffie-Hellman. Currently only used for sphinx key derivation.
     sphinx_keypair: Arc<encryption::KeyPair>,
     storage: St,
+
+    client_registry: Arc<GatewayClientRegistry>,
 }
 
 impl<St> Gateway<St> {
@@ -100,6 +114,7 @@ impl<St> Gateway<St> {
             sphinx_keypair: Arc::new(helpers::load_sphinx_keys(&config)?),
             config,
             network_requester_opts,
+            client_registry: Arc::new(DashMap::new()),
         })
     }
 
@@ -117,6 +132,7 @@ impl<St> Gateway<St> {
             identity_keypair: Arc::new(identity_keypair),
             sphinx_keypair: Arc::new(sphinx_keypair),
             storage,
+            client_registry: Arc::new(DashMap::new()),
         }
     }
 
@@ -146,6 +162,15 @@ impl<St> Gateway<St> {
         );
 
         mixnet_handling::Listener::new(listening_address, shutdown).start(connection_handler);
+    }
+
+    #[cfg(feature = "wireguard")]
+    async fn start_wireguard(
+        &self,
+        shutdown: TaskClient,
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
+        // TODO: possibly we should start the UDP listener and TUN device explicitly here
+        nym_wireguard::start_wireguard(shutdown, Arc::clone(&self.client_registry)).await
     }
 
     fn start_client_websocket_listener(
@@ -199,7 +224,7 @@ impl<St> Gateway<St> {
         &self,
         forwarding_channel: MixForwardingSender,
         shutdown: TaskClient,
-    ) -> Result<LocalNetworkRequesterHandle, GatewayError> {
+    ) -> Result<StartedNetworkRequester, GatewayError> {
         info!("Starting network requester...");
 
         // if network requester is enabled, configuration file must be provided!
@@ -219,7 +244,6 @@ impl<St> Gateway<St> {
             router_tx,
         );
 
-        // TODO: well, wire it up internally to gateway traffic, shutdowns, etc.
         let (on_start_tx, on_start_rx) = oneshot::channel();
         let mut nr_builder = NRServiceProviderBuilder::new(nr_opts.config.clone())
             .with_shutdown(shutdown)
@@ -250,12 +274,13 @@ impl<St> Gateway<St> {
         };
 
         MessageRouter::new(nr_mix_receiver, packet_router).start_with_shutdown(router_shutdown);
-        info!(
-            "the local network requester is running on {}",
-            start_data.address
-        );
+        let address = start_data.address;
 
-        Ok(LocalNetworkRequesterHandle::new(start_data, nr_mix_sender))
+        info!("the local network requester is running on {address}",);
+        Ok(StartedNetworkRequester {
+            used_request_filter: start_data.request_filter,
+            handle: LocalNetworkRequesterHandle::new(address, nr_mix_sender),
+        })
     }
 
     async fn wait_for_interrupt(shutdown: TaskManager) -> Result<(), Box<dyn Error + Send + Sync>> {
@@ -347,7 +372,7 @@ impl<St> Gateway<St> {
             });
         }
 
-        if self.config.network_requester.enabled {
+        let nr_request_filter = if self.config.network_requester.enabled {
             let embedded_nr = self
                 .start_network_requester(
                     mix_forwarding_channel.clone(),
@@ -355,10 +380,22 @@ impl<St> Gateway<St> {
                 )
                 .await?;
             // insert information about embedded NR to the active clients store
-            active_clients_store.insert_embedded(embedded_nr)
+            active_clients_store.insert_embedded(embedded_nr.handle);
+            Some(embedded_nr.used_request_filter)
         } else {
             info!("embedded network requester is disabled");
-        }
+            None
+        };
+
+        HttpApiBuilder::new(
+            &self.config,
+            self.identity_keypair.as_ref(),
+            self.sphinx_keypair.clone(),
+        )
+        .with_wireguard_client_registry(self.client_registry.clone())
+        .with_maybe_network_requester(self.network_requester_opts.as_ref().map(|o| &o.config))
+        .with_maybe_network_request_filter(nr_request_filter)
+        .start(shutdown.subscribe().named("http-api"))?;
 
         self.start_client_websocket_listener(
             mix_forwarding_channel,
@@ -370,7 +407,10 @@ impl<St> Gateway<St> {
         // Once this is a bit more mature, make this a commandline flag instead of a compile time
         // flag
         #[cfg(feature = "wireguard")]
-        if let Err(err) = nym_wireguard::start_wireguard(shutdown.subscribe()).await {
+        if let Err(err) = self
+            .start_wireguard(shutdown.subscribe().named("wireguard"))
+            .await
+        {
             // that's a nasty workaround, but anyhow errors are generally nicer, especially on exit
             bail!("{err}")
         }

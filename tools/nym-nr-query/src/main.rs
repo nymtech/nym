@@ -1,5 +1,7 @@
+use anyhow::Result;
 use clap::{Parser, ValueEnum};
 use nym_bin_common::output_format::OutputFormat;
+use nym_network_defaults::NymNetworkDetails;
 use nym_sdk::mixnet::{self, IncludedSurbs, MixnetMessageSender};
 use nym_service_providers_common::interface::{
     ControlRequest, ControlResponse, ProviderInterfaceVersion, Request, Response, ResponseContent,
@@ -50,6 +52,9 @@ enum Commands {
 
     /// Check if the network requester is acting a an open proxy
     OpenProxy,
+
+    /// Get the exit policy of this network requester
+    ExitPolicy,
 
     /// Ping the network requester
     Ping,
@@ -103,17 +108,26 @@ async fn wait_for_socks5_response(client: &mut mixnet::MixnetClient) -> Socks5Re
     }
 }
 
-async fn connect_to_mixnet(gateway: Option<mixnet::NodeIdentity>) -> mixnet::MixnetClient {
-    match gateway {
-        Some(gateway) => mixnet::MixnetClientBuilder::new_ephemeral()
-            .request_gateway(gateway.to_base58_string())
-            .build()
-            .expect("Failed to create mixnet client")
-            .connect_to_mixnet()
-            .await
-            .expect("Failed to connect to the mixnet"),
-        None => mixnet::MixnetClient::connect_new().await.unwrap(),
-    }
+async fn connect_to_mixnet(gateway: Option<mixnet::NodeIdentity>) -> Result<mixnet::MixnetClient> {
+    let network = NymNetworkDetails::new_from_env();
+
+    Ok(match gateway {
+        Some(gateway) => {
+            mixnet::MixnetClientBuilder::new_ephemeral()
+                .network_details(network)
+                .request_gateway(gateway.to_base58_string())
+                .build()?
+                .connect_to_mixnet()
+                .await?
+        }
+        None => {
+            mixnet::MixnetClientBuilder::new_ephemeral()
+                .network_details(network)
+                .build()?
+                .connect_to_mixnet()
+                .await?
+        }
+    })
 }
 
 fn new_bin_info_request() -> Request {
@@ -134,6 +148,14 @@ fn new_open_proxy_request() -> Request<Socks5Request> {
     Request::new_provider_data(ProviderInterfaceVersion::new_current(), request_open_proxy)
 }
 
+fn new_exit_policy_request() -> Request<Socks5Request> {
+    let request_exit_policy = Socks5Request::new_query(
+        Socks5ProtocolVersion::new_current(),
+        QueryRequest::ExitPolicy,
+    );
+    Request::new_provider_data(ProviderInterfaceVersion::new_current(), request_exit_policy)
+}
+
 fn new_ping_request() -> Request {
     let request_ping = ControlRequest::Health;
     Request::new_control(ProviderInterfaceVersion::new_current(), request_ping)
@@ -145,9 +167,12 @@ struct QueryClient {
 }
 
 impl QueryClient {
-    async fn new(provider: mixnet::Recipient, gateway: Option<mixnet::NodeIdentity>) -> Self {
-        let client = connect_to_mixnet(gateway).await;
-        Self { client, provider }
+    async fn new(
+        provider: mixnet::Recipient,
+        gateway: Option<mixnet::NodeIdentity>,
+    ) -> Result<Self> {
+        let client = connect_to_mixnet(gateway).await?;
+        Ok(Self { client, provider })
     }
 
     async fn query_bin_info(&mut self) -> ControlResponse {
@@ -183,6 +208,24 @@ impl QueryClient {
             )
             .await
             .unwrap();
+        let response = wait_for_socks5_response(&mut self.client).await;
+        response
+            .content
+            .as_query()
+            .expect("Unexpected response type!")
+            .clone()
+    }
+
+    async fn query_exit_policy(&mut self) -> QueryResponse {
+        self.client
+            .send_message(
+                self.provider,
+                new_exit_policy_request().into_bytes(),
+                IncludedSurbs::Amount(10),
+            )
+            .await
+            .unwrap();
+
         let response = wait_for_socks5_response(&mut self.client).await;
         response
             .content
@@ -275,7 +318,7 @@ async fn main() -> anyhow::Result<()> {
     nym_network_defaults::setup_env(args.config_env_file.as_ref());
 
     text_println("Registering with gateway...", &args.output);
-    let mut client = QueryClient::new(args.provider, args.gateway).await;
+    let mut client = QueryClient::new(args.provider, args.gateway).await?;
     let our_gateway = client.client.nym_address().gateway();
     text_println(&format!("  gateway: {our_gateway}"), &args.output);
 
@@ -310,7 +353,9 @@ async fn main() -> anyhow::Result<()> {
             Commands::BinaryInfo => client.query_bin_info().await.into(),
             Commands::SupportedRequestVersions => client.query_supported_versions().await.into(),
             Commands::OpenProxy => client.query_open_proxy().await.into(),
+            Commands::ExitPolicy => client.query_exit_policy().await.into(),
             Commands::Ping => unreachable!(),
+            // _ => unimplemented!(),
         };
         println!("{}", args.output.format(&resp));
     }

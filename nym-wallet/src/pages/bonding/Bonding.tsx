@@ -34,17 +34,8 @@ const Bonding = () => {
 
   const navigate = useNavigate();
 
-  const {
-    bondedNode,
-    bondMixnode,
-    bondGateway,
-    redeemRewards,
-    isLoading,
-    checkOwnership,
-    updateBondAmount,
-    error,
-    refresh,
-  } = useBondingContext();
+  const { bondedNode, bondMixnode, bondGateway, redeemRewards, isLoading, updateBondAmount, error, refresh } =
+    useBondingContext();
 
   useEffect(() => {
     if (bondedNode && isMixnode(bondedNode) && bondedNode.uncappedStakeSaturation) {
@@ -54,7 +45,7 @@ const Bonding = () => {
 
   const handleCloseModal = async () => {
     setShowModal(undefined);
-    await checkOwnership();
+    refresh();
   };
 
   const handleError = (err: string) => {

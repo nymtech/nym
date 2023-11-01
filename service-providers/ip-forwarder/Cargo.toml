@@ -1,0 +1,21 @@
+[package]
+name = "nym-ip-forwarder"
+version = "0.1.0"
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+futures = { workspace = true }
+log = { workspace = true }
+nym-client-core = { path = "../../common/client-core" }
+nym-config = { path = "../../common/config" }
+nym-sdk = { path = "../../sdk/rust/nym-sdk" }
+nym-sphinx = { path = "../../common/nymsphinx" }
+nym-task = { path = "../../common/task" }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+thiserror = { workspace = true }

@@ -3,8 +3,6 @@
 
 // due to expansion of #[wasm_bindgen] macro on `Debug` Config struct
 #![allow(clippy::drop_non_drop)]
-// another issue due to #[wasm_bindgen] and `Copy` trait
-#![allow(dropping_copy_types)]
 
 use crate::error::WasmCoreError;
 use nym_config::helpers::OptionalSet;

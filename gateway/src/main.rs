@@ -17,6 +17,7 @@ use std::error::Error;
 mod commands;
 mod config;
 pub(crate) mod error;
+mod http;
 mod node;
 pub(crate) mod support;
 
@@ -46,13 +47,14 @@ struct Cli {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
+    setup_logging();
+
     let args = Cli::parse();
     setup_env(args.config_env_file.as_ref());
 
     if !args.no_banner {
         maybe_print_banner(crate_name!(), crate_version!());
     }
-    setup_logging();
 
     commands::execute(args).await.map_err(|err| {
         if atty::is(atty::Stream::Stdout) {

@@ -10,13 +10,14 @@ bs58 = "0.4.0"
 cosmrs = { workspace = true }
 cosmwasm-std = { workspace = true }
 getset = "0.1.1"
-schemars = { version = "0.8", features = ["preserve_order"] }
-serde = { version = "1.0", features = ["derive"] }
+schemars = { workspace = true, features = ["preserve_order"] }
+serde = { workspace = true, features = ["derive"] }
 ts-rs = { workspace = true, optional = true }
 
 nym-coconut-interface = { path = "../../common/coconut-interface" }
 nym-mixnet-contract-common = { path= "../../common/cosmwasm-smart-contracts/mixnet-contract" }
+nym-node-requests = { path = "../../nym-node/nym-node-requests", default-features = false }
 
 [features]
 default = []
-generate-ts = ["ts-rs"]
+generate-ts = ["ts-rs", "nym-mixnet-contract-common/generate-ts"]

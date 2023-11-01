@@ -23,7 +23,7 @@ impl EchoPacket {
             .chain(keys.public_key().to_bytes().iter().cloned())
             .collect::<Vec<_>>();
 
-        let signature = keys.private_key().sign(&bytes_to_sign);
+        let signature = keys.private_key().sign(bytes_to_sign);
 
         EchoPacket {
             sequence_number,
@@ -67,7 +67,7 @@ impl EchoPacket {
 
     pub(crate) fn construct_reply(self, private_key: &identity::PrivateKey) -> ReplyPacket {
         let bytes = self.to_bytes();
-        let signature = private_key.sign(&bytes);
+        let signature = private_key.sign(bytes);
         ReplyPacket {
             base_packet: self,
             signature,

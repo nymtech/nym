@@ -55,6 +55,7 @@ export const splice = (start: number, deleteCount: number, address?: string): st
  * @returns A stringified integer
  */
 export const toPercentIntegerString = (value: string) => Math.round(Number(value) * 100).toString();
+export const toPercentInteger = (value: string) => Math.round(Number(value) * 100);
 
 export const textColour = (value: EconomicsRowsType, field: string, theme: Theme) => {
   const progressBarValue = value?.progressBarValue || 0;

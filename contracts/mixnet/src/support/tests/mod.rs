@@ -206,7 +206,7 @@ pub mod test_helpers {
 
             let sig_bytes = family_owner_keys
                 .private_key()
-                .sign(&msg.to_plaintext().unwrap())
+                .sign(msg.to_plaintext().unwrap())
                 .to_bytes();
             MessageSignature::from(sig_bytes.as_ref())
         }
@@ -956,7 +956,7 @@ pub mod test_helpers {
         match message.algorithm {
             SigningAlgorithm::Ed25519 => {
                 let plaintext = message.to_plaintext().unwrap();
-                let signature = private_key.sign(&plaintext);
+                let signature = private_key.sign(plaintext);
                 MessageSignature::from(signature.to_bytes().as_ref())
             }
             SigningAlgorithm::Secp256k1 => {

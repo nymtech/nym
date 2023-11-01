@@ -22,7 +22,7 @@ cw-storage-plus = { workspace = true }
 cw-controllers = { workspace = true }
 cw4 = { workspace = true }
 serde = { version = "1.0.103", default-features = false, features = ["derive"] }
-thiserror = "1.0.23"
+thiserror = { workspace = true }
 
 [dev-dependencies]
 cw-multi-test = { workspace = true }

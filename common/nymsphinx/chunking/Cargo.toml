@@ -12,7 +12,7 @@ repository = { workspace = true }
 [dependencies]
 log = { workspace = true }
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
-thiserror = "1.0.37"
+thiserror = { workspace = true }
 
 nym-sphinx-addressing = { path = "../addressing" }
 nym-sphinx-params = { path = "../params" }

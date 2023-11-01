@@ -106,6 +106,10 @@ pub(crate) enum GatewayError {
         #[from]
         source: NyxdError,
     },
+
+    // TODO: in the future this should work the other way, i.e. NymNode depending on Gateway errors
+    #[error(transparent)]
+    NymNodeError(#[from] nym_node::error::NymNodeError),
 }
 
 impl From<ClientCoreError> for GatewayError {

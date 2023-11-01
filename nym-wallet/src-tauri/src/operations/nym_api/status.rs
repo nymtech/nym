@@ -7,6 +7,7 @@ use crate::state::WalletState;
 use nym_mixnet_contract_common::{
     reward_params::Performance, Coin, IdentityKeyRef, MixId, Percent,
 };
+use nym_validator_client::client::NymApiClientExt;
 use nym_validator_client::models::{
     ComputeRewardEstParam, GatewayCoreStatusResponse, GatewayStatusReportResponse,
     InclusionProbabilityResponse, MixnodeCoreStatusResponse, MixnodeStatusResponse,

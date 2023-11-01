@@ -60,7 +60,7 @@ pub async fn init(args: Args, client: SigningClient, network_details: &NymNetwor
     // by default we make ourselves an admin, let me know if you don't like that behaviour
     let opts = Some(InstantiateOptions {
         funds,
-        admin: Some(args.admin.unwrap_or_else(|| client.address().clone())),
+        admin: Some(args.admin.unwrap_or_else(|| client.address())),
     });
 
     let msg: serde_json::Value =

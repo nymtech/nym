@@ -6,12 +6,12 @@ use error::NetworkRequesterError;
 use nym_bin_common::logging::{maybe_print_banner, setup_logging};
 use nym_network_defaults::setup_env;
 
-mod allowed_hosts;
 mod cli;
 mod config;
 mod core;
 mod error;
 mod reply;
+mod request_filter;
 mod socks5;
 mod statistics;
 

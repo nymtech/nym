@@ -22,6 +22,7 @@ use nym_sphinx::addressing::clients::Recipient;
 use nym_topology::NymTopology;
 use serde::Serialize;
 use std::fmt::Display;
+use std::net::{IpAddr, SocketAddr};
 use std::path::PathBuf;
 use std::{fs, io};
 use tap::TapFallible;
@@ -77,6 +78,10 @@ pub(crate) struct Init {
     #[clap(short, long)]
     port: Option<u16>,
 
+    /// The custom host on which the socks5 client will be listening for requests
+    #[clap(long)]
+    host: Option<IpAddr>,
+
     /// Path to .json file containing custom network specification.
     #[clap(long, group = "network", hide = true)]
     custom_mixnet: Option<PathBuf>,
@@ -103,6 +108,7 @@ impl From<Init> for OverrideConfig {
     fn from(init_config: Init) -> Self {
         OverrideConfig {
             nym_apis: init_config.nym_apis,
+            ip: init_config.host,
             port: init_config.port,
             use_anonymous_replies: init_config.use_reply_surbs,
             fastmode: init_config.fastmode,
@@ -120,7 +126,7 @@ impl From<Init> for OverrideConfig {
 pub struct InitResults {
     #[serde(flatten)]
     client_core: nym_client_core::init::types::InitResults,
-    socks5_listening_port: u16,
+    socks5_listening_address: SocketAddr,
     client_address: String,
 }
 
@@ -132,7 +138,7 @@ impl InitResults {
                 address,
                 gateway,
             ),
-            socks5_listening_port: config.core.socks5.listening_port,
+            socks5_listening_address: config.core.socks5.bind_adddress,
             client_address: address.to_string(),
         }
     }
@@ -141,7 +147,11 @@ impl InitResults {
 impl Display for InitResults {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "{}", self.client_core)?;
-        writeln!(f, "SOCKS5 listening port: {}", self.socks5_listening_port)?;
+        writeln!(
+            f,
+            "SOCKS5 listening address: {}",
+            self.socks5_listening_address
+        )?;
         write!(f, "Address of this client: {}", self.client_address)
     }
 }

@@ -25,7 +25,10 @@ use std::path::PathBuf;
 // Configuration that can be overridden.
 #[derive(Default)]
 pub(crate) struct OverrideConfig {
-    pub(crate) host: Option<IpAddr>,
+    pub(crate) listening_address: Option<IpAddr>,
+    pub(crate) public_ips: Option<Vec<IpAddr>>,
+    pub(crate) hostname: Option<String>,
+
     pub(crate) mix_port: Option<u16>,
     pub(crate) clients_port: Option<u16>,
     pub(crate) datastore: Option<PathBuf>,
@@ -41,7 +44,9 @@ pub(crate) struct OverrideConfig {
 impl OverrideConfig {
     pub(crate) fn do_override(self, mut config: Config) -> Result<Config, GatewayError> {
         config = config
-            .with_optional(Config::with_listening_address, self.host)
+            .with_optional(Config::with_hostname, self.hostname)
+            .with_optional(Config::with_public_ips, self.public_ips)
+            .with_optional(Config::with_listening_address, self.listening_address)
             .with_optional(Config::with_mix_port, self.mix_port)
             .with_optional(Config::with_clients_port, self.clients_port)
             .with_optional_custom_env(
@@ -90,6 +95,8 @@ pub(crate) struct OverrideNetworkRequesterConfig {
     pub(crate) medium_toggle: bool,
 
     pub(crate) open_proxy: Option<bool>,
+    pub(crate) enable_exit_policy: Option<bool>,
+
     pub(crate) enable_statistics: Option<bool>,
     pub(crate) statistics_recipient: Option<String>,
 }
@@ -198,6 +205,10 @@ pub(crate) fn override_network_requester_config(
     .with_optional(
         nym_network_requester::Config::with_open_proxy,
         opts.open_proxy,
+    )
+    .with_optional(
+        nym_network_requester::Config::with_old_allow_list,
+        opts.enable_exit_policy.map(|e| !e),
     )
     .with_optional(
         nym_network_requester::Config::with_enabled_statistics,

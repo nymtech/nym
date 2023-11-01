@@ -24,6 +24,7 @@ nym-service-provider-directory-common = { path = "../../cosmwasm-smart-contracts
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 reqwest = { workspace = true, features = ["json"] }
+http-api-client = { path = "../../../common/http-api-client"}
 thiserror = { workspace = true }
 log = { workspace = true }
 url = { workspace = true, features = ["serde"] }
@@ -86,4 +87,5 @@ required-features = ["http-client"]
 default = ["http-client"]
 http-client = ["cosmrs/rpc", "openssl"]
 generate-ts = []
+contract-testing = ["nym-mixnet-contract-common/contract-testing"]
 

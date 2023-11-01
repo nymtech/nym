@@ -13,6 +13,7 @@ use log::trace;
 use nym_bin_common::logging::LoggingSettings;
 use nym_client_core::config::disk_persistence::old_v1_1_20_2::CommonClientPathsV1_1_20_2;
 use nym_client_core::config::old_config_v1_1_20_2::ConfigV1_1_20_2 as BaseClientConfigV1_1_20_2;
+use nym_client_core::config::old_config_v1_1_30::ConfigV1_1_30 as BaseConfigV1_1_30;
 use nym_client_core::config::GatewayEndpointConfig;
 use nym_config::read_config_from_toml_file;
 use serde::{Deserialize, Serialize};
@@ -76,7 +77,7 @@ impl ConfigV1_1_20_2 {
             .expect("config paths upgrade failure")
             .join(DEFAULT_DESCRIPTION_FILENAME);
         let config = Config {
-            base: self.base.into(),
+            base: BaseConfigV1_1_30::from(self.base).into(),
             storage_paths: NetworkRequesterPaths {
                 common_paths: self.storage_paths.common_paths.upgrade_default()?,
                 allowed_list_location: self.storage_paths.allowed_list_location,

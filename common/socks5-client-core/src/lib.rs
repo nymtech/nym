@@ -123,7 +123,7 @@ where
 
         let authenticator = Authenticator::new(auth_methods, allowed_users);
         let mut sphinx_socks = NymSocksServer::new(
-            socks5_config.listening_port,
+            socks5_config.bind_adddress,
             authenticator,
             socks5_config.get_provider_mix_address(),
             self_address,

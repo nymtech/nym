@@ -4,7 +4,7 @@ import { AppContext } from '../context/main';
 import { checkGatewayOwnership, checkMixnodeOwnership, getVestingPledgeInfo } from '../requests';
 import { EnumNodeType, TNodeOwnership } from '../types';
 
-const initial = {
+const initial: TNodeOwnership = {
   hasOwnership: false,
   nodeType: undefined,
   vestingPledge: undefined,
@@ -18,8 +18,7 @@ export const useCheckOwnership = () => {
   const [error, setError] = useState<string>();
 
   const checkOwnership = useCallback(async () => {
-    const status = initial as TNodeOwnership;
-
+    const status = { ...initial };
     try {
       const [ownsMixnode, ownsGateway] = await Promise.all([checkMixnodeOwnership(), checkGatewayOwnership()]);
 

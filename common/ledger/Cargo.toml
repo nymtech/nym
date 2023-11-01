@@ -10,4 +10,4 @@ bip32 = "0.5.1"
 k256 = { workspace = true }
 ledger-transport = "0.10.0"
 ledger-transport-hid = "0.10.0"
-thiserror = "1"
+thiserror = { workspace = true }

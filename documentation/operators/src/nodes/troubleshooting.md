@@ -236,7 +236,7 @@ Here is a sample of the `init` command example to create the mix node config.
 ./nym-mixnode init --id <YOUR_ID> --host 0.0.0.0 --announce-host 85.160.12.13
 ```
 
-- `--host 0.0.0.0` should work every time even if your local machine IPv4 address changes. For example on Monday your router gives your machine an address `192.168.0.13` and on Wednesday, the DHCP lease will end and you will be assigned `192.168.0.14`. Using `0.0.0.0` should avoid this without having to set any static IP in your router`s configuration.
+- `--host 0.0.0.0` should work every time even if your local machine IPv4 address changes. For example on Monday your router gives your machine an address `192.168.0.13` and on Wednesday, the [DHCP](https://en.wikipedia.org/wiki/Dynamic_Host_Configuration_Protocol) lease will end and you will be assigned `192.168.0.14`. Using `0.0.0.0` should avoid this without having to set any static IP in your router's configuration.
 
 - you can get your current IPv4 address by either using `curl ipinfo.io` if you're on MacOS or Linux or visiting [whatsmyip site](https://www.whatsmyip.org/). Simply copy it and use it as `--anounce-host` address.
 
@@ -262,24 +262,7 @@ thread 'tokio-runtime-worker' panicked at 'Failed to create TCP listener: Os { c
 
 Then you need to `--announce-host <PUBLIC_IP>` and `--host <LOCAL_IP>` on startup. This issue is addressed [above](./troubleshooting.md#missing-`announce-host`-flag)
 
-<!--- Commenting for now:
-
-#### `rocket::launch` warnings
-These warnings are not an issue, please ignore them. Rocket is a web framework for rust which we are using to provide mixnodes with `/verloc` and `/description` http APIs.
-
-Find more information about this in the [Mixnodes metrics documentation](./maintenance.md#metrics--api-endpoints).
-
-Rocket runs on port `8000` by default. Although at this stage we need Rocket to be reachable via this port, in the future customization of the particular port it uses will be possible.
-
-#### `failed to receive reply to our echo packet within 1.5s. Stopping the test`
-
-This relates to the VerLoc implementation that appeared in `0.10.1`, which has a particularly high log sensitivity. This warning means that the echo packet sent to the mix node was received, but not sent back. _This will not affect the rate of rewards or performance metrics of your mix node in the testnet at this point._
-
-#### `Connection to <IP>:1789 seems to be dead`
-
-This warning is normal at the moment, and is _nothing to do with your mix node!_ It is simply a warning that your node is unable to connect to other peoples' mixnodes for some reason, most likely because they are offline or poorly configured.
---->
-### Can I use a port other than 1789 ?
+### Can I use a port other than 1789?
 
 Yes! Here is what you will need to do:
 
@@ -308,9 +291,22 @@ Finally, restart your node. You should see if the mix node is using the port you
 
 ### What is `verloc` and do I have to configure my mix node to implement it?
 
-`verloc` is short for _verifiable location_. Mixnodes and gateways now measure speed-of-light distances to each other, in an attempt to verify how far apart they are. In later releases, this will allow us to algorithmically verify node locations in a non-fakeable and trustworthy manner.
+`verloc` is short for _verifiable location_. Mixnodes and gateways now measure speed-of-light distances to each other, in an attempt to verify how far apart they are. In later releases, this will allow us to algorithmically verify node locations in a non-fake-able and trustworthy manner.
 
 You don't have to do any additional configuration for your node to implement this, it is a passive process that runs in the background of the mixnet from version `0.10.1` onward.
+
+## Gateways & Network requesters
+
+### My gateway seems to be running but appears offline
+
+Check your [firewall](./maintenance.md#configure-your-firewall) is active and if the necessary ports are open / allowed.
+
+### My exit gateway "is still not online..."
+
+The Nyx chain epoch takes up to 60 min. To prevent the gateway getting blacklisted, it's important to run it right after the bonding process to return positive response our API testing it's routing score.
+
+You may want to disconnect the network requester and let it run as a gatewy alone for some time to regain better routing score and then areturn to the full [exit gateway finctionality](./gateway-setup.md#initialising-gateway-with-network-requester).
+
 
 ## Validators
 

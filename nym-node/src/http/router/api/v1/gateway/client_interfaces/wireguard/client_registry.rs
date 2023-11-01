@@ -14,6 +14,7 @@ use nym_crypto::asymmetric::encryption::PublicKey;
 use nym_node_requests::api::v1::gateway::client_interfaces::wireguard::models::{
     ClientMessage, ClientRegistrationResponse, GatewayClient, InitMessage, Nonce, PeerPublicKey,
 };
+use rand::{prelude::IteratorRandom, thread_rng};
 
 async fn process_final_message(
     client: GatewayClient,
@@ -91,8 +92,23 @@ pub(crate) async fn register_client(
             let remote_public = PublicKey::from_bytes(init.pub_key().as_bytes())
                 .map_err(|_| RequestError::new_status(StatusCode::BAD_REQUEST))?;
             let nonce = process_init_message(init, state).await;
-            let gateway_data =
-                GatewayClient::new(state.dh_keypair.private_key(), remote_public, nonce);
+            let mut private_ip_ref = state
+                .free_private_network_ips
+                .iter_mut()
+                .filter(|r| **r)
+                .choose(&mut thread_rng())
+                .ok_or(RequestError::new(
+                    "No more space in the network",
+                    StatusCode::SERVICE_UNAVAILABLE,
+                ))?;
+            // mark it as used, even though it's not final
+            *private_ip_ref = false;
+            let gateway_data = GatewayClient::new(
+                state.dh_keypair.private_key(),
+                remote_public,
+                *private_ip_ref.key(),
+                nonce,
+            );
             let response = ClientRegistrationResponse::PendingRegistration {
                 nonce,
                 gateway_data,

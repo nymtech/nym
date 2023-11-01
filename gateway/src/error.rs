@@ -134,6 +134,12 @@ pub(crate) enum GatewayError {
     // TODO: in the future this should work the other way, i.e. NymNode depending on Gateway errors
     #[error(transparent)]
     NymNodeError(#[from] nym_node::error::NymNodeError),
+
+    #[error("there was an issue with wireguard IP network: {source}")]
+    IpNetworkError {
+        #[from]
+        source: ipnetwork::IpNetworkError,
+    },
 }
 
 impl From<ClientCoreError> for GatewayError {

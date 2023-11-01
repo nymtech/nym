@@ -123,6 +123,7 @@ impl Config {
 #[serde(deny_unknown_fields)]
 pub struct Nymvisor {
     /// ID specifies the human readable ID of this particular nymvisor instance.
+    /// Can be overridden with $NYMVISOR_ID environmental variable.
     pub id: String,
 
     /// Further optional configuration options associated with the nymvisor.
@@ -134,10 +135,12 @@ pub struct Nymvisor {
 pub struct NymvisorDebug {
     /// If set to true, this will disable `nymvisor` logs (but not the underlying process)
     /// default: false
+    /// Can be overridden with $NYMVISOR_DISABLE_LOGS environmental variable.
     pub disable_logs: bool,
 
     /// Set custom directory for upgrade data - binaries and upgrade plans.
     /// If not set, the global nymvisors' data directory will be used instead.
+    /// Can be overridden with $NYMVISOR_DATA_UPGRADE_DIRECTORY environmental variable.
     #[serde(deserialize_with = "de_maybe_path")]
     pub data_upgrade_directory: Option<PathBuf>,
 }
@@ -156,11 +159,13 @@ impl Default for NymvisorDebug {
 #[serde(deny_unknown_fields)]
 pub struct Daemon {
     /// The name of the managed binary itself (e.g. nym-api, nym-mixnode, nym-gateway, etc.)
+    /// Can be overridden with $DAEMON_NAME environmental variable.
     pub name: String,
 
     /// The location where the `nymvisor/` directory is kept that contains the auxiliary files associated
     /// with the underlying daemon, such as any backups or current version information.
     /// (e.g. $HOME/.nym/nym-api/my-nym-api, $HOME/.nym/mixnodes/my-mixnode, etc.).
+    /// Can be overridden with $DAEMON_HOME environmental variable.
     pub home: String,
 
     /// Further optional configuration options associated with the daemon.
@@ -172,26 +177,31 @@ pub struct Daemon {
 pub struct DaemonDebug {
     /// If set to true, this will enable auto-downloading of new binaries using the url provided in the `upgrade-info.json`
     /// default: true
+    /// Can be overridden with $DAEMON_ALLOW_BINARIES_DOWNLOAD environmental variable.
     pub allow_binaries_download: bool,
 
     /// If enabled nymvisor will require that a checksum is provided in the upgrade plan for the binary to be downloaded.
     /// If disabled, nymvisor will not require a checksum to be provided, but still check the checksum if one is provided.
     /// default: true
+    /// Can be overridden with $DAEMON_ENFORCE_DOWNLOAD_CHECKSUM environmental variable.
     pub enforce_download_checksum: bool,
 
     /// If enabled, nymvisor will restart the subprocess with the same command-line arguments and flags (but with the new binary) after a successful upgrade.
     /// Otherwise (if disabled), nymvisor will stop running after an upgrade and will require the system administrator to manually restart it.
     /// Note restart is only after the upgrade and does not auto-restart the subprocess after an error occurs.
     /// default: true
+    /// Can be overridden with $DAEMON_RESTART_AFTER_UPGRADE environmental variable.
     pub restart_after_upgrade: bool,
 
     /// If enabled, nymvisor will restart the subprocess with the same command-line arguments and flags after it has crashed
     /// default: false
+    /// Can be overridden with $DAEMON_RESTART_ON_FAILURE environmental variable.
     pub restart_on_failure: bool,
 
     /// If `restart_on_failure` is enabled, the following value defines the amount of time `nymvisor` shall wait before
     /// restarting the subprocess.
     /// default: 10s
+    /// Can be overridden with $DAEMON_FAILURE_RESTART_DELAY environmental variable.
     // The default value is so relatively high as to prevent constant restart loops in case of some underlying issue.
     #[serde(with = "humantime_serde")]
     pub failure_restart_delay: Duration,
@@ -199,11 +209,13 @@ pub struct DaemonDebug {
     /// Defines the maximum number of startup failures the subprocess can experience in a quick succession before
     /// no further restarts will be attempted and `nymvisor` will exit/
     /// default: 10
+    /// Can be overridden with $DAEMON_MAX_STARTUP_FAILURES environmental variable.
     pub max_startup_failures: usize,
 
     /// Defines the length of time during which the subprocess is still considered to be in the startup phase
     /// when its failures are going to be considered in `max_startup_failures`.
     /// default: 120s
+    /// Can be overridden with $DAEMON_STARTUP_PERIOD_DURATION environmental variable.
     #[serde(with = "humantime_serde")]
     pub startup_period_duration: Duration,
 
@@ -211,15 +223,18 @@ pub struct DaemonDebug {
     /// (for either an upgrade or shutdown of the `nymvisor` itself)
     /// Once the time passes, a kill signal is going to be sent instead.
     /// default: 10s
+    /// Can be overridden with $DAEMON_SHUTDOWN_GRACE_PERIOD environmental variable.
     #[serde(with = "humantime_serde")]
     pub shutdown_grace_period: Duration,
 
     /// Set custom backup directory for daemon data. If not set, the daemon's home directory will be used instead.
+    /// Can be overridden with $DAEMON_DATA_BACKUP_DIRECTORYenvironmental variable.
     #[serde(deserialize_with = "de_maybe_path")]
     pub data_backup_directory: Option<PathBuf>,
 
     /// If enabled, `nymvisor` will perform upgrades directly without performing any backups.
     /// default: false
+    /// Can be overridden with $DAEMON_UNSAFE_SKIP_BACKUP environmental variable.
     pub unsafe_skip_backup: bool,
 }
 

@@ -6,10 +6,12 @@ use clap::Parser;
 
 pub(crate) mod cli;
 pub(crate) mod config;
+pub(crate) mod env;
+pub(crate) mod error;
 
 fn main() -> anyhow::Result<()> {
     let args = Cli::parse();
     println!("{args:#?}");
 
-    args.execute()
+    Ok(args.execute()?)
 }

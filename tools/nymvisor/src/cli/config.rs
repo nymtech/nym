@@ -1,6 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::error::NymvisorError;
 use nym_bin_common::output_format::OutputFormat;
 
 #[derive(clap::Args, Debug)]
@@ -9,7 +10,7 @@ pub(crate) struct Args {
     output: OutputFormat,
 }
 
-pub(crate) fn execute(args: Args) -> anyhow::Result<()> {
+pub(crate) fn execute(args: Args) -> Result<(), NymvisorError> {
     println!("config");
     Ok(())
 }

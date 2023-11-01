@@ -7,6 +7,8 @@ mod config;
 mod init;
 mod run;
 
+use crate::env::setup_env;
+use crate::error::NymvisorError;
 use clap::{Parser, Subcommand};
 use lazy_static::lazy_static;
 use nym_bin_common::bin_info;
@@ -23,14 +25,18 @@ fn pretty_build_info_static() -> &'static str {
 #[derive(Parser, Debug)]
 #[clap(author = "Nymtech", version, long_version = pretty_build_info_static(), about)]
 pub(crate) struct Cli {
-    // I doubt we're gonna need any global flags here, but I'm going to leave the the option open
-    // so that'd be easier to add them later if needed
+    /// Path pointing to an env file that configures the nymvisor and overrides any preconfigured values.
+    #[clap(short, long)]
+    pub(crate) config_env_file: Option<std::path::PathBuf>,
+
     #[clap(subcommand)]
     command: Commands,
 }
 
 impl Cli {
-    pub(crate) fn execute(self) -> anyhow::Result<()> {
+    pub(crate) fn execute(self) -> Result<(), NymvisorError> {
+        setup_env(&self.config_env_file)?;
+
         match self.command {
             Commands::Init(args) => init::execute(args),
             Commands::Run(args) => run::execute(args),

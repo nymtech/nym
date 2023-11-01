@@ -1,6 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::error::NymvisorError;
 use tokio::runtime;
 
 #[derive(clap::Args, Debug)]
@@ -10,7 +11,7 @@ pub(crate) struct Args {
     daemon_args: Vec<String>,
 }
 
-pub(crate) fn execute(args: Args) -> anyhow::Result<()> {
+pub(crate) fn execute(args: Args) -> Result<(), NymvisorError> {
     // TODO: experiment with the minimal runtime
     // look at futures::executor::LocalPool
     let rt = runtime::Builder::new_current_thread().enable_io().build()?;

@@ -12,6 +12,7 @@ pub(crate) struct Args {
 
 pub(crate) fn execute(args: Args) -> anyhow::Result<()> {
     // TODO: experiment with the minimal runtime
+    // look at futures::executor::LocalPool
     let rt = runtime::Builder::new_current_thread().enable_io().build()?;
 
     // spawn the root task

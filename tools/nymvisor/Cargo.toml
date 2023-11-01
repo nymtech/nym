@@ -13,8 +13,12 @@ license.workspace = true
 [dependencies]
 anyhow = { workspace = true }
 clap = { workspace = true, features = ["derive"] }
+humantime-serde = "1.1.1"
 lazy_static = { workspace = true }
 nix = "0.27.1"
+serde = { workspace = true, features = ["derive"] }
 tokio = { workspace = true, features = ["rt", "macros", "signal", "process"] }
+tracing = { workspace = true }
 
 nym-bin-common = { path = "../../common/bin-common", features = ["output_format"] }
+nym-config = { path = "../../common/config" }

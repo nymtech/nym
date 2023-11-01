@@ -5,6 +5,7 @@ use crate::cli::Cli;
 use clap::Parser;
 
 pub(crate) mod cli;
+pub(crate) mod config;
 
 fn main() -> anyhow::Result<()> {
     let args = Cli::parse();

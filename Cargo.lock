@@ -7600,10 +7600,14 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap 4.4.7",
+ "humantime-serde",
  "lazy_static",
  "nix 0.27.1",
  "nym-bin-common",
+ "nym-config",
+ "serde",
  "tokio",
+ "tracing",
 ]
 
 [[package]]

@@ -65,14 +65,14 @@ There has been an ongoing development with dynamic upgrades. Follow the status o
 An operator can initialise the Exit Gateway functionality by adding Network requester with the new exit policy option:
 
 ```
-./nym-gateway init --id <ID> --host $(curl ifcfg.me) --with-network-requester --with-exit-policy
+./nym-gateway init --id <ID> --host $(curl -4 https://ifconfig.me) --with-network-requester --with-exit-policy
 ```
 
 If we follow the previous example with `<ID>` chosen `superexitgateway`, adding the `--with-network-requester` and `--with-exit-policy` flags, the outcome will be:
 
 ~~~admonish example collapsible=true title="Console output"
 ```
-<!-- cmdrun ../../../../target/release/nym-gateway init --id superexitgateway --host $(curl ifcfg.me) --with-network-requester --with-exit-policy true -->
+<!-- cmdrun ../../../../target/release/nym-gateway init --id superexitgateway --host $(curl -4 https://ifconfig.me) --with-network-requester --with-exit-policy true -->
 ```
 ~~~
 
@@ -146,16 +146,16 @@ To check available configuration options use:
 The following command returns a gateway on your current IP with the `<ID>` of `supergateway`:
 
 ```
-./nym-gateway init --id supergateway --host $(curl ifcfg.me)
+./nym-gateway init --id supergateway --host $(curl -4 https://ifconfig.me)
 ```
 
 ~~~admonish example collapsible=true title="Console output"
 ```
-<!-- cmdrun ../../../../target/release/nym-gateway init --id supergateway --host $(curl ifcfg.me) -->
+<!-- cmdrun ../../../../target/release/nym-gateway init --id supergateway --host $(curl -4 https://ifconfig.me) -->
 ```
 ~~~
 
-The `$(curl ifcfg.me)` command above returns your IP automatically using an external service. Alternatively, you can enter your IP manually if you wish. If you do this, remember to enter your IP **without** any port information.
+The `$(curl -4 https://ifconfig.me)` command above returns your IP automatically using an external service. Alternatively, you can enter your IP manually if you wish. If you do this, remember to enter your IP **without** any port information.
 
 
 ### Bonding your gateway

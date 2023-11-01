@@ -11,6 +11,7 @@ export default {
     dir: 'dist/cjs',
     format: 'cjs',
   },
+  external: ['util', 'fake-indexeddb'],
   plugins: [
     resolve({
       browser: false,
@@ -18,6 +19,11 @@ export default {
       extensions: ['.js', '.ts'],
     }),
     commonjs(),
+    // TODO: One of the wasm functions calls `new WebSocket` at one point, which we aren't able to polyfill correctly yet.
+    modify({
+      find: 'const ret = new WebSocket(getStringFromWasm0(arg0, arg1));',
+      replace: 'const ws = require("ws"); const ret = new ws.WebSocket(getStringFromWasm0(arg0, arg1));',
+    }),
     // TODO: `getObject(...).require` seems to generate a warning on Webpack but with Rollup we get a panic since it can't require.
     // By hard coding the require here, we can workaround that.
     // Reference: https://github.com/rust-random/getrandom/issues/224

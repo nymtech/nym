@@ -11,7 +11,7 @@ export default {
     dir: 'dist/cjs',
     format: 'cjs',
   },
-  onwarn,
+  external: ['util', 'fake-indexeddb'],
   plugins: [
     resolve({
       browser: false,
@@ -19,6 +19,10 @@ export default {
       extensions: ['.js', '.ts'],
     }),
     commonjs(),
+    modify({
+      find: 'const ret = new WebSocket(getStringFromWasm0(arg0, arg1));',
+      replace: 'const ws = require("ws"); const ret = new ws.WebSocket(getStringFromWasm0(arg0, arg1));',
+    }),
     // TODO: `getObject(...).require` seems to generate a warning on Webpack but with Rollup we get a panic since it can't require.
     // By hard coding the require here, we can workaround that.
     // Reference: https://github.com/rust-random/getrandom/issues/224
@@ -33,11 +37,3 @@ export default {
     }),
   ],
 };
-
-function onwarn(warning) {
-  // fake-indexeddb has a circular dependency that triggers a warning when rolled up
-  if (warning.code !== 'CIRCULAR_DEPENDENCY') {
-    // eslint-disable-next-line no-console
-    console.error(`(!) ${warning.message}`);
-  }
-}

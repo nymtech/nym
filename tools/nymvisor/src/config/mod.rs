@@ -2,12 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::config::template::CONFIG_TEMPLATE;
+use crate::env::Env;
 use nym_config::serde_helpers::de_maybe_path;
 use nym_config::{
     must_get_home, read_config_from_toml_file, save_formatted_config_to_file, NymConfigTemplate,
     DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, DEFAULT_DATA_DIR, NYM_DIR,
 };
 use serde::{Deserialize, Serialize};
+use std::fmt::Display;
 use std::io;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -20,8 +22,13 @@ const DEFAULT_STARTUP_PERIOD: Duration = Duration::from_secs(120);
 const DEFAULT_MAX_STARTUP_FAILURES: usize = 10;
 const DEFAULT_SHUTDOWN_GRACE_PERIOD: Duration = Duration::from_secs(10);
 
-const DEFAULT_NYMVISORS_DIR: &str = "nymvisors";
-const DEFAULT_NYMVISORS_INSTANCES_DIR: &str = "instances";
+pub(crate) const NYMVISOR_DIR: &str = "nymvisor";
+pub(crate) const BACKUP_DIR: &str = "backups";
+pub(crate) const GENESIS_DIR: &str = "genesis";
+pub(crate) const BIN_DIR: &str = "bin";
+pub(crate) const UPGRADES_DIR: &str = "upgrades";
+pub(crate) const DEFAULT_NYMVISORS_DIR: &str = "nymvisors";
+pub(crate) const DEFAULT_NYMVISORS_INSTANCES_DIR: &str = "instances";
 
 /// Derive default path to the nymvisor's config directory.
 /// It should get resolved to `$HOME/.nym/nymvisor/instances/<id>/config`
@@ -40,16 +47,16 @@ pub fn default_config_filepath<P: AsRef<Path>>(id: P) -> PathBuf {
     default_config_directory(id).join(DEFAULT_CONFIG_FILENAME)
 }
 
-/// Derive default path to the nymvisor's data directory where additional files are stored.
-/// It should get resolved to `$HOME/.nym/nymvisor/instances/<id>/data`
-pub fn default_data_directory<P: AsRef<Path>>(id: P) -> PathBuf {
-    must_get_home()
-        .join(NYM_DIR)
-        .join(DEFAULT_NYMVISORS_DIR)
-        .join(DEFAULT_NYMVISORS_INSTANCES_DIR)
-        .join(id)
-        .join(DEFAULT_DATA_DIR)
-}
+// /// Derive default path to the nymvisor's data directory where additional files are stored.
+// /// It should get resolved to `$HOME/.nym/nymvisor/instances/<id>/data`
+// pub fn default_data_directory<P: AsRef<Path>>(id: P) -> PathBuf {
+//     must_get_home()
+//         .join(NYM_DIR)
+//         .join(DEFAULT_NYMVISORS_DIR)
+//         .join(DEFAULT_NYMVISORS_INSTANCES_DIR)
+//         .join(id)
+//         .join(DEFAULT_DATA_DIR)
+// }
 
 /// Get default path to nymvisors global data directory where files, such as upgrade plans or binaries are stored.
 /// It should get resolved to `$HOME/.nym/nymvisors/data`
@@ -79,8 +86,25 @@ impl NymConfigTemplate for Config {
 }
 
 impl Config {
-    pub fn new() -> Self {
-        todo!()
+    pub fn default_id<S: Display>(daemon_name: S) -> String {
+        format!("{daemon_name}-default")
+    }
+
+    pub fn new<S: Into<String>>(daemon_name: S, daemon_home: PathBuf) -> Self {
+        let daemon_name = daemon_name.into();
+
+        Config {
+            save_path: None,
+            nymvisor: Nymvisor {
+                id: Self::default_id(&daemon_name),
+                debug: Default::default(),
+            },
+            daemon: Daemon {
+                name: daemon_name,
+                home: daemon_home,
+                debug: Default::default(),
+            },
+        }
     }
 
     // simple wrapper that reads config file and assigns path location
@@ -109,6 +133,10 @@ impl Config {
         save_formatted_config_to_file(self, config_save_location)
     }
 
+    pub fn save_to_path<P: AsRef<Path>>(&self, path: P) -> io::Result<()> {
+        save_formatted_config_to_file(self, path)
+    }
+
     pub fn try_save(&self) -> io::Result<()> {
         if let Some(save_location) = &self.save_path {
             save_formatted_config_to_file(self, save_location)
@@ -116,6 +144,34 @@ impl Config {
             warn!("config file save location is unknown. falling back to the default");
             self.save_to_default_location()
         }
+    }
+
+    pub fn daemon_nymvisor_dir(&self) -> PathBuf {
+        self.daemon.home.join(NYMVISOR_DIR)
+    }
+
+    pub fn daemon_backup_dir(&self) -> PathBuf {
+        if let Some(backup_dir) = &self.daemon.debug.backup_data_directory {
+            backup_dir.clone()
+        } else {
+            self.daemon_nymvisor_dir().join(BACKUP_DIR)
+        }
+    }
+
+    pub fn upgrade_data_dir(&self) -> PathBuf {
+        self.nymvisor
+            .debug
+            .upgrade_data_directory
+            .clone()
+            .unwrap_or(default_global_data_directory().join(&self.daemon.name))
+    }
+
+    pub fn genesis_daemon_dir(&self) -> PathBuf {
+        self.upgrade_data_dir().join(GENESIS_DIR)
+    }
+
+    pub fn upgrades_dir(&self) -> PathBuf {
+        self.upgrade_data_dir().join(UPGRADES_DIR)
     }
 }
 
@@ -141,9 +197,9 @@ pub struct NymvisorDebug {
 
     /// Set custom directory for upgrade data - binaries and upgrade plans.
     /// If not set, the global nymvisors' data directory will be used instead.
-    /// Can be overridden with $NYMVISOR_DATA_UPGRADE_DIRECTORY environmental variable.
+    /// Can be overridden with $NYMVISOR_UPGRADE_DATA_DIRECTORY environmental variable.
     #[serde(deserialize_with = "de_maybe_path")]
-    pub data_upgrade_directory: Option<PathBuf>,
+    pub upgrade_data_directory: Option<PathBuf>,
 }
 
 #[allow(clippy::derivable_impls)]
@@ -151,7 +207,7 @@ impl Default for NymvisorDebug {
     fn default() -> Self {
         NymvisorDebug {
             disable_logs: false,
-            data_upgrade_directory: None,
+            upgrade_data_directory: None,
         }
     }
 }
@@ -167,7 +223,7 @@ pub struct Daemon {
     /// with the underlying daemon, such as any backups or current version information.
     /// (e.g. $HOME/.nym/nym-api/my-nym-api, $HOME/.nym/mixnodes/my-mixnode, etc.).
     /// Can be overridden with $DAEMON_HOME environmental variable.
-    pub home: String,
+    pub home: PathBuf,
 
     /// Further optional configuration options associated with the daemon.
     #[serde(flatten)]
@@ -209,7 +265,7 @@ pub struct DaemonDebug {
     pub failure_restart_delay: Duration,
 
     /// Defines the maximum number of startup failures the subprocess can experience in a quick succession before
-    /// no further restarts will be attempted and `nymvisor` will exit/
+    /// no further restarts will be attempted and `nymvisor` will exit.
     /// default: 10
     /// Can be overridden with $DAEMON_MAX_STARTUP_FAILURES environmental variable.
     pub max_startup_failures: usize,
@@ -230,9 +286,9 @@ pub struct DaemonDebug {
     pub shutdown_grace_period: Duration,
 
     /// Set custom backup directory for daemon data. If not set, the daemon's home directory will be used instead.
-    /// Can be overridden with $DAEMON_DATA_BACKUP_DIRECTORY environmental variable.
+    /// Can be overridden with $DAEMON_BACKUP_DATA_DIRECTORY environmental variable.
     #[serde(deserialize_with = "de_maybe_path")]
-    pub data_backup_directory: Option<PathBuf>,
+    pub backup_data_directory: Option<PathBuf>,
 
     /// If enabled, `nymvisor` will perform upgrades directly without performing any backups.
     /// default: false
@@ -251,7 +307,7 @@ impl Default for DaemonDebug {
             max_startup_failures: DEFAULT_MAX_STARTUP_FAILURES,
             startup_period_duration: DEFAULT_STARTUP_PERIOD,
             shutdown_grace_period: DEFAULT_SHUTDOWN_GRACE_PERIOD,
-            data_backup_directory: None,
+            backup_data_directory: None,
             unsafe_skip_backup: false,
         }
     }

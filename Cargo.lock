@@ -7608,6 +7608,7 @@ dependencies = [
  "nym-bin-common",
  "nym-config",
  "serde",
+ "serde_json",
  "thiserror",
  "tokio",
  "tracing",

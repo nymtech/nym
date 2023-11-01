@@ -29,6 +29,13 @@ pub(crate) enum NymvisorError {
         source: io::Error,
     },
 
+    #[error("failed to initialise the path '{}': {source}", path.display())]
+    PathInitFailure {
+        path: PathBuf,
+        #[source]
+        source: io::Error,
+    },
+
     #[error("the provided env file was malformed: {source}")]
     MalformedEnvFile {
         #[from]
@@ -55,5 +62,31 @@ pub(crate) enum NymvisorError {
         value: String,
         #[source]
         source: ParseIntError,
+    },
+
+    #[error("the value of daemon home has to be provided by either `--daemon-home` flag or `$DAEMON_HOME` environmental variable")]
+    DaemonHomeUnavailable,
+
+    #[error("failed to obtain build information from the daemon executable ('{}'): {source}", binary_path.display())]
+    DaemonBuildInformationFailure {
+        binary_path: PathBuf,
+        #[source]
+        source: io::Error,
+    },
+
+    #[error("failed to parse build information from the daemon executable: {source}")]
+    DaemonBuildInformationParseFailure {
+        #[source]
+        source: serde_json::Error,
+    },
+
+    #[error("the daemon execution has failed with the following exit code: {exit_code:?}. the associated signal code: {signal_code:?}. the core was dumped: {core_dumped}")]
+    DaemonExecutionFailure {
+        // exit code of the process, if any
+        exit_code: Option<i32>,
+
+        // if the process was WIFSIGNALED, this returns WTERMSIG.
+        signal_code: Option<i32>,
+        core_dumped: bool,
     },
 }

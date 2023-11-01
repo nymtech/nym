@@ -8,6 +8,7 @@ pub(crate) mod cli;
 pub(crate) mod config;
 pub(crate) mod env;
 pub(crate) mod error;
+pub(crate) mod daemon;
 
 fn main() -> anyhow::Result<()> {
     let args = Cli::parse();

@@ -14,7 +14,10 @@ pub(crate) struct Args {
 pub(crate) fn execute(args: Args) -> Result<(), NymvisorError> {
     // TODO: experiment with the minimal runtime
     // look at futures::executor::LocalPool
-    let rt = runtime::Builder::new_current_thread().enable_io().build()?;
+    let rt = runtime::Builder::new_current_thread()
+        .enable_io()
+        .build()
+        .unwrap();
 
     // spawn the root task
     rt.block_on(async {
@@ -22,9 +25,10 @@ pub(crate) fn execute(args: Args) -> Result<(), NymvisorError> {
 
         let mut child = tokio::process::Command::new("echo")
             .args(args.daemon_args)
-            .spawn()?;
+            .spawn()
+            .unwrap();
 
-        let status = child.wait().await?;
+        let status = child.wait().await.unwrap();
 
         println!("{:?}", status);
         Ok(())

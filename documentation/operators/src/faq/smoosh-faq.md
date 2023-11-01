@@ -24,7 +24,7 @@ As we shared in our blog post article [*What does it take to build the wolds mos
 Project smoosh will have three steps:
 
 1. Combine the `gateway` and `network-requester` into one binary ✅
-2. Create [exit gateway](../legal/exit-gateway.md): Take the gateway binary including network requester combined in \#1 and switch from [*allowed.list*](https://nymtech.net/.wellknown/network-requester/standard-allowed-list.txt) to a new [exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt) ✅
+2. Create [Exit Gateway](../legal/exit-gateway.md): Take the gateway binary including network requester combined in \#1 and switch from [*allowed.list*](https://nymtech.net/.wellknown/network-requester/standard-allowed-list.txt) to a new [exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt) ✅
 3. Combine all the nodes in the Nym Mixnet into one binary, that is `mixnode`, `gateway` (entry and exit) and `network-requester`.
 
 These three steps will be staggered over time - period of several months, and will be implemented one by one with enough time to take in feedback and fix bugs in between.  

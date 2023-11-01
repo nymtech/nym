@@ -27,6 +27,10 @@ export default {
     // By hard coding the require here, we can workaround that.
     // Reference: https://github.com/rust-random/getrandom/issues/224
     modify({ find: 'getObject(arg0).require(getStringFromWasm0(arg1, arg2));', replace: 'require("crypto");' }),
+    modify({
+      find: 'getObject(arg0).getRandomValues(getObject(arg1));',
+      replace: 'require("crypto").getRandomValues(getObject(arg1));',
+    }),
     wasm({ targetEnv: 'node', maxFileSize: 0, fileName: '[name].wasm' }),
     typescript({
       compilerOptions: {

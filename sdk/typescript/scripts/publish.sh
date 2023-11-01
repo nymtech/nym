@@ -79,8 +79,8 @@ do
   (( COUNTER+=1 ))
   pushd "$item"
   echo "🚀 Publishing $item... (${COUNTER} of ${#packages[@]})"
-  jq -r '. | .name + " " +.version' < package.json
-  npm publish --access=public --verbose
+  cat package.json | jq -r '. | .name + " " +.version'
+  npm publish --access=public --verbose --workspaces false
   popd
   echo ""
 done

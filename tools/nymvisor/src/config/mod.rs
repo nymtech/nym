@@ -127,6 +127,7 @@ pub struct Nymvisor {
     pub id: String,
 
     /// Further optional configuration options associated with the nymvisor.
+    #[serde(flatten)]
     pub debug: NymvisorDebug,
 }
 
@@ -169,6 +170,7 @@ pub struct Daemon {
     pub home: String,
 
     /// Further optional configuration options associated with the daemon.
+    #[serde(flatten)]
     pub debug: DaemonDebug,
 }
 
@@ -228,7 +230,7 @@ pub struct DaemonDebug {
     pub shutdown_grace_period: Duration,
 
     /// Set custom backup directory for daemon data. If not set, the daemon's home directory will be used instead.
-    /// Can be overridden with $DAEMON_DATA_BACKUP_DIRECTORYenvironmental variable.
+    /// Can be overridden with $DAEMON_DATA_BACKUP_DIRECTORY environmental variable.
     #[serde(deserialize_with = "de_maybe_path")]
     pub data_backup_directory: Option<PathBuf>,
 

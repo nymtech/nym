@@ -102,22 +102,22 @@ To setup Exit Gateway functionality with our new [exit policy](https://nymtech.n
 ./nym-gateway setup-network-requester --enabled true --with-exit-policy true --id <ID> 
 ```
 
-Example choosing `<ID>` as `exit-gateway`:
+Say we have a gateway with `<ID>` as `new-gateway`, originally initialised and ran without the Exit Gateway functionality. To change the setup, run:
+
 
 ```
-./nym-gateway setup-network-requester --enabled true --with-exit-policy true --id exit-gateway
+./nym-gateway setup-network-requester --enabled true --with-exit-policy true --id new-gateway
 ```
-(In the following output we first initialised the Gateway without the functionality and then ran the command above.)
 
 ~~~admonish example collapsible=true title="Console output"
 ```
-<!-- cmdrun ../../../../target/release/nym-gateway setup-network-requester --enabled true --id exit-gateway --> 
-
-<!-- cmdrun ../../../../target/release/nym-gateway setup-network-requester --enabled true --id exit-gateway -->
+<!-- cmdrun rm -rf ../../../../../.nym/gateways/new-gateway -->
+<!-- cmdrun ../../../../target/release/nym-gateway init --id new-gateway --host $(curl -4 https://ifconfig.me) -->
+<!-- cmdrun ../../../../target/release/nym-gateway setup-network-requester --enabled true --with-exit-policy true --id new-gateway -->
 ```
 ~~~
 
-In case there are any unexpected problems, you can also change it manually by editing the Gateway config stored in `/home/user/.nym/gateways/<ID>/config/config.toml` where the line under `[network_requester]` needs to be edited from `false` to `true`.
+In case there are any unexpected problems, you can also change it manually by editing the Gateway config file stored in `/home/user/.nym/gateways/<ID>/config/config.toml` where the line under `[network_requester]` needs to be edited from `false` to `true`.
 
 ```
 [network_requester]
@@ -127,7 +127,7 @@ enabled = true
 
 Save, exit and restart your gateway. Now you are an operator of post-smooshed Exit gateway.
 
-All information about network requester part of your exit gateway is in `/home/user/.nym/gateways/snus/config/network_requester_config.toml`.
+All information about network requester part of your exit gateway is in `/home/user/.nym/gateways/<ID>/config/network_requester_config.toml`.
 
 For now you can run Gateway without Network requester or with and without the new exit policy. This will soon change as we inform in our [Project Smoosh FAQ](../faq/smoosh-faq.html#how-will-the-exit-policy-be-implemented).
 

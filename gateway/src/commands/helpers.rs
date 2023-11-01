@@ -302,6 +302,7 @@ pub(crate) async fn initialise_local_network_requester(
         enabled: gateway_config.network_requester.enabled,
         identity_key: address.identity().to_string(),
         encryption_key: address.encryption_key().to_string(),
+        exit_policy: !nr_cfg.network_requester.use_deprecated_allow_list,
         open_proxy: nr_cfg.network_requester.open_proxy,
         enabled_statistics: nr_cfg.network_requester.enabled_statistics,
         address: address.to_string(),

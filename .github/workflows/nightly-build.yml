@@ -4,25 +4,25 @@ on:
   workflow_dispatch:
   schedule:
     - cron: '14 1 * * *'
+
 jobs:
   build:
     strategy:
       fail-fast: false
       matrix:
         rust: [stable, beta]
-        os: [custom-linux, windows10, custom-runner-mac-m1]
+        os: [ubuntu-20.04, windows10, macos-latest]
     runs-on: ${{ matrix.os }}
     env:
       CARGO_TERM_COLOR: always
     continue-on-error: true
     steps:
-      - name: Install Dependencies (Linux)
-        run: sudo apt-get update && sudo apt-get install -y build-essential curl wget libssl-dev libudev-dev squashfs-tools protobuf-compiler
-        continue-on-error: true
-        if: matrix.os == 'custom-linux'
-
       - name: Check out repository code
         uses: actions/checkout@v3
+
+      - name: Install Dependencies (Linux)
+        run: sudo apt-get update && sudo apt-get install -y build-essential curl wget libssl-dev libudev-dev squashfs-tools protobuf-compiler
+        if: matrix.os == 'ubuntu-20.04'
 
       - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1
@@ -31,6 +31,12 @@ jobs:
           toolchain: ${{ matrix.rust }}
           override: true
           components: rustfmt, clippy
+
+      - name: Install Protoc
+        uses: arduino/setup-protoc@v2
+        if: matrix.os == 'macos-latest'
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Check formatting
         uses: actions-rs/cargo@v1
@@ -42,13 +48,18 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --workspace
+          args: --release --workspace
 
       - name: Build examples
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --workspace --examples
+          args: --release --workspace --examples
+
+      - name: Set debug to false
+        run: |
+          sed -i.bak 's/\[profile.dev\]/\[profile.dev\]\ndebug = false/' Cargo.toml
+          git diff
 
       - name: Run unit tests
         uses: actions-rs/cargo@v1

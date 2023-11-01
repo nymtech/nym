@@ -14,7 +14,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     env:
       CARGO_TERM_COLOR: always
-      MANIFEST_PATH: --manifest-path nym-wallet/Cargo.toml
+      MANIFEST_PATH: --manifest-path nym-connect/desktop/Cargo.toml
     continue-on-error: true
     steps:
       - name: Check out repository code
@@ -77,7 +77,7 @@ jobs:
         if: env.WORKFLOW_CONCLUSION == 'failure'
         env:
           NYM_NOTIFICATION_KIND: nightly
-          NYM_PROJECT_NAME: "nym-wallet-nightly-build"
+          NYM_PROJECT_NAME: "nym-connect-desktop-nightly-build"
           GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
           GIT_COMMIT_MESSAGE: "${{ github.event.head_commit.message }}"
           GIT_BRANCH: "${GITHUB_REF##*/}"

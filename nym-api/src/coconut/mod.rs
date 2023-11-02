@@ -10,7 +10,8 @@ use crate::support::storage::NymApiStorage;
 use getset::{CopyGetters, Getters};
 use keypair::KeyPair;
 use nym_api_requests::coconut::{
-    BlindSignRequestBody, BlindedSignatureResponse, VerifyCredentialBody, VerifyCredentialResponse,
+    BlindSignRequestBody, BlindedSignatureResponse, EcashParametersResponse, VerifyCredentialBody,
+    VerifyCredentialResponse,
 };
 use nym_coconut::VerificationKey;
 use nym_coconut_bandwidth_contract_common::spend_credential::{
@@ -22,7 +23,7 @@ use nym_compact_ecash::error::CompactEcashError;
 use nym_compact_ecash::scheme::keygen::{KeyPairAuth, SecretKeyAuth};
 use nym_compact_ecash::scheme::withdrawal::WithdrawalRequest;
 use nym_compact_ecash::scheme::EcashCredential;
-use nym_compact_ecash::setup::GroupParameters;
+use nym_compact_ecash::setup::{setup, GroupParameters, Parameters};
 use nym_compact_ecash::utils::BlindedSignature;
 use nym_compact_ecash::{PublicKeyUser, VerificationKeyAuth};
 use nym_config::defaults::NYM_API_VERSION;
@@ -54,6 +55,7 @@ pub(crate) mod tests;
 pub struct State {
     client: Arc<dyn LocalClient + Send + Sync>,
     mix_denom: String,
+    ecash_params: Parameters,
     key_pair: KeyPair,
     comm_channel: Arc<dyn APICommunicationChannel + Send + Sync>,
     storage: NymApiStorage,
@@ -78,6 +80,7 @@ impl State {
         Self {
             client,
             mix_denom,
+            ecash_params: setup(100),
             key_pair,
             comm_channel,
             storage,
@@ -282,6 +285,11 @@ pub async fn verify_bandwidth_credential(
         .await?;
 
     Ok(Json(VerifyCredentialResponse::new(true)))
+}
+
+#[get("/ecash-parameters")]
+pub async fn ecash_parameters(state: &RocketState<State>) -> Result<Json<EcashParametersResponse>> {
+    Ok(Json(EcashParametersResponse::new(&state.ecash_params)))
 }
 
 // #[post("/verify-bandwidth-credential", data = "<verify_credential_body>")]

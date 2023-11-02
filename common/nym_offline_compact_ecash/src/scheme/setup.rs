@@ -6,7 +6,9 @@ use group::Curve;
 use rand::thread_rng;
 
 use crate::error::{CompactEcashError, Result};
+use crate::traits::Bytable;
 use crate::utils::{hash_g1, try_deserialize_g2_projective, Signature};
+use crate::Base58;
 
 const ATTRIBUTES_LEN: usize = 3;
 
@@ -210,6 +212,19 @@ impl TryFrom<&[u8]> for Parameters {
         })
     }
 }
+
+impl Bytable for Parameters {
+    fn to_byte_vec(&self) -> Vec<u8> {
+        self.to_bytes().to_vec()
+    }
+
+    fn try_from_byte_slice(slice: &[u8]) -> std::result::Result<Self, CompactEcashError> {
+        Self::try_from(slice)
+    }
+}
+
+impl Base58 for Parameters {}
+
 pub fn setup(ll: u64) -> Parameters {
     let grp = GroupParameters::new().unwrap();
     let x = grp.random_scalar();

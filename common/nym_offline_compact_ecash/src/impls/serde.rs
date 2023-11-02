@@ -1,4 +1,5 @@
 use crate::scheme::EcashCredential;
+use crate::setup::Parameters;
 use crate::traits::Base58;
 use crate::VerificationKeyAuth;
 use serde::de::Unexpected;
@@ -49,3 +50,4 @@ macro_rules! impl_serde {
 impl_serde!(WithdrawalRequest, V1);
 impl_serde!(EcashCredential, V2);
 impl_serde!(VerificationKeyAuth, V3);
+impl_serde!(Parameters, V4);

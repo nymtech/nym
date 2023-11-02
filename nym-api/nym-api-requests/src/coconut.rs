@@ -6,6 +6,7 @@ use getset::{CopyGetters, Getters};
 use nym_compact_ecash::{
     error::CompactEcashError,
     scheme::{withdrawal::WithdrawalRequest, EcashCredential},
+    setup::Parameters,
     VerificationKeyAuth,
 };
 use serde::{Deserialize, Serialize};
@@ -162,5 +163,18 @@ pub struct CosmosAddressResponse {
 impl CosmosAddressResponse {
     pub fn new(addr: AccountId) -> CosmosAddressResponse {
         CosmosAddressResponse { addr }
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct EcashParametersResponse {
+    pub params: Parameters,
+}
+
+impl EcashParametersResponse {
+    pub fn new(params: &Parameters) -> EcashParametersResponse {
+        EcashParametersResponse {
+            params: params.clone(),
+        }
     }
 }

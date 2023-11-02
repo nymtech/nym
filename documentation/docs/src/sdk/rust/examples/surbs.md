@@ -4,13 +4,13 @@ Both functions used to send messages through the mixnet (`send_message` and `sen
 The number of SURBs is set [here](https://github.com/nymtech/nym/blob/master/sdk/rust/nym-sdk/src/mixnet/client.rs#L33).
 
 ```rust,noplayground
-{{#include ../../../../sdk/rust/nym-sdk/src/mixnet/client.rs:33}}
+{{#include ../../../../../../sdk/rust/nym-sdk/src/mixnet/client.rs:33}}
 ```
 
-You can read more about how SURBs function under the hood [here](../../architecture/traffic-flow.md#private-replies-using-surbs).
+You can read more about how SURBs function under the hood [here](../../../architecture/traffic-flow.md#private-replies-using-surbs).
 
 In order to reply to an incoming message using SURBs, you can construct a `recipient` from the `sender_tag` sent along with the message you wish to reply to:
 
 ```rust,noplayground
-{{#include ../../../../sdk/rust/nym-sdk/examples/surb-reply.rs}}
+{{#include ../../../../../../sdk/rust/nym-sdk/examples/surb-reply.rs}}
 ```

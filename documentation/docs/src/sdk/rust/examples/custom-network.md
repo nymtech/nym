@@ -7,12 +7,12 @@ There are two ways to do this:
 If you are also running a Validator and Nym API for your network, you can specify that endpoint as such and interact with it as clients usually do (under the hood):
 
 ```rust,noplayground
-{{#include ../../../../sdk/rust/nym-sdk/examples/custom_topology_provider.rs}}
+{{#include ../../../../../../sdk/rust/nym-sdk/examples/custom_topology_provider.rs}}
 ```
 
 ## Import a specific topology manually
 If you aren't running a Validator and Nym API, and just want to import a specific sub-set of mix nodes, you can simply overwrite the grabbed topology manually:
 
 ```rust,noplayground
-{{#include ../../../../sdk/rust/nym-sdk/examples/manually_overwrite_topology.rs}}
+{{#include ../../../../../../sdk/rust/nym-sdk/examples/manually_overwrite_topology.rs}}
 ```

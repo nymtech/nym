@@ -88,7 +88,7 @@ In either way, Nym will share all the specifics beforehand.
 
 ### How will be the staking and inflation after project Smoosh?
 
-We must run tests to see how many users pay. We may need to keep inflation on if not enough people pay to keep high quality gateways on in the early stage of the transition.
+Nym will run tests to count how much payment comes from the users of the Mixnet and if that covers the reward payments. If not, we may need to keep inflation on to secure incentives for high quality gateways in the early stage of the transition.
 
 ### When project smooth will be launched, it would be the mixmining pool that will pay for the gateway rewards based on amount of traffic routed ?
 

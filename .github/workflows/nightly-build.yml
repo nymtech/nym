@@ -41,7 +41,7 @@ jobs:
       - name: Check formatting
         uses: actions-rs/cargo@v1
         with:
-          command: fmt
+          command: famt
           args: --all -- --check
 
       # - name: Build binaries

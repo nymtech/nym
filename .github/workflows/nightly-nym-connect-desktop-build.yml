@@ -1,4 +1,4 @@
-name: nightly-nym-wallet-build
+name: nightly-nym-connect-build
 
 on:
   workflow_dispatch:

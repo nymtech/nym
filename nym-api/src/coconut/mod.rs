@@ -5,17 +5,12 @@ use self::comm::APICommunicationChannel;
 use crate::coconut::client::Client as LocalClient;
 use crate::coconut::deposit::extract_encryption_key;
 use crate::coconut::error::{CoconutError, Result};
-use crate::coconut::helpers::accepted_vote_err;
 use crate::support::storage::NymApiStorage;
 use getset::{CopyGetters, Getters};
 use keypair::KeyPair;
 use nym_api_requests::coconut::{
     BlindSignRequestBody, BlindedSignatureResponse, EcashParametersResponse, VerifyCredentialBody,
     VerifyCredentialResponse,
-};
-use nym_coconut::VerificationKey;
-use nym_coconut_bandwidth_contract_common::spend_credential::{
-    funds_from_cosmos_msgs, SpendCredentialStatus,
 };
 use nym_coconut_dkg_common::types::EpochId;
 
@@ -34,7 +29,7 @@ use nym_crypto::asymmetric::encryption;
 use nym_crypto::shared_key::new_ephemeral_shared_key;
 use nym_crypto::symmetric::stream_cipher;
 use nym_validator_client::nym_api::routes::{BANDWIDTH, COCONUT_ROUTES};
-use nym_validator_client::nyxd::{AccountId, Coin, Fee};
+use nym_validator_client::nyxd::AccountId;
 use rand_07::rngs::OsRng;
 use rocket::fairing::AdHoc;
 use rocket::serde::json::Json;
@@ -54,7 +49,6 @@ pub(crate) mod tests;
 
 pub struct State {
     client: Arc<dyn LocalClient + Send + Sync>,
-    mix_denom: String,
     ecash_params: Parameters,
     key_pair: KeyPair,
     comm_channel: Arc<dyn APICommunicationChannel + Send + Sync>,
@@ -65,7 +59,6 @@ pub struct State {
 impl State {
     pub(crate) fn new<C, D>(
         client: C,
-        mix_denom: String,
         key_pair: KeyPair,
         comm_channel: D,
         storage: NymApiStorage,
@@ -79,7 +72,6 @@ impl State {
         let rng = Arc::new(Mutex::new(OsRng));
         Self {
             client,
-            mix_denom,
             ecash_params: setup(100),
             key_pair,
             comm_channel,
@@ -182,7 +174,6 @@ impl InternalSignRequest {
 
     pub fn stage<C, D>(
         client: C,
-        mix_denom: String,
         key_pair: KeyPair,
         comm_channel: D,
         storage: NymApiStorage,
@@ -191,7 +182,7 @@ impl InternalSignRequest {
         C: LocalClient + Send + Sync + 'static,
         D: APICommunicationChannel + Send + Sync + 'static,
     {
-        let state = State::new(client, mix_denom, key_pair, comm_channel, storage);
+        let state = State::new(client, key_pair, comm_channel, storage);
         AdHoc::on_ignite("Internal Sign Request Stage", |rocket| async {
             rocket.manage(state).mount(
                 // this format! is so ugly...
@@ -295,74 +286,3 @@ pub async fn verify_bandwidth_credential(
 pub async fn ecash_parameters(state: &RocketState<State>) -> Result<Json<EcashParametersResponse>> {
     Ok(Json(EcashParametersResponse::new(&state.ecash_params)))
 }
-
-// #[post("/verify-bandwidth-credential", data = "<verify_credential_body>")]
-// pub async fn verify_bandwidth_credential(
-//     verify_credential_body: Json<VerifyCredentialBody>,
-//     state: &RocketState<State>,
-// ) -> Result<Json<VerifyCredentialResponse>> {
-//     let proposal_id = *verify_credential_body.proposal_id();
-//     let proposal = state.client.get_proposal(proposal_id).await?;
-//     // Proposal description is the blinded serial number
-//     if !verify_credential_body
-//         .credential()
-//         .has_blinded_serial_number(&proposal.description)?
-//     {
-//         return Err(CoconutError::IncorrectProposal {
-//             reason: String::from("incorrect blinded serial number in description"),
-//         });
-//     }
-//     let proposed_release_funds =
-//         funds_from_cosmos_msgs(proposal.msgs).ok_or(CoconutError::IncorrectProposal {
-//             reason: String::from("action is not to release funds"),
-//         })?;
-//     // Credential has not been spent before, and is on its way of being spent
-//     let credential_status = state
-//         .client
-//         .get_spent_credential(verify_credential_body.credential().blinded_serial_number())
-//         .await?
-//         .spend_credential
-//         .ok_or(CoconutError::InvalidCredentialStatus {
-//             status: String::from("Inexistent"),
-//         })?
-//         .status();
-//     if credential_status != SpendCredentialStatus::InProgress {
-//         return Err(CoconutError::InvalidCredentialStatus {
-//             status: format!("{:?}", credential_status),
-//         });
-//     }
-//     let verification_key = state
-//         .verification_key(*verify_credential_body.credential().epoch_id())
-//         .await?;
-
-//     let verification_key_converted =
-//         VerificationKey::try_from(verification_key.to_bytes().as_slice())
-//             .expect("converstion should not fail"); //SW : TEMPORARY workaround for type conversion
-
-//     let mut vote_yes = verify_credential_body
-//         .credential()
-//         .verify(&verification_key_converted);
-
-//     vote_yes &= Coin::from(proposed_release_funds)
-//         == Coin::new(
-//             verify_credential_body.credential().voucher_value() as u128,
-//             state.mix_denom.clone(),
-//         );
-
-//     // Vote yes or no on the proposal based on the verification result
-//     let ret = state
-//         .client
-//         .vote_proposal(
-//             proposal_id,
-//             vote_yes,
-//             Some(Fee::new_payer_granter_auto(
-//                 None,
-//                 None,
-//                 Some(verify_credential_body.gateway_cosmos_addr().to_owned()),
-//             )),
-//         )
-//         .await;
-//     accepted_vote_err(ret)?;
-
-//     Ok(Json(VerifyCredentialResponse::new(vote_yes)))
-// }

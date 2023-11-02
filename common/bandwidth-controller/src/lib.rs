@@ -5,7 +5,7 @@ use crate::error::BandwidthControllerError;
 use nym_compact_ecash::scheme::keygen::KeyPairUser;
 use nym_compact_ecash::scheme::{EcashCredential, Wallet};
 use nym_compact_ecash::setup::setup;
-use nym_compact_ecash::{Base58, PayInfo, SecretKeyUser};
+use nym_compact_ecash::{Base58, PayInfo};
 use nym_credential_storage::error::StorageError;
 use nym_credential_storage::storage::Storage;
 use nym_credentials::obtain_aggregate_verification_key;
@@ -38,7 +38,7 @@ impl<C, St: Storage> BandwidthController<C, St> {
     pub async fn prepare_ecash_credential(
         &self,
         provider_pk: [u8; 32],
-    ) -> Result<(EcashCredential, String, i64), BandwidthControllerError>
+    ) -> Result<(EcashCredential, Wallet, i64), BandwidthControllerError>
     where
         C: DkgQueryClient + Sync + Send,
         <St as Storage>::StorageError: Send + Sync + 'static,
@@ -76,12 +76,12 @@ impl<C, St: Storage> BandwidthController<C, St> {
 
         let credential = EcashCredential::new(params, payment, pay_info, epoch_id);
 
-        Ok((credential, wallet.to_bs58(), ecash_credential.id))
+        Ok((credential, wallet, ecash_credential.id))
     }
 
     pub async fn update_ecash_credential(
         &self,
-        wallet: String,
+        wallet: Wallet,
         id: i64,
     ) -> Result<(), BandwidthControllerError>
     where
@@ -89,8 +89,11 @@ impl<C, St: Storage> BandwidthController<C, St> {
     {
         // JS: shouldn't we send some contract/validator/gateway message here to actually, you know,
         // consume it?
+        let consumed = wallet.l() >= setup(100).ll(); //temporary, depends on parameters distribution
+        let wallet_string = wallet.to_bs58();
+
         self.storage
-            .update_ecash_credential(wallet, id)
+            .update_ecash_credential(wallet_string, id, consumed)
             .await
             .map_err(|err| BandwidthControllerError::CredentialStorageError(Box::new(err)))
     }

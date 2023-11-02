@@ -68,7 +68,6 @@ pub(crate) async fn setup_rocket(
         let comm_channel = QueryCommunicationChannel::new(_nyxd_client.clone());
         rocket.attach(InternalSignRequest::stage(
             _nyxd_client.clone(),
-            mix_denom,
             coconut_keypair,
             comm_channel,
             storage.clone().unwrap(),

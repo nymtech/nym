@@ -61,11 +61,13 @@ pub trait Storage: Send + Sync {
     /// # Arguments
     ///
     /// * `wallet` : New Ecash wallet credential
-    /// * `id`: Id of the credential to be consumed.
+    /// * `id`: Id of the credential to be updated.
+    /// * `consumed`: if the credential is consumed or not
     ///
     async fn update_ecash_credential(
         &self,
         wallet: String,
         id: i64,
+        consumed: bool,
     ) -> Result<(), Self::StorageError>;
 }

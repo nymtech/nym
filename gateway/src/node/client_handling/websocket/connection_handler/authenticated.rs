@@ -51,9 +51,6 @@ pub(crate) enum RequestHandlingError {
     #[error("The received request is not valid in the current context")]
     IllegalRequest,
 
-    #[error("Provided bandwidth credential asks for more bandwidth than it is supported to add at once (credential value: {0}, supported: {}). Try to split it before attempting again", i64::MAX)]
-    UnsupportedBandwidthValue(u64),
-
     #[error("Provided bandwidth credential did not verify correctly on {0}")]
     InvalidBandwidthCredential(String),
 
@@ -68,9 +65,6 @@ pub(crate) enum RequestHandlingError {
 
     #[error("Not enough nym API endpoints provided. Needed {needed}, received {received}")]
     NotEnoughNymAPIs { received: usize, needed: usize },
-
-    #[error("There was a problem with the proposal id: {reason}")]
-    ProposalIdError { reason: String },
 
     #[error("Coconut interface error - {0}")]
     CoconutInterfaceError(#[from] nym_coconut_interface::error::CoconutInterfaceError),
@@ -265,9 +259,9 @@ where
 
         self.inner.storage.insert_credential(credential).await?;
 
-        let bandwidth_value = 500000;
+        let bandwidth_value = 500000; //SW MAKE A GLOBAL PARAMETER
 
-        self.increase_bandwidth(bandwidth_value as i64).await?;
+        self.increase_bandwidth(bandwidth_value).await?;
         let available_total = self.get_available_bandwidth().await?;
 
         Ok(ServerResponse::Bandwidth { available_total })

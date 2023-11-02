@@ -69,9 +69,6 @@ pub enum CoconutError {
     #[error("Signature didn't verify correctly")]
     SignatureVerificationError(#[from] SignatureError),
 
-    #[error("Inconsistent public attributes")]
-    InconsistentPublicAttributes,
-
     #[error(
         "Public attributes in request differ from the ones in deposit - Expected {0}, got {1}"
     )]
@@ -85,12 +82,6 @@ pub enum CoconutError {
 
     #[error("Credentials error - {0}")]
     CredentialsError(#[from] nym_credentials::error::Error),
-
-    #[error("Incorrect credential proposal description: {reason}")]
-    IncorrectProposal { reason: String },
-
-    #[error("Invalid status of credential: {status}")]
-    InvalidCredentialStatus { status: String },
 
     #[error("DKG error: {0}")]
     DkgError(#[from] DkgError),

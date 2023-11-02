@@ -1,7 +1,6 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use nym_coconut_interface::CoconutError;
 use nym_compact_ecash::error::CompactEcashError;
 use nym_credential_storage::error::StorageError;
 use nym_credentials::error::Error as CredentialsError;
@@ -25,9 +24,6 @@ pub enum BandwidthControllerError {
     // this should really be fully incorporated into the above, but messing with coconut is the last thing I want to do now
     #[error(transparent)]
     StorageError(#[from] StorageError),
-
-    #[error("Coconut error - {0}")]
-    CoconutError(#[from] CoconutError),
 
     #[error("Ecash error - {0}")]
     EcashError(#[from] CompactEcashError),

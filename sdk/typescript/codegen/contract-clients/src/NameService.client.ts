@@ -6,8 +6,8 @@
 
 import { CosmWasmClient, SigningCosmWasmClient, ExecuteResult } from "@cosmjs/cosmwasm-stargate";
 import { StdFee } from "@cosmjs/amino";
-import { Uint128, InstantiateMsg, Coin, ExecuteMsg, Address, NymName, MessageSignature, NameDetails, QueryMsg, MigrateMsg, Addr, PagedNamesListResponse, RegisteredName, NamesListResponse, ConfigResponse, ContractVersion, ContractBuildInformation, Uint32 } from "./NameService.types";
 import { GetCw2ContractVersionResponse } from './types';
+import { Uint128, InstantiateMsg, Coin, ExecuteMsg, Address, NymName, MessageSignature, NameDetails, NymAddressInner, QueryMsg, MigrateMsg, Addr, PagedNamesListResponse, RegisteredName, NamesListResponse, ConfigResponse, ContractVersion, ContractBuildInformation, Uint32 } from "./NameService.types";
 export interface NameServiceReadOnlyInterface {
   contractAddress: string;
   nameId: ({

@@ -24,7 +24,7 @@ As we shared in our blog post article [*What does it take to build the wolds mos
 Project smoosh will have three steps:
 
 1. Combine the `gateway` and `network-requester` into one binary ✅
-2. Create [Exit Gateway](../legal/exit-gateway.md): Take the gateway binary including network requester combined in \#1 and switch from [*allowed.list*](https://nymtech.net/.wellknown/network-requester/standard-allowed-list.txt) to a new [exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt) ✅
+2. Create [Exit Gateway](../legal/exit-gateway.md): Take the gateway binary including network requester combined in \#1 and switch from [`allowed.list`](https://nymtech.net/.wellknown/network-requester/standard-allowed-list.txt) to a new [exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt) ✅
 3. Combine all the nodes in the Nym Mixnet into one binary, that is `mixnode`, `gateway` (entry and exit) and `network-requester`.
 
 These three steps will be staggered over time - period of several months, and will be implemented one by one with enough time to take in feedback and fix bugs in between.  
@@ -44,15 +44,15 @@ We created an [entire page](../legal/exit-gateway.md) about the technical and le
 
 ### What is the change from allow list to deny list?
 
-The operators running Gateways would have to “open” their nodes to a wider range of online services, in a similar fashion to Tor exit relays. The main change will be to expand the original short [*allowed.list*](https://nymtech.net/.wellknown/network-requester/standard-allowed-list.txt) to a more permissive setup. An [exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt) will constrain the hosts that the users of the Nym VPN and Mixnet can connect to. This will be done in an effort to protect the operators, as Gateways will act both as SOCKS5 Network Requesters, and exit nodes for IP traffic from Nym VPN and Mixnet clients.
+The operators running Gateways would have to “open” their nodes to a wider range of online services, in a similar fashion to Tor exit relays. The main change will be to expand the original short [`allowed.list`](https://nymtech.net/.wellknown/network-requester/standard-allowed-list.txt) to a more permissive setup. An [exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt) will constrain the hosts that the users of the Nym VPN and Mixnet can connect to. This will be done in an effort to protect the operators, as Gateways will act both as SOCKS5 Network Requesters, and exit nodes for IP traffic from Nym VPN and Mixnet clients.
 
 ### How will the Exit policy be implemented?
 
 The progression of exit policy on Gateways will have three steps:
 
-1. By default the [exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt) filtering will be disabled and the current [*allowed.list*](https://nymtech.net/.wellknown/network-requester/standard-allowed-list.txt) filtering is going to continue be used. This is to prevent operators getting surprised by upgrading their Gateways (or Network requesters) and suddenly be widely open to the internet. To enable the new exit policy, operators must use `--with-exit-policy` flag or modify the *config.toml* file. ✅
+1. By default the [exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt) filtering will be disabled and the current [`allowed.list`](https://nymtech.net/.wellknown/network-requester/standard-allowed-list.txt) filtering is going to continue be used. This is to prevent operators getting surprised by upgrading their Gateways (or Network requesters) and suddenly be widely open to the internet. To enable the new exit policy, operators must use `--with-exit-policy` flag or modify the `config.toml` file. ✅
 2. Relatively soon the exit policy will be part of the Gateway setup by default. To disable this exit policy, operators must use `--disable-exit-policy` flag.
-3. Further down the line, it will be the only option. Then the *allowed.list* will be completely removed.
+3. Further down the line, it will be the only option. Then the `allowed.list` will be completely removed.
 
 Keep in mind this only relates to changes happening on Gateway and Network Requester side. Whether this will be optional or mandatory depends on the chosen [design](./smoosh-faq.md#what-does-it-mean-for-nym-nodes-operators).
 

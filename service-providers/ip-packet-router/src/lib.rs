@@ -11,7 +11,7 @@ use nym_sdk::{
     NymNetworkDetails,
 };
 use nym_sphinx::receiver::ReconstructedMessage;
-use nym_task::{TaskClient, TaskHandle};
+use nym_task::{connections::TransmissionLane, TaskClient, TaskHandle};
 use tap::TapFallible;
 
 use crate::config::BaseClientConfig;
@@ -118,10 +118,11 @@ impl IpPacketRouterBuilder {
         // Create the TUN device that we interact with the rest of the world with
         let (tun, tun_task_tx, tun_task_response_rx) =
             nym_wireguard::tun_device::TunDevice::new(None);
+        tun.start();
 
         let ip_packet_router_service = IpPacketRouter {
             config: self.config,
-            tun,
+            // tun,
             tun_task_tx,
             tun_task_response_rx,
             mixnet_client,
@@ -144,7 +145,7 @@ impl IpPacketRouterBuilder {
 
 struct IpPacketRouter {
     config: Config,
-    tun: nym_wireguard::tun_device::TunDevice,
+    // tun: nym_wireguard::tun_device::TunDevice,
     tun_task_tx: nym_wireguard::tun_task_channel::TunTaskTx,
     tun_task_response_rx: nym_wireguard::tun_task_channel::TunTaskResponseRx,
     mixnet_client: nym_sdk::mixnet::MixnetClient,
@@ -154,6 +155,7 @@ struct IpPacketRouter {
 impl IpPacketRouter {
     async fn run(mut self) -> Result<(), IpPacketRouterError> {
         let mut task_client = self.task_handle.fork("main_loop");
+
         while !task_client.is_shutdown() {
             tokio::select! {
                 _ = task_client.recv() => {
@@ -168,16 +170,21 @@ impl IpPacketRouter {
                     };
                 },
                 packet = self.tun_task_response_rx.recv() => {
-                    if let Some((tag, packet)) = packet {
-                        // let input_message = InputMessage {
-                        // };
-                        // self.mixnet_client
-                        //     .send(input_message)
-                        //     .await
-                        //     .tap_err(|err| {
-                        //         log::error!("IpPacketRouter [main loop]: failed to send packet to mixnet: {err}");
-                        //     })
-                        //     .ok();
+                    if let Some((_tag, packet)) = packet {
+                        // TODO: basically we need to map the tag to the recipient
+                        // For now we just hardcode the recipient
+                        let recipient = Recipient::try_from_base58_string("sfl;sdf").unwrap();
+                        let lane = TransmissionLane::General;
+                        let packet_type = None;
+                        let input_message = InputMessage::new_regular(recipient, packet, lane, packet_type);
+
+                        self.mixnet_client
+                            .send(input_message)
+                            .await
+                            .tap_err(|err| {
+                                log::error!("IpPacketRouter [main loop]: failed to send packet to mixnet: {err}");
+                            })
+                            .ok();
                     } else {
                         log::trace!("IpPacketRouter [main loop]: stopping since channel closed");
                         break;
@@ -218,9 +225,9 @@ impl IpPacketRouter {
         log::info!("Received packet: {src_addr} -> {dst_addr}");
 
         // TODO: set the tag correctly. Can we just reuse sender_tag?
-        let tag = 0;
+        let peer_tag = 0;
         self.tun_task_tx
-            .send((tag, reconstructed.message))
+            .send((peer_tag, reconstructed.message))
             .await
             .tap_err(|err| {
                 log::error!("Failed to send packet to tun device: {err}");

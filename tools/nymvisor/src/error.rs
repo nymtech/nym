@@ -1,6 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use nym_bin_common::build_information::BinaryBuildInformationOwned;
 use std::ffi::OsString;
 use std::io;
 use std::num::ParseIntError;
@@ -107,5 +108,19 @@ pub(crate) enum NymvisorError {
         // if the process was WIFSIGNALED, this returns WTERMSIG.
         signal_code: Option<i32>,
         core_dumped: bool,
+    },
+
+    #[error("there was already a genesis binary present for {daemon_name} which was different that the one provided.\nProvided:\n{provided_genesis:#?}\nExisting:\n{existing_info:#?}")]
+    DuplicateDaemonGenesisBinary {
+        daemon_name: String,
+        existing_info: Box<BinaryBuildInformationOwned>,
+        provided_genesis: Box<BinaryBuildInformationOwned>,
+    },
+
+    #[error("there was already a symlink for the 'current' binary of {daemon_name}. it's pointing to {} while we needed to create one to {}", link.display(), expected_link.display())]
+    ExistingCurrentSymlink {
+        daemon_name: String,
+        link: PathBuf,
+        expected_link: PathBuf,
     },
 }

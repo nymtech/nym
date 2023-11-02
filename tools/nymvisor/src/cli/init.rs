@@ -219,11 +219,30 @@ fn init_paths(config: &Config) -> Result<(), NymvisorError> {
     Ok(())
 }
 
-fn copy_genesis_binary(config: &Config, source_dir: &Path) -> Result<(), NymvisorError> {
+fn copy_genesis_binary(
+    config: &Config,
+    source_dir: &Path,
+    daemon_info: &BinaryBuildInformationOwned,
+) -> Result<(), NymvisorError> {
     info!("setting up the genesis binary");
+    let target = config.genesis_daemon_binary();
+
+    if target.exists() {
+        // if there already exists a binary at the genesis location, see if it's the same one
+        let existing_bin_info = get_daemon_build_information(&target)?;
+        return if &existing_bin_info != daemon_info {
+            Err(NymvisorError::DuplicateDaemonGenesisBinary {
+                daemon_name: config.daemon.name.clone(),
+                existing_info: Box::new(existing_bin_info),
+                provided_genesis: Box::new(daemon_info.clone()),
+            })
+        } else {
+            debug!("there was already a genesis daemon binary present, but it was the same as the one provided");
+            Ok(())
+        };
+    }
 
     // TODO: setup initial upgrade-info.json file
-    let target = config.genesis_daemon_binary();
     fs::copy(source_dir, &target).map_err(|source| NymvisorError::DaemonBinaryCopyFailure {
         source_path: source_dir.to_path_buf(),
         target_path: target,
@@ -237,6 +256,25 @@ fn create_current_symlink(config: &Config) -> Result<(), NymvisorError> {
 
     let original = config.genesis_daemon_dir();
     let link = config.current_daemon_dir();
+
+    // check if a symlink already exists
+    if let Ok(existing_target) = fs::read_link(&link) {
+        return if existing_target != original {
+            Err(NymvisorError::ExistingCurrentSymlink {
+                daemon_name: config.daemon.name.clone(),
+                link: existing_target,
+                expected_link: original,
+            })
+        } else {
+            debug!(
+                "there already exist a symlink between {} and {}",
+                original.display(),
+                link.display()
+            );
+            Ok(())
+        };
+    }
+
     std::os::unix::fs::symlink(&original, &link).map_err(|source| {
         NymvisorError::SymlinkCreationFailure {
             source_path: original,
@@ -247,13 +285,16 @@ fn create_current_symlink(config: &Config) -> Result<(), NymvisorError> {
 }
 
 fn save_config(config: Config, env: &Env) -> Result<(), NymvisorError> {
-    info!("saving the config file");
-
     let id = &config.nymvisor.id;
     let config_save_location = env
         .nymvisor_config_path
         .clone()
         .unwrap_or(default_config_filepath(id));
+
+    info!(
+        "saving the config file to {}",
+        config_save_location.display()
+    );
 
     config
         .save_to_path(&config_save_location)
@@ -295,7 +336,7 @@ pub(crate) fn execute(args: Args) -> Result<(), NymvisorError> {
     let config = try_build_config(&args, &env, &daemon_info)?;
 
     init_paths(&config)?;
-    copy_genesis_binary(&config, &args.daemon_binary)?;
+    copy_genesis_binary(&config, &args.daemon_binary, &daemon_info)?;
     create_current_symlink(&config)?;
     save_config(config, &env)?;
 

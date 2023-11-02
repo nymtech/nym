@@ -111,15 +111,18 @@ impl CoconutCredentialManager {
     ///
     /// * `wallet` : New wallet string to update with
     /// * `id`: Database id.
+    /// * `consumed` : If the wallet is entirely consumed
     ///
     pub async fn update_ecash_credential(
         &self,
         wallet: String,
         id: i64,
+        consumed: bool,
     ) -> Result<(), sqlx::Error> {
         sqlx::query!(
-            "UPDATE ecash_credentials SET wallet = ? WHERE id = ?",
+            "UPDATE ecash_credentials SET wallet = ?, consumed = ? WHERE id = ?",
             wallet,
+            consumed,
             id
         )
         .execute(&self.connection_pool)

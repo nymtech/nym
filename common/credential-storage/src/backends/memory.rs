@@ -100,10 +100,11 @@ impl CoconutCredentialManager {
         }
     }
 
-    pub async fn update_ecash_credential(&self, wallet: String, id: i64) {
+    pub async fn update_ecash_credential(&self, wallet: String, id: i64, consumed: bool) {
         let mut creds = self.ecash.write().await;
         if let Some(cred) = creds.get_mut(id as usize) {
             cred.wallet = wallet;
+            cred.consumed = consumed;
         }
     }
 }

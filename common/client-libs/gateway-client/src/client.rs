@@ -571,7 +571,7 @@ impl<C, St> GatewayClient<C, St> {
             .bandwidth_controller
             .as_ref()
             .unwrap()
-            .prepare_ecash_credential(self.gateway_identity.to_bytes()) //SW Temporary, this should be embedded in the GatewayClient, similarly to gateway_identity
+            .prepare_ecash_credential(self.gateway_identity.to_bytes())
             .await?;
 
         self.claim_ecash_bandwidth(credential).await?;

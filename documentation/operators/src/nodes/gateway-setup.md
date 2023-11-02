@@ -111,9 +111,8 @@ Say we have a gateway with `<ID>` as `new-gateway`, originally initialised and r
 
 ~~~admonish example collapsible=true title="Console output"
 ```
-<!-- cmdrun rm -rf ../../../../../.nym/gateways/new-gateway -->
-<!-- cmdrun ../../../../target/release/nym-gateway init --id new-gateway --host $(curl -4 https://ifconfig.me) -->
-<!-- cmdrun ../../../../target/release/nym-gateway setup-network-requester --enabled true --with-exit-policy true --id new-gateway -->
+<!-- cmdrun rm -rf $HOME/.nym/gateways/new-gateway -->
+<!-- cmdrun ../../../../target/release/nym-gateway init --id new-gateway --host $(curl -4 https://ifconfig.me) && ../../../../target/release/nym-gateway setup-network-requester --enabled true --with-exit-policy true --id new-gateway -->
 ```
 ~~~
 

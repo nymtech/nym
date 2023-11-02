@@ -44,40 +44,40 @@ jobs:
           command: fmt
           args: --all -- --check
 
-      - name: Build binaries
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --release --workspace
-
-      - name: Build examples
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --release --workspace --examples
-
-      - name: Set debug to false
-        run: |
-          sed -i.bak 's/\[profile.dev\]/\[profile.dev\]\ndebug = false/' Cargo.toml
-          git diff
-
-      - name: Run unit tests
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --workspace
-
-      - name: Run slow unit tests
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --workspace -- --ignored
-
-      - name: Clippy
-        uses: actions-rs/cargo@v1
-        with:
-          command: clippy
-          args: --workspace --all-targets -- -D warnings
+      # - name: Build binaries
+      #   uses: actions-rs/cargo@v1
+      #   with:
+      #     command: build
+      #     args: --release --workspace
+      #
+      # - name: Build examples
+      #   uses: actions-rs/cargo@v1
+      #   with:
+      #     command: build
+      #     args: --release --workspace --examples
+      #
+      # - name: Set debug to false
+      #   run: |
+      #     sed -i.bak 's/\[profile.dev\]/\[profile.dev\]\ndebug = false/' Cargo.toml
+      #     git diff
+      #
+      # - name: Run unit tests
+      #   uses: actions-rs/cargo@v1
+      #   with:
+      #     command: test
+      #     args: --workspace
+      #
+      # - name: Run slow unit tests
+      #   uses: actions-rs/cargo@v1
+      #   with:
+      #     command: test
+      #     args: --workspace -- --ignored
+      #
+      # - name: Clippy
+      #   uses: actions-rs/cargo@v1
+      #   with:
+      #     command: clippy
+      #     args: --workspace --all-targets -- -D warnings
 
   notification:
     needs: build

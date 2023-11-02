@@ -9,4 +9,4 @@ If you are relying on network requesters then chances are that the IPs or domain
   - Nym Address: `FDeWfd8q686PWLXJDCqNJTCbydTk1KSux5HVftimsPyx.9XyThN4yh92eTMuLp1NvWicRZob8Ei5xpba9dvcMLxcN@9Byd9VAtyYMnbVAcqdoQxJnq76XEg2dbxbiF5Aa5Jj9J`
 - NR2
   - Location: Frankfurt
-  - Nym Address: `BNypKaGiGY8GNRN4gpV95GcaVS8n7CrHuoZNgQ2ezqv2ACpaixzuaSzuMajVQj6aR7cbpbvp676tm21MiLbX1gni@678qVUJ21uwxZBhp3r56z7GRf6gMh3NYDHruTegPtgMf`
+  - Nym Address: `BNypKaGiGY8GNRN4gpV95GcaVS8n7CrHuoZNgQ2ezqv2.ACpaixzuaSzuMajVQj6aR7cbpbvp676tm21MiLbX1gni@678qVUJ21uwxZBhp3r56z7GRf6gMh3NYDHruTegPtgMf`

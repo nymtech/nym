@@ -1,11 +1,13 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use nix::sys::signal::Signal;
 use nym_bin_common::build_information::BinaryBuildInformationOwned;
 use std::ffi::OsString;
 use std::io;
 use std::num::ParseIntError;
 use std::path::PathBuf;
+use std::process::ExitStatus;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -110,6 +112,12 @@ pub(crate) enum NymvisorError {
         core_dumped: bool,
     },
 
+    #[error("the daemon execution has experienced an io failure: {source}")]
+    DaemonIoFailure {
+        #[source]
+        source: io::Error,
+    },
+
     #[error("there was already a genesis binary present for {daemon_name} which was different that the one provided.\nProvided:\n{provided_genesis:#?}\nExisting:\n{existing_info:#?}")]
     DuplicateDaemonGenesisBinary {
         daemon_name: String,
@@ -123,4 +131,24 @@ pub(crate) enum NymvisorError {
         link: PathBuf,
         expected_link: PathBuf,
     },
+
+    #[error("failed to send to send {signal} to the daemon process: {source}")]
+    DaemonSignalFailure {
+        signal: Signal,
+        #[source]
+        source: nix::Error,
+    },
+}
+
+impl From<ExitStatus> for NymvisorError {
+    fn from(value: ExitStatus) -> Self {
+        use std::os::unix::prelude::ExitStatusExt;
+
+        assert!(!value.success());
+        NymvisorError::DaemonExecutionFailure {
+            exit_code: value.code(),
+            signal_code: value.signal(),
+            core_dumped: value.core_dumped(),
+        }
+    }
 }

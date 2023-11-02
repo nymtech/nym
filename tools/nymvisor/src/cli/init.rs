@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::config::{default_config_filepath, Config, BIN_DIR};
-use crate::daemon::helpers::get_daemon_build_information;
+use crate::daemon::Daemon;
 use crate::env::Env;
 use crate::error::NymvisorError;
 use nym_bin_common::build_information::BinaryBuildInformationOwned;
@@ -229,7 +229,7 @@ fn copy_genesis_binary(
 
     if target.exists() {
         // if there already exists a binary at the genesis location, see if it's the same one
-        let existing_bin_info = get_daemon_build_information(&target)?;
+        let existing_bin_info = Daemon::new(target).get_build_information()?;
         return if &existing_bin_info != daemon_info {
             Err(NymvisorError::DuplicateDaemonGenesisBinary {
                 daemon_name: config.daemon.name.clone(),
@@ -331,7 +331,7 @@ pub(crate) fn execute(args: Args) -> Result<(), NymvisorError> {
     // this serves two purposes:
     // 1. we get daemon name if it wasn't provided via either a flag or env variable
     // 2. we check if valid executable was provided
-    let daemon_info = get_daemon_build_information(&args.daemon_binary)?;
+    let daemon_info = Daemon::new(args.daemon_binary.clone()).get_build_information()?;
 
     let config = try_build_config(&args, &env, &daemon_info)?;
 

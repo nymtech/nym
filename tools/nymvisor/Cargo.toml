@@ -17,12 +17,13 @@ dotenvy = { workspace = true }
 humantime = "2.1.0"
 humantime-serde = "1.1.1"
 lazy_static = { workspace = true }
-nix = "0.27.1"
+nix = { version = "0.27.1", features = ["signal"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
-tokio = { workspace = true, features = ["rt", "macros", "signal", "process"] }
+tokio = { workspace = true, features = ["rt", "macros", "signal", "process", "sync"] }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 
+async-file-watcher = { path = "../../common/async-file-watcher" }
 nym-bin-common = { path = "../../common/bin-common", features = ["output_format", "basic_tracing"] }
 nym-config = { path = "../../common/config" }

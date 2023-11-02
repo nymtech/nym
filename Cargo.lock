@@ -7599,6 +7599,7 @@ name = "nymvisor"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-file-watcher",
  "clap 4.4.7",
  "dotenvy",
  "humantime 2.1.0",

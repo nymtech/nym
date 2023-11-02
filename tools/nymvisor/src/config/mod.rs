@@ -17,10 +17,10 @@ use tracing::{debug, warn};
 
 mod template;
 
-const DEFAULT_FAILURE_RESTART_DELAY: Duration = Duration::from_secs(10);
-const DEFAULT_STARTUP_PERIOD: Duration = Duration::from_secs(120);
-const DEFAULT_MAX_STARTUP_FAILURES: usize = 10;
-const DEFAULT_SHUTDOWN_GRACE_PERIOD: Duration = Duration::from_secs(10);
+pub(crate) const DEFAULT_FAILURE_RESTART_DELAY: Duration = Duration::from_secs(10);
+pub(crate) const DEFAULT_STARTUP_PERIOD: Duration = Duration::from_secs(120);
+pub(crate) const DEFAULT_MAX_STARTUP_FAILURES: usize = 10;
+pub(crate) const DEFAULT_SHUTDOWN_GRACE_PERIOD: Duration = Duration::from_secs(10);
 
 pub(crate) const NYMVISOR_DIR: &str = "nymvisor";
 pub(crate) const BACKUP_DIR: &str = "backups";
@@ -244,6 +244,12 @@ impl Config {
 
     pub fn current_daemon_dir(&self) -> PathBuf {
         self.upgrade_data_dir().join(CURRENT_DIR)
+    }
+
+    pub fn current_daemon_binary(&self) -> PathBuf {
+        self.current_daemon_dir()
+            .join(BIN_DIR)
+            .join(&self.daemon.name)
     }
 
     pub fn upgrades_dir(&self) -> PathBuf {

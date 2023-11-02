@@ -8,5 +8,5 @@ cargo run --example <NAME_OF_FILE>
 
 If you wish to run these outside of the workspace - such as if you want to use one as the basis for your own project - then make sure to import the `sdk`, `tokio`, and `nym_bin_common` crates.  
 
-An example `Cargo.toml` file can be found in the examples folder.  
+An example `Cargo.toml` file can be found [here](examples/cargo.md).   
 

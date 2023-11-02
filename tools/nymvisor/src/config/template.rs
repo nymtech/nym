@@ -22,17 +22,7 @@ disable_logs = {{ nymvisor.disable_logs }}
 # Set custom directory for upgrade data - binaries and upgrade plans.
 # If not set, the global nymvisors' data directory will be used instead.
 # Can be overridden with $NYMVISOR_UPGRADE_DATA_DIRECTORY environmental variable.
-data_upgrade_directory = '{{ nymvisor.data_upgrade_directory }}'
-
-# The name of the managed binary itself (e.g. nym-api, nym-mixnode, nym-gateway, etc.)
-# Can be overridden with $DAEMON_NAME environmental variable.
-name = '{{ nymvisor.name }}'
-
-# The location where the `nymvisor/` directory is kept that contains the auxiliary files associated
-# with the underlying daemon, such as any backups or current version information.
-# (e.g. $HOME/.nym/nym-api/my-nym-api, $HOME/.nym/mixnodes/my-mixnode, etc.).
-# Can be overridden with $DAEMON_HOME environmental variable.
-home = '{{ nymvisor.home }}'
+upgrade_data_directory = '{{ nymvisor.upgrade_data_directory }}'
 
 ##### main base daemon config options #####
 
@@ -77,7 +67,7 @@ restart_on_failure = {{ daemon.restart_on_failure }}
 # restarting the subprocess.
 # default: 10s
 # Can be overridden with $DAEMON_FAILURE_RESTART_DELAY environmental variable.
-// The default value is so relatively high as to prevent constant restart loops in case of some underlying issue.
+# The default value is so relatively high as to prevent constant restart loops in case of some underlying issue.
 failure_restart_delay = '{{ daemon.failure_restart_delay }}'
 
 # Defines the maximum number of startup failures the subprocess can experience in a quick succession before
@@ -101,7 +91,7 @@ shutdown_grace_period = '{{ daemon.shutdown_grace_period }}'
 
 # Set custom backup directory for daemon data. If not set, the daemon's home directory will be used instead.
 # Can be overridden with $DAEMON_BACKUP_DATA_DIRECTORY environmental variable.
-data_backup_directory = '{{ daemon.data_backup_directory }}'
+backup_data_directory = '{{ daemon.backup_data_directory }}'
 
 # If enabled, `nymvisor` will perform upgrades directly without performing any backups.
 # default: false

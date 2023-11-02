@@ -239,6 +239,9 @@ Finally open your `<NODE>` p2p port, as well as ports for ssh and ports for verl
 # for mix node, gateway and network requester
 sudo ufw allow 1789,1790,8000,9000,9001,22/tcp
 
+# In case of reverse proxy for the Gateway swagger page add:
+sudo ufw allow 8080,80/443
+
 # for validator
 sudo ufw allow 1317,26656,26660,22,80,443/tcp
 ```

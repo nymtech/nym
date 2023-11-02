@@ -28,9 +28,7 @@ pub enum IpPacketRouterError {
     DisconnectedParent,
 
     #[error("failed to parse incoming packet: {source}")]
-    PacketParseFailed {
-        source: etherparse::ReadError,
-    },
+    PacketParseFailed { source: etherparse::ReadError },
 
     #[error("parsed packet is missing IP header")]
     PacketMissingHeader,

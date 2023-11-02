@@ -6,10 +6,12 @@ use crate::daemon::helpers::get_daemon_build_information;
 use crate::env::Env;
 use crate::error::NymvisorError;
 use nym_bin_common::build_information::BinaryBuildInformationOwned;
+use nym_bin_common::logging::{setup_logging, setup_tracing_logger};
 use nym_bin_common::output_format::OutputFormat;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
+use tracing::{debug, error, info, trace, warn};
 
 #[derive(clap::Args, Debug)]
 pub(crate) struct Args {
@@ -157,12 +159,19 @@ fn try_build_config(
     let daemon_name = &daemon_info.binary_name;
     let daemon_home = daemon_home(args, env)?;
 
+    debug!(
+        "building config for '{daemon_name}' with home at {}",
+        daemon_home.display()
+    );
+
     let mut config = Config::new(daemon_name, daemon_home);
 
     // override config with environmental variables
+    debug!("overriding the config with command line arguments");
     args.override_config(&mut config);
 
     // and then override the result with the passed arguments
+    debug!("overriding the config with environmental variables");
     env.override_config(&mut config);
 
     Ok(config)
@@ -191,11 +200,15 @@ fn use_logs(args: &Args, env: &Env) -> bool {
 fn init_paths(config: &Config) -> Result<(), NymvisorError> {
     fn init_path<P: AsRef<Path>>(path: P) -> Result<(), NymvisorError> {
         let path = path.as_ref();
+        trace!("initialising {}", path.display());
+
         fs::create_dir_all(path).map_err(|source| NymvisorError::PathInitFailure {
             path: path.to_path_buf(),
             source,
         })
     }
+
+    info!("initialising the directory structure");
 
     init_path(config.daemon_nymvisor_dir())?;
     init_path(config.daemon_backup_dir())?;
@@ -207,6 +220,8 @@ fn init_paths(config: &Config) -> Result<(), NymvisorError> {
 }
 
 fn copy_genesis_binary(config: &Config, source_dir: &Path) -> Result<(), NymvisorError> {
+    info!("setting up the genesis binary");
+
     // TODO: setup initial upgrade-info.json file
     let target = config.genesis_daemon_binary();
     fs::copy(source_dir, &target).map_err(|source| NymvisorError::DaemonBinaryCopyFailure {
@@ -218,6 +233,8 @@ fn copy_genesis_binary(config: &Config, source_dir: &Path) -> Result<(), Nymviso
 }
 
 fn create_current_symlink(config: &Config) -> Result<(), NymvisorError> {
+    info!("setting up the symlink to the genesis directory");
+
     let original = config.genesis_daemon_dir();
     let link = config.current_daemon_dir();
     std::os::unix::fs::symlink(&original, &link).map_err(|source| {
@@ -230,6 +247,8 @@ fn create_current_symlink(config: &Config) -> Result<(), NymvisorError> {
 }
 
 fn save_config(config: Config, env: &Env) -> Result<(), NymvisorError> {
+    info!("saving the config file");
+
     let id = &config.nymvisor.id;
     let config_save_location = env
         .nymvisor_config_path
@@ -262,8 +281,11 @@ pub(crate) fn execute(args: Args) -> Result<(), NymvisorError> {
     let env = Env::try_read()?;
 
     if use_logs(&args, &env) {
-        println!("TODO: setup logger here")
+        setup_tracing_logger();
+        info!("enabled nymvisor logging");
     }
+
+    info!("initialising the nymvisor");
 
     // this serves two purposes:
     // 1. we get daemon name if it wasn't provided via either a flag or env variable
@@ -277,6 +299,5 @@ pub(crate) fn execute(args: Args) -> Result<(), NymvisorError> {
     create_current_symlink(&config)?;
     save_config(config, &env)?;
 
-    println!("init");
     Ok(())
 }

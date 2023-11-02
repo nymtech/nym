@@ -83,6 +83,9 @@ pub(crate) enum NymvisorError {
     #[error("the value of daemon home has to be provided by either `--daemon-home` flag or `$DAEMON_HOME` environmental variable")]
     DaemonHomeUnavailable,
 
+    #[error("could not identify nymvisor instance. please specify either $NYMVISOR_CONFIG_PATH, $NYMVISOR_ID or $DAEMON_NAME")]
+    UnknownNymvisorInstance,
+
     #[error("failed to obtain build information from the daemon executable ('{}'): {source}", binary_path.display())]
     DaemonBuildInformationFailure {
         binary_path: PathBuf,

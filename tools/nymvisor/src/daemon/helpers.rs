@@ -4,14 +4,19 @@
 use crate::error::NymvisorError;
 use crate::error::NymvisorError::DaemonBuildInformationParseFailure;
 use nym_bin_common::build_information::BinaryBuildInformationOwned;
+use std::fmt::Debug;
 use std::os::unix::prelude::ExitStatusExt;
 use std::path::Path;
+use tracing::{debug, info, instrument};
 
 // each of our nym binaries (that are supported by `nymvisor`) expose `build-info` command
 // that outputs the build information
-pub(crate) fn get_daemon_build_information<P: AsRef<Path>>(
+#[instrument]
+pub(crate) fn get_daemon_build_information<P: AsRef<Path> + Debug>(
     executable_path: P,
 ) -> Result<BinaryBuildInformationOwned, NymvisorError> {
+    info!("attempting to obtain daemon build information");
+
     let path = executable_path.as_ref();
 
     // TODO: do we need any timeouts here or could we just assume this is not going to take an eternity to execute?
@@ -23,6 +28,8 @@ pub(crate) fn get_daemon_build_information<P: AsRef<Path>>(
             binary_path: path.to_path_buf(),
             source,
         })?;
+
+    debug!("execution status: {}", raw.status);
 
     if !raw.status.success() {
         return Err(NymvisorError::DaemonExecutionFailure {

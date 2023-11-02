@@ -43,6 +43,23 @@ pub fn setup_logging() {
         .init();
 }
 
+#[cfg(feature = "basic_tracing")]
+pub fn setup_tracing_logger() {
+    tracing_subscriber::fmt()
+        // Use a more compact, abbreviated log format
+        .compact()
+        // Display source code file paths
+        .with_file(true)
+        // Display source code line numbers
+        .with_line_number(true)
+        // Don't display the event's target (module path)
+        .with_target(false)
+        // use env filter
+        .with_env_filter(tracing_subscriber::filter::EnvFilter::from_default_env())
+        // Set the global subscriber
+        .init();
+}
+
 // TODO: This has to be a macro, running it as a function does not work for the file_appender for some reason
 #[cfg(feature = "tracing")]
 #[macro_export]

@@ -39,18 +39,6 @@ jobs:
         run: cd documentation && ./build_all_to_dist.sh
         continue-on-error: false
 
-      - name: Deploy branch master to dev
-        continue-on-error: true
-        uses: easingthemes/ssh-deploy@main
-        env:
-          SSH_PRIVATE_KEY: ${{ secrets.CD_WWW_SSH_PRIVATE_KEY }}
-          ARGS: "-rltgoDzvO --delete"
-          SOURCE: "dist/docs/"
-          REMOTE_HOST: ${{ secrets.CD_WWW_REMOTE_HOST_DEV }}
-          REMOTE_USER: ${{ secrets.CD_WWW_REMOTE_USER }}
-          TARGET: ${{ secrets.CD_WWW_REMOTE_TARGET }}/
-          EXCLUDE: "/node_modules/"
-
       - name: Post process
         run: cd documentation && ./post_process.sh
         continue-on-error: false

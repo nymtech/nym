@@ -6,8 +6,9 @@ The entire content of this page is under [Creative Commons Attribution 4.0 Inter
 
 This page is a part of Nym Community Legal Forum and its content is composed by shared advices in [Node Operators Legal Forum](https://matrix.to/#/!YfoUFsJjsXbWmijbPG:nymtech.chat?via=nymtech.chat&via=matrix.org) (Matrix chat) as well as though pull requests done by the node operators directly to our [repository](https://github.com/nymtech/nym/tree/develop/documentation/operators/src), reviewed by Nym DevRels.
 
-This document presents an initiative to further support Nym’s mission of allowing privacy for everyone everywhere. This would be achieved with the support of Nym node operators operating gateways and opening these to any online service. Such setup needs a **clear policy**, one which will remain the **same for all operators** running Nym nodes. The [proposed **Exit policy**](https://nymtech.net/.wellknown/network-requester/exit-policy.txt) is a combination of two existing safeguards: [Tor Null ‘deny’ list](https://tornull.org/) and [Tor reduced policy](https://tornull.org/tor-reduced-reduced-exit-policy.php).
+This document presents an initiative to further support Nym’s mission of allowing privacy for everyone everywhere. This would be achieved with the support of Nym node operators operating Gateways and opening these to any online service. Such setup needs a **clear policy**, one which will remain the **same for all operators** running Nym nodes. The [proposed **Exit policy**](https://nymtech.net/.wellknown/network-requester/exit-policy.txt) is a combination of two existing safeguards: [Tor Null ‘deny’ list](https://tornull.org/) and [Tor reduced policy](https://tornull.org/tor-reduced-reduced-exit-policy.php).
 
+All the technical changes on the side of Nym nodes - ***Project Smoosh** - are described in the [FAQ section](../faq/smoosh-faq.md).
 
 ```admonish warning
 Nym core team cannot provide comprehensive legal advice across all jurisdictions. Knowledge and experience with the legalities are being built up with the help of our counsel and with you, the community of Nym node operators. We encourage Nym node operators to join the operator channels ([Element](https://matrix.to/#/#operators:nymtech.chat), [Discord](https://discord.com/invite/nym), [Telegram](https://t.me/nymchan_help_chat)) to share best practices and experiences.
@@ -54,7 +55,7 @@ Previous setup: Running nodes supporting strict SOCKS5 app-based traffic
 | Financial |    | - Low revenues for operators due to limited product traction | 
 
 
-The new setup: Running nodes supporting traffic of any online service (with safeguards in the form of an denylist)
+The new setup: Running nodes supporting traffic of any online service (with safeguards in the form of a denylist)
 
 | **Dimension** | **Pros** | **Cons** |
 | :--- | :--- | :--- |

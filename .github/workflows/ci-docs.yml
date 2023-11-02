@@ -35,7 +35,7 @@ jobs:
             --vers "^1.8.0" mdbook-admonish --force && cargo install --vers \
             "^0.1.2" mdbook-last-changed && cargo install --vers "^0.1.2" mdbook-theme \
             && cargo install --vers "^0.7.7" mdbook-linkcheck \
-            && mdbook-cmdrun \
+            && cargo install mdbook-cmdrun \
             # && cd documentation \
             # && mdbook-admonish install dev-portal \
             # && mdbook-admonish install docs \

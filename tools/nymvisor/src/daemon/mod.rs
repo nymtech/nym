@@ -142,10 +142,6 @@ impl ExecutingDaemon {
         nix::sys::signal::kill(Pid::from_raw(self.child_id), signal)
             .map_err(|source| NymvisorError::DaemonSignalFailure { signal, source })
     }
-
-    // fn foo(&'static mut self) {
-    //     self.interrupted = Some(Box::pin(self._notify.notified()));
-    // }
 }
 
 impl Future for ExecutingDaemon {

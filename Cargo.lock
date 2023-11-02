@@ -7602,6 +7602,7 @@ dependencies = [
  "async-file-watcher",
  "clap 4.4.7",
  "dotenvy",
+ "futures",
  "humantime 2.1.0",
  "humantime-serde",
  "lazy_static",

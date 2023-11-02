@@ -1,6 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use async_file_watcher::NotifyError;
 use nix::sys::signal::Signal;
 use nym_bin_common::build_information::BinaryBuildInformationOwned;
 use std::ffi::OsString;
@@ -137,6 +138,12 @@ pub(crate) enum NymvisorError {
         signal: Signal,
         #[source]
         source: nix::Error,
+    },
+
+    #[error("failed to watch for changes in the upgrade-plan.json: {source}")]
+    UpgradePlanFileWatchFailure {
+        #[from]
+        source: NotifyError,
     },
 }
 

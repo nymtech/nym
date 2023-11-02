@@ -5,6 +5,9 @@ use crate::cli::try_load_current_config;
 use crate::daemon::Daemon;
 use crate::env::Env;
 use crate::error::NymvisorError;
+use async_file_watcher::AsyncFileWatcher;
+use futures::channel::mpsc;
+use futures::StreamExt;
 use nym_bin_common::logging::setup_tracing_logger;
 use std::sync::Arc;
 use std::time::Duration;
@@ -41,23 +44,32 @@ pub(crate) fn execute(args: Args) -> Result<(), NymvisorError> {
     rt.block_on(async {
         println!("run");
 
-        let daemon = Daemon::from_config(&config).with_kill_timeout(Duration::from_millis(200));
+        let daemon = Daemon::from_config(&config);
         let interrupt_notify = Arc::new(Notify::new());
         let running = daemon.execute_async(args.daemon_args, Arc::clone(&interrupt_notify))?;
 
-        let handle = tokio::spawn(async move {
+        let handle1 = tokio::spawn(async move {
             let res = running.await;
             println!("the process has finished! with {res:?}");
         });
 
-        tokio::time::sleep(Duration::from_secs(2)).await;
-        info!(">>>>>>>>>> NYMVISOR: sending interrupt to the daemon");
+        let (events_sender, mut events_receiver) = mpsc::unbounded();
+        let mut watcher = AsyncFileWatcher::new_file_changes_watcher(
+            config.upgrade_plan_filepath(),
+            events_sender,
+        )?;
 
+        let handle2 = tokio::spawn(async move { watcher.watch().await });
+
+        let event = events_receiver.next().await;
+        println!("watcher event: {event:?}");
         interrupt_notify.notify_one();
 
-        handle.await;
+        handle1.await;
+        handle2.await;
 
         // println!("{:?}", status);
-        Ok(())
+
+        <Result<_, NymvisorError>>::Ok(())
     })
 }

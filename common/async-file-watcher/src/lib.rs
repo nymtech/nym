@@ -10,6 +10,8 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 use tokio::time::Instant;
 
+pub use notify::{Error as NotifyError, Result as NotifyResult};
+
 pub type FileWatcherEventSender = mpsc::UnboundedSender<Event>;
 pub type FileWatcherEventReceiver = mpsc::UnboundedReceiver<Event>;
 
@@ -22,7 +24,7 @@ pub struct AsyncFileWatcher {
     last_received: HashMap<EventKind, Instant>,
     tick_duration: Duration,
 
-    inner_rx: mpsc::UnboundedReceiver<notify::Result<Event>>,
+    inner_rx: mpsc::UnboundedReceiver<NotifyResult<Event>>,
     event_sender: FileWatcherEventSender,
 }
 
@@ -30,7 +32,7 @@ impl AsyncFileWatcher {
     pub fn new_file_changes_watcher<P: AsRef<Path>>(
         path: P,
         event_sender: FileWatcherEventSender,
-    ) -> notify::Result<Self> {
+    ) -> NotifyResult<Self> {
         Self::new(
             path,
             event_sender,
@@ -48,7 +50,7 @@ impl AsyncFileWatcher {
         event_sender: FileWatcherEventSender,
         filters: Option<Vec<EventKind>>,
         tick_duration: Option<Duration>,
-    ) -> notify::Result<Self> {
+    ) -> NotifyResult<Self> {
         let watcher_config = Config::default();
         let (inner_tx, inner_rx) = mpsc::unbounded();
         let watcher = RecommendedWatcher::new(
@@ -112,17 +114,17 @@ impl AsyncFileWatcher {
         false
     }
 
-    fn start_watching(&mut self) -> notify::Result<()> {
+    fn start_watching(&mut self) -> NotifyResult<()> {
         self.is_watching = true;
         self.watcher.watch(&self.path, RecursiveMode::NonRecursive)
     }
 
-    fn stop_watching(&mut self) -> notify::Result<()> {
+    fn stop_watching(&mut self) -> NotifyResult<()> {
         self.is_watching = false;
         self.watcher.unwatch(&self.path)
     }
 
-    pub async fn watch(&mut self) -> notify::Result<()> {
+    pub async fn watch(&mut self) -> NotifyResult<()> {
         self.start_watching()?;
 
         while let Some(event) = self.inner_rx.next().await {

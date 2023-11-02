@@ -14,6 +14,7 @@ license.workspace = true
 anyhow = { workspace = true }
 clap = { workspace = true, features = ["derive"] }
 dotenvy = { workspace = true }
+futures = { workspace = true }
 humantime = "2.1.0"
 humantime-serde = "1.1.1"
 lazy_static = { workspace = true }

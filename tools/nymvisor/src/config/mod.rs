@@ -22,6 +22,8 @@ pub(crate) const DEFAULT_STARTUP_PERIOD: Duration = Duration::from_secs(120);
 pub(crate) const DEFAULT_MAX_STARTUP_FAILURES: usize = 10;
 pub(crate) const DEFAULT_SHUTDOWN_GRACE_PERIOD: Duration = Duration::from_secs(10);
 
+pub(crate) const UPGRADE_PLAN_FILENAME: &str = "upgrade-plan.json";
+pub(crate) const UPGRADE_INFO_FILENAME: &str = "upgrade-info.json";
 pub(crate) const NYMVISOR_DIR: &str = "nymvisor";
 pub(crate) const BACKUP_DIR: &str = "backups";
 pub(crate) const GENESIS_DIR: &str = "genesis";
@@ -254,6 +256,10 @@ impl Config {
 
     pub fn upgrades_dir(&self) -> PathBuf {
         self.upgrade_data_dir().join(UPGRADES_DIR)
+    }
+
+    pub fn upgrade_plan_filepath(&self) -> PathBuf {
+        self.upgrade_data_dir().join(UPGRADE_PLAN_FILENAME)
     }
 }
 

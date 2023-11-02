@@ -58,12 +58,12 @@ Keep in mind this only relates to changes happening on Gateway and Network Reque
 
 ### Can I run a mix node only?
 
-Depends which [design](./smoosh-faq.md#what-does-it-mean-for-nym-nodes-operators) will be the final one. In case of the first one - yes. In case of the second option, all the nodes will be setup with gateway functionality turned on.
+It depends which [design](./smoosh-faq.md#what-does-it-mean-for-nym-nodes-operators) will ultimately be used. In case of the first - yes. In case of the second option, all the nodes will be setup with Exit Gateway functionality turned on.
 
 ## Token Economics & Rewards
 
 ```admonish info
-For any details on Nym token economics and Nym Mixnet reward system, please read [Nym token economics paper](https://nymtech.net/nym-cryptoecon-paper.pdf).
+For any specifics on Nym token economics and Nym Mixnet reward system, please read the [Nym token economics paper](https://nymtech.net/nym-cryptoecon-paper.pdf).
 ```
 
 ### What are the incentives for the node operator?
@@ -83,6 +83,8 @@ As each operator can choose what roles their nodes provide, the nodes which work
 The nodes which are initialized to run as mix nodes and gateways will be chosen to be on top of the active set before the ones working only as a mix node. 
 
 I case we go with \#2, all nodes active in the epoch will be rewarded proportionally according their work. 
+
+In either way, Nym will share all the specifics beforehand.
 
 ### How will be the staking and inflation after project Smoosh?
 

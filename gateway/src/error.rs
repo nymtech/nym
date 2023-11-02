@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::node::storage::error::StorageError;
-use nym_ip_packet_router::error::IpForwarderError;
+use nym_ip_packet_router::error::IpPacketRouterError;
 use nym_network_requester::error::{ClientCoreError, NetworkRequesterError};
 use nym_validator_client::nyxd::error::NyxdError;
 use nym_validator_client::nyxd::AccountId;
@@ -110,7 +110,7 @@ pub(crate) enum GatewayError {
     #[error("there was an issue with the local ip packet router: {source}")]
     IpPacketRouterFailure {
         #[from]
-        source: IpForwarderError,
+        source: IpPacketRouterError,
     },
 
     #[error("failed to startup local network requester")]

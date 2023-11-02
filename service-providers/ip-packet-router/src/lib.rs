@@ -1,6 +1,6 @@
 use std::{net::IpAddr, path::Path};
 
-use error::IpForwarderError;
+use error::IpPacketRouterError;
 use futures::{channel::oneshot, StreamExt};
 use nym_client_core::{
     client::mix_traffic::transceiver::GatewayTransceiver,
@@ -32,7 +32,7 @@ impl OnStartData {
     }
 }
 
-pub struct IpForwarderBuilder {
+pub struct IpPacketRouterBuilder {
     config: Config,
     wait_for_gateway: bool,
     custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
@@ -41,7 +41,7 @@ pub struct IpForwarderBuilder {
     on_start: Option<oneshot::Sender<OnStartData>>,
 }
 
-impl IpForwarderBuilder {
+impl IpPacketRouterBuilder {
     pub fn new(config: Config) -> Self {
         Self {
             config,
@@ -92,13 +92,13 @@ impl IpForwarderBuilder {
     pub fn with_stored_topology<P: AsRef<Path>>(
         mut self,
         file: P,
-    ) -> Result<Self, IpForwarderError> {
+    ) -> Result<Self, IpPacketRouterError> {
         self.custom_topology_provider =
             Some(Box::new(HardcodedTopologyProvider::new_from_file(file)?));
         Ok(self)
     }
 
-    pub async fn run_service_provider(self) -> Result<(), IpForwarderError> {
+    pub async fn run_service_provider(self) -> Result<(), IpPacketRouterError> {
         // Used to notify tasks to shutdown. Not all tasks fully supports this (yet).
         let task_handle: TaskHandle = self.shutdown.map(Into::into).unwrap_or_default();
 
@@ -119,7 +119,7 @@ impl IpForwarderBuilder {
         let (tun, tun_task_tx, tun_task_response_rx) =
             nym_wireguard::tun_device::TunDevice::new(None);
 
-        let ip_forwarder_service = IpForwarder {
+        let ip_packet_router_service = IpPacketRouter {
             config: self.config,
             tun,
             tun_task_tx,
@@ -134,15 +134,15 @@ impl IpForwarderBuilder {
         if let Some(on_start) = self.on_start {
             if on_start.send(OnStartData::new(self_address)).is_err() {
                 // the parent has dropped the channel before receiving the response
-                return Err(IpForwarderError::DisconnectedParent);
+                return Err(IpPacketRouterError::DisconnectedParent);
             }
         }
 
-        ip_forwarder_service.run().await
+        ip_packet_router_service.run().await
     }
 }
 
-struct IpForwarder {
+struct IpPacketRouter {
     config: Config,
     tun: nym_wireguard::tun_device::TunDevice,
     tun_task_tx: nym_wireguard::tun_task_channel::TunTaskTx,
@@ -151,19 +151,19 @@ struct IpForwarder {
     task_handle: TaskHandle,
 }
 
-impl IpForwarder {
-    async fn run(mut self) -> Result<(), IpForwarderError> {
+impl IpPacketRouter {
+    async fn run(mut self) -> Result<(), IpPacketRouterError> {
         let mut task_client = self.task_handle.fork("main_loop");
         while !task_client.is_shutdown() {
             tokio::select! {
                 _ = task_client.recv() => {
-                    log::debug!("IpForwarderService [main loop]: received shutdown");
+                    log::debug!("IpPacketRouter [main loop]: received shutdown");
                 },
                 msg = self.mixnet_client.next() => {
                     if let Some(msg) = msg {
                         self.on_message(msg).await.ok();
                     } else {
-                        log::trace!("IpForwarderService [main loop]: stopping since channel closed");
+                        log::trace!("IpPacketRouter [main loop]: stopping since channel closed");
                         break;
                     };
                 },
@@ -175,30 +175,30 @@ impl IpForwarder {
                         //     .send(input_message)
                         //     .await
                         //     .tap_err(|err| {
-                        //         log::error!("IpForwarderService [main loop]: failed to send packet to mixnet: {err}");
+                        //         log::error!("IpPacketRouter [main loop]: failed to send packet to mixnet: {err}");
                         //     })
                         //     .ok();
                     } else {
-                        log::trace!("IpForwarderService [main loop]: stopping since channel closed");
+                        log::trace!("IpPacketRouter [main loop]: stopping since channel closed");
                         break;
                     }
                 }
 
             }
         }
-        log::info!("IpForwarderService: stopping");
+        log::info!("IpPacketRouter: stopping");
         Ok(())
     }
 
     async fn on_message(
         &mut self,
         reconstructed: ReconstructedMessage,
-    ) -> Result<(), IpForwarderError> {
+    ) -> Result<(), IpPacketRouterError> {
         log::info!("Received message: {:?}", reconstructed.sender_tag);
 
         let headers = etherparse::SlicedPacket::from_ip(&reconstructed.message).map_err(|err| {
             log::warn!("Received non-IP packet: {err}");
-            IpForwarderError::PacketParseFailed { source: err }
+            IpPacketRouterError::PacketParseFailed { source: err }
         })?;
 
         let (src_addr, dst_addr): (IpAddr, IpAddr) = match headers.ip {
@@ -212,7 +212,7 @@ impl IpForwarder {
             ),
             None => {
                 log::warn!("Received non-IP packet");
-                return Err(IpForwarderError::PacketMissingHeader);
+                return Err(IpPacketRouterError::PacketMissingHeader);
             }
         };
         log::info!("Received packet: {src_addr} -> {dst_addr}");
@@ -242,7 +242,7 @@ async fn create_mixnet_client(
     custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
     wait_for_gateway: bool,
     paths: &CommonClientPaths,
-) -> Result<nym_sdk::mixnet::MixnetClient, IpForwarderError> {
+) -> Result<nym_sdk::mixnet::MixnetClient, IpPacketRouterError> {
     let debug_config = config.debug;
 
     let storage_paths = nym_sdk::mixnet::StoragePaths::from(paths.clone());
@@ -250,7 +250,7 @@ async fn create_mixnet_client(
     let mut client_builder =
         nym_sdk::mixnet::MixnetClientBuilder::new_with_default_storage(storage_paths)
             .await
-            .map_err(|err| IpForwarderError::FailedToSetupMixnetClient { source: err })?
+            .map_err(|err| IpPacketRouterError::FailedToSetupMixnetClient { source: err })?
             .network_details(NymNetworkDetails::new_from_env())
             .debug_config(debug_config)
             .custom_shutdown(shutdown)
@@ -267,10 +267,10 @@ async fn create_mixnet_client(
 
     let mixnet_client = client_builder
         .build()
-        .map_err(|err| IpForwarderError::FailedToSetupMixnetClient { source: err })?;
+        .map_err(|err| IpPacketRouterError::FailedToSetupMixnetClient { source: err })?;
 
     mixnet_client
         .connect_to_mixnet()
         .await
-        .map_err(|err| IpForwarderError::FailedToConnectToMixnet { source: err })
+        .map_err(|err| IpPacketRouterError::FailedToConnectToMixnet { source: err })
 }

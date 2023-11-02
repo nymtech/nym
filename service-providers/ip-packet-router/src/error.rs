@@ -1,7 +1,7 @@
 pub use nym_client_core::error::ClientCoreError;
 
 #[derive(thiserror::Error, Debug)]
-pub enum IpForwarderError {
+pub enum IpPacketRouterError {
     #[error("I/O error: {0}")]
     IoError(#[from] std::io::Error),
 

@@ -346,7 +346,7 @@ impl<St> Gateway<St> {
 
         // TODO: well, wire it up internally to gateway traffic, shutdowns, etc.
         let (on_start_tx, on_start_rx) = oneshot::channel();
-        let mut ip_builder = nym_ip_packet_router::IpForwarderBuilder::new(ip_opts.config.clone())
+        let mut ip_builder = nym_ip_packet_router::IpPacketRouterBuilder::new(ip_opts.config.clone())
             .with_shutdown(shutdown)
             .with_custom_gateway_transceiver(Box::new(transceiver))
             .with_wait_for_gateway(true)

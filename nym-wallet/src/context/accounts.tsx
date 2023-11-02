@@ -1,6 +1,6 @@
 import React, { createContext, Dispatch, SetStateAction, useContext, useEffect, useMemo, useState } from 'react';
 import { AccountEntry } from '@nymproject/types';
-import { addAccount as addAccountRequest, showMnemonicForAccount } from 'src/requests';
+import { addAccount as addAccountRequest, renameAccount, showMnemonicForAccount } from 'src/requests';
 import { useSnackbar } from 'notistack';
 import { AppContext } from './main';
 
@@ -17,8 +17,16 @@ type TAccounts = {
   handleAddAccount: (data: { accountName: string; mnemonic: string; password: string }) => void;
   setDialogToDisplay: (dialog?: TAccountsDialog) => void;
   handleSelectAccount: (data: { accountName: string; password: string }) => Promise<boolean>;
-  handleAccountToEdit: (accountId: string) => void;
-  handleEditAccount: (account: AccountEntry) => void;
+  handleAccountToEdit: (accountId: string | undefined) => void;
+  handleEditAccount: ({
+    account,
+    newAccountName,
+    password,
+  }: {
+    account: AccountEntry;
+    newAccountName: string;
+    password: string;
+  }) => Promise<void>;
   handleImportAccount: (account: AccountEntry) => void;
   handleGetAccountMnemonic: (data: { password: string; accountName: string }) => void;
 };
@@ -67,12 +75,35 @@ export const AccountsProvider: FCWithChildren = ({ children }) => {
       setIsLoading(false);
     }
   };
-  const handleEditAccount = (account: AccountEntry) =>
-    setAccounts((accs) => accs?.map((acc) => (acc.address === account.address ? account : acc)));
+  const handleEditAccount = async ({
+    account,
+    newAccountName,
+    password,
+  }: {
+    account: AccountEntry;
+    newAccountName: string;
+    password: string;
+  }) => {
+    setIsLoading(true);
+    try {
+      await renameAccount({ accountName: account.id, newAccountName, password });
+      setAccounts((accs) =>
+        accs?.map((acc) => (acc.address === account.address ? { ...acc, id: newAccountName } : acc)),
+      );
+      if (selectedAccount?.id === account.id) {
+        setSelectedAccount({ ...selectedAccount, id: newAccountName });
+      }
+      setDialogToDisplay('Accounts');
+    } catch (e) {
+      throw new Error(`Error editing account: ${e}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleImportAccount = (account: AccountEntry) => setAccounts((accs) => [...(accs ? [...accs] : []), account]);
 
-  const handleAccountToEdit = (accountName: string) =>
+  const handleAccountToEdit = (accountName: string | undefined) =>
     setAccountToEdit(accounts?.find((acc) => acc.id === accountName));
 
   const handleSelectAccount = async ({ accountName, password }: { accountName: string; password: string }) => {

@@ -47,11 +47,7 @@ impl<T> PersistedGatewayDetails<T> {
     pub fn validate(&self, shared_key: Option<&SharedKeys>) -> Result<(), ClientCoreError> {
         match self {
             PersistedGatewayDetails::Default(details) => {
-                if !details.verify(
-                    shared_key
-                        .ok_or(ClientCoreError::UnavailableSharedKey)?
-                        .deref(),
-                ) {
+                if !details.verify(shared_key.ok_or(ClientCoreError::UnavailableSharedKey)?) {
                     Err(ClientCoreError::MismatchedGatewayDetails {
                         gateway_id: details.details.gateway_id.clone(),
                     })

@@ -28,12 +28,31 @@ export const MockAccountsProvider: FCWithChildren = ({ children }) => {
       setIsLoading(false);
     }
   };
-  const handleEditAccount = (account: AccountEntry) =>
-    setAccounts((accs) => accs?.map((acc) => (acc.address === account.address ? account : acc)));
+  const handleEditAccount = async ({
+    password,
+    account,
+    newAccountName,
+  }: {
+    password: string;
+    account: AccountEntry;
+    newAccountName: string;
+  }) => {
+    if (password) {
+      setIsLoading(true);
+      try {
+        setAccounts((accs) => accs.map((acc) => (acc.id === account.id ? { ...acc, id: newAccountName } : acc)));
+        setDialogToDisplay('Accounts');
+      } catch (e) {
+        setError(`Error adding account: ${e}`);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+  };
 
   const handleImportAccount = (account: AccountEntry) => setAccounts((accs) => [...(accs ? [...accs] : []), account]);
 
-  const handleAccountToEdit = (accountName: string) =>
+  const handleAccountToEdit = (accountName: string | undefined) =>
     setAccountToEdit(accounts?.find((acc) => acc.id === accountName));
 
   const handleSelectAccount = async ({ accountName }: { accountName: string; password: string }) => {

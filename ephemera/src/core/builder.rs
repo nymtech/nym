@@ -191,10 +191,10 @@ impl<A: Application> EphemeraStarterWithApplication<A> {
 
         let block_manager = self.init_block_manager(&mut storage)?;
 
-        let (mut shutdown_manager, shutdown_handle) = ShutdownManager::init();
+        let (shutdown_manager, shutdown_handle) = ShutdownManager::init();
 
         let mut service_data = ServiceInfo::default();
-        let services = self.init_services(&mut service_data, &mut shutdown_manager, provider)?;
+        let services = self.init_services(&mut service_data, &shutdown_manager, provider)?;
 
         Ok(EphemeraStarterWithProvider {
             with_application: self,
@@ -237,7 +237,7 @@ impl<A: Application> EphemeraStarterWithApplication<A> {
     >(
         &mut self,
         service_data: &mut ServiceInfo,
-        shutdown_manager: &mut ShutdownManager,
+        shutdown_manager: &ShutdownManager,
         provider: P,
     ) -> anyhow::Result<Vec<BoxFuture<'static, anyhow::Result<()>>>> {
         let services = vec![
@@ -267,7 +267,7 @@ impl<A: Application> EphemeraStarterWithApplication<A> {
                 }
                 ws_stopped = websocket.run() => {
                     match ws_stopped {
-                        Ok(_) => info!("Websocket stopped unexpectedly"),
+                        Ok(()) => info!("Websocket stopped unexpectedly"),
                         Err(e) => error!("Websocket stopped with error: {}", e),
                     }
                 }
@@ -293,7 +293,7 @@ impl<A: Application> EphemeraStarterWithApplication<A> {
                 }
                 http_stopped = http => {
                     match http_stopped {
-                        Ok(_) => info!("Http server stopped unexpectedly"),
+                        Ok(()) => info!("Http server stopped unexpectedly"),
                         Err(e) => error!("Http server stopped with error: {}", e),
                     }
                 }
@@ -330,7 +330,7 @@ impl<A: Application> EphemeraStarterWithApplication<A> {
                 }
                 nw_stopped = network.start() => {
                     match nw_stopped {
-                        Ok(_) => info!("Network stopped unexpectedly"),
+                        Ok(()) => info!("Network stopped unexpectedly"),
                         Err(e) => error!("Network stopped with error: {e}",),
                     }
                 }

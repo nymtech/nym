@@ -3,9 +3,9 @@ import { TableContainer, Table, TableBody, TableCell, TableRow, Paper } from '@m
 import { NPMLink } from '../components/npm';
 
 ## SDK overview
-The Typescript SDK allows developers to start building browser-based mixnet applications quickly, by simply importing the SDK modules into their code via NPM as they would any other Typescript library.
+The Typescript SDK allows developers to start building browser-based Nym-based applications quickly, by simply importing the SDK modules into their code via NPM as they would any other Typescript library.
 
-Currently developers can use different packages from the Typescript SDK to do the following entirely in the browser:
+Currently developers can use different packages from the Typescript SDK to run the following entirely in browser:
 
 <TableContainer component={Paper}>
     <Table>
@@ -57,10 +57,10 @@ Currently developers can use different packages from the Typescript SDK to do th
 ## Which package should I use?
 
 All packages come in four different variations:
-- **ESM**: For new projects with current tooling. These packages use the ECMAScript Modules (ESM) system. You may need to [configure your bundler](bundling) to handle the packages WASM and Web Worker components;
+- **ESM**: For new projects with current tooling. These packages use the ECMAScript Modules (ESM) system. You may need to [configure your bundler](bundling) to handle the packages WASM and web worker components;
 - **ESM full-fat**: These ESM packages are pre-bundled and include inline WebAssembly and web worker code;
-- **CommonJS**: For older projects that still use CommonJS. All WebAssembly (WASM) and Web Workers in the package need to be [bundled](bundling) to work correctly;
-- **CommonJS full-fat**: These packages are already pre-bundled and should work in your project as is;
+- **CommonJS**: For older projects that still use CommonJS. All WebAssembly (WASM) and web workers in the package need to be [bundled](bundling) to work correctly;
+- **CommonJS full-fat**: These packages are already pre-bundled and should work in your project without additional configuration;
 
 <Callout type="warning" emoji="🥛">
     All `*-full-fat` variants have large bundle sizes because they include all WASM and web-workers as inline Base64 strings. If you care about your app's bundle size, then use the ESM variant.

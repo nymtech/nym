@@ -464,6 +464,9 @@ pub const DEFAULT_NYM_API_PORT: u16 = 8080;
 
 pub const NYM_API_VERSION: &str = "v1";
 
+// NYM-NODE
+pub const DEFAULT_NYM_NODE_HTTP_PORT: u16 = 8080;
+
 // REWARDING
 
 /// We'll be assuming a few more things, profit margin and cost function. Since we don't have reliable package measurement, we'll be using uptime. We'll also set the value of 1 Nym to 1 $, to be able to translate interval costs to Nyms. We'll also assume a cost of 40$ per interval(month), converting that to Nym at our 1$ rate translates to 40_000_000 uNyms

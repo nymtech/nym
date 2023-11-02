@@ -137,7 +137,7 @@ impl<'a, S> State<'a, S> {
             .chain(remote_ephemeral_key.to_bytes().iter().cloned())
             .collect();
 
-        let signature = self.identity.private_key().sign(&message);
+        let signature = self.identity.private_key().sign(message);
         let zero_iv = stream_cipher::zero_iv::<GatewayEncryptionAlgorithm>();
         stream_cipher::encrypt::<GatewayEncryptionAlgorithm>(
             self.derived_shared_keys.as_ref().unwrap().encryption_key(),
@@ -191,7 +191,7 @@ impl<'a, S> State<'a, S> {
         self.remote_pubkey
             .as_ref()
             .unwrap()
-            .verify(&signed_payload, &signature)
+            .verify(signed_payload, &signature)
             .map_err(|_| HandshakeError::InvalidSignature)
     }
 

@@ -1,10 +1,10 @@
-name: publish-sdk-npm
+name: Publish Typescript SDK
 on:
   workflow_dispatch:
 
 jobs:
   publish:
-    runs-on: [custom-runner-linux]
+    runs-on: ubuntu-20.04-16-core
     steps:
       - uses: actions/checkout@v2
 
@@ -25,11 +25,16 @@ jobs:
       - name: Install wasm-pack
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 
+      - name: Install wasm-opt
+        run: cargo install wasm-opt
+
       - name: Install dependencies
         run: yarn
 
-      - name: Build and publish
+      - name: Build WASM and Typescript SDK
+        run: yarn sdk:build
+
+      - name: Publish to NPM
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
-        working-directory: ./sdk/typescript/packages/sdk
-        run: scripts/publish.sh
+        run: ./sdk/typescript/scripts/publish.sh

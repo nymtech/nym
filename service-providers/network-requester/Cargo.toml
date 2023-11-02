@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-network-requester"
-version = "1.1.30"
+version = "1.1.31"
 authors.workspace = true
 edition.workspace = true
 rust-version = "1.65"
@@ -33,9 +33,9 @@ serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 sqlx = { version = "0.6.1", features = ["runtime-tokio-rustls", "chrono"]}
 tap = { workspace = true }
-thiserror = "1.0"
-tokio = { version = "1.24.1", features = [ "net", "rt-multi-thread", "macros" ] }
-tokio-tungstenite = "0.17.2"
+thiserror = { workspace = true }
+tokio = { workspace = true, features = [ "net", "rt-multi-thread", "macros" ] }
+tokio-tungstenite = { workspace = true }
 url = { workspace = true }
 
 # internal
@@ -47,7 +47,7 @@ nym-config = { path = "../../common/config" }
 nym-credential-storage = { path = "../../common/credential-storage" }
 nym-crypto = { path = "../../common/crypto" }
 nym-network-defaults = { path = "../../common/network-defaults" }
-nym-ordered-buffer = {path = "../../common/socks5/ordered-buffer"}
+nym-ordered-buffer = { path = "../../common/socks5/ordered-buffer" }
 nym-sdk = { path = "../../sdk/rust/nym-sdk" }
 nym-service-providers-common = { path = "../common" }
 nym-socks5-proxy-helpers = { path = "../../common/socks5/proxy-helpers" }
@@ -56,7 +56,8 @@ nym-sphinx = { path = "../../common/nymsphinx" }
 nym-statistics-common = { path = "../../common/statistics" }
 nym-task = { path = "../../common/task" }
 nym-types = { path = "../../common/types" }
+nym-exit-policy = { path = "../../common/exit-policy", features = ["client"] }
 
 [dev-dependencies]
 tempfile = "3.5.0"
-anyhow = "1.0.68"
+anyhow = { workspace = true }

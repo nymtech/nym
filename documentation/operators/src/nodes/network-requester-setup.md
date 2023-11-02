@@ -1,7 +1,10 @@
 # Network Requesters
 
-> The Nym gateway was built in the [building nym](../binaries/building-nym.md) section. If you haven't yet built Nym and want to run the code, go there first.
+> The Nym network requester was built in the [building nym](../binaries/building-nym.md) section. If you haven't yet built Nym and want to run the code, go there first.
 
+```admonish info
+As a result of [Project Smoosh](../faq/smoosh-faq.md), the current version of `nym-gateway` binary also contains `nym-network-requester` functionality which can be enabled [by the operator](./gateway-setup.md#initialising-gateway-with-network-requester). This combination is a basis of Nym exit gateway node - an essential piece in our new setup. Please read more in our [Project Smoosh FAQ](../faq/smoosh-faq.md) and [Exit Gateways Page](../legal/exit-gateway.md). We recommend operators begin to shift their setups to this new combined node, instead of operating two separate binaries.
+```
 > Any syntax in `<>` brackets is a user's unique variable. Exchange with a corresponding name without the `<>` brackets.
 
 ## Current version
@@ -14,9 +17,12 @@
 Make sure you do the preparation listed in the [preliminary steps page](../preliminary-steps.md) before setting up your network requester.
 
 ## Network Requester Whitelist
+
 If you have access to a server, you can run the network requester, which allows Nym users to send outbound requests from their local machine through the mixnet to a server, which then makes the request on their behalf, shielding them (and their metadata) from clearnet, untrusted and unknown infrastructure, such as email or message client servers.
 
 By default the network requester is **not** an open proxy (although it can be used as one). It uses a file called `allowed.list` (located in `~/.nym/service-providers/network-requester/<NETWORK-REQUESTER-ID>/`) as a whitelist for outbound requests.
+
+**Note:** If you run network requester as a part of the exit gateway (suggested setup) the `allowed.list` will be stored in `~/.nym/gateways/<ID>/data/network-requester-data/allowed.list`.
 
 Any request to a URL which is not on this list will be blocked.
 
@@ -97,14 +103,20 @@ matrix.org
 
 # alephium 
 alephium.org
+
 ```
 
 ## Network Requester Directory
+
 You can find a list of Network requesters running the default whitelist in the [explorer](https://explorer.nymtech.net/network-components/service-providers). This list comprises of the NRs running as infrastructure for NymConnect.
 
 > We are currently working on a smart-contract based solution more in line with how Mix nodes and Gateways announce themselves to the network.
 
 ## Viewing command help
+
+```admonish info
+If you run your network requester as a part of your exit gateway according to the suggested setup, please skip this part of the page and read about [exit gateway setup](./gateway-setup.md#initialising-gateway-with-network-requester) instead.
+```
 
 To begin, move to `/target/release` directory from which you run the node commands:
 
@@ -151,102 +163,11 @@ Now that we have initialized our network-requester, we can start it with the fol
  ./nym-network-requester run --id <YOUR_ID>
 ```
 
-## Maintenance
-
-For network requester upgrade (including an upgrade from `<v1.1.9` to `>= v1.1.10`), firewall setup, port configuration, API endpoints, VPS suggestions, automation and more, see the [maintenance page](./maintenance.md).
-
-### Upgrading to >= v1.1.10 from <v1.1.9
-
-In the previous version of the network-requester, users were required to run a nym-client along side it to function. As of `v1.1.10`, the network-requester now has a nym client embedded into the binary, so it can run standalone.
-
-If you are running an existing network requester registered with nym-connect, upgrading requires you move your old keys over to the new network requester configuration. We suggest following these instructions carefully to ensure a smooth transition.
-
-Initiate the new network requester:
-
-```
-nym-network-requester init --id mynetworkrequester
-```
-
-Copy the old keys from your client to the network-requester configuration that was created above:
-
-```
-cp -vr ~/.nym/clients/myoldclient/data/* ~/.nym/service-providers/network-requester/mynetworkrequester/data
-```
-
-Edit the gateway configuration to match what you used on your client. Specifically, edit the configuration file at:
-
-```
-~/.nym/service-providers/network-requester/mynetworkrequester/config/config.toml
-```
-
-Ensure that the fields `gateway_id`, `gateway_owner`, `gateway_listener` in the new config match those in the old client config at:
-
-```
-~/.nym/clients/myoldclient/config/config.toml
-```
-
-## Automating your network requester with systemd
-Stop the running process with `CTRL-C`, and create a service file for the requester as we did with our client instance previously at `/etc/systemd/system/nym-network-requester.service`:
-
-```ini
-[Unit]
-Description=Nym Network Requester 
-StartLimitInterval=350
-StartLimitBurst=10
-
-[Service]
-User=nym # replace this with whatever user you wish
-LimitNOFILE=65536
-# remember to add the `--enable-statistics` flag if running as part of a service grant and check the path to your nym-network-requester binary
-ExecStart=/home/nym/nym-network-requester run --id <your_id>
-KillSignal=SIGINT
-Restart=on-failure
-RestartSec=30
-
-[Install]
-WantedBy=multi-user.target
-```
-
-Now enable and start your requester:
-
-```
-systemctl enable nym-network-requester.service
-systemctl start nym-network-requester.service
-
-# you can always check your requester has succesfully started with:
-systemctl status nym-network-requester.service
-```
-
-## VPS Setup
-### Configure your firewall
-Although your requester is now ready to receive traffic, your server may not be - the following commands will allow you to set up a properly configured firewall using `ufw`:
-
-```
-# check if you have ufw installed
-ufw version
-# if it is not installed, install with
-sudo apt install ufw -y
-# enable ufw
-sudo ufw enable
-# check the status of the firewall
-sudo ufw status
-```
-
-Finally open your requester's ssh port to incoming administration connections:
-
-```
-sudo ufw allow 22/tcp
-# check the status of the firewall
-sudo ufw status
-```
->>>>>>> release/v1.1.27:documentation/docs/src/nodes/network-requester-setup.md
->>>>>>> 85ab634d9c1f1f54073c97a133c83e645a0a3f41
-
 ## Using your network requester
 
 The next thing to do is use your requester, share its address with friends (or whoever you want to help privacy-enhance their app traffic). Is this safe to do? If it was an open proxy, this would be unsafe, because any Nym user could make network requests to any system on the internet.
 
-To make things a bit less stressful for administrators, the Network Requester drops all incoming requests by default. In order for it to make requests, you need to add specific domains to the `allowed.list` file at `$HOME/.nym/service-providers/network-requester/allowed.list`.
+To make things a bit less stressful for administrators, the Network Requester drops all incoming requests by default. In order for it to make requests, you need to add specific domains to the `allowed.list` file at `$HOME/.nym/service-providers/network-requester/allowed.list` or if network requester is ran as a part of [exit gateway](./gateway-setup.md#initialising-gateway-with-network-requester), the `allowed.list` will be stored in `~/.nym/gateways/<ID>/data/network-requester-data/allowed.list`
 
 ### Global vs local allow lists 
 Your Network Requester will check for a domain against 2 lists before allowing traffic through for a particular domain or IP. 
@@ -263,12 +184,16 @@ It is easy to add new domains and services to your network requester - simply fi
 How to go about this? Have a look in your nym-network-requester config directory:
 
 ```
+# network requester binary
 ls -lt $HOME/.nym/service-providers/network-requester/*/data | grep "list"
+
+# exit gateway binary
+ls -lt $HOME/.nym/gateways/*/data/network-requester-data | grep "list"
 
 # returns: allowed.list  unknown.list
 ```
 
-We already know that `allowed.list` is what lets requests go through. All unknown requests are logged to `unknown.list`. If you want to try using a new client type, just start the new application, point it at your local [socks client](https://nymtech.net/docs/clients/socks5-client.html) (configured to use your remote `nym-network-requester`), and keep copying URLs from `unknown.list` into `allowed.list` (it may take multiple tries until you get all of them, depending on the complexity of the application). Make sure to restart your network requester!
+We already know that `allowed.list` is what lets requests go through. All unknown requests are logged to `unknown.list`. If you want to try using a new client type, just start the new application, point it at your local [socks client](https://nymtech.net/docs/clients/socks5-client.html) (configured to use your remote `nym-network-requester`), and keep copying URLs from `unknown.list` into `allowed.list` (it may take multiple tries until you get all of them, depending on the complexity of the application). Make sure to delete the copied ones in `unknown.list` and restart your exit gateway or standalone network requester.
 
 > If you are adding custom domains, please note that whilst they may appear in the logs of your network-requester as something like `api-0.core.keybaseapi.com:443`, you **only need** to include the main domain name, in this instance `keybaseapi.com`
 
@@ -292,8 +217,7 @@ This command should return the following:
 { "status": "ok" }
 ```
 
+## Maintenance
 
-## Ports
-### Requester port reference
+For network requester upgrade (including an upgrade from `<v1.1.9` to `>= v1.1.10`), firewall setup, port configuration, API endpoints, VPS suggestions, automation and more, see the [maintenance page](./maintenance.md).
 
-All network-requester-specific port configuration can be found in `$HOME/.nym/service-providers/network-requester/<YOUR_ID>/config/config.toml`. If you do edit any port configs, remember to restart your client and requester processes.

@@ -125,7 +125,6 @@ export type TBondingContext = {
   updateBondAmount: (data: TUpdateBondArgs, tokenPool: TokenPool) => Promise<TransactionExecuteResult | undefined>;
   redeemRewards: (fee?: FeeDetails) => Promise<TransactionExecuteResult | undefined>;
   updateMixnode: (pm: string, fee?: FeeDetails) => Promise<TransactionExecuteResult | undefined>;
-  checkOwnership: () => Promise<void>;
   generateMixnodeMsgPayload: (data: TBondMixnodeSignatureArgs) => Promise<string | undefined>;
   generateGatewayMsgPayload: (data: TBondGatewaySignatureArgs) => Promise<string | undefined>;
   isVestingAccount: boolean;
@@ -152,9 +151,6 @@ export const BondingContext = createContext<TBondingContext>({
   updateMixnode: async () => {
     throw new Error('Not implemented');
   },
-  checkOwnership(): Promise<void> {
-    throw new Error('Not implemented');
-  },
   generateMixnodeMsgPayload: async () => {
     throw new Error('Not implemented');
   },
@@ -171,7 +167,7 @@ export const BondingContextProvider: FCWithChildren = ({ children }): JSX.Elemen
   const [isVestingAccount, setIsVestingAccount] = useState(false);
 
   const { userBalance, clientDetails } = useContext(AppContext);
-  const { ownership, isLoading: isOwnershipLoading, checkOwnership } = useCheckOwnership();
+  const { ownership, isLoading: isOwnershipLoading } = useCheckOwnership();
 
   useEffect(() => {
     userBalance.fetchBalance();
@@ -341,8 +337,6 @@ export const BondingContextProvider: FCWithChildren = ({ children }): JSX.Elemen
   const refresh = useCallback(async () => {
     setIsLoading(true);
     setError(undefined);
-
-    await checkOwnership();
 
     if (ownership.hasOwnership && ownership.nodeType === EnumNodeType.mixnode && clientDetails) {
       try {
@@ -617,7 +611,6 @@ export const BondingContextProvider: FCWithChildren = ({ children }): JSX.Elemen
       refresh,
       redeemRewards,
       updateBondAmount,
-      checkOwnership,
       generateMixnodeMsgPayload,
       generateGatewayMsgPayload,
       isVestingAccount,

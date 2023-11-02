@@ -11,8 +11,8 @@ bls12_381 = { git = "https://github.com/jstuczyn/bls12_381", branch ="gt-seriali
 itertools = "0.10"
 digest = "0.9"
 rand = "0.8"
-thiserror = "1.0"
-serde = "1.0"
+thiserror = { workspace = true }
+serde = { workspace = true }
 serde_derive = "1.0"
 bs58 = "0.4.0"
 sha2 = "0.9"

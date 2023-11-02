@@ -1,10 +1,7 @@
 name: ci-contracts-schema
 
 on:
-  push:
-    paths:
-      - 'contracts/**'
-      - 'common/**'
+  workflow_dispatch:
   pull_request:
     paths:
       - 'contracts/**'
@@ -13,7 +10,9 @@ on:
 jobs:
   check-schema:
     name: Generate and check schema
-    runs-on: custom-runner-linux
+    runs-on: custom-linux
+    env:
+      CARGO_TERM_COLOR: always
     steps:
       - name: Check out repository code
         uses: actions/checkout@v2
@@ -23,9 +22,8 @@ jobs:
         with:
           toolchain: stable
 
-
       - name: Generate the schema
         run: make contract-schema
 
       - name: Check for diff
-        run: git diff --exit-code -- contracts/*/schema
+        run: git diff --exit-code -- contracts/**/schema

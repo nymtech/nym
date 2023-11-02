@@ -1,4 +1,4 @@
-name: Nyms5 Android
+name: publish-nyms5-android-apk
 # unsigned APKs only, supported archs:
 # - arm64-v8a (arm64)
 # - x86_64
@@ -12,7 +12,7 @@ on:
 jobs:
   build:
     name: Build APK
-    runs-on: custom-runner-linux
+    runs-on: custom-ubuntu-20.04
     env:
       ANDROID_HOME: ${{ github.workspace }}/android-sdk
       NDK_VERSION: 25.2.9519653
@@ -94,7 +94,7 @@ jobs:
   gh-release:
     name: Publish APK (GH release)
     needs: build
-    runs-on: custom-runner-linux
+    runs-on: custom-linux
     steps:
       - name: Checkout
         uses: actions/checkout@v3

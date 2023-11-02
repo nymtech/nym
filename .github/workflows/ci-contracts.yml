@@ -6,7 +6,7 @@ on:
       - 'contracts/**'
       - 'common/**'
   pull_request:
-    paths-ignore:
+    paths:
       - 'contracts/**'
       - 'common/**'
 
@@ -27,7 +27,8 @@ jobs:
     # since it's going to be compiled into wasm, there's absolutely
     # no point in running CI on different OS-es
     runs-on: ubuntu-20.04
-    continue-on-error: ${{ matrix.rust == 'nightly' }}
+    env:
+      CARGO_TERM_COLOR: always
     needs: matrix_prep
     strategy:
       fail-fast: false
@@ -35,7 +36,8 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - uses: actions-rs/toolchain@v1
+      - name: Setup rust
+        uses: actions-rs/toolchain@v1
         with:
           profile: minimal
           toolchain: ${{ matrix.rust }}
@@ -43,25 +45,28 @@ jobs:
           override: true
           components: rustfmt, clippy
 
-      - uses: actions-rs/cargo@v1
+      - name: Build contracts
+        uses: actions-rs/cargo@v1
         env:
           RUSTFLAGS: '-C link-arg=-s'
         with:
           command: build
           args: --manifest-path contracts/Cargo.toml --workspace --lib --target wasm32-unknown-unknown
 
-      - uses: actions-rs/cargo@v1
+      - name: Run unit tests
+        uses: actions-rs/cargo@v1
         with:
           command: test
           args: --lib --manifest-path contracts/Cargo.toml
 
-      - uses: actions-rs/cargo@v1
+      - name: Check formatting
+        uses: actions-rs/cargo@v1
         with:
           command: fmt
           args: --manifest-path contracts/Cargo.toml --all -- --check
 
-      - uses: actions-rs/cargo@v1
-        if: ${{ matrix.rust != 'nightly' }}
+      - name: Run clippy
+        uses: actions-rs/cargo@v1
         with:
           command: clippy
           args: --lib --manifest-path contracts/Cargo.toml --workspace --all-targets -- -D warnings

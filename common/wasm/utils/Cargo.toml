@@ -18,7 +18,7 @@ gloo-net = { version = "0.3.1", features = ["websocket"], optional = true }
 
 # we don't want entire tokio-tungstenite, tungstenite itself is just fine - we just want message and error enums
 [dependencies.tungstenite]
-version = "0.13"
+workspace = true
 default-features = false
 optional = true
 

@@ -1,7 +1,7 @@
 {
-  "mixnodes":  "1. Query mixnet contract for a list of mix nodes",
-  "wallet": "1.2. Basic wallet operations",
+  "mixfetch": "1. Use mixFetch",
   "traffic":  "2. Send traffic over the mixnet",
-  "mixfetch": "3. Use mixFetch",
+  "mixnodes":  "3.1. Query mixnet contract for a list of mix nodes",
+  "wallet": "3.2. Basic wallet operations",
   "cosmos-kit": "4. Cosmos Kit"
 }

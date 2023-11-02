@@ -18,60 +18,77 @@ use nym_client_core::init::helpers::current_gateways;
 use nym_client_core::init::types::GatewaySetup;
 use nym_client_core::init::types::{GatewayDetails, GatewaySelectionSpecification};
 use nym_crypto::asymmetric::identity;
+use nym_sdk::mixnet::NymTopology;
 use nym_sphinx::addressing::clients::Recipient;
 use serde::Serialize;
 use std::fmt::Display;
+use std::path::PathBuf;
 use std::{fs, io};
 use tap::TapFallible;
 
 #[derive(Args, Clone)]
 pub(crate) struct Init {
     /// Id of the nym-mixnet-client we want to create config for.
-    #[arg(long)]
+    #[clap(long)]
     id: String,
 
     /// Specifies whether this network requester should run in 'open-proxy' mode
-    #[arg(long)]
+    #[clap(long)]
     open_proxy: Option<bool>,
 
     /// Enable service anonymized statistics that get sent to a statistics aggregator server
-    #[arg(long)]
+    #[clap(long)]
     enable_statistics: Option<bool>,
 
     /// Mixnet client address where a statistics aggregator is running. The default value is a Nym
     /// aggregator client
-    #[arg(long)]
+    #[clap(long)]
     statistics_recipient: Option<String>,
 
     /// Id of the gateway we are going to connect to.
-    #[arg(long)]
+    #[clap(long)]
     gateway: Option<identity::PublicKey>,
 
     /// Specifies whether the new gateway should be determined based by latency as opposed to being chosen
     /// uniformly.
-    #[arg(long, conflicts_with = "gateway")]
+    #[clap(long, conflicts_with = "gateway")]
     latency_based_selection: bool,
 
     /// Force register gateway. WARNING: this will overwrite any existing keys for the given id,
     /// potentially causing loss of access.
-    #[arg(long)]
+    #[clap(long)]
     force_register_gateway: bool,
 
     /// Comma separated list of rest endpoints of the nyxd validators
-    #[arg(long, alias = "nymd_validators", value_delimiter = ',')]
+    #[clap(long, alias = "nymd_validators", value_delimiter = ',')]
     nyxd_urls: Option<Vec<url::Url>>,
 
     /// Comma separated list of rest endpoints of the API validators
-    #[arg(long, alias = "api_validators", value_delimiter = ',')]
+    #[clap(
+        long,
+        alias = "api_validators",
+        value_delimiter = ',',
+        group = "network"
+    )]
     // the alias here is included for backwards compatibility (1.1.4 and before)
     nym_apis: Option<Vec<url::Url>>,
 
+    /// Path to .json file containing custom network specification.
+    #[clap(long, group = "network", hide = true)]
+    custom_mixnet: Option<PathBuf>,
+
     /// Set this client to work in a enabled credentials mode that would attempt to use gateway
     /// with bandwidth credential requirement.
-    #[arg(long)]
+    #[clap(long)]
     enabled_credentials_mode: Option<bool>,
 
-    #[arg(short, long, default_value_t = OutputFormat::default())]
+    /// Specifies whether this network requester will run using the default ExitPolicy
+    /// as opposed to the allow list.
+    /// Note: this setting will become the default in the future releases.
+    #[clap(long)]
+    with_exit_policy: Option<bool>,
+
+    #[clap(short, long, default_value_t = OutputFormat::default())]
     output: OutputFormat,
 }
 
@@ -84,6 +101,7 @@ impl From<Init> for OverrideConfig {
             medium_toggle: false,
             nyxd_urls: init_config.nyxd_urls,
             enabled_credentials_mode: init_config.enabled_credentials_mode,
+            enable_exit_policy: init_config.with_exit_policy,
             open_proxy: init_config.open_proxy,
             enable_statistics: init_config.enabled_credentials_mode,
             statistics_recipient: init_config.statistics_recipient,
@@ -173,7 +191,15 @@ pub(crate) async fn execute(args: &Init) -> Result<(), NetworkRequesterError> {
     let details_store =
         OnDiskGatewayDetails::new(&config.storage_paths.common_paths.gateway_details);
 
-    let available_gateways = {
+    let available_gateways = if let Some(hardcoded_topology) = args
+        .custom_mixnet
+        .as_ref()
+        .map(NymTopology::new_from_file)
+        .transpose()?
+    {
+        // hardcoded_topology
+        hardcoded_topology.get_gateways()
+    } else {
         let mut rng = rand::thread_rng();
         current_gateways(&mut rng, &config.base.client.nym_api_urls).await?
     };

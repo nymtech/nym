@@ -1,0 +1,37 @@
+name: 'Install wasm-opt'
+description: 'Installs wasm-opt from binaryen'
+inputs:
+  version:
+    description: 'Version of wasm-opt to install'
+    default: '116'
+runs:
+  using: 'composite'
+  steps:
+    - name: Check platform compatibility
+      run: |
+        if [[ "$(uname)" != "Linux" ]]; then
+          echo "Error: This action is only compatible with Linux."
+          exit 1
+        fi
+      shell: bash
+
+    - name: Download wasm-opt
+      run: |
+        set -e
+        SOURCE="https://github.com/WebAssembly/binaryen/releases/download/version_${{ inputs.version }}/binaryen-version_${{ inputs.version }}-x86_64-linux.tar.gz"
+        TEMP_ARCHIVE="$RUNNER_TEMP/binaryen-version_${{ inputs.version }}-x86_64-linux.tar.gz"
+        curl -L -o "$TEMP_ARCHIVE" "$SOURCE"
+        tar -xvzf $TEMP_ARCHIVE -C $RUNNER_TEMP
+        echo "$RUNNER_TEMP/binaryen-version_${{ inputs.version }}/bin" >> $GITHUB_PATH
+      shell: bash
+      id: install-binary
+
+    - name: Verify installation
+      run: |
+        if ! command -v wasm-opt &> /dev/null; then
+          echo "Error: wasm-opt binary was not installed successfully."
+          exit 1
+        fi
+      shell: bash
+      id: verify-installation
+

@@ -1,140 +1,78 @@
-use std::{collections::HashMap, net::SocketAddr, sync::Arc};
+#![cfg_attr(not(target_os = "linux"), allow(dead_code))]
+// #![warn(clippy::pedantic)]
+// #![warn(clippy::expect_used)]
+// #![warn(clippy::unwrap_used)]
 
-use base64::{engine::general_purpose, Engine as _};
-use boringtun::x25519;
-use futures::StreamExt;
-use log::{error, info};
-use nym_task::TaskClient;
-use tap::TapFallible;
-use tokio::{net::UdpSocket, sync::mpsc, task::JoinHandle};
-use tun::WireGuardTunnel;
-
-use crate::event::Event;
-
-pub use error::WgError;
-
+mod active_peers;
 mod error;
 mod event;
-mod tun;
+mod network_table;
+mod packet_relayer;
+mod platform;
+mod registered_peers;
+mod setup;
+mod tun_task_channel;
+mod udp_listener;
+mod wg_tunnel;
 
-//const WG_ADDRESS = "0.0.0.0:51820";
-const WG_ADDRESS: &str = "0.0.0.0:51822";
+use nym_wireguard_types::registration::GatewayClientRegistry;
+use std::sync::Arc;
 
-// The private key of the listener
-// Corresponding public key: "WM8s8bYegwMa0TJ+xIwhk+dImk2IpDUKslDBCZPizlE="
-const PRIVATE_KEY: &str = "AEqXrLFT4qjYq3wmX0456iv94uM6nDj5ugp6Jedcflg=";
+// Currently the module related to setting up the virtual network device is platform specific.
+#[cfg(target_os = "linux")]
+use platform::linux::tun_device;
 
-// The public keys of the registered peers (clients)
-const PEERS: &[&str; 1] = &[
-    // Corresponding private key: "ILeN6gEh6vJ3Ju8RJ3HVswz+sPgkcKtAYTqzQRhTtlo="
-    "NCIhkgiqxFx1ckKl3Zuh595DzIFl8mxju1Vg995EZhI=", // "mxV/mw7WZTe+0Msa0kvJHMHERDA/cSskiZWQce+TdEs=",
-];
-
-const MAX_PACKET: usize = 65535;
-
-fn init_static_dev_keys() -> (x25519::StaticSecret, x25519::PublicKey) {
-    // TODO: this is a temporary solution for development
-    let static_private_bytes: [u8; 32] = general_purpose::STANDARD
-        .decode(PRIVATE_KEY)
-        .unwrap()
-        .try_into()
-        .unwrap();
-    let static_private = x25519::StaticSecret::try_from(static_private_bytes).unwrap();
-    let static_public = x25519::PublicKey::from(&static_private);
-    info!(
-        "wg public key: {}",
-        general_purpose::STANDARD.encode(static_public)
-    );
-
-    // TODO: A single static public key is used for all peers during development
-    let peer_static_public_bytes: [u8; 32] = general_purpose::STANDARD
-        .decode(PEERS[0])
-        .unwrap()
-        .try_into()
-        .unwrap();
-    let peer_static_public = x25519::PublicKey::try_from(peer_static_public_bytes).unwrap();
-
-    (static_private, peer_static_public)
-}
-
-fn start_wg_tunnel(
-    addr: SocketAddr,
-    udp: Arc<UdpSocket>,
-    static_private: x25519::StaticSecret,
-    peer_static_public: x25519::PublicKey,
-) -> (JoinHandle<SocketAddr>, mpsc::UnboundedSender<Event>) {
-    let (mut tunnel, peer_tx) = WireGuardTunnel::new(udp, addr, static_private, peer_static_public);
-    let join_handle = tokio::spawn(async move {
-        tunnel.spin_off().await;
-        addr
-    });
-    (join_handle, peer_tx)
-}
-
-pub async fn start_wg_listener(
-    mut task_client: TaskClient,
+/// Start wireguard UDP listener and TUN device
+///
+/// # Errors
+///
+/// This function will return an error if either the UDP listener of the TUN device fails to start.
+#[cfg(target_os = "linux")]
+pub async fn start_wireguard(
+    task_client: nym_task::TaskClient,
+    gateway_client_registry: Arc<GatewayClientRegistry>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    log::info!("Starting wireguard listener on {}", WG_ADDRESS);
-    let udp_socket = Arc::new(UdpSocket::bind(WG_ADDRESS).await?);
+    // We can either index peers by their IP like standard wireguard
+    let peers_by_ip = Arc::new(tokio::sync::Mutex::new(network_table::NetworkTable::new()));
 
-    // Setup some static keys for development
-    let (static_private, peer_static_public) = init_static_dev_keys();
+    // ... or by their tunnel tag, which is a random number assigned to them
+    let peers_by_tag = Arc::new(tokio::sync::Mutex::new(wg_tunnel::PeersByTag::new()));
 
-    tokio::spawn(async move {
-        // The set of active tunnels indexed by the peer's address
-        let mut active_peers: HashMap<SocketAddr, mpsc::UnboundedSender<Event>> = HashMap::new();
-        // Each tunnel is run in its own task, and the task handle is stored here so we can remove
-        // it from `active_peers` when the tunnel is closed
-        let mut active_peers_task_handles = futures::stream::FuturesUnordered::new();
-        let mut buf = [0u8; MAX_PACKET];
+    // Start the tun device that is used to relay traffic outbound
+    let (tun, tun_task_tx, tun_task_response_rx) = tun_device::TunDevice::new(peers_by_ip.clone());
+    tun.start();
 
-        while !task_client.is_shutdown() {
-            tokio::select! {
-                _ = task_client.recv() => {
-                    log::trace!("WireGuard listener: received shutdown");
-                    break;
-                }
-                // Handle tunnel closing
-                Some(addr) = active_peers_task_handles.next() => {
-                    match addr {
-                        Ok(addr) => {
-                            info!("WireGuard listener: closed {addr:?}");
-                            active_peers.remove(&addr);
-                        }
-                        Err(err) => {
-                            error!("WireGuard listener: error receiving shutdown from peer: {err}");
-                        }
-                    }
-                }
-                // Handle incoming packets
-                Ok((len, addr)) = udp_socket.recv_from(&mut buf) => {
-                    log::info!("Received {} bytes from {}", len, addr);
+    // If we want to have the tun device on a separate host, it's the tun_task and
+    // tun_task_response channels that needs to be sent over the network to the host where the tun
+    // device is running.
 
-                    if let Some(peer_tx) = active_peers.get_mut(&addr) {
-                        log::info!("WireGuard listener: received packet from known peer");
-                        peer_tx.send(Event::WgPacket(buf[..len].to_vec().into()))
-                            .tap_err(|err| log::error!("{err}"))
-                            .unwrap();
-                    } else {
-                        log::info!("WireGuard listener: received packet from unknown peer, starting tunnel");
-                        let (join_handle, peer_tx) = start_wg_tunnel(
-                            addr,
-                            udp_socket.clone(),
-                            static_private.clone(),
-                            peer_static_public
-                        );
-                        peer_tx.send(Event::WgPacket(buf[..len].to_vec().into()))
-                            .tap_err(|err| log::error!("{err}"))
-                            .unwrap();
+    // The packet relayer's responsibility is to route packets between the correct tunnel and the
+    // tun device. The tun device may or may not be on a separate host, which is why we can't do
+    // this routing in the tun device itself.
+    let (packet_relayer, packet_tx) = packet_relayer::PacketRelayer::new(
+        tun_task_tx.clone(),
+        tun_task_response_rx,
+        peers_by_tag.clone(),
+    );
+    packet_relayer.start();
 
-                        active_peers.insert(addr, peer_tx);
-                        active_peers_task_handles.push(join_handle);
-                    }
-                }
-            }
-        }
-        log::info!("WireGuard listener: shutting down");
-    });
+    // Start the UDP listener that clients connect to
+    let udp_listener = udp_listener::WgUdpListener::new(
+        packet_tx,
+        peers_by_ip,
+        peers_by_tag,
+        Arc::clone(&gateway_client_registry),
+    )
+    .await?;
+    udp_listener.start(task_client);
 
     Ok(())
+}
+
+#[cfg(not(target_os = "linux"))]
+pub async fn start_wireguard(
+    _task_client: nym_task::TaskClient,
+    _gateway_client_registry: Arc<GatewayClientRegistry>,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+    todo!("WireGuard is currently only supported on Linux")
 }

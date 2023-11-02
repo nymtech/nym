@@ -89,7 +89,7 @@ pub enum PacketSize {
 impl PartialOrd for PacketSize {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         // order them by actual packet size
-        self.size().partial_cmp(&other.size())
+        Some(self.cmp(other))
     }
 }
 

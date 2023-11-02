@@ -15,6 +15,7 @@ use nym_client_core::client::topology_control::geo_aware_provider::CountryGroup;
 use nym_crypto::asymmetric::identity;
 use nym_socks5_client_core::NymClient;
 use nym_sphinx::addressing::clients::Recipient;
+use std::net::IpAddr;
 use std::path::PathBuf;
 
 #[derive(Args, Clone)]
@@ -53,6 +54,10 @@ pub(crate) struct Run {
     #[clap(short, long)]
     port: Option<u16>,
 
+    /// The custom host on which the socks5 client will be listening for requests
+    #[clap(long)]
+    host: Option<IpAddr>,
+
     /// Path to .json file containing custom network specification.
     #[clap(long, group = "network", group = "routing", hide = true)]
     custom_mixnet: Option<PathBuf>,
@@ -88,6 +93,7 @@ impl From<Run> for OverrideConfig {
     fn from(run_config: Run) -> Self {
         OverrideConfig {
             nym_apis: run_config.nym_apis,
+            ip: run_config.host,
             port: run_config.port,
             use_anonymous_replies: run_config.use_anonymous_replies,
             fastmode: run_config.fastmode,

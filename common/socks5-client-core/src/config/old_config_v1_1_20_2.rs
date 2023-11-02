@@ -1,13 +1,12 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use super::old_config_v1_1_30::{ConfigV1_1_30, Socks5DebugV1_1_30, Socks5V1_1_30};
 pub use nym_client_core::config::old_config_v1_1_20_2::ConfigV1_1_20_2 as BaseClientConfigV1_1_20_2;
-use serde::{Deserialize, Serialize};
-use std::fmt::Debug;
-
-use crate::config::{Config, Socks5, Socks5Debug};
 pub use nym_service_providers_common::interface::ProviderInterfaceVersion;
 pub use nym_socks5_requests::Socks5ProtocolVersion;
+use serde::{Deserialize, Serialize};
+use std::fmt::Debug;
 
 const DEFAULT_CONNECTION_START_SURBS: u32 = 20;
 const DEFAULT_PER_REQUEST_SURBS: u32 = 3;
@@ -21,9 +20,9 @@ pub struct ConfigV1_1_20_2 {
     pub socks5: Socks5V1_1_20_2,
 }
 
-impl From<ConfigV1_1_20_2> for Config {
+impl From<ConfigV1_1_20_2> for ConfigV1_1_30 {
     fn from(value: ConfigV1_1_20_2) -> Self {
-        Config {
+        ConfigV1_1_30 {
             base: value.base.into(),
             socks5: value.socks5.into(),
         }
@@ -45,9 +44,9 @@ pub struct Socks5V1_1_20_2 {
     pub socks5_debug: Socks5DebugV1_1_20_2,
 }
 
-impl From<Socks5V1_1_20_2> for Socks5 {
+impl From<Socks5V1_1_20_2> for Socks5V1_1_30 {
     fn from(value: Socks5V1_1_20_2) -> Self {
-        Socks5 {
+        Socks5V1_1_30 {
             listening_port: value.listening_port,
             provider_mix_address: value.provider_mix_address,
             provider_interface_version: value.provider_interface_version,
@@ -68,9 +67,9 @@ pub struct Socks5DebugV1_1_20_2 {
     pub per_request_surbs: u32,
 }
 
-impl From<Socks5DebugV1_1_20_2> for Socks5Debug {
+impl From<Socks5DebugV1_1_20_2> for Socks5DebugV1_1_30 {
     fn from(value: Socks5DebugV1_1_20_2) -> Self {
-        Socks5Debug {
+        Socks5DebugV1_1_30 {
             connection_start_surbs: value.connection_start_surbs,
             per_request_surbs: value.per_request_surbs,
         }

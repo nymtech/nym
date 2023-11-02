@@ -19,11 +19,11 @@ mod authenticated;
 pub(crate) mod coconut;
 mod fresh;
 
-//// TODO: note for my future self to consider the following idea:
-//// split the socket connection into sink and stream
-//// stream will be for reading explicit requests
-//// and sink for pumping responses AND mix traffic
-//// but as byproduct this might (or might not) break the clean "SocketStream" enum here
+// TODO: note for my future self to consider the following idea:
+// split the socket connection into sink and stream
+// stream will be for reading explicit requests
+// and sink for pumping responses AND mix traffic
+// but as byproduct this might (or might not) break the clean "SocketStream" enum here
 
 pub(crate) enum SocketStream<S> {
     RawTcp(S),

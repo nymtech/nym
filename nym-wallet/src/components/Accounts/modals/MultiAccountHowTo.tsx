@@ -21,7 +21,7 @@ export const MultiAccountHowTo = ({ show, handleClose }: { show: boolean; handle
         }
       />
       <Typography>
-        If you don’t have a password set for your account, go to the Settings, under Security tab create a password
+        If you don’t have a password set for your account, log out, click on login with password and follow the forgot my password flow
       </Typography>
       <Typography>
         If you already have a password, log in to the wallet using your password then try create/import accounts

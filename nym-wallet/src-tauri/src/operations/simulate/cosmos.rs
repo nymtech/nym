@@ -21,7 +21,7 @@ pub async fn simulate_send(
     let amount = vec![amount_base.into()];
 
     let client = guard.current_client()?;
-    let from_address = client.nyxd.address().clone();
+    let from_address = client.nyxd.address();
 
     // TODO: I'm still not 100% convinced whether this should be exposed here or handled somewhere else in the client code
     let msg = MsgSend {

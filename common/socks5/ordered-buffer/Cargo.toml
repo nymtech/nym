@@ -8,4 +8,4 @@ edition = "2021"
 
 [dependencies]
 log = { workspace = true }
-thiserror = "1.0.37"
+thiserror = { workspace = true }

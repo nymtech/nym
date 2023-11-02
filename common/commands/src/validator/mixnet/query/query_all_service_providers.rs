@@ -1,12 +1,12 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use clap::Parser;
-use comfy_table::Table;
-use nym_validator_client::nym_api::error::NymAPIError;
-
 use crate::context::QueryClientWithNyxd;
 use crate::utils::show_error;
+use clap::Parser;
+use comfy_table::Table;
+use nym_validator_client::client::NymApiClientExt;
+use nym_validator_client::nym_api::error::NymAPIError;
 
 #[derive(Debug, Parser)]
 pub struct Args {

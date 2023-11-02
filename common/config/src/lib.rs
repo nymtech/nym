@@ -15,6 +15,7 @@ pub use toml::de::Error as TomlDeError;
 pub mod defaults;
 pub mod helpers;
 pub mod legacy_helpers;
+pub mod serde_helpers;
 
 pub const NYM_DIR: &str = ".nym";
 pub const DEFAULT_NYM_APIS_DIR: &str = "nym-api";

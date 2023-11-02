@@ -48,6 +48,7 @@ pub struct MixnetClientBuilder<S: MixnetClientStorage = Ephemeral> {
     custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
     custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send + Sync>>,
     custom_shutdown: Option<TaskClient>,
+    force_tls: bool,
 
     // TODO: incorporate it properly into `MixnetClientStorage` (I will need it in wasm anyway)
     gateway_endpoint_config_path: Option<PathBuf>,
@@ -86,6 +87,7 @@ impl MixnetClientBuilder<OnDiskPersistent> {
             gateway_endpoint_config_path: None,
             custom_shutdown: None,
             custom_gateway_transceiver: None,
+            force_tls: false,
         })
     }
 }
@@ -111,6 +113,7 @@ where
             custom_topology_provider: None,
             custom_gateway_transceiver: None,
             custom_shutdown: None,
+            force_tls: false,
             gateway_endpoint_config_path: None,
             storage,
         }
@@ -128,6 +131,7 @@ where
             custom_topology_provider: self.custom_topology_provider,
             custom_gateway_transceiver: self.custom_gateway_transceiver,
             custom_shutdown: self.custom_shutdown,
+            force_tls: self.force_tls,
             gateway_endpoint_config_path: self.gateway_endpoint_config_path,
             storage,
         }
@@ -153,6 +157,13 @@ where
     #[must_use]
     pub fn network_details(mut self, network_details: NymNetworkDetails) -> Self {
         self.config.network_details = network_details;
+        self
+    }
+
+    /// Attempt to only choose a gateway that supports wss protocol.
+    #[must_use]
+    pub fn force_tls(mut self, must_use_tls: bool) -> Self {
+        self.force_tls = must_use_tls;
         self
     }
 
@@ -224,7 +235,8 @@ where
             .custom_gateway_transceiver(self.custom_gateway_transceiver)
             .custom_topology_provider(self.custom_topology_provider)
             .custom_shutdown(self.custom_shutdown)
-            .wait_for_gateway(self.wait_for_gateway);
+            .wait_for_gateway(self.wait_for_gateway)
+            .force_tls(self.force_tls);
 
         Ok(client)
     }
@@ -264,6 +276,9 @@ where
 
     /// Attempt to wait for the selected gateway (if applicable) to come online if its currently not bonded.
     wait_for_gateway: bool,
+
+    /// Force the client to connect using wss protocol with the gateway.
+    force_tls: bool,
 
     /// Allows passing an externally controlled shutdown handle.
     custom_shutdown: Option<TaskClient>,
@@ -312,6 +327,7 @@ where
             custom_topology_provider: None,
             custom_gateway_transceiver: None,
             wait_for_gateway: false,
+            force_tls: false,
             custom_shutdown: None,
         })
     }
@@ -343,6 +359,12 @@ where
     #[must_use]
     pub fn wait_for_gateway(mut self, wait_for_gateway: bool) -> Self {
         self.wait_for_gateway = wait_for_gateway;
+        self
+    }
+
+    #[must_use]
+    pub fn force_tls(mut self, must_use_tls: bool) -> Self {
+        self.force_tls = must_use_tls;
         self
     }
 
@@ -422,7 +444,7 @@ where
             let selection_spec = GatewaySelectionSpecification::new(
                 self.config.user_chosen_gateway.clone(),
                 None,
-                false,
+                self.force_tls,
             );
 
             let mut rng = OsRng;
@@ -486,8 +508,11 @@ where
                 .with_wait_for_gateway(self.wait_for_gateway);
 
         if !known_gateway {
-            let selection_spec =
-                GatewaySelectionSpecification::new(self.config.user_chosen_gateway, None, false);
+            let selection_spec = GatewaySelectionSpecification::new(
+                self.config.user_chosen_gateway,
+                None,
+                self.force_tls,
+            );
 
             let mut rng = OsRng;
             let setup = GatewaySetup::New {

@@ -33,7 +33,9 @@ export const AccountsModal = () => {
   if (accountToSwitchTo)
     return (
       <ConfirmPasswordModal
+        modalTitle="Switch account"
         accountName={accountToSwitchTo}
+        buttonTitle="Switch account"
         onClose={() => {
           handleClose();
           setDialogToDisplay('Accounts');

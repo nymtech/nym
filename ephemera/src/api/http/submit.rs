@@ -20,7 +20,7 @@ pub(crate) async fn submit_message(
     api: web::Data<CommandExecutor>,
 ) -> HttpResponse {
     match api.send_ephemera_message(message.into_inner()).await {
-        Ok(_) => HttpResponse::Ok().json("Message submitted"),
+        Ok(()) => HttpResponse::Ok().json("Message submitted"),
         Err(err) => {
             if let ApiError::DuplicateMessage = err {
                 debug!("Message already submitted {err:?}");
@@ -53,7 +53,7 @@ pub(crate) async fn store_in_dht(
     let value = request.value();
 
     match api.store_in_dht(key, value).await {
-        Ok(_) => HttpResponse::Ok().json("Store request submitted"),
+        Ok(()) => HttpResponse::Ok().json("Store request submitted"),
         Err(err) => {
             error!("Error storing in dht: {}", err);
             HttpResponse::InternalServerError().json("Server failed to process request")

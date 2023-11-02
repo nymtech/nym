@@ -1,10 +1,11 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::config::{
-    Acknowledgements, Client, Config, CoverTraffic, DebugConfig, GatewayConnection,
-    GatewayEndpointConfig, ReplySurbs, Topology, Traffic,
+use crate::config::old_config_v1_1_30::{
+    AcknowledgementsV1_1_30, ClientV1_1_30, ConfigV1_1_30, CoverTrafficV1_1_30, DebugConfigV1_1_30,
+    GatewayConnectionV1_1_30, ReplySurbsV1_1_30, TopologyV1_1_30, TrafficV1_1_30,
 };
+use crate::config::GatewayEndpointConfig;
 use nym_sphinx::params::{PacketSize, PacketType};
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
@@ -58,9 +59,9 @@ pub struct ConfigV1_1_20_2 {
     pub debug: DebugConfigV1_1_20_2,
 }
 
-impl From<ConfigV1_1_20_2> for Config {
+impl From<ConfigV1_1_20_2> for ConfigV1_1_30 {
     fn from(value: ConfigV1_1_20_2) -> Self {
-        Config {
+        ConfigV1_1_30 {
             client: value.client.into(),
             debug: value.debug.into(),
         }
@@ -107,9 +108,9 @@ pub struct ClientV1_1_20_2 {
     pub gateway_endpoint: GatewayEndpointConfigV1_1_20_2,
 }
 
-impl From<ClientV1_1_20_2> for Client {
+impl From<ClientV1_1_20_2> for ClientV1_1_30 {
     fn from(value: ClientV1_1_20_2) -> Self {
-        Client {
+        ClientV1_1_30 {
             version: value.version,
             id: value.id,
             disabled_credentials_mode: value.disabled_credentials_mode,
@@ -132,9 +133,9 @@ pub struct TrafficV1_1_20_2 {
     pub packet_type: PacketType,
 }
 
-impl From<TrafficV1_1_20_2> for Traffic {
+impl From<TrafficV1_1_20_2> for TrafficV1_1_30 {
     fn from(value: TrafficV1_1_20_2) -> Self {
-        Traffic {
+        TrafficV1_1_30 {
             average_packet_delay: value.average_packet_delay,
             message_sending_average_delay: value.message_sending_average_delay,
             disable_main_poisson_packet_distribution: value
@@ -168,9 +169,9 @@ pub struct CoverTrafficV1_1_20_2 {
     pub disable_loop_cover_traffic_stream: bool,
 }
 
-impl From<CoverTrafficV1_1_20_2> for CoverTraffic {
+impl From<CoverTrafficV1_1_20_2> for CoverTrafficV1_1_30 {
     fn from(value: CoverTrafficV1_1_20_2) -> Self {
-        CoverTraffic {
+        CoverTrafficV1_1_30 {
             loop_cover_traffic_average_delay: value.loop_cover_traffic_average_delay,
             cover_traffic_primary_size_ratio: value.cover_traffic_primary_size_ratio,
             disable_loop_cover_traffic_stream: value.disable_loop_cover_traffic_stream,
@@ -195,9 +196,9 @@ pub struct GatewayConnectionV1_1_20_2 {
     pub gateway_response_timeout: Duration,
 }
 
-impl From<GatewayConnectionV1_1_20_2> for GatewayConnection {
+impl From<GatewayConnectionV1_1_20_2> for GatewayConnectionV1_1_30 {
     fn from(value: GatewayConnectionV1_1_20_2) -> Self {
-        GatewayConnection {
+        GatewayConnectionV1_1_30 {
             gateway_response_timeout: value.gateway_response_timeout,
         }
     }
@@ -221,9 +222,9 @@ pub struct AcknowledgementsV1_1_20_2 {
     pub ack_wait_addition: Duration,
 }
 
-impl From<AcknowledgementsV1_1_20_2> for Acknowledgements {
+impl From<AcknowledgementsV1_1_20_2> for AcknowledgementsV1_1_30 {
     fn from(value: AcknowledgementsV1_1_20_2) -> Self {
-        Acknowledgements {
+        AcknowledgementsV1_1_30 {
             average_ack_delay: value.average_ack_delay,
             ack_wait_multiplier: value.ack_wait_multiplier,
             ack_wait_addition: value.ack_wait_addition,
@@ -261,9 +262,9 @@ impl Default for TopologyV1_1_20_2 {
     }
 }
 
-impl From<TopologyV1_1_20_2> for Topology {
+impl From<TopologyV1_1_20_2> for TopologyV1_1_30 {
     fn from(value: TopologyV1_1_20_2) -> Self {
-        Topology {
+        TopologyV1_1_30 {
             topology_refresh_rate: value.topology_refresh_rate,
             topology_resolution_timeout: value.topology_resolution_timeout,
             disable_refreshing: value.disable_refreshing,
@@ -307,9 +308,9 @@ impl Default for ReplySurbsV1_1_20_2 {
     }
 }
 
-impl From<ReplySurbsV1_1_20_2> for ReplySurbs {
+impl From<ReplySurbsV1_1_20_2> for ReplySurbsV1_1_30 {
     fn from(value: ReplySurbsV1_1_20_2) -> Self {
-        ReplySurbs {
+        ReplySurbsV1_1_30 {
             minimum_reply_surb_storage_threshold: value.minimum_reply_surb_storage_threshold,
             maximum_reply_surb_storage_threshold: value.maximum_reply_surb_storage_threshold,
             minimum_reply_surb_request_size: value.minimum_reply_surb_request_size,
@@ -335,9 +336,9 @@ pub struct DebugConfigV1_1_20_2 {
     pub reply_surbs: ReplySurbsV1_1_20_2,
 }
 
-impl From<DebugConfigV1_1_20_2> for DebugConfig {
+impl From<DebugConfigV1_1_20_2> for DebugConfigV1_1_30 {
     fn from(value: DebugConfigV1_1_20_2) -> Self {
-        DebugConfig {
+        DebugConfigV1_1_30 {
             traffic: value.traffic.into(),
             cover_traffic: value.cover_traffic.into(),
             gateway_connection: value.gateway_connection.into(),

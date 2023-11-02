@@ -425,6 +425,49 @@ fn remove_account_from_login_at_file(
     }
 }
 
+/// Rename an account inside the encrypted login.
+/// - If the encrypted login is just a single account, abort to be on the safe side.
+/// - If the name already exists, abort.
+pub(crate) fn rename_account_in_login(
+    id: &LoginId,
+    account_id: &AccountId,
+    new_account_id: &AccountId,
+    password: &UserPassword,
+) -> Result<(), BackendError> {
+    let store_dir = get_storage_directory()?;
+    let filepath = store_dir.join(WALLET_INFO_FILENAME);
+    rename_account_in_login_at_file(&filepath, id, account_id, new_account_id, password)
+}
+
+fn rename_account_in_login_at_file(
+    filepath: &Path,
+    id: &LoginId,
+    account_id: &AccountId,
+    new_account_id: &AccountId,
+    password: &UserPassword,
+) -> Result<(), BackendError> {
+    log::info!("Renaming associated account in login account: {id}");
+    let mut stored_wallet = load_existing_wallet_at_file(filepath)?;
+
+    let mut decrypted_login = stored_wallet.decrypt_login(id, password)?;
+
+    // Rename the account
+    match decrypted_login {
+        StoredLogin::Mnemonic(_) => {
+            log::warn!("Encountered mnemonic login instead of list of accounts, aborting");
+            return Err(BackendError::WalletUnexpectedMnemonicAccount);
+        }
+        StoredLogin::Multiple(ref mut accounts) => {
+            accounts.rename(account_id, new_account_id)?;
+        }
+    };
+
+    // Encrypt the new updated login and write to file
+    let encrypted_accounts = EncryptedLogin::encrypt(id.clone(), &decrypted_login, password)?;
+    stored_wallet.replace_encrypted_login(encrypted_accounts)?;
+    write_to_file(filepath, &stored_wallet)
+}
+
 #[cfg(test)]
 mod tests {
     use crate::wallet_storage::account_data::{MnemonicAccount, WalletAccount};
@@ -1513,8 +1556,58 @@ mod tests {
         .unwrap();
 
         assert!(matches!(
-            append_account_to_login_at_file(&wallet_file, account1, hd_path, id1, id2, &password,),
+            append_account_to_login_at_file(&wallet_file, account1, hd_path, id1, id2, &password),
             Err(BackendError::WalletMnemonicAlreadyExistsInWalletLogin),
+        ))
+    }
+
+    #[test]
+    fn append_the_same_account_name_twice_fails() {
+        let store_dir = tempdir().unwrap();
+        let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
+        let mnemonic1 = Mnemonic::generate(24).unwrap();
+        let mnemonic2 = Mnemonic::generate(24).unwrap();
+        let mnemonic3 = Mnemonic::generate(24).unwrap();
+        let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
+        let password = UserPassword::new("password".to_string());
+        // The top-level login id. NOTE: the first account id is always set to default.
+        let login_id = LoginId::new("my_login_id".to_string());
+
+        // Store the first account under login_id. The first account id is always set to default
+        // name.
+        store_login_with_multiple_accounts_at_file(
+            &wallet_file,
+            mnemonic1,
+            hd_path.clone(),
+            login_id.clone(),
+            &password,
+        )
+        .unwrap();
+
+        // Append another account (account2) to the same login (login_id)
+        let account2 = AccountId::new("account_2".to_string());
+
+        append_account_to_login_at_file(
+            &wallet_file,
+            mnemonic2,
+            hd_path.clone(),
+            login_id.clone(),
+            account2.clone(),
+            &password,
+        )
+        .unwrap();
+
+        // Appending the third account, with same account id will fail
+        assert!(matches!(
+            append_account_to_login_at_file(
+                &wallet_file,
+                mnemonic3,
+                hd_path,
+                login_id,
+                account2,
+                &password,
+            ),
+            Err(BackendError::WalletAccountIdAlreadyExistsInWalletLogin),
         ))
     }
 
@@ -1839,6 +1932,198 @@ mod tests {
         let account = loaded_login.as_mnemonic_account().unwrap();
         assert_eq!(account.mnemonic(), &acc1);
         assert_eq!(account.hd_path(), &hd_path);
+    }
+
+    #[test]
+    fn rename_first_account_in_login() {
+        let store_dir = tempdir().unwrap();
+        let wallet = store_dir.path().join(WALLET_INFO_FILENAME);
+        let account1 = Mnemonic::generate(24).unwrap();
+        let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
+        let password = UserPassword::new("password".to_string());
+        let login_id = LoginId::new("first".to_string());
+
+        store_login_with_multiple_accounts_at_file(
+            &wallet,
+            account1.clone(),
+            hd_path.clone(),
+            login_id.clone(),
+            &password,
+        )
+        .unwrap();
+
+        let loaded_login = load_existing_login_at_file(&wallet, &login_id, &password).unwrap();
+        let loaded_accounts = loaded_login.as_multiple_accounts().unwrap();
+        let expected = vec![WalletAccount::new(
+            DEFAULT_FIRST_ACCOUNT_NAME.into(),
+            MnemonicAccount::new(account1.clone(), hd_path.clone()),
+        )]
+        .into();
+        assert_eq!(loaded_accounts, &expected);
+
+        let renamed_account = AccountId::new("new_first".to_string());
+
+        rename_account_in_login_at_file(
+            &wallet,
+            &login_id,
+            &DEFAULT_FIRST_ACCOUNT_NAME.into(),
+            &renamed_account,
+            &password,
+        )
+        .unwrap();
+
+        let loaded_login = load_existing_login_at_file(&wallet, &login_id, &password).unwrap();
+        let loaded_accounts = loaded_login.as_multiple_accounts().unwrap();
+        let expected = vec![WalletAccount::new(
+            renamed_account,
+            MnemonicAccount::new(account1, hd_path),
+        )]
+        .into();
+        assert_eq!(loaded_accounts, &expected);
+    }
+
+    #[test]
+    fn rename_one_account_in_login_with_two_accounts() {
+        let store_dir = tempdir().unwrap();
+        let wallet = store_dir.path().join(WALLET_INFO_FILENAME);
+        let account1 = Mnemonic::generate(24).unwrap();
+        let account2 = Mnemonic::generate(24).unwrap();
+        let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
+        let password = UserPassword::new("password".to_string());
+        let login_id = LoginId::new("first".to_string());
+        let account_id2 = AccountId::new("second".to_string());
+        let renamed_account_id2 = AccountId::new("new_second".to_string());
+
+        store_login_with_multiple_accounts_at_file(
+            &wallet,
+            account1.clone(),
+            hd_path.clone(),
+            login_id.clone(),
+            &password,
+        )
+        .unwrap();
+
+        append_account_to_login_at_file(
+            &wallet,
+            account2.clone(),
+            hd_path.clone(),
+            login_id.clone(),
+            account_id2.clone(),
+            &password,
+        )
+        .unwrap();
+
+        // Load and confirm
+        let loaded_login = load_existing_login_at_file(&wallet, &login_id, &password).unwrap();
+        let loaded_accounts = loaded_login.as_multiple_accounts().unwrap();
+        let expected = vec![
+            WalletAccount::new(
+                DEFAULT_FIRST_ACCOUNT_NAME.into(),
+                MnemonicAccount::new(account1.clone(), hd_path.clone()),
+            ),
+            WalletAccount::new(
+                account_id2.clone(),
+                MnemonicAccount::new(account2.clone(), hd_path.clone()),
+            ),
+        ]
+        .into();
+        assert_eq!(loaded_accounts, &expected);
+
+        // Rename the second account to a new name
+        rename_account_in_login_at_file(
+            &wallet,
+            &login_id,
+            &account_id2,
+            &renamed_account_id2,
+            &password,
+        )
+        .unwrap();
+
+        // Load and confirm
+        let loaded_login = load_existing_login_at_file(&wallet, &login_id, &password).unwrap();
+        let loaded_accounts = loaded_login.as_multiple_accounts().unwrap();
+        let expected = vec![
+            WalletAccount::new(
+                DEFAULT_FIRST_ACCOUNT_NAME.into(),
+                MnemonicAccount::new(account1, hd_path.clone()),
+            ),
+            WalletAccount::new(renamed_account_id2, MnemonicAccount::new(account2, hd_path)),
+        ]
+        .into();
+        assert_eq!(loaded_accounts, &expected);
+    }
+
+    #[test]
+    fn rename_account_into_existing_account_id_fails() {
+        let store_dir = tempdir().unwrap();
+        let wallet = store_dir.path().join(WALLET_INFO_FILENAME);
+        let account1 = Mnemonic::generate(24).unwrap();
+        let account2 = Mnemonic::generate(24).unwrap();
+        let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
+        let password = UserPassword::new("password".to_string());
+        let login_id = LoginId::new("first".to_string());
+        let account_id2 = AccountId::new("second".to_string());
+        let renamed_account_id2 = DEFAULT_FIRST_ACCOUNT_NAME.into();
+
+        store_login_with_multiple_accounts_at_file(
+            &wallet,
+            account1.clone(),
+            hd_path.clone(),
+            login_id.clone(),
+            &password,
+        )
+        .unwrap();
+
+        append_account_to_login_at_file(
+            &wallet,
+            account2.clone(),
+            hd_path.clone(),
+            login_id.clone(),
+            account_id2.clone(),
+            &password,
+        )
+        .unwrap();
+
+        // Load and confirm
+        let loaded_login = load_existing_login_at_file(&wallet, &login_id, &password).unwrap();
+        let loaded_accounts = loaded_login.as_multiple_accounts().unwrap();
+        let expected = vec![
+            WalletAccount::new(
+                DEFAULT_FIRST_ACCOUNT_NAME.into(),
+                MnemonicAccount::new(account1.clone(), hd_path.clone()),
+            ),
+            WalletAccount::new(
+                account_id2.clone(),
+                MnemonicAccount::new(account2.clone(), hd_path.clone()),
+            ),
+        ]
+        .into();
+        assert_eq!(loaded_accounts, &expected);
+
+        // Rename the second account to the name of the first one fails
+        assert!(matches!(
+            rename_account_in_login_at_file(
+                &wallet,
+                &login_id,
+                &account_id2,
+                &renamed_account_id2,
+                &password,
+            ),
+            Err(BackendError::WalletAccountIdAlreadyExistsInWalletLogin)
+        ));
+
+        // Load and confirm nothing was changed
+        let loaded_login = load_existing_login_at_file(&wallet, &login_id, &password).unwrap();
+        let loaded_accounts = loaded_login.as_multiple_accounts().unwrap();
+        let expected = vec![
+            WalletAccount::new(
+                DEFAULT_FIRST_ACCOUNT_NAME.into(),
+                MnemonicAccount::new(account1, hd_path.clone()),
+            ),
+            WalletAccount::new(account_id2, MnemonicAccount::new(account2, hd_path)),
+        ]
+        .into();
+        assert_eq!(loaded_accounts, &expected);
     }
 
     // Test to that decrypts a stored file from the repo, to make sure we are able to decrypt stored

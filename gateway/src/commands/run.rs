@@ -6,9 +6,12 @@ use crate::commands::helpers::{
 };
 use crate::node::helpers::node_details;
 use crate::support::config::build_config;
+use anyhow::bail;
 use clap::Args;
+use log::warn;
 use nym_bin_common::output_format::OutputFormat;
 use nym_config::helpers::SPECIAL_ADDRESSES;
+use nym_node::error::NymNodeError;
 use std::net::IpAddr;
 use std::path::PathBuf;
 
@@ -18,9 +21,18 @@ pub struct Run {
     #[clap(long)]
     id: String,
 
-    /// The custom host on which the gateway will be running for receiving sphinx packets
+    /// The custom listening address on which the gateway will be running for receiving sphinx packets
+    #[clap(long, alias = "host")]
+    listening_address: Option<IpAddr>,
+
+    /// Comma separated list of public ip addresses that will announced to the nym-api and subsequently to the clients.
+    /// In nearly all circumstances, it's going to be identical to the address you're going to use for bonding.
+    #[clap(long, value_delimiter = ',')]
+    public_ips: Option<Vec<IpAddr>>,
+
+    /// Optional hostname associated with this gateway that will announced to the nym-api and subsequently to the clients
     #[clap(long)]
-    host: Option<IpAddr>,
+    hostname: Option<String>,
 
     /// The port on which the gateway will be listening for sphinx packets
     #[clap(long)]
@@ -114,14 +126,26 @@ pub struct Run {
     #[clap(long, group = "network", hide = true)]
     custom_mixnet: Option<PathBuf>,
 
+    /// Specifies whether this network requester will run using the default ExitPolicy
+    /// as opposed to the allow list.
+    /// Note: this setting will become the default in the future releases.
+    #[clap(long)]
+    with_exit_policy: Option<bool>,
+
     #[clap(short, long, default_value_t = OutputFormat::default())]
     output: OutputFormat,
+
+    /// Flag specifying this node will be running in a local setting.
+    #[clap(long)]
+    local: bool,
 }
 
 impl From<Run> for OverrideConfig {
     fn from(run_config: Run) -> Self {
         OverrideConfig {
-            host: run_config.host,
+            listening_address: run_config.listening_address,
+            public_ips: run_config.public_ips,
+            hostname: run_config.hostname,
             mix_port: run_config.mix_port,
             clients_port: run_config.clients_port,
             datastore: run_config.datastore,
@@ -144,13 +168,14 @@ impl<'a> From<&'a Run> for OverrideNetworkRequesterConfig {
             no_cover: value.no_cover,
             medium_toggle: value.medium_toggle,
             open_proxy: value.open_proxy,
+            enable_exit_policy: value.with_exit_policy,
             enable_statistics: value.enable_statistics,
             statistics_recipient: value.statistics_recipient.clone(),
         }
     }
 }
 
-fn show_binding_warning(address: &str) {
+fn show_binding_warning(address: IpAddr) {
     eprintln!("\n##### NOTE #####");
     eprintln!(
         "\nYou are trying to bind to {address} - you might not be accessible to other nodes\n\
@@ -160,8 +185,33 @@ fn show_binding_warning(address: &str) {
     eprintln!("\n\n");
 }
 
+fn check_public_ips(ips: &[IpAddr], local: bool) -> anyhow::Result<()> {
+    let mut suspicious_ip = Vec::new();
+    for ip in ips {
+        if SPECIAL_ADDRESSES.contains(ip) {
+            if !local {
+                return Err(NymNodeError::InvalidPublicIp { address: *ip }.into());
+            }
+            suspicious_ip.push(ip);
+        }
+    }
+
+    if !suspicious_ip.is_empty() {
+        warn!("\n##### WARNING #####");
+        for ip in suspicious_ip {
+            warn!("The 'public' IP address you're trying to announce: {ip} may not be accessible to other clients.\
+            Please make sure this is what you intended to announce.\
+            You can ignore this warning if you're running setup on a local network ")
+        }
+        warn!("\n##### WARNING #####\n");
+    }
+    Ok(())
+}
+
 pub async fn execute(args: Run) -> anyhow::Result<()> {
     let id = args.id.clone();
+    let local = args.local;
+
     eprintln!("Starting gateway {id}...");
 
     let output = args.output;
@@ -171,15 +221,24 @@ pub async fn execute(args: Run) -> anyhow::Result<()> {
     let config = build_config(id, args)?;
     ensure_config_version_compatibility(&config)?;
 
+    let public_ips = &config.host.public_ips;
+    if public_ips.is_empty() {
+        return Err(NymNodeError::NoPublicIps.into());
+    }
+    check_public_ips(public_ips, local)?;
+    if config.gateway.clients_wss_port.is_some() && config.host.hostname.is_none() {
+        bail!("attempted to announce 'wss' port without a valid hostname")
+    }
+
     if SPECIAL_ADDRESSES.contains(&config.gateway.listening_address) {
-        show_binding_warning(&config.gateway.listening_address.to_string());
+        show_binding_warning(config.gateway.listening_address);
     }
 
     let node_details = node_details(&config)?;
     let gateway = crate::node::create_gateway(config, Some(nr_opts), custom_mixnet).await?;
     eprintln!(
         "\nTo bond your gateway you will need to install the Nym wallet, go to https://nymtech.net/get-involved and select the Download button.\n\
-         Select the correct version and install it to your machine. You will need to provide the following: \n ");
+         Select the correct version and install it to your machine. You will need to provide some of the following: \n ");
     output.to_stdout(&node_details);
 
     gateway.run().await

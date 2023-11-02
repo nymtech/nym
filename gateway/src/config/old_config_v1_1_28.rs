@@ -1,9 +1,10 @@
 // Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::config::persistence::paths::{GatewayPaths, KeysPaths};
-use crate::config::{Config, Debug, Gateway};
-use nym_bin_common::logging::LoggingSettings;
+use crate::config::old_config_v1_1_29::{
+    ConfigV1_1_29, DebugV1_1_29, GatewayPathsV1_1_29, GatewayV1_1_29, KeysPathsV1_1_29,
+    LoggingSettingsV1_1_29,
+};
 use nym_config::{
     must_get_home, read_config_from_toml_file, DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, NYM_DIR,
 };
@@ -84,11 +85,13 @@ impl ConfigV1_1_28 {
     }
 }
 
-impl From<ConfigV1_1_28> for Config {
+impl From<ConfigV1_1_28> for ConfigV1_1_29 {
     fn from(value: ConfigV1_1_28) -> Self {
-        Config {
+        ConfigV1_1_29 {
+            // \/ ADDED
             save_path: None,
-            gateway: Gateway {
+            // /\ ADDED
+            gateway: GatewayV1_1_29 {
                 version: value.gateway.version,
                 id: value.gateway.id,
                 only_coconut_credentials: value.gateway.only_coconut_credentials,
@@ -101,19 +104,25 @@ impl From<ConfigV1_1_28> for Config {
                 statistics_service_url: value.gateway.statistics_service_url,
                 cosmos_mnemonic: value.gateway.cosmos_mnemonic,
             },
-            storage_paths: GatewayPaths {
-                keys: KeysPaths {
+            storage_paths: GatewayPathsV1_1_29 {
+                keys: KeysPathsV1_1_29 {
                     private_identity_key_file: value.storage_paths.keys.private_identity_key_file,
                     public_identity_key_file: value.storage_paths.keys.public_identity_key_file,
                     private_sphinx_key_file: value.storage_paths.keys.private_sphinx_key_file,
                     public_sphinx_key_file: value.storage_paths.keys.public_sphinx_key_file,
                 },
                 clients_storage: value.storage_paths.clients_storage,
+
+                // \/ ADDED
                 network_requester_config: None,
+                // /\ ADDED
             },
+
+            // \/ ADDED
             network_requester: Default::default(),
-            logging: LoggingSettings {},
-            debug: Debug {
+            // /\ ADDED
+            logging: LoggingSettingsV1_1_29 {},
+            debug: DebugV1_1_29 {
                 packet_forwarding_initial_backoff: value.debug.packet_forwarding_initial_backoff,
                 packet_forwarding_maximum_backoff: value.debug.packet_forwarding_maximum_backoff,
                 initial_connection_timeout: value.debug.initial_connection_timeout,

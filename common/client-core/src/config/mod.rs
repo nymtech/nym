@@ -1,6 +1,7 @@
 // Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::{client::topology_control::geo_aware_provider::CountryGroup, error::ClientCoreError};
 use nym_config::defaults::NymNetworkDetails;
 use nym_crypto::asymmetric::identity;
 use nym_gateway_client::client::GatewayConfig;
@@ -12,7 +13,6 @@ use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use url::Url;
 
-use crate::{client::topology_control::geo_aware_provider::CountryGroup, error::ClientCoreError};
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
@@ -20,6 +20,7 @@ pub mod disk_persistence;
 pub mod old_config_v1_1_13;
 pub mod old_config_v1_1_20;
 pub mod old_config_v1_1_20_2;
+pub mod old_config_v1_1_30;
 
 // 'DEBUG'
 const DEFAULT_ACK_WAIT_MULTIPLIER: f64 = 1.5;
@@ -280,29 +281,24 @@ impl GatewayEndpointConfig {
             .map_err(ClientCoreError::UnableToCreatePublicKeyFromGatewayId)
     }
 
-    pub fn from_node(node: nym_topology::gateway::Node, use_tls: bool) -> Self {
-        // TODO: in the future this shall return a Result and explicit `use_tls` will be removed in favour of the tls info being available on the struct
-        if use_tls {
-            Self::from_topology_node_tls(node)
+    pub fn from_node(
+        node: nym_topology::gateway::Node,
+        must_use_tls: bool,
+    ) -> Result<Self, ClientCoreError> {
+        let gateway_listener = if must_use_tls {
+            node.clients_address_tls()
+                .ok_or(ClientCoreError::UnsupportedWssProtocol {
+                    gateway: node.identity_key.to_base58_string(),
+                })?
         } else {
-            Self::from_topology_node_no_tls(node)
-        }
-    }
+            node.clients_address()
+        };
 
-    pub fn from_topology_node_no_tls(node: nym_topology::gateway::Node) -> Self {
-        GatewayEndpointConfig {
+        Ok(GatewayEndpointConfig {
             gateway_id: node.identity_key.to_base58_string(),
-            gateway_listener: node.clients_address(),
+            gateway_listener,
             gateway_owner: node.owner,
-        }
-    }
-
-    pub fn from_topology_node_tls(node: nym_topology::gateway::Node) -> Self {
-        GatewayEndpointConfig {
-            gateway_id: node.identity_key.to_base58_string(),
-            gateway_listener: node.clients_address_tls(),
-            gateway_owner: node.owner,
-        }
+        })
     }
 }
 

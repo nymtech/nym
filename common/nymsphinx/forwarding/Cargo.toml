@@ -12,4 +12,4 @@ nym-sphinx-addressing = { path = "../addressing" }
 nym-sphinx-params = { path = "../params" }
 nym-sphinx-types = { path = "../types", features = ["sphinx", "outfox"] }
 nym-outfox = { path = "../../../nym-outfox" }
-thiserror = "1"
+thiserror = { workspace = true }

@@ -10,7 +10,7 @@ repository = { workspace = true }
 [dependencies]
 bytes = "1.0"
 tokio-util = { version = "0.7.4", features = ["codec"] }
-thiserror = "1.0.37"
+thiserror = { workspace = true }
 
 nym-sphinx-types = { path = "../types", features = ["sphinx", "outfox"] }
 nym-sphinx-params = { path = "../params", features = ["sphinx", "outfox"] }

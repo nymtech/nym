@@ -143,6 +143,6 @@ impl fmt::Display for GatewayNetworkRequesterDetails {
         writeln!(f, "\tsends statistics: {}", self.enabled_statistics)?;
 
         writeln!(f, "\tallow list path: {}", self.allow_list_path)?;
-        writeln!(f, "\tunknown list path: {}", self.allow_list_path)
+        writeln!(f, "\tunknown list path: {}", self.unknown_list_path)
     }
 }

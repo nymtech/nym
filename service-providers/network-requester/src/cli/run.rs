@@ -8,6 +8,7 @@ use crate::{
 };
 use clap::Args;
 use log::error;
+use std::path::PathBuf;
 
 const ENABLE_STATISTICS: &str = "enable-statistics";
 
@@ -36,6 +37,10 @@ pub(crate) struct Run {
     #[arg(long)]
     enabled_credentials_mode: Option<bool>,
 
+    /// Path to .json file containing custom network specification.
+    #[clap(long, group = "network", hide = true)]
+    custom_mixnet: Option<PathBuf>,
+
     /// Mostly debug-related option to increase default traffic rate so that you would not need to
     /// modify config post init
     #[arg(long, hide = true, conflicts_with = "medium_toggle")]
@@ -54,6 +59,12 @@ pub(crate) struct Run {
         conflicts_with = "fastmode"
     )]
     medium_toggle: bool,
+
+    /// Specifies whether this network requester will run using the default ExitPolicy
+    /// as opposed to the allow list.
+    /// Note: this setting will become the default in the future releases.
+    #[clap(long)]
+    with_exit_policy: Option<bool>,
 }
 
 impl From<Run> for OverrideConfig {
@@ -65,6 +76,7 @@ impl From<Run> for OverrideConfig {
             medium_toggle: run_config.medium_toggle,
             nyxd_urls: None,
             enabled_credentials_mode: run_config.enabled_credentials_mode,
+            enable_exit_policy: run_config.with_exit_policy,
             open_proxy: run_config.open_proxy,
             enable_statistics: run_config.enabled_credentials_mode,
             statistics_recipient: run_config.statistics_recipient,
@@ -99,6 +111,10 @@ pub(crate) async fn execute(args: &Run) -> Result<(), NetworkRequesterError> {
     }
 
     log::info!("Starting socks5 service provider");
-    let server = crate::core::NRServiceProviderBuilder::new(config);
+    let mut server = crate::core::NRServiceProviderBuilder::new(config);
+    if let Some(custom_mixnet) = &args.custom_mixnet {
+        server = server.with_stored_topology(custom_mixnet)?
+    }
+
     server.run_service_provider().await
 }

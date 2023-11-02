@@ -107,7 +107,7 @@ pub(crate) async fn verify_mixnode_bonding_sign_payload<P: AddressAndNonceProvid
     }
 
     // TODO: possibly provide better error message if this check fails
-    identity_key.verify(&plaintext, &signature)?;
+    identity_key.verify(plaintext, &signature)?;
     Ok(())
 }
 
@@ -150,7 +150,7 @@ pub(crate) async fn verify_gateway_bonding_sign_payload<P: AddressAndNonceProvid
     }
 
     // TODO: possibly provide better error message if this check fails
-    identity_key.verify(&plaintext, &signature)?;
+    identity_key.verify(plaintext, &signature)?;
     Ok(())
 }
 

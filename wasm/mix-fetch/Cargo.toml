@@ -1,7 +1,7 @@
 [package]
 name = "mix-fetch-wasm"
 authors = ["Jedrzej Stuczynski <andrew@nymtech.net>"]
-version = "1.2.0-rc.9"
+version = "1.2.0"
 edition = "2021"
 keywords = ["nym", "fetch", "wasm", "webassembly", "privacy"]
 license = "Apache-2.0"
@@ -14,10 +14,10 @@ rust-version = "1.70"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
+async-trait = { workspace = true }
 futures = { workspace = true }
 js-sys = { workspace = true }
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
-reqwest = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde-wasm-bindgen = { workspace = true }
 tokio = { workspace = true, features = ["sync"] }
@@ -27,6 +27,7 @@ wasm-bindgen-futures = { workspace = true }
 thiserror =  { workspace = true }
 tsify = { workspace = true, features = ["js"] }
 
+http-api-client = { path = "../../common/http-api-client" }
 nym-socks5-requests = { path = "../../common/socks5/requests" }
 nym-ordered-buffer = { path = "../../common/socks5/ordered-buffer" }
 nym-service-providers-common = { path = "../../service-providers/common" }

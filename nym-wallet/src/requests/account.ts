@@ -50,3 +50,18 @@ export const archiveWalletFile = async () => invokeWrapper<void>('archive_wallet
 
 export const showMnemonicForAccount = async ({ password, accountName }: { password: string; accountName: string }) =>
   invokeWrapper<string>('show_mnemonic_for_account_in_password', { password, accountId: accountName });
+
+export const renameAccount = async ({
+  password,
+  accountName,
+  newAccountName,
+}: {
+  password: string;
+  accountName: string;
+  newAccountName: string;
+}) =>
+  invokeWrapper<AccountEntry>('rename_account_for_password', {
+    password,
+    accountId: accountName,
+    newAccountId: newAccountName,
+  });

@@ -48,7 +48,7 @@ impl Epoch {
         let start_time = NaiveDateTime::from_timestamp_opt(info.start_time, 0)
             .ok_or("Invalid start time")
             .unwrap();
-        let start_time: DateTime<Utc> = DateTime::from_utc(start_time, Utc);
+        let start_time: DateTime<Utc> = DateTime::from_naive_utc_and_offset(start_time, Utc);
         let interval = tokio::time::interval(std::time::Duration::from_secs(info.duration));
         Self {
             start_time,

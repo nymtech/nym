@@ -175,8 +175,8 @@ impl WasmStorage {
         K: wasm_bindgen::JsCast,
     {
         match self.key_count(store, key).await? {
-            n if n == 0 => Ok(false),
-            n if n == 1 => Ok(true),
+            0 => Ok(false),
+            1 => Ok(true),
             n => Err(StorageError::DuplicateKey { count: n }),
         }
     }

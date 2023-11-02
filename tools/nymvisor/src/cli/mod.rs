@@ -68,7 +68,7 @@ pub(crate) enum Commands {
     Config(config::Args),
 }
 
-pub(crate) fn try_load_current_config(env: &Env) -> Result<Config, NymvisorError> {
+fn open_config_file(env: &Env) -> Result<Config, NymvisorError> {
     let config_load_location = if let Some(config_path) = &env.nymvisor_config_path {
         config_path.clone()
     } else {
@@ -95,6 +95,12 @@ pub(crate) fn try_load_current_config(env: &Env) -> Result<Config, NymvisorError
             })
         }
     }
+}
+
+pub(crate) fn try_load_current_config(env: &Env) -> Result<Config, NymvisorError> {
+    let mut config = open_config_file(env)?;
+    env.override_config(&mut config);
+    Ok(config)
 }
 
 // no upgrades for now

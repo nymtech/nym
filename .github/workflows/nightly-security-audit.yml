@@ -1,8 +1,10 @@
 name: nightly-security-audit
 
 on:
+  workflow_dispatch:
   schedule:
     - cron: '5 9 * * *'
+
 jobs:
   cargo-deny:
     runs-on: ubuntu-20.04

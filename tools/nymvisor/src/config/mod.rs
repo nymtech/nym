@@ -9,7 +9,7 @@ use nym_config::{
     DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, DEFAULT_DATA_DIR, NYM_DIR,
 };
 use serde::{Deserialize, Serialize};
-use std::fmt::Display;
+use std::fmt::{Display, Formatter};
 use std::io;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -83,6 +83,71 @@ pub struct Config {
 impl NymConfigTemplate for Config {
     fn template(&self) -> &'static str {
         CONFIG_TEMPLATE
+    }
+}
+
+impl Display for Config {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            r#"
+{:<35}{}
+{:<35}{}
+{:<35}{}
+{:<35}{}
+{:<35}{:?}
+{:<35}{}
+{:<35}{}
+{:<35}{}
+{:<35}{}
+{:<35}{}
+{:<35}{}
+{:<35}{}
+{:<35}{}
+{:<35}{:?}
+{:<35}{}
+"#,
+            "id:",
+            self.nymvisor.id,
+            "daemon name:",
+            self.daemon.name,
+            "daemon home:",
+            self.daemon.home.display(),
+            "disable nymvisor logs:",
+            self.nymvisor.debug.disable_logs,
+            "CUSTOM upgrade data directory",
+            self.nymvisor
+                .debug
+                .upgrade_data_directory
+                .as_ref()
+                .map(|p| p.display().to_string())
+                .unwrap_or_default(),
+            "allow binaries download:",
+            self.daemon.debug.allow_binaries_download,
+            "enforce download checksum:",
+            self.daemon.debug.enforce_download_checksum,
+            "restart after upgrade:",
+            self.daemon.debug.restart_after_upgrade,
+            "restart on failure:",
+            self.daemon.debug.restart_on_failure,
+            "on failure restart delay:",
+            humantime::format_duration(self.daemon.debug.failure_restart_delay),
+            "max startup failures:",
+            self.daemon.debug.max_startup_failures,
+            "startup period duration:",
+            humantime::format_duration(self.daemon.debug.startup_period_duration),
+            "shutdown grace period:",
+            humantime::format_duration(self.daemon.debug.shutdown_grace_period),
+            "CUSTOM backup data directory",
+            self.daemon
+                .debug
+                .backup_data_directory
+                .as_ref()
+                .map(|p| p.display().to_string())
+                .unwrap_or_default(),
+            "UNSAFE skip backups",
+            self.daemon.debug.unsafe_skip_backup,
+        )
     }
 }
 

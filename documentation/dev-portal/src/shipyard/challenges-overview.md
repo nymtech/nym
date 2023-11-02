@@ -8,7 +8,7 @@ The tooling challenge involves creating tooling for users, operators, or develop
 - Facilitate onboarding new users more easily to staking their Nym, and understanding the pros and cons, as well as finding a good node to stake on. Examples of tools like this:
     - [ExploreNym dashboard](https://explorenym.net/)
 
-- Show information on a dashboard about the network. NOTE due to the amount of dashboards currently available, we expect a good justification for why / something to set this apart from existing ones e.g. it is presenting information that is not already presented, or it is presented in a different manner, such as a TUI or CLI app instead of a web dashboard - maybe an onion service, or no-JS site for those who do not wish to enable Javascript in their day to day browsing. Examples of tools like this:
+- Show information on a dashboard about the network. NOTE due to the amount of dashboards currently available, we expect a good justification for why / something to set this apart from existing ones e.g. it is presenting information that is not already presented, or it is presented in a different manner, such as a TUI or CLI app instead of a web dashboard - maybe an onion service, or no-JS site for those who do not wish to enable Javascript in their day-to-day browsing. Examples of tools like this:
     - [NTV's node dashboard](https://status.notrustverify.ch/d/CW3L7dVVk/nym-mixnet?orgId=1)
     - [IsNymUp dashboard](https://isnymup.com/)
 

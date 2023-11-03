@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::circulating_supply_api::cache::CirculatingSupplyCache;
+use crate::coconut::EcashParameters;
 use crate::coconut::{self, comm::QueryCommunicationChannel, InternalSignRequest};
 use crate::network::models::NetworkDetails;
 use crate::network::network_routes;
@@ -51,7 +52,8 @@ pub(crate) async fn setup_rocket(
         .attach(setup_cors()?)
         .attach(NymContractCache::stage())
         .attach(NodeStatusCache::stage())
-        .attach(CirculatingSupplyCache::stage(mix_denom.clone()));
+        .attach(CirculatingSupplyCache::stage(mix_denom.clone()))
+        .attach(EcashParameters::stage());
 
     // This is not a very nice approach. A lazy value would be more suitable, but that's still
     // a nightly feature: https://github.com/rust-lang/rust/issues/74465

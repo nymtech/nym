@@ -9,7 +9,8 @@ use crate::{
     ReqwestRpcClient, ValidatorClientError,
 };
 use nym_api_requests::coconut::{
-    BlindSignRequestBody, BlindedSignatureResponse, VerifyCredentialBody, VerifyCredentialResponse,
+    BlindSignRequestBody, BlindedSignatureResponse, EcashParametersResponse, VerifyCredentialBody,
+    VerifyCredentialResponse,
 };
 use nym_api_requests::models::{DescribedGateway, MixNodeBondAnnotated};
 use nym_api_requests::models::{
@@ -339,5 +340,9 @@ impl NymApiClient {
             .nym_api
             .verify_bandwidth_credential(request_body)
             .await?)
+    }
+
+    pub async fn ecash_parameters(&self) -> Result<EcashParametersResponse, ValidatorClientError> {
+        Ok(self.nym_api.ecash_parameters().await?)
     }
 }

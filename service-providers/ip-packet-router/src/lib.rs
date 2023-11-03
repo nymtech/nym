@@ -33,6 +33,7 @@ impl OnStartData {
 }
 
 pub struct IpPacketRouterBuilder {
+    #[allow(unused)]
     config: Config,
     wait_for_gateway: bool,
     custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
@@ -98,6 +99,12 @@ impl IpPacketRouterBuilder {
         Ok(self)
     }
 
+    #[cfg(not(target_os = "linux"))]
+    pub async fn run_service_provider(self) -> Result<(), IpPacketRouterError> {
+        todo!("service provider is not yet supported on this platform")
+    }
+
+    #[cfg(target_os = "linux")]
     pub async fn run_service_provider(self) -> Result<(), IpPacketRouterError> {
         // Used to notify tasks to shutdown. Not all tasks fully supports this (yet).
         let task_handle: TaskHandle = self.shutdown.map(Into::into).unwrap_or_default();
@@ -144,6 +151,7 @@ impl IpPacketRouterBuilder {
     }
 }
 
+#[allow(unused)]
 struct IpPacketRouter {
     _config: Config,
     // tun: nym_wireguard::tun_device::TunDevice,
@@ -153,6 +161,7 @@ struct IpPacketRouter {
     task_handle: TaskHandle,
 }
 
+#[allow(unused)]
 impl IpPacketRouter {
     async fn run(mut self) -> Result<(), IpPacketRouterError> {
         let mut task_client = self.task_handle.fork("main_loop");
@@ -249,6 +258,7 @@ impl IpPacketRouter {
 // This is NOT in the SDK since we don't want to expose any of the client-core config types.
 // We could however consider moving it to a crate in common in the future.
 // TODO: refactor this function and its arguments
+#[allow(unused)]
 async fn create_mixnet_client(
     config: &BaseClientConfig,
     shutdown: TaskClient,

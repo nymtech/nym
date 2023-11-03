@@ -16,3 +16,16 @@ mod response_pusher;
 
 #[cfg(target_arch = "wasm32")]
 pub use wasm_client_core::set_panic_hook;
+
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen::prelude::*;
+
+#[wasm_bindgen(start)]
+#[cfg(target_arch = "wasm32")]
+pub fn main() {
+    wasm_utils::console_log!("[rust main]: rust module loaded");
+    wasm_utils::console_log!(
+        "wasm client version used: {:#?}",
+        nym_bin_common::bin_info!()
+    );
+}

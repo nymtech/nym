@@ -25,6 +25,7 @@ wasm-bindgen-futures = { workspace = true }
 thiserror =  { workspace = true }
 tsify = { workspace = true, features = ["js"] }
 
+nym-bin-common = { path = "../../common/bin-common" }
 wasm-client-core = { path = "../../common/wasm/client-core" }
 wasm-utils = { path = "../../common/wasm/utils" }
 

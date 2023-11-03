@@ -24,12 +24,12 @@ import init, {
   ClientOpts,
 } from '@nymproject/nym-client-wasm';
 
-import { OnRawPayloadFn } from '@nymproject/nodejs-client/src/types';
 import type {
   BinaryMessageReceivedEvent,
   ConnectedEvent,
   IWebWorker,
   LoadedEvent,
+  OnRawPayloadFn,
   RawMessageReceivedEvent,
   StringMessageReceivedEvent,
 } from './types';

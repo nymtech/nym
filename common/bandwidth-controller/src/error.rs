@@ -45,7 +45,4 @@ pub enum BandwidthControllerError {
 
     #[error("Threshold not set yet")]
     NoThreshold,
-
-    #[error("Ecash key is not set yet")]
-    NoEcashKey,
 }

@@ -9,6 +9,8 @@ use crate::config::Config;
 use crate::error::ClientCoreError;
 use log::{error, info};
 use nym_bandwidth_controller::BandwidthController;
+use nym_compact_ecash::scheme::keygen::KeyPairUser;
+use nym_compact_ecash::setup::Parameters;
 use nym_credential_storage::storage::Storage as CredentialStorage;
 use nym_validator_client::nyxd;
 use nym_validator_client::QueryHttpRpcNyxdClient;
@@ -101,25 +103,30 @@ pub async fn setup_fs_reply_surb_backend<P: AsRef<Path>>(
     }
 }
 
+//SW Is this used anywhere?
 pub fn create_bandwidth_controller<St: CredentialStorage>(
     config: &Config,
     storage: St,
+    ecash_keypair: KeyPairUser,
+    ecash_params: Parameters,
 ) -> BandwidthController<QueryHttpRpcNyxdClient, St> {
     let nyxd_url = config
         .get_validator_endpoints()
         .pop()
         .expect("No nyxd validator endpoint provided");
 
-    create_bandwidth_controller_with_urls(nyxd_url, storage)
+    create_bandwidth_controller_with_urls(nyxd_url, storage, ecash_keypair, ecash_params)
 }
 
 pub fn create_bandwidth_controller_with_urls<St: CredentialStorage>(
     nyxd_url: Url,
     storage: St,
+    ecash_keypair: KeyPairUser,
+    ecash_params: Parameters,
 ) -> BandwidthController<QueryHttpRpcNyxdClient, St> {
     let client = default_query_dkg_client(nyxd_url);
 
-    BandwidthController::new(storage, client, None)
+    BandwidthController::new(storage, client, ecash_keypair, ecash_params) //SW fill in those todo
 }
 
 pub fn default_query_dkg_client_from_config(config: &Config) -> QueryHttpRpcNyxdClient {

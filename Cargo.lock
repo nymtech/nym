@@ -3028,7 +3028,11 @@ checksum = "0206175f82b8d6bf6652ff7d71a1e27fd2e4efde587fd368662814d6ec1d9ce0"
 
 [[package]]
 name = "explorer-api"
+<<<<<<< HEAD
 version = "1.1.32"
+=======
+version = "1.1.31"
+>>>>>>> 9a1d204b7 (distribute parameters to all components)
 dependencies = [
  "chrono",
  "clap 4.4.7",
@@ -3084,7 +3088,11 @@ dependencies = [
 
 [[package]]
 name = "extension-storage"
+<<<<<<< HEAD
 version = "1.2.4-rc.2"
+=======
+version = "1.2.0"
+>>>>>>> 9a1d204b7 (distribute parameters to all components)
 dependencies = [
  "bip39",
  "console_error_panic_hook",
@@ -5600,7 +5608,11 @@ dependencies = [
 
 [[package]]
 name = "mix-fetch-wasm"
+<<<<<<< HEAD
 version = "1.2.4-rc.2"
+=======
+version = "1.2.0"
+>>>>>>> 9a1d204b7 (distribute parameters to all components)
 dependencies = [
  "async-trait",
  "futures",
@@ -5912,6 +5924,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "nix"
+version = "0.27.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2eb04e9c688eff1c89d72b407f168cf79bb9e867a9d3323ed6c01519eb9cc053"
+dependencies = [
+ "bitflags 2.4.1",
+ "cfg-if",
+ "libc",
+]
+
+[[package]]
 name = "no-std-compat"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6033,7 +6056,11 @@ dependencies = [
 
 [[package]]
 name = "nym-api"
+<<<<<<< HEAD
 version = "1.1.34"
+=======
+version = "1.1.32"
+>>>>>>> 9a1d204b7 (distribute parameters to all components)
 dependencies = [
  "actix-web",
  "anyhow",
@@ -6125,12 +6152,16 @@ dependencies = [
  "nym-mixnet-contract-common",
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
  "nym-node-requests",
 =======
  "nym_compact_ecash",
 >>>>>>> d6ab65512 (issuance cli side)
 =======
 >>>>>>> 0d6e14066 (change crate name from _ to -)
+=======
+ "nym-node-requests",
+>>>>>>> 9a1d204b7 (distribute parameters to all components)
  "schemars",
  "serde",
  "ts-rs",
@@ -6193,7 +6224,11 @@ dependencies = [
 
 [[package]]
 name = "nym-cli"
+<<<<<<< HEAD
 version = "1.1.33"
+=======
+version = "1.1.31"
+>>>>>>> 9a1d204b7 (distribute parameters to all components)
 dependencies = [
  "anyhow",
  "base64 0.13.1",
@@ -6266,7 +6301,11 @@ dependencies = [
 
 [[package]]
 name = "nym-client"
+<<<<<<< HEAD
 version = "1.1.32"
+=======
+version = "1.1.31"
+>>>>>>> 9a1d204b7 (distribute parameters to all components)
 dependencies = [
  "clap 4.4.7",
  "dirs 4.0.0",
@@ -6353,7 +6392,11 @@ dependencies = [
 
 [[package]]
 name = "nym-client-wasm"
+<<<<<<< HEAD
 version = "1.2.4-rc.2"
+=======
+version = "1.2.0"
+>>>>>>> 9a1d204b7 (distribute parameters to all components)
 dependencies = [
  "anyhow",
  "futures",
@@ -6658,7 +6701,11 @@ dependencies = [
 =======
 >>>>>>> b76eab236 (Update the structure preserving signature to work in the setup function as well)
 name = "nym-gateway"
+<<<<<<< HEAD
 version = "1.1.32"
+=======
+version = "1.1.31"
+>>>>>>> 9a1d204b7 (distribute parameters to all components)
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6679,7 +6726,10 @@ dependencies = [
  "futures",
  "humantime-serde",
  "hyper",
+<<<<<<< HEAD
  "ipnetwork 0.16.0",
+=======
+>>>>>>> 9a1d204b7 (distribute parameters to all components)
  "lazy_static",
  "log",
  "nym-api-requests",
@@ -6797,6 +6847,7 @@ dependencies = [
 ]
 
 [[package]]
+<<<<<<< HEAD
 name = "nym-ip-packet-requests"
 version = "0.1.0"
 dependencies = [
@@ -6839,6 +6890,21 @@ dependencies = [
  "tokio",
  "tokio-tun",
  "url",
+=======
+name = "nym-ip-forwarder"
+version = "0.1.0"
+dependencies = [
+ "futures",
+ "log",
+ "nym-client-core",
+ "nym-config",
+ "nym-sdk",
+ "nym-sphinx",
+ "nym-task",
+ "serde",
+ "serde_json",
+ "thiserror",
+>>>>>>> 9a1d204b7 (distribute parameters to all components)
 ]
 
 [[package]]
@@ -6876,7 +6942,11 @@ dependencies = [
 
 [[package]]
 name = "nym-mixnode"
+<<<<<<< HEAD
 version = "1.1.34"
+=======
+version = "1.1.32"
+>>>>>>> 9a1d204b7 (distribute parameters to all components)
 dependencies = [
  "anyhow",
  "axum",
@@ -6996,7 +7066,11 @@ dependencies = [
 
 [[package]]
 name = "nym-network-requester"
+<<<<<<< HEAD
 version = "1.1.32"
+=======
+version = "1.1.31"
+>>>>>>> 9a1d204b7 (distribute parameters to all components)
 dependencies = [
  "anyhow",
  "async-file-watcher",
@@ -7044,7 +7118,11 @@ dependencies = [
 
 [[package]]
 name = "nym-network-statistics"
+<<<<<<< HEAD
 version = "1.1.32"
+=======
+version = "1.1.31"
+>>>>>>> 9a1d204b7 (distribute parameters to all components)
 dependencies = [
  "dirs 4.0.0",
  "log",
@@ -7071,13 +7149,19 @@ dependencies = [
  "fastrand 2.0.1",
  "hmac 0.12.1",
  "hyper",
+<<<<<<< HEAD
  "ipnetwork 0.16.0",
+=======
+>>>>>>> 9a1d204b7 (distribute parameters to all components)
  "mime",
  "nym-config",
  "nym-crypto",
  "nym-node-requests",
  "nym-task",
+<<<<<<< HEAD
  "nym-wireguard",
+=======
+>>>>>>> 9a1d204b7 (distribute parameters to all components)
  "nym-wireguard-types",
  "rand 0.7.3",
  "serde",
@@ -7133,7 +7217,11 @@ dependencies = [
 
 [[package]]
 name = "nym-node-tester-wasm"
+<<<<<<< HEAD
 version = "1.2.4-rc.2"
+=======
+version = "1.2.0"
+>>>>>>> 9a1d204b7 (distribute parameters to all components)
 dependencies = [
  "futures",
  "js-sys",
@@ -7290,7 +7378,11 @@ dependencies = [
 
 [[package]]
 name = "nym-socks5-client"
+<<<<<<< HEAD
 version = "1.1.32"
+=======
+version = "1.1.31"
+>>>>>>> 9a1d204b7 (distribute parameters to all components)
 dependencies = [
  "clap 4.4.7",
  "lazy_static",
@@ -7749,17 +7841,65 @@ dependencies = [
 ]
 
 [[package]]
+<<<<<<< HEAD
+=======
+name = "nym-wasm-sdk"
+version = "1.2.0"
+dependencies = [
+ "mix-fetch-wasm",
+ "nym-client-wasm",
+ "nym-node-tester-wasm",
+]
+
+[[package]]
+>>>>>>> 9a1d204b7 (distribute parameters to all components)
 name = "nym-wireguard"
 version = "0.1.0"
 dependencies = [
  "base64 0.21.4",
+<<<<<<< HEAD
  "defguard_wireguard_rs",
  "ip_network",
+=======
+ "boringtun",
+ "bytes",
+ "dashmap",
+ "etherparse",
+ "futures",
+ "ip_network",
+ "ip_network_table",
+>>>>>>> 9a1d204b7 (distribute parameters to all components)
  "log",
  "nym-network-defaults",
  "nym-task",
  "nym-wireguard-types",
+<<<<<<< HEAD
  "tokio",
+=======
+ "rand 0.8.5",
+ "serde",
+ "tap",
+ "thiserror",
+ "tokio",
+ "tokio-tun",
+]
+
+[[package]]
+name = "nym-wireguard-types"
+version = "0.1.0"
+dependencies = [
+ "base64 0.21.4",
+ "boringtun",
+ "dashmap",
+ "hmac 0.12.1",
+ "nym-crypto",
+ "rand 0.7.3",
+ "serde",
+ "serde_json",
+ "sha2 0.10.8",
+ "thiserror",
+ "utoipa",
+>>>>>>> 9a1d204b7 (distribute parameters to all components)
  "x25519-dalek 2.0.0",
 ]
 
@@ -8824,8 +8964,13 @@ dependencies = [
  "multimap",
  "petgraph",
  "prettyplease",
+<<<<<<< HEAD
  "prost 0.11.9",
  "prost-types 0.11.9",
+=======
+ "prost",
+ "prost-types",
+>>>>>>> 9a1d204b7 (distribute parameters to all components)
  "regex",
  "syn 1.0.109",
  "tempfile",
@@ -11401,9 +11546,15 @@ dependencies = [
 
 [[package]]
 name = "tokio-tun"
+<<<<<<< HEAD
 version = "0.11.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bf2efaf33e86779a3a68b1f1d6e9e13a346c1c75ee3cab7a4293235c463b2668"
+=======
+version = "0.9.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c4a67d1405a577ba1f4cd61f46608f1db2cadbb6a9549c3fc2eed7f1195393c9"
+>>>>>>> 9a1d204b7 (distribute parameters to all components)
 dependencies = [
  "libc",
  "nix 0.27.1",

@@ -26,6 +26,7 @@ use dashmap::DashMap;
 use defguard_wireguard_rs::{WGApi, WireguardInterfaceApi};
 use futures::channel::{mpsc, oneshot};
 use log::*;
+use nym_compact_ecash::setup::Parameters;
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_mixnet_client::forwarder::{MixForwardingSender, PacketForwarder};
 use nym_network_defaults::NymNetworkDetails;
@@ -437,6 +438,19 @@ impl<St> Gateway<St> {
         }))
     }
 
+    async fn get_ecash_parameters(&self) -> Result<Parameters, GatewayError> {
+        let validator_client = self.random_api_client()?;
+        match validator_client.ecash_parameters().await {
+            Err(err) => {
+                error!(
+                    "Failed to grab ecash parameters - {err}\n Plesae try again in a few minutes"
+                );
+                Err(GatewayError::NetworkGatewaysQueryFailure { source: err })
+            }
+            Ok(response) => Ok(response.params),
+        }
+    }
+
     pub async fn run(self) -> anyhow::Result<()>
     where
         St: Storage + Clone + 'static,
@@ -451,7 +465,12 @@ impl<St> Gateway<St> {
 
         let ecash_verifier = {
             let nyxd_client = self.random_nyxd_client()?;
-            EcashVerifier::new(nyxd_client, self.identity_keypair.public_key().to_bytes())
+            let ecash_params = self.get_ecash_parameters().await?;
+            EcashVerifier::new(
+                nyxd_client,
+                ecash_params,
+                self.identity_keypair.public_key().to_bytes(),
+            )
         };
 
         let mix_forwarding_channel =

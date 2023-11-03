@@ -82,6 +82,11 @@ jobs:
           command: test
           args: --workspace -- --ignored
 
+      - name: Clean
+        uses: actions-rs/cargo@v1
+        with:
+          command: clean
+
       - name: Clippy
         uses: actions-rs/cargo@v1
         with:

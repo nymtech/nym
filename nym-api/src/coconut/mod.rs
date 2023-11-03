@@ -18,9 +18,9 @@ use nym_compact_ecash::error::CompactEcashError;
 use nym_compact_ecash::scheme::keygen::{KeyPairAuth, SecretKeyAuth};
 use nym_compact_ecash::scheme::withdrawal::WithdrawalRequest;
 use nym_compact_ecash::scheme::EcashCredential;
-use nym_compact_ecash::setup::{setup, GroupParameters, Parameters};
+use nym_compact_ecash::setup::{GroupParameters, Parameters};
 use nym_compact_ecash::utils::BlindedSignature;
-use nym_compact_ecash::{PublicKeyUser, VerificationKeyAuth};
+use nym_compact_ecash::{Base58, PublicKeyUser, VerificationKeyAuth};
 use nym_config::defaults::NYM_API_VERSION;
 use nym_credentials::coconut::params::{
     NymApiCredentialEncryptionAlgorithm, NymApiCredentialHkdfAlgorithm,
@@ -34,6 +34,7 @@ use rand_07::rngs::OsRng;
 use rocket::fairing::AdHoc;
 use rocket::serde::json::Json;
 use rocket::State as RocketState;
+use std::fs;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
@@ -70,9 +71,12 @@ impl State {
         let client = Arc::new(client);
         let comm_channel = Arc::new(comm_channel);
         let rng = Arc::new(Mutex::new(OsRng));
+        let binding = fs::read_to_string("ecash_params.txt").unwrap();
+        let params_base58 = binding.trim();
+        let ecash_params = Parameters::try_from_bs58(params_base58).unwrap(); //SW Waiting for an actual parameters generation scheme.
         Self {
             client,
-            ecash_params: setup(100),
+            ecash_params,
             key_pair,
             comm_channel,
             storage,

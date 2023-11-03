@@ -50,7 +50,6 @@ pub(crate) mod tests;
 
 pub struct State {
     client: Arc<dyn LocalClient + Send + Sync>,
-    ecash_params: Parameters,
     key_pair: KeyPair,
     comm_channel: Arc<dyn APICommunicationChannel + Send + Sync>,
     storage: NymApiStorage,
@@ -71,12 +70,8 @@ impl State {
         let client = Arc::new(client);
         let comm_channel = Arc::new(comm_channel);
         let rng = Arc::new(Mutex::new(OsRng));
-        let binding = fs::read_to_string("ecash_params.txt").unwrap();
-        let params_base58 = binding.trim();
-        let ecash_params = Parameters::try_from_bs58(params_base58).unwrap(); //SW Waiting for an actual parameters generation scheme.
         Self {
             client,
-            ecash_params,
             key_pair,
             comm_channel,
             storage,
@@ -266,7 +261,7 @@ pub async fn verify_bandwidth_credential(
         .await?;
 
     if let Err(_) = verify_credential_body.credential().payment().spend_verify(
-        verify_credential_body.credential().params(),
+        &state.ecash_params,
         &verification_key,
         verify_credential_body.credential().pay_info(),
     ) {
@@ -286,7 +281,32 @@ pub async fn verify_bandwidth_credential(
     Ok(Json(VerifyCredentialResponse::new(true)))
 }
 
+#[derive(Getters, CopyGetters, Debug)]
+pub(crate) struct EcashParameters {
+    #[getset(get)]
+    ecash_params: Parameters,
+}
+
+impl EcashParameters {
+    pub fn new() -> EcashParameters {
+        let binding = fs::read_to_string("ecash_params.txt").unwrap();
+        let params_base58 = binding.trim();
+        let ecash_params = Parameters::try_from_bs58(params_base58).unwrap(); //SW Waiting for an actual parameters generation scheme.
+        EcashParameters { ecash_params }
+    }
+
+    pub fn stage<C, D>() -> AdHoc {
+        AdHoc::on_ignite("Ecash Parameters Stage", |rocket| async {
+            rocket.manage(Self::new()).mount(
+                // this format! is so ugly...
+                format!("/{}/{}/{}", NYM_API_VERSION, COCONUT_ROUTES, BANDWIDTH),
+                routes![ecash_parameters],
+            )
+        })
+    }
+}
+
 #[get("/ecash-parameters")]
 pub async fn ecash_parameters(state: &RocketState<State>) -> Result<Json<EcashParametersResponse>> {
-    Ok(Json(EcashParametersResponse::new(&state.ecash_params)))
+    Ok(Json(EcashParametersResponse::new(&ecash_params)))
 }

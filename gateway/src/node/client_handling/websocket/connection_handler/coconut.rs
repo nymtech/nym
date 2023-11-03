@@ -64,7 +64,7 @@ impl EcashVerifier {
             .spend_verify(
                 &self.ecash_parameters,
                 aggregated_verification_key,
-                &credential.pay_info(),
+                credential.pay_info(),
             )
             .map_err(|_| {
                 RequestHandlingError::InvalidBandwidthCredential(String::from(

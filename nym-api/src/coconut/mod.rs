@@ -265,11 +265,16 @@ pub async fn verify_bandwidth_credential(
         .verification_key(*verify_credential_body.credential().epoch_id())
         .await?;
 
-    if let Err(_) = verify_credential_body.credential().payment().spend_verify(
-        &state.ecash_params,
-        &verification_key,
-        verify_credential_body.credential().pay_info(),
-    ) {
+    if verify_credential_body
+        .credential()
+        .payment()
+        .spend_verify(
+            &state.ecash_params,
+            &verification_key,
+            verify_credential_body.credential().pay_info(),
+        )
+        .is_err()
+    {
         return Err(CoconutError::CompactEcashInternalError(
             CompactEcashError::PaymentVerification,
         ));

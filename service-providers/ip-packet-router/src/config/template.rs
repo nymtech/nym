@@ -76,7 +76,7 @@ allowed_list_location = '{{ storage_paths.allowed_list_location }}'
 unknown_list_location = '{{ storage_paths.unknown_list_location }}'
 
 # Path to file containing description of this network-requester.
-ip_forwarder_description = '{{ storage_paths.ip_forwarder_description }}'
+ip_packet_router_description = '{{ storage_paths.ip_packet_router_description }}'
 
 
 ##### logging configuration options #####

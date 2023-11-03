@@ -6649,6 +6649,7 @@ dependencies = [
 name = "nym-ip-packet-router"
 version = "0.1.0"
 dependencies = [
+ "etherparse",
  "futures",
  "log",
  "nym-bin-common",
@@ -6658,9 +6659,13 @@ dependencies = [
  "nym-service-providers-common",
  "nym-sphinx",
  "nym-task",
+ "nym-wireguard",
+ "nym-wireguard-types",
  "serde",
  "serde_json",
+ "tap",
  "thiserror",
+ "tokio",
 ]
 
 [[package]]

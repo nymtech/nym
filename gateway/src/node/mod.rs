@@ -346,11 +346,12 @@ impl<St> Gateway<St> {
 
         // TODO: well, wire it up internally to gateway traffic, shutdowns, etc.
         let (on_start_tx, on_start_rx) = oneshot::channel();
-        let mut ip_builder = nym_ip_packet_router::IpForwarderBuilder::new(ip_opts.config.clone())
-            .with_shutdown(shutdown)
-            .with_custom_gateway_transceiver(Box::new(transceiver))
-            .with_wait_for_gateway(true)
-            .with_on_start(on_start_tx);
+        let mut ip_builder =
+            nym_ip_packet_router::IpPacketRouterBuilder::new(ip_opts.config.clone())
+                .with_shutdown(shutdown)
+                .with_custom_gateway_transceiver(Box::new(transceiver))
+                .with_wait_for_gateway(true)
+                .with_on_start(on_start_tx);
 
         if let Some(custom_mixnet) = &ip_opts.custom_mixnet_path {
             ip_builder = ip_builder.with_stored_topology(custom_mixnet)?

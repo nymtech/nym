@@ -7,7 +7,7 @@ pub struct TunTaskTx(mpsc::Sender<TunTaskPayload>);
 pub(crate) struct TunTaskRx(mpsc::Receiver<TunTaskPayload>);
 
 impl TunTaskTx {
-    pub(crate) async fn send(
+    pub async fn send(
         &self,
         data: TunTaskPayload,
     ) -> Result<(), tokio::sync::mpsc::error::SendError<TunTaskPayload>> {
@@ -40,7 +40,7 @@ impl TunTaskResponseTx {
 }
 
 impl TunTaskResponseRx {
-    pub(crate) async fn recv(&mut self) -> Option<TunTaskPayload> {
+    pub async fn recv(&mut self) -> Option<TunTaskPayload> {
         self.0.recv().await
     }
 }

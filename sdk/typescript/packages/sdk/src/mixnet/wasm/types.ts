@@ -7,7 +7,7 @@ import type { ClientOpts } from '@nymproject/nym-client-wasm';
  * @internal
  */
 export interface IWebWorker {
-  start: (opts: ClientOpts) => void;
+  start: (opts?: ClientOpts) => void;
   stop: () => void;
   selfAddress: () => string | undefined;
   setTextMimeTypes: (mimeTypes: string[]) => void;
@@ -30,7 +30,7 @@ export interface Client {
    * });
    *
    */
-  start: (opts: ClientOpts) => Promise<void>;
+  start: (opts?: ClientOpts) => Promise<void>;
   /**
    * Stop the client.
    * @example

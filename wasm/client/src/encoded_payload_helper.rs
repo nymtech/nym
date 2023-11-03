@@ -104,6 +104,7 @@ pub(crate) fn parse_payload(message: &[u8]) -> anyhow::Result<(EncodedPayloadMet
     let metadata = String::from_utf8_lossy(&message[8..8 + metadata_size]).into_owned();
     let metadata: EncodedPayloadMetadata = serde_json::from_str(&metadata)?;
 
+    //finally the payload
     let payload = &message[8 + metadata_size..];
 
     Ok((metadata, payload))

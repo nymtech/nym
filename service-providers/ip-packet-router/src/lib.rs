@@ -172,9 +172,15 @@ impl IpPacketRouter {
                 },
                 packet = self.tun_task_response_rx.recv() => {
                     if let Some((_tag, packet)) = packet {
-                        // TODO: basically we need to map the tag to the recipient
-                        // For now we just hardcode the recipient
-                        let recipient = Recipient::try_from_base58_string("sfl;sdf").unwrap();
+                        // Read recipient from env variable NYM_CLIENT_ADDR which is a base58
+                        // string of the nym-address of the client that the packet should be
+                        // sent back to.
+                        let recipient_addr = std::env::var("NYM_CLIENT_ADDR").expect("NYM_CLIENT_ADDR not set");
+                        let recipient = Recipient::try_from_base58_string(recipient_addr).expect("NYM_CLIENT_ADDR is not a valid nym address");
+
+                        // In the near future we will let the client expose it's nym-address
+                        // directly, and after that, provide SURBS
+
                         let lane = TransmissionLane::General;
                         let packet_type = None;
                         let input_message = InputMessage::new_regular(recipient, packet, lane, packet_type);

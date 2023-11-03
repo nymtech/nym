@@ -5,6 +5,7 @@ use super::authenticated::RequestHandlingError;
 use chrono::Utc;
 use log::*;
 use nym_compact_ecash::scheme::EcashCredential;
+use nym_compact_ecash::setup::Parameters;
 use nym_compact_ecash::{PayInfo, VerificationKeyAuth};
 use nym_validator_client::coconut::all_ecash_api_clients;
 use nym_validator_client::{
@@ -17,14 +18,20 @@ const TIME_RANGE_SEC: i64 = 30;
 
 pub(crate) struct EcashVerifier {
     nyxd_client: DirectSigningHttpRpcNyxdClient,
+    ecash_parameters: Parameters,
     pk_bytes: [u8; 32], //bytes represenation of a pub key representing the verifier
     pay_infos: Arc<Mutex<Vec<PayInfo>>>,
 }
 
 impl EcashVerifier {
-    pub fn new(nyxd_client: DirectSigningHttpRpcNyxdClient, pk_bytes: [u8; 32]) -> Self {
+    pub fn new(
+        nyxd_client: DirectSigningHttpRpcNyxdClient,
+        ecash_parameters: Parameters,
+        pk_bytes: [u8; 32],
+    ) -> Self {
         EcashVerifier {
             nyxd_client,
+            ecash_parameters,
             pk_bytes,
             pay_infos: Arc::new(Mutex::new(Vec::new())),
         }
@@ -55,7 +62,7 @@ impl EcashVerifier {
         credential
             .payment()
             .spend_verify(
-                &credential.params(),
+                &self.ecash_parameters,
                 aggregated_verification_key,
                 &credential.pay_info(),
             )

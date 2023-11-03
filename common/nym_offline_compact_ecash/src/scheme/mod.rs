@@ -641,8 +641,6 @@ impl TryFrom<&[u8]> for Payment {
 #[derive(Getters, CopyGetters)]
 pub struct EcashCredential {
     #[getset(get = "pub")]
-    params: Parameters,
-    #[getset(get = "pub")]
     payment: Payment,
     #[getset(get = "pub")]
     pay_info: PayInfo,
@@ -651,9 +649,8 @@ pub struct EcashCredential {
 }
 
 impl EcashCredential {
-    pub fn new(params: Parameters, payment: Payment, pay_info: PayInfo, epoch_id: u64) -> Self {
+    pub fn new(payment: Payment, pay_info: PayInfo, epoch_id: u64) -> Self {
         EcashCredential {
-            params,
             payment,
             pay_info,
             epoch_id,
@@ -661,14 +658,10 @@ impl EcashCredential {
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {
-        let params_bytes = self.params.to_bytes();
         let payment_bytes = self.payment.to_bytes();
 
-        let mut bytes =
-            Vec::with_capacity(params_bytes.len() + payment_bytes.len() + 72 + 8 + 8 + 8);
+        let mut bytes = Vec::with_capacity(payment_bytes.len() + 72 + 8 + 8);
 
-        bytes.extend_from_slice(&(params_bytes.len() as u64).to_be_bytes());
-        bytes.extend_from_slice(&self.params.to_bytes());
         bytes.extend_from_slice(&(payment_bytes.len() as u64).to_be_bytes());
         bytes.extend_from_slice(&self.payment.to_bytes());
         bytes.extend_from_slice(&self.pay_info.payinfo);
@@ -681,23 +674,12 @@ impl EcashCredential {
 impl TryFrom<&[u8]> for EcashCredential {
     type Error = CompactEcashError;
     fn try_from(bytes: &[u8]) -> Result<Self> {
-        if bytes.len() < 72 + 8 + 8 + 8 {
+        if bytes.len() < 72 + 8 + 8 {
             return Err(CompactEcashError::Deserialization(
                 "Invalid byte array for EcashCredential deserialization".to_string(),
             ));
         }
         let mut index = 0;
-        let params_len = u64::from_be_bytes(bytes[index..index + 8].try_into().unwrap()) as usize;
-        index += 8;
-
-        if bytes[index..].len() < params_len {
-            return Err(CompactEcashError::Deserialization(
-                "Invalid byte array for EcashCredential deserialization".to_string(),
-            ));
-        }
-
-        let params = Parameters::try_from(&bytes[index..index + params_len])?;
-        index += params_len;
 
         let payment_len = u64::from_be_bytes(bytes[index..index + 8].try_into().unwrap()) as usize;
         index += 8;
@@ -722,7 +704,6 @@ impl TryFrom<&[u8]> for EcashCredential {
         index += 72;
         let epoch_id = u64::from_be_bytes(bytes[index..index + 8].try_into().unwrap());
         Ok(EcashCredential {
-            params,
             payment,
             pay_info,
             epoch_id,

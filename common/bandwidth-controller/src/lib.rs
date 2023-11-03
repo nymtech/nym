@@ -4,7 +4,7 @@
 use crate::error::BandwidthControllerError;
 use nym_compact_ecash::scheme::keygen::KeyPairUser;
 use nym_compact_ecash::scheme::{EcashCredential, Wallet};
-use nym_compact_ecash::setup::setup;
+use nym_compact_ecash::setup::{setup, Parameters};
 use nym_compact_ecash::{Base58, PayInfo};
 use nym_credential_storage::error::StorageError;
 use nym_credential_storage::storage::Storage;
@@ -19,15 +19,22 @@ pub mod error;
 pub struct BandwidthController<C, St> {
     storage: St,
     client: C,
-    ecash_keypair: Option<KeyPairUser>,
+    ecash_keypair: KeyPairUser,
+    ecash_params: Parameters,
 }
 
 impl<C, St: Storage> BandwidthController<C, St> {
-    pub fn new(storage: St, client: C, ecash_keypair: Option<KeyPairUser>) -> Self {
+    pub fn new(
+        storage: St,
+        client: C,
+        ecash_keypair: KeyPairUser,
+        ecash_params: Parameters,
+    ) -> Self {
         BandwidthController {
             storage,
             client,
             ecash_keypair,
+            ecash_params,
         }
     }
 
@@ -57,20 +64,14 @@ impl<C, St: Storage> BandwidthController<C, St> {
 
         let verification_key = obtain_aggregate_verification_key(&ecash_api_clients).await?;
 
-        let some_l_i_guess = 100; //SW: TEMPORARY VALUE
-        let params = setup(some_l_i_guess);
-        let sk_user = self
-            .ecash_keypair
-            .clone()
-            .ok_or(BandwidthControllerError::NoEcashKey)?
-            .secret_key();
+        let sk_user = self.ecash_keypair.secret_key();
         let pay_info = PayInfo::generate_payinfo(provider_pk);
         let nb_tickets = 1u64; //SW: TEMPORARY VALUE, what should we put there?
 
         // the below would only be executed once we know where we want to spend it (i.e. which gateway and stuff)
 
         let (payment, _) = wallet.spend(
-            &params,
+            &self.ecash_params,
             &verification_key,
             &sk_user,
             &pay_info,
@@ -78,7 +79,7 @@ impl<C, St: Storage> BandwidthController<C, St> {
             nb_tickets,
         )?;
 
-        let credential = EcashCredential::new(params, payment, pay_info, epoch_id);
+        let credential = EcashCredential::new(payment, pay_info, epoch_id);
 
         Ok((credential, wallet, ecash_credential.id))
     }
@@ -113,6 +114,7 @@ where
             storage: self.storage.clone(),
             client: self.client.clone(),
             ecash_keypair: self.ecash_keypair.clone(),
+            ecash_params: self.ecash_params.clone(),
         }
     }
 }

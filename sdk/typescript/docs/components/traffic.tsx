@@ -26,6 +26,7 @@ export const Traffic = () => {
     await client?.client.start({
       clientId: crypto.randomUUID(),
       nymApiUrl,
+      preferredGatewayIdentityKey: 'E3mvZTHQCdBvhfr178Swx9g4QG3kkRUun7YnToLMcMbM', // force WSS
     });
 
     // check when is connected and set the self address

@@ -184,23 +184,28 @@ impl IpPacketRouter {
                         // Read recipient from env variable NYM_CLIENT_ADDR which is a base58
                         // string of the nym-address of the client that the packet should be
                         // sent back to.
-                        let recipient_addr = std::env::var("NYM_CLIENT_ADDR").expect("NYM_CLIENT_ADDR not set");
-                        let recipient = Recipient::try_from_base58_string(recipient_addr).expect("NYM_CLIENT_ADDR is not a valid nym address");
-
+                        //
                         // In the near future we will let the client expose it's nym-address
                         // directly, and after that, provide SURBS
+                        let recipient = std::env::var("NYM_CLIENT_ADDR").ok().and_then(|addr| {
+                            Recipient::try_from_base58_string(addr).ok()
+                        });
 
-                        let lane = TransmissionLane::General;
-                        let packet_type = None;
-                        let input_message = InputMessage::new_regular(recipient, packet, lane, packet_type);
+                        if let Some(recipient) = recipient {
+                            let lane = TransmissionLane::General;
+                            let packet_type = None;
+                            let input_message = InputMessage::new_regular(recipient, packet, lane, packet_type);
 
-                        self.mixnet_client
-                            .send(input_message)
-                            .await
-                            .tap_err(|err| {
-                                log::error!("IpPacketRouter [main loop]: failed to send packet to mixnet: {err}");
-                            })
-                            .ok();
+                            self.mixnet_client
+                                .send(input_message)
+                                .await
+                                .tap_err(|err| {
+                                    log::error!("IpPacketRouter [main loop]: failed to send packet to mixnet: {err}");
+                                })
+                                .ok();
+                        } else {
+                            log::error!("NYM_CLIENT_ADDR not set or invalid");
+                        }
                     } else {
                         log::trace!("IpPacketRouter [main loop]: stopping since channel closed");
                         break;

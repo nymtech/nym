@@ -116,12 +116,13 @@ impl IpPacketRouterBuilder {
         let self_address = *mixnet_client.nym_address();
 
         // Create the TUN device that we interact with the rest of the world with
-        let (tun, tun_task_tx, tun_task_response_rx) =
-            nym_wireguard::tun_device::TunDevice::new(None);
+        let (tun, tun_task_tx, tun_task_response_rx) = nym_wireguard::tun_device::TunDevice::new(
+            nym_wireguard::tun_device::RoutingMode::new_nat(),
+        );
         tun.start();
 
         let ip_packet_router_service = IpPacketRouter {
-            config: self.config,
+            _config: self.config,
             // tun,
             tun_task_tx,
             tun_task_response_rx,
@@ -144,7 +145,7 @@ impl IpPacketRouterBuilder {
 }
 
 struct IpPacketRouter {
-    config: Config,
+    _config: Config,
     // tun: nym_wireguard::tun_device::TunDevice,
     tun_task_tx: nym_wireguard::tun_task_channel::TunTaskTx,
     tun_task_response_rx: nym_wireguard::tun_task_channel::TunTaskResponseRx,

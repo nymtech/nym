@@ -45,7 +45,7 @@ pub struct TunDevice {
     routing_mode: RoutingMode,
 }
 
-enum RoutingMode {
+pub enum RoutingMode {
     // The routing table, as how wireguard does it
     AllowedIps(AllowedIpsInner),
 
@@ -55,28 +55,29 @@ enum RoutingMode {
 }
 
 impl RoutingMode {
-    fn new_nat() -> Self {
+    pub fn new_nat() -> Self {
         RoutingMode::Nat(NatInner {
             nat_table: HashMap::new(),
         })
     }
 
-    fn new_allowed_ips(peers_by_ip: Arc<tokio::sync::Mutex<PeersByIp>>) -> Self {
+    pub fn new_allowed_ips(peers_by_ip: Arc<tokio::sync::Mutex<PeersByIp>>) -> Self {
         RoutingMode::AllowedIps(AllowedIpsInner { peers_by_ip })
     }
 }
 
-struct AllowedIpsInner {
+pub struct AllowedIpsInner {
     peers_by_ip: Arc<tokio::sync::Mutex<PeersByIp>>,
 }
 
-struct NatInner {
+pub struct NatInner {
     nat_table: HashMap<IpAddr, u64>,
 }
 
 impl TunDevice {
     pub fn new(
-        peers_by_ip: Option<Arc<tokio::sync::Mutex<PeersByIp>>>,
+        routing_mode: RoutingMode,
+        // peers_by_ip: Option<Arc<tokio::sync::Mutex<PeersByIp>>>,
     ) -> (Self, TunTaskTx, TunTaskResponseRx) {
         let tun = setup_tokio_tun_device(
             format!("{TUN_BASE_NAME}%d").as_str(),
@@ -88,11 +89,6 @@ impl TunDevice {
         // Channels to communicate with the other tasks
         let (tun_task_tx, tun_task_rx) = tun_task_channel();
         let (tun_task_response_tx, tun_task_response_rx) = tun_task_response_channel();
-
-        let routing_mode = match peers_by_ip {
-            Some(peers_by_ip) => RoutingMode::new_allowed_ips(peers_by_ip),
-            None => RoutingMode::new_nat(),
-        };
 
         let tun_device = TunDevice {
             tun_task_rx,

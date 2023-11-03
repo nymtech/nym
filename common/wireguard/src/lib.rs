@@ -32,16 +32,23 @@ pub async fn start_wireguard(
     task_client: nym_task::TaskClient,
     gateway_client_registry: Arc<GatewayClientRegistry>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    // We can either index peers by their IP like standard wireguard
+    // TODO: make this configurable
+
+    // We can optionally index peers by their IP like standard wireguard. If we don't then we do
+    // plain NAT where we match incoming destination IP with outgoing source IP.
     let peers_by_ip = Arc::new(tokio::sync::Mutex::new(network_table::NetworkTable::new()));
 
-    // ... or by their tunnel tag, which is a random number assigned to them
-    let peers_by_tag = Arc::new(tokio::sync::Mutex::new(wg_tunnel::PeersByTag::new()));
+    // Alternative 1:
+    let routing_mode = tun_device::RoutingMode::new_allowed_ips(peers_by_ip.clone());
+    // Alternative 2:
+    //let routing_mode = tun_device::RoutingMode::new_nat();
 
     // Start the tun device that is used to relay traffic outbound
-    let (tun, tun_task_tx, tun_task_response_rx) =
-        tun_device::TunDevice::new(Some(peers_by_ip.clone()));
+    let (tun, tun_task_tx, tun_task_response_rx) = tun_device::TunDevice::new(routing_mode);
     tun.start();
+
+    // We also index peers by a tag
+    let peers_by_tag = Arc::new(tokio::sync::Mutex::new(wg_tunnel::PeersByTag::new()));
 
     // If we want to have the tun device on a separate host, it's the tun_task and
     // tun_task_response channels that needs to be sent over the network to the host where the tun

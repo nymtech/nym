@@ -170,7 +170,7 @@ fn initialise_internal_packages<P: AsRef<Path>>(root: P) -> InternalPackages {
     packages.register_cargo("wasm/mix-fetch");
     packages.register_cargo("wasm/client");
     packages.register_cargo("wasm/node-tester");
-    packages.register_cargo("wasm/full-nym-wasm");
+    // packages.register_cargo("wasm/full-nym-wasm");
     packages.register_cargo("nym-browser-extension/storage");
 
     // js packages that will have their package.json modified

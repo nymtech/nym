@@ -105,7 +105,7 @@ members = [
     "tools/nym-nr-query",
     "tools/ts-rs-cli",
     "wasm/client",
-    "wasm/full-nym-wasm",
+#    "wasm/full-nym-wasm",
     "wasm/mix-fetch",
     "wasm/node-tester",
 ]

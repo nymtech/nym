@@ -1,3 +1,4 @@
+import React from 'react';
 import { useChain } from '@cosmos-kit/react';
 import { Box, Button, Card } from '@mui/material';
 import Big from 'big.js';

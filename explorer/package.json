@@ -19,8 +19,8 @@
   },
   "dependencies": {
     "@cosmjs/math": "^0.26.2",
-    "@cosmos-kit/keplr": "^2.3.11",
-    "@cosmos-kit/react": "^2.8.2",
+    "@cosmos-kit/keplr": "^2.4.7",
+    "@cosmos-kit/react": "^2.9.6",
     "@emotion/react": "^11.4.1",
     "@emotion/styled": "^11.3.0",
     "@mui/icons-material": "^5.0.0",

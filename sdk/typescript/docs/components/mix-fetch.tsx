@@ -12,18 +12,6 @@ import type { SetupMixFetchOps } from '@nymproject/mix-fetch-full-fat';
 const defaultUrl = 'https://nymtech.net/favicon.svg';
 const args = { mode: 'unsafe-ignore-cors' };
 
-const extra = {
-  hiddenGateways: [
-    {
-      owner: 'n1kymvkx6vsq7pvn6hfurkpg06h3j4gxj4em7tlg',
-      host: 'gateway1.nymtech.net',
-      explicitIp: '213.219.38.119',
-      identityKey: 'E3mvZTHQCdBvhfr178Swx9g4QG3kkRUun7YnToLMcMbM',
-      sphinxKey: 'CYcrjoJ8GT7Dp54zViUyyRUfegeRCyPifWQZHRgMZrfX',
-    },
-  ],
-};
-
 const mixFetchOptions: SetupMixFetchOps = {
   preferredGateway: 'E3mvZTHQCdBvhfr178Swx9g4QG3kkRUun7YnToLMcMbM', // with WSS
   preferredNetworkRequester:
@@ -32,7 +20,6 @@ const mixFetchOptions: SetupMixFetchOps = {
     requestTimeoutMs: 60_000,
   },
   forceTls: true, // force WSS
-  extra, // manually set the gateway details for WSS so certificates will work for hostname
 };
 
 export const MixFetch = () => {

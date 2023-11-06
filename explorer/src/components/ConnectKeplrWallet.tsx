@@ -1,12 +1,15 @@
 import React from 'react';
 import { useChain } from '@cosmos-kit/react';
-import { Box, Button, Card } from '@mui/material';
+import { Box, Button, Card, Typography, IconButton } from '@mui/material';
 import Big from 'big.js';
+import CloseIcon from '@mui/icons-material/Close';
+import { useTheme } from '@mui/material/styles';
 
 import { useEffect, useState, useMemo } from 'react';
 
 import '@interchain-ui/react/styles';
 import { TokenSVG } from '../icons/TokenSVG';
+import { ElipsSVG } from '../icons/ElipsSVG';
 
 export function useIsClient() {
   const [isClient, setIsClient] = useState(false);
@@ -31,10 +34,17 @@ export const uNYMtoNYM = (unym: string, rounding = 6) => {
   };
 };
 
+export const trimAddress = (address = '', trimBy = 6) => {
+  return `${address.slice(0, trimBy)}...${address.slice(-trimBy)}`;
+};
+
 export default function ConnectKeplrWallet() {
   const { username, connect, disconnect, wallet, openView, address, getCosmWasmClient, isWalletConnected } =
     useChain('nyx');
   const isClient = useIsClient();
+  const theme = useTheme();
+
+  const color = theme.palette.text.primary;
 
   const [balance, setBalance] = useState<{
     status: 'loading' | 'success';
@@ -65,25 +75,27 @@ export default function ConnectKeplrWallet() {
     // }
     if (isWalletConnected) {
       return (
-        <Box display={'flex'} alignItems={'center'}>
-          <Button onClick={() => openView()}>
-            <div>
-              <span>Connected to: {wallet?.prettyName}</span>
-            </div>
-          </Button>
-
-          <Box>{address}</Box>
-          <TokenSVG />
-          <Box> {balance.data} NYM</Box>
-
-          <Button
+        <Box display={'flex'} alignItems={'center'} gap={2}>
+          <Box display={'flex'} alignItems={'center'} gap={1}>
+            <TokenSVG />
+            <Typography variant="body1" fontWeight={600}>
+              {balance.data} NYM
+            </Typography>
+          </Box>
+          <Box display={'flex'} alignItems={'center'} gap={1}>
+            <ElipsSVG />
+            <Typography variant="body1" fontWeight={600}>
+              {trimAddress(address, 7)}
+            </Typography>
+          </Box>
+          <IconButton
             onClick={async () => {
               await disconnect();
               // setGlobalStatus(WalletStatus.Disconnected);
             }}
           >
-            Disconnect
-          </Button>
+            <CloseIcon sx={{ color: 'white' }} />
+          </IconButton>
         </Box>
       );
     }
@@ -92,10 +104,8 @@ export default function ConnectKeplrWallet() {
   };
 
   return (
-    <Card className="min-w-[350px] max-w-[800px] mt-20 mx-auto p-10">
-      <Box>
-        <div className="flex justify-start space-x-5">{getGlobalbutton()}</div>
-      </Box>
-    </Card>
+    <Box>
+      <div className="flex justify-start space-x-5">{getGlobalbutton()}</div>
+    </Box>
   );
 }

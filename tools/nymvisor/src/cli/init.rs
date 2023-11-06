@@ -12,6 +12,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 use tracing::{debug, error, info, trace, warn};
+use url::Url;
 
 #[derive(clap::Args, Debug)]
 pub(crate) struct Args {
@@ -22,6 +23,12 @@ pub(crate) struct Args {
     /// Can be overridden with $NYMVISOR_ID environmental variable.
     #[arg(long)]
     id: Option<String>,
+
+    /// Sets the base url of the upstream source for obtaining upgrade information for the deaemon.
+    /// It will be used fo constructing the full url, i.e. $NYMVISOR_UPSTREAM_BASE_UPGRADE_URL/$DAEMON_NAME/upgrade-info.json
+    /// Can be overridden with $NYMVISOR_UPSTREAM_BASE_UPGRADE_URL environmental variable.
+    #[arg(long)]
+    upstream_base_upgrade_url: Option<Url>,
 
     /// If enabled, this will disable `nymvisor` logs (but not the underlying process)
     /// Can be overridden with $NYMVISOR_DISABLE_LOGS environmental variable.
@@ -40,6 +47,13 @@ pub(crate) struct Args {
     /// Can be overridden with $DAEMON_HOME environmental variable.
     #[arg(long)]
     daemon_home: Option<PathBuf>,
+
+    /// Override url to the upstream source for upgrade plans for this daeamon.
+    /// The Url has to point to an endpoint containing a valid [`UpgradeInfo`] json.
+    /// Note: if set this takes precedence over `upstream_base_upgrade_url`
+    /// Can be overridden with $DAEMON_ABSOLUTE_UPSTREAM_UPGRADE_URL environmental variable.
+    #[arg(long)]
+    daemon_absolute_upstream_upgrade_url: Option<Url>,
 
     /// If set to true, this will enable auto-downloading of new binaries using the url provided in the `upgrade-info.json`
     /// Can be overridden with $DAEMON_ALLOW_BINARIES_DOWNLOAD environmental variable.
@@ -108,6 +122,9 @@ impl Args {
         if let Some(nymvisor_id) = &self.id {
             config.nymvisor.id = nymvisor_id.clone();
         }
+        if let Some(upstream) = &self.upstream_base_upgrade_url {
+            config.nymvisor.debug.upstream_base_upgrade_url = upstream.clone()
+        }
         if self.disable_nymvisor_logs {
             config.nymvisor.debug.disable_logs = self.disable_nymvisor_logs;
         }
@@ -117,6 +134,9 @@ impl Args {
         }
         if let Some(daemon_home) = &self.daemon_home {
             config.daemon.home = daemon_home.clone();
+        }
+        if let Some(upstream) = &self.daemon_absolute_upstream_upgrade_url {
+            config.daemon.debug.absolute_upstream_upgrade_url = Some(upstream.clone())
         }
         if let Some(daemon_allow_binaries_download) = self.allow_download_upgrade_binaries {
             config.daemon.debug.allow_binaries_download = daemon_allow_binaries_download;

@@ -14,6 +14,12 @@ id = '{{ nymvisor.id }}'
 
 ##### further optional configuration nymvisor options #####
 
+# Sets the base url of the upstream source for obtaining upgrade information for the deaemon.
+# default: "https://nymtech.net/.wellknown/"
+# It will be used fo constructing the full url, i.e. $NYMVISOR_UPSTREAM_BASE_UPGRADE_URL/$DAEMON_NAME/upgrade-info.json
+# Can be overridden with $NYMVISOR_UPSTREAM_BASE_UPGRADE_URL environmental variable.
+upstream_base_upgrade_url = '{{ nymvisor.upstream_base_upgrade_url }}'
+
 # If set to true, this will disable `nymvisor` logs (but not the underlying process)
 # default: false
 # Can be overridden with $NYMVISOR_DISABLE_LOGS environmental variable.
@@ -39,6 +45,13 @@ name = '{{ daemon.name }}'
 home = '{{ daemon.home }}'
 
 ##### further optional configuration daemon options #####
+
+# Override url to the upstream source for upgrade plans for this daeamon.
+# The Url has to point to an endpoint containing a valid [`UpgradeInfo`] json.
+# Note: if set this takes precedence over .nymvisor.debug.upstream_base_upgrade_url
+# default: None
+# Can be overridden with $DAEMON_ABSOLUTE_UPSTREAM_UPGRADE_URL environmental variable.
+absolute_upstream_upgrade_url = '{{ daemon.absolute_upstream_upgrade_url }}'
 
 # If set to true, this will enable auto-downloading of new binaries using the url provided in the `upgrade-info.json`
 # default: true

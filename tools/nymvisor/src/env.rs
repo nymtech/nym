@@ -6,6 +6,7 @@ use crate::error::NymvisorError;
 use std::env::VarError;
 use std::path::PathBuf;
 use std::time::Duration;
+use url::Url;
 
 const TRUTHY_BOOLS: &[&str] = &["true", "t", "1"];
 const FALSY_BOOLS: &[&str] = &["false", "f", "0"];
@@ -13,11 +14,13 @@ const FALSY_BOOLS: &[&str] = &["false", "f", "0"];
 pub mod vars {
     pub const NYMVISOR_ID: &str = "NYMVISOR_ID";
     pub const NYMVISOR_CONFIG_PATH: &str = "NYMVISOR_CONFIG_PATH";
+    pub const NYMVISOR_UPSTREAM_BASE_UPGRADE_URL: &str = "NYMVISOR_UPSTREAM_BASE_UPGRADE_URL";
     pub const NYMVISOR_DISABLE_LOGS: &str = "NYMVISOR_DISABLE_LOGS";
     pub const NYMVISOR_UPGRADE_DATA_DIRECTORY: &str = "NYMVISOR_UPGRADE_DATA_DIRECTORY";
 
     pub const DAEMON_NAME: &str = "DAEMON_NAME";
     pub const DAEMON_HOME: &str = "DAEMON_HOME";
+    pub const DAEMON_ABSOLUTE_UPSTREAM_UPGRADE_URL: &str = "DAEMON_ABSOLUTE_UPSTREAM_UPGRADE_URL";
     pub const DAEMON_ALLOW_BINARIES_DOWNLOAD: &str = "DAEMON_ALLOW_BINARIES_DOWNLOAD";
     pub const DAEMON_ENFORCE_DOWNLOAD_CHECKSUM: &str = "DAEMON_ENFORCE_DOWNLOAD_CHECKSUM";
     pub const DAEMON_RESTART_AFTER_UPGRADE: &str = "DAEMON_RESTART_AFTER_UPGRADE";
@@ -41,11 +44,13 @@ pub(crate) fn setup_env(config_env_file: &Option<PathBuf>) -> Result<(), Nymviso
 pub(crate) struct Env {
     pub(crate) nymvisor_id: Option<String>,
     pub(crate) nymvisor_config_path: Option<PathBuf>,
+    pub(crate) nymvisor_upstream_base_upgrade_url: Option<Url>,
     pub(crate) nymvisor_disable_logs: Option<bool>,
     pub(crate) nymvisor_upgrade_data_directory: Option<PathBuf>,
 
     pub(crate) daemon_name: Option<String>,
     pub(crate) daemon_home: Option<PathBuf>,
+    pub(crate) daemon_absolute_upstream_upgrade_url: Option<Url>,
     pub(crate) daemon_allow_binaries_download: Option<bool>,
     pub(crate) daemon_enforce_download_checksum: Option<bool>,
     pub(crate) daemon_restart_after_upgrade: Option<bool>,
@@ -63,6 +68,9 @@ impl Env {
         if let Some(nymvisor_id) = &self.nymvisor_id {
             config.nymvisor.id = nymvisor_id.clone();
         }
+        if let Some(upstream) = &self.nymvisor_upstream_base_upgrade_url {
+            config.nymvisor.debug.upstream_base_upgrade_url = upstream.clone()
+        }
         if let Some(nymvisor_disable_logs) = self.nymvisor_disable_logs {
             config.nymvisor.debug.disable_logs = nymvisor_disable_logs;
         }
@@ -75,6 +83,9 @@ impl Env {
         }
         if let Some(daemon_home) = &self.daemon_home {
             config.daemon.home = daemon_home.clone();
+        }
+        if let Some(upstream) = &self.daemon_absolute_upstream_upgrade_url {
+            config.daemon.debug.absolute_upstream_upgrade_url = Some(upstream.clone())
         }
         if let Some(daemon_allow_binaries_download) = self.daemon_allow_binaries_download {
             config.daemon.debug.allow_binaries_download = daemon_allow_binaries_download;
@@ -167,6 +178,19 @@ fn read_pathbuf(var: &str) -> Result<Option<PathBuf>, NymvisorError> {
     Ok(read_string(var)?.map(PathBuf::from))
 }
 
+fn read_url(var: &str) -> Result<Option<Url>, NymvisorError> {
+    read_string(var)?
+        .map(|raw| {
+            raw.parse()
+                .map_err(|source| NymvisorError::MalformedUrlEnvVariable {
+                    variable: var.to_string(),
+                    value: raw.to_string(),
+                    source,
+                })
+        })
+        .transpose()
+}
+
 fn read_usize(var: &str) -> Result<Option<usize>, NymvisorError> {
     read_string(var)?
         .map(|raw| {
@@ -187,10 +211,14 @@ impl Env {
         Ok(Env {
             nymvisor_id: read_string(vars::NYMVISOR_ID)?,
             nymvisor_config_path: read_pathbuf(vars::NYMVISOR_CONFIG_PATH)?,
+            nymvisor_upstream_base_upgrade_url: read_url(vars::NYMVISOR_UPSTREAM_BASE_UPGRADE_URL)?,
             nymvisor_disable_logs: read_bool(vars::NYMVISOR_DISABLE_LOGS)?,
             nymvisor_upgrade_data_directory: read_pathbuf(vars::NYMVISOR_UPGRADE_DATA_DIRECTORY)?,
             daemon_name: read_string(vars::DAEMON_NAME)?,
             daemon_home: read_pathbuf(vars::DAEMON_HOME)?,
+            daemon_absolute_upstream_upgrade_url: read_url(
+                vars::DAEMON_ABSOLUTE_UPSTREAM_UPGRADE_URL,
+            )?,
             daemon_allow_binaries_download: read_bool(vars::DAEMON_ALLOW_BINARIES_DOWNLOAD)?,
             daemon_enforce_download_checksum: read_bool(vars::DAEMON_ENFORCE_DOWNLOAD_CHECKSUM)?,
             daemon_restart_after_upgrade: read_bool(vars::DAEMON_RESTART_AFTER_UPGRADE)?,

@@ -68,6 +68,14 @@ pub(crate) enum NymvisorError {
         source: ParseIntError,
     },
 
+    #[error("the value provided for environmental Url '{variable}': '{value}' is not a valid number: {source}")]
+    MalformedUrlEnvVariable {
+        variable: String,
+        value: String,
+        #[source]
+        source: url::ParseError,
+    },
+
     #[error("failed to copy daemon binary from '{}' to '{}': {source}", source_path.display(), target_path.display())]
     DaemonBinaryCopyFailure {
         source_path: PathBuf,

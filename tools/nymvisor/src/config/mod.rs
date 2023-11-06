@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::config::template::CONFIG_TEMPLATE;
-use crate::env::Env;
-use nym_config::serde_helpers::de_maybe_path;
+use nym_config::serde_helpers::de_maybe_stringified;
 use nym_config::{
     must_get_home, read_config_from_toml_file, save_formatted_config_to_file, NymConfigTemplate,
     DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, DEFAULT_DATA_DIR, NYM_DIR,
@@ -14,6 +13,7 @@ use std::io;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 use tracing::{debug, warn};
+use url::Url;
 
 mod template;
 
@@ -21,6 +21,9 @@ pub(crate) const DEFAULT_FAILURE_RESTART_DELAY: Duration = Duration::from_secs(1
 pub(crate) const DEFAULT_STARTUP_PERIOD: Duration = Duration::from_secs(120);
 pub(crate) const DEFAULT_MAX_STARTUP_FAILURES: usize = 10;
 pub(crate) const DEFAULT_SHUTDOWN_GRACE_PERIOD: Duration = Duration::from_secs(10);
+
+pub(crate) const DEFAULT_BASE_UPSTREAM_UPGRADE_INFO_SOURCE: &str =
+    "https://nymtech.net/.wellknown/";
 
 pub(crate) const UPGRADE_PLAN_FILENAME: &str = "upgrade-plan.json";
 pub(crate) const UPGRADE_INFO_FILENAME: &str = "upgrade-info.json";
@@ -261,6 +264,17 @@ impl Config {
     pub fn upgrade_plan_filepath(&self) -> PathBuf {
         self.upgrade_data_dir().join(UPGRADE_PLAN_FILENAME)
     }
+
+    pub fn upstream_upgrade_url(&self) -> Url {
+        if let Some(absolute_url) = &self.daemon.debug.absolute_upstream_upgrade_url {
+            absolute_url.clone()
+        } else {
+            let mut base = self.nymvisor.debug.upstream_base_upgrade_url.clone();
+            base.set_path(&*format!("{}/{UPGRADE_INFO_FILENAME}", self.daemon.name));
+
+            base
+        }
+    }
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
@@ -278,6 +292,12 @@ pub struct Nymvisor {
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct NymvisorDebug {
+    /// Sets the base url of the upstream source for obtaining upgrade information for the deaemon.
+    /// default: "https://nymtech.net/.wellknown/"
+    /// It will be used fo constructing the full url, i.e. $NYMVISOR_UPSTREAM_BASE_UPGRADE_URL/$DAEMON_NAME/upgrade-info.json
+    /// Can be overridden with $NYMVISOR_UPSTREAM_BASE_UPGRADE_URL environmental variable.
+    pub upstream_base_upgrade_url: Url,
+
     /// If set to true, this will disable `nymvisor` logs (but not the underlying process)
     /// default: false
     /// Can be overridden with $NYMVISOR_DISABLE_LOGS environmental variable.
@@ -286,7 +306,7 @@ pub struct NymvisorDebug {
     /// Set custom directory for upgrade data - binaries and upgrade plans.
     /// If not set, the global nymvisors' data directory will be used instead.
     /// Can be overridden with $NYMVISOR_UPGRADE_DATA_DIRECTORY environmental variable.
-    #[serde(deserialize_with = "de_maybe_path")]
+    #[serde(deserialize_with = "de_maybe_stringified")]
     pub upgrade_data_directory: Option<PathBuf>,
 }
 
@@ -294,6 +314,11 @@ pub struct NymvisorDebug {
 impl Default for NymvisorDebug {
     fn default() -> Self {
         NymvisorDebug {
+            // this expect is fine as we're parsing a constant, hardcoded value that should always be valid
+            #[allow(clippy::expect_used)]
+            upstream_base_upgrade_url: DEFAULT_BASE_UPSTREAM_UPGRADE_INFO_SOURCE
+                .parse()
+                .expect("default upstream url was malformed"),
             disable_logs: false,
             upgrade_data_directory: None,
         }
@@ -321,6 +346,14 @@ pub struct Daemon {
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct DaemonDebug {
+    /// Override url to the upstream source for upgrade plans for this daeamon.
+    /// The Url has to point to an endpoint containing a valid [`UpgradeInfo`] json.
+    /// Note: if set this takes precedence over .nymvisor.debug.upstream_base_upgrade_url
+    /// default: None
+    /// Can be overridden with $DAEMON_ABSOLUTE_UPSTREAM_UPGRADE_URL environmental variable.
+    #[serde(deserialize_with = "de_maybe_stringified")]
+    pub absolute_upstream_upgrade_url: Option<Url>,
+
     /// If set to true, this will enable auto-downloading of new binaries using the url provided in the `upgrade-info.json`
     /// default: true
     /// Can be overridden with $DAEMON_ALLOW_BINARIES_DOWNLOAD environmental variable.
@@ -375,7 +408,7 @@ pub struct DaemonDebug {
 
     /// Set custom backup directory for daemon data. If not set, the daemon's home directory will be used instead.
     /// Can be overridden with $DAEMON_BACKUP_DATA_DIRECTORY environmental variable.
-    #[serde(deserialize_with = "de_maybe_path")]
+    #[serde(deserialize_with = "de_maybe_stringified")]
     pub backup_data_directory: Option<PathBuf>,
 
     /// If enabled, `nymvisor` will perform upgrades directly without performing any backups.
@@ -387,6 +420,7 @@ pub struct DaemonDebug {
 impl Default for DaemonDebug {
     fn default() -> Self {
         DaemonDebug {
+            absolute_upstream_upgrade_url: None,
             allow_binaries_download: true,
             enforce_download_checksum: true,
             restart_after_upgrade: true,

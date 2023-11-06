@@ -29,7 +29,6 @@
     "@mui/lab": "^5.0.0-alpha.145",
     "@mui/material": "^5.14.8",
     "@nymproject/contract-clients": ">=1.2.3-rc.0 || ^1",
-    "@nymproject/mix-fetch": ">=1.2.3-rc.0 || ^1",
     "@nymproject/mix-fetch-full-fat": ">=1.2.3-rc.0 || ^1",
     "@nymproject/sdk-full-fat": ">=1.2.3-rc.0 || ^1",
     "chain-registry": "^1.19.0",

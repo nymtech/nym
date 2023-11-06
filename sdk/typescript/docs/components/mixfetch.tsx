@@ -7,7 +7,7 @@ import Box from '@mui/material/Box';
 import { mixFetch } from '@nymproject/mix-fetch-full-fat';
 import Stack from '@mui/material/Stack';
 import Paper from '@mui/material/Paper';
-import type { SetupMixFetchOps } from '@nymproject/mix-fetch';
+import type { SetupMixFetchOps } from '@nymproject/mix-fetch-full-fat';
 
 const defaultUrl = 'https://nymtech.net/favicon.svg';
 const args = { mode: 'unsafe-ignore-cors' };

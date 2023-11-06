@@ -57,7 +57,7 @@ Before you start an Exit Gateway, read our [Operators Legal Forum](../legal/exit
 ```
 
 ```admonish info
-There has been an ongoing development with dynamic upgrades. Follow the status of the Project Smoosh [changes](../faq/smoosh-faq.md#what-are-the-changes) and the progression state of Exit policy [implementation](../faq/smoosh-faq.html#how-will-the-exit-policy-be-implemented) to be up to date with the current design.
+There has been an ongoing development with dynamic upgrades. Follow the status of the Project Smoosh [changes](../faq/smoosh-faq.md#what-are-the-changes) and the progression state of exit policy [implementation](../faq/smoosh-faq.html#how-will-the-exit-policy-be-implemented) to be up to date with the current design.
 ```
 
 ### Initialising Exit Gateway
@@ -126,11 +126,23 @@ enabled = true
 
 Save, exit and restart your gateway. Now you are an operator of post-smooshed Exit gateway.
 
-All information about network requester part of your exit gateway is in `/home/user/.nym/gateways/<ID>/config/network_requester_config.toml`.
+#### Enable Nym exit policy to an existing Gateway with Network requester functionality
+
+In case you already added Network Requester functionality to your Gateway as described above but haven't enabled the [exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt) there is an easy tweak to do so and turn your node into [Nym Exit Gateway](../faq/smoosh-faq.md#what-are-the-changes).
+
+Open the config file stored at `.nym/gateways/<ID>/config/network_requester_config.tom` and set:
+```sh
+use_deprecated_allow_list = false
+```
+Save, exit and restart your gateway. Now you are an operator of post-smooshed Exit gateway.
+
+```admonish info
+All information about network requester part of your Exit Gateway is in `/home/user/.nym/gateways/<ID>/config/network_requester_config.toml`.
+```
 
 For now you can run Gateway without Network requester or with and without the new exit policy. This will soon change as we inform in our [Project Smoosh FAQ](../faq/smoosh-faq.html#how-will-the-exit-policy-be-implemented).
 
-To read more about the configuration like whitelisted outbound requesters in `allowed.list` and other useful information, see the page [*Network Requester Whitelist*](network-requester-setup.md#using-your-network-requester).
+To read more about the configuration like whitelisted outbound requesters in `allowed.list` and other useful information, see the page [*Network requester whitelist*](network-requester-setup.md#using-your-network-requester).
 
 
 #### Initialising Gateway without Network requester

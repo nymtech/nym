@@ -1,7 +1,7 @@
 # Configuration
 
 ## Choosing a Gateway
-By default - as in the example above - your client will choose a random gateway to connect to.
+By default your client will choose a random gateway to connect to.
 
 However, there are several options for choosing a gateway, if you do not want one that is randomly assigned to your client:
 * If you wish to connect to a specific gateway, you can specify this with the `--gateway` flag when running `init`.

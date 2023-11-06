@@ -1,15 +1,16 @@
 {
   "name": "@nymproject/mix-fetch-example-parcel",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "license": "Apache-2.0",
-  "source": "src/index.html",
-  "dependencies": {
-    "parcel": "^2.9.3",
-    "@nymproject/mix-fetch": ">=1.2.0-rc.10 || ^1"
-  },
   "scripts": {
-    "start": "parcel --no-cache",
     "build": "parcel build --no-cache --no-content-hash",
-    "serve": "serve dist"
-  }
+    "serve": "serve dist",
+    "start": "parcel --no-cache"
+  },
+  "dependencies": {
+    "@nymproject/mix-fetch": ">=1.2.1-rc.0 || ^1",
+    "parcel": "^2.9.3"
+  },
+  "private": false,
+  "source": "src/index.html"
 }

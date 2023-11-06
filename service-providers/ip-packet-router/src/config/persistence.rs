@@ -8,21 +8,21 @@ use std::path::{Path, PathBuf};
 pub const DEFAULT_DESCRIPTION_FILENAME: &str = "description.toml";
 
 #[derive(Debug, Deserialize, PartialEq, Eq, Serialize, Clone)]
-pub struct IpForwarderPaths {
+pub struct IpPacketRouterPaths {
     #[serde(flatten)]
     pub common_paths: CommonClientPaths,
 
     /// Location of the file containing our description
-    pub ip_forwarder_description: PathBuf,
+    pub ip_packet_router_description: PathBuf,
 }
 
-impl IpForwarderPaths {
+impl IpPacketRouterPaths {
     pub fn new_base<P: AsRef<Path>>(base_data_directory: P) -> Self {
         let base_dir = base_data_directory.as_ref();
 
         Self {
             common_paths: CommonClientPaths::new_base(base_dir),
-            ip_forwarder_description: base_dir.join(DEFAULT_DESCRIPTION_FILENAME),
+            ip_packet_router_description: base_dir.join(DEFAULT_DESCRIPTION_FILENAME),
         }
     }
 }

@@ -1,4 +1,4 @@
-name: Run config checks on all binaries
+name: ci-binary-config-checker
 
 on:
   workflow_dispatch:

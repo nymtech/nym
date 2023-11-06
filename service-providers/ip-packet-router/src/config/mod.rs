@@ -12,28 +12,28 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use crate::config::persistence::IpForwarderPaths;
+use crate::config::persistence::IpPacketRouterPaths;
 
 use self::template::CONFIG_TEMPLATE;
 
 mod persistence;
 mod template;
 
-const DEFAULT_IP_FORWARDERS_DIR: &str = "ip-forwarder";
+const DEFAULT_IP_PACKET_ROUTER_DIR: &str = "ip-packet-router";
 
-/// Derive default path to ip forwarder's config directory.
-/// It should get resolved to `$HOME/.nym/service-providers/ip-forwareder/<id>/config`
+/// Derive default path to ip packet routers' config directory.
+/// It should get resolved to `$HOME/.nym/service-providers/ip-packet-router/<id>/config`
 pub fn default_config_directory<P: AsRef<Path>>(id: P) -> PathBuf {
     must_get_home()
         .join(NYM_DIR)
         .join(DEFAULT_SERVICE_PROVIDERS_DIR)
-        .join(DEFAULT_IP_FORWARDERS_DIR)
+        .join(DEFAULT_IP_PACKET_ROUTER_DIR)
         .join(id)
         .join(DEFAULT_CONFIG_DIR)
 }
 
-/// Derive default path to ip forwarder's config file.
-/// It should get resolved to `$HOME/.nym/service-providers/ip-forwarder/<id>/config/config.toml`
+/// Derive default path to ip packet routers' config file.
+/// It should get resolved to `$HOME/.nym/service-providers/ip-packet-router/<id>/config/config.toml`
 pub fn default_config_filepath<P: AsRef<Path>>(id: P) -> PathBuf {
     default_config_directory(id).join(DEFAULT_CONFIG_FILENAME)
 }
@@ -44,7 +44,7 @@ pub fn default_data_directory<P: AsRef<Path>>(id: P) -> PathBuf {
     must_get_home()
         .join(NYM_DIR)
         .join(DEFAULT_SERVICE_PROVIDERS_DIR)
-        .join(DEFAULT_IP_FORWARDERS_DIR)
+        .join(DEFAULT_IP_PACKET_ROUTER_DIR)
         .join(id)
         .join(DEFAULT_DATA_DIR)
 }
@@ -55,7 +55,7 @@ pub struct Config {
     #[serde(flatten)]
     pub base: BaseClientConfig,
 
-    pub storage_paths: IpForwarderPaths,
+    pub storage_paths: IpPacketRouterPaths,
 
     pub logging: LoggingSettings,
 }
@@ -70,13 +70,13 @@ impl Config {
     pub fn new<S: AsRef<str>>(id: S) -> Self {
         Config {
             base: BaseClientConfig::new(id.as_ref(), env!("CARGO_PKG_VERSION")),
-            storage_paths: IpForwarderPaths::new_base(default_data_directory(id.as_ref())),
+            storage_paths: IpPacketRouterPaths::new_base(default_data_directory(id.as_ref())),
             logging: Default::default(),
         }
     }
 
     pub fn with_data_directory<P: AsRef<Path>>(mut self, data_directory: P) -> Self {
-        self.storage_paths = IpForwarderPaths::new_base(data_directory);
+        self.storage_paths = IpPacketRouterPaths::new_base(data_directory);
         self
     }
 

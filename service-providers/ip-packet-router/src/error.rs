@@ -1,7 +1,7 @@
 pub use nym_client_core::error::ClientCoreError;
 
 #[derive(thiserror::Error, Debug)]
-pub enum IpForwarderError {
+pub enum IpPacketRouterError {
     #[error("I/O error: {0}")]
     IoError(#[from] std::io::Error),
 
@@ -12,7 +12,7 @@ pub enum IpForwarderError {
     FailedToLoadConfig(String),
 
     // TODO: add more details here
-    #[error("Failed to validate the loaded config")]
+    #[error("failed to validate the loaded config")]
     ConfigValidationFailure,
 
     #[error("failed local version check, client and config mismatch")]
@@ -26,4 +26,10 @@ pub enum IpForwarderError {
 
     #[error("the entity wrapping the network requester has disconnected")]
     DisconnectedParent,
+
+    #[error("failed to parse incoming packet: {source}")]
+    PacketParseFailed { source: etherparse::ReadError },
+
+    #[error("parsed packet is missing IP header")]
+    PacketMissingHeader,
 }

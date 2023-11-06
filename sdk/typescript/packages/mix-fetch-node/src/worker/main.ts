@@ -1,9 +1,9 @@
 /* eslint-disable no-console */
-import type { IMixFetchWebWorker, LoadedEvent } from '../types';
 
 import * as Comlink from 'comlink';
 import { parentPort } from 'node:worker_threads';
 import { setupMixFetch, disconnectMixFetch } from '@nymproject/mix-fetch-wasm-node';
+import type { IMixFetchWebWorker, LoadedEvent } from '../types';
 
 import nodeEndpoint from '../node-adapter';
 import { EventKinds, ResponseBodyConfigMap, ResponseBodyConfigMapDefaults } from '../types';

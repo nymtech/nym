@@ -12,6 +12,7 @@ export default {
     format: 'cjs',
   },
   plugins: [
+    resolve({ browser: false, extensions: ['.js', '.ts'] }),
     webWorkerLoader({ targetPlatform: 'node', inline: false }),
     replace({
       values: {
@@ -21,7 +22,6 @@ export default {
       delimiters: ['', ''],
       preventAssignment: true,
     }),
-    resolve({ browser: false, extensions: ['.js', '.ts'] }),
     wasm({ targetEnv: 'node', maxFileSize: 0 }),
     typescript({
       compilerOptions: { outDir: 'dist/cjs', target: 'es5' },

@@ -93,11 +93,11 @@ impl<'a> NetworkMonitorBuilder<'a> {
 
         let identity_keypair = Arc::new(identity::KeyPair::new(&mut rng));
         let encryption_keypair = Arc::new(encryption::KeyPair::new(&mut rng));
-        let ecash_keypair = generate_keypair_user(&GroupParameters::new().unwrap());
-        // let ecash_keypair = nym_pemstore::load_keypair(&KeyPairPath::new(
-        //     self.config.storage_paths.ecash_private_key_path,
-        //     self.config.storage_paths.ecash_public_key_path,
-        // )); //SW todo : load ecash key
+        let ecash_keypair = nym_pemstore::load_keypair(&nym_pemstore::KeyPairPath::new(
+            self.config.storage_paths.ecash_private_key_path.clone(),
+            self.config.storage_paths.ecash_public_key_path.clone(),
+        ))
+        .expect("cannot load ecash keypair"); //SW todo : what to do if it fails here?
         let ack_key = Arc::new(AckKey::new(&mut rng));
 
         let ecash_parameters = EcashParameters::new().ecash_params().clone();

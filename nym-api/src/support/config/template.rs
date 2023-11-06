@@ -36,6 +36,12 @@ enabled = {{ network_monitor.enabled }}
 # Path to the database containing bandwidth credentials of this client.
 credentials_database_path = '{{ network_monitor.storage_paths.credentials_database_path }}'
 
+# Path to the ecash public key
+ecash_public_key_path = '{{ network_monitor.storage_paths.ecash_public_key_path }}'
+
+# Path to the ecash private key
+ecash_private_key_path = '{{ network_monitor.storage_paths.ecash_private_key_path }}'
+
 [network_monitor.debug]
 
 # Indicates whether this validator api is running in a disabled credentials mode, thus attempting

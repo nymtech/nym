@@ -15,6 +15,7 @@ use crate::network_monitor::monitor::Monitor;
 use crate::nym_contract_cache::cache::NymContractCache;
 use crate::storage::NymApiStorage;
 use crate::support::{config, nyxd};
+use anyhow::Result;
 use futures::channel::mpsc;
 use nym_bandwidth_controller::BandwidthController;
 use nym_compact_ecash::generate_keypair_user;
@@ -33,6 +34,18 @@ pub(crate) mod test_packet;
 pub(crate) mod test_route;
 
 pub(crate) const ROUTE_TESTING_TEST_NONCE: u64 = 0;
+
+pub(crate) fn init_ecash_keypair(config: &config::NetworkMonitor) -> Result<()> {
+    let kp = generate_keypair_user(&GroupParameters::new().unwrap());
+    nym_pemstore::store_keypair(
+        &kp,
+        &nym_pemstore::KeyPairPath::new(
+            &config.storage_paths.ecash_private_key_path,
+            &config.storage_paths.ecash_public_key_path,
+        ),
+    )?;
+    Ok(())
+}
 
 pub(crate) fn setup<'a>(
     config: &'a config::NetworkMonitor,
@@ -81,6 +94,10 @@ impl<'a> NetworkMonitorBuilder<'a> {
         let identity_keypair = Arc::new(identity::KeyPair::new(&mut rng));
         let encryption_keypair = Arc::new(encryption::KeyPair::new(&mut rng));
         let ecash_keypair = generate_keypair_user(&GroupParameters::new().unwrap());
+        // let ecash_keypair = nym_pemstore::load_keypair(&KeyPairPath::new(
+        //     self.config.storage_paths.ecash_private_key_path,
+        //     self.config.storage_paths.ecash_public_key_path,
+        // )); //SW todo : load ecash key
         let ack_key = Arc::new(AckKey::new(&mut rng));
 
         let ecash_parameters = EcashParameters::new().ecash_params().clone();
@@ -106,7 +123,7 @@ impl<'a> NetworkMonitorBuilder<'a> {
                 self.nyxd_client.clone(),
                 ecash_keypair,
                 ecash_parameters,
-            ) //SW fill in those todo
+            )
         };
 
         let packet_sender = new_packet_sender(

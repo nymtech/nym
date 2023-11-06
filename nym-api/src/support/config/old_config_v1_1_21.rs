@@ -95,6 +95,8 @@ impl From<ConfigV1_1_21> for Config {
                 enabled: value.network_monitor.enabled,
                 storage_paths: NetworkMonitorPaths {
                     credentials_database_path: value.network_monitor.credentials_database_path,
+                    ecash_public_key_path: Default::default(),
+                    ecash_private_key_path: Default::default(),
                 },
                 debug: NetworkMonitorDebug {
                     min_mixnode_reliability: value.network_monitor.min_mixnode_reliability,

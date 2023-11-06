@@ -1,41 +1,78 @@
 #![cfg_attr(not(target_os = "linux"), allow(dead_code))]
+// #![warn(clippy::pedantic)]
+// #![warn(clippy::expect_used)]
+// #![warn(clippy::unwrap_used)]
 
+mod active_peers;
 mod error;
 mod event;
 mod network_table;
+mod packet_relayer;
 mod platform;
+mod registered_peers;
 mod setup;
+pub mod tun_task_channel;
 mod udp_listener;
 mod wg_tunnel;
 
+use nym_wireguard_types::registration::GatewayClientRegistry;
+use std::sync::Arc;
+
 // Currently the module related to setting up the virtual network device is platform specific.
 #[cfg(target_os = "linux")]
-use platform::linux::tun_device;
+pub use platform::linux::tun_device;
 
-#[derive(Clone)]
-struct TunTaskTx(tokio::sync::mpsc::UnboundedSender<Vec<u8>>);
-
-impl TunTaskTx {
-    fn send(&self, packet: Vec<u8>) -> Result<(), tokio::sync::mpsc::error::SendError<Vec<u8>>> {
-        self.0.send(packet)
-    }
-}
-
+/// Start wireguard UDP listener and TUN device
+///
+/// # Errors
+///
+/// This function will return an error if either the UDP listener of the TUN device fails to start.
 #[cfg(target_os = "linux")]
 pub async fn start_wireguard(
     task_client: nym_task::TaskClient,
+    gateway_client_registry: Arc<GatewayClientRegistry>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    use std::sync::Arc;
+    // TODO: make this configurable
 
-    // The set of active tunnels indexed by the peer's address
-    let active_peers = Arc::new(udp_listener::ActivePeers::new());
-    let peers_by_ip = Arc::new(std::sync::Mutex::new(network_table::NetworkTable::new()));
+    // We can optionally index peers by their IP like standard wireguard. If we don't then we do
+    // plain NAT where we match incoming destination IP with outgoing source IP.
+    let peers_by_ip = Arc::new(tokio::sync::Mutex::new(network_table::NetworkTable::new()));
+
+    // Alternative 1:
+    let routing_mode = tun_device::RoutingMode::new_allowed_ips(peers_by_ip.clone());
+    // Alternative 2:
+    //let routing_mode = tun_device::RoutingMode::new_nat();
 
     // Start the tun device that is used to relay traffic outbound
-    let tun_task_tx = tun_device::start_tun_device(peers_by_ip.clone());
+    let (tun, tun_task_tx, tun_task_response_rx) = tun_device::TunDevice::new(routing_mode);
+    tun.start();
+
+    // We also index peers by a tag
+    let peers_by_tag = Arc::new(tokio::sync::Mutex::new(wg_tunnel::PeersByTag::new()));
+
+    // If we want to have the tun device on a separate host, it's the tun_task and
+    // tun_task_response channels that needs to be sent over the network to the host where the tun
+    // device is running.
+
+    // The packet relayer's responsibility is to route packets between the correct tunnel and the
+    // tun device. The tun device may or may not be on a separate host, which is why we can't do
+    // this routing in the tun device itself.
+    let (packet_relayer, packet_tx) = packet_relayer::PacketRelayer::new(
+        tun_task_tx.clone(),
+        tun_task_response_rx,
+        peers_by_tag.clone(),
+    );
+    packet_relayer.start();
 
     // Start the UDP listener that clients connect to
-    udp_listener::start_udp_listener(tun_task_tx, active_peers, peers_by_ip, task_client).await?;
+    let udp_listener = udp_listener::WgUdpListener::new(
+        packet_tx,
+        peers_by_ip,
+        peers_by_tag,
+        Arc::clone(&gateway_client_registry),
+    )
+    .await?;
+    udp_listener.start(task_client);
 
     Ok(())
 }
@@ -43,6 +80,7 @@ pub async fn start_wireguard(
 #[cfg(not(target_os = "linux"))]
 pub async fn start_wireguard(
     _task_client: nym_task::TaskClient,
+    _gateway_client_registry: Arc<GatewayClientRegistry>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     todo!("WireGuard is currently only supported on Linux")
 }

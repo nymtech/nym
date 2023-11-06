@@ -101,7 +101,7 @@ impl ApiCmdProcessor {
     }
 
     fn ephemera_config<A: Application>(
-        ephemera: &mut Ephemera<A>,
+        ephemera: &Ephemera<A>,
         reply: Sender<api::Result<ApiEphemeraConfig>>,
     ) {
         let node_info = ephemera.node_info.clone();

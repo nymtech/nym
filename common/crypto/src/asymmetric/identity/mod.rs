@@ -145,8 +145,12 @@ impl PublicKey {
         Self::from_bytes(&bytes)
     }
 
-    pub fn verify(&self, message: &[u8], signature: &Signature) -> Result<(), SignatureError> {
-        self.0.verify(message, &signature.0)
+    pub fn verify<M: AsRef<[u8]>>(
+        &self,
+        message: M,
+        signature: &Signature,
+    ) -> Result<(), SignatureError> {
+        self.0.verify(message.as_ref(), &signature.0)
     }
 }
 
@@ -239,16 +243,16 @@ impl PrivateKey {
         Self::from_bytes(&bytes)
     }
 
-    pub fn sign(&self, message: &[u8]) -> Signature {
+    pub fn sign<M: AsRef<[u8]>>(&self, message: M) -> Signature {
         let expanded_secret_key = ed25519_dalek::ExpandedSecretKey::from(&self.0);
         let public_key: PublicKey = self.into();
-        let sig = expanded_secret_key.sign(message, &public_key.0);
+        let sig = expanded_secret_key.sign(message.as_ref(), &public_key.0);
         Signature(sig)
     }
 
     /// Signs text with the provided Ed25519 private key, returning a base58 signature
     pub fn sign_text(&self, text: &str) -> String {
-        let signature_bytes = self.sign(text.as_ref()).to_bytes();
+        let signature_bytes = self.sign(text).to_bytes();
         bs58::encode(signature_bytes).into_string()
     }
 }

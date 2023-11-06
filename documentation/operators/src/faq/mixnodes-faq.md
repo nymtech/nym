@@ -14,7 +14,7 @@ For more detailed calculation, read our blog post [Nym Token Economics update](h
 
 ### Which VPS providers would you recommend?
 
-Consider in which jurisdiction you reside and where do you want to run a mix node. Do you want to pay by crypto or not and what are the other important particularities for your case? We always recommend operators to try to chose smaller and decentralized VPS providers over the most known ones controlling a majority of the internet. We receive some good feedback on these: Hertzner, DigitalOcean, Linode, Ghandi and Exoscale. Do your own research and share with the community.
+Consider in which jurisdiction you reside and where do you want to run a mix node. Do you want to pay by crypto or not and what are the other important particularities for your case? We always recommend operators to try to choose smaller and decentralised VPS providers over the most known ones controlling a majority of the internet. We receive some good feedback on these: Linode, Ghandi, Flokinet and Exoscale. Do your own research and share with the community.
 
 <!---### Why is a mix node setup on a self-hosted machine so tricky?--->
 
@@ -24,7 +24,7 @@ The sizes are shown in the configs [here](https://github.com/nymtech/nym/blob/1b
 
 ### Why a mix node and a gateway cannot be bond to the same wallet?
 
-Becauase of the way the smart contract works we keep it one-node one-address at the moment.
+Because of the way the smart contract works we keep it one-node one-address at the moment.
 
 ### Which nodes are the most needed to be setup to strengthen Nym infrastructure and which ones bring rewards?
 

@@ -12,6 +12,6 @@ export const NPMLink: FC<{ packageName: string; kind: 'esm' | 'cjs'; preBundled?
     sx={{ whiteSpace: 'nowrap', textDecoration: 'none' }}
   >
     {packageName} <Chip label={kind === 'cjs' ? 'CommonJS' : 'ESM'} size="small" />{' '}
-    {preBundled && <Chip label="pre-bundled" size="small" color="info" />}
+    {preBundled && <Chip label="pre-bundled" size="small" color="info" className="chipContained" />}
   </Link>
 );

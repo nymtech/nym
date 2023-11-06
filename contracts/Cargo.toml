@@ -48,3 +48,5 @@ cw3 = "=1.1.0"
 cw3-fixed-multisig = "=1.1.0"
 cw4 = "=1.1.0"
 cw20 = "=1.1.0"
+
+thiserror = "1.0.48"

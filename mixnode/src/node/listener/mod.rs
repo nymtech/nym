@@ -2,12 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::node::listener::connection_handler::ConnectionHandler;
+use log::{error, info, warn};
 use std::net::SocketAddr;
 use std::process;
 use tokio::net::TcpListener;
 use tokio::task::JoinHandle;
-#[cfg(feature = "cpucycles")]
-use tracing::error;
 
 use super::TaskClient;
 

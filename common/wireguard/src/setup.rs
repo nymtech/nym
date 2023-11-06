@@ -6,7 +6,6 @@ use log::info;
 
 // The wireguard UDP listener
 pub const WG_ADDRESS: &str = "0.0.0.0";
-pub const WG_PORT: u16 = 51822;
 
 // The interface used to route traffic
 pub const TUN_BASE_NAME: &str = "nymtun";
@@ -50,7 +49,7 @@ pub fn peer_static_public_key() -> x25519::PublicKey {
     let peer_static_public_bytes: [u8; 32] = decode_base64_key(PEER);
     let peer_static_public = x25519::PublicKey::try_from(peer_static_public_bytes).unwrap();
     info!(
-        "peer public key: {}",
+        "Adding wg peer public key: {}",
         general_purpose::STANDARD.encode(peer_static_public)
     );
     peer_static_public

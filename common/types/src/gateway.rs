@@ -119,6 +119,7 @@ pub struct GatewayNetworkRequesterDetails {
     pub encryption_key: String,
 
     pub open_proxy: bool,
+    pub exit_policy: bool,
     pub enabled_statistics: bool,
 
     // just a convenience wrapper around all the keys
@@ -140,9 +141,35 @@ impl fmt::Display for GatewayNetworkRequesterDetails {
         writeln!(f, "\taddress: {}", self.address)?;
 
         writeln!(f, "\tuses open proxy: {}", self.open_proxy)?;
+        writeln!(f, "\tuses exit policy: {}", self.exit_policy)?;
         writeln!(f, "\tsends statistics: {}", self.enabled_statistics)?;
 
         writeln!(f, "\tallow list path: {}", self.allow_list_path)?;
-        writeln!(f, "\tunknown list path: {}", self.allow_list_path)
+        writeln!(f, "\tunknown list path: {}", self.unknown_list_path)
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct GatewayIpPacketRouterDetails {
+    pub enabled: bool,
+
+    pub identity_key: String,
+    pub encryption_key: String,
+
+    // just a convenience wrapper around all the keys
+    pub address: String,
+
+    pub config_path: String,
+}
+
+impl fmt::Display for GatewayIpPacketRouterDetails {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(f, "IP packet router:")?;
+        writeln!(f, "\tenabled: {}", self.enabled)?;
+        writeln!(f, "\tconfig path: {}", self.config_path)?;
+
+        writeln!(f, "\tidentity key: {}", self.identity_key)?;
+        writeln!(f, "\tencryption key: {}", self.encryption_key)?;
+        writeln!(f, "\taddress: {}", self.address)
     }
 }

@@ -1,0 +1,32 @@
+import { Callout } from 'nextra/components';
+
+# Troubleshooting bundling with ESbuild
+
+If you've been following the steps outlined in the Examples section, your development environment should be configured as follows:
+
+#### Environment Setup
+Begin by creating a directory and configuring your application environment:
+
+Create your directory and set-up your app environment:
+```bash
+npm create vite@latest
+```
+During the environment setup, choose React and subsequently opt for Typescript if you want your application to function smoothly following this tutorial. Next, navigate to your application directory and run the following commands:
+```bash
+cd < YOUR_APP >
+npm i 
+npm run dev
+```
+
+##### Installation
+Install the required package:
+```bash
+npm install @nymproject/< PACKAGE_NAME >
+```
+
+<Callout type="info" emoji="ℹ️">
+    Remember that the CosmosKit example will require you to make use of polyfills.
+</Callout>
+
+By implementing the provided code for the various components in the step-by-step examples section, you should be able to set-up and run your application without encountering any bundling challenges!
+

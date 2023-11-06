@@ -1,15 +1,6 @@
 name: ci-lint-typescript
 
 on:
-  push:
-    paths:
-      - "ts-packages/**"
-      - "sdk/typescript/**"
-      - "nym-connect/desktop/src/**"
-      - "nym-connect/desktop/package.json"
-      - "nym-wallet/src/**"
-      - "nym-wallet/package.json"
-      - "explorer/**"
   pull_request:
     paths:
       - "ts-packages/**"
@@ -22,7 +13,7 @@ on:
 
 jobs:
   build:
-    runs-on: custom-runner-linux
+    runs-on: ubuntu-20.04-16-core
     steps:
       - uses: actions/checkout@v2
       - uses: rlespinasse/github-slug-action@v3.x
@@ -37,8 +28,14 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
+
       - name: Install wasm-pack
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+
+      - name: Install wasm-opt
+        uses: ./.github/actions/install-wasm-opt
+        with:
+          version: '116'
 
       - name: Set up Go
         uses: actions/setup-go@v4
@@ -49,7 +46,7 @@ jobs:
         run: yarn
 
       - name: Build packages
-        run: yarn build:ci:sdk
+        run: yarn build:ci
 
       - name: Lint
         run: yarn lint

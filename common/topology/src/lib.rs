@@ -19,6 +19,7 @@ use std::str::FromStr;
 
 #[cfg(feature = "serializable")]
 use ::serde::{Deserialize, Deserializer, Serialize, Serializer};
+use nym_api_requests::models::DescribedGateway;
 
 pub mod error;
 pub mod filter;
@@ -403,10 +404,33 @@ impl<'de> Deserialize<'de> for NymTopology {
     }
 }
 
-pub fn nym_topology_from_detailed(
+pub trait IntoGatewayNode: TryInto<gateway::Node>
+where
+    <Self as TryInto<gateway::Node>>::Error: Display,
+{
+    fn identity(&self) -> IdentityKeyRef;
+}
+
+impl IntoGatewayNode for GatewayBond {
+    fn identity(&self) -> IdentityKeyRef {
+        &self.gateway.identity_key
+    }
+}
+
+impl IntoGatewayNode for DescribedGateway {
+    fn identity(&self) -> IdentityKeyRef {
+        &self.bond.gateway.identity_key
+    }
+}
+
+pub fn nym_topology_from_detailed<G>(
     mix_details: Vec<MixNodeDetails>,
-    gateway_bonds: Vec<GatewayBond>,
-) -> NymTopology {
+    gateway_bonds: Vec<G>,
+) -> NymTopology
+where
+    G: IntoGatewayNode,
+    <G as TryInto<gateway::Node>>::Error: Display,
+{
     let mut mixes = BTreeMap::new();
     for bond in mix_details
         .into_iter()
@@ -435,7 +459,7 @@ pub fn nym_topology_from_detailed(
 
     let mut gateways = Vec::with_capacity(gateway_bonds.len());
     for bond in gateway_bonds.into_iter() {
-        let gate_id = bond.gateway.identity_key.clone();
+        let gate_id = bond.identity().to_owned();
         match bond.try_into() {
             Ok(gate) => gateways.push(gate),
             Err(err) => {

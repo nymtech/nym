@@ -174,15 +174,26 @@ fn initialise_internal_packages<P: AsRef<Path>>(root: P) -> InternalPackages {
     packages.register_cargo("nym-browser-extension/storage");
 
     // js packages that will have their package.json modified
+    packages.register_json("nym-wallet");
+    packages.register_json("sdk/typescript/docs");
+    packages.register_json("sdk/typescript/examples/chat-app/parcel");
+    packages.register_json("sdk/typescript/examples/chat-app/plain-html");
+    packages.register_json("sdk/typescript/examples/chat-app/react-webpack-with-theme-example");
+    packages.register_json("sdk/typescript/examples/chrome-extension");
+    packages.register_json("sdk/typescript/examples/firefox-extension");
+    packages.register_json("sdk/typescript/examples/mix-fetch/browser");
+    packages.register_json("sdk/typescript/examples/node-tester/parcel");
+    packages.register_json("sdk/typescript/examples/node-tester/plain-html");
+    packages.register_json("sdk/typescript/examples/node-tester/react");
     packages.register_json("sdk/typescript/packages/mix-fetch");
-    packages.register_json("sdk/typescript/packages/mui-theme");
+    packages.register_json("sdk/typescript/packages/mix-fetch-node");
+    packages.register_json("sdk/typescript/packages/mix-fetch/internal-dev");
+    packages.register_json("sdk/typescript/packages/mix-fetch/internal-dev/parcel");
     packages.register_json("sdk/typescript/packages/node-tester");
-    packages.register_json("sdk/typescript/packages/react-components");
+    packages.register_json("sdk/typescript/packages/nodejs-client");
     packages.register_json("sdk/typescript/packages/sdk");
     packages.register_json("sdk/typescript/packages/sdk-react");
-    packages.register_json("sdk/typescript/packages/validator-client");
     packages.register_json("sdk/typescript/codegen/contract-clients");
-    packages.register_json("sdk/typescript/docs");
 
     // dependencies that will have their versions adjusted in the above packages
     packages.register_known_js_dependency("@nymproject/mix-fetch");

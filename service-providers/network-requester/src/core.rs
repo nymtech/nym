@@ -1,14 +1,12 @@
 // Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::allowed_hosts::standard_list::StandardListUpdater;
-use crate::allowed_hosts::stored_allowed_hosts::{start_allowed_list_reloader, StoredAllowedHosts};
-use crate::allowed_hosts::{OutboundRequestFilter, StandardList};
 use crate::config::{BaseClientConfig, Config};
 use crate::error::NetworkRequesterError;
 use crate::reply::MixnetMessage;
+use crate::request_filter::RequestFilter;
 use crate::statistics::ServiceStatisticsCollector;
-use crate::{allowed_hosts, reply, socks5};
+use crate::{reply, socks5};
 use async_trait::async_trait;
 use futures::channel::{mpsc, oneshot};
 use futures::stream::StreamExt;
@@ -56,11 +54,16 @@ pub(crate) fn new_legacy_request_version() -> RequestVersion<Socks5Request> {
 pub struct OnStartData {
     // to add more fields as required
     pub address: Recipient,
+
+    pub request_filter: RequestFilter,
 }
 
 impl OnStartData {
-    fn new(address: Recipient) -> Self {
-        Self { address }
+    fn new(address: Recipient, request_filter: RequestFilter) -> Self {
+        Self {
+            address,
+            request_filter,
+        }
     }
 }
 
@@ -68,7 +71,6 @@ impl OnStartData {
 // ... something ...
 pub struct NRServiceProviderBuilder {
     config: Config,
-    outbound_request_filter: OutboundRequestFilter,
 
     wait_for_gateway: bool,
     custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
@@ -79,7 +81,7 @@ pub struct NRServiceProviderBuilder {
 
 pub struct NRServiceProvider {
     config: Config,
-    outbound_request_filter: OutboundRequestFilter,
+    request_filter: RequestFilter,
 
     mixnet_client: nym_sdk::mixnet::MixnetClient,
     controller_sender: ControllerSender,
@@ -179,18 +181,8 @@ impl ServiceProvider<Socks5Request> for NRServiceProvider {
 
 impl NRServiceProviderBuilder {
     pub fn new(config: Config) -> NRServiceProviderBuilder {
-        let standard_list = StandardList::new();
-
-        let allowed_hosts = StoredAllowedHosts::new(&config.storage_paths.allowed_list_location);
-        let unknown_hosts =
-            allowed_hosts::HostsStore::new(&config.storage_paths.unknown_list_location);
-
-        let outbound_request_filter =
-            OutboundRequestFilter::new(allowed_hosts, standard_list, unknown_hosts);
-
         NRServiceProviderBuilder {
             config,
-            outbound_request_filter,
             wait_for_gateway: false,
             custom_topology_provider: None,
             custom_gateway_transceiver: None,
@@ -334,26 +326,14 @@ impl NRServiceProviderBuilder {
             .await;
         });
 
-        // start the standard list updater
-        StandardListUpdater::new(
-            self.config
-                .network_requester_debug
-                .standard_list_update_interval,
-            self.outbound_request_filter.standard_list(),
-            shutdown.get_handle().named("StandardListUpdater"),
-        )
-        .start();
-
-        // start the allowed.list watcher and updater
-        start_allowed_list_reloader(
-            self.outbound_request_filter.allowed_hosts(),
-            shutdown.get_handle().named("stored_allowed_hosts_reloader"),
-        )
-        .await;
+        let request_filter = RequestFilter::new(&self.config).await?;
+        request_filter
+            .start_update_tasks(&self.config.network_requester_debug, &shutdown)
+            .await;
 
         let mut service_provider = NRServiceProvider {
             config: self.config,
-            outbound_request_filter: self.outbound_request_filter,
+            request_filter: request_filter.clone(),
             mixnet_client,
             controller_sender,
             mix_input_sender,
@@ -365,7 +345,10 @@ impl NRServiceProviderBuilder {
         log::info!("All systems go. Press CTRL-C to stop the server.");
 
         if let Some(on_start) = self.on_start {
-            if on_start.send(OnStartData::new(self_address)).is_err() {
+            if on_start
+                .send(OnStartData::new(self_address, request_filter))
+                .is_err()
+            {
                 // the parent has dropped the channel before receiving the response
                 return Err(NetworkRequesterError::DisconnectedParent);
             }
@@ -533,7 +516,7 @@ impl NRServiceProvider {
     }
 
     async fn handle_proxy_connect(
-        &mut self,
+        &self,
         remote_version: RequestVersion<Socks5Request>,
         sender_tag: Option<AnonymousSenderTag>,
         connect_req: Box<ConnectRequest>,
@@ -549,24 +532,6 @@ impl NRServiceProvider {
 
         let remote_addr = connect_req.remote_addr;
         let conn_id = connect_req.conn_id;
-
-        let open_proxy = self.config.network_requester.open_proxy;
-        if !open_proxy && !self.outbound_request_filter.check(&remote_addr).await {
-            let log_msg = format!("Domain {remote_addr:?} failed filter check");
-            log::info!("{log_msg}");
-            let msg = MixnetMessage::new_connection_error(
-                return_address,
-                remote_version,
-                conn_id,
-                log_msg,
-            );
-            self.mix_input_sender
-                .send(msg)
-                .await
-                .expect("InputMessageReceiver has stopped receiving!");
-            return;
-        }
-
         let traffic_config = self.config.base.debug.traffic;
         let packet_size = traffic_config
             .secondary_packet_size
@@ -575,10 +540,34 @@ impl NRServiceProvider {
         let controller_sender_clone = self.controller_sender.clone();
         let mix_input_sender_clone = self.mix_input_sender.clone();
         let lane_queue_lengths_clone = self.mixnet_client.shared_lane_queue_lengths();
-        let shutdown = self.shutdown.get_handle();
+        let mut shutdown = self.shutdown.get_handle();
 
-        // and start the proxy for this connection
+        // we're just cloning the underlying pointer, nothing expensive is happening here
+        let request_filter = self.request_filter.clone();
+
+        // at this point move it into the separate task
+        // because we might have to resolve the underlying address and it can take some time
+        // during which we don't want to block other incoming requests
         tokio::spawn(async move {
+            if !request_filter.check_address(&remote_addr).await {
+                let log_msg = format!("Domain {remote_addr:?} failed filter check");
+                log::info!("{log_msg}");
+                let error_msg = MixnetMessage::new_connection_error(
+                    return_address,
+                    remote_version,
+                    conn_id,
+                    log_msg,
+                );
+
+                mix_input_sender_clone
+                    .send(error_msg)
+                    .await
+                    .expect("InputMessageReceiver has stopped receiving!");
+                shutdown.mark_as_success();
+                return;
+            }
+
+            // if all is good, start the proxy for this connection
             Self::start_proxy(
                 remote_version,
                 conn_id,
@@ -615,6 +604,28 @@ impl NRServiceProvider {
                 protocol_version,
                 QueryResponse::Description("Description (placeholder)".to_string()),
             ),
+            QueryRequest::ExitPolicy => {
+                let response = match self.request_filter.current_exit_policy_filter() {
+                    Some(exit_policy_filter) => QueryResponse::ExitPolicy {
+                        enabled: true,
+                        upstream: exit_policy_filter
+                            .upstream()
+                            .map(|u| u.to_string())
+                            .unwrap_or_default(),
+                        policy: Some(exit_policy_filter.policy().clone()),
+                    },
+                    None => QueryResponse::ExitPolicy {
+                        enabled: false,
+                        upstream: "".to_string(),
+                        policy: None,
+                    },
+                };
+
+                Socks5Response::new_query(protocol_version, response)
+            }
+            _ => {
+                Socks5Response::new_query_error(protocol_version, "received unknown query variant")
+            }
         };
         Ok(Some(response))
     }

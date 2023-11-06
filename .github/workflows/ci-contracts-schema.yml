@@ -2,10 +2,6 @@ name: ci-contracts-schema
 
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - 'contracts/**'
-      - 'common/**'
   pull_request:
     paths:
       - 'contracts/**'
@@ -14,7 +10,7 @@ on:
 jobs:
   check-schema:
     name: Generate and check schema
-    runs-on: custom-runner-linux
+    runs-on: custom-linux
     env:
       CARGO_TERM_COLOR: always
     steps:

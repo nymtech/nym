@@ -11,7 +11,7 @@ use crate::{
 use nym_api_requests::coconut::{
     BlindSignRequestBody, BlindedSignatureResponse, VerifyCredentialBody, VerifyCredentialResponse,
 };
-use nym_api_requests::models::MixNodeBondAnnotated;
+use nym_api_requests::models::{DescribedGateway, MixNodeBondAnnotated};
 use nym_api_requests::models::{
     GatewayCoreStatusResponse, MixnodeCoreStatusResponse, MixnodeStatusResponse,
     RewardEstimationResponse, StakeSaturationResponse,
@@ -19,6 +19,7 @@ use nym_api_requests::models::{
 use nym_network_defaults::NymNetworkDetails;
 use url::Url;
 
+pub use crate::nym_api::NymApiClientExt;
 pub use nym_mixnet_contract_common::{
     mixnode::MixNodeDetails, GatewayBond, IdentityKey, IdentityKeyRef, MixId,
 };
@@ -147,7 +148,7 @@ impl Client<ReqwestRpcClient> {
 
 impl<C> Client<C> {
     pub fn new_with_rpc_client(config: Config, rpc_client: C) -> Self {
-        let nym_api_client = nym_api::Client::new(config.api_url.clone());
+        let nym_api_client = nym_api::Client::new(config.api_url.clone(), None);
 
         Client {
             nym_api: nym_api_client,
@@ -161,7 +162,7 @@ impl<C, S> Client<C, S> {
     where
         S: OfflineSigner,
     {
-        let nym_api_client = nym_api::Client::new(config.api_url.clone());
+        let nym_api_client = nym_api::Client::new(config.api_url.clone(), None);
 
         Client {
             nym_api: nym_api_client,
@@ -177,7 +178,7 @@ impl<C, S> Client<C, S> {
     }
 
     pub fn change_nym_api(&mut self, new_endpoint: Url) {
-        self.nym_api.change_url(new_endpoint)
+        self.nym_api.change_base_url(new_endpoint)
     }
 
     pub async fn get_cached_mixnodes(&self) -> Result<Vec<MixNodeDetails>, ValidatorClientError> {
@@ -241,7 +242,7 @@ pub struct NymApiClient {
 
 impl NymApiClient {
     pub fn new(api_url: Url) -> Self {
-        let nym_api = nym_api::Client::new(api_url);
+        let nym_api = nym_api::Client::new(api_url, None);
 
         NymApiClient { nym_api }
     }
@@ -251,7 +252,7 @@ impl NymApiClient {
     }
 
     pub fn change_nym_api(&mut self, new_endpoint: Url) {
-        self.nym_api.change_url(new_endpoint);
+        self.nym_api.change_base_url(new_endpoint);
     }
 
     pub async fn get_cached_active_mixnodes(
@@ -272,6 +273,12 @@ impl NymApiClient {
 
     pub async fn get_cached_gateways(&self) -> Result<Vec<GatewayBond>, ValidatorClientError> {
         Ok(self.nym_api.get_gateways().await?)
+    }
+
+    pub async fn get_cached_described_gateways(
+        &self,
+    ) -> Result<Vec<DescribedGateway>, ValidatorClientError> {
+        Ok(self.nym_api.get_gateways_described().await?)
     }
 
     pub async fn get_gateway_core_status_count(

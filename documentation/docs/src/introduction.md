@@ -2,9 +2,11 @@
 
 This is Nym's technical documentation, containing information and setup guides about the various pieces of Nym software such as different mixnet infrastructure nodes, application clients, and existing applications like the desktop wallet and mixnet explorer.
 
+If you are new to Nym and want to learn about the mixnet, explore kickstart options and demos, learn how to integrate with the network, and follow developer tutorials check out the [Developer Portal](https://nymtech.net/developers/) where you can find also our [FAQ section](https://nymtech.net/developers/faq/general-faq.md).
+
 If you are looking for information and setup guides for the various pieces of Nym mixnet infrastructure (mix nodes, gateways and network requesters) and Nyx blockchain validators see the **new [Operators Guides](https://nymtech.net/operators)** book. 
 
-If you are new to Nym and want to learn about the mixnet, explore kickstart options and demos, learn how to integrate with the network, and follow developer tutorials check out the [Developer Portal](https://nymtech.net/developers/) where you can find also our [FAQ section](https://nymtech.net/developers/faq/general-faq.md).
+If you're specically looking for TypeScript/JavaScript related information such as SDKs to build your own tools, step-by-step tutorials, live playgrounds and more - make sure to check out the **new [TS SDK Handbook](https://sdk.nymtech.net/)** !
 
 ## Popular pages
 **Network Architecture:**
@@ -12,8 +14,8 @@ If you are new to Nym and want to learn about the mixnet, explore kickstart opti
 * [Mixnet Traffic Flow](./architecture/traffic-flow.md)
 
 **SDK examples:**
-* [Typescript SDK](./sdk/typescript.md)
-* [Rust SDK](./sdk/rust.md)
+* [Typescript SDK](https://sdk.nymtech.net/)
+* [Rust SDK](sdk/rust/rust.md)
 
 **Nyx**
 * [Interacting with the Nyx chain](./nyx/interacting-with-chain.md)

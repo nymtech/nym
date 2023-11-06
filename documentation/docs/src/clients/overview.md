@@ -25,7 +25,7 @@ You need to choose which one you want incorporate into your app. Which one you u
 ### The websocket client
 Your first option is the native websocket client (`nym-client`). This is a compiled program that can run on Linux, Mac OS X, and Windows machines. It can be run as a persistent process on a desktop or server machine. You can connect to it with **any language that supports websockets**. 
 
-_Rust developers can import websocket client functionality into their code via the [Rust SDK](../sdk/rust.md)_. 
+_Rust developers can import websocket client functionality into their code via the [Rust SDK](../sdk/rust/rust.md)_. 
 
 ### The webassembly client
 If you're working in JavaScript or Typescript in the browser, or building an [edge computing](https://en.wikipedia.org/wiki/Edge_computing) app, you'll likely want to choose the webassembly client. 
@@ -39,7 +39,7 @@ The `nym-socks5-client` is useful for allowing existing applications to use the 
 
 When used as a standalone client, it's less flexible as a way of writing custom applications than the other clients, but able to be used to proxy application traffic through the mixnet without having to make any code changes. 
 
-_Rust developers can import socks client functionality into their code via the [Rust SDK](../sdk/rust.md)_.
+_Rust developers can import socks client functionality into their code via the [Rust SDK](../sdk/rust/rust.md)_.
 
 ## Commonalities between clients
 All Nym client packages present basically the same capabilities to the privacy application developer. They need to run as a persistent process in order to stay connected and ready to receive any incoming messages from their gateway nodes. They register and authenticate to gateways, and encrypt Sphinx packets.

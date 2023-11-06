@@ -10,8 +10,8 @@ repository = { workspace = true }
 [dependencies]
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
 bs58 = "0.4"
-serde = "1.0"
-thiserror = "1"
+serde = { workspace = true }
+thiserror = { workspace = true }
 
 nym-crypto = { path = "../../crypto", features = ["symmetric", "rand"] }
 nym-sphinx-addressing = { path = "../addressing" }

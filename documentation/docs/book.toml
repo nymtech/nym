@@ -6,6 +6,9 @@ language = "en"
 multilingual = false # for the moment - ideally work on chinese, brazillian, spanish next
 src = "src"
 
+[rust]
+edition = "2018"
+
 #################
 # PREPROCESSORS #
 #################
@@ -42,7 +45,7 @@ turn-off = true
 
 [preprocessor.admonish]
 command = "mdbook-admonish"
-assets_version = "2.0.0" # do not edit: managed by `mdbook-admonish install`
+assets_version = "3.0.0" # do not edit: managed by `mdbook-admonish install`
 
 # variables preprocessor: import variables into files
 # https://gitlab.com/tglman/mdbook-variables/
@@ -83,7 +86,7 @@ curly-quotes = true
 # mathjax-support = false # useful if we want to pull equations in
 copy-fonts = true
 no-section-label = false
-additional-css = ["theme/pagetoc.css", "././mdbook-admonish.css", "./custom.css"]
+additional-css = ["theme/pagetoc.css", "././mdbook-admonish.css", "./custom.css", "./mdbook-admonish.css"]
 additional-js  = ["theme/pagetoc.js"]
 git-repository-url = "https://github.com/nymtech/nym"
 git-repository-icon = "fa-github"

@@ -63,13 +63,13 @@ impl NodeStatusCache {
     ) {
         match time::timeout(Duration::from_millis(CACHE_TIMEOUT_MS), self.inner.write()).await {
             Ok(mut cache) => {
-                cache.mixnodes_annotated.update(mixnodes);
-                cache.rewarded_set_annotated.update(rewarded_set);
-                cache.active_set_annotated.update(active_set);
-                cache.gateways_annotated.update(gateways);
+                cache.mixnodes_annotated.unchecked_update(mixnodes);
+                cache.rewarded_set_annotated.unchecked_update(rewarded_set);
+                cache.active_set_annotated.unchecked_update(active_set);
+                cache.gateways_annotated.unchecked_update(gateways);
                 cache
                     .inclusion_probabilities
-                    .update(inclusion_probabilities);
+                    .unchecked_update(inclusion_probabilities);
             }
             Err(e) => error!("{e}"),
         }
@@ -90,33 +90,33 @@ impl NodeStatusCache {
     }
 
     pub(crate) async fn mixnodes_annotated_full(&self) -> Option<Cache<Vec<MixNodeBondAnnotated>>> {
-        self.get(|c| c.mixnodes_annotated.clone()).await
+        self.get(|c| c.mixnodes_annotated.clone_cache()).await
     }
 
     pub(crate) async fn mixnodes_annotated_filtered(&self) -> Option<Vec<MixNodeBondAnnotated>> {
         let full = self.mixnodes_annotated_full().await?;
-        Some(full.value.into_iter().filter(|m| !m.blacklisted).collect())
+        Some(full.iter().filter(|m| !m.blacklisted).cloned().collect())
     }
 
     pub(crate) async fn rewarded_set_annotated(&self) -> Option<Cache<Vec<MixNodeBondAnnotated>>> {
-        self.get(|c| c.rewarded_set_annotated.clone()).await
+        self.get(|c| c.rewarded_set_annotated.clone_cache()).await
     }
 
     pub(crate) async fn active_set_annotated(&self) -> Option<Cache<Vec<MixNodeBondAnnotated>>> {
-        self.get(|c| c.active_set_annotated.clone()).await
+        self.get(|c| c.active_set_annotated.clone_cache()).await
     }
 
     pub(crate) async fn gateways_annotated_full(&self) -> Option<Cache<Vec<GatewayBondAnnotated>>> {
-        self.get(|c| c.gateways_annotated.clone()).await
+        self.get(|c| c.gateways_annotated.clone_cache()).await
     }
 
     pub(crate) async fn gateways_annotated_filtered(&self) -> Option<Vec<GatewayBondAnnotated>> {
         let full = self.gateways_annotated_full().await?;
-        Some(full.value.into_iter().filter(|m| !m.blacklisted).collect())
+        Some(full.iter().filter(|m| !m.blacklisted).cloned().collect())
     }
 
     pub(crate) async fn inclusion_probabilities(&self) -> Option<Cache<InclusionProbabilities>> {
-        self.get(|c| c.inclusion_probabilities.clone()).await
+        self.get(|c| c.inclusion_probabilities.clone_cache()).await
     }
 
     pub async fn mixnode_details(

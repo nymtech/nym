@@ -1,20 +1,7 @@
+// Copyright 2022-2023 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
+use http_api_client::HttpClientError;
 use nym_api_requests::models::RequestError;
-use thiserror::Error;
 
-#[derive(Error, Debug)]
-pub enum NymAPIError {
-    #[error("There was an issue with the REST request - {source}")]
-    ReqwestClientError {
-        #[from]
-        source: reqwest::Error,
-    },
-
-    #[error("Not found")]
-    NotFound,
-
-    #[error("Request failed with error message - {0}")]
-    GenericRequestFailure(String),
-
-    #[error("The nym API has failed to resolve our request. It returned status code {status} and additional error message: {}", error.message())]
-    ApiRequestFailure { status: u16, error: RequestError },
-}
+pub type NymAPIError = HttpClientError<RequestError>;

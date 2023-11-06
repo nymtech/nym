@@ -25,6 +25,7 @@ use tap::TapFallible;
 mod old_config_v1_1_13;
 mod old_config_v1_1_20;
 mod old_config_v1_1_20_2;
+mod old_config_v1_1_30;
 mod persistence;
 mod template;
 mod upgrade;
@@ -254,7 +255,7 @@ fn print_saved_config(config: &Config, gateway_details: &GatewayEndpointConfig) 
     );
     log::info!(
         "Service provider port: {}",
-        config.core.socks5.listening_port
+        config.core.socks5.bind_adddress.port()
     );
     log::info!("Client configuration completed.");
 }

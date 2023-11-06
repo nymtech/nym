@@ -1,4 +1,4 @@
-use std::{net::SocketAddr, sync::Arc, time::Duration};
+use std::{collections::HashMap, net::SocketAddr, sync::Arc, time::Duration};
 
 use async_recursion::async_recursion;
 use boringtun::{
@@ -7,24 +7,29 @@ use boringtun::{
 };
 use bytes::Bytes;
 use log::{debug, error, info, warn};
+use rand::RngCore;
 use tap::TapFallible;
-use tokio::{
-    net::UdpSocket,
-    sync::{broadcast, mpsc},
-    time::timeout,
-};
+use tokio::{net::UdpSocket, sync::broadcast, time::timeout};
 
 use crate::{
-    error::WgError, event::Event, network_table::NetworkTable, udp_listener::PeerIdx, TunTaskTx,
+    active_peers::{peer_event_channel, PeerEventReceiver, PeerEventSender},
+    error::WgError,
+    event::Event,
+    network_table::NetworkTable,
+    packet_relayer::PacketRelaySender,
+    registered_peers::PeerIdx,
 };
 
 const HANDSHAKE_MAX_RATE: u64 = 10;
 
 const MAX_PACKET: usize = 65535;
 
+// We index the tunnels by tag
+pub(crate) type PeersByTag = HashMap<u64, PeerEventSender>;
+
 pub struct WireGuardTunnel {
     // Incoming data from the UDP socket received in the main event loop
-    peer_rx: mpsc::UnboundedReceiver<Event>,
+    peer_rx: PeerEventReceiver,
 
     // UDP socket used for sending data
     udp: Arc<UdpSocket>,
@@ -43,7 +48,9 @@ pub struct WireGuardTunnel {
     close_rx: broadcast::Receiver<()>,
 
     // Send data to the task that handles sending data through the tun device
-    tun_task_tx: TunTaskTx,
+    packet_tx: PacketRelaySender,
+
+    tag: u64,
 }
 
 impl Drop for WireGuardTunnel {
@@ -59,10 +66,11 @@ impl WireGuardTunnel {
         endpoint: SocketAddr,
         static_private: x25519::StaticSecret,
         peer_static_public: x25519::PublicKey,
-        peer_allowed_ips: ip_network::IpNetwork,
         index: PeerIdx,
-        tunnel_tx: TunTaskTx,
-    ) -> (Self, mpsc::UnboundedSender<Event>) {
+        peer_allowed_ips: ip_network::IpNetwork,
+        // rate_limiter: Option<RateLimiter>,
+        packet_tx: PacketRelaySender,
+    ) -> (Self, PeerEventSender, u64) {
         let local_addr = udp.local_addr().unwrap();
         let peer_addr = udp.peer_addr();
         log::info!("New wg tunnel: endpoint: {endpoint}, local_addr: {local_addr}, peer_addr: {peer_addr:?}");
@@ -85,17 +93,19 @@ impl WireGuardTunnel {
                 index,
                 rate_limiter,
             )
-            .unwrap(),
+            .expect("failed to create Tunn instance"),
         ));
 
         // Channels with incoming data that is received by the main event loop
-        let (peer_tx, peer_rx) = mpsc::unbounded_channel();
+        let (peer_tx, peer_rx) = peer_event_channel();
 
         // Signal close tunnel
         let (close_tx, close_rx) = broadcast::channel(1);
 
         let mut allowed_ips = NetworkTable::new();
         allowed_ips.insert(peer_allowed_ips, ());
+
+        let tag = Self::new_tag();
 
         let tunnel = WireGuardTunnel {
             peer_rx,
@@ -105,10 +115,16 @@ impl WireGuardTunnel {
             wg_tunnel,
             close_tx,
             close_rx,
-            tun_task_tx: tunnel_tx,
+            packet_tx,
+            tag,
         };
 
-        (tunnel, peer_tx)
+        (tunnel, peer_tx, tag)
+    }
+
+    fn new_tag() -> u64 {
+        // TODO: check for collisions
+        rand::thread_rng().next_u64()
     }
 
     fn close(&self) {
@@ -126,12 +142,17 @@ impl WireGuardTunnel {
                     Some(packet) => {
                         info!("event loop: {packet}");
                         match packet {
-                            Event::WgPacket(data) => {
+                            Event::Wg(data) => {
                                 let _ = self.consume_wg(&data)
                                     .await
                                     .tap_err(|err| error!("WireGuard tunnel: consume_wg error: {err}"));
                             },
-                            Event::IpPacket(data) => self.consume_eth(&data).await,
+                            Event::WgVerified(data) => {
+                                let _ = self.consume_verified_wg(&data)
+                                    .await
+                                    .tap_err(|err| error!("WireGuard tunnel: consume_verified_wg error: {err}"));
+                            }
+                            Event::Ip(data) => self.consume_eth(&data).await,
                         }
                     },
                     None => {
@@ -139,7 +160,7 @@ impl WireGuardTunnel {
                         break;
                     },
                 },
-                _ = tokio::time::sleep(Duration::from_millis(250)) => {
+                () = tokio::time::sleep(Duration::from_millis(250)) => {
                     let _ = self.update_wg_timers()
                         .await
                         .map_err(|err| error!("WireGuard tunnel: update_wg_timers error: {err}"));
@@ -191,19 +212,23 @@ impl WireGuardTunnel {
                 }
             }
             TunnResult::WriteToTunnelV4(packet, addr) => {
-                // TODO: once the flow is redone, we should add updating the endpoint dynamically
-                // self.set_endpoint(addr);
                 if self.allowed_ips.longest_match(addr).is_some() {
-                    self.tun_task_tx.send(packet.to_vec()).unwrap();
+                    self.packet_tx
+                        .0
+                        .send((self.tag, packet.to_vec()))
+                        .await
+                        .unwrap();
                 } else {
                     warn!("Packet from {addr} not in allowed_ips");
                 }
             }
             TunnResult::WriteToTunnelV6(packet, addr) => {
-                // TODO: once the flow is redone, we should add updating the endpoint dynamically
-                // self.set_endpoint(addr);
                 if self.allowed_ips.longest_match(addr).is_some() {
-                    self.tun_task_tx.send(packet.to_vec()).unwrap();
+                    self.packet_tx
+                        .0
+                        .send((self.tag, packet.to_vec()))
+                        .await
+                        .unwrap();
                 } else {
                     warn!("Packet (v6) from {addr} not in allowed_ips");
                 }
@@ -216,6 +241,13 @@ impl WireGuardTunnel {
             }
         }
         Ok(())
+    }
+
+    async fn consume_verified_wg(&mut self, data: &[u8]) -> Result<(), WgError> {
+        // Potentially we could take some shortcuts here in the name of performance, but currently
+        // I don't see that the needed functions in boringtun is exposed in the public API.
+        // TODO: make sure we don't put double pressure on the rate limiter!
+        self.consume_wg(data).await
     }
 
     async fn consume_eth(&self, data: &Bytes) {
@@ -278,7 +310,7 @@ impl WireGuardTunnel {
                     return;
                 };
                 peer.format_handshake_initiation(&mut buf[..], false);
-                self.handle_routine_tun_result(result).await
+                self.handle_routine_tun_result(result).await;
             }
             TunnResult::Err(err) => {
                 error!("Failed to prepare routine packet for WireGuard endpoint: {err:?}");
@@ -296,25 +328,26 @@ pub(crate) fn start_wg_tunnel(
     udp: Arc<UdpSocket>,
     static_private: x25519::StaticSecret,
     peer_static_public: x25519::PublicKey,
-    peer_allowed_ips: ip_network::IpNetwork,
     peer_index: PeerIdx,
-    tunnel_tx: TunTaskTx,
+    peer_allowed_ips: ip_network::IpNetwork,
+    packet_tx: PacketRelaySender,
 ) -> (
-    tokio::task::JoinHandle<SocketAddr>,
-    mpsc::UnboundedSender<Event>,
+    tokio::task::JoinHandle<x25519::PublicKey>,
+    PeerEventSender,
+    u64,
 ) {
-    let (mut tunnel, peer_tx) = WireGuardTunnel::new(
+    let (mut tunnel, peer_tx, tag) = WireGuardTunnel::new(
         udp,
         endpoint,
         static_private,
         peer_static_public,
-        peer_allowed_ips,
         peer_index,
-        tunnel_tx,
+        peer_allowed_ips,
+        packet_tx,
     );
     let join_handle = tokio::spawn(async move {
         tunnel.spin_off().await;
-        endpoint
+        peer_static_public
     });
-    (join_handle, peer_tx)
+    (join_handle, peer_tx, tag)
 }

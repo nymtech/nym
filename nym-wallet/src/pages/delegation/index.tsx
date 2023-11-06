@@ -9,6 +9,7 @@ import { TPoolOption } from 'src/components';
 import { Console } from 'src/utils/console';
 import { OverSaturatedBlockerModal } from 'src/components/Delegation/DelegateBlocker';
 import { getSpendableCoins, userBalance } from 'src/requests';
+import { LoadingModal } from 'src/components/Modals/LoadingModal';
 import { getIntervalAsDate, toPercentIntegerString } from 'src/utils';
 import { RewardsSummary } from '../../components/Rewards/RewardsSummary';
 import { DelegationContextProvider, TDelegations, useDelegationContext } from '../../context/delegations';
@@ -312,6 +313,7 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
         />
       );
     }
+
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-end' }}>
         <Box marginRight={3} width={1}>
@@ -342,6 +344,10 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
       </Box>
     );
   };
+
+  if (isLoading) {
+    return <LoadingModal />;
+  }
 
   return (
     <>

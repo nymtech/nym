@@ -1,11 +1,11 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::config::old_config_v1_1_30::ConfigV1_1_30;
 use crate::{
-    config::{default_config_filepath, persistence::SocksClientPaths, Config},
+    config::{default_config_filepath, persistence::SocksClientPaths},
     error::Socks5ClientError,
 };
-
 use nym_bin_common::logging::LoggingSettings;
 use nym_client_core::config::disk_persistence::old_v1_1_20_2::CommonClientPathsV1_1_20_2;
 use nym_client_core::config::GatewayEndpointConfig;
@@ -43,9 +43,9 @@ impl ConfigV1_1_20_2 {
 
     // in this upgrade, gateway endpoint configuration was moved out of the config file,
     // so its returned to be stored elsewhere.
-    pub fn upgrade(self) -> Result<(Config, GatewayEndpointConfig), Socks5ClientError> {
+    pub fn upgrade(self) -> Result<(ConfigV1_1_30, GatewayEndpointConfig), Socks5ClientError> {
         let gateway_details = self.core.base.client.gateway_endpoint.clone().into();
-        let config = Config {
+        let config = ConfigV1_1_30 {
             core: self.core.into(),
             storage_paths: SocksClientPaths {
                 common_paths: self.storage_paths.common_paths.upgrade_default()?,

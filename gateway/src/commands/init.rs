@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::commands::helpers::{
-    initialise_local_network_requester, OverrideNetworkRequesterConfig,
+    initialise_local_ip_packet_router, initialise_local_network_requester,
+    OverrideNetworkRequesterConfig,
 };
 use crate::config::{default_config_directory, default_config_filepath, default_data_directory};
 use crate::node::helpers::node_details;
@@ -14,35 +15,46 @@ use std::net::IpAddr;
 use std::path::PathBuf;
 use std::{fs, io};
 
+use super::helpers::OverrideIpPacketRouterConfig;
+
 #[derive(Args, Clone)]
 pub struct Init {
     /// Id of the gateway we want to create config for
-    #[arg(long)]
+    #[clap(long)]
     id: String,
 
-    /// The custom host on which the gateway will be running for receiving sphinx packets
-    #[arg(long)]
-    host: IpAddr,
+    /// The listening address on which the gateway will be receiving sphinx packets and listening for client data
+    #[clap(long, alias = "host")]
+    listening_address: IpAddr,
+
+    /// Comma separated list of public ip addresses that will announced to the nym-api and subsequently to the clients.
+    /// In nearly all circumstances, it's going to be identical to the address you're going to use for bonding.
+    #[clap(long, value_delimiter = ',')]
+    public_ips: Option<Vec<IpAddr>>,
+
+    /// Optional hostname associated with this gateway that will announced to the nym-api and subsequently to the clients
+    #[clap(long)]
+    hostname: Option<String>,
 
     /// The port on which the gateway will be listening for sphinx packets
-    #[arg(long)]
+    #[clap(long)]
     mix_port: Option<u16>,
 
     /// The port on which the gateway will be listening for clients gateway-requests
-    #[arg(long)]
+    #[clap(long)]
     clients_port: Option<u16>,
 
     /// Path to sqlite database containing all gateway persistent data
-    #[arg(long)]
+    #[clap(long)]
     datastore: Option<PathBuf>,
 
     /// Comma separated list of endpoints of nym APIs
-    #[arg(long, alias = "validator_apis", value_delimiter = ',')]
+    #[clap(long, alias = "validator_apis", value_delimiter = ',')]
     // the alias here is included for backwards compatibility (1.1.4 and before)
     nym_apis: Option<Vec<url::Url>>,
 
     /// Comma separated list of endpoints of the validator
-    #[arg(
+    #[clap(
         long,
         alias = "validators",
         alias = "nyxd_validators",
@@ -53,43 +65,47 @@ pub struct Init {
     nyxd_urls: Option<Vec<url::Url>>,
 
     /// Cosmos wallet mnemonic needed for double spending protection
-    #[arg(long)]
+    #[clap(long)]
     mnemonic: Option<bip39::Mnemonic>,
 
     /// Set this gateway to work only with coconut credentials; that would disallow clients to
     /// bypass bandwidth credential requirement
-    #[arg(long, hide = true)]
+    #[clap(long, hide = true)]
     only_coconut_credentials: Option<bool>,
 
     /// Enable/disable gateway anonymized statistics that get sent to a statistics aggregator server
-    #[arg(long)]
+    #[clap(long)]
     enabled_statistics: Option<bool>,
 
     /// URL where a statistics aggregator is running. The default value is a Nym aggregator server
-    #[arg(long)]
+    #[clap(long)]
     statistics_service_url: Option<url::Url>,
 
     /// Allows this gateway to run an embedded network requester for minimal network overhead
-    #[arg(long)]
+    #[clap(long, conflicts_with = "with_ip_packet_router")]
     with_network_requester: bool,
+
+    /// Allows this gateway to run an embedded network requester for minimal network overhead
+    #[clap(long, hide = true, conflicts_with = "with_network_requester")]
+    with_ip_packet_router: bool,
 
     // ##### NETWORK REQUESTER FLAGS #####
     /// Specifies whether this network requester should run in 'open-proxy' mode
-    #[arg(long, requires = "with_network_requester")]
+    #[clap(long, requires = "with_network_requester")]
     open_proxy: Option<bool>,
 
     /// Enable service anonymized statistics that get sent to a statistics aggregator server
-    #[arg(long, requires = "with_network_requester")]
+    #[clap(long, requires = "with_network_requester")]
     enable_statistics: Option<bool>,
 
     /// Mixnet client address where a statistics aggregator is running. The default value is a Nym
     /// aggregator client
-    #[arg(long, requires = "with_network_requester")]
+    #[clap(long, requires = "with_network_requester")]
     statistics_recipient: Option<String>,
 
     /// Mostly debug-related option to increase default traffic rate so that you would not need to
     /// modify config post init
-    #[arg(
+    #[clap(
         long,
         hide = true,
         conflicts_with = "medium_toggle",
@@ -98,7 +114,7 @@ pub struct Init {
     fastmode: bool,
 
     /// Disable loop cover traffic and the Poisson rate limiter (for debugging only)
-    #[arg(
+    #[clap(
         long,
         hide = true,
         conflicts_with = "medium_toggle",
@@ -108,7 +124,7 @@ pub struct Init {
 
     /// Enable medium mixnet traffic, for experiments only.
     /// This includes things like disabling cover traffic, no per hop delays, etc.
-    #[arg(
+    #[clap(
         long,
         hide = true,
         conflicts_with = "no_cover",
@@ -117,14 +133,22 @@ pub struct Init {
     )]
     medium_toggle: bool,
 
-    #[arg(short, long, default_value_t = OutputFormat::default())]
+    /// Specifies whether this network requester will run using the default ExitPolicy
+    /// as opposed to the allow list.
+    /// Note: this setting will become the default in the future releases.
+    #[clap(long)]
+    with_exit_policy: Option<bool>,
+
+    #[clap(short, long, default_value_t = OutputFormat::default())]
     output: OutputFormat,
 }
 
 impl From<Init> for OverrideConfig {
     fn from(init_config: Init) -> Self {
         OverrideConfig {
-            host: Some(init_config.host),
+            listening_address: Some(init_config.listening_address),
+            public_ips: init_config.public_ips,
+            hostname: init_config.hostname,
             mix_port: init_config.mix_port,
             clients_port: init_config.clients_port,
             datastore: init_config.datastore,
@@ -137,6 +161,7 @@ impl From<Init> for OverrideConfig {
             nyxd_urls: init_config.nyxd_urls,
             only_coconut_credentials: init_config.only_coconut_credentials,
             with_network_requester: Some(init_config.with_network_requester),
+            with_ip_packet_router: Some(init_config.with_ip_packet_router),
         }
     }
 }
@@ -148,9 +173,16 @@ impl<'a> From<&'a Init> for OverrideNetworkRequesterConfig {
             no_cover: value.no_cover,
             medium_toggle: value.medium_toggle,
             open_proxy: value.open_proxy,
+            enable_exit_policy: value.with_exit_policy,
             enable_statistics: value.enable_statistics,
             statistics_recipient: value.statistics_recipient.clone(),
         }
+    }
+}
+
+impl From<&Init> for OverrideIpPacketRouterConfig {
+    fn from(_value: &Init) -> Self {
+        OverrideIpPacketRouterConfig {}
     }
 }
 
@@ -178,6 +210,7 @@ pub async fn execute(args: Init) -> anyhow::Result<()> {
     // Initialising the config structure is just overriding a default constructed one
     let fresh_config = Config::new(&args.id);
     let nr_opts = (&args).into();
+    let ip_opts = (&args).into();
     let mut config = OverrideConfig::from(args).do_override(fresh_config)?;
 
     // if gateway was already initialised, don't generate new keys, et al.
@@ -209,6 +242,9 @@ pub async fn execute(args: Init) -> anyhow::Result<()> {
 
         if config.network_requester.enabled {
             initialise_local_network_requester(&config, nr_opts, *identity_keys.public_key())
+                .await?;
+        } else if config.ip_packet_router.enabled {
+            initialise_local_ip_packet_router(&config, ip_opts, *identity_keys.public_key())
                 .await?;
         }
 
@@ -244,7 +280,9 @@ mod tests {
     async fn create_gateway_with_in_mem_storage() {
         let args = Init {
             id: "foo-id".to_string(),
-            host: "1.1.1.1".parse().unwrap(),
+            listening_address: "1.1.1.1".parse().unwrap(),
+            public_ips: None,
+            hostname: None,
             mix_port: Some(42),
             clients_port: Some(43),
             datastore: Some("/foo-datastore".parse().unwrap()),
@@ -256,12 +294,14 @@ mod tests {
             only_coconut_credentials: None,
             output: Default::default(),
             with_network_requester: false,
+            with_ip_packet_router: false,
             open_proxy: None,
             enable_statistics: None,
             statistics_recipient: None,
             fastmode: false,
             no_cover: false,
             medium_toggle: false,
+            with_exit_policy: None,
         };
         std::env::set_var(BECH32_PREFIX, "n");
 
@@ -281,6 +321,7 @@ mod tests {
         // The test is really if this instantiates with InMemStorage without panics
         let _gateway = Gateway::new_from_keys_and_storage(
             config,
+            None,
             None,
             identity_keys,
             sphinx_keys,

@@ -1,0 +1,33 @@
+[package]
+name = "nym-exit-policy"
+version = "0.1.0"
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+edition.workspace = true
+license.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+serde = { workspace = true, features = ["derive"] }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+
+# feature-specific dependencies:
+
+## client feature
+reqwest = { workspace = true, optional = true }
+
+## openapi feature
+serde_json = { workspace = true, optional = true }
+utoipa = { workspace = true, optional = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }
+
+[features]
+default = []
+client = ["reqwest"]
+openapi = ["utoipa", "serde_json"]

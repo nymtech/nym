@@ -5,6 +5,7 @@ use crate::{
     make_bincode_serializer, ConnectionId, InsufficientSocketDataError, SocketData,
     Socks5ProtocolVersion, Socks5RequestError,
 };
+use nym_exit_policy::ExitPolicy;
 use nym_service_providers_common::interface::{Serializable, ServiceProviderResponse};
 use serde::{Deserialize, Serialize};
 use tap::TapFallible;
@@ -155,6 +156,18 @@ impl Socks5Response {
             content: Socks5ResponseContent::Query(query_response),
         }
     }
+
+    pub fn new_query_error<S: Into<String>>(
+        protocol_version: Socks5ProtocolVersion,
+        message: S,
+    ) -> Socks5Response {
+        Socks5Response {
+            protocol_version,
+            content: Socks5ResponseContent::Query(QueryResponse::Error {
+                message: message.into(),
+            }),
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -296,9 +309,18 @@ impl ConnectionError {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum QueryResponse {
     OpenProxy(bool),
     Description(String),
+    ExitPolicy {
+        enabled: bool,
+        upstream: String,
+        policy: Option<ExitPolicy>,
+    },
+    Error {
+        message: String,
+    },
 }
 
 #[cfg(test)]
@@ -364,11 +386,41 @@ mod tests {
             let bytes_description = description.clone().into_bytes();
             assert_eq!(bytes_description, vec![3, 1, 3, 102, 111, 111]);
 
+            let error = Socks5ResponseContent::Query(QueryResponse::Error {
+                message: "this is an error".to_string(),
+            });
+            let bytes_error = error.clone().into_bytes();
+            assert_eq!(
+                bytes_error,
+                vec![
+                    3, 3, 16, 116, 104, 105, 115, 32, 105, 115, 32, 97, 110, 32, 101, 114, 114,
+                    111, 114
+                ]
+            );
+
+            let exit_policy = Socks5ResponseContent::Query(QueryResponse::ExitPolicy {
+                enabled: false,
+                upstream: "http://foo.bar".to_string(),
+                policy: Some(ExitPolicy::new_open()),
+            });
+            let bytes_exit_policy = exit_policy.clone().into_bytes();
+            assert_eq!(
+                bytes_exit_policy,
+                vec![
+                    3, 2, 0, 14, 104, 116, 116, 112, 58, 47, 47, 102, 111, 111, 46, 98, 97, 114, 1,
+                    1, 0, 1, 42, 1, 251, 255, 255
+                ]
+            );
+
             let open_proxy2 = Socks5ResponseContent::try_from_bytes(&bytes_open_proxy).unwrap();
             let description2 = Socks5ResponseContent::try_from_bytes(&bytes_description).unwrap();
+            let error2 = Socks5ResponseContent::try_from_bytes(&bytes_error).unwrap();
+            let exit_policy2 = Socks5ResponseContent::try_from_bytes(&bytes_exit_policy).unwrap();
 
             assert_eq!(open_proxy, open_proxy2);
             assert_eq!(description, description2);
+            assert_eq!(error, error2);
+            assert_eq!(exit_policy, exit_policy2);
         }
     }
 }

@@ -129,7 +129,7 @@ impl CommonConfigsWrapper {
                 Ok(cfg.storage_paths.inner.keys.ecash_key_pair_path())
             }
             CommonConfigsWrapper::NymApi(cfg) => {
-                todo!() //SW implement ecash key for nym-api
+                Ok(cfg.network_monitor.storage_paths.ecash_keypair_path())
             }
             CommonConfigsWrapper::Unknown(cfg) => cfg.try_get_ecash_key(),
         }
@@ -171,6 +171,17 @@ struct NymApiConfigNetworkMonitorLight {
 #[derive(Deserialize, Debug)]
 struct NetworkMonitorPaths {
     credentials_database_path: PathBuf,
+    ecash_private_key_path: PathBuf,
+    ecash_public_key_path: PathBuf,
+}
+
+impl NetworkMonitorPaths {
+    fn ecash_keypair_path(&self) -> nym_pemstore::KeyPairPath {
+        nym_pemstore::KeyPairPath::new(
+            self.ecash_private_key_path.clone(),
+            self.ecash_public_key_path.clone(),
+        )
+    }
 }
 
 // a hacky way of reading common data from client configs (native, socks5, etc.)

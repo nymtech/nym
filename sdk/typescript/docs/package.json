@@ -1,6 +1,6 @@
 {
   "name": "@nymproject/ts-sdk-docs",
-  "version": "1.2.2",
+  "version": "1.2.3-rc.0",
   "description": "Nym Typescript SDK Docs",
   "license": "Apache-2.0",
   "author": "Nym Technologies SA",

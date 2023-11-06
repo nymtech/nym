@@ -24,7 +24,7 @@ fn setup_tokio_tun_device(name: &str, address: Ipv4Addr, netmask: Ipv4Addr) -> t
         .name(name)
         .tap(false)
         .packet_info(false)
-        .mtu(1350)
+        .mtu(1420)
         .up()
         .address(address)
         .netmask(netmask)

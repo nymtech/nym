@@ -100,7 +100,9 @@ impl Display for Config {
 {:<35}{}
 {:<35}{}
 {:<35}{}
+{:<35}{}
 {:<35}{:?}
+{:<35}{}
 {:<35}{}
 {:<35}{}
 {:<35}{}
@@ -118,6 +120,8 @@ impl Display for Config {
             self.daemon.name,
             "daemon home:",
             self.daemon.home.display(),
+            "upstream base upgrade url:",
+            self.nymvisor.debug.upstream_base_upgrade_url,
             "disable nymvisor logs:",
             self.nymvisor.debug.disable_logs,
             "CUSTOM upgrade data directory",
@@ -126,6 +130,13 @@ impl Display for Config {
                 .upgrade_data_directory
                 .as_ref()
                 .map(|p| p.display().to_string())
+                .unwrap_or_default(),
+            "upstream absolute upgrade url:",
+            self.daemon
+                .debug
+                .absolute_upstream_upgrade_url
+                .as_ref()
+                .map(|p| p.to_string())
                 .unwrap_or_default(),
             "allow binaries download:",
             self.daemon.debug.allow_binaries_download,
@@ -229,6 +240,7 @@ impl Config {
         }
     }
 
+    // e.g. $HOME/.nym/nymvisors/data/nym-api/
     pub fn upgrade_data_dir(&self) -> PathBuf {
         self.nymvisor
             .debug
@@ -237,30 +249,48 @@ impl Config {
             .unwrap_or(default_global_data_directory().join(&self.daemon.name))
     }
 
+    // e.g. $HOME/.nym/nymvisors/data/nym-api/genesis
     pub fn genesis_daemon_dir(&self) -> PathBuf {
         self.upgrade_data_dir().join(GENESIS_DIR)
     }
 
+    // e.g. $HOME/.nym/nymvisors/data/nym-api/genesis/bin/nym-api
     pub fn genesis_daemon_binary(&self) -> PathBuf {
         self.genesis_daemon_dir()
             .join(BIN_DIR)
             .join(&self.daemon.name)
     }
 
+    // e.g. $HOME/.nym/nymvisors/data/nym-api/current
     pub fn current_daemon_dir(&self) -> PathBuf {
         self.upgrade_data_dir().join(CURRENT_DIR)
     }
 
+    // e.g. $HOME/.nym/nymvisors/data/nym-api/current/bin/nym-api
     pub fn current_daemon_binary(&self) -> PathBuf {
         self.current_daemon_dir()
             .join(BIN_DIR)
             .join(&self.daemon.name)
     }
 
+    // e.g. $HOME/.nym/nymvisors/data/nym-api/upgrades/<upgrade-name>/upgrade-info.json
+    // or $HOME/.nym/nymvisors/data/nym-api/genesis/upgrade-info.json
+    pub fn upgrade_info_filepath<S: AsRef<str>>(&self, upgrade_name: S) -> PathBuf {
+        // special case for genesis
+        let name = upgrade_name.as_ref();
+        if name == GENESIS_DIR {
+            self.genesis_daemon_dir().join(UPGRADE_INFO_FILENAME)
+        } else {
+            self.upgrades_dir().join(name).join(UPGRADE_INFO_FILENAME)
+        }
+    }
+
+    // e.g. $HOME/.nym/nymvisors/data/nym-api/upgrades/
     pub fn upgrades_dir(&self) -> PathBuf {
         self.upgrade_data_dir().join(UPGRADES_DIR)
     }
 
+    // e.g. $HOME/.nym/nymvisors/data/nym-api/upgrade-plan.json
     pub fn upgrade_plan_filepath(&self) -> PathBuf {
         self.upgrade_data_dir().join(UPGRADE_PLAN_FILENAME)
     }

@@ -1,16 +1,18 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::config::{default_config_filepath, Config, BIN_DIR};
+use crate::config::{default_config_filepath, Config, BIN_DIR, GENESIS_DIR};
 use crate::daemon::Daemon;
 use crate::env::Env;
 use crate::error::NymvisorError;
+use crate::upgrades::UpgradeInfo;
 use nym_bin_common::build_information::BinaryBuildInformationOwned;
 use nym_bin_common::logging::{setup_logging, setup_tracing_logger};
 use nym_bin_common::output_format::OutputFormat;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
+use time::OffsetDateTime;
 use tracing::{debug, error, info, trace, warn};
 use url::Url;
 
@@ -239,10 +241,10 @@ fn init_paths(config: &Config) -> Result<(), NymvisorError> {
     Ok(())
 }
 
-fn copy_genesis_binary(
+fn setup_genesis_binary(
     config: &Config,
     source_dir: &Path,
-    daemon_info: &BinaryBuildInformationOwned,
+    daemon_info: BinaryBuildInformationOwned,
 ) -> Result<(), NymvisorError> {
     info!("setting up the genesis binary");
     let target = config.genesis_daemon_binary();
@@ -261,6 +263,8 @@ fn copy_genesis_binary(
             Ok(())
         };
     }
+
+    generate_and_save_genesis_upgrade_info(&config, daemon_info)?;
 
     // TODO: setup initial upgrade-info.json file
     fs::copy(source_dir, &target).map_err(|source| NymvisorError::DaemonBinaryCopyFailure {
@@ -304,6 +308,25 @@ fn create_current_symlink(config: &Config) -> Result<(), NymvisorError> {
     })
 }
 
+fn generate_and_save_genesis_upgrade_info(
+    config: &Config,
+    genesis_info: BinaryBuildInformationOwned,
+) -> Result<(), NymvisorError> {
+    let info = UpgradeInfo {
+        manual: true,
+        name: GENESIS_DIR.to_string(),
+        notes: "".to_string(),
+        publish_date: None,
+        version: genesis_info.build_version.clone(),
+        platforms: Default::default(),
+        upgrade_time: OffsetDateTime::UNIX_EPOCH,
+        binary_details: Some(genesis_info),
+    };
+    let save_path = config.upgrade_info_filepath(&info.name);
+
+    info.save(save_path)
+}
+
 fn save_config(config: Config, env: &Env) -> Result<(), NymvisorError> {
     let id = &config.nymvisor.id;
     let config_save_location = env
@@ -327,15 +350,16 @@ fn save_config(config: Config, env: &Env) -> Result<(), NymvisorError> {
 }
 
 /// Initialise the nymvisor by performing the following:
-/// - [✅] executing the `build-info` command on the daemon executable to check its validity and obtain its name
-/// - [✅] creating `<DAEMON_HOME>/nymvisor` folder if it doesn't yet exist
-/// - [✅] creating `<DAEMON_BACKUP_DATA_DIRECTORY>` folder if it doesn't yet exist
-/// - [✅] creating `<NYMVISOR_UPGRADE_DATA_DIRECTORY>` folder if it doesn't yet exist
-/// - [✅] creating `<NYMVISOR_UPGRADE_DATA_DIRECTORY>/<DAEMON_NAME>/genesis/bin` folder if it doesn't yet exist
-/// - [✅] creating `<NYMVISOR_UPGRADE_DATA_DIRECTORY>/<DAEMON_NAME>/upgrades` folder if it doesn't yet exist
-/// - [⚠️] copying the provided executable to `<NYMVISOR_UPGRADE_DATA_DIRECTORY>/<DAEMON_NAME>/genesis/bin/<DAEMON_NAME>`
-/// - [✅] creating a `<NYMVISOR_UPGRADE_DATA_DIRECTORY>/<DAEMON_NAME>/current` symlink pointing to `<NYMVISOR_UPGRADE_DATA_DIRECTORY>/<DAEMON_NAME>/genesis`
-/// - [✅] saving nymvisor's config file to `<NYMVISOR_CONFIG_PATH>` and creating the full directory structure.
+/// - executing the `build-info` command on the daemon executable to check its validity and obtain its name
+/// - creating `<DAEMON_HOME>/nymvisor` folder if it doesn't yet exist
+/// - creating `<DAEMON_BACKUP_DATA_DIRECTORY>` folder if it doesn't yet exist
+/// - creating `<NYMVISOR_UPGRADE_DATA_DIRECTORY>` folder if it doesn't yet exist
+/// - creating `<NYMVISOR_UPGRADE_DATA_DIRECTORY>/<DAEMON_NAME>/genesis/bin` folder if it doesn't yet exist
+/// - creating `<NYMVISOR_UPGRADE_DATA_DIRECTORY>/<DAEMON_NAME>/upgrades` folder if it doesn't yet exist
+/// - copying the provided executable to `<NYMVISOR_UPGRADE_DATA_DIRECTORY>/<DAEMON_NAME>/genesis/bin/<DAEMON_NAME>`
+/// - generating initial `<NYMVISOR_UPGRADE_DATA_DIRECTORY>/<DAEMON_NAME>/genesis/upgrade-info.json` file
+/// - creating a `<NYMVISOR_UPGRADE_DATA_DIRECTORY>/<DAEMON_NAME>/current` symlink pointing to `<NYMVISOR_UPGRADE_DATA_DIRECTORY>/<DAEMON_NAME>/genesis`
+/// - saving nymvisor's config file to `<NYMVISOR_CONFIG_PATH>` and creating the full directory structure.
 ///
 /// note: it requires either passing `--daemon-home` flag or setting the `$DAEMON_HOME` environmental variable
 pub(crate) fn execute(args: Args) -> Result<(), NymvisorError> {
@@ -356,7 +380,7 @@ pub(crate) fn execute(args: Args) -> Result<(), NymvisorError> {
     let config = try_build_config(&args, &env, &daemon_info)?;
 
     init_paths(&config)?;
-    copy_genesis_binary(&config, &args.daemon_binary, &daemon_info)?;
+    setup_genesis_binary(&config, &args.daemon_binary, daemon_info)?;
     create_current_symlink(&config)?;
     save_config(config, &env)?;
 

@@ -7,6 +7,7 @@ use crate::env::Env;
 use crate::error::NymvisorError;
 use async_file_watcher::AsyncFileWatcher;
 use futures::channel::mpsc;
+use futures::future::{AbortHandle, Abortable};
 use futures::StreamExt;
 use nym_bin_common::logging::setup_tracing_logger;
 use std::sync::Arc;
@@ -59,13 +60,17 @@ pub(crate) fn execute(args: Args) -> Result<(), NymvisorError> {
             events_sender,
         )?;
 
-        let handle2 = tokio::spawn(async move { watcher.watch().await });
+        let (abort_handle, abort_registration) = AbortHandle::new_pair();
+
+        let handle2 =
+            tokio::spawn(async move { Abortable::new(watcher.watch(), abort_registration).await });
 
         let event = events_receiver.next().await;
         println!("watcher event: {event:?}");
         interrupt_notify.notify_one();
 
         handle1.await;
+        abort_handle.abort();
         handle2.await;
 
         // println!("{:?}", status);

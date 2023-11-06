@@ -33,6 +33,26 @@ pub(crate) enum NymvisorError {
         source: io::Error,
     },
 
+    #[error(
+    "failed to load upgrade info for upgrade '{name}' using path '{}'. detailed message: {source}", path.display()
+    )]
+    UpgradeInfoLoadFailure {
+        name: String,
+        path: PathBuf,
+        #[source]
+        source: io::Error,
+    },
+
+    #[error(
+    "failed to save upgrade info for upgrade '{name}' using path '{}'. detailed message: {source}", path.display()
+    )]
+    UpgradeInfoSaveFailure {
+        name: String,
+        path: PathBuf,
+        #[source]
+        source: io::Error,
+    },
+
     #[error("failed to initialise the path '{}': {source}", path.display())]
     PathInitFailure {
         path: PathBuf,

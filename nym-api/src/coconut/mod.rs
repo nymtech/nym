@@ -191,11 +191,7 @@ impl InternalSignRequest {
             rocket.manage(state).mount(
                 // this format! is so ugly...
                 format!("/{}/{}/{}", NYM_API_VERSION, COCONUT_ROUTES, BANDWIDTH),
-                routes![
-                    post_blind_sign,
-                    verify_bandwidth_credential,
-                    ecash_parameters
-                ],
+                routes![post_blind_sign, verify_bandwidth_credential],
             )
         })
     }

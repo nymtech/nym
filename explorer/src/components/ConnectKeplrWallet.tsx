@@ -6,6 +6,7 @@ import Big from 'big.js';
 import { useEffect, useState, useMemo } from 'react';
 
 import '@interchain-ui/react/styles';
+import { TokenSVG } from '../icons/TokenSVG';
 
 export function useIsClient() {
   const [isClient, setIsClient] = useState(false);
@@ -56,8 +57,6 @@ export default function ConnectKeplrWallet() {
     }
   }, [address, getCosmWasmClient]);
 
-  console.log('balance :>> ', balance);
-
   if (!isClient) return null;
 
   const getGlobalbutton = () => {
@@ -74,7 +73,8 @@ export default function ConnectKeplrWallet() {
           </Button>
 
           <Box>{address}</Box>
-          <Box>Balance: {balance.data} NYM</Box>
+          <TokenSVG />
+          <Box> {balance.data} NYM</Box>
 
           <Button
             onClick={async () => {

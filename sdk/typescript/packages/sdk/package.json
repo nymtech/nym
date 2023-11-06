@@ -1,6 +1,6 @@
 {
   "name": "@nymproject/sdk",
-  "version": "1.2.3-rc.0",
+  "version": "1.2.3",
   "license": "Apache-2.0",
   "author": "Nym Technologies SA",
   "files": [
@@ -11,7 +11,6 @@
   "main": "dist/cjs/index.js",
   "browser": "dist/esm/index.js",
   "scripts": {
-    "prebuild": "node scripts/showDependencyLocation.cjs",
     "build": "scripts/build-prod.sh",
     "build:dev": "scripts/build.sh",
     "build:dev:esm": "scripts/build-dev-esm.sh",
@@ -25,6 +24,7 @@
     "docs:watch": "nodemon --ext ts --watch './src/**/*' --watch './typedoc.json' --exec \"yarn docs:generate\"",
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
+    "prebuild": "node scripts/showDependencyLocation.cjs",
     "start": "tsc -w",
     "start:dev": "nodemon --watch src -e ts,json --exec 'yarn build:dev:esm'",
     "test": "node --experimental-vm-modules --no-warnings node_modules/jest/bin/jest.js -c=jest.config.mjs --no-cache",

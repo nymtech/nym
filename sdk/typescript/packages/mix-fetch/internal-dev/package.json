@@ -1,6 +1,6 @@
 {
   "name": "@nymproject/mix-fetch-tester-webpack",
-  "version": "1.0.3-rc.0",
+  "version": "1.0.3",
   "license": "Apache-2.0",
   "scripts": {
     "build": "webpack build --progress --config webpack.prod.js",

@@ -20,6 +20,7 @@ fn try_upgrade_v1_1_21_config(id: &str) -> Result<()> {
     info!("It is going to get updated to the current specification.");
 
     let updated: Config = old_config.into();
+    crate::network_monitor::init_ecash_keypair(&updated.network_monitor)?;
     Ok(updated.save_to_default_location()?)
 }
 
@@ -36,6 +37,7 @@ fn try_upgrade_v1_1_27_config(id: &str) -> Result<()> {
     info!("It is going to get updated to the current specification.");
 
     let updated: Config = old_config.into();
+    crate::network_monitor::init_ecash_keypair(&updated.network_monitor)?;
     Ok(updated.save_to_default_location()?)
 }
 
@@ -48,6 +50,7 @@ pub(crate) fn initialise_new(id: &str) -> Result<Config> {
     let config = Config::new(id);
     init_paths(id)?;
     crate::coconut::dkg::controller::init_keypair(&config.coconut_signer)?;
+    crate::network_monitor::init_ecash_keypair(&config.network_monitor)?;
     Ok(config)
 }
 

@@ -70,6 +70,7 @@ export function MixnetClient() {
     await client?.client.start({
       clientId: crypto.randomUUID(),
       nymApiUrl,
+      forceTls: true, // force WSS
     });
  
     // Check when is connected and set the self address

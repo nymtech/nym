@@ -17,12 +17,11 @@ import wasmBytes from '@nymproject/nym-client-wasm/nym_client_wasm_bg.wasm';
 // eslint-disable-next-line import/no-extraneous-dependencies
 import init, {
   NymClient,
-  NymClientBuilder,
-  ClientConfig,
   decode_payload,
   parse_utf8_string,
   utf8_string_to_byte_array,
   encode_payload_with_headers,
+  ClientOpts,
 } from '@nymproject/nym-client-wasm';
 
 import type {
@@ -30,7 +29,6 @@ import type {
   ConnectedEvent,
   IWebWorker,
   LoadedEvent,
-  NymClientConfig,
   OnRawPayloadFn,
   RawMessageReceivedEvent,
   StringMessageReceivedEvent,
@@ -56,26 +54,7 @@ const postMessageWithType = <E>(event: E) => self.postMessage(event);
 class ClientWrapper {
   client: NymClient | null = null;
 
-  builder: NymClientBuilder | null = null;
-
   mimeTypes: string[] = [MimeTypes.TextPlain, MimeTypes.ApplicationJson];
-
-  /**
-   * Creates the WASM client and initialises it.
-   */
-  init = (config: ClientConfig, onRawPayloadHandler?: OnRawPayloadFn) => {
-    const onMessageHandler = (message: Uint8Array) => {
-      try {
-        if (onRawPayloadHandler) {
-          onRawPayloadHandler(message);
-        }
-      } catch (e) {
-        console.error('Unhandled exception in `ClientWrapper.onRawPayloadHandler`: ', e);
-      }
-    };
-
-    this.builder = new NymClientBuilder(config, onMessageHandler);
-  };
 
   /**
    * Sets the mime-types that will be parsed for UTF-8 string content.
@@ -106,16 +85,22 @@ class ClientWrapper {
   /**
    * Connects to the gateway and starts the client sending traffic.
    */
-  start = async () => {
-    if (!this.builder) {
-      console.error('Client config has not been initialised. Please call `init` first.');
-      return;
-    }
+  start = async (opts?: ClientOpts, onRawPayloadHandler?: OnRawPayloadFn) => {
+    const onMessageHandler = (message: Uint8Array) => {
+      try {
+        if (onRawPayloadHandler) {
+          onRawPayloadHandler(message);
+        }
+      } catch (e) {
+        // eslint-disable-next-line no-console
+        console.error('Unhandled exception in `ClientWrapper.onRawPayloadHandler`: ', e);
+      }
+    };
 
     // this is current limitation of wasm in rust - for async methods you can't take self by reference...
     // I'm trying to figure out if I can somehow hack my way around it, but for time being you have to re-assign
     // the object (it's the same one)
-    this.client = await this.builder.start_client();
+    this.client = await new NymClient(onMessageHandler, opts);
   };
 
   /**
@@ -158,9 +143,9 @@ init(wasmBytes())
     // this wrapper handles any state that the wasm-pack interop needs, e.g. holding an instance of the instantiated WASM code
     const wrapper = new ClientWrapper();
 
-    const startHandler = async (config: NymClientConfig) => {
+    const startHandler = async (opts?: ClientOpts) => {
       // create the client, passing handlers for events
-      wrapper.init(new ClientConfig(config), async (message) => {
+      await wrapper.start(opts, async (message) => {
         // fire an event with the raw message
         postMessageWithType<RawMessageReceivedEvent>({
           kind: EventKinds.RawMessageReceived,
@@ -194,9 +179,6 @@ init(wasmBytes())
           console.error('Failed to parse binary message', e);
         }
       });
-
-      // start the client sending traffic
-      await wrapper.start();
 
       // get the address
       const address = wrapper.selfAddress();

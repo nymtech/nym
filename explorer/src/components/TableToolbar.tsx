@@ -1,8 +1,10 @@
 import * as React from 'react';
-import { Box, TextField, MenuItem, FormControl } from '@mui/material';
+import { Box, TextField, MenuItem, FormControl, Button } from '@mui/material';
 import Select, { SelectChangeEvent } from '@mui/material/Select';
 import { Filters } from './Filters/Filters';
 import { useIsMobile } from '../hooks/useIsMobile';
+import { useState } from 'react';
+import { DelegateModal } from './Delegations/DelegateModal';
 
 const fieldsHeight = '42.25px';
 
@@ -25,6 +27,8 @@ export const TableToolbar: FCWithChildren<TableToolBarProps> = ({
   childrenAfter,
   withFilters,
 }) => {
+  const [showNewDelegationModal, setShowNewDelegationModal] = useState<boolean>(false);
+
   const isMobile = useIsMobile();
   return (
     <Box
@@ -77,6 +81,7 @@ export const TableToolbar: FCWithChildren<TableToolBarProps> = ({
           />
         )}
       </Box>
+
       <Box
         sx={{
           display: 'flex',
@@ -86,9 +91,32 @@ export const TableToolbar: FCWithChildren<TableToolBarProps> = ({
           marginTop: isMobile ? 2 : 0,
         }}
       >
+        <Button
+          variant="contained"
+          disableElevation
+          onClick={() => setShowNewDelegationModal(true)}
+          sx={{ py: 1.5, px: 5, color: 'primary.contrastText' }}
+        >
+          Delegate
+        </Button>
         {withFilters && <Filters />}
         {childrenAfter}
       </Box>
+
+      {showNewDelegationModal && (
+        <DelegateModal
+          open={showNewDelegationModal}
+          onClose={() => setShowNewDelegationModal(false)}
+          onOk={undefined}
+          header="Delegate"
+          buttonText="Delegate stake"
+          denom={'nym'} // clientDetails?.display_mix_denom || 'nym'}
+          accountBalance={'balance?.printable_balance'}
+          rewardInterval="weekly"
+          hasVestingContract={true}
+          // {...storybookStyles(theme, isStorybook)}
+        />
+      )}
     </Box>
   );
 };

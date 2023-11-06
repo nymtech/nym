@@ -5,7 +5,7 @@ When you send data across the internet, it can be recorded by a wide range of ob
 
 Even if the content of a network request is encrypted, observers can still see that data was transmitted, its size, frequency of transmission, and gather metadata from unencrypted parts of the data (such as IP routing information). Adversaries may then combine all the leaked information to probabilistically de-anonymize users.
 
-The Nym mixnet provides very strong security guarantees against this sort of surveillance. It _packetizes_ and _mixes_ together IP traffic from many users inside the _mixnet_. 
+The Nym mixnet provides very strong security guarantees against this sort of surveillance. It _packetises_ and _mixes_ together IP traffic from many users inside the _mixnet_. 
 
 > If you're into comparisons, the Nym mixnet is conceptually similar to other systems such as Tor, but provides improved protections against end-to-end timing attacks which can de-anonymize users. When Tor was first fielded, in 2002, those kinds of attacks were regarded as science fiction. But the future is now here.
 
@@ -69,7 +69,7 @@ From your Nym client, your encrypted traffic is sent to:
 Whatever is on the 'other side' of the mixnet from your client, all traffic will travel this way through the mixnet. If you are sending traffic to a service external to Nym (such as a chat application's servers) then your traffic will be sent from the recieving Nym client to an application that will proxy it 'out' of the mixnet to these servers, shielding your metadata from them. P2P (peer-to-peer) applications, unlike the majority of apps, might want to keep all of their traffic entirely 'within' the mixnet, as they don't have to necessarily make outbound network requests to application servers. They would simply have their local application code communicate with their Nym clients, and not forward traffic anywhere 'outside' of the mixnet. 
 
 ## Acks & Package Retransmission
-Whenever a hop is completed, the recieving node will send back an acknowledgement ('ack') so that the sending node knows that the packet was recieved. If it does not recieve an ack after sending, it will resend the packet, as it assumes that the packet was dropped for some reason. This is done under the hood by the binaries themselves, and is never something that developers and node operators have to worry about dealing with themselves. 
+Whenever a hop is completed, the receiving node will send back an acknowledgement ('ack') so that the sending node knows that the packet was received. If it does not receive an ack after sending, it will resend the packet, as it assumes that the packet was dropped for some reason. This is done under the hood by the binaries themselves, and is never something that developers and node operators have to worry about dealing with themselves. 
 
 Packet retransmission means that if a client sends 100 packets to a gateway, but only receives an acknowledgement ('ack') for 95 of them, it will resend those 5 packets to the gateway again, to make sure that all packets are received. All nodes in the mixnet support packet retransmission. 
 

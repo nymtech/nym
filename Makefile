@@ -93,10 +93,6 @@ $(eval $(call add_cargo_workspace,contracts,contracts,--lib --target wasm32-unkn
 $(eval $(call add_cargo_workspace,wallet,nym-wallet))
 $(eval $(call add_cargo_workspace,connect,nym-connect/desktop))
 
-# OVERRIDE: wasm-opt fails if the binary has been built with the latest rustc.
-# Pin to the last working version.
-contracts_BUILD_RELEASE_TOOLCHAIN := +1.69.0
-
 # -----------------------------------------------------------------------------
 # SDK
 # -----------------------------------------------------------------------------
@@ -144,7 +140,7 @@ contracts: build-release-contracts wasm-opt-contracts
 
 wasm-opt-contracts:
 	for contract in $(CONTRACTS_WASM); do \
-	  wasm-opt --disable-sign-ext -Os $(CONTRACTS_OUT_DIR)/$$contract -o $(CONTRACTS_OUT_DIR)/$$contract; \
+	  wasm-opt --signext-lowering -Os $(CONTRACTS_OUT_DIR)/$$contract -o $(CONTRACTS_OUT_DIR)/$$contract; \
 	done
 
 # Consider adding 's' to make plural consistent (beware: used in github workflow)

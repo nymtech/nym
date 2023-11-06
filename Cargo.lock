@@ -1158,7 +1158,7 @@ checksum = "f769ab9e8c1652d78dd0b3ec59cdaa1e2bcb3b6b39f6681b256abcdbe101cc14"
 dependencies = [
  "anyhow",
  "cargo_metadata",
- "clap 4.4.6",
+ "clap 4.4.7",
  "concolor-control",
  "crates-index",
  "dirs-next",
@@ -1393,9 +1393,9 @@ dependencies = [
 
 [[package]]
 name = "clap"
-version = "4.4.6"
+version = "4.4.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d04704f56c2cde07f43e8e2c154b43f216dc5c92fc98ada720177362f953b956"
+checksum = "ac495e00dcec98c83465d5ad66c5c4fabd652fd6686e7c6269b117e729a6f17b"
 dependencies = [
  "clap_builder",
  "clap_derive",
@@ -1403,13 +1403,13 @@ dependencies = [
 
 [[package]]
 name = "clap_builder"
-version = "4.4.6"
+version = "4.4.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0e231faeaca65ebd1ea3c737966bf858971cd38c3849107aa3ea7de90a804e45"
+checksum = "c77ed9a32a62e6ca27175d00d29d05ca32e396ea1eb5fb01d8256b669cec7663"
 dependencies = [
  "anstream",
  "anstyle",
- "clap_lex 0.5.1",
+ "clap_lex 0.6.0",
  "strsim",
  "terminal_size",
 ]
@@ -1420,7 +1420,7 @@ version = "4.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e3ae8ba90b9d8b007efe66e55e48fb936272f5ca00349b5b0e89877520d35ea7"
 dependencies = [
- "clap 4.4.6",
+ "clap 4.4.7",
 ]
 
 [[package]]
@@ -1429,15 +1429,15 @@ version = "4.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "29bdbe21a263b628f83fcbeac86a4416a1d588c7669dd41473bc4149e4e7d2f1"
 dependencies = [
- "clap 4.4.6",
+ "clap 4.4.7",
  "clap_complete",
 ]
 
 [[package]]
 name = "clap_derive"
-version = "4.4.2"
+version = "4.4.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0862016ff20d69b84ef8247369fabf5c008a7417002411897d40ee1f4532b873"
+checksum = "cf9804afaaf59a91e75b022a30fb7229a7901f60c755489cc61c9b423b836442"
 dependencies = [
  "heck 0.4.1",
  "proc-macro2",
@@ -1456,9 +1456,9 @@ dependencies = [
 
 [[package]]
 name = "clap_lex"
-version = "0.5.1"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cd7cc57abe963c6d3b9d8be5b06ba7c8957a930305ca90304f24ef040aa6f961"
+checksum = "702fc72eb24e5a1e48ce58027a675bc24edd52096d5397d4aea7c6dd9eca0bd1"
 
 [[package]]
 name = "cloudabi"
@@ -2871,7 +2871,7 @@ dependencies = [
  "bytes",
  "cfg-if",
  "chrono",
- "clap 4.4.6",
+ "clap 4.4.7",
  "config",
  "digest 0.10.7",
  "dirs 5.0.1",
@@ -2938,10 +2938,10 @@ checksum = "0206175f82b8d6bf6652ff7d71a1e27fd2e4efde587fd368662814d6ec1d9ce0"
 
 [[package]]
 name = "explorer-api"
-version = "1.1.30"
+version = "1.1.31"
 dependencies = [
  "chrono",
- "clap 4.4.6",
+ "clap 4.4.7",
  "dotenvy",
  "humantime-serde",
  "isocountry",
@@ -2994,7 +2994,7 @@ dependencies = [
 
 [[package]]
 name = "extension-storage"
-version = "1.2.0"
+version = "1.2.1"
 dependencies = [
  "bip39",
  "console_error_panic_hook",
@@ -5559,7 +5559,7 @@ dependencies = [
 
 [[package]]
 name = "mix-fetch-wasm"
-version = "1.2.0"
+version = "1.2.1"
 dependencies = [
  "async-trait",
  "futures",
@@ -5951,7 +5951,7 @@ dependencies = [
 
 [[package]]
 name = "nym-api"
-version = "1.1.31"
+version = "1.1.32"
 dependencies = [
  "actix-web",
  "anyhow",
@@ -5961,7 +5961,7 @@ dependencies = [
  "bs58 0.4.0",
  "cfg-if",
  "chrono",
- "clap 4.4.6",
+ "clap 4.4.7",
  "console-subscriber",
  "cosmwasm-std",
  "cw-utils",
@@ -6066,7 +6066,7 @@ name = "nym-bin-common"
 version = "0.6.0"
 dependencies = [
  "atty",
- "clap 4.4.6",
+ "clap 4.4.7",
  "clap_complete",
  "clap_complete_fig",
  "log",
@@ -6101,13 +6101,13 @@ dependencies = [
 
 [[package]]
 name = "nym-cli"
-version = "1.1.30"
+version = "1.1.31"
 dependencies = [
  "anyhow",
  "base64 0.13.1",
  "bip39",
  "bs58 0.4.0",
- "clap 4.4.6",
+ "clap 4.4.7",
  "clap_complete",
  "clap_complete_fig",
  "dotenvy",
@@ -6132,7 +6132,7 @@ dependencies = [
  "bip39",
  "bs58 0.4.0",
  "cfg-if",
- "clap 4.4.6",
+ "clap 4.4.7",
  "comfy-table",
  "cosmrs",
  "cosmwasm-std",
@@ -6174,9 +6174,9 @@ dependencies = [
 
 [[package]]
 name = "nym-client"
-version = "1.1.30"
+version = "1.1.31"
 dependencies = [
- "clap 4.4.6",
+ "clap 4.4.7",
  "dirs 4.0.0",
  "futures",
  "lazy_static",
@@ -6215,6 +6215,7 @@ dependencies = [
  "async-trait",
  "base64 0.21.4",
  "cfg-if",
+ "clap 4.4.7",
  "dashmap",
  "dirs 4.0.0",
  "futures",
@@ -6259,7 +6260,7 @@ dependencies = [
 
 [[package]]
 name = "nym-client-wasm"
-version = "1.2.0"
+version = "1.2.1"
 dependencies = [
  "anyhow",
  "futures",
@@ -6478,6 +6479,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-exit-policy"
+version = "0.1.0"
+dependencies = [
+ "reqwest",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tracing",
+ "utoipa",
+]
+
+[[package]]
 name = "nym-explorer-api-requests"
 version = "0.1.0"
 dependencies = [
@@ -6504,14 +6517,14 @@ dependencies = [
 
 [[package]]
 name = "nym-gateway"
-version = "1.1.30"
+version = "1.1.31"
 dependencies = [
  "anyhow",
  "async-trait",
  "atty",
  "bip39",
  "bs58 0.4.0",
- "clap 4.4.6",
+ "clap 4.4.7",
  "colored",
  "dashmap",
  "dirs 4.0.0",
@@ -6528,6 +6541,7 @@ dependencies = [
  "nym-credentials",
  "nym-crypto",
  "nym-gateway-requests",
+ "nym-ip-packet-router",
  "nym-mixnet-client",
  "nym-mixnode-common",
  "nym-network-defaults",
@@ -6632,6 +6646,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-ip-packet-router"
+version = "0.1.0"
+dependencies = [
+ "etherparse",
+ "futures",
+ "log",
+ "nym-bin-common",
+ "nym-client-core",
+ "nym-config",
+ "nym-sdk",
+ "nym-service-providers-common",
+ "nym-sphinx",
+ "nym-task",
+ "nym-wireguard",
+ "nym-wireguard-types",
+ "serde",
+ "serde_json",
+ "tap",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
 name = "nym-mixnet-client"
 version = "0.1.0"
 dependencies = [
@@ -6666,12 +6703,13 @@ dependencies = [
 
 [[package]]
 name = "nym-mixnode"
-version = "1.1.31"
+version = "1.1.32"
 dependencies = [
  "anyhow",
+ "axum",
  "bs58 0.4.0",
  "cfg-if",
- "clap 4.4.6",
+ "clap 4.4.7",
  "colored",
  "cpu-cycles",
  "cupid",
@@ -6686,6 +6724,7 @@ dependencies = [
  "nym-crypto",
  "nym-mixnet-client",
  "nym-mixnode-common",
+ "nym-node",
  "nym-nonexhaustive-delayqueue",
  "nym-pemstore",
  "nym-sphinx",
@@ -6698,10 +6737,10 @@ dependencies = [
  "opentelemetry",
  "pretty_env_logger",
  "rand 0.7.3",
- "rocket",
  "serde",
  "serde_json",
  "sysinfo",
+ "thiserror",
  "tokio",
  "tokio-util",
  "toml 0.5.11",
@@ -6784,13 +6823,13 @@ dependencies = [
 
 [[package]]
 name = "nym-network-requester"
-version = "1.1.30"
+version = "1.1.31"
 dependencies = [
  "anyhow",
  "async-file-watcher",
  "async-trait",
  "bs58 0.4.0",
- "clap 4.4.6",
+ "clap 4.4.7",
  "dirs 4.0.0",
  "futures",
  "humantime-serde",
@@ -6803,6 +6842,7 @@ dependencies = [
  "nym-config",
  "nym-credential-storage",
  "nym-crypto",
+ "nym-exit-policy",
  "nym-network-defaults",
  "nym-ordered-buffer",
  "nym-sdk",
@@ -6831,7 +6871,7 @@ dependencies = [
 
 [[package]]
 name = "nym-network-statistics"
-version = "1.1.30"
+version = "1.1.31"
 dependencies = [
  "dirs 4.0.0",
  "log",
@@ -6887,6 +6927,7 @@ dependencies = [
  "http-api-client",
  "nym-bin-common",
  "nym-crypto",
+ "nym-exit-policy",
  "nym-wireguard-types",
  "schemars",
  "serde",
@@ -6917,7 +6958,7 @@ dependencies = [
 
 [[package]]
 name = "nym-node-tester-wasm"
-version = "1.2.0"
+version = "1.2.1"
 dependencies = [
  "futures",
  "js-sys",
@@ -6950,7 +6991,7 @@ name = "nym-nr-query"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "clap 4.4.6",
+ "clap 4.4.7",
  "log",
  "nym-bin-common",
  "nym-network-defaults",
@@ -7073,9 +7114,9 @@ dependencies = [
 
 [[package]]
 name = "nym-socks5-client"
-version = "1.1.30"
+version = "1.1.31"
 dependencies = [
- "clap 4.4.6",
+ "clap 4.4.7",
  "lazy_static",
  "log",
  "nym-bin-common",
@@ -7178,6 +7219,7 @@ version = "0.1.0"
 dependencies = [
  "bincode",
  "log",
+ "nym-exit-policy",
  "nym-service-providers-common",
  "nym-sphinx-addressing",
  "serde",
@@ -7518,7 +7560,7 @@ dependencies = [
 
 [[package]]
 name = "nym-wasm-sdk"
-version = "1.2.0"
+version = "1.2.1"
 dependencies = [
  "mix-fetch-wasm",
  "nym-client-wasm",
@@ -7541,6 +7583,7 @@ dependencies = [
  "log",
  "nym-task",
  "nym-wireguard-types",
+ "rand 0.8.5",
  "serde",
  "tap",
  "thiserror",
@@ -9500,7 +9543,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "cargo-edit",
- "clap 4.4.6",
+ "clap 4.4.7",
  "semver 1.0.20",
  "serde",
  "serde_json",
@@ -10262,7 +10305,7 @@ name = "ssl-inject"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "clap 4.4.6",
+ "clap 4.4.7",
  "hex",
  "tokio",
 ]

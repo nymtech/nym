@@ -27,6 +27,10 @@ pub const NYXD_URL: &str = "https://rpc.nymtech.net";
 pub const NYM_API: &str = "https://validator.nymtech.net/api/";
 pub const EXPLORER_API: &str = "https://explorer.nymtech.net/api/";
 
+// I'm making clippy mad on purpose, because that url HAS TO be updated and deployed before merging
+pub const EXIT_POLICY_URL: &str =
+    "https://nymtech.net/.wellknown/network-requester/exit-policy.txt";
+
 pub(crate) fn validators() -> Vec<ValidatorDetails> {
     vec![ValidatorDetails::new(NYXD_URL, Some(NYM_API))]
 }
@@ -101,6 +105,7 @@ pub fn export_to_env() {
     set_var_to_default(var_names::NYXD, NYXD_URL);
     set_var_to_default(var_names::NYM_API, NYM_API);
     set_var_to_default(var_names::EXPLORER_API, EXPLORER_API);
+    set_var_to_default(var_names::EXIT_POLICY_URL, EXIT_POLICY_URL);
 }
 
 pub fn export_to_env_if_not_set() {
@@ -148,4 +153,5 @@ pub fn export_to_env_if_not_set() {
     set_var_conditionally_to_default(var_names::NYXD, NYXD_URL);
     set_var_conditionally_to_default(var_names::NYM_API, NYM_API);
     set_var_conditionally_to_default(var_names::EXPLORER_API, EXPLORER_API);
+    set_var_conditionally_to_default(var_names::EXIT_POLICY_URL, EXIT_POLICY_URL);
 }

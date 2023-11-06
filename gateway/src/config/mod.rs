@@ -24,6 +24,7 @@ use zeroize::{Zeroize, ZeroizeOnDrop};
 pub(crate) mod old_config_v1_1_20;
 pub(crate) mod old_config_v1_1_28;
 pub(crate) mod old_config_v1_1_29;
+pub(crate) mod old_config_v1_1_31;
 pub mod persistence;
 mod template;
 
@@ -101,6 +102,9 @@ pub struct Config {
     pub network_requester: NetworkRequester,
 
     #[serde(default)]
+    pub ip_packet_router: IpPacketRouter,
+
+    #[serde(default)]
     pub logging: LoggingSettings,
 
     #[serde(default)]
@@ -128,6 +132,7 @@ impl Config {
             wireguard: Default::default(),
             storage_paths: GatewayPaths::new_default(id.as_ref()),
             network_requester: Default::default(),
+            ip_packet_router: Default::default(),
             logging: Default::default(),
             debug: Default::default(),
         }
@@ -192,6 +197,18 @@ impl Config {
         self.storage_paths = self
             .storage_paths
             .with_default_network_requester_config(&self.gateway.id);
+        self
+    }
+
+    pub fn with_enabled_ip_packet_router(mut self, enabled_ip_packet_router: bool) -> Self {
+        self.ip_packet_router.enabled = enabled_ip_packet_router;
+        self
+    }
+
+    pub fn with_default_ip_packet_router_config_path(mut self) -> Self {
+        self.storage_paths = self
+            .storage_paths
+            .with_default_ip_packet_router_config(&self.gateway.id);
         self
     }
 
@@ -357,6 +374,20 @@ pub struct NetworkRequester {
 impl Default for NetworkRequester {
     fn default() -> Self {
         NetworkRequester { enabled: false }
+    }
+}
+
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[serde(default)]
+pub struct IpPacketRouter {
+    /// Specifies whether ip packet router service is enabled in this process.
+    pub enabled: bool,
+}
+
+#[allow(clippy::derivable_impls)]
+impl Default for IpPacketRouter {
+    fn default() -> Self {
+        Self { enabled: false }
     }
 }
 

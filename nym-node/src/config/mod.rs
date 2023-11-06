@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use nym_config::defaults::DEFAULT_NYM_NODE_HTTP_PORT;
+use nym_wireguard_types::WG_PORT;
 use serde::{Deserialize, Serialize};
 use serde_helpers::*;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
@@ -10,7 +11,7 @@ use std::path::PathBuf;
 pub mod persistence;
 mod serde_helpers;
 
-pub const DEFAULT_WIREGUARD_PORT: u16 = 51820;
+pub const DEFAULT_WIREGUARD_PORT: u16 = WG_PORT;
 pub const DEFAULT_HTTP_PORT: u16 = DEFAULT_NYM_NODE_HTTP_PORT;
 
 // TODO: this is very much a WIP. we need proper ssl certificate support here
@@ -42,6 +43,7 @@ impl Host {
 pub struct Http {
     /// Socket address this node will use for binding its http API.
     /// default: `0.0.0.0:8080`
+    /// note: for legacy reasons, it defaults to port `8000` for mixnodes.
     pub bind_address: SocketAddr,
 
     /// Path to assets directory of custom landing page of this node.
@@ -66,7 +68,7 @@ pub struct Wireguard {
     pub enabled: bool,
 
     /// Socket address this node will use for binding its wireguard interface.
-    /// default: `0.0.0.0:51820`
+    /// default: `0.0.0.0:51822`
     pub bind_address: SocketAddr,
 
     /// Port announced to external clients wishing to connect to the wireguard interface.

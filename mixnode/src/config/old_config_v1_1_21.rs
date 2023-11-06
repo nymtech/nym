@@ -1,8 +1,10 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::config::old_config_v1_1_32::{
+    ConfigV1_1_32, DebugV1_1_32, MixNodeV1_1_32, VerlocV1_1_32,
+};
 use crate::config::persistence::paths::{KeysPaths, MixNodePaths};
-use crate::config::{Config, Debug, MixNode, Verloc};
 use nym_bin_common::logging::LoggingSettings;
 use nym_config::legacy_helpers::nym_config::MigrationNymConfig;
 use nym_validator_client::nyxd;
@@ -67,13 +69,13 @@ pub struct ConfigV1_1_21 {
     debug: DebugV1_1_21,
 }
 
-impl From<ConfigV1_1_21> for Config {
+impl From<ConfigV1_1_21> for ConfigV1_1_32 {
     fn from(value: ConfigV1_1_21) -> Self {
         let node_description =
             ConfigV1_1_21::default_config_directory(&value.mixnode.id).join(DESCRIPTION_FILE);
 
-        Config {
-            mixnode: MixNode {
+        ConfigV1_1_32 {
+            mixnode: MixNodeV1_1_32 {
                 version: value.mixnode.version,
                 id: value.mixnode.id,
                 listening_address: value.mixnode.listening_address,
@@ -169,9 +171,9 @@ struct VerlocV1_1_21 {
     retry_timeout: Duration,
 }
 
-impl From<VerlocV1_1_21> for Verloc {
+impl From<VerlocV1_1_21> for VerlocV1_1_32 {
     fn from(value: VerlocV1_1_21) -> Self {
-        Verloc {
+        VerlocV1_1_32 {
             packets_per_node: value.packets_per_node,
             connection_timeout: value.connection_timeout,
             packet_timeout: value.packet_timeout,
@@ -220,9 +222,9 @@ struct DebugV1_1_21 {
     use_legacy_framed_packet_version: bool,
 }
 
-impl From<DebugV1_1_21> for Debug {
+impl From<DebugV1_1_21> for DebugV1_1_32 {
     fn from(value: DebugV1_1_21) -> Self {
-        Debug {
+        DebugV1_1_32 {
             node_stats_logging_delay: value.node_stats_logging_delay,
             node_stats_updating_delay: value.node_stats_updating_delay,
             packet_forwarding_initial_backoff: value.packet_forwarding_initial_backoff,

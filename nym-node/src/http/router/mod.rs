@@ -9,6 +9,7 @@ use crate::http::NymNodeHTTPServer;
 use axum::Router;
 use nym_node_requests::api::v1::gateway::models::{Gateway, Wireguard};
 use nym_node_requests::api::v1::mixnode::models::Mixnode;
+use nym_node_requests::api::v1::network_requester::exit_policy::models::UsedExitPolicy;
 use nym_node_requests::api::v1::network_requester::models::NetworkRequester;
 use nym_node_requests::api::v1::node::models;
 use nym_node_requests::api::SignedHostInformation;
@@ -87,6 +88,12 @@ impl Config {
         self.api.v1_config.network_requester.details = Some(network_requester);
         self
     }
+
+    #[must_use]
+    pub fn with_used_exit_policy(mut self, exit_policy: UsedExitPolicy) -> Self {
+        self.api.v1_config.network_requester.exit_policy = Some(exit_policy);
+        self
+    }
 }
 
 pub struct NymNodeRouter {
@@ -114,6 +121,12 @@ impl NymNodeRouter {
     #[must_use]
     pub fn with_route(mut self, path: &str, router: Router) -> Self {
         self.inner = self.inner.nest(path, router);
+        self
+    }
+
+    #[must_use]
+    pub fn with_merged(mut self, router: Router) -> Self {
+        self.inner = self.inner.merge(router);
         self
     }
 

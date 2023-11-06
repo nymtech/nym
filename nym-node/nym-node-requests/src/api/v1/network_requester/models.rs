@@ -16,16 +16,3 @@ pub struct NetworkRequester {
     /// Nym address of this network requester.
     pub address: String,
 }
-
-// #[derive(Serialize, Debug, Clone, ToSchema)]
-// pub struct ExitPolicy {
-//     // pub allowed_ports:
-//     // pub deny_list: DenyList,
-// }
-//
-// #[derive(Serialize, Debug, Clone, ToSchema)]
-// pub struct DenyListEntry {
-//     // pub ports:
-//     // pub ips:
-//     pub description: String,
-// }

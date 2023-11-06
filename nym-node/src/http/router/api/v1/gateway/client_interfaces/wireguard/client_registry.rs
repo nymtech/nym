@@ -10,6 +10,7 @@ use crate::wireguard::error::WireguardError;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::Json;
+use nym_crypto::asymmetric::encryption::PublicKey;
 use nym_node_requests::api::v1::gateway::client_interfaces::wireguard::models::{
     ClientMessage, ClientRegistrationResponse, GatewayClient, InitMessage, Nonce, PeerPublicKey,
 };
@@ -87,8 +88,16 @@ pub(crate) async fn register_client(
 
     match payload {
         ClientMessage::Initial(init) => {
+            let remote_public = PublicKey::from_bytes(init.pub_key().as_bytes())
+                .map_err(|_| RequestError::new_status(StatusCode::BAD_REQUEST))?;
             let nonce = process_init_message(init, state).await;
-            let response = ClientRegistrationResponse::PendingRegistration { nonce };
+            let gateway_data =
+                GatewayClient::new(state.dh_keypair.private_key(), remote_public, nonce);
+            let response = ClientRegistrationResponse::PendingRegistration {
+                nonce,
+                gateway_data,
+                wg_port: state.binding_port,
+            };
             Ok(output.to_response(response))
         }
         ClientMessage::Final(finalize) => {

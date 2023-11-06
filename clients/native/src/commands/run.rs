@@ -10,35 +10,14 @@ use crate::{
 use clap::Args;
 use log::*;
 use nym_bin_common::version_checker::is_minor_version_compatible;
-use nym_crypto::asymmetric::identity;
+use nym_client_core::cli_helpers::client_run::CommonClientRunArgs;
 use std::error::Error;
 use std::net::IpAddr;
-use std::path::PathBuf;
 
 #[derive(Args, Clone)]
 pub(crate) struct Run {
-    /// Id of the nym-mixnet-client we want to run.
-    #[clap(long)]
-    id: String,
-
-    /// Comma separated list of rest endpoints of the nyxd validators
-    #[clap(long, alias = "nyxd_validators", value_delimiter = ',', hide = true)]
-    nyxd_urls: Option<Vec<url::Url>>,
-
-    /// Comma separated list of rest endpoints of the API validators
-    #[clap(
-        long,
-        alias = "api_validators",
-        value_delimiter = ',',
-        group = "network"
-    )]
-    // the alias here is included for backwards compatibility (1.1.4 and before)
-    nym_apis: Option<Vec<url::Url>>,
-
-    /// Id of the gateway we want to connect to. If overridden, it is user's responsibility to
-    /// ensure prior registration happened
-    #[clap(long)]
-    gateway: Option<identity::PublicKey>,
+    #[command(flatten)]
+    common_args: CommonClientRunArgs,
 
     /// Whether to not start the websocket
     #[clap(long)]
@@ -51,37 +30,19 @@ pub(crate) struct Run {
     /// Ip for the socket (if applicable) to listen for requests.
     #[clap(long)]
     host: Option<IpAddr>,
-
-    /// Path to .json file containing custom network specification.
-    #[clap(long, group = "network", hide = true)]
-    custom_mixnet: Option<PathBuf>,
-
-    /// Mostly debug-related option to increase default traffic rate so that you would not need to
-    /// modify config post init
-    #[clap(long, hide = true)]
-    fastmode: bool,
-
-    /// Disable loop cover traffic and the Poisson rate limiter (for debugging only)
-    #[clap(long, hide = true)]
-    no_cover: bool,
-
-    /// Set this client to work in a enabled credentials mode that would attempt to use gateway
-    /// with bandwidth credential requirement.
-    #[clap(long, hide = true)]
-    enabled_credentials_mode: Option<bool>,
 }
 
 impl From<Run> for OverrideConfig {
     fn from(run_config: Run) -> Self {
         OverrideConfig {
-            nym_apis: run_config.nym_apis,
+            nym_apis: run_config.common_args.nym_apis,
             disable_socket: run_config.disable_socket,
             port: run_config.port,
             host: run_config.host,
-            fastmode: run_config.fastmode,
-            no_cover: run_config.no_cover,
-            nyxd_urls: run_config.nyxd_urls,
-            enabled_credentials_mode: run_config.enabled_credentials_mode,
+            fastmode: run_config.common_args.fastmode,
+            no_cover: run_config.common_args.no_cover,
+            nyxd_urls: run_config.common_args.nyxd_urls,
+            enabled_credentials_mode: run_config.common_args.enabled_credentials_mode,
         }
     }
 }
@@ -106,9 +67,9 @@ fn version_check(cfg: &Config) -> bool {
 }
 
 pub(crate) async fn execute(args: Run) -> Result<(), Box<dyn Error + Send + Sync>> {
-    eprintln!("Starting client {}...", args.id);
+    eprintln!("Starting client {}...", args.common_args.id);
 
-    let mut config = try_load_current_config(&args.id)?;
+    let mut config = try_load_current_config(&args.common_args.id)?;
     config = override_config(config, OverrideConfig::from(args.clone()));
 
     if !version_check(&config) {
@@ -116,7 +77,7 @@ pub(crate) async fn execute(args: Run) -> Result<(), Box<dyn Error + Send + Sync
         return Err(Box::new(ClientError::FailedLocalVersionCheck));
     }
 
-    SocketClient::new(config, args.custom_mixnet)
+    SocketClient::new(config, args.common_args.custom_mixnet)
         .run_socket_forever()
         .await
 }

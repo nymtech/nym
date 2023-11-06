@@ -33,6 +33,12 @@ jobs:
           override: true
           components: rustfmt, clippy
 
+      - name: Check formatting
+        uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --manifest-path nym-connect/desktop/Cargo.toml --all -- --check
+
       - name: Build all binaries
         uses: actions-rs/cargo@v1
         with:
@@ -44,12 +50,6 @@ jobs:
         with:
           command: test
           args: --manifest-path nym-connect/desktop/Cargo.toml --workspace
-
-      - name: Check formatting
-        uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --manifest-path nym-connect/desktop/Cargo.toml --all -- --check
 
       - uses: actions-rs/clippy-check@v1
         name: Clippy checks

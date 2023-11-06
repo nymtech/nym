@@ -14,13 +14,13 @@ jobs:
       - name: Install Rust stable
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: 1.69.0
+          toolchain: stable
           target: wasm32-unknown-unknown
           override: true
           components: rustfmt, clippy
 
       - name: Install wasm-opt
-        run: cargo install --version 0.112.0 wasm-opt
+        run: cargo install --version 0.114.0 wasm-opt
 
       - name: Build release contracts
         run: make contracts

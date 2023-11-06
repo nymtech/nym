@@ -46,6 +46,7 @@ members = [
     "common/crypto",
     "common/dkg",
     "common/execute",
+    "common/exit-policy",
     "common/http-api-client",
     "common/inclusion-probability",
     "common/ledger",
@@ -89,6 +90,7 @@ members = [
     "sdk/lib/socks5-listener",
     "sdk/rust/nym-sdk",
     "service-providers/common",
+    "service-providers/ip-packet-router",
     "service-providers/network-requester",
     "service-providers/network-statistics",
     "nym-api",
@@ -119,7 +121,7 @@ default-members = [
     "explorer-api",
 ]
 
-exclude = ["explorer", "contracts", "nym-wallet", "nym-connect/mobile/src-tauri", "nym-connect/desktop", "cpu-cycles"]
+exclude = ["explorer", "contracts", "nym-wallet", "nym-connect/mobile/src-tauri", "nym-connect/desktop", "nym-vpn/ui/src-tauri", "cpu-cycles"]
 
 [workspace.package]
 authors = ["Nym Technologies SA"]
@@ -136,6 +138,7 @@ axum = "0.6.20"
 base64 = "0.21.4"
 bip39 = { version = "2.0.0", features = ["zeroize"] }
 boringtun = { git = "https://github.com/cloudflare/boringtun", rev = "e1d6360d6ab4529fc942a078e4c54df107abe2ba" }
+clap = "4.4.7"
 cfg-if = "1.0.0"
 cosmwasm-derive = "=1.3.0"
 cosmwasm-schema = "=1.3.0"

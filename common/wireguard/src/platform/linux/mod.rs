@@ -1,1 +1,1 @@
-pub(crate) mod tun_device;
+pub mod tun_device;

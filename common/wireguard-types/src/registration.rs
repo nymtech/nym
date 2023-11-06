@@ -6,7 +6,6 @@ use crate::PeerPublicKey;
 use base64::{engine::general_purpose, Engine};
 use dashmap::DashMap;
 use serde::{Deserialize, Serialize};
-use std::net::SocketAddr;
 use std::{fmt, ops::Deref, str::FromStr};
 
 #[cfg(feature = "verify")]
@@ -54,11 +53,17 @@ impl InitMessage {
 #[serde(tag = "type", rename_all = "camelCase")]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub enum ClientRegistrationResponse {
-    PendingRegistration { nonce: u64 },
-    Registered { success: bool },
+    PendingRegistration {
+        nonce: u64,
+        gateway_data: GatewayClient,
+        wg_port: u16,
+    },
+    Registered {
+        success: bool,
+    },
 }
 
-/// Client that wants to register sends its PublicKey and SocketAddr bytes mac digest encrypted with a DH shared secret.
+/// Client that wants to register sends its PublicKey bytes mac digest encrypted with a DH shared secret.
 /// Gateway/Nym node can then verify pub_key payload using the same process
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
@@ -67,10 +72,6 @@ pub struct GatewayClient {
     #[cfg_attr(feature = "openapi", schema(value_type = String, format = Byte))]
     pub pub_key: PeerPublicKey,
 
-    /// Client's socket address
-    #[cfg_attr(feature = "openapi", schema(example = "1.2.3.4:51820", value_type = String))]
-    pub socket: SocketAddr,
-
     /// Sha256 hmac on the data (alongside the prior nonce)
     #[cfg_attr(feature = "openapi", schema(value_type = String, format = Byte))]
     pub mac: ClientMac,
@@ -78,12 +79,7 @@ pub struct GatewayClient {
 
 impl GatewayClient {
     #[cfg(feature = "verify")]
-    pub fn new(
-        local_secret: &PrivateKey,
-        remote_public: PublicKey,
-        socket_address: SocketAddr,
-        nonce: u64,
-    ) -> Self {
+    pub fn new(local_secret: &PrivateKey, remote_public: PublicKey, nonce: u64) -> Self {
         // convert from 1.0 x25519-dalek private key into 2.0 x25519-dalek
         #[allow(clippy::expect_used)]
         let static_secret = boringtun::x25519::StaticSecret::try_from(local_secret.to_bytes())
@@ -100,13 +96,10 @@ impl GatewayClient {
             .expect("x25519 shared secret is always 32 bytes long");
 
         mac.update(local_public.as_bytes());
-        mac.update(socket_address.ip().to_string().as_bytes());
-        mac.update(socket_address.port().to_string().as_bytes());
         mac.update(&nonce.to_le_bytes());
 
         GatewayClient {
             pub_key: PeerPublicKey::new(local_public),
-            socket: socket_address,
             mac: ClientMac(mac.finalize().into_bytes().to_vec()),
         }
     }
@@ -128,8 +121,6 @@ impl GatewayClient {
             .expect("x25519 shared secret is always 32 bytes long");
 
         mac.update(self.pub_key.as_bytes());
-        mac.update(self.socket.ip().to_string().as_bytes());
-        mac.update(self.socket.port().to_string().as_bytes());
         mac.update(&nonce.to_le_bytes());
 
         mac.verify_slice(&self.mac)
@@ -141,10 +132,6 @@ impl GatewayClient {
 
     pub fn pub_key(&self) -> PeerPublicKey {
         self.pub_key
-    }
-
-    pub fn socket(&self) -> SocketAddr {
-        self.socket
     }
 }
 
@@ -217,13 +204,11 @@ mod tests {
         let gateway_key_pair = encryption::KeyPair::new(&mut rng);
         let client_key_pair = encryption::KeyPair::new(&mut rng);
 
-        let socket: SocketAddr = "1.2.3.4:5678".parse().unwrap();
         let nonce = 1234567890;
 
         let client = GatewayClient::new(
             client_key_pair.private_key(),
             *gateway_key_pair.public_key(),
-            socket,
             nonce,
         );
         assert!(client.verify(gateway_key_pair.private_key(), nonce).is_ok())

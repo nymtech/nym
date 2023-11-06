@@ -13,7 +13,7 @@ As outlined in the [clients overview documentation](https://nymtech.net/docs/cli
 #### Websocket client
 Your first option is the native websocket client. This is a compiled program that can run on Linux, Mac OS X, and Windows machines. It runs as a persistent process on a desktop or server machine. You can connect to it with any language that supports websockets.
 
-You can see an example of how to connect to and manage interactions with this client in the [Simple Service Provider tutorial](../tutorials/simple-service-provider/simple-service-provider.md).
+[//]: # (You can see an example of how to connect to and manage interactions with this client in the [Simple Service Provider tutorial]&#40;../tutorials/simple-service-provider/simple-service-provider.md&#41;.)
 
 #### Webassembly client
 If you’re working in JavaScript or Typescript in the browser, or building an edge computing app, you’ll likely want to choose the webassembly client.

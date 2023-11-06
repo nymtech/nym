@@ -29,7 +29,7 @@
     "@mui/styles": "^5.2.2",
     "@mui/utils": "^5.7.0",
     "@nymproject/mui-theme": "^1.0.0",
-    "@nymproject/node-tester": "^1.0.0",
+    "@nymproject/node-tester": "^1.2.3",
     "@nymproject/react": "^1.0.0",
     "@nymproject/types": "^1.0.0",
     "@storybook/react": "^6.5.15",

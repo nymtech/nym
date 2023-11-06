@@ -3,6 +3,10 @@
 ## Default listening port 
 The Nym native client exposes a websocket interface that your code connects to. To program your app, choose a websocket library for whatever language you're using. The **default** websocket port is `1977`, you can override that in the client config if you want.
 
+You can either set this via the `--port` flag at `init` or `run`, or you can manually edit `~/.nym/clients/<CLIENT-ID>/config/config.toml`.
+
+> Remember to restart your client if you change your listening port via editing your config file. 
+
 ## Choosing a Gateway
 By default your client will choose a random gateway to connect to.
 

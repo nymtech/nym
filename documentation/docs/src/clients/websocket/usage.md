@@ -1,12 +1,35 @@
 # Using Your Client
 
-## Connecting to the local websocket
-The Nym native client exposes a websocket interface that your code connects to. To program your app, choose a websocket library for whatever language you're using. The **default** websocket port is `1977`, you can override that in the client config if you want.
+The Nym native client exposes a websocket interface that your code connects to. The **default** websocket port is `1977`, you can override that in the client config if you want.
 
-## Message Types
-There are a small number of messages that your application sends up the websocket to interact with the native client, as follows. You can 
+Once you have a websocket connection, interacting with the client involves piping messages down the socket and listening out for incoming messages. 
 
-### Sending text
+# Sending Messages 
+There are a small number of messages that your application sends up the websocket to interact with the native client, as defined [here](https://github.com/nymtech/nym/blob/develop/clients/native/websocket-requests/src/requests.rs):  
+
+```rust,noplayground
+{{#include ../../../../../clients/native/websocket-requests/src/requests.rs:55:97}}
+```
+
+## Getting your own address
+When you start your app, it is best practice to ask the native client to tell you what your own address is (from the saved configuration files). To do this, send:
+
+```json
+{
+  "type": "selfAddress"
+}
+```
+
+You'll receive a response of the format:
+
+```json
+{
+  "type": "selfAddress",
+  "address": "your address" // e.g. "71od3ZAupdCdxeFNg8sdonqfZTnZZy1E86WYKEjxD4kj@FWYoUrnKuXryysptnCZgUYRTauHq4FnEFu2QGn5LZWbm"
+}
+```
+
+## Sending text
 If you want to send text information through the mixnet, format a message like this one and poke it into the websocket:
 
 ```json
@@ -55,8 +78,7 @@ Each bucket of replySURBs, when received as part of an incoming message, has a u
 }
 ```
 
-
-### Sending binary data
+## Sending binary data
 You can also send bytes instead of JSON. For that you have to send a binary websocket frame containing a binary encoded
 Nym [`ClientRequest`](https://github.com/nymtech/nym/blob/develop/clients/native/websocket-requests/src/requests.rs#L25) containing the same information.
 
@@ -64,25 +86,7 @@ As a response the `native-client` will send a `ServerResponse` to be decoded.
 
 You can find examples of sending and receiving binary data in the Rust, Python and Go [code examples](https://github.com/nymtech/nym/tree/master/clients/native/examples), and an example project from the Nym community [BTC-BC](https://github.com/sgeisler/btcbc-rs/): Bitcoin transaction transmission via Nym, a client and service provider written in Rust.
 
-### Getting your own address
-Sometimes, when you start your app, it can be convenient to ask the native client to tell you what your own address is (from the saved configuration files). To do this, send:
-
-```json
-{
-  "type": "selfAddress"
-}
-```
-
-You'll get back:
-
-```json
-{
-  "type": "selfAddress",
-  "address": "the-address" // e.g. "71od3ZAupdCdxeFNg8sdonqfZTnZZy1E86WYKEjxD4kj@FWYoUrnKuXryysptnCZgUYRTauHq4FnEFu2QGn5LZWbm"
-}
-```
-
-### Error messages
+## Error messages
 Errors from the app's client, or from the gateway, will be sent down the websocket to your code in the following format:
 
 ```json
@@ -90,4 +94,11 @@ Errors from the app's client, or from the gateway, will be sent down the websock
   "type": "error",
   "message": "string message"
 }
+```
+
+# Listening Out for and Receiving Messages 
+Responses to your messages, or if you are running a service that is expecting incoming messages, are defined [here](https://github.com/nymtech/nym/blob/develop/clients/native/websocket-requests/src/responses.rs):
+
+```rust,noplayground
+{{#include ../../../../../clients/native/websocket-requests/src/responses.rs:48:53}}
 ```

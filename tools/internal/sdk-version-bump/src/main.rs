@@ -196,6 +196,16 @@ fn initialise_internal_packages<P: AsRef<Path>>(root: P) -> InternalPackages {
     packages.register_json("sdk/typescript/codegen/contract-clients");
 
     // dependencies that will have their versions adjusted in the above packages
+
+    // WASM NodeJS
+    packages.register_known_js_dependency("@nymproject/nym-client-wasm-node");
+    packages.register_known_js_dependency("@nymproject/mix-fetch-wasm-node");
+
+    // WASM
+    packages.register_known_js_dependency("@nymproject/nym-node-tester-wasm");
+    packages.register_known_js_dependency("@nymproject/nym-client-wasm");
+    packages.register_known_js_dependency("@nymproject/mix-fetch-wasm");
+
     packages.register_known_js_dependency("@nymproject/mix-fetch");
     packages.register_known_js_dependency("@nymproject/mix-fetch-full-fat");
     packages.register_known_js_dependency("@nymproject/mui-theme");

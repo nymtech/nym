@@ -1,4 +1,4 @@
-# Client Setup
+# Setup & Run 
 
 ## Viewing command help
 
@@ -10,7 +10,7 @@ You can check that your binaries are properly compiled with:
 
 ~~~admonish example collapsible=true title="Console output"
 ```
-<!-- cmdrun ../../../../target/release/nym-client --help -->
+<!-- cmdrun ../../../../../target/release/nym-client --help -->
 ```
 ~~~
 
@@ -25,7 +25,7 @@ You can check the necessary parameters for the available commands by running:
 ./nym-client <command> --help
 ```
 
-### Initialising your client
+## Initialising your client
 
 Before you can use the client, you need to initalise a new instance of it. Each instance of the client has its own public/private keypair, and connects to its own gateway node. Taken together, these 3 things (public/private keypair + gateway node identity key) make up an app's identity.
 
@@ -37,7 +37,7 @@ Initialising a new client instance can be done with the following command:
 
 ~~~admonish example collapsible=true title="Console output"
 ```
- <!-- cmdrun ../../../../target/release/nym-client init --id example-client -->
+ <!-- cmdrun ../../../../../target/release/nym-client init --id example-client -->
 ```
 ~~~
 

@@ -23,7 +23,7 @@
 # Clients
 - [Clients Overview](clients/overview.md)
 - [Websocket Client](clients/websocket-client.md)
-  - [Client Setup](clients/websocket/setup.md)
+  - [Setup & Run](clients/websocket/setup.md)
   - [Configuration](clients/websocket/config.md)
   - [Using Your Client](clients/websocket/usage.md)
 - [Socks5 Client](clients/socks5-client.md)

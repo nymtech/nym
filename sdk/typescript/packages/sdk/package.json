@@ -11,6 +11,7 @@
   "main": "dist/cjs/index.js",
   "browser": "dist/esm/index.js",
   "scripts": {
+    "prebuild": "node scripts/showDependencyLocation.cjs",
     "build": "scripts/build-prod.sh",
     "build:dev": "scripts/build.sh",
     "build:dev:esm": "scripts/build-dev-esm.sh",

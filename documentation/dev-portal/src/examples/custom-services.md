@@ -5,7 +5,7 @@ Custom services involve two pieces of code that communicate via the mixnet: a cl
   - [Frontend codebase](https://github.com/notrustverify/pastenym)
   - [Backend codebase](https://github.com/notrustverify/pastenym-frontend) 
   
-- Nostr-Nym is another application written by NoTrustVerify, standing between mixnet users and a Nostr server in order to protect their metadata from being revealed when gossiping. **Useful for Go and Python developers**.  
+- Nostr-Nym is another application written by [NoTrustVerify](https://notrustverify.ch/), standing between mixnet users and a Nostr server in order to protect their metadata from being revealed when gossiping. **Useful for Go and Python developers**.  
   - [Codebase](https://github.com/notrustverify/nostr-nym)
   
 - Spook and Nym-Ethtx are both examples of Ethereum transaction broadcasters utilising the mixnet, written in Rust. Since they were written before the release of the Rust SDK, they utilise standalone clients to communicate with the mixnet. 

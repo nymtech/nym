@@ -1,8 +1,6 @@
 # Community Applications
 
-We love seeing our developer community create applications using Nym. If you would like to share your application with the community, please submit a pull request to the `main` branch of the `nymtech/dev-portal` [repository](https://github.com/nymtech/dev-portal).
-
-
+If you would like to share your application here, please submit a pull request to the `main` branch of the `nymtech/dev-portal` [repository](https://github.com/nymtech/dev-portal).
 
 ## <img src='../images/profile_picture/pastenym_ntv_pp.png' style="float: right; width: 75px; height: 75px;">Pastenym
 

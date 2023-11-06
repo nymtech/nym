@@ -15,7 +15,7 @@ use nym_api_requests::coconut::{
 use nym_coconut_dkg_common::types::EpochId;
 
 use nym_compact_ecash::error::CompactEcashError;
-use nym_compact_ecash::scheme::keygen::{KeyPairAuth, SecretKeyAuth};
+use nym_compact_ecash::scheme::keygen::KeyPairAuth;
 use nym_compact_ecash::scheme::withdrawal::WithdrawalRequest;
 use nym_compact_ecash::scheme::EcashCredential;
 use nym_compact_ecash::setup::{GroupParameters, Parameters};
@@ -229,14 +229,8 @@ pub async fn post_blind_sign(
         blind_sign_request_body.withdrawal_request().clone(),
         PublicKeyUser::from_base58_string(blind_sign_request_body.ecash_pubkey())?,
     );
-    let blinded_signature = if let Some(keypair) = state.key_pair.get().await.as_ref() {
-        let secret_key_auth = SecretKeyAuth::from_bytes(&keypair.secret_key().to_bytes())?;
-        let verification_key_auth =
-            VerificationKeyAuth::from_bytes(&keypair.verification_key().to_bytes())?;
-        let index = keypair.index;
-
-        let keypair_auth = KeyPairAuth::new(secret_key_auth, verification_key_auth, index);
-        blind_sign(internal_request, keypair_auth)?
+    let blinded_signature = if let Some(keypair) = state.key_pair.get_ecash().await {
+        blind_sign(internal_request, keypair)?
     } else {
         return Err(CoconutError::KeyPairNotDerivedYet);
     };

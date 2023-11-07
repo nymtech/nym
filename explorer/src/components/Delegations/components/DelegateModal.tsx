@@ -1,10 +1,10 @@
-import React, { useCallback, useContext, useState } from 'react';
+import React, { useCallback, useContext, useState, useEffect } from 'react';
 import { Box, Typography, SxProps } from '@mui/material';
 import { IdentityKeyFormField } from '@nymproject/react/mixnodes/IdentityKeyFormField';
 import { CurrencyFormField } from '@nymproject/react/currency/CurrencyFormField';
 import { CurrencyDenom, FeeDetails, DecCoin, decimalToFloatApproximation } from '@nymproject/types';
 // import { Console } from 'src/utils/console';
-// import { useGetFee } from 'src/hooks/useGetFee';
+import { useGetFee } from '../hooks/useGetFee';
 // import { simulateDelegateToMixnode, simulateVestingDelegateToMixnode, tryConvertIdentityToMixId } from 'src/requests';
 import { debounce } from 'lodash';
 import { SimpleModal } from './SimpleModal';
@@ -13,12 +13,14 @@ import { ModalListItem } from './ModalListItem';
 // import { SimpleModal } from '../Modals/SimpleModal';
 // import { ModalListItem } from '../Modals/ModalListItem';
 // import { checkTokenBalance, validateAmount, validateKey } from '../../utils';
-// import { TokenPoolSelector, TPoolOption } from '../TokenPoolSelector';
+// import { TokenPoolSelector, TPoolOption } from './TokenPoolSelector';
 // import { ConfirmTx } from '../ConfirmTX';
 
 // import { getMixnodeStakeSaturation } from '../../requests';
 // import { ErrorModal } from '../Modals/ErrorModal';
 // import { BalanceWarning } from '../FeeWarning';
+import { useChain } from '@cosmos-kit/react';
+import { uNYMtoNYM } from '../../ConnectKeplrWallet';
 
 const MIN_AMOUNT_TO_DELEGATE = 10;
 
@@ -30,7 +32,7 @@ export const DelegateModal: FCWithChildren<{
     identityKey: string,
     amount: DecCoin,
     // tokenPool: TPoolOption,
-    // fee?: FeeDetails,
+    fee?: FeeDetails,
   ) => Promise<void>;
   identityKey?: string;
   onIdentityKeyChanged?: (identityKey: string) => void;
@@ -76,7 +78,30 @@ export const DelegateModal: FCWithChildren<{
   const [errorIdentityKey, setErrorIdentityKey] = useState<string>();
   const [mixIdError, setMixIdError] = useState<string>();
 
-  // const { fee, getFee, resetFeeState, feeError } = useGetFee();
+  const { fee, getFee, resetFeeState, feeError } = useGetFee();
+
+  const { username, connect, disconnect, wallet, openView, address, getCosmWasmClient, isWalletConnected } =
+    useChain('nyx');
+  const [balance, setBalance] = useState<{
+    status: 'loading' | 'success';
+    data?: string;
+  }>({ status: 'loading', data: undefined });
+
+  useEffect(() => {
+    const getBalance = async (walletAddress: string) => {
+      setBalance({ status: 'loading', data: undefined });
+
+      const account = await getCosmWasmClient();
+      const uNYMBalance = await account.getBalance(walletAddress, 'unym');
+      const NYMBalance = uNYMtoNYM(uNYMBalance.amount).asString();
+
+      setBalance({ status: 'success', data: NYMBalance });
+    };
+
+    if (address) {
+      getBalance(address);
+    }
+  }, [address, getCosmWasmClient]);
   // const { userBalance } = useContext(AppContext);
 
   // const handleCheckStakeSaturation = async (newMixId: number) => {
@@ -141,7 +166,7 @@ export const DelegateModal: FCWithChildren<{
 
   const handleOk = async () => {
     if (onOk && amount && identityKey && mixId) {
-      onOk(mixId, identityKey, { amount, denom }); //tokenPool, fee);
+      onOk(mixId, identityKey, { amount, denom }, fee); //tokenPool, fee);
     }
   };
 
@@ -293,7 +318,7 @@ export const DelegateModal: FCWithChildren<{
         />
       </Box>
       <Box sx={{ mt: 3 }}>
-        <ModalListItem label="Account balance" value={accountBalance?.toUpperCase()} divider fontWeight={600} />
+        <ModalListItem label="Account balance" value={balance.data} divider fontWeight={600} />
       </Box>
 
       <ModalListItem label="Rewards payout interval" value={rewardInterval} hidden divider />

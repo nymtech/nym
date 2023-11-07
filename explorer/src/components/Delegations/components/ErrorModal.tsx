@@ -1,6 +1,6 @@
 import React from 'react';
 import { Box, Button, Modal, SxProps, Typography } from '@mui/material';
-import { modalStyle } from '../../../../nym-wallet/src/components/Modals/styles';
+import { modalStyle } from '../../../../../nym-wallet/src/components/Modals/styles';
 
 export const ErrorModal: FCWithChildren<{
   open: boolean;

@@ -12,6 +12,7 @@ use crate::Base58;
 
 const ATTRIBUTES_LEN: usize = 3;
 
+#[derive(Debug)]
 pub struct GroupParameters {
     /// Generator of the G1 group
     g1: G1Affine,
@@ -102,6 +103,7 @@ pub struct PublicKeyRP {
     pub(crate) beta: G2Projective,
 }
 
+#[derive(Debug)]
 pub struct Parameters {
     /// group parameters
     grp: GroupParameters,

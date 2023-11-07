@@ -34,10 +34,9 @@ pub(crate) enum NymvisorError {
     },
 
     #[error(
-    "failed to load upgrade info for upgrade '{name}' using path '{}'. detailed message: {source}", path.display()
+    "failed to load upgrade info using path '{}'. detailed message: {source}", path.display()
     )]
     UpgradeInfoLoadFailure {
-        name: String,
         path: PathBuf,
         #[source]
         source: io::Error,
@@ -52,6 +51,9 @@ pub(crate) enum NymvisorError {
         #[source]
         source: io::Error,
     },
+
+    #[error("there seem to be a upgrade-info.json file present without the associated binary for upgrade '{name}' at path {}", path.display())]
+    UpgradeInfoWithNoBinary { name: String, path: PathBuf },
 
     #[error("failed to initialise the path '{}': {source}", path.display())]
     PathInitFailure {

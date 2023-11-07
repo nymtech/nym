@@ -6,6 +6,7 @@ use nym_bin_common::build_information::BinaryBuildInformationOwned;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::OpenOptions;
+use std::io;
 use std::path::Path;
 use time::OffsetDateTime;
 
@@ -127,8 +128,16 @@ impl UpgradeInfo {
     }
 
     pub(crate) fn try_load<P: AsRef<Path>>(path: P) -> Result<Self, NymvisorError> {
-        let file = std::fs::File::open(path)?;
-        serde_json::from_reader(file).map_err(Into::into)
+        let path = path.as_ref();
+        std::fs::File::open(path)
+            .and_then(|file| {
+                serde_json::from_reader(file)
+                    .map_err(|serde_json_err| io::Error::new(io::ErrorKind::Other, serde_json_err))
+            })
+            .map_err(|source| NymvisorError::UpgradeInfoLoadFailure {
+                path: path.to_path_buf(),
+                source,
+            })
     }
 }
 
@@ -142,26 +151,4 @@ pub struct UpgradeHistoryEntry {
     #[serde(with = "time::serde::rfc3339")]
     performed_at: OffsetDateTime,
     info: UpgradeInfo,
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn foo() {
-        let a = UpgradeInfo {
-            manual: false,
-            name: "".to_string(),
-            notes: "".to_string(),
-            publish_date: None,
-            version: "".to_string(),
-            platforms: Default::default(),
-            upgrade_time: OffsetDateTime::now_utc(),
-            binary_details: None,
-        };
-
-        let aa = serde_json::to_string_pretty(&a).unwrap();
-        println!("{aa}")
-    }
 }

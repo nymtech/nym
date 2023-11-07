@@ -252,7 +252,7 @@ fn setup_genesis_binary(
     if target.exists() {
         // if there already exists a binary at the genesis location, see if it's the same one
         let existing_bin_info = Daemon::new(target).get_build_information()?;
-        return if &existing_bin_info != daemon_info {
+        return if existing_bin_info != daemon_info {
             Err(NymvisorError::DuplicateDaemonGenesisBinary {
                 daemon_name: config.daemon.name.clone(),
                 existing_info: Box::new(existing_bin_info),
@@ -264,9 +264,8 @@ fn setup_genesis_binary(
         };
     }
 
-    generate_and_save_genesis_upgrade_info(&config, daemon_info)?;
+    generate_and_save_genesis_upgrade_info(config, daemon_info)?;
 
-    // TODO: setup initial upgrade-info.json file
     fs::copy(source_dir, &target).map_err(|source| NymvisorError::DaemonBinaryCopyFailure {
         source_path: source_dir.to_path_buf(),
         target_path: target,
@@ -312,6 +311,8 @@ fn generate_and_save_genesis_upgrade_info(
     config: &Config,
     genesis_info: BinaryBuildInformationOwned,
 ) -> Result<(), NymvisorError> {
+    info!("setting up the genesis upgrade-info.json");
+
     let info = UpgradeInfo {
         manual: true,
         name: GENESIS_DIR.to_string(),
@@ -324,7 +325,15 @@ fn generate_and_save_genesis_upgrade_info(
     };
     let save_path = config.upgrade_info_filepath(&info.name);
 
-    info.save(save_path)
+    // if the upgrade info file already exists return an error since there is no associated binary
+    if save_path.exists() {
+        Err(NymvisorError::UpgradeInfoWithNoBinary {
+            name: info.name,
+            path: save_path,
+        })
+    } else {
+        info.save(save_path)
+    }
 }
 
 fn save_config(config: Config, env: &Env) -> Result<(), NymvisorError> {

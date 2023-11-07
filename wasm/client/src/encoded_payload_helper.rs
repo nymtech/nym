@@ -87,22 +87,19 @@ pub(crate) fn parse_payload(message: &[u8]) -> anyhow::Result<(EncodedPayloadMet
     // 1st 8 bytes are the size (as u64 big endian)
     let mut size = [0u8; 8];
     if message.len() < 8 {
-        return Err(anyhow::anyhow!(
-            "Message is too short to contain size information"
-        ));
+        bail!("Message is too short to contain size information")
     }
     size.clone_from_slice(&message[0..8]);
     let metadata_size = u64::from_be_bytes(size) as usize;
 
     if metadata_size + 8 > message.len() {
         return Err(anyhow::anyhow!(
-            "Metadata size with prefix exceeds message length"
+            format!("Metadata size: {}, exceeds message with length of: {}", metadata_size, message.len()),
         ));
     }
 
     //then the metadata
-    let metadata = String::from_utf8_lossy(&message[8..8 + metadata_size]).into_owned();
-    let metadata: EncodedPayloadMetadata = serde_json::from_str(&metadata)?;
+    let metadata: EncodedPayloadMetadata = serde_json::from_slice(&message[8..8 + metadata_size])?;
 
     //finally the payload
     let payload = &message[8 + metadata_size..];
@@ -253,7 +250,7 @@ mod tests {
         let result = parse_payload(&message);
         assert!(result.is_err());
         let error = result.unwrap_err();
-        assert_eq!(error.to_string(), "message is too short to contain size information");
+        assert_eq!(error.to_string(), "Message is too short to contain size information");
     }
 
     #[wasm_bindgen_test]
@@ -265,7 +262,7 @@ mod tests {
         let result = parse_payload(&message);
         assert!(result.is_err());
         let error = result.unwrap_err();
-        assert_eq!(error.to_string(), "metadata size with prefix exceeds message length");
+        assert_eq!(error.to_string(), "Metadata size: 20, exceeds message with length of: 18");
     }
 
     #[wasm_bindgen_test]

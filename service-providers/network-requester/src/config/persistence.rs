@@ -14,9 +14,11 @@ pub struct NetworkRequesterPaths {
     #[serde(flatten)]
     pub common_paths: CommonClientPaths,
 
+    /// Deprecated
     /// Location of the file containing our allow.list
     pub allowed_list_location: PathBuf,
 
+    /// Deprecated
     /// Location of the file containing our unknown.list
     pub unknown_list_location: PathBuf,
 

@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-mixnode"
-version = "1.1.31"
+version = "1.1.32"
 authors = [
     "Dave Hrycyszyn <futurechimp@users.noreply.github.com>",
     "Jędrzej Stuczyński <andrew@nymtech.net>",
@@ -16,9 +16,10 @@ rust-version = "1.58.1"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+axum = { workspace = true }
 anyhow = "1.0.40"
 bs58 = "0.4.0"
-clap = { version = "4.0", features = ["cargo", "derive"] }
+clap = { workspace = true, features = ["cargo", "derive"] }
 colored = "2.0"
 cupid = "0.6.1"
 dirs = "4.0"
@@ -28,22 +29,24 @@ lazy_static = "1.4.0"
 log = { workspace = true }
 pretty_env_logger = "0.4.0"
 rand = "0.7.3"
-rocket = { version = "0.5.0-rc.2", features = ["json"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 sysinfo = "0.27.7"
 tokio = { version = "1.21.2", features = ["rt-multi-thread", "net", "signal"] }
 tokio-util = { version = "0.7.3", features = ["codec"] }
 toml = "0.5.8"
-url = { version = "2.2", features = ["serde"] }
+url = { workspace = true, features = ["serde"] }
 cfg-if = "1.0.0"
+thiserror = { workspace = true }
 
 ## tracing
 tracing = { version = "0.1.37", optional = true }
 opentelemetry = { version = "0.19.0", optional = true }
 
 
-## internal
+# internal
+nym-node = { path = "../nym-node" }
+
 nym-config = { path = "../common/config" }
 nym-crypto = { path = "../common/crypto" }
 nym-contracts-common = { path = "../common/cosmwasm-smart-contracts/contracts-common" }

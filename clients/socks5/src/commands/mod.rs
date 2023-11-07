@@ -4,7 +4,8 @@
 use crate::config::old_config_v1_1_13::OldConfigV1_1_13;
 use crate::config::old_config_v1_1_20::ConfigV1_1_20;
 use crate::config::old_config_v1_1_20_2::ConfigV1_1_20_2;
-use crate::config::{BaseClientConfig, Config};
+use crate::config::old_config_v1_1_30::ConfigV1_1_30;
+use crate::config::{BaseClientConfig, Config, SocksClientPaths};
 use crate::error::Socks5ClientError;
 use clap::CommandFactory;
 use clap::{Parser, Subcommand};
@@ -22,6 +23,7 @@ use nym_client_core::error::ClientCoreError;
 use nym_config::OptionalSet;
 use nym_sphinx::params::{PacketSize, PacketType};
 use std::error::Error;
+use std::net::IpAddr;
 
 pub(crate) mod build_info;
 pub mod init;
@@ -72,6 +74,7 @@ pub(crate) enum Commands {
 // Configuration that can be overridden.
 pub(crate) struct OverrideConfig {
     nym_apis: Option<Vec<url::Url>>,
+    ip: Option<IpAddr>,
     port: Option<u16>,
     use_anonymous_replies: Option<bool>,
     fastmode: bool,
@@ -145,6 +148,7 @@ pub(crate) fn override_config(config: Config, args: OverrideConfig) -> Config {
         )
         .with_optional(Config::with_anonymous_replies, args.use_anonymous_replies)
         .with_optional(Config::with_port, args.port)
+        .with_optional(Config::with_ip, args.ip)
         .with_optional_base_custom_env(
             BaseClientConfig::with_custom_nym_apis,
             args.nym_apis,
@@ -164,12 +168,11 @@ pub(crate) fn override_config(config: Config, args: OverrideConfig) -> Config {
 }
 
 fn persist_gateway_details(
-    config: &Config,
+    storage_paths: &SocksClientPaths,
     details: GatewayEndpointConfig,
 ) -> Result<(), Socks5ClientError> {
-    let details_store =
-        OnDiskGatewayDetails::new(&config.storage_paths.common_paths.gateway_details);
-    let keys_store = OnDiskKeys::new(config.storage_paths.common_paths.keys.clone());
+    let details_store = OnDiskGatewayDetails::new(&storage_paths.common_paths.gateway_details);
+    let keys_store = OnDiskKeys::new(storage_paths.common_paths.keys.clone());
     let shared_keys = keys_store.ephemeral_load_gateway_keys().map_err(|source| {
         Socks5ClientError::ClientCoreError(ClientCoreError::KeyStoreError {
             source: Box::new(source),
@@ -199,9 +202,10 @@ fn try_upgrade_v1_1_13_config(id: &str) -> Result<bool, Socks5ClientError> {
 
     let updated_step1: ConfigV1_1_20 = old_config.into();
     let updated_step2: ConfigV1_1_20_2 = updated_step1.into();
-    let (updated, gateway_config) = updated_step2.upgrade()?;
-    persist_gateway_details(&updated, gateway_config)?;
+    let (updated_step3, gateway_config) = updated_step2.upgrade()?;
+    persist_gateway_details(&updated_step3.storage_paths, gateway_config)?;
 
+    let updated: Config = updated_step3.into();
     updated.save_to_default_location()?;
     Ok(true)
 }
@@ -219,9 +223,10 @@ fn try_upgrade_v1_1_20_config(id: &str) -> Result<bool, Socks5ClientError> {
     info!("It is going to get updated to the current specification.");
 
     let updated_step1: ConfigV1_1_20_2 = old_config.into();
-    let (updated, gateway_config) = updated_step1.upgrade()?;
-    persist_gateway_details(&updated, gateway_config)?;
+    let (updated_step2, gateway_config) = updated_step1.upgrade()?;
+    persist_gateway_details(&updated_step2.storage_paths, gateway_config)?;
 
+    let updated: Config = updated_step2.into();
     updated.save_to_default_location()?;
     Ok(true)
 }
@@ -236,9 +241,25 @@ fn try_upgrade_v1_1_20_2_config(id: &str) -> Result<bool, Socks5ClientError> {
     info!("It seems the client is using <= v1.1.20_2 config template.");
     info!("It is going to get updated to the current specification.");
 
-    let (updated, gateway_config) = old_config.upgrade()?;
-    persist_gateway_details(&updated, gateway_config)?;
+    let (updated_step1, gateway_config) = old_config.upgrade()?;
+    persist_gateway_details(&updated_step1.storage_paths, gateway_config)?;
 
+    let updated: Config = updated_step1.into();
+    updated.save_to_default_location()?;
+    Ok(true)
+}
+
+fn try_upgrade_v1_1_30_config(id: &str) -> Result<bool, Socks5ClientError> {
+    // explicitly load it as v1.1.30 (which is incompatible with the current one, i.e. +1.1.31)
+    let Ok(old_config) = ConfigV1_1_30::read_from_default_path(id) else {
+        // if we failed to load it, there might have been nothing to upgrade
+        // or maybe it was an even older file. in either way. just ignore it and carry on with our day
+        return Ok(false);
+    };
+    info!("It seems the client is using <= v1.1.30 config template.");
+    info!("It is going to get updated to the current specification.");
+
+    let updated: Config = old_config.into();
     updated.save_to_default_location()?;
     Ok(true)
 }
@@ -251,6 +272,9 @@ fn try_upgrade_config(id: &str) -> Result<(), Socks5ClientError> {
         return Ok(());
     }
     if try_upgrade_v1_1_20_2_config(id)? {
+        return Ok(());
+    }
+    if try_upgrade_v1_1_30_config(id)? {
         return Ok(());
     }
 

@@ -9,5 +9,4 @@ Each directory contains a readme with more information about running and contrib
 ## Scripts 
 * `bump_versions.sh` allows you to update the ~~`platform_release_version` and~~ `wallet_release_version` variable~~s~~ in the `book.toml` of each mdbook project at once. You can also optionally update the `minimum_rust_version` as well. Helpful for lazy-updating when cutting a new version of the docs. 
 * `build_all_to_dist.sh` is used by the `ci-dev.yml` and `cd-dev.yml` scripts for building all mdbook projects and moving the rendered html to `../dist/` to be rsynced with various servers. 
-
-
+* `post_process.sh` is a script called by the github CI and CD workflows to post process CSS/image/href links for serving several mdbooks from a subdirectory. 

@@ -12,9 +12,10 @@ use nym_config::{
     DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, DEFAULT_DATA_DIR, NYM_DIR,
 };
 use nym_network_defaults::mainnet;
-use serde::{Deserialize, Serialize};
+use nym_node::config;
+use serde::{Deserialize, Deserializer, Serialize};
 use std::io;
-use std::net::IpAddr;
+use std::net::{IpAddr, SocketAddr};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 use url::Url;
@@ -22,6 +23,8 @@ use zeroize::{Zeroize, ZeroizeOnDrop};
 
 pub(crate) mod old_config_v1_1_20;
 pub(crate) mod old_config_v1_1_28;
+pub(crate) mod old_config_v1_1_29;
+pub(crate) mod old_config_v1_1_31;
 pub mod persistence;
 mod template;
 
@@ -37,6 +40,18 @@ const DEFAULT_MAXIMUM_CONNECTION_BUFFER_SIZE: usize = 2000;
 
 const DEFAULT_STORED_MESSAGE_FILENAME_LENGTH: u16 = 16;
 const DEFAULT_MESSAGE_RETRIEVAL_LIMIT: i64 = 100;
+
+fn de_maybe_port<'de, D>(deserializer: D) -> Result<Option<u16>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let port = u16::deserialize(deserializer)?;
+    if port == 0 {
+        Ok(None)
+    } else {
+        Ok(Some(port))
+    }
+}
 
 /// Derive default path to gateway's config directory.
 /// It should get resolved to `$HOME/.nym/gateways/<id>/config`
@@ -71,11 +86,23 @@ pub struct Config {
     #[serde(skip)]
     pub(crate) save_path: Option<PathBuf>,
 
+    pub host: config::Host,
+
+    #[serde(default)]
+    pub http: config::Http,
+
     pub gateway: Gateway,
+
+    #[serde(default)]
+    // currently not really used for anything useful
+    pub wireguard: config::Wireguard,
 
     pub storage_paths: GatewayPaths,
 
     pub network_requester: NetworkRequester,
+
+    #[serde(default)]
+    pub ip_packet_router: IpPacketRouter,
 
     #[serde(default)]
     pub logging: LoggingSettings,
@@ -92,11 +119,20 @@ impl NymConfigTemplate for Config {
 
 impl Config {
     pub fn new<S: AsRef<str>>(id: S) -> Self {
+        let default_gateway = Gateway::new_default(id.as_ref());
         Config {
             save_path: None,
-            gateway: Gateway::new_default(id.as_ref()),
+            host: config::Host {
+                // this is a very bad default!
+                public_ips: vec![default_gateway.listening_address],
+                hostname: None,
+            },
+            http: Default::default(),
+            gateway: default_gateway,
+            wireguard: Default::default(),
             storage_paths: GatewayPaths::new_default(id.as_ref()),
             network_requester: Default::default(),
+            ip_packet_router: Default::default(),
             logging: Default::default(),
             debug: Default::default(),
         }
@@ -140,6 +176,18 @@ impl Config {
         }
     }
 
+    #[must_use]
+    pub fn with_hostname(mut self, hostname: String) -> Self {
+        self.host.hostname = Some(hostname);
+        self
+    }
+
+    #[must_use]
+    pub fn with_public_ips(mut self, public_ips: Vec<IpAddr>) -> Self {
+        self.host.public_ips = public_ips;
+        self
+    }
+
     pub fn with_enabled_network_requester(mut self, enabled_network_requester: bool) -> Self {
         self.network_requester.enabled = enabled_network_requester;
         self
@@ -149,6 +197,18 @@ impl Config {
         self.storage_paths = self
             .storage_paths
             .with_default_network_requester_config(&self.gateway.id);
+        self
+    }
+
+    pub fn with_enabled_ip_packet_router(mut self, enabled_ip_packet_router: bool) -> Self {
+        self.ip_packet_router.enabled = enabled_ip_packet_router;
+        self
+    }
+
+    pub fn with_default_ip_packet_router_config_path(mut self) -> Self {
+        self.storage_paths = self
+            .storage_paths
+            .with_default_ip_packet_router_config(&self.gateway.id);
         self
     }
 
@@ -184,6 +244,12 @@ impl Config {
 
     pub fn with_listening_address(mut self, listening_address: IpAddr) -> Self {
         self.gateway.listening_address = listening_address;
+
+        let http_port = self.http.bind_address.port();
+        self.http.bind_address = SocketAddr::new(listening_address, http_port);
+        let wg_port = self.wireguard.bind_address.port();
+        self.wireguard.bind_address = SocketAddr::new(listening_address, wg_port);
+
         self
     }
 
@@ -245,6 +311,11 @@ pub struct Gateway {
     /// (default: 9000)
     pub clients_port: u16,
 
+    /// If applicable, announced port for listening for secure websocket client traffic.
+    /// (default: None)
+    #[serde(deserialize_with = "de_maybe_port")]
+    pub clients_wss_port: Option<u16>,
+
     /// Whether gateway collects and sends anonymized statistics
     pub enabled_statistics: bool,
 
@@ -279,6 +350,7 @@ impl Gateway {
             listening_address: inaddr_any(),
             mix_port: DEFAULT_MIX_LISTENING_PORT,
             clients_port: DEFAULT_CLIENT_LISTENING_PORT,
+            clients_wss_port: None,
             enabled_statistics: false,
             statistics_service_url: mainnet::STATISTICS_SERVICE_DOMAIN_ADDRESS
                 .parse()
@@ -302,6 +374,20 @@ pub struct NetworkRequester {
 impl Default for NetworkRequester {
     fn default() -> Self {
         NetworkRequester { enabled: false }
+    }
+}
+
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[serde(default)]
+pub struct IpPacketRouter {
+    /// Specifies whether ip packet router service is enabled in this process.
+    pub enabled: bool,
+}
+
+#[allow(clippy::derivable_impls)]
+impl Default for IpPacketRouter {
+    fn default() -> Self {
+        Self { enabled: false }
     }
 }
 

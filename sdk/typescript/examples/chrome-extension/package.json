@@ -1,20 +1,21 @@
 {
   "name": "@nymproject/sdk-example-chrome-extension",
-  "version": "1.0.0",
+  "version": "1.0.4-rc.0",
   "description": "This is an example of how Nym can be used within the context of a Chrome extension.",
+  "license": "ISC",
+  "author": "",
   "main": "index.js",
   "scripts": {
     "build": "webpack"
   },
-  "author": "",
-  "license": "ISC",
+  "dependencies": {
+    "@nymproject/sdk": ">=1.2.2-rc.0 || ^1"
+  },
   "devDependencies": {
     "clean-webpack-plugin": "^4.0.0",
     "copy-webpack-plugin": "^11.0.0",
     "webpack": "^5.88.1",
     "webpack-cli": "^5.1.4"
   },
-  "dependencies": {
-    "@nymproject/sdk": ">=1.2.0-rc.10 || ^1"
-  }
+  "private": false
 }

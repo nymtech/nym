@@ -9,7 +9,7 @@ on:
 
 jobs:
   build:
-    runs-on: custom-runner-linux
+    runs-on: custom-linux
     steps:
       - uses: actions/checkout@v3
       - name: Install rsync
@@ -26,7 +26,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --workspace --release --all
+          args: --workspace --release
       - name: Install mdbook
         run: (test -x $HOME/.cargo/bin/mdbook || cargo install --vers "^0.4.35" mdbook)
       - name: Install mdbook plugins

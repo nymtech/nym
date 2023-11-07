@@ -1,9 +1,10 @@
 // Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::config::persistence::SocksClientPaths;
 use crate::config::template::CONFIG_TEMPLATE;
 use nym_bin_common::logging::LoggingSettings;
+use nym_client_core::cli_helpers::client_init::ClientConfig;
+use nym_client_core::config::disk_persistence::CommonClientPaths;
 use nym_config::{
     must_get_home, read_config_from_toml_file, save_formatted_config_to_file, NymConfigTemplate,
     DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, DEFAULT_DATA_DIR, NYM_DIR,
@@ -11,15 +12,18 @@ use nym_config::{
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use std::io;
+use std::net::IpAddr;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
+pub use crate::config::persistence::SocksClientPaths;
 pub use nym_client_core::config::Config as BaseClientConfig;
 pub use nym_socks5_client_core::config::Config as CoreConfig;
 
 pub mod old_config_v1_1_13;
 pub mod old_config_v1_1_20;
 pub mod old_config_v1_1_20_2;
+pub mod old_config_v1_1_30;
 mod persistence;
 mod template;
 
@@ -67,6 +71,24 @@ impl NymConfigTemplate for Config {
     }
 }
 
+impl ClientConfig for Config {
+    fn common_paths(&self) -> &CommonClientPaths {
+        &self.storage_paths.common_paths
+    }
+
+    fn core_config(&self) -> &BaseClientConfig {
+        &self.core.base
+    }
+
+    fn default_store_location(&self) -> PathBuf {
+        self.default_location()
+    }
+
+    fn save_to<P: AsRef<Path>>(&self, path: P) -> io::Result<()> {
+        save_formatted_config_to_file(self, path)
+    }
+}
+
 impl Config {
     pub fn new<S: AsRef<str>>(id: S, provider_mix_address: S) -> Self {
         Config {
@@ -102,8 +124,15 @@ impl Config {
         self.core.validate()
     }
 
+    #[must_use]
     pub fn with_port(mut self, port: u16) -> Self {
-        self.core.socks5.listening_port = port;
+        self.core = self.core.with_port(port);
+        self
+    }
+
+    #[must_use]
+    pub fn with_ip(mut self, ip: IpAddr) -> Self {
+        self.core = self.core.with_ip(ip);
         self
     }
 

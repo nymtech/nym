@@ -6,6 +6,9 @@ language = "en"
 multilingual = false # for the moment - ideally work on chinese, brazillian, spanish next
 src = "src"
 
+[rust]
+edition = "2018"
+
 #################
 # PREPROCESSORS #
 #################

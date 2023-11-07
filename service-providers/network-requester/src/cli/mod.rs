@@ -81,6 +81,7 @@ pub(crate) struct OverrideConfig {
     medium_toggle: bool,
     nyxd_urls: Option<Vec<url::Url>>,
     enabled_credentials_mode: Option<bool>,
+    enable_exit_policy: Option<bool>,
 
     open_proxy: Option<bool>,
     enable_statistics: Option<bool>,
@@ -141,6 +142,10 @@ pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Confi
             args.enabled_credentials_mode.map(|b| !b),
         )
         .with_optional(Config::with_open_proxy, args.open_proxy)
+        .with_optional(
+            Config::with_old_allow_list,
+            args.enable_exit_policy.map(|e| !e),
+        )
         .with_optional(Config::with_enabled_statistics, args.enable_statistics)
         .with_optional(Config::with_statistics_recipient, args.statistics_recipient)
 }
@@ -149,7 +154,7 @@ pub(crate) async fn execute(args: Cli) -> Result<(), NetworkRequesterError> {
     let bin_name = "nym-network-requester";
 
     match args.command {
-        Commands::Init(m) => init::execute(&m).await?,
+        Commands::Init(m) => init::execute(m).await?,
         Commands::Run(m) => run::execute(&m).await?,
         Commands::Sign(m) => sign::execute(&m).await?,
         Commands::BuildInfo(m) => build_info::execute(m),

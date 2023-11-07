@@ -93,10 +93,6 @@ $(eval $(call add_cargo_workspace,contracts,contracts,--lib --target wasm32-unkn
 $(eval $(call add_cargo_workspace,wallet,nym-wallet))
 $(eval $(call add_cargo_workspace,connect,nym-connect/desktop))
 
-# OVERRIDE: wasm-opt fails if the binary has been built with the latest rustc.
-# Pin to the last working version.
-contracts_BUILD_RELEASE_TOOLCHAIN := +1.69.0
-
 # -----------------------------------------------------------------------------
 # SDK
 # -----------------------------------------------------------------------------
@@ -108,7 +104,7 @@ sdk-wasm-build:
 	$(MAKE) -C wasm/client
 	$(MAKE) -C wasm/node-tester
 	$(MAKE) -C wasm/mix-fetch
-	$(MAKE) -C wasm/full-nym-wasm
+	#$(MAKE) -C wasm/full-nym-wasm
 
 # run this from npm/yarn to ensure tools are in the path, e.g. yarn build:sdk from root of repo
 sdk-typescript-build:
@@ -118,7 +114,7 @@ sdk-typescript-build:
 	yarn --cwd sdk/typescript/codegen/contract-clients build
 
 # NOTE: These targets are part of the main workspace (but not as wasm32-unknown-unknown)
-WASM_CRATES = extension-storage nym-client-wasm nym-node-tester-wasm nym-wasm-sdk
+WASM_CRATES = extension-storage nym-client-wasm nym-node-tester-wasm
 
 sdk-wasm-test:
 	#cargo test $(addprefix -p , $(WASM_CRATES)) --target wasm32-unknown-unknown -- -Dwarnings
@@ -144,7 +140,7 @@ contracts: build-release-contracts wasm-opt-contracts
 
 wasm-opt-contracts:
 	for contract in $(CONTRACTS_WASM); do \
-	  wasm-opt --disable-sign-ext -Os $(CONTRACTS_OUT_DIR)/$$contract -o $(CONTRACTS_OUT_DIR)/$$contract; \
+	  wasm-opt --signext-lowering -Os $(CONTRACTS_OUT_DIR)/$$contract -o $(CONTRACTS_OUT_DIR)/$$contract; \
 	done
 
 # Consider adding 's' to make plural consistent (beware: used in github workflow)

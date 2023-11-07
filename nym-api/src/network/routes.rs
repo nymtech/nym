@@ -25,14 +25,13 @@ pub(crate) async fn nym_contracts(
 ) -> Json<HashMap<String, ContractInformation<cw2::ContractVersion>>> {
     let info = cache.contract_details().await;
     Json(
-        info.value
-            .into_iter()
+        info.iter()
             .map(|(contract, info)| {
                 (
-                    contract,
+                    contract.to_owned(),
                     ContractInformation {
-                        address: info.address.map(|a| a.to_string()),
-                        details: info.base,
+                        address: info.address.as_ref().map(|a| a.to_string()),
+                        details: info.base.clone(),
                     },
                 )
             })
@@ -47,14 +46,13 @@ pub(crate) async fn nym_contracts_detailed(
 ) -> Json<HashMap<String, ContractInformation<ContractBuildInformation>>> {
     let info = cache.contract_details().await;
     Json(
-        info.value
-            .into_iter()
+        info.iter()
             .map(|(contract, info)| {
                 (
-                    contract,
+                    contract.to_owned(),
                     ContractInformation {
-                        address: info.address.map(|a| a.to_string()),
-                        details: info.detailed,
+                        address: info.address.as_ref().map(|a| a.to_string()),
+                        details: info.detailed.clone(),
                     },
                 )
             })

@@ -13,8 +13,15 @@ rm -rf dist || true
 # use wasm-pack to build packages
 yarn build:wasm
 
+# enable dev mode and then install dev packages
+yarn dev:on
+yarn
+
 # build the Typescript SDK packages
-yarn build:sdk
+yarn build:ci:sdk
 
 # build documentation
 yarn docs:prod:build
+
+# turn dev mode off
+yarn dev:off

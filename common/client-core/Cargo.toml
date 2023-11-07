@@ -11,6 +11,7 @@ rust-version = "1.66"
 async-trait = { workspace = true }
 base64 = "0.21.2"
 cfg-if = "1.0.0"
+clap = { workspace = true, optional = true }
 dashmap = { workspace = true }
 dirs = "4.0"
 futures = { workspace = true }
@@ -92,6 +93,7 @@ sqlx = { version = "0.6.2", features = ["runtime-tokio-rustls", "sqlite", "macro
 
 [features]
 default = []
+cli = ["clap"]
 fs-surb-storage = ["sqlx"]
 wasm = ["nym-gateway-client/wasm"]
 

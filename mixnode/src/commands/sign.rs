@@ -2,17 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::commands::{try_load_current_config, validate_bech32_address_or_exit};
-use crate::node::MixNode;
+use crate::node::helpers::load_identity_keys;
 use anyhow::{bail, Result};
 use clap::{ArgGroup, Args};
+use log::error;
 use nym_bin_common::output_format::OutputFormat;
 use nym_crypto::asymmetric::identity;
 use nym_types::helpers::ConsoleSigningOutput;
 use nym_validator_client::nyxd;
 use std::convert::TryFrom;
-
-#[cfg(feature = "cpucycles")]
-use tracing::error;
 
 use super::version_check;
 
@@ -129,7 +127,7 @@ pub(crate) fn execute(args: &Sign) -> anyhow::Result<()> {
             bail!(err);
         }
     };
-    let identity_keypair = MixNode::load_identity_keys(&config);
+    let identity_keypair = load_identity_keys(&config)?;
 
     match signed_target {
         SignedTarget::Text(text) => {

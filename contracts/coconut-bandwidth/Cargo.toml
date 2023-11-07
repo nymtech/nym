@@ -23,7 +23,7 @@ cw-storage-plus = { workspace = true }
 cw-controllers = { workspace = true }
 
 serde = { version = "1.0.103", default-features = false, features = ["derive"] }
-thiserror = "1.0.23"
+thiserror = { workspace = true }
 
 [features]
 schema-gen = ["nym-coconut-bandwidth-contract-common/schema", "cosmwasm-schema"]

@@ -33,7 +33,7 @@ impl NymSocksServer {
     /// Create a new SphinxSocks instance
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
-        port: u16,
+        bind_adddress: SocketAddr,
         authenticator: Authenticator,
         service_provider: Recipient,
         self_address: Recipient,
@@ -42,13 +42,10 @@ impl NymSocksServer {
         shutdown: TaskClient,
         packet_type: PacketType,
     ) -> Self {
-        // hardcode ip as we (presumably) ONLY want to listen locally. If we change it, we can
-        // just modify the config
-        let ip = "127.0.0.1";
-        info!("Listening on {}:{}", ip, port);
+        info!("Listening on {bind_adddress}");
         NymSocksServer {
             authenticator,
-            listening_address: format!("{ip}:{port}").parse().unwrap(),
+            listening_address: bind_adddress,
             service_provider,
             self_address,
             client_config,

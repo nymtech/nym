@@ -8,6 +8,7 @@ use nym_topology::gateway::GatewayConversionError;
 use nym_topology::NymTopologyError;
 use nym_validator_client::ValidatorClientError;
 use std::error::Error;
+use std::path::PathBuf;
 
 #[derive(thiserror::Error, Debug)]
 pub enum ClientCoreError {
@@ -126,6 +127,32 @@ pub enum ClientCoreError {
 
     #[error("this client has performed gateway initialisation in another session")]
     NoInitClientPresent,
+
+    #[error("there are no gateways supporting the wss protocol available")]
+    NoWssGateways,
+
+    #[error("the specified gateway '{gateway}' does not support the wss protocol")]
+    UnsupportedWssProtocol { gateway: String },
+
+    #[error(
+    "failed to load custom topology using path '{}'. detailed message: {source}", file_path.display()
+    )]
+    CustomTopologyLoadFailure {
+        file_path: PathBuf,
+        #[source]
+        source: std::io::Error,
+    },
+
+    #[error(
+    "failed to save config file for client-{typ} id {id} using path '{}'. detailed message: {source}", path.display()
+    )]
+    ConfigSaveFailure {
+        typ: String,
+        id: String,
+        path: PathBuf,
+        #[source]
+        source: std::io::Error,
+    },
 }
 
 /// Set of messages that the client can send to listeners via the task manager

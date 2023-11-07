@@ -1,10 +1,22 @@
 {
   "name": "@nymproject/sdk-example-plain-html",
+  "version": "1.0.4-rc.0",
   "description": "An example project that uses WASM and plain HTML",
-  "version": "1.0.0",
   "license": "Apache-2.0",
+  "scripts": {
+    "build": "webpack build --progress --config webpack.prod.js",
+    "build:dev": "webpack build --progress",
+    "build:serve": "npx serve dist",
+    "lint": "eslint src",
+    "lint:fix": "eslint src --fix",
+    "start": "webpack serve --progress --port 3000",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "tsc": "tsc",
+    "tsc:watch": "tsc --watch"
+  },
   "dependencies": {
-    "@nymproject/sdk": ">=1.2.0-rc.10 || ^1"
+    "@nymproject/sdk": ">=1.2.2-rc.0 || ^1"
   },
   "devDependencies": {
     "@babel/core": "^7.15.0",
@@ -49,16 +61,5 @@
     "webpack-dev-server": "^4.5.0",
     "webpack-merge": "^5.8.0"
   },
-  "scripts": {
-    "start": "webpack serve --progress --port 3000",
-    "build": "webpack build --progress --config webpack.prod.js",
-    "build:dev": "webpack build --progress",
-    "build:serve": "npx serve dist",
-    "test": "jest",
-    "test:watch": "jest --watch",
-    "tsc": "tsc",
-    "tsc:watch": "tsc --watch",
-    "lint": "eslint src",
-    "lint:fix": "eslint src --fix"
-  }
+  "private": false
 }

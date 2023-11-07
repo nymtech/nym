@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-gateway"
-version = "1.1.30"
+version = "1.1.31"
 authors = [
     "Dave Hrycyszyn <futurechimp@users.noreply.github.com>",
     "Jędrzej Stuczyński <andrew@nymtech.net>",
@@ -15,19 +15,12 @@ rust-version = "1.56"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-axum = "0.6.20"
-sha2 = "0.10.8"
-hmac = "0.12.1"
-axum-macros = "0.3.8" # Useful for debugging axum Handler trait errors
-fastrand = "2"
-x25519-dalek = { version = "2.0.0", features = ["static_secrets"] }
-base64 = "0.21.4"
 anyhow = { workspace = true }
 async-trait = { workspace = true }
 atty = "0.2"
 bip39 = { workspace = true }
 bs58 = "0.4.0"
-clap = { version = "4.0", features = ["cargo", "derive"] }
+clap = { workspace = true, features = ["cargo", "derive"] }
 colored = "2.0"
 dashmap = { workspace = true }
 dirs = "4.0"
@@ -48,7 +41,7 @@ sqlx = { version = "0.5", features = [
     "migrate",
 ] }
 subtle-encoding = { version = "0.5", features = ["bech32-preview"] }
-thiserror = "1"
+thiserror = { workspace = true }
 tokio = { workspace = true, features = [
     "rt-multi-thread",
     "net",
@@ -59,10 +52,12 @@ tokio = { workspace = true, features = [
 tokio-stream = { version = "0.1.11", features = ["fs"] }
 tokio-tungstenite = { version = "0.20.1" }
 tokio-util = { version = "0.7.4", features = ["codec"] }
-url = { version = "2.2", features = ["serde"] }
+url = { workspace = true, features = ["serde"] }
 zeroize = { workspace = true }
 
 # internal
+nym-node = { path = "../nym-node" }
+
 nym-api-requests = { path = "../nym-api/nym-api-requests" }
 nym-bin-common = { path = "../common/bin-common", features = ["output_format"] }
 nym-coconut-interface = { path = "../common/coconut-interface" }
@@ -81,6 +76,7 @@ nym-task = { path = "../common/task" }
 nym-types = { path = "../common/types" }
 nym-validator-client = { path = "../common/client-libs/validator-client" }
 nym-wireguard = { path = "../common/wireguard", optional = true }
+nym-ip-packet-router = { path = "../service-providers/ip-packet-router" }
 
 [dev-dependencies]
 tower = "0.4.13"

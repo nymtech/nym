@@ -226,7 +226,7 @@ impl VerlocMeasurer {
     }
 
     pub fn get_verloc_results_pointer(&self) -> AtomicVerlocResult {
-        self.results.clone_data_pointer()
+        self.results.clone()
     }
 
     fn start_listening(&self) -> JoinHandle<()> {

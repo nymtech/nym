@@ -85,8 +85,10 @@ impl CirculatingSupplyCache {
         log::info!("the number of tokens still vesting is now {vesting_tokens}");
         log::info!("the circulating supply is now {circulating_supply}");
 
-        cache.mixmining_reserve.update(mixmining_reserve);
-        cache.vesting_tokens.update(vesting_tokens);
-        cache.circulating_supply.update(circulating_supply);
+        cache.mixmining_reserve.unchecked_update(mixmining_reserve);
+        cache.vesting_tokens.unchecked_update(vesting_tokens);
+        cache
+            .circulating_supply
+            .unchecked_update(circulating_supply);
     }
 }

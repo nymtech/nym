@@ -12,52 +12,58 @@ use std::path::PathBuf;
 #[derive(Args, Clone)]
 pub struct CmdArgs {
     /// The id of the gateway you want to initialise local network requester for.
-    #[arg(long)]
+    #[clap(long)]
     id: String,
 
     /// Path to custom location for network requester's config.
-    #[arg(long)]
+    #[clap(long)]
     custom_config_path: Option<PathBuf>,
 
     /// Specify whether the network requester should be enabled.
     // (you might want to create all the configs, generate keys, etc. but not actually run the NR just yet)
-    #[arg(long)]
+    #[clap(long)]
     enabled: Option<bool>,
 
     // note: those flags are set as bools as we want to explicitly override any settings values
     // so say `open_proxy` was set to true in the config.toml. youd have to explicitly state `open-proxy=false`
     // as an argument here to override it as opposed to not providing the value at all.
     /// Specifies whether this network requester should run in 'open-proxy' mode
-    #[arg(long)]
+    #[clap(long)]
     open_proxy: Option<bool>,
 
     /// Enable service anonymized statistics that get sent to a statistics aggregator server
-    #[arg(long)]
+    #[clap(long)]
     enable_statistics: Option<bool>,
 
     /// Mixnet client address where a statistics aggregator is running. The default value is a Nym
     /// aggregator client
-    #[arg(long)]
+    #[clap(long)]
     statistics_recipient: Option<String>,
 
     /// Mostly debug-related option to increase default traffic rate so that you would not need to
     /// modify config post init
-    #[arg(long, hide = true, conflicts_with = "medium_toggle")]
+    #[clap(long, hide = true, conflicts_with = "medium_toggle")]
     fastmode: bool,
 
     /// Disable loop cover traffic and the Poisson rate limiter (for debugging only)
-    #[arg(long, hide = true, conflicts_with = "medium_toggle")]
+    #[clap(long, hide = true, conflicts_with = "medium_toggle")]
     no_cover: bool,
 
     /// Enable medium mixnet traffic, for experiments only.
     /// This includes things like disabling cover traffic, no per hop delays, etc.
-    #[arg(
+    #[clap(
         long,
         hide = true,
         conflicts_with = "no_cover",
         conflicts_with = "fastmode"
     )]
     medium_toggle: bool,
+
+    /// Specifies whether this network requester will run using the default ExitPolicy
+    /// as opposed to the allow list.
+    /// Note: this setting will become the default in the future releases.
+    #[clap(long)]
+    with_exit_policy: Option<bool>,
 
     #[clap(short, long, default_value_t = OutputFormat::default())]
     output: OutputFormat,
@@ -70,6 +76,7 @@ impl<'a> From<&'a CmdArgs> for OverrideNetworkRequesterConfig {
             no_cover: value.no_cover,
             medium_toggle: value.medium_toggle,
             open_proxy: value.open_proxy,
+            enable_exit_policy: value.with_exit_policy,
             enable_statistics: value.enable_statistics,
             statistics_recipient: value.statistics_recipient.clone(),
         }

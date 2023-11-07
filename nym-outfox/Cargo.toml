@@ -17,7 +17,7 @@ chacha20 = "0.9.0"
 curve25519-dalek = "3.2"
 chacha20poly1305 = "0.10.1"
 getrandom = { workspace = true, features = ["js"] }
-thiserror = "1"
+thiserror = { workspace = true }
 sphinx-packet = "0.1.0"
 rand = "0.7.3"
 log = "0.4"

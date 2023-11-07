@@ -160,18 +160,6 @@ async function nativeSetup() {
         requestTimeoutMs: 10000
     }
 
-    const extra = {
-        hiddenGateways: [
-            {
-                owner: "LoveIslandEnjoyer",
-                host: "gateway1.nymtech.net",
-                explicitIp: "213.219.38.119",
-                identityKey: "E3mvZTHQCdBvhfr178Swx9g4QG3kkRUun7YnToLMcMbM",
-                sphinxKey: "CYcrjoJ8GT7Dp54zViUyyRUfegeRCyPifWQZHRgMZrfX"
-            }
-        ]
-    }
-
     await setupMixFetch({
         // preferredNetworkRequester,
         preferredGateway: "E3mvZTHQCdBvhfr178Swx9g4QG3kkRUun7YnToLMcMbM",
@@ -181,7 +169,6 @@ async function nativeSetup() {
         clientId: "my-client",
         clientOverride: noCoverTrafficOverride,
         mixFetchOverride,
-        extra
     })
 }
 

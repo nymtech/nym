@@ -69,7 +69,7 @@ impl NymApiTopologyProvider {
             Ok(mixes) => mixes,
         };
 
-        let gateways = match self.validator_client.get_cached_gateways().await {
+        let gateways = match self.validator_client.get_cached_described_gateways().await {
             Err(err) => {
                 error!("failed to get network gateways - {err}");
                 return None;

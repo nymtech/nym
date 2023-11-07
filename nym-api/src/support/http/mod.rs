@@ -5,11 +5,13 @@ use crate::circulating_supply_api::cache::CirculatingSupplyCache;
 use crate::coconut::{self, comm::QueryCommunicationChannel, InternalSignRequest};
 use crate::network::models::NetworkDetails;
 use crate::network::network_routes;
+use crate::node_describe_cache::DescribedNodes;
 use crate::node_status_api::{self, NodeStatusCache};
 use crate::nym_contract_cache::cache::NymContractCache;
+use crate::support::caching::cache::SharedCache;
 use crate::support::config::Config;
 use crate::support::{nyxd, storage};
-use crate::{circulating_supply_api, nym_contract_cache};
+use crate::{circulating_supply_api, nym_contract_cache, nym_nodes::nym_node_routes};
 use anyhow::Result;
 use rocket::http::Method;
 use rocket::{Ignite, Rocket};
@@ -39,10 +41,12 @@ pub(crate) async fn setup_rocket(
         "" => nym_contract_cache::nym_contract_cache_routes(&openapi_settings),
         "/status" => node_status_api::node_status_routes(&openapi_settings, config.network_monitor.enabled),
         "/network" => network_routes(&openapi_settings),
+        "" => nym_node_routes(&openapi_settings),
     }
 
     let rocket = rocket
         .manage(network_details)
+        .manage(SharedCache::<DescribedNodes>::new())
         .mount("/swagger", make_swagger_ui(&openapi::get_docs()))
         .attach(setup_cors()?)
         .attach(NymContractCache::stage())

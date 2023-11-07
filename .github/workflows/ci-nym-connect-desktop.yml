@@ -1,7 +1,7 @@
 name: ci-nym-connect-desktop
 
 on:
-  push:
+  pull_request:
     paths:
       - 'nym-connect/desktop/**'
 
@@ -11,7 +11,7 @@ defaults:
 
 jobs:
   build:
-    runs-on: custom-runner-linux
+    runs-on: custom-linux
     steps:
     - uses: actions/checkout@v2
     - name: Install rsync

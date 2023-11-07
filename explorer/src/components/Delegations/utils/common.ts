@@ -24,11 +24,11 @@ export const uNYMtoNYM = (unym: string, rounding = 6) => {
   };
 };
 
-export const checkHasEnoughFunds = async (allocationValue: string): Promise<boolean> => {
+export const checkHasEnoughFunds = async (balance: string, allocationValue: string): Promise<boolean> => {
   try {
-    const walletValue = await userBalance();
+    // const walletValue = await userBalance();
 
-    const remainingBalance = +walletValue.amount.amount - +allocationValue;
+    const remainingBalance = +balance - +allocationValue;
     return remainingBalance >= 0;
   } catch (e) {
     Console.log(e as string);
@@ -48,14 +48,14 @@ export const checkHasEnoughLockedTokens = async (allocationValue: string) => {
   return false;
 };
 
-export const checkTokenBalance = async (tokenPool: TPoolOption, amount: string) => {
+export const checkTokenBalance = async (tokenPool: TPoolOption, amount: string, balance: string) => {
   let hasEnoughFunds = false;
   if (tokenPool === 'locked') {
     hasEnoughFunds = await checkHasEnoughLockedTokens(amount);
   }
 
   if (tokenPool === 'balance') {
-    hasEnoughFunds = await checkHasEnoughFunds(amount);
+    hasEnoughFunds = await checkHasEnoughFunds(balance, amount);
   }
 
   return hasEnoughFunds;
@@ -142,19 +142,6 @@ export const maximizeWindow = async () => {
 export function removeObjectDuplicates<T extends object, K extends keyof T>(arr: T[], id: K) {
   return arr.filter((v, i, a) => a.findIndex((v2) => v2[id] === v[id]) === i);
 }
-
-// export const checkTokenBalance = async (tokenPool: TPoolOption, amount: string) => {
-//   let hasEnoughFunds = false;
-//   if (tokenPool === 'locked') {
-//     hasEnoughFunds = await checkHasEnoughLockedTokens(amount);
-//   }
-
-//   if (tokenPool === 'balance') {
-//     hasEnoughFunds = await checkHasEnoughFunds(amount);
-//   }
-
-//   return hasEnoughFunds;
-// };
 
 export const isDecimal = (value: number) => value - Math.floor(value) !== 0;
 

@@ -1,6 +1,6 @@
 import { invoke } from '@tauri-apps/api';
 import { config } from '../config';
-// import { Console } from '../utils/console';
+import { Console } from '../utils/console';
 
 export async function invokeWrapper<T>(operationName: string, args?: any): Promise<T> {
   const res = await invoke<T>(operationName, args);
@@ -14,7 +14,7 @@ export async function invokeWrapper<T>(operationName: string, args?: any): Promi
         }
       });
     }
-    // Console.log({ operationName, argsToLog, res });
+    Console.log({ operationName, argsToLog, res });
   }
   return res;
 }

@@ -5,24 +5,18 @@ import { CurrencyFormField } from '@nymproject/react/currency/CurrencyFormField'
 import { CurrencyDenom, FeeDetails, DecCoin, decimalToFloatApproximation } from '@nymproject/types';
 import { Console } from '../utils/console';
 import { useGetFee } from '../hooks/useGetFee';
-// import { simulateDelegateToMixnode, simulateVestingDelegateToMixnode, tryConvertIdentityToMixId } from 'src/requests';
 import { debounce } from 'lodash';
 import { SimpleModal } from './SimpleModal';
 import { ModalListItem } from './ModalListItem';
-// import { AppContext } from 'src/context';
-// import { SimpleModal } from '../Modals/SimpleModal';
-// import { ModalListItem } from '../Modals/ModalListItem';
-import { TPoolOption, checkTokenBalance, validateAmount, validateKey } from '../utils';
-// import { TokenPoolSelector, TPoolOption } from './TokenPoolSelector';
-// import { ConfirmTx } from '../ConfirmTX';
 
-// import { getMixnodeStakeSaturation } from '../../requests';
-// import { ErrorModal } from '../Modals/ErrorModal';
+import { TPoolOption, checkTokenBalance, validateAmount, validateKey } from '../utils';
+
 import { useChain } from '@cosmos-kit/react';
 import { uNYMtoNYM } from '../utils';
 import { ErrorModal } from './ErrorModal';
 import { ConfirmTx } from './ConfirmTX';
 import { BalanceWarning } from './FeeWarning';
+import { getMixnodeStakeSaturation, simulateDelegateToMixnode, tryConvertIdentityToMixId } from '../requests';
 
 const MIN_AMOUNT_TO_DELEGATE = 10;
 
@@ -105,39 +99,40 @@ export const DelegateModal: FCWithChildren<{
     }
   }, [address, getCosmWasmClient]);
 
-  // const handleCheckStakeSaturation = async (newMixId: number) => {
-  //   try {
-  //     const newSaturation = decimalToFloatApproximation(
-  //       (await getMixnodeStakeSaturation(newMixId)).uncapped_saturation,
-  //     );
-  //     if (newSaturation && newSaturation > 1) {
-  //       const saturationPercentage = Math.round(newSaturation * 100);
-  //       return { isOverSaturated: true, saturationPercentage };
-  //     }
-  //     return { isOverSaturated: false, saturationPercentage: undefined };
-  //   } catch (e) {
-  //     Console.error('Error fetching the saturation, error:', e);
-  //     return { isOverSaturated: false, saturationPercentage: undefined };
-  //   }
-  // };
+  const handleCheckStakeSaturation = async (newMixId: number) => {
+    try {
+      const newSaturation = decimalToFloatApproximation(
+        (await getMixnodeStakeSaturation(newMixId)).uncapped_saturation,
+      );
+      if (newSaturation && newSaturation > 1) {
+        const saturationPercentage = Math.round(newSaturation * 100);
+        return { isOverSaturated: true, saturationPercentage };
+      }
+      return { isOverSaturated: false, saturationPercentage: undefined };
+    } catch (e) {
+      Console.error('Error fetching the saturation, error:', e);
+      return { isOverSaturated: false, saturationPercentage: undefined };
+    }
+  };
 
   const validate = async () => {
     let newValidatedValue = true;
     let errorAmountMessage;
     let errorIdentityKeyMessage;
 
-    // if (!identityKey || !validateKey(identityKey, 32)) {
-    //   newValidatedValue = false;
-    //   errorIdentityKeyMessage = undefined;
-    // }
+    if (!identityKey || !validateKey(identityKey, 32)) {
+      newValidatedValue = false;
+      errorIdentityKeyMessage = undefined;
+      console.log('!identityKey  :>> ', identityKey);
+    }
 
-    // if (identityKey && mixId && validateKey(identityKey, 32)) {
-    //   const { isOverSaturated, saturationPercentage } = await handleCheckStakeSaturation(mixId);
-    //   if (isOverSaturated) {
-    //     newValidatedValue = false;
-    //     errorIdentityKeyMessage = `This node is over saturated (${saturationPercentage}%), please select another node`;
-    //   }
-    // }
+    if (identityKey && mixId && validateKey(identityKey, 32)) {
+      const { isOverSaturated, saturationPercentage } = await handleCheckStakeSaturation(mixId);
+      if (isOverSaturated) {
+        newValidatedValue = false;
+        errorIdentityKeyMessage = `This node is over saturated (${saturationPercentage}%), please select another node`;
+      }
+    }
 
     if (amount && !(await validateAmount(amount, '0'))) {
       newValidatedValue = false;
@@ -173,16 +168,16 @@ export const DelegateModal: FCWithChildren<{
 
   const handleConfirm = async ({ mixId: id, value }: { mixId: number; value: DecCoin }) => {
     const tokenPool = 'balance';
-    const hasEnoughTokens = await checkTokenBalance(tokenPool, value.amount);
+    const hasEnoughTokens = await checkTokenBalance(tokenPool, value.amount, balance.data || '0');
 
     if (!hasEnoughTokens) {
       setErrorAmount('Not enough funds');
       return;
     }
 
-    // if (tokenPool === 'balance') {
-    //   getFee(simulateDelegateToMixnode, { mixId: id, amount: value });
-    // }
+    if (tokenPool === 'balance') {
+      getFee(simulateDelegateToMixnode, { mixId: id, amount: value });
+    }
 
     //   if (tokenPool === 'locked') {
     //     getFee(simulateVestingDelegateToMixnode, { mixId: id, amount: value });
@@ -211,13 +206,12 @@ export const DelegateModal: FCWithChildren<{
 
   const resolveMixId = useCallback(
     debounce(async (idKey) => {
-      if (!idKey) {
-        //|| !validateKey(idKey, 32))
+      if (!idKey || !validateKey(idKey, 32)) {
         return;
       }
       let res;
       try {
-        // res = await tryConvertIdentityToMixId(idKey);
+        res = await tryConvertIdentityToMixId(idKey);
       } catch (e) {
         Console.warn(`failed to resolve mix_id for "${idKey}": ${e}`);
         return;

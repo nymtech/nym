@@ -39,8 +39,17 @@ export const trimAddress = (address = '', trimBy = 6) => {
 };
 
 export default function ConnectKeplrWallet() {
-  const { username, connect, disconnect, wallet, openView, address, getCosmWasmClient, isWalletConnected } =
-    useChain('nyx');
+  const {
+    username,
+    connect,
+    disconnect,
+    wallet,
+    openView,
+    address,
+    getCosmWasmClient,
+    isWalletConnected,
+    isWalletConnecting,
+  } = useChain('nyx');
   const isClient = useIsClient();
   const theme = useTheme();
 
@@ -70,9 +79,9 @@ export default function ConnectKeplrWallet() {
   if (!isClient) return null;
 
   const getGlobalbutton = () => {
-    // if (globalStatus === 'Connecting') {
-    //   return <Button onClick={() => connect()}>{`Connecting ${wallet?.prettyName}`}</Button>;
-    // }
+    if (isWalletConnecting) {
+      return <Button onClick={() => connect()}>{`Connecting ${wallet?.prettyName}`}</Button>;
+    }
     if (isWalletConnected) {
       return (
         <Box display={'flex'} alignItems={'center'} gap={2}>

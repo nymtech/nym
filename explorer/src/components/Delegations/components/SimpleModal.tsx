@@ -3,7 +3,7 @@ import { Box, Button, Modal, Stack, SxProps, Typography } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import ErrorOutline from '@mui/icons-material/ErrorOutline';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
-import { modalStyle } from '../../../../nym-wallet/src/components/Modals/styles';
+import { modalStyle } from '../../../../../nym-wallet/src/components/Modals/styles';
 
 import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
 

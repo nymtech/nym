@@ -93,7 +93,7 @@ pub(crate) fn parse_payload(message: &[u8]) -> anyhow::Result<(EncodedPayloadMet
     size.clone_from_slice(&message[0..8]);
     let metadata_size = u64::from_be_bytes(size) as usize;
 
-    if metadata_size + 8 > message.len() {
+    if metadata_size + 8 != message.len() {
         return Err(anyhow::anyhow!(
             format!("Metadata size: {}, exceeds message with length of: {}", metadata_size, message.len()),
         ));

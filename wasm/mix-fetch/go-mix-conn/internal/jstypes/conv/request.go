@@ -224,22 +224,14 @@ func parseBody(request *js.Value) (io.Reader, error) {
 	jsBody := request.Get(fieldRequestBody)
 	var bodyReader io.Reader
 
-	if !jsBody.IsUndefined() && !jsBody.IsNull() {
+	if jsBody.InstanceOf(js.Global().Get("ReadableStream")) && jsBody.Get("getReader").Type() == js.TypeFunction { 
 		// Check to see if getReader is a function
-		if jsBody.InstanceOf(js.Global().Get("ReadableStream")) && jsBody.Get("getReader").Type() == js.TypeFunction {
-			log.Debug("stream body - getReader")
-			bodyReader = external.NewStreamReader(jsBody.Call("getReader"))
-		} else {
-			// Fall back to using ArrayBuffer
-			// https://developer.mozilla.org/en-US/docs/Web/API/Body/arrayBuffer
-			log.Debug("getReader not available - fallback to ArrayBuffer")
-			bodyReader = external.NewArrayReader(request.Call("arrayBuffer"))
-		}
+		log.Debug("stream body - getReader")
+		bodyReader = external.NewStreamReader(jsBody.Call("getReader"))
 	} else {
 		log.Debug("unstreamable body - fallback to ArrayBuffer")
 		bodyReader = external.NewArrayReader(request.Call("arrayBuffer"))
 	}
-
 	bodyBytes, err := io.ReadAll(bodyReader)
 	if err != nil {
 		return nil, err

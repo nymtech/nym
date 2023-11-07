@@ -3,7 +3,7 @@ import { Box, Typography, SxProps } from '@mui/material';
 import { IdentityKeyFormField } from '@nymproject/react/mixnodes/IdentityKeyFormField';
 import { CurrencyFormField } from '@nymproject/react/currency/CurrencyFormField';
 import { CurrencyDenom, FeeDetails, DecCoin, decimalToFloatApproximation } from '@nymproject/types';
-// import { Console } from 'src/utils/console';
+import { Console } from '../utils/console';
 import { useGetFee } from '../hooks/useGetFee';
 // import { simulateDelegateToMixnode, simulateVestingDelegateToMixnode, tryConvertIdentityToMixId } from 'src/requests';
 import { debounce } from 'lodash';
@@ -12,15 +12,17 @@ import { ModalListItem } from './ModalListItem';
 // import { AppContext } from 'src/context';
 // import { SimpleModal } from '../Modals/SimpleModal';
 // import { ModalListItem } from '../Modals/ModalListItem';
-// import { checkTokenBalance, validateAmount, validateKey } from '../../utils';
+import { TPoolOption, checkTokenBalance, validateAmount, validateKey } from '../utils';
 // import { TokenPoolSelector, TPoolOption } from './TokenPoolSelector';
 // import { ConfirmTx } from '../ConfirmTX';
 
 // import { getMixnodeStakeSaturation } from '../../requests';
 // import { ErrorModal } from '../Modals/ErrorModal';
-// import { BalanceWarning } from '../FeeWarning';
 import { useChain } from '@cosmos-kit/react';
-import { uNYMtoNYM } from '../../ConnectKeplrWallet';
+import { uNYMtoNYM } from '../utils';
+import { ErrorModal } from './ErrorModal';
+import { ConfirmTx } from './ConfirmTX';
+import { BalanceWarning } from './FeeWarning';
 
 const MIN_AMOUNT_TO_DELEGATE = 10;
 
@@ -31,7 +33,7 @@ export const DelegateModal: FCWithChildren<{
     mixId: number,
     identityKey: string,
     amount: DecCoin,
-    // tokenPool: TPoolOption,
+    tokenPool: TPoolOption,
     fee?: FeeDetails,
   ) => Promise<void>;
   identityKey?: string;
@@ -102,7 +104,6 @@ export const DelegateModal: FCWithChildren<{
       getBalance(address);
     }
   }, [address, getCosmWasmClient]);
-  // const { userBalance } = useContext(AppContext);
 
   // const handleCheckStakeSaturation = async (newMixId: number) => {
   //   try {
@@ -138,10 +139,10 @@ export const DelegateModal: FCWithChildren<{
     //   }
     // }
 
-    // if (amount && !(await validateAmount(amount, '0'))) {
-    //   newValidatedValue = false;
-    //   errorAmountMessage = 'Please enter a valid amount';
-    // }
+    if (amount && !(await validateAmount(amount, '0'))) {
+      newValidatedValue = false;
+      errorAmountMessage = 'Please enter a valid amount';
+    }
 
     if (amount && Number(amount) < MIN_AMOUNT_TO_DELEGATE) {
       errorAmountMessage = `Min. delegation amount: ${MIN_AMOUNT_TO_DELEGATE} ${denom.toUpperCase()}`;
@@ -166,21 +167,22 @@ export const DelegateModal: FCWithChildren<{
 
   const handleOk = async () => {
     if (onOk && amount && identityKey && mixId) {
-      onOk(mixId, identityKey, { amount, denom }, fee); //tokenPool, fee);
+      onOk(mixId, identityKey, { amount, denom }, 'balance', fee);
     }
   };
 
   const handleConfirm = async ({ mixId: id, value }: { mixId: number; value: DecCoin }) => {
-    const hasEnoughTokens = true; // await checkTokenBalance(tokenPool, value.amount);
+    const tokenPool = 'balance';
+    const hasEnoughTokens = await checkTokenBalance(tokenPool, value.amount);
 
     if (!hasEnoughTokens) {
       setErrorAmount('Not enough funds');
       return;
     }
 
-    //   if (tokenPool === 'balance') {
-    //     getFee(simulateDelegateToMixnode, { mixId: id, amount: value });
-    //   }
+    // if (tokenPool === 'balance') {
+    //   getFee(simulateDelegateToMixnode, { mixId: id, amount: value });
+    // }
 
     //   if (tokenPool === 'locked') {
     //     getFee(simulateVestingDelegateToMixnode, { mixId: id, amount: value });
@@ -217,7 +219,7 @@ export const DelegateModal: FCWithChildren<{
       try {
         // res = await tryConvertIdentityToMixId(idKey);
       } catch (e) {
-        // Console.warn(`failed to resolve mix_id for "${idKey}": ${e}`);
+        Console.warn(`failed to resolve mix_id for "${idKey}": ${e}`);
         return;
       }
       if (res) {
@@ -234,38 +236,38 @@ export const DelegateModal: FCWithChildren<{
     resolveMixId(identityKey);
   }, [identityKey]);
 
-  // if (fee) {
-  //   return (
-  //     <ConfirmTx
-  //       open
-  //       header="Delegation details"
-  //       fee={fee}
-  //       onClose={onClose}
-  //       onPrev={resetFeeState}
-  //       onConfirm={handleOk}
-  //     >
-  //       {userBalance.balance?.amount.amount && fee?.amount?.amount && (
-  //         <Box sx={{ my: 2 }}>
-  //           <BalanceWarning fee={fee?.amount?.amount} tx={amount} />
-  //         </Box>
-  //       )}
-  //       <ModalListItem label="Node identity key" value={identityKey} divider />
-  //       <ModalListItem label="Amount" value={`${amount} ${denom.toUpperCase()}`} divider />
-  //     </ConfirmTx>
-  //   );
-  // }
+  if (fee) {
+    return (
+      <ConfirmTx
+        open
+        header="Delegation details"
+        fee={fee}
+        onClose={onClose}
+        onPrev={resetFeeState}
+        onConfirm={handleOk}
+      >
+        {balance.data && fee?.amount?.amount && (
+          <Box sx={{ my: 2 }}>
+            <BalanceWarning fee={fee?.amount?.amount} tx={amount} />
+          </Box>
+        )}
+        <ModalListItem label="Node identity key" value={identityKey} divider />
+        <ModalListItem label="Amount" value={`${amount} ${denom.toUpperCase()}`} divider />
+      </ConfirmTx>
+    );
+  }
 
-  // if (feeError) {
-  //   return (
-  //     <ErrorModal
-  //       title="Something went wrong while calculating fee. Are you sure you entered a valid node address?"
-  //       message={feeError}
-  //       sx={sx}
-  //       open={open}
-  //       onClose={onClose}
-  //     />
-  //   );
-  // }
+  if (feeError) {
+    return (
+      <ErrorModal
+        title="Something went wrong while calculating fee. Are you sure you entered a valid node address?"
+        message={feeError}
+        sx={sx}
+        open={open}
+        onClose={onClose}
+      />
+    );
+  }
 
   return (
     <SimpleModal
@@ -318,7 +320,7 @@ export const DelegateModal: FCWithChildren<{
         />
       </Box>
       <Box sx={{ mt: 3 }}>
-        <ModalListItem label="Account balance" value={balance.data} divider fontWeight={600} />
+        <ModalListItem label="Account balance" value={`${balance.data} NYM`} divider fontWeight={600} />
       </Box>
 
       <ModalListItem label="Rewards payout interval" value={rewardInterval} hidden divider />

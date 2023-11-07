@@ -1,6 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { sign } from '../requests';
-// import { Console } from 'src/utils/console';
+import { Console } from '../utils/console';
 // import { AppContext } from './main';
 
 export type TBuyContext = {
@@ -34,7 +34,7 @@ export const BuyContextProvider: FCWithChildren = ({ children }): JSX.Element =>
     try {
       signature = await sign(message);
     } catch (e: any) {
-      // Console.log(`Sign message operation failed: ${e}`);
+      Console.log(`Sign message operation failed: ${e}`);
       console.log('`Sign message operation failed: ${e}` :>> ', `Sign message operation failed: ${e}`);
       setError(`Sign message operation failed: ${e}`);
     } finally {

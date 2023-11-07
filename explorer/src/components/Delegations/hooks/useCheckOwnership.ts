@@ -1,5 +1,5 @@
 import { useCallback, useContext, useEffect, useState } from 'react';
-// import { Console } from '../utils/console';
+import { Console } from '../utils/console';
 // eslint-disable-next-line import/no-cycle
 import { AppContext } from '../context/main';
 import { checkGatewayOwnership, checkMixnodeOwnership, getVestingPledgeInfo } from '../requests';
@@ -43,7 +43,7 @@ export const useCheckOwnership = () => {
 
       setOwnership(status);
     } catch (e) {
-      // Console.error(e as string);
+      Console.error(e as string);
       setError(e as string);
       setOwnership(initial);
     } finally {

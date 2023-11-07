@@ -13,7 +13,7 @@ import {
   getSpendableVestedCoins,
   userBalance,
 } from '../requests';
-// import { Console } from '../utils/console';
+import { Console } from '../utils/console';
 
 type TTokenAllocation = {
   [key in
@@ -92,7 +92,7 @@ export const useGetBalance = (clientDetails?: Account): TUseuserBalance => {
       } catch (e) {
         clearTokenAllocation();
         clearOriginalVesting();
-        // Console.error(e as string);
+        Console.error(e as string);
       }
     }
     setIsLoading(false);

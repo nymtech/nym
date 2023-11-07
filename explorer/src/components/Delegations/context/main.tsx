@@ -18,7 +18,7 @@ import {
 } from '../requests';
 import Big from 'big.js';
 
-// import { Console } from '../utils/console';
+import { Console } from '../utils/console';
 import { createSignInWindow, getReactState, setReactState } from '../requests/app';
 // import { toDisplay } from '../utils';
 
@@ -27,8 +27,7 @@ const toDisplay = (val: string | number | Big, dp = 4) => {
   try {
     displayValue = Big(val).toFixed(dp);
   } catch (e: any) {
-    // Console.warn(`${displayValue} not a valid decimal number: ${e}`);
-    console.log('object :>> ', `${displayValue} not a valid decimal number: ${e}`);
+    Console.warn(`${displayValue} not a valid decimal number: ${e}`);
   }
   return displayValue;
 };
@@ -149,7 +148,7 @@ export const AppProvider: FCWithChildren = ({ children }) => {
       setClientDetails(client);
     } catch (e) {
       enqueueSnackbar('Error loading account', { variant: 'error' });
-      // Console.error(e as string);
+      Console.error(e as string);
     }
   };
 
@@ -164,7 +163,7 @@ export const AppProvider: FCWithChildren = ({ children }) => {
       const mixnode = await getMixnodeBondDetails();
       setMixnodeDetails(mixnode);
     } catch (e) {
-      // Console.error(e as string);
+      Console.error(e as string);
     }
   };
 
@@ -180,7 +179,7 @@ export const AppProvider: FCWithChildren = ({ children }) => {
       const modeFromStorage = await forage.getItem({ key: 'nym-wallet-mode' })();
       if (modeFromStorage) setMode(modeFromStorage);
     } catch (e) {
-      // Console.error(e);
+      Console.error(e);
     }
   };
 
@@ -231,15 +230,15 @@ export const AppProvider: FCWithChildren = ({ children }) => {
         if (adminAddresses.length) {
           newValue = adminAddresses.includes(clientDetails?.client_address);
           if (newValue) {
-            // Console.log('Wallet is in admin mode: ', {
-            //   network,
-            //   adminAddress: adminAddressMap[network],
-            //   clientAddress: clientDetails?.client_address,
-            // });
+            Console.log('Wallet is in admin mode: ', {
+              network,
+              adminAddress: adminAddressMap[network],
+              clientAddress: clientDetails?.client_address,
+            });
           }
         }
       } catch (e) {
-        // Console.error('Failed to check admin addresses', e);
+        Console.error('Failed to check admin addresses', e);
       }
     }
     setIsAdminAddress(newValue);

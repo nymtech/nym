@@ -143,11 +143,11 @@ impl Parameters {
         let pk_rp_beta_bytes = self.pk_rp.beta.to_affine().to_compressed();
         let l_bytes = self.ll.to_be_bytes();
 
-        let signs_bytes: Vec<u8> = self
-            .signs
-            .iter()
-            .flat_map(|(_, value)| value.to_bytes())
-            .collect();
+        let mut signs_bytes: Vec<u8> = Vec::with_capacity((self.ll * 96) as usize);
+        for l in 0..self.ll {
+            let sign = self.signs[&l];
+            signs_bytes.extend_from_slice(&sign.to_bytes());
+        }
 
         let mut bytes = Vec::with_capacity(96 + 96 + 8 + signs_bytes.len());
 

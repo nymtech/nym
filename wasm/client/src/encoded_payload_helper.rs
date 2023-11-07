@@ -4,6 +4,7 @@
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
+use anyhow::bail;
 
 #[wasm_bindgen(typescript_custom_section)]
 const TS_DEFS: &'static str = r#"

@@ -5,41 +5,85 @@ use crate::error::NymvisorError;
 use nym_bin_common::build_information::BinaryBuildInformationOwned;
 use serde::{Deserialize, Serialize};
 use serde_helpers::{base64, option_offsetdatetime};
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::fs::OpenOptions;
-use std::io;
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use std::{fs, io};
 use time::OffsetDateTime;
 use url::Url;
 
 mod http_upstream;
 mod serde_helpers;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "lowercase")]
 pub struct UpgradePlan {
+    // metadata indicating save location of the underlying file
+    #[serde(skip)]
+    _save_path: Option<PathBuf>,
+
     pub current: UpgradeInfo,
 
-    pub next: Vec<UpgradeInfo>,
+    pub next: VecDeque<UpgradeInfo>,
 }
 
 impl UpgradePlan {
     pub(crate) fn new(current: UpgradeInfo) -> Self {
         UpgradePlan {
+            _save_path: None,
             current,
-            next: vec![],
+            next: VecDeque::new(),
         }
     }
 
-    pub(crate) fn update_on_disk(&self) -> Result<(), NymvisorError> {
-        // 1. copy upgrade-plan.json to upgrade-plan.json.tmp
-        // 2. update upgrade-plan.json.tmp
-        // 3. move upgrade-plan.json.tmp to upgrade-plan.json
-
-        todo!()
+    fn push_next_upgrade(&mut self, upgrade: UpgradeInfo) {
+        self.next.push_back(upgrade);
     }
 
+    fn update_on_disk(&self) -> Result<(), NymvisorError> {
+        // it should be impossible to update an existing upgrade plan that wasn't loaded from disk
+        assert!(self._save_path.is_some());
+
+        // safety: the except here is fine as this failure implies failure in the underlying logic of the code
+        // as opposed to user error
+        #[allow(clippy::expect_used)]
+        let save_path = self
+            ._save_path
+            .as_ref()
+            .expect("loaded upgrade plan does not have an associate save path!");
+
+        let file = OpenOptions::new()
+            .write(true)
+            .truncate(true)
+            .open(save_path)
+            .map_err(|source| NymvisorError::UpgradePlanSaveFailure {
+                path: save_path.to_path_buf(),
+                source,
+            })?;
+
+        // we're not using any non-standard serializer and thus the serialization should not ever fail
+        #[allow(clippy::expect_used)]
+        serde_json::to_writer_pretty(file, self)
+            .expect("unexpected UpgradeInfo serialization failure");
+        Ok(())
+    }
+
+    pub(crate) fn insert_new_upgrade(&mut self, upgrade: UpgradeInfo) -> Result<(), NymvisorError> {
+        self.push_next_upgrade(upgrade);
+        self.update_on_disk()
+    }
+
+    pub(crate) fn next_upgrade(&self) -> Option<&UpgradeInfo> {
+        self.next.front()
+    }
+
+    // pub(crate) fn update_current(&mut self) -> Result<(), NymvisorError> {
+    //
+    // }
+
     pub(crate) fn save_new<P: AsRef<Path>>(&self, path: P) -> Result<(), NymvisorError> {
+        debug_assert!(self._save_path.is_none());
+
         let path = path.as_ref();
         let file = OpenOptions::new()
             .create_new(true)
@@ -59,7 +103,7 @@ impl UpgradePlan {
 
     pub(crate) fn try_load<P: AsRef<Path>>(path: P) -> Result<Self, NymvisorError> {
         let path = path.as_ref();
-        std::fs::File::open(path)
+        let mut upgrade_plan: UpgradePlan = fs::File::open(path)
             .and_then(|file| {
                 serde_json::from_reader(file)
                     .map_err(|serde_json_err| io::Error::new(io::ErrorKind::Other, serde_json_err))
@@ -67,17 +111,20 @@ impl UpgradePlan {
             .map_err(|source| NymvisorError::UpgradePlanLoadFailure {
                 path: path.to_path_buf(),
                 source,
-            })
+            })?;
+
+        upgrade_plan._save_path = Some(path.to_path_buf());
+        Ok(upgrade_plan)
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Copy, Clone)]
 #[serde(rename_all = "lowercase")]
 pub enum DigestAlgorithm {
     Sha256,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "lowercase")]
 pub struct DownloadUrl {
     /// The checksum of the file behind the download url.
@@ -91,7 +138,7 @@ pub struct DownloadUrl {
     pub url: Url,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "lowercase")]
 pub struct UpgradeInfo {
     /// Specifies whether this upgrade requires manual intervention and cannot be done automatically by the nymvisor.

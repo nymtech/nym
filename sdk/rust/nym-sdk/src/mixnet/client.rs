@@ -35,7 +35,7 @@ use std::path::PathBuf;
 use url::Url;
 
 // The number of surbs to include in a message by default
-const DEFAULT_NUMBER_OF_SURBS: u32 = 5;
+const DEFAULT_NUMBER_OF_SURBS: u32 = 20;
 
 #[derive(Default)]
 pub struct MixnetClientBuilder<S: MixnetClientStorage = Ephemeral> {

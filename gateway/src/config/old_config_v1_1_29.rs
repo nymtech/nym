@@ -1,9 +1,6 @@
 // Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::config::persistence::paths::{GatewayPaths, KeysPaths};
-use crate::config::{Config, Debug, Gateway, NetworkRequester};
-use nym_bin_common::logging::LoggingSettings;
 use nym_config::{
     must_get_home, read_config_from_toml_file, DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, NYM_DIR,
 };
@@ -13,6 +10,11 @@ use std::net::IpAddr;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 use url::Url;
+
+use super::old_config_v1_1_31::{
+    ConfigV1_1_31, DebugV1_1_31, GatewayPathsV1_1_31, GatewayV1_1_31, KeysPathsV1_1_31,
+    LoggingSettingsV1_1_31, NetworkRequesterV1_1_31,
+};
 
 const DEFAULT_GATEWAYS_DIR: &str = "gateways";
 
@@ -105,9 +107,9 @@ impl ConfigV1_1_29 {
     }
 }
 
-impl From<ConfigV1_1_29> for Config {
+impl From<ConfigV1_1_29> for ConfigV1_1_31 {
     fn from(value: ConfigV1_1_29) -> Self {
-        Config {
+        ConfigV1_1_31 {
             save_path: value.save_path,
 
             // \/ ADDED
@@ -121,7 +123,7 @@ impl From<ConfigV1_1_29> for Config {
             // \/ ADDED
             http: Default::default(),
             // /\ ADDED
-            gateway: Gateway {
+            gateway: GatewayV1_1_31 {
                 version: value.gateway.version,
                 id: value.gateway.id,
                 only_coconut_credentials: value.gateway.only_coconut_credentials,
@@ -141,8 +143,8 @@ impl From<ConfigV1_1_29> for Config {
             // \/ ADDED
             wireguard: Default::default(),
             // /\ ADDED
-            storage_paths: GatewayPaths {
-                keys: KeysPaths {
+            storage_paths: GatewayPathsV1_1_31 {
+                keys: KeysPathsV1_1_31 {
                     private_identity_key_file: value.storage_paths.keys.private_identity_key_file,
                     public_identity_key_file: value.storage_paths.keys.public_identity_key_file,
                     private_sphinx_key_file: value.storage_paths.keys.private_sphinx_key_file,
@@ -151,11 +153,11 @@ impl From<ConfigV1_1_29> for Config {
                 clients_storage: value.storage_paths.clients_storage,
                 network_requester_config: value.storage_paths.network_requester_config,
             },
-            network_requester: NetworkRequester {
+            network_requester: NetworkRequesterV1_1_31 {
                 enabled: value.network_requester.enabled,
             },
-            logging: LoggingSettings {},
-            debug: Debug {
+            logging: LoggingSettingsV1_1_31 {},
+            debug: DebugV1_1_31 {
                 packet_forwarding_initial_backoff: value.debug.packet_forwarding_initial_backoff,
                 packet_forwarding_maximum_backoff: value.debug.packet_forwarding_maximum_backoff,
                 initial_connection_timeout: value.debug.initial_connection_timeout,

@@ -36,6 +36,9 @@ packages=(
 "ts/sdk/mix-fetch/esm"
 "ts/sdk/mix-fetch/esm-full-fat"
 
+"ts/sdk/nodejs-client/cjs"
+"ts/sdk/mix-fetch-node/cjs"
+
 "ts/sdk/node-tester/cjs"
 "ts/sdk/node-tester/cjs-full-fat"
 "ts/sdk/node-tester/esm"
@@ -54,7 +57,7 @@ pushd () {
 }
 
 popd () {
-    command popd "$@" > /dev/null
+    command popd > /dev/null
 }
 
 echo "Summary of versions of packages to publish:"
@@ -62,8 +65,8 @@ echo ""
 for item in "${packages[@]}"
 do
   pushd "$item"
-  cat package.json | jq -r '. | "📦 " + .version + "   " +.name'
-  popd
+  jq -r '. | "📦 " + .version + "   " +.name' < package.json
+  popd 
 done
 
 echo ""
@@ -73,14 +76,13 @@ COUNTER=0
 
 for item in "${packages[@]}"
 do
-  (( COUNTER++ ))
+  (( COUNTER+=1 ))
   pushd "$item"
   echo "🚀 Publishing $item... (${COUNTER} of ${#packages[@]})"
   cat package.json | jq -r '. | .name + " " +.version'
-  npm publish --access=public
+  npm publish --access=public --verbose --workspaces false || true
   popd
   echo ""
 done
 echo ""
 echo "✅ Done"
-

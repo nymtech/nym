@@ -20,7 +20,7 @@ async-trait = { workspace = true }
 atty = "0.2"
 bip39 = { workspace = true }
 bs58 = "0.4.0"
-clap = { version = "4.0", features = ["cargo", "derive"] }
+clap = { workspace = true, features = ["cargo", "derive"] }
 colored = "2.0"
 dashmap = { workspace = true }
 dirs = "4.0"
@@ -52,7 +52,7 @@ tokio = { workspace = true, features = [
 tokio-stream = { version = "0.1.11", features = ["fs"] }
 tokio-tungstenite = { version = "0.20.1" }
 tokio-util = { version = "0.7.4", features = ["codec"] }
-url = { version = "2.2", features = ["serde"] }
+url = { workspace = true, features = ["serde"] }
 zeroize = { workspace = true }
 
 # internal
@@ -76,6 +76,7 @@ nym-task = { path = "../common/task" }
 nym-types = { path = "../common/types" }
 nym-validator-client = { path = "../common/client-libs/validator-client" }
 nym-wireguard = { path = "../common/wireguard", optional = true }
+nym-ip-packet-router = { path = "../service-providers/ip-packet-router" }
 
 [dev-dependencies]
 tower = "0.4.13"

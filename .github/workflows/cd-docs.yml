@@ -1,4 +1,4 @@
-name: CD docs
+name: cd-docs
 
 on:
   workflow_dispatch:
@@ -26,7 +26,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --workspace --release --all
+          args: --workspace --release
       - name: Install mdbook
         run: (test -x $HOME/.cargo/bin/mdbook || cargo install --vers "^0.4.33" mdbook)
       - name: Install mdbook plugins
@@ -38,30 +38,6 @@ jobs:
       - name: Build all projects in documentation/ & move to ~/dist/docs/
         run: cd documentation && ./build_all_to_dist.sh
         continue-on-error: false
-
-      - name: Deploy branch master to dev
-        continue-on-error: true
-        uses: easingthemes/ssh-deploy@main
-        env:
-          SSH_PRIVATE_KEY: ${{ secrets.CD_WWW_SSH_PRIVATE_KEY }}
-          ARGS: "-rltgoDzvO --delete"
-          SOURCE: "dist/docs/"
-          REMOTE_HOST: ${{ secrets.CD_WWW_REMOTE_HOST_DEV }}
-          REMOTE_USER: ${{ secrets.CD_WWW_REMOTE_USER }}
-          TARGET: ${{ secrets.CD_WWW_REMOTE_TARGET }}/
-          EXCLUDE: "/node_modules/"
-
-      - name: Deploy branch master to prod
-        if: github.ref == 'refs/heads/master'
-        uses: easingthemes/ssh-deploy@main
-        env:
-          SSH_PRIVATE_KEY: ${{ secrets.CD_WWW_SSH_PRIVATE_KEY }}
-          ARGS: "-rltgoDzvO --delete"
-          SOURCE: "dist/docs/"
-          REMOTE_HOST: ${{ secrets.CD_WWW_REMOTE_HOST_PROD }}
-          REMOTE_USER: ${{ secrets.CD_WWW_REMOTE_USER }}
-          TARGET: ${{ secrets.CD_WWW_REMOTE_TARGET }}/
-          EXCLUDE: "/node_modules/"
 
       - name: Post process
         run: cd documentation && ./post_process.sh

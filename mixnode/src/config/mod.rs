@@ -3,6 +3,7 @@
 
 use crate::config::persistence::paths::MixNodePaths;
 use crate::config::template::CONFIG_TEMPLATE;
+use log::{debug, warn};
 use nym_bin_common::logging::LoggingSettings;
 use nym_config::defaults::{
     mainnet, DEFAULT_HTTP_API_LISTENING_PORT, DEFAULT_MIX_LISTENING_PORT,
@@ -13,15 +14,17 @@ use nym_config::{
     must_get_home, read_config_from_toml_file, save_formatted_config_to_file, NymConfigTemplate,
     DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, DEFAULT_DATA_DIR, NYM_DIR,
 };
+use nym_node::config;
 use serde::{Deserialize, Serialize};
 use std::io;
-use std::net::IpAddr;
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::time::Duration;
 use url::Url;
 
 pub(crate) mod old_config_v1_1_21;
+pub(crate) mod old_config_v1_1_32;
 pub mod persistence;
 mod template;
 
@@ -70,9 +73,28 @@ pub fn default_data_directory<P: AsRef<Path>>(id: P) -> PathBuf {
         .join(DEFAULT_DATA_DIR)
 }
 
+fn default_mixnode_http_config() -> config::Http {
+    config::Http {
+        bind_address: SocketAddr::new(
+            IpAddr::V4(Ipv4Addr::UNSPECIFIED),
+            DEFAULT_HTTP_API_LISTENING_PORT,
+        ),
+        landing_page_assets_path: None,
+    }
+}
+
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Config {
+    // additional metadata holding on-disk location of this config file
+    #[serde(skip)]
+    pub(crate) save_path: Option<PathBuf>,
+
+    pub host: config::Host,
+
+    #[serde(default = "default_mixnode_http_config")]
+    pub http: config::Http,
+
     pub mixnode: MixNode,
 
     pub storage_paths: MixNodePaths,
@@ -95,8 +117,17 @@ impl NymConfigTemplate for Config {
 
 impl Config {
     pub fn new<S: AsRef<str>>(id: S) -> Self {
+        let default_mixnode = MixNode::new_default(id.as_ref());
+
         Config {
-            mixnode: MixNode::new_default(id.as_ref()),
+            save_path: None,
+            host: config::Host {
+                // this is a very bad default!
+                public_ips: vec![default_mixnode.listening_address],
+                hostname: None,
+            },
+            http: default_mixnode_http_config(),
+            mixnode: default_mixnode,
             storage_paths: MixNodePaths::new_default(id.as_ref()),
             verloc: Default::default(),
             logging: Default::default(),
@@ -104,12 +135,24 @@ impl Config {
         }
     }
 
+    // simple wrapper that reads config file and assigns path location
+    fn read_from_path<P: AsRef<Path>>(path: P) -> io::Result<Self> {
+        let path = path.as_ref();
+        let mut loaded: Config = read_config_from_toml_file(path)?;
+        loaded.save_path = Some(path.to_path_buf());
+        debug!("loaded config file from {}", path.display());
+        Ok(loaded)
+    }
+
+    // currently this is dead code, but once we allow loading configs from custom paths
+    // well, we will have to be using it
+    #[allow(dead_code)]
     pub fn read_from_toml_file<P: AsRef<Path>>(path: P) -> io::Result<Self> {
-        read_config_from_toml_file(path)
+        Self::read_from_path(path)
     }
 
     pub fn read_from_default_path<P: AsRef<Path>>(id: P) -> io::Result<Self> {
-        Self::read_from_toml_file(default_config_filepath(id))
+        Self::read_from_path(default_config_filepath(id))
     }
 
     pub fn default_location(&self) -> PathBuf {
@@ -121,6 +164,15 @@ impl Config {
         save_formatted_config_to_file(self, config_save_location)
     }
 
+    pub fn try_save(&self) -> io::Result<()> {
+        if let Some(save_location) = &self.save_path {
+            save_formatted_config_to_file(self, save_location)
+        } else {
+            warn!("config file save location is unknown. falling back to the default");
+            self.save_to_default_location()
+        }
+    }
+
     // builder methods
     pub fn with_custom_nym_apis(mut self, nym_api_urls: Vec<Url>) -> Self {
         self.mixnode.nym_api_urls = nym_api_urls;
@@ -129,6 +181,10 @@ impl Config {
 
     pub fn with_listening_address(mut self, listening_address: IpAddr) -> Self {
         self.mixnode.listening_address = listening_address;
+
+        let http_port = self.http.bind_address.port();
+        self.http.bind_address = SocketAddr::new(listening_address, http_port);
+
         self
     }
 
@@ -143,7 +199,8 @@ impl Config {
     }
 
     pub fn with_http_api_port(mut self, port: u16) -> Self {
-        self.mixnode.http_api_port = port;
+        let http_ip = self.http.bind_address.ip();
+        self.http.bind_address = SocketAddr::new(http_ip, port);
         self
     }
 
@@ -171,10 +228,6 @@ pub struct MixNode {
     /// (default: 1790)
     pub verloc_port: u16,
 
-    /// Port used for listening for http requests.
-    /// (default: 8000)
-    pub http_api_port: u16,
-
     /// Addresses to nym APIs from which the node gets the view of the network.
     pub nym_api_urls: Vec<Url>,
 }
@@ -187,7 +240,6 @@ impl MixNode {
             listening_address: inaddr_any(),
             mix_port: DEFAULT_MIX_LISTENING_PORT,
             verloc_port: DEFAULT_VERLOC_LISTENING_PORT,
-            http_api_port: DEFAULT_HTTP_API_LISTENING_PORT,
             nym_api_urls: vec![Url::from_str(mainnet::NYM_API).expect("Invalid default API URL")],
         }
     }

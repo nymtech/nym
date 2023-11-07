@@ -20,7 +20,7 @@ futures = { workspace = true } # bunch of futures stuff, however, now that I thi
 # and the single instance of abortable we have should really be refactored anyway
 url = { workspace = true }
 
-clap = { version = "4.0", features = ["cargo", "derive"] }
+clap = { workspace = true, features = ["cargo", "derive"] }
 dirs = "4.0"
 lazy_static = "1.4.0"
 log = { workspace = true } # self explanatory
@@ -36,7 +36,7 @@ tokio-tungstenite = { workspace = true }
 ## internal
 nym-bandwidth-controller = { path = "../../common/bandwidth-controller" }
 nym-bin-common = { path = "../../common/bin-common", features = ["output_format"] }
-nym-client-core = { path = "../../common/client-core", features = ["fs-surb-storage"] }
+nym-client-core = { path = "../../common/client-core", features = ["fs-surb-storage", "cli"] }
 nym-coconut-interface = { path = "../../common/coconut-interface" }
 nym-config = { path = "../../common/config" }
 nym-credential-storage = { path = "../../common/credential-storage" }

@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::commands::helpers::{
-    initialise_local_network_requester, OverrideNetworkRequesterConfig,
+    initialise_local_ip_packet_router, initialise_local_network_requester,
+    OverrideNetworkRequesterConfig,
 };
 use crate::config::{default_config_directory, default_config_filepath, default_data_directory};
 use crate::node::helpers::node_details;
@@ -13,6 +14,8 @@ use nym_crypto::asymmetric::{encryption, identity};
 use std::net::IpAddr;
 use std::path::PathBuf;
 use std::{fs, io};
+
+use super::helpers::OverrideIpPacketRouterConfig;
 
 #[derive(Args, Clone)]
 pub struct Init {
@@ -79,8 +82,12 @@ pub struct Init {
     statistics_service_url: Option<url::Url>,
 
     /// Allows this gateway to run an embedded network requester for minimal network overhead
-    #[clap(long)]
+    #[clap(long, conflicts_with = "with_ip_packet_router")]
     with_network_requester: bool,
+
+    /// Allows this gateway to run an embedded network requester for minimal network overhead
+    #[clap(long, hide = true, conflicts_with = "with_network_requester")]
+    with_ip_packet_router: bool,
 
     // ##### NETWORK REQUESTER FLAGS #####
     /// Specifies whether this network requester should run in 'open-proxy' mode
@@ -154,6 +161,7 @@ impl From<Init> for OverrideConfig {
             nyxd_urls: init_config.nyxd_urls,
             only_coconut_credentials: init_config.only_coconut_credentials,
             with_network_requester: Some(init_config.with_network_requester),
+            with_ip_packet_router: Some(init_config.with_ip_packet_router),
         }
     }
 }
@@ -169,6 +177,12 @@ impl<'a> From<&'a Init> for OverrideNetworkRequesterConfig {
             enable_statistics: value.enable_statistics,
             statistics_recipient: value.statistics_recipient.clone(),
         }
+    }
+}
+
+impl From<&Init> for OverrideIpPacketRouterConfig {
+    fn from(_value: &Init) -> Self {
+        OverrideIpPacketRouterConfig {}
     }
 }
 
@@ -196,6 +210,7 @@ pub async fn execute(args: Init) -> anyhow::Result<()> {
     // Initialising the config structure is just overriding a default constructed one
     let fresh_config = Config::new(&args.id);
     let nr_opts = (&args).into();
+    let ip_opts = (&args).into();
     let mut config = OverrideConfig::from(args).do_override(fresh_config)?;
 
     // if gateway was already initialised, don't generate new keys, et al.
@@ -227,6 +242,9 @@ pub async fn execute(args: Init) -> anyhow::Result<()> {
 
         if config.network_requester.enabled {
             initialise_local_network_requester(&config, nr_opts, *identity_keys.public_key())
+                .await?;
+        } else if config.ip_packet_router.enabled {
+            initialise_local_ip_packet_router(&config, ip_opts, *identity_keys.public_key())
                 .await?;
         }
 
@@ -276,6 +294,7 @@ mod tests {
             only_coconut_credentials: None,
             output: Default::default(),
             with_network_requester: false,
+            with_ip_packet_router: false,
             open_proxy: None,
             enable_statistics: None,
             statistics_recipient: None,
@@ -302,6 +321,7 @@ mod tests {
         // The test is really if this instantiates with InMemStorage without panics
         let _gateway = Gateway::new_from_keys_and_storage(
             config,
+            None,
             None,
             identity_keys,
             sphinx_keys,

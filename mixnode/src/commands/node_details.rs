@@ -19,6 +19,6 @@ pub(crate) struct NodeDetails {
 pub(crate) fn execute(args: &NodeDetails) -> anyhow::Result<()> {
     let config = try_load_current_config(&args.id)?;
 
-    MixNode::new(config).print_node_details(args.output);
+    MixNode::new(config)?.print_node_details(args.output);
     Ok(())
 }

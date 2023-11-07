@@ -1,4 +1,29 @@
-import type { DebugWasm } from '@nymproject/nym-client-wasm';
+import type { DebugWasm } from '@nymproject/nym-client-wasm-node';
+
+/**
+ * Options for the Nym mixnet client.
+ * @property autoConvertStringMimeTypes - An array of mime types.
+ * @example
+ * ```typescript
+ * const client = await createNymMixnetClient({
+ *  autoConvertStringMimeTypes: [MimeTypes.ApplicationJson, MimeTypes.TextPlain],
+ * });
+ * ```
+ */
+export interface NymMixnetClientOptions {
+  autoConvertStringMimeTypes?: string[] | MimeTypes[];
+}
+
+/**
+ * The client for the Nym mixnet which gives access to client methods and event subscriptions.
+ * Returned by the {@link createNymMixnetClient} function.
+ * @property client - The sphinx nym wasm client.
+ * @property events - Different streams of events provided by the client.
+ */
+export interface NymMixnetClient {
+  client: Client;
+  events: Events;
+}
 
 /**
  *

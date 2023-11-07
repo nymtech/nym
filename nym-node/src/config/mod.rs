@@ -43,6 +43,7 @@ impl Host {
 pub struct Http {
     /// Socket address this node will use for binding its http API.
     /// default: `0.0.0.0:8080`
+    /// note: for legacy reasons, it defaults to port `8000` for mixnodes.
     pub bind_address: SocketAddr,
 
     /// Path to assets directory of custom landing page of this node.

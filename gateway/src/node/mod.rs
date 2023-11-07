@@ -1,8 +1,12 @@
 // Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use self::helpers::load_ip_packet_router_config;
 use self::storage::PersistentStorage;
-use crate::commands::helpers::{override_network_requester_config, OverrideNetworkRequesterConfig};
+use crate::commands::helpers::{
+    override_ip_packet_router_config, override_network_requester_config,
+    OverrideIpPacketRouterConfig, OverrideNetworkRequesterConfig,
+};
 use crate::config::Config;
 use crate::error::GatewayError;
 use crate::http::HttpApiBuilder;
@@ -54,7 +58,8 @@ struct StartedNetworkRequester {
 pub(crate) async fn create_gateway(
     config: Config,
     nr_config_override: Option<OverrideNetworkRequesterConfig>,
-    custom_nr_mixnet: Option<PathBuf>,
+    ip_config_override: Option<OverrideIpPacketRouterConfig>,
+    custom_mixnet: Option<PathBuf>,
 ) -> Result<Gateway, GatewayError> {
     // don't attempt to read config if NR is disabled
     let network_requester_config = if config.network_requester.enabled {
@@ -69,14 +74,32 @@ pub(crate) async fn create_gateway(
         None
     };
 
+    // don't attempt to read config if NR is disabled
+    let ip_packet_router_config = if config.ip_packet_router.enabled {
+        if let Some(path) = &config.storage_paths.ip_packet_router_config {
+            let cfg = load_ip_packet_router_config(&config.gateway.id, path)?;
+            Some(override_ip_packet_router_config(cfg, ip_config_override))
+        } else {
+            // if NR is enabled, the config path must be specified
+            return Err(GatewayError::UnspecifiedIpPacketRouterConfig);
+        }
+    } else {
+        None
+    };
+
     let storage = initialise_main_storage(&config).await?;
 
     let nr_opts = network_requester_config.map(|config| LocalNetworkRequesterOpts {
-        config,
-        custom_mixnet_path: custom_nr_mixnet,
+        config: config.clone(),
+        custom_mixnet_path: custom_mixnet.clone(),
     });
 
-    Gateway::new(config, nr_opts, storage)
+    let ip_opts = ip_packet_router_config.map(|config| LocalIpPacketRouterOpts {
+        config,
+        custom_mixnet_path: custom_mixnet,
+    });
+
+    Gateway::new(config, nr_opts, ip_opts, storage)
 }
 
 #[derive(Debug, Clone)]
@@ -86,10 +109,19 @@ pub struct LocalNetworkRequesterOpts {
     custom_mixnet_path: Option<PathBuf>,
 }
 
+#[derive(Debug, Clone)]
+pub struct LocalIpPacketRouterOpts {
+    config: nym_ip_packet_router::Config,
+
+    custom_mixnet_path: Option<PathBuf>,
+}
+
 pub(crate) struct Gateway<St = PersistentStorage> {
     config: Config,
 
     network_requester_opts: Option<LocalNetworkRequesterOpts>,
+
+    ip_packet_router_opts: Option<LocalIpPacketRouterOpts>,
 
     /// ed25519 keypair used to assert one's identity.
     identity_keypair: Arc<identity::KeyPair>,
@@ -106,6 +138,7 @@ impl<St> Gateway<St> {
     pub fn new(
         config: Config,
         network_requester_opts: Option<LocalNetworkRequesterOpts>,
+        ip_packet_router_opts: Option<LocalIpPacketRouterOpts>,
         storage: St,
     ) -> Result<Self, GatewayError> {
         Ok(Gateway {
@@ -114,6 +147,7 @@ impl<St> Gateway<St> {
             sphinx_keypair: Arc::new(helpers::load_sphinx_keys(&config)?),
             config,
             network_requester_opts,
+            ip_packet_router_opts,
             client_registry: Arc::new(DashMap::new()),
         })
     }
@@ -122,6 +156,7 @@ impl<St> Gateway<St> {
     pub async fn new_from_keys_and_storage(
         config: Config,
         network_requester_opts: Option<LocalNetworkRequesterOpts>,
+        ip_packet_router_opts: Option<LocalIpPacketRouterOpts>,
         identity_keypair: identity::KeyPair,
         sphinx_keypair: encryption::KeyPair,
         storage: St,
@@ -129,6 +164,7 @@ impl<St> Gateway<St> {
         Gateway {
             config,
             network_requester_opts,
+            ip_packet_router_opts,
             identity_keypair: Arc::new(identity_keypair),
             sphinx_keypair: Arc::new(sphinx_keypair),
             storage,
@@ -283,6 +319,74 @@ impl<St> Gateway<St> {
         })
     }
 
+    async fn start_ip_packet_router(
+        &self,
+        forwarding_channel: MixForwardingSender,
+        shutdown: TaskClient,
+    ) -> Result<LocalNetworkRequesterHandle, GatewayError> {
+        info!("Starting IP packet provider...");
+
+        // if network requester is enabled, configuration file must be provided!
+        let Some(ip_opts) = &self.ip_packet_router_opts else {
+            log::error!("IP packet router is enabled but no configuration file was provided!");
+            return Err(GatewayError::UnspecifiedIpPacketRouterConfig);
+        };
+
+        // this gateway, whenever it has anything to send to its local NR will use fake_client_tx
+        let (nr_mix_sender, nr_mix_receiver) = mpsc::unbounded();
+        let router_shutdown = shutdown.fork("message_router");
+
+        let (router_tx, mut router_rx) = oneshot::channel();
+
+        let transceiver = LocalGateway::new(
+            *self.identity_keypair.public_key(),
+            forwarding_channel,
+            router_tx,
+        );
+
+        // TODO: well, wire it up internally to gateway traffic, shutdowns, etc.
+        let (on_start_tx, on_start_rx) = oneshot::channel();
+        let mut ip_builder =
+            nym_ip_packet_router::IpPacketRouterBuilder::new(ip_opts.config.clone())
+                .with_shutdown(shutdown)
+                .with_custom_gateway_transceiver(Box::new(transceiver))
+                .with_wait_for_gateway(true)
+                .with_on_start(on_start_tx);
+
+        if let Some(custom_mixnet) = &ip_opts.custom_mixnet_path {
+            ip_builder = ip_builder.with_stored_topology(custom_mixnet)?
+        }
+
+        tokio::spawn(async move {
+            if let Err(err) = ip_builder.run_service_provider().await {
+                // no need to panic as we have passed a task client to the ip packet router so
+                // we're most likely already in the process of shutting down
+                error!("ip packet router has failed: {err}")
+            }
+        });
+
+        let start_data = on_start_rx
+            .await
+            .map_err(|_| GatewayError::IpPacketRouterStartupFailure)?;
+
+        // this should be instantaneous since the data is sent on this channel before the on start is called;
+        // the failure should be impossible
+        let Ok(Some(packet_router)) = router_rx.try_recv() else {
+            return Err(GatewayError::IpPacketRouterStartupFailure);
+        };
+
+        MessageRouter::new(nr_mix_receiver, packet_router).start_with_shutdown(router_shutdown);
+        info!(
+            "the local ip packet router is running on {}",
+            start_data.address
+        );
+
+        Ok(LocalNetworkRequesterHandle::new_ip(
+            start_data,
+            nr_mix_sender,
+        ))
+    }
+
     async fn wait_for_interrupt(shutdown: TaskManager) -> Result<(), Box<dyn Error + Send + Sync>> {
         let res = shutdown.catch_interrupt().await;
         log::info!("Stopping nym gateway");
@@ -386,6 +490,18 @@ impl<St> Gateway<St> {
             info!("embedded network requester is disabled");
             None
         };
+
+        // NOTE: this is mutually exclusive with the network requester (for now). This is reflected
+        // in the command line arguments as well.
+        if self.config.ip_packet_router.enabled {
+            let embedded_ip_sp = self
+                .start_ip_packet_router(
+                    mix_forwarding_channel.clone(),
+                    shutdown.subscribe().named("ip_service_provider"),
+                )
+                .await?;
+            active_clients_store.insert_embedded(embedded_ip_sp);
+        }
 
         HttpApiBuilder::new(
             &self.config,

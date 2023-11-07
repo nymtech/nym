@@ -10,6 +10,7 @@ use std::num::ParseIntError;
 use std::path::PathBuf;
 use std::process::ExitStatus;
 use thiserror::Error;
+use url::Url;
 
 #[derive(Debug, Error)]
 pub(crate) enum NymvisorError {
@@ -202,6 +203,13 @@ pub(crate) enum NymvisorError {
     UpgradePlanFileWatchFailure {
         #[from]
         source: NotifyError,
+    },
+
+    #[error("failed to query the upstream url ('{url}') - source")]
+    UpstreamQueryFailure {
+        url: Url,
+        #[source]
+        source: reqwest::Error,
     },
 }
 

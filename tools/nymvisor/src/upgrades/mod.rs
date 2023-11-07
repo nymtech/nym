@@ -1,6 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::config::GENESIS_DIR;
 use crate::error::NymvisorError;
 use nym_bin_common::build_information::BinaryBuildInformationOwned;
 use serde::{Deserialize, Serialize};
@@ -10,6 +11,7 @@ use std::fs::OpenOptions;
 use std::path::{Path, PathBuf};
 use std::{fs, io};
 use time::OffsetDateTime;
+use tracing::error;
 use url::Url;
 
 mod http_upstream;
@@ -22,9 +24,9 @@ pub struct UpgradePlan {
     #[serde(skip)]
     _save_path: Option<PathBuf>,
 
-    pub current: UpgradeInfo,
+    current: UpgradeInfo,
 
-    pub next: VecDeque<UpgradeInfo>,
+    next: VecDeque<UpgradeInfo>,
 }
 
 impl UpgradePlan {
@@ -73,8 +75,25 @@ impl UpgradePlan {
         self.update_on_disk()
     }
 
+    pub(crate) fn current(&self) -> &UpgradeInfo {
+        &self.current
+    }
+
     pub(crate) fn next_upgrade(&self) -> Option<&UpgradeInfo> {
         self.next.front()
+    }
+
+    pub(crate) fn has_planned(&self, upgrade: &UpgradeInfo) -> bool {
+        for planned in &self.next {
+            if planned.version == upgrade.version {
+                if planned.name != upgrade.name {
+                    // TODO: should we maybe return a hard error here instead?
+                    error!("we have already a planned upgrade for version {} under name '{}' which differs from provided '{}'", planned.version, planned.name, upgrade.name);
+                }
+                return true;
+            }
+        }
+        false
     }
 
     // pub(crate) fn update_current(&mut self) -> Result<(), NymvisorError> {
@@ -171,6 +190,18 @@ pub struct UpgradeInfo {
 impl UpgradeInfo {
     pub(crate) fn save<P: AsRef<Path>>(&self, path: P) -> Result<(), NymvisorError> {
         let path = path.as_ref();
+
+        // in case we're saving brand new upgrade info, make sure the parent directory exists
+        #[allow(clippy::expect_used)]
+        let parent = path
+            .parent()
+            .expect("attempted to save the upgrade info as the root of the fs");
+
+        fs::create_dir_all(parent).map_err(|source| NymvisorError::PathInitFailure {
+            path: parent.to_path_buf(),
+            source,
+        })?;
+
         let file = OpenOptions::new()
             .create(true)
             .write(true)
@@ -200,6 +231,10 @@ impl UpgradeInfo {
                 path: path.to_path_buf(),
                 source,
             })
+    }
+
+    pub(crate) fn is_genesis(&self) -> bool {
+        self.name == GENESIS_DIR
     }
 }
 

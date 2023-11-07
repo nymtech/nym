@@ -17,7 +17,21 @@ use std::task::{Context, Poll};
 use std::time::Duration;
 use tokio::sync::Notify;
 use tokio::time::{sleep, Sleep};
-use tracing::{debug, error, info, instrument, warn};
+use tracing::{debug, info, instrument, warn};
+
+pub(crate) struct InterruptHandle(Arc<Notify>);
+
+impl InterruptHandle {
+    pub(crate) fn interrupt_daemon(&self) {
+        self.0.notify_one()
+    }
+}
+
+impl Drop for InterruptHandle {
+    fn drop(&mut self) {
+        self.interrupt_daemon();
+    }
+}
 
 #[derive(Debug)]
 pub(crate) struct Daemon {
@@ -76,11 +90,7 @@ impl Daemon {
         todo!()
     }
 
-    pub(crate) fn execute_async<I, S>(
-        &self,
-        args: I,
-        interrupt_handle: Arc<Notify>,
-    ) -> Result<ExecutingDaemon, NymvisorError>
+    pub(crate) fn execute_async<I, S>(&self, args: I) -> Result<ExecutingDaemon, NymvisorError>
     where
         I: IntoIterator<Item = S>,
         S: AsRef<OsStr>,
@@ -93,7 +103,7 @@ impl Daemon {
             .spawn()
             .map_err(|source| NymvisorError::DaemonIoFailure { source })?;
 
-        ExecutingDaemon::new(self.kill_timeout, interrupt_handle, child)
+        ExecutingDaemon::new(self.kill_timeout, child)
     }
 }
 
@@ -103,6 +113,7 @@ pub(crate) struct ExecutingDaemon {
     child_id: i32,
     kill_timeout_duration: Duration,
     interrupt_sent: bool,
+    interrupt_handle: Option<Arc<Notify>>,
 
     // interrupted: Option<Pin<Box<Notified<'static>>>>,
     interrupted: Pin<Box<dyn Future<Output = ()> + Send + Sync>>,
@@ -114,15 +125,17 @@ pub(crate) struct ExecutingDaemon {
 impl ExecutingDaemon {
     fn new(
         kill_timeout_duration: Duration,
-        interrupt_notify: Arc<Notify>,
         mut child: tokio::process::Child,
     ) -> Result<ExecutingDaemon, NymvisorError> {
         if let Some(id) = child.id() {
+            let interrupt_handle = Arc::new(Notify::new());
+            let notified_handle = Arc::clone(&interrupt_handle);
             Ok(ExecutingDaemon {
                 child_id: id as i32,
                 kill_timeout_duration,
                 interrupt_sent: false,
-                interrupted: Box::pin(async move { interrupt_notify.notified().await }),
+                interrupt_handle: Some(interrupt_handle),
+                interrupted: Box::pin(async move { notified_handle.notified().await }),
                 kill_timeout: None,
                 child_future: Box::pin(async move { child.wait().await }),
             })
@@ -137,6 +150,15 @@ impl ExecutingDaemon {
         }
     }
 
+    pub(crate) fn interrupt_handle(&mut self) -> InterruptHandle {
+        #[allow(clippy::expect_used)]
+        InterruptHandle(
+            self.interrupt_handle
+                .take()
+                .expect("the interrupt handle has already been obtained"),
+        )
+    }
+
     fn signal_child(&self, signal: Signal) -> Result<(), NymvisorError> {
         info!("sending {signal} to the daemon");
         nix::sys::signal::kill(Pid::from_raw(self.child_id), signal)
@@ -145,13 +167,13 @@ impl ExecutingDaemon {
 }
 
 impl Future for ExecutingDaemon {
-    type Output = Result<Option<ExitStatus>, NymvisorError>;
+    type Output = Result<ExitStatus, NymvisorError>;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         // 1. check if the child is done
         if let Poll::Ready(result) = Pin::new(&mut self.child_future).poll(cx) {
             return match result {
-                Ok(exit_status) => Poll::Ready(Ok(Some(exit_status))),
+                Ok(exit_status) => Poll::Ready(Ok(exit_status)),
                 Err(source) => Poll::Ready(Err(NymvisorError::DaemonIoFailure { source })),
             };
         }

@@ -15,6 +15,7 @@ pub mod vars {
     pub const NYMVISOR_ID: &str = "NYMVISOR_ID";
     pub const NYMVISOR_CONFIG_PATH: &str = "NYMVISOR_CONFIG_PATH";
     pub const NYMVISOR_UPSTREAM_BASE_UPGRADE_URL: &str = "NYMVISOR_UPSTREAM_BASE_UPGRADE_URL";
+    pub const NYMVISOR_UPSTREAM_POLLING_RATE: &str = "NYMVISOR_UPSTREAM_POLLING_RATE";
     pub const NYMVISOR_DISABLE_LOGS: &str = "NYMVISOR_DISABLE_LOGS";
     pub const NYMVISOR_UPGRADE_DATA_DIRECTORY: &str = "NYMVISOR_UPGRADE_DATA_DIRECTORY";
 
@@ -45,6 +46,7 @@ pub(crate) struct Env {
     pub(crate) nymvisor_id: Option<String>,
     pub(crate) nymvisor_config_path: Option<PathBuf>,
     pub(crate) nymvisor_upstream_base_upgrade_url: Option<Url>,
+    pub(crate) nymvisor_upstream_polling_rate: Option<Duration>,
     pub(crate) nymvisor_disable_logs: Option<bool>,
     pub(crate) nymvisor_upgrade_data_directory: Option<PathBuf>,
 
@@ -70,6 +72,9 @@ impl Env {
         }
         if let Some(upstream) = &self.nymvisor_upstream_base_upgrade_url {
             config.nymvisor.debug.upstream_base_upgrade_url = upstream.clone()
+        }
+        if let Some(polling_rate) = self.nymvisor_upstream_polling_rate {
+            config.nymvisor.debug.upstream_polling_rate = polling_rate
         }
         if let Some(nymvisor_disable_logs) = self.nymvisor_disable_logs {
             config.nymvisor.debug.disable_logs = nymvisor_disable_logs;
@@ -212,6 +217,7 @@ impl Env {
             nymvisor_id: read_string(vars::NYMVISOR_ID)?,
             nymvisor_config_path: read_pathbuf(vars::NYMVISOR_CONFIG_PATH)?,
             nymvisor_upstream_base_upgrade_url: read_url(vars::NYMVISOR_UPSTREAM_BASE_UPGRADE_URL)?,
+            nymvisor_upstream_polling_rate: read_duration(vars::NYMVISOR_UPSTREAM_POLLING_RATE)?,
             nymvisor_disable_logs: read_bool(vars::NYMVISOR_DISABLE_LOGS)?,
             nymvisor_upgrade_data_directory: read_pathbuf(vars::NYMVISOR_UPGRADE_DATA_DIRECTORY)?,
             daemon_name: read_string(vars::DAEMON_NAME)?,

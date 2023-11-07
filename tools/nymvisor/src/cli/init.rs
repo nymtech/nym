@@ -32,6 +32,12 @@ pub(crate) struct Args {
     #[arg(long)]
     upstream_base_upgrade_url: Option<Url>,
 
+    /// Specifies the rate of polling the upstream url for upgrade information.
+    /// default: 1h
+    /// Can be overridden with $NYMVISOR_UPSTREAM_POLLING_RATE
+    #[arg(long, value_parser = humantime::parse_duration)]
+    upstream_polling_rate: Option<Duration>,
+
     /// If enabled, this will disable `nymvisor` logs (but not the underlying process)
     /// Can be overridden with $NYMVISOR_DISABLE_LOGS environmental variable.
     #[arg(long)]
@@ -126,6 +132,9 @@ impl Args {
         }
         if let Some(upstream) = &self.upstream_base_upgrade_url {
             config.nymvisor.debug.upstream_base_upgrade_url = upstream.clone()
+        }
+        if let Some(polling_rate) = self.upstream_polling_rate {
+            config.nymvisor.debug.upstream_polling_rate = polling_rate
         }
         if self.disable_nymvisor_logs {
             config.nymvisor.debug.disable_logs = self.disable_nymvisor_logs;
@@ -352,22 +361,22 @@ fn setup_initial_upgrade_plan(
         let existing_plan = UpgradePlan::try_load(&plan_path)?;
         if let (Some(current_info), Some(existing_info)) = (
             &genesis_info.binary_details,
-            &existing_plan.current.binary_details,
+            &existing_plan.current().binary_details,
         ) {
             if current_info != existing_info {
                 // if possible, compare the actual full details
                 return Err(NymvisorError::PreexistingUpgradePlan {
                     path: plan_path,
                     current_name: genesis_info.name,
-                    existing_name: existing_plan.current.name,
+                    existing_name: existing_plan.current().name.clone(),
                 });
             }
-        } else if genesis_info.name != existing_plan.current.name {
+        } else if genesis_info.name != existing_plan.current().name {
             // otherwise just check the upgrade name
             return Err(NymvisorError::PreexistingUpgradePlan {
                 path: plan_path,
                 current_name: genesis_info.name,
-                existing_name: existing_plan.current.name,
+                existing_name: existing_plan.current().name.clone(),
             });
         }
 

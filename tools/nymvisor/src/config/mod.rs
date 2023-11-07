@@ -21,6 +21,7 @@ pub(crate) const DEFAULT_FAILURE_RESTART_DELAY: Duration = Duration::from_secs(1
 pub(crate) const DEFAULT_STARTUP_PERIOD: Duration = Duration::from_secs(120);
 pub(crate) const DEFAULT_MAX_STARTUP_FAILURES: usize = 10;
 pub(crate) const DEFAULT_SHUTDOWN_GRACE_PERIOD: Duration = Duration::from_secs(10);
+pub(crate) const DEFAULT_UPSTREAM_POLLING_RATE: Duration = Duration::from_secs(60 * 60);
 
 pub(crate) const DEFAULT_BASE_UPSTREAM_UPGRADE_INFO_SOURCE: &str =
     "https://nymtech.net/.wellknown/";
@@ -73,7 +74,7 @@ pub fn default_global_data_directory() -> PathBuf {
         .join(DEFAULT_DATA_DIR)
 }
 
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, Deserialize, PartialEq, Serialize, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct Config {
     // additional metadata holding on-disk location of this config file
@@ -273,6 +274,11 @@ impl Config {
             .join(&self.daemon.name)
     }
 
+    // e.g. $HOME/.nym/nymvisors/data/nym-api/current/upgrade-info.json
+    pub fn current_upgrade_info_filepath(&self) -> PathBuf {
+        self.current_daemon_dir().join(UPGRADE_INFO_FILENAME)
+    }
+
     // e.g. $HOME/.nym/nymvisors/data/nym-api/upgrades/<upgrade-name>/upgrade-info.json
     // or $HOME/.nym/nymvisors/data/nym-api/genesis/upgrade-info.json
     pub fn upgrade_info_filepath<S: AsRef<str>>(&self, upgrade_name: S) -> PathBuf {
@@ -307,7 +313,7 @@ impl Config {
     }
 }
 
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, Deserialize, PartialEq, Serialize, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct Nymvisor {
     /// ID specifies the human readable ID of this particular nymvisor instance.
@@ -319,7 +325,7 @@ pub struct Nymvisor {
     pub debug: NymvisorDebug,
 }
 
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, Deserialize, PartialEq, Serialize, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct NymvisorDebug {
     /// Sets the base url of the upstream source for obtaining upgrade information for the deaemon.
@@ -327,6 +333,12 @@ pub struct NymvisorDebug {
     /// It will be used fo constructing the full url, i.e. $NYMVISOR_UPSTREAM_BASE_UPGRADE_URL/$DAEMON_NAME/upgrade-info.json
     /// Can be overridden with $NYMVISOR_UPSTREAM_BASE_UPGRADE_URL environmental variable.
     pub upstream_base_upgrade_url: Url,
+
+    /// Specifies the rate of polling the upstream url for upgrade information.
+    /// default: 1h
+    /// Can be overridden with $NYMVISOR_UPSTREAM_POLLING_RATE
+    #[serde(with = "humantime_serde")]
+    pub upstream_polling_rate: Duration,
 
     /// If set to true, this will disable `nymvisor` logs (but not the underlying process)
     /// default: false
@@ -340,7 +352,6 @@ pub struct NymvisorDebug {
     pub upgrade_data_directory: Option<PathBuf>,
 }
 
-#[allow(clippy::derivable_impls)]
 impl Default for NymvisorDebug {
     fn default() -> Self {
         NymvisorDebug {
@@ -349,13 +360,14 @@ impl Default for NymvisorDebug {
             upstream_base_upgrade_url: DEFAULT_BASE_UPSTREAM_UPGRADE_INFO_SOURCE
                 .parse()
                 .expect("default upstream url was malformed"),
+            upstream_polling_rate: DEFAULT_UPSTREAM_POLLING_RATE,
             disable_logs: false,
             upgrade_data_directory: None,
         }
     }
 }
 
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, Deserialize, PartialEq, Serialize, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct Daemon {
     /// The name of the managed binary itself (e.g. nym-api, nym-mixnode, nym-gateway, etc.)
@@ -373,7 +385,7 @@ pub struct Daemon {
     pub debug: DaemonDebug,
 }
 
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, Deserialize, PartialEq, Serialize, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct DaemonDebug {
     /// Override url to the upstream source for upgrade plans for this daeamon.

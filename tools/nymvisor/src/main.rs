@@ -12,7 +12,8 @@ pub(crate) mod config;
 pub(crate) mod daemon;
 pub(crate) mod env;
 pub(crate) mod error;
-pub(crate) mod launcher;
+pub(crate) mod helpers;
+pub(crate) mod tasks;
 pub(crate) mod upgrades;
 
 fn main() -> anyhow::Result<()> {

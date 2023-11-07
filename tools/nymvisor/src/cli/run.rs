@@ -41,40 +41,46 @@ pub(crate) fn execute(args: Args) -> Result<(), NymvisorError> {
         .build()
         .expect("failed to create the runtime");
 
-    // spawn the root task
-    rt.block_on(async {
-        println!("run");
+    // we have three tasks only:
+    // - one for managing the daemon launcher
+    // - the other one for watching the upgrade plan file
+    // - the last one for polling upstream source for upgrade info
+    // so once the daemon has finished, for whatever reason, abort the file watcher and upstream poller and terminate the nymvisor
 
-        let daemon = Daemon::from_config(&config);
-        let interrupt_notify = Arc::new(Notify::new());
-        let running = daemon.execute_async(args.daemon_args, Arc::clone(&interrupt_notify))?;
-
-        let handle1 = tokio::spawn(async move {
-            let res = running.await;
-            println!("the process has finished! with {res:?}");
-        });
-
-        let (events_sender, mut events_receiver) = mpsc::unbounded();
-        let mut watcher = AsyncFileWatcher::new_file_changes_watcher(
-            config.upgrade_plan_filepath(),
-            events_sender,
-        )?;
-
-        let (abort_handle, abort_registration) = AbortHandle::new_pair();
-
-        let handle2 =
-            tokio::spawn(async move { Abortable::new(watcher.watch(), abort_registration).await });
-
-        let event = events_receiver.next().await;
-        println!("watcher event: {event:?}");
-        interrupt_notify.notify_one();
-
-        handle1.await;
-        abort_handle.abort();
-        handle2.await;
-
-        // println!("{:?}", status);
-
-        <Result<_, NymvisorError>>::Ok(())
-    })
+    todo!()
+    // // spawn the root task
+    // rt.block_on(async {
+    //     println!("run");
+    //
+    //     let daemon = Daemon::from_config(&config);
+    //     let running = daemon.execute_async(args.daemon_args)?;
+    //
+    //     let handle1 = tokio::spawn(async move {
+    //         let res = running.await;
+    //         println!("the process has finished! with {res:?}");
+    //     });
+    //
+    //     let (events_sender, mut events_receiver) = mpsc::unbounded();
+    //     let mut watcher = AsyncFileWatcher::new_file_changes_watcher(
+    //         config.upgrade_plan_filepath(),
+    //         events_sender,
+    //     )?;
+    //
+    //     let (abort_handle, abort_registration) = AbortHandle::new_pair();
+    //
+    //     let handle2 =
+    //         tokio::spawn(async move { Abortable::new(watcher.watch(), abort_registration).await });
+    //
+    //     let event = events_receiver.next().await;
+    //     println!("watcher event: {event:?}");
+    //     interrupt_notify.notify_one();
+    //
+    //     handle1.await;
+    //     abort_handle.abort();
+    //     handle2.await;
+    //
+    //     // println!("{:?}", status);
+    //
+    //     <Result<_, NymvisorError>>::Ok(())
+    // })
 }

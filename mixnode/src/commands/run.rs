@@ -6,11 +6,11 @@ use crate::commands::{override_config, try_load_current_config, version_check};
 use crate::node::MixNode;
 use anyhow::bail;
 use clap::Args;
+use log::error;
 use nym_bin_common::output_format::OutputFormat;
 use nym_config::helpers::SPECIAL_ADDRESSES;
 use nym_validator_client::nyxd;
 use std::net::IpAddr;
-
 #[derive(Args, Clone)]
 pub(crate) struct Run {
     /// Id of the nym-mixnode we want to run
@@ -84,13 +84,13 @@ pub(crate) async fn execute(args: &Run) -> anyhow::Result<()> {
         show_binding_warning(&config.mixnode.listening_address.to_string());
     }
 
-    let mut mixnode = MixNode::new(config);
+    let mut mixnode = MixNode::new(config)?;
 
     eprintln!(
         "\nTo bond your mixnode you will need to install the Nym wallet, go to https://nymtech.net/get-involved and select the Download button.\n\
          Select the correct version and install it to your machine. You will need to provide the following: \n ");
     mixnode.print_node_details(args.output);
 
-    mixnode.run().await;
+    mixnode.run().await?;
     Ok(())
 }

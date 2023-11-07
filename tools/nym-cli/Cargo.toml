@@ -7,7 +7,7 @@ edition = "2021"
 [dependencies]
 base64 = "0.13.0"
 bs58 = "0.4"
-clap = { version = "4.0", features = ["derive"] }
+clap = { workspace = true, features = ["derive"] }
 clap_complete = "4.0"
 clap_complete_fig = "4.0"
 dotenvy = "0.15.6"

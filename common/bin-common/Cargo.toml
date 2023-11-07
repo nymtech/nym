@@ -9,7 +9,7 @@ repository = { workspace = true }
 
 [dependencies]
 atty = "0.2"
-clap = { version = "4.0", features = ["derive"] }
+clap = { workspace = true, features = ["derive"] }
 clap_complete = "4.0"
 clap_complete_fig = "4.0"
 log = { workspace = true }

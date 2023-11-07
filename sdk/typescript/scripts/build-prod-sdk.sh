@@ -14,7 +14,7 @@ rm -rf dist || true
 yarn build:wasm
 
 # build the Typescript SDK packages
-yarn build:sdk
+yarn build:ci:sdk
 
 # build documentation
 yarn docs:prod:build

@@ -2,19 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::config::Config;
-use crate::node::http::{
-    description::description,
-    hardware::hardware,
-    not_found,
-    stats::stats,
-    verloc::{verloc as verloc_route, VerlocState},
-};
+use crate::error::MixnodeError;
+use crate::node::helpers::{load_identity_keys, load_sphinx_keys};
+use crate::node::http::legacy::verloc::VerlocState;
+use crate::node::http::HttpApiBuilder;
 use crate::node::listener::connection_handler::packet_processing::PacketProcessor;
 use crate::node::listener::connection_handler::ConnectionHandler;
 use crate::node::listener::Listener;
 use crate::node::node_description::NodeDescription;
 use crate::node::node_statistics::SharedNodeStats;
 use crate::node::packet_delayforwarder::{DelayForwarder, PacketDelayForwardSender};
+use log::{error, info, warn};
 use nym_bin_common::output_format::OutputFormat;
 use nym_bin_common::version_checker::parse_version;
 use nym_crypto::asymmetric::{encryption, identity};
@@ -26,9 +24,7 @@ use std::net::SocketAddr;
 use std::process;
 use std::sync::Arc;
 
-#[cfg(feature = "cpucycles")]
-use tracing::{error, info, warn};
-
+pub(crate) mod helpers;
 mod http;
 mod listener;
 pub(crate) mod node_description;
@@ -44,39 +40,17 @@ pub struct MixNode {
 }
 
 impl MixNode {
-    pub fn new(config: Config) -> Self {
-        MixNode {
+    pub fn new(config: Config) -> Result<Self, MixnodeError> {
+        Ok(MixNode {
             descriptor: Self::load_node_description(&config),
-            identity_keypair: Arc::new(Self::load_identity_keys(&config)),
-            sphinx_keypair: Arc::new(Self::load_sphinx_keys(&config)),
+            identity_keypair: Arc::new(load_identity_keys(&config)?),
+            sphinx_keypair: Arc::new(load_sphinx_keys(&config)?),
             config,
-        }
+        })
     }
 
     fn load_node_description(config: &Config) -> NodeDescription {
         NodeDescription::load_from_file(&config.storage_paths.node_description).unwrap_or_default()
-    }
-
-    /// Loads identity keys stored on disk
-    pub(crate) fn load_identity_keys(config: &Config) -> identity::KeyPair {
-        let identity_keypair: identity::KeyPair =
-            nym_pemstore::load_keypair(&nym_pemstore::KeyPairPath::new(
-                config.storage_paths.keys.private_identity_key(),
-                config.storage_paths.keys.public_identity_key(),
-            ))
-            .expect("Failed to read stored identity key files");
-        identity_keypair
-    }
-
-    /// Loads Sphinx keys stored on disk
-    fn load_sphinx_keys(config: &Config) -> encryption::KeyPair {
-        let sphinx_keypair: encryption::KeyPair =
-            nym_pemstore::load_keypair(&nym_pemstore::KeyPairPath::new(
-                config.storage_paths.keys.private_encryption_key(),
-                config.storage_paths.keys.public_encryption_key(),
-            ))
-            .expect("Failed to read stored sphinx key files");
-        sphinx_keypair
     }
 
     /// Prints relevant node details to the console
@@ -87,7 +61,7 @@ impl MixNode {
             bind_address: self.config.mixnode.listening_address,
             version: self.config.mixnode.version.clone(),
             mix_port: self.config.mixnode.mix_port,
-            http_api_port: self.config.mixnode.http_api_port,
+            http_api_port: self.config.http.bind_address.port(),
             verloc_port: self.config.mixnode.verloc_port,
         };
 
@@ -98,32 +72,13 @@ impl MixNode {
         &self,
         atomic_verloc_result: AtomicVerlocResult,
         node_stats_pointer: SharedNodeStats,
-    ) {
-        info!(
-            "Starting HTTP API on http://{}:{}",
-            self.config.mixnode.listening_address, self.config.mixnode.http_api_port
-        );
-
-        let mut config = rocket::config::Config::release_default();
-
-        // bind to the same address as we are using for mixnodes
-        config.address = self.config.mixnode.listening_address;
-        config.port = self.config.mixnode.http_api_port;
-
-        let verloc_state = VerlocState::new(atomic_verloc_result);
-        let descriptor = self.descriptor.clone();
-
-        tokio::spawn(async move {
-            rocket::build()
-                .configure(config)
-                .mount("/", routes![verloc_route, description, stats, hardware])
-                .register("/", catchers![not_found])
-                .manage(verloc_state)
-                .manage(descriptor)
-                .manage(node_stats_pointer)
-                .launch()
-                .await
-        });
+        task_client: TaskClient,
+    ) -> Result<(), MixnodeError> {
+        HttpApiBuilder::new(&self.config, &self.identity_keypair, &self.sphinx_keypair)
+            .with_verloc(VerlocState::new(atomic_verloc_result))
+            .with_mixing_stats(node_stats_pointer)
+            .with_descriptor(self.descriptor.clone())
+            .start(task_client)
     }
 
     fn start_node_stats_controller(
@@ -265,7 +220,7 @@ impl MixNode {
         log::info!("Stopping nym mixnode");
     }
 
-    pub async fn run(&mut self) {
+    pub async fn run(&mut self) -> Result<(), MixnodeError> {
         info!("Starting nym mixnode");
 
         if self.check_if_bonded().await {
@@ -291,9 +246,14 @@ impl MixNode {
         // Rocket handles shutdown on it's own, but its shutdown handling should be incorporated
         // with that of the rest of the tasks.
         // Currently it's runtime is forcefully terminated once the mixnode exits.
-        self.start_http_api(atomic_verloc_results, node_stats_pointer);
+        self.start_http_api(
+            atomic_verloc_results,
+            node_stats_pointer,
+            shutdown.subscribe().named("http-api"),
+        )?;
 
         info!("Finished nym mixnode startup procedure - it should now be able to receive mix traffic!");
-        self.wait_for_interrupt(shutdown).await
+        self.wait_for_interrupt(shutdown).await;
+        Ok(())
     }
 }

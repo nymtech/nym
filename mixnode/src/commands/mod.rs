@@ -1,12 +1,13 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::config::old_config_v1_1_21::ConfigV1_1_21;
+use crate::config::default_config_filepath;
+use crate::error::MixnodeError;
 use crate::{config::Config, Cli};
-use anyhow::anyhow;
 use clap::CommandFactory;
 use clap::Subcommand;
 use colored::Colorize;
+use log::{error, info, warn};
 use nym_bin_common::completions::{fig_generate, ArgShell};
 use nym_bin_common::version_checker;
 use nym_config::defaults::var_names::{BECH32_PREFIX, NYM_API};
@@ -21,6 +22,7 @@ mod init;
 mod node_details;
 mod run;
 mod sign;
+mod upgrade_helpers;
 
 #[derive(Subcommand)]
 pub(crate) enum Commands {
@@ -64,7 +66,7 @@ pub(crate) async fn execute(args: Cli) -> anyhow::Result<()> {
 
     match args.command {
         Commands::Describe(m) => describe::execute(m)?,
-        Commands::Init(m) => init::execute(&m),
+        Commands::Init(m) => init::execute(&m)?,
         Commands::Run(m) => run::execute(&m).await?,
         Commands::Sign(m) => sign::execute(&m)?,
         Commands::NodeDetails(m) => node_details::execute(&m)?,
@@ -130,32 +132,18 @@ pub(crate) fn version_check(cfg: &Config) -> bool {
     }
 }
 
-fn try_upgrade_v1_1_21_config(id: &str) -> std::io::Result<()> {
-    use nym_config::legacy_helpers::nym_config::MigrationNymConfig;
-
-    // explicitly load it as v1.1.21 (which is incompatible with the current, i.e. 1.1.22+)
-    let Ok(old_config) = ConfigV1_1_21::load_from_file(id) else {
-        // if we failed to load it, there might have been nothing to upgrade
-        // or maybe it was an even older file. in either way. just ignore it and carry on with our day
-        return Ok(());
-    };
-    info!("It seems the mixnode is using <= v1.1.21 config template.");
-    info!("It is going to get updated to the current specification.");
-
-    let updated: Config = old_config.into();
-    updated.save_to_default_location()
-}
-
-fn try_load_current_config(id: &str) -> anyhow::Result<Config> {
-    try_upgrade_v1_1_21_config(id)?;
+fn try_load_current_config(id: &str) -> Result<Config, MixnodeError> {
+    upgrade_helpers::try_upgrade_config(id)?;
 
     Config::read_from_default_path(id).map_err(|err| {
-        let error_msg =
-            format!(
-                "Failed to load config for {id}. Are you sure you have run `init` before? (Error was: {err})",
-            );
-        error!("{error_msg}");
-        anyhow!(error_msg)
+        error!(
+            "Failed to load config for {id}. Are you sure you have run `init` before? (Error was: {err})",
+        );
+        MixnodeError::ConfigLoadFailure {
+            path: default_config_filepath(id),
+            id: id.to_string(),
+            source: err,
+        }
     })
 }
 

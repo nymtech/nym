@@ -4,12 +4,16 @@
 use crate::config::persistence::NetworkRequesterPaths;
 use crate::config::template::CONFIG_TEMPLATE;
 use nym_bin_common::logging::LoggingSettings;
+use nym_client_core::cli_helpers::client_init::ClientConfig;
+use nym_client_core::config::disk_persistence::CommonClientPaths;
 use nym_config::{
     must_get_home, read_config_from_toml_file, save_formatted_config_to_file,
     serde_helpers::de_maybe_stringified, NymConfigTemplate, OptionalSet, DEFAULT_CONFIG_DIR,
     DEFAULT_CONFIG_FILENAME, DEFAULT_DATA_DIR, NYM_DIR,
 };
+use nym_network_defaults::mainnet;
 use nym_service_providers_common::DEFAULT_SERVICE_PROVIDERS_DIR;
+use nym_sphinx::params::PacketSize;
 use serde::{Deserialize, Serialize};
 use std::io;
 use std::path::{Path, PathBuf};
@@ -19,8 +23,6 @@ use url::Url;
 
 pub use nym_client_core::config::Config as BaseClientConfig;
 pub use nym_client_core::config::{DebugConfig, GatewayEndpointConfig};
-use nym_network_defaults::mainnet;
-use nym_sphinx::params::PacketSize;
 
 pub mod old_config_v1_1_13;
 pub mod old_config_v1_1_20;
@@ -80,6 +82,24 @@ pub struct Config {
 impl NymConfigTemplate for Config {
     fn template(&self) -> &'static str {
         CONFIG_TEMPLATE
+    }
+}
+
+impl ClientConfig for Config {
+    fn common_paths(&self) -> &CommonClientPaths {
+        &self.storage_paths.common_paths
+    }
+
+    fn core_config(&self) -> &BaseClientConfig {
+        &self.base
+    }
+
+    fn default_store_location(&self) -> PathBuf {
+        self.default_location()
+    }
+
+    fn save_to<P: AsRef<Path>>(&self, path: P) -> io::Result<()> {
+        save_formatted_config_to_file(self, path)
     }
 }
 

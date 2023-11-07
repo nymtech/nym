@@ -1,6 +1,8 @@
+use super::TaskClient;
 use futures::channel::mpsc;
 use futures::lock::Mutex;
 use futures::StreamExt;
+use log::{debug, info, trace};
 use serde::Serialize;
 use std::collections::HashMap;
 use std::ops::DerefMut;
@@ -9,14 +11,12 @@ use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 use tokio::sync::{RwLock, RwLockReadGuard};
 
-use super::TaskClient;
-
 // convenience aliases
 type PacketsMap = HashMap<String, u64>;
 type PacketDataReceiver = mpsc::UnboundedReceiver<PacketEvent>;
 type PacketDataSender = mpsc::UnboundedSender<PacketEvent>;
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub(crate) struct SharedNodeStats {
     inner: Arc<RwLock<NodeStats>>,
 }
@@ -80,7 +80,7 @@ impl SharedNodeStats {
 }
 
 #[derive(Serialize, Clone)]
-pub(crate) struct NodeStats {
+pub struct NodeStats {
     #[serde(serialize_with = "humantime_serde::serialize")]
     update_time: SystemTime,
 
@@ -102,6 +102,21 @@ pub(crate) struct NodeStats {
 
     // we know for sure we dropped packets to those destinations
     packets_explicitly_dropped_since_last_update: PacketsMap,
+}
+
+impl Default for NodeStats {
+    fn default() -> Self {
+        NodeStats {
+            update_time: SystemTime::UNIX_EPOCH,
+            previous_update_time: SystemTime::UNIX_EPOCH,
+            packets_received_since_startup: 0,
+            packets_sent_since_startup: Default::default(),
+            packets_explicitly_dropped_since_startup: Default::default(),
+            packets_received_since_last_update: 0,
+            packets_sent_since_last_update: Default::default(),
+            packets_explicitly_dropped_since_last_update: Default::default(),
+        }
+    }
 }
 
 impl NodeStats {
@@ -126,7 +141,7 @@ impl NodeStats {
 }
 
 #[derive(Serialize, Clone)]
-pub(crate) struct NodeStatsSimple {
+pub struct NodeStatsSimple {
     #[serde(serialize_with = "humantime_serde::serialize")]
     update_time: SystemTime,
 

@@ -2,8 +2,8 @@
 
 > We aim on purpose to make minimal changes to reward scheme and software. We're just 'smooshing' together stuff we already debugged and know works.  
 > -- Harry Halpin,  Nym CEO  
-<p></p>
 
+<br>
 This page refer to the changes which are planned to take place over Q3 and Q4 2023. As this is a transition period in the beginning (Q3 2023) the [Mix Nodes FAQ page](./mixnodes-faq.md) holds more answers to the current setup as project Smoosh refers to the eventual setup. As project Smoosh gets progressively implemented the answers on this page will become to be more relevant to the current state and eventually this FAQ page will be merged with the still relevant parts of the main Mix Nodes FAQ page. 
 
 If any questions are not answered or it's not clear for you in which stage project Smoosh is right now, please reach out in Node Operators [Matrix room](https://matrix.to/#/#operators:nymtech.chat).
@@ -16,28 +16,55 @@ As we shared in our blog post article [*What does it take to build the wolds mos
 
 > A nick-name by CTO Dave Hrycyszyn and Chief Scientist Claudia Diaz for the work they are currently doing to “smoosh” Nym nodes so that the same operator can serve alternately as mix node, gateway or VPN node. This requires careful calibration of the Nym token economics, for example, only nodes with the highest reputation for good quality service will be in the VPN set and have the chance to earn higher rewards.
 > By simplifying the components, adding VPN features and supporting new node operators, the aim is to widen the geographical coverage of nodes and have significant redundancy, meaning plenty of operators to be able to meet demand. This requires strong token economic incentives as well as training and support for new node operators.
+
 ## Technical Questions
 
 ### What are the changes?
 
 Project smoosh will have three steps:
 
-1. Combine the `gateway` and `network-requester`.
-2. Combine all the nodes in the Nym Mixnet into one binary, that is `mixnode`, `gateway` (entry and exit) and `network-requester`.
-3. Make a selection button (command/argument/flag) for operators to choose whether they want their node to provide all or just some of the functions nodes have in the Nym Mixnet. Not everyone will be able/want to run an exit `gateway` for example.
+1. Combine the `gateway` and `network-requester` into one binary ✅
+2. Create [Exit Gateway](../legal/exit-gateway.md): Take the gateway binary including network requester combined in \#1 and switch from [`allowed.list`](https://nymtech.net/.wellknown/network-requester/standard-allowed-list.txt) to a new [exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt) ✅
+3. Combine all the nodes in the Nym Mixnet into one binary, that is `mixnode`, `gateway` (entry and exit) and `network-requester`.
 
 These three steps will be staggered over time - period of several months, and will be implemented one by one with enough time to take in feedback and fix bugs in between.  
 Generally, the software will be the same, just instead of multiple binaries, there will be one Nym Mixnet node binary. Delegations will remain on as they are now, per our token economics (staking, saturation etc)
 
+### What does it mean for Nym nodes operators?
+
+We are exploring two potential methods for implementing binary functionality in practice and will provide information in advance. The options are:
+
+1. Make a selection button (command/argument/flag) for operators to choose whether they want their node to provide all or just some of the functions nodes have in the Nym Mixnet. Nodes functioning as exit gateways (in that epoch) will then have bigger rewards due to their larger risk exposure and overhead work with the setup.
+
+2. All nodes will be required to have the exit gateway functionality. All nodes are rewarded the same as now, and the difference is that a node sometimes (some epochs) may be performing as exit gateway sometimes as mix node or entry gateway adjusted according the network demand by an algorithm.
+
+### Where can I read more about the exit gateway setup?
+
+We created an [entire page](../legal/exit-gateway.md) about the technical and legal questions around exit gateway. 
+
 ### What is the change from allow list to deny list?
 
-The operators running `gateways` would have to “open” their nodes to a wider range of online services, in a similar fashion to Tor exit relays. The main change will be to expand the original short allow list to a more permissive setup. An exit policy will constrain the hosts that the users of the Nym VPN and Mixnet can connect to. This will be done in an effort to protect the operators, as Gateways will act both as SOCKS5 Network Requesters, and exit nodes for IP traffic from Nym VPN and Mixnet clients.
+The operators running Gateways would have to “open” their nodes to a wider range of online services, in a similar fashion to Tor exit relays. The main change will be to expand the original short [`allowed.list`](https://nymtech.net/.wellknown/network-requester/standard-allowed-list.txt) to a more permissive setup. An [exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt) will constrain the hosts that the users of the Nym VPN and Mixnet can connect to. This will be done in an effort to protect the operators, as Gateways will act both as SOCKS5 Network Requesters, and exit nodes for IP traffic from Nym VPN and Mixnet clients.
+
+### How will the Exit policy be implemented?
+
+The progression of exit policy on Gateways will have three steps:
+
+1. By default the [exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt) filtering will be disabled and the current [`allowed.list`](https://nymtech.net/.wellknown/network-requester/standard-allowed-list.txt) filtering is going to continue be used. This is to prevent operators getting surprised by upgrading their Gateways (or Network requesters) and suddenly be widely open to the internet. To enable the new exit policy, operators must use `--with-exit-policy` flag or modify the `config.toml` file. ✅
+2. Relatively soon the exit policy will be part of the Gateway setup by default. To disable this exit policy, operators must use `--disable-exit-policy` flag.
+3. Further down the line, it will be the only option. Then the `allowed.list` will be completely removed.
+
+Keep in mind this only relates to changes happening on Gateway and Network Requester side. Whether this will be optional or mandatory depends on the chosen [design](./smoosh-faq.md#what-does-it-mean-for-nym-nodes-operators).
 
 ### Can I run a mix node only?
 
-Yes, to run a mix node only is an option. However it will be less rewarded as nodes providing option for `gateway` - meaning the *new smooshed gateway* (previously `gateway` and `network requester`) - due to the work and risk the operators have in comparison to running a `mixnode` only.
+It depends which [design](./smoosh-faq.md#what-does-it-mean-for-nym-nodes-operators) will ultimately be used. In case of the first - yes. In case of the second option, all the nodes will be setup with Exit Gateway functionality turned on.
 
 ## Token Economics & Rewards
+
+```admonish info
+For any specifics on Nym token economics and Nym Mixnet reward system, please read the [Nym token economics paper](https://nymtech.net/nym-cryptoecon-paper.pdf).
+```
 
 ### What are the incentives for the node operator?
 
@@ -45,22 +72,23 @@ In the original setup there were no incentives to run a `network-requester`. Aft
 
 ### How does this change the token economics?
 
-The token economics will stay the same as they are, same goes for the reward algorithm. In practice the distribution of rewards will benefit more the operators who run open gateways.
+The token economics will stay the same as they are, same goes for the reward algorithm.
 
 ### How are the rewards distributed?
+
+This depends on [design](./smoosh-faq.md#what-does-it-mean-for-nym-nodes-operators) chosen. In case of \#1, it will look like this:
 
 As each operator can choose what roles their nodes provide, the nodes which work as open gateways will have higher rewards because they are the most important to keep up and stable. Besides that the operators of gateways may be exposed to more complication and possible legal risks.
 
 The nodes which are initialized to run as mix nodes and gateways will be chosen to be on top of the active set before the ones working only as a mix node. 
 
-We are considering to turn off the rewards for non-open gateways to incentivize operators to run the open ones. Mix nodes on 'standby' will not be rewarded (as they are not being used). 
+I case we go with \#2, all nodes active in the epoch will be rewarded proportionally according their work. 
 
-The more roles an operator will allow their node to provide the bigger reward ratio which will have huge performance benefits for the end-users.
-
+In either way, Nym will share all the specifics beforehand.
 
 ### How will be the staking and inflation after project Smoosh?
 
-We must run tests to see how many users pay. We may need to keep inflation on if not enough people pay to keep high quality gateways on in the early stage of the transition. That would mean keeping staking on for gateways. Staking will always be on for mix nodes.
+Nym will run tests to count how much payment comes from the users of the Mixnet and if that covers the reward payments. If not, we may need to keep inflation on to secure incentives for high quality gateways in the early stage of the transition.
 
 ### When project smooth will be launched, it would be the mixmining pool that will pay for the gateway rewards based on amount of traffic routed ?
 

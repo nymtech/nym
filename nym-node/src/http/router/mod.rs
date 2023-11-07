@@ -124,6 +124,12 @@ impl NymNodeRouter {
         self
     }
 
+    #[must_use]
+    pub fn with_merged(mut self, router: Router) -> Self {
+        self.inner = self.inner.merge(router);
+        self
+    }
+
     pub fn build_server(
         self,
         bind_address: &SocketAddr,

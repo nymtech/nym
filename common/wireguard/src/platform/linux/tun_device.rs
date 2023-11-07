@@ -42,17 +42,42 @@ pub struct TunDevice {
     // And when we get replies, this is where we should send it
     tun_task_response_tx: TunTaskResponseTx,
 
+    routing_mode: RoutingMode,
+}
+
+pub enum RoutingMode {
     // The routing table, as how wireguard does it
-    peers_by_ip: Arc<tokio::sync::Mutex<PeersByIp>>,
+    AllowedIps(AllowedIpsInner),
 
     // This is an alternative to the routing table, where we just match outgoing source IP with
     // incoming destination IP.
+    Nat(NatInner),
+}
+
+impl RoutingMode {
+    pub fn new_nat() -> Self {
+        RoutingMode::Nat(NatInner {
+            nat_table: HashMap::new(),
+        })
+    }
+
+    pub fn new_allowed_ips(peers_by_ip: Arc<tokio::sync::Mutex<PeersByIp>>) -> Self {
+        RoutingMode::AllowedIps(AllowedIpsInner { peers_by_ip })
+    }
+}
+
+pub struct AllowedIpsInner {
+    peers_by_ip: Arc<tokio::sync::Mutex<PeersByIp>>,
+}
+
+pub struct NatInner {
     nat_table: HashMap<IpAddr, u64>,
 }
 
 impl TunDevice {
     pub fn new(
-        peers_by_ip: Arc<tokio::sync::Mutex<PeersByIp>>,
+        routing_mode: RoutingMode,
+        // peers_by_ip: Option<Arc<tokio::sync::Mutex<PeersByIp>>>,
     ) -> (Self, TunTaskTx, TunTaskResponseRx) {
         let tun = setup_tokio_tun_device(
             format!("{TUN_BASE_NAME}%d").as_str(),
@@ -69,8 +94,7 @@ impl TunDevice {
             tun_task_rx,
             tun_task_response_tx,
             tun,
-            peers_by_ip,
-            nat_table: HashMap::new(),
+            routing_mode,
         };
 
         (tun_device, tun_task_tx, tun_task_response_rx)
@@ -93,7 +117,9 @@ impl TunDevice {
         );
 
         // TODO: expire old entries
-        self.nat_table.insert(src_addr, tag);
+        if let RoutingMode::Nat(nat_table) = &mut self.routing_mode {
+            nat_table.nat_table.insert(src_addr, tag);
+        }
 
         self.tun
             .write_all(&packet)
@@ -121,30 +147,32 @@ impl TunDevice {
 
         // Route packet to the correct peer.
 
-        // This is how wireguard does it, by consulting the AllowedIPs table.
-        if false {
-            let peers = self.peers_by_ip.lock().await;
-            if let Some(peer_tx) = peers.longest_match(dst_addr).map(|(_, tx)| tx) {
-                log::info!("Forward packet to wg tunnel");
-                peer_tx
-                    .send(Event::Ip(packet.to_vec().into()))
-                    .await
-                    .tap_err(|err| log::error!("{err}"))
-                    .ok();
-                return;
+        match self.routing_mode {
+            // This is how wireguard does it, by consulting the AllowedIPs table.
+            RoutingMode::AllowedIps(ref peers_by_ip) => {
+                let peers = peers_by_ip.peers_by_ip.as_ref().lock().await;
+                if let Some(peer_tx) = peers.longest_match(dst_addr).map(|(_, tx)| tx) {
+                    log::info!("Forward packet to wg tunnel");
+                    peer_tx
+                        .send(Event::Ip(packet.to_vec().into()))
+                        .await
+                        .tap_err(|err| log::error!("{err}"))
+                        .ok();
+                    return;
+                }
             }
-        }
 
-        // But we do it by consulting the NAT table.
-        {
-            if let Some(tag) = self.nat_table.get(&dst_addr) {
-                log::info!("Forward packet to wg tunnel with tag: {tag}");
-                self.tun_task_response_tx
-                    .send((*tag, packet.to_vec()))
-                    .await
-                    .tap_err(|err| log::error!("{err}"))
-                    .ok();
-                return;
+            // But we do it by consulting the NAT table.
+            RoutingMode::Nat(ref nat_table) => {
+                if let Some(tag) = nat_table.nat_table.get(&dst_addr) {
+                    log::info!("Forward packet to wg tunnel with tag: {tag}");
+                    self.tun_task_response_tx
+                        .send((*tag, packet.to_vec()))
+                        .await
+                        .tap_err(|err| log::error!("{err}"))
+                        .ok();
+                    return;
+                }
             }
         }
 

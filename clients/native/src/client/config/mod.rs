@@ -4,6 +4,8 @@
 use crate::client::config::persistence::ClientPaths;
 use crate::client::config::template::CONFIG_TEMPLATE;
 use nym_bin_common::logging::LoggingSettings;
+use nym_client_core::cli_helpers::client_init::ClientConfig;
+use nym_client_core::config::disk_persistence::CommonClientPaths;
 use nym_config::defaults::DEFAULT_WEBSOCKET_LISTENING_PORT;
 use nym_config::{
     must_get_home, read_config_from_toml_file, save_formatted_config_to_file, NymConfigTemplate,
@@ -69,6 +71,24 @@ pub struct Config {
 impl NymConfigTemplate for Config {
     fn template(&self) -> &'static str {
         CONFIG_TEMPLATE
+    }
+}
+
+impl ClientConfig for Config {
+    fn common_paths(&self) -> &CommonClientPaths {
+        &self.storage_paths.common_paths
+    }
+
+    fn core_config(&self) -> &BaseClientConfig {
+        &self.base
+    }
+
+    fn default_store_location(&self) -> PathBuf {
+        self.default_location()
+    }
+
+    fn save_to<P: AsRef<Path>>(&self, path: P) -> io::Result<()> {
+        save_formatted_config_to_file(self, path)
     }
 }
 

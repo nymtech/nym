@@ -1,48 +1,28 @@
 import * as Comlink from 'comlink';
+import { Worker } from 'worker_threads';
+
 import InlineWasmWebWorker from 'web-worker:./worker';
 import {
   BinaryMessageReceivedEvent,
+  Client,
   ConnectedEvent,
   EventKinds,
-  IWebWorker,
-  Client,
   Events,
+  IWebWorker,
   LoadedEvent,
   MimeTypes,
+  NymMixnetClient,
+  NymMixnetClientOptions,
   RawMessageReceivedEvent,
   StringMessageReceivedEvent,
 } from './types';
 import { createSubscriptions } from './subscriptions';
-
-/**
- * Options for the Nym mixnet client.
- * @property autoConvertStringMimeTypes - An array of mime types.
- * @example
- * ```typescript
- * const client = await createNymMixnetClient({
- *  autoConvertStringMimeTypes: [MimeTypes.ApplicationJson, MimeTypes.TextPlain],
- * });
- * ```
- */
-
-export interface NymMixnetClientOptions {
-  autoConvertStringMimeTypes?: string[] | MimeTypes[];
-}
-
-/**
- * The client for the Nym mixnet which gives access to client methods and event subscriptions.
- * Returned by the {@link createNymMixnetClient} function.
- *
- */
-export interface NymMixnetClient {
-  client: Client;
-  events: Events;
-}
+import nodeEndpoint from './node-adapter';
 
 /**
  * Create a client to send and receive traffic from the Nym mixnet.
- * @required
- * @returns
+ * @param options - An optional  of options
+ * @returns { Promise<NymMixnetClient> } A new instance of the NymMixnetClient.
  * @example
  * ```typescript
  * const client = await createNymMixnetClient();
@@ -57,16 +37,16 @@ export const createNymMixnetClient = async (options?: NymMixnetClientOptions): P
   const { getSubscriptions, addSubscription } = subscriptions;
 
   // listen to messages from the worker, parse them and let the subscribers handle them, catching any unhandled exceptions
-  worker.addEventListener('message', (msg) => {
-    if (msg.data && msg.data.kind) {
-      const subscribers = getSubscriptions(msg.data.kind);
+  worker.addListener('message', (msg: { kind: EventKinds; args: any }) => {
+    if (msg.kind) {
+      const subscribers = getSubscriptions(msg.kind);
       (subscribers || []).forEach((s) => {
         try {
           // let the subscriber handle the message
-          s(msg.data);
+          s(msg);
         } catch (e) {
           // eslint-disable-next-line no-console
-          console.error('Unhandled error in event handler', msg.data, e);
+          console.error('Unhandled error in event handler', msg, e);
         }
       });
     }
@@ -85,14 +65,14 @@ export const createNymMixnetClient = async (options?: NymMixnetClientOptions): P
   };
 
   // let comlink handle interop with the web worker
-  const client: Client = Comlink.wrap<IWebWorker>(worker);
+  const client: Client = Comlink.wrap<IWebWorker>(nodeEndpoint(worker));
 
   // set any options
   if (options?.autoConvertStringMimeTypes) {
-    await client.setTextMimeTypes(options.autoConvertStringMimeTypes);
+    client.setTextMimeTypes(options.autoConvertStringMimeTypes);
   } else {
     // set some sensible defaults for text mime types
-    await client.setTextMimeTypes([MimeTypes.ApplicationJson, MimeTypes.TextPlain]);
+    client.setTextMimeTypes([MimeTypes.ApplicationJson, MimeTypes.TextPlain]);
   }
 
   // pass the client interop and subscription manage back to the caller
@@ -115,17 +95,13 @@ const createWorker = async () =>
     // however, it will make this SDK bundle bigger because of Base64 inline data
     const worker = new InlineWasmWebWorker();
 
-    worker.addEventListener('error', reject);
-    worker.addEventListener(
-      'message',
-      (msg) => {
-        worker.removeEventListener('error', reject);
-        if (msg.data?.kind === EventKinds.Loaded) {
-          resolve(worker);
-        } else {
-          reject(msg);
-        }
-      },
-      { once: true },
-    );
+    worker.addListener('error', reject);
+    worker.addListener('message', (msg: { kind: EventKinds; args: any }) => {
+      worker.removeListener('error', reject);
+      if (msg.kind === EventKinds.Loaded) {
+        resolve(worker);
+      } else {
+        reject(msg);
+      }
+    });
   });

@@ -54,6 +54,7 @@ export const createSubscriptions = () => {
       try {
         handler(event);
       } catch (e: any) {
+        // eslint-disable-next-line no-console
         console.error(`Unhandled exception in handler for ${key}: `, e);
       }
     });

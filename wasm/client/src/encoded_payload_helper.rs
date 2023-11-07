@@ -1,10 +1,10 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use anyhow::bail;
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
-use anyhow::bail;
 
 #[wasm_bindgen(typescript_custom_section)]
 const TS_DEFS: &'static str = r#"
@@ -94,9 +94,11 @@ pub(crate) fn parse_payload(message: &[u8]) -> anyhow::Result<(EncodedPayloadMet
     let metadata_size = u64::from_be_bytes(size) as usize;
 
     if metadata_size + 8 != message.len() {
-        return Err(anyhow::anyhow!(
-            format!("Metadata size: {}, exceeds message with length of: {}", metadata_size, message.len()),
-        ));
+        return Err(anyhow::anyhow!(format!(
+            "Metadata size: {}, exceeds message with length of: {}",
+            metadata_size,
+            message.len()
+        ),));
     }
 
     //then the metadata
@@ -247,23 +249,29 @@ mod tests {
 
     #[wasm_bindgen_test]
     async fn test_parse_payload_too_short() {
-        let message = vec![0u8; 7]; 
+        let message = vec![0u8; 7];
         let result = parse_payload(&message);
         assert!(result.is_err());
         let error = result.unwrap_err();
-        assert_eq!(error.to_string(), "Message is too short to contain size information");
+        assert_eq!(
+            error.to_string(),
+            "Message is too short to contain size information"
+        );
     }
 
     #[wasm_bindgen_test]
     async fn test_parse_payload_size_exceeds_length() {
-        let mut message = vec![0u8; 8]; 
-        message.extend(vec![1u8; 10]); 
-        message[0..8].copy_from_slice(&(20u64.to_be_bytes())); 
-        
+        let mut message = vec![0u8; 8];
+        message.extend(vec![1u8; 10]);
+        message[0..8].copy_from_slice(&(20u64.to_be_bytes()));
+
         let result = parse_payload(&message);
         assert!(result.is_err());
         let error = result.unwrap_err();
-        assert_eq!(error.to_string(), "Metadata size: 20, exceeds message with length of: 18");
+        assert_eq!(
+            error.to_string(),
+            "Metadata size: 20, exceeds message with length of: 18"
+        );
     }
 
     #[wasm_bindgen_test]
@@ -272,7 +280,7 @@ mod tests {
             mime_type: "text/plain".to_string(),
             headers: Some("test headers".to_string()),
         };
-        let payload_data = vec![2u8, 3u8, 5u8]; 
+        let payload_data = vec![2u8, 3u8, 5u8];
 
         let serialized_metadata = serde_json::to_string(&metadata).unwrap();
         let metadata_length = serialized_metadata.len() as u64;

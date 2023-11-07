@@ -12,6 +12,7 @@ license.workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
+base64 = "0.21.5"
 clap = { workspace = true, features = ["derive"] }
 dotenvy = { workspace = true }
 futures = { workspace = true }

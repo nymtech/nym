@@ -4,13 +4,16 @@
 use crate::error::NymvisorError;
 use nym_bin_common::build_information::BinaryBuildInformationOwned;
 use serde::{Deserialize, Serialize};
+use serde_helpers::{base64, option_offsetdatetime};
 use std::collections::HashMap;
 use std::fs::OpenOptions;
 use std::io;
 use std::path::Path;
 use time::OffsetDateTime;
+use url::Url;
 
 mod http_upstream;
+mod serde_helpers;
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "lowercase")]
@@ -21,12 +24,50 @@ pub struct UpgradePlan {
 }
 
 impl UpgradePlan {
+    pub(crate) fn new(current: UpgradeInfo) -> Self {
+        UpgradePlan {
+            current,
+            next: vec![],
+        }
+    }
+
     pub(crate) fn update_on_disk(&self) -> Result<(), NymvisorError> {
         // 1. copy upgrade-plan.json to upgrade-plan.json.tmp
         // 2. update upgrade-plan.json.tmp
         // 3. move upgrade-plan.json.tmp to upgrade-plan.json
 
         todo!()
+    }
+
+    pub(crate) fn save_new<P: AsRef<Path>>(&self, path: P) -> Result<(), NymvisorError> {
+        let path = path.as_ref();
+        let file = OpenOptions::new()
+            .create_new(true)
+            .write(true)
+            .open(path)
+            .map_err(|source| NymvisorError::UpgradePlanSaveFailure {
+                path: path.to_path_buf(),
+                source,
+            })?;
+
+        // we're not using any non-standard serializer and thus the serialization should not ever fail
+        #[allow(clippy::expect_used)]
+        serde_json::to_writer_pretty(file, self)
+            .expect("unexpected UpgradeInfo serialization failure");
+        Ok(())
+    }
+
+    pub(crate) fn try_load<P: AsRef<Path>>(path: P) -> Result<Self, NymvisorError> {
+        let path = path.as_ref();
+        std::fs::File::open(path)
+            .and_then(|file| {
+                serde_json::from_reader(file)
+                    .map_err(|serde_json_err| io::Error::new(io::ErrorKind::Other, serde_json_err))
+            })
+            .map_err(|source| NymvisorError::UpgradePlanLoadFailure {
+                path: path.to_path_buf(),
+                source,
+            })
     }
 }
 
@@ -39,41 +80,15 @@ pub enum DigestAlgorithm {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "lowercase")]
 pub struct DownloadUrl {
-    // TODO: get it from base64
     /// The checksum of the file behind the download url.
+    #[serde(with = "base64")]
     pub checksum: Vec<u8>,
 
     /// The algorithm used for computing the checksum
     pub checksum_algorithm: DigestAlgorithm,
 
     /// Download url for this particular platform
-    pub url: String,
-}
-
-mod option_offsetdatetime {
-    use serde::{Deserialize, Deserializer, Serialize, Serializer};
-    use time::OffsetDateTime;
-
-    pub fn serialize<S>(value: &Option<OffsetDateTime>, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        #[derive(Serialize)]
-        struct Helper<'a>(#[serde(with = "time::serde::rfc3339")] &'a OffsetDateTime);
-
-        value.as_ref().map(Helper).serialize(serializer)
-    }
-
-    pub fn deserialize<'de, D>(deserializer: D) -> Result<Option<OffsetDateTime>, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        #[derive(Deserialize)]
-        struct Helper(#[serde(with = "time::serde::rfc3339")] OffsetDateTime);
-
-        let helper = Option::deserialize(deserializer)?;
-        Ok(helper.map(|Helper(external)| external))
-    }
+    pub url: Url,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

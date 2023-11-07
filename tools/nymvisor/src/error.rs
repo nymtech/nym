@@ -52,8 +52,36 @@ pub(crate) enum NymvisorError {
         source: io::Error,
     },
 
-    #[error("there seem to be a upgrade-info.json file present without the associated binary for upgrade '{name}' at path {}", path.display())]
+    #[error("there seem to be an upgrade-info.json file present without the associated binary for upgrade '{name}' at path {}", path.display())]
     UpgradeInfoWithNoBinary { name: String, path: PathBuf },
+
+    #[error("there seem to already exist the upgrade-plan.json at {}, but it has mismatched current information. The expected current is {current_name} but the saved one specifies {existing_name}", path.display())]
+    PreexistingUpgradePlan {
+        path: PathBuf,
+        current_name: String,
+        existing_name: String,
+    },
+
+    #[error(
+    "failed to load upgrade plan using path '{}'. detailed message: {source}", path.display()
+    )]
+    UpgradePlanLoadFailure {
+        path: PathBuf,
+        #[source]
+        source: io::Error,
+    },
+
+    #[error(
+    "failed to save upgrade plan using path '{}'. detailed message: {source}", path.display()
+    )]
+    UpgradePlanSaveFailure {
+        path: PathBuf,
+        #[source]
+        source: io::Error,
+    },
+
+    #[error("could not acquire the lock at {} to update the upgrade-plan.info file. It is either held by another process or this nymvisor has experienced a critical failure during previous upgrade attempt", lock_path.display())]
+    UnableToAcquireUpgradePlanLock { lock_path: PathBuf },
 
     #[error("failed to initialise the path '{}': {source}", path.display())]
     PathInitFailure {

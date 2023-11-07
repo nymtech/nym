@@ -5,7 +5,7 @@ use crate::config::{default_config_filepath, Config, BIN_DIR, GENESIS_DIR};
 use crate::daemon::Daemon;
 use crate::env::Env;
 use crate::error::NymvisorError;
-use crate::upgrades::UpgradeInfo;
+use crate::upgrades::{UpgradeInfo, UpgradePlan};
 use nym_bin_common::build_information::BinaryBuildInformationOwned;
 use nym_bin_common::logging::{setup_logging, setup_tracing_logger};
 use nym_bin_common::output_format::OutputFormat;
@@ -241,7 +241,7 @@ fn init_paths(config: &Config) -> Result<(), NymvisorError> {
     Ok(())
 }
 
-fn setup_genesis_binary(
+fn setup_genesis(
     config: &Config,
     source_dir: &Path,
     daemon_info: BinaryBuildInformationOwned,
@@ -264,7 +264,8 @@ fn setup_genesis_binary(
         };
     }
 
-    generate_and_save_genesis_upgrade_info(config, daemon_info)?;
+    let genesis_info = generate_and_save_genesis_upgrade_info(config, daemon_info)?;
+    setup_initial_upgrade_plan(config, genesis_info)?;
 
     fs::copy(source_dir, &target).map_err(|source| NymvisorError::DaemonBinaryCopyFailure {
         source_path: source_dir.to_path_buf(),
@@ -310,7 +311,7 @@ fn create_current_symlink(config: &Config) -> Result<(), NymvisorError> {
 fn generate_and_save_genesis_upgrade_info(
     config: &Config,
     genesis_info: BinaryBuildInformationOwned,
-) -> Result<(), NymvisorError> {
+) -> Result<UpgradeInfo, NymvisorError> {
     info!("setting up the genesis upgrade-info.json");
 
     let info = UpgradeInfo {
@@ -332,8 +333,48 @@ fn generate_and_save_genesis_upgrade_info(
             path: save_path,
         })
     } else {
-        info.save(save_path)
+        info.save(save_path)?;
+        Ok(info)
     }
+}
+
+fn setup_initial_upgrade_plan(
+    config: &Config,
+    genesis_info: UpgradeInfo,
+) -> Result<(), NymvisorError> {
+    info!("setting up initial upgrade-plan.json");
+
+    let plan_path = config.upgrade_plan_filepath();
+
+    if plan_path.exists() {
+        warn!("there is already an upgrade-plan.json file present");
+        // if the file already exists, try to load it and see if the 'current' matches
+        let existing_plan = UpgradePlan::try_load(&plan_path)?;
+        if let (Some(current_info), Some(existing_info)) = (
+            &genesis_info.binary_details,
+            &existing_plan.current.binary_details,
+        ) {
+            if current_info != existing_info {
+                // if possible, compare the actual full details
+                return Err(NymvisorError::PreexistingUpgradePlan {
+                    path: plan_path,
+                    current_name: genesis_info.name,
+                    existing_name: existing_plan.current.name,
+                });
+            }
+        } else if genesis_info.name != existing_plan.current.name {
+            // otherwise just check the upgrade name
+            return Err(NymvisorError::PreexistingUpgradePlan {
+                path: plan_path,
+                current_name: genesis_info.name,
+                existing_name: existing_plan.current.name,
+            });
+        }
+
+        return Ok(());
+    }
+
+    UpgradePlan::new(genesis_info).save_new(plan_path)
 }
 
 fn save_config(config: Config, env: &Env) -> Result<(), NymvisorError> {
@@ -389,7 +430,7 @@ pub(crate) fn execute(args: Args) -> Result<(), NymvisorError> {
     let config = try_build_config(&args, &env, &daemon_info)?;
 
     init_paths(&config)?;
-    setup_genesis_binary(&config, &args.daemon_binary, daemon_info)?;
+    setup_genesis(&config, &args.daemon_binary, daemon_info)?;
     create_current_symlink(&config)?;
     save_config(config, &env)?;
 

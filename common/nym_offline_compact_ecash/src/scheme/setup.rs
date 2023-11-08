@@ -59,6 +59,7 @@ impl GroupParameters {
         &self.gammas[0]
     }
 
+    #[allow(dead_code)]
     pub(crate) fn gamma2(&self) -> Option<&G1Projective> {
         self.gammas.get(2)
     }

@@ -103,6 +103,7 @@ impl WithdrawalReqInstance {
         bytes
     }
 
+    #[allow(dead_code)]
     pub fn from_bytes(bytes: &[u8]) -> Result<WithdrawalReqInstance> {
         WithdrawalReqInstance::try_from(bytes)
     }

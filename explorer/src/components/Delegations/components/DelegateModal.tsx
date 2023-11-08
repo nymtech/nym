@@ -103,7 +103,6 @@ export const DelegateModal: FCWithChildren<{
     let newValidatedValue = true;
     let errorAmountMessage;
     let errorIdentityKeyMessage;
-    const tokenPool = 'balance';
 
     if (!identityKey) {
       newValidatedValue = false;
@@ -122,15 +121,6 @@ export const DelegateModal: FCWithChildren<{
 
     if (!amount?.length) {
       newValidatedValue = false;
-    }
-
-    if (amount) {
-      const hasEnoughTokens = checkTokenBalance(tokenPool, amount, balance.data || '0');
-
-      if (!hasEnoughTokens) {
-        errorAmountMessage = 'Not enough funds';
-        newValidatedValue = false;
-      }
     }
 
     // if (!mixId) {
@@ -153,6 +143,12 @@ export const DelegateModal: FCWithChildren<{
 
   const handleConfirm = async ({ mixId: id, value }: { mixId: number; value: DecCoin }) => {
     const tokenPool = 'balance';
+    const hasEnoughTokens = checkTokenBalance(tokenPool, value.amount, balance.data || '0');
+
+    if (!hasEnoughTokens) {
+      setErrorAmount('Not enough funds');
+      return;
+    }
 
     if (tokenPool === 'balance') {
       getFee(simulateDelegateToMixnode, { mixId: id, amount: value });

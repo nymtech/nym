@@ -115,6 +115,7 @@ pub(crate) struct ExecutingDaemon {
     interrupt_sent: bool,
     interrupt_handle: Option<Arc<Notify>>,
 
+    // TODO: can we maybe get rid of that dynamic dispatch here in favour of concrete types?
     // interrupted: Option<Pin<Box<Notified<'static>>>>,
     interrupted: Pin<Box<dyn Future<Output = ()> + Send + Sync>>,
     kill_timeout: Option<Pin<Box<Sleep>>>,

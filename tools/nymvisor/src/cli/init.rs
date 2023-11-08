@@ -5,7 +5,7 @@ use crate::config::{default_config_filepath, Config, BIN_DIR, GENESIS_DIR};
 use crate::daemon::Daemon;
 use crate::env::Env;
 use crate::error::NymvisorError;
-use crate::upgrades::{UpgradeInfo, UpgradePlan};
+use crate::upgrades::types::{UpgradeInfo, UpgradePlan};
 use nym_bin_common::build_information::BinaryBuildInformationOwned;
 use nym_bin_common::logging::{setup_logging, setup_tracing_logger};
 use nym_bin_common::output_format::OutputFormat;

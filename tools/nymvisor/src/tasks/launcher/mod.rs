@@ -4,16 +4,21 @@
 use crate::config::Config;
 use crate::daemon::Daemon;
 use crate::error::NymvisorError;
-use crate::upgrades::{UpgradeInfo, UpgradePlan};
+use crate::upgrades::{
+    types::{UpgradeInfo, UpgradePlan},
+    upgrade_binary,
+};
 use async_file_watcher::FileWatcherEventReceiver;
 use futures::future::{FusedFuture, OptionFuture};
 use futures::{FutureExt, StreamExt};
 use nym_task::signal::wait_for_signal;
 use std::sync::Arc;
 use std::time::Duration;
+use time::OffsetDateTime;
+use tokio::pin;
 use tokio::sync::Notify;
-use tokio::time::Sleep;
-use tracing::{error, info, warn};
+use tokio::time::{sleep, Sleep};
+use tracing::{debug, error, info, warn};
 
 pub(crate) struct DaemonLauncher {
     config: Config,
@@ -25,15 +30,43 @@ impl DaemonLauncher {
         todo!()
     }
 
-    // responsible for running until exit or until update is detected
-    pub(crate) async fn run(&mut self, args: Vec<String>) -> Result<(), NymvisorError> {
+    // the full upgrade process process, i.e. run until upgrade, do backup and perform the upgrade.
+    // returns a boolean indicating whether the process should get restarted
+    pub(crate) async fn run(&mut self, args: Vec<String>) -> Result<bool, NymvisorError> {
+        let upgrade_available = self.wait_for_upgrade_or_termination(args.clone()).await?;
+        if !upgrade_available {
+            return Ok(false);
+        }
+
+        self.perform_backup()?;
+        upgrade_binary()?;
+
         todo!()
     }
 
-    fn check_upgrade_plan_changes(&self) {
-        //
+    /// this function gets called whenever the file watcher detects changes in the upgrade plan file
+    /// it returns an option indicating when the next upgrade should be performed
+    fn check_upgrade_plan_changes(&self) -> Option<Duration> {
+        info!("checking changes in the upgrade plan file...");
+
+        let current_upgrade_plan = match UpgradePlan::try_load(self.config.upgrade_plan_filepath())
+        {
+            Ok(upgrade_plan) => upgrade_plan,
+            Err(err) => {
+                error!("failed to read the current upgrade plan: {err}");
+                return None;
+            }
+        };
+
+        if let Some(next) = current_upgrade_plan.next_upgrade() {
+            let now = OffsetDateTime::now_utc();
+            Some((next.upgrade_time - now).try_into().unwrap_or_default())
+        } else {
+            None
+        }
     }
 
+    // responsible for running until exit or until update is detected
     async fn wait_for_upgrade_or_termination(
         &mut self,
         args: Vec<String>,
@@ -45,6 +78,8 @@ impl DaemonLauncher {
         let current_upgrade_plan = UpgradePlan::try_load(self.config.upgrade_plan_filepath())?;
         let next = current_upgrade_plan.next_upgrade();
 
+        // TODO: /\
+
         let mut running_daemon = daemon.execute_async(args)?;
         let interrupt_handle = running_daemon.interrupt_handle();
 
@@ -53,12 +88,10 @@ impl DaemonLauncher {
 
         let mut upgrade_timeout: OptionFuture<_> = None.into();
 
-        upgrade_timeout =
-            Some(Box::pin(tokio::time::sleep(Duration::from_secs(123))).fuse()).into();
+        let signal_fut = wait_for_signal();
+        pin!(signal_fut);
 
-        let sig_fut = wait_for_signal();
-
-        // note: this has to be in a loop because `upgrade_plan_watcher` might receive events that do not necessarily trigger the upgrade
+        let mut received_interrupt = false;
         loop {
             tokio::select! {
                 daemon_res = &mut fused_runner => {
@@ -67,43 +100,52 @@ impl DaemonLauncher {
                     info!("it finished with the following exit status: {exit_status}");
                     return Ok(false)
                 }
-                _ = &mut self.upgrade_plan_watcher.next() => {
-                    //
+                event = &mut self.upgrade_plan_watcher.next() => {
+                    let Some(event) = event else {
+                        // this is a critical failure since the file watcher task should NEVER terminate by itself
+                        error!("CRITICAL FAILURE: the upgrade plan watcher channel got closed");
+                        panic!("CRITICAL FAILURE: the upgrade plan watcher channel got closed")
+                    };
+                    println!("the file has changed - {event:?}");
+
+                    debug!("the file has changed - {event:?}");
+                    if let Some(next_upgrade) = self.check_upgrade_plan_changes() {
+                        info!("setting the upgrade timeout to {}", humantime::format_duration(next_upgrade));
+                        upgrade_timeout = Some(Box::pin(sleep(next_upgrade)).fuse()).into()
+                    }
+
                 }
                 _ = &mut upgrade_timeout, if !upgrade_timeout.is_terminated() => {
+                    info!("the upgrade timeout has elapsed. the daemon will be now stopped in order to perform the upgrade");
                     break
                 }
-
-
-
+                _ = &mut signal_fut => {
+                    received_interrupt = true;
+                    info!("the nymvisor has received an interrupt. the daemon will be now stopped before exiting");
+                    break
+                }
             }
         }
 
-        // if the runner hasn't terminated by itself (which should be the almost every single time!)
-        // send the interrupt and wait for it to be done
         if fused_runner.is_terminated() {
-            todo!("error case")
+            return Ok(false);
         }
         interrupt_handle.interrupt_daemon();
-        let res = fused_runner.await;
 
-        /*
+        match fused_runner.await {
+            Ok(exit_status) => {
+                info!("the daemon finished with the following exit status: {exit_status}");
+            }
+            Err(err) => {
+                warn!("the daemon finished with an error: {err}");
+            }
+        }
 
-           tokio select on:
-           - daemon terminating
-           - upgrade-plan.json changes
-           - https://nymtech.net/.wellknown/<DAEMON_NAME>/update-info.json changes
-
-
-           // todo: maybe move to a higher layer
-           - signals received (to propagate them to daemon before terminating to prevent creating zombie processes)
-
-        */
-
-        todo!()
+        // if we received an interrupt, don't try to perform upgrade, just exit the nymvisor
+        Ok(!received_interrupt)
     }
 
-    async fn perform_backup(&self) {
+    fn perform_backup(&self) -> Result<(), NymvisorError> {
         todo!()
     }
 }

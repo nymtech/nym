@@ -45,7 +45,7 @@ pub(crate) fn execute(args: Args) -> Result<(), NymvisorError> {
     // - one for managing the daemon launcher
     // - the other one for watching the upgrade plan file
     // - the last one for polling upstream source for upgrade info
-    // so once the daemon has finished, for whatever reason, abort the file watcher and upstream poller and terminate the nymvisor
+    // so once the daemon has finished, for whatever reason, abort the file watcher and upstream poller to terminate the nymvisor
 
     todo!()
     // // spawn the root task

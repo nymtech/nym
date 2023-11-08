@@ -3,10 +3,9 @@
 
 use crate::config::Config;
 use crate::error::NymvisorError;
-use crate::helpers::TaskHandle;
-use crate::upgrades::{UpgradeInfo, UpgradePlan};
-use futures::future::{AbortHandle, Abortable};
+use crate::upgrades::types::{UpgradeInfo, UpgradePlan};
 use reqwest::get;
+use tokio::task::JoinHandle;
 use tracing::{error, warn};
 
 pub(crate) struct UpstreamPoller {
@@ -71,11 +70,7 @@ impl UpstreamPoller {
         }
     }
 
-    pub(crate) async fn start(mut self) -> TaskHandle<()> {
-        let (abort_handle, abort_registration) = AbortHandle::new_pair();
-        let join_handle =
-            tokio::spawn(async move { Abortable::new(self.run(), abort_registration).await });
-
-        TaskHandle::new(abort_handle, join_handle)
+    pub(crate) async fn start(mut self) -> JoinHandle<()> {
+        tokio::spawn(async move { self.run().await })
     }
 }

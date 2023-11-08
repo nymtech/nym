@@ -259,7 +259,7 @@ where
 
         self.inner.storage.insert_credential(credential).await?;
 
-        let bandwidth_value = 500000; //SW MAKE A GLOBAL PARAMETER
+        let bandwidth_value = 100000000; //SW MAKE A GLOBAL PARAMETER
 
         self.increase_bandwidth(bandwidth_value).await?;
         let available_total = self.get_available_bandwidth().await?;

@@ -7,8 +7,8 @@
     "withGlobalTauri": false
   },
   "package": {
-    "productName": "nymvpn-ui",
-    "version": "0.0.0"
+    "productName": "nymvpn",
+    "version": "1.0.0"
   },
   "tauri": {
     "updater": {
@@ -19,12 +19,9 @@
       "dialog": true,
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDUxMjFCMDhFOTczQzE5MjUKUldRbEdUeVhqckFoVVljRDZNZkRQZzIyYTBSZUVmSk1SVUlaTC9OeTk0NDFYUVl1blhWV2VTQi8K"
     },
-    "allowlist": {
-      "all": false,
-      "shell": {
-        "all": false,
-        "open": true
-      }
+    "systemTray": {
+      "iconPath": "icons/icon.png",
+      "iconAsTemplate": true
     },
     "bundle": {
       "active": true,
@@ -46,8 +43,8 @@
         "fullscreen": false,
         "resizable": true,
         "title": "NymVPN",
-        "width": 200,
-        "height": 200
+        "width": 800,
+        "height": 600
       }
     ]
   }

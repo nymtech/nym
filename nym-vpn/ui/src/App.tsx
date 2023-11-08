@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/tauri';
 import { Button as BaseButton, ButtonProps } from '@mui/base/Button';
 import clsx from 'clsx';
+import { enable, isEnabled } from 'tauri-plugin-autostart-api';
 
 // eslint-disable-next-line react/display-name
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
@@ -23,6 +24,11 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 function App() {
   const [greetMsg, setGreetMsg] = useState('');
   const [name, setName] = useState('');
+
+  useEffect(() => {
+    enable();
+    console.log(`registered for autostart? ${isEnabled()}`);
+  }, []);
 
   async function greet() {
     // Learn more about Tauri commands at https://tauri.app/v1/guides/features/command

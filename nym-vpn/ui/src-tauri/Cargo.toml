@@ -1,5 +1,5 @@
 [package]
-name = "nymvpn-ui"
+name = "nymvpn"
 version = "0.0.0"
 description = "Application UI for Nym VPN desktop clients"
 authors = ["you"]
@@ -11,10 +11,13 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [build-dependencies]
-tauri-build = { version = "1.5", features = [] }
+tauri-build = { version = "1.5.0", features = [] }
 
 [dependencies]
-tauri = { version = "1.5.2", features = ["shell-open"] }
+#devtools is only to be used in dev with LLDB vscode
+tauri = { version = "1.5.2", features = [ "system-tray", "shell-open"
+#    ,"devtools"
+] }
 tokio = { version = "1.33", features = ["rt", "sync", "time", "fs"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
@@ -26,6 +29,21 @@ thiserror = "1.0"
 ts-rs = { version = "7.0.0", features = ["chrono-impl"] }
 once_cell = "1.18.0"
 toml = "0.8.5"
+log = "0.4.20"
+hbb_common = { path = "libs/hbb_common" }
+runas = "=1.0" # https://github.com/mitsuhiko/rust-runas/issues/13
+parity-tokio-ipc = { git = "https://github.com/open-trade/parity-tokio-ipc" }
+reqwest = { version = "0.11.22", features = ["blocking"] }
+tauri-plugin-autostart = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "v1" }
+tauri-plugin-single-instance = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "v1" }
+
+
+[target.'cfg(target_os = "windows")'.dependencies]
+winreg = "0.51.0"
+winapi = { version = "0.3", features = ["winuser", "wincrypt", "shellscalingapi", "processthreadsapi", "handleapi",
+    "wingdi", "minwinbase", "securitybaseapi", "shellapi", "ntdef", "windef", "winreg"] }
+windows-service = { version = "0.6.0" }
+windows-sys = "0.48.0"
 
 [features]
 # this feature is used for production builds or when `devPath` points to the filesystem

@@ -15,7 +15,9 @@
     "fmt": "prettier --write --ignore-unknown \"**/*\"",
     "fmt:check": "prettier --check --ignore-unknown \"**/*\"",
     "typecheck": "tsc --noEmit",
-    "tauri": "tauri"
+    "tauri:build": "tauri build",
+    "tauri:build:x86": "tauri build --target i686-pc-windows-msvc",
+    "tauri:build:arm64": "tauri build --target aarch64-pc-windows-msvc"
   },
   "dependencies": {
     "@mui/base": "^5.0.0-beta.20",
@@ -23,10 +25,11 @@
     "@tauri-apps/api": "^1.5.0",
     "clsx": "^2.0.0",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "tauri-plugin-autostart-api": "https://github.com/tauri-apps/tauri-plugin-autostart#v1"
   },
   "devDependencies": {
-    "@tauri-apps/cli": "^1.5.0",
+    "@tauri-apps/cli": "^1.5.6",
     "@types/react": "^18.2.31",
     "@types/react-dom": "^18.2.14",
     "@typescript-eslint/eslint-plugin": "^6.8.0",

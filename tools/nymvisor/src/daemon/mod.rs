@@ -8,7 +8,9 @@ use nix::unistd::Pid;
 use nym_bin_common::build_information::BinaryBuildInformationOwned;
 use std::ffi::OsStr;
 use std::fmt::Debug;
+use std::fs;
 use std::future::Future;
+use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
 use std::pin::Pin;
 use std::process::{ExitStatus, Stdio};
@@ -60,7 +62,7 @@ impl Daemon {
         self
     }
 
-    #[instrument]
+    #[instrument(skip(self), fields(self.executable_path = ?self.executable_path))]
     pub(crate) fn get_build_information(
         &self,
     ) -> Result<BinaryBuildInformationOwned, NymvisorError> {
@@ -86,8 +88,28 @@ impl Daemon {
             .map_err(|source| NymvisorError::DaemonBuildInformationParseFailure { source })
     }
 
-    pub(crate) fn verify_binary(&self) {
-        todo!()
+    #[instrument(skip(self), fields(self.executable_path = ?self.executable_path))]
+    pub(crate) fn verify_binary(&self) -> Result<(), NymvisorError> {
+        let metadata = fs::metadata(&self.executable_path).expect("error handling");
+
+        if !metadata.is_file() {
+            todo!("error not a file")
+        }
+
+        let mut permissions = metadata.permissions();
+        let mode = permissions.mode();
+        let is_executable = mode & 0o111 != 0;
+        if !is_executable {
+            warn!(
+                "the binary does not seem to have executable bits sets. attempting to fix that..."
+            );
+            let new_mode = mode | 0o111; // Set the three execute bits to on (a+x).
+            permissions.set_mode(new_mode);
+
+            fs::set_permissions(&self.executable_path, permissions).expect("error handling");
+        }
+
+        Ok(())
     }
 
     pub(crate) fn execute_async<I, S>(&self, args: I) -> Result<ExecutingDaemon, NymvisorError>

@@ -27,6 +27,8 @@ pub(crate) const DEFAULT_BASE_UPSTREAM_UPGRADE_INFO_SOURCE: &str =
     "https://nymtech.net/.wellknown/";
 
 pub(crate) const UPGRADE_PLAN_FILENAME: &str = "upgrade-plan.json";
+pub(crate) const UPGRADE_HISTORY_FILENAME: &str = "upgrade-history.json";
+pub(crate) const UPGRADE_LOCK_FILENAME: &str = "upgrade.lock";
 pub(crate) const UPGRADE_INFO_FILENAME: &str = "upgrade-info.json";
 pub(crate) const NYMVISOR_DIR: &str = "nymvisor";
 pub(crate) const BACKUP_DIR: &str = "backups";
@@ -287,8 +289,24 @@ impl Config {
         if name == GENESIS_DIR {
             self.genesis_daemon_dir().join(UPGRADE_INFO_FILENAME)
         } else {
-            self.upgrades_dir().join(name).join(UPGRADE_INFO_FILENAME)
+            self.upgrade_dir(name).join(UPGRADE_INFO_FILENAME)
         }
+    }
+
+    // e.g. $HOME/.nym/nymvisors/data/nym-api/upgrades/<upgrade-name>
+    pub fn upgrade_dir<P: AsRef<Path>>(&self, upgrade_name: P) -> PathBuf {
+        self.upgrades_dir().join(upgrade_name)
+    }
+
+    // e.g. $HOME/.nym/nymvisors/data/nym-api/upgrades/<upgrade-name>/bin
+    pub fn upgrade_binary_dir<P: AsRef<Path>>(&self, upgrade_name: P) -> PathBuf {
+        self.upgrade_dir(upgrade_name).join(BIN_DIR)
+    }
+
+    // e.g. $HOME/.nym/nymvisors/data/nym-api/upgrades/<upgrade-name>/bin/nym-api
+    pub fn upgrade_binary<P: AsRef<Path>>(&self, upgrade_name: P) -> PathBuf {
+        self.upgrade_binary_dir(upgrade_name)
+            .join(&self.daemon.name)
     }
 
     // e.g. $HOME/.nym/nymvisors/data/nym-api/upgrades/
@@ -299,6 +317,16 @@ impl Config {
     // e.g. $HOME/.nym/nymvisors/data/nym-api/upgrade-plan.json
     pub fn upgrade_plan_filepath(&self) -> PathBuf {
         self.upgrade_data_dir().join(UPGRADE_PLAN_FILENAME)
+    }
+
+    // e.g. $HOME/.nym/nymvisors/data/nym-api/upgrade-history.json
+    pub fn upgrade_history_filepath(&self) -> PathBuf {
+        self.upgrade_data_dir().join(UPGRADE_HISTORY_FILENAME)
+    }
+
+    // e.g. $HOME/.nym/nymvisors/data/nym-api/upgrade.lock
+    pub fn upgrade_lock_filepath(&self) -> PathBuf {
+        self.upgrade_data_dir().join(UPGRADE_LOCK_FILENAME)
     }
 
     pub fn upstream_upgrade_url(&self) -> Url {

@@ -20,6 +20,10 @@ id = '{{ nymvisor.id }}'
 # Can be overridden with $NYMVISOR_UPSTREAM_BASE_UPGRADE_URL environmental variable.
 upstream_base_upgrade_url = '{{ nymvisor.upstream_base_upgrade_url }}'
 
+# Specifies the rate of polling the upstream url for upgrade information.
+# Can be overridden with $NYMVISOR_UPSTREAM_POLLING_RATE
+upstream_polling_rate = '{{ nymvisor.upstream_polling_rate }}'
+
 # If set to true, this will disable `nymvisor` logs (but not the underlying process)
 # default: false
 # Can be overridden with $NYMVISOR_DISABLE_LOGS environmental variable.

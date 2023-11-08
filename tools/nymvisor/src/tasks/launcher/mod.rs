@@ -39,7 +39,7 @@ impl DaemonLauncher {
         }
 
         self.perform_backup()?;
-        upgrade_binary()?;
+        upgrade_binary(&self.config).await?;
 
         todo!()
     }
@@ -147,5 +147,16 @@ impl DaemonLauncher {
 
     fn perform_backup(&self) -> Result<(), NymvisorError> {
         todo!()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::env;
+
+    #[test]
+    fn foo() {
+        println!("{}", env::consts::OS); // Prints the current OS.
     }
 }

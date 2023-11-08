@@ -40,7 +40,7 @@ impl UpgradePlan {
         self.queued_up.push_back(upgrade);
     }
 
-    fn update_on_disk(&self) -> Result<(), NymvisorError> {
+    pub(crate) fn update_on_disk(&self) -> Result<(), NymvisorError> {
         // it should be impossible to update an existing upgrade plan that wasn't loaded from disk
         assert!(self._save_path.is_some());
 
@@ -77,8 +77,16 @@ impl UpgradePlan {
         &self.current
     }
 
+    pub(crate) fn set_current(&mut self, new_current: UpgradeInfo) {
+        self.current = new_current
+    }
+
     pub(crate) fn next_upgrade(&self) -> Option<&UpgradeInfo> {
         self.queued_up.front()
+    }
+
+    pub(crate) fn pop_next_upgrade(&mut self) -> Option<UpgradeInfo> {
+        self.queued_up.pop_front()
     }
 
     pub(crate) fn has_planned(&self, upgrade: &UpgradeInfo) -> bool {
@@ -238,12 +246,88 @@ impl UpgradeInfo {
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "lowercase")]
-pub struct UpgradeHistory(Vec<UpgradeHistoryEntry>);
+pub struct UpgradeHistory {
+    // metadata indicating save location of the underlying file
+    #[serde(skip)]
+    _save_path: Option<PathBuf>,
+
+    history: Vec<UpgradeHistoryEntry>,
+}
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "lowercase")]
 pub struct UpgradeHistoryEntry {
     #[serde(with = "time::serde::rfc3339")]
     performed_at: OffsetDateTime,
+
     info: UpgradeInfo,
+}
+
+impl UpgradeHistoryEntry {
+    fn new(info: UpgradeInfo) -> Self {
+        UpgradeHistoryEntry {
+            performed_at: OffsetDateTime::now_utc(),
+            info,
+        }
+    }
+}
+
+impl UpgradeHistory {
+    pub(crate) fn new() -> Self {
+        UpgradeHistory {
+            _save_path: None,
+            history: vec![],
+        }
+    }
+
+    pub(crate) fn update_on_disk(&self) -> Result<(), NymvisorError> {
+        // it should be impossible to update an existing upgrade history that wasn't loaded from disk
+        assert!(self._save_path.is_some());
+
+        // safety: the except here is fine as this failure implies failure in the underlying logic of the code
+        // as opposed to user error
+        #[allow(clippy::expect_used)]
+        let save_path = self
+            ._save_path
+            .as_ref()
+            .expect("loaded upgrade history does not have an associate save path!");
+
+        let file = OpenOptions::new()
+            .create(true)
+            .write(true)
+            .truncate(true)
+            .open(save_path)
+            .map_err(|source| NymvisorError::UpgradeHistorySaveFailure {
+                path: save_path.to_path_buf(),
+                source,
+            })?;
+
+        // we're not using any non-standard serializer and thus the serialization should not ever fail
+        #[allow(clippy::expect_used)]
+        serde_json::to_writer_pretty(file, self)
+            .expect("unexpected UpgradeHistory serialization failure");
+        Ok(())
+    }
+
+    fn push_upgrade(&mut self, upgrade: UpgradeInfo) {
+        self.history.push(UpgradeHistoryEntry::new(upgrade));
+    }
+
+    pub(crate) fn insert_new_upgrade(&mut self, upgrade: UpgradeInfo) -> Result<(), NymvisorError> {
+        self.push_upgrade(upgrade);
+        self.update_on_disk()
+    }
+
+    pub(crate) fn try_load<P: AsRef<Path>>(path: P) -> Result<Self, NymvisorError> {
+        let path = path.as_ref();
+        std::fs::File::open(path)
+            .and_then(|file| {
+                serde_json::from_reader(file)
+                    .map_err(|serde_json_err| io::Error::new(io::ErrorKind::Other, serde_json_err))
+            })
+            .map_err(|source| NymvisorError::UpgradeHistoryLoadFailure {
+                path: path.to_path_buf(),
+                source,
+            })
+    }
 }

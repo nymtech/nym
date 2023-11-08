@@ -5,6 +5,7 @@ use crate::cli::try_load_current_config;
 use crate::daemon::Daemon;
 use crate::env::Env;
 use crate::error::NymvisorError;
+use crate::upgrades::upgrade_binary;
 use async_file_watcher::AsyncFileWatcher;
 use futures::channel::mpsc;
 use futures::future::{AbortHandle, Abortable};
@@ -31,6 +32,8 @@ pub(crate) fn execute(args: Args) -> Result<(), NymvisorError> {
     }
 
     info!("starting nymvisor for {}", config.daemon.name);
+
+    // upgrade_binary(&config)?;
 
     // TODO: experiment with the minimal runtime
     // look at futures::executor::LocalPool

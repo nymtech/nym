@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use async_file_watcher::NotifyError;
+use nix::errno::Errno;
 use nix::sys::signal::Signal;
 use nym_bin_common::build_information::BinaryBuildInformationOwned;
 use std::ffi::OsString;
@@ -81,8 +82,43 @@ pub(crate) enum NymvisorError {
         source: io::Error,
     },
 
-    #[error("could not acquire the lock at {} to update the upgrade-plan.info file. It is either held by another process or this nymvisor has experienced a critical failure during previous upgrade attempt", lock_path.display())]
-    UnableToAcquireUpgradePlanLock { lock_path: PathBuf },
+    #[error(
+    "failed to load upgrade history using path '{}'. detailed message: {source}", path.display()
+    )]
+    UpgradeHistoryLoadFailure {
+        path: PathBuf,
+        #[source]
+        source: io::Error,
+    },
+
+    #[error(
+    "failed to save upgrade history using path '{}'. detailed message: {source}", path.display()
+    )]
+    UpgradeHistorySaveFailure {
+        path: PathBuf,
+        #[source]
+        source: io::Error,
+    },
+
+    #[error("could not acquire the lock at {} to perform binary upgrade with error code {libc_code}. It is either held by another process or this nymvisor has experienced a critical failure during previous upgrade attempt", lock_path.display())]
+    UnableToAcquireUpgradePlanLock {
+        lock_path: PathBuf,
+        libc_code: Errno,
+    },
+
+    #[error("could not create the lock file at {} to perform binary upgrade: {source}", path.display())]
+    LockFileCreationFailure {
+        path: PathBuf,
+        #[source]
+        source: io::Error,
+    },
+
+    #[error("could not remove the lock file at {} after performing binary upgrade: {source}", path.display())]
+    LockFileRemovalFailure {
+        path: PathBuf,
+        #[source]
+        source: io::Error,
+    },
 
     #[error("failed to initialise the path '{}': {source}", path.display())]
     PathInitFailure {
@@ -139,6 +175,13 @@ pub(crate) enum NymvisorError {
     SymlinkCreationFailure {
         source_path: PathBuf,
         target_path: PathBuf,
+        #[source]
+        source: io::Error,
+    },
+
+    #[error("failed to remove symlink at '{}': {source}", path.display())]
+    SymlinkRemovalFailure {
+        path: PathBuf,
         #[source]
         source: io::Error,
     },
@@ -205,11 +248,36 @@ pub(crate) enum NymvisorError {
         source: NotifyError,
     },
 
-    #[error("failed to query the upstream url ('{url}') - source")]
+    #[error("failed to query the upstream url ('{url}'): {source}")]
     UpstreamQueryFailure {
         url: Url,
         #[source]
         source: reqwest::Error,
+    },
+
+    #[error(
+        "attempted to perform binary upgrade with no upgrades queued up in the upgrade plan file"
+    )]
+    NoQueuedUpgrades,
+
+    #[error("could not find the upgrade binary at {} while the binary download is disabled", path.display())]
+    NoUpgradeBinaryWithDisabledDownload { path: PathBuf },
+
+    #[error("upgrade '{upgrade_name}' does not have any valid download URLs for the current arch '{arch}'")]
+    NoDownloadUrls { upgrade_name: String, arch: String },
+
+    #[error("failed to download the upgrade binary from '{url}': {source}")]
+    UpgradeDownloadFailure {
+        url: Url,
+        #[source]
+        source: reqwest::Error,
+    },
+
+    #[error("failed to create daemon binary at {}: {source}", path.display())]
+    DaemonBinaryCreationFailure {
+        path: PathBuf,
+        #[source]
+        source: io::Error,
     },
 }
 

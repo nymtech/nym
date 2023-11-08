@@ -10,7 +10,6 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 use crate::{
     event::Event,
-    setup::{TUN_BASE_NAME, TUN_DEVICE_ADDRESS, TUN_DEVICE_NETMASK},
     tun_task_channel::{
         tun_task_channel, tun_task_response_channel, TunTaskPayload, TunTaskResponseRx,
         TunTaskResponseTx, TunTaskRx, TunTaskTx,
@@ -79,16 +78,25 @@ pub struct NatInner {
     nat_table: HashMap<IpAddr, u64>,
 }
 
+pub struct TunDeviceConfig {
+    pub base_name: String,
+    pub ip: Ipv4Addr,
+    pub netmask: Ipv4Addr,
+}
+
 impl TunDevice {
     pub fn new(
         routing_mode: RoutingMode,
-        // peers_by_ip: Option<Arc<tokio::sync::Mutex<PeersByIp>>>,
+        config: TunDeviceConfig,
     ) -> (Self, TunTaskTx, TunTaskResponseRx) {
-        let tun = setup_tokio_tun_device(
-            format!("{TUN_BASE_NAME}%d").as_str(),
-            TUN_DEVICE_ADDRESS.parse().unwrap(),
-            TUN_DEVICE_NETMASK.parse().unwrap(),
-        );
+        let TunDeviceConfig {
+            base_name,
+            ip,
+            netmask,
+        } = config;
+        let name = format!("{base_name}%d");
+
+        let tun = setup_tokio_tun_device(&name, ip, netmask);
         log::info!("Created TUN device: {}", tun.name());
 
         // Channels to communicate with the other tasks
@@ -167,10 +175,10 @@ impl TunDevice {
                 }
             }
 
-            // But we do it by consulting the NAT table.
+            // But we can also do it by consulting the NAT table.
             RoutingMode::Nat(ref nat_table) => {
                 if let Some(tag) = nat_table.nat_table.get(&dst_addr) {
-                    log::info!("Forward packet to wg tunnel with tag: {tag}");
+                    log::info!("Forward packet with tag: {tag}");
                     self.tun_task_response_tx
                         .send((*tag, packet.to_vec()))
                         .await

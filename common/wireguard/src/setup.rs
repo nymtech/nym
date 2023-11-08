@@ -8,8 +8,8 @@ use log::info;
 pub const WG_ADDRESS: &str = "0.0.0.0";
 
 // The interface used to route traffic
-pub const TUN_BASE_NAME: &str = "nymtun";
-pub const TUN_DEVICE_ADDRESS: &str = "10.0.0.1";
+pub const TUN_BASE_NAME: &str = "nymwg";
+pub const TUN_DEVICE_ADDRESS: &str = "10.1.0.1";
 pub const TUN_DEVICE_NETMASK: &str = "255.255.255.0";
 
 // The private key of the listener
@@ -18,7 +18,7 @@ const PRIVATE_KEY: &str = "AEqXrLFT4qjYq3wmX0456iv94uM6nDj5ugp6Jedcflg=";
 
 // The AllowedIPs for the connected peer, which is one a single IP and the same as the IP that the
 // peer has configured on their side.
-const ALLOWED_IPS: &str = "10.0.0.2";
+const ALLOWED_IPS: &str = "10.1.0.2";
 
 fn decode_base64_key(base64_key: &str) -> [u8; 32] {
     general_purpose::STANDARD

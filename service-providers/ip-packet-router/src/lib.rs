@@ -21,6 +21,11 @@ pub use crate::config::Config;
 pub mod config;
 pub mod error;
 
+// The interface used to route traffic
+pub const TUN_BASE_NAME: &str = "nymtun";
+pub const TUN_DEVICE_ADDRESS: &str = "10.0.0.1";
+pub const TUN_DEVICE_NETMASK: &str = "255.255.255.0";
+
 pub struct OnStartData {
     // to add more fields as required
     pub address: Recipient,
@@ -123,8 +128,14 @@ impl IpPacketRouterBuilder {
         let self_address = *mixnet_client.nym_address();
 
         // Create the TUN device that we interact with the rest of the world with
+        let config = nym_wireguard::tun_device::TunDeviceConfig {
+            base_name: TUN_BASE_NAME.to_string(),
+            ip: TUN_DEVICE_ADDRESS.parse().unwrap(),
+            netmask: TUN_DEVICE_NETMASK.parse().unwrap(),
+        };
         let (tun, tun_task_tx, tun_task_response_rx) = nym_wireguard::tun_device::TunDevice::new(
             nym_wireguard::tun_device::RoutingMode::new_nat(),
+            config,
         );
         tun.start();
 

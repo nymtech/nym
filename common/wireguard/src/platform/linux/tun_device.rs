@@ -20,11 +20,16 @@ use crate::{
 
 fn setup_tokio_tun_device(name: &str, address: Ipv4Addr, netmask: Ipv4Addr) -> tokio_tun::Tun {
     log::info!("Creating TUN device with: address={address}, netmask={netmask}");
+    // Read MTU size from env variable NYM_MTU_SIZE, else default to 1420.
+    let mtu = std::env::var("NYM_MTU_SIZE")
+        .map(|mtu| mtu.parse().expect("NYM_MTU_SIZE must be a valid integer"))
+        .unwrap_or(1420);
+    log::info!("Using MTU size: {mtu}");
     tokio_tun::Tun::builder()
         .name(name)
         .tap(false)
         .packet_info(false)
-        .mtu(1350)
+        .mtu(mtu)
         .up()
         .address(address)
         .netmask(netmask)

@@ -16,10 +16,6 @@ pub const TUN_DEVICE_NETMASK: &str = "255.255.255.0";
 // Corresponding public key: "WM8s8bYegwMa0TJ+xIwhk+dImk2IpDUKslDBCZPizlE="
 const PRIVATE_KEY: &str = "AEqXrLFT4qjYq3wmX0456iv94uM6nDj5ugp6Jedcflg=";
 
-// The public keys of the registered peer (clients)
-// Corresponding private key: "ILeN6gEh6vJ3Ju8RJ3HVswz+sPgkcKtAYTqzQRhTtlo="
-const PEER: &str = "NCIhkgiqxFx1ckKl3Zuh595DzIFl8mxju1Vg995EZhI=";
-
 // The AllowedIPs for the connected peer, which is one a single IP and the same as the IP that the
 // peer has configured on their side.
 const ALLOWED_IPS: &str = "10.0.0.2";
@@ -46,7 +42,11 @@ pub fn server_static_private_key() -> x25519::StaticSecret {
 
 pub fn peer_static_public_key() -> x25519::PublicKey {
     // A single static public key is used during development
-    let peer_static_public_bytes: [u8; 32] = decode_base64_key(PEER);
+
+    // Read from NYM_PEER_PUBLIC_KEY env variable
+    let peer = std::env::var("NYM_PEER_PUBLIC_KEY").expect("NYM_PEER_PUBLIC_KEY must be set");
+
+    let peer_static_public_bytes: [u8; 32] = decode_base64_key(&peer);
     let peer_static_public = x25519::PublicKey::try_from(peer_static_public_bytes).unwrap();
     info!(
         "Adding wg peer public key: {}",

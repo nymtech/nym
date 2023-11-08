@@ -36,7 +36,7 @@ export const DelegateModal: FCWithChildren<{
   header?: string;
   buttonText?: string;
   rewardInterval: string;
-  accountBalance?: string;
+  // accountBalance?: string;
   estimatedReward?: number;
   profitMarginPercentage?: string | null;
   nodeUptimePercentage?: number | null;
@@ -55,7 +55,7 @@ export const DelegateModal: FCWithChildren<{
   buttonText,
   identityKey: initialIdentityKey,
   rewardInterval,
-  accountBalance,
+  // accountBalance,
   estimatedReward,
   denom,
   profitMarginPercentage,
@@ -99,39 +99,15 @@ export const DelegateModal: FCWithChildren<{
     }
   }, [address, getCosmWasmClient]);
 
-  const handleCheckStakeSaturation = async (newMixId: number) => {
-    try {
-      const newSaturation = decimalToFloatApproximation(
-        (await getMixnodeStakeSaturation(newMixId)).uncapped_saturation,
-      );
-      if (newSaturation && newSaturation > 1) {
-        const saturationPercentage = Math.round(newSaturation * 100);
-        return { isOverSaturated: true, saturationPercentage };
-      }
-      return { isOverSaturated: false, saturationPercentage: undefined };
-    } catch (e) {
-      Console.error('Error fetching the saturation, error:', e);
-      return { isOverSaturated: false, saturationPercentage: undefined };
-    }
-  };
-
   const validate = async () => {
     let newValidatedValue = true;
     let errorAmountMessage;
     let errorIdentityKeyMessage;
+    const tokenPool = 'balance';
 
-    if (!identityKey || !validateKey(identityKey, 32)) {
+    if (!identityKey) {
       newValidatedValue = false;
-      errorIdentityKeyMessage = undefined;
-      console.log('!identityKey  :>> ', identityKey);
-    }
-
-    if (identityKey && mixId && validateKey(identityKey, 32)) {
-      const { isOverSaturated, saturationPercentage } = await handleCheckStakeSaturation(mixId);
-      if (isOverSaturated) {
-        newValidatedValue = false;
-        errorIdentityKeyMessage = `This node is over saturated (${saturationPercentage}%), please select another node`;
-      }
+      errorIdentityKeyMessage = 'Please enter a valid identity key';
     }
 
     if (amount && !(await validateAmount(amount, '0'))) {
@@ -148,9 +124,18 @@ export const DelegateModal: FCWithChildren<{
       newValidatedValue = false;
     }
 
-    if (!mixId) {
-      newValidatedValue = false;
+    if (amount) {
+      const hasEnoughTokens = checkTokenBalance(tokenPool, amount, balance.data || '0');
+
+      if (!hasEnoughTokens) {
+        errorAmountMessage = 'Not enough funds';
+        newValidatedValue = false;
+      }
     }
+
+    // if (!mixId) {
+    //   newValidatedValue = false;
+    // }
 
     setErrorIdentityKey(errorIdentityKeyMessage);
     if (mixIdError && !errorIdentityKeyMessage) {
@@ -168,12 +153,6 @@ export const DelegateModal: FCWithChildren<{
 
   const handleConfirm = async ({ mixId: id, value }: { mixId: number; value: DecCoin }) => {
     const tokenPool = 'balance';
-    const hasEnoughTokens = await checkTokenBalance(tokenPool, value.amount, balance.data || '0');
-
-    if (!hasEnoughTokens) {
-      setErrorAmount('Not enough funds');
-      return;
-    }
 
     if (tokenPool === 'balance') {
       getFee(simulateDelegateToMixnode, { mixId: id, amount: value });

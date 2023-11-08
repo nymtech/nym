@@ -4,7 +4,6 @@ import Select, { SelectChangeEvent } from '@mui/material/Select';
 import { Filters } from './Filters/Filters';
 import { useIsMobile } from '../hooks/useIsMobile';
 import { DelegateModal } from './Delegations/components/DelegateModal';
-import { AppContext } from './Delegations/context/main';
 import { ChainProvider } from '@cosmos-kit/react';
 import { assets, chains } from 'chain-registry';
 import { wallets as keplr } from '@cosmos-kit/keplr';
@@ -148,7 +147,7 @@ export const TableToolbar: FCWithChildren<TableToolBarProps> = ({
             header="Delegate"
             buttonText="Delegate stake"
             denom={'nym'} // clientDetails?.display_mix_denom || 'nym'}
-            accountBalance={'balance?.printable_balance' || 'error reading balance'}
+            // accountBalance={'balance?.printable_balance' || 'error reading balance'}
             rewardInterval="weekly"
             hasVestingContract={true}
             // {...storybookStyles(theme, isStorybook)}

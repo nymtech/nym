@@ -4,13 +4,7 @@ import Big from 'big.js';
 import { valid } from 'semver';
 import { add, format, fromUnixTime } from 'date-fns';
 import { DecCoin, isValidRawCoin, MixNodeCostParams } from '@nymproject/types';
-import {
-  getCurrentInterval,
-  getDefaultMixnodeCostParams,
-  getLockedCoins,
-  getSpendableCoins,
-  userBalance,
-} from '../requests';
+import { getCurrentInterval, getDefaultMixnodeCostParams, getLockedCoins, getSpendableCoins } from '../requests';
 import { Console } from './console';
 
 export type TPoolOption = 'balance' | 'locked';
@@ -24,17 +18,17 @@ export const uNYMtoNYM = (unym: string, rounding = 6) => {
   };
 };
 
-export const checkHasEnoughFunds = async (balance: string, allocationValue: string): Promise<boolean> => {
-  try {
-    // const walletValue = await userBalance();
+// export const checkHasEnoughFunds = async (balance: string, allocationValue: string): Promise<boolean> => {
+//   try {
+//     // const walletValue = await userBalance();
 
-    const remainingBalance = +balance - +allocationValue;
-    return remainingBalance >= 0;
-  } catch (e) {
-    Console.log(e as string);
-    return false;
-  }
-};
+//     const remainingBalance = +balance - +allocationValue;
+//     return remainingBalance >= 0;
+//   } catch (e) {
+//     Console.log(e as string);
+//     return false;
+//   }
+// };
 
 export const checkHasEnoughLockedTokens = async (allocationValue: string) => {
   try {
@@ -48,14 +42,15 @@ export const checkHasEnoughLockedTokens = async (allocationValue: string) => {
   return false;
 };
 
-export const checkTokenBalance = async (tokenPool: TPoolOption, amount: string, balance: string) => {
+export const checkTokenBalance = (tokenPool: TPoolOption, amount: string, balance: string) => {
   let hasEnoughFunds = false;
-  if (tokenPool === 'locked') {
-    hasEnoughFunds = await checkHasEnoughLockedTokens(amount);
-  }
+  // if (tokenPool === 'locked') {
+  //   hasEnoughFunds = await checkHasEnoughLockedTokens(amount);
+  // }
 
   if (tokenPool === 'balance') {
-    hasEnoughFunds = await checkHasEnoughFunds(balance, amount);
+    const remainingBalance = +balance - +amount;
+    hasEnoughFunds = remainingBalance >= 0;
   }
 
   return hasEnoughFunds;

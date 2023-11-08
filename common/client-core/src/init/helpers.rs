@@ -74,8 +74,8 @@ pub async fn current_gateways<R: Rng>(
         .collect::<Vec<gateway::Node>>();
 
     // we were always filtering by version so I'm not removing that 'feature'
-    let filtered_gateways = valid_gateways.filter_by_version(env!("CARGO_PKG_VERSION"));
-    Ok(filtered_gateways)
+    // let filtered_gateways = valid_gateways.filter_by_version(env!("CARGO_PKG_VERSION"));
+    Ok(valid_gateways)
 }
 
 pub async fn current_mixnodes<R: Rng>(

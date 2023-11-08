@@ -106,6 +106,8 @@ impl Wallet {
         bytes[128..136].copy_from_slice(&self.l.get().to_le_bytes());
         bytes
     }
+
+    #[allow(dead_code)]
     fn up(&self) {
         self.l.set(self.l.get() + 1);
     }

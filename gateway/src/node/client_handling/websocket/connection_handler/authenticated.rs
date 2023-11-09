@@ -251,11 +251,9 @@ where
             .check_payment(&credential, &aggregated_verification_key)
             .await?;
 
-        //SW PUT that in a new threads, ensuring it eventually gets sent
         self.inner
             .ecash_verifier
-            .post_credential(current_api_clients, credential.clone())
-            .await?;
+            .post_credential(current_api_clients, credential.clone())?;
 
         self.inner.storage.insert_credential(credential).await?;
 

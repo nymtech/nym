@@ -3,7 +3,9 @@
 
 use super::authenticated::RequestHandlingError;
 use chrono::Utc;
-use log::*;
+use futures::channel::mpsc::{self, UnboundedReceiver, UnboundedSender};
+use futures::StreamExt;
+use nym_api_requests::coconut::VerifyCredentialBody;
 use nym_compact_ecash::scheme::EcashCredential;
 use nym_compact_ecash::setup::Parameters;
 use nym_compact_ecash::{PayInfo, VerificationKeyAuth};
@@ -11,8 +13,10 @@ use nym_validator_client::coconut::all_ecash_api_clients;
 use nym_validator_client::{
     nyxd::contract_traits::DkgQueryClient, CoconutApiClient, DirectSigningHttpRpcNyxdClient,
 };
+use std::collections::VecDeque;
 use std::sync::Arc;
 use std::sync::Mutex;
+use tokio::time::{interval, Duration};
 
 const TIME_RANGE_SEC: i64 = 30;
 
@@ -21,6 +25,7 @@ pub(crate) struct EcashVerifier {
     ecash_parameters: Parameters,
     pk_bytes: [u8; 32], //bytes represenation of a pub key representing the verifier
     pay_infos: Arc<Mutex<Vec<PayInfo>>>,
+    cred_sender: UnboundedSender<CredentialToBeSent>,
 }
 
 impl EcashVerifier {
@@ -28,12 +33,18 @@ impl EcashVerifier {
         nyxd_client: DirectSigningHttpRpcNyxdClient,
         ecash_parameters: Parameters,
         pk_bytes: [u8; 32],
+        shutdown: nym_task::TaskClient,
     ) -> Self {
+        let (cred_sender, cred_receiver) = mpsc::unbounded();
+        let cs = CredentialSender::new(cred_receiver);
+        cs.start(shutdown);
+
         EcashVerifier {
             nyxd_client,
             ecash_parameters,
             pk_bytes,
             pay_infos: Arc::new(Mutex::new(Vec::new())),
+            cred_sender,
         }
     }
 
@@ -161,34 +172,105 @@ impl EcashVerifier {
         Ok(())
     }
 
-    pub async fn post_credential(
+    pub fn post_credential(
         &self,
         api_clients: Vec<CoconutApiClient>,
         credential: EcashCredential,
     ) -> Result<(), RequestHandlingError> {
-        let req = nym_api_requests::coconut::VerifyCredentialBody::new(
-            credential.clone(),
-            self.nyxd_client.address().clone(),
-        );
-
+        let req = VerifyCredentialBody::new(credential.clone(), self.nyxd_client.address().clone());
         for client in api_clients {
-            let ret = client.api_client.verify_bandwidth_credential(&req).await;
+            self.cred_sender
+                .unbounded_send(CredentialToBeSent(req.clone(), client))
+                .map_err(|_| RequestHandlingError::InternalError)?
+        }
+        Ok(())
+    }
+}
 
-            match ret {
+#[derive(Clone)]
+struct CredentialToBeSent(VerifyCredentialBody, CoconutApiClient);
+struct CredentialSender {
+    pending: VecDeque<CredentialToBeSent>,
+    cred_receiver: UnboundedReceiver<CredentialToBeSent>,
+}
+
+impl CredentialSender {
+    fn new(cred_receiver: UnboundedReceiver<CredentialToBeSent>) -> Self {
+        CredentialSender {
+            pending: VecDeque::new(),
+            cred_receiver,
+        }
+    }
+
+    async fn handle_credential(&mut self, credential: CredentialToBeSent) {
+        self.pending.push_back(credential);
+        self.try_empty_pending().await;
+    }
+    async fn try_empty_pending(&mut self) {
+        let mut new_pending = VecDeque::new();
+        for credential in &self.pending {
+            match credential
+                .1
+                .api_client
+                .verify_bandwidth_credential(&credential.0)
+                .await
+            {
                 Ok(res) => {
                     if !res.verification_result {
-                        debug!(
+                        log::debug!(
                             "Validator {} didn't accept the credential.",
-                            client.api_client.nym_api.current_url()
+                            credential.1.api_client.nym_api.current_url()
                         );
                     }
                 }
                 Err(e) => {
-                    warn!("Validator {} could not be reached. There might be a problem with the coconut endpoint - {:?}", client.api_client.nym_api.current_url(), e);
+                    log::warn!("Validator {} could not be reached. There might be a problem with the coconut endpoint - {:?}", credential
+                    .1.api_client.nym_api.current_url(), e);
+                    new_pending.push_back(credential.clone());
                 }
             }
         }
+        self.pending = new_pending;
+    }
 
-        Ok(())
+    fn start(self, shutdown: nym_task::TaskClient) {
+        tokio::spawn(async move { self.run(shutdown).await });
+
+        //spawn a new thread that tries to send all pending Credentials.
+        //if it cannot send something, back of the queue and retry in 5min
+        //if everything has been sent, stop running
+    }
+
+    async fn run(mut self, mut shutdown: nym_task::TaskClient) {
+        log::debug!("Starting Ecash CredentialSender");
+        let mut interval = interval(Duration::from_secs(300));
+
+        while !shutdown.is_shutdown() {
+            tokio::select! {
+                biased;
+                _ = shutdown.recv() => {
+                    log::trace!("client_handling::credentialSender : received shutdown");
+                },
+                Some(credential) = self.cred_receiver.next() => self.handle_credential(credential).await,
+                _ = interval.tick(), if self.pending.len() > 0 => self.try_empty_pending().await,
+
+            }
+        }
     }
 }
+
+//let ret = client.api_client.verify_bandwidth_credential(&req).await;
+
+// match ret {
+//     Ok(res) => {
+//         if !res.verification_result {
+//             debug!(
+//                 "Validator {} didn't accept the credential.",
+//                 client.api_client.nym_api.current_url()
+//             );
+//         }
+//     }
+//     Err(e) => {
+//         warn!("Validator {} could not be reached. There might be a problem with the coconut endpoint - {:?}", client.api_client.nym_api.current_url(), e);
+//     }
+// }

@@ -193,7 +193,7 @@ impl TunDevice {
     }
 
     pub async fn run(mut self) {
-        let mut buf = [0u8; 1024];
+        let mut buf = [0u8; 65535];
 
         loop {
             tokio::select! {

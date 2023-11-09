@@ -1,8 +1,8 @@
 # Firo-Electrum Wallet NymConnect Integration
 
-[Firo](https://github.com/firoorg/firo#firo) (formely Zcoin) is a privacy focuse zk-proofs based cryptocurency. Now users can enjoy Firo with network privacy by Nym as Firo's fork of Electrum wallet was integrated to work behind the Mixnet. Read more about Firo on their [official webpage](https://firo.org/).
+[Firo](https://github.com/firoorg/firo#firo) (formerly Zcoin) is a privacy focused, zk-proofs based cryptocurency. Now users can enjoy Firo with network privacy by Nym as Firo's fork of Electrum wallet was integrated to work behind the Mixnet. Read more about Firo on their [official webpage](https://firo.org/).
 
-## How can I use Firo over the Nym mixnet?
+## How can I use Firo over the Nym Mixnet?
 
 > Any syntax in `<>` brackets is a user’s unique variable. Exchange with a corresponding name without the `<>` brackets.
 

@@ -102,7 +102,7 @@ To setup Exit Gateway functionality with our new [exit policy](https://nymtech.n
 ./nym-gateway setup-network-requester --enabled true --with-exit-policy true --id <ID> 
 ```
 
-Say we have a gateway with `<ID>` as `new-gateway`, originally initialised and ran without the Exit Gateway functionality. To change the setup, run:
+Say we have a Gateway with `<ID>` as `new-gateway`, originally initialised and ran without the Exit Gateway functionality. To change the setup, run:
 
 
 ```
@@ -124,7 +124,7 @@ In case there are any unexpected problems, you can also change it manually by ed
 enabled = true
 ```
 
-Save, exit and restart your gateway. Now you are an operator of post-smooshed Exit gateway.
+Save, exit and restart your Gateway. Now you are an operator of post-smooshed Exit Gateway.
 
 #### Enable Nym exit policy to an existing Gateway with Network requester functionality
 
@@ -134,7 +134,7 @@ Open the config file stored at `.nym/gateways/<ID>/config/network_requester_conf
 ```sh
 use_deprecated_allow_list = false
 ```
-Save, exit and restart your gateway. Now you are an operator of post-smooshed Exit gateway.
+Save, exit and restart your Gateway. Now you are an operator of post-smooshed Exit gateway.
 
 ```admonish info
 All information about network requester part of your Exit Gateway is in `/home/user/.nym/gateways/<ID>/config/network_requester_config.toml`.
@@ -161,7 +161,7 @@ To check available configuration options use:
 ```
 ~~~
 
-The following command returns a gateway on your current IP with the `<ID>` of `simple-gateway`:
+The following command returns a Gateway on your current IP with the `<ID>` of `simple-gateway`:
 
 ```
 ./nym-gateway init --id simple-gateway --host $(curl -4 https://ifconfig.me)
@@ -176,15 +176,15 @@ The following command returns a gateway on your current IP with the `<ID>` of `s
 The `$(curl -4 https://ifconfig.me)` command above returns your IP automatically using an external service. Alternatively, you can enter your IP manually if you wish. If you do this, remember to enter your IP **without** any port information.
 
 
-### Bonding your gateway
+### Bonding your Gateway
 
 ```admonish info
-Before you bond and re-run your Gateway, please make sure the [firewall configuration](./maintenance.md#configure-your-firewall) is setup so your gateway can be reached from the outside. You can also setup WSS on your Gateway, the steps are on the [Maintenance page](./maintenance.md#configure-your-firewall) below.
+Before you bond and re-run your Gateway, please make sure the [firewall configuration](./maintenance.md#configure-your-firewall) is setup so your Gateway can be reached from the outside. You can also setup WSS on your Gateway, the steps are on the [Maintenance page](./maintenance.md#configure-your-firewall) below.
 ```
 
 #### Via the Desktop wallet
 
-You can bond your gateway via the Desktop wallet.
+You can bond your Gateway via the Desktop wallet.
 
 1. Open your wallet, and head to the `Bonding` page, then select the node type `Gateway` and input your node details. Press `Next`.
 
@@ -229,20 +229,21 @@ It will look something like this:
 
 ![Paste Signature](../images/wallet-screenshots/wallet-gateway-sign.png)
 
-* Your gateway is now bonded.
+* Your Gateway is now bonded.
 
 > You are asked to `sign` a transaction on bonding so that the Mixnet smart contract is able to map your Nym address to your node. This allows us to create a nonce for each account and defend against replay attacks.
 
 #### Via the CLI (power users)
 If you want to bond your mix node via the CLI, then check out the [relevant section in the Nym CLI](https://nymtech.net/docs/tools/nym-cli.html#bond-a-mix-node) docs.
 
-### Running your gateway
-The `run` command starts the gateway:
+### Running your Gateway
+
+The `run` command starts the Gateway:
 
 ```
 ./nym-gateway run --id <ID>
 ```
 ## Maintenance
 
-For gateway upgrade, firewall setup, port configuration, API endpoints, VPS suggestions, automation and more, see the [maintenance page](./maintenance.md)
+For Gateway upgrade, firewall setup, port configuration, API endpoints, VPS suggestions, automation, WSS setup and more, see the [maintenance page](./maintenance.md)
 

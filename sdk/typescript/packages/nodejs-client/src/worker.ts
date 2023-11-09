@@ -107,7 +107,7 @@ class ClientWrapper {
   send = async ({
     payload,
     recipient,
-    replySurbs = 0,
+    replySurbs = 10,
   }: {
     payload: Uint8Array;
     recipient: string;

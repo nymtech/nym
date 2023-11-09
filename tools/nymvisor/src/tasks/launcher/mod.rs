@@ -1,28 +1,25 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::config::{Config, DAEMON_CONFIG_DIR, DAEMON_DATA_DIR};
+use crate::config::Config;
 use crate::daemon::Daemon;
 use crate::error::NymvisorError;
+use crate::tasks::launcher::backup::BackupBuilder;
 use crate::upgrades::{
     types::{UpgradeInfo, UpgradePlan},
     upgrade_binary,
 };
 use async_file_watcher::FileWatcherEventReceiver;
-use flate2::write::GzEncoder;
-use flate2::Compression;
 use futures::future::{FusedFuture, OptionFuture};
 use futures::{FutureExt, StreamExt};
 use nym_task::signal::wait_for_signal;
-use std::fs;
-use std::sync::Arc;
 use std::time::Duration;
-use time::format_description::well_known::Rfc3339;
-use time::{format_description, OffsetDateTime};
+use time::OffsetDateTime;
 use tokio::pin;
-use tokio::sync::Notify;
-use tokio::time::{sleep, Sleep};
+use tokio::time::sleep;
 use tracing::{debug, error, info, warn};
+
+mod backup;
 
 pub(crate) struct DaemonLauncher {
     config: Config,
@@ -34,8 +31,8 @@ impl DaemonLauncher {
         todo!()
     }
 
-    // the full upgrade process process, i.e. run until upgrade, do backup and perform the upgrade.
-    // returns a boolean indicating whether the process should get restarted
+    /// the full upgrade process process, i.e. run until upgrade, do backup and perform the upgrade.
+    /// returns a boolean indicating whether the process should get restarted
     pub(crate) async fn run(&mut self, args: Vec<String>) -> Result<bool, NymvisorError> {
         let upgrade_available = self.wait_for_upgrade_or_termination(args.clone()).await?;
         if !upgrade_available {
@@ -44,8 +41,9 @@ impl DaemonLauncher {
 
         self.perform_backup()?;
         upgrade_binary(&self.config).await?;
+        // if we ever wanted to introduce any pre-upgrade scripts like cosmovisor, they'd go here
 
-        todo!()
+        Ok(true)
     }
 
     /// this function gets called whenever the file watcher detects changes in the upgrade plan file
@@ -150,52 +148,7 @@ impl DaemonLauncher {
     }
 
     fn perform_backup(&self) -> Result<(), NymvisorError> {
-        // safety: this expect is fine as we're using a constant formatter.
-        #[allow(clippy::expect_used)]
-        let format = format_description::parse(
-            "[year]-[month]-[day]-[hour][minute][second][subsecond digits:3]",
-        )
-        .expect("our time formatter is malformed");
-        #[allow(clippy::expect_used)]
-        let now = OffsetDateTime::now_utc()
-            .format(&format)
-            .expect("our time formatter failed to format the current time");
-
-        let backup_filepath = self
-            .config
-            .daemon_backup_dir()
-            .join(format!("backup-{now}-preupgrade.tar.gz"));
-
-        // create the backup file
-        let backup_file = fs::File::create(&backup_filepath).map_err(|source| {
-            NymvisorError::BackupFileCreationFailure {
-                path: backup_filepath.clone(),
-                source,
-            }
-        })?;
-
-        let daemon_data = self.config.daemon_data_dir();
-        let daemon_config = self.config.daemon_config_dir();
-        let enc = GzEncoder::new(backup_file, Compression::default());
-        let mut tar = tar::Builder::new(enc);
-        tar.append_dir_all(DAEMON_DATA_DIR, &daemon_data)
-            .map_err(|source| NymvisorError::BackupTarFailure {
-                path: backup_filepath.clone(),
-                data_source: daemon_data,
-                source,
-            })?;
-
-        tar.append_dir_all(DAEMON_CONFIG_DIR, &daemon_config)
-            .map_err(|source| NymvisorError::BackupTarFailure {
-                path: backup_filepath.clone(),
-                data_source: daemon_config,
-                source,
-            })?;
-
-        tar.finish()
-            .map_err(|source| NymvisorError::BackupTarFinalizationFailure {
-                path: backup_filepath,
-                source,
-            })
+        BackupBuilder::new(self.config.daemon_backup_dir())?
+            .backup_daemon_home(&self.config.daemon.home)
     }
 }

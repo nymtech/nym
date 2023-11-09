@@ -128,7 +128,15 @@ pub(crate) enum NymvisorError {
     },
 
     #[error("could not tar backup directory {} to {}: {source}", data_source.display(), path.display())]
-    BackupTarFailure {
+    BackupTarDirFailure {
+        path: PathBuf,
+        data_source: PathBuf,
+        #[source]
+        source: io::Error,
+    },
+
+    #[error("could not tar backup file {} to {}: {source}", data_source.display(), path.display())]
+    BackupTarFileFailure {
         path: PathBuf,
         data_source: PathBuf,
         #[source]

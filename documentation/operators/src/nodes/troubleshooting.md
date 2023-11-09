@@ -159,7 +159,7 @@ curl --location --request GET 'https://validator.nymtech.net/api/v1/mixnodes/'
 
 Will return a list all nodes currently online.
 
-You can query gateways by replacing `mixnodes` with `gateways` in the above command, and can query for the mixnodes and gateways on the Sandbox testnet by replacing `validator` with `sandbox-validator`. 
+You can query Gateways by replacing `nym-mixnodes` with `nym-gateways` in the above command, and can query for the Mix nodes and Gateways on the Sandbox testnet by replacing `validator` with `sandbox-validator`. 
 
 
 #### Check with Network API
@@ -301,11 +301,11 @@ You don't have to do any additional configuration for your node to implement thi
 
 Check your [firewall](./maintenance.md#configure-your-firewall) is active and if the necessary ports are open / allowed.
 
-### My exit gateway "is still not online..."
+### My exit Gateway "is still not online..."
 
-The Nyx chain epoch takes up to 60 min. To prevent the gateway getting blacklisted, it's important to run it right after the bonding process to return positive response our API testing it's routing score.
+The Nyx chain epoch takes up to 60 min. To prevent the Gateway getting blacklisted, it's important to run it before and during the bonding process. In case it already got blacklisted run it for at several hours. During this time your node is tested by `nym-api` and every positive response picks up your Gateway's routing score.
 
-You may want to disconnect the network requester and let it run as a gatewy alone for some time to regain better routing score and then areturn to the full [exit gateway finctionality](./gateway-setup.md#initialising-gateway-with-network-requester).
+You may want to disconnect the Network requester and let it run as a Gateway alone for some time to regain better routing score and then return to the full [Exit Gateway finctionality](./gateway-setup.md#initialising-gateway-with-network-requester).
 
 
 ## Validators

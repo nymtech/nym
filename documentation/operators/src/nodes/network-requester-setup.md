@@ -3,7 +3,7 @@
 > Nym Network requester was built in the [building nym](../binaries/building-nym.md) section. If you haven't yet built Nym and want to run the code, go there first.
 
 ```admonish info
-As a result of [Project Smoosh](../faq/smoosh-faq.md), the current version of `nym-gateway` binary also contains `nym-network-requester` functionality which can be enabled [by the operator](./gateway-setup.md#initialising-gateway-with-network-requester). This combination is a basis of Nym exit gateway node - an essential piece in our new setup. Please read more in our [Project Smoosh FAQ](../faq/smoosh-faq.md) and [Exit Gateways Page](../legal/exit-gateway.md). We recommend operators begin to shift their setups to this new combined node, instead of operating two separate binaries.
+As a result of [Project Smoosh](../faq/smoosh-faq.md), the current version of `nym-gateway` binary also contains `nym-network-requester` functionality which can be enabled [by the operator](./gateway-setup.md#initialising-gateway-with-network-requester). This combination is a basis of Nym Exit Gateway node - an essential piece in our new setup. Please read more in our [Project Smoosh FAQ](../faq/smoosh-faq.md) and [Exit Gateways Page](../legal/exit-gateway.md). We recommend operators begin to shift their setups to this new combined node, instead of operating two separate binaries.
 ```
 
 > Any syntax in `<>` brackets is a user's unique variable. Exchange with a corresponding name without the `<>` brackets.
@@ -23,7 +23,7 @@ If you have access to a server, you can run the Network requester, which allows 
 
 By default the network requester is **not** an open proxy (although it can be used as one). It uses a file called `allowed.list` (located in `~/.nym/service-providers/network-requester/<NETWORK-REQUESTER-ID>/`) as a whitelist for outbound requests.
 
-**Note:** If you run Network requester as a part of the exit gateway (suggested setup) the `allowed.list` will be stored in `~/.nym/gateways/<ID>/data/network-requester-data/allowed.list`.
+**Note:** If you run Network requester as a part of the Exit Gateway (suggested setup) the `allowed.list` will be stored in `~/.nym/gateways/<ID>/data/network-requester-data/allowed.list`.
 
 Any request to a URL which is not on this list will be blocked.
 
@@ -116,7 +116,7 @@ You can find a list of Network requesters running the default whitelist in the [
 ## Viewing command help
 
 ```admonish info
-If you run your Network requester as a part of your exit gateway according to the suggested setup, please skip this part of the page and read about [exit gateway setup](./gateway-setup.md#initialising-gateway-with-network-requester) instead.
+If you run your Network requester as a part of your Exit Gateway according to the suggested setup, please skip this part of the page and read about [Exit Gateway setup](./gateway-setup.md#initialising-gateway-with-network-requester) instead.
 ```
 
 To begin, move to `/target/release` directory from which you run the node commands:
@@ -168,7 +168,7 @@ Now that we have initialized our network-requester, we can start it with the fol
 
 The next thing to do is use your requester, share its address with friends (or whoever you want to help privacy-enhance their app traffic). Is this safe to do? If it was an open proxy, this would be unsafe, because any Nym user could make Network requests to any system on the internet.
 
-To make things a bit less stressful for administrators, the Network Requester drops all incoming requests by default. In order for it to make requests, you need to add specific domains to the `allowed.list` file at `$HOME/.nym/service-providers/network-requester/allowed.list` or if Network requester is ran as a part of [exit gateway](./gateway-setup.md#initialising-gateway-with-network-requester), the `allowed.list` will be stored in `~/.nym/gateways/<ID>/data/network-requester-data/allowed.list`
+To make things a bit less stressful for administrators, the Network Requester drops all incoming requests by default. In order for it to make requests, you need to add specific domains to the `allowed.list` file at `$HOME/.nym/service-providers/network-requester/allowed.list` or if Network requester is ran as a part of [Exit Gateway](./gateway-setup.md#initialising-gateway-with-network-requester), the `allowed.list` will be stored in `~/.nym/gateways/<ID>/data/network-requester-data/allowed.list`
 
 ### Global vs local allow lists 
 Your Network Requester will check for a domain against 2 lists before allowing traffic through for a particular domain or IP. 
@@ -188,13 +188,13 @@ How to go about this? Have a look in your `nym-network-requester` config directo
 # nym-network-requester binary
 ls -lt $HOME/.nym/service-providers/network-requester/*/data | grep "list"
 
-# exit gateway binary
+# nym-gateway binary
 ls -lt $HOME/.nym/gateways/*/data/network-requester-data | grep "list"
 
 # returns: allowed.list  unknown.list
 ```
 
-We already know that `allowed.list` is what lets requests go through. All unknown requests are logged to `unknown.list`. If you want to try using a new client type, just start the new application, point it at your local [socks client](https://nymtech.net/docs/clients/socks5-client.html) (configured to use your remote `nym-network-requester`), and keep copying URLs from `unknown.list` into `allowed.list` (it may take multiple tries until you get all of them, depending on the complexity of the application). Make sure to delete the copied ones in `unknown.list` and restart your exit gateway or standalone Network requester.
+We already know that `allowed.list` is what lets requests go through. All unknown requests are logged to `unknown.list`. If you want to try using a new client type, just start the new application, point it at your local [socks client](https://nymtech.net/docs/clients/socks5-client.html) (configured to use your remote `nym-network-requester`), and keep copying URLs from `unknown.list` into `allowed.list` (it may take multiple tries until you get all of them, depending on the complexity of the application). Make sure to delete the copied ones in `unknown.list` and restart your Exit Gateway or standalone Network requester.
 
 > If you are adding custom domains, please note that whilst they may appear in the logs of your network-requester as something like `api-0.core.keybaseapi.com:443`, you **only need** to include the main domain name, in this instance `keybaseapi.com`
 

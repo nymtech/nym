@@ -22,6 +22,7 @@
 - [NymConnect X Matrix](tutorials/matrix.md)
 - [NymConnect X Telegram](tutorials/telegram.md)
 - [NymConnect X Electrum](tutorials/electrum.md)
+- [NymConnect X Firo wallet](tutorials/firo.md)
 
 # Code Examples 
 

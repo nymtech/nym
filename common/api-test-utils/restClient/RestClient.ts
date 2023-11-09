@@ -1,15 +1,9 @@
-import axios, {
-  AxiosInstance,
-  AxiosRequestConfig,
-  AxiosResponse,
-  Method,
-} from "axios";
+
 import { Logger } from "tslog";
 import { stringify } from "yaml";
-
 import https from "https";
-
 import ConfigHandler from "../config/configHandler";
+const { createMixFetch } = require("@nymproject/mix-fetch-node-commonjs");
 
 const config = ConfigHandler.getInstance();
 const log = new Logger({
@@ -19,25 +13,47 @@ const log = new Logger({
     Intl.DateTimeFormat().resolvedOptions().timeZone,
 });
 
-function isSet(property): boolean {
-  return property !== undefined && property !== null;
-}
-
 export class RestClient {
   public static authToken: string;
-
-  private axiosInstance: AxiosInstance;
+  private baseUrl: string;
+  private mixFetch: any;
 
   constructor(baseUrl: string) {
-    this.axiosInstance = axios.create({ baseURL: baseUrl });
+    this.baseUrl = baseUrl;
+    this.mixFetch = this.initialiseMixFetch
   }
 
-  private httpsAgent = new https.Agent({
-    rejectUnauthorized: false,
-  });
 
-  // Not returning an actual auth token for this example project.
-  // Just showing how it can be done!
+  // MIXFETCH 
+  private initialiseMixFetch() {
+    const extra = {
+      hiddenGateways: [
+        {
+          owner: "n1ns3v70ul9gnl9l9fkyz8cyxfq75vjcmx8el0t3",
+          host: "sandbox-gateway1.nymtech.net",
+          explicitIp: "35.158.238.80",
+          identityKey: "HjNEDJuotWV8VD4ufeA1jeheTnfNJ7Jorevp57hgaZua",
+          sphinxKey: "BoXeUD7ERGmzRauMjJD3itVNnQiH42ncUb6kcVLrb3dy",
+        },
+      ],
+    };
+
+    const mixFetchOptions = {
+      nymApiUrl: "https://sandbox-nym-api1.nymtech.net/api",
+      preferredGateway: "HjNEDJuotWV8VD4ufeA1jeheTnfNJ7Jorevp57hgaZua",
+      preferredNetworkRequester:
+        "AzGdJ4MU78Ex22NEWfeycbN7bt3PFZr1MtKstAdhfELG.GSxnKnvKPjjQm3FdtsgG5KyhP6adGbPHRmFWDH4XfUpP@HjNEDJuotWV8VD4ufeA1jeheTnfNJ7Jorevp57hgaZua",
+      mixFetchOverride: {
+        requestTimeoutMs: 60_000,
+      },
+      forceTls: true,
+      extra,
+    };
+
+    const { mixFetch } = await createMixFetch(mixFetchOptions);
+    return mixFetch;
+  }
+
   static async getToken(requestHeaders: object) {
     requestHeaders["Authorization"] = `asdf`;
   }
@@ -50,15 +66,10 @@ export class RestClient {
     data,
     additionalConfigs,
     params,
-  }: IAxiosCallEndpointArgs): Promise<AxiosResponse> {
+  }: any): Promise<any> {
     let response;
     let responseLog = "Response: ";
-    let requestHeaders = headers;
-
-    // if headers are not passed in, use the default headers
-    if (requestHeaders == undefined) {
-      requestHeaders = { ...config.commonConfig.request_headers };
-    }
+    let requestHeaders = headers || {};
 
     // if authToken is passed in, add it to the request headers
     if (authToken !== undefined) {
@@ -68,10 +79,7 @@ export class RestClient {
           Authorization: `Bearer ${authToken}`,
         },
       };
-    }
-
-    // if we have not set the auth headers yet, set them
-    else if (!requestHeaders.Authorization) {
+    } else if (!requestHeaders.Authorization) {
       await RestClient.getToken(requestHeaders);
     }
 
@@ -86,116 +94,31 @@ export class RestClient {
       }),
     );
 
-    await this.axiosInstance
-      .request({
-        url: route,
-        method,
-        data,
-        headers: requestHeaders,
-        httpsAgent: this.httpsAgent,
-        params,
-        ...additionalConfigs,
-      })
-      .then((res) => {
-        response = res;
-        responseLog = `<Success> Status = ${res.status} ${res.statusText}`;
-      })
-      .catch((error) => {
-        response = error.response;
-        if (response === undefined)
-          responseLog = `<Error> Something wrong happened, did not get proper error from server! (${error.message})`;
-        else
-          responseLog = `<Error> Status = ${response.status} ${response.statusText}, ${error.message}`;
-      });
+    const mixRequestInit: MixRequestInit = {
+      method,
+      headers: requestHeaders,
+      agent: new https.Agent({
+        rejectUnauthorized: false,
+      }),
+      body: data,
+      params,
+      ...additionalConfigs,
+    };
+
+    try {
+      const res = await this.mixFetch(`${this.baseUrl}${route}`, mixRequestInit);
+      response = res;
+      responseLog = `<Success> Status = ${res.status} ${res.statusText}`;
+    } catch (error) {
+      response = error.response;
+      if (response === undefined)
+        responseLog = `<Error> Something wrong happened, did not get proper error from the server! (${error.message})`;
+      else
+        responseLog = `<Error> Status = ${response.status} ${response.statusText}, ${error.message}`;
+    }
+
     log.debug(responseLog);
     return response;
-  }
-
-  public async sendPost({
-    route,
-    authToken,
-    data,
-    params,
-    headers,
-    additionalConfigs,
-  }: IAxiosHttpRequestArgs): Promise<any> {
-    return this.callEndpoint({
-      route,
-      method: "POST",
-      authToken,
-      data,
-      params,
-      headers,
-      additionalConfigs,
-    });
-  }
-
-  public async sendGet({
-    route,
-    authToken,
-    params,
-    headers,
-    additionalConfigs,
-  }: IAxiosHttpRequestArgs): Promise<any> {
-    return this.callEndpoint({
-      route,
-      method: "GET",
-      authToken,
-      params,
-      headers,
-      additionalConfigs,
-    });
-  }
-
-  public async sendDelete({
-    route,
-    authToken,
-    params,
-    headers,
-    additionalConfigs,
-  }: IAxiosHttpRequestArgs): Promise<any> {
-    return this.callEndpoint({
-      route,
-      method: "DELETE",
-      authToken,
-      params,
-      headers,
-      additionalConfigs,
-    });
-  }
-
-  public async sendPatch({
-    route,
-    authToken,
-    data,
-    headers,
-    additionalConfigs,
-  }: IAxiosHttpRequestArgs): Promise<any> {
-    return this.callEndpoint({
-      route,
-      method: "PATCH",
-      authToken,
-      data,
-      headers,
-      additionalConfigs,
-    });
-  }
-
-  public async sendPut({
-    route,
-    authToken,
-    data,
-    headers,
-    additionalConfigs,
-  }: IAxiosHttpRequestArgs): Promise<any> {
-    return this.callEndpoint({
-      route,
-      method: "PUT",
-      authToken,
-      data,
-      headers,
-      additionalConfigs,
-    });
   }
 
   private static prepareLogRecord({
@@ -205,39 +128,20 @@ export class RestClient {
     data,
     additionalConfigs,
     params,
-  }: IAxiosCallEndpointArgs): string {
+  }: any): string {
     let logRecord = `Request: ${method} ${route}`;
-    if (isSet(headers))
-      logRecord = `${logRecord}\nHeaders: ${stringify(headers)}`;
-
-    if (isSet(params)) logRecord = `${logRecord}\nParams: ${stringify(params)}`;
-
-    if (isSet(additionalConfigs)) {
+    if (headers) logRecord = `${logRecord}\nHeaders: ${stringify(headers)}`;
+    if (params) logRecord = `${logRecord}\nParams: ${stringify(params)}`;
+    if (additionalConfigs)
       logRecord = `${logRecord}\nAdditional Configuration: ${stringify(
         additionalConfigs,
       )}`;
-    }
-
-    if (isSet(data)) {
+    if (data) {
       const jsonData = stringify(data);
-      // We don't want to log anything that isn't json data
       logRecord = `${logRecord}\nData: ${
         jsonData === undefined ? "Some data, not JSON!" : jsonData
       }`;
     }
     return logRecord;
   }
-}
-
-export interface IAxiosHttpRequestArgs {
-  route: string;
-  authToken?: string;
-  data?: object;
-  params?: object;
-  headers?: any;
-  additionalConfigs?: AxiosRequestConfig;
-}
-
-export interface IAxiosCallEndpointArgs extends IAxiosHttpRequestArgs {
-  method: Method;
 }

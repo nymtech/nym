@@ -24,6 +24,9 @@
     "npm": "8.x"
   },
   "dependencies": {
+    "@nymproject/mix-fetch": "^1.2.4-rc.0",
+    "@nymproject/mix-fetch-node-commonjs": "^1.2.4-rc.0",
+    "@nymproject/mix-fetch-wasm-node": ">=1.2.1-rc.0 || ^1",
     "axios": "^0.27.2",
     "eslint": "^8.21.0",
     "form-data": "4.0.0",

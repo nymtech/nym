@@ -74,7 +74,7 @@ If we follow the previous example with `<ID>` chosen `superexitgateway`, adding 
 
 ~~~admonish example collapsible=true title="Console output"
 ```
-<!-- cmdrun ../../../../target/release/nym-gateway init --id superexitgateway --host $(curl -4 https://ifconfig.me) --with-network-requester --with-exit-policy true -->
+<!-- cmdrun ../../../../target/release/nym-gateway init --id superexitgateway --listening-address 0.0.0.0 --public-ips "$(curl -4 https://ifconfig.me)" --with-network-requester --with-exit-policy true -->
 ```
 ~~~
 
@@ -114,7 +114,7 @@ Say we have a Gateway with `<ID>` as `new-gateway`, originally initialised and r
 ~~~admonish example collapsible=true title="Console output"
 ```
 <!-- cmdrun rm -rf $HOME/.nym/gateways/new-gateway -->
-<!-- cmdrun ../../../../target/release/nym-gateway init --id new-gateway --host $(curl -4 https://ifconfig.me) && ../../../../target/release/nym-gateway setup-network-requester --enabled true --with-exit-policy true --id new-gateway -->
+<!-- cmdrun ../../../../target/release/nym-gateway init --id new-gateway --listening-address 0.0.0.0 --public-ips "$(curl -4 https://ifconfig.me)" && ../../../../target/release/nym-gateway setup-network-requester --enabled true --with-exit-policy true --id new-gateway -->
 ```
 ~~~
 
@@ -166,12 +166,12 @@ To check available configuration options use:
 The following command returns a Gateway on your current IP with the `<ID>` of `simple-gateway`:
 
 ```
-./nym-gateway init --id simple-gateway --host $(curl -4 https://ifconfig.me)
+./nym-gateway init --id simple-gateway --listening-address 0.0.0.0 --public-ips "$(curl -4 https://ifconfig.me)"
 ```
 
 ~~~admonish example collapsible=true title="Console output"
 ```
-<!-- cmdrun ../../../../target/release/nym-gateway init --id simple-gateway --host $(curl -4 https://ifconfig.me) -->
+<!-- cmdrun ../../../../target/release/nym-gateway init --id simple-gateway --listening-address 0.0.0.0 --public-ips "$(curl -4 https://ifconfig.me)" -->
 ```
 ~~~
 

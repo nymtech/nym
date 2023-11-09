@@ -1,5 +1,5 @@
-import React, { useCallback, useContext, useState, useEffect } from 'react';
-import { Box, Typography, SxProps } from '@mui/material';
+import React, { useCallback, useContext, useState, useEffect, ChangeEvent } from 'react';
+import { Box, Typography, SxProps, TextField } from '@mui/material';
 import { IdentityKeyFormField } from '@nymproject/react/mixnodes/IdentityKeyFormField';
 import { CurrencyFormField } from '@nymproject/react/currency/CurrencyFormField';
 import { CurrencyDenom, FeeDetails, DecCoin, decimalToFloatApproximation } from '@nymproject/types';
@@ -76,8 +76,18 @@ export const DelegateModal: FCWithChildren<{
 
   const { fee, getFee, resetFeeState, feeError } = useGetFee();
 
-  const { username, connect, disconnect, wallet, openView, address, getCosmWasmClient, isWalletConnected } =
-    useChain('nyx');
+  const {
+    username,
+    connect,
+    disconnect,
+    wallet,
+    openView,
+    address,
+    getCosmWasmClient,
+    isWalletConnected,
+    getSigningCosmWasmClient,
+  } = useChain('nyx');
+
   const [balance, setBalance] = useState<{
     status: 'loading' | 'success';
     data?: string;
@@ -85,8 +95,6 @@ export const DelegateModal: FCWithChildren<{
 
   useEffect(() => {
     const getBalance = async (walletAddress: string) => {
-      setBalance({ status: 'loading', data: undefined });
-
       const account = await getCosmWasmClient();
       const uNYMBalance = await account.getBalance(walletAddress, 'unym');
       const NYMBalance = uNYMtoNYM(uNYMBalance.amount).asString();
@@ -123,9 +131,14 @@ export const DelegateModal: FCWithChildren<{
       newValidatedValue = false;
     }
 
-    // if (!mixId) {
-    //   newValidatedValue = false;
-    // }
+    if (!mixId) {
+      newValidatedValue = false;
+    }
+
+    if (amount && balance.data && +balance.data - +amount <= 0) {
+      errorAmountMessage = 'Not enough funds';
+      newValidatedValue = false;
+    }
 
     setErrorIdentityKey(errorIdentityKeyMessage);
     if (mixIdError && !errorIdentityKeyMessage) {
@@ -141,23 +154,7 @@ export const DelegateModal: FCWithChildren<{
     }
   };
 
-  const handleConfirm = async ({ mixId: id, value }: { mixId: number; value: DecCoin }) => {
-    const tokenPool = 'balance';
-    const hasEnoughTokens = checkTokenBalance(tokenPool, value.amount, balance.data || '0');
-
-    if (!hasEnoughTokens) {
-      setErrorAmount('Not enough funds');
-      return;
-    }
-
-    if (tokenPool === 'balance') {
-      getFee(simulateDelegateToMixnode, { mixId: id, amount: value });
-    }
-
-    //   if (tokenPool === 'locked') {
-    //     getFee(simulateVestingDelegateToMixnode, { mixId: id, amount: value });
-    //   }
-  };
+  const handleConfirm = async ({ mixId: id, value }: { mixId: number; value: DecCoin }) => {};
 
   const handleIdentityKeyChanged = (newIdentityKey: string) => {
     setIdentityKey(newIdentityKey);
@@ -165,6 +162,14 @@ export const DelegateModal: FCWithChildren<{
     if (onIdentityKeyChanged) {
       onIdentityKeyChanged(newIdentityKey);
     }
+  };
+
+  // const handleMixIDChanged = (newMixID: string) => {
+  //   setMixId(Number(newMixID));
+  // };
+  const handleMixIDChanged = (event: ChangeEvent<HTMLInputElement>) => {
+    const newValue = event.target.value;
+    setMixId(Number(newValue));
   };
 
   const handleAmountChanged = (newAmount: DecCoin) => {
@@ -177,33 +182,7 @@ export const DelegateModal: FCWithChildren<{
 
   React.useEffect(() => {
     validate();
-  }, [amount, identityKey, mixIdError]);
-
-  const resolveMixId = useCallback(
-    debounce(async (idKey) => {
-      if (!idKey || !validateKey(idKey, 32)) {
-        return;
-      }
-      let res;
-      try {
-        res = await tryConvertIdentityToMixId(idKey);
-      } catch (e) {
-        Console.warn(`failed to resolve mix_id for "${idKey}": ${e}`);
-        return;
-      }
-      if (res) {
-        setMixId(res);
-        setMixIdError(undefined);
-      } else {
-        setMixIdError('Mixnode with this identity does not seem to be currently bonded');
-      }
-    }, 500),
-    [],
-  );
-
-  React.useEffect(() => {
-    resolveMixId(identityKey);
-  }, [identityKey]);
+  }, [amount, identityKey, mixId]);
 
   if (fee) {
     return (
@@ -253,7 +232,7 @@ export const DelegateModal: FCWithChildren<{
       sx={sx}
       backdropProps={backdropProps}
     >
-      <Box sx={{ mt: 3 }}>
+      <Box sx={{ mt: 3 }} gap={2}>
         <IdentityKeyFormField
           required
           fullWidth
@@ -266,17 +245,27 @@ export const DelegateModal: FCWithChildren<{
           }}
           showTickOnValid={false}
         />
+        <Typography
+          component="div"
+          textAlign="left"
+          variant="caption"
+          sx={{ color: 'error.main', mx: 2, mt: errorIdentityKey && 1 }}
+        >
+          {errorIdentityKey}
+        </Typography>
       </Box>
-      <Typography
-        component="div"
-        textAlign="left"
-        variant="caption"
-        sx={{ color: 'error.main', mx: 2, mt: errorIdentityKey && 1 }}
-      >
-        {errorIdentityKey}
-      </Typography>
+      <Box sx={{ mt: 3 }} gap={2}>
+        <TextField
+          fullWidth={true}
+          required
+          label={'MixID'}
+          error={mixIdError !== undefined}
+          helperText={mixIdError}
+          onChange={handleMixIDChanged}
+          InputLabelProps={{ shrink: true }}
+        />
+      </Box>
       <Box display="flex" gap={2} alignItems="center" sx={{ mt: 3 }}>
-        {/* {hasVestingContract && <TokenPoolSelector disabled={false} onSelect={(pool) => setTokenPool(pool)} />} */}
         <CurrencyFormField
           required
           fullWidth

@@ -60,12 +60,14 @@ Before you start an Exit Gateway, read our [Operators Legal Forum](../legal/exit
 There has been an ongoing development with dynamic upgrades. Follow the status of the Project Smoosh [changes](../faq/smoosh-faq.md#what-are-the-changes) and the progression state of exit policy [implementation](../faq/smoosh-faq.html#how-will-the-exit-policy-be-implemented) to be up to date with the current design.
 ```
 
+**Note:** Due to the development towards Exit Gateway functionality the `--host` flag has been replaced with `--listening-address`, this is the IP address which is used for receiving sphinx packets and listening to client data. Another flag `--public-ips` is required; it’s a comma separated list of IP’s that are announced to the `nym-api`, it is usually the address which is used for bonding.
+
 ### Initialising Exit Gateway
 
 An operator can initialise the Exit Gateway functionality by adding Network requester with the new exit policy option:
 
 ```
-./nym-gateway init --id <ID> --host $(curl -4 https://ifconfig.me) --with-network-requester --with-exit-policy true
+./nym-gateway init --id <ID> --listening-address 0.0.0.0 --public-ips "$(curl -4 https://ifconfig.me)" --with-network-requester --with-exit-policy true
 ```
 
 If we follow the previous example with `<ID>` chosen `superexitgateway`, adding the `--with-network-requester` and `--with-exit-policy` flags, the outcome will be:

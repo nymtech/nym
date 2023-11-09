@@ -1,4 +1,4 @@
-# Firo-Electrum NymConnect Integration
+# Firo-Electrum Wallet NymConnect Integration
 
 <!--add intro-->
 

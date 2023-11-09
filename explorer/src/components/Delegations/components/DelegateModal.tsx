@@ -35,14 +35,14 @@ export const DelegateModal: FCWithChildren<{
   onAmountChanged?: (amount: string) => void;
   header?: string;
   buttonText?: string;
-  rewardInterval: string;
+  rewardInterval?: string;
   // accountBalance?: string;
   estimatedReward?: number;
   profitMarginPercentage?: string | null;
   nodeUptimePercentage?: number | null;
   denom: CurrencyDenom;
   initialAmount?: string;
-  hasVestingContract: boolean;
+  hasVestingContract?: boolean;
   sx?: SxProps;
   backdropProps?: object;
 }> = ({
@@ -154,7 +154,17 @@ export const DelegateModal: FCWithChildren<{
     }
   };
 
-  const handleConfirm = async ({ mixId: id, value }: { mixId: number; value: DecCoin }) => {};
+  // const handleConfirm = async ({ mixId: id, value }: { mixId: number; value: DecCoin }) => {
+  //   const SCWClient = await getSigningCosmWasmClient();
+
+  //   console.log('SCWClient :>> ', SCWClient);
+  // };
+
+  const handleConfirm = async () => {
+    const SCWClient = await getSigningCosmWasmClient();
+
+    console.log('SCWClient :>> ', SCWClient);
+  };
 
   const handleIdentityKeyChanged = (newIdentityKey: string) => {
     setIdentityKey(newIdentityKey);
@@ -164,9 +174,6 @@ export const DelegateModal: FCWithChildren<{
     }
   };
 
-  // const handleMixIDChanged = (newMixID: string) => {
-  //   setMixId(Number(newMixID));
-  // };
   const handleMixIDChanged = (event: ChangeEvent<HTMLInputElement>) => {
     const newValue = event.target.value;
     setMixId(Number(newValue));
@@ -184,51 +191,52 @@ export const DelegateModal: FCWithChildren<{
     validate();
   }, [amount, identityKey, mixId]);
 
-  if (fee) {
-    return (
-      <ConfirmTx
-        open
-        header="Delegation details"
-        fee={fee}
-        onClose={onClose}
-        onPrev={resetFeeState}
-        onConfirm={handleOk}
-      >
-        {balance.data && fee?.amount?.amount && (
-          <Box sx={{ my: 2 }}>
-            <BalanceWarning fee={fee?.amount?.amount} tx={amount} />
-          </Box>
-        )}
-        <ModalListItem label="Node identity key" value={identityKey} divider />
-        <ModalListItem label="Amount" value={`${amount} ${denom.toUpperCase()}`} divider />
-      </ConfirmTx>
-    );
-  }
+  // if (fee) {
+  //   return (
+  //     <ConfirmTx
+  //       open
+  //       header="Delegation details"
+  //       fee={fee}
+  //       onClose={onClose}
+  //       onPrev={resetFeeState}
+  //       onConfirm={handleOk}
+  //     >
+  //       {balance.data && fee?.amount?.amount && (
+  //         <Box sx={{ my: 2 }}>
+  //           <BalanceWarning fee={fee?.amount?.amount} tx={amount} />
+  //         </Box>
+  //       )}
+  //       <ModalListItem label="Node identity key" value={identityKey} divider />
+  //       <ModalListItem label="Amount" value={`${amount} ${denom.toUpperCase()}`} divider />
+  //     </ConfirmTx>
+  //   );
+  // }
 
-  if (feeError) {
-    return (
-      <ErrorModal
-        title="Something went wrong while calculating fee. Are you sure you entered a valid node address?"
-        message={feeError}
-        sx={sx}
-        open={open}
-        onClose={onClose}
-      />
-    );
-  }
+  // if (feeError) {
+  //   return (
+  //     <ErrorModal
+  //       title="Something went wrong while calculating fee. Are you sure you entered a valid node address?"
+  //       message={feeError}
+  //       sx={sx}
+  //       open={open}
+  //       onClose={onClose}
+  //     />
+  //   );
+  // }
 
   return (
     <SimpleModal
       open={open}
       onClose={onClose}
-      onOk={async () => {
-        if (mixId && amount) {
-          handleConfirm({ mixId, value: { amount, denom } });
-        }
-      }}
+      // onOk={async () => {
+      //   if (mixId && amount) {
+      //     handleConfirm({ mixId, value: { amount, denom } });
+      //   }
+      // }}
+      onOk={async () => handleConfirm()}
       header={header || 'Delegate'}
       okLabel={buttonText || 'Delegate stake'}
-      okDisabled={!isValidated}
+      okDisabled={isValidated}
       sx={sx}
       backdropProps={backdropProps}
     >
@@ -281,8 +289,8 @@ export const DelegateModal: FCWithChildren<{
         <ModalListItem label="Account balance" value={`${balance.data} NYM`} divider fontWeight={600} />
       </Box>
 
-      <ModalListItem label="Rewards payout interval" value={rewardInterval} hidden divider />
-      <ModalListItem
+      {/* <ModalListItem label="Rewards payout interval" value={rewardInterval} hidden divider /> */}
+      {/* <ModalListItem
         label="Node profit margin"
         value={`${profitMarginPercentage ? `${profitMarginPercentage}%` : '-'}`}
         hidden={profitMarginPercentage === undefined}
@@ -293,14 +301,14 @@ export const DelegateModal: FCWithChildren<{
         value={`${nodeUptimePercentage ? `${nodeUptimePercentage}%` : '-'}`}
         hidden={nodeUptimePercentage === undefined}
         divider
-      />
+      /> */}
 
-      <ModalListItem
+      {/* <ModalListItem
         label="Node est. reward per epoch"
         value={`${estimatedReward} ${denom.toUpperCase()}`}
         hidden
         divider
-      />
+      /> */}
       <ModalListItem label="Est. fee for this transaction will be calculated in the next page" />
     </SimpleModal>
   );

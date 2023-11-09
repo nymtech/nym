@@ -30,6 +30,7 @@ export const TableToolbar: FCWithChildren<TableToolBarProps> = ({
   withFilters,
 }) => {
   const [showNewDelegationModal, setShowNewDelegationModal] = useState<boolean>(false);
+
   const assetsFixedUp = useMemo(() => {
     const nyx = assets.find((a) => a.chain_name === 'nyx');
     if (nyx) {
@@ -143,14 +144,9 @@ export const TableToolbar: FCWithChildren<TableToolBarProps> = ({
           <DelegateModal
             open={showNewDelegationModal}
             onClose={() => setShowNewDelegationModal(false)}
-            onOk={undefined}
             header="Delegate"
             buttonText="Delegate stake"
             denom={'nym'} // clientDetails?.display_mix_denom || 'nym'}
-            // accountBalance={'balance?.printable_balance' || 'error reading balance'}
-            rewardInterval="weekly"
-            hasVestingContract={true}
-            // {...storybookStyles(theme, isStorybook)}
           />
         </ChainProvider>
       )}

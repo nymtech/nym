@@ -120,6 +120,28 @@ pub(crate) enum NymvisorError {
         source: io::Error,
     },
 
+    #[error("could not create the backup file at {} before performing binary upgrade: {source}", path.display())]
+    BackupFileCreationFailure {
+        path: PathBuf,
+        #[source]
+        source: io::Error,
+    },
+
+    #[error("could not tar backup directory {} to {}: {source}", data_source.display(), path.display())]
+    BackupTarFailure {
+        path: PathBuf,
+        data_source: PathBuf,
+        #[source]
+        source: io::Error,
+    },
+
+    #[error("could not finalize the tar backup file at {}: {source}", path.display())]
+    BackupTarFinalizationFailure {
+        path: PathBuf,
+        #[source]
+        source: io::Error,
+    },
+
     #[error("failed to initialise the path '{}': {source}", path.display())]
     PathInitFailure {
         path: PathBuf,

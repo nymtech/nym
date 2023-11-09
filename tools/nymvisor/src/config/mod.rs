@@ -26,6 +26,8 @@ pub(crate) const DEFAULT_UPSTREAM_POLLING_RATE: Duration = Duration::from_secs(6
 pub(crate) const DEFAULT_BASE_UPSTREAM_UPGRADE_INFO_SOURCE: &str =
     "https://nymtech.net/.wellknown/";
 
+pub(crate) const DAEMON_CONFIG_DIR: &str = "config";
+pub(crate) const DAEMON_DATA_DIR: &str = "data";
 pub(crate) const UPGRADE_PLAN_FILENAME: &str = "upgrade-plan.json";
 pub(crate) const UPGRADE_HISTORY_FILENAME: &str = "upgrade-history.json";
 pub(crate) const UPGRADE_LOCK_FILENAME: &str = "upgrade.lock";
@@ -231,10 +233,22 @@ impl Config {
         }
     }
 
+    // e.g. $HOME/.nym/nym-api/<id>/nymvisor
     pub fn daemon_nymvisor_dir(&self) -> PathBuf {
         self.daemon.home.join(NYMVISOR_DIR)
     }
 
+    // e.g. $HOME/.nym/nym-api/<id>/data
+    pub fn daemon_data_dir(&self) -> PathBuf {
+        self.daemon.home.join(DAEMON_DATA_DIR)
+    }
+
+    // e.g. $HOME/.nym/nym-api/<id>/config
+    pub fn daemon_config_dir(&self) -> PathBuf {
+        self.daemon.home.join(DAEMON_CONFIG_DIR)
+    }
+
+    // e.g. $HOME/.nym/nym-apis/<id>/nymvisor/backups
     pub fn daemon_backup_dir(&self) -> PathBuf {
         if let Some(backup_dir) = &self.daemon.debug.backup_data_directory {
             backup_dir.clone()

@@ -19,7 +19,7 @@ Make sure you do the preparation listed in the [preliminary steps page](../preli
 
 ## Network Requester Whitelist
 
-If you have access to a server, you can run the Network requester, which allows Nym users to send outbound requests from their local machine through the mixnet to a server, which then makes the request on their behalf, shielding them (and their metadata) from clearnet, untrusted and unknown infrastructure, such as email or message client servers.
+If you have access to a server, you can run the Network requester, which allows Nym users to send outbound requests from their local machine through the Mixnet to a server, which then makes the request on their behalf, shielding them (and their metadata) from clearnet, untrusted and unknown infrastructure, such as email or message client servers.
 
 By default the network requester is **not** an open proxy (although it can be used as one). It uses a file called `allowed.list` (located in `~/.nym/service-providers/network-requester/<NETWORK-REQUESTER-ID>/`) as a whitelist for outbound requests.
 
@@ -143,7 +143,7 @@ You can check the required parameters for available commands by running:
 
 ## Initializing and running your Network requester
 
-The Network requester needs to be initialized before it can be run. This is required for the embedded nym-client to connect successfully to the mixnet. We want to specify an `<ID>` using the `--id` command and give it a value of your choice. The following command will achieve that:
+The Network requester needs to be initialized before it can be run. This is required for the embedded nym-client to connect successfully to the Mixnet. We want to specify an `<ID>` using the `--id` command and give it a value of your choice. The following command will achieve that:
 
 ```
  ./nym-network-requester init --id <YOUR_ID>

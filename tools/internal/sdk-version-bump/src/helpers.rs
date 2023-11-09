@@ -29,7 +29,12 @@ pub(crate) trait ReleasePackage: Sized {
     fn bump_version(&mut self, pre_release: bool) -> anyhow::Result<()> {
         let version = self.get_current_version()?;
         let updated = if pre_release {
-            version.try_bump_prerelease()?
+            if version.pre.is_empty() {
+                let patch_updated = version.try_bump_patch_without_pre()?;
+                patch_updated.set_initial_release_candidate()?
+            } else {
+                version.try_bump_prerelease()?
+            }
         } else {
             version.try_bump_patch_without_pre()?
         };

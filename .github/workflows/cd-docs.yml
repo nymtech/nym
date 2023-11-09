@@ -3,7 +3,6 @@ name: cd-docs
 on:
   workflow_dispatch:
   push:
-    branches: master
     paths:
       - 'documentation/docs/**'
 

@@ -1,4 +1,4 @@
-import type { DebugWasm } from '@nymproject/nym-client-wasm';
+import type { ClientOpts } from '@nymproject/nym-client-wasm';
 
 /**
  *
@@ -7,7 +7,7 @@ import type { DebugWasm } from '@nymproject/nym-client-wasm';
  * @internal
  */
 export interface IWebWorker {
-  start: (config: NymClientConfig) => void;
+  start: (opts?: ClientOpts) => void;
   stop: () => void;
   selfAddress: () => string | undefined;
   setTextMimeTypes: (mimeTypes: string[]) => void;
@@ -30,7 +30,7 @@ export interface Client {
    * });
    *
    */
-  start: (config: NymClientConfig) => Promise<void>;
+  start: (opts?: ClientOpts) => Promise<void>;
   /**
    * Stop the client.
    * @example
@@ -128,36 +128,6 @@ export interface Client {
    * @see {@link Payload}
    */
   rawSend: (args: { payload: Uint8Array; recipient: string; replySurbs?: number }) => Promise<void>;
-}
-
-/**
- * The configuration passed to the {@link Client.start} method of the {@link Client}
- */
-export interface NymClientConfig {
-  /**
-   * A human-readable id for the client.
-   */
-  clientId: string;
-
-  /**
-   * The URL of a validator API to query for the network topology.
-   */
-  nymApiUrl: string;
-
-  /**
-   * Optional. The identity key of the preferred gateway to connect to.
-   */
-  preferredGatewayIdentityKey?: string;
-
-  /**
-   * Optional. The listener websocket of the preferred gateway to connect to.
-   */
-  gatewayListener?: string;
-
-  /**
-   * Optional. Settings for the WASM client.
-   */
-  debug?: DebugWasm;
 }
 
 export interface Events {

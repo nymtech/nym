@@ -4,6 +4,18 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [2023.4-galaxy] (2023-11-07)
+
+- DRY up client cli ([#4077])
+- [mixnode] replace rocket with axum ([#4071])
+- incorporate the nym node HTTP api into the mixnode ([#4070])
+- replaced '--disable-sign-ext' with '--signext-lowering' when running wasm-opt ([#3896])
+
+[#4077]: https://github.com/nymtech/nym/pull/4077
+[#4071]: https://github.com/nymtech/nym/pull/4071
+[#4070]: https://github.com/nymtech/nym/issues/4070
+[#3896]: https://github.com/nymtech/nym/pull/3896
+
 ## [2023.3-kinder] (2023-10-31)
 
 - suppress error output ([#4056])
@@ -15,6 +27,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - use saturating sub in case outfox is not enabled ([#3986])
 - Fix sorting for mixnodes and gateways ([#3985])
 - Gateway client registry and api routes ([#3955])
+- Feature/configurable socks5 bind address ([#3992])
 
 [#4056]: https://github.com/nymtech/nym/pull/4056
 [#4042]: https://github.com/nymtech/nym/pull/4042
@@ -25,6 +38,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 [#3986]: https://github.com/nymtech/nym/pull/3986
 [#3985]: https://github.com/nymtech/nym/pull/3985
 [#3955]: https://github.com/nymtech/nym/pull/3955
+[#3992]: https://github.com/nymtech/nym/pull/3992
 
 ## [2023.1-milka] (2023-09-24)
 

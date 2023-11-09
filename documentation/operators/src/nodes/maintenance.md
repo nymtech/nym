@@ -29,7 +29,7 @@ Follow these steps to upgrade your Mix node binary and update its config file:
 * re-run `init` with the same values as you used initially. **This will just update the config file, it will not overwrite existing keys**.
 * restart your Mix node process with the new binary.
 
-> In case of a network requester this is all all, the following step is only for Mix nodes and Gateways.
+> In case of a Network requester this is all all, the following step is only for Mix nodes and Gateways.
 
 ### Step 2: Updating your node information in the smart contract
 Follow these steps to update the information about your `<NODE>` which is publicly available from the [Nym API](https://validator.nymtech.net/api/swagger/index.html) and information displayed on the [mixnet explorer](https://explorer.nymtech.net).
@@ -53,9 +53,9 @@ If you want to bond your `<NODE>` via the CLI, then check out the [relevant sect
 
 In the previous version of the network-requester, users were required to run a nym-client along side it to function. As of `v1.1.10`, the network-requester now has a nym client embedded into the binary, so it can run standalone.
 
-If you are running an existing network requester registered with nym-connect, upgrading requires you move your old keys over to the new network requester configuration. We suggest following these instructions carefully to ensure a smooth transition.
+If you are running an existing Network requester registered with nym-connect, upgrading requires you move your old keys over to the new Network requester configuration. We suggest following these instructions carefully to ensure a smooth transition.
 
-Initiate the new network requester:
+Initiate the new Network requester:
 
 ```sh
 nym-network-requester init --id <YOUR_ID>
@@ -496,7 +496,7 @@ The ulimit setup is relevant for maintenance of nym Mix node only.
 Query the `ulimit` of your `<NODE>` with:
 
 ```sh
-# for nym-mixnode, nym-gateway and nym-network requester:
+# for nym-mixnode, nym-gateway and nym-network-requester:
 grep -i "open files" /proc/$(ps -A -o pid,cmd|grep <NODE> | grep -v grep |head -n 1 | awk '{print $1}')/limits
 
 # for nyx validator:
@@ -533,7 +533,7 @@ echo "DefaultLimitNOFILE=65535" >> /etc/systemd/system.conf
 
 Reboot your machine and restart your node. When it comes back, use:
 ```sh
-# for nym-mixnode, nym-gateway and nym-network requester:
+# for nym-mixnode, nym-gateway and nym-network-requester:
 cat /proc/$(pidof <NODE>)/limits | grep "Max open files"
 
 # for validator

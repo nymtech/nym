@@ -1,4 +1,4 @@
-# Electrum NymConnect Integration
+# Electrum Wallet NymConnect Integration
 
 Electrum is one of the most favorite Bitcoin wallet for desktop users and it is used as a backend wallet for various crypto aplications in smart phones. Electrum was among the first integrations of Nym. This easy setup allows users to enhance privacy when managing the flagship of blochain cryptocurencies Bitcoin.
 

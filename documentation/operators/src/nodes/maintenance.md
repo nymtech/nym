@@ -16,7 +16,7 @@ For example `./target/debug/nym-network-requester --no-banner build-info --outpu
 
 ## Upgrading your node
 
-> The process is the similar for mix node, gateway and network requester. In the following steps we use a placeholder `<NODE>` in the commands, please change it for the type of node you want to upgrade. Any particularities for the given type of node are included.
+> The process is the similar for Mix node, Gateway and Network requester. In the following steps we use a placeholder `<NODE>` in the commands, please change it for the type of node you want to upgrade. Any particularities for the given type of node are included.
 
 Upgrading your node is a two-step process:
 * Updating the binary and `~/.nym/<NODE>/<YOUR_ID>/config/config.toml` on your VPS
@@ -29,7 +29,7 @@ Follow these steps to upgrade your mix node binary and update its config file:
 * re-run `init` with the same values as you used initially. **This will just update the config file, it will not overwrite existing keys**.
 * restart your mix node process with the new binary.
 
-> In case of a network requester this is all all, the following step is only for mix nodes and gateways.
+> In case of a network requester this is all all, the following step is only for Mix nodes and Gateways.
 
 ### Step 2: Updating your node information in the smart contract
 Follow these steps to update the information about your `<NODE>` which is publicly available from the [Nym API](https://validator.nymtech.net/api/swagger/index.html) and information displayed on the [mixnet explorer](https://explorer.nymtech.net).
@@ -184,13 +184,13 @@ exit 0
 
 ```
 
-Although your gateway is Now ready to use its `wss_port`, your server may not be ready - the following commands will allow you to set up a properly configured firewall using `ufw`:
+Although your Gateway is Now ready to use its `wss_port`, your server may not be ready - the following commands will allow you to set up a properly configured firewall using `ufw`:
 
 ```sh
 ufw allow 9001/tcp
 ```
 
-Lastly don't forget to restart your Gateway, now the API will render the WSS details for this gateway:
+Lastly don't forget to restart your Gateway, now the API will render the WSS details for this Gateway:
 
 
 ### WSS on a new Gateway
@@ -203,7 +203,7 @@ Another flag `--public-ips` is required; it's a comma separated list of IP’s t
 
 If the operator wishes to run WSS, an optional `--hostname` flag is also required, that can be something like `mainnet-gateway2.nymtech.net`. Make sure to enable all necessary [ports](maintenance.md#configure-your-firewall) on the Gateway. 
 
-The gateway will then be accessible on something like: *http://85.159.211.99:8080/api/v1/swagger/index.html*
+The Gateway will then be accessible on something like: *http://85.159.211.99:8080/api/v1/swagger/index.html*
 
 Are you seeing something like: *this node attempted to announce an invalid public address: 0.0.0.0.*? 
 
@@ -236,7 +236,7 @@ sudo ufw status
 Finally open your `<NODE>` p2p port, as well as ports for ssh and ports for verloc and measurement pings:
 
 ```sh
-# for mix node, gateway and network requester
+# for Mix node, Gateway and Network requester
 sudo ufw allow 1789,1790,8000,9000,9001,22/tcp
 
 # In case of reverse proxy for the Gateway swagger page add:
@@ -436,7 +436,7 @@ systemctl daemon-reload # to pickup the new unit file
 # for mix node
 systemctl enable nym-mixnode.service
 
-# for gateway
+# for Gateway
 systemctl enable nym-gateway.service
 ```
 
@@ -446,7 +446,7 @@ Start your node:
 # for mix node
 service nym-mixnode start
 
-# for gateway
+# for Gateway
 service nym-gateway start
 
 ```

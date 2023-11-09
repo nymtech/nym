@@ -226,7 +226,7 @@ impl<'a> HttpApiBuilder<'a> {
         }
 
         let wireguard_private_network = IpNetwork::new(
-            IpAddr::from(Ipv4Addr::new(10, 0, 0, 0)),
+            IpAddr::from(Ipv4Addr::new(10, 1, 0, 0)),
             self.gateway_config.wireguard.private_network_prefix,
         )?;
         let wg_state = self.client_registry.map(|client_registry| {

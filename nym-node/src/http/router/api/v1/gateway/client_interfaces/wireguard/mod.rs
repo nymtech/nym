@@ -147,13 +147,13 @@ mod test {
         let registration_in_progress = Arc::new(DashMap::new());
         let client_registry = Arc::new(DashMap::new());
         let free_private_network_ips = Arc::new(
-            IpNetwork::from_str("10.0.0.0/24")
+            IpNetwork::from_str("10.1.0.0/24")
                 .unwrap()
                 .iter()
                 .map(|ip| (ip, true))
                 .collect(),
         );
-        let client_private_ip = IpAddr::from_str("10.0.0.42").unwrap();
+        let client_private_ip = IpAddr::from_str("10.1.0.42").unwrap();
 
         let state = WireguardAppState {
             inner: Some(WireguardAppStateInner {

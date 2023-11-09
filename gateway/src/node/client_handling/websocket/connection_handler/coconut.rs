@@ -252,7 +252,7 @@ impl CredentialSender {
                     log::trace!("client_handling::credentialSender : received shutdown");
                 },
                 Some(credential) = self.cred_receiver.next() => self.handle_credential(credential).await,
-                _ = interval.tick(), if self.pending.len() > 0 => self.try_empty_pending().await,
+                _ = interval.tick(), if !self.pending.is_empty() => self.try_empty_pending().await,
 
             }
         }

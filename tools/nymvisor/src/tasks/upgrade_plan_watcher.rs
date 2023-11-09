@@ -6,6 +6,7 @@ use crate::error::NymvisorError;
 use async_file_watcher::{AsyncFileWatcher, FileWatcherEventReceiver, NotifyResult};
 use futures::channel::mpsc;
 use tokio::task::JoinHandle;
+use tracing::warn;
 
 pub(crate) fn start_upgrade_plan_watcher(
     config: &Config,
@@ -14,7 +15,11 @@ pub(crate) fn start_upgrade_plan_watcher(
     let mut watcher =
         AsyncFileWatcher::new_file_changes_watcher(config.upgrade_plan_filepath(), events_sender)?;
 
-    let join_handle = tokio::spawn(async move { watcher.watch().await });
+    let join_handle = tokio::spawn(async move {
+        let res = watcher.watch().await;
+        warn!("the upgrade plan watcher has stopped");
+        res
+    });
 
     Ok((events_receiver, join_handle))
 }

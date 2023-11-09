@@ -309,6 +309,12 @@ pub(crate) enum NymvisorError {
         #[source]
         source: io::Error,
     },
+
+    #[error("the daemon has reached the maximum number of startup failures ({failures})")]
+    DaemonMaximumStartupFailures { failures: usize },
+
+    #[error("the daemon restart on failure is disabled")]
+    DisabledRestartOnFailure,
 }
 
 impl From<ExitStatus> for NymvisorError {

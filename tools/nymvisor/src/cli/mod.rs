@@ -13,7 +13,7 @@ use crate::error::NymvisorError;
 use clap::{Parser, Subcommand};
 use lazy_static::lazy_static;
 use nym_bin_common::bin_info;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use tracing::error;
 
 lazy_static! {

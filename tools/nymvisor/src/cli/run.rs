@@ -2,20 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::cli::try_load_current_config;
-use crate::daemon::Daemon;
 use crate::env::Env;
 use crate::error::NymvisorError;
-use crate::upgrades::upgrade_binary;
-use async_file_watcher::AsyncFileWatcher;
-use futures::channel::mpsc;
-use futures::future::{AbortHandle, Abortable};
-use futures::StreamExt;
+use crate::tasks::launcher::DaemonLauncher;
+use crate::tasks::upgrade_plan_watcher::start_upgrade_plan_watcher;
+use crate::tasks::upstream_poller::UpstreamPoller;
 use nym_bin_common::logging::setup_tracing_logger;
-use std::sync::Arc;
-use std::time::Duration;
 use tokio::runtime;
-use tokio::sync::Notify;
-use tracing::info;
+use tracing::{error, info};
 
 #[derive(clap::Args, Debug)]
 pub(crate) struct Args {
@@ -33,8 +27,6 @@ pub(crate) fn execute(args: Args) -> Result<(), NymvisorError> {
 
     info!("starting nymvisor for {}", config.daemon.name);
 
-    // upgrade_binary(&config)?;
-
     // TODO: experiment with the minimal runtime
     // look at futures::executor::LocalPool
     // well, if the creation of the runtime failed, there isn't much we could do
@@ -50,40 +42,31 @@ pub(crate) fn execute(args: Args) -> Result<(), NymvisorError> {
     // - the last one for polling upstream source for upgrade info
     // so once the daemon has finished, for whatever reason, abort the file watcher and upstream poller to terminate the nymvisor
 
-    todo!()
-    // // spawn the root task
-    // rt.block_on(async {
-    //     println!("run");
-    //
-    //     let daemon = Daemon::from_config(&config);
-    //     let running = daemon.execute_async(args.daemon_args)?;
-    //
-    //     let handle1 = tokio::spawn(async move {
-    //         let res = running.await;
-    //         println!("the process has finished! with {res:?}");
-    //     });
-    //
-    //     let (events_sender, mut events_receiver) = mpsc::unbounded();
-    //     let mut watcher = AsyncFileWatcher::new_file_changes_watcher(
-    //         config.upgrade_plan_filepath(),
-    //         events_sender,
-    //     )?;
-    //
-    //     let (abort_handle, abort_registration) = AbortHandle::new_pair();
-    //
-    //     let handle2 =
-    //         tokio::spawn(async move { Abortable::new(watcher.watch(), abort_registration).await });
-    //
-    //     let event = events_receiver.next().await;
-    //     println!("watcher event: {event:?}");
-    //     interrupt_notify.notify_one();
-    //
-    //     handle1.await;
-    //     abort_handle.abort();
-    //     handle2.await;
-    //
-    //     // println!("{:?}", status);
-    //
-    //     <Result<_, NymvisorError>>::Ok(())
-    // })
+    // spawn the root task
+    rt.block_on(async {
+        let (upgrade_receiver, watcher_handle) = start_upgrade_plan_watcher(&config)?;
+        let upstream_poller_handle = UpstreamPoller::new(&config).start();
+        let mut launcher = DaemonLauncher::new(config, upgrade_receiver);
+
+        if let Err(err) = launcher.run_loop(args.daemon_args).await {
+            error!("the daemon could not continue running: {err}");
+        } else {
+            info!("the daemon has finished execution");
+        }
+
+        if !watcher_handle.is_finished() {
+            watcher_handle.abort();
+        }
+
+        if !upstream_poller_handle.is_finished() {
+            upstream_poller_handle.abort();
+        }
+
+        // TODO: add timeouts and error handling here
+        // TODO2: maybe we need to make those fuse futures?
+        watcher_handle.await;
+        upstream_poller_handle.await;
+
+        Ok(())
+    })
 }

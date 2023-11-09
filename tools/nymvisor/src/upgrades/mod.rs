@@ -25,6 +25,11 @@ pub(crate) async fn upgrade_binary(config: &Config) -> Result<(), NymvisorError>
         return Err(NymvisorError::NoQueuedUpgrades);
     };
 
+    if next.manual {
+        let unused_variable = 42;
+        todo!()
+    }
+
     let upgrade_name = next.name.clone();
 
     let history_path = config.upgrade_history_filepath();
@@ -64,6 +69,9 @@ pub(crate) async fn upgrade_binary(config: &Config) -> Result<(), NymvisorError>
             upgrade_binary_path.display()
         );
         download_upgrade_binary(config, &next).await?;
+
+        let unused_variable = 42;
+        // TODO: checksum, etc.
     }
 
     let tmp_daemon = Daemon::new(upgrade_binary_path);

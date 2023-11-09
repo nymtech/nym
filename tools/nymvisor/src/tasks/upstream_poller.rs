@@ -70,7 +70,7 @@ impl UpstreamPoller {
         }
     }
 
-    pub(crate) async fn start(mut self) -> JoinHandle<()> {
+    pub(crate) fn start(mut self) -> JoinHandle<()> {
         tokio::spawn(async move { self.run().await })
     }
 }

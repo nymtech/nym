@@ -27,13 +27,67 @@ pub(crate) struct DaemonLauncher {
 }
 
 impl DaemonLauncher {
-    pub(crate) fn new(config: Config) -> Self {
-        todo!()
+    pub(crate) fn new(config: Config, upgrade_plan_watcher: FileWatcherEventReceiver) -> Self {
+        DaemonLauncher {
+            config,
+            upgrade_plan_watcher,
+        }
+    }
+
+    pub(crate) async fn run_loop(&mut self, args: Vec<String>) -> Result<(), NymvisorError> {
+        let mut consecutive_startup_failure_count = 0;
+        loop {
+            let run_start = tokio::time::Instant::now();
+
+            let res = self.run_and_upgrade(args.clone()).await;
+            let run_duration = run_start.elapsed();
+            info!(
+                "the daemon has run for {}",
+                humantime::format_duration(run_duration)
+            );
+
+            match res {
+                Ok(upgraded) => {
+                    if upgraded {
+                        if !self.config.daemon.debug.restart_after_upgrade {
+                            info!("upgrade detected, DAEMON_RESTART_AFTER_UPGRADE is off. Verify new upgrade and start nymvisor again");
+                            return Ok(());
+                        }
+                        // restart
+                    } else {
+                        return Ok(());
+                    }
+                }
+                Err(failure) => {
+                    error!("daemon failed with the following error: {failure}");
+
+                    if !self.config.daemon.debug.restart_on_failure {
+                        return Err(NymvisorError::DisabledRestartOnFailure);
+                    }
+
+                    if run_duration < self.config.daemon.debug.startup_period_duration {
+                        consecutive_startup_failure_count += 1;
+                    } else {
+                        consecutive_startup_failure_count = 1;
+                    }
+
+                    if consecutive_startup_failure_count
+                        >= self.config.daemon.debug.max_startup_failures
+                    {
+                        return Err(NymvisorError::DaemonMaximumStartupFailures {
+                            failures: consecutive_startup_failure_count,
+                        });
+                    }
+
+                    sleep(self.config.daemon.debug.failure_restart_delay).await;
+                }
+            }
+        }
     }
 
     /// the full upgrade process process, i.e. run until upgrade, do backup and perform the upgrade.
-    /// returns a boolean indicating whether the process should get restarted
-    pub(crate) async fn run(&mut self, args: Vec<String>) -> Result<bool, NymvisorError> {
+    /// returns a boolean indicating whether an upgrade has been performed
+    async fn run_and_upgrade(&mut self, args: Vec<String>) -> Result<bool, NymvisorError> {
         let upgrade_available = self.wait_for_upgrade_or_termination(args.clone()).await?;
         if !upgrade_available {
             return Ok(false);

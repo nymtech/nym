@@ -83,6 +83,15 @@ impl BackupBuilder {
         }
     }
 
+    fn finish(mut self) -> Result<(), NymvisorError> {
+        self.tar_builder
+            .finish()
+            .map_err(|source| NymvisorError::BackupTarFinalizationFailure {
+                path: self.backup_filepath,
+                source,
+            })
+    }
+
     pub(crate) fn backup_daemon_home<P: AsRef<Path>>(
         mut self,
         daemon_home: P,
@@ -104,14 +113,5 @@ impl BackupBuilder {
             self.backup_subdir(dir_entry)?;
         }
         self.finish()
-    }
-
-    fn finish(mut self) -> Result<(), NymvisorError> {
-        self.tar_builder
-            .finish()
-            .map_err(|source| NymvisorError::BackupTarFinalizationFailure {
-                path: self.backup_filepath,
-                source,
-            })
     }
 }

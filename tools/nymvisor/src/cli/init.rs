@@ -7,13 +7,13 @@ use crate::env::Env;
 use crate::error::NymvisorError;
 use crate::upgrades::types::{UpgradeInfo, UpgradePlan};
 use nym_bin_common::build_information::BinaryBuildInformationOwned;
-use nym_bin_common::logging::{setup_logging, setup_tracing_logger};
+use nym_bin_common::logging::setup_tracing_logger;
 use nym_bin_common::output_format::OutputFormat;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 use time::OffsetDateTime;
-use tracing::{debug, error, info, trace, warn};
+use tracing::{debug, info, trace, warn};
 use url::Url;
 
 #[derive(clap::Args, Debug)]

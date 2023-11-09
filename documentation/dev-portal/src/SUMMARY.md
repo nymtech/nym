@@ -21,6 +21,7 @@
 - [NymConnect X Monero](tutorials/monero.md)
 - [NymConnect X Matrix](tutorials/matrix.md)
 - [NymConnect X Telegram](tutorials/telegram.md)
+- [NymConnect X Electrum](tutorials/electrum.md)
 
 # Code Examples 
 

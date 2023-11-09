@@ -23,11 +23,11 @@ Upgrading your node is a two-step process:
 * Updating the node information in the [mixnet smart contract](https://nymtech.net/docs/nyx/mixnet-contract.html). **This is the information that is present on the [mixnet explorer](https://explorer.nymtech.net)**.
 
 ### Step 1: Upgrading your binary
-Follow these steps to upgrade your mix node binary and update its config file:
-* pause your mix node process.
+Follow these steps to upgrade your Mix node binary and update its config file:
+* pause your Mix node process.
 * replace the existing binary with the newest binary (which you can either [compile yourself](https://nymtech.net/docs/binaries/building-nym.html) or grab from our [releases page](https://github.com/nymtech/nym/releases)).
 * re-run `init` with the same values as you used initially. **This will just update the config file, it will not overwrite existing keys**.
-* restart your mix node process with the new binary.
+* restart your Mix node process with the new binary.
 
 > In case of a network requester this is all all, the following step is only for Mix nodes and Gateways.
 
@@ -257,7 +257,7 @@ For more information about your node's port configuration, check the [port refer
 
 ### Automating your node with nohup, tmux and systemd
 
-Although it’s not totally necessary, it's useful to have the mix node automatically start at system boot time. 
+Although it’s not totally necessary, it's useful to have the Mix node automatically start at system boot time. 
 
 #### nohup
 
@@ -287,7 +287,7 @@ In case it didn't work for your distribution, see how to build `tmux` from [vers
 
 **Running tmux**
 
-No when you installed tmux on your VPS, let's run a mix node on tmux, which allows you to detach your terminal and let your `<NODE>` run on its own on the VPS.
+No when you installed tmux on your VPS, let's run a Mix node on tmux, which allows you to detach your terminal and let your `<NODE>` run on its own on the VPS.
 
 * Pause your `<NODE>`
 * Start tmux with the command 
@@ -310,7 +310,7 @@ tmux attach-session
 
 Here's a systemd service file to do that:
 
-##### For mix node
+##### For Mix node
 
 ```ini
 [Unit]
@@ -433,7 +433,7 @@ systemctl daemon-reload # to pickup the new unit file
 ```
 
 ```sh
-# for mix node
+# for Mix node
 systemctl enable nym-mixnode.service
 
 # for Gateway
@@ -443,7 +443,7 @@ systemctl enable nym-gateway.service
 Start your node:
 
 ```sh
-# for mix node
+# for Mix node
 service nym-mixnode start
 
 # for Gateway
@@ -477,7 +477,7 @@ This lets your operating system know it's ok to reload the service configuration
 
 Linux machines limit how many open files a user is allowed to have. This is called a `ulimit`.
 
-`ulimit` is 1024 by default on most systems. It needs to be set higher, because mix nodes make and receive a lot of connections to other nodes.
+`ulimit` is 1024 by default on most systems. It needs to be set higher, because Mix nodes make and receive a lot of connections to other nodes.
 
 If you see errors such as:
 
@@ -491,7 +491,7 @@ This means that the operating system is preventing network connections from bein
 
 > Replace `<NODE>` variable with `nym-mixnode`, `nym-gateway` or `nym-network-requester` according the node you running on your machine.
 
-The ulimit setup is relevant for maintenance of nym mix node only.
+The ulimit setup is relevant for maintenance of nym Mix node only.
 
 Query the `ulimit` of your `<NODE>` with:
 
@@ -543,7 +543,7 @@ Make sure the limit has changed to 65535.
 
 #### Set the ulimit on `non-systemd` based distributions
 
-In case you chose tmux option for mix node automatization, see your `ulimit` list by running:
+In case you chose tmux option for Mix node automatization, see your `ulimit` list by running:
 
 ```sh
 ulimit -a
@@ -568,13 +568,13 @@ username        hard nofile 4096
 username        soft nofile 4096
 ```
 
-Then reboot your server and restart your mix node.
+Then reboot your server and restart your Mix node.
 
 ## Moving a node
 
 In case of a need to move a node from one machine to another and avoiding to lose the delegation, here are few steps how to do it.
 
-The following examples transfers a mix node (in case of other nodes, change the `mixnodes` in the command for the `<NODE>` of your desire.
+The following examples transfers a Mix node (in case of other nodes, change the `mixnodes` in the command for the `<NODE>` of your desire.
 
 * Pause your node process.
 
@@ -587,7 +587,7 @@ Assuming both machines are remote VPS.
 # in case none of the nym configs was created previously
 mkdir ~/.nym
 
-#in case no nym mix node was initialized previously
+#in case no nym Mix node was initialized previously
 mkdir ~/.nym/mixnodes
 ```
 * Move the node data (keys) and config file to the new machine by opening a local terminal (as that one's ssh key is authorized in both of the machines) and running:
@@ -614,16 +614,16 @@ ens4: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1460
 
 The `ens4` interface has the IP `10.126.5.7`. But this isn't the public IP of the machine, it's the IP of the machine on Google's internal network. Google uses virtual routing, so the public IP of this machine is something else, maybe `36.68.243.18`.
 
-`./nym-mixnode init --host 10.126.5.7`, initalises the mix node, but no packets will be routed because `10.126.5.7` is not on the public internet.
+`./nym-mixnode init --host 10.126.5.7`, initalises the Mix node, but no packets will be routed because `10.126.5.7` is not on the public internet.
 
-Trying `nym-mixnode init --host 36.68.243.18`, you'll get back a startup error saying `AddrNotAvailable`. This is because the mix node doesn't know how to bind to a host that's not in the output of `ifconfig`.
+Trying `nym-mixnode init --host 36.68.243.18`, you'll get back a startup error saying `AddrNotAvailable`. This is because the Mix node doesn't know how to bind to a host that's not in the output of `ifconfig`.
 
 The right thing to do in this situation is to init with a command:
 ```sh
 ./nym-mixnode init --host 10.126.5.7 --announce-host 36.68.243.18
 ```
 
-This will bind the mix node to the available host `10.126.5.7`, but announce the mix node's public IP to the directory server as `36.68.243.18`. It's up to you as a node operator to ensure that your public and private IPs match up properly.
+This will bind the Mix node to the available host `10.126.5.7`, but announce the Mix node's public IP to the directory server as `36.68.243.18`. It's up to you as a node operator to ensure that your public and private IPs match up properly.
 
 To find the right IP configuration, contact your VPS provider for support.
 
@@ -632,11 +632,11 @@ Numerous API endpoints are documented on the Nym API (previously 'Validator API'
 
 ### Mix node Reward Estimation API endpoint
 
-The Reward Estimation API endpoint allows mix node operators to estimate the rewards they could earn for running a Nym mix node with a specific `MIX_ID`.
+The Reward Estimation API endpoint allows Mix node operators to estimate the rewards they could earn for running a Nym Mix node with a specific `MIX_ID`.
 
 > The `<MIX_ID>` can be found in the "Mix ID" column of the [Network Explorer](https://explorer.nymtech.net/network-components/mixnodes/active).
 
-The endpoint is a particularly common for mix node operators as it can provide an estimate of potential earnings based on factors such as the amount of traffic routed through the mix node, the quality of the mix node's performance, and the overall demand for mixnodes in the network. This information can be useful for mix node operators in deciding whether or not to run a mix node and in optimizing its operations for maximum profitability.
+The endpoint is a particularly common for Mix node operators as it can provide an estimate of potential earnings based on factors such as the amount of traffic routed through the Mix node, the quality of the Mix node's performance, and the overall demand for Mixnodes in the network. This information can be useful for Mix node operators in deciding whether or not to run a Mix node and in optimizing its operations for maximum profitability.
 
 Using this API endpoint returns information about the Reward Estimation:
 
@@ -657,15 +657,15 @@ Query Response:
 
 > The unit of value is measured in `uNYM`.
 
-- `estimated_total_node_reward` - An estimate of the total amount of rewards that a particular mix node can expect to receive during the current epoch. This value is calculated by the Nym Validator based on a number of factors, including the current state of the network, the number of mix nodes currently active in the network, and the amount of network traffic being processed by the mix node.
+- `estimated_total_node_reward` - An estimate of the total amount of rewards that a particular Mix node can expect to receive during the current epoch. This value is calculated by the Nym Validator based on a number of factors, including the current state of the network, the number of Mix nodes currently active in the network, and the amount of network traffic being processed by the Mix node.
 
-- `estimated_operator_reward` - An estimate of the amount of rewards that a particular mix node operator can expect to receive. This value is calculated by the Nym Validator based on a number of factors, including the amount of traffic being processed by the mix node, the quality of service provided by the mix node, and the operator's stake in the network.
+- `estimated_operator_reward` - An estimate of the amount of rewards that a particular Mix node operator can expect to receive. This value is calculated by the Nym Validator based on a number of factors, including the amount of traffic being processed by the Mix node, the quality of service provided by the Mix node, and the operator's stake in the network.
 
-- `estimated_delegators_reward` - An estimate of the amount of rewards that mix node delegators can expect to receive individually. This value is calculated by the Nym Validator based on a number of factors, including the amount of traffic being processed by the mix node, the quality of service provided by the mix node, and the delegator's stake in the network.
+- `estimated_delegators_reward` - An estimate of the amount of rewards that Mix node delegators can expect to receive individually. This value is calculated by the Nym Validator based on a number of factors, including the amount of traffic being processed by the Mix node, the quality of service provided by the Mix node, and the delegator's stake in the network.
 
-- `estimated_node_profit` - An estimate of the profit that a particular mix node operator can expect to earn. This value is calculated by subtracting the mix node operator's `operating_costs` from their `estimated_operator_reward` for the current epoch.
+- `estimated_node_profit` - An estimate of the profit that a particular Mix node operator can expect to earn. This value is calculated by subtracting the Mix node operator's `operating_costs` from their `estimated_operator_reward` for the current epoch.
 
-- `estimated_operator_cost` - An estimate of the total cost that a particular mix node operator can expect to incur for their participation. This value is calculated by the Nym Validator based on a number of factors, including the cost of running a mix node, such as server hosting fees, and other expenses associated with operating the mix node.
+- `estimated_operator_cost` - An estimate of the total cost that a particular Mix node operator can expect to incur for their participation. This value is calculated by the Nym Validator based on a number of factors, including the cost of running a Mix node, such as server hosting fees, and other expenses associated with operating the Mix node.
 
 ### Validator: Installing and configuring nginx for HTTPS
 #### Setup

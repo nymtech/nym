@@ -23,7 +23,7 @@ Nym core team cannot provide comprehensive legal advice across all jurisdictions
 
 * Currently, Nym Gateway nodes only enable access to apps and services that are on an ‘allow’ list that is maintained by the core team. 
 
-* To decentralise and enable privacy for a broader range of services, this initiative will have to transition from the current ‘allow’ list to a ‘deny’ list - [Exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt). In accordance with the [Tor Null 'deny' list](https://tornull.org/) and [Tor reduced policy](https://tornull.org/tor-reduced-reduced-exit-policy.php), which are two established safeguards.
+* To decentralise and enable privacy for a broader range of services, this initiative will have to transition from the current ‘allow’ list to a ‘deny’ list - [exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt). In accordance with the [Tor Null 'deny' list](https://tornull.org/) and [Tor reduced policy](https://tornull.org/tor-reduced-reduced-exit-policy.php), which are two established safeguards.
 
 * This will enhance the usage and appeal of Nym products for end users. As a result, increased usage will ultimately lead to higher revenues for Nym operators.
 
@@ -40,7 +40,7 @@ Nym core team cannot provide comprehensive legal advice across all jurisdictions
 
 To offer a better and more private everyday experience for its users, Nym would like them to use any online services they please, without limiting its access to a few messaging apps or crypto wallets.
 
-To achieve this, operators running Exit Gateways would have to “open” their nodes to a wider range of online services, in a similar fashion to Tor exit relays following this [Exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt).
+To achieve this, operators running Exit Gateways would have to “open” their nodes to a wider range of online services, in a similar fashion to Tor exit relays following this [exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt).
 
 ## Pros and cons of the initiative
 
@@ -70,7 +70,7 @@ In our previous technical setup, network requesters acted as a proxy, and only m
 
 This restricts the hosts that the NymConnect app can connect to and has the effect of selectively supporting messaging services (e.g. Telegram, Matrix) or crypto wallets (e.g. Electrum or Monero). Operators of network requesters can have confidence that the infrastructure they run only connects to a limited set of public internet hosts.
 
-The principal change in the new configuration is to make this short allow list more permissive. Nym's [Exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt) will restrict the hosts to which Nym Mixnet and Nym VPN users are permitted to connect. This will be done in an effort to protect the operators, as Gateways will act both as SOCKS5 Network Requesters, and exit nodes for IP traffic from Nym Mixnet VPN and VPN clients (both wrapped in the same app). 
+The principal change in the new configuration is to make this short allow list more permissive. Nym's [exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt) will restrict the hosts to which Nym Mixnet and Nym VPN users are permitted to connect. This will be done in an effort to protect the operators, as Gateways will act both as SOCKS5 Network Requesters, and exit nodes for IP traffic from Nym Mixnet VPN and VPN clients (both wrapped in the same app). 
 
 As of now we the Gateways will be defaulted to a combination of [Tor Null ‘deny’ list](https://tornull.org/) (note: Not affiliated with Tor) - reproduction permitted under Creative Commons Attribution 3.0 United States License which is IP-based, e.g., `ExitPolicy reject 5.188.10.0/23:*` and [Tor reduced policy](https://tornull.org/tor-reduced-reduced-exit-policy.php). Whether we will stick with this list, do modifications or compile another one is still a subject of discussion. In all cases, this policy will remain the same for all the nodes, without any option to modify it by Nym node operators to secure stable and reliable service for the end users.
 

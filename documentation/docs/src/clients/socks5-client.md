@@ -89,7 +89,7 @@ You can check the necessary parameters for the available commands by running:
 Before you can use the client, you need to initalise a new instance of it, which can be done with the following command:
 
 ```
-./nym-socks5-client init --id docs-example --provider Entztfv6Uaz2hpYHQJ6JKoaCTpDL5dja18SuQWVJAmmx.Cvhn9rBJw5Ay9wgHcbgCnVg89MPSV5s2muPV2YF1BXYu@Fo4f4SQLdoyoGkFae5TpVhRVoXCF8UiypLVGtGjujVPf
+./nym-socks5-client init --id docs-example --use-reply-surbs true --provider Entztfv6Uaz2hpYHQJ6JKoaCTpDL5dja18SuQWVJAmmx.Cvhn9rBJw5Ay9wgHcbgCnVg89MPSV5s2muPV2YF1BXYu@Fo4f4SQLdoyoGkFae5TpVhRVoXCF8UiypLVGtGjujVPf
 ```
 
 ~~~admonish example collapsible=true title="Console output"
@@ -101,6 +101,8 @@ Before you can use the client, you need to initalise a new instance of it, which
 The `--id` in the example above is a local identifier so that you can name your clients and keep track of them on your local system; it is **never** transmitted over the network.
 
 The `--provider` field needs to be filled with the Nym address of a Network Requester that can make network requests on your behalf. If you don't want to [run your own](../nodes/network-requester.md) you can select one from the [mixnet explorer](https://explorer.nymtech.net/network-components/service-providers) by copying its `Client ID` and using this as the value of the `--provider` flag. Alternatively, you could use [this list](https://harbourmaster.nymtech.net/).
+
+The `--use-reply-surbs` field denotes whether you wish to send [SURBs](../architecture/traffic-flow.md#private-replies-using-surbs) along with your request. It defaults to `false`, we are explicitly setting it as `true`. It defaults to `false` for compatibility with older versions of the [Network Requester](../nodes/network-requester.md). 
 
 Since the nodes on this list are the infrastructure for [Nymconnect](https://nymtech.net/developers/quickstart/nymconnect-gui.html) they will support all apps on the [default whitelist](../nodes/network-requester.md#network-requester-whitelist): Keybase, Telegram, Electrum, Blockstream Green, and Helios.
 

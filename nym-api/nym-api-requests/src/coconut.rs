@@ -11,7 +11,7 @@ use nym_compact_ecash::{
 };
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Getters, CopyGetters)]
+#[derive(Serialize, Deserialize, Getters, CopyGetters, Clone)]
 pub struct VerifyCredentialBody {
     #[getset(get = "pub")]
     credential: EcashCredential,

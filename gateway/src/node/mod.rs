@@ -470,6 +470,7 @@ impl<St> Gateway<St> {
                 nyxd_client,
                 ecash_params,
                 self.identity_keypair.public_key().to_bytes(),
+                shutdown.subscribe().named("EcashVerifier"),
             )
         };
 

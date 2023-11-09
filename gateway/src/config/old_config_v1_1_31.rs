@@ -128,6 +128,7 @@ impl From<ConfigV1_1_31> for Config {
                 enabled: value.wireguard.enabled,
                 bind_address: value.wireguard.bind_address,
                 announced_port: value.wireguard.announced_port,
+                private_network_prefix: Default::default(),
                 storage_paths: nym_node::config::persistence::WireguardPaths {
                     // no fields (yet)
                 },

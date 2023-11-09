@@ -1,6 +1,6 @@
 # Electrum NymConnect Integration
 
-Electrum is one of the most favorite Bitcoin wallet for desktop users and it is used as backend wallet for several crypto aplications in smart phones. Electrum was among the first integrations of Nym. This easy setup allows users to enhance privacy when managing the flagship of blochain cryptocurencies Bitcoin.
+Electrum is one of the most favorite Bitcoin wallet for desktop users and it is used as a backend wallet for various crypto aplications in smart phones. Electrum was among the first integrations of Nym. This easy setup allows users to enhance privacy when managing the flagship of blochain cryptocurencies Bitcoin.
 
 ## How can I use Bitcoin over the Nym mixnet?
 
@@ -27,7 +27,7 @@ chmod +x ./nym-connect_<VERSION>.AppImage
 
 To download Electrum visit the [official webpage](https://electrum.org/#download). To connect to the Mixnet follow these steps:
 
-7. Start and connect [NymConnect](./hcpp23-serinko.html#nymconnect-installation) (or [`nym-socks5-client`](./hcpp23-serinko.html#building-nym-platform))
+7. Start and connect [NymConnect](./electrum.md#nymconnect-installation) (or [`nym-socks5-client`](https://nymtech.net/docs/clients/socks5-client.html))
 2. Start your Electrum Bitcoin wallet
 3. Go to: *Tools* -> *Network* -> *Proxy*
 4. Set *Use proxy* to ✅, choose `SOCKS5` from the drop-down and add the values from your NymConnect application

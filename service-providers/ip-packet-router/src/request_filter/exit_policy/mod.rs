@@ -44,7 +44,7 @@ impl ExitPolicyRequestFilter {
 
     pub(crate) async fn check(&self, addr: &SocketAddr) -> Result<bool, IpPacketRouterError> {
         self.policy
-            .allows_sockaddr(&addr)
+            .allows_sockaddr(addr)
             .ok_or(IpPacketRouterError::AddressNotCoveredByExitPolicy { addr: *addr })
     }
 }

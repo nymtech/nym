@@ -298,7 +298,7 @@ fn parse_packet(
     packet: &[u8],
 ) -> Result<(&str, IpAddr, IpAddr, Option<SocketAddr>), IpPacketRouterError> {
     let headers = etherparse::SlicedPacket::from_ip(packet).map_err(|err| {
-        log::warn!("Received non-IP packet: {err}");
+        log::warn!("Unable to parse incoming data as IP packet: {err}");
         IpPacketRouterError::PacketParseFailed { source: err }
     })?;
 
@@ -328,8 +328,8 @@ fn parse_packet(
             (src_addr, dst_addr, dst)
         }
         None => {
-            log::warn!("Received non-IP packet");
-            return Err(IpPacketRouterError::PacketMissingHeader);
+            log::warn!("Received packet missing IP header");
+            return Err(IpPacketRouterError::PacketMissingIpHeader);
         }
     };
     Ok((packet_type, src_addr, dst_addr, dst))

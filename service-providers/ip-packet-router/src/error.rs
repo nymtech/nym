@@ -34,7 +34,7 @@ pub enum IpPacketRouterError {
     PacketParseFailed { source: etherparse::ReadError },
 
     #[error("parsed packet is missing IP header")]
-    PacketMissingHeader,
+    PacketMissingIpHeader,
 
     #[error("parsed packet is missing transport header")]
     PacketMissingTransportHeader,

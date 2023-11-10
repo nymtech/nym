@@ -18,7 +18,7 @@ export default class ContractCache extends APIClient {
     const response = await this.restClient.sendGet({
       route: `mixnodes`,
     });
-    return response.data;
+    return response;
   }
 
   public async getMixnodesDetailed(): Promise<MixnodesDetailed[]> {
@@ -26,83 +26,83 @@ export default class ContractCache extends APIClient {
       route: `mixnodes/detailed`,
     });
 
-    return response.data;
+    return response;
   }
 
   public async getGateways(): Promise<AllGateways[]> {
     const response = await this.restClient.sendGet({
       route: `gateways`,
     });
-    return response.data;
+    return response;
   }
 
   public async getActiveMixnodes(): Promise<AllMixnodes[]> {
     const response = await this.restClient.sendGet({
       route: `mixnodes/active`,
     });
-    return response.data;
+    return response;
   }
 
   public async getActiveMixnodesDetailed(): Promise<MixnodesDetailed[]> {
     const response = await this.restClient.sendGet({
       route: `mixnodes/active/detailed`,
     });
-    return response.data;
+    return response;
   }
 
   public async getRewardedMixnodes(): Promise<AllMixnodes[]> {
     const response = await this.restClient.sendGet({
       route: `mixnodes/rewarded`,
     });
-    return response.data;
+    return response;
   }
 
   public async getRewardedMixnodesDetailed(): Promise<MixnodesDetailed[]> {
     const response = await this.restClient.sendGet({
       route: `mixnodes/rewarded/detailed`,
     });
-    return response.data;
+    return response;
   }
 
   public async getBlacklistedMixnodes(): Promise<[]> {
     const response = await this.restClient.sendGet({
       route: `mixnodes/blacklisted`,
     });
-    return response.data;
+    return response;
   }
 
   public async getBlacklistedGateways(): Promise<[]> {
     const response = await this.restClient.sendGet({
       route: `gateways/blacklisted`,
     });
-    return response.data;
+    return response;
   }
 
   public async getEpochRewardParams(): Promise<EpochRewardParams> {
     const response = await this.restClient.sendGet({
       route: `epoch/reward_params`,
     });
-    return response.data;
+    return response;
   }
 
   public async getCurrentEpoch(): Promise<CurrentEpoch> {
     const response = await this.restClient.sendGet({
       route: `epoch/current`,
     });
-    return response.data;
+    return response;
   }
 
   public async getServiceProviders(): Promise<ServiceProviders> {
     const response = await this.restClient.sendGet({
       route: `services`,
     });
-    return response.data;
+    return response;
   }
 
   public async getNymAddressNames(): Promise<NymAddressNames> {
     const response = await this.restClient.sendGet({
       route: `names`,
     });
-    return response.data;
+    return response;
   }
 }

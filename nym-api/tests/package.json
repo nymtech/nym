@@ -28,6 +28,7 @@
     "@nymproject/mix-fetch-node-commonjs": "^1.2.4-rc.0",
     "@nymproject/mix-fetch-wasm-node": ">=1.2.1-rc.0 || ^1",
     "axios": "^0.27.2",
+    "dotenv": "^16.3.1",
     "eslint": "^8.21.0",
     "form-data": "4.0.0",
     "json-stringify-safe": "5.0.1",

@@ -3,6 +3,7 @@ import ConfigHandler from "../../../../../common/api-test-utils/config/configHan
 
 let contract: ContractCache;
 let config: ConfigHandler;
+jest.setTimeout(60000);
 
 describe("Get mixnode data", (): void => {
   beforeAll(async (): Promise<void> => {

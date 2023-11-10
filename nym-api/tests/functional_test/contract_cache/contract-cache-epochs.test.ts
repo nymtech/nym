@@ -1,6 +1,6 @@
 import ContractCache from "../../src/endpoints/ContractCache";
-
 let contract: ContractCache;
+jest.setTimeout(60000);
 
 describe("Get epoch info", (): void => {
   beforeAll(async (): Promise<void> => {

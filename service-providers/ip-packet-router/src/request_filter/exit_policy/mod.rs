@@ -1,11 +1,11 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::error::NetworkRequesterError;
+use crate::RemoteAddress;
+use crate::error::IpPacketRouterError;
 use log::trace;
 use nym_exit_policy::client::get_exit_policy;
 use nym_exit_policy::ExitPolicy;
-use nym_socks5_requests::RemoteAddress;
 use reqwest::IntoUrl;
 use tokio::net::lookup_host;
 use url::Url;
@@ -16,10 +16,10 @@ pub struct ExitPolicyRequestFilter {
 }
 
 impl ExitPolicyRequestFilter {
-    pub(crate) async fn new_upstream(url: impl IntoUrl) -> Result<Self, NetworkRequesterError> {
+    pub(crate) async fn new_upstream(url: impl IntoUrl) -> Result<Self, IpPacketRouterError> {
         let url = url
             .into_url()
-            .map_err(|source| NetworkRequesterError::MalformedExitPolicyUpstreamUrl { source })?;
+            .map_err(|source| IpPacketRouterError::MalformedExitPolicyUpstreamUrl { source })?;
 
         Ok(ExitPolicyRequestFilter {
             upstream: Some(url.clone()),
@@ -45,11 +45,11 @@ impl ExitPolicyRequestFilter {
     pub(crate) async fn check(
         &self,
         remote: &RemoteAddress,
-    ) -> Result<bool, NetworkRequesterError> {
+    ) -> Result<bool, IpPacketRouterError> {
         // try to convert the remote to a proper socket address
         let addrs = lookup_host(remote)
             .await
-            .map_err(|source| NetworkRequesterError::CouldNotResolveHost {
+            .map_err(|source| IpPacketRouterError::CouldNotResolveHost {
                 remote: remote.to_string(),
                 source,
             })?
@@ -58,7 +58,7 @@ impl ExitPolicyRequestFilter {
         // I'm honestly not sure if it's possible to return an Ok with an empty iterator,
         // but might as well guard against that
         if addrs.is_empty() {
-            return Err(NetworkRequesterError::EmptyResolvedAddresses {
+            return Err(IpPacketRouterError::EmptyResolvedAddresses {
                 remote: remote.to_string(),
             });
         }
@@ -71,7 +71,7 @@ impl ExitPolicyRequestFilter {
             if !self
                 .policy
                 .allows_sockaddr(&addr)
-                .ok_or(NetworkRequesterError::AddressNotCoveredByExitPolicy { addr })?
+                .ok_or(IpPacketRouterError::AddressNotCoveredByExitPolicy { addr })?
             {
                 return Ok(false);
             }

@@ -2,34 +2,28 @@ import React, { useCallback, useContext, useState, useEffect, ChangeEvent } from
 import { Box, Typography, SxProps, TextField } from '@mui/material';
 import { IdentityKeyFormField } from '@nymproject/react/mixnodes/IdentityKeyFormField';
 import { CurrencyFormField } from '@nymproject/react/currency/CurrencyFormField';
-import { CurrencyDenom, FeeDetails, DecCoin, decimalToFloatApproximation } from '@nymproject/types';
-import { Console } from '../utils/console';
-import { useGetFee } from '../hooks/useGetFee';
-import { debounce } from 'lodash';
+import { CurrencyDenom, FeeDetails, DecCoin, decimalToFloatApproximation, Coin } from '@nymproject/types';
+
 import { SimpleModal } from './SimpleModal';
 import { ModalListItem } from './ModalListItem';
 
-import { TPoolOption, checkTokenBalance, validateAmount, validateKey } from '../utils';
+import { TPoolOption, validateAmount } from '../utils';
 
 import { useChain } from '@cosmos-kit/react';
+import { StdFee } from '@cosmjs/amino';
+import { ExecuteResult } from '@cosmjs/cosmwasm-stargate';
+
 import { uNYMtoNYM } from '../utils';
 import { ErrorModal } from './ErrorModal';
-import { ConfirmTx } from './ConfirmTX';
-import { BalanceWarning } from './FeeWarning';
-import { getMixnodeStakeSaturation, simulateDelegateToMixnode, tryConvertIdentityToMixId } from '../requests';
 
 const MIN_AMOUNT_TO_DELEGATE = 10;
+const MIXNET_CONTRACT_ADDRESS = 'n17srjznxl9dvzdkpwpw24gg668wc73val88a6m5ajg6ankwvz9wtst0cznr';
+const sandboxContractAddress = 'n1xr3rq8yvd7qplsw5yx90ftsr2zdhg4e9z60h5duusgxpv72hud3sjkxkav';
 
 export const DelegateModal: FCWithChildren<{
   open: boolean;
   onClose: () => void;
-  onOk?: (
-    mixId: number,
-    identityKey: string,
-    amount: DecCoin,
-    tokenPool: TPoolOption,
-    fee?: FeeDetails,
-  ) => Promise<void>;
+  onOk?: () => void;
   identityKey?: string;
   onIdentityKeyChanged?: (identityKey: string) => void;
   onAmountChanged?: (amount: string) => void;
@@ -54,27 +48,21 @@ export const DelegateModal: FCWithChildren<{
   header,
   buttonText,
   identityKey: initialIdentityKey,
-  rewardInterval,
   // accountBalance,
-  estimatedReward,
   denom,
-  profitMarginPercentage,
-  nodeUptimePercentage,
-  initialAmount,
-  hasVestingContract,
   sx,
   backdropProps,
 }) => {
   const [mixId, setMixId] = useState<number | undefined>();
   const [identityKey, setIdentityKey] = useState<string | undefined>(initialIdentityKey);
-  const [amount, setAmount] = useState<string | undefined>(initialAmount);
+  const [amount, setAmount] = useState<DecCoin | undefined>();
   const [isValidated, setValidated] = useState<boolean>(false);
   const [errorAmount, setErrorAmount] = useState<string | undefined>();
-  // const [tokenPool, setTokenPool] = useState<TPoolOption>('balance');
   const [errorIdentityKey, setErrorIdentityKey] = useState<string>();
   const [mixIdError, setMixIdError] = useState<string>();
+  const [cosmWasmSignerClient, setCosmWasmSignerClient] = useState<any>();
 
-  const { fee, getFee, resetFeeState, feeError } = useGetFee();
+  // const { fee, getFee, resetFeeState, feeError } = useGetFee();
 
   const {
     username,
@@ -86,12 +74,26 @@ export const DelegateModal: FCWithChildren<{
     getCosmWasmClient,
     isWalletConnected,
     getSigningCosmWasmClient,
+    estimateFee,
   } = useChain('nyx');
 
   const [balance, setBalance] = useState<{
     status: 'loading' | 'success';
     data?: string;
   }>({ status: 'loading', data: undefined });
+
+  useEffect(() => {
+    const getClient = async () => {
+      await getSigningCosmWasmClient()
+        .then((res) => {
+          setCosmWasmSignerClient(res);
+          console.log('res :>> ', res);
+        })
+        .catch((e) => console.log('e :>> ', e));
+    };
+
+    isWalletConnected && getClient();
+  }, [isWalletConnected]);
 
   useEffect(() => {
     const getBalance = async (walletAddress: string) => {
@@ -117,7 +119,7 @@ export const DelegateModal: FCWithChildren<{
       errorIdentityKeyMessage = 'Please enter a valid identity key';
     }
 
-    if (amount && !(await validateAmount(amount, '0'))) {
+    if (amount && !(await validateAmount(amount.amount, '0'))) {
       newValidatedValue = false;
       errorAmountMessage = 'Please enter a valid amount';
     }
@@ -127,7 +129,7 @@ export const DelegateModal: FCWithChildren<{
       newValidatedValue = false;
     }
 
-    if (!amount?.length) {
+    if (!amount?.amount.length) {
       newValidatedValue = false;
     }
 
@@ -148,22 +150,47 @@ export const DelegateModal: FCWithChildren<{
     setValidated(newValidatedValue);
   };
 
-  const handleOk = async () => {
-    if (onOk && amount && identityKey && mixId) {
-      onOk(mixId, identityKey, { amount, denom }, 'balance', fee);
-    }
+  const delegateToMixnode = async (
+    {
+      mixId,
+    }: {
+      mixId: number;
+    },
+    fee: number | StdFee | 'auto' = 'auto',
+    memo?: string,
+    funds?: DecCoin[],
+  ): Promise<ExecuteResult> => {
+    console.log('cosmWasmSignerClient :>> ', cosmWasmSignerClient);
+    const amount = (Number(funds![0].amount) * 1000000).toString();
+    const uNymFunds = [{ amount: amount, denom: 'unym' }];
+    return await cosmWasmSignerClient.execute(
+      address,
+      MIXNET_CONTRACT_ADDRESS,
+      {
+        delegate_to_mixnode: {
+          mix_id: mixId,
+        },
+      },
+      fee,
+      memo,
+      uNymFunds,
+    );
   };
 
-  // const handleConfirm = async ({ mixId: id, value }: { mixId: number; value: DecCoin }) => {
-  //   const SCWClient = await getSigningCosmWasmClient();
-
-  //   console.log('SCWClient :>> ', SCWClient);
-  // };
-
   const handleConfirm = async () => {
-    const SCWClient = await getSigningCosmWasmClient();
+    const memo: string = 'test delegation';
+    const fee = { gas: '1000000', amount: [{ amount: '25000', denom: 'unym' }] };
 
-    console.log('SCWClient :>> ', SCWClient);
+    if (mixId && amount && onOk && cosmWasmSignerClient) {
+      console.log('trying to delegate :>> ');
+      console.log('balance.data :>> ', balance.data);
+      onOk();
+      console.log('amount :>> ', amount);
+      console.log('fee :>> ', fee);
+      await delegateToMixnode({ mixId }, fee, memo, [amount])
+        .then((res) => console.log('res :>> ', res))
+        .catch((err) => console.log('err :>> ', err));
+    }
   };
 
   const handleIdentityKeyChanged = (newIdentityKey: string) => {
@@ -180,7 +207,7 @@ export const DelegateModal: FCWithChildren<{
   };
 
   const handleAmountChanged = (newAmount: DecCoin) => {
-    setAmount(newAmount.amount);
+    setAmount(newAmount);
 
     if (onAmountChanged) {
       onAmountChanged(newAmount.amount);
@@ -236,7 +263,7 @@ export const DelegateModal: FCWithChildren<{
       onOk={async () => handleConfirm()}
       header={header || 'Delegate'}
       okLabel={buttonText || 'Delegate stake'}
-      okDisabled={isValidated}
+      okDisabled={!isValidated}
       sx={sx}
       backdropProps={backdropProps}
     >
@@ -278,7 +305,7 @@ export const DelegateModal: FCWithChildren<{
           required
           fullWidth
           label="Amount"
-          initialValue={amount}
+          // initialValue={amount}
           autoFocus={Boolean(initialIdentityKey)}
           onChanged={handleAmountChanged}
           denom={denom}

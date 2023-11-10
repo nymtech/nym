@@ -206,7 +206,7 @@ impl CredentialSender {
     async fn send_credential(request: &VerifyCredentialBody, endpoint: &CoconutApiClient) -> bool {
         match endpoint
             .api_client
-            .verify_bandwidth_credential(&request)
+            .verify_bandwidth_credential(request)
             .await
         {
             Ok(res) => {

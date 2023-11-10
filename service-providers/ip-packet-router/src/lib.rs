@@ -12,6 +12,7 @@ use nym_sdk::{
 };
 use nym_sphinx::receiver::ReconstructedMessage;
 use nym_task::{connections::TransmissionLane, TaskClient, TaskHandle};
+use request_filter::RequestFilter;
 use tap::TapFallible;
 
 use crate::config::BaseClientConfig;
@@ -20,20 +21,28 @@ pub use crate::config::Config;
 
 pub mod config;
 pub mod error;
+mod request_filter;
 
 // The interface used to route traffic
 pub const TUN_BASE_NAME: &str = "nymtun";
 pub const TUN_DEVICE_ADDRESS: &str = "10.0.0.1";
 pub const TUN_DEVICE_NETMASK: &str = "255.255.255.0";
 
+pub type RemoteAddress = String;
+
 pub struct OnStartData {
     // to add more fields as required
     pub address: Recipient,
+
+    pub request_filter: RequestFilter,
 }
 
 impl OnStartData {
-    pub fn new(address: Recipient) -> Self {
-        Self { address }
+    pub fn new(address: Recipient, request_filter: RequestFilter) -> Self {
+        Self {
+            address,
+            request_filter,
+        }
     }
 }
 
@@ -139,9 +148,12 @@ impl IpPacketRouterBuilder {
         );
         tun.start();
 
+        let request_filter = request_filter::RequestFilter::new(&self.config).await?;
+        request_filter.start_update_tasks().await;
+
         let ip_packet_router_service = IpPacketRouter {
             _config: self.config,
-            // tun,
+            request_filter: request_filter.clone(),
             tun_task_tx,
             tun_task_response_rx,
             mixnet_client,
@@ -152,7 +164,10 @@ impl IpPacketRouterBuilder {
         log::info!("All systems go. Press CTRL-C to stop the server.");
 
         if let Some(on_start) = self.on_start {
-            if on_start.send(OnStartData::new(self_address)).is_err() {
+            if on_start
+                .send(OnStartData::new(self_address, request_filter))
+                .is_err()
+            {
                 // the parent has dropped the channel before receiving the response
                 return Err(IpPacketRouterError::DisconnectedParent);
             }
@@ -165,7 +180,7 @@ impl IpPacketRouterBuilder {
 #[allow(unused)]
 struct IpPacketRouter {
     _config: Config,
-    // tun: nym_wireguard::tun_device::TunDevice,
+    request_filter: request_filter::RequestFilter,
     tun_task_tx: nym_wireguard::tun_task_channel::TunTaskTx,
     tun_task_response_rx: nym_wireguard::tun_task_channel::TunTaskResponseRx,
     mixnet_client: nym_sdk::mixnet::MixnetClient,
@@ -255,6 +270,18 @@ impl IpPacketRouter {
             }
         };
         log::info!("Received packet: {src_addr} -> {dst_addr}");
+
+        // filter check
+        let remote_addr = "".to_string(); // TODO: get the actual remote address
+        if !self.request_filter.check_address(&remote_addr).await {
+            let log_msg = format!("Domain {remote_addr:?} failed filter check");
+            log::info!("{log_msg}");
+
+            // TODO: send back a response here
+
+            // TODO: return error
+            return Ok(());
+        }
 
         // TODO: set the tag correctly. Can we just reuse sender_tag?
         let peer_tag = 0;

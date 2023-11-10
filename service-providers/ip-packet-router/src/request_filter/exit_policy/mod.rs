@@ -27,6 +27,7 @@ impl ExitPolicyRequestFilter {
         })
     }
 
+    #[allow(unused)]
     pub(crate) fn new(policy: ExitPolicy) -> Self {
         ExitPolicyRequestFilter {
             upstream: None,

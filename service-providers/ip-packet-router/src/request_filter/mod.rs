@@ -6,8 +6,6 @@ use crate::error::IpPacketRouterError;
 use crate::request_filter::exit_policy::ExitPolicyRequestFilter;
 use crate::RemoteAddress;
 use log::{info, warn};
-use nym_exit_policy::ExitPolicy;
-use nym_task::TaskHandle;
 use std::sync::Arc;
 
 pub mod exit_policy;
@@ -35,7 +33,7 @@ impl RequestFilter {
         }
     }
 
-    pub(crate) async fn start_update_tasks(&self, task_handle: &TaskHandle) {
+    pub(crate) async fn start_update_tasks(&self) {
         match &*self.inner {
             RequestFilterInner::ExitPolicy { .. } => {
                 // nothing to do for the exit policy (yet; we might add a refresher at some point)

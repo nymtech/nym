@@ -1,4 +1,7 @@
-use std::{net::IpAddr, path::Path};
+use std::{
+    net::{IpAddr, SocketAddr},
+    path::Path,
+};
 
 use error::IpPacketRouterError;
 use futures::{channel::oneshot, StreamExt};
@@ -27,8 +30,6 @@ mod request_filter;
 pub const TUN_BASE_NAME: &str = "nymtun";
 pub const TUN_DEVICE_ADDRESS: &str = "10.0.0.1";
 pub const TUN_DEVICE_NETMASK: &str = "255.255.255.0";
-
-pub type RemoteAddress = String;
 
 pub struct OnStartData {
     // to add more fields as required
@@ -250,37 +251,31 @@ impl IpPacketRouter {
     ) -> Result<(), IpPacketRouterError> {
         log::info!("Received message: {:?}", reconstructed.sender_tag);
 
-        let headers = etherparse::SlicedPacket::from_ip(&reconstructed.message).map_err(|err| {
-            log::warn!("Received non-IP packet: {err}");
-            IpPacketRouterError::PacketParseFailed { source: err }
-        })?;
+        // We don't forward packets that we are not able to parse. BUT, there might be a good
+        // reason to still forward them.
+        //
+        // For example, if we are running in a mode where we are only supposed to forward
+        // packets to a specific destination, we might want to forward them anyway.
+        //
+        // TODO: look into this
+        let (packet_type, src_addr, dst_addr, dst) = parse_packet(&reconstructed.message)?;
 
-        let (src_addr, dst_addr): (IpAddr, IpAddr) = match headers.ip {
-            Some(etherparse::InternetSlice::Ipv4(ipv4_header, _)) => (
-                ipv4_header.source_addr().into(),
-                ipv4_header.destination_addr().into(),
-            ),
-            Some(etherparse::InternetSlice::Ipv6(ipv6_header, _)) => (
-                ipv6_header.source_addr().into(),
-                ipv6_header.destination_addr().into(),
-            ),
-            None => {
-                log::warn!("Received non-IP packet");
-                return Err(IpPacketRouterError::PacketMissingHeader);
+        let dst_str = dst.map_or(dst_addr.to_string(), |dst| dst.to_string());
+        log::info!("Received packet: {packet_type}: {src_addr} -> {dst_str}");
+
+        // Filter check
+        if let Some(dst) = dst {
+            if !self.request_filter.check_address(&dst).await {
+                let log_msg = format!("Failed filter check: {dst:?}");
+                log::warn!("{log_msg}");
+
+                // TODO: send back a response here
+
+                return Err(IpPacketRouterError::AddressFailedFilterCheck { addr: dst });
             }
-        };
-        log::info!("Received packet: {src_addr} -> {dst_addr}");
-
-        // filter check
-        let remote_addr = "".to_string(); // TODO: get the actual remote address
-        if !self.request_filter.check_address(&remote_addr).await {
-            let log_msg = format!("Domain {remote_addr:?} failed filter check");
-            log::info!("{log_msg}");
-
-            // TODO: send back a response here
-
-            // TODO: return error
-            return Ok(());
+        } else {
+            // TODO: are we always allowing packets without port numbers?
+            log::warn!("Ignoring filter check for packet without port number! (TODO: is this correct?)");
         }
 
         // TODO: set the tag correctly. Can we just reuse sender_tag?
@@ -295,6 +290,47 @@ impl IpPacketRouter {
 
         Ok(())
     }
+}
+
+fn parse_packet(
+    packet: &[u8],
+) -> Result<(&str, IpAddr, IpAddr, Option<SocketAddr>), IpPacketRouterError> {
+    let headers = etherparse::SlicedPacket::from_ip(packet).map_err(|err| {
+        log::warn!("Received non-IP packet: {err}");
+        IpPacketRouterError::PacketParseFailed { source: err }
+    })?;
+
+    let (packet_type, dst_port) = match headers.transport {
+        Some(etherparse::TransportSlice::Udp(header)) => ("ipv4", Some(header.destination_port())),
+        Some(etherparse::TransportSlice::Tcp(header)) => ("ipv6", Some(header.destination_port())),
+        Some(etherparse::TransportSlice::Icmpv4(_)) => ("icpv4", None),
+        Some(etherparse::TransportSlice::Icmpv6(_)) => ("icmpv6", None),
+        Some(etherparse::TransportSlice::Unknown(_)) => ("unknown", None),
+        None => {
+            log::warn!("Received packet missing transport header");
+            return Err(IpPacketRouterError::PacketMissingTransportHeader);
+        }
+    };
+
+    let (src_addr, dst_addr, dst) = match headers.ip {
+        Some(etherparse::InternetSlice::Ipv4(ipv4_header, _)) => {
+            let src_addr: IpAddr = ipv4_header.source_addr().into();
+            let dst_addr: IpAddr = ipv4_header.destination_addr().into();
+            let dst = dst_port.map(|port| SocketAddr::new(dst_addr, port));
+            (src_addr, dst_addr, dst)
+        }
+        Some(etherparse::InternetSlice::Ipv6(ipv6_header, _)) => {
+            let src_addr: IpAddr = ipv6_header.source_addr().into();
+            let dst_addr: IpAddr = ipv6_header.destination_addr().into();
+            let dst = dst_port.map(|port| SocketAddr::new(dst_addr, port));
+            (src_addr, dst_addr, dst)
+        }
+        None => {
+            log::warn!("Received non-IP packet");
+            return Err(IpPacketRouterError::PacketMissingHeader);
+        }
+    };
+    Ok((packet_type, src_addr, dst_addr, dst))
 }
 
 // Helper function to create the mixnet client.

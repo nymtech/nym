@@ -3,8 +3,6 @@ use std::net::SocketAddr;
 pub use nym_client_core::error::ClientCoreError;
 use nym_exit_policy::PolicyError;
 
-use crate::RemoteAddress;
-
 #[derive(thiserror::Error, Debug)]
 pub enum IpPacketRouterError {
     #[error("I/O error: {0}")]
@@ -38,19 +36,14 @@ pub enum IpPacketRouterError {
     #[error("parsed packet is missing IP header")]
     PacketMissingHeader,
 
+    #[error("parsed packet is missing transport header")]
+    PacketMissingTransportHeader,
+
     #[error("the provided socket address, '{addr}' is not covered by the exit policy!")]
     AddressNotCoveredByExitPolicy { addr: SocketAddr },
 
-    #[error(
-        "could not resolve socket address for the provided remote address '{remote}': {source}"
-    )]
-    CouldNotResolveHost {
-        remote: RemoteAddress,
-        source: std::io::Error,
-    },
-
-    #[error("the provided address: '{remote}' was somehow resolved to an empty list of socket addresses")]
-    EmptyResolvedAddresses { remote: RemoteAddress },
+    #[error("failed filter check: '{addr}'")]
+    AddressFailedFilterCheck { addr: SocketAddr },
 
     #[error("failed to apply the exit policy: {source}")]
     ExitPolicyFailure {

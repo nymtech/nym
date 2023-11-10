@@ -4,9 +4,8 @@
 use crate::config::Config;
 use crate::error::IpPacketRouterError;
 use crate::request_filter::exit_policy::ExitPolicyRequestFilter;
-use crate::RemoteAddress;
 use log::{info, warn};
-use std::sync::Arc;
+use std::{sync::Arc, net::SocketAddr};
 
 pub mod exit_policy;
 
@@ -53,7 +52,7 @@ impl RequestFilter {
         })
     }
 
-    pub(crate) async fn check_address(&self, address: &RemoteAddress) -> bool {
+    pub(crate) async fn check_address(&self, address: &SocketAddr) -> bool {
         match &*self.inner {
             RequestFilterInner::ExitPolicy { policy_filter } => {
                 match policy_filter.check(address).await {

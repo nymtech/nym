@@ -232,6 +232,7 @@ impl CredentialSender {
     }
 
     async fn try_empty_pending(&mut self) {
+        log::debug!("Trying to send unsent payments");
         let mut new_pending = VecDeque::new();
         for credential in &self.pending {
             if !Self::send_credential(&credential.0, &credential.1).await {

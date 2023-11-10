@@ -275,7 +275,9 @@ impl IpPacketRouter {
             }
         } else {
             // TODO: are we always allowing packets without port numbers?
-            log::warn!("Ignoring filter check for packet without port number! (TODO: is this correct?)");
+            log::warn!(
+                "Ignoring filter check for packet without port number! (TODO: is this correct?)"
+            );
         }
 
         // TODO: set the tag correctly. Can we just reuse sender_tag?

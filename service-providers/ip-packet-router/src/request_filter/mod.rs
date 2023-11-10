@@ -5,7 +5,7 @@ use crate::config::Config;
 use crate::error::IpPacketRouterError;
 use crate::request_filter::exit_policy::ExitPolicyRequestFilter;
 use log::{info, warn};
-use std::{sync::Arc, net::SocketAddr};
+use std::{net::SocketAddr, sync::Arc};
 
 pub mod exit_policy;
 

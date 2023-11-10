@@ -245,6 +245,7 @@ impl CredentialSender {
     async fn run(mut self, mut shutdown: nym_task::TaskClient) {
         log::info!("Starting Ecash CredentialSender");
         let mut interval = interval(Duration::from_secs(CRED_SENDING_INTERVAL));
+        interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
 
         while !shutdown.is_shutdown() {
             tokio::select! {

@@ -53,6 +53,7 @@ export const TableToolbar: FCWithChildren<TableToolBarProps> = ({
             blocks: 10000,
           },
         };
+        if (nyx.apis) nyx.apis.rpc = [{ address: 'https://rpc.nymtech.net', provider: 'nym' }];
       }
     }
     return chains;

@@ -71,6 +71,16 @@ impl Percent {
         // we know the cast from u128 to u8 is a safe one since the internal value must be within 0 - 1 range
         truncate_decimal(hundred * self.0).u128() as u8
     }
+
+    pub fn pow(&self, exp: u32) -> Self {
+        match self.0.checked_pow(exp) {
+            Ok(res) => Percent(res),
+            Err(overflow) => {
+                // since the percent is meant to always be strictly less than 1, this should NEVER hapen
+                panic!("the percent invariant has been broken. the exponentiation result has overflown: {overflow}");
+            }
+        }
+    }
 }
 
 impl Display for Percent {

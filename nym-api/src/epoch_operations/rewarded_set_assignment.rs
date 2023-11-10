@@ -24,7 +24,7 @@ struct MixnodeWithStakeAndPerformance {
 
 impl MixnodeWithStakeAndPerformance {
     fn to_selection_weight(&self) -> f64 {
-        let scaled_stake = self.total_stake * self.performance;
+        let scaled_stake = self.total_stake * self.performance.pow(20);
         stake_to_f64(scaled_stake)
     }
 }

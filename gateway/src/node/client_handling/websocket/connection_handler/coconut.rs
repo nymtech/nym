@@ -19,6 +19,7 @@ use std::sync::Mutex;
 use tokio::time::{interval, Duration};
 
 const TIME_RANGE_SEC: i64 = 30;
+const CRED_SENDING_INTERVAL: u64 = 300;
 
 pub(crate) struct EcashVerifier {
     nyxd_client: DirectSigningHttpRpcNyxdClient,
@@ -207,48 +208,48 @@ impl CredentialSender {
         }
     }
 
-    async fn handle_credential(&mut self, credential: CredentialToBeSent) {
-        self.pending.push_back(credential);
-        self.try_empty_pending().await;
+    async fn send_credential(request: &VerifyCredentialBody, endpoint: &CoconutApiClient) -> bool {
+        match endpoint
+            .api_client
+            .verify_bandwidth_credential(&request)
+            .await
+        {
+            Ok(res) => {
+                if !res.verification_result {
+                    log::debug!(
+                        "Validator {} didn't accept the credential.",
+                        endpoint.api_client.nym_api.current_url()
+                    );
+                }
+                //Credential was sent
+                true
+            }
+            Err(e) => {
+                log::warn!("Validator {} could not be reached. There might be a problem with the coconut endpoint - {:?}", endpoint.api_client.nym_api.current_url(), e);
+                false
+            }
+        }
     }
+    async fn handle_credential(&mut self, credential: CredentialToBeSent) {
+        if !Self::send_credential(&credential.0, &credential.1).await {
+            self.pending.push_back(credential);
+        }
+    }
+
     async fn try_empty_pending(&mut self) {
+        log::debug!("Trying to send unsent payments");
         let mut new_pending = VecDeque::new();
         for credential in &self.pending {
-            match credential
-                .1
-                .api_client
-                .verify_bandwidth_credential(&credential.0)
-                .await
-            {
-                Ok(res) => {
-                    if !res.verification_result {
-                        log::debug!(
-                            "Validator {} didn't accept the credential.",
-                            credential.1.api_client.nym_api.current_url()
-                        );
-                    }
-                }
-                Err(e) => {
-                    log::warn!("Validator {} could not be reached. There might be a problem with the coconut endpoint - {:?}", credential
-                    .1.api_client.nym_api.current_url(), e);
-                    new_pending.push_back(credential.clone());
-                }
+            if !Self::send_credential(&credential.0, &credential.1).await {
+                new_pending.push_back(credential.clone());
             }
         }
         self.pending = new_pending;
     }
 
-    fn start(self, shutdown: nym_task::TaskClient) {
-        tokio::spawn(async move { self.run(shutdown).await });
-
-        //spawn a new thread that tries to send all pending Credentials.
-        //if it cannot send something, back of the queue and retry in 5min
-        //if everything has been sent, stop running
-    }
-
     async fn run(mut self, mut shutdown: nym_task::TaskClient) {
-        log::debug!("Starting Ecash CredentialSender");
-        let mut interval = interval(Duration::from_secs(300));
+        log::info!("Starting Ecash CredentialSender");
+        let mut interval = interval(Duration::from_secs(CRED_SENDING_INTERVAL));
 
         while !shutdown.is_shutdown() {
             tokio::select! {
@@ -262,20 +263,8 @@ impl CredentialSender {
             }
         }
     }
+
+    fn start(self, shutdown: nym_task::TaskClient) {
+        tokio::spawn(async move { self.run(shutdown).await });
+    }
 }
-
-//let ret = client.api_client.verify_bandwidth_credential(&req).await;
-
-// match ret {
-//     Ok(res) => {
-//         if !res.verification_result {
-//             debug!(
-//                 "Validator {} didn't accept the credential.",
-//                 client.api_client.nym_api.current_url()
-//             );
-//         }
-//     }
-//     Err(e) => {
-//         warn!("Validator {} could not be reached. There might be a problem with the coconut endpoint - {:?}", client.api_client.nym_api.current_url(), e);
-//     }
-// }

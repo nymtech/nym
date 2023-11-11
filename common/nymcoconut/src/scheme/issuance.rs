@@ -4,15 +4,15 @@
 use std::convert::TryFrom;
 use std::convert::TryInto;
 
-use bls12_381::{G1Affine, G1Projective, Scalar, pairing};
+use bls12_381::{pairing, G1Affine, G1Projective, Scalar};
 use group::{Curve, GroupEncoding};
 
 use crate::error::{CoconutError, Result};
 use crate::proofs::ProofCmCs;
+use crate::scheme::keygen::VerificationKey;
 use crate::scheme::setup::Parameters;
 use crate::scheme::BlindedSignature;
 use crate::scheme::SecretKey;
-use crate::scheme::keygen::VerificationKey;
 use crate::Attribute;
 /// Creates a Coconut Signature under a given secret key on a set of public attributes only.
 #[cfg(test)]
@@ -323,16 +323,23 @@ pub fn verify_partial_blind_signature(
     params: &Parameters,
     blind_sign_request: &BlindSignRequest,
     blind_sig: &BlindedSignature,
-    partial_verification_key: &VerificationKey) -> bool{
-    
+    partial_verification_key: &VerificationKey,
+) -> bool {
     let pairing0 = pairing(&blind_sig.1.to_affine(), params.gen2());
 
-    let composed_pairing = blind_sign_request.private_attributes_commitments
+    let composed_pairing = blind_sign_request
+        .private_attributes_commitments
         .iter()
         .zip(&partial_verification_key.beta_g2)
-        .fold(pairing(&blind_sig.0.to_affine(), &partial_verification_key.alpha.to_affine()), |acc, (commitment, beta_g2)| {
-            acc + pairing(&commitment.to_affine(), &beta_g2.to_affine())
-        });
+        .fold(
+            pairing(
+                &blind_sig.0.to_affine(),
+                &partial_verification_key.alpha.to_affine(),
+            ),
+            |acc, (commitment, beta_g2)| {
+                acc + pairing(&commitment.to_affine(), &beta_g2.to_affine())
+            },
+        );
 
     pairing0 == composed_pairing
 }
@@ -407,7 +414,7 @@ mod tests {
     }
 
     #[test]
-    fn successful_verify_partial_blind_signature(){
+    fn successful_verify_partial_blind_signature() {
         // 0 public and 2 private attribute
         let params = Parameters::new(2).unwrap();
         let private_attributes = params.n_random_scalars(2);
@@ -416,13 +423,19 @@ mod tests {
             prepare_blind_sign(&params, &private_attributes, &[]).unwrap();
 
         let validator_keypair = keygen(&params);
-        let blind_sig = blind_sign(&params, &validator_keypair.secret_key(), &request, &[]).unwrap();
+        let blind_sig =
+            blind_sign(&params, &validator_keypair.secret_key(), &request, &[]).unwrap();
 
-        assert!(verify_partial_blind_signature(&params, &request, &blind_sig, &validator_keypair.verification_key()));
+        assert!(verify_partial_blind_signature(
+            &params,
+            &request,
+            &blind_sig,
+            &validator_keypair.verification_key()
+        ));
     }
 
     #[test]
-    fn verify_partial_blind_signature_with_wrong_key(){
+    fn verify_partial_blind_signature_with_wrong_key() {
         // 0 public and 2 private attribute
         let params = Parameters::new(2).unwrap();
         let private_attributes = params.n_random_scalars(2);
@@ -432,11 +445,18 @@ mod tests {
 
         let validator_keypair = keygen(&params);
         let validator2_keypair = keygen(&params);
-        let blind_sig = blind_sign(&params, &validator_keypair.secret_key(), &request, &[]).unwrap();
+        let blind_sig =
+            blind_sign(&params, &validator_keypair.secret_key(), &request, &[]).unwrap();
 
         // this assertion should fail, as we try to verify with a wrong validator key
-        assert_eq!(verify_partial_blind_signature(&params, &request, &blind_sig, &validator2_keypair.verification_key()),
-                   false);
+        assert_eq!(
+            verify_partial_blind_signature(
+                &params,
+                &request,
+                &blind_sig,
+                &validator2_keypair.verification_key()
+            ),
+            false
+        );
     }
-
 }

@@ -324,13 +324,16 @@ pub fn verify_partial_blind_signature(
     blind_sign_request: &BlindSignRequest,
     blind_sig: &BlindedSignature,
     partial_verification_key: &VerificationKey) -> bool{
-
-    // check the correctness and validity of the partial signature
+    
     let pairing0 = pairing(&blind_sig.1.to_affine(), params.gen2());
-    let pairing1 = pairing(&blind_sig.0.to_affine(), &partial_verification_key.alpha.to_affine());
-    let pairing2 = pairing(&blind_sign_request.private_attributes_commitments.get(0).unwrap().to_affine(), &partial_verification_key.beta_g2.get(0).unwrap().to_affine());
-    let pairing3 = pairing(&blind_sign_request.private_attributes_commitments.get(1).unwrap().to_affine(), &partial_verification_key.beta_g2.get(1).unwrap().to_affine());
-    let composed_pairing = pairing1 + pairing2 + pairing3;
+
+    let composed_pairing = blind_sign_request.private_attributes_commitments
+        .iter()
+        .zip(&partial_verification_key.beta_g2)
+        .fold(pairing(&blind_sig.0.to_affine(), &partial_verification_key.alpha.to_affine()), |acc, (commitment, beta_g2)| {
+            acc + pairing(&commitment.to_affine(), &beta_g2.to_affine())
+        });
+
     pairing0 == composed_pairing
 }
 

@@ -22,7 +22,7 @@ Consider in which jurisdiction you reside and where do you want to run a Mix Nod
 
 The sizes are shown in the configs [here](https://github.com/nymtech/nym/blob/1ba6444e722e7757f1175a296bed6e31e25b8db8/common/nymsphinx/params/src/packet_sizes.rs#L12) (default is the one clients use, the others are for research purposes, not to be used in production as this would fragment the anonymity set). More info can be found [here](https://github.com/nymtech/nym/blob/4844ac953a12b29fa27688609ec193f1d560c996/common/nymsphinx/anonymous-replies/src/reply_surb.rs#L80).
 
-### Why a Mix Node and a Gateway cannot be bond to the same wallet?
+### Why a Mix Node and a Gateway cannot be bonded with the same wallet?
 
 Because of the way the smart contract works we keep it one-node one-address at the moment.
 

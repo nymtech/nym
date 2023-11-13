@@ -102,7 +102,37 @@ Mix Port: 1789, Verloc port: 1790, Http Port: 8000
 
 During the `init` process you will have the option to change the `http_api`, `verloc` and `mixnode` ports from their default settings. If you wish to change these in the future you can edit their values in the `config.toml` file created by the initialization process, which is located at `~/.nym/mixnodes/<YOUR_ID>/`.
 
-### Bonding your mix node
+## Node Description (optional)
+
+In order to easily identify your node via human-readable information later on, you can `describe` your mix node with the following command:
+
+```
+./nym-mixnode describe --id <YOUR_ID>
+```
+Node description is a short text that describes your node. It is displayed in the `./nym-mixnode list` command and in the `./nym-mixnode node-details --id <YOUR_ID>` command. It also shows up in the node explorer to let people know what your node is about and link to your website.
+
+You can set your node description, by creating a file called `description.toml` and put it in the same directory as your `config.toml` file (`~/.nym/mixnodes/<YOUR_ID>/description.toml`). The file should look like this example:
+
+```toml
+name = "Winston Smith"
+description = "I am the Sphinx"
+link = "https://nymtech.net"
+location = "Giza, Egypt"
+```
+
+> Remember to restart your `nym-mix-node` process in order for the new description to be propagated.
+
+## Running your mix node
+
+Run your Mix Node with:
+
+```
+./nym-mixnode run --id <YOUR_ID>
+```
+
+Have a look at the saved configuration files in `$HOME/.nym/mixnodes/` to see more configuration options.
+
+## Bonding your mix node
 
 ```admonish caution
 From `v1.1.3`, if you unbond your mix node that means you are leaving the mixnet and you will lose all your delegations (permanently). You can join again with the same identity key, however, you will start with **no delegations**.
@@ -115,7 +145,7 @@ To initialise, run and bond your Mix Node are the minimum steps to do in order f
 - [Automate your Mix Node](./maintenance.md#vps-setup-and-automation)
 - Set the [ulimit](./maintenance.md#set-the-ulimit-via-systemd-service-file) In case you haven't automated with [systemd](./maintenance.md#set-the-ulimit-on-non-systemd-based-distributions)
 
-#### Bond via the Desktop wallet (recommended)
+### Bond via the Desktop wallet (recommended)
 
 You can bond your mix node via the Desktop wallet.
 
@@ -163,44 +193,15 @@ It will look something like this:
 
 * Your node will now be bonded and ready to mix at the beginning of the next epoch (at most 1 hour).
 
-> You are asked to `sign` a transaction on bonding so that the mixnet smart contract is able to map your nym address to your node. This allows us to create a nonce for each account and defend against replay attacks.
-
-#### Bond via the CLI (power users)
-If you want to bond your mix node via the CLI, then check out the [relevant section in the Nym CLI](https://nymtech.net/docs/tools/nym-cli.html#bond-a-mix-node) docs.
-
-### Running your mix node
-
-Now you've bonded your mix node, run it with:
-
-```
-./nym-mixnode run --id <YOUR_ID>
-```
+> You are asked to `sign` a transaction on bonding so that the Mixnet smart contract is able to map your nym address to your node. This allows us to create a nonce for each account and defend against replay attacks.
 
 If everything worked, you'll see your node running on the either the [Sandbox testnet network explorer](https://sandbox-explorer.nymtech.net) or the [mainnet network explorer](https://explorer.nymtech.net), depending on which network you're running.
 
 Note that your node's public identity key is displayed during startup, you can use it to identify your node in the list.
 
-Have a look at the saved configuration files in `$HOME/.nym/mixnodes/` to see more configuration options.
+### Bond via the CLI (power users)
+If you want to bond your mix node via the CLI, then check out the [relevant section in the Nym CLI](https://nymtech.net/docs/tools/nym-cli.html#bond-a-mix-node) docs.
 
-## Node Description (optional)
-
-In order to easily identify your node via human-readable information later on in the development of the testnet when delegated staking is implemented, you can `describe` your mix node with the following command:
-
-```
-./nym-mixnode describe --id <YOUR_ID>
-```
-Node description is a short text that describes your node. It is displayed in the `./nym-mixnode list` command and in the `./nym-mixnode node-details --id <YOUR_ID>` command. It also shows up in the node explorer to let people know what your node is about and link to your website.
-
-You can set your node description, by creating a file called `description.toml` and put it in the same directory as your `config.toml` file (`~/.nym/mixnodes/<YOUR_ID>/description.toml`). The file should look like this example:
-
-```toml
-name = "Winston Smith"
-description = "I am the Sphinx"
-link = "https://nymtech.net"
-location = "Giza, Egypt"
-```
-
-> Remember to restart your mix node process in order for the new description to be propagated.
 
 ## Node Families
 

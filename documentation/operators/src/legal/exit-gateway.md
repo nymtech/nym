@@ -66,7 +66,7 @@ The new setup: Running nodes supporting traffic of any online service (with safe
 
 ## Exit Gateways: New setup
 
-In our previous technical setup, network Requesters acted as a proxy, and only made requests that match an allow list. That was a default IP based list of allowed domains stored at Nym page in a centralised fashion possibly re-defined by any Network Requester operator. 
+In our previous technical setup, Network Requesters acted as a proxy, and only made requests that match an allow list. That was a default IP based list of allowed domains stored at Nym page in a centralised fashion possibly re-defined by any Network Requester operator. 
 
 This restricts the hosts that the NymConnect app can connect to and has the effect of selectively supporting messaging services (e.g. Telegram, Matrix) or crypto wallets (e.g. Electrum or Monero). Operators of Network Requesters can have confidence that the infrastructure they run only connects to a limited set of public internet hosts.
 

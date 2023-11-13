@@ -111,7 +111,7 @@ alephium.org
 
 You can find a list of Network Requesters running the default whitelist in the [explorer](https://explorer.nymtech.net/network-components/service-providers). This list comprises of the NRs running as infrastructure for NymConnect.
 
-> We are currently working on a smart-contract based solution more in line with how Mix nodes and Gateways announce themselves to the network.
+> We are currently working on a smart-contract based solution more in line with how Mix Nodes and Gateways announce themselves to the network.
 
 ## Viewing command help
 

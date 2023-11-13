@@ -50,7 +50,7 @@ You can also check the various arguments required for individual commands with:
 
 ## Initialising your Gateway
 
-As Nym developers build towards [Exit Gateway](../legal/exit-gateway.md) functionality, operators can now run their `nym-gateway` binary with in-build Network requester and include the our new [exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt). Considering the plan to [*smoosh*](../faq/smoosh-faq.md) all the nodes into one binary and have wide opened Exit Gateways, we recommend this setup, instead of operating two separate binaries. 
+As Nym developers build towards [Exit Gateway](../legal/exit-gateway.md) functionality, operators can now run their `nym-gateway` binary with in-build Network Requester and include the our new [exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt). Considering the plan to [*smoosh*](../faq/smoosh-faq.md) all the nodes into one binary and have wide opened Exit Gateways, we recommend this setup, instead of operating two separate binaries. 
 
 ```admonish warning
 Before you start an Exit Gateway, read our [Operators Legal Forum](../legal/exit-gateway.md) page and [*Project Smoosh FAQ*](../faq/smoosh-faq.md).
@@ -64,7 +64,7 @@ There has been an ongoing development with dynamic upgrades. Follow the status o
 
 ### Initialising Exit Gateway
 
-An operator can initialise the Exit Gateway functionality by adding Network requester with the new exit policy option:
+An operator can initialise the Exit Gateway functionality by adding Network Requester with the new exit policy option:
 
 ```
 ./nym-gateway init --id <ID> --listening-address 0.0.0.0 --public-ips "$(curl -4 https://ifconfig.me)" --with-network-requester --with-exit-policy true
@@ -82,9 +82,9 @@ You can see that the printed information besides *identity* and *sphinx keys* al
 
 Additionally 
 
-#### Add Network requester to an existing Gateway
+#### Add Network Requester to an existing Gateway
 
-If you already [upgraded](./maintenance.md#upgrading-your-node) your Gateway to the [latest version](./gateway-setup.md#current-version) and initialised without a Network requester, you can easily change its functionality to Exit Gateway with a command `setup-network-requester`.
+If you already [upgraded](./maintenance.md#upgrading-your-node) your Gateway to the [latest version](./gateway-setup.md#current-version) and initialised without a Network Requester, you can easily change its functionality to Exit Gateway with a command `setup-network-requester`.
 
 See the options:
 
@@ -122,13 +122,13 @@ In case there are any unexpected problems, you can also change it manually by ed
 
 ```
 [network_requester]
-# Specifies whether network requester service is enabled in this process.
+# Specifies whether Network Requester service is enabled in this process.
 enabled = true
 ```
 
 Save, exit and restart your Gateway. Now you are an operator of post-smooshed Exit Gateway.
 
-#### Enable Nym exit policy to an existing Gateway with Network requester functionality
+#### Enable Nym exit policy to an existing Gateway with Network Requester functionality
 
 In case you already added Network Requester functionality to your Gateway as described above but haven't enabled the [exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt) there is an easy tweak to do so and turn your node into [Nym Exit Gateway](../faq/smoosh-faq.md#what-are-the-changes).
 
@@ -139,15 +139,15 @@ use_deprecated_allow_list = false
 Save, exit and restart your Gateway. Now you are an operator of post-smooshed Exit gateway.
 
 ```admonish info
-All information about network requester part of your Exit Gateway is in `/home/user/.nym/gateways/<ID>/config/network_requester_config.toml`.
+All information about Network Requester part of your Exit Gateway is in `/home/user/.nym/gateways/<ID>/config/network_requester_config.toml`.
 ```
 
-For now you can run Gateway without Network requester or with and without the new exit policy. This will soon change as we inform in our [Project Smoosh FAQ](../faq/smoosh-faq.html#how-will-the-exit-policy-be-implemented).
+For now you can run Gateway without Network Requester or with and without the new exit policy. This will soon change as we inform in our [Project Smoosh FAQ](../faq/smoosh-faq.html#how-will-the-exit-policy-be-implemented).
 
-To read more about the configuration like whitelisted outbound requesters in `allowed.list` and other useful information, see the page [*Network requester whitelist*](network-requester-setup.md#using-your-network-requester).
+To read more about the configuration like whitelisted outbound requesters in `allowed.list` and other useful information, see the page [*Network Requester whitelist*](network-requester-setup.md#using-your-network-requester).
 
 
-#### Initialising Gateway without Network requester
+#### Initialising Gateway without Network Requester
 
 In case you don't want to run your Gateway with the Exit Gateway functionality, you still can run a simple Gateway.
 

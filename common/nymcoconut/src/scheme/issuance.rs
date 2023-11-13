@@ -325,6 +325,7 @@ pub fn blind_sign(
 ///
 /// * `params` - A reference to the cryptographic parameters.
 /// * `blind_sign_request` - A reference to the blind signature request signed by the client.
+/// * `public_attributes` - A reference to the public attributes included in the client's request.
 /// * `blind_sig` - A reference to the issued partial blinded signature to be verified.
 /// * `partial_verification_key` - A reference to the validator's partial verification key.
 ///
@@ -343,12 +344,15 @@ pub fn blind_sign(
 pub fn verify_partial_blind_signature(
     params: &Parameters,
     blind_sign_request: &BlindSignRequest,
+    public_attributes: &[Attribute],
     blind_sig: &BlindedSignature,
     partial_verification_key: &VerificationKey,
 ) -> bool {
+    let num_private_attributes = blind_sign_request.private_attributes_commitments.len();
+    // e(c, g2)
     let pairing0 = pairing(&blind_sig.1.to_affine(), params.gen2());
 
-    let composed_pairing = blind_sign_request
+    let private_pairings = blind_sign_request
         .private_attributes_commitments
         .iter()
         .zip(&partial_verification_key.beta_g2)
@@ -361,6 +365,22 @@ pub fn verify_partial_blind_signature(
                 acc + pairing(&commitment.to_affine(), &beta_g2.to_affine())
             },
         );
+
+    let beta_g2_to_zip: Vec<_> = partial_verification_key
+        .beta_g2
+        .iter()
+        .skip(num_private_attributes)
+        .cloned()
+        .collect();
+    let composed_pairing = public_attributes.iter().zip(beta_g2_to_zip).fold(
+        private_pairings,
+        |acc, (public_attr, beta_g2)| {
+            acc + pairing(
+                &(blind_sig.0 * public_attr).to_affine(),
+                &beta_g2.to_affine(),
+            )
+        },
+    );
 
     pairing0 == composed_pairing
 }
@@ -436,8 +456,34 @@ mod tests {
 
     #[test]
     fn successful_verify_partial_blind_signature() {
-        // 0 public and 2 private attribute
-        let params = Parameters::new(2).unwrap();
+        let params = Parameters::new(4).unwrap();
+        let private_attributes = params.n_random_scalars(2);
+        let public_attributes = params.n_random_scalars(2);
+
+        let (_commitments_openings, request) =
+            prepare_blind_sign(&params, &private_attributes, &public_attributes).unwrap();
+
+        let validator_keypair = keygen(&params);
+        let blind_sig = blind_sign(
+            &params,
+            &validator_keypair.secret_key(),
+            &request,
+            &public_attributes,
+        )
+        .unwrap();
+
+        assert!(verify_partial_blind_signature(
+            &params,
+            &request,
+            &public_attributes,
+            &blind_sig,
+            &validator_keypair.verification_key()
+        ));
+    }
+
+    #[test]
+    fn successful_verify_partial_blind_signature_no_public_attributes() {
+        let params = Parameters::new(4).unwrap();
         let private_attributes = params.n_random_scalars(2);
 
         let (_commitments_openings, request) =
@@ -450,6 +496,7 @@ mod tests {
         assert!(verify_partial_blind_signature(
             &params,
             &request,
+            &[],
             &blind_sig,
             &validator_keypair.verification_key()
         ));
@@ -457,23 +504,29 @@ mod tests {
 
     #[test]
     fn fail_verify_partial_blind_signature_with_wrong_key() {
-        // 0 public and 2 private attribute
-        let params = Parameters::new(2).unwrap();
+        let params = Parameters::new(4).unwrap();
         let private_attributes = params.n_random_scalars(2);
+        let public_attributes = params.n_random_scalars(2);
 
         let (_commitments_openings, request) =
-            prepare_blind_sign(&params, &private_attributes, &[]).unwrap();
+            prepare_blind_sign(&params, &private_attributes, &public_attributes).unwrap();
 
         let validator_keypair = keygen(&params);
         let validator2_keypair = keygen(&params);
-        let blind_sig =
-            blind_sign(&params, &validator_keypair.secret_key(), &request, &[]).unwrap();
+        let blind_sig = blind_sign(
+            &params,
+            &validator_keypair.secret_key(),
+            &request,
+            &public_attributes,
+        )
+        .unwrap();
 
         // this assertion should fail, as we try to verify with a wrong validator key
         assert_eq!(
             verify_partial_blind_signature(
                 &params,
                 &request,
+                &public_attributes,
                 &blind_sig,
                 &validator2_keypair.verification_key()
             ),

@@ -23,13 +23,25 @@ Upgrading your node is a two-step process:
 * Updating the node information in the [mixnet smart contract](https://nymtech.net/docs/nyx/mixnet-contract.html). **This is the information that is present on the [mixnet explorer](https://explorer.nymtech.net)**.
 
 ### Step 1: Upgrading your binary
-Follow these steps to upgrade your Mix Node binary and update its config file:
-* pause your Mix Node process.
-* replace the existing binary with the newest binary (which you can either [compile yourself](https://nymtech.net/docs/binaries/building-nym.html) or grab from our [releases page](https://github.com/nymtech/nym/releases)).
-* re-run `init` with the same values as you used initially. **This will just update the config file, it will not overwrite existing keys**.
-* restart your Mix Node process with the new binary.
+Follow these steps to upgrade your Node binary and update its config file:
+* Pause your node process.
+    - if you see the terminal window with your node, press `ctrl + c`
+    - if you run it as `systemd` service, run: `systemctl stop nym-<NODE>.service`
+* Replace the existing `<NODE>` binary with the newest binary (which you can either [compile yourself](https://nymtech.net/docs/binaries/building-nym.html) or grab from our [releases page](https://github.com/nymtech/nym/releases)).
+* Re-run `init` with the same values as you used initially for your `<NODE>` ([Mix Node](./mix-node-setup.md#initialising-your-mix-node), [Gateway](./gateway-setup.md#initialising-your-gateway)) . **This will just update the config file, it will not overwrite existing keys**.
+* Restart your node process with the new binary.
+    - if you automatized (recommended) run: 
+```sh
+systemctl daemon-reload # to pickup the new unit file
+systemctl start nym-<NODE>.service
+journalctl -f -u <NODE>.service # to monitor log of you node
+```
+    - if you haven't automatized, just run your `<NODE>` ([Mix Node](./mix-node-setup.md#running-your-mix-node), [Gateway](./gateway-setup.md#running-your-gateway)) 
 
-> In case of a Network Requester this is all all, the following step is only for Mix Nodes and Gateways.
+
+If these steps are too difficult and you prefer to just run a script, you can use [ExploreNYM script](https://github.com/ExploreNYM/bash-tool) or one done by [Nym developers](https://gist.github.com/tommyv1987/4dca7cc175b70742c9ecb3d072eb8539).
+
+> In case of a Network Requester this is all, the following step is only for Mix Nodes and Gateways.
 
 ### Step 2: Updating your node information in the smart contract
 Follow these steps to update the information about your `<NODE>` which is publicly available from the [Nym API](https://validator.nymtech.net/api/swagger/index.html) and information displayed on the [mixnet explorer](https://explorer.nymtech.net).

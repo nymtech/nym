@@ -30,7 +30,7 @@ Because of the way the smart contract works we keep it one-node one-address at t
 
 Right now only Mix Nodes are rewarded. We're working on gateway and service payments. Gateways are the weak link right now due mostly to lack of incentivisation. Services like Network Requesters are obviously the most necessary for people to start using the platform, and we're working on smart contracts to allow for people to start advertising them the same way they do Mix Nodes.
 
-### Are mixnodes whitelisted?
+### Are Mix Nodes whitelisted?
 
 Nope, anyone can run a Mix Node. Purely reliant on the node's reputation (self stake + delegations) & routing score.
 

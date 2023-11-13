@@ -295,7 +295,7 @@ Finally, restart your node. You should see if the Mix Node is using the port you
 
 You don't have to do any additional configuration for your node to implement this, it is a passive process that runs in the background of the mixnet from version `0.10.1` onward.
 
-## Gateways & Network requesters
+## Gateways & Network Requesters
 
 ### My gateway seems to be running but appears offline
 
@@ -305,7 +305,7 @@ Check your [firewall](./maintenance.md#configure-your-firewall) is active and if
 
 The Nyx chain epoch takes up to 60 min. To prevent the Gateway getting blacklisted, it's important to run it before and during the bonding process. In case it already got blacklisted run it for at several hours. During this time your node is tested by `nym-api` and every positive response picks up your Gateway's routing score.
 
-You may want to disconnect the Network requester and let it run as a Gateway alone for some time to regain better routing score and then return to the full [Exit Gateway finctionality](./gateway-setup.md#initialising-gateway-with-network-requester).
+You may want to disconnect the Network Requester and let it run as a Gateway alone for some time to regain better routing score and then return to the full [Exit Gateway finctionality](./gateway-setup.md#initialising-gateway-with-network-requester).
 
 
 ## Validators

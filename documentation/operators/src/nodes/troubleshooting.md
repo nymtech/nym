@@ -297,7 +297,7 @@ You don't have to do any additional configuration for your node to implement thi
 
 ## Gateways & Network Requesters
 
-### My gateway seems to be running but appears offline
+### My Gateway seems to be running but appears offline
 
 Check your [firewall](./maintenance.md#configure-your-firewall) is active and if the necessary ports are open / allowed.
 

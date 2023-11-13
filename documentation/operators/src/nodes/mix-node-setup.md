@@ -108,6 +108,13 @@ During the `init` process you will have the option to change the `http_api`, `ve
 From `v1.1.3`, if you unbond your mix node that means you are leaving the mixnet and you will lose all your delegations (permanently). You can join again with the same identity key, however, you will start with **no delegations**.
 ```
 
+To initialise, run and bond your Mix Node are the minimum steps to do in order for your Mix Node to work. However we recommend to do a few more steps before bonding. These steps will make it easier for you as a node operator on a long run as well as for others to possibly delegate Nym tokens to your Mix Node. These steps are:
+
+- [Describe your Mix Node](./mix-node-setup.md#node-description-optional) 
+- [Configure your firewall](./maintenance.md#configure-your-firewall)
+- [Automate your Mix Node](./maintenance.md#vps-setup-and-automation)
+- Set the [ulimit](./maintenance.md#set-the-ulimit-via-systemd-service-file) In case you haven't automated with [systemd](./maintenance.md#set-the-ulimit-on-non-systemd-based-distributions)
+
 #### Bond via the Desktop wallet (recommended)
 
 You can bond your mix node via the Desktop wallet.
@@ -116,7 +123,7 @@ You can bond your mix node via the Desktop wallet.
 
 * Enter the `Amount`, `Operating cost` and `Profit margin` and press `Next`.
 
-* You will be asked to run a the `sign` command with your `gateway` - copy and paste the long signature as the value of `--contract-msg` and run it. 
+* You will be asked to run a the `sign` command with your `mixnode` - copy and paste the long signature as the value of `--contract-msg` and run it. 
 
 ```
 ./nym-mixnode sign --id <YOUR_ID> --contract-msg <PAYLOAD_GENERATED_BY_THE_WALLET>

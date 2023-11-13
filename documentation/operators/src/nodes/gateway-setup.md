@@ -50,7 +50,7 @@ You can also check the various arguments required for individual commands with:
 
 ## Initialising your Gateway
 
-As Nym developers build towards [Exit Gateway](../legal/exit-gateway.md) functionality, operators can now run their `nym-gateway` binary with in-build Network Requester and include the our new [exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt). Considering the plan to [*smoosh*](../faq/smoosh-faq.md) all the nodes into one binary and have wide opened Exit Gateways, we recommend this setup, instead of operating two separate binaries. 
+As Nym developers build towards [Exit Gateway](../legal/exit-gateway.md) functionality, operators can now run their `nym-gateway` binary with inbuilt Network Requester and include the our new [exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt). Considering the plan to [*smoosh*](../faq/smoosh-faq.md) all the nodes into one binary and have wide opened Exit Gateways, we recommend this setup, instead of operating two separate binaries. 
 
 ```admonish warning
 Before you start an Exit Gateway, read our [Operators Legal Forum](../legal/exit-gateway.md) page and [*Project Smoosh FAQ*](../faq/smoosh-faq.md).

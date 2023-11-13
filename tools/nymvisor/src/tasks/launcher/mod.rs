@@ -5,10 +5,7 @@ use crate::config::Config;
 use crate::daemon::Daemon;
 use crate::error::NymvisorError;
 use crate::tasks::launcher::backup::BackupBuilder;
-use crate::upgrades::{
-    types::{UpgradeInfo, UpgradePlan},
-    upgrade_binary,
-};
+use crate::upgrades::{types::UpgradePlan, upgrade_binary};
 use async_file_watcher::FileWatcherEventReceiver;
 use futures::future::{FusedFuture, OptionFuture};
 use futures::{FutureExt, StreamExt};
@@ -35,7 +32,7 @@ impl DaemonLauncher {
     }
 
     pub(crate) async fn run_loop(&mut self, args: Vec<String>) -> Result<(), NymvisorError> {
-        let mut consecutive_startup_failure_count = 0;
+        let mut startup_failures = 0;
         loop {
             let run_start = tokio::time::Instant::now();
 
@@ -66,22 +63,26 @@ impl DaemonLauncher {
                     }
 
                     if run_duration < self.config.daemon.debug.startup_period_duration {
-                        consecutive_startup_failure_count += 1;
+                        startup_failures += 1;
                     } else {
-                        consecutive_startup_failure_count = 1;
+                        startup_failures = 1;
                     }
 
-                    if consecutive_startup_failure_count
-                        >= self.config.daemon.debug.max_startup_failures
-                    {
+                    if startup_failures >= self.config.daemon.debug.max_startup_failures {
                         return Err(NymvisorError::DaemonMaximumStartupFailures {
-                            failures: consecutive_startup_failure_count,
+                            failures: startup_failures,
                         });
                     }
 
+                    info!(
+                        "waiting for {} before attempting to restart the daemon...",
+                        humantime::format_duration(self.config.daemon.debug.failure_restart_delay)
+                    );
                     sleep(self.config.daemon.debug.failure_restart_delay).await;
+                    // restart
                 }
             }
+            info!("the daemon will be now restarted")
         }
     }
 
@@ -128,13 +129,6 @@ impl DaemonLauncher {
         args: Vec<String>,
     ) -> Result<bool, NymvisorError> {
         let daemon = Daemon::from_config(&self.config);
-        let current_upgrade = UpgradeInfo::try_load(self.config.current_upgrade_info_filepath())?;
-
-        // see if there's already a queued up upgrade
-        let current_upgrade_plan = UpgradePlan::try_load(self.config.upgrade_plan_filepath())?;
-        let next = current_upgrade_plan.next_upgrade();
-
-        // TODO: /\
 
         let mut running_daemon = daemon.execute_async(args)?;
         let interrupt_handle = running_daemon.interrupt_handle();
@@ -142,7 +136,12 @@ impl DaemonLauncher {
         // we need to fuse the daemon future so that we could check if it has already terminated
         let mut fused_runner = running_daemon.fuse();
 
-        let mut upgrade_timeout: OptionFuture<_> = None.into();
+        let mut upgrade_timeout: OptionFuture<_> = self
+            .check_upgrade_plan_changes()
+            .map(sleep)
+            .map(Box::pin)
+            .map(FutureExt::fuse)
+            .into();
 
         let signal_fut = wait_for_signal();
         pin!(signal_fut);

@@ -3,6 +3,7 @@
 
 use crate::config::Config;
 use crate::error::NymvisorError;
+use crate::helpers::init_path;
 use crate::upgrades::types::UpgradeInfo;
 use bytes::Buf;
 use futures::stream::StreamExt;
@@ -34,19 +35,8 @@ pub(super) async fn download_upgrade_binary(
     info: &UpgradeInfo,
 ) -> Result<(), NymvisorError> {
     info!("attempting to download the upgrade binary");
-    let Some(download_url) = info.platforms.get(&os_arch()) else {
-        return Err(NymvisorError::NoDownloadUrls {
-            upgrade_name: info.name.clone(),
-            arch: os_arch(),
-        });
-    };
-
-    fs::create_dir_all(config.upgrade_binary_dir(&info.name)).map_err(|source| {
-        NymvisorError::PathInitFailure {
-            path: config.upgrade_binary_dir(&info.name),
-            source,
-        }
-    })?;
+    let download_url = info.get_download_url()?;
+    init_path(config.upgrade_binary_dir(&info.name))?;
 
     let target = config.upgrade_binary(&info.name);
     let response = reqwest::get(download_url.url.clone())
@@ -99,7 +89,7 @@ pub(super) async fn download_upgrade_binary(
     Ok(())
 }
 
-fn os_arch() -> String {
+pub(crate) fn os_arch() -> String {
     let os = env::consts::OS;
     let arch = env::consts::ARCH;
     // a special case for macos because of course it's its own special snowflake

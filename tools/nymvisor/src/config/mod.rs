@@ -476,8 +476,6 @@ pub struct DaemonDebug {
     /// default: 10s
     /// Can be overridden with $DAEMON_SHUTDOWN_GRACE_PERIOD environmental variable.
     #[serde(with = "humantime_serde")]
-    // this is not deprecated, im just marking it as such so that clippy would yell at me because I still havent implemented it
-    #[deprecated]
     pub shutdown_grace_period: Duration,
 
     /// Set custom backup directory for daemon data. If not set, the daemon's home directory will be used instead.

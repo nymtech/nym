@@ -4,6 +4,8 @@
 use super::serde_helpers::{base64, option_offsetdatetime};
 use crate::config::GENESIS_DIR;
 use crate::error::NymvisorError;
+use crate::helpers::init_path;
+use crate::upgrades::download::os_arch;
 use nym_bin_common::build_information::BinaryBuildInformationOwned;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
@@ -24,7 +26,7 @@ pub struct UpgradePlan {
     current: UpgradeInfo,
 
     // TODO: or maybe BTreeMap<OffsetDateTime, UpgradeInfo>, would be more appropriate?
-    queued_up: VecDeque<UpgradeInfo>,
+    queued_up: Vec<UpgradeInfo>,
 }
 
 impl UpgradePlan {
@@ -32,12 +34,19 @@ impl UpgradePlan {
         UpgradePlan {
             _save_path: None,
             current,
-            queued_up: VecDeque::new(),
+            queued_up: Vec::new(),
         }
     }
 
     fn push_next_upgrade(&mut self, upgrade: UpgradeInfo) {
-        self.queued_up.push_back(upgrade);
+        self.queued_up.push(upgrade);
+
+        // we could be fancy and try to determine the correct index for the insertion point
+        // or we could just do a naive thing of sorting the elements by the upgrade time.
+        // is it less efficient? sure
+        // does it matter? no because we'll have at most few elements here
+        // so the overhead will be in the order of nanoseconds/microseconds
+        self.queued_up.sort_by_key(|u| u.upgrade_time)
     }
 
     pub(crate) fn update_on_disk(&self) -> Result<(), NymvisorError> {
@@ -82,11 +91,17 @@ impl UpgradePlan {
     }
 
     pub(crate) fn next_upgrade(&self) -> Option<&UpgradeInfo> {
-        self.queued_up.front()
+        self.queued_up.get(0)
     }
 
     pub(crate) fn pop_next_upgrade(&mut self) -> Option<UpgradeInfo> {
-        self.queued_up.pop_front()
+        // yes, yes. VecDeque would have been perfect for this instead,
+        // but again, we'll hardly ever have more than 2-3 elements here so it doesn't matter
+        if !self.queued_up.is_empty() {
+            Some(self.queued_up.remove(0))
+        } else {
+            None
+        }
     }
 
     pub(crate) fn has_planned(&self, upgrade: &UpgradeInfo) -> bool {
@@ -167,6 +182,8 @@ pub struct DownloadUrl {
 #[serde(rename_all = "lowercase")]
 pub struct UpgradeInfo {
     /// Specifies whether this upgrade requires manual intervention and cannot be done automatically by the nymvisor.
+    // this is not deprecated, im just marking it as such so that clippy would yell at me because I still havent implemented it
+    #[deprecated]
     pub manual: bool,
 
     /// Name of this upgrade, for example `2023.4-galaxy`
@@ -203,10 +220,7 @@ impl UpgradeInfo {
             .parent()
             .expect("attempted to save the upgrade info as the root of the fs");
 
-        fs::create_dir_all(parent).map_err(|source| NymvisorError::PathInitFailure {
-            path: parent.to_path_buf(),
-            source,
-        })?;
+        init_path(parent)?;
 
         let file = OpenOptions::new()
             .create(true)
@@ -241,6 +255,18 @@ impl UpgradeInfo {
 
     pub(crate) fn is_genesis(&self) -> bool {
         self.name == GENESIS_DIR
+    }
+
+    pub(crate) fn get_download_url(&self) -> Result<&DownloadUrl, NymvisorError> {
+        if let Some(download_url) = self.platforms.get(&os_arch()) {
+            return Ok(download_url);
+        }
+        self.platforms
+            .get("any")
+            .ok_or(NymvisorError::NoDownloadUrls {
+                upgrade_name: self.name.clone(),
+                arch: os_arch(),
+            })
     }
 }
 

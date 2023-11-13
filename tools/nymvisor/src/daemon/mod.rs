@@ -11,7 +11,7 @@ use std::fmt::Debug;
 use std::fs;
 use std::future::Future;
 use std::os::unix::fs::PermissionsExt;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::process::{ExitStatus, Stdio};
 use std::sync::Arc;
@@ -49,9 +49,9 @@ impl Daemon {
         }
     }
 
-    pub(crate) fn new(executable_path: PathBuf) -> Self {
+    pub(crate) fn new<P: AsRef<Path>>(executable_path: P) -> Self {
         Daemon {
-            executable_path,
+            executable_path: executable_path.as_ref().to_path_buf(),
             kill_timeout: DEFAULT_SHUTDOWN_GRACE_PERIOD,
         }
     }

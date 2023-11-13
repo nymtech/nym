@@ -1,10 +1,12 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::cli::helpers::{copy_binary, daemon_home, use_logs};
 use crate::config::{default_config_filepath, Config, BIN_DIR, GENESIS_DIR};
 use crate::daemon::Daemon;
 use crate::env::Env;
 use crate::error::NymvisorError;
+use crate::helpers::init_path;
 use crate::upgrades::types::{UpgradeInfo, UpgradePlan};
 use nym_bin_common::build_information::BinaryBuildInformationOwned;
 use nym_bin_common::logging::setup_tracing_logger;
@@ -188,7 +190,7 @@ fn try_build_config(
     daemon_info: &BinaryBuildInformationOwned,
 ) -> Result<Config, NymvisorError> {
     let daemon_name = &daemon_info.binary_name;
-    let daemon_home = daemon_home(args, env)?;
+    let daemon_home = daemon_home(&args.daemon_home, env)?;
 
     debug!(
         "building config for '{daemon_name}' with home at {}",
@@ -208,37 +210,7 @@ fn try_build_config(
     Ok(config)
 }
 
-fn daemon_home(args: &Args, env: &Env) -> Result<PathBuf, NymvisorError> {
-    if let Some(home) = &args.daemon_home {
-        Ok(home.clone())
-    } else if let Some(home) = &env.daemon_home {
-        Ok(home.clone())
-    } else {
-        Err(NymvisorError::DaemonHomeUnavailable)
-    }
-}
-
-fn use_logs(args: &Args, env: &Env) -> bool {
-    if args.disable_nymvisor_logs {
-        false
-    } else if let Some(disable_logs) = env.nymvisor_disable_logs {
-        !disable_logs
-    } else {
-        true
-    }
-}
-
 fn init_paths(config: &Config) -> Result<(), NymvisorError> {
-    fn init_path<P: AsRef<Path>>(path: P) -> Result<(), NymvisorError> {
-        let path = path.as_ref();
-        trace!("initialising {}", path.display());
-
-        fs::create_dir_all(path).map_err(|source| NymvisorError::PathInitFailure {
-            path: path.to_path_buf(),
-            source,
-        })
-    }
-
     info!("initialising the directory structure");
 
     init_path(config.daemon_nymvisor_dir())?;
@@ -252,7 +224,7 @@ fn init_paths(config: &Config) -> Result<(), NymvisorError> {
 
 fn setup_genesis(
     config: &Config,
-    source_dir: &Path,
+    source: &Path,
     daemon_info: BinaryBuildInformationOwned,
 ) -> Result<(), NymvisorError> {
     info!("setting up the genesis binary");
@@ -275,13 +247,7 @@ fn setup_genesis(
 
     let genesis_info = generate_and_save_genesis_upgrade_info(config, daemon_info)?;
     setup_initial_upgrade_plan(config, genesis_info)?;
-
-    fs::copy(source_dir, &target).map_err(|source| NymvisorError::DaemonBinaryCopyFailure {
-        source_path: source_dir.to_path_buf(),
-        target_path: target,
-        source,
-    })?;
-    Ok(())
+    copy_binary(source, target)
 }
 
 fn create_current_symlink(config: &Config) -> Result<(), NymvisorError> {
@@ -424,7 +390,7 @@ fn save_config(config: Config, env: &Env) -> Result<(), NymvisorError> {
 pub(crate) fn execute(args: Args) -> Result<(), NymvisorError> {
     let env = Env::try_read()?;
 
-    if use_logs(&args, &env) {
+    if use_logs(args.disable_nymvisor_logs, &env) {
         setup_tracing_logger();
         info!("enabled nymvisor logging");
     }

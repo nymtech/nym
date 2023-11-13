@@ -1,12 +1,6 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-mod add_upgrade;
-mod build_info;
-mod config;
-mod init;
-mod run;
-
 use crate::config::{default_config_filepath, Config};
 use crate::env::{setup_env, Env};
 use crate::error::NymvisorError;
@@ -15,6 +9,13 @@ use lazy_static::lazy_static;
 use nym_bin_common::bin_info;
 use std::path::Path;
 use tracing::error;
+
+mod add_upgrade;
+mod build_info;
+mod config;
+pub(crate) mod helpers;
+mod init;
+mod run;
 
 lazy_static! {
     pub static ref PRETTY_BUILD_INFORMATION: String = bin_info!().pretty_print();

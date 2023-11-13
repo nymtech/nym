@@ -258,6 +258,9 @@ pub(crate) enum NymvisorError {
         provided_genesis: Box<BinaryBuildInformationOwned>,
     },
 
+    #[error("there already exist upgrade directory for '{name}' at: {}. if you want to ovewrite its content, use --force flag", path.display())]
+    ExistingUpgrade { name: String, path: PathBuf },
+
     #[error("there was already a symlink for the 'current' binary of {daemon_name}. it's pointing to {} while we needed to create one to {}", link.display(), expected_link.display())]
     ExistingCurrentSymlink {
         daemon_name: String,

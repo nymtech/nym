@@ -150,7 +150,7 @@ Alternatively, a custom host can be set in the `config.toml` file under the `soc
 
 ### Running the socks5 client
 
-You can run the initalised client by doing this:
+You can run the initialised client by doing this:
 
 ```
 ./nym-socks5-client run --id docs-example

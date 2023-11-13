@@ -59,42 +59,20 @@ To check available configuration options for initializing your node use:
 
 ~~~admonish example collapsible=true title="Console output"
 ```
- <!-- cmdrun ../../../../target/release/nym-mixnode init --help -->
+<!-- cmdrun ../../../../target/release/nym-mixnode init --help -->
 ```
 ~~~
 
-Initalise your mix node with the following command, replacing the value of `--id` with the moniker you wish to give your mix node. Your `--host` must be publicly routable on the internet in order to mix packets, and can be either an Ipv4 or IPv6 address. The `$(curl -4 https://ifconfig.me)` command returns your IP automatically using an external service. If you enter your IP address manually, enter it **without** any port information.
+Initialise your mix node with the following command, replacing the value of `--id` with the moniker you wish to give your mix node. Your `--host` must be publicly routable on the internet in order to mix packets, and can be either an Ipv4 or IPv6 address. The `$(curl -4 https://ifconfig.me)` command returns your IP automatically using an external service. If you enter your IP address manually, enter it **without** any port information.
 
 ```
-./nym-mixnode init --id <NODE_NAME> --host $(curl -4 https://ifconfig.me) 
+./nym-mixnode init --id <YOUR_ID> --host $(curl -4 https://ifconfig.me) 
 ```
+If `<YOUR_ID>` was `my-node`, the output shall look like like this:
 
-<!---serinko: The automatized command did not work, printing the output manually--->
 ~~~admonish example collapsible=true title="Console output"
 ```
-.nym-mixnode init --id <YOUR_ID> --host $(curl -4 https://ifconfig.me) --wallet-address <WALLET_ADDRESS>
-
-
-Initialising mixnode <YOUR_ID>...
-Saved mixnet identity and sphinx keypairs
- 2023-06-04T08:20:32.862Z INFO  nym_config > Configuration file will be saved to "/home/<USER>/.nym/mixnodes/<YOUR_ID>/config/config.toml"
-Saved configuration file to "/home/<USER>/.nym/mixnodes/<YOUR_ID>/config/config.toml"
-Mixnode configuration completed.
-
-      _ __  _   _ _ __ ___
-     | '_ \| | | | '_ \ _ \
-     | | | | |_| | | | | | |
-     |_| |_|\__, |_| |_| |_|
-            |___/
-
-             (nym-mixnode - version v1.1.29)
-
-
-Identity Key: DhmUYedPZvhP9MMwXdNpPaqCxxTQgjAg78s2nqtTTiNF","version":"v1.1.29"},"cost_params
-Sphinx Key: CfZSy1jRfrfiVi9JYexjFWPqWkKoY72t7NdpWaq37K8Z
-Host: 62.240.134.189 (bind address: 62.240.134.189)
-Version: v1.1.29
-Mix Port: 1789, Verloc port: 1790, Http Port: 8000
+<!-- cmdrun ../../../../target/release/nym-mixnode init --id my-node --host $(curl -4 https://ifconfig.me) -->
 ```
 ~~~
 

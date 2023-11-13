@@ -28,9 +28,9 @@ chmod +x ./nym-connect_<VERSION>
 To download Firo Electrum wallet visit the [Firo's repository](https://github.com/firoorg/firo) or [Github release page](https://github.com/firoorg/electrum-firo/releases/tag/4.1.5.2). To connect to the Mixnet follow these steps:
 
 7. Start and connect [NymConnect](./firo.md#nymconnect-installation) (or [`nym-socks5-client`](https://nymtech.net/docs/clients/socks5-client.html))
-2. Start your Firo Electrum wallet
-3. Go to: *Tools* -> *Network* -> *Proxy*
-4. Set *Use proxy* to ✅, choose `SOCKS5` from the drop-down and add the values from your NymConnect application
-5. Now your Firo Electrum wallet runs through the Mixnet and it will be connected only if your NymConnect or `nym-socks5-client` are connected.
+8. Start your Firo Electrum wallet
+9. Go to: *Tools* -> *Network* -> *Proxy*
+10. Set *Use proxy* to ✅, choose `SOCKS5` from the drop-down and add the values from your NymConnect application
+11. Now your Firo Electrum wallet runs through the Mixnet and it will be connected only if your NymConnect or `nym-socks5-client` are connected.
 
 ![Firo Electrum wallet setup](../images/firo_tutorial/firo.png)

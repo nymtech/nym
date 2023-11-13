@@ -15,10 +15,19 @@ If the pre-built binaries don't work or are unavailable for your system, you wil
 3. Open your VPS terminal in a directory where you want to download Nym binaries.
 4. Download binary by running `wget <BINARY_LINK>` where `<BINARY_LINK>` shall be in your clipboard from point \# 2.
 
-## Make Executable
+### Make Executable
 
-5. Run:
+5. Run command:
 ```sh
 chmod +x <BINARY>
 ```
+### Run Binary
 
+Now you can use your binary, initialise and run your Nym Node. Follow the guide according to the type of your binary.
+
+**Node setup and usage guides:**
+
+* [Mix nodes](./nodes/mix-node-setup.md)
+* [Gateways](./nodes/gateway-setup.md)
+* [Network requesters](./nodes/network-requester-setup.md)
+* [Validators](./nodes/validator-setup.md)

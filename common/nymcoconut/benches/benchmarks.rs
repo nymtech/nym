@@ -9,6 +9,7 @@ use nym_coconut::{
     aggregate_signature_shares, aggregate_verification_keys, blind_sign, elgamal_keygen,
     prepare_blind_sign, prove_bandwidth_credential, setup, ttp_keygen, verify_credential,
     Attribute, BlindedSignature, Parameters, Signature, SignatureShare, VerificationKey,
+    verify_partial_blind_signature,
 };
 use rand::seq::SliceRandom;
 use std::ops::Neg;
@@ -237,10 +238,35 @@ fn bench_coconut(c: &mut Criterion) {
         blinded_signatures.push(blinded_signature)
     }
 
+
     let verification_keys: Vec<VerificationKey> = coconut_keypairs
         .iter()
         .map(|keypair| keypair.verification_key())
         .collect();
+
+    // verify a random partial blind signature
+    let rand_idx = 1;
+    let random_blind_signature = blinded_signatures.get(rand_idx).unwrap();
+    let partial_verification_key = verification_keys.get(rand_idx).unwrap();
+
+    group.bench_function(
+        &format!(
+            "verify_partial_blind_signature_{}_private_attributes_{}_public_attributes",
+            case.num_private_attrs,
+            case.num_public_attrs
+        ),
+        |b| {
+            b.iter(|| {
+                verify_partial_blind_signature(
+                    &params,
+                    &blind_sign_request,
+                    &public_attributes,
+                    &random_blind_signature,
+                    &partial_verification_key
+                )
+            })
+        },
+    );
 
     // Lets bench worse case, ie aggregating all
     let indices: Vec<u64> = (1..=case.num_authorities).collect();

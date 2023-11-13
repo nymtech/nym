@@ -8,8 +8,8 @@ use group::{Curve, Group};
 use nym_coconut::{
     aggregate_signature_shares, aggregate_verification_keys, blind_sign, elgamal_keygen,
     prepare_blind_sign, prove_bandwidth_credential, setup, ttp_keygen, verify_credential,
-    Attribute, BlindedSignature, Parameters, Signature, SignatureShare, VerificationKey,
-    verify_partial_blind_signature,
+    verify_partial_blind_signature, Attribute, BlindedSignature, Parameters, Signature,
+    SignatureShare, VerificationKey,
 };
 use rand::seq::SliceRandom;
 use std::ops::Neg;
@@ -238,7 +238,6 @@ fn bench_coconut(c: &mut Criterion) {
         blinded_signatures.push(blinded_signature)
     }
 
-
     let verification_keys: Vec<VerificationKey> = coconut_keypairs
         .iter()
         .map(|keypair| keypair.verification_key())
@@ -252,8 +251,7 @@ fn bench_coconut(c: &mut Criterion) {
     group.bench_function(
         &format!(
             "verify_partial_blind_signature_{}_private_attributes_{}_public_attributes",
-            case.num_private_attrs,
-            case.num_public_attrs
+            case.num_private_attrs, case.num_public_attrs
         ),
         |b| {
             b.iter(|| {
@@ -262,7 +260,7 @@ fn bench_coconut(c: &mut Criterion) {
                     &blind_sign_request,
                     &public_attributes,
                     &random_blind_signature,
-                    &partial_verification_key
+                    &partial_verification_key,
                 )
             })
         },

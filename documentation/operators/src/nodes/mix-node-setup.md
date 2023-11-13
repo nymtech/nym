@@ -1,6 +1,6 @@
 # Mix Nodes
 
-> The Nym mix node binary was built in the [building nym](../binaries/building-nym.md) section. If you haven't yet built Nym and want to run the code, go there first.
+> The Nym Mix Node binary was built in the [building nym](../binaries/building-nym.md) section. If you haven't yet built Nym and want to run the code, go there first.
 
 > Any syntax in `<>` brackets is a user's unique variable. Exchange with a corresponding name without the `<>` brackets.
 
@@ -13,11 +13,11 @@ The `nym-mix node` binary is currently one point version ahead of the rest of th
 
 ## Preliminary steps
 
-Make sure you do the preparation listed in the [preliminary steps page](../preliminary-steps.md) before setting up your mix node.
+Make sure you do the preparation listed in the [preliminary steps page](../preliminary-steps.md) before setting up your Mix Node.
 
 ## Mix node setup
 
-Now that you have built the [codebase](../binaries/building-nym.md), set up your [wallet](https://nymtech.net/docs/wallet/desktop-wallet.html), and have a VPS with the `nym-mix node` binary, you can set up your mix node with the instructions below.  
+Now that you have built the [codebase](../binaries/building-nym.md), set up your [wallet](https://nymtech.net/docs/wallet/desktop-wallet.html), and have a VPS with the `nym-mix node` binary, you can set up your Mix Node with the instructions below.  
 
 To begin, move to `/target/release` directory from which you run the node commands:
 
@@ -49,7 +49,7 @@ You can also check the various arguments required for individual commands with:
 
 > Adding `--no-banner` startup flag will prevent Nym banner being printed even if run in tty environment.
 
-### Initialising your mix node
+### Initialising your Mix Node
 
 To check available configuration options for initializing your node use:
 
@@ -63,7 +63,7 @@ To check available configuration options for initializing your node use:
 ```
 ~~~
 
-Initialise your mix node with the following command, replacing the value of `--id` with the moniker you wish to give your mix node. Your `--host` must be publicly routable on the internet in order to mix packets, and can be either an Ipv4 or IPv6 address. The `$(curl -4 https://ifconfig.me)` command returns your IP automatically using an external service. If you enter your IP address manually, enter it **without** any port information.
+Initialise your Mix Node with the following command, replacing the value of `--id` with the moniker you wish to give your Mix Node. Your `--host` must be publicly routable on the internet in order to mix packets, and can be either an Ipv4 or IPv6 address. The `$(curl -4 https://ifconfig.me)` command returns your IP automatically using an external service. If you enter your IP address manually, enter it **without** any port information.
 
 ```
 ./nym-mixnode init --id <YOUR_ID> --host $(curl -4 https://ifconfig.me) 
@@ -76,13 +76,13 @@ If `<YOUR_ID>` was `my-node`, the output shall look like like this:
 ```
 ~~~
 
-> The `init` command will refuse to destroy existing mix node keys.
+> The `init` command will refuse to destroy existing Mix Node keys.
 
 During the `init` process you will have the option to change the `http_api`, `verloc` and `mixnode` ports from their default settings. If you wish to change these in the future you can edit their values in the `config.toml` file created by the initialization process, which is located at `~/.nym/mixnodes/<YOUR_ID>/`.
 
 ## Node Description (optional)
 
-In order to easily identify your node via human-readable information later on, you can `describe` your mix node with the following command:
+In order to easily identify your node via human-readable information later on, you can `describe` your Mix Node with the following command:
 
 ```
 ./nym-mixnode describe --id <YOUR_ID>
@@ -100,7 +100,7 @@ location = "Giza, Egypt"
 
 > Remember to restart your `nym-mix-node` process in order for the new description to be propagated.
 
-## Running your mix node
+## Running your Mix Node
 
 Run your Mix Node with:
 
@@ -110,10 +110,10 @@ Run your Mix Node with:
 
 Have a look at the saved configuration files in `$HOME/.nym/mixnodes/` to see more configuration options.
 
-## Bonding your mix node
+## Bonding your Mix Node
 
 ```admonish caution
-From `v1.1.3`, if you unbond your mix node that means you are leaving the mixnet and you will lose all your delegations (permanently). You can join again with the same identity key, however, you will start with **no delegations**.
+From `v1.1.3`, if you unbond your Mix Node that means you are leaving the mixnet and you will lose all your delegations (permanently). You can join again with the same identity key, however, you will start with **no delegations**.
 ```
 
 To initialise, run and bond your Mix Node are the minimum steps to do in order for your Mix Node to work. However we recommend to do a few more steps before bonding. These steps will make it easier for you as a node operator on a long run as well as for others to possibly delegate Nym tokens to your Mix Node. These steps are:
@@ -125,7 +125,7 @@ To initialise, run and bond your Mix Node are the minimum steps to do in order f
 
 ### Bond via the Desktop wallet (recommended)
 
-You can bond your mix node via the Desktop wallet.
+You can bond your Mix Node via the Desktop wallet.
 
 * Open your wallet, and head to the `Bond` page, then select the node type `Mixnode` and input your node details. Press `Next`.
 
@@ -178,16 +178,16 @@ If everything worked, you'll see your node running on the either the [Sandbox te
 Note that your node's public identity key is displayed during startup, you can use it to identify your node in the list.
 
 ### Bond via the CLI (power users)
-If you want to bond your mix node via the CLI, then check out the [relevant section in the Nym CLI](https://nymtech.net/docs/tools/nym-cli.html#bond-a-mix-node) docs.
+If you want to bond your Mix Node via the CLI, then check out the [relevant section in the Nym CLI](https://nymtech.net/docs/tools/nym-cli.html#bond-a-mix-node) docs.
 
 
 ## Node Families
 
-Node family involves setting up a group of mix nodes that work together to provide greater privacy and security for network communications. This is achieved by having the nodes in the family share information and routes, creating a decentralized network that makes it difficult for third parties to monitor or track communication traffic.
+Node family involves setting up a group of Mix Nodes that work together to provide greater privacy and security for network communications. This is achieved by having the nodes in the family share information and routes, creating a decentralized network that makes it difficult for third parties to monitor or track communication traffic.
 
 ### Create a Node Family
 
-To create a Node family, you will need to install and configure multiple mix nodes, and then use the CLI to link them together into a family. Once your Node family is up and running, you can use it to route your network traffic through a series of nodes, obscuring the original source and destination of the communication.
+To create a Node family, you will need to install and configure multiple Mix Nodes, and then use the CLI to link them together into a family. Once your Node family is up and running, you can use it to route your network traffic through a series of nodes, obscuring the original source and destination of the communication.
 
 You can use either `nym-cli` which can be downloaded from the [release page](https://github.com/nymtech/nym/releases) or compiling `nyxd`.
 
@@ -273,7 +273,7 @@ Using `nyxd`:
 
 ## Checking that your node is mixing correctly
 ### Network explorers
-Once you've started your mix node and it connects to the validator, your node will automatically show up in the 'Mix nodes' section of either the Nym Network Explorers:
+Once you've started your Mix Node and it connects to the validator, your node will automatically show up in the 'Mix Nodes' section of either the Nym Network Explorers:
 
 - [Mainnet](https://explorer.nymtech.net/overview)
 - [Sandbox testnet](https://sandbox-explorer.nymtech.net/)
@@ -291,5 +291,5 @@ For more details see [Troubleshooting FAQ](../nodes/troubleshooting.md)
 
 ## Maintenance
 
-For mix node upgrade, firewall setup, port configuration, API endpoints, VPS suggestions, automation and more, see the [maintenance page](./maintenance.md)
+For Mix Node upgrade, firewall setup, port configuration, API endpoints, VPS suggestions, automation and more, see the [maintenance page](./maintenance.md)
 

@@ -319,6 +319,27 @@ pub fn blind_sign(
     Ok(BlindedSignature(h, sig))
 }
 
+/// Verifies a partial blind signature using the provided parameters and validator's verification key.
+///
+/// # Arguments
+///
+/// * `params` - A reference to the cryptographic parameters.
+/// * `blind_sign_request` - A reference to the blind signature request signed by the client.
+/// * `blind_sig` - A reference to the issued partial blinded signature to be verified.
+/// * `partial_verification_key` - A reference to the validator's partial verification key.
+///
+/// # Returns
+///
+/// A boolean indicating whether the partial blind signature is valid (`true`) or not (`false`).
+///
+/// # Remarks
+///
+/// This function verifies the correctness and validity of a partial blind signature using
+/// the provided cryptographic parameters, blind signature request, blinded signature,
+/// and partial verification key.
+/// It calculates pairings based on the provided values and checks whether the partial blind signature
+/// is consistent with the verification key and commitments in the blind signature request.
+/// The function returns `true` if the partial blind signature is valid, and `false` otherwise.
 pub fn verify_partial_blind_signature(
     params: &Parameters,
     blind_sign_request: &BlindSignRequest,
@@ -435,7 +456,7 @@ mod tests {
     }
 
     #[test]
-    fn verify_partial_blind_signature_with_wrong_key() {
+    fn fail_verify_partial_blind_signature_with_wrong_key() {
         // 0 public and 2 private attribute
         let params = Parameters::new(2).unwrap();
         let private_attributes = params.n_random_scalars(2);

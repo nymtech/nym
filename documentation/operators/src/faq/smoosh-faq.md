@@ -56,7 +56,7 @@ The progression of exit policy on Gateways will have three steps:
 
 Keep in mind this only relates to changes happening on Gateway and Network Requester side. Whether this will be optional or mandatory depends on the chosen [design](./smoosh-faq.md#what-does-it-mean-for-nym-nodes-operators).
 
-### Can I run a Mix node only?
+### Can I run a Mix Node only?
 
 It depends which [design](./smoosh-faq.md#what-does-it-mean-for-nym-nodes-operators) will ultimately be used. In case of the first - yes. In case of the second option, all the nodes will be setup with Exit Gateway functionality turned on.
 
@@ -80,7 +80,7 @@ This depends on [design](./smoosh-faq.md#what-does-it-mean-for-nym-nodes-operato
 
 As each operator can choose what roles their nodes provide, the nodes which work as open Gateways will have higher rewards because they are the most important to keep up and stable. Besides that the operators of Gateways may be exposed to more complication and possible legal risks.
 
-The nodes which are initialized to run as Mix nodes and Gateways will be chosen to be on top of the active set before the ones working only as a Mix node. 
+The nodes which are initialized to run as Mix Nodes and Gateways will be chosen to be on top of the active set before the ones working only as a Mix Node. 
 
 I case we go with \#2, all nodes active in the epoch will be rewarded proportionally according their work. 
 
@@ -102,7 +102,7 @@ From an operator standpoint, it shall just be a standard Nym upgrade, a new opti
 
 ### Are there any legal concerns for the operators?
 
-So far the general line is that running a Gateway is not illegal (unless you are in Iran, China, and a few other places) and due to encryption/mixing less risky than running a normal VPN node. For Mix nodes, it's very safe as they have "no idea" what packets they are mixing.  
+So far the general line is that running a Gateway is not illegal (unless you are in Iran, China, and a few other places) and due to encryption/mixing less risky than running a normal VPN node. For Mix Nodes, it's very safe as they have "no idea" what packets they are mixing.  
 
 There are several legal questions and analysis to be made for different jurisdictions. To be able to share resources and findings between the operators themselves we created a [Community Legal Forum](../legal/exit-gateway.md). 
 

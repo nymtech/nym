@@ -177,14 +177,21 @@ The following command returns a Gateway on your current IP with the `<ID>` of `s
 
 The `$(curl -4 https://ifconfig.me)` command above returns your IP automatically using an external service. Alternatively, you can enter your IP manually if you wish. If you do this, remember to enter your IP **without** any port information.
 
+## Running your Gateway
 
-### Bonding your Gateway
+The `run` command starts the Gateway:
+
+```
+./nym-gateway run --id <ID>
+
+
+## Bonding your Gateway
 
 ```admonish info
 Before you bond and re-run your Gateway, please make sure the [firewall configuration](./maintenance.md#configure-your-firewall) is setup so your Gateway can be reached from the outside. You can also setup WSS on your Gateway, the steps are on the [Maintenance page](./maintenance.md#configure-your-firewall) below.
 ```
 
-#### Via the Desktop wallet
+### Via the Desktop wallet (recommended)
 
 You can bond your Gateway via the Desktop wallet.
 
@@ -235,15 +242,9 @@ It will look something like this:
 
 > You are asked to `sign` a transaction on bonding so that the Mixnet smart contract is able to map your Nym address to your node. This allows us to create a nonce for each account and defend against replay attacks.
 
-#### Via the CLI (power users)
+### Via the CLI (power users)
 If you want to bond your Mix Node via the CLI, then check out the [relevant section in the Nym CLI](https://nymtech.net/docs/tools/nym-cli.html#bond-a-mix-node) docs.
 
-### Running your Gateway
-
-The `run` command starts the Gateway:
-
-```
-./nym-gateway run --id <ID>
 ```
 ## Maintenance
 

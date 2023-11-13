@@ -188,24 +188,24 @@ The `run` command starts the Gateway:
 ## Bonding your Gateway
 
 ```admonish info
-Before you bond and re-run your Gateway, please make sure the [firewall configuration](./maintenance.md#configure-your-firewall) is setup so your Gateway can be reached from the outside. You can also setup WSS on your Gateway, the steps are on the [Maintenance page](./maintenance.md#configure-your-firewall) below.
+Before you bond your Gateway, please make sure the [firewall configuration](./maintenance.md#configure-your-firewall) is setup so your Gateway can be reached from the outside. You can also setup [WSS on your Gateway](./maintenance.md#run-web-secure-socket-wss-on-gateway) and [automate](./maintenance.md#vps-setup-and-automation) your Gateway to simplify the operation overhead. We highly recommend to run ny of these steps before bonding to prevent disruption of your Gateway's routing score later on.
 ```
 
 ### Via the Desktop wallet (recommended)
 
-You can bond your Gateway via the Desktop wallet.
+You can bond your Gateway via the Desktop wallet. Make sure your Gateway is running and follow the steps below:
 
 1. Open your wallet, and head to the `Bonding` page, then select the node type `Gateway` and input your node details. Press `Next`.
 
 2. Enter the `Amount`, `Operating cost` and press `Next`.
 
-3. You will be asked to run a the `sign` command with your `gateway` - copy and paste the long signature as the value of `--contract-msg` and run it. 
+3. You will be asked to run a the `sign` command with your `gateway` - copy and paste the long signature `<PAYLOAD_GENERATED_BY_THE_WALLET>` and paste it as a value of `--contract-msg` in the following command: 
 
 ```
 ./nym-gateway sign --id <YOUR_ID> --contract-msg <PAYLOAD_GENERATED_BY_THE_WALLET>
 ```
 
-It will look something like this:
+It will look something like this (as `<YOUR_ID>` we used `supergateway`:
 
 ~~~admonish example collapsible=true title="Console output"
 ```
@@ -218,7 +218,7 @@ It will look something like this:
      |_| |_|\__, |_| |_| |_|
             |___/
 
-             (nym-gateway - version v1.1.31)  
+             (nym-gateway - version v1.1.<XX>)  
 
 
 >>> attempting to sign 2Mf8xYytgEeyJke9LA7TjhHoGQWNBEfgHZtTyy2krFJfGHSiqy7FLgTnauSkQepCZTqKN5Yfi34JQCuog9k6FGA2EjsdpNGAWHZiuUGDipyJ6UksNKRxnFKhYW7ri4MRduyZwbR98y5fQMLAwHne1Tjm9cXYCn8McfigNt77WAYwBk5bRRKmC34BJMmWcAxphcLES2v9RdSR68tkHSpy2C8STfdmAQs3tZg8bJS5Qa8pQdqx14TnfQAPLk3QYCynfUJvgcQTrg29aqCasceGRpKdQ3Tbn81MLXAGAs7JLBbiMEAhCezAr2kEN8kET1q54zXtKz6znTPgeTZoSbP8rzf4k2JKHZYWrHYF9JriXepuZTnyxAKAxvGFPBk8Z6KAQi33NRQkwd7MPyttatHna6kG9x7knffV6ebGzgRBf7NV27LurH8x4L1uUXwm1v1UYCA1WSBQ9Pp2JW69k5v5v7G9gBy8RUcZnMbeL26Qqb8WkuGcmuHhaFfoqSfV7PRHPpPT4M8uRqUyR4bjUtSJJM1yh6QSeZk9BEazzoJqPeYeGoiFDZ3LMj2jesbJweQR4caaYuRczK92UGSSqu9zBKmE45a
@@ -243,7 +243,7 @@ It will look something like this:
 > You are asked to `sign` a transaction on bonding so that the Mixnet smart contract is able to map your Nym address to your node. This allows us to create a nonce for each account and defend against replay attacks.
 
 ### Via the CLI (power users)
-If you want to bond your Mix Node via the CLI, then check out the [relevant section in the Nym CLI](https://nymtech.net/docs/tools/nym-cli.html#bond-a-mix-node) docs.
+If you want to bond your Gateway via the CLI, then check out the [relevant section in the Nym CLI](https://nymtech.net/docs/tools/nym-cli.html#bond-a-mix-node) docs.
 
 ```
 ## Maintenance

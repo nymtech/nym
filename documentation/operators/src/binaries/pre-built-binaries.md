@@ -20,6 +20,7 @@ If the pre-built binaries don't work or are unavailable for your system, you wil
 5. Run command:
 ```sh
 chmod +x <BINARY>
+# for example: chmod +x nym-mixnode
 ```
 ### Run Binary
 

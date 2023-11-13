@@ -206,7 +206,7 @@ You can bond your Gateway via the Desktop wallet. Make sure your Gateway is runn
 ./nym-gateway sign --id <YOUR_ID> --contract-msg <PAYLOAD_GENERATED_BY_THE_WALLET>
 ```
 
-It will look something like this (as `<YOUR_ID>` we used `supergateway`:
+It will look something like this (as `<YOUR_ID>` we used `supergateway`):
 
 ~~~admonish example collapsible=true title="Console output"
 ```

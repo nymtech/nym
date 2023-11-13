@@ -36,7 +36,7 @@ systemctl daemon-reload # to pickup the new unit file
 systemctl start nym-<NODE>.service
 journalctl -f -u <NODE>.service # to monitor log of you node
 ```
-    - if you haven't automatized, just run your `<NODE>` ([Mix Node](./mix-node-setup.md#running-your-mix-node), [Gateway](./gateway-setup.md#running-your-gateway)) 
+    - if your node is not automitized, just `run` your `<NODE>` with `./nym-<NODE> run --id <ID>`. Here are exact guidelines for [Mix Node](./mix-node-setup.md#running-your-mix-node) and [Gateway](./gateway-setup.md#running-your-gateway). 
 
 
 If these steps are too difficult and you prefer to just run a script, you can use [ExploreNYM script](https://github.com/ExploreNYM/bash-tool) or one done by [Nym developers](https://gist.github.com/tommyv1987/4dca7cc175b70742c9ecb3d072eb8539).
@@ -44,11 +44,11 @@ If these steps are too difficult and you prefer to just run a script, you can us
 > In case of a Network Requester this is all, the following step is only for Mix Nodes and Gateways.
 
 ### Step 2: Updating your node information in the smart contract
-Follow these steps to update the information about your `<NODE>` which is publicly available from the [Nym API](https://validator.nymtech.net/api/swagger/index.html) and information displayed on the [mixnet explorer](https://explorer.nymtech.net).
+Follow these steps to update the information about your `<NODE>` which is publicly available from the [`nym-api`](https://validator.nymtech.net/api/swagger/index.html) and information displayed on the [Mixnet explorer](https://explorer.nymtech.net).
 
 You can either do this graphically via the Desktop Wallet, or the CLI.
 
-### Updating node information via the Desktop Wallet
+### Updating node information via the Desktop Wallet (recommended)
 * Navigate to the `Bonding` page and click the `Node Settings` link in the top right corner:  
 
 ![Bonding page](../images/wallet-screenshots/bonding.png)

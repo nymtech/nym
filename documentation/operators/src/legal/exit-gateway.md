@@ -80,7 +80,7 @@ We also recommend operators to check the technical advice from [Tor](https://com
 
 ## Tor legal advice
 
-Giving the legal similarity between Nym Exit Gateways and Tor exit relays, it is helpful to have a look in [Tor community Exit Guidelines](https://community.torproject.org/relay/community-resources/tor-exit-guidelines/). This chapter is an exert of tor page.
+Giving the legal similarity between Nym Exit Gateways and Tor Exit Relays, it is helpful to have a look in [Tor community Exit Guidelines](https://community.torproject.org/relay/community-resources/tor-exit-guidelines/). This chapter is an exert of tor page.
 
 Note that Tor states: 
 > This FAQ is for informational purposes only and does not constitute legal advice.

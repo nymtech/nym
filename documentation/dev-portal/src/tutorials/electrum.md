@@ -14,7 +14,7 @@ NymConnect application is for everyone who does not want to install and run `nym
 2. On Linux and Mac, make executable by opening terminal in the same directory and run:
 
 ```sh
-chmod +x ./nym-connect_<VERSION>.AppImage
+chmod +x ./nym-connect_<VERSION>
 ```
 
 3. Start the application

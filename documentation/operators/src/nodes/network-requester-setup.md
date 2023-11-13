@@ -166,7 +166,7 @@ Now that we have initialized our network-requester, we can start it with the fol
 
 ## Using your Network Requester
 
-The next thing to do is use your requester, share its address with friends (or whoever you want to help privacy-enhance their app traffic). Is this safe to do? If it was an open proxy, this would be unsafe, because any Nym user could make Network requests to any system on the internet.
+The next thing to do is use your requester, share its address with friends (or whoever you want to help privacy-enhance their app traffic). Is this safe to do? If it was an open proxy, this would be unsafe, because any Nym user could make network requests to any system on the internet.
 
 To make things a bit less stressful for administrators, the Network Requester drops all incoming requests by default. In order for it to make requests, you need to add specific domains to the `allowed.list` file at `$HOME/.nym/service-providers/network-requester/allowed.list` or if Network Requester is ran as a part of [Exit Gateway](./gateway-setup.md#initialising-gateway-with-network-requester), the `allowed.list` will be stored in `~/.nym/gateways/<ID>/data/network-requester-data/allowed.list`
 

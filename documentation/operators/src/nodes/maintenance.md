@@ -16,7 +16,7 @@ For example `./target/debug/nym-network-requester --no-banner build-info --outpu
 
 ## Upgrading your node
 
-> The process is the similar for Mix Node, Gateway and Network requester. In the following steps we use a placeholder `<NODE>` in the commands, please change it for the type of node you want to upgrade. Any particularities for the given type of node are included.
+> The process is the similar for Mix Node, Gateway and Network Requester. In the following steps we use a placeholder `<NODE>` in the commands, please change it for the type of node you want to upgrade. Any particularities for the given type of node are included.
 
 Upgrading your node is a two-step process:
 * Updating the binary and `~/.nym/<NODE>/<YOUR_ID>/config/config.toml` on your VPS
@@ -29,7 +29,7 @@ Follow these steps to upgrade your Mix Node binary and update its config file:
 * re-run `init` with the same values as you used initially. **This will just update the config file, it will not overwrite existing keys**.
 * restart your Mix Node process with the new binary.
 
-> In case of a Network requester this is all all, the following step is only for Mix Nodes and Gateways.
+> In case of a Network Requester this is all all, the following step is only for Mix Nodes and Gateways.
 
 ### Step 2: Updating your node information in the smart contract
 Follow these steps to update the information about your `<NODE>` which is publicly available from the [Nym API](https://validator.nymtech.net/api/swagger/index.html) and information displayed on the [mixnet explorer](https://explorer.nymtech.net).
@@ -53,9 +53,9 @@ If you want to bond your `<NODE>` via the CLI, then check out the [relevant sect
 
 In the previous version of the network-requester, users were required to run a nym-client along side it to function. As of `v1.1.10`, the network-requester now has a nym client embedded into the binary, so it can run standalone.
 
-If you are running an existing Network requester registered with nym-connect, upgrading requires you move your old keys over to the new Network requester configuration. We suggest following these instructions carefully to ensure a smooth transition.
+If you are running an existing Network Requester registered with nym-connect, upgrading requires you move your old keys over to the new Network Requester configuration. We suggest following these instructions carefully to ensure a smooth transition.
 
-Initiate the new Network requester:
+Initiate the new Network Requester:
 
 ```sh
 nym-network-requester init --id <YOUR_ID>
@@ -236,7 +236,7 @@ sudo ufw status
 Finally open your `<NODE>` p2p port, as well as ports for ssh and ports for verloc and measurement pings:
 
 ```sh
-# for Mix Node, Gateway and Network requester
+# for Mix Node, Gateway and Network Requester
 sudo ufw allow 1789,1790,8000,9000,9001,22/tcp
 
 # In case of reverse proxy for the Gateway swagger page add:
@@ -354,7 +354,7 @@ WantedBy=multi-user.target
 
 * Put the above file onto your system at `/etc/systemd/system/nym-gateway.service`.
 
-##### For Network requester
+##### For Network Requester
 
 ```ini
 [Unit]

@@ -22,13 +22,13 @@ Consider in which jurisdiction you reside and where do you want to run a Mix Nod
 
 The sizes are shown in the configs [here](https://github.com/nymtech/nym/blob/1ba6444e722e7757f1175a296bed6e31e25b8db8/common/nymsphinx/params/src/packet_sizes.rs#L12) (default is the one clients use, the others are for research purposes, not to be used in production as this would fragment the anonymity set). More info can be found [here](https://github.com/nymtech/nym/blob/4844ac953a12b29fa27688609ec193f1d560c996/common/nymsphinx/anonymous-replies/src/reply_surb.rs#L80).
 
-### Why a Mix Node and a gateway cannot be bond to the same wallet?
+### Why a Mix Node and a Gateway cannot be bond to the same wallet?
 
 Because of the way the smart contract works we keep it one-node one-address at the moment.
 
 ### Which nodes are the most needed to be setup to strengthen Nym infrastructure and which ones bring rewards?
 
-Right now only Mix Nodes are rewarded. We're working on gateway and service payments. Gateways are the weak link right now due mostly to lack of incentivisation. Services like Network Requesters are obviously the most necessary for people to start using the platform, and we're working on smart contracts to allow for people to start advertising them the same way they do Mix Nodes.
+Right now only Mix Nodes are rewarded. We're working on Gateway and service payments. Gateways are the weak link right now due mostly to lack of incentivisation. Services like Network Requesters are obviously the most necessary for people to start using the platform, and we're working on smart contracts to allow for people to start advertising them the same way they do Mix Nodes.
 
 ### Are Mix Nodes whitelisted?
 

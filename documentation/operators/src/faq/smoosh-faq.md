@@ -50,7 +50,7 @@ The operators running Gateways would have to “open” their nodes to a wider r
 
 The progression of exit policy on Gateways will have three steps:
 
-1. By default the [exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt) filtering will be disabled and the current [`allowed.list`](https://nymtech.net/.wellknown/network-requester/standard-allowed-list.txt) filtering is going to continue be used. This is to prevent operators getting surprised by upgrading their Gateways (or Network requesters) and suddenly be widely open to the internet. To enable the new exit policy, operators must use `--with-exit-policy` flag or modify the `config.toml` file. ✅
+1. By default the [exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt) filtering will be disabled and the current [`allowed.list`](https://nymtech.net/.wellknown/network-requester/standard-allowed-list.txt) filtering is going to continue be used. This is to prevent operators getting surprised by upgrading their Gateways (or Network Requesters) and suddenly be widely open to the internet. To enable the new exit policy, operators must use `--with-exit-policy` flag or modify the `config.toml` file. ✅
 2. Relatively soon the exit policy will be part of the Gateway setup by default. To disable this exit policy, operators must use `--disable-exit-policy` flag.
 3. Further down the line, it will be the only option. Then the `allowed.list` will be completely removed.
 

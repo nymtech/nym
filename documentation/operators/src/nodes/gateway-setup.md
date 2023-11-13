@@ -183,6 +183,7 @@ The `run` command starts the Gateway:
 
 ```
 ./nym-gateway run --id <ID>
+```
 
 
 ## Bonding your Gateway
@@ -243,9 +244,9 @@ It will look something like this (as `<YOUR_ID>` we used `supergateway`:
 > You are asked to `sign` a transaction on bonding so that the Mixnet smart contract is able to map your Nym address to your node. This allows us to create a nonce for each account and defend against replay attacks.
 
 ### Via the CLI (power users)
+
 If you want to bond your Gateway via the CLI, then check out the [relevant section in the Nym CLI](https://nymtech.net/docs/tools/nym-cli.html#bond-a-mix-node) docs.
 
-```
 ## Maintenance
 
 For Gateway upgrade, firewall setup, port configuration, API endpoints, VPS suggestions, automation, WSS setup and more, see the [maintenance page](./maintenance.md)

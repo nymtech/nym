@@ -8,7 +8,7 @@ This page is a part of Nym Community Legal Forum and its content is composed by 
 
 This document presents an initiative to further support Nym’s mission of allowing privacy for everyone everywhere. This would be achieved with the support of Nym node operators operating Gateways and opening these to any online service. Such setup needs a **clear policy**, one which will remain the **same for all operators** running Nym nodes. The [proposed **Exit policy**](https://nymtech.net/.wellknown/network-requester/exit-policy.txt) is a combination of two existing safeguards: [Tor Null ‘deny’ list](https://tornull.org/) and [Tor reduced policy](https://tornull.org/tor-reduced-reduced-exit-policy.php).
 
-All the technical changes on the side of Nym nodes - ***Project Smoosh** - are described in the [FAQ section](../faq/smoosh-faq.md).
+All the technical changes on the side of Nym nodes - ***Project Smoosh*** - are described in the [FAQ section](../faq/smoosh-faq.md).
 
 ```admonish warning
 Nym core team cannot provide comprehensive legal advice across all jurisdictions. Knowledge and experience with the legalities are being built up with the help of our counsel and with you, the community of Nym node operators. We encourage Nym node operators to join the operator channels ([Element](https://matrix.to/#/#operators:nymtech.chat), [Discord](https://discord.com/invite/nym), [Telegram](https://t.me/nymchan_help_chat)) to share best practices and experiences.
@@ -96,7 +96,7 @@ Note that Tor states:
 * Top 3 advice
     - Have an abuse response letter
     - Run relay from a location that is not home
-    - Read through the legal resources that Tor-supportive lawyers put together: https://www.eff.org/pages/legal-faq-tor-relay-operators or https://www.noisebridge.net/wiki/Noisebridge_Tor/FBI
+    - Read through the legal resources that Tor-supportive lawyers put together: [www.eff.org/pages/legal-faq-tor-relay-operators](https://www.eff.org/pages/legal-faq-tor-relay-operators) or [www.noisebridge.net/wiki/Noisebridge_Tor/FBI](https://www.noisebridge.net/wiki/Noisebridge_Tor/FBI)
 * Consult a lawyer / local digital rights association / the EFF prior to operating an exit relay, especially in a place where exit relay operators have been harassed or not operating before. Note that Tor DOES NOT provide legal advice for specific countries. It only provides general advice (itself or in partnership), eventually skewed towards [US audiences](https://www.eff.org/pages/legal-faq-tor-relay-operators).
 
 

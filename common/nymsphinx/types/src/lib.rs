@@ -31,6 +31,7 @@ use std::{array::TryFromSliceError, fmt};
 use thiserror::Error;
 
 static REUSABLE_SURB: OnceCell<SURB> = OnceCell::new();
+static REUSABLE_HEADER: OnceCell<ProcessedHeader> = OnceCell::new();
 
 #[derive(Error, Debug)]
 pub enum NymPacketError {
@@ -178,7 +179,43 @@ impl NymPacket {
     ) -> Result<NymProcessedPacket, NymPacketError> {
         match self {
             NymPacket::Sphinx(packet) => {
-                Ok(NymProcessedPacket::Sphinx(packet.process(node_secret_key)?))
+                let unwrapped_header: ProcessedHeader = if let Some(header) = REUSABLE_HEADER.get() {
+                    header.clone()
+                } else {
+                    let header = packet.header.process(node_secret_key)?;
+                    let _ = REUSABLE_HEADER.set(header.clone());
+                    header
+                };
+
+                let processed_packet = match unwrapped_header {
+                    ProcessedHeader::ForwardHop(
+                        new_header,
+                        next_hop_address,
+                        delay,
+                        payload_key,
+                    ) => {
+                        let new_payload = packet.payload.unwrap(&payload_key)?;
+                        let new_packet = SphinxPacket {
+                            header: *new_header,
+                            payload: new_payload,
+                        };
+                        ProcessedPacket::ForwardHop(
+                            Box::new(new_packet),
+                            next_hop_address,
+                            delay,
+                        )
+                    }
+                    ProcessedHeader::FinalHop(destination, identifier, payload_key) => {
+                        let new_payload = packet.payload.unwrap(&payload_key)?;
+                        ProcessedPacket::FinalHop(
+                            destination,
+                            identifier,
+                            new_payload,
+                        )
+                    }
+                };
+
+                Ok(NymProcessedPacket::Sphinx(processed_packet))
             }
             #[cfg(feature = "outfox")]
             NymPacket::Outfox(mut packet) => {

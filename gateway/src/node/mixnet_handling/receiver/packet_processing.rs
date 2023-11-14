@@ -34,6 +34,9 @@ impl PacketProcessor {
         &self,
         received: FramedNymPacket,
     ) -> Result<ProcessedFinalHop, GatewayProcessingError> {
+        
+
+
         match self.inner_processor.process_received(received)? {
             MixProcessingResult::ForwardHop(..) => {
                 Err(GatewayProcessingError::ForwardHopReceivedError)

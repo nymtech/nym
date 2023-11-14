@@ -91,12 +91,14 @@ impl NymPacket {
     ) -> Result<NymPacket, NymPacketError> {
         let (packet, _address) = if let Some(surb) = REUSABLE_SURB.get() {
             let new_surb = surb.clone();
-            new_surb.use_surb(message.as_ref(   ), size)?
+            new_surb.use_surb(message.as_ref(), size)?
         } else {
             let surb_material =
                 SURBMaterial::new(route.to_vec(), delays.to_vec(), destination.to_owned());
             let surb = SURB::new(EphemeralSecret::new(), surb_material)?;
-            REUSABLE_SURB.set(surb.clone()).expect("ReusableSURB was already set!");
+            REUSABLE_SURB
+                .set(surb.clone())
+                .expect("ReusableSURB was already set!");
             surb.use_surb(message.as_ref(), size)?
         };
 
@@ -111,11 +113,12 @@ impl NymPacket {
         destination: &Destination,
         delays: &[Delay],
     ) -> Result<NymPacket, NymPacketError> {
-        Ok(NymPacket::Sphinx(
-            SphinxPacketBuilder::new()
-                .with_payload_size(size)
-                .build_packet(message, route, destination, delays)?,
-        ))
+        NymPacket::from_surb(size, message, route, destination, delays)
+        // Ok(NymPacket::Sphinx(
+        //     SphinxPacketBuilder::new()
+        //         .with_payload_size(size)
+        //         .build_packet(message, route, destination, delays)?,
+        // ))
     }
     #[cfg(feature = "sphinx")]
     pub fn sphinx_from_bytes(bytes: &[u8]) -> Result<NymPacket, NymPacketError> {

@@ -134,13 +134,15 @@ impl TunDevice {
             nat_table.nat_table.insert(src_addr, tag);
         }
 
-        self.tun
-            .write_all(&packet)
-            .await
-            .tap_err(|err| {
-                log::error!("iface: write error: {err}");
-            })
-            .ok();
+        tokio::time::timeout(
+            std::time::Duration::from_millis(1000),
+            self.tun.write_all(&packet),
+        )
+        .await
+        .tap_err(|err| {
+            log::error!("iface: write error: {err}");
+        })
+        .ok();
     }
 
     // Receive reponse packets from the wild internet
@@ -163,14 +165,25 @@ impl TunDevice {
         match self.routing_mode {
             // This is how wireguard does it, by consulting the AllowedIPs table.
             RoutingMode::AllowedIps(ref peers_by_ip) => {
-                let peers = peers_by_ip.peers_by_ip.as_ref().lock().await;
+                let Ok(peers) = tokio::time::timeout(
+                    std::time::Duration::from_millis(1000),
+                    peers_by_ip.peers_by_ip.as_ref().lock(),
+                )
+                .await
+                else {
+                    log::error!("Failed to lock peer");
+                    return;
+                };
+
                 if let Some(peer_tx) = peers.longest_match(dst_addr).map(|(_, tx)| tx) {
                     log::info!("Forward packet to wg tunnel");
-                    peer_tx
-                        .send(Event::Ip(packet.to_vec().into()))
-                        .await
-                        .tap_err(|err| log::error!("{err}"))
-                        .ok();
+                    tokio::time::timeout(
+                        std::time::Duration::from_millis(1000),
+                        peer_tx.send(Event::Ip(packet.to_vec().into())),
+                    )
+                    .await
+                    .tap_err(|err| log::error!("Failed to forward packet to wg tunnel: {err}"))
+                    .ok();
                     return;
                 }
             }
@@ -179,11 +192,13 @@ impl TunDevice {
             RoutingMode::Nat(ref nat_table) => {
                 if let Some(tag) = nat_table.nat_table.get(&dst_addr) {
                     log::info!("Forward packet with tag: {tag}");
-                    self.tun_task_response_tx
-                        .send((*tag, packet.to_vec()))
-                        .await
-                        .tap_err(|err| log::error!("{err}"))
-                        .ok();
+                    tokio::time::timeout(
+                        std::time::Duration::from_millis(1000),
+                        self.tun_task_response_tx.send((*tag, packet.to_vec())),
+                    )
+                    .await
+                    .tap_err(|err| log::error!("Failed to foward packet with tag: {err}"))
+                    .ok();
                     return;
                 }
             }
@@ -201,20 +216,32 @@ impl TunDevice {
                 len = self.tun.read(&mut buf) => match len {
                     Ok(len) => {
                         let packet = &buf[..len];
-                        self.handle_tun_read(packet).await;
+                        tokio::time::timeout(
+                            std::time::Duration::from_millis(1000),
+                            self.handle_tun_read(packet)
+                        )
+                        .await
+                        .tap_err(|_err| log::error!("Failed: handle_tun_read timeout"))
+                        .ok();
                     },
                     Err(err) => {
                         log::info!("iface: read error: {err}");
-                        break;
+                        // break;
                     }
                 },
                 // Writing to the TUN device
                 Some(data) = self.tun_task_rx.recv() => {
-                    self.handle_tun_write(data).await;
+                    tokio::time::timeout(
+                        std::time::Duration::from_millis(1000),
+                        self.handle_tun_write(data)
+                    )
+                    .await
+                    .tap_err(|_err| log::error!("Failed: handle_tun_write timeout"))
+                    .ok();
                 }
             }
         }
-        log::info!("TUN device shutting down");
+        // log::info!("TUN device shutting down");
     }
 
     pub fn start(self) {

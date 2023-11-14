@@ -54,7 +54,7 @@ class ConfigHandler {
     }
   }
 
-  private setEnvironmentConfig(environment: string): void {
+  public setEnvironmentConfig(environment: string): void {
     this.ensureEnvironmentIsValid(environment);
     try {
       this.environmentConfig = this.readConfigFile()[environment];

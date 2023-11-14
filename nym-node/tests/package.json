@@ -1,7 +1,7 @@
 {
   "name": "nym-node-test-suite",
   "version": "1.0.0",
-  "description": "a basic nym-node-api suite to test the nym-node-api",
+  "description": "a basic nym-node-api suite to test the nym-node-api using mixfetch",
   "main": "dist/index.js",
   "directories": {
     "test": "test"
@@ -11,6 +11,7 @@
     "test:prod": "TEST_ENV=prod jest --forceExit --detectOpenHandles --passWithNoTests",
     "build": "tsc",
     "lint": "eslint --fix --ext .js,.ts,.tsx .",
+    "lint:fix": "eslint src --fix",
     "cleanup": "rm -rf node_modules; rm -rf dist; yarn install"
   },
   "author": "Nymtech",
@@ -23,11 +24,11 @@
     "npm": "8.x"
   },
   "dependencies": {
-    "axios": "^0.27.2",
+    "@nymproject/mix-fetch-node-commonjs": "^1.2.4-rc.1",
     "eslint": "^8.51.0",
     "form-data": "4.0.0",
     "json-stringify-safe": "5.0.1",
-    "tslog": "../../../../../node_modules/tslog",
+    "tslog": "../../node_modules/tslog",
     "uuid": "8.3.2",
     "yaml": "^2.2.2"
   },

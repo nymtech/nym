@@ -53,7 +53,7 @@
     "@npmcli/node-gyp": "^3.0.0",
     "node-gyp": "^9.3.1",
     "tslog": "3.3.3",
-    "@nymproject/mix-fetch-node-commonjs": "^1.2.4-rc.0",
+    "@nymproject/mix-fetch-node-commonjs": "^1.2.4-rc.1",
     "fake-indexeddb": "^5.0.0",
     "ws": "^8.14.2"
   }

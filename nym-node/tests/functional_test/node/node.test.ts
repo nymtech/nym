@@ -39,7 +39,10 @@ describe("Get Node information", (): void => {
       expect(typeof x).toBe("string");
     });
     // expect(typeof response.data.hostname).toBe("string" || "null");
-    expect(typeof response.data.hostname === "string" || response.data.hostname === null).toBe(true);
+    expect(
+      typeof response.data.hostname === "string" ||
+        response.data.hostname === null,
+    ).toBe(true);
     expect(typeof response.data.keys.ed25519).toBe("string");
     expect(typeof response.data.keys.x25519).toBe("string");
     expect(typeof response.signature).toBe("string");

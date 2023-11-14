@@ -10,20 +10,20 @@ export default class Nodes extends APIClient {
     const response = await this.restClient.sendGet({
       route: `build-information`,
     });
-    return response.data;
+    return response;
   }
 
   public async getHostInformation(): Promise<HostInformation> {
     const response = await this.restClient.sendGet({
       route: `host-information`,
     });
-    return response.data;
+    return response;
   }
 
   public async getSupportedRoles(): Promise<Roles> {
     const response = await this.restClient.sendGet({
       route: `roles`,
     });
-    return response.data;
+    return response;
   }
 }

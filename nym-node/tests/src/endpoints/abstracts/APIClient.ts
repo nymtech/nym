@@ -1,13 +1,11 @@
 import { Logger } from "tslog";
 import ConfigHandler from "../../../../../common/api-test-utils/config/configHandler";
-import { RestClient } from "../../../../../common/api-test-utils/restClient/RestClient";
-// import { ConfigHandler, RestClient } from '../../../../../common/api-test-utils';
-
+import { MixFetchClient } from "../../../../../common/api-test-utils/restClient/MixFetchClient";
 
 export abstract class APIClient {
   protected constructor(baseUrl: string, serviceUrl: string) {
     this.url = baseUrl + serviceUrl;
-    this.restClient = new RestClient(this.url);
+    this.restClient = new MixFetchClient(this.url);
     this.serviceName = this.constructor.toString().match(/\w+/g)[1];
     this.log.info(`The Service URL for ${this.serviceName} is ${this.url}`);
   }
@@ -25,7 +23,7 @@ export abstract class APIClient {
 
   protected url: string;
 
-  public restClient: RestClient;
+  public restClient: MixFetchClient;
 
   protected serviceName: string;
 }

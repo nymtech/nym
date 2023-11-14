@@ -14,27 +14,27 @@ export default class Gateway extends APIClient {
     const response = await this.restClient.sendGet({
       route: `gateway`,
     });
-    return response.data;
+    return response;
   }
 
   public async getGatewayClientInterfaces(): Promise<ClientInterfaces> {
     const response = await this.restClient.sendGet({
       route: `gateway/client-interfaces`,
     });
-    return response.data;
+    return response;
   }
 
   public async getMixnetWebsocketInfo(): Promise<MixnetWebsockets> {
     const response = await this.restClient.sendGet({
       route: `gateway/client-interfaces/mixnet-websockets`,
     });
-    return response.data;
+    return response;
   }
 
   public async getWireguardInfo(): Promise<Wireguard> {
     const response = await this.restClient.sendGet({
       route: `gateway/client-interfaces/wireguard`,
     });
-    return response.data;
+    return response;
   }
 }

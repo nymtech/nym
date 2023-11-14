@@ -1,7 +1,7 @@
 {
-  "name": "validator-api-test-suite",
+  "name": "nym-api-test-suite",
   "version": "1.0.0",
-  "description": "a basic validator-api suite to test the validator-api",
+  "description": "a test suite to test the nym-api using mixfetch",
   "main": "dist/index.js",
   "directories": {
     "test": "test"
@@ -24,9 +24,7 @@
     "npm": "8.x"
   },
   "dependencies": {
-    "@nymproject/mix-fetch": "^1.2.4-rc.0",
-    "@nymproject/mix-fetch-node-commonjs": "^1.2.4-rc.0",
-    "@nymproject/mix-fetch-wasm-node": ">=1.2.1-rc.0 || ^1",
+    "@nymproject/mix-fetch-node-commonjs": "^1.2.4-rc.1",
     "axios": "^0.27.2",
     "dotenv": "^16.3.1",
     "eslint": "^8.21.0",

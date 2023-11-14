@@ -10,6 +10,6 @@
 //     const response = await this.restClient.sendGet({
 //       route: `mixnode`,
 //     });
-//     return response.data;
+//     return response;
 //   }
 // }

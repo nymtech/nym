@@ -159,7 +159,7 @@ describe("Get mixnode data", (): void => {
       const response = await status.sendMixnodeRewardEstimatedComputation(
         mix_id
       );
-      expect(typeof response.estimation.delegates).toBe("string");
+      expect(typeof response.estimation.total_node_reward).toBe("string");
     });
   });
 });

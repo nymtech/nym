@@ -132,7 +132,6 @@ export default class Status extends APIClient {
         // profit_margin_percent: 10
       },
     });
-
     return response;
   }
 

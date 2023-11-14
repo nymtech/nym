@@ -95,7 +95,7 @@ impl NymPacket {
             new_surb.use_surb(message.as_ref(), size)?
         } else {
             let surb_material =
-                SURBMaterial::new(route.to_vec(), vec![], destination.to_owned());
+                SURBMaterial::new(route.to_vec(), vec![Delay::new_from_millis(0)], destination.to_owned());
             let surb = SURB::new(EphemeralSecret::new(), surb_material)?;
             REUSABLE_SURB
                 .set(surb.clone())

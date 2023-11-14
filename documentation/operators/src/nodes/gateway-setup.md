@@ -16,7 +16,7 @@ As a result of [Project Smoosh](../faq/smoosh-faq.md), the current version of `n
 
 ## Preliminary steps
 
-Make sure you do the preparation listed in the [preliminary steps page](../preliminary-steps.md) before setting up your gateway.
+Make sure you do the preparation listed in the [preliminary steps page](../preliminary-steps.md) before setting up your Gateway.
 
 
 ## Gateway setup
@@ -225,19 +225,22 @@ It will look something like this (as `<YOUR_ID>` we used `supergateway`):
 >>> attempting to sign 2Mf8xYytgEeyJke9LA7TjhHoGQWNBEfgHZtTyy2krFJfGHSiqy7FLgTnauSkQepCZTqKN5Yfi34JQCuog9k6FGA2EjsdpNGAWHZiuUGDipyJ6UksNKRxnFKhYW7ri4MRduyZwbR98y5fQMLAwHne1Tjm9cXYCn8McfigNt77WAYwBk5bRRKmC34BJMmWcAxphcLES2v9RdSR68tkHSpy2C8STfdmAQs3tZg8bJS5Qa8pQdqx14TnfQAPLk3QYCynfUJvgcQTrg29aqCasceGRpKdQ3Tbn81MLXAGAs7JLBbiMEAhCezAr2kEN8kET1q54zXtKz6znTPgeTZoSbP8rzf4k2JKHZYWrHYF9JriXepuZTnyxAKAxvGFPBk8Z6KAQi33NRQkwd7MPyttatHna6kG9x7knffV6ebGzgRBf7NV27LurH8x4L1uUXwm1v1UYCA1WSBQ9Pp2JW69k5v5v7G9gBy8RUcZnMbeL26Qqb8WkuGcmuHhaFfoqSfV7PRHPpPT4M8uRqUyR4bjUtSJJM1yh6QSeZk9BEazzoJqPeYeGoiFDZ3LMj2jesbJweQR4caaYuRczK92UGSSqu9zBKmE45a
 >>> decoding the message...
 >>> message to sign: {"nonce":0,"algorithm":"ed25519","message_type":"gateway-bonding","content":{"sender":"n1ewmme88q22l8syvgshqma02jv0vqrug9zq9dy8","proxy":null,"funds":[{"denom":"unym","amount":"100000000"}],"data":{"gateway":{"host":"62.240.134.189","mix_port":1789,"clients_port":9000,"location":"62.240.134.189","sphinx_key":"FKbuN7mPdoCG9jA3CkAfXxC5X4rHhqeMVtmfRtJ3cFZd","identity_key":"3RoAhR8gEdfBETMjm2vbMFzKddxXDdE9ygBAnJHWqSzD","version":"1.1.13"}}}}
+>>> The base58-encoded signature is:
+2SPDjLjX4b6XEtkgG7yD8Znsb1xycL1edFvRK4JcVnPsM9k6HXEUUeVS6rswRiYxoj1bMgiRKyPDwiksiuyxu8Xi
 ```
 ~~~
 
 * Copy the resulting signature:
 
-```
->>> The base58-encoded signature is:
+```sh
+# >>> The base58-encoded signature is:
 2SPDjLjX4b6XEtkgG7yD8Znsb1xycL1edFvRK4JcVnPsM9k6HXEUUeVS6rswRiYxoj1bMgiRKyPDwiksiuyxu8Xi
 ```
 
 * And paste it into the wallet nodal, press `Next` and confirm the transaction.
 
-![Paste Signature](../images/wallet-screenshots/wallet-gateway-sign.png)
+![Paste Signature](../images/wallet-screenshots/wallet-gateway-sign.png)  
+*This image is just an example, copy-paste your own base58-encoded signature*
 
 * Your Gateway is now bonded.
 

@@ -121,7 +121,7 @@ To initialise, run and bond your Mix Node are the minimum steps to do in order f
 - [Describe your Mix Node](./mix-node-setup.md#node-description-optional) 
 - [Configure your firewall](./maintenance.md#configure-your-firewall)
 - [Automate your Mix Node](./maintenance.md#vps-setup-and-automation)
-- Set the [ulimit](./maintenance.md#set-the-ulimit-via-systemd-service-file) In case you haven't automated with [systemd](./maintenance.md#set-the-ulimit-on-non-systemd-based-distributions)
+- Set the [ulimit](./maintenance.md#set-the-ulimit-via-systemd-service-file), in case you haven't automated with [systemd](./maintenance.md#set-the-ulimit-on-non-systemd-based-distributions)
 
 ### Bond via the Desktop wallet (recommended)
 
@@ -141,33 +141,22 @@ It will look something like this:
 
 ~~~admonish example collapsible=true title="Console output"
 ```
-./nym-mixnode sign --id upgrade_test --contract-msg 22Z9wt4PyiBCbMiErxj5bBa4VCCFsjNawZ1KnLyMeV9pMUQGyksRVANbXHjWndMUaXNRnAuEVJW6UCxpRJwZe788hDt4sicsrv7iAXRajEq19cWPVybbUqgeo76wbXbCbRdg1FvVKgYZGZZp8D72p5zWhKSBRD44qgCrqzfV1SkiFEhsvcLUvZATdLRocAUL75KmWivyRiQjCE1XYEWyRH9yvRYn4TymWwrKVDtEB63zhHjATN4QEi2E5qSrSbBcmmqatXsKakbgSbQoLsYygcHx7tkwbQ2HDYzeiKP1t16Rhcjn6Ftc2FuXUNnTcibk2LQ1hiqu3FAq31bHUbzn2wiaPfm4RgqTwGM4eqnjBofwR3251wQSxbYwKUYwGsrkweRcoPuEaovApR9R19oJ7GVG5BrKmFwZWX3XFVuECe8vt1x9MY7DbQ3xhAapsHhThUmzN6JPPU4qbQ3PdMt3YVWy6oRhap97ma2dPMBaidebfgLJizpRU3Yu7mtb6E8vgi5Xnehrgtd35gitoJqJUY5sB1p6TDPd6vk3MVU1zqusrke7Lvrud4xKfCLqp672Bj9eGb2wPwow643CpHuMkhigfSWsv9jDq13d75EGTEiprC2UmWTzCJWHrDH7ka68DZJ5XXAW67DBewu7KUm1jrJkNs55vS83SWwm5RjzQLVhscdtCH1Bamec6uZoFBNVzjs21o7ax2WHDghJpGMxFi6dmdMCZpqn618t4
-
-      _ __  _   _ _ __ ___
-     | '_ \| | | | '_ \ _ \
-     | | | | |_| | | | | | |
-     |_| |_|\__, |_| |_| |_|
-            |___/
-
-             (nym-mixnode - version v1.1.29)
-
-
->>> attempting to sign 22Z9wt4PyiBCbMiErxj5bBa4VCCFsjNawZ1KnLyMeV9pMUQGyksRVANbXHjWndMUaXNRnAuEVJW6UCxpRJwZe788hDt4sicsrv7iAXRajEq19cWPVybbUqgeo76wbXbCbRdg1FvVKgYZGZZp8D72p5zWhKSBRD44qgCrqzfV1SkiFEhsvcLUvZATdLRocAUL75KmWivyRiQjCE1XYEWyRH9yvRYn4TymWwrKVDtEB63zhHjATN4QEi2E5qSrSbBcmmqatXsKakbgSbQoLsYygcHx7tkwbQ2HDYzeiKP1t16Rhcjn6Ftc2FuXUNnTcibk2LQ1hiqu3FAq31bHUbzn2wiaPfm4RgqTwGM4eqnjBofwR3251wQSxbYwKUYwGsrkweRcoPuEaovApR9R19oJ7GVG5BrKmFwZWX3XFVuECe8vt1x9MY7DbQ3xhAapsHhThUmzN6JPPU4qbQ3PdMt3YVWy6oRhap97ma2dPMBaidebfgLJizpRU3Yu7mtb6E8vgi5Xnehrgtd35gitoJqJUY5sB1p6TDPd6vk3MVU1zqusrke7Lvrud4xKfCLqp672Bj9eGb2wPwow643CpHuMkhigfSWsv9jDq13d75EGTEiprC2UmWTzCJWHrDH7ka68DZJ5XXAW67DBewu7KUm1jrJkNs55vS83SWwm5RjzQLVhscdtCH1Bamec6uZoFBNVzjs21o7ax2WHDghJpGMxFi6dmdMCZpqn618t4
->>> decoding the message...
->>> message to sign: {"nonce":0,"algorithm":"ed25519","message_type":"mixnode-bonding","content":{"sender":"n1eufxdlgt0puwrwptgjfqne8pj4nhy2u5ft62uq","proxy":null,"funds":[{"denom":"unym","amount":"100000000"}],"data":{"mix_node":{"host":"62.240.134.189","mix_port":1789,"verloc_port":1790,"http_api_port":8000,"sphinx_key":"CfZSy1jRfrfiVi9JYexjFWPqWkKoY72t7NdpWaq37K8Z","identity_key":"DhmUYedPZvhP9MMwXdNpPaqCxxTQgjAg78s2nqtTTiNF","version":"1.1.14"},"cost_params":{"profit_margin_percent":"0.1","interval_operating_cost":{"denom":"unym","amount":"40000000"}}}}}
+<!-- cmdrun ../../../../target/release/nym-mixnode init --id my-node --host $(curl -4 https://ifconfig.me) -->
+<!-- cmdrun ../../../../target/release/nym-mixnode sign --id my-node --contract-msg 22Z9wt4PyiBCbMiErxj5bBa4VCCFsjNawZ1KnLyMeV9pMUQGyksRVANbXHjWndMUaXNRnAuEVJW6UCxpRJwZe788hDt4sicsrv7iAXRajEq19cWPVybbUqgeo76wbXbCbRdg1FvVKgYZGZZp8D72p5zWhKSBRD44qgCrqzfV1SkiFEhsvcLUvZATdLRocAUL75KmWivyRiQjCE1XYEWyRH9yvRYn4TymWwrKVDtEB63zhHjATN4QEi2E5qSrSbBcmmqatXsKakbgSbQoLsYygcHx7tkwbQ2HDYzeiKP1t16Rhcjn6Ftc2FuXUNnTcibk2LQ1hiqu3FAq31bHUbzn2wiaPfm4RgqTwGM4eqnjBofwR3251wQSxbYwKUYwGsrkweRcoPuEaovApR9R19oJ7GVG5BrKmFwZWX3XFVuECe8vt1x9MY7DbQ3xhAapsHhThUmzN6JPPU4qbQ3PdMt3YVWy6oRhap97ma2dPMBaidebfgLJizpRU3Yu7mtb6E8vgi5Xnehrgtd35gitoJqJUY5sB1p6TDPd6vk3MVU1zqusrke7Lvrud4xKfCLqp672Bj9eGb2wPwow643CpHuMkhigfSWsv9jDq13d75EGTEiprC2UmWTzCJWHrDH7ka68DZJ5XXAW67DBewu7KUm1jrJkNs55vS83SWwm5RjzQLVhscdtCH1Bamec6uZoFBNVzjs21o7ax2WHDghJpGMxFi6dmdMCZpqn618t4 -->
 ```
 ~~~
 
 * Copy the resulting signature:
 
-```
->>> The base58-encoded signature is:
-2GbKcZVKFdpi3sR9xoJWzwPuGdj3bvd7yDtDYVoKfbTWdpjqAeU8KS5bSftD5giVLJC3gZiCg2kmEjNG5jkdjKUt
+```sh
+# >>> The base58-encoded signature is:
+2bbDJSmSo9r9qdamTNygY297nQTVRyQaxXURuomVcRd7EvG9oEC8uW8fvZZYnDeeC9iWyG9mAbX2K8rWEAxZBro1
 ```
 
 * And paste it into the wallet nodal, press `Next` and confirm the transaction.
 
-![Paste Signature](../images/wallet-screenshots/wallet-sign.png)
+![Paste Signature](../images/wallet-screenshots/wallet-sign.png)  
+*This image is just an example, copy-paste your own base58-encoded signature*
 
 * Your node will now be bonded and ready to mix at the beginning of the next epoch (at most 1 hour).
 
@@ -200,7 +189,8 @@ Change directory by `cd <PATH>/<TO>/<THE>/<RELEASE>` and run the following on th
 
 ~~~admonish example collapsible=true title="Console output"
 ```
- <!-- cmdrun ../../../../target/release/nym-mixnode sign --id YOUR_ID --text "TEXT" -->
+<!-- cmdrun ../../../../target/release/nym-mixnode init --id YOUR_ID --host $(curl -4 https://ifconfig.me) -->
+<!-- cmdrun ../../../../target/release/nym-mixnode sign --id YOUR_ID --text "TEXT" -->
 ```
 ~~~
 
@@ -234,7 +224,8 @@ Change directory by `cd <PATH>/<TO>/<THE>/<RELEASE>` and run the following on th
 
 ~~~admonish example collapsible=true title="Console output"
 ```
- <!-- cmdrun ../../../../target/release/nym-mixnode sign --id YOUR_ID --text "TEXT" -->
+<!-- cmdrun ../../../../target/release/nym-mixnode init --id YOUR_ID --host $(curl -4 https://ifconfig.me) -->
+<!-- cmdrun ../../../../target/release/nym-mixnode sign --id YOUR_ID --text "TEXT" -->
 ```
 ~~~
 
@@ -260,7 +251,7 @@ To get the node owner signature, use:
 If wanting to leave, run the same initial command as above, followed by:
 
 Using `nym-cli`:
-<!---the sting under shall be changed to <NODE_ADDRESS>? --->
+
 ```
 ./nym-cli cosmwasm execute <WALLET_ADDRESS> '{"leave_family": {"signature": "<base58-encoded-signature>","family_head": "<TEXT>","owner_signautre": "<OWNER_IGNATURE_FROM_NODE_TO_LEAVE>"}}'  --mnemonic <MNEMONIC_FROM_NODE_TO_LEAVE>
 ```
@@ -286,8 +277,6 @@ There are also 2 community explorers which have been created by [Nodes Guru](htt
 - [Sandbox testnet](https://sandbox.mixnet.explorers.guru/)
 
 For more details see [Troubleshooting FAQ](../nodes/troubleshooting.md)
-
-<!---Enter faq link to the information how to higher chances to become a part of an active set--->
 
 ## Maintenance
 

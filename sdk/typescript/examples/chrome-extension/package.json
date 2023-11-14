@@ -1,6 +1,6 @@
 {
   "name": "@nymproject/sdk-example-chrome-extension",
-  "version": "1.0.4-rc.1",
+  "version": "1.0.4-rc.2",
   "description": "This is an example of how Nym can be used within the context of a Chrome extension.",
   "license": "ISC",
   "author": "",

@@ -195,7 +195,7 @@ func parseHeaders(headers js.Value, reqOpts types.RequestOptions, method string)
 
 	// 3.1.1
 	origin := jstypes.Origin()
-	serializedOrigin := &origin
+	serializedOrigin := origin
 	// Reference: https://fetch.spec.whatwg.org/#origin-header
 	// TODO: 3.1.2: check response tainting
 	// 3.1.3
@@ -224,7 +224,7 @@ func parseBody(request *js.Value) (io.Reader, error) {
 	jsBody := request.Get(fieldRequestBody)
 	var bodyReader io.Reader
 
-	if jsBody.InstanceOf(js.Global().Get("ReadableStream")) && jsBody.Get("getReader").Type() == js.TypeFunction { 
+	if jsBody.InstanceOf(js.Global().Get("ReadableStream")) && jsBody.Get("getReader").Type() == js.TypeFunction {
 		// Check to see if getReader is a function
 		log.Debug("stream body - getReader")
 		bodyReader = external.NewStreamReader(jsBody.Call("getReader"))

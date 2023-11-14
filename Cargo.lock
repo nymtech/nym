@@ -2994,7 +2994,7 @@ dependencies = [
 
 [[package]]
 name = "extension-storage"
-version = "1.2.4-rc.1"
+version = "1.2.4-rc.2"
 dependencies = [
  "bip39",
  "console_error_panic_hook",
@@ -5568,7 +5568,7 @@ dependencies = [
 
 [[package]]
 name = "mix-fetch-wasm"
-version = "1.2.4-rc.1"
+version = "1.2.4-rc.2"
 dependencies = [
  "async-trait",
  "futures",
@@ -6270,7 +6270,7 @@ dependencies = [
 
 [[package]]
 name = "nym-client-wasm"
-version = "1.2.4-rc.1"
+version = "1.2.4-rc.2"
 dependencies = [
  "anyhow",
  "futures",
@@ -6972,7 +6972,7 @@ dependencies = [
 
 [[package]]
 name = "nym-node-tester-wasm"
-version = "1.2.4-rc.1"
+version = "1.2.4-rc.2"
 dependencies = [
  "futures",
  "js-sys",

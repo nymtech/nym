@@ -1,6 +1,6 @@
 {
   "name": "@nymproject/sdk-example-node-tester-plain-html",
-  "version": "1.0.4-rc.1",
+  "version": "1.0.4-rc.2",
   "description": "An example project that uses WASM node tester and plain HTML",
   "license": "Apache-2.0",
   "scripts": {

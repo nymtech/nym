@@ -1,6 +1,6 @@
 {
   "name": "@nymproject/mix-fetch-node",
-  "version": "1.2.4-rc.1",
+  "version": "1.2.4-rc.2",
   "description": "This package is a drop-in replacement for `fetch` in NodeJS to send HTTP requests over the Nym Mixnet.",
   "license": "Apache-2.0",
   "author": "Nym Technologies SA",
@@ -28,7 +28,7 @@
     "tsc": "tsc --noEmit true"
   },
   "dependencies": {
-    "@nymproject/mix-fetch-wasm-node": ">=1.2.4-rc.1 || ^1",
+    "@nymproject/mix-fetch-wasm-node": ">=1.2.4-rc.2 || ^1",
     "comlink": "^4.3.1",
     "fake-indexeddb": "^5.0.0",
     "node-fetch": "^3.3.2",

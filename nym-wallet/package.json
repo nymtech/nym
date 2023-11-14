@@ -1,6 +1,6 @@
 {
   "name": "@nymproject/nym-wallet-app",
-  "version": "1.2.12-rc.1",
+  "version": "1.2.12-rc.2",
   "license": "MIT",
   "main": "index.js",
   "scripts": {

@@ -1,6 +1,6 @@
 {
   "name": "@nymproject/node-tester",
-  "version": "1.2.4-rc.1",
+  "version": "1.2.4-rc.2",
   "description": "This package provides a tester that can send test packets to mixnode that is part of the Nym Mixnet.",
   "license": "Apache-2.0",
   "author": "Nym Technologies SA",
@@ -25,7 +25,7 @@
     "tsc": "tsc --noEmit true"
   },
   "dependencies": {
-    "@nymproject/nym-node-tester-wasm": ">=1.2.4-rc.1 || ^1",
+    "@nymproject/nym-node-tester-wasm": ">=1.2.4-rc.2 || ^1",
     "comlink": "^4.3.1"
   },
   "devDependencies": {

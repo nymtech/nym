@@ -1,6 +1,6 @@
 {
   "name": "@nymproject/contract-clients",
-  "version": "1.2.4-rc.1",
+  "version": "1.2.4-rc.2",
   "description": "A client for all Nym smart contracts",
   "license": "Apache-2.0",
   "author": "Nym Technologies SA",

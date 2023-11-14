@@ -1,6 +1,6 @@
 {
   "name": "@nymproject/sdk-example-node-tester-plain-html-parcel",
-  "version": "1.0.4-rc.1",
+  "version": "1.0.4-rc.2",
   "description": "An example project that uses WASM and plain HTML bundled with Parcel v2",
   "license": "Apache-2.0",
   "scripts": {

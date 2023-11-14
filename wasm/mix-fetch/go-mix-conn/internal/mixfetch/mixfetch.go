@@ -92,7 +92,7 @@ func mainFetchChecks(req *conv.ParsedRequest) error {
 		return nil
 	}
 	if req.Options.Mode == jstypes.ModeSameOrigin {
-		return errors.New(fmt.Sprintf("MixFetch API cannot load %s. Request mode is \"%s\" but the URL's origin is not same as the request origin %s.", req.Request.URL.String(), jstypes.ModeSameOrigin, jstypes.Origin))
+		return errors.New(fmt.Sprintf("MixFetch API cannot load %s. Request mode is \"%s\" but the URL's origin is not same as the request origin %v.", req.Request.URL.String(), jstypes.ModeSameOrigin, jstypes.Origin()))
 	}
 	if req.Options.Mode == jstypes.ModeNoCors {
 		if req.Options.Redirect != jstypes.RequestRedirectFollow {
@@ -241,8 +241,17 @@ func doCorsCheck(reqOpts *types.RequestOptions, resp *http.Response) error {
 
 	// 4.9.4
 	// TODO: presumably this needs to better account for the wildcard?
-	if jstypes.Origin() != originHeader {
-		return errors.New(fmt.Sprintf("\"%s\" does not match the origin \"%s\" on \"%s\" remote header", jstypes.Origin, originHeader, jstypes.HeaderAllowOrigin))
+
+	// if origin is null it means 4.9.2 would have failed anyway
+	origin := jstypes.Origin()
+	if origin == nil {
+		// TODO: won't this essentially fail all node requests?
+		return errors.New("the local origin is null")
+	}
+
+	// safety: it's fine to dereference the pointer here as we've just checked if it's null
+	if *origin != originHeader {
+		return errors.New(fmt.Sprintf("\"%v\" does not match the origin \"%s\" on \"%s\" remote header", jstypes.Origin(), originHeader, jstypes.HeaderAllowOrigin))
 	}
 
 	// 4.9.5

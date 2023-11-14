@@ -16,27 +16,39 @@ For example `./target/debug/nym-network-requester --no-banner build-info --outpu
 
 ## Upgrading your node
 
-> The process is the similar for mix node, gateway and network requester. In the following steps we use a placeholder `<NODE>` in the commands, please change it for the type of node you want to upgrade. Any particularities for the given type of node are included.
+> The process is the similar for Mix Node, Gateway and Network Requester. In the following steps we use a placeholder `<NODE>` in the commands, please change it for the type of node you want to upgrade. Any particularities for the given type of node are included.
 
 Upgrading your node is a two-step process:
 * Updating the binary and `~/.nym/<NODE>/<YOUR_ID>/config/config.toml` on your VPS
 * Updating the node information in the [mixnet smart contract](https://nymtech.net/docs/nyx/mixnet-contract.html). **This is the information that is present on the [mixnet explorer](https://explorer.nymtech.net)**.
 
 ### Step 1: Upgrading your binary
-Follow these steps to upgrade your mix node binary and update its config file:
-* pause your mix node process.
-* replace the existing binary with the newest binary (which you can either [compile yourself](https://nymtech.net/docs/binaries/building-nym.html) or grab from our [releases page](https://github.com/nymtech/nym/releases)).
-* re-run `init` with the same values as you used initially. **This will just update the config file, it will not overwrite existing keys**.
-* restart your mix node process with the new binary.
+Follow these steps to upgrade your Node binary and update its config file:
+* Pause your node process.
+    - if you see the terminal window with your node, press `ctrl + c`
+    - if you run it as `systemd` service, run: `systemctl stop nym-<NODE>.service`
+* Replace the existing `<NODE>` binary with the newest binary (which you can either [compile yourself](https://nymtech.net/docs/binaries/building-nym.html) or grab from our [releases page](https://github.com/nymtech/nym/releases)).
+* Re-run `init` with the same values as you used initially for your `<NODE>` ([Mix Node](./mix-node-setup.md#initialising-your-mix-node), [Gateway](./gateway-setup.md#initialising-your-gateway)) . **This will just update the config file, it will not overwrite existing keys**.
+* Restart your node process with the new binary.
+    - if you automatized (recommended) run: 
+```sh
+systemctl daemon-reload # to pickup the new unit file
+systemctl start nym-<NODE>.service
+journalctl -f -u <NODE>.service # to monitor log of you node
+```
+    - if your node is not automitized, just `run` your `<NODE>` with `./nym-<NODE> run --id <ID>`. Here are exact guidelines for [Mix Node](./mix-node-setup.md#running-your-mix-node) and [Gateway](./gateway-setup.md#running-your-gateway). 
 
-> In case of a network requester this is all all, the following step is only for mix nodes and gateways.
+
+If these steps are too difficult and you prefer to just run a script, you can use [ExploreNYM script](https://github.com/ExploreNYM/bash-tool) or one done by [Nym developers](https://gist.github.com/tommyv1987/4dca7cc175b70742c9ecb3d072eb8539).
+
+> In case of a Network Requester this is all, the following step is only for Mix Nodes and Gateways.
 
 ### Step 2: Updating your node information in the smart contract
-Follow these steps to update the information about your `<NODE>` which is publicly available from the [Nym API](https://validator.nymtech.net/api/swagger/index.html) and information displayed on the [mixnet explorer](https://explorer.nymtech.net).
+Follow these steps to update the information about your `<NODE>` which is publicly available from the [`nym-api`](https://validator.nymtech.net/api/swagger/index.html) and information displayed on the [Mixnet explorer](https://explorer.nymtech.net).
 
 You can either do this graphically via the Desktop Wallet, or the CLI.
 
-### Updating node information via the Desktop Wallet
+### Updating node information via the Desktop Wallet (recommended)
 * Navigate to the `Bonding` page and click the `Node Settings` link in the top right corner:  
 
 ![Bonding page](../images/wallet-screenshots/bonding.png)
@@ -53,9 +65,9 @@ If you want to bond your `<NODE>` via the CLI, then check out the [relevant sect
 
 In the previous version of the network-requester, users were required to run a nym-client along side it to function. As of `v1.1.10`, the network-requester now has a nym client embedded into the binary, so it can run standalone.
 
-If you are running an existing network requester registered with nym-connect, upgrading requires you move your old keys over to the new network requester configuration. We suggest following these instructions carefully to ensure a smooth transition.
+If you are running an existing Network Requester registered with nym-connect, upgrading requires you move your old keys over to the new Network Requester configuration. We suggest following these instructions carefully to ensure a smooth transition.
 
-Initiate the new network requester:
+Initiate the new Network Requester:
 
 ```sh
 nym-network-requester init --id <YOUR_ID>
@@ -184,13 +196,13 @@ exit 0
 
 ```
 
-Although your gateway is Now ready to use its `wss_port`, your server may not be ready - the following commands will allow you to set up a properly configured firewall using `ufw`:
+Although your Gateway is Now ready to use its `wss_port`, your server may not be ready - the following commands will allow you to set up a properly configured firewall using `ufw`:
 
 ```sh
 ufw allow 9001/tcp
 ```
 
-Lastly don't forget to restart your Gateway, now the API will render the WSS details for this gateway:
+Lastly don't forget to restart your Gateway, now the API will render the WSS details for this Gateway:
 
 
 ### WSS on a new Gateway
@@ -203,7 +215,7 @@ Another flag `--public-ips` is required; it's a comma separated list of IP’s t
 
 If the operator wishes to run WSS, an optional `--hostname` flag is also required, that can be something like `mainnet-gateway2.nymtech.net`. Make sure to enable all necessary [ports](maintenance.md#configure-your-firewall) on the Gateway. 
 
-The gateway will then be accessible on something like: *http://85.159.211.99:8080/api/v1/swagger/index.html*
+The Gateway will then be accessible on something like: *http://85.159.211.99:8080/api/v1/swagger/index.html*
 
 Are you seeing something like: *this node attempted to announce an invalid public address: 0.0.0.0.*? 
 
@@ -236,7 +248,7 @@ sudo ufw status
 Finally open your `<NODE>` p2p port, as well as ports for ssh and ports for verloc and measurement pings:
 
 ```sh
-# for mix node, gateway and network requester
+# for Mix Node, Gateway and Network Requester
 sudo ufw allow 1789,1790,8000,9000,9001,22/tcp
 
 # In case of reverse proxy for the Gateway swagger page add:
@@ -257,7 +269,7 @@ For more information about your node's port configuration, check the [port refer
 
 ### Automating your node with nohup, tmux and systemd
 
-Although it’s not totally necessary, it's useful to have the mix node automatically start at system boot time. 
+Although it’s not totally necessary, it's useful to have the Mix Node automatically start at system boot time. 
 
 #### nohup
 
@@ -287,7 +299,7 @@ In case it didn't work for your distribution, see how to build `tmux` from [vers
 
 **Running tmux**
 
-No when you installed tmux on your VPS, let's run a mix node on tmux, which allows you to detach your terminal and let your `<NODE>` run on its own on the VPS.
+No when you installed tmux on your VPS, let's run a Mix Node on tmux, which allows you to detach your terminal and let your `<NODE>` run on its own on the VPS.
 
 * Pause your `<NODE>`
 * Start tmux with the command 
@@ -310,7 +322,7 @@ tmux attach-session
 
 Here's a systemd service file to do that:
 
-##### For mix node
+##### For Mix Node
 
 ```ini
 [Unit]
@@ -354,7 +366,7 @@ WantedBy=multi-user.target
 
 * Put the above file onto your system at `/etc/systemd/system/nym-gateway.service`.
 
-##### For Network requester
+##### For Network Requester
 
 ```ini
 [Unit]
@@ -433,20 +445,20 @@ systemctl daemon-reload # to pickup the new unit file
 ```
 
 ```sh
-# for mix node
+# for Mix Node
 systemctl enable nym-mixnode.service
 
-# for gateway
+# for Gateway
 systemctl enable nym-gateway.service
 ```
 
 Start your node:
 
 ```sh
-# for mix node
+# for Mix Node
 service nym-mixnode start
 
-# for gateway
+# for Gateway
 service nym-gateway start
 
 ```
@@ -477,7 +489,7 @@ This lets your operating system know it's ok to reload the service configuration
 
 Linux machines limit how many open files a user is allowed to have. This is called a `ulimit`.
 
-`ulimit` is 1024 by default on most systems. It needs to be set higher, because mix nodes make and receive a lot of connections to other nodes.
+`ulimit` is 1024 by default on most systems. It needs to be set higher, because Mix Nodes make and receive a lot of connections to other nodes.
 
 If you see errors such as:
 
@@ -491,12 +503,12 @@ This means that the operating system is preventing network connections from bein
 
 > Replace `<NODE>` variable with `nym-mixnode`, `nym-gateway` or `nym-network-requester` according the node you running on your machine.
 
-The ulimit setup is relevant for maintenance of nym mix node only.
+The ulimit setup is relevant for maintenance of Nym Mix Node only.
 
 Query the `ulimit` of your `<NODE>` with:
 
 ```sh
-# for nym-mixnode, nym-gateway and nym-network requester:
+# for nym-mixnode, nym-gateway and nym-network-requester:
 grep -i "open files" /proc/$(ps -A -o pid,cmd|grep <NODE> | grep -v grep |head -n 1 | awk '{print $1}')/limits
 
 # for nyx validator:
@@ -533,7 +545,7 @@ echo "DefaultLimitNOFILE=65535" >> /etc/systemd/system.conf
 
 Reboot your machine and restart your node. When it comes back, use:
 ```sh
-# for nym-mixnode, nym-gateway and nym-network requester:
+# for nym-mixnode, nym-gateway and nym-network-requester:
 cat /proc/$(pidof <NODE>)/limits | grep "Max open files"
 
 # for validator
@@ -543,7 +555,7 @@ Make sure the limit has changed to 65535.
 
 #### Set the ulimit on `non-systemd` based distributions
 
-In case you chose tmux option for mix node automatization, see your `ulimit` list by running:
+In case you chose tmux option for Mix Node automation, see your `ulimit` list by running:
 
 ```sh
 ulimit -a
@@ -568,13 +580,13 @@ username        hard nofile 4096
 username        soft nofile 4096
 ```
 
-Then reboot your server and restart your mix node.
+Then reboot your server and restart your Mix Node.
 
 ## Moving a node
 
 In case of a need to move a node from one machine to another and avoiding to lose the delegation, here are few steps how to do it.
 
-The following examples transfers a mix node (in case of other nodes, change the `mixnodes` in the command for the `<NODE>` of your desire.
+The following examples transfers a Mix Node (in case of other nodes, change the `mixnodes` in the command for the `<NODE>` of your desire.
 
 * Pause your node process.
 
@@ -587,7 +599,7 @@ Assuming both machines are remote VPS.
 # in case none of the nym configs was created previously
 mkdir ~/.nym
 
-#in case no nym mix node was initialized previously
+#in case no nym Mix Node was initialized previously
 mkdir ~/.nym/mixnodes
 ```
 * Move the node data (keys) and config file to the new machine by opening a local terminal (as that one's ssh key is authorized in both of the machines) and running:
@@ -614,29 +626,29 @@ ens4: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1460
 
 The `ens4` interface has the IP `10.126.5.7`. But this isn't the public IP of the machine, it's the IP of the machine on Google's internal network. Google uses virtual routing, so the public IP of this machine is something else, maybe `36.68.243.18`.
 
-`./nym-mixnode init --host 10.126.5.7`, initalises the mix node, but no packets will be routed because `10.126.5.7` is not on the public internet.
+`./nym-mixnode init --host 10.126.5.7`, initalises the Mix Node, but no packets will be routed because `10.126.5.7` is not on the public internet.
 
-Trying `nym-mixnode init --host 36.68.243.18`, you'll get back a startup error saying `AddrNotAvailable`. This is because the mix node doesn't know how to bind to a host that's not in the output of `ifconfig`.
+Trying `nym-mixnode init --host 36.68.243.18`, you'll get back a startup error saying `AddrNotAvailable`. This is because the Mix Node doesn't know how to bind to a host that's not in the output of `ifconfig`.
 
 The right thing to do in this situation is to init with a command:
 ```sh
 ./nym-mixnode init --host 10.126.5.7 --announce-host 36.68.243.18
 ```
 
-This will bind the mix node to the available host `10.126.5.7`, but announce the mix node's public IP to the directory server as `36.68.243.18`. It's up to you as a node operator to ensure that your public and private IPs match up properly.
+This will bind the Mix Node to the available host `10.126.5.7`, but announce the Mix Node's public IP to the directory server as `36.68.243.18`. It's up to you as a node operator to ensure that your public and private IPs match up properly.
 
 To find the right IP configuration, contact your VPS provider for support.
 
 ## Nym API (previously 'Validator API') endpoints
 Numerous API endpoints are documented on the Nym API (previously 'Validator API')'s [Swagger Documentation](https://validator.nymtech.net/api/swagger/index.html). There you can also try out various requests from your browser, and download the response from the API. Swagger will also show you what commands it is running, so that you can run these from an app or from your CLI if you prefer.
 
-### Mix node Reward Estimation API endpoint
+### Mix Node Reward Estimation API endpoint
 
-The Reward Estimation API endpoint allows mix node operators to estimate the rewards they could earn for running a Nym mix node with a specific `MIX_ID`.
+The Reward Estimation API endpoint allows Mix Node operators to estimate the rewards they could earn for running a Nym Mix Node with a specific `MIX_ID`.
 
 > The `<MIX_ID>` can be found in the "Mix ID" column of the [Network Explorer](https://explorer.nymtech.net/network-components/mixnodes/active).
 
-The endpoint is a particularly common for mix node operators as it can provide an estimate of potential earnings based on factors such as the amount of traffic routed through the mix node, the quality of the mix node's performance, and the overall demand for mixnodes in the network. This information can be useful for mix node operators in deciding whether or not to run a mix node and in optimizing its operations for maximum profitability.
+The endpoint is a particularly common for Mix Node operators as it can provide an estimate of potential earnings based on factors such as the amount of traffic routed through the Mix Node, the quality of the Mix Node's performance, and the overall demand for Mix Nodes in the network. This information can be useful for Mix Node operators in deciding whether or not to run a Mix Node and in optimizing its operations for maximum profitability.
 
 Using this API endpoint returns information about the Reward Estimation:
 
@@ -657,15 +669,15 @@ Query Response:
 
 > The unit of value is measured in `uNYM`.
 
-- `estimated_total_node_reward` - An estimate of the total amount of rewards that a particular mix node can expect to receive during the current epoch. This value is calculated by the Nym Validator based on a number of factors, including the current state of the network, the number of mix nodes currently active in the network, and the amount of network traffic being processed by the mix node.
+- `estimated_total_node_reward` - An estimate of the total amount of rewards that a particular Mix Node can expect to receive during the current epoch. This value is calculated by the Nym Validator based on a number of factors, including the current state of the network, the number of Mix Nodes currently active in the network, and the amount of network traffic being processed by the Mix Node.
 
-- `estimated_operator_reward` - An estimate of the amount of rewards that a particular mix node operator can expect to receive. This value is calculated by the Nym Validator based on a number of factors, including the amount of traffic being processed by the mix node, the quality of service provided by the mix node, and the operator's stake in the network.
+- `estimated_operator_reward` - An estimate of the amount of rewards that a particular Mix Node operator can expect to receive. This value is calculated by the Nym Validator based on a number of factors, including the amount of traffic being processed by the Mix Node, the quality of service provided by the Mix Node, and the operator's stake in the network.
 
-- `estimated_delegators_reward` - An estimate of the amount of rewards that mix node delegators can expect to receive individually. This value is calculated by the Nym Validator based on a number of factors, including the amount of traffic being processed by the mix node, the quality of service provided by the mix node, and the delegator's stake in the network.
+- `estimated_delegators_reward` - An estimate of the amount of rewards that Mix Node delegators can expect to receive individually. This value is calculated by the Nym Validator based on a number of factors, including the amount of traffic being processed by the Mix Node, the quality of service provided by the Mix Node, and the delegator's stake in the network.
 
-- `estimated_node_profit` - An estimate of the profit that a particular mix node operator can expect to earn. This value is calculated by subtracting the mix node operator's `operating_costs` from their `estimated_operator_reward` for the current epoch.
+- `estimated_node_profit` - An estimate of the profit that a particular Mix node operator can expect to earn. This value is calculated by subtracting the Mix Node operator's `operating_costs` from their `estimated_operator_reward` for the current epoch.
 
-- `estimated_operator_cost` - An estimate of the total cost that a particular mix node operator can expect to incur for their participation. This value is calculated by the Nym Validator based on a number of factors, including the cost of running a mix node, such as server hosting fees, and other expenses associated with operating the mix node.
+- `estimated_operator_cost` - An estimate of the total cost that a particular Mix Node operator can expect to incur for their participation. This value is calculated by the Nym Validator based on a number of factors, including the cost of running a Mix Node, such as server hosting fees, and other expenses associated with operating the Mix Node.
 
 ### Validator: Installing and configuring nginx for HTTPS
 #### Setup
@@ -785,7 +797,7 @@ go_memstats_gc_sys_bytes 1.3884192e+07
 ## Ports
 All `<NODE>`-specific port configuration can be found in `$HOME/.nym/<NODE>/<YOUR_ID>/config/config.toml`. If you do edit any port configs, remember to restart your client and node processes.
 
-### Mix node port reference
+### Mix Node port reference
 | Default port | Use                       |
 | ------------ | ------------------------- |
 | `1789`       | Listen for Mixnet traffic |
@@ -800,7 +812,7 @@ All `<NODE>`-specific port configuration can be found in `$HOME/.nym/<NODE>/<YOU
 | `9000`       | Listen for Client traffic |
 | `9001`       | WSS                       |
 
-### Network requester port reference
+### Network Requester port reference
 
 | Default port | Use                       |
 |--------------|---------------------------|

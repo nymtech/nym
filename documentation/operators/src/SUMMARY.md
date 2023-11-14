@@ -5,7 +5,7 @@
 # Binaries
 
 - [Pre-built Binaries](binaries/pre-built-binaries.md)
-    - [Binary Initialisation and Configuration](binaries/init-and-config.md)
+<!--    - [Binary Initialisation and Configuration](binaries/init-and-config.md) -->
 - [Building from Source](binaries/building-nym.md)
 <!-- - [Version Compatibility Table](binaries/version-compatiblity.md) -->
 

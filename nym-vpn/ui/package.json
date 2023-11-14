@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "dev:app": "WEBKIT_DISABLE_COMPOSITING_MODE=1 tauri dev",
+    "dev:app": "RUST_LOG=nymvpn_ui=trace tauri dev",
     "dev:browser": "vite --mode dev-browser",
     "build": "tsc && vite build",
     "build:app": "yarn build && cd src-tauri && cargo build --release --lib --features custom-protocol",

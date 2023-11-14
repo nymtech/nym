@@ -4284,6 +4284,15 @@ checksum = "28b29a3cd74f0f4598934efe3aeba42bae0eb4680554128851ebbecb02af14e6"
 
 [[package]]
 name = "ipnetwork"
+version = "0.16.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b8eca9f51da27bc908ef3dd85c21e1bbba794edaf94d7841e37356275b82d31e"
+dependencies = [
+ "serde",
+]
+
+[[package]]
+name = "ipnetwork"
 version = "0.18.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4088d739b183546b239688ddbc79891831df421773df95e236daf7867866d355"
@@ -6534,6 +6543,7 @@ dependencies = [
  "futures",
  "humantime-serde",
  "hyper",
+ "ipnetwork 0.16.0",
  "lazy_static",
  "log",
  "nym-api-requests",
@@ -6668,6 +6678,7 @@ dependencies = [
  "tap",
  "thiserror",
  "tokio",
+ "url",
 ]
 
 [[package]]
@@ -6900,6 +6911,7 @@ dependencies = [
  "fastrand 2.0.1",
  "hmac 0.12.1",
  "hyper",
+ "ipnetwork 0.16.0",
  "mime",
  "nym-config",
  "nym-crypto",

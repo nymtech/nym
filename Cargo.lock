@@ -7369,6 +7369,7 @@ name = "nym-sphinx-types"
 version = "0.2.0"
 dependencies = [
  "nym-outfox",
+ "once_cell",
  "sphinx-packet",
  "thiserror",
 ]
@@ -10044,8 +10045,7 @@ dependencies = [
 [[package]]
 name = "sphinx-packet"
 version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cc43eda802856ee82a7555c7b75ceb9e07451741c7a2f5f23d036020e01189d4"
+source = "git+https://github.com/nymtech/sphinx.git?branch=feature/clone-surb#742e08cbd6a39c7d50a6a2baf8b86a369ca46e9d"
 dependencies = [
  "aes 0.7.5",
  "arrayref",

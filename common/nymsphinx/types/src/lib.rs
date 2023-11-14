@@ -9,6 +9,8 @@ pub use nym_outfox::{
 // re-exporting types and constants available in sphinx
 #[cfg(feature = "outfox")]
 use nym_outfox::packet::{OutfoxPacket, OutfoxProcessedPacket};
+
+use once_cell::sync::OnceCell;
 #[cfg(feature = "sphinx")]
 pub use sphinx_packet::{
     constants::{
@@ -27,6 +29,8 @@ pub use sphinx_packet::{
 use sphinx_packet::{SphinxPacket, SphinxPacketBuilder};
 use std::{array::TryFromSliceError, fmt};
 use thiserror::Error;
+
+static REUSABLE_SURB: OnceCell<SURB> = OnceCell::new();
 
 #[derive(Error, Debug)]
 pub enum NymPacketError {
@@ -77,6 +81,28 @@ impl fmt::Debug for NymPacket {
 }
 
 impl NymPacket {
+    #[cfg(feature = "sphinx")]
+    pub fn from_surb<M: AsRef<[u8]>>(
+        size: usize,
+        message: M,
+        route: &[Node],
+        destination: &Destination,
+        delays: &[Delay],
+    ) -> Result<NymPacket, NymPacketError> {
+        let (packet, _address) = if let Some(surb) = REUSABLE_SURB.get() {
+            let new_surb = surb.clone();
+            new_surb.use_surb(message.as_ref(   ), size)?
+        } else {
+            let surb_material =
+                SURBMaterial::new(route.to_vec(), delays.to_vec(), destination.to_owned());
+            let surb = SURB::new(EphemeralSecret::new(), surb_material)?;
+            REUSABLE_SURB.set(surb.clone()).expect("ReusableSURB was already set!");
+            surb.use_surb(message.as_ref(), size)?
+        };
+
+        Ok(NymPacket::Sphinx(packet))
+    }
+
     #[cfg(feature = "sphinx")]
     pub fn sphinx_build<M: AsRef<[u8]>>(
         size: usize,

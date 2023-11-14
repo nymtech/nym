@@ -32,9 +32,9 @@ export const TableToolbar: FCWithChildren<TableToolBarProps> = ({
   const [showNewDelegationModal, setShowNewDelegationModal] = useState<boolean>(false);
 
   const assetsFixedUp = useMemo(() => {
-    const nyx = assets.find((a) => a.chain_name === 'nyx');
+    const nyx = assets.find((a) => a.chain_name === 'sandbox');
     if (nyx) {
-      const nyxCoin = nyx.assets.find((a) => a.name === 'nyx');
+      const nyxCoin = nyx.assets.find((a) => a.name === 'sandbox');
       if (nyxCoin) {
         nyxCoin.coingecko_id = 'nyx';
       }
@@ -58,6 +58,23 @@ export const TableToolbar: FCWithChildren<TableToolBarProps> = ({
     }
     return chains;
   }, [chains]);
+
+  // SANDBOX
+  // const chainsFixedUp = useMemo(() => {
+  //   const nyx = chains.find((c) => c.chain_id === 'sandbox');
+  //   if (nyx) {
+  //     if (!nyx.staking) {
+  //       nyx.staking = {
+  //         staking_tokens: [{ denom: 'unyx' }],
+  //         lock_duration: {
+  //           blocks: 10000,
+  //         },
+  //       };
+  //       if (nyx.apis) nyx.apis.rpc = [{ address: 'https://sandbox-validator1.nymtech.net', provider: 'nym' }];
+  //     }
+  //   }
+  //   return chains;
+  // }, [chains]);
 
   const isMobile = useIsMobile();
   return (
@@ -122,10 +139,11 @@ export const TableToolbar: FCWithChildren<TableToolBarProps> = ({
         }}
       >
         <Button
+          size="large"
           variant="contained"
           disableElevation
           onClick={() => setShowNewDelegationModal(true)}
-          sx={{ py: 1.5, px: 5, color: 'primary.contrastText' }}
+          sx={{ px: 5, color: 'primary.contrastText' }}
         >
           Delegate
         </Button>

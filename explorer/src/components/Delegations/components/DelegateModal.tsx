@@ -98,12 +98,18 @@ export const DelegateModal: FCWithChildren<{
   useEffect(() => {
     const getClient = async () => {
       await getSigningCosmWasmClient()
-        .then((res) => setCosmWasmSignerClient(res))
+        .then((res) => {
+          setCosmWasmSignerClient(res);
+          console.log('res :>> ', res);
+        })
         .catch((e) => console.log('e :>> ', e));
     };
 
-    getClient();
-  }, []);
+    isWalletConnected && getClient();
+  }, [isWalletConnected]);
+
+  console.log('cosmWasmSignerClient :>> ', cosmWasmSignerClient);
+  console.log('isWalletConnected :>> ', isWalletConnected);
 
   useEffect(() => {
     const getBalance = async (walletAddress: string) => {
@@ -182,9 +188,11 @@ export const DelegateModal: FCWithChildren<{
     memo?: string,
     _funds?: DecCoin[],
   ): Promise<ExecuteResult> => {
+    console.log('cosmWasmSignerClient :>> ', cosmWasmSignerClient);
     return await cosmWasmSignerClient.execute(
       address,
       MIXNET_CONTRACT_ADDRESS,
+      //sandboxContractAddress,
       {
         delegate_to_mixnode: {
           mix_id: mixId,
@@ -198,9 +206,11 @@ export const DelegateModal: FCWithChildren<{
 
   const handleConfirm = async () => {
     const memo: string = 'test delegation';
+    const fee = { gas: '1000000', amount: [{ amount: '100000', denom: 'unym' }] };
 
     if (mixId && amount) {
-      await delegateToMixnode({ mixId }, 'auto', memo, [amount]);
+      console.log('trying to delegate :>> ');
+      await delegateToMixnode({ mixId }, fee, memo, [amount]);
     }
   };
 
@@ -316,7 +326,7 @@ export const DelegateModal: FCWithChildren<{
           required
           fullWidth
           label="Amount"
-          initialValue={amount}
+          // initialValue={amount}
           autoFocus={Boolean(initialIdentityKey)}
           onChanged={handleAmountChanged}
           denom={denom}

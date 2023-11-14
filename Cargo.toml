@@ -121,6 +121,7 @@ default-members = [
     "service-providers/network-statistics",
     "mixnode",
     "nym-api",
+    "tools/nymvisor",
     "explorer-api",
 ]
 

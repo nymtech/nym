@@ -13,6 +13,7 @@ use tracing::error;
 mod add_upgrade;
 mod build_info;
 mod config;
+mod daemon_build_info;
 pub(crate) mod helpers;
 mod init;
 mod run;
@@ -53,19 +54,22 @@ impl Cli {
 
 #[derive(Subcommand, Debug)]
 pub(crate) enum Commands {
-    /// TODO: document the command
+    /// Initialise a nymvisor instance with persistent Config.toml file.
     Init(init::Args),
 
-    /// TODO: document the command
+    /// Run the associated daemon with the preconfigured settings.
     Run(run::Args),
 
-    /// TODO: document the command
+    /// Show build information of this binary
     BuildInfo(build_info::Args),
 
-    /// TODO: document the command
+    /// Show build information of the associated daemon
+    DaemonBuildInfo(daemon_build_info::Args),
+
+    /// Queues up another upgrade for the associated daemon
     AddUpgrade(add_upgrade::Args),
 
-    /// TODO: document the command
+    /// Show configuration options being used by this instance of nymvisor
     Config(config::Args),
 }
 

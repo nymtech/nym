@@ -121,7 +121,7 @@ To initialise, run and bond your Mix Node are the minimum steps to do in order f
 - [Describe your Mix Node](./mix-node-setup.md#node-description-optional) 
 - [Configure your firewall](./maintenance.md#configure-your-firewall)
 - [Automate your Mix Node](./maintenance.md#vps-setup-and-automation)
-- Set the [ulimit](./maintenance.md#set-the-ulimit-via-systemd-service-file) In case you haven't automated with [systemd](./maintenance.md#set-the-ulimit-on-non-systemd-based-distributions)
+- Set the [ulimit](./maintenance.md#set-the-ulimit-via-systemd-service-file), in case you haven't automated with [systemd](./maintenance.md#set-the-ulimit-on-non-systemd-based-distributions)
 
 ### Bond via the Desktop wallet (recommended)
 
@@ -149,7 +149,7 @@ It will look something like this:
 * Copy the resulting signature:
 
 ```sh
-# The base58-encoded signature is:
+# >>> The base58-encoded signature is:
 2bbDJSmSo9r9qdamTNygY297nQTVRyQaxXURuomVcRd7EvG9oEC8uW8fvZZYnDeeC9iWyG9mAbX2K8rWEAxZBro1
 ```
 
@@ -189,7 +189,8 @@ Change directory by `cd <PATH>/<TO>/<THE>/<RELEASE>` and run the following on th
 
 ~~~admonish example collapsible=true title="Console output"
 ```
- <!-- cmdrun ../../../../target/release/nym-mixnode sign --id YOUR_ID --text "TEXT" -->
+<!-- cmdrun ../../../../target/release/nym-mixnode init --id YOUR_ID --host $(curl -4 https://ifconfig.me) -->
+<!-- cmdrun ../../../../target/release/nym-mixnode sign --id YOUR_ID --text "TEXT" -->
 ```
 ~~~
 
@@ -223,7 +224,8 @@ Change directory by `cd <PATH>/<TO>/<THE>/<RELEASE>` and run the following on th
 
 ~~~admonish example collapsible=true title="Console output"
 ```
- <!-- cmdrun ../../../../target/release/nym-mixnode sign --id YOUR_ID --text "TEXT" -->
+<!-- cmdrun ../../../../target/release/nym-mixnode init --id YOUR_ID --host $(curl -4 https://ifconfig.me) -->
+<!-- cmdrun ../../../../target/release/nym-mixnode sign --id YOUR_ID --text "TEXT" -->
 ```
 ~~~
 
@@ -249,7 +251,7 @@ To get the node owner signature, use:
 If wanting to leave, run the same initial command as above, followed by:
 
 Using `nym-cli`:
-<!---the sting under shall be changed to <NODE_ADDRESS>? --->
+
 ```
 ./nym-cli cosmwasm execute <WALLET_ADDRESS> '{"leave_family": {"signature": "<base58-encoded-signature>","family_head": "<TEXT>","owner_signautre": "<OWNER_IGNATURE_FROM_NODE_TO_LEAVE>"}}'  --mnemonic <MNEMONIC_FROM_NODE_TO_LEAVE>
 ```
@@ -275,8 +277,6 @@ There are also 2 community explorers which have been created by [Nodes Guru](htt
 - [Sandbox testnet](https://sandbox.mixnet.explorers.guru/)
 
 For more details see [Troubleshooting FAQ](../nodes/troubleshooting.md)
-
-<!---Enter faq link to the information how to higher chances to become a part of an active set--->
 
 ## Maintenance
 

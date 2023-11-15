@@ -1,0 +1,36 @@
+name: ci-nym-node-api-tests
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "nym-node/**"
+
+defaults:
+  run:
+    working-directory: nym-node/tests
+
+jobs:
+  test:
+    name: nym-node tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Install npm
+        run: npm install
+
+      - name: Node v18
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18.1.0
+
+      - name: Install yarn
+        run: yarn install
+
+      - name: Run yarn
+        run: yarn
+
+      - name: Run tests
+        run: yarn test:sandbox
+        working-directory: nym-node/tests

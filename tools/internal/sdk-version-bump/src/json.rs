@@ -114,9 +114,9 @@ pub(crate) fn find_package_path(dir: &Path) -> anyhow::Result<PathBuf> {
 
 // expected structure: `>=X.Y.Z-rc.W || ^X`
 fn try_bump_minor_version_req(raw_req: &str) -> anyhow::Result<String> {
-    let (req, major) = raw_req
-        .split_once("||")
-        .context(format!("invalid version requirement for {raw_req}"))?;
+    let (req, major) = raw_req.split_once("||").context(format!(
+        "'{raw_req}' is not a valid semver version requirement - we expect '`>=X.Y.Z-rc.W || ^X`'"
+    ))?;
     let parsed_req = VersionReq::parse(req)?;
     let parsed_major = VersionReq::parse(major)?;
     if parsed_req.comparators.len() != 1 {
@@ -138,9 +138,9 @@ fn try_bump_minor_version_req(raw_req: &str) -> anyhow::Result<String> {
 
 // expected structure: `>=X.Y.Z-rc.W || ^X`
 fn try_bump_prerelease_version_req(raw_req: &str) -> anyhow::Result<String> {
-    let (req, major) = raw_req
-        .split_once("||")
-        .context(format!("invalid version requirement for {raw_req}"))?;
+    let (req, major) = raw_req.split_once("||").context(format!(
+        "'{raw_req}' is not a valid semver version requirement - we expect '`>=X.Y.Z-rc.W || ^X`'"
+    ))?;
     let parsed_req = VersionReq::parse(req)?;
     let parsed_major = VersionReq::parse(major)?;
     if parsed_req.comparators.len() != 1 {

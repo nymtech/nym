@@ -7,6 +7,7 @@ import { DelegateModal } from './Delegations/components/DelegateModal';
 import { ChainProvider } from '@cosmos-kit/react';
 import { assets, chains } from 'chain-registry';
 import { wallets as keplr } from '@cosmos-kit/keplr';
+import { CurrencyDenom, FeeDetails, DecCoin, decimalToFloatApproximation, Coin } from '@nymproject/types';
 
 const fieldsHeight = '42.25px';
 
@@ -19,6 +20,17 @@ type TableToolBarProps = {
   childrenBefore?: React.ReactNode;
   childrenAfter?: React.ReactNode;
 };
+type ActionType = 'delegate' | 'undelegate' | 'redeem' | 'redeem-all' | 'compound';
+
+type DelegationModalProps = {
+  status: 'loading' | 'success' | 'error';
+  action: ActionType;
+  message?: string;
+  transactions?: {
+    url: string;
+    hash: string;
+  }[];
+};
 
 export const TableToolbar: FCWithChildren<TableToolBarProps> = ({
   searchTerm,
@@ -30,6 +42,7 @@ export const TableToolbar: FCWithChildren<TableToolBarProps> = ({
   withFilters,
 }) => {
   const [showNewDelegationModal, setShowNewDelegationModal] = useState<boolean>(false);
+  const [confirmationModalProps, setConfirmationModalProps] = useState<DelegationModalProps | undefined>();
 
   const assetsFixedUp = useMemo(() => {
     const nyx = assets.find((a) => a.chain_name === 'sandbox');
@@ -59,22 +72,43 @@ export const TableToolbar: FCWithChildren<TableToolBarProps> = ({
     return chains;
   }, [chains]);
 
-  // SANDBOX
-  // const chainsFixedUp = useMemo(() => {
-  //   const nyx = chains.find((c) => c.chain_id === 'sandbox');
-  //   if (nyx) {
-  //     if (!nyx.staking) {
-  //       nyx.staking = {
-  //         staking_tokens: [{ denom: 'unyx' }],
-  //         lock_duration: {
-  //           blocks: 10000,
-  //         },
-  //       };
-  //       if (nyx.apis) nyx.apis.rpc = [{ address: 'https://sandbox-validator1.nymtech.net', provider: 'nym' }];
-  //     }
-  //   }
-  //   return chains;
-  // }, [chains]);
+  const handleNewDelegation = () => {
+    // setConfirmationModalProps({
+    //   status: 'loading',
+    //   action: 'delegate',
+    // });
+    setShowNewDelegationModal(false);
+    // setCurrentDelegationListActionItem(undefined);
+    // try {
+    //   const tx = await addDelegation(
+    //     {
+    //       mix_id,
+    //       amount,
+    //     },
+    //     tokenPool,
+    //     fee,
+    //   );
+
+    //   const balances = await getAllBalances();
+
+    //   setConfirmationModalProps({
+    //     status: 'success',
+    //     action: 'delegate',
+    //     message: 'This operation can take up to one hour to process',
+    //     ...balances,
+    //     transactions: [
+    //       { url: `${urls(network).blockExplorer}/transaction/${tx.transaction_hash}`, hash: tx.transaction_hash },
+    //     ],
+    //   });
+    // } catch (e) {
+    //   Console.error('Failed to addDelegation', e);
+    //   setConfirmationModalProps({
+    //     status: 'error',
+    //     action: 'delegate',
+    //     message: (e as Error).message,
+    //   });
+    // }
+  };
 
   const isMobile = useIsMobile();
   return (
@@ -166,6 +200,9 @@ export const TableToolbar: FCWithChildren<TableToolBarProps> = ({
             header="Delegate"
             buttonText="Delegate stake"
             denom={'nym'} // clientDetails?.display_mix_denom || 'nym'}
+            onOk={handleNewDelegation}
+            // accountBalance={balance?.printable_balance}
+            {...confirmationModalProps}
           />
         </ChainProvider>
       )}

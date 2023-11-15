@@ -23,13 +23,7 @@ const sandboxContractAddress = 'n1xr3rq8yvd7qplsw5yx90ftsr2zdhg4e9z60h5duusgxpv7
 export const DelegateModal: FCWithChildren<{
   open: boolean;
   onClose: () => void;
-  onOk?: (
-    mixId: number,
-    identityKey: string,
-    amount: DecCoin,
-    tokenPool: TPoolOption,
-    fee?: FeeDetails,
-  ) => Promise<void>;
+  onOk?: () => void;
   identityKey?: string;
   onIdentityKeyChanged?: (identityKey: string) => void;
   onAmountChanged?: (amount: string) => void;
@@ -54,14 +48,8 @@ export const DelegateModal: FCWithChildren<{
   header,
   buttonText,
   identityKey: initialIdentityKey,
-  rewardInterval,
   // accountBalance,
-  estimatedReward,
   denom,
-  profitMarginPercentage,
-  nodeUptimePercentage,
-  initialAmount,
-  hasVestingContract,
   sx,
   backdropProps,
 }) => {
@@ -70,7 +58,6 @@ export const DelegateModal: FCWithChildren<{
   const [amount, setAmount] = useState<DecCoin | undefined>();
   const [isValidated, setValidated] = useState<boolean>(false);
   const [errorAmount, setErrorAmount] = useState<string | undefined>();
-  // const [tokenPool, setTokenPool] = useState<TPoolOption>('balance');
   const [errorIdentityKey, setErrorIdentityKey] = useState<string>();
   const [mixIdError, setMixIdError] = useState<string>();
   const [cosmWasmSignerClient, setCosmWasmSignerClient] = useState<any>();
@@ -107,9 +94,6 @@ export const DelegateModal: FCWithChildren<{
 
     isWalletConnected && getClient();
   }, [isWalletConnected]);
-
-  console.log('cosmWasmSignerClient :>> ', cosmWasmSignerClient);
-  console.log('isWalletConnected :>> ', isWalletConnected);
 
   useEffect(() => {
     const getBalance = async (walletAddress: string) => {
@@ -166,18 +150,6 @@ export const DelegateModal: FCWithChildren<{
     setValidated(newValidatedValue);
   };
 
-  // const handleOk = async () => {
-  //   if (onOk && amount && identityKey && mixId) {
-  //     onOk(mixId, identityKey, { amount }, 'balance', fee);
-  //   }
-  // };
-
-  // const handleConfirm = async ({ mixId: id, value }: { mixId: number; value: DecCoin }) => {
-  //   const SCWClient = await getSigningCosmWasmClient();
-
-  //   console.log('SCWClient :>> ', SCWClient);
-  // };
-
   const delegateToMixnode = async (
     {
       mixId,
@@ -186,13 +158,14 @@ export const DelegateModal: FCWithChildren<{
     },
     fee: number | StdFee | 'auto' = 'auto',
     memo?: string,
-    _funds?: DecCoin[],
+    funds?: DecCoin[],
   ): Promise<ExecuteResult> => {
     console.log('cosmWasmSignerClient :>> ', cosmWasmSignerClient);
+    const amount = (Number(funds![0].amount) * 1000000).toString();
+    const uNymFunds = [{ amount: amount, denom: 'unym' }];
     return await cosmWasmSignerClient.execute(
       address,
       MIXNET_CONTRACT_ADDRESS,
-      //sandboxContractAddress,
       {
         delegate_to_mixnode: {
           mix_id: mixId,
@@ -200,17 +173,23 @@ export const DelegateModal: FCWithChildren<{
       },
       fee,
       memo,
-      _funds,
+      uNymFunds,
     );
   };
 
   const handleConfirm = async () => {
     const memo: string = 'test delegation';
-    const fee = { gas: '1000000', amount: [{ amount: '100000', denom: 'unym' }] };
+    const fee = { gas: '1000000', amount: [{ amount: '25000', denom: 'unym' }] };
 
-    if (mixId && amount) {
+    if (mixId && amount && onOk && cosmWasmSignerClient) {
       console.log('trying to delegate :>> ');
-      await delegateToMixnode({ mixId }, fee, memo, [amount]);
+      console.log('balance.data :>> ', balance.data);
+      onOk();
+      console.log('amount :>> ', amount);
+      console.log('fee :>> ', fee);
+      await delegateToMixnode({ mixId }, fee, memo, [amount])
+        .then((res) => console.log('res :>> ', res))
+        .catch((err) => console.log('err :>> ', err));
     }
   };
 
@@ -284,7 +263,7 @@ export const DelegateModal: FCWithChildren<{
       onOk={async () => handleConfirm()}
       header={header || 'Delegate'}
       okLabel={buttonText || 'Delegate stake'}
-      okDisabled={isValidated}
+      okDisabled={!isValidated}
       sx={sx}
       backdropProps={backdropProps}
     >

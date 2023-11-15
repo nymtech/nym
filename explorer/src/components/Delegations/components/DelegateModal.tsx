@@ -1,29 +1,25 @@
-import React, { useCallback, useContext, useState, useEffect, ChangeEvent } from 'react';
+import React, { useState, useEffect, ChangeEvent } from 'react';
 import { Box, Typography, SxProps, TextField } from '@mui/material';
 import { IdentityKeyFormField } from '@nymproject/react/mixnodes/IdentityKeyFormField';
 import { CurrencyFormField } from '@nymproject/react/currency/CurrencyFormField';
-import { CurrencyDenom, FeeDetails, DecCoin, decimalToFloatApproximation, Coin } from '@nymproject/types';
-
+import { CurrencyDenom, DecCoin } from '@nymproject/types';
 import { SimpleModal } from './SimpleModal';
 import { ModalListItem } from './ModalListItem';
-
-import { TPoolOption, validateAmount } from '../utils';
-
+import { Console, urls, validateAmount } from '../utils';
 import { useChain } from '@cosmos-kit/react';
 import { StdFee } from '@cosmjs/amino';
 import { ExecuteResult } from '@cosmjs/cosmwasm-stargate';
-
 import { uNYMtoNYM } from '../utils';
-import { ErrorModal } from './ErrorModal';
+import { DelegationModalProps } from './DelegationModal';
 
 const MIN_AMOUNT_TO_DELEGATE = 10;
 const MIXNET_CONTRACT_ADDRESS = 'n17srjznxl9dvzdkpwpw24gg668wc73val88a6m5ajg6ankwvz9wtst0cznr';
-const sandboxContractAddress = 'n1xr3rq8yvd7qplsw5yx90ftsr2zdhg4e9z60h5duusgxpv72hud3sjkxkav';
+// const sandboxContractAddress = 'n1xr3rq8yvd7qplsw5yx90ftsr2zdhg4e9z60h5duusgxpv72hud3sjkxkav';
 
 export const DelegateModal: FCWithChildren<{
   open: boolean;
   onClose: () => void;
-  onOk?: () => void;
+  onOk?: (delegationModalProps: DelegationModalProps) => void;
   identityKey?: string;
   onIdentityKeyChanged?: (identityKey: string) => void;
   onAmountChanged?: (amount: string) => void;
@@ -61,8 +57,10 @@ export const DelegateModal: FCWithChildren<{
   const [errorIdentityKey, setErrorIdentityKey] = useState<string>();
   const [mixIdError, setMixIdError] = useState<string>();
   const [cosmWasmSignerClient, setCosmWasmSignerClient] = useState<any>();
-
-  // const { fee, getFee, resetFeeState, feeError } = useGetFee();
+  const [balance, setBalance] = useState<{
+    status: 'loading' | 'success';
+    data?: string;
+  }>({ status: 'loading', data: undefined });
 
   const {
     username,
@@ -77,11 +75,6 @@ export const DelegateModal: FCWithChildren<{
     estimateFee,
   } = useChain('nyx');
 
-  const [balance, setBalance] = useState<{
-    status: 'loading' | 'success';
-    data?: string;
-  }>({ status: 'loading', data: undefined });
-
   useEffect(() => {
     const getClient = async () => {
       await getSigningCosmWasmClient()
@@ -95,15 +88,14 @@ export const DelegateModal: FCWithChildren<{
     isWalletConnected && getClient();
   }, [isWalletConnected]);
 
+  const getBalance = async (walletAddress: string) => {
+    const account = await getCosmWasmClient();
+    const uNYMBalance = await account.getBalance(walletAddress, 'unym');
+    const NYMBalance = uNYMtoNYM(uNYMBalance.amount).asString();
+
+    setBalance({ status: 'success', data: NYMBalance });
+  };
   useEffect(() => {
-    const getBalance = async (walletAddress: string) => {
-      const account = await getCosmWasmClient();
-      const uNYMBalance = await account.getBalance(walletAddress, 'unym');
-      const NYMBalance = uNYMtoNYM(uNYMBalance.amount).asString();
-
-      setBalance({ status: 'success', data: NYMBalance });
-    };
-
     if (address) {
       getBalance(address);
     }
@@ -182,14 +174,32 @@ export const DelegateModal: FCWithChildren<{
     const fee = { gas: '1000000', amount: [{ amount: '25000', denom: 'unym' }] };
 
     if (mixId && amount && onOk && cosmWasmSignerClient) {
-      console.log('trying to delegate :>> ');
-      console.log('balance.data :>> ', balance.data);
-      onOk();
-      console.log('amount :>> ', amount);
-      console.log('fee :>> ', fee);
-      await delegateToMixnode({ mixId }, fee, memo, [amount])
-        .then((res) => console.log('res :>> ', res))
-        .catch((err) => console.log('err :>> ', err));
+      onOk({
+        status: 'loading',
+        action: 'delegate',
+      });
+      try {
+        await delegateToMixnode({ mixId }, fee, memo, [amount]).then((res) => {
+          console.log('res :>> ', res);
+        });
+        const tx = await delegateToMixnode({ mixId }, fee, memo, [amount]);
+
+        onOk({
+          status: 'success',
+          action: 'delegate',
+          message: 'This operation can take up to one hour to process',
+          transactions: [
+            { url: `${urls('MAINNET').blockExplorer}/transaction/${tx.transactionHash}`, hash: tx.transactionHash },
+          ],
+        });
+      } catch (e) {
+        Console.error('Failed to addDelegation', e);
+        onOk({
+          status: 'error',
+          action: 'delegate',
+          message: (e as Error).message,
+        });
+      }
     }
   };
 
@@ -217,39 +227,6 @@ export const DelegateModal: FCWithChildren<{
   React.useEffect(() => {
     validate();
   }, [amount, identityKey, mixId]);
-
-  // if (fee) {
-  //   return (
-  //     <ConfirmTx
-  //       open
-  //       header="Delegation details"
-  //       fee={fee}
-  //       onClose={onClose}
-  //       onPrev={resetFeeState}
-  //       onConfirm={handleOk}
-  //     >
-  //       {balance.data && fee?.amount?.amount && (
-  //         <Box sx={{ my: 2 }}>
-  //           <BalanceWarning fee={fee?.amount?.amount} tx={amount} />
-  //         </Box>
-  //       )}
-  //       <ModalListItem label="Node identity key" value={identityKey} divider />
-  //       <ModalListItem label="Amount" value={`${amount} ${denom.toUpperCase()}`} divider />
-  //     </ConfirmTx>
-  //   );
-  // }
-
-  // if (feeError) {
-  //   return (
-  //     <ErrorModal
-  //       title="Something went wrong while calculating fee. Are you sure you entered a valid node address?"
-  //       message={feeError}
-  //       sx={sx}
-  //       open={open}
-  //       onClose={onClose}
-  //     />
-  //   );
-  // }
 
   return (
     <SimpleModal
@@ -316,26 +293,6 @@ export const DelegateModal: FCWithChildren<{
         <ModalListItem label="Account balance" value={`${balance.data} NYM`} divider fontWeight={600} />
       </Box>
 
-      {/* <ModalListItem label="Rewards payout interval" value={rewardInterval} hidden divider /> */}
-      {/* <ModalListItem
-        label="Node profit margin"
-        value={`${profitMarginPercentage ? `${profitMarginPercentage}%` : '-'}`}
-        hidden={profitMarginPercentage === undefined}
-        divider
-      />
-      <ModalListItem
-        label="Node avg. uptime"
-        value={`${nodeUptimePercentage ? `${nodeUptimePercentage}%` : '-'}`}
-        hidden={nodeUptimePercentage === undefined}
-        divider
-      /> */}
-
-      {/* <ModalListItem
-        label="Node est. reward per epoch"
-        value={`${estimatedReward} ${denom.toUpperCase()}`}
-        hidden
-        divider
-      /> */}
       <ModalListItem label="Est. fee for this transaction will be calculated in the next page" />
     </SimpleModal>
   );

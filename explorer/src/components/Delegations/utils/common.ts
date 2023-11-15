@@ -6,6 +6,7 @@ import { add, format, fromUnixTime } from 'date-fns';
 import { DecCoin, isValidRawCoin, MixNodeCostParams } from '@nymproject/types';
 import { getCurrentInterval, getDefaultMixnodeCostParams, getLockedCoins, getSpendableCoins } from '../requests';
 import { Console } from './console';
+import { Network } from '../types';
 
 export type TPoolOption = 'balance' | 'locked';
 
@@ -253,3 +254,15 @@ export const getIntervalAsDate = async () => {
 
   return { nextEpoch, nextInterval };
 };
+
+export const urls = (networkName?: Network) =>
+  networkName === 'MAINNET'
+    ? {
+        mixnetExplorer: 'https://mixnet.explorers.guru/',
+        blockExplorer: 'https://blocks.nymtech.net',
+        networkExplorer: 'https://explorer.nymtech.net',
+      }
+    : {
+        blockExplorer: `https://${networkName}-blocks.nymtech.net`,
+        networkExplorer: `https://${networkName}-explorer.nymtech.net`,
+      };

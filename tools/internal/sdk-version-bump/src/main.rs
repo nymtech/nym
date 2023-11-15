@@ -36,7 +36,8 @@ enum Commands {
     /// It will also update the `@nymproject/...` dependencies from `">=X.Y.Z-rc.0 || ^X"` to `">=X.Y.(Z+1)-rc.0 || ^X"`
     BumpVersion {
         #[arg(long)]
-        /// If enabled, the packages will only have their rc version bumped and the dependencies won't get updated at all
+        /// If enabled, the packages will only have their rc version bumped and the dependencies
+        /// will get updated from `">=X.Y.Z-rc.W || ^X"` to `">=X.Y.Z-rc.(W+1) || ^X"`
         pre_release: bool,
     },
 }
@@ -93,9 +94,7 @@ fn bump_version_inner<Pkg: ReleasePackage>(
     let mut package = Pkg::open(path)?;
     package.bump_version(pre_release)?;
 
-    if !pre_release {
-        package.update_nym_dependencies(dependencies_to_update)?;
-    }
+    package.update_nym_dependencies(dependencies_to_update, pre_release)?;
 
     println!("\t>>> saving the package file...");
     package.save_changes()

@@ -7,7 +7,7 @@ import { DelegateModal } from './Delegations/components/DelegateModal';
 import { ChainProvider } from '@cosmos-kit/react';
 import { assets, chains } from 'chain-registry';
 import { wallets as keplr } from '@cosmos-kit/keplr';
-import { CurrencyDenom, FeeDetails, DecCoin, decimalToFloatApproximation, Coin } from '@nymproject/types';
+import { DelegationModal } from './Delegations/components/DelegationModal';
 
 const fieldsHeight = '42.25px';
 
@@ -45,9 +45,9 @@ export const TableToolbar: FCWithChildren<TableToolBarProps> = ({
   const [confirmationModalProps, setConfirmationModalProps] = useState<DelegationModalProps | undefined>();
 
   const assetsFixedUp = useMemo(() => {
-    const nyx = assets.find((a) => a.chain_name === 'sandbox');
+    const nyx = assets.find((a) => a.chain_name === 'nyx');
     if (nyx) {
-      const nyxCoin = nyx.assets.find((a) => a.name === 'sandbox');
+      const nyxCoin = nyx.assets.find((a) => a.name === 'nyx');
       if (nyxCoin) {
         nyxCoin.coingecko_id = 'nyx';
       }
@@ -72,42 +72,10 @@ export const TableToolbar: FCWithChildren<TableToolBarProps> = ({
     return chains;
   }, [chains]);
 
-  const handleNewDelegation = () => {
-    // setConfirmationModalProps({
-    //   status: 'loading',
-    //   action: 'delegate',
-    // });
+  const handleNewDelegation = (delegationModalProps: DelegationModalProps) => {
     setShowNewDelegationModal(false);
-    // setCurrentDelegationListActionItem(undefined);
-    // try {
-    //   const tx = await addDelegation(
-    //     {
-    //       mix_id,
-    //       amount,
-    //     },
-    //     tokenPool,
-    //     fee,
-    //   );
-
-    //   const balances = await getAllBalances();
-
-    //   setConfirmationModalProps({
-    //     status: 'success',
-    //     action: 'delegate',
-    //     message: 'This operation can take up to one hour to process',
-    //     ...balances,
-    //     transactions: [
-    //       { url: `${urls(network).blockExplorer}/transaction/${tx.transaction_hash}`, hash: tx.transaction_hash },
-    //     ],
-    //   });
-    // } catch (e) {
-    //   Console.error('Failed to addDelegation', e);
-    //   setConfirmationModalProps({
-    //     status: 'error',
-    //     action: 'delegate',
-    //     message: (e as Error).message,
-    //   });
-    // }
+    console.log('res In Toolbar:>> ', delegationModalProps);
+    setConfirmationModalProps(delegationModalProps);
   };
 
   const isMobile = useIsMobile();
@@ -200,11 +168,21 @@ export const TableToolbar: FCWithChildren<TableToolBarProps> = ({
             header="Delegate"
             buttonText="Delegate stake"
             denom={'nym'} // clientDetails?.display_mix_denom || 'nym'}
-            onOk={handleNewDelegation}
+            onOk={(delegationModalProps: DelegationModalProps) => handleNewDelegation(delegationModalProps)}
             // accountBalance={balance?.printable_balance}
-            {...confirmationModalProps}
           />
         </ChainProvider>
+      )}
+
+      {confirmationModalProps && (
+        <DelegationModal
+          {...confirmationModalProps}
+          open={Boolean(confirmationModalProps)}
+          onClose={async () => {
+            setConfirmationModalProps(undefined);
+            // await fetchBalance();
+          }}
+        />
       )}
     </Box>
   );

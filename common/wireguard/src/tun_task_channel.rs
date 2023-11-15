@@ -1,4 +1,9 @@
-use tokio::sync::mpsc;
+use std::time::Duration;
+
+use tokio::{
+    sync::mpsc::{self, error::SendError},
+    time::{error::Elapsed, timeout},
+};
 
 pub(crate) type TunTaskPayload = (u64, Vec<u8>);
 
@@ -30,12 +35,20 @@ pub(crate) fn tun_task_channel() -> (TunTaskTx, TunTaskRx) {
 pub(crate) struct TunTaskResponseTx(mpsc::Sender<TunTaskPayload>);
 pub struct TunTaskResponseRx(mpsc::Receiver<TunTaskPayload>);
 
+#[derive(thiserror::Error, Debug)]
+pub enum TunTaskResponseSendError {
+    #[error("failed to send: timeout")]
+    Timeout(#[from] Elapsed),
+
+    #[error("failed to send: {0}")]
+    SendError(#[from] SendError<TunTaskPayload>),
+}
+
 impl TunTaskResponseTx {
-    pub(crate) async fn send(
-        &self,
-        data: TunTaskPayload,
-    ) -> Result<(), tokio::sync::mpsc::error::SendError<TunTaskPayload>> {
-        self.0.send(data).await
+    pub(crate) async fn send(&self, data: TunTaskPayload) -> Result<(), TunTaskResponseSendError> {
+        timeout(Duration::from_millis(1000), self.0.send(data))
+            .await?
+            .map_err(|err| err.into())
     }
 }
 

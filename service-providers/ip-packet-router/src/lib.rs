@@ -268,8 +268,7 @@ impl IpPacketRouter {
         // Filter check
         if let Some(dst) = dst {
             if !self.request_filter.check_address(&dst).await {
-                let log_msg = format!("Failed filter check: {dst:?}");
-                log::warn!("{log_msg}");
+                log::warn!("Failed filter check: {dst}");
 
                 // TODO: send back a response here
 

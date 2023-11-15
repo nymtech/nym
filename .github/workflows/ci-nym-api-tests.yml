@@ -24,6 +24,9 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: 18.1.0
+          
+      - name: Yarn install in root
+        run: cd ../../ && yarn install
 
       - name: Install yarn
         run: yarn install

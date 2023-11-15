@@ -1,6 +1,6 @@
 {
   "name": "@nymproject/sdk-example-react-webpack-wasm",
-  "version": "1.0.4-rc.1",
+  "version": "1.0.4-rc.2",
   "description": "An example project that uses WASM, React, Webpack, Typescript and the Nym theme + components library",
   "license": "Apache-2.0",
   "scripts": {

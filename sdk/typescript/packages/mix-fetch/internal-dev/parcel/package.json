@@ -1,6 +1,6 @@
 {
   "name": "@nymproject/mix-fetch-tester-parcel",
-  "version": "1.0.4-rc.1",
+  "version": "1.0.4-rc.2",
   "license": "Apache-2.0",
   "scripts": {
     "build": "npx parcel build --no-cache --no-content-hash",

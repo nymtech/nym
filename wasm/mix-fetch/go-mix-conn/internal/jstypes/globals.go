@@ -20,20 +20,26 @@ var (
 	Headers  = js.Global().Get("Headers")
 )
 
-func Origin() string {
+func Origin() *string {
 	// nodejs doesn't have origin
 	location := js.Global().Get("location")
 	if !location.IsUndefined() && !location.IsNull() {
-		return location.Get("origin").String()
+		origin := location.Get("origin").String()
+		return &origin
 	} else {
-		return ""
+		return nil
 	}
 }
 
 func OriginUrl() *url.URL {
-	originUrl, originErr := url.Parse(Origin())
-	if originErr != nil {
-		panic(fmt.Sprintf("could not obtain origin: %s", originErr))
+	origin := Origin()
+	if origin == nil {
+		return nil
+	} else {
+		originUrl, originErr := url.Parse(*origin)
+		if originErr != nil {
+			panic(fmt.Sprintf("could not obtain origin: %s", originErr))
+		}
+		return originUrl
 	}
-	return originUrl
 }

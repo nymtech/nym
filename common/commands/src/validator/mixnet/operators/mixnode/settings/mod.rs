@@ -21,6 +21,4 @@ pub enum MixnetOperatorsMixnodeSettingsCommands {
     VestingUpdateConfig(vesting_update_config::Args),
     /// Update mixnode cost parameters
     UpdateCostParameters,
-    /// Update mixnode cost parameters for a mixnode bonded with locked tokens
-    VestingUpdateCostParameters,
 }

@@ -363,6 +363,7 @@ pub struct NymNodeDescription {
     // TODO: do we really care about ALL build info or just the version?
     pub build_information: BinaryBuildInformationOwned,
 
+    #[serde(default)]
     pub network_requester: Option<NetworkRequesterDetails>,
 
     // for now we only care about their ws/wss situation, nothing more

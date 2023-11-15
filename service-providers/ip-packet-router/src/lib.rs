@@ -260,7 +260,12 @@ impl IpPacketRouter {
         // packets to a specific destination, we might want to forward them anyway.
         //
         // TODO: look into this
-        let (packet_type, src_addr, dst_addr, dst) = parse_packet(&reconstructed.message)?;
+        let ParsedPacket {
+            packet_type,
+            src_addr,
+            dst_addr,
+            dst,
+        } = parse_packet(&reconstructed.message)?;
 
         let dst_str = dst.map_or(dst_addr.to_string(), |dst| dst.to_string());
         log::info!("Received packet: {packet_type}: {src_addr} -> {dst_str}");
@@ -295,9 +300,14 @@ impl IpPacketRouter {
     }
 }
 
-fn parse_packet(
-    packet: &[u8],
-) -> Result<(&str, IpAddr, IpAddr, Option<SocketAddr>), IpPacketRouterError> {
+struct ParsedPacket<'a> {
+    packet_type: &'a str,
+    src_addr: IpAddr,
+    dst_addr: IpAddr,
+    dst: Option<SocketAddr>,
+}
+
+fn parse_packet(packet: &[u8]) -> Result<ParsedPacket, IpPacketRouterError> {
     let headers = etherparse::SlicedPacket::from_ip(packet).map_err(|err| {
         log::warn!("Unable to parse incoming data as IP packet: {err}");
         IpPacketRouterError::PacketParseFailed { source: err }
@@ -333,7 +343,12 @@ fn parse_packet(
             return Err(IpPacketRouterError::PacketMissingIpHeader);
         }
     };
-    Ok((packet_type, src_addr, dst_addr, dst))
+    Ok(ParsedPacket {
+        packet_type,
+        src_addr,
+        dst_addr,
+        dst,
+    })
 }
 
 // Helper function to create the mixnet client.

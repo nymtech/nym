@@ -13,7 +13,7 @@ This is the application UI layer for the next NymVPN clients.
 Some system libraries are required depending on the host platform.
 Follow the instructions for your specific OS [here](https://tauri.app/v1/guides/getting-started/prerequisites)
 
-To install:
+To install run:
 
 ```
 yarn

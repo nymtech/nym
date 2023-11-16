@@ -26,22 +26,22 @@ const TUN_WRITE_TIMEOUT_MS: u64 = 1000;
 
 #[derive(thiserror::Error, Debug)]
 pub enum TunDeviceError {
-    #[error("iface: timeout writing to tun device, dropping packet")]
+    #[error("timeout writing to tun device, dropping packet")]
     TunWriteTimeout,
 
-    #[error("iface: failed forwarding packet to peer: {source}")]
+    #[error("failed forwarding packet to peer: {source}")]
     ForwardToPeerFailed {
         #[from]
         source: PeerEventSenderError,
     },
 
-    #[error("iface: failed to forward responding packet with tag: {source}")]
+    #[error("failed to forward responding packet with tag: {source}")]
     ForwardNatResponseFailed {
         #[from]
         source: TunTaskResponseSendError,
     },
 
-    #[error("iface: error writing to tun device: {source}")]
+    #[error("error writing to tun device: {source}")]
     TunWriteError { source: std::io::Error },
 
     #[error("unable to parse destination address from packet")]

@@ -46,7 +46,7 @@ pub enum TunTaskResponseSendError {
 
 impl TunTaskResponseTx {
     pub(crate) async fn send(&self, data: TunTaskPayload) -> Result<(), TunTaskResponseSendError> {
-        timeout(Duration::from_millis(1000), self.0.send(data))
+        timeout(Duration::from_secs(10), self.0.send(data))
             .await?
             .map_err(|err| err.into())
     }

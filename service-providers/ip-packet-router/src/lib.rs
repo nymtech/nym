@@ -3,6 +3,7 @@
 use std::{
     net::{IpAddr, SocketAddr},
     path::Path,
+    time::Duration,
 };
 
 use error::IpPacketRouterError;
@@ -19,6 +20,7 @@ use nym_sphinx::receiver::ReconstructedMessage;
 use nym_task::{connections::TransmissionLane, TaskClient, TaskHandle};
 use request_filter::RequestFilter;
 use tap::TapFallible;
+use tokio::time::timeout;
 
 use crate::config::BaseClientConfig;
 
@@ -225,13 +227,15 @@ impl IpPacketRouter {
                             let packet_type = None;
                             let input_message = InputMessage::new_regular(recipient, packet, lane, packet_type);
 
-                            self.mixnet_client
-                                .send(input_message)
-                                .await
-                                .tap_err(|err| {
+                            match timeout(Duration::from_millis(1000), self.mixnet_client.send(input_message)).await {
+                                Ok(Ok(_)) => {},
+                                Ok(Err(err)) => {
                                     log::error!("IpPacketRouter [main loop]: failed to send packet to mixnet: {err}");
-                                })
-                                .ok();
+                                },
+                                Err(err) => {
+                                    log::error!("IpPacketRouter [main loop]: failed to send packet to mixnet: {err}");
+                                },
+                            };
                         } else {
                             log::error!("NYM_CLIENT_ADDR not set or invalid");
                         }

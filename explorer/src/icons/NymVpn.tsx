@@ -1,14 +1,10 @@
 import * as React from 'react';
-import { useTheme } from '@mui/material/styles';
 
 interface DiscordIconProps {
   size?: { width: number; height: number };
-  color?: string;
 }
 
-export const NymVpnIcon: FCWithChildren<DiscordIconProps> = ({ size, color: colorProp }) => {
-  const theme = useTheme();
-  const color = colorProp || theme.palette.text.primary;
+export const NymVpnIcon: FCWithChildren<DiscordIconProps> = ({ size }) => {
   return (
     <svg width={size?.width} height={size?.height} viewBox="0 0 170 24" fill="none" xmlns="http://www.w3.org/2000/svg">
       <path
@@ -59,5 +55,4 @@ export const NymVpnIcon: FCWithChildren<DiscordIconProps> = ({ size, color: colo
 
 NymVpnIcon.defaultProps = {
   size: { width: 80, height: 12 },
-  color: undefined,
 };

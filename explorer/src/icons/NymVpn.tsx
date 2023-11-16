@@ -16,8 +16,8 @@ export const NymVpnIcon: FCWithChildren<DiscordIconProps> = ({ size, color: colo
         fill="white"
       />
       <path
-        fill-rule="evenodd"
-        clip-rule="evenodd"
+        fillRule="evenodd"
+        clipRule="evenodd"
         d="M19.4121 0H25.3603V24H14.5297L14.4901 23.8819L5.94824 3.80121V24H0V0H10.8663L10.906 0.118132L19.4121 20.1621V0ZM19.5409 20.7951L10.7853 0.163225L10.7734 0.127854H0.128835V23.8721H5.81941V3.16958L14.6107 23.8368L14.6226 23.8721H25.2315V0.127854H19.5409V20.7951Z"
         fill="white"
       />
@@ -26,8 +26,8 @@ export const NymVpnIcon: FCWithChildren<DiscordIconProps> = ({ size, color: colo
         fill="white"
       />
       <path
-        fill-rule="evenodd"
-        clip-rule="evenodd"
+        fillRule="evenodd"
+        clipRule="evenodd"
         d="M79.0312 0H90.0003V24H84.052V4.33208L78.9242 23.856L78.9238 23.8572L78.8879 24H68.4342L68.3982 23.8572L68.3979 23.856L63.27 4.33208V24H57.3218V0H68.3146L68.3505 0.142699L68.3509 0.144015L73.6787 20.383L78.9949 0.144015L78.9953 0.142765L79.0312 0ZM73.6788 20.8894L68.2259 0.175015L68.214 0.127854H57.4506V23.8721H63.1412V3.33463L68.5229 23.825L68.5348 23.8721H78.7873L78.7992 23.825L84.1809 3.33463V23.8721H89.8714V0.127854H79.1318L79.1199 0.175015L73.6788 20.8894Z"
         fill="white"
       />
@@ -36,8 +36,8 @@ export const NymVpnIcon: FCWithChildren<DiscordIconProps> = ({ size, color: colo
         fill="white"
       />
       <path
-        fill-rule="evenodd"
-        clip-rule="evenodd"
+        fillRule="evenodd"
+        clipRule="evenodd"
         d="M48.1757 0H55.0693L54.8879 0.288036L44.4399 18.2474V24H38.4917V18.2474L28.0437 0.288036L27.8623 0H34.756L34.8017 0.0907854L41.4833 11.5555L48.1299 0.0909153L48.1757 0ZM48.2434 0.151434L41.4836 11.8114L34.6882 0.151434L34.6763 0.127854H28.0948L28.1542 0.222173L38.6205 18.2131V23.8721H44.3111V18.2131L54.7775 0.222173L54.8369 0.127854H48.2553L48.2434 0.151434Z"
         fill="white"
       />

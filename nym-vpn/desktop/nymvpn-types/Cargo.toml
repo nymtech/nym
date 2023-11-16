@@ -1,0 +1,22 @@
+[package]
+name = "nymvpn-types"
+version = "0.1.0"
+edition = "2021"
+publish = false
+license = "GPL-3.0"
+authors = ["Nym Technologies S.A."]
+homepage = "https://nymvpn.net"
+repository = "https://github.com/nymvpn/nymvpn-app"
+
+[dependencies]
+tokio = "1.27.0"
+nymvpn-config = {path="../nymvpn-config"}
+talpid-types = {git = "https://github.com/upvpn/mullvadvpn-app.git", rev = "2023.3.upvpn"}
+serde = { version = "1.0.160", features = ["derive"] }
+ipnetwork = "0.20.0"
+chrono = { version = "0.4.24", features = ["serde"] }
+uuid = { version = "1.3.1", features = ["serde", "v4"] }
+thiserror = "1.0.40"
+serde_yaml = "0.9.21"
+ts-rs = { git = "https://github.com/Aleph-Alpha/ts-rs", rev = "b4ba8b81fd8833296e99285eae7608864c52e51e", features = ["serde-compat", "chrono-impl", "uuid-impl", "format"] }
+

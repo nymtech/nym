@@ -1,0 +1,8 @@
+# Development configuration
+
+socket_path="../../data/nymvpn.sock"
+grpc_api_host_port="grpc://nymvpn.dev:44444"
+rest_api_host_port="https://nymvpn.dev:4444"
+log_dir="../../data/log"
+config_dir="../../data"
+license_file_path="../../nymvpn-oss-licenses.html"

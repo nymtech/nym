@@ -1,0 +1,331 @@
+[env]
+CARGO_MAKE_EXTEND_WORKSPACE_MAKEFILE = true
+PWD = {script = ["pwd"]}
+REPO_ROOT = "${PWD}"
+BUILDER_TAG = {script = ["cat nymvpn-packages/tag.txt"] }
+UPSTREAM_REPO = "https://github.com/upvpn/mullvadvpn-app.git"
+UPSTREAM_REV = "2023.3.upvpn"
+UPSTREAM_REPO_PATH = "${PWD}/.upvpn/mullvadvpn-app"
+RUSTUP_HOST = { script = ["rustup show | rg host | awk '{print $3}'"] }
+APP_VERSION = { script = ["grep version nymvpn-packages/Cargo.toml | cut -d '\"' -f2"]}
+TARGET = { script = ["echo ${RUSTUP_HOST}"], condition = { env_not_set = ["TARGET"] } }
+STRIP = {script = ["([ ${TARGET} = \"aarch64-unknown-linux-gnu\" ] && echo \"--no-strip\") || echo \"--strip\""]}
+
+
+[tasks.release-build]
+workspace = false
+command = "cargo"
+args = ["build", "--release", "--target", "${TARGET}"]
+
+[tasks.deb]
+workspace = false
+command = "cargo"
+args = ["deb", "-p", "nymvpn-packages", "--target", "${TARGET}", "${STRIP}", "${@}"]
+dependencies = ["oss", "ui", "wglib"]
+
+[tasks.rpm]
+workspace = false
+command = "cargo"
+args = ["generate-rpm", "-p", "nymvpn-packages", "--target", "${TARGET}", "${@}"]
+dependencies = ["oss", "ui", "wglib", "release-build", "strip"]
+
+[tasks.rpm-no-build]
+workspace = false
+command = "cargo"
+args = ["generate-rpm", "-p", "nymvpn-packages", "--target", "${TARGET}", "${@}"]
+dependencies = ["ui", "wglib", "strip"]
+
+[tasks.strip]
+workspace = false
+script = '''
+CARGO_TARGET_DIR=${CARGO_TARGET_DIR:-target}
+
+if [ "${STRIP:-}" = "--strip" ]; then
+    for file in nymvpn nymvpn-ui nymvpn-daemon
+    do
+        output="${CARGO_TARGET_DIR}/${TARGET}/release/${file}"
+        if [ -f "${output}" ]; then
+            strip "${output}"
+        fi
+    done
+fi
+'''
+
+[tasks.pkg]
+workspace = false
+script = '''
+tempdir=$(mktemp -d 2>/dev/null || mktemp -d -t 'mytmpdir')
+cp -R nymvpn-packages/macos ${tempdir}
+cp nymvpn-assets/icons/icon.icns ${tempdir}/macos/pkg/root/Applications/upvpn.app/Contents/Resources
+cp nymvpn-packages/nymvpn-oss-licenses.html ${tempdir}/macos/pkg/root/Applications/upvpn.app/Contents/Resources
+cp target/${TARGET}/release/nymvpn ${tempdir}/macos/pkg/root/Applications/upvpn.app/Contents/Resources
+cp target/${TARGET}/release/nymvpn-daemon ${tempdir}/macos/pkg/root/Applications/upvpn.app/Contents/Resources
+cp target/${TARGET}/release/nymvpn-ui ${tempdir}/macos/pkg/root/Applications/upvpn.app/Contents/MacOS
+rm ${tempdir}/macos/pkg/root/Applications/upvpn.app/Contents/MacOS/.gitkeep
+pushd ${tempdir}/macos
+./build.sh "${APP_VERSION}"
+popd
+mkdir -p target/pkg
+AARCH=$(uname -m)
+cp ${tempdir}/macos/nymvpn-${APP_VERSION}.pkg target/pkg/nymvpn-${APP_VERSION}-${AARCH}.pkg
+echo "Output: target/pkg/nymvpn-${APP_VERSION}-${AARCH}.pkg"
+rm -r ${tempdir}
+'''
+dependencies = ["oss", "ui", "wglib", "release-build"]
+
+[tasks.setupupstream]
+workspace = false
+script_runner = "sh"
+script = '''
+#!/usr/bin/env bash
+mkdir -p ${UPSTREAM_REPO_PATH}
+
+if [ ! -d ${UPSTREAM_REPO_PATH}/.git ]; then
+    git clone ${UPSTREAM_REPO} ${UPSTREAM_REPO_PATH}
+    cd ${UPSTREAM_REPO_PATH} && git submodule update --init && cd -
+fi
+
+cd ${UPSTREAM_REPO_PATH}
+git fetch --all --tags
+git checkout ${UPSTREAM_REV}
+'''
+
+[tasks.wglib]
+workspace = false
+script_runner = "sh"
+script = '''
+#!/usr/bin/env bash
+cd ${UPSTREAM_REPO_PATH}
+./wireguard/build-wireguard-go.sh "${TARGET}"
+cp -r ${UPSTREAM_REPO_PATH}/build ${REPO_ROOT}
+'''
+dependencies = ["cargo-config", "setupupstream"]
+
+[tasks.winfw]
+workspace = false
+script_runner = "sh"
+script = '''
+#!/usr/bin/env bash
+output_dir=${REPO_ROOT}/windows/${TARGET}
+mkdir -p ${output_dir}
+cd ${UPSTREAM_REPO_PATH}
+IS_RELEASE=true CPP_BUILD_MODES=Release ./build-windows-modules.sh
+cp -r ${UPSTREAM_REPO_PATH}/windows/winfw/bin/x64-Release/ ${output_dir}
+'''
+
+[tasks.windows]
+workspace = false
+dependencies = ["oss", "cargo-config", "setupupstream", "wglib", "ui", "winfw", "release-build"]
+
+[tasks.windows-sign]
+workspace = false
+script_runner = "sh"
+script = '''
+#!/usr/bin/env bash
+set -eu
+./nymvpn-packages/windows/sign.sh \
+    target/${TARGET}/release/nymvpn.exe \
+    target/${TARGET}/release/nymvpn-ui.exe \
+    target/${TARGET}/release/nymvpn-daemon.exe \
+    build/lib/${TARGET}/libwg.dll \
+    windows/${TARGET}/X64-Release/winfw.dll
+'''
+
+[tasks.only-msi]
+workspace = false
+script_runner = "sh"
+script = '''
+#!/usr/bin/env bash
+cd nymvpn-packages/windows
+candle -ext WixUtilExtension -dAppVersion=${APP_VERSION} -out nymvpn.wixobj -arch x64 nymvpn.wsx
+light -ext WixUtilExtension -dAppVersion=${APP_VERSION} -out nymvpn-x64-${APP_VERSION}.msi nymvpn.wixobj
+'''
+
+[tasks.sign-msi]
+workspace = false
+script_runner = "sh"
+script = '''
+#!/usr/bin/env bash
+set -eu
+./nymvpn-packages/windows/sign.sh nymvpn-packages/windows/nymvpn-x64-${APP_VERSION}.msi
+'''
+
+[tasks.msi]
+workspace = false
+dependencies = ["windows", "windows-sign", "only-msi", "sign-msi"]
+
+[tasks.cargo-config]
+workspace = false
+script_runner = "sh"
+script = '''
+#!/usr/bin/env bash
+root_dir=$(pwd)
+mkdir -p ${root_dir}/.cargo
+cp ${root_dir}/nymvpn-packages/cargo-config.toml ${root_dir}/.cargo/config
+sd __REPO_ROOT__ "${root_dir}" ${root_dir}/.cargo/config
+'''
+
+[tasks.ui]
+workspace = false
+script_runner = "sh"
+script = '''
+#!/usr/bin/env bash
+cd nymvpn-ui
+npm install
+npm run build
+'''
+
+[tasks.volumes-for-build]
+workspace = false
+script = '''
+docker volume rm nymvpn-app-builder || true
+docker volume create nymvpn-app-builder-cargo-git
+docker volume create nymvpn-app-builder-cargo-registry
+docker volume create nymvpn-app-builder-cargo-target
+docker volume create nymvpn-app-builder-go
+docker volume create nymvpn-app-builder
+'''
+
+[tasks.clear-and-copy-source]
+workspace = false
+script = '''
+
+docker run --rm -v ${PWD}:/source \
+    -v nymvpn-app-builder:/build \
+    ghcr.io/nymvpn/nymvpn-app-builder:${BUILDER_TAG} \
+        cp -r \
+        /source/nymvpn-assets \
+        /source/nymvpn-cli \
+        /source/nymvpn-config \
+        /source/nymvpn-controller \
+        /source/nymvpn-daemon \
+        /source/nymvpn-entity \
+        /source/nymvpn-migration \
+        /source/nymvpn-packages \
+        /source/nymvpn-server \
+        /source/nymvpn-types \
+        /source/nymvpn-ui \
+        /source/Cargo.toml \
+        /source/Cargo.lock \
+        /source/about.toml \
+        /source/Makefile.toml \
+        /source/.dockerignore \
+        /build/
+
+docker run --rm  \
+    -v nymvpn-app-builder:/build \
+    ghcr.io/nymvpn/nymvpn-app-builder:${BUILDER_TAG} chown -R root:root .
+'''
+
+[tasks.builder-shell]
+workspace = false
+command = "docker"
+args = [
+    "run",
+    "--rm",
+    "-it",
+    "-v", "nymvpn-app-builder-cargo-git:/root/.cargo/git",
+    "-v", "nymvpn-app-builder-cargo-registry:/root/.cargo/registry",
+    "-v", "nymvpn-app-builder-cargo-target:/root/.cargo/target",
+    "-v", "nymvpn-app-builder-go:/root/go",
+    "-v", "nymvpn-app-builder:/build",
+    # To clone github repo using ssh
+    "-v", "${HOME}/.ssh:/root/.ssh",
+    "-e", "CARGO_NET_GIT_FETCH_WITH_CLI=true",
+    "-e", "TARGET=${TARGET}",
+    # tag created by builder task
+    "ghcr.io/nymvpn/nymvpn-app-builder:${BUILDER_TAG}",
+    "bash"
+]
+dependencies = ["volumes-for-build", "clear-and-copy-source"]
+
+[tasks.linux-packages]
+workspace = false
+# only need to build once for packaging both
+dependencies = ["deb", "rpm-no-build"]
+
+[tasks.build-in-container]
+workspace = false
+command = "docker"
+args = [
+    "run",
+    "--rm",
+    "-it",
+    "-v", "nymvpn-app-builder-cargo-git:/root/.cargo/git",
+    "-v", "nymvpn-app-builder-cargo-registry:/root/.cargo/registry",
+    "-v", "nymvpn-app-builder-cargo-target:/root/.cargo/target",
+    "-v", "nymvpn-app-builder-go:/root/go",
+    "-v", "nymvpn-app-builder:/build",
+    # To clone github repo using ssh
+    "-v", "${HOME}/.ssh:/root/.ssh",
+    "-e", "CARGO_NET_GIT_FETCH_WITH_CLI=true",
+    "-e", "TARGET=${TARGET}",
+    # tag created by builder task
+    "ghcr.io/nymvpn/nymvpn-app-builder:${BUILDER_TAG}",
+    "cargo",
+    "make",
+    "-e", "TARGET=${TARGET}",
+    "linux-packages",
+]
+dependencies = ["volumes-for-build", "clear-and-copy-source"]
+
+[tasks.output-dir]
+workspace = false
+script = '''
+echo "TARGET: ${TARGET}"
+mkdir -p ${PWD}/dist/${TARGET}
+'''
+
+[tasks.linux]
+workspace = false
+command = "docker"
+args = [
+    "run",
+    "--rm",
+    "-it",
+    "-v", "nymvpn-app-builder-cargo-target:/root/.cargo/target",
+    "-v", "${PWD}/dist:/dist",
+    # tag created by builder task
+    "ghcr.io/nymvpn/nymvpn-app-builder:${BUILDER_TAG}",
+    "cp", "-r",
+    "/root/.cargo/target/${TARGET}/debian", "/root/.cargo/target/${TARGET}/generate-rpm",
+    "/dist/${TARGET}",
+]
+dependencies = ["output-dir", "build-in-container"]
+
+[tasks.icon]
+workspace = false
+script = '''
+cd nymvpn-ui
+cargo tauri icon -o ../nymvpn-assets/icons  ../nymvpn-assets/app-icon.png
+'''
+
+[tasks.oss]
+workspace = false
+script_runner = "sh"
+script = '''
+#!/usr/bin/env bash
+set -eu
+cargo about generate nymvpn-packages/nymvpn-oss-licenses-rust.hbs > nymvpn-packages/nymvpn-oss-licenses-rust.html
+sd "(talpid-[\w-]+|tunnel-obfuscation) (\d+.\d+.\d+)" '$1 $2   Copyright (C) Mullvad VPN AB, GPL-3.0' nymvpn-packages/nymvpn-oss-licenses-rust.html
+sd "https://crates.io/crates//(talpid-\w+|tunnel-obfuscation)" 'https://github.com/mullvad/mullvadvpn-app/tree/main/$1' nymvpn-packages/nymvpn-oss-licenses-rust.html
+
+cd nymvpn-ui && npm i && cd ..
+npx --yes generate-license-file --overwrite --ci --input nymvpn-ui/package.json --output nymvpn-packages/third-party-licenses.txt
+
+cat nymvpn-packages/nymvpn-oss-licenses-header.hbs > nymvpn-packages/nymvpn-oss-licenses.html
+cat nymvpn-packages/nymvpn-oss-licenses-rust.html >> nymvpn-packages/nymvpn-oss-licenses.html
+cat nymvpn-packages/third-party-licenses.txt >> nymvpn-packages/nymvpn-oss-licenses.html
+cat nymvpn-packages/nymvpn-oss-licenses-footer.hbs >> nymvpn-packages/nymvpn-oss-licenses.html
+'''
+
+
+
+[tasks.android-init]
+workspace = false
+script = '''
+git clone https://github.com:WireGuard/wireguard-tools.git nymvpn-android/app/tunnel/wireguard-tools
+cd nymvpn-android/app/tunnel/wireguard-tools && git checkout b4f6b4f229d291daf7c35c6f1e7f4841cc6d69bc && cd -
+git clone https://github.com:termux/termux-elf-cleaner.git nymvpn-android/app/tunnel/elf-cleaner
+cd nymvpn-android/app/tunnel/elf-cleaner && git checkout 7efc05090675ec6161b7def862728086a26c3b1f && cd -
+'''

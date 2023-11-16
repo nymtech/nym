@@ -1,0 +1,126 @@
+syntax = "proto3";
+
+package nymvpn.controller;
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/wrappers.proto";
+import "google/protobuf/timestamp.proto";
+
+service ControllerService {
+    // Locations served
+    rpc GetLocations(google.protobuf.Empty) returns (Locations);
+    rpc RecentLocations(google.protobuf.Empty) returns (Locations);
+
+    // Account
+    rpc IsAuthenticated(google.protobuf.Empty) returns (google.protobuf.BoolValue);
+    rpc AccountSignIn(SignInRequest) returns (google.protobuf.Empty);
+    rpc AccountSignOut(google.protobuf.Empty) returns (google.protobuf.Empty);
+    rpc GetAccountInfo(google.protobuf.Empty) returns (AccountInfo);
+
+    // Control VPN
+    rpc ConnectVpn(Location) returns (VpnStatus);
+    rpc DisconnectVpn(google.protobuf.Empty) returns (VpnStatus);
+    rpc GetVpnStatus(google.protobuf.Empty) returns (VpnStatus);
+
+    // Notifications
+    rpc GetNotifications(google.protobuf.Empty) returns (Notifications);
+    rpc AckNotification(google.protobuf.StringValue) returns (google.protobuf.Empty);
+
+    // Versions and Updates
+    rpc LatestAppVersion(google.protobuf.Empty) returns (google.protobuf.StringValue);
+
+    // Events
+    rpc WatchEvents(google.protobuf.Empty) returns (stream DaemonEvent);
+}
+
+message SignInRequest {
+    string email = 1;
+    string password = 2;
+}
+
+message AccountInfo {
+    string email = 1;
+    uint32 balance = 2;
+}
+
+message Notifications {
+    repeated Notification notification = 1;
+}
+
+enum NotificationType {
+    SERVER_FAILED = 0;
+    CLIENT_FAILED = 1;
+}
+
+message Notification {
+    string id = 1;
+    NotificationType notification_type = 2;
+    string message = 3;
+    google.protobuf.Timestamp timestamp = 4;
+}
+
+message VpnStatus {
+
+    message Accepted {
+        Location location = 1;
+    };
+
+    message ServerCreated {
+        Location location = 1;
+    }
+
+    message ServerRunning {
+        Location location = 1;
+    }
+
+    message ServerReady {
+        Location location = 1;
+    }
+
+    message Connecting {
+        Location location = 1;
+    }
+
+    message Connected {
+        Location location = 1;
+        google.protobuf.Timestamp timestamp = 2;
+    }
+
+    message Disconnecting {
+        Location location = 1;
+    }
+
+    message Disconnected {}
+
+    oneof vpn_status {
+        Accepted accepted = 1;
+        Connecting connecting = 2;
+        ServerCreated server_created = 3;
+        ServerRunning server_running = 4;
+        ServerReady server_ready = 5;
+        Connected connected = 6;
+        Disconnecting disconnecting = 7;
+        Disconnected disconnected = 8;
+    }
+}
+
+message Locations {
+    repeated Location location = 1;
+}
+
+message Location {
+    string code = 1;
+    string country = 2;
+    string country_code = 3;
+    string city = 4;
+    string city_code = 5;
+    optional string state = 6;
+    optional string state_code = 7;
+}
+
+message DaemonEvent {
+    oneof event {
+        VpnStatus vpn_status = 1;
+        Notification notification = 2;
+    }
+}

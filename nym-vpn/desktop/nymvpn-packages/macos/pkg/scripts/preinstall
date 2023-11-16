@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+
+# Copyright (C) 2023 Nym Technologies S.A., GPL-3.0
+# Copyright (C) 2022 Mullvad VPN AB, GPL-3.0
+
+set -euo pipefail
+
+INSTALL_DIR="/Applications"
+LOG_DIR="/var/log/nymvpn"
+NYMVPN_DAEMON_PLIST_PATH="/Library/LaunchDaemons/net.nymvpn.daemon.plist"
+
+mkdir -p $LOG_DIR
+chmod 755 $LOG_DIR
+
+exec 2>&1 > "${LOG_DIR}/preinstall.log"
+
+stop_daemon_and_ui() {
+    if [[ -f "${NYMVPN_DAEMON_PLIST_PATH}" ]]; then
+        # Stop Daemon and UI and copy old log file
+        launchctl unload -w "${NYMVPN_DAEMON_PLIST_PATH}" || true
+        pkill -x "nymvpn-ui" || echo "Failed to stop nymvpn-ui" || true
+        cp "${LOG_DIR}/nymvpn-daemon.log" "$LOG_DIR/previous-nymvpn-daemon.log" \
+            || echo "Failed to copy old nymvpn-daemon log"
+
+    else
+        echo "No previous installation found"
+    fi
+}
+
+create_exclusion_group() {
+    # Create a group for nymvpn-exclusion
+    NYMVPN_EXCLUSION_GROUP="nymvpn-exclusion"
+    if ! dscl . -list /Groups | grep $NYMVPN_EXCLUSION_GROUP; then
+    dscl . -create /Groups/$NYMVPN_EXCLUSION_GROUP \
+        || echo "FAILED TO CREATE $NYMVPN_EXCLUSION_GROUP GROUP"
+    fi
+    if ! dscl . -read /Groups/$NYMVPN_EXCLUSION_GROUP | grep PrimaryGroupID; then
+    NYMVPN_EXCLUSION_GID=$(( RANDOM ))
+    dscl . -append /Groups/$NYMVPN_EXCLUSION_GROUP PrimaryGroupID $NYMVPN_EXCLUSION_GID \
+        && echo "Created nymvpn-exclusion group with gid $NYMVPN_EXCLUSION_GID" \
+        || echo "FAILED TO CREATE 'nymvpn-exclusion' group"
+    fi
+}
+
+main() {
+    create_exclusion_group
+    stop_daemon_and_ui
+}
+
+main "$@"

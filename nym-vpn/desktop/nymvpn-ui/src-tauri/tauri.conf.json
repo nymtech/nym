@@ -1,0 +1,86 @@
+{
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build",
+    "devPath": "http://localhost:1420",
+    "distDir": "../dist"
+  },
+  "package": {
+    "productName": "nymvpn",
+    "version": "0.0.0"
+  },
+  "tauri": {
+    "allowlist": {
+      "fs": {
+        "all": true
+      },
+      "clipboard": {
+        "all": true
+      },
+      "window": {
+        "all": true
+      },
+      "shell": {
+        "all": false,
+        "execute": false,
+        "open": ".+",
+        "scope": [],
+        "sidecar": false
+      },
+      "notification": {
+        "all": true
+      },
+      "os": {
+        "all": true
+      }
+    },
+    "bundle": {
+      "active": true,
+      "category": "DeveloperTool",
+      "copyright": "",
+      "deb": {
+        "depends": []
+      },
+      "externalBin": [],
+      "icon": [
+        "../../nymvpn-assets/icons/32x32.png",
+        "../../nymvpn-assets/icons/128x128.png",
+        "../../nymvpn-assets/icons/128x128@2x.png",
+        "../../nymvpn-assets/icons/icon.icns",
+        "../../nymvpn-assets/icons/icon.ico"
+      ],
+      "identifier": "net.nymvpn.client",
+      "longDescription": "",
+      "macOS": {
+        "entitlements": null,
+        "exceptionDomain": "",
+        "frameworks": [],
+        "providerShortName": null,
+        "signingIdentity": null
+      },
+      "resources": [],
+      "shortDescription": "",
+      "targets": "all",
+      "windows": {
+        "certificateThumbprint": null,
+        "digestAlgorithm": "sha256",
+        "timestampUrl": ""
+      }
+    },
+    "security": {
+      "csp": null
+    },
+    "updater": {
+      "active": false
+    },
+    "windows": [
+      {
+        "fullscreen": false,
+        "height": 600,
+        "resizable": false,
+        "title": "nymvpn",
+        "width": 360
+      }
+    ]
+  }
+}

@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+# Stop daemon and UI
+
+if which systemctl &> /dev/null; then
+    if systemctl status nymvpn-daemon &> /dev/null; then
+        systemctl stop nymvpn-daemon.service
+        systemctl disable nymvpn-daemon.service
+        cp /var/log/nymvpn/nymvpn-daemon.log /var/log/nymvpn/previous-nymvpn-daemon.log \
+            || echo "Failed to copy previous daemon log file"
+    fi
+fi
+
+pkill -x "nymvpn" || true
+
+#DEBHELPER#

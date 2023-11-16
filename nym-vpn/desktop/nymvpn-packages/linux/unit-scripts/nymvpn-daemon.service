@@ -1,0 +1,14 @@
+[Unit]
+Description=nymvpn daemon
+Before=network-online.target
+StartLimitBurst=6
+StartLimitIntervalSec=24
+After=NetworkManager.service systemd-resolved.service
+
+[Service]
+ExecStart=/opt/nymvpn/nymvpn-daemon
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

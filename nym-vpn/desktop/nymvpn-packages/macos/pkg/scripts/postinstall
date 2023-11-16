@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+
+# Copyright (C) 2023 Nym Technologies S.A., GPL-3.0
+# Copyright (C) 2022 Mullvad VPN AB, GPL-3.0
+
+set -euo pipefail
+
+INSTALL_DIR="/Applications"
+LOG_DIR="/var/log/nymvpn"
+NYMVPN_DAEMON_PLIST_PATH="/Library/LaunchDaemons/net.nymvpn.daemon.plist"
+
+mkdir -p $LOG_DIR
+chmod 755 $LOG_DIR
+
+exec 2>&1 > "${LOG_DIR}/postinstall.log"
+
+NYMVPN_DAEMON_PLIST=$(cat <<-PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+    <dict>
+        <key>Label</key>
+        <string>net.nymvpn.daemon</string>
+        <key>ProgramArguments</key>
+        <array>
+            <string>${INSTALL_DIR}/nymvpn.net/Contents/Resources/nymvpn-daemon</string>
+        </array>
+        <key>UserName</key>
+        <string>root</string>
+        <key>RunAtLoad</key>
+        <true/>
+        <key>KeepAlive</key>
+        <true/>
+        <key>SoftResourceLimits</key>
+        <dict>
+            <key>NumberOfFiles</key>
+            <integer>1024</integer>
+        </dict>
+        <key>StandardErrorPath</key>
+        <string>${LOG_DIR}/stderr.log</string>
+    </dict>
+</plist>
+PLIST
+)
+
+launch_daemon() {
+    echo "${NYMVPN_DAEMON_PLIST}" > "${NYMVPN_DAEMON_PLIST_PATH}"
+    chmod 644 "${NYMVPN_DAEMON_PLIST_PATH}"
+    launchctl load -w "${NYMVPN_DAEMON_PLIST_PATH}"
+}
+
+sym_link() {
+    mkdir -p /usr/local/bin
+    ln -sf "${INSTALL_DIR}/nymvpn.net/Contents/Resources/nymvpn" /usr/local/bin/nymvpn
+}
+
+main() {
+    launch_daemon
+    sym_link
+}
+
+main "$@"

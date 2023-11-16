@@ -1,0 +1,143 @@
+[package]
+name = "nymvpn-packages"
+version = "0.0.2" # actual version
+edition = "2021"
+publish = false
+license = "GPL-3.0"
+authors = ["Nym Technologies S.A."]
+description = "A Modern Serverless VPN"
+homepage = "https://nymvpn.net"
+repository = "https://github.com/nymvpn/nymvpn-app"
+
+
+#
+# DEBIAN PACKAGING
+#
+[package.metadata.deb]
+name = "nymvpn"
+# Maintainer is first author in authors
+# maintainer = ""
+assets = [
+    ["target/release/nymvpn", "usr/bin/", "755"],
+    ["target/release/nymvpn-ui", "/opt/nymvpn/nymvpn", "755"],
+    ["target/release/nymvpn-daemon", "/opt/nymvpn/nymvpn-daemon", "755"],
+    ["linux/nymvpn.desktop", "usr/share/applications/", "644"],
+    ["nymvpn-oss-licenses.html", "/opt/nymvpn/nymvpn-oss-licenses.html", "644"],
+    ["../nymvpn-assets/icons/32x32.png", "usr/share/icons/hicolor/32x32/apps/nymvpn.png", "644"],
+    ["../nymvpn-assets/icons/128x128.png", "usr/share/icons/hicolor/128x128/apps/nymvpn.png", "644"],
+    ["../nymvpn-assets/icons/128x128@2x.png", "usr/share/icons/hicolor/256x256/apps/nymvpn.png", "644"],
+    ["../nymvpn-assets/icons/icon.png", "usr/share/icons/hicolor/512x512/apps/nymvpn.png", "644"],
+]
+depends = "libwebkit2gtk-4.0-37 (>= 2.21.1), libgtk-3-0 (>= 3.21.4), libayatana-appindicator3-1"
+maintainer-scripts = "linux/debian/maintainer-scripts/"
+systemd-units = { unit-name = "nymvpn-daemon", enable = true, start= true, restart-after-upgrade = false, stop-on-upgrade = true, unit-scripts = "linux/unit-scripts"}
+
+[package.metadata.deb.variants.staging]
+name = "nymvpn-staging"
+assets = [
+    ["target/release/nymvpn", "usr/bin/", "755"],
+    ["target/release/nymvpn-ui", "/opt/nymvpn/nymvpn", "755"],
+    ["target/release/nymvpn-daemon", "/opt/nymvpn/nymvpn-daemon", "755"],
+    ["linux/nymvpn.desktop", "usr/share/applications/", "644"],
+    ["nymvpn-oss-licenses.html", "/opt/nymvpn/nymvpn-oss-licenses.html", "644"],
+    ["../nymvpn-assets/icons/32x32.png", "usr/share/icons/hicolor/32x32/apps/nymvpn.png", "644"],
+    ["../nymvpn-assets/icons/128x128.png", "usr/share/icons/hicolor/128x128/apps/nymvpn.png", "644"],
+    ["../nymvpn-assets/icons/128x128@2x.png", "usr/share/icons/hicolor/256x256/apps/nymvpn.png", "644"],
+    ["../nymvpn-assets/icons/icon.png", "usr/share/icons/hicolor/512x512/apps/nymvpn.png", "644"],
+    ["linux/staging-config/nymvpn.conf.toml", "etc/nymvpn/", "644"]
+]
+
+#
+# RPM PACKAGING
+#
+[package.metadata.generate-rpm.requires]
+"webkit2gtk4.0" = ">= 2.38.5"
+"libappindicator-gtk3" = ">= 12.10.1"
+
+[package.metadata.generate-rpm]
+name = "nymvpn"
+assets = [
+    { source = "target/release/nymvpn", dest = "/usr/bin/nymvpn", mode = "755" },
+    { source = "target/release/nymvpn-ui", dest = "/opt/nymvpn/nymvpn", mode = "755" },
+    { source = "target/release/nymvpn-daemon", dest = "/opt/nymvpn/nymvpn-daemon", mode = "755" },
+    { source = "linux/nymvpn.desktop", dest = "/usr/share/applications/nymvpn.desktop", mode = "644"},
+    { source = "nymvpn-oss-licenses.html", dest = "/opt/nymvpn/nymvpn-oss-licenses.html", mode =  "644"},
+    { source = "linux/unit-scripts/nymvpn-daemon.service", dest = "/usr/lib/systemd/system/nymvpn-daemon.service", mode = "644"},
+    { source = "../nymvpn-assets/icons/32x32.png", dest = "/usr/share/icons/hicolor/32x32/apps/nymvpn.png", mode = "644" },
+    { source = "../nymvpn-assets/icons/128x128.png", dest = "/usr/share/icons/hicolor/128x128/apps/nymvpn.png", mode = "644" },
+    {source = "../nymvpn-assets/icons/128x128@2x.png", dest = "/usr/share/icons/hicolor/256x256/apps/nymvpn.png", mode = "644"},
+    {source = "../nymvpn-assets/icons/icon.png", dest = "/usr/share/icons/hicolor/512x512/apps/nymvpn.png", mode = "644"},
+]
+auto-req = "no"
+
+# presinst
+pre_install_script = '''
+set -euo pipefail
+
+# Stop daemon and UI
+
+if which systemctl &> /dev/null; then
+    if systemctl status nymvpn-daemon &> /dev/null; then
+        systemctl stop nymvpn-daemon.service
+        systemctl disable nymvpn-daemon.service
+        cp /var/log/nymvpn/nymvpn-daemon.log /var/log/nymvpn/previous-nymvpn-daemon.log \
+            || echo "Failed to copy previous daemon log file"
+    fi
+fi
+
+pkill -x "nymvpn" || true
+'''
+
+# postinst
+post_install_script = '''
+set -e
+systemctl enable "/usr/lib/systemd/system/nymvpn-daemon.service"
+systemctl start nymvpn-daemon.service
+'''
+
+pre_uninstall_script = '''
+set -euo pipefail
+
+# Stop UI
+pkill -x "nymvpn" || true
+
+is_number_re='^[0-9]+$'
+# Check if we're running during an upgrade step on Fedora
+# https://fedoraproject.org/wiki/Packaging:Scriptlets#Syntax
+if [[ "$1" =~ $is_number_re ]] && [ $1 -gt 0 ]; then
+    exit 0;
+fi
+
+if [[ "$1" == "upgrade" ]]; then
+    exit 0;
+fi
+
+systemctl stop nymvpn-daemon.service || true
+systemctl disable nymvpn-daemon.service || true
+'''
+
+post_uninstall_script = '''
+set -euo pipefail
+
+# remove log and configuration files
+remove_log_and_configuration() {
+    # all log files
+    if [ -d /var/log/nymvpn ]; then
+        rm -r --interactive=never /var/log/nymvpn/ || \
+        echo "Failed to remove nymvpn log files"
+    fi
+
+    # config files if any
+    if [ -d /etc/nymvpn ]; then
+        rm -r --interactive=never /etc/nymvpn/ || \
+        echo "Failed to remove nymvpn configuration files"
+    fi
+}
+
+case "$@" in
+    # apt purge; yum remove
+    "0")
+        remove_log_and_configuration
+        ;;
+esac
+'''

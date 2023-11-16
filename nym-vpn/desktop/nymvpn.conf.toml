@@ -1,0 +1,7 @@
+# Development configuration
+
+socket_path="../data/nymvpn.sock"
+allowed_endpoint_ipv4="192.168.0.15"
+grpc_api_host_port="grpc://nymvpn.dev:44444"
+log_dir="../data/log"
+config_dir="../data"

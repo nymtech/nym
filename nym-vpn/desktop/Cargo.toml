@@ -1,0 +1,22 @@
+[workspace]
+resolver = "2"
+members = [
+    "nymvpn-cli",
+    "nymvpn-config",
+    "nymvpn-controller",
+    "nymvpn-daemon",
+    "nymvpn-entity",
+    "nymvpn-migration",
+    "nymvpn-packages",
+    "nymvpn-server",
+    "nymvpn-types",
+    "nymvpn-ui/src-tauri",
+]
+
+[profile.release]
+#opt-level = 'z'     # Optimize for size.
+opt-level = 3
+lto = true          # Enable Link Time Optimization
+#codegen-units = 1   # Reduce number of codegen units to increase optimizations.
+#panic = 'abort'     # Abort on panic
+strip = true        # Strip symbols from binary*

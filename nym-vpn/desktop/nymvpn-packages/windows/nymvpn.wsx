@@ -1,0 +1,209 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Based on:
+https://github.com/mozilla-mobile/mozilla-vpn-client/blob/main/windows/installer/MozillaVPN_prod.wxs
+  License: https://github.com/mozilla-mobile/mozilla-vpn-client/blob/main/LICENSE.md
+  SPDX-License-Identifier: MIT
+
+  Copyright (C) 2019 WireGuard LLC. All Rights Reserved.
+  Copyright (C) 2019 Edge Security LLC. All Rights Reserved.
+-->
+
+<?define Manufacturer = "Nym Technologies S.A."?>
+<?define UpgradeCode = "{DDD475A2-30FB-45D1-A8B5-219204D88AD6}"?>
+
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi"
+  xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
+  <Product
+    Id="*"
+    Name="nymvpn"
+    Language="1033"
+    Version="$(var.AppVersion)"
+    Manufacturer="$(var.Manufacturer)"
+    UpgradeCode="$(var.UpgradeCode)">
+    <Package
+      InstallerVersion="400"
+      Compressed="yes"
+      InstallScope="perMachine"
+      Description="Install nymvpn app for Windows"
+      Manufacturer="$(var.Manufacturer)"
+      ReadOnly="yes" />
+
+    <Condition Message="This application is only supported on Windows 10 or higher.">
+      <![CDATA[Installed OR (VersionNT >= 603)]]>
+    </Condition>
+    <Condition Message="This application is only supported on 64 bit x86 platforms.">
+      %PROCESSOR_ARCHITECTURE="AMD64" </Condition>
+
+    <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
+
+    <Icon Id="nymvpnIcon" SourceFile="../../nymvpn-assets/icons/icon.ico" />
+
+    <Property Id="ARPPRODUCTICON" Value="nymvpnIcon" />
+    <Property Id="ARPURLINFOABOUT" Value="https://nymvpn.net" />
+    <Property Id="ARPNOMODIFY" Value="yes" />
+    <Property Id="DISABLEADVTSHORTCUTS" Value="yes" />
+    <Property Id="DISABLEROLLBACK" Value="yes" />
+    <Property Id="MSIDISABLERMRESTART" Value="1" />
+    <Property Id="MSIRMSHUTDOWN" Value="1" />
+
+    <!--
+      Upgrading
+    -->
+    <MajorUpgrade
+      AllowDowngrades="no"
+      AllowSameVersionUpgrades="yes"
+      DowngradeErrorMessage="A newer version of [ProductName] is already installed. Setup will now exit."
+      Schedule="afterInstallValidate" />
+
+    <!--
+      Directory Structure
+    -->
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="ProgramFiles64Folder">
+        <Directory Id="nymvpnFolder" Name="nymvpn">
+          <Directory Id="nymvpnCliFolder" Name="bin" />
+        </Directory>
+      </Directory>
+      <Directory Id="ProgramMenuFolder" />
+    </Directory>
+
+    <!--
+      Components: only have single file in a component. Because only one keypath in component is used for
+    registry.
+    -->
+    <ComponentGroup Id="nymvpnCliComponents" Directory="nymvpnCliFolder">
+      <Component Id="nymvpn.exe" Guid="{5464DDCB-70DD-40E8-BCA8-E50FF6437272}">
+        <File Id="nymvpnCli" Source="../../target/x86_64-pc-windows-msvc/release/nymvpn.exe"
+          KeyPath="yes" Checksum="yes" />
+        <Environment Id="nymvpn.exe" Action="set" Name="PATH" Part="last" System="yes"
+          Value="%PROGRAMFILES%\nymvpn\bin" />
+      </Component>
+    </ComponentGroup>
+
+    <ComponentGroup Id="nymvpnComponents" Directory="nymvpnFolder">
+
+      <Component Id="nymvpnosslicenses.html" Guid="{2A7FB5B5-BFC9-4F3D-9448-CB465FC29C3C}">
+        <File
+          Id="nymvpnosslicenses.html"
+          KeyPath="yes"
+          Source="../nymvpn-oss-licenses.html"
+        />
+      </Component>
+
+      <Component Id="mullvadsplittunnel.sys" Guid="{E81E0268-B5E7-46E8-B9D6-D4B53144E011}">
+        <File
+          Id="mullvadsplittunnel.sys"
+          KeyPath="yes"
+          Source="../../.upvpn/mullvadvpn-app/dist-assets/binaries/x86_64-pc-windows-msvc/split-tunnel/mullvad-split-tunnel.sys" />
+      </Component>
+
+      <Component Id="winfw.dll" Guid="{14FED358-DEEC-4653-BE10-5B726C4E8754}">
+        <File
+          Id="winfw.dll"
+          KeyPath="yes"
+          Source="../../windows/x86_64-pc-windows-msvc/X64-Release/winfw.dll" />
+      </Component>
+
+      <Component Id="libwg.dll" Guid="{DEC46A34-0E25-46F2-9A7E-D6F7610BA48A}">
+        <File
+          Id="libwg.dll"
+          KeyPath="yes"
+          Source="../../build/lib/x86_64-pc-windows-msvc/libwg.dll" />
+      </Component>
+
+      <Component Id="wintun.dll" Guid="{30A536F9-2487-400B-82F9-A90E5E564710}">
+        <File
+          Id="wintun.dll"
+          KeyPath="yes"
+          Source="../../.upvpn/mullvadvpn-app/dist-assets/binaries/x86_64-pc-windows-msvc/wintun/wintun.dll" />
+      </Component>
+
+      <Component Id="mullvadwireguard.dll" Guid="{A564CD5D-F48B-42D7-99E2-481D580F3D45}">
+        <File
+          Id="mullvadwireguard.dll"
+          KeyPath="yes"
+          Source="../../.upvpn/mullvadvpn-app/dist-assets/binaries/x86_64-pc-windows-msvc/wireguard-nt/mullvad-wireguard.dll" />
+      </Component>
+
+      <Component Id="nymvpnui.exe" Guid="{EBA0EABE-215D-4800-B690-83928B7C593A}">
+        <File Id="nymvpnui.exe" Source="../../target/x86_64-pc-windows-msvc/release/nymvpn-ui.exe"
+          KeyPath="yes"
+          Checksum="yes">
+          <Shortcut Id="nymvpnShortcut" Directory="ProgramMenuFolder" Name="nymvpn"
+            Description="Modern serverless and on-demand VPN." WorkingDirectory="nymvpnFolder"
+            Advertise="yes" />
+        </File>
+      </Component>
+
+      <Component Id="nymvpndaemon.exe" Guid="{914D275E-B9BA-41E3-9610-AC3C4B1794B3}">
+        <File
+          Id="nymvpndaemon.exe"
+          KeyPath="yes"
+          Checksum="yes"
+          Source="../../target/x86_64-pc-windows-msvc/release/nymvpn-daemon.exe"
+        />
+
+        <!-- Daemon Service -->
+        <ServiceInstall
+          Type="ownProcess"
+          Name="nymvpnDaemonService"
+          DisplayName="nymvpn Daemon Service"
+          Description="nymvpn Daemon manages VPN sessions on device"
+          Start="auto"
+          Arguments="--service"
+          ErrorControl="normal"
+          Vital="yes" />
+
+        <util:ServiceConfig
+          ServiceName="nymvpnDaemonService"
+          FirstFailureActionType="restart"
+          SecondFailureActionType="restart"
+          ThirdFailureActionType="none"
+          ResetPeriodInDays="1"
+          RestartServiceDelayInSeconds="5" />
+
+        <ServiceControl Id="StartService" Start="install" Stop="both" Remove="both"
+          Name="nymvpnDaemonService" Wait="yes" />
+      </Component>
+
+
+    </ComponentGroup>
+
+    <!--
+      Merge modules
+    -->
+
+    <!--
+      Features
+    -->
+    <Feature Id="nymvpnFeature" Title="nymvpn" Level="1">
+      <ComponentGroupRef Id="nymvpnCliComponents" />
+      <ComponentGroupRef Id="nymvpnComponents" />
+    </Feature>
+
+    <!--
+      Launch after setup complete
+    -->
+    <CustomAction Id="LaunchVPNFirstExecution" Impersonate="yes" FileKey="nymvpnui.exe"
+      ExeCommand="" Return="asyncNoWait" />
+    <CustomAction Id="LaunchVPNAfterUpdate" Impersonate="yes" FileKey="nymvpnui.exe"
+      ExeCommand="" Return="asyncNoWait" />
+    <InstallExecuteSequence>
+      <Custom Action="LaunchVPNFirstExecution" After="InstallFinalize">NOT WIX_UPGRADE_DETECTED</Custom>
+      <Custom Action="LaunchVPNAfterUpdate" After="InstallFinalize">WIX_UPGRADE_DETECTED</Custom>
+    </InstallExecuteSequence>
+
+    <!--
+      Force application closed
+    -->
+    <Property Id="WixQuietExecCmdLine"
+      Value='"[#SystemFolder]taskkill.exe" /F /IM "nymvpn-daemon.exe" /IM "nymvpn-ui.exe"' />
+    <CustomAction Id="CloseApplication" BinaryKey="WixCA" DllEntry="WixQuietExec"
+      Execute="immediate"
+      Return="ignore" />
+    <InstallExecuteSequence>
+      <Custom Action="CloseApplication" After="StopServices" />
+    </InstallExecuteSequence>
+  </Product>
+</Wix>

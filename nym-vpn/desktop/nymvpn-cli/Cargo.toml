@@ -1,0 +1,28 @@
+[package]
+name = "nymvpn-cli"
+version = "0.1.0"
+edition = "2021"
+publish = false
+license = "GPL-3.0"
+authors = ["Nym Technologies S.A."]
+description = "Cli to manage VPN session via nymvpn daemon"
+homepage = "https://nymvpn.net"
+repository = "https://github.com/nymvpn/nymvpn-app"
+
+[[bin]]
+name = "nymvpn"
+path = "src/main.rs"
+
+[dependencies]
+async-trait = "0.1.68"
+clap = { version = "4.2.3", features = ["derive"] }
+tokio = { version = "1.27.0", features = ["rt-multi-thread", "macros", "signal"] }
+validator = { version = "0.16.0", features = ["derive"] }
+nymvpn-controller = {path = "../nymvpn-controller"}
+nymvpn-types = {path = "../nymvpn-types"}
+thiserror = "1.0.40"
+tonic = "0.9.2"
+dialoguer = { version = "0.10.4", features = ["fuzzy-select"] }
+indicatif = "0.17.3"
+tokio-stream = { version = "0.1.12", features = ["sync"] }
+console = "0.15.5"

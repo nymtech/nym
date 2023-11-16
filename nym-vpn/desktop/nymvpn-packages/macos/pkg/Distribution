@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<installer-gui-script minSpecVersion="2">
+    <title>nymvpn</title>
+    <welcome file="welcome.html" mime-type="text/html"/>
+    <conclusion file="conclusion.html" mime-type="text/html"/>
+    <options customize="never" require-scripts="false" />
+    <pkg-ref id="net.nymvpn.macos">
+        <bundle-version>
+            <bundle CFBundleShortVersionString="APP_VERSION" CFBundleVersion="APP_VERSION" id="net.nymvpn.macos" path="nymvpn.net"/>
+        </bundle-version>
+    </pkg-ref>
+    <product id="net.nymvpn.macos" version="APP_VERSION"/>
+    <volume-check>
+        <allowed-os-versions>
+            <os-version min="10.11.0"/>
+        </allowed-os-versions>
+    </volume-check>
+    <choices-outline>
+        <line choice="default">
+            <line choice="net.nymvpn.macos"/>
+        </line>
+    </choices-outline>
+    <choice id="default" title="nymvpn" versStr="APP_VERSION"/>
+    <choice id="net.nymvpn.macos" title="nymvpn" visible="false">
+        <pkg-ref id="net.nymvpn.macos"/>
+    </choice>
+    <pkg-ref id="net.nymvpn.macos" version="APP_VERSION" onConclusion="none" >#net.nymvpn.macos.pkg</pkg-ref>
+    <domains enable_anywhere="false" enable_currentUserHome="false" enable_localSystem="true"/>
+</installer-gui-script>

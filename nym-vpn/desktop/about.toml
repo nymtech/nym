@@ -1,0 +1,30 @@
+accepted = [
+    "Apache-2.0",
+    "MIT",
+    "GPL-3.0",
+    "MPL-2.0",
+    "ISC",
+    "BSD-3-Clause",
+    "BSD-2-Clause",
+    "Unicode-DFS-2016",
+    "WTFPL",
+    "OpenSSL",
+    "NOASSERTION",
+    "Apache-2.0 WITH LLVM-exception",
+]
+
+workarounds = [
+    "ring",
+    "rustls",
+]
+
+targets = [
+    "x86_64-unknown-linux-gnu",
+    "aarch64-unknown-linux-gnu",
+    "x86_64-apple-darwin",
+    "aarch64-apple-darwin",
+    "x86_64-pc-windows-msvc",
+]
+
+ignore-build-dependencies = true
+ignore-dev-dependencies = true

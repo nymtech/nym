@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=nymvpn
+Comment=A Modern Serverless VPN
+Exec=/opt/nymvpn/nymvpn
+Terminal=false
+Type=Application
+Categories=Network;Security;
+Icon=nymvpn
+SingleMainWindow=true

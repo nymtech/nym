@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+#DEBHELPER#
+
+# remove log and configuration files
+remove_log_and_configuration() {
+    # all log files
+    if [ -d /var/log/nymvpn ]; then
+        rm -r --interactive=never /var/log/nymvpn/ || \
+        echo "Failed to remove nymvpn log files"
+    fi
+
+    # config files if any
+    if [ -d /etc/nymvpn ]; then
+        rm -r --interactive=never /etc/nymvpn/ || \
+        echo "Failed to remove nymvpn configuration files"
+    fi
+}
+
+case "$@" in
+    # apt purge; yum remove
+    "purge"|"0")
+        remove_log_and_configuration
+        ;;
+esac

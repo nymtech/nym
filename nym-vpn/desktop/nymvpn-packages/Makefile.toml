@@ -1,0 +1,15 @@
+[env]
+TAG = { script = ["git rev-parse --short HEAD"]}
+DIRTY = { script = ['[ "$(git status --porcelain)" = "" ] || echo "-dirty"']}
+
+[tasks.tag]
+workspace = false
+script = '''
+echo "${TAG}${DIRTY}" > tag.txt
+'''
+
+[tasks.builder]
+workspace = false
+command = "docker"
+args = ["build", ".", "-t", "ghcr.io/nymvpn/nymvpn-app-builder:${TAG}${DIRTY}"]
+dependencies = ["tag"]

@@ -1,0 +1,153 @@
+syntax = "proto3";
+
+package nymvpn;
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/wrappers.proto";
+
+/// Locations
+
+message ListLocationsResponse {
+    repeated Location locations = 1;
+}
+
+message Location {
+    string code = 1;
+    string country = 2;
+    string country_code = 3;
+    string city = 4;
+    string city_code = 5;
+    optional string state = 6;
+    optional string state_code = 7;
+}
+
+/// VPN Sessions
+
+message NewSession {
+    string request_id = 1;
+    string device_unique_id = 2;
+    string location_code = 3;
+}
+
+message Accepted {
+    string request_id = 1;
+    string vpn_session_uuid = 2;
+}
+
+
+message ServerCreated {
+    string request_id = 1;
+    string vpn_session_uuid = 2;
+}
+
+message Failed {
+    string request_id = 1;
+    string vpn_session_uuid = 2;
+}
+
+message EndSession {
+    string request_id = 1;
+    string device_unique_id = 2;
+    string vpn_session_uuid = 3;
+    string reason = 4;
+}
+
+message ServerRunning {
+    string request_id = 1;
+    string vpn_session_uuid = 2;
+}
+
+message ServerReady {
+    string request_id = 1;
+    string vpn_session_uuid = 2;
+    string public_key = 3;
+    string ipv4_endpoint = 4;
+    string private_ipv4 = 5;
+}
+
+message ClientConnected {
+    string request_id = 1;
+    string device_unique_id = 2;
+    string vpn_session_uuid = 3;
+}
+
+message VpnSessionStatusRequest {
+    string request_id = 1;
+    string device_unique_id = 2;
+    string vpn_session_uuid = 3;
+}
+
+message VpnSessionStatus {
+    oneof state {
+        Accepted accepted = 1;
+        Failed failed = 2;
+        ServerCreated server_created = 3;
+        ServerRunning server_running = 4;
+        ServerReady server_ready = 5;
+        ClientConnected client_connected = 6;
+        Ended ended = 7;
+    }
+}
+
+message Ended {
+    string request_id = 1;
+    string vpn_session_uuid = 2;
+    string reason = 3;
+}
+
+/// Device Management
+message UserCredentials {
+    string email = 1;
+    string password = 2;
+}
+
+// numeric value is important for conversions to internal types
+enum DeviceType {
+    Linux = 0;
+    MacOS = 1;
+    Windows = 2;
+    Android = 3;
+    IOS = 4;
+}
+
+message DeviceInfo {
+    string name = 1;
+    string version = 2;
+    string arch = 3;
+    string public_key = 4;
+    string unique_id = 5;
+    DeviceType device_type = 6;
+}
+
+message AddDeviceRequest {
+    UserCredentials user_creds = 1;
+    DeviceInfo device_info = 2;
+}
+
+message DeviceAddresses {
+    uint32 ipv4_address = 1;
+}
+
+message AddDeviceResponse {
+    string token = 1;
+    DeviceAddresses device_addresses = 2;
+}
+
+/// Nymvpn Service
+service NymvpnService {
+    // Vpn Session
+    rpc NewVpnSession(NewSession) returns (Accepted);
+    rpc EndVpnSession(EndSession) returns (Ended);
+    rpc Connected(ClientConnected) returns (google.protobuf.Empty);
+    rpc GetStatus(VpnSessionStatusRequest) returns (VpnSessionStatus);
+
+    // Locations
+    rpc ListLocations (google.protobuf.Empty) returns (ListLocationsResponse);
+
+    // Device Management
+    rpc AddDevice(AddDeviceRequest) returns (AddDeviceResponse);
+    rpc SignOut(google.protobuf.Empty) returns (google.protobuf.Empty);
+
+    // Releases and Versions
+    rpc LatestAppVersion(google.protobuf.Empty) returns (google.protobuf.StringValue);
+}

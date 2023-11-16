@@ -9,7 +9,9 @@ pub(crate) type TunTaskPayload = (u64, Vec<u8>);
 
 #[derive(Clone)]
 pub struct TunTaskTx(mpsc::Sender<TunTaskPayload>);
-pub(crate) struct TunTaskRx(mpsc::Receiver<TunTaskPayload>);
+pub(crate) struct TunTaskRx(pub(crate) mpsc::Receiver<TunTaskPayload>);
+
+pub(crate) struct TunTaskRxStream(pub(crate) tokio_stream::wrappers::ReceiverStream<TunTaskPayload>);
 
 impl TunTaskTx {
     pub async fn send(

@@ -78,10 +78,10 @@ fn setup_tokio_tun_device(name: &str, address: Ipv4Addr, netmask: Ipv4Addr) -> t
 
 pub struct TunDevice {
     // The TUN device that we read/write to, to send/receive packets
-    tun: tokio_tun::Tun,
+    tun: Option<tokio_tun::Tun>,
 
     // Incoming data that we should send
-    tun_task_rx: TunTaskRx,
+    tun_task_rx: Option<TunTaskRx>,
 
     // And when we get replies, this is where we should send it
     tun_task_response_tx: TunTaskResponseTx,
@@ -152,9 +152,9 @@ impl TunDevice {
         let (tun_task_response_tx, tun_task_response_rx) = tun_task_response_channel();
 
         let tun_device = TunDevice {
-            tun_task_rx,
+            tun_task_rx: Some(tun_task_rx),
             tun_task_response_tx,
-            tun,
+            tun: Some(tun),
             routing_mode,
         };
 
@@ -163,25 +163,27 @@ impl TunDevice {
 
     // Send outbound packets out on the wild internet
     async fn handle_tun_write(&mut self, data: TunTaskPayload) -> Result<(), TunDeviceError> {
-        let (tag, packet) = data;
-        let dst_addr = boringtun::noise::Tunn::dst_address(&packet)
-            .ok_or_else(|| TunDeviceError::UnableToParseDstAdddress)?;
+        {
+            let (tag, ref packet) = data;
+            let dst_addr = boringtun::noise::Tunn::dst_address(packet)
+                .ok_or_else(|| TunDeviceError::UnableToParseDstAdddress)?;
 
-        let src_addr = parse_src_address(&packet)?;
-        log::info!(
-            "iface: write Packet({src_addr} -> {dst_addr}, {} bytes)",
-            packet.len()
-        );
+            let src_addr = parse_src_address(packet)?;
+            log::info!(
+                "iface: write Packet({src_addr} -> {dst_addr}, {} bytes)",
+                packet.len()
+            );
 
-        // TODO: expire old entries
-        if let RoutingMode::Nat(nat_table) = &mut self.routing_mode {
-            nat_table.nat_table.insert(src_addr, tag);
+            // TODO: expire old entries
+            if let RoutingMode::Nat(nat_table) = &mut self.routing_mode {
+                nat_table.nat_table.insert(src_addr, tag);
+            }
         }
 
-        timeout(Duration::from_millis(1000), self.tun.write_all(&packet))
-            .await
-            .map_err(|_| TunDeviceError::TunWriteTimeout)?
-            .map_err(|err| TunDeviceError::TunWriteError { source: err })
+        // timeout(Duration::from_millis(1000), self.tun.write_all(&data.1))
+        //     .await
+        //     .map_err(|_| TunDeviceError::TunWriteTimeout)?
+        //     .map_err(|err| TunDeviceError::TunWriteError { source: err })
     }
 
     // Receive reponse packets from the wild internet
@@ -229,10 +231,37 @@ impl TunDevice {
     pub async fn run(mut self) {
         let mut buf = [0u8; 65535];
 
+        let tun_task_rx_stream =
+            tokio_stream::wrappers::ReceiverStream::new(self.tun_task_rx.take().unwrap().0);
+        use futures::StreamExt;
+        let tun_task_rx_stream = tun_task_rx_stream.map(|data| {
+            //{
+            //    let (tag, ref packet) = data;
+            //    let dst_addr = boringtun::noise::Tunn::dst_address(packet).unwrap();
+            //    // .ok_or_else(|| TunDeviceError::UnableToParseDstAdddress)?;
+
+            //    let src_addr = parse_src_address(packet).unwrap();
+            //    log::info!(
+            //        "iface: write Packet({src_addr} -> {dst_addr}, {} bytes)",
+            //        packet.len()
+            //    );
+
+            //    // TODO: expire old entries
+            //    // if let RoutingMode::Nat(nat_table) = &mut self.routing_mode {
+            //        // nat_table.nat_table.insert(src_addr, tag);
+            //    // }
+            //}
+            // data.1
+            4
+        });
+
+        let (mut tun_read, tun_write) = tokio::io::split(self.tun);
+
         loop {
             tokio::select! {
                 // Reading from the TUN device
-                len = self.tun.read(&mut buf) => match len {
+                // len = self.tun.read(&mut buf) => match len {
+                len = tun_read.read(&mut buf) => match len {
                     Ok(len) => {
                         let packet = &buf[..len];
                         if let Err(err) = self.handle_tun_read(packet).await {
@@ -245,11 +274,14 @@ impl TunDevice {
                     }
                 },
                 // Writing to the TUN device
-                Some(data) = self.tun_task_rx.recv() => {
-                    if let Err(err) = self.handle_tun_write(data).await {
-                        log::error!("ifcae: handle_tun_write failed: {err}");
-                    }
-                }
+                //Some(data) = self.tun_task_rx.recv() => {
+                //    if let Err(err) = self.handle_tun_write(data).await {
+                //        log::error!("ifcae: handle_tun_write failed: {err}");
+                //    }
+                //}
+                // res = self.tun.send_all(&mut tun_task_rx_stream) => {
+                //     log::error!("finished");
+                // }
             }
         }
         // log::info!("TUN device shutting down");

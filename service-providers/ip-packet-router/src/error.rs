@@ -1,4 +1,7 @@
+use std::net::SocketAddr;
+
 pub use nym_client_core::error::ClientCoreError;
+use nym_exit_policy::PolicyError;
 
 #[derive(thiserror::Error, Debug)]
 pub enum IpPacketRouterError {
@@ -31,5 +34,29 @@ pub enum IpPacketRouterError {
     PacketParseFailed { source: etherparse::ReadError },
 
     #[error("parsed packet is missing IP header")]
-    PacketMissingHeader,
+    PacketMissingIpHeader,
+
+    #[error("parsed packet is missing transport header")]
+    PacketMissingTransportHeader,
+
+    #[error("the provided socket address, '{addr}' is not covered by the exit policy!")]
+    AddressNotCoveredByExitPolicy { addr: SocketAddr },
+
+    #[error("failed filter check: '{addr}'")]
+    AddressFailedFilterCheck { addr: SocketAddr },
+
+    #[error("failed to apply the exit policy: {source}")]
+    ExitPolicyFailure {
+        #[from]
+        source: PolicyError,
+    },
+
+    #[error("the url provided for the upstream exit policy source is malformed: {source}")]
+    MalformedExitPolicyUpstreamUrl {
+        #[source]
+        source: reqwest::Error,
+    },
+
+    #[error("can't setup an exit policy without any upstream urls")]
+    NoUpstreamExitPolicy,
 }

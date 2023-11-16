@@ -1,0 +1,10 @@
+[Unit]
+Description=Nym Mixnode
+After=network-online.target
+
+[Service]
+ExecStart=/usr/bin/nym-mixnode run --id nym-mixnode
+User=nym
+
+[Install]
+WantedBy=multi-user.target

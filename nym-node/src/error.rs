@@ -31,6 +31,12 @@ pub enum NymNodeError {
         source: WireguardError,
     },
 
+    #[error(transparent)]
+    KeyRecoveryError {
+        #[from]
+        source: nym_crypto::asymmetric::encryption::KeyRecoveryError,
+    },
+
     #[error("unimplemented")]
     Unimplemented,
 }

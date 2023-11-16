@@ -8,8 +8,9 @@ use crate::wireguard::types::{GatewayClientRegistry, PendingRegistrations};
 use axum::routing::{get, post};
 use axum::Router;
 use ipnetwork::IpNetwork;
-use nym_crypto::asymmetric::encryption;
+use nym_crypto::asymmetric::encryption::PrivateKey;
 use nym_node_requests::routes::api::v1::gateway::client_interfaces::wireguard;
+use nym_wireguard::setup;
 use nym_wireguard_types::registration::PrivateIPs;
 use std::sync::Arc;
 
@@ -24,15 +25,16 @@ pub struct WireguardAppState {
 
 impl WireguardAppState {
     pub fn new(
-        dh_keypair: Arc<encryption::KeyPair>,
         client_registry: Arc<GatewayClientRegistry>,
         registration_in_progress: Arc<PendingRegistrations>,
         binding_port: u16,
         private_ip_network: IpNetwork,
-    ) -> Self {
-        WireguardAppState {
+    ) -> Result<Self, crate::error::NymNodeError> {
+        Ok(WireguardAppState {
             inner: Some(WireguardAppStateInner {
-                dh_keypair,
+                private_key: Arc::new(PrivateKey::from_bytes(
+                    setup::server_static_private_key().as_ref(),
+                )?),
                 client_registry,
                 registration_in_progress,
                 binding_port,
@@ -40,7 +42,7 @@ impl WireguardAppState {
                     private_ip_network.iter().map(|ip| (ip, true)).collect(),
                 ),
             }),
-        }
+        })
     }
 
     // #[allow(dead_code)]
@@ -79,7 +81,7 @@ macro_rules! get_state {
 
 #[derive(Clone)]
 pub(crate) struct WireguardAppStateInner {
-    dh_keypair: Arc<encryption::KeyPair>,
+    private_key: Arc<PrivateKey>,
     client_registry: Arc<GatewayClientRegistry>,
     registration_in_progress: Arc<PendingRegistrations>,
     binding_port: u16,
@@ -112,6 +114,7 @@ mod test {
         PeerPublicKey,
     };
     use nym_node_requests::routes::api::v1::gateway::client_interfaces::wireguard;
+    use nym_wireguard::setup::server_static_private_key;
     use nym_wireguard_types::registration::HmacSha256;
     use std::net::IpAddr;
     use std::str::FromStr;
@@ -130,8 +133,15 @@ mod test {
         // 6. Gateway verifies mac digest and nonce, and stores client's public key and socket address and port
 
         let mut rng = rand::thread_rng();
+        let gateway_private_key =
+            encryption::PrivateKey::from_bytes(server_static_private_key().as_bytes()).unwrap();
+        let gateway_public_key = encryption::PublicKey::from(&gateway_private_key);
 
-        let gateway_key_pair = encryption::KeyPair::new(&mut rng);
+        let gateway_key_pair = encryption::KeyPair::from_bytes(
+            &gateway_private_key.to_bytes(),
+            &gateway_public_key.to_bytes(),
+        )
+        .unwrap();
         let client_key_pair = encryption::KeyPair::new(&mut rng);
 
         let gateway_static_public =
@@ -158,7 +168,7 @@ mod test {
         let state = WireguardAppState {
             inner: Some(WireguardAppStateInner {
                 client_registry: Arc::clone(&client_registry),
-                dh_keypair: Arc::new(gateway_key_pair),
+                private_key: Arc::new(gateway_private_key),
                 registration_in_progress: Arc::clone(&registration_in_progress),
                 binding_port: 8080,
                 free_private_network_ips,

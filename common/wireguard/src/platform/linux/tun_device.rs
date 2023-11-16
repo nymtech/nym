@@ -21,6 +21,9 @@ use crate::{
     udp_listener::PeersByIp,
 };
 
+const MUTEX_LOCK_TIMEOUT_MS: u64 = 200;
+const TUN_WRITE_TIMEOUT_MS: u64 = 1000;
+
 #[derive(thiserror::Error, Debug)]
 pub enum TunDeviceError {
     #[error("iface: timeout writing to tun device, dropping packet")]
@@ -116,9 +119,12 @@ pub struct AllowedIpsInner {
 
 impl AllowedIpsInner {
     async fn lock(&self) -> Result<tokio::sync::MutexGuard<PeersByIp>, TunDeviceError> {
-        timeout(Duration::from_millis(200), self.peers_by_ip.as_ref().lock())
-            .await
-            .map_err(|_| TunDeviceError::FailedToLockPeer)
+        timeout(
+            Duration::from_millis(MUTEX_LOCK_TIMEOUT_MS),
+            self.peers_by_ip.as_ref().lock(),
+        )
+        .await
+        .map_err(|_| TunDeviceError::FailedToLockPeer)
     }
 }
 
@@ -178,10 +184,13 @@ impl TunDevice {
             nat_table.nat_table.insert(src_addr, tag);
         }
 
-        timeout(Duration::from_millis(1000), self.tun.write_all(&packet))
-            .await
-            .map_err(|_| TunDeviceError::TunWriteTimeout)?
-            .map_err(|err| TunDeviceError::TunWriteError { source: err })
+        timeout(
+            Duration::from_millis(TUN_WRITE_TIMEOUT_MS),
+            self.tun.write_all(&packet),
+        )
+        .await
+        .map_err(|_| TunDeviceError::TunWriteTimeout)?
+        .map_err(|err| TunDeviceError::TunWriteError { source: err })
     }
 
     // Receive reponse packets from the wild internet

@@ -128,7 +128,7 @@ impl Env {
         if let Some(nymvisor_id) = &self.nymvisor_id {
             Ok(nymvisor_id.clone())
         } else if let Some(daemon_name) = &self.daemon_name {
-            Ok(Config::default_id(&daemon_name))
+            Ok(Config::default_id(daemon_name))
         } else {
             Err(NymvisorError::UnknownNymvisorInstance)
         }

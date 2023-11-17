@@ -1,6 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::upgrades::types::DigestAlgorithm;
 use async_file_watcher::NotifyError;
 use nix::errno::Errno;
 use nix::sys::signal::Signal;
@@ -258,7 +259,7 @@ pub(crate) enum NymvisorError {
         provided_genesis: Box<BinaryBuildInformationOwned>,
     },
 
-    #[error("there already exist upgrade directory for '{name}' at: {}. if you want to ovewrite its content, use --force flag", path.display())]
+    #[error("there already exist upgrade binary for '{name}' at: {}. if you want to ovewrite its content, use --force flag", path.display())]
     ExistingUpgrade { name: String, path: PathBuf },
 
     #[error("there was already a symlink for the 'current' binary of {daemon_name}. it's pointing to {} while we needed to create one to {}", link.display(), expected_link.display())]
@@ -305,6 +306,24 @@ pub(crate) enum NymvisorError {
         #[source]
         source: reqwest::Error,
     },
+
+    #[error("failed to verify checksum for upgrade '{upgrade_name}' using {algorithm}. Got '{encoded_checksum}' while expected '{expected_checksum}'")]
+    DownloadChecksumFailure {
+        upgrade_name: String,
+        encoded_checksum: String,
+        expected_checksum: String,
+        algorithm: DigestAlgorithm,
+    },
+
+    #[error("could not calculate checksum for downloaded file at '{}': {source}", path.display())]
+    ChecksumCalculationFailure {
+        path: PathBuf,
+        #[source]
+        source: io::Error,
+    },
+
+    #[error("download information for upgrade '{upgrade_name}' is missing checksum")]
+    MissingDownloadChecksum { upgrade_name: String },
 
     #[error("failed to create daemon binary at {}: {source}", path.display())]
     DaemonBinaryCreationFailure {

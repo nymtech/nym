@@ -30,6 +30,7 @@ pub(crate) const UPGRADE_PLAN_FILENAME: &str = "upgrade-plan.json";
 pub(crate) const UPGRADE_HISTORY_FILENAME: &str = "upgrade-history.json";
 pub(crate) const UPGRADE_LOCK_FILENAME: &str = "upgrade.lock";
 pub(crate) const UPGRADE_INFO_FILENAME: &str = "upgrade-info.json";
+pub(crate) const CURRENT_VERSION_FILENAME: &str = "current-version.json";
 pub(crate) const NYMVISOR_DIR: &str = "nymvisor";
 pub(crate) const BACKUP_DIR: &str = "backups";
 pub(crate) const GENESIS_DIR: &str = "genesis";
@@ -105,7 +106,7 @@ impl Display for Config {
 {:<35}{}
 {:<35}{}
 {:<35}{:?}
-{:<35}{}
+{:<35}{:?}
 {:<35}{}
 {:<35}{}
 {:<35}{}
@@ -245,6 +246,16 @@ impl Config {
         }
     }
 
+    // e.g. $HOME/.nym/nym-apis/<id>/nymvisor/backups/<upgrade-name>
+    pub fn daemon_upgrade_backup_dir<P: AsRef<Path>>(&self, upgrade_name: P) -> PathBuf {
+        self.daemon_backup_dir().join(upgrade_name)
+    }
+
+    // e.g. $HOME/.nym/nym-api/<id>/nymvisor/current-version.json
+    pub fn current_daemon_version_filepath(&self) -> PathBuf {
+        todo!()
+    }
+
     // e.g. $HOME/.nym/nymvisors/data/nym-api/
     pub fn upgrade_data_dir(&self) -> PathBuf {
         self.nymvisor
@@ -311,6 +322,12 @@ impl Config {
             .join(&self.daemon.name)
     }
 
+    // e.g. $HOME/.nym/nymvisors/data/nym-api/upgrades/<upgrade-name>/bin/nym-api.tmp
+    pub fn temp_upgrade_binary<P: AsRef<Path>>(&self, upgrade_name: P) -> PathBuf {
+        self.upgrade_binary_dir(upgrade_name)
+            .join(format!("{}.tmp", self.daemon.name))
+    }
+
     // e.g. $HOME/.nym/nymvisors/data/nym-api/upgrades/
     pub fn upgrades_dir(&self) -> PathBuf {
         self.upgrade_data_dir().join(UPGRADES_DIR)
@@ -336,7 +353,7 @@ impl Config {
             absolute_url.clone()
         } else {
             let mut base = self.nymvisor.debug.upstream_base_upgrade_url.clone();
-            base.set_path(&*format!("{}/{UPGRADE_INFO_FILENAME}", self.daemon.name));
+            base.set_path(&format!("{}/{UPGRADE_INFO_FILENAME}", self.daemon.name));
 
             base
         }
@@ -486,8 +503,6 @@ pub struct DaemonDebug {
     /// If enabled, `nymvisor` will perform upgrades directly without performing any backups.
     /// default: false
     /// Can be overridden with $DAEMON_UNSAFE_SKIP_BACKUP environmental variable.
-    // this is not deprecated, im just marking it as such so that clippy would yell at me because I still havent implemented it
-    #[deprecated]
     pub unsafe_skip_backup: bool,
 }
 

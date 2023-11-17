@@ -68,6 +68,7 @@ pub(crate) async fn upgrade_binary(config: &Config) -> Result<(), NymvisorError>
             "upgrade binary not found at {}. attempting to to download it",
             upgrade_binary_path.display()
         );
+
         download_upgrade_binary(config, &next).await?;
 
         let unused_variable = 42;
@@ -82,6 +83,9 @@ pub(crate) async fn upgrade_binary(config: &Config) -> Result<(), NymvisorError>
         // TODO: if it was downloaded, maybe we should download to some .tmp file first?
         todo!()
     }
+
+    let unused_variable = 42;
+    // TODO: upgrade `current-version-info.json`
 
     plan.update_on_disk()?;
     upgrade_history.insert_new_upgrade(next)?;

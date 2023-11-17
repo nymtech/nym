@@ -4,11 +4,13 @@
 use super::serde_helpers::{base64, option_offsetdatetime};
 use crate::config::GENESIS_DIR;
 use crate::error::NymvisorError;
-use crate::helpers::init_path;
+use crate::helpers::{calculate_file_checksum, init_path};
 use crate::upgrades::download::os_arch;
 use nym_bin_common::build_information::BinaryBuildInformationOwned;
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, VecDeque};
+use sha2::{Sha256, Sha512};
+use std::collections::HashMap;
+use std::fmt::{Display, Formatter};
 use std::fs::OpenOptions;
 use std::path::{Path, PathBuf};
 use std::{fs, io};
@@ -162,12 +164,39 @@ impl UpgradePlan {
 #[serde(rename_all = "lowercase")]
 pub enum DigestAlgorithm {
     Sha256,
+    Sha512,
+}
+
+impl Display for DigestAlgorithm {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DigestAlgorithm::Sha256 => write!(f, "sha256"),
+            DigestAlgorithm::Sha512 => write!(f, "sha512"),
+        }
+    }
+}
+
+impl DigestAlgorithm {
+    pub fn calculate_file_checksum<P: AsRef<Path>>(
+        &self,
+        filepath: P,
+    ) -> Result<Vec<u8>, NymvisorError> {
+        let path = filepath.as_ref();
+        match self {
+            DigestAlgorithm::Sha256 => calculate_file_checksum::<Sha256, _>(path),
+            DigestAlgorithm::Sha512 => calculate_file_checksum::<Sha512, _>(path),
+        }
+        .map_err(|source| NymvisorError::ChecksumCalculationFailure {
+            path: path.to_path_buf(),
+            source,
+        })
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "lowercase")]
 pub struct DownloadUrl {
-    /// The checksum of the file behind the download url.
+    /// The base64-encoded checksum of the file behind the download url.
     #[serde(with = "base64")]
     pub checksum: Vec<u8>,
 
@@ -357,3 +386,7 @@ impl UpgradeHistory {
             })
     }
 }
+
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "lowercase")]
+pub struct CurrentVersionInfo {}

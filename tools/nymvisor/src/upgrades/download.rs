@@ -3,11 +3,12 @@
 
 use crate::config::Config;
 use crate::error::NymvisorError;
-use crate::helpers::init_path;
-use crate::upgrades::types::UpgradeInfo;
+use crate::helpers::{init_path, to_base64_string};
+use crate::upgrades::types::{DownloadUrl, UpgradeInfo};
 use bytes::Buf;
 use futures::stream::StreamExt;
 use std::io::BufWriter;
+use std::path::PathBuf;
 use std::time::Duration;
 use std::{env, fs, io};
 use tracing::info;
@@ -30,15 +31,10 @@ fn log_progress_bar(downloaded: u64, length: u64) {
     info!("[{filled}{empty}] {mb_downloaded:.2}MB/{mb_total:.2}MB ({percentage:.2}%)");
 }
 
-pub(super) async fn download_upgrade_binary(
-    config: &Config,
-    info: &UpgradeInfo,
+async fn chunk_download(
+    download_url: &DownloadUrl,
+    download_target: &PathBuf,
 ) -> Result<(), NymvisorError> {
-    info!("attempting to download the upgrade binary");
-    let download_url = info.get_download_url()?;
-    init_path(config.upgrade_binary_dir(&info.name))?;
-
-    let target = config.upgrade_binary(&info.name);
     let response = reqwest::get(download_url.url.clone())
         .await
         .map_err(|source| NymvisorError::UpgradeDownloadFailure {
@@ -49,11 +45,12 @@ pub(super) async fn download_upgrade_binary(
     let maybe_length = response.content_length();
     let mut source = response.bytes_stream();
 
-    let output_binary =
-        fs::File::create(&target).map_err(|source| NymvisorError::DaemonBinaryCreationFailure {
-            path: target.clone(),
+    let output_binary = fs::File::create(&download_target).map_err(|source| {
+        NymvisorError::DaemonBinaryCreationFailure {
+            path: download_target.clone(),
             source,
-        })?;
+        }
+    })?;
     let mut out = BufWriter::new(output_binary);
 
     info!("beginning the download");
@@ -69,7 +66,7 @@ pub(super) async fn download_upgrade_binary(
 
         downloaded += io::copy(&mut bytes, &mut out).map_err(|err_source| {
             NymvisorError::DaemonBinaryCreationFailure {
-                path: target.clone(),
+                path: download_target.clone(),
                 source: err_source,
             }
         })?;
@@ -85,8 +82,61 @@ pub(super) async fn download_upgrade_binary(
         log_progress_bar(length, length)
     }
     info!("finished the download");
-
     Ok(())
+}
+
+fn maybe_verify_checksum(
+    upgrade_name: String,
+    download_url: &DownloadUrl,
+    download_target: &PathBuf,
+) -> Result<(), NymvisorError> {
+    if !download_url.checksum.is_empty() {
+        let checksum = download_url
+            .checksum_algorithm
+            .calculate_file_checksum(download_target)?;
+        if checksum != download_url.checksum {
+            return Err(NymvisorError::DownloadChecksumFailure {
+                upgrade_name,
+                encoded_checksum: to_base64_string(&checksum),
+                expected_checksum: to_base64_string(&download_url.checksum),
+                algorithm: download_url.checksum_algorithm,
+            });
+        }
+    }
+    Ok(())
+}
+
+pub(super) async fn download_upgrade_binary(
+    config: &Config,
+    info: &UpgradeInfo,
+) -> Result<(), NymvisorError> {
+    info!("attempting to download the upgrade binary");
+    let download_url = info.get_download_url()?;
+
+    // if the config specifies checksum MUST be verified and it's missing - return an error
+    if config.daemon.debug.enforce_download_checksum && download_url.checksum.is_empty() {
+        return Err(NymvisorError::MissingDownloadChecksum {
+            upgrade_name: info.name.clone(),
+        });
+    }
+
+    init_path(config.upgrade_binary_dir(&info.name))?;
+
+    let temp_target = config.temp_upgrade_binary(&info.name);
+    let target = config.upgrade_binary(&info.name);
+
+    // perform the download
+    chunk_download(download_url, &temp_target).await?;
+
+    // if the checksum is available, do verify it
+    maybe_verify_checksum(info.name.clone(), download_url, &temp_target)?;
+
+    // if the checksum exists and it matches, move the file to the correct location
+    fs::rename(&temp_target, &target).map_err(|source| NymvisorError::DaemonBinaryCopyFailure {
+        source_path: temp_target,
+        target_path: target,
+        source,
+    })
 }
 
 pub(crate) fn os_arch() -> String {

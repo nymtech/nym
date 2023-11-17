@@ -94,7 +94,9 @@ impl DaemonLauncher {
             return Ok(false);
         }
 
-        self.perform_backup()?;
+        if !self.config.daemon.debug.unsafe_skip_backup {
+            self.perform_backup()?;
+        }
         upgrade_binary(&self.config).await?;
         // if we ever wanted to introduce any pre-upgrade scripts like cosmovisor, they'd go here
 
@@ -201,7 +203,8 @@ impl DaemonLauncher {
     }
 
     fn perform_backup(&self) -> Result<(), NymvisorError> {
-        BackupBuilder::new(self.config.daemon_backup_dir())?
-            .backup_daemon_home(&self.config.daemon.home)
+        let upgrade_name = todo!();
+        // BackupBuilder::new(self.config.daemon_upgrade_backup_dir(upgrade_name))?
+        //     .backup_daemon_home(&self.config.daemon.home)
     }
 }

@@ -46,6 +46,7 @@ impl Cli {
             Commands::Init(args) => init::execute(args),
             Commands::Run(args) => run::execute(args),
             Commands::BuildInfo(args) => build_info::execute(args),
+            Commands::DaemonBuildInfo(args) => daemon_build_info::execute(args),
             Commands::AddUpgrade(args) => add_upgrade::execute(args),
             Commands::Config(args) => config::execute(args),
         }

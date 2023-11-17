@@ -33,11 +33,16 @@ pub(crate) struct Args {
     #[arg(long)]
     force: bool,
 
+    /// Indicate that this command should only add binary to an *existing* scheduled upgrade
+    #[arg(long)]
+    #[deprecated(note = "need to implement")]
+    add_binary: bool,
+
     /// Force the upgrade to happen immediately
     #[arg(long, group = "time")]
     now: bool,
 
-    /// Specifies the additional metadata of this upgrade to set the publish date of this upgrade.
+    /// Specifies the publish date metadata field of this upgrade.
     /// If unset, the current time will be used.
     #[arg(long, value_parser = parse_rfc3339_upgrade_time)]
     publish_date: Option<OffsetDateTime>,
@@ -99,15 +104,29 @@ pub(crate) fn execute(args: Args) -> Result<(), NymvisorError> {
         binary_details: Some(bin_info),
     };
 
-    let path = config.upgrade_dir(&upgrade_info.name);
-    if path.exists() && !args.force {
+    let upgrade_info_path = config.upgrade_dir(&upgrade_info.name);
+    if upgrade_info_path.exists() {
+        // TODO: maybe just copy binary?
+        todo!()
+    }
+
+    // TODO: check if upgrade-plan already contains this upgrade
+
+    // if upgrade_info_path.exists() && !args.force {
+    //     return Err(NymvisorError::ExistingUpgrade {
+    //         name: upgrade_info.name,
+    //         path: upgrade_info_path,
+    //     });
+    // }
+    let upgrade_binary_path = config.upgrade_binary_dir(&upgrade_info.name);
+    if upgrade_binary_path.exists() && !args.force {
         return Err(NymvisorError::ExistingUpgrade {
             name: upgrade_info.name,
-            path,
+            path: upgrade_binary_path,
         });
     }
 
-    init_path(config.upgrade_binary_dir(&upgrade_info.name))?;
+    init_path(upgrade_binary_path)?;
     copy_binary(
         &args.daemon_binary,
         config.upgrade_binary(&upgrade_info.name),

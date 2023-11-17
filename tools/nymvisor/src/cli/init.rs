@@ -115,6 +115,7 @@ pub(crate) struct Args {
 
     /// Set custom backup directory for daemon data. If not set, the daemon's home directory will be used instead.
     /// Can be overridden with $DAEMON_BACKUP_DATA_DIRECTORY environmental variable.
+    #[arg(long)]
     daemon_backup_data_directory: Option<PathBuf>,
 
     /// If enabled, `nymvisor` will perform upgrades directly without performing any backups.
@@ -352,7 +353,7 @@ fn setup_initial_upgrade_plan(
     UpgradePlan::new(genesis_info).save_new(plan_path)
 }
 
-fn save_config(config: Config, env: &Env) -> Result<(), NymvisorError> {
+fn save_config(config: &Config, env: &Env) -> Result<(), NymvisorError> {
     let id = &config.nymvisor.id;
     let config_save_location = env
         .nymvisor_config_path
@@ -407,7 +408,8 @@ pub(crate) fn execute(args: Args) -> Result<(), NymvisorError> {
     init_paths(&config)?;
     setup_genesis(&config, &args.daemon_binary, daemon_info)?;
     create_current_symlink(&config)?;
-    save_config(config, &env)?;
+    save_config(&config, &env)?;
 
+    println!("{}", args.output.format(&config));
     Ok(())
 }

@@ -7614,6 +7614,7 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
+ "sha2 0.10.8",
  "tar",
  "thiserror",
  "time",

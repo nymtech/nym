@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::NymvisorError;
-use base64::{engine::general_purpose::STANDARD, Engine as _};
 use sha2::Digest;
 use std::fs::File;
 use std::io::{BufReader, Read};
@@ -39,6 +38,6 @@ pub fn calculate_file_checksum<D: Digest, P: AsRef<Path>>(
     Ok(hasher.finalize().to_vec())
 }
 
-pub fn to_base64_string<T: AsRef<[u8]>>(input: T) -> String {
-    STANDARD.encode(input)
+pub fn to_hex_string<T: AsRef<[u8]>>(input: T) -> String {
+    hex::encode(input)
 }

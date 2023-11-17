@@ -1,7 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use super::serde_helpers::{base64, option_offsetdatetime};
+use super::serde_helpers::{hex, option_offsetdatetime};
 use crate::error::NymvisorError;
 use crate::helpers::{calculate_file_checksum, init_path};
 use crate::upgrades::download::os_arch;
@@ -200,8 +200,8 @@ impl DigestAlgorithm {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "lowercase")]
 pub struct DownloadUrl {
-    /// The base64-encoded checksum of the file behind the download url.
-    #[serde(with = "base64")]
+    /// The hex-encoded checksum of the file behind the download url.
+    #[serde(with = "hex")]
     pub checksum: Vec<u8>,
 
     /// The algorithm used for computing the checksum

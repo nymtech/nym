@@ -1,17 +1,16 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-pub(super) mod base64 {
-    use base64::{engine::general_purpose::STANDARD, Engine as _};
+pub(super) mod hex {
     use serde::{Deserialize, Deserializer, Serializer};
 
     pub fn serialize<S: Serializer>(bytes: &[u8], serializer: S) -> Result<S::Ok, S::Error> {
-        serializer.serialize_str(&STANDARD.encode(bytes))
+        serializer.serialize_str(&hex::encode(bytes))
     }
 
     pub fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Vec<u8>, D::Error> {
         let s = <String>::deserialize(deserializer)?;
-        STANDARD.decode(s).map_err(serde::de::Error::custom)
+        hex::decode(s).map_err(serde::de::Error::custom)
     }
 }
 

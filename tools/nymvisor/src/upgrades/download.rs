@@ -3,7 +3,7 @@
 
 use crate::config::Config;
 use crate::error::NymvisorError;
-use crate::helpers::{init_path, to_base64_string};
+use crate::helpers::{init_path, to_hex_string};
 use crate::upgrades::types::{DownloadUrl, UpgradeInfo};
 use bytes::Buf;
 use futures::stream::StreamExt;
@@ -97,8 +97,8 @@ fn maybe_verify_checksum(
         if checksum != download_url.checksum {
             return Err(NymvisorError::DownloadChecksumFailure {
                 upgrade_name,
-                encoded_checksum: to_base64_string(&checksum),
-                expected_checksum: to_base64_string(&download_url.checksum),
+                encoded_checksum: to_hex_string(&checksum),
+                expected_checksum: to_hex_string(&download_url.checksum),
                 algorithm: download_url.checksum_algorithm,
             });
         }

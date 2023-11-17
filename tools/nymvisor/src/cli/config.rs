@@ -1,10 +1,10 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::error::NymvisorError;
-use nym_bin_common::output_format::OutputFormat;
 use crate::cli::try_load_current_config;
 use crate::env::Env;
+use crate::error::NymvisorError;
+use nym_bin_common::output_format::OutputFormat;
 
 #[derive(clap::Args, Debug)]
 pub(crate) struct Args {

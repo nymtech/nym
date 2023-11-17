@@ -39,6 +39,11 @@ pub enum IpPacketRouterError {
     #[error("parsed packet is missing transport header")]
     PacketMissingTransportHeader,
 
+    #[error("failed to send packet to tun device: {source}")]
+    FailedToSendPacketToTun {
+        source: tokio::sync::mpsc::error::TrySendError<(u64, Vec<u8>)>,
+    },
+
     #[error("the provided socket address, '{addr}' is not covered by the exit policy!")]
     AddressNotCoveredByExitPolicy { addr: SocketAddr },
 

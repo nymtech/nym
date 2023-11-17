@@ -18,7 +18,6 @@ use nym_sdk::{
 use nym_sphinx::receiver::ReconstructedMessage;
 use nym_task::{connections::TransmissionLane, TaskClient, TaskHandle};
 use request_filter::RequestFilter;
-use tap::TapFallible;
 
 use crate::config::BaseClientConfig;
 
@@ -202,7 +201,9 @@ impl IpPacketRouter {
                 },
                 msg = self.mixnet_client.next() => {
                     if let Some(msg) = msg {
-                        self.on_message(msg).await.ok();
+                        if let Err(err) = self.on_message(msg).await {
+                            log::error!("Error handling mixnet message: {err}");
+                        };
                     } else {
                         log::trace!("IpPacketRouter [main loop]: stopping since channel closed");
                         break;
@@ -225,13 +226,9 @@ impl IpPacketRouter {
                             let packet_type = None;
                             let input_message = InputMessage::new_regular(recipient, packet, lane, packet_type);
 
-                            self.mixnet_client
-                                .send(input_message)
-                                .await
-                                .tap_err(|err| {
-                                    log::error!("IpPacketRouter [main loop]: failed to send packet to mixnet: {err}");
-                                })
-                                .ok();
+                            if let Err(err) = self.mixnet_client.send(input_message).await {
+                                log::error!("IpPacketRouter [main loop]: failed to send packet to mixnet: {err}");
+                            };
                         } else {
                             log::error!("NYM_CLIENT_ADDR not set or invalid");
                         }
@@ -251,7 +248,10 @@ impl IpPacketRouter {
         &mut self,
         reconstructed: ReconstructedMessage,
     ) -> Result<(), IpPacketRouterError> {
-        log::info!("Received message: {:?}", reconstructed.sender_tag);
+        log::debug!(
+            "Received message with sender_tag: {:?}",
+            reconstructed.sender_tag
+        );
 
         // We don't forward packets that we are not able to parse. BUT, there might be a good
         // reason to still forward them.
@@ -274,27 +274,19 @@ impl IpPacketRouter {
         if let Some(dst) = dst {
             if !self.request_filter.check_address(&dst).await {
                 log::warn!("Failed filter check: {dst}");
-
-                // TODO: send back a response here
-
+                // TODO: we could consider sending back a response here
                 return Err(IpPacketRouterError::AddressFailedFilterCheck { addr: dst });
             }
         } else {
-            // TODO: are we always allowing packets without port numbers?
-            log::warn!(
-                "Ignoring filter check for packet without port number! (TODO: is this correct?)"
-            );
+            // TODO: we should also filter packets without port number
+            log::warn!("Ignoring filter check for packet without port number! TODO!");
         }
 
         // TODO: set the tag correctly. Can we just reuse sender_tag?
         let peer_tag = 0;
         self.tun_task_tx
-            .send((peer_tag, reconstructed.message))
-            .await
-            .tap_err(|err| {
-                log::error!("Failed to send packet to tun device: {err}");
-            })
-            .ok();
+            .try_send((peer_tag, reconstructed.message))
+            .map_err(|err| IpPacketRouterError::FailedToSendPacketToTun { source: err })?;
 
         Ok(())
     }
@@ -316,7 +308,7 @@ fn parse_packet(packet: &[u8]) -> Result<ParsedPacket, IpPacketRouterError> {
     let (packet_type, dst_port) = match headers.transport {
         Some(etherparse::TransportSlice::Udp(header)) => ("ipv4", Some(header.destination_port())),
         Some(etherparse::TransportSlice::Tcp(header)) => ("ipv6", Some(header.destination_port())),
-        Some(etherparse::TransportSlice::Icmpv4(_)) => ("icpv4", None),
+        Some(etherparse::TransportSlice::Icmpv4(_)) => ("icmpv4", None),
         Some(etherparse::TransportSlice::Icmpv6(_)) => ("icmpv6", None),
         Some(etherparse::TransportSlice::Unknown(_)) => ("unknown", None),
         None => {

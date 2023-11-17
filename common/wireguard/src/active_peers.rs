@@ -1,11 +1,14 @@
-use std::net::SocketAddr;
+use std::{net::SocketAddr, time::Duration};
 
 use boringtun::x25519;
 use dashmap::{
     mapref::one::{Ref, RefMut},
     DashMap,
 };
-use tokio::sync::mpsc::{self};
+use tokio::{
+    sync::mpsc::{self},
+    time::{error::Elapsed, timeout},
+};
 
 use crate::event::Event;
 
@@ -14,9 +17,26 @@ use crate::event::Event;
 pub struct PeerEventSender(mpsc::Sender<Event>);
 pub(crate) struct PeerEventReceiver(mpsc::Receiver<Event>);
 
+#[derive(thiserror::Error, Debug)]
+pub enum PeerEventSenderError {
+    #[error("timeout")]
+    Timeout {
+        #[from]
+        source: Elapsed,
+    },
+
+    #[error("send failed: {source}")]
+    SendError {
+        #[from]
+        source: mpsc::error::SendError<Event>,
+    },
+}
+
 impl PeerEventSender {
-    pub(crate) async fn send(&self, event: Event) -> Result<(), mpsc::error::SendError<Event>> {
-        self.0.send(event).await
+    pub(crate) async fn send(&self, event: Event) -> Result<(), PeerEventSenderError> {
+        timeout(Duration::from_millis(1000), self.0.send(event))
+            .await?
+            .map_err(|err| err.into())
     }
 }
 

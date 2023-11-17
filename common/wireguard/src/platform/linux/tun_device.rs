@@ -174,7 +174,7 @@ impl TunDevice {
             .ok_or_else(|| TunDeviceError::UnableToParseDstAdddress)?;
 
         let src_addr = parse_src_address(&packet)?;
-        log::info!(
+        log::debug!(
             "iface: write Packet({src_addr} -> {dst_addr}, {} bytes)",
             packet.len()
         );
@@ -198,7 +198,7 @@ impl TunDevice {
         let dst_addr = boringtun::noise::Tunn::dst_address(packet)
             .ok_or(TunDeviceError::UnableToParseDstAdddress)?;
         let src_addr = parse_src_address(packet)?;
-        log::info!(
+        log::debug!(
             "iface: read Packet({src_addr} -> {dst_addr}, {} bytes)",
             packet.len(),
         );
@@ -210,7 +210,7 @@ impl TunDevice {
             RoutingMode::AllowedIps(ref peers_by_ip) => {
                 let peers = peers_by_ip.lock().await?;
                 if let Some(peer_tx) = peers.longest_match(dst_addr).map(|(_, tx)| tx) {
-                    log::info!("Forward packet to wg tunnel");
+                    log::debug!("Forward packet to wg tunnel");
                     return peer_tx
                         .send(Event::Ip(packet.to_vec().into()))
                         .await
@@ -221,7 +221,7 @@ impl TunDevice {
             // But we can also do it by consulting the NAT table.
             RoutingMode::Nat(ref nat_table) => {
                 if let Some(tag) = nat_table.nat_table.get(&dst_addr) {
-                    log::info!("Forward packet with NAT tag: {tag}");
+                    log::debug!("Forward packet with NAT tag: {tag}");
                     return self
                         .tun_task_response_tx
                         .try_send((*tag, packet.to_vec()))

@@ -310,7 +310,7 @@ fn parse_packet(packet: &[u8]) -> Result<ParsedPacket, IpPacketRouterError> {
     let (packet_type, dst_port) = match headers.transport {
         Some(etherparse::TransportSlice::Udp(header)) => ("ipv4", Some(header.destination_port())),
         Some(etherparse::TransportSlice::Tcp(header)) => ("ipv6", Some(header.destination_port())),
-        Some(etherparse::TransportSlice::Icmpv4(_)) => ("icpv4", None),
+        Some(etherparse::TransportSlice::Icmpv4(_)) => ("icmpv4", None),
         Some(etherparse::TransportSlice::Icmpv6(_)) => ("icmpv6", None),
         Some(etherparse::TransportSlice::Unknown(_)) => ("unknown", None),
         None => {

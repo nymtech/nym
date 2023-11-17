@@ -6661,6 +6661,8 @@ dependencies = [
 name = "nym-ip-packet-router"
 version = "0.1.0"
 dependencies = [
+ "bincode",
+ "bytes",
  "etherparse",
  "futures",
  "log",

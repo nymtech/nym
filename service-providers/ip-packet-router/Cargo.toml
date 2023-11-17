@@ -9,6 +9,8 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
+bincode = "1.3.3"
+bytes = "1.5.0"
 etherparse = "0.13.0"
 futures = { workspace = true }
 log = { workspace = true }

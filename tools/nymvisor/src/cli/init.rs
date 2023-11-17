@@ -2,12 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::cli::helpers::{copy_binary, daemon_home, use_logs};
-use crate::config::{default_config_filepath, Config, BIN_DIR, GENESIS_DIR};
+use crate::config::{
+    default_config_filepath, Config, BIN_DIR, CURRENT_VERSION_FILENAME, GENESIS_DIR,
+};
 use crate::daemon::Daemon;
 use crate::env::Env;
 use crate::error::NymvisorError;
 use crate::helpers::init_path;
-use crate::upgrades::types::{UpgradeInfo, UpgradePlan};
+use crate::upgrades::types::{CurrentVersionInfo, UpgradeInfo, UpgradePlan};
 use nym_bin_common::build_information::BinaryBuildInformationOwned;
 use nym_bin_common::logging::setup_tracing_logger;
 use nym_bin_common::output_format::OutputFormat;
@@ -15,7 +17,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 use time::OffsetDateTime;
-use tracing::{debug, info, trace, warn};
+use tracing::{debug, info, warn};
 use url::Url;
 
 #[derive(clap::Args, Debug)]
@@ -223,10 +225,27 @@ fn init_paths(config: &Config) -> Result<(), NymvisorError> {
     Ok(())
 }
 
+fn setup_daemon_current_version(
+    config: &Config,
+    daemon_info: &BinaryBuildInformationOwned,
+) -> Result<(), NymvisorError> {
+    info!("setting up initial {}", CURRENT_VERSION_FILENAME);
+    let path = config.current_daemon_version_filepath();
+
+    let initial = CurrentVersionInfo {
+        name: GENESIS_DIR.to_string(),
+        version: daemon_info.build_version.clone(),
+        upgrade_time: OffsetDateTime::now_utc(),
+        binary_details: daemon_info.clone(),
+    };
+
+    initial.save(path)
+}
+
 fn setup_genesis(
     config: &Config,
     source: &Path,
-    daemon_info: BinaryBuildInformationOwned,
+    daemon_info: &BinaryBuildInformationOwned,
 ) -> Result<(), NymvisorError> {
     info!("setting up the genesis binary");
     let target = config.genesis_daemon_binary();
@@ -234,7 +253,7 @@ fn setup_genesis(
     if target.exists() {
         // if there already exists a binary at the genesis location, see if it's the same one
         let existing_bin_info = Daemon::new(target).get_build_information()?;
-        return if existing_bin_info != daemon_info {
+        return if &existing_bin_info != daemon_info {
             Err(NymvisorError::DuplicateDaemonGenesisBinary {
                 daemon_name: config.daemon.name.clone(),
                 existing_info: Box::new(existing_bin_info),
@@ -286,7 +305,7 @@ fn create_current_symlink(config: &Config) -> Result<(), NymvisorError> {
 
 fn generate_and_save_genesis_upgrade_info(
     config: &Config,
-    genesis_info: BinaryBuildInformationOwned,
+    genesis_info: &BinaryBuildInformationOwned,
 ) -> Result<UpgradeInfo, NymvisorError> {
     info!("setting up the genesis upgrade-info.json");
 
@@ -298,7 +317,7 @@ fn generate_and_save_genesis_upgrade_info(
         version: genesis_info.build_version.clone(),
         platforms: Default::default(),
         upgrade_time: OffsetDateTime::UNIX_EPOCH,
-        binary_details: Some(genesis_info),
+        binary_details: Some(genesis_info.clone()),
     };
     let save_path = config.upgrade_info_filepath(&info.name);
 
@@ -384,6 +403,7 @@ fn save_config(config: &Config, env: &Env) -> Result<(), NymvisorError> {
 /// - creating `<NYMVISOR_UPGRADE_DATA_DIRECTORY>/<DAEMON_NAME>/upgrades` folder if it doesn't yet exist
 /// - copying the provided executable to `<NYMVISOR_UPGRADE_DATA_DIRECTORY>/<DAEMON_NAME>/genesis/bin/<DAEMON_NAME>`
 /// - generating initial `<NYMVISOR_UPGRADE_DATA_DIRECTORY>/<DAEMON_NAME>/genesis/upgrade-info.json` file
+/// - generating initial `<DAEMON_HOME>/nymvisor/current-version-info.json` file
 /// - creating a `<NYMVISOR_UPGRADE_DATA_DIRECTORY>/<DAEMON_NAME>/current` symlink pointing to `<NYMVISOR_UPGRADE_DATA_DIRECTORY>/<DAEMON_NAME>/genesis`
 /// - saving nymvisor's config file to `<NYMVISOR_CONFIG_PATH>` and creating the full directory structure.
 ///
@@ -406,7 +426,8 @@ pub(crate) fn execute(args: Args) -> Result<(), NymvisorError> {
     let config = try_build_config(&args, &env, &daemon_info)?;
 
     init_paths(&config)?;
-    setup_genesis(&config, &args.daemon_binary, daemon_info)?;
+    setup_genesis(&config, &args.daemon_binary, &daemon_info)?;
+    setup_daemon_current_version(&config, &daemon_info)?;
     create_current_symlink(&config)?;
     save_config(&config, &env)?;
 

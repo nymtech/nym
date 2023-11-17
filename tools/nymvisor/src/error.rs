@@ -1,7 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::upgrades::types::DigestAlgorithm;
+use crate::upgrades::types::{CurrentVersionInfo, DigestAlgorithm, UpgradeInfo};
 use async_file_watcher::NotifyError;
 use nix::errno::Errno;
 use nix::sys::signal::Signal;
@@ -99,6 +99,51 @@ pub(crate) enum NymvisorError {
         path: PathBuf,
         #[source]
         source: io::Error,
+    },
+
+    #[error(
+    "failed to load current version information using path '{}'. detailed message: {source}", path.display()
+    )]
+    CurrentVersionInfoLoadFailure {
+        path: PathBuf,
+        #[source]
+        source: io::Error,
+    },
+
+    #[error(
+    "failed to save current version information using path '{}'. detailed message: {source}", path.display()
+    )]
+    CurrentVersionInfoSaveFailure {
+        path: PathBuf,
+        #[source]
+        source: io::Error,
+    },
+
+    #[error(
+        "the current version information does not match the expected `current/upgrade-info.json`.\n\
+The daemon version is:\n{current_version_info:#?}\n\
+While the stored info point to:\n{current_info:#?}"
+    )]
+    UnexpectedCurrentVersionInfo {
+        current_info: Box<UpgradeInfo>,
+        current_version_info: Box<CurrentVersionInfo>,
+    },
+
+    #[error(
+    "the current daemon build does not match the expected value in `current-version.info.json`.\n\
+The daemon version is:\n{daemon_version:#?}\n\
+While the stored info point to:\n{current_version_info:#?}"
+    )]
+    UnexpectedDaemonBuild {
+        daemon_version: Box<BinaryBuildInformationOwned>,
+        current_version_info: Box<BinaryBuildInformationOwned>,
+    },
+
+    #[error("the daemon for upgrade '{upgrade_name}' has version {daemon_version} while {expected} was expected instead")]
+    UnexpectedUpgradeDaemonVersion {
+        upgrade_name: String,
+        daemon_version: String,
+        expected: String,
     },
 
     #[error("could not acquire the lock at {} to perform binary upgrade with error code {libc_code}. It is either held by another process or this nymvisor has experienced a critical failure during previous upgrade attempt", lock_path.display())]

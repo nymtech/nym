@@ -3,6 +3,8 @@
 
 #![warn(clippy::expect_used)]
 #![warn(clippy::unwrap_used)]
+#![warn(clippy::todo)]
+#![warn(clippy::dbg_macro)]
 
 use crate::cli::Cli;
 use clap::Parser;

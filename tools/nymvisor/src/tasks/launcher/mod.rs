@@ -4,7 +4,9 @@
 use crate::config::Config;
 use crate::daemon::Daemon;
 use crate::error::NymvisorError;
-use crate::upgrades::{types::UpgradePlan, upgrade_binary, UpgradeResult};
+use crate::tasks::launcher::backup::BackupBuilder;
+use crate::upgrades::types::{CurrentVersionInfo, UpgradeInfo};
+use crate::upgrades::{perform_upgrade, types::UpgradePlan, UpgradeResult};
 use async_file_watcher::FileWatcherEventReceiver;
 use futures::future::{FusedFuture, OptionFuture};
 use futures::{FutureExt, StreamExt};
@@ -103,7 +105,7 @@ impl DaemonLauncher {
             self.perform_backup()?;
         }
 
-        upgrade_binary(&self.config).await
+        perform_upgrade(&self.config).await
         // if we ever wanted to introduce any pre-upgrade scripts like cosmovisor, they'd go here
     }
 
@@ -136,8 +138,18 @@ impl DaemonLauncher {
     ) -> Result<bool, NymvisorError> {
         let daemon = Daemon::from_config(&self.config);
 
-        let unused_variable = 42;
-        // TODO: check whether the daemon's version matches the expected value
+        let current_info = UpgradeInfo::try_load(self.config.current_upgrade_info_filepath())?;
+        let expected_version =
+            CurrentVersionInfo::try_load(self.config.current_daemon_version_filepath())?;
+        let daemon_info = daemon.get_build_information()?;
+
+        current_info.ensure_matches(&expected_version)?;
+        if expected_version.binary_details != daemon_info {
+            return Err(NymvisorError::UnexpectedDaemonBuild {
+                daemon_version: Box::new(daemon_info),
+                current_version_info: Box::new(expected_version.binary_details),
+            });
+        }
 
         let mut running_daemon = daemon.execute_async(args)?;
         let interrupt_handle = running_daemon.interrupt_handle();
@@ -210,8 +222,15 @@ impl DaemonLauncher {
     }
 
     fn perform_backup(&self) -> Result<(), NymvisorError> {
-        let upgrade_name = todo!();
-        // BackupBuilder::new(self.config.daemon_upgrade_backup_dir(upgrade_name))?
-        //     .backup_daemon_home(&self.config.daemon.home)
+        let plan = UpgradePlan::try_load(self.config.upgrade_plan_filepath())?;
+
+        let Some(upgrade_name) = plan.next_upgrade().map(|u| &u.name) else {
+            // this should NEVER be possible, but because those famous last words have been said before,
+            // let's just return an error when it inevitably happens
+            return Err(NymvisorError::NoQueuedUpgrades);
+        };
+
+        BackupBuilder::new(self.config.daemon_upgrade_backup_dir(upgrade_name))?
+            .backup_daemon_home(&self.config.daemon.home)
     }
 }

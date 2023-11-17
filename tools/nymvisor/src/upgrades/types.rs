@@ -269,7 +269,7 @@ impl UpgradeInfo {
 
     pub(crate) fn try_load<P: AsRef<Path>>(path: P) -> Result<Self, NymvisorError> {
         let path = path.as_ref();
-        std::fs::File::open(path)
+        fs::File::open(path)
             .and_then(|file| {
                 serde_json::from_reader(file)
                     .map_err(|serde_json_err| io::Error::new(io::ErrorKind::Other, serde_json_err))
@@ -294,6 +294,30 @@ impl UpgradeInfo {
                 upgrade_name: self.name.clone(),
                 arch: os_arch(),
             })
+    }
+
+    /// Check whether the loaded (presumably `current`) upgrade-info matches the provided current version information.
+    pub(crate) fn ensure_matches(
+        &self,
+        current_info: &CurrentVersionInfo,
+    ) -> Result<(), NymvisorError> {
+        if self.name != current_info.name || self.version != current_info.version {
+            return Err(NymvisorError::UnexpectedCurrentVersionInfo {
+                current_info: Box::new(self.clone()),
+                current_version_info: Box::new(current_info.clone()),
+            });
+        }
+
+        if let Some(bin_info) = &self.binary_details {
+            if bin_info != &current_info.binary_details {
+                return Err(NymvisorError::UnexpectedCurrentVersionInfo {
+                    current_info: Box::new(self.clone()),
+                    current_version_info: Box::new(current_info.clone()),
+                });
+            }
+        }
+
+        Ok(())
     }
 }
 
@@ -373,7 +397,7 @@ impl UpgradeHistory {
 
     pub(crate) fn try_load<P: AsRef<Path>>(path: P) -> Result<Self, NymvisorError> {
         let path = path.as_ref();
-        std::fs::File::open(path)
+        fs::File::open(path)
             .and_then(|file| {
                 serde_json::from_reader(file)
                     .map_err(|serde_json_err| io::Error::new(io::ErrorKind::Other, serde_json_err))
@@ -385,6 +409,54 @@ impl UpgradeHistory {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "lowercase")]
-pub struct CurrentVersionInfo {}
+pub struct CurrentVersionInfo {
+    /// Name of the current version, for example `2023.4-galaxy`
+    pub name: String,
+
+    /// Version of this upgrade, for example `1.1.69`
+    pub version: String,
+
+    /// Time when the upgrade has happened.
+    #[serde(with = "time::serde::rfc3339")]
+    pub upgrade_time: OffsetDateTime,
+
+    /// Build information of the expected current binary for additional verification
+    pub binary_details: BinaryBuildInformationOwned,
+}
+
+impl CurrentVersionInfo {
+    pub(crate) fn save<P: AsRef<Path>>(&self, path: P) -> Result<(), NymvisorError> {
+        let path = path.as_ref();
+
+        let file = OpenOptions::new()
+            .create(true)
+            .write(true)
+            .truncate(true)
+            .open(path)
+            .map_err(|source| NymvisorError::CurrentVersionInfoSaveFailure {
+                path: path.to_path_buf(),
+                source,
+            })?;
+
+        // we're not using any non-standard serializer and thus the serialization should not ever fail
+        #[allow(clippy::expect_used)]
+        serde_json::to_writer_pretty(file, self)
+            .expect("unexpected CurrentVersionInfo serialization failure");
+        Ok(())
+    }
+
+    pub(crate) fn try_load<P: AsRef<Path>>(path: P) -> Result<Self, NymvisorError> {
+        let path = path.as_ref();
+        fs::File::open(path)
+            .and_then(|file| {
+                serde_json::from_reader(file)
+                    .map_err(|serde_json_err| io::Error::new(io::ErrorKind::Other, serde_json_err))
+            })
+            .map_err(|source| NymvisorError::CurrentVersionInfoLoadFailure {
+                path: path.to_path_buf(),
+                source,
+            })
+    }
+}

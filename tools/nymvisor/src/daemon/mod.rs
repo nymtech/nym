@@ -56,12 +56,6 @@ impl Daemon {
         }
     }
 
-    #[must_use]
-    pub(crate) fn with_kill_timeout(mut self, kill_timeout: Duration) -> Self {
-        self.kill_timeout = kill_timeout;
-        self
-    }
-
     #[instrument(skip(self), fields(self.executable_path = ?self.executable_path))]
     pub(crate) fn get_build_information(
         &self,

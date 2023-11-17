@@ -5,12 +5,13 @@ use crate::config::Config;
 use crate::daemon::Daemon;
 use crate::error::NymvisorError;
 use crate::upgrades::download::download_upgrade_binary;
-use crate::upgrades::types::{UpgradeHistory, UpgradePlan};
+use crate::upgrades::types::{CurrentVersionInfo, UpgradeHistory, UpgradePlan};
 use nix::fcntl::{flock, FlockArg};
 use std::fs;
 use std::fs::File;
 use std::os::fd::AsRawFd;
 use std::path::PathBuf;
+use time::OffsetDateTime;
 use tracing::{debug, info};
 
 pub(crate) mod download;
@@ -32,7 +33,7 @@ impl UpgradeResult {
     }
 }
 
-pub(crate) async fn upgrade_binary(config: &Config) -> Result<UpgradeResult, NymvisorError> {
+pub(crate) async fn perform_upgrade(config: &Config) -> Result<UpgradeResult, NymvisorError> {
     info!("attempting to perform binary upgrade");
 
     let mut plan = UpgradePlan::try_load(config.upgrade_plan_filepath())?;
@@ -88,14 +89,29 @@ pub(crate) async fn upgrade_binary(config: &Config) -> Result<UpgradeResult, Nym
 
     let new_bin_info = tmp_daemon.get_build_information()?;
     if new_bin_info.build_version != next.version {
-        todo!()
+        return Err(NymvisorError::UnexpectedUpgradeDaemonVersion {
+            upgrade_name,
+            daemon_version: new_bin_info.build_version,
+            expected: next.version,
+        });
     }
 
-    let unused_variable = 42;
-    // TODO: upgrade `current-version-info.json`
+    // update the 'current-version-history.json'
+    CurrentVersionInfo {
+        name: next.name.clone(),
+        version: next.version.clone(),
+        upgrade_time: OffsetDateTime::now_utc(),
+        binary_details: new_bin_info,
+    }
+    .save(config.current_daemon_version_filepath())?;
 
+    // update the 'upgrade-plan.json'
     plan.update_on_disk()?;
+
+    // update the 'upgrade-history.json'
     upgrade_history.insert_new_upgrade(next)?;
+
+    // update the 'current' symlink
     set_upgrade_link(config, config.upgrade_binary_dir(&upgrade_name))?;
 
     // finally remove the lock file

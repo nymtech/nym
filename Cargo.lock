@@ -6922,6 +6922,7 @@ dependencies = [
  "nym-crypto",
  "nym-node-requests",
  "nym-task",
+ "nym-wireguard",
  "nym-wireguard-types",
  "rand 0.7.3",
  "serde",

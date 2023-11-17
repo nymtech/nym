@@ -520,15 +520,21 @@ impl<St> Gateway<St> {
             Arc::new(coconut_verifier),
         );
 
-        // Once this is a bit more mature, make this a commandline flag instead of a compile time
-        // flag
         #[cfg(feature = "wireguard")]
-        if let Err(err) = self
-            .start_wireguard(shutdown.subscribe().named("wireguard"))
-            .await
         {
-            // that's a nasty workaround, but anyhow errors are generally nicer, especially on exit
-            bail!("{err}")
+            let wireguard_enabled = std::env::var("NYM_ENABLE_WIREGUARD")
+                .map(|v| v == "1")
+                .unwrap_or(false);
+
+            if wireguard_enabled {
+                if let Err(err) = self
+                    .start_wireguard(shutdown.subscribe().named("wireguard"))
+                    .await
+                {
+                    // that's a nasty workaround, but anyhow errors are generally nicer, especially on exit
+                    bail!("{err}")
+                }
+            }
         }
 
         info!("Finished nym gateway startup procedure - it should now be able to receive mix and client traffic!");

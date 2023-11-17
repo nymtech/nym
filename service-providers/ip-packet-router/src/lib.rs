@@ -278,9 +278,9 @@ impl IpPacketRouter {
                 return Err(IpPacketRouterError::AddressFailedFilterCheck { addr: dst });
             }
         } else {
-            // TODO: are we always allowing packets without port numbers?
+            // TODO: we should also filter packets without port number
             log::warn!(
-                "Ignoring filter check for packet without port number! (TODO: is this correct?)"
+                "Ignoring filter check for packet without port number! TODO!"
             );
         }
 

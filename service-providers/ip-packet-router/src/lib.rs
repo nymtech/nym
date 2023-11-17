@@ -17,6 +17,7 @@ use nym_sdk::{
 };
 use nym_sphinx::receiver::ReconstructedMessage;
 use nym_task::{connections::TransmissionLane, TaskClient, TaskHandle};
+use nym_wireguard::tun_task_channel::TaggedPacket;
 use request_filter::RequestFilter;
 
 use crate::config::BaseClientConfig;
@@ -293,27 +294,6 @@ impl IpPacketRouter {
 
         Ok(())
     }
-}
-
-#[derive(serde::Serialize, serde::Deserialize)]
-pub struct TaggedPacket {
-    packet: bytes::Bytes,
-    return_address: Recipient,
-    return_mix_hops: Option<u8>,
-}
-
-impl TaggedPacket {
-    fn from_message(message: &ReconstructedMessage) -> Result<Self, bincode::Error> {
-        use bincode::Options;
-        make_bincode_serializer().deserialize(&message.message)
-    }
-}
-
-fn make_bincode_serializer() -> impl bincode::Options {
-    use bincode::Options;
-    bincode::DefaultOptions::new()
-        .with_big_endian()
-        .with_varint_encoding()
 }
 
 struct ParsedPacket<'a> {

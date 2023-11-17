@@ -13,6 +13,7 @@ license.workspace = true
 [dependencies]
 async-recursion = "1.0.4"
 base64 = "0.21.3"
+bincode = "1.3.3"
 # The latest version on crates.io at the time of writing this (6.0.0) has a
 # version mismatch with x25519-dalek/curve25519-dalek that is resolved in the
 # latest commit. So pick that for now.
@@ -27,6 +28,7 @@ ip_network_table = "0.2.0"
 log.workspace = true
 nym-task = { path = "../task" }
 nym-wireguard-types = { path = "../wireguard-types" }
+nym-sphinx = { path = "../nymsphinx" }
 rand.workspace = true
 serde = { workspace = true, features = ["derive"] }
 tap.workspace = true

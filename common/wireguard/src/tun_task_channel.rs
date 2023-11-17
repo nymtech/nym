@@ -80,3 +80,26 @@ pub(crate) fn tun_task_response_channel() -> (TunTaskResponseTx, TunTaskResponse
         TunTaskResponseRx(tun_task_rx),
     )
 }
+
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct TaggedPacket {
+    pub packet: bytes::Bytes,
+    pub return_address: nym_sphinx::addressing::clients::Recipient,
+    pub return_mix_hops: Option<u8>,
+}
+
+impl TaggedPacket {
+    pub fn from_message(
+        message: &nym_sphinx::receiver::ReconstructedMessage,
+    ) -> Result<Self, bincode::Error> {
+        use bincode::Options;
+        make_bincode_serializer().deserialize(&message.message)
+    }
+}
+
+fn make_bincode_serializer() -> impl bincode::Options {
+    use bincode::Options;
+    bincode::DefaultOptions::new()
+        .with_big_endian()
+        .with_varint_encoding()
+}

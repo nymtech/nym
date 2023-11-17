@@ -7584,6 +7584,7 @@ version = "0.1.0"
 dependencies = [
  "async-recursion",
  "base64 0.21.4",
+ "bincode",
  "boringtun",
  "bytes",
  "dashmap",
@@ -7592,6 +7593,7 @@ dependencies = [
  "ip_network",
  "ip_network_table",
  "log",
+ "nym-sphinx",
  "nym-task",
  "nym-wireguard-types",
  "rand 0.8.5",

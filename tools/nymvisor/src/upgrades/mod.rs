@@ -17,7 +17,22 @@ pub(crate) mod download;
 mod serde_helpers;
 pub(crate) mod types;
 
-pub(crate) async fn upgrade_binary(config: &Config) -> Result<(), NymvisorError> {
+#[derive(Default)]
+pub(crate) struct UpgradeResult {
+    pub(crate) binary_swapped: bool,
+    pub(crate) requires_manual_intervention: bool,
+}
+
+impl UpgradeResult {
+    pub(crate) fn new_shortlived() -> UpgradeResult {
+        UpgradeResult {
+            binary_swapped: false,
+            requires_manual_intervention: false,
+        }
+    }
+}
+
+pub(crate) async fn upgrade_binary(config: &Config) -> Result<UpgradeResult, NymvisorError> {
     info!("attempting to perform binary upgrade");
 
     let mut plan = UpgradePlan::try_load(config.upgrade_plan_filepath())?;
@@ -25,11 +40,7 @@ pub(crate) async fn upgrade_binary(config: &Config) -> Result<(), NymvisorError>
         return Err(NymvisorError::NoQueuedUpgrades);
     };
 
-    if next.manual {
-        let unused_variable = 42;
-        todo!()
-    }
-
+    let requires_manual_intervention = next.manual;
     let upgrade_name = next.name.clone();
 
     let history_path = config.upgrade_history_filepath();
@@ -70,9 +81,6 @@ pub(crate) async fn upgrade_binary(config: &Config) -> Result<(), NymvisorError>
         );
 
         download_upgrade_binary(config, &next).await?;
-
-        let unused_variable = 42;
-        // TODO: checksum, etc.
     }
 
     let tmp_daemon = Daemon::new(upgrade_binary_path);
@@ -80,7 +88,6 @@ pub(crate) async fn upgrade_binary(config: &Config) -> Result<(), NymvisorError>
 
     let new_bin_info = tmp_daemon.get_build_information()?;
     if new_bin_info.build_version != next.version {
-        // TODO: if it was downloaded, maybe we should download to some .tmp file first?
         todo!()
     }
 
@@ -95,6 +102,11 @@ pub(crate) async fn upgrade_binary(config: &Config) -> Result<(), NymvisorError>
     fs::remove_file(&lock_path).map_err(|source| NymvisorError::LockFileRemovalFailure {
         path: lock_path.clone(),
         source,
+    })?;
+
+    Ok(UpgradeResult {
+        binary_swapped: true,
+        requires_manual_intervention,
     })
 }
 

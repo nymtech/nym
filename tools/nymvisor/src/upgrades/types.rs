@@ -211,8 +211,6 @@ pub struct DownloadUrl {
 #[serde(rename_all = "lowercase")]
 pub struct UpgradeInfo {
     /// Specifies whether this upgrade requires manual intervention and cannot be done automatically by the nymvisor.
-    // this is not deprecated, im just marking it as such so that clippy would yell at me because I still havent implemented it
-    #[deprecated]
     pub manual: bool,
 
     /// Name of this upgrade, for example `2023.4-galaxy`

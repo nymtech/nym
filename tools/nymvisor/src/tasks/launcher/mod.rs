@@ -4,8 +4,7 @@
 use crate::config::Config;
 use crate::daemon::Daemon;
 use crate::error::NymvisorError;
-use crate::tasks::launcher::backup::BackupBuilder;
-use crate::upgrades::{types::UpgradePlan, upgrade_binary};
+use crate::upgrades::{types::UpgradePlan, upgrade_binary, UpgradeResult};
 use async_file_watcher::FileWatcherEventReceiver;
 use futures::future::{FusedFuture, OptionFuture};
 use futures::{FutureExt, StreamExt};
@@ -44,14 +43,20 @@ impl DaemonLauncher {
             );
 
             match res {
-                Ok(upgraded) => {
-                    if upgraded {
+                Ok(upgrade_result) => {
+                    if upgrade_result.requires_manual_intervention {
+                        info!("this upgrade requires manual intervention. Please read the release notes carefully and follow the provided instructions before starting nymvisor again");
+                        return Ok(());
+                    }
+
+                    if upgrade_result.binary_swapped {
                         if !self.config.daemon.debug.restart_after_upgrade {
                             info!("upgrade detected, DAEMON_RESTART_AFTER_UPGRADE is off. Verify new upgrade and start nymvisor again");
                             return Ok(());
                         }
-                        // restart
+                        // else - binary has been swapped and restarting is enabled: do restart
                     } else {
+                        // binary has finished its execution (short-lived process) without upgrades
                         return Ok(());
                     }
                 }
@@ -88,19 +93,18 @@ impl DaemonLauncher {
 
     /// the full upgrade process process, i.e. run until upgrade, do backup and perform the upgrade.
     /// returns a boolean indicating whether an upgrade has been performed
-    async fn run_and_upgrade(&mut self, args: Vec<String>) -> Result<bool, NymvisorError> {
+    async fn run_and_upgrade(&mut self, args: Vec<String>) -> Result<UpgradeResult, NymvisorError> {
         let upgrade_available = self.wait_for_upgrade_or_termination(args.clone()).await?;
         if !upgrade_available {
-            return Ok(false);
+            return Ok(UpgradeResult::new_shortlived());
         }
 
         if !self.config.daemon.debug.unsafe_skip_backup {
             self.perform_backup()?;
         }
-        upgrade_binary(&self.config).await?;
-        // if we ever wanted to introduce any pre-upgrade scripts like cosmovisor, they'd go here
 
-        Ok(true)
+        upgrade_binary(&self.config).await
+        // if we ever wanted to introduce any pre-upgrade scripts like cosmovisor, they'd go here
     }
 
     /// this function gets called whenever the file watcher detects changes in the upgrade plan file
@@ -131,6 +135,9 @@ impl DaemonLauncher {
         args: Vec<String>,
     ) -> Result<bool, NymvisorError> {
         let daemon = Daemon::from_config(&self.config);
+
+        let unused_variable = 42;
+        // TODO: check whether the daemon's version matches the expected value
 
         let mut running_daemon = daemon.execute_async(args)?;
         let interrupt_handle = running_daemon.interrupt_handle();

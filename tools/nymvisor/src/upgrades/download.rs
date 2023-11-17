@@ -45,7 +45,7 @@ async fn chunk_download(
     let maybe_length = response.content_length();
     let mut source = response.bytes_stream();
 
-    let output_binary = fs::File::create(&download_target).map_err(|source| {
+    let output_binary = fs::File::create(download_target).map_err(|source| {
         NymvisorError::DaemonBinaryCreationFailure {
             path: download_target.clone(),
             source,

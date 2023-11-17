@@ -253,6 +253,11 @@ impl IpPacketRouter {
             reconstructed.sender_tag
         );
 
+        use bincode::Options;
+        let tagged_packet = make_bincode_serializer()
+            .deserialize::<TaggedPacket>(&reconstructed.message)
+            .map_err(|err| IpPacketRouterError::FailedToDeserializeTaggedPacket { source: err })?;
+
         // We don't forward packets that we are not able to parse. BUT, there might be a good
         // reason to still forward them.
         //
@@ -265,7 +270,7 @@ impl IpPacketRouter {
             src_addr,
             dst_addr,
             dst,
-        } = parse_packet(&reconstructed.message)?;
+        } = parse_packet(&tagged_packet.packet)?;
 
         let dst_str = dst.map_or(dst_addr.to_string(), |dst| dst.to_string());
         log::info!("Received packet: {packet_type}: {src_addr} -> {dst_str}");
@@ -290,6 +295,20 @@ impl IpPacketRouter {
 
         Ok(())
     }
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct TaggedPacket {
+    packet: bytes::Bytes,
+    return_address: Recipient,
+    return_mix_hops: Option<u8>,
+}
+
+fn make_bincode_serializer() -> impl bincode::Options {
+    use bincode::Options;
+    bincode::DefaultOptions::new()
+        .with_big_endian()
+        .with_varint_encoding()
 }
 
 struct ParsedPacket<'a> {

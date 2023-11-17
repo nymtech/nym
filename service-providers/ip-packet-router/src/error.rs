@@ -30,6 +30,9 @@ pub enum IpPacketRouterError {
     #[error("the entity wrapping the network requester has disconnected")]
     DisconnectedParent,
 
+    #[error("failed to deserialize tagged packet: {source}")]
+    FailedToDeserializeTaggedPacket { source: bincode::Error },
+
     #[error("failed to parse incoming packet: {source}")]
     PacketParseFailed { source: etherparse::ReadError },
 

@@ -200,7 +200,6 @@ impl<St> Gateway<St> {
         mixnet_handling::Listener::new(listening_address, shutdown).start(connection_handler);
     }
 
-    #[cfg(feature = "wireguard")]
     async fn start_wireguard(
         &self,
         shutdown: TaskClient,
@@ -520,20 +519,17 @@ impl<St> Gateway<St> {
             Arc::new(coconut_verifier),
         );
 
-        #[cfg(feature = "wireguard")]
-        {
-            let wireguard_enabled = std::env::var("NYM_ENABLE_WIREGUARD")
-                .map(|v| v == "1")
-                .unwrap_or(false);
-
-            if wireguard_enabled {
-                if let Err(err) = self
-                    .start_wireguard(shutdown.subscribe().named("wireguard"))
-                    .await
-                {
-                    // that's a nasty workaround, but anyhow errors are generally nicer, especially on exit
-                    bail!("{err}")
-                }
+        // TODO: later we'll make this a commandline flag
+        let wireguard_enabled = std::env::var("NYM_ENABLE_WIREGUARD")
+            .map(|v| v == "1")
+            .unwrap_or(false);
+        if wireguard_enabled {
+            if let Err(err) = self
+                .start_wireguard(shutdown.subscribe().named("wireguard"))
+                .await
+            {
+                // that's a nasty workaround, but anyhow errors are generally nicer, especially on exit
+                bail!("{err}")
             }
         }
 

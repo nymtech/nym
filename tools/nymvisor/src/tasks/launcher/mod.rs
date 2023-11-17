@@ -146,8 +146,8 @@ impl DaemonLauncher {
         current_info.ensure_matches(&expected_version)?;
         if expected_version.binary_details != daemon_info {
             return Err(NymvisorError::UnexpectedDaemonBuild {
-                daemon_version: Box::new(daemon_info),
-                current_version_info: Box::new(expected_version.binary_details),
+                daemon_info: Box::new(daemon_info),
+                stored_info: Box::new(expected_version.binary_details),
             });
         }
 

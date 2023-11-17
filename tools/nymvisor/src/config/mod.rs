@@ -206,10 +206,6 @@ impl Config {
         Self::read_from_path(path)
     }
 
-    pub fn read_from_default_path<P: AsRef<Path>>(id: P) -> io::Result<Self> {
-        Self::read_from_path(default_config_filepath(id))
-    }
-
     pub fn default_location(&self) -> PathBuf {
         default_config_filepath(&self.nymvisor.id)
     }
@@ -223,6 +219,8 @@ impl Config {
         save_formatted_config_to_file(self, path)
     }
 
+    // this code will be needed for config upgrades
+    #[allow(dead_code)]
     pub fn try_save(&self) -> io::Result<()> {
         if let Some(save_location) = &self.save_path {
             save_formatted_config_to_file(self, save_location)
@@ -253,7 +251,7 @@ impl Config {
 
     // e.g. $HOME/.nym/nym-api/<id>/nymvisor/current-version.json
     pub fn current_daemon_version_filepath(&self) -> PathBuf {
-        todo!()
+        self.daemon_nymvisor_dir().join(CURRENT_VERSION_FILENAME)
     }
 
     // e.g. $HOME/.nym/nymvisors/data/nym-api/

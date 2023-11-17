@@ -43,7 +43,7 @@ impl Cli {
         setup_env(&self.config_env_file)?;
 
         match self.command {
-            Commands::Init(args) => init::execute(args),
+            Commands::Init(args) => init::execute(*args),
             Commands::Run(args) => run::execute(args),
             Commands::BuildInfo(args) => build_info::execute(args),
             Commands::DaemonBuildInfo(args) => daemon_build_info::execute(args),
@@ -56,7 +56,7 @@ impl Cli {
 #[derive(Subcommand, Debug)]
 pub(crate) enum Commands {
     /// Initialise a nymvisor instance with persistent Config.toml file.
-    Init(init::Args),
+    Init(Box<init::Args>),
 
     /// Run the associated daemon with the preconfigured settings.
     Run(run::Args),

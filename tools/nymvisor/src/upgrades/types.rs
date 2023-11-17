@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::serde_helpers::{base64, option_offsetdatetime};
-use crate::config::GENESIS_DIR;
 use crate::error::NymvisorError;
 use crate::helpers::{calculate_file_checksum, init_path};
 use crate::upgrades::download::os_arch;
@@ -119,9 +118,14 @@ impl UpgradePlan {
         false
     }
 
-    // pub(crate) fn update_current(&mut self) -> Result<(), NymvisorError> {
-    //
-    // }
+    pub(crate) fn has_planned_by_name(&self, upgrade_name: &str) -> bool {
+        for planned in &self.queued_up {
+            if planned.name == upgrade_name {
+                return true;
+            }
+        }
+        false
+    }
 
     pub(crate) fn save_new<P: AsRef<Path>>(&self, path: P) -> Result<(), NymvisorError> {
         debug_assert!(self._save_path.is_none());
@@ -280,9 +284,9 @@ impl UpgradeInfo {
             })
     }
 
-    pub(crate) fn is_genesis(&self) -> bool {
-        self.name == GENESIS_DIR
-    }
+    // pub(crate) fn is_genesis(&self) -> bool {
+    //     self.name == GENESIS_DIR
+    // }
 
     pub(crate) fn get_download_url(&self) -> Result<&DownloadUrl, NymvisorError> {
         if let Some(download_url) = self.platforms.get(&os_arch()) {
@@ -315,6 +319,29 @@ impl UpgradeInfo {
                     current_version_info: Box::new(current_info.clone()),
                 });
             }
+        }
+
+        Ok(())
+    }
+
+    pub(crate) fn ensure_matches_bin_info(
+        &self,
+        info: &BinaryBuildInformationOwned,
+    ) -> Result<(), NymvisorError> {
+        if let Some(self_info) = &self.binary_details {
+            if self_info != info {
+                return Err(NymvisorError::UnexpectedDaemonBuild {
+                    daemon_info: Box::new(info.clone()),
+                    stored_info: Box::new(self_info.clone()),
+                });
+            }
+        }
+        if self.version != info.build_version {
+            return Err(NymvisorError::UnexpectedUpgradeDaemonVersion {
+                upgrade_name: self.name.clone(),
+                daemon_version: info.build_version.clone(),
+                expected: self.version.clone(),
+            });
         }
 
         Ok(())

@@ -35,26 +35,25 @@ pub(crate) struct Args {
 
     /// Indicate that this command should only add binary to an *existing* scheduled upgrade
     #[arg(long)]
-    #[deprecated(note = "need to implement")]
     add_binary: bool,
 
     /// Force the upgrade to happen immediately
-    #[arg(long, group = "time")]
+    #[arg(long, group = "time", conflicts_with = "add_binary")]
     now: bool,
 
     /// Specifies the publish date metadata field of this upgrade.
     /// If unset, the current time will be used.
-    #[arg(long, value_parser = parse_rfc3339_upgrade_time)]
+    #[arg(long, value_parser = parse_rfc3339_upgrade_time, conflicts_with = "add_binary")]
     publish_date: Option<OffsetDateTime>,
 
     /// Specifies the time at which the provided upgrade will be performed (RFC3339 formatted).
     /// If left unset, the upgrade will be performed in 15min
-    #[arg(long, value_parser = parse_rfc3339_upgrade_time, group = "time")]
+    #[arg(long, value_parser = parse_rfc3339_upgrade_time, group = "time", conflicts_with = "add_binary")]
     upgrade_time: Option<OffsetDateTime>,
 
     /// Specifies delay until the provided upgrade is going to get performed.
     /// If let unset, the upgrade will be performed in 15min
-    #[arg(long, value_parser = humantime::parse_duration, group = "time")]
+    #[arg(long, value_parser = humantime::parse_duration, group = "time", conflicts_with = "add_binary")]
     upgrade_delay: Option<Duration>,
 
     #[clap(short, long, default_value_t = OutputFormat::default())]
@@ -87,52 +86,54 @@ pub(crate) fn execute(args: Args) -> Result<(), NymvisorError> {
     if env.daemon_name.is_none() {
         env.daemon_name = Some(bin_info.binary_name.clone());
     }
-
     let config = try_load_current_config(&env)?;
 
-    let mut current_upgrade_plan = UpgradePlan::try_load(config.upgrade_plan_filepath())?;
-
-    let upgrade_time = args.determine_upgrade_time();
-    let upgrade_info = UpgradeInfo {
-        manual: false,
-        name: args.upgrade_name,
-        notes: "manually added via 'add-upgrade' command".to_string(),
-        publish_date: Some(args.publish_date.unwrap_or(OffsetDateTime::now_utc())),
-        version: bin_info.build_version.clone(),
-        platforms: Default::default(),
-        upgrade_time,
-        binary_details: Some(bin_info),
-    };
-
-    let upgrade_info_path = config.upgrade_dir(&upgrade_info.name);
-    if upgrade_info_path.exists() {
-        // TODO: maybe just copy binary?
-        todo!()
-    }
-
-    // TODO: check if upgrade-plan already contains this upgrade
-
-    // if upgrade_info_path.exists() && !args.force {
-    //     return Err(NymvisorError::ExistingUpgrade {
-    //         name: upgrade_info.name,
-    //         path: upgrade_info_path,
-    //     });
-    // }
-    let upgrade_binary_path = config.upgrade_binary_dir(&upgrade_info.name);
-    if upgrade_binary_path.exists() && !args.force {
+    let upgrade_info_path = config.upgrade_info_filepath(&args.upgrade_name);
+    let bin_path = config.upgrade_binary(&args.upgrade_name);
+    if bin_path.exists() && !args.force {
         return Err(NymvisorError::ExistingUpgrade {
-            name: upgrade_info.name,
-            path: upgrade_binary_path,
+            name: args.upgrade_name,
+            path: bin_path,
         });
     }
 
-    init_path(upgrade_binary_path)?;
-    copy_binary(
-        &args.daemon_binary,
-        config.upgrade_binary(&upgrade_info.name),
-    )?;
-    upgrade_info.save(config.upgrade_info_filepath(&upgrade_info.name))?;
-    current_upgrade_plan.insert_new_upgrade(upgrade_info)?;
+    // if we're just adding the binary, the upgrade plan MUST already exist,
+    // otherwise it MUSTN'T exist (unless --force is used)
+    if args.add_binary {
+        let upgrade_info = UpgradeInfo::try_load(upgrade_info_path)?;
+        upgrade_info.ensure_matches_bin_info(&bin_info)?;
+    } else {
+        if upgrade_info_path.exists() && !args.force {
+            return Err(NymvisorError::ExistingUpgradeInfo {
+                name: args.upgrade_name,
+                path: upgrade_info_path,
+            });
+        }
+
+        let mut current_upgrade_plan = UpgradePlan::try_load(config.upgrade_plan_filepath())?;
+        let upgrade_info = UpgradeInfo {
+            manual: false,
+            name: args.upgrade_name.clone(),
+            notes: "manually added via 'add-upgrade' command".to_string(),
+            publish_date: Some(args.publish_date.unwrap_or(OffsetDateTime::now_utc())),
+            version: bin_info.build_version.clone(),
+            platforms: Default::default(),
+            upgrade_time: args.determine_upgrade_time(),
+            binary_details: Some(bin_info),
+        };
+
+        if current_upgrade_plan.has_planned_by_name(&args.upgrade_name) {
+            return Err(NymvisorError::UpgradePlanWithNoInfo {
+                name: args.upgrade_name,
+            });
+        }
+
+        init_path(config.upgrade_binary_dir(&args.upgrade_name))?;
+        upgrade_info.save(config.upgrade_info_filepath(&upgrade_info.name))?;
+        current_upgrade_plan.insert_new_upgrade(upgrade_info)?;
+    }
+
+    copy_binary(&args.daemon_binary, bin_path)?;
 
     Ok(())
 }

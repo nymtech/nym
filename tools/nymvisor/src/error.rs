@@ -130,13 +130,13 @@ While the stored info point to:\n{current_info:#?}"
     },
 
     #[error(
-    "the current daemon build does not match the expected value in `current-version.info.json`.\n\
-The daemon version is:\n{daemon_version:#?}\n\
-While the stored info point to:\n{current_version_info:#?}"
+        "the current daemon build information does not match the expected stored value.\n\
+The daemon build is:\n{daemon_info:#?}\n\
+While the stored info point to:\n{stored_info:#?}"
     )]
     UnexpectedDaemonBuild {
-        daemon_version: Box<BinaryBuildInformationOwned>,
-        current_version_info: Box<BinaryBuildInformationOwned>,
+        daemon_info: Box<BinaryBuildInformationOwned>,
+        stored_info: Box<BinaryBuildInformationOwned>,
     },
 
     #[error("the daemon for upgrade '{upgrade_name}' has version {daemon_version} while {expected} was expected instead")]
@@ -144,6 +144,23 @@ While the stored info point to:\n{current_version_info:#?}"
         upgrade_name: String,
         daemon_version: String,
         expected: String,
+    },
+
+    #[error("the provided daemon at {} is not a file", path.display())]
+    DaemonNotAFile { path: PathBuf },
+
+    #[error("could not read daemon's metadata at {}: {source}", path.display())]
+    MetadataReadFailure {
+        path: PathBuf,
+        #[source]
+        source: io::Error,
+    },
+
+    #[error("could not adjust permission of the daemon at: {}: {source}", path.display())]
+    DaemonPermissionFailure {
+        path: PathBuf,
+        #[source]
+        source: io::Error,
     },
 
     #[error("could not acquire the lock at {} to perform binary upgrade with error code {libc_code}. It is either held by another process or this nymvisor has experienced a critical failure during previous upgrade attempt", lock_path.display())]
@@ -304,8 +321,14 @@ While the stored info point to:\n{current_version_info:#?}"
         provided_genesis: Box<BinaryBuildInformationOwned>,
     },
 
-    #[error("there already exist upgrade binary for '{name}' at: {}. if you want to ovewrite its content, use --force flag", path.display())]
+    #[error("there already exist upgrade binary for '{name}' at: {}. if you want to overwrite its content, use --force flag", path.display())]
     ExistingUpgrade { name: String, path: PathBuf },
+
+    #[error("there already exist upgrade information for '{name}' at: {}. if you want to overwrite its content, use --force flag", path.display())]
+    ExistingUpgradeInfo { name: String, path: PathBuf },
+
+    #[error("the current upgrade-plan.json has planned upgrade for '{name}', but no corresponding upgrade-info.json file could be found")]
+    UpgradePlanWithNoInfo { name: String },
 
     #[error("there was already a symlink for the 'current' binary of {daemon_name}. it's pointing to {} while we needed to create one to {}", link.display(), expected_link.display())]
     ExistingCurrentSymlink {

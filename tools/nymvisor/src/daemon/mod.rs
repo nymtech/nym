@@ -84,10 +84,17 @@ impl Daemon {
 
     #[instrument(skip(self), fields(self.executable_path = ?self.executable_path))]
     pub(crate) fn verify_binary(&self) -> Result<(), NymvisorError> {
-        let metadata = fs::metadata(&self.executable_path).expect("error handling");
+        let metadata = fs::metadata(&self.executable_path).map_err(|source| {
+            NymvisorError::MetadataReadFailure {
+                path: self.executable_path.clone(),
+                source,
+            }
+        })?;
 
         if !metadata.is_file() {
-            todo!("error not a file")
+            return Err(NymvisorError::DaemonNotAFile {
+                path: self.executable_path.clone(),
+            });
         }
 
         let mut permissions = metadata.permissions();
@@ -100,7 +107,12 @@ impl Daemon {
             let new_mode = mode | 0o111; // Set the three execute bits to on (a+x).
             permissions.set_mode(new_mode);
 
-            fs::set_permissions(&self.executable_path, permissions).expect("error handling");
+            fs::set_permissions(&self.executable_path, permissions).map_err(|source| {
+                NymvisorError::DaemonPermissionFailure {
+                    path: self.executable_path.clone(),
+                    source,
+                }
+            })?;
         }
 
         Ok(())

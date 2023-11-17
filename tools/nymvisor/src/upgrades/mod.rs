@@ -88,13 +88,7 @@ pub(crate) async fn perform_upgrade(config: &Config) -> Result<UpgradeResult, Ny
     tmp_daemon.verify_binary()?;
 
     let new_bin_info = tmp_daemon.get_build_information()?;
-    if new_bin_info.build_version != next.version {
-        return Err(NymvisorError::UnexpectedUpgradeDaemonVersion {
-            upgrade_name,
-            daemon_version: new_bin_info.build_version,
-            expected: next.version,
-        });
-    }
+    next.ensure_matches_bin_info(&new_bin_info)?;
 
     // update the 'current-version-history.json'
     CurrentVersionInfo {
@@ -106,6 +100,7 @@ pub(crate) async fn perform_upgrade(config: &Config) -> Result<UpgradeResult, Ny
     .save(config.current_daemon_version_filepath())?;
 
     // update the 'upgrade-plan.json'
+    plan.set_current(next.clone());
     plan.update_on_disk()?;
 
     // update the 'upgrade-history.json'

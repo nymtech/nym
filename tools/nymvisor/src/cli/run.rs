@@ -8,7 +8,10 @@ use crate::tasks::launcher::DaemonLauncher;
 use crate::tasks::upgrade_plan_watcher::start_upgrade_plan_watcher;
 use crate::tasks::upstream_poller::UpstreamPoller;
 use nym_bin_common::logging::setup_tracing_logger;
+use std::future::Future;
+use std::time::Duration;
 use tokio::runtime;
+use tokio::time::timeout;
 use tracing::{error, info};
 
 #[derive(clap::Args, Debug)]
@@ -27,8 +30,8 @@ pub(crate) fn execute(args: Args) -> Result<(), NymvisorError> {
 
     info!("starting nymvisor for {}", config.daemon.name);
 
-    // TODO: experiment with the minimal runtime
-    // look at futures::executor::LocalPool
+    // TODO: experiment with other minimal runtimes, maybe futures::executor::LocalPool
+    //
     // well, if the creation of the runtime failed, there isn't much we could do
     #[allow(clippy::expect_used)]
     let rt = runtime::Builder::new_current_thread()
@@ -62,11 +65,18 @@ pub(crate) fn execute(args: Args) -> Result<(), NymvisorError> {
             upstream_poller_handle.abort();
         }
 
-        // TODO: add timeouts and error handling here
-        // TODO2: maybe we need to make those fuse futures?
-        watcher_handle.await;
-        upstream_poller_handle.await;
+        wait_for_task_termination(watcher_handle, "Upgrade plan watcher").await;
+        wait_for_task_termination(upstream_poller_handle, "Upstream poller").await;
 
         Ok(())
     })
+}
+
+async fn wait_for_task_termination<F: Future>(task: F, name: &str) {
+    match timeout(Duration::from_secs(2), task).await {
+        Ok(_) => info!("{name} has finished execution"),
+        Err(_timeout) => {
+            error!("{name} task has timed out and has not shutdown gracefully")
+        }
+    }
 }

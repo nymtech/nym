@@ -253,9 +253,7 @@ impl IpPacketRouter {
             reconstructed.sender_tag
         );
 
-        use bincode::Options;
-        let tagged_packet = make_bincode_serializer()
-            .deserialize::<TaggedPacket>(&reconstructed.message)
+        let tagged_packet = TaggedPacket::from_message(&reconstructed)
             .map_err(|err| IpPacketRouterError::FailedToDeserializeTaggedPacket { source: err })?;
 
         // We don't forward packets that we are not able to parse. BUT, there might be a good
@@ -290,7 +288,7 @@ impl IpPacketRouter {
         // TODO: set the tag correctly. Can we just reuse sender_tag?
         let peer_tag = 0;
         self.tun_task_tx
-            .try_send((peer_tag, reconstructed.message))
+            .try_send((peer_tag, tagged_packet.packet.into()))
             .map_err(|err| IpPacketRouterError::FailedToSendPacketToTun { source: err })?;
 
         Ok(())
@@ -302,6 +300,13 @@ pub struct TaggedPacket {
     packet: bytes::Bytes,
     return_address: Recipient,
     return_mix_hops: Option<u8>,
+}
+
+impl TaggedPacket {
+    fn from_message(message: &ReconstructedMessage) -> Result<Self, bincode::Error> {
+        use bincode::Options;
+        make_bincode_serializer().deserialize(&message.message)
+    }
 }
 
 fn make_bincode_serializer() -> impl bincode::Options {

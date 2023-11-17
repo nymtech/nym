@@ -29,6 +29,9 @@ pub enum TunDeviceError {
     #[error("timeout writing to tun device, dropping packet")]
     TunWriteTimeout,
 
+    #[error("error writing to tun device: {source}")]
+    TunWriteError { source: std::io::Error },
+
     #[error("failed forwarding packet to peer: {source}")]
     ForwardToPeerFailed {
         #[from]
@@ -40,9 +43,6 @@ pub enum TunDeviceError {
         #[from]
         source: TunTaskResponseSendError,
     },
-
-    #[error("error writing to tun device: {source}")]
-    TunWriteError { source: std::io::Error },
 
     #[error("unable to parse destination address from packet")]
     UnableToParseDstAdddress,
@@ -224,8 +224,7 @@ impl TunDevice {
                     log::info!("Forward packet with NAT tag: {tag}");
                     return self
                         .tun_task_response_tx
-                        .send((*tag, packet.to_vec()))
-                        .await
+                        .try_send((*tag, packet.to_vec()))
                         .map_err(|err| err.into());
                 }
             }

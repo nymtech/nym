@@ -17,7 +17,7 @@ use nym_sdk::{
 };
 use nym_sphinx::receiver::ReconstructedMessage;
 use nym_task::{connections::TransmissionLane, TaskClient, TaskHandle};
-use nym_wireguard::tun_task_channel::TaggedPacket;
+use nym_wireguard::tun_task_channel::TaggedIpPacket;
 use request_filter::RequestFilter;
 
 use crate::config::BaseClientConfig;
@@ -254,7 +254,7 @@ impl IpPacketRouter {
             reconstructed.sender_tag
         );
 
-        let tagged_packet = TaggedPacket::from_message(&reconstructed)
+        let tagged_packet = TaggedIpPacket::from_message(&reconstructed)
             .map_err(|err| IpPacketRouterError::FailedToDeserializeTaggedPacket { source: err })?;
 
         // We don't forward packets that we are not able to parse. BUT, there might be a good

@@ -7593,6 +7593,7 @@ dependencies = [
  "ip_network",
  "ip_network_table",
  "log",
+ "nym-service-providers-common",
  "nym-sphinx",
  "nym-task",
  "nym-wireguard-types",

@@ -1,5 +1,6 @@
 use std::time::Duration;
 
+use nym_service_providers_common::interface;
 use tokio::sync::mpsc::{
     self,
     error::{SendError, SendTimeoutError, TrySendError},
@@ -81,14 +82,23 @@ pub(crate) fn tun_task_response_channel() -> (TunTaskResponseTx, TunTaskResponse
     )
 }
 
+pub type IpPacketRouterRequest = interface::Request<TaggedIpPacket>;
+pub type IpPacketRouterResponse = interface::Response<IpPacket>;
+
 #[derive(serde::Serialize, serde::Deserialize)]
-pub struct TaggedPacket {
+pub struct TaggedIpPacket {
     pub packet: bytes::Bytes,
     pub return_address: nym_sphinx::addressing::clients::Recipient,
     pub return_mix_hops: Option<u8>,
+    pub return_mix_delays: Option<f64>,
 }
 
-impl TaggedPacket {
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct IpPacket {
+    pub packet: bytes::Bytes,
+}
+
+impl TaggedIpPacket {
     pub fn from_message(
         message: &nym_sphinx::receiver::ReconstructedMessage,
     ) -> Result<Self, bincode::Error> {

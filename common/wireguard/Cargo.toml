@@ -35,5 +35,8 @@ tap.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, features = ["rt-multi-thread", "net", "io-util"] }
 
+# WIP(JON) we'll move this when we move the tun stuff to its own crate
+nym-service-providers-common = { path = "../../service-providers/common" }
+
 [target.'cfg(target_os = "linux")'.dependencies]
 tokio-tun = "0.9.0"

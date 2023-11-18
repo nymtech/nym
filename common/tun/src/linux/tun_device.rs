@@ -1,7 +1,6 @@
 use std::{
     collections::HashMap,
     net::{IpAddr, Ipv4Addr},
-    sync::Arc,
     time::Duration,
 };
 
@@ -11,16 +10,15 @@ use tokio::{
     time::timeout,
 };
 
-use crate::{
-    active_peers::PeerEventSenderError,
-    event::Event,
-    tun_task_channel::{
-        tun_task_channel, tun_task_response_channel, TunTaskPayload, TunTaskResponseRx,
-        TunTaskResponseSendError, TunTaskResponseTx, TunTaskRx, TunTaskTx,
-    },
-    udp_listener::PeersByIp,
+use crate::tun_task_channel::{
+    tun_task_channel, tun_task_response_channel, TunTaskPayload, TunTaskResponseRx,
+    TunTaskResponseSendError, TunTaskResponseTx, TunTaskRx, TunTaskTx,
 };
 
+#[cfg(feature = "wireguard")]
+use nym_wireguard::{active_peers::PeerEventSenderError, event::Event, udp_listener::PPeersByIp};
+
+#[cfg(feature = "wireguard")]
 const MUTEX_LOCK_TIMEOUT_MS: u64 = 200;
 const TUN_WRITE_TIMEOUT_MS: u64 = 1000;
 
@@ -32,6 +30,7 @@ pub enum TunDeviceError {
     #[error("error writing to tun device: {source}")]
     TunWriteError { source: std::io::Error },
 
+    #[cfg(feature = "wireguard")]
     #[error("failed forwarding packet to peer: {source}")]
     ForwardToPeerFailed {
         #[from]
@@ -94,6 +93,7 @@ pub struct TunDevice {
 
 pub enum RoutingMode {
     // The routing table, as how wireguard does it
+    #[cfg(feature = "wireguard")]
     AllowedIps(AllowedIpsInner),
 
     // This is an alternative to the routing table, where we just match outgoing source IP with
@@ -108,15 +108,18 @@ impl RoutingMode {
         })
     }
 
+    #[cfg(feature = "wireguard")]
     pub fn new_allowed_ips(peers_by_ip: Arc<tokio::sync::Mutex<PeersByIp>>) -> Self {
         RoutingMode::AllowedIps(AllowedIpsInner { peers_by_ip })
     }
 }
 
+#[cfg(feature = "wireguard")]
 pub struct AllowedIpsInner {
     peers_by_ip: Arc<tokio::sync::Mutex<PeersByIp>>,
 }
 
+#[cfg(feature = "wireguard")]
 impl AllowedIpsInner {
     async fn lock(&self) -> Result<tokio::sync::MutexGuard<PeersByIp>, TunDeviceError> {
         timeout(
@@ -180,6 +183,7 @@ impl TunDevice {
         );
 
         // TODO: expire old entries
+        #[allow(irrefutable_let_patterns)]
         if let RoutingMode::Nat(nat_table) = &mut self.routing_mode {
             nat_table.nat_table.insert(src_addr, tag);
         }
@@ -207,6 +211,7 @@ impl TunDevice {
 
         match self.routing_mode {
             // This is how wireguard does it, by consulting the AllowedIPs table.
+            #[cfg(feature = "wireguard")]
             RoutingMode::AllowedIps(ref peers_by_ip) => {
                 let peers = peers_by_ip.lock().await?;
                 if let Some(peer_tx) = peers.longest_match(dst_addr).map(|(_, tx)| tx) {

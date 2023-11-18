@@ -6658,6 +6658,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-ip-packet-requests"
+version = "0.1.0"
+dependencies = [
+ "bincode",
+ "bytes",
+ "nym-service-providers-common",
+ "nym-sphinx",
+ "serde",
+]
+
+[[package]]
 name = "nym-ip-packet-router"
 version = "0.1.0"
 dependencies = [
@@ -7466,6 +7477,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-tun"
+version = "0.1.0"
+dependencies = [
+ "boringtun",
+ "etherparse",
+ "log",
+ "thiserror",
+ "tokio",
+ "tokio-tun",
+]
+
+[[package]]
 name = "nym-types"
 version = "1.0.0"
 dependencies = [
@@ -7593,9 +7616,9 @@ dependencies = [
  "ip_network",
  "ip_network_table",
  "log",
- "nym-service-providers-common",
  "nym-sphinx",
  "nym-task",
+ "nym-tun",
  "nym-wireguard-types",
  "rand 0.8.5",
  "serde",

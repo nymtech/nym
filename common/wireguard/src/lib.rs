@@ -8,10 +8,10 @@ mod error;
 mod event;
 mod network_table;
 mod packet_relayer;
-mod platform;
+// mod platform;
 mod registered_peers;
 pub mod setup;
-pub mod tun_task_channel;
+// pub mod tun_task_channel;
 mod udp_listener;
 mod wg_tunnel;
 
@@ -20,7 +20,9 @@ use std::sync::Arc;
 
 // Currently the module related to setting up the virtual network device is platform specific.
 #[cfg(target_os = "linux")]
-pub use platform::linux::tun_device;
+use nym_tun::tun_device;
+
+use nym_tun::tun_task_channel;
 
 /// Start wireguard UDP listener and TUN device
 ///

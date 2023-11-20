@@ -8,9 +8,11 @@ use futures::StreamExt;
 use log::error;
 use nym_task::TaskClient;
 use nym_wireguard_types::{
-    active_peers::{ActivePeers, PeersByIp},
-    event::Event,
     registration::GatewayClientRegistry,
+    tun_common::{
+        active_peers::{ActivePeers, PeersByIp},
+        event::Event,
+    },
     PeerPublicKey, WG_PORT,
 };
 use tap::TapFallible;

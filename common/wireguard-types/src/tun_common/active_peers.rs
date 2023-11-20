@@ -7,7 +7,7 @@ use dashmap::{
 };
 use tokio::sync::mpsc::{self};
 
-use crate::{event::Event, network_table::NetworkTable};
+use crate::tun_common::{event::Event, network_table::NetworkTable};
 
 // Registered peers
 pub type PeersByIp = NetworkTable<PeerEventSender>;

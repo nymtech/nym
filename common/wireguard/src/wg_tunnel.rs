@@ -7,7 +7,7 @@ use boringtun::{
 };
 use bytes::Bytes;
 use log::{debug, error, info, warn};
-use nym_wireguard_types::{
+use nym_wireguard_types::tun_common::{
     active_peers::{peer_event_channel, PeerEventReceiver, PeerEventSender},
     event::Event,
     network_table::NetworkTable,

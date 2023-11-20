@@ -16,7 +16,7 @@ use crate::tun_task_channel::{
 };
 
 #[cfg(feature = "wireguard")]
-use nym_wireguard_types::{
+use nym_wireguard_types::tun_common::{
     active_peers::{PeerEventSenderError, PeersByIp},
     event::Event,
 };

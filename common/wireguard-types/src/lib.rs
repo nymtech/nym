@@ -1,12 +1,10 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-pub mod active_peers;
 pub mod error;
-pub mod event;
-pub mod network_table;
 pub mod public_key;
 pub mod registration;
+pub mod tun_common;
 
 pub use error::Error;
 pub use public_key::PeerPublicKey;

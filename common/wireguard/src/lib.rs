@@ -39,8 +39,8 @@ pub async fn start_wireguard(
     // We can optionally index peers by their IP like standard wireguard. If we don't then we do
     // plain NAT where we match incoming destination IP with outgoing source IP.
 
-    use nym_wireguard_types::network_table;
-    let peers_by_ip = Arc::new(tokio::sync::Mutex::new(network_table::NetworkTable::new()));
+    use nym_wireguard_types::tun_common::network_table::NetworkTable;
+    let peers_by_ip = Arc::new(tokio::sync::Mutex::new(NetworkTable::new()));
 
     // Alternative 1:
     let routing_mode = tun_device::RoutingMode::new_allowed_ips(peers_by_ip.clone());

@@ -51,12 +51,12 @@ impl GroupParameters {
         &self.gammas
     }
 
-    pub(crate) fn gamma1(&self) -> &G1Projective {
-        &self.gammas[0]
-    }
+    // pub(crate) fn gamma1(&self) -> &G1Projective {
+    //     &self.gammas[0]
+    // }
 
-    pub(crate) fn gamma2(&self) -> Option<&G1Projective> {
-        self.gammas.get(2)
+    pub(crate) fn gamma_idx(&self, i: usize) -> Option<&G1Projective>{
+        self.gammas.get(i)
     }
 
     pub(crate) fn delta(&self) -> &G1Projective { &self.delta }

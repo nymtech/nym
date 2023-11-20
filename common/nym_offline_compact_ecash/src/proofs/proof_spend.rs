@@ -243,7 +243,7 @@ impl SpendProof {
         let r_o_mu = grparams.n_random_scalars(witness.o_mu.len());
 
         let g1 = *grparams.gen1();
-        let gamma1 = *grparams.gamma1();
+        let gamma0 = *grparams.gamma_idx(0).unwrap();
         let beta2_bytes = verification_key
             .beta_g2
             .iter()
@@ -259,12 +259,12 @@ impl SpendProof {
             .map(|(attr, beta_i)| beta_i * attr)
             .sum::<G2Projective>();
 
-        let zkcm_cc = g1 * r_o_c + gamma1 * r_v;
+        let zkcm_cc = g1 * r_o_c + gamma0 * r_v;
 
         let zkcm_aa: Vec<G1Projective> =
             r_o_a
                 .iter()
-                .zip(r_lk.iter()).map(|(r_o_a_k, r_l_k)| g1 * r_o_a_k + gamma1 * r_l_k)
+                .zip(r_lk.iter()).map(|(r_o_a_k, r_l_k)| g1 * r_o_a_k + gamma0 * r_l_k)
                 .collect::<Vec<_>>();
 
         let zkcm_aa_bytes = zkcm_aa
@@ -288,14 +288,14 @@ impl SpendProof {
             .map(|x| x.to_bytes())
             .collect::<Vec<_>>();
 
-        let zkcm_gamma11 = instance.aa
+        let zkcm_gamma00 = instance.aa
             .iter()
             .zip(r_mu.iter())
             .zip(r_o_mu.iter())
-            .map(|((aa_k, r_mu_k), r_o_mu_k)| (aa_k + instance.cc + gamma1) * r_mu_k + g1 * r_o_mu_k)
+            .map(|((aa_k, r_mu_k), r_o_mu_k)| (aa_k + instance.cc + gamma0) * r_mu_k + g1 * r_o_mu_k)
             .collect::<Vec<_>>();
 
-        let zkcm_gamma11_bytes = zkcm_gamma11
+        let zkcm_gamma00_bytes = zkcm_gamma00
             .iter()
             .map(|x| x.to_bytes())
             .collect::<Vec<_>>();
@@ -313,7 +313,7 @@ impl SpendProof {
         // compute the challenge
         let challenge = compute_challenge::<ChallengeDigest, _, _>(
             std::iter::once(grparams.gen1().to_bytes().as_ref())
-                .chain(std::iter::once(gamma1.to_bytes().as_ref()))
+                .chain(std::iter::once(gamma0.to_bytes().as_ref()))
                 .chain(std::iter::once(verification_key.alpha.to_bytes().as_ref()))
                 .chain(beta2_bytes.iter().map(|b| b.as_ref()))
                 .chain(std::iter::once(instance.to_bytes().as_ref()))
@@ -323,7 +323,7 @@ impl SpendProof {
                 .chain(zkcm_ss_bytes.iter().map(|x| x.as_ref()))
                 .chain(zkcm_kappa_k_bytes.iter().map(|x| x.as_ref()))
                 .chain(zkcm_tt_bytes.iter().map(|x| x.as_ref()))
-                .chain(zkcm_gamma11_bytes.iter().map(|x| x.as_ref()))
+                .chain(zkcm_gamma00_bytes.iter().map(|x| x.as_ref()))
         );
 
         // compute response for each witness
@@ -363,7 +363,7 @@ impl SpendProof {
     ) -> bool {
         let grparams = params.grp();
         let g1 = *grparams.gen1();
-        let gamma1 = *grparams.gamma1();
+        let gamma0 = *grparams.gamma_idx(0).unwrap();
         let beta2_bytes = verification_key
             .beta_g2
             .iter()
@@ -386,7 +386,7 @@ impl SpendProof {
             .iter()
             .zip(self.response_l.iter())
             .zip(instance.aa.iter())
-            .map(|((resp_o_a_k, resp_l_k), aa_k)| g1 * resp_o_a_k + gamma1 * resp_l_k + aa_k * self.challenge)
+            .map(|((resp_o_a_k, resp_l_k), aa_k)| g1 * resp_o_a_k + gamma0 * resp_l_k + aa_k * self.challenge)
             .collect::<Vec<_>>();
 
         let zkcm_aa_bytes = zkcm_aa
@@ -395,7 +395,7 @@ impl SpendProof {
             .collect::<Vec<_>>();
 
         let zkcm_cc = g1 * self.response_o_c
-            + gamma1 * self.response_attributes[1]
+            + gamma0 * self.response_attributes[1]
             + instance.cc * self.challenge;
 
         let zkcm_ss = self.response_mu
@@ -421,15 +421,15 @@ impl SpendProof {
             .map(|x| x.to_bytes())
             .collect::<Vec<_>>();
 
-        let zkcm_gamma11 = instance.aa
+        let zkcm_gamma00 = instance.aa
             .iter()
             .zip(self.response_mu.iter())
             .zip(self.response_o_mu.iter())
-            .map(|((aa_k, resp_mu_k), resp_o_mu_k)| (aa_k + instance.cc + gamma1) * resp_mu_k
-                + g1 * resp_o_mu_k + gamma1 * self.challenge)
+            .map(|((aa_k, resp_mu_k), resp_o_mu_k)| (aa_k + instance.cc + gamma0) * resp_mu_k
+                + g1 * resp_o_mu_k + gamma0 * self.challenge)
             .collect::<Vec<_>>();
 
-        let zkcm_gamma11_bytes = zkcm_gamma11
+        let zkcm_gamma00_bytes = zkcm_gamma00
             .iter()
             .map(|x| x.to_bytes())
             .collect::<Vec<_>>();
@@ -450,7 +450,7 @@ impl SpendProof {
         // re-compute the challenge
         let challenge = compute_challenge::<ChallengeDigest, _, _>(
             std::iter::once(grparams.gen1().to_bytes().as_ref())
-                .chain(std::iter::once(gamma1.to_bytes().as_ref()))
+                .chain(std::iter::once(gamma0.to_bytes().as_ref()))
                 .chain(std::iter::once(verification_key.alpha.to_bytes().as_ref()))
                 .chain(beta2_bytes.iter().map(|b| b.as_ref()))
                 .chain(std::iter::once(instance.to_bytes().as_ref()))
@@ -460,7 +460,7 @@ impl SpendProof {
                 .chain(zkcm_ss_bytes.iter().map(|x| x.as_ref()))
                 .chain(zkcm_kappa_k_bytes.iter().map(|x| x.as_ref()))
                 .chain(zkcm_tt_bytes.iter().map(|x| x.as_ref()))
-                .chain(zkcm_gamma11_bytes.iter().map(|x| x.as_ref()))
+                .chain(zkcm_gamma00_bytes.iter().map(|x| x.as_ref()))
         );
 
         challenge == self.challenge
@@ -708,7 +708,7 @@ mod tests {
         let attributes = vec![sk, v, t];
         // the below value must be from range 0 to params.L()
         let l = 5;
-        let gamma1 = *grparams.gamma1();
+        let gamma0 = *grparams.gamma_idx(0).unwrap();
         let g1 = *grparams.gen1();
 
         let r = grparams.random_scalar();
@@ -724,8 +724,8 @@ mod tests {
         let o_c = grparams.random_scalar();
 
         // compute commitments A, C, D
-        let aa = g1 * o_a + gamma1 * Scalar::from(l);
-        let cc = g1 * o_c + gamma1 * v;
+        let aa = g1 * o_a + gamma0 * Scalar::from(l);
+        let cc = g1 * o_c + gamma0 * v;
 
         // compute hash of the payment info
         let pay_info = PayInfo { payinfo: [37u8; 88] };

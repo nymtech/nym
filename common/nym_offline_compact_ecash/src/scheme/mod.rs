@@ -144,7 +144,7 @@ impl Wallet {
         let o_c = grparams.random_scalar();
 
         // compute commitments C
-        let cc = grparams.gen1() * o_c + grparams.gamma1() * self.v();
+        let cc = grparams.gen1() * o_c + grparams.gamma_idx(0).unwrap() * self.v();
 
 
         let mut aa: Vec<G1Projective> = Default::default();
@@ -168,7 +168,7 @@ impl Wallet {
 
             let o_a_k = grparams.random_scalar();
             o_a.push(o_a_k);
-            let aa_k = grparams.gen1() * o_a_k + grparams.gamma1() * Scalar::from(self.l() + k);
+            let aa_k = grparams.gen1() * o_a_k + grparams.gamma_idx(0).unwrap() * Scalar::from(self.l() + k);
             aa.push(aa_k);
 
             // evaluate the pseudorandom functions

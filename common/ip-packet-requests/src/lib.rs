@@ -8,7 +8,7 @@ pub struct TaggedIpPacket {
     pub packet: bytes::Bytes,
     pub return_address: nym_sphinx::addressing::clients::Recipient,
     pub return_mix_hops: Option<u8>,
-    pub return_mix_delays: Option<f64>,
+    // pub return_mix_delays: Option<f64>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]

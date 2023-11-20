@@ -7,18 +7,16 @@ use boringtun::{
 };
 use bytes::Bytes;
 use log::{debug, error, info, warn};
+use nym_wireguard_types::{
+    active_peers::{peer_event_channel, PeerEventReceiver, PeerEventSender},
+    event::Event,
+    network_table::NetworkTable,
+};
 use rand::RngCore;
 use tap::TapFallible;
 use tokio::{net::UdpSocket, sync::broadcast, time::timeout};
 
-use crate::{
-    active_peers::{peer_event_channel, PeerEventReceiver, PeerEventSender},
-    error::WgError,
-    event::Event,
-    network_table::NetworkTable,
-    packet_relayer::PacketRelaySender,
-    registered_peers::PeerIdx,
-};
+use crate::{error::WgError, packet_relayer::PacketRelaySender, registered_peers::PeerIdx};
 
 const HANDSHAKE_MAX_RATE: u64 = 10;
 

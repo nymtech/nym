@@ -7,15 +7,17 @@ use boringtun::{
 use futures::StreamExt;
 use log::error;
 use nym_task::TaskClient;
-use nym_wireguard_types::{registration::GatewayClientRegistry, PeerPublicKey, WG_PORT};
+use nym_wireguard_types::{
+    active_peers::{ActivePeers, PeersByIp},
+    event::Event,
+    registration::GatewayClientRegistry,
+    PeerPublicKey, WG_PORT,
+};
 use tap::TapFallible;
 use tokio::{net::UdpSocket, sync::Mutex};
 
 use crate::{
-    active_peers::{ActivePeers, PeerEventSender},
     error::WgError,
-    event::Event,
-    network_table::NetworkTable,
     packet_relayer::PacketRelaySender,
     registered_peers::{RegisteredPeer, RegisteredPeers},
     setup::{self, WG_ADDRESS},
@@ -23,9 +25,6 @@ use crate::{
 };
 
 const MAX_PACKET: usize = 65535;
-
-// Registered peers
-pub(crate) type PeersByIp = NetworkTable<PeerEventSender>;
 
 async fn add_test_peer(registered_peers: &mut RegisteredPeers) {
     let peer_static_public = PeerPublicKey::new(setup::peer_static_public_key());

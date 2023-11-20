@@ -3,10 +3,10 @@
 // #![warn(clippy::expect_used)]
 // #![warn(clippy::unwrap_used)]
 
-mod active_peers;
+// mod active_peers;
 mod error;
-mod event;
-mod network_table;
+// mod event;
+// mod network_table;
 mod packet_relayer;
 // mod platform;
 mod registered_peers;
@@ -38,6 +38,8 @@ pub async fn start_wireguard(
 
     // We can optionally index peers by their IP like standard wireguard. If we don't then we do
     // plain NAT where we match incoming destination IP with outgoing source IP.
+
+    use nym_wireguard_types::network_table;
     let peers_by_ip = Arc::new(tokio::sync::Mutex::new(network_table::NetworkTable::new()));
 
     // Alternative 1:

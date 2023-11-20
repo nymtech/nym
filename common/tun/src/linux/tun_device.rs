@@ -16,7 +16,10 @@ use crate::tun_task_channel::{
 };
 
 #[cfg(feature = "wireguard")]
-use nym_wireguard::{active_peers::PeerEventSenderError, event::Event, udp_listener::PPeersByIp};
+use nym_wireguard_types::{
+    active_peers::{PeerEventSenderError, PeersByIp},
+    event::Event,
+};
 
 #[cfg(feature = "wireguard")]
 const MUTEX_LOCK_TIMEOUT_MS: u64 = 200;
@@ -109,14 +112,14 @@ impl RoutingMode {
     }
 
     #[cfg(feature = "wireguard")]
-    pub fn new_allowed_ips(peers_by_ip: Arc<tokio::sync::Mutex<PeersByIp>>) -> Self {
+    pub fn new_allowed_ips(peers_by_ip: std::sync::Arc<tokio::sync::Mutex<PeersByIp>>) -> Self {
         RoutingMode::AllowedIps(AllowedIpsInner { peers_by_ip })
     }
 }
 
 #[cfg(feature = "wireguard")]
 pub struct AllowedIpsInner {
-    peers_by_ip: Arc<tokio::sync::Mutex<PeersByIp>>,
+    peers_by_ip: std::sync::Arc<tokio::sync::Mutex<PeersByIp>>,
 }
 
 #[cfg(feature = "wireguard")]

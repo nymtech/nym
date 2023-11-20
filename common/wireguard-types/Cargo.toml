@@ -12,9 +12,14 @@ license.workspace = true
 
 [dependencies]
 base64 = { workspace = true }
+bytes = "1.5.0"
 dashmap = { workspace = true }
+ip_network = "0.4.1"
+ip_network_table = "0.2.0"
+log = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 thiserror = { workspace = true }
+tokio = { workspace = true, features = ["sync", "time"] }
 
 nym-crypto = { path = "../crypto", features = ["asymmetric"] }
 

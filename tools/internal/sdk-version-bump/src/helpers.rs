@@ -79,7 +79,7 @@ impl VersionBumpExt for Version {
             major: self.major,
             minor: self.minor,
             patch: self.patch,
-            pre: try_bump_raw_prerelease(&self.pre.as_str())?,
+            pre: try_bump_raw_prerelease(self.pre.as_str())?,
             build: self.build.clone(),
         })
     }

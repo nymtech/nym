@@ -29,15 +29,14 @@ Follow these steps to upgrade your Node binary and update its config file:
     - if you run it as `systemd` service, run: `systemctl stop nym-<NODE>.service`
 * Replace the existing `<NODE>` binary with the newest binary (which you can either [compile yourself](https://nymtech.net/docs/binaries/building-nym.html) or grab from our [releases page](https://github.com/nymtech/nym/releases)).
 * Re-run `init` with the same values as you used initially for your `<NODE>` ([Mix Node](./mix-node-setup.md#initialising-your-mix-node), [Gateway](./gateway-setup.md#initialising-your-gateway)) . **This will just update the config file, it will not overwrite existing keys**.
-* Restart your node process with the new binary.
-    - if you automatized (recommended) run: 
+* Restart your node process with the new binary:
+    - if your node is not automitized, just `run` your `<NODE>` with `./nym-<NODE> run --id <ID>`. Here are exact guidelines for [Mix Node](./mix-node-setup.md#running-your-mix-node) and [Gateway](./gateway-setup.md#running-your-gateway). 
+    - if you automatized your node via systemd (recommended) run:  
 ```sh
 systemctl daemon-reload # to pickup the new unit file
 systemctl start nym-<NODE>.service
 journalctl -f -u <NODE>.service # to monitor log of you node
 ```
-    - if your node is not automitized, just `run` your `<NODE>` with `./nym-<NODE> run --id <ID>`. Here are exact guidelines for [Mix Node](./mix-node-setup.md#running-your-mix-node) and [Gateway](./gateway-setup.md#running-your-gateway). 
-
 
 If these steps are too difficult and you prefer to just run a script, you can use [ExploreNYM script](https://github.com/ExploreNYM/bash-tool) or one done by [Nym developers](https://gist.github.com/tommyv1987/4dca7cc175b70742c9ecb3d072eb8539).
 

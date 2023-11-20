@@ -81,3 +81,8 @@ cpucycles = [
     "opentelemetry",
     "nym-bin-common/tracing",
 ]
+
+[package.metadata.deb]
+name = "nym-mixnode"
+maintainer-scripts = "debian"
+systemd-units = { enable = false }

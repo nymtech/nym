@@ -10,7 +10,7 @@ mod network_table;
 mod packet_relayer;
 mod platform;
 mod registered_peers;
-mod setup;
+pub mod setup;
 pub mod tun_task_channel;
 mod udp_listener;
 mod wg_tunnel;

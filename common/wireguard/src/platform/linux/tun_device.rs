@@ -2,20 +2,63 @@ use std::{
     collections::HashMap,
     net::{IpAddr, Ipv4Addr},
     sync::Arc,
+    time::Duration,
 };
 
 use etherparse::{InternetSlice, SlicedPacket};
-use tap::TapFallible;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::{
+    io::{AsyncReadExt, AsyncWriteExt},
+    time::timeout,
+};
 
 use crate::{
+    active_peers::PeerEventSenderError,
     event::Event,
     tun_task_channel::{
         tun_task_channel, tun_task_response_channel, TunTaskPayload, TunTaskResponseRx,
-        TunTaskResponseTx, TunTaskRx, TunTaskTx,
+        TunTaskResponseSendError, TunTaskResponseTx, TunTaskRx, TunTaskTx,
     },
     udp_listener::PeersByIp,
 };
+
+const MUTEX_LOCK_TIMEOUT_MS: u64 = 200;
+const TUN_WRITE_TIMEOUT_MS: u64 = 1000;
+
+#[derive(thiserror::Error, Debug)]
+pub enum TunDeviceError {
+    #[error("timeout writing to tun device, dropping packet")]
+    TunWriteTimeout,
+
+    #[error("error writing to tun device: {source}")]
+    TunWriteError { source: std::io::Error },
+
+    #[error("failed forwarding packet to peer: {source}")]
+    ForwardToPeerFailed {
+        #[from]
+        source: PeerEventSenderError,
+    },
+
+    #[error("failed to forward responding packet with tag: {source}")]
+    ForwardNatResponseFailed {
+        #[from]
+        source: TunTaskResponseSendError,
+    },
+
+    #[error("unable to parse destination address from packet")]
+    UnableToParseDstAdddress,
+
+    #[error("unable to parse source address from packet")]
+    UnableToParseSrcAddress {
+        #[from]
+        source: etherparse::ReadError,
+    },
+
+    #[error("unable to parse source address from packet: ip header missing")]
+    UnableToParseSrcAddressIpHeaderMissing,
+
+    #[error("unable to lock peer mutex")]
+    FailedToLockPeer,
+}
 
 fn setup_tokio_tun_device(name: &str, address: Ipv4Addr, netmask: Ipv4Addr) -> tokio_tun::Tun {
     log::info!("Creating TUN device with: address={address}, netmask={netmask}");
@@ -74,6 +117,17 @@ pub struct AllowedIpsInner {
     peers_by_ip: Arc<tokio::sync::Mutex<PeersByIp>>,
 }
 
+impl AllowedIpsInner {
+    async fn lock(&self) -> Result<tokio::sync::MutexGuard<PeersByIp>, TunDeviceError> {
+        timeout(
+            Duration::from_millis(MUTEX_LOCK_TIMEOUT_MS),
+            self.peers_by_ip.as_ref().lock(),
+        )
+        .await
+        .map_err(|_| TunDeviceError::FailedToLockPeer)
+    }
+}
+
 pub struct NatInner {
     nat_table: HashMap<IpAddr, u64>,
 }
@@ -114,17 +168,13 @@ impl TunDevice {
     }
 
     // Send outbound packets out on the wild internet
-    async fn handle_tun_write(&mut self, data: TunTaskPayload) {
+    async fn handle_tun_write(&mut self, data: TunTaskPayload) -> Result<(), TunDeviceError> {
         let (tag, packet) = data;
-        let Some(dst_addr) = boringtun::noise::Tunn::dst_address(&packet) else {
-            log::error!("Unable to parse dst_address in packet that was supposed to be written to tun device");
-            return;
-        };
-        let Some(src_addr) = parse_src_address(&packet) else {
-            log::error!("Unable to parse src_address in packet that was supposed to be written to tun device");
-            return;
-        };
-        log::info!(
+        let dst_addr = boringtun::noise::Tunn::dst_address(&packet)
+            .ok_or_else(|| TunDeviceError::UnableToParseDstAdddress)?;
+
+        let src_addr = parse_src_address(&packet)?;
+        log::debug!(
             "iface: write Packet({src_addr} -> {dst_addr}, {} bytes)",
             packet.len()
         );
@@ -134,28 +184,21 @@ impl TunDevice {
             nat_table.nat_table.insert(src_addr, tag);
         }
 
-        tokio::time::timeout(
-            std::time::Duration::from_millis(1000),
+        timeout(
+            Duration::from_millis(TUN_WRITE_TIMEOUT_MS),
             self.tun.write_all(&packet),
         )
         .await
-        .tap_err(|err| {
-            log::error!("iface: write error: {err}");
-        })
-        .ok();
+        .map_err(|_| TunDeviceError::TunWriteTimeout)?
+        .map_err(|err| TunDeviceError::TunWriteError { source: err })
     }
 
     // Receive reponse packets from the wild internet
-    async fn handle_tun_read(&self, packet: &[u8]) {
-        let Some(dst_addr) = boringtun::noise::Tunn::dst_address(packet) else {
-            log::error!("Unable to parse dst_address in packet that was read from tun device");
-            return;
-        };
-        let Some(src_addr) = parse_src_address(packet) else {
-            log::error!("Unable to parse src_address in packet that was read from tun device");
-            return;
-        };
-        log::info!(
+    async fn handle_tun_read(&self, packet: &[u8]) -> Result<(), TunDeviceError> {
+        let dst_addr = boringtun::noise::Tunn::dst_address(packet)
+            .ok_or(TunDeviceError::UnableToParseDstAdddress)?;
+        let src_addr = parse_src_address(packet)?;
+        log::debug!(
             "iface: read Packet({src_addr} -> {dst_addr}, {} bytes)",
             packet.len(),
         );
@@ -165,46 +208,30 @@ impl TunDevice {
         match self.routing_mode {
             // This is how wireguard does it, by consulting the AllowedIPs table.
             RoutingMode::AllowedIps(ref peers_by_ip) => {
-                let Ok(peers) = tokio::time::timeout(
-                    std::time::Duration::from_millis(1000),
-                    peers_by_ip.peers_by_ip.as_ref().lock(),
-                )
-                .await
-                else {
-                    log::error!("Failed to lock peer");
-                    return;
-                };
-
+                let peers = peers_by_ip.lock().await?;
                 if let Some(peer_tx) = peers.longest_match(dst_addr).map(|(_, tx)| tx) {
-                    log::info!("Forward packet to wg tunnel");
-                    tokio::time::timeout(
-                        std::time::Duration::from_millis(1000),
-                        peer_tx.send(Event::Ip(packet.to_vec().into())),
-                    )
-                    .await
-                    .tap_err(|err| log::error!("Failed to forward packet to wg tunnel: {err}"))
-                    .ok();
-                    return;
+                    log::debug!("Forward packet to wg tunnel");
+                    return peer_tx
+                        .send(Event::Ip(packet.to_vec().into()))
+                        .await
+                        .map_err(|err| err.into());
                 }
             }
 
             // But we can also do it by consulting the NAT table.
             RoutingMode::Nat(ref nat_table) => {
                 if let Some(tag) = nat_table.nat_table.get(&dst_addr) {
-                    log::info!("Forward packet with tag: {tag}");
-                    tokio::time::timeout(
-                        std::time::Duration::from_millis(1000),
-                        self.tun_task_response_tx.send((*tag, packet.to_vec())),
-                    )
-                    .await
-                    .tap_err(|err| log::error!("Failed to foward packet with tag: {err}"))
-                    .ok();
-                    return;
+                    log::debug!("Forward packet with NAT tag: {tag}");
+                    return self
+                        .tun_task_response_tx
+                        .try_send((*tag, packet.to_vec()))
+                        .map_err(|err| err.into());
                 }
             }
         }
 
         log::info!("No peer found, packet dropped");
+        Ok(())
     }
 
     pub async fn run(mut self) {
@@ -216,13 +243,9 @@ impl TunDevice {
                 len = self.tun.read(&mut buf) => match len {
                     Ok(len) => {
                         let packet = &buf[..len];
-                        tokio::time::timeout(
-                            std::time::Duration::from_millis(1000),
-                            self.handle_tun_read(packet)
-                        )
-                        .await
-                        .tap_err(|_err| log::error!("Failed: handle_tun_read timeout"))
-                        .ok();
+                        if let Err(err) = self.handle_tun_read(packet).await {
+                            log::error!("iface: handle_tun_read failed: {err}")
+                        }
                     },
                     Err(err) => {
                         log::info!("iface: read error: {err}");
@@ -231,13 +254,9 @@ impl TunDevice {
                 },
                 // Writing to the TUN device
                 Some(data) = self.tun_task_rx.recv() => {
-                    tokio::time::timeout(
-                        std::time::Duration::from_millis(1000),
-                        self.handle_tun_write(data)
-                    )
-                    .await
-                    .tap_err(|_err| log::error!("Failed: handle_tun_write timeout"))
-                    .ok();
+                    if let Err(err) = self.handle_tun_write(data).await {
+                        log::error!("ifcae: handle_tun_write failed: {err}");
+                    }
                 }
             }
         }
@@ -249,12 +268,11 @@ impl TunDevice {
     }
 }
 
-fn parse_src_address(packet: &[u8]) -> Option<IpAddr> {
-    let headers = SlicedPacket::from_ip(packet)
-        .tap_err(|err| log::error!("Unable to parse IP packet: {err:?}"))
-        .ok()?;
-    Some(match headers.ip? {
-        InternetSlice::Ipv4(ip, _) => ip.source_addr().into(),
-        InternetSlice::Ipv6(ip, _) => ip.source_addr().into(),
-    })
+fn parse_src_address(packet: &[u8]) -> Result<IpAddr, TunDeviceError> {
+    let headers = SlicedPacket::from_ip(packet)?;
+    match headers.ip {
+        Some(InternetSlice::Ipv4(ip, _)) => Ok(ip.source_addr().into()),
+        Some(InternetSlice::Ipv6(ip, _)) => Ok(ip.source_addr().into()),
+        None => Err(TunDeviceError::UnableToParseSrcAddressIpHeaderMissing),
+    }
 }

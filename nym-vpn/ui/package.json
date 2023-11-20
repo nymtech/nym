@@ -18,7 +18,7 @@
     "tauri": "tauri"
   },
   "dependencies": {
-    "@mui/base": "^5.0.0-beta.20",
+    "@mui/base": "^5.0.0-beta.24",
     "@mui/material": "^5.14.14",
     "@tauri-apps/api": "^1.5.0",
     "clsx": "^2.0.0",
@@ -44,6 +44,6 @@
     "prettier": "^3.0.3",
     "tailwindcss": "^3.3.3",
     "typescript": "^5.0.2",
-    "vite": "^4.4.5"
+    "vite": "^5.0.0"
   }
 }

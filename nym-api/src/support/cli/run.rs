@@ -1,7 +1,10 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::start_nym_api_tasks;
+use crate::support::cli::build_config;
 use nym_validator_client::nyxd;
+use std::error::Error;
 
 // explicitly defined custom parser (as opposed to just using
 // #[arg(value_parser = clap::value_parser!(u8).range(0..100))]
@@ -90,4 +93,32 @@ pub(crate) struct Args {
     /// Ephemera configuration arguments.
     #[command(flatten)]
     pub(crate) ephemera_args: ephemera::cli::init::Cmd,
+}
+
+pub(crate) async fn execute(args: Args) -> Result<(), Box<dyn Error + Send + Sync>> {
+    let save_to_file = args.save_config;
+    let config = build_config(args)?;
+
+    // if we just wanted to write data to the config, exit, don't start any tasks
+    if save_to_file {
+        info!("Saving the configuration to a file");
+        config.save_to_default_location()?;
+        config
+            .get_ephemera_args()
+            .cmd
+            .clone()
+            .execute(Some(&config.get_id()));
+        return Ok(());
+    }
+
+    let shutdown_handlers = start_nym_api_tasks(config).await?;
+
+    let res = shutdown_handlers
+        .task_manager_handle
+        .catch_interrupt()
+        .await;
+    log::info!("Stopping nym API");
+    shutdown_handlers.rocket_handle.notify();
+
+    res
 }

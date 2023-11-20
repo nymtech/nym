@@ -6,7 +6,7 @@ const defaultNS = 'main';
 
 i18n.use(initReactI18next).init({
   lng: 'en',
-  debug: true,
+  debug: import.meta.env.DEV,
   resources: {
     en: {
       main,

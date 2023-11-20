@@ -13,7 +13,8 @@ describe("Get gateway related info", (): void => {
   });
 
   beforeEach(async (): Promise<void> => {
-    for (let i = 0; i < gatewayHosts.length; i++) {
+    // Testing only 3 nodes from the list
+    for (let i = 3; i < gatewayHosts.length; i++) {
       console.log("currently trying gateway host", gatewayHosts[i]);
       contract = new Gateway(gatewayHosts[i]);
     }

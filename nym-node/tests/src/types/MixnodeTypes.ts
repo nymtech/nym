@@ -1,1 +1,1 @@
-// export interface Mixnodes {}
+export interface Mixnodes {}

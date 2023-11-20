@@ -27,3 +27,20 @@ export async function getGatewayIPAddresses(): Promise<string[]> {
     throw new Error(`Error fetching gateway IP addresses: ${error.message}`);
   }
 }
+
+export async function getMixnodeIPAddresses(): Promise<string[]> {
+  helper = new Helper();
+  try {
+    const response = await helper.restClient.sendGet({
+      route: `/mixnodes`,
+    });
+    const hosts = response.map((item: { bond_information: { mix_node: { host: string } } } ) => {
+      const host = item.bond_information.mix_node.host;
+      const apiUrl = `http://${host}:8000/api/v1`;
+      return apiUrl;
+    });
+    return hosts;
+  } catch (error) {
+    throw new Error(`Error fetching mixnode IP addresses: ${error.message}`);
+  }
+}

@@ -9,8 +9,7 @@ use crate::network::models::NetworkDetails;
 use crate::node_describe_cache::DescribedNodes;
 use crate::node_status_api::uptime_updater::HistoricalUptimeUpdater;
 use crate::support::caching::cache::SharedCache;
-use crate::support::cli;
-use crate::support::cli::CliArgs;
+use crate::support::cli::{self, run, Commands};
 use crate::support::config::Config;
 use crate::support::storage;
 use crate::support::storage::NymApiStorage;
@@ -57,9 +56,20 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     }}
 
     setup_logging();
-    let args = cli::CliArgs::parse();
+    let args = cli::Cli::parse();
+    trace!("{:#?}", args);
+
     setup_env(args.config_env_file.as_ref());
-    run_nym_api(args).await
+
+    let command = args.command.unwrap_or(Commands::Run(args.run));
+
+    match command {
+        Commands::BuildInfo(m) => {
+            cli::build_info::execute(m);
+            Ok(())
+        }
+        Commands::Run(m) => run_nym_api(m).await,
+    }
 }
 
 async fn start_nym_api_tasks(
@@ -209,7 +219,7 @@ async fn start_nym_api_tasks(
     })
 }
 
-async fn run_nym_api(cli_args: CliArgs) -> Result<(), Box<dyn Error + Send + Sync>> {
+async fn run_nym_api(cli_args: run::Args) -> Result<(), Box<dyn Error + Send + Sync>> {
     let save_to_file = cli_args.save_config;
     let config = cli::build_config(cli_args)?;
 

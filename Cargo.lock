@@ -7483,6 +7483,7 @@ dependencies = [
  "boringtun",
  "etherparse",
  "log",
+ "nym-wireguard-types",
  "thiserror",
  "tokio",
  "tokio-tun",

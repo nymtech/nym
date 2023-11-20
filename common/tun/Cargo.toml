@@ -15,11 +15,12 @@ thiserror.workspace = true
 tokio = { workspace = true, features = ["rt-multi-thread", "net", "io-util", "time", "sync", "macros"] }
 etherparse = "0.13.0"
 log.workspace = true
+# TODO: remove
 boringtun = { workspace = true }
-nym-wireguard = { path = "../wireguard", optional = true }
+nym-wireguard-types = { path = "../wireguard-types", optional = true }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 tokio-tun = "0.9.0"
 
 [features]
-wireguard = []
+wireguard = ["nym-wireguard-types"]

@@ -16,7 +16,7 @@ export const ErrorModal: FCWithChildren<{
       <Typography color={(theme) => theme.palette.error.main} mb={1}>
         {title || 'Oh no! Something went wrong...'}
       </Typography>
-      <Typography my={5} color="text.primary">
+      <Typography my={5} color="text.primary" sx={{ textOverflow: 'wrap', overflowWrap: 'break-word' }}>
         {message}
       </Typography>
       {children}

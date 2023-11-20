@@ -118,7 +118,6 @@ impl Dealing {
         let remote_share_key_pairs = shares
             .iter()
             .zip(receivers.values())
-            .map(|(share, key)| (share, key))
             .collect::<Vec<_>>();
         let ordered_public_keys = receivers.values().copied().collect::<Vec<_>>();
 

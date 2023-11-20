@@ -144,13 +144,10 @@ mod test {
         .unwrap();
         let client_key_pair = encryption::KeyPair::new(&mut rng);
 
-        let gateway_static_public =
-            PublicKey::try_from(gateway_key_pair.public_key().to_bytes()).unwrap();
+        let gateway_static_public = PublicKey::from(gateway_key_pair.public_key().to_bytes());
 
-        let client_static_private =
-            StaticSecret::try_from(client_key_pair.private_key().to_bytes()).unwrap();
-        let client_static_public =
-            PublicKey::try_from(client_key_pair.public_key().to_bytes()).unwrap();
+        let client_static_private = StaticSecret::from(client_key_pair.private_key().to_bytes());
+        let client_static_public = PublicKey::from(client_key_pair.public_key().to_bytes());
 
         let client_dh = client_static_private.diffie_hellman(&gateway_static_public);
 

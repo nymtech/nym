@@ -60,14 +60,14 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
 
     setup_env(args.config_env_file.as_ref());
 
-    let command = args.command.unwrap_or(Commands::Run(args.run));
+    let command = args.command.unwrap_or(Commands::Run(Box::new(args.run)));
 
     match command {
         Commands::BuildInfo(m) => {
             cli::build_info::execute(m);
             Ok(())
         }
-        Commands::Run(m) => cli::run::execute(m).await,
+        Commands::Run(m) => cli::run::execute(*m).await,
     }
 }
 

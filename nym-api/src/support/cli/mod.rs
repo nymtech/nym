@@ -43,7 +43,7 @@ pub(crate) struct Cli {
 #[derive(Subcommand, Debug)]
 pub(crate) enum Commands {
     /// Run the Nym Api with provided configuration optionally overriding set parameters
-    Run(run::Args),
+    Run(Box<run::Args>),
 
     /// Show build information of this binary
     BuildInfo(build_info::Args),

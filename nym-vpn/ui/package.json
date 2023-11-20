@@ -22,8 +22,10 @@
     "@mui/material": "^5.14.14",
     "@tauri-apps/api": "^1.5.0",
     "clsx": "^2.0.0",
+    "i18next": "^23.7.6",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "react-i18next": "^13.5.0",
     "react-router-dom": "^6.18.0"
   },
   "devDependencies": {

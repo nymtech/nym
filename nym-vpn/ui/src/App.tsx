@@ -1,6 +1,7 @@
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import { Home, Settings, Error, PageLayout } from './pages';
 import { MainStateProvider } from './state';
+import './i18n/config';
 
 const router = createBrowserRouter([
   {

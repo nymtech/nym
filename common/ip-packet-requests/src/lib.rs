@@ -7,6 +7,18 @@ pub struct TaggedIpPacket {
 }
 
 impl TaggedIpPacket {
+    pub fn new(
+        packet: bytes::Bytes,
+        return_address: nym_sphinx::addressing::clients::Recipient,
+        return_mix_hops: Option<u8>,
+    ) -> Self {
+        TaggedIpPacket {
+            packet,
+            return_address,
+            return_mix_hops,
+        }
+    }
+
     pub fn from_reconstructed_message(
         message: &nym_sphinx::receiver::ReconstructedMessage,
     ) -> Result<Self, bincode::Error> {

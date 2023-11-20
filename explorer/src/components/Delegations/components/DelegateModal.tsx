@@ -152,7 +152,6 @@ export const DelegateModal: FCWithChildren<{
     memo?: string,
     funds?: DecCoin[],
   ): Promise<ExecuteResult> => {
-    console.log('cosmWasmSignerClient :>> ', cosmWasmSignerClient);
     const amount = (Number(funds![0].amount) * 1000000).toString();
     const uNymFunds = [{ amount: amount, denom: 'unym' }];
     return await cosmWasmSignerClient.execute(
@@ -179,9 +178,6 @@ export const DelegateModal: FCWithChildren<{
         action: 'delegate',
       });
       try {
-        await delegateToMixnode({ mixId }, fee, memo, [amount]).then((res) => {
-          console.log('res :>> ', res);
-        });
         const tx = await delegateToMixnode({ mixId }, fee, memo, [amount]);
 
         onOk({

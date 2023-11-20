@@ -74,7 +74,6 @@ export const TableToolbar: FCWithChildren<TableToolBarProps> = ({
 
   const handleNewDelegation = (delegationModalProps: DelegationModalProps) => {
     setShowNewDelegationModal(false);
-    console.log('res In Toolbar:>> ', delegationModalProps);
     setConfirmationModalProps(delegationModalProps);
   };
 

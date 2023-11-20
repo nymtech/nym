@@ -44,7 +44,6 @@ pub(crate) enum BlockManagerError {
 }
 
 /// It helps to use atomic state management for new blocks.
-#[allow(clippy::struct_field_names)]
 pub(crate) struct BlockChainState {
     pub(crate) last_blocks: LruCache<Hash, Block>,
     /// Last block that we created.

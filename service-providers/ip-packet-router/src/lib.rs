@@ -253,8 +253,11 @@ impl IpPacketRouter {
             reconstructed.sender_tag
         );
 
-        let tagged_packet = nym_ip_packet_requests::TaggedIpPacket::from_message(&reconstructed)
-            .map_err(|err| IpPacketRouterError::FailedToDeserializeTaggedPacket { source: err })?;
+        let tagged_packet =
+            nym_ip_packet_requests::TaggedIpPacket::from_reconstructed_message(&reconstructed)
+                .map_err(|err| IpPacketRouterError::FailedToDeserializeTaggedPacket {
+                    source: err,
+                })?;
 
         // We don't forward packets that we are not able to parse. BUT, there might be a good
         // reason to still forward them.

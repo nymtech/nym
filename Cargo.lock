@@ -6663,7 +6663,6 @@ version = "0.1.0"
 dependencies = [
  "bincode",
  "bytes",
- "nym-service-providers-common",
  "nym-sphinx",
  "serde",
 ]

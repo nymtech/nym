@@ -13,6 +13,5 @@ license.workspace = true
 [dependencies]
 bincode = "1.3.3"
 bytes = "1.5.0"
-nym-service-providers-common = { path = "../../service-providers/common" }
 nym-sphinx = { path = "../nymsphinx" }
 serde = { workspace = true, features = ["derive"] }

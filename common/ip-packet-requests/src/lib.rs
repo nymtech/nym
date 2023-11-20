@@ -1,8 +1,3 @@
-use nym_service_providers_common::interface;
-
-pub type IpPacketRouterRequest = interface::Request<TaggedIpPacket>;
-pub type IpPacketRouterResponse = interface::Response<IpPacket>;
-
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct TaggedIpPacket {
     pub packet: bytes::Bytes,
@@ -11,17 +6,17 @@ pub struct TaggedIpPacket {
     // pub return_mix_delays: Option<f64>,
 }
 
-#[derive(serde::Serialize, serde::Deserialize)]
-pub struct IpPacket {
-    pub packet: bytes::Bytes,
-}
-
 impl TaggedIpPacket {
-    pub fn from_message(
+    pub fn from_reconstructed_message(
         message: &nym_sphinx::receiver::ReconstructedMessage,
     ) -> Result<Self, bincode::Error> {
         use bincode::Options;
         make_bincode_serializer().deserialize(&message.message)
+    }
+
+    pub fn to_bytes(&self) -> Result<Vec<u8>, bincode::Error> {
+        use bincode::Options;
+        make_bincode_serializer().serialize(self)
     }
 }
 

@@ -46,17 +46,14 @@ pub enum TunDeviceError {
         source: TunTaskResponseSendError,
     },
 
-    #[error("unable to parse destination address from packet")]
-    UnableToParseDstAdddress,
-
-    #[error("unable to parse source address from packet")]
-    UnableToParseSrcAddress {
+    #[error("unable to parse headers in packet")]
+    UnableToParseHeaders {
         #[from]
         source: etherparse::ReadError,
     },
 
-    #[error("unable to parse source address from packet: ip header missing")]
-    UnableToParseSrcAddressIpHeaderMissing,
+    #[error("unable to parse src and dst address from packet: ip header missing")]
+    UnableToParseAddressIpHeaderMissing,
 
     #[error("unable to lock peer mutex")]
     FailedToLockPeer,
@@ -176,10 +173,7 @@ impl TunDevice {
     // Send outbound packets out on the wild internet
     async fn handle_tun_write(&mut self, data: TunTaskPayload) -> Result<(), TunDeviceError> {
         let (tag, packet) = data;
-        let dst_addr = boringtun::noise::Tunn::dst_address(&packet)
-            .ok_or_else(|| TunDeviceError::UnableToParseDstAdddress)?;
-
-        let src_addr = parse_src_address(&packet)?;
+        let ParsedAddresses { src_addr, dst_addr } = parse_src_dst_address(&packet)?;
         log::debug!(
             "iface: write Packet({src_addr} -> {dst_addr}, {} bytes)",
             packet.len()
@@ -202,9 +196,7 @@ impl TunDevice {
 
     // Receive reponse packets from the wild internet
     async fn handle_tun_read(&self, packet: &[u8]) -> Result<(), TunDeviceError> {
-        let dst_addr = boringtun::noise::Tunn::dst_address(packet)
-            .ok_or(TunDeviceError::UnableToParseDstAdddress)?;
-        let src_addr = parse_src_address(packet)?;
+        let ParsedAddresses { src_addr, dst_addr } = parse_src_dst_address(packet)?;
         log::debug!(
             "iface: read Packet({src_addr} -> {dst_addr}, {} bytes)",
             packet.len(),
@@ -276,11 +268,22 @@ impl TunDevice {
     }
 }
 
-fn parse_src_address(packet: &[u8]) -> Result<IpAddr, TunDeviceError> {
+struct ParsedAddresses {
+    src_addr: IpAddr,
+    dst_addr: IpAddr,
+}
+
+fn parse_src_dst_address(packet: &[u8]) -> Result<ParsedAddresses, TunDeviceError> {
     let headers = SlicedPacket::from_ip(packet)?;
     match headers.ip {
-        Some(InternetSlice::Ipv4(ip, _)) => Ok(ip.source_addr().into()),
-        Some(InternetSlice::Ipv6(ip, _)) => Ok(ip.source_addr().into()),
-        None => Err(TunDeviceError::UnableToParseSrcAddressIpHeaderMissing),
+        Some(InternetSlice::Ipv4(ip, _)) => Ok(ParsedAddresses {
+            src_addr: ip.source_addr().into(),
+            dst_addr: ip.destination_addr().into(),
+        }),
+        Some(InternetSlice::Ipv6(ip, _)) => Ok(ParsedAddresses {
+            src_addr: ip.source_addr().into(),
+            dst_addr: ip.destination_addr().into(),
+        }),
+        None => Err(TunDeviceError::UnableToParseAddressIpHeaderMissing),
     }
 }

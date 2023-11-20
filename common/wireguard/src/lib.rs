@@ -3,15 +3,10 @@
 // #![warn(clippy::expect_used)]
 // #![warn(clippy::unwrap_used)]
 
-// mod active_peers;
 mod error;
-// mod event;
-// mod network_table;
 mod packet_relayer;
-// mod platform;
 mod registered_peers;
 pub mod setup;
-// pub mod tun_task_channel;
 mod udp_listener;
 mod wg_tunnel;
 

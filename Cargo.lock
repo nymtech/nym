@@ -7482,7 +7482,6 @@ dependencies = [
 name = "nym-tun"
 version = "0.1.0"
 dependencies = [
- "boringtun",
  "etherparse",
  "log",
  "nym-wireguard-types",

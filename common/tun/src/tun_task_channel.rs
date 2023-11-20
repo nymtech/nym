@@ -1,3 +1,5 @@
+#![cfg_attr(not(target_os = "linux"), allow(dead_code))]
+
 use std::time::Duration;
 
 use tokio::sync::mpsc::{

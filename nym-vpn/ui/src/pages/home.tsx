@@ -1,7 +1,15 @@
+import { useContext } from 'react';
+import { MainStateContext } from '../contexts';
+
 function Home() {
-  return <div>
-    Home
-  </div>
+  const state = useContext(MainStateContext);
+
+  return (
+    <div>
+      <h2>NymVPN</h2>
+      connection state: {state.state}
+    </div>
+  );
 }
 
 export default Home;

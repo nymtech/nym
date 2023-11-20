@@ -1,20 +1,31 @@
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
-import { Home, Settings, Error } from './pages';
+import { Home, Settings, Error, PageLayout } from './pages';
+import { MainStateProvider } from './state';
 
 const router = createBrowserRouter([
   {
-    path: '/',
-    element: <Home />,
-    errorElement: <Error />,
-  },
-  {
-    path: '/settings',
-    element: <Settings />,
+    element: <PageLayout />,
+    children: [
+      {
+        path: '/',
+        element: <Home />,
+        errorElement: <Error />,
+      },
+      {
+        path: '/settings',
+        element: <Settings />,
+        errorElement: <Error />,
+      },
+    ],
   },
 ]);
 
 function App() {
-  return <RouterProvider router={router} />;
+  return (
+    <MainStateProvider>
+      <RouterProvider router={router} />
+    </MainStateProvider>
+  );
 }
 
 export default App;

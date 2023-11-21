@@ -20,35 +20,23 @@ pub type PartialExpirationDateSignature = ExpirationDateSignature;
 pub fn sign_expiration_date(params: &Parameters, sk_auth: SecretKeyAuth, expiration_date: u64) -> Vec<PartialExpirationDateSignature>{
 
     // Initialize a vector to collect exp_sign values
-    let mut exp_signs: Vec<PartialExpirationDateSignature> = Vec::new();
+    let mut exp_signs = Vec::with_capacity(constants::VALIDITY_PERIOD as usize);
 
     for l in 0..constants::VALIDITY_PERIOD {
         let m0: Scalar = Scalar::from(expiration_date);
         let m1: Scalar = Scalar::from(expiration_date - constants::VALIDITY_PERIOD + l);
         let m2: Scalar = Scalar::from_bytes(&constants::TYPE_EXP).unwrap();
 
-        // Convert u64 values to bytes
-        let m0_bytes: [u8; 32] = m0.to_bytes();
-        let m1_bytes: [u8; 32] = m1.to_bytes();
-        let m2_bytes: [u8; 32] = m2.to_bytes();
-        let mut concatenated_attributes = Vec::new();
-
-        concatenated_attributes.extend_from_slice(&m0_bytes);
-        concatenated_attributes.extend_from_slice(&m1_bytes);
-        concatenated_attributes.extend_from_slice(&m2_bytes);
-
         // Compute the hash
-        let h = hash_g1(concatenated_attributes);
+        let h = hash_g1([m0.to_bytes(), m1.to_bytes(), m2.to_bytes()].concat());
 
-        // Compute s = x + y[0]*m0 + y[1]*m1 + y[2]*m2
+        // Sign the attributes by performing scalar-point multiplications and accumulating the result
         let mut s_exponent = sk_auth.x;
-
-        // Perform scalar-point multiplications and accumulate the result
         s_exponent += &sk_auth.ys[0] * m0;
         s_exponent += &sk_auth.ys[1] * m1;
         s_exponent += &sk_auth.ys[2] * m2;
 
-        // Create the signature on the expiration date
+        // Create the signature struct on the expiration date
         let exp_sign = PartialExpirationDateSignature {
             h,
             s: h * s_exponent,
@@ -57,9 +45,7 @@ pub fn sign_expiration_date(params: &Parameters, sk_auth: SecretKeyAuth, expirat
         // Collect the exp_sign value into the vector
         exp_signs.push(exp_sign);
     }
-
     exp_signs
-
 }
 
 pub fn aggregate_expiration_signatures(

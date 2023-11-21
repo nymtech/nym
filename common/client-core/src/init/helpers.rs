@@ -68,7 +68,7 @@ pub async fn current_gateways<R: Rng>(
     log::trace!("Fetching list of gateways from: {nym_api}");
 
     let gateways = client.get_cached_described_gateways().await?;
-    log::info!("Found {} gateways", gateways.len());
+    log::debug!("Found {} gateways", gateways.len());
     log::trace!("Gateways: {:#?}", gateways);
 
     let valid_gateways = gateways
@@ -82,6 +82,8 @@ pub async fn current_gateways<R: Rng>(
     let filtered_gateways = valid_gateways.filter_by_version(env!("CARGO_PKG_VERSION"));
     log::debug!("After filtering for version: {}", filtered_gateways.len());
     log::trace!("Filtered gateways: {:#?}", filtered_gateways);
+
+    log::info!("nym-api reports {} valid gateways", filtered_gateways.len());
 
     Ok(filtered_gateways)
 }

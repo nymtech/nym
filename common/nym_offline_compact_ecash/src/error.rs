@@ -31,6 +31,9 @@ pub enum CompactEcashError {
     #[error("Identify Verification related error: {0}")]
     Identify(String),
 
+    #[error("Expiration Date related error: {0}")]
+    ExpirationDate(String),
+
     #[error(
     "Deserailization error, expected at least {} bytes, got {}",
     min,

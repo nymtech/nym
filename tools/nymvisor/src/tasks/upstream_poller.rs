@@ -6,7 +6,7 @@ use crate::error::NymvisorError;
 use crate::upgrades::types::{UpgradeInfo, UpgradePlan};
 use reqwest::get;
 use tokio::task::JoinHandle;
-use tracing::{error, warn};
+use tracing::{debug, error, warn};
 
 pub(crate) struct UpstreamPoller {
     config: Config,
@@ -35,10 +35,13 @@ impl UpstreamPoller {
                 source,
             })?;
 
+        debug!("obtained the following upgrade info: {upgrade_info:?}");
+
         let mut plan = UpgradePlan::try_load(self.config.upgrade_plan_filepath())?;
 
         // if the current version is the same as the one announced by upstream, we're done
         if upgrade_info.version == plan.current().version {
+            debug!("the upstream version is the same one as the currently used");
             return Ok(());
         }
 
@@ -49,11 +52,13 @@ impl UpstreamPoller {
                 error!("failed to save new upgrade info: {err}");
                 return Err(err);
             }
+            debug!("saved new upgrade info");
 
             if let Err(err) = plan.insert_new_upgrade(upgrade_info) {
                 error!("failed to insert new upgrade info into the current upgrade plan: {err}");
                 return Err(err);
             }
+            debug!("inserted new upgrade info into the upgrade plan");
         }
 
         Ok(())

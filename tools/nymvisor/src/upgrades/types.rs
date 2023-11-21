@@ -18,7 +18,7 @@ use tracing::error;
 use url::Url;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "camelCase")]
 pub struct UpgradePlan {
     // metadata indicating save location of the underlying file
     #[serde(skip)]
@@ -165,7 +165,7 @@ impl UpgradePlan {
 }
 
 #[derive(Serialize, Deserialize, Debug, Copy, Clone)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "camelCase")]
 pub enum DigestAlgorithm {
     Sha256,
     Sha512,
@@ -198,7 +198,7 @@ impl DigestAlgorithm {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "camelCase")]
 pub struct DownloadUrl {
     /// The hex-encoded checksum of the file behind the download url.
     #[serde(with = "hex")]
@@ -212,7 +212,7 @@ pub struct DownloadUrl {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "camelCase")]
 pub struct UpgradeInfo {
     /// Specifies whether this upgrade requires manual intervention and cannot be done automatically by the nymvisor.
     pub manual: bool,
@@ -223,7 +223,7 @@ pub struct UpgradeInfo {
     /// Additional information about this release
     pub notes: String,
 
-    /// Optional rfc3339 datetime of the publish date of the release,
+    /// Optional rfc3339 datetime of the publishing date of the release,
     #[serde(with = "option_offsetdatetime")]
     pub publish_date: Option<OffsetDateTime>,
 
@@ -349,7 +349,7 @@ impl UpgradeInfo {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "camelCase")]
 pub struct UpgradeHistory {
     // metadata indicating save location of the underlying file
     #[serde(skip)]
@@ -359,7 +359,7 @@ pub struct UpgradeHistory {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "camelCase")]
 pub struct UpgradeHistoryEntry {
     #[serde(with = "time::serde::rfc3339")]
     performed_at: OffsetDateTime,
@@ -437,7 +437,7 @@ impl UpgradeHistory {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "camelCase")]
 pub struct CurrentVersionInfo {
     /// Name of the current version, for example `2023.4-galaxy`
     pub name: String,

@@ -351,8 +351,10 @@ impl Config {
             absolute_url.clone()
         } else {
             let mut base = self.nymvisor.debug.upstream_base_upgrade_url.clone();
-            base.set_path(&format!("{}/{UPGRADE_INFO_FILENAME}", self.daemon.name));
+            let prefix = base.path().trim_end_matches('/');
+            let daemon = &self.daemon.name;
 
+            base.set_path(&format!("{prefix}/{daemon}/{UPGRADE_INFO_FILENAME}"));
             base
         }
     }

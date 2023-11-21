@@ -23,6 +23,7 @@ use url::Url;
 
 pub mod error;
 
+// TODO: to allow for separate ingress/egress we have to change our layer selection algorithm, i.e. it has to be announced before epoch change
 pub type AllowedIngress = AllowedPaths;
 pub type AllowedEgress = AllowedPaths;
 
@@ -36,10 +37,13 @@ pub struct AllowedAddressesProvider {
     /// URLs to the nyxd validators for obtaining unfiltered network topology.
     nyxd_endpoints: Vec<Url>,
 
-    ingress: AllowedIngress,
-    egress: AllowedEgress,
+    // to allow for separate ingress/egress we have to change our layer selection algorithm, i.e. it has to be announced before epoch change
+    // ingress: AllowedIngress,
+    // egress: AllowedEgress,
+    allowed: AllowedPaths,
 }
 
+#[allow(dead_code)]
 impl AllowedAddressesProvider {
     pub async fn new(
         identity: IdentityKey,
@@ -53,8 +57,7 @@ impl AllowedAddressesProvider {
             identity,
             client_config: nyxd::Config::try_from_nym_network_details(&network)?,
             nyxd_endpoints,
-            ingress: AllowedPaths::new(allow_all),
-            egress: AllowedPaths::new(allow_all),
+            allowed: AllowedPaths::new(allow_all),
         };
 
         if !allow_all {
@@ -92,11 +95,11 @@ impl AllowedAddressesProvider {
     }
 
     pub fn ingress(&self) -> AllowedIngress {
-        self.ingress.clone()
+        self.allowed.clone()
     }
 
     pub fn egress(&self) -> AllowedEgress {
-        self.egress.clone()
+        self.allowed.clone()
     }
 
     fn add_node_ips(raw_host: &str, identity: &str, set: &mut HashSet<IpAddr>) {
@@ -181,62 +184,66 @@ impl AllowedAddressesProvider {
         let has_epoch_deviated = current_epoch > self.current_epoch + 1;
 
         let mixnodes = client.get_all_mixnode_bonds().await?;
-        let our_mix_layer = self.locate_layer(&mixnodes);
+        let gateways = client.get_all_gateways().await?;
 
-        let previous_mix_layer = our_mix_layer.and_then(|l| l.try_previous());
-        let next_mix_layer = our_mix_layer.and_then(|l| l.try_next());
+        let new_allowed = Self::get_all_addresses(&mixnodes, &gateways);
 
-        let (allowed_ingress, allowed_egress) = match (previous_mix_layer, next_mix_layer) {
-            // layer 1
-            (None, Some(next)) => {
-                let gateways = client.get_all_gateways().await?;
+        // I'm leaving this code commented out to preserve this logic for when we need it
+        // to update to proper ingress/egress filtering
 
-                (
-                    Self::gateway_addresses(&gateways),
-                    Self::get_addresses_on_layer(next, &mixnodes),
-                )
-            }
-            // layer 2
-            (Some(previous), Some(next)) => (
-                Self::get_addresses_on_layer(previous, &mixnodes),
-                Self::get_addresses_on_layer(next, &mixnodes),
-            ),
-            // layer 3
-            (Some(previous), None) => {
-                let gateways = client.get_all_gateways().await?;
-                (
-                    Self::get_addresses_on_layer(previous, &mixnodes),
-                    Self::gateway_addresses(&gateways),
-                )
-            }
-            // gateway (or not bonded)
-            (None, None) => {
-                let gateways = client.get_all_gateways().await?;
-
-                if self.is_gateway(&gateways) {
-                    let mut base_ingress = Self::get_addresses_on_layer(Layer::Three, &mixnodes);
-                    let mut base_egress = Self::get_addresses_on_layer(Layer::One, &mixnodes);
-
-                    // TODO: this extension should be conditional on whether the node is running the vpn module
-                    let gw_extension = Self::gateway_addresses(&gateways);
-
-                    base_ingress.extend(gw_extension.clone());
-                    base_egress.extend(gw_extension.clone());
-
-                    (base_ingress, base_egress)
-                } else {
-                    warn!("our node doesn't appear to be bonded - going to permit traffic from ALL mixnodes and gateways");
-                    let all = Self::get_all_addresses(&mixnodes, &gateways);
-                    (all.clone(), all)
-                }
-            }
-        };
+        // let our_mix_layer = self.locate_layer(&mixnodes);
+        //
+        // let previous_mix_layer = our_mix_layer.and_then(|l| l.try_previous());
+        // let next_mix_layer = our_mix_layer.and_then(|l| l.try_next());
+        //
+        // let (allowed_ingress, allowed_egress) = match (previous_mix_layer, next_mix_layer) {
+        //     // layer 1
+        //     (None, Some(next)) => {
+        //         let gateways = client.get_all_gateways().await?;
+        //
+        //         (
+        //             Self::gateway_addresses(&gateways),
+        //             Self::get_addresses_on_layer(next, &mixnodes),
+        //         )
+        //     }
+        //     // layer 2
+        //     (Some(previous), Some(next)) => (
+        //         Self::get_addresses_on_layer(previous, &mixnodes),
+        //         Self::get_addresses_on_layer(next, &mixnodes),
+        //     ),
+        //     // layer 3
+        //     (Some(previous), None) => {
+        //         let gateways = client.get_all_gateways().await?;
+        //         (
+        //             Self::get_addresses_on_layer(previous, &mixnodes),
+        //             Self::gateway_addresses(&gateways),
+        //         )
+        //     }
+        //     // gateway (or not bonded)
+        //     (None, None) => {
+        //         let gateways = client.get_all_gateways().await?;
+        //
+        //         if self.is_gateway(&gateways) {
+        //             let mut base_ingress = Self::get_addresses_on_layer(Layer::Three, &mixnodes);
+        //             let mut base_egress = Self::get_addresses_on_layer(Layer::One, &mixnodes);
+        //
+        //             // TODO: this extension should be conditional on whether the node is running the vpn module
+        //             let gw_extension = Self::gateway_addresses(&gateways);
+        //
+        //             base_ingress.extend(gw_extension.clone());
+        //             base_egress.extend(gw_extension.clone());
+        //
+        //             (base_ingress, base_egress)
+        //         } else {
+        //             warn!("our node doesn't appear to be bonded - going to permit traffic from ALL mixnodes and gateways");
+        //             let all = Self::get_all_addresses(&mixnodes, &gateways);
+        //             (all.clone(), all)
+        //         }
+        //     }
+        // };
 
         self.current_epoch = current_epoch;
-        self.ingress
-            .advance_epoch(allowed_ingress, has_epoch_deviated);
-        self.egress
-            .advance_epoch(allowed_egress, has_epoch_deviated);
+        self.allowed.advance_epoch(new_allowed, has_epoch_deviated);
 
         Ok(())
     }
@@ -268,8 +275,8 @@ impl AllowedAddressesProvider {
     }
 
     pub async fn run(&mut self, mut task_client: TaskClient) {
-        if self.ingress.allow_all {
-            debug_assert!(self.egress.allow_all);
+        if self.allowed.allow_all {
+            // debug_assert!(self.egress.allow_all);
 
             info!("the forward travel is currently disabled - there's no point in starting the route refresher");
             task_client.mark_as_success();

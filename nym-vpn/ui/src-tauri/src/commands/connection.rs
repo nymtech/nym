@@ -12,11 +12,11 @@ use crate::{
 const EVENT_CONNECTION: &str = "connection-state";
 
 #[derive(Clone, serde::Serialize)]
-struct Payload {
+struct EventPayload {
     state: ConnectionState,
 }
 
-#[instrument]
+#[instrument(skip_all)]
 #[tauri::command]
 pub async fn get_connection_state(
     state: State<'_, SharedAppState>,
@@ -26,13 +26,14 @@ pub async fn get_connection_state(
     Ok(app_state.state)
 }
 
+#[instrument(skip_all)]
 #[tauri::command]
 pub async fn connect(
     app: tauri::AppHandle,
     state: State<'_, SharedAppState>,
 ) -> Result<ConnectionState, CommandError> {
     debug!("connect");
-    let app_state = state.lock().await;
+    let mut app_state = state.lock().await;
     let ConnectionState::Disconnected = app_state.state else {
         return Err(CommandError::CallerError(format!(
             "cannot connect from state {:?}",
@@ -41,24 +42,27 @@ pub async fn connect(
     };
 
     // switch to "Connecting" state
-    let app_state_cloned = state.inner().clone();
-    app_state_cloned.lock().await.state = ConnectionState::Connecting;
+    app_state.state = ConnectionState::Connecting;
+    // unlock the mutex
+    drop(app_state);
     app.emit_all(
         EVENT_CONNECTION,
-        Payload {
+        EventPayload {
             state: ConnectionState::Connecting,
         },
     )
     .ok();
 
     // TODO fake some delay to establish connection
+    let app_state_cloned = state.inner().clone();
     let task = tokio::spawn(async move {
         sleep(Duration::from_secs(2)).await;
         trace!("connected");
         app_state_cloned.lock().await.state = ConnectionState::Connected;
+        debug!("sending event [{}]: connected", EVENT_CONNECTION);
         app.emit_all(
             EVENT_CONNECTION,
-            Payload {
+            EventPayload {
                 state: ConnectionState::Connected,
             },
         )
@@ -67,17 +71,18 @@ pub async fn connect(
 
     let _ = task.await;
 
+    let app_state = state.lock().await;
     Ok(app_state.state)
 }
 
-#[instrument]
+#[instrument(skip_all)]
 #[tauri::command]
 pub async fn disconnect(
     app: tauri::AppHandle,
     state: State<'_, SharedAppState>,
 ) -> Result<ConnectionState, CommandError> {
     debug!("disconnect");
-    let app_state = state.lock().await;
+    let mut app_state = state.lock().await;
     let ConnectionState::Connected = app_state.state else {
         return Err(CommandError::CallerError(format!(
             "cannot disconnect from state {:?}",
@@ -86,24 +91,27 @@ pub async fn disconnect(
     };
 
     // switch to "Disconnecting" state
-    let app_state_cloned = state.inner().clone();
-    app_state_cloned.lock().await.state = ConnectionState::Disconnecting;
+    app_state.state = ConnectionState::Disconnecting;
+    // unlock the mutex
+    drop(app_state);
     app.emit_all(
         EVENT_CONNECTION,
-        Payload {
+        EventPayload {
             state: ConnectionState::Disconnecting,
         },
     )
     .ok();
 
     // TODO fake some delay to confirm disconnection
+    let app_state_cloned = state.inner().clone();
     let task = tokio::spawn(async move {
         sleep(Duration::from_secs(2)).await;
         trace!("disconnected");
         app_state_cloned.lock().await.state = ConnectionState::Disconnected;
+        debug!("sending event [{}]: disconnected", EVENT_CONNECTION);
         app.emit_all(
             EVENT_CONNECTION,
-            Payload {
+            EventPayload {
                 state: ConnectionState::Disconnected,
             },
         )
@@ -112,5 +120,6 @@ pub async fn disconnect(
 
     let _ = task.await;
 
+    let app_state = state.lock().await;
     Ok(app_state.state)
 }

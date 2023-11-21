@@ -1,4 +1,7 @@
-type ConnectionState =
+import { Dispatch } from 'react';
+import { StateAction } from '../state';
+
+export type ConnectionState =
   | 'Connected'
   | 'Disconnected'
   | 'Connecting'
@@ -14,6 +17,13 @@ export interface TunnelConfig {
 
 export type AppState = {
   state: ConnectionState;
+  loading: boolean;
   privacyMode: PrivacyMode;
   tunnel: TunnelConfig;
 };
+
+export type EventPayload = {
+  state: ConnectionState;
+};
+
+export type StateDispatch = Dispatch<StateAction>;

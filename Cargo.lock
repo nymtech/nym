@@ -6658,6 +6658,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-ip-packet-requests"
+version = "0.1.0"
+dependencies = [
+ "bincode",
+ "bytes",
+ "nym-sphinx",
+ "serde",
+]
+
+[[package]]
 name = "nym-ip-packet-router"
 version = "0.1.0"
 dependencies = [
@@ -6670,11 +6680,13 @@ dependencies = [
  "nym-client-core",
  "nym-config",
  "nym-exit-policy",
+ "nym-ip-packet-requests",
  "nym-network-requester",
  "nym-sdk",
  "nym-service-providers-common",
  "nym-sphinx",
  "nym-task",
+ "nym-tun",
  "nym-wireguard",
  "nym-wireguard-types",
  "reqwest",
@@ -7466,6 +7478,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-tun"
+version = "0.1.0"
+dependencies = [
+ "etherparse",
+ "log",
+ "nym-wireguard-types",
+ "thiserror",
+ "tokio",
+ "tokio-tun",
+]
+
+[[package]]
 name = "nym-types"
 version = "1.0.0"
 dependencies = [
@@ -7584,6 +7608,7 @@ version = "0.1.0"
 dependencies = [
  "async-recursion",
  "base64 0.21.4",
+ "bincode",
  "boringtun",
  "bytes",
  "dashmap",
@@ -7592,7 +7617,9 @@ dependencies = [
  "ip_network",
  "ip_network_table",
  "log",
+ "nym-sphinx",
  "nym-task",
+ "nym-tun",
  "nym-wireguard-types",
  "rand 0.8.5",
  "serde",
@@ -7608,14 +7635,19 @@ version = "0.1.0"
 dependencies = [
  "base64 0.21.4",
  "boringtun",
+ "bytes",
  "dashmap",
  "hmac 0.12.1",
+ "ip_network",
+ "ip_network_table",
+ "log",
  "nym-crypto",
  "rand 0.7.3",
  "serde",
  "serde_json",
  "sha2 0.10.8",
  "thiserror",
+ "tokio",
  "utoipa",
  "x25519-dalek 2.0.0",
 ]

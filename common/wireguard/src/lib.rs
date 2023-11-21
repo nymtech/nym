@@ -3,15 +3,10 @@
 // #![warn(clippy::expect_used)]
 // #![warn(clippy::unwrap_used)]
 
-mod active_peers;
 mod error;
-mod event;
-mod network_table;
 mod packet_relayer;
-mod platform;
 mod registered_peers;
 pub mod setup;
-pub mod tun_task_channel;
 mod udp_listener;
 mod wg_tunnel;
 
@@ -20,7 +15,9 @@ use std::sync::Arc;
 
 // Currently the module related to setting up the virtual network device is platform specific.
 #[cfg(target_os = "linux")]
-pub use platform::linux::tun_device;
+use nym_tun::tun_device;
+
+use nym_tun::tun_task_channel;
 
 /// Start wireguard UDP listener and TUN device
 ///
@@ -36,7 +33,9 @@ pub async fn start_wireguard(
 
     // We can optionally index peers by their IP like standard wireguard. If we don't then we do
     // plain NAT where we match incoming destination IP with outgoing source IP.
-    let peers_by_ip = Arc::new(tokio::sync::Mutex::new(network_table::NetworkTable::new()));
+
+    use nym_wireguard_types::tun_common::network_table::NetworkTable;
+    let peers_by_ip = Arc::new(tokio::sync::Mutex::new(NetworkTable::new()));
 
     // Alternative 1:
     let routing_mode = tun_device::RoutingMode::new_allowed_ips(peers_by_ip.clone());

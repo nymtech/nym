@@ -1,7 +1,6 @@
 use std::{
     collections::HashMap,
     net::{IpAddr, Ipv4Addr},
-    sync::Arc,
     time::Duration,
 };
 
@@ -11,16 +10,18 @@ use tokio::{
     time::timeout,
 };
 
-use crate::{
-    active_peers::PeerEventSenderError,
-    event::Event,
-    tun_task_channel::{
-        tun_task_channel, tun_task_response_channel, TunTaskPayload, TunTaskResponseRx,
-        TunTaskResponseSendError, TunTaskResponseTx, TunTaskRx, TunTaskTx,
-    },
-    udp_listener::PeersByIp,
+use crate::tun_task_channel::{
+    tun_task_channel, tun_task_response_channel, TunTaskPayload, TunTaskResponseRx,
+    TunTaskResponseSendError, TunTaskResponseTx, TunTaskRx, TunTaskTx,
 };
 
+#[cfg(feature = "wireguard")]
+use nym_wireguard_types::tun_common::{
+    active_peers::{PeerEventSenderError, PeersByIp},
+    event::Event,
+};
+
+#[cfg(feature = "wireguard")]
 const MUTEX_LOCK_TIMEOUT_MS: u64 = 200;
 const TUN_WRITE_TIMEOUT_MS: u64 = 1000;
 
@@ -32,6 +33,7 @@ pub enum TunDeviceError {
     #[error("error writing to tun device: {source}")]
     TunWriteError { source: std::io::Error },
 
+    #[cfg(feature = "wireguard")]
     #[error("failed forwarding packet to peer: {source}")]
     ForwardToPeerFailed {
         #[from]
@@ -44,17 +46,14 @@ pub enum TunDeviceError {
         source: TunTaskResponseSendError,
     },
 
-    #[error("unable to parse destination address from packet")]
-    UnableToParseDstAdddress,
-
-    #[error("unable to parse source address from packet")]
-    UnableToParseSrcAddress {
+    #[error("unable to parse headers in packet")]
+    UnableToParseHeaders {
         #[from]
         source: etherparse::ReadError,
     },
 
-    #[error("unable to parse source address from packet: ip header missing")]
-    UnableToParseSrcAddressIpHeaderMissing,
+    #[error("unable to parse src and dst address from packet: ip header missing")]
+    UnableToParseAddressIpHeaderMissing,
 
     #[error("unable to lock peer mutex")]
     FailedToLockPeer,
@@ -94,6 +93,7 @@ pub struct TunDevice {
 
 pub enum RoutingMode {
     // The routing table, as how wireguard does it
+    #[cfg(feature = "wireguard")]
     AllowedIps(AllowedIpsInner),
 
     // This is an alternative to the routing table, where we just match outgoing source IP with
@@ -108,15 +108,18 @@ impl RoutingMode {
         })
     }
 
-    pub fn new_allowed_ips(peers_by_ip: Arc<tokio::sync::Mutex<PeersByIp>>) -> Self {
+    #[cfg(feature = "wireguard")]
+    pub fn new_allowed_ips(peers_by_ip: std::sync::Arc<tokio::sync::Mutex<PeersByIp>>) -> Self {
         RoutingMode::AllowedIps(AllowedIpsInner { peers_by_ip })
     }
 }
 
+#[cfg(feature = "wireguard")]
 pub struct AllowedIpsInner {
-    peers_by_ip: Arc<tokio::sync::Mutex<PeersByIp>>,
+    peers_by_ip: std::sync::Arc<tokio::sync::Mutex<PeersByIp>>,
 }
 
+#[cfg(feature = "wireguard")]
 impl AllowedIpsInner {
     async fn lock(&self) -> Result<tokio::sync::MutexGuard<PeersByIp>, TunDeviceError> {
         timeout(
@@ -170,16 +173,14 @@ impl TunDevice {
     // Send outbound packets out on the wild internet
     async fn handle_tun_write(&mut self, data: TunTaskPayload) -> Result<(), TunDeviceError> {
         let (tag, packet) = data;
-        let dst_addr = boringtun::noise::Tunn::dst_address(&packet)
-            .ok_or_else(|| TunDeviceError::UnableToParseDstAdddress)?;
-
-        let src_addr = parse_src_address(&packet)?;
+        let ParsedAddresses { src_addr, dst_addr } = parse_src_dst_address(&packet)?;
         log::debug!(
             "iface: write Packet({src_addr} -> {dst_addr}, {} bytes)",
             packet.len()
         );
 
         // TODO: expire old entries
+        #[allow(irrefutable_let_patterns)]
         if let RoutingMode::Nat(nat_table) = &mut self.routing_mode {
             nat_table.nat_table.insert(src_addr, tag);
         }
@@ -195,9 +196,7 @@ impl TunDevice {
 
     // Receive reponse packets from the wild internet
     async fn handle_tun_read(&self, packet: &[u8]) -> Result<(), TunDeviceError> {
-        let dst_addr = boringtun::noise::Tunn::dst_address(packet)
-            .ok_or(TunDeviceError::UnableToParseDstAdddress)?;
-        let src_addr = parse_src_address(packet)?;
+        let ParsedAddresses { src_addr, dst_addr } = parse_src_dst_address(packet)?;
         log::debug!(
             "iface: read Packet({src_addr} -> {dst_addr}, {} bytes)",
             packet.len(),
@@ -207,6 +206,7 @@ impl TunDevice {
 
         match self.routing_mode {
             // This is how wireguard does it, by consulting the AllowedIPs table.
+            #[cfg(feature = "wireguard")]
             RoutingMode::AllowedIps(ref peers_by_ip) => {
                 let peers = peers_by_ip.lock().await?;
                 if let Some(peer_tx) = peers.longest_match(dst_addr).map(|(_, tx)| tx) {
@@ -268,11 +268,22 @@ impl TunDevice {
     }
 }
 
-fn parse_src_address(packet: &[u8]) -> Result<IpAddr, TunDeviceError> {
+struct ParsedAddresses {
+    src_addr: IpAddr,
+    dst_addr: IpAddr,
+}
+
+fn parse_src_dst_address(packet: &[u8]) -> Result<ParsedAddresses, TunDeviceError> {
     let headers = SlicedPacket::from_ip(packet)?;
     match headers.ip {
-        Some(InternetSlice::Ipv4(ip, _)) => Ok(ip.source_addr().into()),
-        Some(InternetSlice::Ipv6(ip, _)) => Ok(ip.source_addr().into()),
-        None => Err(TunDeviceError::UnableToParseSrcAddressIpHeaderMissing),
+        Some(InternetSlice::Ipv4(ip, _)) => Ok(ParsedAddresses {
+            src_addr: ip.source_addr().into(),
+            dst_addr: ip.destination_addr().into(),
+        }),
+        Some(InternetSlice::Ipv6(ip, _)) => Ok(ParsedAddresses {
+            src_addr: ip.source_addr().into(),
+            dst_addr: ip.destination_addr().into(),
+        }),
+        None => Err(TunDeviceError::UnableToParseAddressIpHeaderMissing),
     }
 }

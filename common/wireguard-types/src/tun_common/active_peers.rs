@@ -5,24 +5,24 @@ use dashmap::{
     mapref::one::{Ref, RefMut},
     DashMap,
 };
-use tokio::{
-    sync::mpsc::{self},
-    time::{error::Elapsed, timeout},
-};
+use tokio::sync::mpsc::{self};
 
-use crate::event::Event;
+use crate::tun_common::{event::Event, network_table::NetworkTable};
+
+// Registered peers
+pub type PeersByIp = NetworkTable<PeerEventSender>;
 
 // Channels that are used to communicate with the various tunnels
 #[derive(Clone)]
 pub struct PeerEventSender(mpsc::Sender<Event>);
-pub(crate) struct PeerEventReceiver(mpsc::Receiver<Event>);
+pub struct PeerEventReceiver(mpsc::Receiver<Event>);
 
 #[derive(thiserror::Error, Debug)]
 pub enum PeerEventSenderError {
-    #[error("timeout")]
-    Timeout {
+    #[error("send failed: timeout: {source}")]
+    SendTimeoutError {
         #[from]
-        source: Elapsed,
+        source: mpsc::error::SendTimeoutError<Event>,
     },
 
     #[error("send failed: {source}")]
@@ -33,20 +33,21 @@ pub enum PeerEventSenderError {
 }
 
 impl PeerEventSender {
-    pub(crate) async fn send(&self, event: Event) -> Result<(), PeerEventSenderError> {
-        timeout(Duration::from_millis(1000), self.0.send(event))
-            .await?
-            .map_err(|err| err.into())
+    pub async fn send(&self, event: Event) -> Result<(), PeerEventSenderError> {
+        Ok(self
+            .0
+            .send_timeout(event, Duration::from_millis(1000))
+            .await?)
     }
 }
 
 impl PeerEventReceiver {
-    pub(crate) async fn recv(&mut self) -> Option<Event> {
+    pub async fn recv(&mut self) -> Option<Event> {
         self.0.recv().await
     }
 }
 
-pub(crate) fn peer_event_channel() -> (PeerEventSender, PeerEventReceiver) {
+pub fn peer_event_channel() -> (PeerEventSender, PeerEventReceiver) {
     let (tx, rx) = mpsc::channel(16);
     (PeerEventSender(tx), PeerEventReceiver(rx))
 }
@@ -55,20 +56,20 @@ pub(crate) type PeersByKey = DashMap<x25519::PublicKey, PeerEventSender>;
 pub(crate) type PeersByAddr = DashMap<SocketAddr, PeerEventSender>;
 
 #[derive(Default)]
-pub(crate) struct ActivePeers {
+pub struct ActivePeers {
     active_peers: PeersByKey,
     active_peers_by_addr: PeersByAddr,
 }
 
 impl ActivePeers {
-    pub(crate) fn remove(&self, public_key: &x25519::PublicKey) {
+    pub fn remove(&self, public_key: &x25519::PublicKey) {
         log::info!("Removing peer: {public_key:?}");
         self.active_peers.remove(public_key);
         log::warn!("TODO: remove from peers_by_ip?");
         log::warn!("TODO: remove from peers_by_addr");
     }
 
-    pub(crate) fn insert(
+    pub fn insert(
         &self,
         public_key: x25519::PublicKey,
         addr: SocketAddr,
@@ -78,17 +79,14 @@ impl ActivePeers {
         self.active_peers_by_addr.insert(addr, peer_tx);
     }
 
-    pub(crate) fn get_by_key_mut(
+    pub fn get_by_key_mut(
         &self,
         public_key: &x25519::PublicKey,
     ) -> Option<RefMut<'_, x25519::PublicKey, PeerEventSender>> {
         self.active_peers.get_mut(public_key)
     }
 
-    pub(crate) fn get_by_addr(
-        &self,
-        addr: &SocketAddr,
-    ) -> Option<Ref<'_, SocketAddr, PeerEventSender>> {
+    pub fn get_by_addr(&self, addr: &SocketAddr) -> Option<Ref<'_, SocketAddr, PeerEventSender>> {
         self.active_peers_by_addr.get(addr)
     }
 }

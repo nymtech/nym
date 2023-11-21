@@ -139,13 +139,13 @@ impl IpPacketRouterBuilder {
         let self_address = *mixnet_client.nym_address();
 
         // Create the TUN device that we interact with the rest of the world with
-        let config = nym_wireguard::tun_device::TunDeviceConfig {
+        let config = nym_tun::tun_device::TunDeviceConfig {
             base_name: TUN_BASE_NAME.to_string(),
             ip: TUN_DEVICE_ADDRESS.parse().unwrap(),
             netmask: TUN_DEVICE_NETMASK.parse().unwrap(),
         };
-        let (tun, tun_task_tx, tun_task_response_rx) = nym_wireguard::tun_device::TunDevice::new(
-            nym_wireguard::tun_device::RoutingMode::new_nat(),
+        let (tun, tun_task_tx, tun_task_response_rx) = nym_tun::tun_device::TunDevice::new(
+            nym_tun::tun_device::RoutingMode::new_nat(),
             config,
         );
         tun.start();
@@ -183,8 +183,8 @@ impl IpPacketRouterBuilder {
 struct IpPacketRouter {
     _config: Config,
     request_filter: request_filter::RequestFilter,
-    tun_task_tx: nym_wireguard::tun_task_channel::TunTaskTx,
-    tun_task_response_rx: nym_wireguard::tun_task_channel::TunTaskResponseRx,
+    tun_task_tx: nym_tun::tun_task_channel::TunTaskTx,
+    tun_task_response_rx: nym_tun::tun_task_channel::TunTaskResponseRx,
     mixnet_client: nym_sdk::mixnet::MixnetClient,
     task_handle: TaskHandle,
 }
@@ -253,8 +253,11 @@ impl IpPacketRouter {
             reconstructed.sender_tag
         );
 
-        let tagged_packet = TaggedPacket::from_message(&reconstructed)
-            .map_err(|err| IpPacketRouterError::FailedToDeserializeTaggedPacket { source: err })?;
+        let tagged_packet =
+            nym_ip_packet_requests::TaggedIpPacket::from_reconstructed_message(&reconstructed)
+                .map_err(|err| IpPacketRouterError::FailedToDeserializeTaggedPacket {
+                    source: err,
+                })?;
 
         // We don't forward packets that we are not able to parse. BUT, there might be a good
         // reason to still forward them.
@@ -293,27 +296,6 @@ impl IpPacketRouter {
 
         Ok(())
     }
-}
-
-#[derive(serde::Serialize, serde::Deserialize)]
-pub struct TaggedPacket {
-    packet: bytes::Bytes,
-    return_address: Recipient,
-    return_mix_hops: Option<u8>,
-}
-
-impl TaggedPacket {
-    fn from_message(message: &ReconstructedMessage) -> Result<Self, bincode::Error> {
-        use bincode::Options;
-        make_bincode_serializer().deserialize(&message.message)
-    }
-}
-
-fn make_bincode_serializer() -> impl bincode::Options {
-    use bincode::Options;
-    bincode::DefaultOptions::new()
-        .with_big_endian()
-        .with_varint_encoding()
 }
 
 struct ParsedPacket<'a> {

@@ -9,7 +9,7 @@ pub struct NetworkTable<T> {
 }
 
 impl<T> NetworkTable<T> {
-    pub(crate) fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             ips: IpNetworkTable::new(),
         }

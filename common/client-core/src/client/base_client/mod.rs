@@ -337,7 +337,7 @@ where
         <S::CredentialStore as CredentialStorage>::StorageError: Send + Sync + 'static,
     {
         let managed_keys = initialisation_result.managed_keys;
-        let GatewayDetails::Configured(gateway_config) = initialisation_result.gateway_details
+        let GatewayDetails::Configured(mut gateway_config) = initialisation_result.gateway_details
         else {
             return Err(ClientCoreError::UnexpectedPersistedCustomGatewayDetails);
         };
@@ -346,6 +346,7 @@ where
             if let Some(existing_client) = initialisation_result.authenticated_ephemeral_client {
                 existing_client.upgrade(packet_router, bandwidth_controller, shutdown)
             } else {
+                gateway_config.gateway_listener = "ws://10.1.0.1:9000".to_string();
                 let cfg = gateway_config.try_into()?;
                 GatewayClient::new(
                     cfg,

@@ -22,5 +22,10 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     }
     setup_logging();
 
-    commands::execute(args).await
+    if let Err(err) = commands::execute(args).await {
+        log::error!("{err}");
+        println!("An error occurred: {err}");
+        std::process::exit(1);
+    }
+    Ok(())
 }

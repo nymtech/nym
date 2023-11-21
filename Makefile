@@ -168,3 +168,7 @@ generate-typescript:
 run-api-tests:
 	cd nym-api/tests/functional_test && yarn test:qa
 
+# Build debian package, and update PPA
+# Requires GPG key
+deb:
+	scripts/ppa.sh

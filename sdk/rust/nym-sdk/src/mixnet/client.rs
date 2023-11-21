@@ -274,6 +274,9 @@ where
     /// advanced usage of custom gateways
     custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send + Sync>>,
 
+    /// If the client connects via Wireguard tunnel to the gateway.
+    wireguard_mode: bool,
+
     /// Attempt to wait for the selected gateway (if applicable) to come online if its currently not bonded.
     wait_for_gateway: bool,
 
@@ -326,6 +329,7 @@ where
             storage,
             custom_topology_provider: None,
             custom_gateway_transceiver: None,
+            wireguard_mode: false,
             wait_for_gateway: false,
             force_tls: false,
             custom_shutdown: None,
@@ -353,6 +357,12 @@ where
         gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send + Sync>>,
     ) -> Self {
         self.custom_gateway_transceiver = gateway_transceiver;
+        self
+    }
+
+    #[must_use]
+    pub fn wireguard_mode(mut self, wireguard_mode: bool) -> Self {
+        self.wireguard_mode = wireguard_mode;
         self
     }
 
@@ -505,6 +515,7 @@ where
 
         let mut base_builder: BaseClientBuilder<_, _> =
             BaseClientBuilder::new(&base_config, self.storage, self.dkg_query_client)
+                .with_wireguard_mode(self.wireguard_mode)
                 .with_wait_for_gateway(self.wait_for_gateway);
 
         if !known_gateway {

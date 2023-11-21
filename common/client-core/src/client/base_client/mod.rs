@@ -39,6 +39,7 @@ use nym_crypto::asymmetric::encryption;
 use nym_gateway_client::{
     AcknowledgementReceiver, GatewayClient, MixnetMessageReceiver, PacketRouter,
 };
+use nym_network_defaults::DEFAULT_CLIENT_LISTENING_PORT;
 use nym_sphinx::acknowledgements::AckKey;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::addressing::nodes::NodeIdentity;
@@ -49,6 +50,7 @@ use nym_task::{TaskClient, TaskHandle};
 use nym_topology::provider_trait::TopologyProvider;
 use nym_topology::HardcodedTopologyProvider;
 use nym_validator_client::nyxd::contract_traits::DkgQueryClient;
+use nym_wireguard::setup::TUN_DEVICE_ADDRESS;
 use std::fmt::Debug;
 use std::path::Path;
 use std::sync::Arc;
@@ -162,6 +164,7 @@ pub struct BaseClientBuilder<'a, C, S: MixnetClientStorage> {
     client_store: S,
     dkg_query_client: Option<C>,
 
+    wireguard_mode: bool,
     wait_for_gateway: bool,
     custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
     custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send>>,
@@ -184,6 +187,7 @@ where
             config: base_config,
             client_store,
             dkg_query_client,
+            wireguard_mode: false,
             wait_for_gateway: false,
             custom_topology_provider: None,
             custom_gateway_transceiver: None,
@@ -195,6 +199,12 @@ where
     #[must_use]
     pub fn with_gateway_setup(mut self, setup: GatewaySetup) -> Self {
         self.setup_method = setup;
+        self
+    }
+
+    #[must_use]
+    pub fn with_wireguard_mode(mut self, wireguard_mode: bool) -> Self {
+        self.wireguard_mode = wireguard_mode;
         self
     }
 
@@ -327,6 +337,7 @@ where
 
     async fn start_gateway_client(
         config: &Config,
+        wireguard_mode: bool,
         initialisation_result: InitialisationResult,
         bandwidth_controller: Option<BandwidthController<C, S::CredentialStore>>,
         packet_router: PacketRouter,
@@ -337,7 +348,7 @@ where
         <S::CredentialStore as CredentialStorage>::StorageError: Send + Sync + 'static,
     {
         let managed_keys = initialisation_result.managed_keys;
-        let GatewayDetails::Configured(gateway_config) = initialisation_result.gateway_details
+        let GatewayDetails::Configured(mut gateway_config) = initialisation_result.gateway_details
         else {
             return Err(ClientCoreError::UnexpectedPersistedCustomGatewayDetails);
         };
@@ -346,6 +357,12 @@ where
             if let Some(existing_client) = initialisation_result.authenticated_ephemeral_client {
                 existing_client.upgrade(packet_router, bandwidth_controller, shutdown)
             } else {
+                if wireguard_mode {
+                    gateway_config.gateway_listener = format!(
+                        "ws://{}:{}",
+                        TUN_DEVICE_ADDRESS, DEFAULT_CLIENT_LISTENING_PORT
+                    );
+                }
                 let cfg = gateway_config.try_into()?;
                 GatewayClient::new(
                     cfg,
@@ -380,6 +397,7 @@ where
     async fn setup_gateway_transceiver(
         custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send>>,
         config: &Config,
+        wireguard_mode: bool,
         initialisation_result: InitialisationResult,
         bandwidth_controller: Option<BandwidthController<C, S::CredentialStore>>,
         packet_router: PacketRouter,
@@ -404,6 +422,7 @@ where
         // otherwise, setup normal gateway client, etc
         let gateway_client = Self::start_gateway_client(
             config,
+            wireguard_mode,
             initialisation_result,
             bandwidth_controller,
             packet_router,
@@ -642,6 +661,7 @@ where
         let gateway_transceiver = Self::setup_gateway_transceiver(
             self.custom_gateway_transceiver,
             self.config,
+            self.wireguard_mode,
             init_res,
             bandwidth_controller,
             gateway_packet_router,

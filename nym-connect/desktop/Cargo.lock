@@ -705,9 +705,9 @@ checksum = "14c189c53d098945499cdfa7ecc63567cf3886b3332b312a5b4585d8d3a6a610"
 
 [[package]]
 name = "bytes"
-version = "1.4.0"
+version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "89b2fd2a0dcf38d7971e2194b6b6eebab45ae01067456a7fd93d5547a61b70be"
+checksum = "a2bd12c1caf447e69cd4528f47f94d203fd2582878ecb9e9465484c4148a8223"
 dependencies = [
  "serde",
 ]
@@ -2026,6 +2026,15 @@ checksum = "aa68f1b12764fab894d2755d2518754e71b4fd80ecfb822714a1206c2aab39bf"
 dependencies = [
  "cc",
  "libc",
+]
+
+[[package]]
+name = "etherparse"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "827292ea592108849932ad8e30218f8b1f21c0dfd0696698a18b5d0aed62d990"
+dependencies = [
+ "arrayvec 0.7.4",
 ]
 
 [[package]]
@@ -3855,6 +3864,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "nix"
+version = "0.27.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2eb04e9c688eff1c89d72b407f168cf79bb9e867a9d3323ed6c01519eb9cc053"
+dependencies = [
+ "bitflags 2.4.0",
+ "cfg-if",
+ "libc",
+]
+
+[[package]]
 name = "nodrop"
 version = "0.1.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4049,6 +4069,7 @@ dependencies = [
  "nym-task",
  "nym-topology",
  "nym-validator-client",
+ "nym-wireguard",
  "rand 0.7.3",
  "reqwest",
  "serde",
@@ -4756,6 +4777,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-tun"
+version = "0.1.0"
+dependencies = [
+ "etherparse",
+ "log",
+ "nym-wireguard-types",
+ "thiserror",
+ "tokio",
+ "tokio-tun",
+]
+
+[[package]]
 name = "nym-validator-client"
 version = "0.1.0"
 dependencies = [
@@ -4817,15 +4850,49 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-wireguard"
+version = "0.1.0"
+dependencies = [
+ "async-recursion",
+ "base64 0.21.4",
+ "bincode",
+ "boringtun",
+ "bytes",
+ "dashmap",
+ "etherparse",
+ "futures",
+ "ip_network",
+ "ip_network_table",
+ "log",
+ "nym-sphinx",
+ "nym-task",
+ "nym-tun",
+ "nym-wireguard-types",
+ "rand 0.8.5",
+ "serde",
+ "tap",
+ "thiserror",
+ "tokio",
+ "tokio-tun",
+]
+
+[[package]]
 name = "nym-wireguard-types"
 version = "0.1.0"
 dependencies = [
  "base64 0.21.4",
  "boringtun",
+ "bytes",
  "dashmap",
+ "hmac 0.12.1",
+ "ip_network",
+ "ip_network_table",
+ "log",
  "nym-crypto",
  "serde",
+ "sha2 0.10.8",
  "thiserror",
+ "tokio",
  "x25519-dalek 2.0.0",
 ]
 
@@ -7621,6 +7688,18 @@ dependencies = [
  "pin-project-lite",
  "tokio",
  "tokio-util",
+]
+
+[[package]]
+name = "tokio-tun"
+version = "0.9.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c4a67d1405a577ba1f4cd61f46608f1db2cadbb6a9549c3fc2eed7f1195393c9"
+dependencies = [
+ "libc",
+ "nix 0.27.1",
+ "thiserror",
+ "tokio",
 ]
 
 [[package]]

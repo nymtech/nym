@@ -1,6 +1,8 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::node::storage::Storage;
+
 use super::authenticated::RequestHandlingError;
 use chrono::Utc;
 use futures::channel::mpsc::{self, UnboundedReceiver, UnboundedSender};
@@ -10,10 +12,11 @@ use nym_compact_ecash::scheme::EcashCredential;
 use nym_compact_ecash::setup::Parameters;
 use nym_compact_ecash::{PayInfo, VerificationKeyAuth};
 use nym_validator_client::coconut::all_ecash_api_clients;
+use nym_validator_client::nyxd::AccountId;
 use nym_validator_client::{
     nyxd::contract_traits::DkgQueryClient, CoconutApiClient, DirectSigningHttpRpcNyxdClient,
+    NymApiClient,
 };
-use std::collections::VecDeque;
 use std::sync::Arc;
 use std::sync::Mutex;
 use tokio::time::{interval, Duration};
@@ -26,18 +29,19 @@ pub(crate) struct EcashVerifier {
     ecash_parameters: Parameters,
     pk_bytes: [u8; 32], //bytes represenation of a pub key representing the verifier
     pay_infos: Arc<Mutex<Vec<PayInfo>>>,
-    cred_sender: UnboundedSender<CredentialToBeSent>,
+    cred_sender: UnboundedSender<PendingCredential>,
 }
 
 impl EcashVerifier {
-    pub fn new(
+    pub fn new<St: Storage + 'static>(
         nyxd_client: DirectSigningHttpRpcNyxdClient,
         ecash_parameters: Parameters,
         pk_bytes: [u8; 32],
         shutdown: nym_task::TaskClient,
+        storage: St,
     ) -> Self {
         let (cred_sender, cred_receiver) = mpsc::unbounded();
-        let cs = CredentialSender::new(cred_receiver);
+        let cs = CredentialSender::new(cred_receiver, storage);
         cs.start(shutdown);
 
         EcashVerifier {
@@ -186,7 +190,11 @@ impl EcashVerifier {
 
         for client in api_clients {
             self.cred_sender
-                .unbounded_send(CredentialToBeSent(req.clone(), client))
+                .unbounded_send(PendingCredential {
+                    credential: credential.clone(),
+                    address: self.nyxd_client.address(),
+                    client: client.api_client,
+                })
                 .map_err(|_| RequestHandlingError::InternalError)?
         }
         Ok(())
@@ -194,63 +202,80 @@ impl EcashVerifier {
 }
 
 #[derive(Clone)]
-struct CredentialToBeSent(VerifyCredentialBody, CoconutApiClient);
-struct CredentialSender {
-    pending: VecDeque<CredentialToBeSent>,
-    cred_receiver: UnboundedReceiver<CredentialToBeSent>,
+pub(crate) struct PendingCredential {
+    pub(crate) credential: EcashCredential,
+    pub(crate) address: AccountId,
+    pub(crate) client: NymApiClient,
 }
 
-impl CredentialSender {
-    fn new(cred_receiver: UnboundedReceiver<CredentialToBeSent>) -> Self {
+struct CredentialSender<St: Storage> {
+    cred_receiver: UnboundedReceiver<PendingCredential>,
+    storage: St,
+}
+
+impl<St> CredentialSender<St>
+where
+    St: Storage + 'static,
+{
+    fn new(cred_receiver: UnboundedReceiver<PendingCredential>, storage: St) -> Self {
         CredentialSender {
-            pending: VecDeque::new(),
             cred_receiver,
+            storage,
         }
     }
 
-    async fn send_credential(request: &VerifyCredentialBody, endpoint: &CoconutApiClient) -> bool {
-        match endpoint
-            .api_client
-            .verify_bandwidth_credential(request)
-            .await
-        {
+    async fn send_credential(pending: &PendingCredential) -> bool {
+        let request =
+            VerifyCredentialBody::new(pending.credential.clone(), pending.address.clone());
+        match pending.client.verify_bandwidth_credential(&request).await {
             Ok(res) => {
                 if !res.verification_result {
                     log::debug!(
                         "Validator {} didn't accept the credential.",
-                        endpoint.api_client.nym_api.current_url()
+                        pending.client.nym_api.current_url()
                     );
                 }
                 //Credential was sent
                 true
             }
             Err(e) => {
-                log::warn!("Validator {} could not be reached. There might be a problem with the coconut endpoint - {:?}", endpoint.api_client.nym_api.current_url(), e);
+                log::warn!("Validator {} could not be reached. There might be a problem with the coconut endpoint - {:?}", pending.client.nym_api.current_url(), e);
                 false
             }
         }
     }
-    async fn handle_credential(&mut self, credential: CredentialToBeSent) {
-        if !Self::send_credential(&credential.0, &credential.1).await {
-            self.pending.push_back(credential);
+    async fn handle_credential(&mut self, pending: PendingCredential) {
+        if !Self::send_credential(&pending).await {
+            //failed to send, store credential
+            if let Err(err) = self.storage.insert_pending_credential(pending).await {
+                log::error!("Failed to store pending credential - {:?}", err);
+            };
         }
     }
 
     async fn try_empty_pending(&mut self) {
         log::debug!("Trying to send unsent payments");
-        let mut new_pending = VecDeque::new();
-        for credential in &self.pending {
-            if !Self::send_credential(&credential.0, &credential.1).await {
-                new_pending.push_back(credential.clone());
+        let pending = match self.storage.get_all_pending_credential().await {
+            Err(err) => {
+                log::error!("Failed to retrieve pending credential - {:?}", err);
+                return;
+            }
+            Ok(res) => res,
+        };
+
+        for (id, pending) in pending {
+            if Self::send_credential(&pending).await {
+                //send successful, remove credential from storage
+                if let Err(err) = self.storage.remove_pending_credential(id).await {
+                    log::error!("Failed to remove pending credential - {:?}", err);
+                }
             }
         }
-        self.pending = new_pending;
     }
 
     async fn run(mut self, mut shutdown: nym_task::TaskClient) {
         log::info!("Starting Ecash CredentialSender");
         let mut interval = interval(Duration::from_secs(CRED_SENDING_INTERVAL));
-        interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
 
         while !shutdown.is_shutdown() {
             tokio::select! {
@@ -259,7 +284,7 @@ impl CredentialSender {
                     log::trace!("client_handling::credentialSender : received shutdown");
                 },
                 Some(credential) = self.cred_receiver.next() => self.handle_credential(credential).await,
-                _ = interval.tick(), if !self.pending.is_empty() => self.try_empty_pending().await,
+                _ = interval.tick() => self.try_empty_pending().await,
 
             }
         }

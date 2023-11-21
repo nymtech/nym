@@ -38,7 +38,7 @@ pub type PartialExpirationDateSignature = ExpirationDateSignature;
 /// The validity period is determined by the constant `VALIDITY_PERIOD` in the `constants` module.
 pub fn sign_expiration_date(
     params: &Parameters,
-    sk_auth: SecretKeyAuth,
+    sk_auth: &SecretKeyAuth,
     expiration_date: u64
 ) -> Vec<PartialExpirationDateSignature>{
 
@@ -65,6 +65,39 @@ pub fn sign_expiration_date(
         exp_signs.push(exp_sign);
     }
     exp_signs
+}
+
+pub fn verify_sign_expiration_date(
+    params: &Parameters,
+    vkey: &VerificationKeyAuth,
+    signatures: &[ExpirationDateSignature],
+    expiration_date: u64,
+) -> Result<bool>{
+    for (l , sig) in signatures.iter().enumerate() {
+        let m0: Scalar = Scalar::from(expiration_date);
+        let m1: Scalar = Scalar::from(expiration_date - constants::VALIDITY_PERIOD + l as u64);
+        let m2: Scalar = Scalar::from_bytes(&constants::TYPE_EXP).unwrap();
+        // Compute the hash
+        let h = hash_g1([m0.to_bytes(), m1.to_bytes(), m2.to_bytes()].concat());
+        // Verify the signature correctness
+        let partially_signed_attributes = [m0, m1, m2]
+            .iter()
+            .zip(vkey.beta_g2.iter())
+            .map(|(m, beta_i)| beta_i * Scalar::from(*m))
+            .sum::<G2Projective>();
+
+        if !check_bilinear_pairing(
+            &sig.h.to_affine(),
+            &G2Prepared::from((vkey.alpha + partially_signed_attributes).to_affine()),
+            &sig.s.to_affine(),
+            params.grp().prepared_miller_g2(),
+        ) {
+            return Err(CompactEcashError::ExpirationDate(
+                "Verification of the expiration date signature failed".to_string(),
+            ));
+        }
+    }
+    Ok(true)
 }
 
 /// Aggregates partial expiration date signatures into a list of aggregated expiration date signatures.
@@ -114,7 +147,7 @@ pub fn aggregate_expiration_signatures(
 
     let mut exp_date_signs: Vec<ExpirationDateSignature> = Vec::new();
 
-    for l in 0..params.L() {
+    for l in 0..constants::VALIDITY_PERIOD {
         let m0: Scalar = Scalar::from(expiration_date);
         let m1: Scalar = Scalar::from(expiration_date - constants::VALIDITY_PERIOD + l);
         let m2: Scalar = Scalar::from_bytes(&constants::TYPE_EXP).unwrap();
@@ -180,5 +213,22 @@ pub fn aggregate_expiration_signatures(
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+    use crate::scheme::keygen::{ttp_keygen};
+    use crate::scheme::setup::setup;
 
+    #[test]
+    fn test_sign_expiration_date(){
+        let L = 32;
+        let params = setup(L);
+        let expiration_date = 1703183958;
+
+        let authorities_keys = ttp_keygen(&params.grp(), 2, 3).unwrap();
+        let sk_auth = authorities_keys[0].secret_key();
+        let vk_auth = authorities_keys[0].verification_key();
+        let partial_exp_sig = sign_expiration_date(&params, &sk_auth, expiration_date);
+
+        assert!(verify_sign_expiration_date(&params, &vk_auth, &partial_exp_sig, expiration_date).unwrap());
+
+    }
 }

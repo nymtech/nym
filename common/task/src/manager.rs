@@ -495,13 +495,13 @@ impl Drop for TaskClient {
         if !self.mode.should_signal_on_drop() {
             self.log(
                 Level::Debug,
-                "the task client is getting dropped: this is expected during client disconnect",
+                "the task client is getting dropped: this is expected during client shutdown",
             );
             return;
         } else {
             self.log(
                 Level::Info,
-                "the task client is getting dropped: this is expected during client disconnect",
+                "the task client is getting dropped: this is expected during client shutdown",
             );
         }
 

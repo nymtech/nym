@@ -16,8 +16,31 @@ pub struct ExpirationDateSignature{
 
 pub type PartialExpirationDateSignature = ExpirationDateSignature;
 
-// This function is execute by a single issuing authority
-pub fn sign_expiration_date(params: &Parameters, sk_auth: SecretKeyAuth, expiration_date: u64) -> Vec<PartialExpirationDateSignature>{
+/// Signs given expiration date for a specified validity period using the given secret key of a single authority.
+///
+/// # Arguments
+///
+/// * `params` - The cryptographic parameters used in the signing process.
+/// * `sk_auth` - The secret key of the signing authority.
+/// * `expiration_date` - The expiration date for which signatures will be generated.
+///
+/// # Returns
+///
+/// A vector containing partial signatures for each date within the validity period (i.e.,
+/// from expiration_date - VALIDITY_PERIOD till expiration_date.
+///
+/// # Note
+///
+/// This function is executed by a single singing authority and generates partial expiration date
+/// signatures for a specified validity period. Each signature is created by combining cryptographic
+/// attributes derived from the expiration date, and the resulting vector contains signatures for
+/// each date within the defined validity period till expiration date.
+/// The validity period is determined by the constant `VALIDITY_PERIOD` in the `constants` module.
+pub fn sign_expiration_date(
+    params: &Parameters,
+    sk_auth: SecretKeyAuth,
+    expiration_date: u64
+) -> Vec<PartialExpirationDateSignature>{
 
     // Initialize a vector to collect exp_sign values
     let mut exp_signs = Vec::with_capacity(constants::VALIDITY_PERIOD as usize);
@@ -26,22 +49,18 @@ pub fn sign_expiration_date(params: &Parameters, sk_auth: SecretKeyAuth, expirat
         let m0: Scalar = Scalar::from(expiration_date);
         let m1: Scalar = Scalar::from(expiration_date - constants::VALIDITY_PERIOD + l);
         let m2: Scalar = Scalar::from_bytes(&constants::TYPE_EXP).unwrap();
-
         // Compute the hash
         let h = hash_g1([m0.to_bytes(), m1.to_bytes(), m2.to_bytes()].concat());
-
         // Sign the attributes by performing scalar-point multiplications and accumulating the result
         let mut s_exponent = sk_auth.x;
         s_exponent += &sk_auth.ys[0] * m0;
         s_exponent += &sk_auth.ys[1] * m1;
         s_exponent += &sk_auth.ys[2] * m2;
-
         // Create the signature struct on the expiration date
         let exp_sign = PartialExpirationDateSignature {
             h,
             s: h * s_exponent,
         };
-
         // Collect the exp_sign value into the vector
         exp_signs.push(exp_sign);
     }

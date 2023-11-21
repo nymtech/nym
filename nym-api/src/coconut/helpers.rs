@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::coconut::error::CoconutError;
+use crate::coconut::InternalSignRequest;
+use nym_coconut::{BlindedSignature, Parameters};
+use nym_coconut_interface::KeyPair as CoconutKeyPair;
 use nym_validator_client::nyxd::error::NyxdError::AbciError;
 
 // If the result is already established, the vote might be redundant and
@@ -16,4 +19,17 @@ pub(crate) fn accepted_vote_err(ret: Result<(), CoconutError>) -> Result<(), Coc
         }
     }
     Ok(())
+}
+
+pub(crate) fn blind_sign(
+    request: InternalSignRequest,
+    key_pair: &CoconutKeyPair,
+) -> Result<BlindedSignature, CoconutError> {
+    let params = Parameters::new(request.total_params())?;
+    Ok(nym_coconut_interface::blind_sign(
+        &params,
+        &key_pair.secret_key(),
+        request.blind_sign_request(),
+        request.public_attributes(),
+    )?)
 }

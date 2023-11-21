@@ -44,9 +44,9 @@ pub async fn start_wireguard(
 
     // Start the tun device that is used to relay traffic outbound
     let config = tun_device::TunDeviceConfig {
-        base_name: setup::TUN_BASE_NAME.to_string(),
-        ip: setup::TUN_DEVICE_ADDRESS.parse().unwrap(),
-        netmask: setup::TUN_DEVICE_NETMASK.parse().unwrap(),
+        base_name: nym_wireguard_types::WG_TUN_BASE_NAME.to_string(),
+        ip: nym_wireguard_types::WG_TUN_DEVICE_ADDRESS.parse().unwrap(),
+        netmask: nym_wireguard_types::WG_TUN_DEVICE_NETMASK.parse().unwrap(),
     };
     let (tun, tun_task_tx, tun_task_response_rx) = tun_device::TunDevice::new(routing_mode, config);
     tun.start();

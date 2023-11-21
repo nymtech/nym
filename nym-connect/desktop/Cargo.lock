@@ -2029,15 +2029,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "etherparse"
-version = "0.13.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "827292ea592108849932ad8e30218f8b1f21c0dfd0696698a18b5d0aed62d990"
-dependencies = [
- "arrayvec 0.7.4",
-]
-
-[[package]]
 name = "event-listener"
 version = "2.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3864,17 +3855,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "nix"
-version = "0.27.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2eb04e9c688eff1c89d72b407f168cf79bb9e867a9d3323ed6c01519eb9cc053"
-dependencies = [
- "bitflags 2.4.0",
- "cfg-if",
- "libc",
-]
-
-[[package]]
 name = "nodrop"
 version = "0.1.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4069,7 +4049,7 @@ dependencies = [
  "nym-task",
  "nym-topology",
  "nym-validator-client",
- "nym-wireguard",
+ "nym-wireguard-types",
  "rand 0.7.3",
  "reqwest",
  "serde",
@@ -4777,18 +4757,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "nym-tun"
-version = "0.1.0"
-dependencies = [
- "etherparse",
- "log",
- "nym-wireguard-types",
- "thiserror",
- "tokio",
- "tokio-tun",
-]
-
-[[package]]
 name = "nym-validator-client"
 version = "0.1.0"
 dependencies = [
@@ -4847,33 +4815,6 @@ dependencies = [
  "nym-mixnet-contract-common",
  "serde",
  "thiserror",
-]
-
-[[package]]
-name = "nym-wireguard"
-version = "0.1.0"
-dependencies = [
- "async-recursion",
- "base64 0.21.4",
- "bincode",
- "boringtun",
- "bytes",
- "dashmap",
- "etherparse",
- "futures",
- "ip_network",
- "ip_network_table",
- "log",
- "nym-sphinx",
- "nym-task",
- "nym-tun",
- "nym-wireguard-types",
- "rand 0.8.5",
- "serde",
- "tap",
- "thiserror",
- "tokio",
- "tokio-tun",
 ]
 
 [[package]]
@@ -7688,18 +7629,6 @@ dependencies = [
  "pin-project-lite",
  "tokio",
  "tokio-util",
-]
-
-[[package]]
-name = "tokio-tun"
-version = "0.9.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c4a67d1405a577ba1f4cd61f46608f1db2cadbb6a9549c3fc2eed7f1195393c9"
-dependencies = [
- "libc",
- "nix 0.27.1",
- "thiserror",
- "tokio",
 ]
 
 [[package]]

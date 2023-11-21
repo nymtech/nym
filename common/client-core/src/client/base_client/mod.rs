@@ -50,7 +50,7 @@ use nym_task::{TaskClient, TaskHandle};
 use nym_topology::provider_trait::TopologyProvider;
 use nym_topology::HardcodedTopologyProvider;
 use nym_validator_client::nyxd::contract_traits::DkgQueryClient;
-use nym_wireguard::setup::TUN_DEVICE_ADDRESS;
+use nym_wireguard_types::WG_TUN_DEVICE_ADDRESS;
 use std::fmt::Debug;
 use std::path::Path;
 use std::sync::Arc;
@@ -360,7 +360,7 @@ where
                 if wireguard_mode {
                     gateway_config.gateway_listener = format!(
                         "ws://{}:{}",
-                        TUN_DEVICE_ADDRESS, DEFAULT_CLIENT_LISTENING_PORT
+                        WG_TUN_DEVICE_ADDRESS, DEFAULT_CLIENT_LISTENING_PORT
                     );
                 }
                 let cfg = gateway_config.try_into()?;

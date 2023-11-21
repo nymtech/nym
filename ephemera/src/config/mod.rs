@@ -136,7 +136,7 @@ pub enum Error {
     NotFound(String),
     #[error("Configuration file does not exist")]
     /// This is returned if IoError happens during configuration file read/write.
-    IoError(#[from] std::io::Error),
+    Io(#[from] std::io::Error),
     /// This is returned if configuration file is invalid.
     #[error("Configuration file is invalid: '{0}'")]
     InvalidFormat(String),

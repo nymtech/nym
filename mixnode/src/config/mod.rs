@@ -164,6 +164,7 @@ impl Config {
         save_formatted_config_to_file(self, config_save_location)
     }
 
+    #[allow(unused)]
     pub fn try_save(&self) -> io::Result<()> {
         if let Some(save_location) = &self.save_path {
             save_formatted_config_to_file(self, save_location)

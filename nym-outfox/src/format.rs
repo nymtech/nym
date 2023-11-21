@@ -302,7 +302,7 @@ impl MixStageParameters {
                 &nonce.into(),
                 &[],
                 &mut buffer[self.header_range()],
-                tag.as_slice().try_into().unwrap(),
+                tag.as_slice().into(),
             )
             .map_err(|e| OutfoxError::ChaCha20Poly1305Error(e.to_string()))?;
 

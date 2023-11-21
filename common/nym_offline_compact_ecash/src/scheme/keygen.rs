@@ -405,7 +405,7 @@ pub fn ttp_keygen(
 
     // generate polynomials
     let v = Polynomial::new_random(params, threshold - 1);
-    let ws = (0..attributes)
+    let ws = (0..attributes+1)
         .map(|_| Polynomial::new_random(params, threshold - 1))
         .collect::<Vec<_>>();
 

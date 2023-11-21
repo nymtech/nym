@@ -6,8 +6,8 @@ use rand::thread_rng;
 
 use crate::error::{CompactEcashError, Result};
 use crate::utils::{hash_g1, Signature};
+use crate::constants::ATTRIBUTES_LEN;
 
-const ATTRIBUTES_LEN: usize = 3;
 
 pub struct GroupParameters {
     /// Generator of the G1 group
@@ -50,10 +50,6 @@ impl GroupParameters {
     pub(crate) fn gammas(&self) -> &Vec<G1Projective> {
         &self.gammas
     }
-
-    // pub(crate) fn gamma1(&self) -> &G1Projective {
-    //     &self.gammas[0]
-    // }
 
     pub(crate) fn gamma_idx(&self, i: usize) -> Option<&G1Projective>{
         self.gammas.get(i)

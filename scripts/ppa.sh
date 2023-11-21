@@ -1,5 +1,6 @@
 #/bin/bash
 # Run from repository root
+# Needs PPA_SIGNING_KEY base64 encoded in env var
 
 echo ${PPA_SIGNING_KEY} | base64 -d > ppa-signing-key.asc
 gpg --import ppa-signing-key.asc

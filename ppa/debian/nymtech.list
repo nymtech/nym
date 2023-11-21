@@ -1,1 +1,1 @@
-deb [signed-by=/etc/apt/trusted.gpg.d/ppa.gpg] https://nymtech.github.io/nym/ppa ./
+deb [signed-by=/etc/apt/trusted.gpg.d/nymtech.gpg] https://nymtech.github.io/nym/debian ./

@@ -67,6 +67,27 @@ pub fn sign_expiration_date(
     exp_signs
 }
 
+/// Aggregates partial expiration date signatures into a list of aggregated expiration date signatures.
+///
+/// # Arguments
+///
+/// * `params` - The cryptographic parameters used in the signing process.
+/// * `vk_auth` - The global verification key.
+/// * `expiration_date` - The expiration date for which the signatures are being aggregated.
+/// * `indices` - A list of unique indices corresponding to the signing authorities.
+/// * `vkeys` - A list of verification keys associated with the signing authorities.
+/// * `signatures` - A list of partial expiration date signatures to be aggregated.
+///
+/// # Returns
+///
+/// A `Result` containing a vector of `ExpirationDateSignature` if the aggregation is successful,
+/// or an `Err` variant with a description of the encountered error.
+///
+/// # Errors
+///
+/// This function returns an error if there is a mismatch in the lengths of `vkeys` and `signatures`,
+/// or if there are not enough unique indices. It also returns an error the verification of
+/// the partial or aggregated signatures fails.
 pub fn aggregate_expiration_signatures(
     params: &Parameters,
     vk_auth: &VerificationKeyAuth,
@@ -154,5 +175,10 @@ pub fn aggregate_expiration_signatures(
         exp_date_signs.push(aggr_sig);
     }
     Ok(exp_date_signs)
+
+}
+
+#[cfg(test)]
+mod tests {
 
 }

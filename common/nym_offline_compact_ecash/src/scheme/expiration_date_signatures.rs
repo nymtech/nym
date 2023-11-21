@@ -98,6 +98,11 @@ pub fn verify_sign_expiration_date(
         // Compute the hash
         let h = hash_g1([m0.to_bytes(), m1.to_bytes(), m2.to_bytes()].concat());
         // Verify the signature correctness
+        if sig.h != h {
+            return Err(CompactEcashError::ExpirationDate(
+                "Failed to verify the commitment hash".to_string(),
+            ));
+        }
         let partially_signed_attributes = [m0, m1, m2]
             .iter()
             .zip(vkey.beta_g2.iter())

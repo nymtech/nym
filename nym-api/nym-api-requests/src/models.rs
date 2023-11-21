@@ -370,7 +370,7 @@ pub struct NymNodeDescription {
     pub mixnet_websockets: WebSockets,
 }
 
-#[derive(Clone, Serialize, Deserialize, schemars::JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct DescribedGateway {
     pub bond: GatewayBond,
     pub self_described: Option<NymNodeDescription>,

@@ -366,6 +366,7 @@ impl<St> Gateway<St> {
                 ecash_params,
                 self.identity_keypair.public_key().to_bytes(),
                 shutdown.subscribe().named("EcashVerifier"),
+                self.storage.clone(),
             )
         };
 

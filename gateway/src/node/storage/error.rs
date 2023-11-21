@@ -10,4 +10,7 @@ pub(crate) enum StorageError {
 
     #[error("Failed to perform database migration: {0}")]
     MigrationError(#[from] sqlx::migrate::MigrateError),
+
+    #[error("Somehow stored data is incorrect: {0}")]
+    DataCorruptionError(String),
 }

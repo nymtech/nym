@@ -67,6 +67,24 @@ pub fn sign_expiration_date(
     exp_signs
 }
 
+/// Verifies the expiration date signatures against the given verification key.
+///
+/// This function iterates over the provided valid date signatures and verifies each one
+/// against the provided verification key. It computes the hash and checks the correctness of the
+/// signature using bilinear pairings.
+///
+/// # Arguments
+///
+/// * `params` - The cryptographic parameters used in the signing process.
+/// * `vkey` - The verification key of the signing authority.
+/// * `signatures` - The list of date signatures to be verified.
+/// * `expiration_date` - The expiration date for which signatures are being issued.
+///
+/// # Returns
+///
+/// Returns `Ok(true)` if all signatures are verified successfully, otherwise returns an
+/// `Err(CompactEcashError::ExpirationDate)` with an error message.
+///
 pub fn verify_sign_expiration_date(
     params: &Parameters,
     vkey: &VerificationKeyAuth,
@@ -93,7 +111,7 @@ pub fn verify_sign_expiration_date(
             params.grp().prepared_miller_g2(),
         ) {
             return Err(CompactEcashError::ExpirationDate(
-                "Verification of the expiration date signature failed".to_string(),
+                "Verification of the date signature failed".to_string(),
             ));
         }
     }

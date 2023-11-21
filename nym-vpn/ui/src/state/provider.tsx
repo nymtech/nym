@@ -1,11 +1,9 @@
-import { useCallback, useEffect, useReducer } from 'react';
+import { useEffect, useReducer } from 'react';
 import { invoke } from '@tauri-apps/api';
-import { listen } from '@tauri-apps/api/event';
 import { initialState, reducer } from './main';
+import { useTauriEvents } from './useTauriEvents';
 import { MainDispatchContext, MainStateContext } from '../contexts';
-import { ConnectionState, EventPayload } from '../types';
-
-const ConnectionEvent = 'connection-state';
+import { ConnectionState } from '../types';
 
 type Props = {
   children?: React.ReactNode;
@@ -14,39 +12,7 @@ type Props = {
 export function MainStateProvider({ children }: Props) {
   const [state, dispatch] = useReducer(reducer, initialState);
 
-  const registerListener = useCallback(async () => {
-    return await listen<EventPayload>(ConnectionEvent, (event) => {
-      console.log(
-        `received event ${event.event}, state: ${event.payload.state}`,
-      );
-      switch (event.payload.state) {
-        case 'Connected':
-          dispatch({ type: 'change-connection-state', state: 'Connected' });
-          break;
-        case 'Disconnected':
-          dispatch({ type: 'change-connection-state', state: 'Disconnected' });
-          break;
-        case 'Connecting':
-          dispatch({ type: 'change-connection-state', state: 'Connecting' });
-          break;
-        case 'Disconnecting':
-          dispatch({ type: 'change-connection-state', state: 'Disconnecting' });
-          break;
-        case 'Error':
-          break;
-      }
-    });
-  }, []);
-
-  // register/unregister event listener
-  useEffect(() => {
-    let unlisten = () => {};
-    registerListener().then((fn) => (unlisten = fn));
-
-    return () => {
-      unlisten();
-    };
-  }, [registerListener]);
+  useTauriEvents(dispatch);
 
   // initialize connection state
   useEffect(() => {

@@ -7600,10 +7600,12 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-file-watcher",
+ "bytes",
  "clap 4.4.7",
  "dotenvy",
  "flate2",
  "futures",
+ "hex",
  "humantime 2.1.0",
  "humantime-serde",
  "lazy_static",
@@ -9023,10 +9025,12 @@ dependencies = [
  "tokio-native-tls",
  "tokio-rustls 0.24.1",
  "tokio-socks",
+ "tokio-util",
  "tower-service",
  "url",
  "wasm-bindgen",
  "wasm-bindgen-futures",
+ "wasm-streams",
  "web-sys",
  "winreg",
 ]
@@ -11985,6 +11989,19 @@ dependencies = [
  "thiserror",
  "wasm-bindgen",
  "wasm-utils",
+]
+
+[[package]]
+name = "wasm-streams"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b4609d447824375f43e1ffbc051b50ad8f4b3ae8219680c94452ea05eb240ac7"
+dependencies = [
+ "futures-util",
+ "js-sys",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
 ]
 
 [[package]]

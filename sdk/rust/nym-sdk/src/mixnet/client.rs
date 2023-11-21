@@ -44,6 +44,7 @@ pub struct MixnetClientBuilder<S: MixnetClientStorage = Ephemeral> {
     gateway_config: Option<GatewayEndpointConfig>,
     socks5_config: Option<Socks5>,
 
+    wireguard_mode: bool,
     wait_for_gateway: bool,
     custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
     custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send + Sync>>,
@@ -79,6 +80,7 @@ impl MixnetClientBuilder<OnDiskPersistent> {
             storage_paths: None,
             gateway_config: None,
             socks5_config: None,
+            wireguard_mode: false,
             wait_for_gateway: false,
             custom_topology_provider: None,
             storage: storage_paths
@@ -109,6 +111,7 @@ where
             storage_paths: None,
             gateway_config: None,
             socks5_config: None,
+            wireguard_mode: false,
             wait_for_gateway: false,
             custom_topology_provider: None,
             custom_gateway_transceiver: None,
@@ -127,6 +130,7 @@ where
             storage_paths: self.storage_paths,
             gateway_config: self.gateway_config,
             socks5_config: self.socks5_config,
+            wireguard_mode: self.wireguard_mode,
             wait_for_gateway: self.wait_for_gateway,
             custom_topology_provider: self.custom_topology_provider,
             custom_gateway_transceiver: self.custom_gateway_transceiver,
@@ -207,6 +211,13 @@ where
 
     /// Attempt to wait for the selected gateway (if applicable) to come online if its currently not bonded.
     #[must_use]
+    pub fn with_wireguard_mode(mut self, wireguard_mode: bool) -> Self {
+        self.wireguard_mode = wireguard_mode;
+        self
+    }
+
+    /// Attempt to wait for the selected gateway (if applicable) to come online if its currently not bonded.
+    #[must_use]
     pub fn with_wait_for_gateway(mut self, wait_for_gateway: bool) -> Self {
         self.wait_for_gateway = wait_for_gateway;
         self
@@ -235,6 +246,7 @@ where
             .custom_gateway_transceiver(self.custom_gateway_transceiver)
             .custom_topology_provider(self.custom_topology_provider)
             .custom_shutdown(self.custom_shutdown)
+            .wireguard_mode(self.wireguard_mode)
             .wait_for_gateway(self.wait_for_gateway)
             .force_tls(self.force_tls);
 

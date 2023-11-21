@@ -74,45 +74,41 @@ pub fn aggregate_expiration_signatures(
     indices: &[u64],
     vkeys: &[VerificationKeyAuth],
     signatures: &[PartialExpirationDateSignature]) -> Result<Vec<ExpirationDateSignature>>{
-    // check if we have enough unique partial signatures to meet the required threshold
-    if !(indices.iter().unique_by(|&index| index).count() == indices.len()){
+    // Check if vkeys and signatures have the same length
+    if vkeys.len() != signatures.len() {
+        return Err(CompactEcashError::ExpirationDate(
+            "Mismatched lengths of vkeys and signatures".to_string(),
+        ));
+    }
+
+    // Check if we have enough unique partial signatures to meet the required threshold
+    if indices.iter().unique_by(|&index| index).count() != indices.len() {
         return Err(CompactEcashError::ExpirationDate(
             "Not enough unique indices shares".to_string(),
         ));
     }
 
-    // evaluate at 0 the Lagrange basis polynomials k_i
+    // Evaluate at 0 the Lagrange basis polynomials k_i
     let coefficients = generate_lagrangian_coefficients_at_origin(indices);
 
     let mut exp_date_signs: Vec<ExpirationDateSignature> = Vec::new();
 
     for l in 0..params.L() {
-        let m0: u64 = expiration_date;
-        let m1: u64 = expiration_date - constants::VALIDITY_PERIOD + l;
-        let m2 = constants::TYPE_EXP;
-
-        let m0_bytes: [u8; 8] = m0.to_le_bytes();
-        let m1_bytes: [u8; 8] = m1.to_le_bytes();
-
-        let m0_scalar = Scalar::from(m0);
-        let m1_scalar = Scalar::from(m1);
-        let m2_scalar = Scalar::from_bytes(&m2).unwrap();
-
-        let mut concatenated_attributes = Vec::new();
-
-        concatenated_attributes.extend_from_slice(&m0_bytes);
-        concatenated_attributes.extend_from_slice(&m1_bytes);
+        let m0: Scalar = Scalar::from(expiration_date);
+        let m1: Scalar = Scalar::from(expiration_date - constants::VALIDITY_PERIOD + l);
+        let m2: Scalar = Scalar::from_bytes(&constants::TYPE_EXP).unwrap();
         // Compute the hash
-        let h = hash_g1(concatenated_attributes);
+        let h = hash_g1([m0.to_bytes(), m1.to_bytes(), m2.to_bytes()].concat());
 
+        // Verify each partial signature
         for (vkey, sig) in vkeys.iter().zip(signatures.iter()) {
             if sig.h != h {
-                // return Err(CompactEcashError::ExpirationDate(
-                //     "Failed to verify the commitment hash".to_string(),
-                // ));
+                return Err(CompactEcashError::ExpirationDate(
+                    "Failed to verify the commitment hash".to_string(),
+                ));
             }
             // Verify the signature correctness
-            let partially_signed_attributes = [m0_scalar, m1_scalar, m2_scalar]
+            let partially_signed_attributes = [m0, m1, m2]
                 .iter()
                 .zip(vkey.beta_g2.iter())
                 .map(|(m, beta_i)| beta_i * Scalar::from(*m))
@@ -124,39 +120,36 @@ pub fn aggregate_expiration_signatures(
                 &sig.s.to_affine(),
                 params.grp().prepared_miller_g2(),
             ) {
-                // return Err(CompactEcashError::ExpirationDate(
-                //     "Verification of the partial expiration date signature failed".to_string(),
-                // ));
+                return Err(CompactEcashError::ExpirationDate(
+                    "Verification of the partial expiration date signature failed".to_string(),
+                ));
             }
         }
-        // compute the aggregated signature of the expiration date
-        let aggr_s: G1Projective = coefficients.clone()
-            .into_iter()
+        // Compute the aggregated signature of the expiration date
+        let aggr_s: G1Projective = coefficients
+            .iter()
             .zip(signatures.iter())
             .map(|(coeff, sig)| sig.s * coeff)
             .sum();
 
-        let aggr_sig = ExpirationDateSignature{
-            h : signatures[0].h,
-            s : aggr_s,
-        };
+        let aggr_sig = ExpirationDateSignature { h, s: aggr_s };
 
-        let signed_attributes  = [m0_scalar, m1_scalar, m2_scalar]
+        let signed_attributes = [m0, m1, m2]
             .iter()
             .zip(vk_auth.beta_g2.iter())
             .map(|(m, beta_i)| beta_i * Scalar::from(*m))
             .sum::<G2Projective>();
 
-        // check validity of the aggregated signature
+        // Check the validity of the aggregated signature
         if !check_bilinear_pairing(
             &aggr_sig.h.to_affine(),
             &G2Prepared::from((vk_auth.alpha + signed_attributes).to_affine()),
             &aggr_sig.s.to_affine(),
             params.grp().prepared_miller_g2(),
         ) {
-            // return Err(CompactEcashError::ExpirationDate(
-            //     "Verification of the aggregated expiration date signature failed".to_string(),
-            // ));
+            return Err(CompactEcashError::ExpirationDate(
+                "Verification of the aggregated expiration date signature failed".to_string(),
+            ));
         }
         exp_date_signs.push(aggr_sig);
     }

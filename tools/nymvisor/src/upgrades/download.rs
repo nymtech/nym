@@ -35,6 +35,10 @@ async fn chunk_download(
     download_url: &DownloadUrl,
     download_target: &PathBuf,
 ) -> Result<(), NymvisorError> {
+    info!(
+        "attempting to download the binary from '{}'",
+        download_url.url
+    );
     let response = reqwest::get(download_url.url.clone())
         .await
         .map_err(|source| NymvisorError::UpgradeDownloadFailure {

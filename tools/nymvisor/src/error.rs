@@ -365,8 +365,12 @@ While the stored info point to:\n{stored_info:#?}"
     #[error("could not find the upgrade binary at {} while the binary download is disabled", path.display())]
     NoUpgradeBinaryWithDisabledDownload { path: PathBuf },
 
-    #[error("upgrade '{upgrade_name}' does not have any valid download URLs for the current arch '{arch}'")]
-    NoDownloadUrls { upgrade_name: String, arch: String },
+    #[error("upgrade '{upgrade_name}' does not have any valid download URLs for the current arch '{arch}'. The available arches are: {available:?}")]
+    NoDownloadUrls {
+        upgrade_name: String,
+        arch: String,
+        available: Vec<String>,
+    },
 
     #[error("failed to download the upgrade binary from '{url}': {source}")]
     UpgradeDownloadFailure {

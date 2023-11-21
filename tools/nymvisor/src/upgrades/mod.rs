@@ -48,7 +48,7 @@ pub(crate) async fn perform_upgrade(config: &Config) -> Result<UpgradeResult, Ny
     let mut upgrade_history = if history_path.exists() {
         UpgradeHistory::try_load(history_path)?
     } else {
-        UpgradeHistory::new()
+        UpgradeHistory::new(history_path)
     };
 
     debug!("creating the lock file");
@@ -77,7 +77,7 @@ pub(crate) async fn perform_upgrade(config: &Config) -> Result<UpgradeResult, Ny
             });
         }
         info!(
-            "upgrade binary not found at {}. attempting to to download it",
+            "upgrade binary not found at '{}'. attempting to to download it",
             upgrade_binary_path.display()
         );
 
@@ -107,7 +107,7 @@ pub(crate) async fn perform_upgrade(config: &Config) -> Result<UpgradeResult, Ny
     upgrade_history.insert_new_upgrade(next)?;
 
     // update the 'current' symlink
-    set_upgrade_link(config, config.upgrade_binary_dir(&upgrade_name))?;
+    set_upgrade_link(config, config.upgrade_dir(&upgrade_name))?;
 
     // finally remove the lock file
     fs::remove_file(&lock_path).map_err(|source| NymvisorError::LockFileRemovalFailure {

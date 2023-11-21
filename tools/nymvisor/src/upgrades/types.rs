@@ -297,6 +297,7 @@ impl UpgradeInfo {
             .ok_or(NymvisorError::NoDownloadUrls {
                 upgrade_name: self.name.clone(),
                 arch: os_arch(),
+                available: self.platforms.keys().cloned().collect(),
             })
     }
 
@@ -377,9 +378,9 @@ impl UpgradeHistoryEntry {
 }
 
 impl UpgradeHistory {
-    pub(crate) fn new() -> Self {
+    pub(crate) fn new<P: AsRef<Path>>(save_path: P) -> Self {
         UpgradeHistory {
-            _save_path: None,
+            _save_path: Some(save_path.as_ref().to_path_buf()),
             history: vec![],
         }
     }
@@ -424,7 +425,7 @@ impl UpgradeHistory {
 
     pub(crate) fn try_load<P: AsRef<Path>>(path: P) -> Result<Self, NymvisorError> {
         let path = path.as_ref();
-        fs::File::open(path)
+        let mut history: UpgradeHistory = fs::File::open(path)
             .and_then(|file| {
                 serde_json::from_reader(file)
                     .map_err(|serde_json_err| io::Error::new(io::ErrorKind::Other, serde_json_err))
@@ -432,7 +433,10 @@ impl UpgradeHistory {
             .map_err(|source| NymvisorError::UpgradeHistoryLoadFailure {
                 path: path.to_path_buf(),
                 source,
-            })
+            })?;
+
+        history._save_path = Some(path.to_path_buf());
+        Ok(history)
     }
 }
 

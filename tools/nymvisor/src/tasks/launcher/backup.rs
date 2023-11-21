@@ -3,6 +3,7 @@
 
 use crate::config::NYMVISOR_DIR;
 use crate::error::NymvisorError;
+use crate::helpers::init_path;
 use flate2::write::GzEncoder;
 use flate2::Compression;
 use std::fs;
@@ -33,7 +34,11 @@ pub(crate) struct BackupBuilder {
 
 impl BackupBuilder {
     pub(crate) fn new<P: AsRef<Path>>(backup_directory: P) -> Result<Self, NymvisorError> {
-        let backup_filepath = backup_directory.as_ref().join(generate_backup_filename());
+        let backup_directory = backup_directory.as_ref();
+        let backup_filepath = backup_directory.join(generate_backup_filename());
+
+        // create the backup directory itself (i.e. specific for this upgrade) if it doesn't yet exist
+        init_path(backup_directory)?;
 
         // create the backup file
         let backup_file = fs::File::create(&backup_filepath).map_err(|source| {

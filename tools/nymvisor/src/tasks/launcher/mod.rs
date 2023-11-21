@@ -182,7 +182,6 @@ impl DaemonLauncher {
                         error!("CRITICAL FAILURE: the upgrade plan watcher channel got closed");
                         panic!("CRITICAL FAILURE: the upgrade plan watcher channel got closed")
                     };
-                    println!("the file has changed - {event:?}");
 
                     debug!("the file has changed - {event:?}");
                     if let Some(next_upgrade) = self.check_upgrade_plan_changes() {

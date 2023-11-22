@@ -8,7 +8,7 @@
     "dev:app": "RUST_LOG=nymvpn_ui=trace tauri dev",
     "dev:browser": "vite --mode dev-browser",
     "build": "tsc && vite build",
-    "build:app": "yarn build && cd src-tauri && cargo build --release --lib --features custom-protocol",
+    "build:app": "yarn tauri build",
     "preview": "vite preview",
     "lint": "eslint --ext .ts,.tsx src/",
     "lint:fix": "eslint --ext .js,.ts --fix src/",
@@ -18,17 +18,21 @@
     "tauri": "tauri"
   },
   "dependencies": {
-    "@mui/base": "^5.0.0-beta.20",
+    "@mui/base": "^5.0.0-beta.24",
     "@mui/material": "^5.14.14",
     "@tauri-apps/api": "^1.5.0",
     "clsx": "^2.0.0",
+    "i18next": "^23.7.6",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "react-i18next": "^13.5.0",
+    "react-router-dom": "^6.18.0"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^1.5.0",
-    "@types/react": "^18.2.31",
-    "@types/react-dom": "^18.2.14",
+    "@types/react": "^18.2.37",
+    "@types/react-dom": "^18.2.15",
+    "@types/react-router-dom": "^5.3.3",
     "@typescript-eslint/eslint-plugin": "^6.8.0",
     "@typescript-eslint/parser": "^6.8.0",
     "@vitejs/plugin-react-swc": "^3.3.2",
@@ -42,6 +46,6 @@
     "prettier": "^3.0.3",
     "tailwindcss": "^3.3.3",
     "typescript": "^5.0.2",
-    "vite": "^4.4.5"
+    "vite": "^5.0.0"
   }
 }

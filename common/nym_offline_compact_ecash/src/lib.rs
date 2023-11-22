@@ -21,7 +21,7 @@ use crate::traits::Bytable;
 
 mod error;
 mod proofs;
-mod scheme;
+pub mod scheme;
 #[cfg(test)]
 mod tests;
 mod traits;

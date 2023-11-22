@@ -92,36 +92,39 @@ pub fn verify_valid_dates_signatures(
     signatures: &[ExpirationDateSignature],
     expiration_date: u64,
 ) -> Result<()>{
-    for (l , sig) in signatures.iter().enumerate() {
-        let m0: Scalar = Scalar::from(expiration_date);
-        let m1: Scalar = Scalar::from(expiration_date - constants::VALIDITY_PERIOD + l as u64);
-        let m2: Scalar = Scalar::from_bytes(&constants::TYPE_EXP).unwrap();
-        // Compute the hash
-        let h = hash_g1([m0.to_bytes(), m1.to_bytes(), m2.to_bytes()].concat());
-        // Verify the signature correctness
-        if sig.h != h {
-            return Err(CompactEcashError::ExpirationDate(
-                "Failed to verify the commitment hash".to_string(),
-            ));
-        }
-        let partially_signed_attributes = [m0, m1, m2]
-            .iter()
-            .zip(vkey.beta_g2.iter())
-            .map(|(m, beta_i)| beta_i * Scalar::from(*m))
-            .sum::<G2Projective>();
+    signatures
+        .par_iter()
+        .enumerate()
+        .try_for_each(|(l, sig)| {
+            let m0: Scalar = Scalar::from(expiration_date);
+            let m1: Scalar = Scalar::from(expiration_date - constants::VALIDITY_PERIOD + l as u64);
+            let m2: Scalar = Scalar::from_bytes(&constants::TYPE_EXP).unwrap();
+            // Compute the hash
+            let h = hash_g1([m0.to_bytes(), m1.to_bytes(), m2.to_bytes()].concat());
+            // Verify the signature correctness
+            if sig.h != h {
+                return Err(CompactEcashError::ExpirationDate(
+                    "Failed to verify the commitment hash".to_string(),
+                ));
+            }
+            let partially_signed_attributes = [m0, m1, m2]
+                .iter()
+                .zip(vkey.beta_g2.iter())
+                .map(|(m, beta_i)| beta_i * Scalar::from(*m))
+                .sum::<G2Projective>();
 
-        if !check_bilinear_pairing(
-            &sig.h.to_affine(),
-            &G2Prepared::from((vkey.alpha + partially_signed_attributes).to_affine()),
-            &sig.s.to_affine(),
-            params.grp().prepared_miller_g2(),
-        ) {
-            return Err(CompactEcashError::ExpirationDate(
-                "Verification of the date signature failed".to_string(),
-            ));
-        }
-    }
-    Ok(())
+            if !check_bilinear_pairing(
+                &sig.h.to_affine(),
+                &G2Prepared::from((vkey.alpha + partially_signed_attributes).to_affine()),
+                &sig.s.to_affine(),
+                params.grp().prepared_miller_g2(),
+            ) {
+                return Err(CompactEcashError::ExpirationDate(
+                    "Verification of the date signature failed".to_string(),
+                ));
+            }
+            Ok(())
+        })
 }
 
 /// Aggregates partial expiration date signatures into a list of aggregated expiration date signatures.
@@ -131,9 +134,7 @@ pub fn verify_valid_dates_signatures(
 /// * `params` - The cryptographic parameters used in the signing process.
 /// * `vk_auth` - The global verification key.
 /// * `expiration_date` - The expiration date for which the signatures are being aggregated (as unix timestamp).
-/// * `indices` - A list of unique indices corresponding to the signing authorities.
-/// * `vkeys` - A list of verification keys associated with the signing authorities.
-/// * `signatures` - A list of partial expiration date signatures to be aggregated.
+/// * `signatures` - A list of tuples containing unique indices, verification keys, and partial expiration date signatures corresponding to the signing authorities.
 ///
 /// # Returns
 ///
@@ -142,16 +143,23 @@ pub fn verify_valid_dates_signatures(
 ///
 /// # Errors
 ///
-/// This function returns an error if there is a mismatch in the lengths of `vkeys` and `signatures`,
-/// or if there are not enough unique indices. It also returns an error the verification of
-/// the partial or aggregated signatures fails.
+/// This function returns an error if there is a mismatch in the lengths of `signatures`. This occurs
+/// when the number of tuples in `signatures` is not equal to the expected number of signing authorities.
+/// Each tuple should contain a unique index, a verification key, and a list of partial signatures.
+///
+/// It also returns an error if there are not enough unique indices. This happens when the number
+/// of unique indices in the tuples is less than the total number of signing authorities.
+///
+/// Additionally, an error is returned if the verification of the partial or aggregated signatures fails.
+/// This can occur if the cryptographic verification process fails for any of the provided signatures.
+///
 pub fn aggregate_expiration_signatures(
     params: &Parameters,
     vk_auth: &VerificationKeyAuth,
     expiration_date: u64,
     signatures: &[(u64, VerificationKeyAuth, Vec<PartialExpirationDateSignature>)],
 ) -> Result<Vec<ExpirationDateSignature>>{
-    // Check if we have enough unique partial signatures to meet the required threshold
+    // Check if all indices are unique
     if signatures.iter().map(|(index, _, _)| index).unique().count() != signatures.len() {
         return Err(CompactEcashError::ExpirationDate(
             "Not enough unique indices shares".to_string(),
@@ -179,6 +187,7 @@ pub fn aggregate_expiration_signatures(
             .try_for_each(|(_, vkey, partial_signatures)| {
                 verify_valid_dates_signatures(params, vkey, partial_signatures, expiration_date)
             })?;
+
 
         // Collect the partial signatures for the same valid date
         let collected_at_l: Vec<_> = signatures

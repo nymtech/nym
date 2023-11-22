@@ -18,6 +18,7 @@ use nym_compact_ecash::{
 };
 use nym_compact_ecash::identify::{identify, IdentifyResult};
 use nym_compact_ecash::setup::setup;
+use nym_compact_ecash::scheme::expiration_date_signatures::{sign_expiration_date, verify_valid_dates_signatures};
 
 #[allow(unused)]
 fn double_pairing(g11: &G1Affine, g21: &G2Affine, g12: &G1Affine, g22: &G2Affine) {
@@ -181,31 +182,31 @@ fn bench_compact_ecash(c: &mut Criterion) {
     let (req, req_info) = withdrawal_request(grp, &user_keypair.secret_key()).unwrap();
 
     // CLIENT BENCHMARK: prepare a single withdrawal request
-    // group.bench_function(
-    //     &format!(
-    //         "[Client] withdrawal_request_{}_authorities_{}_L_{}_threshold",
-    //         case.num_authorities, case.L, case.threshold_p,
-    //     ),
-    //     |b| b.iter(|| withdrawal_request(grp, &user_keypair.secret_key()).unwrap()),
-    // );
+    group.bench_function(
+        &format!(
+            "[Client] withdrawal_request_{}_authorities_{}_L_{}_threshold",
+            case.num_authorities, case.L, case.threshold_p,
+        ),
+        |b| b.iter(|| withdrawal_request(grp, &user_keypair.secret_key()).unwrap()),
+    );
 
     // ISSUING AUTHRORITY BENCHMARK: Benchmark the issue_wallet function
     // called by an authority to issue a blind signature on a partial wallet
     let mut rng = rand::thread_rng();
     let keypair = authorities_keypairs.choose(&mut rng).unwrap();
-    // group.bench_function(
-    //     &format!("[Issuing Authority] issue_partial_wallet_with_L_{}", case.L, ),
-    //     |b| {
-    //         b.iter(|| {
-    //             issue_wallet(
-    //                 &grp,
-    //                 keypair.secret_key(),
-    //                 user_keypair.public_key(),
-    //                 &req,
-    //             ).unwrap()
-    //         })
-    //     },
-    // );
+    group.bench_function(
+        &format!("[Issuing Authority] issue_partial_wallet_with_L_{}", case.L, ),
+        |b| {
+            b.iter(|| {
+                issue_wallet(
+                    &grp,
+                    keypair.secret_key(),
+                    user_keypair.public_key(),
+                    &req,
+                ).unwrap()
+            })
+        },
+    );
 
     let mut wallet_blinded_signatures = Vec::new();
     for auth_keypair in authorities_keypairs {
@@ -221,10 +222,10 @@ fn bench_compact_ecash(c: &mut Criterion) {
     // CLIENT BENCHMARK: verify the issued partial wallet
     let w = wallet_blinded_signatures.get(0).clone().unwrap();
     let vk = verification_keys_auth.get(0).clone().unwrap();
-    // group.bench_function(
-    //     &format!("[Client] issue_verify_a_partial_wallet_with_L_{}", case.L, ),
-    //     |b| b.iter(|| issue_verify(&grp, vk, &user_keypair.secret_key(), w, &req_info).unwrap()),
-    // );
+    group.bench_function(
+        &format!("[Client] issue_verify_a_partial_wallet_with_L_{}", case.L, ),
+        |b| b.iter(|| issue_verify(&grp, vk, &user_keypair.secret_key(), w, &req_info).unwrap()),
+    );
 
     let unblinded_wallet_shares: Vec<PartialWallet> = izip!(
         wallet_blinded_signatures.iter(),
@@ -234,24 +235,24 @@ fn bench_compact_ecash(c: &mut Criterion) {
         .collect();
 
     // CLIENT BENCHMARK: aggregating all partial wallets
-    // group.bench_function(
-    //     &format!(
-    //         "[Client] aggregate_wallets_with_L_{}_threshold_{}",
-    //         case.L, case.threshold_p,
-    //     ),
-    //     |b| {
-    //         b.iter(|| {
-    //             aggregate_wallets(
-    //                 &grp,
-    //                 &verification_key,
-    //                 &user_keypair.secret_key(),
-    //                 &unblinded_wallet_shares,
-    //                 &req_info,
-    //             )
-    //                 .unwrap()
-    //         })
-    //     },
-    // );
+    group.bench_function(
+        &format!(
+            "[Client] aggregate_wallets_with_L_{}_threshold_{}",
+            case.L, case.threshold_p,
+        ),
+        |b| {
+            b.iter(|| {
+                aggregate_wallets(
+                    &grp,
+                    &verification_key,
+                    &user_keypair.secret_key(),
+                    &unblinded_wallet_shares,
+                    &req_info,
+                )
+                    .unwrap()
+            })
+        },
+    );
 
     // Aggregate partial wallets
     let aggr_wallet = aggregate_wallets(
@@ -264,28 +265,28 @@ fn bench_compact_ecash(c: &mut Criterion) {
         .unwrap();
 
     // SPENDING PHASE
-    let pay_info = PayInfo { info: [6u8; 32] };
+    let pay_info = PayInfo { payinfo: [6u8; 88] };
     // CLIENT BENCHMARK: spend a single coin from the wallet
-    // group.bench_function(
-    //     &format!(
-    //         "[Client] spend_a_single_coin_L_{}_threshold_{}",
-    //         case.L, case.threshold_p,
-    //     ),
-    //     |b| {
-    //         b.iter(|| {
-    //             aggr_wallet
-    //                 .spend(
-    //                     &params,
-    //                     &verification_key,
-    //                     &user_keypair.secret_key(),
-    //                     &pay_info,
-    //                     true,
-    //                     case.spend_vv,
-    //                 )
-    //                 .unwrap()
-    //         })
-    //     },
-    // );
+    group.bench_function(
+        &format!(
+            "[Client] spend_a_single_coin_L_{}_threshold_{}",
+            case.L, case.threshold_p,
+        ),
+        |b| {
+            b.iter(|| {
+                aggr_wallet
+                    .spend(
+                        &params,
+                        &verification_key,
+                        &user_keypair.secret_key(),
+                        &pay_info,
+                        true,
+                        case.spend_vv,
+                    )
+                    .unwrap()
+            })
+        },
+    );
 
     let (payment, upd_wallet) = aggr_wallet
         .spend(
@@ -299,19 +300,19 @@ fn bench_compact_ecash(c: &mut Criterion) {
         .unwrap();
 
     // MERCHANT BENCHMARK: verify whether the submitted payment is legit
-    // group.bench_function(
-    //     &format!(
-    //         "[Merchant] spend_verify_of_a_single_payment_L_{}_threshold_{}",
-    //         case.L, case.threshold_p,
-    //     ),
-    //     |b| {
-    //         b.iter(|| {
-    //             payment
-    //                 .spend_verify(&params, &verification_key, &pay_info)
-    //                 .unwrap()
-    //         })
-    //     },
-    // );
+    group.bench_function(
+        &format!(
+            "[Merchant] spend_verify_of_a_single_payment_L_{}_threshold_{}",
+            case.L, case.threshold_p,
+        ),
+        |b| {
+            b.iter(|| {
+                payment
+                    .spend_verify(&params, &verification_key, &pay_info)
+                    .unwrap()
+            })
+        },
+    );
 
     // BENCHMARK IDENTIFICATION
     // Let's generate a double spending payment
@@ -320,7 +321,7 @@ fn bench_compact_ecash(c: &mut Criterion) {
     let current_l = aggr_wallet.l.get();
     aggr_wallet.l.set(current_l - case.spend_vv);
 
-    let pay_info2 = PayInfo { info: [7u8; 32] };
+    let pay_info2 = PayInfo { payinfo: [7u8; 88] };
     let (payment2, _) = aggr_wallet.spend(
         &params,
         &verification_key,
@@ -356,5 +357,45 @@ fn bench_compact_ecash(c: &mut Criterion) {
     assert_eq!(identify_result, IdentifyResult::DoubleSpendingPublicKeys(user_keypair.public_key()));
 }
 
-criterion_group!(benches, bench_compact_ecash);
+
+fn bench_partial_sign_expiration_date(c: &mut Criterion){
+    let mut group = c.benchmark_group("benchmark-expiration-date");
+    let L = 32;
+    let params = setup(L);
+    let expiration_date = 1703183958;
+
+    let authorities_keys = ttp_keygen(&params.grp(), 2, 3).unwrap();
+    let sk_i_auth = authorities_keys[0].secret_key();
+    let vk_i_auth = authorities_keys[0].verification_key();
+    let partial_exp_sig = sign_expiration_date(&params, &sk_i_auth, expiration_date);
+
+    // ISSUING AUTHORITY BENCHMARK: issue a set of (partial) signatures for a given expiration date
+    group.bench_function(
+        &format!(
+            "[IssuingAuthority] sign_expiration_date",
+        ),
+        |b| {
+            b.iter(|| {
+                sign_expiration_date(&params, &sk_i_auth, expiration_date)
+            })
+        },
+    );
+
+    // CLIENT: verify the correctness of the set of (partial) signatures for a given expiration date
+    assert!(verify_valid_dates_signatures(&params, &vk_i_auth, &partial_exp_sig, expiration_date).is_ok());
+    group.bench_function(
+        &format!(
+            "[Client] verify_valid_dates_signatures",
+        ),
+        |b| {
+            b.iter(|| {
+                verify_valid_dates_signatures(&params, &vk_i_auth, &partial_exp_sig, expiration_date)
+            })
+        },
+    );
+
+}
+
+
+criterion_group!(benches, bench_partial_sign_expiration_date);
 criterion_main!(benches);

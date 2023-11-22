@@ -3,9 +3,19 @@ import { Box, Button, Modal, Stack, SxProps, Typography } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import ErrorOutline from '@mui/icons-material/ErrorOutline';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
-import { modalStyle } from '../../../../../nym-wallet/src/components/Modals/styles';
-
 import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
+import { useIsMobile } from '../../../hooks/useIsMobile';
+
+export const modalStyle = {
+  position: 'absolute' as 'absolute',
+  top: '50%',
+  left: '50%',
+  transform: 'translate(-50%, -50%)',
+  bgcolor: 'background.paper',
+  boxShadow: 24,
+  borderRadius: '16px',
+  p: 4,
+};
 
 export const StyledBackButton = ({
   onBack,
@@ -41,7 +51,6 @@ export const SimpleModal: FCWithChildren<{
   backButtonFullWidth?: boolean;
   okDisabled?: boolean;
   sx?: SxProps;
-  backdropProps?: object;
   children?: React.ReactNode;
 }> = ({
   open,
@@ -49,7 +58,6 @@ export const SimpleModal: FCWithChildren<{
   displayErrorIcon,
   displayInfoIcon,
   headerStyles,
-  subHeaderStyles,
   buttonFullWidth,
   onClose,
   okDisabled,
@@ -62,45 +70,41 @@ export const SimpleModal: FCWithChildren<{
   backButtonFullWidth,
   sx,
   children,
-  backdropProps,
-}) => (
-  <Modal open={open} onClose={onClose} BackdropProps={backdropProps}>
-    <Box sx={{ border: (t) => `1px solid #fff`, ...modalStyle, ...sx }}>
-      {displayErrorIcon && <ErrorOutline color="error" sx={{ mb: 3 }} />}
-      {displayInfoIcon && <InfoOutlinedIcon sx={{ mb: 2, color: 'blue' }} />}
-      <Stack direction="row" justifyContent="space-between" alignItems="center">
-        {typeof header === 'string' ? (
-          <Typography fontSize={20} fontWeight={600} sx={{ color: 'text.primary', ...headerStyles }}>
-            {header}
-          </Typography>
-        ) : (
-          header
-        )}
-        {!hideCloseIcon && <CloseIcon onClick={onClose} cursor="pointer" />}
-      </Stack>
-
-      <Typography
-        mt={subHeader ? 0.5 : 0}
-        mb={3}
-        fontSize={12}
-        color={(theme) => theme.palette.text.secondary}
-        // sx={{ color: (theme) => theme.palette.nym.nymWallet.text.muted, ...subHeaderStyles }}
-      >
-        {subHeader}
-      </Typography>
-
-      {children}
-
-      {(onOk || onBack) && (
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 2, width: buttonFullWidth ? '100%' : null }}>
-          {onBack && <StyledBackButton onBack={onBack} label={backLabel} fullWidth={backButtonFullWidth} />}
-          {onOk && (
-            <Button variant="contained" fullWidth size="large" onClick={onOk} disabled={okDisabled}>
-              {okLabel}
-            </Button>
+}) => {
+  const isMobile = useIsMobile();
+  return (
+    <Modal open={open} onClose={onClose}>
+      <Box sx={{ width: isMobile ? '90%' : 600, ...modalStyle, ...sx }}>
+        {displayErrorIcon && <ErrorOutline color="error" sx={{ mb: 3 }} />}
+        {displayInfoIcon && <InfoOutlinedIcon sx={{ mb: 2, color: 'blue' }} />}
+        <Stack direction="row" justifyContent="space-between" alignItems="center">
+          {typeof header === 'string' ? (
+            <Typography fontSize={20} fontWeight={600} sx={{ color: 'text.primary', ...headerStyles }}>
+              {header}
+            </Typography>
+          ) : (
+            header
           )}
-        </Box>
-      )}
-    </Box>
-  </Modal>
-);
+          {!hideCloseIcon && <CloseIcon onClick={onClose} cursor="pointer" />}
+        </Stack>
+
+        <Typography mt={subHeader ? 0.5 : 0} mb={3} fontSize={12} color={(theme) => theme.palette.text.secondary}>
+          {subHeader}
+        </Typography>
+
+        {children}
+
+        {(onOk || onBack) && (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 2, width: buttonFullWidth ? '100%' : null }}>
+            {onBack && <StyledBackButton onBack={onBack} label={backLabel} fullWidth={backButtonFullWidth} />}
+            {onOk && (
+              <Button variant="contained" fullWidth size="large" onClick={onOk} disabled={okDisabled}>
+                {okLabel}
+              </Button>
+            )}
+          </Box>
+        )}
+      </Box>
+    </Modal>
+  );
+};

@@ -4,9 +4,11 @@ import { BrowserRouter as Router } from 'react-router-dom';
 import { ErrorBoundary } from 'react-error-boundary';
 import { App } from './App';
 import { MainContextProvider } from './context/main';
-import './styles.css';
 import { NetworkExplorerThemeProvider } from './theme';
 import { ErrorBoundaryContent } from './errors/ErrorBoundaryContent';
+import CosmosKitProvider from './context/cosmos-kit';
+import '@interchain-ui/react/styles';
+import './styles.css';
 
 const elem = document.getElementById('app');
 
@@ -15,11 +17,13 @@ if (elem) {
   root.render(
     <ErrorBoundary FallbackComponent={ErrorBoundaryContent}>
       <MainContextProvider>
-        <NetworkExplorerThemeProvider>
-          <Router>
-            <App />
-          </Router>
-        </NetworkExplorerThemeProvider>
+        <CosmosKitProvider>
+          <NetworkExplorerThemeProvider>
+            <Router>
+              <App />
+            </Router>
+          </NetworkExplorerThemeProvider>
+        </CosmosKitProvider>
       </MainContextProvider>
     </ErrorBoundary>,
   );

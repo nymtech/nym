@@ -1,5 +1,6 @@
 import { printableCoin } from '@nymproject/nym-validator-client';
 import Big from 'big.js';
+import { DecCoin, isValidRawCoin } from '@nymproject/types';
 
 const DENOM = process.env.CURRENCY_DENOM || 'unym';
 const DENOM_STAKING = process.env.CURRENCY_STAKING_DENOM || 'unyx';
@@ -60,4 +61,40 @@ export const unymToNym = (unym: string | number | Big, dp = 4) => {
     console.warn(`${unym} not a valid decimal number: ${e}`);
   }
   return nym;
+};
+
+export const validateAmount = async (
+  majorAmountAsString: DecCoin['amount'],
+  minimumAmountAsString: DecCoin['amount'],
+): Promise<boolean> => {
+  // tests basic coin value requirements, like no more than 6 decimal places, value lower than total supply, etc
+  if (!Number(majorAmountAsString)) {
+    return false;
+  }
+
+  if (!isValidRawCoin(majorAmountAsString)) {
+    return false;
+  }
+
+  const majorValueFloat = parseInt(majorAmountAsString, Number(10));
+
+  return majorValueFloat >= parseInt(minimumAmountAsString, Number(10));
+};
+
+/**
+ * Takes a DecCoin and prettify its amount to a representation
+ * with fixed decimal places.
+ *
+ * @param coin - a DecCoin
+ * @param dp - number of decimal places to apply to amount (4 by default ie. 0.0000)
+ * @returns A DecCoin with prettified amount
+ */
+export const decCoinToDisplay = (coin: DecCoin, dp = 4) => {
+  const displayCoin = { ...coin };
+  try {
+    displayCoin.amount = Big(coin.amount).toFixed(dp);
+  } catch (e: any) {
+    console.warn(`${coin.amount} not a valid decimal number: ${e}`);
+  }
+  return displayCoin;
 };

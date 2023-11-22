@@ -1,6 +1,6 @@
 import React from 'react';
 import { Box, Stack, SxProps, Typography, TypographyProps } from '@mui/material';
-import { ModalDivider } from '../../../../../nym-wallet/src/components/Modals/ModalDivider';
+import { ModalDivider } from './ModalDivider';
 
 export const ModalListItem: FCWithChildren<{
   label: string;

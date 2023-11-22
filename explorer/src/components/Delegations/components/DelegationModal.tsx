@@ -5,29 +5,8 @@ import { LoadingModal } from './LoadingModal';
 import { ConfirmationModal } from './ConfirmationModal';
 import { ErrorModal } from './ErrorModal';
 
-export type ActionType = 'delegate' | 'undelegate' | 'redeem' | 'redeem-all' | 'compound';
-
-const actionToHeader = (action: ActionType): string => {
-  // eslint-disable-next-line default-case
-  switch (action) {
-    case 'redeem':
-      return 'Rewards redeemed successfully';
-    case 'redeem-all':
-      return 'All rewards redeemed successfully';
-    case 'delegate':
-      return 'Delegation successful';
-    case 'undelegate':
-      return 'Undelegation successful';
-    case 'compound':
-      return 'Rewards compounded successfully';
-    default:
-      throw new Error('Unknown type');
-  }
-};
-
 export type DelegationModalProps = {
   status: 'loading' | 'success' | 'error';
-  action: ActionType;
   message?: string;
   transactions?: {
     url: string;
@@ -43,7 +22,7 @@ export const DelegationModal: FCWithChildren<
     backdropProps?: object;
     children?: React.ReactNode;
   }
-> = ({ status, action, message, transactions, open, onClose, children, sx, backdropProps }) => {
+> = ({ status, message, transactions, open, onClose, children, sx, backdropProps }) => {
   if (status === 'loading') return <LoadingModal sx={sx} backdropProps={backdropProps} />;
 
   if (status === 'error') {
@@ -55,12 +34,7 @@ export const DelegationModal: FCWithChildren<
   }
 
   return (
-    <ConfirmationModal
-      open={open}
-      onConfirm={onClose || (() => {})}
-      title={actionToHeader(action)}
-      confirmButton="Done"
-    >
+    <ConfirmationModal open={open} onConfirm={onClose || (() => {})} title="Delegation successful" confirmButton="Done">
       <Stack alignItems="center" spacing={2} mb={0}>
         {message && <Typography>{message}</Typography>}
         {transactions?.length === 1 && (

@@ -6,6 +6,7 @@ import { SelectChangeEvent } from '@mui/material/Select';
 import { SxProps } from '@mui/system';
 import { Theme, useTheme } from '@mui/material/styles';
 import { CopyToClipboard } from '@nymproject/react/clipboard/CopyToClipboard';
+import { useWallet } from '@cosmos-kit/react';
 import { useMainContext } from '../../context/main';
 import { MixnodeRowType, mixnodeToGridRow } from '../../components/MixNodes';
 import { TableToolbar } from '../../components/TableToolbar';
@@ -19,6 +20,9 @@ import { splice } from '../../utils';
 import { getMixNodeStatusColor } from '../../components/MixNodes/Status';
 import { MixNodeStatusDropdown } from '../../components/MixNodes/StatusDropdown';
 import { Tooltip } from '../../components/Tooltip';
+import { DelegateIconButton } from '../../components/Delegations/components/DelegateIconButton';
+import { DelegationModal, DelegationModalProps } from '../../components/Delegations/components/DelegationModal';
+import { DelegateModal } from '../../components/Delegations/components/DelegateModal';
 
 const getCellFontStyle = (theme: Theme, row: MixnodeRowType, textColor?: string) => {
   const color = textColor || getMixNodeStatusColor(theme, row.status);
@@ -40,9 +44,21 @@ export const PageMixnodes: FCWithChildren = () => {
   const [filteredMixnodes, setFilteredMixnodes] = React.useState<MixNodeResponse>([]);
   const [pageSize, setPageSize] = React.useState<string>('10');
   const [searchTerm, setSearchTerm] = React.useState<string>('');
-  const theme = useTheme();
+  const [itemSelectedForDelegation, setItemSelectedForDelegation] = React.useState<{
+    mixId: number;
+    identityKey: string;
+  }>();
+  const [confirmationModalProps, setConfirmationModalProps] = React.useState<DelegationModalProps | undefined>();
   const { status } = useParams<{ status: MixnodeStatusWithAll | undefined }>();
+
+  const theme = useTheme();
   const navigate = useNavigate();
+  const wallet = useWallet();
+
+  const handleNewDelegation = (delegationModalProps: DelegationModalProps) => {
+    setItemSelectedForDelegation(undefined);
+    setConfirmationModalProps(delegationModalProps);
+  };
 
   const handleSearch = (str: string) => {
     setSearchTerm(str.toLowerCase());
@@ -83,12 +99,30 @@ export const PageMixnodes: FCWithChildren = () => {
 
   const columns: GridColDef[] = [
     {
+      field: 'delegate',
+      headerName: 'Delegate',
+      disableColumnMenu: true,
+      disableReorder: true,
+      align: 'center',
+      renderHeader: () => <CustomColumnHeading headingTitle="Delegate" />,
+      headerClassName: 'MuiDataGrid-header-override',
+      width: 80,
+      headerAlign: 'center',
+      renderCell: (params: GridRenderCellParams) => (
+        <DelegateIconButton
+          onDelegate={() => {
+            setItemSelectedForDelegation({ identityKey: params.row.identity_key, mixId: params.row.mix_id });
+          }}
+        />
+      ),
+    },
+    {
       field: 'mix_id',
       headerName: 'Mix ID',
       disableColumnMenu: true,
       renderHeader: () => <CustomColumnHeading headingTitle="Mix ID" />,
       headerClassName: 'MuiDataGrid-header-override',
-      width: 100,
+      width: 70,
       headerAlign: 'left',
       renderCell: (params: GridRenderCellParams) => (
         <MuiLink
@@ -107,7 +141,7 @@ export const PageMixnodes: FCWithChildren = () => {
       disableColumnMenu: true,
       renderHeader: () => <CustomColumnHeading headingTitle="Identity Key" />,
       headerClassName: 'MuiDataGrid-header-override',
-      width: 170,
+      width: 190,
       headerAlign: 'left',
       renderCell: (params: GridRenderCellParams) => (
         <>
@@ -363,6 +397,29 @@ export const PageMixnodes: FCWithChildren = () => {
           </Card>
         </Grid>
       </Grid>
+
+      {itemSelectedForDelegation && (
+        <DelegateModal
+          onClose={() => setItemSelectedForDelegation(undefined)}
+          header="Delegate"
+          buttonText="Delegate stake"
+          denom="nym"
+          onOk={(delegationModalProps: DelegationModalProps) => handleNewDelegation(delegationModalProps)}
+          identityKey={itemSelectedForDelegation.identityKey}
+          mixId={itemSelectedForDelegation.mixId}
+        />
+      )}
+
+      {confirmationModalProps && (
+        <DelegationModal
+          {...confirmationModalProps}
+          open={Boolean(confirmationModalProps)}
+          onClose={async () => {
+            setConfirmationModalProps(undefined);
+            // await fetchBalance();
+          }}
+        />
+      )}
     </>
   );
 };

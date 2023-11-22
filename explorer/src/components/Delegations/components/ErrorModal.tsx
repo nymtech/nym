@@ -1,6 +1,6 @@
 import React from 'react';
 import { Box, Button, Modal, SxProps, Typography } from '@mui/material';
-import { modalStyle } from '../../../../../nym-wallet/src/components/Modals/styles';
+import { modalStyle } from './SimpleModal';
 
 export const ErrorModal: FCWithChildren<{
   open: boolean;
@@ -12,7 +12,7 @@ export const ErrorModal: FCWithChildren<{
   children?: React.ReactNode;
 }> = ({ children, open, title, message, sx, backdropProps, onClose }) => (
   <Modal open={open} onClose={onClose} BackdropProps={backdropProps}>
-    <Box sx={{ border: (t) => `1px solid #fff`, ...modalStyle, ...sx }} textAlign="center">
+    <Box sx={{ ...modalStyle, ...sx }} textAlign="center">
       <Typography color={(theme) => theme.palette.error.main} mb={1}>
         {title || 'Oh no! Something went wrong...'}
       </Typography>

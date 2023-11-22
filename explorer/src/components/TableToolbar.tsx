@@ -3,11 +3,6 @@ import { Box, TextField, MenuItem, FormControl, Button } from '@mui/material';
 import Select, { SelectChangeEvent } from '@mui/material/Select';
 import { Filters } from './Filters/Filters';
 import { useIsMobile } from '../hooks/useIsMobile';
-import { DelegateModal } from './Delegations/components/DelegateModal';
-import { ChainProvider } from '@cosmos-kit/react';
-import { assets, chains } from 'chain-registry';
-import { wallets as keplr } from '@cosmos-kit/keplr';
-import { DelegationModal } from './Delegations/components/DelegationModal';
 
 const fieldsHeight = '42.25px';
 
@@ -20,17 +15,6 @@ type TableToolBarProps = {
   childrenBefore?: React.ReactNode;
   childrenAfter?: React.ReactNode;
 };
-type ActionType = 'delegate' | 'undelegate' | 'redeem' | 'redeem-all' | 'compound';
-
-type DelegationModalProps = {
-  status: 'loading' | 'success' | 'error';
-  action: ActionType;
-  message?: string;
-  transactions?: {
-    url: string;
-    hash: string;
-  }[];
-};
 
 export const TableToolbar: FCWithChildren<TableToolBarProps> = ({
   searchTerm,
@@ -41,42 +25,6 @@ export const TableToolbar: FCWithChildren<TableToolBarProps> = ({
   childrenAfter,
   withFilters,
 }) => {
-  const [showNewDelegationModal, setShowNewDelegationModal] = useState<boolean>(false);
-  const [confirmationModalProps, setConfirmationModalProps] = useState<DelegationModalProps | undefined>();
-
-  const assetsFixedUp = useMemo(() => {
-    const nyx = assets.find((a) => a.chain_name === 'nyx');
-    if (nyx) {
-      const nyxCoin = nyx.assets.find((a) => a.name === 'nyx');
-      if (nyxCoin) {
-        nyxCoin.coingecko_id = 'nyx';
-      }
-      nyx.assets = nyx.assets.reverse();
-    }
-    return assets;
-  }, [assets]);
-
-  const chainsFixedUp = useMemo(() => {
-    const nyx = chains.find((c) => c.chain_id === 'nyx');
-    if (nyx) {
-      if (!nyx.staking) {
-        nyx.staking = {
-          staking_tokens: [{ denom: 'unyx' }],
-          lock_duration: {
-            blocks: 10000,
-          },
-        };
-        if (nyx.apis) nyx.apis.rpc = [{ address: 'https://rpc.nymtech.net', provider: 'nym' }];
-      }
-    }
-    return chains;
-  }, [chains]);
-
-  const handleNewDelegation = (delegationModalProps: DelegationModalProps) => {
-    setShowNewDelegationModal(false);
-    setConfirmationModalProps(delegationModalProps);
-  };
-
   const isMobile = useIsMobile();
   return (
     <Box
@@ -139,50 +87,9 @@ export const TableToolbar: FCWithChildren<TableToolBarProps> = ({
           marginTop: isMobile ? 2 : 0,
         }}
       >
-        <Button
-          size="large"
-          variant="contained"
-          disableElevation
-          onClick={() => setShowNewDelegationModal(true)}
-          sx={{ px: 5, color: 'primary.contrastText' }}
-        >
-          Delegate
-        </Button>
         {withFilters && <Filters />}
         {childrenAfter}
       </Box>
-
-      {showNewDelegationModal && (
-        <ChainProvider
-          chains={chainsFixedUp}
-          assetLists={assetsFixedUp}
-          wallets={[...keplr]}
-          signerOptions={{
-            preferredSignType: () => 'amino',
-          }}
-        >
-          <DelegateModal
-            open={showNewDelegationModal}
-            onClose={() => setShowNewDelegationModal(false)}
-            header="Delegate"
-            buttonText="Delegate stake"
-            denom={'nym'} // clientDetails?.display_mix_denom || 'nym'}
-            onOk={(delegationModalProps: DelegationModalProps) => handleNewDelegation(delegationModalProps)}
-            // accountBalance={balance?.printable_balance}
-          />
-        </ChainProvider>
-      )}
-
-      {confirmationModalProps && (
-        <DelegationModal
-          {...confirmationModalProps}
-          open={Boolean(confirmationModalProps)}
-          onClose={async () => {
-            setConfirmationModalProps(undefined);
-            // await fetchBalance();
-          }}
-        />
-      )}
     </Box>
   );
 };

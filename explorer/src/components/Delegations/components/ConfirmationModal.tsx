@@ -45,7 +45,7 @@ export const ConfirmationModal = ({
       {title}
       {subTitle &&
         (typeof subTitle === 'string' ? (
-          <Typography fontWeight={400} variant="subtitle1" fontSize={12} color={'grey'}>
+          <Typography fontWeight={400} variant="subtitle1" fontSize={12} color="grey">
             {subTitle}
           </Typography>
         ) : (

@@ -20,18 +20,11 @@ import { MaintenanceBanner } from '@nymproject/react/banners/MaintenanceBanner';
 import { NYM_WEBSITE } from '../api/constants';
 import { useMainContext } from '../context/main';
 import { MobileDrawerClose } from '../icons/MobileDrawerClose';
-import { Socials } from './Socials';
 import { Footer } from './Footer';
 import { NymVpnIcon } from '../icons/NymVpn';
 import { DarkLightSwitchDesktop } from './Switch';
 import { NavOptionType } from '../context/nav';
-import ConnectKeplrWallet from './ConnectKeplrWallet';
-import { assets, chains } from 'chain-registry';
-import { ChainProvider } from '@cosmos-kit/react';
-import { wallets as keplr } from '@cosmos-kit/keplr';
-import { useMemo } from 'react';
-
-import '@interchain-ui/react/styles';
+import { ConnectKeplrWallet } from './ConnectKeplrWallet';
 
 const drawerWidth = 255;
 const bannerHeight = 80;
@@ -280,33 +273,6 @@ export const Nav: FCWithChildren = ({ children }) => {
     }
   };
 
-  const assetsFixedUp = useMemo(() => {
-    const nyx = assets.find((a) => a.chain_name === 'nyx');
-    if (nyx) {
-      const nyxCoin = nyx.assets.find((a) => a.name === 'nyx');
-      if (nyxCoin) {
-        nyxCoin.coingecko_id = 'nyx';
-      }
-      nyx.assets = nyx.assets.reverse();
-    }
-    return assets;
-  }, [assets]);
-
-  const chainsFixedUp = useMemo(() => {
-    const nyx = chains.find((c) => c.chain_id === 'nyx');
-    if (nyx) {
-      if (!nyx.staking) {
-        nyx.staking = {
-          staking_tokens: [{ denom: 'unyx' }],
-          lock_duration: {
-            blocks: 10000,
-          },
-        };
-      }
-    }
-    return chains;
-  }, [chains]);
-
   return (
     <Box sx={{ display: 'flex' }}>
       <AppBar
@@ -376,10 +342,7 @@ export const Nav: FCWithChildren = ({ children }) => {
                 alignItems: 'center',
               }}
             >
-              <MuiLink component={Link} to="http://nymvpn.com" target="_blank" underline="none" marginRight={1}>
-                <NymVpnIcon />
-              </MuiLink>
-              <Socials />
+              <ConnectKeplrWallet />
               <DarkLightSwitchDesktop defaultChecked />
             </Box>
           </Box>

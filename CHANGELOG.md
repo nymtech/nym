@@ -4,6 +4,12 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [2023.nyxd-upgrade] (2023-11-22)
+
+- Chore/nyxd 043 upgrade ([#3968])
+
+[#3968]: https://github.com/nymtech/nym/pull/3968
+
 ## [2023.4-galaxy] (2023-11-07)
 
 - DRY up client cli ([#4077])

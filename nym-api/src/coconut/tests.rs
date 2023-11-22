@@ -29,7 +29,7 @@ use nym_validator_client::nym_api::routes::{
 };
 use nym_validator_client::nyxd::Coin;
 use nym_validator_client::nyxd::{
-    AccountId, Algorithm, DeliverTx, Event, EventAttribute, Fee, Hash, TxResponse,
+    AccountId, Algorithm, Event, EventAttribute, ExecTxResult, Fee, Hash, TxResponse,
 };
 
 use crate::coconut::State;
@@ -490,7 +490,7 @@ pub fn tx_entry_fixture(tx_hash: &str) -> TxResponse {
         hash: Hash::from_str(tx_hash).unwrap(),
         height: Default::default(),
         index: 0,
-        tx_result: DeliverTx {
+        tx_result: ExecTxResult {
             code: Default::default(),
             data: Default::default(),
             log: Default::default(),

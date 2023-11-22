@@ -45,7 +45,6 @@ nym-validator-client = { path = "../client-libs/validator-client", default-featu
 nym-task = { path = "../task" }
 nym-credential-storage = { path = "../credential-storage" }
 nym-network-defaults = { path = "../network-defaults" }
-nym-wireguard-types = { path = "../wireguard-types" }
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio-stream]
 version = "0.1.11"

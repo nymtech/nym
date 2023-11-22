@@ -476,3 +476,11 @@ pub const DEFAULT_NYM_NODE_HTTP_PORT: u16 = 8080;
 pub const TOTAL_SUPPLY: u128 = 1_000_000_000_000_000;
 
 pub const DEFAULT_PROFIT_MARGIN: u8 = 10;
+
+// WIREGUARD
+pub const WG_PORT: u16 = 51822;
+
+// The interface used to route traffic
+pub const WG_TUN_BASE_NAME: &str = "nymwg";
+pub const WG_TUN_DEVICE_ADDRESS: &str = "10.1.0.1";
+pub const WG_TUN_DEVICE_NETMASK: &str = "255.255.255.0";

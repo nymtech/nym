@@ -26,6 +26,7 @@ futures = "0.3.28"
 ip_network = "0.4.1"
 ip_network_table = "0.2.0"
 log.workspace = true
+nym-network-defaults = { path = "../network-defaults" }
 nym-task = { path = "../task" }
 nym-wireguard-types = { path = "../wireguard-types" }
 nym-sphinx = { path = "../nymsphinx" }

@@ -6,6 +6,7 @@ use boringtun::{
 };
 use futures::StreamExt;
 use log::error;
+use nym_network_defaults::WG_PORT;
 use nym_task::TaskClient;
 use nym_wireguard_types::{
     registration::GatewayClientRegistry,
@@ -13,7 +14,7 @@ use nym_wireguard_types::{
         active_peers::{ActivePeers, PeersByIp},
         event::Event,
     },
-    PeerPublicKey, WG_PORT,
+    PeerPublicKey,
 };
 use tap::TapFallible;
 use tokio::{net::UdpSocket, sync::Mutex};

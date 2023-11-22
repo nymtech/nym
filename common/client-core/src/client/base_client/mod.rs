@@ -40,6 +40,7 @@ use nym_gateway_client::{
     AcknowledgementReceiver, GatewayClient, MixnetMessageReceiver, PacketRouter,
 };
 use nym_network_defaults::DEFAULT_CLIENT_LISTENING_PORT;
+use nym_network_defaults::WG_TUN_DEVICE_ADDRESS;
 use nym_sphinx::acknowledgements::AckKey;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::addressing::nodes::NodeIdentity;
@@ -50,7 +51,6 @@ use nym_task::{TaskClient, TaskHandle};
 use nym_topology::provider_trait::TopologyProvider;
 use nym_topology::HardcodedTopologyProvider;
 use nym_validator_client::nyxd::contract_traits::DkgQueryClient;
-use nym_wireguard_types::WG_TUN_DEVICE_ADDRESS;
 use std::fmt::Debug;
 use std::path::Path;
 use std::sync::Arc;

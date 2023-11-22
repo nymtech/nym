@@ -149,25 +149,17 @@ pub fn aggregate_expiration_signatures(
     params: &Parameters,
     vk_auth: &VerificationKeyAuth,
     expiration_date: u64,
-    indices: &[u64],
-    vkeys: &[VerificationKeyAuth],
-    signatures: &[Vec<PartialExpirationDateSignature>]) -> Result<Vec<ExpirationDateSignature>>{
-    // Check if vkeys and signatures have the same length
-    if vkeys.len() != signatures.len() {
-        return Err(CompactEcashError::ExpirationDate(
-            "Mismatched lengths of vkeys and signatures".to_string(),
-        ));
-    }
-
+    signatures: &[(u64, VerificationKeyAuth, Vec<PartialExpirationDateSignature>)],
+) -> Result<Vec<ExpirationDateSignature>>{
     // Check if we have enough unique partial signatures to meet the required threshold
-    if indices.iter().unique_by(|&index| index).count() != indices.len() {
+    if signatures.iter().map(|(index, _, _)| index).unique().count() != signatures.len() {
         return Err(CompactEcashError::ExpirationDate(
             "Not enough unique indices shares".to_string(),
         ));
     }
 
     // Evaluate at 0 the Lagrange basis polynomials k_i
-    let coefficients = generate_lagrangian_coefficients_at_origin(indices);
+    let coefficients = generate_lagrangian_coefficients_at_origin(&signatures.iter().map(|(index, _, _)| *index).collect::<Vec<_>>());
 
     // Pre-allocate vectors
     let mut collected_per_date: Vec<Vec<PartialExpirationDateSignature>> =
@@ -182,18 +174,16 @@ pub fn aggregate_expiration_signatures(
         // Compute the hash
         let h = hash_g1([m0.to_bytes(), m1.to_bytes(), m2.to_bytes()].concat());
 
-        // Verify each partial signature
         signatures
             .par_iter()
-            .zip(vkeys.par_iter())
-            .try_for_each(|(partial_signatures, vkey)| {
+            .try_for_each(|(_, vkey, partial_signatures)| {
                 verify_valid_dates_signatures(params, vkey, partial_signatures, expiration_date)
             })?;
 
         // Collect the partial signatures for the same valid date
         let collected_at_l: Vec<_> = signatures
             .iter()
-            .filter_map(|inner_vec| inner_vec.get(l as usize))
+            .filter_map(|(_, _, inner_vec)| inner_vec.get(l as usize))
             .cloned()
             .collect();
 
@@ -239,7 +229,7 @@ mod tests {
         let expiration_date = 1703183958;
 
         let authorities_keypairs = ttp_keygen(&params.grp(), 2, 3).unwrap();
-        let indices = [1, 2, 3];
+        let indices: [u64; 3] = [1, 2, 3];
         // list of secret keys of each authority
         let secret_keys_authorities: Vec<SecretKeyAuth> = authorities_keypairs
             .iter()
@@ -260,7 +250,15 @@ mod tests {
                                  expiration_date);
             partial_signatures.push(sign);
         }
-        aggregate_expiration_signatures(&params, &verification_key, expiration_date, &indices, &verification_keys_auth, &partial_signatures);
+
+        let combined_data: Vec<(u64, VerificationKeyAuth, Vec<PartialExpirationDateSignature>)> =
+            indices
+                .iter()
+                .zip(verification_keys_auth.iter().zip(partial_signatures.iter()))
+                .map(|(i, (vk, sigs))| (i.clone(), vk.clone(), sigs.clone()))
+                .collect();
+
+        aggregate_expiration_signatures(&params, &verification_key, expiration_date, &combined_data);
     }
 
 }

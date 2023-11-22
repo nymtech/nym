@@ -383,7 +383,7 @@ pub trait NymApiClientExt: ApiClient {
         .await
     }
 
-    async fn verify_bandwidth_credential(
+    async fn verify_offline_credential(
         &self,
         request_body: &VerifyCredentialBody,
     ) -> Result<VerifyCredentialResponse, NymAPIError> {
@@ -392,7 +392,7 @@ pub trait NymApiClientExt: ApiClient {
                 routes::API_VERSION,
                 routes::COCONUT_ROUTES,
                 routes::BANDWIDTH,
-                routes::COCONUT_VERIFY_BANDWIDTH_CREDENTIAL,
+                routes::ECASH_VERIFY_OFFLINE_CREDENTIAL,
             ],
             NO_PARAMS,
             request_body,

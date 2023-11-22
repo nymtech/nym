@@ -332,14 +332,11 @@ impl NymApiClient {
         Ok(self.nym_api.blind_sign(request_body).await?)
     }
 
-    pub async fn verify_bandwidth_credential(
+    pub async fn verify_offline_credential(
         &self,
         request_body: &VerifyCredentialBody,
     ) -> Result<VerifyCredentialResponse, ValidatorClientError> {
-        Ok(self
-            .nym_api
-            .verify_bandwidth_credential(request_body)
-            .await?)
+        Ok(self.nym_api.verify_offline_credential(request_body).await?)
     }
 
     pub async fn ecash_parameters(&self) -> Result<EcashParametersResponse, ValidatorClientError> {

@@ -191,7 +191,7 @@ impl InternalSignRequest {
             rocket.manage(state).mount(
                 // this format! is so ugly...
                 format!("/{}/{}/{}", NYM_API_VERSION, COCONUT_ROUTES, BANDWIDTH),
-                routes![post_blind_sign, verify_bandwidth_credential],
+                routes![post_blind_sign, verify_offline_credential],
             )
         })
     }
@@ -246,8 +246,8 @@ pub async fn post_blind_sign(
     Ok(Json(response))
 }
 
-#[post("/verify-bandwidth-credential", data = "<verify_credential_body>")]
-pub async fn verify_bandwidth_credential(
+#[post("/verify-offline-credential", data = "<verify_credential_body>")]
+pub async fn verify_offline_credential(
     verify_credential_body: Json<VerifyCredentialBody>,
     state: &RocketState<State>,
 ) -> Result<Json<VerifyCredentialResponse>> {

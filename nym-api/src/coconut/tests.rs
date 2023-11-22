@@ -25,7 +25,7 @@ use nym_credentials::coconut::params::{
 use nym_crypto::shared_key::recompute_shared_key;
 use nym_crypto::symmetric::stream_cipher;
 use nym_validator_client::nym_api::routes::{
-    API_VERSION, BANDWIDTH, COCONUT_BLIND_SIGN, COCONUT_ROUTES, COCONUT_VERIFY_BANDWIDTH_CREDENTIAL,
+    API_VERSION, BANDWIDTH, COCONUT_BLIND_SIGN, COCONUT_ROUTES, ECASH_VERIFY_OFFLINE_CREDENTIAL,
 };
 use nym_validator_client::nyxd::Coin;
 use nym_validator_client::nyxd::{
@@ -887,7 +887,7 @@ async fn verification_of_bandwidth_credential() {
     let response = client
         .post(format!(
             "/{}/{}/{}/{}",
-            API_VERSION, COCONUT_ROUTES, BANDWIDTH, COCONUT_VERIFY_BANDWIDTH_CREDENTIAL
+            API_VERSION, COCONUT_ROUTES, BANDWIDTH, ECASH_VERIFY_OFFLINE_CREDENTIAL
         ))
         .json(&req)
         .dispatch()
@@ -924,7 +924,7 @@ async fn verification_of_bandwidth_credential() {
     let response = client
         .post(format!(
             "/{}/{}/{}/{}",
-            API_VERSION, COCONUT_ROUTES, BANDWIDTH, COCONUT_VERIFY_BANDWIDTH_CREDENTIAL
+            API_VERSION, COCONUT_ROUTES, BANDWIDTH, ECASH_VERIFY_OFFLINE_CREDENTIAL
         ))
         .json(&req)
         .dispatch()
@@ -947,7 +947,7 @@ async fn verification_of_bandwidth_credential() {
     let response = client
         .post(format!(
             "/{}/{}/{}/{}",
-            API_VERSION, COCONUT_ROUTES, BANDWIDTH, COCONUT_VERIFY_BANDWIDTH_CREDENTIAL
+            API_VERSION, COCONUT_ROUTES, BANDWIDTH, ECASH_VERIFY_OFFLINE_CREDENTIAL
         ))
         .json(&req)
         .dispatch()
@@ -979,7 +979,7 @@ async fn verification_of_bandwidth_credential() {
     let response = client
         .post(format!(
             "/{}/{}/{}/{}",
-            API_VERSION, COCONUT_ROUTES, BANDWIDTH, COCONUT_VERIFY_BANDWIDTH_CREDENTIAL
+            API_VERSION, COCONUT_ROUTES, BANDWIDTH, ECASH_VERIFY_OFFLINE_CREDENTIAL
         ))
         .json(&req)
         .dispatch()
@@ -1000,7 +1000,7 @@ async fn verification_of_bandwidth_credential() {
     let response = client
         .post(format!(
             "/{}/{}/{}/{}",
-            API_VERSION, COCONUT_ROUTES, BANDWIDTH, COCONUT_VERIFY_BANDWIDTH_CREDENTIAL
+            API_VERSION, COCONUT_ROUTES, BANDWIDTH, ECASH_VERIFY_OFFLINE_CREDENTIAL
         ))
         .json(&req)
         .dispatch()
@@ -1036,7 +1036,7 @@ async fn verification_of_bandwidth_credential() {
     let response = client
         .post(format!(
             "/{}/{}/{}/{}",
-            API_VERSION, COCONUT_ROUTES, BANDWIDTH, COCONUT_VERIFY_BANDWIDTH_CREDENTIAL
+            API_VERSION, COCONUT_ROUTES, BANDWIDTH, ECASH_VERIFY_OFFLINE_CREDENTIAL
         ))
         .json(&bad_req)
         .dispatch()
@@ -1075,7 +1075,7 @@ async fn verification_of_bandwidth_credential() {
     let response = client
         .post(format!(
             "/{}/{}/{}/{}",
-            API_VERSION, COCONUT_ROUTES, BANDWIDTH, COCONUT_VERIFY_BANDWIDTH_CREDENTIAL
+            API_VERSION, COCONUT_ROUTES, BANDWIDTH, ECASH_VERIFY_OFFLINE_CREDENTIAL
         ))
         .json(&req)
         .dispatch()
@@ -1113,7 +1113,7 @@ async fn verification_of_bandwidth_credential() {
     let response = client
         .post(format!(
             "/{}/{}/{}/{}",
-            API_VERSION, COCONUT_ROUTES, BANDWIDTH, COCONUT_VERIFY_BANDWIDTH_CREDENTIAL
+            API_VERSION, COCONUT_ROUTES, BANDWIDTH, ECASH_VERIFY_OFFLINE_CREDENTIAL
         ))
         .json(&req)
         .dispatch()
@@ -1142,7 +1142,7 @@ async fn verification_of_bandwidth_credential() {
     let response = client
         .post(format!(
             "/{}/{}/{}/{}",
-            API_VERSION, COCONUT_ROUTES, BANDWIDTH, COCONUT_VERIFY_BANDWIDTH_CREDENTIAL
+            API_VERSION, COCONUT_ROUTES, BANDWIDTH, ECASH_VERIFY_OFFLINE_CREDENTIAL
         ))
         .json(&req)
         .dispatch()

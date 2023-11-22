@@ -221,7 +221,7 @@ where
     async fn send_credential(pending: &PendingCredential) -> bool {
         let request =
             VerifyCredentialBody::new(pending.credential.clone(), pending.address.clone());
-        match pending.client.verify_bandwidth_credential(&request).await {
+        match pending.client.verify_offline_credential(&request).await {
             Ok(res) => {
                 if !res.verification_result {
                     log::debug!(

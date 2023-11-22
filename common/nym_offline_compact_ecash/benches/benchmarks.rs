@@ -404,8 +404,8 @@ fn bench_aggregate_expiration_date_signatures(c: &mut Criterion){
     let params = setup(L);
     let expiration_date = 1703183958;
 
-    let authorities_keypairs = ttp_keygen(&params.grp(), 2, 3).unwrap();
-    let indices: [u64; 3] = [1, 2, 3];
+    let authorities_keypairs = ttp_keygen(&params.grp(), 7, 10).unwrap();
+    let indices: [u64; 10] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
     // list of secret keys of each authority
     let secret_keys_authorities: Vec<SecretKeyAuth> = authorities_keypairs
         .iter()
@@ -449,5 +449,5 @@ fn bench_aggregate_expiration_date_signatures(c: &mut Criterion){
 
 }
 
-criterion_group!(benches, bench_partial_sign_expiration_date);
+criterion_group!(benches, bench_aggregate_expiration_date_signatures);
 criterion_main!(benches);

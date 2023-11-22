@@ -18,7 +18,9 @@ use nym_compact_ecash::{
 };
 use nym_compact_ecash::identify::{identify, IdentifyResult};
 use nym_compact_ecash::setup::setup;
-use nym_compact_ecash::scheme::expiration_date_signatures::{sign_expiration_date, verify_valid_dates_signatures};
+use nym_compact_ecash::scheme::expiration_date_signatures::{sign_expiration_date, verify_valid_dates_signatures, aggregate_expiration_signatures, PartialExpirationDateSignature, ExpirationDateSignature};
+use nym_compact_ecash::constants;
+use nym_compact_ecash::scheme::keygen::{SecretKeyAuth};
 
 #[allow(unused)]
 fn double_pairing(g11: &G1Affine, g21: &G2Affine, g12: &G1Affine, g22: &G2Affine) {
@@ -359,7 +361,7 @@ fn bench_compact_ecash(c: &mut Criterion) {
 
 
 fn bench_partial_sign_expiration_date(c: &mut Criterion){
-    let mut group = c.benchmark_group("benchmark-expiration-date");
+    let mut group = c.benchmark_group("benchmark-sign-verify-expiration-date");
     let L = 32;
     let params = setup(L);
     let expiration_date = 1703183958;
@@ -396,6 +398,56 @@ fn bench_partial_sign_expiration_date(c: &mut Criterion){
 
 }
 
+fn bench_aggregate_expiration_date_signatures(c: &mut Criterion){
+    let mut group = c.benchmark_group("benchmark-aggregate-verify-expiration-date-signatures");
+    let L = 32;
+    let params = setup(L);
+    let expiration_date = 1703183958;
+
+    let authorities_keypairs = ttp_keygen(&params.grp(), 2, 3).unwrap();
+    let indices: [u64; 3] = [1, 2, 3];
+    // list of secret keys of each authority
+    let secret_keys_authorities: Vec<SecretKeyAuth> = authorities_keypairs
+        .iter()
+        .map(|keypair| keypair.secret_key())
+        .collect();
+    // list of verification keys of each authority
+    let verification_keys_auth: Vec<VerificationKeyAuth> = authorities_keypairs
+        .iter()
+        .map(|keypair| keypair.verification_key())
+        .collect();
+    // the global master verification key
+    let verification_key = aggregate_verification_keys(&verification_keys_auth, Some(&indices)).unwrap();
+
+    let mut partial_signatures: Vec<Vec<PartialExpirationDateSignature>> = Vec::with_capacity(constants::VALIDITY_PERIOD as usize);
+    for sk in secret_keys_authorities.iter(){
+        let sign = sign_expiration_date(&params,
+                                        &sk,
+                                        expiration_date);
+        partial_signatures.push(sign);
+    }
+
+    let combined_data: Vec<(u64, VerificationKeyAuth, Vec<PartialExpirationDateSignature>)> =
+        indices
+            .iter()
+            .zip(verification_keys_auth.iter().zip(partial_signatures.iter()))
+            .map(|(i, (vk, sigs))| (i.clone(), vk.clone(), sigs.clone()))
+            .collect();
+
+    // CLIENT: verify all the partial signature vectors and aggregate into a single vector of signed valid dates
+    group.bench_function(
+        &format!(
+            "[Client] aggregate_expiration_signatures_from_{}_issuing_authorities",
+            authorities_keypairs.len(),
+        ),
+        |b| {
+            b.iter(|| {
+                aggregate_expiration_signatures(&params, &verification_key, expiration_date, &combined_data)
+            })
+        },
+    );
+
+}
 
 criterion_group!(benches, bench_partial_sign_expiration_date);
 criterion_main!(benches);

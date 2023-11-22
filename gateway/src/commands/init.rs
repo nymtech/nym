@@ -73,6 +73,10 @@ pub struct Init {
     #[clap(long, hide = true)]
     only_coconut_credentials: Option<bool>,
 
+    /// Set this gateway to use offline credentials verification
+    #[clap(long, hide = true)]
+    offline_credential_verification: Option<bool>,
+
     /// Enable/disable gateway anonymized statistics that get sent to a statistics aggregator server
     #[clap(long)]
     enabled_statistics: Option<bool>,
@@ -160,6 +164,7 @@ impl From<Init> for OverrideConfig {
 
             nyxd_urls: init_config.nyxd_urls,
             only_coconut_credentials: init_config.only_coconut_credentials,
+            offline_credential_verification: init_config.offline_credential_verification,
             with_network_requester: Some(init_config.with_network_requester),
             with_ip_packet_router: Some(init_config.with_ip_packet_router),
         }
@@ -292,6 +297,7 @@ mod tests {
             enabled_statistics: None,
             nyxd_urls: None,
             only_coconut_credentials: None,
+            offline_credential_verification: None,
             output: Default::default(),
             with_network_requester: false,
             with_ip_packet_router: false,

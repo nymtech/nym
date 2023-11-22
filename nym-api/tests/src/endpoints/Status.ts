@@ -26,7 +26,7 @@ export default class Status extends APIClient {
       route: `/gateways/detailed`,
     });
 
-    return response.data;
+    return response;
   }
 
   public async getUnfilteredGateways(): Promise<DetailedGateway[]> {
@@ -34,7 +34,7 @@ export default class Status extends APIClient {
       route: `/gateways/detailed-unfiltered`,
     });
 
-    return response.data;
+    return response;
   }
 
   public async getGatewayStatusReport(
@@ -44,7 +44,7 @@ export default class Status extends APIClient {
       route: `/gateway/${identity_key}/report`,
     });
 
-    return response.data;
+    return response;
   }
 
   public async getGatewayHistory(
@@ -54,7 +54,7 @@ export default class Status extends APIClient {
       route: `/gateway/${identity_key}/history`,
     });
 
-    return response.data;
+    return response;
   }
 
   public async getGatewayCoreCount(identity_key: string): Promise<CoreCount> {
@@ -62,7 +62,7 @@ export default class Status extends APIClient {
       route: `/gateway/${identity_key}/core-status-count`,
     });
 
-    return response.data;
+    return response;
   }
 
   public async getGatewayAverageUptime(
@@ -72,7 +72,7 @@ export default class Status extends APIClient {
       route: `/gateway/${identity_key}/avg_uptime`,
     });
 
-    return response.data;
+    return response;
   }
 
   // MIXNODES
@@ -84,7 +84,7 @@ export default class Status extends APIClient {
       route: `/mixnode/${mix_id}/report`,
     });
 
-    return response.data;
+    return response;
   }
 
   public async getMixnodeStakeSaturation(
@@ -94,7 +94,7 @@ export default class Status extends APIClient {
       route: `/mixnode/${mix_id}/stake-saturation`,
     });
 
-    return response.data;
+    return response;
   }
 
   public async getMixnodeCoreCount(mix_id: number): Promise<CoreCount> {
@@ -102,7 +102,7 @@ export default class Status extends APIClient {
       route: `/mixnode/${mix_id}/core-status-count`,
     });
 
-    return response.data;
+    return response;
   }
 
   public async getMixnodeRewardComputation(
@@ -112,7 +112,7 @@ export default class Status extends APIClient {
       route: `/mixnode/${mix_id}/reward-estimation`,
     });
 
-    return response.data;
+    return response;
   }
 
   public async sendMixnodeRewardEstimatedComputation(
@@ -132,8 +132,7 @@ export default class Status extends APIClient {
         // profit_margin_percent: 10
       },
     });
-
-    return response.data;
+    return response;
   }
 
   public async getMixnodeHistory(
@@ -143,7 +142,7 @@ export default class Status extends APIClient {
       route: `/mixnode/${mix_id}/history`,
     });
 
-    return response.data;
+    return response;
   }
 
   public async getMixnodeAverageUptime(
@@ -153,7 +152,7 @@ export default class Status extends APIClient {
       route: `/mixnode/${mix_id}/avg_uptime`,
     });
 
-    return response.data;
+    return response;
   }
 
   public async getMixnodeInclusionProbability(
@@ -163,7 +162,7 @@ export default class Status extends APIClient {
       route: `/mixnode/${mix_id}/inclusion-probability`,
     });
 
-    return response.data;
+    return response;
   }
 
   public async getMixnodeStatus(mix_id: number): Promise<ActiveStatus> {
@@ -171,7 +170,7 @@ export default class Status extends APIClient {
       route: `/mixnode/${mix_id}/status`,
     });
 
-    return response.data;
+    return response;
   }
 
   public async getAllMixnodeInclusionProbability(): Promise<InclusionProbabilities> {
@@ -179,7 +178,7 @@ export default class Status extends APIClient {
       route: `/mixnodes/inclusion_probability`,
     });
 
-    return response.data;
+    return response;
   }
 
   public async getDetailedMixnodes(): Promise<DetailedMixnodes[]> {
@@ -187,7 +186,7 @@ export default class Status extends APIClient {
       route: `/mixnodes/detailed`,
     });
 
-    return response.data;
+    return response;
   }
 
   public async getDetailedRewardedMixnodes(): Promise<DetailedMixnodes[]> {
@@ -195,7 +194,7 @@ export default class Status extends APIClient {
       route: `/mixnodes/rewarded/detailed`,
     });
 
-    return response.data;
+    return response;
   }
 
   public async getUnfilteredMixnodes(): Promise<DetailedMixnodes[]> {
@@ -203,7 +202,7 @@ export default class Status extends APIClient {
       route: `/mixnodes/detailed-unfiltered`,
     });
 
-    return response.data;
+    return response;
   }
 
   public async getDetailedActiveMixnodes(): Promise<DetailedMixnodes[]> {
@@ -211,6 +210,6 @@ export default class Status extends APIClient {
       route: `/mixnodes/active/detailed`,
     });
 
-    return response.data;
+    return response;
   }
 }

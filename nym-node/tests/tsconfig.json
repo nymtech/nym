@@ -1,0 +1,26 @@
+{
+  "compilerOptions": {
+    "removeComments": true,
+    "allowJs": true,
+    "preserveConstEnums": true,
+    "module": "commonjs",
+    "target": "ES2019",
+    "declaration": true,
+    "esModuleInterop": true,
+    "sourceMap": true,
+    "lib": ["esnext"],
+    "outDir": "dist",
+    "resolveJsonModule": true,
+    "moduleResolution": "node",
+    "allowSyntheticDefaultImports": true,
+    "paths": {
+      "*": ["types/*"],
+      "common/api-test-utils": ["../../common/api-test-utils/index.ts"]
+    },
+    "baseUrl": "./",
+    "typeRoots": ["node_modules/@types"],
+    "alwaysStrict": true
+  },
+  "include": ["src/**/*", "tests/functional_test/*/*"],
+  "exclude": ["unit_test/**/*"]
+}

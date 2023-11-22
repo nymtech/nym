@@ -10,20 +10,20 @@ export default class NetworkTypes extends APIClient {
     const response = await this.restClient.sendGet({
       route: `network/details`,
     });
-    return response.data;
+    return response;
   }
 
   public async getNymContractInfo(): Promise<NymContracts> {
     const response = await this.restClient.sendGet({
       route: `network/nym-contracts`,
     });
-    return response.data;
+    return response;
   }
 
   public async getNymContractDetailedInfo(): Promise<NymContractsDetailed> {
     const response = await this.restClient.sendGet({
       route: `network/nym-contracts-detailed`,
     });
-    return response.data;
+    return response;
   }
 }

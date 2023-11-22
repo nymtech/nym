@@ -1,18 +1,18 @@
-name: ci-nym-api-tests
+name: ci-nym-node-api-tests
 
 on:
   workflow_dispatch:
   push:
     paths:
-      - "nym-api/**"
-
+      - "nym-node/**"
+       
 defaults:
   run:
-    working-directory: nym-api/tests
+    working-directory: nym-node/tests
 
 jobs:
   test:
-    name: nym-api tests
+    name: nym-node tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -24,7 +24,7 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: 18.1.0
-          
+
       - name: Yarn install in root
         run: cd ../../ && yarn install
 
@@ -36,4 +36,4 @@ jobs:
 
       - name: Run tests
         run: yarn test:sandbox
-        working-directory: nym-api/tests
+        working-directory: nym-node/tests

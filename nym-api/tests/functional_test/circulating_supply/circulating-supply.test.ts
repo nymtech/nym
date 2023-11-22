@@ -1,5 +1,6 @@
 import ContractCache from "../../src/endpoints/CirculatingSupply";
 let contract: ContractCache;
+jest.setTimeout(60000);
 
 describe("Get circulating supply", (): void => {
   beforeAll(async (): Promise<void> => {

@@ -166,5 +166,11 @@ generate-typescript:
 	yarn types:lint:fix
 
 run-api-tests:
-	cd nym-api/tests/functional_test && yarn test:qa
+	cd nym-api/tests && yarn test:sandbox
+	
+run-nym-node-tests:
+	cd nym-node/tests && yarn test:sandbox
 
+run-all-api-tests:
+	cd nym-api/tests && yarn test:sandbox
+	cd nym-node/tests && yarn test:sandbox

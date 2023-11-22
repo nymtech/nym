@@ -20,7 +20,8 @@ export const DelegateModal: FCWithChildren<{
   open: boolean;
   onClose: () => void;
   onOk?: (delegationModalProps: DelegationModalProps) => void;
-  identityKey?: string;
+  initialIdentityKey?: string;
+  initialMixId?: number;
   onIdentityKeyChanged?: (identityKey: string) => void;
   onAmountChanged?: (amount: string) => void;
   header?: string;
@@ -43,13 +44,14 @@ export const DelegateModal: FCWithChildren<{
   onOk,
   header,
   buttonText,
-  identityKey: initialIdentityKey,
+  initialIdentityKey,
+  initialMixId,
   // accountBalance,
   denom,
   sx,
   backdropProps,
 }) => {
-  const [mixId, setMixId] = useState<number | undefined>();
+  const [mixId, setMixId] = useState<number | undefined>(initialMixId);
   const [identityKey, setIdentityKey] = useState<string | undefined>(initialIdentityKey);
   const [amount, setAmount] = useState<DecCoin | undefined>();
   const [isValidated, setValidated] = useState<boolean>(false);
@@ -62,18 +64,7 @@ export const DelegateModal: FCWithChildren<{
     data?: string;
   }>({ status: 'loading', data: undefined });
 
-  const {
-    username,
-    connect,
-    disconnect,
-    wallet,
-    openView,
-    address,
-    getCosmWasmClient,
-    isWalletConnected,
-    getSigningCosmWasmClient,
-    estimateFee,
-  } = useChain('nyx');
+  const { address, getCosmWasmClient, isWalletConnected, getSigningCosmWasmClient } = useChain('nyx');
 
   useEffect(() => {
     const getClient = async () => {
@@ -154,6 +145,7 @@ export const DelegateModal: FCWithChildren<{
   ): Promise<ExecuteResult> => {
     const amount = (Number(funds![0].amount) * 1000000).toString();
     const uNymFunds = [{ amount: amount, denom: 'unym' }];
+    console.log('cosmWasmSignerClient :>> ', cosmWasmSignerClient);
     return await cosmWasmSignerClient.execute(
       address,
       MIXNET_CONTRACT_ADDRESS,
@@ -271,6 +263,7 @@ export const DelegateModal: FCWithChildren<{
           helperText={mixIdError}
           onChange={handleMixIDChanged}
           InputLabelProps={{ shrink: true }}
+          value={mixId?.toString() || ''}
         />
       </Box>
       <Box display="flex" gap={2} alignItems="center" sx={{ mt: 3 }}>

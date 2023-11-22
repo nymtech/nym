@@ -19,6 +19,13 @@ import { splice } from '../../utils';
 import { getMixNodeStatusColor } from '../../components/MixNodes/Status';
 import { MixNodeStatusDropdown } from '../../components/MixNodes/StatusDropdown';
 import { Tooltip } from '../../components/Tooltip';
+import { DelegateIconButton } from '../../components/Delegations/components/DelegateIconButton';
+import { ChainProvider } from '@cosmos-kit/react';
+import { assets, chains } from 'chain-registry';
+import { wallets as keplr } from '@cosmos-kit/keplr';
+import { DelegationModal, DelegationModalProps } from '../../components/Delegations/components/DelegationModal';
+import { useMemo, useState } from 'react';
+import { DelegateModal } from '../../components/Delegations/components/DelegateModal';
 
 const getCellFontStyle = (theme: Theme, row: MixnodeRowType, textColor?: string) => {
   const color = textColor || getMixNodeStatusColor(theme, row.status);
@@ -40,9 +47,58 @@ export const PageMixnodes: FCWithChildren = () => {
   const [filteredMixnodes, setFilteredMixnodes] = React.useState<MixNodeResponse>([]);
   const [pageSize, setPageSize] = React.useState<string>('10');
   const [searchTerm, setSearchTerm] = React.useState<string>('');
+  const [mixId, setMixId] = useState<number | undefined>();
+  const [identityKey, setIdentityKey] = useState<string | undefined>();
+  const [showNewDelegationModal, setShowNewDelegationModal] = useState<boolean>(false);
+  const [confirmationModalProps, setConfirmationModalProps] = useState<DelegationModalProps | undefined>();
   const theme = useTheme();
   const { status } = useParams<{ status: MixnodeStatusWithAll | undefined }>();
   const navigate = useNavigate();
+
+  const assetsFixedUp = useMemo(() => {
+    const nyx = assets.find((a) => a.chain_name === 'nyx');
+    if (nyx) {
+      const nyxCoin = nyx.assets.find((a) => a.name === 'nyx');
+      if (nyxCoin) {
+        nyxCoin.coingecko_id = 'nyx';
+      }
+      nyx.assets = nyx.assets.reverse();
+    }
+    return assets;
+  }, [assets]);
+
+  const chainsFixedUp = useMemo(() => {
+    const nyx = chains.find((c) => c.chain_id === 'nyx');
+    if (nyx) {
+      if (!nyx.staking) {
+        nyx.staking = {
+          staking_tokens: [{ denom: 'unyx' }],
+          lock_duration: {
+            blocks: 10000,
+          },
+        };
+        if (nyx.apis) nyx.apis.rpc = [{ address: 'https://rpc.nymtech.net', provider: 'nym' }];
+      }
+    }
+    return chains;
+  }, [chains]);
+  3;
+
+  const openDelegationModal = (identityKey: string, mixId: number) => {
+    setMixId(mixId);
+    setIdentityKey(identityKey);
+  };
+
+  React.useEffect(() => {
+    if (identityKey && mixId) {
+      setShowNewDelegationModal(true);
+    }
+  }, [identityKey, mixId]);
+
+  const handleNewDelegation = (delegationModalProps: DelegationModalProps) => {
+    setShowNewDelegationModal(false);
+    setConfirmationModalProps(delegationModalProps);
+  };
 
   const handleSearch = (str: string) => {
     setSearchTerm(str.toLowerCase());
@@ -88,7 +144,7 @@ export const PageMixnodes: FCWithChildren = () => {
       disableColumnMenu: true,
       renderHeader: () => <CustomColumnHeading headingTitle="Mix ID" />,
       headerClassName: 'MuiDataGrid-header-override',
-      width: 100,
+      width: 70,
       headerAlign: 'left',
       renderCell: (params: GridRenderCellParams) => (
         <MuiLink
@@ -107,10 +163,19 @@ export const PageMixnodes: FCWithChildren = () => {
       disableColumnMenu: true,
       renderHeader: () => <CustomColumnHeading headingTitle="Identity Key" />,
       headerClassName: 'MuiDataGrid-header-override',
-      width: 170,
+      width: 190,
       headerAlign: 'left',
       renderCell: (params: GridRenderCellParams) => (
         <>
+          <DelegateIconButton
+            sx={{ ...getCellFontStyle(theme, params.row), marginRight: 1 }}
+            // tooltip={`Copy identity key ${params.value} to clipboard`}
+            // onDelegate={() => onDelegate(params.value.identityKey, params.value.mixId)}
+            onDelegate={() => {
+              openDelegationModal(params.value, params.row.mix_id);
+              console.log('object :>> ', params.value, params.row.mix_id);
+            }}
+          />
           <CopyToClipboard
             sx={{ ...getCellFontStyle(theme, params.row), mr: 1 }}
             value={params.value}
@@ -363,6 +428,40 @@ export const PageMixnodes: FCWithChildren = () => {
           </Card>
         </Grid>
       </Grid>
+
+      {showNewDelegationModal && (
+        <ChainProvider
+          chains={chainsFixedUp}
+          assetLists={assetsFixedUp}
+          wallets={[...keplr]}
+          signerOptions={{
+            preferredSignType: () => 'amino',
+          }}
+        >
+          <DelegateModal
+            open={showNewDelegationModal}
+            onClose={() => setShowNewDelegationModal(false)}
+            header="Delegate"
+            buttonText="Delegate stake"
+            denom={'nym'} // clientDetails?.display_mix_denom || 'nym'}
+            onOk={(delegationModalProps: DelegationModalProps) => handleNewDelegation(delegationModalProps)}
+            // accountBalance={balance?.printable_balance}
+            initialIdentityKey={identityKey}
+            initialMixId={mixId}
+          />
+        </ChainProvider>
+      )}
+
+      {confirmationModalProps && (
+        <DelegationModal
+          {...confirmationModalProps}
+          open={Boolean(confirmationModalProps)}
+          onClose={async () => {
+            setConfirmationModalProps(undefined);
+            // await fetchBalance();
+          }}
+        />
+      )}
     </>
   );
 };

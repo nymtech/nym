@@ -16,6 +16,7 @@ export const MixNodeDetailSection: FCWithChildren<MixNodeDetailProps> = ({ mixNo
   const palette = [theme.palette.text.primary];
   const isMobile = useIsMobile();
   const statusText = React.useMemo(() => getMixNodeStatusText(mixNodeRow.status), [mixNodeRow.status]);
+  console.log('mixNodeRow :>> ', mixNodeRow);
   return (
     <Grid container>
       <Grid item xs={12} md={6}>

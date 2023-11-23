@@ -2,9 +2,6 @@ name: cd-docs
 
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - 'documentation/docs/**'
 
 jobs:
   build:

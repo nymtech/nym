@@ -31,7 +31,7 @@ jobs:
             --vers "^1.8.0" mdbook-admonish && cargo install --vers \
             "^0.1.2" mdbook-last-changed && cargo install --vers "^0.1.2" mdbook-theme \
             && cargo install --vers "^0.7.7" mdbook-linkcheck
-      - name: Remove existing Nym config directory
+      - name: Remove existing Nym config directory (`~/.nym/`)
         run: cd documentation && ./remove_existing_config.sh
         continue-on-error: false
       - name: Build all projects in documentation/ & move to ~/dist/docs/

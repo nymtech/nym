@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::ops::Index;
 
 use bls12_381::{G1Affine, G1Projective, G2Affine, G2Prepared, G2Projective, Scalar};
 use ff::Field;
@@ -6,7 +7,9 @@ use rand::thread_rng;
 
 use crate::error::{CompactEcashError, Result};
 use crate::utils::{hash_g1, Signature};
-use crate::constants::ATTRIBUTES_LEN;
+use crate::scheme::keygen::{SecretKeyAuth, VerificationKeyAuth};
+use crate::constants;
+use rayon::prelude::*;
 
 
 pub struct GroupParameters {
@@ -24,7 +27,7 @@ pub struct GroupParameters {
 
 impl GroupParameters {
     pub fn new() -> Result<GroupParameters> {
-        let gammas = (1..=ATTRIBUTES_LEN)
+        let gammas = (1..=constants::ATTRIBUTES_LEN)
             .map(|i| hash_g1(format!("gamma{}", i)))
             .collect();
 
@@ -129,6 +132,43 @@ impl Parameters {
             }
         }
     }
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct CoinIndexSignature{
+    pub(crate) h : G1Projective,
+    pub(crate) s : G1Projective,
+}
+
+pub type PartialCoinIndexSignature = CoinIndexSignature;
+
+pub fn sign_coin_indices(params: Parameters, vk: &VerificationKeyAuth, sk_auth: SecretKeyAuth) -> Vec<PartialCoinIndexSignature>{
+
+    let m1: Scalar = Scalar::from_bytes(&constants::TYPE_IDX).unwrap();
+    let m2: Scalar = Scalar::from_bytes(&constants::TYPE_IDX).unwrap();
+    let mut partial_coins_signatures = Vec::with_capacity(params.L() as usize);
+
+    for l in 0..params.L(){
+        let m0: Scalar = Scalar::from(l);
+        // Compute the hash h
+        let mut concatenated_bytes = Vec::with_capacity(vk.to_bytes().len() + l.to_le_bytes().len());
+        concatenated_bytes.extend_from_slice(&vk.to_bytes());
+        concatenated_bytes.extend_from_slice(&l.to_le_bytes());
+        let h = hash_g1(concatenated_bytes);
+
+        // Sign the attributes by performing scalar-point multiplications and accumulating the result
+        let mut s_exponent = sk_auth.x;
+        s_exponent += &sk_auth.ys[0] * m0;
+        s_exponent += &sk_auth.ys[1] * m1;
+        s_exponent += &sk_auth.ys[2] * m2;
+        // Create the signature struct of on the coin index
+        let coin_idx_sign = CoinIndexSignature{
+            h,
+            s: h * s_exponent,
+        };
+        partial_coins_signatures.push(coin_idx_sign);
+    }
+    partial_coins_signatures
 }
 
 pub fn setup(L: u64) -> Parameters {

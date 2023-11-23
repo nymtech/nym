@@ -50,7 +50,7 @@ where
         shutdown.recv().await;
 
         info!("PersistentReplyStorage is flushing all reply-related data to underlying storage");
-        warn!("you MUST NOT forcefully shutdown now or you risk data corruption!");
+        info!("you MUST NOT forcefully shutdown now or you risk data corruption!");
         if let Err(err) = self.backend.flush_surb_storage(&mem_state).await {
             error!("failed to flush our reply-related data to the persistent storage: {err}")
         } else {

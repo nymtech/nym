@@ -578,7 +578,7 @@ impl<C, St> GatewayClient<C, St> {
         self.bandwidth_controller
             .as_ref()
             .unwrap()
-            .update_ecash_credential(new_wallet, wallet_id)
+            .update_ecash_wallet(new_wallet, wallet_id)
             .await?;
 
         Ok(())

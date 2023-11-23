@@ -3,7 +3,7 @@
 
 use crate::backends::memory::CoconutCredentialManager;
 use crate::error::StorageError;
-use crate::models::{CoconutCredential, EcashCredential};
+use crate::models::{CoconutCredential, EcashWallet};
 use crate::storage::Storage;
 use async_trait::async_trait;
 
@@ -50,23 +50,24 @@ impl Storage for EphemeralStorage {
         Ok(())
     }
 
-    async fn insert_ecash_credential(
+    async fn insert_ecash_wallet(
         &self,
         voucher_info: String,
         wallet: String,
+        value: String,
         epoch_id: String,
     ) -> Result<(), StorageError> {
         self.coconut_credential_manager
-            .insert_ecash_credential(voucher_info, wallet, epoch_id)
+            .insert_ecash_wallet(voucher_info, wallet, value, epoch_id)
             .await;
 
         Ok(())
     }
 
-    async fn get_next_ecash_credential(&self) -> Result<EcashCredential, StorageError> {
+    async fn get_next_ecash_wallet(&self) -> Result<EcashWallet, StorageError> {
         let credential = self
             .coconut_credential_manager
-            .get_next_ecash_credential()
+            .get_next_ecash_wallet()
             .await
             .ok_or(StorageError::NoCredential)?;
 
@@ -91,14 +92,14 @@ impl Storage for EphemeralStorage {
         Ok(())
     }
 
-    async fn update_ecash_credential(
+    async fn update_ecash_wallet(
         &self,
         wallet: String,
         id: i64,
         consumed: bool,
     ) -> Result<(), StorageError> {
         self.coconut_credential_manager
-            .update_ecash_credential(wallet, id, consumed)
+            .update_ecash_wallet(wallet, id, consumed)
             .await;
         Ok(())
     }

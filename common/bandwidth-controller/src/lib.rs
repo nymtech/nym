@@ -52,7 +52,7 @@ impl<C, St: Storage> BandwidthController<C, St> {
     {
         let ecash_credential = self
             .storage
-            .get_next_ecash_credential()
+            .get_next_ecash_wallet()
             .await
             .map_err(|err| BandwidthControllerError::CredentialStorageError(Box::new(err)))?;
         //let voucher_info = ecash_credential.voucher_info.clone();
@@ -84,7 +84,7 @@ impl<C, St: Storage> BandwidthController<C, St> {
         Ok((credential, wallet, ecash_credential.id))
     }
 
-    pub async fn update_ecash_credential(
+    pub async fn update_ecash_wallet(
         &self,
         wallet: Wallet,
         id: i64,
@@ -98,7 +98,7 @@ impl<C, St: Storage> BandwidthController<C, St> {
         let wallet_string = wallet.to_bs58();
 
         self.storage
-            .update_ecash_credential(wallet_string, id, consumed)
+            .update_ecash_wallet(wallet_string, id, consumed)
             .await
             .map_err(|err| BandwidthControllerError::CredentialStorageError(Box::new(err)))
     }

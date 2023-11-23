@@ -1,5 +1,5 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: GPL-3.0-only
 
 use crate::http::api::v1::gateway::client_interfaces::wireguard::client_registry::{
     get_all_clients, get_client, register_client,
@@ -73,8 +73,8 @@ impl WireguardAppState {
 macro_rules! get_state {
     ( $state: ident, $field: ident ) => {{
         let Some(ref inner) = $state.inner else {
-            return ::axum::http::StatusCode::NOT_IMPLEMENTED;
-        };
+                return ::axum::http::StatusCode::NOT_IMPLEMENTED;
+            };
         inner.$field.as_ref()
     }};
 }

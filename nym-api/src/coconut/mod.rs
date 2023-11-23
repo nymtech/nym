@@ -9,11 +9,15 @@ use crate::support::storage::NymApiStorage;
 use getset::{CopyGetters, Getters};
 use keypair::KeyPair;
 use nym_api_requests::coconut::{
-    BlindSignRequestBody, BlindedSignatureResponse, EcashParametersResponse, VerifyCredentialBody,
-    VerifyCredentialResponse,
+    BlindSignRequestBody, BlindedSignatureResponse, EcashParametersResponse,
+    OfflineVerifyCredentialBody, OnlineVerifyCredentialBody, VerifyCredentialResponse,
+};
+use nym_coconut_bandwidth_contract_common::spend_credential::{
+    funds_from_cosmos_msgs, SpendCredentialStatus,
 };
 use nym_coconut_dkg_common::types::EpochId;
 
+use crate::coconut::helpers::accepted_vote_err;
 use nym_compact_ecash::error::CompactEcashError;
 use nym_compact_ecash::scheme::keygen::KeyPairAuth;
 use nym_compact_ecash::scheme::withdrawal::WithdrawalRequest;
@@ -30,6 +34,7 @@ use nym_crypto::shared_key::new_ephemeral_shared_key;
 use nym_crypto::symmetric::stream_cipher;
 use nym_validator_client::nym_api::routes::{BANDWIDTH, COCONUT_ROUTES};
 use nym_validator_client::nyxd::AccountId;
+use nym_validator_client::nyxd::{Coin, Fee};
 use rand_07::rngs::OsRng;
 use rocket::fairing::AdHoc;
 use rocket::serde::json::Json;
@@ -50,6 +55,7 @@ pub(crate) mod tests;
 
 pub struct State {
     client: Arc<dyn LocalClient + Send + Sync>,
+    mix_denom: String,
     key_pair: KeyPair,
     ecash_params: Parameters,
     comm_channel: Arc<dyn APICommunicationChannel + Send + Sync>,
@@ -60,6 +66,7 @@ pub struct State {
 impl State {
     pub(crate) fn new<C, D>(
         client: C,
+        mix_denom: String,
         key_pair: KeyPair,
         comm_channel: D,
         storage: NymApiStorage,
@@ -76,6 +83,7 @@ impl State {
         let ecash_params = Parameters::try_from_bs58(params_base58).unwrap(); //SW Waiting for an actual parameters generation scheme.
         Self {
             client,
+            mix_denom,
             key_pair,
             ecash_params,
             comm_channel,
@@ -178,6 +186,7 @@ impl InternalSignRequest {
 
     pub fn stage<C, D>(
         client: C,
+        mix_denom: String,
         key_pair: KeyPair,
         comm_channel: D,
         storage: NymApiStorage,
@@ -186,12 +195,16 @@ impl InternalSignRequest {
         C: LocalClient + Send + Sync + 'static,
         D: APICommunicationChannel + Send + Sync + 'static,
     {
-        let state = State::new(client, key_pair, comm_channel, storage);
+        let state = State::new(client, mix_denom, key_pair, comm_channel, storage);
         AdHoc::on_ignite("Internal Sign Request Stage", |rocket| async {
             rocket.manage(state).mount(
                 // this format! is so ugly...
                 format!("/{}/{}/{}", NYM_API_VERSION, COCONUT_ROUTES, BANDWIDTH),
-                routes![post_blind_sign, verify_offline_credential],
+                routes![
+                    post_blind_sign,
+                    verify_offline_credential,
+                    verify_online_credential
+                ],
             )
         })
     }
@@ -248,7 +261,7 @@ pub async fn post_blind_sign(
 
 #[post("/verify-offline-credential", data = "<verify_credential_body>")]
 pub async fn verify_offline_credential(
-    verify_credential_body: Json<VerifyCredentialBody>,
+    verify_credential_body: Json<OfflineVerifyCredentialBody>,
     state: &RocketState<State>,
 ) -> Result<Json<VerifyCredentialResponse>> {
     let verification_key = state
@@ -279,6 +292,81 @@ pub async fn verify_offline_credential(
         .await?;
 
     Ok(Json(VerifyCredentialResponse::new(true)))
+}
+
+#[post("/verify-online-credential", data = "<verify_credential_body>")]
+pub async fn verify_online_credential(
+    verify_credential_body: Json<OnlineVerifyCredentialBody>,
+    state: &RocketState<State>,
+) -> Result<Json<VerifyCredentialResponse>> {
+    let proposal_id = *verify_credential_body.proposal_id();
+    let proposal = state.client.get_proposal(proposal_id).await?;
+    // Proposal description is the blinded serial number
+    if !verify_credential_body
+        .credential()
+        .has_blinded_serial_number(&proposal.description)?
+    {
+        return Err(CoconutError::IncorrectProposal {
+            reason: String::from("incorrect blinded serial number in description"),
+        });
+    }
+    let proposed_release_funds =
+        funds_from_cosmos_msgs(proposal.msgs).ok_or(CoconutError::IncorrectProposal {
+            reason: String::from("action is not to release funds"),
+        })?;
+    // Credential has not been spent before, and is on its way of being spent
+    let credential_status = state
+        .client
+        .get_spent_credential(verify_credential_body.credential().blinded_serial_number())
+        .await?
+        .spend_credential
+        .ok_or(CoconutError::InvalidCredentialStatus {
+            status: String::from("Inexistent"),
+        })?
+        .status();
+    if credential_status != SpendCredentialStatus::InProgress {
+        return Err(CoconutError::InvalidCredentialStatus {
+            status: format!("{:?}", credential_status),
+        });
+    }
+    let verification_key = state
+        .verification_key(*verify_credential_body.credential().epoch_id())
+        .await?;
+    let mut vote_yes = verify_credential_body
+        .credential()
+        .payment()
+        .spend_verify(
+            &state.ecash_params,
+            &verification_key,
+            verify_credential_body.credential().pay_info(),
+        )
+        .map_err(|_| {
+            CoconutError::CompactEcashInternalError(CompactEcashError::PaymentVerification)
+        })?;
+
+    //SW THIS WILL HAVE TO CHANGE AS WELL
+    vote_yes &= Coin::from(proposed_release_funds)
+        == Coin::new(
+            verify_credential_body.credential().voucher_value() as u128,
+            state.mix_denom.clone(),
+        );
+
+    // Vote yes or no on the proposal based on the verification result
+    let ret = state
+        .client
+        .vote_proposal(
+            proposal_id,
+            vote_yes,
+            Some(Fee::new_payer_granter_auto(
+                None,
+                None,
+                Some(verify_credential_body.gateway_cosmos_addr().to_owned()),
+            )),
+        )
+        .await;
+    accepted_vote_err(ret)?;
+
+    Ok(Json(VerifyCredentialResponse::new(vote_yes)))
 }
 
 #[derive(Getters, CopyGetters)]

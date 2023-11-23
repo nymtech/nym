@@ -17,6 +17,7 @@ pub const BANDWIDTH: &str = "bandwidth";
 
 pub const COCONUT_BLIND_SIGN: &str = "blind-sign";
 pub const ECASH_VERIFY_OFFLINE_CREDENTIAL: &str = "verify-offline-credential";
+pub const ECASH_VERIFY_ONLINE_CREDENTIAL: &str = "verify-online-credential";
 pub const ECASH_PARAMETERS: &str = "ecash-parameters";
 
 pub const STATUS_ROUTES: &str = "status";

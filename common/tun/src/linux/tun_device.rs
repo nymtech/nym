@@ -198,7 +198,7 @@ impl TunDevice {
     async fn handle_tun_read(&self, packet: &[u8]) -> Result<(), TunDeviceError> {
         let ParsedAddresses { src_addr, dst_addr } = parse_src_dst_address(packet)?;
         log::info!(
-            "iface: read Packet({src_addr} -> {dst_addr}, {} bytes)",
+            "iface: read Packet({dst_addr} <- {src_addr}, {} bytes)",
             packet.len(),
         );
 

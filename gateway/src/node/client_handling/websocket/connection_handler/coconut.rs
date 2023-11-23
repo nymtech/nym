@@ -7,25 +7,36 @@ use super::authenticated::RequestHandlingError;
 use chrono::Utc;
 use futures::channel::mpsc::{self, UnboundedReceiver, UnboundedSender};
 use futures::StreamExt;
-use nym_api_requests::coconut::VerifyCredentialBody;
+use log::*;
+use nym_api_requests::coconut::OfflineVerifyCredentialBody;
 use nym_compact_ecash::scheme::EcashCredential;
 use nym_compact_ecash::setup::Parameters;
 use nym_compact_ecash::{PayInfo, VerificationKeyAuth};
 use nym_validator_client::coconut::all_ecash_api_clients;
-use nym_validator_client::nyxd::AccountId;
+use nym_validator_client::nyxd::{AccountId, Coin, Fee};
 use nym_validator_client::{
-    nyxd::contract_traits::DkgQueryClient, CoconutApiClient, DirectSigningHttpRpcNyxdClient,
-    NymApiClient,
+    nyxd::{
+        contract_traits::{
+            CoconutBandwidthSigningClient, DkgQueryClient, MultisigQueryClient,
+            MultisigSigningClient,
+        },
+        cosmwasm_client::logs::{find_attribute, BANDWIDTH_PROPOSAL_ID},
+    },
+    CoconutApiClient, DirectSigningHttpRpcNyxdClient, NymApiClient,
 };
 use std::sync::Arc;
 use std::sync::Mutex;
+use std::time::SystemTime;
 use tokio::time::{interval, Duration};
 
 const TIME_RANGE_SEC: i64 = 30;
 const CRED_SENDING_INTERVAL: u64 = 300;
+const ONE_HOUR_SEC: u64 = 3600;
+const MAX_FEEGRANT_UNYM: u128 = 10000;
 
 pub(crate) struct EcashVerifier {
     nyxd_client: DirectSigningHttpRpcNyxdClient,
+    mix_denom_base: String,
     ecash_parameters: Parameters,
     pk_bytes: [u8; 32], //bytes represenation of a pub key representing the verifier
     pay_infos: Arc<Mutex<Vec<PayInfo>>>,
@@ -39,13 +50,19 @@ impl EcashVerifier {
         pk_bytes: [u8; 32],
         shutdown: nym_task::TaskClient,
         storage: St,
+        offline_verification: bool,
     ) -> Self {
+        let mix_denom_base = nyxd_client.current_chain_details().mix_denom.base.clone();
         let (cred_sender, cred_receiver) = mpsc::unbounded();
-        let cs = CredentialSender::new(cred_receiver, storage);
-        cs.start(shutdown);
+        //SW do not initialize unused elements
+        if offline_verification {
+            let cs = CredentialSender::new(cred_receiver, storage);
+            cs.start(shutdown);
+        }
 
         EcashVerifier {
             nyxd_client,
+            mix_denom_base,
             ecash_parameters,
             pk_bytes,
             pay_infos: Arc::new(Mutex::new(Vec::new())),
@@ -193,6 +210,87 @@ impl EcashVerifier {
         }
         Ok(())
     }
+
+    pub async fn release_funds(
+        &self,
+        api_clients: Vec<CoconutApiClient>,
+        credential: &EcashCredential,
+    ) -> Result<(), RequestHandlingError> {
+        // Use a custom multiplier for revoke, as the default one (1.3)
+        // isn't enough
+        let revoke_fee = Some(Fee::Auto(Some(1.5)));
+
+        let res = self
+            .nyxd_client
+            .spend_credential(
+                Coin::new(
+                    credential.value().into(), //SW THIS WILL BE A FIXED VALUE?
+                    self.mix_denom_base.clone(),
+                ),
+                credential.blinded_serial_number(), //SW what will this be?
+                self.nyxd_client.address().to_string(),
+                None,
+            )
+            .await?;
+        let proposal_id = find_attribute(&res.logs, "wasm", BANDWIDTH_PROPOSAL_ID)
+            .ok_or(RequestHandlingError::ProposalIdError {
+                reason: String::from("proposal id not found"),
+            })?
+            .value
+            .parse::<u64>()
+            .map_err(|_| RequestHandlingError::ProposalIdError {
+                reason: String::from("proposal id could not be parsed to u64"),
+            })?;
+
+        let proposal = self.nyxd_client.query_proposal(proposal_id).await?;
+        if !credential.has_blinded_serial_number(&proposal.description)? {
+            //SW serial number issue
+            return Err(RequestHandlingError::ProposalIdError {
+                reason: String::from("proposal has different serial number"),
+            });
+        }
+
+        let req = nym_api_requests::coconut::OnlineVerifyCredentialBody::new(
+            credential.clone(),
+            proposal_id,
+            self.nyxd_client.address(),
+        );
+        for client in api_clients {
+            self.nyxd_client
+                .grant_allowance(
+                    &client.cosmos_address,
+                    vec![Coin::new(MAX_FEEGRANT_UNYM, self.mix_denom_base.clone())],
+                    SystemTime::now().checked_add(Duration::from_secs(ONE_HOUR_SEC)),
+                    // It would be nice to be able to filter deeper, but for now only the msg type filter is avaialable
+                    vec![String::from("/cosmwasm.wasm.v1.MsgExecuteContract")],
+                    "Create allowance to vote the release of funds".to_string(),
+                    None,
+                )
+                .await?;
+            let ret = client.api_client.verify_online_credential(&req).await;
+            self.nyxd_client
+                .revoke_allowance(
+                    &client.cosmos_address,
+                    "Cleanup the previous allowance for releasing funds".to_string(),
+                    revoke_fee.clone(),
+                )
+                .await?;
+            match ret {
+                Ok(res) => {
+                    if !res.verification_result {
+                        debug!("Validator {} didn't accept the credential. It will probably vote No on the spending proposal", client.api_client.nym_api.current_url());
+                    }
+                }
+                Err(e) => {
+                    warn!("Validator {} could not be reached. There might be a problem with the coconut endpoint - {:?}", client.api_client.nym_api.current_url(), e);
+                }
+            }
+        }
+
+        self.nyxd_client.execute_proposal(proposal_id, None).await?;
+
+        Ok(())
+    }
 }
 
 #[derive(Clone)]
@@ -220,7 +318,7 @@ where
 
     async fn send_credential(pending: &PendingCredential) -> bool {
         let request =
-            VerifyCredentialBody::new(pending.credential.clone(), pending.address.clone());
+            OfflineVerifyCredentialBody::new(pending.credential.clone(), pending.address.clone());
         match pending.client.verify_offline_credential(&request).await {
             Ok(res) => {
                 if !res.verification_result {

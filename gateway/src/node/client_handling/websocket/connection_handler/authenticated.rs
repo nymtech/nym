@@ -66,6 +66,12 @@ pub(crate) enum RequestHandlingError {
     #[error("Not enough nym API endpoints provided. Needed {needed}, received {received}")]
     NotEnoughNymAPIs { received: usize, needed: usize },
 
+    #[error("There was a problem with the proposal id: {reason}")]
+    ProposalIdError { reason: String },
+
+    #[error("Compact ecash error - {0}")]
+    CompactEcashError(#[from] nym_compact_ecash::error::CompactEcashError),
+
     #[error("Coconut interface error - {0}")]
     CoconutInterfaceError(#[from] nym_coconut_interface::error::CoconutInterfaceError),
 
@@ -251,11 +257,18 @@ where
             .check_payment(&credential, &aggregated_verification_key)
             .await?;
 
-        self.inner
-            .ecash_verifier
-            .post_credential(current_api_clients, credential.clone())?;
+        if self.inner.offline_credential_verification {
+            self.inner
+                .ecash_verifier
+                .post_credential(current_api_clients, credential.clone())?;
 
-        self.inner.storage.insert_credential(credential).await?;
+            self.inner.storage.insert_credential(credential).await?;
+        } else {
+            self.inner
+                .ecash_verifier
+                .release_funds(current_api_clients, &credential)
+                .await?;
+        }
 
         let bandwidth_value = 100000000; //SW MAKE A GLOBAL PARAMETER
 

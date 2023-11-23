@@ -18,6 +18,7 @@ pub(crate) struct Listener {
     address: SocketAddr,
     local_identity: Arc<identity::KeyPair>,
     only_coconut_credentials: bool,
+    offline_credential_verification: bool,
     pub(crate) ecash_verifier: Arc<EcashVerifier>,
 }
 
@@ -26,12 +27,14 @@ impl Listener {
         address: SocketAddr,
         local_identity: Arc<identity::KeyPair>,
         only_coconut_credentials: bool,
+        offline_credential_verification: bool,
         ecash_verifier: Arc<EcashVerifier>,
     ) -> Self {
         Listener {
             address,
             local_identity,
             only_coconut_credentials,
+            offline_credential_verification,
             ecash_verifier,
         }
     }
@@ -72,6 +75,7 @@ impl Listener {
                                 OsRng,
                                 socket,
                                 self.only_coconut_credentials,
+                                self.offline_credential_verification,
                                 outbound_mix_sender.clone(),
                                 Arc::clone(&self.local_identity),
                                 storage.clone(),

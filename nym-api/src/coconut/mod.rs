@@ -347,7 +347,7 @@ pub async fn verify_online_credential(
     //SW THIS WILL HAVE TO CHANGE AS WELL
     vote_yes &= Coin::from(proposed_release_funds)
         == Coin::new(
-            verify_credential_body.credential().voucher_value() as u128,
+            verify_credential_body.credential().value() as u128,
             state.mix_denom.clone(),
         );
 

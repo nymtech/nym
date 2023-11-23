@@ -194,6 +194,7 @@ impl<St> Gateway<St> {
             listening_address,
             Arc::clone(&self.identity_keypair),
             self.config.gateway.only_coconut_credentials,
+            self.config.gateway.offline_credential_verification,
             ecash_verifier,
         )
         .start(
@@ -367,6 +368,7 @@ impl<St> Gateway<St> {
                 self.identity_keypair.public_key().to_bytes(),
                 shutdown.subscribe().named("EcashVerifier"),
                 self.storage.clone(),
+                self.config.gateway.offline_credential_verification,
             )
         };
 

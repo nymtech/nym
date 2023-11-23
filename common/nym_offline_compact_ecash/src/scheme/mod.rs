@@ -671,6 +671,18 @@ impl EcashCredential {
 
         bytes
     }
+
+    pub fn value(&self) -> u64 {
+        todo!() //SW todo
+    }
+
+    pub fn blinded_serial_number(&self) -> String {
+        todo!() //SW todo
+    }
+
+    pub fn has_blinded_serial_number(&self, _blinded_serial_number_bs58: &str) -> Result<bool> {
+        todo!() //SW todo
+    }
 }
 
 impl TryFrom<&[u8]> for EcashCredential {

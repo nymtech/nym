@@ -17,4 +17,13 @@ export interface AppData {
   exitNode?: NodeConfig | null;
 }
 
-export type AppDataFromStorage = Partial<AppData>;
+// tauri type, hence the use of snake_case
+export interface AppDataFromBackend {
+  monitoring: boolean | null;
+  autoconnect: boolean | null;
+  killswitch: boolean | null;
+  ui_mode: UiMode | null;
+  privacy_mode: PrivacyMode;
+  entry_node: NodeConfig | null;
+  exit_node: NodeConfig | null;
+}

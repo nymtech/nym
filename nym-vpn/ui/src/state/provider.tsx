@@ -1,9 +1,9 @@
-import { useEffect, useReducer } from 'react';
+import React, { useEffect, useReducer } from 'react';
 import { invoke } from '@tauri-apps/api';
 import { initialState, reducer } from './main';
 import { useTauriEvents } from './useTauriEvents';
 import { MainDispatchContext, MainStateContext } from '../contexts';
-import { AppDataFromStorage, CmdError, ConnectionState } from '../types';
+import { AppDataFromBackend, CmdError, ConnectionState } from '../types';
 
 type Props = {
   children?: React.ReactNode;
@@ -28,28 +28,29 @@ export function MainStateProvider({ children }: Props) {
   // get saved on disk app data and restore state from it
   useEffect(() => {
     const getAppData = async () => {
-      return await invoke<AppDataFromStorage>('get_app_data');
+      return await invoke<AppDataFromBackend>('get_app_data');
     };
 
     getAppData()
-      .then((state) => {
+      .then((data) => {
+        console.log(data);
         dispatch({
           type: 'set-app-data',
           data: {
-            autoconnect: state.autoconnect || false,
-            monitoring: state.monitoring || false,
-            killswitch: state.killswitch || false,
-            uiMode: state.uiMode || 'Light',
-            privacyMode: state.privacyMode || 'High',
-            entryNode: state.entryNode,
-            exitNode: state.exitNode,
+            autoconnect: data.autoconnect || false,
+            monitoring: data.monitoring || false,
+            killswitch: data.killswitch || false,
+            uiMode: data.ui_mode || 'Light',
+            privacyMode: data.privacy_mode || 'High',
+            entryNode: data.entry_node,
+            exitNode: data.exit_node,
           },
         });
         dispatch({
           type: 'set-partial-state',
           partialState: {
-            uiMode: state.uiMode || 'Light',
-            privacyMode: state.privacyMode || 'High',
+            uiMode: data.ui_mode || 'Light',
+            privacyMode: data.privacy_mode || 'High',
           },
         });
       })

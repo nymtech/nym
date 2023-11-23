@@ -2,6 +2,7 @@ import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import { Home, Settings, Error, PageLayout } from './pages';
 import { MainStateProvider } from './state';
 import './i18n/config';
+import ThemeSetter from './ui/themeSetter.tsx';
 
 const router = createBrowserRouter([
   {
@@ -24,7 +25,9 @@ const router = createBrowserRouter([
 function App() {
   return (
     <MainStateProvider>
-      <RouterProvider router={router} />
+      <ThemeSetter>
+        <RouterProvider router={router} />
+      </ThemeSetter>
     </MainStateProvider>
   );
 }

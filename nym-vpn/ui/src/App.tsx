@@ -2,7 +2,7 @@ import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import { Home, Settings, Error, PageLayout } from './pages';
 import { MainStateProvider } from './state';
 import './i18n/config';
-import ThemeSetter from './ui/themeSetter.tsx';
+import { ThemeSetter } from './ui';
 
 const router = createBrowserRouter([
   {

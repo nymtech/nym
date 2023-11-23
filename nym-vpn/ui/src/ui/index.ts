@@ -1,1 +1,1 @@
-export { default as MainLauyout } from './themeSetter.tsx';
+export { default as ThemeSetter } from './themeSetter';

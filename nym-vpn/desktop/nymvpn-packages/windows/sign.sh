@@ -11,12 +11,11 @@ function sign_win {
         # Try multiple times in case the timestamp server cannot
         # be contacted.
         for i in $(seq 0 ${NUM_RETRIES}); do
-            echo "Signing $binary..."
-            if signtool sign \
-                -tr http://timestamp.sectigo.com -td sha256 \
-                -fd sha256 -d "nymvpn app" \
-                -du "https://github.com/nymvpn/nymvpn-app#readme" \
-                "$binary"
+            echo "Signing $binary..." 
+            if $PWD/signtool/x64/signtool.exe sign \
+            /f "../../$CERT_FILE" /p $CERT_FILE_PASSWORD /fd sha256 \
+            /td sha256 /tr http://timestamp.sectigo.com \
+            "$binary" 
             then
                 break
             fi
@@ -24,7 +23,6 @@ function sign_win {
             if [ "$i" -eq "${NUM_RETRIES}" ]; then
                 return 1
             fi
-
             sleep 1
         done
     done

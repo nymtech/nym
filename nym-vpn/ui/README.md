@@ -80,18 +80,6 @@ Generated TS types will be located in `src-tauri/bindings/`
 
 ## Build
 
-To build as a **shared library**
-
 ```
-yarn build && cd src-tauri && cargo build --release --lib --features custom-protocol
-
-#alias
 yarn build:app
-```
-
-You can build for a different platform using [Cross](https://github.com/cross-rs/cross).
-For example, to build for Windows on Linux:
-
-```
-cross build --target x86_64-pc-windows-gnu --release --lib --features custom-protocol
 ```

@@ -10,11 +10,13 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - [mixnode] replace rocket with axum ([#4071])
 - incorporate the nym node HTTP api into the mixnode ([#4070])
 - replaced '--disable-sign-ext' with '--signext-lowering' when running wasm-opt ([#3896])
+- Added PPA repo hosting support and nym-mixnode package with tooling for publishing ([#4165])
 
 [#4077]: https://github.com/nymtech/nym/pull/4077
 [#4071]: https://github.com/nymtech/nym/pull/4071
 [#4070]: https://github.com/nymtech/nym/issues/4070
 [#3896]: https://github.com/nymtech/nym/pull/3896
+[#4165]: https://github.com/nymtech/nym/pull/4165
 
 ## [2023.3-kinder] (2023-10-31)
 

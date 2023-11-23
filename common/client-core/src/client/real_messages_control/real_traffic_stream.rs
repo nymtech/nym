@@ -500,11 +500,12 @@ where
         {
             let mut status_timer = tokio::time::interval(Duration::from_secs(5));
 
-            while !shutdown.is_shutdown() {
+            loop {
                 tokio::select! {
                     biased;
                     _ = shutdown.recv_with_delay() => {
                         log::trace!("OutQueueControl: Received shutdown");
+                        break;
                     }
                     _ = status_timer.tick() => {
                         self.log_status(&mut shutdown);

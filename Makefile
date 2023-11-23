@@ -168,3 +168,7 @@ generate-typescript:
 run-api-tests:
 	cd nym-api/tests/functional_test && yarn test:qa
 
+# Build debian package, and update PPA
+# Requires base64 encode GPG key to be set up in environment PPA_SIGNING_KEY
+deb:
+	scripts/ppa.sh

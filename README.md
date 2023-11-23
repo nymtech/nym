@@ -15,7 +15,6 @@ The platform is composed of multiple Rust crates. Top-level executable binary cr
 * nym-explorer - a (projected) block explorer and (existing) mixnet viewer.
 * nym-wallet - a desktop wallet implemented using the [Tauri](https://tauri.studio/en/docs/about/intro) framework.
 
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg?style=for-the-badge)](https://opensource.org/licenses/Apache-2.0)
 [![Build Status](https://img.shields.io/github/actions/workflow/status/nymtech/nym/build.yml?branch=develop&style=for-the-badge&logo=github-actions)](https://github.com/nymtech/nym/actions?query=branch%3Adevelop)
 
 
@@ -83,4 +82,11 @@ where `s'` is stake `s` scaled over total token circulating supply.
 
 ### Licensing and copyright information
 
-This program is available as open source under the terms of the Apache 2.0 license. However, some elements are being licensed under CC0-1.0 and MIT. For accurate information, please check individual files.
+This is a monorepo and components that make up Nym as a system are licensed individually, so for accurate information, please check individual files.
+
+As a general approach, licensing is as follows this pattern:
+- applications and binaries are GPLv3
+- libraries and components are Apache 2.0 or MIT
+- documentation is Apache 2.0 or CC0-1.0
+
+Again, for accurate information, please check individual files.

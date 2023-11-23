@@ -26,7 +26,7 @@ const APP_DATA_FILE: &str = "app-data.toml";
 const APP_CONFIG_FILE: &str = "config.toml";
 
 fn main() -> Result<()> {
-    dotenvy::dotenv()?;
+    dotenvy::dotenv().ok();
 
     // uses RUST_LOG value for logging level
     // eg. RUST_LOG=tauri=debug,nymvpn_ui=trace

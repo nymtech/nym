@@ -1,5 +1,5 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: GPL-3.0-only
 
 use crate::node::client_handling::websocket::connection_handler::authenticated::RequestHandlingError;
 use nym_bandwidth_claim_contract::msg::ExecuteMsg;
@@ -7,9 +7,9 @@ use nym_bandwidth_claim_contract::payment::LinkPaymentData;
 use nym_credentials::token::bandwidth::TokenCredential;
 use nym_crypto::asymmetric::identity::{PublicKey, Signature, SIGNATURE_LENGTH};
 use nym_network_defaults::{ETH_EVENT_NAME, ETH_MIN_BLOCK_DEPTH};
-use std::str::FromStr;
 use nym_validator_client::nxmd::traits::MixnetQueryClient;
 use nym_validator_client::nyxd::{AccountId, NyxdClient, SigningNyxdClient};
+use std::str::FromStr;
 use web3::contract::tokens::Detokenize;
 use web3::contract::{Contract, Error};
 use web3::transports::Http;

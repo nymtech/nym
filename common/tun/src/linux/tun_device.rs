@@ -174,7 +174,7 @@ impl TunDevice {
     async fn handle_tun_write(&mut self, data: TunTaskPayload) -> Result<(), TunDeviceError> {
         let (tag, packet) = data;
         let ParsedAddresses { src_addr, dst_addr } = parse_src_dst_address(&packet)?;
-        log::debug!(
+        log::info!(
             "iface: write Packet({src_addr} -> {dst_addr}, {} bytes)",
             packet.len()
         );
@@ -197,7 +197,7 @@ impl TunDevice {
     // Receive reponse packets from the wild internet
     async fn handle_tun_read(&self, packet: &[u8]) -> Result<(), TunDeviceError> {
         let ParsedAddresses { src_addr, dst_addr } = parse_src_dst_address(packet)?;
-        log::debug!(
+        log::info!(
             "iface: read Packet({src_addr} -> {dst_addr}, {} bytes)",
             packet.len(),
         );

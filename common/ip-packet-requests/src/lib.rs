@@ -65,14 +65,14 @@ impl IpPacketRequest {
 }
 
 #[allow(clippy::large_enum_variant)]
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub enum IpPacketRequestData {
     StaticConnect(StaticConnectRequest),
     DynamicConnect(DynamicConnectRequest),
     Data(DataRequest),
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct StaticConnectRequest {
     pub ip: IpAddr,
     pub reply_to: Recipient,
@@ -80,14 +80,14 @@ pub struct StaticConnectRequest {
     pub reply_to_avg_mix_delays: Option<f64>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct DynamicConnectRequest {
     pub reply_to: Recipient,
     pub reply_to_hops: Option<u8>,
     pub reply_to_avg_mix_delays: Option<f64>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct DataRequest {
     pub ip_packet: bytes::Bytes,
 }
@@ -261,5 +261,32 @@ mod tests {
         // dbg!(&data.to_bytes().unwrap());
         // dbg!(&data.to_bytes().unwrap().len());
         assert_eq!(data.to_bytes().unwrap().len(), 35);
+    }
+
+    #[test]
+    fn serialize_and_deserialize_data_request() {
+        let data = IpPacketRequest {
+            version: 4,
+            data: IpPacketRequestData::Data(DataRequest {
+                ip_packet: bytes::Bytes::from(vec![1, 2, 4, 2, 5]),
+            }),
+        };
+
+        let serialized = data.to_bytes().unwrap();
+        let deserialized = IpPacketRequest::from_reconstructed_message(
+            &nym_sphinx::receiver::ReconstructedMessage {
+                message: serialized,
+                sender_tag: None,
+            },
+        )
+        .unwrap();
+
+        assert_eq!(deserialized.version, 4);
+        assert_eq!(
+            deserialized.data,
+            IpPacketRequestData::Data(DataRequest {
+                ip_packet: bytes::Bytes::from(vec![1, 2, 4, 2, 5]),
+            })
+        );
     }
 }

@@ -11,6 +11,7 @@ use nym_client_core::{
     client::mix_traffic::transceiver::GatewayTransceiver,
     config::disk_persistence::CommonClientPaths, HardcodedTopologyProvider, TopologyProvider,
 };
+use nym_ip_packet_requests::IpPacketResponse;
 use nym_sdk::{
     mixnet::{InputMessage, MixnetMessageSender, Recipient},
     NymNetworkDetails,
@@ -335,7 +336,12 @@ impl IpPacketRouter {
                         if let Some(recipient) = recipient {
                             let lane = TransmissionLane::General;
                             let packet_type = None;
-                            let input_message = InputMessage::new_regular(recipient, packet, lane, packet_type);
+                            let response_packet = IpPacketResponse::new_ip_packet(packet.into()).to_bytes();
+                            let Ok(response_packet) = response_packet else {
+                                log::error!("Failed to serialize response packet");
+                                continue;
+                            };
+                            let input_message = InputMessage::new_regular(recipient, response_packet, lane, packet_type);
 
                             if let Err(err) = self.mixnet_client.send(input_message).await {
                                 log::error!("IpPacketRouter [main loop]: failed to send packet to mixnet: {err}");

@@ -71,7 +71,7 @@ impl CoconutCredentialManager {
     }
 
     /// Tries to retrieve one of the stored, unused credentials.
-    pub async fn get_next_ecash_credential(&self) -> Result<Option<EcashWallet>, sqlx::Error> {
+    pub async fn get_next_ecash_wallet(&self) -> Result<Option<EcashWallet>, sqlx::Error> {
         sqlx::query_as!(
             EcashWallet,
             "SELECT * FROM ecash_wallets WHERE NOT consumed"
@@ -115,7 +115,7 @@ impl CoconutCredentialManager {
     /// * `id`: Database id.
     /// * `consumed` : If the wallet is entirely consumed
     ///
-    pub async fn update_ecash_credential(
+    pub async fn update_ecash_wallet(
         &self,
         wallet: String,
         id: i64,

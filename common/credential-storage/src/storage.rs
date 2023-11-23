@@ -46,7 +46,7 @@ pub trait Storage: Send + Sync {
     ) -> Result<(), Self::StorageError>;
 
     /// Tries to retrieve one of the stored, unused credentials.
-    async fn get_next_ecash_credential(&self) -> Result<EcashWallet, Self::StorageError>;
+    async fn get_next_ecash_wallet(&self) -> Result<EcashWallet, Self::StorageError>;
 
     /// Tries to retrieve one of the stored, unused credentials.
     async fn get_next_coconut_credential(&self) -> Result<CoconutCredential, Self::StorageError>;
@@ -66,7 +66,7 @@ pub trait Storage: Send + Sync {
     /// * `id`: Id of the credential to be updated.
     /// * `consumed`: if the credential is consumed or not
     ///
-    async fn update_ecash_credential(
+    async fn update_ecash_wallet(
         &self,
         wallet: String,
         id: i64,

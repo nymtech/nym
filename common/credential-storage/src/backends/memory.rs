@@ -80,7 +80,7 @@ impl CoconutCredentialManager {
     }
 
     /// Tries to retrieve one of the stored, unused credentials.
-    pub async fn get_next_ecash_credential(&self) -> Option<EcashWallet> {
+    pub async fn get_next_ecash_wallet(&self) -> Option<EcashWallet> {
         let creds = self.ecash.read().await;
         creds.iter().find(|c| !c.consumed).cloned()
     }
@@ -103,7 +103,7 @@ impl CoconutCredentialManager {
         }
     }
 
-    pub async fn update_ecash_credential(&self, wallet: String, id: i64, consumed: bool) {
+    pub async fn update_ecash_wallet(&self, wallet: String, id: i64, consumed: bool) {
         let mut creds = self.ecash.write().await;
         if let Some(cred) = creds.get_mut(id as usize) {
             cred.wallet = wallet;

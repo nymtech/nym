@@ -263,7 +263,8 @@ impl ActionController {
     pub(super) async fn run_with_shutdown(&mut self, mut shutdown: nym_task::TaskClient) {
         debug!("Started ActionController with graceful shutdown support");
 
-        while !shutdown.is_shutdown() {
+        let mut channels_closed = 0;
+        loop {
             tokio::select! {
                 action = self.incoming_actions.next() => match action {
                     Some(action) => self.process_action(action),
@@ -271,18 +272,25 @@ impl ActionController {
                         log::trace!(
                             "ActionController: Stopping since incoming actions channel closed"
                         );
-                        break;
+                        channels_closed += 1;
+                        if channels_closed > 1 {
+                            break;
+                        }
                     }
                 },
                 expired_ack = self.pending_acks_timers.next() => match expired_ack {
                     Some(expired_ack) => self.handle_expired_ack_timer(expired_ack, &mut shutdown),
                     None => {
                         log::trace!("ActionController: Stopping since ack channel closed");
-                        break;
+                        channels_closed += 1;
+                        if channels_closed > 1 {
+                            break;
+                        }
                     }
                 },
                 _ = shutdown.recv_with_delay() => {
                     log::trace!("ActionController: Received shutdown");
+                    break;
                 }
             }
         }

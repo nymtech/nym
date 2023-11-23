@@ -42,14 +42,12 @@ pub fn sign_expiration_date(
     sk_auth: &SecretKeyAuth,
     expiration_date: u64
 ) -> Vec<PartialExpirationDateSignature>{
-
+    let m0: Scalar = Scalar::from(expiration_date);
+    let m2: Scalar = Scalar::from_bytes(&constants::TYPE_EXP).unwrap();
     // Initialize a vector to collect exp_sign values
     let mut exp_signs = Vec::with_capacity(constants::VALIDITY_PERIOD as usize);
-
-    for l in 0..constants::VALIDITY_PERIOD {
-        let m0: Scalar = Scalar::from(expiration_date);
-        let m1: Scalar = Scalar::from(expiration_date - constants::VALIDITY_PERIOD + l);
-        let m2: Scalar = Scalar::from_bytes(&constants::TYPE_EXP).unwrap();
+    exp_signs.par_iter_mut().enumerate().for_each(|(l, exp_sign)| {
+        let m1: Scalar = Scalar::from(expiration_date - constants::VALIDITY_PERIOD + l as u64);
         // Compute the hash
         let h = hash_g1([m0.to_bytes(), m1.to_bytes(), m2.to_bytes()].concat());
         // Sign the attributes by performing scalar-point multiplications and accumulating the result
@@ -58,13 +56,12 @@ pub fn sign_expiration_date(
         s_exponent += &sk_auth.ys[1] * m1;
         s_exponent += &sk_auth.ys[2] * m2;
         // Create the signature struct on the expiration date
-        let exp_sign = PartialExpirationDateSignature {
+        *exp_sign = PartialExpirationDateSignature {
             h,
             s: h * s_exponent,
         };
-        // Collect the exp_sign value into the vector
-        exp_signs.push(exp_sign);
-    }
+    });
+
     exp_signs
 }
 
@@ -92,13 +89,14 @@ pub fn verify_valid_dates_signatures(
     signatures: &[ExpirationDateSignature],
     expiration_date: u64,
 ) -> Result<()>{
+    let m0: Scalar = Scalar::from(expiration_date);
+    let m2: Scalar = Scalar::from_bytes(&constants::TYPE_EXP).unwrap();
+
     signatures
         .par_iter()
         .enumerate()
         .try_for_each(|(l, sig)| {
-            let m0: Scalar = Scalar::from(expiration_date);
             let m1: Scalar = Scalar::from(expiration_date - constants::VALIDITY_PERIOD + l as u64);
-            let m2: Scalar = Scalar::from_bytes(&constants::TYPE_EXP).unwrap();
             // Compute the hash
             let h = hash_g1([m0.to_bytes(), m1.to_bytes(), m2.to_bytes()].concat());
             // Verify the signature correctness

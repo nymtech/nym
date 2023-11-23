@@ -167,6 +167,7 @@ fn bench_compact_ecash(c: &mut Criterion) {
     };
 
     let params = setup(case.L);
+
     let grp = params.grp();
     let user_keypair = generate_keypair_user(&grp);
     let threshold = (case.threshold_p * case.num_authorities as f32).round() as u64;
@@ -449,5 +450,5 @@ fn bench_aggregate_expiration_date_signatures(c: &mut Criterion){
 
 }
 
-criterion_group!(benches, bench_aggregate_expiration_date_signatures);
+criterion_group!(benches, bench_partial_sign_expiration_date);
 criterion_main!(benches);

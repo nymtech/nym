@@ -48,7 +48,7 @@ impl EcashVerifier {
         nyxd_client: DirectSigningHttpRpcNyxdClient,
         ecash_parameters: Parameters,
         pk_bytes: [u8; 32],
-        shutdown: nym_task::TaskClient,
+        mut shutdown: nym_task::TaskClient,
         storage: St,
         offline_verification: bool,
     ) -> Self {
@@ -58,6 +58,8 @@ impl EcashVerifier {
         if offline_verification {
             let cs = CredentialSender::new(cred_receiver, storage);
             cs.start(shutdown);
+        } else {
+            shutdown.mark_as_success();
         }
 
         EcashVerifier {

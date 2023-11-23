@@ -5,7 +5,7 @@ use tokio::time::sleep;
 use tracing::{debug, instrument, trace};
 
 use crate::{
-    error::CommandError,
+    error::{CmdError, CmdErrorSource},
     states::{app::ConnectionState, SharedAppState},
 };
 
@@ -20,7 +20,7 @@ struct EventPayload {
 #[tauri::command]
 pub async fn get_connection_state(
     state: State<'_, SharedAppState>,
-) -> Result<ConnectionState, CommandError> {
+) -> Result<ConnectionState, CmdError> {
     debug!("get_connection_state");
     let app_state = state.lock().await;
     Ok(app_state.state)
@@ -31,14 +31,14 @@ pub async fn get_connection_state(
 pub async fn connect(
     app: tauri::AppHandle,
     state: State<'_, SharedAppState>,
-) -> Result<ConnectionState, CommandError> {
+) -> Result<ConnectionState, CmdError> {
     debug!("connect");
     let mut app_state = state.lock().await;
     let ConnectionState::Disconnected = app_state.state else {
-        return Err(CommandError::CallerError(format!(
-            "cannot connect from state {:?}",
-            app_state.state
-        )));
+        return Err(CmdError::new(
+            CmdErrorSource::CallerError,
+            format!("cannot connect from state {:?}", app_state.state),
+        ));
     };
 
     // switch to "Connecting" state
@@ -80,14 +80,14 @@ pub async fn connect(
 pub async fn disconnect(
     app: tauri::AppHandle,
     state: State<'_, SharedAppState>,
-) -> Result<ConnectionState, CommandError> {
+) -> Result<ConnectionState, CmdError> {
     debug!("disconnect");
     let mut app_state = state.lock().await;
     let ConnectionState::Connected = app_state.state else {
-        return Err(CommandError::CallerError(format!(
-            "cannot disconnect from state {:?}",
-            app_state.state
-        )));
+        return Err(CmdError::new(
+            CmdErrorSource::CallerError,
+            format!("cannot disconnect from state {:?}", app_state.state),
+        ));
     };
 
     // switch to "Disconnecting" state

@@ -51,12 +51,11 @@ fn main() -> Result<()> {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            greet,
             connection::get_connection_state,
             connection::connect,
             connection::disconnect,
-            settings::save_user_settings,
-            settings::set_user_settings,
+            app_data::get_app_data,
+            app_data::set_app_data,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

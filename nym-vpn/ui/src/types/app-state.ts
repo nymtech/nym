@@ -1,4 +1,5 @@
 import { Dispatch } from 'react';
+import { AppData } from './app-data.ts';
 import { StateAction } from '../state';
 
 export type ConnectionState =
@@ -20,6 +21,8 @@ export type AppState = {
   loading: boolean;
   privacyMode: PrivacyMode;
   tunnel: TunnelConfig;
+  uiMode: 'Light' | 'Dark';
+  localAppData: AppData;
 };
 
 export type EventPayload = {

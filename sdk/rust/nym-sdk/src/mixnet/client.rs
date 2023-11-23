@@ -24,6 +24,7 @@ use nym_client_core::{
     client::{base_client::BaseClientBuilder, replies::reply_storage::ReplyStorageBackend},
     config::GatewayEndpointConfig,
 };
+use nym_network_defaults::WG_TUN_DEVICE_ADDRESS;
 use nym_socks5_client_core::config::Socks5;
 use nym_task::manager::TaskStatus;
 use nym_task::{TaskClient, TaskHandle};
@@ -527,7 +528,6 @@ where
 
         let mut base_builder: BaseClientBuilder<_, _> =
             BaseClientBuilder::new(&base_config, self.storage, self.dkg_query_client)
-                .with_wireguard_mode(self.wireguard_mode)
                 .with_wait_for_gateway(self.wait_for_gateway);
 
         if !known_gateway {
@@ -538,6 +538,12 @@ where
             );
 
             let mut rng = OsRng;
+            let mut available_gateways = current_gateways(&mut rng, &nym_api_endpoints).await?;
+            if self.wireguard_mode {
+                available_gateways
+                    .iter_mut()
+                    .for_each(|node| node.host = WG_TUN_DEVICE_ADDRESS.parse().unwrap());
+            }
             let setup = GatewaySetup::New {
                 specification: selection_spec,
                 available_gateways: current_gateways(&mut rng, &nym_api_endpoints).await?,

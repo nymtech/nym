@@ -191,6 +191,117 @@ struct IpPacketRouter {
 
 #[allow(unused)]
 impl IpPacketRouter {
+    async fn on_static_connect_request(
+        &mut self,
+        connect_request: nym_ip_packet_requests::StaticConnectRequest,
+    ) -> Result<(), IpPacketRouterError> {
+        log::info!(
+            "Received static connect request from {sender_address}",
+            sender_address = connect_request.reply_to
+        );
+
+        let requested_ip = connect_request.ip;
+        let reply_to = connect_request.reply_to;
+        // TODO: ignoring reply_to_hops and reply_to_avg_mix_delays for now
+
+        log::info!("Dropping request: dynamic connect requests are not yet supported");
+        Ok(())
+    }
+
+    async fn on_dynamic_connect_request(
+        &mut self,
+        connect_request: nym_ip_packet_requests::DynamicConnectRequest,
+    ) -> Result<(), IpPacketRouterError> {
+        log::info!(
+            "Received dynamic connect request from {sender_address}",
+            sender_address = connect_request.reply_to
+        );
+        log::info!("Dropping request: dynamic connect requests are not yet supported");
+        Ok(())
+    }
+
+    async fn on_data_request(
+        &mut self,
+        data_request: nym_ip_packet_requests::DataRequest,
+    ) -> Result<(), IpPacketRouterError> {
+        log::info!("Received data request");
+
+        // We don't forward packets that we are not able to parse. BUT, there might be a good
+        // reason to still forward them.
+        //
+        // For example, if we are running in a mode where we are only supposed to forward
+        // packets to a specific destination, we might want to forward them anyway.
+        //
+        // TODO: look into this
+        let ParsedPacket {
+            packet_type,
+            src_addr,
+            dst_addr,
+            dst,
+        } = parse_packet(&data_request.ip_packet)?;
+
+        let dst_str = dst.map_or(dst_addr.to_string(), |dst| dst.to_string());
+        log::info!("Received packet: {packet_type}: {src_addr} -> {dst_str}");
+
+        // Filter check
+        if let Some(dst) = dst {
+            if !self.request_filter.check_address(&dst).await {
+                log::warn!("Failed filter check: {dst}");
+                // TODO: we could consider sending back a response here
+                return Err(IpPacketRouterError::AddressFailedFilterCheck { addr: dst });
+            }
+        } else {
+            // TODO: we should also filter packets without port number
+            log::warn!("Ignoring filter check for packet without port number! TODO!");
+        }
+
+        // TODO: set the tag correctly. Can we just reuse sender_tag?
+        // TODO: consider changing from Vec<u8> to bytes::Bytes?
+        let peer_tag = 0;
+        self.tun_task_tx
+            .try_send((peer_tag, data_request.ip_packet.into()))
+            .map_err(|err| IpPacketRouterError::FailedToSendPacketToTun { source: err })?;
+
+        Ok(())
+    }
+    async fn on_reconstructed_message(
+        &mut self,
+        reconstructed: ReconstructedMessage,
+    ) -> Result<(), IpPacketRouterError> {
+        log::debug!(
+            "Received message with sender_tag: {:?}",
+            reconstructed.sender_tag
+        );
+
+        // Check version of request
+        if let Some(version) = reconstructed.message.first() {
+            // The idea is that in the future we can add logic here to parse older versions to stay
+            // backwards compatible.
+            if *version != nym_ip_packet_requests::CURRENT_VERSION {
+                log::warn!("Received packet with invalid version");
+                return Err(IpPacketRouterError::InvalidPacketVersion(*version));
+            }
+        }
+
+        let tagged_packet =
+            nym_ip_packet_requests::IpPacketRequest::from_reconstructed_message(&reconstructed)
+                .map_err(|err| IpPacketRouterError::FailedToDeserializeTaggedPacket {
+                    source: err,
+                })?;
+
+        match tagged_packet.data {
+            nym_ip_packet_requests::IpPacketRequestData::StaticConnect(connect_request) => {
+                self.on_static_connect_request(connect_request).await
+            }
+            nym_ip_packet_requests::IpPacketRequestData::DynamicConnect(connect_request) => {
+                self.on_dynamic_connect_request(connect_request).await
+            }
+            nym_ip_packet_requests::IpPacketRequestData::Data(data_request) => {
+                self.on_data_request(data_request).await
+            }
+        }
+    }
+
     async fn run(mut self) -> Result<(), IpPacketRouterError> {
         let mut task_client = self.task_handle.fork("main_loop");
 
@@ -201,7 +312,7 @@ impl IpPacketRouter {
                 },
                 msg = self.mixnet_client.next() => {
                     if let Some(msg) = msg {
-                        if let Err(err) = self.on_message(msg).await {
+                        if let Err(err) = self.on_reconstructed_message(msg).await {
                             log::error!("Error handling mixnet message: {err}");
                         };
                     } else {
@@ -241,59 +352,6 @@ impl IpPacketRouter {
             }
         }
         log::info!("IpPacketRouter: stopping");
-        Ok(())
-    }
-
-    async fn on_message(
-        &mut self,
-        reconstructed: ReconstructedMessage,
-    ) -> Result<(), IpPacketRouterError> {
-        log::debug!(
-            "Received message with sender_tag: {:?}",
-            reconstructed.sender_tag
-        );
-
-        let tagged_packet =
-            nym_ip_packet_requests::TaggedIpPacket::from_reconstructed_message(&reconstructed)
-                .map_err(|err| IpPacketRouterError::FailedToDeserializeTaggedPacket {
-                    source: err,
-                })?;
-
-        // We don't forward packets that we are not able to parse. BUT, there might be a good
-        // reason to still forward them.
-        //
-        // For example, if we are running in a mode where we are only supposed to forward
-        // packets to a specific destination, we might want to forward them anyway.
-        //
-        // TODO: look into this
-        let ParsedPacket {
-            packet_type,
-            src_addr,
-            dst_addr,
-            dst,
-        } = parse_packet(&tagged_packet.packet)?;
-
-        let dst_str = dst.map_or(dst_addr.to_string(), |dst| dst.to_string());
-        log::info!("Received packet: {packet_type}: {src_addr} -> {dst_str}");
-
-        // Filter check
-        if let Some(dst) = dst {
-            if !self.request_filter.check_address(&dst).await {
-                log::warn!("Failed filter check: {dst}");
-                // TODO: we could consider sending back a response here
-                return Err(IpPacketRouterError::AddressFailedFilterCheck { addr: dst });
-            }
-        } else {
-            // TODO: we should also filter packets without port number
-            log::warn!("Ignoring filter check for packet without port number! TODO!");
-        }
-
-        // TODO: set the tag correctly. Can we just reuse sender_tag?
-        let peer_tag = 0;
-        self.tun_task_tx
-            .try_send((peer_tag, tagged_packet.packet.into()))
-            .map_err(|err| IpPacketRouterError::FailedToSendPacketToTun { source: err })?;
-
         Ok(())
     }
 }

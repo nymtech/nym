@@ -30,6 +30,9 @@ pub enum IpPacketRouterError {
     #[error("the entity wrapping the network requester has disconnected")]
     DisconnectedParent,
 
+    #[error("received packet has an invalid version: {0}")]
+    InvalidPacketVersion(u8),
+
     #[error("failed to deserialize tagged packet: {source}")]
     FailedToDeserializeTaggedPacket { source: bincode::Error },
 

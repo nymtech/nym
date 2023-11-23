@@ -11,7 +11,9 @@ use crate::{Error, Result};
 use futures::channel::mpsc;
 use futures::StreamExt;
 use log::warn;
-use nym_client_core::client::base_client::storage::gateway_details::GatewayDetailsStore;
+use nym_client_core::client::base_client::storage::gateway_details::{
+    GatewayDetailsStore, PersistedGatewayDetails,
+};
 use nym_client_core::client::base_client::storage::{
     Ephemeral, MixnetClientStorage, OnDiskPersistent,
 };
@@ -24,7 +26,7 @@ use nym_client_core::{
     client::{base_client::BaseClientBuilder, replies::reply_storage::ReplyStorageBackend},
     config::GatewayEndpointConfig,
 };
-use nym_network_defaults::WG_TUN_DEVICE_ADDRESS;
+use nym_network_defaults::{DEFAULT_CLIENT_LISTENING_PORT, WG_TUN_DEVICE_ADDRESS};
 use nym_socks5_client_core::config::Socks5;
 use nym_task::manager::TaskStatus;
 use nym_task::{TaskClient, TaskHandle};
@@ -526,11 +528,7 @@ where
 
         let known_gateway = self.has_valid_gateway_info().await;
 
-        let mut base_builder: BaseClientBuilder<_, _> =
-            BaseClientBuilder::new(&base_config, self.storage, self.dkg_query_client)
-                .with_wait_for_gateway(self.wait_for_gateway);
-
-        if !known_gateway {
+        let mut base_builder: BaseClientBuilder<_, _> = if !known_gateway {
             let selection_spec = GatewaySelectionSpecification::new(
                 self.config.user_chosen_gateway,
                 None,
@@ -550,8 +548,37 @@ where
                 overwrite_data: !self.config.key_mode.is_keep(),
             };
 
-            base_builder = base_builder.with_gateway_setup(setup)
-        }
+            BaseClientBuilder::new(&base_config, self.storage, self.dkg_query_client)
+                .with_wait_for_gateway(self.wait_for_gateway)
+                .with_gateway_setup(setup)
+        } else if self.wireguard_mode {
+            if let Ok(PersistedGatewayDetails::Default(mut config)) = self
+                .storage
+                .gateway_details_store()
+                .load_gateway_details()
+                .await
+            {
+                config.details.gateway_listener = format!(
+                    "ws://{}:{}",
+                    WG_TUN_DEVICE_ADDRESS, DEFAULT_CLIENT_LISTENING_PORT
+                );
+                if let Err(e) = self
+                    .storage
+                    .gateway_details_store()
+                    .store_gateway_details(&PersistedGatewayDetails::Default(config))
+                    .await
+                {
+                    warn!("Could not switch to using wireguard more - {:?}", e);
+                }
+            } else {
+                warn!("Storage type not supported with wireguard mode");
+            }
+            BaseClientBuilder::new(&base_config, self.storage, self.dkg_query_client)
+                .with_wait_for_gateway(self.wait_for_gateway)
+        } else {
+            BaseClientBuilder::new(&base_config, self.storage, self.dkg_query_client)
+                .with_wait_for_gateway(self.wait_for_gateway)
+        };
 
         if let Some(topology_provider) = self.custom_topology_provider {
             base_builder = base_builder.with_topology_provider(topology_provider);

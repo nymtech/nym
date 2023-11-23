@@ -546,7 +546,7 @@ where
             }
             let setup = GatewaySetup::New {
                 specification: selection_spec,
-                available_gateways: current_gateways(&mut rng, &nym_api_endpoints).await?,
+                available_gateways,
                 overwrite_data: !self.config.key_mode.is_keep(),
             };
 

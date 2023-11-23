@@ -1,5 +1,5 @@
 // Copyright 2020-2022 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: Apache-2.0
 
 pub use nym_crypto::generic_array;
 use nym_crypto::hmac::HmacOutput;

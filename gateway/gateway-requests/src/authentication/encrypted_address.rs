@@ -1,5 +1,5 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: Apache-2.0
 
 use crate::iv::IV;
 use crate::registration::handshake::shared_key::SharedKeys;

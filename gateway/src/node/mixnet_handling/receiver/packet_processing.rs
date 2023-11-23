@@ -1,5 +1,5 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: GPL-3.0-only
 
 use nym_crypto::asymmetric::encryption;
 use nym_mixnode_common::packet_processor::error::MixProcessingError;

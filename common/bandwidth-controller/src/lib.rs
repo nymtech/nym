@@ -50,15 +50,15 @@ impl<C, St: Storage> BandwidthController<C, St> {
         C: DkgQueryClient + Sync + Send,
         <St as Storage>::StorageError: Send + Sync + 'static,
     {
-        let ecash_credential = self
+        let ecash_wallet = self
             .storage
             .get_next_ecash_wallet()
             .await
             .map_err(|err| BandwidthControllerError::CredentialStorageError(Box::new(err)))?;
-        //let voucher_info = ecash_credential.voucher_info.clone();
-        let wallet = Wallet::try_from_bs58(ecash_credential.wallet)?;
-        let epoch_id = u64::from_str(&ecash_credential.epoch_id)
-            .map_err(|_| StorageError::InconsistentData)?;
+
+        let wallet = Wallet::try_from_bs58(ecash_wallet.wallet)?;
+        let epoch_id =
+            u64::from_str(&ecash_wallet.epoch_id).map_err(|_| StorageError::InconsistentData)?;
 
         let ecash_api_clients = all_ecash_api_clients(&self.client, epoch_id).await?;
 
@@ -67,6 +67,9 @@ impl<C, St: Storage> BandwidthController<C, St> {
         let sk_user = self.ecash_keypair.secret_key();
         let pay_info = PayInfo::generate_payinfo(provider_pk);
         let nb_tickets = 1u64; //SW: TEMPORARY VALUE, what should we put there?
+        let wallet_value = u64::from_str(&ecash_wallet.value)
+            .map_err(|err| BandwidthControllerError::CredentialStorageError(Box::new(err)))?;
+        let credential_value = nb_tickets * wallet_value / (self.ecash_params.ll());
 
         // the below would only be executed once we know where we want to spend it (i.e. which gateway and stuff)
 
@@ -79,9 +82,9 @@ impl<C, St: Storage> BandwidthController<C, St> {
             nb_tickets,
         )?;
 
-        let credential = EcashCredential::new(payment, pay_info, epoch_id);
+        let credential = EcashCredential::new(payment, credential_value, pay_info, epoch_id);
 
-        Ok((credential, wallet, ecash_credential.id))
+        Ok((credential, wallet, ecash_wallet.id))
     }
 
     pub async fn update_ecash_wallet(

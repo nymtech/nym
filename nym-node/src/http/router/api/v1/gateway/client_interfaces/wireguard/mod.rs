@@ -73,8 +73,8 @@ impl WireguardAppState {
 macro_rules! get_state {
     ( $state: ident, $field: ident ) => {{
         let Some(ref inner) = $state.inner else {
-                return ::axum::http::StatusCode::NOT_IMPLEMENTED;
-            };
+            return ::axum::http::StatusCode::NOT_IMPLEMENTED;
+        };
         inner.$field.as_ref()
     }};
 }

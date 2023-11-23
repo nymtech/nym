@@ -1,7 +1,7 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::models::{CoconutCredential, EcashCredential};
+use crate::models::{CoconutCredential, EcashWallet};
 use async_trait::async_trait;
 use std::error::Error;
 
@@ -35,16 +35,18 @@ pub trait Storage: Send + Sync {
     ///
     /// * `voucher_info`: What type of credential it is.
     /// * `signature`: Ecash wallet credential in the form of a wallet.
+    /// * `value` : The value of the ecash wallet
     /// * `epoch_id`: The epoch when it was signed.
-    async fn insert_ecash_credential(
+    async fn insert_ecash_wallet(
         &self,
         voucher_info: String,
         signature: String,
+        value: String,
         epoch_id: String,
     ) -> Result<(), Self::StorageError>;
 
     /// Tries to retrieve one of the stored, unused credentials.
-    async fn get_next_ecash_credential(&self) -> Result<EcashCredential, Self::StorageError>;
+    async fn get_next_ecash_credential(&self) -> Result<EcashWallet, Self::StorageError>;
 
     /// Tries to retrieve one of the stored, unused credentials.
     async fn get_next_coconut_credential(&self) -> Result<CoconutCredential, Self::StorageError>;

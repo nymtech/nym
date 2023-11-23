@@ -81,14 +81,15 @@ impl Storage for PersistentStorage {
         Ok(())
     }
 
-    async fn insert_ecash_credential(
+    async fn insert_ecash_wallet(
         &self,
         voucher_info: String,
         wallet: String,
+        value: String,
         epoch_id: String,
     ) -> Result<(), StorageError> {
         self.coconut_credential_manager
-            .insert_ecash_credential(voucher_info, wallet, epoch_id)
+            .insert_ecash_wallet(voucher_info, wallet, value, epoch_id)
             .await?;
 
         Ok(())

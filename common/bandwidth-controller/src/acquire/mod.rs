@@ -84,9 +84,10 @@ where
         obtain_aggregate_signature(&state.params, &state.voucher, &ecash_api_clients, threshold)
             .await?;
     storage
-        .insert_ecash_credential(
+        .insert_ecash_wallet(
             ECASH_INFO.to_string(),
             wallet.to_bs58(),
+            state.voucher.get_voucher_value(),
             epoch_id.to_string(),
         )
         .await

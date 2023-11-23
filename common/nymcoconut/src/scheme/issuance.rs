@@ -3,9 +3,10 @@
 
 use std::convert::TryFrom;
 use std::convert::TryInto;
+use std::ops::Neg;
 
-use bls12_381::{pairing, G1Affine, G1Projective, Scalar};
-use group::{Curve, GroupEncoding};
+use bls12_381::{multi_miller_loop, G1Affine, G1Projective, G2Prepared, Scalar};
+use group::{Curve, Group, GroupEncoding};
 
 use crate::error::{CoconutError, Result};
 use crate::proofs::ProofCmCs;
@@ -349,40 +350,64 @@ pub fn verify_partial_blind_signature(
     partial_verification_key: &VerificationKey,
 ) -> bool {
     let num_private_attributes = blind_sign_request.private_attributes_commitments.len();
-    // e(c, g2)
-    let pairing0 = pairing(&blind_sig.1.to_affine(), params.gen2());
+    if num_private_attributes + public_attributes.len() > partial_verification_key.beta_g2.len() {
+        return false;
+    }
 
-    let private_pairings = blind_sign_request
+    // TODO: we're losing some memory here due to extra allocation,
+    // but worst-case scenario (given SANE amount of attributes), it's just few kb at most
+    let c_neg = blind_sig.1.to_affine().neg();
+    let g2_prep = params.prepared_miller_g2();
+
+    let mut terms = vec![
+        // (c^{-1}, g2)
+        (c_neg, g2_prep.clone()),
+        // (s, alpha)
+        (
+            blind_sig.0.to_affine(),
+            G2Prepared::from(partial_verification_key.alpha.to_affine()),
+        ),
+    ];
+
+    // for each private attribute, add (cm_i, beta_i) to the miller terms
+    for (private_attr_commit, beta_g2) in blind_sign_request
         .private_attributes_commitments
         .iter()
         .zip(&partial_verification_key.beta_g2)
-        .fold(
-            pairing(
-                &blind_sig.0.to_affine(),
-                &partial_verification_key.alpha.to_affine(),
-            ),
-            |acc, (commitment, beta_g2)| {
-                acc + pairing(&commitment.to_affine(), &beta_g2.to_affine())
-            },
-        );
+    {
+        // (cm_i, beta_i)
+        terms.push((
+            private_attr_commit.to_affine(),
+            G2Prepared::from(beta_g2.to_affine()),
+        ))
+    }
 
-    let beta_g2_to_zip: Vec<_> = partial_verification_key
-        .beta_g2
-        .iter()
-        .skip(num_private_attributes)
-        .cloned()
-        .collect();
-    let composed_pairing = public_attributes.iter().zip(beta_g2_to_zip).fold(
-        private_pairings,
-        |acc, (public_attr, beta_g2)| {
-            acc + pairing(
-                &(blind_sig.0 * public_attr).to_affine(),
-                &beta_g2.to_affine(),
-            )
-        },
-    );
+    // for each public attribute, add (s^pub_j, beta_{priv + j}) to the miller terms
+    for (pub_attr, beta_g2) in public_attributes.iter().zip(
+        partial_verification_key
+            .beta_g2
+            .iter()
+            .skip(num_private_attributes),
+    ) {
+        // (s^pub_j, beta_j)
+        terms.push((
+            (blind_sig.0 * pub_attr).to_affine(),
+            G2Prepared::from(beta_g2.to_affine()),
+        ))
+    }
 
-    pairing0 == composed_pairing
+    // get the references to all the terms to get the arguments the miller loop expects
+    let terms_refs = terms.iter().map(|(g1, g2)| (g1, g2)).collect::<Vec<_>>();
+
+    // since checking whether e(a, b) == e(c, d)
+    // is equivalent to checking e(a, b) • e(c, d)^{-1} == id
+    // and thus to e(a, b) • e(c^{-1}, d) == id
+    //
+    // compute e(c^1, g2) • e(s, alpha) • e(cm_0, beta_0) • e(cm_i, beta_i) • (s^pub_0, beta_{i+1}) (s^pub_j, beta_{i + j})
+    multi_miller_loop(&terms_refs)
+        .final_exponentiation()
+        .is_identity()
+        .into()
 }
 
 #[cfg(test)]
@@ -421,7 +446,7 @@ pub fn sign(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::scheme::keygen::{keygen, SecretKey, VerificationKey};
+    use crate::scheme::keygen::keygen;
 
     #[test]
     fn blind_sign_request_bytes_roundtrip() {
@@ -522,15 +547,12 @@ mod tests {
         .unwrap();
 
         // this assertion should fail, as we try to verify with a wrong validator key
-        assert_eq!(
-            verify_partial_blind_signature(
-                &params,
-                &request,
-                &public_attributes,
-                &blind_sig,
-                &validator2_keypair.verification_key()
-            ),
-            false
-        );
+        assert!(!verify_partial_blind_signature(
+            &params,
+            &request,
+            &public_attributes,
+            &blind_sig,
+            &validator2_keypair.verification_key()
+        ),);
     }
 }

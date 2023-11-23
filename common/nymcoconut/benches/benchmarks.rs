@@ -6,8 +6,8 @@ use criterion::{criterion_group, criterion_main, Criterion};
 use ff::Field;
 use group::{Curve, Group};
 use nym_coconut::{
-    aggregate_signature_shares, aggregate_verification_keys, blind_sign, elgamal_keygen,
-    prepare_blind_sign, prove_bandwidth_credential, setup, ttp_keygen, verify_credential,
+    aggregate_signature_shares, aggregate_verification_keys, blind_sign, prepare_blind_sign,
+    prove_bandwidth_credential, setup, ttp_keygen, verify_credential,
     verify_partial_blind_signature, Attribute, BlindedSignature, Parameters, Signature,
     SignatureShare, VerificationKey,
 };
@@ -176,8 +176,6 @@ fn bench_coconut(c: &mut Criterion) {
     let binding_number = params.random_scalar();
     let private_attributes = vec![serial_number, binding_number];
 
-    let _elgamal_keypair = elgamal_keygen(&params);
-
     // The prepare blind sign is performed by the user
     let (pedersen_commitments_openings, blind_sign_request) =
         prepare_blind_sign(&params, &private_attributes, &public_attributes).unwrap();
@@ -259,8 +257,8 @@ fn bench_coconut(c: &mut Criterion) {
                     &params,
                     &blind_sign_request,
                     &public_attributes,
-                    &random_blind_signature,
-                    &partial_verification_key,
+                    random_blind_signature,
+                    partial_verification_key,
                 )
             })
         },

@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::ops::Index;
 
 use bls12_381::{G1Affine, G1Projective, G2Affine, G2Prepared, G2Projective, Scalar};
+use group::{Curve, GroupEncoding};
 use ff::Field;
 use rand::thread_rng;
 
@@ -10,6 +11,7 @@ use crate::utils::{hash_g1, Signature};
 use crate::scheme::keygen::{SecretKeyAuth, VerificationKeyAuth};
 use crate::constants;
 use rayon::prelude::*;
+use crate::utils::{check_bilinear_pairing, generate_lagrangian_coefficients_at_origin};
 
 
 pub struct GroupParameters {
@@ -142,14 +144,13 @@ pub struct CoinIndexSignature{
 
 pub type PartialCoinIndexSignature = CoinIndexSignature;
 
-pub fn sign_coin_indices(params: Parameters, vk: &VerificationKeyAuth, sk_auth: SecretKeyAuth) -> Vec<PartialCoinIndexSignature>{
-
+pub fn sign_coin_indices(params: &Parameters, vk: &VerificationKeyAuth, sk_auth: &SecretKeyAuth) -> Vec<PartialCoinIndexSignature>{
     let m1: Scalar = Scalar::from_bytes(&constants::TYPE_IDX).unwrap();
     let m2: Scalar = Scalar::from_bytes(&constants::TYPE_IDX).unwrap();
     let mut partial_coins_signatures = Vec::with_capacity(params.L() as usize);
 
     for l in 0..params.L(){
-        let m0: Scalar = Scalar::from(l);
+        let m0: Scalar = Scalar::from(l as u64);
         // Compute the hash h
         let mut concatenated_bytes = Vec::with_capacity(vk.to_bytes().len() + l.to_le_bytes().len());
         concatenated_bytes.extend_from_slice(&vk.to_bytes());
@@ -169,6 +170,72 @@ pub fn sign_coin_indices(params: Parameters, vk: &VerificationKeyAuth, sk_auth: 
         partial_coins_signatures.push(coin_idx_sign);
     }
     partial_coins_signatures
+}
+
+pub fn verify_coin_indices_signatures(
+    params: &Parameters,
+    vk: &VerificationKeyAuth,
+    vk_auth: &VerificationKeyAuth,
+    signatures: &[CoinIndexSignature],
+) -> Result<()>{
+    let m1: Scalar = Scalar::from_bytes(&constants::TYPE_IDX).unwrap();
+    let m2: Scalar = Scalar::from_bytes(&constants::TYPE_IDX).unwrap();
+    for (l, sig) in signatures.iter().enumerate() {
+        let m0: Scalar = Scalar::from(l as u64);
+        // Compute the hash h
+        let mut concatenated_bytes = Vec::with_capacity(vk.to_bytes().len() + l.to_le_bytes().len());
+        concatenated_bytes.extend_from_slice(&vk.to_bytes());
+        concatenated_bytes.extend_from_slice(&l.to_le_bytes());
+        let h = hash_g1(concatenated_bytes);
+        // Check if the hash is matching
+        if sig.h != h {
+            return Err(CompactEcashError::CoinIndices(
+                "Failed to verify the commitment hash".to_string(),
+            ));
+        }
+        let partially_signed_attributes = [m0, m1, m2]
+            .iter()
+            .zip(vk_auth.beta_g2.iter())
+            .map(|(m, beta_i)| beta_i * Scalar::from(*m))
+            .sum::<G2Projective>();
+        if !check_bilinear_pairing(
+            &sig.h.to_affine(),
+            &G2Prepared::from((vk_auth.alpha + partially_signed_attributes).to_affine()),
+            &sig.s.to_affine(),
+            params.grp().prepared_miller_g2(),
+        ) {
+            return Err(CompactEcashError::CoinIndices(
+                "Verification of the coin signature failed".to_string(),
+            ));
+        }
+    }
+    Ok(())
+
+}
+
+pub fn aggregate_indices_signatures(params: Parameters, vk: &VerificationKeyAuth, signatures: &[(u64, VerificationKeyAuth, Vec<PartialCoinIndexSignature>)]){
+    // Check if all indices are unique
+    // if signatures.iter().map(|(index, _, _)| index).unique().count() != signatures.len() {
+    //     return Err(CompactEcashError::CoinIndices(
+    //         "Not enough unique indices shares".to_string(),
+    //     ));
+    // }
+    // Evaluate at 0 the Lagrange basis polynomials k_i
+    let coefficients = generate_lagrangian_coefficients_at_origin(&signatures.iter().map(|(index, _, _)| *index).collect::<Vec<_>>());
+    let m1: Scalar = Scalar::from_bytes(&constants::TYPE_IDX).unwrap();
+    let m2: Scalar = Scalar::from_bytes(&constants::TYPE_IDX).unwrap();
+    for l in 0..params.L(){
+        let m0: Scalar = Scalar::from(l);
+        // Compute the hash h
+        let mut concatenated_bytes = Vec::with_capacity(vk.to_bytes().len() + l.to_le_bytes().len());
+        concatenated_bytes.extend_from_slice(&vk.to_bytes());
+        concatenated_bytes.extend_from_slice(&l.to_le_bytes());
+        let h = hash_g1(concatenated_bytes);
+        for (i, vk_auth, sig) in signatures.iter(){
+
+        }
+    }
+
 }
 
 pub fn setup(L: u64) -> Parameters {
@@ -194,5 +261,36 @@ pub fn setup(L: u64) -> Parameters {
         pk_rp,
         L,
         signs,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::scheme::keygen::{ttp_keygen};
+    use crate::scheme::aggregation::aggregate_verification_keys;
+
+    #[test]
+    fn test_sign_coins(){
+        let L = 32;
+        let params = setup(L);
+        let authorities_keypairs = ttp_keygen(&params.grp(), 2, 3).unwrap();
+        let indices: [u64; 3] = [1, 2, 3];
+
+        // Pick one authority to do the signing
+        let sk_i_auth = authorities_keypairs[0].secret_key();
+        let vk_i_auth = authorities_keypairs[0].verification_key();
+
+        // list of verification keys of each authority
+        let verification_keys_auth: Vec<VerificationKeyAuth> = authorities_keypairs
+            .iter()
+            .map(|keypair| keypair.verification_key())
+            .collect();
+        // the global master verification key
+        let verification_key = aggregate_verification_keys(&verification_keys_auth, Some(&indices)).unwrap();
+
+        let partial_signatures = sign_coin_indices(&params, &verification_key, &sk_i_auth);
+        assert!(verify_coin_indices_signatures(&params, &verification_key, &vk_i_auth, &partial_signatures).is_ok());
+
     }
 }

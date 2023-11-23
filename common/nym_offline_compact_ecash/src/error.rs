@@ -34,6 +34,9 @@ pub enum CompactEcashError {
     #[error("Expiration Date related error: {0}")]
     ExpirationDate(String),
 
+    #[error("Coin Indices related error: {0}")]
+    CoinIndices(String),
+
     #[error(
     "Deserailization error, expected at least {} bytes, got {}",
     min,

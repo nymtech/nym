@@ -9,8 +9,8 @@ use crate::{
     ReqwestRpcClient, ValidatorClientError,
 };
 use nym_api_requests::coconut::{
-    BlindSignRequestBody, BlindedSignatureResponse, EcashParametersResponse, VerifyCredentialBody,
-    VerifyCredentialResponse,
+    BlindSignRequestBody, BlindedSignatureResponse, EcashParametersResponse,
+    OfflineVerifyCredentialBody, OnlineVerifyCredentialBody, VerifyCredentialResponse,
 };
 use nym_api_requests::models::{DescribedGateway, MixNodeBondAnnotated};
 use nym_api_requests::models::{
@@ -334,9 +334,16 @@ impl NymApiClient {
 
     pub async fn verify_offline_credential(
         &self,
-        request_body: &VerifyCredentialBody,
+        request_body: &OfflineVerifyCredentialBody,
     ) -> Result<VerifyCredentialResponse, ValidatorClientError> {
         Ok(self.nym_api.verify_offline_credential(request_body).await?)
+    }
+
+    pub async fn verify_online_credential(
+        &self,
+        request_body: &OnlineVerifyCredentialBody,
+    ) -> Result<VerifyCredentialResponse, ValidatorClientError> {
+        Ok(self.nym_api.verify_online_credential(request_body).await?)
     }
 
     pub async fn ecash_parameters(&self) -> Result<EcashParametersResponse, ValidatorClientError> {

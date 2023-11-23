@@ -12,24 +12,44 @@ use nym_compact_ecash::{
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Getters, CopyGetters, Clone)]
-pub struct VerifyCredentialBody {
+pub struct OfflineVerifyCredentialBody {
     #[getset(get = "pub")]
     credential: EcashCredential,
-    //#[getset(get = "pub")]
-    //proposal_id: u64,
     #[getset(get = "pub")]
     gateway_cosmos_addr: AccountId,
 }
 
-impl VerifyCredentialBody {
+impl OfflineVerifyCredentialBody {
     pub fn new(
         credential: EcashCredential,
-        //proposal_id: u64,
         gateway_cosmos_addr: AccountId,
-    ) -> VerifyCredentialBody {
-        VerifyCredentialBody {
+    ) -> OfflineVerifyCredentialBody {
+        OfflineVerifyCredentialBody {
             credential,
-            //proposal_id,
+            gateway_cosmos_addr,
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Getters, CopyGetters, Clone)]
+pub struct OnlineVerifyCredentialBody {
+    #[getset(get = "pub")]
+    credential: EcashCredential,
+    #[getset(get = "pub")]
+    proposal_id: u64,
+    #[getset(get = "pub")]
+    gateway_cosmos_addr: AccountId,
+}
+
+impl OnlineVerifyCredentialBody {
+    pub fn new(
+        credential: EcashCredential,
+        proposal_id: u64,
+        gateway_cosmos_addr: AccountId,
+    ) -> OnlineVerifyCredentialBody {
+        OnlineVerifyCredentialBody {
+            credential,
+            proposal_id,
             gateway_cosmos_addr,
         }
     }

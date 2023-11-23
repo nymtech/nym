@@ -433,6 +433,19 @@ impl Payment {
         Ok(true)
     }
 
+    pub fn serial_number_bs58(&self) -> String {
+        SerialNumber {
+            inner: self.ss.clone(),
+        }
+        .to_bs58()
+    }
+
+    pub fn has_serial_number(&self, serial_number_bs58: &str) -> Result<bool> {
+        let serial_number = SerialNumber::try_from_bs58(serial_number_bs58)?;
+        let ret = self.ss.eq(&serial_number.inner);
+        Ok(ret)
+    }
+
     pub fn to_bytes(&self) -> Vec<u8> {
         let kappa_bytes = self.kappa.to_affine().to_compressed();
         let sig_bytes = self.sig.to_bytes();
@@ -640,6 +653,60 @@ impl TryFrom<&[u8]> for Payment {
     }
 }
 
+pub struct SerialNumber {
+    pub(crate) inner: Vec<G1Projective>,
+}
+
+impl SerialNumber {
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let ss_len = self.inner.len();
+        let mut bytes: Vec<u8> = Vec::with_capacity(ss_len * 48);
+        for s in &self.inner {
+            bytes.extend_from_slice(&s.to_affine().to_compressed());
+        }
+        bytes
+    }
+}
+
+impl TryFrom<&[u8]> for SerialNumber {
+    type Error = CompactEcashError;
+
+    fn try_from(bytes: &[u8]) -> Result<Self> {
+        if bytes.len() % 48 != 0 {
+            return Err(
+                CompactEcashError::Deserialization(
+                    format!("Tried to deserialize blinded serial number with incorrect number of bytes, expected a multiple of 48, got {}", bytes.len()),
+                ));
+        }
+        let inner_len = bytes.len() / 48;
+        let mut inner = Vec::with_capacity(inner_len);
+        let mut idx = 0;
+        for _ in 0..inner_len {
+            let ss_bytes: [u8; 48] = bytes[idx..idx + 48].try_into().unwrap();
+            let ss_elem = try_deserialize_g1_projective(
+                &ss_bytes,
+                CompactEcashError::Deserialization("Failed to deserialize ss element".to_string()),
+            )?;
+            inner.push(ss_elem);
+            idx += 48;
+        }
+
+        Ok(SerialNumber { inner })
+    }
+}
+
+impl Bytable for SerialNumber {
+    fn to_byte_vec(&self) -> Vec<u8> {
+        self.to_bytes().to_vec()
+    }
+
+    fn try_from_byte_slice(slice: &[u8]) -> Result<Self> {
+        Self::try_from(slice)
+    }
+}
+
+impl Base58 for SerialNumber {}
+
 #[derive(Getters, CopyGetters)]
 pub struct EcashCredential {
     #[getset(get = "pub")]
@@ -677,12 +744,12 @@ impl EcashCredential {
     pub fn value(&self) -> u64 {
         self.value
     }
-    pub fn blinded_serial_number(&self) -> String {
-        todo!() //SW todo
+    pub fn serial_number(&self) -> String {
+        self.payment.serial_number_bs58()
     }
 
-    pub fn has_blinded_serial_number(&self, _blinded_serial_number_bs58: &str) -> Result<bool> {
-        todo!() //SW todo
+    pub fn has_serial_number(&self, serial_number_bs58: &str) -> Result<bool> {
+        self.payment.has_serial_number(serial_number_bs58)
     }
 }
 

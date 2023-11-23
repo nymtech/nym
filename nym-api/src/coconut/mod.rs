@@ -304,7 +304,7 @@ pub async fn verify_online_credential(
     // Proposal description is the blinded serial number
     if !verify_credential_body
         .credential()
-        .has_blinded_serial_number(&proposal.description)?
+        .has_serial_number(&proposal.description)?
     {
         return Err(CoconutError::IncorrectProposal {
             reason: String::from("incorrect blinded serial number in description"),
@@ -317,7 +317,7 @@ pub async fn verify_online_credential(
     // Credential has not been spent before, and is on its way of being spent
     let credential_status = state
         .client
-        .get_spent_credential(verify_credential_body.credential().blinded_serial_number())
+        .get_spent_credential(verify_credential_body.credential().serial_number())
         .await?
         .spend_credential
         .ok_or(CoconutError::InvalidCredentialStatus {
@@ -344,7 +344,6 @@ pub async fn verify_online_credential(
             CoconutError::CompactEcashInternalError(CompactEcashError::PaymentVerification)
         })?;
 
-    //SW THIS WILL HAVE TO CHANGE AS WELL
     vote_yes &= Coin::from(proposed_release_funds)
         == Coin::new(
             verify_credential_body.credential().value() as u128,

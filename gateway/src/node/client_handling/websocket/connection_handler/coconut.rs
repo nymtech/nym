@@ -223,11 +223,8 @@ impl EcashVerifier {
         let res = self
             .nyxd_client
             .spend_credential(
-                Coin::new(
-                    credential.value().into(), //SW THIS WILL BE A FIXED VALUE?
-                    self.mix_denom_base.clone(),
-                ),
-                credential.blinded_serial_number(), //SW what will this be?
+                Coin::new(credential.value().into(), self.mix_denom_base.clone()),
+                credential.serial_number(),
                 self.nyxd_client.address().to_string(),
                 None,
             )
@@ -243,8 +240,7 @@ impl EcashVerifier {
             })?;
 
         let proposal = self.nyxd_client.query_proposal(proposal_id).await?;
-        if !credential.has_blinded_serial_number(&proposal.description)? {
-            //SW serial number issue
+        if !credential.has_serial_number(&proposal.description)? {
             return Err(RequestHandlingError::ProposalIdError {
                 reason: String::from("proposal has different serial number"),
             });

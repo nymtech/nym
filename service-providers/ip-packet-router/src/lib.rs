@@ -191,11 +191,10 @@ struct IpPacketRouter {
     mixnet_client: nym_sdk::mixnet::MixnetClient,
     task_handle: TaskHandle,
 
-    connected_clients: HashMap<u64, ConnectedClient>,
+    connected_clients: HashMap<IpAddr, ConnectedClient>,
 }
 
 struct ConnectedClient {
-    ip: IpAddr,
     nym_address: Recipient,
     last_activity: std::time::Instant,
 }
@@ -216,13 +215,9 @@ impl IpPacketRouter {
         let reply_to = connect_request.reply_to;
         // TODO: ignoring reply_to_hops and reply_to_avg_mix_delays for now
 
-        // Check that the IP is available
-        if self
-            .connected_clients
-            .values()
-            .any(|client| client.ip == requested_ip)
-        {
-            log::info!("Requested IP is already in use");
+        // Check that the IP is available in the set of connected clients
+        if !self.connected_clients.contains_key(&requested_ip) {
+            log::info!("Requested IP is not available");
             return Ok(Some(IpPacketResponse::new_static_connect_failure(
                 request_id, reply_to,
             )));
@@ -234,29 +229,19 @@ impl IpPacketRouter {
             .values()
             .any(|client| client.nym_address == reply_to)
         {
-            log::info!("Requested nym address is already in use");
+            log::info!("Nym address is already registered");
             return Ok(Some(IpPacketResponse::new_static_connect_failure(
                 request_id, reply_to,
             )));
         }
 
-        // Assign a unique tag
-        let client_tag = {
-            // Loop over generate_random until we find a tag that isn't already in use
-            let mut client_tag = generate_random();
-            while self.connected_clients.contains_key(&client_tag) {
-                client_tag = generate_random();
-            }
-            client_tag
-        };
-
         // Insert the new connected client
         let connected_client = ConnectedClient {
-            ip: requested_ip,
             nym_address: reply_to,
             last_activity: std::time::Instant::now(),
         };
-        self.connected_clients.insert(client_tag, connected_client);
+        self.connected_clients
+            .insert(requested_ip, connected_client);
 
         Ok(Some(IpPacketResponse::new_static_connect_success(
             request_id, reply_to,
@@ -298,26 +283,14 @@ impl IpPacketRouter {
         let dst_str = dst.map_or(dst_addr.to_string(), |dst| dst.to_string());
         log::info!("Received packet: {packet_type}: {src_addr} -> {dst_str}");
 
-        // Check if there is a connected client for this src_addr
-        let client_tag = self.connected_clients.iter().find_map(|(tag, client)| {
-            if client.ip == src_addr {
-                Some(*tag)
-            } else {
-                None
-            }
-        });
-
-        // Drop the packet if we don't have a connected client for it
-        let Some(client_tag) = client_tag else {
+        // Check if there is a connected client for this src_addr. If there is, update the last activity time
+        // for the client. If there isn't, drop the packet.
+        if let Some(client) = self.connected_clients.get_mut(&src_addr) {
+            client.last_activity = std::time::Instant::now();
+        } else {
             log::info!("Dropping packet: no connected client for {src_addr}");
             return Ok(None);
-        };
-
-        // Update the last activity time for the client
-        self.connected_clients
-            .get_mut(&client_tag)
-            .unwrap()
-            .last_activity = std::time::Instant::now();
+        }
 
         // Filter check
         if let Some(dst) = dst {
@@ -332,8 +305,10 @@ impl IpPacketRouter {
         }
 
         // TODO: consider changing from Vec<u8> to bytes::Bytes?
+        // TODO: consider just removing the tag
+        let tag = 0;
         self.tun_task_tx
-            .try_send((client_tag, data_request.ip_packet.into()))
+            .try_send((tag, data_request.ip_packet.into()))
             .map_err(|err| IpPacketRouterError::FailedToSendPacketToTun { source: err })?;
 
         Ok(None)
@@ -414,15 +389,18 @@ impl IpPacketRouter {
                 },
                 packet = self.tun_task_response_rx.recv() => {
                     if let Some((_tag, packet)) = packet {
-                        // Read recipient from env variable NYM_CLIENT_ADDR which is a base58
-                        // string of the nym-address of the client that the packet should be
-                        // sent back to.
-                        //
-                        // In the near future we will let the client expose it's nym-address
-                        // directly, and after that, provide SURBS
-                        let recipient = std::env::var("NYM_CLIENT_ADDR").ok().and_then(|addr| {
-                            Recipient::try_from_base58_string(addr).ok()
-                        });
+                        // TODO: skip full parsing we we only need dst_addr
+                        let Ok(ParsedPacket {
+                            packet_type: _,
+                            src_addr: _,
+                            dst_addr,
+                            dst: _,
+                        }) = parse_packet(&packet) else {
+                            log::warn!("Failed to parse packet");
+                            continue;
+                        };
+
+                        let recipient = self.connected_clients.get(&dst_addr).map(|c| c.nym_address);
 
                         if let Some(recipient) = recipient {
                             let lane = TransmissionLane::General;
@@ -438,7 +416,7 @@ impl IpPacketRouter {
                                 log::error!("IpPacketRouter [main loop]: failed to send packet to mixnet: {err}");
                             };
                         } else {
-                            log::error!("NYM_CLIENT_ADDR not set or invalid");
+                            log::error!("IpPacketRouter [main loop]: no nym-address recipient for packet");
                         }
                     } else {
                         log::trace!("IpPacketRouter [main loop]: stopping since channel closed");
@@ -451,12 +429,6 @@ impl IpPacketRouter {
         log::info!("IpPacketRouter: stopping");
         Ok(())
     }
-}
-
-fn generate_random() -> u64 {
-    use rand::RngCore;
-    let mut rng = rand::rngs::OsRng;
-    rng.next_u64()
 }
 
 struct ParsedPacket<'a> {

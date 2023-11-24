@@ -3,6 +3,7 @@
 
 use super::{Component, Frame};
 use crate::action::ContractsInfo;
+use crate::components::home::utils::format_dealer;
 use crate::nyxd::NyxdClient;
 use crate::{action::Action, utils::key_event_to_string};
 use crossterm::event::{KeyCode, KeyEvent};
@@ -15,6 +16,8 @@ use tokio::time::Instant;
 use tracing::{debug, error, info};
 use tui_input::{backend::crossterm::EventHandler, Input};
 
+pub(crate) mod utils;
+
 pub const REFRESH_RATE: Duration = Duration::from_secs(60);
 
 #[derive(Default, Clone, PartialEq, Eq)]
@@ -25,17 +28,52 @@ pub enum InputState {
         address: String,
     },
     RemoveCW4Member,
+    AdvanceEpochState,
+    SurpassedThreshold,
 
     Processing,
 }
 
 impl InputState {
-    pub fn expects_input(&self) -> bool {
+    // will consume provided characters
+    pub fn expects_text_input(&self) -> bool {
         match self {
             InputState::Normal => false,
             InputState::AddCW4Member { .. } => true,
             InputState::RemoveCW4Member => true,
             InputState::Processing => false,
+            InputState::AdvanceEpochState => false,
+            InputState::SurpassedThreshold => false,
+        }
+    }
+
+    pub fn expects_user_input(&self) -> bool {
+        !matches!(self, InputState::Normal | InputState::Processing)
+    }
+
+    pub fn next(&self) -> Self {
+        match self {
+            InputState::Normal => InputState::Normal,
+            InputState::Processing => InputState::Processing,
+            InputState::AddCW4Member { .. } => InputState::RemoveCW4Member,
+            InputState::RemoveCW4Member => InputState::AdvanceEpochState,
+            InputState::AdvanceEpochState => InputState::SurpassedThreshold,
+            InputState::SurpassedThreshold => InputState::AddCW4Member {
+                address: "".to_string(),
+            },
+        }
+    }
+
+    pub fn previous(&self) -> Self {
+        match self {
+            InputState::Normal => InputState::Normal,
+            InputState::Processing => InputState::Processing,
+            InputState::AddCW4Member { .. } => InputState::SurpassedThreshold,
+            InputState::RemoveCW4Member => InputState::AddCW4Member {
+                address: "".to_string(),
+            },
+            InputState::AdvanceEpochState => InputState::RemoveCW4Member,
+            InputState::SurpassedThreshold => InputState::AdvanceEpochState,
         }
     }
 }
@@ -45,6 +83,7 @@ pub struct Home {
     pub counter: usize,
     pub app_ticker: usize,
     pub render_ticker: usize,
+    pub last_contract_error_message: String,
 
     pub nyxd_client: NyxdClient,
     pub manager_address: String,
@@ -86,6 +125,7 @@ impl Home {
             dkg_info: initial_info,
             last_contract_update: Instant::now(),
             manager_address,
+            last_contract_error_message: "".to_string(),
         })
     }
 
@@ -96,7 +136,17 @@ impl Home {
 
     pub fn tick(&mut self) {
         info!("Tick");
-        if self.last_contract_update.elapsed() >= REFRESH_RATE && !self.mode.expects_input() {
+        let state_end = OffsetDateTime::from_unix_timestamp(
+            self.dkg_info.dkg_epoch.finish_timestamp.seconds() as i64,
+        )
+        .unwrap();
+        let until_epoch_state_end = state_end - OffsetDateTime::now_utc();
+        let epoch_should_move = until_epoch_state_end.as_seconds_f32() < -5.;
+
+        let should_refresh = !self.mode.expects_text_input()
+            && (self.last_contract_update.elapsed() >= REFRESH_RATE || epoch_should_move);
+
+        if should_refresh {
             self.last_contract_update = Instant::now();
             self.schedule_contract_refresh()
         }
@@ -130,7 +180,59 @@ impl Home {
                 self.input.reset();
                 self.schedule_remove_cw4_member(s)
             }
+            InputState::AdvanceEpochState => {
+                self.mode = InputState::Processing;
+                self.input.reset();
+                self.schedule_call_advance_epoch_state();
+            }
+            InputState::SurpassedThreshold => {
+                self.mode = InputState::Processing;
+                self.input.reset();
+                self.schedule_call_surpassed_threshold();
+            }
         }
+    }
+
+    pub fn schedule_call_advance_epoch_state(&self) {
+        let tx = self.action_tx.clone().unwrap();
+        let client = self.nyxd_client.clone();
+
+        tokio::spawn(async move {
+            match client.try_advance_epoch_state().await {
+                Ok(_) => {
+                    tx.send(Action::ScheduleContractRefresh).unwrap();
+                }
+                Err(err) => {
+                    tx.send(Action::SetLastContractError(format!(
+                        "failed to advance epoch state: {err}"
+                    )))
+                    .unwrap();
+                }
+            }
+
+            tx.send(Action::ExitProcessing).unwrap();
+        });
+    }
+
+    pub fn schedule_call_surpassed_threshold(&self) {
+        let tx = self.action_tx.clone().unwrap();
+        let client = self.nyxd_client.clone();
+
+        tokio::spawn(async move {
+            match client.try_surpass_threshold().await {
+                Ok(_) => {
+                    tx.send(Action::ScheduleContractRefresh).unwrap();
+                }
+                Err(err) => {
+                    tx.send(Action::SetLastContractError(format!(
+                        "failed to surpass threshold: {err}"
+                    )))
+                    .unwrap();
+                }
+            }
+
+            tx.send(Action::ExitProcessing).unwrap();
+        });
     }
 
     pub fn schedule_add_cw4_member(&self, member_address: String, member_weight_raw: String) {
@@ -144,7 +246,10 @@ impl Home {
                         tx.send(Action::ScheduleContractRefresh).unwrap();
                     }
                     Err(err) => {
-                        error!("failed to get add group member: {err}")
+                        tx.send(Action::SetLastContractError(format!(
+                            "failed to add group member: {err}"
+                        )))
+                        .unwrap();
                     }
                 }
             } else {
@@ -165,7 +270,10 @@ impl Home {
                     tx.send(Action::ScheduleContractRefresh).unwrap();
                 }
                 Err(err) => {
-                    error!("failed to get add group member: {err}")
+                    tx.send(Action::SetLastContractError(format!(
+                        "failed to remove group member: {err}"
+                    )))
+                    .unwrap();
                 }
             }
 
@@ -203,6 +311,13 @@ impl Home {
             OffsetDateTime::from_unix_timestamp(info.dkg_epoch.finish_timestamp.seconds() as i64)
                 .unwrap();
 
+        let remaining = end - OffsetDateTime::now_utc();
+        let remaining_str = if remaining.is_negative() {
+            format!("-{} secs", remaining.whole_seconds())
+        } else {
+            format!("{} secs", remaining.whole_seconds())
+        };
+
         let group_admin = match &info.group_admin.admin {
             None => Span::styled("<no admin>", Style::default().light_red().bold()),
             Some(admin) => Span::styled(admin.clone(), Style::default().light_green().bold()),
@@ -239,6 +354,9 @@ impl Home {
                     end.format(&Rfc3339).unwrap().to_string(),
                     Style::default().bold(),
                 ),
+                " (".into(),
+                Span::styled(remaining_str, Style::default().light_green()),
+                " remaining)".into(),
             ]),
             "".into(),
             // DKG config
@@ -292,7 +410,7 @@ impl Home {
         if let Some(threshold) = self.dkg_info.threshold {
             lines.push(Line::from(vec![
                 "Threshold: ".into(),
-                Span::styled(threshold.to_string(), Style::default().dim()),
+                Span::styled(threshold.to_string(), Style::default().bold()),
             ]));
             lines.push("".into())
         }
@@ -325,27 +443,7 @@ impl Home {
         if !info.dealers.is_empty() {
             lines.push(Span::styled("Dkg Dealers", Style::default().bold()).into());
             for dealer in &info.dealers {
-                let key_start = if dealer.bte_public_key_with_proof.len() < 16 {
-                    dealer.bte_public_key_with_proof.clone()
-                } else {
-                    format!("{}...", &dealer.bte_public_key_with_proof[..16])
-                };
-
-                lines.push(Line::from(vec![
-                    Span::styled(format!("{}: ", dealer.address), Style::default().bold()),
-                    "\tindex: ".into(),
-                    Span::styled(
-                        format!("{}", dealer.assigned_index),
-                        Style::default().bold().yellow(),
-                    ),
-                    "\t announce address: ".into(),
-                    Span::styled(
-                        dealer.announce_address.to_string(),
-                        Style::default().bold().yellow(),
-                    ),
-                    "\t BTE key: ".into(),
-                    Span::styled(key_start, Style::default().bold().yellow()),
-                ]))
+                lines.push(format_dealer(dealer))
             }
         } else {
             lines.push(Span::styled("NO DKG DEALERS", Style::default().red().bold()).into())
@@ -354,28 +452,20 @@ impl Home {
         if !info.past_dealers.is_empty() {
             lines.push(Span::styled("Past Dkg Dealers", Style::default().bold()).into());
             for dealer in &info.past_dealers {
-                let key_start = if dealer.bte_public_key_with_proof.len() < 16 {
-                    dealer.bte_public_key_with_proof.clone()
-                } else {
-                    format!("{}...", &dealer.bte_public_key_with_proof[..16])
-                };
-
-                lines.push(Line::from(vec![
-                    Span::styled(format!("{}: ", dealer.address), Style::default().bold()),
-                    "\tindex: ".into(),
-                    Span::styled(
-                        format!("{}", dealer.assigned_index),
-                        Style::default().bold().yellow(),
-                    ),
-                    "\t announce address: ".into(),
-                    Span::styled(
-                        dealer.announce_address.to_string(),
-                        Style::default().bold().yellow(),
-                    ),
-                    "\t BTE key: ".into(),
-                    Span::styled(key_start, Style::default().bold().yellow()),
-                ]))
+                lines.push(format_dealer(dealer))
             }
+        }
+
+        if !self.last_contract_error_message.is_empty() {
+            lines.push("".into());
+            lines.push("".into());
+            lines.push(Line::from(vec![
+                Span::styled(
+                    "CONTRACT EXECUTION FAILURE: ",
+                    Style::default().red().bold(),
+                ),
+                Span::styled(&self.last_contract_error_message, Style::default().white()),
+            ]))
         }
 
         lines
@@ -423,14 +513,19 @@ impl Home {
                 }
             }
             InputState::RemoveCW4Member => Span::raw("Enter address of CW4 member to remove it "),
+            InputState::AdvanceEpochState => {
+                Span::raw("press <ENTER> to attempt to advance the epoch state ")
+            }
+            InputState::SurpassedThreshold => {
+                Span::raw("press <ENTER> to attempt to surpass the threshold ")
+            }
         };
 
         Paragraph::new(self.input.value())
-            .style(match self.mode {
-                InputState::AddCW4Member { .. } | InputState::RemoveCW4Member => {
-                    Style::default().fg(Color::Yellow)
-                }
-                _ => Style::default(),
+            .style(if self.mode.expects_user_input() {
+                Style::default().fg(Color::Yellow)
+            } else {
+                Style::default()
             })
             .scroll((0, scroll as u16))
             .block(
@@ -504,7 +599,7 @@ impl Component for Home {
         self.last_events.push(key);
         let action = match self.mode {
             InputState::Normal | InputState::Processing => return Ok(None),
-            InputState::AddCW4Member { .. } | InputState::RemoveCW4Member => match key.code {
+            _ => match key.code {
                 KeyCode::Esc => Action::EnterNormal,
                 KeyCode::Enter => Action::ProcessInput(self.input.value().to_string()),
                 KeyCode::Left => Action::PreviousInputMode,
@@ -526,48 +621,30 @@ impl Component for Home {
             Action::ScheduleContractRefresh => self.schedule_contract_refresh(),
             Action::RefreshDkgContract(update_info) => self.refresh_dkg_contract_info(*update_info),
             Action::ProcessInput(s) => self.handle_input(s),
+            Action::SetLastContractError(err) => self.last_contract_error_message = err,
             Action::EnterNormal => {
                 self.mode = InputState::Normal;
+                self.last_contract_error_message = "".to_string();
             }
             Action::StartInput => {
                 // make sure we're not already in the input mode
-                if !self.mode.expects_input() {
+                if !self.mode.expects_user_input() {
                     self.mode = InputState::AddCW4Member {
                         address: "".to_string(),
                     }
                 }
             }
             Action::PreviousInputMode => {
-                if matches!(self.mode, InputState::RemoveCW4Member) {
-                    self.mode = InputState::AddCW4Member {
-                        address: "".to_string(),
-                    }
-                } else {
-                    self.mode = InputState::RemoveCW4Member
-                }
+                self.mode = self.mode.previous();
+                self.last_contract_error_message = "".to_string();
             }
             Action::NextInputMode => {
-                if matches!(self.mode, InputState::RemoveCW4Member) {
-                    self.mode = InputState::AddCW4Member {
-                        address: "".to_string(),
-                    }
-                } else {
-                    self.mode = InputState::RemoveCW4Member
-                }
+                self.mode = self.mode.next();
+                self.last_contract_error_message = "".to_string();
             }
-            // Action::EnterCW4AddMember => {
-            //     self.mode = InputState::AddCW4Member {
-            //         address: "".to_string(),
-            //     }
-            // }
-            // Action::EnterCW4AddMemberWeight { address } => {
-            //     self.mode = InputState::AddCW4Member { address }
-            // }
-            // Action::EnterCW4RemoveMember => {
-            //     self.mode = InputState::RemoveCW4Member;
-            // }
             Action::EnterProcessing => {
                 self.mode = InputState::Processing;
+                self.last_contract_error_message = "".to_string();
             }
             Action::ExitProcessing => {
                 self.mode = InputState::Normal;
@@ -590,7 +667,7 @@ impl Component for Home {
         let input = self.input_widget(scroll);
         f.render_widget(input, rects[1]);
 
-        if self.mode.expects_input() {
+        if self.mode.expects_text_input() {
             f.set_cursor(
                 (rects[1].x + 1 + self.input.cursor() as u16).min(rects[1].x + rects[1].width - 2),
                 rects[1].y + 1,

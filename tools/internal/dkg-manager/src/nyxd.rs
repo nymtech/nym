@@ -7,7 +7,7 @@ use futures::future::{join3, join5};
 use nym_coconut_dkg_common::types::Addr;
 use nym_network_defaults::NymNetworkDetails;
 use nym_validator_client::nyxd::contract_traits::{
-    DkgQueryClient, GroupQueryClient, GroupSigningClient, NymContractsProvider,
+    DkgQueryClient, DkgSigningClient, GroupQueryClient, GroupSigningClient, NymContractsProvider,
     PagedDkgQueryClient, PagedGroupQueryClient,
 };
 use nym_validator_client::nyxd::cw4::Cw4Contract;
@@ -135,6 +135,20 @@ impl NyxdClient {
             .await
             .update_members(vec![], vec![address], None)
             .await?;
+        Ok(())
+    }
+
+    pub async fn try_advance_epoch_state(&self) -> anyhow::Result<()> {
+        // we need to have a write lock here so that we wouldn't accidentally send multiple transactions
+        // into the same block (and thus have invalid seq numbers)
+        self.0.write().await.advance_dkg_epoch_state(None).await?;
+        Ok(())
+    }
+
+    pub async fn try_surpass_threshold(&self) -> anyhow::Result<()> {
+        // we need to have a write lock here so that we wouldn't accidentally send multiple transactions
+        // into the same block (and thus have invalid seq numbers)
+        self.0.write().await.surpass_threshold(None).await?;
         Ok(())
     }
 }

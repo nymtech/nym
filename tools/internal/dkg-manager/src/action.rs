@@ -40,6 +40,7 @@ pub enum Action {
     ScheduleContractRefresh,
     RefreshDkgContract(Box<ContractsInfo>),
     ProcessInput(String),
+    SetLastContractError(String),
     EnterNormal,
     EnterCW4AddMember,
     // EnterCW4AddMemberWeight { address: String },

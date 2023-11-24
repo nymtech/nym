@@ -334,6 +334,13 @@ pub fn aggregate_indices_signatures(
     let m1: Scalar = Scalar::from_bytes(&constants::TYPE_IDX).unwrap();
     let m2: Scalar = Scalar::from_bytes(&constants::TYPE_IDX).unwrap();
 
+    // Verify that all signatures are valid
+    signatures
+        .par_iter()
+        .try_for_each(|(_, vk_auth, partial_signatures)| {
+            verify_coin_indices_signatures(&params, &vk, &vk_auth, &partial_signatures)
+        })?;
+
     // Pre-allocate vectors
     let mut aggregated_coin_signatures: Vec<CoinIndexSignature> =
         Vec::with_capacity(params.L() as usize);
@@ -346,12 +353,6 @@ pub fn aggregate_indices_signatures(
         concatenated_bytes.extend_from_slice(&vk.to_bytes());
         concatenated_bytes.extend_from_slice(&l.to_le_bytes());
         let h = hash_g1(concatenated_bytes);
-
-        signatures
-            .par_iter()
-            .try_for_each(|(_, vk_auth, partial_signatures)| {
-                verify_coin_indices_signatures(&params, &vk, &vk_auth, &partial_signatures)
-            })?;
 
         // Collect the partial signatures for the same coin index
         let collected_at_l: Vec<_> = signatures

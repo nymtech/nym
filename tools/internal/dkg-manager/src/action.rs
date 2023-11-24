@@ -1,6 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::nyxd::DkgState;
 use nym_coconut_dkg_common::dealer::DealerDetails;
 use nym_coconut_dkg_common::types::Epoch;
 use nym_validator_client::nyxd::{cw4, cw_controllers};
@@ -16,6 +17,7 @@ pub struct ContractsInfo {
     pub dkg_epoch: Epoch,
     pub threshold: Option<u64>,
     pub dealers: Vec<DealerDetails>,
+    pub dkg_state: DkgState,
 
     // group details
     pub group_admin: cw_controllers::AdminResponse,

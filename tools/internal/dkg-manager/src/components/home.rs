@@ -5,9 +5,7 @@ use super::{Component, Frame};
 use crate::action::ContractsInfo;
 use crate::nyxd::NyxdClient;
 use crate::{action::Action, utils::key_event_to_string};
-use anyhow::anyhow;
 use crossterm::event::{KeyCode, KeyEvent};
-use nym_validator_client::nyxd::contract_traits::NymContractsProvider;
 use ratatui::{prelude::*, widgets::*};
 use std::{collections::HashMap, time::Duration};
 use time::format_description::well_known::Rfc3339;
@@ -65,22 +63,10 @@ pub struct Home {
 
 impl Home {
     pub async fn new(nyxd_client: NyxdClient) -> anyhow::Result<Self> {
-        let dkg_contract_address = nyxd_client
-            .0
-            .read()
-            .await
-            .dkg_contract_address()
-            .ok_or(anyhow!("unavailable dkg contract address"))?
-            .to_string();
+        let dkg_contract_address = nyxd_client.dkg_contract().await?.to_string();
 
-        let group_contract_address = nyxd_client
-            .0
-            .read()
-            .await
-            .group_contract_address()
-            .ok_or(anyhow!("unavailable group contract address"))?
-            .to_string();
-        let manager_address = nyxd_client.0.read().await.address().to_string();
+        let group_contract_address = nyxd_client.group_contract().await?.to_string();
+        let manager_address = nyxd_client.address().await.to_string();
 
         let initial_info = nyxd_client.get_dkg_update().await?;
 
@@ -236,6 +222,10 @@ impl Home {
                 ),
                 " admin: ".into(),
                 group_admin,
+            ]),
+            Line::from(vec![
+                "Dkg Debug State: ".into(),
+                Span::styled(format!("{:?}", info.dkg_state), Style::default().dim()),
             ]),
             "".into(),
             // DKG epoch state

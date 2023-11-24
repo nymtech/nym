@@ -30,7 +30,7 @@ Follow these steps to upgrade your Node binary and update its config file:
 * Replace the existing `<NODE>` binary with the newest binary (which you can either [compile yourself](https://nymtech.net/docs/binaries/building-nym.html) or grab from our [releases page](https://github.com/nymtech/nym/releases)).
 * Re-run `init` with the same values as you used initially for your `<NODE>` ([Mix Node](./mix-node-setup.md#initialising-your-mix-node), [Gateway](./gateway-setup.md#initialising-your-gateway)) . **This will just update the config file, it will not overwrite existing keys**.
 * Restart your node process with the new binary:
-    - if your node is not automitized, just `run` your `<NODE>` with `./nym-<NODE> run --id <ID>`. Here are exact guidelines for [Mix Node](./mix-node-setup.md#running-your-mix-node) and [Gateway](./gateway-setup.md#running-your-gateway). 
+    - if your node is not automated, just `run` your `<NODE>` with `./nym-<NODE> run --id <ID>`. Here are exact guidelines for [Mix Node](./mix-node-setup.md#running-your-mix-node) and [Gateway](./gateway-setup.md#running-your-gateway). 
     - if you automatized your node via systemd (recommended) run:  
 ```sh
 systemctl daemon-reload # to pickup the new unit file
@@ -117,7 +117,29 @@ If the `/dev/sda` partition is almost full, try pruning some of the `.gz` syslog
 
 ## Run Web Secure Socket (WSS) on Gateway
 
-Now you can run WSS on your Gateway. 
+Now you can run WSS on your Gateway.
+
+### WSS on a new Gateway
+
+These steps are for an operator who is setting up a Gateway for the first time and wants to run it with WSS.
+
+New flags will need to be added to the `init` and `run` command. The `--host` option should be replaced with `--listening-address`, this is the IP address which is used for receiving sphinx packets and listening to client data. 
+
+Another flag `--public-ips` is required. It's a comma separated list of IP’s that are announced to the `nym-api`. In the most cases `--public-ips` **is the address used for bonding.** 
+
+If the operator wishes to run WSS, an optional `--hostname` flag is also required, that can be something like `mainnet-gateway2.nymtech.net`. Make sure to enable all necessary [ports](maintenance.md#configure-your-firewall) on the Gateway. 
+
+The Gateway will then be accessible on something like: *http://85.159.211.99:8080/api/v1/swagger/index.html*
+
+Are you seeing something like: *this node attempted to announce an invalid public address: 0.0.0.0.*? 
+
+Please modify `[host.public_ips]` section of your config file stored as `~/.nym/gateways/<ID>/config/config.toml`.
+
+If so the flags are going to be slightly different:
+
+```
+--listening-address 0.0.0.0 --public-ips "$(curl -4 https://ifconfig.me)"
+```
 
 ### WSS on an existing Gateway
 
@@ -203,29 +225,6 @@ ufw allow 9001/tcp
 
 Lastly don't forget to restart your Gateway, now the API will render the WSS details for this Gateway:
 
-
-### WSS on a new Gateway
-
-These steps are for an operator who is setting up a Gateway for the first time and wants to run it with WSS.
-
-New flags will need to be added to the `init` and `run` command. The `--host` option is still accepted for now, but can and should be replaced with `--listening-address`, this is the IP address which is used for receiving sphinx packets and listening to client data. 
-
-Another flag `--public-ips` is required; it's a comma separated list of IP’s that are announced to the `nym-api`, it is usually the address which is used for bonding. 
-
-If the operator wishes to run WSS, an optional `--hostname` flag is also required, that can be something like `mainnet-gateway2.nymtech.net`. Make sure to enable all necessary [ports](maintenance.md#configure-your-firewall) on the Gateway. 
-
-The Gateway will then be accessible on something like: *http://85.159.211.99:8080/api/v1/swagger/index.html*
-
-Are you seeing something like: *this node attempted to announce an invalid public address: 0.0.0.0.*? 
-
-Please modify `[host.public_ips]` section of your config file stored as `~/.nym/gateways/<ID>/config/config.toml`.
-
-If so the flags are going to be slightly different:
-
-```
---listening-address "0.0.0.0" --public-ips "$(curl -4 https://ifconfig.me)"
-```
-
 ## Configure your firewall
 
 Although your `<NODE>` is now ready to receive traffic, your server may not be. The following commands will allow you to set up a firewall using `ufw`.
@@ -249,6 +248,9 @@ Finally open your `<NODE>` p2p port, as well as ports for ssh and ports for verl
 ```sh
 # for Mix Node, Gateway and Network Requester
 sudo ufw allow 1789,1790,8000,9000,9001,22/tcp
+
+# in case of setting up WSS on Gateway add:
+sudo ufw allow 9001/tcp
 
 # In case of reverse proxy for the Gateway swagger page add:
 sudo ufw allow 8080,80/443
@@ -467,11 +469,13 @@ This will cause your node to start at system boot time. If you restart your mach
 You can monitor system logs of your node by running:
 ```sh
 journalctl -f -u <NODE>.service
+# for example journalctl -f -u nym-mixnode.service
 ```
 
 Or check a status by running:
 ```sh
 systemctl status <NODE>.service
+# for example systemctl status nym-mixnode.service
 ```
 
 You can also do `service <NODE> stop` or `service <NODE> restart`.
@@ -826,4 +830,5 @@ All validator-specific port configuration can be found in `$HOME/.nymd/config/co
 | 26656        | Listen for incoming peer connections |
 | 26660        | Listen for Prometheus connections    |
 
-/
+  
+  

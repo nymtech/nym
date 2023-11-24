@@ -23,39 +23,55 @@ impl IpPacketRequest {
         reply_to: Recipient,
         reply_to_hops: Option<u8>,
         reply_to_avg_mix_delays: Option<f64>,
-    ) -> Self {
-        Self {
-            version: CURRENT_VERSION,
-            data: IpPacketRequestData::StaticConnect(StaticConnectRequest {
-                request_id: generate_random(),
-                ip,
-                reply_to,
-                reply_to_hops,
-                reply_to_avg_mix_delays,
-            }),
-        }
+    ) -> (Self, u64) {
+        let request_id = generate_random();
+        (
+            Self {
+                version: CURRENT_VERSION,
+                data: IpPacketRequestData::StaticConnect(StaticConnectRequest {
+                    request_id,
+                    ip,
+                    reply_to,
+                    reply_to_hops,
+                    reply_to_avg_mix_delays,
+                }),
+            },
+            request_id,
+        )
     }
 
     pub fn new_dynamic_connect_request(
         reply_to: Recipient,
         reply_to_hops: Option<u8>,
         reply_to_avg_mix_delays: Option<f64>,
-    ) -> Self {
-        Self {
-            version: CURRENT_VERSION,
-            data: IpPacketRequestData::DynamicConnect(DynamicConnectRequest {
-                request_id: generate_random(),
-                reply_to,
-                reply_to_hops,
-                reply_to_avg_mix_delays,
-            }),
-        }
+    ) -> (Self, u64) {
+        let request_id = generate_random();
+        (
+            Self {
+                version: CURRENT_VERSION,
+                data: IpPacketRequestData::DynamicConnect(DynamicConnectRequest {
+                    request_id,
+                    reply_to,
+                    reply_to_hops,
+                    reply_to_avg_mix_delays,
+                }),
+            },
+            request_id,
+        )
     }
 
     pub fn new_ip_packet(ip_packet: bytes::Bytes) -> Self {
         Self {
             version: CURRENT_VERSION,
             data: IpPacketRequestData::Data(DataRequest { ip_packet }),
+        }
+    }
+
+    pub fn id(&self) -> Option<u64> {
+        match &self.data {
+            IpPacketRequestData::StaticConnect(request) => Some(request.request_id),
+            IpPacketRequestData::DynamicConnect(request) => Some(request.request_id),
+            IpPacketRequestData::Data(_) => None,
         }
     }
 
@@ -170,6 +186,14 @@ impl IpPacketResponse {
         }
     }
 
+    pub fn id(&self) -> Option<u64> {
+        match &self.data {
+            IpPacketResponseData::StaticConnect(response) => Some(response.request_id),
+            IpPacketResponseData::DynamicConnect(response) => Some(response.request_id),
+            IpPacketResponseData::Data(_) => None,
+        }
+    }
+
     pub fn recipient(&self) -> Option<&Recipient> {
         match &self.data {
             IpPacketResponseData::StaticConnect(response) => Some(&response.reply_to),
@@ -210,6 +234,14 @@ pub struct StaticConnectResponse {
 pub enum StaticConnectResponseReply {
     Success,
     Failure,
+}
+impl StaticConnectResponseReply {
+    pub fn is_success(&self) -> bool {
+        match self {
+            StaticConnectResponseReply::Success => true,
+            StaticConnectResponseReply::Failure => false,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

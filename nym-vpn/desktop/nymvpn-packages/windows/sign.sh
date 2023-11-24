@@ -12,7 +12,7 @@ function sign_win {
         # be contacted.
         for i in $(seq 0 ${NUM_RETRIES}); do
             echo "Signing $binary..." 
-            if $PWD/signtool/x64/signtool.exe sign \
+            if $PWD/signtool/x86/signtool.exe sign \
             /f "../../$CERT_FILE" /p $CERT_FILE_PASSWORD /fd sha256 \
             /td sha256 /tr http://timestamp.sectigo.com \
             "$binary" 

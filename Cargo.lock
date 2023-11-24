@@ -7562,6 +7562,7 @@ dependencies = [
  "ip_network",
  "ip_network_table",
  "log",
+ "nym-network-defaults",
  "nym-sphinx",
  "nym-task",
  "nym-tun",

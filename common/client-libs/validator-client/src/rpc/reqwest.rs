@@ -36,7 +36,8 @@ pub struct ReqwestRpcClient {
 impl ReqwestRpcClient {
     pub fn new(url: Url) -> Self {
         ReqwestRpcClient {
-            compat: CompatMode::V0_34,
+            // after updating to nyxd 0.42 and thus updating to cometbft, the compat mode changed
+            compat: CompatMode::V0_37,
             inner: reqwest::Client::new(),
             url,
         }

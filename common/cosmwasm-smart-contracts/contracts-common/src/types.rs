@@ -3,6 +3,7 @@
 
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::Decimal;
+use cosmwasm_std::OverflowError;
 use cosmwasm_std::Uint128;
 use serde::de::Error;
 use serde::{Deserialize, Deserializer};
@@ -72,19 +73,8 @@ impl Percent {
         truncate_decimal(hundred * self.0).u128() as u8
     }
 
-    pub fn pow(&self, exp: u32) -> Self {
-        match self.0.checked_pow(exp) {
-            Ok(res) => Percent(res),
-            Err(_overflow) => {
-                // since the percent is meant to always be less than 1, this should NEVER hapen, however,
-                // when the inevitable happens because of some misuse, just saturate the result
-                if self.0 < Decimal::one() {
-                    Percent::zero()
-                } else {
-                    Percent(Decimal::MAX)
-                }
-            }
-        }
+    pub fn checked_pow(&self, exp: u32) -> Result<Self, OverflowError> {
+        self.0.checked_pow(exp).map(Percent)
     }
 }
 

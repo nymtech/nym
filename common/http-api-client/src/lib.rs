@@ -11,7 +11,7 @@ use thiserror::Error;
 use tracing::warn;
 use url::Url;
 
-pub const DEFAULT_TIMEOUT: Duration = Duration::from_secs(10);
+pub const DEFAULT_TIMEOUT: Duration = Duration::from_secs(6);
 
 pub type PathSegments<'a> = &'a [&'a str];
 pub type Params<'a, K, V> = &'a [(K, V)];

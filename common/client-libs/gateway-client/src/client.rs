@@ -671,6 +671,7 @@ impl<C, St> GatewayClient<C, St> {
         if !self.authenticated {
             return Err(GatewayClientError::NotAuthenticated);
         }
+        //SW NOTE : Logic to stop sending packet is there already. We only need to update bandwidth_remaining
         if (mix_packet.packet().len() as i64) > self.bandwidth_remaining {
             return Err(GatewayClientError::NotEnoughBandwidth(
                 mix_packet.packet().len() as i64,

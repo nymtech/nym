@@ -1,24 +1,24 @@
 {
   "name": "@nymproject/nym-wallet-app",
-  "version": "1.2.10",
-  "main": "index.js",
+  "version": "1.2.11",
   "license": "MIT",
+  "main": "index.js",
   "scripts": {
-    "prewebpack:dev": "yarn --cwd .. build",
-    "webpack:dev": "yarn webpack serve --config webpack.dev.js",
-    "webpack:prod": "yarn webpack --progress --config webpack.prod.js",
-    "tauri:dev": "yarn tauri dev",
-    "tauri:build": "yarn tauri build",
-    "tsc": "tsc --noEmit true",
-    "tsc:watch": "tsc --noEmit true --watch",
-    "dev": "run-p tauri:dev webpack:dev",
-    "prebuild": "yarn --cwd .. build",
     "build": "run-s webpack:prod tauri:build",
+    "dev": "run-p tauri:dev webpack:dev",
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
+    "prebuild": "yarn --cwd .. build",
     "prestorybook": "yarn --cwd .. build",
+    "prewebpack:dev": "yarn --cwd .. build",
     "storybook": "start-storybook -p 6006",
-    "storybook:build": "build-storybook"
+    "storybook:build": "build-storybook",
+    "tauri:build": "yarn tauri build",
+    "tauri:dev": "yarn tauri dev",
+    "tsc": "tsc --noEmit true",
+    "tsc:watch": "tsc --noEmit true --watch",
+    "webpack:dev": "yarn webpack serve --config webpack.dev.js",
+    "webpack:prod": "yarn webpack --progress --config webpack.prod.js"
   },
   "dependencies": {
     "@emotion/react": "^11.7.0",
@@ -29,7 +29,7 @@
     "@mui/styles": "^5.2.2",
     "@mui/utils": "^5.7.0",
     "@nymproject/mui-theme": "^1.0.0",
-    "@nymproject/node-tester": "^1.0.0",
+    "@nymproject/node-tester": "^1.2.3",
     "@nymproject/react": "^1.0.0",
     "@nymproject/types": "^1.0.0",
     "@storybook/react": "^6.5.15",
@@ -123,5 +123,6 @@
     "webpack-dev-server": "^4.5.0",
     "webpack-favicons": "^1.3.8",
     "webpack-merge": "^5.8.0"
-  }
+  },
+  "private": false
 }

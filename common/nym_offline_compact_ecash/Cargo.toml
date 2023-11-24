@@ -36,11 +36,6 @@ path = "benches/benchmarks_group_operations.rs"
 harness = false
 
 [[bench]]
-name = "benchmarks"
-path = "benches/benchmarks.rs"
-harness = false
-
-[[bench]]
 name = "benchmarks_expiration_date_signatures"
 path = "benches/benchmarks_expiration_date_signatures.rs"
 harness = false

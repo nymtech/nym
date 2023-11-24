@@ -146,6 +146,25 @@ pub struct CoinIndexSignature {
 
 pub type PartialCoinIndexSignature = CoinIndexSignature;
 
+/// Signs coin indices.
+///
+/// This function takes cryptographic parameters, a global verification key, and a secret key of the signing authority,
+/// and generates partial coin index signatures for a specified number of indices using a parallel fold operation.
+///
+/// # Arguments
+///
+/// * `params` - The cryptographic parameters used in the signing process.
+/// * `vk` - The global verification key.
+/// * `sk_auth` - The secret key associated with the individual signing authority.
+///
+/// # Returns
+///
+/// A vector containing partial coin index signatures.
+///
+/// # Panics
+///
+/// The function may panic if there is an issue with converting bytes to Scalar during initialization.
+///
 pub fn sign_coin_indices(
     params: &Parameters,
     vk: &VerificationKeyAuth,
@@ -185,6 +204,26 @@ pub fn sign_coin_indices(
         })
 }
 
+/// Verifies coin index signatures using parallel iterators.
+///
+/// This function takes cryptographic parameters, verification keys, and a list of coin index
+/// signatures. It verifies each signature's commitment hash and performs a bilinear pairing check.
+///
+/// # Arguments
+///
+/// * `params` - The cryptographic parameters used in the verification process.
+/// * `vk` - The global verification key.
+/// * `vk_auth` - The verification key associated with the authority which issued the partial signatures.
+/// * `signatures` - A slice containing coin index signatures to be verified.
+///
+/// # Returns
+///
+/// Returns `Ok(())` if all signatures are valid, otherwise returns an error with a description
+/// of the verification failure.
+///
+/// # Panics
+///
+/// The function may panic if there is an issue with converting bytes to Scalar during initialization.
 pub fn verify_coin_indices_signatures(
     params: &Parameters,
     vk: &VerificationKeyAuth,
@@ -245,6 +284,28 @@ pub fn verify_coin_indices_signatures(
     Ok(())
 }
 
+/// Aggregates and verifies partial coin index signatures.
+///
+/// This function takes cryptographic parameters, a master verification key, and a list of tuples
+/// containing indices, verification keys, and partial coin index signatures from different authorities.
+/// It aggregates these partial signatures into a final set of coin index signatures, and verifying the
+/// final aggregated signatures.
+///
+/// # Arguments
+///
+/// * `params` - The cryptographic parameters used in the aggregation process.
+/// * `vk` - The master verification key against which the partial signatures are verified.
+/// * `signatures` - A slice of tuples, where each tuple contains an index, a verification key, and
+///   a vector of partial coin index signatures from a specific authority.
+///
+/// # Returns
+///
+/// Returns a vector of aggregated coin index signatures if the aggregation is successful.
+/// Otherwise, returns an error describing the nature of the failure.
+///
+/// # Panics
+///
+/// The function may panic if there is an issue with converting bytes to Scalar during initialization.
 pub fn aggregate_indices_signatures(
     params: &Parameters,
     vk: &VerificationKeyAuth,

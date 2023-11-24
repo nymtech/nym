@@ -134,7 +134,7 @@ These steps are for an operator who is setting up a [Gateway](gateway-setup.md) 
 
 - `--hostname` (optional): This flag is required if the operator wishes to run WSS. It can be something like `mainnet-gateway2.nymtech.net`. 
 
-2. Make sure to enable all necessary [ports](maintenance.md#configure-your-firewall) on the Gateway, including the tcp ones:
+2. Make sure to enable all necessary [ports](maintenance.md#configure-your-firewall) on the Gateway:
 
 ```sh
 sudo ufw allow 1789,1790,8000,9000,9001,22/tcp, 9001/tcp

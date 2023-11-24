@@ -267,42 +267,6 @@ pub struct DataResponse {
     pub ip_packet: bytes::Bytes,
 }
 
-// ---
-
-// #[derive(serde::Serialize, serde::Deserialize)]
-// pub struct TaggedIpPacket {
-//     pub packet: bytes::Bytes,
-//     pub return_address: Recipient,
-//     pub return_mix_hops: Option<u8>,
-//     // pub return_mix_delays: Option<f64>,
-// }
-//
-// impl TaggedIpPacket {
-//     pub fn new(
-//         packet: bytes::Bytes,
-//         return_address: Recipient,
-//         return_mix_hops: Option<u8>,
-//     ) -> Self {
-//         TaggedIpPacket {
-//             packet,
-//             return_address,
-//             return_mix_hops,
-//         }
-//     }
-//
-//     pub fn from_reconstructed_message(
-//         message: &nym_sphinx::receiver::ReconstructedMessage,
-//     ) -> Result<Self, bincode::Error> {
-//         use bincode::Options;
-//         make_bincode_serializer().deserialize(&message.message)
-//     }
-//
-//     pub fn to_bytes(&self) -> Result<Vec<u8>, bincode::Error> {
-//         use bincode::Options;
-//         make_bincode_serializer().serialize(self)
-//     }
-// }
-
 fn make_bincode_serializer() -> impl bincode::Options {
     use bincode::Options;
     bincode::DefaultOptions::new()
@@ -328,10 +292,6 @@ mod tests {
                 },
             )
         };
-
-        // dbg!(&connect);
-        // dbg!(&connect.to_bytes().unwrap());
-        // dbg!(&connect.to_bytes().unwrap().len());
         assert_eq!(connect.to_bytes().unwrap().len(), 107);
     }
 
@@ -343,10 +303,6 @@ mod tests {
                 ip_packet: bytes::Bytes::from(vec![1u8; 32]),
             }),
         };
-
-        // dbg!(&data);
-        // dbg!(&data.to_bytes().unwrap());
-        // dbg!(&data.to_bytes().unwrap().len());
         assert_eq!(data.to_bytes().unwrap().len(), 35);
     }
 

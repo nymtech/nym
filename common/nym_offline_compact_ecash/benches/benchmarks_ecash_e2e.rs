@@ -17,7 +17,7 @@ use nym_compact_ecash::constants;
 use nym_compact_ecash::identify::{identify, IdentifyResult};
 
 use nym_compact_ecash::scheme::keygen::SecretKeyAuth;
-use nym_compact_ecash::setup::{setup};
+use nym_compact_ecash::setup::setup;
 use nym_compact_ecash::{
     aggregate_verification_keys, aggregate_wallets, generate_keypair_user, issue_verify,
     issue_wallet, ttp_keygen, withdrawal_request, PartialWallet, PayInfo, PublicKeyUser,
@@ -257,7 +257,6 @@ fn bench_compact_ecash(c: &mut Criterion) {
         IdentifyResult::DoubleSpendingPublicKeys(user_keypair.public_key())
     );
 }
-
 
 criterion_group!(benches, bench_compact_ecash);
 criterion_main!(benches);

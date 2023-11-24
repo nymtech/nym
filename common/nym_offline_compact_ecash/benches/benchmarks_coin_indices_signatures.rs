@@ -1,14 +1,14 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use criterion::{criterion_group, criterion_main, Criterion};
+use nym_compact_ecash::constants;
+use nym_compact_ecash::scheme::keygen::SecretKeyAuth;
 use nym_compact_ecash::setup::{
     aggregate_indices_signatures, setup, sign_coin_indices, verify_coin_indices_signatures,
     PartialCoinIndexSignature,
 };
-use nym_compact_ecash::constants;
-use nym_compact_ecash::scheme::keygen::SecretKeyAuth;
 use nym_compact_ecash::{aggregate_verification_keys, ttp_keygen, VerificationKeyAuth};
-use criterion::{criterion_group, criterion_main, Criterion};
 
 fn bench_coin_signing(c: &mut Criterion) {
     let mut group = c.benchmark_group("benchmark-sign-verify-coin-signing");
@@ -46,7 +46,7 @@ fn bench_coin_signing(c: &mut Criterion) {
         &vk_i_auth,
         &partial_signatures
     )
-        .is_ok());
+    .is_ok());
     group.bench_function(
         &format!("[Client] verify_coin_indices_signatures_L_{}", params.L()),
         |b| {
@@ -110,5 +110,6 @@ fn bench_aggregate_coin_indices_signatures(c: &mut Criterion) {
 criterion_group!(
     benches,
     bench_coin_signing,
-    bench_aggregate_coin_indices_signatures);
+    bench_aggregate_coin_indices_signatures
+);
 criterion_main!(benches);

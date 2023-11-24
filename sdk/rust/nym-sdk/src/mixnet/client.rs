@@ -568,7 +568,7 @@ where
                     .store_gateway_details(&PersistedGatewayDetails::Default(config))
                     .await
                 {
-                    warn!("Could not switch to using wireguard more - {:?}", e);
+                    warn!("Could not switch to using wireguard mode - {:?}", e);
                 }
             } else {
                 warn!("Storage type not supported with wireguard mode");

@@ -20,7 +20,7 @@ use nym_compact_ecash::scheme::expiration_date_signatures::{
     ExpirationDateSignature, PartialExpirationDateSignature,
 };
 use nym_compact_ecash::scheme::keygen::SecretKeyAuth;
-use nym_compact_ecash::setup::setup;
+use nym_compact_ecash::setup::{setup, sign_coin_indices, verify_coin_indices_signatures};
 use nym_compact_ecash::{
     aggregate_verification_keys, aggregate_wallets, generate_keypair_user, issue_verify,
     issue_wallet, ttp_keygen, withdrawal_request, PartialWallet, PayInfo, PublicKeyUser,
@@ -468,5 +468,56 @@ fn bench_aggregate_expiration_date_signatures(c: &mut Criterion) {
     );
 }
 
-criterion_group!(benches, bench_partial_sign_expiration_date);
+fn bench_coin_signing(c: &mut Criterion){
+    let mut group = c.benchmark_group("benchmark-sign-verify-coin-signing");
+
+    let L = 32;
+    let params = setup(L);
+    let authorities_keypairs = ttp_keygen(&params.grp(), 2, 3).unwrap();
+    let indices: [u64; 3] = [1, 2, 3];
+
+    // Pick one authority to do the signing
+    let sk_i_auth = authorities_keypairs[0].secret_key();
+    let vk_i_auth = authorities_keypairs[0].verification_key();
+
+    // list of verification keys of each authority
+    let verification_keys_auth: Vec<VerificationKeyAuth> = authorities_keypairs
+        .iter()
+        .map(|keypair| keypair.verification_key())
+        .collect();
+    // the global master verification key
+    let verification_key =
+        aggregate_verification_keys(&verification_keys_auth, Some(&indices)).unwrap();
+
+    let partial_signatures = sign_coin_indices(&params, &verification_key, &sk_i_auth);
+
+    // ISSUING AUTHORITY BENCHMARK: issue a set of (partial) signatures for coin indices
+    group.bench_function(&format!("[IssuingAuthority] sign_coin_indices_L_{}", params.L()), |b| {
+        b.iter(|| sign_coin_indices(&params, &verification_key, &sk_i_auth))
+    });
+
+    // CLIENT: verify the correctness of the (partial)) signatures for coin indices
+    assert!(
+        verify_coin_indices_signatures(
+            &params,
+            &verification_key,
+            &vk_i_auth,
+            &partial_signatures
+        )
+            .is_ok()
+    );
+    group.bench_function(&format!("[Client] verify_coin_indices_signatures_L_{}", params.L()), |b| {
+        b.iter(|| {
+            verify_coin_indices_signatures(
+                &params,
+                &verification_key,
+                &vk_i_auth,
+                &partial_signatures
+            )
+        })
+    });
+
+}
+
+criterion_group!(benches, bench_coin_signing);
 criterion_main!(benches);

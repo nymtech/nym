@@ -121,25 +121,30 @@ Now you can run WSS on your Gateway.
 
 ### WSS on a new Gateway
 
-These steps are for an operator who is setting up a Gateway for the first time and wants to run it with WSS.
+These steps are for an operator who is setting up a [Gateway](gateway-setup.md) for the first time and wants to run it with WSS.
 
-New flags will need to be added to the `init` and `run` command. The `--host` option should be replaced with `--listening-address`, this is the IP address which is used for receiving sphinx packets and listening to client data. 
+1. New flags will need to be added to the `init` and `run` command. The `--host` option should be replaced with these flags:
 
-Another flag `--public-ips` is required. It's a comma separated list of IP’s that are announced to the `nym-api`. In the most cases `--public-ips` **is the address used for bonding.** 
+- `--listening-address`: The IP address which is used for receiving sphinx packets and listening to client data. 
+- `--public-ips`: A comma separated list of IP’s that are announced to the `nym-api`. In the most cases `--public-ips` **is the address used for bonding.** 
 
-If the operator wishes to run WSS, an optional `--hostname` flag is also required, that can be something like `mainnet-gateway2.nymtech.net`. Make sure to enable all necessary [ports](maintenance.md#configure-your-firewall) on the Gateway. 
+```sh
+--listening-address 0.0.0.0 --public-ips "$(curl -4 https://ifconfig.me)"
+```
+
+- `--hostname` (optional): This flag is required if the operator wishes to run WSS. It can be something like `mainnet-gateway2.nymtech.net`. 
+
+2. Make sure to enable all necessary [ports](maintenance.md#configure-your-firewall) on the Gateway, including the tcp ones:
+
+```sh
+sudo ufw allow 1789,1790,8000,9000,9001,22/tcp, 9001/tcp
+```
 
 The Gateway will then be accessible on something like: *http://85.159.211.99:8080/api/v1/swagger/index.html*
 
 Are you seeing something like: *this node attempted to announce an invalid public address: 0.0.0.0.*? 
 
 Please modify `[host.public_ips]` section of your config file stored as `~/.nym/gateways/<ID>/config/config.toml`.
-
-If so the flags are going to be slightly different:
-
-```
---listening-address 0.0.0.0 --public-ips "$(curl -4 https://ifconfig.me)"
-```
 
 ### WSS on an existing Gateway
 
@@ -270,7 +275,9 @@ For more information about your node's port configuration, check the [port refer
 
 ### Automating your node with nohup, tmux and systemd
 
-Although it’s not totally necessary, it's useful to have the Mix Node automatically start at system boot time. 
+Although it’s not totally necessary, it's useful to have the Mix Node automatically start at system boot time. We recommend to run your remote sessions via [`tmux`](maintenance.md#tmux) for easier management and return to your previous session. For full automation, including an automatic restart after node fail and `ulimit` setup, ['systemd'](maintenance.md#systemd) is a good choice. 
+
+> Do any of these steps and run your automated node before you start bonding process!
 
 #### nohup
 

@@ -216,7 +216,7 @@ impl IpPacketRouter {
         // TODO: ignoring reply_to_hops and reply_to_avg_mix_delays for now
 
         // Check that the IP is available in the set of connected clients
-        if !self.connected_clients.contains_key(&requested_ip) {
+        if self.connected_clients.contains_key(&requested_ip) {
             log::info!("Requested IP is not available");
             return Ok(Some(IpPacketResponse::new_static_connect_failure(
                 request_id, reply_to,

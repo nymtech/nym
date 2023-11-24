@@ -47,26 +47,23 @@ pub fn sign_expiration_date(
 
     (0..constants::VALIDITY_PERIOD)
         .into_par_iter()
-        .fold(
-            Vec::new,
-            |mut exp_signs, l| {
-                let m1: Scalar = Scalar::from(expiration_date - constants::VALIDITY_PERIOD + l as u64);
-                // Compute the hash
-                let h = hash_g1([m0.to_bytes(), m1.to_bytes(), m2.to_bytes()].concat());
-                // Sign the attributes by performing scalar-point multiplications and accumulating the result
-                let mut s_exponent = sk_auth.x;
-                s_exponent += &sk_auth.ys[0] * m0;
-                s_exponent += &sk_auth.ys[1] * m1;
-                s_exponent += &sk_auth.ys[2] * m2;
-                // Create the signature struct on the expiration date
-                let exp_sign = PartialExpirationDateSignature {
-                    h,
-                    s: h * s_exponent,
-                };
-                exp_signs.push(exp_sign);
-                exp_signs
-            },
-        )
+        .fold(Vec::new, |mut exp_signs, l| {
+            let m1: Scalar = Scalar::from(expiration_date - constants::VALIDITY_PERIOD + l as u64);
+            // Compute the hash
+            let h = hash_g1([m0.to_bytes(), m1.to_bytes(), m2.to_bytes()].concat());
+            // Sign the attributes by performing scalar-point multiplications and accumulating the result
+            let mut s_exponent = sk_auth.x;
+            s_exponent += &sk_auth.ys[0] * m0;
+            s_exponent += &sk_auth.ys[1] * m1;
+            s_exponent += &sk_auth.ys[2] * m2;
+            // Create the signature struct on the expiration date
+            let exp_sign = PartialExpirationDateSignature {
+                h,
+                s: h * s_exponent,
+            };
+            exp_signs.push(exp_sign);
+            exp_signs
+        })
         .reduce(Vec::new, |mut v1, mut v2| {
             v1.append(&mut v2);
             v1
@@ -122,7 +119,6 @@ pub fn verify_valid_dates_signatures(
             &sig.s.to_affine(),
             params.grp().prepared_miller_g2(),
         ) {
-            println!("Failed for : {:?}", l);
             return Err(CompactEcashError::ExpirationDate(
                 "Verification of the date signature failed".to_string(),
             ));
@@ -222,13 +218,7 @@ pub fn aggregate_expiration_signatures(
         let aggr_sig = ExpirationDateSignature { h, s: aggr_s };
         aggregated_date_signatures.push(aggr_sig);
     }
-    println!("Hello world!");
-    verify_valid_dates_signatures(
-        &params,
-        &vk,
-        &aggregated_date_signatures,
-        expiration_date,
-    )?;
+    verify_valid_dates_signatures(&params, &vk, &aggregated_date_signatures, expiration_date)?;
     Ok(aggregated_date_signatures)
 }
 
@@ -298,19 +288,20 @@ mod tests {
             .map(|(i, (vk, sigs))| (i.clone(), vk.clone(), sigs.clone()))
             .collect();
 
-        let output  = aggregate_expiration_signatures(
+        let output = aggregate_expiration_signatures(
             &params,
             &verification_key,
             expiration_date,
             &combined_data,
-        ).unwrap();
-        println!("{:?}", output);
+        )
+        .unwrap();
 
         assert!(aggregate_expiration_signatures(
             &params,
             &verification_key,
             expiration_date,
             &combined_data,
-        ).is_ok());
+        )
+        .is_ok());
     }
 }

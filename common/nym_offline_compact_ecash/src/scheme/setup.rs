@@ -192,7 +192,10 @@ pub fn sign_coin_indices(
                 s_exponent += &sk_auth.ys[2] * m2;
 
                 // Create the signature struct
-                let coin_idx_sign = PartialCoinIndexSignature { h, s: h * s_exponent };
+                let coin_idx_sign = PartialCoinIndexSignature {
+                    h,
+                    s: h * s_exponent,
+                };
                 partial_coins_signatures.push(coin_idx_sign);
 
                 partial_coins_signatures
@@ -251,7 +254,11 @@ pub fn verify_coin_indices_signatures(
     // Verify signatures using precomputed concatenated_bytes and m0 values
     m0_values
         .par_iter()
-        .zip(signatures.par_iter().zip(concatenated_bytes_list.par_iter()))
+        .zip(
+            signatures
+                .par_iter()
+                .zip(concatenated_bytes_list.par_iter()),
+        )
         .enumerate()
         .try_for_each(|(l, (m0, (sig, concatenated_bytes)))| {
             // Compute the hash h
@@ -464,11 +471,11 @@ mod tests {
             &vk_1_auth,
             &partial_signatures
         )
-            .is_err());
+        .is_err());
     }
 
     #[test]
-    fn test_aggregate_coin_signatures() {
+    fn test_aggregate_coin_indices_signatures() {
         let L = 32;
         let params = setup(L);
         let authorities_keypairs = ttp_keygen(&params.grp(), 2, 3).unwrap();
@@ -494,17 +501,13 @@ mod tests {
             .map(|sk_auth| sign_coin_indices(&params, &verification_key, sk_auth))
             .collect();
 
-        let combined_data: Vec<(
-            u64,
-            VerificationKeyAuth,
-            Vec<PartialCoinIndexSignature>,
-        )> = indices
-            .iter()
-            .zip(verification_keys_auth.iter().zip(partial_signatures.iter()))
-            .map(|(i, (vk, sigs))| (i.clone(), vk.clone(), sigs.clone()))
-            .collect();
+        let combined_data: Vec<(u64, VerificationKeyAuth, Vec<PartialCoinIndexSignature>)> =
+            indices
+                .iter()
+                .zip(verification_keys_auth.iter().zip(partial_signatures.iter()))
+                .map(|(i, (vk, sigs))| (i.clone(), vk.clone(), sigs.clone()))
+                .collect();
 
         assert!(aggregate_indices_signatures(&params, &verification_key, &combined_data).is_ok());
     }
-
 }

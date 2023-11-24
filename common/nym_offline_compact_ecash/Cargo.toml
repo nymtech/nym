@@ -29,6 +29,28 @@ default-features = false
 version = "0.11"
 default-features = false
 
+
+[[bench]]
+name = "benchmarks_group_operations"
+path = "benches/benchmarks_group_operations.rs"
+harness = false
+
 [[bench]]
 name = "benchmarks"
+path = "benches/benchmarks.rs"
+harness = false
+
+[[bench]]
+name = "benchmarks_expiration_date_signatures"
+path = "benches/benchmarks_expiration_date_signatures.rs"
+harness = false
+
+[[bench]]
+name = "benchmarks_coin_indices_signatures"
+path = "benches/benchmarks_coin_indices_signatures.rs"
+harness = false
+
+[[bench]]
+name = "benchmarks_ecash_e2e"
+path = "benches/benchmarks_ecash_e2e.rs"
 harness = false

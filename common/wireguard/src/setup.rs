@@ -9,7 +9,7 @@ pub const WG_ADDRESS: &str = "0.0.0.0";
 
 // The private key of the listener
 // Corresponding public key: "WM8s8bYegwMa0TJ+xIwhk+dImk2IpDUKslDBCZPizlE="
-const PRIVATE_KEY: &str = "AEqXrLFT4qjYq3wmX0456iv94uM6nDj5ugp6Jedcflg=";
+pub(crate) const PRIVATE_KEY: &str = "AEqXrLFT4qjYq3wmX0456iv94uM6nDj5ugp6Jedcflg=";
 
 // The AllowedIPs for the connected peer, which is one a single IP and the same as the IP that the
 // peer has configured on their side.
@@ -52,6 +52,6 @@ pub fn peer_static_public_key() -> x25519::PublicKey {
 
 pub fn peer_allowed_ips() -> ip_network::IpNetwork {
     let key: IpAddr = ALLOWED_IPS.parse().unwrap();
-    let cidr = 0u8;
+    let cidr = 32u8;
     ip_network::IpNetwork::new_truncate(key, cidr).unwrap()
 }

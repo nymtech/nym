@@ -275,7 +275,7 @@ For more information about your node's port configuration, check the [port refer
 
 ### Automating your node with nohup, tmux and systemd
 
-Although it’s not totally necessary, it's useful to have the Mix Node automatically start at system boot time. We recommend to run your remote sessions via [`tmux`](maintenance.md#tmux) for easier management and return to your previous session. For full automation, including an automatic restart after node fail and `ulimit` setup, ['systemd'](maintenance.md#systemd) is a good choice. 
+Although it’s not totally necessary, it's useful to have the Mix Node automatically start at system boot time. We recommend to run your remote operation via [`tmux`](maintenance.md#tmux) for easier management and a handy return to your previous session. For full automation, including a failed node auto-restart and `ulimit` setup, [`systemd`](maintenance.md#systemd) is a good choice. 
 
 > Do any of these steps and run your automated node before you start bonding process!
 

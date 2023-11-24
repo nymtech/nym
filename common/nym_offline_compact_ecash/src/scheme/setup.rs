@@ -153,29 +153,31 @@ pub fn sign_coin_indices(
 ) -> Vec<PartialCoinIndexSignature> {
     let m1: Scalar = Scalar::from_bytes(&constants::TYPE_IDX).unwrap();
     let m2: Scalar = Scalar::from_bytes(&constants::TYPE_IDX).unwrap();
+    // Initialize a vector to collect the (partial) coin signatures
     let mut partial_coins_signatures = Vec::with_capacity(params.L() as usize);
 
-    for l in 0..params.L() {
-        let m0: Scalar = Scalar::from(l as u64);
-        // Compute the hash h
-        let mut concatenated_bytes =
-            Vec::with_capacity(vk.to_bytes().len() + l.to_le_bytes().len());
-        concatenated_bytes.extend_from_slice(&vk.to_bytes());
-        concatenated_bytes.extend_from_slice(&l.to_le_bytes());
-        let h = hash_g1(concatenated_bytes);
+    partial_coins_signatures.par_iter_mut()
+        .enumerate()
+        .for_each(|(l, coin_idx_sign)| {
+            let m0: Scalar = Scalar::from(l as u64);
+            // Compute the hash h
+            let mut concatenated_bytes =
+                Vec::with_capacity(vk.to_bytes().len() + l.to_le_bytes().len());
+            concatenated_bytes.extend_from_slice(&vk.to_bytes());
+            concatenated_bytes.extend_from_slice(&l.to_le_bytes());
+            let h = hash_g1(concatenated_bytes);
 
-        // Sign the attributes by performing scalar-point multiplications and accumulating the result
-        let mut s_exponent = sk_auth.x;
-        s_exponent += &sk_auth.ys[0] * m0;
-        s_exponent += &sk_auth.ys[1] * m1;
-        s_exponent += &sk_auth.ys[2] * m2;
-        // Create the signature struct of on the coin index
-        let coin_idx_sign = CoinIndexSignature {
-            h,
-            s: h * s_exponent,
-        };
-        partial_coins_signatures.push(coin_idx_sign);
-    }
+            // Sign the attributes by performing scalar-point multiplications and accumulating the result
+            let mut s_exponent = sk_auth.x;
+            s_exponent += &sk_auth.ys[0] * m0;
+            s_exponent += &sk_auth.ys[1] * m1;
+            s_exponent += &sk_auth.ys[2] * m2;
+            // Create the signature struct of on the coin index
+            *coin_idx_sign = CoinIndexSignature {
+                h,
+                s: h * s_exponent,
+            };
+        });
     partial_coins_signatures
 }
 

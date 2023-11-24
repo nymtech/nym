@@ -89,7 +89,7 @@ In order to easily identify your node via human-readable information later on, y
 ```
 Node description is a short text that describes your node. It is displayed in the `./nym-mixnode list` command and in the `./nym-mixnode node-details --id <YOUR_ID>` command. It also shows up in the node explorer to let people know what your node is about and link to your website.
 
-You can set your node description, by creating a file called `description.toml` and put it in the same directory as your `config.toml` file (`~/.nym/mixnodes/<YOUR_ID>/description.toml`). The file should look like this example:
+You can set your node description, by creating a file called `description.toml` and put it in the same directory as your `config.toml` file (`~/.nym/mixnodes/<YOUR_ID>/config/description.toml`). The file should look like this example:
 
 ```toml
 name = "Winston Smith"

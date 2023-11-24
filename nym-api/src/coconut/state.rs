@@ -51,9 +51,9 @@ impl State {
 
     pub async fn signed_before(&self, tx_hash: &str) -> Result<Option<BlindedSignatureResponse>> {
         let ret = self.storage.get_blinded_signature_response(tx_hash).await?;
-        if let Some(blinded_signature_reponse) = ret {
+        if let Some(blinded_signature_response) = ret {
             Ok(Some(BlindedSignatureResponse::from_base58_string(
-                blinded_signature_reponse,
+                blinded_signature_response,
             )?))
         } else {
             Ok(None)

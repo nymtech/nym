@@ -45,6 +45,8 @@ pub async fn post_blind_sign(
         return Err(CoconutError::KeyPairNotDerivedYet);
     };
 
+    // TODO: this has to be made atomic
+    let unused_variable = 42;
     let response = state
         .encrypt_and_store(
             blind_sign_request_body.tx_hash(),

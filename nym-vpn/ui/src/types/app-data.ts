@@ -1,4 +1,4 @@
-import { PrivacyMode } from './app-state.ts';
+import { PrivacyMode } from './app-state';
 
 export type UiMode = 'Dark' | 'Light';
 

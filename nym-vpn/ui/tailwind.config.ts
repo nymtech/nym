@@ -8,7 +8,9 @@ export default {
       transparent: 'transparent',
       current: 'currentColor',
       'baltic-sea': {
-        jaguar: '#2A2831', // [D] bg for network modes
+        // [D] bg for top-bar nav
+        // [D] bg for network modes
+        jaguar: '#2A2831',
         // [L] status-line title text + icon
         // [L] connection timer text
         // [L] "Connecting" status text

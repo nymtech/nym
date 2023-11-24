@@ -1,5 +1,5 @@
 import { Dispatch } from 'react';
-import { AppData } from './app-data.ts';
+import { AppData } from './app-data';
 import { StateAction } from '../state';
 
 export type ConnectionState =

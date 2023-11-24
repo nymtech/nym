@@ -25,7 +25,6 @@ function Home() {
 
   return (
     <div>
-      <h2>NymVPN</h2>
       connection state: {state.state}
       {state.loading ? (
         'loading…'

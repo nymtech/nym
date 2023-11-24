@@ -7,7 +7,7 @@ set -euo pipefail
 
 INSTALL_DIR="/Applications"
 LOG_DIR="/var/log/nymvpn"
-NYMVPN_DAEMON_PLIST_PATH="/Library/LaunchDaemons/net.nymvpn.daemon.plist"
+NYMVPN_DAEMON_PLIST_PATH="/Library/LaunchDaemons/net.nymtech.daemon.plist"
 
 mkdir -p $LOG_DIR
 chmod 755 $LOG_DIR
@@ -20,7 +20,7 @@ NYMVPN_DAEMON_PLIST=$(cat <<-PLIST
 <plist version="1.0">
     <dict>
         <key>Label</key>
-        <string>net.nymvpn.daemon</string>
+        <string>net.nymtech.daemon</string>
         <key>ProgramArguments</key>
         <array>
             <string>${INSTALL_DIR}/nymvpn.net/Contents/Resources/nymvpn-daemon</string>

@@ -29,11 +29,11 @@ fi
 
 pkgbuild  \
     --install-location /Applications \
-    --identifier net.nymvpn.macos \
+    --identifier net.nymtech.vpn \
     --version "${VERSION}" \
     --scripts "./pkg/scripts" \
     --root "./pkg/root/Applications" \
-    ./packages/net.nymvpn.macos.pkg
+    ./packages/net.nymtech.vpn.pkg
 
 productbuild \
     --distribution "./pkg/Distribution" \

@@ -3,7 +3,7 @@
 set -ueo pipefail
 
 LOG_DIR="/var/log/nymvpn"
-NYMVPN_DAEMON_PLIST_PATH="/Library/LaunchDaemons/net.nymvpn.daemon.plist"
+NYMVPN_DAEMON_PLIST_PATH="/Library/LaunchDaemons/net.nymtech.daemon.plist"
 
 ask_confirmation() {
     read -p "Are you sure you want to stop and uninstall nymvpn? (y/n) "
@@ -29,7 +29,7 @@ uninstall() {
     echo "Removing files ..."
     sudo rm /usr/local/bin/nymvpn || true
     sudo rm -rf /Applications/nymvpn.net || true
-    sudo pkgutil --forget net.nymvpn.macos || true
+    sudo pkgutil --forget net.nymtech.vpn || true
     sudo rm -rf /var/log/nymvpn || true
     sudo rm -rf /etc/nymvpn || true
 }

@@ -49,7 +49,7 @@
         "../../nymvpn-assets/icons/icon.icns",
         "../../nymvpn-assets/icons/icon.ico"
       ],
-      "identifier": "net.nymvpn.client",
+      "identifier": "net.nymtech.client",
       "longDescription": "",
       "macOS": {
         "entitlements": null,

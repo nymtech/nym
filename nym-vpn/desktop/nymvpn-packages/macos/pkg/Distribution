@@ -4,12 +4,12 @@
     <welcome file="welcome.html" mime-type="text/html"/>
     <conclusion file="conclusion.html" mime-type="text/html"/>
     <options customize="never" require-scripts="false" />
-    <pkg-ref id="net.nymvpn.macos">
+    <pkg-ref id="net.nymtech.vpn">
         <bundle-version>
-            <bundle CFBundleShortVersionString="APP_VERSION" CFBundleVersion="APP_VERSION" id="net.nymvpn.macos" path="nymvpn.net"/>
+            <bundle CFBundleShortVersionString="APP_VERSION" CFBundleVersion="APP_VERSION" id="net.nymtech.vpn" path="nymvpn.net"/>
         </bundle-version>
     </pkg-ref>
-    <product id="net.nymvpn.macos" version="APP_VERSION"/>
+    <product id="net.nymtech.vpn" version="APP_VERSION"/>
     <volume-check>
         <allowed-os-versions>
             <os-version min="10.11.0"/>
@@ -17,13 +17,13 @@
     </volume-check>
     <choices-outline>
         <line choice="default">
-            <line choice="net.nymvpn.macos"/>
+            <line choice="net.nymtech.vpn"/>
         </line>
     </choices-outline>
     <choice id="default" title="nymvpn" versStr="APP_VERSION"/>
-    <choice id="net.nymvpn.macos" title="nymvpn" visible="false">
-        <pkg-ref id="net.nymvpn.macos"/>
+    <choice id="net.nymtech.vpn" title="nymvpn" visible="false">
+        <pkg-ref id="net.nymtech.vpn"/>
     </choice>
-    <pkg-ref id="net.nymvpn.macos" version="APP_VERSION" onConclusion="none" >#net.nymvpn.macos.pkg</pkg-ref>
+    <pkg-ref id="net.nymtech.vpn" version="APP_VERSION" onConclusion="none" >#net.nymtech.vpn.pkg</pkg-ref>
     <domains enable_anywhere="false" enable_currentUserHome="false" enable_localSystem="true"/>
 </installer-gui-script>

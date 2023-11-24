@@ -6634,6 +6634,7 @@ dependencies = [
  "nym-tun",
  "nym-wireguard",
  "nym-wireguard-types",
+ "rand 0.8.5",
  "reqwest",
  "serde",
  "serde_json",

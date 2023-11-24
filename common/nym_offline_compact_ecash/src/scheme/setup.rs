@@ -323,6 +323,7 @@ pub fn aggregate_indices_signatures(
             "Not enough unique indices shares".to_string(),
         ));
     }
+
     // Evaluate at 0 the Lagrange basis polynomials k_i
     let coefficients = generate_lagrangian_coefficients_at_origin(
         &signatures
@@ -432,6 +433,37 @@ mod tests {
             &partial_signatures
         )
         .is_ok());
+    }
+
+    #[test]
+    fn test_sign_coins_fail() {
+        let L = 32;
+        let params = setup(L);
+        let authorities_keypairs = ttp_keygen(&params.grp(), 2, 3).unwrap();
+        let indices: [u64; 3] = [1, 2, 3];
+
+        // Pick one authority to do the signing
+        let sk_0_auth = authorities_keypairs[0].secret_key();
+        let vk_1_auth = authorities_keypairs[1].verification_key();
+
+        // list of verification keys of each authority
+        let verification_keys_auth: Vec<VerificationKeyAuth> = authorities_keypairs
+            .iter()
+            .map(|keypair| keypair.verification_key())
+            .collect();
+        // the global master verification key
+        let verification_key =
+            aggregate_verification_keys(&verification_keys_auth, Some(&indices)).unwrap();
+
+        let partial_signatures = sign_coin_indices(&params, &verification_key, &sk_0_auth);
+        // Since we used a non matching verification key to verify the signature, the verification should fail
+        assert!(verify_coin_indices_signatures(
+            &params,
+            &verification_key,
+            &vk_1_auth,
+            &partial_signatures
+        )
+            .is_err());
     }
 
     #[test]

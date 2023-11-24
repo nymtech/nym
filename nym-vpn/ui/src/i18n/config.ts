@@ -1,6 +1,7 @@
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import main from './en/main.json';
+import home from './en/home.json';
 
 const defaultNS = 'main';
 
@@ -10,8 +11,10 @@ i18n.use(initReactI18next).init({
   resources: {
     en: {
       main,
+      home,
     },
   },
+  ns: ['main', 'home'],
   defaultNS,
 
   interpolation: {

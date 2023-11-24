@@ -75,9 +75,14 @@ impl Percent {
     pub fn pow(&self, exp: u32) -> Self {
         match self.0.checked_pow(exp) {
             Ok(res) => Percent(res),
-            Err(overflow) => {
-                // since the percent is meant to always be strictly less than 1, this should NEVER hapen
-                panic!("the percent invariant has been broken. the exponentiation result has overflown: {overflow}");
+            Err(_overflow) => {
+                // since the percent is meant to always be less than 1, this should NEVER hapen, however,
+                // when the inevitable happens because of some misuse, just saturate the result
+                if self.0 < Decimal::one() {
+                    Percent::zero()
+                } else {
+                    Percent(Decimal::MAX)
+                }
             }
         }
     }

@@ -77,8 +77,10 @@ nym-statistics-common = { path = "../common/statistics" }
 nym-task = { path = "../common/task" }
 nym-types = { path = "../common/types" }
 nym-validator-client = { path = "../common/client-libs/validator-client" }
-nym-wireguard = { path = "../common/wireguard", optional = true }
 nym-ip-packet-router = { path = "../service-providers/ip-packet-router" }
+
+nym-wireguard = { path = "../common/wireguard", optional = true }
+defguard_wireguard_rs = { git = "https://github.com/DefGuard/wireguard-rs", rev = "d40df5c4e598918253682c42c4aa189d0ec2499a", optional = true }
 
 [dev-dependencies]
 tower = "0.4.13"
@@ -95,4 +97,4 @@ sqlx = { version = "0.5", features = [
 ] }
 
 [features]
-wireguard = ["nym-wireguard"]
+wireguard = ["nym-wireguard", "defguard_wireguard_rs"]

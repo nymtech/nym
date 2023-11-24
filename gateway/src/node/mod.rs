@@ -22,6 +22,7 @@ use crate::node::statistics::collector::GatewayStatisticsCollector;
 use crate::node::storage::Storage;
 use anyhow::bail;
 use dashmap::DashMap;
+use defguard_wireguard_rs::{WGApi, WireguardInterfaceApi};
 use futures::channel::{mpsc, oneshot};
 use log::*;
 use nym_crypto::asymmetric::{encryption, identity};
@@ -200,11 +201,10 @@ impl<St> Gateway<St> {
         mixnet_handling::Listener::new(listening_address, shutdown).start(connection_handler);
     }
 
-    #[cfg(feature = "wireguard")]
     async fn start_wireguard(
         &self,
         shutdown: TaskClient,
-    ) -> Result<(), Box<dyn Error + Send + Sync>> {
+    ) -> Result<WGApi, Box<dyn Error + Send + Sync>> {
         // TODO: possibly we should start the UDP listener and TUN device explicitly here
         nym_wireguard::start_wireguard(shutdown, Arc::clone(&self.client_registry)).await
     }
@@ -520,22 +520,20 @@ impl<St> Gateway<St> {
             Arc::new(coconut_verifier),
         );
 
-        // Once this is a bit more mature, make this a commandline flag instead of a compile time
-        // flag
-        #[cfg(feature = "wireguard")]
-        if let Err(err) = self
+        let wg_api = self
             .start_wireguard(shutdown.subscribe().named("wireguard"))
             .await
-        {
-            // that's a nasty workaround, but anyhow errors are generally nicer, especially on exit
-            bail!("{err}")
-        }
+            .expect("Could not start wireguard");
 
         info!("Finished nym gateway startup procedure - it should now be able to receive mix and client traffic!");
 
         if let Err(err) = Self::wait_for_interrupt(shutdown).await {
             // that's a nasty workaround, but anyhow errors are generally nicer, especially on exit
             bail!("{err}")
+        }
+        let host = wg_api.read_interface_data()?;
+        for peer in host.peers.values() {
+            wg_api.remove_peer(&peer.public_key)?;
         }
         Ok(())
     }

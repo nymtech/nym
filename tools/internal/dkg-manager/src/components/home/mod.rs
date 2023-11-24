@@ -320,7 +320,7 @@ impl Home {
 
         let group_admin = match &info.group_admin.admin {
             None => Span::styled("<no admin>", Style::default().light_red().bold()),
-            Some(admin) => Span::styled(admin.clone(), Style::default().light_green().bold()),
+            Some(admin) => self.admin_span(admin),
         };
 
         let mut lines = vec![
@@ -485,12 +485,27 @@ impl Home {
             .alignment(Alignment::Center)
     }
 
+    fn matching_admin(&self) -> bool {
+        if let Some(group_admin) = &self.dkg_info.group_admin.admin {
+            return group_admin == &self.manager_address;
+        }
+        false
+    }
+
+    fn admin_span<S: Into<String>>(&self, text: S) -> Span {
+        let style = if self.matching_admin() {
+            Style::default().light_green().bold()
+        } else {
+            Style::default().light_red().bold()
+        };
+        Span::styled(text.into(), style)
+    }
+
     fn title_widget(&self) -> Block {
         Block::default()
-            // .title("Nym DKG Contract manager")
             .title(Line::from(vec![
                 "Nym DKG Contract manager (managed via ".into(),
-                Span::styled(&self.manager_address, Style::default().light_green().bold()),
+                self.admin_span(&self.manager_address),
                 ")".into(),
             ]))
             .title_alignment(Alignment::Center)

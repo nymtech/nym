@@ -44,6 +44,7 @@ pub fn sign_expiration_date(
 ) -> Vec<PartialExpirationDateSignature> {
     let m0: Scalar = Scalar::from(expiration_date);
     let m2: Scalar = Scalar::from_bytes(&constants::TYPE_EXP).unwrap();
+
     (0..constants::VALIDITY_PERIOD)
         .into_par_iter()
         .fold(

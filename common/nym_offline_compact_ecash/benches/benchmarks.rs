@@ -471,7 +471,7 @@ fn bench_aggregate_expiration_date_signatures(c: &mut Criterion) {
 fn bench_coin_signing(c: &mut Criterion){
     let mut group = c.benchmark_group("benchmark-sign-verify-coin-signing");
 
-    let L = 32;
+    let L = 150000;
     let params = setup(L);
     let authorities_keypairs = ttp_keygen(&params.grp(), 2, 3).unwrap();
     let indices: [u64; 3] = [1, 2, 3];
@@ -519,5 +519,5 @@ fn bench_coin_signing(c: &mut Criterion){
 
 }
 
-criterion_group!(benches, bench_coin_signing);
+criterion_group!(benches, bench_partial_sign_expiration_date);
 criterion_main!(benches);

@@ -4,23 +4,28 @@
 use std::ops::Neg;
 use std::time::Duration;
 
-use bls12_381::{G1Affine, G1Projective, G2Affine, G2Prepared, G2Projective, Gt, multi_miller_loop, Scalar};
-use criterion::{Criterion, criterion_group, criterion_main};
+use bls12_381::{
+    multi_miller_loop, G1Affine, G1Projective, G2Affine, G2Prepared, G2Projective, Gt, Scalar,
+};
+use criterion::{criterion_group, criterion_main, Criterion};
 use ff::Field;
 use group::{Curve, Group};
 use itertools::izip;
 use rand::seq::SliceRandom;
 
-use nym_compact_ecash::{
-    aggregate_verification_keys, aggregate_wallets, generate_keypair_user,
-    issue_verify, issue_wallet, PartialWallet,
-    PayInfo, PublicKeyUser, SecretKeyUser, ttp_keygen, VerificationKeyAuth, withdrawal_request,
-};
-use nym_compact_ecash::identify::{identify, IdentifyResult};
-use nym_compact_ecash::setup::setup;
-use nym_compact_ecash::scheme::expiration_date_signatures::{sign_expiration_date, verify_valid_dates_signatures, aggregate_expiration_signatures, PartialExpirationDateSignature, ExpirationDateSignature};
 use nym_compact_ecash::constants;
-use nym_compact_ecash::scheme::keygen::{SecretKeyAuth};
+use nym_compact_ecash::identify::{identify, IdentifyResult};
+use nym_compact_ecash::scheme::expiration_date_signatures::{
+    aggregate_expiration_signatures, sign_expiration_date, verify_valid_dates_signatures,
+    ExpirationDateSignature, PartialExpirationDateSignature,
+};
+use nym_compact_ecash::scheme::keygen::SecretKeyAuth;
+use nym_compact_ecash::setup::setup;
+use nym_compact_ecash::{
+    aggregate_verification_keys, aggregate_wallets, generate_keypair_user, issue_verify,
+    issue_wallet, ttp_keygen, withdrawal_request, PartialWallet, PayInfo, PublicKeyUser,
+    SecretKeyUser, VerificationKeyAuth,
+};
 
 #[allow(unused)]
 fn double_pairing(g11: &G1Affine, g21: &G2Affine, g12: &G1Affine, g22: &G2Affine) {
@@ -124,9 +129,7 @@ fn bench_pairings(c: &mut Criterion) {
         b.iter(|| exponent_in_gt(gt, r))
     });
 
-    group.bench_function("single pairing", |b| {
-        b.iter(|| single_pairing(&g11, &g21))
-    });
+    group.bench_function("single pairing", |b| b.iter(|| single_pairing(&g11, &g21)));
 
     group.bench_function("double pairing", |b| {
         b.iter(|| double_pairing(&g11, &g21, &g12, &g22))
@@ -198,15 +201,10 @@ fn bench_compact_ecash(c: &mut Criterion) {
     let mut rng = rand::thread_rng();
     let keypair = authorities_keypairs.choose(&mut rng).unwrap();
     group.bench_function(
-        &format!("[Issuing Authority] issue_partial_wallet_with_L_{}", case.L, ),
+        &format!("[Issuing Authority] issue_partial_wallet_with_L_{}", case.L,),
         |b| {
             b.iter(|| {
-                issue_wallet(
-                    &grp,
-                    keypair.secret_key(),
-                    user_keypair.public_key(),
-                    &req,
-                ).unwrap()
+                issue_wallet(&grp, keypair.secret_key(), user_keypair.public_key(), &req).unwrap()
             })
         },
     );
@@ -226,7 +224,7 @@ fn bench_compact_ecash(c: &mut Criterion) {
     let w = wallet_blinded_signatures.get(0).clone().unwrap();
     let vk = verification_keys_auth.get(0).clone().unwrap();
     group.bench_function(
-        &format!("[Client] issue_verify_a_partial_wallet_with_L_{}", case.L, ),
+        &format!("[Client] issue_verify_a_partial_wallet_with_L_{}", case.L,),
         |b| b.iter(|| issue_verify(&grp, vk, &user_keypair.secret_key(), w, &req_info).unwrap()),
     );
 
@@ -234,8 +232,8 @@ fn bench_compact_ecash(c: &mut Criterion) {
         wallet_blinded_signatures.iter(),
         verification_keys_auth.iter()
     )
-        .map(|(w, vk)| issue_verify(&grp, vk, &user_keypair.secret_key(), w, &req_info).unwrap())
-        .collect();
+    .map(|(w, vk)| issue_verify(&grp, vk, &user_keypair.secret_key(), w, &req_info).unwrap())
+    .collect();
 
     // CLIENT BENCHMARK: aggregating all partial wallets
     group.bench_function(
@@ -252,7 +250,7 @@ fn bench_compact_ecash(c: &mut Criterion) {
                     &unblinded_wallet_shares,
                     &req_info,
                 )
-                    .unwrap()
+                .unwrap()
             })
         },
     );
@@ -265,7 +263,7 @@ fn bench_compact_ecash(c: &mut Criterion) {
         &unblinded_wallet_shares,
         &req_info,
     )
-        .unwrap();
+    .unwrap();
 
     // SPENDING PHASE
     let pay_info = PayInfo { payinfo: [6u8; 88] };
@@ -325,14 +323,16 @@ fn bench_compact_ecash(c: &mut Criterion) {
     aggr_wallet.l.set(current_l - case.spend_vv);
 
     let pay_info2 = PayInfo { payinfo: [7u8; 88] };
-    let (payment2, _) = aggr_wallet.spend(
-        &params,
-        &verification_key,
-        &user_keypair.secret_key(),
-        &pay_info2,
-        true,
-        case.spend_vv,
-    ).unwrap();
+    let (payment2, _) = aggr_wallet
+        .spend(
+            &params,
+            &verification_key,
+            &user_keypair.secret_key(),
+            &pay_info2,
+            true,
+            case.spend_vv,
+        )
+        .unwrap();
 
     //  GENERATE KEYS FOR OTHER USERS
     let mut public_keys: Vec<PublicKeyUser> = Default::default();
@@ -348,20 +348,41 @@ fn bench_compact_ecash(c: &mut Criterion) {
     group.bench_function(
         &format!(
             "[Merchant] identify_L_{}_threshold_{}_spend_vv_{}_pks_{}",
-            case.L, case.threshold_p, case.spend_vv, public_keys.len()
+            case.L,
+            case.threshold_p,
+            case.spend_vv,
+            public_keys.len()
         ),
         |b| {
             b.iter(|| {
-                identify(&params, &verification_key, payment.clone(), payment2.clone(), pay_info.clone(), pay_info2.clone()).unwrap()
+                identify(
+                    &params,
+                    &verification_key,
+                    payment.clone(),
+                    payment2.clone(),
+                    pay_info.clone(),
+                    pay_info2.clone(),
+                )
+                .unwrap()
             })
         },
     );
-    let identify_result = identify(&params, &verification_key, payment, payment2, pay_info.clone(), pay_info2.clone()).unwrap();
-    assert_eq!(identify_result, IdentifyResult::DoubleSpendingPublicKeys(user_keypair.public_key()));
+    let identify_result = identify(
+        &params,
+        &verification_key,
+        payment,
+        payment2,
+        pay_info.clone(),
+        pay_info2.clone(),
+    )
+    .unwrap();
+    assert_eq!(
+        identify_result,
+        IdentifyResult::DoubleSpendingPublicKeys(user_keypair.public_key())
+    );
 }
 
-
-fn bench_partial_sign_expiration_date(c: &mut Criterion){
+fn bench_partial_sign_expiration_date(c: &mut Criterion) {
     let mut group = c.benchmark_group("benchmark-sign-verify-expiration-date");
     let L = 32;
     let params = setup(L);
@@ -373,33 +394,23 @@ fn bench_partial_sign_expiration_date(c: &mut Criterion){
     let partial_exp_sig = sign_expiration_date(&params, &sk_i_auth, expiration_date);
 
     // ISSUING AUTHORITY BENCHMARK: issue a set of (partial) signatures for a given expiration date
-    group.bench_function(
-        &format!(
-            "[IssuingAuthority] sign_expiration_date",
-        ),
-        |b| {
-            b.iter(|| {
-                sign_expiration_date(&params, &sk_i_auth, expiration_date)
-            })
-        },
-    );
+    group.bench_function(&format!("[IssuingAuthority] sign_expiration_date",), |b| {
+        b.iter(|| sign_expiration_date(&params, &sk_i_auth, expiration_date))
+    });
 
     // CLIENT: verify the correctness of the set of (partial) signatures for a given expiration date
-    assert!(verify_valid_dates_signatures(&params, &vk_i_auth, &partial_exp_sig, expiration_date).is_ok());
-    group.bench_function(
-        &format!(
-            "[Client] verify_valid_dates_signatures",
-        ),
-        |b| {
-            b.iter(|| {
-                verify_valid_dates_signatures(&params, &vk_i_auth, &partial_exp_sig, expiration_date)
-            })
-        },
+    assert!(
+        verify_valid_dates_signatures(&params, &vk_i_auth, &partial_exp_sig, expiration_date)
+            .is_ok()
     );
-
+    group.bench_function(&format!("[Client] verify_valid_dates_signatures",), |b| {
+        b.iter(|| {
+            verify_valid_dates_signatures(&params, &vk_i_auth, &partial_exp_sig, expiration_date)
+        })
+    });
 }
 
-fn bench_aggregate_expiration_date_signatures(c: &mut Criterion){
+fn bench_aggregate_expiration_date_signatures(c: &mut Criterion) {
     let mut group = c.benchmark_group("benchmark-aggregate-verify-expiration-date-signatures");
     let L = 32;
     let params = setup(L);
@@ -418,22 +429,25 @@ fn bench_aggregate_expiration_date_signatures(c: &mut Criterion){
         .map(|keypair| keypair.verification_key())
         .collect();
     // the global master verification key
-    let verification_key = aggregate_verification_keys(&verification_keys_auth, Some(&indices)).unwrap();
+    let verification_key =
+        aggregate_verification_keys(&verification_keys_auth, Some(&indices)).unwrap();
 
-    let mut partial_signatures: Vec<Vec<PartialExpirationDateSignature>> = Vec::with_capacity(constants::VALIDITY_PERIOD as usize);
-    for sk in secret_keys_authorities.iter(){
-        let sign = sign_expiration_date(&params,
-                                        &sk,
-                                        expiration_date);
+    let mut partial_signatures: Vec<Vec<PartialExpirationDateSignature>> =
+        Vec::with_capacity(constants::VALIDITY_PERIOD as usize);
+    for sk in secret_keys_authorities.iter() {
+        let sign = sign_expiration_date(&params, &sk, expiration_date);
         partial_signatures.push(sign);
     }
 
-    let combined_data: Vec<(u64, VerificationKeyAuth, Vec<PartialExpirationDateSignature>)> =
-        indices
-            .iter()
-            .zip(verification_keys_auth.iter().zip(partial_signatures.iter()))
-            .map(|(i, (vk, sigs))| (i.clone(), vk.clone(), sigs.clone()))
-            .collect();
+    let combined_data: Vec<(
+        u64,
+        VerificationKeyAuth,
+        Vec<PartialExpirationDateSignature>,
+    )> = indices
+        .iter()
+        .zip(verification_keys_auth.iter().zip(partial_signatures.iter()))
+        .map(|(i, (vk, sigs))| (i.clone(), vk.clone(), sigs.clone()))
+        .collect();
 
     // CLIENT: verify all the partial signature vectors and aggregate into a single vector of signed valid dates
     group.bench_function(
@@ -443,11 +457,15 @@ fn bench_aggregate_expiration_date_signatures(c: &mut Criterion){
         ),
         |b| {
             b.iter(|| {
-                aggregate_expiration_signatures(&params, &verification_key, expiration_date, &combined_data)
+                aggregate_expiration_signatures(
+                    &params,
+                    &verification_key,
+                    expiration_date,
+                    &combined_data,
+                )
             })
         },
     );
-
 }
 
 criterion_group!(benches, bench_partial_sign_expiration_date);

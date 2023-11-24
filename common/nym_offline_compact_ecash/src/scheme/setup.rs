@@ -2,17 +2,17 @@ use std::collections::HashMap;
 use std::ops::Index;
 
 use bls12_381::{G1Affine, G1Projective, G2Affine, G2Prepared, G2Projective, Scalar};
-use group::{Curve, GroupEncoding};
 use ff::Field;
+use group::{Curve, GroupEncoding};
 use rand::thread_rng;
 
-use crate::error::{CompactEcashError, Result};
-use crate::utils::{hash_g1, Signature};
-use crate::scheme::keygen::{SecretKeyAuth, VerificationKeyAuth};
 use crate::constants;
-use rayon::prelude::*;
+use crate::error::{CompactEcashError, Result};
+use crate::scheme::keygen::{SecretKeyAuth, VerificationKeyAuth};
 use crate::utils::{check_bilinear_pairing, generate_lagrangian_coefficients_at_origin};
-
+use crate::utils::{hash_g1, Signature};
+use itertools::Itertools;
+use rayon::prelude::*;
 
 pub struct GroupParameters {
     /// Generator of the G1 group
@@ -56,11 +56,13 @@ impl GroupParameters {
         &self.gammas
     }
 
-    pub(crate) fn gamma_idx(&self, i: usize) -> Option<&G1Projective>{
+    pub(crate) fn gamma_idx(&self, i: usize) -> Option<&G1Projective> {
         self.gammas.get(i)
     }
 
-    pub(crate) fn delta(&self) -> &G1Projective { &self.delta }
+    pub(crate) fn delta(&self) -> &G1Projective {
+        &self.delta
+    }
 
     pub fn random_scalar(&self) -> Scalar {
         // lazily-initialized thread-local random number generator, seeded by the system
@@ -137,22 +139,27 @@ impl Parameters {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct CoinIndexSignature{
-    pub(crate) h : G1Projective,
-    pub(crate) s : G1Projective,
+pub struct CoinIndexSignature {
+    pub(crate) h: G1Projective,
+    pub(crate) s: G1Projective,
 }
 
 pub type PartialCoinIndexSignature = CoinIndexSignature;
 
-pub fn sign_coin_indices(params: &Parameters, vk: &VerificationKeyAuth, sk_auth: &SecretKeyAuth) -> Vec<PartialCoinIndexSignature>{
+pub fn sign_coin_indices(
+    params: &Parameters,
+    vk: &VerificationKeyAuth,
+    sk_auth: &SecretKeyAuth,
+) -> Vec<PartialCoinIndexSignature> {
     let m1: Scalar = Scalar::from_bytes(&constants::TYPE_IDX).unwrap();
     let m2: Scalar = Scalar::from_bytes(&constants::TYPE_IDX).unwrap();
     let mut partial_coins_signatures = Vec::with_capacity(params.L() as usize);
 
-    for l in 0..params.L(){
+    for l in 0..params.L() {
         let m0: Scalar = Scalar::from(l as u64);
         // Compute the hash h
-        let mut concatenated_bytes = Vec::with_capacity(vk.to_bytes().len() + l.to_le_bytes().len());
+        let mut concatenated_bytes =
+            Vec::with_capacity(vk.to_bytes().len() + l.to_le_bytes().len());
         concatenated_bytes.extend_from_slice(&vk.to_bytes());
         concatenated_bytes.extend_from_slice(&l.to_le_bytes());
         let h = hash_g1(concatenated_bytes);
@@ -163,7 +170,7 @@ pub fn sign_coin_indices(params: &Parameters, vk: &VerificationKeyAuth, sk_auth:
         s_exponent += &sk_auth.ys[1] * m1;
         s_exponent += &sk_auth.ys[2] * m2;
         // Create the signature struct of on the coin index
-        let coin_idx_sign = CoinIndexSignature{
+        let coin_idx_sign = CoinIndexSignature {
             h,
             s: h * s_exponent,
         };
@@ -177,13 +184,14 @@ pub fn verify_coin_indices_signatures(
     vk: &VerificationKeyAuth,
     vk_auth: &VerificationKeyAuth,
     signatures: &[CoinIndexSignature],
-) -> Result<()>{
+) -> Result<()> {
     let m1: Scalar = Scalar::from_bytes(&constants::TYPE_IDX).unwrap();
     let m2: Scalar = Scalar::from_bytes(&constants::TYPE_IDX).unwrap();
     for (l, sig) in signatures.iter().enumerate() {
         let m0: Scalar = Scalar::from(l as u64);
         // Compute the hash h
-        let mut concatenated_bytes = Vec::with_capacity(vk.to_bytes().len() + l.to_le_bytes().len());
+        let mut concatenated_bytes =
+            Vec::with_capacity(vk.to_bytes().len() + l.to_le_bytes().len());
         concatenated_bytes.extend_from_slice(&vk.to_bytes());
         concatenated_bytes.extend_from_slice(&l.to_le_bytes());
         let h = hash_g1(concatenated_bytes);
@@ -210,32 +218,72 @@ pub fn verify_coin_indices_signatures(
         }
     }
     Ok(())
-
 }
 
-pub fn aggregate_indices_signatures(params: Parameters, vk: &VerificationKeyAuth, signatures: &[(u64, VerificationKeyAuth, Vec<PartialCoinIndexSignature>)]){
+pub fn aggregate_indices_signatures(
+    params: &Parameters,
+    vk: &VerificationKeyAuth,
+    signatures: &[(u64, VerificationKeyAuth, Vec<PartialCoinIndexSignature>)],
+) -> Result<Vec<CoinIndexSignature>> {
     // Check if all indices are unique
-    // if signatures.iter().map(|(index, _, _)| index).unique().count() != signatures.len() {
-    //     return Err(CompactEcashError::CoinIndices(
-    //         "Not enough unique indices shares".to_string(),
-    //     ));
-    // }
+    if signatures
+        .iter()
+        .map(|(index, _, _)| index)
+        .unique()
+        .count()
+        != signatures.len()
+    {
+        return Err(CompactEcashError::CoinIndices(
+            "Not enough unique indices shares".to_string(),
+        ));
+    }
     // Evaluate at 0 the Lagrange basis polynomials k_i
-    let coefficients = generate_lagrangian_coefficients_at_origin(&signatures.iter().map(|(index, _, _)| *index).collect::<Vec<_>>());
+    let coefficients = generate_lagrangian_coefficients_at_origin(
+        &signatures
+            .iter()
+            .map(|(index, _, _)| *index)
+            .collect::<Vec<_>>(),
+    );
     let m1: Scalar = Scalar::from_bytes(&constants::TYPE_IDX).unwrap();
     let m2: Scalar = Scalar::from_bytes(&constants::TYPE_IDX).unwrap();
-    for l in 0..params.L(){
+
+    // Pre-allocate vectors
+    let mut aggregated_coin_signatures: Vec<CoinIndexSignature> =
+        Vec::with_capacity(params.L() as usize);
+
+    for l in 0..params.L() {
         let m0: Scalar = Scalar::from(l);
         // Compute the hash h
-        let mut concatenated_bytes = Vec::with_capacity(vk.to_bytes().len() + l.to_le_bytes().len());
+        let mut concatenated_bytes =
+            Vec::with_capacity(vk.to_bytes().len() + l.to_le_bytes().len());
         concatenated_bytes.extend_from_slice(&vk.to_bytes());
         concatenated_bytes.extend_from_slice(&l.to_le_bytes());
         let h = hash_g1(concatenated_bytes);
-        for (i, vk_auth, sig) in signatures.iter(){
 
-        }
+        signatures
+            .par_iter()
+            .try_for_each(|(_, vk_auth, partial_signatures)| {
+                verify_coin_indices_signatures(&params, &vk, &vk_auth, &partial_signatures)
+            })?;
+
+        // Collect the partial signatures for the same coin index
+        let collected_at_l: Vec<_> = signatures
+            .iter()
+            .filter_map(|(_, _, inner_vec)| inner_vec.get(l as usize))
+            .cloned()
+            .collect();
+
+        // Aggregate partial signatures for each coin index
+        let aggr_s: G1Projective = coefficients
+            .iter()
+            .zip(collected_at_l.iter())
+            .map(|(coeff, sig)| sig.s * coeff)
+            .sum();
+        let aggr_sig = CoinIndexSignature { h, s: aggr_s };
+        aggregated_coin_signatures.push(aggr_sig);
     }
-
+    verify_coin_indices_signatures(&params, &vk, &vk, &aggregated_coin_signatures)?;
+    Ok(aggregated_coin_signatures)
 }
 
 pub fn setup(L: u64) -> Parameters {
@@ -267,11 +315,11 @@ pub fn setup(L: u64) -> Parameters {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::scheme::keygen::{ttp_keygen};
     use crate::scheme::aggregation::aggregate_verification_keys;
+    use crate::scheme::keygen::ttp_keygen;
 
     #[test]
-    fn test_sign_coins(){
+    fn test_sign_coins() {
         let L = 32;
         let params = setup(L);
         let authorities_keypairs = ttp_keygen(&params.grp(), 2, 3).unwrap();
@@ -287,10 +335,57 @@ mod tests {
             .map(|keypair| keypair.verification_key())
             .collect();
         // the global master verification key
-        let verification_key = aggregate_verification_keys(&verification_keys_auth, Some(&indices)).unwrap();
+        let verification_key =
+            aggregate_verification_keys(&verification_keys_auth, Some(&indices)).unwrap();
 
         let partial_signatures = sign_coin_indices(&params, &verification_key, &sk_i_auth);
-        assert!(verify_coin_indices_signatures(&params, &verification_key, &vk_i_auth, &partial_signatures).is_ok());
-
+        assert!(verify_coin_indices_signatures(
+            &params,
+            &verification_key,
+            &vk_i_auth,
+            &partial_signatures
+        )
+        .is_ok());
     }
+
+    #[test]
+    fn test_aggregate_coin_signatures() {
+        let L = 32;
+        let params = setup(L);
+        let authorities_keypairs = ttp_keygen(&params.grp(), 2, 3).unwrap();
+        let indices: [u64; 3] = [1, 2, 3];
+
+        // list of secret keys of each authority
+        let secret_keys_authorities: Vec<SecretKeyAuth> = authorities_keypairs
+            .iter()
+            .map(|keypair| keypair.secret_key())
+            .collect();
+        // list of verification keys of each authority
+        let verification_keys_auth: Vec<VerificationKeyAuth> = authorities_keypairs
+            .iter()
+            .map(|keypair| keypair.verification_key())
+            .collect();
+        // the global master verification key
+        let verification_key =
+            aggregate_verification_keys(&verification_keys_auth, Some(&indices)).unwrap();
+
+        // create the partial signatures from each authority
+        let partial_signatures: Vec<Vec<PartialCoinIndexSignature>> = secret_keys_authorities
+            .iter()
+            .map(|sk_auth| sign_coin_indices(&params, &verification_key, sk_auth))
+            .collect();
+
+        let combined_data: Vec<(
+            u64,
+            VerificationKeyAuth,
+            Vec<PartialCoinIndexSignature>,
+        )> = indices
+            .iter()
+            .zip(verification_keys_auth.iter().zip(partial_signatures.iter()))
+            .map(|(i, (vk, sigs))| (i.clone(), vk.clone(), sigs.clone()))
+            .collect();
+
+        assert!(aggregate_indices_signatures(&params, &verification_key, &combined_data).is_ok());
+    }
+
 }

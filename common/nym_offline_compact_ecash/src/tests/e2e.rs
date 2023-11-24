@@ -1,16 +1,14 @@
 use itertools::izip;
 
 use crate::error::CompactEcashError;
-use crate::scheme::aggregation::{
-    aggregate_verification_keys, aggregate_wallets,
-};
-use crate::scheme::keygen::{
-    generate_keypair_user, ttp_keygen, VerificationKeyAuth,
-};
-use crate::scheme::{Wallet, PartialWallet, Payment};
-use crate::scheme::PayInfo;
+use crate::scheme::aggregation::{aggregate_verification_keys, aggregate_wallets};
+use crate::scheme::keygen::{generate_keypair_user, ttp_keygen, VerificationKeyAuth};
 use crate::scheme::setup::setup;
-use crate::scheme::withdrawal::{issue_verify, issue_wallet, withdrawal_request, WithdrawalRequest};
+use crate::scheme::withdrawal::{
+    issue_verify, issue_wallet, withdrawal_request, WithdrawalRequest,
+};
+use crate::scheme::PayInfo;
+use crate::scheme::{PartialWallet, Payment, Wallet};
 
 #[test]
 fn main() -> Result<(), CompactEcashError> {
@@ -48,8 +46,8 @@ fn main() -> Result<(), CompactEcashError> {
         wallet_blinded_signatures.iter(),
         verification_keys_auth.iter()
     )
-        .map(|(w, vk)| issue_verify(&grparams, vk, &user_keypair.secret_key(), w, &req_info).unwrap())
-        .collect();
+    .map(|(w, vk)| issue_verify(&grparams, vk, &user_keypair.secret_key(), w, &req_info).unwrap())
+    .collect();
 
     let partial_wallet = unblinded_wallet_shares.get(0).unwrap().clone();
     let partial_wallet_bytes = partial_wallet.to_bytes();

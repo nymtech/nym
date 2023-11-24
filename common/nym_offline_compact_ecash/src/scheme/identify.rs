@@ -1,8 +1,8 @@
-use crate::{PayInfo, VerificationKeyAuth};
 use crate::error::{CompactEcashError, Result};
 use crate::scheme::keygen::PublicKeyUser;
-use crate::scheme::Payment;
 use crate::scheme::setup::Parameters;
+use crate::scheme::Payment;
+use crate::{PayInfo, VerificationKeyAuth};
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum IdentifyResult {
@@ -11,7 +11,14 @@ pub enum IdentifyResult {
     DoubleSpendingPublicKeys(PublicKeyUser),
 }
 
-pub fn identify(params: &Parameters, verification_key: &VerificationKeyAuth, payment1: Payment, payment2: Payment, pay_info1: PayInfo, pay_info2: PayInfo) -> Result<IdentifyResult> {
+pub fn identify(
+    params: &Parameters,
+    verification_key: &VerificationKeyAuth,
+    payment1: Payment,
+    payment2: Payment,
+    pay_info1: PayInfo,
+    pay_info2: PayInfo,
+) -> Result<IdentifyResult> {
     let mut k = 0;
     let mut j = 0;
     for (id1, pay1_ss) in payment1.ss.iter().enumerate() {
@@ -23,12 +30,17 @@ pub fn identify(params: &Parameters, verification_key: &VerificationKeyAuth, pay
             }
         }
     }
-    if payment1.ss.iter().any(|pay1_ss| payment2.ss.contains(pay1_ss)) {
+    if payment1
+        .ss
+        .iter()
+        .any(|pay1_ss| payment2.ss.contains(pay1_ss))
+    {
         if pay_info1 == pay_info2 {
             Ok(IdentifyResult::DuplicatePayInfo(pay_info1))
         } else {
             let rr_diff = payment1.rr[k] - payment2.rr[j];
-            let pk = (payment2.tt[j] * payment1.rr[k] - payment1.tt[k] * payment2.rr[j]) * rr_diff.invert().unwrap();
+            let pk = (payment2.tt[j] * payment1.rr[k] - payment1.tt[k] * payment2.rr[j])
+                * rr_diff.invert().unwrap();
             let pk_user = PublicKeyUser { pk };
             Ok(IdentifyResult::DoubleSpendingPublicKeys(pk_user))
         }
@@ -41,10 +53,13 @@ pub fn identify(params: &Parameters, verification_key: &VerificationKeyAuth, pay
 mod tests {
     use itertools::izip;
 
-    use crate::{aggregate_verification_keys, aggregate_wallets, generate_keypair_user, issue_verify, issue_wallet, PartialWallet, PayInfo, ttp_keygen, VerificationKeyAuth, withdrawal_request};
     use crate::scheme::identify::{identify, IdentifyResult};
     use crate::scheme::keygen::{PublicKeyUser, SecretKeyUser};
     use crate::scheme::setup::setup;
+    use crate::{
+        aggregate_verification_keys, aggregate_wallets, generate_keypair_user, issue_verify,
+        issue_wallet, ttp_keygen, withdrawal_request, PartialWallet, PayInfo, VerificationKeyAuth,
+    };
 
     #[test]
     fn duplicate_payments_with_the_same_pay_info() {
@@ -61,7 +76,8 @@ mod tests {
             .map(|keypair| keypair.verification_key())
             .collect();
 
-        let verification_key = aggregate_verification_keys(&verification_keys_auth, Some(&[1, 2, 3])).unwrap();
+        let verification_key =
+            aggregate_verification_keys(&verification_keys_auth, Some(&[1, 2, 3])).unwrap();
 
         let mut wallet_blinded_signatures = Vec::new();
         for auth_keypair in authorities_keypairs {
@@ -75,11 +91,13 @@ mod tests {
         }
 
         let unblinded_wallet_shares: Vec<PartialWallet> = izip!(
-        wallet_blinded_signatures.iter(),
-        verification_keys_auth.iter()
-    )
-            .map(|(w, vk)| issue_verify(&grparams, vk, &user_keypair.secret_key(), w, &req_info).unwrap())
-            .collect();
+            wallet_blinded_signatures.iter(),
+            verification_keys_auth.iter()
+        )
+        .map(|(w, vk)| {
+            issue_verify(&grparams, vk, &user_keypair.secret_key(), w, &req_info).unwrap()
+        })
+        .collect();
 
         // Aggregate partial wallets
         let aggr_wallet = aggregate_wallets(
@@ -88,20 +106,23 @@ mod tests {
             &user_keypair.secret_key(),
             &unblinded_wallet_shares,
             &req_info,
-        ).unwrap();
+        )
+        .unwrap();
 
         // Let's try to spend some coins
         let pay_info1 = PayInfo { payinfo: [6u8; 88] };
         let spend_vv = 1;
 
-        let (payment1, _upd_wallet) = aggr_wallet.spend(
-            &params,
-            &verification_key,
-            &user_keypair.secret_key(),
-            &pay_info1,
-            false,
-            spend_vv,
-        ).unwrap();
+        let (payment1, _upd_wallet) = aggr_wallet
+            .spend(
+                &params,
+                &verification_key,
+                &user_keypair.secret_key(),
+                &pay_info1,
+                false,
+                spend_vv,
+            )
+            .unwrap();
 
         assert!(payment1
             .spend_verify(&params, &verification_key, &pay_info1)
@@ -113,8 +134,19 @@ mod tests {
             .unwrap());
 
         let pay_info2 = pay_info1.clone();
-        let identify_result = identify(&params, &verification_key, payment1, payment2, pay_info1.clone(), pay_info2.clone()).unwrap();
-        assert_eq!(identify_result, IdentifyResult::DuplicatePayInfo(pay_info1.clone()));
+        let identify_result = identify(
+            &params,
+            &verification_key,
+            payment1,
+            payment2,
+            pay_info1.clone(),
+            pay_info2.clone(),
+        )
+        .unwrap();
+        assert_eq!(
+            identify_result,
+            IdentifyResult::DuplicatePayInfo(pay_info1.clone())
+        );
     }
 
     #[test]
@@ -132,7 +164,8 @@ mod tests {
             .map(|keypair| keypair.verification_key())
             .collect();
 
-        let verification_key = aggregate_verification_keys(&verification_keys_auth, Some(&[1, 2, 3])).unwrap();
+        let verification_key =
+            aggregate_verification_keys(&verification_keys_auth, Some(&[1, 2, 3])).unwrap();
 
         let mut wallet_blinded_signatures = Vec::new();
         for auth_keypair in authorities_keypairs {
@@ -146,11 +179,13 @@ mod tests {
         }
 
         let unblinded_wallet_shares: Vec<PartialWallet> = izip!(
-        wallet_blinded_signatures.iter(),
-        verification_keys_auth.iter()
-    )
-            .map(|(w, vk)| issue_verify(&grparams, vk, &user_keypair.secret_key(), w, &req_info).unwrap())
-            .collect();
+            wallet_blinded_signatures.iter(),
+            verification_keys_auth.iter()
+        )
+        .map(|(w, vk)| {
+            issue_verify(&grparams, vk, &user_keypair.secret_key(), w, &req_info).unwrap()
+        })
+        .collect();
 
         // Aggregate partial wallets
         let aggr_wallet = aggregate_wallets(
@@ -159,41 +194,53 @@ mod tests {
             &user_keypair.secret_key(),
             &unblinded_wallet_shares,
             &req_info,
-        ).unwrap();
+        )
+        .unwrap();
 
         // Let's try to spend some coins
         let pay_info1 = PayInfo { payinfo: [6u8; 88] };
         let spend_vv = 1;
 
-        let (payment1, upd_wallet) = aggr_wallet.spend(
-            &params,
-            &verification_key,
-            &user_keypair.secret_key(),
-            &pay_info1,
-            false,
-            spend_vv,
-        ).unwrap();
+        let (payment1, upd_wallet) = aggr_wallet
+            .spend(
+                &params,
+                &verification_key,
+                &user_keypair.secret_key(),
+                &pay_info1,
+                false,
+                spend_vv,
+            )
+            .unwrap();
 
         assert!(payment1
             .spend_verify(&params, &verification_key, &pay_info1)
             .unwrap());
 
-
         let pay_info2 = PayInfo { payinfo: [7u8; 88] };
-        let (payment2, _) = upd_wallet.spend(
-            &params,
-            &verification_key,
-            &user_keypair.secret_key(),
-            &pay_info2,
-            false,
-            spend_vv,
-        ).unwrap();
+        let (payment2, _) = upd_wallet
+            .spend(
+                &params,
+                &verification_key,
+                &user_keypair.secret_key(),
+                &pay_info2,
+                false,
+                spend_vv,
+            )
+            .unwrap();
 
         assert!(payment2
             .spend_verify(&params, &verification_key, &pay_info2)
             .unwrap());
 
-        let identify_result = identify(&params, &verification_key, payment1, payment2, pay_info1.clone(), pay_info2.clone()).unwrap();
+        let identify_result = identify(
+            &params,
+            &verification_key,
+            payment1,
+            payment2,
+            pay_info1.clone(),
+            pay_info2.clone(),
+        )
+        .unwrap();
         assert_eq!(identify_result, IdentifyResult::NotADuplicatePayment);
     }
 
@@ -214,7 +261,6 @@ mod tests {
         }
         public_keys.push(user_keypair.public_key().clone());
 
-
         let (req, req_info) = withdrawal_request(grp, &user_keypair.secret_key()).unwrap();
         let authorities_keypairs = ttp_keygen(&grp, 2, 3).unwrap();
 
@@ -223,7 +269,8 @@ mod tests {
             .map(|keypair| keypair.verification_key())
             .collect();
 
-        let verification_key = aggregate_verification_keys(&verification_keys_auth, Some(&[1, 2, 3])).unwrap();
+        let verification_key =
+            aggregate_verification_keys(&verification_keys_auth, Some(&[1, 2, 3])).unwrap();
 
         let mut wallet_blinded_signatures = Vec::new();
         for auth_keypair in authorities_keypairs {
@@ -237,11 +284,11 @@ mod tests {
         }
 
         let unblinded_wallet_shares: Vec<PartialWallet> = izip!(
-        wallet_blinded_signatures.iter(),
-        verification_keys_auth.iter()
-    )
-            .map(|(w, vk)| issue_verify(&grp, vk, &user_keypair.secret_key(), w, &req_info).unwrap())
-            .collect();
+            wallet_blinded_signatures.iter(),
+            verification_keys_auth.iter()
+        )
+        .map(|(w, vk)| issue_verify(&grp, vk, &user_keypair.secret_key(), w, &req_info).unwrap())
+        .collect();
 
         // Aggregate partial wallets
         let aggr_wallet = aggregate_wallets(
@@ -250,20 +297,23 @@ mod tests {
             &user_keypair.secret_key(),
             &unblinded_wallet_shares,
             &req_info,
-        ).unwrap();
+        )
+        .unwrap();
 
         // Let's try to spend some coins
         let pay_info1 = PayInfo { payinfo: [6u8; 88] };
         let spend_vv = 1;
 
-        let (payment1, _upd_wallet) = aggr_wallet.spend(
-            &params,
-            &verification_key,
-            &user_keypair.secret_key(),
-            &pay_info1,
-            false,
-            spend_vv,
-        ).unwrap();
+        let (payment1, _upd_wallet) = aggr_wallet
+            .spend(
+                &params,
+                &verification_key,
+                &user_keypair.secret_key(),
+                &pay_info1,
+                false,
+                spend_vv,
+            )
+            .unwrap();
 
         assert!(payment1
             .spend_verify(&params, &verification_key, &pay_info1)
@@ -275,21 +325,34 @@ mod tests {
 
         let pay_info2 = PayInfo { payinfo: [7u8; 88] };
 
-        let (payment2, _) = aggr_wallet.spend(
-            &params,
-            &verification_key,
-            &user_keypair.secret_key(),
-            &pay_info2,
-            false,
-            spend_vv,
-        ).unwrap();
+        let (payment2, _) = aggr_wallet
+            .spend(
+                &params,
+                &verification_key,
+                &user_keypair.secret_key(),
+                &pay_info2,
+                false,
+                spend_vv,
+            )
+            .unwrap();
 
         assert!(payment2
             .spend_verify(&params, &verification_key, &pay_info2)
             .unwrap());
 
-        let identify_result = identify(&params, &verification_key, payment1, payment2, pay_info1.clone(), pay_info2.clone()).unwrap();
-        assert_eq!(identify_result, IdentifyResult::DoubleSpendingPublicKeys(user_keypair.public_key()));
+        let identify_result = identify(
+            &params,
+            &verification_key,
+            payment1,
+            payment2,
+            pay_info1.clone(),
+            pay_info2.clone(),
+        )
+        .unwrap();
+        assert_eq!(
+            identify_result,
+            IdentifyResult::DoubleSpendingPublicKeys(user_keypair.public_key())
+        );
     }
 
     #[test]
@@ -317,7 +380,8 @@ mod tests {
             .map(|keypair| keypair.verification_key())
             .collect();
 
-        let verification_key = aggregate_verification_keys(&verification_keys_auth, Some(&[1, 2, 3])).unwrap();
+        let verification_key =
+            aggregate_verification_keys(&verification_keys_auth, Some(&[1, 2, 3])).unwrap();
 
         let mut wallet_blinded_signatures = Vec::new();
         for auth_keypair in authorities_keypairs {
@@ -331,11 +395,11 @@ mod tests {
         }
 
         let unblinded_wallet_shares: Vec<PartialWallet> = izip!(
-        wallet_blinded_signatures.iter(),
-        verification_keys_auth.iter()
-    )
-            .map(|(w, vk)| issue_verify(&grp, vk, &user_keypair.secret_key(), w, &req_info).unwrap())
-            .collect();
+            wallet_blinded_signatures.iter(),
+            verification_keys_auth.iter()
+        )
+        .map(|(w, vk)| issue_verify(&grp, vk, &user_keypair.secret_key(), w, &req_info).unwrap())
+        .collect();
 
         // Aggregate partial wallets
         let aggr_wallet = aggregate_wallets(
@@ -344,20 +408,23 @@ mod tests {
             &user_keypair.secret_key(),
             &unblinded_wallet_shares,
             &req_info,
-        ).unwrap();
+        )
+        .unwrap();
 
         // Let's try to spend some coins
         let pay_info1 = PayInfo { payinfo: [6u8; 88] };
         let spend_vv = 10;
 
-        let (payment1, _) = aggr_wallet.spend(
-            &params,
-            &verification_key,
-            &user_keypair.secret_key(),
-            &pay_info1,
-            false,
-            spend_vv,
-        ).unwrap();
+        let (payment1, _) = aggr_wallet
+            .spend(
+                &params,
+                &verification_key,
+                &user_keypair.secret_key(),
+                &pay_info1,
+                false,
+                spend_vv,
+            )
+            .unwrap();
 
         assert!(payment1
             .spend_verify(&params, &verification_key, &pay_info1)
@@ -368,17 +435,29 @@ mod tests {
         aggr_wallet.l.set(current_l - 10);
 
         let pay_info2 = PayInfo { payinfo: [7u8; 88] };
-        let (payment2, _) = aggr_wallet.spend(
+        let (payment2, _) = aggr_wallet
+            .spend(
+                &params,
+                &verification_key,
+                &user_keypair.secret_key(),
+                &pay_info2,
+                false,
+                spend_vv,
+            )
+            .unwrap();
+
+        let identify_result = identify(
             &params,
             &verification_key,
-            &user_keypair.secret_key(),
-            &pay_info2,
-            false,
-            spend_vv,
-        ).unwrap();
-
-
-        let identify_result = identify(&params, &verification_key, payment1, payment2, pay_info1.clone(), pay_info2.clone()).unwrap();
-        assert_eq!(identify_result, IdentifyResult::DoubleSpendingPublicKeys(user_keypair.public_key()));
+            payment1,
+            payment2,
+            pay_info1.clone(),
+            pay_info2.clone(),
+        )
+        .unwrap();
+        assert_eq!(
+            identify_result,
+            IdentifyResult::DoubleSpendingPublicKeys(user_keypair.public_key())
+        );
     }
 }

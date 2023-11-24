@@ -6,8 +6,8 @@ use crate::proofs::proof_withdrawal::{
     WithdrawalReqInstance, WithdrawalReqProof, WithdrawalReqWitness,
 };
 use crate::scheme::keygen::{PublicKeyUser, SecretKeyAuth, SecretKeyUser, VerificationKeyAuth};
-use crate::scheme::PartialWallet;
 use crate::scheme::setup::GroupParameters;
+use crate::scheme::PartialWallet;
 use crate::utils::{check_bilinear_pairing, hash_g1, try_deserialize_g1_projective};
 use crate::utils::{BlindedSignature, Signature};
 
@@ -20,13 +20,14 @@ pub struct WithdrawalRequest {
 }
 
 impl WithdrawalRequest {
-    pub fn to_bytes(&self) -> Vec<u8>{
+    pub fn to_bytes(&self) -> Vec<u8> {
         let com_hash_bytes = self.com_hash.to_affine().to_compressed();
         let com_bytes = self.com.to_affine().to_compressed();
         let pr_coms_len = self.pc_coms.len() as u64;
         let zk_proof_bytes = self.zk_proof.to_bytes();
 
-        let mut bytes = Vec::with_capacity(48 + 48 + 8 + pr_coms_len as usize * 48 + zk_proof_bytes.len());
+        let mut bytes =
+            Vec::with_capacity(48 + 48 + 8 + pr_coms_len as usize * 48 + zk_proof_bytes.len());
         bytes.extend_from_slice(&com_hash_bytes);
         bytes.extend_from_slice(&com_bytes);
         bytes.extend_from_slice(&pr_coms_len.to_le_bytes());
@@ -37,7 +38,6 @@ impl WithdrawalRequest {
         bytes.extend_from_slice(&zk_proof_bytes);
 
         bytes
-
     }
 }
 
@@ -45,7 +45,7 @@ impl TryFrom<&[u8]> for WithdrawalRequest {
     type Error = CompactEcashError;
 
     fn try_from(bytes: &[u8]) -> Result<WithdrawalRequest> {
-        if bytes.len() < 48 + 48 + 8 + 48{
+        if bytes.len() < 48 + 48 + 8 + 48 {
             return Err(CompactEcashError::DeserializationMinLength {
                 min: 48 + 48 + 8 + 48,
                 actual: bytes.len(),
@@ -100,7 +100,7 @@ impl TryFrom<&[u8]> for WithdrawalRequest {
 
         let zk_proof = WithdrawalReqProof::try_from(&bytes[j + pc_len as usize * 48..])?;
 
-        Ok(WithdrawalRequest{
+        Ok(WithdrawalRequest {
             com_hash,
             com,
             pc_coms,
@@ -142,10 +142,10 @@ pub fn withdrawal_request(
     let com_opening = params.random_scalar();
     let com = params.gen1() * com_opening
         + attributes
-        .iter()
-        .zip(gammas)
-        .map(|(&m, gamma)| gamma * m)
-        .sum::<G1Projective>();
+            .iter()
+            .zip(gammas)
+            .map(|(&m, gamma)| gamma * m)
+            .sum::<G1Projective>();
 
     // Value h in the paper
     let com_hash = hash_g1(com.to_bytes());
@@ -286,4 +286,3 @@ pub fn issue_verify(
         idx: None,
     })
 }
-

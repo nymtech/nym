@@ -153,55 +153,36 @@ pub fn sign_coin_indices(
 ) -> Vec<PartialCoinIndexSignature> {
     let m1: Scalar = Scalar::from_bytes(&constants::TYPE_IDX).unwrap();
     let m2: Scalar = Scalar::from_bytes(&constants::TYPE_IDX).unwrap();
-    let mut partial_coins_signatures = Vec::with_capacity(params.L() as usize);
-    for l in 0..params.L(){
-        let m0: Scalar = Scalar::from(l as u64);
-        // Compute the hash h
-        let mut concatenated_bytes =
-            Vec::with_capacity(vk.to_bytes().len() + l.to_le_bytes().len());
-        concatenated_bytes.extend_from_slice(&vk.to_bytes());
-        concatenated_bytes.extend_from_slice(&l.to_le_bytes());
-        let h = hash_g1(concatenated_bytes);
+    (0..params.L())
+        .into_par_iter()
+        .fold(
+            || Vec::with_capacity(params.L() as usize),
+            |mut partial_coins_signatures, l| {
+                let m0: Scalar = Scalar::from(l as u64);
+                // Compute the hash h
+                let mut concatenated_bytes =
+                    Vec::with_capacity(vk.to_bytes().len() + l.to_le_bytes().len());
+                concatenated_bytes.extend_from_slice(&vk.to_bytes());
+                concatenated_bytes.extend_from_slice(&l.to_le_bytes());
+                let h = hash_g1(concatenated_bytes);
 
-        // Sign the attributes by performing scalar-point multiplications and accumulating the result
-        let mut s_exponent = sk_auth.x;
-        s_exponent += &sk_auth.ys[0] * m0;
-        s_exponent += &sk_auth.ys[1] * m1;
-        s_exponent += &sk_auth.ys[2] * m2;
-        // Create the signature struct of on the coin index
-        let coin_idx_sign = CoinIndexSignature {
-            h,
-            s: h * s_exponent,
-        };
-        partial_coins_signatures.push(coin_idx_sign);
-    }
-    partial_coins_signatures
-    // // Initialize a vector to collect the (partial) coin signatures
-    // let mut partial_coins_signatures = Vec::with_capacity(params.L() as usize);
-    //
-    // partial_coins_signatures.par_iter_mut()
-    //     .enumerate()
-    //     .for_each(|(l, coin_idx_sign)| {
-    //         let m0: Scalar = Scalar::from(l as u64);
-    //         // Compute the hash h
-    //         let mut concatenated_bytes =
-    //             Vec::with_capacity(vk.to_bytes().len() + l.to_le_bytes().len());
-    //         concatenated_bytes.extend_from_slice(&vk.to_bytes());
-    //         concatenated_bytes.extend_from_slice(&l.to_le_bytes());
-    //         let h = hash_g1(concatenated_bytes);
-    //
-    //         // Sign the attributes by performing scalar-point multiplications and accumulating the result
-    //         let mut s_exponent = sk_auth.x;
-    //         s_exponent += &sk_auth.ys[0] * m0;
-    //         s_exponent += &sk_auth.ys[1] * m1;
-    //         s_exponent += &sk_auth.ys[2] * m2;
-    //         // Create the signature struct of on the coin index
-    //         *coin_idx_sign = CoinIndexSignature {
-    //             h,
-    //             s: h * s_exponent,
-    //         };
-    //     });
-    // partial_coins_signatures
+                // Sign the attributes
+                let mut s_exponent = sk_auth.x;
+                s_exponent += &sk_auth.ys[0] * m0;
+                s_exponent += &sk_auth.ys[1] * m1;
+                s_exponent += &sk_auth.ys[2] * m2;
+
+                // Create the signature struct
+                let coin_idx_sign = PartialCoinIndexSignature { h, s: h * s_exponent };
+                partial_coins_signatures.push(coin_idx_sign);
+
+                partial_coins_signatures
+            },
+        )
+        .reduce(Vec::new, |mut v1, mut v2| {
+            v1.append(&mut v2);
+            v1
+        })
 }
 
 pub fn verify_coin_indices_signatures(
@@ -213,70 +194,55 @@ pub fn verify_coin_indices_signatures(
     let m1: Scalar = Scalar::from_bytes(&constants::TYPE_IDX).unwrap();
     let m2: Scalar = Scalar::from_bytes(&constants::TYPE_IDX).unwrap();
 
-    for (l, sig) in signatures.iter().enumerate() {
-            let m0: Scalar = Scalar::from(l as u64);
-                // Compute the hash h
-                let mut concatenated_bytes =
-                    Vec::with_capacity(vk.to_bytes().len() + l.to_le_bytes().len());
-                concatenated_bytes.extend_from_slice(&vk.to_bytes());
-                concatenated_bytes.extend_from_slice(&l.to_le_bytes());
-                let h = hash_g1(concatenated_bytes);
-                // Check if the hash is matching
-                if sig.h != h {
-                    return Err(CompactEcashError::CoinIndices(
-                        "Failed to verify the commitment hash".to_string(),
-                    ));
-                }
-                let partially_signed_attributes = [m0, m1, m2]
-                    .iter()
-                    .zip(vk_auth.beta_g2.iter())
-                    .map(|(m, beta_i)| beta_i * Scalar::from(*m))
-                    .sum::<G2Projective>();
+    // Precompute concatenated_bytes for each l
+    let concatenated_bytes_list: Vec<Vec<u8>> = signatures
+        .iter()
+        .enumerate()
+        .map(|(l, _)| {
+            let mut concatenated_bytes =
+                Vec::with_capacity(vk.to_bytes().len() + l.to_le_bytes().len());
+            concatenated_bytes.extend_from_slice(&vk.to_bytes());
+            concatenated_bytes.extend_from_slice(&(l as u64).to_le_bytes());
+            concatenated_bytes
+        })
+        .collect();
+    // Create a vector of m0 values
+    let m0_values: Vec<Scalar> = (0..signatures.len() as u64).map(Scalar::from).collect();
 
-                if !check_bilinear_pairing(
-                    &sig.h.to_affine(),
-                    &G2Prepared::from((vk_auth.alpha + partially_signed_attributes).to_affine()),
-                    &sig.s.to_affine(),
-                    params.grp().prepared_miller_g2(),
-                ) {
-                    return Err(CompactEcashError::CoinIndices(
-                        "Verification of the coin signature failed".to_string(),
-                    ));
-                }
-    }
+    // Verify signatures using precomputed concatenated_bytes and m0 values
+    m0_values
+        .par_iter()
+        .zip(signatures.par_iter().zip(concatenated_bytes_list.par_iter()))
+        .enumerate()
+        .try_for_each(|(l, (m0, (sig, concatenated_bytes)))| {
+            // Compute the hash h
+            let h = hash_g1(concatenated_bytes.clone());
+            // Check if the hash is matching
+            if sig.h != h {
+                return Err(CompactEcashError::CoinIndices(
+                    "Failed to verify the commitment hash".to_string(),
+                ));
+            }
+            let partially_signed_attributes = [*m0, m1, m2]
+                .iter()
+                .zip(vk_auth.beta_g2.iter())
+                .map(|(m, beta_i)| beta_i * Scalar::from(*m))
+                .sum::<G2Projective>();
+
+            if !check_bilinear_pairing(
+                &sig.h.to_affine(),
+                &G2Prepared::from((vk_auth.alpha + partially_signed_attributes).to_affine()),
+                &sig.s.to_affine(),
+                params.grp().prepared_miller_g2(),
+            ) {
+                return Err(CompactEcashError::CoinIndices(
+                    "Verification of the coin signature failed".to_string(),
+                ));
+            }
+            Ok(())
+        })?;
+
     Ok(())
-    // signatures.par_iter().enumerate().try_for_each(|(l, sig)| {
-    //     let m0: Scalar = Scalar::from(l as u64);
-    //         // Compute the hash h
-    //         let mut concatenated_bytes =
-    //             Vec::with_capacity(vk.to_bytes().len() + l.to_le_bytes().len());
-    //         concatenated_bytes.extend_from_slice(&vk.to_bytes());
-    //         concatenated_bytes.extend_from_slice(&l.to_le_bytes());
-    //         let h = hash_g1(concatenated_bytes);
-    //         // Check if the hash is matching
-    //         if sig.h != h {
-    //             return Err(CompactEcashError::CoinIndices(
-    //                 "Failed to verify the commitment hash".to_string(),
-    //             ));
-    //         }
-    //         let partially_signed_attributes = [m0, m1, m2]
-    //             .iter()
-    //             .zip(vk_auth.beta_g2.iter())
-    //             .map(|(m, beta_i)| beta_i * Scalar::from(*m))
-    //             .sum::<G2Projective>();
-    //
-    //         if !check_bilinear_pairing(
-    //             &sig.h.to_affine(),
-    //             &G2Prepared::from((vk_auth.alpha + partially_signed_attributes).to_affine()),
-    //             &sig.s.to_affine(),
-    //             params.grp().prepared_miller_g2(),
-    //         ) {
-    //             return Err(CompactEcashError::CoinIndices(
-    //                 "Verification of the coin signature failed".to_string(),
-    //             ));
-    //         }
-    //     Ok(())
-    // })
 }
 
 pub fn aggregate_indices_signatures(

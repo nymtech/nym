@@ -17,6 +17,7 @@ pub struct ContractsInfo {
     pub dkg_epoch: Epoch,
     pub threshold: Option<u64>,
     pub dealers: Vec<DealerDetails>,
+    pub past_dealers: Vec<DealerDetails>,
     pub dkg_state: DkgState,
 
     // group details
@@ -37,7 +38,7 @@ pub enum Action {
     ToggleShowHelp,
     StartInput,
     ScheduleContractRefresh,
-    RefreshDkgContract(ContractsInfo),
+    RefreshDkgContract(Box<ContractsInfo>),
     ProcessInput(String),
     EnterNormal,
     EnterCW4AddMember,

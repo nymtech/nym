@@ -3,7 +3,7 @@
 
 use crate::action::ContractsInfo;
 use crate::cli::Args;
-use futures::future::{join3, join4};
+use futures::future::{join3, join5};
 use nym_coconut_dkg_common::types::Addr;
 use nym_network_defaults::NymNetworkDetails;
 use nym_validator_client::nyxd::contract_traits::{
@@ -84,9 +84,17 @@ impl NyxdClient {
         let epoch_fut = guard.get_current_epoch();
         let threshold_fut = guard.get_current_epoch_threshold();
         let dealers_fut = guard.get_all_current_dealers();
+        let past_dealers_fut = guard.get_all_past_dealers();
         let state_fut = guard.get_dkg_state();
 
-        let dkg_futs = join4(epoch_fut, threshold_fut, dealers_fut, state_fut).await;
+        let dkg_futs = join5(
+            epoch_fut,
+            threshold_fut,
+            dealers_fut,
+            past_dealers_fut,
+            state_fut,
+        )
+        .await;
 
         let group_admin_fut = guard.admin();
         let group_member_fut = guard.get_all_members();
@@ -98,7 +106,8 @@ impl NyxdClient {
             dkg_epoch: dkg_futs.0?,
             threshold: dkg_futs.1?,
             dealers: dkg_futs.2?,
-            dkg_state: dkg_futs.3?,
+            past_dealers: dkg_futs.3?,
+            dkg_state: dkg_futs.4?,
             group_admin: group_futs.0?,
             group_members: group_futs.1?,
             total_weight: group_futs.2?,

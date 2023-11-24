@@ -180,7 +180,7 @@ impl Home {
             tx.send(Action::EnterProcessing).unwrap();
             match client.get_dkg_update().await {
                 Ok(info) => {
-                    tx.send(Action::RefreshDkgContract(info)).unwrap();
+                    tx.send(Action::RefreshDkgContract(Box::new(info))).unwrap();
                 }
                 Err(err) => {
                     error!("failed to get dkg updates: {err}")
@@ -351,6 +351,33 @@ impl Home {
             lines.push(Span::styled("NO DKG DEALERS", Style::default().red().bold()).into())
         }
 
+        if !info.past_dealers.is_empty() {
+            lines.push(Span::styled("Past Dkg Dealers", Style::default().bold()).into());
+            for dealer in &info.past_dealers {
+                let key_start = if dealer.bte_public_key_with_proof.len() < 16 {
+                    dealer.bte_public_key_with_proof.clone()
+                } else {
+                    format!("{}...", &dealer.bte_public_key_with_proof[..16])
+                };
+
+                lines.push(Line::from(vec![
+                    Span::styled(format!("{}: ", dealer.address), Style::default().bold()),
+                    "\tindex: ".into(),
+                    Span::styled(
+                        format!("{}", dealer.assigned_index),
+                        Style::default().bold().yellow(),
+                    ),
+                    "\t announce address: ".into(),
+                    Span::styled(
+                        dealer.announce_address.to_string(),
+                        Style::default().bold().yellow(),
+                    ),
+                    "\t BTE key: ".into(),
+                    Span::styled(key_start, Style::default().bold().yellow()),
+                ]))
+            }
+        }
+
         lines
     }
 
@@ -497,7 +524,7 @@ impl Component for Home {
             Action::Render => self.render_tick(),
             Action::ToggleShowHelp => self.show_help = !self.show_help,
             Action::ScheduleContractRefresh => self.schedule_contract_refresh(),
-            Action::RefreshDkgContract(update_info) => self.refresh_dkg_contract_info(update_info),
+            Action::RefreshDkgContract(update_info) => self.refresh_dkg_contract_info(*update_info),
             Action::ProcessInput(s) => self.handle_input(s),
             Action::EnterNormal => {
                 self.mode = InputState::Normal;

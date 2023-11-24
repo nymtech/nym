@@ -188,6 +188,13 @@ pub fn aggregate_expiration_signatures(
             .collect::<Vec<_>>(),
     );
 
+    // Verify that all signatures are valid
+    signatures
+        .par_iter()
+        .try_for_each(|(_, vk_auth, partial_signatures)| {
+            verify_valid_dates_signatures(params, vk_auth, partial_signatures, expiration_date)
+        })?;
+
     // Pre-allocate vectors
     let mut aggregated_date_signatures: Vec<ExpirationDateSignature> =
         Vec::with_capacity(constants::VALIDITY_PERIOD as usize);
@@ -198,12 +205,6 @@ pub fn aggregate_expiration_signatures(
         let m1: Scalar = Scalar::from(expiration_date - constants::VALIDITY_PERIOD + l);
         // Compute the hash
         let h = hash_g1([m0.to_bytes(), m1.to_bytes(), m2.to_bytes()].concat());
-
-        signatures
-            .par_iter()
-            .try_for_each(|(_, vk_auth, partial_signatures)| {
-                verify_valid_dates_signatures(params, vk_auth, partial_signatures, expiration_date)
-            })?;
 
         // Collect the partial signatures for the same valid date
         let collected_at_l: Vec<_> = signatures

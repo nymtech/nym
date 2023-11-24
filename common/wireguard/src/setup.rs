@@ -9,7 +9,7 @@ pub const WG_ADDRESS: &str = "0.0.0.0";
 
 // The private key of the listener
 // Corresponding public key: "WM8s8bYegwMa0TJ+xIwhk+dImk2IpDUKslDBCZPizlE="
-const PRIVATE_KEY: &str = "AEqXrLFT4qjYq3wmX0456iv94uM6nDj5ugp6Jedcflg=";
+pub(crate) const PRIVATE_KEY: &str = "AEqXrLFT4qjYq3wmX0456iv94uM6nDj5ugp6Jedcflg=";
 
 // The AllowedIPs for the connected peer, which is one a single IP and the same as the IP that the
 // peer has configured on their side.

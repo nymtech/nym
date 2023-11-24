@@ -20,6 +20,7 @@ bincode = "1.3.3"
 #boringtun = "0.6.0"
 boringtun = { workspace = true }
 bytes = "1.5.0"
+defguard_wireguard_rs = { path = "../../../wireguard-rs" }
 dashmap = "5.5.3"
 etherparse = "0.13.0"
 futures = "0.3.28"

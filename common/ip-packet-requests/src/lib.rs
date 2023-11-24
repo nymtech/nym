@@ -5,6 +5,12 @@ use serde::{Deserialize, Serialize};
 
 pub const CURRENT_VERSION: u8 = 1;
 
+fn generate_random() -> u64 {
+    use rand::RngCore;
+    let mut rng = rand::rngs::OsRng;
+    rng.next_u64()
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct IpPacketRequest {
     pub version: u8,
@@ -21,6 +27,7 @@ impl IpPacketRequest {
         Self {
             version: CURRENT_VERSION,
             data: IpPacketRequestData::StaticConnect(StaticConnectRequest {
+                request_id: generate_random(),
                 ip,
                 reply_to,
                 reply_to_hops,
@@ -37,6 +44,7 @@ impl IpPacketRequest {
         Self {
             version: CURRENT_VERSION,
             data: IpPacketRequestData::DynamicConnect(DynamicConnectRequest {
+                request_id: generate_random(),
                 reply_to,
                 reply_to_hops,
                 reply_to_avg_mix_delays,
@@ -48,6 +56,14 @@ impl IpPacketRequest {
         Self {
             version: CURRENT_VERSION,
             data: IpPacketRequestData::Data(DataRequest { ip_packet }),
+        }
+    }
+
+    pub fn recipient(&self) -> Option<&Recipient> {
+        match &self.data {
+            IpPacketRequestData::StaticConnect(request) => Some(&request.reply_to),
+            IpPacketRequestData::DynamicConnect(request) => Some(&request.reply_to),
+            IpPacketRequestData::Data(_) => None,
         }
     }
 
@@ -74,6 +90,7 @@ pub enum IpPacketRequestData {
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct StaticConnectRequest {
+    pub request_id: u64,
     pub ip: IpAddr,
     pub reply_to: Recipient,
     pub reply_to_hops: Option<u8>,
@@ -82,6 +99,7 @@ pub struct StaticConnectRequest {
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct DynamicConnectRequest {
+    pub request_id: u64,
     pub reply_to: Recipient,
     pub reply_to_hops: Option<u8>,
     pub reply_to_avg_mix_delays: Option<f64>,
@@ -101,33 +119,47 @@ pub struct IpPacketResponse {
 }
 
 impl IpPacketResponse {
-    pub fn new_static_connect_success() -> Self {
+    pub fn new_static_connect_success(request_id: u64, reply_to: Recipient) -> Self {
         Self {
             version: CURRENT_VERSION,
-            data: IpPacketResponseData::StaticConnect(StaticConnectResponse::Success),
+            data: IpPacketResponseData::StaticConnect(StaticConnectResponse {
+                request_id,
+                reply_to,
+                reply: StaticConnectResponseReply::Success,
+            }),
         }
     }
 
-    pub fn new_static_connect_failure() -> Self {
+    pub fn new_static_connect_failure(request_id: u64, reply_to: Recipient) -> Self {
         Self {
             version: CURRENT_VERSION,
-            data: IpPacketResponseData::StaticConnect(StaticConnectResponse::Failure),
+            data: IpPacketResponseData::StaticConnect(StaticConnectResponse {
+                request_id,
+                reply_to,
+                reply: StaticConnectResponseReply::Failure,
+            }),
         }
     }
 
-    pub fn new_dynamic_connect_success(ip: IpAddr) -> Self {
+    pub fn new_dynamic_connect_success(request_id: u64, reply_to: Recipient, ip: IpAddr) -> Self {
         Self {
             version: CURRENT_VERSION,
-            data: IpPacketResponseData::DynamicConnect(DynamicConnectResponse::Success(
-                DynamicConnectSuccess { ip },
-            )),
+            data: IpPacketResponseData::DynamicConnect(DynamicConnectResponse {
+                request_id,
+                reply_to,
+                reply: DynamicConnectResponseReply::Success(DynamicConnectSuccess { ip }),
+            }),
         }
     }
 
-    pub fn new_dynamic_connect_failure() -> Self {
+    pub fn new_dynamic_connect_failure(request_id: u64, reply_to: Recipient) -> Self {
         Self {
             version: CURRENT_VERSION,
-            data: IpPacketResponseData::DynamicConnect(DynamicConnectResponse::Failure),
+            data: IpPacketResponseData::DynamicConnect(DynamicConnectResponse {
+                request_id,
+                reply_to,
+                reply: DynamicConnectResponseReply::Failure,
+            }),
         }
     }
 
@@ -135,6 +167,14 @@ impl IpPacketResponse {
         Self {
             version: CURRENT_VERSION,
             data: IpPacketResponseData::Data(DataResponse { ip_packet }),
+        }
+    }
+
+    pub fn recipient(&self) -> Option<&Recipient> {
+        match &self.data {
+            IpPacketResponseData::StaticConnect(response) => Some(&response.reply_to),
+            IpPacketResponseData::DynamicConnect(response) => Some(&response.reply_to),
+            IpPacketResponseData::Data(_) => None,
         }
     }
 
@@ -160,13 +200,27 @@ pub enum IpPacketResponseData {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub enum StaticConnectResponse {
+pub struct StaticConnectResponse {
+    pub request_id: u64,
+    pub reply_to: Recipient,
+    pub reply: StaticConnectResponseReply,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum StaticConnectResponseReply {
     Success,
     Failure,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub enum DynamicConnectResponse {
+pub struct DynamicConnectResponse {
+    pub request_id: u64,
+    pub reply_to: Recipient,
+    pub reply: DynamicConnectResponseReply,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum DynamicConnectResponseReply {
     Success(DynamicConnectSuccess),
     Failure,
 }
@@ -234,6 +288,7 @@ mod tests {
             version: 4,
             data: IpPacketRequestData::StaticConnect(
                 StaticConnectRequest {
+                    request_id: 123,
                     ip: IpAddr::from([10, 0, 0, 1]),
                     reply_to: Recipient::try_from_base58_string("D1rrpsysCGCYXy9saP8y3kmNpGtJZUXN9SvFoUcqAsM9.9Ssso1ea5NfkbMASdiseDSjTN1fSWda5SgEVjdSN4CvV@GJqd3ZxpXWSNxTfx7B1pPtswpetH4LnJdFeLeuY5KUuN").unwrap(),
                     reply_to_hops: None,
@@ -245,7 +300,7 @@ mod tests {
         // dbg!(&connect);
         // dbg!(&connect.to_bytes().unwrap());
         // dbg!(&connect.to_bytes().unwrap().len());
-        assert_eq!(connect.to_bytes().unwrap().len(), 106);
+        assert_eq!(connect.to_bytes().unwrap().len(), 107);
     }
 
     #[test]

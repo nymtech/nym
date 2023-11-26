@@ -7,7 +7,7 @@ use crate::action::Action;
 use crate::app::App;
 use crate::cli::Args;
 
-use crate::utils::initialize_panic_handler;
+use crate::utils::{initialise_logger, initialize_panic_handler};
 use clap::Parser;
 use ratatui::layout::Rect;
 use tokio::sync::mpsc::UnboundedReceiver;
@@ -25,6 +25,7 @@ pub mod utils;
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     initialize_panic_handler()?;
+    initialise_logger();
 
     let args = Args::parse();
     nym_network_defaults::setup_env(args.config_env_file.as_ref());

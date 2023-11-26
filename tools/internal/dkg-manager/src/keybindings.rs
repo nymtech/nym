@@ -6,6 +6,7 @@ use crate::{action::Action, app::Mode};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use std::collections::HashMap;
 use std::ops::Deref;
+use tui_logger::TuiWidgetEvent;
 
 #[derive(Clone, Debug)]
 pub struct KeyBindings(pub HashMap<Mode, HashMap<Vec<KeyEvent>, Action>>);
@@ -21,28 +22,58 @@ impl Deref for KeyBindings {
 impl Default for KeyBindings {
     fn default() -> Self {
         let mut inner_home = HashMap::new();
+        let mut inner_logger = HashMap::new();
 
-        // egh. this panic is fine, it's just an internal tool based on flaky example
-        // inner_home.insert(parse_key_sequence("<q>").unwrap(), Action::Quit);
+        // those are disgusting but can't be bothered to refactor it for global keybindings
+        // GLOBAL:
+        inner_home.insert(unchecked_keys("<tab>"), Action::NextTab);
+        inner_logger.insert(unchecked_keys("<tab>"), Action::NextTab);
+
+        inner_home.insert(unchecked_keys("<Ctrl-d>"), Action::Quit);
+        inner_home.insert(unchecked_keys("<Ctrl-c>"), Action::Quit);
+        inner_logger.insert(unchecked_keys("<Ctrl-d>"), Action::Quit);
+        inner_logger.insert(unchecked_keys("<Ctrl-c>"), Action::Quit);
+
+        // HOME
         inner_home.insert(
-            parse_key_sequence("<Ctrl-h>").unwrap(),
-            Action::HomeAction(HomeAction::ToggleShowHelp),
+            unchecked_keys("<Ctrl-h>"),
+            HomeAction::ToggleShowHelp.into(),
         );
         inner_home.insert(
-            parse_key_sequence("<Ctrl-r>").unwrap(),
-            Action::HomeAction(HomeAction::ScheduleContractRefresh),
+            unchecked_keys("<Ctrl-r>"),
+            HomeAction::ScheduleContractRefresh.into(),
         );
-        inner_home.insert(
-            parse_key_sequence("</>").unwrap(),
-            Action::HomeAction(HomeAction::StartInput),
+        inner_home.insert(unchecked_keys("</>"), HomeAction::StartInput.into());
+
+        // LOGGER
+        inner_logger.insert(unchecked_keys("<space>"), TuiWidgetEvent::SpaceKey.into());
+        inner_logger.insert(unchecked_keys("<esc>"), TuiWidgetEvent::EscapeKey.into());
+        inner_logger.insert(
+            unchecked_keys("<pageup>"),
+            TuiWidgetEvent::PrevPageKey.into(),
         );
-        inner_home.insert(parse_key_sequence("<Ctrl-d>").unwrap(), Action::Quit);
-        inner_home.insert(parse_key_sequence("<Ctrl-c>").unwrap(), Action::Quit);
+        inner_logger.insert(
+            unchecked_keys("<pagedown>"),
+            TuiWidgetEvent::NextPageKey.into(),
+        );
+        inner_logger.insert(unchecked_keys("<up>"), TuiWidgetEvent::UpKey.into());
+        inner_logger.insert(unchecked_keys("<down>"), TuiWidgetEvent::DownKey.into());
+        inner_logger.insert(unchecked_keys("<left>"), TuiWidgetEvent::LeftKey.into());
+        inner_logger.insert(unchecked_keys("<right>"), TuiWidgetEvent::RightKey.into());
+        inner_logger.insert(unchecked_keys("<+>"), TuiWidgetEvent::PlusKey.into());
+        inner_logger.insert(unchecked_keys("<->"), TuiWidgetEvent::MinusKey.into());
+        inner_logger.insert(unchecked_keys("<h>"), TuiWidgetEvent::HideKey.into());
+        inner_logger.insert(unchecked_keys("<f>"), TuiWidgetEvent::FocusKey.into());
 
         let mut inner = HashMap::new();
         inner.insert(Mode::Home, inner_home);
+        inner.insert(Mode::Logger, inner_logger);
         KeyBindings(inner)
     }
+}
+
+fn unchecked_keys(raw: &str) -> Vec<KeyEvent> {
+    parse_key_sequence(raw).expect("failed to parse the key sequence")
 }
 
 pub fn parse_key_sequence(raw: &str) -> Result<Vec<KeyEvent>, String> {

@@ -3,6 +3,9 @@
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use tracing::error;
+use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::util::SubscriberInitExt;
+use tracing_subscriber::{EnvFilter, Layer};
 
 pub fn key_event_to_string(key_event: &KeyEvent) -> String {
     let char;
@@ -104,4 +107,16 @@ pub fn initialize_panic_handler() -> anyhow::Result<()> {
         std::process::exit(1);
     }));
     Ok(())
+}
+
+pub fn initialise_logger() {
+    // tui_logger::set_default_level(log::LevelFilter::Trace);
+
+    let filter: EnvFilter = "trace,mio=warn,hyper=warn,tendermint_rpc=warn"
+        .parse()
+        .unwrap();
+
+    tracing_subscriber::registry()
+        .with(tui_logger::tracing_subscriber_layer().with_filter(filter))
+        .init();
 }

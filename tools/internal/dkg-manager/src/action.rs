@@ -5,12 +5,11 @@ use crate::nyxd::DkgState;
 use nym_coconut_dkg_common::dealer::{ContractDealing, DealerDetails};
 use nym_coconut_dkg_common::types::Epoch;
 use nym_validator_client::nyxd::{cw4, cw_controllers};
-use serde::{
-    Serialize,
-};
+use serde::{Serialize, Serializer};
 
 use tokio::sync::mpsc::error::SendError;
 use tokio::sync::mpsc::UnboundedSender;
+use tui_logger::TuiWidgetEvent;
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct ContractsInfo {
@@ -32,8 +31,29 @@ pub struct ContractsInfo {
 pub enum Action {
     Quit,
     Error(String),
+    NextTab,
+    PreviousTab,
 
     HomeAction(HomeAction),
+    LoggerAction(LoggerAction),
+}
+
+impl From<HomeAction> for Action {
+    fn from(value: HomeAction) -> Self {
+        Action::HomeAction(value)
+    }
+}
+
+impl From<LoggerAction> for Action {
+    fn from(value: LoggerAction) -> Self {
+        Action::LoggerAction(value)
+    }
+}
+
+impl From<TuiWidgetEvent> for Action {
+    fn from(value: TuiWidgetEvent) -> Self {
+        LoggerAction::WidgetKeyEvent(value).into()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -53,6 +73,20 @@ pub enum HomeAction {
 
     EnterProcessing,
     ExitProcessing,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum LoggerAction {
+    WidgetKeyEvent(TuiWidgetEvent),
+}
+
+impl Serialize for LoggerAction {
+    fn serialize<S>(&self, _serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        todo!()
+    }
 }
 
 #[derive(Clone)]

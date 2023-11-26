@@ -14,7 +14,7 @@ use std::{collections::HashMap, time::Duration};
 use time::format_description::well_known::Rfc3339;
 use time::OffsetDateTime;
 use tokio::time::Instant;
-use tracing::{debug, error, info};
+use tracing::error;
 use tui_input::{backend::crossterm::EventHandler, Input};
 
 pub(crate) mod utils;
@@ -134,7 +134,6 @@ impl Home {
     }
 
     pub fn tick(&mut self) {
-        info!("Tick");
         let state_end = OffsetDateTime::from_unix_timestamp(
             self.dkg_info.dkg_epoch.finish_timestamp.seconds() as i64,
         )
@@ -153,7 +152,6 @@ impl Home {
     }
 
     pub fn render_tick(&mut self) {
-        debug!("Render Tick");
         self.render_ticker = self.render_ticker.saturating_add(1);
     }
 

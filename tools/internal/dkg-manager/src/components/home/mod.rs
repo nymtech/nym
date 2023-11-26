@@ -3,15 +3,16 @@
 
 use super::{Component, Frame};
 use crate::action::ContractsInfo;
-use crate::components::home::utils::{cw4_members_header, format_cw4_member, format_dealer, format_dealing, format_time_configuration};
+use crate::action::{Action, ActionSender};
+use crate::components::home::utils::{
+    cw4_members_header, format_cw4_member, format_dealer, format_dealing, format_time_configuration,
+};
 use crate::nyxd::NyxdClient;
-use crate::{action::Action, utils::key_event_to_string};
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::{prelude::*, widgets::*};
 use std::{collections::HashMap, time::Duration};
 use time::format_description::well_known::Rfc3339;
 use time::OffsetDateTime;
-use tokio::sync::mpsc::UnboundedSender;
 use tokio::time::Instant;
 use tracing::{debug, error, info};
 use tui_input::{backend::crossterm::EventHandler, Input};
@@ -94,14 +95,13 @@ pub struct Home {
 
     pub mode: InputState,
     pub input: Input,
-    pub action_tx: Option<UnboundedSender<Action>>,
+    pub action_tx: ActionSender,
     pub keymap: HashMap<KeyEvent, Action>,
-    pub last_events: Vec<KeyEvent>,
     pub last_contract_update: Instant,
 }
 
 impl Home {
-    pub async fn new(nyxd_client: NyxdClient) -> anyhow::Result<Self> {
+    pub async fn new(nyxd_client: NyxdClient, action_tx: ActionSender) -> anyhow::Result<Self> {
         let dkg_contract_address = nyxd_client.dkg_contract().await?.to_string();
 
         let group_contract_address = nyxd_client.group_contract().await?.to_string();
@@ -119,9 +119,8 @@ impl Home {
             nyxd_client,
             mode: Default::default(),
             input: Default::default(),
-            action_tx: None,
+            action_tx,
             keymap: Default::default(),
-            last_events: vec![],
             dkg_info: initial_info,
             last_contract_update: Instant::now(),
             manager_address,
@@ -151,7 +150,6 @@ impl Home {
             self.schedule_contract_refresh()
         }
         self.app_ticker = self.app_ticker.saturating_add(1);
-        self.last_events.drain(..);
     }
 
     pub fn render_tick(&mut self) {
@@ -194,7 +192,7 @@ impl Home {
     }
 
     pub fn schedule_call_advance_epoch_state(&self) {
-        let tx = self.action_tx.clone().unwrap();
+        let tx = self.action_tx.clone();
         let client = self.nyxd_client.clone();
 
         tokio::spawn(async move {
@@ -215,7 +213,7 @@ impl Home {
     }
 
     pub fn schedule_call_surpassed_threshold(&self) {
-        let tx = self.action_tx.clone().unwrap();
+        let tx = self.action_tx.clone();
         let client = self.nyxd_client.clone();
 
         tokio::spawn(async move {
@@ -236,7 +234,7 @@ impl Home {
     }
 
     pub fn schedule_add_cw4_member(&self, member_address: String, member_weight_raw: String) {
-        let tx = self.action_tx.clone().unwrap();
+        let tx = self.action_tx.clone();
         let client = self.nyxd_client.clone();
 
         tokio::spawn(async move {
@@ -261,7 +259,7 @@ impl Home {
     }
 
     pub fn schedule_remove_cw4_member(&self, member_address: String) {
-        let tx = self.action_tx.clone().unwrap();
+        let tx = self.action_tx.clone();
         let client = self.nyxd_client.clone();
 
         tokio::spawn(async move {
@@ -282,7 +280,7 @@ impl Home {
     }
 
     pub fn schedule_contract_refresh(&self) {
-        let tx = self.action_tx.clone().unwrap();
+        let tx = self.action_tx.clone();
         let client = self.nyxd_client.clone();
         tokio::spawn(async move {
             tx.send(Action::EnterProcessing).unwrap();
@@ -404,10 +402,10 @@ impl Home {
             }
             lines.push("".into());
         }
-        
+
         if !info.epoch_dealings.is_empty() {
             lines.push(Span::styled("Epoch dealings", Style::default().bold()).into());
-            
+
             for dealing in &info.epoch_dealings {
                 lines.push(format_dealing(dealing))
             }
@@ -525,22 +523,6 @@ impl Home {
             )
     }
 
-    fn history_widget(&self) -> Block {
-        Block::default()
-            .title(
-                ratatui::widgets::block::Title::from(format!(
-                    "{:?}",
-                    &self
-                        .last_events
-                        .iter()
-                        .map(key_event_to_string)
-                        .collect::<Vec<_>>()
-                ))
-                .alignment(Alignment::Right),
-            )
-            .title_style(Style::default().add_modifier(Modifier::BOLD))
-    }
-
     fn help_table(&self) -> Table {
         let rows = vec![
             Row::new(vec!["/", "Enter Input"]),
@@ -563,13 +545,7 @@ impl Home {
 }
 
 impl Component for Home {
-    fn register_action_handler(&mut self, tx: UnboundedSender<Action>) -> anyhow::Result<()> {
-        self.action_tx = Some(tx);
-        Ok(())
-    }
-
     fn handle_key_events(&mut self, key: KeyEvent) -> anyhow::Result<Option<Action>> {
-        self.last_events.push(key);
         let action = match self.mode {
             InputState::Normal | InputState::Processing => return Ok(None),
             _ => match key.code {
@@ -589,7 +565,6 @@ impl Component for Home {
     fn update(&mut self, action: Action) -> anyhow::Result<Option<Action>> {
         match action {
             Action::Tick => self.tick(),
-            Action::Render => self.render_tick(),
             Action::ToggleShowHelp => self.show_help = !self.show_help,
             Action::ScheduleContractRefresh => self.schedule_contract_refresh(),
             Action::RefreshDkgContract(update_info) => self.refresh_dkg_contract_info(*update_info),
@@ -670,16 +645,6 @@ impl Component for Home {
                 }),
             );
         };
-
-        f.render_widget(
-            self.history_widget(),
-            Rect {
-                x: rect.x + 1,
-                y: rect.height.saturating_sub(1),
-                width: rect.width.saturating_sub(2),
-                height: 1,
-            },
-        );
 
         Ok(())
     }

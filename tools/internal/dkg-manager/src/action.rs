@@ -10,6 +10,8 @@ use serde::{
     Deserialize, Serialize,
 };
 use std::fmt;
+use tokio::sync::mpsc::error::SendError;
+use tokio::sync::mpsc::{UnboundedSender};
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct ContractsInfo {
@@ -30,7 +32,6 @@ pub struct ContractsInfo {
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub enum Action {
     Tick,
-    Render,
     Resize(u16, u16),
     Quit,
     Refresh,
@@ -54,6 +55,19 @@ pub enum Action {
     Update,
 }
 
+#[derive(Clone)]
+pub struct ActionSender(pub UnboundedSender<Action>);
+
+impl ActionSender {
+    pub fn send(&self, action: Action) -> Result<(), SendError<Action>> {
+        self.0.send(action)
+    }
+
+    pub fn unchecked_send(&self, action: Action) {
+        self.send(action).expect("failed to send action")
+    }
+}
+
 impl<'de> Deserialize<'de> for Action {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -74,7 +88,6 @@ impl<'de> Deserialize<'de> for Action {
             {
                 match value {
                     "Tick" => Ok(Action::Tick),
-                    "Render" => Ok(Action::Render),
                     "Quit" => Ok(Action::Quit),
                     "Refresh" => Ok(Action::Refresh),
                     "Help" => Ok(Action::Help),

@@ -23,9 +23,7 @@ use tracing::error;
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Event {
     Init,
-    Quit,
     Error,
-    Closed,
     Tick,
     Render,
     FocusGained,

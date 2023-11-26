@@ -27,6 +27,7 @@ time = "0.3.30"
 ratatui = { version = "0.24.0", features = ["serde", "macros"] }
 crossterm = { version = "0.27.0", features = ["serde", "event-stream"] }
 tui-input = { version = "0.8.0", features = ["serde"] }
+tui-logger = "0.9.6"
 
 # panic handler:
 better-panic = "0.3.0"

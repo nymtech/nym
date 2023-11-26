@@ -3,7 +3,7 @@
 
 use crate::action::ContractsInfo;
 use crate::cli::Args;
-use futures::future::{join3, join5};
+use futures::future::{join4, join5};
 use nym_coconut_dkg_common::types::Addr;
 use nym_network_defaults::NymNetworkDetails;
 use nym_validator_client::nyxd::contract_traits::{
@@ -96,21 +96,31 @@ impl NyxdClient {
         )
         .await;
 
+        let dkg_epoch = dkg_futs.0?;
+
+        let epoch_dealings_fut = guard.get_all_epoch_dealings(dkg_epoch.epoch_id);
         let group_admin_fut = guard.admin();
         let group_member_fut = guard.get_all_members();
         let group_total_fut = guard.total_weight(None);
 
-        let group_futs = join3(group_admin_fut, group_member_fut, group_total_fut).await;
+        let group_futs_with_dealings = join4(
+            group_admin_fut,
+            group_member_fut,
+            group_total_fut,
+            epoch_dealings_fut,
+        )
+        .await;
 
         Ok(ContractsInfo {
-            dkg_epoch: dkg_futs.0?,
+            dkg_epoch,
             threshold: dkg_futs.1?,
             dealers: dkg_futs.2?,
             past_dealers: dkg_futs.3?,
             dkg_state: dkg_futs.4?,
-            group_admin: group_futs.0?,
-            group_members: group_futs.1?,
-            total_weight: group_futs.2?,
+            group_admin: group_futs_with_dealings.0?,
+            group_members: group_futs_with_dealings.1?,
+            total_weight: group_futs_with_dealings.2?,
+            epoch_dealings: group_futs_with_dealings.3?,
         })
     }
 

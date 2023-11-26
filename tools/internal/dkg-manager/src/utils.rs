@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use tracing::error;
 
 pub fn key_event_to_string(key_event: &KeyEvent) -> String {
     let char;
@@ -64,4 +65,43 @@ pub fn key_event_to_string(key_event: &KeyEvent) -> String {
     key.push_str(key_code);
 
     key
+}
+
+pub fn initialize_panic_handler() -> anyhow::Result<()> {
+    let (panic_hook, eyre_hook) = color_eyre::config::HookBuilder::default()
+        .panic_section(format!(
+            "This is a bug. Consider reporting it at {}",
+            env!("CARGO_PKG_REPOSITORY")
+        ))
+        .display_location_section(true)
+        .display_env_section(true)
+        .into_hooks();
+    eyre_hook.install()?;
+    std::panic::set_hook(Box::new(move |panic_info| {
+        if let Ok(mut t) = crate::tui::Tui::new() {
+            if let Err(r) = t.exit() {
+                error!("Unable to exit Terminal: {:?}", r);
+            }
+        }
+
+        let msg = format!("{}", panic_hook.panic_report(panic_info));
+        #[cfg(not(debug_assertions))]
+        {
+            eprintln!("{}", msg); // prints color-eyre stack trace to stderr
+        }
+        error!("Error: {}", strip_ansi_escapes::strip_str(msg));
+
+        #[cfg(debug_assertions)]
+        {
+            // Better Panic stacktrace that is only enabled when debugging.
+            better_panic::Settings::auto()
+                .most_recent_first(false)
+                .lineno_suffix(true)
+                .verbosity(better_panic::Verbosity::Full)
+                .create_panic_handler()(panic_info);
+        }
+
+        std::process::exit(1);
+    }));
+    Ok(())
 }

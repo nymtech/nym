@@ -3,7 +3,7 @@
 
 use super::{Component, Frame};
 use crate::action::ContractsInfo;
-use crate::components::home::utils::format_dealer;
+use crate::components::home::utils::{cw4_members_header, format_cw4_member, format_dealer, format_dealing, format_time_configuration};
 use crate::nyxd::NyxdClient;
 use crate::{action::Action, utils::key_event_to_string};
 use crossterm::event::{KeyCode, KeyEvent};
@@ -359,52 +359,11 @@ impl Home {
                 " remaining)".into(),
             ]),
             "".into(),
-            // DKG config
-            Span::styled("Time Configuration", Style::default().bold()).into(),
-            Line::from(vec![
-                "Public Key Submission: ".into(),
-                Span::styled(
-                    format!("{}secs", tc.public_key_submission_time_secs),
-                    Style::default().yellow(),
-                ),
-            ]),
-            Line::from(vec![
-                "Dealing Exchange: ".into(),
-                Span::styled(
-                    format!("{}secs", tc.dealing_exchange_time_secs),
-                    Style::default().yellow(),
-                ),
-            ]),
-            Line::from(vec![
-                "Verification Key Submission: ".into(),
-                Span::styled(
-                    format!("{}secs", tc.verification_key_submission_time_secs),
-                    Style::default().yellow(),
-                ),
-            ]),
-            Line::from(vec![
-                "Verification Key Validation: ".into(),
-                Span::styled(
-                    format!("{}secs", tc.verification_key_validation_time_secs),
-                    Style::default().yellow(),
-                ),
-            ]),
-            Line::from(vec![
-                "Verification Key Finalization: ".into(),
-                Span::styled(
-                    format!("{}secs", tc.verification_key_finalization_time_secs),
-                    Style::default().yellow(),
-                ),
-            ]),
-            Line::from(vec![
-                "In Progress: ".into(),
-                Span::styled(
-                    format!("{}secs", tc.in_progress_time_secs),
-                    Style::default().yellow(),
-                ),
-            ]),
-            "".into(),
         ];
+
+        // DKG config
+        lines.append(&mut format_time_configuration(tc));
+        lines.push("".into());
 
         // DKG threshold
         if let Some(threshold) = self.dkg_info.threshold {
@@ -416,22 +375,9 @@ impl Home {
         }
 
         if !info.group_members.is_empty() {
-            lines.push(Line::from(vec![
-                Span::styled("CW4 Group Members", Style::default().bold()),
-                " (total weight: ".into(),
-                Span::styled(
-                    info.total_weight.weight.to_string(),
-                    Style::default().yellow().bold(),
-                ),
-                ")".into(),
-            ]));
+            lines.push(cw4_members_header(&info.total_weight));
             for member in &info.group_members {
-                lines.push(Line::from(vec![
-                    Span::styled(&member.addr, Style::default().bold()),
-                    " (weight: ".into(),
-                    Span::styled(member.weight.to_string(), Style::default().yellow()),
-                    ")".into(),
-                ]))
+                lines.push(format_cw4_member(member))
             }
         } else {
             lines.push(Span::styled("NO CW4 GROUP MEMBERS", Style::default().red().bold()).into())
@@ -449,11 +395,23 @@ impl Home {
             lines.push(Span::styled("NO DKG DEALERS", Style::default().red().bold()).into())
         }
 
+        lines.push("".into());
+
         if !info.past_dealers.is_empty() {
             lines.push(Span::styled("Past Dkg Dealers", Style::default().bold()).into());
             for dealer in &info.past_dealers {
                 lines.push(format_dealer(dealer))
             }
+            lines.push("".into());
+        }
+        
+        if !info.epoch_dealings.is_empty() {
+            lines.push(Span::styled("Epoch dealings", Style::default().bold()).into());
+            
+            for dealing in &info.epoch_dealings {
+                lines.push(format_dealing(dealing))
+            }
+            lines.push("".into());
         }
 
         if !self.last_contract_error_message.is_empty() {

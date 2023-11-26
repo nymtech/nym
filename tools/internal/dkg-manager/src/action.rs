@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::nyxd::DkgState;
-use nym_coconut_dkg_common::dealer::DealerDetails;
+use nym_coconut_dkg_common::dealer::{ContractDealing, DealerDetails};
 use nym_coconut_dkg_common::types::Epoch;
 use nym_validator_client::nyxd::{cw4, cw_controllers};
 use serde::{
@@ -18,6 +18,7 @@ pub struct ContractsInfo {
     pub threshold: Option<u64>,
     pub dealers: Vec<DealerDetails>,
     pub past_dealers: Vec<DealerDetails>,
+    pub epoch_dealings: Vec<ContractDealing>,
     pub dkg_state: DkgState,
 
     // group details

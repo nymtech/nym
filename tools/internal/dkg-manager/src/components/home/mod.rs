@@ -1,9 +1,9 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use super::{Component, Frame};
-use crate::action::ContractsInfo;
+use super::Frame;
 use crate::action::{Action, ActionSender};
+use crate::action::{ContractsInfo, HomeAction};
 use crate::components::home::utils::{
     cw4_members_header, format_cw4_member, format_dealer, format_dealing, format_time_configuration,
 };
@@ -197,18 +197,13 @@ impl Home {
 
         tokio::spawn(async move {
             match client.try_advance_epoch_state().await {
-                Ok(_) => {
-                    tx.send(Action::ScheduleContractRefresh).unwrap();
-                }
-                Err(err) => {
-                    tx.send(Action::SetLastContractError(format!(
-                        "failed to advance epoch state: {err}"
-                    )))
-                    .unwrap();
-                }
+                Ok(_) => tx.unchecked_send_home_action(HomeAction::ScheduleContractRefresh),
+                Err(err) => tx.unchecked_send_home_action(HomeAction::SetLastContractError(
+                    format!("failed to advance epoch state: {err}"),
+                )),
             }
 
-            tx.send(Action::ExitProcessing).unwrap();
+            tx.unchecked_send_home_action(HomeAction::ExitProcessing)
         });
     }
 
@@ -219,17 +214,14 @@ impl Home {
         tokio::spawn(async move {
             match client.try_surpass_threshold().await {
                 Ok(_) => {
-                    tx.send(Action::ScheduleContractRefresh).unwrap();
+                    tx.unchecked_send_home_action(HomeAction::ScheduleContractRefresh);
                 }
-                Err(err) => {
-                    tx.send(Action::SetLastContractError(format!(
-                        "failed to surpass threshold: {err}"
-                    )))
-                    .unwrap();
-                }
+                Err(err) => tx.unchecked_send_home_action(HomeAction::SetLastContractError(
+                    format!("failed to surpass threshold: {err}"),
+                )),
             }
 
-            tx.send(Action::ExitProcessing).unwrap();
+            tx.unchecked_send_home_action(HomeAction::ExitProcessing);
         });
     }
 
@@ -241,20 +233,17 @@ impl Home {
             if let Ok(weight) = member_weight_raw.parse() {
                 match client.add_group_member(member_address, weight).await {
                     Ok(_) => {
-                        tx.send(Action::ScheduleContractRefresh).unwrap();
+                        tx.unchecked_send_home_action(HomeAction::ScheduleContractRefresh);
                     }
-                    Err(err) => {
-                        tx.send(Action::SetLastContractError(format!(
-                            "failed to add group member: {err}"
-                        )))
-                        .unwrap();
-                    }
+                    Err(err) => tx.unchecked_send_home_action(HomeAction::SetLastContractError(
+                        format!("failed to add group member: {err}"),
+                    )),
                 }
             } else {
                 error!("could not parse '{member_weight_raw}' into a valid weight")
             }
 
-            tx.send(Action::ExitProcessing).unwrap();
+            tx.unchecked_send_home_action(HomeAction::ExitProcessing);
         });
     }
 
@@ -264,18 +253,13 @@ impl Home {
 
         tokio::spawn(async move {
             match client.remove_group_member(member_address).await {
-                Ok(_) => {
-                    tx.send(Action::ScheduleContractRefresh).unwrap();
-                }
-                Err(err) => {
-                    tx.send(Action::SetLastContractError(format!(
-                        "failed to remove group member: {err}"
-                    )))
-                    .unwrap();
-                }
+                Ok(_) => tx.unchecked_send_home_action(HomeAction::ScheduleContractRefresh),
+                Err(err) => tx.unchecked_send_home_action(HomeAction::SetLastContractError(
+                    format!("failed to remove group member: {err}"),
+                )),
             }
 
-            tx.send(Action::ExitProcessing).unwrap();
+            tx.unchecked_send_home_action(HomeAction::ExitProcessing)
         });
     }
 
@@ -283,17 +267,17 @@ impl Home {
         let tx = self.action_tx.clone();
         let client = self.nyxd_client.clone();
         tokio::spawn(async move {
-            tx.send(Action::EnterProcessing).unwrap();
+            tx.unchecked_send_home_action(HomeAction::EnterProcessing);
             match client.get_dkg_update().await {
                 Ok(info) => {
-                    tx.send(Action::RefreshDkgContract(Box::new(info))).unwrap();
+                    tx.unchecked_send_home_action(HomeAction::RefreshDkgContract(Box::new(info)))
                 }
                 Err(err) => {
                     error!("failed to get dkg updates: {err}")
                 }
             }
 
-            tx.send(Action::ExitProcessing).unwrap();
+            tx.unchecked_send_home_action(HomeAction::ExitProcessing)
         });
     }
 
@@ -542,39 +526,40 @@ impl Home {
             .widths(&[Constraint::Percentage(10), Constraint::Percentage(90)])
             .column_spacing(1)
     }
-}
 
-impl Component for Home {
-    fn handle_key_events(&mut self, key: KeyEvent) -> anyhow::Result<Option<Action>> {
+    pub fn handle_key_events(&mut self, key: KeyEvent) -> anyhow::Result<Option<Action>> {
         let action = match self.mode {
-            InputState::Normal | InputState::Processing => return Ok(None),
+            InputState::Normal | InputState::Processing => None,
             _ => match key.code {
-                KeyCode::Esc => Action::EnterNormal,
-                KeyCode::Enter => Action::ProcessInput(self.input.value().to_string()),
-                KeyCode::Left => Action::PreviousInputMode,
-                KeyCode::Right => Action::NextInputMode,
+                KeyCode::Esc => Some(Action::HomeAction(HomeAction::EnterNormal)),
+                KeyCode::Enter => Some(Action::HomeAction(HomeAction::ProcessInput(
+                    self.input.value().to_string(),
+                ))),
+                KeyCode::Left => Some(Action::HomeAction(HomeAction::PreviousInputMode)),
+                KeyCode::Right => Some(Action::HomeAction(HomeAction::NextInputMode)),
                 _ => {
                     self.input.handle_event(&crossterm::event::Event::Key(key));
-                    Action::Update
+                    None
                 }
             },
         };
-        Ok(Some(action))
+        Ok(action)
     }
 
-    fn update(&mut self, action: Action) -> anyhow::Result<Option<Action>> {
+    pub fn update(&mut self, action: HomeAction) -> anyhow::Result<Option<Action>> {
         match action {
-            Action::Tick => self.tick(),
-            Action::ToggleShowHelp => self.show_help = !self.show_help,
-            Action::ScheduleContractRefresh => self.schedule_contract_refresh(),
-            Action::RefreshDkgContract(update_info) => self.refresh_dkg_contract_info(*update_info),
-            Action::ProcessInput(s) => self.handle_input(s),
-            Action::SetLastContractError(err) => self.last_contract_error_message = err,
-            Action::EnterNormal => {
+            HomeAction::ToggleShowHelp => self.show_help = !self.show_help,
+            HomeAction::ScheduleContractRefresh => self.schedule_contract_refresh(),
+            HomeAction::RefreshDkgContract(update_info) => {
+                self.refresh_dkg_contract_info(*update_info)
+            }
+            HomeAction::ProcessInput(s) => self.handle_input(s),
+            HomeAction::SetLastContractError(err) => self.last_contract_error_message = err,
+            HomeAction::EnterNormal => {
                 self.mode = InputState::Normal;
                 self.last_contract_error_message = "".to_string();
             }
-            Action::StartInput => {
+            HomeAction::StartInput => {
                 // make sure we're not already in the input mode
                 if !self.mode.expects_user_input() {
                     self.mode = InputState::AddCW4Member {
@@ -582,19 +567,19 @@ impl Component for Home {
                     }
                 }
             }
-            Action::PreviousInputMode => {
+            HomeAction::PreviousInputMode => {
                 self.mode = self.mode.previous();
                 self.last_contract_error_message = "".to_string();
             }
-            Action::NextInputMode => {
+            HomeAction::NextInputMode => {
                 self.mode = self.mode.next();
                 self.last_contract_error_message = "".to_string();
             }
-            Action::EnterProcessing => {
+            HomeAction::EnterProcessing => {
                 self.mode = InputState::Processing;
                 self.last_contract_error_message = "".to_string();
             }
-            Action::ExitProcessing => {
+            HomeAction::ExitProcessing => {
                 self.mode = InputState::Normal;
             }
             _ => (),
@@ -602,7 +587,7 @@ impl Component for Home {
         Ok(None)
     }
 
-    fn draw(&mut self, f: &mut Frame<'_>, rect: Rect) -> anyhow::Result<()> {
+    pub fn draw(&mut self, f: &mut Frame<'_>, rect: Rect) -> anyhow::Result<()> {
         let rects = Layout::default()
             .constraints([Constraint::Percentage(100), Constraint::Min(3)].as_ref())
             .split(rect);

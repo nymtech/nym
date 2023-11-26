@@ -6,10 +6,7 @@ use crate::cli::Args;
 use crate::keybindings::KeyBindings;
 use crate::nyxd::setup_nyxd_client;
 use crate::utils::key_event_to_string;
-use crate::{
-    action::Action,
-    components::{home::Home, Component},
-};
+use crate::{action::Action, components::home::Home};
 use crossterm::event::KeyEvent;
 use ratatui::prelude::*;
 use ratatui::widgets::Block;
@@ -17,7 +14,7 @@ use ratatui::Frame;
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::UnboundedReceiver;
-use tracing::{debug, info};
+use tracing::{debug, error, info};
 
 #[derive(Default, Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Mode {
@@ -138,11 +135,19 @@ impl App {
     pub fn update(&mut self, action: Action) -> anyhow::Result<()> {
         debug!("handling action {action:?}");
 
-        if matches!(action, Action::Quit) {
-            self.should_quit = true
-        }
+        let next = match action {
+            Action::Quit => {
+                self.should_quit = true;
+                None
+            }
+            Action::Error(err) => {
+                error!("unhandled error action: {err}");
+                None
+            }
+            Action::HomeAction(home_action) => self.home.update(home_action)?,
+        };
 
-        if let Some(action) = self.home.update(action)? {
+        if let Some(action) = next {
             self.action_sender().send(action)?
         }
         Ok(())

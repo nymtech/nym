@@ -1,6 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::action::HomeAction;
 use crate::{action::Action, app::Mode};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use std::collections::HashMap;
@@ -25,13 +26,16 @@ impl Default for KeyBindings {
         // inner_home.insert(parse_key_sequence("<q>").unwrap(), Action::Quit);
         inner_home.insert(
             parse_key_sequence("<Ctrl-h>").unwrap(),
-            Action::ToggleShowHelp,
+            Action::HomeAction(HomeAction::ToggleShowHelp),
         );
         inner_home.insert(
             parse_key_sequence("<Ctrl-r>").unwrap(),
-            Action::ScheduleContractRefresh,
+            Action::HomeAction(HomeAction::ScheduleContractRefresh),
         );
-        inner_home.insert(parse_key_sequence("</>").unwrap(), Action::StartInput);
+        inner_home.insert(
+            parse_key_sequence("</>").unwrap(),
+            Action::HomeAction(HomeAction::StartInput),
+        );
         inner_home.insert(parse_key_sequence("<Ctrl-d>").unwrap(), Action::Quit);
         inner_home.insert(parse_key_sequence("<Ctrl-c>").unwrap(), Action::Quit);
 

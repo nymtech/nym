@@ -323,11 +323,20 @@ impl IpPacketRouter {
             Ipv4Addr::new(10, 0, 0, last_octet)
         }
 
+        fn is_ip_taken(
+            connected_clients: &HashMap<IpAddr, ConnectedClient>,
+            tun_ip: Ipv4Addr,
+            ip: Ipv4Addr,
+        ) -> bool {
+            connected_clients.contains_key(&ip.into()) || ip == tun_ip
+        }
+
         // TODO: brute force approach. We could consider using a more efficient algorithm
         fn find_new_ip(connected_clients: &HashMap<IpAddr, ConnectedClient>) -> Option<IpAddr> {
             let mut new_ip = generate_random_ip_within_subnet();
             let mut tries = 0;
-            while connected_clients.contains_key(&new_ip.into()) {
+            let tun_ip = TUN_DEVICE_ADDRESS.parse::<Ipv4Addr>().unwrap();
+            while is_ip_taken(connected_clients, tun_ip, new_ip) {
                 new_ip = generate_random_ip_within_subnet();
                 tries += 1;
                 if tries > 100 {

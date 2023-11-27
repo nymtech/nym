@@ -11,12 +11,12 @@ DIR=~/.nym
 
 # check for config directory
 if [ ! -d $DIR ]; then
-  echo "config dir doesn't exist: nothing to do (✿◠‿◠)"
+  echo "config dir doesn't exist: nothing to do"
 else
   echo "config dir exists - deleting"
   rm -rf $DIR
   if [ $? -ne 0 ]; then
-    echo "＼(｀0´)／ exit code was $0. looks like the something went wrong with deleting the directory"
+    echo "exit code was $0. looks like the something went wrong with deleting the directory"
     exit 1
   fi
 fi

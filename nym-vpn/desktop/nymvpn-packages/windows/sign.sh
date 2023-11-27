@@ -13,7 +13,7 @@ function sign_win {
         for i in $(seq 0 ${NUM_RETRIES}); do
             echo "Signing $binary..." 
             if $PWD/signtool/x64/signtool.exe sign \
-            -f "../../$CERT_FILE" -p $CERT_FILE_PASSWORD  \
+            -f $CERT_FILE -p $CERT_FILE_PASSWORD  \
             -tr http://timestamp.sectigo.com -td SHA256 -fd SHA256 \
             "$binary"
             then

@@ -4,19 +4,24 @@
 use super::Frame;
 use crate::action::{Action, ActionSender};
 use crate::action::{ContractsInfo, HomeAction};
-use crate::components::home::utils::{
-    cw4_members_header, format_cw4_member, format_dealer, format_dealing, format_time_configuration,
-};
+use crate::components::home::dealers_info::draw_current_dealers_info;
+use crate::components::home::dkg_info::draw_dkg_info;
+use crate::components::home::dkg_timeconfig::draw_dkg_timeconfig;
+use crate::components::home::group_info::draw_group_info;
 use crate::nyxd::NyxdClient;
 use crossterm::event::{KeyCode, KeyEvent};
 use ratatui::{prelude::*, widgets::*};
 use std::{collections::HashMap, time::Duration};
-use time::format_description::well_known::Rfc3339;
-use time::OffsetDateTime;
+use throbber_widgets_tui::ThrobberState;
 use tokio::time::Instant;
 use tracing::error;
 use tui_input::{backend::crossterm::EventHandler, Input};
+use url::Url;
 
+pub(crate) mod dealers_info;
+pub(crate) mod dkg_info;
+pub(crate) mod dkg_timeconfig;
+pub(crate) mod group_info;
 pub(crate) mod utils;
 
 pub const REFRESH_RATE: Duration = Duration::from_secs(60);
@@ -81,17 +86,15 @@ impl InputState {
 
 pub struct Home {
     pub show_help: bool,
-    pub counter: usize,
-    pub app_ticker: usize,
-    pub render_ticker: usize,
     pub last_contract_error_message: String,
+    pub refreshing: bool,
+    throbber_state: Option<throbber_widgets_tui::ThrobberState>,
 
     pub nyxd_client: NyxdClient,
     pub manager_address: String,
 
-    pub dkg_contract_address: String,
-    pub group_contract_address: String,
-    pub dkg_info: ContractsInfo,
+    pub contracts: ContractsInfo,
+    pub upstream: String,
 
     pub mode: InputState,
     pub input: Input,
@@ -101,30 +104,30 @@ pub struct Home {
 }
 
 impl Home {
-    pub async fn new(nyxd_client: NyxdClient, action_tx: ActionSender) -> anyhow::Result<Self> {
-        let dkg_contract_address = nyxd_client.dkg_contract().await?.to_string();
-
-        let group_contract_address = nyxd_client.group_contract().await?.to_string();
+    pub async fn new(
+        nyxd_client: NyxdClient,
+        upstream: Url,
+        action_tx: ActionSender,
+    ) -> anyhow::Result<Self> {
         let manager_address = nyxd_client.address().await.to_string();
 
-        let initial_info = nyxd_client.get_dkg_update().await?;
+        let contracts = nyxd_client.get_contract_update().await?;
 
         Ok(Home {
             show_help: false,
-            counter: 0,
-            app_ticker: 0,
-            render_ticker: 0,
-            dkg_contract_address,
-            group_contract_address,
+
             nyxd_client,
             mode: Default::default(),
             input: Default::default(),
             action_tx,
             keymap: Default::default(),
-            dkg_info: initial_info,
+            contracts,
             last_contract_update: Instant::now(),
             manager_address,
             last_contract_error_message: "".to_string(),
+            refreshing: false,
+            upstream: upstream.to_string(),
+            throbber_state: None,
         })
     }
 
@@ -134,26 +137,31 @@ impl Home {
     }
 
     pub fn tick(&mut self) {
-        let state_end = OffsetDateTime::from_unix_timestamp(
-            self.dkg_info.dkg_epoch.finish_timestamp.seconds() as i64,
-        )
-        .unwrap();
-        let until_epoch_state_end = state_end - OffsetDateTime::now_utc();
-        let epoch_should_move = until_epoch_state_end.as_seconds_f32() < -5.;
+        // let state_end = OffsetDateTime::from_unix_timestamp(
+        //     self.dkg_info.dkg_epoch.finish_timestamp.seconds() as i64,
+        // )
+        // .unwrap();
+        // let until_epoch_state_end = state_end - OffsetDateTime::now_utc();
+        // let epoch_should_move = until_epoch_state_end.as_seconds_f32() < -5.;
 
-        let should_refresh = !self.mode.expects_text_input()
-            && (self.last_contract_update.elapsed() >= REFRESH_RATE || epoch_should_move);
+        // let should_refresh = !self.mode.expects_text_input()
+        //     && (self.last_contract_update.elapsed() >= REFRESH_RATE || epoch_should_move);
 
-        if should_refresh {
+        let should_refresh =
+            !self.mode.expects_text_input() && self.last_contract_update.elapsed() >= REFRESH_RATE;
+
+        if should_refresh && !self.refreshing {
             self.last_contract_update = Instant::now();
+            self.refreshing = true;
             self.schedule_contract_refresh()
         }
-        self.app_ticker = self.app_ticker.saturating_add(1);
+
+        if let Some(throbber) = &mut self.throbber_state {
+            throbber.calc_next()
+        }
     }
 
-    pub fn render_tick(&mut self) {
-        self.render_ticker = self.render_ticker.saturating_add(1);
-    }
+    pub fn render_tick(&mut self) {}
 
     pub fn handle_input(&mut self, s: String) {
         match &self.mode {
@@ -266,7 +274,7 @@ impl Home {
         let client = self.nyxd_client.clone();
         tokio::spawn(async move {
             tx.unchecked_send_home_action(HomeAction::EnterProcessing);
-            match client.get_dkg_update().await {
+            match client.get_contract_update().await {
                 Ok(info) => {
                     tx.unchecked_send_home_action(HomeAction::RefreshDkgContract(Box::new(info)))
                 }
@@ -275,156 +283,70 @@ impl Home {
                 }
             }
 
-            tx.unchecked_send_home_action(HomeAction::ExitProcessing)
+            tx.unchecked_send_home_action(HomeAction::ExitProcessing);
+            tx.unchecked_send_home_action(HomeAction::FinishContractUpdate)
         });
     }
 
     pub fn refresh_dkg_contract_info(&mut self, update_info: ContractsInfo) {
-        self.dkg_info = update_info;
+        self.contracts = update_info;
     }
 
-    fn contracts_info_lines(&self) -> Vec<Line> {
-        let info = &self.dkg_info;
+    // fn contracts_info_lines(&self) -> Vec<Line> {
+    //     vec![]
+    //     //
+    //     // if !self.last_contract_error_message.is_empty() {
+    //     //     lines.push("".into());
+    //     //     lines.push("".into());
+    //     //     lines.push(Line::from(vec![
+    //     //         Span::styled(
+    //     //             "CONTRACT EXECUTION FAILURE: ",
+    //     //             Style::default().red().bold(),
+    //     //         ),
+    //     //         Span::styled(&self.last_contract_error_message, Style::default().white()),
+    //     //     ]))
+    //     // }
+    //     //
+    //     // lines
+    // }
 
-        let tc = info.dkg_epoch.time_configuration;
-        let end =
-            OffsetDateTime::from_unix_timestamp(info.dkg_epoch.finish_timestamp.seconds() as i64)
-                .unwrap();
+    fn draw_main_widget(&mut self, f: &mut Frame<'_>, rect: Rect) -> anyhow::Result<()> {
+        let info_chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints(vec![Constraint::Percentage(33), Constraint::Percentage(33)])
+            .split(rect);
 
-        let remaining = end - OffsetDateTime::now_utc();
-        let remaining_str = if remaining.is_negative() {
-            format!("-{} secs", remaining.whole_seconds())
-        } else {
-            format!("{} secs", remaining.whole_seconds())
-        };
+        let contract_chunks = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints(vec![
+                Constraint::Percentage(33),
+                Constraint::Percentage(33),
+                Constraint::Percentage(33),
+            ])
+            .split(info_chunks[0]);
 
-        let group_admin = match &info.group_admin.admin {
-            None => Span::styled("<no admin>", Style::default().light_red().bold()),
-            Some(admin) => self.admin_span(admin),
-        };
+        draw_group_info(
+            &self.contracts.group,
+            f,
+            contract_chunks[0],
+            self.matching_admin(),
+        )?;
+        draw_dkg_info(&self.contracts.dkg, f, contract_chunks[1])?;
+        draw_dkg_timeconfig(
+            self.contracts.dkg.epoch.time_configuration,
+            f,
+            contract_chunks[2],
+        )?;
 
-        let mut lines = vec![
-            // contract addresses
-            Line::from(vec![
-                "Dkg Contract is at: ".into(),
-                Span::styled(&self.dkg_contract_address, Style::default().yellow().bold()),
-            ]),
-            Line::from(vec![
-                "Group Contract is at: ".into(),
-                Span::styled(
-                    &self.group_contract_address,
-                    Style::default().yellow().bold(),
-                ),
-                " admin: ".into(),
-                group_admin,
-            ]),
-            Line::from(vec![
-                "Dkg Debug State: ".into(),
-                Span::styled(format!("{:?}", info.dkg_state), Style::default().dim()),
-            ]),
-            "".into(),
-            // DKG epoch state
-            Line::from(vec![
-                format!("DKG Epoch {} State: ", info.dkg_epoch.epoch_id).into(),
-                Span::styled(info.dkg_epoch.state.to_string(), Style::default().bold()),
-            ]),
-            Line::from(vec![
-                "End time: ".into(),
-                Span::styled(
-                    end.format(&Rfc3339).unwrap().to_string(),
-                    Style::default().bold(),
-                ),
-                " (".into(),
-                Span::styled(remaining_str, Style::default().light_green()),
-                " remaining)".into(),
-            ]),
-            "".into(),
-        ];
+        draw_current_dealers_info(&self.contracts.dkg, f, info_chunks[1])?;
 
-        // DKG config
-        lines.append(&mut format_time_configuration(tc));
-        lines.push("".into());
+        // f.render_widget(self.main_widget(), rects[1]);
 
-        // DKG threshold
-        if let Some(threshold) = self.dkg_info.threshold {
-            lines.push(Line::from(vec![
-                "Threshold: ".into(),
-                Span::styled(threshold.to_string(), Style::default().bold()),
-            ]));
-            lines.push("".into())
-        }
-
-        if !info.group_members.is_empty() {
-            lines.push(cw4_members_header(&info.total_weight));
-            for member in &info.group_members {
-                lines.push(format_cw4_member(member))
-            }
-        } else {
-            lines.push(Span::styled("NO CW4 GROUP MEMBERS", Style::default().red().bold()).into())
-        }
-
-        lines.push("".into());
-
-        // DKG dealers
-        if !info.dealers.is_empty() {
-            lines.push(Span::styled("Dkg Dealers", Style::default().bold()).into());
-            for dealer in &info.dealers {
-                lines.push(format_dealer(dealer))
-            }
-        } else {
-            lines.push(Span::styled("NO DKG DEALERS", Style::default().red().bold()).into())
-        }
-
-        lines.push("".into());
-
-        if !info.past_dealers.is_empty() {
-            lines.push(Span::styled("Past Dkg Dealers", Style::default().bold()).into());
-            for dealer in &info.past_dealers {
-                lines.push(format_dealer(dealer))
-            }
-            lines.push("".into());
-        }
-
-        if !info.epoch_dealings.is_empty() {
-            lines.push(Span::styled("Epoch dealings", Style::default().bold()).into());
-
-            for dealing in &info.epoch_dealings {
-                lines.push(format_dealing(dealing))
-            }
-            lines.push("".into());
-        }
-
-        if !self.last_contract_error_message.is_empty() {
-            lines.push("".into());
-            lines.push("".into());
-            lines.push(Line::from(vec![
-                Span::styled(
-                    "CONTRACT EXECUTION FAILURE: ",
-                    Style::default().red().bold(),
-                ),
-                Span::styled(&self.last_contract_error_message, Style::default().white()),
-            ]))
-        }
-
-        lines
-    }
-
-    fn main_widget(&self) -> Paragraph {
-        let mut text: Vec<Line> = Vec::new();
-        text.push("".into());
-        text.push(format!("[debug] Render Ticker: {}", self.render_ticker).into());
-        text.push(format!("[debug] App Ticker: {}", self.app_ticker).into());
-        text.push("".into());
-        text.append(&mut self.contracts_info_lines());
-
-        Paragraph::new(text)
-            .block(self.title_widget())
-            .style(Style::default().fg(Color::Cyan))
-            .alignment(Alignment::Center)
+        Ok(())
     }
 
     fn matching_admin(&self) -> bool {
-        if let Some(group_admin) = &self.dkg_info.group_admin.admin {
+        if let Some(group_admin) = &self.contracts.group.admin.admin {
             return group_admin == &self.manager_address;
         }
         false
@@ -444,7 +366,8 @@ impl Home {
             .title(Line::from(vec![
                 "Nym DKG Contract manager (managed via ".into(),
                 self.admin_span(&self.manager_address),
-                ")".into(),
+                ") @ ".into(),
+                Span::styled(&self.upstream, Style::new().light_blue()),
             ]))
             .title_alignment(Alignment::Center)
             .borders(Borders::ALL)
@@ -575,33 +498,85 @@ impl Home {
             }
             HomeAction::EnterProcessing => {
                 self.mode = InputState::Processing;
+                self.throbber_state = Some(ThrobberState::default());
                 self.last_contract_error_message = "".to_string();
             }
             HomeAction::ExitProcessing => {
                 self.mode = InputState::Normal;
+                self.throbber_state = None;
             }
-            _ => (),
+            HomeAction::FinishContractUpdate => {
+                self.refreshing = false;
+            }
         }
         Ok(None)
     }
 
     pub fn draw(&mut self, f: &mut Frame<'_>, rect: Rect) -> anyhow::Result<()> {
+        let block = self.title_widget();
+        let inner_area = block.inner(rect);
+        f.render_widget(block, rect);
+
         let rects = Layout::default()
-            .constraints([Constraint::Percentage(100), Constraint::Min(3)].as_ref())
-            .split(rect);
+            .constraints(
+                [
+                    Constraint::Min(8),
+                    Constraint::Percentage(100),
+                    Constraint::Min(3),
+                ]
+                .as_ref(),
+            )
+            .split(inner_area);
 
-        f.render_widget(self.main_widget(), rects[0]);
+        let info_chunks = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints(vec![
+                Constraint::Percentage(25),
+                Constraint::Percentage(25),
+                Constraint::Percentage(25),
+                Constraint::Percentage(25),
+            ])
+            .split(rects[0]);
 
-        let width = rects[1].width.max(3) - 3; // keep 2 for borders and 1 for cursor
+        self.contracts.bandwidth.base.draw(f, info_chunks[0])?;
+        self.contracts.dkg.base.draw(f, info_chunks[1])?;
+        self.contracts.group.base.draw(f, info_chunks[2])?;
+        self.contracts.multisig.base.draw(f, info_chunks[3])?;
+
+        self.draw_main_widget(f, rects[1])?;
+
+        // old input logic (I haven't touched it yet)
+
+        let width = rects[2].width.max(3) - 3; // keep 2 for borders and 1 for cursor
         let scroll = self.input.visual_scroll(width as usize);
 
         let input = self.input_widget(scroll);
-        f.render_widget(input, rects[1]);
+        f.render_widget(input, rects[2]);
 
         if self.mode.expects_text_input() {
             f.set_cursor(
-                (rects[1].x + 1 + self.input.cursor() as u16).min(rects[1].x + rects[1].width - 2),
-                rects[1].y + 1,
+                (rects[2].x + 1 + self.input.cursor() as u16).min(rects[2].x + rects[2].width - 2),
+                rects[2].y + 1,
+            )
+        }
+
+        if let Some(throbber_state) = &mut self.throbber_state {
+            let full = throbber_widgets_tui::Throbber::default()
+                .label("Processing...")
+                .style(Style::default().yellow())
+                .throbber_style(Style::default().red().bold())
+                .throbber_set(throbber_widgets_tui::BRAILLE_SIX_DOUBLE)
+                .use_type(throbber_widgets_tui::WhichUse::Spin);
+
+            f.render_stateful_widget(
+                full,
+                Rect {
+                    x: rect.x + 2,
+                    y: rect.height,
+                    width: rect.width.saturating_sub(2),
+                    height: 1,
+                },
+                throbber_state,
             )
         }
 

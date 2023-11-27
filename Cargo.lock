@@ -2663,12 +2663,14 @@ dependencies = [
  "log",
  "nym-bin-common",
  "nym-coconut-dkg-common",
+ "nym-contracts-common",
  "nym-network-defaults",
  "nym-validator-client",
  "ratatui",
  "serde",
  "serde_json",
  "strip-ansi-escapes",
+ "throbber-widgets-tui",
  "time",
  "tokio",
  "tokio-util",
@@ -11028,6 +11030,16 @@ dependencies = [
  "log",
  "ordered-float",
  "threadpool",
+]
+
+[[package]]
+name = "throbber-widgets-tui"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ca72c6051548fa6a579d7040d1d5476b8c12412ecac7cb4b10e105d74010f5b5"
+dependencies = [
+ "rand 0.8.5",
+ "ratatui",
 ]
 
 [[package]]

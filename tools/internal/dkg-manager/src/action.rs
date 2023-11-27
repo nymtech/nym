@@ -7,24 +7,50 @@ use nym_coconut_dkg_common::types::Epoch;
 use nym_validator_client::nyxd::{cw4, cw_controllers};
 use serde::{Serialize, Serializer};
 
+use crate::components::basic_contract_info::BasicContractInfo;
+use nym_coconut_dkg_common::verification_key::ContractVKShare;
 use tokio::sync::mpsc::error::SendError;
 use tokio::sync::mpsc::UnboundedSender;
 use tui_logger::TuiWidgetEvent;
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct ContractsInfo {
-    // dkg details
-    pub dkg_epoch: Epoch,
+    pub dkg: DkgInfo,
+    pub group: GroupInfo,
+    pub bandwidth: BandwidthInfo,
+    pub multisig: MultisigInfo,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct DkgInfo {
+    pub base: BasicContractInfo,
+
+    pub debug_state: DkgState,
+    pub epoch: Epoch,
     pub threshold: Option<u64>,
     pub dealers: Vec<DealerDetails>,
     pub past_dealers: Vec<DealerDetails>,
     pub epoch_dealings: Vec<ContractDealing>,
-    pub dkg_state: DkgState,
+    pub vk_shares: Vec<ContractVKShare>,
+}
 
-    // group details
-    pub group_admin: cw_controllers::AdminResponse,
-    pub group_members: Vec<cw4::Member>,
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct GroupInfo {
+    pub base: BasicContractInfo,
+
+    pub admin: cw_controllers::AdminResponse,
+    pub members: Vec<cw4::Member>,
     pub total_weight: cw4::TotalWeightResponse,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct BandwidthInfo {
+    pub base: BasicContractInfo,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct MultisigInfo {
+    pub base: BasicContractInfo,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -65,14 +91,13 @@ pub enum HomeAction {
     ProcessInput(String),
     SetLastContractError(String),
     EnterNormal,
-    EnterCW4AddMember,
-    // EnterCW4AddMemberWeight { address: String },
-    // EnterCW4RemoveMember,
+
     NextInputMode,
     PreviousInputMode,
 
     EnterProcessing,
     ExitProcessing,
+    FinishContractUpdate,
 }
 
 #[derive(Debug, Clone, PartialEq)]

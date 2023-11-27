@@ -23,16 +23,20 @@ impl Default for KeyBindings {
     fn default() -> Self {
         let mut inner_home = HashMap::new();
         let mut inner_logger = HashMap::new();
+        let mut inner_chain = HashMap::new();
 
         // those are disgusting but can't be bothered to refactor it for global keybindings
         // GLOBAL:
         inner_home.insert(unchecked_keys("<tab>"), Action::NextTab);
         inner_logger.insert(unchecked_keys("<tab>"), Action::NextTab);
+        inner_chain.insert(unchecked_keys("<tab>"), Action::NextTab);
 
         inner_home.insert(unchecked_keys("<Ctrl-d>"), Action::Quit);
         inner_home.insert(unchecked_keys("<Ctrl-c>"), Action::Quit);
         inner_logger.insert(unchecked_keys("<Ctrl-d>"), Action::Quit);
         inner_logger.insert(unchecked_keys("<Ctrl-c>"), Action::Quit);
+        inner_chain.insert(unchecked_keys("<Ctrl-d>"), Action::Quit);
+        inner_chain.insert(unchecked_keys("<Ctrl-c>"), Action::Quit);
 
         // HOME
         inner_home.insert(
@@ -68,6 +72,7 @@ impl Default for KeyBindings {
         let mut inner = HashMap::new();
         inner.insert(Mode::Home, inner_home);
         inner.insert(Mode::Logger, inner_logger);
+        inner.insert(Mode::ChainHistory, inner_chain);
         KeyBindings(inner)
     }
 }

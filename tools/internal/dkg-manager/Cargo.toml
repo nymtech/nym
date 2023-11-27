@@ -30,6 +30,7 @@ ratatui = { version = "0.24.0", features = ["serde", "macros"] }
 crossterm = { version = "0.27.0", features = ["serde", "event-stream"] }
 tui-input = { version = "0.8.0", features = ["serde"] }
 tui-logger = { version = "0.10", features = ["tracing-support"] }
+throbber-widgets-tui = "0.3.0"
 
 # panic handler:
 better-panic = "0.3.0"
@@ -40,3 +41,5 @@ nym-validator-client = { path = "../../../common/client-libs/validator-client" }
 nym-bin-common = { path = "../../../common/bin-common" }
 nym-network-defaults = { path = "../../../common/network-defaults" }
 nym-coconut-dkg-common = { path = "../../../common/cosmwasm-smart-contracts/coconut-dkg" }
+nym-contracts-common = { path = "../../../common/cosmwasm-smart-contracts/contracts-common" }
+

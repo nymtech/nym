@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use nym_validator_client::nyxd::Coin;
 use tracing::error;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
@@ -119,4 +120,8 @@ pub fn initialise_logger() {
     tracing_subscriber::registry()
         .with(tui_logger::tracing_subscriber_layer().with_filter(filter))
         .init();
+}
+
+pub fn zero_coin() -> Coin {
+    Coin::new(0, "unym")
 }

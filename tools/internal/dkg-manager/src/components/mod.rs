@@ -3,5 +3,7 @@
 
 use ratatui::Frame;
 
+pub mod basic_contract_info;
+pub mod chain_history;
 pub mod home;
 pub mod logger;

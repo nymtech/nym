@@ -47,6 +47,8 @@ pub use cosmrs::Coin as CosmosCoin;
 pub use cosmrs::Gas;
 pub use cosmrs::{bip32, AccountId, Denom};
 pub use cosmwasm_std::Coin as CosmWasmCoin;
+pub use cw2;
+pub use cw3;
 pub use cw4;
 pub use cw_controllers;
 pub use fee::{gas_price::GasPrice, GasAdjustable, GasAdjustment};

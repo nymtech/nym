@@ -3,6 +3,7 @@
 
 use crate::action::ActionSender;
 use crate::cli::Args;
+use crate::components::chain_history::ContractChainHistory;
 use crate::components::logger::Logger;
 use crate::keybindings::KeyBindings;
 use crate::nyxd::setup_nyxd_client;
@@ -21,19 +22,33 @@ use tracing::{debug, error, info};
 pub enum Mode {
     #[default]
     Home,
-
+    ChainHistory,
     Logger,
 }
 
-pub enum Tab {
-    Home,
-    Logger,
+impl Mode {
+    pub fn next(&self) -> Self {
+        match self {
+            Mode::Home => Mode::ChainHistory,
+            Mode::ChainHistory => Mode::Logger,
+            Mode::Logger => Mode::Home,
+        }
+    }
+
+    pub fn previous(&self) -> Self {
+        match self {
+            Mode::Home => Mode::Logger,
+            Mode::ChainHistory => Mode::Home,
+            Mode::Logger => Mode::ChainHistory,
+        }
+    }
 }
 
 pub struct App {
     pub keybindings: KeyBindings,
     pub home: Home,
     pub logger: Logger,
+    pub chain_history: ContractChainHistory,
 
     pub action_tx: ActionSender,
 
@@ -48,14 +63,15 @@ pub struct App {
 
 impl App {
     pub async fn new(args: Args) -> anyhow::Result<(Self, UnboundedReceiver<Action>)> {
-        let nyxd_client = setup_nyxd_client(args)?;
+        let (nyxd_client, upstream) = setup_nyxd_client(args)?;
 
         let keybindings = KeyBindings::default();
 
         let (action_tx, action_rx) = mpsc::unbounded_channel();
         let action_sender = ActionSender(action_tx);
 
-        let home = Home::new(nyxd_client, action_sender.clone()).await?;
+        let home = Home::new(nyxd_client.clone(), upstream, action_sender.clone()).await?;
+        let chain_history = ContractChainHistory::new(nyxd_client);
         let logger = Logger::new();
 
         let mode = Mode::Home;
@@ -65,12 +81,17 @@ impl App {
                 home,
 
                 logger,
+                chain_history,
                 action_tx: action_sender,
                 should_quit: false,
                 mode,
                 last_tick_key_events: Vec::new(),
                 active_tab: 0,
-                tab_titles: vec!["🥥 Contract Information 🥥", "📝 Logs 📝"],
+                tab_titles: vec![
+                    "🥥 Contract Information 🥥",
+                    "🔗 Transactions 🔗",
+                    "📝 Logs 📝",
+                ],
             },
             action_rx,
         ))
@@ -79,12 +100,7 @@ impl App {
     pub fn next_tab(&mut self) {
         self.active_tab = (self.active_tab + 1) % self.tab_titles.len();
 
-        // TEMP: currently we have two modes so it's easy to keep track of it
-        if self.mode == Mode::Home {
-            self.mode = Mode::Logger
-        } else {
-            self.mode = Mode::Home
-        }
+        self.mode = self.mode.next();
     }
 
     pub fn previous_tab(&mut self) {
@@ -94,12 +110,7 @@ impl App {
             self.active_tab = self.tab_titles.len() - 1;
         }
 
-        // TEMP: currently we have two modes so it's easy to keep track of it
-        if self.mode == Mode::Home {
-            self.mode = Mode::Logger
-        } else {
-            self.mode = Mode::Home
-        }
+        self.mode = self.mode.previous();
     }
 
     pub fn action_sender(&self) -> ActionSender {
@@ -135,9 +146,8 @@ impl App {
                 self.home.render_tick();
                 self.home.draw(f, chunks[1])?;
             }
-            1 => {
-                self.logger.draw(f, chunks[1])?;
-            }
+            1 => self.chain_history.draw(f, chunks[1])?,
+            2 => self.logger.draw(f, chunks[1])?,
             _ => unreachable!(),
         };
 

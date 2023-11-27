@@ -11,11 +11,7 @@ Each directory contains a readme with more information about running and contrib
 * `build_all_to_dist.sh` is used by the `ci-dev.yml` and `cd-dev.yml` scripts for building all mdbook projects and moving the rendered html to `../dist/` to be rsynced with various servers. 
 * `post_process.sh` is a script called by the github CI and CD workflows to post process CSS/image/href links for serving several mdbooks from a subdirectory. 
 
-
-### Licensing and copyright information
-This is a monorepo and components that make up Nym as a system are licensed individually, so for accurate information, please check individual files.
-
-# Licensing
+## Licensing
 
 As a general approach, licensing is as follows this pattern:
 
@@ -25,4 +21,4 @@ As a general approach, licensing is as follows this pattern:
 
 * Used libraries and different components are [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0.html) or [MIT](https://mit-license.org/)
 
-Again, for accurate information, please check individual files.
+For accurate information, please check individual files.

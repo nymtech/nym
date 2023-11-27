@@ -4,6 +4,10 @@
 # Based on: Copyright (C) 2022 Mullvad VPN AB, GPL-3.0
 
 # Sign all binaries passed as arguments to this function
+# parent_path=$( cd "$(dirname "${BASH_SOURCE[0]}")" ; pwd -P )
+
+# cd "$parent_path"
+
 function sign_win {
     local NUM_RETRIES=3
 
@@ -13,7 +17,7 @@ function sign_win {
         for i in $(seq 0 ${NUM_RETRIES}); do
             echo "Signing $binary..." 
             if $PWD/signtool/x64/signtool.exe sign \
-            -f ../../../../$CERT_FILE -p $CERT_FILE_PASSWORD  \
+            -f $PWD/$CERT_FILE -p $CERT_FILE_PASSWORD  \
             -tr http://timestamp.sectigo.com -td SHA256 -fd SHA256 \
             "$binary"
             then

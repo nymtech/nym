@@ -13,4 +13,5 @@ Each directory contains a readme with more information about running and contrib
 * The following scripts are used by the `ci-dev.yml` and `cd-dev.yml` scripts:
   * `build_all_to_dist.sh` is used for building all mdbook projects and moving the rendered html to `../dist/` to be rsynced with various servers. 
   * `post_process.sh` is used to post process CSS/image/href links for serving several mdbooks from a subdirectory. 
-  * `removed_existing_config.sh` is used to remove existing nym client/node config files on the CI/CD server so avoid `mdbook-cmdrun` command errors.  
+
+[//]: # (  * `removed_existing_config.sh` is used to remove existing nym client/node config files on the CI/CD server so avoid `mdbook-cmdrun` command errors.  )

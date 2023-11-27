@@ -40,13 +40,19 @@ pub(crate) const UPGRADES_DIR: &str = "upgrades";
 pub(crate) const DEFAULT_NYMVISORS_DIR: &str = "nymvisors";
 pub(crate) const DEFAULT_NYMVISORS_INSTANCES_DIR: &str = "instances";
 
-/// Derive default path to the nymvisor's config directory.
-/// It should get resolved to `$HOME/.nym/nymvisor/instances/<id>/config`
-pub fn default_config_directory<P: AsRef<Path>>(id: P) -> PathBuf {
+/// Derive default path top the nymvisors instance directory.
+/// It should get resolved to `$HOME/.nym/nymvisor/instances`
+pub fn default_instances_directory() -> PathBuf {
     must_get_home()
         .join(NYM_DIR)
         .join(DEFAULT_NYMVISORS_DIR)
         .join(DEFAULT_NYMVISORS_INSTANCES_DIR)
+}
+
+/// Derive default path to the nymvisor's config directory.
+/// It should get resolved to `$HOME/.nym/nymvisor/instances/<id>/config`
+pub fn default_config_directory<P: AsRef<Path>>(id: P) -> PathBuf {
+    default_instances_directory()
         .join(id)
         .join(DEFAULT_CONFIG_DIR)
 }

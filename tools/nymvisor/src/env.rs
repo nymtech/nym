@@ -123,16 +123,6 @@ impl Env {
             config.daemon.debug.unsafe_skip_backup = daemon_unsafe_skip_backup;
         }
     }
-
-    pub(crate) fn try_nymvisor_id(&self) -> Result<String, NymvisorError> {
-        if let Some(nymvisor_id) = &self.nymvisor_id {
-            Ok(nymvisor_id.clone())
-        } else if let Some(daemon_name) = &self.daemon_name {
-            Ok(Config::default_id(daemon_name))
-        } else {
-            Err(NymvisorError::UnknownNymvisorInstance)
-        }
-    }
 }
 
 // TODO: all of those seem like they could be moved to some common crate if we ever needed similar functionality elsewhere

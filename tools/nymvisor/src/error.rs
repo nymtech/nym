@@ -282,9 +282,6 @@ While the stored info point to:\n{stored_info:#?}"
     #[error("the value of daemon home has to be provided by either `--daemon-home` flag or `$DAEMON_HOME` environmental variable")]
     DaemonHomeUnavailable,
 
-    #[error("could not identify nymvisor instance. please specify either $NYMVISOR_CONFIG_PATH, $NYMVISOR_ID or $DAEMON_NAME")]
-    UnknownNymvisorInstance,
-
     #[error("failed to obtain build information from the daemon executable ('{}'): {source}", binary_path.display())]
     DaemonBuildInformationFailure {
         binary_path: PathBuf,
@@ -409,6 +406,16 @@ While the stored info point to:\n{stored_info:#?}"
 
     #[error("the daemon restart on failure is disabled")]
     DisabledRestartOnFailure,
+
+    #[error("failed to read directory content of nymvisor instances at {}: {source}", path.display())]
+    InstancesReadFailure {
+        path: PathBuf,
+        #[source]
+        source: io::Error,
+    },
+
+    #[error("could not load the default config file as there isn't a single nymvisor instance initiated (there are {instances}). please specify either $NYMVISOR_CONFIG_PATH or $NYMVISOR_ID")]
+    NotSingleton { instances: usize },
 }
 
 impl From<ExitStatus> for NymvisorError {

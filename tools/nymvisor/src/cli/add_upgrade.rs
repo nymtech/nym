@@ -77,15 +77,12 @@ impl Args {
 }
 
 pub(crate) fn execute(args: Args) -> Result<(), NymvisorError> {
-    let mut env = Env::try_read()?;
+    let env = Env::try_read()?;
 
     let tmp_daemon = Daemon::new(&args.daemon_binary);
     tmp_daemon.verify_binary()?;
 
     let bin_info = tmp_daemon.get_build_information()?;
-    if env.daemon_name.is_none() {
-        env.daemon_name = Some(bin_info.binary_name.clone());
-    }
     let config = try_load_current_config(&env)?;
 
     let upgrade_info_path = config.upgrade_info_filepath(&args.upgrade_name);

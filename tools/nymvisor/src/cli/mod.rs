@@ -1,14 +1,15 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::config::{default_config_filepath, Config};
+use crate::config::{default_config_filepath, default_instances_directory, Config};
 use crate::env::{setup_env, Env};
 use crate::error::NymvisorError;
 use clap::{Parser, Subcommand};
 use lazy_static::lazy_static;
 use nym_bin_common::bin_info;
-use std::path::Path;
-use tracing::error;
+use nym_config::{DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME};
+use std::path::{Path, PathBuf};
+use tracing::{debug, error};
 
 mod add_upgrade;
 mod build_info;
@@ -77,11 +78,18 @@ pub(crate) enum Commands {
 fn open_config_file(env: &Env) -> Result<Config, NymvisorError> {
     let config_load_location = if let Some(config_path) = &env.nymvisor_config_path {
         config_path.clone()
+    } else if let Some(nymvisor_id) = &env.nymvisor_id {
+        // if no explicit path was provided in the environment, try to use the default one based on the nymvisor id
+        default_config_filepath(nymvisor_id)
     } else {
-        // if no explicit path was provided in the environment, try to infer it with other vars
-        let id = env.try_nymvisor_id()?;
-        default_config_filepath(id)
+        // finally, if all else fails, see if this is a singleton -> if so try to load the only instance
+        try_get_singleton_nymvisor_config_path()?
     };
+
+    debug!(
+        "attempting to load configuration file from {}",
+        config_load_location.display()
+    );
 
     if let Ok(cfg) = Config::read_from_toml_file(&config_load_location) {
         return Ok(cfg);
@@ -95,12 +103,46 @@ fn open_config_file(env: &Env) -> Result<Config, NymvisorError> {
         Err(source) => {
             error!("Failed to load config from {}. Are you sure you have run `init` before? (Error was: {source})", config_load_location.display());
             Err(NymvisorError::ConfigLoadFailure {
-                id: env.try_nymvisor_id().unwrap_or_default(),
+                id: env.nymvisor_id.clone().unwrap_or("UNKNOWN".to_string()),
                 path: config_load_location,
                 source,
             })
         }
     }
+}
+
+// attempt to get a path to nymvisor's config path if there is only a single instance
+pub(crate) fn try_get_singleton_nymvisor_config_path() -> Result<PathBuf, NymvisorError> {
+    let instances_dir = default_instances_directory();
+    let mut instances = instances_dir
+        .read_dir()
+        .map_err(|source| NymvisorError::InstancesReadFailure {
+            source,
+            path: instances_dir.clone(),
+        })?
+        .collect::<Vec<_>>();
+
+    if instances.len() != 1 {
+        return Err(NymvisorError::NotSingleton {
+            instances: instances.len(),
+        });
+    }
+
+    // safety: that unwrap is fine as we've just checked we have 1 entry in the vector
+    #[allow(clippy::unwrap_used)]
+    let instance_dir = instances
+        .pop()
+        .unwrap()
+        .map_err(|source| NymvisorError::InstancesReadFailure {
+            source,
+            path: instances_dir,
+        })?
+        .path();
+
+    // join the instance directory with `/config/config.toml`
+    Ok(instance_dir
+        .join(DEFAULT_CONFIG_DIR)
+        .join(DEFAULT_CONFIG_FILENAME))
 }
 
 pub(crate) fn try_load_current_config(env: &Env) -> Result<Config, NymvisorError> {

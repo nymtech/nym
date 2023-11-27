@@ -146,13 +146,17 @@ impl IpPacketResponse {
         }
     }
 
-    pub fn new_static_connect_failure(request_id: u64, reply_to: Recipient) -> Self {
+    pub fn new_static_connect_failure(
+        request_id: u64,
+        reply_to: Recipient,
+        reason: StaticConnectFailureReason,
+    ) -> Self {
         Self {
             version: CURRENT_VERSION,
             data: IpPacketResponseData::StaticConnect(StaticConnectResponse {
                 request_id,
                 reply_to,
-                reply: StaticConnectResponseReply::Failure,
+                reply: StaticConnectResponseReply::Failure(reason),
             }),
         }
     }
@@ -168,13 +172,17 @@ impl IpPacketResponse {
         }
     }
 
-    pub fn new_dynamic_connect_failure(request_id: u64, reply_to: Recipient) -> Self {
+    pub fn new_dynamic_connect_failure(
+        request_id: u64,
+        reply_to: Recipient,
+        reason: DynamicConnectFailureReason,
+    ) -> Self {
         Self {
             version: CURRENT_VERSION,
             data: IpPacketResponseData::DynamicConnect(DynamicConnectResponse {
                 request_id,
                 reply_to,
-                reply: DynamicConnectResponseReply::Failure,
+                reply: DynamicConnectResponseReply::Failure(reason),
             }),
         }
     }
@@ -233,15 +241,26 @@ pub struct StaticConnectResponse {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum StaticConnectResponseReply {
     Success,
-    Failure,
+    Failure(StaticConnectFailureReason),
 }
+
 impl StaticConnectResponseReply {
     pub fn is_success(&self) -> bool {
         match self {
             StaticConnectResponseReply::Success => true,
-            StaticConnectResponseReply::Failure => false,
+            StaticConnectResponseReply::Failure(_) => false,
         }
     }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, thiserror::Error)]
+pub enum StaticConnectFailureReason {
+    #[error("requested ip address is already in use")]
+    RequestedIpAlreadyInUse,
+    #[error("requested nym-address is already in use")]
+    RequestedNymAddressAlreadyInUse,
+    #[error("{0}")]
+    Other(String),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -254,12 +273,31 @@ pub struct DynamicConnectResponse {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum DynamicConnectResponseReply {
     Success(DynamicConnectSuccess),
-    Failure,
+    Failure(DynamicConnectFailureReason),
+}
+
+impl DynamicConnectResponseReply {
+    pub fn is_success(&self) -> bool {
+        match self {
+            DynamicConnectResponseReply::Success(_) => true,
+            DynamicConnectResponseReply::Failure(_) => false,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct DynamicConnectSuccess {
     pub ip: IpAddr,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, thiserror::Error)]
+pub enum DynamicConnectFailureReason {
+    #[error("requested nym-address is already in use")]
+    RequestedNymAddressAlreadyInUse,
+    #[error("no available ip address")]
+    NoAvailableIp,
+    #[error("{0}")]
+    Other(String),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

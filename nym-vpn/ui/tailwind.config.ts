@@ -38,6 +38,7 @@ export default {
       // [D] main titles text
       // [D] connection timer text
       // [D] "Connecting" status text
+      // [L] bg for top-bar nav
       // [L] bg for network modes
       // [L] button text
       white: '#FFF',

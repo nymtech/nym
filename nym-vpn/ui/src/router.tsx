@@ -1,9 +1,10 @@
 import { createBrowserRouter } from 'react-router-dom';
 import { Error, Home, NavLayout, NodeLocation, Settings } from './pages';
+import { routes } from './constants';
 
 const router = createBrowserRouter([
   {
-    path: '/',
+    path: routes.root,
     element: <NavLayout />,
     children: [
       {
@@ -12,18 +13,18 @@ const router = createBrowserRouter([
         index: true,
       },
       {
-        path: '/settings',
+        path: routes.settings,
         element: <Settings />,
         errorElement: <Error />,
       },
       {
-        path: '/entry-node-location',
+        path: routes.entryNodeLocation,
         // eslint-disable-next-line react/jsx-no-undef
         element: <NodeLocation node="entry" />,
         errorElement: <Error />,
       },
       {
-        path: '/exit-node-location',
+        path: routes.exitNodeLocation,
         element: <NodeLocation node="exit" />,
         errorElement: <Error />,
       },

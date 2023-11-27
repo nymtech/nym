@@ -1,15 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import clsx from 'clsx';
-import { AppName } from '../constants';
-
-export type Props = {
-  children?: React.ReactNode;
-};
-
-type Routes = '' | 'settings' | 'entry-node-location' | 'exit-node-location';
-type RoutePaths = `/${Routes}`;
+import { AppName, routes } from '../constants';
+import { Routes } from '../types';
 
 type NavLocation = {
   title: string;
@@ -20,7 +13,7 @@ type NavLocation = {
 };
 
 type NavBarData = {
-  [key in RoutePaths]: NavLocation;
+  [key in Routes]: NavLocation;
 };
 
 export default function TopBar() {
@@ -32,7 +25,7 @@ export default function TopBar() {
     title: AppName,
     rightIcon: 'settings',
     handleRightNav: () => {
-      navigate('/settings');
+      navigate(routes.settings);
     },
   });
 
@@ -42,7 +35,7 @@ export default function TopBar() {
         title: AppName,
         rightIcon: 'settings',
         handleRightNav: () => {
-          navigate('/settings');
+          navigate(routes.settings);
         },
       },
       '/settings': {
@@ -70,24 +63,32 @@ export default function TopBar() {
   }, [t, navigate]);
 
   useEffect(() => {
-    setCurrentNavLocation(navBarData[location.pathname as RoutePaths]);
+    setCurrentNavLocation(navBarData[location.pathname as Routes]);
   }, [location.pathname, navBarData]);
 
   return (
-    <nav className="flex dark:bg-baltic-sea-jaguar">
-      {currentNavLocation?.leftIcon && (
-        <button className={clsx([])} onClick={currentNavLocation.handleLeftNav}>
-          <span className="font-icon">{currentNavLocation.leftIcon}</span>
+    <nav className="flex flex-row flex-nowrap justify-between items-center bg-white text-baltic-sea dark:bg-baltic-sea-jaguar dark:text-mercury-pinkish h-16 text-xl">
+      {currentNavLocation?.leftIcon ? (
+        <button className="w-6 mx-4" onClick={currentNavLocation.handleLeftNav}>
+          <span className="font-icon text-2xl">
+            {currentNavLocation.leftIcon}
+          </span>
         </button>
+      ) : (
+        <div className="w-6 mx-4" />
       )}
-      {currentNavLocation.title}
-      {currentNavLocation?.rightIcon && (
+      <p className="justify-self-center">{currentNavLocation.title}</p>
+      {currentNavLocation?.rightIcon ? (
         <button
-          className={clsx([])}
+          className="w-6 mx-4"
           onClick={currentNavLocation.handleRightNav}
         >
-          <span className="font-icon">{currentNavLocation.rightIcon}</span>
+          <span className="font-icon text-2xl">
+            {currentNavLocation.rightIcon}
+          </span>
         </button>
+      ) : (
+        <div className="w-6 mx-4" />
       )}
     </nav>
   );

@@ -43,14 +43,13 @@ jobs:
             # && mdbook-admonish install dev-portal \
             # && mdbook-admonish install docs \
             # && mdbook-admonish install operators
-
       - name: Remove existing Nym config directory (`~/.nym/`)
         run: cd documentation && ./remove_existing_config.sh
         continue-on-error: false
-
       - name: Build all projects in documentation/ & move to ~/dist/docs/
         run: ./build_all_to_dist.sh
         continue-on-error: false
+
       - name: Deploy branch to CI www
         continue-on-error: true
         uses: easingthemes/ssh-deploy@main

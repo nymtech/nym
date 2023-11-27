@@ -34,7 +34,9 @@ pub use crate::nyxd::fee::Fee;
 pub use crate::rpc::TendermintRpcClient;
 pub use coin::Coin;
 pub use cosmrs::bank::MsgSend;
-pub use cosmrs::tendermint::abci::{response::DeliverTx, Event, EventAttribute};
+pub use cosmrs::tendermint::abci::{
+    response::DeliverTx, types::ExecTxResult, Event, EventAttribute,
+};
 pub use cosmrs::tendermint::block::Height;
 pub use cosmrs::tendermint::hash::{self, Algorithm, Hash};
 pub use cosmrs::tendermint::validator::Info as TendermintValidatorInfo;

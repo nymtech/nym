@@ -1,9 +1,10 @@
 # Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: GPL-3.0-only
 
 [package]
 name = "nym-api"
-version = "1.1.32"
+license = "GPL-3"
+version = "1.1.33"
 authors = [
     "Dave Hrycyszyn <futurechimp@users.noreply.github.com>",
     "Jędrzej Stuczyński <andrew@nymtech.net>",

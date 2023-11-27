@@ -4,6 +4,7 @@ use std::{
     collections::HashMap,
     net::{IpAddr, Ipv4Addr, SocketAddr},
     path::Path,
+    time::Duration,
 };
 
 use error::IpPacketRouterError;
@@ -36,6 +37,9 @@ mod request_filter;
 pub const TUN_BASE_NAME: &str = "nymtun";
 pub const TUN_DEVICE_ADDRESS: &str = "10.0.0.1";
 pub const TUN_DEVICE_NETMASK: &str = "255.255.255.0";
+
+const DISCONNECT_TIMER_INTERVAL: Duration = Duration::from_secs(10);
+const CLIENT_INACTIVITY_TIMEOUT: Duration = Duration::from_secs(5 * 60);
 
 pub struct OnStartData {
     // to add more fields as required
@@ -442,11 +446,28 @@ impl IpPacketRouter {
 
     async fn run(mut self) -> Result<(), IpPacketRouterError> {
         let mut task_client = self.task_handle.fork("main_loop");
+        let mut disconnect_timer = tokio::time::interval(DISCONNECT_TIMER_INTERVAL);
 
         while !task_client.is_shutdown() {
             tokio::select! {
                 _ = task_client.recv() => {
                     log::debug!("IpPacketRouter [main loop]: received shutdown");
+                },
+                _ = disconnect_timer.tick() => {
+                    let now = std::time::Instant::now();
+                    let inactive_clients: Vec<IpAddr> = self.connected_clients.iter()
+                        .filter_map(|(ip, client)| {
+                            if now.duration_since(client.last_activity) > CLIENT_INACTIVITY_TIMEOUT {
+                                Some(*ip)
+                            } else {
+                                None
+                            }
+                        })
+                        .collect();
+                    for ip in inactive_clients {
+                        log::info!("Disconnect inactive client: {ip}");
+                        self.connected_clients.remove(&ip);
+                    }
                 },
                 msg = self.mixnet_client.next() => {
                     if let Some(msg) = msg {
@@ -483,7 +504,7 @@ impl IpPacketRouter {
                 },
                 packet = self.tun_task_response_rx.recv() => {
                     if let Some((_tag, packet)) = packet {
-                        // TODO: skip full parsing we we only need dst_addr
+                        // TODO: skip full parsing since we only need dst_addr
                         let Ok(ParsedPacket {
                             packet_type: _,
                             src_addr: _,

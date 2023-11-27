@@ -1,4 +1,7 @@
-use std::{net::{Ipv4Addr, IpAddr}, collections::HashMap};
+use std::{
+    collections::HashMap,
+    net::{IpAddr, Ipv4Addr},
+};
 
 use crate::{ConnectedClient, TUN_DEVICE_ADDRESS};
 

@@ -31,6 +31,7 @@ pub use crate::config::Config;
 
 pub mod config;
 pub mod error;
+mod generate_new_ip;
 mod request_filter;
 
 // The interface used to route traffic
@@ -315,39 +316,7 @@ impl IpPacketRouter {
             )));
         }
 
-        // Find an available IP address in self.connected_clients
-        // TODO: make this nicer
-        fn generate_random_ip_within_subnet() -> Ipv4Addr {
-            let mut rng = rand::thread_rng();
-            // Generate a random number in the range 1-254
-            let last_octet = rand::Rng::gen_range(&mut rng, 1..=254);
-            Ipv4Addr::new(10, 0, 0, last_octet)
-        }
-
-        fn is_ip_taken(
-            connected_clients: &HashMap<IpAddr, ConnectedClient>,
-            tun_ip: Ipv4Addr,
-            ip: Ipv4Addr,
-        ) -> bool {
-            connected_clients.contains_key(&ip.into()) || ip == tun_ip
-        }
-
-        // TODO: brute force approach. We could consider using a more efficient algorithm
-        fn find_new_ip(connected_clients: &HashMap<IpAddr, ConnectedClient>) -> Option<IpAddr> {
-            let mut new_ip = generate_random_ip_within_subnet();
-            let mut tries = 0;
-            let tun_ip = TUN_DEVICE_ADDRESS.parse::<Ipv4Addr>().unwrap();
-            while is_ip_taken(connected_clients, tun_ip, new_ip) {
-                new_ip = generate_random_ip_within_subnet();
-                tries += 1;
-                if tries > 100 {
-                    return None;
-                }
-            }
-            Some(new_ip.into())
-        }
-
-        let Some(new_ip) = find_new_ip(&self.connected_clients) else {
+        let Some(new_ip) = generate_new_ip::find_new_ip(&self.connected_clients) else {
             log::info!("No available IP address");
             return Ok(Some(IpPacketResponse::new_dynamic_connect_failure(
                 request_id,

@@ -9,7 +9,8 @@ export type Props = {
   children?: React.ReactNode;
 };
 
-type Routes = '/' | 'settings' | 'entry-node-location' | 'exit-node-location';
+type Routes = '' | 'settings' | 'entry-node-location' | 'exit-node-location';
+type RoutePaths = `/${Routes}`;
 
 type NavLocation = {
   title: string;
@@ -20,7 +21,7 @@ type NavLocation = {
 };
 
 type NavBarData = {
-  [key: string]: NavLocation;
+  [key in RoutePaths]: NavLocation;
 };
 
 export default function TopBar() {
@@ -60,7 +61,7 @@ export default function TopBar() {
   }, [t]);
 
   useEffect(() => {
-    setCurrentNavLocation(navBarData[location.pathname]);
+    setCurrentNavLocation(navBarData[location.pathname as RoutePaths]);
   }, [location.pathname, navBarData]);
 
   return (
@@ -70,7 +71,7 @@ export default function TopBar() {
           <span className={clsx([])}>O</span>
         </button>
       )}
-      NymVPN
+      {currentNavLocation.title}
       {currentNavLocation?.rightIcon && (
         <button className={clsx([])}>
           <span className={clsx([])}>O</span>

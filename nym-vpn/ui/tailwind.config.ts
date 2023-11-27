@@ -67,6 +67,12 @@ export default {
     extend: {
       fontFamily: {
         sans: ['Lato', ...defaultTheme.fontFamily.sans],
+        icon: [
+          'Material Symbols Outlined',
+          {
+            fontVariationSettings: '"opsz" 24; "wght" 400;',
+          },
+        ],
       },
     },
   },

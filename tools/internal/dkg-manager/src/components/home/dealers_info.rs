@@ -7,7 +7,7 @@ use nym_coconut_dkg_common::types::DealerDetails;
 use nym_coconut_dkg_common::verification_key::ContractVKShare;
 use ratatui::prelude::*;
 use ratatui::widgets::{Block, BorderType, Borders, Paragraph};
-use std::collections::BTreeMap;
+use std::collections::HashMap;
 
 struct FullDealer<'a> {
     info: &'a DealerDetails,
@@ -115,7 +115,7 @@ pub fn draw_current_dealers_info(
         .borders(Borders::ALL)
         .border_type(BorderType::Rounded);
 
-    let mut dealers = BTreeMap::new();
+    let mut dealers = HashMap::new();
     for dealer in &info.dealers {
         dealers.insert(dealer.address.clone(), FullDealer::new(dealer));
     }
@@ -132,7 +132,11 @@ pub fn draw_current_dealers_info(
 
     let mut text = Vec::new();
 
-    for (_, dealer_details) in dealers {
+    // order dealers by their index
+    let mut dealers_vec = dealers.into_iter().map(|d| d.1).collect::<Vec<_>>();
+    dealers_vec.sort_by_key(|d| d.info.assigned_index);
+
+    for dealer_details in dealers_vec {
         text.append(&mut dealer_details.format())
     }
 

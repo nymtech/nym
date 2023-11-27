@@ -294,7 +294,7 @@ impl IpPacketRouter {
         // with return traffic
         let existing_ip = self.connected_clients.iter().find_map(|(ip, client)| {
             if client.nym_address == reply_to {
-                Some(ip.clone())
+                Some(*ip)
             } else {
                 None
             }
@@ -319,7 +319,8 @@ impl IpPacketRouter {
         // TODO: make this nicer
         fn generate_random_ip_within_subnet() -> Ipv4Addr {
             let mut rng = rand::thread_rng();
-            let last_octet = rand::Rng::gen_range(&mut rng, 1..=254); // Generate a random number in the range 1-254
+            // Generate a random number in the range 1-254
+            let last_octet = rand::Rng::gen_range(&mut rng, 1..=254);
             Ipv4Addr::new(10, 0, 0, last_octet)
         }
 

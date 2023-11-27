@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import clsx from 'clsx';
-import { useMainState } from '../contexts';
 import { AppName } from '../constants';
 
 export type Props = {
@@ -25,14 +24,16 @@ type NavBarData = {
 };
 
 export default function TopBar() {
-  const state = useMainState();
   const location = useLocation();
+  const navigate = useNavigate();
   const { t } = useTranslation();
 
   const [currentNavLocation, setCurrentNavLocation] = useState<NavLocation>({
     title: AppName,
     rightIcon: 'settings',
-    handleRightNav: () => {},
+    handleRightNav: () => {
+      navigate('/settings');
+    },
   });
 
   const navBarData = useMemo<NavBarData>(() => {
@@ -40,25 +41,33 @@ export default function TopBar() {
       '/': {
         title: AppName,
         rightIcon: 'settings',
-        handleRightNav: () => {},
+        handleRightNav: () => {
+          navigate('/settings');
+        },
       },
       '/settings': {
         title: t('settings'),
-        leftIcon: 'back',
-        handleLeftNav: () => {},
+        leftIcon: 'arrow_back',
+        handleLeftNav: () => {
+          navigate(-1);
+        },
       },
       '/entry-node-location': {
         title: t('first-hop-selection'),
-        leftIcon: 'back',
-        handleLeftNav: () => {},
+        leftIcon: 'arrow_back',
+        handleLeftNav: () => {
+          navigate(-1);
+        },
       },
       '/exit-node-location': {
         title: t('last-hop-selection'),
-        leftIcon: 'back',
-        handleLeftNav: () => {},
+        leftIcon: 'arrow_back',
+        handleLeftNav: () => {
+          navigate(-1);
+        },
       },
     };
-  }, [t]);
+  }, [t, navigate]);
 
   useEffect(() => {
     setCurrentNavLocation(navBarData[location.pathname as RoutePaths]);
@@ -67,14 +76,17 @@ export default function TopBar() {
   return (
     <nav className="flex dark:bg-baltic-sea-jaguar">
       {currentNavLocation?.leftIcon && (
-        <button className={clsx([])}>
-          <span className={clsx([])}>O</span>
+        <button className={clsx([])} onClick={currentNavLocation.handleLeftNav}>
+          <span className="font-icon">{currentNavLocation.leftIcon}</span>
         </button>
       )}
       {currentNavLocation.title}
       {currentNavLocation?.rightIcon && (
-        <button className={clsx([])}>
-          <span className={clsx([])}>O</span>
+        <button
+          className={clsx([])}
+          onClick={currentNavLocation.handleRightNav}
+        >
+          <span className="font-icon">{currentNavLocation.rightIcon}</span>
         </button>
       )}
     </nav>

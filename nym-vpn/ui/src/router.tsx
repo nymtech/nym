@@ -3,12 +3,13 @@ import { Error, Home, NavLayout, NodeLocation, Settings } from './pages';
 
 const router = createBrowserRouter([
   {
+    path: '/',
     element: <NavLayout />,
     children: [
       {
-        path: '/',
         element: <Home />,
         errorElement: <Error />,
+        index: true,
       },
       {
         path: '/settings',

@@ -4,6 +4,7 @@ use std::{
     collections::HashMap,
     net::{IpAddr, SocketAddr},
     path::Path,
+    time::Duration,
 };
 
 use error::IpPacketRouterError;
@@ -12,7 +13,10 @@ use nym_client_core::{
     client::mix_traffic::transceiver::GatewayTransceiver,
     config::disk_persistence::CommonClientPaths, HardcodedTopologyProvider, TopologyProvider,
 };
-use nym_ip_packet_requests::{IpPacketRequest, IpPacketRequestData, IpPacketResponse};
+use nym_ip_packet_requests::{
+    DynamicConnectFailureReason, IpPacketRequest, IpPacketRequestData, IpPacketResponse,
+    StaticConnectFailureReason,
+};
 use nym_sdk::{
     mixnet::{InputMessage, MixnetMessageSender, Recipient},
     NymNetworkDetails,
@@ -27,12 +31,16 @@ pub use crate::config::Config;
 
 pub mod config;
 pub mod error;
+mod generate_new_ip;
 mod request_filter;
 
 // The interface used to route traffic
 pub const TUN_BASE_NAME: &str = "nymtun";
 pub const TUN_DEVICE_ADDRESS: &str = "10.0.0.1";
 pub const TUN_DEVICE_NETMASK: &str = "255.255.255.0";
+
+const DISCONNECT_TIMER_INTERVAL: Duration = Duration::from_secs(10);
+const CLIENT_INACTIVITY_TIMEOUT: Duration = Duration::from_secs(5 * 60);
 
 pub struct OnStartData {
     // to add more fields as required
@@ -216,36 +224,57 @@ impl IpPacketRouter {
         // TODO: ignoring reply_to_hops and reply_to_avg_mix_delays for now
 
         // Check that the IP is available in the set of connected clients
-        if self.connected_clients.contains_key(&requested_ip) {
-            log::info!("Requested IP is not available");
-            return Ok(Some(IpPacketResponse::new_static_connect_failure(
-                request_id, reply_to,
-            )));
-        }
+        let is_ip_taken = self.connected_clients.contains_key(&requested_ip);
 
         // Check that the nym address isn't already registered
-        if self
+        let is_nym_address_taken = self
             .connected_clients
             .values()
-            .any(|client| client.nym_address == reply_to)
-        {
-            log::info!("Nym address is already registered");
-            return Ok(Some(IpPacketResponse::new_static_connect_failure(
-                request_id, reply_to,
-            )));
+            .any(|client| client.nym_address == reply_to);
+
+        match (is_ip_taken, is_nym_address_taken) {
+            (true, true) => {
+                log::info!("Connecting an already connected client");
+                // Update the last activity time for the client
+                if let Some(client) = self.connected_clients.get_mut(&requested_ip) {
+                    client.last_activity = std::time::Instant::now();
+                } else {
+                    log::error!("Failed to update last activity time for client");
+                }
+                Ok(Some(IpPacketResponse::new_static_connect_success(
+                    request_id, reply_to,
+                )))
+            }
+            (false, false) => {
+                log::info!("Connecting a new client");
+                self.connected_clients.insert(
+                    requested_ip,
+                    ConnectedClient {
+                        nym_address: reply_to,
+                        last_activity: std::time::Instant::now(),
+                    },
+                );
+                Ok(Some(IpPacketResponse::new_static_connect_success(
+                    request_id, reply_to,
+                )))
+            }
+            (true, false) => {
+                log::info!("Requested IP is not available");
+                Ok(Some(IpPacketResponse::new_static_connect_failure(
+                    request_id,
+                    reply_to,
+                    StaticConnectFailureReason::RequestedIpAlreadyInUse,
+                )))
+            }
+            (false, true) => {
+                log::info!("Nym address is already registered");
+                Ok(Some(IpPacketResponse::new_static_connect_failure(
+                    request_id,
+                    reply_to,
+                    StaticConnectFailureReason::RequestedNymAddressAlreadyInUse,
+                )))
+            }
         }
-
-        // Insert the new connected client
-        let connected_client = ConnectedClient {
-            nym_address: reply_to,
-            last_activity: std::time::Instant::now(),
-        };
-        self.connected_clients
-            .insert(requested_ip, connected_client);
-
-        Ok(Some(IpPacketResponse::new_static_connect_success(
-            request_id, reply_to,
-        )))
     }
 
     async fn on_dynamic_connect_request(
@@ -256,8 +285,56 @@ impl IpPacketRouter {
             "Received dynamic connect request from {sender_address}",
             sender_address = connect_request.reply_to
         );
-        log::info!("Dropping request: dynamic connect requests are not yet supported");
-        Ok(None)
+
+        let request_id = connect_request.request_id;
+        let reply_to = connect_request.reply_to;
+        // TODO: ignoring reply_to_hops and reply_to_avg_mix_delays for now
+
+        // Check if it's the same client connecting again, then we just reuse the same IP
+        // TODO: this is problematic. Until we sign connect requests this means you can spam people
+        // with return traffic
+        let existing_ip = self.connected_clients.iter().find_map(|(ip, client)| {
+            if client.nym_address == reply_to {
+                Some(*ip)
+            } else {
+                None
+            }
+        });
+
+        if let Some(existing_ip) = existing_ip {
+            log::info!("Found existing client for nym address");
+            // Update the last activity time for the client
+            if let Some(client) = self.connected_clients.get_mut(&existing_ip) {
+                client.last_activity = std::time::Instant::now();
+            } else {
+                log::error!("Failed to update last activity time for client");
+            }
+            return Ok(Some(IpPacketResponse::new_dynamic_connect_success(
+                request_id,
+                reply_to,
+                existing_ip,
+            )));
+        }
+
+        let Some(new_ip) = generate_new_ip::find_new_ip(&self.connected_clients) else {
+            log::info!("No available IP address");
+            return Ok(Some(IpPacketResponse::new_dynamic_connect_failure(
+                request_id,
+                reply_to,
+                DynamicConnectFailureReason::NoAvailableIp,
+            )));
+        };
+
+        self.connected_clients.insert(
+            new_ip,
+            ConnectedClient {
+                nym_address: reply_to,
+                last_activity: std::time::Instant::now(),
+            },
+        );
+        Ok(Some(IpPacketResponse::new_dynamic_connect_success(
+            request_id, reply_to, new_ip,
+        )))
     }
 
     async fn on_data_request(
@@ -348,11 +425,28 @@ impl IpPacketRouter {
 
     async fn run(mut self) -> Result<(), IpPacketRouterError> {
         let mut task_client = self.task_handle.fork("main_loop");
+        let mut disconnect_timer = tokio::time::interval(DISCONNECT_TIMER_INTERVAL);
 
         while !task_client.is_shutdown() {
             tokio::select! {
                 _ = task_client.recv() => {
                     log::debug!("IpPacketRouter [main loop]: received shutdown");
+                },
+                _ = disconnect_timer.tick() => {
+                    let now = std::time::Instant::now();
+                    let inactive_clients: Vec<IpAddr> = self.connected_clients.iter()
+                        .filter_map(|(ip, client)| {
+                            if now.duration_since(client.last_activity) > CLIENT_INACTIVITY_TIMEOUT {
+                                Some(*ip)
+                            } else {
+                                None
+                            }
+                        })
+                        .collect();
+                    for ip in inactive_clients {
+                        log::info!("Disconnect inactive client: {ip}");
+                        self.connected_clients.remove(&ip);
+                    }
                 },
                 msg = self.mixnet_client.next() => {
                     if let Some(msg) = msg {
@@ -389,7 +483,7 @@ impl IpPacketRouter {
                 },
                 packet = self.tun_task_response_rx.recv() => {
                     if let Some((_tag, packet)) = packet {
-                        // TODO: skip full parsing we we only need dst_addr
+                        // TODO: skip full parsing since we only need dst_addr
                         let Ok(ParsedPacket {
                             packet_type: _,
                             src_addr: _,

@@ -16,3 +16,4 @@ bytes = "1.5.0"
 nym-sphinx = { path = "../nymsphinx" }
 rand = "0.8.5"
 serde = { workspace = true, features = ["derive"] }
+thiserror = { workspace = true }

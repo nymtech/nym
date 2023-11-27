@@ -15,5 +15,3 @@ pub use registration::{
 
 #[cfg(feature = "verify")]
 pub use registration::HmacSha256;
-
-pub const WG_PORT: u16 = 51822;

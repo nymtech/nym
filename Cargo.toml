@@ -142,21 +142,6 @@ bip39 = { version = "2.0.0", features = ["zeroize"] }
 boringtun = { git = "https://github.com/cloudflare/boringtun", rev = "e1d6360d6ab4529fc942a078e4c54df107abe2ba" }
 clap = "4.4.7"
 cfg-if = "1.0.0"
-cosmwasm-derive = "=1.3.0"
-cosmwasm-schema = "=1.3.0"
-cosmwasm-std = "=1.3.0"
-# use 0.5.0 as that's the version used by cosmwasm-std 1.3.0
-# (and ideally we don't want to pull the same dependency twice)
-serde-json-wasm = "=0.5.0"
-cosmwasm-storage = "=1.3.0"
-cosmrs = "=0.14.0"
-# same version as used by cosmrs
-cw-utils = "=1.0.1"
-cw-storage-plus = "=1.1.0"
-cw2 = { version = "=1.1.0" }
-cw3 = { version = "=1.1.0" }
-cw4 = { version = "=1.1.0" }
-cw-controllers = { version = "=1.1.0" }
 dashmap = "5.5.3"
 dotenvy = "0.15.6"
 futures = "0.3.28"
@@ -174,7 +159,6 @@ schemars = "0.8.1"
 serde = "1.0.152"
 serde_json = "1.0.91"
 tap = "1.0.1"
-tendermint-rpc = "0.32" # same version as used by cosmrs
 thiserror = "1.0.48"
 tokio = "1.24.1"
 tokio-tungstenite = "0.20.1"
@@ -185,6 +169,28 @@ utoipa = "3.5.0"
 utoipa-swagger-ui = "3.1.5"
 url = "2.4"
 zeroize = "1.6.0"
+
+# cosmwasm-related
+cosmwasm-derive = "=1.3.0"
+cosmwasm-schema = "=1.3.0"
+cosmwasm-std = "=1.3.0"
+# use 0.5.0 as that's the version used by cosmwasm-std 1.3.0
+# (and ideally we don't want to pull the same dependency twice)
+serde-json-wasm = "=0.5.0"
+cosmwasm-storage = "=1.3.0"
+# same version as used by cosmwasm
+cw-utils = "=1.0.1"
+cw-storage-plus = "=1.1.0"
+cw2 = { version = "=1.1.0" }
+cw3 = { version = "=1.1.0" }
+cw4 = { version = "=1.1.0" }
+cw-controllers = { version = "=1.1.0" }
+
+# cosmrs-related
+bip32 = "0.5.1"
+cosmrs = "=0.15.0"
+tendermint-rpc = "0.34" # same version as used by cosmrs
+prost = "0.12"
 
 # wasm-related dependencies
 gloo-utils = "0.1.7"

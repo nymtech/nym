@@ -1,3 +1,6 @@
+// Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: GPL-3.0-only
+
 use super::TaskClient;
 use futures::channel::mpsc;
 use futures::lock::Mutex;

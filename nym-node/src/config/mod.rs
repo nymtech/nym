@@ -1,8 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: GPL-3.0-only
 
-use nym_config::defaults::DEFAULT_NYM_NODE_HTTP_PORT;
-use nym_wireguard_types::WG_PORT;
+use nym_config::defaults::{DEFAULT_NYM_NODE_HTTP_PORT, WG_PORT};
 use serde::{Deserialize, Serialize};
 use serde_helpers::*;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};

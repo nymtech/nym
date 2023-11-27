@@ -7,11 +7,6 @@ use log::info;
 // The wireguard UDP listener
 pub const WG_ADDRESS: &str = "0.0.0.0";
 
-// The interface used to route traffic
-pub const TUN_BASE_NAME: &str = "nymwg";
-pub const TUN_DEVICE_ADDRESS: &str = "10.1.0.1";
-pub const TUN_DEVICE_NETMASK: &str = "255.255.255.0";
-
 // The private key of the listener
 // Corresponding public key: "WM8s8bYegwMa0TJ+xIwhk+dImk2IpDUKslDBCZPizlE="
 const PRIVATE_KEY: &str = "AEqXrLFT4qjYq3wmX0456iv94uM6nDj5ugp6Jedcflg=";

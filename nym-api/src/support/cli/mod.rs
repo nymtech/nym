@@ -1,5 +1,5 @@
 // Copyright 2022-2023 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: GPL-3.0-only
 
 use super::config::Config;
 use crate::support::config::default_config_filepath;

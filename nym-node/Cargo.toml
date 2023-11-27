@@ -1,3 +1,6 @@
+# Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
+# SPDX-License-Identifier: GPL-3.0-only
+
 [package]
 name = "nym-node"
 version = "0.1.0"
@@ -6,7 +9,7 @@ repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true
 edition.workspace = true
-license.workspace = true
+license = "GPL-3"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

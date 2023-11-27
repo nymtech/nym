@@ -28,7 +28,7 @@ where
     U: TryInto<HttpClientUrl, Error = Error>,
 {
     HttpRpcClient::builder(url.try_into()?)
-        .compat_mode(CompatMode::V0_34)
+        .compat_mode(CompatMode::V0_37)
         .build()
 }
 

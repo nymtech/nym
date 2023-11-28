@@ -5,11 +5,9 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-20.04-16-core
+    runs-on: custom-linux
     steps:
       - uses: actions/checkout@v3
-      - name: Install Dependencies (Linux)
-        run: sudo apt-get update && sudo apt-get install -y build-essential curl wget libssl-dev libudev-dev squashfs-tools protobuf-compiler
       - name: Install rsync
         run: sudo apt-get install rsync
       - uses: rlespinasse/github-slug-action@v3.x
@@ -25,13 +23,19 @@ jobs:
         with:
           command: build
           args: --workspace --release
-      - name: Install mdbook and plugins
-        run: cd documentation && ./install_mdbook_deps.sh
+      - name: Install mdbook
+        run: (test -x $HOME/.cargo/bin/mdbook || cargo install --vers "^0.4.33" mdbook)
+      - name: Install mdbook plugins
+        run: |
+          cargo install --vers "=0.2.2" mdbook-variables && cargo install \
+            --vers "^1.8.0" mdbook-admonish && cargo install --vers \
+            "^0.1.2" mdbook-last-changed && cargo install --vers "^0.1.2" mdbook-theme \
+            && cargo install --vers "^0.7.7" mdbook-linkcheck
       - name: Remove existing Nym config directory (`~/.nym/`)
         run: cd documentation && ./remove_existing_config.sh
         continue-on-error: false
       - name: Build all projects in documentation/ & move to ~/dist/docs/
-        run: cd documentation && ./build_all_to_dist.sh
+        run: ./build_all_to_dist.sh
         continue-on-error: false
 
       - name: Post process

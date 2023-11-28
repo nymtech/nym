@@ -29,11 +29,11 @@ jobs:
         with:
           command: build
           args: --workspace --release
-      - name: Install mdbook
+      - name: Install mdbook and plugins
         run: cd documentation && ./install_mdbook_deps.sh
-#      - name: Remove existing Nym config directory (`~/.nym/`)
-#        run: cd documentation && ./remove_existing_config.sh
-#        continue-on-error: false
+      - name: Remove existing Nym config directory (`~/.nym/`)
+        run: cd documentation && ./remove_existing_config.sh
+        continue-on-error: false
       - name: Build all projects in documentation/ & move to ~/dist/docs/
         run: cd documentation && ./build_all_to_dist.sh
         continue-on-error: false
@@ -49,6 +49,7 @@ jobs:
           REMOTE_USER: ${{ secrets.CI_WWW_REMOTE_USER }}
           TARGET: ${{ secrets.CI_WWW_REMOTE_TARGET }}/docs-${{ env.GITHUB_REF_SLUG }}
           EXCLUDE: "/node_modules/"
+
       - name: Matrix - Node Install
         run: npm install
         working-directory: .github/workflows/support-files

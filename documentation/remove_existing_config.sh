@@ -17,7 +17,7 @@ else
   rm -rf $DIR
   # check exit code of rm -rf - if !0 then exit
   if [ $? -ne 0 ]; then
-    echo "exit code was $0. looks like the something went wrong with deleting the directory"
+    echo "exit code was $?. looks like the something went wrong with deleting the directory"
     exit 1
   fi
 fi

@@ -42,7 +42,7 @@ jobs:
 #          cargo install mdbook-linkcheck
        # TODO probably reintroduce
       - name: Remove existing Nym config directory (`~/.nym/`)
-        run: ./remove_existing_config.sh
+        run: cd documentation && ./remove_existing_config.sh
         continue-on-error: false
       # TODO remove cd, we should already be there from the last command?
       - name: Build all projects in documentation/ & move to ~/dist/docs/

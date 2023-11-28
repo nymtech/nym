@@ -8,4 +8,4 @@ As a general approach, licensing is as follows this pattern:
 
 * Used libraries and different components are [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0.html) or [MIT](https://mit-license.org/)
 
-Again, for accurate information, please check individual files.
+For accurate information, please check individual files.

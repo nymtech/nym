@@ -13,9 +13,7 @@ export const Balance = () => {
   const { userBalance, clientDetails, network } = useContext(AppContext);
 
   useEffect(() => {
-    let interval: NodeJS.Timeout;
-
-    interval = setInterval(() => {
+    const interval = setInterval(() => {
       userBalance.fetchBalance();
       userBalance.fetchTokenAllocation();
     }, 10000);

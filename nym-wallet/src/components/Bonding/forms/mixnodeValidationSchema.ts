@@ -1,5 +1,13 @@
 import * as Yup from 'yup';
-import { isLessThan, isValidHostname, validateAmount, validateKey, validateRawPort, validateVersion } from 'src/utils';
+import {
+  isGreaterThan,
+  isLessThan,
+  isValidHostname,
+  validateAmount,
+  validateKey,
+  validateRawPort,
+  validateVersion,
+} from 'src/utils';
 
 export const mixnodeValidationSchema = Yup.object().shape({
   identityKey: Yup.string()
@@ -34,18 +42,21 @@ export const mixnodeValidationSchema = Yup.object().shape({
 });
 
 const operatingCostAndPmValidation = {
-  profitMargin: Yup.number().required('Profit Percentage is required').min(0).max(100),
+  profitMargin: Yup.number().required('Profit Percentage is required').min(7).max(80),
   operatorCost: Yup.object().shape({
     amount: Yup.string()
       .required('An operating cost is required')
       // eslint-disable-next-line prefer-arrow-callback
-      .test('valid-operating-cost', 'A valid amount is required (min 40)', async function isValidAmount(this, value) {
-        if (value && (!Number(value) || isLessThan(+value, 40))) {
-          return false;
-        }
-
-        return true;
-      }),
+      .test(
+        'valid-operating-cost',
+        'A valid amount is required (min 500 - max 2000)',
+        async function isValidAmount(this, value) {
+          if (value && (!Number(value) || isLessThan(+value, 500) || isGreaterThan(+value, 2000))) {
+            return this.createError({ message: 'A valid amount is required (min 500 - max 2000)' });
+          }
+          return true;
+        },
+      ),
   }),
 };
 

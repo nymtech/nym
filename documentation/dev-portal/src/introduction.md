@@ -7,3 +7,5 @@ For more in-depth information about nodes, network traffic flows, clients, cocon
 If you are looking for information and setup guides for the various pieces of Nym mixnet infrastructure (mix nodes, gateways and network requesters) and Nyx blockchain validators see the [Operators Guides](https://nymtech.net/operators) book. 
 
 If you're looking for TypeScript/JavaScript related information such as SDKs to build your own tools, step-by-step tutorials, live playgrounds and more, make sure to check out the  [TS SDK Handbook](https://sdk.nymtech.net/).
+
+**some change** 

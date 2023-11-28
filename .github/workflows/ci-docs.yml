@@ -9,7 +9,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-20.04-16-core # Queued custom-linux
+    runs-on: ubuntu-20.04-16-core
     steps:
       - uses: actions/checkout@v3
       - name: Install Dependencies (Linux)
@@ -30,20 +30,10 @@ jobs:
           command: build
           args: --workspace --release
       - name: Install mdbook
-        # TODO change to use script instead
-        run: cd documentation && ./install_mdbook_deps.sh # cargo install mdbook
-#      - name: Install mdbook plugins
-#        run: |
-#          cargo install mdbook-variables
-#          cargo install mdbook-admonish
-#          cargo install mdbook-last-changed
-#          cargo install mdbook-theme
-#          cargo install mdbook-linkcheck
-       # TODO check if this makes sense / you aren't blowing other things away
-      - name: Remove existing Nym config directory (`~/.nym/`)
-        run: cd documentation && ./remove_existing_config.sh
-        continue-on-error: false
-      # TODO remove cd, we should already be there from the last command?
+        run: cd documentation && ./install_mdbook_deps.sh
+#      - name: Remove existing Nym config directory (`~/.nym/`)
+#        run: cd documentation && ./remove_existing_config.sh
+#        continue-on-error: false
       - name: Build all projects in documentation/ & move to ~/dist/docs/
         run: cd documentation && ./build_all_to_dist.sh
         continue-on-error: false

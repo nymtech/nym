@@ -70,6 +70,7 @@ main() {
 	if test -f ~/.cargo/bin/mdbook; then
 		printf "mdbook already installed (located at: $(which mdbook))"
 		uninstall_mdbook_deps;
+		install_mdbook_deps;
 	else 
 		printf "mdbook not installed"
 		install_mdbook_deps;

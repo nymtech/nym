@@ -9,8 +9,7 @@ on:
 
 jobs:
   build:
-    # TODO change back to our runner
-    runs-on: custom-linux
+    runs-on: ubuntu-20.04-16core #custom-linux
     steps:
       - uses: actions/checkout@v3
       - name: Install Dependencies (Linux)
@@ -40,7 +39,7 @@ jobs:
 #          cargo install mdbook-last-changed
 #          cargo install mdbook-theme
 #          cargo install mdbook-linkcheck
-       # TODO probably reintroduce
+       # TODO check if this makes sense / you aren't blowing other things away
       - name: Remove existing Nym config directory (`~/.nym/`)
         run: cd documentation && ./remove_existing_config.sh
         continue-on-error: false

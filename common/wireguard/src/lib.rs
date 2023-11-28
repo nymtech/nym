@@ -17,34 +17,30 @@ use std::sync::Arc;
 #[cfg(target_os = "linux")]
 use nym_tun::tun_device;
 
-use defguard_wireguard_rs::{host::Peer, InterfaceConfiguration, WGApi, WireguardInterfaceApi};
 use nym_network_defaults::{WG_PORT, WG_TUN_DEVICE_ADDRESS};
 use nym_tun::tun_task_channel;
 use setup::PRIVATE_KEY;
+use wireguard_control::{Backend, Device, DeviceUpdate, Key, KeyPair, PeerConfigBuilder};
 
+#[cfg(target_os = "linux")]
 /// Start wireguard device
 pub async fn start_wireguard(
     mut task_client: nym_task::TaskClient,
     _gateway_client_registry: Arc<GatewayClientRegistry>,
-) -> Result<WGApi, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    let ifname = String::from("wg0");
-    let wgapi = WGApi::new(ifname.clone(), false)?;
-    wgapi.create_interface()?;
-    let interface_config = InterfaceConfiguration {
-        name: ifname.clone(),
-        prvkey: PRIVATE_KEY.to_string(),
-        address: WG_TUN_DEVICE_ADDRESS.to_string(),
-        port: WG_PORT as u32,
-        peers: vec![],
-    };
-    wgapi.configure_interface(&interface_config)?;
+) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
     let peer = std::env::var("NYM_PEER_PUBLIC_KEY").expect("NYM_PEER_PUBLIC_KEY must be set");
-    let mut peer = Peer::new(peer.as_str().try_into().unwrap());
-    peer.set_allowed_ips(vec!["10.1.0.2".parse().unwrap()]);
-    wgapi.configure_peer(&peer)?;
-    wgapi.configure_peer_routing(&vec![peer.clone()])?;
+    let peer = PeerConfigBuilder::new(&Key::from_base64(&peer).unwrap())
+        .add_allowed_ip("10.1.0.2".parse()?, 32);
+    DeviceUpdate::new()
+        .set_keypair(KeyPair::from_private(
+            Key::from_base64(PRIVATE_KEY).unwrap(),
+        ))
+        .set_listen_port(WG_PORT)
+        .add_peer(peer)
+        .apply(&"wg0".parse().unwrap(), Backend::Kernel)
+        .unwrap();
 
     tokio::spawn(async move { task_client.recv().await });
 
-    Ok(wgapi)
+    Ok(())
 }

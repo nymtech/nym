@@ -201,10 +201,11 @@ impl<St> Gateway<St> {
         mixnet_handling::Listener::new(listening_address, shutdown).start(connection_handler);
     }
 
+    #[cfg(target_os = "linux")]
     async fn start_wireguard(
         &self,
         shutdown: TaskClient,
-    ) -> Result<WGApi, Box<dyn Error + Send + Sync>> {
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
         // TODO: possibly we should start the UDP listener and TUN device explicitly here
         nym_wireguard::start_wireguard(shutdown, Arc::clone(&self.client_registry)).await
     }
@@ -520,8 +521,8 @@ impl<St> Gateway<St> {
             Arc::new(coconut_verifier),
         );
 
-        let wg_api = self
-            .start_wireguard(shutdown.subscribe().named("wireguard"))
+        #[cfg(target_os = "linux")]
+        self.start_wireguard(shutdown.subscribe().named("wireguard"))
             .await
             .expect("Could not start wireguard");
 
@@ -530,10 +531,6 @@ impl<St> Gateway<St> {
         if let Err(err) = Self::wait_for_interrupt(shutdown).await {
             // that's a nasty workaround, but anyhow errors are generally nicer, especially on exit
             bail!("{err}")
-        }
-        let host = wg_api.read_interface_data()?;
-        for peer in host.peers.values() {
-            wg_api.remove_peer(&peer.public_key)?;
         }
         Ok(())
     }

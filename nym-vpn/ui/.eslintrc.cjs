@@ -4,6 +4,7 @@ module.exports = {
     'plugin:@typescript-eslint/recommended',
     'plugin:react/recommended',
     'plugin:react/jsx-runtime',
+    'plugin:jsx-a11y/recommended',
     'plugin:react-hooks/recommended',
     'prettier',
   ],
@@ -11,7 +12,7 @@ module.exports = {
   parserOptions: {
     project: './tsconfig.json',
   },
-  plugins: ['@typescript-eslint'],
+  plugins: ['jsx-a11y', '@typescript-eslint'],
   root: true,
   settings: {
     react: {

@@ -8,6 +8,10 @@ Each directory contains a readme with more information about running and contrib
 
 > If you are looking for the Typescript SDK documentation located at [sdk.nymtech.net](https://sdk.nymtech.net) this can be found in `../sdk/typescript/docs/`
 
+## Contribution 
+* If you wish to add to the documentation please create a PR against this repo. 
+* If you are **adding a plugin dependency** make sure to also **add that to the list of plugins in `install_mdbook_deps.sh` line 12**. 
+
 ## Scripts 
 * `bump_versions.sh` allows you to update the ~~`platform_release_version` and~~ `wallet_release_version` variable~~s~~ in the `book.toml` of each mdbook project at once. You can also optionally update the `minimum_rust_version` as well. Helpful for lazy-updating when cutting a new version of the docs. 
 
@@ -15,10 +19,9 @@ Each directory contains a readme with more information about running and contrib
   * `build_all_to_dist.sh` is used for building all mdbook projects and moving the rendered html to `../dist/` to be rsynced with various servers. 
   * `install_mdbook_deps.sh` checks for an existing install of mdbook (and plugins), uninstalls them, and then installs them on a clean slate. This is to avoid weird dependency clashes if relying on an existing mdbook version. 
   * `post_process.sh` is used to post process CSS/image/href links for serving several mdbooks from a subdirectory. 
+  * `removed_existing_config.sh` is used to check for existing nym client/node config files on the CI/CD server and remove it if it exists. This is to mitigate issues with `mdbook-cmdrun` where e.g. a node is already initialised, and the command fails.   
 
-[//]: # (  * `removed_existing_config.sh` is used to remove existing nym client/node config files on the CI/CD server so avoid `mdbook-cmdrun` command errors.  )
-
-### Licensing and copyright information
+## Licensing and copyright information
 This is a monorepo and components that make up Nym as a system are licensed individually, so for accurate information, please check individual files.
 
 As a general approach, licensing is as follows this pattern:

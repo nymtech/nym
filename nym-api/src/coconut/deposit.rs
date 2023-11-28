@@ -1,5 +1,5 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: GPL-3.0-only
 
 use nym_api_requests::coconut::BlindSignRequestBody;
 use nym_coconut_bandwidth_contract_common::events::{
@@ -46,7 +46,7 @@ pub async fn extract_encryption_key(
         .ok_or(CoconutError::DepositValueNotFound)?
         .value
         .as_ref();
-    let deposit_value_plain = public_attributes_plain.get(0).cloned().unwrap_or_default();
+    let deposit_value_plain = public_attributes_plain.first().cloned().unwrap_or_default();
     if deposit_value != deposit_value_plain {
         return Err(CoconutError::DifferentPublicAttributes(
             deposit_value.to_string(),

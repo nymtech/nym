@@ -2985,7 +2985,7 @@ dependencies = [
 
 [[package]]
 name = "extension-storage"
-version = "1.2.1"
+version = "1.2.4-rc.2"
 dependencies = [
  "bip39",
  "console_error_panic_hook",
@@ -4225,6 +4225,15 @@ name = "ipnet"
 version = "2.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "28b29a3cd74f0f4598934efe3aeba42bae0eb4680554128851ebbecb02af14e6"
+
+[[package]]
+name = "ipnetwork"
+version = "0.16.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b8eca9f51da27bc908ef3dd85c21e1bbba794edaf94d7841e37356275b82d31e"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "ipnetwork"
@@ -5503,12 +5512,13 @@ dependencies = [
 
 [[package]]
 name = "mix-fetch-wasm"
-version = "1.2.1"
+version = "1.2.4-rc.2"
 dependencies = [
  "async-trait",
  "futures",
  "http-api-client",
  "js-sys",
+ "nym-bin-common",
  "nym-ordered-buffer",
  "nym-service-providers-common",
  "nym-socks5-requests",
@@ -5895,7 +5905,7 @@ dependencies = [
 
 [[package]]
 name = "nym-api"
-version = "1.1.33"
+version = "1.1.34"
 dependencies = [
  "actix-web",
  "anyhow",
@@ -6204,11 +6214,12 @@ dependencies = [
 
 [[package]]
 name = "nym-client-wasm"
-version = "1.2.1"
+version = "1.2.4-rc.2"
 dependencies = [
  "anyhow",
  "futures",
  "js-sys",
+ "nym-bin-common",
  "nym-node-tester-utils",
  "nym-node-tester-wasm",
  "rand 0.7.3",
@@ -6461,7 +6472,7 @@ dependencies = [
 
 [[package]]
 name = "nym-gateway"
-version = "1.1.31"
+version = "1.1.32"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6476,6 +6487,7 @@ dependencies = [
  "futures",
  "humantime-serde",
  "hyper",
+ "ipnetwork 0.16.0",
  "lazy_static",
  "log",
  "nym-api-requests",
@@ -6590,26 +6602,44 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-ip-packet-requests"
+version = "0.1.0"
+dependencies = [
+ "bincode",
+ "bytes",
+ "nym-sphinx",
+ "serde",
+]
+
+[[package]]
 name = "nym-ip-packet-router"
 version = "0.1.0"
 dependencies = [
+ "bincode",
+ "bytes",
  "etherparse",
  "futures",
  "log",
  "nym-bin-common",
  "nym-client-core",
  "nym-config",
+ "nym-exit-policy",
+ "nym-ip-packet-requests",
+ "nym-network-requester",
  "nym-sdk",
  "nym-service-providers-common",
  "nym-sphinx",
  "nym-task",
+ "nym-tun",
  "nym-wireguard",
  "nym-wireguard-types",
+ "reqwest",
  "serde",
  "serde_json",
  "tap",
  "thiserror",
  "tokio",
+ "url",
 ]
 
 [[package]]
@@ -6842,11 +6872,13 @@ dependencies = [
  "fastrand 2.0.1",
  "hmac 0.12.1",
  "hyper",
+ "ipnetwork 0.16.0",
  "mime",
  "nym-config",
  "nym-crypto",
  "nym-node-requests",
  "nym-task",
+ "nym-wireguard",
  "nym-wireguard-types",
  "rand 0.7.3",
  "serde",
@@ -6902,7 +6934,7 @@ dependencies = [
 
 [[package]]
 name = "nym-node-tester-wasm"
-version = "1.2.1"
+version = "1.2.4-rc.2"
 dependencies = [
  "futures",
  "js-sys",
@@ -7390,6 +7422,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-tun"
+version = "0.1.0"
+dependencies = [
+ "etherparse",
+ "log",
+ "nym-wireguard-types",
+ "thiserror",
+ "tokio",
+ "tokio-tun",
+]
+
+[[package]]
 name = "nym-types"
 version = "1.0.0"
 dependencies = [
@@ -7504,20 +7548,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "nym-wasm-sdk"
-version = "1.2.1"
-dependencies = [
- "mix-fetch-wasm",
- "nym-client-wasm",
- "nym-node-tester-wasm",
-]
-
-[[package]]
 name = "nym-wireguard"
 version = "0.1.0"
 dependencies = [
  "async-recursion",
  "base64 0.21.4",
+ "bincode",
  "boringtun",
  "bytes",
  "dashmap",
@@ -7526,7 +7562,10 @@ dependencies = [
  "ip_network",
  "ip_network_table",
  "log",
+ "nym-network-defaults",
+ "nym-sphinx",
  "nym-task",
+ "nym-tun",
  "nym-wireguard-types",
  "rand 0.8.5",
  "serde",
@@ -7542,14 +7581,19 @@ version = "0.1.0"
 dependencies = [
  "base64 0.21.4",
  "boringtun",
+ "bytes",
  "dashmap",
  "hmac 0.12.1",
+ "ip_network",
+ "ip_network_table",
+ "log",
  "nym-crypto",
  "rand 0.7.3",
  "serde",
  "serde_json",
  "sha2 0.10.8",
  "thiserror",
+ "tokio",
  "utoipa",
  "x25519-dalek 2.0.0",
 ]

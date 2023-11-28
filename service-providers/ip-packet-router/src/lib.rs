@@ -1,4 +1,9 @@
-use std::{net::IpAddr, path::Path};
+#![cfg_attr(not(target_os = "linux"), allow(dead_code))]
+
+use std::{
+    net::{IpAddr, SocketAddr},
+    path::Path,
+};
 
 use error::IpPacketRouterError;
 use futures::{channel::oneshot, StreamExt};
@@ -12,7 +17,7 @@ use nym_sdk::{
 };
 use nym_sphinx::receiver::ReconstructedMessage;
 use nym_task::{connections::TransmissionLane, TaskClient, TaskHandle};
-use tap::TapFallible;
+use request_filter::RequestFilter;
 
 use crate::config::BaseClientConfig;
 
@@ -20,15 +25,26 @@ pub use crate::config::Config;
 
 pub mod config;
 pub mod error;
+mod request_filter;
+
+// The interface used to route traffic
+pub const TUN_BASE_NAME: &str = "nymtun";
+pub const TUN_DEVICE_ADDRESS: &str = "10.0.0.1";
+pub const TUN_DEVICE_NETMASK: &str = "255.255.255.0";
 
 pub struct OnStartData {
     // to add more fields as required
     pub address: Recipient,
+
+    pub request_filter: RequestFilter,
 }
 
 impl OnStartData {
-    pub fn new(address: Recipient) -> Self {
-        Self { address }
+    pub fn new(address: Recipient, request_filter: RequestFilter) -> Self {
+        Self {
+            address,
+            request_filter,
+        }
     }
 }
 
@@ -123,14 +139,23 @@ impl IpPacketRouterBuilder {
         let self_address = *mixnet_client.nym_address();
 
         // Create the TUN device that we interact with the rest of the world with
-        let (tun, tun_task_tx, tun_task_response_rx) = nym_wireguard::tun_device::TunDevice::new(
-            nym_wireguard::tun_device::RoutingMode::new_nat(),
+        let config = nym_tun::tun_device::TunDeviceConfig {
+            base_name: TUN_BASE_NAME.to_string(),
+            ip: TUN_DEVICE_ADDRESS.parse().unwrap(),
+            netmask: TUN_DEVICE_NETMASK.parse().unwrap(),
+        };
+        let (tun, tun_task_tx, tun_task_response_rx) = nym_tun::tun_device::TunDevice::new(
+            nym_tun::tun_device::RoutingMode::new_nat(),
+            config,
         );
         tun.start();
 
+        let request_filter = request_filter::RequestFilter::new(&self.config).await?;
+        request_filter.start_update_tasks().await;
+
         let ip_packet_router_service = IpPacketRouter {
             _config: self.config,
-            // tun,
+            request_filter: request_filter.clone(),
             tun_task_tx,
             tun_task_response_rx,
             mixnet_client,
@@ -141,7 +166,10 @@ impl IpPacketRouterBuilder {
         log::info!("All systems go. Press CTRL-C to stop the server.");
 
         if let Some(on_start) = self.on_start {
-            if on_start.send(OnStartData::new(self_address)).is_err() {
+            if on_start
+                .send(OnStartData::new(self_address, request_filter))
+                .is_err()
+            {
                 // the parent has dropped the channel before receiving the response
                 return Err(IpPacketRouterError::DisconnectedParent);
             }
@@ -154,9 +182,9 @@ impl IpPacketRouterBuilder {
 #[allow(unused)]
 struct IpPacketRouter {
     _config: Config,
-    // tun: nym_wireguard::tun_device::TunDevice,
-    tun_task_tx: nym_wireguard::tun_task_channel::TunTaskTx,
-    tun_task_response_rx: nym_wireguard::tun_task_channel::TunTaskResponseRx,
+    request_filter: request_filter::RequestFilter,
+    tun_task_tx: nym_tun::tun_task_channel::TunTaskTx,
+    tun_task_response_rx: nym_tun::tun_task_channel::TunTaskResponseRx,
     mixnet_client: nym_sdk::mixnet::MixnetClient,
     task_handle: TaskHandle,
 }
@@ -173,7 +201,9 @@ impl IpPacketRouter {
                 },
                 msg = self.mixnet_client.next() => {
                     if let Some(msg) = msg {
-                        self.on_message(msg).await.ok();
+                        if let Err(err) = self.on_message(msg).await {
+                            log::error!("Error handling mixnet message: {err}");
+                        };
                     } else {
                         log::trace!("IpPacketRouter [main loop]: stopping since channel closed");
                         break;
@@ -196,13 +226,9 @@ impl IpPacketRouter {
                             let packet_type = None;
                             let input_message = InputMessage::new_regular(recipient, packet, lane, packet_type);
 
-                            self.mixnet_client
-                                .send(input_message)
-                                .await
-                                .tap_err(|err| {
-                                    log::error!("IpPacketRouter [main loop]: failed to send packet to mixnet: {err}");
-                                })
-                                .ok();
+                            if let Err(err) = self.mixnet_client.send(input_message).await {
+                                log::error!("IpPacketRouter [main loop]: failed to send packet to mixnet: {err}");
+                            };
                         } else {
                             log::error!("NYM_CLIENT_ADDR not set or invalid");
                         }
@@ -222,41 +248,105 @@ impl IpPacketRouter {
         &mut self,
         reconstructed: ReconstructedMessage,
     ) -> Result<(), IpPacketRouterError> {
-        log::info!("Received message: {:?}", reconstructed.sender_tag);
+        log::debug!(
+            "Received message with sender_tag: {:?}",
+            reconstructed.sender_tag
+        );
 
-        let headers = etherparse::SlicedPacket::from_ip(&reconstructed.message).map_err(|err| {
-            log::warn!("Received non-IP packet: {err}");
-            IpPacketRouterError::PacketParseFailed { source: err }
-        })?;
+        let tagged_packet =
+            nym_ip_packet_requests::TaggedIpPacket::from_reconstructed_message(&reconstructed)
+                .map_err(|err| IpPacketRouterError::FailedToDeserializeTaggedPacket {
+                    source: err,
+                })?;
 
-        let (src_addr, dst_addr): (IpAddr, IpAddr) = match headers.ip {
-            Some(etherparse::InternetSlice::Ipv4(ipv4_header, _)) => (
-                ipv4_header.source_addr().into(),
-                ipv4_header.destination_addr().into(),
-            ),
-            Some(etherparse::InternetSlice::Ipv6(ipv6_header, _)) => (
-                ipv6_header.source_addr().into(),
-                ipv6_header.destination_addr().into(),
-            ),
-            None => {
-                log::warn!("Received non-IP packet");
-                return Err(IpPacketRouterError::PacketMissingHeader);
+        // We don't forward packets that we are not able to parse. BUT, there might be a good
+        // reason to still forward them.
+        //
+        // For example, if we are running in a mode where we are only supposed to forward
+        // packets to a specific destination, we might want to forward them anyway.
+        //
+        // TODO: look into this
+        let ParsedPacket {
+            packet_type,
+            src_addr,
+            dst_addr,
+            dst,
+        } = parse_packet(&tagged_packet.packet)?;
+
+        let dst_str = dst.map_or(dst_addr.to_string(), |dst| dst.to_string());
+        log::info!("Received packet: {packet_type}: {src_addr} -> {dst_str}");
+
+        // Filter check
+        if let Some(dst) = dst {
+            if !self.request_filter.check_address(&dst).await {
+                log::warn!("Failed filter check: {dst}");
+                // TODO: we could consider sending back a response here
+                return Err(IpPacketRouterError::AddressFailedFilterCheck { addr: dst });
             }
-        };
-        log::info!("Received packet: {src_addr} -> {dst_addr}");
+        } else {
+            // TODO: we should also filter packets without port number
+            log::warn!("Ignoring filter check for packet without port number! TODO!");
+        }
 
         // TODO: set the tag correctly. Can we just reuse sender_tag?
         let peer_tag = 0;
         self.tun_task_tx
-            .send((peer_tag, reconstructed.message))
-            .await
-            .tap_err(|err| {
-                log::error!("Failed to send packet to tun device: {err}");
-            })
-            .ok();
+            .try_send((peer_tag, tagged_packet.packet.into()))
+            .map_err(|err| IpPacketRouterError::FailedToSendPacketToTun { source: err })?;
 
         Ok(())
     }
+}
+
+struct ParsedPacket<'a> {
+    packet_type: &'a str,
+    src_addr: IpAddr,
+    dst_addr: IpAddr,
+    dst: Option<SocketAddr>,
+}
+
+fn parse_packet(packet: &[u8]) -> Result<ParsedPacket, IpPacketRouterError> {
+    let headers = etherparse::SlicedPacket::from_ip(packet).map_err(|err| {
+        log::warn!("Unable to parse incoming data as IP packet: {err}");
+        IpPacketRouterError::PacketParseFailed { source: err }
+    })?;
+
+    let (packet_type, dst_port) = match headers.transport {
+        Some(etherparse::TransportSlice::Udp(header)) => ("ipv4", Some(header.destination_port())),
+        Some(etherparse::TransportSlice::Tcp(header)) => ("ipv6", Some(header.destination_port())),
+        Some(etherparse::TransportSlice::Icmpv4(_)) => ("icmpv4", None),
+        Some(etherparse::TransportSlice::Icmpv6(_)) => ("icmpv6", None),
+        Some(etherparse::TransportSlice::Unknown(_)) => ("unknown", None),
+        None => {
+            log::warn!("Received packet missing transport header");
+            return Err(IpPacketRouterError::PacketMissingTransportHeader);
+        }
+    };
+
+    let (src_addr, dst_addr, dst) = match headers.ip {
+        Some(etherparse::InternetSlice::Ipv4(ipv4_header, _)) => {
+            let src_addr: IpAddr = ipv4_header.source_addr().into();
+            let dst_addr: IpAddr = ipv4_header.destination_addr().into();
+            let dst = dst_port.map(|port| SocketAddr::new(dst_addr, port));
+            (src_addr, dst_addr, dst)
+        }
+        Some(etherparse::InternetSlice::Ipv6(ipv6_header, _)) => {
+            let src_addr: IpAddr = ipv6_header.source_addr().into();
+            let dst_addr: IpAddr = ipv6_header.destination_addr().into();
+            let dst = dst_port.map(|port| SocketAddr::new(dst_addr, port));
+            (src_addr, dst_addr, dst)
+        }
+        None => {
+            log::warn!("Received packet missing IP header");
+            return Err(IpPacketRouterError::PacketMissingIpHeader);
+        }
+    };
+    Ok(ParsedPacket {
+        packet_type,
+        src_addr,
+        dst_addr,
+        dst,
+    })
 }
 
 // Helper function to create the mixnet client.

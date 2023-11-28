@@ -11,7 +11,9 @@ use crate::{Error, Result};
 use futures::channel::mpsc;
 use futures::StreamExt;
 use log::warn;
-use nym_client_core::client::base_client::storage::gateway_details::GatewayDetailsStore;
+use nym_client_core::client::base_client::storage::gateway_details::{
+    GatewayDetailsStore, PersistedGatewayDetails,
+};
 use nym_client_core::client::base_client::storage::{
     Ephemeral, MixnetClientStorage, OnDiskPersistent,
 };
@@ -24,6 +26,7 @@ use nym_client_core::{
     client::{base_client::BaseClientBuilder, replies::reply_storage::ReplyStorageBackend},
     config::GatewayEndpointConfig,
 };
+use nym_network_defaults::{DEFAULT_CLIENT_LISTENING_PORT, WG_TUN_DEVICE_ADDRESS};
 use nym_socks5_client_core::config::Socks5;
 use nym_task::manager::TaskStatus;
 use nym_task::{TaskClient, TaskHandle};
@@ -35,7 +38,7 @@ use std::path::PathBuf;
 use url::Url;
 
 // The number of surbs to include in a message by default
-const DEFAULT_NUMBER_OF_SURBS: u32 = 5;
+const DEFAULT_NUMBER_OF_SURBS: u32 = 10;
 
 #[derive(Default)]
 pub struct MixnetClientBuilder<S: MixnetClientStorage = Ephemeral> {
@@ -44,6 +47,7 @@ pub struct MixnetClientBuilder<S: MixnetClientStorage = Ephemeral> {
     gateway_config: Option<GatewayEndpointConfig>,
     socks5_config: Option<Socks5>,
 
+    wireguard_mode: bool,
     wait_for_gateway: bool,
     custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
     custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send + Sync>>,
@@ -79,6 +83,7 @@ impl MixnetClientBuilder<OnDiskPersistent> {
             storage_paths: None,
             gateway_config: None,
             socks5_config: None,
+            wireguard_mode: false,
             wait_for_gateway: false,
             custom_topology_provider: None,
             storage: storage_paths
@@ -109,6 +114,7 @@ where
             storage_paths: None,
             gateway_config: None,
             socks5_config: None,
+            wireguard_mode: false,
             wait_for_gateway: false,
             custom_topology_provider: None,
             custom_gateway_transceiver: None,
@@ -127,6 +133,7 @@ where
             storage_paths: self.storage_paths,
             gateway_config: self.gateway_config,
             socks5_config: self.socks5_config,
+            wireguard_mode: self.wireguard_mode,
             wait_for_gateway: self.wait_for_gateway,
             custom_topology_provider: self.custom_topology_provider,
             custom_gateway_transceiver: self.custom_gateway_transceiver,
@@ -207,6 +214,13 @@ where
 
     /// Attempt to wait for the selected gateway (if applicable) to come online if its currently not bonded.
     #[must_use]
+    pub fn with_wireguard_mode(mut self, wireguard_mode: bool) -> Self {
+        self.wireguard_mode = wireguard_mode;
+        self
+    }
+
+    /// Attempt to wait for the selected gateway (if applicable) to come online if its currently not bonded.
+    #[must_use]
     pub fn with_wait_for_gateway(mut self, wait_for_gateway: bool) -> Self {
         self.wait_for_gateway = wait_for_gateway;
         self
@@ -235,6 +249,7 @@ where
             .custom_gateway_transceiver(self.custom_gateway_transceiver)
             .custom_topology_provider(self.custom_topology_provider)
             .custom_shutdown(self.custom_shutdown)
+            .wireguard_mode(self.wireguard_mode)
             .wait_for_gateway(self.wait_for_gateway)
             .force_tls(self.force_tls);
 
@@ -273,6 +288,9 @@ where
 
     /// advanced usage of custom gateways
     custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send + Sync>>,
+
+    /// If the client connects via Wireguard tunnel to the gateway.
+    wireguard_mode: bool,
 
     /// Attempt to wait for the selected gateway (if applicable) to come online if its currently not bonded.
     wait_for_gateway: bool,
@@ -326,6 +344,7 @@ where
             storage,
             custom_topology_provider: None,
             custom_gateway_transceiver: None,
+            wireguard_mode: false,
             wait_for_gateway: false,
             force_tls: false,
             custom_shutdown: None,
@@ -353,6 +372,12 @@ where
         gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send + Sync>>,
     ) -> Self {
         self.custom_gateway_transceiver = gateway_transceiver;
+        self
+    }
+
+    #[must_use]
+    pub fn wireguard_mode(mut self, wireguard_mode: bool) -> Self {
+        self.wireguard_mode = wireguard_mode;
         self
     }
 
@@ -503,11 +528,7 @@ where
 
         let known_gateway = self.has_valid_gateway_info().await;
 
-        let mut base_builder: BaseClientBuilder<_, _> =
-            BaseClientBuilder::new(&base_config, self.storage, self.dkg_query_client)
-                .with_wait_for_gateway(self.wait_for_gateway);
-
-        if !known_gateway {
+        let mut base_builder: BaseClientBuilder<_, _> = if !known_gateway {
             let selection_spec = GatewaySelectionSpecification::new(
                 self.config.user_chosen_gateway,
                 None,
@@ -515,14 +536,49 @@ where
             );
 
             let mut rng = OsRng;
+            let mut available_gateways = current_gateways(&mut rng, &nym_api_endpoints).await?;
+            if self.wireguard_mode {
+                available_gateways
+                    .iter_mut()
+                    .for_each(|node| node.host = WG_TUN_DEVICE_ADDRESS.parse().unwrap());
+            }
             let setup = GatewaySetup::New {
                 specification: selection_spec,
-                available_gateways: current_gateways(&mut rng, &nym_api_endpoints).await?,
+                available_gateways,
                 overwrite_data: !self.config.key_mode.is_keep(),
             };
 
-            base_builder = base_builder.with_gateway_setup(setup)
-        }
+            BaseClientBuilder::new(&base_config, self.storage, self.dkg_query_client)
+                .with_wait_for_gateway(self.wait_for_gateway)
+                .with_gateway_setup(setup)
+        } else if self.wireguard_mode {
+            if let Ok(PersistedGatewayDetails::Default(mut config)) = self
+                .storage
+                .gateway_details_store()
+                .load_gateway_details()
+                .await
+            {
+                config.details.gateway_listener = format!(
+                    "ws://{}:{}",
+                    WG_TUN_DEVICE_ADDRESS, DEFAULT_CLIENT_LISTENING_PORT
+                );
+                if let Err(e) = self
+                    .storage
+                    .gateway_details_store()
+                    .store_gateway_details(&PersistedGatewayDetails::Default(config))
+                    .await
+                {
+                    warn!("Could not switch to using wireguard mode - {:?}", e);
+                }
+            } else {
+                warn!("Storage type not supported with wireguard mode");
+            }
+            BaseClientBuilder::new(&base_config, self.storage, self.dkg_query_client)
+                .with_wait_for_gateway(self.wait_for_gateway)
+        } else {
+            BaseClientBuilder::new(&base_config, self.storage, self.dkg_query_client)
+                .with_wait_for_gateway(self.wait_for_gateway)
+        };
 
         if let Some(topology_provider) = self.custom_topology_provider {
             base_builder = base_builder.with_topology_provider(topology_provider);

@@ -1,3 +1,6 @@
+// Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: GPL-3.0-only
+
 use crate::config::Config;
 use crate::error::MixnodeError;
 use crate::node::http::legacy::verloc::VerlocState;

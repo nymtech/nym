@@ -63,6 +63,7 @@ pub struct NymClient {
 #[wasm_bindgen]
 pub struct NymClientBuilder {
     config: ClientConfig,
+    force_tls: bool,
     custom_topology: Option<NymTopology>,
     preferred_gateway: Option<IdentityKey>,
 
@@ -72,15 +73,16 @@ pub struct NymClientBuilder {
 
 #[wasm_bindgen]
 impl NymClientBuilder {
-    #[wasm_bindgen(constructor)]
-    pub fn new(
+    fn new(
         config: ClientConfig,
         on_message: js_sys::Function,
+        force_tls: bool,
         preferred_gateway: Option<IdentityKey>,
         storage_passphrase: Option<String>,
     ) -> Self {
         NymClientBuilder {
             config,
+            force_tls,
             custom_topology: None,
             storage_passphrase,
             on_message,
@@ -109,6 +111,7 @@ impl NymClientBuilder {
 
         Ok(NymClientBuilder {
             config: full_config,
+            force_tls: false,
             custom_topology: Some(topology.try_into()?),
             on_message,
             storage_passphrase: None,
@@ -149,9 +152,15 @@ impl NymClientBuilder {
 
         // if we provided hardcoded topology, get gateway from it, otherwise get it the 'standard' way
         let init_res = if let Some(topology) = &self.custom_topology {
-            setup_from_topology(user_chosen, false, topology, &client_store).await?
+            setup_from_topology(user_chosen, self.force_tls, topology, &client_store).await?
         } else {
-            setup_gateway_from_api(&client_store, false, user_chosen, &nym_api_endpoints).await?
+            setup_gateway_from_api(
+                &client_store,
+                self.force_tls,
+                user_chosen,
+                &nym_api_endpoints,
+            )
+            .await?
         };
 
         let packet_type = self.config.base.debug.traffic.packet_type;
@@ -205,6 +214,9 @@ pub struct ClientOptsSimple {
 
     #[tsify(optional)]
     pub(crate) storage_passphrase: Option<String>,
+
+    #[tsify(optional)]
+    pub(crate) force_tls: Option<bool>,
 }
 
 #[derive(Tsify, Debug, Default, Clone, Serialize, Deserialize)]
@@ -249,9 +261,16 @@ impl NymClient {
         if let Some(opts) = opts {
             let preferred_gateway = opts.preferred_gateway;
             let storage_passphrase = opts.storage_passphrase;
-            NymClientBuilder::new(config, on_message, preferred_gateway, storage_passphrase)
+            let force_tls = opts.force_tls.unwrap_or_default();
+            NymClientBuilder::new(
+                config,
+                on_message,
+                force_tls,
+                preferred_gateway,
+                storage_passphrase,
+            )
         } else {
-            NymClientBuilder::new(config, on_message, None, None)
+            NymClientBuilder::new(config, on_message, false, None, None)
         }
         .start_client_async()
         .await

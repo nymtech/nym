@@ -1,6 +1,7 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use anyhow::bail;
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
@@ -86,15 +87,25 @@ pub fn decode_payload(message: Vec<u8>) -> Result<IEncodedPayload, JsValue> {
 pub(crate) fn parse_payload(message: &[u8]) -> anyhow::Result<(EncodedPayloadMetadata, &[u8])> {
     // 1st 8 bytes are the size (as u64 big endian)
     let mut size = [0u8; 8];
+    if message.len() < 8 {
+        bail!("Message is too short to contain size information")
+    }
     size.clone_from_slice(&message[0..8]);
-    let size = u64::from_be_bytes(size) as usize;
+    let metadata_size = u64::from_be_bytes(size) as usize;
 
-    // then the metadata
-    let metadata = String::from_utf8_lossy(&message[8..8 + size]).into_owned();
-    let metadata: EncodedPayloadMetadata = serde_json::from_str(metadata.as_str())?;
+    if metadata_size + 8 != message.len() {
+        return Err(anyhow::anyhow!(format!(
+            "Metadata size: {}, exceeds message with length of: {}",
+            metadata_size,
+            message.len()
+        ),));
+    }
 
-    // finally the payload
-    let payload = &message[8 + size..];
+    //then the metadata
+    let metadata: EncodedPayloadMetadata = serde_json::from_slice(&message[8..8 + metadata_size])?;
+
+    //finally the payload
+    let payload = &message[8 + metadata_size..];
 
     Ok((metadata, payload))
 }
@@ -234,5 +245,55 @@ mod tests {
         assert_eq!(res.0.mime_type, "");
         assert_eq!(res.0.headers, None);
         assert_eq!(res.1, empty);
+    }
+
+    #[wasm_bindgen_test]
+    async fn test_parse_payload_too_short() {
+        let message = vec![0u8; 7];
+        let result = parse_payload(&message);
+        assert!(result.is_err());
+        let error = result.unwrap_err();
+        assert_eq!(
+            error.to_string(),
+            "Message is too short to contain size information"
+        );
+    }
+
+    #[wasm_bindgen_test]
+    async fn test_parse_payload_size_exceeds_length() {
+        let mut message = vec![0u8; 8];
+        message.extend(vec![1u8; 10]);
+        message[0..8].copy_from_slice(&(20u64.to_be_bytes()));
+
+        let result = parse_payload(&message);
+        assert!(result.is_err());
+        let error = result.unwrap_err();
+        assert_eq!(
+            error.to_string(),
+            "Metadata size: 20, exceeds message with length of: 18"
+        );
+    }
+
+    #[wasm_bindgen_test]
+    async fn test_parse_payload_valid() {
+        let metadata = EncodedPayloadMetadata {
+            mime_type: "text/plain".to_string(),
+            headers: Some("test headers".to_string()),
+        };
+        let payload_data = vec![2u8, 3u8, 5u8];
+
+        let serialized_metadata = serde_json::to_string(&metadata).unwrap();
+        let metadata_length = serialized_metadata.len() as u64;
+
+        let mut message = metadata_length.to_be_bytes().to_vec();
+        message.extend_from_slice(serialized_metadata.as_bytes());
+        message.extend_from_slice(&payload_data);
+
+        let (parsed_metadata, parsed_payload) = parse_payload(&message).unwrap();
+
+        assert_eq!(parsed_metadata.mime_type, metadata.mime_type);
+        assert!(parsed_metadata.headers.is_some());
+        assert_eq!(parsed_metadata.headers.unwrap(), "test headers");
+        assert_eq!(parsed_payload, payload_data.as_slice());
     }
 }

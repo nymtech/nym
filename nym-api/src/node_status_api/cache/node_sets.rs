@@ -1,3 +1,6 @@
+// Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: GPL-3.0-only
+
 use crate::node_status_api::reward_estimate::{compute_apy_from_reward, compute_reward_estimate};
 use crate::support::storage::NymApiStorage;
 use nym_api_requests::models::{GatewayBondAnnotated, MixNodeBondAnnotated, NodePerformance};

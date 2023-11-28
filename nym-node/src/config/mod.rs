@@ -1,8 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: GPL-3.0-only
 
-use nym_config::defaults::DEFAULT_NYM_NODE_HTTP_PORT;
-use nym_wireguard_types::WG_PORT;
+use nym_config::defaults::{DEFAULT_NYM_NODE_HTTP_PORT, WG_PORT};
 use serde::{Deserialize, Serialize};
 use serde_helpers::*;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
@@ -12,6 +11,7 @@ pub mod persistence;
 mod serde_helpers;
 
 pub const DEFAULT_WIREGUARD_PORT: u16 = WG_PORT;
+pub const DEFAULT_WIREGUARD_PREFIX: u8 = 16;
 pub const DEFAULT_HTTP_PORT: u16 = DEFAULT_NYM_NODE_HTTP_PORT;
 
 // TODO: this is very much a WIP. we need proper ssl certificate support here
@@ -75,6 +75,10 @@ pub struct Wireguard {
     /// Useful in the instances where the node is behind a proxy.
     pub announced_port: u16,
 
+    /// The prefix denoting the maximum number of the clients that can be connected via Wireguard.
+    /// The maximum value for IPv4 is 32 and for IPv6 is 128
+    pub private_network_prefix: u8,
+
     /// Paths for wireguard keys, client registries, etc.
     pub storage_paths: persistence::WireguardPaths,
 }
@@ -88,6 +92,7 @@ impl Default for Wireguard {
                 DEFAULT_WIREGUARD_PORT,
             ),
             announced_port: DEFAULT_WIREGUARD_PORT,
+            private_network_prefix: DEFAULT_WIREGUARD_PREFIX,
             storage_paths: persistence::WireguardPaths {},
         }
     }

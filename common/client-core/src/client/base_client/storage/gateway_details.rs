@@ -77,7 +77,7 @@ pub struct PersistedGatewayConfig {
     key_hash: Vec<u8>,
 
     /// Actual gateway details being persisted.
-    pub(crate) details: GatewayEndpointConfig,
+    pub details: GatewayEndpointConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

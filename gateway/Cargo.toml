@@ -1,9 +1,10 @@
 # Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: GPL-3.0-only
 
 [package]
 name = "nym-gateway"
-version = "1.1.31"
+license = "GPL-3"
+version = "1.1.32"
 authors = [
     "Dave Hrycyszyn <futurechimp@users.noreply.github.com>",
     "Jędrzej Stuczyński <andrew@nymtech.net>",
@@ -27,6 +28,7 @@ dirs = "4.0"
 dotenvy = { workspace = true }
 futures = { workspace = true }
 humantime-serde = "1.0.1"
+ipnetwork = "0.16"
 lazy_static = "1.4.0"
 log = { workspace = true }
 once_cell = "1.7.2"

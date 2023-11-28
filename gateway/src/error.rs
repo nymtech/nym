@@ -1,5 +1,5 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: GPL-3.0-only
 
 use crate::node::storage::error::StorageError;
 use nym_ip_packet_router::error::IpPacketRouterError;
@@ -134,6 +134,12 @@ pub(crate) enum GatewayError {
     // TODO: in the future this should work the other way, i.e. NymNode depending on Gateway errors
     #[error(transparent)]
     NymNodeError(#[from] nym_node::error::NymNodeError),
+
+    #[error("there was an issue with wireguard IP network: {source}")]
+    IpNetworkError {
+        #[from]
+        source: ipnetwork::IpNetworkError,
+    },
 }
 
 impl From<ClientCoreError> for GatewayError {

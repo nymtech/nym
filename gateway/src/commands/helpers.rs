@@ -1,5 +1,5 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: GPL-3.0-only
 
 use crate::commands::upgrade_helpers;
 use crate::config::default_config_filepath;
@@ -241,9 +241,17 @@ pub(crate) fn override_network_requester_config(
 }
 
 pub(crate) fn override_ip_packet_router_config(
-    cfg: nym_ip_packet_router::Config,
-    _opts: Option<OverrideIpPacketRouterConfig>,
+    mut cfg: nym_ip_packet_router::Config,
+    opts: Option<OverrideIpPacketRouterConfig>,
 ) -> nym_ip_packet_router::Config {
+    let Some(_opts) = opts else { return cfg };
+
+    // disable poisson rate in the BASE client if the IPR option is enabled
+    if cfg.ip_packet_router.disable_poisson_rate {
+        log::info!("Disabling poisson rate for ip packet router");
+        cfg.set_no_poisson_process();
+    }
+
     cfg
 }
 

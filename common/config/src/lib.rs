@@ -25,12 +25,20 @@ pub const DEFAULT_CONFIG_FILENAME: &str = "config.toml";
 
 #[cfg(feature = "dirs")]
 pub fn must_get_home() -> PathBuf {
-    dirs::home_dir().expect("Failed to evaluate $HOME value")
+    if let Some(home_dir) = std::env::var_os("NYM_HOME_DIR") {
+        home_dir.into()
+    } else {
+        dirs::home_dir().expect("Failed to evaluate $HOME value")
+    }
 }
 
 #[cfg(feature = "dirs")]
 pub fn may_get_home() -> Option<PathBuf> {
-    dirs::home_dir()
+    if let Some(home_dir) = std::env::var_os("NYM_HOME_DIR") {
+        Some(home_dir.into())
+    } else {
+        dirs::home_dir()
+    }
 }
 
 pub trait NymConfigTemplate: Serialize {

@@ -26,6 +26,7 @@ export const Traffic = () => {
     await client?.client.start({
       clientId: crypto.randomUUID(),
       nymApiUrl,
+      forceTls: true, // force WSS
     });
 
     // check when is connected and set the self address

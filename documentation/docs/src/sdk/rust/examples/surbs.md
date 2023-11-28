@@ -12,5 +12,5 @@ You can read more about how SURBs function under the hood [here](../../../archit
 In order to reply to an incoming message using SURBs, you can construct a `recipient` from the `sender_tag` sent along with the message you wish to reply to:
 
 ```rust,noplayground
-{{#include ../../../../../../sdk/rust/nym-sdk/examples/surb-reply.rs}}
+{{#include ../../../../../../sdk/rust/nym-sdk/examples/surb_reply.rs}}
 ```

@@ -104,7 +104,7 @@ sdk-wasm-build:
 	$(MAKE) -C wasm/client
 	$(MAKE) -C wasm/node-tester
 	$(MAKE) -C wasm/mix-fetch
-	$(MAKE) -C wasm/full-nym-wasm
+	#$(MAKE) -C wasm/full-nym-wasm
 
 # run this from npm/yarn to ensure tools are in the path, e.g. yarn build:sdk from root of repo
 sdk-typescript-build:
@@ -114,7 +114,7 @@ sdk-typescript-build:
 	yarn --cwd sdk/typescript/codegen/contract-clients build
 
 # NOTE: These targets are part of the main workspace (but not as wasm32-unknown-unknown)
-WASM_CRATES = extension-storage nym-client-wasm nym-node-tester-wasm nym-wasm-sdk
+WASM_CRATES = extension-storage nym-client-wasm nym-node-tester-wasm
 
 sdk-wasm-test:
 	#cargo test $(addprefix -p , $(WASM_CRATES)) --target wasm32-unknown-unknown -- -Dwarnings
@@ -168,3 +168,7 @@ generate-typescript:
 run-api-tests:
 	cd nym-api/tests/functional_test && yarn test:qa
 
+# Build debian package, and update PPA
+# Requires base64 encode GPG key to be set up in environment PPA_SIGNING_KEY
+deb:
+	scripts/ppa.sh

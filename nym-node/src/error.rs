@@ -1,5 +1,5 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: GPL-3.0-only
 
 use crate::wireguard::error::WireguardError;
 use std::net::{IpAddr, SocketAddr};
@@ -29,6 +29,12 @@ pub enum NymNodeError {
     WireguardError {
         #[from]
         source: WireguardError,
+    },
+
+    #[error(transparent)]
+    KeyRecoveryError {
+        #[from]
+        source: nym_crypto::asymmetric::encryption::KeyRecoveryError,
     },
 
     #[error("unimplemented")]

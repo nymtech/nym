@@ -15,8 +15,8 @@ declare -a plugins=("admonish" "linkcheck" "last-changed" "theme" "variables")
 install_mdbook_deps() {
 	printf "\ninstalling mdbook..." 
 	# installing mdbook with only specific features for speed 
-  #	cargo install mdbook --no-default-features --features search --vers "^$MINOR_VERSION"
-	cargo install mdbook --vers "^$MINOR_VERSION"
+  cargo install mdbook --no-default-features --features search --vers "^$MINOR_VERSION"
+#	cargo install mdbook --vers "^$MINOR_VERSION"
 
 	printf "\ninstalling plugins..." 
 	for i in "${plugins[@]}"

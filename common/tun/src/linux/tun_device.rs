@@ -180,10 +180,10 @@ impl TunDevice {
         );
 
         // TODO: expire old entries
-        #[allow(irrefutable_let_patterns)]
-        if let RoutingMode::Nat(nat_table) = &mut self.routing_mode {
-            nat_table.nat_table.insert(src_addr, tag);
-        }
+        // #[allow(irrefutable_let_patterns)]
+        // if let RoutingMode::Nat(nat_table) = &mut self.routing_mode {
+        //     nat_table.nat_table.insert(src_addr, tag);
+        // }
 
         timeout(
             Duration::from_millis(TUN_WRITE_TIMEOUT_MS),
@@ -196,11 +196,13 @@ impl TunDevice {
 
     // Receive reponse packets from the wild internet
     async fn handle_tun_read(&self, packet: &[u8]) -> Result<(), TunDeviceError> {
-        let ParsedAddresses { src_addr, dst_addr } = parse_src_dst_address(packet)?;
-        log::debug!(
-            "iface: read Packet({dst_addr} <- {src_addr}, {} bytes)",
-            packet.len(),
-        );
+        // let ParsedAddresses { src_addr, dst_addr } = parse_src_dst_address(packet)?;
+        // log::debug!(
+        //     "iface: read Packet({dst_addr} <- {src_addr}, {} bytes)",
+        //     packet.len(),
+        // );
+        let dst_addr =
+            parse_dst_addr(packet).ok_or(TunDeviceError::UnableToParseAddressIpHeaderMissing)?;
 
         // Route packet to the correct peer.
 
@@ -220,13 +222,14 @@ impl TunDevice {
 
             // But we can also do it by consulting the NAT table.
             RoutingMode::Nat(ref nat_table) => {
-                if let Some(tag) = nat_table.nat_table.get(&dst_addr) {
-                    log::debug!("Forward packet with NAT tag: {tag}");
-                    return self
-                        .tun_task_response_tx
-                        .try_send((*tag, packet.to_vec()))
-                        .map_err(|err| err.into());
-                }
+                // if let Some(tag) = nat_table.nat_table.get(&dst_addr) {
+                // log::debug!("Forward packet with NAT tag: {tag}");
+                return self
+                    .tun_task_response_tx
+                    // .try_send((*tag, packet.to_vec()))
+                    .try_send((0, packet.to_vec()))
+                    .map_err(|err| err.into());
+                // }
             }
         }
 
@@ -285,5 +288,39 @@ fn parse_src_dst_address(packet: &[u8]) -> Result<ParsedAddresses, TunDeviceErro
             dst_addr: ip.destination_addr().into(),
         }),
         None => Err(TunDeviceError::UnableToParseAddressIpHeaderMissing),
+    }
+}
+
+// Copyright (c) 2019 Cloudflare, Inc. All rights reserved.
+// SPDX-License-Identifier: BSD-3-Clause
+const IPV4_MIN_HEADER_SIZE: usize = 20;
+const IPV4_DST_IP_OFF: usize = 16;
+const IPV4_IP_SZ: usize = 4;
+
+const IPV6_MIN_HEADER_SIZE: usize = 40;
+const IPV6_DST_IP_OFF: usize = 24;
+const IPV6_IP_SZ: usize = 16;
+
+pub fn parse_dst_addr(packet: &[u8]) -> Option<IpAddr> {
+    if packet.is_empty() {
+        return None;
+    }
+
+    match packet[0] >> 4 {
+        4 if packet.len() >= IPV4_MIN_HEADER_SIZE => {
+            let addr_bytes: [u8; IPV4_IP_SZ] = packet
+                [IPV4_DST_IP_OFF..IPV4_DST_IP_OFF + IPV4_IP_SZ]
+                .try_into()
+                .unwrap();
+            Some(IpAddr::from(addr_bytes))
+        }
+        6 if packet.len() >= IPV6_MIN_HEADER_SIZE => {
+            let addr_bytes: [u8; IPV6_IP_SZ] = packet
+                [IPV6_DST_IP_OFF..IPV6_DST_IP_OFF + IPV6_IP_SZ]
+                .try_into()
+                .unwrap();
+            Some(IpAddr::from(addr_bytes))
+        }
+        _ => None,
     }
 }

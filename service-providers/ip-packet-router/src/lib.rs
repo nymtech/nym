@@ -483,12 +483,16 @@ impl IpPacketRouter {
                     packet = tun_task_response_rx.recv() => {
                         if let Some((_tag, packet)) = packet {
                             // TODO: skip full parsing since we only need dst_addr
-                            let Ok(ParsedPacket {
-                                packet_type: _,
-                                src_addr: _,
-                                dst_addr,
-                                dst: _,
-                            }) = parse_packet(&packet) else {
+                            // let Ok(ParsedPacket {
+                            //     packet_type: _,
+                            //     src_addr: _,
+                            //     dst_addr,
+                            //     dst: _,
+                            // }) = parse_packet(&packet) else {
+                            //     log::warn!("Failed to parse packet");
+                            //     continue;
+                            // };
+                            let Some(dst_addr) = parse_dst_addr(&packet) else {
                                 log::warn!("Failed to parse packet");
                                 continue;
                             };
@@ -681,4 +685,38 @@ async fn create_mixnet_client(
         .connect_to_mixnet()
         .await
         .map_err(|err| IpPacketRouterError::FailedToConnectToMixnet { source: err })
+}
+
+// Copyright (c) 2019 Cloudflare, Inc. All rights reserved.
+// SPDX-License-Identifier: BSD-3-Clause
+const IPV4_MIN_HEADER_SIZE: usize = 20;
+const IPV4_DST_IP_OFF: usize = 16;
+const IPV4_IP_SZ: usize = 4;
+
+const IPV6_MIN_HEADER_SIZE: usize = 40;
+const IPV6_DST_IP_OFF: usize = 24;
+const IPV6_IP_SZ: usize = 16;
+
+pub fn parse_dst_addr(packet: &[u8]) -> Option<IpAddr> {
+    if packet.is_empty() {
+        return None;
+    }
+
+    match packet[0] >> 4 {
+        4 if packet.len() >= IPV4_MIN_HEADER_SIZE => {
+            let addr_bytes: [u8; IPV4_IP_SZ] = packet
+                [IPV4_DST_IP_OFF..IPV4_DST_IP_OFF + IPV4_IP_SZ]
+                .try_into()
+                .unwrap();
+            Some(IpAddr::from(addr_bytes))
+        }
+        6 if packet.len() >= IPV6_MIN_HEADER_SIZE => {
+            let addr_bytes: [u8; IPV6_IP_SZ] = packet
+                [IPV6_DST_IP_OFF..IPV6_DST_IP_OFF + IPV6_IP_SZ]
+                .try_into()
+                .unwrap();
+            Some(IpAddr::from(addr_bytes))
+        }
+        _ => None,
+    }
 }

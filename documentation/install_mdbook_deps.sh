@@ -23,7 +23,7 @@ install_mdbook_deps() {
 		cargo install mdbook-$i
 	done
 
-	# mdbook-admonish config
+# mdbook-admonish config
 #	if [ $(pwd | awk -F/ '{print $NF}') != "documentation" ]; then
 #		printf "not in documentation/ - changing dir but something isn't right in the workflow file"
 #  		cd documentation/
@@ -63,7 +63,6 @@ uninstall_mdbook_deps() {
 		printf "\nmdbook-$i deleted\n"
 	fi
 	done
-
 }
 
 main() {

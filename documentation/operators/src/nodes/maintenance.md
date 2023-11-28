@@ -428,7 +428,7 @@ systemctl enable nym-gateway.service
 systemctl enable nym-network-requester.service
 ```
 
-Start your node:
+Start your `<NODE>` as a `systemd` service:
 
 ```sh
 # for Mix Node
@@ -441,7 +441,7 @@ service nym-gateway start
 service nym-network-requester.service
 ```
 
-This will cause your node to start at system boot time. If you restart your machine, the node will come back up automatically.
+This will cause your `<NODE>` to start at system boot time. If you restart your machine, your `<NODE>` will come back up automatically.
 
 You can monitor system logs of your node by running:
 ```sh

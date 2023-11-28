@@ -7,3 +7,4 @@ export const routes = {
 
 export const AppName = 'NymVPN';
 export const ConnectionEvent = 'connection-state';
+export const ProgressEvent = 'connection-progress';

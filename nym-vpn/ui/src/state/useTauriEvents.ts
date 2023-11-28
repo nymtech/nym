@@ -1,39 +1,71 @@
 import { useCallback, useEffect } from 'react';
 import { listen } from '@tauri-apps/api/event';
-import { EventPayload, StateDispatch } from '../types';
-import { ConnectionEvent } from '../constants';
+import {
+  ConnectionEventPayload,
+  ProgressEventPayload,
+  StateDispatch,
+} from '../types';
+import { ConnectionEvent, ProgressEvent } from '../constants';
+
+function handleError(dispatch: StateDispatch, error?: string | null) {
+  if (!error) {
+    dispatch({ type: 'reset-error' });
+    return;
+  }
+  dispatch({ type: 'set-error', error });
+}
 
 export function useTauriEvents(dispatch: StateDispatch) {
-  const registerListener = useCallback(() => {
-    return listen<EventPayload>(ConnectionEvent, (event) => {
+  const registerStateListener = useCallback(() => {
+    return listen<ConnectionEventPayload>(ConnectionEvent, (event) => {
       console.log(
         `received event ${event.event}, state: ${event.payload.state}`,
       );
       switch (event.payload.state) {
         case 'Connected':
           dispatch({ type: 'change-connection-state', state: 'Connected' });
+          handleError(dispatch, event.payload.error);
           break;
         case 'Disconnected':
           dispatch({ type: 'change-connection-state', state: 'Disconnected' });
+          handleError(dispatch, event.payload.error);
           break;
         case 'Connecting':
           dispatch({ type: 'change-connection-state', state: 'Connecting' });
+          handleError(dispatch, event.payload.error);
           break;
         case 'Disconnecting':
           dispatch({ type: 'change-connection-state', state: 'Disconnecting' });
+          handleError(dispatch, event.payload.error);
           break;
-        case 'Error':
+        case 'Unknown':
+          dispatch({ type: 'change-connection-state', state: 'Unknown' });
+          handleError(dispatch, event.payload.error);
           break;
       }
     });
   }, [dispatch]);
 
+  const registerProgressListener = useCallback(() => {
+    return listen<ProgressEventPayload>(ProgressEvent, (event) => {
+      console.log(
+        `received event ${event.event}, message: ${event.payload.message}`,
+      );
+      dispatch({
+        type: 'new-progress-message',
+        message: event.payload.message,
+      });
+    });
+  }, [dispatch]);
+
   // register/unregister event listener
   useEffect(() => {
-    const unlisten = registerListener();
+    const unlistenState = registerStateListener();
+    const unlistenProgress = registerProgressListener();
 
     return () => {
-      unlisten.then((f) => f());
+      unlistenState.then((f) => f());
+      unlistenProgress.then((f) => f());
     };
-  }, [registerListener]);
+  }, [registerStateListener, registerProgressListener]);
 }

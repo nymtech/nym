@@ -9,11 +9,18 @@ use crate::{
     states::{app::ConnectionState, SharedAppState},
 };
 
-const EVENT_CONNECTION: &str = "connection-state";
+const EVENT_CONNECTION_STATE: &str = "connection-state";
+const EVENT_CONNECTION_PROGRESS: &str = "connection-progress";
 
 #[derive(Clone, serde::Serialize)]
-struct EventPayload {
+struct ConnectionEventPayload {
     state: ConnectionState,
+    error: Option<String>,
+}
+
+#[derive(Clone, serde::Serialize)]
+struct ProgressEventPayload {
+    message: String,
 }
 
 #[instrument(skip_all)]
@@ -46,9 +53,10 @@ pub async fn connect(
     // unlock the mutex
     drop(app_state);
     app.emit_all(
-        EVENT_CONNECTION,
-        EventPayload {
+        EVENT_CONNECTION_STATE,
+        ConnectionEventPayload {
             state: ConnectionState::Connecting,
+            error: None,
         },
     )
     .ok();
@@ -56,14 +64,22 @@ pub async fn connect(
     // TODO fake some delay to establish connection
     let app_state_cloned = state.inner().clone();
     let task = tokio::spawn(async move {
+        app.emit_all(
+            EVENT_CONNECTION_PROGRESS,
+            ProgressEventPayload {
+                message: "Connecting to the network...".to_string(),
+            },
+        )
+        .ok();
         sleep(Duration::from_secs(2)).await;
         trace!("connected");
         app_state_cloned.lock().await.state = ConnectionState::Connected;
-        debug!("sending event [{}]: connected", EVENT_CONNECTION);
+        debug!("sending event [{}]: connected", EVENT_CONNECTION_STATE);
         app.emit_all(
-            EVENT_CONNECTION,
-            EventPayload {
+            EVENT_CONNECTION_STATE,
+            ConnectionEventPayload {
                 state: ConnectionState::Connected,
+                error: None,
             },
         )
         .ok();
@@ -95,9 +111,10 @@ pub async fn disconnect(
     // unlock the mutex
     drop(app_state);
     app.emit_all(
-        EVENT_CONNECTION,
-        EventPayload {
+        EVENT_CONNECTION_STATE,
+        ConnectionEventPayload {
             state: ConnectionState::Disconnecting,
+            error: None,
         },
     )
     .ok();
@@ -108,11 +125,12 @@ pub async fn disconnect(
         sleep(Duration::from_secs(2)).await;
         trace!("disconnected");
         app_state_cloned.lock().await.state = ConnectionState::Disconnected;
-        debug!("sending event [{}]: disconnected", EVENT_CONNECTION);
+        debug!("sending event [{}]: disconnected", EVENT_CONNECTION_STATE);
         app.emit_all(
-            EVENT_CONNECTION,
-            EventPayload {
+            EVENT_CONNECTION_STATE,
+            ConnectionEventPayload {
                 state: ConnectionState::Disconnected,
+                error: None,
             },
         )
         .ok();

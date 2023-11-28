@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api';
+import clsx from 'clsx';
 import { useMainDispatch, useMainState } from '../contexts';
 import { StateDispatch } from '../types';
 
@@ -23,9 +24,50 @@ function Home() {
     }
   };
 
+  const statusBadgeDynStyles = {
+    Connected: [
+      'bg-blanc-nacre-icicle',
+      'text-vert-menthe',
+      'dark:bg-baltic-sea-quartzite',
+    ],
+    Disconnected: [
+      'bg-blanc-nacre-platinum',
+      'text-coal-mine-light',
+      'dark:bg-baltic-sea-oil',
+      'dark:text-coal-mine-dark',
+    ],
+    Connecting: [
+      'bg-blanc-nacre-platinum',
+      'text-baltic-sea',
+      'dark:bg-baltic-sea-oil',
+      'dark:text-white',
+    ],
+    Disconnecting: [
+      'bg-blanc-nacre-platinum',
+      'text-baltic-sea',
+      'dark:bg-baltic-sea-oil',
+      'dark:text-white',
+    ],
+    Error: [
+      'bg-blanc-nacre-platinum',
+      'text-baltic-sea',
+      'dark:bg-baltic-sea-oil',
+      'dark:text-white',
+    ],
+  };
+
   return (
     <div>
-      connection state: {state.state}
+      <div className="h-80">
+        <div
+          className={clsx([
+            ...statusBadgeDynStyles[state.state],
+            'font-bold py-4 px-6 rounded-full',
+          ])}
+        >
+          {state.state}
+        </div>
+      </div>
       {state.loading ? (
         'loading…'
       ) : (

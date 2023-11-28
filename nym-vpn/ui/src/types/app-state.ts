@@ -7,7 +7,7 @@ export type ConnectionState =
   | 'Disconnected'
   | 'Connecting'
   | 'Disconnecting'
-  | 'Error';
+  | 'Unknown';
 
 export type PrivacyMode = 'High' | 'Medium' | 'Low';
 
@@ -19,14 +19,21 @@ export interface TunnelConfig {
 export type AppState = {
   state: ConnectionState;
   loading: boolean;
+  error?: string | null;
+  progressMessages: string[];
   privacyMode: PrivacyMode;
   tunnel: TunnelConfig;
   uiMode: 'Light' | 'Dark';
   localAppData: AppData;
 };
 
-export type EventPayload = {
+export type ConnectionEventPayload = {
   state: ConnectionState;
+  error?: string | null;
+};
+
+export type ProgressEventPayload = {
+  message: string;
 };
 
 export type StateDispatch = Dispatch<StateAction>;

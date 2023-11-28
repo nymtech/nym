@@ -16,7 +16,7 @@ pub enum ConnectionState {
     Disconnected,
     Connecting,
     Disconnecting,
-    Error,
+    Unknown,
 }
 
 #[derive(Default, Debug, Serialize, Deserialize, TS, Clone)]
@@ -38,6 +38,7 @@ pub struct TunnelConfig {
 #[derive(Debug, Default)]
 pub struct AppState {
     pub state: ConnectionState,
+    pub error: Option<String>,
     pub privacy_mode: PrivacyMode,
     pub entry_node: Option<NodeConfig>,
     pub exit_node: Option<NodeConfig>,

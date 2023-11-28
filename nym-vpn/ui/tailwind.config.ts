@@ -24,7 +24,7 @@ export default {
       },
       'blanc-nacre': {
         DEFAULT: '#F2F4F6', // [L] main bg
-        platinum: '#E6E8EB', // [L] connection status bg
+        platinum: '#E7E8EC', // [L] connection status bg
         icicle: '#E1EFE7', // [L] "Connected" status bg
       },
       // [DL] primary accent

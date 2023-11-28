@@ -20,8 +20,16 @@ export function MainStateProvider({ children }: Props) {
       return await invoke<ConnectionState>('get_connection_state');
     };
 
+    // initialize session start time
+    const getSessionStartTime = async () => {
+      return await invoke<number | undefined>('get_connection_start_time');
+    };
+
     getInitialConnectionState().then((state) =>
       dispatch({ type: 'change-connection-state', state }),
+    );
+    getSessionStartTime().then((startTime) =>
+      dispatch({ type: 'set-connection-start-time', startTime }),
     );
   }, []);
 

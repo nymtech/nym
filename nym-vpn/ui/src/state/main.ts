@@ -10,6 +10,7 @@ export type StateAction =
   | { type: 'connect' }
   | { type: 'disconnect' }
   | { type: 'set-connected'; startTime: number }
+  | { type: 'set-connection-start-time'; startTime?: number | null }
   | { type: 'set-disconnected' }
   | { type: 'reset' }
   | { type: 'set-app-data'; data: AppData };
@@ -72,6 +73,12 @@ export function reducer(state: AppState, action: StateAction): AppState {
         sessionStartDate: null,
       };
     }
+    case 'set-connection-start-time':
+      return {
+        ...state,
+        sessionStartDate:
+          (action.startTime && dayjs.unix(action.startTime)) || null,
+      };
     case 'set-app-data': {
       return { ...state, localAppData: action.data };
     }

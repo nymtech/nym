@@ -24,17 +24,17 @@ install_mdbook_deps() {
 	done
 
 	# mdbook-admonish config
-	if [ $(pwd | awk -F/ '{print $NF}') != "documentation" ]; then
-		printf "not in documentation/ - changing dir but something isn't right in the workflow file"
-  		cd documentation/	
-		mdbook-admonish install dev-portal 
-        	mdbook-admonish install docs 
-        	mdbook-admonish install operators
-	else
-        mdbook-admonish install dev-portal 
-        mdbook-admonish install docs 
-        mdbook-admonish install operators
-	fi
+#	if [ $(pwd | awk -F/ '{print $NF}') != "documentation" ]; then
+#		printf "not in documentation/ - changing dir but something isn't right in the workflow file"
+#  		cd documentation/
+#		mdbook-admonish install dev-portal
+#        	mdbook-admonish install docs
+#        	mdbook-admonish install operators
+#	else
+#        mdbook-admonish install dev-portal
+#        mdbook-admonish install docs
+#        mdbook-admonish install operators
+#	fi
 }
 
 # uninstall mdbook + plugins

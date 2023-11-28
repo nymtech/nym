@@ -273,6 +273,8 @@ For more information about your node's port configuration, check the [port refer
 
 ## VPS Setup and Automation
 
+> Replace `<NODE>` variable with `nym-mixnode`, `nym-gateway` or `nym-network-requester` according the node you running on your machine.
+
 ### Automating your node with nohup, tmux and systemd
 
 Although it’s not totally necessary, it's useful to have the Mix Node automatically start at system boot time. We recommend to run your remote operation via [`tmux`](maintenance.md#tmux) for easier management and a handy return to your previous session. For full automation, including a failed node auto-restart and `ulimit` setup, [`systemd`](maintenance.md#systemd) is a good choice. 
@@ -328,7 +330,7 @@ tmux attach-session
 
 #### systemd
 
-Here's a systemd service file to do that:
+To automate with `systemd` use this init service file and follow the steps below. 
 
 ##### For Mix Node
 
@@ -350,7 +352,7 @@ RestartSec=30
 WantedBy=multi-user.target
 ```
 
-* Put the above file onto your system at `/etc/systemd/system/nym-mixnode.service`.
+* Put the above file onto your system at `/etc/systemd/system/nym-mix-node.service` and follow the [next steps](maintenance.md#following-steps-for-nym-nodes-running-as-systemd-service).
 
 ##### For Gateway
 
@@ -372,7 +374,7 @@ RestartSec=30
 WantedBy=multi-user.target
 ```
 
-* Put the above file onto your system at `/etc/systemd/system/nym-gateway.service`.
+* Put the above file onto your system at `/etc/systemd/system/nym-gateway.service` and follow the [next steps](maintenance.md#following-steps-for-nym-nodes-running-as-systemd-service).
 
 ##### For Network Requester
 
@@ -394,21 +396,77 @@ RestartSec=30
 [Install]
 WantedBy=multi-user.target
 ```
+* Put the above file onto your system at `/etc/systemd/system/nym-network-requester.service` and follow the [next steps](maintenance.md#following-steps-for-nym-nodes-running-as-systemd-service).
 
-Now enable and start your requester:
+#### Following steps for Nym nodes running as `systemd` service
+
+Change the `<PATH>` in `ExecStart` to point at your `<NODE>` binary (`nym-mixnode`, `nym-gateway` or `nym-network-requester`), and the `<USER>` so it is the user you are running as.
+
+Example: If you have built nym in the `$HOME` directory on your server, your username is `jetpanther`, and node `<ID>` is `puma`, then the `ExecStart` line (command) in the script located in `/etc/systemd/system/nym-mixnode.service` for Nym Mixnode might look like this:
+
+`ExecStart=/home/jetpanther/nym/target/release/nym-mixnode run --id puma`. 
+
+Basically, you want the full `/<PATH>/<TO>/nym-mixnode run --id <WHATEVER-YOUR-NODE-ID-IS>`. If you are unsure about your `/<PATH>/<TO>/<NODE>`, then `cd` to your directory where you run your `<NODE>` from and run `pwd` command which returns the full path for you.
+
+Once done, save the script and follow these steps:
 
 ```sh
-systemctl enable nym-network-requester.service
-systemctl start nym-network-requester.service
-
-# you can always check your requester has succesfully started with:
-systemctl status nym-network-requester.service
+systemctl daemon-reload 
+# to pickup the new unit file
 ```
-* Put the above file onto your system at `/etc/systemd/system/nym-network-requester.service`.
+
+```sh
+# for Mix Node
+systemctl enable nym-mixnode.service
+
+# for Gateway
+systemctl enable nym-gateway.service
+
+# for Network Requester
+systemctl enable nym-network-requester.service
+```
+
+Start your node:
+
+```sh
+# for Mix Node
+service nym-mixnode start
+
+# for Gateway
+service nym-gateway start
+
+# for Network Requester
+service nym-network-requester.service
+```
+
+This will cause your node to start at system boot time. If you restart your machine, the node will come back up automatically.
+
+You can monitor system logs of your node by running:
+```sh
+journalctl -f -u <NODE>.service
+# for example journalctl -f -u nym-mixnode.service
+```
+
+Or check a status by running:
+```sh
+systemctl status <NODE>.service
+# for example systemctl status nym-mixnode.service
+```
+
+You can also do `service <NODE> stop` or `service <NODE> restart`.
+
+Note: if you make any changes to your `systemd` script after you've enabled it, you will need to run:
+
+```sh
+systemctl daemon-reload
+```
+
+This lets your operating system know it's ok to reload the service configuration. Then restart your `<NODE>`.
+
 
 ##### For Validator
 
-Below is a systemd unit file to place at `/etc/systemd/system/nymd.service`:
+Below is a `systemd` unit file to place at `/etc/systemd/system/nymd.service` to automate your validator:
 
 ```ini
 [Unit]
@@ -437,63 +495,6 @@ systemctl enable nymd   # to enable the service
 systemctl start nymd    # to actually start the service
 journalctl -f -u nymd # to monitor system logs showing the service start
 ```
-
-##### Following steps for Nym Mixnet nodes
-
-Change the `<PATH>` in `ExecStart` to point at your `<NODE>` binary (`nym-mixnode`, `nym-gateway` or `nym-network-requester`), and the `<USER>` so it is the user you are running as.
-
-If you have built nym in the `$HOME` directory on your server, and your username is `jetpanther`, then the start command for nym mixnode might look like this:
-
-`ExecStart=/home/jetpanther/nym/target/release/nym-mixnode run --id <YOUR_ID>`. Basically, you want the full `/path/to/nym-mixnode run --id whatever-your-node-id-is`
-
-Then run:
-
-```sh
-systemctl daemon-reload # to pickup the new unit file
-```
-
-```sh
-# for Mix Node
-systemctl enable nym-mixnode.service
-
-# for Gateway
-systemctl enable nym-gateway.service
-```
-
-Start your node:
-
-```sh
-# for Mix Node
-service nym-mixnode start
-
-# for Gateway
-service nym-gateway start
-
-```
-
-This will cause your node to start at system boot time. If you restart your machine, the node will come back up automatically.
-
-You can monitor system logs of your node by running:
-```sh
-journalctl -f -u <NODE>.service
-# for example journalctl -f -u nym-mixnode.service
-```
-
-Or check a status by running:
-```sh
-systemctl status <NODE>.service
-# for example systemctl status nym-mixnode.service
-```
-
-You can also do `service <NODE> stop` or `service <NODE> restart`.
-
-Note: if you make any changes to your systemd script after you've enabled it, you will need to run:
-
-```
-systemctl daemon-reload
-```
-
-This lets your operating system know it's ok to reload the service configuration.
 
 ### Setting the ulimit
 

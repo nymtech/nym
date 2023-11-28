@@ -2,13 +2,14 @@ import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api';
 import clsx from 'clsx';
 import { useMainDispatch, useMainState } from '../contexts';
-import { StateDispatch } from '../types';
+import { ConnectionState, StateDispatch } from '../types';
+import { ConnectionTimer } from '../ui';
 
 function Home() {
   const state = useMainState();
   const dispatch = useMainDispatch() as StateDispatch;
 
-  const { t } = useTranslation();
+  const { t } = useTranslation('home');
 
   const handleClick = async () => {
     if (state.state === 'Connected') {
@@ -48,25 +49,49 @@ function Home() {
       'dark:bg-baltic-sea-oil',
       'dark:text-white',
     ],
-    Error: [
+    Unknown: [
       'bg-blanc-nacre-platinum',
-      'text-baltic-sea',
+      'text-coal-mine-light',
       'dark:bg-baltic-sea-oil',
-      'dark:text-white',
+      'dark:text-coal-mine-dark',
     ],
+  };
+
+  const getStatusText = (state: ConnectionState) => {
+    switch (state) {
+      case 'Connected':
+        return t('status.connected');
+      case 'Disconnected':
+        return t('status.disconnected');
+      case 'Connecting':
+        return t('status.connecting');
+      case 'Disconnecting':
+        return t('status.disconnecting');
+      case 'Unknown':
+        return t('status.unknown');
+    }
   };
 
   return (
     <div>
-      <div className="h-80">
+      <div className="h-80 flex flex-col justify-center items-center">
         <div
           className={clsx([
             ...statusBadgeDynStyles[state.state],
-            'font-bold py-4 px-6 rounded-full',
+            'font-bold py-4 px-6 rounded-full text-lg',
           ])}
         >
-          {state.state}
+          {getStatusText(state.state)}
         </div>
+        {state.loading && state.progressMessages.length > 0 && (
+          <p className="text-dim-gray dark:text-mercury-mist font-bold">
+            {state.progressMessages[state.progressMessages.length - 1]}
+          </p>
+        )}
+        {state.state === 'Connected' && <ConnectionTimer />}
+        {state.error && (
+          <p className="text-teaberry font-bold">{state.error}</p>
+        )}
       </div>
       {state.loading ? (
         'loading…'

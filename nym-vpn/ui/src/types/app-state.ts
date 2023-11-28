@@ -1,4 +1,5 @@
 import { Dispatch } from 'react';
+import { Dayjs } from 'dayjs';
 import { AppData } from './app-data';
 import { StateAction } from '../state';
 
@@ -21,6 +22,7 @@ export type AppState = {
   loading: boolean;
   error?: string | null;
   progressMessages: string[];
+  sessionStartDate?: Dayjs | null;
   privacyMode: PrivacyMode;
   tunnel: TunnelConfig;
   uiMode: 'Light' | 'Dark';
@@ -30,6 +32,7 @@ export type AppState = {
 export type ConnectionEventPayload = {
   state: ConnectionState;
   error?: string | null;
+  start_time?: number | null; // unix timestamp in seconds
 };
 
 export type ProgressEventPayload = {

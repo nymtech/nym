@@ -70,7 +70,7 @@ export default function TopBar() {
     <nav className="flex flex-row flex-nowrap justify-between items-center bg-white text-baltic-sea dark:bg-baltic-sea-jaguar dark:text-mercury-pinkish h-16 text-xl">
       {currentNavLocation?.leftIcon ? (
         <button className="w-6 mx-4" onClick={currentNavLocation.handleLeftNav}>
-          <span className="font-icon text-2xl">
+          <span className="font-icon dark:text-laughing-jack text-2xl">
             {currentNavLocation.leftIcon}
           </span>
         </button>
@@ -83,7 +83,7 @@ export default function TopBar() {
           className="w-6 mx-4"
           onClick={currentNavLocation.handleRightNav}
         >
-          <span className="font-icon text-2xl">
+          <span className="font-icon dark:text-laughing-jack text-2xl">
             {currentNavLocation.rightIcon}
           </span>
         </button>

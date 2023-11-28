@@ -1,3 +1,4 @@
+import dayjs from 'dayjs';
 import { AppData, AppState, ConnectionState } from '../types';
 
 export type StateAction =
@@ -8,6 +9,8 @@ export type StateAction =
   | { type: 'new-progress-message'; message: string }
   | { type: 'connect' }
   | { type: 'disconnect' }
+  | { type: 'set-connected'; startTime: number }
+  | { type: 'set-disconnected' }
   | { type: 'reset' }
   | { type: 'set-app-data'; data: AppData };
 
@@ -50,6 +53,24 @@ export function reducer(state: AppState, action: StateAction): AppState {
     }
     case 'disconnect': {
       return { ...state, state: 'Disconnecting', loading: true };
+    }
+    case 'set-connected': {
+      return {
+        ...state,
+        state: 'Connected',
+        loading: false,
+        progressMessages: [],
+        sessionStartDate: dayjs.unix(action.startTime),
+      };
+    }
+    case 'set-disconnected': {
+      return {
+        ...state,
+        state: 'Disconnected',
+        loading: false,
+        progressMessages: [],
+        sessionStartDate: null,
+      };
     }
     case 'set-app-data': {
       return { ...state, localAppData: action.data };

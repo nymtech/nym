@@ -58,12 +58,14 @@ export default {
       'coal-mine': { dark: '#56545A', light: '#A4A4A4' },
       // [L] "Connection time"
       // [L] main status desc text
-      'dim-dray': '#696571',
+      'dim-gray': '#696571',
       // [L] network mode desc text
       // [L] node location select outline
       'ciment-feet': '#79747E',
       // [D] node location select outline
       'gun-powder': '#49454F',
+      // [D] top-bar icon
+      'laughing-jack': '#CAC4D0',
     },
     extend: {
       fontFamily: {

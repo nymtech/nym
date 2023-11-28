@@ -6,6 +6,7 @@ import {
   StateDispatch,
 } from '../types';
 import { ConnectionEvent, ProgressEvent } from '../constants';
+import dayjs from 'dayjs';
 
 function handleError(dispatch: StateDispatch, error?: string | null) {
   if (!error) {
@@ -23,11 +24,14 @@ export function useTauriEvents(dispatch: StateDispatch) {
       );
       switch (event.payload.state) {
         case 'Connected':
-          dispatch({ type: 'change-connection-state', state: 'Connected' });
+          dispatch({
+            type: 'set-connected',
+            startTime: event.payload.start_time || dayjs().unix(),
+          });
           handleError(dispatch, event.payload.error);
           break;
         case 'Disconnected':
-          dispatch({ type: 'change-connection-state', state: 'Disconnected' });
+          dispatch({ type: 'set-disconnected' });
           handleError(dispatch, event.payload.error);
           break;
         case 'Connecting':

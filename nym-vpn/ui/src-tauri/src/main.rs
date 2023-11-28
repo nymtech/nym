@@ -54,6 +54,7 @@ fn main() -> Result<()> {
             connection::get_connection_state,
             connection::connect,
             connection::disconnect,
+            connection::get_connection_start_time,
             app_data::get_app_data,
             app_data::set_app_data,
         ])

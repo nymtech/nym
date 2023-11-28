@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use time::OffsetDateTime;
 use ts_rs::TS;
 
 #[derive(Debug, Serialize, Deserialize, Clone, TS)]
@@ -43,4 +44,5 @@ pub struct AppState {
     pub entry_node: Option<NodeConfig>,
     pub exit_node: Option<NodeConfig>,
     pub tunnel: Option<TunnelConfig>,
+    pub connection_start_time: Option<OffsetDateTime>,
 }

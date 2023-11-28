@@ -1,10 +1,13 @@
 {
   "connect": "Connect",
   "disconnect": "Disconnect",
-  "connected": "Connected",
-  "disconnected": "Disconnected",
-  "connecting": "Connecting",
-  "disconnecting": "Disconnecting",
+  "status": {
+    "connected": "Connected",
+    "disconnected": "Disconnected",
+    "connecting": "Connecting…",
+    "disconnecting": "Disconnecting…",
+    "unknown": "Unknown"
+  },
   "connecting-message": "Establishing connection",
   "connection-time": "Connection time",
   "select-network-title": "Select network",

@@ -11,6 +11,7 @@ license.workspace = true
 [dependencies]
 bincode = "1.3.3"
 bytes = "1.5.0"
+dashmap.workspace = true
 etherparse = "0.13.0"
 futures = { workspace = true }
 log = { workspace = true }

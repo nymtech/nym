@@ -4,7 +4,7 @@ use std::{
     collections::HashMap,
     net::{IpAddr, SocketAddr},
     path::Path,
-    time::Duration,
+    time::Duration, sync::Arc,
 };
 
 use error::IpPacketRouterError;
@@ -167,7 +167,7 @@ impl IpPacketRouterBuilder {
             _config: self.config,
             request_filter: request_filter.clone(),
             tun_task_tx,
-            tun_task_response_rx,
+            tun_task_response_rx: Some(tun_task_response_rx),
             mixnet_client,
             task_handle,
             connected_clients: Default::default(),
@@ -195,7 +195,7 @@ struct IpPacketRouter {
     _config: Config,
     request_filter: request_filter::RequestFilter,
     tun_task_tx: nym_tun::tun_task_channel::TunTaskTx,
-    tun_task_response_rx: nym_tun::tun_task_channel::TunTaskResponseRx,
+    tun_task_response_rx: Option<nym_tun::tun_task_channel::TunTaskResponseRx>,
     mixnet_client: nym_sdk::mixnet::MixnetClient,
     task_handle: TaskHandle,
 
@@ -427,6 +427,59 @@ impl IpPacketRouter {
         let mut task_client = self.task_handle.fork("main_loop");
         let mut disconnect_timer = tokio::time::interval(DISCONNECT_TIMER_INTERVAL);
 
+        let mixnet_client_sender = self.mixnet_client.split_sender();
+        let mixnet_client_sender_clone = mixnet_client_sender.clone();
+
+        let connected_clients = Arc::new(std::sync::Mutex::new(HashMap::<IpAddr, ConnectedClient>::new()));
+        let connected_clients_clone = connected_clients.clone();
+
+        let tun_task_response_rx = self.tun_task_response_rx.take();
+
+        // Spawn TUN listener
+        tokio::spawn(async move {
+            let mut tun_task_response_rx = tun_task_response_rx.unwrap();
+            loop {
+                tokio::select! {
+                    packet = tun_task_response_rx.recv() => {
+                        if let Some((_tag, packet)) = packet {
+                            // TODO: skip full parsing since we only need dst_addr
+                            let Ok(ParsedPacket {
+                                packet_type: _,
+                                src_addr: _,
+                                dst_addr,
+                                dst: _,
+                            }) = parse_packet(&packet) else {
+                                log::warn!("Failed to parse packet");
+                                continue;
+                            };
+
+                            let recipient = connected_clients_clone.lock().unwrap().get(&dst_addr).map(|c| c.nym_address);
+
+                            if let Some(recipient) = recipient {
+                                let lane = TransmissionLane::General;
+                                let packet_type = None;
+                                let response_packet = IpPacketResponse::new_ip_packet(packet.into()).to_bytes();
+                                let Ok(response_packet) = response_packet else {
+                                    log::error!("Failed to serialize response packet");
+                                    continue;
+                                };
+                                let input_message = InputMessage::new_regular(recipient, response_packet, lane, packet_type);
+
+                                if let Err(err) = mixnet_client_sender_clone.send(input_message).await {
+                                    log::error!("IpPacketRouter [main loop]: failed to send packet to mixnet: {err}");
+                                };
+                            } else {
+                                log::error!("IpPacketRouter [main loop]: no nym-address recipient for packet");
+                            }
+                        } else {
+                            log::trace!("IpPacketRouter [main loop]: stopping since channel closed");
+                            break;
+                        }
+                    }
+                }
+            }
+        });
+
         while !task_client.is_shutdown() {
             tokio::select! {
                 _ = task_client.recv() => {
@@ -434,7 +487,7 @@ impl IpPacketRouter {
                 },
                 _ = disconnect_timer.tick() => {
                     let now = std::time::Instant::now();
-                    let inactive_clients: Vec<IpAddr> = self.connected_clients.iter()
+                    let inactive_clients: Vec<IpAddr> = connected_clients.lock().unwrap().iter()
                         .filter_map(|(ip, client)| {
                             if now.duration_since(client.last_activity) > CLIENT_INACTIVITY_TIMEOUT {
                                 Some(*ip)
@@ -464,7 +517,7 @@ impl IpPacketRouter {
                                 let lane = TransmissionLane::General;
                                 let packet_type = None;
                                 let input_message = InputMessage::new_regular(*recipient, response_packet, lane, packet_type);
-                                if let Err(err) = self.mixnet_client.send(input_message).await {
+                                if let Err(err) = mixnet_client_sender.send(input_message).await {
                                     log::error!("IpPacketRouter [main loop]: failed to send packet to mixnet: {err}");
                                 };
                             },
@@ -474,49 +527,12 @@ impl IpPacketRouter {
                             Err(err) => {
                                 log::error!("Error handling mixnet message: {err}");
                             }
-
                         };
                     } else {
                         log::trace!("IpPacketRouter [main loop]: stopping since channel closed");
                         break;
                     };
                 },
-                packet = self.tun_task_response_rx.recv() => {
-                    if let Some((_tag, packet)) = packet {
-                        // TODO: skip full parsing since we only need dst_addr
-                        let Ok(ParsedPacket {
-                            packet_type: _,
-                            src_addr: _,
-                            dst_addr,
-                            dst: _,
-                        }) = parse_packet(&packet) else {
-                            log::warn!("Failed to parse packet");
-                            continue;
-                        };
-
-                        let recipient = self.connected_clients.get(&dst_addr).map(|c| c.nym_address);
-
-                        if let Some(recipient) = recipient {
-                            let lane = TransmissionLane::General;
-                            let packet_type = None;
-                            let response_packet = IpPacketResponse::new_ip_packet(packet.into()).to_bytes();
-                            let Ok(response_packet) = response_packet else {
-                                log::error!("Failed to serialize response packet");
-                                continue;
-                            };
-                            let input_message = InputMessage::new_regular(recipient, response_packet, lane, packet_type);
-
-                            if let Err(err) = self.mixnet_client.send(input_message).await {
-                                log::error!("IpPacketRouter [main loop]: failed to send packet to mixnet: {err}");
-                            };
-                        } else {
-                            log::error!("IpPacketRouter [main loop]: no nym-address recipient for packet");
-                        }
-                    } else {
-                        log::trace!("IpPacketRouter [main loop]: stopping since channel closed");
-                        break;
-                    }
-                }
 
             }
         }

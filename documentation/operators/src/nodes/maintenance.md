@@ -415,6 +415,8 @@ systemctl daemon-reload
 # to pickup the new unit file
 ```
 
+Enable the newly created service: 
+
 ```sh
 # for Mix Node
 systemctl enable nym-mixnode.service

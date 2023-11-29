@@ -397,6 +397,7 @@ pub fn verify_partial_blind_signature(
     }
 
     // get the references to all the terms to get the arguments the miller loop expects
+    #[allow(clippy::map_identity)]
     let terms_refs = terms.iter().map(|(g1, g2)| (g1, g2)).collect::<Vec<_>>();
 
     // since checking whether e(a, b) == e(c, d)

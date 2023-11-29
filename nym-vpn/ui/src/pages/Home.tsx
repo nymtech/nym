@@ -73,33 +73,35 @@ function Home() {
   };
 
   return (
-    <div>
-      <div className="h-80 flex flex-col justify-center items-center">
-        <div
-          className={clsx([
-            ...statusBadgeDynStyles[state.state],
-            'font-bold py-4 px-6 rounded-full text-lg',
-          ])}
-        >
-          {getStatusText(state.state)}
+    <div className="h-full">
+      <div className="h-80 flex flex-col justify-center items-center gap-y-2">
+        <div className="flex flex-1 items-end">
+          <div
+            className={clsx([
+              ...statusBadgeDynStyles[state.state],
+              'font-bold py-4 px-6 rounded-full text-lg',
+            ])}
+          >
+            {getStatusText(state.state)}
+          </div>
         </div>
-        {state.loading && state.progressMessages.length > 0 && (
-          <p className="text-dim-gray dark:text-mercury-mist font-bold">
-            {state.progressMessages[state.progressMessages.length - 1]}
-          </p>
-        )}
-        {state.state === 'Connected' && <ConnectionTimer />}
-        {state.error && (
-          <p className="text-teaberry font-bold">{state.error}</p>
-        )}
+        <div className="flex flex-1">
+          {state.loading && state.progressMessages.length > 0 && (
+            <p className="text-dim-gray dark:text-mercury-mist font-bold">
+              {state.progressMessages[state.progressMessages.length - 1]}
+            </p>
+          )}
+          {state.state === 'Connected' && <ConnectionTimer />}
+          {state.error && (
+            <p className="text-teaberry font-bold">{state.error}</p>
+          )}
+        </div>
       </div>
-      {state.loading ? (
-        'loading…'
-      ) : (
-        <button onClick={handleClick}>
+      <div className="flex flex-col justify-center items-center gap-y-2">
+        <button className="justify-self-end" onClick={handleClick}>
           {state.state === 'Disconnected' ? t('connect') : t('disconnect')}
         </button>
-      )}
+      </div>
     </div>
   );
 }

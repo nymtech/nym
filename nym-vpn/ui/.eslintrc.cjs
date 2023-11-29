@@ -13,7 +13,7 @@ module.exports = {
   parserOptions: {
     project: './tsconfig.json',
   },
-  plugins: ['jsx-a11y', '@typescript-eslint', 'import'],
+  plugins: ['@typescript-eslint', 'import'],
   root: true,
   settings: {
     react: {

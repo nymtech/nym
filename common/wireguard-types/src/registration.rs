@@ -93,10 +93,10 @@ impl GatewayClient {
     ) -> Self {
         // convert from 1.0 x25519-dalek private key into 2.0 x25519-dalek
         #[allow(clippy::expect_used)]
-        let static_secret = boringtun::x25519::StaticSecret::from(local_secret.to_bytes());
-        let local_public: boringtun::x25519::PublicKey = (&static_secret).into();
+        let static_secret = x25519_dalek::StaticSecret::from(local_secret.to_bytes());
+        let local_public: x25519_dalek::PublicKey = (&static_secret).into();
 
-        let remote_public = boringtun::x25519::PublicKey::from(remote_public.to_bytes());
+        let remote_public = x25519_dalek::PublicKey::from(remote_public.to_bytes());
 
         let dh = static_secret.diffie_hellman(&remote_public);
 
@@ -122,7 +122,7 @@ impl GatewayClient {
     pub fn verify(&self, gateway_key: &PrivateKey, nonce: u64) -> Result<(), Error> {
         // convert from 1.0 x25519-dalek private key into 2.0 x25519-dalek
         #[allow(clippy::expect_used)]
-        let static_secret = boringtun::x25519::StaticSecret::from(gateway_key.to_bytes());
+        let static_secret = x25519_dalek::StaticSecret::from(gateway_key.to_bytes());
 
         let dh = static_secret.diffie_hellman(&self.pub_key);
 

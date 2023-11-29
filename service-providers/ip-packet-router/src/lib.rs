@@ -514,7 +514,7 @@ struct TunListener {
     mixnet_client_sender: nym_sdk::mixnet::MixnetClientSender,
     // task_handle: TaskHandle,
 
-    // A mirror of the tone in IpPacketRouter
+    // A mirror of the one in IpPacketRouter
     connected_clients: HashMap<IpAddr, ConnectedClient>,
     connected_client_rx: tokio::sync::mpsc::Receiver<ConnectedClientEvent>,
 }

@@ -42,7 +42,7 @@ pub async fn start_wireguard(
     let peer_ip_mask = IpAddrMask::new(peer_ip.network_address(), peer_ip.netmask());
     peer.set_allowed_ips(vec![peer_ip_mask]);
     wgapi.configure_peer(&peer)?;
-    wgapi.configure_peer_routing(&vec![peer.clone()])?;
+    wgapi.configure_peer_routing(&[peer.clone()])?;
 
     tokio::spawn(async move { task_client.recv().await });
 

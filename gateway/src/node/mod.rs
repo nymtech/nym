@@ -22,6 +22,7 @@ use crate::node::statistics::collector::GatewayStatisticsCollector;
 use crate::node::storage::Storage;
 use anyhow::bail;
 use dashmap::DashMap;
+#[cfg(feature = "wireguard")]
 use defguard_wireguard_rs::{WGApi, WireguardInterfaceApi};
 use futures::channel::{mpsc, oneshot};
 use log::*;

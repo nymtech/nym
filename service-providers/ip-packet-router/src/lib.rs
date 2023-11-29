@@ -155,7 +155,7 @@ impl IpPacketRouterBuilder {
             netmask: TUN_DEVICE_NETMASK.parse().unwrap(),
         };
         let (tun, tun_task_tx, tun_task_response_rx) = nym_tun::tun_device::TunDevice::new(
-            nym_tun::tun_device::RoutingMode::new_nat(),
+            nym_tun::tun_device::RoutingMode::new_passthrough(),
             config,
         );
         tun.start();
@@ -382,10 +382,8 @@ impl IpPacketRouter {
         }
 
         // TODO: consider changing from Vec<u8> to bytes::Bytes?
-        // TODO: consider just removing the tag
-        let tag = 0;
         self.tun_task_tx
-            .try_send((tag, data_request.ip_packet.into()))
+            .try_send((0, data_request.ip_packet.into()))
             .map_err(|err| IpPacketRouterError::FailedToSendPacketToTun { source: err })?;
 
         Ok(None)

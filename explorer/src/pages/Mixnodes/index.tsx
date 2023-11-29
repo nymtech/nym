@@ -167,15 +167,23 @@ export const PageMixnodes: FCWithChildren = () => {
       headerAlign: 'left',
       renderCell: (params: GridRenderCellParams) => (
         <>
-          <DelegateIconButton
-            sx={{ ...getCellFontStyle(theme, params.row), marginRight: 1 }}
-            // tooltip={`Copy identity key ${params.value} to clipboard`}
-            // onDelegate={() => onDelegate(params.value.identityKey, params.value.mixId)}
-            onDelegate={() => {
-              openDelegationModal(params.value, params.row.mix_id);
-              console.log('object :>> ', params.value, params.row.mix_id);
+          {/* <ChainProvider
+            chains={chainsFixedUp}
+            assetLists={assetsFixedUp}
+            wallets={[...keplr]}
+            signerOptions={{
+              preferredSignType: () => 'amino',
             }}
-          />
+          >
+            <DelegateIconButton
+              sx={{ ...getCellFontStyle(theme, params.row), marginRight: 1 }}
+              // tooltip={walletConnected ? undefined : 'Connect your wallet to delegate'}
+              onDelegate={() => {
+                openDelegationModal(params.value, params.row.mix_id);
+                console.log('object :>> ', params.value, params.row.mix_id);
+              }}
+            />
+          </ChainProvider> */}
           <CopyToClipboard
             sx={{ ...getCellFontStyle(theme, params.row), mr: 1 }}
             value={params.value}

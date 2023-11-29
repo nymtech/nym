@@ -162,7 +162,7 @@ impl IpPacketRouterBuilder {
 
         // Channel used by the IpPacketRouter to signal connected and disconnected clients to the
         // TunListener
-        let (connected_client_tx, connected_client_rx) = tokio::sync::mpsc::channel(16);
+        let (connected_client_tx, connected_client_rx) = tokio::sync::mpsc::unbounded_channel();
 
         let tun_listener = TunListener {
             tun_task_response_rx,
@@ -211,7 +211,7 @@ struct IpPacketRouter {
     task_handle: TaskHandle,
 
     connected_clients: HashMap<IpAddr, ConnectedClient>,
-    connected_client_tx: tokio::sync::mpsc::Sender<ConnectedClientEvent>,
+    connected_client_tx: tokio::sync::mpsc::UnboundedSender<ConnectedClientEvent>,
 }
 
 struct ConnectedClient {
@@ -268,7 +268,6 @@ impl IpPacketRouter {
                 );
                 self.connected_client_tx
                     .send(ConnectedClientEvent::Connect(requested_ip, reply_to))
-                    .await
                     .unwrap();
                 Ok(Some(IpPacketResponse::new_static_connect_success(
                     request_id, reply_to,
@@ -350,7 +349,6 @@ impl IpPacketRouter {
         );
         self.connected_client_tx
             .send(ConnectedClientEvent::Connect(new_ip, reply_to))
-            .await
             .unwrap();
         Ok(Some(IpPacketResponse::new_dynamic_connect_success(
             request_id, reply_to, new_ip,
@@ -464,7 +462,7 @@ impl IpPacketRouter {
                     for ip in inactive_clients {
                         log::info!("Disconnect inactive client: {ip}");
                         self.connected_clients.remove(&ip);
-                        self.connected_client_tx.send(ConnectedClientEvent::Disconnect(ip)).await.unwrap();
+                        self.connected_client_tx.send(ConnectedClientEvent::Disconnect(ip)).unwrap();
                     }
                 },
                 msg = self.mixnet_client.next() => {
@@ -516,7 +514,7 @@ struct TunListener {
 
     // A mirror of the one in IpPacketRouter
     connected_clients: HashMap<IpAddr, ConnectedClient>,
-    connected_client_rx: tokio::sync::mpsc::Receiver<ConnectedClientEvent>,
+    connected_client_rx: tokio::sync::mpsc::UnboundedReceiver<ConnectedClientEvent>,
 }
 
 impl TunListener {
@@ -537,15 +535,6 @@ impl TunListener {
                         Some(ConnectedClientEvent::Disconnect(ip)) => {
                             log::trace!("Disconnect client: {ip}");
                             self.connected_clients.remove(&ip);
-                        },
-                        Some(ConnectedClientEvent::Sync(clients)) => {
-                            log::trace!("Sync clients");
-                            self.connected_clients = clients.into_iter().map(|(ip, nym_addr)| {
-                                (ip, ConnectedClient {
-                                    nym_address: nym_addr,
-                                    last_activity: std::time::Instant::now(),
-                                })
-                            }).collect();
                         },
                         None => {},
                     }
@@ -598,7 +587,6 @@ impl TunListener {
 enum ConnectedClientEvent {
     Disconnect(IpAddr),
     Connect(IpAddr, Recipient),
-    Sync(Vec<(IpAddr, Recipient)>),
 }
 
 struct ParsedPacket<'a> {

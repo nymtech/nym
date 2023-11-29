@@ -182,6 +182,7 @@ impl TunDevice {
             }
 
             RoutingMode::Passthrough => {
+                // WIP(JON): skip the parsing at the top of the function
                 log::debug!("Forward packet without checking anything");
                 return self
                     .tun_task_response_tx

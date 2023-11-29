@@ -91,6 +91,10 @@ impl RoutingMode {
             nat_table: HashMap::new(),
         })
     }
+
+    pub fn new_passthrough() -> Self {
+        RoutingMode::Passthrough
+    }
 }
 
 pub struct NatInner {

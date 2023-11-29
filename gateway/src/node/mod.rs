@@ -476,6 +476,13 @@ impl<St> Gateway<St> {
             });
         }
 
+        self.start_client_websocket_listener(
+            mix_forwarding_channel.clone(),
+            active_clients_store.clone(),
+            shutdown.subscribe().named("websocket::Listener"),
+            Arc::new(coconut_verifier),
+        );
+
         let nr_request_filter = if self.config.network_requester.enabled {
             let embedded_nr = self
                 .start_network_requester(
@@ -496,7 +503,7 @@ impl<St> Gateway<St> {
         if self.config.ip_packet_router.enabled {
             let embedded_ip_sp = self
                 .start_ip_packet_router(
-                    mix_forwarding_channel.clone(),
+                    mix_forwarding_channel,
                     shutdown.subscribe().named("ip_service_provider"),
                 )
                 .await?;
@@ -513,13 +520,8 @@ impl<St> Gateway<St> {
         .with_maybe_network_request_filter(nr_request_filter)
         .start(shutdown.subscribe().named("http-api"))?;
 
-        self.start_client_websocket_listener(
-            mix_forwarding_channel,
-            active_clients_store,
-            shutdown.subscribe().named("websocket::Listener"),
-            Arc::new(coconut_verifier),
-        );
-
+        // Once this is a bit more mature, make this a commandline flag instead of a compile time
+        // flag
         #[cfg(feature = "wireguard")]
         let wg_api = self
             .start_wireguard(shutdown.subscribe().named("wireguard"))

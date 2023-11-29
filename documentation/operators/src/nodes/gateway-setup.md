@@ -189,12 +189,12 @@ The `run` command starts the Gateway:
 ## Bonding your Gateway
 
 ```admonish info
-Before you bond your Gateway, please make sure the [firewall configuration](./maintenance.md#configure-your-firewall) is setup so your Gateway can be reached from the outside. You can also setup [WSS on your Gateway](./maintenance.md#run-web-secure-socket-wss-on-gateway) and [automate](./maintenance.md#vps-setup-and-automation) your Gateway to simplify the operation overhead. We highly recommend to run ny of these steps before bonding to prevent disruption of your Gateway's routing score later on.
+Before you bond your Gateway, please make sure the [firewall configuration](./maintenance.md#configure-your-firewall) is setup so your Gateway can be reached from the outside. You can also setup [WSS on your Gateway](./maintenance.md#run-web-secure-socket-wss-on-gateway) and [automate](./maintenance.md#vps-setup-and-automation) your Gateway to simplify the operation overhead. We highly recommend to run any of these steps before bonding to prevent disruption of your Gateway's routing score later on.
 ```
 
 ### Via the Desktop wallet (recommended)
 
-You can bond your Gateway via the Desktop wallet. Make sure your Gateway is running and follow the steps below:
+You can bond your Gateway via the Desktop wallet. **Make sure your Gateway is running first**, then follow the steps below:
 
 1. Open your wallet, and head to the `Bonding` page, then select the node type `Gateway` and input your node details. Press `Next`.
 
@@ -240,7 +240,7 @@ It will look something like this (as `<YOUR_ID>` we used `supergateway`):
 * And paste it into the wallet nodal, press `Next` and confirm the transaction.
 
 ![Paste Signature](../images/wallet-screenshots/wallet-gateway-sign.png)  
-*This image is just an example, copy-paste your own base58-encoded signature*
+*This image is just an example, copy-paste your own base58-encoded signature.*
 
 * Your Gateway is now bonded.
 

@@ -3,6 +3,7 @@
 
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::Decimal;
+use cosmwasm_std::OverflowError;
 use cosmwasm_std::Uint128;
 use serde::de::Error;
 use serde::{Deserialize, Deserializer};
@@ -70,6 +71,10 @@ impl Percent {
         let hundred = Decimal::from_ratio(100u32, 1u32);
         // we know the cast from u128 to u8 is a safe one since the internal value must be within 0 - 1 range
         truncate_decimal(hundred * self.0).u128() as u8
+    }
+
+    pub fn checked_pow(&self, exp: u32) -> Result<Self, OverflowError> {
+        self.0.checked_pow(exp).map(Percent)
     }
 }
 

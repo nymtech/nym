@@ -3,12 +3,14 @@
 
 use std::convert::TryFrom;
 use std::convert::TryInto;
+use std::ops::Neg;
 
-use bls12_381::{G1Affine, G1Projective, Scalar};
-use group::{Curve, GroupEncoding};
+use bls12_381::{multi_miller_loop, G1Affine, G1Projective, G2Prepared, Scalar};
+use group::{Curve, Group, GroupEncoding};
 
 use crate::error::{CoconutError, Result};
 use crate::proofs::ProofCmCs;
+use crate::scheme::keygen::VerificationKey;
 use crate::scheme::setup::Parameters;
 use crate::scheme::BlindedSignature;
 use crate::scheme::SecretKey;
@@ -318,6 +320,97 @@ pub fn blind_sign(
     Ok(BlindedSignature(h, sig))
 }
 
+/// Verifies a partial blind signature using the provided parameters and validator's verification key.
+///
+/// # Arguments
+///
+/// * `params` - A reference to the cryptographic parameters.
+/// * `blind_sign_request` - A reference to the blind signature request signed by the client.
+/// * `public_attributes` - A reference to the public attributes included in the client's request.
+/// * `blind_sig` - A reference to the issued partial blinded signature to be verified.
+/// * `partial_verification_key` - A reference to the validator's partial verification key.
+///
+/// # Returns
+///
+/// A boolean indicating whether the partial blind signature is valid (`true`) or not (`false`).
+///
+/// # Remarks
+///
+/// This function verifies the correctness and validity of a partial blind signature using
+/// the provided cryptographic parameters, blind signature request, blinded signature,
+/// and partial verification key.
+/// It calculates pairings based on the provided values and checks whether the partial blind signature
+/// is consistent with the verification key and commitments in the blind signature request.
+/// The function returns `true` if the partial blind signature is valid, and `false` otherwise.
+pub fn verify_partial_blind_signature(
+    params: &Parameters,
+    blind_sign_request: &BlindSignRequest,
+    public_attributes: &[Attribute],
+    blind_sig: &BlindedSignature,
+    partial_verification_key: &VerificationKey,
+) -> bool {
+    let num_private_attributes = blind_sign_request.private_attributes_commitments.len();
+    if num_private_attributes + public_attributes.len() > partial_verification_key.beta_g2.len() {
+        return false;
+    }
+
+    // TODO: we're losing some memory here due to extra allocation,
+    // but worst-case scenario (given SANE amount of attributes), it's just few kb at most
+    let c_neg = blind_sig.1.to_affine().neg();
+    let g2_prep = params.prepared_miller_g2();
+
+    let mut terms = vec![
+        // (c^{-1}, g2)
+        (c_neg, g2_prep.clone()),
+        // (s, alpha)
+        (
+            blind_sig.0.to_affine(),
+            G2Prepared::from(partial_verification_key.alpha.to_affine()),
+        ),
+    ];
+
+    // for each private attribute, add (cm_i, beta_i) to the miller terms
+    for (private_attr_commit, beta_g2) in blind_sign_request
+        .private_attributes_commitments
+        .iter()
+        .zip(&partial_verification_key.beta_g2)
+    {
+        // (cm_i, beta_i)
+        terms.push((
+            private_attr_commit.to_affine(),
+            G2Prepared::from(beta_g2.to_affine()),
+        ))
+    }
+
+    // for each public attribute, add (s^pub_j, beta_{priv + j}) to the miller terms
+    for (pub_attr, beta_g2) in public_attributes.iter().zip(
+        partial_verification_key
+            .beta_g2
+            .iter()
+            .skip(num_private_attributes),
+    ) {
+        // (s^pub_j, beta_j)
+        terms.push((
+            (blind_sig.0 * pub_attr).to_affine(),
+            G2Prepared::from(beta_g2.to_affine()),
+        ))
+    }
+
+    // get the references to all the terms to get the arguments the miller loop expects
+    #[allow(clippy::map_identity)]
+    let terms_refs = terms.iter().map(|(g1, g2)| (g1, g2)).collect::<Vec<_>>();
+
+    // since checking whether e(a, b) == e(c, d)
+    // is equivalent to checking e(a, b) • e(c, d)^{-1} == id
+    // and thus to e(a, b) • e(c^{-1}, d) == id
+    //
+    // compute e(c^1, g2) • e(s, alpha) • e(cm_0, beta_0) • e(cm_i, beta_i) • (s^pub_0, beta_{i+1}) (s^pub_j, beta_{i + j})
+    multi_miller_loop(&terms_refs)
+        .final_exponentiation()
+        .is_identity()
+        .into()
+}
+
 #[cfg(test)]
 pub fn sign(
     params: &mut Parameters,
@@ -354,6 +447,7 @@ pub fn sign(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::scheme::keygen::keygen;
 
     #[test]
     fn blind_sign_request_bytes_roundtrip() {
@@ -384,5 +478,82 @@ mod tests {
             BlindSignRequest::try_from(bytes.as_slice()).unwrap(),
             lambda
         );
+    }
+
+    #[test]
+    fn successful_verify_partial_blind_signature() {
+        let params = Parameters::new(4).unwrap();
+        let private_attributes = params.n_random_scalars(2);
+        let public_attributes = params.n_random_scalars(2);
+
+        let (_commitments_openings, request) =
+            prepare_blind_sign(&params, &private_attributes, &public_attributes).unwrap();
+
+        let validator_keypair = keygen(&params);
+        let blind_sig = blind_sign(
+            &params,
+            &validator_keypair.secret_key(),
+            &request,
+            &public_attributes,
+        )
+        .unwrap();
+
+        assert!(verify_partial_blind_signature(
+            &params,
+            &request,
+            &public_attributes,
+            &blind_sig,
+            &validator_keypair.verification_key()
+        ));
+    }
+
+    #[test]
+    fn successful_verify_partial_blind_signature_no_public_attributes() {
+        let params = Parameters::new(4).unwrap();
+        let private_attributes = params.n_random_scalars(2);
+
+        let (_commitments_openings, request) =
+            prepare_blind_sign(&params, &private_attributes, &[]).unwrap();
+
+        let validator_keypair = keygen(&params);
+        let blind_sig =
+            blind_sign(&params, &validator_keypair.secret_key(), &request, &[]).unwrap();
+
+        assert!(verify_partial_blind_signature(
+            &params,
+            &request,
+            &[],
+            &blind_sig,
+            &validator_keypair.verification_key()
+        ));
+    }
+
+    #[test]
+    fn fail_verify_partial_blind_signature_with_wrong_key() {
+        let params = Parameters::new(4).unwrap();
+        let private_attributes = params.n_random_scalars(2);
+        let public_attributes = params.n_random_scalars(2);
+
+        let (_commitments_openings, request) =
+            prepare_blind_sign(&params, &private_attributes, &public_attributes).unwrap();
+
+        let validator_keypair = keygen(&params);
+        let validator2_keypair = keygen(&params);
+        let blind_sig = blind_sign(
+            &params,
+            &validator_keypair.secret_key(),
+            &request,
+            &public_attributes,
+        )
+        .unwrap();
+
+        // this assertion should fail, as we try to verify with a wrong validator key
+        assert!(!verify_partial_blind_signature(
+            &params,
+            &request,
+            &public_attributes,
+            &blind_sig,
+            &validator2_keypair.verification_key()
+        ),);
     }
 }

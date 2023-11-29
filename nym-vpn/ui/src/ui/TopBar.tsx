@@ -67,7 +67,7 @@ export default function TopBar() {
   }, [location.pathname, navBarData]);
 
   return (
-    <nav className="flex flex-row flex-nowrap justify-between items-center bg-white text-baltic-sea dark:bg-baltic-sea-jaguar dark:text-mercury-pinkish h-16 text-xl">
+    <nav className="flex flex-row flex-nowrap justify-between items-center shrink-0 bg-white text-baltic-sea dark:bg-baltic-sea-jaguar dark:text-mercury-pinkish h-16 text-xl">
       {currentNavLocation?.leftIcon ? (
         <button className="w-6 mx-4" onClick={currentNavLocation.handleLeftNav}>
           <span className="font-icon dark:text-laughing-jack text-2xl">

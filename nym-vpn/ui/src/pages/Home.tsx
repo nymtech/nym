@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api';
 import clsx from 'clsx';
+import { Button } from '@mui/base';
 import { useMainDispatch, useMainState } from '../contexts';
 import { ConnectionState, StateDispatch } from '../types';
 import { ConnectionTimer } from '../ui';
@@ -72,8 +73,31 @@ function Home() {
     }
   };
 
+  const getButtonText = (state: ConnectionState) => {
+    switch (state) {
+      case 'Connected':
+        return t('disconnect');
+      case 'Disconnected':
+        return t('connect');
+      case 'Connecting':
+        return (
+          <div className="flex justify-center items-center animate-spin">
+            <span className="font-icon text-2xl font-medium">autorenew</span>
+          </div>
+        );
+      case 'Disconnecting':
+        return (
+          <div className="flex justify-center items-center animate-spin">
+            <span className="font-icon text-2xl font-medium">autorenew</span>
+          </div>
+        );
+      case 'Unknown':
+        return t('status.unknown');
+    }
+  };
+
   return (
-    <div className="h-full">
+    <div className="h-full flex flex-col p-4">
       <div className="h-80 flex flex-col justify-center items-center gap-y-2">
         <div className="flex flex-1 items-end">
           <div
@@ -97,10 +121,21 @@ function Home() {
           )}
         </div>
       </div>
-      <div className="flex flex-col justify-center items-center gap-y-2">
-        <button className="justify-self-end" onClick={handleClick}>
-          {state.state === 'Disconnected' ? t('connect') : t('disconnect')}
-        </button>
+      <div className="flex grow flex-col justify-between gap-y-2">
+        <div />
+        <Button
+          className={clsx([
+            'rounded-lg text-lg font-bold py-4 px-6 h-16',
+            (state.state === 'Disconnected' || state.state === 'Connecting') &&
+              'bg-melon text-white dark:text-baltic-sea',
+            (state.state === 'Connected' || state.state === 'Disconnecting') &&
+              'bg-cornflower text-white dark:text-baltic-sea',
+          ])}
+          onClick={handleClick}
+          disabled={state.loading}
+        >
+          {getButtonText(state.state)}
+        </Button>
       </div>
     </div>
   );

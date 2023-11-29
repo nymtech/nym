@@ -80,6 +80,9 @@ pub enum RoutingMode {
     // This is an alternative to the routing table, where we just match outgoing source IP with
     // incoming destination IP.
     Nat(NatInner),
+
+    // Just forward without checking anything
+    Passthrough,
 }
 
 impl RoutingMode {
@@ -139,7 +142,6 @@ impl TunDevice {
         );
 
         // TODO: expire old entries
-        #[allow(irrefutable_let_patterns)]
         if let RoutingMode::Nat(nat_table) = &mut self.routing_mode {
             nat_table.nat_table.insert(src_addr, tag);
         }
@@ -173,6 +175,14 @@ impl TunDevice {
                         .try_send((*tag, packet.to_vec()))
                         .map_err(|err| err.into());
                 }
+            }
+
+            RoutingMode::Passthrough => {
+                log::debug!("Forward packet without checking anything");
+                return self
+                    .tun_task_response_tx
+                    .try_send((0, packet.to_vec()))
+                    .map_err(|err| err.into());
             }
         }
 

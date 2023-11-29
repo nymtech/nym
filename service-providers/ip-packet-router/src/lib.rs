@@ -2,7 +2,7 @@
 
 use std::{
     collections::HashMap,
-    net::{IpAddr, SocketAddr},
+    net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
     path::Path,
     time::Duration,
 };
@@ -155,7 +155,7 @@ impl IpPacketRouterBuilder {
             netmask: TUN_DEVICE_NETMASK.parse().unwrap(),
         };
         let (tun, tun_task_tx, tun_task_response_rx) = nym_tun::tun_device::TunDevice::new(
-            nym_tun::tun_device::RoutingMode::new_nat(),
+            nym_tun::tun_device::RoutingMode::new_passthrough(),
             config,
         );
         tun.start();
@@ -382,10 +382,8 @@ impl IpPacketRouter {
         }
 
         // TODO: consider changing from Vec<u8> to bytes::Bytes?
-        // TODO: consider just removing the tag
-        let tag = 0;
         self.tun_task_tx
-            .try_send((tag, data_request.ip_packet.into()))
+            .try_send((0, data_request.ip_packet.into()))
             .map_err(|err| IpPacketRouterError::FailedToSendPacketToTun { source: err })?;
 
         Ok(None)
@@ -483,13 +481,7 @@ impl IpPacketRouter {
                 },
                 packet = self.tun_task_response_rx.recv() => {
                     if let Some((_tag, packet)) = packet {
-                        // TODO: skip full parsing since we only need dst_addr
-                        let Ok(ParsedPacket {
-                            packet_type: _,
-                            src_addr: _,
-                            dst_addr,
-                            dst: _,
-                        }) = parse_packet(&packet) else {
+                        let Some(dst_addr) = parse_dst_addr(&packet) else {
                             log::warn!("Failed to parse packet");
                             continue;
                         };
@@ -576,6 +568,38 @@ fn parse_packet(packet: &[u8]) -> Result<ParsedPacket, IpPacketRouterError> {
     })
 }
 
+// Constants for IPv4 and IPv6 headers
+const IPV4_DEST_ADDR_START: usize = 16;
+const IPV4_DEST_ADDR_LEN: usize = 4;
+const IPV6_DEST_ADDR_START: usize = 24;
+const IPV6_DEST_ADDR_LEN: usize = 16;
+
+// Only parse the destination address, for when we don't need the other stuff
+fn parse_dst_addr(packet: &[u8]) -> Option<IpAddr> {
+    let version = packet.first().map(|v| v >> 4)?;
+    match version {
+        4 => {
+            // IPv4
+            let addr_end = IPV4_DEST_ADDR_START + IPV4_DEST_ADDR_LEN;
+            let addr_array: [u8; IPV4_DEST_ADDR_LEN] = packet
+                .get(IPV4_DEST_ADDR_START..addr_end)?
+                .try_into()
+                .ok()?;
+            Some(IpAddr::V4(Ipv4Addr::from(addr_array)))
+        }
+        6 => {
+            // IPv6
+            let addr_end = IPV6_DEST_ADDR_START + IPV6_DEST_ADDR_LEN;
+            let addr_array: [u8; IPV6_DEST_ADDR_LEN] = packet
+                .get(IPV6_DEST_ADDR_START..addr_end)?
+                .try_into()
+                .ok()?;
+            Some(IpAddr::V6(Ipv6Addr::from(addr_array)))
+        }
+        _ => None, // Unknown IP version
+    }
+}
+
 // Helper function to create the mixnet client.
 // This is NOT in the SDK since we don't want to expose any of the client-core config types.
 // We could however consider moving it to a crate in common in the future.
@@ -619,4 +643,22 @@ async fn create_mixnet_client(
         .connect_to_mixnet()
         .await
         .map_err(|err| IpPacketRouterError::FailedToConnectToMixnet { source: err })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_destination_from_ip_packet() {
+        // Create packet
+        let builder =
+            etherparse::PacketBuilder::ipv4([192, 168, 1, 1], [192, 168, 1, 2], 20).udp(21, 1234);
+        let payload = [1, 2, 3, 4, 5, 6, 7, 8];
+        let mut packet = Vec::<u8>::with_capacity(builder.size(payload.len()));
+        builder.write(&mut packet, &payload).unwrap();
+
+        let dst_addr = parse_dst_addr(&packet).unwrap();
+        assert_eq!(dst_addr, IpAddr::V4(Ipv4Addr::new(192, 168, 1, 2)));
+    }
 }

@@ -361,7 +361,7 @@ impl IpPacketRouter {
         &mut self,
         data_request: nym_ip_packet_requests::DataRequest,
     ) -> Result<Option<IpPacketResponse>, IpPacketRouterError> {
-        log::info!("Received data request");
+        log::trace!("Received data request");
 
         // We don't forward packets that we are not able to parse. BUT, there might be a good
         // reason to still forward them.
@@ -564,7 +564,7 @@ impl TunListener {
                                 log::error!("TunListener: failed to send packet to mixnet: {err}");
                             };
                         } else {
-                            log::error!("TunListener: no nym-address recipient for packet");
+                            log::error!("No registered nym-address for packet - dropping");
                         }
                     } else {
                         log::trace!("TunListener: stopping since channel closed");

@@ -1,12 +1,12 @@
 import { useCallback, useEffect } from 'react';
 import { listen } from '@tauri-apps/api/event';
+import dayjs from 'dayjs';
 import {
   ConnectionEventPayload,
   ProgressEventPayload,
   StateDispatch,
 } from '../types';
 import { ConnectionEvent, ProgressEvent } from '../constants';
-import dayjs from 'dayjs';
 
 function handleError(dispatch: StateDispatch, error?: string | null) {
   if (!error) {

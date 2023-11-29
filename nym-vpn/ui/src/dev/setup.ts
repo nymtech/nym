@@ -1,6 +1,6 @@
 import { mockIPC, mockWindows } from '@tauri-apps/api/mocks';
-import { AppDataFromBackend, ConnectionState } from '../types';
 import { emit } from '@tauri-apps/api/event';
+import { AppDataFromBackend, ConnectionState } from '../types';
 import { ConnectionEvent } from '../constants';
 
 export function mockTauriIPC() {

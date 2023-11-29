@@ -1,9 +1,9 @@
 import React, { useEffect, useReducer } from 'react';
 import { invoke } from '@tauri-apps/api';
-import { initialState, reducer } from './main';
-import { useTauriEvents } from './useTauriEvents';
 import { MainDispatchContext, MainStateContext } from '../contexts';
 import { AppDataFromBackend, CmdError, ConnectionState } from '../types';
+import { initialState, reducer } from './main';
+import { useTauriEvents } from './useTauriEvents';
 
 type Props = {
   children?: React.ReactNode;

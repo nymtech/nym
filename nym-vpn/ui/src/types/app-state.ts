@@ -1,7 +1,7 @@
 import { Dispatch } from 'react';
 import { Dayjs } from 'dayjs';
-import { AppData } from './app-data';
 import { StateAction } from '../state';
+import { AppData } from './app-data';
 
 export type ConnectionState =
   | 'Connected'

@@ -15,11 +15,16 @@ Each directory contains a readme with more information about running and contrib
 ## Scripts 
 * `bump_versions.sh` allows you to update the ~~`platform_release_version` and~~ `wallet_release_version` variable~~s~~ in the `book.toml` of each mdbook project at once. You can also optionally update the `minimum_rust_version` as well. Helpful for lazy-updating when cutting a new version of the docs. 
 
-* The following scripts are used by the `ci-dev.yml` and `cd-dev.yml` scripts:
+* The following scripts are used by the `ci-dev.yml` and `cd-dev.yml` scripts (located in `../.github/workflows/`):
   * `build_all_to_dist.sh` is used for building all mdbook projects and moving the rendered html to `../dist/` to be rsynced with various servers. 
   * `install_mdbook_deps.sh` checks for an existing install of mdbook (and plugins), uninstalls them, and then installs them on a clean slate. This is to avoid weird dependency clashes if relying on an existing mdbook version. 
   * `post_process.sh` is used to post process CSS/image/href links for serving several mdbooks from a subdirectory. 
   * `removed_existing_config.sh` is used to check for existing nym client/node config files on the CI/CD server and remove it if it exists. This is to mitigate issues with `mdbook-cmdrun` where e.g. a node is already initialised, and the command fails.   
+
+## CI/CD 
+Deployment of the docs is partially automated and partially manual. 
+* `ci-docs.yml` will run on pushes to all branches **apart from `master`**
+* `cd-docs.yml` must be run manually. This pushes to a staging branch which then must be manually promoted to production. 
 
 ## Licensing and copyright information
 This is a monorepo and components that make up Nym as a system are licensed individually, so for accurate information, please check individual files.

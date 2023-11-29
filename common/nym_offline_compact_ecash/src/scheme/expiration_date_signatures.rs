@@ -1,11 +1,11 @@
 use crate::constants;
 use crate::error::{CompactEcashError, Result};
 use crate::scheme::keygen::{SecretKeyAuth, VerificationKeyAuth};
-use crate::scheme::setup::Parameters;
+use crate::scheme::setup::{GroupParameters, Parameters};
 use crate::utils::hash_g1;
 use crate::utils::{check_bilinear_pairing, generate_lagrangian_coefficients_at_origin};
 use bls12_381::{G1Projective, G2Prepared, G2Projective, Scalar};
-use group::{Curve, GroupEncoding};
+use group::Curve;
 use itertools::Itertools;
 use rayon::prelude::*;
 
@@ -13,6 +13,22 @@ use rayon::prelude::*;
 pub struct ExpirationDateSignature {
     pub(crate) h: G1Projective,
     pub(crate) s: G1Projective,
+}
+
+impl ExpirationDateSignature {
+    pub fn randomise(&self, params: &GroupParameters) -> (ExpirationDateSignature, Scalar) {
+        let r = params.random_scalar();
+        let r_prime = params.random_scalar();
+        let h_prime = self.h * r_prime;
+        let s_prime = (self.s * r_prime) + (h_prime * r);
+        (
+            ExpirationDateSignature {
+                h: h_prime,
+                s: s_prime,
+            },
+            r,
+        )
+    }
 }
 
 pub type PartialExpirationDateSignature = ExpirationDateSignature;
@@ -222,6 +238,40 @@ pub fn aggregate_expiration_signatures(
     Ok(aggregated_date_signatures)
 }
 
+/// Finds the index corresponding to the given spend date based on the expiration date.
+///
+/// This function calculates the index such that the following equality holds:
+/// `spend_date = expiration_date - 30 + index`
+/// This index is used to retrieve a corresponding signature.
+///
+/// # Arguments
+///
+/// * `spend_date` - The spend date for which to find the index.
+/// * `expiration_date` - The expiration date used in the calculation.
+///
+/// # Returns
+///
+/// If a valid index is found, returns `Ok(index)`. If no valid index is found
+/// (i.e., `spend_date` is earlier than `expiration_date - 30`), returns `Err(InvalidDateError)`.
+///
+pub fn find_index(spend_date: Scalar, expiration_date: Scalar) -> Result<usize> {
+    let expiration_date_bytes = expiration_date.to_bytes();
+    let expiration_date_u64 =
+        u64::from_le_bytes(expiration_date_bytes.as_slice().try_into().unwrap());
+    let spend_date_bytes = spend_date.to_bytes();
+    let spend_date_u64 = u64::from_le_bytes(spend_date_bytes.as_slice().try_into().unwrap());
+    let start_date = expiration_date_u64 - constants::VALIDITY_PERIOD;
+
+    if spend_date_u64 >= start_date {
+        let index_a = (spend_date_u64 - start_date) as usize;
+        Ok(index_a)
+    } else {
+        Err(CompactEcashError::ExpirationDate(
+            "Spend_date is too early, no valid index".to_string(),
+        ))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -271,11 +321,11 @@ mod tests {
         let verification_key =
             aggregate_verification_keys(&verification_keys_auth, Some(&indices)).unwrap();
 
-        let mut partial_signatures: Vec<Vec<PartialExpirationDateSignature>> =
+        let mut edt_partial_signatures: Vec<Vec<PartialExpirationDateSignature>> =
             Vec::with_capacity(constants::VALIDITY_PERIOD as usize);
         for sk_auth in secret_keys_authorities.iter() {
             let sign = sign_expiration_date(&params, &sk_auth, expiration_date);
-            partial_signatures.push(sign);
+            edt_partial_signatures.push(sign);
         }
 
         let combined_data: Vec<(
@@ -284,7 +334,11 @@ mod tests {
             Vec<PartialExpirationDateSignature>,
         )> = indices
             .iter()
-            .zip(verification_keys_auth.iter().zip(partial_signatures.iter()))
+            .zip(
+                verification_keys_auth
+                    .iter()
+                    .zip(edt_partial_signatures.iter()),
+            )
             .map(|(i, (vk, sigs))| (i.clone(), vk.clone(), sigs.clone()))
             .collect();
 

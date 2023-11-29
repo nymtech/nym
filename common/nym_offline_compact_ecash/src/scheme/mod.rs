@@ -5,8 +5,9 @@ use group::Curve;
 
 use crate::error::{CompactEcashError, Result};
 use crate::proofs::proof_spend::{SpendInstance, SpendProof, SpendWitness};
+use crate::scheme::expiration_date_signatures::{find_index, ExpirationDateSignature};
 use crate::scheme::keygen::{PublicKeyUser, SecretKeyUser, VerificationKeyAuth};
-use crate::scheme::setup::{GroupParameters, Parameters};
+use crate::scheme::setup::{CoinIndexSignature, GroupParameters, Parameters};
 use crate::utils::{
     check_bilinear_pairing, hash_to_scalar, try_deserialize_g1_projective,
     try_deserialize_g2_projective, try_deserialize_scalar, Signature, SignerIndex,
@@ -27,6 +28,7 @@ pub struct PartialWallet {
     sig: Signature,
     v: Scalar,
     idx: Option<SignerIndex>,
+    expiration_date: Scalar,
 }
 
 impl PartialWallet {
@@ -43,11 +45,15 @@ impl PartialWallet {
         let mut bytes = [0u8; 136];
         bytes[0..96].copy_from_slice(&self.sig.to_bytes());
         bytes[96..128].copy_from_slice(&self.v.to_bytes());
+        bytes[128..160].copy_from_slice(&self.expiration_date.to_bytes());
         // Check if idx is Some and copy its bytes if it exists
         if let Some(idx) = &self.idx {
-            bytes[128..136].copy_from_slice(&idx.to_le_bytes());
+            bytes[160..168].copy_from_slice(&idx.to_le_bytes());
         }
         bytes
+    }
+    pub fn expiration_date(&self) -> Scalar {
+        self.expiration_date
     }
 }
 
@@ -64,16 +70,23 @@ impl TryFrom<&[u8]> for PartialWallet {
 
         let sig_bytes: &[u8; 96] = &bytes[..96].try_into().expect("Slice size != 96");
         let v_bytes: &[u8; 32] = &bytes[96..128].try_into().expect("Slice size != 32");
-        let idx_bytes: &[u8; 8] = &bytes[128..136].try_into().expect("Slice size != 8");
+        let expiration_date_bytes = &bytes[128..160].try_into().expect("Slice size != 32");
+        let idx_bytes: &[u8; 8] = &bytes[160..168].try_into().expect("Slice size != 8");
 
         let sig = Signature::try_from(sig_bytes.as_slice()).unwrap();
         let v = Scalar::from_bytes(&v_bytes).unwrap();
+        let expiration_date = Scalar::from_bytes(&expiration_date_bytes).unwrap();
         let idx = None;
         if !idx_bytes.iter().all(|&x| x == 0) {
             let idx = Some(u64::from_le_bytes(*idx_bytes));
         }
 
-        Ok(PartialWallet { sig, v, idx })
+        Ok(PartialWallet {
+            sig,
+            v,
+            idx,
+            expiration_date,
+        })
     }
 }
 
@@ -81,6 +94,7 @@ impl TryFrom<&[u8]> for PartialWallet {
 pub struct Wallet {
     sig: Signature,
     v: Scalar,
+    expiration_date: Scalar,
     pub l: Cell<u64>,
 }
 
@@ -97,15 +111,30 @@ impl Wallet {
         self.l.get()
     }
 
+    pub fn expiration_date(&self) -> Scalar {
+        self.expiration_date
+    }
+
     pub fn to_bytes(&self) -> [u8; 136] {
         let mut bytes = [0u8; 136];
         bytes[0..96].copy_from_slice(&self.sig.to_bytes());
         bytes[96..128].copy_from_slice(&self.v.to_bytes());
-        bytes[128..136].copy_from_slice(&self.l.get().to_le_bytes());
+        bytes[128..160].copy_from_slice(&self.expiration_date.to_bytes());
+        bytes[160..168].copy_from_slice(&self.l.get().to_le_bytes());
         bytes
     }
     fn up(&self) {
         self.l.set(self.l.get() + 1);
+    }
+
+    fn check_remaining_allowance(&self, params: &Parameters, spend_vv: u64) -> Result<()> {
+        if self.l() + spend_vv > params.L() {
+            Err(CompactEcashError::Spend(
+                "The amount you want to spend exceeds remaining wallet allowance ".to_string(),
+            ))
+        } else {
+            Ok(())
+        }
     }
 
     pub fn spend(
@@ -116,31 +145,43 @@ impl Wallet {
         pay_info: &PayInfo,
         bench_flag: bool,
         spend_vv: u64,
+        valid_dates_signatures: Vec<ExpirationDateSignature>,
+        coin_indices_signatures: Vec<CoinIndexSignature>,
+        spend_date: Scalar,
     ) -> Result<(Payment, &Self)> {
-        if self.l() + spend_vv > params.L() {
-            return Err(CompactEcashError::Spend(
-                "The counter l is higher than max L".to_string(),
-            ));
-        }
+        let grp_params = params.grp();
+        let attributes = vec![sk_user.sk, self.v(), self.expiration_date()];
 
-        let grparams = params.grp();
-        // randomize signature in the wallet
-        let (signature_prime, sign_blinding_factor) = self.signature().randomise(grparams);
-        // construct kappa i.e., blinded attributes for show
-        let attributes = vec![sk_user.sk, self.v()];
-        // compute kappa
+        // Check if we have enough remaining allowance in the wallet
+        self.check_remaining_allowance(&params, spend_vv)?;
+        // randomize wallet signature
+        let (signature_prime, sign_blinding_factor) = self.signature().randomise(grp_params);
+
+        // compute kappa (i.e., blinded attributes for show) to prove possession of the wallet signature
         let kappa = compute_kappa(
-            &grparams,
+            &grp_params,
             &verification_key,
             &attributes,
             sign_blinding_factor,
         );
 
-        // pick random openings o_c
-        let o_c = grparams.random_scalar();
+        // randomise the expiration date signature and compute kappa_e to prove possession of the expiration signature
+        let date_signature_index = find_index(spend_date, self.expiration_date)?;
+        let date_signature: ExpirationDateSignature = valid_dates_signatures
+            .get(date_signature_index)
+            .unwrap()
+            .clone();
+        // randomise the date signature
+        let (date_signature_prime, date_sign_blinding_factor) =
+            date_signature.randomise(&grp_params);
+        // compute kappa_e to prove possession of the expiration signature
+        let kappa_e: G2Projective = grp_params.gen2() * date_sign_blinding_factor
+            + verification_key.alpha
+            + verification_key.beta_g2.get(0).unwrap() * self.expiration_date();
 
-        // compute commitments C
-        let cc = grparams.gen1() * o_c + grparams.gamma_idx(0).unwrap() * self.v();
+        // pick random openings o_c and compute commitments C to v
+        let o_c = grp_params.random_scalar();
+        let cc = grp_params.gen1() * o_c + grp_params.gamma_idx(0).unwrap() * self.v();
 
         let mut aa: Vec<G1Projective> = Default::default();
         let mut ss: Vec<G1Projective> = Default::default();
@@ -157,21 +198,22 @@ impl Wallet {
         for k in 0..spend_vv {
             lk.push(Scalar::from(self.l() + k));
 
-            // compute hashes R_k of the payment info
+            // compute hashes R_k = H(payinfo, k)
             let rr_k = hash_to_scalar(pay_info.payinfo);
             rr.push(rr_k);
 
-            let o_a_k = grparams.random_scalar();
+            let o_a_k = grp_params.random_scalar();
             o_a.push(o_a_k);
-            let aa_k = grparams.gen1() * o_a_k
-                + grparams.gamma_idx(0).unwrap() * Scalar::from(self.l() + k);
+            let aa_k = grp_params.gen1() * o_a_k
+                + grp_params.gamma_idx(0).unwrap() * Scalar::from(self.l() + k);
             aa.push(aa_k);
 
-            // evaluate the pseudorandom functions
-            let ss_k = pseudorandom_f_delta_v(&grparams, self.v(), self.l() + k);
+            // compute the serial numbers
+            let ss_k = pseudorandom_f_delta_v(&grp_params, self.v(), self.l() + k);
             ss.push(ss_k);
-            let tt_k = grparams.gen1() * sk_user.sk
-                + pseudorandom_f_g_v(&grparams, self.v(), self.l() + k) * rr_k;
+            // compute the identification tags
+            let tt_k = grp_params.gen1() * sk_user.sk
+                + pseudorandom_f_g_v(&grp_params, self.v(), self.l() + k) * rr_k;
             tt.push(tt_k);
 
             // compute values mu, o_mu, lambda, o_lambda
@@ -183,16 +225,14 @@ impl Wallet {
             let o_mu_k = ((o_a_k + o_c) * mu_k).neg();
             o_mu.push(o_mu_k);
 
-            // parse the signature associated with value l+k
-            let sign_lk = params.get_sign_by_idx(self.l() + k)?;
-            // randomise the signature associated with value l+k
-            let (sign_lk_prime, r_k) = sign_lk.randomise(grparams);
-            sign_lk_prime_vec.push(sign_lk_prime);
-            r_k_vec.push(r_k);
-            // compute kappa_k
-            let kappa_k = grparams.gen2() * r_k
-                + params.pk_rp().alpha
-                + params.pk_rp().beta * Scalar::from(self.l() + k);
+            // randomise the coin indices signatures and compute kappa_k to prove possession of each signature
+            // of the coin index
+            let coin_sign: CoinIndexSignature =
+                coin_indices_signatures.get(k as usize).unwrap().clone();
+            let (coin_sign_prime, coin_sign_blinding_factor) = coin_sign.randomise(&grp_params);
+            let kappa_k: G2Projective = grp_params.gen2() * coin_sign_blinding_factor
+                + verification_key.alpha
+                + verification_key.beta_g2.get(0).unwrap() * Scalar::from(self.l() + k);
             kappa_k_vec.push(kappa_k);
         }
 
@@ -204,6 +244,7 @@ impl Wallet {
             ss: ss.clone(),
             tt: tt.clone(),
             kappa_k: kappa_k_vec.clone(),
+            kappa_e,
         };
         let spend_witness = SpendWitness {
             attributes,
@@ -214,7 +255,10 @@ impl Wallet {
             mu,
             o_mu,
             r_k: r_k_vec,
+            r_e: date_sign_blinding_factor,
+            expiration_date: self.expiration_date,
         };
+
         let zk_proof = SpendProof::construct(
             &params,
             &spend_instance,
@@ -236,6 +280,7 @@ impl Wallet {
             cc,
             zk_proof,
             vv: spend_vv,
+            kappa_e,
         };
 
         // The number of samples collected by the benchmark process is way higher than the
@@ -265,13 +310,21 @@ impl TryFrom<&[u8]> for Wallet {
 
         let sig_bytes: &[u8; 96] = &bytes[..96].try_into().expect("Slice size != 96");
         let v_bytes: &[u8; 32] = &bytes[96..128].try_into().expect("Slice size != 32");
-        let l_bytes: &[u8; 8] = &bytes[128..136].try_into().expect("Slice size != 8");
+        let expiration_date_bytes: &[u8; 32] =
+            &bytes[128..160].try_into().expect("Slice size != 32");
+        let l_bytes: &[u8; 8] = &bytes[160..168].try_into().expect("Slice size != 8");
 
         let sig = Signature::try_from(sig_bytes.as_slice()).unwrap();
         let v = Scalar::from_bytes(&v_bytes).unwrap();
+        let expiration_date = Scalar::from_bytes(&expiration_date_bytes).unwrap();
         let l = Cell::new(u64::from_le_bytes(*l_bytes));
 
-        Ok(Wallet { sig, v, l })
+        Ok(Wallet {
+            sig,
+            v,
+            expiration_date,
+            l,
+        })
     }
 }
 
@@ -306,7 +359,7 @@ pub struct PayInfo {
 }
 
 impl PayInfo {
-    pub fn generate_payinfo(provider_pk: PublicKeyUser) -> PayInfo {
+    pub fn generate_pay_info(provider_pk: PublicKeyUser) -> PayInfo {
         let mut payinfo = [0u8; 88];
 
         // Generating random bytes
@@ -336,6 +389,7 @@ pub struct Payment {
     pub cc: G1Projective,
     pub zk_proof: SpendProof,
     pub vv: u64,
+    pub kappa_e: G2Projective,
 }
 
 impl Payment {
@@ -392,11 +446,12 @@ impl Payment {
         // verify the zk proof
         let instance = SpendInstance {
             kappa: self.kappa,
-            aa: self.aa.clone(),
             cc: self.cc,
+            aa: self.aa.clone(),
             ss: self.ss.clone(),
             tt: self.tt.clone(),
             kappa_k: self.kappa_k.clone(),
+            kappa_e: self.kappa_e.clone(),
         };
 
         if !self
@@ -424,6 +479,7 @@ impl Payment {
         let sig_lk_len = self.sig_lk.len() as u64;
         let zk_proof_bytes = self.zk_proof.to_bytes();
         let zk_proof_bytes_len = self.zk_proof.to_bytes().len() as u64;
+        let kappa_e_bytes = self.kappa_e.to_affine().to_compressed();
 
         let mut bytes: Vec<u8> = Vec::with_capacity(
             (96 + 96
@@ -440,13 +496,15 @@ impl Payment {
                 + kappa_k_len * 96
                 + 8
                 + sig_lk_len * 96
-                + zk_proof_bytes_len) as usize,
+                + zk_proof_bytes_len
+                + 96) as usize,
         );
 
         bytes.extend_from_slice(&kappa_bytes);
         bytes.extend_from_slice(&sig_bytes);
         bytes.extend_from_slice(&cc_bytes);
         bytes.extend_from_slice(&vv_bytes);
+        bytes.extend_from_slice(&kappa_e_bytes);
 
         let ss_len_bytes = ss_len.to_le_bytes();
         bytes.extend_from_slice(&ss_len_bytes);
@@ -503,7 +561,8 @@ impl TryFrom<&[u8]> for Payment {
         let sig_bytes: [u8; 96] = bytes[96..192].try_into().unwrap();
         let cc_bytes: [u8; 48] = bytes[192..240].try_into().unwrap();
         let vv_bytes: [u8; 8] = bytes[240..248].try_into().unwrap();
-        let ss_len = u64::from_le_bytes(bytes[248..256].try_into().unwrap()) as usize;
+        let kappa_e_bytes: [u8; 96] = bytes[248..344].try_into().unwrap();
+        let ss_len = u64::from_le_bytes(bytes[344..352].try_into().unwrap()) as usize;
 
         // Convert the byte arrays back into their respective types
         let kappa = try_deserialize_g2_projective(
@@ -517,8 +576,12 @@ impl TryFrom<&[u8]> for Payment {
             CompactEcashError::Deserialization("Failed to deserialize cc".to_string()),
         )?;
         let vv = u64::from_le_bytes(vv_bytes);
+        let kappa_e = try_deserialize_g2_projective(
+            &kappa_e_bytes,
+            CompactEcashError::Deserialization("Failed to deserialize kappa_e".to_string()),
+        )?;
 
-        let mut idx = 256;
+        let mut idx = 352;
         let mut ss = Vec::with_capacity(ss_len);
         for _ in 0..ss_len {
             let ss_bytes: [u8; 48] = bytes[idx..idx + 48].try_into().unwrap();
@@ -612,6 +675,7 @@ impl TryFrom<&[u8]> for Payment {
             cc,
             zk_proof,
             vv,
+            kappa_e,
         };
 
         Ok(payment)

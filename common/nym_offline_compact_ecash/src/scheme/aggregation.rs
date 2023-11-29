@@ -156,13 +156,18 @@ pub fn aggregate_wallets(
         .map(|(idx, wallet)| SignatureShare::new(*wallet.signature(), (idx + 1) as u64))
         .collect();
 
-    let attributes = vec![sk_user.sk, req_info.get_v()];
+    let attributes = vec![
+        sk_user.sk,
+        req_info.get_v().clone(),
+        req_info.get_expiration_date().clone(),
+    ];
     let aggregated_signature =
         aggregate_signature_shares(&params, &verification_key, &attributes, &signature_shares)?;
 
     Ok(Wallet {
         sig: aggregated_signature,
-        v: req_info.get_v(),
+        v: req_info.get_v().clone(),
+        expiration_date: req_info.get_expiration_date().clone(),
         l: Cell::new(0),
     })
 }

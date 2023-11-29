@@ -17,11 +17,11 @@ use crate::utils::{
 // instance: g, gamma1, gamma2, gamma3, com, h, com1, com2, com3, pkUser
 pub struct WithdrawalReqInstance {
     // Joined commitment to all attributes
-    pub com: G1Projective,
+    pub joined_commitment: G1Projective,
     // Hash of the joined commitment com
-    pub h: G1Projective,
+    pub joined_commitment_hash: G1Projective,
     // Pedersen commitments to each attribute
-    pub pc_coms: Vec<G1Projective>,
+    pub private_attributes_commitments: Vec<G1Projective>,
     // Public key of a user
     pub pk_user: PublicKeyUser,
 }
@@ -40,12 +40,12 @@ impl TryFrom<&[u8]> for WithdrawalReqInstance {
             });
         }
         let com_bytes: [u8; 48] = bytes[..48].try_into().unwrap();
-        let com = try_deserialize_g1_projective(
+        let joined_commitment = try_deserialize_g1_projective(
             &com_bytes,
             CompactEcashError::Deserialization("Failed to deserialize com".to_string()),
         )?;
         let h_bytes: [u8; 48] = bytes[48..96].try_into().unwrap();
-        let h = try_deserialize_g1_projective(
+        let joined_commitment_hash = try_deserialize_g1_projective(
             &h_bytes,
             CompactEcashError::Deserialization("Failed to deserialize h".to_string()),
         )?;
@@ -57,7 +57,7 @@ impl TryFrom<&[u8]> for WithdrawalReqInstance {
                 pc_coms_len, actual_pc_coms_len
             )));
         }
-        let mut pc_coms = Vec::new();
+        let mut private_attributes_commitments = Vec::new();
         let mut pc_coms_end: usize = 0;
         for i in 0..pc_coms_len {
             let start = (104 + i * 48) as usize;
@@ -70,7 +70,7 @@ impl TryFrom<&[u8]> for WithdrawalReqInstance {
                 ),
             )?;
             pc_coms_end = end;
-            pc_coms.push(pc_i);
+            private_attributes_commitments.push(pc_i);
         }
         let pk_bytes = bytes[pc_coms_end..].try_into().unwrap();
         let pk = try_deserialize_g1_projective(
@@ -81,9 +81,9 @@ impl TryFrom<&[u8]> for WithdrawalReqInstance {
         )?;
 
         Ok(WithdrawalReqInstance {
-            com,
-            h,
-            pc_coms,
+            joined_commitment,
+            joined_commitment_hash,
+            private_attributes_commitments,
             pk_user: PublicKeyUser { pk },
         })
     }
@@ -91,12 +91,12 @@ impl TryFrom<&[u8]> for WithdrawalReqInstance {
 
 impl WithdrawalReqInstance {
     pub(crate) fn to_bytes(&self) -> Vec<u8> {
-        let pc_coms_len = self.pc_coms.len();
+        let pc_coms_len = self.private_attributes_commitments.len();
         let mut bytes = Vec::with_capacity(8 + (pc_coms_len + 3) as usize * 48);
-        bytes.extend_from_slice(self.com.to_bytes().as_ref());
-        bytes.extend_from_slice(self.h.to_bytes().as_ref());
+        bytes.extend_from_slice(self.joined_commitment.to_bytes().as_ref());
+        bytes.extend_from_slice(self.joined_commitment_hash.to_bytes().as_ref());
         bytes.extend_from_slice(&pc_coms_len.to_le_bytes());
-        for pc in self.pc_coms.iter() {
+        for pc in self.private_attributes_commitments.iter() {
             bytes.extend_from_slice((pc.to_bytes()).as_ref());
         }
         bytes.extend_from_slice(self.pk_user.pk.to_bytes().as_ref());
@@ -110,14 +110,14 @@ impl WithdrawalReqInstance {
 
 // witness: m1, m2, m3, o, o1, o2, o3,
 pub struct WithdrawalReqWitness {
-    pub attributes: Vec<Scalar>,
+    pub private_attributes: Vec<Scalar>,
     // Opening for the joined commitment com
-    pub com_opening: Scalar,
-    // Openings for the pedersen commitments
-    pub pc_coms_openings: Vec<Scalar>,
+    pub joined_commitment_opening: Scalar,
+    // Openings for the pedersen commitments of private attributes
+    pub private_attributes_openings: Vec<Scalar>,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct WithdrawalReqProof {
     challenge: Scalar,
     response_opening: Scalar,
@@ -133,8 +133,8 @@ impl WithdrawalReqProof {
     ) -> Self {
         // generate random values to replace the witnesses
         let r_com_opening = params.random_scalar();
-        let r_pedcom_openings = params.n_random_scalars(witness.pc_coms_openings.len());
-        let r_attributes = params.n_random_scalars(witness.attributes.len());
+        let r_pedcom_openings = params.n_random_scalars(witness.private_attributes_openings.len());
+        let r_attributes = params.n_random_scalars(witness.private_attributes.len());
 
         // compute zkp commitments for each instance
         let zkcm_com = params.gen1() * r_com_opening
@@ -147,7 +147,7 @@ impl WithdrawalReqProof {
         let zkcm_pedcom = r_pedcom_openings
             .iter()
             .zip(r_attributes.iter())
-            .map(|(o_j, m_j)| params.gen1() * o_j + instance.h * m_j)
+            .map(|(o_j, m_j)| params.gen1() * o_j + instance.joined_commitment_hash * m_j)
             .collect::<Vec<_>>();
 
         let zkcm_user_sk = params.gen1() * r_attributes[0];
@@ -175,16 +175,23 @@ impl WithdrawalReqProof {
         );
 
         // compute response
-        let response_opening = produce_response(&r_com_opening, &challenge, &witness.com_opening);
+        let response_opening = produce_response(
+            &r_com_opening,
+            &challenge,
+            &witness.joined_commitment_opening,
+        );
         let response_openings = produce_responses(
             &r_pedcom_openings,
             &challenge,
-            &witness.pc_coms_openings.iter().collect::<Vec<_>>(),
+            &witness
+                .private_attributes_openings
+                .iter()
+                .collect::<Vec<_>>(),
         );
         let response_attributes = produce_responses(
             &r_attributes,
             &challenge,
-            &witness.attributes.iter().collect::<Vec<_>>(),
+            &witness.private_attributes.iter().collect::<Vec<_>>(),
         );
 
         WithdrawalReqProof {
@@ -201,7 +208,7 @@ impl WithdrawalReqProof {
         instance: &WithdrawalReqInstance,
     ) -> bool {
         // recompute zk commitments for each instance
-        let zkcm_com = instance.com * self.challenge
+        let zkcm_com = instance.joined_commitment * self.challenge
             + params.gen1() * self.response_opening
             + self
                 .response_attributes
@@ -211,12 +218,14 @@ impl WithdrawalReqProof {
                 .sum::<G1Projective>();
 
         let zkcm_pedcom = izip!(
-            instance.pc_coms.iter(),
+            instance.private_attributes_commitments.iter(),
             self.response_openings.iter(),
             self.response_attributes.iter()
         )
         .map(|(cm_j, resp_o_j, resp_m_j)| {
-            cm_j * self.challenge + params.gen1() * resp_o_j + instance.h * resp_m_j
+            cm_j * self.challenge
+                + params.gen1() * resp_o_j
+                + instance.joined_commitment_hash * resp_m_j
         })
         .collect::<Vec<_>>();
 
@@ -346,9 +355,9 @@ mod tests {
         let mut rng = thread_rng();
         let params = GroupParameters::new().unwrap();
         let instance = WithdrawalReqInstance {
-            com: G1Projective::random(&mut rng),
-            h: G1Projective::random(&mut rng),
-            pc_coms: vec![
+            joined_commitment: G1Projective::random(&mut rng),
+            joined_commitment_hash: G1Projective::random(&mut rng),
+            private_attributes_commitments: vec![
                 G1Projective::random(&mut rng),
                 G1Projective::random(&mut rng),
                 G1Projective::random(&mut rng),
@@ -373,35 +382,35 @@ mod tests {
         };
         let v = params.random_scalar();
         let t = params.random_scalar();
-        let attr = vec![sk, v, t];
+        let private_attributes = vec![sk, v, t];
 
-        let com_opening = params.random_scalar();
-        let com = params.gen1() * com_opening
-            + attr
+        let joined_commitment_opening = params.random_scalar();
+        let joined_commitment = params.gen1() * joined_commitment_opening
+            + private_attributes
                 .iter()
                 .zip(params.gammas())
                 .map(|(&m, gamma)| gamma * m)
                 .sum::<G1Projective>();
-        let h = hash_g1(com.to_bytes());
+        let joined_commitment_hash = hash_g1(joined_commitment.to_bytes());
 
-        let pc_openings = params.n_random_scalars(attr.len());
-        let pc_coms = pc_openings
+        let private_attributes_openings = params.n_random_scalars(private_attributes.len());
+        let private_attributes_commitments = private_attributes_openings
             .iter()
-            .zip(attr.iter())
-            .map(|(o_j, m_j)| params.gen1() * o_j + h * m_j)
+            .zip(private_attributes.iter())
+            .map(|(o_j, m_j)| params.gen1() * o_j + joined_commitment_hash * m_j)
             .collect::<Vec<_>>();
 
         let instance = WithdrawalReqInstance {
-            com,
-            h,
-            pc_coms,
+            joined_commitment,
+            joined_commitment_hash,
+            private_attributes_commitments,
             pk_user,
         };
 
         let witness = WithdrawalReqWitness {
-            attributes: attr,
-            com_opening,
-            pc_coms_openings: pc_openings,
+            private_attributes,
+            joined_commitment_opening,
+            private_attributes_openings,
         };
         let zk_proof = WithdrawalReqProof::construct(&params, &instance, &witness);
         assert!(zk_proof.verify(&params, &instance))

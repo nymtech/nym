@@ -40,7 +40,7 @@ fn bench_compact_ecash(c: &mut Criterion) {
     let case = BenchCase {
         num_authorities: 100,
         threshold_p: 0.7,
-        L: 100,
+        L: 1000,
         spend_vv: 1,
         case_nr_pub_keys: 99,
     };

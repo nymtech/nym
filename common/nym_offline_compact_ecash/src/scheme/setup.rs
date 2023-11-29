@@ -103,38 +103,17 @@ pub struct PublicKeyRP {
 pub struct Parameters {
     /// group parameters
     grp: GroupParameters,
-    /// Public Key for range proof verification
-    pk_rp: PublicKeyRP,
     /// Max value of wallet
     L: u64,
-    /// list of signatures for values l in [0, L]
-    signs: HashMap<u64, Signature>,
 }
 
 impl Parameters {
     pub fn grp(&self) -> &GroupParameters {
         &self.grp
     }
-    pub fn pk_rp(&self) -> &PublicKeyRP {
-        &self.pk_rp
-    }
+
     pub fn L(&self) -> u64 {
         self.L
-    }
-    pub fn signs(&self) -> &HashMap<u64, Signature> {
-        &self.signs
-    }
-    pub fn get_sign_by_idx(&self, idx: u64) -> Result<&Signature> {
-        match self.signs.get(&idx) {
-            Some(val) => return Ok(val),
-            None => {
-                return Err(CompactEcashError::RangeProofOutOfBound(
-                    "Cannot find the range proof signature for the given value. \
-                        Check if the requested value is within the bound 0..L"
-                        .to_string(),
-                ));
-            }
-        }
     }
 }
 
@@ -145,6 +124,22 @@ pub struct CoinIndexSignature {
 }
 
 pub type PartialCoinIndexSignature = CoinIndexSignature;
+
+impl CoinIndexSignature {
+    pub fn randomise(&self, params: &GroupParameters) -> (CoinIndexSignature, Scalar) {
+        let r = params.random_scalar();
+        let r_prime = params.random_scalar();
+        let h_prime = self.h * r_prime;
+        let s_prime = (self.s * r_prime) + (h_prime * r);
+        (
+            CoinIndexSignature {
+                h: h_prime,
+                s: s_prime,
+            },
+            r,
+        )
+    }
+}
 
 /// Signs coin indices.
 ///
@@ -381,30 +376,20 @@ pub fn aggregate_indices_signatures(
     Ok(aggregated_coin_signatures)
 }
 
+/// Generates parameters for the scheme setup.
+///
+/// # Arguments
+///
+/// * `L` - it is the number of coins in a freshly generated wallet. It is the public parameter of the scheme.
+///
+/// # Returns
+///
+/// A `Parameters` struct containing group parameters, public key, the number of signatures (`L`),
+/// and a map of signatures for each index `l`.
+///
 pub fn setup(L: u64) -> Parameters {
     let grp = GroupParameters::new().unwrap();
-    let x = grp.random_scalar();
-    let y = grp.random_scalar();
-    let sk_rp = SecretKeyRP { x, y };
-    let pk_rp = sk_rp.public_key(&grp);
-    let mut signs = HashMap::new();
-    for l in 0..L {
-        let r = grp.random_scalar();
-        let h = grp.gen1() * r;
-        signs.insert(
-            l,
-            Signature {
-                0: h,
-                1: h * (x + y * Scalar::from(l)),
-            },
-        );
-    }
-    Parameters {
-        grp,
-        pk_rp,
-        L,
-        signs,
-    }
+    Parameters { grp, L }
 }
 
 #[cfg(test)]

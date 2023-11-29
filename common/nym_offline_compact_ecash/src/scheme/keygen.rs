@@ -69,6 +69,14 @@ impl TryFrom<&[u8]> for SecretKeyAuth {
 }
 
 impl SecretKeyAuth {
+    pub fn get_ys(&self) -> Vec<Scalar> {
+        return self.ys.clone();
+    }
+
+    pub(crate) fn get_y_by_idx(&self, i: usize) -> Option<&Scalar> {
+        self.ys.get(i)
+    }
+
     pub fn verification_key(&self, params: &GroupParameters) -> VerificationKeyAuth {
         let g1 = params.gen1();
         let g2 = params.gen2();

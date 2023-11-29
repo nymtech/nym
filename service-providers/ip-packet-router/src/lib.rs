@@ -538,6 +538,15 @@ impl TunListener {
                             log::trace!("Disconnect client: {ip}");
                             self.connected_clients.remove(&ip);
                         },
+                        Some(ConnectedClientEvent::Sync(clients)) => {
+                            log::trace!("Sync clients");
+                            self.connected_clients = clients.into_iter().map(|(ip, nym_addr)| {
+                                (ip, ConnectedClient {
+                                    nym_address: nym_addr,
+                                    last_activity: std::time::Instant::now(),
+                                })
+                            }).collect();
+                        },
                         None => {},
                     }
                 },
@@ -589,6 +598,7 @@ impl TunListener {
 enum ConnectedClientEvent {
     Disconnect(IpAddr),
     Connect(IpAddr, Recipient),
+    Sync(Vec<(IpAddr, Recipient)>),
 }
 
 struct ParsedPacket<'a> {

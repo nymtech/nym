@@ -48,6 +48,7 @@ jobs:
 
       - name: Install Vercel CLI
         run: npm install --global vercel@latest
+        continue-on-error: false
 
       - name: Pull Vercel Environment Information (preview)
         if: github.ref != 'refs/heads/master'
@@ -57,15 +58,18 @@ jobs:
         if: github.ref == 'refs/heads/master'
         run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
         working-directory: dist/docs
+        continue-on-error: false
 
       - name: Build Project Artifacts (preview)
         if: github.ref != 'refs/heads/master'
         run: vercel build --token=${{ secrets.VERCEL_TOKEN }}
         working-directory: dist/docs
+        continue-on-error: false
       - name: Build Project Artifacts (production)
         if: github.ref == 'refs/heads/master'
         run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
         working-directory: dist/docs
+        continue-on-error: false
 
       - name: Deploy Project Artifacts to Vercel (preview)
         if: github.ref != 'refs/heads/master'
@@ -75,6 +79,7 @@ jobs:
         if: github.ref == 'refs/heads/master'
         run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
         working-directory: dist/docs
+        continue-on-error: false
 
       - name: Matrix - Node Install
         run: npm install

@@ -562,7 +562,7 @@ impl TunListener {
                                 log::error!("TunListener: failed to send packet to mixnet: {err}");
                             };
                         } else {
-                            log::error!("No registered nym-address for packet - dropping");
+                            log::info!("No registered nym-address for packet - dropping");
                         }
                     } else {
                         log::trace!("TunListener: stopping since channel closed");

@@ -160,6 +160,18 @@ impl IpPacketRouterBuilder {
         );
         tun.start();
 
+        // Channel used by the IpPacketRouter to signal connected and disconnected clients to the
+        // TunListener
+        let (connected_client_tx, connected_client_rx) = tokio::sync::mpsc::channel(16);
+
+        let tun_listener = TunListener {
+            tun_task_response_rx,
+            mixnet_client_sender: mixnet_client.split_sender(),
+            connected_clients: Default::default(),
+            connected_client_rx,
+        };
+        tun_listener.start();
+
         let request_filter = request_filter::RequestFilter::new(&self.config).await?;
         request_filter.start_update_tasks().await;
 
@@ -167,10 +179,10 @@ impl IpPacketRouterBuilder {
             _config: self.config,
             request_filter: request_filter.clone(),
             tun_task_tx,
-            tun_task_response_rx,
             mixnet_client,
             task_handle,
             connected_clients: Default::default(),
+            connected_client_tx,
         };
 
         log::info!("The address of this client is: {self_address}");
@@ -195,11 +207,11 @@ struct IpPacketRouter {
     _config: Config,
     request_filter: request_filter::RequestFilter,
     tun_task_tx: nym_tun::tun_task_channel::TunTaskTx,
-    tun_task_response_rx: nym_tun::tun_task_channel::TunTaskResponseRx,
     mixnet_client: nym_sdk::mixnet::MixnetClient,
     task_handle: TaskHandle,
 
     connected_clients: HashMap<IpAddr, ConnectedClient>,
+    connected_client_tx: tokio::sync::mpsc::Sender<ConnectedClientEvent>,
 }
 
 struct ConnectedClient {
@@ -254,6 +266,10 @@ impl IpPacketRouter {
                         last_activity: std::time::Instant::now(),
                     },
                 );
+                self.connected_client_tx
+                    .send(ConnectedClientEvent::Connect(requested_ip, reply_to))
+                    .await
+                    .unwrap();
                 Ok(Some(IpPacketResponse::new_static_connect_success(
                     request_id, reply_to,
                 )))
@@ -332,6 +348,10 @@ impl IpPacketRouter {
                 last_activity: std::time::Instant::now(),
             },
         );
+        self.connected_client_tx
+            .send(ConnectedClientEvent::Connect(new_ip, reply_to))
+            .await
+            .unwrap();
         Ok(Some(IpPacketResponse::new_dynamic_connect_success(
             request_id, reply_to, new_ip,
         )))
@@ -444,6 +464,7 @@ impl IpPacketRouter {
                     for ip in inactive_clients {
                         log::info!("Disconnect inactive client: {ip}");
                         self.connected_clients.remove(&ip);
+                        self.connected_client_tx.send(ConnectedClientEvent::Disconnect(ip)).await.unwrap();
                     }
                 },
                 msg = self.mixnet_client.next() => {
@@ -479,6 +500,47 @@ impl IpPacketRouter {
                         break;
                     };
                 },
+
+            }
+        }
+        log::info!("IpPacketRouter: stopping");
+        Ok(())
+    }
+}
+
+// Reads packet from TUN and writes to mixnet client
+struct TunListener {
+    tun_task_response_rx: nym_tun::tun_task_channel::TunTaskResponseRx,
+    mixnet_client_sender: nym_sdk::mixnet::MixnetClientSender,
+    // task_handle: TaskHandle,
+
+    // A mirror of the tone in IpPacketRouter
+    connected_clients: HashMap<IpAddr, ConnectedClient>,
+    connected_client_rx: tokio::sync::mpsc::Receiver<ConnectedClientEvent>,
+}
+
+impl TunListener {
+    async fn run(mut self) -> Result<(), IpPacketRouterError> {
+        // let mut task_client = self.task_handle.fork("tun_listener");
+        // while !task_client.is_shutdown() {
+        loop {
+            tokio::select! {
+                connected_client_event = self.connected_client_rx.recv() => {
+                    match connected_client_event {
+                        Some(ConnectedClientEvent::Connect(ip, nym_addr)) => {
+                            log::trace!("Connect client: {ip}");
+                            self.connected_clients.insert(ip, ConnectedClient {
+                                nym_address: nym_addr,
+                                last_activity: std::time::Instant::now(),
+                            });
+                        },
+                        Some(ConnectedClientEvent::Disconnect(ip)) => {
+                            log::trace!("Disconnect client: {ip}");
+                            self.connected_clients.remove(&ip);
+                        },
+                        None => {},
+                    }
+                },
                 packet = self.tun_task_response_rx.recv() => {
                     if let Some((_tag, packet)) = packet {
                         let Some(dst_addr) = parse_dst_addr(&packet) else {
@@ -498,23 +560,35 @@ impl IpPacketRouter {
                             };
                             let input_message = InputMessage::new_regular(recipient, response_packet, lane, packet_type);
 
-                            if let Err(err) = self.mixnet_client.send(input_message).await {
-                                log::error!("IpPacketRouter [main loop]: failed to send packet to mixnet: {err}");
+                            if let Err(err) = self.mixnet_client_sender.send(input_message).await {
+                                log::error!("TunListener: failed to send packet to mixnet: {err}");
                             };
                         } else {
-                            log::error!("IpPacketRouter [main loop]: no nym-address recipient for packet");
+                            log::error!("TunListener: no nym-address recipient for packet");
                         }
                     } else {
-                        log::trace!("IpPacketRouter [main loop]: stopping since channel closed");
+                        log::trace!("TunListener: stopping since channel closed");
                         break;
                     }
                 }
-
             }
         }
-        log::info!("IpPacketRouter: stopping");
+        log::info!("TunListener: stopping");
         Ok(())
     }
+
+    fn start(self) {
+        tokio::spawn(async move {
+            if let Err(err) = self.run().await {
+                log::error!("tun listener router has failed: {err}")
+            }
+        });
+    }
+}
+
+enum ConnectedClientEvent {
+    Disconnect(IpAddr),
+    Connect(IpAddr, Recipient),
 }
 
 struct ParsedPacket<'a> {

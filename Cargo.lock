@@ -629,17 +629,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "async-recursion"
-version = "1.0.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5fd55a5ba1179988837d24ab4c7cc8ed6efdeff578ede0416b4225a5fca35bd0"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.38",
-]
-
-[[package]]
 name = "async-stream"
 version = "0.3.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7623,29 +7612,15 @@ dependencies = [
 name = "nym-wireguard"
 version = "0.1.0"
 dependencies = [
- "async-recursion",
  "base64 0.21.4",
- "bincode",
  "boringtun",
- "bytes",
- "dashmap",
  "defguard_wireguard_rs",
- "etherparse",
- "futures",
  "ip_network",
- "ip_network_table",
  "log",
  "nym-network-defaults",
- "nym-sphinx",
  "nym-task",
- "nym-tun",
  "nym-wireguard-types",
- "rand 0.8.5",
- "serde",
- "tap",
- "thiserror",
  "tokio",
- "tokio-tun",
 ]
 
 [[package]]

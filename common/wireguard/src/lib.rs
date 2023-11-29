@@ -3,12 +3,7 @@
 // #![warn(clippy::expect_used)]
 // #![warn(clippy::unwrap_used)]
 
-mod error;
-mod packet_relayer;
-mod registered_peers;
 pub mod setup;
-mod udp_listener;
-mod wg_tunnel;
 
 use nym_wireguard_types::registration::GatewayClientRegistry;
 use std::sync::Arc;
@@ -23,9 +18,6 @@ use defguard_wireguard_rs::{
 };
 #[cfg(target_os = "linux")]
 use nym_network_defaults::{WG_PORT, WG_TUN_DEVICE_ADDRESS};
-#[cfg(target_os = "linux")]
-use nym_tun::tun_device;
-use nym_tun::tun_task_channel;
 
 /// Start wireguard device
 #[cfg(target_os = "linux")]

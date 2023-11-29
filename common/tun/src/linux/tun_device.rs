@@ -215,7 +215,7 @@ impl TunDevice {
                 // Writing to the TUN device
                 Some(data) = self.tun_task_rx.recv() => {
                     if let Err(err) = self.handle_tun_write(data).await {
-                        log::error!("ifcae: handle_tun_write failed: {err}");
+                        log::error!("iface: handle_tun_write failed: {err}");
                     }
                 }
             }

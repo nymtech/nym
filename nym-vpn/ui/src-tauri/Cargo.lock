@@ -1811,6 +1811,7 @@ dependencies = [
  "tauri",
  "tauri-build",
  "thiserror",
+ "time",
  "tokio",
  "toml 0.8.5",
  "tracing",

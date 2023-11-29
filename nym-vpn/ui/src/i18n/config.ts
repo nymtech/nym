@@ -1,17 +1,24 @@
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
-import main from './en/main.json';
+import common from './en/common.json';
+import home from './en/home.json';
+import settings from './en/settings.json';
+import nodeLocation from './en/node-location.json';
 
-const defaultNS = 'main';
+const defaultNS = 'common';
 
 i18n.use(initReactI18next).init({
   lng: 'en',
   debug: import.meta.env.DEV,
   resources: {
     en: {
-      main,
+      common,
+      home,
+      settings,
+      nodeLocation,
     },
   },
+  ns: ['common', 'home', 'settings', 'nodeLocation'],
   defaultNS,
 
   interpolation: {

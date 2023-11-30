@@ -50,6 +50,9 @@ pub enum IpPacketRouterError {
         source: tokio::sync::mpsc::error::TrySendError<(u64, Vec<u8>)>,
     },
 
+    #[error("failed to write packet to tun")]
+    FailedToWritePacketToTun,
+
     #[error("the provided socket address, '{addr}' is not covered by the exit policy!")]
     AddressNotCoveredByExitPolicy { addr: SocketAddr },
 

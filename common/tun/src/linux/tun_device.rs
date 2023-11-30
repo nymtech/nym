@@ -112,15 +112,7 @@ impl TunDevice {
         routing_mode: RoutingMode,
         config: TunDeviceConfig,
     ) -> (Self, TunTaskTx, TunTaskResponseRx) {
-        let TunDeviceConfig {
-            base_name,
-            ip,
-            netmask,
-        } = config;
-        let name = format!("{base_name}%d");
-
-        let tun = setup_tokio_tun_device(&name, ip, netmask);
-        log::info!("Created TUN device: {}", tun.name());
+        let tun = Self::new_device_only(config);
 
         // Channels to communicate with the other tasks
         let (tun_task_tx, tun_task_rx) = tun_task_channel();
@@ -134,6 +126,19 @@ impl TunDevice {
         };
 
         (tun_device, tun_task_tx, tun_task_response_rx)
+    }
+
+    pub fn new_device_only(config: TunDeviceConfig) -> tokio_tun::Tun {
+        let TunDeviceConfig {
+            base_name,
+            ip,
+            netmask,
+        } = config;
+        let name = format!("{base_name}%d");
+
+        let tun = setup_tokio_tun_device(&name, ip, netmask);
+        log::info!("Created TUN device: {}", tun.name());
+        tun
     }
 
     // Send outbound packets out on the wild internet

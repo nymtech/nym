@@ -24,6 +24,7 @@ use nym_sdk::{
 use nym_sphinx::receiver::ReconstructedMessage;
 use nym_task::{connections::TransmissionLane, TaskClient, TaskHandle};
 use request_filter::RequestFilter;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 use crate::config::BaseClientConfig;
 
@@ -154,19 +155,17 @@ impl IpPacketRouterBuilder {
             ip: TUN_DEVICE_ADDRESS.parse().unwrap(),
             netmask: TUN_DEVICE_NETMASK.parse().unwrap(),
         };
-        let (tun, tun_task_tx, tun_task_response_rx) = nym_tun::tun_device::TunDevice::new(
-            nym_tun::tun_device::RoutingMode::new_passthrough(),
-            config,
-        );
-        tun.start();
+        let (tun_reader, tun_writer) =
+            tokio::io::split(nym_tun::tun_device::TunDevice::new_device_only(config));
 
         // Channel used by the IpPacketRouter to signal connected and disconnected clients to the
         // TunListener
         let (connected_client_tx, connected_client_rx) = tokio::sync::mpsc::unbounded_channel();
 
         let tun_listener = TunListener {
-            tun_task_response_rx,
+            tun_reader,
             mixnet_client_sender: mixnet_client.split_sender(),
+            task_client: task_handle.get_handle(),
             connected_clients: Default::default(),
             connected_client_rx,
         };
@@ -178,7 +177,7 @@ impl IpPacketRouterBuilder {
         let ip_packet_router_service = IpPacketRouter {
             _config: self.config,
             request_filter: request_filter.clone(),
-            tun_task_tx,
+            tun_writer,
             mixnet_client,
             task_handle,
             connected_clients: Default::default(),
@@ -206,7 +205,7 @@ impl IpPacketRouterBuilder {
 struct IpPacketRouter {
     _config: Config,
     request_filter: request_filter::RequestFilter,
-    tun_task_tx: nym_tun::tun_task_channel::TunTaskTx,
+    tun_writer: tokio::io::WriteHalf<tokio_tun::Tun>,
     mixnet_client: nym_sdk::mixnet::MixnetClient,
     task_handle: TaskHandle,
 
@@ -400,9 +399,11 @@ impl IpPacketRouter {
         }
 
         // TODO: consider changing from Vec<u8> to bytes::Bytes?
-        self.tun_task_tx
-            .try_send((0, data_request.ip_packet.into()))
-            .map_err(|err| IpPacketRouterError::FailedToSendPacketToTun { source: err })?;
+        let packet = data_request.ip_packet;
+        self.tun_writer
+            .write_all(&packet)
+            .await
+            .map_err(|_| IpPacketRouterError::FailedToWritePacketToTun)?;
 
         Ok(None)
     }
@@ -508,9 +509,9 @@ impl IpPacketRouter {
 
 // Reads packet from TUN and writes to mixnet client
 struct TunListener {
-    tun_task_response_rx: nym_tun::tun_task_channel::TunTaskResponseRx,
+    tun_reader: tokio::io::ReadHalf<tokio_tun::Tun>,
     mixnet_client_sender: nym_sdk::mixnet::MixnetClientSender,
-    // task_handle: TaskHandle,
+    task_client: TaskClient,
 
     // A mirror of the one in IpPacketRouter
     connected_clients: HashMap<IpAddr, ConnectedClient>,
@@ -519,29 +520,26 @@ struct TunListener {
 
 impl TunListener {
     async fn run(mut self) -> Result<(), IpPacketRouterError> {
-        // let mut task_client = self.task_handle.fork("tun_listener");
-        // while !task_client.is_shutdown() {
-        loop {
+        let mut buf = [0u8; 65535];
+        while !self.task_client.is_shutdown() {
             tokio::select! {
-                connected_client_event = self.connected_client_rx.recv() => {
-                    match connected_client_event {
-                        Some(ConnectedClientEvent::Connect(ip, nym_addr)) => {
-                            log::trace!("Connect client: {ip}");
-                            self.connected_clients.insert(ip, ConnectedClient {
-                                nym_address: nym_addr,
-                                last_activity: std::time::Instant::now(),
-                            });
-                        },
-                        Some(ConnectedClientEvent::Disconnect(ip)) => {
-                            log::trace!("Disconnect client: {ip}");
-                            self.connected_clients.remove(&ip);
-                        },
-                        None => {},
-                    }
+                event = self.connected_client_rx.recv() => match event {
+                    Some(ConnectedClientEvent::Connect(ip, nym_addr)) => {
+                        log::trace!("Connect client: {ip}");
+                        self.connected_clients.insert(ip, ConnectedClient {
+                            nym_address: nym_addr,
+                            last_activity: std::time::Instant::now(),
+                        });
+                    },
+                    Some(ConnectedClientEvent::Disconnect(ip)) => {
+                        log::trace!("Disconnect client: {ip}");
+                        self.connected_clients.remove(&ip);
+                    },
+                    None => {},
                 },
-                packet = self.tun_task_response_rx.recv() => {
-                    if let Some((_tag, packet)) = packet {
-                        let Some(dst_addr) = parse_dst_addr(&packet) else {
+                len = self.tun_reader.read(&mut buf) => match len {
+                    Ok(len) => {
+                        let Some(dst_addr) = parse_dst_addr(&buf[..len]) else {
                             log::warn!("Failed to parse packet");
                             continue;
                         };
@@ -551,6 +549,7 @@ impl TunListener {
                         if let Some(recipient) = recipient {
                             let lane = TransmissionLane::General;
                             let packet_type = None;
+                            let packet = buf[..len].to_vec();
                             let response_packet = IpPacketResponse::new_ip_packet(packet.into()).to_bytes();
                             let Ok(response_packet) = response_packet else {
                                 log::error!("Failed to serialize response packet");
@@ -564,9 +563,10 @@ impl TunListener {
                         } else {
                             log::info!("No registered nym-address for packet - dropping");
                         }
-                    } else {
-                        log::trace!("TunListener: stopping since channel closed");
-                        break;
+                    },
+                    Err(err) => {
+                        log::warn!("iface: read error: {err}");
+                        // break;
                     }
                 }
             }

@@ -34,4 +34,5 @@ serde_json = { workspace = true }
 tap.workspace = true
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "net", "io-util"] }
+tokio-tun = "0.11.2"
 url.workspace = true

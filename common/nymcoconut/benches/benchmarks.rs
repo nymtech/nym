@@ -66,8 +66,8 @@ fn unblind_and_aggregate(
     params: &Parameters,
     blinded_signatures: &[BlindedSignature],
     partial_verification_keys: &[VerificationKey],
-    private_attributes: &[Attribute],
-    public_attributes: &[Attribute],
+    private_attributes: &[&Attribute],
+    public_attributes: &[&Attribute],
     commitment_hash: &G1Projective,
     pedersen_commitments_openings: &[Scalar],
     verification_key: &VerificationKey,
@@ -78,7 +78,7 @@ fn unblind_and_aggregate(
         .zip(partial_verification_keys.iter())
         .map(|(signature, partial_verification_key)| {
             signature
-                .unblind(
+                .unblind_and_verify(
                     params,
                     partial_verification_key,
                     private_attributes,

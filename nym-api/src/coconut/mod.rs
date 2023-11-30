@@ -5,9 +5,7 @@ use self::comm::APICommunicationChannel;
 use crate::coconut::client::Client as LocalClient;
 use crate::coconut::state::State;
 use crate::support::storage::NymApiStorage;
-use getset::{CopyGetters, Getters};
 use keypair::KeyPair;
-use nym_coconut_interface::{Attribute, BlindSignRequest};
 use nym_config::defaults::NYM_API_VERSION;
 use nym_validator_client::nym_api::routes::{BANDWIDTH, COCONUT_ROUTES};
 use rocket::fairing::AdHoc;
@@ -26,32 +24,9 @@ pub(crate) mod storage;
 pub(crate) mod tests;
 pub(crate) mod types;
 
-#[derive(Getters, CopyGetters, Debug)]
-pub(crate) struct InternalSignRequest {
-    // Total number of parameters to generate for
-    #[getset(get_copy)]
-    total_params: u32,
-
-    #[getset(get)]
-    public_attributes: Vec<Attribute>,
-
-    #[getset(get)]
-    blind_sign_request: BlindSignRequest,
-}
+pub(crate) struct InternalSignRequest;
 
 impl InternalSignRequest {
-    pub fn new(
-        total_params: u32,
-        public_attributes: Vec<Attribute>,
-        blind_sign_request: BlindSignRequest,
-    ) -> InternalSignRequest {
-        InternalSignRequest {
-            total_params,
-            public_attributes,
-            blind_sign_request,
-        }
-    }
-
     pub fn stage<C, D>(
         client: C,
         mix_denom: String,
@@ -67,7 +42,7 @@ impl InternalSignRequest {
         AdHoc::on_ignite("Internal Sign Request Stage", |rocket| async {
             rocket.manage(state).mount(
                 // this format! is so ugly...
-                format!("/{}/{}/{}", NYM_API_VERSION, COCONUT_ROUTES, BANDWIDTH),
+                format!("/{NYM_API_VERSION}/{COCONUT_ROUTES}/{BANDWIDTH}"),
                 routes![
                     api_routes::post_blind_sign,
                     api_routes::verify_bandwidth_credential

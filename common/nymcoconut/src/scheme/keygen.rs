@@ -23,8 +23,12 @@ use crate::utils::{
 };
 use crate::Base58;
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 #[cfg_attr(test, derive(PartialEq, Eq))]
+#[cfg_attr(
+    feature = "key-zeroize",
+    derive(zeroize::Zeroize, zeroize::ZeroizeOnDrop)
+)]
 pub struct SecretKey {
     pub(crate) x: Scalar,
     pub(crate) ys: Vec<Scalar>,
@@ -97,6 +101,10 @@ impl SecretKey {
         (self.x, self.ys.clone())
     }
 
+    pub fn size(&self) -> usize {
+        self.ys.len()
+    }
+
     /// Derive verification key using this secret key.
     pub fn verification_key(&self, params: &Parameters) -> VerificationKey {
         let g1 = params.gen1();
@@ -141,6 +149,10 @@ impl Base58 for SecretKey {}
 // TODO: perhaps change points to affine representation
 // to make verification slightly more efficient?
 #[derive(Debug, PartialEq, Eq, Clone)]
+#[cfg_attr(
+    feature = "key-zeroize",
+    derive(zeroize::Zeroize, zeroize::ZeroizeOnDrop)
+)]
 pub struct VerificationKey {
     // TODO add gen2 as per the paper or imply it from the fact library is using bls381?
     pub(crate) alpha: G2Projective,
@@ -393,6 +405,10 @@ impl Base58 for VerificationKey {}
 
 #[derive(Debug, Serialize, Deserialize)]
 #[cfg_attr(test, derive(PartialEq, Eq))]
+#[cfg_attr(
+    feature = "key-zeroize",
+    derive(zeroize::Zeroize, zeroize::ZeroizeOnDrop)
+)]
 pub struct KeyPair {
     secret_key: SecretKey,
     verification_key: VerificationKey,
@@ -429,12 +445,12 @@ impl KeyPair {
         }
     }
 
-    pub fn secret_key(&self) -> SecretKey {
-        self.secret_key.clone()
+    pub fn secret_key(&self) -> &SecretKey {
+        &self.secret_key
     }
 
-    pub fn verification_key(&self) -> VerificationKey {
-        self.verification_key.clone()
+    pub fn verification_key(&self) -> &VerificationKey {
+        &self.verification_key
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {

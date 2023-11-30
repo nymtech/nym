@@ -6,6 +6,7 @@ use crate::coconut::dkg::complaints::ComplaintReason;
 use crate::coconut::dkg::state::{ConsistentState, State};
 use crate::coconut::error::CoconutError;
 use crate::coconut::helpers::accepted_vote_err;
+use crate::coconut::state::BANDWIDTH_CREDENTIAL_PARAMS;
 use cosmwasm_std::Addr;
 use cw3::{ProposalResponse, Status};
 use log::debug;
@@ -15,7 +16,6 @@ use nym_coconut_dkg_common::event_attributes::DKG_PROPOSAL_ID;
 use nym_coconut_dkg_common::types::{NodeIndex, TOTAL_DEALINGS};
 use nym_coconut_dkg_common::verification_key::owner_from_cosmos_msgs;
 use nym_coconut_interface::KeyPair as CoconutKeyPair;
-use nym_credentials::coconut::bandwidth::{PRIVATE_ATTRIBUTES, PUBLIC_ATTRIBUTES};
 use nym_dkg::bte::{decrypt_share, setup};
 use nym_dkg::error::DkgError;
 use nym_dkg::{combine_shares, try_recover_verification_keys, Dealing, Threshold};
@@ -140,7 +140,6 @@ fn derive_partial_keypair(
     }
     state.set_recovered_vks(recovered_vks);
 
-    let params = Parameters::new(PUBLIC_ATTRIBUTES + PRIVATE_ATTRIBUTES)?;
     let x = scalars.pop().ok_or(CoconutError::DkgError(
         DkgError::NotEnoughDealingsAvailable {
             available: 0,
@@ -148,7 +147,7 @@ fn derive_partial_keypair(
         },
     ))?;
     let sk = SecretKey::create_from_raw(x, scalars);
-    let vk = sk.verification_key(&params);
+    let vk = sk.verification_key(&BANDWIDTH_CREDENTIAL_PARAMS);
 
     Ok(CoconutKeyPair::from_keys(sk, vk))
 }
@@ -234,7 +233,7 @@ pub(crate) async fn verification_key_validation(
         .map(|recovered_vk| recovered_vk.recovered_partials.clone())
         .collect();
     let recovered_partials = transpose_matrix(recovered_partials);
-    let params = Parameters::new(PUBLIC_ATTRIBUTES + PRIVATE_ATTRIBUTES)?;
+    let params = &BANDWIDTH_CREDENTIAL_PARAMS;
     for contract_share in vk_shares {
         if let Some(proposal_id) = proposal_ids.get(&contract_share.owner).copied() {
             match VerificationKey::try_from_bs58(contract_share.share) {

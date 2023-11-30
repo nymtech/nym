@@ -28,7 +28,7 @@ impl BasicContractInfo {
         let cw2_formatted = if let Some(cw2_version) = &self.cw2_version {
             format!("{} {}", cw2_version.contract, cw2_version.version)
         } else {
-            "some silly sausage never set it".to_string()
+            "<unspecified>".to_string()
         };
 
         let mut text = vec![
@@ -52,6 +52,14 @@ impl BasicContractInfo {
             text.push(Line::from(vec![
                 "build sha: ".into(),
                 Span::styled(&build_info.commit_sha, Style::default().yellow().bold()),
+            ]));
+        } else {
+            text.push(Line::from(vec![
+                "Build Information: ".into(),
+                Span::styled(
+                    "<unspecified>".to_string(),
+                    Style::default().yellow().bold(),
+                ),
             ]));
         }
 

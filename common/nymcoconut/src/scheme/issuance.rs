@@ -137,7 +137,7 @@ impl Bytable for BlindSignRequest {
 impl Base58 for BlindSignRequest {}
 
 impl BlindSignRequest {
-    fn verify_proof(&self, params: &Parameters, public_attributes: &[Attribute]) -> bool {
+    fn verify_proof(&self, params: &Parameters, public_attributes: &[&Attribute]) -> bool {
         self.pi_s.verify(
             params,
             &self.commitment,
@@ -150,8 +150,8 @@ impl BlindSignRequest {
         self.commitment_hash
     }
 
-    pub fn get_private_attributes_pedersen_commitments(&self) -> Vec<G1Projective> {
-        self.private_attributes_commitments.clone()
+    pub fn get_private_attributes_pedersen_commitments(&self) -> &[G1Projective] {
+        &self.private_attributes_commitments
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {
@@ -161,12 +161,16 @@ impl BlindSignRequest {
     pub fn from_bytes(bytes: &[u8]) -> Result<BlindSignRequest> {
         BlindSignRequest::try_from(bytes)
     }
+
+    pub fn num_private_attributes(&self) -> usize {
+        self.private_attributes_commitments.len()
+    }
 }
 
 pub fn compute_attributes_commitment(
     params: &Parameters,
-    private_attributes: &[Attribute],
-    public_attributes: &[Attribute],
+    private_attributes: &[&Attribute],
+    public_attributes: &[&Attribute],
     hs: &[G1Affine],
 ) -> (Scalar, G1Projective) {
     let commitment_opening = params.random_scalar();
@@ -187,7 +191,7 @@ pub fn compute_attributes_commitment(
 
 pub fn compute_pedersen_commitments_for_private_attributes(
     params: &Parameters,
-    private_attributes: &[Attribute],
+    private_attributes: &[&Attribute],
     h: &G1Projective,
 ) -> (Vec<Scalar>, Vec<G1Projective>) {
     // Generate openings for Pedersen commitment for each private attribute
@@ -197,13 +201,13 @@ pub fn compute_pedersen_commitments_for_private_attributes(
     let pedersen_commitments = commitments_openings
         .iter()
         .zip(private_attributes.iter())
-        .map(|(o_j, m_j)| params.gen1() * o_j + h * m_j)
+        .map(|(o_j, &m_j)| params.gen1() * o_j + h * m_j)
         .collect::<Vec<_>>();
 
     (commitments_openings, pedersen_commitments)
 }
 
-pub fn compute_hash(commitment: G1Projective, public_attributes: &[Attribute]) -> G1Projective {
+pub fn compute_hash(commitment: G1Projective, public_attributes: &[&Attribute]) -> G1Projective {
     let mut buff = Vec::new();
     buff.extend_from_slice(commitment.to_bytes().as_ref());
     for attr in public_attributes {
@@ -215,8 +219,8 @@ pub fn compute_hash(commitment: G1Projective, public_attributes: &[Attribute]) -
 /// Builds cryptographic material required for blind sign.
 pub fn prepare_blind_sign(
     params: &Parameters,
-    private_attributes: &[Attribute],
-    public_attributes: &[Attribute],
+    private_attributes: &[&Attribute],
+    public_attributes: &[&Attribute],
 ) -> Result<(Vec<Scalar>, BlindSignRequest)> {
     if private_attributes.is_empty() {
         return Err(CoconutError::Issuance(
@@ -271,7 +275,7 @@ pub fn blind_sign(
     params: &Parameters,
     signing_secret_key: &SecretKey,
     blind_sign_request: &BlindSignRequest,
-    public_attributes: &[Attribute],
+    public_attributes: &[&Attribute],
 ) -> Result<BlindedSignature> {
     let num_private = blind_sign_request.private_attributes_commitments.len();
     let hs = params.gen_hs();
@@ -304,7 +308,7 @@ pub fn blind_sign(
     let signed_public = h * public_attributes
         .iter()
         .zip(signing_secret_key.ys.iter().skip(num_private))
-        .map(|(attr, yi)| attr * yi)
+        .map(|(&attr, yi)| attr * yi)
         .sum::<Scalar>();
 
     // h ^ x + c[0] ^ y[0] + ... c[m] ^ y[m] + h ^ (pub_m[0] * y[m + 1] + ... + pub_m[n] * y[m + n])
@@ -345,7 +349,7 @@ pub fn blind_sign(
 pub fn verify_partial_blind_signature(
     params: &Parameters,
     blind_sign_request: &BlindSignRequest,
-    public_attributes: &[Attribute],
+    public_attributes: &[&Attribute],
     blind_sig: &BlindedSignature,
     partial_verification_key: &VerificationKey,
 ) -> bool {
@@ -383,7 +387,7 @@ pub fn verify_partial_blind_signature(
     }
 
     // for each public attribute, add (s^pub_j, beta_{priv + j}) to the miller terms
-    for (pub_attr, beta_g2) in public_attributes.iter().zip(
+    for (&pub_attr, beta_g2) in public_attributes.iter().zip(
         partial_verification_key
             .beta_g2
             .iter()
@@ -415,7 +419,7 @@ pub fn verify_partial_blind_signature(
 pub fn sign(
     params: &mut Parameters,
     secret_key: &SecretKey,
-    public_attributes: &[Attribute],
+    public_attributes: &[&Attribute],
 ) -> Result<Signature> {
     if public_attributes.len() > secret_key.ys.len() {
         return Err(CoconutError::IssuanceMaxAttributes {
@@ -429,7 +433,7 @@ pub fn sign(
     // (the python implementation hashes string representation of all attributes onto the curve,
     // but I think the same can be achieved by just summing the attributes thus avoiding the unnecessary
     // transformation. If I'm wrong, please correct me.)
-    let attributes_sum = public_attributes.iter().sum::<Scalar>();
+    let attributes_sum = public_attributes.iter().map(|&s| s).sum::<Scalar>();
     let h = hash_g1((params.gen1() * attributes_sum).to_bytes());
 
     // x + m0 * y0 + m1 * y1 + ... mn * yn
@@ -437,7 +441,7 @@ pub fn sign(
         + public_attributes
             .iter()
             .zip(secret_key.ys.iter())
-            .map(|(m_i, y_i)| m_i * y_i)
+            .map(|(&m_i, y_i)| m_i * y_i)
             .sum::<Scalar>();
 
     let sig2 = h * exponent;

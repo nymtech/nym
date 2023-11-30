@@ -1000,27 +1000,13 @@ checksum = "8d696c370c750c948ada61c69a0ee2cbbb9c50b1019ddb86d9317157a99c2cae"
 
 [[package]]
 name = "bls12_381"
-version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "54757888b09a69be70b5ec303e382a74227392086ba808cb01eeca29233a2397"
+version = "0.8.0"
+source = "git+https://github.com/jstuczyn/bls12_381?branch=feature/gt-serialization-0.8.0#c4543fde7d02efea6ecfcf22e14476ddb516b483"
 dependencies = [
  "digest 0.9.0",
- "ff 0.10.1",
- "group 0.10.0",
- "pairing 0.20.0",
- "rand_core 0.6.4",
- "subtle 2.4.1",
-]
-
-[[package]]
-name = "bls12_381"
-version = "0.6.0"
-source = "git+https://github.com/jstuczyn/bls12_381?branch=gt-serialisation#10fb6f700bfda17c8475af3bfd31e3fec15f2278"
-dependencies = [
- "digest 0.9.0",
- "ff 0.11.1",
- "group 0.11.0",
- "pairing 0.21.0",
+ "ff 0.13.0",
+ "group 0.13.0",
+ "pairing",
  "rand_core 0.6.4",
  "subtle 2.4.1",
  "zeroize",
@@ -3147,26 +3133,6 @@ checksum = "25cbce373ec4653f1a01a31e8a5e5ec0c622dc27ff9c4e6606eefef5cbbed4a5"
 
 [[package]]
 name = "ff"
-version = "0.10.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d0f40b2dcd8bc322217a5f6559ae5f9e9d1de202a2ecee2e9eafcbece7562a4f"
-dependencies = [
- "rand_core 0.6.4",
- "subtle 2.4.1",
-]
-
-[[package]]
-name = "ff"
-version = "0.11.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "131655483be284720a17d74ff97592b8e76576dc25563148601df2d7c9080924"
-dependencies = [
- "rand_core 0.6.4",
- "subtle 2.4.1",
-]
-
-[[package]]
-name = "ff"
 version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d013fc25338cc558c5c2cfbad646908fb23591e2404481826742b651c9af7160"
@@ -3181,6 +3147,7 @@ version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ded41244b729663b1e574f1b4fb731469f69f79c17667b5d776b16cda0479449"
 dependencies = [
+ "bitvec",
  "rand_core 0.6.4",
  "subtle 2.4.1",
 ]
@@ -3641,30 +3608,6 @@ dependencies = [
  "serde_json",
  "wasm-bindgen",
  "web-sys",
-]
-
-[[package]]
-name = "group"
-version = "0.10.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1c363a5301b8f153d80747126a04b3c82073b9fe3130571a9d170cacdeaf7912"
-dependencies = [
- "byteorder",
- "ff 0.10.1",
- "rand_core 0.6.4",
- "subtle 2.4.1",
-]
-
-[[package]]
-name = "group"
-version = "0.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bc5ac374b108929de78460075f3dc439fa66df9d8fc77e8f12caa5165fcf0c89"
-dependencies = [
- "byteorder",
- "ff 0.11.1",
- "rand_core 0.6.4",
- "subtle 2.4.1",
 ]
 
 [[package]]
@@ -4412,6 +4355,15 @@ name = "itertools"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b1c173a5686ce8bfa551b3563d0c2170bf24ca44da99c7ca4bfdab5418c3fe57"
+dependencies = [
+ "either",
+]
+
+[[package]]
+name = "itertools"
+version = "0.12.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "25db6b064527c5d482d0423354fcd07a89a2dfe07b67892e62411946db7f07b0"
 dependencies = [
  "either",
 ]
@@ -6093,6 +6045,7 @@ dependencies = [
  "futures-util",
  "getset",
  "humantime-serde",
+ "itertools 0.12.0",
  "lazy_static",
  "log",
  "nym-api-requests",
@@ -6157,10 +6110,12 @@ dependencies = [
  "cosmwasm-std",
  "getset",
  "nym-coconut-interface",
+ "nym-crypto",
  "nym-mixnet-contract-common",
  "nym-node-requests",
  "schemars",
  "serde",
+ "tendermint",
  "ts-rs",
 ]
 
@@ -6178,6 +6133,7 @@ dependencies = [
  "rand 0.7.3",
  "thiserror",
  "url",
+ "zeroize",
 ]
 
 [[package]]
@@ -6413,14 +6369,14 @@ dependencies = [
 name = "nym-coconut"
 version = "0.5.0"
 dependencies = [
- "bls12_381 0.6.0",
+ "bls12_381",
  "bs58 0.4.0",
  "criterion",
  "digest 0.9.0",
  "doc-comment",
- "ff 0.11.1",
+ "ff 0.13.0",
  "getrandom 0.2.10",
- "group 0.11.0",
+ "group 0.13.0",
  "itertools 0.10.5",
  "nym-dkg",
  "nym-pemstore",
@@ -6430,6 +6386,7 @@ dependencies = [
  "serde_derive",
  "sha2 0.9.9",
  "thiserror",
+ "zeroize",
 ]
 
 [[package]]
@@ -6520,7 +6477,7 @@ dependencies = [
 name = "nym-credentials"
 version = "0.1.0"
 dependencies = [
- "bls12_381 0.5.0",
+ "bls12_381",
  "cosmrs",
  "log",
  "nym-api-requests",
@@ -6529,6 +6486,7 @@ dependencies = [
  "nym-validator-client",
  "rand 0.7.3",
  "thiserror",
+ "zeroize",
 ]
 
 [[package]]
@@ -6562,11 +6520,11 @@ name = "nym-dkg"
 version = "0.1.0"
 dependencies = [
  "bitvec",
- "bls12_381 0.6.0",
+ "bls12_381",
  "bs58 0.4.0",
  "criterion",
- "ff 0.11.1",
- "group 0.11.0",
+ "ff 0.13.0",
+ "group 0.13.0",
  "lazy_static",
  "nym-contracts-common",
  "nym-pemstore",
@@ -8044,20 +8002,11 @@ dependencies = [
 
 [[package]]
 name = "pairing"
-version = "0.20.0"
+version = "0.23.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7de9d09263c9966e8196fe0380c9dbbc7ea114b5cf371ba29004bc1f9c6db7f3"
+checksum = "81fec4625e73cf41ef4bb6846cafa6d44736525f442ba45e407c4a000a13996f"
 dependencies = [
- "group 0.10.0",
-]
-
-[[package]]
-name = "pairing"
-version = "0.21.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f2e415e349a3006dd7d9482cdab1c980a845bed1377777d768cb693a44540b42"
-dependencies = [
- "group 0.11.0",
+ "group 0.13.0",
 ]
 
 [[package]]
@@ -9978,9 +9927,9 @@ dependencies = [
 
 [[package]]
 name = "serde_json"
-version = "1.0.107"
+version = "1.0.108"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6b420ce6e3d8bd882e9b243c6eed35dbc9a6110c9769e74b584e0d68d1f20c65"
+checksum = "3d1c7e3eac408d115102c4c24ad393e0821bb3a5df4d506a80f85f7a742a526b"
 dependencies = [
  "itoa",
  "ryu",

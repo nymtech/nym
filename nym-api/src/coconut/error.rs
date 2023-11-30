@@ -13,7 +13,7 @@ use nym_crypto::asymmetric::{
 };
 use nym_dkg::error::DkgError;
 use nym_validator_client::coconut::CoconutApiError;
-use nym_validator_client::nyxd::error::NyxdError;
+use nym_validator_client::nyxd::error::{NyxdError, TendermintError};
 
 use crate::node_status_api::models::NymApiStorageError;
 
@@ -30,22 +30,32 @@ pub enum CoconutError {
     #[error(transparent)]
     SerdeJsonError(#[from] serde_json::Error),
 
-    #[error("Could not parse Ed25519 data - {0}")]
+    #[error("Could not parse Ed25519 data: {0}")]
     Ed25519ParseError(#[from] Ed25519RecoveryError),
 
-    #[error("Could not parse X25519 data - {0}")]
+    #[error("Could not parse X25519 data: {0}")]
     X25519ParseError(#[from] KeyRecoveryError),
 
-    #[error("Could not parse tx hash in request body")]
-    TxHashParseError,
+    #[error("Could not parse tx hash in request body: {source}")]
+    TxHashParseError {
+        #[source]
+        source: TendermintError,
+    },
 
-    #[error("Nyxd error - {0}")]
+    #[error("could not get transaction details for '{tx_hash}': {source}")]
+    TxRetrievalFailure {
+        tx_hash: String,
+        #[source]
+        source: NyxdError,
+    },
+
+    #[error("Nyxd error: {0}")]
     NyxdError(#[from] NyxdError),
 
-    #[error("Validator client error - {0}")]
+    #[error("Validator client error: {0}")]
     ValidatorClientError(#[from] nym_validator_client::ValidatorClientError),
 
-    #[error("Coconut internal error - {0}")]
+    #[error("Coconut internal error: {0}")]
     CoconutInternalError(#[from] nym_coconut::CoconutError),
 
     #[error("Could not find a deposit event in the transaction provided")]
@@ -69,18 +79,22 @@ pub enum CoconutError {
     #[error("Inconsistent public attributes")]
     InconsistentPublicAttributes,
 
-    #[error(
-        "Public attributes in request differ from the ones in deposit - Expected {0}, got {1}"
-    )]
+    #[error("the provided deposit value is inconsistent. got '{request}' while the value on chain is '{on_chain}'")]
+    InconsistentDepositValue { request: String, on_chain: String },
+
+    #[error("the provided deposit info is inconsistent. got '{request}' while the value on chain is '{on_chain}'")]
+    InconsistentDepositInfo { request: String, on_chain: String },
+
+    #[error("Public attributes in request differ from the ones in deposit: Expected {0}, got {1}")]
     DifferentPublicAttributes(String, String),
 
-    #[error("Error in coconut interface - {0}")]
+    #[error("Error in coconut interface: {0}")]
     CoconutInterfaceError(#[from] nym_coconut_interface::error::CoconutInterfaceError),
 
-    #[error("Storage error - {0}")]
+    #[error("Storage error: {0}")]
     StorageError(#[from] NymApiStorageError),
 
-    #[error("Credentials error - {0}")]
+    #[error("Credentials error: {0}")]
     CredentialsError(#[from] nym_credentials::error::Error),
 
     #[error("Incorrect credential proposal description: {reason}")]

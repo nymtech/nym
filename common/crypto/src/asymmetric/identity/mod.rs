@@ -224,6 +224,17 @@ impl<'a> From<&'a PrivateKey> for PublicKey {
 }
 
 impl PrivateKey {
+    #[cfg(feature = "rand")]
+    pub fn new<R: RngCore + CryptoRng>(rng: &mut R) -> Self {
+        let ed25519_secret = ed25519_dalek::SecretKey::generate(rng);
+
+        PrivateKey(ed25519_secret)
+    }
+
+    pub fn public_key(&self) -> PublicKey {
+        self.into()
+    }
+
     pub fn to_bytes(&self) -> [u8; SECRET_KEY_LENGTH] {
         self.0.to_bytes()
     }

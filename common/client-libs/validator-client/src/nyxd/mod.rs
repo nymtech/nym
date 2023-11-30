@@ -71,6 +71,7 @@ pub mod contract_traits;
 pub mod cosmwasm_client;
 pub mod error;
 pub mod fee;
+pub mod helpers;
 
 #[derive(Debug, Clone)]
 pub struct Config {

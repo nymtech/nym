@@ -1,7 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::coconut::storage::models::EpochCredentials;
+use crate::coconut::storage::models::{EpochCredentials, IssuedCredential};
 use crate::support::storage::manager::StorageManager;
 use nym_coconut_dkg_common::types::EpochId;
 
@@ -63,6 +63,41 @@ pub trait CoconutStorageManagerExt {
         epoch_id: EpochId,
         credential_id: i64,
     ) -> Result<(), sqlx::Error>;
+
+    /// Attempts to retrieve an issued credential from the data store.    
+    ///
+    /// # Arguments
+    ///
+    /// * `credential_id`: (database) id of the issued credential
+    async fn get_issued_credential(
+        &self,
+        credential_id: i64,
+    ) -> Result<Option<IssuedCredential>, sqlx::Error>;
+
+    /// Attempts to retrieve an issued credential from the data store.
+    ///
+    /// # Arguments
+    ///
+    /// * `tx_hash`: transaction hash of the deposit used in the issued bandwidth credential
+    async fn get_issued_bandwidth_credential_by_hash(
+        &self,
+        tx_hash: &str,
+    ) -> Result<Option<IssuedCredential>, sqlx::Error>;
+
+    /// Store the provided issued credential information and return its (database) id.
+    ///
+    /// # Arguments
+    ///
+    /// * `credential`: partial credential, alongside any data required for verification.
+    async fn store_issued_credential(
+        &self,
+        epoch_id: u32,
+        tx_hash: String,
+        bs58_partial_credential: String,
+        bs58_signature: String,
+        joined_private_commitments: String,
+        joined_public_attributes: String,
+    ) -> Result<i64, sqlx::Error>;
 }
 
 #[async_trait]
@@ -201,5 +236,56 @@ impl CoconutStorageManagerExt for StorageManager {
 
         // finally commit the transaction
         tx.commit().await
+    }
+
+    /// Attempts to retrieve an issued credential from the data store.    
+    ///
+    /// # Arguments
+    ///
+    /// * `credential_id`: (database) id of the issued credential
+    async fn get_issued_credential(
+        &self,
+        credential_id: i64,
+    ) -> Result<Option<IssuedCredential>, sqlx::Error> {
+        todo!()
+    }
+
+    /// Attempts to retrieve an issued credential from the data store.
+    ///
+    /// # Arguments
+    ///
+    /// * `tx_hash`: transaction hash of the deposit used in the issued bandwidth credential
+    async fn get_issued_bandwidth_credential_by_hash(
+        &self,
+        tx_hash: &str,
+    ) -> Result<Option<IssuedCredential>, sqlx::Error> {
+        todo!()
+    }
+
+    /// Store the provided issued credential information and return its (database) id.
+    ///
+    /// # Arguments
+    ///
+    /// * `credential`: partial credential, alongside any data required for verification.
+    async fn store_issued_credential(
+        &self,
+        epoch_id: u32,
+        tx_hash: String,
+        bs58_partial_credential: String,
+        bs58_signature: String,
+        joined_private_commitments: String,
+        joined_public_attributes: String,
+    ) -> Result<i64, sqlx::Error> {
+        let row_id = sqlx::query!(
+            r#"
+                INSERT INTO issued_credential
+                (epoch_id, tx_hash, bs58_partial_credential, bs58_signature, joined_private_commitments, joined_public_attributes)
+                VALUES
+                (?, ?, ?, ?, ?, ?)
+            "#,
+            epoch_id, tx_hash, bs58_partial_credential, bs58_signature, joined_private_commitments, joined_public_attributes
+        ).execute(&self.connection_pool).await?.last_insert_rowid();
+
+        Ok(row_id)
     }
 }

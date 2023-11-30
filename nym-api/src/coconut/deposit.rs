@@ -13,81 +13,81 @@ use nym_validator_client::nyxd::TxResponse;
 
 use super::error::{CoconutError, Result};
 
-pub async fn extract_encryption_key(
-    blind_sign_request_body: &BlindSignRequestBody,
-    tx: TxResponse,
-) -> Result<encryption::PublicKey> {
-    let blind_sign_request = blind_sign_request_body.blind_sign_request();
-    let public_attributes = blind_sign_request_body.public_attributes();
-    let public_attributes_plain = blind_sign_request_body.public_attributes_plain();
-
-    if !BandwidthVoucher::verify_against_plain(&public_attributes, public_attributes_plain) {
-        return Err(CoconutError::InconsistentPublicAttributes);
-    }
-
-    let tx_hash_str = blind_sign_request_body.tx_hash();
-    let mut message = blind_sign_request.to_bytes();
-    message.extend_from_slice(tx_hash_str.as_bytes());
-
-    let signature = Signature::from_base58_string(blind_sign_request_body.signature())?;
-
-    let attributes: &Vec<_> = tx
-        .tx_result
-        .events
-        .iter()
-        .find(|event| event.kind == format!("wasm-{}", DEPOSITED_FUNDS_EVENT_TYPE))
-        .ok_or(CoconutError::DepositEventNotFound)?
-        .attributes
-        .as_ref();
-
-    let deposit_value: &str = attributes
-        .iter()
-        .find(|tag| tag.key == DEPOSIT_VALUE)
-        .ok_or(CoconutError::DepositValueNotFound)?
-        .value
-        .as_ref();
-    let deposit_value_plain = public_attributes_plain.first().cloned().unwrap_or_default();
-    if deposit_value != deposit_value_plain {
-        return Err(CoconutError::DifferentPublicAttributes(
-            deposit_value.to_string(),
-            deposit_value_plain,
-        ));
-    }
-
-    let deposit_info: &str = attributes
-        .iter()
-        .find(|tag| tag.key == DEPOSIT_INFO)
-        .ok_or(CoconutError::DepositInfoNotFound)?
-        .value
-        .as_ref();
-    let deposit_info_plain = public_attributes_plain.get(1).cloned().unwrap_or_default();
-    if deposit_info != deposit_info_plain {
-        return Err(CoconutError::DifferentPublicAttributes(
-            deposit_info.to_string(),
-            deposit_info_plain,
-        ));
-    }
-
-    let verification_key = identity::PublicKey::from_base58_string(
-        &attributes
-            .iter()
-            .find(|tag| tag.key == DEPOSIT_IDENTITY_KEY)
-            .ok_or(CoconutError::DepositVerifKeyNotFound)?
-            .value,
-    )?;
-
-    let encryption_key = encryption::PublicKey::from_base58_string(
-        &attributes
-            .iter()
-            .find(|tag| tag.key == DEPOSIT_ENCRYPTION_KEY)
-            .ok_or(CoconutError::DepositEncrKeyNotFound)?
-            .value,
-    )?;
-
-    verification_key.verify(&message, &signature)?;
-
-    Ok(encryption_key)
-}
+// pub async fn extract_encryption_key(
+//     blind_sign_request_body: &BlindSignRequestBody,
+//     tx: TxResponse,
+// ) -> Result<encryption::PublicKey> {
+//     let blind_sign_request = blind_sign_request_body.blind_sign_request();
+//     let public_attributes = blind_sign_request_body.public_attributes();
+//     let public_attributes_plain = blind_sign_request_body.public_attributes_plain();
+//
+//     if !BandwidthVoucher::verify_against_plain(&public_attributes, public_attributes_plain) {
+//         return Err(CoconutError::InconsistentPublicAttributes);
+//     }
+//
+//     let tx_hash_str = blind_sign_request_body.tx_hash();
+//     let mut message = blind_sign_request.to_bytes();
+//     message.extend_from_slice(tx_hash_str.as_bytes());
+//
+//     let signature = Signature::from_base58_string(blind_sign_request_body.signature())?;
+//
+//     let attributes: &Vec<_> = tx
+//         .tx_result
+//         .events
+//         .iter()
+//         .find(|event| event.kind == format!("wasm-{}", DEPOSITED_FUNDS_EVENT_TYPE))
+//         .ok_or(CoconutError::DepositEventNotFound)?
+//         .attributes
+//         .as_ref();
+//
+//     let deposit_value: &str = attributes
+//         .iter()
+//         .find(|tag| tag.key == DEPOSIT_VALUE)
+//         .ok_or(CoconutError::DepositValueNotFound)?
+//         .value
+//         .as_ref();
+//     let deposit_value_plain = public_attributes_plain.first().cloned().unwrap_or_default();
+//     if deposit_value != deposit_value_plain {
+//         return Err(CoconutError::DifferentPublicAttributes(
+//             deposit_value.to_string(),
+//             deposit_value_plain,
+//         ));
+//     }
+//
+//     let deposit_info: &str = attributes
+//         .iter()
+//         .find(|tag| tag.key == DEPOSIT_INFO)
+//         .ok_or(CoconutError::DepositInfoNotFound)?
+//         .value
+//         .as_ref();
+//     let deposit_info_plain = public_attributes_plain.get(1).cloned().unwrap_or_default();
+//     if deposit_info != deposit_info_plain {
+//         return Err(CoconutError::DifferentPublicAttributes(
+//             deposit_info.to_string(),
+//             deposit_info_plain,
+//         ));
+//     }
+//
+//     let verification_key = identity::PublicKey::from_base58_string(
+//         &attributes
+//             .iter()
+//             .find(|tag| tag.key == DEPOSIT_IDENTITY_KEY)
+//             .ok_or(CoconutError::DepositVerifKeyNotFound)?
+//             .value,
+//     )?;
+//
+//     let encryption_key = encryption::PublicKey::from_base58_string(
+//         &attributes
+//             .iter()
+//             .find(|tag| tag.key == DEPOSIT_ENCRYPTION_KEY)
+//             .ok_or(CoconutError::DepositEncrKeyNotFound)?
+//             .value,
+//     )?;
+//
+//     verification_key.verify(&message, &signature)?;
+//
+//     Ok(encryption_key)
+// }
 
 #[cfg(test)]
 mod test {

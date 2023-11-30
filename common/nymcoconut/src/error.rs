@@ -50,4 +50,17 @@ pub enum CoconutError {
         modulus: usize,
         object: String,
     },
+
+    #[error("received an array of unexpected size for deserialization of {typ}. got {received} but expected {expected}")]
+    UnexpectedArrayLength {
+        typ: String,
+        received: usize,
+        expected: usize,
+    },
+
+    #[error("failed to deserialize scalar from the received bytes - it might not have been canonically encoded")]
+    ScalarDeserializationFailure,
+
+    #[error("failed to deserialize G1Projective point from the received bytes - it might not have been canonically encoded")]
+    G1ProjectiveDeserializationFailure,
 }

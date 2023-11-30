@@ -83,7 +83,7 @@ pub fn aggregate_verification_keys(
 pub fn aggregate_signatures(
     params: &Parameters,
     verification_key: &VerificationKey,
-    attributes: &[Attribute],
+    attributes: &[&Attribute],
     signatures: &[PartialSignature],
     indices: Option<&[SignerIndex]>,
 ) -> Result<Signature> {
@@ -100,7 +100,7 @@ pub fn aggregate_signatures(
     let tmp = attributes
         .iter()
         .zip(verification_key.beta_g2.iter())
-        .map(|(attr, beta_i)| beta_i * attr)
+        .map(|(&attr, beta_i)| beta_i * attr)
         .sum::<G2Projective>();
 
     if !check_bilinear_pairing(
@@ -119,7 +119,7 @@ pub fn aggregate_signatures(
 pub fn aggregate_signature_shares(
     params: &Parameters,
     verification_key: &VerificationKey,
-    attributes: &[Attribute],
+    attributes: &[&Attribute],
     shares: &[SignatureShare],
 ) -> Result<Signature> {
     let (signatures, indices): (Vec<_>, Vec<_>) = shares

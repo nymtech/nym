@@ -2,18 +2,19 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use super::InternalSignRequest;
-use crate::coconut::deposit::extract_encryption_key;
 use crate::coconut::error::{CoconutError, Result};
 use crate::coconut::helpers::{accepted_vote_err, blind_sign};
 use crate::coconut::state::State;
 use nym_api_requests::coconut::models::CredentialsRequestBody;
 use nym_api_requests::coconut::{
-    BlindSignRequestBody, BlindedSignatureResponse, VerifyCredentialBody, VerifyCredentialResponse,
+    BlindSignRequestBody, BlindedSignatureResponseNew, VerifyCredentialBody,
+    VerifyCredentialResponse,
 };
 use nym_coconut_bandwidth_contract_common::spend_credential::{
     funds_from_cosmos_msgs, SpendCredentialStatus,
 };
 use nym_coconut_dkg_common::types::EpochId;
+use nym_credentials::coconut::bandwidth::BandwidthVoucher;
 use nym_validator_client::nyxd::{Coin, Fee};
 use rocket::serde::json::Json;
 use rocket::State as RocketState;
@@ -23,43 +24,49 @@ use rocket::State as RocketState;
 pub async fn post_blind_sign(
     blind_sign_request_body: Json<BlindSignRequestBody>,
     state: &RocketState<State>,
-) -> Result<Json<BlindedSignatureResponse>> {
-    debug!("{:?}", blind_sign_request_body);
+) -> Result<Json<BlindedSignatureResponseNew>> {
+    debug!("Received blind sign request");
+    trace!("body: {:?}", blind_sign_request_body);
+
+    // early check: does the request have the expected number of public attributes?
+    if blind_sign_request_body.public_attributes_plain.len()
+        != BandwidthVoucher::PUBLIC_ATTRIBUTES as usize
+    {
+        return Err(CoconutError::InconsistentPublicAttributes);
+    }
+
+    // check if we already issued a credential for this tx hash
     if let Some(response) = state
-        .signed_before(blind_sign_request_body.tx_hash())
+        .already_issued(blind_sign_request_body.tx_hash)
         .await?
     {
         return Ok(Json(response));
     }
-    let tx = state
-        .client
-        .get_tx(blind_sign_request_body.tx_hash())
-        .await?;
-    let encryption_key = extract_encryption_key(&blind_sign_request_body, tx).await?;
-    let internal_request = InternalSignRequest::new(
-        *blind_sign_request_body.total_params(),
-        blind_sign_request_body.public_attributes(),
-        blind_sign_request_body.blind_sign_request().clone(),
-    );
-    let blinded_signature = if let Some(keypair) = state.key_pair.get().await.as_ref() {
-        blind_sign(internal_request, keypair)?
-    } else {
+
+    // check if we have the signing key available
+    let keypair_guard = state.coconut_key_pair.get().await;
+    let Some(signing_key) = keypair_guard.as_ref() else {
         return Err(CoconutError::KeyPairNotDerivedYet);
     };
 
-    let response = state
-        .store_issued_credential(blind_sign_request_body.into_inner(), blinded_signature)
+    // get the transaction details of the claimed deposit
+    let tx = state
+        .get_transaction(blind_sign_request_body.tx_hash)
         .await?;
 
-    // let response = state
-    //     .encrypt_and_store(
-    //         blind_sign_request_body.tx_hash(),
-    //         &encryption_key,
-    //         &blinded_signature,
-    //     )
-    //     .await?;
+    // check validity of the request
+    state.validate_request(&blind_sign_request_body, tx).await?;
 
-    Ok(Json(response))
+    // produce the partial signature
+    let blinded_signature = blind_sign(&blind_sign_request_body, signing_key.secret_key())?;
+
+    // store the information locally
+    state
+        .store_issued_credential(blind_sign_request_body.into_inner(), &blinded_signature)
+        .await?;
+
+    // finally return the credential to the client
+    Ok(Json(BlindedSignatureResponseNew { blinded_signature }))
 }
 
 #[post("/verify-bandwidth-credential", data = "<verify_credential_body>")]
@@ -67,11 +74,11 @@ pub async fn verify_bandwidth_credential(
     verify_credential_body: Json<VerifyCredentialBody>,
     state: &RocketState<State>,
 ) -> Result<Json<VerifyCredentialResponse>> {
-    let proposal_id = *verify_credential_body.proposal_id();
+    let proposal_id = verify_credential_body.proposal_id;
     let proposal = state.client.get_proposal(proposal_id).await?;
     // Proposal description is the blinded serial number
     if !verify_credential_body
-        .credential()
+        .credential
         .has_blinded_serial_number(&proposal.description)?
     {
         return Err(CoconutError::IncorrectProposal {
@@ -85,7 +92,7 @@ pub async fn verify_bandwidth_credential(
     // Credential has not been spent before, and is on its way of being spent
     let credential_status = state
         .client
-        .get_spent_credential(verify_credential_body.credential().blinded_serial_number())
+        .get_spent_credential(verify_credential_body.credential.blinded_serial_number())
         .await?
         .spend_credential
         .ok_or(CoconutError::InvalidCredentialStatus {
@@ -98,15 +105,13 @@ pub async fn verify_bandwidth_credential(
         });
     }
     let verification_key = state
-        .verification_key(*verify_credential_body.credential().epoch_id())
+        .verification_key(*verify_credential_body.credential.epoch_id())
         .await?;
-    let mut vote_yes = verify_credential_body
-        .credential()
-        .verify(&verification_key);
+    let mut vote_yes = verify_credential_body.credential.verify(&verification_key);
 
     vote_yes &= Coin::from(proposed_release_funds)
         == Coin::new(
-            verify_credential_body.credential().voucher_value() as u128,
+            verify_credential_body.credential.voucher_value() as u128,
             state.mix_denom.clone(),
         );
 
@@ -119,7 +124,7 @@ pub async fn verify_bandwidth_credential(
             Some(Fee::new_payer_granter_auto(
                 None,
                 None,
-                Some(verify_credential_body.gateway_cosmos_addr().to_owned()),
+                Some(verify_credential_body.gateway_cosmos_addr.clone()),
             )),
         )
         .await;

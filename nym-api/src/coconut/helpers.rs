@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::coconut::error::CoconutError;
+use crate::coconut::state::BANDWIDTH_CREDENTIAL_PARAMS;
 use crate::coconut::InternalSignRequest;
-use nym_coconut::{BlindedSignature, Parameters};
+use nym_api_requests::coconut::BlindSignRequestBody;
+use nym_coconut::{BlindSignRequest, BlindedSignature, Parameters, SecretKey};
 use nym_coconut_interface::KeyPair as CoconutKeyPair;
 use nym_validator_client::nyxd::error::NyxdError::AbciError;
 
@@ -22,14 +24,16 @@ pub(crate) fn accepted_vote_err(ret: Result<(), CoconutError>) -> Result<(), Coc
 }
 
 pub(crate) fn blind_sign(
-    request: InternalSignRequest,
-    key_pair: &CoconutKeyPair,
+    request: &BlindSignRequestBody,
+    signing_key: &SecretKey,
 ) -> Result<BlindedSignature, CoconutError> {
-    let params = Parameters::new(request.total_params())?;
+    let public_attributes = request.public_attributes_hashed();
+    let attributes_ref = public_attributes.iter().collect::<Vec<_>>();
+
     Ok(nym_coconut_interface::blind_sign(
-        &params,
-        &key_pair.secret_key(),
-        request.blind_sign_request(),
-        request.public_attributes(),
+        &BANDWIDTH_CREDENTIAL_PARAMS,
+        signing_key,
+        &request.inner_sign_request,
+        &attributes_ref,
     )?)
 }

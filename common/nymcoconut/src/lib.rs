@@ -1,9 +1,8 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use std::convert::TryInto;
-
-use bls12_381::Scalar;
+#![warn(clippy::expect_used)]
+#![warn(clippy::unwrap_used)]
 
 pub use crate::traits::Bytable;
 pub use elgamal::elgamal_keygen;
@@ -41,18 +40,6 @@ pub mod tests;
 mod traits;
 mod utils;
 
-pub type Attribute = Scalar;
+pub type Attribute = bls12_381::Scalar;
 pub type PrivateAttribute = Attribute;
 pub type PublicAttribute = Attribute;
-
-impl Bytable for Attribute {
-    fn to_byte_vec(&self) -> Vec<u8> {
-        self.to_bytes().to_vec()
-    }
-
-    fn try_from_byte_slice(slice: &[u8]) -> Result<Self, CoconutError> {
-        Ok(Attribute::from_bytes(slice.try_into().unwrap()).unwrap())
-    }
-}
-
-impl Base58 for Attribute {}

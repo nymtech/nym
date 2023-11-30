@@ -225,7 +225,7 @@ pub fn elgamal_keygen(params: &Parameters) -> ElGamalKeyPair {
 
 pub fn compute_attribute_encryption(
     params: &Parameters,
-    private_attributes: &[Attribute],
+    private_attributes: &[&Attribute],
     pub_key: &PublicKey,
     commitment_hash: G1Projective,
 ) -> (Vec<Ciphertext>, Vec<EphemeralKey>) {

@@ -506,7 +506,7 @@ pub fn tx_entry_fixture(tx_hash: &str) -> TxResponse {
 }
 
 #[tokio::test]
-async fn signed_before() {
+async fn already_issued() {
     let tx_hash =
         Hash::from_str("6B27412050B823E58BB38447D7870BBC8CBE3C51C905BEA89D459ACCDA80A00E").unwrap();
     let tx_entry = tx_entry_fixture(&tx_hash.to_string());
@@ -631,7 +631,7 @@ async fn state_functions() {
     );
 
     let tx_hash = String::from("6B27412050B823E58BB38447D7870BBC8CBE3C51C905BEA89D459ACCDA80A00E");
-    assert!(state.signed_before(&tx_hash).await.unwrap().is_none());
+    assert!(state.already_issued(&tx_hash).await.unwrap().is_none());
 
     let encrypted_signature = vec![1, 2, 3, 4];
     let remote_key = [42; 32];
@@ -642,7 +642,7 @@ async fn state_functions() {
         .unwrap();
     assert_eq!(
         state
-            .signed_before(&tx_hash)
+            .already_issued(&tx_hash)
             .await
             .unwrap()
             .unwrap()

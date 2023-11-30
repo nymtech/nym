@@ -18,10 +18,11 @@ CREATE TABLE epoch_credentials
 -- particular credential issued in this epoch
 CREATE TABLE issued_credential
 (
-    id                      INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-    epoch_id                INTEGER NOT NULL,
-    tx_hash                 VARCHAR NOT NULL UNIQUE,
-    bs58_partial_credential VARCHAR NOT NULL,
-    bs58_signature          VARCHAR NOT NULL
-    -- TODO: missing blindsignrequest
+    id                         INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    epoch_id                   INTEGER NOT NULL,
+    tx_hash                    VARCHAR NOT NULL UNIQUE,
+    bs58_partial_credential    VARCHAR NOT NULL,
+    bs58_signature             VARCHAR NOT NULL,
+    joined_private_commitments VARCHAR NOT NULL,
+    joined_public_attributes   VARCHAR NOT NULL
 );

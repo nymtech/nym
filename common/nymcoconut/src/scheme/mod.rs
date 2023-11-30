@@ -88,6 +88,45 @@ impl Signature {
     pub fn from_bytes(bytes: &[u8]) -> Result<Signature> {
         Signature::try_from(bytes)
     }
+
+    pub fn verify(
+        &self,
+        params: &Parameters,
+        partial_verification_key: &VerificationKey,
+        private_attributes: &[&Attribute],
+        public_attributes: &[&Attribute],
+        commitment_hash: &G1Projective,
+    ) -> Result<()> {
+        // Verify the commitment hash
+        if !(commitment_hash == &self.0) {
+            return Err(CoconutError::Verification(
+                "Verification of commitment hash from signature failed".to_string(),
+            ));
+        }
+
+        let alpha = partial_verification_key.alpha;
+
+        let signed_attributes = private_attributes
+            .iter()
+            .chain(public_attributes.iter())
+            .zip(partial_verification_key.beta_g2.iter())
+            .map(|(&attr, beta_i)| beta_i * attr)
+            .sum::<G2Projective>();
+
+        // Verify the signature share
+        if !check_bilinear_pairing(
+            &self.0.to_affine(),
+            &G2Prepared::from((alpha + signed_attributes).to_affine()),
+            &self.1.to_affine(),
+            params.prepared_miller_g2(),
+        ) {
+            return Err(CoconutError::Unblind(
+                "Verification of signature share failed".to_string(),
+            ));
+        }
+
+        Ok(())
+    }
 }
 
 impl Bytable for Signature {
@@ -148,24 +187,12 @@ impl TryFrom<&[u8]> for BlindedSignature {
 impl BlindedSignature {
     pub fn unblind(
         &self,
-        params: &Parameters,
         partial_verification_key: &VerificationKey,
-        private_attributes: &[Attribute],
-        public_attributes: &[Attribute],
-        commitment_hash: &G1Projective,
         pedersen_commitments_openings: &[Scalar],
     ) -> Result<Signature> {
         // parse the signature
         let h = &self.0;
         let c = &self.1;
-
-        // Verify the commitment hash
-        if !(commitment_hash == h) {
-            return Err(CoconutError::Unblind(
-                "Verification of commitment hash from signature failed".to_string(),
-            ));
-        }
-
         let blinding_removers = partial_verification_key
             .beta_g1
             .iter()
@@ -175,28 +202,27 @@ impl BlindedSignature {
 
         let unblinded_c = c - blinding_removers;
 
-        let alpha = partial_verification_key.alpha;
-
-        let signed_attributes = private_attributes
-            .iter()
-            .chain(public_attributes.iter())
-            .zip(partial_verification_key.beta_g2.iter())
-            .map(|(attr, beta_i)| beta_i * attr)
-            .sum::<G2Projective>();
-
-        // Verify the signature share
-        if !check_bilinear_pairing(
-            &h.to_affine(),
-            &G2Prepared::from((alpha + signed_attributes).to_affine()),
-            &unblinded_c.to_affine(),
-            params.prepared_miller_g2(),
-        ) {
-            return Err(CoconutError::Unblind(
-                "Verification of signature share failed".to_string(),
-            ));
-        }
-
         Ok(Signature(*h, unblinded_c))
+    }
+
+    pub fn unblind_and_verify(
+        &self,
+        params: &Parameters,
+        partial_verification_key: &VerificationKey,
+        private_attributes: &[&Attribute],
+        public_attributes: &[&Attribute],
+        commitment_hash: &G1Projective,
+        pedersen_commitments_openings: &[Scalar],
+    ) -> Result<Signature> {
+        let unblinded = self.unblind(partial_verification_key, pedersen_commitments_openings)?;
+        unblinded.verify(
+            params,
+            partial_verification_key,
+            private_attributes,
+            public_attributes,
+            commitment_hash,
+        )?;
+        Ok(unblinded)
     }
 
     pub fn to_bytes(&self) -> [u8; 96] {
@@ -263,7 +289,7 @@ mod tests {
         let wrong_commitments_openings = params.n_random_scalars(private_attributes.len());
 
         assert!(sig1
-            .unblind(
+            .unblind_and_verify(
                 &params,
                 &keypair1.verification_key(),
                 &private_attributes,
@@ -288,7 +314,7 @@ mod tests {
         let sig1 = blind_sign(&params, &keypair1.secret_key(), &lambda, &[]).unwrap();
 
         assert!(sig1
-            .unblind(
+            .unblind_and_verify(
                 &params,
                 &keypair1.verification_key(),
                 &private_attributes2,
@@ -314,7 +340,7 @@ mod tests {
 
         let sig1 = blind_sign(&params, &keypair1.secret_key(), &lambda, &[])
             .unwrap()
-            .unblind(
+            .unblind_and_verify(
                 &params,
                 &keypair1.verification_key(),
                 &private_attributes,
@@ -326,7 +352,7 @@ mod tests {
 
         let sig2 = blind_sign(&params, &keypair2.secret_key(), &lambda, &[])
             .unwrap()
-            .unblind(
+            .unblind_and_verify(
                 &params,
                 &keypair2.verification_key(),
                 &private_attributes,
@@ -424,7 +450,7 @@ mod tests {
 
         let sig1 = blind_sign(&params, &keypair1.secret_key(), &lambda, &public_attributes)
             .unwrap()
-            .unblind(
+            .unblind_and_verify(
                 &params,
                 &keypair1.verification_key(),
                 &private_attributes,
@@ -436,7 +462,7 @@ mod tests {
 
         let sig2 = blind_sign(&params, &keypair2.secret_key(), &lambda, &public_attributes)
             .unwrap()
-            .unblind(
+            .unblind_and_verify(
                 &params,
                 &keypair2.verification_key(),
                 &private_attributes,
@@ -504,7 +530,7 @@ mod tests {
             .map(|keypair| {
                 blind_sign(&params, &keypair.secret_key(), &lambda, &public_attributes)
                     .unwrap()
-                    .unblind(
+                    .unblind_and_verify(
                         &params,
                         &keypair.verification_key(),
                         &private_attributes,

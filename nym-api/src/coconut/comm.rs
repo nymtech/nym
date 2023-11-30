@@ -8,6 +8,7 @@ use nym_coconut_interface::VerificationKey;
 use nym_credentials::coconut::utils::obtain_aggregate_verification_key;
 use nym_validator_client::coconut::all_coconut_api_clients;
 use std::ops::Deref;
+use time::OffsetDateTime;
 
 #[async_trait]
 pub trait APICommunicationChannel {
@@ -16,6 +17,8 @@ pub trait APICommunicationChannel {
 
 pub(crate) struct QueryCommunicationChannel {
     nyxd_client: nyxd::Client,
+    // cache_valid_until: OffsetDateTime,
+    // cached_key: VerificationKey,
 }
 
 impl QueryCommunicationChannel {

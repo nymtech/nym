@@ -91,8 +91,8 @@ impl ProofCmCs {
         commitment_opening: &Scalar,
         commitments: &[G1Projective],
         pedersen_commitments_openings: &[Scalar],
-        private_attributes: &[Attribute],
-        public_attributes: &[Attribute],
+        private_attributes: &[&Attribute],
+        public_attributes: &[&Attribute],
     ) -> Self {
         // note: this is only called from `prepare_blind_sign` that already checks
         // whether private attributes are non-empty and whether we don't have too many
@@ -162,11 +162,8 @@ impl ProofCmCs {
             &challenge,
             &pedersen_commitments_openings.iter().collect::<Vec<_>>(),
         );
-        let response_attributes = produce_responses(
-            &witness_attributes,
-            &challenge,
-            &private_attributes.iter().collect::<Vec<_>>(),
-        );
+        let response_attributes =
+            produce_responses(&witness_attributes, &challenge, private_attributes);
 
         ProofCmCs {
             challenge,
@@ -181,7 +178,7 @@ impl ProofCmCs {
         params: &Parameters,
         commitment: &G1Projective,
         commitments: &[G1Projective],
-        public_attributes: &[Attribute],
+        public_attributes: &[&Attribute],
     ) -> bool {
         if self.response_attributes.len() != commitments.len() {
             return false;
@@ -203,7 +200,7 @@ impl ProofCmCs {
             - public_attributes
                 .iter()
                 .zip(params.gen_hs().iter().skip(self.response_attributes.len()))
-                .map(|(pub_attr, hs)| hs * pub_attr)
+                .map(|(&pub_attr, hs)| hs * pub_attr)
                 .sum::<G1Projective>())
             * self.challenge
             + g1 * self.response_opening

@@ -10,6 +10,7 @@ bip39 = { workspace = true }
 rand = "0.7.3"
 thiserror = { workspace = true }
 url = { workspace = true }
+zeroize = { workspace = true }
 
 nym-coconut-interface = { path = "../coconut-interface" }
 nym-credential-storage = { path = "../credential-storage" }

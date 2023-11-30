@@ -530,6 +530,9 @@ impl TunListener {
         let mut buf = [0u8; 65535];
         while !self.task_client.is_shutdown() {
             tokio::select! {
+                _ = self.task_client.recv() => {
+                    log::trace!("TunListener: received shutdown");
+                },
                 event = self.connected_client_rx.recv() => match event {
                     Some(ConnectedClientEvent::Connect(ip, nym_addr)) => {
                         log::trace!("Connect client: {ip}");

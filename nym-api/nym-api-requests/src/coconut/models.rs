@@ -5,10 +5,11 @@ use crate::coconut::helpers::issued_credential_plaintext;
 use cosmrs::AccountId;
 use nym_coconut_interface::{
     error::CoconutInterfaceError, hash_to_scalar, Attribute, BlindSignRequest, BlindedSignature,
-    Credential, VerificationKey,
+    Bytable, Credential, VerificationKey,
 };
 use nym_crypto::asymmetric::identity;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use tendermint::hash::Hash;
 
 #[derive(Serialize, Deserialize)]
@@ -91,22 +92,13 @@ impl BlindSignRequestBody {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct BlindedSignatureResponseNew {
+pub struct BlindedSignatureResponse {
     pub blinded_signature: BlindedSignature,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct BlindedSignatureResponse {
-    pub remote_key: [u8; 32],
-    pub encrypted_signature: Vec<u8>,
-}
-
 impl BlindedSignatureResponse {
-    pub fn new(encrypted_signature: Vec<u8>, remote_key: [u8; 32]) -> BlindedSignatureResponse {
-        BlindedSignatureResponse {
-            encrypted_signature,
-            remote_key,
-        }
+    pub fn new(blinded_signature: BlindedSignature) -> BlindedSignatureResponse {
+        BlindedSignatureResponse { blinded_signature }
     }
 
     pub fn to_base58_string(&self) -> String {
@@ -119,21 +111,12 @@ impl BlindedSignatureResponse {
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {
-        let mut bytes = self.remote_key.to_vec();
-        bytes.extend_from_slice(&self.encrypted_signature);
-        bytes
+        self.blinded_signature.to_byte_vec()
     }
 
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, CoconutInterfaceError> {
-        if bytes.len() < 32 {
-            return Err(CoconutInterfaceError::InvalidByteLength(bytes.len(), 32));
-        }
-        let mut remote_key = [0u8; 32];
-        remote_key.copy_from_slice(&bytes[..32]);
-        let encrypted_signature = bytes[32..].to_vec();
         Ok(BlindedSignatureResponse {
-            remote_key,
-            encrypted_signature,
+            blinded_signature: BlindedSignature::from_bytes(bytes)?,
         })
     }
 }
@@ -166,16 +149,28 @@ pub struct CredentialsRequestBody {
     pub credential_ids: Vec<i64>,
 }
 
+#[derive(Clone, Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
 pub struct EpochCredentialsResponse {
     //
 }
 
+#[derive(Clone, Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct IssuedCredentialsResponse {
+    credentials: HashMap<i64, IssuedCredentialResponse>,
+}
+
+#[derive(Clone, Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
 pub struct IssuedCredentialResponse {
     credential: IssuedCredential,
 
     signature: identity::Signature,
 }
 
+#[derive(Clone, Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
 pub struct IssuedCredential {
     epoch_id: u32,
     tx_hash: Hash,

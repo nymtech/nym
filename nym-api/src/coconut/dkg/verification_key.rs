@@ -11,7 +11,7 @@ use cosmwasm_std::Addr;
 use cw3::{ProposalResponse, Status};
 use log::debug;
 use nym_coconut::tests::helpers::transpose_matrix;
-use nym_coconut::{check_vk_pairing, Base58, KeyPair, Parameters, SecretKey, VerificationKey};
+use nym_coconut::{check_vk_pairing, Base58, KeyPair, SecretKey, VerificationKey};
 use nym_coconut_dkg_common::event_attributes::DKG_PROPOSAL_ID;
 use nym_coconut_dkg_common::types::{NodeIndex, TOTAL_DEALINGS};
 use nym_coconut_dkg_common::verification_key::owner_from_cosmos_msgs;

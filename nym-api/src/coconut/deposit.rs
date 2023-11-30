@@ -1,18 +1,6 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use nym_api_requests::coconut::BlindSignRequestBody;
-use nym_coconut_bandwidth_contract_common::events::{
-    DEPOSITED_FUNDS_EVENT_TYPE, DEPOSIT_ENCRYPTION_KEY, DEPOSIT_IDENTITY_KEY, DEPOSIT_INFO,
-    DEPOSIT_VALUE,
-};
-use nym_credentials::coconut::bandwidth::BandwidthVoucher;
-use nym_crypto::asymmetric::encryption;
-use nym_crypto::asymmetric::identity::{self, Signature};
-use nym_validator_client::nyxd::TxResponse;
-
-use super::error::{CoconutError, Result};
-
 // pub async fn extract_encryption_key(
 //     blind_sign_request_body: &BlindSignRequestBody,
 //     tx: TxResponse,

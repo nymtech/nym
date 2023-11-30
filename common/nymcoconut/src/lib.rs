@@ -4,7 +4,6 @@
 #![warn(clippy::expect_used)]
 #![warn(clippy::unwrap_used)]
 
-pub use crate::traits::Bytable;
 pub use elgamal::elgamal_keygen;
 pub use elgamal::ElGamalKeyPair;
 pub use elgamal::PublicKey;
@@ -29,6 +28,7 @@ pub use scheme::BlindedSignature;
 pub use scheme::Signature;
 pub use scheme::SignatureShare;
 pub use traits::Base58;
+pub use traits::Bytable;
 pub use utils::hash_to_scalar;
 
 pub mod elgamal;

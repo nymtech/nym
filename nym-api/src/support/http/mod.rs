@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::circulating_supply_api::cache::CirculatingSupplyCache;
-use crate::coconut::{self, comm::QueryCommunicationChannel, InternalSignRequest};
+use crate::coconut::{self, comm::QueryCommunicationChannel};
 use crate::network::models::NetworkDetails;
 use crate::network::network_routes;
 use crate::node_describe_cache::DescribedNodes;
@@ -13,6 +13,7 @@ use crate::support::config::Config;
 use crate::support::{nyxd, storage};
 use crate::{circulating_supply_api, nym_contract_cache, nym_nodes::nym_node_routes};
 use anyhow::Result;
+use nym_crypto::asymmetric::identity;
 use rocket::http::Method;
 use rocket::{Ignite, Rocket};
 use rocket_cors::{AllowedHeaders, AllowedOrigins, Cors};
@@ -25,6 +26,7 @@ pub(crate) async fn setup_rocket(
     config: &Config,
     network_details: NetworkDetails,
     _nyxd_client: nyxd::Client,
+    identity_keypair: identity::KeyPair,
     coconut_keypair: coconut::keypair::KeyPair,
 ) -> anyhow::Result<Rocket<Ignite>> {
     let openapi_settings = rocket_okapi::settings::OpenApiSettings::default();
@@ -66,9 +68,10 @@ pub(crate) async fn setup_rocket(
 
     let rocket = if config.coconut_signer.enabled {
         let comm_channel = QueryCommunicationChannel::new(_nyxd_client.clone());
-        rocket.attach(InternalSignRequest::stage(
+        rocket.attach(coconut::stage(
             _nyxd_client.clone(),
             mix_denom,
+            identity_keypair,
             coconut_keypair,
             comm_channel,
             storage.clone().unwrap(),

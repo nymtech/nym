@@ -1,14 +1,15 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use super::InternalSignRequest;
 use crate::coconut::error::{CoconutError, Result};
 use crate::coconut::helpers::{accepted_vote_err, blind_sign};
 use crate::coconut::state::State;
-use nym_api_requests::coconut::models::CredentialsRequestBody;
+use nym_api_requests::coconut::models::{
+    CredentialsRequestBody, EpochCredentialsResponse, IssuedCredentialResponse,
+    IssuedCredentialsResponse,
+};
 use nym_api_requests::coconut::{
-    BlindSignRequestBody, BlindedSignatureResponseNew, VerifyCredentialBody,
-    VerifyCredentialResponse,
+    BlindSignRequestBody, BlindedSignatureResponse, VerifyCredentialBody, VerifyCredentialResponse,
 };
 use nym_coconut_bandwidth_contract_common::spend_credential::{
     funds_from_cosmos_msgs, SpendCredentialStatus,
@@ -24,7 +25,7 @@ use rocket::State as RocketState;
 pub async fn post_blind_sign(
     blind_sign_request_body: Json<BlindSignRequestBody>,
     state: &RocketState<State>,
-) -> Result<Json<BlindedSignatureResponseNew>> {
+) -> Result<Json<BlindedSignatureResponse>> {
     debug!("Received blind sign request");
     trace!("body: {:?}", blind_sign_request_body);
 
@@ -66,7 +67,7 @@ pub async fn post_blind_sign(
         .await?;
 
     // finally return the credential to the client
-    Ok(Json(BlindedSignatureResponseNew { blinded_signature }))
+    Ok(Json(BlindedSignatureResponse { blinded_signature }))
 }
 
 #[post("/verify-bandwidth-credential", data = "<verify_credential_body>")]
@@ -134,17 +135,32 @@ pub async fn verify_bandwidth_credential(
 }
 
 #[get("/epoch-credentials/<epoch>")]
-pub async fn epoch_credentials(epoch: EpochId, state: &RocketState<State>) {
+pub async fn epoch_credentials(
+    epoch: EpochId,
+    state: &RocketState<State>,
+) -> Result<Json<EpochCredentialsResponse>> {
+    let _ = epoch;
+    let _ = state;
     todo!()
 }
 
 #[get("/issued-credential/<id>")]
-pub async fn issued_credential(id: u64, state: &RocketState<State>) {
+pub async fn issued_credential(
+    id: u64,
+    state: &RocketState<State>,
+) -> Result<Json<IssuedCredentialResponse>> {
+    let _ = id;
+    let _ = state;
     todo!()
 }
 
 #[get("/issued-credentials", data = "<ids>")]
-pub async fn issued_credentials(ids: Json<CredentialsRequestBody>, state: &RocketState<State>) {
+pub async fn issued_credentials(
+    ids: Json<CredentialsRequestBody>,
+    state: &RocketState<State>,
+) -> Result<Json<IssuedCredentialsResponse>> {
+    let _ = ids;
+    let _ = state;
     todo!()
 }
 

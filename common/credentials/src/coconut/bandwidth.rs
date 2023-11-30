@@ -18,10 +18,6 @@ use zeroize::{Zeroize, ZeroizeOnDrop};
 use super::utils::prepare_credential_for_spending;
 use crate::error::Error;
 
-// pub const PUBLIC_ATTRIBUTES: u32 = 2;
-// pub const PRIVATE_ATTRIBUTES: u32 = 2;
-// pub const TOTAL_ATTRIBUTES: u32 = PUBLIC_ATTRIBUTES + PRIVATE_ATTRIBUTES;
-
 #[derive(Zeroize, ZeroizeOnDrop)]
 pub struct BandwidthVoucher {
     // private attributes
@@ -54,8 +50,7 @@ pub struct BandwidthVoucher {
     signing_key: identity::PrivateKey,
 
     /// base58 encoded private key ensuring only this client receives the signature share
-    #[deprecated]
-    encryption_key: encryption::PrivateKey,
+    unused_ed25519: encryption::PrivateKey,
 
     pedersen_commitments_openings: Vec<Attribute>,
 
@@ -104,7 +99,7 @@ impl BandwidthVoucher {
             voucher_info_plain,
             tx_hash,
             signing_key,
-            encryption_key,
+            unused_ed25519: encryption_key,
             pedersen_commitments_openings,
             blind_sign_request,
         }
@@ -117,7 +112,7 @@ impl BandwidthVoucher {
         let voucher_info_plain_b = self.voucher_info_plain.as_bytes();
         let tx_hash_b = self.tx_hash.as_bytes();
         let signing_key_b = self.signing_key.to_bytes();
-        let encryption_key_b = self.encryption_key.to_bytes();
+        let encryption_key_b = self.unused_ed25519.to_bytes();
         let blind_sign_request_b = self.blind_sign_request.to_bytes();
 
         let mut ret = Vec::new();
@@ -232,7 +227,7 @@ impl BandwidthVoucher {
             voucher_info_plain,
             tx_hash,
             signing_key,
-            encryption_key,
+            unused_ed25519: encryption_key,
             pedersen_commitments_openings,
             blind_sign_request,
         })
@@ -258,7 +253,7 @@ impl BandwidthVoucher {
     }
 
     pub fn encryption_key(&self) -> &encryption::PrivateKey {
-        &self.encryption_key
+        &self.unused_ed25519
     }
 
     pub fn pedersen_commitments_openings(&self) -> &Vec<Attribute> {
@@ -370,8 +365,8 @@ mod test {
             deserialized_voucher.signing_key.to_string()
         );
         assert_eq!(
-            voucher.encryption_key.to_string(),
-            deserialized_voucher.encryption_key.to_string()
+            voucher.unused_ed25519.to_string(),
+            deserialized_voucher.unused_ed25519.to_string()
         );
         assert_eq!(
             voucher.pedersen_commitments_openings,

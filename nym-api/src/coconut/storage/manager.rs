@@ -247,7 +247,17 @@ impl CoconutStorageManagerExt for StorageManager {
         &self,
         credential_id: i64,
     ) -> Result<Option<IssuedCredential>, sqlx::Error> {
-        todo!()
+        sqlx::query_as!(
+            IssuedCredential,
+            r#"
+                SELECT id, epoch_id as "epoch_id: u32", tx_hash, bs58_partial_credential, bs58_signature,joined_private_commitments, joined_public_attributes
+                FROM issued_credential
+                WHERE id = ?
+            "#,
+            credential_id
+        )
+        .fetch_optional(&self.connection_pool)
+        .await
     }
 
     /// Attempts to retrieve an issued credential from the data store.
@@ -259,7 +269,17 @@ impl CoconutStorageManagerExt for StorageManager {
         &self,
         tx_hash: &str,
     ) -> Result<Option<IssuedCredential>, sqlx::Error> {
-        todo!()
+        sqlx::query_as!(
+            IssuedCredential,
+            r#"
+                SELECT id, epoch_id as "epoch_id: u32", tx_hash, bs58_partial_credential, bs58_signature,joined_private_commitments, joined_public_attributes
+                FROM issued_credential
+                WHERE tx_hash = ?
+            "#,
+            tx_hash
+        )
+            .fetch_optional(&self.connection_pool)
+            .await
     }
 
     /// Store the provided issued credential information and return its (database) id.

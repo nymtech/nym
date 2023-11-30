@@ -3,10 +3,9 @@
 
 use crate::coconut::dkg::complaints::ComplaintReason;
 use crate::coconut::error::CoconutError;
-use crate::coconut::keypair::{KeyPair as CoconutKeyPair, KeyPair};
+use crate::coconut::keypair::KeyPair as CoconutKeyPair;
 use cosmwasm_std::Addr;
 use log::debug;
-use nym_coconut::SecretKey;
 use nym_coconut_dkg_common::dealer::DealerDetails;
 use nym_coconut_dkg_common::types::EpochState;
 use nym_dkg::bte::{keys::KeyPair as DkgKeyPair, PublicKey, PublicKeyWithProof};
@@ -15,7 +14,6 @@ use serde::de::Error;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
-use tokio::sync::RwLockReadGuard;
 use url::Url;
 
 fn bte_pk_serialize<S: Serializer>(
@@ -275,27 +273,9 @@ impl State {
         self.coconut_keypair.get().await.is_some()
     }
 
-    pub async fn coconut_keypair(&self) -> RwLockReadGuard<'_, Option<nym_coconut::KeyPair>> {
-        self.coconut_keypair.get().await
-    }
-
     pub async fn take_coconut_keypair(&self) -> Option<nym_coconut::KeyPair> {
         self.coconut_keypair.take().await
     }
-
-    // pub async fn coconut_secret_key(&self) -> RwLockReadGuard<'_, Option<&SecretKey>> {
-    //     // let keypair = self.coconut_keypair.get().await;
-    //
-    //     RwLockReadGuard::map(self.coconut_keypair.get().await, |kp| {
-    //         kp.as_ref().map(|kp| kp.secret_key())
-    //     })
-    //
-    //     // self.coconut_keypair
-    //     //     .get()
-    //     //     .await
-    //     //     .as_ref()
-    //     //     .map(|kp| kp.secret_key())
-    // }
 
     pub fn node_index(&self) -> Option<NodeIndex> {
         self.node_index

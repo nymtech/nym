@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::coconut::error::CoconutError;
-use nym_api_requests::coconut::BlindedSignatureResponseNew;
-use nym_coconut::{Base58, BlindSignRequest, BlindedSignature};
+use nym_api_requests::coconut::BlindedSignatureResponse;
+use nym_coconut::{Base58, BlindedSignature};
 use std::fmt::Display;
 
 pub struct EpochCredentials {
@@ -30,11 +30,11 @@ pub struct IssuedCredential {
     pub joined_public_attributes: String,
 }
 
-impl TryFrom<IssuedCredential> for BlindedSignatureResponseNew {
+impl TryFrom<IssuedCredential> for BlindedSignatureResponse {
     type Error = CoconutError;
 
     fn try_from(value: IssuedCredential) -> Result<Self, Self::Error> {
-        Ok(BlindedSignatureResponseNew {
+        Ok(BlindedSignatureResponse {
             blinded_signature: BlindedSignature::try_from_bs58(value.bs58_partial_credential)?,
         })
     }

@@ -15,23 +15,6 @@ pub(crate) mod models;
 
 #[async_trait]
 pub trait CoconutStorageExt {
-    #[deprecated]
-    async fn get_blinded_signature_response(
-        &self,
-        tx_hash: &str,
-    ) -> Result<Option<String>, NymApiStorageError> {
-        Ok(None)
-    }
-
-    #[deprecated]
-    async fn insert_blinded_signature_response(
-        &self,
-        tx_hash: &str,
-        blinded_signature_response: &str,
-    ) -> Result<(), NymApiStorageError> {
-        Ok(())
-    }
-
     async fn get_epoch_credentials(
         &self,
         epoch_id: EpochId,

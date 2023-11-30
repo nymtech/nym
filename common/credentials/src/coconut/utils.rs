@@ -2,17 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::coconut::bandwidth::BandwidthVoucher;
-use crate::coconut::params::{NymApiCredentialEncryptionAlgorithm, NymApiCredentialHkdfAlgorithm};
 use crate::error::Error;
 use log::{debug, warn};
 use nym_api_requests::coconut::BlindSignRequestBody;
 use nym_coconut_interface::{
     aggregate_signature_shares, aggregate_verification_keys, prove_bandwidth_credential, Attribute,
-    BlindedSignature, Credential, Parameters, Signature, SignatureShare, VerificationKey,
+    Credential, Parameters, Signature, SignatureShare, VerificationKey,
 };
-use nym_crypto::asymmetric::encryption::PublicKey;
-use nym_crypto::shared_key::recompute_shared_key;
-use nym_crypto::symmetric::stream_cipher;
 use nym_validator_client::client::CoconutApiClient;
 
 pub async fn obtain_aggregate_verification_key(
@@ -52,21 +48,8 @@ async fn obtain_partial_credential(
         public_attributes_plain,
     );
     let response = client.blind_sign(&blind_sign_request_body).await?;
-    let encrypted_signature = response.encrypted_signature;
-    let remote_key = PublicKey::from_bytes(&response.remote_key)?;
 
-    let encryption_key = recompute_shared_key::<
-        NymApiCredentialEncryptionAlgorithm,
-        NymApiCredentialHkdfAlgorithm,
-    >(&remote_key, voucher.encryption_key());
-    let zero_iv = stream_cipher::zero_iv::<NymApiCredentialEncryptionAlgorithm>();
-    let blinded_signature_bytes = stream_cipher::decrypt::<NymApiCredentialEncryptionAlgorithm>(
-        &encryption_key,
-        &zero_iv,
-        &encrypted_signature,
-    );
-
-    let blinded_signature = BlindedSignature::from_bytes(&blinded_signature_bytes)?;
+    let blinded_signature = response.blinded_signature;
 
     let public_attributes = voucher.get_public_attributes();
     let private_attributes = voucher.get_private_attributes();

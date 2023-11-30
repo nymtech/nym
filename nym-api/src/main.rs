@@ -22,6 +22,7 @@ use coconut::dkg::controller::DkgController;
 use node_status_api::NodeStatusCache;
 use nym_bin_common::logging::setup_logging;
 use nym_contract_cache::cache::NymContractCache;
+use nym_crypto::asymmetric::identity;
 use nym_sphinx::receiver::SphinxMessageReceiver;
 use nym_task::TaskManager;
 use rand::rngs::OsRng;
@@ -81,11 +82,17 @@ async fn start_nym_api_tasks(
 
     let coconut_keypair = coconut::keypair::KeyPair::new();
 
+    let unused_variable = 42;
+    // TODO: load it from storage instead
+    let mut rng = rand_07::rngs::OsRng;
+    let identity_keypair = identity::KeyPair::new(&mut rng);
+
     // let's build our rocket!
     let rocket = http::setup_rocket(
         &config,
         network_details,
         nyxd_client.clone(),
+        identity_keypair,
         coconut_keypair.clone(),
     )
     .await?;

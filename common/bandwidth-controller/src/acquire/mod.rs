@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::BandwidthControllerError;
-use nym_coconut_interface::{Base58, Parameters};
+use nym_coconut_interface::Base58;
 use nym_credential_storage::storage::Storage;
 use nym_credentials::coconut::bandwidth::BandwidthVoucher;
 use nym_credentials::coconut::utils::obtain_aggregate_signature;
@@ -12,10 +12,8 @@ use nym_validator_client::coconut::all_coconut_api_clients;
 use nym_validator_client::nyxd::contract_traits::CoconutBandwidthSigningClient;
 use nym_validator_client::nyxd::contract_traits::DkgQueryClient;
 use nym_validator_client::nyxd::Coin;
-use nym_validator_client::nyxd::Hash;
 use rand::rngs::OsRng;
-use state::{KeyPair, State};
-use std::str::FromStr;
+use state::State;
 
 pub mod state;
 

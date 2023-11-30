@@ -3,10 +3,8 @@
 
 use crate::coconut::error::CoconutError;
 use crate::coconut::state::BANDWIDTH_CREDENTIAL_PARAMS;
-use crate::coconut::InternalSignRequest;
 use nym_api_requests::coconut::BlindSignRequestBody;
-use nym_coconut::{BlindSignRequest, BlindedSignature, Parameters, SecretKey};
-use nym_coconut_interface::KeyPair as CoconutKeyPair;
+use nym_coconut::{BlindedSignature, SecretKey};
 use nym_validator_client::nyxd::error::NyxdError::AbciError;
 
 // If the result is already established, the vote might be redundant and

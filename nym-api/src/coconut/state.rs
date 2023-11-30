@@ -7,12 +7,9 @@ use crate::coconut::error::{CoconutError, Result};
 use crate::coconut::keypair::KeyPair;
 use crate::coconut::storage::CoconutStorageExt;
 use crate::support::storage::NymApiStorage;
-use futures_util::StreamExt;
 use lazy_static::lazy_static;
 use nym_api_requests::coconut::helpers::issued_credential_plaintext;
-use nym_api_requests::coconut::{
-    BlindSignRequestBody, BlindedSignatureResponse, BlindedSignatureResponseNew,
-};
+use nym_api_requests::coconut::{BlindSignRequestBody, BlindedSignatureResponse};
 use nym_coconut::Base58;
 use nym_coconut::Parameters;
 use nym_coconut_bandwidth_contract_common::events::{
@@ -21,15 +18,9 @@ use nym_coconut_bandwidth_contract_common::events::{
 use nym_coconut_dkg_common::types::EpochId;
 use nym_coconut_interface::{BlindedSignature, VerificationKey};
 use nym_credentials::coconut::bandwidth::BandwidthVoucher;
-use nym_credentials::coconut::params::{
-    NymApiCredentialEncryptionAlgorithm, NymApiCredentialHkdfAlgorithm,
-};
-use nym_crypto::asymmetric::{encryption, identity};
-use nym_crypto::shared_key::new_ephemeral_shared_key;
-use nym_crypto::symmetric::stream_cipher;
+use nym_crypto::asymmetric::identity;
 use nym_validator_client::nyxd::helpers::find_tx_attribute;
 use nym_validator_client::nyxd::{Hash, TxResponse};
-use rand_07::rngs::OsRng;
 use std::sync::Arc;
 
 // keep it as a global static due to relatively high cost of computing the curve points;
@@ -56,6 +47,7 @@ impl State {
     pub(crate) fn new<C, D>(
         client: C,
         mix_denom: String,
+        identity_keypair: identity::KeyPair,
         key_pair: KeyPair,
         comm_channel: D,
         storage: NymApiStorage,
@@ -66,6 +58,13 @@ impl State {
     {
         let client = Arc::new(client);
         let comm_channel = Arc::new(comm_channel);
+
+        let _ = client;
+        let _ = mix_denom;
+        let _ = identity_keypair;
+        let _ = comm_channel;
+        let _ = key_pair;
+        let _ = storage;
 
         todo!()
         // let current_epoch = todo!();
@@ -81,10 +80,7 @@ impl State {
 
     /// Check if this nym-api has already issued a credential for the provided deposit hash.
     /// If so, return it.
-    pub async fn already_issued(
-        &self,
-        tx_hash: Hash,
-    ) -> Result<Option<BlindedSignatureResponseNew>> {
+    pub async fn already_issued(&self, tx_hash: Hash) -> Result<Option<BlindedSignatureResponse>> {
         self.storage
             .get_issued_bandwidth_credential_by_hash(&tx_hash.to_string())
             .await?
@@ -187,70 +183,22 @@ impl State {
         Ok(credential_id)
     }
 
-    // TODO: figure out what exact data we need here
     pub async fn store_issued_credential(
         &self,
         request_body: BlindSignRequestBody,
         blinded_signature: &BlindedSignature,
-    ) -> Result<BlindedSignatureResponse> {
+    ) -> Result<()> {
         // note: we have a UNIQUE constraint on the tx_hash column of the credential
         // and so if the api is processing request for the same hash at the same time,
         // only one of them will be successfully inserted to the database
+        let credential_id = self
+            .sign_and_store_credential(request_body, blinded_signature)
+            .await?;
+        self.storage
+            .update_epoch_credentials_entry(self.current_epoch, credential_id)
+            .await?;
 
-        // here we will be storing credential
-        // let credential_id = self.storage.
-        // self.storage
-        //     .update_epoch_credentials_entry(self.current_epoch, credential_id)
-        //     .await?;
-        todo!()
-    }
-
-    #[deprecated]
-    pub async fn encrypt_and_store(
-        &self,
-        tx_hash: &str,
-        remote_key: &encryption::PublicKey,
-        signature: &BlindedSignature,
-    ) -> Result<BlindedSignatureResponse> {
-        todo!()
-        // let (keypair, shared_key) = {
-        //     let mut rng = OsRng;
-        //     new_ephemeral_shared_key::<
-        //         NymApiCredentialEncryptionAlgorithm,
-        //         NymApiCredentialHkdfAlgorithm,
-        //         _,
-        //     >(&mut rng, remote_key)
-        // };
-        //
-        // let chunk_data = signature.to_bytes();
-        //
-        // let zero_iv = stream_cipher::zero_iv::<NymApiCredentialEncryptionAlgorithm>();
-        // let encrypted_data = stream_cipher::encrypt::<NymApiCredentialEncryptionAlgorithm>(
-        //     &shared_key,
-        //     &zero_iv,
-        //     &chunk_data,
-        // );
-        //
-        // let response =
-        //     BlindedSignatureResponse::new(encrypted_data, keypair.public_key().to_bytes());
-        //
-        // // Atomically insert data, only if there is no signature stored in the meantime
-        // // This prevents race conditions on storing two signatures for the same deposit transaction
-        //
-        // // TODO: JS: how is it atomic? don't we need a lock or something?
-        // if self
-        //     .storage
-        //     .insert_blinded_signature_response(tx_hash, &response.to_base58_string())
-        //     .await
-        //     .is_err()
-        // {
-        //     Ok(self
-        //         .already_issued(tx_hash)
-        //         .await?
-        //         .expect("The signature was expected to be there"))
-        // } else {
-        //     Ok(response)
-        // }
+        Ok(())
     }
 
     pub async fn verification_key(&self, epoch_id: EpochId) -> Result<VerificationKey> {

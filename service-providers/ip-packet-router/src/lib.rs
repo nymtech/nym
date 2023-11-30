@@ -266,7 +266,10 @@ impl IpPacketRouter {
                     },
                 );
                 self.connected_client_tx
-                    .send(ConnectedClientEvent::Connect(requested_ip, reply_to))
+                    .send(ConnectedClientEvent::Connect(
+                        requested_ip,
+                        Box::new(reply_to),
+                    ))
                     .unwrap();
                 Ok(Some(IpPacketResponse::new_static_connect_success(
                     request_id, reply_to,
@@ -347,7 +350,7 @@ impl IpPacketRouter {
             },
         );
         self.connected_client_tx
-            .send(ConnectedClientEvent::Connect(new_ip, reply_to))
+            .send(ConnectedClientEvent::Connect(new_ip, Box::new(reply_to)))
             .unwrap();
         Ok(Some(IpPacketResponse::new_dynamic_connect_success(
             request_id, reply_to, new_ip,
@@ -527,7 +530,7 @@ impl TunListener {
                     Some(ConnectedClientEvent::Connect(ip, nym_addr)) => {
                         log::trace!("Connect client: {ip}");
                         self.connected_clients.insert(ip, ConnectedClient {
-                            nym_address: nym_addr,
+                            nym_address: *nym_addr,
                             last_activity: std::time::Instant::now(),
                         });
                     },
@@ -586,7 +589,7 @@ impl TunListener {
 
 enum ConnectedClientEvent {
     Disconnect(IpAddr),
-    Connect(IpAddr, Recipient),
+    Connect(IpAddr, Box<Recipient>),
 }
 
 struct ParsedPacket<'a> {

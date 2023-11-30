@@ -1,4 +1,5 @@
 #![cfg_attr(not(target_os = "linux"), allow(dead_code))]
+#![cfg_attr(not(target_os = "linux"), allow(unused_imports))]
 
 use std::{
     collections::HashMap,

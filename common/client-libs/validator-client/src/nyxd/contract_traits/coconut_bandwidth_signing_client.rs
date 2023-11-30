@@ -32,7 +32,7 @@ pub trait CoconutBandwidthSigningClient {
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
         let req = CoconutBandwidthExecuteMsg::DepositFunds {
-            data: DepositData::new(info.to_string(), verification_key, encryption_key),
+            data: DepositData::new(info, verification_key, encryption_key),
         };
         self.execute_coconut_bandwidth_contract(
             fee,

@@ -1,0 +1,45 @@
+[package]
+name = "dkg-manager"
+version = "0.1.0"
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+edition.workspace = true
+license.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = { workspace = true }
+bip39 = { workspace = true }
+clap = { workspace = true }
+futures = { workspace = true }
+lazy_static = "1.4.0"
+log = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+tokio-util = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { version = "0.3.17", features = ["env-filter"] }
+url = { workspace = true }
+time = "0.3.30"
+
+ratatui = { version = "0.24.0", features = ["serde", "macros"] }
+crossterm = { version = "0.27.0", features = ["serde", "event-stream"] }
+tui-input = { version = "0.8.0", features = ["serde"] }
+tui-logger = { version = "0.10", features = ["tracing-support"] }
+throbber-widgets-tui = "0.3.0"
+
+# panic handler:
+better-panic = "0.3.0"
+color-eyre = "0.6.2"
+strip-ansi-escapes = "0.2.0"
+
+nym-validator-client = { path = "../../../common/client-libs/validator-client" }
+nym-bin-common = { path = "../../../common/bin-common" }
+nym-network-defaults = { path = "../../../common/network-defaults" }
+nym-coconut-dkg-common = { path = "../../../common/cosmwasm-smart-contracts/coconut-dkg" }
+nym-contracts-common = { path = "../../../common/cosmwasm-smart-contracts/contracts-common" }
+

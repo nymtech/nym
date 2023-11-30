@@ -1,4 +1,5 @@
 #![cfg_attr(not(target_os = "linux"), allow(dead_code))]
+#![cfg_attr(not(target_os = "linux"), allow(unused_imports))]
 
 use std::{
     collections::HashMap,
@@ -24,6 +25,8 @@ use nym_sdk::{
 use nym_sphinx::receiver::ReconstructedMessage;
 use nym_task::{connections::TransmissionLane, TaskClient, TaskHandle};
 use request_filter::RequestFilter;
+#[cfg(target_os = "linux")]
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 use crate::config::BaseClientConfig;
 
@@ -154,11 +157,21 @@ impl IpPacketRouterBuilder {
             ip: TUN_DEVICE_ADDRESS.parse().unwrap(),
             netmask: TUN_DEVICE_NETMASK.parse().unwrap(),
         };
-        let (tun, tun_task_tx, tun_task_response_rx) = nym_tun::tun_device::TunDevice::new(
-            nym_tun::tun_device::RoutingMode::new_passthrough(),
-            config,
-        );
-        tun.start();
+        let (tun_reader, tun_writer) =
+            tokio::io::split(nym_tun::tun_device::TunDevice::new_device_only(config));
+
+        // Channel used by the IpPacketRouter to signal connected and disconnected clients to the
+        // TunListener
+        let (connected_client_tx, connected_client_rx) = tokio::sync::mpsc::unbounded_channel();
+
+        let tun_listener = TunListener {
+            tun_reader,
+            mixnet_client_sender: mixnet_client.split_sender(),
+            task_client: task_handle.get_handle(),
+            connected_clients: Default::default(),
+            connected_client_rx,
+        };
+        tun_listener.start();
 
         let request_filter = request_filter::RequestFilter::new(&self.config).await?;
         request_filter.start_update_tasks().await;
@@ -166,11 +179,11 @@ impl IpPacketRouterBuilder {
         let ip_packet_router_service = IpPacketRouter {
             _config: self.config,
             request_filter: request_filter.clone(),
-            tun_task_tx,
-            tun_task_response_rx,
+            tun_writer,
             mixnet_client,
             task_handle,
             connected_clients: Default::default(),
+            connected_client_tx,
         };
 
         log::info!("The address of this client is: {self_address}");
@@ -190,16 +203,16 @@ impl IpPacketRouterBuilder {
     }
 }
 
-#[cfg_attr(not(target_os = "linux"), allow(unused))]
+#[cfg(target_os = "linux")]
 struct IpPacketRouter {
     _config: Config,
     request_filter: request_filter::RequestFilter,
-    tun_task_tx: nym_tun::tun_task_channel::TunTaskTx,
-    tun_task_response_rx: nym_tun::tun_task_channel::TunTaskResponseRx,
+    tun_writer: tokio::io::WriteHalf<tokio_tun::Tun>,
     mixnet_client: nym_sdk::mixnet::MixnetClient,
     task_handle: TaskHandle,
 
     connected_clients: HashMap<IpAddr, ConnectedClient>,
+    connected_client_tx: tokio::sync::mpsc::UnboundedSender<ConnectedClientEvent>,
 }
 
 struct ConnectedClient {
@@ -207,7 +220,7 @@ struct ConnectedClient {
     last_activity: std::time::Instant,
 }
 
-#[cfg_attr(not(target_os = "linux"), allow(unused))]
+#[cfg(target_os = "linux")]
 impl IpPacketRouter {
     async fn on_static_connect_request(
         &mut self,
@@ -254,6 +267,12 @@ impl IpPacketRouter {
                         last_activity: std::time::Instant::now(),
                     },
                 );
+                self.connected_client_tx
+                    .send(ConnectedClientEvent::Connect(
+                        requested_ip,
+                        Box::new(reply_to),
+                    ))
+                    .unwrap();
                 Ok(Some(IpPacketResponse::new_static_connect_success(
                     request_id, reply_to,
                 )))
@@ -332,6 +351,9 @@ impl IpPacketRouter {
                 last_activity: std::time::Instant::now(),
             },
         );
+        self.connected_client_tx
+            .send(ConnectedClientEvent::Connect(new_ip, Box::new(reply_to)))
+            .unwrap();
         Ok(Some(IpPacketResponse::new_dynamic_connect_success(
             request_id, reply_to, new_ip,
         )))
@@ -341,7 +363,7 @@ impl IpPacketRouter {
         &mut self,
         data_request: nym_ip_packet_requests::DataRequest,
     ) -> Result<Option<IpPacketResponse>, IpPacketRouterError> {
-        log::info!("Received data request");
+        log::trace!("Received data request");
 
         // We don't forward packets that we are not able to parse. BUT, there might be a good
         // reason to still forward them.
@@ -382,9 +404,11 @@ impl IpPacketRouter {
         }
 
         // TODO: consider changing from Vec<u8> to bytes::Bytes?
-        self.tun_task_tx
-            .try_send((0, data_request.ip_packet.into()))
-            .map_err(|err| IpPacketRouterError::FailedToSendPacketToTun { source: err })?;
+        let packet = data_request.ip_packet;
+        self.tun_writer
+            .write_all(&packet)
+            .await
+            .map_err(|_| IpPacketRouterError::FailedToWritePacketToTun)?;
 
         Ok(None)
     }
@@ -444,6 +468,7 @@ impl IpPacketRouter {
                     for ip in inactive_clients {
                         log::info!("Disconnect inactive client: {ip}");
                         self.connected_clients.remove(&ip);
+                        self.connected_client_tx.send(ConnectedClientEvent::Disconnect(ip)).unwrap();
                     }
                 },
                 msg = self.mixnet_client.next() => {
@@ -479,9 +504,52 @@ impl IpPacketRouter {
                         break;
                     };
                 },
-                packet = self.tun_task_response_rx.recv() => {
-                    if let Some((_tag, packet)) = packet {
-                        let Some(dst_addr) = parse_dst_addr(&packet) else {
+
+            }
+        }
+        log::debug!("IpPacketRouter: stopping");
+        Ok(())
+    }
+}
+
+// Reads packet from TUN and writes to mixnet client
+#[cfg(target_os = "linux")]
+struct TunListener {
+    tun_reader: tokio::io::ReadHalf<tokio_tun::Tun>,
+    mixnet_client_sender: nym_sdk::mixnet::MixnetClientSender,
+    task_client: TaskClient,
+
+    // A mirror of the one in IpPacketRouter
+    connected_clients: HashMap<IpAddr, ConnectedClient>,
+    connected_client_rx: tokio::sync::mpsc::UnboundedReceiver<ConnectedClientEvent>,
+}
+
+#[cfg(target_os = "linux")]
+impl TunListener {
+    async fn run(mut self) -> Result<(), IpPacketRouterError> {
+        let mut buf = [0u8; 65535];
+        while !self.task_client.is_shutdown() {
+            tokio::select! {
+                _ = self.task_client.recv() => {
+                    log::trace!("TunListener: received shutdown");
+                },
+                event = self.connected_client_rx.recv() => match event {
+                    Some(ConnectedClientEvent::Connect(ip, nym_addr)) => {
+                        log::trace!("Connect client: {ip}");
+                        self.connected_clients.insert(ip, ConnectedClient {
+                            nym_address: *nym_addr,
+                            last_activity: std::time::Instant::now(),
+                        });
+                    },
+                    Some(ConnectedClientEvent::Disconnect(ip)) => {
+                        log::trace!("Disconnect client: {ip}");
+                        self.connected_clients.remove(&ip);
+                    },
+                    None => {},
+                },
+                len = self.tun_reader.read(&mut buf) => match len {
+                    Ok(len) => {
+                        let Some(dst_addr) = parse_dst_addr(&buf[..len]) else {
                             log::warn!("Failed to parse packet");
                             continue;
                         };
@@ -491,6 +559,7 @@ impl IpPacketRouter {
                         if let Some(recipient) = recipient {
                             let lane = TransmissionLane::General;
                             let packet_type = None;
+                            let packet = buf[..len].to_vec();
                             let response_packet = IpPacketResponse::new_ip_packet(packet.into()).to_bytes();
                             let Ok(response_packet) = response_packet else {
                                 log::error!("Failed to serialize response packet");
@@ -498,23 +567,36 @@ impl IpPacketRouter {
                             };
                             let input_message = InputMessage::new_regular(recipient, response_packet, lane, packet_type);
 
-                            if let Err(err) = self.mixnet_client.send(input_message).await {
-                                log::error!("IpPacketRouter [main loop]: failed to send packet to mixnet: {err}");
+                            if let Err(err) = self.mixnet_client_sender.send(input_message).await {
+                                log::error!("TunListener: failed to send packet to mixnet: {err}");
                             };
                         } else {
-                            log::error!("IpPacketRouter [main loop]: no nym-address recipient for packet");
+                            log::info!("No registered nym-address for packet - dropping");
                         }
-                    } else {
-                        log::trace!("IpPacketRouter [main loop]: stopping since channel closed");
-                        break;
+                    },
+                    Err(err) => {
+                        log::warn!("iface: read error: {err}");
+                        // break;
                     }
                 }
-
             }
         }
-        log::info!("IpPacketRouter: stopping");
+        log::debug!("TunListener: stopping");
         Ok(())
     }
+
+    fn start(self) {
+        tokio::spawn(async move {
+            if let Err(err) = self.run().await {
+                log::error!("tun listener router has failed: {err}")
+            }
+        });
+    }
+}
+
+enum ConnectedClientEvent {
+    Disconnect(IpAddr),
+    Connect(IpAddr, Box<Recipient>),
 }
 
 struct ParsedPacket<'a> {
@@ -531,8 +613,8 @@ fn parse_packet(packet: &[u8]) -> Result<ParsedPacket, IpPacketRouterError> {
     })?;
 
     let (packet_type, dst_port) = match headers.transport {
-        Some(etherparse::TransportSlice::Udp(header)) => ("ipv4", Some(header.destination_port())),
-        Some(etherparse::TransportSlice::Tcp(header)) => ("ipv6", Some(header.destination_port())),
+        Some(etherparse::TransportSlice::Udp(header)) => ("udp", Some(header.destination_port())),
+        Some(etherparse::TransportSlice::Tcp(header)) => ("tcp", Some(header.destination_port())),
         Some(etherparse::TransportSlice::Icmpv4(_)) => ("icmpv4", None),
         Some(etherparse::TransportSlice::Icmpv6(_)) => ("icmpv6", None),
         Some(etherparse::TransportSlice::Unknown(_)) => ("unknown", None),

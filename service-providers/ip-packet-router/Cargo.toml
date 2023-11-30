@@ -35,3 +35,6 @@ tap.workspace = true
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "net", "io-util"] }
 url.workspace = true
+
+[target.'cfg(target_os = "linux")'.dependencies]
+tokio-tun = "0.11.2"

@@ -5,6 +5,8 @@ use crate::*;
 use itertools::izip;
 use std::fmt::Debug;
 
+// unwraps are fine in the test code
+#[allow(clippy::unwrap_used)]
 pub fn theta_from_keys_and_attributes(
     params: &Parameters,
     coconut_keypairs: &Vec<KeyPair>,
@@ -33,7 +35,7 @@ pub fn theta_from_keys_and_attributes(
     for keypair in coconut_keypairs {
         let blinded_signature = blind_sign(
             params,
-            &keypair.secret_key(),
+            keypair.secret_key(),
             &blind_sign_request,
             public_attributes,
         )?;
@@ -88,6 +90,8 @@ pub fn theta_from_keys_and_attributes(
     Ok(theta)
 }
 
+// unwraps are fine in the test code
+#[allow(clippy::unwrap_used)]
 pub fn transpose_matrix<T: Debug>(matrix: Vec<Vec<T>>) -> Vec<Vec<T>> {
     if matrix.is_empty() {
         return vec![];
@@ -166,3 +170,14 @@ pub mod tests {
             .collect()
     }
 }
+
+#[macro_export]
+macro_rules! random_scalars_refs {
+    ( $x: ident, $params: expr, $n: expr ) => {
+        let _vec = $params.n_random_scalars($n);
+        #[allow(clippy::map_identity)]
+        let $x = _vec.iter().collect::<Vec<_>>();
+    };
+}
+
+pub use random_scalars_refs;

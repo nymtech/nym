@@ -234,11 +234,11 @@ impl BandwidthVoucher {
     }
 
     /// Check if the plain values correspond to the PublicAttributes
-    pub fn verify_against_plain(values: &[PublicAttribute], plain_values: &[String]) -> bool {
+    pub fn verify_against_plain(values: &[&PublicAttribute], plain_values: &[String]) -> bool {
         values.len() == 2
             && plain_values.len() == 2
-            && values[0] == hash_to_scalar(&plain_values[0])
-            && values[1] == hash_to_scalar(&plain_values[1])
+            && values[0] == &hash_to_scalar(&plain_values[0])
+            && values[1] == &hash_to_scalar(&plain_values[1])
     }
 
     pub fn tx_hash(&self) -> Hash {
@@ -349,15 +349,21 @@ mod test {
         let deserialized_voucher = BandwidthVoucher::try_from_bytes(&bytes).unwrap();
         assert_eq!(voucher.serial_number, deserialized_voucher.serial_number);
         assert_eq!(voucher.binding_number, deserialized_voucher.binding_number);
-        assert_eq!(voucher.voucher_value, deserialized_voucher.voucher_value);
         assert_eq!(
             voucher.voucher_value_plain,
             deserialized_voucher.voucher_value_plain
         );
-        assert_eq!(voucher.voucher_info, deserialized_voucher.voucher_info);
         assert_eq!(
             voucher.voucher_info_plain,
             deserialized_voucher.voucher_info_plain
+        );
+        assert_eq!(
+            voucher._voucher_value_prehashed,
+            deserialized_voucher._voucher_value_prehashed
+        );
+        assert_eq!(
+            voucher._voucher_info_prehashed,
+            deserialized_voucher._voucher_info_prehashed
         );
         assert_eq!(voucher.tx_hash, deserialized_voucher.tx_hash);
         assert_eq!(
@@ -404,11 +410,11 @@ mod test {
             ]
         ));
         assert!(!BandwidthVoucher::verify_against_plain(
-            &[voucher.get_public_attributes()[0], Attribute::one()],
+            &[voucher.get_public_attributes()[0], &Attribute::one()],
             &voucher.get_public_attributes_plain()
         ));
         assert!(!BandwidthVoucher::verify_against_plain(
-            &[Attribute::one(), voucher.get_public_attributes()[1]],
+            &[&Attribute::one(), voucher.get_public_attributes()[1]],
             &voucher.get_public_attributes_plain()
         ));
         assert!(BandwidthVoucher::verify_against_plain(

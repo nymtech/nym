@@ -54,6 +54,8 @@ impl TryFrom<&[u8]> for BlindSignRequest {
         let commitment_bytes_len = 48;
         let commitment_hash_bytes_len = 48;
 
+        // safety: we made bound check and we're using constant offest
+        #[allow(clippy::unwrap_used)]
         let cm_bytes = bytes[..j + commitment_bytes_len].try_into().unwrap();
         let commitment = try_deserialize_g1_projective(
             &cm_bytes,
@@ -63,6 +65,8 @@ impl TryFrom<&[u8]> for BlindSignRequest {
         )?;
         j += commitment_bytes_len;
 
+        // safety: we made bound check and we're using constant offest
+        #[allow(clippy::unwrap_used)]
         let cm_hash_bytes = bytes[j..j + commitment_hash_bytes_len].try_into().unwrap();
         let commitment_hash = try_deserialize_g1_projective(
             &cm_hash_bytes,
@@ -72,6 +76,8 @@ impl TryFrom<&[u8]> for BlindSignRequest {
         )?;
         j += commitment_hash_bytes_len;
 
+        // safety: we made bound check and we're using constant offest
+        #[allow(clippy::unwrap_used)]
         let c_len = u64::from_le_bytes(bytes[j..j + 8].try_into().unwrap());
         j += 8;
         if bytes[j..].len() < c_len as usize * 48 {
@@ -86,6 +92,14 @@ impl TryFrom<&[u8]> for BlindSignRequest {
             let start = j + i * 48;
             let end = start + 48;
 
+            if bytes.len() < end {
+                return Err(CoconutError::Deserialization(
+                    "Failed to deserialize compressed commitment".to_string(),
+                ));
+            }
+
+            // safety: we made bound check and we're using constant offest
+            #[allow(clippy::unwrap_used)]
             let private_attributes_commitment_bytes = bytes[start..end].try_into().unwrap();
             let private_attributes_commitment = try_deserialize_g1_projective(
                 &private_attributes_commitment_bytes,
@@ -433,7 +447,7 @@ pub fn sign(
     // (the python implementation hashes string representation of all attributes onto the curve,
     // but I think the same can be achieved by just summing the attributes thus avoiding the unnecessary
     // transformation. If I'm wrong, please correct me.)
-    let attributes_sum = public_attributes.iter().map(|&s| s).sum::<Scalar>();
+    let attributes_sum = public_attributes.iter().copied().sum::<Scalar>();
     let h = hash_g1((params.gen1() * attributes_sum).to_bytes());
 
     // x + m0 * y0 + m1 * y1 + ... mn * yn
@@ -452,13 +466,14 @@ pub fn sign(
 mod tests {
     use super::*;
     use crate::scheme::keygen::keygen;
+    use crate::tests::helpers::random_scalars_refs;
 
     #[test]
     fn blind_sign_request_bytes_roundtrip() {
         // 0 public and 1 private attribute
         let params = Parameters::new(1).unwrap();
-        let private_attributes = params.n_random_scalars(1);
-        let public_attributes = params.n_random_scalars(0);
+        random_scalars_refs!(private_attributes, params, 1);
+        random_scalars_refs!(public_attributes, params, 0);
 
         let (_commitments_openings, lambda) =
             prepare_blind_sign(&params, &private_attributes, &public_attributes).unwrap();
@@ -471,8 +486,8 @@ mod tests {
 
         // 2 public and 2 private attributes
         let params = Parameters::new(4).unwrap();
-        let private_attributes = params.n_random_scalars(2);
-        let public_attributes = params.n_random_scalars(2);
+        random_scalars_refs!(private_attributes, params, 2);
+        random_scalars_refs!(public_attributes, params, 2);
 
         let (_commitments_openings, lambda) =
             prepare_blind_sign(&params, &private_attributes, &public_attributes).unwrap();
@@ -487,8 +502,8 @@ mod tests {
     #[test]
     fn successful_verify_partial_blind_signature() {
         let params = Parameters::new(4).unwrap();
-        let private_attributes = params.n_random_scalars(2);
-        let public_attributes = params.n_random_scalars(2);
+        random_scalars_refs!(private_attributes, params, 2);
+        random_scalars_refs!(public_attributes, params, 2);
 
         let (_commitments_openings, request) =
             prepare_blind_sign(&params, &private_attributes, &public_attributes).unwrap();
@@ -496,7 +511,7 @@ mod tests {
         let validator_keypair = keygen(&params);
         let blind_sig = blind_sign(
             &params,
-            &validator_keypair.secret_key(),
+            validator_keypair.secret_key(),
             &request,
             &public_attributes,
         )
@@ -507,36 +522,35 @@ mod tests {
             &request,
             &public_attributes,
             &blind_sig,
-            &validator_keypair.verification_key()
+            validator_keypair.verification_key()
         ));
     }
 
     #[test]
     fn successful_verify_partial_blind_signature_no_public_attributes() {
         let params = Parameters::new(4).unwrap();
-        let private_attributes = params.n_random_scalars(2);
+        random_scalars_refs!(private_attributes, params, 2);
 
         let (_commitments_openings, request) =
             prepare_blind_sign(&params, &private_attributes, &[]).unwrap();
 
         let validator_keypair = keygen(&params);
-        let blind_sig =
-            blind_sign(&params, &validator_keypair.secret_key(), &request, &[]).unwrap();
+        let blind_sig = blind_sign(&params, validator_keypair.secret_key(), &request, &[]).unwrap();
 
         assert!(verify_partial_blind_signature(
             &params,
             &request,
             &[],
             &blind_sig,
-            &validator_keypair.verification_key()
+            validator_keypair.verification_key()
         ));
     }
 
     #[test]
     fn fail_verify_partial_blind_signature_with_wrong_key() {
         let params = Parameters::new(4).unwrap();
-        let private_attributes = params.n_random_scalars(2);
-        let public_attributes = params.n_random_scalars(2);
+        random_scalars_refs!(private_attributes, params, 2);
+        random_scalars_refs!(public_attributes, params, 2);
 
         let (_commitments_openings, request) =
             prepare_blind_sign(&params, &private_attributes, &public_attributes).unwrap();
@@ -545,7 +559,7 @@ mod tests {
         let validator2_keypair = keygen(&params);
         let blind_sig = blind_sign(
             &params,
-            &validator_keypair.secret_key(),
+            validator_keypair.secret_key(),
             &request,
             &public_attributes,
         )
@@ -557,7 +571,7 @@ mod tests {
             &request,
             &public_attributes,
             &blind_sig,
-            &validator2_keypair.verification_key()
+            validator2_keypair.verification_key()
         ),);
     }
 }

@@ -23,7 +23,8 @@ where
     Self: Bytable,
 {
     fn try_from_bs58<S: AsRef<str>>(x: S) -> Result<Self, CoconutError> {
-        Self::try_from_byte_slice(&bs58::decode(x.as_ref()).into_vec().unwrap())
+        let bs58_decoded = &bs58::decode(x.as_ref()).into_vec()?;
+        Self::try_from_byte_slice(bs58_decoded)
     }
     fn to_bs58(&self) -> String {
         bs58::encode(self.to_byte_vec()).into_string()
@@ -47,7 +48,7 @@ impl Bytable for Scalar {
 
         let maybe_scalar = Scalar::from_bytes(arr);
         if maybe_scalar.is_none().into() {
-            return Err(CoconutError::ScalarDeserializationFailure);
+            Err(CoconutError::ScalarDeserializationFailure)
         } else {
             // safety: this unwrap is fine as we've just checked the element is not none
             #[allow(clippy::unwrap_used)]
@@ -70,13 +71,13 @@ impl Bytable for G1Projective {
             return Err(CoconutError::UnexpectedArrayLength {
                 typ: "G1Projective".to_string(),
                 received,
-                expected: 32,
+                expected: 48,
             });
         };
 
         let maybe_g1 = G1Affine::from_compressed(&bytes);
         if maybe_g1.is_none().into() {
-            return Err(CoconutError::G1ProjectiveDeserializationFailure);
+            Err(CoconutError::G1ProjectiveDeserializationFailure)
         } else {
             // safety: this unwrap is fine as we've just checked the element is not none
             #[allow(clippy::unwrap_used)]

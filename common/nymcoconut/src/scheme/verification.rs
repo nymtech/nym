@@ -43,6 +43,8 @@ impl TryFrom<&[u8]> for Theta {
                 ));
         }
 
+        // safety: we just checked for the length so the unwraps are fine
+        #[allow(clippy::unwrap_used)]
         let blinded_message_bytes = bytes[..96].try_into().unwrap();
         let blinded_message = try_deserialize_g2_projective(
             &blinded_message_bytes,
@@ -51,6 +53,8 @@ impl TryFrom<&[u8]> for Theta {
             ),
         )?;
 
+        // safety: we just checked for the length so the unwraps are fine
+        #[allow(clippy::unwrap_used)]
         let blinded_serial_number_bytes = bytes[96..192].try_into().unwrap();
         let blinded_serial_number = try_deserialize_g2_projective(
             &blinded_serial_number_bytes,
@@ -185,8 +189,8 @@ pub fn prove_bandwidth_credential(
     let pi_v = ProofKappaZeta::construct(
         params,
         verification_key,
-        &serial_number,
-        &binding_number,
+        serial_number,
+        binding_number,
         &sign_blinding_factor,
         &blinded_message,
         &blinded_serial_number,
@@ -221,7 +225,10 @@ pub fn check_vk_pairing(
     if values_len == 0 || values_len - 1 != vk.beta_g1.len() || values_len - 1 != vk.beta_g2.len() {
         return false;
     }
-    if vk.alpha != *dkg_values.last().unwrap() {
+
+    // safety: we made an explicit check for if the length of the slice is 0, thus unwrap here is fine
+    #[allow(clippy::unwrap_used)]
+    if &vk.alpha != *dkg_values.last().as_ref().unwrap() {
         return false;
     }
     if dkg_values
@@ -320,7 +327,8 @@ mod tests {
     #[test]
     fn vk_pairing() {
         let params = setup(2).unwrap();
-        let vk = keygen(&params).verification_key();
+        let keypair = keygen(&params);
+        let vk = keypair.verification_key();
         let mut dkg_values = vk.beta_g2.clone();
         dkg_values.push(vk.alpha);
         assert!(check_vk_pairing(&params, &dkg_values, &vk));
@@ -340,7 +348,7 @@ mod tests {
 
         let theta = prove_bandwidth_credential(
             &params,
-            &keypair.verification_key(),
+            keypair.verification_key(),
             &signature,
             &serial_number,
             &binding_number,

@@ -58,6 +58,9 @@ pub enum CoconutError {
         expected: usize,
     },
 
+    #[error("failed to decode the base58 representation: {0}")]
+    Base58DecodingFailure(#[from] bs58::decode::Error),
+
     #[error("failed to deserialize scalar from the received bytes - it might not have been canonically encoded")]
     ScalarDeserializationFailure,
 

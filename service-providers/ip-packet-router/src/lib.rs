@@ -24,6 +24,7 @@ use nym_sdk::{
 use nym_sphinx::receiver::ReconstructedMessage;
 use nym_task::{connections::TransmissionLane, TaskClient, TaskHandle};
 use request_filter::RequestFilter;
+#[cfg(target_os = "linux")]
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 use crate::config::BaseClientConfig;
@@ -201,7 +202,7 @@ impl IpPacketRouterBuilder {
     }
 }
 
-#[cfg_attr(not(target_os = "linux"), allow(unused))]
+#[cfg(target_os = "linux")]
 struct IpPacketRouter {
     _config: Config,
     request_filter: request_filter::RequestFilter,
@@ -218,7 +219,7 @@ struct ConnectedClient {
     last_activity: std::time::Instant,
 }
 
-#[cfg_attr(not(target_os = "linux"), allow(unused))]
+#[cfg(target_os = "linux")]
 impl IpPacketRouter {
     async fn on_static_connect_request(
         &mut self,
@@ -511,6 +512,7 @@ impl IpPacketRouter {
 }
 
 // Reads packet from TUN and writes to mixnet client
+#[cfg(target_os = "linux")]
 struct TunListener {
     tun_reader: tokio::io::ReadHalf<tokio_tun::Tun>,
     mixnet_client_sender: nym_sdk::mixnet::MixnetClientSender,
@@ -521,6 +523,7 @@ struct TunListener {
     connected_client_rx: tokio::sync::mpsc::UnboundedReceiver<ConnectedClientEvent>,
 }
 
+#[cfg(target_os = "linux")]
 impl TunListener {
     async fn run(mut self) -> Result<(), IpPacketRouterError> {
         let mut buf = [0u8; 65535];

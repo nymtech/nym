@@ -352,7 +352,7 @@ RestartSec=30
 WantedBy=multi-user.target
 ```
 
-* Put the above file onto your system at `/etc/systemd/system/nym-mix-node.service` and follow the [next steps](maintenance.md#following-steps-for-nym-nodes-running-as-systemd-service).
+* Put the above file onto your system at `/etc/systemd/system/nym-mixnode.service` and follow the [next steps](maintenance.md#following-steps-for-nym-nodes-running-as-systemd-service).
 
 ##### For Gateway
 

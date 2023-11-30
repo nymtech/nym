@@ -49,7 +49,7 @@ export function MainStateProvider({ children }: Props) {
             monitoring: data.monitoring || false,
             killswitch: data.killswitch || false,
             uiMode: data.ui_mode || 'Light',
-            privacyMode: data.privacy_mode || 'High',
+            vpnMode: data.vpn_mode || 'TwoHop',
             entryNode: data.entry_node,
             exitNode: data.exit_node,
           },
@@ -58,7 +58,7 @@ export function MainStateProvider({ children }: Props) {
           type: 'set-partial-state',
           partialState: {
             uiMode: data.ui_mode || 'Light',
-            privacyMode: data.privacy_mode || 'High',
+            vpnMode: data.vpn_mode || 'TwoHop',
           },
         });
       })

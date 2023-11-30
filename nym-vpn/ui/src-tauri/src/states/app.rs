@@ -22,11 +22,10 @@ pub enum ConnectionState {
 
 #[derive(Default, Debug, Serialize, Deserialize, TS, Clone)]
 #[ts(export)]
-pub enum PrivacyMode {
-    High,
-    Medium,
+pub enum VpnMode {
+    Mixnet,
     #[default]
-    Low,
+    TwoHop,
 }
 
 #[derive(Debug, Serialize, Deserialize, TS)]
@@ -40,7 +39,7 @@ pub struct TunnelConfig {
 pub struct AppState {
     pub state: ConnectionState,
     pub error: Option<String>,
-    pub privacy_mode: PrivacyMode,
+    pub vpn_mode: VpnMode,
     pub entry_node: Option<NodeConfig>,
     pub exit_node: Option<NodeConfig>,
     pub tunnel: Option<TunnelConfig>,

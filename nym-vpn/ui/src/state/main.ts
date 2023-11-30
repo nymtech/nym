@@ -1,9 +1,10 @@
 import dayjs from 'dayjs';
-import { AppData, AppState, ConnectionState } from '../types';
+import { AppData, AppState, ConnectionState, VpnMode } from '../types';
 
 export type StateAction =
   | { type: 'set-partial-state'; partialState: Partial<AppState> }
   | { type: 'change-connection-state'; state: ConnectionState }
+  | { type: 'set-vpn-mode'; mode: VpnMode }
   | { type: 'set-error'; error: string }
   | { type: 'reset-error' }
   | { type: 'new-progress-message'; message: string }
@@ -18,7 +19,7 @@ export type StateAction =
 export const initialState: AppState = {
   state: 'Disconnected',
   loading: false,
-  privacyMode: 'High',
+  vpnMode: 'TwoHop',
   tunnel: { name: 'nym', id: 'nym' },
   uiMode: 'Light',
   progressMessages: [],
@@ -27,7 +28,7 @@ export const initialState: AppState = {
     autoconnect: false,
     killswitch: false,
     uiMode: 'Light',
-    privacyMode: 'High',
+    vpnMode: 'TwoHop',
     entryNode: null,
     exitNode: null,
   },
@@ -35,6 +36,8 @@ export const initialState: AppState = {
 
 export function reducer(state: AppState, action: StateAction): AppState {
   switch (action.type) {
+    case 'set-vpn-mode':
+      return { ...state, vpnMode: action.mode };
     case 'set-partial-state': {
       return { ...state, ...action.partialState };
     }

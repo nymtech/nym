@@ -507,7 +507,7 @@ impl IpPacketRouter {
 
             }
         }
-        log::info!("IpPacketRouter: stopping");
+        log::debug!("IpPacketRouter: stopping");
         Ok(())
     }
 }
@@ -581,7 +581,7 @@ impl TunListener {
                 }
             }
         }
-        log::info!("TunListener: stopping");
+        log::debug!("TunListener: stopping");
         Ok(())
     }
 

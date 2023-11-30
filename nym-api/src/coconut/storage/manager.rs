@@ -173,7 +173,7 @@ impl CoconutStorageManagerExt for StorageManager {
     ) -> Result<(), sqlx::Error> {
         // even if we were changing epochs every second, it's rather impossible to overflow here
         // within any sane amount of time
-        assert!(u32::MAX as u64 <= epoch_id);
+        assert!(epoch_id <= u32::MAX as u64);
         let epoch_id_downcasted = epoch_id as u32;
 
         // make the atomic transaction in case other tasks are attempting to use the pool
@@ -230,7 +230,7 @@ impl CoconutStorageManagerExt for StorageManager {
                 credential_id,
                 1
             )
-            .execute(&self.connection_pool)
+            .execute(&mut tx)
             .await?;
         }
 

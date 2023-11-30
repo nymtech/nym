@@ -285,9 +285,9 @@ impl BandwidthVoucher {
         message
     }
 
-    pub fn sign(&self, request: &BlindSignRequest) -> identity::Signature {
-        let message = Self::signable_plaintext(request, self.tx_hash);
-        self.signing_key.sign(&message)
+    pub fn sign(&self) -> identity::Signature {
+        let message = Self::signable_plaintext(&self.blind_sign_request, self.tx_hash);
+        self.signing_key.sign(message)
     }
 }
 

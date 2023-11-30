@@ -89,6 +89,16 @@ impl BlindSignRequestBody {
             .map(hash_to_scalar)
             .collect()
     }
+
+    pub fn encode_commitments(&self) -> Vec<String> {
+        use nym_coconut_interface::Base58;
+
+        self.inner_sign_request
+            .get_private_attributes_pedersen_commitments()
+            .iter()
+            .map(|c| c.to_bs58())
+            .collect()
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]

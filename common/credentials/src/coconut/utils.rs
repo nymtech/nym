@@ -38,8 +38,7 @@ async fn obtain_partial_credential(
 ) -> Result<Signature, Error> {
     let public_attributes_plain = voucher.get_public_attributes_plain();
     let blind_sign_request = voucher.blind_sign_request();
-
-    let request_signature = voucher.sign(blind_sign_request);
+    let request_signature = voucher.sign();
 
     let blind_sign_request_body = BlindSignRequestBody::new(
         blind_sign_request.clone(),

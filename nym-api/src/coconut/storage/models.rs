@@ -40,6 +40,16 @@ impl TryFrom<IssuedCredential> for BlindedSignatureResponse {
     }
 }
 
+impl TryFrom<IssuedCredential> for BlindedSignature {
+    type Error = CoconutError;
+
+    fn try_from(value: IssuedCredential) -> Result<Self, Self::Error> {
+        Ok(BlindedSignature::try_from_bs58(
+            value.bs58_partial_credential,
+        )?)
+    }
+}
+
 impl IssuedCredential {
     // safety: this should only ever be called on sanitized data from the database,
     // thus the unwraps are fine (if somebody manually entered their db file and modified it, it's on them)

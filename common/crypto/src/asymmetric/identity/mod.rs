@@ -5,12 +5,13 @@ pub use ed25519_dalek::ed25519::signature::Signature as SignatureTrait;
 pub use ed25519_dalek::SignatureError;
 pub use ed25519_dalek::{Verifier, PUBLIC_KEY_LENGTH, SECRET_KEY_LENGTH, SIGNATURE_LENGTH};
 use nym_pemstore::traits::{PemStorableKey, PemStorableKeyPair};
-#[cfg(feature = "sphinx")]
-use nym_sphinx_types::{DestinationAddressBytes, DESTINATION_ADDRESS_LENGTH};
 use std::fmt::{self, Display, Formatter};
 use std::str::FromStr;
 use thiserror::Error;
 use zeroize::{Zeroize, ZeroizeOnDrop};
+
+#[cfg(feature = "sphinx")]
+use nym_sphinx_types::{DestinationAddressBytes, DESTINATION_ADDRESS_LENGTH};
 
 #[cfg(feature = "rand")]
 use rand::{CryptoRng, RngCore};
@@ -327,6 +328,14 @@ impl Signature {
 
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, Ed25519RecoveryError> {
         Ok(Signature(ed25519_dalek::Signature::from_bytes(bytes)?))
+    }
+}
+
+impl FromStr for Signature {
+    type Err = Ed25519RecoveryError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Signature::from_base58_string(s)
     }
 }
 

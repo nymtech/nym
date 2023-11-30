@@ -37,15 +37,15 @@ pub async fn post_blind_sign(
     }
 
     // check if we already issued a credential for this tx hash
-    if let Some(response) = state
+    if let Some(blinded_signature) = state
         .already_issued(blind_sign_request_body.tx_hash)
         .await?
     {
-        return Ok(Json(response));
+        return Ok(Json(BlindedSignatureResponse { blinded_signature }));
     }
 
     // check if we have the signing key available
-    let keypair_guard = state.coconut_key_pair.get().await;
+    let keypair_guard = state.coconut_keypair.get().await;
     let Some(signing_key) = keypair_guard.as_ref() else {
         return Err(CoconutError::KeyPairNotDerivedYet);
     };

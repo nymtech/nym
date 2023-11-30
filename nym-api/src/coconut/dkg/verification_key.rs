@@ -305,7 +305,7 @@ pub(crate) mod tests {
     use crate::coconut::dkg::state::PersistentState;
     use crate::coconut::tests::DummyClient;
     use crate::coconut::KeyPair;
-    use nym_coconut::aggregate_verification_keys;
+    use nym_coconut::{aggregate_verification_keys, Parameters};
     use nym_coconut_dkg_common::dealer::DealerDetails;
     use nym_coconut_dkg_common::types::InitialReplacementData;
     use nym_coconut_dkg_common::verification_key::ContractVKShare;
@@ -841,10 +841,12 @@ pub(crate) mod tests {
         let mut indices = vec![];
         for (_, state) in clients_and_states.iter() {
             let vk = state
-                .coconut_secret_key()
+                .coconut_keypair()
                 .await
+                .as_ref()
                 .unwrap()
-                .verification_key(&params);
+                .verification_key()
+                .clone();
             let index = state.node_index().unwrap();
             vks.push(vk);
             indices.push(index);
@@ -932,10 +934,12 @@ pub(crate) mod tests {
         let mut indices = vec![];
         for (_, state) in clients_and_states.iter() {
             let vk = state
-                .coconut_secret_key()
+                .coconut_keypair()
                 .await
+                .as_ref()
                 .unwrap()
-                .verification_key(&params);
+                .verification_key()
+                .clone();
             let index = state.node_index().unwrap();
             vks.push(vk);
             indices.push(index);
@@ -1052,10 +1056,12 @@ pub(crate) mod tests {
         let mut indices = vec![];
         for (_, state) in clients_and_states.iter() {
             let vk = state
-                .coconut_secret_key()
+                .coconut_keypair()
                 .await
+                .as_ref()
                 .unwrap()
-                .verification_key(&params);
+                .verification_key()
+                .clone();
             let index = state.node_index().unwrap();
             vks.push(vk);
             indices.push(index);
@@ -1123,10 +1129,12 @@ pub(crate) mod tests {
         let mut indices = vec![];
         for (_, state) in clients_and_states.iter() {
             let vk = state
-                .coconut_secret_key()
+                .coconut_keypair()
                 .await
+                .as_ref()
                 .unwrap()
-                .verification_key(&params);
+                .verification_key()
+                .clone();
             let index = state.node_index().unwrap();
             vks.push(vk);
             indices.push(index);

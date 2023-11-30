@@ -277,6 +277,13 @@ impl State {
         self.coconut_keypair.take().await
     }
 
+    #[cfg(test)]
+    pub async fn coconut_keypair(
+        &self,
+    ) -> tokio::sync::RwLockReadGuard<'_, Option<nym_coconut::KeyPair>> {
+        self.coconut_keypair.get().await
+    }
+
     pub fn node_index(&self) -> Option<NodeIndex> {
         self.node_index
     }

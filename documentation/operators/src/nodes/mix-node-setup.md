@@ -98,7 +98,7 @@ link = "https://nymtech.net"
 location = "Giza, Egypt"
 ```
 
-> Remember to restart your `nym-mix-node` process in order for the new description to be propagated.
+> Remember to restart your `nym-mixnode` process in order for the new description to be propagated.
 
 ## Running your Mix Node
 

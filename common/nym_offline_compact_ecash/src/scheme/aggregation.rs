@@ -121,8 +121,6 @@ pub fn aggregate_signatures(
     };
 
     // Verify the signature
-    let alpha = verification_key.alpha;
-
     let tmp = attributes
         .iter()
         .zip(verification_key.beta_g2.iter())
@@ -131,7 +129,7 @@ pub fn aggregate_signatures(
 
     if !check_bilinear_pairing(
         &signature.0.to_affine(),
-        &G2Prepared::from((alpha + tmp).to_affine()),
+        &G2Prepared::from((verification_key.alpha + tmp).to_affine()),
         &signature.1.to_affine(),
         params.prepared_miller_g2(),
     ) {

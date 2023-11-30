@@ -8,6 +8,7 @@ use bls12_381::{G1Projective, G2Prepared, G2Projective, Scalar};
 use group::Curve;
 use itertools::Itertools;
 use rayon::prelude::*;
+use chrono::{NaiveDate, Duration, NaiveDateTime};
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct ExpirationDateSignature {
@@ -64,7 +65,9 @@ pub fn sign_expiration_date(
     (0..constants::VALIDITY_PERIOD)
         .into_par_iter()
         .fold(Vec::new, |mut exp_signs, l| {
-            let m1: Scalar = Scalar::from(expiration_date - constants::VALIDITY_PERIOD + l as u64);
+            let expiration_date = NaiveDateTime::from_timestamp(expiration_date as i64, 0);
+            let valid_date = expiration_date - Duration::days(constants::VALIDITY_PERIOD as i64) + Duration::days(l as i64);
+            let m1: Scalar = Scalar::from(valid_date.timestamp() as u64);
             // Compute the hash
             let h = hash_g1([m0.to_bytes(), m1.to_bytes(), m2.to_bytes()].concat());
             // Sign the attributes by performing scalar-point multiplications and accumulating the result
@@ -112,9 +115,11 @@ pub fn verify_valid_dates_signatures(
 ) -> Result<()> {
     let m0: Scalar = Scalar::from(expiration_date);
     let m2: Scalar = Scalar::from_bytes(&constants::TYPE_EXP).unwrap();
-
+    
     signatures.par_iter().enumerate().try_for_each(|(l, sig)| {
-        let m1: Scalar = Scalar::from(expiration_date - constants::VALIDITY_PERIOD + l as u64);
+        let expiration_date = NaiveDateTime::from_timestamp(expiration_date as i64, 0);
+        let valid_date = expiration_date - Duration::days(constants::VALIDITY_PERIOD as i64) + Duration::days(l as i64);
+        let m1: Scalar = Scalar::from(valid_date.timestamp() as u64);
         // Compute the hash
         let h = hash_g1([m0.to_bytes(), m1.to_bytes(), m2.to_bytes()].concat());
         // Verify the signature correctness
@@ -214,7 +219,9 @@ pub fn aggregate_expiration_signatures(
     let m0: Scalar = Scalar::from(expiration_date);
     let m2: Scalar = Scalar::from_bytes(&constants::TYPE_EXP).unwrap();
     for l in 0..constants::VALIDITY_PERIOD {
-        let m1: Scalar = Scalar::from(expiration_date - constants::VALIDITY_PERIOD + l);
+        let expiration_date = NaiveDateTime::from_timestamp(expiration_date as i64, 0);
+        let valid_date = expiration_date - Duration::days(constants::VALIDITY_PERIOD as i64) + Duration::days(l as i64);
+        let m1: Scalar = Scalar::from(valid_date.timestamp() as u64);
         // Compute the hash
         let h = hash_g1([m0.to_bytes(), m1.to_bytes(), m2.to_bytes()].concat());
 
@@ -257,10 +264,13 @@ pub fn aggregate_expiration_signatures(
 pub fn find_index(spend_date: Scalar, expiration_date: Scalar) -> Result<usize> {
     let expiration_date_bytes = expiration_date.to_bytes();
     let expiration_date_u64 =
-        u64::from_le_bytes(expiration_date_bytes.as_slice().try_into().unwrap());
+        u64::from_le_bytes(expiration_date_bytes[..8].try_into().unwrap());
+    println!("Expiration date {:?}", expiration_date_u64); // Thu Dec 28
     let spend_date_bytes = spend_date.to_bytes();
-    let spend_date_u64 = u64::from_le_bytes(spend_date_bytes.as_slice().try_into().unwrap());
+    let spend_date_u64 = u64::from_le_bytes(spend_date_bytes[..8].try_into().unwrap());
+    println!("Spend date {:?}", spend_date_u64); // Nov 28
     let start_date = expiration_date_u64 - constants::VALIDITY_PERIOD;
+    println!("Start date {:?}", start_date); // Wed Dec 27
 
     if spend_date_u64 >= start_date {
         let index_a = (spend_date_u64 - start_date) as usize;

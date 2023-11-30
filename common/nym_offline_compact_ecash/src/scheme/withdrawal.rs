@@ -210,11 +210,10 @@ pub fn withdrawal_request(
     // Compute joined commitment for all attributes (public and private)
     let joined_commitment: G1Projective = params.gen1() * joined_commitment_opening
         + params.gamma_idx(0).unwrap() * sk_user.sk
-        + params.gamma_idx(1).unwrap() * v
-        + params.gamma_idx(2).unwrap() * Scalar::from(expiration_date);
+        + params.gamma_idx(1).unwrap() * v;
 
     // Compute commitment hash h
-    let joined_commitment_hash = hash_g1(joined_commitment.to_bytes());
+    let joined_commitment_hash = hash_g1((joined_commitment + params.gamma_idx(2).unwrap() * Scalar::from(expiration_date)).to_bytes());
 
     // Compute Pedersen commitments for private attributes
     let private_attributes = vec![sk_user.sk, v];
@@ -434,7 +433,7 @@ pub fn issue_verify(
     }
 
     Ok(PartialWallet {
-        sig: Signature(blind_signature.1, unblinded_c),
+        sig: Signature(blind_signature.0, unblinded_c),
         v: req_info.v,
         idx: None,
         expiration_date: req_info.expiration_date,

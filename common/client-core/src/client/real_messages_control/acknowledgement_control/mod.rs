@@ -69,6 +69,7 @@ pub(crate) struct PendingAcknowledgement {
     message_chunk: Fragment,
     delay: SphinxDelay,
     destination: PacketDestination,
+    mix_hops: Option<u8>,
 }
 
 impl PendingAcknowledgement {
@@ -77,11 +78,13 @@ impl PendingAcknowledgement {
         message_chunk: Fragment,
         delay: SphinxDelay,
         recipient: Recipient,
+        mix_hops: Option<u8>,
     ) -> Self {
         PendingAcknowledgement {
             message_chunk,
             delay,
             destination: PacketDestination::KnownRecipient(recipient.into()),
+            mix_hops,
         }
     }
 
@@ -98,6 +101,8 @@ impl PendingAcknowledgement {
                 recipient_tag,
                 extra_surb_request,
             },
+            // Custom mix hops are not supported for anonymous messages
+            mix_hops: None,
         }
     }
 

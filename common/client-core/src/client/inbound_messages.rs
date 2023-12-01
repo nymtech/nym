@@ -28,6 +28,7 @@ pub enum InputMessage {
         recipient: Recipient,
         data: Vec<u8>,
         lane: TransmissionLane,
+        mix_hops: Option<u8>,
     },
 
     /// Creates a message used for a duplex anonymous communication where the recipient
@@ -92,6 +93,27 @@ impl InputMessage {
             recipient,
             data,
             lane,
+            mix_hops: None,
+        };
+        if let Some(packet_type) = packet_type {
+            InputMessage::new_wrapper(message, packet_type)
+        } else {
+            message
+        }
+    }
+
+    pub fn new_regular_custom_hop(
+        recipient: Recipient,
+        data: Vec<u8>,
+        lane: TransmissionLane,
+        packet_type: Option<PacketType>,
+        mix_hops: Option<u8>,
+    ) -> Self {
+        let message = InputMessage::Regular {
+            recipient,
+            data,
+            lane,
+            mix_hops,
         };
         if let Some(packet_type) = packet_type {
             InputMessage::new_wrapper(message, packet_type)

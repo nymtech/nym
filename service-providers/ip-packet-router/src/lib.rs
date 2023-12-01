@@ -1,32 +1,20 @@
 #![cfg_attr(not(target_os = "linux"), allow(dead_code))]
 #![cfg_attr(not(target_os = "linux"), allow(unused_imports))]
 
-use std::{net::IpAddr, time::Duration};
+use std::time::Duration;
 
 use error::IpPacketRouterError;
-use futures::{channel::oneshot, StreamExt};
+
 use nym_client_core::{
     client::mix_traffic::transceiver::GatewayTransceiver,
-    config::disk_persistence::CommonClientPaths, HardcodedTopologyProvider, TopologyProvider,
+    config::disk_persistence::CommonClientPaths, TopologyProvider,
 };
-use nym_ip_packet_requests::{
-    DynamicConnectFailureReason, IpPacketRequest, IpPacketRequestData, IpPacketResponse,
-    StaticConnectFailureReason,
-};
-use nym_sdk::{
-    mixnet::{InputMessage, MixnetMessageSender, Recipient},
-    NymNetworkDetails,
-};
-use nym_sphinx::receiver::ReconstructedMessage;
-use nym_task::{connections::TransmissionLane, TaskClient, TaskHandle};
-use request_filter::RequestFilter;
-#[cfg(target_os = "linux")]
-use tokio::io::AsyncWriteExt;
 
-use crate::{
-    config::BaseClientConfig,
-    parse_ip::{parse_packet, ParsedPacket},
-};
+use nym_sdk::NymNetworkDetails;
+
+use nym_task::TaskClient;
+
+use crate::config::BaseClientConfig;
 
 pub use crate::config::Config;
 pub use ip_packet_router::{IpPacketRouterBuilder, OnStartData};

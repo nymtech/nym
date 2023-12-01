@@ -1,31 +1,29 @@
 #![cfg_attr(not(target_os = "linux"), allow(dead_code))]
 #![cfg_attr(not(target_os = "linux"), allow(unused_imports))]
 
-use std::{collections::HashMap, net::IpAddr, path::Path, time::Duration};
+use std::{collections::HashMap, net::IpAddr, path::Path};
 
 use futures::{channel::oneshot, StreamExt};
 use nym_client_core::{
-    client::mix_traffic::transceiver::GatewayTransceiver,
-    config::disk_persistence::CommonClientPaths, HardcodedTopologyProvider, TopologyProvider,
+    client::mix_traffic::transceiver::GatewayTransceiver, HardcodedTopologyProvider,
+    TopologyProvider,
 };
 use nym_ip_packet_requests::{
     DynamicConnectFailureReason, IpPacketRequest, IpPacketRequestData, IpPacketResponse,
     StaticConnectFailureReason,
 };
-use nym_sdk::{
-    mixnet::{InputMessage, MixnetMessageSender, Recipient},
-    NymNetworkDetails,
-};
+use nym_sdk::mixnet::{InputMessage, MixnetMessageSender, Recipient};
 use nym_sphinx::receiver::ReconstructedMessage;
 use nym_task::{connections::TransmissionLane, TaskClient, TaskHandle};
 #[cfg(target_os = "linux")]
 use tokio::io::AsyncWriteExt;
 
 use crate::{
-    config::BaseClientConfig,
+    error::IpPacketRouterError,
+    generate_new_ip,
     parse_ip::{parse_packet, ParsedPacket},
-    request_filter::{RequestFilter, self},
-    Config, error::IpPacketRouterError, generate_new_ip, DISCONNECT_TIMER_INTERVAL, CLIENT_INACTIVITY_TIMEOUT,
+    request_filter::{self, RequestFilter},
+    Config, CLIENT_INACTIVITY_TIMEOUT, DISCONNECT_TIMER_INTERVAL,
 };
 
 pub struct OnStartData {
@@ -119,12 +117,10 @@ impl IpPacketRouterBuilder {
     #[cfg(target_os = "linux")]
     pub async fn run_service_provider(self) -> Result<(), IpPacketRouterError> {
         // Used to notify tasks to shutdown. Not all tasks fully supports this (yet).
-
-        use crate::{create_mixnet_client, TUN_BASE_NAME, TUN_DEVICE_ADDRESS, TUN_DEVICE_NETMASK, request_filter, tun_listener};
         let task_handle: TaskHandle = self.shutdown.map(Into::into).unwrap_or_default();
 
         // Connect to the mixnet
-        let mixnet_client = create_mixnet_client(
+        let mixnet_client = crate::create_mixnet_client(
             &self.config.base,
             task_handle.get_handle().named("nym_sdk::MixnetClient"),
             self.custom_gateway_transceiver,
@@ -138,9 +134,9 @@ impl IpPacketRouterBuilder {
 
         // Create the TUN device that we interact with the rest of the world with
         let config = nym_tun::tun_device::TunDeviceConfig {
-            base_name: TUN_BASE_NAME.to_string(),
-            ip: TUN_DEVICE_ADDRESS.parse().unwrap(),
-            netmask: TUN_DEVICE_NETMASK.parse().unwrap(),
+            base_name: crate::TUN_BASE_NAME.to_string(),
+            ip: crate::TUN_DEVICE_ADDRESS.parse().unwrap(),
+            netmask: crate::TUN_DEVICE_NETMASK.parse().unwrap(),
         };
         let (tun_reader, tun_writer) =
             tokio::io::split(nym_tun::tun_device::TunDevice::new_device_only(config));
@@ -149,7 +145,7 @@ impl IpPacketRouterBuilder {
         // TunListener
         let (connected_client_tx, connected_client_rx) = tokio::sync::mpsc::unbounded_channel();
 
-        let tun_listener = tun_listener::TunListener {
+        let tun_listener = crate::tun_listener::TunListener {
             tun_reader,
             mixnet_client_sender: mixnet_client.split_sender(),
             task_client: task_handle.get_handle(),

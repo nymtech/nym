@@ -2,6 +2,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::support::config::default_data_directory;
+use anyhow::{anyhow, Context};
+use nym_config::serde_helpers::de_maybe_stringified;
+use nym_crypto::asymmetric::identity;
+use rand_07::rngs::OsRng;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
@@ -14,6 +18,9 @@ pub const DEFAULT_DKG_DECRYPTION_KEY_FILENAME: &str = "dkg_decryption_key.pem";
 pub const DEFAULT_DKG_PUBLIC_KEY_WITH_PROOF_FILENAME: &str = "dkg_public_key_with_proof.pem";
 pub const DEFAULT_COCONUT_VERIFICATION_KEY_FILENAME: &str = "coconut_verification_key.pem";
 pub const DEFAULT_COCONUT_SECRET_KEY_FILENAME: &str = "coconut_secret_key.pem";
+
+pub const DEFAULT_PRIVATE_IDENTITY_KEY_FILENAME: &str = "private_identity.pem";
+pub const DEFAULT_PUBLIC_IDENTITY_KEY_FILENAME: &str = "public_identity.pem";
 
 // #[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
 // pub struct NymApiPathfinder {
@@ -97,5 +104,69 @@ impl CoconutSignerPaths {
             decryption_key_path: data_dir.join(DEFAULT_DKG_DECRYPTION_KEY_FILENAME),
             public_key_with_proof_path: data_dir.join(DEFAULT_DKG_PUBLIC_KEY_WITH_PROOF_FILENAME),
         }
+    }
+}
+
+#[derive(Debug, Default, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(default)]
+pub struct NymApiPaths {
+    /// Path to file containing private identity key of the nym-api.
+    #[serde(deserialize_with = "de_maybe_stringified")]
+    pub private_identity_key_file: Option<PathBuf>,
+
+    /// Path to file containing public identity key of the nym-api.
+    #[serde(deserialize_with = "de_maybe_stringified")]
+    pub public_identity_key_file: Option<PathBuf>,
+}
+
+impl NymApiPaths {
+    pub fn new_default<P: AsRef<Path>>(id: P) -> Self {
+        let data_dir = default_data_directory(id);
+
+        NymApiPaths {
+            private_identity_key_file: Some(data_dir.join(DEFAULT_PRIVATE_IDENTITY_KEY_FILENAME)),
+            public_identity_key_file: Some(data_dir.join(DEFAULT_PUBLIC_IDENTITY_KEY_FILENAME)),
+        }
+    }
+
+    pub fn generate_identity_if_missing<P: AsRef<Path>>(&mut self, id: P) -> anyhow::Result<bool> {
+        if self.private_identity_key_file.is_none() {
+            log::warn!("identity key paths are not set - going to generate a fresh pair!");
+
+            let data_dir = default_data_directory(id);
+            self.private_identity_key_file =
+                Some(data_dir.join(DEFAULT_PRIVATE_IDENTITY_KEY_FILENAME));
+            self.public_identity_key_file =
+                Some(data_dir.join(DEFAULT_PUBLIC_IDENTITY_KEY_FILENAME));
+
+            let keypaths = nym_pemstore::KeyPairPath::new(
+                self.private_identity_key_file.as_ref().unwrap(),
+                self.public_identity_key_file.as_ref().unwrap(),
+            );
+
+            let mut rng = OsRng;
+            let keypair = identity::KeyPair::new(&mut rng);
+
+            nym_pemstore::store_keypair(&keypair, &keypaths)
+                .context("failed to store identity keys of the nym api")?;
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
+
+    pub fn load_identity(&self) -> anyhow::Result<identity::KeyPair> {
+        // if somebody has set their private key but removed public key, the panic is totally on them.
+        let keypaths = nym_pemstore::KeyPairPath::new(
+            self.private_identity_key_file
+                .as_ref()
+                .ok_or(anyhow!("private key path is not specified"))?,
+            self.public_identity_key_file
+                .as_ref()
+                .ok_or(anyhow!("public key path is not specified"))?,
+        );
+
+        Ok(nym_pemstore::load_keypair(&keypaths)
+            .context("failed to load identity keys of the nym api")?)
     }
 }

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::support::config::persistence::{
-    CoconutSignerPaths, NetworkMonitorPaths, NodeStatusAPIPaths,
+    CoconutSignerPaths, NetworkMonitorPaths, NodeStatusAPIPaths, NymApiPaths,
 };
 use crate::support::config::template::CONFIG_TEMPLATE;
 use nym_config::defaults::{mainnet, NymNetworkDetails};
@@ -21,6 +21,7 @@ use zeroize::{Zeroize, ZeroizeOnDrop};
 pub(crate) mod helpers;
 pub(crate) mod old_config_v1_1_21;
 pub(crate) mod old_config_v1_1_27;
+
 mod persistence;
 mod template;
 
@@ -272,22 +273,26 @@ impl Config {
 #[derive(Debug, Deserialize, PartialEq, Eq, Serialize, Zeroize, ZeroizeOnDrop)]
 pub struct Base {
     /// ID specifies the human readable ID of this particular nym-api.
-    id: String,
+    pub id: String,
 
     #[zeroize(skip)]
-    local_validator: Url,
+    pub local_validator: Url,
 
     /// Address of the validator contract managing the network
     #[zeroize(skip)]
-    mixnet_contract_address: nyxd::AccountId,
+    pub mixnet_contract_address: nyxd::AccountId,
 
     /// Address of the vesting contract holding locked tokens
     #[zeroize(skip)]
-    vesting_contract_address: nyxd::AccountId,
+    pub vesting_contract_address: nyxd::AccountId,
 
     /// Mnemonic used for rewarding and/or multisig operations
     // TODO: similarly to the note in gateway, this should get moved to a separate file
     mnemonic: bip39::Mnemonic,
+
+    /// Storage paths to the common nym-api files
+    #[zeroize(skip)]
+    pub storage_paths: NymApiPaths,
 }
 
 impl Base {
@@ -296,8 +301,11 @@ impl Base {
             .parse()
             .expect("default local validator is malformed!");
 
+        let id = id.into();
+
         Base {
-            id: id.into(),
+            storage_paths: NymApiPaths::new_default(&id),
+            id,
             local_validator: default_validator,
             mixnet_contract_address: mainnet::MIXNET_CONTRACT_ADDRESS.parse().unwrap(),
             vesting_contract_address: mainnet::VESTING_CONTRACT_ADDRESS.parse().unwrap(),

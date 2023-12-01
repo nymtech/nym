@@ -9,7 +9,7 @@ use nym_coconut_interface::{
 };
 use nym_crypto::asymmetric::identity;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use tendermint::hash::Hash;
 
 #[derive(Serialize, Deserialize)]
@@ -154,39 +154,69 @@ impl CosmosAddressResponse {
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
+pub struct Pagination<T> {
+    /// last_key is the last value returned in the previous query.
+    /// it's used to indicate the start of the next (this) page.
+    /// the value itself is not included in the response.
+    pub last_key: Option<T>,
+
+    /// limit is the total number of results to be returned in the result page.
+    /// If left empty it will default to a value to be set by each app.
+    pub limit: Option<u32>,
+}
+
+#[derive(Clone, Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct CredentialsRequestBody {
+pub struct CredentialsRequestBody<T = String> {
+    /// Explicit ids of the credentials to retrieve. Note: it can't be set alongside pagination.
     pub credential_ids: Vec<i64>,
+
+    /// Pagination settings for retrieving credentials. Note: it can't be set alongside explicit ids.
+    pub pagination: Option<Pagination<T>>,
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct EpochCredentialsResponse {
-    //
+    pub epoch_id: u64,
+    pub first_epoch_credential_id: Option<i64>,
+    pub total_issued: u32,
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct IssuedCredentialsResponse {
-    credentials: HashMap<i64, IssuedCredentialResponse>,
+    // note: BTreeMap returns ordered results so it's fine to use it with pagination
+    pub credentials: BTreeMap<i64, IssuedCredentialInner>,
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct IssuedCredentialResponse {
-    credential: IssuedCredential,
+    pub credential: Option<IssuedCredentialInner>,
+}
 
-    signature: identity::Signature,
+#[derive(Clone, Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct IssuedCredentialInner {
+    pub credential: IssuedCredential,
+
+    pub signature: identity::Signature,
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct IssuedCredential {
-    epoch_id: u32,
-    tx_hash: Hash,
-    blinded_partial_credential: BlindedSignature,
-    bs58_encoded_private_attributes_commitments: Vec<String>,
-    public_attributes: Vec<String>,
+    pub id: i64,
+    pub epoch_id: u32,
+    pub tx_hash: Hash,
+
+    // NOTE: if we find creation of this guy takes too long,
+    // change `BlindedSignature` to `BlindedSignatureBytes`
+    // so that nym-api wouldn't need to parse the value out of its storage
+    pub blinded_partial_credential: BlindedSignature,
+    pub bs58_encoded_private_attributes_commitments: Vec<String>,
+    pub public_attributes: Vec<String>,
 }
 
 impl IssuedCredential {

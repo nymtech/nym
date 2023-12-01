@@ -2,8 +2,13 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::coconut::error::CoconutError;
+use nym_api_requests::coconut::models::{
+    EpochCredentialsResponse, IssuedCredential as ApiIssuedCredential,
+    IssuedCredentialInner as ApiIssuedCredentialInner,
+};
 use nym_api_requests::coconut::BlindedSignatureResponse;
 use nym_coconut::{Base58, BlindedSignature};
+use sqlx::FromRow;
 use std::fmt::Display;
 
 pub struct EpochCredentials {
@@ -12,6 +17,23 @@ pub struct EpochCredentials {
     pub total_issued: u32,
 }
 
+impl From<EpochCredentials> for EpochCredentialsResponse {
+    fn from(value: EpochCredentials) -> Self {
+        let first_epoch_credential_id = if value.start_id == -1 {
+            None
+        } else {
+            Some(value.start_id)
+        };
+
+        EpochCredentialsResponse {
+            epoch_id: value.epoch_id as u64,
+            first_epoch_credential_id,
+            total_issued: value.total_issued,
+        }
+    }
+}
+
+#[derive(FromRow)]
 pub struct IssuedCredential {
     pub id: i64,
     pub epoch_id: u32,
@@ -28,6 +50,31 @@ pub struct IssuedCredential {
 
     // i.e. "'attr1','attr2',..."
     pub joined_public_attributes: String,
+}
+
+impl TryFrom<IssuedCredential> for ApiIssuedCredentialInner {
+    type Error = CoconutError;
+
+    fn try_from(value: IssuedCredential) -> Result<Self, Self::Error> {
+        Ok(ApiIssuedCredentialInner {
+            credential: ApiIssuedCredential {
+                id: value.id,
+                epoch_id: value.epoch_id,
+                tx_hash: value
+                    .tx_hash
+                    .parse()
+                    .map_err(|source| CoconutError::TxHashParseError { source })?,
+                blinded_partial_credential: BlindedSignature::try_from_bs58(
+                    value.bs58_partial_credential,
+                )?,
+                bs58_encoded_private_attributes_commitments: split_attributes(
+                    &value.joined_private_commitments,
+                ),
+                public_attributes: split_attributes(&value.joined_public_attributes),
+            },
+            signature: value.bs58_signature.parse()?,
+        })
+    }
 }
 
 impl TryFrom<IssuedCredential> for BlindedSignatureResponse {

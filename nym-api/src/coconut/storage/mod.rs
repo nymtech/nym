@@ -5,6 +5,7 @@ use crate::coconut::storage::manager::CoconutStorageManagerExt;
 use crate::coconut::storage::models::{join_attributes, EpochCredentials, IssuedCredential};
 use crate::node_status_api::models::NymApiStorageError;
 use crate::support::storage::NymApiStorage;
+use nym_api_requests::coconut::models::Pagination;
 use nym_coconut::{Base58, BlindedSignature};
 use nym_coconut_dkg_common::types::EpochId;
 use nym_crypto::asymmetric::identity;
@@ -12,6 +13,8 @@ use nym_validator_client::nyxd::Hash;
 
 pub(crate) mod manager;
 pub(crate) mod models;
+
+const DEFAULT_CREDENTIALS_PAGE_LIMIT: u32 = 100;
 
 #[async_trait]
 pub trait CoconutStorageExt {
@@ -50,6 +53,16 @@ pub trait CoconutStorageExt {
         private_commitments: Vec<String>,
         public_attributes: Vec<String>,
     ) -> Result<i64, NymApiStorageError>;
+
+    async fn get_issued_credentials(
+        &self,
+        credential_ids: Vec<i64>,
+    ) -> Result<Vec<IssuedCredential>, NymApiStorageError>;
+
+    async fn get_issued_credentials_paged(
+        &self,
+        pagination: Pagination<i64>,
+    ) -> Result<Vec<IssuedCredential>, NymApiStorageError>;
 }
 
 #[async_trait]
@@ -118,6 +131,36 @@ impl CoconutStorageExt for NymApiStorage {
                 join_attributes(private_commitments),
                 join_attributes(public_attributes),
             )
+            .await?)
+    }
+
+    async fn get_issued_credentials(
+        &self,
+        credential_ids: Vec<i64>,
+    ) -> Result<Vec<IssuedCredential>, NymApiStorageError> {
+        Ok(self.manager.get_issued_credentials(credential_ids).await?)
+    }
+
+    async fn get_issued_credentials_paged(
+        &self,
+        pagination: Pagination<i64>,
+    ) -> Result<Vec<IssuedCredential>, NymApiStorageError> {
+        // rows start at 1
+        let start_after = pagination.last_key.unwrap_or(0);
+        let limit = match pagination.limit {
+            Some(v) => {
+                if v == 0 || v > DEFAULT_CREDENTIALS_PAGE_LIMIT {
+                    DEFAULT_CREDENTIALS_PAGE_LIMIT
+                } else {
+                    v
+                }
+            }
+            None => DEFAULT_CREDENTIALS_PAGE_LIMIT,
+        };
+
+        Ok(self
+            .manager
+            .get_issued_credentials_paged(start_after, limit)
             .await?)
     }
 }

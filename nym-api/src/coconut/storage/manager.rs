@@ -98,6 +98,28 @@ pub trait CoconutStorageManagerExt {
         joined_private_commitments: String,
         joined_public_attributes: String,
     ) -> Result<i64, sqlx::Error>;
+
+    /// Attempts to retrieve issued credentials from the data store using provided ids.    
+    ///
+    /// # Arguments
+    ///
+    /// * `credential_ids`: (database) ids of the issued credentials
+    async fn get_issued_credentials(
+        &self,
+        credential_ids: Vec<i64>,
+    ) -> Result<Vec<IssuedCredential>, sqlx::Error>;
+
+    /// Attempts to retrieve issued credentials from the data store using pagination specification.    
+    ///
+    /// # Arguments
+    ///
+    /// * `start_after`: the value preceding the first retrieved result
+    /// * `limit`: the maximum number of entries to retrieve
+    async fn get_issued_credentials_paged(
+        &self,
+        start_after: i64,
+        limit: u32,
+    ) -> Result<Vec<IssuedCredential>, sqlx::Error>;
 }
 
 #[async_trait]
@@ -307,5 +329,53 @@ impl CoconutStorageManagerExt for StorageManager {
         ).execute(&self.connection_pool).await?.last_insert_rowid();
 
         Ok(row_id)
+    }
+
+    /// Attempts to retrieve issued credentials from the data store using provided ids.    
+    ///
+    /// # Arguments
+    ///
+    /// * `credential_ids`: (database) ids of the issued credentials
+    async fn get_issued_credentials(
+        &self,
+        credential_ids: Vec<i64>,
+    ) -> Result<Vec<IssuedCredential>, sqlx::Error> {
+        // that sucks : (
+        // https://stackoverflow.com/a/70032524
+        let params = format!("?{}", ", ?".repeat(credential_ids.len() - 1));
+        let query_str = format!("SELECT * FROM issued_credential WHERE id IN ( {params} )");
+        let mut query = sqlx::query_as(&query_str);
+        for id in credential_ids {
+            query = query.bind(id)
+        }
+
+        query.fetch_all(&self.connection_pool).await
+    }
+
+    /// Attempts to retrieve issued credentials from the data store using pagination specification.    
+    ///
+    /// # Arguments
+    ///
+    /// * `start_after`: the value preceding the first retrieved result
+    /// * `limit`: the maximum number of entries to retrieve
+    async fn get_issued_credentials_paged(
+        &self,
+        start_after: i64,
+        limit: u32,
+    ) -> Result<Vec<IssuedCredential>, sqlx::Error> {
+        sqlx::query_as!(
+            IssuedCredential,
+            r#"
+                SELECT id, epoch_id as "epoch_id: u32", tx_hash, bs58_partial_credential, bs58_signature,joined_private_commitments, joined_public_attributes
+                FROM issued_credential
+                WHERE id > ?
+                ORDER BY id
+                LIMIT ?
+            "#,
+            start_after,
+            limit
+        )
+            .fetch_all(&self.connection_pool)
+            .await
     }
 }

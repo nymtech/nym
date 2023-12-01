@@ -1,9 +1,11 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::coconut::api_routes::helpers::build_credentials_response;
 use crate::coconut::error::{CoconutError, Result};
 use crate::coconut::helpers::{accepted_vote_err, blind_sign};
 use crate::coconut::state::State;
+use crate::coconut::storage::CoconutStorageExt;
 use nym_api_requests::coconut::models::{
     CredentialsRequestBody, EpochCredentialsResponse, IssuedCredentialResponse,
     IssuedCredentialsResponse,
@@ -19,6 +21,8 @@ use nym_credentials::coconut::bandwidth::BandwidthVoucher;
 use nym_validator_client::nyxd::{Coin, Fee};
 use rocket::serde::json::Json;
 use rocket::State as RocketState;
+
+mod helpers;
 
 #[post("/blind-sign", data = "<blind_sign_request_body>")]
 //  Until we have serialization and deserialization traits we'll be using a crutch
@@ -139,34 +143,59 @@ pub async fn epoch_credentials(
     epoch: EpochId,
     state: &RocketState<State>,
 ) -> Result<Json<EpochCredentialsResponse>> {
-    let _ = epoch;
-    let _ = state;
-    todo!()
+    let issued = state.storage.get_epoch_credentials(epoch).await?;
+
+    let response = if let Some(issued) = issued {
+        issued.into()
+    } else {
+        EpochCredentialsResponse {
+            epoch_id: epoch,
+            first_epoch_credential_id: None,
+            total_issued: 0,
+        }
+    };
+
+    Ok(Json(response))
 }
 
 #[get("/issued-credential/<id>")]
 pub async fn issued_credential(
-    id: u64,
+    id: i64,
     state: &RocketState<State>,
 ) -> Result<Json<IssuedCredentialResponse>> {
-    let _ = id;
-    let _ = state;
-    todo!()
+    let issued = state.storage.get_issued_credential(id).await?;
+
+    let credential = if let Some(issued) = issued {
+        Some(issued.try_into()?)
+    } else {
+        None
+    };
+
+    Ok(Json(IssuedCredentialResponse { credential }))
 }
 
-#[get("/issued-credentials", data = "<ids>")]
+#[get("/issued-credentials", data = "<params>")]
 pub async fn issued_credentials(
-    ids: Json<CredentialsRequestBody>,
+    params: Json<CredentialsRequestBody<i64>>,
     state: &RocketState<State>,
 ) -> Result<Json<IssuedCredentialsResponse>> {
-    let _ = ids;
-    let _ = state;
-    todo!()
+    let params = params.into_inner();
+
+    if params.pagination.is_some() && !params.credential_ids.is_empty() {
+        return Err(CoconutError::InvalidQueryArguments);
+    }
+
+    let credentials = if let Some(pagination) = params.pagination {
+        state
+            .storage
+            .get_issued_credentials_paged(pagination)
+            .await?
+    } else {
+        state
+            .storage
+            .get_issued_credentials(params.credential_ids)
+            .await?
+    };
+
+    build_credentials_response(credentials).map(Json)
 }
-
-// pub async fn
-
-/*
-#[openapi(tag = "mix_node")]
-#[get("/<mix_id>/stats")]
- */

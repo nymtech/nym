@@ -120,6 +120,10 @@ pub enum CoconutError {
 
     #[error("There was a problem with the proposal id: {reason}")]
     ProposalIdError { reason: String },
+    
+    // I guess we should make this one a bit more detailed
+    #[error("The provided query arguments were invalid")]
+    InvalidQueryArguments,
 }
 
 impl<'r, 'o: 'r> Responder<'r, 'o> for CoconutError {

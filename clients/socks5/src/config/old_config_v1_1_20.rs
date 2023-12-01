@@ -5,8 +5,9 @@ use crate::config::old_config_v1_1_20_2::{
     ConfigV1_1_20_2, CoreConfigV1_1_20_2, SocksClientPathsV1_1_20_2,
 };
 use nym_bin_common::logging::LoggingSettings;
-use nym_client_core::config::disk_persistence::keys_paths::ClientKeysPaths;
-use nym_client_core::config::disk_persistence::old_v1_1_20_2::CommonClientPathsV1_1_20_2;
+use nym_client_core::config::disk_persistence::old_v1_1_20_2::{
+    ClientKeysPathsV1_1_20_2, CommonClientPathsV1_1_20_2,
+};
 use nym_client_core::config::old_config_v1_1_20::ConfigV1_1_20 as BaseConfigV1_1_20;
 use nym_client_core::config::old_config_v1_1_20_2::ClientV1_1_20_2;
 use nym_config::legacy_helpers::nym_config::MigrationNymConfig;
@@ -50,13 +51,11 @@ impl From<ConfigV1_1_20> for ConfigV1_1_20_2 {
             },
             storage_paths: SocksClientPathsV1_1_20_2 {
                 common_paths: CommonClientPathsV1_1_20_2 {
-                    keys: ClientKeysPaths {
+                    keys: ClientKeysPathsV1_1_20_2 {
                         private_identity_key_file: value.base.client.private_identity_key_file,
                         public_identity_key_file: value.base.client.public_identity_key_file,
                         private_encryption_key_file: value.base.client.private_encryption_key_file,
                         public_encryption_key_file: value.base.client.public_encryption_key_file,
-                        private_ecash_key_file: PathBuf::new(),
-                        public_ecash_key_file: PathBuf::new(),
                         gateway_shared_key_file: value.base.client.gateway_shared_key_file,
                         ack_key_file: value.base.client.ack_key_file,
                     },

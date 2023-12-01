@@ -1,5 +1,5 @@
 // Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: GPL-3.0-only
 
 #[macro_use]
 extern crate rocket;
@@ -9,8 +9,7 @@ use crate::network::models::NetworkDetails;
 use crate::node_describe_cache::DescribedNodes;
 use crate::node_status_api::uptime_updater::HistoricalUptimeUpdater;
 use crate::support::caching::cache::SharedCache;
-use crate::support::cli;
-use crate::support::cli::CliArgs;
+use crate::support::cli::{self, Commands};
 use crate::support::config::Config;
 use crate::support::storage;
 use crate::support::storage::NymApiStorage;
@@ -20,7 +19,6 @@ use anyhow::Result;
 use circulating_supply_api::cache::CirculatingSupplyCache;
 use clap::Parser;
 use coconut::dkg::controller::DkgController;
-use log::info;
 use node_status_api::NodeStatusCache;
 use nym_bin_common::logging::setup_logging;
 use nym_contract_cache::cache::NymContractCache;
@@ -57,9 +55,20 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     }}
 
     setup_logging();
-    let args = cli::CliArgs::parse();
+    let args = cli::Cli::parse();
+    trace!("{:#?}", args);
+
     setup_env(args.config_env_file.as_ref());
-    run_nym_api(args).await
+
+    let command = args.command.unwrap_or(Commands::Run(Box::new(args.run)));
+
+    match command {
+        Commands::BuildInfo(m) => {
+            cli::build_info::execute(m);
+            Ok(())
+        }
+        Commands::Run(m) => cli::run::execute(*m).await,
+    }
 }
 
 async fn start_nym_api_tasks(
@@ -207,32 +216,4 @@ async fn start_nym_api_tasks(
         task_manager_handle: shutdown,
         rocket_handle: rocket_shutdown_handle,
     })
-}
-
-async fn run_nym_api(cli_args: CliArgs) -> Result<(), Box<dyn Error + Send + Sync>> {
-    let save_to_file = cli_args.save_config;
-    let config = cli::build_config(cli_args)?;
-
-    // if we just wanted to write data to the config, exit, don't start any tasks
-    if save_to_file {
-        info!("Saving the configuration to a file");
-        config.save_to_default_location()?;
-        config
-            .get_ephemera_args()
-            .cmd
-            .clone()
-            .execute(Some(&config.get_id()));
-        return Ok(());
-    }
-
-    let shutdown_handlers = start_nym_api_tasks(config).await?;
-
-    let res = shutdown_handlers
-        .task_manager_handle
-        .catch_interrupt()
-        .await;
-    log::info!("Stopping nym API");
-    shutdown_handlers.rocket_handle.notify();
-
-    res
 }

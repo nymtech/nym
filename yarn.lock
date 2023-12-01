@@ -2696,10 +2696,10 @@
   resolved "https://registry.yarnpkg.com/@nx/nx-win32-x64-msvc/-/nx-win32-x64-msvc-16.10.0.tgz#7410a51d0f8be631eec9552f01b2e5946285927c"
   integrity sha512-5iV2NKZnzxJwZZ4DM5JVbRG/nkhAbzEskKaLBB82PmYGKzaDHuMHP1lcPoD/rtYMlowZgNA/RQndfKvPBPwmXA==
 
-"@nymproject/node-tester@^1.0.0":
-  version "1.2.0"
-  resolved "https://registry.yarnpkg.com/@nymproject/node-tester/-/node-tester-1.2.0.tgz#c611c1f3455787cd464ccc09b0f10ed98f6c30e9"
-  integrity sha512-QR6zHt/FytEMQCLnRt4wHrBqd/hRQjk43/whTn8mgNbzNdSjGNe0IomR2Iz45ZW+ei0k4Z5FgHEK4GhllJULiQ==
+"@nymproject/node-tester@^1.2.3":
+  version "1.2.3"
+  resolved "https://registry.yarnpkg.com/@nymproject/node-tester/-/node-tester-1.2.3.tgz#79fbde8b69e2d1180eed897557c4610a1aa1038f"
+  integrity sha512-VDFdH2ddIcXXamwkMbeHA88Xa/S2iPWh9QxkFggppvHS1d6gmnNHAZxXm3Uuhx7pCpzKldA0OT7qohMg9GW9xg==
 
 "@nymproject/nym-validator-client@^0.18.0":
   version "0.18.0"
@@ -6159,9 +6159,9 @@ axios@^0.21.1, axios@^0.21.2:
     follow-redirects "^1.14.0"
 
 axios@^1.0.0, axios@^1.3.3:
-  version "1.5.1"
-  resolved "https://registry.yarnpkg.com/axios/-/axios-1.5.1.tgz#11fbaa11fc35f431193a9564109c88c1f27b585f"
-  integrity sha512-Q28iYCWzNHjAm+yEAot5QaAMxhMghWLFVf7rRdwhUI+c2jix2DUXjAHXVi+s1ibs3mjPO/cCgbA++3BjD0vP/A==
+  version "1.6.0"
+  resolved "https://registry.yarnpkg.com/axios/-/axios-1.6.0.tgz#f1e5292f26b2fd5c2e66876adc5b06cdbd7d2102"
+  integrity sha512-EZ1DYihju9pwVB+jg67ogm+Tmqc6JmhamRN6I4Zt8DfZu5lbcQGw3ozH9lFejSJgs/ibaef3A9PMXPLeefFGJg==
   dependencies:
     follow-redirects "^1.15.0"
     form-data "^4.0.0"

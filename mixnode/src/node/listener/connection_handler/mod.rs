@@ -1,5 +1,5 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: GPL-3.0-only
 
 use crate::node::listener::connection_handler::packet_processing::{
     MixProcessingResult, PacketProcessor,
@@ -7,6 +7,8 @@ use crate::node::listener::connection_handler::packet_processing::{
 use crate::node::packet_delayforwarder::PacketDelayForwardSender;
 use crate::node::TaskClient;
 use futures::StreamExt;
+use log::debug;
+use log::{error, info, warn};
 use nym_mixnode_common::measure;
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_sphinx::framing::codec::NymCodec;
@@ -16,8 +18,9 @@ use std::net::SocketAddr;
 use tokio::net::TcpStream;
 use tokio::time::Instant;
 use tokio_util::codec::Framed;
+
 #[cfg(feature = "cpucycles")]
-use tracing::{error, info, instrument};
+use tracing::instrument;
 
 pub(crate) mod packet_processing;
 

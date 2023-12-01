@@ -32,7 +32,7 @@ export type ExecuteMsg = {
   };
 };
 export type Address = {
-  nym_address: string;
+  nym_address: NymAddressInner;
 };
 export type NymName = string;
 export type MessageSignature = number[];
@@ -40,6 +40,11 @@ export interface NameDetails {
   address: Address;
   identity_key: string;
   name: NymName;
+}
+export interface NymAddressInner {
+  client_enc: string;
+  client_id: string;
+  gateway_id: string;
 }
 export type QueryMsg = {
   name_id: {

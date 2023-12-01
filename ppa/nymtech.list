@@ -1,0 +1,1 @@
+deb [signed-by=/etc/apt/trusted.gpg.d/nymtech.gpg] https://nymtech.github.io/nym/ /

@@ -1,0 +1,14 @@
+{
+  "name": "@nymproject/mix-fetch-node-js-example",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "scripts": {
+    "start": "node index.js",
+    "start:server": "node server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "@nymproject/mix-fetch-node-commonjs": "^1.2.1-rc.2"
+  }
+}

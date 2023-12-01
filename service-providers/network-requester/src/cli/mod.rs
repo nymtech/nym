@@ -1,5 +1,5 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: GPL-3.0-only
 
 use crate::config::old_config_v1_1_13::OldConfigV1_1_13;
 use crate::config::old_config_v1_1_20::ConfigV1_1_20;
@@ -154,7 +154,7 @@ pub(crate) async fn execute(args: Cli) -> Result<(), NetworkRequesterError> {
     let bin_name = "nym-network-requester";
 
     match args.command {
-        Commands::Init(m) => init::execute(&m).await?,
+        Commands::Init(m) => init::execute(m).await?,
         Commands::Run(m) => run::execute(&m).await?,
         Commands::Sign(m) => sign::execute(&m).await?,
         Commands::BuildInfo(m) => build_info::execute(m),

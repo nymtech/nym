@@ -11,7 +11,7 @@ pub mod gas_price;
 
 pub type GasAdjustment = f32;
 
-pub const DEFAULT_SIMULATED_GAS_MULTIPLIER: GasAdjustment = 1.3;
+pub const DEFAULT_SIMULATED_GAS_MULTIPLIER: GasAdjustment = 1.5;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AutoFeeGrant {

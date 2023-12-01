@@ -1,0 +1,32 @@
+{
+  "sort": ["kind"],
+  "entryPoints": ["./src/index.ts"],
+  "out": "./docs",
+  "exclude": ["./src/worker/**"],
+  "kindSortOrder": [
+    "Function",
+    "Interface",
+    "TypeAlias",
+    "Reference",
+    "Project",
+    "Module",
+    "Namespace",
+    "Enum",
+    "EnumMember",
+    "Class",
+    "Constructor",
+    "Property",
+    "Variable",
+    "Accessor",
+    "Method",
+    "ObjectLiteral",
+    "Parameter",
+    "TypeParameter",
+    "TypeLiteral",
+    "CallSignature",
+    "ConstructorSignature",
+    "IndexSignature",
+    "GetSignature",
+    "SetSignature"
+  ]
+}

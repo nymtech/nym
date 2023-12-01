@@ -3,15 +3,10 @@
 // #![warn(clippy::expect_used)]
 // #![warn(clippy::unwrap_used)]
 
-mod active_peers;
 mod error;
-mod event;
-mod network_table;
 mod packet_relayer;
-mod platform;
 mod registered_peers;
-mod setup;
-mod tun_task_channel;
+pub mod setup;
 mod udp_listener;
 mod wg_tunnel;
 
@@ -20,7 +15,9 @@ use std::sync::Arc;
 
 // Currently the module related to setting up the virtual network device is platform specific.
 #[cfg(target_os = "linux")]
-use platform::linux::tun_device;
+use nym_tun::tun_device;
+
+use nym_tun::tun_task_channel;
 
 /// Start wireguard UDP listener and TUN device
 ///
@@ -32,15 +29,30 @@ pub async fn start_wireguard(
     task_client: nym_task::TaskClient,
     gateway_client_registry: Arc<GatewayClientRegistry>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-    // We can either index peers by their IP like standard wireguard
-    let peers_by_ip = Arc::new(tokio::sync::Mutex::new(network_table::NetworkTable::new()));
+    // TODO: make this configurable
 
-    // ... or by their tunnel tag, which is a random number assigned to them
-    let peers_by_tag = Arc::new(tokio::sync::Mutex::new(wg_tunnel::PeersByTag::new()));
+    // We can optionally index peers by their IP like standard wireguard. If we don't then we do
+    // plain NAT where we match incoming destination IP with outgoing source IP.
+
+    use nym_wireguard_types::tun_common::network_table::NetworkTable;
+    let peers_by_ip = Arc::new(tokio::sync::Mutex::new(NetworkTable::new()));
+
+    // Alternative 1:
+    let routing_mode = tun_device::RoutingMode::new_allowed_ips(peers_by_ip.clone());
+    // Alternative 2:
+    //let routing_mode = tun_device::RoutingMode::new_nat();
 
     // Start the tun device that is used to relay traffic outbound
-    let (tun, tun_task_tx, tun_task_response_rx) = tun_device::TunDevice::new(peers_by_ip.clone());
+    let config = tun_device::TunDeviceConfig {
+        base_name: nym_network_defaults::WG_TUN_BASE_NAME.to_string(),
+        ip: nym_network_defaults::WG_TUN_DEVICE_ADDRESS.parse().unwrap(),
+        netmask: nym_network_defaults::WG_TUN_DEVICE_NETMASK.parse().unwrap(),
+    };
+    let (tun, tun_task_tx, tun_task_response_rx) = tun_device::TunDevice::new(routing_mode, config);
     tun.start();
+
+    // We also index peers by a tag
+    let peers_by_tag = Arc::new(tokio::sync::Mutex::new(wg_tunnel::PeersByTag::new()));
 
     // If we want to have the tun device on a separate host, it's the tun_task and
     // tun_task_response channels that needs to be sent over the network to the host where the tun

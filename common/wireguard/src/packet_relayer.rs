@@ -3,11 +3,9 @@ use std::{collections::HashMap, sync::Arc};
 use tap::TapFallible;
 use tokio::sync::mpsc::{self};
 
-use crate::{
-    active_peers::PeerEventSender,
-    event::Event,
-    tun_task_channel::{TunTaskResponseRx, TunTaskTx},
-};
+use crate::tun_task_channel::{TunTaskResponseRx, TunTaskTx};
+
+use nym_wireguard_types::tun_common::{active_peers::PeerEventSender, event::Event};
 
 #[derive(Clone)]
 pub struct PacketRelaySender(pub(crate) mpsc::Sender<(u64, Vec<u8>)>);

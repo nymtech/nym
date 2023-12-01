@@ -1,5 +1,5 @@
 // Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: GPL-3.0-only
 
 // While using normal toml marshalling would have been way simpler with less overhead,
 // I think it's useful to have comments attached to the saved config file to explain behaviour of
@@ -85,6 +85,10 @@ landing_page_assets_path = '{{ http.landing_page_assets_path }}'
 # Specifies whether network requester service is enabled in this process.
 enabled = {{ network_requester.enabled }}
 
+[ip_packet_router]
+# Specifies whether ip packet router service is enabled in this process.
+enabled = {{ ip_packet_router.enabled }}
+
 [storage_paths] 
 
 # Path to file containing private identity key.
@@ -105,6 +109,9 @@ clients_storage = '{{ storage_paths.clients_storage }}'
 
 # Path to the configuration of the embedded network requester.
 network_requester_config = '{{ storage_paths.network_requester_config }}'
+
+# Path to the configuration of the embedded ip packet router.
+ip_packet_router_config = '{{ storage_paths.ip_packet_router_config }}'
 
 ##### logging configuration options #####
 

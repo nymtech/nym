@@ -580,7 +580,9 @@ mod test {
     }
 
     #[tokio::test]
-    #[should_panic]
+    #[should_panic(
+        expected = "Received committed block which isn't last produced block, this is a bug!"
+    )]
     async fn test_on_committed_with_invalid_pending_block() {
         let (mut manager, _) = block_manager_with_defaults();
 

@@ -195,7 +195,7 @@ func parseHeaders(headers js.Value, reqOpts types.RequestOptions, method string)
 
 	// 3.1.1
 	origin := jstypes.Origin()
-	serializedOrigin := &origin
+	serializedOrigin := origin
 	// Reference: https://fetch.spec.whatwg.org/#origin-header
 	// TODO: 3.1.2: check response tainting
 	// 3.1.3
@@ -223,23 +223,24 @@ func parseHeaders(headers js.Value, reqOpts types.RequestOptions, method string)
 func parseBody(request *js.Value) (io.Reader, error) {
 	jsBody := request.Get(fieldRequestBody)
 	var bodyReader io.Reader
-	if !jsBody.IsUndefined() && !jsBody.IsNull() {
+
+	if jsBody.InstanceOf(js.Global().Get("ReadableStream")) && jsBody.Get("getReader").Type() == js.TypeFunction {
+		// Check to see if getReader is a function
 		log.Debug("stream body - getReader")
 		bodyReader = external.NewStreamReader(jsBody.Call("getReader"))
 	} else {
-		log.Debug("unstremable body - fallback to ArrayBuffer")
-		// Fall back to using ArrayBuffer
-		// https://developer.mozilla.org/en-US/docs/Web/API/Body/arrayBuffer
+		log.Debug("unstreamable body - fallback to ArrayBuffer")
 		bodyReader = external.NewArrayReader(request.Call("arrayBuffer"))
 	}
-
 	bodyBytes, err := io.ReadAll(bodyReader)
 	if err != nil {
 		return nil, err
 	}
+	// Leaving historical notes as reference points
 	// TODO: that seems super awkward. we're constructing a reader only to fully consume it
 	// and create it all over again so that we the recipient wouldn't complain about content-length
 	// surely there must be a better way?
+
 	return bytes.NewReader(bodyBytes), nil
 }
 

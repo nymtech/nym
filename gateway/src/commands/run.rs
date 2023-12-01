@@ -1,5 +1,5 @@
 // Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: GPL-3.0-only
 
 use crate::commands::helpers::{
     ensure_config_version_compatibility, OverrideConfig, OverrideNetworkRequesterConfig,
@@ -15,39 +15,41 @@ use nym_node::error::NymNodeError;
 use std::net::IpAddr;
 use std::path::PathBuf;
 
+use super::helpers::OverrideIpPacketRouterConfig;
+
 #[derive(Args, Clone)]
 pub struct Run {
     /// Id of the gateway we want to run
-    #[clap(long)]
+    #[arg(long)]
     id: String,
 
     /// The custom listening address on which the gateway will be running for receiving sphinx packets
-    #[clap(long, alias = "host")]
+    #[arg(long, alias = "host")]
     listening_address: Option<IpAddr>,
 
     /// Comma separated list of public ip addresses that will announced to the nym-api and subsequently to the clients.
     /// In nearly all circumstances, it's going to be identical to the address you're going to use for bonding.
-    #[clap(long, value_delimiter = ',')]
+    #[arg(long, value_delimiter = ',')]
     public_ips: Option<Vec<IpAddr>>,
 
     /// Optional hostname associated with this gateway that will announced to the nym-api and subsequently to the clients
-    #[clap(long)]
+    #[arg(long)]
     hostname: Option<String>,
 
     /// The port on which the gateway will be listening for sphinx packets
-    #[clap(long)]
+    #[arg(long)]
     mix_port: Option<u16>,
 
     /// The port on which the gateway will be listening for clients gateway-requests
-    #[clap(long)]
+    #[arg(long)]
     clients_port: Option<u16>,
 
     /// Path to sqlite database containing all gateway persistent data
-    #[clap(long)]
+    #[arg(long)]
     datastore: Option<PathBuf>,
 
     /// Comma separated list of endpoints of nym APIs
-    #[clap(
+    #[arg(
         long,
         alias = "validator_apis",
         value_delimiter = ',',
@@ -57,7 +59,7 @@ pub struct Run {
     nym_apis: Option<Vec<url::Url>>,
 
     /// Comma separated list of endpoints of the validator
-    #[clap(
+    #[arg(
         long,
         alias = "validators",
         alias = "nyxd_validators",
@@ -68,12 +70,12 @@ pub struct Run {
     nyxd_urls: Option<Vec<url::Url>>,
 
     /// Cosmos wallet mnemonic
-    #[clap(long)]
+    #[arg(long)]
     mnemonic: Option<bip39::Mnemonic>,
 
     /// Set this gateway to work only with coconut credentials; that would disallow clients to
     /// bypass bandwidth credential requirement
-    #[clap(long, hide = true)]
+    #[arg(long, hide = true)]
     only_coconut_credentials: Option<bool>,
 
     /// Set this gateway to use offline credentials verification
@@ -81,16 +83,20 @@ pub struct Run {
     offline_credential_verification: Option<bool>,
 
     /// Enable/disable gateway anonymized statistics that get sent to a statistics aggregator server
-    #[clap(long)]
+    #[arg(long)]
     enabled_statistics: Option<bool>,
 
     /// URL where a statistics aggregator is running. The default value is a Nym aggregator server
-    #[clap(long)]
+    #[arg(long)]
     statistics_service_url: Option<url::Url>,
 
     /// Allows this gateway to run an embedded network requester for minimal network overhead
-    #[clap(long)]
+    #[arg(long, conflicts_with = "with_ip_packet_router")]
     with_network_requester: Option<bool>,
+
+    /// Allows this gateway to run an embedded network requester for minimal network overhead
+    #[arg(long, hide = true, conflicts_with = "with_network_requester")]
+    with_ip_packet_router: Option<bool>,
 
     // ##### NETWORK REQUESTER FLAGS #####
     /// Specifies whether this network requester should run in 'open-proxy' mode
@@ -127,20 +133,20 @@ pub struct Run {
 
     /// Path to .json file containing custom network specification.
     /// Only usable when local network requester is enabled.
-    #[clap(long, group = "network", hide = true)]
+    #[arg(long, group = "network", hide = true)]
     custom_mixnet: Option<PathBuf>,
 
     /// Specifies whether this network requester will run using the default ExitPolicy
     /// as opposed to the allow list.
     /// Note: this setting will become the default in the future releases.
-    #[clap(long)]
+    #[arg(long)]
     with_exit_policy: Option<bool>,
 
-    #[clap(short, long, default_value_t = OutputFormat::default())]
+    #[arg(short, long, default_value_t = OutputFormat::default())]
     output: OutputFormat,
 
     /// Flag specifying this node will be running in a local setting.
-    #[clap(long)]
+    #[arg(long)]
     local: bool,
 }
 
@@ -162,6 +168,7 @@ impl From<Run> for OverrideConfig {
             only_coconut_credentials: run_config.only_coconut_credentials,
             offline_credential_verification: run_config.offline_credential_verification,
             with_network_requester: run_config.with_network_requester,
+            with_ip_packet_router: run_config.with_ip_packet_router,
         }
     }
 }
@@ -177,6 +184,12 @@ impl<'a> From<&'a Run> for OverrideNetworkRequesterConfig {
             enable_statistics: value.enable_statistics,
             statistics_recipient: value.statistics_recipient.clone(),
         }
+    }
+}
+
+impl From<&Run> for OverrideIpPacketRouterConfig {
+    fn from(_value: &Run) -> Self {
+        OverrideIpPacketRouterConfig {}
     }
 }
 
@@ -222,6 +235,7 @@ pub async fn execute(args: Run) -> anyhow::Result<()> {
     let output = args.output;
     let custom_mixnet = args.custom_mixnet.clone();
     let nr_opts = (&args).into();
+    let ip_opts = (&args).into();
 
     let config = build_config(id, args)?;
     ensure_config_version_compatibility(&config)?;
@@ -240,7 +254,8 @@ pub async fn execute(args: Run) -> anyhow::Result<()> {
     }
 
     let node_details = node_details(&config)?;
-    let gateway = crate::node::create_gateway(config, Some(nr_opts), custom_mixnet).await?;
+    let gateway =
+        crate::node::create_gateway(config, Some(nr_opts), Some(ip_opts), custom_mixnet).await?;
     eprintln!(
         "\nTo bond your gateway you will need to install the Nym wallet, go to https://nymtech.net/get-involved and select the Download button.\n\
          Select the correct version and install it to your machine. You will need to provide some of the following: \n ");

@@ -11,27 +11,50 @@ use crate::{
 };
 use clap::Args;
 use nym_bin_common::output_format::OutputFormat;
-use nym_client_core::client::base_client::storage::gateway_details::OnDiskGatewayDetails;
-use nym_client_core::client::key_manager::persistence::OnDiskKeys;
-use nym_client_core::config::GatewayEndpointConfig;
-use nym_client_core::error::ClientCoreError;
-use nym_client_core::init::helpers::current_gateways;
-use nym_client_core::init::types::{GatewayDetails, GatewaySelectionSpecification, GatewaySetup};
-use nym_crypto::asymmetric::identity;
+use nym_client_core::cli_helpers::client_init::{
+    initialise_client, CommonClientInitArgs, InitResultsWithConfig, InitialisableClient,
+};
 use nym_sphinx::addressing::clients::Recipient;
-use nym_topology::NymTopology;
 use serde::Serialize;
 use std::fmt::Display;
+use std::fs;
 use std::net::{IpAddr, SocketAddr};
 use std::path::PathBuf;
-use std::{fs, io};
-use tap::TapFallible;
+
+struct Socks5ClientInit;
+
+impl InitialisableClient for Socks5ClientInit {
+    const NAME: &'static str = "socks5";
+    type Error = Socks5ClientError;
+    type InitArgs = Init;
+    type Config = Config;
+
+    fn try_upgrade_outdated_config(id: &str) -> Result<(), Self::Error> {
+        try_upgrade_config(id)
+    }
+
+    fn initialise_storage_paths(id: &str) -> Result<(), Self::Error> {
+        fs::create_dir_all(default_data_directory(id))?;
+        fs::create_dir_all(default_config_directory(id))?;
+        Ok(())
+    }
+
+    fn default_config_path(id: &str) -> PathBuf {
+        default_config_filepath(id)
+    }
+
+    fn construct_config(init_args: &Self::InitArgs) -> Self::Config {
+        override_config(
+            Config::new(&init_args.common_args.id, &init_args.provider.to_string()),
+            OverrideConfig::from(init_args.clone()),
+        )
+    }
+}
 
 #[derive(Args, Clone)]
 pub(crate) struct Init {
-    /// Id of the nym-mixnet-client we want to create config for.
-    #[clap(long)]
-    id: String,
+    #[command(flatten)]
+    common_args: CommonClientInitArgs,
 
     /// Address of the socks5 provider to send messages to.
     #[clap(long)]
@@ -46,34 +69,6 @@ pub(crate) struct Init {
     #[clap(long, alias = "use_anonymous_sender_tag")]
     use_reply_surbs: Option<bool>,
 
-    /// Id of the gateway we are going to connect to.
-    #[clap(long)]
-    gateway: Option<identity::PublicKey>,
-
-    /// Specifies whether the new gateway should be determined based by latency as opposed to being chosen
-    /// uniformly.
-    #[clap(long, conflicts_with = "gateway")]
-    latency_based_selection: bool,
-
-    /// Force register gateway. WARNING: this will overwrite any existing keys for the given id,
-    /// potentially causing loss of access.
-    #[clap(long)]
-    force_register_gateway: bool,
-
-    /// Comma separated list of rest endpoints of the nyxd validators
-    #[clap(long, alias = "nyxd_validators", value_delimiter = ',', hide = true)]
-    nyxd_urls: Option<Vec<url::Url>>,
-
-    /// Comma separated list of rest endpoints of the API validators
-    #[clap(
-        long,
-        alias = "api_validators",
-        value_delimiter = ',',
-        group = "network"
-    )]
-    // the alias here is included for backwards compatibility (1.1.4 and before)
-    nym_apis: Option<Vec<url::Url>>,
-
     /// Port for the socket to listen on in all subsequent runs
     #[clap(short, long)]
     port: Option<u16>,
@@ -82,41 +77,29 @@ pub(crate) struct Init {
     #[clap(long)]
     host: Option<IpAddr>,
 
-    /// Path to .json file containing custom network specification.
-    #[clap(long, group = "network", hide = true)]
-    custom_mixnet: Option<PathBuf>,
-
-    /// Mostly debug-related option to increase default traffic rate so that you would not need to
-    /// modify config post init
-    #[clap(long, hide = true)]
-    fastmode: bool,
-
-    /// Disable loop cover traffic and the Poisson rate limiter (for debugging only)
-    #[clap(long, hide = true)]
-    no_cover: bool,
-
-    /// Set this client to work in a enabled credentials mode that would attempt to use gateway
-    /// with bandwidth credential requirement.
-    #[clap(long, hide = true)]
-    enabled_credentials_mode: Option<bool>,
-
     #[clap(short, long, default_value_t = OutputFormat::default())]
     output: OutputFormat,
+}
+
+impl AsRef<CommonClientInitArgs> for Init {
+    fn as_ref(&self) -> &CommonClientInitArgs {
+        &self.common_args
+    }
 }
 
 impl From<Init> for OverrideConfig {
     fn from(init_config: Init) -> Self {
         OverrideConfig {
-            nym_apis: init_config.nym_apis,
+            nym_apis: init_config.common_args.nym_apis,
             ip: init_config.host,
             port: init_config.port,
             use_anonymous_replies: init_config.use_reply_surbs,
-            fastmode: init_config.fastmode,
-            no_cover: init_config.no_cover,
+            fastmode: init_config.common_args.fastmode,
+            no_cover: init_config.common_args.no_cover,
             geo_routing: None,
             medium_toggle: false,
-            nyxd_urls: init_config.nyxd_urls,
-            enabled_credentials_mode: init_config.enabled_credentials_mode,
+            nyxd_urls: init_config.common_args.nyxd_urls,
+            enabled_credentials_mode: init_config.common_args.enabled_credentials_mode,
             outfox: false,
         }
     }
@@ -131,15 +114,11 @@ pub struct InitResults {
 }
 
 impl InitResults {
-    fn new(config: &Config, address: &Recipient, gateway: &GatewayEndpointConfig) -> Self {
+    fn new(res: InitResultsWithConfig<Config>) -> Self {
         Self {
-            client_core: nym_client_core::init::types::InitResults::new(
-                &config.core.base,
-                address,
-                gateway,
-            ),
-            socks5_listening_address: config.core.socks5.bind_adddress,
-            client_address: address.to_string(),
+            client_address: res.init_results.address.to_string(),
+            client_core: res.init_results,
+            socks5_listening_address: res.config.core.socks5.bind_adddress,
         }
     }
 }
@@ -156,101 +135,14 @@ impl Display for InitResults {
     }
 }
 
-fn init_paths(id: &str) -> io::Result<()> {
-    fs::create_dir_all(default_data_directory(id))?;
-    fs::create_dir_all(default_config_directory(id))
-}
-
 pub(crate) async fn execute(args: Init) -> Result<(), Socks5ClientError> {
     eprintln!("Initialising client...");
 
-    let id = &args.id;
-    let provider_address = &args.provider;
+    let output = args.output;
+    let res = initialise_client::<Socks5ClientInit>(args).await?;
 
-    let already_init = if default_config_filepath(id).exists() {
-        // in case we're using old config, try to upgrade it
-        // (if we're using the current version, it's a no-op)
-        try_upgrade_config(id)?;
-        eprintln!("SOCKS5 client \"{id}\" was already initialised before");
-        true
-    } else {
-        init_paths(id)?;
-        false
-    };
-
-    // Usually you only register with the gateway on the first init, however you can force
-    // re-registering if wanted.
-    let user_wants_force_register = args.force_register_gateway;
-    if user_wants_force_register {
-        eprintln!("Instructed to force registering gateway. This might overwrite keys!");
-    }
-
-    // If the client was already initialized, don't generate new keys and don't re-register with
-    // the gateway (because this would create a new shared key).
-    // Unless the user really wants to.
-    let register_gateway = !already_init || user_wants_force_register;
-
-    // Attempt to use a user-provided gateway, if possible
-    let user_chosen_gateway_id = args.gateway;
-    let selection_spec = GatewaySelectionSpecification::new(
-        user_chosen_gateway_id.map(|id| id.to_base58_string()),
-        Some(args.latency_based_selection),
-        false,
-    );
-
-    // Load and potentially override config
-    let config = override_config(
-        Config::new(id, &provider_address.to_string()),
-        OverrideConfig::from(args.clone()),
-    );
-
-    // Setup gateway by either registering a new one, or creating a new config from the selected
-    // one but with keys kept, or reusing the gateway configuration.
-    let key_store = OnDiskKeys::new(config.storage_paths.common_paths.keys.clone());
-    let details_store =
-        OnDiskGatewayDetails::new(&config.storage_paths.common_paths.gateway_details);
-
-    let available_gateways = if let Some(hardcoded_topology) = args
-        .custom_mixnet
-        .map(NymTopology::new_from_file)
-        .transpose()?
-    {
-        // hardcoded_topology
-        hardcoded_topology.get_gateways()
-    } else {
-        let mut rng = rand::thread_rng();
-        current_gateways(&mut rng, &config.core.base.client.nym_api_urls).await?
-    };
-
-    let gateway_setup = GatewaySetup::New {
-        specification: selection_spec,
-        available_gateways,
-        overwrite_data: register_gateway,
-    };
-
-    let init_details =
-        nym_client_core::init::setup_gateway(gateway_setup, &key_store, &details_store)
-            .await
-            .tap_err(|err| eprintln!("Failed to setup gateway\nError: {err}"))?;
-
-    // TODO: ask the service provider we specified for its interface version and set it in the config
-
-    let config_save_location = config.default_location();
-    config.save_to_default_location().tap_err(|_| {
-        log::error!("Failed to save the config file");
-    })?;
-    eprintln!(
-        "Saved configuration file to {}",
-        config_save_location.display()
-    );
-
-    let address = init_details.client_address()?;
-
-    let GatewayDetails::Configured(gateway_details) = init_details.gateway_details else {
-        return Err(ClientCoreError::UnexpectedPersistedCustomGatewayDetails)?;
-    };
-    let init_results = InitResults::new(&config, &address, &gateway_details);
-    println!("{}", args.output.format(&init_results));
+    let init_results = InitResults::new(res);
+    println!("{}", output.format(&init_results));
 
     Ok(())
 }

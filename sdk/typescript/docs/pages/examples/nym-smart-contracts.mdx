@@ -9,7 +9,7 @@ Lists of the different available clients and methods from the `Contract Clients`
 | Client name             | Functionality| Methods list |
 | :-------------:         | :----------: | :----------: |
 | Coconut Bandwidth Client| Manages the depositing and release of funds. Tracks double spending.             | [Coconut Bandwidth](https://github.com/nymtech/nym/blob/develop/sdk/typescript/codegen/contract-clients/src/CoconutBandwidth.client.ts) |
-| Coconut DKG Client      | Allows signers partcipating in issuing Coconut credentials to derive keys to be used.             | [Coconut DKG](https://github.com/nymtech/nym/blob/develop/sdk/typescript/codegen/contract-clients/src/CoconutDkg.client.ts) |
+| Coconut DKG Client      | Allows signers participating in issuing Coconut credentials to derive keys to be used.             | [Coconut DKG](https://github.com/nymtech/nym/blob/develop/sdk/typescript/codegen/contract-clients/src/CoconutDkg.client.ts) |
 | Cw3FlexMultisig Client  | Used by the Coconut APIs to issue credentials. [This](https://github.com/CosmWasm/cw-plus/tree/main/contracts/cw3-flex-multisig) is a multisig contract that is backed by the cw4 (group) contract, which independently maintains the voter set.             | [Cw3Flex Multisig](https://github.com/nymtech/nym/blob/develop/sdk/typescript/codegen/contract-clients/src/Cw3FlexMultisig.client.ts) |
 | Cw4Group Client         | Used by the Coconut APIs to issue credentials. [Cw4 Group](https://github.com/CosmWasm/cw-plus/tree/main/contracts/cw4-group) stores a set of members along with an admin, and allows the admin to update the state.              | [Cw4Group](https://github.com/nymtech/nym/blob/develop/sdk/typescript/codegen/contract-clients/src/Cw4Group.client.ts) |
 | Mixnet Client           | Manages the network topology of the mixnet, tracking delegations and rewards.           | [Mixnet](https://github.com/nymtech/nym/blob/develop/sdk/typescript/codegen/contract-clients/src/Mixnet.client.ts) |
@@ -18,11 +18,6 @@ Lists of the different available clients and methods from the `Contract Clients`
 | Vesting Client          |     Manages NYM token vesting functionality.         | [Vesting](https://github.com/nymtech/nym/blob/develop/sdk/typescript/codegen/contract-clients/src/Vesting.client.ts) |
 
 
-Depending on your app or project's architecture, this could be any of the ESM or CJS versions of the `Contract Clients`.
-<Callout type="info" emoji="ℹ️">
-    This and the following examples will use the ESbuild bundler.
-    If you'd like to use another one, we will document different bundlers and polyfills in the [bundling](https://sdk.nymtech.net/bundling) page.
-</Callout>
 
 ##### Environment Setup
 Begin by creating a directory and configuring your application environment:

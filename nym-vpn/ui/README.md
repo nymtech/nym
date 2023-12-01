@@ -13,7 +13,7 @@ This is the application UI layer for the next NymVPN clients.
 Some system libraries are required depending on the host platform.
 Follow the instructions for your specific OS [here](https://tauri.app/v1/guides/getting-started/prerequisites)
 
-To install run
+To install:
 
 ```
 yarn
@@ -23,6 +23,25 @@ yarn
 
 ```
 yarn dev:app
+```
+
+or
+
+```
+cd src-tauri
+cargo tauri dev
+```
+
+#### Logging
+
+Rust logging (standard output) is controlled by the `RUST_LOG`
+env variable
+
+Example:
+
+```
+cd src-tauri
+RUST_LOG=trace cargo tauri dev
 ```
 
 ## Dev in the browser
@@ -43,20 +62,24 @@ When creating new tauri command, be sure to add the corresponding
 mock definition into `nym-vpn/ui/src/dev/tauri-cmd-mocks/` and
 update `nym-vpn/ui/src/dev/setup.ts` accordingly.
 
+## Type bindings
+
+[ts-rs](https://github.com/Aleph-Alpha/ts-rs) can be used to generate
+TS type definitions from Rust types
+
+To generate bindings, first
+[annotate](https://github.com/Aleph-Alpha/ts-rs/blob/main/example/src/lib.rs)
+Rust types, then run
+
+```
+cd src-tauri
+cargo test
+```
+
+Generated TS types will be located in `src-tauri/bindings/`
+
 ## Build
 
-To build as a **shared library**
-
 ```
-yarn build && cd src-tauri && cargo build --release --lib --features custom-protocol
-
-#alias
 yarn build:app
-```
-
-You can build for a different platform using [Cross](https://github.com/cross-rs/cross).
-For example, to build for Windows on Linux:
-
-```
-cross build --target x86_64-pc-windows-gnu --release --lib --features custom-protocol
 ```

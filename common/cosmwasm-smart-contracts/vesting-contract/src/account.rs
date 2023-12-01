@@ -49,7 +49,7 @@ impl Account {
 
     pub fn period_duration(&self) -> Result<u64, VestingContractError> {
         self.periods
-            .get(0)
+            .first()
             .ok_or(VestingContractError::UnpopulatedVestingPeriods {
                 owner: self.owner_address.clone(),
             })

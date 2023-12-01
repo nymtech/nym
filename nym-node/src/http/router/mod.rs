@@ -1,5 +1,5 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: GPL-3.0-only
 
 use crate::error::NymNodeError;
 pub use crate::http::api::v1::gateway::client_interfaces::wireguard::WireguardAppState;
@@ -121,6 +121,12 @@ impl NymNodeRouter {
     #[must_use]
     pub fn with_route(mut self, path: &str, router: Router) -> Self {
         self.inner = self.inner.nest(path, router);
+        self
+    }
+
+    #[must_use]
+    pub fn with_merged(mut self, router: Router) -> Self {
+        self.inner = self.inner.merge(router);
         self
     }
 

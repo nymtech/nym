@@ -8,40 +8,41 @@ use nym_topology::gateway::GatewayConversionError;
 use nym_topology::NymTopologyError;
 use nym_validator_client::ValidatorClientError;
 use std::error::Error;
+use std::path::PathBuf;
 
 #[derive(thiserror::Error, Debug)]
 pub enum ClientCoreError {
     #[error("I/O error: {0}")]
     IoError(#[from] std::io::Error),
 
-    #[error("Gateway client error ({gateway_id}): {source}")]
+    #[error("gateway client error ({gateway_id}): {source}")]
     GatewayClientError {
         gateway_id: String,
         source: GatewayClientError,
     },
 
-    #[error("Custom gateway client error: {source}")]
+    #[error("custom gateway client error: {source}")]
     ErasedGatewayClientError {
         #[from]
         source: ErasedGatewayError,
     },
 
-    #[error("Ed25519 error: {0}")]
+    #[error("ed25519 error: {0}")]
     Ed25519RecoveryError(#[from] Ed25519RecoveryError),
 
-    #[error("Validator client error: {0}")]
+    #[error("validator client error: {0}")]
     ValidatorClientError(#[from] ValidatorClientError),
 
-    #[error("No gateway with id: {0}")]
+    #[error("no gateway with id: {0}")]
     NoGatewayWithId(String),
 
-    #[error("No gateways on network")]
+    #[error("no gateways on network")]
     NoGatewaysOnNetwork,
 
-    #[error("List of nym apis is empty")]
+    #[error("list of nym apis is empty")]
     ListOfNymApisIsEmpty,
 
-    #[error("The current network topology seem to be insufficient to route any packets through")]
+    #[error("the current network topology seem to be insufficient to route any packets through")]
     InsufficientNetworkTopology(#[from] NymTopologyError),
 
     #[error("experienced a failure with our reply surb persistent storage: {source}")]
@@ -59,7 +60,7 @@ pub enum ClientCoreError {
         source: Box<dyn Error + Send + Sync>,
     },
 
-    #[error("The gateway id is invalid - {0}")]
+    #[error("the gateway id is invalid - {0}")]
     UnableToCreatePublicKeyFromGatewayId(Ed25519RecoveryError),
 
     #[error("The gateway is malformed: {source}")]
@@ -78,23 +79,23 @@ pub enum ClientCoreError {
     #[error("failed to establish gateway connection (wasm)")]
     GatewayJsConnectionFailure,
 
-    #[error("Gateway connection was abruptly closed")]
+    #[error("gateway connection was abruptly closed")]
     GatewayConnectionAbruptlyClosed,
 
-    #[error("Timed out while trying to establish gateway connection")]
+    #[error("timed out while trying to establish gateway connection")]
     GatewayConnectionTimeout,
 
-    #[error("No ping measurements for the gateway ({identity}) performed")]
+    #[error("no ping measurements for the gateway ({identity}) performed")]
     NoGatewayMeasurements { identity: String },
 
     #[error("failed to register receiver for reconstructed mixnet messages")]
     FailedToRegisterReceiver,
 
-    #[error("Unexpected exit")]
+    #[error("unexpected exit")]
     UnexpectedExit,
 
     #[error(
-        "This operation would have resulted in clients keys being overwritten without permission"
+        "this operation would have resulted in clients keys being overwritten without permission"
     )]
     ForbiddenKeyOverwrite,
 
@@ -132,6 +133,26 @@ pub enum ClientCoreError {
 
     #[error("the specified gateway '{gateway}' does not support the wss protocol")]
     UnsupportedWssProtocol { gateway: String },
+
+    #[error(
+    "failed to load custom topology using path '{}'. detailed message: {source}", file_path.display()
+    )]
+    CustomTopologyLoadFailure {
+        file_path: PathBuf,
+        #[source]
+        source: std::io::Error,
+    },
+
+    #[error(
+    "failed to save config file for client-{typ} id {id} using path '{}'. detailed message: {source}", path.display()
+    )]
+    ConfigSaveFailure {
+        typ: String,
+        id: String,
+        path: PathBuf,
+        #[source]
+        source: std::io::Error,
+    },
 }
 
 /// Set of messages that the client can send to listeners via the task manager

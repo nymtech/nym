@@ -50,7 +50,7 @@ where
 impl Aggregatable for PartialSignature {
     fn aggregate(sigs: &[PartialSignature], indices: Option<&[u64]>) -> Result<Signature> {
         let h = sigs
-            .get(0)
+            .first()
             .ok_or_else(|| CoconutError::Aggregation("Empty set of signatures".to_string()))?
             .sig1();
 

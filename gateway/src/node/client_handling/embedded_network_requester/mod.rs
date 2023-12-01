@@ -1,5 +1,5 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: GPL-3.0-only
 
 use crate::node::client_handling::websocket::message_receiver::{
     MixMessageReceiver, MixMessageSender,
@@ -24,6 +24,17 @@ impl LocalNetworkRequesterHandle {
     pub(crate) fn new(address: Recipient, mix_message_sender: MixMessageSender) -> Self {
         Self {
             address,
+            mix_message_sender,
+        }
+    }
+
+    // TODO: generalize this whole thing to be general. And change the name(s).
+    pub(crate) fn new_ip(
+        start_data: nym_ip_packet_router::OnStartData,
+        mix_message_sender: MixMessageSender,
+    ) -> Self {
+        Self {
+            address: start_data.address,
             mix_message_sender,
         }
     }

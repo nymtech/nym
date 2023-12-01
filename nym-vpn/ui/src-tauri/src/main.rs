@@ -51,6 +51,7 @@ fn main() -> Result<()> {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            connection::set_vpn_mode,
             connection::get_connection_state,
             connection::connect,
             connection::disconnect,

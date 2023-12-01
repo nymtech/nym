@@ -3,11 +3,14 @@ use std::time::Duration;
 use tauri::{Manager, State};
 use time::OffsetDateTime;
 use tokio::time::sleep;
-use tracing::{debug, instrument, trace};
+use tracing::{debug, error, instrument, trace};
 
 use crate::{
     error::{CmdError, CmdErrorSource},
-    states::{app::ConnectionState, SharedAppState},
+    states::{
+        app::{ConnectionState, VpnMode},
+        SharedAppData, SharedAppState,
+    },
 };
 
 const EVENT_CONNECTION_STATE: &str = "connection-state";
@@ -177,4 +180,33 @@ pub async fn get_connection_start_time(
     debug!("get_connection_start_time");
     let app_state = state.lock().await;
     Ok(app_state.connection_start_time.map(|t| t.unix_timestamp()))
+}
+
+#[instrument(skip_all)]
+#[tauri::command]
+pub async fn set_vpn_mode(
+    app_state: State<'_, SharedAppState>,
+    data_state: State<'_, SharedAppData>,
+    mode: VpnMode,
+) -> Result<(), CmdError> {
+    debug!("set_vpn_mode");
+
+    let mut state = app_state.lock().await;
+    let mut app_data = data_state.lock().await;
+
+    if let ConnectionState::Disconnected = state.state {
+    } else {
+        let err_message = format!("cannot change vpn mode from state {:?}", state.state);
+        error!(err_message);
+        return Err(CmdError::new(CmdErrorSource::CallerError, err_message));
+    }
+    state.vpn_mode = mode.clone();
+
+    // save the selected mode to disk
+    app_data.data.vpn_mode = Some(mode);
+    app_data
+        .write()
+        .await
+        .map_err(|e| CmdError::new(CmdErrorSource::InternalError, e.to_string()))?;
+    Ok(())
 }

@@ -45,5 +45,6 @@ module.exports = {
         groups: ['builtin', 'external', 'parent', 'sibling', 'index'],
       },
     ],
+    'import/extensions': ['error', 'never', { json: 'always', svg: 'always' }],
   },
 };

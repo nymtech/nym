@@ -10,7 +10,7 @@ export type ConnectionState =
   | 'Disconnecting'
   | 'Unknown';
 
-export type PrivacyMode = 'High' | 'Medium' | 'Low';
+export type VpnMode = 'TwoHop' | 'Mixnet';
 
 export interface TunnelConfig {
   id: string;
@@ -23,9 +23,9 @@ export type AppState = {
   error?: string | null;
   progressMessages: string[];
   sessionStartDate?: Dayjs | null;
-  privacyMode: PrivacyMode;
+  vpnMode: VpnMode;
   tunnel: TunnelConfig;
-  uiMode: 'Light' | 'Dark';
+  uiTheme: 'Light' | 'Dark';
   localAppData: AppData;
 };
 

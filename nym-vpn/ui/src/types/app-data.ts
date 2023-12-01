@@ -1,6 +1,6 @@
-import { PrivacyMode } from './app-state';
+import { VpnMode } from './app-state';
 
-export type UiMode = 'Dark' | 'Light';
+export type UiTheme = 'Dark' | 'Light';
 
 export interface NodeConfig {
   id: string;
@@ -11,8 +11,8 @@ export interface AppData {
   monitoring: boolean;
   autoconnect: boolean;
   killswitch: boolean;
-  uiMode: UiMode;
-  privacyMode: PrivacyMode;
+  uiTheme: UiTheme;
+  vpnMode: VpnMode;
   entryNode?: NodeConfig | null;
   exitNode?: NodeConfig | null;
 }
@@ -22,8 +22,8 @@ export interface AppDataFromBackend {
   monitoring: boolean | null;
   autoconnect: boolean | null;
   killswitch: boolean | null;
-  ui_mode: UiMode | null;
-  privacy_mode: PrivacyMode;
+  ui_theme: UiTheme | null;
+  vpn_mode: VpnMode;
   entry_node: NodeConfig | null;
   exit_node: NodeConfig | null;
 }

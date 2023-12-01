@@ -44,10 +44,10 @@
     "windows": [
       {
         "fullscreen": false,
-        "resizable": false,
+        "resizable": true,
         "title": "NymVPN",
-        "width": 390,
-        "height": 820
+        "width": 440,
+        "height": 920
       }
     ]
   }

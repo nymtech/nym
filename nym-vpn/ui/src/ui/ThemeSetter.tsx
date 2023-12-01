@@ -7,10 +7,10 @@ export default function ThemeSetter({
 }: {
   children: React.ReactNode;
 }) {
-  const { uiMode } = useMainState();
+  const { uiTheme } = useMainState();
 
   return (
-    <div className={clsx([uiMode === 'Dark' && 'dark', 'h-full'])}>
+    <div className={clsx([uiTheme === 'Dark' && 'dark', 'h-full'])}>
       {children}
     </div>
   );

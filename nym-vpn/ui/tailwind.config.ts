@@ -1,5 +1,6 @@
 import type { Config } from 'tailwindcss';
 import defaultTheme from 'tailwindcss/defaultTheme';
+import headlessui from '@headlessui/tailwindcss';
 
 export default {
   content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
@@ -66,6 +67,8 @@ export default {
       'gun-powder': '#49454F',
       // [D] top-bar icon
       'laughing-jack': '#CAC4D0',
+      // [L] button bg in disabled state
+      'wind-chime': '#DEDEE1',
     },
     extend: {
       fontFamily: {
@@ -79,7 +82,7 @@ export default {
       },
     },
   },
-  plugins: [],
+  plugins: [headlessui],
   // Toggling dark mode manually
   darkMode: 'class',
 } satisfies Config;

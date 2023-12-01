@@ -10,13 +10,13 @@
   },
   "connecting-message": "Establishing connection",
   "connection-time": "Connection time",
-  "select-network-title": "Select network",
+  "select-network-label": "Select network",
   "select-node-title": "Connect to",
   "mixnet-mode": {
     "title": "5-hop mixnet",
     "desc": "Best for payments, emails, messages"
   },
-  "wg-mode": {
+  "twohop-mode": {
     "title": "2-hop WireGuard",
     "desc": "Best for browsing, streaming, sharing"
   },

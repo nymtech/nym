@@ -166,7 +166,6 @@ impl NymApiPaths {
                 .ok_or(anyhow!("public key path is not specified"))?,
         );
 
-        Ok(nym_pemstore::load_keypair(&keypaths)
-            .context("failed to load identity keys of the nym api")?)
+        nym_pemstore::load_keypair(&keypaths).context("failed to load identity keys of the nym api")
     }
 }

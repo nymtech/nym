@@ -7,7 +7,7 @@ use ff::Field;
 use group::{Curve, Group};
 use nym_coconut::{
     aggregate_signature_shares, aggregate_verification_keys, blind_sign, prepare_blind_sign,
-    prove_bandwidth_credential, setup, ttp_keygen, verify_credential,
+    prove_bandwidth_credential, random_scalars_refs, setup, ttp_keygen, verify_credential,
     verify_partial_blind_signature, Attribute, BlindedSignature, Parameters, Signature,
     SignatureShare, VerificationKey,
 };
@@ -171,10 +171,10 @@ fn bench_coconut(c: &mut Criterion) {
 
     let params = setup(case.num_public_attrs + case.num_private_attrs).unwrap();
 
-    let public_attributes = params.n_random_scalars(case.num_public_attrs as usize);
+    random_scalars_refs!(public_attributes, params, case.num_public_attrs as usize);
     let serial_number = params.random_scalar();
     let binding_number = params.random_scalar();
-    let private_attributes = vec![serial_number, binding_number];
+    let private_attributes = vec![&serial_number, &binding_number];
 
     // The prepare blind sign is performed by the user
     let (pedersen_commitments_openings, blind_sign_request) =
@@ -213,7 +213,7 @@ fn bench_coconut(c: &mut Criterion) {
             b.iter(|| {
                 blind_sign(
                     &params,
-                    &keypair.secret_key(),
+                    keypair.secret_key(),
                     &blind_sign_request,
                     &public_attributes,
                 )
@@ -228,7 +228,7 @@ fn bench_coconut(c: &mut Criterion) {
     for keypair in coconut_keypairs.iter() {
         let blinded_signature = blind_sign(
             &params,
-            &keypair.secret_key(),
+            keypair.secret_key(),
             &blind_sign_request,
             &public_attributes,
         )
@@ -238,7 +238,7 @@ fn bench_coconut(c: &mut Criterion) {
 
     let verification_keys: Vec<VerificationKey> = coconut_keypairs
         .iter()
-        .map(|keypair| keypair.verification_key())
+        .map(|keypair| keypair.verification_key().clone())
         .collect();
 
     // verify a random partial blind signature
@@ -310,8 +310,8 @@ fn bench_coconut(c: &mut Criterion) {
         &params,
         &aggr_verification_key,
         &aggregated_signature,
-        serial_number,
-        binding_number,
+        &serial_number,
+        &binding_number,
     )
     .unwrap();
 
@@ -329,8 +329,8 @@ fn bench_coconut(c: &mut Criterion) {
                     &params,
                     &aggr_verification_key,
                     &aggregated_signature,
-                    serial_number,
-                    binding_number,
+                    &serial_number,
+                    &binding_number,
                 )
                 .unwrap()
             })

@@ -18,6 +18,7 @@ use nym_client_core::client::base_client::storage::gateway_details::{
 use nym_client_core::client::key_manager::persistence::OnDiskKeys;
 use nym_client_core::config::GatewayEndpointConfig;
 use nym_client_core::error::ClientCoreError;
+use nym_compact_ecash::{generate_keypair_user, setup::GroupParameters};
 use nym_config::OptionalSet;
 use std::error::Error;
 use std::net::IpAddr;
@@ -121,6 +122,28 @@ pub(crate) fn override_config(config: Config, args: OverrideConfig) -> Config {
         )
 }
 
+fn init_ecash_keypair(config: &Config) -> Result<(), ClientError> {
+    let kp = generate_keypair_user(&GroupParameters::new().unwrap());
+    nym_pemstore::store_keypair(
+        &kp,
+        &nym_pemstore::KeyPairPath::new(
+            config
+                .storage_paths
+                .common_paths
+                .keys
+                .private_ecash_key_file
+                .clone(),
+            config
+                .storage_paths
+                .common_paths
+                .keys
+                .public_ecash_key_file
+                .clone(),
+        ),
+    )?;
+    Ok(())
+}
+
 fn persist_gateway_details(
     config: &Config,
     details: GatewayEndpointConfig,
@@ -159,6 +182,7 @@ fn try_upgrade_v1_1_13_config(id: &str) -> Result<bool, ClientError> {
     let updated_step2: ConfigV1_1_20_2 = updated_step1.into();
     let (updated, gateway_config) = updated_step2.upgrade()?;
     persist_gateway_details(&updated, gateway_config)?;
+    init_ecash_keypair(&updated)?;
 
     updated.save_to_default_location()?;
     Ok(true)
@@ -179,6 +203,7 @@ fn try_upgrade_v1_1_20_config(id: &str) -> Result<bool, ClientError> {
     let updated_step1: ConfigV1_1_20_2 = old_config.into();
     let (updated, gateway_config) = updated_step1.upgrade()?;
     persist_gateway_details(&updated, gateway_config)?;
+    init_ecash_keypair(&updated)?;
 
     updated.save_to_default_location()?;
     Ok(true)
@@ -196,6 +221,7 @@ fn try_upgrade_v1_1_20_2_config(id: &str) -> Result<bool, ClientError> {
 
     let (updated, gateway_config) = old_config.upgrade()?;
     persist_gateway_details(&updated, gateway_config)?;
+    init_ecash_keypair(&updated)?;
 
     updated.save_to_default_location()?;
     Ok(true)

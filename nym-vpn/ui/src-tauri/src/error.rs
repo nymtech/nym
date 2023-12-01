@@ -25,7 +25,10 @@ pub struct CmdError {
 
 impl CmdError {
     pub fn new(error: CmdErrorSource, message: String) -> Self {
-        Self { message, source: error }
+        Self {
+            message,
+            source: error,
+        }
     }
 }
 

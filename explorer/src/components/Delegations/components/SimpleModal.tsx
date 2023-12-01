@@ -6,16 +6,17 @@ import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
 import { useIsMobile } from '../../../hooks/useIsMobile';
 
-export const modalStyle = {
+export const modalStyle = (width: number | string = 600) => ({
   position: 'absolute' as 'absolute',
   top: '50%',
   left: '50%',
+  width,
   transform: 'translate(-50%, -50%)',
   bgcolor: 'background.paper',
   boxShadow: 24,
   borderRadius: '16px',
   p: 4,
-};
+});
 
 export const StyledBackButton = ({
   onBack,
@@ -72,9 +73,10 @@ export const SimpleModal: FCWithChildren<{
   children,
 }) => {
   const isMobile = useIsMobile();
+
   return (
     <Modal open={open} onClose={onClose}>
-      <Box sx={{ width: isMobile ? '90%' : 600, ...modalStyle, ...sx }}>
+      <Box sx={{ ...modalStyle(isMobile ? '90%' : 600), ...sx }}>
         {displayErrorIcon && <ErrorOutline color="error" sx={{ mb: 3 }} />}
         {displayInfoIcon && <InfoOutlinedIcon sx={{ mb: 2, color: 'blue' }} />}
         <Stack direction="row" justifyContent="space-between" alignItems="center">

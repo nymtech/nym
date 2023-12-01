@@ -12,7 +12,7 @@ export const ErrorModal: FCWithChildren<{
   children?: React.ReactNode;
 }> = ({ children, open, title, message, sx, backdropProps, onClose }) => (
   <Modal open={open} onClose={onClose} BackdropProps={backdropProps}>
-    <Box sx={{ ...modalStyle, ...sx }} textAlign="center">
+    <Box sx={{ ...modalStyle(), ...sx }} textAlign="center">
       <Typography color={(theme) => theme.palette.error.main} mb={1}>
         {title || 'Oh no! Something went wrong...'}
       </Typography>

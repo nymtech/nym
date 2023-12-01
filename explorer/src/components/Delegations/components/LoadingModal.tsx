@@ -8,7 +8,7 @@ export const LoadingModal: FCWithChildren<{
   backdropProps?: object;
 }> = ({ sx, text = 'Please wait...' }) => (
   <Modal open>
-    <Box sx={{ ...modalStyle, ...sx }} textAlign="center">
+    <Box sx={{ ...modalStyle(), ...sx }} textAlign="center">
       <Stack spacing={4} direction="row" alignItems="center">
         <CircularProgress />
         <Typography sx={{ color: 'text.primary' }}>{text}</Typography>

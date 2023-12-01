@@ -26,4 +26,5 @@ export interface AppDataFromBackend {
   vpn_mode: VpnMode;
   entry_node: NodeConfig | null;
   exit_node: NodeConfig | null;
+  node_countries: string[];
 }

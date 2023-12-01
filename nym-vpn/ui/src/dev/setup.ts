@@ -42,6 +42,7 @@ export function mockTauriIPC() {
           vpn_mode: 'TwoHop',
           entry_node: null,
           exit_node: null,
+          node_countries: ['USA', 'France', 'Switzerland'],
         }),
       );
     }

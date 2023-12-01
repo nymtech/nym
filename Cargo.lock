@@ -6270,6 +6270,7 @@ dependencies = [
  "nym-client-core",
  "nym-client-websocket-requests",
  "nym-coconut-interface",
+ "nym-compact-ecash",
  "nym-config",
  "nym-credential-storage",
  "nym-credentials",

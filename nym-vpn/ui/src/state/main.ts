@@ -24,6 +24,7 @@ export const initialState: AppState = {
   tunnel: { name: 'nym', id: 'nym' },
   uiTheme: 'Light',
   progressMessages: [],
+  nodeCountries: [],
   localAppData: {
     monitoring: false,
     autoconnect: false,

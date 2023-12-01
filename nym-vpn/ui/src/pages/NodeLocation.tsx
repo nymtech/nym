@@ -1,33 +1,39 @@
 import {useTranslation} from 'react-i18next';
 import {Input} from '@mui/base/Input';
 import React, {useState} from "react";
-
+import {useMainState} from '../contexts';
 type Props = {
     node: 'entry' | 'exit';
 };
 
-const countries = [
-    "USA",
-    "France",
-    "Germany",
-    "Switzerland",
-    "Mexico",
-    "China",
-    "South Korea",
-    "Japan",
-    "Canada"
+type Country = {
+    name: string,
+    code: string
+}
+
+type InputEvent = React.ChangeEvent<HTMLInputElement>;
+
+const countries : Country[] = [
+    {name: 'United States', code: 'US'},
+    {name: 'France', code: 'FR'},
+    {name: 'Switzerland', code: 'CH'}
 ]
 
 function NodeLocation({node}: Props) {
     const {t} = useTranslation();
+    //for getting nodeCountries from rust
+    // const state = useMainState();
+    // const countries = state.nodeCountries;
+
+
+
     const [search, setSearch] = useState('');
     const [foundCountries, setFoundCountries] = useState(countries);
-    type InputEvent = React.ChangeEvent<HTMLInputElement>;
     const filter = (e : InputEvent) => {
         const keyword = e.target.value;
         if (keyword !== '') {
             const results = countries.filter((country) => {
-                return country.toLowerCase().startsWith(keyword.toLowerCase());
+                return country.name.toLowerCase().startsWith(keyword.toLowerCase());
                 // Use the toLowerCase() method to make it case-insensitive
             });
             setFoundCountries(results);
@@ -40,7 +46,7 @@ function NodeLocation({node}: Props) {
 
     return (
         <div>
-            {node === 'entry' ? t('fist-hop-selection') : t('last-hop-selection')}
+            {/*{node === 'entry' ? t('fist-hop-selection') : t('last-hop-selection')}*/}
             <div className="h-full flex flex-col p-4">
                 <div className="h-70 flex flex-col justify-center items-center gap-y-2">
                     <div className="flex flex-1 items-end">
@@ -65,12 +71,21 @@ function NodeLocation({node}: Props) {
                             placeholder={t("Search country")}
                         />
                     </div>
-                    <div className="flex flex-1 items-end">
-                        <div>
+                    <div className="flex flex-col w-full items-stretch">
                             {foundCountries && foundCountries.length > 0 ? (
                                 foundCountries.map((country) => (
-                                    <li key={t(country)}>
-                                        <span>{t(country)}</span>
+                                    <li key={t(country.name)} className='list-none w-full'>
+                                        <div className='flex flex-row justify-between'>
+                                            <div className='flex flex-row m-1 gap-2'>
+                                                <img
+                                                    src={`./flags/${country.code.toLowerCase()}.svg`}
+                                                    className="h-8"
+                                                    alt={country.code}
+                                                />
+                                                <div>{t(country.name)}</div>
+                                            </div>
+                                            <div>Selected</div>
+                                        </div>
                                     </li>
                                 ))
                             ) : (
@@ -79,7 +94,6 @@ function NodeLocation({node}: Props) {
                         </div>
                     </div>
                 </div>
-            </div>
         </div>
     );
 }

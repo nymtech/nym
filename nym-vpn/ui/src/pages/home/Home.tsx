@@ -6,11 +6,13 @@ import { useMainDispatch, useMainState } from '../../contexts';
 import { ConnectionState, StateDispatch } from '../../types';
 import NetworkModeSelect from './NetworkModeSelect';
 import ConnectionStatus from './ConnectionStatus';
+import {useNavigate} from "react-router-dom";
+import {routes} from "../../constants.ts";
 
 function Home() {
   const state = useMainState();
   const dispatch = useMainDispatch() as StateDispatch;
-
+  const navigate = useNavigate();
   const { t } = useTranslation('home');
 
   const handleClick = async () => {
@@ -57,6 +59,12 @@ function Home() {
         <div className="flex flex-col justify-between">
           <NetworkModeSelect />
           <div></div>
+          <Button onClick={() => navigate(routes.entryNodeLocation)}>
+            Entry Node Selection
+          </Button>
+          <Button onClick={() => navigate(routes.exitNodeLocation)}>
+            Exit Node Selection
+          </Button>
         </div>
         <Button
           className={clsx([

@@ -286,7 +286,7 @@ mod tests {
 
         let keypair1 = keygen(&params);
 
-        let sig1 = blind_sign(&params, &keypair1.secret_key(), &lambda, &[]).unwrap();
+        let sig1 = blind_sign(&params, keypair1.secret_key(), &lambda, &[]).unwrap();
 
         let wrong_commitment_opening = params.random_scalar();
         let wrong_commitment = params.gen1() * wrong_commitment_opening;
@@ -296,7 +296,7 @@ mod tests {
         assert!(sig1
             .unblind_and_verify(
                 &params,
-                &keypair1.verification_key(),
+                keypair1.verification_key(),
                 &private_attributes,
                 &[],
                 &fake_commitment_hash,
@@ -417,7 +417,7 @@ mod tests {
 
         let keypair1 = keygen(&params);
         let keypair2 = keygen(&params);
-        let sig1 = sign(&mut params, &keypair1.secret_key(), &attributes).unwrap();
+        let sig1 = sign(&mut params, keypair1.secret_key(), &attributes).unwrap();
         let sig2 = sign(&mut params, keypair2.secret_key(), &attributes).unwrap();
 
         assert!(verify(

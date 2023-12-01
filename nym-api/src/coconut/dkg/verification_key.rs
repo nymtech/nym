@@ -242,7 +242,7 @@ pub(crate) async fn verification_key_validation(
                         .iter()
                         .position(|node_index| contract_share.node_index == *node_index)
                     {
-                        let ret = if !check_vk_pairing(&params, &recovered_partials[idx], &vk) {
+                        let ret = if !check_vk_pairing(params, &recovered_partials[idx], &vk) {
                             debug!(
                                 "Voting NO to proposal {} because of failed VK pairing",
                                 proposal_id
@@ -305,7 +305,7 @@ pub(crate) mod tests {
     use crate::coconut::dkg::state::PersistentState;
     use crate::coconut::tests::DummyClient;
     use crate::coconut::KeyPair;
-    use nym_coconut::{aggregate_verification_keys, Parameters};
+    use nym_coconut::aggregate_verification_keys;
     use nym_coconut_dkg_common::dealer::DealerDetails;
     use nym_coconut_dkg_common::types::InitialReplacementData;
     use nym_coconut_dkg_common::verification_key::ContractVKShare;
@@ -835,7 +835,6 @@ pub(crate) mod tests {
         for (_, state) in clients_and_states.iter_mut() {
             state.set_was_in_progress();
         }
-        let params = Parameters::new(4).unwrap();
 
         let mut vks = vec![];
         let mut indices = vec![];
@@ -1050,8 +1049,6 @@ pub(crate) mod tests {
         }
 
         // DKG in reshare mode
-        let params = Parameters::new(4).unwrap();
-
         let mut vks = vec![];
         let mut indices = vec![];
         for (_, state) in clients_and_states.iter() {

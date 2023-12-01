@@ -29,8 +29,7 @@ pub struct BandwidthVoucher {
 
     // public atttributes:
     /// the plain text value (e.g., bandwidth) encoded in this voucher
-    // deprecating the field so I'd remember to change the value to contain the denom
-    #[deprecated]
+    // TODO: in another PR change the value from `"1000"` to `"1000unym"`
     voucher_value_plain: String,
 
     /// the plain text information

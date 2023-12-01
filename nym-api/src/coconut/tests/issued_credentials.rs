@@ -1,9 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::coconut::tests::{
-    voucher_request_fixture, TestFixture, TEST_REWARDING_VALIDATOR_ADDRESS,
-};
+use crate::coconut::tests::{voucher_request_fixture, TestFixture};
 use cosmwasm_std::coin;
 use nym_api_requests::coconut::models::{
     EpochCredentialsResponse, IssuedCredentialResponse, IssuedCredentialsResponse, Pagination,

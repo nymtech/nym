@@ -69,7 +69,7 @@ impl Credential {
     pub fn verify(&self, verification_key: &VerificationKey) -> bool {
         let params = Parameters::new(self.n_params).unwrap();
 
-        let hashed_value = hash_to_scalar(&self.voucher_value.to_string());
+        let hashed_value = hash_to_scalar(self.voucher_value.to_string());
         let hashed_info = hash_to_scalar(&self.voucher_info);
         let public_attributes = &[&hashed_value, &hashed_info];
 

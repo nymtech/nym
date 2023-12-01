@@ -331,7 +331,7 @@ mod tests {
         let vk = keypair.verification_key();
         let mut dkg_values = vk.beta_g2.clone();
         dkg_values.push(vk.alpha);
-        assert!(check_vk_pairing(&params, &dkg_values, &vk));
+        assert!(check_vk_pairing(&params, &dkg_values, vk));
     }
 
     #[test]

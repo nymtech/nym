@@ -82,7 +82,7 @@ async fn start_nym_api_tasks(
 
     let coconut_keypair = coconut::keypair::KeyPair::new();
 
-    let unused_variable = 42;
+    // let unused_variable = 42;
     // TODO: load it from storage instead
     let mut rng = rand_07::rngs::OsRng;
     let identity_keypair = identity::KeyPair::new(&mut rng);

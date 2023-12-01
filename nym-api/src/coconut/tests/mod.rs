@@ -14,9 +14,7 @@ use nym_api_requests::coconut::{
     BlindSignRequestBody, BlindedSignatureResponse, VerifyCredentialBody, VerifyCredentialResponse,
 };
 use nym_coconut::tests::helpers::theta_from_keys_and_attributes;
-use nym_coconut::{
-    prepare_blind_sign, ttp_keygen, Attribute, Base58, BlindedSignature, KeyPair, Parameters,
-};
+use nym_coconut::{ttp_keygen, Base58, BlindedSignature, Parameters};
 use nym_coconut_bandwidth_contract_common::events::{
     DEPOSITED_FUNDS_EVENT_TYPE, DEPOSIT_ENCRYPTION_KEY, DEPOSIT_IDENTITY_KEY, DEPOSIT_INFO,
     DEPOSIT_VALUE,
@@ -51,7 +49,6 @@ use rand_07::rngs::OsRng;
 use rand_07::{Rng, RngCore};
 use rocket::http::Status;
 use rocket::local::asynchronous::Client;
-use rocket::Rocket;
 use std::collections::HashMap;
 use std::str::FromStr;
 use std::sync::atomic::{AtomicU64, Ordering};

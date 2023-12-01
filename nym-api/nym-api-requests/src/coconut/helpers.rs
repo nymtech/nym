@@ -17,17 +17,17 @@ pub fn issued_credential_plaintext(
     epoch_id
         .to_be_bytes()
         .into_iter()
-        .chain(tx_hash.as_bytes().into_iter().map(|b| *b))
-        .chain(blinded_partial_credential.to_bytes().into_iter())
+        .chain(tx_hash.as_bytes().iter().copied())
+        .chain(blinded_partial_credential.to_bytes())
         .chain(
             bs58_encoded_private_attributes_commitments
                 .iter()
-                .flat_map(|attr| attr.as_bytes().into_iter().map(|b| *b)),
+                .flat_map(|attr| attr.as_bytes().iter().copied()),
         )
         .chain(
             public_attributes
                 .iter()
-                .flat_map(|attr| attr.as_bytes().into_iter().map(|b| *b)),
+                .flat_map(|attr| attr.as_bytes().iter().copied()),
         )
         .collect()
 }

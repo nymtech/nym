@@ -6,7 +6,7 @@ import { ConfirmationModal } from './ConfirmationModal';
 import { ErrorModal } from './ErrorModal';
 
 export type DelegationModalProps = {
-  status: 'loading' | 'success' | 'error';
+  status: 'loading' | 'success' | 'error' | 'info';
   message?: string;
   transactions?: {
     url: string;
@@ -30,6 +30,14 @@ export const DelegationModal: FCWithChildren<
       <ErrorModal message={message} sx={sx} open={open} onClose={onClose}>
         {children}
       </ErrorModal>
+    );
+  }
+
+  if (status === 'info') {
+    return (
+      <ConfirmationModal open={open} title="Connect wallet" confirmButton="OK" onConfirm={onClose}>
+        <Typography>{message}</Typography>
+      </ConfirmationModal>
     );
   }
 

@@ -1,8 +1,6 @@
 import * as React from 'react';
-import { useTheme } from '@mui/material/styles';
 
 export const TokenSVG: FCWithChildren = () => {
-  const theme = useTheme();
   const color = 'white';
 
   return (

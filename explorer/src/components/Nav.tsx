@@ -21,7 +21,6 @@ import { NYM_WEBSITE } from '../api/constants';
 import { useMainContext } from '../context/main';
 import { MobileDrawerClose } from '../icons/MobileDrawerClose';
 import { Footer } from './Footer';
-import { NymVpnIcon } from '../icons/NymVpn';
 import { DarkLightSwitchDesktop } from './Switch';
 import { NavOptionType } from '../context/nav';
 import { ConnectKeplrWallet } from './ConnectKeplrWallet';

@@ -111,7 +111,14 @@ export const PageMixnodes: FCWithChildren = () => {
       renderCell: (params: GridRenderCellParams) => (
         <DelegateIconButton
           onDelegate={() => {
-            setItemSelectedForDelegation({ identityKey: params.row.identity_key, mixId: params.row.mix_id });
+            if (wallet.status !== 'Connected') {
+              setConfirmationModalProps({
+                status: 'info',
+                message: 'Please connect your wallet to delegate',
+              });
+            } else {
+              setItemSelectedForDelegation({ identityKey: params.row.identity_key, mixId: params.row.mix_id });
+            }
           }}
         />
       ),

@@ -1,5 +1,5 @@
-import React, { FC, useContext, useEffect, useState, useMemo } from 'react';
-import { Box, TextField, MenuItem, FormControl, Button } from '@mui/material';
+import React from 'react';
+import { Box, TextField, MenuItem, FormControl } from '@mui/material';
 import Select, { SelectChangeEvent } from '@mui/material/Select';
 import { Filters } from './Filters/Filters';
 import { useIsMobile } from '../hooks/useIsMobile';

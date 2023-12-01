@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Box, SxProps, TextField } from '@mui/material';
+import { Box, SxProps } from '@mui/material';
 import { IdentityKeyFormField } from '@nymproject/react/mixnodes/IdentityKeyFormField';
 import { CurrencyFormField } from '@nymproject/react/currency/CurrencyFormField';
 import { CurrencyDenom, DecCoin } from '@nymproject/types';
@@ -79,8 +79,16 @@ export const DelegateModal: FCWithChildren<{
     setValidated(newValidatedValue);
   };
 
-  const delegateToMixnode = async ({ mixId, address, amount }: { mixId: number; address: string; amount: string }) => {
-    const amountToDelegate = (Number(amount) * 1000000).toString();
+  const delegateToMixnode = async ({
+    delegationMixId,
+    delgationAddress,
+    delegationAmount,
+  }: {
+    delegationMixId: number;
+    delgationAddress: string;
+    delegationAmount: string;
+  }) => {
+    const amountToDelegate = (Number(delegationAmount) * 1000000).toString();
     const uNymFunds = [{ amount: amountToDelegate, denom: 'unym' }];
     const memo: string = 'test delegation';
     const fee = { gas: '1000000', amount: [{ amount: '1000000', denom: 'unym' }] };
@@ -88,11 +96,11 @@ export const DelegateModal: FCWithChildren<{
     try {
       const signerClient = await getSigningCosmWasmClient();
       const tx = await signerClient.execute(
-        address,
+        delgationAddress,
         MIXNET_CONTRACT_ADDRESS,
         {
           delegate_to_mixnode: {
-            mix_id: mixId,
+            mix_id: delegationMixId,
           },
         },
         fee,
@@ -116,7 +124,11 @@ export const DelegateModal: FCWithChildren<{
           throw new Error('Please connect your wallet');
         }
 
-        const tx = await delegateToMixnode({ mixId, address, amount: amount.amount });
+        const tx = await delegateToMixnode({
+          delegationMixId: mixId,
+          delgationAddress: address,
+          delegationAmount: amount.amount,
+        });
 
         onOk({
           status: 'success',

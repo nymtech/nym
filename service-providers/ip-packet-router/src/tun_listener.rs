@@ -7,7 +7,7 @@ use nym_task::{connections::TransmissionLane, TaskClient};
 use tokio::io::AsyncReadExt;
 use tokio::sync::mpsc::UnboundedReceiver;
 
-use crate::{error::IpPacketRouterError, ip_packet_router, parse_ip::parse_dst_addr};
+use crate::{error::IpPacketRouterError, ip_packet_router, util::parse_ip::parse_dst_addr};
 
 // Reads packet from TUN and writes to mixnet client
 #[cfg(target_os = "linux")]

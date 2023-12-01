@@ -19,11 +19,12 @@ use nym_task::{connections::TransmissionLane, TaskClient, TaskHandle};
 use tokio::io::AsyncWriteExt;
 
 use crate::{
+    constants::{CLIENT_INACTIVITY_TIMEOUT, DISCONNECT_TIMER_INTERVAL},
     error::IpPacketRouterError,
-    generate_new_ip,
-    parse_ip::{parse_packet, ParsedPacket},
     request_filter::{self, RequestFilter},
-    Config, CLIENT_INACTIVITY_TIMEOUT, DISCONNECT_TIMER_INTERVAL,
+    util::generate_new_ip,
+    util::parse_ip::{parse_packet, ParsedPacket},
+    Config,
 };
 
 pub struct OnStartData {
@@ -120,7 +121,7 @@ impl IpPacketRouterBuilder {
         let task_handle: TaskHandle = self.shutdown.map(Into::into).unwrap_or_default();
 
         // Connect to the mixnet
-        let mixnet_client = crate::create_mixnet_client(
+        let mixnet_client = crate::mixnet_client::create_mixnet_client(
             &self.config.base,
             task_handle.get_handle().named("nym_sdk::MixnetClient"),
             self.custom_gateway_transceiver,
@@ -134,9 +135,9 @@ impl IpPacketRouterBuilder {
 
         // Create the TUN device that we interact with the rest of the world with
         let config = nym_tun::tun_device::TunDeviceConfig {
-            base_name: crate::TUN_BASE_NAME.to_string(),
-            ip: crate::TUN_DEVICE_ADDRESS.parse().unwrap(),
-            netmask: crate::TUN_DEVICE_NETMASK.parse().unwrap(),
+            base_name: crate::constants::TUN_BASE_NAME.to_string(),
+            ip: crate::constants::TUN_DEVICE_ADDRESS.parse().unwrap(),
+            netmask: crate::constants::TUN_DEVICE_NETMASK.parse().unwrap(),
         };
         let (tun_reader, tun_writer) =
             tokio::io::split(nym_tun::tun_device::TunDevice::new_device_only(config));

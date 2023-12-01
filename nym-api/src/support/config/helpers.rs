@@ -20,7 +20,7 @@ fn try_upgrade_v1_1_21_config(id: &str) -> Result<()> {
     info!("It is going to get updated to the current specification.");
 
     let updated: Config = old_config.into();
-    crate::network_monitor::init_ecash_keypair(&updated.network_monitor)?;
+    crate::network_monitor::init_ecash_keypair(&updated.network_monitor)?; //SW does that belong here?
     Ok(updated.save_to_default_location()?)
 }
 
@@ -37,7 +37,7 @@ fn try_upgrade_v1_1_27_config(id: &str) -> Result<()> {
     info!("It is going to get updated to the current specification.");
 
     let updated: Config = old_config.into();
-    crate::network_monitor::init_ecash_keypair(&updated.network_monitor)?;
+    crate::network_monitor::init_ecash_keypair(&updated.network_monitor)?; //SW does that belong here?
     Ok(updated.save_to_default_location()?)
 }
 

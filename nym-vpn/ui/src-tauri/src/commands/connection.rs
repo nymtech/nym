@@ -192,7 +192,6 @@ pub async fn set_vpn_mode(
     debug!("set_vpn_mode");
 
     let mut state = app_state.lock().await;
-    let mut app_data = data_state.lock().await;
 
     if let ConnectionState::Disconnected = state.state {
     } else {
@@ -203,8 +202,14 @@ pub async fn set_vpn_mode(
     state.vpn_mode = mode.clone();
 
     // save the selected mode to disk
-    app_data.data.vpn_mode = Some(mode);
-    app_data
+    let mut app_data_store = data_state.lock().await;
+    let mut app_data = app_data_store
+        .read()
+        .await
+        .map_err(|e| CmdError::new(CmdErrorSource::InternalError, e.to_string()))?;
+    app_data.vpn_mode = Some(mode);
+    app_data_store.data = app_data;
+    app_data_store
         .write()
         .await
         .map_err(|e| CmdError::new(CmdErrorSource::InternalError, e.to_string()))?;

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { RadioGroup } from '@headlessui/react';
+import { invoke } from '@tauri-apps/api';
 import clsx from 'clsx';
 import { useTranslation } from 'react-i18next';
 import { useMainDispatch, useMainState } from '../../contexts';
@@ -10,12 +11,22 @@ type VpnModeOption = { name: VpnMode; title: string; desc: string };
 function NetworkModeSelect() {
   const state = useMainState();
   const dispatch = useMainDispatch() as StateDispatch;
+  const [selected, setSelected] = useState(state.vpnMode);
+  const [loading, setLoading] = useState(false);
 
   const { t } = useTranslation('home');
 
-  const handleNetworkModeChange = (value: VpnMode) => {
-    if (state.state === 'Disconnected') {
-      dispatch({ type: 'set-vpn-mode', mode: value });
+  const handleNetworkModeChange = async (value: VpnMode) => {
+    if (state.state === 'Disconnected' && value !== state.vpnMode) {
+      setLoading(true);
+      try {
+        await invoke<void>('set_vpn_mode', { mode: value });
+        dispatch({ type: 'set-vpn-mode', mode: value });
+      } catch (e) {
+        console.log(e);
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
@@ -31,7 +42,6 @@ function NetworkModeSelect() {
       desc: t('twohop-mode.desc'),
     },
   ];
-  const [selected, setSelected] = useState(vpnModes[0].name);
 
   const handleSelect = (value: VpnMode) => {
     setSelected(value);
@@ -54,11 +64,15 @@ function NetworkModeSelect() {
               value={mode.name}
               className={({ checked }) =>
                 clsx([
-                  'bg-white dark:bg-baltic-sea-jaguar relative flex cursor-pointer rounded-lg px-5 py-3 shadow-md focus:outline-none',
+                  'bg-white dark:bg-baltic-sea-jaguar relative flex rounded-lg px-5 py-3 shadow-md focus:outline-none',
+                  (state.state !== 'Disconnected' || loading) &&
+                    'cursor-not-allowed',
                   checked &&
                     'ring-0 ring-melon ring-offset-2 ring-offset-melon',
+                  state.state === 'Disconnected' && 'cursor-pointer',
                 ])
               }
+              disabled={state.state !== 'Disconnected' || loading}
             >
               {({ checked }) => {
                 return (

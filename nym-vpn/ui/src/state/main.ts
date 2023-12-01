@@ -37,7 +37,11 @@ export const initialState: AppState = {
 export function reducer(state: AppState, action: StateAction): AppState {
   switch (action.type) {
     case 'set-vpn-mode':
-      return { ...state, vpnMode: action.mode };
+      return {
+        ...state,
+        vpnMode: action.mode,
+        localAppData: { ...state.localAppData, vpnMode: action.mode },
+      };
     case 'set-partial-state': {
       return { ...state, ...action.partialState };
     }

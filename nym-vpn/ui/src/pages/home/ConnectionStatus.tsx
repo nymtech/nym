@@ -1,8 +1,8 @@
 import clsx from 'clsx';
 import { useTranslation } from 'react-i18next';
-import { ConnectionTimer } from '../../ui';
 import { ConnectionState } from '../../types';
 import { useMainState } from '../../contexts';
+import ConnectionTimer from './ConnectionTimer';
 
 function ConnectionStatus() {
   const state = useMainState();

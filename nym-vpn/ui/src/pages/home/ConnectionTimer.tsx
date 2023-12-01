@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import dayjs from 'dayjs';
-import { useMainState } from '../contexts';
+import { useMainState } from '../../contexts';
 
 function ConnectionTimer() {
   const { sessionStartDate } = useMainState();

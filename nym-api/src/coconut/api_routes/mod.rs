@@ -176,7 +176,7 @@ pub async fn issued_credential(
 
 #[get("/issued-credentials", data = "<params>")]
 pub async fn issued_credentials(
-    params: Json<CredentialsRequestBody<i64>>,
+    params: Json<CredentialsRequestBody>,
     state: &RocketState<State>,
 ) -> Result<Json<IssuedCredentialsResponse>> {
     let params = params.into_inner();

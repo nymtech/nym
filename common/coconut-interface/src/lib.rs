@@ -182,8 +182,8 @@ mod tests {
             &params,
             &verification_key,
             &signature,
-            serial_number,
-            binding_number,
+            &serial_number,
+            &binding_number,
         )
         .unwrap();
         let credential = Credential::new(4, theta, voucher_value, voucher_info, 42);

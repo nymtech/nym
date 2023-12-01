@@ -135,7 +135,7 @@ impl CoconutStorageManagerExt for StorageManager {
     ) -> Result<Option<EpochCredentials>, sqlx::Error> {
         // even if we were changing epochs every second, it's rather impossible to overflow here
         // within any sane amount of time
-        assert!(u32::MAX as u64 <= epoch_id);
+        assert!(epoch_id <= u32::MAX as u64);
         let epoch_id_downcasted = epoch_id as u32;
 
         sqlx::query_as!(
@@ -159,7 +159,7 @@ impl CoconutStorageManagerExt for StorageManager {
     async fn create_epoch_credentials_entry(&self, epoch_id: EpochId) -> Result<(), sqlx::Error> {
         // even if we were changing epochs every second, it's rather impossible to overflow here
         // within any sane amount of time
-        assert!(u32::MAX as u64 <= epoch_id);
+        assert!(epoch_id <= u32::MAX as u64);
         let epoch_id_downcasted = epoch_id as u32;
 
         sqlx::query!(

@@ -78,7 +78,7 @@ mod test {
 
     #[tokio::test]
     async fn validate_deposit_tx_test() {
-        let (voucher, correct_request) = voucher_request_fixture(coin(1234, "unym"));
+        let (voucher, correct_request) = voucher_request_fixture(coin(1234, "unym"), None);
 
         let mut tx_entry = tx_entry_fixture(correct_request.tx_hash);
         let good_deposit_attribute = EventAttribute {

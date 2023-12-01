@@ -167,12 +167,12 @@ pub struct Pagination<T> {
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct CredentialsRequestBody<T = String> {
+pub struct CredentialsRequestBody {
     /// Explicit ids of the credentials to retrieve. Note: it can't be set alongside pagination.
     pub credential_ids: Vec<i64>,
 
     /// Pagination settings for retrieving credentials. Note: it can't be set alongside explicit ids.
-    pub pagination: Option<Pagination<T>>,
+    pub pagination: Option<Pagination<i64>>,
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
@@ -196,7 +196,7 @@ pub struct IssuedCredentialResponse {
     pub credential: Option<IssuedCredentialInner>,
 }
 
-#[derive(Clone, Serialize, Deserialize, Debug)]
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct IssuedCredentialInner {
     pub credential: IssuedCredential,
@@ -204,7 +204,7 @@ pub struct IssuedCredentialInner {
     pub signature: identity::Signature,
 }
 
-#[derive(Clone, Serialize, Deserialize, Debug)]
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct IssuedCredential {
     pub id: i64,

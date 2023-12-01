@@ -252,6 +252,10 @@ impl BandwidthVoucher {
         ]
     }
 
+    pub fn identity_key(&self) -> &identity::PrivateKey {
+        &self.signing_key
+    }
+
     pub fn encryption_key(&self) -> &encryption::PrivateKey {
         &self.unused_ed25519
     }

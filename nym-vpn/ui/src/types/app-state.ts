@@ -25,7 +25,7 @@ export type AppState = {
   sessionStartDate?: Dayjs | null;
   vpnMode: VpnMode;
   tunnel: TunnelConfig;
-  uiMode: 'Light' | 'Dark';
+  uiTheme: 'Light' | 'Dark';
   localAppData: AppData;
 };
 

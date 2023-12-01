@@ -48,7 +48,7 @@ export function MainStateProvider({ children }: Props) {
             autoconnect: data.autoconnect || false,
             monitoring: data.monitoring || false,
             killswitch: data.killswitch || false,
-            uiMode: data.ui_mode || 'Light',
+            uiTheme: data.ui_theme || 'Light',
             vpnMode: data.vpn_mode || 'TwoHop',
             entryNode: data.entry_node,
             exitNode: data.exit_node,
@@ -57,7 +57,7 @@ export function MainStateProvider({ children }: Props) {
         dispatch({
           type: 'set-partial-state',
           partialState: {
-            uiMode: data.ui_mode || 'Light',
+            uiTheme: data.ui_theme || 'Light',
             vpnMode: data.vpn_mode || 'TwoHop',
           },
         });

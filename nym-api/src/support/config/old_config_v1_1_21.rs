@@ -3,6 +3,8 @@
 
 use crate::support::config::persistence::{
     CoconutSignerPaths, NetworkMonitorPaths, NodeStatusAPIPaths,
+    DEFAULT_NETWORK_MONITOR_ECASH_PRIVATE_KEY_FILENAME,
+    DEFAULT_NETWORK_MONITOR_ECASH_PUBLIC_KEY_FILENAME,
 };
 use crate::support::config::{
     Base, CirculatingSupplyCacher, CirculatingSupplyCacherDebug, CoconutSigner, CoconutSignerDebug,
@@ -83,6 +85,9 @@ impl From<ConfigV1_1_21> for Config {
         let dkg_persistent_state_path =
             CoconutSignerV1_1_21::default_dkg_persistent_state_path(&value.base.id);
 
+        let credential_db_path = value.network_monitor.credentials_database_path.clone();
+        let data_dir = credential_db_path.parent().unwrap();
+
         Config {
             base: Base {
                 id: value.base.id,
@@ -95,8 +100,10 @@ impl From<ConfigV1_1_21> for Config {
                 enabled: value.network_monitor.enabled,
                 storage_paths: NetworkMonitorPaths {
                     credentials_database_path: value.network_monitor.credentials_database_path,
-                    ecash_public_key_path: Default::default(),
-                    ecash_private_key_path: Default::default(),
+                    ecash_public_key_path: data_dir
+                        .join(DEFAULT_NETWORK_MONITOR_ECASH_PUBLIC_KEY_FILENAME),
+                    ecash_private_key_path: data_dir
+                        .join(DEFAULT_NETWORK_MONITOR_ECASH_PRIVATE_KEY_FILENAME),
                 },
                 debug: NetworkMonitorDebug {
                     min_mixnode_reliability: value.network_monitor.min_mixnode_reliability,

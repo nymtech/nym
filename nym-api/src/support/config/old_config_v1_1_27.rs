@@ -3,6 +3,8 @@
 
 use crate::support::config::persistence::{
     CoconutSignerPaths, NetworkMonitorPaths, NodeStatusAPIPaths,
+    DEFAULT_NETWORK_MONITOR_ECASH_PRIVATE_KEY_FILENAME,
+    DEFAULT_NETWORK_MONITOR_ECASH_PUBLIC_KEY_FILENAME,
 };
 use crate::support::config::{
     Base, CirculatingSupplyCacher, CoconutSigner, CoconutSignerDebug, Config, Ephemera,
@@ -52,7 +54,12 @@ impl From<ConfigV1_1_27> for Config {
     fn from(value: ConfigV1_1_27) -> Self {
         // this value was never properly saved (probably a bug)
         // so explicitly set it to the default
-
+        let credential_db_path = value
+            .network_monitor
+            .storage_paths
+            .credentials_database_path
+            .clone();
+        let data_dir = credential_db_path.parent().unwrap();
         Config {
             base: Base {
                 id: value.base.id.clone(),
@@ -68,8 +75,10 @@ impl From<ConfigV1_1_27> for Config {
                         .network_monitor
                         .storage_paths
                         .credentials_database_path,
-                    ecash_public_key_path: Default::default(),
-                    ecash_private_key_path: Default::default(),
+                    ecash_public_key_path: data_dir
+                        .join(DEFAULT_NETWORK_MONITOR_ECASH_PUBLIC_KEY_FILENAME),
+                    ecash_private_key_path: data_dir
+                        .join(DEFAULT_NETWORK_MONITOR_ECASH_PRIVATE_KEY_FILENAME),
                 },
                 debug: NetworkMonitorDebug {
                     min_mixnode_reliability: value.network_monitor.debug.min_mixnode_reliability,
@@ -187,31 +196,25 @@ impl Default for BaseV1_1_27 {
     }
 }
 
-#[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[derive(Debug, Default, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(default)]
+#[serde(deny_unknown_fields)]
+pub struct NetworkMonitorPathsV1_1_27 {
+    /// Path to the database containing bandwidth credentials of this client.
+    pub credentials_database_path: PathBuf,
+}
+
+#[derive(Debug, Default, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(default)]
 #[serde(deny_unknown_fields)]
 pub struct NetworkMonitorV1_1_27 {
     /// Specifies whether network monitoring service is enabled in this process.
     pub enabled: bool,
 
-    pub storage_paths: NetworkMonitorPaths,
+    pub storage_paths: NetworkMonitorPathsV1_1_27,
 
     #[serde(default)]
     pub debug: NetworkMonitorDebug,
-}
-
-impl Default for NetworkMonitorV1_1_27 {
-    fn default() -> Self {
-        NetworkMonitorV1_1_27 {
-            enabled: false,
-            storage_paths: NetworkMonitorPaths {
-                credentials_database_path: Default::default(),
-                ecash_public_key_path: Default::default(),
-                ecash_private_key_path: Default::default(),
-            },
-            debug: Default::default(),
-        }
-    }
 }
 
 #[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]

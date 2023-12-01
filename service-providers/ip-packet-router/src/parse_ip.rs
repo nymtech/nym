@@ -1,12 +1,12 @@
-use std::net::{IpAddr, SocketAddr, Ipv4Addr, Ipv6Addr};
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 
 use crate::error::IpPacketRouterError;
 
 pub(crate) struct ParsedPacket<'a> {
-    packet_type: &'a str,
-    src_addr: IpAddr,
-    dst_addr: IpAddr,
-    dst: Option<SocketAddr>,
+    pub(crate) packet_type: &'a str,
+    pub(crate) src_addr: IpAddr,
+    pub(crate) dst_addr: IpAddr,
+    pub(crate) dst: Option<SocketAddr>,
 }
 
 pub(crate) fn parse_packet(packet: &[u8]) -> Result<ParsedPacket, IpPacketRouterError> {
@@ -84,4 +84,3 @@ pub(crate) fn parse_dst_addr(packet: &[u8]) -> Option<IpAddr> {
         _ => None, // Unknown IP version
     }
 }
-

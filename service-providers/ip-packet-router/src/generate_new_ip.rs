@@ -3,7 +3,7 @@ use std::{
     net::{IpAddr, Ipv4Addr},
 };
 
-use crate::{ConnectedClient, TUN_DEVICE_ADDRESS};
+use crate::{ip_packet_router::ConnectedClient, TUN_DEVICE_ADDRESS};
 
 // Find an available IP address in self.connected_clients
 // TODO: make this nicer

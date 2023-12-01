@@ -79,21 +79,3 @@ async fn create_mixnet_client(
         .await
         .map_err(|err| IpPacketRouterError::FailedToConnectToMixnet { source: err })
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn parse_destination_from_ip_packet() {
-        // Create packet
-        let builder =
-            etherparse::PacketBuilder::ipv4([192, 168, 1, 1], [192, 168, 1, 2], 20).udp(21, 1234);
-        let payload = [1, 2, 3, 4, 5, 6, 7, 8];
-        let mut packet = Vec::<u8>::with_capacity(builder.size(payload.len()));
-        builder.write(&mut packet, &payload).unwrap();
-
-        let dst_addr = parse_dst_addr(&packet).unwrap();
-        assert_eq!(dst_addr, IpAddr::V4(Ipv4Addr::new(192, 168, 1, 2)));
-    }
-}

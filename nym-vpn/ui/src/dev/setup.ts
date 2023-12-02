@@ -1,6 +1,6 @@
 import { mockIPC, mockWindows } from '@tauri-apps/api/mocks';
 import { emit } from '@tauri-apps/api/event';
-import { AppDataFromBackend, ConnectionState } from '../types';
+import {AppDataFromBackend, ConnectionState, Country} from '../types';
 import { ConnectionEvent } from '../constants';
 
 export function mockTauriIPC() {
@@ -32,6 +32,26 @@ export function mockTauriIPC() {
         setTimeout(() => resolve('Disconnected'), 2000),
       );
     }
+
+  if (cmd === 'get_node_countries') {
+      return new Promise<Array<Country>>((resolve) =>
+          resolve([
+              {
+                  name: 'United States',
+                  code: 'US'
+              },
+              {
+                  name: 'France',
+                  code: 'FR'
+              },
+              {
+                  name: 'Switzerland',
+                  code: 'CH'
+              }
+          ]),
+      );
+  }
+
     if (cmd === 'get_app_data') {
       return new Promise<AppDataFromBackend>((resolve) =>
         resolve({
@@ -42,7 +62,6 @@ export function mockTauriIPC() {
           vpn_mode: 'TwoHop',
           entry_node: null,
           exit_node: null,
-          node_countries: ['USA', 'France', 'Switzerland'],
         }),
       );
     }

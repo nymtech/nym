@@ -23,3 +23,12 @@ pub struct AppData {
     pub entry_node: Option<NodeConfig>,
     pub exit_node: Option<NodeConfig>,
 }
+
+#[derive(Default, Serialize, Deserialize, Debug, Clone, TS)]
+#[ts(export)]
+pub struct Country {
+    pub name: &'static str,
+    pub code: &'static str,
+}
+
+

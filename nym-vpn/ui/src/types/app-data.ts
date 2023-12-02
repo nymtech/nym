@@ -7,6 +7,11 @@ export interface NodeConfig {
   country: string;
 }
 
+export type Country = {
+  name: string,
+  code: string
+}
+
 export interface AppData {
   monitoring: boolean;
   autoconnect: boolean;
@@ -26,5 +31,4 @@ export interface AppDataFromBackend {
   vpn_mode: VpnMode;
   entry_node: NodeConfig | null;
   exit_node: NodeConfig | null;
-  node_countries: string[];
 }

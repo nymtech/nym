@@ -62,7 +62,13 @@ impl TunListener {
                                 log::error!("Failed to serialize response packet");
                                 continue;
                             };
-                            let input_message = InputMessage::new_regular(recipient, response_packet, lane, packet_type);
+
+                            let lane = TransmissionLane::General;
+                            let packet_type = None;
+                            let mix_hops = Some(0);
+                            let input_message = InputMessage::new_regular_custom_hop(*recipient, response_packet, lane, packet_type, mix_hops);
+
+                            // let input_message = InputMessage::new_regular(recipient, response_packet, lane, packet_type);
 
                             if let Err(err) = self.mixnet_client_sender.send(input_message).await {
                                 log::error!("TunListener: failed to send packet to mixnet: {err}");

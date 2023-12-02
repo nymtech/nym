@@ -488,6 +488,7 @@ where
         recipient: Recipient,
         amount: u32,
         packet_type: PacketType,
+        mix_hops: Option<u8>,
     ) -> Result<(), PreparationError> {
         debug!("Sending additional reply SURBs with packet type {packet_type}");
         let sender_tag = self.get_or_create_sender_tag(&recipient);
@@ -499,14 +500,12 @@ where
             reply_surbs,
         ));
 
-        // Reply surbs are always 5 hops (or whatever the global default is set to)
-        let custom_mix_hops = None;
         self.try_split_and_send_non_reply_message(
             message,
             recipient,
             TransmissionLane::AdditionalReplySurbs,
             packet_type,
-            custom_mix_hops,
+            mix_hops,
         )
         .await?;
 

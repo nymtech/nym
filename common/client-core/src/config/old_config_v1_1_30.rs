@@ -88,6 +88,7 @@ impl From<ConfigV1_1_30> for Config {
                     primary_packet_size: value.debug.traffic.primary_packet_size,
                     secondary_packet_size: value.debug.traffic.secondary_packet_size,
                     packet_type: value.debug.traffic.packet_type,
+                    mix_hops: None,
                 },
                 cover_traffic: CoverTraffic {
                     loop_cover_traffic_average_delay: value
@@ -155,6 +156,7 @@ impl From<ConfigV1_1_30> for Config {
                         .maximum_reply_surb_drop_waiting_period,
                     maximum_reply_surb_age: value.debug.reply_surbs.maximum_reply_surb_age,
                     maximum_reply_key_age: value.debug.reply_surbs.maximum_reply_key_age,
+                    surb_mix_hops: None,
                 },
             },
         }

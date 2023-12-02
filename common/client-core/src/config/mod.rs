@@ -401,10 +401,6 @@ pub struct Traffic {
     pub secondary_packet_size: Option<PacketSize>,
 
     pub packet_type: PacketType,
-
-    /// Specifies the number of mixnet hops the packet should go through. If not specified, then
-    /// the default value is used.
-    pub mix_hops: Option<usize>,
 }
 
 impl Traffic {
@@ -429,7 +425,6 @@ impl Default for Traffic {
             primary_packet_size: PacketSize::RegularPacket,
             secondary_packet_size: None,
             packet_type: PacketType::Mix,
-            mix_hops: None,
         }
     }
 }

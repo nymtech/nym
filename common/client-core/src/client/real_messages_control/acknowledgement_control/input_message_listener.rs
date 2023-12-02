@@ -91,11 +91,11 @@ where
         reply_surbs: u32,
         lane: TransmissionLane,
         packet_type: PacketType,
+        mix_hops: Option<u8>,
     ) {
-        let custom_mix_hops  = None;
         if let Err(err) = self
             .message_handler
-            .try_send_message_with_reply_surbs(recipient, content, reply_surbs, lane, packet_type, custom_mix_hops)
+            .try_send_message_with_reply_surbs(recipient, content, reply_surbs, lane, packet_type, mix_hops)
             .await
         {
             warn!("failed to send a repliable message - {err}")
@@ -118,8 +118,9 @@ where
                 data,
                 reply_surbs,
                 lane,
+                mix_hops,
             } => {
-                self.handle_repliable_message(recipient, data, reply_surbs, lane, PacketType::Mix)
+                self.handle_repliable_message(recipient, data, reply_surbs, lane, PacketType::Mix, mix_hops)
                     .await
             }
             InputMessage::Reply {
@@ -148,8 +149,9 @@ where
                     data,
                     reply_surbs,
                     lane,
+                    mix_hops,
                 } => {
-                    self.handle_repliable_message(recipient, data, reply_surbs, lane, packet_type)
+                    self.handle_repliable_message(recipient, data, reply_surbs, lane, packet_type, mix_hops)
                         .await
                 }
                 InputMessage::Reply {

@@ -251,7 +251,6 @@ where
 
         // TODO: can we avoid this arc clone?
         let ack_key = Arc::clone(&self.ack_key);
-        let custom_mix_hops = None;
         Ok(self.prepare_chunk_for_sending(
             fragment,
             topology,
@@ -259,7 +258,7 @@ where
             &address,
             &address,
             PacketType::Mix,
-            custom_mix_hops,
+            None,
         )?)
     }
 

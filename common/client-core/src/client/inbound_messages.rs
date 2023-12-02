@@ -44,6 +44,7 @@ pub enum InputMessage {
         data: Vec<u8>,
         reply_surbs: u32,
         lane: TransmissionLane,
+        mix_hops: Option<u8>,
     },
 
     /// Attempt to use our internally received and stored `ReplySurb` to send the message back
@@ -134,6 +135,29 @@ impl InputMessage {
             data,
             reply_surbs,
             lane,
+            mix_hops: None,
+        };
+        if let Some(packet_type) = packet_type {
+            InputMessage::new_wrapper(message, packet_type)
+        } else {
+            message
+        }
+    }
+
+    pub fn new_anonymous_custom_hop(
+        recipient: Recipient,
+        data: Vec<u8>,
+        reply_surbs: u32,
+        lane: TransmissionLane,
+        packet_type: Option<PacketType>,
+        mix_hops: Option<u8>,
+    ) -> Self {
+        let message = InputMessage::Anonymous {
+            recipient,
+            data,
+            reply_surbs,
+            lane,
+            mix_hops,
         };
         if let Some(packet_type) = packet_type {
             InputMessage::new_wrapper(message, packet_type)

@@ -45,3 +45,12 @@ pub struct AppState {
     pub tunnel: Option<TunnelConfig>,
     pub connection_start_time: Option<OffsetDateTime>,
 }
+
+#[derive(Default, Serialize, Deserialize, Debug, Clone, TS)]
+#[ts(export)]
+pub struct Country {
+    pub name: &'static str,
+    pub code: &'static str,
+}
+
+

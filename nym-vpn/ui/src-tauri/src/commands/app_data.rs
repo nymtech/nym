@@ -6,6 +6,20 @@ use crate::{
     fs::data::{AppData, UiTheme},
     states::SharedAppData,
 };
+use crate::fs::data::Country;
+
+#[instrument]
+#[tauri::command]
+pub async fn get_node_countries(
+) -> Result<Vec<Country>, CmdError> {
+    debug!("get_node_countries");
+    let mut countries : Vec<Country> = Vec::new();
+    countries.push(Country{name: "United States", code: "US"});
+    countries.push(Country{name: "France", code: "FR"});
+    countries.push(Country{name: "Switzerland", code: "CH"});
+    countries.push(Country{name: "Sweden", code: "SE"});
+    Ok(countries)
+}
 
 #[instrument]
 #[tauri::command]

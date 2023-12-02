@@ -468,8 +468,8 @@ impl IpPacketRouter {
                                 };
                                 let lane = TransmissionLane::General;
                                 let packet_type = None;
-                                let mix_hops = Some(0);
-                                let input_message = InputMessage::new_regular_custom_hop(*recipient, response_packet, lane, packet_type, mix_hops);
+                                let mix_hops = 0;
+                                let input_message = InputMessage::new_regular_with_custom_hops(*recipient, response_packet, lane, packet_type, mix_hops);
                                 if let Err(err) = self.mixnet_client.send(input_message).await {
                                     log::error!("IpPacketRouter [main loop]: failed to send packet to mixnet: {err}");
                                 };

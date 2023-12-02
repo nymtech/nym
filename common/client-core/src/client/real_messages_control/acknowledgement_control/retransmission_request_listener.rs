@@ -55,7 +55,12 @@ where
 
         // TODO: Figure out retransmission packet type signaling
         self.message_handler
-            .try_prepare_single_chunk_for_sending(packet_recipient, chunk_data, packet_type, mix_hops)
+            .try_prepare_single_chunk_for_sending(
+                packet_recipient,
+                chunk_data,
+                packet_type,
+                mix_hops,
+            )
             .await
     }
 

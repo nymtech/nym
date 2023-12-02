@@ -471,7 +471,8 @@ where
                 Some(fragment.fragment_identifier()),
             );
             let delay = prepared_fragment.total_delay;
-            let pending_ack = PendingAcknowledgement::new_known(fragment, delay, recipient, mix_hops);
+            let pending_ack =
+                PendingAcknowledgement::new_known(fragment, delay, recipient, mix_hops);
 
             real_messages.push(real_message);
             pending_acks.push(pending_ack);

@@ -103,18 +103,18 @@ impl InputMessage {
         }
     }
 
-    pub fn new_regular_custom_hop(
+    pub fn new_regular_with_custom_hops(
         recipient: Recipient,
         data: Vec<u8>,
         lane: TransmissionLane,
         packet_type: Option<PacketType>,
-        mix_hops: Option<u8>,
+        mix_hops: u8,
     ) -> Self {
         let message = InputMessage::Regular {
             recipient,
             data,
             lane,
-            mix_hops,
+            mix_hops: Some(mix_hops),
         };
         if let Some(packet_type) = packet_type {
             InputMessage::new_wrapper(message, packet_type)
@@ -144,20 +144,20 @@ impl InputMessage {
         }
     }
 
-    pub fn new_anonymous_custom_hop(
+    pub fn new_anonymous_with_custom_hops(
         recipient: Recipient,
         data: Vec<u8>,
         reply_surbs: u32,
         lane: TransmissionLane,
         packet_type: Option<PacketType>,
-        mix_hops: Option<u8>,
+        mix_hops: u8,
     ) -> Self {
         let message = InputMessage::Anonymous {
             recipient,
             data,
             reply_surbs,
             lane,
-            mix_hops,
+            mix_hops: Some(mix_hops),
         };
         if let Some(packet_type) = packet_type {
             InputMessage::new_wrapper(message, packet_type)

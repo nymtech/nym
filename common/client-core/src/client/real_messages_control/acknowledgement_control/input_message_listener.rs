@@ -95,7 +95,14 @@ where
     ) {
         if let Err(err) = self
             .message_handler
-            .try_send_message_with_reply_surbs(recipient, content, reply_surbs, lane, packet_type, mix_hops)
+            .try_send_message_with_reply_surbs(
+                recipient,
+                content,
+                reply_surbs,
+                lane,
+                packet_type,
+                mix_hops,
+            )
             .await
         {
             warn!("failed to send a repliable message - {err}")
@@ -120,8 +127,15 @@ where
                 lane,
                 mix_hops,
             } => {
-                self.handle_repliable_message(recipient, data, reply_surbs, lane, PacketType::Mix, mix_hops)
-                    .await
+                self.handle_repliable_message(
+                    recipient,
+                    data,
+                    reply_surbs,
+                    lane,
+                    PacketType::Mix,
+                    mix_hops,
+                )
+                .await
             }
             InputMessage::Reply {
                 recipient_tag,
@@ -151,8 +165,15 @@ where
                     lane,
                     mix_hops,
                 } => {
-                    self.handle_repliable_message(recipient, data, reply_surbs, lane, packet_type, mix_hops)
-                        .await
+                    self.handle_repliable_message(
+                        recipient,
+                        data,
+                        reply_surbs,
+                        lane,
+                        packet_type,
+                        mix_hops,
+                    )
+                    .await
                 }
                 InputMessage::Reply {
                     recipient_tag,

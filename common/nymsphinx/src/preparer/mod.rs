@@ -181,6 +181,7 @@ pub trait FragmentPreparer {
     /// - compute vk_b = g^x || v_b
     /// - compute sphinx_plaintext = SURB_ACK || g^x || v_b
     /// - compute sphinx_packet = Sphinx(recipient, sphinx_plaintext)
+    #[allow(clippy::too_many_arguments)]
     fn prepare_chunk_for_sending(
         &mut self,
         fragment: Fragment,

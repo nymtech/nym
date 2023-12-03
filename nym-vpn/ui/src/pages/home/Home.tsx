@@ -6,8 +6,9 @@ import { useMainDispatch, useMainState } from '../../contexts';
 import { ConnectionState, StateDispatch } from '../../types';
 import NetworkModeSelect from './NetworkModeSelect';
 import ConnectionStatus from './ConnectionStatus';
-import {useNavigate} from "react-router-dom";
-import {routes} from "../../constants.ts";
+import { useNavigate } from 'react-router-dom';
+import { routes } from '../../constants.ts';
+import HopSelect from './HopSelect.tsx';
 
 function Home() {
   const state = useMainState();
@@ -58,13 +59,12 @@ function Home() {
       <div className="flex grow flex-col justify-between gap-y-2">
         <div className="flex flex-col justify-between">
           <NetworkModeSelect />
-          <div></div>
-          <Button onClick={() => navigate(routes.entryNodeLocation)}>
-            Entry Node Selection
-          </Button>
-          <Button onClick={() => navigate(routes.exitNodeLocation)}>
-            Exit Node Selection
-          </Button>
+          <div className="py-2"></div>
+          <HopSelect
+            country={state.localAppData.exitNode!!}
+            onClick={() => navigate(routes.exitNodeLocation)}
+            node={'exit'}
+          />
         </div>
         <Button
           className={clsx([

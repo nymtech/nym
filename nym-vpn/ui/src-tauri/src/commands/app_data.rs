@@ -18,6 +18,7 @@ pub async fn get_node_countries(
     countries.push(Country{name: "France", code: "FR"});
     countries.push(Country{name: "Switzerland", code: "CH"});
     countries.push(Country{name: "Sweden", code: "SE"});
+    countries.push(Country{name: "Germany", code: "DE"});
     Ok(countries)
 }
 

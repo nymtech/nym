@@ -8,6 +8,8 @@
     "disconnecting": "Disconnecting…",
     "unknown": "Unknown"
   },
+  "last-hop": "Last hop",
+  "first-hop": "First hop",
   "connecting-message": "Establishing connection",
   "connection-time": "Connection time",
   "select-network-label": "Select network",

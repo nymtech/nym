@@ -69,7 +69,7 @@ export default {
       'laughing-jack': '#CAC4D0',
       // [L] button bg in disabled state
       'wind-chime': '#DEDEE1',
-      'spanish-gray': '#938F99'
+      'spanish-gray': '#938F99',
     },
     extend: {
       fontFamily: {

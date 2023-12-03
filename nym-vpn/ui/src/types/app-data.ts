@@ -8,9 +8,9 @@ export interface NodeConfig {
 }
 
 export type Country = {
-  name: string,
-  code: string
-}
+  name: string;
+  code: string;
+};
 
 export interface AppData {
   monitoring: boolean;

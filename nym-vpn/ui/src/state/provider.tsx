@@ -4,6 +4,7 @@ import { MainDispatchContext, MainStateContext } from '../contexts';
 import { AppDataFromBackend, CmdError, ConnectionState } from '../types';
 import { initialState, reducer } from './main';
 import { useTauriEvents } from './useTauriEvents';
+import { quickConnectCountry } from '../constants.ts';
 
 type Props = {
   children?: React.ReactNode;
@@ -50,8 +51,14 @@ export function MainStateProvider({ children }: Props) {
             killswitch: data.killswitch || false,
             uiTheme: data.ui_theme || 'Light',
             vpnMode: data.vpn_mode || 'TwoHop',
-            entryNode: data.entry_node,
-            exitNode: data.exit_node,
+            entryNode: data.entry_node || {
+              country: quickConnectCountry.name,
+              id: quickConnectCountry.code,
+            },
+            exitNode: data.exit_node || {
+              country: quickConnectCountry.name,
+              id: quickConnectCountry.code,
+            },
           },
         });
         dispatch({

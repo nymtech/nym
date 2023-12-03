@@ -1,5 +1,6 @@
 import dayjs from 'dayjs';
 import { AppData, AppState, ConnectionState, UiTheme, VpnMode, NodeConfig } from '../types';
+import { quickConnectCountry } from '../constants';
 
 export type StateAction =
   | { type: 'set-partial-state'; partialState: Partial<AppState> }
@@ -32,8 +33,14 @@ export const initialState: AppState = {
     killswitch: false,
     uiTheme: 'Light',
     vpnMode: 'TwoHop',
-    entryNode: null,
-    exitNode: null,
+    entryNode: {
+      country: quickConnectCountry.name,
+      id: quickConnectCountry.code,
+    },
+    exitNode: {
+      country: quickConnectCountry.name,
+      id: quickConnectCountry.code,
+    },
   },
 };
 

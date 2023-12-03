@@ -303,6 +303,9 @@ pub struct ReplySurbsWasmOverride {
     /// This is going to be superseded by key rotation once implemented.
     #[tsify(optional)]
     pub maximum_reply_key_age_ms: Option<u32>,
+
+    #[tsify(optional)]
+    pub surb_mix_hops: Option<u8>,
 }
 
 impl From<ReplySurbsWasmOverride> for ReplySurbsWasm {
@@ -337,6 +340,7 @@ impl From<ReplySurbsWasmOverride> for ReplySurbsWasm {
             maximum_reply_key_age_ms: value
                 .maximum_reply_key_age_ms
                 .unwrap_or(def.maximum_reply_key_age_ms),
+            surb_mix_hops: value.surb_mix_hops,
         }
     }
 }

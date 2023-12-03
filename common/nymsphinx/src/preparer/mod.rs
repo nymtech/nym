@@ -228,9 +228,8 @@ pub trait FragmentPreparer {
         };
 
         // generate pseudorandom route for the packet
-        dbg!(self.num_mix_hops());
         let hops = mix_hops.unwrap_or(self.num_mix_hops());
-        dbg!(&hops);
+        log::trace!("Preparing chunk for sending with {} mix hops", hops);
         let route =
             topology.random_route_to_gateway(self.rng(), hops, packet_recipient.gateway())?;
         let destination = packet_recipient.as_sphinx_destination();

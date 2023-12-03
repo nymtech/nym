@@ -101,7 +101,8 @@ impl PendingAcknowledgement {
                 recipient_tag,
                 extra_surb_request,
             },
-            // Custom mix hops are not supported for anonymous messages
+            // Messages sent using SURBs are using the number of mix hops set by the recipient when
+            // they provided the SURBs, so it doesn't make sense to include it here.
             mix_hops: None,
         }
     }

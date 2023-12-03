@@ -103,6 +103,8 @@ impl InputMessage {
         }
     }
 
+    // IMHO `new_regular` should take `mix_hops: Option<u8>` as an argument instead of creating
+    // this function, but that would potentially break backwards compatibility with the current API
     pub fn new_regular_with_custom_hops(
         recipient: Recipient,
         data: Vec<u8>,
@@ -144,6 +146,8 @@ impl InputMessage {
         }
     }
 
+    // IMHO `new_anonymous` should take `mix_hops: Option<u8>` as an argument instead of creating
+    // this function, but that would potentially break backwards compatibility with the current API
     pub fn new_anonymous_with_custom_hops(
         recipient: Recipient,
         data: Vec<u8>,

@@ -33,7 +33,7 @@ impl OnStartData {
     }
 }
 
-pub struct IpPacketRouterBuilder {
+pub struct IpPacketRouter {
     #[allow(unused)]
     config: Config,
     wait_for_gateway: bool,
@@ -43,7 +43,7 @@ pub struct IpPacketRouterBuilder {
     on_start: Option<oneshot::Sender<OnStartData>>,
 }
 
-impl IpPacketRouterBuilder {
+impl IpPacketRouter {
     pub fn new(config: Config) -> Self {
         Self {
             config,

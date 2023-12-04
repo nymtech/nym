@@ -103,6 +103,7 @@ export function reducer(state: AppState, action: StateAction): AppState {
       return {
         ...state,
         uiTheme: action.theme,
+        localAppData: { ...state.localAppData, uiTheme: action.theme },
       };
     case 'reset':
       return initialState;

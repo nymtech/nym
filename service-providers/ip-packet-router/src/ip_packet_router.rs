@@ -158,7 +158,7 @@ impl IpPacketRouterBuilder {
         let request_filter = request_filter::RequestFilter::new(&self.config).await?;
         request_filter.start_update_tasks().await;
 
-        let ip_packet_router_service = IpPacketRouter {
+        let ip_packet_router_service = MixnetListener {
             _config: self.config,
             request_filter: request_filter.clone(),
             tun_writer,
@@ -186,7 +186,7 @@ impl IpPacketRouterBuilder {
 }
 
 #[cfg(target_os = "linux")]
-struct IpPacketRouter {
+struct MixnetListener {
     _config: Config,
     request_filter: request_filter::RequestFilter,
     tun_writer: tokio::io::WriteHalf<tokio_tun::Tun>,
@@ -203,7 +203,7 @@ pub(crate) struct ConnectedClient {
 }
 
 #[cfg(target_os = "linux")]
-impl IpPacketRouter {
+impl MixnetListener {
     async fn on_static_connect_request(
         &mut self,
         connect_request: nym_ip_packet_requests::StaticConnectRequest,

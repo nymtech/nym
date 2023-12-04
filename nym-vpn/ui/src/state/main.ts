@@ -1,5 +1,5 @@
 import dayjs from 'dayjs';
-import { AppData, AppState, ConnectionState, VpnMode } from '../types';
+import { AppData, AppState, ConnectionState, UiTheme, VpnMode } from '../types';
 
 export type StateAction =
   | { type: 'set-partial-state'; partialState: Partial<AppState> }
@@ -14,7 +14,8 @@ export type StateAction =
   | { type: 'set-connection-start-time'; startTime?: number | null }
   | { type: 'set-disconnected' }
   | { type: 'reset' }
-  | { type: 'set-app-data'; data: AppData };
+  | { type: 'set-app-data'; data: AppData }
+  | { type: 'set-ui-theme'; theme: UiTheme };
 
 export const initialState: AppState = {
   state: 'Disconnected',
@@ -97,6 +98,12 @@ export function reducer(state: AppState, action: StateAction): AppState {
       return {
         ...state,
         progressMessages: [...state.progressMessages, action.message],
+      };
+    case 'set-ui-theme':
+      return {
+        ...state,
+        uiTheme: action.theme,
+        localAppData: { ...state.localAppData, uiTheme: action.theme },
       };
     case 'reset':
       return initialState;

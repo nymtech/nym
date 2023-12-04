@@ -58,6 +58,7 @@ fn main() -> Result<()> {
             connection::get_connection_start_time,
             app_data::get_app_data,
             app_data::set_app_data,
+            app_data::set_ui_theme,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

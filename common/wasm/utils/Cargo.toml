@@ -34,7 +34,8 @@ workspace = true
 optional = true
 
 [features]
-default = ["sleep", "console_error_panic_hook"]
+default = ["sleep"]
+panic-hook = ["console_error_panic_hook"]
 sleep = ["web-sys", "web-sys/Window"]
 websocket = [
     "getrandom",

@@ -292,6 +292,9 @@ pub struct Base {
 
     /// Storage paths to the common nym-api files
     #[zeroize(skip)]
+    // ideally we wouldn't be using default here, but I really really don't want to be writing
+    // another big config migration
+    #[serde(default)]
     pub storage_paths: NymApiPaths,
 }
 

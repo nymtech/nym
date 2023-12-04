@@ -5,18 +5,21 @@ use nym_ip_packet_requests::{
     DynamicConnectFailureReason, IpPacketRequest, IpPacketRequestData, IpPacketResponse,
     StaticConnectFailureReason,
 };
-use nym_sdk::mixnet::{InputMessage, MixnetMessageSender, Recipient};
+use nym_sdk::mixnet::{MixnetMessageSender, Recipient};
 use nym_sphinx::receiver::ReconstructedMessage;
-use nym_task::{connections::TransmissionLane, TaskHandle};
+use nym_task::TaskHandle;
 #[cfg(target_os = "linux")]
 use tokio::io::AsyncWriteExt;
 
 use crate::{
     constants::{CLIENT_INACTIVITY_TIMEOUT, DISCONNECT_TIMER_INTERVAL},
-    error::IpPacketRouterError,
+    error::{IpPacketRouterError, Result},
     request_filter::{self},
     util::generate_new_ip,
-    util::parse_ip::{parse_packet, ParsedPacket},
+    util::{
+        create_message::create_input_message,
+        parse_ip::{parse_packet, ParsedPacket},
+    },
     Config,
 };
 
@@ -43,7 +46,7 @@ impl MixnetListener {
     async fn on_static_connect_request(
         &mut self,
         connect_request: nym_ip_packet_requests::StaticConnectRequest,
-    ) -> Result<Option<IpPacketResponse>, IpPacketRouterError> {
+    ) -> Result<Option<IpPacketResponse>> {
         log::info!(
             "Received static connect request from {sender_address}",
             sender_address = connect_request.reply_to
@@ -88,11 +91,11 @@ impl MixnetListener {
                     },
                 );
                 self.connected_client_tx
-                    .send(ConnectedClientEvent::Connect(ConnectEvent {
+                    .send(ConnectedClientEvent::Connect(Box::new(ConnectEvent {
                         ip: requested_ip,
                         nym_address: reply_to,
                         mix_hops: reply_to_hops,
-                    }))
+                    })))
                     .unwrap();
                 Ok(Some(IpPacketResponse::new_static_connect_success(
                     request_id, reply_to,
@@ -120,7 +123,7 @@ impl MixnetListener {
     async fn on_dynamic_connect_request(
         &mut self,
         connect_request: nym_ip_packet_requests::DynamicConnectRequest,
-    ) -> Result<Option<IpPacketResponse>, IpPacketRouterError> {
+    ) -> Result<Option<IpPacketResponse>> {
         log::info!(
             "Received dynamic connect request from {sender_address}",
             sender_address = connect_request.reply_to
@@ -175,11 +178,11 @@ impl MixnetListener {
             },
         );
         self.connected_client_tx
-            .send(ConnectedClientEvent::Connect(ConnectEvent {
+            .send(ConnectedClientEvent::Connect(Box::new(ConnectEvent {
                 ip: new_ip,
                 nym_address: reply_to,
                 mix_hops: reply_to_hops,
-            }))
+            })))
             .unwrap();
         Ok(Some(IpPacketResponse::new_dynamic_connect_success(
             request_id, reply_to, new_ip,
@@ -189,7 +192,7 @@ impl MixnetListener {
     async fn on_data_request(
         &mut self,
         data_request: nym_ip_packet_requests::DataRequest,
-    ) -> Result<Option<IpPacketResponse>, IpPacketRouterError> {
+    ) -> Result<Option<IpPacketResponse>> {
         log::trace!("Received data request");
 
         // We don't forward packets that we are not able to parse. BUT, there might be a good
@@ -242,7 +245,7 @@ impl MixnetListener {
     async fn on_reconstructed_message(
         &mut self,
         reconstructed: ReconstructedMessage,
-    ) -> Result<Option<IpPacketResponse>, IpPacketRouterError> {
+    ) -> Result<Option<IpPacketResponse>> {
         log::debug!(
             "Received message with sender_tag: {:?}",
             reconstructed.sender_tag
@@ -272,7 +275,34 @@ impl MixnetListener {
         }
     }
 
-    pub(crate) async fn run(mut self) -> Result<(), IpPacketRouterError> {
+    // When an incoming mixnet message triggers a response that we send back, such as during
+    // connect handshake.
+    async fn handle_response(&self, response: IpPacketResponse) -> Result<()> {
+        let Some(recipient) = response.recipient() else {
+            log::error!("no recipient in response packet, this should NOT happen!");
+            return Err(IpPacketRouterError::NoRecipientInResponse);
+        };
+
+        let response_packet = response.to_bytes().map_err(|err| {
+            log::error!("Failed to serialize response packet");
+            IpPacketRouterError::FailedToSerializeResponsePacket { source: err }
+        })?;
+
+        // We could avoid this lookup if we check this when we create the response.
+        let mix_hops = self
+            .connected_clients
+            .values()
+            .find(|client| client.nym_address == *recipient)
+            .and_then(|c| c.mix_hops);
+
+        let input_message = create_input_message(*recipient, response_packet, mix_hops);
+        self.mixnet_client
+            .send(input_message)
+            .await
+            .map_err(|err| IpPacketRouterError::FailedToSendPacketToMixnet { source: err })
+    }
+
+    pub(crate) async fn run(mut self) -> Result<()> {
         let mut task_client = self.task_handle.fork("main_loop");
         let mut disconnect_timer = tokio::time::interval(DISCONNECT_TIMER_INTERVAL);
 
@@ -302,21 +332,9 @@ impl MixnetListener {
                     if let Some(msg) = msg {
                         match self.on_reconstructed_message(msg).await {
                             Ok(Some(response)) => {
-                                let Some(recipient) = response.recipient() else {
-                                    log::error!("IpPacketRouter [main loop]: failed to get recipient from response");
-                                    continue;
-                                };
-                                let response_packet = response.to_bytes();
-                                let Ok(response_packet) = response_packet else {
-                                    log::error!("Failed to serialize response packet");
-                                    continue;
-                                };
-                                let lane = TransmissionLane::General;
-                                let packet_type = None;
-                                let input_message = InputMessage::new_regular(*recipient, response_packet, lane, packet_type);
-                                if let Err(err) = self.mixnet_client.send(input_message).await {
-                                    log::error!("IpPacketRouter [main loop]: failed to send packet to mixnet: {err}");
-                                };
+                                if let Err(err) = self.handle_response(response).await {
+                                    log::error!("Mixnet listener failed to handle response: {err}");
+                                }
                             },
                             Ok(None) => {
                                 continue;
@@ -341,7 +359,7 @@ impl MixnetListener {
 
 pub(crate) enum ConnectedClientEvent {
     Disconnect(DisconnectEvent),
-    Connect(ConnectEvent),
+    Connect(Box<ConnectEvent>),
 }
 
 pub(crate) struct DisconnectEvent(pub(crate) IpAddr);

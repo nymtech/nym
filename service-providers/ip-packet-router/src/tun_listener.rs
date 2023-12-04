@@ -1,16 +1,16 @@
 use std::{collections::HashMap, net::IpAddr};
 
 use nym_ip_packet_requests::IpPacketResponse;
-use nym_sdk::mixnet::{InputMessage, MixnetMessageSender, Recipient};
-use nym_task::{connections::TransmissionLane, TaskClient};
+use nym_sdk::mixnet::MixnetMessageSender;
+use nym_task::TaskClient;
 #[cfg(target_os = "linux")]
 use tokio::io::AsyncReadExt;
 use tokio::sync::mpsc::UnboundedReceiver;
 
 use crate::{
     error::{IpPacketRouterError, Result},
-    mixnet_listener,
-    util::parse_ip::parse_dst_addr,
+    mixnet_listener::{self, ConnectEvent},
+    util::{create_message::create_input_message, parse_ip::parse_dst_addr},
 };
 
 // Reads packet from TUN and writes to mixnet client
@@ -23,26 +23,6 @@ pub(crate) struct TunListener {
     // A mirror of the one in IpPacketRouter
     pub(crate) connected_clients: HashMap<IpAddr, mixnet_listener::ConnectedClient>,
     pub(crate) connected_client_rx: UnboundedReceiver<mixnet_listener::ConnectedClientEvent>,
-}
-
-fn create_input_message(
-    nym_address: Recipient,
-    response_packet: Vec<u8>,
-    mix_hops: Option<u8>,
-) -> InputMessage {
-    let lane = TransmissionLane::General;
-    let packet_type = None;
-    if let Some(mix_hops) = mix_hops {
-        InputMessage::new_regular_with_custom_hops(
-            nym_address,
-            response_packet,
-            lane,
-            packet_type,
-            mix_hops,
-        )
-    } else {
-        InputMessage::new_regular(nym_address, response_packet, lane, packet_type)
-    }
 }
 
 #[cfg(target_os = "linux")]
@@ -83,11 +63,12 @@ impl TunListener {
         event: mixnet_listener::ConnectedClientEvent,
     ) {
         match event {
-            mixnet_listener::ConnectedClientEvent::Connect(mixnet_listener::ConnectEvent {
-                ip,
-                nym_address,
-                mix_hops,
-            }) => {
+            mixnet_listener::ConnectedClientEvent::Connect(connected_event) => {
+                let ConnectEvent {
+                    ip,
+                    nym_address,
+                    mix_hops,
+                } = *connected_event;
                 log::trace!("Connect client: {ip}");
                 self.connected_clients.insert(
                     ip,

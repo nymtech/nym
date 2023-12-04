@@ -75,6 +75,8 @@ pub enum IpPacketRouterError {
     #[error("can't setup an exit policy without any upstream urls")]
     NoUpstreamExitPolicy,
 
+    #[error("no recipient in response packet")]
+    NoRecipientInResponse,
 }
 
 pub type Result<T> = std::result::Result<T, IpPacketRouterError>;

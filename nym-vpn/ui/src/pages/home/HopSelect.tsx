@@ -9,7 +9,6 @@ export default function HopSelect({ node, country, onClick }: HopSelectProps) {
   const { t } = useTranslation('home');
   return (
     <>
-      <div className="my-3 font-semibold text-lg">Connect to</div>
       <div
         className="relative w-full flex flex-row justify-center cursor-pointer"
         onClick={onClick}

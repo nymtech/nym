@@ -14,7 +14,7 @@ export default function CountryList({
   return (
     <ul className="flex flex-col w-full items-stretch p-1">
       {countries && countries.length > 0 ? (
-        countries.map((country) => (
+        countries.sort((a, b) => a.name.localeCompare(b.name)).map((country) => (
           <li key={t(country.name)} className="list-none w-full">
             <div
               className="flex flex-row justify-between dark:hover:bg-baltic-sea-jaguar hover:bg-coal-mine-light rounded-lg cursor-pointer"

@@ -60,6 +60,7 @@ function Home() {
         <div className="flex flex-col justify-between">
           <NetworkModeSelect />
           <div className="py-2"></div>
+          <div className="my-3 font-semibold text-lg">Select location</div>
           <HopSelect
             country={state.localAppData.exitNode!!}
             onClick={() => navigate(routes.exitNodeLocation)}

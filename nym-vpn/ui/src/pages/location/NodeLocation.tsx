@@ -8,7 +8,7 @@ import { useMainDispatch, useMainState } from '../../contexts';
 import { useNavigate } from 'react-router-dom';
 import { routes } from '../../constants.ts';
 import CountryList from './CountryList.tsx';
-import QuickConnect from './QuickConnect.tsx';
+import QuickSelect from './QuickSelect.tsx';
 
 type Props = {
   node: 'entry' | 'exit';
@@ -84,7 +84,7 @@ function NodeLocation({ node }: Props) {
     <div>
       <div className="h-full flex flex-col">
         <div className="h-70 flex flex-col justify-center items-center gap-y-2 p-1">
-          <QuickConnect onClick={handleCountrySelection} />
+          <QuickSelect onClick={handleCountrySelection} />
           <SearchBox
             value={search}
             onChange={filter}

@@ -31,14 +31,15 @@ impl TunListener {
                     log::trace!("TunListener: received shutdown");
                 },
                 event = self.connected_client_rx.recv() => match event {
-                    Some(mixnet_listener::ConnectedClientEvent::Connect(ip, nym_addr)) => {
+                    Some(mixnet_listener::ConnectedClientEvent::Connect(mixnet_listener::ConnectEvent { ip, nym_address, mix_hops })) => {
                         log::trace!("Connect client: {ip}");
                         self.connected_clients.insert(ip, mixnet_listener::ConnectedClient {
-                            nym_address: *nym_addr,
+                            nym_address,
+                            mix_hops,
                             last_activity: std::time::Instant::now(),
                         });
                     },
-                    Some(mixnet_listener::ConnectedClientEvent::Disconnect(ip)) => {
+                    Some(mixnet_listener::ConnectedClientEvent::Disconnect(mixnet_listener::DisconnectEvent(ip))) => {
                         log::trace!("Disconnect client: {ip}");
                         self.connected_clients.remove(&ip);
                     },

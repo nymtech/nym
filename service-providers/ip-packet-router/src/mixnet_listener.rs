@@ -34,6 +34,7 @@ pub(crate) struct MixnetListener {
 
 pub(crate) struct ConnectedClient {
     pub(crate) nym_address: Recipient,
+    pub(crate) mix_hops: Option<u8>,
     pub(crate) last_activity: std::time::Instant,
 }
 
@@ -51,7 +52,8 @@ impl MixnetListener {
         let request_id = connect_request.request_id;
         let requested_ip = connect_request.ip;
         let reply_to = connect_request.reply_to;
-        // TODO: ignoring reply_to_hops and reply_to_avg_mix_delays for now
+        let reply_to_hops = connect_request.reply_to_hops;
+        // TODO: ignoring reply_to_avg_mix_delays for now
 
         // Check that the IP is available in the set of connected clients
         let is_ip_taken = self.connected_clients.contains_key(&requested_ip);
@@ -81,14 +83,16 @@ impl MixnetListener {
                     requested_ip,
                     ConnectedClient {
                         nym_address: reply_to,
+                        mix_hops: reply_to_hops,
                         last_activity: std::time::Instant::now(),
                     },
                 );
                 self.connected_client_tx
-                    .send(ConnectedClientEvent::Connect(
-                        requested_ip,
-                        Box::new(reply_to),
-                    ))
+                    .send(ConnectedClientEvent::Connect(ConnectEvent {
+                        ip: requested_ip,
+                        nym_address: reply_to,
+                        mix_hops: reply_to_hops,
+                    }))
                     .unwrap();
                 Ok(Some(IpPacketResponse::new_static_connect_success(
                     request_id, reply_to,
@@ -124,7 +128,8 @@ impl MixnetListener {
 
         let request_id = connect_request.request_id;
         let reply_to = connect_request.reply_to;
-        // TODO: ignoring reply_to_hops and reply_to_avg_mix_delays for now
+        let reply_to_hops = connect_request.reply_to_hops;
+        // TODO: ignoring reply_to_avg_mix_delays for now
 
         // Check if it's the same client connecting again, then we just reuse the same IP
         // TODO: this is problematic. Until we sign connect requests this means you can spam people
@@ -165,11 +170,16 @@ impl MixnetListener {
             new_ip,
             ConnectedClient {
                 nym_address: reply_to,
+                mix_hops: reply_to_hops,
                 last_activity: std::time::Instant::now(),
             },
         );
         self.connected_client_tx
-            .send(ConnectedClientEvent::Connect(new_ip, Box::new(reply_to)))
+            .send(ConnectedClientEvent::Connect(ConnectEvent {
+                ip: new_ip,
+                nym_address: reply_to,
+                mix_hops: reply_to_hops,
+            }))
             .unwrap();
         Ok(Some(IpPacketResponse::new_dynamic_connect_success(
             request_id, reply_to, new_ip,
@@ -285,7 +295,7 @@ impl MixnetListener {
                     for ip in inactive_clients {
                         log::info!("Disconnect inactive client: {ip}");
                         self.connected_clients.remove(&ip);
-                        self.connected_client_tx.send(ConnectedClientEvent::Disconnect(ip)).unwrap();
+                        self.connected_client_tx.send(ConnectedClientEvent::Disconnect(DisconnectEvent(ip))).unwrap();
                     }
                 },
                 msg = self.mixnet_client.next() => {
@@ -330,6 +340,14 @@ impl MixnetListener {
 }
 
 pub(crate) enum ConnectedClientEvent {
-    Disconnect(IpAddr),
-    Connect(IpAddr, Box<Recipient>),
+    Disconnect(DisconnectEvent),
+    Connect(ConnectEvent),
+}
+
+pub(crate) struct DisconnectEvent(pub(crate) IpAddr);
+
+pub(crate) struct ConnectEvent {
+    pub(crate) ip: IpAddr,
+    pub(crate) nym_address: Recipient,
+    pub(crate) mix_hops: Option<u8>,
 }

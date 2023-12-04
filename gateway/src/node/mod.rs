@@ -22,6 +22,8 @@ use crate::node::statistics::collector::GatewayStatisticsCollector;
 use crate::node::storage::Storage;
 use anyhow::bail;
 use dashmap::DashMap;
+#[cfg(feature = "wireguard")]
+use defguard_wireguard_rs::{WGApi, WireguardInterfaceApi};
 use futures::channel::{mpsc, oneshot};
 use log::*;
 use nym_crypto::asymmetric::{encryption, identity};
@@ -204,8 +206,7 @@ impl<St> Gateway<St> {
     async fn start_wireguard(
         &self,
         shutdown: TaskClient,
-    ) -> Result<(), Box<dyn Error + Send + Sync>> {
-        // TODO: possibly we should start the UDP listener and TUN device explicitly here
+    ) -> Result<WGApi, Box<dyn Error + Send + Sync>> {
         nym_wireguard::start_wireguard(shutdown, Arc::clone(&self.client_registry)).await
     }
 
@@ -476,6 +477,13 @@ impl<St> Gateway<St> {
             });
         }
 
+        self.start_client_websocket_listener(
+            mix_forwarding_channel.clone(),
+            active_clients_store.clone(),
+            shutdown.subscribe().named("websocket::Listener"),
+            Arc::new(coconut_verifier),
+        );
+
         let nr_request_filter = if self.config.network_requester.enabled {
             let embedded_nr = self
                 .start_network_requester(
@@ -496,7 +504,7 @@ impl<St> Gateway<St> {
         if self.config.ip_packet_router.enabled {
             let embedded_ip_sp = self
                 .start_ip_packet_router(
-                    mix_forwarding_channel.clone(),
+                    mix_forwarding_channel,
                     shutdown.subscribe().named("ip_service_provider"),
                 )
                 .await?;
@@ -513,29 +521,23 @@ impl<St> Gateway<St> {
         .with_maybe_network_request_filter(nr_request_filter)
         .start(shutdown.subscribe().named("http-api"))?;
 
-        self.start_client_websocket_listener(
-            mix_forwarding_channel,
-            active_clients_store,
-            shutdown.subscribe().named("websocket::Listener"),
-            Arc::new(coconut_verifier),
-        );
-
         // Once this is a bit more mature, make this a commandline flag instead of a compile time
         // flag
         #[cfg(feature = "wireguard")]
-        if let Err(err) = self
+        let wg_api = self
             .start_wireguard(shutdown.subscribe().named("wireguard"))
             .await
-        {
-            // that's a nasty workaround, but anyhow errors are generally nicer, especially on exit
-            bail!("{err}")
-        }
+            .ok();
 
         info!("Finished nym gateway startup procedure - it should now be able to receive mix and client traffic!");
 
         if let Err(err) = Self::wait_for_interrupt(shutdown).await {
             // that's a nasty workaround, but anyhow errors are generally nicer, especially on exit
             bail!("{err}")
+        }
+        #[cfg(feature = "wireguard")]
+        if let Some(wg_api) = wg_api {
+            wg_api.remove_interface()?;
         }
         Ok(())
     }

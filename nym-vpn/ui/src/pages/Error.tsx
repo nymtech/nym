@@ -5,7 +5,7 @@ type routerErrorType = {
   message: string;
 };
 
-export default function ErrorPage() {
+export default function Error() {
   const error: routerErrorType = useRouteError() as unknown as routerErrorType;
   console.error(error);
 

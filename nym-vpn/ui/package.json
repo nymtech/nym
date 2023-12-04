@@ -18,10 +18,12 @@
     "tauri": "tauri"
   },
   "dependencies": {
+    "@headlessui/react": "^1.7.17",
+    "@headlessui/tailwindcss": "^0.2.0",
     "@mui/base": "^5.0.0-beta.24",
-    "@mui/material": "^5.14.14",
     "@tauri-apps/api": "^1.5.0",
     "clsx": "^2.0.0",
+    "dayjs": "^1.11.10",
     "i18next": "^23.7.6",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
@@ -39,6 +41,9 @@
     "autoprefixer": "^10.4.16",
     "eslint": "^8.52.0",
     "eslint-config-prettier": "^9.0.0",
+    "eslint-import-resolver-typescript": "^3.6.1",
+    "eslint-plugin-import": "^2.29.0",
+    "eslint-plugin-jsx-a11y": "^6.8.0",
     "eslint-plugin-react": "^7.33.2",
     "eslint-plugin-react-hooks": "^4.6.0",
     "postcss": "^8.4.31",

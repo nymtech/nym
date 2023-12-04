@@ -1,14 +1,16 @@
 import { Dispatch } from 'react';
+import { Dayjs } from 'dayjs';
 import { StateAction } from '../state';
+import { AppData } from './app-data';
 
 export type ConnectionState =
   | 'Connected'
   | 'Disconnected'
   | 'Connecting'
   | 'Disconnecting'
-  | 'Error';
+  | 'Unknown';
 
-export type PrivacyMode = 'High' | 'Medium' | 'Low';
+export type VpnMode = 'TwoHop' | 'Mixnet';
 
 export interface TunnelConfig {
   id: string;
@@ -18,12 +20,23 @@ export interface TunnelConfig {
 export type AppState = {
   state: ConnectionState;
   loading: boolean;
-  privacyMode: PrivacyMode;
+  error?: string | null;
+  progressMessages: string[];
+  sessionStartDate?: Dayjs | null;
+  vpnMode: VpnMode;
   tunnel: TunnelConfig;
+  uiTheme: 'Light' | 'Dark';
+  localAppData: AppData;
 };
 
-export type EventPayload = {
+export type ConnectionEventPayload = {
   state: ConnectionState;
+  error?: string | null;
+  start_time?: number | null; // unix timestamp in seconds
+};
+
+export type ProgressEventPayload = {
+  message: string;
 };
 
 export type StateDispatch = Dispatch<StateAction>;

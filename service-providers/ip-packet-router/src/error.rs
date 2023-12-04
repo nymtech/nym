@@ -30,6 +30,9 @@ pub enum IpPacketRouterError {
     #[error("the entity wrapping the network requester has disconnected")]
     DisconnectedParent,
 
+    #[error("received packet has an invalid version: {0}")]
+    InvalidPacketVersion(u8),
+
     #[error("failed to deserialize tagged packet: {source}")]
     FailedToDeserializeTaggedPacket { source: bincode::Error },
 
@@ -46,6 +49,9 @@ pub enum IpPacketRouterError {
     FailedToSendPacketToTun {
         source: tokio::sync::mpsc::error::TrySendError<(u64, Vec<u8>)>,
     },
+
+    #[error("failed to write packet to tun")]
+    FailedToWritePacketToTun,
 
     #[error("the provided socket address, '{addr}' is not covered by the exit policy!")]
     AddressNotCoveredByExitPolicy { addr: SocketAddr },

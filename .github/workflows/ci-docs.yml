@@ -9,9 +9,11 @@ on:
 
 jobs:
   build:
-    runs-on: custom-linux
+    runs-on: ubuntu-20.04-16-core
     steps:
       - uses: actions/checkout@v3
+      - name: Install Dependencies (Linux)
+        run: sudo apt-get update && sudo apt-get install -y build-essential curl wget libssl-dev libudev-dev squashfs-tools protobuf-compiler
       - name: Install rsync
         run: sudo apt-get install rsync
       - uses: rlespinasse/github-slug-action@v3.x
@@ -27,22 +29,15 @@ jobs:
         with:
           command: build
           args: --workspace --release
-      - name: Install mdbook
-        run: (test -x $HOME/.cargo/bin/mdbook || cargo install --vers "^0.4.35" mdbook)
-      - name: Install mdbook plugins
-        run: |
-          cargo install --vers "=0.2.2" mdbook-variables && cargo install \
-            --vers "^1.8.0" mdbook-admonish --force && cargo install --vers \
-            "^0.1.2" mdbook-last-changed && cargo install --vers "^0.1.2" mdbook-theme \
-            && cargo install --vers "^0.7.7" mdbook-linkcheck \
-            # && cd documentation \
-            # && mdbook-admonish install dev-portal \
-            # && mdbook-admonish install docs \
-            # && mdbook-admonish install operators
-
-      - name: Build all projects in documentation/ & move to ~/dist/docs/
-        run: cd documentation && ./build_all_to_dist.sh 
+      - name: Install mdbook and plugins
+        run: cd documentation && ./install_mdbook_deps.sh
+      - name: Remove existing Nym config directory (`~/.nym/`)
+        run: cd documentation && ./remove_existing_config.sh
         continue-on-error: false
+      - name: Build all projects in documentation/ & move to ~/dist/docs/
+        run: cd documentation && ./build_all_to_dist.sh
+        continue-on-error: false
+
       - name: Deploy branch to CI www
         continue-on-error: true
         uses: easingthemes/ssh-deploy@main
@@ -54,6 +49,7 @@ jobs:
           REMOTE_USER: ${{ secrets.CI_WWW_REMOTE_USER }}
           TARGET: ${{ secrets.CI_WWW_REMOTE_TARGET }}/docs-${{ env.GITHUB_REF_SLUG }}
           EXCLUDE: "/node_modules/"
+
       - name: Matrix - Node Install
         run: npm install
         working-directory: .github/workflows/support-files

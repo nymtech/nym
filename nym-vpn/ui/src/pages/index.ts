@@ -1,4 +1,5 @@
-export { default as PageLayout } from './pageLayout';
-export { default as Home } from './home';
-export { default as Settings } from './settings';
-export { default as Error } from './error';
+export * from './home';
+export * from './settings';
+export { default as NavLayout } from './NavLayout';
+export { default as NodeLocation } from './NodeLocation';
+export { default as Error } from './Error';

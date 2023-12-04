@@ -4,8 +4,6 @@
 pub mod error;
 pub mod public_key;
 pub mod registration;
-#[cfg(not(target_arch = "wasm32"))]
-pub mod tun_common;
 
 pub use error::Error;
 pub use public_key::PeerPublicKey;
@@ -15,5 +13,3 @@ pub use registration::{
 
 #[cfg(feature = "verify")]
 pub use registration::HmacSha256;
-
-pub const WG_PORT: u16 = 51822;

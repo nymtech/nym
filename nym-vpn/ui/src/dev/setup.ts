@@ -1,6 +1,6 @@
 import { mockIPC, mockWindows } from '@tauri-apps/api/mocks';
-import { ConnectionState } from '../types';
 import { emit } from '@tauri-apps/api/event';
+import { AppDataFromBackend, ConnectionState } from '../types';
 import { ConnectionEvent } from '../constants';
 
 export function mockTauriIPC() {
@@ -30,6 +30,19 @@ export function mockTauriIPC() {
     if (cmd === 'get_connection_state') {
       return new Promise<ConnectionState>((resolve) =>
         setTimeout(() => resolve('Disconnected'), 2000),
+      );
+    }
+    if (cmd === 'get_app_data') {
+      return new Promise<AppDataFromBackend>((resolve) =>
+        resolve({
+          monitoring: false,
+          autoconnect: false,
+          killswitch: false,
+          ui_theme: 'Dark',
+          vpn_mode: 'TwoHop',
+          entry_node: null,
+          exit_node: null,
+        }),
       );
     }
   });

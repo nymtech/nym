@@ -1,30 +1,20 @@
-import { createBrowserRouter, RouterProvider } from 'react-router-dom';
-import { Home, Settings, Error, PageLayout } from './pages';
+import { RouterProvider } from 'react-router-dom';
+import dayjs from 'dayjs';
+import { useTranslation } from 'react-i18next';
+import router from './router';
 import { MainStateProvider } from './state';
 import './i18n/config';
-
-const router = createBrowserRouter([
-  {
-    element: <PageLayout />,
-    children: [
-      {
-        path: '/',
-        element: <Home />,
-        errorElement: <Error />,
-      },
-      {
-        path: '/settings',
-        element: <Settings />,
-        errorElement: <Error />,
-      },
-    ],
-  },
-]);
+import { ThemeSetter } from './ui';
 
 function App() {
+  const { i18n } = useTranslation();
+  dayjs.locale(i18n.language);
+
   return (
     <MainStateProvider>
-      <RouterProvider router={router} />
+      <ThemeSetter>
+        <RouterProvider router={router} />
+      </ThemeSetter>
     </MainStateProvider>
   );
 }

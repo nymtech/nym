@@ -18,7 +18,4 @@ log.workspace = true
 nym-wireguard-types = { path = "../wireguard-types", optional = true }
 
 [target.'cfg(target_os = "linux")'.dependencies]
-tokio-tun = "0.9.0"
-
-[features]
-wireguard = ["nym-wireguard-types"]
+tokio-tun = "0.11.2"

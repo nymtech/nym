@@ -77,6 +77,9 @@ pub enum IpPacketRouterError {
 
     #[error("no recipient in response packet")]
     NoRecipientInResponse,
+
+    #[error("failed to update client activity")]
+    FailedToUpdateClientActivity,
 }
 
 pub type Result<T> = std::result::Result<T, IpPacketRouterError>;

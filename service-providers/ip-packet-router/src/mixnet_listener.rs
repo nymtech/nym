@@ -31,8 +31,109 @@ pub(crate) struct MixnetListener {
     pub(crate) mixnet_client: nym_sdk::mixnet::MixnetClient,
     pub(crate) task_handle: TaskHandle,
 
-    pub(crate) connected_clients: HashMap<IpAddr, ConnectedClient>,
-    pub(crate) connected_client_tx: tokio::sync::mpsc::UnboundedSender<ConnectedClientEvent>,
+    // pub(crate) connected_clients: HashMap<IpAddr, ConnectedClient>,
+    // pub(crate) connected_client_tx: tokio::sync::mpsc::UnboundedSender<ConnectedClientEvent>,
+    pub(crate) connected_clients: ConnectedClients,
+}
+
+pub(crate) struct ConnectedClients {
+    clients: HashMap<IpAddr, ConnectedClient>,
+    connected_client_tx: tokio::sync::mpsc::UnboundedSender<ConnectedClientEvent>,
+}
+
+impl ConnectedClients {
+    pub(crate) fn new() -> (
+        Self,
+        tokio::sync::mpsc::UnboundedReceiver<ConnectedClientEvent>,
+    ) {
+        let (connected_client_tx, connected_client_rx) = tokio::sync::mpsc::unbounded_channel();
+        (
+            Self {
+                clients: Default::default(),
+                connected_client_tx,
+            },
+            connected_client_rx,
+        )
+    }
+
+    fn is_ip_connected(&self, ip: &IpAddr) -> bool {
+        self.clients.contains_key(ip)
+    }
+
+    fn is_nym_address_connected(&self, nym_address: &Recipient) -> bool {
+        self.clients
+            .values()
+            .any(|client| client.nym_address == *nym_address)
+    }
+
+    fn get_ip(&self, nym_address: &Recipient) -> Option<IpAddr> {
+        self.clients.iter().find_map(|(ip, client)| {
+            if client.nym_address == *nym_address {
+                Some(*ip)
+            } else {
+                None
+            }
+        })
+    }
+
+    fn get_client_by_nym_address(&self, nym_address: &Recipient) -> Option<&ConnectedClient> {
+        self.clients
+            .values()
+            .find(|client| client.nym_address == *nym_address)
+    }
+
+    fn connect(&mut self, ip: IpAddr, nym_address: Recipient, mix_hops: Option<u8>) {
+        self.clients.insert(
+            ip,
+            ConnectedClient {
+                nym_address,
+                mix_hops,
+                last_activity: std::time::Instant::now(),
+            },
+        );
+        self.connected_client_tx
+            .send(ConnectedClientEvent::Connect(Box::new(ConnectEvent {
+                ip,
+                nym_address,
+                mix_hops,
+            })))
+            .unwrap();
+    }
+
+    fn update_activity(&mut self, ip: &IpAddr) -> Result<()> {
+        if let Some(client) = self.clients.get_mut(ip) {
+            client.last_activity = std::time::Instant::now();
+            Ok(())
+        } else {
+            Err(IpPacketRouterError::FailedToUpdateClientActivity)
+        }
+    }
+
+    fn disconnect_inactive_clients(&mut self) {
+        let now = std::time::Instant::now();
+        let inactive_clients: Vec<IpAddr> = self
+            .clients
+            .iter()
+            .filter_map(|(ip, client)| {
+                if now.duration_since(client.last_activity) > CLIENT_INACTIVITY_TIMEOUT {
+                    Some(*ip)
+                } else {
+                    None
+                }
+            })
+            .collect();
+        for ip in inactive_clients {
+            log::info!("Disconnect inactive client: {ip}");
+            self.clients.remove(&ip);
+            self.connected_client_tx
+                .send(ConnectedClientEvent::Disconnect(DisconnectEvent(ip)))
+                .unwrap();
+        }
+    }
+
+    fn find_new_ip(&self) -> Option<IpAddr> {
+        generate_new_ip::find_new_ip(&self.clients)
+    }
 }
 
 pub(crate) struct ConnectedClient {
@@ -59,44 +160,29 @@ impl MixnetListener {
         // TODO: ignoring reply_to_avg_mix_delays for now
 
         // Check that the IP is available in the set of connected clients
-        let is_ip_taken = self.connected_clients.contains_key(&requested_ip);
+        let is_ip_taken = self.connected_clients.is_ip_connected(&requested_ip);
 
         // Check that the nym address isn't already registered
-        let is_nym_address_taken = self
-            .connected_clients
-            .values()
-            .any(|client| client.nym_address == reply_to);
+        let is_nym_address_taken = self.connected_clients.is_nym_address_connected(&reply_to);
 
         match (is_ip_taken, is_nym_address_taken) {
             (true, true) => {
                 log::info!("Connecting an already connected client");
-                // Update the last activity time for the client
-                if let Some(client) = self.connected_clients.get_mut(&requested_ip) {
-                    client.last_activity = std::time::Instant::now();
-                } else {
-                    log::error!("Failed to update last activity time for client");
-                }
+                if self
+                    .connected_clients
+                    .update_activity(&requested_ip)
+                    .is_err()
+                {
+                    log::error!("Failed to update activity for client");
+                };
                 Ok(Some(IpPacketResponse::new_static_connect_success(
                     request_id, reply_to,
                 )))
             }
             (false, false) => {
                 log::info!("Connecting a new client");
-                self.connected_clients.insert(
-                    requested_ip,
-                    ConnectedClient {
-                        nym_address: reply_to,
-                        mix_hops: reply_to_hops,
-                        last_activity: std::time::Instant::now(),
-                    },
-                );
-                self.connected_client_tx
-                    .send(ConnectedClientEvent::Connect(Box::new(ConnectEvent {
-                        ip: requested_ip,
-                        nym_address: reply_to,
-                        mix_hops: reply_to_hops,
-                    })))
-                    .unwrap();
+                self.connected_clients
+                    .connect(requested_ip, reply_to, reply_to_hops);
                 Ok(Some(IpPacketResponse::new_static_connect_success(
                     request_id, reply_to,
                 )))
@@ -137,21 +223,15 @@ impl MixnetListener {
         // Check if it's the same client connecting again, then we just reuse the same IP
         // TODO: this is problematic. Until we sign connect requests this means you can spam people
         // with return traffic
-        let existing_ip = self.connected_clients.iter().find_map(|(ip, client)| {
-            if client.nym_address == reply_to {
-                Some(*ip)
-            } else {
-                None
-            }
-        });
 
-        if let Some(existing_ip) = existing_ip {
+        if let Some(existing_ip) = self.connected_clients.get_ip(&reply_to) {
             log::info!("Found existing client for nym address");
-            // Update the last activity time for the client
-            if let Some(client) = self.connected_clients.get_mut(&existing_ip) {
-                client.last_activity = std::time::Instant::now();
-            } else {
-                log::error!("Failed to update last activity time for client");
+            if self
+                .connected_clients
+                .update_activity(&existing_ip)
+                .is_err()
+            {
+                log::error!("Failed to update activity for client");
             }
             return Ok(Some(IpPacketResponse::new_dynamic_connect_success(
                 request_id,
@@ -160,7 +240,7 @@ impl MixnetListener {
             )));
         }
 
-        let Some(new_ip) = generate_new_ip::find_new_ip(&self.connected_clients) else {
+        let Some(new_ip) = self.connected_clients.find_new_ip() else {
             log::info!("No available IP address");
             return Ok(Some(IpPacketResponse::new_dynamic_connect_failure(
                 request_id,
@@ -169,21 +249,8 @@ impl MixnetListener {
             )));
         };
 
-        self.connected_clients.insert(
-            new_ip,
-            ConnectedClient {
-                nym_address: reply_to,
-                mix_hops: reply_to_hops,
-                last_activity: std::time::Instant::now(),
-            },
-        );
-        self.connected_client_tx
-            .send(ConnectedClientEvent::Connect(Box::new(ConnectEvent {
-                ip: new_ip,
-                nym_address: reply_to,
-                mix_hops: reply_to_hops,
-            })))
-            .unwrap();
+        self.connected_clients
+            .connect(new_ip, reply_to, reply_to_hops);
         Ok(Some(IpPacketResponse::new_dynamic_connect_success(
             request_id, reply_to, new_ip,
         )))
@@ -214,9 +281,7 @@ impl MixnetListener {
 
         // Check if there is a connected client for this src_addr. If there is, update the last activity time
         // for the client. If there isn't, drop the packet.
-        if let Some(client) = self.connected_clients.get_mut(&src_addr) {
-            client.last_activity = std::time::Instant::now();
-        } else {
+        if self.connected_clients.update_activity(&src_addr).is_err() {
             log::info!("Dropping packet: no connected client for {src_addr}");
             return Ok(None);
         }
@@ -291,8 +356,7 @@ impl MixnetListener {
         // We could avoid this lookup if we check this when we create the response.
         let mix_hops = self
             .connected_clients
-            .values()
-            .find(|client| client.nym_address == *recipient)
+            .get_client_by_nym_address(recipient)
             .and_then(|c| c.mix_hops);
 
         let input_message = create_input_message(*recipient, response_packet, mix_hops);
@@ -312,21 +376,7 @@ impl MixnetListener {
                     log::debug!("IpPacketRouter [main loop]: received shutdown");
                 },
                 _ = disconnect_timer.tick() => {
-                    let now = std::time::Instant::now();
-                    let inactive_clients: Vec<IpAddr> = self.connected_clients.iter()
-                        .filter_map(|(ip, client)| {
-                            if now.duration_since(client.last_activity) > CLIENT_INACTIVITY_TIMEOUT {
-                                Some(*ip)
-                            } else {
-                                None
-                            }
-                        })
-                        .collect();
-                    for ip in inactive_clients {
-                        log::info!("Disconnect inactive client: {ip}");
-                        self.connected_clients.remove(&ip);
-                        self.connected_client_tx.send(ConnectedClientEvent::Disconnect(DisconnectEvent(ip))).unwrap();
-                    }
+                    self.connected_clients.disconnect_inactive_clients();
                 },
                 msg = self.mixnet_client.next() => {
                     if let Some(msg) = msg {

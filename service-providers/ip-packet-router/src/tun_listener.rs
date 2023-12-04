@@ -7,7 +7,7 @@ use nym_task::{connections::TransmissionLane, TaskClient};
 use tokio::io::AsyncReadExt;
 use tokio::sync::mpsc::UnboundedReceiver;
 
-use crate::{error::IpPacketRouterError, ip_packet_router, util::parse_ip::parse_dst_addr};
+use crate::{error::IpPacketRouterError, mixnet_listener, util::parse_ip::parse_dst_addr};
 
 // Reads packet from TUN and writes to mixnet client
 #[cfg(target_os = "linux")]
@@ -17,8 +17,8 @@ pub(crate) struct TunListener {
     pub(crate) task_client: TaskClient,
 
     // A mirror of the one in IpPacketRouter
-    pub(crate) connected_clients: HashMap<IpAddr, ip_packet_router::ConnectedClient>,
-    pub(crate) connected_client_rx: UnboundedReceiver<ip_packet_router::ConnectedClientEvent>,
+    pub(crate) connected_clients: HashMap<IpAddr, mixnet_listener::ConnectedClient>,
+    pub(crate) connected_client_rx: UnboundedReceiver<mixnet_listener::ConnectedClientEvent>,
 }
 
 #[cfg(target_os = "linux")]
@@ -31,14 +31,14 @@ impl TunListener {
                     log::trace!("TunListener: received shutdown");
                 },
                 event = self.connected_client_rx.recv() => match event {
-                    Some(ip_packet_router::ConnectedClientEvent::Connect(ip, nym_addr)) => {
+                    Some(mixnet_listener::ConnectedClientEvent::Connect(ip, nym_addr)) => {
                         log::trace!("Connect client: {ip}");
-                        self.connected_clients.insert(ip, ip_packet_router::ConnectedClient {
+                        self.connected_clients.insert(ip, mixnet_listener::ConnectedClient {
                             nym_address: *nym_addr,
                             last_activity: std::time::Instant::now(),
                         });
                     },
-                    Some(ip_packet_router::ConnectedClientEvent::Disconnect(ip)) => {
+                    Some(mixnet_listener::ConnectedClientEvent::Disconnect(ip)) => {
                         log::trace!("Disconnect client: {ip}");
                         self.connected_clients.remove(&ip);
                     },

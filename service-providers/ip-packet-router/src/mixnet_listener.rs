@@ -30,9 +30,6 @@ pub(crate) struct MixnetListener {
     pub(crate) tun_writer: tokio::io::WriteHalf<tokio_tun::Tun>,
     pub(crate) mixnet_client: nym_sdk::mixnet::MixnetClient,
     pub(crate) task_handle: TaskHandle,
-
-    // pub(crate) connected_clients: HashMap<IpAddr, ConnectedClient>,
-    // pub(crate) connected_client_tx: tokio::sync::mpsc::UnboundedSender<ConnectedClientEvent>,
     pub(crate) connected_clients: ConnectedClients,
 }
 
@@ -41,18 +38,54 @@ pub(crate) struct ConnectedClients {
     connected_client_tx: tokio::sync::mpsc::UnboundedSender<ConnectedClientEvent>,
 }
 
+pub(crate) struct ConnectedClientsListener {
+    clients: HashMap<IpAddr, ConnectedClient>,
+    pub(crate) connected_client_rx: tokio::sync::mpsc::UnboundedReceiver<ConnectedClientEvent>,
+}
+
+impl ConnectedClientsListener {
+    pub(crate) fn get(&self, ip: &IpAddr) -> Option<&ConnectedClient> {
+        self.clients.get(ip)
+    }
+
+    pub(crate) fn update(&mut self, event: ConnectedClientEvent) {
+        match event {
+            ConnectedClientEvent::Connect(connected_event) => {
+                let ConnectEvent {
+                    ip,
+                    nym_address,
+                    mix_hops,
+                } = *connected_event;
+                log::trace!("Connect client: {ip}");
+                self.clients.insert(
+                    ip,
+                    ConnectedClient {
+                        nym_address,
+                        mix_hops,
+                        last_activity: std::time::Instant::now(),
+                    },
+                );
+            }
+            ConnectedClientEvent::Disconnect(DisconnectEvent(ip)) => {
+                log::trace!("Disconnect client: {ip}");
+                self.clients.remove(&ip);
+            }
+        }
+    }
+}
+
 impl ConnectedClients {
-    pub(crate) fn new() -> (
-        Self,
-        tokio::sync::mpsc::UnboundedReceiver<ConnectedClientEvent>,
-    ) {
+    pub(crate) fn new() -> (Self, ConnectedClientsListener) {
         let (connected_client_tx, connected_client_rx) = tokio::sync::mpsc::unbounded_channel();
         (
             Self {
                 clients: Default::default(),
                 connected_client_tx,
             },
-            connected_client_rx,
+            ConnectedClientsListener {
+                clients: Default::default(),
+                connected_client_rx,
+            },
         )
     }
 

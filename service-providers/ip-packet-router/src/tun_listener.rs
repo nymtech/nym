@@ -1,15 +1,12 @@
-use std::{collections::HashMap, net::IpAddr};
-
 use nym_ip_packet_requests::IpPacketResponse;
 use nym_sdk::mixnet::MixnetMessageSender;
 use nym_task::TaskClient;
 #[cfg(target_os = "linux")]
 use tokio::io::AsyncReadExt;
-use tokio::sync::mpsc::UnboundedReceiver;
 
 use crate::{
     error::{IpPacketRouterError, Result},
-    mixnet_listener::{self, ConnectEvent},
+    mixnet_listener::{self},
     util::{create_message::create_input_message, parse_ip::parse_dst_addr},
 };
 
@@ -19,10 +16,7 @@ pub(crate) struct TunListener {
     pub(crate) tun_reader: tokio::io::ReadHalf<tokio_tun::Tun>,
     pub(crate) mixnet_client_sender: nym_sdk::mixnet::MixnetClientSender,
     pub(crate) task_client: TaskClient,
-
-    // A mirror of the one in IpPacketRouter
-    pub(crate) connected_clients: HashMap<IpAddr, mixnet_listener::ConnectedClient>,
-    pub(crate) connected_client_rx: UnboundedReceiver<mixnet_listener::ConnectedClientEvent>,
+    pub(crate) connected_clients: mixnet_listener::ConnectedClientsListener,
 }
 
 #[cfg(target_os = "linux")]
@@ -58,36 +52,6 @@ impl TunListener {
         Ok(())
     }
 
-    async fn handle_connected_client_event(
-        &mut self,
-        event: mixnet_listener::ConnectedClientEvent,
-    ) {
-        match event {
-            mixnet_listener::ConnectedClientEvent::Connect(connected_event) => {
-                let ConnectEvent {
-                    ip,
-                    nym_address,
-                    mix_hops,
-                } = *connected_event;
-                log::trace!("Connect client: {ip}");
-                self.connected_clients.insert(
-                    ip,
-                    mixnet_listener::ConnectedClient {
-                        nym_address,
-                        mix_hops,
-                        last_activity: std::time::Instant::now(),
-                    },
-                );
-            }
-            mixnet_listener::ConnectedClientEvent::Disconnect(
-                mixnet_listener::DisconnectEvent(ip),
-            ) => {
-                log::trace!("Disconnect client: {ip}");
-                self.connected_clients.remove(&ip);
-            }
-        }
-    }
-
     async fn run(mut self) -> Result<()> {
         let mut buf = [0u8; 65535];
         while !self.task_client.is_shutdown() {
@@ -95,8 +59,9 @@ impl TunListener {
                 _ = self.task_client.recv() => {
                     log::trace!("TunListener: received shutdown");
                 },
-                event = self.connected_client_rx.recv() => match event {
-                    Some(event) => self.handle_connected_client_event(event).await,
+                // TODO: ConnectedClientsListener::update should poll the channel instead
+                event = self.connected_clients.connected_client_rx.recv() => match event {
+                    Some(event) => self.connected_clients.update(event),
                     None => {
                         log::error!("TunListener: connected client channel closed");
                         break;

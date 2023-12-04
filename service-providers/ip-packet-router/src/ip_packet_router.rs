@@ -136,15 +136,14 @@ impl IpPacketRouter {
 
         // Channel used by the IpPacketRouter to signal connected and disconnected clients to the
         // TunListener
-        let (connected_clients, connected_client_rx) = mixnet_listener::ConnectedClients::new();
+        let (connected_clients, connected_clients_rx) = mixnet_listener::ConnectedClients::new();
         // let (connected_client_tx, connected_client_rx) = tokio::sync::mpsc::unbounded_channel();
 
         let tun_listener = tun_listener::TunListener {
             tun_reader,
             mixnet_client_sender: mixnet_client.split_sender(),
             task_client: task_handle.get_handle(),
-            connected_clients: Default::default(),
-            connected_client_rx,
+            connected_clients: connected_clients_rx,
         };
         tun_listener.start();
 

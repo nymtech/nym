@@ -7608,7 +7608,6 @@ dependencies = [
  "hex",
  "humantime 2.1.0",
  "humantime-serde",
- "lazy_static",
  "nix 0.27.1",
  "nym-bin-common",
  "nym-config",

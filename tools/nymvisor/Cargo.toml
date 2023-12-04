@@ -20,7 +20,6 @@ futures = { workspace = true }
 hex = "0.4.3"
 humantime = "2.1.0"
 humantime-serde = "1.1.1"
-lazy_static = { workspace = true }
 nix = { version = "0.27.1", features = ["signal", "fs"] }
 reqwest = { workspace = true, features = ["json", "stream"] }
 serde = { workspace = true, features = ["derive"] }

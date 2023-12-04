@@ -5,10 +5,10 @@ use crate::config::{default_config_filepath, default_instances_directory, Config
 use crate::env::{setup_env, Env};
 use crate::error::NymvisorError;
 use clap::{Parser, Subcommand};
-use lazy_static::lazy_static;
 use nym_bin_common::bin_info;
 use nym_config::{DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME};
 use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
 use tracing::{debug, error};
 
 mod add_upgrade;
@@ -19,13 +19,10 @@ pub(crate) mod helpers;
 mod init;
 mod run;
 
-lazy_static! {
-    pub static ref PRETTY_BUILD_INFORMATION: String = bin_info!().pretty_print();
-}
-
 // Helper for passing LONG_VERSION to clap
 fn pretty_build_info_static() -> &'static str {
-    &PRETTY_BUILD_INFORMATION
+    static PRETTY_BUILD_INFORMATION: OnceLock<String> = OnceLock::new();
+    PRETTY_BUILD_INFORMATION.get_or_init(|| bin_info!().pretty_print())
 }
 
 #[derive(Parser, Debug)]

@@ -416,6 +416,9 @@ While the stored info point to:\n{stored_info:#?}"
 
     #[error("could not load the default config file as there isn't a single nymvisor instance initiated (there are {instances}). please specify either $NYMVISOR_CONFIG_PATH or $NYMVISOR_ID")]
     NotSingleton { instances: usize },
+
+    #[error("failed to crate tokio's runtime: {source}")]
+    RuntimeCreationFailure { source: io::Error },
 }
 
 impl From<ExitStatus> for NymvisorError {

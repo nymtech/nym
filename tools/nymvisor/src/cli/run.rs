@@ -37,7 +37,7 @@ pub(crate) fn execute(args: Args) -> Result<(), NymvisorError> {
     let rt = runtime::Builder::new_current_thread()
         .enable_all()
         .build()
-        .expect("failed to create the runtime");
+        .map_err(|source| NymvisorError::RuntimeCreationFailure { source })?;
 
     // we have three tasks only:
     // - one for managing the daemon launcher

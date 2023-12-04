@@ -16,25 +16,26 @@ For example `./target/debug/nym-network-requester --no-banner build-info --outpu
 
 ## Upgrading your node
 
-> The process is the similar for Mix Node, Gateway and Network Requester. In the following steps we use a placeholder `<NODE>` in the commands, please change it for the type of node you want to upgrade. Any particularities for the given type of node are included.
+> The process is the similar for Mix Node, Gateway and Network Requester. In the following steps we use a placeholder `<NODE>` in the commands, please change it for the binary name you want to upgrade (ie `nym-mixnode`). Any particularities for the given type of node are included.
 
 Upgrading your node is a two-step process:
-* Updating the binary and `~/.nym/<NODE>/<YOUR_ID>/config/config.toml` on your VPS
-* Updating the node information in the [mixnet smart contract](https://nymtech.net/docs/nyx/mixnet-contract.html). **This is the information that is present on the [mixnet explorer](https://explorer.nymtech.net)**.
+
+1. Updating the binary and `~/.nym/<NODE>/<YOUR_ID>/config/config.toml` on your VPS
+2. Updating the node information in the [mixnet smart contract](https://nymtech.net/docs/nyx/mixnet-contract.html). **This is the information that is present on the [mixnet explorer](https://explorer.nymtech.net)**.
 
 ### Step 1: Upgrading your binary
 Follow these steps to upgrade your Node binary and update its config file:
 * Pause your node process.
     - if you see the terminal window with your node, press `ctrl + c`
-    - if you run it as `systemd` service, run: `systemctl stop nym-<NODE>.service`
+    - if you run it as `systemd` service, run: `systemctl stop <NODE>.service`
 * Replace the existing `<NODE>` binary with the newest binary (which you can either [compile yourself](https://nymtech.net/docs/binaries/building-nym.html) or grab from our [releases page](https://github.com/nymtech/nym/releases)).
 * Re-run `init` with the same values as you used initially for your `<NODE>` ([Mix Node](./mix-node-setup.md#initialising-your-mix-node), [Gateway](./gateway-setup.md#initialising-your-gateway)) . **This will just update the config file, it will not overwrite existing keys**.
 * Restart your node process with the new binary:
-    - if your node is not automated, just `run` your `<NODE>` with `./nym-<NODE> run --id <ID>`. Here are exact guidelines for [Mix Node](./mix-node-setup.md#running-your-mix-node) and [Gateway](./gateway-setup.md#running-your-gateway). 
-    - if you automatized your node via systemd (recommended) run:  
+    - if your node is *not automated*, just `run` your `<NODE>` with `./<NODE> run --id <ID>`. Here are exact guidelines for [Mix Node](./mix-node-setup.md#running-your-mix-node) and [Gateway](./gateway-setup.md#running-your-gateway). 
+    - if you *automated* your node with systemd (recommended) run:  
 ```sh
 systemctl daemon-reload # to pickup the new unit file
-systemctl start nym-<NODE>.service
+systemctl start <NODE>.service
 journalctl -f -u <NODE>.service # to monitor log of you node
 ```
 
@@ -52,7 +53,7 @@ You can either do this graphically via the Desktop Wallet, or the CLI.
 
 ![Bonding page](../images/wallet-screenshots/bonding.png)
 
-* Update the fields in the `Node Settings` page and click `Submit changes to the blockchain`.  
+* Update the fields in the `Node Settings` page (usually the field `Version` is the only one to change) and click `Submit changes to the blockchain`.  
 
 ![Node Settings Page](../images/wallet-screenshots/node_settings.png)
 

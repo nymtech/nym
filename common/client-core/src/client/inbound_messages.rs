@@ -110,13 +110,13 @@ impl InputMessage {
         data: Vec<u8>,
         lane: TransmissionLane,
         packet_type: Option<PacketType>,
-        mix_hops: u8,
+        mix_hops: Option<u8>,
     ) -> Self {
         let message = InputMessage::Regular {
             recipient,
             data,
             lane,
-            mix_hops: Some(mix_hops),
+            mix_hops,
         };
         if let Some(packet_type) = packet_type {
             InputMessage::new_wrapper(message, packet_type)
@@ -154,14 +154,14 @@ impl InputMessage {
         reply_surbs: u32,
         lane: TransmissionLane,
         packet_type: Option<PacketType>,
-        mix_hops: u8,
+        mix_hops: Option<u8>,
     ) -> Self {
         let message = InputMessage::Anonymous {
             recipient,
             data,
             reply_surbs,
             lane,
-            mix_hops: Some(mix_hops),
+            mix_hops,
         };
         if let Some(packet_type) = packet_type {
             InputMessage::new_wrapper(message, packet_type)

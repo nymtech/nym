@@ -8,15 +8,11 @@ pub(crate) fn create_input_message(
 ) -> InputMessage {
     let lane = TransmissionLane::General;
     let packet_type = None;
-    if let Some(mix_hops) = mix_hops {
-        InputMessage::new_regular_with_custom_hops(
-            nym_address,
-            response_packet,
-            lane,
-            packet_type,
-            mix_hops,
-        )
-    } else {
-        InputMessage::new_regular(nym_address, response_packet, lane, packet_type)
-    }
+    InputMessage::new_regular_with_custom_hops(
+        nym_address,
+        response_packet,
+        lane,
+        packet_type,
+        mix_hops,
+    )
 }

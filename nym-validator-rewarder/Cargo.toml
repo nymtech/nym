@@ -1,0 +1,30 @@
+[package]
+name = "nym-validator-rewarder"
+version = "0.1.0"
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+edition.workspace = true
+license = "GPL-3"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow.workspace = true
+bip39 = { workspace = true, features = ["zeroize"] }
+clap = { workspace = true, features = ["cargo"] }
+serde = { workspace = true, features = ["derive"] }
+thiserror.workspace = true
+tokio = { workspace = true, features = ["rt-multi-thread", "time", "macros"] }
+tracing.workspace = true
+url.workspace = true
+zeroize.workspace = true
+tendermint-rpc = { workspace = true, features = ["websocket-client"] }
+
+# internal
+nym-bin-common = { path = "../common/bin-common", features = ["output_format"] }
+nym-config = { path = "../common/config" }
+nym-network-defaults = { path = "../common/network-defaults" }
+nym-task = { path = "../common/task" }
+nym-validator-client = { path = "../common/client-libs/validator-client" }

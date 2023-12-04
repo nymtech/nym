@@ -6687,7 +6687,6 @@ dependencies = [
  "nym-types",
  "nym-validator-client",
  "opentelemetry",
- "pretty_env_logger",
  "rand 0.7.3",
  "serde",
  "serde_json",
@@ -7489,6 +7488,27 @@ dependencies = [
  "ts-rs",
  "url",
  "wasmtimer",
+ "zeroize",
+]
+
+[[package]]
+name = "nym-validator-rewarder"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bip39",
+ "clap 4.4.7",
+ "nym-bin-common",
+ "nym-config",
+ "nym-network-defaults",
+ "nym-task",
+ "nym-validator-client",
+ "serde",
+ "tendermint-rpc",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "url",
  "zeroize",
 ]
 

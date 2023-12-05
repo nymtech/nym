@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { Country } from '../../types';
 interface CountryListProps {
-  countries: Array<Country>;
+  countries: Country[];
   onClick: (name: string, code: string) => void;
   isSelected: (code: string) => boolean;
 }

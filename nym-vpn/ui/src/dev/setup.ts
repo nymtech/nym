@@ -34,7 +34,7 @@ export function mockTauriIPC() {
     }
 
     if (cmd === 'get_node_countries') {
-      return new Promise<Array<Country>>((resolve) =>
+      return new Promise<Country[]>((resolve) =>
         resolve([
           {
             name: 'United States',

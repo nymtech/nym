@@ -3,26 +3,24 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { invoke } from '@tauri-apps/api';
 import { useMainDispatch, useMainState } from '../../contexts';
-import { InputEvent } from '../../types/general';
+import { InputEvent, NodeHop } from '../../types/general';
 import { Country, StateDispatch } from '../../types';
 import { routes } from '../../constants';
 import SearchBox from './SearchBox';
 import CountryList from './CountryList';
 import QuickConnect from './QuickConnect';
 
-type Props = {
-  node: 'entry' | 'exit';
-};
-
-function NodeLocation({ node }: Props) {
-  const isEntryNodeSelectionScreen = node === 'entry';
+function NodeLocation({ type }: NodeHop) {
+  const isEntryNodeSelectionScreen = type === 'entry';
   const { t } = useTranslation('nodeLocation');
-  const [countries, setCountries] = useState(Array<Country>);
+  const [countries, setCountries] = useState<Country[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(false);
-  const [foundCountries, setFoundCountries] = useState(Array<Country>);
+  const [foundCountries, setFoundCountries] = useState<Country[]>([]);
 
-  const state = useMainState();
+  const {
+    localAppData: { entryNode, exitNode },
+  } = useMainState();
   const dispatch = useMainDispatch() as StateDispatch;
 
   const navigate = useNavigate();
@@ -30,7 +28,7 @@ function NodeLocation({ node }: Props) {
   useEffect(() => {
     setLoading(true);
     const getNodeCountries = async () => {
-      const countries = await invoke<Array<Country>>('get_node_countries');
+      const countries = await invoke<Country[]>('get_node_countries');
       setTimeout(() => {
         setCountries(countries);
         setFoundCountries(countries);
@@ -57,16 +55,8 @@ function NodeLocation({ node }: Props) {
 
   const isCountrySelected = (code: string): boolean => {
     return isEntryNodeSelectionScreen
-      ? isCountrySelectedEntryNode(code)
-      : isCountrySelectedExitNode(code);
-  };
-
-  const isCountrySelectedEntryNode = (code: string): boolean => {
-    return state.localAppData.entryNode?.id === code;
-  };
-
-  const isCountrySelectedExitNode = (code: string): boolean => {
-    return state.localAppData.exitNode?.id === code;
+      ? entryNode?.id === code
+      : exitNode?.id === code;
   };
 
   const setNodeSelection = (name: string, code: string) => {

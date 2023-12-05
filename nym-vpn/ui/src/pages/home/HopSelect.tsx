@@ -1,11 +1,18 @@
 import { useTranslation } from 'react-i18next';
 import { NodeConfig } from '../../types';
+import { NodeHop } from '../../types/general';
+
 interface HopSelectProps {
   country: NodeConfig;
   onClick: () => void;
-  node: 'entry' | 'exit';
+  nodeHop: NodeHop;
 }
-export default function HopSelect({ node, country, onClick }: HopSelectProps) {
+
+export default function HopSelect({
+  nodeHop,
+  country,
+  onClick,
+}: HopSelectProps) {
   const { t } = useTranslation('home');
   return (
     <>
@@ -35,7 +42,7 @@ export default function HopSelect({ node, country, onClick }: HopSelectProps) {
           htmlFor="floating_outlined"
           className="dark:text-white bg-blanc-nacre dark:bg-baltic-sea absolute text-sm text-gray-500 dark:text-gray-400 ml-4 duration-300 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] dark:bg-gray-900 px-2 peer-placeholder-shown:px-2 peer-placeholder-shown:text-blue-600 peer-placeholder-shown:dark:text-blue-500 peer-placeholder-shown:top-2 peer-placeholder-shown:scale-75 peer-placeholder-shown:-translate-y-4 rtl:peer-placeholder-shown:translate-x-1/4 rtl:peer-placeholder-shown:left-auto start-1"
         >
-          {node === 'entry' ? t('first-hop') : t('last-hop')}
+          {nodeHop.type === 'entry' ? t('first-hop') : t('last-hop')}
         </label>
       </div>
     </>

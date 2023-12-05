@@ -68,7 +68,7 @@ function Home() {
               }
             }
             onClick={() => navigate(routes.exitNodeLocation)}
-            node={'exit'}
+            nodeHop={{ type: 'exit' }}
           />
         </div>
         <Button

@@ -7,7 +7,7 @@ use crate::node::mixnet_handling::receiver::packet_processing::PacketProcessor;
 use crate::node::storage::error::StorageError;
 use crate::node::storage::Storage;
 use futures::channel::mpsc::SendError;
-use futures::StreamExt;
+use futures::{StreamExt, SinkExt};
 use log::*;
 use nym_mixnet_client::forwarder::MixForwardingSender;
 use nym_mixnode_common::packet_processor::processor::ProcessedFinalHop;
@@ -128,8 +128,8 @@ impl<St: Storage> ConnectionHandler<St> {
         self.storage.store_message(client_address, message).await
     }
 
-    fn forward_ack(
-        &self,
+    async fn forward_ack(
+        &mut self,
         forward_ack: Option<MixPacket>,
         client_address: DestinationAddressBytes,
     ) -> Result<(), CriticalPacketProcessingError> {
@@ -138,12 +138,14 @@ impl<St: Storage> ConnectionHandler<St> {
             trace!("Sending ack from packet for {client_address} to {next_hop}",);
 
             self.ack_sender
-                .unbounded_send(forward_ack)
-                .map_err(
-                    |source| CriticalPacketProcessingError::AckForwardingFailure {
-                        source: source.into_send_error(),
-                    },
-                )?;
+                // .unbounded_send(forward_ack)
+                .send(forward_ack)
+                .await.unwrap();
+                // .map_err(
+                //     |source| CriticalPacketProcessingError::AckForwardingFailure {
+                //         source: source.into_send_error(),
+                //     },
+                // )?;
         }
         Ok(())
     }
@@ -172,7 +174,7 @@ impl<St: Storage> ConnectionHandler<St> {
         // if we managed to either push message directly to the [online] client or store it at
         // its inbox, it means that it must exist at this gateway, hence we can send the
         // received ack back into the network
-        self.forward_ack(forward_ack, client_address)
+        self.forward_ack(forward_ack, client_address).await
     }
 
     async fn handle_received_packet(

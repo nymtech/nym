@@ -324,7 +324,7 @@ impl MixnetListener {
             if !self.request_filter.check_address(&dst).await {
                 log::warn!("Failed filter check: {dst}");
                 // TODO: we could consider sending back a response here
-                return Err(IpPacketRouterError::AddressFailedFilterCheck { addr: dst });
+                return Ok(None);
             }
         } else {
             // TODO: we should also filter packets without port number

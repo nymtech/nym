@@ -3,7 +3,7 @@
 
 use futures::{
     future::{FusedFuture, OptionFuture},
-    FutureExt, StreamExt,
+    FutureExt, StreamExt, SinkExt,
 };
 use log::*;
 use nym_gateway_requests::{
@@ -203,8 +203,9 @@ where
     /// # Arguments
     ///
     /// * `mix_packet`: packet received from the client that should get forwarded into the network.
-    fn forward_packet(&self, mix_packet: MixPacket) {
-        if let Err(err) = self.inner.outbound_mix_sender.unbounded_send(mix_packet) {
+    async fn forward_packet(&mut self, mix_packet: MixPacket) {
+        // if let Err(err) = self.inner.outbound_mix_sender.unbounded_send(mix_packet) {
+        if let Err(err) = self.inner.outbound_mix_sender.send(mix_packet).await {
             error!("We failed to forward requested mix packet - {err}. Presumably our mix forwarder has crashed. We cannot continue.");
             process::exit(1);
         }
@@ -303,7 +304,7 @@ where
     ///
     /// * `mix_packet`: packet received from the client that should get forwarded into the network.
     async fn handle_forward_sphinx(
-        &self,
+        &mut self,
         mix_packet: MixPacket,
     ) -> Result<ServerResponse, RequestHandlingError> {
         let consumed_bandwidth = mix_packet.packet().len() as i64;
@@ -317,7 +318,7 @@ where
         }
 
         self.consume_bandwidth(consumed_bandwidth).await?;
-        self.forward_packet(mix_packet);
+        self.forward_packet(mix_packet).await;
 
         Ok(ServerResponse::Send {
             remaining_bandwidth: available_bandwidth - consumed_bandwidth,
@@ -329,7 +330,7 @@ where
     /// # Arguments
     ///
     /// * `bin_msg`: raw message to handle.
-    async fn handle_binary(&self, bin_msg: Vec<u8>) -> Message {
+    async fn handle_binary(&mut self, bin_msg: Vec<u8>) -> Message {
         // this function decrypts the request and checks the MAC
         match BinaryRequest::try_from_encrypted_tagged_bytes(bin_msg, &self.client.shared_keys) {
             Err(e) => {

@@ -158,7 +158,7 @@ pub struct LocalGateway {
 
     // 'sender' part
     /// Channel responsible for taking mix packets and forwarding them further into the further mixnet layers.
-    packet_forwarder: mpsc::UnboundedSender<MixPacket>,
+    packet_forwarder: mpsc::Sender<MixPacket>,
 
     // 'receiver' part
     packet_router_tx: Option<oneshot::Sender<PacketRouter>>,
@@ -168,7 +168,7 @@ pub struct LocalGateway {
 impl LocalGateway {
     pub fn new(
         local_identity: identity::PublicKey,
-        packet_forwarder: mpsc::UnboundedSender<MixPacket>,
+        packet_forwarder: mpsc::Sender<MixPacket>,
         packet_router_tx: oneshot::Sender<PacketRouter>,
     ) -> Self {
         LocalGateway {
@@ -181,6 +181,8 @@ impl LocalGateway {
 
 #[cfg(not(target_arch = "wasm32"))]
 mod nonwasm_sealed {
+    use futures::SinkExt;
+
     use super::*;
 
     impl GatewayTransceiver for LocalGateway {
@@ -193,9 +195,12 @@ mod nonwasm_sealed {
     impl GatewaySender for LocalGateway {
         async fn send_mix_packet(&mut self, packet: MixPacket) -> Result<(), ErasedGatewayError> {
             self.packet_forwarder
-                .unbounded_send(packet)
-                .map_err(|err| err.into_send_error())
-                .map_err(erase_err)
+                .send(packet)
+                .await
+                .unwrap();
+            Ok(())
+                // .map_err(|err| err.into_send_error())
+                // .map_err(erase_err)
         }
     }
 

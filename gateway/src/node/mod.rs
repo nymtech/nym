@@ -271,6 +271,7 @@ impl<St> Gateway<St> {
 
         // this gateway, whenever it has anything to send to its local NR will use fake_client_tx
         let (nr_mix_sender, nr_mix_receiver) = mpsc::unbounded();
+        // let (nr_mix_sender, nr_mix_receiver) = mpsc::channel(8);
         let router_shutdown = shutdown.fork("message_router");
 
         let (router_tx, mut router_rx) = oneshot::channel();
@@ -335,6 +336,7 @@ impl<St> Gateway<St> {
 
         // this gateway, whenever it has anything to send to its local NR will use fake_client_tx
         let (nr_mix_sender, nr_mix_receiver) = mpsc::unbounded();
+        // let (nr_mix_sender, nr_mix_receiver) = mpsc::channel(8);
         let router_shutdown = shutdown.fork("message_router");
 
         let (router_tx, mut router_rx) = oneshot::channel();

@@ -482,7 +482,7 @@ where
         } else if packets > 0 {
             log::info!("{status_str}");
         } else {
-            log::debug!("{status_str}");
+            log::info!("{status_str}");
         }
 
         // Send status message to whoever is listening (possibly UI)
@@ -498,7 +498,7 @@ where
 
         #[cfg(not(target_arch = "wasm32"))]
         {
-            let mut status_timer = tokio::time::interval(Duration::from_secs(5));
+            let mut status_timer = tokio::time::interval(Duration::from_secs(1));
 
             loop {
                 tokio::select! {

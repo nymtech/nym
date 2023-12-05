@@ -12,7 +12,7 @@ pub type BatchMixMessageReceiver = tokio::sync::mpsc::Receiver<Vec<MixPacket>>;
 pub mod transceiver;
 
 // We remind ourselves that 32 x 32kb = 1024kb, a reasonable size for a network buffer.
-pub const MIX_MESSAGE_RECEIVER_BUFFER_SIZE: usize = 32;
+pub const MIX_MESSAGE_RECEIVER_BUFFER_SIZE: usize = 8;
 const MAX_FAILURE_COUNT: usize = 100;
 
 // that's also disgusting.

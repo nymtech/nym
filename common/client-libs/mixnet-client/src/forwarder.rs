@@ -8,8 +8,8 @@ use log::*;
 use nym_sphinx::forwarding::packet::MixPacket;
 use std::time::Duration;
 
-pub type MixForwardingSender = mpsc::UnboundedSender<MixPacket>;
-type MixForwardingReceiver = mpsc::UnboundedReceiver<MixPacket>;
+pub type MixForwardingSender = mpsc::Sender<MixPacket>;
+type MixForwardingReceiver = mpsc::Receiver<MixPacket>;
 
 /// A specialisation of client such that it forwards any received packets on the channel into the
 /// mix network immediately, i.e. will not try to listen for any responses.
@@ -36,7 +36,8 @@ impl PacketForwarder {
             use_legacy_version,
         );
 
-        let (packet_sender, packet_receiver) = mpsc::unbounded();
+        // let (packet_sender, packet_receiver) = mpsc::unbounded();
+        let (packet_sender, packet_receiver) = mpsc::channel(8);
 
         (
             PacketForwarder {

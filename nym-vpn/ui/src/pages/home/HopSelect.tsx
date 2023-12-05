@@ -1,5 +1,5 @@
-import { NodeConfig } from '../../types';
 import { useTranslation } from 'react-i18next';
+import { NodeConfig } from '../../types';
 interface HopSelectProps {
   country: NodeConfig;
   onClick: () => void;
@@ -12,6 +12,8 @@ export default function HopSelect({ node, country, onClick }: HopSelectProps) {
       <div className="my-3 font-semibold text-lg">Connect to</div>
       <div
         className="relative w-full flex flex-row justify-center cursor-pointer"
+        onKeyDown={onClick}
+        role="presentation"
         onClick={onClick}
       >
         <input

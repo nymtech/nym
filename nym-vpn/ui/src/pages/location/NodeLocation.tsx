@@ -1,14 +1,14 @@
 import { useTranslation } from 'react-i18next';
 import { useEffect, useState } from 'react';
-import { Country, StateDispatch } from '../../types';
-import SearchBox from './SearchBox.tsx';
-import { InputEvent } from '../../types/general.ts';
+import { useNavigate } from 'react-router-dom';
 import { invoke } from '@tauri-apps/api';
 import { useMainDispatch, useMainState } from '../../contexts';
-import { useNavigate } from 'react-router-dom';
-import { routes } from '../../constants.ts';
-import CountryList from './CountryList.tsx';
-import QuickConnect from './QuickConnect.tsx';
+import { InputEvent } from '../../types/general';
+import { Country, StateDispatch } from '../../types';
+import { routes } from '../../constants';
+import SearchBox from './SearchBox';
+import CountryList from './CountryList';
+import QuickConnect from './QuickConnect';
 
 type Props = {
   node: 'entry' | 'exit';
@@ -61,11 +61,11 @@ function NodeLocation({ node }: Props) {
       : isCountrySelectedExitNode(code);
   };
 
-  const isCountrySelectedEntryNode = (code: String): boolean => {
+  const isCountrySelectedEntryNode = (code: string): boolean => {
     return state.localAppData.entryNode?.id === code;
   };
 
-  const isCountrySelectedExitNode = (code: String): boolean => {
+  const isCountrySelectedExitNode = (code: string): boolean => {
     return state.localAppData.exitNode?.id === code;
   };
 

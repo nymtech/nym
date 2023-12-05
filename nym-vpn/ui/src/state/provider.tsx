@@ -2,9 +2,9 @@ import React, { useEffect, useReducer } from 'react';
 import { invoke } from '@tauri-apps/api';
 import { MainDispatchContext, MainStateContext } from '../contexts';
 import { AppDataFromBackend, CmdError, ConnectionState } from '../types';
+import { QuickConnectCountry } from '../constants';
 import { initialState, reducer } from './main';
 import { useTauriEvents } from './useTauriEvents';
-import { quickConnectCountry } from '../constants.ts';
 
 type Props = {
   children?: React.ReactNode;
@@ -52,12 +52,12 @@ export function MainStateProvider({ children }: Props) {
             uiTheme: data.ui_theme || 'Light',
             vpnMode: data.vpn_mode || 'TwoHop',
             entryNode: data.entry_node || {
-              country: quickConnectCountry.name,
-              id: quickConnectCountry.code,
+              country: QuickConnectCountry.name,
+              id: QuickConnectCountry.code,
             },
             exitNode: data.exit_node || {
-              country: quickConnectCountry.name,
-              id: quickConnectCountry.code,
+              country: QuickConnectCountry.name,
+              id: QuickConnectCountry.code,
             },
           },
         });

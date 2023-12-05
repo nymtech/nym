@@ -1,4 +1,4 @@
-import { InputEvent } from '../../types/general.ts';
+import { InputEvent } from '../../types/general';
 interface SearchProps {
   value: string;
   onChange: (e: InputEvent) => void;

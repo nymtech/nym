@@ -1,5 +1,5 @@
-import { Country } from '../../types';
 import { useTranslation } from 'react-i18next';
+import { Country } from '../../types';
 interface CountryListProps {
   countries: Array<Country>;
   onClick: (name: string, code: string) => void;
@@ -17,6 +17,8 @@ export default function CountryList({
         countries.map((country) => (
           <li key={t(country.name)} className="list-none w-full">
             <div
+              role="presentation"
+              onKeyDown={() => onClick(country.name, country.code)}
               className="flex flex-row justify-between dark:hover:bg-baltic-sea-jaguar hover:bg-coal-mine-light rounded-lg cursor-pointer"
               onClick={() => onClick(country.name, country.code)}
             >

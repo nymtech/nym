@@ -1,8 +1,7 @@
-use std::io::Empty;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::states::app::{NodeConfig, VpnMode, Country};
+use crate::states::app::{NodeConfig, VpnMode};
 
 #[derive(Default, Serialize, Deserialize, Debug, Clone, TS)]
 #[ts(export)]
@@ -23,4 +22,3 @@ pub struct AppData {
     pub entry_node: Option<NodeConfig>,
     pub exit_node: Option<NodeConfig>,
 }
-

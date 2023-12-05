@@ -7,7 +7,7 @@ import {
   UiTheme,
   VpnMode,
 } from '../types';
-import { quickConnectCountry } from '../constants';
+import { QuickConnectCountry } from '../constants';
 
 export type StateAction =
   | { type: 'set-partial-state'; partialState: Partial<AppState> }
@@ -41,12 +41,12 @@ export const initialState: AppState = {
     uiTheme: 'Light',
     vpnMode: 'TwoHop',
     entryNode: {
-      country: quickConnectCountry.name,
-      id: quickConnectCountry.code,
+      country: QuickConnectCountry.name,
+      id: QuickConnectCountry.code,
     },
     exitNode: {
-      country: quickConnectCountry.name,
-      id: quickConnectCountry.code,
+      country: QuickConnectCountry.name,
+      id: QuickConnectCountry.code,
     },
   },
 };

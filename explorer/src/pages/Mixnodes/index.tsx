@@ -1,38 +1,30 @@
 import * as React from 'react';
 import { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
-import { Button, Card, Grid, Link as MuiLink, Box } from '@mui/material';
-import { Link as RRDLink, useParams, useNavigate } from 'react-router-dom';
+import { Stack, Card, Grid, Box } from '@mui/material';
+import { useParams, useNavigate } from 'react-router-dom';
 import { SelectChangeEvent } from '@mui/material/Select';
-import { Stack, SxProps } from '@mui/system';
-import { Theme, useTheme } from '@mui/material/styles';
 import { CopyToClipboard } from '@nymproject/react/clipboard/CopyToClipboard';
 import { useWallet } from '@cosmos-kit/react';
-import { useMainContext } from '../../context/main';
-import { MixnodeRowType, mixnodeToGridRow } from '../../components/MixNodes';
-import { TableToolbar } from '../../components/TableToolbar';
-import { MixNodeResponse, MixnodeStatusWithAll, toMixnodeStatus } from '../../typeDefs/explorer-api';
-import { NYM_BIG_DIPPER } from '../../api/constants';
-import { CustomColumnHeading } from '../../components/CustomColumnHeading';
-import { Title } from '../../components/Title';
-import { cellStyles, UniversalDataGrid } from '../../components/Universal-DataGrid';
-import { currencyToString } from '../../utils/currency';
-import { splice } from '../../utils';
-import { getMixNodeStatusColor } from '../../components/MixNodes/Status';
-import { MixNodeStatusDropdown } from '../../components/MixNodes/StatusDropdown';
-import { Tooltip } from '../../components/Tooltip';
-import { DelegateIconButton } from '../../components/Delegations/components/DelegateIconButton';
-import { DelegationModal, DelegationModalProps } from '../../components/Delegations/components/DelegationModal';
-import { DelegateModal } from '../../components/Delegations/components/DelegateModal';
-
-const getCellFontStyle = (theme: Theme, row: MixnodeRowType, textColor?: string) => ({
-  color: textColor || getMixNodeStatusColor(theme, row.status),
-});
-
-const getCellStyles = (theme: Theme, row: MixnodeRowType, textColor?: string): SxProps => ({
-  ...cellStyles,
-  // TODO: should these be here, or change in `cellStyles`??
-  ...getCellFontStyle(theme, row, textColor),
-});
+import { useMainContext } from '@src/context/main';
+import {
+  DelegateIconButton,
+  DelegationModal,
+  DelegationModalProps,
+  DelegateModal,
+  CustomColumnHeading,
+  StyledLink,
+  Title,
+  UniversalDataGrid,
+  TableToolbar,
+  Tooltip,
+  MixNodeStatusDropdown,
+  mixnodeToGridRow,
+} from '@src/components';
+import { MixNodeResponse, MixnodeStatusWithAll, toMixnodeStatus } from '@src/typeDefs/explorer-api';
+import { NYM_BIG_DIPPER } from '@src/api/constants';
+import { currencyToString } from '@src/utils/currency';
+import { splice } from '@src/utils';
+import { useGetMixNodeStatusColor } from '@src/hooks';
 
 export const PageMixnodes: FCWithChildren = () => {
   const { mixnodes, fetchMixnodes } = useMainContext();
@@ -46,7 +38,6 @@ export const PageMixnodes: FCWithChildren = () => {
   const [confirmationModalProps, setConfirmationModalProps] = React.useState<DelegationModalProps | undefined>();
   const { status } = useParams<{ status: MixnodeStatusWithAll | undefined }>();
 
-  const theme = useTheme();
   const navigate = useNavigate();
   const wallet = useWallet();
 
@@ -92,86 +83,90 @@ export const PageMixnodes: FCWithChildren = () => {
     );
   };
 
+  const handleOnDelegate = ({ identityKey, mixId }: { identityKey: string; mixId: number }) => {
+    if (wallet.status !== 'Connected') {
+      setConfirmationModalProps({
+        status: 'info',
+        message: 'Please connect your wallet to delegate',
+      });
+    } else {
+      setItemSelectedForDelegation({ identityKey, mixId });
+    }
+  };
+
   const columns: GridColDef[] = [
     {
       field: 'identity_key',
+      width: 215,
       headerName: 'Identity Key',
+      headerAlign: 'left',
+      headerClassName: 'MuiDataGrid-header-override',
       disableColumnMenu: true,
       renderHeader: () => <CustomColumnHeading headingTitle="Identity Key" />,
-      headerClassName: 'MuiDataGrid-header-override',
-      width: 215,
-      headerAlign: 'left',
       renderCell: (params: GridRenderCellParams) => (
         <Stack direction="row" alignItems="center" gap={1}>
           <DelegateIconButton
             size="small"
-            onDelegate={() => {
-              if (wallet.status !== 'Connected') {
-                setConfirmationModalProps({
-                  status: 'info',
-                  message: 'Please connect your wallet to delegate',
-                });
-              } else {
-                setItemSelectedForDelegation({ identityKey: params.row.identity_key, mixId: params.row.mix_id });
-              }
-            }}
+            onDelegate={() => handleOnDelegate({ identityKey: params.value, mixId: params.row.mix_id })}
           />
           <CopyToClipboard smallIcons value={params.value} tooltip={`Copy identity key ${params.value} to clipboard`} />
-          <MuiLink
-            sx={getCellStyles(theme, params.row)}
-            component={RRDLink}
+
+          <StyledLink
             to={`/network-components/mixnode/${params.row.mix_id}`}
-            data-testid="identity-link"
+            color={useGetMixNodeStatusColor(params.row.status)}
+            dataTestId="identity-link"
           >
             {splice(7, 29, params.value)}
-          </MuiLink>
+          </StyledLink>
         </Stack>
       ),
     },
     {
       field: 'mix_id',
-      headerName: 'Mix ID',
-      disableColumnMenu: true,
-      renderHeader: () => <CustomColumnHeading headingTitle="Mix ID" />,
-      headerClassName: 'MuiDataGrid-header-override',
       width: 85,
       align: 'center',
+      headerName: 'Mix ID',
       headerAlign: 'center',
+      headerClassName: 'MuiDataGrid-header-override',
+      disableColumnMenu: true,
+      renderHeader: () => <CustomColumnHeading headingTitle="Mix ID" />,
       renderCell: (params: GridRenderCellParams) => (
-        <MuiLink
-          sx={getCellStyles(theme, params.row)}
-          component={RRDLink}
+        <StyledLink
           to={`/network-components/mixnode/${params.value}`}
+          color={useGetMixNodeStatusColor(params.row.status)}
           data-testid="mix-id"
         >
           {params.value}
-        </MuiLink>
+        </StyledLink>
       ),
     },
 
     {
       field: 'bond',
-      headerName: 'Stake',
-      disableColumnMenu: true,
-      renderHeader: () => <CustomColumnHeading headingTitle="Stake" />,
-      type: 'number',
-      headerClassName: 'MuiDataGrid-header-override',
       width: 150,
       align: 'left',
+      type: 'number',
+      disableColumnMenu: true,
+      headerName: 'Stake',
       headerAlign: 'left',
+      headerClassName: 'MuiDataGrid-header-override',
+      renderHeader: () => <CustomColumnHeading headingTitle="Stake" />,
       renderCell: (params: GridRenderCellParams) => (
-        <MuiLink
-          sx={getCellStyles(theme, params.row)}
-          component={RRDLink}
+        <StyledLink
           to={`/network-components/mixnode/${params.row.mix_id}`}
+          color={useGetMixNodeStatusColor(params.row.status)}
         >
-          {currencyToString({ amount: params.value, dp: 2 })}
-        </MuiLink>
+          {currencyToString(params.value)}
+        </StyledLink>
       ),
     },
     {
       field: 'stake_saturation',
+      width: 185,
+      align: 'center',
       headerName: 'Stake Saturation',
+      headerAlign: 'center',
+      headerClassName: 'MuiDataGrid-header-override',
       disableColumnMenu: true,
       renderHeader: () => (
         <CustomColumnHeading
@@ -179,45 +174,39 @@ export const PageMixnodes: FCWithChildren = () => {
           tooltipInfo="Level of stake saturation for this node. Nodes receive more rewards the higher their saturation level, up to 100%. Beyond 100% no additional rewards are granted. The current stake saturation level is 940k NYMs, computed as S/K where S is target amount of tokens staked in the network and K is the number of nodes in the reward set."
         />
       ),
-      headerClassName: 'MuiDataGrid-header-override',
-      width: 185,
-      align: 'center',
-      headerAlign: 'center',
       renderCell: (params: GridRenderCellParams) => (
-        <MuiLink
-          sx={{
-            ...getCellStyles(theme, params.row, params.value > 100 ? 'theme.palette.warning.main' : undefined),
-          }}
-          component={RRDLink}
+        <StyledLink
           to={`/network-components/mixnode/${params.row.mix_id}`}
-        >
-          {`${params.value} %`}
-        </MuiLink>
+          color={useGetMixNodeStatusColor(params.row.status)}
+        >{`${params.value} %`}</StyledLink>
       ),
     },
     {
       field: 'pledge_amount',
-      headerName: 'Bond',
-      disableColumnMenu: true,
       width: 150,
-      headerClassName: 'MuiDataGrid-header-override',
-      renderHeader: () => <CustomColumnHeading headingTitle="Bond" tooltipInfo="Node operator's share of stake." />,
-      type: 'number',
-      headerAlign: 'left',
       align: 'left',
+      type: 'number',
+      headerName: 'Bond',
+      headerAlign: 'left',
+      headerClassName: 'MuiDataGrid-header-override',
+      disableColumnMenu: true,
+      renderHeader: () => <CustomColumnHeading headingTitle="Bond" tooltipInfo="Node operator's share of stake." />,
       renderCell: (params: GridRenderCellParams) => (
-        <MuiLink
-          sx={getCellStyles(theme, params.row)}
-          component={RRDLink}
+        <StyledLink
           to={`/network-components/mixnode/${params.row.mix_id}`}
+          color={useGetMixNodeStatusColor(params.row.status)}
         >
-          {currencyToString({ amount: params.value, dp: 2 })}
-        </MuiLink>
+          {currencyToString(params.value)}
+        </StyledLink>
       ),
     },
     {
       field: 'profit_percentage',
+      width: 145,
+      align: 'center',
       headerName: 'Profit Margin',
+      headerAlign: 'center',
+      headerClassName: 'MuiDataGrid-header-override',
       disableColumnMenu: true,
       renderHeader: () => (
         <CustomColumnHeading
@@ -225,47 +214,41 @@ export const PageMixnodes: FCWithChildren = () => {
           tooltipInfo="Percentage of the delegators rewards that the operator takes as fee before rewards are distributed to the delegators."
         />
       ),
-      headerClassName: 'MuiDataGrid-header-override',
-      width: 145,
-      headerAlign: 'center',
-      align: 'center',
       renderCell: (params: GridRenderCellParams) => (
-        <MuiLink
-          sx={{ ...getCellStyles(theme, params.row) }}
-          component={RRDLink}
+        <StyledLink
           to={`/network-components/mixnode/${params.row.mix_id}`}
-        >
-          {params.value}%
-        </MuiLink>
+          color={useGetMixNodeStatusColor(params.row.status)}
+        >{`${params.value}%`}</StyledLink>
       ),
     },
     {
       field: 'operating_cost',
+      width: 170,
+      align: 'center',
       headerName: 'Operating Cost',
+      headerAlign: 'center',
+      headerClassName: 'MuiDataGrid-header-override',
+      disableColumnMenu: true,
       renderHeader: () => (
         <CustomColumnHeading
           headingTitle="Operating Cost"
           tooltipInfo="Monthly operational cost of running this node. This cost is set by the operator and it influences how the rewards are split between the operator and delegators."
         />
       ),
-      headerClassName: 'MuiDataGrid-header-override',
-      width: 170,
-      headerAlign: 'center',
-      align: 'center',
-      disableColumnMenu: true,
       renderCell: (params: GridRenderCellParams) => (
-        <MuiLink
-          sx={{ ...getCellStyles(theme, params.row), textAlign: 'left' }}
-          component={RRDLink}
+        <StyledLink
           to={`/network-components/mixnode/${params.row.mix_id}`}
-        >
-          {params.value} NYM
-        </MuiLink>
+          color={useGetMixNodeStatusColor(params.row.status)}
+        >{`${params.value} NYM`}</StyledLink>
       ),
     },
     {
       field: 'node_performance',
+      width: 165,
+      align: 'center',
       headerName: 'Routing Score',
+      headerAlign: 'center',
+      headerClassName: 'MuiDataGrid-header-override',
       disableColumnMenu: true,
       renderHeader: () => (
         <CustomColumnHeading
@@ -273,85 +256,72 @@ export const PageMixnodes: FCWithChildren = () => {
           tooltipInfo="Mixnode's most recent score (measured in the last 15 minutes). Routing score is relative to that of the network. Each time a gateway is tested, the test packets have to go through the full path of the network (gateway + 3 nodes). If a node in the path drop packets it will affect the score of the gateway and other nodes in the test."
         />
       ),
-      headerClassName: 'MuiDataGrid-header-override',
-      width: 165,
-      headerAlign: 'center',
-      align: 'center',
       renderCell: (params: GridRenderCellParams) => (
-        <MuiLink
-          sx={{ ...getCellStyles(theme, params.row), textAlign: 'left' }}
-          component={RRDLink}
+        <StyledLink
           to={`/network-components/mixnode/${params.row.mix_id}`}
-        >
-          {params.value}%
-        </MuiLink>
+          color={useGetMixNodeStatusColor(params.row.status)}
+        >{`${params.value}%`}</StyledLink>
       ),
     },
     {
       field: 'owner',
-      headerName: 'Owner',
-      disableColumnMenu: true,
-      renderHeader: () => <CustomColumnHeading headingTitle="Owner" />,
       width: 120,
+      headerName: 'Owner',
       headerAlign: 'left',
       headerClassName: 'MuiDataGrid-header-override',
+      disableColumnMenu: true,
+      renderHeader: () => <CustomColumnHeading headingTitle="Owner" />,
       renderCell: (params: GridRenderCellParams) => (
-        <MuiLink
-          href={`${NYM_BIG_DIPPER}/account/${params.value}`}
+        <StyledLink
+          to={`${NYM_BIG_DIPPER}/account/${params.value}`}
+          color={useGetMixNodeStatusColor(params.row.status)}
           target="_blank"
-          sx={getCellStyles(theme, params.row)}
           data-testid="big-dipper-link"
         >
           {splice(7, 29, params.value)}
-        </MuiLink>
+        </StyledLink>
       ),
     },
     {
       field: 'location',
+      width: 150,
       headerName: 'Location',
-      renderHeader: () => <CustomColumnHeading headingTitle="Location" />,
-      disableColumnMenu: true,
-      width: 120,
       headerAlign: 'left',
       headerClassName: 'MuiDataGrid-header-override',
+      disableColumnMenu: true,
+      renderHeader: () => <CustomColumnHeading headingTitle="Location" />,
       renderCell: (params: GridRenderCellParams) => (
-        <Button
-          onClick={() => handleSearch(params.value as string)}
-          sx={{
-            ...getCellStyles(theme, params.row),
-            justifyContent: 'flex-start',
-          }}
-        >
-          <Tooltip text={params.value} id="mixnode-location-text">
-            <Box
-              sx={{
-                overflow: 'hidden',
-                whiteSpace: 'nowrap',
-                textOverflow: 'ellipsis',
-              }}
-            >
-              {params.value}
-            </Box>
-          </Tooltip>
-        </Button>
+        <Tooltip text={params.value} id="mixnode-location-text">
+          <Box
+            sx={{
+              overflow: 'hidden',
+              whiteSpace: 'nowrap',
+              textOverflow: 'ellipsis',
+              cursor: 'pointer',
+              color: useGetMixNodeStatusColor(params.row.status),
+            }}
+            onClick={() => handleSearch(params.value)}
+          >
+            {params.value}
+          </Box>
+        </Tooltip>
       ),
     },
     {
       field: 'host',
-      headerName: 'Host',
-      renderHeader: () => <CustomColumnHeading headingTitle="Host" />,
-      disableColumnMenu: true,
-      headerClassName: 'MuiDataGrid-header-override',
       width: 130,
+      headerName: 'Host',
       headerAlign: 'left',
+      headerClassName: 'MuiDataGrid-header-override',
+      disableColumnMenu: true,
+      renderHeader: () => <CustomColumnHeading headingTitle="Host" />,
       renderCell: (params: GridRenderCellParams) => (
-        <MuiLink
-          sx={getCellStyles(theme, params.row)}
-          component={RRDLink}
+        <StyledLink
+          color={useGetMixNodeStatusColor(params.row.status)}
           to={`/network-components/mixnode/${params.row.mix_id}`}
         >
           {params.value}
-        </MuiLink>
+        </StyledLink>
       ),
     },
   ];
@@ -359,6 +329,7 @@ export const PageMixnodes: FCWithChildren = () => {
   const handlePageSize = (event: SelectChangeEvent<string>) => {
     setPageSize(event.target.value);
   };
+
   return (
     <>
       <Title text="Mixnodes" />

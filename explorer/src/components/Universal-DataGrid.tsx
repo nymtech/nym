@@ -2,7 +2,6 @@ import * as React from 'react';
 import { makeStyles } from '@mui/styles';
 import { DataGrid, GridColDef, useGridApiContext, useGridState } from '@mui/x-data-grid';
 import Pagination from '@mui/material/Pagination';
-import { SxProps } from '@mui/system';
 import { LinearProgress } from '@mui/material';
 import { GridInitialStateCommunity } from '@mui/x-data-grid/models/gridStateCommunity';
 
@@ -11,18 +10,6 @@ const useStyles = makeStyles({
     display: 'flex',
   },
 });
-
-export const cellStyles: SxProps = {
-  padding: 0,
-  maxHeight: 100,
-  color: 'inherit',
-  textDecoration: 'none',
-  fontWeight: 400,
-  lineHeight: 2,
-  fontSize: '12px',
-  wordBreak: 'break-word',
-  whiteSpace: 'break-spaces',
-};
 
 const CustomPagination = () => {
   const apiRef = useGridApiContext();

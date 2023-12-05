@@ -1,29 +1,12 @@
 import { Typography } from '@mui/material';
 import * as React from 'react';
-import { Theme, useTheme } from '@mui/material/styles';
-import { getMixNodeIcon } from '../Icons';
-import { MixnodeStatus } from '../../typeDefs/explorer-api';
+import { getMixNodeIcon } from '@src/components/Icons';
+import { MixnodeStatus } from '@src/typeDefs/explorer-api';
+import { useGetMixNodeStatusColor } from '@src/hooks/useGetMixnodeStatusColor';
 
 interface MixNodeStatusProps {
   status: MixnodeStatus;
 }
-
-export const getMixNodeStatusColor = (theme: Theme, status: MixnodeStatus) => {
-  let color;
-  switch (status) {
-    case MixnodeStatus.active:
-      color = theme.palette.nym.networkExplorer.mixnodes.status.active;
-      break;
-    case MixnodeStatus.standby:
-      color = theme.palette.nym.networkExplorer.mixnodes.status.standby;
-      break;
-    default:
-      color = theme.palette.nym.networkExplorer.mixnodes.status.inactive;
-      break;
-  }
-  return color;
-};
-
 // TODO: should be done with i18n
 export const getMixNodeStatusText = (status: MixnodeStatus) => {
   switch (status) {
@@ -37,9 +20,8 @@ export const getMixNodeStatusText = (status: MixnodeStatus) => {
 };
 
 export const MixNodeStatus: FCWithChildren<MixNodeStatusProps> = ({ status }) => {
-  const theme = useTheme();
   const Icon = React.useMemo(() => getMixNodeIcon(status), [status]);
-  const color = React.useMemo(() => getMixNodeStatusColor(theme, status), [status, theme]);
+  const color = React.useMemo(() => useGetMixNodeStatusColor(status), [status]);
 
   return (
     <Typography color={color} display="flex" alignItems="center">

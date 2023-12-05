@@ -5,7 +5,7 @@ import { ContentCard } from '../../components/ContentCard';
 import { CustomColumnHeading } from '../../components/CustomColumnHeading';
 import { TableToolbar } from '../../components/TableToolbar';
 import { Title } from '../../components/Title';
-import { UniversalDataGrid, cellStyles } from '../../components/Universal-DataGrid';
+import { UniversalDataGrid } from '../../components/Universal-DataGrid';
 import { WorldMap } from '../../components/WorldMap';
 import { useMainContext } from '../../context/main';
 import { CountryDataRowType, countryDataToGridRow } from '../../utils';
@@ -31,11 +31,7 @@ export const PageMixnodesMap: FCWithChildren = () => {
       flex: 1,
       headerAlign: 'left',
       headerClassName: 'MuiDataGrid-header-override',
-      renderCell: (params: GridRenderCellParams) => (
-        <Typography sx={cellStyles} data-testid="country-name">
-          {params.value}
-        </Typography>
-      ),
+      renderCell: (params: GridRenderCellParams) => <Typography data-testid="country-name">{params.value}</Typography>,
     },
     {
       field: 'nodes',
@@ -44,9 +40,7 @@ export const PageMixnodesMap: FCWithChildren = () => {
       headerAlign: 'left',
       headerClassName: 'MuiDataGrid-header-override',
       renderCell: (params: GridRenderCellParams) => (
-        <Typography sx={cellStyles} data-testid="number-of-nodes">
-          {params.value}
-        </Typography>
+        <Typography data-testid="number-of-nodes">{params.value}</Typography>
       ),
     },
     {
@@ -55,11 +49,7 @@ export const PageMixnodesMap: FCWithChildren = () => {
       flex: 1,
       headerAlign: 'left',
       headerClassName: 'MuiDataGrid-header-override',
-      renderCell: (params: GridRenderCellParams) => (
-        <Typography sx={cellStyles} data-testid="percentage">
-          {params.value}
-        </Typography>
-      ),
+      renderCell: (params: GridRenderCellParams) => <Typography data-testid="percentage">{params.value}</Typography>,
     },
   ];
 

@@ -14,7 +14,6 @@ import { useTheme } from '@mui/material/styles';
 import { Tooltip } from '@nymproject/react/tooltip/Tooltip';
 import { CopyToClipboard } from '@nymproject/react/clipboard/CopyToClipboard';
 import { Box } from '@mui/system';
-import { cellStyles } from './Universal-DataGrid';
 import { unymToNym } from '../utils/currency';
 import { GatewayEnrichedRowType } from './Gateways';
 import { MixnodeRowType } from './MixNodes';
@@ -110,7 +109,6 @@ export const DetailTable: FCWithChildren<{
                   scope="row"
                   variant="body"
                   sx={{
-                    ...cellStyles,
                     padding: 2,
                     width: 200,
                     fontSize: 14,

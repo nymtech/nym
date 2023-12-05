@@ -30,7 +30,7 @@ export default function CountryList({
                   {country.name}
                 </div>
               </div>
-              <div className="p-4 flex items-center text-spanish-gray text-xs cursor-pointer">
+              <div className="p-4 flex items-center text-mercury-mist text-xs cursor-pointer">
                 {isSelected(country.code) ? t('selected') : ''}
               </div>
             </div>

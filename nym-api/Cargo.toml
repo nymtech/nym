@@ -37,7 +37,7 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 tap = "1.0"
 thiserror = { workspace = true }
-time = { version = "0.3.14", features = ["serde-human-readable", "parsing"] }
+time = { workspace = true, features = ["serde-human-readable", "parsing"] }
 tokio = { version = "1.24.1", features = [
     "rt-multi-thread",
     "macros",

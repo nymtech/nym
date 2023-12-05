@@ -21,7 +21,7 @@ export const getMixNodeStatusText = (status: MixnodeStatus) => {
 
 export const MixNodeStatus: FCWithChildren<MixNodeStatusProps> = ({ status }) => {
   const Icon = React.useMemo(() => getMixNodeIcon(status), [status]);
-  const color = React.useMemo(() => useGetMixNodeStatusColor(status), [status]);
+  const color = useGetMixNodeStatusColor(status);
 
   return (
     <Typography color={color} display="flex" alignItems="center">

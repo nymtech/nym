@@ -56,12 +56,12 @@ workspace = false
 script = '''
 tempdir=$(mktemp -d 2>/dev/null || mktemp -d -t 'mytmpdir')
 cp -R nymvpn-packages/macos ${tempdir}
-cp nymvpn-assets/icons/icon.icns ${tempdir}/macos/pkg/root/Applications/upvpn.app/Contents/Resources
-cp nymvpn-packages/nymvpn-oss-licenses.html ${tempdir}/macos/pkg/root/Applications/upvpn.app/Contents/Resources
-cp target/${TARGET}/release/nymvpn ${tempdir}/macos/pkg/root/Applications/upvpn.app/Contents/Resources
-cp target/${TARGET}/release/nymvpn-daemon ${tempdir}/macos/pkg/root/Applications/upvpn.app/Contents/Resources
-cp target/${TARGET}/release/nymvpn-ui ${tempdir}/macos/pkg/root/Applications/upvpn.app/Contents/MacOS
-rm ${tempdir}/macos/pkg/root/Applications/upvpn.app/Contents/MacOS/.gitkeep
+cp nymvpn-assets/icons/icon.icns ${tempdir}/macos/pkg/root/Applications/nymvpn.app/Contents/Resources
+cp nymvpn-packages/nymvpn-oss-licenses.html ${tempdir}/macos/pkg/root/Applications/nymvpn.app/Contents/Resources
+cp target/${TARGET}/release/nymvpn ${tempdir}/macos/pkg/root/Applications/nymvpn.app/Contents/Resources
+cp target/${TARGET}/release/nymvpn-daemon ${tempdir}/macos/pkg/root/Applications/nymvpn.app/Contents/Resources
+cp target/${TARGET}/release/nymvpn-ui ${tempdir}/macos/pkg/root/Applications/nymvpn.app/Contents/MacOS
+rm ${tempdir}/macos/pkg/root/Applications/nymvpn.app/Contents/MacOS/.gitkeep
 pushd ${tempdir}/macos
 ./build.sh "${APP_VERSION}"
 popd

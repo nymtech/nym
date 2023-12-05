@@ -7,12 +7,12 @@ VERSION=${1:-latest}
 mkdir -p ./packages
 
 declare -a BINARIES=(
-    "./pkg/root/Applications/upvpn.app/Contents/Resources/nymvpn"
-    "./pkg/root/Applications/upvpn.app/Contents/Resources/nymvpn-daemon"
-    "./pkg/root/Applications/upvpn.app/Contents/MacOS/nymvpn-ui"
+    "./pkg/root/Applications/nymvpn.app/Contents/Resources/nymvpn"
+    "./pkg/root/Applications/nymvpn.app/Contents/Resources/nymvpn-daemon"
+    "./pkg/root/Applications/nymvpn.app/Contents/MacOS/nymvpn-ui"
 )
 
-sd "APP_VERSION" "${VERSION}" ./pkg/root/Applications/upvpn.app/Contents/Info.plist
+sd "APP_VERSION" "${VERSION}" ./pkg/root/Applications/nymvpn.app/Contents/Info.plist
 sd "APP_VERSION" "${VERSION}" ./pkg/Distribution
 
 

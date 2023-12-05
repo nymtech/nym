@@ -1,10 +1,10 @@
 import * as React from 'react';
 import { Box, Button, Grid, Typography, useTheme } from '@mui/material';
 import Identicon from 'react-identicons';
+import { useIsMobile } from '@src/hooks/useIsMobile';
 import { MixnodeRowType } from '.';
 import { getMixNodeStatusText, MixNodeStatus } from './Status';
 import { MixNodeDescriptionResponse } from '../../typeDefs/explorer-api';
-import { useIsMobile } from '../../hooks/useIsMobile';
 
 interface MixNodeDetailProps {
   mixNodeRow: MixnodeRowType;
@@ -16,7 +16,7 @@ export const MixNodeDetailSection: FCWithChildren<MixNodeDetailProps> = ({ mixNo
   const palette = [theme.palette.text.primary];
   const isMobile = useIsMobile();
   const statusText = React.useMemo(() => getMixNodeStatusText(mixNodeRow.status), [mixNodeRow.status]);
-  console.log('mixNodeRow :>> ', mixNodeRow);
+
   return (
     <Grid container>
       <Grid item xs={12} md={6}>

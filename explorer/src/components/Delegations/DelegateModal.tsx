@@ -7,8 +7,8 @@ import { useChain } from '@cosmos-kit/react';
 import { SimpleModal } from './SimpleModal';
 import { ModalListItem } from './ModalListItem';
 import { DelegationModalProps } from './DelegationModal';
-import { unymToNym, validateAmount } from '../../../utils/currency';
-import { urls } from '../../../utils';
+import { unymToNym, validateAmount } from '../../utils/currency';
+import { urls } from '../../utils';
 
 const MIN_AMOUNT_TO_DELEGATE = 10;
 const MIXNET_CONTRACT_ADDRESS = 'n17srjznxl9dvzdkpwpw24gg668wc73val88a6m5ajg6ankwvz9wtst0cznr';

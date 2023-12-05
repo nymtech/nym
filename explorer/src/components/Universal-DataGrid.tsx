@@ -13,15 +13,13 @@ const useStyles = makeStyles({
 });
 
 export const cellStyles: SxProps = {
-  width: '100%',
   padding: 0,
   maxHeight: 100,
   color: 'inherit',
   textDecoration: 'none',
   fontWeight: 400,
-  fontSize: 12,
   lineHeight: 2,
-  textAlign: 'start',
+  fontSize: '12px',
   wordBreak: 'break-word',
   whiteSpace: 'break-spaces',
 };

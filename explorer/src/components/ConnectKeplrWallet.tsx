@@ -67,7 +67,11 @@ export const ConnectKeplrWallet = () => {
       );
     }
 
-    return <Button onClick={() => connect()}>Connect Wallet</Button>;
+    return (
+      <Button variant="outlined" onClick={() => connect()}>
+        Connect Wallet
+      </Button>
+    );
   };
 
   return <Box sx={{ mr: 2 }}>{getGlobalbutton()}</Box>;

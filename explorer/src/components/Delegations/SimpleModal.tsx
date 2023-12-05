@@ -4,7 +4,7 @@ import CloseIcon from '@mui/icons-material/Close';
 import ErrorOutline from '@mui/icons-material/ErrorOutline';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
-import { useIsMobile } from '../../../hooks/useIsMobile';
+import { useIsMobile } from '../../hooks/useIsMobile';
 
 export const modalStyle = (width: number | string = 600) => ({
   position: 'absolute' as 'absolute',

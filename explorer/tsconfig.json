@@ -4,14 +4,12 @@
     "jsx": "react-jsx",
     "outDir": "./dist",
     "module": "CommonJS",
+    "baseUrl": ".",
+    "paths": {
+      "@src/*": ["./src/*"],
+      "@assets/*": ["../assets/*"]
+    }
   },
-  "include": [
-    "./src/**/*.ts",
-    "./src/**/*.tsx"
-  ],
-  "exclude": [
-    "node_modules",
-    "build",
-    "dist"
-  ]
+  "include": ["./src/**/*.ts", "./src/**/*.tsx"],
+  "exclude": ["node_modules", "build", "dist"]
 }

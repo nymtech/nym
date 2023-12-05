@@ -3,8 +3,8 @@ import {
   AppData,
   AppState,
   ConnectionState,
-  UiTheme,
   NodeConfig,
+  UiTheme,
   VpnMode,
 } from '../types';
 import { quickConnectCountry } from '../constants';

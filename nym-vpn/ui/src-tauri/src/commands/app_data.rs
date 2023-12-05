@@ -14,11 +14,11 @@ pub async fn get_node_countries(
 ) -> Result<Vec<Country>, CmdError> {
     debug!("get_node_countries");
     let mut countries : Vec<Country> = Vec::new();
-    countries.push(Country{name: "United States", code: "US"});
-    countries.push(Country{name: "France", code: "FR"});
-    countries.push(Country{name: "Switzerland", code: "CH"});
-    countries.push(Country{name: "Sweden", code: "SE"});
-    countries.push(Country{name: "Germany", code: "DE"});
+    countries.push(Country{name: "United States".to_string(), code: "US".to_string() });
+    countries.push(Country{name: "France".to_string(), code: "FR".to_string()});
+    countries.push(Country{name: "Switzerland".to_string(), code: "CH".to_string()});
+    countries.push(Country{name: "Sweden".to_string(), code: "SE".to_string()});
+    countries.push(Country{name: "Germany".to_string(), code: "DE".to_string()});
     Ok(countries)
 }
 

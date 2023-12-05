@@ -49,8 +49,8 @@ pub struct AppState {
 #[derive(Default, Serialize, Deserialize, Debug, Clone, TS)]
 #[ts(export)]
 pub struct Country {
-    pub name: &'static str,
-    pub code: &'static str,
+    pub name: String,
+    pub code: String,
 }
 
 

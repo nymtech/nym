@@ -1,11 +1,41 @@
 use tauri::State;
 use tracing::{debug, instrument};
 
+use crate::states::app::Country;
 use crate::{
     error::{CmdError, CmdErrorSource},
     fs::data::{AppData, UiTheme},
     states::SharedAppData,
 };
+
+#[instrument]
+#[tauri::command]
+pub fn get_node_countries() -> Result<Vec<Country>, CmdError> {
+    debug!("get_node_countries");
+    let countries: Vec<Country> = vec![
+        Country {
+            name: "United States".to_string(),
+            code: "US".to_string(),
+        },
+        Country {
+            name: "France".to_string(),
+            code: "FR".to_string(),
+        },
+        Country {
+            name: "Switzerland".to_string(),
+            code: "CH".to_string(),
+        },
+        Country {
+            name: "Sweden".to_string(),
+            code: "SE".to_string(),
+        },
+        Country {
+            name: "Germany".to_string(),
+            code: "DE".to_string(),
+        },
+    ];
+    Ok(countries)
+}
 
 #[instrument]
 #[tauri::command]

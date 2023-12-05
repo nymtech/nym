@@ -2,15 +2,18 @@ import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api';
 import clsx from 'clsx';
 import { Button } from '@mui/base';
+import { useNavigate } from 'react-router-dom';
 import { useMainDispatch, useMainState } from '../../contexts';
 import { ConnectionState, StateDispatch } from '../../types';
+import { QuickConnectCountry, routes } from '../../constants';
 import NetworkModeSelect from './NetworkModeSelect';
 import ConnectionStatus from './ConnectionStatus';
+import HopSelect from './HopSelect';
 
 function Home() {
   const state = useMainState();
   const dispatch = useMainDispatch() as StateDispatch;
-
+  const navigate = useNavigate();
   const { t } = useTranslation('home');
 
   const handleClick = async () => {
@@ -56,7 +59,17 @@ function Home() {
       <div className="flex grow flex-col justify-between gap-y-2">
         <div className="flex flex-col justify-between">
           <NetworkModeSelect />
-          <div></div>
+          <div className="py-2"></div>
+          <HopSelect
+            country={
+              state.localAppData.exitNode ?? {
+                country: QuickConnectCountry.name,
+                id: QuickConnectCountry.code,
+              }
+            }
+            onClick={() => navigate(routes.exitNodeLocation)}
+            nodeHop={{ type: 'exit' }}
+          />
         </div>
         <Button
           className={clsx([

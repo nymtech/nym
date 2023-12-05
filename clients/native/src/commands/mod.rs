@@ -182,7 +182,7 @@ fn try_upgrade_v1_1_13_config(id: &str) -> Result<bool, ClientError> {
     let updated_step2: ConfigV1_1_20_2 = updated_step1.into();
     let (updated, gateway_config) = updated_step2.upgrade()?;
     persist_gateway_details(&updated, gateway_config)?;
-    init_ecash_keypair(&updated)?;
+    init_ecash_keypair(&updated)?; //SW does that belong here?
 
     updated.save_to_default_location()?;
     Ok(true)
@@ -203,7 +203,7 @@ fn try_upgrade_v1_1_20_config(id: &str) -> Result<bool, ClientError> {
     let updated_step1: ConfigV1_1_20_2 = old_config.into();
     let (updated, gateway_config) = updated_step1.upgrade()?;
     persist_gateway_details(&updated, gateway_config)?;
-    init_ecash_keypair(&updated)?;
+    init_ecash_keypair(&updated)?; //SW does that belong here?
 
     updated.save_to_default_location()?;
     Ok(true)
@@ -221,7 +221,7 @@ fn try_upgrade_v1_1_20_2_config(id: &str) -> Result<bool, ClientError> {
 
     let (updated, gateway_config) = old_config.upgrade()?;
     persist_gateway_details(&updated, gateway_config)?;
-    init_ecash_keypair(&updated)?;
+    init_ecash_keypair(&updated)?; //SW does that belong here?
 
     updated.save_to_default_location()?;
     Ok(true)

@@ -108,16 +108,26 @@ pub enum IpPacketRequestData {
 pub struct StaticConnectRequest {
     pub request_id: u64,
     pub ip: IpAddr,
+    // The nym-address the response should be sent back to
     pub reply_to: Recipient,
+    // The number of mix node hops that responses should take, in addition to the entry and exit
+    // node. Zero means only client -> entry -> exit -> client.
     pub reply_to_hops: Option<u8>,
+    // The average delay at each mix node, in milliseconds. Currently this is not supported by the
+    // ip packet router.
     pub reply_to_avg_mix_delays: Option<f64>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct DynamicConnectRequest {
     pub request_id: u64,
+    // The nym-address the response should be sent back to
     pub reply_to: Recipient,
+    // The number of mix node hops that responses should take, in addition to the entry and exit
+    // node. Zero means only client -> entry -> exit -> client.
     pub reply_to_hops: Option<u8>,
+    // The average delay at each mix node, in milliseconds. Currently this is not supported by the
+    // ip packet router.
     pub reply_to_avg_mix_delays: Option<f64>,
 }
 

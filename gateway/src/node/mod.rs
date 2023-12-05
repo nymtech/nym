@@ -347,19 +347,19 @@ impl<St> Gateway<St> {
 
         // TODO: well, wire it up internally to gateway traffic, shutdowns, etc.
         let (on_start_tx, on_start_rx) = oneshot::channel();
-        let mut ip_builder =
-            nym_ip_packet_router::IpPacketRouterBuilder::new(ip_opts.config.clone())
+        let mut ip_packet_router =
+            nym_ip_packet_router::IpPacketRouter::new(ip_opts.config.clone())
                 .with_shutdown(shutdown)
                 .with_custom_gateway_transceiver(Box::new(transceiver))
                 .with_wait_for_gateway(true)
                 .with_on_start(on_start_tx);
 
         if let Some(custom_mixnet) = &ip_opts.custom_mixnet_path {
-            ip_builder = ip_builder.with_stored_topology(custom_mixnet)?
+            ip_packet_router = ip_packet_router.with_stored_topology(custom_mixnet)?
         }
 
         tokio::spawn(async move {
-            if let Err(err) = ip_builder.run_service_provider().await {
+            if let Err(err) = ip_packet_router.run_service_provider().await {
                 // no need to panic as we have passed a task client to the ip packet router so
                 // we're most likely already in the process of shutting down
                 error!("ip packet router has failed: {err}")

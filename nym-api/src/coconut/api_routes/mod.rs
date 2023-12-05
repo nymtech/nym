@@ -1,17 +1,19 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: GPL-3.0-only
 
 use super::InternalSignRequest;
 use crate::coconut::deposit::extract_encryption_key;
 use crate::coconut::error::{CoconutError, Result};
 use crate::coconut::helpers::{accepted_vote_err, blind_sign};
 use crate::coconut::state::State;
+use nym_api_requests::coconut::models::CredentialsRequestBody;
 use nym_api_requests::coconut::{
     BlindSignRequestBody, BlindedSignatureResponse, VerifyCredentialBody, VerifyCredentialResponse,
 };
 use nym_coconut_bandwidth_contract_common::spend_credential::{
     funds_from_cosmos_msgs, SpendCredentialStatus,
 };
+use nym_coconut_dkg_common::types::EpochId;
 use nym_validator_client::nyxd::{Coin, Fee};
 use rocket::serde::json::Json;
 use rocket::State as RocketState;
@@ -45,15 +47,17 @@ pub async fn post_blind_sign(
         return Err(CoconutError::KeyPairNotDerivedYet);
     };
 
-    // TODO: this has to be made atomic
-    let unused_variable = 42;
     let response = state
-        .encrypt_and_store(
-            blind_sign_request_body.tx_hash(),
-            &encryption_key,
-            &blinded_signature,
-        )
+        .store_issued_credential(blind_sign_request_body.into_inner(), blinded_signature)
         .await?;
+
+    // let response = state
+    //     .encrypt_and_store(
+    //         blind_sign_request_body.tx_hash(),
+    //         &encryption_key,
+    //         &blinded_signature,
+    //     )
+    //     .await?;
 
     Ok(Json(response))
 }
@@ -123,3 +127,25 @@ pub async fn verify_bandwidth_credential(
 
     Ok(Json(VerifyCredentialResponse::new(vote_yes)))
 }
+
+#[get("/epoch-credentials/<epoch>")]
+pub async fn epoch_credentials(epoch: EpochId, state: &RocketState<State>) {
+    todo!()
+}
+
+#[get("/issued-credential/<id>")]
+pub async fn issued_credential(id: u64, state: &RocketState<State>) {
+    todo!()
+}
+
+#[get("/issued-credentials", data = "<ids>")]
+pub async fn issued_credentials(ids: Json<CredentialsRequestBody>, state: &RocketState<State>) {
+    todo!()
+}
+
+// pub async fn
+
+/*
+#[openapi(tag = "mix_node")]
+#[get("/<mix_id>/stats")]
+ */

@@ -1,12 +1,13 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: GPL-3.0-only
 
 use crate::coconut::client::Client as LocalClient;
 use crate::coconut::comm::APICommunicationChannel;
 use crate::coconut::error::Result;
 use crate::coconut::keypair::KeyPair;
+use crate::coconut::storage::CoconutStorageExt;
 use crate::support::storage::NymApiStorage;
-use nym_api_requests::coconut::BlindedSignatureResponse;
+use nym_api_requests::coconut::{BlindSignRequestBody, BlindedSignatureResponse};
 use nym_coconut_dkg_common::types::EpochId;
 use nym_coconut_interface::{BlindedSignature, VerificationKey};
 use nym_credentials::coconut::params::{
@@ -19,6 +20,7 @@ use rand_07::rngs::OsRng;
 use std::sync::Arc;
 
 pub struct State {
+    pub(crate) current_epoch: EpochId,
     pub(crate) client: Arc<dyn LocalClient + Send + Sync>,
     pub(crate) mix_denom: String,
     pub(crate) key_pair: KeyPair,
@@ -40,7 +42,10 @@ impl State {
     {
         let client = Arc::new(client);
         let comm_channel = Arc::new(comm_channel);
+
+        let current_epoch = todo!();
         Self {
+            current_epoch,
             client,
             mix_denom,
             key_pair,
@@ -60,6 +65,21 @@ impl State {
         }
     }
 
+    // TODO: figure out what exact data we need here
+    pub async fn store_issued_credential(
+        &self,
+        request_body: BlindSignRequestBody,
+        blinded_signature: BlindedSignature,
+    ) -> Result<BlindedSignatureResponse> {
+        // here we will be storing credential
+        let credential_id = 42;
+        self.storage
+            .update_epoch_credentials_entry(self.current_epoch, credential_id)
+            .await?;
+        todo!()
+    }
+
+    #[deprecated]
     pub async fn encrypt_and_store(
         &self,
         tx_hash: &str,

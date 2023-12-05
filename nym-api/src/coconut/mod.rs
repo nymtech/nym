@@ -21,6 +21,7 @@ pub(crate) mod error;
 pub(crate) mod helpers;
 pub(crate) mod keypair;
 pub(crate) mod state;
+pub(crate) mod storage;
 #[cfg(test)]
 pub(crate) mod tests;
 pub(crate) mod types;

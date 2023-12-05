@@ -21,11 +21,6 @@ pub fn draw_dkg_info(info: &DkgInfo, f: &mut Frame<'_>, rect: Rect) -> anyhow::R
         OffsetDateTime::from_unix_timestamp(info.epoch.finish_timestamp.seconds() as i64).unwrap();
 
     let remaining = end - OffsetDateTime::now_utc();
-    let remaining_str = if remaining.is_negative() {
-        format!("-{} secs", remaining.whole_seconds())
-    } else {
-        format!("{} secs", remaining.whole_seconds())
-    };
 
     let threshold_str = if let Some(val) = info.threshold {
         val.to_string()
@@ -60,7 +55,10 @@ pub fn draw_dkg_info(info: &DkgInfo, f: &mut Frame<'_>, rect: Rect) -> anyhow::R
                 Style::default().bold(),
             ),
             " (".into(),
-            Span::styled(remaining_str, Style::default().light_green()),
+            Span::styled(
+                remaining.whole_seconds().to_string(),
+                Style::default().light_green(),
+            ),
             " remaining)".into(),
         ]),
         Line::from(vec![

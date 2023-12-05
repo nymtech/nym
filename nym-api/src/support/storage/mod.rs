@@ -716,25 +716,4 @@ impl NymApiStorage {
             .await
             .map_err(|err| err.into())
     }
-
-    pub(crate) async fn get_blinded_signature_response(
-        &self,
-        tx_hash: &str,
-    ) -> Result<Option<String>, NymApiStorageError> {
-        self.manager
-            .get_blinded_signature_response(tx_hash)
-            .await
-            .map_err(|err| err.into())
-    }
-
-    pub(crate) async fn insert_blinded_signature_response(
-        &self,
-        tx_hash: &str,
-        blinded_signature_response: &str,
-    ) -> Result<(), NymApiStorageError> {
-        self.manager
-            .insert_blinded_signature_response(tx_hash, blinded_signature_response)
-            .await
-            .map_err(|err| err.into())
-    }
 }

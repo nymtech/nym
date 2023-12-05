@@ -1,13 +1,12 @@
-// Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use cosmrs::AccountId;
 use getset::{CopyGetters, Getters};
-use serde::{Deserialize, Serialize};
-
 use nym_coconut_interface::{
     error::CoconutInterfaceError, Attribute, Base58, BlindSignRequest, Credential, VerificationKey,
 };
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Getters, CopyGetters)]
 pub struct VerifyCredentialBody {
@@ -155,4 +154,14 @@ impl CosmosAddressResponse {
     pub fn new(addr: AccountId) -> CosmosAddressResponse {
         CosmosAddressResponse { addr }
     }
+}
+
+#[derive(Clone, Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct CredentialsRequestBody {
+    pub credential_ids: Vec<i64>,
+}
+
+pub struct EpochCredemtialsResponse {
+    //
 }

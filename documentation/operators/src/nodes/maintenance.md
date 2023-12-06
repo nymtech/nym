@@ -16,28 +16,28 @@ For example `./target/debug/nym-network-requester --no-banner build-info --outpu
 
 ## Upgrading your node
 
-> The process is the similar for Mix Node, Gateway and Network Requester. In the following steps we use a placeholder `<NODE>` in the commands, please change it for the type of node you want to upgrade. Any particularities for the given type of node are included.
+> The process is the similar for Mix Node, Gateway and Network Requester. In the following steps we use a placeholder `<NODE>` in the commands, please change it for the binary name you want to upgrade (ie `nym-mixnode`). Any particularities for the given type of node are included.
 
 Upgrading your node is a two-step process:
-* Updating the binary and `~/.nym/<NODE>/<YOUR_ID>/config/config.toml` on your VPS
-* Updating the node information in the [mixnet smart contract](https://nymtech.net/docs/nyx/mixnet-contract.html). **This is the information that is present on the [mixnet explorer](https://explorer.nymtech.net)**.
+
+1. Updating the binary and `~/.nym/<NODE>/<YOUR_ID>/config/config.toml` on your VPS
+2. Updating the node information in the [mixnet smart contract](https://nymtech.net/docs/nyx/mixnet-contract.html). **This is the information that is present on the [mixnet explorer](https://explorer.nymtech.net)**.
 
 ### Step 1: Upgrading your binary
 Follow these steps to upgrade your Node binary and update its config file:
 * Pause your node process.
     - if you see the terminal window with your node, press `ctrl + c`
-    - if you run it as `systemd` service, run: `systemctl stop nym-<NODE>.service`
+    - if you run it as `systemd` service, run: `systemctl stop <NODE>.service`
 * Replace the existing `<NODE>` binary with the newest binary (which you can either [compile yourself](https://nymtech.net/docs/binaries/building-nym.html) or grab from our [releases page](https://github.com/nymtech/nym/releases)).
 * Re-run `init` with the same values as you used initially for your `<NODE>` ([Mix Node](./mix-node-setup.md#initialising-your-mix-node), [Gateway](./gateway-setup.md#initialising-your-gateway)) . **This will just update the config file, it will not overwrite existing keys**.
-* Restart your node process with the new binary.
-    - if you automatized (recommended) run: 
+* Restart your node process with the new binary:
+    - if your node is *not automated*, just `run` your `<NODE>` with `./<NODE> run --id <ID>`. Here are exact guidelines for [Mix Node](./mix-node-setup.md#running-your-mix-node) and [Gateway](./gateway-setup.md#running-your-gateway). 
+    - if you *automated* your node with systemd (recommended) run:  
 ```sh
 systemctl daemon-reload # to pickup the new unit file
-systemctl start nym-<NODE>.service
+systemctl start <NODE>.service
 journalctl -f -u <NODE>.service # to monitor log of you node
 ```
-    - if your node is not automitized, just `run` your `<NODE>` with `./nym-<NODE> run --id <ID>`. Here are exact guidelines for [Mix Node](./mix-node-setup.md#running-your-mix-node) and [Gateway](./gateway-setup.md#running-your-gateway). 
-
 
 If these steps are too difficult and you prefer to just run a script, you can use [ExploreNYM script](https://github.com/ExploreNYM/bash-tool) or one done by [Nym developers](https://gist.github.com/tommyv1987/4dca7cc175b70742c9ecb3d072eb8539).
 
@@ -53,7 +53,7 @@ You can either do this graphically via the Desktop Wallet, or the CLI.
 
 ![Bonding page](../images/wallet-screenshots/bonding.png)
 
-* Update the fields in the `Node Settings` page and click `Submit changes to the blockchain`.  
+* Update the fields in the `Node Settings` page (usually the field `Version` is the only one to change) and click `Submit changes to the blockchain`.  
 
 ![Node Settings Page](../images/wallet-screenshots/node_settings.png)
 
@@ -118,7 +118,34 @@ If the `/dev/sda` partition is almost full, try pruning some of the `.gz` syslog
 
 ## Run Web Secure Socket (WSS) on Gateway
 
-Now you can run WSS on your Gateway. 
+Now you can run WSS on your Gateway.
+
+### WSS on a new Gateway
+
+These steps are for an operator who is setting up a [Gateway](gateway-setup.md) for the first time and wants to run it with WSS.
+
+1. New flags will need to be added to the `init` and `run` command. The `--host` option should be replaced with these flags:
+
+- `--listening-address`: The IP address which is used for receiving sphinx packets and listening to client data. 
+- `--public-ips`: A comma separated list of IP’s that are announced to the `nym-api`. In the most cases `--public-ips` **is the address used for bonding.** 
+
+```sh
+--listening-address 0.0.0.0 --public-ips "$(curl -4 https://ifconfig.me)"
+```
+
+- `--hostname` (optional): This flag is required if the operator wishes to run WSS. It can be something like `mainnet-gateway2.nymtech.net`. 
+
+2. Make sure to enable all necessary [ports](maintenance.md#configure-your-firewall) on the Gateway:
+
+```sh
+sudo ufw allow 1789,1790,8000,9000,9001,22/tcp, 9001/tcp
+```
+
+The Gateway will then be accessible on something like: *http://85.159.211.99:8080/api/v1/swagger/index.html*
+
+Are you seeing something like: *this node attempted to announce an invalid public address: 0.0.0.0.*? 
+
+Please modify `[host.public_ips]` section of your config file stored as `~/.nym/gateways/<ID>/config/config.toml`.
 
 ### WSS on an existing Gateway
 
@@ -204,29 +231,6 @@ ufw allow 9001/tcp
 
 Lastly don't forget to restart your Gateway, now the API will render the WSS details for this Gateway:
 
-
-### WSS on a new Gateway
-
-These steps are for an operator who is setting up a Gateway for the first time and wants to run it with WSS.
-
-New flags will need to be added to the `init` and `run` command. The `--host` option is still accepted for now, but can and should be replaced with `--listening-address`, this is the IP address which is used for receiving sphinx packets and listening to client data. 
-
-Another flag `--public-ips` is required; it's a comma separated list of IP’s that are announced to the `nym-api`, it is usually the address which is used for bonding. 
-
-If the operator wishes to run WSS, an optional `--hostname` flag is also required, that can be something like `mainnet-gateway2.nymtech.net`. Make sure to enable all necessary [ports](maintenance.md#configure-your-firewall) on the Gateway. 
-
-The Gateway will then be accessible on something like: *http://85.159.211.99:8080/api/v1/swagger/index.html*
-
-Are you seeing something like: *this node attempted to announce an invalid public address: 0.0.0.0.*? 
-
-Please modify `[host.public_ips]` section of your config file stored as `~/.nym/gateways/<ID>/config/config.toml`.
-
-If so the flags are going to be slightly different:
-
-```
---listening-address "0.0.0.0" --public-ips "$(curl -4 https://ifconfig.me)"
-```
-
 ## Configure your firewall
 
 Although your `<NODE>` is now ready to receive traffic, your server may not be. The following commands will allow you to set up a firewall using `ufw`.
@@ -251,6 +255,9 @@ Finally open your `<NODE>` p2p port, as well as ports for ssh and ports for verl
 # for Mix Node, Gateway and Network Requester
 sudo ufw allow 1789,1790,8000,9000,9001,22/tcp
 
+# in case of setting up WSS on Gateway add:
+sudo ufw allow 9001/tcp
+
 # In case of reverse proxy for the Gateway swagger page add:
 sudo ufw allow 8080,80/443
 
@@ -267,9 +274,13 @@ For more information about your node's port configuration, check the [port refer
 
 ## VPS Setup and Automation
 
+> Replace `<NODE>` variable with `nym-mixnode`, `nym-gateway` or `nym-network-requester` according the node you running on your machine.
+
 ### Automating your node with nohup, tmux and systemd
 
-Although it’s not totally necessary, it's useful to have the Mix Node automatically start at system boot time. 
+Although it’s not totally necessary, it's useful to have the Mix Node automatically start at system boot time. We recommend to run your remote operation via [`tmux`](maintenance.md#tmux) for easier management and a handy return to your previous session. For full automation, including a failed node auto-restart and `ulimit` setup, [`systemd`](maintenance.md#systemd) is a good choice. 
+
+> Do any of these steps and run your automated node before you start bonding process!
 
 #### nohup
 
@@ -320,7 +331,7 @@ tmux attach-session
 
 #### systemd
 
-Here's a systemd service file to do that:
+To automate with `systemd` use this init service file and follow the steps below. 
 
 ##### For Mix Node
 
@@ -342,7 +353,7 @@ RestartSec=30
 WantedBy=multi-user.target
 ```
 
-* Put the above file onto your system at `/etc/systemd/system/nym-mixnode.service`.
+* Put the above file onto your system at `/etc/systemd/system/nym-mixnode.service` and follow the [next steps](maintenance.md#following-steps-for-nym-nodes-running-as-systemd-service).
 
 ##### For Gateway
 
@@ -364,7 +375,7 @@ RestartSec=30
 WantedBy=multi-user.target
 ```
 
-* Put the above file onto your system at `/etc/systemd/system/nym-gateway.service`.
+* Put the above file onto your system at `/etc/systemd/system/nym-gateway.service` and follow the [next steps](maintenance.md#following-steps-for-nym-nodes-running-as-systemd-service).
 
 ##### For Network Requester
 
@@ -386,21 +397,79 @@ RestartSec=30
 [Install]
 WantedBy=multi-user.target
 ```
+* Put the above file onto your system at `/etc/systemd/system/nym-network-requester.service` and follow the [next steps](maintenance.md#following-steps-for-nym-nodes-running-as-systemd-service).
 
-Now enable and start your requester:
+#### Following steps for Nym nodes running as `systemd` service
+
+Change the `<PATH>` in `ExecStart` to point at your `<NODE>` binary (`nym-mixnode`, `nym-gateway` or `nym-network-requester`), and the `<USER>` so it is the user you are running as.
+
+Example: If you have built nym in the `$HOME` directory on your server, your username is `jetpanther`, and node `<ID>` is `puma`, then the `ExecStart` line (command) in the script located in `/etc/systemd/system/nym-mixnode.service` for Nym Mixnode might look like this:
+
+`ExecStart=/home/jetpanther/nym/target/release/nym-mixnode run --id puma`. 
+
+Basically, you want the full `/<PATH>/<TO>/nym-mixnode run --id <WHATEVER-YOUR-NODE-ID-IS>`. If you are unsure about your `/<PATH>/<TO>/<NODE>`, then `cd` to your directory where you run your `<NODE>` from and run `pwd` command which returns the full path for you.
+
+Once done, save the script and follow these steps:
 
 ```sh
-systemctl enable nym-network-requester.service
-systemctl start nym-network-requester.service
-
-# you can always check your requester has succesfully started with:
-systemctl status nym-network-requester.service
+systemctl daemon-reload 
+# to pickup the new unit file
 ```
-* Put the above file onto your system at `/etc/systemd/system/nym-network-requester.service`.
+
+Enable the newly created service: 
+
+```sh
+# for Mix Node
+systemctl enable nym-mixnode.service
+
+# for Gateway
+systemctl enable nym-gateway.service
+
+# for Network Requester
+systemctl enable nym-network-requester.service
+```
+
+Start your `<NODE>` as a `systemd` service:
+
+```sh
+# for Mix Node
+service nym-mixnode start
+
+# for Gateway
+service nym-gateway start
+
+# for Network Requester
+service nym-network-requester.service
+```
+
+This will cause your `<NODE>` to start at system boot time. If you restart your machine, your `<NODE>` will come back up automatically.
+
+You can monitor system logs of your node by running:
+```sh
+journalctl -f -u <NODE>.service
+# for example journalctl -f -u nym-mixnode.service
+```
+
+Or check a status by running:
+```sh
+systemctl status <NODE>.service
+# for example systemctl status nym-mixnode.service
+```
+
+You can also do `service <NODE> stop` or `service <NODE> restart`.
+
+Note: if you make any changes to your `systemd` script after you've enabled it, you will need to run:
+
+```sh
+systemctl daemon-reload
+```
+
+This lets your operating system know it's ok to reload the service configuration. Then restart your `<NODE>`.
+
 
 ##### For Validator
 
-Below is a systemd unit file to place at `/etc/systemd/system/nymd.service`:
+Below is a `systemd` unit file to place at `/etc/systemd/system/nymd.service` to automate your validator:
 
 ```ini
 [Unit]
@@ -429,61 +498,6 @@ systemctl enable nymd   # to enable the service
 systemctl start nymd    # to actually start the service
 journalctl -f -u nymd # to monitor system logs showing the service start
 ```
-
-##### Following steps for Nym Mixnet nodes
-
-Change the `<PATH>` in `ExecStart` to point at your `<NODE>` binary (`nym-mixnode`, `nym-gateway` or `nym-network-requester`), and the `<USER>` so it is the user you are running as.
-
-If you have built nym in the `$HOME` directory on your server, and your username is `jetpanther`, then the start command for nym mixnode might look like this:
-
-`ExecStart=/home/jetpanther/nym/target/release/nym-mixnode run --id <YOUR_ID>`. Basically, you want the full `/path/to/nym-mixnode run --id whatever-your-node-id-is`
-
-Then run:
-
-```sh
-systemctl daemon-reload # to pickup the new unit file
-```
-
-```sh
-# for Mix Node
-systemctl enable nym-mixnode.service
-
-# for Gateway
-systemctl enable nym-gateway.service
-```
-
-Start your node:
-
-```sh
-# for Mix Node
-service nym-mixnode start
-
-# for Gateway
-service nym-gateway start
-
-```
-
-This will cause your node to start at system boot time. If you restart your machine, the node will come back up automatically.
-
-You can monitor system logs of your node by running:
-```sh
-journalctl -f -u <NODE>.service
-```
-
-Or check a status by running:
-```sh
-systemctl status <NODE>.service
-```
-
-You can also do `service <NODE> stop` or `service <NODE> restart`.
-
-Note: if you make any changes to your systemd script after you've enabled it, you will need to run:
-
-```
-systemctl daemon-reload
-```
-
-This lets your operating system know it's ok to reload the service configuration.
 
 ### Setting the ulimit
 
@@ -612,11 +626,12 @@ scp -r -3 <SOURCE_USER_NAME>@<SOURCE_HOST_ADDRESS>:~/.nym/mixnodes/<YOUR_ID> <TA
 
 
 ## Virtual IPs and hosting via Google & AWS
+
 For true internet decentralization we encourage operators to use diverse VPS providers instead of the largest companies offering such services. If for some reasons you have already running AWS or Google and want to setup a `<NODE>` there, please read the following.
 
-On some services (AWS, Google, etc) the machine's available bind address is not the same as the public IP address. In this case, bind `--host` to the local machine address returned by `$(curl ifconfig.me)`, but also specify `--announce-host` with the public IP. Please make sure that you pass the correct, routable `--announce-host`.
+On some services (AWS, Google, etc) the machine's available bind address is not the same as the public IP address. In this case, bind `--host` to the local machine address returned by `$(curl -4 https://ifconfig.me)`, but that may not the public IP address to bond your `<NODE>` in the wallet. 
 
-For example, on a Google machine, you may see the following output from the `ifconfig` command:
+You can run `ifconfig` command. For example, on a Google machine, you may see the following output:
 
 ```sh
 ens4: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1460
@@ -626,20 +641,14 @@ ens4: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1460
 
 The `ens4` interface has the IP `10.126.5.7`. But this isn't the public IP of the machine, it's the IP of the machine on Google's internal network. Google uses virtual routing, so the public IP of this machine is something else, maybe `36.68.243.18`.
 
-`./nym-mixnode init --host 10.126.5.7`, initalises the Mix Node, but no packets will be routed because `10.126.5.7` is not on the public internet.
+To find the right IP configuration, contact your VPS provider for support to find the right public IP and use it to bond your `<NODE>` with the `nym-api` via Nym wallet. 
 
-Trying `nym-mixnode init --host 36.68.243.18`, you'll get back a startup error saying `AddrNotAvailable`. This is because the Mix Node doesn't know how to bind to a host that's not in the output of `ifconfig`.
+On self-hosted machine it's a bit more tricky. In that case as an operator you must be sure that your ISP allows for public IPv4 and IPv6 and then it may be a bit of playing around to find the right configuration. One way may be to bind your binary with the `--host` flag to local address `127.0.0.1` and run `echo "$(curl -4 https://ifconfig.me)"` to get a public address which you use to bond your Mix Node to `nym-api` via Nym wallet.
 
-The right thing to do in this situation is to init with a command:
-```sh
-./nym-mixnode init --host 10.126.5.7 --announce-host 36.68.243.18
-```
-
-This will bind the Mix Node to the available host `10.126.5.7`, but announce the Mix Node's public IP to the directory server as `36.68.243.18`. It's up to you as a node operator to ensure that your public and private IPs match up properly.
-
-To find the right IP configuration, contact your VPS provider for support.
+It's up to you as a node operator to ensure that your public and private IPs match up properly.
 
 ## Nym API (previously 'Validator API') endpoints
+
 Numerous API endpoints are documented on the Nym API (previously 'Validator API')'s [Swagger Documentation](https://validator.nymtech.net/api/swagger/index.html). There you can also try out various requests from your browser, and download the response from the API. Swagger will also show you what commands it is running, so that you can run these from an app or from your CLI if you prefer.
 
 ### Mix Node Reward Estimation API endpoint
@@ -827,4 +836,5 @@ All validator-specific port configuration can be found in `$HOME/.nymd/config/co
 | 26656        | Listen for incoming peer connections |
 | 26660        | Listen for Prometheus connections    |
 
-/
+  
+  

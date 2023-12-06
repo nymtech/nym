@@ -35,7 +35,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --manifest-path ${{ env.CARGOTOML_PATH }} --lib --features custom-protocol
+          args: --manifest-path ${{ env.CARGOTOML_PATH }} --features custom-protocol
 
 #      - name: Run all tests
 #        uses: actions-rs/cargo@v1

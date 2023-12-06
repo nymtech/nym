@@ -6,9 +6,10 @@ use criterion::{criterion_group, criterion_main, Criterion};
 use ff::Field;
 use group::{Curve, Group};
 use nym_coconut::{
-    aggregate_signature_shares, aggregate_verification_keys, blind_sign, elgamal_keygen,
-    prepare_blind_sign, prove_bandwidth_credential, setup, ttp_keygen, verify_credential,
-    Attribute, BlindedSignature, Parameters, Signature, SignatureShare, VerificationKey,
+    aggregate_signature_shares, aggregate_verification_keys, blind_sign, prepare_blind_sign,
+    prove_bandwidth_credential, setup, ttp_keygen, verify_credential,
+    verify_partial_blind_signature, Attribute, BlindedSignature, Parameters, Signature,
+    SignatureShare, VerificationKey,
 };
 use rand::seq::SliceRandom;
 use std::ops::Neg;
@@ -175,8 +176,6 @@ fn bench_coconut(c: &mut Criterion) {
     let binding_number = params.random_scalar();
     let private_attributes = vec![serial_number, binding_number];
 
-    let _elgamal_keypair = elgamal_keygen(&params);
-
     // The prepare blind sign is performed by the user
     let (pedersen_commitments_openings, blind_sign_request) =
         prepare_blind_sign(&params, &private_attributes, &public_attributes).unwrap();
@@ -241,6 +240,29 @@ fn bench_coconut(c: &mut Criterion) {
         .iter()
         .map(|keypair| keypair.verification_key())
         .collect();
+
+    // verify a random partial blind signature
+    let rand_idx = 1;
+    let random_blind_signature = blinded_signatures.get(rand_idx).unwrap();
+    let partial_verification_key = verification_keys.get(rand_idx).unwrap();
+
+    group.bench_function(
+        &format!(
+            "verify_partial_blind_signature_{}_private_attributes_{}_public_attributes",
+            case.num_private_attrs, case.num_public_attrs
+        ),
+        |b| {
+            b.iter(|| {
+                verify_partial_blind_signature(
+                    &params,
+                    &blind_sign_request,
+                    &public_attributes,
+                    random_blind_signature,
+                    partial_verification_key,
+                )
+            })
+        },
+    );
 
     // Lets bench worse case, ie aggregating all
     let indices: Vec<u64> = (1..=case.num_authorities).collect();

@@ -62,7 +62,7 @@ pub fn owner_from_cosmos_msgs(msgs: &[CosmosMsg]) -> Option<Addr> {
         contract_addr: _,
         msg,
         funds: _,
-    })) = msgs.get(0)
+    })) = msgs.first()
     {
         if let Ok(ExecuteMsg::VerifyVerificationKeyShare { owner, .. }) =
             from_binary::<ExecuteMsg>(msg)

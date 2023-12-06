@@ -4,17 +4,41 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [2023.5-rolo] (2023-11-28)
+
+- Gateway won't open websocket listener until embedded Network Requester becomes available ([#4166])
+- Feature/gateway described nr ([#4147])
+- Bugfix/prerelease versionbump ([#4145])
+- returning 'nil' for non-existing origin as opposed to an empty string ([#4135])
+- using performance^20 when calculating active set selection weight ([#4126])
+- Change default http API timeout from 3s to 10s ([#4117])
+
+[#4166]: https://github.com/nymtech/nym/issues/4166
+[#4147]: https://github.com/nymtech/nym/pull/4147
+[#4145]: https://github.com/nymtech/nym/pull/4145
+[#4135]: https://github.com/nymtech/nym/pull/4135
+[#4126]: https://github.com/nymtech/nym/pull/4126
+[#4117]: https://github.com/nymtech/nym/pull/4117
+
+## [2023.nyxd-upgrade] (2023-11-22)
+
+- Chore/nyxd 043 upgrade ([#3968])
+
+[#3968]: https://github.com/nymtech/nym/pull/3968
+
 ## [2023.4-galaxy] (2023-11-07)
 
 - DRY up client cli ([#4077])
 - [mixnode] replace rocket with axum ([#4071])
 - incorporate the nym node HTTP api into the mixnode ([#4070])
 - replaced '--disable-sign-ext' with '--signext-lowering' when running wasm-opt ([#3896])
+- Added PPA repo hosting support and nym-mixnode package with tooling for publishing ([#4165])
 
 [#4077]: https://github.com/nymtech/nym/pull/4077
 [#4071]: https://github.com/nymtech/nym/pull/4071
 [#4070]: https://github.com/nymtech/nym/issues/4070
 [#3896]: https://github.com/nymtech/nym/pull/3896
+[#4165]: https://github.com/nymtech/nym/pull/4165
 
 ## [2023.3-kinder] (2023-10-31)
 

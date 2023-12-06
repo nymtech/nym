@@ -1,9 +1,10 @@
 # Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: GPL-3.0-only
 
 [package]
 name = "nym-api"
-version = "1.1.32"
+license = "GPL-3"
+version = "1.1.34"
 authors = [
     "Dave Hrycyszyn <futurechimp@users.noreply.github.com>",
     "Jędrzej Stuczyński <andrew@nymtech.net>",
@@ -36,7 +37,7 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 tap = "1.0"
 thiserror = { workspace = true }
-time = { version = "0.3.14", features = ["serde-human-readable", "parsing"] }
+time = { workspace = true, features = ["serde-human-readable", "parsing"] }
 tokio = { version = "1.24.1", features = [
     "rt-multi-thread",
     "macros",
@@ -103,7 +104,7 @@ nym-task = { path = "../common/task" }
 nym-topology = { path = "../common/topology" }
 nym-api-requests = { path = "nym-api-requests" }
 nym-validator-client = { path = "../common/client-libs/validator-client" }
-nym-bin-common = { path = "../common/bin-common" }
+nym-bin-common = { path = "../common/bin-common", features = ["output_format"] }
 nym-node-tester-utils = { path = "../common/node-tester-utils" }
 nym-node-requests = { path = "../nym-node/nym-node-requests" }
 

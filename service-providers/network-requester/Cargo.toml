@@ -1,9 +1,10 @@
 # Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: GPL-3.0-only
 
 [package]
 name = "nym-network-requester"
-version = "1.1.31"
+license = "GPL-3"
+version = "1.1.32"
 authors.workspace = true
 edition.workspace = true
 rust-version = "1.65"

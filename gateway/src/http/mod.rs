@@ -1,5 +1,5 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: GPL-3.0-only
 
 use crate::config::Config;
 use crate::error::GatewayError;
@@ -229,14 +229,14 @@ impl<'a> HttpApiBuilder<'a> {
             IpAddr::from(Ipv4Addr::new(10, 1, 0, 0)),
             self.gateway_config.wireguard.private_network_prefix,
         )?;
-        let wg_state = self.client_registry.map(|client_registry| {
+        let wg_state = self.client_registry.and_then(|client_registry| {
             WireguardAppState::new(
-                self.sphinx_keypair,
                 client_registry,
                 Default::default(),
                 self.gateway_config.wireguard.bind_address.port(),
                 wireguard_private_network,
             )
+            .ok()
         });
 
         let router = nym_node::http::NymNodeRouter::new(config, wg_state);

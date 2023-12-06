@@ -1,7 +1,6 @@
 use crate::{manager::SentError, TaskManager};
 
 #[cfg(unix)]
-#[deprecated]
 pub async fn wait_for_signal() {
     use tokio::signal::unix::{signal, SignalKind};
     let mut sigterm = signal(SignalKind::terminate()).expect("Failed to setup SIGTERM channel");

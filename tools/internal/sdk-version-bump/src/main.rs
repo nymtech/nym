@@ -5,7 +5,7 @@ use crate::cargo::CargoPackage;
 use crate::helpers::ReleasePackage;
 use crate::json::PackageJson;
 use clap::{Parser, Subcommand};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::env;
 use std::path::{Path, PathBuf};
 
@@ -16,6 +16,48 @@ pub mod json_types;
 
 fn default_root() -> PathBuf {
     env::current_dir().unwrap()
+}
+
+struct Summary {
+    cargo_results: HashMap<String, anyhow::Result<()>>,
+
+    json_results: HashMap<String, anyhow::Result<()>>,
+}
+
+impl Summary {
+    fn new(
+        cargo_results: HashMap<String, anyhow::Result<()>>,
+        json_results: HashMap<String, anyhow::Result<()>>,
+    ) -> Self {
+        Summary {
+            cargo_results,
+            json_results,
+        }
+    }
+
+    fn print(&self) {
+        let cargo_ok = self.cargo_results.values().filter(|p| p.is_ok()).count();
+        let json_ok = self.json_results.values().filter(|p| p.is_ok()).count();
+
+        println!("SUMMARY");
+        println!("inspected {} cargo packages", self.cargo_results.len());
+        println!("updated {cargo_ok} cargo packages");
+        for (package, res) in &self.cargo_results {
+            if let Err(err) = res {
+                println!(
+                    "\t>>> ❌ FAILURE: cargo package '{package}' failed to get updated: {err}"
+                );
+            }
+        }
+
+        println!("inspected {} json packages", self.json_results.len());
+        println!("updated {json_ok} json packages");
+        for (package, res) in &self.json_results {
+            if let Err(err) = res {
+                println!("\t>>> ❌ FAILURE: json package '{package}' failed to get updated: {err}");
+            }
+        }
+    }
 }
 
 #[derive(Parser)]
@@ -36,12 +78,13 @@ enum Commands {
     /// It will also update the `@nymproject/...` dependencies from `">=X.Y.Z-rc.0 || ^X"` to `">=X.Y.(Z+1)-rc.0 || ^X"`
     BumpVersion {
         #[arg(long)]
-        /// If enabled, the packages will only have their rc version bumped and the dependencies won't get updated at all
+        /// If enabled, the packages will only have their rc version bumped and the dependencies
+        /// will get updated from `">=X.Y.Z-rc.W || ^X"` to `">=X.Y.Z-rc.(W+1) || ^X"`
         pre_release: bool,
     },
 }
 
-fn remove_suffix<Pkg: ReleasePackage>(root: &Path, path: impl AsRef<Path>) {
+fn remove_suffix<Pkg: ReleasePackage>(root: &Path, path: impl AsRef<Path>) -> anyhow::Result<()> {
     let path = root.join(path);
     println!(
         ">>> [{}] UPDATING PACKAGE {}: ",
@@ -51,8 +94,10 @@ fn remove_suffix<Pkg: ReleasePackage>(root: &Path, path: impl AsRef<Path>) {
 
     if let Err(err) = { remove_suffix_inner::<Pkg>(path) } {
         println!("\t>>> ❌ FAILURE: {err}");
+        Err(err)
     } else {
         println!("\t>>> ✅ SUCCESS");
+        Ok(())
     }
 }
 
@@ -70,7 +115,7 @@ fn bump_version<Pkg: ReleasePackage>(
     path: impl AsRef<Path>,
     dependencies_to_update: &HashSet<String>,
     pre_release: bool,
-) {
+) -> anyhow::Result<()> {
     let path = root.join(path);
     println!(
         ">>> [{}] UPDATING PACKAGE {}: ",
@@ -79,8 +124,10 @@ fn bump_version<Pkg: ReleasePackage>(
     );
     if let Err(err) = { bump_version_inner::<Pkg>(path, dependencies_to_update, pre_release) } {
         println!("\t>>> ❌ FAILURE: {err}");
+        Err(err)
     } else {
         println!("\t>>> ✅ SUCCESS");
+        Ok(())
     }
 }
 
@@ -93,9 +140,7 @@ fn bump_version_inner<Pkg: ReleasePackage>(
     let mut package = Pkg::open(path)?;
     package.bump_version(pre_release)?;
 
-    if !pre_release {
-        package.update_nym_dependencies(dependencies_to_update)?;
-    }
+    package.update_nym_dependencies(dependencies_to_update, pre_release)?;
 
     println!("\t>>> saving the package file...");
     package.save_changes()
@@ -132,34 +177,46 @@ impl InternalPackages {
         self.internal_js_dependencies.insert(name.into());
     }
 
-    pub fn remove_suffix(&self) {
+    pub fn remove_suffix(&self) -> Summary {
+        let mut cargo_results = HashMap::new();
         for cargo_package in &self.cargo {
-            remove_suffix::<CargoPackage>(&self.root, cargo_package);
+            let res = remove_suffix::<CargoPackage>(&self.root, cargo_package);
+            cargo_results.insert(cargo_package.clone(), res);
         }
 
+        let mut json_results = HashMap::new();
         for package_json in &self.json {
-            remove_suffix::<PackageJson>(&self.root, package_json);
+            let res = remove_suffix::<PackageJson>(&self.root, package_json);
+            json_results.insert(package_json.clone(), res);
         }
+
+        Summary::new(cargo_results, json_results)
     }
 
-    pub fn bump_version(&self, pre_release: bool) {
+    pub fn bump_version(&self, pre_release: bool) -> Summary {
+        let mut cargo_results = HashMap::new();
         for cargo_package in &self.cargo {
-            bump_version::<CargoPackage>(
+            let res = bump_version::<CargoPackage>(
                 &self.root,
                 cargo_package,
                 &Default::default(),
                 pre_release,
             );
+            cargo_results.insert(cargo_package.clone(), res);
         }
 
+        let mut json_results = HashMap::new();
         for package_json in &self.json {
-            bump_version::<PackageJson>(
+            let res = bump_version::<PackageJson>(
                 &self.root,
                 package_json,
                 &self.internal_js_dependencies,
                 pre_release,
             );
+            json_results.insert(package_json.clone(), res);
         }
+
+        Summary::new(cargo_results, json_results)
     }
 }
 
@@ -226,10 +283,12 @@ fn main() -> anyhow::Result<()> {
     let args = Args::parse();
     let packages = initialise_internal_packages(args.root);
 
-    match args.command {
+    let summary = match args.command {
         Commands::RemoveSuffix => packages.remove_suffix(),
         Commands::BumpVersion { pre_release } => packages.bump_version(pre_release),
-    }
+    };
+
+    summary.print();
 
     Ok(())
 }

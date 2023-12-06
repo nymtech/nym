@@ -26,7 +26,7 @@ const APP_DATA_FILE: &str = "app-data.toml";
 const APP_CONFIG_FILE: &str = "config.toml";
 
 fn main() -> Result<()> {
-    dotenvy::dotenv()?;
+    dotenvy::dotenv().ok();
 
     // uses RUST_LOG value for logging level
     // eg. RUST_LOG=tauri=debug,nymvpn_ui=trace
@@ -51,12 +51,15 @@ fn main() -> Result<()> {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            greet,
+            connection::set_vpn_mode,
             connection::get_connection_state,
             connection::connect,
             connection::disconnect,
-            settings::save_user_settings,
-            settings::set_user_settings,
+            connection::get_connection_start_time,
+            app_data::get_app_data,
+            app_data::set_app_data,
+            app_data::set_ui_theme,
+            app_data::get_node_countries,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

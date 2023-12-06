@@ -26,6 +26,7 @@ use cosmrs::rpc::{HttpClient, HttpClientUrl};
 pub mod client_traits;
 mod helpers;
 pub mod logs;
+pub mod module_traits;
 pub mod types;
 
 #[derive(Debug)]
@@ -327,14 +328,6 @@ where
     ) -> Result<Raw, Self::Error> {
         self.signer.sign_direct_with_account(signer, sign_doc)
     }
-}
-
-#[async_trait]
-impl<C, S> CosmWasmClient for MaybeSigningClient<C, S>
-where
-    C: TendermintRpcClient + Send + Sync,
-    S: Send + Sync,
-{
 }
 
 #[async_trait]

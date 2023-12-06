@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::cli::try_load_current_config;
+use crate::config::Config;
 use crate::error::NymRewarderError;
 use crate::rewarder::Rewarder;
+use bip39::Mnemonic;
 use std::path::PathBuf;
 
 #[derive(Debug, clap::Args)]
@@ -13,7 +15,9 @@ pub struct Args {
 }
 
 pub(crate) async fn execute(args: Args) -> Result<(), NymRewarderError> {
-    let config = try_load_current_config(&args.custom_config_path)?.with_override(args);
+    // let config = try_load_current_config(&args.custom_config_path)?.with_override(args);
+
+    let config = Config::new(Mnemonic::generate(24).unwrap());
 
     Rewarder::new(config).run().await
 }

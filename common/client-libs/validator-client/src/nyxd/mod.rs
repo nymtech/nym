@@ -29,24 +29,29 @@ use tendermint_rpc::endpoint::*;
 use tendermint_rpc::{Error as TendermintRpcError, Order};
 use url::Url;
 
-pub use crate::nyxd::cosmwasm_client::client_traits::{CosmWasmClient, SigningCosmWasmClient};
-pub use crate::nyxd::fee::Fee;
+pub use crate::nyxd::{
+    cosmwasm_client::{
+        client_traits::{CosmWasmClient, SigningCosmWasmClient},
+        module_traits::{self, StakingQueryClient},
+    },
+    fee::Fee,
+};
 pub use crate::rpc::TendermintRpcClient;
 pub use coin::Coin;
-pub use cosmrs::bank::MsgSend;
-pub use cosmrs::tendermint::abci::{
-    response::DeliverTx, types::ExecTxResult, Event, EventAttribute,
+pub use cosmrs::{
+    bank::MsgSend,
+    bip32,
+    query::{PageRequest, PageResponse},
+    tendermint::{
+        abci::{response::DeliverTx, types::ExecTxResult, Event, EventAttribute},
+        block::Height,
+        hash::{self, Algorithm, Hash},
+        validator::Info as TendermintValidatorInfo,
+        Time as TendermintTime,
+    },
+    tx::{self, Msg},
+    AccountId, Coin as CosmosCoin, Denom, Gas,
 };
-pub use cosmrs::tendermint::block::Height;
-pub use cosmrs::tendermint::hash::{self, Algorithm, Hash};
-pub use cosmrs::tendermint::validator::Info as TendermintValidatorInfo;
-pub use cosmrs::tendermint::Time as TendermintTime;
-pub use cosmrs::tx::Msg;
-pub use cosmrs::tx::{self};
-pub use cosmrs::Any;
-pub use cosmrs::Coin as CosmosCoin;
-pub use cosmrs::Gas;
-pub use cosmrs::{bip32, AccountId, Denom};
 pub use cosmwasm_std::Coin as CosmWasmCoin;
 pub use cw2;
 pub use cw3;
@@ -56,9 +61,8 @@ pub use fee::{gas_price::GasPrice, GasAdjustable, GasAdjustment};
 pub use tendermint_rpc::{
     endpoint::{tx::Response as TxResponse, validators::Response as ValidatorResponse},
     query::Query,
-    Paging,
+    Paging, Request, Response, SimpleRequest,
 };
-pub use tendermint_rpc::{Request, Response, SimpleRequest};
 
 #[cfg(feature = "http-client")]
 use crate::http_client;
@@ -729,7 +733,7 @@ where
     where
         H: Into<Height> + Send,
     {
-        self.client.validators(height, paging).await
+        TendermintRpcClient::validators(&self.client, height, paging).await
     }
 
     async fn latest_consensus_params(
@@ -802,14 +806,6 @@ where
     {
         self.client.perform(request).await
     }
-}
-
-#[async_trait]
-impl<C, S> CosmWasmClient for NyxdClient<C, S>
-where
-    C: TendermintRpcClient + Send + Sync,
-    S: Send + Sync,
-{
 }
 
 impl<C, S> OfflineSigner for NyxdClient<C, S>

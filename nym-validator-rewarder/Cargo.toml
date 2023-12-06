@@ -14,6 +14,7 @@ license = "GPL-3"
 anyhow.workspace = true
 bip39 = { workspace = true, features = ["zeroize"] }
 clap = { workspace = true, features = ["cargo"] }
+futures.workspace = true
 serde = { workspace = true, features = ["derive"] }
 thiserror.workspace = true
 tokio = { workspace = true, features = ["rt-multi-thread", "time", "macros"] }

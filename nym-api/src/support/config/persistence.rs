@@ -131,6 +131,8 @@ impl NymApiPaths {
             &self.public_identity_key_file,
         );
 
-        nym_pemstore::load_keypair(&keypaths).context("failed to load identity keys of the nym api")
+        nym_pemstore::load_keypair(&keypaths).context(format!(
+            "failed to load identity keys of the nym api. paths: {keypaths:?}"
+        ))
     }
 }

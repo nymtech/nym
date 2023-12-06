@@ -26,10 +26,10 @@ mnemonic = '{{ base.mnemonic }}'
 
 [base.storage_paths]
 # Path to file containing private identity key of the nym-api.
-keys.private_identity_key_file = '{{ base.storage_paths.private_identity_key_file }}'
+private_identity_key_file = '{{ base.storage_paths.private_identity_key_file }}'
 
 # Path to file containing public identity key of the nym-api.
-keys.public_identity_key_file = '{{ base.storage_paths.public_identity_key_file }}'
+public_identity_key_file = '{{ base.storage_paths.public_identity_key_file }}'
 
 ##### network monitor config options #####
 

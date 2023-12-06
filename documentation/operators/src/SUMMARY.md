@@ -17,7 +17,10 @@
     - [Gateway](nodes/gateway-setup.md)
     - [Network Requester](nodes/network-requester-setup.md)
 - [Nyx Validator Setup](nodes/validator-setup.md)
+  - [Nym API Setup](nodes/nym-api.md)
 - [Maintenance](nodes/maintenance.md)
+  - [Manual Node Upgrade](nodes/manual-upgrade.md)
+  - [Automatic Node Upgrade: Nymvisor Setup and Usage](nodes/nymvisor-upgrade.md)
 - [Troubleshooting](nodes/troubleshooting.md)
 
 # FAQ

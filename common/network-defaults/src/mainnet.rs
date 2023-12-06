@@ -3,6 +3,7 @@
 
 use crate::var_names;
 use crate::{DenomDetails, ValidatorDetails};
+use std::str::FromStr;
 
 pub const NETWORK_NAME: &str = "mainnet";
 
@@ -58,6 +59,12 @@ pub fn read_var_if_not_default(var: &str) -> Option<String> {
     } else {
         std::env::var(var).ok()
     }
+}
+
+pub fn read_parsed_var_if_not_default<T: FromStr>(var: &str) -> Option<Result<T, T::Err>> {
+    read_var_if_not_default(var)
+        .as_deref()
+        .map(FromStr::from_str)
 }
 
 pub fn export_to_env() {

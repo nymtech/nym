@@ -3,12 +3,12 @@
 
 use crate::coconut::error::Result;
 use crate::nyxd;
-use nym_coconut_dkg_common::types::EpochId;
+use crate::support::nyxd::ClientInner;
+use nym_coconut_dkg_common::types::{Epoch, EpochId};
 use nym_coconut_interface::VerificationKey;
 use nym_credentials::coconut::utils::obtain_aggregate_verification_key;
 use nym_validator_client::coconut::all_coconut_api_clients;
 use nym_validator_client::nyxd::contract_traits::DkgQueryClient;
-use nym_validator_client::DirectSigningHttpRpcNyxdClient;
 use std::cmp::min;
 use std::collections::HashMap;
 use std::ops::Deref;
@@ -40,9 +40,7 @@ impl CachedEpoch {
         self.valid_until > OffsetDateTime::now_utc()
     }
 
-    async fn update(&mut self, client: &DirectSigningHttpRpcNyxdClient) -> Result<()> {
-        let epoch = client.get_current_epoch().await?;
-
+    async fn update(&mut self, epoch: Epoch) -> Result<()> {
         let now = OffsetDateTime::now_utc();
         let state_end =
             OffsetDateTime::from_unix_timestamp(epoch.finish_timestamp.seconds() as i64).unwrap();
@@ -84,8 +82,13 @@ impl APICommunicationChannel for QueryCommunicationChannel {
         // update cache
         drop(guard);
         let mut guard = self.cached_epoch.write().await;
-        let client = self.nyxd_client.0.read().await;
-        guard.update(&client).await?;
+
+        let epoch = match self.nyxd_client.read().await.deref() {
+            ClientInner::Query(client) => client.get_current_epoch().await?,
+            ClientInner::Signing(client) => client.get_current_epoch().await?,
+        };
+
+        guard.update(epoch).await?;
 
         return Ok(guard.current_epoch_id);
     }
@@ -96,8 +99,11 @@ impl APICommunicationChannel for QueryCommunicationChannel {
         }
 
         let mut guard = self.epoch_keys.write().await;
-        let client = self.nyxd_client.0.read().await;
-        let coconut_api_clients = all_coconut_api_clients(client.deref(), epoch_id).await?;
+        let coconut_api_clients = match self.nyxd_client.read().await.deref() {
+            ClientInner::Query(client) => all_coconut_api_clients(client, epoch_id).await?,
+            ClientInner::Signing(client) => all_coconut_api_clients(client, epoch_id).await?,
+        };
+
         let vk = obtain_aggregate_verification_key(&coconut_api_clients).await?;
 
         guard.insert(epoch_id, vk.clone());

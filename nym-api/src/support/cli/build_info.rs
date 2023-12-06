@@ -10,6 +10,7 @@ pub(crate) struct Args {
     output: OutputFormat,
 }
 
-pub(crate) fn execute(args: Args) {
-    println!("{}", args.output.format(&bin_info_owned!()))
+pub(crate) fn execute(args: Args) -> anyhow::Result<()> {
+    println!("{}", args.output.format(&bin_info_owned!()));
+    Ok(())
 }

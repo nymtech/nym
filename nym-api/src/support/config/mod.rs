@@ -4,8 +4,13 @@
 use crate::support::config::persistence::{
     CoconutSignerPaths, NetworkMonitorPaths, NodeStatusAPIPaths, NymApiPaths,
 };
+use crate::support::config::r#override::OverrideConfig;
 use crate::support::config::template::CONFIG_TEMPLATE;
-use nym_config::defaults::{mainnet, NymNetworkDetails};
+use anyhow::bail;
+use nym_config::defaults::mainnet::read_parsed_var_if_not_default;
+use nym_config::defaults::var_names::{CONFIGURED, NYXD};
+use nym_config::defaults::NymNetworkDetails;
+use nym_config::serde_helpers::de_maybe_stringified;
 use nym_config::{
     must_get_home, read_config_from_toml_file, save_formatted_config_to_file, NymConfigTemplate,
     DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, DEFAULT_DATA_DIR, DEFAULT_NYM_APIS_DIR, NYM_DIR,
@@ -19,11 +24,11 @@ use url::Url;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 pub(crate) mod helpers;
-pub(crate) mod old_config_v1_1_21;
-pub(crate) mod old_config_v1_1_27;
 
+mod r#override;
 mod persistence;
 mod template;
+mod upgrade_helpers;
 
 pub const DEFAULT_LOCAL_VALIDATOR: &str = "http://localhost:26657";
 pub const DEFAULT_NYM_API_PORT: u16 = 8080;
@@ -86,6 +91,10 @@ pub fn default_data_directory<P: AsRef<Path>>(id: P) -> PathBuf {
 
 #[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
 pub struct Config {
+    // additional metadata holding on-disk location of this config file
+    #[serde(skip)]
+    pub(crate) save_path: Option<PathBuf>,
+
     pub base: Base,
 
     // TODO: perhaps introduce separate 'path finder' field for all the paths and directories like we have with other configs
@@ -104,16 +113,6 @@ pub struct Config {
     pub ephemera: Ephemera,
 }
 
-impl<'a> From<&'a Config> for NymNetworkDetails {
-    fn from(value: &'a Config) -> Self {
-        // we get the current environmental details and then overwrite whatever is appropriate with
-        // the values from the config
-        NymNetworkDetails::new_from_env()
-            .with_mixnet_contract(Some(value.get_mixnet_contract_address().as_ref()))
-            .with_vesting_contract(Some(value.get_vesting_contract_address().as_ref()))
-    }
-}
-
 impl NymConfigTemplate for Config {
     fn template(&self) -> &'static str {
         CONFIG_TEMPLATE
@@ -123,6 +122,7 @@ impl NymConfigTemplate for Config {
 impl Config {
     pub fn new<S: AsRef<str>>(id: S) -> Self {
         Config {
+            save_path: None,
             base: Base::new_default(id.as_ref()),
             network_monitor: NetworkMonitor::new_default(id.as_ref()),
             node_status_api: NodeStatusAPI::new_default(id.as_ref()),
@@ -134,12 +134,77 @@ impl Config {
         }
     }
 
+    pub fn validate(&self) -> anyhow::Result<()> {
+        let can_sign = self.base.mnemonic.is_some();
+
+        if !can_sign && self.rewarding.enabled {
+            bail!("can't enable rewarding without providing a mnemonic")
+        }
+
+        if !can_sign && self.coconut_signer.enabled {
+            bail!("can't enable coconut signer without providing a mnemonic")
+        }
+
+        if !can_sign && self.ephemera.enabled {
+            bail!("can't enable ephemera without providing a mnemonic")
+        }
+
+        Ok(())
+    }
+
+    pub fn override_with_args<O: Into<OverrideConfig>>(mut self, args: O) -> Self {
+        let args = args.into();
+
+        if let Some(enabled_monitor) = args.enable_monitor {
+            self.network_monitor.enabled = enabled_monitor;
+        }
+        if let Some(enable_rewarding) = args.enable_rewarding {
+            self.rewarding.enabled = enable_rewarding;
+        }
+        if let Some(nyxd_upstream) = args.nyxd_validator {
+            self.base.local_validator = nyxd_upstream;
+        }
+        if let Some(mnemonic) = args.mnemonic {
+            self.base.mnemonic = Some(mnemonic)
+        }
+        if let Some(enable_zk_nym) = args.enable_zk_nym {
+            self.coconut_signer.enabled = enable_zk_nym
+        }
+        if let Some(announce_address) = args.announce_address {
+            self.coconut_signer.announce_address = announce_address
+        }
+        if let Some(monitor_credentials_mode) = args.monitor_credentials_mode {
+            self.network_monitor.debug.disabled_credentials_mode = !monitor_credentials_mode
+        }
+
+        self
+    }
+
+    pub fn override_with_env(mut self) -> Self {
+        if std::env::var(CONFIGURED).is_ok() {
+            // currently the only value that can be overridden is 'nyxd'
+            if let Some(Ok(custom_nyxd)) = read_parsed_var_if_not_default(NYXD) {
+                self.base.local_validator = custom_nyxd
+            }
+        }
+        self
+    }
+
+    // simple wrapper that reads config file and assigns path location
+    fn read_from_path<P: AsRef<Path>>(path: P) -> io::Result<Self> {
+        let path = path.as_ref();
+        let mut loaded: Config = read_config_from_toml_file(path)?;
+        loaded.save_path = Some(path.to_path_buf());
+        debug!("loaded config file from {}", path.display());
+        Ok(loaded)
+    }
+
     pub fn read_from_toml_file<P: AsRef<Path>>(path: P) -> io::Result<Self> {
-        read_config_from_toml_file(path)
+        Self::read_from_path(path)
     }
 
     pub fn read_from_default_path<P: AsRef<Path>>(id: P) -> io::Result<Self> {
-        Self::read_from_toml_file(default_config_filepath(id))
+        Self::read_from_path(default_config_filepath(id))
     }
 
     pub fn default_location(&self) -> PathBuf {
@@ -151,8 +216,13 @@ impl Config {
         save_formatted_config_to_file(self, config_save_location)
     }
 
-    pub fn get_network_details(&self) -> NymNetworkDetails {
-        self.into()
+    pub fn try_save(&self) -> io::Result<()> {
+        if let Some(save_location) = &self.save_path {
+            save_formatted_config_to_file(self, save_location)
+        } else {
+            debug!("config file save location is unknown. falling back to the default");
+            self.save_to_default_location()
+        }
     }
 
     pub fn with_network_monitor_enabled(mut self, enabled: bool) -> Self {
@@ -190,18 +260,8 @@ impl Config {
         self
     }
 
-    pub fn with_custom_mixnet_contract(mut self, mixnet_contract: nyxd::AccountId) -> Self {
-        self.base.mixnet_contract_address = mixnet_contract;
-        self
-    }
-
-    pub fn with_custom_vesting_contract(mut self, vesting_contract: nyxd::AccountId) -> Self {
-        self.base.vesting_contract_address = vesting_contract;
-        self
-    }
-
     pub fn with_mnemonic(mut self, mnemonic: bip39::Mnemonic) -> Self {
-        self.base.mnemonic = mnemonic;
+        self.base.mnemonic = Some(mnemonic);
         self
     }
 
@@ -248,16 +308,8 @@ impl Config {
         self.base.local_validator.clone()
     }
 
-    pub fn get_mixnet_contract_address(&self) -> nyxd::AccountId {
-        self.base.mixnet_contract_address.clone()
-    }
-
-    pub fn get_vesting_contract_address(&self) -> nyxd::AccountId {
-        self.base.vesting_contract_address.clone()
-    }
-
-    pub fn get_mnemonic(&self) -> bip39::Mnemonic {
-        self.base.mnemonic.clone()
+    pub fn get_mnemonic(&self) -> Option<&bip39::Mnemonic> {
+        self.base.mnemonic.as_ref()
     }
 
     pub fn get_ephemera_args(&self) -> &crate::ephemera::Args {
@@ -278,23 +330,13 @@ pub struct Base {
     #[zeroize(skip)]
     pub local_validator: Url,
 
-    /// Address of the validator contract managing the network
-    #[zeroize(skip)]
-    pub mixnet_contract_address: nyxd::AccountId,
-
-    /// Address of the vesting contract holding locked tokens
-    #[zeroize(skip)]
-    pub vesting_contract_address: nyxd::AccountId,
-
     /// Mnemonic used for rewarding and/or multisig operations
     // TODO: similarly to the note in gateway, this should get moved to a separate file
-    mnemonic: bip39::Mnemonic,
+    #[serde(deserialize_with = "de_maybe_stringified")]
+    mnemonic: Option<bip39::Mnemonic>,
 
     /// Storage paths to the common nym-api files
     #[zeroize(skip)]
-    // ideally we wouldn't be using default here, but I really really don't want to be writing
-    // another big config migration
-    #[serde(default)]
     pub storage_paths: NymApiPaths,
 }
 
@@ -310,10 +352,7 @@ impl Base {
             storage_paths: NymApiPaths::new_default(&id),
             id,
             local_validator: default_validator,
-            mixnet_contract_address: mainnet::MIXNET_CONTRACT_ADDRESS.parse().unwrap(),
-            vesting_contract_address: mainnet::VESTING_CONTRACT_ADDRESS.parse().unwrap(),
-            // this this doesn't make any sense since you really have a mnemonic beforehand...
-            mnemonic: bip39::Mnemonic::generate(24).unwrap(),
+            mnemonic: None,
         }
     }
 }

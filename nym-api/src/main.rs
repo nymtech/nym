@@ -21,6 +21,7 @@ use clap::Parser;
 use coconut::dkg::controller::DkgController;
 use node_status_api::NodeStatusCache;
 use nym_bin_common::logging::setup_logging;
+use nym_config::defaults::NymNetworkDetails;
 use nym_contract_cache::cache::NymContractCache;
 use nym_sphinx::receiver::SphinxMessageReceiver;
 use nym_task::TaskManager;
@@ -46,7 +47,7 @@ struct ShutdownHandles {
 }
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
+async fn main() -> Result<(), anyhow::Error> {
     println!("Starting nym api...");
 
     cfg_if::cfg_if! {if #[cfg(feature = "console-subscriber")] {
@@ -59,24 +60,13 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     trace!("{:#?}", args);
 
     setup_env(args.config_env_file.as_ref());
-
-    let command = args.command.unwrap_or(Commands::Run(Box::new(args.run)));
-
-    match command {
-        Commands::BuildInfo(m) => {
-            cli::build_info::execute(m);
-            Ok(())
-        }
-        Commands::Run(m) => cli::run::execute(*m).await,
-    }
+    args.execute().await
 }
 
-async fn start_nym_api_tasks(
-    config: Config,
-) -> Result<ShutdownHandles, Box<dyn Error + Send + Sync>> {
+async fn start_nym_api_tasks(config: Config) -> anyhow::Result<ShutdownHandles> {
     let nyxd_client = nyxd::Client::new(&config);
     let connected_nyxd = config.get_nyxd_url();
-    let nym_network_details = config.get_network_details();
+    let nym_network_details = NymNetworkDetails::new_from_env();
     let network_details = NetworkDetails::new(connected_nyxd.to_string(), nym_network_details);
 
     let coconut_keypair = coconut::keypair::KeyPair::new();

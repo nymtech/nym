@@ -73,7 +73,7 @@ where
     P: AsRef<Path>,
 {
     let path = path.as_ref();
-    log::debug!("trying to save config file to {}", path.display());
+    log::info!("trying to save config file to {}", path.display());
 
     if let Some(parent) = path.parent() {
         create_dir_all(parent)?;

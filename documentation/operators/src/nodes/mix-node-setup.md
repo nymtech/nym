@@ -68,7 +68,7 @@ Initialise your Mix Node with the following command, replacing the value of `--i
 ```
 ./nym-mixnode init --id <YOUR_ID> --host $(curl -4 https://ifconfig.me) 
 ```
-If `<YOUR_ID>` was `my-node`, the output shall look like like this:
+If `<YOUR_ID>` was `my-node`, the output will look like this:
 
 ~~~admonish example collapsible=true title="Console output"
 ```

@@ -46,9 +46,7 @@ use nym_validator_client::nyxd::{
     hash::{Hash, SHA256_HASH_SIZE},
     AccountId, Coin, TendermintTime,
 };
-use nym_validator_client::{
-    nyxd, DirectSigningHttpRpcNyxdClient, QueryHttpRpcNyxdClient,
-};
+use nym_validator_client::{nyxd, DirectSigningHttpRpcNyxdClient, QueryHttpRpcNyxdClient};
 use nym_vesting_contract_common::AccountVestingCoins;
 use serde::Deserialize;
 use std::sync::Arc;

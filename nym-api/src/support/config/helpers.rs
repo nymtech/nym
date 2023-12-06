@@ -44,8 +44,7 @@ pub(crate) fn initialise_new(id: &str) -> Result<Config> {
 
 pub(crate) fn try_load_current_config(id: &str) -> Result<Config> {
     upgrade_helpers::try_upgrade_config(id)?;
-
-    Ok(Config::read_from_default_path(id).context(
+    Config::read_from_default_path(id).context(
         "failed to load config.toml from the default path - are you sure you run `init` before?",
-    )?)
+    )
 }

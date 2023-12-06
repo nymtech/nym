@@ -37,7 +37,7 @@ pub fn get_node_countries() -> Result<Vec<Country>, CmdError> {
     Ok(countries)
 }
 
-#[instrument]
+#[instrument(skip(state))]
 #[tauri::command]
 pub async fn set_app_data(
     state: State<'_, SharedAppData>,
@@ -56,7 +56,7 @@ pub async fn set_app_data(
     Ok(())
 }
 
-#[instrument]
+#[instrument(skip_all)]
 #[tauri::command]
 pub async fn get_app_data(
     state: State<'_, SharedAppData>,
@@ -75,7 +75,7 @@ pub async fn get_app_data(
     Ok(data)
 }
 
-#[instrument(skip_all)]
+#[instrument(skip(data_state))]
 #[tauri::command]
 pub async fn set_ui_theme(
     data_state: State<'_, SharedAppData>,

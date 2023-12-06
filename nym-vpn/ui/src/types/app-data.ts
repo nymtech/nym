@@ -4,7 +4,7 @@ export type UiTheme = 'Dark' | 'Light';
 
 export interface NodeConfig {
   id: string;
-  country: string;
+  country: Country;
 }
 
 export type Country = {
@@ -12,23 +12,15 @@ export type Country = {
   code: string;
 };
 
-export interface AppData {
-  monitoring: boolean;
-  autoconnect: boolean;
-  killswitch: boolean;
-  uiTheme: UiTheme;
-  vpnMode: VpnMode;
-  entryNode?: NodeConfig | null;
-  exitNode?: NodeConfig | null;
-}
-
 // tauri type, hence the use of snake_case
 export interface AppDataFromBackend {
   monitoring: boolean | null;
   autoconnect: boolean | null;
   killswitch: boolean | null;
   ui_theme: UiTheme | null;
-  vpn_mode: VpnMode;
+  vpn_mode: VpnMode | null;
   entry_node: NodeConfig | null;
   exit_node: NodeConfig | null;
+  entry_node_location: Country | null;
+  exit_node_location: Country | null;
 }

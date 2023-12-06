@@ -15,7 +15,7 @@ export default function CountryList({
     <ul className="flex flex-col w-full items-stretch p-1">
       {countries && countries.length > 0 ? (
         countries.map((country) => (
-          <li key={t(country.name)} className="list-none w-full">
+          <li key={country.code} className="list-none w-full">
             <div
               role="presentation"
               onKeyDown={() => onClick(country.name, country.code)}

@@ -44,28 +44,12 @@ export function MainStateProvider({ children }: Props) {
       .then((data) => {
         console.log(data);
         dispatch({
-          type: 'set-app-data',
-          data: {
-            autoconnect: data.autoconnect || false,
-            monitoring: data.monitoring || false,
-            killswitch: data.killswitch || false,
-            uiTheme: data.ui_theme || 'Light',
-            vpnMode: data.vpn_mode || 'TwoHop',
-            entryNode: data.entry_node || {
-              country: QuickConnectCountry.name,
-              id: QuickConnectCountry.code,
-            },
-            exitNode: data.exit_node || {
-              country: QuickConnectCountry.name,
-              id: QuickConnectCountry.code,
-            },
-          },
-        });
-        dispatch({
           type: 'set-partial-state',
           partialState: {
             uiTheme: data.ui_theme || 'Light',
             vpnMode: data.vpn_mode || 'TwoHop',
+            entryNodeLocation: data.entry_node_location || QuickConnectCountry,
+            exitNodeLocation: data.exit_node_location || QuickConnectCountry,
           },
         });
       })

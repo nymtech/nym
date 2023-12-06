@@ -3,24 +3,20 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { invoke } from '@tauri-apps/api';
 import { useMainDispatch, useMainState } from '../../contexts';
-import { InputEvent, NodeHop } from '../../types/general';
-import { Country, StateDispatch } from '../../types';
+import { Country, InputEvent, NodeHop, StateDispatch } from '../../types';
 import { routes } from '../../constants';
 import SearchBox from './SearchBox';
 import CountryList from './CountryList';
 import QuickConnect from './QuickConnect';
 
-function NodeLocation({ type }: NodeHop) {
-  const isEntryNodeSelectionScreen = type === 'entry';
+function NodeLocation({ node }: { node: NodeHop }) {
   const { t } = useTranslation('nodeLocation');
   const [countries, setCountries] = useState<Country[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(false);
   const [foundCountries, setFoundCountries] = useState<Country[]>([]);
 
-  const {
-    localAppData: { entryNode, exitNode },
-  } = useMainState();
+  const { entryNodeLocation, exitNodeLocation } = useMainState();
   const dispatch = useMainDispatch() as StateDispatch;
 
   const navigate = useNavigate();
@@ -54,16 +50,16 @@ function NodeLocation({ type }: NodeHop) {
   };
 
   const isCountrySelected = (code: string): boolean => {
-    return isEntryNodeSelectionScreen
-      ? entryNode?.id === code
-      : exitNode?.id === code;
+    return node === 'entry'
+      ? entryNodeLocation?.code === code
+      : exitNodeLocation?.code === code;
   };
 
   const setNodeSelection = (name: string, code: string) => {
-    const nodeType = isEntryNodeSelectionScreen
-      ? 'set-entry-node'
-      : 'set-exit-node';
-    dispatch({ type: nodeType, data: { country: name, id: code } });
+    dispatch({
+      type: 'set-node-location',
+      payload: { hop: node, country: { name, code } },
+    });
   };
   const handleCountrySelection = (name: string, code: string) => {
     setNodeSelection(name, code);

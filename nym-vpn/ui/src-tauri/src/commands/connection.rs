@@ -182,7 +182,7 @@ pub async fn get_connection_start_time(
     Ok(app_state.connection_start_time.map(|t| t.unix_timestamp()))
 }
 
-#[instrument(skip_all)]
+#[instrument(skip(app_state, data_state))]
 #[tauri::command]
 pub async fn set_vpn_mode(
     app_state: State<'_, SharedAppState>,

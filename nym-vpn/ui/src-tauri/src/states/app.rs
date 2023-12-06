@@ -6,7 +6,7 @@ use ts_rs::TS;
 #[ts(export)]
 pub struct NodeConfig {
     pub id: String,
-    pub country: String,
+    pub country: Country,
 }
 
 #[derive(Default, Debug, Clone, Copy, Serialize, Deserialize, TS)]
@@ -42,6 +42,8 @@ pub struct AppState {
     pub vpn_mode: VpnMode,
     pub entry_node: Option<NodeConfig>,
     pub exit_node: Option<NodeConfig>,
+    pub entry_node_location: Option<Country>,
+    pub exit_node_location: Option<Country>,
     pub tunnel: Option<TunnelConfig>,
     pub connection_start_time: Option<OffsetDateTime>,
 }

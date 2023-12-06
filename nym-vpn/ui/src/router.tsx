@@ -20,12 +20,12 @@ const router = createBrowserRouter([
       {
         path: routes.entryNodeLocation,
         // eslint-disable-next-line react/jsx-no-undef
-        element: <NodeLocation type="entry" />,
+        element: <NodeLocation node="entry" />,
         errorElement: <Error />,
       },
       {
         path: routes.exitNodeLocation,
-        element: <NodeLocation type="exit" />,
+        element: <NodeLocation node="exit" />,
         errorElement: <Error />,
       },
     ],

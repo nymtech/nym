@@ -60,6 +60,7 @@ fn main() -> Result<()> {
             app_data::set_app_data,
             app_data::set_ui_theme,
             app_data::get_node_countries,
+            node_location::set_node_location,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

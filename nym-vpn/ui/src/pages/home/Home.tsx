@@ -61,14 +61,9 @@ function Home() {
           <NetworkModeSelect />
           <div className="py-2"></div>
           <HopSelect
-            country={
-              state.localAppData.exitNode ?? {
-                country: QuickConnectCountry.name,
-                id: QuickConnectCountry.code,
-              }
-            }
+            country={state.exitNodeLocation ?? QuickConnectCountry}
             onClick={() => navigate(routes.exitNodeLocation)}
-            nodeHop={{ type: 'exit' }}
+            nodeHop="exit"
           />
         </div>
         <Button

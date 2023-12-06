@@ -1,7 +1,7 @@
 import { Dispatch } from 'react';
 import { Dayjs } from 'dayjs';
 import { StateAction } from '../state';
-import { AppData } from './app-data';
+import { Country } from './app-data';
 
 export type ConnectionState =
   | 'Connected'
@@ -26,7 +26,8 @@ export type AppState = {
   vpnMode: VpnMode;
   tunnel: TunnelConfig;
   uiTheme: 'Light' | 'Dark';
-  localAppData: AppData;
+  entryNodeLocation: Country | null;
+  exitNodeLocation: Country | null;
 };
 
 export type ConnectionEventPayload = {

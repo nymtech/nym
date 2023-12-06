@@ -1,9 +1,8 @@
 import { useTranslation } from 'react-i18next';
-import { NodeConfig } from '../../types';
-import { NodeHop } from '../../types/general';
+import { Country, NodeHop } from '../../types';
 
 interface HopSelectProps {
-  country: NodeConfig;
+  country: Country;
   onClick: () => void;
   nodeHop: NodeHop;
 }
@@ -27,13 +26,13 @@ export default function HopSelect({
           readOnly={true}
           type="text"
           id="floating_outlined"
-          value={country.country}
+          value={country.name}
           className="dark:bg-baltic-sea cursor-pointer pl-11 dark:placeholder-white border border-gun-powder block px-2.5 pb-4 pt-4 w-full text-sm text-gray-900 bg-transparent rounded-lg border-1 border-gray-300 appearance-none dark:text-white dark:border-gray-600 dark:focus:border-blue-500 focus:outline-none focus:ring-0 focus:border-blue-600 peer"
         />
         <img
-          src={`./flags/${country.id.toLowerCase()}.svg`}
+          src={`./flags/${country.code.toLowerCase()}.svg`}
           className="h-8 scale-75 pointer-events-none absolute fill-current top-1/2 transform -translate-y-1/2 left-2"
-          alt={country.id}
+          alt={country.code}
         />
         <span className="font-icon scale-125 pointer-events-none absolute fill-current top-1/4 transform -translate-x-1/2 right-2">
           arrow_right
@@ -42,7 +41,7 @@ export default function HopSelect({
           htmlFor="floating_outlined"
           className="dark:text-white bg-blanc-nacre dark:bg-baltic-sea absolute text-sm text-gray-500 dark:text-gray-400 ml-4 duration-300 transform -translate-y-4 scale-75 top-2 z-10 origin-[0] dark:bg-gray-900 px-2 peer-placeholder-shown:px-2 peer-placeholder-shown:text-blue-600 peer-placeholder-shown:dark:text-blue-500 peer-placeholder-shown:top-2 peer-placeholder-shown:scale-75 peer-placeholder-shown:-translate-y-4 rtl:peer-placeholder-shown:translate-x-1/4 rtl:peer-placeholder-shown:left-auto start-1"
         >
-          {nodeHop.type === 'entry' ? t('first-hop') : t('last-hop')}
+          {nodeHop === 'entry' ? t('first-hop') : t('last-hop')}
         </label>
       </div>
     </>

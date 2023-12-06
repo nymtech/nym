@@ -65,13 +65,15 @@ export function mockTauriIPC() {
           ui_theme: 'Dark',
           vpn_mode: 'TwoHop',
           entry_node: {
-            country: QuickConnectCountry.name,
+            country: QuickConnectCountry,
             id: QuickConnectCountry.code,
           },
           exit_node: {
-            country: QuickConnectCountry.name,
+            country: QuickConnectCountry,
             id: QuickConnectCountry.code,
           },
+          entry_node_location: null,
+          exit_node_location: null,
         }),
       );
     }

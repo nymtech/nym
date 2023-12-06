@@ -1,13 +1,12 @@
 import dayjs from 'dayjs';
 import {
-  AppData,
   AppState,
   ConnectionState,
-  NodeConfig,
+  Country,
+  NodeHop,
   UiTheme,
   VpnMode,
 } from '../types';
-import { QuickConnectCountry } from '../constants';
 
 export type StateAction =
   | { type: 'set-partial-state'; partialState: Partial<AppState> }
@@ -22,10 +21,8 @@ export type StateAction =
   | { type: 'set-connection-start-time'; startTime?: number | null }
   | { type: 'set-disconnected' }
   | { type: 'reset' }
-  | { type: 'set-app-data'; data: AppData }
   | { type: 'set-ui-theme'; theme: UiTheme }
-  | { type: 'set-exit-node'; data: NodeConfig }
-  | { type: 'set-entry-node'; data: NodeConfig };
+  | { type: 'set-node-location'; payload: { hop: NodeHop; country: Country } };
 
 export const initialState: AppState = {
   state: 'Disconnected',
@@ -34,30 +31,27 @@ export const initialState: AppState = {
   tunnel: { name: 'nym', id: 'nym' },
   uiTheme: 'Light',
   progressMessages: [],
-  localAppData: {
-    monitoring: false,
-    autoconnect: false,
-    killswitch: false,
-    uiTheme: 'Light',
-    vpnMode: 'TwoHop',
-    entryNode: {
-      country: QuickConnectCountry.name,
-      id: QuickConnectCountry.code,
-    },
-    exitNode: {
-      country: QuickConnectCountry.name,
-      id: QuickConnectCountry.code,
-    },
-  },
+  entryNodeLocation: null,
+  exitNodeLocation: null,
 };
 
 export function reducer(state: AppState, action: StateAction): AppState {
   switch (action.type) {
+    case 'set-node-location':
+      if (action.payload.hop === 'entry') {
+        return {
+          ...state,
+          entryNodeLocation: action.payload.country,
+        };
+      }
+      return {
+        ...state,
+        exitNodeLocation: action.payload.country,
+      };
     case 'set-vpn-mode':
       return {
         ...state,
         vpnMode: action.mode,
-        localAppData: { ...state.localAppData, vpnMode: action.mode },
       };
     case 'set-partial-state': {
       return { ...state, ...action.partialState };
@@ -78,18 +72,6 @@ export function reducer(state: AppState, action: StateAction): AppState {
     }
     case 'disconnect': {
       return { ...state, state: 'Disconnecting', loading: true };
-    }
-    case 'set-exit-node': {
-      return {
-        ...state,
-        localAppData: { ...state.localAppData, exitNode: action.data },
-      };
-    }
-    case 'set-entry-node': {
-      return {
-        ...state,
-        localAppData: { ...state.localAppData, entryNode: action.data },
-      };
     }
     case 'set-connected': {
       return {
@@ -115,9 +97,6 @@ export function reducer(state: AppState, action: StateAction): AppState {
         sessionStartDate:
           (action.startTime && dayjs.unix(action.startTime)) || null,
       };
-    case 'set-app-data': {
-      return { ...state, localAppData: action.data };
-    }
     case 'set-error':
       return { ...state, error: action.error };
     case 'reset-error':
@@ -131,7 +110,6 @@ export function reducer(state: AppState, action: StateAction): AppState {
       return {
         ...state,
         uiTheme: action.theme,
-        localAppData: { ...state.localAppData, uiTheme: action.theme },
       };
     case 'reset':
       return initialState;

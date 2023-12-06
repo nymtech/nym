@@ -55,14 +55,19 @@ function NodeLocation({ node }: { node: NodeHop }) {
       : exitNodeLocation?.code === code;
   };
 
-  const setNodeSelection = (name: string, code: string) => {
-    dispatch({
-      type: 'set-node-location',
-      payload: { hop: node, country: { name, code } },
-    });
-  };
-  const handleCountrySelection = (name: string, code: string) => {
-    setNodeSelection(name, code);
+  const handleCountrySelection = async (name: string, code: string) => {
+    try {
+      await invoke<void>('set_node_location', {
+        nodeType: node === 'entry' ? 'Entry' : 'Exit',
+        country: { name, code },
+      });
+      dispatch({
+        type: 'set-node-location',
+        payload: { hop: node, country: { name, code } },
+      });
+    } catch (e) {
+      console.log(e);
+    }
     navigate(routes.root);
   };
 

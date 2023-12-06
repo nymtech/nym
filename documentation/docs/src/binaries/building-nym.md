@@ -60,6 +60,8 @@ Quite a bit of stuff gets built. The key working parts are:
 * [socks5 client](../clients/socks5-client.md): `nym-socks5-client`
 * [network requester](../nodes/network-requester.md): `nym-network-requester`
 * [nym-cli tool](../tools/nym-cli.md): `nym-cli`
+* [nym-api](https://nymtech.net/operators/nodes/nym-api.html): `nym-api`
+* [nymvisor](https://nymtech.net/operators/nodes/nymvisor-upgrade.html): `nymvisor`
 
 The repository also contains Typescript applications which aren't built in this process. These can be built by following the instructions on their respective docs pages.
 * [Nym Wallet](../wallet/desktop-wallet.md)

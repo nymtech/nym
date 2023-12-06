@@ -9,7 +9,7 @@ use crate::network::models::NetworkDetails;
 use crate::node_describe_cache::DescribedNodes;
 use crate::node_status_api::uptime_updater::HistoricalUptimeUpdater;
 use crate::support::caching::cache::SharedCache;
-use crate::support::cli::{self, Commands};
+use crate::support::cli;
 use crate::support::config::Config;
 use crate::support::storage;
 use crate::support::storage::NymApiStorage;
@@ -26,7 +26,6 @@ use nym_contract_cache::cache::NymContractCache;
 use nym_sphinx::receiver::SphinxMessageReceiver;
 use nym_task::TaskManager;
 use rand::rngs::OsRng;
-use std::error::Error;
 use support::{http, nyxd};
 
 mod circulating_supply_api;

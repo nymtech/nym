@@ -9,13 +9,11 @@ use crate::support::config::template::CONFIG_TEMPLATE;
 use anyhow::bail;
 use nym_config::defaults::mainnet::read_parsed_var_if_not_default;
 use nym_config::defaults::var_names::{CONFIGURED, NYXD};
-use nym_config::defaults::NymNetworkDetails;
 use nym_config::serde_helpers::de_maybe_stringified;
 use nym_config::{
     must_get_home, read_config_from_toml_file, save_formatted_config_to_file, NymConfigTemplate,
     DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, DEFAULT_DATA_DIR, DEFAULT_NYM_APIS_DIR, NYM_DIR,
 };
-use nym_validator_client::nyxd;
 use serde::{Deserialize, Serialize};
 use std::io;
 use std::path::{Path, PathBuf};
@@ -199,6 +197,7 @@ impl Config {
         Ok(loaded)
     }
 
+    #[allow(dead_code)]
     pub fn read_from_toml_file<P: AsRef<Path>>(path: P) -> io::Result<Self> {
         Self::read_from_path(path)
     }
@@ -223,81 +222,6 @@ impl Config {
             debug!("config file save location is unknown. falling back to the default");
             self.save_to_default_location()
         }
-    }
-
-    pub fn with_network_monitor_enabled(mut self, enabled: bool) -> Self {
-        self.network_monitor.enabled = enabled;
-        self
-    }
-
-    pub fn with_disabled_credentials_mode(mut self, disabled_credentials_mode: bool) -> Self {
-        self.network_monitor.debug.disabled_credentials_mode = disabled_credentials_mode;
-        self
-    }
-
-    pub fn with_rewarding_enabled(mut self, enabled: bool) -> Self {
-        self.rewarding.enabled = enabled;
-        self
-    }
-
-    pub fn with_coconut_signer_enabled(mut self, enabled: bool) -> Self {
-        self.coconut_signer.enabled = enabled;
-        self
-    }
-
-    pub fn with_ephemera_enabled(mut self, enabled: bool) -> Self {
-        self.ephemera.enabled = enabled;
-        self
-    }
-
-    pub fn with_custom_nyxd_validator(mut self, validator: Url) -> Self {
-        self.base.local_validator = validator;
-        self
-    }
-
-    pub fn with_announce_address(mut self, announce_address: Url) -> Self {
-        self.coconut_signer.announce_address = announce_address;
-        self
-    }
-
-    pub fn with_mnemonic(mut self, mnemonic: bip39::Mnemonic) -> Self {
-        self.base.mnemonic = Some(mnemonic);
-        self
-    }
-
-    pub fn with_minimum_interval_monitor_threshold(mut self, threshold: u8) -> Self {
-        self.rewarding.debug.minimum_interval_monitor_threshold = threshold;
-        self
-    }
-
-    pub fn with_min_mixnode_reliability(mut self, min_mixnode_reliability: u8) -> Self {
-        self.network_monitor.debug.min_mixnode_reliability = min_mixnode_reliability;
-        self
-    }
-
-    pub fn with_min_gateway_reliability(mut self, min_gateway_reliability: u8) -> Self {
-        self.network_monitor.debug.min_gateway_reliability = min_gateway_reliability;
-        self
-    }
-
-    pub fn with_ephemera_ip(mut self, ip: String) -> Self {
-        self.ephemera.args.cmd.ephemera_ip = Some(ip);
-        self
-    }
-
-    pub fn with_ephemera_protocol_port(mut self, port: u16) -> Self {
-        self.ephemera.args.cmd.ephemera_protocol_port = Some(port);
-        self
-    }
-
-    pub fn with_ephemera_websocket_port(mut self, port: u16) -> Self {
-        self.ephemera.args.cmd.ephemera_websocket_port = Some(port);
-        self
-    }
-
-    pub fn with_ephemera_http_api_port(mut self, port: u16) -> Self {
-        self.ephemera.args.cmd.ephemera_http_api_port = Some(port);
-        self
     }
 
     pub fn get_id(&self) -> String {

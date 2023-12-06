@@ -40,14 +40,14 @@ use nym_validator_client::nyxd::{
         SpDirectoryQueryClient,
     },
     cosmwasm_client::types::ExecuteResult,
-    CosmWasmClient, Fee, NyxdClient,
+    CosmWasmClient, Fee,
 };
 use nym_validator_client::nyxd::{
     hash::{Hash, SHA256_HASH_SIZE},
     AccountId, Coin, TendermintTime,
 };
 use nym_validator_client::{
-    nyxd, DirectSigningHttpRpcNyxdClient, HttpRpcClient, QueryHttpRpcNyxdClient,
+    nyxd, DirectSigningHttpRpcNyxdClient, QueryHttpRpcNyxdClient,
 };
 use nym_vesting_contract_common::AccountVestingCoins;
 use serde::Deserialize;

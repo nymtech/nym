@@ -4,7 +4,6 @@
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 use nym_bin_common::bin_info;
-use nym_config::OptionalSet;
 use std::sync::OnceLock;
 
 pub(crate) mod build_info;

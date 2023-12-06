@@ -2,10 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::support::config::default_data_directory;
-use anyhow::{anyhow, Context};
-use nym_config::serde_helpers::de_maybe_stringified;
+use anyhow::Context;
 use nym_crypto::asymmetric::identity;
-use rand_07::rngs::OsRng;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 

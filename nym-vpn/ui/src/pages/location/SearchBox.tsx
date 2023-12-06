@@ -1,9 +1,11 @@
-import { InputEvent } from '../../types/general';
+import { InputEvent } from '../../types';
+
 interface SearchProps {
   value: string;
   onChange: (e: InputEvent) => void;
   placeholder: string;
 }
+
 export default function SearchBox({
   value,
   onChange,

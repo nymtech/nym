@@ -4,7 +4,6 @@
 use axum::routing::get;
 use axum::Router;
 use nym_node_requests::api::v1::ip_packet_router::models;
-use nym_node_requests::routes::api::v1::ip_packet_router;
 
 pub mod root;
 

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { RadioGroup } from '@headlessui/react';
 import { invoke } from '@tauri-apps/api';
 import clsx from 'clsx';
@@ -15,6 +15,12 @@ function NetworkModeSelect() {
   const [loading, setLoading] = useState(false);
 
   const { t } = useTranslation('home');
+
+  useEffect(() => {
+    if (state.vpnMode !== selected) {
+      setSelected(state.vpnMode);
+    }
+  }, [state.vpnMode, selected]);
 
   const handleNetworkModeChange = async (value: VpnMode) => {
     if (state.state === 'Disconnected' && value !== state.vpnMode) {

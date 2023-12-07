@@ -192,10 +192,6 @@ For any of its commands as described in [CLI Overview section](#cli-overview-), 
 - `DAEMON_UNSAFE_SKIP_BACKUP` (defaults to `false`), if set to `true`, all upgrades will be performed directly without performing any backups. Otherwise (`false`), Nymvisor will back up the contents of `DAEMON_HOME` before trying the upgrade.
 
 ## Dir structure
-TODO
-
-https://nymsphere.vercel.app/architecture/tooling/nymvisor#environment
-
 The folder structure of Nymvisor is heavily inspired by Cosmovisor, but with some notable changes to accommodate our binaries having possibly multiple instances due to their different `--id` flags. The data is spread through three main directories:
 - in a global `nymvisors` data directory shared by all Nymvisor instances (default: `$HOME/.nym/nymvisors/data`) that contains daemon upgrade plans, binaries and upgrades histories. It includes a subdirectory for each version of the application (i.e. `genesis` or `upgrades<name>`). Within each subdirectory is the application binary (i.e. `bin/$DAEMON_NAME`), the associated `upgrade-info.json` and any additional auxiliary files associated with each binary. `current` is a symbolic link to the currently active directory (i.e. `genesis` or `upgrades/<name>`)
 - in a home directory of a particular `nymvisor` instance (e.g. `$HOME/.nym/nymvisors/instances/<nymvisor-instance-id>/`). It includes subdirectories for its configuration file (i.e. `config/config.toml`), that preconfigures the instance, and for any additional persistent data that might be added in the future (i.e. `data`)

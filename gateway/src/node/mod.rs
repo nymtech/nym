@@ -519,6 +519,7 @@ impl<St> Gateway<St> {
         .with_wireguard_client_registry(self.client_registry.clone())
         .with_maybe_network_requester(self.network_requester_opts.as_ref().map(|o| &o.config))
         .with_maybe_network_request_filter(nr_request_filter)
+        .with_maybe_ip_packet_router(self.ip_packet_router_opts.as_ref().map(|o| &o.config))
         .start(shutdown.subscribe().named("http-api"))?;
 
         // Once this is a bit more mature, make this a commandline flag instead of a compile time

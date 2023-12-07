@@ -5,6 +5,7 @@ use super::authenticated::RequestHandlingError;
 use log::*;
 use nym_coconut_interface::Credential;
 use nym_validator_client::coconut::all_coconut_api_clients;
+use nym_validator_client::nyxd::AccountId;
 use nym_validator_client::{
     nyxd::{
         contract_traits::{
@@ -16,18 +17,23 @@ use nym_validator_client::{
     },
     CoconutApiClient, DirectSigningHttpRpcNyxdClient,
 };
+use std::ops::Deref;
+use tokio::sync::RwLock;
 
 pub(crate) struct CoconutVerifier {
-    nyxd_client: DirectSigningHttpRpcNyxdClient,
+    address: AccountId,
+    nyxd_client: RwLock<DirectSigningHttpRpcNyxdClient>,
     mix_denom_base: String,
 }
 
 impl CoconutVerifier {
-    pub fn new(nyxd_client: DirectSigningHttpRpcNyxdClient) -> Self {
+    pub async fn new(nyxd_client: DirectSigningHttpRpcNyxdClient) -> Self {
         let mix_denom_base = nyxd_client.current_chain_details().mix_denom.base.clone();
+        let address = nyxd_client.address();
 
         CoconutVerifier {
-            nyxd_client,
+            address,
+            nyxd_client: RwLock::new(nyxd_client),
             mix_denom_base,
         }
     }
@@ -35,7 +41,13 @@ impl CoconutVerifier {
     pub async fn all_current_coconut_api_clients(
         &self,
     ) -> Result<Vec<CoconutApiClient>, RequestHandlingError> {
-        let epoch_id = self.nyxd_client.get_current_epoch().await?.epoch_id;
+        let epoch_id = self
+            .nyxd_client
+            .read()
+            .await
+            .get_current_epoch()
+            .await?
+            .epoch_id;
         self.all_coconut_api_clients(epoch_id).await
     }
 
@@ -43,7 +55,7 @@ impl CoconutVerifier {
         &self,
         epoch_id: u64,
     ) -> Result<Vec<CoconutApiClient>, RequestHandlingError> {
-        Ok(all_coconut_api_clients(&self.nyxd_client, epoch_id).await?)
+        Ok(all_coconut_api_clients(self.nyxd_client.read().await.deref(), epoch_id).await?)
     }
 
     pub async fn release_funds(
@@ -53,13 +65,15 @@ impl CoconutVerifier {
     ) -> Result<(), RequestHandlingError> {
         let res = self
             .nyxd_client
+            .write()
+            .await
             .spend_credential(
                 Coin::new(
                     credential.voucher_value().into(),
                     self.mix_denom_base.clone(),
                 ),
                 credential.blinded_serial_number(),
-                self.nyxd_client.address().to_string(),
+                self.address.to_string(),
                 None,
             )
             .await?;
@@ -73,7 +87,12 @@ impl CoconutVerifier {
                 reason: String::from("proposal id could not be parsed to u64"),
             })?;
 
-        let proposal = self.nyxd_client.query_proposal(proposal_id).await?;
+        let proposal = self
+            .nyxd_client
+            .read()
+            .await
+            .query_proposal(proposal_id)
+            .await?;
         if !credential.has_blinded_serial_number(&proposal.description)? {
             return Err(RequestHandlingError::ProposalIdError {
                 reason: String::from("proposal has different serial number"),
@@ -83,7 +102,7 @@ impl CoconutVerifier {
         let req = nym_api_requests::coconut::VerifyCredentialBody::new(
             credential.clone(),
             proposal_id,
-            self.nyxd_client.address(),
+            self.address.clone(),
         );
         for client in api_clients {
             let ret = client.api_client.verify_bandwidth_credential(&req).await;
@@ -99,7 +118,11 @@ impl CoconutVerifier {
             }
         }
 
-        self.nyxd_client.execute_proposal(proposal_id, None).await?;
+        self.nyxd_client
+            .write()
+            .await
+            .execute_proposal(proposal_id, None)
+            .await?;
 
         Ok(())
     }

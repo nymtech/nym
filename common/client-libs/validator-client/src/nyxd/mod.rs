@@ -43,6 +43,7 @@ pub use cosmrs::tendermint::validator::Info as TendermintValidatorInfo;
 pub use cosmrs::tendermint::Time as TendermintTime;
 pub use cosmrs::tx::Msg;
 pub use cosmrs::tx::{self};
+pub use cosmrs::Any;
 pub use cosmrs::Coin as CosmosCoin;
 pub use cosmrs::Gas;
 pub use cosmrs::{bip32, AccountId, Denom};

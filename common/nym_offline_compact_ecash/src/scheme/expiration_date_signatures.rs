@@ -3,7 +3,7 @@ use crate::error::{CompactEcashError, Result};
 use crate::scheme::keygen::{SecretKeyAuth, VerificationKeyAuth};
 use crate::scheme::setup::{GroupParameters, Parameters};
 use crate::utils::hash_g1;
-use crate::utils::{check_bilinear_pairing, generate_lagrangian_coefficients_at_origin};
+use crate::utils::{check_bilinear_pairing, generate_lagrangian_coefficients_at_origin, try_deserialize_g1_projective};
 use bls12_381::{G1Projective, G2Prepared, G2Projective, Scalar};
 use group::Curve;
 use itertools::Itertools;
@@ -15,6 +15,8 @@ pub struct ExpirationDateSignature {
     pub(crate) h: G1Projective,
     pub(crate) s: G1Projective,
 }
+
+pub type PartialExpirationDateSignature = ExpirationDateSignature;
 
 impl ExpirationDateSignature {
     pub fn randomise(&self, params: &GroupParameters) -> (ExpirationDateSignature, Scalar) {
@@ -30,9 +32,42 @@ impl ExpirationDateSignature {
             r,
         )
     }
+
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut bytes: Vec<u8> = Vec::with_capacity(48+48);
+        bytes.extend(self.h.to_affine().to_compressed());
+        bytes.extend(self.s.to_affine().to_compressed());
+        bytes
+    }
 }
 
-pub type PartialExpirationDateSignature = ExpirationDateSignature;
+impl TryFrom<&[u8]> for ExpirationDateSignature {
+    type Error = CompactEcashError;
+
+    fn try_from(bytes: &[u8]) -> Result<ExpirationDateSignature> {
+        if bytes.len() != 96 {
+            return Err(CompactEcashError::Deserialization(format!(
+                "ExpirationDateSignature must be exactly 96 bytes, got {}",
+                bytes.len()
+            )));
+        }
+
+        let h_bytes: &[u8; 48] = &bytes[..48].try_into().expect("Slice size != 48");
+        let s_bytes: &[u8; 48] = &bytes[48..].try_into().expect("Slice size != 48");
+
+        let h = try_deserialize_g1_projective(
+            h_bytes,
+            CompactEcashError::Deserialization("Failed to deserialize compressed h of the ExpirationDateSignature".to_string()),
+        )?;
+
+        let s = try_deserialize_g1_projective(
+            s_bytes,
+            CompactEcashError::Deserialization("Failed to deserialize compressed s of the ExpirationDateSignature".to_string()),
+        )?;
+
+        Ok(ExpirationDateSignature{h, s})
+    }
+}
 
 /// Signs given expiration date for a specified validity period using the given secret key of a single authority.
 ///
@@ -115,7 +150,7 @@ pub fn verify_valid_dates_signatures(
 ) -> Result<()> {
     let m0: Scalar = Scalar::from(expiration_date);
     let m2: Scalar = Scalar::from_bytes(&constants::TYPE_EXP).unwrap();
-    
+
     signatures.par_iter().enumerate().try_for_each(|(l, sig)| {
         let expiration_date = NaiveDateTime::from_timestamp(expiration_date as i64, 0);
         let valid_date = expiration_date - Duration::days(constants::VALIDITY_PERIOD as i64) + Duration::days(l as i64);
@@ -265,15 +300,12 @@ pub fn find_index(spend_date: Scalar, expiration_date: Scalar) -> Result<usize> 
     let expiration_date_bytes = expiration_date.to_bytes();
     let expiration_date_u64 =
         u64::from_le_bytes(expiration_date_bytes[..8].try_into().unwrap());
-    println!("Expiration date {:?}", expiration_date_u64); // Thu Dec 28
     let spend_date_bytes = spend_date.to_bytes();
     let spend_date_u64 = u64::from_le_bytes(spend_date_bytes[..8].try_into().unwrap());
-    println!("Spend date {:?}", spend_date_u64); // Nov 28
-    let start_date = expiration_date_u64 - constants::VALIDITY_PERIOD;
-    println!("Start date {:?}", start_date); // Wed Dec 27
+    let start_date = NaiveDateTime::from_timestamp(expiration_date_u64 as i64, 0) - Duration::days(constants::VALIDITY_PERIOD as i64);
 
-    if spend_date_u64 >= start_date {
-        let index_a = (spend_date_u64 - start_date) as usize;
+    if NaiveDateTime::from_timestamp(spend_date_u64 as i64, 0) >= start_date {
+        let index_a = (NaiveDateTime::from_timestamp(spend_date_u64 as i64, 0) - start_date).num_days() as usize;
         Ok(index_a)
     } else {
         Err(CompactEcashError::ExpirationDate(

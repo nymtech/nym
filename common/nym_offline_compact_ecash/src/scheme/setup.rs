@@ -10,7 +10,7 @@ use crate::constants;
 use crate::error::{CompactEcashError, Result};
 use crate::scheme::keygen::{SecretKeyAuth, VerificationKeyAuth};
 use crate::utils::{check_bilinear_pairing, generate_lagrangian_coefficients_at_origin};
-use crate::utils::{hash_g1, Signature};
+use crate::utils::{hash_g1, Signature, try_deserialize_g1_projective};
 use itertools::Itertools;
 use rayon::prelude::*;
 
@@ -117,7 +117,7 @@ impl Parameters {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct CoinIndexSignature {
     pub(crate) h: G1Projective,
     pub(crate) s: G1Projective,
@@ -138,6 +138,41 @@ impl CoinIndexSignature {
             },
             r,
         )
+    }
+
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut bytes: Vec<u8> = Vec::with_capacity(48+48);
+        bytes.extend(self.h.to_affine().to_compressed());
+        bytes.extend(self.s.to_affine().to_compressed());
+        bytes
+    }
+}
+
+impl TryFrom<&[u8]> for CoinIndexSignature {
+    type Error = CompactEcashError;
+
+    fn try_from(bytes: &[u8]) -> Result<CoinIndexSignature> {
+        if bytes.len() != 96 {
+            return Err(CompactEcashError::Deserialization(format!(
+                "CoinIndexSignature must be exactly 96 bytes, got {}",
+                bytes.len()
+            )));
+        }
+
+        let h_bytes: &[u8; 48] = &bytes[..48].try_into().expect("Slice size != 48");
+        let s_bytes: &[u8; 48] = &bytes[48..].try_into().expect("Slice size != 48");
+
+        let h = try_deserialize_g1_projective(
+            h_bytes,
+            CompactEcashError::Deserialization("Failed to deserialize compressed h of the CoinIndexSignature".to_string()),
+        )?;
+
+        let s = try_deserialize_g1_projective(
+            s_bytes,
+            CompactEcashError::Deserialization("Failed to deserialize compressed s of the CoinIndexSignature".to_string()),
+        )?;
+
+        Ok(CoinIndexSignature{h, s})
     }
 }
 

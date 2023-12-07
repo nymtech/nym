@@ -234,6 +234,7 @@ pub struct WitnessReplacement {
 
 pub struct InstanceCommitments {
     pub tt_kappa: G2Projective,
+    pub tt_kappa_e: G2Projective,
     pub tt_cc: G1Projective,
     pub tt_aa: Vec<G1Projective>,
     pub tt_ss: Vec<G1Projective>,
@@ -246,13 +247,13 @@ pub struct InstanceCommitments {
 pub struct SpendProof {
     challenge: Scalar,
     response_r: Scalar,
-    response_r_l: Vec<Scalar>,
-    response_l: Vec<Scalar>,
-    response_o_a: Vec<Scalar>,
+    responses_r_k: Vec<Scalar>,
+    responses_l: Vec<Scalar>,
+    responses_o_a: Vec<Scalar>,
     response_o_c: Scalar,
-    response_mu: Vec<Scalar>,
-    response_o_mu: Vec<Scalar>,
-    response_attributes: Vec<Scalar>,
+    responses_mu: Vec<Scalar>,
+    responses_o_mu: Vec<Scalar>,
+    responses_attributes: Vec<Scalar>,
 }
 
 pub fn generate_witness_replacement(
@@ -349,6 +350,7 @@ pub fn compute_instance_commitments(
 
     InstanceCommitments {
         tt_kappa,
+        tt_kappa_e,
         tt_cc,
         tt_aa,
         tt_ss,
@@ -369,9 +371,6 @@ impl SpendProof {
         let grp_params = params.grp();
         // generate random values to replace each witness
         let witness_replacement = generate_witness_replacement(&params, &witness);
-        let r_sk = witness_replacement.r_attributes[0];
-        let r_v = witness_replacement.r_attributes[1];
-        let r_expiration_date = witness_replacement.r_attributes[2];
 
         let g1 = *grp_params.gen1();
         let gamma0 = *grp_params.gamma_idx(0).unwrap();
@@ -419,13 +418,12 @@ impl SpendProof {
         // compute the challenge
         let challenge = compute_challenge::<ChallengeDigest, _, _>(
             std::iter::once(grp_params.gen1().to_bytes().as_ref())
-                .chain(std::iter::once(gamma0.to_bytes().as_ref()))
-                .chain(std::iter::once(verification_key.alpha.to_bytes().as_ref()))
-                .chain(beta2_bytes.iter().map(|b| b.as_ref()))
+                .chain(std::iter::once(verification_key.to_bytes().as_ref()))
                 .chain(std::iter::once(instance.to_bytes().as_ref()))
-                .chain(std::iter::once(
-                    instance_commitments.tt_kappa.to_bytes().as_ref(),
-                ))
+                // .chain(std::iter::once(instance_commitments.tt_kappa_e.to_bytes().as_ref()))
+                // .chain(std::iter::once(
+                //     instance_commitments.tt_kappa.to_bytes().as_ref(),
+                // ))
                 .chain(std::iter::once(
                     instance_commitments.tt_cc.to_bytes().as_ref(),
                 ))
@@ -433,35 +431,35 @@ impl SpendProof {
                 .chain(tt_ss_bytes.iter().map(|x| x.as_ref()))
                 .chain(tt_kappa_k_bytes.iter().map(|x| x.as_ref()))
                 .chain(tt_tt_bytes.iter().map(|x| x.as_ref()))
-                .chain(tt_gamma1_bytes.iter().map(|x| x.as_ref())),
         );
 
         // compute response for each witness
-        let response_attributes = produce_responses(
+        let responses_attributes = produce_responses(
             &witness_replacement.r_attributes,
             &challenge,
             &witness.attributes.iter().collect::<Vec<_>>(),
         );
         let response_r = produce_response(&witness_replacement.r_r, &challenge, &witness.r);
-        let response_r_l = produce_responses(&witness_replacement.r_r_lk, &challenge, &witness.r_k);
-        let response_l = produce_responses(&witness_replacement.r_lk, &challenge, &witness.lk);
-        let response_o_a = produce_responses(&witness_replacement.r_o_a, &challenge, &witness.o_a);
+        let response_r_e = produce_response(&witness_replacement.r_r_e, &challenge, &witness.r_e);
         let response_o_c = produce_response(&witness_replacement.r_o_c, &challenge, &witness.o_c);
 
-        let response_mu = produce_responses(&witness_replacement.r_mu, &challenge, &witness.mu);
-        let response_o_mu =
+        let responses_r_k = produce_responses(&witness_replacement.r_r_lk, &challenge, &witness.r_k);
+        let responses_l = produce_responses(&witness_replacement.r_lk, &challenge, &witness.lk);
+        let responses_o_a = produce_responses(&witness_replacement.r_o_a, &challenge, &witness.o_a);
+        let responses_mu = produce_responses(&witness_replacement.r_mu, &challenge, &witness.mu);
+        let responses_o_mu =
             produce_responses(&witness_replacement.r_o_mu, &challenge, &witness.o_mu);
 
         SpendProof {
             challenge,
             response_r,
-            response_r_l,
-            response_l,
-            response_o_a,
+            responses_r_k,
+            responses_l,
+            responses_o_a,
             response_o_c,
-            response_mu,
-            response_o_mu,
-            response_attributes,
+            responses_mu,
+            responses_o_mu,
+            responses_attributes,
         }
     }
 
@@ -472,9 +470,10 @@ impl SpendProof {
         verification_key: &VerificationKeyAuth,
         rr: &[Scalar],
     ) -> bool {
-        let grparams = params.grp();
-        let g1 = *grparams.gen1();
-        let gamma0 = *grparams.gamma_idx(0).unwrap();
+        let grp_params = params.grp();
+        let g1 = *grp_params.gen1();
+        let g2 = *grp_params.gen2();
+        let gamma0 = *grp_params.gamma_idx(0).unwrap();
         let beta2_bytes = verification_key
             .beta_g2
             .iter()
@@ -482,58 +481,63 @@ impl SpendProof {
             .collect::<Vec<_>>();
 
         // re-compute each zkp commitment
-        let zkcm_kappa = instance.kappa * self.challenge
-            + grparams.gen2() * self.response_r
+        let tt_kappa = instance.kappa * self.challenge
             + verification_key.alpha * (Scalar::one() - self.challenge)
+            + verification_key.alpha
+            + grp_params.gen2() * self.response_r
             + self
-                .response_attributes
+                .responses_attributes
                 .iter()
                 .zip(verification_key.beta_g2.iter())
                 .map(|(attr, beta_i)| beta_i * attr)
                 .sum::<G2Projective>();
 
-        let zkcm_aa = self
-            .response_o_a
+        let tt_cc = g1 * self.response_o_c
+            + gamma0 * self.responses_attributes[1]
+            + instance.cc * self.challenge;
+
+        let tt_kappa_e = instance.kappa_e * self.challenge
+            + verification_key.alpha * (Scalar::one() - self.challenge)
+            + verification_key.alpha
+            + verification_key.beta_g2[0] * self.responses_attributes[2]
+            + grp_params.gen2() * self.response_r;
+
+        let tt_aa = self
+            .responses_o_a
             .iter()
-            .zip(self.response_l.iter())
+            .zip(self.responses_l.iter())
             .zip(instance.aa.iter())
             .map(|((resp_o_a_k, resp_l_k), aa_k)| {
                 g1 * resp_o_a_k + gamma0 * resp_l_k + aa_k * self.challenge
             })
             .collect::<Vec<_>>();
 
-        let zkcm_aa_bytes = zkcm_aa.iter().map(|x| x.to_bytes()).collect::<Vec<_>>();
+        let tt_aa_bytes = tt_aa.iter().map(|x| x.to_bytes()).collect::<Vec<_>>();
 
-        let zkcm_cc = g1 * self.response_o_c
-            + gamma0 * self.response_attributes[1]
-            + instance.cc * self.challenge;
-
-        let zkcm_ss = self
-            .response_mu
+        let tt_ss = self
+            .responses_mu
             .iter()
             .zip(instance.ss.iter())
-            .map(|(resp_mu_k, ss_k)| grparams.delta() * resp_mu_k + ss_k * self.challenge)
+            .map(|(resp_mu_k, ss_k)| grp_params.delta() * resp_mu_k + ss_k * self.challenge)
             .collect::<Vec<_>>();
 
-        let zkcm_ss_bytes = zkcm_ss.iter().map(|x| x.to_bytes()).collect::<Vec<_>>();
+        let tt_ss_bytes = tt_ss.iter().map(|x| x.to_bytes()).collect::<Vec<_>>();
 
-        let zkcm_tt = self
-            .response_mu
-            .iter()
+        let tt_tt = self
+            .responses_mu.iter()
             .zip(rr.iter())
             .zip(instance.tt.iter())
             .map(|((resp_mu_k, rr_k), tt_k)| {
-                g1 * self.response_attributes[0] + (g1 * rr_k) * resp_mu_k + tt_k * self.challenge
+                g1 * self.responses_attributes[0] + (g1 * rr_k) * resp_mu_k + tt_k * self.challenge
             })
             .collect::<Vec<_>>();
 
-        let zkcm_tt_bytes = zkcm_tt.iter().map(|x| x.to_bytes()).collect::<Vec<_>>();
+        let tt_tt_bytes = tt_tt.iter().map(|x| x.to_bytes()).collect::<Vec<_>>();
 
-        let zkcm_gamma00 = instance
-            .aa
-            .iter()
-            .zip(self.response_mu.iter())
-            .zip(self.response_o_mu.iter())
+        let tt_gamma00 = instance
+            .aa.iter()
+            .zip(self.responses_mu.iter())
+            .zip(self.responses_o_mu.iter())
             .map(|((aa_k, resp_mu_k), resp_o_mu_k)| {
                 (aa_k + instance.cc + gamma0) * resp_mu_k
                     + g1 * resp_o_mu_k
@@ -541,43 +545,41 @@ impl SpendProof {
             })
             .collect::<Vec<_>>();
 
-        let zkcm_gamma00_bytes = zkcm_gamma00
+        let tt_gamma00_bytes = tt_gamma00
             .iter()
             .map(|x| x.to_bytes())
             .collect::<Vec<_>>();
 
-        let zkcm_kappa_k = instance
+        let tt_kappa_k = instance
             .kappa_k
             .iter()
-            .zip(self.response_r_l.iter())
-            .zip(self.response_l.iter())
+            .zip(self.responses_r_k.iter())
+            .zip(self.responses_l.iter())
             .map(|((kappa_k, resp_r_k), resp_r_l_k)| {
                 kappa_k * self.challenge
-                    + grparams.gen2() * resp_r_k
+                    + grp_params.gen2() * resp_r_k
                     + verification_key.alpha * (Scalar::one() - self.challenge)
                     + verification_key.beta_g2[0] * resp_r_l_k
             })
             .collect::<Vec<_>>();
 
-        let zkcm_kappa_k_bytes = zkcm_kappa_k
+        let tt_kappa_k_bytes = tt_kappa_k
             .iter()
             .map(|x| x.to_bytes())
             .collect::<Vec<_>>();
 
         // re-compute the challenge
         let challenge = compute_challenge::<ChallengeDigest, _, _>(
-            std::iter::once(grparams.gen1().to_bytes().as_ref())
-                .chain(std::iter::once(gamma0.to_bytes().as_ref()))
-                .chain(std::iter::once(verification_key.alpha.to_bytes().as_ref()))
-                .chain(beta2_bytes.iter().map(|b| b.as_ref()))
+            std::iter::once(grp_params.gen1().to_bytes().as_ref())
+                .chain(std::iter::once(verification_key.to_bytes().as_ref()))
                 .chain(std::iter::once(instance.to_bytes().as_ref()))
-                .chain(std::iter::once(zkcm_kappa.to_bytes().as_ref()))
-                .chain(std::iter::once(zkcm_cc.to_bytes().as_ref()))
-                .chain(zkcm_aa_bytes.iter().map(|x| x.as_ref()))
-                .chain(zkcm_ss_bytes.iter().map(|x| x.as_ref()))
-                .chain(zkcm_kappa_k_bytes.iter().map(|x| x.as_ref()))
-                .chain(zkcm_tt_bytes.iter().map(|x| x.as_ref()))
-                .chain(zkcm_gamma00_bytes.iter().map(|x| x.as_ref())),
+                // .chain(std::iter::once(tt_kappa.to_bytes().as_ref()))
+                // .chain(std::iter::once(tt_kappa_e.to_bytes().as_ref()))
+                .chain(std::iter::once(tt_cc.to_bytes().as_ref()))
+                .chain(tt_aa_bytes.iter().map(|x| x.as_ref()))
+                .chain(tt_ss_bytes.iter().map(|x| x.as_ref()))
+                .chain(tt_kappa_k_bytes.iter().map(|x| x.as_ref()))
+                .chain(tt_tt_bytes.iter().map(|x| x.as_ref()))
         );
 
         challenge == self.challenge
@@ -587,62 +589,62 @@ impl SpendProof {
         let challenge_bytes = self.challenge.to_bytes();
         let response_r_bytes = self.response_r.to_bytes();
 
-        let rrl_len = self.response_r_l.len();
-        let rrl_len_bytes = rrl_len.to_le_bytes();
+        let rrk_len = self.responses_r_k.len();
+        let rrk_len_bytes = rrk_len.to_le_bytes();
 
-        let rl_len = self.response_l.len();
+        let rl_len = self.responses_l.len();
         let rl_len_bytes = rl_len.to_le_bytes();
 
-        let roa_len = self.response_o_a.len();
+        let roa_len = self.responses_o_a.len();
         let roa_len_bytes = roa_len.to_le_bytes();
 
         let roc_bytes = self.response_o_c.to_bytes();
 
-        let rmu_len = self.response_mu.len();
+        let rmu_len = self.responses_mu.len();
         let rmu_len_bytes = rmu_len.to_le_bytes();
 
-        let romu_len = self.response_o_mu.len();
+        let romu_len = self.responses_o_mu.len();
         let romu_len_bytes = romu_len.to_le_bytes();
 
-        let rattributes_len = self.response_attributes.len();
+        let rattributes_len = self.responses_attributes.len();
         let rattributes_len_bytes = rattributes_len.to_le_bytes();
 
         let mut bytes: Vec<u8> = Vec::with_capacity(
-            96 + (rrl_len + rl_len + roa_len + rmu_len + romu_len + rattributes_len) * 8
-                + (rrl_len + rl_len + roa_len + rmu_len + romu_len + rattributes_len) * 32,
+            96 + (rrk_len + rl_len + roa_len + rmu_len + romu_len + rattributes_len) * 8
+                + (rrk_len + rl_len + roa_len + rmu_len + romu_len + rattributes_len) * 32,
         );
 
         bytes.extend_from_slice(&challenge_bytes);
         bytes.extend_from_slice(&response_r_bytes);
         bytes.extend_from_slice(&roc_bytes);
 
-        bytes.extend_from_slice(&rrl_len_bytes);
-        for rrl in &self.response_r_l {
-            bytes.extend_from_slice(&rrl.to_bytes());
+        bytes.extend_from_slice(&rrk_len_bytes);
+        for rrk in &self.responses_r_k {
+            bytes.extend_from_slice(&rrk.to_bytes());
         }
 
         bytes.extend_from_slice(&rl_len_bytes);
-        for rl in &self.response_l {
+        for rl in &self.responses_l {
             bytes.extend_from_slice(&rl.to_bytes());
         }
 
         bytes.extend_from_slice(&roa_len_bytes);
-        for roa in &self.response_o_a {
+        for roa in &self.responses_o_a {
             bytes.extend_from_slice(&roa.to_bytes());
         }
 
         bytes.extend_from_slice(&rmu_len_bytes);
-        for rmu in &self.response_mu {
+        for rmu in &self.responses_mu {
             bytes.extend_from_slice(&rmu.to_bytes());
         }
 
         bytes.extend_from_slice(&romu_len_bytes);
-        for romu in &self.response_o_mu {
+        for romu in &self.responses_o_mu {
             bytes.extend_from_slice(&romu.to_bytes());
         }
 
         bytes.extend_from_slice(&rattributes_len_bytes);
-        for rattr in &self.response_attributes {
+        for rattr in &self.responses_attributes {
             bytes.extend_from_slice(&rattr.to_bytes());
         }
 
@@ -691,7 +693,7 @@ impl TryFrom<&[u8]> for SpendProof {
             ));
         }
         let rrl_end = idx + rrl_len as usize * 32;
-        let response_r_l = try_deserialize_scalar_vec(
+        let responses_r_k = try_deserialize_scalar_vec(
             rrl_len,
             &bytes[idx..rrl_end],
             CompactEcashError::Deserialization("Failed to deserialize response_r_l".to_string()),
@@ -705,7 +707,7 @@ impl TryFrom<&[u8]> for SpendProof {
             ));
         }
         let rl_end = response_l_start + rl_len as usize * 32;
-        let response_l = try_deserialize_scalar_vec(
+        let responses_l = try_deserialize_scalar_vec(
             rl_len,
             &bytes[response_l_start..rl_end],
             CompactEcashError::Deserialization("Failed to deserialize response_l".to_string()),
@@ -719,7 +721,7 @@ impl TryFrom<&[u8]> for SpendProof {
             ));
         }
         let roa_end = roa_end + roa_len as usize * 32;
-        let response_o_a = try_deserialize_scalar_vec(
+        let responses_o_a = try_deserialize_scalar_vec(
             roa_len,
             &bytes[rl_end + 8..roa_end],
             CompactEcashError::Deserialization("Failed to deserialize response_o_a".to_string()),
@@ -733,7 +735,7 @@ impl TryFrom<&[u8]> for SpendProof {
             ));
         }
         let response_mu_end = response_mu_end + response_mu_len as usize * 32;
-        let response_mu = try_deserialize_scalar_vec(
+        let responses_mu = try_deserialize_scalar_vec(
             response_mu_len,
             &bytes[roa_end + 8..response_mu_end],
             CompactEcashError::Deserialization("Failed to deserialize response_mu".to_string()),
@@ -751,7 +753,7 @@ impl TryFrom<&[u8]> for SpendProof {
             ));
         }
         let response_o_mu_end = response_o_mu_end + response_o_mu_len as usize * 32;
-        let response_o_mu = try_deserialize_scalar_vec(
+        let responses_o_mu = try_deserialize_scalar_vec(
             response_o_mu_len,
             &bytes[response_mu_end + 8..response_o_mu_end],
             CompactEcashError::Deserialization("Failed to deserialize response_o_mu".to_string()),
@@ -770,7 +772,7 @@ impl TryFrom<&[u8]> for SpendProof {
         }
         let response_attributes_end =
             response_attributes_end + response_attributes_len as usize * 32;
-        let response_attributes = try_deserialize_scalar_vec(
+        let responses_attributes = try_deserialize_scalar_vec(
             response_attributes_len,
             &bytes[response_o_mu_end + 8..response_attributes_end],
             CompactEcashError::Deserialization(
@@ -783,12 +785,12 @@ impl TryFrom<&[u8]> for SpendProof {
             challenge,
             response_r,
             response_o_c,
-            response_r_l,
-            response_l,
-            response_o_a,
-            response_mu,
-            response_o_mu,
-            response_attributes,
+            responses_r_k,
+            responses_l,
+            responses_o_a,
+            responses_mu,
+            responses_o_mu,
+            responses_attributes,
         };
 
         Ok(spend_proof)

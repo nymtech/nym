@@ -17,6 +17,7 @@ use crate::Attribute;
 use chrono::{Timelike, Utc};
 use rand::{thread_rng, Rng};
 use crate::constants;
+use std::collections::HashSet;
 
 pub mod aggregation;
 pub mod expiration_date_signatures;
@@ -403,13 +404,10 @@ pub struct Payment {
 }
 
 impl Payment {
-    pub fn spend_verify(
+    pub fn check_signature_validity(
         &self,
-        params: &Parameters,
-        verification_key: &VerificationKeyAuth,
-        pay_info: &PayInfo,
-        spend_date: Scalar,
-    ) -> Result<bool> {
+        params: &Parameters
+    ) -> Result<()>{
         if bool::from(self.sig.0.is_identity()) {
             return Err(CompactEcashError::Spend(
                 "The element h of the payment signature equals the identity".to_string(),
@@ -426,7 +424,15 @@ impl Payment {
                 "The bilinear check for kappa failed".to_string(),
             ));
         }
+        Ok(())
+    }
 
+    pub fn check_exp_signature_validity(
+        &self,
+        params: &Parameters,
+        verification_key: &VerificationKeyAuth,
+        spend_date: Scalar
+    ) -> Result<()>{
         let m1: Scalar = spend_date;
         let m2 = constants::TYPE_EXP;
 
@@ -437,8 +443,8 @@ impl Payment {
         }
 
         let tmp = self.kappa_e
-        + verification_key.beta_g2.get(0).unwrap() * m1
-        + verification_key.beta_g2.get(1).unwrap() * Scalar::from_bytes(&m2).unwrap();
+            + verification_key.beta_g2.get(1).unwrap() * m1
+            + verification_key.beta_g2.get(2).unwrap() * Scalar::from_bytes(&m2).unwrap();
 
         // if !check_bilinear_pairing(
         //     &self.sig_exp.h.to_affine(),
@@ -451,40 +457,75 @@ impl Payment {
         //     ));
         // }
 
-        // check if all serial numbers are different
-        for k in 0..self.vv {
-            if let Some(coin_idx_sign) = self.omega.get(k as usize) {
-                if bool::from(coin_idx_sign.h.is_identity()) {
-                    return Err(CompactEcashError::Spend(
-                        "The element h of the signature on index l equals the identity".to_string(),
-                    ));
-                }
-                let tmp2 = self.kappa_k[k as usize].to_affine()
-                    + verification_key.beta_g2.get(1).unwrap() * Scalar::from_bytes(&constants::TYPE_IDX).unwrap()
-                    + verification_key.beta_g2.get(2).unwrap() * Scalar::from_bytes(&constants::TYPE_IDX).unwrap();
+        Ok(())
+    }
 
-                if !check_bilinear_pairing(
-                    &coin_idx_sign.h.to_affine(),
-                    &G2Prepared::from(tmp2.to_affine()),
-                    &coin_idx_sign.s.to_affine(),
-                    params.grp().prepared_miller_g2(),
-                ) {
-                    return Err(CompactEcashError::Spend(
-                        "The bilinear check for kappa_l failed".to_string(),
-                    ));
-                }
-            } else {
-                return Err(CompactEcashError::Spend("Index out of bounds".to_string()));
-            }
+    pub fn no_duplicate_serial_numbers(&self) -> Result<()>{
+        let set: HashSet<_> = self.ss.iter().collect();
+        if !(set.len() == self.ss.len()){
+            return Err(CompactEcashError::Spend(
+                    "Not all serial numbers are unique".to_string(),
+                ));
         }
+        Ok(())
+    }
 
+    pub fn check_coin_index_signature(
+        &self,
+        params: &Parameters,
+        verification_key: &VerificationKeyAuth,
+        k: u64
+    ) -> Result<()>{
+        if let Some(coin_idx_sign) = self.omega.get(k as usize) {
+            if bool::from(coin_idx_sign.h.is_identity()) {
+                return Err(CompactEcashError::Spend(
+                    "The element h of the signature on index l equals the identity".to_string(),
+                ));
+            }
+            let tmp2 = self.kappa_k[k as usize].to_affine()
+                + verification_key.beta_g2.get(1).unwrap() * Scalar::from_bytes(&constants::TYPE_IDX).unwrap()
+                + verification_key.beta_g2.get(2).unwrap() * Scalar::from_bytes(&constants::TYPE_IDX).unwrap();
+
+            if !check_bilinear_pairing(
+                &coin_idx_sign.h.to_affine(),
+                &G2Prepared::from(tmp2.to_affine()),
+                &coin_idx_sign.s.to_affine(),
+                params.grp().prepared_miller_g2(),
+            ) {
+                return Err(CompactEcashError::Spend(
+                    "The bilinear check for kappa_l failed".to_string(),
+                ));
+            }
+        } else {
+            return Err(CompactEcashError::Spend("Index out of bounds".to_string()));
+        }
+        Ok(())
+    }
+
+    pub fn spend_verify(
+        &self,
+        params: &Parameters,
+        verification_key: &VerificationKeyAuth,
+        pay_info: &PayInfo,
+        spend_date: Scalar,
+    ) -> Result<bool> {
+        // Verify whether the payment signature and kappa are correct
+        self.check_signature_validity(&params)?;
+        // Verify whether the date signature and kappa_e are correct
+        self.check_exp_signature_validity(&params, &verification_key, spend_date)?;
+        // check if all serial numbers are different
+        self.no_duplicate_serial_numbers();
+        // Verify whether the coin indices signatures and kappa_k are correct
+        for k in 0..self.vv {
+            self.check_coin_index_signature(&params, &verification_key, k)?;
+        }
+        // Compute payinfo hash for each coin
         let mut rr = Vec::with_capacity(self.vv as usize);
         for k in 0..self.vv {
             // compute hashes R_k = H(payinfo, k)
             let rr_k = compute_payinfo_hash(&pay_info, k);
             rr.push(rr_k);
         }
-
         // verify the zk proof
         let instance = SpendInstance {
             kappa: self.kappa,
@@ -497,14 +538,14 @@ impl Payment {
         };
 
         // verify the zk-proof
-        // if !self
-        //     .zk_proof
-        //     .verify(&params, &instance, &verification_key)
-        // {
-        //     return Err(CompactEcashError::Spend(
-        //         "ZkProof verification failed".to_string(),
-        //     ));
-        // }
+        if !self
+            .zk_proof
+            .verify(&params, &instance, &verification_key, &rr)
+        {
+            return Err(CompactEcashError::Spend(
+                "ZkProof verification failed".to_string(),
+            ));
+        }
 
         Ok(true)
     }

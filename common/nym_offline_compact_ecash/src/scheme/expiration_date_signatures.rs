@@ -101,10 +101,10 @@ pub fn sign_expiration_date(
         .into_par_iter()
         .fold(Vec::new, |mut exp_signs, l| {
             let expiration_date = NaiveDateTime::from_timestamp(expiration_date as i64, 0);
-            let valid_date = expiration_date - Duration::days(constants::VALIDITY_PERIOD as i64) + Duration::days(l as i64);
+            let valid_date = expiration_date - Duration::days(constants::VALIDITY_PERIOD as i64) + Duration::days(l as i64) + Duration::days(1 as i64);
             let m1: Scalar = Scalar::from(valid_date.timestamp() as u64);
             // Compute the hash
-            let h = hash_g1([m0.to_bytes(), m1.to_bytes(), m2.to_bytes()].concat());
+            let h = hash_g1([m0.to_bytes(), m1.to_bytes()].concat());
             // Sign the attributes by performing scalar-point multiplications and accumulating the result
             let mut s_exponent = sk_auth.x;
             s_exponent += &sk_auth.ys[0] * m0;
@@ -153,10 +153,10 @@ pub fn verify_valid_dates_signatures(
 
     signatures.par_iter().enumerate().try_for_each(|(l, sig)| {
         let expiration_date = NaiveDateTime::from_timestamp(expiration_date as i64, 0);
-        let valid_date = expiration_date - Duration::days(constants::VALIDITY_PERIOD as i64) + Duration::days(l as i64);
+        let valid_date = expiration_date - Duration::days(constants::VALIDITY_PERIOD as i64) + Duration::days(l as i64) + Duration::days(1 as i64);
         let m1: Scalar = Scalar::from(valid_date.timestamp() as u64);
         // Compute the hash
-        let h = hash_g1([m0.to_bytes(), m1.to_bytes(), m2.to_bytes()].concat());
+        let h = hash_g1([m0.to_bytes(), m1.to_bytes()].concat());
         // Verify the signature correctness
         if sig.h != h {
             return Err(CompactEcashError::ExpirationDate(
@@ -255,10 +255,10 @@ pub fn aggregate_expiration_signatures(
     let m2: Scalar = Scalar::from_bytes(&constants::TYPE_EXP).unwrap();
     for l in 0..constants::VALIDITY_PERIOD {
         let expiration_date = NaiveDateTime::from_timestamp(expiration_date as i64, 0);
-        let valid_date = expiration_date - Duration::days(constants::VALIDITY_PERIOD as i64) + Duration::days(l as i64);
+        let valid_date = expiration_date - Duration::days(constants::VALIDITY_PERIOD as i64) + Duration::days(l as i64)  + Duration::days(1 as i64);
         let m1: Scalar = Scalar::from(valid_date.timestamp() as u64);
         // Compute the hash
-        let h = hash_g1([m0.to_bytes(), m1.to_bytes(), m2.to_bytes()].concat());
+        let h = hash_g1([m0.to_bytes(), m1.to_bytes()].concat());
 
         // Collect the partial signatures for the same valid date
         let collected_at_l: Vec<_> = signatures
@@ -302,7 +302,7 @@ pub fn find_index(spend_date: Scalar, expiration_date: Scalar) -> Result<usize> 
         u64::from_le_bytes(expiration_date_bytes[..8].try_into().unwrap());
     let spend_date_bytes = spend_date.to_bytes();
     let spend_date_u64 = u64::from_le_bytes(spend_date_bytes[..8].try_into().unwrap());
-    let start_date = NaiveDateTime::from_timestamp(expiration_date_u64 as i64, 0) - Duration::days(constants::VALIDITY_PERIOD as i64);
+    let start_date = NaiveDateTime::from_timestamp(expiration_date_u64 as i64, 0) - Duration::days(constants::VALIDITY_PERIOD as i64) + Duration::days(1 as i64);
 
     if NaiveDateTime::from_timestamp(spend_date_u64 as i64, 0) >= start_date {
         let index_a = (NaiveDateTime::from_timestamp(spend_date_u64 as i64, 0) - start_date).num_days() as usize;
@@ -320,6 +320,16 @@ mod tests {
     use crate::scheme::aggregation::aggregate_verification_keys;
     use crate::scheme::keygen::ttp_keygen;
     use crate::scheme::setup::setup;
+
+    #[test]
+    fn test_find_index() {
+        let expiration_date = Scalar::from(1702050209); // Dec 8 2023
+        // let spend_date = Scalar::from(1701173854); // Nov 28 2023
+        let spend_date = Scalar::from(1701963809); // Dec 07 2023
+        let index_a = find_index(spend_date, expiration_date);
+        println!("{:?}", index_a);
+
+    }
 
     #[test]
     fn test_sign_expiration_date() {

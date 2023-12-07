@@ -78,12 +78,13 @@ pub fn generate_coin_indices_signatures(
 fn main() -> Result<()> {
     let L = 32;
     let params = setup(L);
-    let grparams = params.grp();
-    let expiration_date = 1703721600;
-    let user_keypair = generate_keypair_user(&grparams);
+    let grp_params = params.grp();
+    let expiration_date = 1703721600; // Dec 28 2023
+    let spend_date = Scalar::from(1701960386); // Dec 07 2023
+    let user_keypair = generate_keypair_user(&grp_params);
 
     // generate authorities keys
-    let authorities_keypairs = ttp_keygen(&grparams, 2, 3).unwrap();
+    let authorities_keypairs = ttp_keygen(&grp_params, 2, 3).unwrap();
     let indices: [u64; 3] = [1, 2, 3];
     let secret_keys_authorities: Vec<SecretKeyAuth> = authorities_keypairs
         .iter()
@@ -117,7 +118,7 @@ fn main() -> Result<()> {
 
     // request a wallet
     let (req, req_info) =
-        withdrawal_request(grparams, &user_keypair.secret_key(), expiration_date).unwrap();
+        withdrawal_request(grp_params, &user_keypair.secret_key(), expiration_date).unwrap();
     let req_bytes = req.to_bytes();
     let req2 = WithdrawalRequest::try_from(req_bytes.as_slice()).unwrap();
     assert_eq!(req, req2);
@@ -126,7 +127,7 @@ fn main() -> Result<()> {
     let mut wallet_blinded_signatures = Vec::new();
     for auth_keypair in authorities_keypairs {
         let blind_signature = issue_wallet(
-            &grparams,
+            &grp_params,
             auth_keypair.secret_key(),
             user_keypair.public_key(),
             &req,
@@ -139,7 +140,7 @@ fn main() -> Result<()> {
         wallet_blinded_signatures.iter(),
         verification_keys_auth.iter()
     )
-    .map(|(w, vk)| issue_verify(&grparams, vk, &user_keypair.secret_key(), w, &req_info).unwrap())
+    .map(|(w, vk)| issue_verify(&grp_params, vk, &user_keypair.secret_key(), w, &req_info).unwrap())
     .collect();
 
     let partial_wallet = unblinded_wallet_shares.get(0).unwrap().clone();
@@ -149,7 +150,7 @@ fn main() -> Result<()> {
 
     // Aggregate partial wallets
     let aggr_wallet = aggregate_wallets(
-        &grparams,
+        &grp_params,
         &verification_key,
         &user_keypair.secret_key(),
         &unblinded_wallet_shares,
@@ -164,7 +165,6 @@ fn main() -> Result<()> {
     let payinfo = PayInfo { payinfo: [6u8; 88] };
     let spend_vv = 1;
 
-    let spend_date = Scalar::from(1701173854);
     let (payment, _) = aggr_wallet.spend(
         &params,
         &verification_key,

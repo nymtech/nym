@@ -177,13 +177,13 @@ fn main() -> Result<()> {
         spend_date,
     )?;
 
-    // assert!(payment
-    //     .spend_verify(&params, &verification_key, &payinfo, spend_date)
-    //     .unwrap());
-    //
+    assert!(payment
+        .spend_verify(&params, &verification_key, &payinfo, spend_date)
+        .unwrap());
+
     let payment_bytes = payment.to_bytes();
     let payment2 = Payment::try_from(&payment_bytes[..]).unwrap();
-    // assert_eq!(payment, payment2);
+    assert_eq!(payment, payment2);
 
     Ok(())
 }

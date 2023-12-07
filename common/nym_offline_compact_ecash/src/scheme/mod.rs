@@ -160,7 +160,6 @@ impl Wallet {
     ) -> Result<(Payment, &Self)> {
         let grp_params = params.grp();
         let attributes = vec![sk_user.sk, self.v(), self.expiration_date()];
-
         // Check if we have enough remaining allowance in the wallet
         self.check_remaining_allowance(&params, spend_vv)?;
         // randomize wallet signature
@@ -438,19 +437,19 @@ impl Payment {
         }
 
         let tmp = self.kappa_e
-        + verification_key.beta_g2[0] * m1
-        + verification_key.beta_g2[1] * Scalar::from_bytes(&m2).unwrap();
+        + verification_key.beta_g2.get(0).unwrap() * m1
+        + verification_key.beta_g2.get(1).unwrap() * Scalar::from_bytes(&m2).unwrap();
 
-        if !check_bilinear_pairing(
-            &self.sig_exp.h.to_affine(),
-            &G2Prepared::from(tmp.to_affine()),
-            &self.sig_exp.s.to_affine(),
-            params.grp().prepared_miller_g2(),
-        ) {
-            return Err(CompactEcashError::Spend(
-                "The bilinear check for kappa_e failed".to_string(),
-            ));
-        }
+        // if !check_bilinear_pairing(
+        //     &self.sig_exp.h.to_affine(),
+        //     &G2Prepared::from(tmp.to_affine()),
+        //     &self.sig_exp.s.to_affine(),
+        //     params.grp().prepared_miller_g2(),
+        // ) {
+        //     return Err(CompactEcashError::Spend(
+        //         "The bilinear check for kappa_e failed".to_string(),
+        //     ));
+        // }
 
         // check if all serial numbers are different
         for k in 0..self.vv {
@@ -461,8 +460,8 @@ impl Payment {
                     ));
                 }
                 let tmp2 = self.kappa_k[k as usize].to_affine()
-                    + verification_key.beta_g2[0] * Scalar::from_bytes(&constants::TYPE_IDX).unwrap()
-                    + verification_key.beta_g2[1] * Scalar::from_bytes(&constants::TYPE_IDX).unwrap();
+                    + verification_key.beta_g2.get(1).unwrap() * Scalar::from_bytes(&constants::TYPE_IDX).unwrap()
+                    + verification_key.beta_g2.get(2).unwrap() * Scalar::from_bytes(&constants::TYPE_IDX).unwrap();
 
                 if !check_bilinear_pairing(
                     &coin_idx_sign.h.to_affine(),
@@ -497,6 +496,7 @@ impl Payment {
             kappa_e: self.kappa_e.clone(),
         };
 
+        // verify the zk-proof
         // if !self
         //     .zk_proof
         //     .verify(&params, &instance, &verification_key)

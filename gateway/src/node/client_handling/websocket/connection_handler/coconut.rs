@@ -12,14 +12,10 @@ use nym_validator_client::{
             MultisigSigningClient,
         },
         cosmwasm_client::logs::{find_attribute, BANDWIDTH_PROPOSAL_ID},
-        Coin, Fee,
+        Coin,
     },
     CoconutApiClient, DirectSigningHttpRpcNyxdClient,
 };
-use std::time::{Duration, SystemTime};
-
-const ONE_HOUR_SEC: u64 = 3600;
-const MAX_FEEGRANT_UNYM: u128 = 10000;
 
 pub(crate) struct CoconutVerifier {
     nyxd_client: DirectSigningHttpRpcNyxdClient,
@@ -55,10 +51,6 @@ impl CoconutVerifier {
         api_clients: Vec<CoconutApiClient>,
         credential: &Credential,
     ) -> Result<(), RequestHandlingError> {
-        // Use a custom multiplier for revoke, as the default one (1.3)
-        // isn't enough
-        let revoke_fee = Some(Fee::Auto(Some(1.5)));
-
         let res = self
             .nyxd_client
             .spend_credential(

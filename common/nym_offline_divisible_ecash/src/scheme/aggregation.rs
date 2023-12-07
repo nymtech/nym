@@ -2,19 +2,19 @@ use core::iter::Sum;
 use core::ops::Mul;
 use std::cell::Cell;
 
-use bls12_381::{G2Prepared, G2Projective, pairing, Scalar};
+use bls12_381::{pairing, G2Prepared, G2Projective, Scalar};
 use group::Curve;
 use itertools::Itertools;
 
-use crate::Attribute;
 use crate::error::{DivisibleEcashError, Result};
-use crate::scheme::{PartialWallet, Wallet};
 use crate::scheme::keygen::{SecretKeyUser, VerificationKeyAuth};
 use crate::scheme::setup::GroupParameters;
+use crate::scheme::{PartialWallet, Wallet};
 use crate::utils::{
-    check_bilinear_pairing, PartialSignature, perform_lagrangian_interpolation_at_origin,
+    check_bilinear_pairing, perform_lagrangian_interpolation_at_origin, PartialSignature,
     Signature, SignatureShare, SignerIndex,
 };
+use crate::Attribute;
 
 pub(crate) trait Aggregatable: Sized {
     fn aggregate(aggregatable: &[Self], indices: Option<&[SignerIndex]>) -> Result<Self>;
@@ -26,10 +26,10 @@ pub(crate) trait Aggregatable: Sized {
 }
 
 impl<T> Aggregatable for T
-    where
-        T: Sum,
-        for<'a> T: Sum<&'a T>,
-        for<'a> &'a T: Mul<Scalar, Output=T>,
+where
+    T: Sum,
+    for<'a> T: Sum<&'a T>,
+    for<'a> &'a T: Mul<Scalar, Output = T>,
 {
     fn aggregate(aggregatable: &[T], indices: Option<&[u64]>) -> Result<T> {
         if aggregatable.is_empty() {
@@ -164,4 +164,3 @@ pub fn aggregate_wallets(
         l: Cell::new(1),
     })
 }
-

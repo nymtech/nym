@@ -15,16 +15,10 @@ use rand::seq::SliceRandom;
 use std::ops::Neg;
 use std::time::Duration;
 
-use bls12_381::{G1Affine, G1Projective, G2Affine, G2Prepared, multi_miller_loop, Scalar};
-use criterion::{Criterion, criterion_group, criterion_main};
-use ff::Field;
-use group::{Curve, Group};
-use rand::seq::SliceRandom;
-
 use nymcoconut::{
-    aggregate_signature_shares, aggregate_verification_keys, Attribute, blind_sign,
-    BlindedSignature, elgamal_keygen, Parameters, prepare_blind_sign, prove_bandwidth_credential,
-    setup, Signature, SignatureShare, ttp_keygen, VerificationKey, verify_credential,
+    aggregate_signature_shares, aggregate_verification_keys, blind_sign, elgamal_keygen,
+    prepare_blind_sign, prove_bandwidth_credential, setup, ttp_keygen, verify_credential,
+    Attribute, BlindedSignature, Parameters, Signature, SignatureShare, VerificationKey,
 };
 
 #[allow(unused)]
@@ -151,7 +145,7 @@ fn unblind_and_aggregate(
         &attributes,
         &unblinded_signature_shares,
     )
-        .unwrap()
+    .unwrap()
 }
 
 struct BenchCase {
@@ -229,7 +223,7 @@ fn bench_coconut(c: &mut Criterion) {
                     &blind_sign_request,
                     &public_attributes,
                 )
-                    .unwrap()
+                .unwrap()
             })
         },
     );
@@ -244,7 +238,7 @@ fn bench_coconut(c: &mut Criterion) {
             &blind_sign_request,
             &public_attributes,
         )
-            .unwrap();
+        .unwrap();
         blinded_signatures.push(blinded_signature)
     }
 
@@ -325,7 +319,7 @@ fn bench_coconut(c: &mut Criterion) {
         serial_number,
         binding_number,
     )
-        .unwrap();
+    .unwrap();
 
     // CLIENT BENCHMARK
     group.bench_function(
@@ -344,7 +338,7 @@ fn bench_coconut(c: &mut Criterion) {
                     serial_number,
                     binding_number,
                 )
-                    .unwrap()
+                .unwrap()
             })
         },
     );

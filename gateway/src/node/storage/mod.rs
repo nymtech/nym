@@ -384,17 +384,16 @@ impl Storage for PersistentStorage {
             .into_iter()
             .map(|stored_pending| {
                 let credential = EcashCredential::try_from_bs58(stored_pending.credential)
-                    .map_err(|err| StorageError::DataCorruptionError(err.to_string()))?;
+                    .map_err(|err| StorageError::DataCorruption(err.to_string()))?;
                 Ok((
                     stored_pending.id,
                     PendingCredential {
                         credential,
                         address: AccountId::from_str(&stored_pending.address)
-                            .map_err(|err| StorageError::DataCorruptionError(err.to_string()))?,
+                            .map_err(|err| StorageError::DataCorruption(err.to_string()))?,
                         client: NymApiClient::new(
-                            Url::from_str(&stored_pending.api_url).map_err(|err| {
-                                StorageError::DataCorruptionError(err.to_string())
-                            })?,
+                            Url::from_str(&stored_pending.api_url)
+                                .map_err(|err| StorageError::DataCorruption(err.to_string()))?,
                         ),
                     },
                 ))

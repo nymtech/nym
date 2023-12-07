@@ -216,16 +216,21 @@ mod tests {
             .spend_verify(&params, &verification_key, &pay_info1)
             .unwrap());
 
-
-        let pay_info2 = PayInfo::generate_payinfo(provider_keypair.public_key());
-        let (payment2, _) = upd_wallet.spend(
-            &params,
-            &verification_key,
-            &user_keypair.secret_key(),
-            &pay_info2,
-            false,
-            spend_vv,
-        ).unwrap();
+        let pay_info2 = PayInfo::generate_payinfo(
+            provider_keypair.public_key().to_bytes()[..32]
+                .try_into()
+                .unwrap(),
+        );
+        let (payment2, _) = upd_wallet
+            .spend(
+                &params,
+                &verification_key,
+                &user_keypair.secret_key(),
+                &pay_info2,
+                false,
+                spend_vv,
+            )
+            .unwrap();
 
         assert!(payment2
             .spend_verify(&params, &verification_key, &pay_info2)
@@ -433,15 +438,21 @@ mod tests {
         let current_l = aggr_wallet.l.get();
         aggr_wallet.l.set(current_l - 10);
 
-        let pay_info2 = PayInfo::generate_payinfo(provider_keypair.public_key());
-        let (payment2, _) = aggr_wallet.spend(
-            &params,
-            &verification_key,
-            &user_keypair.secret_key(),
-            &pay_info2,
-            false,
-            spend_vv,
-        ).unwrap();
+        let pay_info2 = PayInfo::generate_payinfo(
+            provider_keypair.public_key().to_bytes()[..32]
+                .try_into()
+                .unwrap(),
+        );
+        let (payment2, _) = aggr_wallet
+            .spend(
+                &params,
+                &verification_key,
+                &user_keypair.secret_key(),
+                &pay_info2,
+                false,
+                spend_vv,
+            )
+            .unwrap();
 
         let identify_result =
             identify(payment1, payment2, pay_info1.clone(), pay_info2.clone()).unwrap();

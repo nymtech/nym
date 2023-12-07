@@ -467,14 +467,14 @@ impl<St> Gateway<St> {
         let ecash_verifier = {
             let nyxd_client = self.random_nyxd_client()?;
             let ecash_params = self.get_ecash_parameters().await?;
-            EcashVerifier::new(
+            Arc::new(EcashVerifier::new(
                 nyxd_client,
                 ecash_params,
                 self.identity_keypair.public_key().to_bytes(),
                 shutdown.subscribe().named("EcashVerifier"),
                 self.storage.clone(),
                 self.config.gateway.offline_credential_verification,
-            )
+            ))
         };
 
         let mix_forwarding_channel =
@@ -504,7 +504,7 @@ impl<St> Gateway<St> {
             mix_forwarding_channel.clone(),
             active_clients_store.clone(),
             shutdown.subscribe().named("websocket::Listener"),
-            Arc::new(coconut_verifier),
+            Arc::clone(&ecash_verifier),
         );
 
         let nr_request_filter = if self.config.network_requester.enabled {
@@ -527,7 +527,7 @@ impl<St> Gateway<St> {
         if self.config.ip_packet_router.enabled {
             let embedded_ip_sp = self
                 .start_ip_packet_router(
-                    mix_forwarding_channel,
+                    mix_forwarding_channel.clone(),
                     shutdown.subscribe().named("ip_service_provider"),
                 )
                 .await?;
@@ -548,7 +548,7 @@ impl<St> Gateway<St> {
             mix_forwarding_channel,
             active_clients_store,
             shutdown.subscribe().named("websocket::Listener"),
-            Arc::new(ecash_verifier),
+            Arc::clone(&ecash_verifier),
         );
 
         // Once this is a bit more mature, make this a commandline flag instead of a compile time

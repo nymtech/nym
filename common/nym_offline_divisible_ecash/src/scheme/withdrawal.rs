@@ -2,11 +2,13 @@ use bls12_381::{G1Projective, G2Prepared, G2Projective, Scalar};
 use group::{Curve, GroupEncoding};
 
 use crate::error::{DivisibleEcashError, Result};
-use crate::proofs::proof_withdrawal::{WithdrawalReqInstance, WithdrawalReqProof, WithdrawalReqWitness};
+use crate::proofs::proof_withdrawal::{
+    WithdrawalReqInstance, WithdrawalReqProof, WithdrawalReqWitness,
+};
 use crate::scheme::keygen::{PublicKeyUser, SecretKeyAuth, SecretKeyUser, VerificationKeyAuth};
-use crate::scheme::PartialWallet;
 use crate::scheme::setup::{GroupParameters, Parameters};
-use crate::utils::{BlindedSignature, check_bilinear_pairing, hash_g1, Signature};
+use crate::scheme::PartialWallet;
+use crate::utils::{check_bilinear_pairing, hash_g1, BlindedSignature, Signature};
 
 pub struct WithdrawalRequest {
     com_hash: G1Projective,
@@ -21,7 +23,10 @@ pub struct RequestInfo {
     v: Scalar,
 }
 
-pub fn withdrawal_request(params: &Parameters, sk_user: &SecretKeyUser) -> Result<(WithdrawalRequest, RequestInfo)> {
+pub fn withdrawal_request(
+    params: &Parameters,
+    sk_user: &SecretKeyUser,
+) -> Result<(WithdrawalRequest, RequestInfo)> {
     let grp = params.get_grp();
     let g1 = grp.gen1();
     let params_u = params.get_params_u();
@@ -30,10 +35,10 @@ pub fn withdrawal_request(params: &Parameters, sk_user: &SecretKeyUser) -> Resul
     let com_opening = grp.random_scalar();
     let commitment = g1 * com_opening
         + attributes
-        .iter()
-        .zip(params_u.get_gammas())
-        .map(|(&m, gamma)| gamma * m)
-        .sum::<G1Projective>();
+            .iter()
+            .zip(params_u.get_gammas())
+            .map(|(&m, gamma)| gamma * m)
+            .sum::<G1Projective>();
 
     // Value h in the paper
     let com_hash = hash_g1(commitment.to_bytes());
@@ -44,7 +49,6 @@ pub fn withdrawal_request(params: &Parameters, sk_user: &SecretKeyUser) -> Resul
         .zip(attributes.iter())
         .map(|(o_j, m_j)| g1 * o_j + com_hash * m_j)
         .collect::<Vec<_>>();
-
 
     // construct a zk proof of knowledge proving possession of m1, m2, o, o1, o2
     let instance = WithdrawalReqInstance {
@@ -78,7 +82,12 @@ pub fn withdrawal_request(params: &Parameters, sk_user: &SecretKeyUser) -> Resul
     Ok((req, req_info))
 }
 
-pub fn issue(params: &Parameters, req: &WithdrawalRequest, pk_u: PublicKeyUser, sk_a: &SecretKeyAuth) -> Result<BlindedSignature> {
+pub fn issue(
+    params: &Parameters,
+    req: &WithdrawalRequest,
+    pk_u: PublicKeyUser,
+    sk_a: &SecretKeyAuth,
+) -> Result<BlindedSignature> {
     let h = hash_g1(req.com.to_bytes());
     if !(h == req.com_hash) {
         return Err(DivisibleEcashError::WithdrawalRequestVerification(
@@ -115,8 +124,8 @@ pub fn issue_verify(
     vk_auth: &VerificationKeyAuth,
     sk_user: &SecretKeyUser,
     blind_signature: &BlindedSignature,
-    req_info: &RequestInfo) -> Result<PartialWallet> {
-
+    req_info: &RequestInfo,
+) -> Result<PartialWallet> {
     // Parse the blinded signature
     let h = blind_signature.0;
     let c = blind_signature.1;

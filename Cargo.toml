@@ -111,7 +111,7 @@ members = [
     "tools/nymvisor",
     "tools/ts-rs-cli",
     "wasm/client",
-#    "wasm/full-nym-wasm",
+    #    "wasm/full-nym-wasm",
     "wasm/mix-fetch",
     "wasm/node-tester",
 ]
@@ -128,7 +128,15 @@ default-members = [
     "explorer-api",
 ]
 
-exclude = ["explorer", "contracts", "nym-wallet", "nym-connect/mobile/src-tauri", "nym-connect/desktop", "nym-vpn/ui/src-tauri", "cpu-cycles"]
+exclude = [
+    "explorer",
+    "contracts",
+    "nym-wallet",
+    "nym-connect/mobile/src-tauri",
+    "nym-connect/desktop",
+    "nym-vpn/ui/src-tauri",
+    "cpu-cycles",
+]
 
 [workspace.package]
 authors = ["Nym Technologies SA"]
@@ -206,6 +214,15 @@ wasm-bindgen = "0.2.86"
 wasm-bindgen-futures = "0.4.37"
 wasmtimer = "0.2.0"
 web-sys = "0.3.63"
+
+bls12_381 = { path = "/Users/drazen/nym/bls12_381", default-features = false, features = [
+    "alloc",
+    "pairings",
+    "experimental",
+    "zeroize",
+] }
+ff = { version = "0.13", default-features = false }
+group = { version = "0.13", default-features = false }
 
 # Profile settings for individual crates
 

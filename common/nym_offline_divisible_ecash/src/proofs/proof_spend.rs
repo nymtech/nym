@@ -4,12 +4,12 @@ use std::ops::Neg;
 use bls12_381::{G1Projective, G2Projective, Gt, Scalar};
 use group::GroupEncoding;
 
-use crate::proofs::{ChallengeDigest, compute_challenge, produce_response, produce_responses};
-use crate::scheme::{Phi, VarPhi, Wallet};
+use crate::error::{DivisibleEcashError, Result};
+use crate::proofs::{compute_challenge, produce_response, produce_responses, ChallengeDigest};
 use crate::scheme::keygen::{SecretKeyUser, VerificationKeyAuth};
 use crate::scheme::setup::Parameters;
-use crate::error::{DivisibleEcashError, Result};
-use crate::utils::{try_deserialize_scalar};
+use crate::scheme::{Phi, VarPhi, Wallet};
+use crate::utils::try_deserialize_scalar;
 
 pub struct SpendInstance {
     pub kappa: G2Projective,
@@ -136,7 +136,8 @@ impl SpendProof {
         instance: &SpendInstance,
         witness: &SpendWitness,
         verification_key: &VerificationKeyAuth,
-        vv: u64) -> Self {
+        vv: u64,
+    ) -> Self {
         let grp = params.get_grp();
         let params_u = params.get_params_u();
         let params_a = params.get_params_a();
@@ -165,20 +166,31 @@ impl SpendProof {
         let zkcm_kappa = grp.gen2() * r_r
             + verification_key.alpha
             + r_attributes
-            .iter()
-            .zip(verification_key.beta_g2.iter())
-            .map(|(attr, beta_i)| beta_i * attr)
-            .sum::<G2Projective>();
+                .iter()
+                .zip(verification_key.beta_g2.iter())
+                .map(|(attr, beta_i)| beta_i * attr)
+                .sum::<G2Projective>();
 
         let zkcm_phi0 = g1 * r_r1;
-        let zkcm_phi1 = instance.varsig_prime1 * r_v + instance.psi_g1 * r_rho1 + params_u.get_ith_eta(vv as usize) * r_r1;
+        let zkcm_phi1 = instance.varsig_prime1 * r_v
+            + instance.psi_g1 * r_rho1
+            + params_u.get_ith_eta(vv as usize) * r_r1;
         let zkcm_varphi0 = g1 * r_r2;
-        let zkcm_varphi1 = (g1 * instance.rr) * r_sk_u + instance.theta_prime1 * r_v + instance.psi_g1 * r_rho2 + params_u.get_ith_eta(vv as usize) * r_r2;
-        let zkcm_pg_eq1 = instance.pg_psi0_delta * r_r_varsig1 + instance.pg_psi0_gen2 * r_r_varsig2.neg();
-        let zkcm_pg_eq2 = instance.pg_psi0_delta * r_r_theta1 + instance.pg_psi0_gen2 * r_r_theta2.neg();
-        let zkcm_pg_eq3 = instance.pg_psi0_yy * r_r_rr + instance.pg_psi0_gen2 * r_r_ss + instance.pg_psi0_ww1 * r_r_varsig2 + instance.pg_psi0_ww2 * r_r_theta2;
-        let zkcm_pg_eq4 = instance.pg_rr_psi1 * r_r_tt + instance.pg_psi0_tt * r_r_rr + instance.pg_psi0_psi1 * r_rho3.neg();
-
+        let zkcm_varphi1 = (g1 * instance.rr) * r_sk_u
+            + instance.theta_prime1 * r_v
+            + instance.psi_g1 * r_rho2
+            + params_u.get_ith_eta(vv as usize) * r_r2;
+        let zkcm_pg_eq1 =
+            instance.pg_psi0_delta * r_r_varsig1 + instance.pg_psi0_gen2 * r_r_varsig2.neg();
+        let zkcm_pg_eq2 =
+            instance.pg_psi0_delta * r_r_theta1 + instance.pg_psi0_gen2 * r_r_theta2.neg();
+        let zkcm_pg_eq3 = instance.pg_psi0_yy * r_r_rr
+            + instance.pg_psi0_gen2 * r_r_ss
+            + instance.pg_psi0_ww1 * r_r_varsig2
+            + instance.pg_psi0_ww2 * r_r_theta2;
+        let zkcm_pg_eq4 = instance.pg_rr_psi1 * r_r_tt
+            + instance.pg_psi0_tt * r_r_rr
+            + instance.pg_psi0_psi1 * r_rho3.neg();
 
         let challenge = compute_challenge::<ChallengeDigest, _, _>(
             std::iter::once(g1.to_bytes().as_ref())
@@ -191,7 +203,7 @@ impl SpendProof {
                 .chain(std::iter::once(zkcm_pg_eq1.to_compressed().as_ref()))
                 .chain(std::iter::once(zkcm_pg_eq2.to_compressed().as_ref()))
                 .chain(std::iter::once(zkcm_pg_eq3.to_compressed().as_ref()))
-                .chain(std::iter::once(zkcm_pg_eq4.to_compressed().as_ref()))
+                .chain(std::iter::once(zkcm_pg_eq4.to_compressed().as_ref())),
         );
 
         // compute response for each witness
@@ -211,7 +223,6 @@ impl SpendProof {
         let response_r_rho1 = produce_response(&r_rho1, &challenge, &witness.rho1);
         let response_r_rho2 = produce_response(&r_rho2, &challenge, &witness.rho2);
         let response_r_rho3 = produce_response(&r_rho3, &challenge, &witness.rho3);
-
 
         SpendProof {
             challenge,
@@ -251,10 +262,10 @@ impl SpendProof {
             + grp.gen2() * self.response_r
             + verification_key.alpha * (Scalar::one() - self.challenge)
             + [self.response_r_sk_u, self.response_r_v]
-            .iter()
-            .zip(verification_key.beta_g2.iter())
-            .map(|(attr, beta_i)| beta_i * attr)
-            .sum::<G2Projective>();
+                .iter()
+                .zip(verification_key.beta_g2.iter())
+                .map(|(attr, beta_i)| beta_i * attr)
+                .sum::<G2Projective>();
 
         let zkcm_phi0 = g1 * self.response_r_r1 + instance.phi.0 * self.challenge;
         let zkcm_phi1 = instance.varsig_prime1 * self.response_r_v
@@ -297,7 +308,7 @@ impl SpendProof {
                 .chain(std::iter::once(zkcm_pg_eq1.to_compressed().as_ref()))
                 .chain(std::iter::once(zkcm_pg_eq2.to_compressed().as_ref()))
                 .chain(std::iter::once(zkcm_pg_eq3.to_compressed().as_ref()))
-                .chain(std::iter::once(zkcm_pg_eq4.to_compressed().as_ref()))
+                .chain(std::iter::once(zkcm_pg_eq4.to_compressed().as_ref())),
         );
 
         challenge == self.challenge
@@ -331,7 +342,9 @@ impl TryFrom<&[u8]> for SpendProof {
         let response_r_sk_u_bytes = bytes[FIELD_SIZE * 2..FIELD_SIZE * 3].try_into().unwrap();
         let response_r_sk_u = try_deserialize_scalar(
             &response_r_sk_u_bytes,
-            DivisibleEcashError::Deserialization("Failed to deserialize response_r_sk_u".to_string()),
+            DivisibleEcashError::Deserialization(
+                "Failed to deserialize response_r_sk_u".to_string(),
+            ),
         )?;
 
         let response_r_v_bytes = bytes[FIELD_SIZE * 3..FIELD_SIZE * 4].try_into().unwrap();
@@ -361,25 +374,33 @@ impl TryFrom<&[u8]> for SpendProof {
         let response_r_varsig1_bytes = bytes[FIELD_SIZE * 7..FIELD_SIZE * 8].try_into().unwrap();
         let response_r_varsig1 = try_deserialize_scalar(
             response_r_varsig1_bytes,
-            DivisibleEcashError::Deserialization("Failed to deserialize response_r_varsig1".to_string()),
+            DivisibleEcashError::Deserialization(
+                "Failed to deserialize response_r_varsig1".to_string(),
+            ),
         )?;
 
         let response_r_theta1_bytes = bytes[FIELD_SIZE * 8..FIELD_SIZE * 9].try_into().unwrap();
         let response_r_theta1 = try_deserialize_scalar(
             &response_r_theta1_bytes,
-            DivisibleEcashError::Deserialization("Failed to deserialize response_r_theta1".to_string()),
+            DivisibleEcashError::Deserialization(
+                "Failed to deserialize response_r_theta1".to_string(),
+            ),
         )?;
 
         let response_r_varsig2_bytes = bytes[FIELD_SIZE * 9..FIELD_SIZE * 10].try_into().unwrap();
         let response_r_varsig2 = try_deserialize_scalar(
             &response_r_varsig2_bytes,
-            DivisibleEcashError::Deserialization("Failed to deserialize response_r_varsig2".to_string()),
+            DivisibleEcashError::Deserialization(
+                "Failed to deserialize response_r_varsig2".to_string(),
+            ),
         )?;
 
         let response_r_theta2_bytes = bytes[FIELD_SIZE * 10..FIELD_SIZE * 11].try_into().unwrap();
         let response_r_theta2 = try_deserialize_scalar(
             &response_r_theta2_bytes,
-            DivisibleEcashError::Deserialization("Failed to deserialize response_r_theta2".to_string()),
+            DivisibleEcashError::Deserialization(
+                "Failed to deserialize response_r_theta2".to_string(),
+            ),
         )?;
 
         let response_r_rr_bytes = bytes[FIELD_SIZE * 11..FIELD_SIZE * 12].try_into().unwrap();
@@ -403,19 +424,25 @@ impl TryFrom<&[u8]> for SpendProof {
         let response_r_rho1_bytes = bytes[FIELD_SIZE * 14..FIELD_SIZE * 15].try_into().unwrap();
         let response_r_rho1 = try_deserialize_scalar(
             &response_r_rho1_bytes,
-            DivisibleEcashError::Deserialization("Failed to deserialize response_r_rho1".to_string()),
+            DivisibleEcashError::Deserialization(
+                "Failed to deserialize response_r_rho1".to_string(),
+            ),
         )?;
 
         let response_r_rho2_bytes = bytes[FIELD_SIZE * 15..FIELD_SIZE * 16].try_into().unwrap();
         let response_r_rho2 = try_deserialize_scalar(
             &response_r_rho2_bytes,
-            DivisibleEcashError::Deserialization("Failed to deserialize response_r_rho2".to_string()),
+            DivisibleEcashError::Deserialization(
+                "Failed to deserialize response_r_rho2".to_string(),
+            ),
         )?;
 
         let response_r_rho3_bytes = bytes[FIELD_SIZE * 16..FIELD_SIZE * 17].try_into().unwrap();
         let response_r_rho3 = try_deserialize_scalar(
             &response_r_rho3_bytes,
-            DivisibleEcashError::Deserialization("Failed to deserialize response_r_rho3".to_string()),
+            DivisibleEcashError::Deserialization(
+                "Failed to deserialize response_r_rho3".to_string(),
+            ),
         )?;
 
         Ok(SpendProof {
@@ -444,15 +471,17 @@ impl TryFrom<&[u8]> for SpendProof {
 mod tests {
     use std::ops::Neg;
 
-    use bls12_381::{G2Projective, pairing};
+    use bls12_381::{pairing, G2Projective};
     use group::Curve;
     use rand::thread_rng;
 
     use crate::proofs::proof_spend::{SpendInstance, SpendProof, SpendWitness};
-    use crate::scheme::{PayInfo, Phi, VarPhi};
     use crate::scheme::aggregation::aggregate_verification_keys;
-    use crate::scheme::keygen::{PublicKeyUser, SecretKeyUser, ttp_keygen_authorities, VerificationKeyAuth};
+    use crate::scheme::keygen::{
+        ttp_keygen_authorities, PublicKeyUser, SecretKeyUser, VerificationKeyAuth,
+    };
     use crate::scheme::setup::{GroupParameters, Parameters};
+    use crate::scheme::{PayInfo, Phi, VarPhi};
     use crate::utils::hash_to_scalar;
 
     #[test]
@@ -485,18 +514,26 @@ mod tests {
         let kappa = grp.gen2() * r
             + verification_key.alpha
             + attributes
-            .iter()
-            .zip(verification_key.beta_g2.iter())
-            .map(|(priv_attr, beta_i)| beta_i * priv_attr)
-            .sum::<G2Projective>();
+                .iter()
+                .zip(verification_key.beta_g2.iter())
+                .map(|(priv_attr, beta_i)| beta_i * priv_attr)
+                .sum::<G2Projective>();
 
         let r1 = grp.random_scalar();
         let r2 = grp.random_scalar();
-        let phi = Phi(grp.gen1() * r1, params_u.get_ith_sigma(l as usize) * v + params_u.get_ith_eta(vv as usize) * r1);
+        let phi = Phi(
+            grp.gen1() * r1,
+            params_u.get_ith_sigma(l as usize) * v + params_u.get_ith_eta(vv as usize) * r1,
+        );
 
         let pay_info = PayInfo { info: [78u8; 32] };
         let rr = hash_to_scalar(pay_info.info);
-        let varphi = VarPhi(grp.gen1() * r2, (grp.gen1() * rr) * sk + params_u.get_ith_theta(l as usize) * v + params_u.get_ith_eta(vv as usize) * r2);
+        let varphi = VarPhi(
+            grp.gen1() * r2,
+            (grp.gen1() * rr) * sk
+                + params_u.get_ith_theta(l as usize) * v
+                + params_u.get_ith_eta(vv as usize) * r2,
+        );
 
         // random value used to compute blinded bases
         let r_varsig1 = grp.random_scalar();
@@ -507,29 +544,37 @@ mod tests {
         let r_ss = grp.random_scalar();
         let r_tt = grp.random_scalar();
 
-
         // compute blinded bases
         let psi_g1 = params_u.get_psi_g1();
         let psi_g2 = params_u.get_psi_g2();
         let varsig_prime1 = params_u.get_ith_sigma(l as usize) + (psi_g1 * r_varsig1);
         let theta_prime1 = params_u.get_ith_theta(l as usize) + (psi_g1 * r_theta1);
-        let varsig_prime2 = params_u.get_ith_sigma(l as usize + vv as usize - 1) + (psi_g1 * r_varsig2);
-        let theta_prime2 = params_u.get_ith_theta(l as usize + vv as usize - 1) + (psi_g1 * r_theta2);
+        let varsig_prime2 =
+            params_u.get_ith_sigma(l as usize + vv as usize - 1) + (psi_g1 * r_varsig2);
+        let theta_prime2 =
+            params_u.get_ith_theta(l as usize + vv as usize - 1) + (psi_g1 * r_theta2);
         let rr_prime = params_u.get_ith_sps_sign(l as usize + vv as usize - 1).rr + (psi_g1 * r_rr);
         let ss_prime = params_u.get_ith_sps_sign(l as usize + vv as usize - 1).ss + (psi_g1 * r_ss);
         let tt_prime = params_u.get_ith_sps_sign(l as usize + vv as usize - 1).tt + (psi_g2 * r_tt);
-
 
         let rho1 = v.neg() * r_varsig1;
         let rho2 = v.neg() * r_theta1;
         let rho3 = r_rr * r_tt;
 
-
-        let pg_varsigpr1_delta = pairing(&varsig_prime1.to_affine(), &params_a.get_ith_delta((vv - 1) as usize).to_affine());
-        let pg_psi0_delta = pairing(&psi_g1.to_affine(), &params_a.get_ith_delta((vv - 1) as usize).to_affine());
+        let pg_varsigpr1_delta = pairing(
+            &varsig_prime1.to_affine(),
+            &params_a.get_ith_delta((vv - 1) as usize).to_affine(),
+        );
+        let pg_psi0_delta = pairing(
+            &psi_g1.to_affine(),
+            &params_a.get_ith_delta((vv - 1) as usize).to_affine(),
+        );
         let pg_varsigpr2_gen2 = pairing(&varsig_prime2.to_affine(), grp.gen2());
         let pg_psi0_gen2 = pairing(&psi_g1.to_affine(), grp.gen2());
-        let pg_thetapr1_delta = pairing(&theta_prime1.to_affine(), &params_a.get_ith_delta((vv - 1) as usize).to_affine());
+        let pg_thetapr1_delta = pairing(
+            &theta_prime1.to_affine(),
+            &params_a.get_ith_delta((vv - 1) as usize).to_affine(),
+        );
         let pg_thetapr2_gen2 = pairing(&theta_prime2.to_affine(), grp.gen2());
         let yy = params_u.get_sps_pk().get_yy();
         let pg_rrprime_yy = pairing(&rr_prime.to_affine(), &yy.to_affine());
@@ -550,9 +595,9 @@ mod tests {
 
         let pg_eq1 = pg_varsigpr1_delta - pg_varsigpr2_gen2;
         let pg_eq2 = pg_thetapr1_delta - pg_thetapr2_gen2;
-        let pg_eq3 = pg_rrprime_yy + pg_ssprime_gen2 + pg_varsigpr2_ww1 + pg_thetapr2_ww2 - pg_gen1_zz;
+        let pg_eq3 =
+            pg_rrprime_yy + pg_ssprime_gen2 + pg_varsigpr2_ww1 + pg_thetapr2_ww2 - pg_gen1_zz;
         let pg_eq4 = pg_rr_tt - pg_gen1_gen2;
-
 
         let instance = SpendInstance {
             kappa,
@@ -606,8 +651,5 @@ mod tests {
         let zk_proof_bytes = zk_proof.to_bytes();
         let zk_proof2 = SpendProof::try_from(&zk_proof_bytes[..]).unwrap();
         assert_eq!(zk_proof, zk_proof2);
-
     }
 }
-
-

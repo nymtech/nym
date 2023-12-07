@@ -2,23 +2,26 @@ use std::cell::Cell;
 use std::convert::{TryFrom, TryInto};
 use std::ops::Neg;
 
-use bls12_381::{G1Projective, G2Prepared, G2Projective, pairing, Scalar};
+use bls12_381::{pairing, G1Projective, G2Prepared, G2Projective, Scalar};
 use group::{Curve, GroupEncoding};
 
-use crate::Attribute;
 use crate::constants::L;
 use crate::error::{DivisibleEcashError, Result};
 use crate::proofs::proof_spend::{SpendInstance, SpendProof, SpendWitness};
 use crate::scheme::keygen::{SecretKeyUser, VerificationKeyAuth};
 use crate::scheme::setup::{GroupParameters, Parameters};
-use crate::utils::{check_bilinear_pairing, hash_to_scalar, Signature, SignerIndex, try_deserialize_g1_projective, try_deserialize_scalar, try_deserialize_g2_projective};
+use crate::utils::{
+    check_bilinear_pairing, hash_to_scalar, try_deserialize_g1_projective,
+    try_deserialize_g2_projective, try_deserialize_scalar, Signature, SignerIndex,
+};
+use crate::Attribute;
 
 pub mod aggregation;
+pub mod identification;
 pub mod keygen;
 pub mod setup;
 pub mod structure_preserving_signature;
 pub mod withdrawal;
-pub mod identification;
 
 pub fn compute_kappa(
     params: &GroupParameters,
@@ -29,10 +32,10 @@ pub fn compute_kappa(
     params.gen2() * blinding_factor
         + verification_key.alpha
         + attributes
-        .iter()
-        .zip(verification_key.beta_g2.iter())
-        .map(|(priv_attr, beta_i)| beta_i * priv_attr)
-        .sum::<G2Projective>()
+            .iter()
+            .zip(verification_key.beta_g2.iter())
+            .map(|(priv_attr, beta_i)| beta_i * priv_attr)
+            .sum::<G2Projective>()
 }
 
 #[derive(Eq, PartialEq, Debug, Clone, Copy)]
@@ -60,13 +63,17 @@ impl Phi {
         let elem_0_bytes = bytes[0..48].try_into().unwrap();
         let elem_0 = try_deserialize_g1_projective(
             elem_0_bytes,
-            DivisibleEcashError::Deserialization("Failed to deserialize element 0 of Phi".to_string()),
+            DivisibleEcashError::Deserialization(
+                "Failed to deserialize element 0 of Phi".to_string(),
+            ),
         )?;
 
         let elem_1_bytes = bytes[48..96].try_into().unwrap();
         let elem_1 = try_deserialize_g1_projective(
             elem_1_bytes,
-            DivisibleEcashError::Deserialization("Failed to deserialize element 1 of Phi".to_string()),
+            DivisibleEcashError::Deserialization(
+                "Failed to deserialize element 1 of Phi".to_string(),
+            ),
         )?;
 
         Ok(Phi(elem_0, elem_1))
@@ -98,13 +105,17 @@ impl VarPhi {
         let elem_0_bytes = bytes[0..48].try_into().unwrap();
         let elem_0 = try_deserialize_g1_projective(
             elem_0_bytes,
-            DivisibleEcashError::Deserialization("Failed to deserialize element 0 of VarPhi".to_string()),
+            DivisibleEcashError::Deserialization(
+                "Failed to deserialize element 0 of VarPhi".to_string(),
+            ),
         )?;
 
         let elem_1_bytes = bytes[48..96].try_into().unwrap();
         let elem_1 = try_deserialize_g1_projective(
             elem_1_bytes,
-            DivisibleEcashError::Deserialization("Failed to deserialize element 1 of VarPhi".to_string()),
+            DivisibleEcashError::Deserialization(
+                "Failed to deserialize element 1 of VarPhi".to_string(),
+            ),
         )?;
 
         Ok(VarPhi(elem_0, elem_1))
@@ -135,21 +146,49 @@ pub struct Payment {
 }
 
 impl Payment {
-    pub fn get_kappa(&self) -> G2Projective { self.kappa }
-    pub fn get_sig(&self) -> Signature { self.sig }
-    pub fn get_phi(&self) -> Phi { self.phi }
-    pub fn get_varphi(&self) -> VarPhi { self.varphi }
-    pub fn get_varsig_prime1(&self) -> G1Projective { self.varsig_prime1 }
-    pub fn get_varsig_prime2(&self) -> G1Projective { self.varsig_prime2 }
-    pub fn get_theta_prime1(&self) -> G1Projective { self.theta_prime1 }
-    pub fn get_theta_prime2(&self) -> G1Projective { self.theta_prime2 }
-    pub fn get_rr_prime(&self) -> G1Projective { self.rr_prime }
-    pub fn get_ss_prime(&self) -> G1Projective { self.ss_prime }
-    pub fn get_tt_prime(&self) -> G2Projective { self.tt_prime }
-    pub fn get_rr(&self) -> Scalar { self.rr }
-    pub fn get_zk_proof(&self) -> SpendProof { self.zk_proof.clone() }
-    pub fn get_vv(&self) -> u64 { self.vv }
-    pub fn to_bytes(&self) -> Vec<u8>{
+    pub fn get_kappa(&self) -> G2Projective {
+        self.kappa
+    }
+    pub fn get_sig(&self) -> Signature {
+        self.sig
+    }
+    pub fn get_phi(&self) -> Phi {
+        self.phi
+    }
+    pub fn get_varphi(&self) -> VarPhi {
+        self.varphi
+    }
+    pub fn get_varsig_prime1(&self) -> G1Projective {
+        self.varsig_prime1
+    }
+    pub fn get_varsig_prime2(&self) -> G1Projective {
+        self.varsig_prime2
+    }
+    pub fn get_theta_prime1(&self) -> G1Projective {
+        self.theta_prime1
+    }
+    pub fn get_theta_prime2(&self) -> G1Projective {
+        self.theta_prime2
+    }
+    pub fn get_rr_prime(&self) -> G1Projective {
+        self.rr_prime
+    }
+    pub fn get_ss_prime(&self) -> G1Projective {
+        self.ss_prime
+    }
+    pub fn get_tt_prime(&self) -> G2Projective {
+        self.tt_prime
+    }
+    pub fn get_rr(&self) -> Scalar {
+        self.rr
+    }
+    pub fn get_zk_proof(&self) -> SpendProof {
+        self.zk_proof.clone()
+    }
+    pub fn get_vv(&self) -> u64 {
+        self.vv
+    }
+    pub fn to_bytes(&self) -> Vec<u8> {
         let kappa_bytes = self.kappa.to_affine().to_compressed();
         let sig_bytes = self.sig.to_bytes();
         let phi_bytes = self.phi.to_bytes();
@@ -189,96 +228,96 @@ impl TryFrom<&[u8]> for Payment {
     type Error = DivisibleEcashError;
 
     fn try_from(bytes: &[u8]) -> Result<Self> {
-        if bytes.len() < 760  {
+        if bytes.len() < 760 {
             return Err(DivisibleEcashError::Deserialization(
                 "Invalid byte array for Payment deserialization".to_string(),
             ));
         }
 
         let mut idx = 0;
-        let kappa_bytes: [u8; 96] = bytes[idx..idx+96].try_into().unwrap();
+        let kappa_bytes: [u8; 96] = bytes[idx..idx + 96].try_into().unwrap();
         let kappa = try_deserialize_g2_projective(
             &kappa_bytes,
             DivisibleEcashError::Deserialization("Failed to deserialize kappa".to_string()),
         )?;
         idx += 96;
 
-        let sig_bytes: [u8; 96] = bytes[idx..idx+96].try_into().unwrap();
+        let sig_bytes: [u8; 96] = bytes[idx..idx + 96].try_into().unwrap();
         let sig = Signature::try_from(sig_bytes.as_slice())?;
         idx += 96;
 
-        let phi_bytes: [u8; 96] = bytes[idx..idx+96].try_into().unwrap();
+        let phi_bytes: [u8; 96] = bytes[idx..idx + 96].try_into().unwrap();
         let phi = Phi::from_bytes(&phi_bytes).unwrap();
         idx += 96;
 
-        let varphi_bytes: [u8; 96] = bytes[idx..idx+96].try_into().unwrap();
+        let varphi_bytes: [u8; 96] = bytes[idx..idx + 96].try_into().unwrap();
         let varphi = VarPhi::from_bytes(&varphi_bytes).unwrap();
         idx += 96;
 
-        let varsig_prime1_bytes: [u8; 48] = bytes[idx..idx+48].try_into().unwrap();
+        let varsig_prime1_bytes: [u8; 48] = bytes[idx..idx + 48].try_into().unwrap();
         let varsig_prime1 = try_deserialize_g1_projective(
             &varsig_prime1_bytes,
             DivisibleEcashError::Deserialization("Failed to deserialize varsig_prime1".to_string()),
         )?;
         idx += 48;
 
-        let varsig_prime2_bytes: [u8; 48] = bytes[idx..idx+48].try_into().unwrap();
+        let varsig_prime2_bytes: [u8; 48] = bytes[idx..idx + 48].try_into().unwrap();
         let varsig_prime2 = try_deserialize_g1_projective(
             &varsig_prime2_bytes,
             DivisibleEcashError::Deserialization("Failed to deserialize varsig_prime2".to_string()),
         )?;
         idx += 48;
 
-        let theta_prime1_bytes: [u8; 48] = bytes[idx..idx+48].try_into().unwrap();
+        let theta_prime1_bytes: [u8; 48] = bytes[idx..idx + 48].try_into().unwrap();
         let theta_prime1 = try_deserialize_g1_projective(
             &theta_prime1_bytes,
             DivisibleEcashError::Deserialization("Failed to deserialize theta_prime1".to_string()),
         )?;
         idx += 48;
 
-        let theta_prime2_bytes: [u8; 48] = bytes[idx..idx+48].try_into().unwrap();
+        let theta_prime2_bytes: [u8; 48] = bytes[idx..idx + 48].try_into().unwrap();
         let theta_prime2 = try_deserialize_g1_projective(
             &theta_prime2_bytes,
             DivisibleEcashError::Deserialization("Failed to deserialize theta_prime2".to_string()),
         )?;
         idx += 48;
 
-        let rr_prime_bytes: [u8; 48] = bytes[idx..idx+48].try_into().unwrap();
+        let rr_prime_bytes: [u8; 48] = bytes[idx..idx + 48].try_into().unwrap();
         let rr_prime = try_deserialize_g1_projective(
             &rr_prime_bytes,
             DivisibleEcashError::Deserialization("Failed to deserialize rr_prime".to_string()),
         )?;
         idx += 48;
 
-        let ss_prime_bytes: [u8; 48] = bytes[idx..idx+48].try_into().unwrap();
+        let ss_prime_bytes: [u8; 48] = bytes[idx..idx + 48].try_into().unwrap();
         let ss_prime = try_deserialize_g1_projective(
             &ss_prime_bytes,
             DivisibleEcashError::Deserialization("Failed to deserialize ss_prime".to_string()),
         )?;
         idx += 48;
 
-        let tt_prime_bytes: [u8; 96] = bytes[idx..idx+96].try_into().unwrap();
+        let tt_prime_bytes: [u8; 96] = bytes[idx..idx + 96].try_into().unwrap();
         let tt_prime = try_deserialize_g2_projective(
             &tt_prime_bytes,
             DivisibleEcashError::Deserialization("Failed to deserialize tt_prime".to_string()),
         )?;
         idx += 96;
 
-        let rr_bytes: [u8; 32] = bytes[idx..idx+32].try_into().unwrap();
+        let rr_bytes: [u8; 32] = bytes[idx..idx + 32].try_into().unwrap();
         let rr = try_deserialize_scalar(
             &rr_bytes,
             DivisibleEcashError::Deserialization("Failed to deserialize rr element".to_string()),
         )?;
         idx += 32;
 
-        let vv = u64::from_le_bytes(bytes[idx..idx+8].try_into().unwrap());
+        let vv = u64::from_le_bytes(bytes[idx..idx + 8].try_into().unwrap());
         idx += 8;
 
         // Deserialize the SpendProof struct
         let zk_proof_bytes = &bytes[idx..];
         let zk_proof = SpendProof::try_from(zk_proof_bytes)?;
 
-        Ok(Payment{
+        Ok(Payment {
             kappa,
             sig,
             phi,
@@ -334,7 +373,6 @@ impl Wallet {
         self.l.get()
     }
 
-
     pub fn spend(
         &self,
         params: &Parameters,
@@ -358,21 +396,24 @@ impl Wallet {
         // construct kappa i.e., blinded attributes for show
         let attributes = vec![sk_user.sk, self.v()];
         // compute kappa
-        let kappa = compute_kappa(
-            &grp,
-            &verification_key,
-            &attributes,
-            sign_blinding_factor,
-        );
+        let kappa = compute_kappa(&grp, &verification_key, &attributes, sign_blinding_factor);
 
         let r1 = grp.random_scalar();
         let r2 = grp.random_scalar();
-        let phi = Phi(grp.gen1() * r1, params_u.get_ith_sigma(self.l() as usize) * self.v + params_u.get_ith_eta(vv as usize) * r1);
+        let phi = Phi(
+            grp.gen1() * r1,
+            params_u.get_ith_sigma(self.l() as usize) * self.v
+                + params_u.get_ith_eta(vv as usize) * r1,
+        );
 
         // compute hash of the payment info
         let rr = hash_to_scalar(pay_info.info);
-        let varphi = VarPhi(grp.gen1() * r2, (grp.gen1() * rr) * sk_user.sk + params_u.get_ith_theta(self.l() as usize) * self.v + params_u.get_ith_eta(vv as usize) * r2);
-
+        let varphi = VarPhi(
+            grp.gen1() * r2,
+            (grp.gen1() * rr) * sk_user.sk
+                + params_u.get_ith_theta(self.l() as usize) * self.v
+                + params_u.get_ith_eta(vv as usize) * r2,
+        );
 
         // random value used to compute blinded bases
         let r_varsig1 = grp.random_scalar();
@@ -388,8 +429,10 @@ impl Wallet {
         let psi_g2 = params_u.get_psi_g2();
         let varsig_prime1 = params_u.get_ith_sigma(self.l() as usize) + (psi_g1 * r_varsig1);
         let theta_prime1 = params_u.get_ith_theta(self.l() as usize) + (psi_g1 * r_theta1);
-        let varsig_prime2 = params_u.get_ith_sigma(self.l() as usize + vv as usize - 1) + (psi_g1 * r_varsig2);
-        let theta_prime2 = params_u.get_ith_theta(self.l() as usize + vv as usize - 1) + (psi_g1 * r_theta2);
+        let varsig_prime2 =
+            params_u.get_ith_sigma(self.l() as usize + vv as usize - 1) + (psi_g1 * r_varsig2);
+        let theta_prime2 =
+            params_u.get_ith_theta(self.l() as usize + vv as usize - 1) + (psi_g1 * r_theta2);
 
         let tau_l_vv = params_u.get_ith_sps_sign(self.l() as usize + vv as usize - 1);
         let rr_prime = tau_l_vv.rr + (psi_g1 * r_rr);
@@ -400,11 +443,20 @@ impl Wallet {
         let rho2 = self.v.neg() * r_theta1;
         let rho3 = r_rr * r_tt;
 
-        let pg_varsigpr1_delta = pairing(&varsig_prime1.to_affine(), &params_a.get_ith_delta((vv - 1) as usize).to_affine());
-        let pg_psi0_delta = pairing(&psi_g1.to_affine(), &params_a.get_ith_delta((vv - 1) as usize).to_affine());
+        let pg_varsigpr1_delta = pairing(
+            &varsig_prime1.to_affine(),
+            &params_a.get_ith_delta((vv - 1) as usize).to_affine(),
+        );
+        let pg_psi0_delta = pairing(
+            &psi_g1.to_affine(),
+            &params_a.get_ith_delta((vv - 1) as usize).to_affine(),
+        );
         let pg_varsigpr2_gen2 = pairing(&varsig_prime2.to_affine(), grp.gen2());
         let pg_psi0_gen2 = pairing(&psi_g1.to_affine(), grp.gen2());
-        let pg_thetapr1_delta = pairing(&theta_prime1.to_affine(), &params_a.get_ith_delta((vv - 1) as usize).to_affine());
+        let pg_thetapr1_delta = pairing(
+            &theta_prime1.to_affine(),
+            &params_a.get_ith_delta((vv - 1) as usize).to_affine(),
+        );
         let pg_thetapr2_gen2 = pairing(&theta_prime2.to_affine(), grp.gen2());
         let yy = params_u.get_sps_pk().get_yy();
         let pg_rrprime_yy = pairing(&rr_prime.to_affine(), &yy.to_affine());
@@ -425,7 +477,8 @@ impl Wallet {
 
         let pg_eq1 = pg_varsigpr1_delta - pg_varsigpr2_gen2;
         let pg_eq2 = pg_thetapr1_delta - pg_thetapr2_gen2;
-        let pg_eq3 = pg_rrprime_yy + pg_ssprime_gen2 + pg_varsigpr2_ww1 + pg_thetapr2_ww2 + pg_gen1_zz.neg();
+        let pg_eq3 =
+            pg_rrprime_yy + pg_ssprime_gen2 + pg_varsigpr2_ww1 + pg_thetapr2_ww2 + pg_gen1_zz.neg();
         let pg_eq4 = pg_rr_tt - pg_gen1_gen2;
 
         let instance = SpendInstance {
@@ -511,7 +564,8 @@ impl Payment {
         &self,
         params: &Parameters,
         verification_key: &VerificationKeyAuth,
-        pay_info: &PayInfo) -> Result<bool> {
+        pay_info: &PayInfo,
+    ) -> Result<bool> {
         if bool::from(self.sig.0.is_identity()) {
             return Err(DivisibleEcashError::Spend(
                 "The element h of the signature equals the identity".to_string(),
@@ -549,11 +603,20 @@ impl Payment {
 
         let psi_g1 = params_u.get_psi_g1();
         let psi_g2 = params_u.get_psi_g2();
-        let pg_varsigpr1_delta = pairing(&self.varsig_prime1.to_affine(), &params_a.get_ith_delta((self.vv - 1) as usize).to_affine());
-        let pg_psi0_delta = pairing(&psi_g1.to_affine(), &params_a.get_ith_delta((self.vv - 1) as usize).to_affine());
+        let pg_varsigpr1_delta = pairing(
+            &self.varsig_prime1.to_affine(),
+            &params_a.get_ith_delta((self.vv - 1) as usize).to_affine(),
+        );
+        let pg_psi0_delta = pairing(
+            &psi_g1.to_affine(),
+            &params_a.get_ith_delta((self.vv - 1) as usize).to_affine(),
+        );
         let pg_varsigpr2_gen2 = pairing(&self.varsig_prime2.to_affine(), grp.gen2());
         let pg_psi0_gen2 = pairing(&psi_g1.to_affine(), grp.gen2());
-        let pg_thetapr1_delta = pairing(&self.theta_prime1.to_affine(), &params_a.get_ith_delta((self.vv - 1) as usize).to_affine());
+        let pg_thetapr1_delta = pairing(
+            &self.theta_prime1.to_affine(),
+            &params_a.get_ith_delta((self.vv - 1) as usize).to_affine(),
+        );
         let pg_thetapr2_gen2 = pairing(&self.theta_prime2.to_affine(), grp.gen2());
         let yy = params_u.get_sps_pk().get_yy();
         let pg_rrprime_yy = pairing(&self.rr_prime.to_affine(), &yy.to_affine());
@@ -574,7 +637,8 @@ impl Payment {
 
         let pg_eq1 = pg_varsigpr1_delta - pg_varsigpr2_gen2;
         let pg_eq2 = pg_thetapr1_delta - pg_thetapr2_gen2;
-        let pg_eq3 = pg_rrprime_yy + pg_ssprime_gen2 + pg_varsigpr2_ww1 + pg_thetapr2_ww2 + pg_gen1_zz.neg();
+        let pg_eq3 =
+            pg_rrprime_yy + pg_ssprime_gen2 + pg_varsigpr2_ww1 + pg_thetapr2_ww2 + pg_gen1_zz.neg();
         let pg_eq4 = pg_rr_tt - pg_gen1_gen2;
 
         let instance = SpendInstance {
@@ -603,7 +667,9 @@ impl Payment {
             pg_psi0_psi1,
         };
 
-        Ok(self.zk_proof.verify(&params, &instance, &verification_key, self.vv))
+        Ok(self
+            .zk_proof
+            .verify(&params, &instance, &verification_key, self.vv))
     }
 }
 
@@ -613,10 +679,10 @@ mod tests {
 
     use rand::thread_rng;
 
-    use crate::scheme::{PayInfo, Phi, VarPhi, Wallet};
     use crate::scheme::aggregation::aggregate_verification_keys;
-    use crate::scheme::keygen::{PublicKeyUser, ttp_keygen_authorities, VerificationKeyAuth};
+    use crate::scheme::keygen::{ttp_keygen_authorities, PublicKeyUser, VerificationKeyAuth};
     use crate::scheme::setup::{GroupParameters, Parameters};
+    use crate::scheme::{PayInfo, Phi, VarPhi, Wallet};
     use crate::utils::hash_g1;
 
     #[test]
@@ -629,7 +695,10 @@ mod tests {
 
     #[test]
     fn varphi_to_and_from_bytes() {
-        let varphi = VarPhi(hash_g1("Element 0 of VarPhi"), hash_g1("Element 1 of VarPhi"));
+        let varphi = VarPhi(
+            hash_g1("Element 0 of VarPhi"),
+            hash_g1("Element 1 of VarPhi"),
+        );
         let varphi_bytes = varphi.to_bytes();
         let varphi_from_bytes = VarPhi::from_bytes(&varphi_bytes).unwrap();
         assert_eq!(varphi, varphi_from_bytes);

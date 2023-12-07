@@ -201,12 +201,6 @@ impl EcashVerifier {
         api_clients: Vec<CoconutApiClient>,
         credential: EcashCredential,
     ) -> Result<(), RequestHandlingError> {
-        let req = nym_api_requests::coconut::VerifyCredentialBody::new(
-            credential.clone(),
-            proposal_id,
-            self.nyxd_client.address(),
-        );
-
         for client in api_clients {
             self.cred_sender
                 .unbounded_send(PendingCredential {

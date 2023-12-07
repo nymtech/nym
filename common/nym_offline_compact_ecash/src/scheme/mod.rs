@@ -7,7 +7,7 @@ use getset::{CopyGetters, Getters};
 
 use crate::error::{CompactEcashError, Result};
 use crate::proofs::proof_spend::{SpendInstance, SpendProof, SpendWitness};
-use crate::scheme::keygen::{SecretKeyUser, VerificationKeyAuth, PublicKeyUser};
+use crate::scheme::keygen::{SecretKeyUser, VerificationKeyAuth};
 use crate::scheme::setup::{GroupParameters, Parameters};
 use crate::traits::Bytable;
 use crate::utils::{
@@ -15,8 +15,8 @@ use crate::utils::{
     try_deserialize_g2_projective, try_deserialize_scalar, Signature, SignerIndex,
 };
 use crate::{Attribute, Base58};
-use chrono::{Utc, Timelike};
-use rand::{Rng, thread_rng};
+use chrono::Utc;
+use rand::{thread_rng, Rng};
 
 pub mod aggregation;
 pub mod identify;

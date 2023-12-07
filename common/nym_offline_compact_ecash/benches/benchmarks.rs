@@ -264,7 +264,7 @@ fn bench_compact_ecash(c: &mut Criterion) {
     .unwrap();
 
     // SPENDING PHASE
-    let pay_info = PayInfo { info: [6u8; 32] };
+    let pay_info = PayInfo { payinfo: [6u8; 32] };
     // CLIENT BENCHMARK: spend a single coin from the wallet
     // group.bench_function(
     //     &format!(
@@ -320,7 +320,7 @@ fn bench_compact_ecash(c: &mut Criterion) {
     let current_l = aggr_wallet.l.get();
     aggr_wallet.l.set(current_l - case.spend_vv);
 
-    let pay_info2 = PayInfo { info: [7u8; 32] };
+    let pay_info2 = PayInfo { payinfo: [7u8; 32] };
     let (payment2, _) = aggr_wallet
         .spend(
             &params,

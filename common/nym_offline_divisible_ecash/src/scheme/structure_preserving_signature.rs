@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 use std::ops::Neg;
 
-use bls12_381::{G1Projective, G2Projective, Gt, pairing, Scalar};
+use bls12_381::{pairing, G1Projective, G2Projective, Gt, Scalar};
 use group::Curve;
 
 use crate::scheme::setup::GroupParameters;
@@ -32,7 +32,12 @@ impl SPSSecretKey {
         self.y
     }
 
-    pub fn sign(&self, grp: &GroupParameters, messages_a: Option<&[G1Projective]>, messages_b: Option<&[G2Projective]>) -> SPSSignature {
+    pub fn sign(
+        &self,
+        grp: &GroupParameters,
+        messages_a: Option<&[G1Projective]>,
+        messages_b: Option<&[G2Projective]>,
+    ) -> SPSSignature {
         let r = grp.random_scalar();
         let rr = grp.gen1() * r;
         let ss: G1Projective = match messages_a {
@@ -42,9 +47,12 @@ impl SPSSecretKey {
                     .zip(self.ws.iter())
                     .map(|(m_i, w_i)| m_i * w_i.neg())
                     .collect();
-                grp.gen1() * (self.z() - r * self.y()) + prod_s.iter().fold(G1Projective::identity(), |acc, elem| acc + elem)
+                grp.gen1() * (self.z() - r * self.y())
+                    + prod_s
+                        .iter()
+                        .fold(G1Projective::identity(), |acc, elem| acc + elem)
             }
-            None => grp.gen1() * (self.z() - r * self.y())
+            None => grp.gen1() * (self.z() - r * self.y()),
         };
         let tt = match messages_b {
             Some(msgs_b) => {
@@ -53,26 +61,32 @@ impl SPSSecretKey {
                     .zip(self.us.iter())
                     .map(|(m_i, u_i)| m_i * u_i.neg())
                     .collect();
-                (grp.gen2() + prod_t.iter().fold(G2Projective::identity(), |acc, elem| acc + elem)) * r.invert().unwrap()
+                (grp.gen2()
+                    + prod_t
+                        .iter()
+                        .fold(G2Projective::identity(), |acc, elem| acc + elem))
+                    * r.invert().unwrap()
             }
-            None => grp.gen2() * r.invert().unwrap()
+            None => grp.gen2() * r.invert().unwrap(),
         };
 
-        SPSSignature
-        {
-            rr,
-            ss,
-            tt,
-        }
+        SPSSignature { rr, ss, tt }
     }
 }
 
 impl SPSVerificationKey {
-    pub fn verify(&self, grp: &GroupParameters, signature: SPSSignature, messages_a: &[G1Projective], messages_b: Option<&[G2Projective]>) -> bool {
+    pub fn verify(
+        &self,
+        grp: &GroupParameters,
+        signature: SPSSignature,
+        messages_a: &[G1Projective],
+        messages_b: Option<&[G2Projective]>,
+    ) -> bool {
         let pg_rr_yy = pairing(&signature.rr.to_affine(), &self.yy.to_affine());
         let pg_ss_g2 = pairing(&signature.ss.to_affine(), grp.gen2());
         let pg_g1_zz = pairing(grp.gen1(), &self.zz.to_affine());
-        let pg_ma_ww: Vec<Gt> = messages_a.iter()
+        let pg_ma_ww: Vec<Gt> = messages_a
+            .iter()
             .zip(self.wws.iter())
             .map(|(ma, ww)| pairing(&ma.to_affine(), &ww.to_affine()))
             .collect();
@@ -90,7 +104,9 @@ impl SPSVerificationKey {
             Some(msgs_b) => {
                 let pg_rr_tt = pairing(&signature.rr.to_affine(), &signature.tt.to_affine());
                 let pg_g1_g2 = pairing(grp.gen1(), grp.gen2());
-                let pg_uu_mb: Vec<Gt> = self.uus.iter()
+                let pg_uu_mb: Vec<Gt> = self
+                    .uus
+                    .iter()
                     .zip(msgs_b.iter())
                     .map(|(uu, mb)| pairing(&uu.to_affine(), &mb.to_affine()))
                     .collect();
@@ -110,7 +126,8 @@ impl SPSVerificationKey {
             None => {
                 let pg_sign_rr_yy = pairing(&signature.rr.to_affine(), &self.yy.to_affine());
                 let pg_sign_ss_gen2 = pairing(&signature.ss.to_affine(), &grp.gen2());
-                let pg_ma_wws: Vec<Gt> = messages_a.iter()
+                let pg_ma_wws: Vec<Gt> = messages_a
+                    .iter()
                     .zip(self.wws.iter())
                     .map(|(ma, ww)| pairing(&ma.to_affine(), &ww.to_affine()))
                     .collect();
@@ -128,7 +145,9 @@ impl SPSVerificationKey {
                 assert_eq!(pg_sign_rr_yy + pg_sign_ss_gen2 + prod_pg_ma_wws, pg_gen1_zz);
                 assert_eq!(pg_rr_tt, pg_gen1_gen2);
 
-                if pg_sign_rr_yy + pg_sign_ss_gen2 + prod_pg_ma_wws == pg_gen1_zz && pg_rr_tt == pg_gen1_gen2 {
+                if pg_sign_rr_yy + pg_sign_ss_gen2 + prod_pg_ma_wws == pg_gen1_zz
+                    && pg_rr_tt == pg_gen1_gen2
+                {
                     true
                 } else {
                     false
@@ -139,11 +158,17 @@ impl SPSVerificationKey {
         return result;
     }
 
-    pub fn get_ith_ww(&self, idx: usize) -> &G2Projective { return self.wws.get(idx).unwrap(); }
+    pub fn get_ith_ww(&self, idx: usize) -> &G2Projective {
+        return self.wws.get(idx).unwrap();
+    }
 
-    pub fn get_zz(&self) -> &G2Projective { return &self.zz; }
+    pub fn get_zz(&self) -> &G2Projective {
+        return &self.zz;
+    }
 
-    pub fn get_yy(&self) -> &G2Projective { return &self.yy; }
+    pub fn get_yy(&self) -> &G2Projective {
+        return &self.yy;
+    }
 }
 
 pub struct SPSKeyPair {
@@ -187,7 +212,6 @@ pub struct SPSSignature {
     pub tt: G2Projective,
 }
 
-
 #[cfg(test)]
 mod tests {
     use rand::thread_rng;
@@ -204,7 +228,9 @@ mod tests {
         let msgs_a = vec![hash_g1("messageA1"), hash_g1("messageA2")];
         let msgs_b = vec![hash_g2("messageB1"), hash_g2("messageB2")];
         let signature = sps_keypair.sps_sk.sign(&grp, Some(&msgs_a), Some(&msgs_b));
-        assert!(sps_keypair.sps_vk.verify(&grp, signature, &msgs_a, Some(&msgs_b)));
+        assert!(sps_keypair
+            .sps_vk
+            .verify(&grp, signature, &msgs_a, Some(&msgs_b)));
     }
 
     #[test]

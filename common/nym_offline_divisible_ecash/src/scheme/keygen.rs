@@ -9,7 +9,10 @@ use group::Curve;
 use crate::error::{DivisibleEcashError, Result};
 use crate::scheme::aggregation::aggregate_verification_keys;
 use crate::scheme::setup::{GroupParameters, Parameters};
-use crate::utils::{Polynomial, SignerIndex, try_deserialize_g1_projective, try_deserialize_g2_projective, try_deserialize_scalar, try_deserialize_scalar_vec};
+use crate::utils::{
+    try_deserialize_g1_projective, try_deserialize_g2_projective, try_deserialize_scalar,
+    try_deserialize_scalar_vec, Polynomial, SignerIndex,
+};
 
 #[derive(Eq, Debug, PartialEq, Clone)]
 pub struct SecretKeyAuth {
@@ -236,13 +239,13 @@ impl<'a> Mul<Scalar> for &'a VerificationKeyAuth {
 }
 
 impl<T> Sum<T> for VerificationKeyAuth
-    where
-        T: Borrow<VerificationKeyAuth>,
+where
+    T: Borrow<VerificationKeyAuth>,
 {
     #[inline]
     fn sum<I>(iter: I) -> Self
-        where
-            I: Iterator<Item=T>,
+    where
+        I: Iterator<Item = T>,
     {
         let mut peekable = iter.peekable();
         let head_attributes = match peekable.peek() {
@@ -319,7 +322,6 @@ pub struct KeyPairUser {
     public_key: PublicKeyUser,
 }
 
-
 #[derive(Eq, PartialEq, Debug, Clone)]
 pub struct KeyPairAuth {
     secret_key: SecretKeyAuth,
@@ -366,11 +368,11 @@ impl KeyPairUser {
     }
 }
 
-
 pub fn ttp_keygen_authorities(
     params: &Parameters,
     threshold: u64,
-    num_authorities: u64) -> Result<Vec<KeyPairAuth>> {
+    num_authorities: u64,
+) -> Result<Vec<KeyPairAuth>> {
     if threshold == 0 {
         return Err(DivisibleEcashError::Setup(
             "Tried to generate threshold keys with a 0 threshold value".to_string(),
@@ -422,8 +424,12 @@ pub fn ttp_keygen_authorities(
 
 pub fn ttp_keygen_users(params: &Parameters) -> KeyPairUser {
     let grp = params.get_grp();
-    let sk_user = SecretKeyUser { sk: grp.random_scalar() };
-    let pk_user = PublicKeyUser { pk: grp.gen1() * sk_user.sk };
+    let sk_user = SecretKeyUser {
+        sk: grp.random_scalar(),
+    };
+    let pk_user = PublicKeyUser {
+        pk: grp.gen1() * sk_user.sk,
+    };
 
     KeyPairUser {
         secret_key: sk_user,

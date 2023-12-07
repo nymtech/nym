@@ -7,18 +7,20 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-chrono = "0.4.19"
-#bls12_381 = { version = "0.5", default-features = false, features = ["pairings", "alloc", "experimental"] }
-bls12_381 = { path = "/Users/simon/Documents/Nym/github/andrew_bls12_381", default-features = false, features = ["alloc", "pairings", "experimental", "zeroize"] }
-itertools = "0.10"
-digest = "0.9"
-rand = "0.8"
-thiserror = "1.0"
-sha2 = "0.9"
+bls12_381 = { workspace = true }
 bs58 = "0.4.0"
-serde = "1.0.189"
+chrono = "0.4.19"
+digest = "0.9"
+ff = { workspace = true }
 getset = "0.1.1"
-zeroize = "1.6.0"
+group = { workspace = true }
+itertools = "0.10"
+rand = "0.8"
+serde = "1.0.189"
+sha2 = "0.9"
+thiserror = "1.0"
+zeroize = { workspace = true }
+
 
 # internal
 nym-pemstore = { path = "../pemstore", version = "0.3.0" }
@@ -26,13 +28,6 @@ nym-pemstore = { path = "../pemstore", version = "0.3.0" }
 [dev-dependencies]
 criterion = { version = "0.3", features = ["html_reports"] }
 
-[dependencies.ff]
-version = "0.11"
-default-features = false
-
-[dependencies.group]
-version = "0.11"
-default-features = false
 
 [[bench]]
 name = "benchmarks"

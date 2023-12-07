@@ -8,7 +8,9 @@ edition = "2021"
 
 [dependencies]
 #bls12_381 = { git = "https://github.com/jstuczyn/bls12_381", branch = "gt-serialisation", default-features = false, features = ["alloc", "pairings", "experimental", "zeroize"] }
-bls12_381 = { path = "/Users/simon/Documents/Nym/github/andrew_bls12_381", default-features = false, features = ["alloc", "pairings", "experimental", "zeroize"] }
+bls12_381 = { workspace = true }
+ff = { workspace = true }
+group = { workspace = true }
 itertools = "0.10"
 digest = "0.9"
 rand = "0.8"
@@ -18,14 +20,6 @@ bs58 = "0.4.0"
 
 [dev-dependencies]
 criterion = { version = "0.3", features = ["html_reports"] }
-
-[dependencies.ff]
-version = "0.11"
-default-features = false
-
-[dependencies.group]
-version = "0.11"
-default-features = false
 
 [[bench]]
 name = "benchmarks"

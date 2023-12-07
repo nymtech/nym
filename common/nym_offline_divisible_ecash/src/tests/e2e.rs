@@ -1,12 +1,16 @@
 use rand::thread_rng;
 
 use crate::error::DivisibleEcashError;
-use crate::scheme::{PayInfo, Payment};
-use crate::scheme::aggregation::{aggregate_signatures, aggregate_verification_keys, aggregate_wallets};
+use crate::scheme::aggregation::{
+    aggregate_signatures, aggregate_verification_keys, aggregate_wallets,
+};
 use crate::scheme::identification::identify;
-use crate::scheme::keygen::{PublicKeyUser, SecretKeyUser, ttp_keygen_authorities, VerificationKeyAuth};
+use crate::scheme::keygen::{
+    ttp_keygen_authorities, PublicKeyUser, SecretKeyUser, VerificationKeyAuth,
+};
 use crate::scheme::setup::{GroupParameters, Parameters};
 use crate::scheme::withdrawal::{issue, issue_verify, withdrawal_request};
+use crate::scheme::{PayInfo, Payment};
 
 #[test]
 // Test wa full end to end flow of withdrawal request, issuance,
@@ -43,7 +47,13 @@ fn main() -> Result<(), DivisibleEcashError> {
             pk_user.clone(),
             &auth_keypair.secret_key(),
         )?;
-        let partial_wallet = issue_verify(&grp, &auth_keypair.verification_key(), &sk_user, &blind_signature, &req_info)?;
+        let partial_wallet = issue_verify(
+            &grp,
+            &auth_keypair.verification_key(),
+            &sk_user,
+            &blind_signature,
+            &req_info,
+        )?;
         partial_wallets.push(partial_wallet);
     }
 
@@ -51,10 +61,13 @@ fn main() -> Result<(), DivisibleEcashError> {
     let mut wallet = aggregate_wallets(&grp, &verification_key, &sk_user, &partial_wallets)?;
 
     let pay_info = PayInfo { info: [67u8; 32] };
-    let (payment, wallet) = wallet.spend(&params, &verification_key, &sk_user, &pay_info, 10, false)?;
+    let (payment, wallet) =
+        wallet.spend(&params, &verification_key, &sk_user, &pay_info, 10, false)?;
 
-    // SPEND VERIFICATION 
-    assert!(payment.spend_verify(&params, &verification_key, &pay_info).unwrap());
+    // SPEND VERIFICATION
+    assert!(payment
+        .spend_verify(&params, &verification_key, &pay_info)
+        .unwrap());
     let payment_bytes = payment.to_bytes();
     let payment2 = Payment::try_from(&payment_bytes[..]).unwrap();
     assert_eq!(payment, payment2);

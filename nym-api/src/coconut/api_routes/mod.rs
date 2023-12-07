@@ -34,6 +34,7 @@ pub async fn post_blind_sign(
     trace!("body: {:?}", blind_sign_request_body);
 
     // early check: does the request have the expected number of public attributes?
+    debug!("performing basic request validation");
     if blind_sign_request_body.public_attributes_plain.len()
         != BandwidthVoucher::PUBLIC_ATTRIBUTES as usize
     {
@@ -41,6 +42,10 @@ pub async fn post_blind_sign(
     }
 
     // check if we already issued a credential for this tx hash
+    debug!(
+        "checking if we have already issued credential for this tx_hash (hash: {})",
+        blind_sign_request_body.tx_hash
+    );
     if let Some(blinded_signature) = state
         .already_issued(blind_sign_request_body.tx_hash)
         .await?
@@ -49,23 +54,28 @@ pub async fn post_blind_sign(
     }
 
     // check if we have the signing key available
+    debug!("checking if we actually have coconut keys derived...");
     let keypair_guard = state.coconut_keypair.get().await;
     let Some(signing_key) = keypair_guard.as_ref() else {
         return Err(CoconutError::KeyPairNotDerivedYet);
     };
 
     // get the transaction details of the claimed deposit
+    debug!("getting transaction details from the chain");
     let tx = state
         .get_transaction(blind_sign_request_body.tx_hash)
         .await?;
 
     // check validity of the request
+    debug!("fully validating received request");
     state.validate_request(&blind_sign_request_body, tx).await?;
 
     // produce the partial signature
+    debug!("producing the partial credential");
     let blinded_signature = blind_sign(&blind_sign_request_body, signing_key.secret_key())?;
 
     // store the information locally
+    debug!("storing the issued credential in the database");
     state
         .store_issued_credential(blind_sign_request_body.into_inner(), &blinded_signature)
         .await?;

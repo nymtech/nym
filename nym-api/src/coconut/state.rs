@@ -138,6 +138,7 @@ impl State {
         self.storage
             .update_epoch_credentials_entry(current_epoch, credential_id)
             .await?;
+        debug!("the stored credential has id {credential_id}");
 
         Ok(())
     }

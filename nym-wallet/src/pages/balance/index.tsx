@@ -13,7 +13,12 @@ export const Balance = () => {
   const { userBalance, clientDetails, network } = useContext(AppContext);
 
   useEffect(() => {
-    userBalance.fetchBalance();
+    const interval = setInterval(() => {
+      userBalance.fetchBalance();
+      userBalance.fetchTokenAllocation();
+    }, 10000);
+
+    return () => clearInterval(interval);
   }, []);
 
   const handleShowTransferModal = async () => {

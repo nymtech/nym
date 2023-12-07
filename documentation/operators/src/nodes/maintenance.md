@@ -209,7 +209,7 @@ In case it didn't work for your distribution, see how to build `tmux` from [vers
 
 **Running tmux**
 
-No when you installed tmux on your VPS, let's run a Mix Node on tmux, which allows you to detach your terminal and let your `<NODE>` run on its own on the VPS.
+Now you have installed tmux on your VPS, let's run a Mix Node on tmux, which allows you to detach your terminal and let your `<NODE>` run on its own on the VPS.
 
 * Pause your `<NODE>`
 * Start tmux with the command 
@@ -299,7 +299,27 @@ WantedBy=multi-user.target
 * Put the above file onto your system at `/etc/systemd/system/nym-network-requester.service` and follow the [next steps](maintenance.md#following-steps-for-nym-nodes-running-as-systemd-service).
 
 ##### For Nymvisor
-TODO 
+> Since you're running your node via a Nymvisor instance, as well as creating a Nymvisor `.service` file, you will also want to **stop any previous node automation process you already have running**.
+
+```
+[Unit]
+Description=Nymvisor <VERSION>
+StartLimitInterval=350
+StartLimitBurst=10
+
+[Service]
+User=nym # replace this with whatever user you wish
+LimitNOFILE=65536
+ExecStart=/home/<USER>/<PATH>/nymvisor run run --id <NODE_ID>
+KillSignal=SIGINT
+Restart=on-failure
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target
+```
+
+* Put the above file onto your system at `/etc/systemd/system/nymvisor.service` and follow the [next steps](maintenance.md#following-steps-for-nym-nodes-running-as-systemd-service).
 
 #### Following steps for Nym nodes running as `systemd` service
 
@@ -329,6 +349,9 @@ systemctl enable nym-gateway.service
 
 # for Network Requester
 systemctl enable nym-network-requester.service
+
+# for Nymvisor 
+systemctl enable nymvisor.service
 ```
 
 Start your `<NODE>` as a `systemd` service:
@@ -342,6 +365,9 @@ service nym-gateway start
 
 # for Network Requester
 service nym-network-requester.service
+
+# for Nymvisor
+service nymvisor.service start 
 ```
 
 This will cause your `<NODE>` to start at system boot time. If you restart your machine, your `<NODE>` will come back up automatically.

@@ -84,7 +84,7 @@ Additionally
 
 #### Add Network Requester to an existing Gateway
 
-If you already [upgraded](./maintenance.md#upgrading-your-node) your Gateway to the [latest version](./gateway-setup.md#current-version) and initialised without a Network Requester, you can easily change its functionality to Exit Gateway with a command `setup-network-requester`.
+If you already [upgraded](./manual-upgrade.md) your Gateway to the [latest version](./gateway-setup.md#current-version) and initialised without a Network Requester, you can easily change its functionality to Exit Gateway with a command `setup-network-requester`.
 
 See the options:
 

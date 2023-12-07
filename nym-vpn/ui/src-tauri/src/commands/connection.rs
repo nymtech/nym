@@ -9,7 +9,7 @@ use crate::{
     error::{CmdError, CmdErrorSource},
     states::{
         app::{ConnectionState, VpnMode},
-        SharedAppData, SharedAppState,
+        NymVPNState, SharedAppData, SharedAppState,
     },
 };
 
@@ -53,6 +53,7 @@ pub async fn get_connection_state(
 pub async fn connect(
     app: tauri::AppHandle,
     state: State<'_, SharedAppState>,
+    nymvpn_state: State<'_, NymVPNState>,
 ) -> Result<ConnectionState, CmdError> {
     debug!("connect");
     let mut app_state = state.lock().await;
@@ -75,6 +76,7 @@ pub async fn connect(
 
     // TODO fake some delay to establish connection
     let app_state_cloned = state.inner().clone();
+    let nymvpn_state_cloned = nymvpn_state.inner().clone();
     let task = tokio::spawn(async move {
         app.emit_all(
             EVENT_CONNECTION_PROGRESS,
@@ -99,8 +101,6 @@ pub async fn connect(
             },
         )
         .ok();
-        sleep(Duration::from_millis(200)).await;
-        trace!("connected");
         let now = OffsetDateTime::now_utc();
         let mut state = app_state_cloned.lock().await;
         state.state = ConnectionState::Connected;
@@ -115,6 +115,8 @@ pub async fn connect(
             ),
         )
         .ok();
+        trace!("running nymvpn lib");
+        nymvpn_state_cloned.lock().await.run().await;
     });
 
     let _ = task.await;

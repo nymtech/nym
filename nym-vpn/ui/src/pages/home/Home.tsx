@@ -18,15 +18,25 @@ function Home() {
 
   const handleClick = async () => {
     if (state.state === 'Connected') {
-      dispatch({ type: 'disconnect' });
-      invoke('disconnect').then((result) => {
-        console.log(result);
-      });
+      invoke('disconnect')
+        .then((result) => {
+          console.log(result);
+          dispatch({ type: 'disconnect' });
+        })
+        .catch((e) => {
+          console.log(e);
+          dispatch({ type: 'set-error', error: e });
+        });
     } else if (state.state === 'Disconnected') {
-      dispatch({ type: 'connect' });
-      invoke('connect').then((result) => {
-        console.log(result);
-      });
+      invoke('connect')
+        .then((result) => {
+          console.log(result);
+          dispatch({ type: 'connect' });
+        })
+        .catch((e) => {
+          console.log(e);
+          dispatch({ type: 'set-error', error: e });
+        });
     }
   };
 

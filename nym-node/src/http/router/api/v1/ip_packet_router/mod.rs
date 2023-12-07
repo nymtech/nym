@@ -14,12 +14,11 @@ pub struct Config {
 }
 
 pub(crate) fn routes<S: Send + Sync + 'static + Clone>(config: Config) -> Router<S> {
-    Router::new()
-        .route(
-            "/",
-            get({
-                let ip_packet_router_details = config.details;
-                move |query| root::root_ip_packet_router(ip_packet_router_details, query)
-            }),
-        )
+    Router::new().route(
+        "/",
+        get({
+            let ip_packet_router_details = config.details;
+            move |query| root::root_ip_packet_router(ip_packet_router_details, query)
+        }),
+    )
 }

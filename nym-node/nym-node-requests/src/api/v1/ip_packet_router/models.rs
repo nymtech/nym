@@ -16,4 +16,3 @@ pub struct IpPacketRouter {
     /// Nym address of this network requester.
     pub address: String,
 }
-

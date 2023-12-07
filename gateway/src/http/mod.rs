@@ -130,18 +130,16 @@ fn load_ip_packet_router_details(
         "gateway identity",
     )?;
 
-    Ok(
-        api_requests::v1::ip_packet_router::models::IpPacketRouter {
-            encoded_identity_key: identity_public_key.to_base58_string(),
-            encoded_x25519_key: dh_public_key.to_base58_string(),
-            address: Recipient::new(
-                identity_public_key,
-                dh_public_key,
-                gateway_identity_public_key,
-            )
-            .to_string(),
-        },
-    )
+    Ok(api_requests::v1::ip_packet_router::models::IpPacketRouter {
+        encoded_identity_key: identity_public_key.to_base58_string(),
+        encoded_x25519_key: dh_public_key.to_base58_string(),
+        address: Recipient::new(
+            identity_public_key,
+            dh_public_key,
+            gateway_identity_public_key,
+        )
+        .to_string(),
+    })
 }
 
 pub(crate) struct HttpApiBuilder<'a> {

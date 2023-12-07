@@ -18,7 +18,7 @@ use nym_coconut_bandwidth_contract_common::spend_credential::{
 };
 use nym_coconut_dkg_common::types::EpochId;
 use nym_credentials::coconut::bandwidth::BandwidthVoucher;
-use nym_validator_client::nyxd::{Coin, Fee};
+use nym_validator_client::nyxd::Coin;
 use rocket::serde::json::Json;
 use rocket::State as RocketState;
 

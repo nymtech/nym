@@ -169,7 +169,7 @@ impl Config {
             self.coconut_signer.enabled = enable_zk_nym
         }
         if let Some(announce_address) = args.announce_address {
-            self.coconut_signer.announce_address = announce_address
+            self.coconut_signer.announce_address = Some(announce_address)
         }
         if let Some(monitor_credentials_mode) = args.monitor_credentials_mode {
             self.network_monitor.debug.disabled_credentials_mode = !monitor_credentials_mode
@@ -524,7 +524,8 @@ pub struct CoconutSigner {
     /// Specifies whether rewarding service is enabled in this process.
     pub enabled: bool,
 
-    pub announce_address: Url,
+    #[serde(deserialize_with = "de_maybe_stringified")]
+    pub announce_address: Option<Url>,
 
     pub storage_paths: CoconutSignerPaths,
 
@@ -534,17 +535,9 @@ pub struct CoconutSigner {
 
 impl CoconutSigner {
     pub fn new_default<P: AsRef<Path>>(id: P) -> Self {
-        let default_validator: Url = DEFAULT_LOCAL_VALIDATOR
-            .parse()
-            .expect("default local validator is malformed!");
-        let mut default_announce_address = default_validator;
-        default_announce_address
-            .set_port(Some(DEFAULT_NYM_API_PORT))
-            .expect("default local validator is malformed!");
-
         CoconutSigner {
             enabled: false,
-            announce_address: default_announce_address,
+            announce_address: None,
             storage_paths: CoconutSignerPaths::new_default(id),
             debug: Default::default(),
         }

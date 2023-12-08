@@ -77,7 +77,7 @@ impl GatewayBond {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct GatewayNodeDetailsResponse {
     pub identity_key: String,
     pub sphinx_key: String,
@@ -88,6 +88,7 @@ pub struct GatewayNodeDetailsResponse {
     pub data_store: String,
 
     pub network_requester: Option<GatewayNetworkRequesterDetails>,
+    pub ip_packet_router: Option<GatewayIpPacketRouterDetails>,
 }
 
 impl fmt::Display for GatewayNodeDetailsResponse {
@@ -98,7 +99,7 @@ impl fmt::Display for GatewayNodeDetailsResponse {
         writeln!(f, "bind address: {}", self.bind_address)?;
         writeln!(
             f,
-            "mix Port: {}, clients port: {}",
+            "mix port: {}, clients port: {}",
             self.mix_port, self.clients_port
         )?;
 
@@ -107,11 +108,15 @@ impl fmt::Display for GatewayNodeDetailsResponse {
         if let Some(nr) = &self.network_requester {
             nr.fmt(f)?;
         }
+
+        if let Some(ipr) = &self.ip_packet_router {
+            ipr.fmt(f)?;
+        }
         Ok(())
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct GatewayNetworkRequesterDetails {
     pub enabled: bool,
 
@@ -149,7 +154,7 @@ impl fmt::Display for GatewayNetworkRequesterDetails {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct GatewayIpPacketRouterDetails {
     pub enabled: bool,
 
@@ -164,7 +169,7 @@ pub struct GatewayIpPacketRouterDetails {
 
 impl fmt::Display for GatewayIpPacketRouterDetails {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        writeln!(f, "IP packet router:")?;
+        writeln!(f, "ip packet router:")?;
         writeln!(f, "\tenabled: {}", self.enabled)?;
         writeln!(f, "\tconfig path: {}", self.config_path)?;
 

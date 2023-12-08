@@ -232,7 +232,7 @@ laddr = "tcp://0.0.0.0:26656"
 ```
 # Sandbox testnet
 cors_allowed_origins = ["*"]
-persistent_peers = "26f7782aff699457c8e6dd9a845e5054c9b0707e@rpc.sandbox.nymtech.net:26666"
+persistent_peers = "26f7782aff699457c8e6dd9a845e5054c9b0707e@:3.72.19.120:26656"
 laddr = "tcp://0.0.0.0:26656"
 ```
 

@@ -52,7 +52,7 @@ export const SendModal = ({ onClose, hasStorybookStyles }: { onClose: () => void
         if (userFees) {
           await setFeeManually(userFees);
         } else {
-          await getFee(simulateSend, { address: toAddress, amount });
+          await getFee(simulateSend, { address: toAddress, amount, memo });
         }
         setModal('send details');
       } catch (e) {

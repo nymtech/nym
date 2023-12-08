@@ -30,13 +30,13 @@ pub enum CoconutError {
     #[error(transparent)]
     SerdeJsonError(#[from] serde_json::Error),
 
-    #[error("Could not parse Ed25519 data: {0}")]
+    #[error("could not parse Ed25519 data: {0}")]
     Ed25519ParseError(#[from] Ed25519RecoveryError),
 
-    #[error("Could not parse X25519 data: {0}")]
+    #[error("could not parse X25519 data: {0}")]
     X25519ParseError(#[from] KeyRecoveryError),
 
-    #[error("Could not parse tx hash in request body: {source}")]
+    #[error("could not parse tx hash in request body: {source}")]
     TxHashParseError {
         #[source]
         source: TendermintError,
@@ -49,34 +49,34 @@ pub enum CoconutError {
         source: NyxdError,
     },
 
-    #[error("Nyxd error: {0}")]
+    #[error("nyxd error: {0}")]
     NyxdError(#[from] NyxdError),
 
-    #[error("Validator client error: {0}")]
+    #[error("validator client error: {0}")]
     ValidatorClientError(#[from] nym_validator_client::ValidatorClientError),
 
-    #[error("Coconut internal error: {0}")]
+    #[error("coconut internal error: {0}")]
     CoconutInternalError(#[from] nym_coconut::CoconutError),
 
-    #[error("Could not find a deposit event in the transaction provided")]
+    #[error("could not find a deposit event in the transaction provided")]
     DepositEventNotFound,
 
-    #[error("Could not find the deposit value in the event")]
+    #[error("could not find the deposit value in the event")]
     DepositValueNotFound,
 
-    #[error("Could not find the deposit info in the event")]
+    #[error("could not find the deposit info in the event")]
     DepositInfoNotFound,
 
-    #[error("Could not find the verification key in the event")]
+    #[error("could not find the verification key in the event")]
     DepositVerifKeyNotFound,
 
-    #[error("Could not find the encryption key in the event")]
+    #[error("could not find the encryption key in the event")]
     DepositEncrKeyNotFound,
 
-    #[error("Signature didn't verify correctly")]
+    #[error("signature didn't verify correctly")]
     SignatureVerificationError(#[from] SignatureError),
 
-    #[error("Inconsistent public attributes")]
+    #[error("inconsistent public attributes")]
     InconsistentPublicAttributes,
 
     #[error("the provided deposit value is inconsistent. got '{request}' while the value on chain is '{on_chain}'")]
@@ -85,44 +85,44 @@ pub enum CoconutError {
     #[error("the provided deposit info is inconsistent. got '{request}' while the value on chain is '{on_chain}'")]
     InconsistentDepositInfo { request: String, on_chain: String },
 
-    #[error("Public attributes in request differ from the ones in deposit: Expected {0}, got {1}")]
+    #[error("public attributes in request differ from the ones in deposit: Expected {0}, got {1}")]
     DifferentPublicAttributes(String, String),
 
-    #[error("Error in coconut interface: {0}")]
+    #[error("error in coconut interface: {0}")]
     CoconutInterfaceError(#[from] nym_coconut_interface::error::CoconutInterfaceError),
 
-    #[error("Storage error: {0}")]
+    #[error("storage error: {0}")]
     StorageError(#[from] NymApiStorageError),
 
-    #[error("Credentials error: {0}")]
+    #[error("credentials error: {0}")]
     CredentialsError(#[from] nym_credentials::error::Error),
 
-    #[error("Incorrect credential proposal description: {reason}")]
+    #[error("incorrect credential proposal description: {reason}")]
     IncorrectProposal { reason: String },
 
-    #[error("Invalid status of credential: {status}")]
+    #[error("invalid status of credential: {status}")]
     InvalidCredentialStatus { status: String },
 
     #[error("DKG error: {0}")]
     DkgError(#[from] DkgError),
 
-    #[error("Failed to recover assigned node index: {reason}")]
+    #[error("failed to recover assigned node index: {reason}")]
     NodeIndexRecoveryError { reason: String },
 
-    #[error("Unrecoverable state: {reason}")]
+    #[error("unrecoverable state: {reason}")]
     UnrecoverableState { reason: String },
 
     #[error("DKG has not finished yet in order to derive the coconut key")]
     KeyPairNotDerivedYet,
 
-    #[error("The coconut keypair is corrupted")]
+    #[error("the coconut keypair is corrupted")]
     CorruptedCoconutKeyPair,
 
-    #[error("There was a problem with the proposal id: {reason}")]
+    #[error("there was a problem with the proposal id: {reason}")]
     ProposalIdError { reason: String },
 
     // I guess we should make this one a bit more detailed
-    #[error("The provided query arguments were invalid")]
+    #[error("the provided query arguments were invalid")]
     InvalidQueryArguments,
 }
 

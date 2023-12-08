@@ -62,6 +62,7 @@ export function mockTauriIPC() {
           monitoring: false,
           autoconnect: false,
           killswitch: false,
+          entry_selector: false,
           ui_theme: 'Dark',
           vpn_mode: 'TwoHop',
           entry_node: {

@@ -17,6 +17,7 @@ pub struct AppData {
     pub monitoring: Option<bool>,
     pub autoconnect: Option<bool>,
     pub killswitch: Option<bool>,
+    pub entry_selector: Option<bool>,
     pub ui_theme: Option<UiTheme>,
     pub vpn_mode: Option<VpnMode>,
     pub entry_node: Option<NodeConfig>,

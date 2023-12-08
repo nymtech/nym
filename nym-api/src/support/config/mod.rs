@@ -29,7 +29,6 @@ mod template;
 mod upgrade_helpers;
 
 pub const DEFAULT_LOCAL_VALIDATOR: &str = "http://localhost:26657";
-pub const DEFAULT_NYM_API_PORT: u16 = 8080;
 
 pub const DEFAULT_DKG_CONTRACT_POLLING_RATE: Duration = Duration::from_secs(10);
 

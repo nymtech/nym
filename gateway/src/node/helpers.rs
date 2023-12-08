@@ -73,39 +73,39 @@ pub(crate) fn node_details(config: &Config) -> Result<GatewayNodeDetailsResponse
             None
         };
 
-    let ip_packet_router =
-        if let Some(nr_cfg_path) = &config.storage_paths.ip_packet_router_config {
-            let cfg = load_ip_packet_router_config(&config.gateway.id, nr_cfg_path)?;
+    let ip_packet_router = if let Some(nr_cfg_path) = &config.storage_paths.ip_packet_router_config
+    {
+        let cfg = load_ip_packet_router_config(&config.gateway.id, nr_cfg_path)?;
 
-            let nr_identity_public_key: identity::PublicKey = load_public_key(
-                &cfg.storage_paths.common_paths.keys.public_identity_key_file,
-                "ip packet router identity",
-            )?;
+        let nr_identity_public_key: identity::PublicKey = load_public_key(
+            &cfg.storage_paths.common_paths.keys.public_identity_key_file,
+            "ip packet router identity",
+        )?;
 
-            let nr_encryption_key: encryption::PublicKey = load_public_key(
-                &cfg.storage_paths
-                    .common_paths
-                    .keys
-                    .public_encryption_key_file,
-                "ip packet router encryption",
-            )?;
+        let nr_encryption_key: encryption::PublicKey = load_public_key(
+            &cfg.storage_paths
+                .common_paths
+                .keys
+                .public_encryption_key_file,
+            "ip packet router encryption",
+        )?;
 
-            let address = Recipient::new(
-                nr_identity_public_key,
-                nr_encryption_key,
-                gateway_identity_public_key,
-            );
+        let address = Recipient::new(
+            nr_identity_public_key,
+            nr_encryption_key,
+            gateway_identity_public_key,
+        );
 
-            Some(GatewayIpPacketRouterDetails {
-                enabled: config.ip_packet_router.enabled,
-                identity_key: nr_identity_public_key.to_base58_string(),
-                encryption_key: nr_encryption_key.to_base58_string(),
-                address: address.to_string(),
-                config_path: display_path(nr_cfg_path),
-            })
-        } else {
-            None
-        };
+        Some(GatewayIpPacketRouterDetails {
+            enabled: config.ip_packet_router.enabled,
+            identity_key: nr_identity_public_key.to_base58_string(),
+            encryption_key: nr_encryption_key.to_base58_string(),
+            address: address.to_string(),
+            config_path: display_path(nr_cfg_path),
+        })
+    } else {
+        None
+    };
 
     Ok(GatewayNodeDetailsResponse {
         identity_key: gateway_identity_public_key.to_base58_string(),

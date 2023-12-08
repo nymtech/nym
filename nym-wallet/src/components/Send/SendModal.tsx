@@ -21,7 +21,7 @@ export const SendModal = ({ onClose, hasStorybookStyles }: { onClose: () => void
   const [gasError, setGasError] = useState<string>();
   const [isLoading, setIsLoading] = useState(false);
   const [userFees, setUserFees] = useState<DecCoin>();
-  const [memo, setMemo] = useState<string>();
+  const [memo, setMemo] = useState<string>('');
   const [txDetails, setTxDetails] = useState<TTransactionDetails>();
   const [showMoreOptions, setShowMoreOptions] = useState(false);
 
@@ -37,7 +37,7 @@ export const SendModal = ({ onClose, hasStorybookStyles }: { onClose: () => void
   useEffect(() => {
     if (!showMoreOptions) {
       setUserFees(undefined);
-      setMemo(undefined);
+      setMemo('');
     }
   }, [showMoreOptions]);
 

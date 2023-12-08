@@ -25,7 +25,7 @@ pub const REMOTE_SOURCE_OF_NYXD_URLS: &str =
 
 const CURRENT_GLOBAL_CONFIG_VERSION: u32 = 1;
 const CURRENT_NETWORK_CONFIG_VERSION: u32 = 1;
-pub(crate) const CUSTOM_SIMULATED_GAS_MULTIPLIER: f32 = 1.4;
+pub(crate) const CUSTOM_SIMULATED_GAS_MULTIPLIER: f32 = 1.5;
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct Config {

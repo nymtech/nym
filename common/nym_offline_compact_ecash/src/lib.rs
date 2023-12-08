@@ -20,7 +20,7 @@ use crate::error::CompactEcashError;
 use crate::traits::Bytable;
 
 pub mod constants;
-mod error;
+pub mod error;
 mod proofs;
 pub mod scheme;
 #[cfg(test)]

@@ -447,16 +447,16 @@ impl Payment {
             + verification_key.beta_g2.get(1).unwrap() * m1
             + verification_key.beta_g2.get(2).unwrap() * Scalar::from_bytes(&m2).unwrap();
 
-        // if !check_bilinear_pairing(
-        //     &self.sig_exp.h.to_affine(),
-        //     &G2Prepared::from(tmp.to_affine()),
-        //     &self.sig_exp.s.to_affine(),
-        //     params.grp().prepared_miller_g2(),
-        // ) {
-        //     return Err(CompactEcashError::Spend(
-        //         "The bilinear check for kappa_e failed".to_string(),
-        //     ));
-        // }
+        if !check_bilinear_pairing(
+            &self.sig_exp.h.to_affine(),
+            &G2Prepared::from(tmp.to_affine()),
+            &self.sig_exp.s.to_affine(),
+            params.grp().prepared_miller_g2(),
+        ) {
+            return Err(CompactEcashError::Spend(
+                "The bilinear check for kappa_e failed".to_string(),
+            ));
+        }
 
         Ok(())
     }
@@ -613,7 +613,7 @@ impl TryFrom<&[u8]> for Payment {
     type Error = CompactEcashError;
 
     fn try_from(bytes: &[u8]) -> Result<Payment> {
-        if bytes.len() < 816 {
+        if bytes.len() < 848 {
             return Err(CompactEcashError::Deserialization(
                 "Invalid byte array for Payment deserialization".to_string(),
             ));
@@ -634,19 +634,19 @@ impl TryFrom<&[u8]> for Payment {
         let sig_bytes: [u8; 96] = bytes[192..288].try_into().unwrap();
         let sig = Signature::try_from(sig_bytes.as_slice())?;
 
-        let sig_exp_bytes: [u8; 96] = bytes[288..384].try_into().unwrap();
+        let sig_exp_bytes: [u8; 128] = bytes[288..416].try_into().unwrap();
         let sig_exp = ExpirationDateSignature::try_from(sig_exp_bytes.as_slice())?;
 
-        let vv_bytes: [u8; 8] = bytes[384..392].try_into().unwrap();
+        let vv_bytes: [u8; 8] = bytes[416..424].try_into().unwrap();
         let vv = u64::from_le_bytes(vv_bytes);
 
-        let cc_bytes: [u8; 48] = bytes[392..440].try_into().unwrap();
+        let cc_bytes: [u8; 48] = bytes[424..472].try_into().unwrap();
         let cc = try_deserialize_g1_projective(
             &cc_bytes,
             CompactEcashError::Deserialization("Failed to deserialize cc".to_string()),
         )?;
 
-        let mut idx = 440;
+        let mut idx = 472;
         let kappa_k_len = u64::from_le_bytes(bytes[idx..idx + 8].try_into().unwrap()) as usize;
         idx += 8;
         let mut kappa_k = Vec::with_capacity(kappa_k_len);

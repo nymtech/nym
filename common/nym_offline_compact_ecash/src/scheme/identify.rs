@@ -131,8 +131,9 @@ mod tests {
     fn duplicate_payments_with_the_same_pay_info() {
         let L = 32;
         let params = setup(L);
-        let expiration_date = 1703721600; // Dec 28 2023
-        let spend_date = Scalar::from(1701960386); // Dec 07 2023
+        // NOTE: Make sure that the date timestamp are calculated at 00:00:00!!
+        let expiration_date = 1703721600; // Dec 28 2023 00:00:00
+        let spend_date = Scalar::from(1701907200); // Dec 07 2023 00:00:00
         let grp = params.grp();
         let user_keypair = generate_keypair_user(&grp);
 
@@ -252,8 +253,9 @@ mod tests {
         let L = 32;
         let params = setup(L);
         let grp = params.grp();
-        let expiration_date = 1703721600; // Dec 28 2023
-        let spend_date = Scalar::from(1701960386); // Dec 07 2023
+        // NOTE: Make sure that the date timestamp are calculated at 00:00:00!!
+        let expiration_date = 1703721600; // Dec 28 2023 00:00:00
+        let spend_date = Scalar::from(1701907200); // Dec 07 2023 00:00:00
         let user_keypair = generate_keypair_user(&grp);
 
         let (req, req_info) =
@@ -382,8 +384,9 @@ mod tests {
         let L = 32;
         let params = setup(L);
         let grp = params.grp();
-        let expiration_date = 1703721600; // Dec 28 2023
-        let spend_date = Scalar::from(1701960386); // Dec 07 2023
+        // NOTE: Make sure that the date timestamp are calculated at 00:00:00!!
+        let expiration_date = 1703721600; // Dec 28 2023 00:00:00
+        let spend_date = Scalar::from(1701907200); // Dec 07 2023 00:00:00
         let user_keypair = generate_keypair_user(&grp);
 
         //  GENERATE KEYS FOR OTHER USERS
@@ -528,8 +531,9 @@ mod tests {
         let L = 32;
         let params = setup(L);
         let grp = params.grp();
-        let expiration_date = 1703721600; // Dec 28 2023
-        let spend_date = Scalar::from(1701960386); // Dec 07 2023
+        // NOTE: Make sure that the date timestamp are calculated at 00:00:00!!
+        let expiration_date = 1703721600; // Dec 28 2023 00:00:00
+        let spend_date = Scalar::from(1701907200); // Dec 07 2023 00:00:00
         let user_keypair = generate_keypair_user(&grp);
 
         //  GENERATE KEYS FOR OTHER USERS

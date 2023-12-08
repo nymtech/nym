@@ -32,6 +32,6 @@ pub async fn simulate_update_contract_settings(
         vec![],
     )?;
 
-    let result = client.nyxd.simulate(vec![msg]).await?;
+    let result = client.nyxd.simulate(vec![msg], "").await?;
     guard.create_detailed_fee(result)
 }

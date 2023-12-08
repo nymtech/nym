@@ -376,7 +376,11 @@ where
         })
     }
 
-    pub async fn simulate<I, M>(&self, messages: I) -> Result<SimulateResponse, NyxdError>
+    pub async fn simulate<I, M>(
+        &self,
+        messages: I,
+        memo: impl Into<String> + Send + 'static,
+    ) -> Result<SimulateResponse, NyxdError>
     where
         I: IntoIterator<Item = M> + Send,
         M: Msg,
@@ -391,7 +395,7 @@ where
                     .map_err(|_| {
                         NyxdError::SerializationError("custom simulate messages".to_owned())
                     })?,
-                "simulating execution of transactions",
+                memo,
             )
             .await
     }

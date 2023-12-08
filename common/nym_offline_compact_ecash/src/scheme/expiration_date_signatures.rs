@@ -144,7 +144,7 @@ pub fn sign_expiration_date(
 ///
 pub fn verify_valid_dates_signatures(
     params: &Parameters,
-    vkey: &VerificationKeyAuth,
+    vk: &VerificationKeyAuth,
     signatures: &[ExpirationDateSignature],
     expiration_date: u64,
 ) -> Result<()> {
@@ -165,13 +165,13 @@ pub fn verify_valid_dates_signatures(
         }
         let partially_signed_attributes = [m0, m1, m2]
             .iter()
-            .zip(vkey.beta_g2.iter())
+            .zip(vk.beta_g2.iter())
             .map(|(m, beta_i)| beta_i * Scalar::from(*m))
             .sum::<G2Projective>();
 
         if !check_bilinear_pairing(
             &sig.h.to_affine(),
-            &G2Prepared::from((vkey.alpha + partially_signed_attributes).to_affine()),
+            &G2Prepared::from((vk.alpha + partially_signed_attributes).to_affine()),
             &sig.s.to_affine(),
             params.grp().prepared_miller_g2(),
         ) {
@@ -327,7 +327,6 @@ mod tests {
         // let spend_date = Scalar::from(1701173854); // Nov 28 2023
         let spend_date = Scalar::from(1701963809); // Dec 07 2023
         let index_a = find_index(spend_date, expiration_date);
-        println!("{:?}", index_a);
 
     }
 

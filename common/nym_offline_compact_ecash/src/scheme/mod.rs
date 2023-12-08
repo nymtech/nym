@@ -202,11 +202,12 @@ impl Wallet {
         let mut r_k_vec: Vec<Scalar> = Default::default();
         let mut kappa_k_vec: Vec<G2Projective> = Default::default();
         let mut sign_lk_prime_vec: Vec<Signature> = Default::default();
-        let mut lk: Vec<Scalar> = Default::default();
+        let mut lk_vec: Vec<Scalar> = Default::default();
 
         let mut coin_indices_signatures_prime: Vec<CoinIndexSignature> = Default::default();
         for k in 0..spend_vv {
-            lk.push(Scalar::from(self.l() + k));
+            let lk = self.l() + k;
+            lk_vec.push(Scalar::from(lk));
 
             // compute hashes R_k = H(payinfo, k)
             let rr_k = compute_payinfo_hash(&pay_info, k);
@@ -215,19 +216,19 @@ impl Wallet {
             let o_a_k = grp_params.random_scalar();
             o_a.push(o_a_k);
             let aa_k = grp_params.gen1() * o_a_k
-                + grp_params.gamma_idx(0).unwrap() * Scalar::from(self.l() + k);
+                + grp_params.gamma_idx(0).unwrap() * Scalar::from(lk);
             aa.push(aa_k);
 
             // compute the serial numbers
-            let ss_k = pseudorandom_f_delta_v(&grp_params, self.v(), self.l() + k);
+            let ss_k = pseudorandom_f_delta_v(&grp_params, self.v(), lk);
             ss.push(ss_k);
             // compute the identification tags
             let tt_k = grp_params.gen1() * sk_user.sk
-                + pseudorandom_f_g_v(&grp_params, self.v(), self.l() + k) * rr_k;
+                + pseudorandom_f_g_v(&grp_params, self.v(), lk) * rr_k;
             tt.push(tt_k);
 
             // compute values mu, o_mu, lambda, o_lambda
-            let mu_k: Scalar = (self.v() + Scalar::from(self.l() + k) + Scalar::from(1))
+            let mu_k: Scalar = (self.v() + Scalar::from(lk) + Scalar::from(1))
                 .invert()
                 .unwrap();
             mu.push(mu_k);
@@ -237,14 +238,13 @@ impl Wallet {
 
             // randomise the coin indices signatures and compute kappa_k to prove possession of each signature
             // of the coin index
-            let index = self.l() + k;
             let coin_sign: CoinIndexSignature =
-                coin_indices_signatures.get(index as usize).unwrap().clone();
+                coin_indices_signatures.get(lk as usize).unwrap().clone();
             let (coin_sign_prime, coin_sign_blinding_factor) = coin_sign.randomise(&grp_params);
             coin_indices_signatures_prime.push(coin_sign_prime);
             let kappa_k: G2Projective = grp_params.gen2() * coin_sign_blinding_factor
                 + verification_key.alpha
-                + verification_key.beta_g2.get(0).unwrap() * Scalar::from(self.l() + k);
+                + verification_key.beta_g2.get(0).unwrap() * Scalar::from(lk);
             kappa_k_vec.push(kappa_k);
         }
 
@@ -262,7 +262,7 @@ impl Wallet {
             attributes,
             r: sign_blinding_factor,
             o_c,
-            lk,
+            lk: lk_vec,
             o_a,
             mu,
             o_mu,

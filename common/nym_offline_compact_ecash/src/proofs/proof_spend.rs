@@ -247,6 +247,7 @@ pub struct InstanceCommitments {
 pub struct SpendProof {
     challenge: Scalar,
     response_r: Scalar,
+    response_r_e: Scalar,
     responses_r_k: Vec<Scalar>,
     responses_l: Vec<Scalar>,
     responses_o_a: Vec<Scalar>,
@@ -420,13 +421,9 @@ impl SpendProof {
             std::iter::once(grp_params.gen1().to_bytes().as_ref())
                 .chain(std::iter::once(verification_key.to_bytes().as_ref()))
                 .chain(std::iter::once(instance.to_bytes().as_ref()))
-                // .chain(std::iter::once(instance_commitments.tt_kappa_e.to_bytes().as_ref()))
-                // .chain(std::iter::once(
-                //     instance_commitments.tt_kappa.to_bytes().as_ref(),
-                // ))
-                .chain(std::iter::once(
-                    instance_commitments.tt_cc.to_bytes().as_ref(),
-                ))
+                .chain(std::iter::once(instance_commitments.tt_kappa.to_bytes().as_ref()))
+                .chain(std::iter::once(instance_commitments.tt_kappa_e.to_bytes().as_ref()))
+                .chain(std::iter::once(instance_commitments.tt_cc.to_bytes().as_ref()))
                 .chain(tt_aa_bytes.iter().map(|x| x.as_ref()))
                 .chain(tt_ss_bytes.iter().map(|x| x.as_ref()))
                 .chain(tt_kappa_k_bytes.iter().map(|x| x.as_ref()))
@@ -453,6 +450,7 @@ impl SpendProof {
         SpendProof {
             challenge,
             response_r,
+            response_r_e,
             responses_r_k,
             responses_l,
             responses_o_a,
@@ -482,7 +480,7 @@ impl SpendProof {
 
         // re-compute each zkp commitment
         let tt_kappa = instance.kappa * self.challenge
-            + verification_key.alpha * (Scalar::one() - self.challenge)
+            + verification_key.alpha * (self.challenge.neg())
             + verification_key.alpha
             + grp_params.gen2() * self.response_r
             + self
@@ -497,10 +495,10 @@ impl SpendProof {
             + instance.cc * self.challenge;
 
         let tt_kappa_e = instance.kappa_e * self.challenge
-            + verification_key.alpha * (Scalar::one() - self.challenge)
+            + verification_key.alpha * (self.challenge.neg())
             + verification_key.alpha
             + verification_key.beta_g2[0] * self.responses_attributes[2]
-            + grp_params.gen2() * self.response_r;
+            + grp_params.gen2() * self.response_r_e;
 
         let tt_aa = self
             .responses_o_a
@@ -573,8 +571,8 @@ impl SpendProof {
             std::iter::once(grp_params.gen1().to_bytes().as_ref())
                 .chain(std::iter::once(verification_key.to_bytes().as_ref()))
                 .chain(std::iter::once(instance.to_bytes().as_ref()))
-                // .chain(std::iter::once(tt_kappa.to_bytes().as_ref()))
-                // .chain(std::iter::once(tt_kappa_e.to_bytes().as_ref()))
+                .chain(std::iter::once(tt_kappa.to_bytes().as_ref()))
+                .chain(std::iter::once(tt_kappa_e.to_bytes().as_ref()))
                 .chain(std::iter::once(tt_cc.to_bytes().as_ref()))
                 .chain(tt_aa_bytes.iter().map(|x| x.as_ref()))
                 .chain(tt_ss_bytes.iter().map(|x| x.as_ref()))
@@ -588,6 +586,7 @@ impl SpendProof {
     pub fn to_bytes(&self) -> Vec<u8> {
         let challenge_bytes = self.challenge.to_bytes();
         let response_r_bytes = self.response_r.to_bytes();
+        let response_r_e_bytes = self.response_r_e.to_bytes();
 
         let rrk_len = self.responses_r_k.len();
         let rrk_len_bytes = rrk_len.to_le_bytes();
@@ -610,12 +609,13 @@ impl SpendProof {
         let rattributes_len_bytes = rattributes_len.to_le_bytes();
 
         let mut bytes: Vec<u8> = Vec::with_capacity(
-            96 + (rrk_len + rl_len + roa_len + rmu_len + romu_len + rattributes_len) * 8
+            128 + (rrk_len + rl_len + roa_len + rmu_len + romu_len + rattributes_len) * 8
                 + (rrk_len + rl_len + roa_len + rmu_len + romu_len + rattributes_len) * 32,
         );
 
         bytes.extend_from_slice(&challenge_bytes);
         bytes.extend_from_slice(&response_r_bytes);
+        bytes.extend_from_slice(&response_r_e_bytes);
         bytes.extend_from_slice(&roc_bytes);
 
         bytes.extend_from_slice(&rrk_len_bytes);
@@ -656,7 +656,7 @@ impl TryFrom<&[u8]> for SpendProof {
     type Error = CompactEcashError;
 
     fn try_from(bytes: &[u8]) -> Result<SpendProof> {
-        if bytes.len() < 336 || (bytes.len() - 96 - 48) % 32 != 0 {
+        if bytes.len() < 368 || (bytes.len() - 128 - 48) % 32 != 0 {
             return Err(CompactEcashError::Deserialization(
                 "tried to deserialize proof of spending with bytes of invalid length".to_string(),
             ));
@@ -666,6 +666,8 @@ impl TryFrom<&[u8]> for SpendProof {
         let challenge_bytes = bytes[idx..idx + 32].try_into().unwrap();
         idx += 32;
         let response_r_bytes = bytes[idx..idx + 32].try_into().unwrap();
+        idx += 32;
+        let response_r_e_bytes = bytes[idx..idx + 32].try_into().unwrap();
         idx += 32;
         let response_o_c_bytes = bytes[idx..idx + 32].try_into().unwrap();
         idx += 32;
@@ -678,6 +680,11 @@ impl TryFrom<&[u8]> for SpendProof {
         let response_r = try_deserialize_scalar(
             &response_r_bytes,
             CompactEcashError::Deserialization("Failed to deserialize response_r".to_string()),
+        )?;
+
+        let response_r_e = try_deserialize_scalar(
+            &response_r_e_bytes,
+            CompactEcashError::Deserialization("Failed to deserialize response_r_e".to_string()),
         )?;
 
         let response_o_c = try_deserialize_scalar(
@@ -784,6 +791,7 @@ impl TryFrom<&[u8]> for SpendProof {
         let spend_proof = SpendProof {
             challenge,
             response_r,
+            response_r_e,
             response_o_c,
             responses_r_k,
             responses_l,

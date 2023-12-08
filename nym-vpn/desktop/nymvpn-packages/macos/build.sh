@@ -21,7 +21,7 @@ if [[ ! -z "${APPLICATION_SIGNING_IDENTITY:-}" ]] && [[ ! -z "${APPLE_TEAM_ID:-}
     do
         echo "Signing: ${binary}"
         codesign \
-            --keychain "${KEYCHAIN_PATH}" \
+            --force \
             --options runtime \
             --sign "${APPLICATION_SIGNING_IDENTITY}" \
             "${binary}"
@@ -45,7 +45,6 @@ productbuild \
 if [ ! -z "${INSTALLER_SIGNING_IDENTITY:-}" ]; then
     echo "Signing pkg"
     productsign \
-        --keychain "${KEYCHAIN_PATH}" \
         --sign "${INSTALLER_SIGNING_IDENTITY}" \
         "nymvpn-${VERSION}-unsigned.pkg" "nymvpn-${VERSION}.pkg"
 else

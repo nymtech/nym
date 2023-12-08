@@ -58,7 +58,20 @@ async fn main() -> Result<()> {
     // let gateway_config =
     //     setup_gateway_config(app_config.private_key.as_deref(), GatewayConfig::default());
 
-    let nym_vpn = NymVPN::new(&app_config.entry_gateway, &app_config.exit_router);
+    // This should only really need to be set if we're running on not-mainnet. By default we should
+    // use the hardcoded stuff for mainnet, just like nym-connect.
+    let network_env = Some("/home/foobar/src/nym/nym/envs/qa.env");
+    nym_vpn_lib::nym_config::defaults::setup_env(network_env);
+
+    let gateway_config = GatewayConfig::default().with_optional_env(
+        GatewayConfig::with_custom_api_url,
+        None,
+        "NYM_API",
+    );
+
+    let mut nym_vpn = NymVPN::new(&app_config.entry_gateway, &app_config.exit_router);
+    nym_vpn.gateway_config = gateway_config;
+
     // let nym_vpn = NymVPN {
     //     gateway_config,
     //     mixnet_client_path: app_config.mixnet_client_path,

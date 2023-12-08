@@ -59,6 +59,7 @@ fn main() -> Result<()> {
             app_data::get_app_data,
             app_data::set_app_data,
             app_data::set_ui_theme,
+            app_data::set_entry_selector,
             app_data::get_node_countries,
             node_location::set_node_location,
         ])

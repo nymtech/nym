@@ -17,6 +17,7 @@ export interface AppDataFromBackend {
   monitoring: boolean | null;
   autoconnect: boolean | null;
   killswitch: boolean | null;
+  entry_selector: boolean | null;
   ui_theme: UiTheme | null;
   vpn_mode: VpnMode | null;
   entry_node: NodeConfig | null;

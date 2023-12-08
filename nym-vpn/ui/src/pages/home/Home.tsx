@@ -60,11 +60,23 @@ function Home() {
         <div className="flex flex-col justify-between">
           <NetworkModeSelect />
           <div className="py-2"></div>
-          <HopSelect
-            country={state.exitNodeLocation ?? QuickConnectCountry}
-            onClick={() => navigate(routes.exitNodeLocation)}
-            nodeHop="exit"
-          />
+          <div className="flex flex-col gap-6">
+            <div className="mt-3 font-semibold text-lg">Connect to</div>
+            {state.entrySelector ? (
+              <HopSelect
+                country={state.entryNodeLocation ?? QuickConnectCountry}
+                onClick={() => navigate(routes.entryNodeLocation)}
+                nodeHop="entry"
+              />
+            ) : (
+              <></>
+            )}
+            <HopSelect
+              country={state.exitNodeLocation ?? QuickConnectCountry}
+              onClick={() => navigate(routes.exitNodeLocation)}
+              nodeHop="exit"
+            />
+          </div>
         </div>
         <Button
           className={clsx([

@@ -237,8 +237,9 @@ impl Wallet {
 
             // randomise the coin indices signatures and compute kappa_k to prove possession of each signature
             // of the coin index
+            let index = self.l() + k;
             let coin_sign: CoinIndexSignature =
-                coin_indices_signatures.get(k as usize).unwrap().clone();
+                coin_indices_signatures.get(index as usize).unwrap().clone();
             let (coin_sign_prime, coin_sign_blinding_factor) = coin_sign.randomise(&grp_params);
             coin_indices_signatures_prime.push(coin_sign_prime);
             let kappa_k: G2Projective = grp_params.gen2() * coin_sign_blinding_factor

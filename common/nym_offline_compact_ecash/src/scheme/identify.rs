@@ -133,12 +133,12 @@ mod tests {
         let params = setup(L);
         let expiration_date = 1703721600; // Dec 28 2023
         let spend_date = Scalar::from(1701960386); // Dec 07 2023
-        let grparams = params.grp();
-        let user_keypair = generate_keypair_user(&grparams);
+        let grp = params.grp();
+        let user_keypair = generate_keypair_user(&grp);
 
         let (req, req_info) =
-            withdrawal_request(grparams, &user_keypair.secret_key(), expiration_date).unwrap();
-        let authorities_keypairs = ttp_keygen(&grparams, 2, 3).unwrap();
+            withdrawal_request(grp, &user_keypair.secret_key(), expiration_date).unwrap();
+        let authorities_keypairs = ttp_keygen(&grp, 2, 3).unwrap();
         let indices: [u64; 3] = [1, 2, 3];
         let secret_keys_authorities: Vec<SecretKeyAuth> = authorities_keypairs
             .iter()
@@ -176,7 +176,7 @@ mod tests {
         let mut wallet_blinded_signatures = Vec::new();
         for auth_keypair in authorities_keypairs {
             let blind_signature = issue_wallet(
-                &grparams,
+                &grp,
                 auth_keypair.secret_key(),
                 user_keypair.public_key(),
                 &req,
@@ -190,13 +190,13 @@ mod tests {
             verification_keys_auth.iter()
         )
         .map(|(w, vk)| {
-            issue_verify(&grparams, vk, &user_keypair.secret_key(), w, &req_info).unwrap()
+            issue_verify(&grp, vk, &user_keypair.secret_key(), w, &req_info).unwrap()
         })
         .collect();
 
         // Aggregate partial wallets
         let aggr_wallet = aggregate_wallets(
-            &grparams,
+            &grp,
             &verification_key,
             &user_keypair.secret_key(),
             &unblinded_wallet_shares,
@@ -251,14 +251,14 @@ mod tests {
     fn ok_if_two_different_payments() {
         let L = 32;
         let params = setup(L);
-        let grparams = params.grp();
+        let grp = params.grp();
         let expiration_date = 1703721600; // Dec 28 2023
         let spend_date = Scalar::from(1701960386); // Dec 07 2023
-        let user_keypair = generate_keypair_user(&grparams);
+        let user_keypair = generate_keypair_user(&grp);
 
         let (req, req_info) =
-            withdrawal_request(grparams, &user_keypair.secret_key(), expiration_date).unwrap();
-        let authorities_keypairs = ttp_keygen(&grparams, 2, 3).unwrap();
+            withdrawal_request(grp, &user_keypair.secret_key(), expiration_date).unwrap();
+        let authorities_keypairs = ttp_keygen(&grp, 2, 3).unwrap();
         let indices: [u64; 3] = [1, 2, 3];
         let secret_keys_authorities: Vec<SecretKeyAuth> = authorities_keypairs
             .iter()
@@ -296,7 +296,7 @@ mod tests {
         let mut wallet_blinded_signatures = Vec::new();
         for auth_keypair in authorities_keypairs {
             let blind_signature = issue_wallet(
-                &grparams,
+                &grp,
                 auth_keypair.secret_key(),
                 user_keypair.public_key(),
                 &req,
@@ -310,13 +310,13 @@ mod tests {
             verification_keys_auth.iter()
         )
         .map(|(w, vk)| {
-            issue_verify(&grparams, vk, &user_keypair.secret_key(), w, &req_info).unwrap()
+            issue_verify(&grp, vk, &user_keypair.secret_key(), w, &req_info).unwrap()
         })
         .collect();
 
         // Aggregate partial wallets
         let aggr_wallet = aggregate_wallets(
-            &grparams,
+            &grp,
             &verification_key,
             &user_keypair.secret_key(),
             &unblinded_wallet_shares,

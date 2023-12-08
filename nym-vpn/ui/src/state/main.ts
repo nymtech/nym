@@ -13,6 +13,7 @@ export type StateAction =
   | { type: 'set-partial-state'; partialState: Partial<AppState> }
   | { type: 'change-connection-state'; state: ConnectionState }
   | { type: 'set-vpn-mode'; mode: VpnMode }
+  | { type: 'set-entry-selector'; entrySelector: boolean }
   | { type: 'set-error'; error: string }
   | { type: 'reset-error' }
   | { type: 'new-progress-message'; message: ConnectProgressMsg }
@@ -23,17 +24,20 @@ export type StateAction =
   | { type: 'set-disconnected' }
   | { type: 'reset' }
   | { type: 'set-ui-theme'; theme: UiTheme }
+  | { type: 'set-countries'; countries: Country[] }
   | { type: 'set-node-location'; payload: { hop: NodeHop; country: Country } };
 
 export const initialState: AppState = {
   state: 'Disconnected',
   loading: false,
   vpnMode: 'Mixnet',
+  entrySelector: false,
   tunnel: { name: 'nym', id: 'nym' },
   uiTheme: 'Light',
   progressMessages: [],
   entryNodeLocation: null,
   exitNodeLocation: null,
+  countries: [],
 };
 
 export function reducer(state: AppState, action: StateAction): AppState {
@@ -53,6 +57,16 @@ export function reducer(state: AppState, action: StateAction): AppState {
       return {
         ...state,
         vpnMode: action.mode,
+      };
+    case 'set-entry-selector':
+      return {
+        ...state,
+        entrySelector: action.entrySelector,
+      };
+    case 'set-countries':
+      return {
+        ...state,
+        countries: action.countries,
       };
     case 'set-partial-state': {
       return { ...state, ...action.partialState };

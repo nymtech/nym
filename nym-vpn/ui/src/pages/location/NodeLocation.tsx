@@ -11,28 +11,22 @@ import QuickConnect from './QuickConnect';
 
 function NodeLocation({ node }: { node: NodeHop }) {
   const { t } = useTranslation('nodeLocation');
-  const [countries, setCountries] = useState<Country[]>([]);
+  const { entryNodeLocation, exitNodeLocation, countries } = useMainState();
   const [search, setSearch] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [foundCountries, setFoundCountries] = useState<Country[]>([]);
+  const [foundCountries, setFoundCountries] = useState<Country[]>(countries);
 
-  const { entryNodeLocation, exitNodeLocation } = useMainState();
   const dispatch = useMainDispatch() as StateDispatch;
 
   const navigate = useNavigate();
 
+  //request backend to update countries cache
   useEffect(() => {
-    setLoading(true);
     const getNodeCountries = async () => {
       const countries = await invoke<Country[]>('get_node_countries');
-      setTimeout(() => {
-        setCountries(countries);
-        setFoundCountries(countries);
-        setLoading(false);
-      }, 1000);
+      dispatch({ type: 'set-countries', countries });
     };
     getNodeCountries().catch(console.error);
-  }, []);
+  }, [dispatch]);
 
   const filter = (e: InputEvent) => {
     const keyword = e.target.value;
@@ -82,15 +76,11 @@ function NodeLocation({ node }: { node: NodeHop }) {
             placeholder={t('search-country')}
           />
           <span className="mt-3" />
-          {!loading ? (
-            <CountryList
-              countries={foundCountries}
-              onClick={handleCountrySelection}
-              isSelected={isCountrySelected}
-            />
-          ) : (
-            <div>{t('loading')}</div>
-          )}
+          <CountryList
+            countries={foundCountries}
+            onClick={handleCountrySelection}
+            isSelected={isCountrySelected}
+          />
         </div>
       </div>
     </div>

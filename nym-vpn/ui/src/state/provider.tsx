@@ -1,7 +1,12 @@
 import React, { useEffect, useReducer } from 'react';
 import { invoke } from '@tauri-apps/api';
 import { MainDispatchContext, MainStateContext } from '../contexts';
-import { AppDataFromBackend, CmdError, ConnectionState } from '../types';
+import {
+  AppDataFromBackend,
+  CmdError,
+  ConnectionState,
+  Country,
+} from '../types';
 import { QuickConnectCountry } from '../constants';
 import { initialState, reducer } from './main';
 import { useTauriEvents } from './useTauriEvents';
@@ -26,12 +31,21 @@ export function MainStateProvider({ children }: Props) {
       return await invoke<number | undefined>('get_connection_start_time');
     };
 
+    // init country list
+    const getCountries = async () => {
+      return await invoke<Country[]>('get_node_countries');
+    };
+
     getInitialConnectionState().then((state) =>
       dispatch({ type: 'change-connection-state', state }),
     );
     getSessionStartTime().then((startTime) =>
       dispatch({ type: 'set-connection-start-time', startTime }),
     );
+
+    getCountries().then((countries) => {
+      dispatch({ type: 'set-countries', countries });
+    });
   }, []);
 
   // get saved on disk app data and restore state from it
@@ -46,6 +60,7 @@ export function MainStateProvider({ children }: Props) {
         dispatch({
           type: 'set-partial-state',
           partialState: {
+            entrySelector: data.entry_selector || false,
             uiTheme: data.ui_theme || 'Light',
             vpnMode: data.vpn_mode || 'TwoHop',
             entryNodeLocation: data.entry_node_location || QuickConnectCountry,

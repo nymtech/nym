@@ -14,24 +14,20 @@ pub fn get_node_countries() -> Result<Vec<Country>, CmdError> {
     debug!("get_node_countries");
     let countries: Vec<Country> = vec![
         Country {
-            name: "United States".to_string(),
-            code: "US".to_string(),
-        },
-        Country {
-            name: "France".to_string(),
-            code: "FR".to_string(),
-        },
-        Country {
-            name: "Switzerland".to_string(),
-            code: "CH".to_string(),
-        },
-        Country {
-            name: "Sweden".to_string(),
-            code: "SE".to_string(),
+            name: "Ireland".to_string(),
+            code: "IE".to_string(),
         },
         Country {
             name: "Germany".to_string(),
             code: "DE".to_string(),
+        },
+        Country {
+            name: "Japan".to_string(),
+            code: "JP".to_string(),
+        },
+        Country {
+            name: "Great Britain".to_string(),
+            code: "GB".to_string(),
         },
     ];
     Ok(countries)
@@ -90,6 +86,29 @@ pub async fn set_ui_theme(
         .await
         .map_err(|e| CmdError::new(CmdErrorSource::InternalError, e.to_string()))?;
     app_data.ui_theme = Some(theme);
+    app_data_store.data = app_data;
+    app_data_store
+        .write()
+        .await
+        .map_err(|e| CmdError::new(CmdErrorSource::InternalError, e.to_string()))?;
+    Ok(())
+}
+
+#[instrument(skip(data_state))]
+#[tauri::command]
+pub async fn set_entry_selector(
+    data_state: State<'_, SharedAppData>,
+    entry_selector: bool,
+) -> Result<(), CmdError> {
+    debug!("set_entry_selector");
+
+    // save the selected UI theme to disk
+    let mut app_data_store = data_state.lock().await;
+    let mut app_data = app_data_store
+        .read()
+        .await
+        .map_err(|e| CmdError::new(CmdErrorSource::InternalError, e.to_string()))?;
+    app_data.entry_selector = Some(entry_selector);
     app_data_store.data = app_data;
     app_data_store
         .write()

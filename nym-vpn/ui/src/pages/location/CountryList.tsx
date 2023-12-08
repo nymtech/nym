@@ -12,7 +12,7 @@ export default function CountryList({
 }: CountryListProps) {
   const { t } = useTranslation('nodeLocation');
   return (
-    <ul className="flex flex-col w-full items-stretch p-1">
+    <ul className="flex flex-col w-full items-stretch px-6 gap-4">
       {countries && countries.length > 0 ? (
         countries.map((country) => (
           <li key={country.code} className="list-none w-full">
@@ -39,7 +39,7 @@ export default function CountryList({
           </li>
         ))
       ) : (
-        <p>{t('none-found')}</p>
+        <p className="flex justify-center">{t('none-found')}</p>
       )}
     </ul>
   );

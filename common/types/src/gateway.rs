@@ -99,7 +99,7 @@ impl fmt::Display for GatewayNodeDetailsResponse {
         writeln!(f, "bind address: {}", self.bind_address)?;
         writeln!(
             f,
-            "mix Port: {}, clients port: {}",
+            "mix port: {}, clients port: {}",
             self.mix_port, self.clients_port
         )?;
 

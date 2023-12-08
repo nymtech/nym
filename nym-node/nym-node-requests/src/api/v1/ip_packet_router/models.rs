@@ -13,6 +13,6 @@ pub struct IpPacketRouter {
     /// Base58-encoded x25519 public key used for performing key exchange with remote clients.
     pub encoded_x25519_key: String,
 
-    /// Nym address of this network requester.
+    /// Nym address of this ip packet router.
     pub address: String,
 }

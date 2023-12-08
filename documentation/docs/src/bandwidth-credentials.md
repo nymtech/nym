@@ -28,7 +28,7 @@ COCONUT_DKG_CONTRACT_ADDRESS="nymt1gwk6muhmzeuxje7df7rjvqwl2vex0kj4t2hwuzmyx5k62
 GROUP_CONTRACT_ADDRESS="nymt14ry36mwauycz08v8ndcujghxz4hmua5epxcn0mamlr3suqe0l2qsqx5ya2"
 
 STATISTICS_SERVICE_DOMAIN_ADDRESS="http://0.0.0.0"
-NYXD="https://sandbox-validator1.nymtech.net"
+NYXD="https://rpc.sandbox.nymtech.net"
 NYM_API="https://sandbox-validator1-api.nymtech.net/api"
 ```
 
@@ -44,7 +44,7 @@ Next, you init the nym-client with the enabled credentials mode set to true:
 
 Using the new credentials binary, purchase some credentials for the client. The recovery directory is a directory where the credentials will be temporarily stored in case the request fails.  
 
-```./credential --config-env-file <path-to>sandbox.env run --client-home-directory <path-to-the-client-config> --nyxd-url https://sandbox-validator1.nymtech.net --mnemonic "<mnemonic of the account created above>" --amount 50 --recovery-dir <a-path> ```
+```./credential --config-env-file <path-to>sandbox.env run --client-home-directory <path-to-the-client-config> --nyxd-url https://rpc.sandbox.nymtech.net --mnemonic "<mnemonic of the account created above>" --amount 50 --recovery-dir <a-path> ```
 
 You can redeem this now by running the nym-client, in enabled credentials mode:
 
@@ -62,7 +62,7 @@ Now time to init the socks5 client:
 
 Purchase credentials for this now too: 
 
-`./credential --config-env-file <path-to>sandbox.env run --client-home-directory <path-to-socks5-config> --nyxd-url https://sandbox-validator1.nymtech.net --mnemonic "<any valid sandbox mnemonic>" --amount 100 --recovery-dir <a-path>`
+`./credential --config-env-file <path-to>sandbox.env run --client-home-directory <path-to-socks5-config> --nyxd-url https://rpc.sandbox.nymtech.net --mnemonic "<any valid sandbox mnemonic>" --amount 100 --recovery-dir <a-path>`
 
 Run the socks5 client:
 

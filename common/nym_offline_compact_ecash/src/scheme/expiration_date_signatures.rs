@@ -10,6 +10,7 @@ use itertools::Itertools;
 use rayon::prelude::*;
 use chrono::{NaiveDate, Duration, NaiveDateTime};
 
+/// A structure representing an expiration date signature.
 #[derive(Debug, PartialEq, Clone)]
 pub struct ExpirationDateSignature {
     pub(crate) h: G1Projective,
@@ -19,9 +20,20 @@ pub struct ExpirationDateSignature {
 pub type PartialExpirationDateSignature = ExpirationDateSignature;
 
 impl ExpirationDateSignature {
+    /// Function randomises the expiration date signature.
+    ///
+    /// # Arguments
+    ///
+    /// * `params` - A reference to group parameters used for the signature generation.
+    ///
+    /// # Returns
+    ///
+    /// A tuple containing the randomized expiration date signature and the blinding scalar.
     pub fn randomise(&self, params: &GroupParameters) -> (ExpirationDateSignature, Scalar) {
+        // Generate random blinding scalars
         let r = params.random_scalar();
         let r_prime = params.random_scalar();
+        // Calculate h_prime and s_prime using the random scalars
         let h_prime = self.h * r_prime;
         let s_prime = (self.s * r_prime) + (h_prime * r);
         (
@@ -33,6 +45,11 @@ impl ExpirationDateSignature {
         )
     }
 
+    /// Converts the expiration date signature to a byte vector.
+    ///
+    /// # Returns
+    ///
+    /// A vector of bytes representing the expiration date signature.
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut bytes: Vec<u8> = Vec::with_capacity(48+48);
         bytes.extend(self.h.to_affine().to_compressed());
@@ -334,7 +351,7 @@ mod tests {
     fn test_sign_expiration_date() {
         let L = 32;
         let params = setup(L);
-        let expiration_date = 1703183958;
+        let expiration_date = 1702050209; // Dec 8 2023
 
         let authorities_keys = ttp_keygen(&params.grp(), 2, 3).unwrap();
         let sk_i_auth = authorities_keys[0].secret_key();
@@ -354,7 +371,7 @@ mod tests {
     fn test_aggregate_expiration_signatures() {
         let L = 32;
         let params = setup(L);
-        let expiration_date = 1703183958;
+        let expiration_date = 1702050209; // Dec 8 2023
 
         let authorities_keypairs = ttp_keygen(&params.grp(), 2, 3).unwrap();
         let indices: [u64; 3] = [1, 2, 3];

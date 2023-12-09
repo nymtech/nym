@@ -11,6 +11,7 @@ use nym_bin_common::build_information::BinaryBuildInformationOwned;
 use nym_wireguard_types::{ClientMessage, ClientRegistrationResponse};
 
 use crate::api::v1::health::models::NodeHealth;
+use crate::api::v1::ip_packet_router::models::IpPacketRouter;
 use crate::api::v1::network_requester::exit_policy::models::UsedExitPolicy;
 use crate::api::v1::network_requester::models::NetworkRequester;
 pub use http_api_client::Client;
@@ -51,6 +52,11 @@ pub trait NymNodeApiClientExt: ApiClient {
 
     async fn get_exit_policy(&self) -> Result<UsedExitPolicy, NymNodeApiClientError> {
         self.get_json_from(routes::api::v1::network_requester::exit_policy_absolute())
+            .await
+    }
+
+    async fn get_ip_packet_router(&self) -> Result<IpPacketRouter, NymNodeApiClientError> {
+        self.get_json_from(routes::api::v1::ip_packet_router_absolute())
             .await
     }
 

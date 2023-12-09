@@ -366,6 +366,9 @@ pub struct NymNodeDescription {
     #[serde(default)]
     pub network_requester: Option<NetworkRequesterDetails>,
 
+    #[serde(default)]
+    pub ip_packet_router: Option<IpPacketRouterDetails>,
+
     // for now we only care about their ws/wss situation, nothing more
     pub mixnet_websockets: WebSockets,
 }
@@ -392,4 +395,10 @@ pub struct NetworkRequesterDetails {
 
     /// flag indicating whether this network requester uses the exit policy rather than the deprecated allow list
     pub uses_exit_policy: bool,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+pub struct IpPacketRouterDetails {
+    /// address of the embedded ip packet router
+    pub address: String,
 }

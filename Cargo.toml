@@ -190,7 +190,7 @@ cw-controllers = { version = "=1.1.0" }
 
 # cosmrs-related
 bip32 = "0.5.1"
-cosmrs = "=0.15.0"
+cosmrs = { git = "https://github.com/jstuczyn/cosmos-rust", branch = "nym-temp/all-validator-features" }
 tendermint-rpc = "0.34" # same version as used by cosmrs
 prost = "0.12"
 

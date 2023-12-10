@@ -16,7 +16,6 @@ use crate::signing::tx_signer::TxSigner;
 use crate::signing::AccountData;
 use crate::{DirectSigningReqwestRpcNyxdClient, QueryReqwestRpcNyxdClient, ReqwestRpcClient};
 use async_trait::async_trait;
-use cosmrs::cosmwasm;
 use cosmrs::tendermint::{abci, evidence::Evidence, Genesis};
 use cosmrs::tx::{Raw, SignDoc};
 use cosmwasm_std::Addr;
@@ -34,6 +33,7 @@ pub use crate::nyxd::fee::Fee;
 pub use crate::rpc::TendermintRpcClient;
 pub use coin::Coin;
 pub use cosmrs::bank::MsgSend;
+pub use cosmrs::cosmwasm;
 pub use cosmrs::tendermint::abci::{
     response::DeliverTx, types::ExecTxResult, Event, EventAttribute,
 };

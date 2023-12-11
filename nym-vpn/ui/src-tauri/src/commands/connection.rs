@@ -1,11 +1,11 @@
 use std::time::Duration;
 
 use futures::SinkExt;
-use nym_vpn_lib::NymVpnCtrlMessage;
+use nym_vpn_lib::{NymVpnCtrlMessage, NymVpnExitStatusMessage};
 use tauri::{Manager, State};
 use time::OffsetDateTime;
 use tokio::time::sleep;
-use tracing::{debug, error, instrument};
+use tracing::{debug, error, info, instrument};
 
 use crate::{
     error::{CmdError, CmdErrorSource},
@@ -125,9 +125,34 @@ pub async fn connect(
         )
     })?;
 
+    let mut vpn_exit_rx = vpn_handle.vpn_exit_rx;
+    tokio::spawn(async move {
+        loop {
+            match vpn_exit_rx.try_recv() {
+                Ok(res) => {
+                    if let Some(NymVpnExitStatusMessage::Stopped) = res {
+                        info!("VPN client has exited");
+                    }
+                }
+                Err(e) => {
+                    error!("vpn_exit_rx failed to receive message: {}", e);
+                    // TODO add proper logic
+                    return;
+                }
+            }
+        }
+    });
+
+    // let mut vpn_status_rx = vpn_handle.vpn_status_rx;
+    // tokio::spawn(async move {
+    //     loop {
+    //         match vpn_status_rx.recv() {} // ???
+    //     }
+    // });
+
     // The nym_vpn_handle contains a set of channels that can be used to interact with the running
     // VPN task.
-    state.vpn_handle = Some(vpn_handle);
+    state.vpn_ctrl_tx = Some(vpn_handle.vpn_ctrl_tx);
 
     let app_state = state.state;
     Ok(app_state)
@@ -160,7 +185,7 @@ pub async fn disconnect(
     .ok();
 
     let mut app_state = state.lock().await;
-    let Some(ref mut vpn_handle) = app_state.vpn_handle else {
+    let Some(ref mut vpn_tx) = app_state.vpn_ctrl_tx else {
         app_state.state = ConnectionState::Disconnected;
         app_state.connection_start_time = None;
         app.emit_all(
@@ -180,17 +205,13 @@ pub async fn disconnect(
 
     // send Stop message to the VPN client
     // TODO handle error case properly
-    vpn_handle
-        .vpn_ctrl_tx
-        .send(NymVpnCtrlMessage::Stop)
-        .await
-        .map_err(|e| {
-            error!("failed to send Stop message to VPN client: {}", e);
-            CmdError::new(
-                CmdErrorSource::InternalError,
-                "failed to send Stop message to VPN client".into(),
-            )
-        })?;
+    vpn_tx.send(NymVpnCtrlMessage::Stop).await.map_err(|e| {
+        error!("failed to send Stop message to VPN client: {}", e);
+        CmdError::new(
+            CmdErrorSource::InternalError,
+            "failed to send Stop message to VPN client".into(),
+        )
+    })?;
 
     app_state.state = ConnectionState::Disconnected;
     app_state.connection_start_time = None;

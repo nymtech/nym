@@ -42,9 +42,10 @@ pub fn setup_logging() {
         .init();
 }
 
-fn setup_gateway_client_config(private_key: Option<&str>) -> GatewayClientConfig {
+fn setup_gateway_client_config(private_key: Option<&str>, nym_api: &str) -> GatewayClientConfig {
     let mut config = GatewayClientConfig::default()
-        .with_custom_api_url(nym_config::defaults::mainnet::NYM_API.parse().unwrap())
+        // .with_custom_api_url(nym_config::defaults::mainnet::NYM_API.parse().unwrap())
+        .with_custom_api_url(nym_api.parse().unwrap())
         // Read in the environment variable NYM_API if it exists
         .with_optional_env(GatewayClientConfig::with_custom_api_url, None, "NYM_API");
     info!("Using nym-api: {}", config.api_url());
@@ -74,7 +75,10 @@ async fn main() -> Result<()> {
         app_config_path.push(APP_DIR);
         AppStorage::<AppConfig>::new(app_config_path, APP_CONFIG_FILE, None)
     };
-    debug!("app_data_store: {}", &app_config_store.full_path.display());
+    debug!(
+        "app_config_store: {}",
+        &app_config_store.full_path.display()
+    );
 
     let app_config = app_config_store.read().await?;
     debug!("app_config: {app_config:?}");
@@ -85,7 +89,7 @@ async fn main() -> Result<()> {
 
     let nym_vpn = {
         let mut nym_vpn = NymVPN::new(&app_config.entry_gateway, &app_config.exit_router);
-        nym_vpn.gateway_config = setup_gateway_client_config(None);
+        nym_vpn.gateway_config = setup_gateway_client_config(None, &app_config.nym_api);
         nym_vpn
     };
 

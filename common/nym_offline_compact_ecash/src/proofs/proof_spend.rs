@@ -7,6 +7,7 @@ use crate::error::{CompactEcashError, Result};
 use crate::proofs::{compute_challenge, produce_response, produce_responses, ChallengeDigest};
 use crate::scheme::keygen::VerificationKeyAuth;
 use crate::scheme::setup::Parameters;
+use crate::scheme::PayInfo;
 use crate::utils::{
     try_deserialize_g1_projective, try_deserialize_g2_projective, try_deserialize_scalar,
     try_deserialize_scalar_vec,
@@ -368,6 +369,8 @@ impl SpendProof {
         witness: &SpendWitness,
         verification_key: &VerificationKeyAuth,
         rr: &[Scalar],
+        pay_info: &PayInfo,
+        spend_value: u64,
     ) -> Self {
         let grp_params = params.grp();
         // generate random values to replace each witness
@@ -419,15 +422,25 @@ impl SpendProof {
         // compute the challenge
         let challenge = compute_challenge::<ChallengeDigest, _, _>(
             std::iter::once(grp_params.gen1().to_bytes().as_ref())
+                .chain(std::iter::once(grp_params.gen2().to_bytes().as_ref()))
+                .chain(std::iter::once(grp_params.gammas_to_bytes().as_ref()))
                 .chain(std::iter::once(verification_key.to_bytes().as_ref()))
                 .chain(std::iter::once(instance.to_bytes().as_ref()))
-                .chain(std::iter::once(instance_commitments.tt_kappa.to_bytes().as_ref()))
-                .chain(std::iter::once(instance_commitments.tt_kappa_e.to_bytes().as_ref()))
-                .chain(std::iter::once(instance_commitments.tt_cc.to_bytes().as_ref()))
+                .chain(std::iter::once(
+                    instance_commitments.tt_kappa.to_bytes().as_ref(),
+                ))
+                .chain(std::iter::once(
+                    instance_commitments.tt_kappa_e.to_bytes().as_ref(),
+                ))
+                .chain(std::iter::once(
+                    instance_commitments.tt_cc.to_bytes().as_ref(),
+                ))
                 .chain(tt_aa_bytes.iter().map(|x| x.as_ref()))
                 .chain(tt_ss_bytes.iter().map(|x| x.as_ref()))
                 .chain(tt_kappa_k_bytes.iter().map(|x| x.as_ref()))
                 .chain(tt_tt_bytes.iter().map(|x| x.as_ref()))
+                .chain(std::iter::once(pay_info.pay_info_bytes.as_ref()))
+                .chain(std::iter::once(spend_value.to_le_bytes().as_ref())),
         );
 
         // compute response for each witness
@@ -440,7 +453,8 @@ impl SpendProof {
         let response_r_e = produce_response(&witness_replacement.r_r_e, &challenge, &witness.r_e);
         let response_o_c = produce_response(&witness_replacement.r_o_c, &challenge, &witness.o_c);
 
-        let responses_r_k = produce_responses(&witness_replacement.r_r_lk, &challenge, &witness.r_k);
+        let responses_r_k =
+            produce_responses(&witness_replacement.r_r_lk, &challenge, &witness.r_k);
         let responses_l = produce_responses(&witness_replacement.r_lk, &challenge, &witness.lk);
         let responses_o_a = produce_responses(&witness_replacement.r_o_a, &challenge, &witness.o_a);
         let responses_mu = produce_responses(&witness_replacement.r_mu, &challenge, &witness.mu);
@@ -467,6 +481,8 @@ impl SpendProof {
         instance: &SpendInstance,
         verification_key: &VerificationKeyAuth,
         rr: &[Scalar],
+        pay_info: &PayInfo,
+        spend_value: u64,
     ) -> bool {
         let grp_params = params.grp();
         let g1 = *grp_params.gen1();
@@ -522,7 +538,8 @@ impl SpendProof {
         let tt_ss_bytes = tt_ss.iter().map(|x| x.to_bytes()).collect::<Vec<_>>();
 
         let tt_tt = self
-            .responses_mu.iter()
+            .responses_mu
+            .iter()
             .zip(rr.iter())
             .zip(instance.tt.iter())
             .map(|((resp_mu_k, rr_k), tt_k)| {
@@ -533,7 +550,8 @@ impl SpendProof {
         let tt_tt_bytes = tt_tt.iter().map(|x| x.to_bytes()).collect::<Vec<_>>();
 
         let tt_gamma00 = instance
-            .aa.iter()
+            .aa
+            .iter()
             .zip(self.responses_mu.iter())
             .zip(self.responses_o_mu.iter())
             .map(|((aa_k, resp_mu_k), resp_o_mu_k)| {
@@ -543,10 +561,7 @@ impl SpendProof {
             })
             .collect::<Vec<_>>();
 
-        let tt_gamma00_bytes = tt_gamma00
-            .iter()
-            .map(|x| x.to_bytes())
-            .collect::<Vec<_>>();
+        let tt_gamma00_bytes = tt_gamma00.iter().map(|x| x.to_bytes()).collect::<Vec<_>>();
 
         let tt_kappa_k = instance
             .kappa_k
@@ -561,14 +576,13 @@ impl SpendProof {
             })
             .collect::<Vec<_>>();
 
-        let tt_kappa_k_bytes = tt_kappa_k
-            .iter()
-            .map(|x| x.to_bytes())
-            .collect::<Vec<_>>();
+        let tt_kappa_k_bytes = tt_kappa_k.iter().map(|x| x.to_bytes()).collect::<Vec<_>>();
 
         // re-compute the challenge
         let challenge = compute_challenge::<ChallengeDigest, _, _>(
             std::iter::once(grp_params.gen1().to_bytes().as_ref())
+                .chain(std::iter::once(grp_params.gen2().to_bytes().as_ref()))
+                .chain(std::iter::once(grp_params.gammas_to_bytes().as_ref()))
                 .chain(std::iter::once(verification_key.to_bytes().as_ref()))
                 .chain(std::iter::once(instance.to_bytes().as_ref()))
                 .chain(std::iter::once(tt_kappa.to_bytes().as_ref()))
@@ -578,6 +592,8 @@ impl SpendProof {
                 .chain(tt_ss_bytes.iter().map(|x| x.as_ref()))
                 .chain(tt_kappa_k_bytes.iter().map(|x| x.as_ref()))
                 .chain(tt_tt_bytes.iter().map(|x| x.as_ref()))
+                .chain(std::iter::once(pay_info.pay_info_bytes.as_ref()))
+                .chain(std::iter::once(spend_value.to_le_bytes().as_ref())),
         );
 
         challenge == self.challenge
@@ -805,110 +821,5 @@ impl TryFrom<&[u8]> for SpendProof {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use bls12_381::{G2Projective, Scalar};
-    use rand::thread_rng;
 
-    use crate::proofs::proof_spend::{SpendInstance, SpendProof, SpendWitness};
-    use crate::scheme::aggregation::aggregate_verification_keys;
-    use crate::scheme::keygen::{ttp_keygen, PublicKeyUser, VerificationKeyAuth};
-    use crate::scheme::setup::setup;
-    use crate::scheme::PayInfo;
-    use crate::scheme::{pseudorandom_f_delta_v, pseudorandom_f_g_v};
-    use crate::utils::hash_to_scalar;
 
-    // #[test]
-    // fn spend_proof_construct_and_verify() {
-    //     let _rng = thread_rng();
-    //     let L = 32;
-    //     let params = setup(L);
-    //     let grparams = params.grp();
-    //     let sk = grparams.random_scalar();
-    //     let _pk_user = PublicKeyUser {
-    //         pk: grparams.gen1() * sk,
-    //     };
-    //     let authorities_keypairs = ttp_keygen(&grparams, 2, 3).unwrap();
-    //     let verification_keys_auth: Vec<VerificationKeyAuth> = authorities_keypairs
-    //         .iter()
-    //         .map(|keypair| keypair.verification_key())
-    //         .collect();
-    //
-    //     let verification_key =
-    //         aggregate_verification_keys(&verification_keys_auth, Some(&[1, 2, 3])).unwrap();
-    //
-    //     let v = grparams.random_scalar();
-    //     let t = grparams.random_scalar();
-    //     let attributes = vec![sk, v, t];
-    //     // the below value must be from range 0 to params.L()
-    //     let l = 5;
-    //     let gamma0 = *grparams.gamma_idx(0).unwrap();
-    //     let g1 = *grparams.gen1();
-    //
-    //     let r = grparams.random_scalar();
-    //     let kappa = grparams.gen2() * r
-    //         + verification_key.alpha
-    //         + attributes
-    //             .iter()
-    //             .zip(verification_key.beta_g2.iter())
-    //             .map(|(priv_attr, beta_i)| beta_i * priv_attr)
-    //             .sum::<G2Projective>();
-    //
-    //     let o_a = grparams.random_scalar();
-    //     let o_c = grparams.random_scalar();
-    //
-    //     // compute commitments A, C, D
-    //     let aa = g1 * o_a + gamma0 * Scalar::from(l);
-    //     let cc = g1 * o_c + gamma0 * v;
-    //
-    //     // compute hash of the payment info
-    //     let pay_info = PayInfo {
-    //         payinfo: [37u8; 88],
-    //     };
-    //     let rr = hash_to_scalar(pay_info.payinfo);
-    //
-    //     // evaluate the pseudorandom functions
-    //     let ss = pseudorandom_f_delta_v(&grparams, v, l);
-    //     let tt = g1 * sk + pseudorandom_f_g_v(&grparams, v, l) * rr;
-    //
-    //     // compute values mu, o_mu, lambda, o_lambda
-    //     let mu: Scalar = (v + Scalar::from(l) + Scalar::from(1)).invert().unwrap();
-    //     let o_mu = ((o_a + o_c) * mu).neg();
-    //
-    //     // parse the signature associated with value l
-    //     let sign_l = params.get_sign_by_idx(l).unwrap();
-    //     // randomise the signature associated with value l
-    //     let (_sign_l_prime, r_l) = sign_l.randomise(grparams);
-    //     // compute kappa_l
-    //     let kappa_k =
-    //         grparams.gen2() * r_l + params.pk_rp().alpha + params.pk_rp().beta * Scalar::from(l);
-    //
-    //     let instance = SpendInstance {
-    //         kappa,
-    //         aa: vec![aa],
-    //         cc,
-    //         ss: vec![ss],
-    //         tt: vec![tt],
-    //         kappa_k: vec![kappa_k],
-    //     };
-    //
-    //     let witness = SpendWitness {
-    //         attributes,
-    //         r,
-    //         o_c,
-    //         lk: vec![Scalar::from(l)],
-    //         o_a: vec![o_a],
-    //         mu: vec![mu],
-    //         o_mu: vec![o_mu],
-    //         r_k: vec![r_l],
-    //     };
-    //
-    //     let zk_proof =
-    //         SpendProof::construct(&params, &instance, &witness, &verification_key, &[rr]);
-    //     assert!(zk_proof.verify(&params, &instance, &verification_key, &[rr]));
-    //
-    //     let zk_proof_bytes = zk_proof.to_bytes();
-    //     let zk_proof2 = SpendProof::try_from(zk_proof_bytes.as_slice()).unwrap();
-    //     assert_eq!(zk_proof, zk_proof2);
-    // }
-}

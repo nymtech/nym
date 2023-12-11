@@ -19,6 +19,9 @@ pub enum CompactEcashError {
     #[error("Interpolation error: {0}")]
     Interpolation(String),
 
+    #[error("Issuance related error: {0}")]
+    Issuance(String),
+
     #[error("Issuance Verification related error: {0}")]
     IssuanceVfy(String),
 

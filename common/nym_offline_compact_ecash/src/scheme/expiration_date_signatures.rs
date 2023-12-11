@@ -3,12 +3,15 @@ use crate::error::{CompactEcashError, Result};
 use crate::scheme::keygen::{SecretKeyAuth, VerificationKeyAuth};
 use crate::scheme::setup::{GroupParameters, Parameters};
 use crate::utils::hash_g1;
-use crate::utils::{check_bilinear_pairing, generate_lagrangian_coefficients_at_origin, try_deserialize_g1_projective};
+use crate::utils::{
+    check_bilinear_pairing, generate_lagrangian_coefficients_at_origin,
+    try_deserialize_g1_projective,
+};
 use bls12_381::{G1Projective, G2Prepared, G2Projective, Scalar};
+use chrono::{Duration, NaiveDate, NaiveDateTime};
 use group::Curve;
 use itertools::Itertools;
 use rayon::prelude::*;
-use chrono::{NaiveDate, Duration, NaiveDateTime};
 
 /// A structure representing an expiration date signature.
 #[derive(Debug, PartialEq, Clone)]
@@ -53,7 +56,7 @@ impl ExpirationDateSignature {
     ///
     /// A vector of bytes representing the expiration date signature.
     pub fn to_bytes(&self) -> Vec<u8> {
-        let mut bytes: Vec<u8> = Vec::with_capacity(48+48+32);
+        let mut bytes: Vec<u8> = Vec::with_capacity(48 + 48 + 32);
         bytes.extend(self.date_timestamp.to_bytes());
         bytes.extend(self.h.to_affine().to_compressed());
         bytes.extend(self.s.to_affine().to_compressed());
@@ -79,15 +82,23 @@ impl TryFrom<&[u8]> for ExpirationDateSignature {
         let date_timestamp = Scalar::from_bytes(date_timestamp_bytes).unwrap();
         let h = try_deserialize_g1_projective(
             h_bytes,
-            CompactEcashError::Deserialization("Failed to deserialize compressed h of the ExpirationDateSignature".to_string()),
+            CompactEcashError::Deserialization(
+                "Failed to deserialize compressed h of the ExpirationDateSignature".to_string(),
+            ),
         )?;
 
         let s = try_deserialize_g1_projective(
             s_bytes,
-            CompactEcashError::Deserialization("Failed to deserialize compressed s of the ExpirationDateSignature".to_string()),
+            CompactEcashError::Deserialization(
+                "Failed to deserialize compressed s of the ExpirationDateSignature".to_string(),
+            ),
         )?;
 
-        Ok(ExpirationDateSignature{date_timestamp, h, s})
+        Ok(ExpirationDateSignature {
+            date_timestamp,
+            h,
+            s,
+        })
     }
 }
 
@@ -123,7 +134,9 @@ pub fn sign_expiration_date(
         .into_par_iter()
         .fold(Vec::new, |mut exp_signs, l| {
             let expiration_date = NaiveDateTime::from_timestamp(expiration_date as i64, 0);
-            let valid_date = expiration_date - Duration::days(constants::VALIDITY_PERIOD as i64) + Duration::days(l as i64) + Duration::days(1 as i64);
+            let valid_date = expiration_date - Duration::days(constants::VALIDITY_PERIOD as i64)
+                + Duration::days(l as i64)
+                + Duration::days(1 as i64);
             let m1: Scalar = Scalar::from(valid_date.timestamp() as u64);
             // Compute the hash
             let h = hash_g1([m0.to_bytes(), m1.to_bytes()].concat());
@@ -176,7 +189,9 @@ pub fn verify_valid_dates_signatures(
 
     signatures.par_iter().enumerate().try_for_each(|(l, sig)| {
         let expiration_date = NaiveDateTime::from_timestamp(expiration_date as i64, 0);
-        let valid_date = expiration_date - Duration::days(constants::VALIDITY_PERIOD as i64) + Duration::days(l as i64) + Duration::days(1 as i64);
+        let valid_date = expiration_date - Duration::days(constants::VALIDITY_PERIOD as i64)
+            + Duration::days(l as i64)
+            + Duration::days(1 as i64);
         let m1: Scalar = Scalar::from(valid_date.timestamp() as u64);
         // Compute the hash
         let h = hash_g1([m0.to_bytes(), m1.to_bytes()].concat());
@@ -278,7 +293,9 @@ pub fn aggregate_expiration_signatures(
     let m2: Scalar = Scalar::from_bytes(&constants::TYPE_EXP).unwrap();
     for l in 0..constants::VALIDITY_PERIOD {
         let expiration_date = NaiveDateTime::from_timestamp(expiration_date as i64, 0);
-        let valid_date = expiration_date - Duration::days(constants::VALIDITY_PERIOD as i64) + Duration::days(l as i64)  + Duration::days(1 as i64);
+        let valid_date = expiration_date - Duration::days(constants::VALIDITY_PERIOD as i64)
+            + Duration::days(l as i64)
+            + Duration::days(1 as i64);
         let m1: Scalar = Scalar::from(valid_date.timestamp() as u64);
         // Compute the hash
         let h = hash_g1([m0.to_bytes(), m1.to_bytes()].concat());
@@ -299,7 +316,7 @@ pub fn aggregate_expiration_signatures(
         let aggr_sig = ExpirationDateSignature {
             date_timestamp: Scalar::from(valid_date.timestamp() as u64),
             h,
-            s: aggr_s
+            s: aggr_s,
         };
         aggregated_date_signatures.push(aggr_sig);
     }
@@ -325,14 +342,16 @@ pub fn aggregate_expiration_signatures(
 ///
 pub fn find_index(spend_date: Scalar, expiration_date: Scalar) -> Result<usize> {
     let expiration_date_bytes = expiration_date.to_bytes();
-    let expiration_date_u64 =
-        u64::from_le_bytes(expiration_date_bytes[..8].try_into().unwrap());
+    let expiration_date_u64 = u64::from_le_bytes(expiration_date_bytes[..8].try_into().unwrap());
     let spend_date_bytes = spend_date.to_bytes();
     let spend_date_u64 = u64::from_le_bytes(spend_date_bytes[..8].try_into().unwrap());
-    let start_date = NaiveDateTime::from_timestamp(expiration_date_u64 as i64, 0) - Duration::days(constants::VALIDITY_PERIOD as i64) + Duration::days(1 as i64);
+    let start_date = NaiveDateTime::from_timestamp(expiration_date_u64 as i64, 0)
+        - Duration::days(constants::VALIDITY_PERIOD as i64)
+        + Duration::days(1 as i64);
 
     if NaiveDateTime::from_timestamp(spend_date_u64 as i64, 0) >= start_date {
-        let index_a = (NaiveDateTime::from_timestamp(spend_date_u64 as i64, 0) - start_date).num_days() as usize;
+        let index_a = (NaiveDateTime::from_timestamp(spend_date_u64 as i64, 0) - start_date)
+            .num_days() as usize;
         Ok(index_a)
     } else {
         Err(CompactEcashError::ExpirationDate(
@@ -351,10 +370,9 @@ mod tests {
     #[test]
     fn test_find_index() {
         let expiration_date = Scalar::from(1702050209); // Dec 8 2023
-        // let spend_date = Scalar::from(1701173854); // Nov 28 2023
+                                                        // let spend_date = Scalar::from(1701173854); // Nov 28 2023
         let spend_date = Scalar::from(1701963809); // Dec 07 2023
         let index_a = find_index(spend_date, expiration_date);
-
     }
 
     #[test]

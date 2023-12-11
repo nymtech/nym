@@ -11,6 +11,22 @@ use crate::scheme::PartialWallet;
 use crate::utils::{check_bilinear_pairing, hash_g1, try_deserialize_g1_projective};
 use crate::utils::{BlindedSignature, Signature};
 
+/// Represents a withdrawal request generate by the client who wants to obtain a zk-nym credential.
+///
+/// This struct encapsulates the necessary components for a withdrawal request, including the joined commitment hash, the joined commitment,
+/// individual Pedersen commitments for private attributes, and a zero-knowledge proof for the withdrawal request.
+///
+/// # Fields
+///
+/// * `joined_commitment_hash` - The joined commitment hash represented as a G1Projective element.
+/// * `joined_commitment` - The joined commitment represented as a G1Projective element.
+/// * `private_attributes_commitments` - A vector of individual Pedersen commitments for private attributes represented as G1Projective elements.
+/// * `zk_proof` - The zero-knowledge proof for the withdrawal request.
+///
+/// # Derives
+///
+/// The struct derives `Debug` and `PartialEq` to provide debug output and basic comparison functionality.
+///
 #[derive(Debug, PartialEq)]
 pub struct WithdrawalRequest {
     joined_commitment_hash: G1Projective,
@@ -20,36 +36,70 @@ pub struct WithdrawalRequest {
 }
 
 impl WithdrawalRequest {
+    /// Converts the withdrawal request to a byte vector.
+    ///
+    /// The resulting byte vector contains the serialized representation of the withdrawal request,
+    /// including the joined commitment hash, the joined commitment, individual commitments for private attributes,
+    /// and the zero-knowledge proof.
+    ///
+    /// # Returns
+    ///
+    /// A `Vec<u8>` containing the serialized representation of the withdrawal request.
+    ///
     pub fn to_bytes(&self) -> Vec<u8> {
-        let mut bytes = Vec::with_capacity(
-            48 + // joined_commitment_hash
-                48 + // joined_commitment
-                8 +  // private_attributes_commitments length
-                (self.private_attributes_commitments.len() as usize) * 48 + // private attributes commitments
-                self.zk_proof.to_bytes().len(), // zk_proof_bytes
-        );
+        let joined_commitment_hash_bytes = self.joined_commitment_hash.to_affine().to_compressed();
+        let joined_commitment_bytes = self.joined_commitment.to_affine().to_compressed();
+        let private_attributes_len_bytes =
+            (self.private_attributes_commitments.len() as u64).to_le_bytes();
+        let private_attributes_commitments_bytes: Vec<u8> = self
+            .private_attributes_commitments
+            .iter()
+            .flat_map(|c| c.to_affine().to_compressed())
+            .collect();
+        let zk_proof_bytes = self.zk_proof.to_bytes();
 
-        bytes.extend_from_slice(&self.joined_commitment_hash.to_affine().to_compressed());
-        bytes.extend_from_slice(&self.joined_commitment.to_affine().to_compressed());
+        let total_bytes_len = joined_commitment_hash_bytes.len()
+            + joined_commitment_bytes.len()
+            + private_attributes_len_bytes.len()
+            + private_attributes_commitments_bytes.len()
+            + zk_proof_bytes.len();
 
-        bytes.extend_from_slice(&(self.private_attributes_commitments.len() as u64).to_le_bytes());
-        bytes.extend(
-            self.private_attributes_commitments
-                .iter()
-                .flat_map(|c| c.to_affine().to_compressed()),
-        );
-
-        bytes.extend_from_slice(&self.zk_proof.to_bytes());
+        let mut bytes = Vec::with_capacity(total_bytes_len);
+        bytes.extend_from_slice(&joined_commitment_hash_bytes);
+        bytes.extend_from_slice(&joined_commitment_bytes);
+        bytes.extend_from_slice(&private_attributes_len_bytes);
+        bytes.extend_from_slice(&private_attributes_commitments_bytes);
+        bytes.extend_from_slice(&zk_proof_bytes);
 
         bytes
     }
 }
 
+/// Attempts to deserialize a `WithdrawalRequest` from a byte slice.
+///
+/// # Arguments
+///
+/// * `bytes` - A byte slice containing the serialized `WithdrawalRequest`.
+///
+/// # Errors
+///
+/// Returns a `CompactEcashError` if deserialization fails, including cases where the byte slice
+/// length is insufficient or deserialization of internal components fails.
+///
 impl TryFrom<&[u8]> for WithdrawalRequest {
     type Error = CompactEcashError;
 
     fn try_from(bytes: &[u8]) -> Result<WithdrawalRequest> {
-        let min_length = 48 + 48 + 8 + 48;
+        let joined_commitment_hash_bytes_len = 48;
+        let joined_commitment_bytes_len = 48;
+        let private_attributes_len_bytes = 8;
+        let private_attributes_commitments_bytes_len = 48;
+
+        let min_length = joined_commitment_hash_bytes_len
+            + joined_commitment_bytes_len
+            + private_attributes_len_bytes
+            + private_attributes_commitments_bytes_len;
+
         if bytes.len() < min_length {
             return Err(CompactEcashError::DeserializationMinLength {
                 min: min_length,
@@ -58,37 +108,41 @@ impl TryFrom<&[u8]> for WithdrawalRequest {
         }
 
         let mut j = 0;
-        let commitment_hash_bytes_len = 48;
-        let commitment_bytes_len = 48;
 
-        let com_hash_bytes = bytes[..j + commitment_hash_bytes_len].try_into().unwrap();
+        let joined_commitment_hash_bytes = bytes[..j + joined_commitment_hash_bytes_len]
+            .try_into()
+            .unwrap();
         let joined_commitment_hash = try_deserialize_g1_projective(
-            &com_hash_bytes,
+            &joined_commitment_hash_bytes,
             CompactEcashError::Deserialization(
                 "Failed to deserialize compressed commitment hash".to_string(),
             ),
         )?;
-        j += commitment_hash_bytes_len;
+        j += joined_commitment_hash_bytes_len;
 
-        let com_bytes = bytes[j..j + commitment_bytes_len].try_into().unwrap();
+        let joined_commitment_bytes = bytes[j..j + joined_commitment_bytes_len]
+            .try_into()
+            .unwrap();
         let joined_commitment = try_deserialize_g1_projective(
-            &com_bytes,
+            &joined_commitment_bytes,
             CompactEcashError::Deserialization(
                 "Failed to deserialize compressed commitment".to_string(),
             ),
         )?;
-        j += commitment_bytes_len;
+        j += joined_commitment_bytes_len;
 
-        let pc_len = u64::from_le_bytes(bytes[j..j + 8].try_into().unwrap());
+        let private_attributes_len = u64::from_le_bytes(bytes[j..j + 8].try_into().unwrap());
         j += 8;
-        if bytes[j..].len() < pc_len as usize * 48 {
+        if bytes[j..].len() < private_attributes_len as usize * 48 {
             return Err(CompactEcashError::DeserializationMinLength {
-                min: pc_len as usize * 48,
+                min: private_attributes_len as usize * 48,
                 actual: bytes[56..].len(),
             });
         }
-        let mut private_attributes_commitments = Vec::with_capacity(pc_len as usize);
-        for i in 0..pc_len as usize {
+
+        let mut private_attributes_commitments =
+            Vec::with_capacity(private_attributes_len as usize);
+        for i in 0..private_attributes_len as usize {
             let start = j + i * 48;
             let end = start + 48;
 
@@ -103,7 +157,8 @@ impl TryFrom<&[u8]> for WithdrawalRequest {
             private_attributes_commitments.push(pc_com)
         }
 
-        let zk_proof = WithdrawalReqProof::try_from(&bytes[j + pc_len as usize * 48..])?;
+        let zk_proof =
+            WithdrawalReqProof::try_from(&bytes[j + private_attributes_len as usize * 48..])?;
 
         Ok(WithdrawalRequest {
             joined_commitment_hash,
@@ -114,11 +169,15 @@ impl TryFrom<&[u8]> for WithdrawalRequest {
     }
 }
 
+/// Represents information associated with a withdrawal request.
+///
+/// This structure holds the commitment hash, commitment opening, private attributes openings,
+/// the wallet secret (scalar), and the expiration date related to a withdrawal request.
 pub struct RequestInfo {
     joined_commitment_hash: G1Projective,
     joined_commitment_opening: Scalar,
     private_attributes_openings: Vec<Scalar>,
-    v: Scalar,
+    wallet_secret: Scalar,
     expiration_date: Scalar,
 }
 
@@ -133,7 +192,7 @@ impl RequestInfo {
         &self.private_attributes_openings
     }
     pub fn get_v(&self) -> &Scalar {
-        &self.v
+        &self.wallet_secret
     }
     pub fn get_expiration_date(&self) -> &Scalar {
         &self.expiration_date
@@ -188,7 +247,7 @@ fn compute_private_attribute_commitments(
 ///
 /// # Details
 ///
-/// The function starts by generating a random wallet secret `v` and computing the joined commitment for all attributes,
+/// The function starts by generating a random, unique wallet secret `v` and computing the joined commitment for all attributes,
 /// including public (expiration date) and private ones (user secret key and wallet secret).
 /// It then calculates the commitment hash (`joined_commitment_hash`) and computes Pedersen commitments for private attributes.
 /// A zero-knowledge proof of knowledge is constructed to prove possession of specific attributes.
@@ -203,9 +262,9 @@ pub fn withdrawal_request(
     sk_user: &SecretKeyUser,
     expiration_date: u64,
 ) -> Result<(WithdrawalRequest, RequestInfo)> {
-    // Generate random secret v
-    let v = params.random_scalar();
     let gammas = params.gammas();
+    // Generate random and unique wallet secret
+    let v = params.random_scalar();
     let joined_commitment_opening = params.random_scalar();
     // Compute joined commitment for all attributes (public and private)
     let joined_commitment: G1Projective = params.gen1() * joined_commitment_opening
@@ -213,9 +272,12 @@ pub fn withdrawal_request(
         + params.gamma_idx(1).unwrap() * v;
 
     // Compute commitment hash h
-    let joined_commitment_hash = hash_g1((joined_commitment + params.gamma_idx(2).unwrap() * Scalar::from(expiration_date)).to_bytes());
+    let joined_commitment_hash = hash_g1(
+        (joined_commitment + params.gamma_idx(2).unwrap() * Scalar::from(expiration_date))
+            .to_bytes(),
+    );
 
-    // Compute Pedersen commitments for private attributes
+    // Compute Pedersen commitments for private attributes (wallet secret and user's secret)
     let private_attributes = vec![sk_user.sk, v];
     let (private_attributes_openings, private_attributes_commitments) =
         compute_private_attribute_commitments(
@@ -224,7 +286,7 @@ pub fn withdrawal_request(
             &private_attributes,
         );
 
-    // construct a zk proof of knowledge proving possession of m1, m2, o, o1, o2
+    // construct a NIZK proof of knowledge proving possession of m1, m2, o, o1, o2
     let instance = WithdrawalReqInstance {
         joined_commitment,
         joined_commitment_hash,
@@ -233,6 +295,7 @@ pub fn withdrawal_request(
             pk: params.gen1() * sk_user.sk,
         },
     };
+
     let witness = WithdrawalReqWitness {
         private_attributes,
         joined_commitment_opening,
@@ -252,7 +315,7 @@ pub fn withdrawal_request(
             joined_commitment_hash,
             joined_commitment_opening,
             private_attributes_openings: private_attributes_openings.clone(),
-            v,
+            wallet_secret: v,
             expiration_date: Scalar::from(expiration_date),
         },
     ))
@@ -303,6 +366,19 @@ pub fn request_verify(
     Ok(true)
 }
 
+/// Function to blind sign a private attribute commitments.
+/// Given a private attribute commitment (`private_attribute_commitment`) and an element of the signing key,
+/// this function computes the blinded commitment by multiplying the commitment with the blinding factor.
+///
+/// # Arguments
+///
+/// * `private_attribute_commitment` - The G1Projective point representing the commitment to the private attribute.
+/// * `yi` - The element of the secret key of the signing authority.
+///
+/// # Returns
+///
+/// A new G1Projective point representing the blinded commitment.
+///
 pub fn blind_sing_private_attribute(
     private_attribute_commitment: &G1Projective,
     yi: &Scalar,
@@ -310,12 +386,36 @@ pub fn blind_sing_private_attribute(
     private_attribute_commitment * yi
 }
 
+
+/// Signs an expiration date using a joined commitment hash and a secret key.
+///
+/// Given a joined commitment hash (`joined_commitment_hash`), an expiration date (`expiration_date`),
+/// and a secret key for authentication (`sk_auth`), this function computes the signature of the
+/// expiration date by multiplying the commitment hash with the blinding factor derived from the secret key
+/// and the expiration date.
+///
+/// # Arguments
+///
+/// * `joined_commitment_hash` - The G1Projective point representing the joined commitment hash.
+/// * `expiration_date` - The expiration date timestamp to be signed.
+/// * `sk_auth` - The secret key of the signing authority.
+///
+/// # Returns
+///
+/// A `Result` containing the resulting G1Projective point if successful, or an error if the
+/// authentication secret key index is out of bounds.
 pub fn sign_expiration_date(
     joined_commitment_hash: &G1Projective,
     expiration_date: u64,
     sk_auth: &SecretKeyAuth,
-) -> G1Projective {
-    joined_commitment_hash * (sk_auth.get_y_by_idx(2).unwrap() * Scalar::from(expiration_date))
+) -> Result<G1Projective> {
+    if let Some(yi) = sk_auth.get_y_by_idx(2) {
+        Ok(joined_commitment_hash * (yi * Scalar::from(expiration_date)))
+    } else {
+        return Err(CompactEcashError::Issuance(
+            "The secret key of the authority does not have enough elements".to_string(),
+        ));
+    }
 }
 
 /// Issues a blinded signature for a withdrawal request, after verifying its integrity.
@@ -337,7 +437,7 @@ pub fn sign_expiration_date(
 ///
 /// Returns a `BlindedSignature` if the issuance process is successful, otherwise returns an error
 /// with a specific message indicating the failure.
-pub fn issue_wallet(
+pub fn issue(
     params: &GroupParameters,
     sk_auth: SecretKeyAuth,
     pk_user: PublicKeyUser,
@@ -358,7 +458,7 @@ pub fn issue_wallet(
         &withdrawal_req.joined_commitment_hash,
         expiration_date,
         &sk_auth,
-    );
+    )?;
     // Combine both signatures
     let signature =
         blind_signatures + withdrawal_req.joined_commitment_hash * sk_auth.x + expiration_date_sign;
@@ -403,7 +503,7 @@ pub fn issue_verify(
         ));
     }
 
-    // Unblind the blinded signature on the partial wallet
+    // Unblind the blinded signature on the partial signature
     let blinding_removers = vk_auth
         .beta_g1
         .iter()
@@ -412,7 +512,7 @@ pub fn issue_verify(
         .sum::<G1Projective>();
     let unblinded_c = blind_signature.1 - blinding_removers;
 
-    let attr = vec![sk_user.sk, req_info.v, req_info.expiration_date];
+    let attr = vec![sk_user.sk, req_info.wallet_secret, req_info.expiration_date];
 
     let signed_attributes = attr
         .iter()
@@ -434,7 +534,7 @@ pub fn issue_verify(
 
     Ok(PartialWallet {
         sig: Signature(blind_signature.0, unblinded_c),
-        v: req_info.v,
+        v: req_info.wallet_secret,
         idx: None,
         expiration_date: req_info.expiration_date,
     })

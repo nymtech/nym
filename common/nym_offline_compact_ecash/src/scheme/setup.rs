@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::io::Read;
 use std::ops::Index;
 
 use bls12_381::{G1Affine, G1Projective, G2Affine, G2Prepared, G2Projective, Scalar};
@@ -10,7 +11,7 @@ use crate::constants;
 use crate::error::{CompactEcashError, Result};
 use crate::scheme::keygen::{SecretKeyAuth, VerificationKeyAuth};
 use crate::utils::{check_bilinear_pairing, generate_lagrangian_coefficients_at_origin};
-use crate::utils::{hash_g1, Signature, try_deserialize_g1_projective};
+use crate::utils::{hash_g1, try_deserialize_g1_projective, Signature};
 use itertools::Itertools;
 use rayon::prelude::*;
 
@@ -54,6 +55,14 @@ impl GroupParameters {
 
     pub(crate) fn gammas(&self) -> &Vec<G1Projective> {
         &self.gammas
+    }
+
+    pub(crate) fn gammas_to_bytes(&self) -> Vec<u8> {
+        let mut bytes = Vec::with_capacity(self.gammas.len() * 48);
+        for g in &self.gammas {
+            bytes.extend_from_slice(&g.to_bytes().as_ref());
+        }
+        bytes
     }
 
     pub(crate) fn gamma_idx(&self, i: usize) -> Option<&G1Projective> {
@@ -141,7 +150,7 @@ impl CoinIndexSignature {
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {
-        let mut bytes: Vec<u8> = Vec::with_capacity(48+48);
+        let mut bytes: Vec<u8> = Vec::with_capacity(48 + 48);
         bytes.extend(self.h.to_affine().to_compressed());
         bytes.extend(self.s.to_affine().to_compressed());
         bytes
@@ -164,15 +173,19 @@ impl TryFrom<&[u8]> for CoinIndexSignature {
 
         let h = try_deserialize_g1_projective(
             h_bytes,
-            CompactEcashError::Deserialization("Failed to deserialize compressed h of the CoinIndexSignature".to_string()),
+            CompactEcashError::Deserialization(
+                "Failed to deserialize compressed h of the CoinIndexSignature".to_string(),
+            ),
         )?;
 
         let s = try_deserialize_g1_projective(
             s_bytes,
-            CompactEcashError::Deserialization("Failed to deserialize compressed s of the CoinIndexSignature".to_string()),
+            CompactEcashError::Deserialization(
+                "Failed to deserialize compressed s of the CoinIndexSignature".to_string(),
+            ),
         )?;
 
-        Ok(CoinIndexSignature{h, s})
+        Ok(CoinIndexSignature { h, s })
     }
 }
 

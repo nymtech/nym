@@ -9,9 +9,8 @@ use crate::scheme::setup::{
     aggregate_indices_signatures, sign_coin_indices, CoinIndexSignature, Parameters,
     PartialCoinIndexSignature,
 };
-
+use crate::scheme::{compute_payinfo_hash, Payment};
 use crate::utils::hash_to_scalar;
-use crate::scheme::{Payment, compute_payinfo_hash};
 use crate::PayInfo;
 use bls12_381::Scalar;
 
@@ -23,7 +22,6 @@ pub enum IdentifyResult {
 }
 
 pub fn identify(
-    params: &Parameters,
     verification_key: &VerificationKeyAuth,
     payment1: Payment,
     payment2: Payment,
@@ -123,7 +121,7 @@ mod tests {
     use crate::scheme::setup::setup;
     use crate::{
         aggregate_verification_keys, aggregate_wallets, generate_keypair_user, issue_verify,
-        issue_wallet, ttp_keygen, withdrawal_request, PartialWallet, PayInfo, VerificationKeyAuth,
+        issue, ttp_keygen, withdrawal_request, PartialWallet, PayInfo, VerificationKeyAuth,
     };
     use itertools::izip;
 
@@ -176,7 +174,7 @@ mod tests {
 
         let mut wallet_blinded_signatures = Vec::new();
         for auth_keypair in authorities_keypairs {
-            let blind_signature = issue_wallet(
+            let blind_signature = issue(
                 &grp,
                 auth_keypair.secret_key(),
                 user_keypair.public_key(),
@@ -190,9 +188,7 @@ mod tests {
             wallet_blinded_signatures.iter(),
             verification_keys_auth.iter()
         )
-        .map(|(w, vk)| {
-            issue_verify(&grp, vk, &user_keypair.secret_key(), w, &req_info).unwrap()
-        })
+        .map(|(w, vk)| issue_verify(&grp, vk, &user_keypair.secret_key(), w, &req_info).unwrap())
         .collect();
 
         // Aggregate partial wallets
@@ -206,7 +202,9 @@ mod tests {
         .unwrap();
 
         // Let's try to spend some coins
-        let pay_info1 = PayInfo { payinfo: [6u8; 88] };
+        let pay_info1 = PayInfo {
+            pay_info_bytes: [6u8; 88],
+        };
         let spend_vv = 1;
 
         let (payment1, _upd_wallet) = aggr_wallet
@@ -297,7 +295,7 @@ mod tests {
 
         let mut wallet_blinded_signatures = Vec::new();
         for auth_keypair in authorities_keypairs {
-            let blind_signature = issue_wallet(
+            let blind_signature = issue(
                 &grp,
                 auth_keypair.secret_key(),
                 user_keypair.public_key(),
@@ -311,9 +309,7 @@ mod tests {
             wallet_blinded_signatures.iter(),
             verification_keys_auth.iter()
         )
-        .map(|(w, vk)| {
-            issue_verify(&grp, vk, &user_keypair.secret_key(), w, &req_info).unwrap()
-        })
+        .map(|(w, vk)| issue_verify(&grp, vk, &user_keypair.secret_key(), w, &req_info).unwrap())
         .collect();
 
         // Aggregate partial wallets
@@ -327,7 +323,9 @@ mod tests {
         .unwrap();
 
         // Let's try to spend some coins
-        let pay_info1 = PayInfo { payinfo: [6u8; 88] };
+        let pay_info1 = PayInfo {
+            pay_info_bytes: [6u8; 88],
+        };
         let spend_vv = 1;
 
         let (payment1, upd_wallet) = aggr_wallet
@@ -348,7 +346,9 @@ mod tests {
             .spend_verify(&params, &verification_key, &pay_info1, spend_date)
             .unwrap());
 
-        let pay_info2 = PayInfo { payinfo: [7u8; 88] };
+        let pay_info2 = PayInfo {
+            pay_info_bytes: [7u8; 88],
+        };
         let (payment2, _) = upd_wallet
             .spend(
                 &params,
@@ -438,7 +438,7 @@ mod tests {
 
         let mut wallet_blinded_signatures = Vec::new();
         for auth_keypair in authorities_keypairs {
-            let blind_signature = issue_wallet(
+            let blind_signature = issue(
                 &grp,
                 auth_keypair.secret_key(),
                 user_keypair.public_key(),
@@ -466,7 +466,9 @@ mod tests {
         .unwrap();
 
         // Let's try to spend some coins
-        let pay_info1 = PayInfo { payinfo: [6u8; 88] };
+        let pay_info1 = PayInfo {
+            pay_info_bytes: [6u8; 88],
+        };
         let spend_vv = 1;
 
         let (payment1, _upd_wallet) = aggr_wallet
@@ -491,7 +493,9 @@ mod tests {
         let current_l = aggr_wallet.l.get();
         aggr_wallet.l.set(current_l - 1);
 
-        let pay_info2 = PayInfo { payinfo: [7u8; 88] };
+        let pay_info2 = PayInfo {
+            pay_info_bytes: [7u8; 88],
+        };
 
         let (payment2, _) = aggr_wallet
             .spend(
@@ -586,7 +590,7 @@ mod tests {
 
         let mut wallet_blinded_signatures = Vec::new();
         for auth_keypair in authorities_keypairs {
-            let blind_signature = issue_wallet(
+            let blind_signature = issue(
                 &grp,
                 auth_keypair.secret_key(),
                 user_keypair.public_key(),
@@ -614,7 +618,9 @@ mod tests {
         .unwrap();
 
         // Let's try to spend some coins
-        let pay_info1 = PayInfo { payinfo: [6u8; 88] };
+        let pay_info1 = PayInfo {
+            pay_info_bytes: [6u8; 88],
+        };
         let spend_vv = 10;
 
         let (payment1, _) = aggr_wallet
@@ -639,7 +645,9 @@ mod tests {
         let current_l = aggr_wallet.l.get();
         aggr_wallet.l.set(current_l - 10);
 
-        let pay_info2 = PayInfo { payinfo: [7u8; 88] };
+        let pay_info2 = PayInfo {
+            pay_info_bytes: [7u8; 88],
+        };
         let (payment2, _) = aggr_wallet
             .spend(
                 &params,

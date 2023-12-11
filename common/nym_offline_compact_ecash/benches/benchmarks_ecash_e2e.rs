@@ -16,21 +16,21 @@ use rand::seq::SliceRandom;
 use nym_compact_ecash::constants;
 use nym_compact_ecash::identify::{identify, IdentifyResult};
 
+use nym_compact_ecash::error::{CompactEcashError, Result};
+use nym_compact_ecash::scheme::expiration_date_signatures::{
+    aggregate_expiration_signatures, sign_expiration_date, ExpirationDateSignature,
+    PartialExpirationDateSignature,
+};
 use nym_compact_ecash::scheme::keygen::SecretKeyAuth;
 use nym_compact_ecash::scheme::setup::{
     aggregate_indices_signatures, setup, sign_coin_indices, CoinIndexSignature, Parameters,
     PartialCoinIndexSignature,
-};
-use nym_compact_ecash::scheme::expiration_date_signatures::{
-    aggregate_expiration_signatures, sign_expiration_date, ExpirationDateSignature,
-    PartialExpirationDateSignature,
 };
 use nym_compact_ecash::{
     aggregate_verification_keys, aggregate_wallets, generate_keypair_user, issue_verify,
     issue_wallet, ttp_keygen, withdrawal_request, PartialWallet, PayInfo, PublicKeyUser,
     SecretKeyUser, VerificationKeyAuth,
 };
-use nym_compact_ecash::error::{CompactEcashError, Result};
 
 pub fn generate_expiration_date_signatures(
     params: &Parameters,
@@ -138,7 +138,8 @@ fn bench_compact_ecash(c: &mut Criterion) {
         &verification_keys_auth,
         &verification_key,
         &indices,
-    ).unwrap();
+    )
+    .unwrap();
 
     // generate coin indices signatures
     let coin_indices_signatures = generate_coin_indices_signatures(
@@ -147,10 +148,12 @@ fn bench_compact_ecash(c: &mut Criterion) {
         &verification_keys_auth,
         &verification_key,
         &indices,
-    ).unwrap();
+    )
+    .unwrap();
 
     // ISSUANCE PHASE
-    let (req, req_info) = withdrawal_request(grp, &user_keypair.secret_key(), expiration_date).unwrap();
+    let (req, req_info) =
+        withdrawal_request(grp, &user_keypair.secret_key(), expiration_date).unwrap();
 
     // CLIENT BENCHMARK: prepare a single withdrawal request
     group.bench_function(
@@ -158,7 +161,9 @@ fn bench_compact_ecash(c: &mut Criterion) {
             "[Client] withdrawal_request_{}_authorities_{}_L_{}_threshold",
             case.num_authorities, case.L, case.threshold_p,
         ),
-        |b| b.iter(|| withdrawal_request(grp, &user_keypair.secret_key(), expiration_date).unwrap()),
+        |b| {
+            b.iter(|| withdrawal_request(grp, &user_keypair.secret_key(), expiration_date).unwrap())
+        },
     );
 
     // ISSUING AUTHRORITY BENCHMARK: Benchmark the issue_wallet function
@@ -247,31 +252,36 @@ fn bench_compact_ecash(c: &mut Criterion) {
         ),
         |b| {
             b.iter(|| {
-                aggr_wallet.spend(
-                    &params,
-                    &verification_key,
-                    &user_keypair.secret_key(),
-                    &pay_info,
-                    false,
-                    case.spend_vv,
-                    dates_signatures.clone(),
-                    coin_indices_signatures.clone(),
-                    spend_date,
-                ).unwrap()
+                aggr_wallet
+                    .spend(
+                        &params,
+                        &verification_key,
+                        &user_keypair.secret_key(),
+                        &pay_info,
+                        false,
+                        case.spend_vv,
+                        dates_signatures.clone(),
+                        coin_indices_signatures.clone(),
+                        spend_date,
+                    )
+                    .unwrap()
             })
         },
     );
 
-    let (payment, upd_wallet) = aggr_wallet.spend(
-                                &params,
-                                &verification_key,
-                                &user_keypair.secret_key(),
-                                &pay_info,
-                                false,
-                                case.spend_vv,
-                                dates_signatures.clone(),
-                                coin_indices_signatures.clone(),
-                                spend_date).unwrap();
+    let (payment, upd_wallet) = aggr_wallet
+        .spend(
+            &params,
+            &verification_key,
+            &user_keypair.secret_key(),
+            &pay_info,
+            false,
+            case.spend_vv,
+            dates_signatures.clone(),
+            coin_indices_signatures.clone(),
+            spend_date,
+        )
+        .unwrap();
 
     // MERCHANT BENCHMARK: verify whether the submitted payment is legit
     group.bench_function(

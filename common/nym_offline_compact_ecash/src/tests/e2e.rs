@@ -15,7 +15,7 @@ use crate::scheme::setup::{
     PartialCoinIndexSignature,
 };
 use crate::scheme::withdrawal::{
-    issue_verify, issue_wallet, withdrawal_request, WithdrawalRequest,
+    issue_verify, issue, withdrawal_request, WithdrawalRequest,
 };
 use crate::scheme::PayInfo;
 use crate::scheme::{PartialWallet, Payment, Wallet};
@@ -127,7 +127,7 @@ fn main() -> Result<()> {
     // issue partial wallets
     let mut wallet_blinded_signatures = Vec::new();
     for auth_keypair in authorities_keypairs {
-        let blind_signature = issue_wallet(
+        let blind_signature = issue(
             &grp_params,
             auth_keypair.secret_key(),
             user_keypair.public_key(),
@@ -163,14 +163,16 @@ fn main() -> Result<()> {
     assert_eq!(aggr_wallet, wallet);
 
     // Let's try to spend some coins
-    let payinfo = PayInfo { payinfo: [6u8; 88] };
+    let pay_info = PayInfo {
+        pay_info_bytes: [6u8; 88],
+    };
     let spend_vv = 1;
 
     let (payment, _) = aggr_wallet.spend(
         &params,
         &verification_key,
         &user_keypair.secret_key(),
-        &payinfo,
+        &pay_info,
         false,
         spend_vv,
         dates_signatures,
@@ -179,7 +181,7 @@ fn main() -> Result<()> {
     )?;
 
     assert!(payment
-        .spend_verify(&params, &verification_key, &payinfo, spend_date)
+        .spend_verify(&params, &verification_key, &pay_info, spend_date)
         .unwrap());
 
     let payment_bytes = payment.to_bytes();

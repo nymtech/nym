@@ -1,7 +1,7 @@
 use std::time::Duration;
 
-use futures::SinkExt;
-use nym_vpn_lib::{NymVpnCtrlMessage, NymVpnExitStatusMessage};
+use futures::{SinkExt, StreamExt};
+use nym_vpn_lib::{NymVpnCtrlMessage, NymVpnExitStatusMessage, NymVpnHandle};
 use tauri::{Manager, State};
 use time::OffsetDateTime;
 use tokio::time::sleep;
@@ -117,7 +117,11 @@ pub async fn connect(
     // A local clone, now separate from the shared one
     let local_nymvpn = nymvpn_state_cloned.lock().await.clone();
 
-    let vpn_handle = nym_vpn_lib::spawn_nym_vpn(local_nymvpn).map_err(|e| {
+    let NymVpnHandle {
+        vpn_ctrl_tx,
+        mut vpn_status_rx,
+        vpn_exit_rx,
+    } = nym_vpn_lib::spawn_nym_vpn(local_nymvpn).map_err(|e| {
         error!("fail to initialize Nym VPN client: {}", e);
         CmdError::new(
             CmdErrorSource::InternalError,
@@ -125,37 +129,47 @@ pub async fn connect(
         )
     })?;
 
-    let mut vpn_exit_rx = vpn_handle.vpn_exit_rx;
+    // Start exit message listener
+    // This will listen for the (single) exit message from the VPN client and update the UI accordingly
     tokio::spawn(async move {
-        loop {
-            match vpn_exit_rx.try_recv() {
-                Ok(res) => {
-                    if let Some(NymVpnExitStatusMessage::Stopped) = res {
-                        info!("VPN client has exited");
+        match vpn_exit_rx.await {
+            Ok(res) => {
+                info!("received vpn exit message: {res:?}");
+                match res {
+                    NymVpnExitStatusMessage::Stopped => {
+                        // Insert here:
+                        // - send event to UI that the connection has been disconnected successfully
+                    }
+                    NymVpnExitStatusMessage::Failed => {
+                        // Insert here:
+                        // - send event to UI that the connection has failed (and stopped)
                     }
                 }
-                Err(e) => {
-                    error!("vpn_exit_rx failed to receive message: {}", e);
-                    // TODO add proper logic
-                    return;
-                }
+            }
+            Err(e) => {
+                error!("vpn_exit_rx failed to receive exit message: {}", e);
             }
         }
+        info!("vpn exit listener has exited");
     });
 
-    // let mut vpn_status_rx = vpn_handle.vpn_status_rx;
-    // tokio::spawn(async move {
-    //     loop {
-    //         match vpn_status_rx.recv() {} // ???
-    //     }
-    // });
+    // Start the VPN status listener
+    // This will listen for status messages from the VPN client and update the UI accordingly
+    tokio::spawn(async move {
+        while let Some(msg) = vpn_status_rx.next().await {
+            info!("received vpn status message: {msg:?}");
+            match msg {
+                nym_vpn_lib::NymVpnStatusMessage::Slow => todo!(),
+            }
+        }
+        info!("vpn status listener has exited");
+    });
 
-    // The nym_vpn_handle contains a set of channels that can be used to interact with the running
-    // VPN task.
-    state.vpn_ctrl_tx = Some(vpn_handle.vpn_ctrl_tx);
+    // Store the vpn control tx in the app state, which will be used to send control messages to
+    // the running background VPN task, such as to disconnect.
+    state.vpn_ctrl_tx = Some(vpn_ctrl_tx);
 
-    let app_state = state.state;
-    Ok(app_state)
+    Ok(state.state)
 }
 
 #[instrument(skip_all)]

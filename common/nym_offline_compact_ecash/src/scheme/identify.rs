@@ -127,8 +127,8 @@ mod tests {
 
     #[test]
     fn duplicate_payments_with_the_same_pay_info() {
-        let L = 32;
-        let params = setup(L);
+        let total_coins = 32;
+        let params = setup(total_coins);
         // NOTE: Make sure that the date timestamp are calculated at 00:00:00!!
         let expiration_date = 1703721600; // Dec 28 2023 00:00:00
         let spend_date = Scalar::from(1701907200); // Dec 07 2023 00:00:00
@@ -232,7 +232,6 @@ mod tests {
 
         let pay_info2 = pay_info1.clone();
         let identify_result = identify(
-            &params,
             &verification_key,
             payment1,
             payment2,
@@ -248,8 +247,8 @@ mod tests {
 
     #[test]
     fn ok_if_two_different_payments() {
-        let L = 32;
-        let params = setup(L);
+        let total_coins = 32;
+        let params = setup(total_coins);
         let grp = params.grp();
         // NOTE: Make sure that the date timestamp are calculated at 00:00:00!!
         let expiration_date = 1703721600; // Dec 28 2023 00:00:00
@@ -368,7 +367,6 @@ mod tests {
             .unwrap());
 
         let identify_result = identify(
-            &params,
             &verification_key,
             payment1,
             payment2,
@@ -381,8 +379,8 @@ mod tests {
 
     #[test]
     fn two_payments_with_one_repeating_serial_number_but_different_pay_info() {
-        let L = 32;
-        let params = setup(L);
+        let total_coins = 32;
+        let params = setup(total_coins);
         let grp = params.grp();
         // NOTE: Make sure that the date timestamp are calculated at 00:00:00!!
         let expiration_date = 1703721600; // Dec 28 2023 00:00:00
@@ -516,7 +514,6 @@ mod tests {
             .unwrap());
 
         let identify_result = identify(
-            &params,
             &verification_key,
             payment1,
             payment2,
@@ -532,8 +529,8 @@ mod tests {
 
     #[test]
     fn two_payments_with_multiple_repeating_serial_numbers_but_different_pay_info() {
-        let L = 32;
-        let params = setup(L);
+        let total_coins = 32;
+        let params = setup(total_coins);
         let grp = params.grp();
         // NOTE: Make sure that the date timestamp are calculated at 00:00:00!!
         let expiration_date = 1703721600; // Dec 28 2023 00:00:00
@@ -542,7 +539,7 @@ mod tests {
 
         //  GENERATE KEYS FOR OTHER USERS
         let mut public_keys: Vec<PublicKeyUser> = Default::default();
-        for i in 0..50 {
+        for _ in 0..50 {
             let sk = grp.random_scalar();
             let sk_user = SecretKeyUser { sk };
             let pk_user = sk_user.public_key(&grp);
@@ -663,7 +660,6 @@ mod tests {
             .unwrap();
 
         let identify_result = identify(
-            &params,
             &verification_key,
             payment1,
             payment2,

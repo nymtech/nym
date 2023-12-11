@@ -70,7 +70,7 @@ impl TryFrom<&[u8]> for SecretKeyAuth {
 
 impl SecretKeyAuth {
     pub fn get_ys(&self) -> Vec<Scalar> {
-        return self.ys.clone();
+        self.ys.clone()
     }
 
     pub(crate) fn get_y_by_idx(&self, i: usize) -> Option<&Scalar> {

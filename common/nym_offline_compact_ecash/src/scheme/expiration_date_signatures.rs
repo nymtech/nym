@@ -370,15 +370,14 @@ mod tests {
     #[test]
     fn test_find_index() {
         let expiration_date = Scalar::from(1702050209); // Dec 8 2023
-                                                        // let spend_date = Scalar::from(1701173854); // Nov 28 2023
         let spend_date = Scalar::from(1701963809); // Dec 07 2023
         let index_a = find_index(spend_date, expiration_date);
     }
 
     #[test]
     fn test_sign_expiration_date() {
-        let L = 32;
-        let params = setup(L);
+        let total_coins = 32;
+        let params = setup(total_coins);
         let expiration_date = 1702050209; // Dec 8 2023
 
         let authorities_keys = ttp_keygen(&params.grp(), 2, 3).unwrap();
@@ -397,8 +396,8 @@ mod tests {
 
     #[test]
     fn test_aggregate_expiration_signatures() {
-        let L = 32;
-        let params = setup(L);
+        let total_coins = 32;
+        let params = setup(total_coins);
         let expiration_date = 1702050209; // Dec 8 2023
 
         let authorities_keypairs = ttp_keygen(&params.grp(), 2, 3).unwrap();

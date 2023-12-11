@@ -74,8 +74,8 @@ pub fn generate_coin_indices_signatures(
 
 #[test]
 fn main() -> Result<()> {
-    let L = 32;
-    let params = setup(L);
+    let total_coins = 32;
+    let params = setup(total_coins);
     let grp_params = params.grp();
     // NOTE: Make sure that the date timestamp are calculated at 00:00:00!!
     let expiration_date = 1703721600; // Dec 28 2023 00:00:00

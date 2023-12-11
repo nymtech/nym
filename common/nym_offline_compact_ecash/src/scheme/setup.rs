@@ -112,8 +112,8 @@ pub struct PublicKeyRP {
 pub struct Parameters {
     /// group parameters
     grp: GroupParameters,
-    /// Max value of wallet
-    L: u64,
+    /// Number of coins of fixed denomination in the credential wallet; L in construction
+    total_coins: u64,
 }
 
 impl Parameters {
@@ -121,8 +121,8 @@ impl Parameters {
         &self.grp
     }
 
-    pub fn L(&self) -> u64 {
-        self.L
+    pub fn get_total_coins(&self) -> u64 {
+        self.total_coins
     }
 }
 
@@ -215,10 +215,10 @@ pub fn sign_coin_indices(
 ) -> Vec<PartialCoinIndexSignature> {
     let m1: Scalar = Scalar::from_bytes(&constants::TYPE_IDX).unwrap();
     let m2: Scalar = Scalar::from_bytes(&constants::TYPE_IDX).unwrap();
-    (0..params.L())
+    (0..params.get_total_coins())
         .into_par_iter()
         .fold(
-            || Vec::with_capacity(params.L() as usize),
+            || Vec::with_capacity(params.get_total_coins() as usize),
             |mut partial_coins_signatures, l| {
                 let m0: Scalar = Scalar::from(l as u64);
                 // Compute the hash h
@@ -393,9 +393,9 @@ pub fn aggregate_indices_signatures(
 
     // Pre-allocate vectors
     let mut aggregated_coin_signatures: Vec<CoinIndexSignature> =
-        Vec::with_capacity(params.L() as usize);
+        Vec::with_capacity(params.get_total_coins() as usize);
 
-    for l in 0..params.L() {
+    for l in 0..params.get_total_coins() {
         let m0: Scalar = Scalar::from(l);
         // Compute the hash h
         let mut concatenated_bytes =
@@ -435,9 +435,9 @@ pub fn aggregate_indices_signatures(
 /// A `Parameters` struct containing group parameters, public key, the number of signatures (`L`),
 /// and a map of signatures for each index `l`.
 ///
-pub fn setup(L: u64) -> Parameters {
+pub fn setup(total_coins: u64) -> Parameters {
     let grp = GroupParameters::new().unwrap();
-    Parameters { grp, L }
+    Parameters { grp, total_coins }
 }
 
 #[cfg(test)]
@@ -448,8 +448,8 @@ mod tests {
 
     #[test]
     fn test_sign_coins() {
-        let L = 32;
-        let params = setup(L);
+        let total_coins = 32;
+        let params = setup(total_coins);
         let authorities_keypairs = ttp_keygen(&params.grp(), 2, 3).unwrap();
         let indices: [u64; 3] = [1, 2, 3];
 
@@ -478,8 +478,8 @@ mod tests {
 
     #[test]
     fn test_sign_coins_fail() {
-        let L = 32;
-        let params = setup(L);
+        let total_coins = 32;
+        let params = setup(total_coins);
         let authorities_keypairs = ttp_keygen(&params.grp(), 2, 3).unwrap();
         let indices: [u64; 3] = [1, 2, 3];
 
@@ -509,8 +509,8 @@ mod tests {
 
     #[test]
     fn test_aggregate_coin_indices_signatures() {
-        let L = 32;
-        let params = setup(L);
+        let total_coins = 32;
+        let params = setup(total_coins);
         let authorities_keypairs = ttp_keygen(&params.grp(), 2, 3).unwrap();
         let indices: [u64; 3] = [1, 2, 3];
 

@@ -234,12 +234,9 @@ impl Wallet {
         bytes[160..168].copy_from_slice(&self.l.get().to_le_bytes());
         bytes
     }
-    fn up(&self) {
-        self.l.set(self.l.get() + 1);
-    }
 
     fn check_remaining_allowance(&self, params: &Parameters, spend_value: u64) -> Result<()> {
-        if self.l() + spend_value > params.L() {
+        if self.l() + spend_value > params.get_total_coins() {
             Err(CompactEcashError::Spend(
                 "The amount you want to spend exceeds remaining wallet allowance ".to_string(),
             ))
@@ -333,7 +330,7 @@ impl Wallet {
             lk_vec.push(Scalar::from(lk));
 
             // compute hashes R_k = H(payinfo, k)
-            let rr_k = compute_payinfo_hash(&pay_info, k);
+            let rr_k = compute_payinfo_hash(pay_info, k);
             rr.push(rr_k);
 
             let o_a_k = grp_params.random_scalar();
@@ -792,11 +789,11 @@ impl Payment {
 
         // verify the zk-proof
         if !self.zk_proof.verify(
-            &params,
+            params,
             &instance,
-            &verification_key,
+            verification_key,
             &rr,
-            &pay_info,
+            pay_info,
             self.spend_value,
         ) {
             return Err(CompactEcashError::Spend(

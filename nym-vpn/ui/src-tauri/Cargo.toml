@@ -24,8 +24,7 @@ ts-rs = { version = "7.0.0", features = ["chrono-impl"] }
 once_cell = "1.18.0"
 toml = "0.8.5"
 time = "0.3.9"
-# TODO for testing purpose only, use a local build of nym-vpn-lib
-nym-vpn-lib = { path = "/box/dev/nym-vpn-client/nym-vpn-lib" }
+nym-vpn-lib = { path = "../../../../nym-vpn-client/nym-vpn-lib" }
 
 # TODO Ugly workaround to force a working setup for nym-vpn-lib
 # We should get rid of this ASAP

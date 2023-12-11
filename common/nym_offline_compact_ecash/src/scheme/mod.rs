@@ -673,14 +673,20 @@ impl Payment {
     /// An error is returned if not all serial numbers in the payment are unique.
     ///
     pub fn no_duplicate_serial_numbers(&self) -> Result<()> {
-        let set: HashSet<_> = self.ss.iter().collect();
-        if !(set.len() == self.ss.len()) {
-            return Err(CompactEcashError::Spend(
-                "Not all serial numbers are unique".to_string(),
-            ));
+        let mut seen_serial_numbers = Vec::new();
+
+        for serial_number in &self.ss {
+            if seen_serial_numbers.contains(serial_number) {
+                return Err(CompactEcashError::Spend(
+                    "Not all serial numbers are unique".to_string(),
+                ));
+            }
+            seen_serial_numbers.push(serial_number.clone());
         }
+
         Ok(())
     }
+
 
     /// Checks the validity of the coin index signature at a specific index.
     ///

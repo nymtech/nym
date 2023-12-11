@@ -77,52 +77,54 @@ pub async fn connect(
     // TODO fake some delay to establish connection
     let app_state_cloned = state.inner().clone();
     let nymvpn_state_cloned = nymvpn_state.inner().clone();
-    let task = tokio::spawn(async move {
-        app.emit_all(
-            EVENT_CONNECTION_PROGRESS,
-            ProgressEventPayload {
-                message: "Connecting to the network…".to_string(),
-            },
-        )
-        .ok();
-        sleep(Duration::from_millis(300)).await;
-        app.emit_all(
-            EVENT_CONNECTION_PROGRESS,
-            ProgressEventPayload {
-                message: "Fetching nodes and gateways…".to_string(),
-            },
-        )
-        .ok();
-        sleep(Duration::from_millis(400)).await;
-        app.emit_all(
-            EVENT_CONNECTION_PROGRESS,
-            ProgressEventPayload {
-                message: "Done".to_string(),
-            },
-        )
-        .ok();
-        let now = OffsetDateTime::now_utc();
-        let mut state = app_state_cloned.lock().await;
-        state.state = ConnectionState::Connected;
-        state.connection_start_time = Some(now);
-        debug!("sending event [{}]: connected", EVENT_CONNECTION_STATE);
-        app.emit_all(
-            EVENT_CONNECTION_STATE,
-            ConnectionEventPayload::new(
-                ConnectionState::Connected,
-                None,
-                Some(now.unix_timestamp()),
-            ),
-        )
-        .ok();
-        trace!("running nymvpn lib");
-        nymvpn_state_cloned.lock().await.run().await;
-    });
 
-    let _ = task.await;
+    app.emit_all(
+        EVENT_CONNECTION_PROGRESS,
+        ProgressEventPayload {
+            message: "Connecting to the network…".to_string(),
+        },
+    )
+    .ok();
+    sleep(Duration::from_millis(300)).await;
+    app.emit_all(
+        EVENT_CONNECTION_PROGRESS,
+        ProgressEventPayload {
+            message: "Fetching nodes and gateways…".to_string(),
+        },
+    )
+    .ok();
+    sleep(Duration::from_millis(400)).await;
+    app.emit_all(
+        EVENT_CONNECTION_PROGRESS,
+        ProgressEventPayload {
+            message: "Done".to_string(),
+        },
+    )
+    .ok();
+    let now = OffsetDateTime::now_utc();
+    let mut state = app_state_cloned.lock().await;
+    state.state = ConnectionState::Connected;
+    state.connection_start_time = Some(now);
+    debug!("sending event [{}]: connected", EVENT_CONNECTION_STATE);
+    app.emit_all(
+        EVENT_CONNECTION_STATE,
+        ConnectionEventPayload::new(
+            ConnectionState::Connected,
+            None,
+            Some(now.unix_timestamp()),
+        ),
+    )
+    .ok();
 
-    let app_state = state.lock().await;
-    Ok(app_state.state)
+    // A local clone, now separate from the shared one
+    let local_nymvpn = nymvpn_state_cloned.lock().await.clone();
+    let nym_vpn_handle = nym_vpn_lib::spawn_nym_vpn(local_nymvpn);
+
+    // The nym_vpn_handle contains a set of channels that can be used to interact with the running
+    // VPN task.
+
+    let app_state = state.state;
+    Ok(app_state)
 }
 
 #[instrument(skip_all)]

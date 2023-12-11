@@ -56,18 +56,18 @@ pub async fn connect(
     nymvpn_state: State<'_, NymVPNState>,
 ) -> Result<ConnectionState, CmdError> {
     debug!("connect");
-    let mut app_state = state.lock().await;
-    let ConnectionState::Disconnected = app_state.state else {
-        return Err(CmdError::new(
-            CmdErrorSource::CallerError,
-            format!("cannot connect from state {:?}", app_state.state),
-        ));
-    };
+    {
+        let mut app_state = state.lock().await;
+        let ConnectionState::Disconnected = app_state.state else {
+            return Err(CmdError::new(
+                CmdErrorSource::CallerError,
+                format!("cannot connect from state {:?}", app_state.state),
+            ));
+        };
 
-    // switch to "Connecting" state
-    app_state.state = ConnectionState::Connecting;
-    // unlock the mutex
-    drop(app_state);
+        // switch to "Connecting" state
+        app_state.state = ConnectionState::Connecting;
+    }
     app.emit_all(
         EVENT_CONNECTION_STATE,
         ConnectionEventPayload::new(ConnectionState::Connecting, None, None),

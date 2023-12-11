@@ -1,0 +1,44 @@
+/* eslint-disable no-restricted-globals */
+import * as Comlink from 'comlink';
+//
+// Rollup will replace wasmBytes with a function that loads the WASM bundle from a base64 string embedded in the output.
+//
+// Doing it this way, saves having to support a large variety of bundlers and their quirks.
+//
+// @ts-ignore
+// eslint-disable-next-line import/no-extraneous-dependencies
+import wasmBytes from '@nymproject/nym-credential-client-wasm/nym_credential_client_wasm_bg.wasm';
+import type { INymCredentialsClientWebWorker, Coin, CredentialsClientOpts } from './types';
+import { EventKinds, LoadedEvent } from './types';
+import init, { acquireCredential } from '@nymproject/nym-credential-client-wasm/nym_credential_client_wasm';
+
+/**
+ * Helper method to send typed messages.
+ * @param event   The strongly typed message to send back to the calling thread.
+ */
+// eslint-disable-next-line no-restricted-globals
+const postMessageWithType = <E>(event: E) => self.postMessage(event);
+
+console.log('[Nym WASM client] Starting Nym WASM web worker...');
+
+// load WASM binary
+async function main() {
+  const importResult = await init(wasmBytes());
+  importResult.set_panic_hook();
+
+  const webWorker: INymCredentialsClientWebWorker = {
+    async acquireCredential(coin: Coin, mnemonic: string, opts: CredentialsClientOpts) {
+      console.log('[Worker] --- acquireCredential ---', { coin, mnemonic, opts });
+      return acquireCredential(coin, mnemonic, opts);
+    },
+  };
+
+  // start comlink listening for messages and handle them above
+  Comlink.expose(webWorker);
+
+  // notify any listeners that the web worker has loaded and is ready for testing
+  postMessageWithType<LoadedEvent>({ kind: EventKinds.Loaded, args: { loaded: true } });
+}
+
+
+main();

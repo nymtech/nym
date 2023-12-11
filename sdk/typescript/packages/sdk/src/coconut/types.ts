@@ -13,19 +13,15 @@ export interface LoadedEvent {
   };
 }
 
-export interface Coin {
-  amount: string;
-  denom: string;
-}
+export type Credential = any; // TODO
 
-export type Credentials = any; // TODO
-
-export interface CredentialsClientOpts {
+export interface CredentialClientOpts {
   isSandbox?: boolean;
+  networkDetails?: {};
 }
 
-export interface INymCredentialsClientWebWorker {
-  acquireCredential: (coin: Coin, mnemonic: string, opts: CredentialsClientOpts) => Promise<Credential>;
+export interface INymCredentialClientWebWorker {
+  acquireCredential: (coin: string, mnemonic: string, opts: CredentialClientOpts) => Promise<Credential>;
 }
 
 // export interface NymCredentialsClient {
@@ -34,5 +30,5 @@ export interface INymCredentialsClientWebWorker {
 // }
 
 export interface NymCredentialsClient {
-  comlink: INymCredentialsClientWebWorker;
+  comlink: INymCredentialClientWebWorker;
 }

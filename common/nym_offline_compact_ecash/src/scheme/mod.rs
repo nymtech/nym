@@ -17,7 +17,6 @@ use crate::utils::{
 use crate::Attribute;
 use chrono::{Timelike, Utc};
 use rand::{thread_rng, Rng};
-use std::collections::HashSet;
 
 pub mod aggregation;
 pub mod expiration_date_signatures;
@@ -686,7 +685,6 @@ impl Payment {
 
         Ok(())
     }
-
 
     /// Checks the validity of the coin index signature at a specific index.
     ///

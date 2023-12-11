@@ -45,6 +45,7 @@ pub fn setup_logging() {
 fn setup_gateway_client_config(private_key: Option<&str>) -> GatewayClientConfig {
     let mut config = GatewayClientConfig::default()
         .with_custom_api_url(nym_config::defaults::mainnet::NYM_API.parse().unwrap())
+        // Read in the environment variable NYM_API if it exists
         .with_optional_env(GatewayClientConfig::with_custom_api_url, None, "NYM_API");
     info!("Using nym-api: {}", config.api_url());
 
@@ -78,6 +79,7 @@ async fn main() -> Result<()> {
     let app_config = app_config_store.read().await?;
     debug!("app_config: {app_config:?}");
 
+    // Read the env variables in the provided file and export them all to the local environment.
     // TODO: consider reading in the environment from the config file instead.
     nym_config::defaults::setup_env(env::args().nth(1).map(PathBuf::from).as_ref());
 

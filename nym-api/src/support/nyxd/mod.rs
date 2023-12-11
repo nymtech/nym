@@ -31,6 +31,7 @@ use nym_name_service_common::msg::QueryMsg as NameServiceQueryMsg;
 use nym_service_provider_directory_common::msg::QueryMsg as SpQueryMsg;
 use nym_validator_client::nyxd::contract_traits::{NameServiceQueryClient, PagedDkgQueryClient};
 use nym_validator_client::nyxd::error::NyxdError;
+use nym_validator_client::nyxd::GasPrice;
 use nym_validator_client::nyxd::{
     contract_traits::{
         CoconutBandwidthQueryClient, DkgQueryClient, DkgSigningClient, EphemeraQueryClient,
@@ -415,11 +416,21 @@ impl crate::coconut::client::Client for Client {
         dealing_bytes: ContractSafeBytes,
         resharing: bool,
     ) -> Result<ExecuteResult, CoconutError> {
+        /* testing values solely */
+        let amount = 10;
+        let denom = "unym";
+
+        let fee_coin = Coin::new(amount, denom);
+
+        let gas_price = GasPrice::new_with_default_price(denom)?;
+
+        let manual_fee = Fee::manual_with_gas_price(fee_coin, gas_price);
+
         Ok(self
             .0
             .write()
             .await
-            .submit_dealing_bytes(dealing_bytes, resharing, None)
+            .submit_dealing_bytes(dealing_bytes, resharing, Some(manual_fee))
             .await?)
     }
 

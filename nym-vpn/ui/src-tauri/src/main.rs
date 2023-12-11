@@ -1,36 +1,53 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use std::sync::Arc;
+use std::{env, path::PathBuf, sync::Arc};
 
-use anyhow::anyhow;
-use anyhow::Result;
-use nym_vpn_lib::NymVPN;
+use anyhow::{anyhow, Result};
 use tauri::api::path::{config_dir, data_dir};
 use tokio::sync::Mutex;
-use tracing::info;
+use tracing::{debug, info};
+
+use commands::*;
+use states::app::AppState;
+
+use nym_vpn_lib::{
+    gateway_client::Config as GatewayClientConfig,
+    nym_config::{self, OptionalSet},
+    NymVPN,
+};
+
+use crate::fs::{config::AppConfig, data::AppData, storage::AppStorage};
 
 mod commands;
 mod error;
 mod fs;
 mod states;
 
-use commands::*;
-use states::app::AppState;
-
-use crate::fs::config::AppConfig;
-use crate::fs::data::AppData;
-use crate::fs::storage::AppStorage;
-use nym_vpn_lib::gateway_client::Config as GatewayConfig;
-use nym_vpn_lib::nym_config::defaults::var_names::NYM_API;
-use nym_vpn_lib::nym_config::OptionalSet;
-
 const APP_DIR: &str = "nymvpn";
 const APP_DATA_FILE: &str = "app-data.toml";
 const APP_CONFIG_FILE: &str = "config.toml";
 
-fn setup_gateway_config(private_key: Option<&str>, config: GatewayConfig) -> GatewayConfig {
-    let mut config = config.with_optional_env(GatewayConfig::with_custom_api_url, None, NYM_API);
+pub fn setup_logging() {
+    let filter = tracing_subscriber::EnvFilter::builder()
+        .with_default_directive(tracing_subscriber::filter::LevelFilter::INFO.into())
+        .from_env()
+        .unwrap()
+        .add_directive("hyper::proto=info".parse().unwrap())
+        .add_directive("netlink_proto=info".parse().unwrap());
+
+    tracing_subscriber::fmt()
+        .with_env_filter(filter)
+        .compact()
+        .init();
+}
+
+fn setup_gateway_client_config(private_key: Option<&str>) -> GatewayClientConfig {
+    let mut config = GatewayClientConfig::default()
+        .with_custom_api_url(nym_config::defaults::mainnet::NYM_API.parse().unwrap())
+        .with_optional_env(GatewayClientConfig::with_custom_api_url, None, "NYM_API");
+    info!("Using nym-api: {}", config.api_url());
+
     if let Some(key) = private_key {
         config = config.with_local_private_key(key.into());
     }
@@ -40,51 +57,35 @@ fn setup_gateway_config(private_key: Option<&str>, config: GatewayConfig) -> Gat
 #[tokio::main]
 async fn main() -> Result<()> {
     dotenvy::dotenv().ok();
+    setup_logging();
 
-    // uses RUST_LOG value for logging level
-    // eg. RUST_LOG=tauri=debug,nymvpn_ui=trace
-    tracing_subscriber::fmt::init();
+    let app_data_store = {
+        let mut app_data_path =
+            data_dir().ok_or(anyhow!("Failed to retrieve data directory path"))?;
+        app_data_path.push(APP_DIR);
+        AppStorage::<AppData>::new(app_data_path, APP_DATA_FILE, None)
+    };
+    debug!("app_data_store: {}", app_data_store.full_path.display());
 
-    let mut app_data_path = data_dir().ok_or(anyhow!("Failed to retrieve data directory path"))?;
-    app_data_path.push(APP_DIR);
-    let app_data_store = AppStorage::<AppData>::new(app_data_path, APP_DATA_FILE, None);
-
-    let mut app_config_path =
-        config_dir().ok_or(anyhow!("Failed to retrieve config directory path"))?;
-    app_config_path.push(APP_DIR);
-    let app_config_store = AppStorage::<AppConfig>::new(app_config_path, APP_CONFIG_FILE, None);
+    let app_config_store = {
+        let mut app_config_path =
+            config_dir().ok_or(anyhow!("Failed to retrieve config directory path"))?;
+        app_config_path.push(APP_DIR);
+        AppStorage::<AppConfig>::new(app_config_path, APP_CONFIG_FILE, None)
+    };
+    debug!("app_data_store: {}", &app_config_store.full_path.display());
 
     let app_config = app_config_store.read().await?;
-    // let gateway_config =
-    //     setup_gateway_config(app_config.private_key.as_deref(), GatewayConfig::default());
+    debug!("app_config: {app_config:?}");
 
-    // This should only really need to be set if we're running on not-mainnet. By default we should
-    // use the hardcoded stuff for mainnet, just like nym-connect.
-    let network_env = Some("/home/foobar/src/nym/nym/envs/qa.env");
-    nym_vpn_lib::nym_config::defaults::setup_env(network_env);
+    // TODO: consider reading in the environment from the config file instead.
+    nym_config::defaults::setup_env(env::args().nth(1).map(PathBuf::from).as_ref());
 
-    let gateway_config = GatewayConfig::default().with_optional_env(
-        GatewayConfig::with_custom_api_url,
-        None,
-        "NYM_API",
-    );
-
-    let mut nym_vpn = NymVPN::new(&app_config.entry_gateway, &app_config.exit_router);
-    nym_vpn.gateway_config = gateway_config;
-
-    // let nym_vpn = NymVPN {
-    //     gateway_config,
-    //     mixnet_client_path: app_config.mixnet_client_path,
-    //     entry_gateway: app_config.entry_gateway,
-    //     exit_router: app_config.exit_router,
-    //     enable_wireguard: app_config.enable_wireguard.unwrap_or(false),
-    //     private_key: app_config.private_key,
-    //     ip: app_config.ip,
-    //     mtu: app_config.mtu,
-    //     disable_routing: app_config.disable_routing.unwrap_or(false),
-    //     enable_two_hop: app_config.enable_two_hop.unwrap_or(false),
-    //     enable_poisson_rate: app_config.enable_poisson_rate.unwrap_or(true),
-    // };
+    let nym_vpn = {
+        let mut nym_vpn = NymVPN::new(&app_config.entry_gateway, &app_config.exit_router);
+        nym_vpn.gateway_config = setup_gateway_client_config(None);
+        nym_vpn
+    };
 
     info!("Starting tauri app");
 

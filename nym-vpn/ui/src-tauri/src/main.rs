@@ -118,5 +118,6 @@ async fn main() -> Result<()> {
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+
     Ok(())
 }

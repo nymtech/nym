@@ -108,20 +108,24 @@ pub async fn connect(
     debug!("sending event [{}]: connected", EVENT_CONNECTION_STATE);
     app.emit_all(
         EVENT_CONNECTION_STATE,
-        ConnectionEventPayload::new(
-            ConnectionState::Connected,
-            None,
-            Some(now.unix_timestamp()),
-        ),
+        ConnectionEventPayload::new(ConnectionState::Connected, None, Some(now.unix_timestamp())),
     )
     .ok();
 
     // A local clone, now separate from the shared one
     let local_nymvpn = nymvpn_state_cloned.lock().await.clone();
-    let nym_vpn_handle = nym_vpn_lib::spawn_nym_vpn(local_nymvpn);
+
+    let vpn_handle = nym_vpn_lib::spawn_nym_vpn(local_nymvpn).map_err(|e| {
+        error!("fail to initialize Nym VPN client: {}", e);
+        CmdError::new(
+            CmdErrorSource::InternalError,
+            format!("fail to initialize Nym VPN client: {e}"),
+        )
+    })?;
 
     // The nym_vpn_handle contains a set of channels that can be used to interact with the running
     // VPN task.
+    state.vpn_handle = Some(vpn_handle);
 
     let app_state = state.state;
     Ok(app_state)

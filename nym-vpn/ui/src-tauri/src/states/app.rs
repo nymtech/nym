@@ -1,3 +1,4 @@
+use nym_vpn_lib::NymVpnHandle;
 use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
 use ts_rs::TS;
@@ -46,6 +47,7 @@ pub struct AppState {
     pub exit_node_location: Option<Country>,
     pub tunnel: Option<TunnelConfig>,
     pub connection_start_time: Option<OffsetDateTime>,
+    pub vpn_handle: Option<NymVpnHandle>,
 }
 
 #[derive(Default, Serialize, Deserialize, Debug, Clone, TS)]

@@ -8,7 +8,7 @@ import * as Comlink from 'comlink';
 // @ts-ignore
 // eslint-disable-next-line import/no-extraneous-dependencies
 import wasmBytes from '@nymproject/nym-credential-client-wasm/nym_credential_client_wasm_bg.wasm';
-import type { INymCredentialsClientWebWorker, Coin, CredentialsClientOpts } from './types';
+import type { INymCredentialClientWebWorker, CredentialClientOpts } from './types';
 import { EventKinds, LoadedEvent } from './types';
 import init, { acquireCredential } from '@nymproject/nym-credential-client-wasm/nym_credential_client_wasm';
 
@@ -26,8 +26,8 @@ async function main() {
   const importResult = await init(wasmBytes());
   importResult.set_panic_hook();
 
-  const webWorker: INymCredentialsClientWebWorker = {
-    async acquireCredential(coin: Coin, mnemonic: string, opts: CredentialsClientOpts) {
+  const webWorker: INymCredentialClientWebWorker = {
+    async acquireCredential(coin: string, mnemonic: string, opts: CredentialClientOpts) {
       console.log('[Worker] --- acquireCredential ---', { coin, mnemonic, opts });
       return acquireCredential(coin, mnemonic, opts);
     },

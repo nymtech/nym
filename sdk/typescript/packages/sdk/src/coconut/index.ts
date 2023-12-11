@@ -2,22 +2,20 @@ import * as Comlink from 'comlink';
 import InlineWasmWebWorker from 'web-worker:./worker';
 import {
   EventKinds,
-  Coin,
-  Credentials,
-  CredentialsClientOpts,
-  INymCredentialsClientWebWorker,
+  CredentialClientOpts,
+  INymCredentialClientWebWorker,
   NymCredentialsClient,
 } from './types';
 
 const mnemonic =
   'summer under connect sadness unveil region charge feed tank grant drift mass side ramp winter fit verb rare huge high garment moment achieve since';
 
-export const createNymCredentialsClient = async (options?: CredentialsClientOpts): Promise<NymCredentialsClient> => {
+export const createNymCredentialsClient = async (options?: CredentialClientOpts): Promise<NymCredentialsClient> => {
   // eslint-disable-next-line @typescript-eslint/no-use-before-define
   const worker = await createWorker();
 
   // let comlink handle interop with the web worker
-  const comlink = Comlink.wrap<INymCredentialsClientWebWorker>(worker);
+  const comlink = Comlink.wrap<INymCredentialClientWebWorker>(worker);
 
   return { comlink };
   // pass the client interop and subscription manage back to the caller

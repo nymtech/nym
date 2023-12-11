@@ -85,7 +85,9 @@ async fn main() -> Result<()> {
 
     // Read the env variables in the provided file and export them all to the local environment.
     // TODO: consider reading in the environment from the config file instead.
-    nym_config::defaults::setup_env(env::args().nth(1).map(PathBuf::from).as_ref());
+    // nym_config::defaults::setup_env(env::args().nth(1).map(PathBuf::from).as_ref());
+    // TEMPORARY: hardcode the path to the env file until we can read it from the config file
+    nym_config::defaults::setup_env(Some("/home/dev/src/nym/nym/envs/foxyfox.env".parse::<PathBuf>().unwrap()));
 
     let nym_vpn = {
         let mut nym_vpn = NymVPN::new(&app_config.entry_gateway, &app_config.exit_router);

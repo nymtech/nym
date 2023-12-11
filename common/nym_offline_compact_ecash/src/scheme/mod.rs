@@ -791,10 +791,14 @@ impl Payment {
         };
 
         // verify the zk-proof
-        if !self
-            .zk_proof
-            .verify(&params, &instance, &verification_key, &rr, &pay_info, self.spend_value)
-        {
+        if !self.zk_proof.verify(
+            &params,
+            &instance,
+            &verification_key,
+            &rr,
+            &pay_info,
+            self.spend_value,
+        ) {
             return Err(CompactEcashError::Spend(
                 "ZkProof verification failed".to_string(),
             ));
@@ -818,7 +822,7 @@ impl Payment {
                 self.tt.len() * 48 +        // tt bytes
                 4 +      // aa_len_bytes
                 self.aa.len() * 48 +        // aa bytes
-                self.zk_proof.to_bytes().len(),  // zk_proof bytes
+                self.zk_proof.to_bytes().len(), // zk_proof bytes
         );
 
         bytes.extend_from_slice(&self.kappa.to_affine().to_compressed());

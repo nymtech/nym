@@ -120,8 +120,8 @@ mod tests {
     use crate::scheme::keygen::{PublicKeyUser, SecretKeyUser};
     use crate::scheme::setup::setup;
     use crate::{
-        aggregate_verification_keys, aggregate_wallets, generate_keypair_user, issue_verify,
-        issue, ttp_keygen, withdrawal_request, PartialWallet, PayInfo, VerificationKeyAuth,
+        aggregate_verification_keys, aggregate_wallets, generate_keypair_user, issue, issue_verify,
+        ttp_keygen, withdrawal_request, PartialWallet, PayInfo, VerificationKeyAuth,
     };
     use itertools::izip;
 

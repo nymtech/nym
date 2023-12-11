@@ -14,9 +14,7 @@ use crate::scheme::setup::{
     aggregate_indices_signatures, setup, sign_coin_indices, CoinIndexSignature, Parameters,
     PartialCoinIndexSignature,
 };
-use crate::scheme::withdrawal::{
-    issue_verify, issue, withdrawal_request, WithdrawalRequest,
-};
+use crate::scheme::withdrawal::{issue, issue_verify, withdrawal_request, WithdrawalRequest};
 use crate::scheme::PayInfo;
 use crate::scheme::{PartialWallet, Payment, Wallet};
 use bls12_381::Scalar;

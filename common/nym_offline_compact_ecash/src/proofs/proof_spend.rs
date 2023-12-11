@@ -820,6 +820,3 @@ impl TryFrom<&[u8]> for SpendProof {
         Ok(spend_proof)
     }
 }
-
-
-

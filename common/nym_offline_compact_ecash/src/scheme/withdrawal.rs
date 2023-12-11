@@ -386,7 +386,6 @@ pub fn blind_sing_private_attribute(
     private_attribute_commitment * yi
 }
 
-
 /// Signs an expiration date using a joined commitment hash and a secret key.
 ///
 /// Given a joined commitment hash (`joined_commitment_hash`), an expiration date (`expiration_date`),

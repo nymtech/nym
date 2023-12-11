@@ -5306,6 +5306,7 @@ version = "0.0.0"
 dependencies = [
  "anyhow",
  "dotenvy",
+ "futures",
  "nym-vpn-lib",
  "once_cell",
  "serde",

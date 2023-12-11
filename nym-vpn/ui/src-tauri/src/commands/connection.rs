@@ -1,9 +1,11 @@
 use std::time::Duration;
 
+use futures::SinkExt;
+use nym_vpn_lib::NymVpnCtrlMessage;
 use tauri::{Manager, State};
 use time::OffsetDateTime;
 use tokio::time::sleep;
-use tracing::{debug, error, instrument, trace};
+use tracing::{debug, error, instrument};
 
 use crate::{
     error::{CmdError, CmdErrorSource},
@@ -138,45 +140,68 @@ pub async fn disconnect(
     state: State<'_, SharedAppState>,
 ) -> Result<ConnectionState, CmdError> {
     debug!("disconnect");
-    let mut app_state = state.lock().await;
-    let ConnectionState::Connected = app_state.state else {
-        return Err(CmdError::new(
-            CmdErrorSource::CallerError,
-            format!("cannot disconnect from state {:?}", app_state.state),
-        ));
-    };
+    {
+        let mut app_state = state.lock().await;
+        let ConnectionState::Connected = app_state.state else {
+            return Err(CmdError::new(
+                CmdErrorSource::CallerError,
+                format!("cannot disconnect from state {:?}", app_state.state),
+            ));
+        };
 
-    // switch to "Disconnecting" state
-    app_state.state = ConnectionState::Disconnecting;
-    // unlock the mutex
-    drop(app_state);
+        // switch to "Disconnecting" state
+        app_state.state = ConnectionState::Disconnecting;
+        // unlock the mutex
+    }
     app.emit_all(
         EVENT_CONNECTION_STATE,
         ConnectionEventPayload::new(ConnectionState::Disconnecting, None, None),
     )
     .ok();
 
-    // TODO fake some delay to confirm disconnection
-    let app_state_cloned = state.inner().clone();
-    let task = tokio::spawn(async move {
-        sleep(Duration::from_secs(1)).await;
-        trace!("disconnected");
-
-        let mut state = app_state_cloned.lock().await;
-        state.state = ConnectionState::Disconnected;
-        state.connection_start_time = None;
-
-        debug!("sending event [{}]: disconnected", EVENT_CONNECTION_STATE);
+    let mut app_state = state.lock().await;
+    let Some(ref mut vpn_handle) = app_state.vpn_handle else {
+        app_state.state = ConnectionState::Disconnected;
+        app_state.connection_start_time = None;
         app.emit_all(
             EVENT_CONNECTION_STATE,
-            ConnectionEventPayload::new(ConnectionState::Disconnected, None, None),
+            ConnectionEventPayload::new(
+                ConnectionState::Disconnected,
+                Some("vpn handle has not been initialized".to_string()),
+                None,
+            ),
         )
         .ok();
-    });
+        return Err(CmdError::new(
+            CmdErrorSource::InternalError,
+            "vpn handle has not been initialized".to_string(),
+        ));
+    };
 
-    let _ = task.await;
+    // send Stop message to the VPN client
+    // TODO handle error case properly
+    vpn_handle
+        .vpn_ctrl_tx
+        .send(NymVpnCtrlMessage::Stop)
+        .await
+        .map_err(|e| {
+            error!("failed to send Stop message to VPN client: {}", e);
+            CmdError::new(
+                CmdErrorSource::InternalError,
+                "failed to send Stop message to VPN client".into(),
+            )
+        })?;
 
-    let app_state = state.lock().await;
+    app_state.state = ConnectionState::Disconnected;
+    app_state.connection_start_time = None;
+
+    debug!("sending event [{}]: disconnected", EVENT_CONNECTION_STATE);
+    app.emit_all(
+        EVENT_CONNECTION_STATE,
+        ConnectionEventPayload::new(ConnectionState::Disconnected, None, None),
+    )
+    .ok();
+
     Ok(app_state.state)
 }
 

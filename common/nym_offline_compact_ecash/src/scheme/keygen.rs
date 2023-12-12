@@ -385,7 +385,7 @@ impl PemStorableKey for SecretKeyUser {
     }
 }
 
-#[derive(Debug, Eq, PartialEq, Clone, Hash)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct PublicKeyUser {
     pub(crate) pk: G1Projective,
 }

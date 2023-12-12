@@ -20,7 +20,7 @@ use nym_task::{TaskClient, TaskManager};
 use rand::rngs::OsRng;
 use rand::{CryptoRng, RngCore};
 use std::path::PathBuf;
-use std::time::{Duration, SystemTime};
+use std::time::Duration;
 use time::OffsetDateTime;
 use tokio::time::interval;
 

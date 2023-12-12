@@ -1,12 +1,12 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use std::{env, path::PathBuf, sync::Arc};
+use std::{env, sync::Arc};
 
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use tauri::api::path::{config_dir, data_dir};
-use tokio::sync::Mutex;
-use tracing::{debug, info};
+use tokio::{fs::try_exists, sync::Mutex};
+use tracing::{debug, error, info};
 
 use commands::*;
 use states::app::AppState;
@@ -83,11 +83,21 @@ async fn main() -> Result<()> {
     let app_config = app_config_store.read().await?;
     debug!("app_config: {app_config:?}");
 
+    // check for the existence of the env_config_file
+    if !(try_exists(&app_config.env_config_file)
+        .await
+        .context("an error happened while trying to read env_config_file `{}`")?)
+    {
+        let err_message = format!(
+            "app config, env_config_file `{}`: file not found",
+            app_config.env_config_file.display()
+        );
+        error!(err_message);
+        return Err(anyhow!(err_message));
+    }
+
     // Read the env variables in the provided file and export them all to the local environment.
-    // TODO: consider reading in the environment from the config file instead.
-    // nym_config::defaults::setup_env(env::args().nth(1).map(PathBuf::from).as_ref());
-    // TEMPORARY: hardcode the path to the env file until we can read it from the config file
-    nym_config::defaults::setup_env(Some("/home/dev/src/nym/nym/envs/foxyfox.env".parse::<PathBuf>().unwrap()));
+    nym_config::defaults::setup_env(Some(app_config.env_config_file).as_ref());
 
     let nym_vpn = {
         let mut nym_vpn = NymVPN::new(&app_config.entry_gateway, &app_config.exit_router);

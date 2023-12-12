@@ -1,7 +1,7 @@
 #!/bin/sh
 #  ci_post_clone.sh
 cd /Volumes/workspace/repository/nym-vpn/desktop && \
-curl https://sh.rustup.rs -sSf | sh && \
+brew install rustup-init && \
 cargo install cargo-deb;
 cargo install --force cargo-make;
 cargo install sd;

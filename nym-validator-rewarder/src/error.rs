@@ -26,6 +26,12 @@ pub enum NymRewarderError {
         source: io::Error,
     },
 
+    #[error("failed to initialise paths")]
+    PathInitialisationFailure {
+        #[source]
+        source: io::Error,
+    },
+
     #[error("there already exists a config file at: {}. if you want to overwrite its content, use --force flag", path.display())]
     ExistingConfig { path: PathBuf },
 
@@ -35,4 +41,10 @@ pub enum NymRewarderError {
 
     #[error("the provided rewarding ratios don't add up to 1. ratios: {ratios:?}")]
     InvalidRewardingRatios { ratios: Vec<f32> },
+
+    #[error("chain scraping failure: {source}")]
+    ScraperFailure {
+        #[from]
+        source: nyxd_scraper::error::ScraperError,
+    },
 }

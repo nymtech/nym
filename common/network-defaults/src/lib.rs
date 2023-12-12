@@ -111,6 +111,7 @@ impl NymNetworkDetails {
             .with_additional_validator_endpoint(ValidatorDetails::new(
                 var(var_names::NYXD).expect("nyxd validator not set"),
                 Some(var(var_names::NYM_API).expect("nym api not set")),
+                get_optional_env(var_names::NYXD_WEBSOCKET),
             ))
             .with_mixnet_contract(Some(
                 var(var_names::MIXNET_CONTRACT_ADDRESS).expect("mixnet contract not set"),
@@ -340,6 +341,9 @@ impl DenomDetailsOwned {
 pub struct ValidatorDetails {
     // it is assumed those values are always valid since they're being provided in our defaults file
     pub nyxd_url: String,
+    //
+    pub websocket_url: Option<String>,
+
     // Right now api_url is optional as we are not running the api reliably on all validators
     // however, later on it should be a mandatory field
     pub api_url: Option<String>,
@@ -347,9 +351,10 @@ pub struct ValidatorDetails {
 }
 
 impl ValidatorDetails {
-    pub fn new<S: Into<String>>(nyxd_url: S, api_url: Option<S>) -> Self {
+    pub fn new<S: Into<String>>(nyxd_url: S, api_url: Option<S>, websocket_url: Option<S>) -> Self {
         ValidatorDetails {
             nyxd_url: nyxd_url.into(),
+            websocket_url: websocket_url.map(Into::into),
             api_url: api_url.map(Into::into),
         }
     }
@@ -357,6 +362,7 @@ impl ValidatorDetails {
     pub fn new_nyxd_only<S: Into<String>>(nyxd_url: S) -> Self {
         ValidatorDetails {
             nyxd_url: nyxd_url.into(),
+            websocket_url: None,
             api_url: None,
         }
     }
@@ -371,6 +377,12 @@ impl ValidatorDetails {
         self.api_url
             .as_ref()
             .map(|url| url.parse().expect("the provided api url is invalid!"))
+    }
+
+    pub fn websocket_url(&self) -> Option<Url> {
+        self.websocket_url
+            .as_ref()
+            .map(|url| url.parse().expect("the provided websocket url is invalid!"))
     }
 }
 

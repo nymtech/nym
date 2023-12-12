@@ -21,7 +21,6 @@ tokio = { workspace = true, features = ["rt-multi-thread", "time", "macros"] }
 tracing.workspace = true
 url.workspace = true
 zeroize.workspace = true
-tendermint-rpc = { workspace = true, features = ["websocket-client"] }
 
 # internal
 nym-bin-common = { path = "../common/bin-common", features = ["output_format"] }
@@ -29,3 +28,4 @@ nym-config = { path = "../common/config" }
 nym-network-defaults = { path = "../common/network-defaults" }
 nym-task = { path = "../common/task" }
 nym-validator-client = { path = "../common/client-libs/validator-client" }
+nyxd-scraper = { path = "../common/nyxd-scraper" }

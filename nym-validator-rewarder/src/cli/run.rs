@@ -19,5 +19,5 @@ pub(crate) async fn execute(args: Args) -> Result<(), NymRewarderError> {
 
     let config = Config::new(Mnemonic::generate(24).unwrap());
 
-    Rewarder::new(config).run().await
+    Rewarder::new(config).await?.run().await
 }

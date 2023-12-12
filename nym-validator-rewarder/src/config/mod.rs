@@ -1,6 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::config::persistence::paths::ValidatorRewarderPaths;
 use crate::config::r#override::ConfigOverride;
 use crate::config::template::CONFIG_TEMPLATE;
 use crate::error::NymRewarderError;
@@ -12,7 +13,7 @@ use nym_network_defaults::NymNetworkDetails;
 use serde::{Deserialize, Serialize};
 use std::io;
 use std::path::{Path, PathBuf};
-use tracing::{debug, warn};
+use tracing::debug;
 use url::Url;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
@@ -55,8 +56,14 @@ pub struct Config {
 
     pub distribution: RewardingRatios,
 
+    #[zeroize(skip)]
+    pub nyxd_scraper: NyxdScraper,
+
     #[serde(flatten)]
     pub base: Base,
+
+    #[zeroize(skip)]
+    pub storage_paths: ValidatorRewarderPaths,
 }
 
 impl NymConfigTemplate for Config {
@@ -72,10 +79,24 @@ impl Config {
         Config {
             save_path: None,
             distribution: RewardingRatios::default(),
+            nyxd_scraper: NyxdScraper {
+                websocket_url: network.endpoints[0]
+                    .websocket_url()
+                    .expect("TODO: hardcoded websocket url is not available"),
+            },
             base: Base {
                 upstream_nyxd: network.endpoints[0].nyxd_url(),
                 mnemonic,
             },
+            storage_paths: Default::default(),
+        }
+    }
+
+    pub fn scraper_config(&self) -> nyxd_scraper::Config {
+        nyxd_scraper::Config {
+            websocket_url: self.nyxd_scraper.websocket_url.clone(),
+            rpc_url: self.base.upstream_nyxd.clone(),
+            database_path: self.storage_paths.nyxd_scraper.clone(),
         }
     }
 
@@ -163,4 +184,11 @@ impl RewardingRatios {
     pub fn ensure_is_valid(&self) -> Result<(), NymRewarderError> {
         Ok(())
     }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct NyxdScraper {
+    /// Url to the websocket endpoint of a validator, for example `wss://rpc.nymtech.net/websocket`
+    pub websocket_url: Url,
+    // TODO: debug with everything that's currently hardcoded in the scraper
 }

@@ -1652,7 +1652,7 @@ dependencies = [
 [[package]]
 name = "cosmos-sdk-proto"
 version = "0.20.0"
-source = "git+https://github.com/jstuczyn/cosmos-rust?branch=nym-temp/all-validator-features#67718aa27a96efb9881e927a8f998c94b885093c"
+source = "git+https://github.com/jstuczyn/cosmos-rust?branch=nym-temp/all-validator-features#41ed4631e146268b0300033c8bbb993d79a49f58"
 dependencies = [
  "prost 0.12.1",
  "prost-types 0.12.1",
@@ -1682,7 +1682,7 @@ dependencies = [
 [[package]]
 name = "cosmrs"
 version = "0.15.0"
-source = "git+https://github.com/jstuczyn/cosmos-rust?branch=nym-temp/all-validator-features#67718aa27a96efb9881e927a8f998c94b885093c"
+source = "git+https://github.com/jstuczyn/cosmos-rust?branch=nym-temp/all-validator-features#41ed4631e146268b0300033c8bbb993d79a49f58"
 dependencies = [
  "bip32",
  "cosmos-sdk-proto 0.20.0 (git+https://github.com/jstuczyn/cosmos-rust?branch=nym-temp/all-validator-features)",
@@ -7533,8 +7533,8 @@ dependencies = [
  "nym-network-defaults",
  "nym-task",
  "nym-validator-client",
+ "nyxd-scraper",
  "serde",
- "tendermint-rpc",
  "thiserror",
  "tokio",
  "tracing",

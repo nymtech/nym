@@ -41,7 +41,7 @@ pub use coin::Coin;
 pub use cosmrs::{
     bank::MsgSend,
     bip32,
-    query::{PageRequest, PageResponse},
+    // query::{PageRequest, PageResponse},
     tendermint::{
         abci::{response::DeliverTx, types::ExecTxResult, Event, EventAttribute},
         block::Height,
@@ -50,7 +50,10 @@ pub use cosmrs::{
         Time as TendermintTime,
     },
     tx::{self, Msg},
-    AccountId, Coin as CosmosCoin, Denom, Gas,
+    AccountId,
+    Coin as CosmosCoin,
+    Denom,
+    Gas,
 };
 pub use cosmwasm_std::Coin as CosmWasmCoin;
 pub use cw2;

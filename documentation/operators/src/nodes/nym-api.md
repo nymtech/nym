@@ -44,7 +44,7 @@ Which should return a list of all available commands.
 
 ~~~admonish example collapsible=true title="Console output"
 ```
-<!-- cmdrun ../../../../target/release/nym-api init --help -->
+<!-- cmdrun ../../../../target/release/nym-api --help -->
 ```
 ~~~
 

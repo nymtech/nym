@@ -2,6 +2,8 @@
 
 > The Nymvisor binary was built in the [building nym](../binaries/building-nym.md) section. If you haven't yet built Nym and want to run the code, go there first. You can build just Nymvisor with `cargo build --release --bin nymvisor`. 
 
+> Any syntax in `<>` brackets is a user's unique variable. Exchange with a corresponding name without the `<>` brackets.
+
 ## What is Nymvisor?
 Nymvisor is a process manager for Nym binaries that monitors the Nym release information for any newly released binaries. If it detects any changes, Nymvisor can automatically download the binary, stop the current binary, switch from the old binary to the new one, and finally restart the underlying process with the new binary. 
 
@@ -27,7 +29,7 @@ Nymvisor is an early and experimental software. Users should use it at their own
 ## Preliminary steps  
 You need to have at least one Mixnet node / client / Nym API instance already set up on the **same VPS** that you wish to run Nymvisor on. 
 
-> Using Nymvisor presumes your VPS is running an operating system that is compatible with the pre-compiled binaries avaliable on the Github releases page. If you're not, then until we're packaging for a greater variety of operating systems, you're stuck with [manually upgrading your node](manual-upgrade.md).
+> Using Nymvisor presumes your VPS is running an operating system that is compatible with the pre-compiled binaries avaliable on the [Github releases page](https://github.com/nymtech/nym/releases). If you're not, then until we're packaging for a greater variety of operating systems, you're stuck with [manually upgrading your node](manual-upgrade.md).
 
 ## Setup and Usage 
 ### Viewing command help
@@ -68,12 +70,12 @@ Where the value of `--daemon-home` might be `~/.nym/mixnodes/my-node` and `<PATH
 ```
 ~~~
 
-By default this will create config files at `~/.nym/nymvisors/instances/<NODE_TYPE>-default/config/config.toml` as shown in the console output above. For config options look at the different `--flags` available, or the [environment variables](#environment-variables-) section below. 
+By default this will create config files at `~/.nym/nymvisors/instances/<NODE_TYPE>-default/config/config.toml` as shown in the console output above. For config options look at the different `--flags` available, or the [environment variables](nymvisor-upgrade.md#environment-variables) section below. 
 
 ### Running your Nymvisor Instance 
 Nymvisor acts as a wrapper around the specified node process - it has to do this in order to be able to pause and restart this process. As such, you need to run your node _via_ Nymvisor! 
 
-The interface to the `nymvisor run <args>` command is quite simple. Any argument passed after the `run` command will be passed directly to the underlying daemon, for example: `nymvisor run run --id my-mixnode` will run the `$DAEMON_NAME run --id my-mixnode` command (where `DAEMON_NAME` is the name of the binary itself (e.g. `nym-api`, `nym-mixnode`, etc.).
+The interface to the `nymvisor run <ARGS>` command is quite simple. Any argument passed after the `run` command will be passed directly to the underlying daemon, for example: `nymvisor run run --id my-mixnode` will run the `$DAEMON_NAME run --id my-mixnode` command (where `DAEMON_NAME` is the name of the binary itself (e.g. `nym-api`, `nym-mixnode`, etc.)).
 
 `run` Nymvisor and start your node via the following command. Make sure to stop any existing node before running this command. 
 
@@ -87,7 +89,7 @@ The interface to the `nymvisor run <args>` command is quite simple. Any argument
 ```
 ~~~
 
-Nymvisor will now manage your node process (for an in-depth overview of this command check the [in-depth command information](#run-) below). It will periodically poll [this endpoint](https://nymtech.net/.wellknown/nym-mixnode/upgrade-info.json) (replace `nym-mixnode` with whatever node you may actually be running via Nymvisor) and check for a new `version` of the binary it is watching. If this exists, it will then, using the information there:
+Nymvisor will now manage your node process (for an in-depth overview of this command check the [in-depth command information](./nymvisor-upgrade.md#commands-in-depth) below). It will periodically poll [this endpoint](https://nymtech.net/.wellknown/nym-mixnode/upgrade-info.json) (replace `nym-mixnode` with whatever node you may actually be running via Nymvisor) and check for a new `version` of the binary it is watching. If this exists, it will then, using the information there:
 * pause your node process
 * grab the new binary (`version`)  
 * verify it against the provided `checksum` 
@@ -98,7 +100,7 @@ Nymvisor will now manage your node process (for an in-depth overview of this com
 And that's it! Check the [maintenance page](./maintenance.md#for-nymvisor) for information on Nymvisor process maintenance and automation, and you can find more in-depth information about the various aspects of Nymvisor such as what happens [under the hood](#commands-in-depth) for various commands. 
 
 ### Creating an Adhoc Upgrade 
-`nymvisor add-upgrade <path to executable> --upgrade-name=<name> --arg1=value1 --arg2=value2 ...` can be used to amend an existing `upgrade-plan.json` by creating new entries or to add an executable to an existing scheduled upgrade so that it would not have to be downloaded.
+`nymvisor add-upgrade <PATH_TO_EXECUTABLE> --upgrade-name=<NAME> --arg1=value1 --arg2=value2 ...` can be used to amend an existing `upgrade-plan.json` by creating new entries or to add an executable to an existing scheduled upgrade so that it would not have to be downloaded.
 
 >Generally users **will not have to use this command**. Situations in which this command might be used are: 
 > - an adhoc upgrade if e.g. a patched version of a binary was required 
@@ -114,7 +116,7 @@ Similarly to `init`, `add-upgrade` requires a positional argument specifying a v
 - `--upgrade-delay` - specifies delay until the provided upgrade is going to get performed. If let unset, the upgrade will be performed in 15 minutes. It can't be specified alongside either `--upgrade_time` or `--now` arguments.
 
 ## Config 
-The output format of `nymvisor config` can be further configured with `--output` argument. by default a human-readable text representation is used:
+The output format of `nymvisor config` can be further configured with `--output` argument. By default a human-readable text representation is used:
 ```
 id:                                nym-mixnode-default
 daemon name:                       nym-mixnode
@@ -145,7 +147,7 @@ outputs:
 ```
 
 ## CLI Overview  
-The first argument passed to `nymvisor` is the action for Nymvisor to take. Options are:
+Command options are:
 - `help`, `--help`, or `-h` - Output Nymvisor help information and display the available commands.
 - `config` - Display the current Nymvisor configuration, that means displaying the current configuration file that might have been overridden with environment variables value that Nymvisor is using.
 - `init` - Generate a `config.toml` file for this instance of Nymvisor that will use the provided arguments alongside any environmental variables that are set.
@@ -155,7 +157,7 @@ The first argument passed to `nymvisor` is the action for Nymvisor to take. Opti
 - `run` - Run the configured binary using the rest of the provided arguments.
 - `-V` or `--version` - Output the Nymvisor version
 
-Similarly to other Nym binaries, Nymvisor supports a global `--config-env-file` or `-c` flag that allows specifying path to a `.env` file defining any relevant environmental variables that are going to be applied to any of the Nymvisor commands as described in the [Environment section](#environment-variables-).
+Similarly to other Nym binaries, Nymvisor supports a global `--config-env-file` or `-c` flag that allows specifying path to a `.env` file defining any relevant environmental variables that are going to be applied to any of the Nymvisor commands as described in the [Environment section](./nymvisor-upgrade.md#environment-variables).
 
 For commands that depend on Nymvisor config file (i.e. all but `init`), the configuration file is loaded as follows:
 - if available, reading `$NYMVISOR_CONFIG_PATH`
@@ -163,13 +165,13 @@ For commands that depend on Nymvisor config file (i.e. all but `init`), the conf
 - finally, if there's only a single `nymvisor` instance instantiated (as defined by directories in `$HOME/.nym/nymvisors/instances`), that one will be loaded
 - if all of the above fails, an error is returned
 
-Nymvisor attempts to load the file from the derived path. if it fails, it attempts to use one of the older schemas to and upgrade it as it goes, the loaded configuration is then overridden with any value that might have been set in the environment.
+Nymvisor attempts to load the file from the derived path. If it fails, it attempts to use one of the older schemas to and upgrade it as it goes, the loaded configuration is then overridden with any value that might have been set in the environment.
 
 ## Environment Variables 
 
 > Please note environmental variables take precedence over any arguments passed, i.e. if one were to specify `--daemon_home="/foo"` and set `DAEMON_HOME="bar"`, the value of `"bar"` would end up being used.
 
-For any of its commands as described in [CLI Overview section](#cli-overview-), Nymvisor reads its configuration from the following environment variables:
+For any of its commands as described in [CLI Overview section](./nymvisor-upgrade.md#cli-overview), Nymvisor reads its configuration from the following environment variables:
 
 - `NYMVISOR_ID` is the human-readable identifier of the particular Nymvisor instance.
 - `NYMVISOR_CONFIG_PATH` is used to manually override path to the configuration file of the Nymvisor instance.
@@ -184,7 +186,7 @@ For any of its commands as described in [CLI Overview section](#cli-overview-), 
 - `DAEMON_ENFORCE_DOWNLOAD_CHECKSUM` (defaults to `true`), if set to `true` Nymvisor will require that a checksum is provided in the upgrade plan for the upgrade binary to be downloaded. If disabled, Nymvisor will not require a checksum to be provided, but still check the checksum if one is provided.
 - `DAEMON_RESTART_AFTER_UPGRADE` (defaults to `true`), if set to `true` Nymvisor will restart the subprocess with the same command-line arguments and flags (but with the new binary) after a successful upgrade. Otherwise (`false`), Nymvisor stops running after an upgrade and requires the system administrator to manually restart it. **Note restart is only after the upgrade and does not auto-restart the subprocess after an error occurs.** That is controlled via `DAEMON_RESTART_ON_FAILURE`.
 - `DAEMON_RESTART_ON_FAILURE` (defaults to `true`), if set to `true`, Nymvisor will restart the subprocess with the same command-line arguments and flags if it has terminated with a non-zero exit code.
-- `DAEMON_FAILURE_RESTART_DELAY` (defaults to 10s), if `DAEMON_RESTART_ON_FAILURE` is set to true, this will specify a delay between the process shutdown (with a non-zero exit code) and it being restarted.
+- `DAEMON_FAILURE_RESTART_DELAY` (defaults to 10s), if `DAEMON_RESTART_ON_FAILURE` is set to `true`, this will specify a delay between the process shutdown (with a non-zero exit code) and it being restarted.
 - `DAEMON_MAX_STARTUP_FAILURES` (defaults to 10) if `DAEMON_RESTART_ON_FAILURE` is set to `true`, this defines the maximum number of startup failures the subprocess can experience in a quick succession before no further restarts will be attempted and Nymvisor will terminate.
 - `DAEMON_STARTUP_PERIOD_DURATION` (defaults to 120s) if `DAEMON_RESTART_ON_FAILURE` is set to `true`, this defines the length of time during which the subprocess is still considered to be in the startup phase when its failures are going to be counted towards the limit defined in `DAEMON_MAX_STARTUP_FAILURES`.
 - `DAEMON_SHUTDOWN_GRACE_PERIOD` (defaults to 10s), specifies the amount of time Nymvisor is willing to wait for the subprocess to undergo graceful shutdown after receiving an interrupt before it sends a kill signal.
@@ -193,7 +195,7 @@ For any of its commands as described in [CLI Overview section](#cli-overview-), 
 
 ## Dir structure
 The folder structure of Nymvisor is heavily inspired by Cosmovisor, but with some notable changes to accommodate our binaries having possibly multiple instances due to their different `--id` flags. The data is spread through three main directories:
-- in a global `nymvisors` data directory shared by all Nymvisor instances (default: `$HOME/.nym/nymvisors/data`) that contains daemon upgrade plans, binaries and upgrades histories. It includes a subdirectory for each version of the application (i.e. `genesis` or `upgrades<name>`). Within each subdirectory is the application binary (i.e. `bin/$DAEMON_NAME`), the associated `upgrade-info.json` and any additional auxiliary files associated with each binary. `current` is a symbolic link to the currently active directory (i.e. `genesis` or `upgrades/<name>`)
+- in a global `nymvisors` data directory shared by all Nymvisor instances (default: `$HOME/.nym/nymvisors/data`) that contains daemon upgrade plans, binaries and upgrades histories. It includes a subdirectory for each version of the application (i.e. `genesis` or `upgrades<name>`). Within each subdirectory is the application binary (i.e. `bin/$DAEMON_NAME`), the associated `upgrade-info.json` and any additional auxiliary files associated with each binary. `current` is a symbolic link to the currently active directory (i.e. `genesis` or `upgrades/<NAME>`)
 - in a home directory of a particular `nymvisor` instance (e.g. `$HOME/.nym/nymvisors/instances/<nymvisor-instance-id>/`). It includes subdirectories for its configuration file (i.e. `config/config.toml`), that preconfigures the instance, and for any additional persistent data that might be added in the future (i.e. `data`)
 - in a `nymvisor` data directory inside the home directory of the managed daemon instance (default: `$HOME/.nym/$DAEMON_NAME/nymvisor`) that contains subdirectories for data backups (i.e. `backups/<name>`) and current version information (`current-version-info.json`)
 
@@ -273,10 +275,10 @@ This section outlines what happens under the hood with the following commands:
     - it completes the execution (with any exit code), 
     - Nymvisor receives a `SIGINT`, `SIGTERM` or `SIGQUIT`, 
     - a new upgrade is scheduled to be performed (by other task watching for changes in `upgrade-plan.json` and waiting until the `upgrade_time`, 
-  - if `DAEMON_UNSAFE_SKIP_BACKUP` is not set to true, it backups the content of `DAEMON_HOME` directory, 
+  - if `DAEMON_UNSAFE_SKIP_BACKUP` is not set to `true`, it backups the content of `DAEMON_HOME` directory, 
   - performs the binary upgrade by:
     - creating a temporary, exclusive and non-blocking, `upgrade.lock` file for the `DAEMON_NAME`. `flock` with `LOCK_EX | LOCK_NB` is used for that purpose. The file is created in case users didn't read any warnings and attempted to run multiple instances of `nymvisor` managing the same `DAEMON_NAME`, 
-    - downloading the upgrade binary for the runners architecture using one of the urls defined in `upgrade-info.json`. Note, however, that this is only done if the binary associated with the `<upgrade-name>` does not already exist and `DAEMON_ALLOW_DOWNLOAD_BINARIES` is set to true, 
+    - downloading the upgrade binary for the runners architecture using one of the urls defined in `upgrade-info.json`. Note, however, that this is only done if the binary associated with the `<UPGRADE-NAME>` does not already exist and `DAEMON_ALLOW_DOWNLOAD_BINARIES` is set to `true`, 
       - if the binary has been downloaded and `DAEMON_ENFORCE_DOWNLOAD_CHECKSUM` is set to true, the file checksum is verified using the specified algorithm,
     - verifying the upgrade binary - checking if it's a valid executable with expected `build-info`. Note that this will also set `a+x` bits on the file if those permissions have not already been set, 
       - removing the queued upgrade from `upgrade-plan.json`,
@@ -286,7 +288,7 @@ This section outlines what happens under the hood with the following commands:
       - removing the `upgrade.lock` file.
   - the above loop is repeated if either:
     - the daemon has crashed and `DAEMON_MAX_STARTUP_FAILURES` has not been reached yet,
-    - the daemon has successfully been upgraded, `DAEMON_RESTART_AFTER_UPGRADE` has been set to true and the manual flag on the performed upgrade has been set to false.
+    - the daemon has successfully been upgraded, `DAEMON_RESTART_AFTER_UPGRADE` has been set to `true` and the manual flag on the performed upgrade has been set to `false`.
 
 ### Add-Upgrade
 `nymvisor add-upgrade` does the following:

@@ -5,8 +5,10 @@
 
 > The `nym-api` binary should be coming out in the next release - we're releasing this document beforehand so that Validators have information as soon as possible and get an idea of what to expect. This doc will be expanded over time as we release the API binary itself as well as start enabling functionality.  
 
+> Any syntax in `<>` brackets is a user's unique variable. Exchange with a corresponding name without the `<>` brackets.
+
 ## What is the Nym API?
-The Nym API is a binary that will be operated by some or all of the Nyx Blockchain Validator set. THie binary can be run in several different modes, and has two main bits of functionality: 
+The Nym API is a binary that will be operated by some or all of the Nyx Blockchain Validator set. This binary can be run in several different modes, and has two main bits of functionality: 
 * network monitoring (calculating the routing score of Mixnet nodes) 
 * generation and validation of [zk-Nyms](https://blog.nymtech.net/zk-nyms-are-here-a-major-milestone-towards-a-market-ready-mixnet-a3470c9ab10a), our implementation of the Coconut Selective Disclosure Credential Scheme.
 
@@ -159,4 +161,4 @@ Starting nym api...
 ~~~
 
 ## Automation 
-You will most likely want to automate your validator restarting if your server reboots. Checkout the [maintenance page](./maintenance.md#for-nym-api-) for an example `service` file.
+You will most likely want to automate your validator restarting if your server reboots. Checkout the [maintenance page](./maintenance.md) for an example `service` file.

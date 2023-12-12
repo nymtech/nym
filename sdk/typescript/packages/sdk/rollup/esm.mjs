@@ -21,7 +21,7 @@ export const getConfig = (opts) => ({
     webWorkerLoader({ targetPlatform: 'browser', inline: opts.inline }), // the inline param is used here
     resolve({ extensions }),
     typescript({
-      exclude: ['mixnet/wasm/worker.ts'],
+      exclude: ['mixnet/wasm/worker.ts', 'coconut/worker.ts'],
       compilerOptions: { outDir: opts.outputDir || 'dist/esm' },
     }),
   ],

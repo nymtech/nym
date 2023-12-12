@@ -14,13 +14,14 @@ use crate::coconut::keypair::KeyPair as CoconutKeyPair;
 use crate::nyxd;
 use crate::support::config;
 use anyhow::Result;
-use nym_coconut_dkg_common::types::EpochState;
+use nym_coconut_dkg_common::types::{Epoch, EpochState};
 use nym_dkg::bte::keys::KeyPair as DkgKeyPair;
 use nym_task::{TaskClient, TaskManager};
 use rand::rngs::OsRng;
 use rand::{CryptoRng, RngCore};
 use std::path::PathBuf;
 use std::time::{Duration, SystemTime};
+use time::OffsetDateTime;
 use tokio::time::interval;
 
 pub(crate) fn init_keypair(config: &config::CoconutSigner) -> Result<()> {
@@ -97,99 +98,121 @@ impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
         }
     }
 
-    pub(crate) async fn handle_epoch_state(&mut self) {
-        match self.dkg_client.get_current_epoch().await {
-            Err(err) => warn!("Could not get current epoch state {err}"),
-            Ok(epoch) => {
-                if self
-                    .dkg_client
-                    .group_member()
-                    .await
-                    .map(|resp| resp.weight.is_none())
-                    .unwrap_or(true)
-                {
-                    debug!("Not a member of the group, DKG won't be run");
-                    return;
-                }
-                if let Err(err) = self.state.is_consistent(epoch.state).await {
-                    debug!("Epoch state is corrupted - {err}. Awaiting for a DKG restart.");
-                } else {
-                    let ret = match epoch.state {
-                        EpochState::PublicKeySubmission { resharing } => {
-                            public_key_submission(&self.dkg_client, &mut self.state, resharing)
-                                .await
-                        }
-                        EpochState::DealingExchange { resharing } => {
-                            dealing_exchange(
-                                &self.dkg_client,
-                                &mut self.state,
-                                self.rng.clone(),
-                                resharing,
-                            )
-                            .await
-                        }
-                        EpochState::VerificationKeySubmission { resharing } => {
-                            let keypair_path = nym_pemstore::KeyPairPath::new(
-                                self.secret_key_path.clone(),
-                                self.verification_key_path.clone(),
-                            );
-                            verification_key_submission(
-                                &self.dkg_client,
-                                &mut self.state,
-                                &keypair_path,
-                                resharing,
-                            )
-                            .await
-                        }
-                        EpochState::VerificationKeyValidation { resharing } => {
-                            verification_key_validation(
-                                &self.dkg_client,
-                                &mut self.state,
-                                resharing,
-                            )
-                            .await
-                        }
-                        EpochState::VerificationKeyFinalization { resharing } => {
-                            verification_key_finalization(
-                                &self.dkg_client,
-                                &mut self.state,
-                                resharing,
-                            )
-                            .await
-                        }
-                        // Just wait, in case we need to redo dkg at some point
-                        EpochState::InProgress => {
-                            self.state.set_was_in_progress();
-                            // We're dumping state here so that we don't do it uselessly during the
-                            // long InProgress state
-                            self.dump_persistent_state().await;
-                            Ok(())
-                        }
-                    };
-                    if let Err(err) = ret {
-                        warn!("Could not handle this iteration for the epoch state: {err}");
-                    } else if epoch.state != EpochState::InProgress {
-                        self.dump_persistent_state().await;
-                    }
-                }
-                if let Ok(current_timestamp) =
-                    SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)
-                {
-                    if current_timestamp.as_secs() >= epoch.finish_timestamp.seconds() {
-                        // We try advancing the epoch state, on a best-effort basis
-                        info!("DKG: Trying to advance the epoch");
-                        self.dkg_client.advance_epoch_state().await.ok();
-                    }
-                }
+    async fn maybe_advance_dkg_state(&self, epoch: Epoch) {
+        let end =
+            OffsetDateTime::from_unix_timestamp(epoch.finish_timestamp.seconds() as i64).unwrap();
+
+        let remaining = end - OffsetDateTime::now_utc();
+
+        // TODO: after debugging is finished, change that to `debug!`
+        info!(
+            "there are {} seconds until the current DKG epoch [stage] end",
+            remaining.whole_seconds()
+        );
+
+        if remaining.is_negative() {
+            // We try advancing the epoch state, on a best-effort basis
+            info!("DKG: Trying to advance the epoch");
+            if let Err(err) = self.dkg_client.advance_epoch_state().await {
+                error!("failed to advance DKG epoch: {err}")
             }
         }
+    }
+
+    pub(crate) async fn handle_epoch_state(&mut self) {
+        let epoch = match self.dkg_client.get_current_epoch().await {
+            Ok(epoch) => epoch,
+            Err(err) => {
+                warn!("Could not get current epoch state: {err}");
+                return;
+            }
+        };
+
+        if self
+            .dkg_client
+            .group_member()
+            .await
+            .map(|resp| resp.weight.is_none())
+            .unwrap_or(true)
+        {
+            debug!("Not a member of the group, DKG won't be run");
+            return;
+        }
+
+        if let Err(err) = self.state.is_consistent(epoch.state).await {
+            warn!("Epoch state is corrupted - {err}. Awaiting for a DKG restart.");
+            self.maybe_advance_dkg_state(epoch).await;
+            return;
+        }
+
+        let ret = match epoch.state {
+            EpochState::PublicKeySubmission { resharing } => {
+                info!("attempting to perform DKG key submission");
+                public_key_submission(&self.dkg_client, &mut self.state, resharing).await
+            }
+            EpochState::DealingExchange { resharing } => {
+                info!("attempting to perform DKG dealing exchange");
+                dealing_exchange(
+                    &self.dkg_client,
+                    &mut self.state,
+                    self.rng.clone(),
+                    resharing,
+                )
+                .await
+            }
+            EpochState::VerificationKeySubmission { resharing } => {
+                info!("attempting to perform DKG verification key submission");
+                let keypair_path = nym_pemstore::KeyPairPath::new(
+                    self.secret_key_path.clone(),
+                    self.verification_key_path.clone(),
+                );
+                verification_key_submission(
+                    &self.dkg_client,
+                    &mut self.state,
+                    &keypair_path,
+                    resharing,
+                )
+                .await
+            }
+            EpochState::VerificationKeyValidation { resharing } => {
+                info!("attempting to perform DKG verification key validation");
+                verification_key_validation(&self.dkg_client, &mut self.state, resharing).await
+            }
+            EpochState::VerificationKeyFinalization { resharing } => {
+                info!("attempting to perform DKG verification key finalization");
+                verification_key_finalization(&self.dkg_client, &mut self.state, resharing).await
+            }
+            // Just wait, in case we need to redo dkg at some point
+            EpochState::InProgress => {
+                info!(
+                    "DKG epoch is in progress - dumping the persistent state to {}",
+                    self.state.persistent_state_path().display()
+                );
+
+                self.state.set_was_in_progress();
+                // We're dumping state here so that we don't do it uselessly during the
+                // long InProgress state
+                self.dump_persistent_state().await;
+                Ok(())
+            }
+        };
+        if let Err(err) = ret {
+            warn!("Could not handle this iteration for the epoch state: {err}");
+        } else if epoch.state != EpochState::InProgress {
+            self.dump_persistent_state().await;
+        }
+
+        self.maybe_advance_dkg_state(epoch).await
     }
 
     pub(crate) async fn run(mut self, mut shutdown: TaskClient) {
         let mut interval = interval(self.polling_rate);
         while !shutdown.is_shutdown() {
             tokio::select! {
-                _ = interval.tick() => self.handle_epoch_state().await,
+                _ = interval.tick() => {
+                    info!("DkgController tick (this should be happening every {:?}", self.polling_rate);
+                    self.handle_epoch_state().await
+                }
                 _ = shutdown.recv() => {
                     trace!("DkgController: Received shutdown");
                 }

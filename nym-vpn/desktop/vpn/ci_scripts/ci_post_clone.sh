@@ -2,6 +2,7 @@
 #  ci_post_clone.sh
 cd /Volumes/workspace/repository/nym-vpn/desktop && \
 brew install rustup-init && \
+rustup-init &&
 cargo install cargo-deb;
 cargo install --force cargo-make;
 cargo install sd;

@@ -417,7 +417,7 @@ impl crate::coconut::client::Client for Client {
         resharing: bool,
     ) -> Result<ExecuteResult, CoconutError> {
         /* testing values solely */
-        let amount = 10;
+        let amount = 10_000_000;
         let denom = "unym";
 
         let fee_coin = Coin::new(amount, denom);

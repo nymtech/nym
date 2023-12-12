@@ -1,19 +1,29 @@
 # Nym API Setup
 
-> The Nym API binary was built in the [building nym](../binaries/building-nym.md) section. If you haven't yet built Nym and want to run the code, go there first. You can build just the API with `cargo build --release --bin nym-api`.
+[//]: # (> The Nym API binary was built in the [building nym]&#40;../binaries/building-nym.md&#41; section. If you haven't yet built Nym and want to run the code, go there first. You can build just the API with `cargo build --release --bin nym-api`.)
+[//]: # ()
+
+> The `nym-api` binary should be coming out in the next release - we're releasing this document beforehand so that Validators have information as soon as possible and get an idea of what to expect. This doc will be expanded over time as we release the API binary itself as well as start enabling functionality.  
 
 ## What is the Nym API?
-The Nym API is a binary that will be operated by some or all of the Nyx Blockchain Validator set. This is important for the proper decentralisation of the network monitoring (calculating the routing score of Mixnet nodes), as well as the creation of credentials via DKG (Distributed Key Generation). 
+The Nym API is a binary that will be operated by some or all of the Nyx Blockchain Validator set. THie binary can be run in several different modes, and has two main bits of functionality: 
+* network monitoring (calculating the routing score of Mixnet nodes) 
+* generation and validation of [zk-Nyms](), our implementation of the Coconut Selective Disclosure Credential Scheme.
 
-> For the moment much of this functionality is not supported - functionality will be slowly enabled over time. For the moment the API will be running in caching mode in order to allow runners to get used to maintaining the extra process alongside their Validator.  
+This is important for both the proper decentralisation of the network uptime calculation and, more pressingly, enabling the NymVPN to utilise privacy preserving payments. 
 
-### Decentralised Network Monitoring (coming soon) 
-**TODO** 
+The process of enabling these different aspects of the system will take time. Operators of the Nym API binary for the moment will only have to run the binary in a minimal 'caching' mode in order to get used to maintaining an additional process running alongside their Validator. 
 
-### Credential Generation (coming soon)
-Validators that take part in the DKG ceremony will become part of the quorum generating [zk-Nyms](), which will initially be used for private proof of payment for NymVPN. 
+### Rewards 
+Operators of Nym API instances will be rewarded for performing the extra work of taking part in credential generation. These rewards will be calculated **separately** from rewards for block production. 
 
-TODO reward formula 
+Rewards for credential signing will be calculated hourly, with API operators receiving a proportional amount of the reward pool (333NYM per hour / 237600NYM per month) according to the % of credentials they have signed. 
+
+### (Coming Soon) Machine Specs 
+We are working on load testing currently in order to get good specs for a Validator + Nym API setup. Bear in mind that credential signing is primarily CPU-bound. 
+
+### (Coming Soon) Credential Generation
+Validators that take part in the DKG ceremony (more details on this soon) will become part of the quorum generating and verifying zk-Nym credentials. These will initially be used for private proof of payment for NymVPN (see our blogposts [here](https://blog.nymtech.net/nymvpn-an-invitation-for-privacy-experts-and-enthusiasts-63644139d09d) and [here](https://blog.nymtech.net/zk-nyms-are-here-a-major-milestone-towards-a-market-ready-mixnet-a3470c9ab10a) for more on this), and in the future will be expanded into more general usecases such as [offline ecash](https://arxiv.org/abs/2303.08221). 
 
 ## Current version
 ```
@@ -50,8 +60,6 @@ Initialise your API instance with:
 ```
 
 You can optionally pass a local identifier for this instance with the `--instance` flag. Otherwise the ID of your instance defaults to `default`. 
-
-**TODO add example output - don't run with `cmdrun` just yet**
 
 ### Running your Nym API Instance 
 The API binary currently defaults to running in caching mode. 

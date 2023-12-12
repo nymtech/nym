@@ -9,7 +9,7 @@ use crate::rpc_client::RpcClient;
 use crate::storage::{persist_block, ScraperStorage};
 use futures::StreamExt;
 use std::collections::BTreeMap;
-use std::ops::Add;
+use std::ops::{Add, Range};
 use std::time::Duration;
 use tokio::sync::mpsc::{Sender, UnboundedReceiver};
 use tokio::time::{interval_at, Instant};
@@ -21,6 +21,7 @@ pub(crate) mod types;
 
 const MISSING_BLOCKS_CHECK_INTERVAL: Duration = Duration::from_secs(30);
 const MAX_MISSING_BLOCKS_DELAY: Duration = Duration::from_secs(15);
+const MAX_RANGE_SIZE: usize = 30;
 
 pub struct BlockProcessor {
     cancel: CancellationToken,
@@ -42,16 +43,18 @@ pub struct BlockProcessor {
 }
 
 impl BlockProcessor {
-    pub fn new(
+    pub async fn new(
         cancel: CancellationToken,
         incoming: UnboundedReceiver<BlockToProcess>,
         block_requester: Sender<BlockRequest>,
         storage: ScraperStorage,
         rpc_client: RpcClient,
-    ) -> Self {
-        BlockProcessor {
+    ) -> Result<Self, ScraperError> {
+        let last_processed = storage.get_last_processed_height().await?;
+
+        Ok(BlockProcessor {
             cancel,
-            last_processed_height: 0,
+            last_processed_height: last_processed.try_into().unwrap_or_default(),
             last_processed_at: Instant::now(),
             queued_blocks: Default::default(),
             rpc_client,
@@ -61,7 +64,7 @@ impl BlockProcessor {
             block_modules: vec![],
             tx_modules: vec![],
             msg_modules: vec![],
-        }
+        })
     }
 
     async fn process_block(&mut self, block: BlockToProcess) -> Result<(), ScraperError> {
@@ -145,10 +148,25 @@ impl BlockProcessor {
             self.last_processed_height + 1..current_height + 1
         };
 
+        self.request_block_range(request_range).await?;
+
+        Ok(())
+    }
+
+    // technically we're not mutating self here,
+    // but we need it to help the compiler figure out the future is `Send`
+    async fn request_block_range(&mut self, request_range: Range<u32>) -> Result<(), ScraperError> {
+        debug!("requesting missing blocks: {request_range:?}");
+        let request_range = if request_range.len() > MAX_RANGE_SIZE {
+            warn!("the request range has more than {MAX_RANGE_SIZE} values. reducing it.");
+            request_range.start..request_range.start + MAX_RANGE_SIZE as u32
+        } else {
+            request_range
+        };
+
         self.block_requester
             .send(BlockRequest::Range(request_range))
             .await?;
-
         Ok(())
     }
 
@@ -156,16 +174,24 @@ impl BlockProcessor {
         let height = block.height;
 
         if self.last_processed_height == 0 {
-            // TODO: load it from storage instead and make sure storage always has some data in there
+            // this is the first time we've started up the process
+            debug!("setting up initial processing height");
             self.last_processed_height = height - 1
+        }
+
+        if height <= self.last_processed_height {
+            warn!("we have already processed block for height {height}");
+            return;
         }
 
         if self.last_processed_height + 1 != height {
             if self.queued_blocks.insert(height, block).is_some() {
-                error!("duplicate queued up block for height {height}")
+                warn!("we have already queued up block for height {height}");
             }
             return;
-        } else if let Err(err) = self.process_block(block).await {
+        }
+
+        if let Err(err) = self.process_block(block).await {
             error!("failed to process block at height {height}: {err}");
             return;
         }
@@ -180,6 +206,19 @@ impl BlockProcessor {
         }
     }
 
+    // technically we're not mutating self here,
+    // but we need it to help the compiler figure out the future is `Send`
+    async fn startup_resync(&mut self) -> Result<(), ScraperError> {
+        let latest_block = self.rpc_client.current_block_height().await? as u32;
+        if latest_block > self.last_processed_height && self.last_processed_height != 0 {
+            let request_range = self.last_processed_height + 1..latest_block + 1;
+            info!("we need to request {request_range:?} to resync");
+            self.request_block_range(request_range).await?;
+        }
+
+        Ok(())
+    }
+
     pub(crate) async fn run(&mut self) {
         info!("starting processing loop");
 
@@ -189,6 +228,12 @@ impl BlockProcessor {
             Instant::now().add(MISSING_BLOCKS_CHECK_INTERVAL),
             MISSING_BLOCKS_CHECK_INTERVAL,
         );
+
+        if let Err(err) = self.startup_resync().await {
+            error!("failed to perform startup sync: {err}");
+            self.cancel.cancel();
+            return;
+        }
 
         loop {
             tokio::select! {

@@ -12,6 +12,19 @@ pub(crate) struct StorageManager {
 }
 
 impl StorageManager {
+    pub(crate) async fn set_initial_metadata(&self) -> Result<(), sqlx::Error> {
+        if sqlx::query("SELECT * from metadata")
+            .fetch_optional(&self.connection_pool)
+            .await?
+            .is_none()
+        {
+            sqlx::query("INSERT INTO metadata (id, last_processed_height) VALUES (0, 0)")
+                .execute(&self.connection_pool)
+                .await?;
+        }
+        Ok(())
+    }
+
     pub(crate) async fn get_first_block_height_after(
         &self,
         time: OffsetDateTime,
@@ -307,15 +320,9 @@ where
 {
     trace!("update_last_processed");
 
-    sqlx::query!(
-        r#"
-            UPDATE metadata 
-            SET last_processed_height = ?
-        "#,
-        height
-    )
-    .execute(executor)
-    .await?;
+    sqlx::query!("UPDATE metadata SET last_processed_height = ?", height)
+        .execute(executor)
+        .await?;
 
     Ok(())
 }

@@ -58,7 +58,8 @@ impl NyxdScraperBuilder {
             req_tx,
             scraper.storage.clone(),
             rpc_client,
-        );
+        )
+        .await?;
         block_processor.set_block_modules(self.block_modules);
         block_processor.set_tx_modules(self.tx_modules);
         block_processor.set_msg_modules(self.msg_modules);
@@ -167,7 +168,8 @@ impl NyxdScraper {
             req_tx,
             self.storage.clone(),
             rpc_client,
-        );
+        )
+        .await?;
         let mut chain_subscriber = ChainSubscriber::new(
             &self.config.websocket_url,
             self.cancel_token.clone(),

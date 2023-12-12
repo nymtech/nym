@@ -59,9 +59,10 @@ impl ScraperStorage {
 
         info!("Database migration finished!");
 
-        let storage = ScraperStorage {
-            manager: StorageManager { connection_pool },
-        };
+        let manager = StorageManager { connection_pool };
+        manager.set_initial_metadata().await?;
+
+        let storage = ScraperStorage { manager };
 
         Ok(storage)
     }

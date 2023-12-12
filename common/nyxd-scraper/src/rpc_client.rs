@@ -149,7 +149,7 @@ impl RpcClient {
 
     #[instrument(skip(self, tx_hash), fields(tx_hash = %tx_hash), err(Display))]
     async fn get_transaction_result(&self, tx_hash: Hash) -> Result<tx::Response, ScraperError> {
-        debug!("getting tx results for {tx_hash}");
+        debug!("getting tx results");
 
         self.inner
             .tx(tx_hash, false)

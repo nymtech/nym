@@ -376,7 +376,7 @@ impl crate::coconut::client::Client for Client {
         fee: Option<Fee>,
     ) -> Result<(), CoconutError> {
         self.0
-            .read()
+            .write()
             .await
             .vote_proposal(proposal_id, vote_yes, fee)
             .await?;
@@ -385,7 +385,7 @@ impl crate::coconut::client::Client for Client {
 
     async fn execute_proposal(&self, proposal_id: u64) -> crate::coconut::error::Result<()> {
         self.0
-            .read()
+            .write()
             .await
             .execute_proposal(proposal_id, None)
             .await?;

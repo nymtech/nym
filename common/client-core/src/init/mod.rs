@@ -212,7 +212,7 @@ where
     D::StorageError: Send + Sync + 'static,
     T: DeserializeOwned + Serialize + Send + Sync,
 {
-    log::trace!("Setting up gateway");
+    log::debug!("Setting up gateway");
     match setup {
         GatewaySetup::MustLoad => use_loaded_gateway_details(key_store, details_store).await,
         GatewaySetup::New {

@@ -43,7 +43,7 @@ where
 
     let state =
         nym_bandwidth_controller::acquire::deposit(client, amount.clone(), ecash_keypair).await?;
-
+    info!("Deposit done");
     if nym_bandwidth_controller::acquire::get_credential(&state, client, persistent_storage)
         .await
         .is_err()

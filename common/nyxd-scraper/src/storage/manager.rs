@@ -309,7 +309,8 @@ where
 
     sqlx::query!(
         r#"
-            INSERT INTO metadata (last_processed_height) VALUES (?)
+            UPDATE metadata 
+            SET last_processed_height = ?
         "#,
         height
     )

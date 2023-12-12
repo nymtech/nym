@@ -215,26 +215,23 @@ pub async fn disconnect(
     state: State<'_, SharedAppState>,
 ) -> Result<ConnectionState, CmdError> {
     debug!("disconnect");
-    {
-        let mut app_state = state.lock().await;
-        let ConnectionState::Connected = app_state.state else {
-            return Err(CmdError::new(
-                CmdErrorSource::CallerError,
-                format!("cannot disconnect from state {:?}", app_state.state),
-            ));
-        };
+    let mut app_state = state.lock().await;
+    let ConnectionState::Connected = app_state.state else {
+        return Err(CmdError::new(
+            CmdErrorSource::CallerError,
+            format!("cannot disconnect from state {:?}", app_state.state),
+        ));
+    };
 
-        // switch to "Disconnecting" state
-        app_state.state = ConnectionState::Disconnecting;
-        // unlock the mutex
-    }
+    // switch to "Disconnecting" state
+    app_state.state = ConnectionState::Disconnecting;
+
     app.emit_all(
         EVENT_CONNECTION_STATE,
         ConnectionEventPayload::new(ConnectionState::Disconnecting, None, None),
     )
     .ok();
 
-    let mut app_state = state.lock().await;
     let Some(ref mut vpn_tx) = app_state.vpn_ctrl_tx else {
         app_state.state = ConnectionState::Disconnected;
         app_state.connection_start_time = None;
@@ -254,13 +251,19 @@ pub async fn disconnect(
     };
 
     // send Stop message to the VPN client
-    // TODO handle error case properly
     vpn_tx.send(NymVpnCtrlMessage::Stop).await.map_err(|e| {
-        error!("failed to send Stop message to VPN client: {}", e);
-        CmdError::new(
-            CmdErrorSource::InternalError,
-            "failed to send Stop message to VPN client".into(),
+        let err_message = format!("failed to send Stop message to VPN client: {}", e);
+        error!(err_message);
+        app.emit_all(
+            EVENT_CONNECTION_STATE,
+            ConnectionEventPayload::new(
+                ConnectionState::Disconnected,
+                Some(err_message.clone()),
+                None,
+            ),
         )
+        .ok();
+        CmdError::new(CmdErrorSource::InternalError, err_message)
     })?;
 
     app_state.state = ConnectionState::Disconnected;

@@ -9,6 +9,9 @@ cargo install ripgrep;
 cargo install cargo-about;
 cargo install cargo-generate-rpm;
 brew install protobuf;
+APPLICATION_SIGNING_IDENTITY="Developer ID Application: Nym Technologies SA (VW5DZLFHM5)" \
+INSTALLER_SIGNING_IDENTITY="3rd Party Mac Developer Installer: Nym Technologies SA (VW5DZLFHM5)"  \
+APPLE_TEAM_ID=VW5DZLFHM5 \
 cargo make pkg;
 
 

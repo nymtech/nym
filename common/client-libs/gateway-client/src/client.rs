@@ -792,6 +792,7 @@ pub struct InitOnly;
 impl GatewayClient<InitOnly, EphemeralCredentialStorage> {
     // for initialisation we do not need credential storage. Though it's still a bit weird we have to set the generic...
     pub fn new_init(config: GatewayConfig, local_identity: Arc<identity::KeyPair>) -> Self {
+        log::trace!("Initialising gateway client");
         use futures::channel::mpsc;
 
         // note: this packet_router is completely invalid in normal circumstances, but "works"

@@ -259,6 +259,7 @@ pub(super) fn get_specified_gateway(
     gateways: &[gateway::Node],
     must_use_tls: bool,
 ) -> Result<gateway::Node, ClientCoreError> {
+    log::debug!("Requesting specified gateway: {}", gateway_identity);
     let user_gateway = identity::PublicKey::from_base58_string(gateway_identity)
         .map_err(ClientCoreError::UnableToCreatePublicKeyFromGatewayId)?;
 

@@ -1,8 +1,7 @@
 #!/bin/sh
 #  ci_post_clone.sh
 cd /Volumes/workspace/repository/nym-vpn/desktop && \
-brew install rustup-init && \
-rustup-init -y &&
+curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y &&
 source "$HOME/.cargo/env";
 cargo install cargo-deb;
 cargo install --force cargo-make;

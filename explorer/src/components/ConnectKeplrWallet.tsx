@@ -69,10 +69,10 @@ export const ConnectKeplrWallet = () => {
 
     return (
       <Button variant="outlined" onClick={() => connect()}>
-        Connect Wallet
+        Connect {isMobile ? '' : ' Wallet'}
       </Button>
     );
   };
 
-  return <Box sx={{ mr: 2 }}>{getGlobalbutton()}</Box>;
+  return <Box>{getGlobalbutton()}</Box>;
 };

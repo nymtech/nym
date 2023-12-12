@@ -97,7 +97,7 @@ export const PageMixnodes: FCWithChildren = () => {
   const columns: GridColDef[] = [
     {
       field: 'identity_key',
-      width: 215,
+      width: 235,
       headerName: 'Identity Key',
       headerAlign: 'left',
       headerClassName: 'MuiDataGrid-header-override',
@@ -109,8 +109,12 @@ export const PageMixnodes: FCWithChildren = () => {
             size="small"
             onDelegate={() => handleOnDelegate({ identityKey: params.value, mixId: params.row.mix_id })}
           />
-          <CopyToClipboard smallIcons value={params.value} tooltip={`Copy identity key ${params.value} to clipboard`} />
-
+          <CopyToClipboard
+            sx={{ mr: 0.5, color: 'grey.400' }}
+            smallIcons
+            value={params.value}
+            tooltip={`Copy identity key ${params.value} to clipboard`}
+          />
           <StyledLink
             to={`/network-components/mixnode/${params.row.mix_id}`}
             color={useGetMixNodeStatusColor(params.row.status)}
@@ -125,6 +129,7 @@ export const PageMixnodes: FCWithChildren = () => {
       field: 'mix_id',
       width: 85,
       align: 'center',
+      hide: true,
       headerName: 'Mix ID',
       headerAlign: 'center',
       headerClassName: 'MuiDataGrid-header-override',

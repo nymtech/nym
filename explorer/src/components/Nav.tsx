@@ -341,7 +341,9 @@ export const Nav: FCWithChildren = ({ children }) => {
                 alignItems: 'center',
               }}
             >
-              <ConnectKeplrWallet />
+              <Box sx={{ mr: 1 }}>
+                <ConnectKeplrWallet />
+              </Box>
               <DarkLightSwitchDesktop defaultChecked />
             </Box>
           </Box>

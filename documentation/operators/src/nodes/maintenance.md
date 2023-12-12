@@ -427,6 +427,38 @@ systemctl start nymd    # to actually start the service
 journalctl -f -u nymd # to monitor system logs showing the service start
 ```
 
+##### For Nym API 
+
+Below is a `systemd` unit file to place at `/etc/systemd/system/nym-api.service` to automate your API instance:
+
+```ini
+[Unit]
+Description=NymAPI
+StartLimitInterval=350
+StartLimitBurst=10
+
+[Service]
+User=<USER>                                                       # change to your user
+Type=simple
+ExecStart=/home/<USER>/<PATH_TO_BINARY>/nym-api start             # change to correct path
+Restart=on-failure
+RestartSec=30
+LimitNOFILE=infinity
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Proceed to start it with:
+
+```sh
+systemctl daemon-reload  # to pickup the new unit file
+systemctl enable nym-api # to enable the service
+systemctl start nym-api  # to actually start the service
+journalctl -f -u nym-api # to monitor system logs showing the service start
+```
+
+
 ### Setting the ulimit
 
 Linux machines limit how many open files a user is allowed to have. This is called a `ulimit`.

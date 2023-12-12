@@ -15,7 +15,10 @@
     "nym-connect/**",
     "explorer",
     "types",
-    "clients/validator"
+    "clients/validator",
+    "sdk/typescript/packages/**",
+    "sdk/typescript/examples/**",
+    "sdk/typescript/codegen/**"
   ],
   "scripts": {
     "nuke": "npx rimraf **/node_modules node_modules",

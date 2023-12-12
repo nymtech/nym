@@ -1,2 +1,3 @@
 src/mixnet/wasm/worker.js
+src/coconut/worker.js
 docs/

@@ -1,5 +1,5 @@
 use futures::channel::mpsc::UnboundedSender;
-use nym_vpn_lib::{NymVpnCtrlMessage, NymVpnHandle};
+use nym_vpn_lib::NymVpnCtrlMessage;
 use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
 use ts_rs::TS;

@@ -83,21 +83,24 @@ async fn main() -> Result<()> {
     let app_config = app_config_store.read().await?;
     debug!("app_config: {app_config:?}");
 
-    // check for the existence of the env_config_file
-    if !(try_exists(&app_config.env_config_file)
-        .await
-        .context("an error happened while trying to read env_config_file `{}`")?)
-    {
-        let err_message = format!(
-            "app config, env_config_file `{}`: file not found",
-            app_config.env_config_file.display()
-        );
-        error!(err_message);
-        return Err(anyhow!(err_message));
+    // check for the existence of the env_config_file if provided
+    if let Some(env_config_file) = &app_config.env_config_file {
+        debug!("provided env_config_file: {}", env_config_file.display());
+        if !(try_exists(env_config_file)
+            .await
+            .context("an error happened while trying to read env_config_file `{}`")?)
+        {
+            let err_message = format!(
+                "app config, env_config_file `{}`: file not found",
+                env_config_file.display()
+            );
+            error!(err_message);
+            return Err(anyhow!(err_message));
+        }
     }
 
     // Read the env variables in the provided file and export them all to the local environment.
-    nym_config::defaults::setup_env(Some(app_config.env_config_file).as_ref());
+    nym_config::defaults::setup_env(app_config.env_config_file);
 
     let nym_vpn = {
         let mut nym_vpn = NymVPN::new(&app_config.entry_gateway, &app_config.exit_router);

@@ -21,17 +21,18 @@ yarn
 
 ## Required config
 
-First you need to provide a valid network configuration using en env
-file, pick the relevant one [here](https://github.com/nymtech/nym/tree/develop/envs)
+First you can provide a network configuration using en env file,
+pick the relevant one [here](https://github.com/nymtech/nym/tree/develop/envs).
+The mainnet config will be used by default if not provided.
 
 Then create the main app config file `config.toml`, path is platform specific:
 
--   Linux: Resolves to $XDG_CONFIG_HOME or $HOME/.config.
--   macOS: Resolves to $HOME/Library/Application Support.
--   Windows: Resolves to {FOLDERID_RoamingAppData}.
+-   Linux: Resolves to `$XDG_CONFIG_HOME` or `$HOME/.config`
+-   macOS: Resolves to `$HOME/Library/Application Support`
+-   Windows: Resolves to `{FOLDERID_RoamingAppData}`
 
-```config.toml
-# path to the env config file you must provide
+```toml
+# path to the env config file if you provide one
 env_config_file = "/home/pierre/.config/nymvpn/qa.env"
 
 entry_gateway = "xxx"

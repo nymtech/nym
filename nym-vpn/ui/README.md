@@ -6,9 +6,9 @@ This is the application UI layer for the next NymVPN clients.
 
 #### Prerequisites
 
-- Rust
-- Nodejs, latest LTS version recommended
-- yarn 1.x
+-   Rust
+-   Nodejs, latest LTS version recommended
+-   yarn 1.x
 
 Some system libraries are required depending on the host platform.
 Follow the instructions for your specific OS [here](https://tauri.app/v1/guides/getting-started/prerequisites)
@@ -17,6 +17,28 @@ To install:
 
 ```
 yarn
+```
+
+## Required config
+
+First you need to provide a valid network configuration using en env
+file, pick the relevant one [here](https://github.com/nymtech/nym/tree/develop/envs)
+
+Then create the main app config file `config.toml`, path is platform specific:
+
+-   Linux: Resolves to $XDG_CONFIG_HOME or $HOME/.config.
+-   macOS: Resolves to $HOME/Library/Application Support.
+-   Windows: Resolves to {FOLDERID_RoamingAppData}.
+
+```config.toml
+# path to the env config file you must provide
+env_config_file = "/home/pierre/.config/nymvpn/qa.env"
+
+entry_gateway = "xxx"
+exit_router = "xxx"
+
+# ⚠ should be the same URL as the one provided by env_config_file
+nym_api = "https://nym/api/"
 ```
 
 ## Dev

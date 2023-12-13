@@ -7,7 +7,7 @@ use crate::storage::manager::{
     insert_block, insert_message, insert_precommit, insert_transaction, insert_validator,
     update_last_processed, StorageManager,
 };
-use crate::storage::models::Validator;
+use crate::storage::models::{CommitSignature, Validator};
 use sqlx::types::time::OffsetDateTime;
 use sqlx::{ConnectOptions, Sqlite, Transaction};
 use std::fmt::Debug;
@@ -91,6 +91,21 @@ impl ScraperStorage {
         Ok(self.manager.get_last_block_height_before(time).await?)
     }
 
+    pub async fn get_blocks_between(
+        &self,
+        start_time: OffsetDateTime,
+        end_time: OffsetDateTime,
+    ) -> Result<i64, ScraperError> {
+        let Some(block_start) = self.get_first_block_height_after(start_time).await? else {
+            return Ok(0);
+        };
+        let Some(block_end) = self.get_last_block_height_before(end_time).await? else {
+            return Ok(0);
+        };
+
+        Ok(block_end - block_start + 1)
+    }
+
     pub async fn get_signed_between(
         &self,
         consensus_address: &str,
@@ -120,8 +135,23 @@ impl ScraperStorage {
             .await
     }
 
+    pub async fn get_precommit(
+        &self,
+        consensus_address: &str,
+        height: i64,
+    ) -> Result<Option<CommitSignature>, ScraperError> {
+        Ok(self
+            .manager
+            .get_precommit(consensus_address, height)
+            .await?)
+    }
+
     pub async fn get_block_signers(&self, height: i64) -> Result<Vec<Validator>, ScraperError> {
         Ok(self.manager.get_block_validators(height).await?)
+    }
+
+    pub async fn get_all_known_validators(&self) -> Result<Vec<Validator>, ScraperError> {
+        Ok(self.manager.get_validators().await?)
     }
 
     pub async fn get_last_processed_height(&self) -> Result<i64, ScraperError> {

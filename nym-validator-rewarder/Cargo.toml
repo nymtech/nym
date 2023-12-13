@@ -13,14 +13,19 @@ license = "GPL-3"
 [dependencies]
 anyhow.workspace = true
 bip39 = { workspace = true, features = ["zeroize"] }
+cosmwasm-std.workspace = true
 clap = { workspace = true, features = ["cargo"] }
 futures.workspace = true
 serde = { workspace = true, features = ["derive"] }
 thiserror.workspace = true
 tokio = { workspace = true, features = ["rt-multi-thread", "time", "macros"] }
 tracing.workspace = true
+time.workspace = true
 url.workspace = true
 zeroize.workspace = true
+
+humantime-serde = "1.0"
+
 
 # internal
 nym-bin-common = { path = "../common/bin-common", features = ["output_format"] }

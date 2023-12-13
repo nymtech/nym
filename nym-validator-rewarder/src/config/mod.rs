@@ -10,9 +10,11 @@ use nym_config::{
     DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, DEFAULT_DATA_DIR, NYM_DIR,
 };
 use nym_network_defaults::NymNetworkDetails;
+use nym_validator_client::nyxd::Coin;
 use serde::{Deserialize, Serialize};
 use std::io;
 use std::path::{Path, PathBuf};
+use std::time::Duration;
 use tracing::debug;
 use url::Url;
 use zeroize::{Zeroize, ZeroizeOnDrop};
@@ -22,6 +24,12 @@ pub mod persistence;
 mod template;
 
 const DEFAULT_REWARDER_DIR: &str = "validators-rewarder";
+
+#[allow(clippy::inconsistent_digit_grouping)]
+const DEFAULT_MIX_REWARDING_BUDGET: u128 = 1000_000000;
+const DEFAULT_MIX_REWARDING_DENOM: &str = "unym";
+
+const DEFAULT_EPOCH_DURATION: Duration = Duration::from_secs(60 * 60);
 
 /// Get default path to rewarder's config directory.
 /// It should get resolved to `$HOME/.nym/validators-rewarder/config`
@@ -54,7 +62,8 @@ pub struct Config {
     #[zeroize(skip)]
     pub(crate) save_path: Option<PathBuf>,
 
-    pub distribution: RewardingRatios,
+    #[zeroize(skip)]
+    pub rewarding: Rewarding,
 
     #[zeroize(skip)]
     pub nyxd_scraper: NyxdScraper,
@@ -78,7 +87,7 @@ impl Config {
 
         Config {
             save_path: None,
-            distribution: RewardingRatios::default(),
+            rewarding: Rewarding::default(),
             nyxd_scraper: NyxdScraper {
                 websocket_url: network.endpoints[0]
                     .websocket_url()
@@ -101,7 +110,7 @@ impl Config {
     }
 
     pub fn ensure_is_valid(&self) -> Result<(), NymRewarderError> {
-        self.distribution.ensure_is_valid()?;
+        self.rewarding.ratios.ensure_is_valid()?;
         Ok(())
     }
 
@@ -157,24 +166,48 @@ pub struct Base {
     pub(crate) mnemonic: bip39::Mnemonic,
 }
 
-#[derive(Debug, Deserialize, Serialize, Zeroize, ZeroizeOnDrop)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Rewarding {
+    ///
+    pub epoch_budget: Coin,
+
+    #[serde(with = "humantime_serde")]
+    pub epoch_duration: Duration,
+
+    pub ratios: RewardingRatios,
+}
+
+impl Default for Rewarding {
+    fn default() -> Self {
+        Rewarding {
+            epoch_budget: Coin::new(DEFAULT_MIX_REWARDING_BUDGET, DEFAULT_MIX_REWARDING_DENOM),
+            epoch_duration: DEFAULT_EPOCH_DURATION,
+            ratios: RewardingRatios::default(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, Serialize)]
 pub struct RewardingRatios {
     /// The percent of the epoch reward being awarded for block signing.
-    pub block_signing: f32,
+    pub block_signing: f64,
 
     /// The percent of the epoch reward being awarded for credential issuance.
-    pub credential_issuance: f32,
+    pub credential_issuance: f64,
+
+    /// The percent of the epoch reward being awarded for credential verification.
+    pub credential_verification: f64,
 
     /// The percent of the epoch reward given to Nym.
-    pub nym: f32,
+    pub nym: f64,
 }
 
 impl Default for RewardingRatios {
     fn default() -> Self {
         RewardingRatios {
-            // TODO: define proper defaults
-            block_signing: 67.0,
-            credential_issuance: 33.0,
+            block_signing: 0.67,
+            credential_issuance: 0.33,
+            credential_verification: 0.0,
             nym: 0.0,
         }
     }
@@ -182,6 +215,11 @@ impl Default for RewardingRatios {
 
 impl RewardingRatios {
     pub fn ensure_is_valid(&self) -> Result<(), NymRewarderError> {
+        if self.block_signing + self.credential_verification + self.credential_issuance + self.nym
+            != 1.0
+        {
+            todo!()
+        }
         Ok(())
     }
 }

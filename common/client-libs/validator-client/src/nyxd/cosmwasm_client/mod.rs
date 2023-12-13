@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::nyxd::cosmwasm_client::client_traits::{CosmWasmClient, SigningCosmWasmClient};
+use crate::nyxd::cosmwasm_client::client_traits::SigningCosmWasmClient;
 use crate::nyxd::error::NyxdError;
 use crate::nyxd::{Config, GasPrice, Hash, Height};
 use crate::rpc::TendermintRpcClient;

@@ -112,7 +112,7 @@ pub struct NyxdScraper {
 
     task_tracker: TaskTracker,
     cancel_token: CancellationToken,
-    storage: ScraperStorage,
+    pub storage: ScraperStorage,
 }
 
 impl NyxdScraper {

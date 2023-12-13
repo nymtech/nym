@@ -25,9 +25,9 @@ type DealingKey<'a> = &'a Addr;
 // if TOTAL_DEALINGS is modified to anything other then current value (5), this part will also need
 // to be modified
 pub(crate) const DEALINGS_BYTES: [Map<'_, DealingKey<'_>, ContractSafeBytes>; TOTAL_DEALINGS] = [
-    Map::new("dbyt1"),
-    Map::new("dbyt2"),
-    Map::new("dbyt3"),
-    Map::new("dbyt4"),
-    Map::new("dbyt5"),
+    Map::new("dbyt1-tmp2"),
+    Map::new("dbyt2-tmp2"),
+    Map::new("dbyt3-tmp2"),
+    Map::new("dbyt4-tmp2"),
+    Map::new("dbyt5-tmp2"),
 ];

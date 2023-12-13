@@ -557,11 +557,11 @@ impl PayInfo {
     }
 
     pub fn timestamp(&self) -> i64 {
-        i64::from_be_bytes(self.payinfo[32..40].try_into().unwrap())
+        i64::from_be_bytes(self.pay_info_bytes[32..40].try_into().unwrap())
     }
 
-    pub fn pk(&self) -> [u8; 32] {
-        self.payinfo[40..].try_into().unwrap()
+    pub fn pk(&self) -> [u8; 48] {
+        self.pay_info_bytes[40..].try_into().unwrap()
     }
 }
 
@@ -1114,12 +1114,12 @@ impl EcashCredential {
     pub fn to_bytes(&self) -> Vec<u8> {
         let payment_bytes = self.payment.to_bytes();
 
-        let mut bytes = Vec::with_capacity(payment_bytes.len() + 72 + 8 + 8 + 8);
+        let mut bytes = Vec::with_capacity(payment_bytes.len() + 88 + 8 + 8 + 8);
 
         bytes.extend_from_slice(&(payment_bytes.len() as u64).to_be_bytes());
         bytes.extend_from_slice(&self.payment.to_bytes());
         bytes.extend_from_slice(&self.value.to_be_bytes());
-        bytes.extend_from_slice(&self.pay_info.payinfo);
+        bytes.extend_from_slice(&self.pay_info.pay_info_bytes);
         bytes.extend_from_slice(&self.epoch_id.to_be_bytes());
 
         bytes
@@ -1139,7 +1139,7 @@ impl EcashCredential {
 impl TryFrom<&[u8]> for EcashCredential {
     type Error = CompactEcashError;
     fn try_from(bytes: &[u8]) -> Result<Self> {
-        if bytes.len() < 72 + 8 + 8 + 8 {
+        if bytes.len() < 88 + 8 + 8 + 8 {
             return Err(CompactEcashError::Deserialization(
                 "Invalid byte array for EcashCredential deserialization".to_string(),
             ));
@@ -1157,7 +1157,7 @@ impl TryFrom<&[u8]> for EcashCredential {
         let payment = Payment::try_from(&bytes[index..index + payment_len])?;
         index += payment_len;
 
-        if bytes[index..].len() != 72 + 8 + 8 {
+        if bytes[index..].len() != 88 + 8 + 8 {
             return Err(CompactEcashError::Deserialization(
                 "Invalid byte array for EcashCredential deserialization".to_string(),
             ));
@@ -1167,7 +1167,7 @@ impl TryFrom<&[u8]> for EcashCredential {
         index += 8;
 
         let pay_info = PayInfo {
-            payinfo: bytes[index..index + 72].try_into().unwrap(),
+            pay_info_bytes: bytes[index..index + 88].try_into().unwrap(),
         };
         index += 72;
         let epoch_id = u64::from_be_bytes(bytes[index..index + 8].try_into().unwrap());

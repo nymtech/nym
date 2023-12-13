@@ -50,4 +50,3 @@ macro_rules! impl_serde {
 impl_serde!(WithdrawalRequest, V1);
 impl_serde!(EcashCredential, V2);
 impl_serde!(VerificationKeyAuth, V3);
-impl_serde!(Parameters, V4);

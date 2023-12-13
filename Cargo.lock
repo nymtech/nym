@@ -1013,7 +1013,7 @@ dependencies = [
 [[package]]
 name = "bls12_381"
 version = "0.6.0"
-source = "git+https://github.com/jstuczyn/bls12_381?branch=gt-serialisation#10fb6f700bfda17c8475af3bfd31e3fec15f2278"
+source = "git+https://github.com/jstuczyn/bls12_381.git?branch=gt-serialisation#10fb6f700bfda17c8475af3bfd31e3fec15f2278"
 dependencies = [
  "digest 0.9.0",
  "ff 0.11.1",
@@ -6431,11 +6431,10 @@ dependencies = [
  "itertools 0.10.5",
  "nym-pemstore",
  "rand 0.8.5",
- "serde",
  "rayon",
- "sha2",
+ "serde",
+ "sha2 0.9.9",
  "thiserror",
- "zeroize",
 ]
 
 [[package]]

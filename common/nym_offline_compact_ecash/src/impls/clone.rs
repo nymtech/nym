@@ -15,4 +15,3 @@ macro_rules! impl_clone {
 
 impl_clone!(WithdrawalRequest);
 impl_clone!(EcashCredential);
-impl_clone!(Parameters);

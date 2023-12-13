@@ -215,20 +215,22 @@ impl RequestInfo {
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {
-        let com_hash_bytes = self.com_hash.to_affine().to_compressed();
-        let com_opening_bytes = self.com_opening.to_bytes();
-        let pr_coms_openings_len = self.pc_coms_openings.len() as u64;
-        let v_bytes = self.v.to_bytes();
+        let com_hash_bytes = self.joined_commitment_hash.to_affine().to_compressed();
+        let com_opening_bytes = self.joined_commitment_opening.to_bytes();
+        let pr_coms_openings_len = self.private_attributes_openings.len() as u64;
+        let v_bytes = self.wallet_secret.to_bytes();
+        let exp_date_bytes = self.expiration_date.to_bytes();
 
         let mut bytes = Vec::with_capacity(48 + 32 + 8 + pr_coms_openings_len as usize * 32 + 32);
         bytes.extend_from_slice(&com_hash_bytes);
         bytes.extend_from_slice(&com_opening_bytes);
         bytes.extend_from_slice(&pr_coms_openings_len.to_le_bytes());
-        for c in &self.pc_coms_openings {
+        for c in &self.private_attributes_openings {
             bytes.extend_from_slice(&c.to_bytes());
         }
 
         bytes.extend_from_slice(&v_bytes);
+        bytes.extend_from_slice(&exp_date_bytes);
 
         bytes
     }
@@ -238,9 +240,9 @@ impl TryFrom<&[u8]> for RequestInfo {
     type Error = CompactEcashError;
 
     fn try_from(bytes: &[u8]) -> Result<RequestInfo> {
-        if bytes.len() < 48 + 32 + 8 + 32 {
+        if bytes.len() < 48 + 32 + 8 + 32 + 32 {
             return Err(CompactEcashError::DeserializationMinLength {
-                min: 48 + 32 + 8 + 32,
+                min: 48 + 32 + 8 + 32 + 32,
                 actual: bytes.len(),
             });
         }
@@ -292,7 +294,8 @@ impl TryFrom<&[u8]> for RequestInfo {
         j += pc_coms_openings_len as usize * 32;
 
         let v_len = 32;
-        if bytes[j..].len() != v_len {
+        let exp_date_len = 32;
+        if bytes[j..].len() != v_len + exp_date_len {
             return Err(CompactEcashError::DeserializationMinLength {
                 min: v_len,
                 actual: bytes[j..].len(),
@@ -304,11 +307,18 @@ impl TryFrom<&[u8]> for RequestInfo {
             CompactEcashError::Deserialization("Failed to deserialize v".to_string()),
         )?;
 
+        let exp_date_bytes = bytes[j..j + exp_date_len].try_into().unwrap();
+        let exp_date = try_deserialize_scalar(
+            exp_date_bytes,
+            CompactEcashError::Deserialization("Failed to deserialize expiration date".to_string()),
+        )?;
+
         Ok(RequestInfo {
-            com_hash,
-            com_opening,
-            pc_coms_openings,
-            v,
+            joined_commitment_hash: com_hash,
+            joined_commitment_opening: com_opening,
+            private_attributes_openings: pc_coms_openings,
+            wallet_secret: v,
+            expiration_date: exp_date,
         })
     }
 }

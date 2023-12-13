@@ -396,13 +396,12 @@ impl SpendProof {
         let tt_aa_bytes = instance_commitments
             .tt_aa
             .iter()
-            .zip(r_lk.iter())
-            .map(|(r_o_a_k, r_l_k)| g1 * r_o_a_k + gamma1 * r_l_k)
+            .map(|x| x.to_bytes())
             .collect::<Vec<_>>();
         let tt_ss_bytes = instance_commitments
             .tt_ss
             .iter()
-            .map(|r_mu_k| grparams.delta() * r_mu_k)
+            .map(|x| x.to_bytes())
             .collect::<Vec<_>>();
         let tt_tt_bytes = instance_commitments
             .tt_tt

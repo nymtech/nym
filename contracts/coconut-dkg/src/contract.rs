@@ -127,7 +127,26 @@ pub fn query(deps: Deps<'_>, _env: Env, msg: QueryMsg) -> Result<QueryResponse, 
 }
 
 #[entry_point]
-pub fn migrate(_deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+pub fn migrate(deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+    let mut current_epoch = CURRENT_EPOCH.load(deps.storage)?;
+    current_epoch
+        .time_configuration
+        .public_key_submission_time_secs = 1200;
+    current_epoch.time_configuration.dealing_exchange_time_secs = 1200;
+    current_epoch
+        .time_configuration
+        .verification_key_submission_time_secs = 600;
+    current_epoch
+        .time_configuration
+        .verification_key_validation_time_secs = 600;
+    current_epoch
+        .time_configuration
+        .verification_key_finalization_time_secs = 600;
+    current_epoch.time_configuration.in_progress_time_secs = 60 * 60 * 24 * 365 * 10;
+
+    CURRENT_EPOCH.save(deps.storage, &current_epoch)?;
+
+    //
     Ok(Default::default())
 }
 

@@ -69,7 +69,14 @@ function ConnectionStatus() {
       <div className="flex flex-1">
         {state.loading && state.progressMessages.length > 0 && (
           <p className="text-dim-gray dark:text-mercury-mist font-bold">
-            {state.progressMessages[state.progressMessages.length - 1]}
+            {t(
+              `connection-progress.${
+                state.progressMessages[state.progressMessages.length - 1]
+              }`,
+              {
+                ns: 'backendMessages',
+              },
+            )}
           </p>
         )}
         {state.state === 'Connected' && <ConnectionTimer />}

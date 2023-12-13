@@ -36,8 +36,14 @@ impl ConnectionEventPayload {
 }
 
 #[derive(Clone, serde::Serialize)]
+enum ConnectProgressMsg {
+    Initializing,
+    Done,
+}
+
+#[derive(Clone, serde::Serialize)]
 struct ProgressEventPayload {
-    message: String,
+    key: ConnectProgressMsg,
 }
 
 #[instrument(skip_all)]
@@ -79,7 +85,7 @@ pub async fn connect(
     app.emit_all(
         EVENT_CONNECTION_PROGRESS,
         ProgressEventPayload {
-            message: "Initializing Nym VPN client…".to_string(),
+            key: ConnectProgressMsg::Initializing,
         },
     )
     .ok();
@@ -115,7 +121,7 @@ pub async fn connect(
     app.emit_all(
         EVENT_CONNECTION_PROGRESS,
         ProgressEventPayload {
-            message: "Done".to_string(),
+            key: ConnectProgressMsg::Done,
         },
     )
     .ok();

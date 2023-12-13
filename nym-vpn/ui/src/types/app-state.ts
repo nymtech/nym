@@ -21,7 +21,7 @@ export type AppState = {
   state: ConnectionState;
   loading: boolean;
   error?: string | null;
-  progressMessages: string[];
+  progressMessages: ConnectProgressMsg[];
   sessionStartDate?: Dayjs | null;
   vpnMode: VpnMode;
   tunnel: TunnelConfig;
@@ -36,8 +36,10 @@ export type ConnectionEventPayload = {
   start_time?: number | null; // unix timestamp in seconds
 };
 
+export type ConnectProgressMsg = 'Initializing' | 'Done';
+
 export type ProgressEventPayload = {
-  message: string;
+  key: ConnectProgressMsg;
 };
 
 export type StateDispatch = Dispatch<StateAction>;

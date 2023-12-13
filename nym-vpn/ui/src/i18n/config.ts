@@ -4,6 +4,7 @@ import common from './en/common.json';
 import home from './en/home.json';
 import settings from './en/settings.json';
 import nodeLocation from './en/node-location.json';
+import backendMessages from './en/backend-messages.json';
 
 const defaultNS = 'common';
 
@@ -16,9 +17,10 @@ i18n.use(initReactI18next).init({
       home,
       settings,
       nodeLocation,
+      backendMessages,
     },
   },
-  ns: ['common', 'home', 'settings', 'nodeLocation'],
+  ns: ['common', 'home', 'settings', 'nodeLocation', 'backendMessages'],
   defaultNS,
 
   interpolation: {

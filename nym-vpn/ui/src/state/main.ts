@@ -1,6 +1,7 @@
 import dayjs from 'dayjs';
 import {
   AppState,
+  ConnectProgressMsg,
   ConnectionState,
   Country,
   NodeHop,
@@ -14,7 +15,7 @@ export type StateAction =
   | { type: 'set-vpn-mode'; mode: VpnMode }
   | { type: 'set-error'; error: string }
   | { type: 'reset-error' }
-  | { type: 'new-progress-message'; message: string }
+  | { type: 'new-progress-message'; message: ConnectProgressMsg }
   | { type: 'connect' }
   | { type: 'disconnect' }
   | { type: 'set-connected'; startTime: number }

@@ -1,8 +1,6 @@
-# mixFetch Usage Example
+# Nym credential generation Usage Example
 
-This is a simple project to show you how to use mixFetch.
-
-Basic usage is as simple as replacing `fetch` with `mixFetch` in your code:
+This is a simple project to show you how to use nym credential generation.
 
 ```ts
 import { mixFetch } from '@nymproject/mix-fetch';

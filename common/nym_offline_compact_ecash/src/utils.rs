@@ -51,7 +51,7 @@ impl Polynomial {
 }
 
 #[inline]
-fn generate_lagrangian_coefficients_at_origin(points: &[u64]) -> Vec<Scalar> {
+pub fn generate_lagrangian_coefficients_at_origin(points: &[u64]) -> Vec<Scalar> {
     let x = Scalar::zero();
 
     points

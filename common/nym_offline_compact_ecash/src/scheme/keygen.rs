@@ -19,7 +19,6 @@ use crate::utils::{
     try_deserialize_scalar_vec,
 };
 use crate::Base58;
-use zeroize::{Zeroize, ZeroizeOnDrop};
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct SecretKeyAuth {
@@ -73,6 +72,14 @@ impl TryFrom<&[u8]> for SecretKeyAuth {
 }
 
 impl SecretKeyAuth {
+    pub fn get_ys(&self) -> Vec<Scalar> {
+        self.ys.clone()
+    }
+
+    pub(crate) fn get_y_by_idx(&self, i: usize) -> Option<&Scalar> {
+        self.ys.get(i)
+    }
+
     pub fn verification_key(&self, params: &GroupParameters) -> VerificationKeyAuth {
         let g1 = params.gen1();
         let g2 = params.gen2();
@@ -335,7 +342,7 @@ impl Bytable for VerificationKeyAuth {
 
 impl Base58 for VerificationKeyAuth {}
 
-#[derive(Debug, PartialEq, Clone, Zeroize, ZeroizeOnDrop)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct SecretKeyUser {
     pub sk: Scalar,
 }
@@ -467,10 +474,9 @@ impl KeyPairAuth {
     }
 }
 
-#[derive(Zeroize, ZeroizeOnDrop, Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct KeyPairUser {
     secret_key: SecretKeyUser,
-    #[zeroize(skip)]
     public_key: PublicKeyUser,
 }
 
@@ -558,7 +564,7 @@ pub fn ttp_keygen(
 
     // generate polynomials
     let v = Polynomial::new_random(params, threshold - 1);
-    let ws = (0..attributes)
+    let ws = (0..attributes + 1)
         .map(|_| Polynomial::new_random(params, threshold - 1))
         .collect::<Vec<_>>();
 

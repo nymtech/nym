@@ -19,6 +19,9 @@ pub enum CompactEcashError {
     #[error("Interpolation error: {0}")]
     Interpolation(String),
 
+    #[error("Issuance related error: {0}")]
+    Issuance(String),
+
     #[error("Issuance Verification related error: {0}")]
     IssuanceVfy(String),
 
@@ -36,6 +39,12 @@ pub enum CompactEcashError {
 
     #[error("Payment did not verify")]
     PaymentVerification,
+
+    #[error("Expiration Date related error: {0}")]
+    ExpirationDate(String),
+
+    #[error("Coin Indices related error: {0}")]
+    CoinIndices(String),
 
     #[error(
         "Deserailization error, expected at least {} bytes, got {}",

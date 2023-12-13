@@ -9,8 +9,8 @@ pub use scheme::keygen::generate_keypair_user;
 pub use scheme::keygen::ttp_keygen;
 pub use scheme::keygen::{PublicKeyUser, SecretKeyUser, VerificationKeyAuth};
 pub use scheme::setup;
+pub use scheme::withdrawal::issue;
 pub use scheme::withdrawal::issue_verify;
-pub use scheme::withdrawal::issue_wallet;
 pub use scheme::withdrawal::withdrawal_request;
 pub use scheme::PartialWallet;
 pub use scheme::PayInfo;
@@ -19,6 +19,7 @@ pub use traits::Base58;
 use crate::error::CompactEcashError;
 use crate::traits::Bytable;
 
+pub mod constants;
 pub mod error;
 mod impls;
 mod proofs;

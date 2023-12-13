@@ -17,7 +17,7 @@ sha2 = "0.9"
 bs58 = "0.4.0"
 serde = "1.0.189"
 getset = "0.1.1"
-zeroize = "1.6.0"
+rayon = "1.5.0"
 
 # internal
 nym-pemstore = { path = "../pemstore", version = "0.3.0" }
@@ -33,6 +33,23 @@ default-features = false
 version = "0.11"
 default-features = false
 
+
 [[bench]]
-name = "benchmarks"
+name = "benchmarks_group_operations"
+path = "benches/benchmarks_group_operations.rs"
+harness = false
+
+[[bench]]
+name = "benchmarks_expiration_date_signatures"
+path = "benches/benchmarks_expiration_date_signatures.rs"
+harness = false
+
+[[bench]]
+name = "benchmarks_coin_indices_signatures"
+path = "benches/benchmarks_coin_indices_signatures.rs"
+harness = false
+
+[[bench]]
+name = "benchmarks_ecash_e2e"
+path = "benches/benchmarks_ecash_e2e.rs"
 harness = false

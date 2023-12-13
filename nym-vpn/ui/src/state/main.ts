@@ -57,6 +57,9 @@ export function reducer(state: AppState, action: StateAction): AppState {
       return { ...state, ...action.partialState };
     }
     case 'change-connection-state': {
+      console.log(
+        `__REDUCER [change-connection-state] changing connection state to ${action.state}`,
+      );
       if (action.state === state.state) {
         return state;
       }
@@ -68,12 +71,18 @@ export function reducer(state: AppState, action: StateAction): AppState {
       };
     }
     case 'connect': {
+      console.log(
+        `__REDUCER [connect] changing connection state to Connecting`,
+      );
       return { ...state, state: 'Connecting', loading: true };
     }
     case 'disconnect': {
       return { ...state, state: 'Disconnecting', loading: true };
     }
     case 'set-connected': {
+      console.log(
+        `__REDUCER [set-connected] changing connection state to Connected`,
+      );
       return {
         ...state,
         state: 'Connected',

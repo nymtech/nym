@@ -103,6 +103,7 @@ pub async fn connect(
         .ok();
         CmdError::new(CmdErrorSource::InternalError, err_message)
     })?;
+    info!("nym vpn client spawned");
 
     app.emit_all(
         EVENT_CONNECTION_PROGRESS,

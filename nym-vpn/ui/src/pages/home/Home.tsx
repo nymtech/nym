@@ -1,37 +1,40 @@
+import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { invoke } from '@tauri-apps/api';
 import clsx from 'clsx';
 import { Button } from '@mui/base';
 import { useNavigate } from 'react-router-dom';
 import { useMainDispatch, useMainState } from '../../contexts';
-import { ConnectionState, StateDispatch } from '../../types';
+import { StateDispatch } from '../../types';
 import { QuickConnectCountry, routes } from '../../constants';
 import NetworkModeSelect from './NetworkModeSelect';
 import ConnectionStatus from './ConnectionStatus';
 import HopSelect from './HopSelect';
 
 function Home() {
-  const state = useMainState();
+  const { state, loading, exitNodeLocation } = useMainState();
   const dispatch = useMainDispatch() as StateDispatch;
   const navigate = useNavigate();
   const { t } = useTranslation('home');
 
   const handleClick = async () => {
-    if (state.state === 'Connected') {
+    dispatch({ type: 'disconnect' });
+    if (state === 'Connected') {
       invoke('disconnect')
         .then((result) => {
+          console.log('disconnect result');
           console.log(result);
-          dispatch({ type: 'disconnect' });
         })
         .catch((e) => {
           console.log(e);
           dispatch({ type: 'set-error', error: e });
         });
-    } else if (state.state === 'Disconnected') {
+    } else if (state === 'Disconnected') {
+      dispatch({ type: 'connect' });
       invoke('connect')
         .then((result) => {
+          console.log('connect result');
           console.log(result);
-          dispatch({ type: 'connect' });
         })
         .catch((e) => {
           console.log(e);
@@ -40,7 +43,7 @@ function Home() {
     }
   };
 
-  const getButtonText = (state: ConnectionState) => {
+  const getButtonText = useCallback(() => {
     switch (state) {
       case 'Connected':
         return t('disconnect');
@@ -61,7 +64,7 @@ function Home() {
       case 'Unknown':
         return t('status.unknown');
     }
-  };
+  }, [state, t]);
 
   return (
     <div className="h-full flex flex-col p-4">
@@ -71,7 +74,7 @@ function Home() {
           <NetworkModeSelect />
           <div className="py-2"></div>
           <HopSelect
-            country={state.exitNodeLocation ?? QuickConnectCountry}
+            country={exitNodeLocation ?? QuickConnectCountry}
             onClick={() => navigate(routes.exitNodeLocation)}
             nodeHop="exit"
           />
@@ -79,15 +82,15 @@ function Home() {
         <Button
           className={clsx([
             'rounded-lg text-lg font-bold py-4 px-6 h-16 focus:outline-none focus:ring-4 focus:ring-black focus:dark:ring-white shadow',
-            (state.state === 'Disconnected' || state.state === 'Connecting') &&
+            (state === 'Disconnected' || state === 'Connecting') &&
               'bg-melon text-white dark:text-baltic-sea',
-            (state.state === 'Connected' || state.state === 'Disconnecting') &&
+            (state === 'Connected' || state === 'Disconnecting') &&
               'bg-cornflower text-white dark:text-baltic-sea',
           ])}
           onClick={handleClick}
-          disabled={state.loading}
+          disabled={loading}
         >
-          {getButtonText(state.state)}
+          {getButtonText()}
         </Button>
       </div>
     </div>

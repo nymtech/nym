@@ -14,7 +14,7 @@ use crate::{
         SharedAppConfig, SharedAppData, SharedAppState,
     },
     vpn_client::{
-        create_vpn_config, register_exit_listener, register_status_listener, ConnectProgressMsg,
+        create_vpn_config, spawn_exit_listener, spawn_status_listener, ConnectProgressMsg,
         ConnectionEventPayload, ProgressEventPayload, EVENT_CONNECTION_PROGRESS,
         EVENT_CONNECTION_STATE,
     },
@@ -137,14 +137,14 @@ pub async fn connect(
     // Start exit message listener
     // This will listen for the (single) exit message from the VPN client and update the UI accordingly
     debug!("starting exit listener");
-    register_exit_listener(app, state.inner().clone(), vpn_exit_rx)
+    spawn_exit_listener(app, state.inner().clone(), vpn_exit_rx)
         .await
         .ok();
 
     // Start the VPN status listener
     // This will listen for status messages from the VPN client and update the UI accordingly
     debug!("starting status listener");
-    register_status_listener(vpn_status_rx).await.ok();
+    spawn_status_listener(vpn_status_rx).await.ok();
 
     // Store the vpn control tx in the app state, which will be used to send control messages to
     // the running background VPN task, such as to disconnect.

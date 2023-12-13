@@ -41,7 +41,7 @@ impl ConnectionEventPayload {
 }
 
 #[instrument(skip_all)]
-pub async fn register_exit_listener(
+pub async fn spawn_exit_listener(
     app: tauri::AppHandle,
     app_state: SharedAppState,
     exit_rx: OneshotReceiver<NymVpnExitStatusMessage>,
@@ -104,7 +104,7 @@ pub async fn register_exit_listener(
 }
 
 #[instrument(skip_all)]
-pub async fn register_status_listener(
+pub async fn spawn_status_listener(
     // app: tauri::AppHandle,
     // app_state: SharedAppState,
     mut status_rx: Receiver<NymVpnStatusMessage>,

@@ -34,7 +34,17 @@ impl Rewarder {
 
         self.nyxd_scraper.start().await?;
 
-        tokio::time::sleep(Duration::from_secs(30)).await;
+        tokio::time::sleep(Duration::from_secs(3000)).await;
+
+        loop {
+            tokio::select! {
+                biased;
+                interrupted = task_manager.catch_interrupt() => {
+                    todo!()
+                }
+
+            }
+        }
 
         /*
            task 1:

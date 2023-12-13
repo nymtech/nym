@@ -13,10 +13,10 @@ mod rewarder;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    std::env::set_var(
-        "RUST_LOG",
-        "debug,tendermint_rpc=warn,h2=warn,hyper=warn,rustls=warn,reqwest=warn,tungstenite=warn,async_tungstenite=warn",
-    );
+    // std::env::set_var(
+    //     "RUST_LOG",
+    //     "debug,tendermint_rpc=warn,h2=warn,hyper=warn,rustls=warn,reqwest=warn,tungstenite=warn,async_tungstenite=warn",
+    // );
 
     let args = Cli::parse();
     setup_env(args.config_env_file.as_ref());

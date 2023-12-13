@@ -1,6 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::block_processor::helpers::split_request_range;
 use crate::block_processor::types::BlockToProcess;
 use crate::block_requester::BlockRequest;
 use crate::error::ScraperError;
@@ -8,7 +9,7 @@ use crate::modules::{BlockModule, MsgModule, TxModule};
 use crate::rpc_client::RpcClient;
 use crate::storage::{persist_block, ScraperStorage};
 use futures::StreamExt;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet, VecDeque};
 use std::ops::{Add, Range};
 use std::time::Duration;
 use tokio::sync::mpsc::{Sender, UnboundedReceiver};
@@ -17,16 +18,30 @@ use tokio_stream::wrappers::UnboundedReceiverStream;
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, error, info, warn};
 
+mod helpers;
 pub(crate) mod types;
 
 const MISSING_BLOCKS_CHECK_INTERVAL: Duration = Duration::from_secs(30);
 const MAX_MISSING_BLOCKS_DELAY: Duration = Duration::from_secs(15);
 const MAX_RANGE_SIZE: usize = 30;
 
+#[derive(Debug, Default)]
+struct PendingSync {
+    request_in_flight: HashSet<u32>,
+    queued_requests: VecDeque<Range<u32>>,
+}
+
+impl PendingSync {
+    fn is_empty(&self) -> bool {
+        self.request_in_flight.is_empty() && self.queued_requests.is_empty()
+    }
+}
+
 pub struct BlockProcessor {
     cancel: CancellationToken,
     last_processed_height: u32,
     last_processed_at: Instant,
+    pending_sync: PendingSync,
     queued_blocks: BTreeMap<u32, BlockToProcess>,
 
     rpc_client: RpcClient,
@@ -56,6 +71,7 @@ impl BlockProcessor {
             cancel,
             last_processed_height: last_processed.try_into().unwrap_or_default(),
             last_processed_at: Instant::now(),
+            pending_sync: Default::default(),
             queued_blocks: Default::default(),
             rpc_client,
             incoming: incoming.into(),
@@ -139,6 +155,10 @@ impl BlockProcessor {
             return Ok(());
         }
 
+        if self.try_request_pending().await {
+            return Ok(());
+        }
+
         // TODO: properly fill in the gaps later with BlockRequest::Specific,
         let request_range = if let Some((next_available, _)) = self.queued_blocks.first_key_value()
         {
@@ -148,21 +168,36 @@ impl BlockProcessor {
             self.last_processed_height + 1..current_height + 1
         };
 
-        self.request_block_range(request_range).await?;
+        self.request_missing_blocks(request_range).await?;
 
         Ok(())
     }
 
-    // technically we're not mutating self here,
-    // but we need it to help the compiler figure out the future is `Send`
-    async fn request_block_range(&mut self, request_range: Range<u32>) -> Result<(), ScraperError> {
-        debug!("requesting missing blocks: {request_range:?}");
+    async fn request_missing_blocks(
+        &mut self,
+        request_range: Range<u32>,
+    ) -> Result<(), ScraperError> {
         let request_range = if request_range.len() > MAX_RANGE_SIZE {
-            warn!("the request range has more than {MAX_RANGE_SIZE} values. reducing it.");
-            request_range.start..request_range.start + MAX_RANGE_SIZE as u32
+            let mut split = split_request_range(request_range);
+
+            // SAFETY: we know that after the split of a non-empty range we have AT LEAST one value
+            #[allow(clippy::unwrap_used)]
+            let first = split.pop_front().unwrap();
+            self.pending_sync.queued_requests = split;
+            self.pending_sync.request_in_flight = first.clone().collect();
+
+            first
         } else {
             request_range
         };
+
+        self.send_blocks_request(request_range).await
+    }
+
+    // technically we're not mutating self here,
+    // but we need it to help the compiler figure out the future is `Send`
+    async fn send_blocks_request(&mut self, request_range: Range<u32>) -> Result<(), ScraperError> {
+        debug!("requesting missing blocks: {request_range:?}");
 
         self.block_requester
             .send(BlockRequest::Range(request_range))
@@ -172,6 +207,8 @@ impl BlockProcessor {
 
     async fn next_incoming(&mut self, block: BlockToProcess) {
         let height = block.height;
+
+        self.pending_sync.request_in_flight.remove(&height);
 
         if self.last_processed_height == 0 {
             // this is the first time we've started up the process
@@ -204,16 +241,40 @@ impl BlockProcessor {
             }
             next += 1;
         }
+
+        self.try_request_pending().await;
+    }
+
+    async fn try_request_pending(&mut self) -> bool {
+        if self.pending_sync.request_in_flight.is_empty() {
+            if let Some(next_sync) = self.pending_sync.queued_requests.pop_front() {
+                debug!(
+                    "current request range has been resolved. requesting another bunch of blocks"
+                );
+                if let Err(err) = self.send_blocks_request(next_sync.clone()).await {
+                    error!("failed to request resync blocks: {err}");
+                    self.pending_sync.queued_requests.push_front(next_sync);
+                } else {
+                    self.pending_sync.request_in_flight = next_sync.collect()
+                }
+
+                return true;
+            }
+        }
+
+        false
     }
 
     // technically we're not mutating self here,
     // but we need it to help the compiler figure out the future is `Send`
     async fn startup_resync(&mut self) -> Result<(), ScraperError> {
+        assert!(self.pending_sync.is_empty());
+
         let latest_block = self.rpc_client.current_block_height().await? as u32;
         if latest_block > self.last_processed_height && self.last_processed_height != 0 {
             let request_range = self.last_processed_height + 1..latest_block + 1;
             info!("we need to request {request_range:?} to resync");
-            self.request_block_range(request_range).await?;
+            self.request_missing_blocks(request_range).await?;
         }
 
         Ok(())

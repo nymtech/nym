@@ -69,7 +69,7 @@ impl ScraperStorage {
 
     #[instrument(skip_all)]
     pub async fn begin_processing_tx(&self) -> Result<StorageTransaction, ScraperError> {
-        info!("starting storage tx");
+        debug!("starting storage tx");
         self.manager
             .connection_pool
             .begin()

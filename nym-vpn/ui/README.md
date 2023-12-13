@@ -6,9 +6,9 @@ This is the application UI layer for the next NymVPN clients.
 
 #### Prerequisites
 
--   Rust
--   Nodejs, latest LTS version recommended
--   yarn 1.x
+- Rust
+- Nodejs, latest LTS version recommended
+- yarn 1.x
 
 Some system libraries are required depending on the host platform.
 Follow the instructions for your specific OS [here](https://tauri.app/v1/guides/getting-started/prerequisites)
@@ -27,9 +27,9 @@ The mainnet config will be used by default if not provided.
 
 Then create the main app config file `config.toml`, path is platform specific:
 
--   Linux: Resolves to `$XDG_CONFIG_HOME` or `$HOME/.config`
--   macOS: Resolves to `$HOME/Library/Application Support`
--   Windows: Resolves to `{FOLDERID_RoamingAppData}`
+- Linux: Resolves to `$XDG_CONFIG_HOME` or `$HOME/.config`
+- macOS: Resolves to `$HOME/Library/Application Support`
+- Windows: Resolves to `{FOLDERID_RoamingAppData}`
 
 ```toml
 # path to the env config file if you provide one
@@ -53,6 +53,14 @@ or
 ```
 cd src-tauri
 cargo tauri dev
+```
+
+**NOTE** Starting a VPN connection requires root privileges as it will set up a link interface.
+If you want to connect during development, you need to run the app as root,
+likely using `sudo` (or equivalent)
+
+```shell
+sudo -E RUST_LOG=debug cargo tauri dev
 ```
 
 #### Logging

@@ -5,7 +5,7 @@ use nym_vpn_lib::{NymVpnCtrlMessage, NymVpnHandle};
 use tauri::{Manager, State};
 use time::OffsetDateTime;
 use tokio::time::sleep;
-use tracing::{debug, error, info, instrument};
+use tracing::{debug, error, info, instrument, trace};
 
 use crate::{
     error::{CmdError, CmdErrorSource},
@@ -48,14 +48,18 @@ pub async fn connect(
         };
 
         // switch to "Connecting" state
+        trace!("update connection state [Connecting]");
         app_state.state = ConnectionState::Connecting;
     }
+
+    debug!("sending event [{}]: Connecting", EVENT_CONNECTION_STATE);
     app.emit_all(
         EVENT_CONNECTION_STATE,
         ConnectionEventPayload::new(ConnectionState::Connecting, None, None),
     )
     .ok();
 
+    trace!("sending event [{}]: Initializing", EVENT_CONNECTION_PROGRESS);
     app.emit_all(
         EVENT_CONNECTION_PROGRESS,
         ProgressEventPayload {
@@ -75,6 +79,7 @@ pub async fn connect(
     } = nym_vpn_lib::spawn_nym_vpn(local_nymvpn).map_err(|e| {
         let err_message = format!("fail to initialize Nym VPN client: {}", e);
         error!(err_message);
+        debug!("sending event [{}]: Disconnected", EVENT_CONNECTION_STATE);
         app.emit_all(
             EVENT_CONNECTION_STATE,
             ConnectionEventPayload::new(
@@ -92,6 +97,7 @@ pub async fn connect(
     // is able to report when the connection is established
     sleep(Duration::from_secs(1)).await;
 
+    trace!("sending event [{}]: Done", EVENT_CONNECTION_PROGRESS);
     app.emit_all(
         EVENT_CONNECTION_PROGRESS,
         ProgressEventPayload {
@@ -104,9 +110,10 @@ pub async fn connect(
     {
         let mut state = state.lock().await;
         let now = OffsetDateTime::now_utc();
+        trace!("update connection state [Connected]");
         state.state = ConnectionState::Connected;
         state.connection_start_time = Some(now);
-        debug!("sending event [{}]: connected", EVENT_CONNECTION_STATE);
+        debug!("sending event [{}]: Connected", EVENT_CONNECTION_STATE);
         app.emit_all(
             EVENT_CONNECTION_STATE,
             ConnectionEventPayload::new(
@@ -120,16 +127,19 @@ pub async fn connect(
 
     // Start exit message listener
     // This will listen for the (single) exit message from the VPN client and update the UI accordingly
+    debug!("starting exit listener");
     register_exit_listener(app, state.inner().clone(), vpn_exit_rx)
         .await
         .ok();
 
     // Start the VPN status listener
     // This will listen for status messages from the VPN client and update the UI accordingly
+    debug!("starting status listener");
     register_status_listener(vpn_status_rx).await.ok();
 
     // Store the vpn control tx in the app state, which will be used to send control messages to
     // the running background VPN task, such as to disconnect.
+    trace!("added vpn_ctrl_tx to app state");
     let mut state = state.lock().await;
     state.vpn_ctrl_tx = Some(vpn_ctrl_tx);
 
@@ -152,8 +162,10 @@ pub async fn disconnect(
     };
 
     // switch to "Disconnecting" state
+    trace!("update connection state [Disconnecting]");
     app_state.state = ConnectionState::Disconnecting;
 
+    debug!("sending event [{}]: Disconnecting", EVENT_CONNECTION_STATE);
     app.emit_all(
         EVENT_CONNECTION_STATE,
         ConnectionEventPayload::new(ConnectionState::Disconnecting, None, None),
@@ -161,8 +173,10 @@ pub async fn disconnect(
     .ok();
 
     let Some(ref mut vpn_tx) = app_state.vpn_ctrl_tx else {
+        trace!("update connection state [Disconnected]");
         app_state.state = ConnectionState::Disconnected;
         app_state.connection_start_time = None;
+        debug!("sending event [{}]: Disconnected", EVENT_CONNECTION_STATE);
         app.emit_all(
             EVENT_CONNECTION_STATE,
             ConnectionEventPayload::new(
@@ -179,9 +193,11 @@ pub async fn disconnect(
     };
 
     // send Stop message to the VPN client
+    debug!("sending Stop message to VPN client");
     vpn_tx.send(NymVpnCtrlMessage::Stop).await.map_err(|e| {
         let err_message = format!("failed to send Stop message to VPN client: {}", e);
         error!(err_message);
+        debug!("sending event [{}]: Disconnected", EVENT_CONNECTION_STATE);
         app.emit_all(
             EVENT_CONNECTION_STATE,
             ConnectionEventPayload::new(
@@ -193,16 +209,7 @@ pub async fn disconnect(
         .ok();
         CmdError::new(CmdErrorSource::InternalError, err_message)
     })?;
-
-    app_state.state = ConnectionState::Disconnected;
-    app_state.connection_start_time = None;
-
-    debug!("sending event [{}]: disconnected", EVENT_CONNECTION_STATE);
-    app.emit_all(
-        EVENT_CONNECTION_STATE,
-        ConnectionEventPayload::new(ConnectionState::Disconnected, None, None),
-    )
-    .ok();
+    debug!("Stop message sent");
 
     Ok(app_state.state)
 }

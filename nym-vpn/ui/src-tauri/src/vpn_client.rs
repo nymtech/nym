@@ -4,7 +4,7 @@ use futures::channel::oneshot::Receiver as OneshotReceiver;
 use futures::{channel::mpsc::Receiver, StreamExt};
 use nym_vpn_lib::{NymVpnExitStatusMessage, NymVpnStatusMessage};
 use tauri::Manager;
-use tracing::{debug, error, info};
+use tracing::{debug, error, info, instrument};
 
 pub const EVENT_CONNECTION_STATE: &str = "connection-state";
 pub const EVENT_CONNECTION_PROGRESS: &str = "connection-progress";
@@ -37,6 +37,7 @@ impl ConnectionEventPayload {
     }
 }
 
+#[instrument(skip_all)]
 pub async fn register_exit_listener(
     app: tauri::AppHandle,
     app_state: SharedAppState,
@@ -99,6 +100,7 @@ pub async fn register_exit_listener(
     Ok(())
 }
 
+#[instrument(skip_all)]
 pub async fn register_status_listener(
     // app: tauri::AppHandle,
     // app_state: SharedAppState,

@@ -11,7 +11,7 @@ pub struct NodeConfig {
     pub country: Country,
 }
 
-#[derive(Default, Debug, Clone, Copy, Serialize, Deserialize, TS)]
+#[derive(Default, Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[ts(export)]
 pub enum ConnectionState {
     Connected,

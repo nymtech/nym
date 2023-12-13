@@ -40,7 +40,7 @@ pub async fn connect(
     debug!("connect");
     {
         let mut app_state = state.lock().await;
-        let ConnectionState::Disconnected = app_state.state else {
+        if app_state.state != ConnectionState::Disconnected {
             return Err(CmdError::new(
                 CmdErrorSource::CallerError,
                 format!("cannot connect from state {:?}", app_state.state),
@@ -59,7 +59,10 @@ pub async fn connect(
     )
     .ok();
 
-    trace!("sending event [{}]: Initializing", EVENT_CONNECTION_PROGRESS);
+    trace!(
+        "sending event [{}]: Initializing",
+        EVENT_CONNECTION_PROGRESS
+    );
     app.emit_all(
         EVENT_CONNECTION_PROGRESS,
         ProgressEventPayload {

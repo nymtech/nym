@@ -1,7 +1,10 @@
+use std::time::Duration;
+
 use futures::{SinkExt, StreamExt};
 use nym_vpn_lib::{NymVpnCtrlMessage, NymVpnExitStatusMessage, NymVpnHandle};
 use tauri::{Manager, State};
 use time::OffsetDateTime;
+use tokio::time::sleep;
 use tracing::{debug, error, info, instrument};
 
 use crate::{
@@ -104,6 +107,10 @@ pub async fn connect(
         CmdError::new(CmdErrorSource::InternalError, err_message)
     })?;
     info!("nym vpn client spawned");
+
+    // TODO fake some delay to establish connection until vpn client
+    // is able to report when the connection is established
+    sleep(Duration::from_secs(1)).await;
 
     app.emit_all(
         EVENT_CONNECTION_PROGRESS,

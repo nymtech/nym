@@ -157,7 +157,7 @@ pub async fn disconnect(
 ) -> Result<ConnectionState, CmdError> {
     debug!("disconnect");
     let mut app_state = state.lock().await;
-    let ConnectionState::Connected = app_state.state else {
+    if app_state.state != ConnectionState::Connected {
         return Err(CmdError::new(
             CmdErrorSource::CallerError,
             format!("cannot disconnect from state {:?}", app_state.state),

@@ -8,11 +8,14 @@ use crate::rewarder::epoch::Epoch;
 use crate::rewarder::helpers::consensus_address_to_account;
 use nym_network_defaults::NymNetworkDetails;
 use nym_task::TaskManager;
-use nym_validator_client::nyxd::{AccountId, Coin};
-use nyxd_scraper::NyxdScraper;
+use nym_validator_client::nyxd::{AccountId, Coin, StakingQueryClient};
+use nym_validator_client::QueryHttpRpcNyxdClient;
+use nyxd_scraper::{models, NyxdScraper};
+use sha2::{Digest, Sha256};
 use std::cmp::min;
 use std::collections::HashMap;
 use std::ops::{Add, Range};
+use std::str::FromStr;
 use std::time::Duration;
 use time::format_description::well_known::Rfc3339;
 use time::OffsetDateTime;
@@ -26,6 +29,7 @@ mod tasks;
 
 pub struct Rewarder {
     current_epoch: Epoch,
+    rpc_client: QueryHttpRpcNyxdClient,
 
     config: Config,
     nyxd_scraper: NyxdScraper,
@@ -34,9 +38,14 @@ pub struct Rewarder {
 impl Rewarder {
     pub async fn new(config: Config) -> Result<Self, NymRewarderError> {
         let nyxd_scraper = NyxdScraper::new(config.scraper_config()).await?;
+        let rpc_client = QueryHttpRpcNyxdClient::connect(
+            config.rpc_client_config(),
+            config.base.upstream_nyxd.as_str(),
+        )?;
 
         Ok(Rewarder {
             current_epoch: Epoch::first()?,
+            rpc_client,
             config,
             nyxd_scraper,
         })
@@ -105,7 +114,7 @@ impl Rewarder {
                 .storage
                 .get_signed_between_times(&validator.consensus_address, epoch_start, epoch_end)
                 .await?;
-            signed_in_epoch.insert(validator.consensus_address, (signed, vp));
+            signed_in_epoch.insert(validator, (signed, vp));
         }
 
         let total = self
@@ -122,7 +131,7 @@ impl Rewarder {
     async fn calculate_block_signing_rewards(
         &mut self,
         budget: Coin,
-    ) -> Result<HashMap<String, Coin>, NymRewarderError> {
+    ) -> Result<HashMap<models::Validator, Coin>, NymRewarderError> {
         info!("calculating reward shares");
         let signed = self.get_signed_blocks().await?;
 
@@ -135,14 +144,14 @@ impl Rewarder {
     async fn calculate_credential_rewards(
         &mut self,
         budget: Coin,
-    ) -> Result<HashMap<String, Coin>, NymRewarderError> {
+    ) -> Result<HashMap<models::Validator, Coin>, NymRewarderError> {
         info!("calculating reward shares");
         Ok(HashMap::new())
     }
 
     async fn determine_epoch_rewards(
         &mut self,
-    ) -> Result<HashMap<String, (AccountId, Coin)>, NymRewarderError> {
+    ) -> Result<HashMap<models::Validator, (AccountId, Coin)>, NymRewarderError> {
         let epoch_budget = &self.config.rewarding.epoch_budget;
         let denom = &epoch_budget.denom;
         let signing_budget = Coin::new(
@@ -157,22 +166,56 @@ impl Rewarder {
         let signing_rewards = self.calculate_block_signing_rewards(signing_budget).await?;
         let credential_rewards = self.calculate_credential_rewards(credential_budget).await?;
 
-        let mut rewards = HashMap::new();
-        for (validator, amount) in signing_rewards {
-            let account = consensus_address_to_account(&validator)?;
-            rewards.insert(validator, (account, amount));
+        let mut rewards: HashMap<models::Validator, (AccountId, Coin)> = HashMap::new();
+        let validators2 = self
+            .rpc_client
+            .validators("".to_string(), None)
+            .await
+            .unwrap();
+
+        let mut monikers = HashMap::new();
+        for v in validators2.validators {
+            let val = v.consensus_pubkey.unwrap();
+            // println!("{:?}", val);
+
+            let digest = Sha256::digest(&val.to_bytes()).to_vec();
+
+            // println!("{}", String::from_utf8_lossy(&val));
+            // assert_eq!(val.len(), 32);
+
+            let consensus_key = AccountId::new("nvalcons", &digest[..20])
+                .unwrap()
+                .to_string();
+            let moniker = v.description.unwrap().moniker;
+            let acc = v.operator_address;
+            let acc = AccountId::new("n", &acc.to_bytes()).unwrap();
+            monikers.insert(consensus_key, (moniker, acc));
         }
 
-        for (validator, amount) in credential_rewards {
-            let account = consensus_address_to_account(&validator)?;
+        for (val, amount) in &signing_rewards {
+            // let oper = AccountId::new("nvaloper", &acc.to_bytes()).unwrap();
+            // let moniker = get_moniker(acc.clone()).await;
 
-            if let Some(existing) = rewards.get_mut(&validator) {
-                assert_eq!(existing.0, account);
-                existing.1.amount += amount.amount;
-            } else {
-                rewards.insert(validator, (account, amount));
-            }
+            let (moniker, acc) = monikers.get(&val.consensus_address).unwrap();
+            println!("{moniker}: {acc} signing: {amount} credentials: XXX")
+            //
         }
+
+        // for (validator, amount) in signing_rewards {
+        //     let account = consensus_address_to_account(&validator)?;
+        //     rewards.insert(validator, (account, amount));
+        // }
+        //
+        // for (validator, amount) in credential_rewards {
+        //     let account = consensus_address_to_account(&validator)?;
+        //
+        //     if let Some(existing) = rewards.get_mut(&validator) {
+        //         assert_eq!(existing.0, account);
+        //         existing.1.amount += amount.amount;
+        //     } else {
+        //         rewards.insert(validator, (account, amount));
+        //     }
+        // }
 
         Ok(rewards)
     }
@@ -194,6 +237,19 @@ impl Rewarder {
                 return;
             }
         };
+
+        // for (_, (acc, amount)) in rewards {
+        //     // let oper = AccountId::new("nvaloper", &acc.to_bytes()).unwrap();
+        //     // let moniker = get_moniker(acc.clone()).await;
+        //
+        //     let moniker = validators2.validators.iter().find(|v| {
+        //         v.consensus_pubkey
+        //
+        //     })
+        //
+        //     println!("{moniker}: {acc} signing: {amount} credentials: XXX")
+        //     //
+        // }
 
         /*
 
@@ -223,8 +279,8 @@ impl Rewarder {
         self.current_epoch.end = OffsetDateTime::now_utc();
         self.current_epoch.start = self.current_epoch.end - Duration::from_secs(60 * 60);
 
-        println!("sleepiing for 60");
-        tokio::time::sleep(Duration::from_secs(60)).await;
+        println!("sleepiing for 10");
+        tokio::time::sleep(Duration::from_secs(10)).await;
 
         let until_end = self.current_epoch.until_end();
 
@@ -274,6 +330,37 @@ fn val_to_nym(addr: &str) -> String {
     bar.to_string()
 }
 
+fn make_url(oper: &str) -> String {
+    format!("https://rpc.nymtech.net/api/cosmos/staking/v1beta1/validators/{oper}")
+}
+
+async fn get_moniker(addr: AccountId) -> String {
+    let oper = AccountId::new("nvaloper", &addr.to_bytes())
+        .unwrap()
+        .to_string();
+
+    let foo: serde_json::Value = reqwest::get(make_url(&oper))
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+
+    println!("raw: {foo:?}");
+
+    let Some(a) = foo.as_object() else {
+        return "UNKNOWN".to_string();
+    };
+    let Some(b) = a.get("validator").and_then(|o| o.as_object()) else {
+        return "UNKNOWN".to_string();
+    };
+    let Some(c) = b.get("description").and_then(|o| o.as_object()) else {
+        return "UNKNOWN".to_string();
+    };
+    let moniker = c.get("moniker").unwrap().as_str().unwrap();
+    moniker.to_string()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -281,7 +368,7 @@ mod tests {
 
     #[test]
     fn aaa() {
-        let addr = AccountId::from_str("nvaloper18xr68spwm96vvehuvwf6ay9er0gd7q7ae8w8ns").unwrap();
+        let addr = AccountId::from_str("nvalcons1yn8kzqna703x5a6wh449ylw70u5drjejx5t6dz").unwrap();
         println!("{}", AccountId::new("n", &addr.to_bytes()).unwrap());
         println!("{}", AccountId::new("nvaloper", &addr.to_bytes()).unwrap());
         println!("{}", AccountId::new("nvalcons", &addr.to_bytes()).unwrap());
@@ -289,5 +376,22 @@ mod tests {
 
         // let b = val_to_nym("nvaloper1q8cnx8s06q7ralnskqvj0acvqgacau6djqkm3z");
         // println!("{b}");
+    }
+
+    #[tokio::test]
+    async fn bar() {
+        let oper = "nvaloper18xr68spwm96vvehuvwf6ay9er0gd7q7ae8w8ns";
+        let foo: serde_json::Value = reqwest::get(make_url(oper))
+            .await
+            .unwrap()
+            .json()
+            .await
+            .unwrap();
+
+        let a = foo.as_object().unwrap();
+        let b = a.get("validator").unwrap().as_object().unwrap();
+        let c = b.get("description").unwrap().as_object().unwrap();
+        let moniker = c.get("moniker").unwrap().as_str().unwrap();
+        println!("moniker: {moniker}")
     }
 }

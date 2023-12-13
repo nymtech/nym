@@ -10,6 +10,7 @@ use nym_config::{
     DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, DEFAULT_DATA_DIR, NYM_DIR,
 };
 use nym_network_defaults::NymNetworkDetails;
+use nym_validator_client::nyxd;
 use nym_validator_client::nyxd::Coin;
 use serde::{Deserialize, Serialize};
 use std::io;
@@ -107,6 +108,11 @@ impl Config {
             rpc_url: self.base.upstream_nyxd.clone(),
             database_path: self.storage_paths.nyxd_scraper.clone(),
         }
+    }
+
+    pub fn rpc_client_config(&self) -> nyxd::Config {
+        // TEMP
+        nyxd::Config::try_from_nym_network_details(&NymNetworkDetails::new_from_env()).unwrap()
     }
 
     pub fn ensure_is_valid(&self) -> Result<(), NymRewarderError> {

@@ -809,13 +809,42 @@ dependencies = [
 ]
 
 [[package]]
+name = "cosmos-sdk-proto"
+version = "0.20.0"
+source = "git+https://github.com/jstuczyn/cosmos-rust?branch=nym-temp/all-validator-features#67718aa27a96efb9881e927a8f998c94b885093c"
+dependencies = [
+ "prost",
+ "prost-types",
+ "tendermint-proto",
+]
+
+[[package]]
 name = "cosmrs"
 version = "0.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "47126f5364df9387b9d8559dcef62e99010e1d4098f39eb3f7ee4b5c254e40ea"
 dependencies = [
  "bip32",
- "cosmos-sdk-proto",
+ "cosmos-sdk-proto 0.20.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ecdsa 0.16.8",
+ "eyre",
+ "k256 0.13.1",
+ "rand_core 0.6.4",
+ "serde",
+ "serde_json",
+ "signature 2.1.0",
+ "subtle-encoding",
+ "tendermint",
+ "thiserror",
+]
+
+[[package]]
+name = "cosmrs"
+version = "0.15.0"
+source = "git+https://github.com/jstuczyn/cosmos-rust?branch=nym-temp/all-validator-features#67718aa27a96efb9881e927a8f998c94b885093c"
+dependencies = [
+ "bip32",
+ "cosmos-sdk-proto 0.20.0 (git+https://github.com/jstuczyn/cosmos-rust?branch=nym-temp/all-validator-features)",
  "ecdsa 0.16.8",
  "eyre",
  "k256 0.13.1",
@@ -3127,7 +3156,7 @@ name = "nym-api-requests"
 version = "0.1.0"
 dependencies = [
  "bs58 0.4.0",
- "cosmrs",
+ "cosmrs 0.15.0 (git+https://github.com/jstuczyn/cosmos-rust?branch=nym-temp/all-validator-features)",
  "cosmwasm-std",
  "getset",
  "nym-coconut-interface",
@@ -3422,7 +3451,7 @@ name = "nym-types"
 version = "1.0.0"
 dependencies = [
  "base64 0.21.4",
- "cosmrs",
+ "cosmrs 0.15.0 (git+https://github.com/jstuczyn/cosmos-rust?branch=nym-temp/all-validator-features)",
  "cosmwasm-std",
  "eyre",
  "hmac 0.12.1",
@@ -3455,7 +3484,7 @@ dependencies = [
  "bip32",
  "bip39",
  "colored 2.0.4",
- "cosmrs",
+ "cosmrs 0.15.0 (git+https://github.com/jstuczyn/cosmos-rust?branch=nym-temp/all-validator-features)",
  "cosmwasm-std",
  "cw-controllers",
  "cw-utils",
@@ -3527,7 +3556,7 @@ dependencies = [
 name = "nym-wallet-types"
 version = "1.0.0"
 dependencies = [
- "cosmrs",
+ "cosmrs 0.15.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "cosmwasm-std",
  "hex-literal",
  "nym-config",
@@ -3564,7 +3593,7 @@ dependencies = [
  "bip39",
  "cfg-if",
  "colored 2.0.4",
- "cosmrs",
+ "cosmrs 0.15.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "cosmwasm-std",
  "dirs 4.0.0",
  "dotenvy",

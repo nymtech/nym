@@ -206,7 +206,7 @@ bip32 = "0.5.1"
 
 # temporarily using a fork again (yay.) because we need staking and slashing support
 cosmrs = { git = "https://github.com/jstuczyn/cosmos-rust", branch ="nym-temp/all-validator-features" }
-#cosmrs = "=0.15.0"
+#cosmrs = {  git = "https://github.com/jstuczyn/cosmos-rust", branch = "nym-temp/all-validator-features" } # unfortuntely we need a fork by yours truly to get the staking support
 tendermint = "0.34" # same version as used by cosmrs
 tendermint-rpc = "0.34" # same version as used by cosmrs
 prost = "0.12"

@@ -19,7 +19,7 @@ use tracing::{debug, error, info, instrument, trace, warn};
 
 mod helpers;
 mod manager;
-mod models;
+pub mod models;
 
 pub type StorageTransaction = Transaction<'static, Sqlite>;
 

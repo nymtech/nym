@@ -16,7 +16,6 @@ use rayon::prelude::*;
 /// A structure representing an expiration date signature.
 #[derive(Debug, PartialEq, Clone)]
 pub struct ExpirationDateSignature {
-    pub(crate) date_timestamp: Scalar,
     pub(crate) h: G1Projective,
     pub(crate) s: G1Projective,
 }
@@ -42,7 +41,6 @@ impl ExpirationDateSignature {
         let s_prime = (self.s * r_prime) + (h_prime * r);
         (
             ExpirationDateSignature {
-                date_timestamp: self.date_timestamp,
                 h: h_prime,
                 s: s_prime,
             },
@@ -56,8 +54,7 @@ impl ExpirationDateSignature {
     ///
     /// A vector of bytes representing the expiration date signature.
     pub fn to_bytes(&self) -> Vec<u8> {
-        let mut bytes: Vec<u8> = Vec::with_capacity(48 + 48 + 32);
-        bytes.extend(self.date_timestamp.to_bytes());
+        let mut bytes: Vec<u8> = Vec::with_capacity(48 + 48);
         bytes.extend(self.h.to_affine().to_compressed());
         bytes.extend(self.s.to_affine().to_compressed());
         bytes
@@ -68,18 +65,16 @@ impl TryFrom<&[u8]> for ExpirationDateSignature {
     type Error = CompactEcashError;
 
     fn try_from(bytes: &[u8]) -> Result<ExpirationDateSignature> {
-        if bytes.len() != 128 {
+        if bytes.len() != 96 {
             return Err(CompactEcashError::Deserialization(format!(
-                "ExpirationDateSignature must be exactly 128 bytes, got {}",
+                "ExpirationDateSignature must be exactly 96 bytes, got {}",
                 bytes.len()
             )));
         }
 
-        let date_timestamp_bytes: &[u8; 32] = &bytes[..32].try_into().expect("Slice size != 32");
-        let h_bytes: &[u8; 48] = &bytes[32..80].try_into().expect("Slice size != 48");
-        let s_bytes: &[u8; 48] = &bytes[80..].try_into().expect("Slice size != 48");
+        let h_bytes: &[u8; 48] = &bytes[..48].try_into().expect("Slice size != 48");
+        let s_bytes: &[u8; 48] = &bytes[48..].try_into().expect("Slice size != 48");
 
-        let date_timestamp = Scalar::from_bytes(date_timestamp_bytes).unwrap();
         let h = try_deserialize_g1_projective(
             h_bytes,
             CompactEcashError::Deserialization(
@@ -95,7 +90,6 @@ impl TryFrom<&[u8]> for ExpirationDateSignature {
         )?;
 
         Ok(ExpirationDateSignature {
-            date_timestamp,
             h,
             s,
         })
@@ -147,7 +141,6 @@ pub fn sign_expiration_date(
             s_exponent += &sk_auth.ys[2] * m2;
             // Create the signature struct on the expiration date
             let exp_sign = PartialExpirationDateSignature {
-                date_timestamp: Scalar::from(valid_date.timestamp() as u64),
                 h,
                 s: h * s_exponent,
             };
@@ -314,7 +307,6 @@ pub fn aggregate_expiration_signatures(
             .map(|(coeff, sig)| sig.s * coeff)
             .sum();
         let aggr_sig = ExpirationDateSignature {
-            date_timestamp: Scalar::from(valid_date.timestamp() as u64),
             h,
             s: aggr_s,
         };

@@ -9,7 +9,7 @@ use crate::scheme::setup::{
     aggregate_indices_signatures, sign_coin_indices, CoinIndexSignature, Parameters,
     PartialCoinIndexSignature,
 };
-use crate::scheme::{compute_payinfo_hash, Payment};
+use crate::scheme::{compute_pay_info_hash, Payment};
 use crate::utils::hash_to_scalar;
 use crate::PayInfo;
 use bls12_381::Scalar;
@@ -47,8 +47,8 @@ pub fn identify(
         if pay_info1 == pay_info2 {
             Ok(IdentifyResult::DuplicatePayInfo(pay_info1))
         } else {
-            let rr_k_payment1 = compute_payinfo_hash(&pay_info1, k as u64);
-            let rr_j_payment2 = compute_payinfo_hash(&pay_info2, j as u64);
+            let rr_k_payment1 = compute_pay_info_hash(&pay_info1, k as u64);
+            let rr_j_payment2 = compute_pay_info_hash(&pay_info2, j as u64);
             let rr_diff = rr_k_payment1 - rr_j_payment2;
             let pk = (payment2.tt[j] * rr_k_payment1 - payment1.tt[k] * rr_j_payment2)
                 * rr_diff.invert().unwrap();

@@ -190,7 +190,7 @@ pub struct Wallet {
 ///
 /// A `Scalar` value representing the hash of the concatenated byte sequence.
 ///
-pub fn compute_payinfo_hash(pay_info: &PayInfo, k: u64) -> Scalar {
+pub fn compute_pay_info_hash(pay_info: &PayInfo, k: u64) -> Scalar {
     let mut bytes = Vec::new();
     bytes.extend_from_slice(&pay_info.pay_info_bytes);
     bytes.extend_from_slice(&k.to_le_bytes());
@@ -329,7 +329,7 @@ impl Wallet {
             lk_vec.push(Scalar::from(lk));
 
             // compute hashes R_k = H(payinfo, k)
-            let rr_k = compute_payinfo_hash(pay_info, k);
+            let rr_k = compute_pay_info_hash(pay_info, k);
             rr.push(rr_k);
 
             let o_a_k = grp_params.random_scalar();
@@ -777,7 +777,7 @@ impl Payment {
             // Verify whether the coin indices signatures and kappa_k are correct
             self.check_coin_index_signature(&params, &verification_key, k)?;
             // Compute hashes R_k = H(payinfo, k)
-            let rr_k = compute_payinfo_hash(&pay_info, k);
+            let rr_k = compute_pay_info_hash(&pay_info, k);
             rr.push(rr_k);
         }
         // verify the zk proof
@@ -900,19 +900,19 @@ impl TryFrom<&[u8]> for Payment {
         let sig_bytes: [u8; 96] = bytes[192..288].try_into().unwrap();
         let sig = Signature::try_from(sig_bytes.as_slice())?;
 
-        let sig_exp_bytes: [u8; 128] = bytes[288..416].try_into().unwrap();
+        let sig_exp_bytes: [u8; 96] = bytes[288..384].try_into().unwrap();
         let sig_exp = ExpirationDateSignature::try_from(sig_exp_bytes.as_slice())?;
 
-        let spend_value_bytes: [u8; 8] = bytes[416..424].try_into().unwrap();
+        let spend_value_bytes: [u8; 8] = bytes[384..392].try_into().unwrap();
         let spend_value = u64::from_le_bytes(spend_value_bytes);
 
-        let cc_bytes: [u8; 48] = bytes[424..472].try_into().unwrap();
+        let cc_bytes: [u8; 48] = bytes[392..440].try_into().unwrap();
         let cc = try_deserialize_g1_projective(
             &cc_bytes,
             CompactEcashError::Deserialization("Failed to deserialize cc".to_string()),
         )?;
 
-        let mut idx = 472;
+        let mut idx = 440;
         let kappa_k_len = u64::from_le_bytes(bytes[idx..idx + 8].try_into().unwrap()) as usize;
         idx += 8;
         let mut kappa_k = Vec::with_capacity(kappa_k_len);

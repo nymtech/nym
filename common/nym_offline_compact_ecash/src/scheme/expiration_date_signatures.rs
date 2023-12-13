@@ -89,10 +89,7 @@ impl TryFrom<&[u8]> for ExpirationDateSignature {
             ),
         )?;
 
-        Ok(ExpirationDateSignature {
-            h,
-            s,
-        })
+        Ok(ExpirationDateSignature { h, s })
     }
 }
 
@@ -306,10 +303,7 @@ pub fn aggregate_expiration_signatures(
             .zip(collected_at_l.iter())
             .map(|(coeff, sig)| sig.s * coeff)
             .sum();
-        let aggr_sig = ExpirationDateSignature {
-            h,
-            s: aggr_s,
-        };
+        let aggr_sig = ExpirationDateSignature { h, s: aggr_s };
         aggregated_date_signatures.push(aggr_sig);
     }
     verify_valid_dates_signatures(&params, &vk, &aggregated_date_signatures, expiration_date)?;

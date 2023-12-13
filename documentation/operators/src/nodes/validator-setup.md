@@ -438,7 +438,6 @@ With above command you can specify the `gpg` key last numbers (as used in `keyba
 ### Automating your validator with systemd
 You will most likely want to automate your validator restarting if your server reboots. Checkout the [maintenance page](./maintenance.md#systemd) with a quick tutorial.
 
-
 ### Setting the ulimit
 
 Linux machines limit how many open files a user is allowed to have. This is called a `ulimit`. We need to set it to a higher value than the default 1024. Follow the instructions in the [maintenance page](./maintenance.md#Setting-the-ulimit) to change the `ulimit` value for validators.

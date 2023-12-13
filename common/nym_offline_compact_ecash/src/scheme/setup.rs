@@ -428,11 +428,11 @@ pub fn aggregate_indices_signatures(
 ///
 /// # Arguments
 ///
-/// * `L` - it is the number of coins in a freshly generated wallet. It is the public parameter of the scheme.
+/// * `total_coins` - it is the number of coins in a freshly generated wallet. It is the public parameter of the scheme.
 ///
 /// # Returns
 ///
-/// A `Parameters` struct containing group parameters, public key, the number of signatures (`L`),
+/// A `Parameters` struct containing group parameters, public key, the number of signatures (`total_coins`),
 /// and a map of signatures for each index `l`.
 ///
 pub fn setup(total_coins: u64) -> Parameters {

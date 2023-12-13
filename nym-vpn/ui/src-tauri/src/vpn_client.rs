@@ -1,8 +1,11 @@
+use crate::fs::config::AppConfig;
 use crate::states::{app::ConnectionState, SharedAppState};
 use anyhow::Result;
 use futures::channel::oneshot::Receiver as OneshotReceiver;
 use futures::{channel::mpsc::Receiver, StreamExt};
-use nym_vpn_lib::{NymVpnExitStatusMessage, NymVpnStatusMessage};
+use nym_vpn_lib::gateway_client::Config as GatewayClientConfig;
+use nym_vpn_lib::nym_config::OptionalSet;
+use nym_vpn_lib::{NymVPN, NymVpnExitStatusMessage, NymVpnStatusMessage};
 use tauri::Manager;
 use tracing::{debug, error, info, instrument};
 
@@ -116,4 +119,25 @@ pub async fn register_status_listener(
         info!("vpn status listener has exited");
     });
     Ok(())
+}
+
+fn setup_gateway_client_config(private_key: Option<&str>, nym_api: &str) -> GatewayClientConfig {
+    let mut config = GatewayClientConfig::default()
+        // .with_custom_api_url(nym_config::defaults::mainnet::NYM_API.parse().unwrap())
+        .with_custom_api_url(nym_api.parse().unwrap())
+        // Read in the environment variable NYM_API if it exists
+        .with_optional_env(GatewayClientConfig::with_custom_api_url, None, "NYM_API");
+    info!("Using nym-api: {}", config.api_url());
+
+    if let Some(key) = private_key {
+        config = config.with_local_private_key(key.into());
+    }
+    config
+}
+
+#[instrument(skip_all)]
+pub fn create_vpn_config(app_config: &AppConfig) -> NymVPN {
+    let mut nym_vpn = NymVPN::new(&app_config.entry_gateway, &app_config.exit_router);
+    nym_vpn.gateway_config = setup_gateway_client_config(None, &app_config.nym_api);
+    nym_vpn
 }

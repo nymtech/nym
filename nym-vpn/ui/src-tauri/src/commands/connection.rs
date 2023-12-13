@@ -11,10 +11,10 @@ use crate::{
     error::{CmdError, CmdErrorSource},
     states::{
         app::{ConnectionState, VpnMode},
-        NymVPNState, SharedAppData, SharedAppState,
+        SharedAppConfig, SharedAppData, SharedAppState,
     },
     vpn_client::{
-        register_exit_listener, register_status_listener, ConnectProgressMsg,
+        create_vpn_config, register_exit_listener, register_status_listener, ConnectProgressMsg,
         ConnectionEventPayload, ProgressEventPayload, EVENT_CONNECTION_PROGRESS,
         EVENT_CONNECTION_STATE,
     },
@@ -35,7 +35,7 @@ pub async fn get_connection_state(
 pub async fn connect(
     app: tauri::AppHandle,
     state: State<'_, SharedAppState>,
-    nymvpn_state: State<'_, NymVPNState>,
+    config_store: State<'_, SharedAppConfig>,
 ) -> Result<ConnectionState, CmdError> {
     debug!("connect");
     {
@@ -71,15 +71,15 @@ pub async fn connect(
     )
     .ok();
 
-    let nymvpn_state_cloned = nymvpn_state.inner().clone();
-    let local_nymvpn = nymvpn_state_cloned.lock().await.clone();
+    let app_config = config_store.lock().await;
+    let vpn_config = create_vpn_config(&app_config.data);
 
     // spawn the VPN client and start a new connection
     let NymVpnHandle {
         vpn_ctrl_tx,
         vpn_status_rx,
         vpn_exit_rx,
-    } = nym_vpn_lib::spawn_nym_vpn(local_nymvpn).map_err(|e| {
+    } = nym_vpn_lib::spawn_nym_vpn(vpn_config).map_err(|e| {
         let err_message = format!("fail to initialize Nym VPN client: {}", e);
         error!(err_message);
         debug!("sending event [{}]: Disconnected", EVENT_CONNECTION_STATE);

@@ -10,7 +10,7 @@ pub struct AppConfig {
     pub entry_gateway: String,
     /// Mixnet recipient address
     pub exit_router: String,
-    /// NYM API URL 
+    /// NYM API URL
     /// ⚠ use the same as the one provided by the env_config_file
     /// TODO use the one provided by the env_config_file
     pub nym_api: String,

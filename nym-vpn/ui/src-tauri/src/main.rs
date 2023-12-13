@@ -11,11 +11,7 @@ use tracing::{debug, error, info};
 use commands::*;
 use states::app::AppState;
 
-use nym_vpn_lib::{
-    gateway_client::Config as GatewayClientConfig,
-    nym_config::{self, OptionalSet},
-    NymVPN,
-};
+use nym_vpn_lib::nym_config;
 
 use crate::fs::{config::AppConfig, data::AppData, storage::AppStorage};
 
@@ -41,20 +37,6 @@ pub fn setup_logging() {
         .with_env_filter(filter)
         .compact()
         .init();
-}
-
-fn setup_gateway_client_config(private_key: Option<&str>, nym_api: &str) -> GatewayClientConfig {
-    let mut config = GatewayClientConfig::default()
-        // .with_custom_api_url(nym_config::defaults::mainnet::NYM_API.parse().unwrap())
-        .with_custom_api_url(nym_api.parse().unwrap())
-        // Read in the environment variable NYM_API if it exists
-        .with_optional_env(GatewayClientConfig::with_custom_api_url, None, "NYM_API");
-    info!("Using nym-api: {}", config.api_url());
-
-    if let Some(key) = private_key {
-        config = config.with_local_private_key(key.into());
-    }
-    config
 }
 
 #[tokio::main]
@@ -103,19 +85,12 @@ async fn main() -> Result<()> {
     // Read the env variables in the provided file and export them all to the local environment.
     nym_config::defaults::setup_env(app_config.env_config_file);
 
-    let nym_vpn = {
-        let mut nym_vpn = NymVPN::new(&app_config.entry_gateway, &app_config.exit_router);
-        nym_vpn.gateway_config = setup_gateway_client_config(None, &app_config.nym_api);
-        nym_vpn
-    };
-
     info!("Starting tauri app");
 
     tauri::Builder::default()
         .manage(Arc::new(Mutex::new(AppState::default())))
         .manage(Arc::new(Mutex::new(app_data_store)))
         .manage(Arc::new(Mutex::new(app_config_store)))
-        .manage(Arc::new(Mutex::new(nym_vpn)))
         .setup(|_app| {
             info!("app setup");
             Ok(())

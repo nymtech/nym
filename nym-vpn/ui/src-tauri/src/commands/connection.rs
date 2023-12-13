@@ -71,8 +71,14 @@ pub async fn connect(
     )
     .ok();
 
-    let app_config = config_store.lock().await;
-    let vpn_config = create_vpn_config(&app_config.data);
+    let app_config = config_store.lock().await.read().await.map_err(|e| {
+        CmdError::new(
+            CmdErrorSource::InternalError,
+            format!("failed to read app config: {}", e),
+        )
+    })?;
+    let mut vpn_config = create_vpn_config(&app_config);
+    vpn_config.disable_routing = true;
 
     // spawn the VPN client and start a new connection
     let NymVpnHandle {

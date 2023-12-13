@@ -20,7 +20,8 @@
   - [Nym API Setup](nodes/nym-api.md)
 - [Maintenance](nodes/maintenance.md)
   - [Manual Node Upgrade](nodes/manual-upgrade.md)
-  - [Automatic Node Upgrade: Nymvisor Setup and Usage](nodes/nymvisor-upgrade.md)
+
+[//]: # (  - [Automatic Node Upgrade: Nymvisor Setup and Usage]&#40;nodes/nymvisor-upgrade.md&#41;)
 - [Troubleshooting](nodes/troubleshooting.md)
 
 # FAQ

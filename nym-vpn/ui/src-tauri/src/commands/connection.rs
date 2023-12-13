@@ -1,7 +1,7 @@
 use std::time::Duration;
 
-use futures::{SinkExt, StreamExt};
-use nym_vpn_lib::{NymVpnCtrlMessage, NymVpnExitStatusMessage, NymVpnHandle};
+use futures::SinkExt;
+use nym_vpn_lib::{NymVpnCtrlMessage, NymVpnHandle};
 use tauri::{Manager, State};
 use time::OffsetDateTime;
 use tokio::time::sleep;
@@ -13,38 +13,12 @@ use crate::{
         app::{ConnectionState, VpnMode},
         NymVPNState, SharedAppData, SharedAppState,
     },
+    vpn_client::{
+        register_exit_listener, register_status_listener, ConnectProgressMsg,
+        ConnectionEventPayload, ProgressEventPayload, EVENT_CONNECTION_PROGRESS,
+        EVENT_CONNECTION_STATE,
+    },
 };
-
-const EVENT_CONNECTION_STATE: &str = "connection-state";
-const EVENT_CONNECTION_PROGRESS: &str = "connection-progress";
-
-#[derive(Clone, serde::Serialize)]
-struct ConnectionEventPayload {
-    state: ConnectionState,
-    error: Option<String>,
-    start_time: Option<i64>, // unix timestamp in seconds
-}
-
-impl ConnectionEventPayload {
-    fn new(state: ConnectionState, error: Option<String>, start_time: Option<i64>) -> Self {
-        Self {
-            state,
-            error,
-            start_time,
-        }
-    }
-}
-
-#[derive(Clone, serde::Serialize)]
-enum ConnectProgressMsg {
-    Initializing,
-    Done,
-}
-
-#[derive(Clone, serde::Serialize)]
-struct ProgressEventPayload {
-    key: ConnectProgressMsg,
-}
 
 #[instrument(skip_all)]
 #[tauri::command]
@@ -96,7 +70,7 @@ pub async fn connect(
     // spawn the VPN client and start a new connection
     let NymVpnHandle {
         vpn_ctrl_tx,
-        mut vpn_status_rx,
+        vpn_status_rx,
         vpn_exit_rx,
     } = nym_vpn_lib::spawn_nym_vpn(local_nymvpn).map_err(|e| {
         let err_message = format!("fail to initialize Nym VPN client: {}", e);
@@ -146,73 +120,13 @@ pub async fn connect(
 
     // Start exit message listener
     // This will listen for the (single) exit message from the VPN client and update the UI accordingly
-    let local_app_state = state.inner().clone();
-    tokio::spawn(async move {
-        match vpn_exit_rx.await {
-            Ok(res) => {
-                info!("received vpn exit message: {res:?}");
-                match res {
-                    NymVpnExitStatusMessage::Stopped => {
-                        info!("vpn connection stopped");
-                        debug!(
-                            "vpn stopped, sending event [{}]: disconnected",
-                            EVENT_CONNECTION_STATE
-                        );
-                        app.emit_all(
-                            EVENT_CONNECTION_STATE,
-                            ConnectionEventPayload::new(ConnectionState::Disconnected, None, None),
-                        )
-                        .ok();
-                    }
-                    NymVpnExitStatusMessage::Failed => {
-                        info!("vpn connection failed");
-                        debug!(
-                            "vpn failed, sending event [{}]: disconnected",
-                            EVENT_CONNECTION_STATE
-                        );
-                        app.emit_all(
-                            EVENT_CONNECTION_STATE,
-                            ConnectionEventPayload::new(
-                                ConnectionState::Disconnected,
-                                Some("vpn connection failed".to_string()),
-                                None,
-                            ),
-                        )
-                        .ok();
-                    }
-                }
-            }
-            Err(e) => {
-                error!("vpn_exit_rx failed to receive exit message: {}", e);
-                app.emit_all(
-                    EVENT_CONNECTION_STATE,
-                    ConnectionEventPayload::new(
-                        ConnectionState::Disconnected,
-                        Some("exit channel with vpn client has been closed".to_string()),
-                        None,
-                    ),
-                )
-                .ok();
-            }
-        }
-        // update the connection state
-        let mut state = local_app_state.lock().await;
-        state.state = ConnectionState::Disconnected;
-        state.connection_start_time = None;
-        info!("vpn exit listener has exited");
-    });
+    register_exit_listener(app, state.inner().clone(), vpn_exit_rx)
+        .await
+        .ok();
 
     // Start the VPN status listener
     // This will listen for status messages from the VPN client and update the UI accordingly
-    tokio::spawn(async move {
-        while let Some(msg) = vpn_status_rx.next().await {
-            info!("received vpn status message: {msg:?}");
-            match msg {
-                nym_vpn_lib::NymVpnStatusMessage::Slow => todo!(),
-            }
-        }
-        info!("vpn status listener has exited");
-    });
+    register_status_listener(vpn_status_rx).await.ok();
 
     // Store the vpn control tx in the app state, which will be used to send control messages to
     // the running background VPN task, such as to disconnect.

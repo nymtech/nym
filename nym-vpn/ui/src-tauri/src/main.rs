@@ -23,6 +23,7 @@ mod commands;
 mod error;
 mod fs;
 mod states;
+mod vpn_client;
 
 const APP_DIR: &str = "nymvpn";
 const APP_DATA_FILE: &str = "app-data.toml";

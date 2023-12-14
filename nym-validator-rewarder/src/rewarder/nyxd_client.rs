@@ -2,6 +2,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::config::Config;
+use crate::error::NymRewarderError;
+use nym_validator_client::nyxd::error::NyxdError;
+use nym_validator_client::nyxd::module_traits::staking::{
+    QueryHistoricalInfoResponse, QueryValidatorResponse, QueryValidatorsResponse,
+};
+use nym_validator_client::nyxd::{AccountId, CosmWasmClient, PageRequest, StakingQueryClient};
 use nym_validator_client::{nyxd, DirectSigningHttpRpcNyxdClient};
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -13,17 +19,14 @@ pub struct NyxdClient {
 
 impl NyxdClient {
     pub(crate) fn new(config: &Config) -> Self {
-        let details = config.get_network_details();
-        let nyxd_url = config.get_nyxd_url();
-
-        let client_config = nyxd::Config::try_from_nym_network_details(&details)
-            .expect("failed to construct valid validator client config with the provided network");
+        let client_config = config.rpc_client_config();
+        let nyxd_url = config.base.upstream_nyxd.as_str();
 
         let mnemonic = config.base.mnemonic.clone();
 
         let inner = DirectSigningHttpRpcNyxdClient::connect_with_mnemonic(
             client_config,
-            nyxd_url.as_str(),
+            nyxd_url,
             mnemonic,
         )
         .expect("Failed to connect to nyxd!");
@@ -31,5 +34,28 @@ impl NyxdClient {
         NyxdClient {
             inner: Arc::new(RwLock::new(inner)),
         }
+    }
+
+    pub(crate) async fn address(&self) -> AccountId {
+        self.inner.read().await.address()
+    }
+
+    pub(crate) async fn historical_info(
+        &self,
+        height: i64,
+    ) -> Result<QueryHistoricalInfoResponse, NymRewarderError> {
+        Ok(self.inner.read().await.historical_info(height).await?)
+    }
+
+    pub(crate) async fn validators(
+        &self,
+        pagination: Option<PageRequest>,
+    ) -> Result<QueryValidatorsResponse, NymRewarderError> {
+        Ok(self
+            .inner
+            .read()
+            .await
+            .validators("".to_string(), pagination)
+            .await?)
     }
 }

@@ -4,9 +4,9 @@
 use crate::error::NymRewarderError;
 use crate::rewarder::block_signing::types::EpochSigningResults;
 use crate::rewarder::epoch::Epoch;
+use crate::rewarder::nyxd_client::NyxdClient;
 use nym_validator_client::nyxd::module_traits::staking;
-use nym_validator_client::nyxd::{PageRequest, StakingQueryClient};
-use nym_validator_client::QueryHttpRpcNyxdClient;
+use nym_validator_client::nyxd::PageRequest;
 use nyxd_scraper::NyxdScraper;
 use std::cmp::min;
 use std::collections::HashMap;
@@ -16,7 +16,7 @@ use tracing::info;
 pub(crate) mod types;
 
 pub struct EpochSigning {
-    pub(crate) rpc_client: QueryHttpRpcNyxdClient,
+    pub(crate) nyxd_client: NyxdClient,
     pub(crate) nyxd_scraper: NyxdScraper,
 }
 
@@ -47,17 +47,14 @@ impl EpochSigning {
     ) -> Result<Vec<staking::Validator>, NymRewarderError> {
         // first attempt to get it via the historical info.
         // if that fails, attempt to use current block information to at least get **something**
-        if let Some(validators) = self.rpc_client.historical_info(height).await?.hist {
+        if let Some(validators) = self.nyxd_client.historical_info(height).await?.hist {
             Ok(validators.valset)
         } else {
             let mut page_request = None;
             let mut response = Vec::new();
 
             loop {
-                let mut res = self
-                    .rpc_client
-                    .validators("".to_string(), page_request)
-                    .await?;
+                let mut res = self.nyxd_client.validators(page_request).await?;
                 response.append(&mut res.validators);
 
                 let Some(pagination) = res.pagination else {

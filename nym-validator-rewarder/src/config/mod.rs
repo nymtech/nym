@@ -112,7 +112,8 @@ impl Config {
 
     pub fn rpc_client_config(&self) -> nyxd::Config {
         // TEMP
-        nyxd::Config::try_from_nym_network_details(&NymNetworkDetails::new_from_env()).unwrap()
+        nyxd::Config::try_from_nym_network_details(&NymNetworkDetails::new_from_env())
+            .expect("failed to create nyxd client config")
     }
 
     pub fn ensure_is_valid(&self) -> Result<(), NymRewarderError> {

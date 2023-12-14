@@ -9,6 +9,12 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum NymRewarderError {
+    #[error("experienced internal database error: {0}")]
+    InternalDatabaseError(#[from] sqlx::Error),
+
+    #[error("failed to perform startup SQL migration: {0}")]
+    StartupMigrationFailure(#[from] sqlx::migrate::MigrateError),
+
     #[error(
     "failed to load config file using path '{}'. detailed message: {source}", path.display()
     )]

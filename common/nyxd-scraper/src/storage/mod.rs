@@ -31,8 +31,6 @@ pub struct ScraperStorage {
 impl ScraperStorage {
     #[instrument]
     pub async fn init<P: AsRef<Path> + Debug>(database_path: P) -> Result<Self, ScraperError> {
-        // TODO: we can inject here more stuff based on our nym-api global config
-        // struct. Maybe different pool size or timeout intervals?
         let mut opts = sqlx::sqlite::SqliteConnectOptions::new()
             .filename(database_path)
             .create_if_missing(true);

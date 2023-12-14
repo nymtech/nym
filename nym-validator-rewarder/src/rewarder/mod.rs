@@ -3,102 +3,138 @@
 
 use crate::config::Config;
 use crate::error::NymRewarderError;
+use crate::rewarder::block_signing::types::EpochSigningResults;
 use crate::rewarder::block_signing::EpochSigning;
+use crate::rewarder::credential_issuance::types::CredentialIssuanceResults;
+use crate::rewarder::credential_issuance::CredentialIssuance;
 use crate::rewarder::epoch::Epoch;
+use crate::rewarder::nyxd_client::NyxdClient;
+use crate::rewarder::storage::RewarderStorage;
 use nym_task::TaskManager;
-use nym_validator_client::nyxd::{AccountId, Coin};
-use nym_validator_client::QueryHttpRpcNyxdClient;
+use nym_validator_client::nyxd::{AccountId, Coin, Hash};
 use nyxd_scraper::NyxdScraper;
 use std::ops::Add;
 use std::time::Duration;
 use time::OffsetDateTime;
 use tokio::pin;
 use tokio::time::{interval_at, Instant};
-use tracing::{debug, error, info, instrument};
+use tracing::{error, info, instrument};
 
 mod block_signing;
+mod credential_issuance;
 mod epoch;
 mod helpers;
 mod nyxd_client;
+mod storage;
 mod tasks;
+
+pub struct EpochRewards {
+    pub epoch: Epoch,
+    pub signing: EpochSigningResults,
+    pub credentials: CredentialIssuanceResults,
+
+    pub total_budget: Coin,
+    pub signing_budget: Coin,
+    pub credentials_budget: Coin,
+}
+
+impl EpochRewards {
+    pub fn amounts(&self) -> Vec<(AccountId, Vec<Coin>)> {
+        let signing = self.signing.rewarding_amounts(&self.signing_budget);
+        let mut credentials = Vec::new();
+
+        let mut amounts = signing;
+        amounts.append(&mut credentials);
+
+        amounts
+    }
+}
 
 pub struct Rewarder {
     config: Config,
     current_epoch: Epoch,
 
+    storage: RewarderStorage,
+    nyxd_client: NyxdClient,
     epoch_signing: EpochSigning,
+    credential_issuance: CredentialIssuance,
 }
 
 impl Rewarder {
     pub async fn new(config: Config) -> Result<Self, NymRewarderError> {
         let nyxd_scraper = NyxdScraper::new(config.scraper_config()).await?;
-        let rpc_client = QueryHttpRpcNyxdClient::connect(
-            config.rpc_client_config(),
-            config.base.upstream_nyxd.as_str(),
-        )?;
+        let nyxd_client = NyxdClient::new(&config);
+        let storage = RewarderStorage::init(&config.storage_paths.reward_history).await?;
 
         Ok(Rewarder {
             current_epoch: Epoch::first()?,
             config,
             epoch_signing: EpochSigning {
                 nyxd_scraper,
-                rpc_client,
+                nyxd_client: nyxd_client.clone(),
             },
+            nyxd_client,
+            storage,
+            credential_issuance: CredentialIssuance {},
         })
     }
 
-    #[instrument(skip(self,budget), fields(budget = %budget))]
+    #[instrument(skip(self))]
     async fn calculate_block_signing_rewards(
         &mut self,
-        budget: Coin,
-    ) -> Result<Vec<(AccountId, Vec<Coin>)>, NymRewarderError> {
+    ) -> Result<EpochSigningResults, NymRewarderError> {
         info!("calculating reward shares");
-        let signed = self
-            .epoch_signing
+        self.epoch_signing
             .get_signed_blocks_results(self.current_epoch)
-            .await?;
-
-        debug!("details: {signed:?}");
-
-        Ok(signed.rewarding_amounts(&budget))
+            .await
     }
 
-    #[instrument(skip(self,budget), fields(budget = %budget))]
+    #[instrument(skip(self))]
     async fn calculate_credential_rewards(
         &mut self,
-        budget: Coin,
-    ) -> Result<Vec<(AccountId, Vec<Coin>)>, NymRewarderError> {
+    ) -> Result<CredentialIssuanceResults, NymRewarderError> {
         info!("calculating reward shares");
-        Ok(Vec::new())
+        self.credential_issuance
+            .get_signed_blocks_results(self.current_epoch)
+            .await
     }
 
-    async fn determine_epoch_rewards(
-        &mut self,
-    ) -> Result<Vec<(AccountId, Vec<Coin>)>, NymRewarderError> {
-        let epoch_budget = &self.config.rewarding.epoch_budget;
+    async fn determine_epoch_rewards(&mut self) -> Result<EpochRewards, NymRewarderError> {
+        let epoch_budget = self.config.rewarding.epoch_budget.clone();
         let denom = &epoch_budget.denom;
         let signing_budget = Coin::new(
             (self.config.rewarding.ratios.block_signing * epoch_budget.amount as f64) as u128,
             denom,
         );
-        let credential_budget = Coin::new(
+        let credentials_budget = Coin::new(
             (self.config.rewarding.ratios.credential_issuance * epoch_budget.amount as f64) as u128,
             denom,
         );
 
-        let signing_rewards = self.calculate_block_signing_rewards(signing_budget).await?;
-        let mut credential_rewards = self.calculate_credential_rewards(credential_budget).await?;
+        let signing_rewards = self.calculate_block_signing_rewards().await?;
+        let credential_rewards = self.calculate_credential_rewards().await?;
 
-        let mut rewards = signing_rewards;
-        rewards.append(&mut credential_rewards);
-        Ok(rewards)
+        Ok(EpochRewards {
+            epoch: self.current_epoch,
+            signing: signing_rewards,
+            credentials: credential_rewards,
+            total_budget: epoch_budget.clone(),
+            signing_budget,
+            credentials_budget,
+        })
     }
 
     async fn send_rewards(
         &self,
         amounts: Vec<(AccountId, Vec<Coin>)>,
-    ) -> Result<(), NymRewarderError> {
-        Ok(())
+    ) -> Result<Hash, NymRewarderError> {
+        let address = self.nyxd_client.address().await;
+        info!("here we ({address}) will be sending the following rewards:");
+        for (target, amount) in amounts {
+            info!("{amount:?} to {target}")
+        }
+
+        Ok(Hash::Sha256([0u8; 32]))
     }
 
     async fn handle_epoch_end(&mut self) {
@@ -112,10 +148,14 @@ impl Rewarder {
             }
         };
 
-        if let Err(err) = self.send_rewards(rewards).await {
-            error!("failed to send epoch rewards: {err}");
-            return;
-        };
+        let rewarding_result = self.send_rewards(rewards.amounts()).await;
+        if let Err(err) = self
+            .storage
+            .save_rewarding_information(rewards, rewarding_result)
+            .await
+        {
+            error!("failed to persist rewarding information: {err}")
+        }
 
         self.current_epoch = self.current_epoch.next();
     }
@@ -139,6 +179,7 @@ impl Rewarder {
             until_end.as_secs()
         );
         let mut epoch_ticker = interval_at(Instant::now().add(until_end), Epoch::LENGTH);
+
         let shutdown_future = task_manager.catch_interrupt();
         pin!(shutdown_future);
 
@@ -158,20 +199,6 @@ impl Rewarder {
 
         self.epoch_signing.nyxd_scraper.stop().await;
 
-        /*
-           task 1:
-           on timer:
-               - go to DKG contract
-               - get all coconut signers
-               - for each of them get the info, verify, etc
-
-           task 2:
-           on timer (or maybe per block?):
-               - query abci endpoint for VP
-               - also maybe missed blocks, etc
-
-        */
-
-        todo!()
+        Ok(())
     }
 }

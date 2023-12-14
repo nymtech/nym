@@ -77,9 +77,13 @@ pub async fn connect(
     {
         let app_state = state.lock().await;
         if let VpnMode::TwoHop = app_state.vpn_mode {
+            info!("2-hop mode enabled");
             vpn_config.enable_two_hop = true;
+        } else {
+            info!("5-hop mode enabled");
         }
     }
+    // vpn_config.disable_routing = true;
 
     // spawn the VPN client and start a new connection
     let NymVpnHandle {

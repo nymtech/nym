@@ -57,14 +57,14 @@ impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
             &config.storage_paths.decryption_key_path,
             &config.storage_paths.public_key_with_proof_path,
         ))?;
-        if let Ok(coconut_keypair_value) =
-            nym_pemstore::load_keypair(&nym_pemstore::KeyPairPath::new(
-                &config.storage_paths.secret_key_path,
-                &config.storage_paths.verification_key_path,
-            ))
-        {
-            coconut_keypair.set(Some(coconut_keypair_value)).await;
-        }
+        // if let Ok(coconut_keypair_value) =
+        //     nym_pemstore::load_keypair(&nym_pemstore::KeyPairPath::new(
+        //         &config.storage_paths.secret_key_path,
+        //         &config.storage_paths.verification_key_path,
+        //     ))
+        // {
+        //     coconut_keypair.set(Some(coconut_keypair_value)).await;
+        // }
         let persistent_state =
             PersistentState::load_from_file(&config.storage_paths.dkg_persistent_state_path)
                 .unwrap_or_default();

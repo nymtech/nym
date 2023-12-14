@@ -80,6 +80,14 @@ async fn start_nym_api_tasks(
     let network_details = NetworkDetails::new(connected_nyxd.to_string(), nym_network_details);
 
     let coconut_keypair = coconut::keypair::KeyPair::new();
+    let keys = nym_pemstore::load_keypair(&nym_pemstore::KeyPairPath::new(
+        &config.coconut_signer.storage_paths.secret_key_path,
+        &config.coconut_signer.storage_paths.verification_key_path,
+    ))
+    .expect("failed to load coconut keys");
+
+    coconut_keypair.set(Some(keys)).await;
+    info!("set coconut keys");
 
     // let's build our rocket!
     let rocket = http::setup_rocket(

@@ -8,9 +8,9 @@ import * as Comlink from 'comlink';
 // @ts-ignore
 // eslint-disable-next-line import/no-extraneous-dependencies
 import wasmBytes from '@nymproject/nym-credential-client-wasm/nym_credential_client_wasm_bg.wasm';
-import type { INymCredentialClientWebWorker, CredentialClientOpts } from './types';
-import { EventKinds, LoadedEvent } from './types';
 import init, { acquireCredential } from '@nymproject/nym-credential-client-wasm/nym_credential_client_wasm';
+import type { INymCredentialClientWebWorker, CredentialClientOpts, LoadedEvent } from './types';
+import { EventKinds } from './types';
 
 /**
  * Helper method to send typed messages.
@@ -19,12 +19,19 @@ import init, { acquireCredential } from '@nymproject/nym-credential-client-wasm/
 // eslint-disable-next-line no-restricted-globals
 const postMessageWithType = <E>(event: E) => self.postMessage(event);
 
-console.log('[Nym WASM client] Starting Nym WASM web worker...');
+console.log('[Nym WASM client for Credentials] Starting Nym WASM web worker...');
 
 // load WASM binary
 async function main() {
-  const importResult = await init(wasmBytes());
-  importResult.set_panic_hook();
+  // rollup with provide a function to get the mixFetch WASM bytes
+  const bytes = await wasmBytes();
+
+  // load rust WASM package
+  const wasmPackage = await init(bytes);
+
+  console.log('Loaded RUST WASM');
+
+  wasmPackage.set_panic_hook();
 
   const webWorker: INymCredentialClientWebWorker = {
     async acquireCredential(coin: string, mnemonic: string, opts: CredentialClientOpts) {
@@ -40,5 +47,4 @@ async function main() {
   postMessageWithType<LoadedEvent>({ kind: EventKinds.Loaded, args: { loaded: true } });
 }
 
-
-main();
+main().catch((e: any) => console.error('Unhandled exception in credential worker', e));;

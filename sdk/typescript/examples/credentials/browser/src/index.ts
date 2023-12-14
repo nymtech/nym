@@ -5,6 +5,7 @@ async function main() {
   const mnemonic = document.getElementById('mnemonic') as HTMLInputElement;
   const coin = document.getElementById('coin') as HTMLInputElement;
   const button = document.getElementById('button') as HTMLButtonElement;
+  
   const client = await createNymCredentialsClient({ isSandbox: true }); // options: {isSandbox?: boolean; networkDetails?: {}}
 
   const generateCredential = async () => {

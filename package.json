@@ -18,6 +18,9 @@
     "clients/validator",
     "sdk/typescript/packages/**",
     "sdk/typescript/examples/**",
+    "sdk/typescript/codegen/**",
+    "sdk/typescript/packages/**",
+    "sdk/typescript/examples/**",
     "sdk/typescript/codegen/**"
   ],
   "scripts": {

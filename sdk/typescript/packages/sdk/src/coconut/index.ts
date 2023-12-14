@@ -1,14 +1,6 @@
 import * as Comlink from 'comlink';
 import InlineWasmWebWorker from 'web-worker:./worker';
-import {
-  EventKinds,
-  CredentialClientOpts,
-  INymCredentialClientWebWorker,
-  NymCredentialsClient,
-} from './types';
-
-const mnemonic =
-  'summer under connect sadness unveil region charge feed tank grant drift mass side ramp winter fit verb rare huge high garment moment achieve since';
+import { EventKinds, CredentialClientOpts, INymCredentialClientWebWorker, NymCredentialsClient } from './types';
 
 export const createNymCredentialsClient = async (options?: CredentialClientOpts): Promise<NymCredentialsClient> => {
   // eslint-disable-next-line @typescript-eslint/no-use-before-define
@@ -18,28 +10,6 @@ export const createNymCredentialsClient = async (options?: CredentialClientOpts)
   const comlink = Comlink.wrap<INymCredentialClientWebWorker>(worker);
 
   return { comlink };
-  // pass the client interop and subscription manage back to the caller
-  // return {
-  //   init(mnemonic) { // TODO: maybe? could also be passed in acquireCred
-  //       comlink.setMnemonic(mnemonic);
-  //   },
-  //   async acquireCredential(coin, mnemonic, options) {
-  //       // TODO: wire up promise and event handlers
-
-  //       const handler = (msg: any) => {
-  //           if (msg.data && msg.data.kind) {
-  //               worker.removeEventListener('message', handler);
-  //               return msg.data.credential; // return path in promise
-  //           }
-  //           worker.removeEventListener('message', handler);
-  //       };
-
-  //       worker.addEventListener('message', handler);
-
-  //       // fire message
-  //       comlink.acquireCredential(coin);
-  //   },
-  // };
 };
 
 /**

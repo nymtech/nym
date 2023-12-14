@@ -198,7 +198,7 @@ pub fn migrate(deps: DepsMut<'_>, env: Env, _msg: MigrateMsg) -> Result<Response
         let share = ContractVKShare {
             share: key.to_string(),
             announce_address: api.to_string(),
-            node_index: i as u64,
+            node_index: (i + 1) as u64,
             owner: address.clone(),
             epoch_id: 0,
             verified: true,

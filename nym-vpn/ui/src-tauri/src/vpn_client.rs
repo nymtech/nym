@@ -76,13 +76,16 @@ pub async fn spawn_exit_listener(
                             "vpn failed, sending event [{}]: disconnected",
                             EVENT_CONNECTION_STATE
                         );
+                        let error = match e.to_string().as_str() {
+                            // TODO filter this specific error out, because
+                            // it's sent when the VPN client is stopped by
+                            // regular disconnect request
+                            "oneshot send error" => None,
+                            _ => Some("vpn connection failed".to_string()),
+                        };
                         app.emit_all(
                             EVENT_CONNECTION_STATE,
-                            ConnectionEventPayload::new(
-                                ConnectionState::Disconnected,
-                                Some("vpn connection failed".to_string()),
-                                None,
-                            ),
+                            ConnectionEventPayload::new(ConnectionState::Disconnected, error, None),
                         )
                         .ok();
                     }

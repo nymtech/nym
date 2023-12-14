@@ -119,7 +119,7 @@ impl StorageManager {
             r#"
             SELECT
                 d.identity as "identity: String",
-                AVG(reliability) as "value: f32"
+                CASE WHEN count(*) > 3 THEN AVG(reliability) ELSE 100 END as "value: f32"
             FROM
                 gateway_details d
             JOIN

@@ -8,7 +8,7 @@
 > Any syntax in `<>` brackets is a user's unique variable. Exchange with a corresponding name without the `<>` brackets.
 
 ## What is the Nym API?
-The Nym API is a binary that will be operated by some or all of the Nyx Blockchain Validator set. This binary can be run in several different modes, and has two main bits of functionality: 
+The Nym API is a binary that will be operated by the Nyx Blockchain Validator set. This binary can be run in several different modes, and has two main bits of functionality: 
 * network monitoring (calculating the routing score of Mixnet nodes) 
 * generation and validation of [zk-Nyms](https://blog.nymtech.net/zk-nyms-are-here-a-major-milestone-towards-a-market-ready-mixnet-a3470c9ab10a), our implementation of the Coconut Selective Disclosure Credential Scheme.
 
@@ -61,7 +61,7 @@ Initialise your API instance with:
 ./nym-api init
 ```
 
-You can optionally pass a local identifier for this instance with the `--instance` flag. Otherwise the ID of your instance defaults to `default`. 
+You can optionally pass a local identifier for this instance with the `--id` flag. Otherwise the ID of your instance defaults to `default`. 
 
 ### Running your Nym API Instance 
 The API binary currently defaults to running in caching mode. You can run your API with: 

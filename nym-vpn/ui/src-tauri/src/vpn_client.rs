@@ -1,21 +1,28 @@
+use std::error::Error;
+
 use crate::fs::config::AppConfig;
 use crate::states::{app::ConnectionState, SharedAppState};
 use anyhow::Result;
+use futures::channel::mpsc;
 use futures::channel::oneshot::Receiver as OneshotReceiver;
-use futures::{channel::mpsc::Receiver, StreamExt};
+use futures::StreamExt;
 use nym_vpn_lib::gateway_client::Config as GatewayClientConfig;
 use nym_vpn_lib::nym_config::OptionalSet;
-use nym_vpn_lib::{NymVPN, NymVpnExitStatusMessage, NymVpnStatusMessage};
+use nym_vpn_lib::{NymVpn, NymVpnExitStatusMessage};
 use tauri::Manager;
-use tracing::{debug, error, info, instrument};
+use time::OffsetDateTime;
+use tracing::{debug, error, info, instrument, trace};
 
 pub const EVENT_CONNECTION_STATE: &str = "connection-state";
 pub const EVENT_CONNECTION_PROGRESS: &str = "connection-progress";
 
+pub type SentStatus = Box<dyn Error + Send + Sync>;
+pub type StatusReceiver = mpsc::Receiver<SentStatus>;
+
 #[derive(Clone, serde::Serialize)]
 pub enum ConnectProgressMsg {
     Initializing,
-    Done,
+    InitDone,
 }
 
 #[derive(Clone, serde::Serialize)]
@@ -63,8 +70,8 @@ pub async fn spawn_exit_listener(
                         )
                         .ok();
                     }
-                    NymVpnExitStatusMessage::Failed => {
-                        info!("vpn connection failed");
+                    NymVpnExitStatusMessage::Failed(e) => {
+                        info!("vpn connection failed: {e}");
                         debug!(
                             "vpn failed, sending event [{}]: disconnected",
                             EVENT_CONNECTION_STATE
@@ -105,15 +112,32 @@ pub async fn spawn_exit_listener(
 
 #[instrument(skip_all)]
 pub async fn spawn_status_listener(
-    // app: tauri::AppHandle,
-    // app_state: SharedAppState,
-    mut status_rx: Receiver<NymVpnStatusMessage>,
+    app: tauri::AppHandle,
+    app_state: SharedAppState,
+    mut status_rx: StatusReceiver,
 ) -> Result<()> {
     tokio::spawn(async move {
         while let Some(msg) = status_rx.next().await {
             info!("received vpn status message: {msg:?}");
-            match msg {
-                nym_vpn_lib::NymVpnStatusMessage::Slow => todo!(),
+            if "Ready" == msg.to_string().as_str() {
+                info!("vpn connection has been established");
+                let now = OffsetDateTime::now_utc();
+                {
+                    let mut state = app_state.lock().await;
+                    trace!("update connection state [Connected]");
+                    state.state = ConnectionState::Connected;
+                    state.connection_start_time = Some(now);
+                }
+                debug!("sending event [{}]: Connected", EVENT_CONNECTION_STATE);
+                app.emit_all(
+                    EVENT_CONNECTION_STATE,
+                    ConnectionEventPayload::new(
+                        ConnectionState::Connected,
+                        None,
+                        Some(now.unix_timestamp()),
+                    ),
+                )
+                .ok();
             }
         }
         info!("vpn status listener has exited");
@@ -136,8 +160,8 @@ fn setup_gateway_client_config(private_key: Option<&str>, nym_api: &str) -> Gate
 }
 
 #[instrument(skip_all)]
-pub fn create_vpn_config(app_config: &AppConfig) -> NymVPN {
-    let mut nym_vpn = NymVPN::new(&app_config.entry_gateway, &app_config.exit_router);
+pub fn create_vpn_config(app_config: &AppConfig) -> NymVpn {
+    let mut nym_vpn = NymVpn::new(&app_config.entry_gateway, &app_config.exit_router);
     nym_vpn.gateway_config = setup_gateway_client_config(None, &app_config.nym_api);
     nym_vpn
 }

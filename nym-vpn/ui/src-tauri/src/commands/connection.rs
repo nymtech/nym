@@ -1,10 +1,6 @@
-use std::time::Duration;
-
 use futures::SinkExt;
 use nym_vpn_lib::{NymVpnCtrlMessage, NymVpnHandle};
 use tauri::{Manager, State};
-use time::OffsetDateTime;
-use tokio::time::sleep;
 use tracing::{debug, error, info, instrument, trace};
 
 use crate::{
@@ -106,50 +102,28 @@ pub async fn connect(
         CmdError::new(CmdErrorSource::InternalError, err_message)
     })?;
     info!("nym vpn client spawned");
-
-    // TODO fake some delay to establish connection until vpn client
-    // is able to report when the connection is established
-    sleep(Duration::from_secs(1)).await;
-
-    trace!("sending event [{}]: Done", EVENT_CONNECTION_PROGRESS);
+    trace!("sending event [{}]: InitDone", EVENT_CONNECTION_PROGRESS);
     app.emit_all(
         EVENT_CONNECTION_PROGRESS,
         ProgressEventPayload {
-            key: ConnectProgressMsg::Done,
+            key: ConnectProgressMsg::InitDone,
         },
     )
     .ok();
 
-    // update the connection state
-    {
-        let mut state = state.lock().await;
-        let now = OffsetDateTime::now_utc();
-        trace!("update connection state [Connected]");
-        state.state = ConnectionState::Connected;
-        state.connection_start_time = Some(now);
-        debug!("sending event [{}]: Connected", EVENT_CONNECTION_STATE);
-        app.emit_all(
-            EVENT_CONNECTION_STATE,
-            ConnectionEventPayload::new(
-                ConnectionState::Connected,
-                None,
-                Some(now.unix_timestamp()),
-            ),
-        )
-        .ok();
-    }
-
     // Start exit message listener
     // This will listen for the (single) exit message from the VPN client and update the UI accordingly
     debug!("starting exit listener");
-    spawn_exit_listener(app, state.inner().clone(), vpn_exit_rx)
+    spawn_exit_listener(app.clone(), state.inner().clone(), vpn_exit_rx)
         .await
         .ok();
 
     // Start the VPN status listener
     // This will listen for status messages from the VPN client and update the UI accordingly
     debug!("starting status listener");
-    spawn_status_listener(vpn_status_rx).await.ok();
+    spawn_status_listener(app, state.inner().clone(), vpn_status_rx)
+        .await
+        .ok();
 
     // Store the vpn control tx in the app state, which will be used to send control messages to
     // the running background VPN task, such as to disconnect.

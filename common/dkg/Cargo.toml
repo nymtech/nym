@@ -3,6 +3,7 @@ name = "nym-dkg"
 version = "0.1.0"
 edition = "2021"
 resolver = "2"
+license.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

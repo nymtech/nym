@@ -186,15 +186,17 @@ impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
     }
 
     pub(crate) async fn run(mut self, mut shutdown: TaskClient) {
-        let mut interval = interval(self.polling_rate);
-        while !shutdown.is_shutdown() {
-            tokio::select! {
-                _ = interval.tick() => self.handle_epoch_state().await,
-                _ = shutdown.recv() => {
-                    trace!("DkgController: Received shutdown");
-                }
-            }
-        }
+        warn!("ignoring the dkg epochs!");
+        shutdown.mark_as_success();
+        // let mut interval = interval(self.polling_rate);
+        // while !shutdown.is_shutdown() {
+        //     tokio::select! {
+        //         _ = interval.tick() => self.handle_epoch_state().await,
+        //         _ = shutdown.recv() => {
+        //             trace!("DkgController: Received shutdown");
+        //         }
+        //     }
+        // }
     }
 
     // TODO: can we make it non-async? it seems we'd have to modify `coconut_keypair.set(coconut_keypair_value)` in new

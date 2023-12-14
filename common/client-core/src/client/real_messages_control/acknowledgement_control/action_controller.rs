@@ -127,7 +127,9 @@ impl ActionController {
                 .insert(frag_id, (Arc::new(pending_ack), None))
                 .is_some()
             {
-                panic!("Tried to insert duplicate pending ack")
+                // This used to be a panic, however since we've seen this actually happen in the
+                // wild, let's not take the whole client (and possibly gateway) down because of it.
+                error!("Tried to insert duplicate pending ack! This should not be possible!")
             }
         }
     }

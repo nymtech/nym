@@ -71,7 +71,7 @@ pub fn generate_expiration_date_signatures(
     let mut edt_partial_signatures: Vec<Vec<PartialExpirationDateSignature>> =
         Vec::with_capacity(constants::VALIDITY_PERIOD as usize);
     for sk_auth in secret_keys_authorities.iter() {
-        let sign = sign_expiration_date(&params, &sk_auth, expiration_date);
+        let sign = sign_expiration_date(&sk_auth, expiration_date);
         edt_partial_signatures.push(sign);
     }
     let combined_data: Vec<(

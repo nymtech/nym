@@ -114,7 +114,6 @@ impl TryFrom<&[u8]> for ExpirationDateSignature {
 /// each date within the defined validity period till expiration date.
 /// The validity period is determined by the constant `VALIDITY_PERIOD` in the `constants` module.
 pub fn sign_expiration_date(
-    params: &Parameters,
     sk_auth: &SecretKeyAuth,
     expiration_date: u64,
 ) -> Vec<PartialExpirationDateSignature> {
@@ -369,7 +368,7 @@ mod tests {
         let authorities_keys = ttp_keygen(&params.grp(), 2, 3).unwrap();
         let sk_i_auth = authorities_keys[0].secret_key();
         let vk_i_auth = authorities_keys[0].verification_key();
-        let partial_exp_sig = sign_expiration_date(&params, &sk_i_auth, expiration_date);
+        let partial_exp_sig = sign_expiration_date(&sk_i_auth, expiration_date);
 
         assert!(verify_valid_dates_signatures(
             &params,
@@ -405,7 +404,7 @@ mod tests {
         let mut edt_partial_signatures: Vec<Vec<PartialExpirationDateSignature>> =
             Vec::with_capacity(constants::VALIDITY_PERIOD as usize);
         for sk_auth in secret_keys_authorities.iter() {
-            let sign = sign_expiration_date(&params, &sk_auth, expiration_date);
+            let sign = sign_expiration_date(&sk_auth, expiration_date);
             edt_partial_signatures.push(sign);
         }
 

@@ -78,7 +78,12 @@ pub async fn connect(
         )
     })?;
     let mut vpn_config = create_vpn_config(&app_config);
-    vpn_config.disable_routing = true;
+    {
+        let app_state = state.lock().await;
+        if let VpnMode::TwoHop = app_state.vpn_mode {
+            vpn_config.enable_two_hop = true;
+        }
+    }
 
     // spawn the VPN client and start a new connection
     let NymVpnHandle {

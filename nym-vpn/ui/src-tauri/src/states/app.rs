@@ -22,7 +22,7 @@ pub enum ConnectionState {
     Unknown,
 }
 
-#[derive(Default, Debug, Serialize, Deserialize, TS, Clone)]
+#[derive(Default, Debug, Serialize, Deserialize, TS, Clone, PartialEq, Eq)]
 #[ts(export)]
 pub enum VpnMode {
     Mixnet,

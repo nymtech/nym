@@ -28,7 +28,7 @@ export type StateAction =
 export const initialState: AppState = {
   state: 'Disconnected',
   loading: false,
-  vpnMode: 'TwoHop',
+  vpnMode: 'Mixnet',
   tunnel: { name: 'nym', id: 'nym' },
   uiTheme: 'Light',
   progressMessages: [],

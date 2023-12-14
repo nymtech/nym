@@ -97,7 +97,7 @@ export const PageMixnodes: FCWithChildren = () => {
   const columns: GridColDef[] = [
     {
       field: 'identity_key',
-      width: 235,
+      width: 325,
       headerName: 'Identity Key',
       headerAlign: 'left',
       headerClassName: 'MuiDataGrid-header-override',

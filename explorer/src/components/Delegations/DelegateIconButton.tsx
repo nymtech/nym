@@ -1,7 +1,6 @@
 import * as React from 'react';
-import { IconButton, Tooltip } from '@mui/material';
+import { Button } from '@mui/material';
 import { SxProps } from '@mui/system';
-import { DelegateIcon } from '../../icons/DelevateSVG';
 
 export const DelegateIconButton: FCWithChildren<{
   size?: 'small' | 'medium';
@@ -9,16 +8,13 @@ export const DelegateIconButton: FCWithChildren<{
   tooltip?: React.ReactNode;
   sx?: SxProps;
   onDelegate: () => void;
-}> = ({ tooltip, onDelegate, sx, disabled, size = 'medium' }) => {
-  const handleOnDelegate = (e: React.MouseEvent<HTMLButtonElement>) => {
-    e.stopPropagation();
+}> = ({ onDelegate, sx, disabled, size = 'medium' }) => {
+  const handleOnDelegate = () => {
     onDelegate();
   };
   return (
-    <Tooltip title={tooltip || undefined}>
-      <IconButton size={size} disabled={disabled} onClick={handleOnDelegate} sx={sx}>
-        <DelegateIcon fontSize={size} />
-      </IconButton>
-    </Tooltip>
+    <Button variant="outlined" size={size} disabled={disabled} onClick={handleOnDelegate} sx={sx}>
+      Delegate
+    </Button>
   );
 };

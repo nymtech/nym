@@ -41,6 +41,7 @@ pub use coin::Coin;
 pub use cosmrs::{
     bank::MsgSend,
     bip32,
+    crypto::PublicKey,
     query::{PageRequest, PageResponse},
     tendermint::{
         abci::{response::DeliverTx, types::ExecTxResult, Event, EventAttribute},
@@ -50,7 +51,7 @@ pub use cosmrs::{
         Time as TendermintTime,
     },
     tx::{self, Msg},
-    AccountId, Coin as CosmosCoin, Denom, Gas,
+    AccountId, Any, Coin as CosmosCoin, Denom, Gas,
 };
 pub use cosmwasm_std::Coin as CosmWasmCoin;
 pub use cw2;
@@ -99,6 +100,14 @@ impl Config {
     pub fn with_simulated_gas_multplier(mut self, simulated_gas_multiplier: f32) -> Self {
         self.simulated_gas_multiplier = simulated_gas_multiplier;
         self
+    }
+}
+
+impl TryFrom<NymNetworkDetails> for Config {
+    type Error = NyxdError;
+
+    fn try_from(value: NymNetworkDetails) -> Result<Self, Self::Error> {
+        Config::try_from_nym_network_details(&value)
     }
 }
 

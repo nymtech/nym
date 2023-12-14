@@ -53,10 +53,30 @@ pub enum NymRewarderError {
     #[error("failed to determine epoch boundaries: {0}")]
     TimeComponentFailure(#[from] time::error::ComponentRange),
 
-    #[error("could not convert validators conesnsus address: {consensus_address} to a nym account address: {source}")]
+    #[error(
+        "could not convert operator address: {operator_address} to a nym account address: {source}"
+    )]
     MalformedBech32Address {
-        consensus_address: String,
+        operator_address: String,
         #[source]
         source: ErrorReport,
     },
+
+    #[error(
+        "could not convert validator public key: {public_key} into a consensus address: {source}"
+    )]
+    MalformedConsensusPublicKey {
+        public_key: String,
+        #[source]
+        source: ErrorReport,
+    },
+
+    #[error("somehow the total voting power was negative: {val}")]
+    NegativeTotalVotingPower { val: i64 },
+
+    #[error("somehow the signed blocks was negative: {val}")]
+    NegativeSignedBlocks { val: i64 },
+
+    #[error("could not find details for validator {consensus_address}")]
+    MissingValidatorDetails { consensus_address: String },
 }

@@ -1,6 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use super::{QueryHistoricalInfoResponse, QueryValidatorResponse, QueryValidatorsResponse};
 use crate::nyxd::error::NyxdError;
 use crate::nyxd::{CosmWasmClient, PageRequest};
 use async_trait::async_trait;
@@ -12,10 +13,7 @@ use cosmrs::proto::cosmos::staking::v1beta1::{
     QueryValidatorsRequest as ProtoQueryValidatorsRequest,
     QueryValidatorsResponse as ProtoQueryValidatorsResponse,
 };
-use cosmrs::staking::{
-    QueryHistoricalInfoRequest, QueryHistoricalInfoResponse, QueryValidatorRequest,
-    QueryValidatorResponse, QueryValidatorsRequest, QueryValidatorsResponse,
-};
+use cosmrs::staking::{QueryHistoricalInfoRequest, QueryValidatorRequest, QueryValidatorsRequest};
 use cosmrs::AccountId;
 
 // TODO: change trait restriction from `CosmWasmClient` to `TendermintRpcClient`

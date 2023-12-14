@@ -425,7 +425,7 @@ where
                     amount: amount.into_iter().map(Into::into).collect(),
                 }
                 .to_any()
-                .map_err(|_| NyxdError::SerializationError("MsgExecuteContract".to_owned()))
+                .map_err(|_| NyxdError::SerializationError("MsgSend".to_owned()))
             })
             .collect::<Result<_, _>>()?;
 

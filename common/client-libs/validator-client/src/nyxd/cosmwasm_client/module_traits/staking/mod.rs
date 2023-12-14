@@ -2,3 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 pub mod query;
+
+pub use cosmrs::staking::{
+    QueryHistoricalInfoResponse, QueryValidatorResponse, QueryValidatorsResponse, Validator,
+};

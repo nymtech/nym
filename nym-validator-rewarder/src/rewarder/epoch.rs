@@ -1,5 +1,5 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: GPL-3.0-only
 
 use crate::error::NymRewarderError;
 use std::ops::Add;
@@ -9,6 +9,7 @@ use time::OffsetDateTime;
 
 const HOUR: Duration = Duration::from_secs(60 * 60);
 
+#[derive(Debug, Clone, Copy)]
 pub struct Epoch {
     pub id: i64,
 

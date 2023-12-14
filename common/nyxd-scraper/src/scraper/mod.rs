@@ -9,8 +9,10 @@ use crate::rpc_client::RpcClient;
 use crate::scraper::subscriber::{run_websocket_driver, ChainSubscriber};
 use crate::storage::ScraperStorage;
 use std::path::PathBuf;
+use std::time::Duration;
 use tendermint_rpc::WebSocketClientDriver;
 use tokio::sync::mpsc::{channel, unbounded_channel};
+use tokio::time::interval;
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::TaskTracker;
 use tracing::info;
@@ -191,6 +193,8 @@ impl NyxdScraper {
 
     pub async fn stop(self) {
         info!("stopping the chain scrapper");
+        assert!(self.task_tracker.is_closed());
+
         self.cancel_token.cancel();
         self.task_tracker.wait().await
     }

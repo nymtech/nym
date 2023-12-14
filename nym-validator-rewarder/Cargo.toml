@@ -27,10 +27,6 @@ zeroize.workspace = true
 sha2 = "0.10.8"
 humantime-serde = "1.0"
 
-
-reqwest = { workspace = true, features = ["json"] }
-serde_json = "1.0.108"
-
 # internal
 nym-bin-common = { path = "../common/bin-common", features = ["output_format"] }
 nym-config = { path = "../common/config" }

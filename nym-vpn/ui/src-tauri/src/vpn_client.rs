@@ -5,7 +5,7 @@ use futures::channel::oneshot::Receiver as OneshotReceiver;
 use futures::StreamExt;
 use nym_vpn_lib::gateway_client::Config as GatewayClientConfig;
 use nym_vpn_lib::nym_config::OptionalSet;
-use nym_vpn_lib::{NymVpn, NymVpnExitStatusMessage, StatusReceiver};
+use nym_vpn_lib::{NymVpn, NymVpnExitError, NymVpnExitStatusMessage, StatusReceiver};
 use tauri::Manager;
 use time::OffsetDateTime;
 use tracing::{debug, error, info, instrument, trace};
@@ -41,6 +41,20 @@ impl ConnectionEventPayload {
     }
 }
 
+fn handle_vpn_exit_error(e: Box<dyn std::error::Error + Send + Sync>) -> String {
+    match e.downcast::<Box<NymVpnExitError>>() {
+        Ok(e) => {
+            // The double boxing here is unexpected, we should look into that
+            match **e {
+                NymVpnExitError::Generic { reason } => reason.to_string(),
+                NymVpnExitError::FailedToResetFirewallPolicy { reason } => reason.to_string(),
+                NymVpnExitError::FailedToResetDnsMonitor { reason } => reason.to_string(),
+            }
+        }
+        Err(e) => format!("unknown error: {e}"),
+    }
+}
+
 #[instrument(skip_all)]
 pub async fn spawn_exit_listener(
     app: tauri::AppHandle,
@@ -50,7 +64,7 @@ pub async fn spawn_exit_listener(
     tokio::spawn(async move {
         match exit_rx.await {
             Ok(res) => {
-                info!("received vpn exit message: {res:?}");
+                debug!("received vpn exit message: {res:?}");
                 match res {
                     NymVpnExitStatusMessage::Stopped => {
                         info!("vpn connection stopped");
@@ -65,21 +79,18 @@ pub async fn spawn_exit_listener(
                         .ok();
                     }
                     NymVpnExitStatusMessage::Failed(e) => {
-                        info!("vpn connection failed: {e}");
+                        let error = handle_vpn_exit_error(e);
                         debug!(
                             "vpn failed, sending event [{}]: disconnected",
                             EVENT_CONNECTION_STATE
                         );
-                        let error = match e.to_string().as_str() {
-                            // TODO filter this specific error out, because
-                            // it's sent when the VPN client is stopped by
-                            // regular disconnect request
-                            "oneshot send error" => None,
-                            _ => Some("vpn connection failed".to_string()),
-                        };
                         app.emit_all(
                             EVENT_CONNECTION_STATE,
-                            ConnectionEventPayload::new(ConnectionState::Disconnected, error, None),
+                            ConnectionEventPayload::new(
+                                ConnectionState::Disconnected,
+                                Some(error),
+                                None,
+                            ),
                         )
                         .ok();
                     }

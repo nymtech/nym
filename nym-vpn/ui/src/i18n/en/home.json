@@ -19,7 +19,7 @@
     "desc": "Best for payments, emails, messages"
   },
   "twohop-mode": {
-    "title": "2-hop WireGuard",
+    "title": "2-hop",
     "desc": "Best for browsing, streaming, sharing"
   },
   "last-node-select": {

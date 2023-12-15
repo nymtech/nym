@@ -1,6 +1,7 @@
 import dayjs from 'dayjs';
 import {
   AppState,
+  ConnectProgressMsg,
   ConnectionState,
   Country,
   NodeHop,
@@ -14,7 +15,7 @@ export type StateAction =
   | { type: 'set-vpn-mode'; mode: VpnMode }
   | { type: 'set-error'; error: string }
   | { type: 'reset-error' }
-  | { type: 'new-progress-message'; message: string }
+  | { type: 'new-progress-message'; message: ConnectProgressMsg }
   | { type: 'connect' }
   | { type: 'disconnect' }
   | { type: 'set-connected'; startTime: number }
@@ -27,7 +28,7 @@ export type StateAction =
 export const initialState: AppState = {
   state: 'Disconnected',
   loading: false,
-  vpnMode: 'TwoHop',
+  vpnMode: 'Mixnet',
   tunnel: { name: 'nym', id: 'nym' },
   uiTheme: 'Light',
   progressMessages: [],
@@ -57,6 +58,9 @@ export function reducer(state: AppState, action: StateAction): AppState {
       return { ...state, ...action.partialState };
     }
     case 'change-connection-state': {
+      console.log(
+        `__REDUCER [change-connection-state] changing connection state to ${action.state}`,
+      );
       if (action.state === state.state) {
         return state;
       }
@@ -68,12 +72,18 @@ export function reducer(state: AppState, action: StateAction): AppState {
       };
     }
     case 'connect': {
+      console.log(
+        `__REDUCER [connect] changing connection state to Connecting`,
+      );
       return { ...state, state: 'Connecting', loading: true };
     }
     case 'disconnect': {
       return { ...state, state: 'Disconnecting', loading: true };
     }
     case 'set-connected': {
+      console.log(
+        `__REDUCER [set-connected] changing connection state to Connected`,
+      );
       return {
         ...state,
         state: 'Connected',

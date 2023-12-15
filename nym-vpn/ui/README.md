@@ -19,6 +19,32 @@ To install:
 yarn
 ```
 
+## Required config
+
+First you can provide a network configuration using en env file,
+pick the relevant one [here](https://github.com/nymtech/nym/tree/develop/envs).
+The mainnet config will be used by default if not provided.
+
+Then create the main app config file `config.toml` under `nym-vpn`
+directory, full path is platform specific:
+
+- Linux: Resolves to `$XDG_CONFIG_HOME` or `$HOME/.config`
+- macOS: Resolves to `$HOME/Library/Application Support`
+- Windows: Resolves to `{FOLDERID_RoamingAppData}`
+
+For example on Linux the path would be `~/.config/nym-vpn/config.toml`
+
+```toml
+# example config on Linux
+
+# path to the env config file if you provide one
+env_config_file = "$HOME/.config/nym-vpn/qa.env"
+
+# pick a gateway and exit router accordingly to the selected env
+entry_gateway = "xxx"
+exit_router = "xxx"
+```
+
 ## Dev
 
 ```
@@ -30,6 +56,14 @@ or
 ```
 cd src-tauri
 cargo tauri dev
+```
+
+**NOTE** Starting a VPN connection requires root privileges as it will set up a link interface.
+If you want to connect during development, you need to run the app as root,
+likely using `sudo` (or equivalent)
+
+```shell
+sudo -E RUST_LOG=debug cargo tauri dev
 ```
 
 #### Logging

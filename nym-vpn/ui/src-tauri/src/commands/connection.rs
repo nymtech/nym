@@ -1,42 +1,20 @@
-use std::time::Duration;
-
+use futures::SinkExt;
+use nym_vpn_lib::{NymVpnCtrlMessage, NymVpnHandle};
 use tauri::{Manager, State};
-use time::OffsetDateTime;
-use tokio::time::sleep;
-use tracing::{debug, error, instrument, trace};
+use tracing::{debug, error, info, instrument, trace};
 
 use crate::{
     error::{CmdError, CmdErrorSource},
     states::{
         app::{ConnectionState, VpnMode},
-        SharedAppData, SharedAppState,
+        SharedAppConfig, SharedAppData, SharedAppState,
+    },
+    vpn_client::{
+        create_vpn_config, spawn_exit_listener, spawn_status_listener, ConnectProgressMsg,
+        ConnectionEventPayload, ProgressEventPayload, EVENT_CONNECTION_PROGRESS,
+        EVENT_CONNECTION_STATE,
     },
 };
-
-const EVENT_CONNECTION_STATE: &str = "connection-state";
-const EVENT_CONNECTION_PROGRESS: &str = "connection-progress";
-
-#[derive(Clone, serde::Serialize)]
-struct ConnectionEventPayload {
-    state: ConnectionState,
-    error: Option<String>,
-    start_time: Option<i64>, // unix timestamp in seconds
-}
-
-impl ConnectionEventPayload {
-    fn new(state: ConnectionState, error: Option<String>, start_time: Option<i64>) -> Self {
-        Self {
-            state,
-            error,
-            start_time,
-        }
-    }
-}
-
-#[derive(Clone, serde::Serialize)]
-struct ProgressEventPayload {
-    message: String,
-}
 
 #[instrument(skip_all)]
 #[tauri::command]
@@ -53,74 +31,111 @@ pub async fn get_connection_state(
 pub async fn connect(
     app: tauri::AppHandle,
     state: State<'_, SharedAppState>,
+    config_store: State<'_, SharedAppConfig>,
 ) -> Result<ConnectionState, CmdError> {
     debug!("connect");
-    let mut app_state = state.lock().await;
-    let ConnectionState::Disconnected = app_state.state else {
-        return Err(CmdError::new(
-            CmdErrorSource::CallerError,
-            format!("cannot connect from state {:?}", app_state.state),
-        ));
-    };
+    {
+        let mut app_state = state.lock().await;
+        if app_state.state != ConnectionState::Disconnected {
+            return Err(CmdError::new(
+                CmdErrorSource::CallerError,
+                format!("cannot connect from state {:?}", app_state.state),
+            ));
+        };
 
-    // switch to "Connecting" state
-    app_state.state = ConnectionState::Connecting;
-    // unlock the mutex
-    drop(app_state);
+        // switch to "Connecting" state
+        trace!("update connection state [Connecting]");
+        app_state.state = ConnectionState::Connecting;
+    }
+
+    debug!("sending event [{}]: Connecting", EVENT_CONNECTION_STATE);
     app.emit_all(
         EVENT_CONNECTION_STATE,
         ConnectionEventPayload::new(ConnectionState::Connecting, None, None),
     )
     .ok();
 
-    // TODO fake some delay to establish connection
-    let app_state_cloned = state.inner().clone();
-    let task = tokio::spawn(async move {
-        app.emit_all(
-            EVENT_CONNECTION_PROGRESS,
-            ProgressEventPayload {
-                message: "Connecting to the network…".to_string(),
-            },
+    trace!(
+        "sending event [{}]: Initializing",
+        EVENT_CONNECTION_PROGRESS
+    );
+    app.emit_all(
+        EVENT_CONNECTION_PROGRESS,
+        ProgressEventPayload {
+            key: ConnectProgressMsg::Initializing,
+        },
+    )
+    .ok();
+
+    let app_config = config_store.lock().await.read().await.map_err(|e| {
+        CmdError::new(
+            CmdErrorSource::InternalError,
+            format!("failed to read app config: {}", e),
         )
-        .ok();
-        sleep(Duration::from_millis(300)).await;
-        app.emit_all(
-            EVENT_CONNECTION_PROGRESS,
-            ProgressEventPayload {
-                message: "Fetching nodes and gateways…".to_string(),
-            },
-        )
-        .ok();
-        sleep(Duration::from_millis(400)).await;
-        app.emit_all(
-            EVENT_CONNECTION_PROGRESS,
-            ProgressEventPayload {
-                message: "Done".to_string(),
-            },
-        )
-        .ok();
-        sleep(Duration::from_millis(200)).await;
-        trace!("connected");
-        let now = OffsetDateTime::now_utc();
-        let mut state = app_state_cloned.lock().await;
-        state.state = ConnectionState::Connected;
-        state.connection_start_time = Some(now);
-        debug!("sending event [{}]: connected", EVENT_CONNECTION_STATE);
+    })?;
+    let mut vpn_config = create_vpn_config(&app_config);
+    {
+        let app_state = state.lock().await;
+        if let VpnMode::TwoHop = app_state.vpn_mode {
+            info!("2-hop mode enabled");
+            vpn_config.enable_two_hop = true;
+        } else {
+            info!("5-hop mode enabled");
+        }
+    }
+    // vpn_config.disable_routing = true;
+
+    // spawn the VPN client and start a new connection
+    let NymVpnHandle {
+        vpn_ctrl_tx,
+        vpn_status_rx,
+        vpn_exit_rx,
+    } = nym_vpn_lib::spawn_nym_vpn(vpn_config).map_err(|e| {
+        let err_message = format!("fail to initialize Nym VPN client: {}", e);
+        error!(err_message);
+        debug!("sending event [{}]: Disconnected", EVENT_CONNECTION_STATE);
         app.emit_all(
             EVENT_CONNECTION_STATE,
             ConnectionEventPayload::new(
-                ConnectionState::Connected,
+                ConnectionState::Disconnected,
+                Some(err_message.clone()),
                 None,
-                Some(now.unix_timestamp()),
             ),
         )
         .ok();
-    });
+        CmdError::new(CmdErrorSource::InternalError, err_message)
+    })?;
+    info!("nym vpn client spawned");
+    trace!("sending event [{}]: InitDone", EVENT_CONNECTION_PROGRESS);
+    app.emit_all(
+        EVENT_CONNECTION_PROGRESS,
+        ProgressEventPayload {
+            key: ConnectProgressMsg::InitDone,
+        },
+    )
+    .ok();
 
-    let _ = task.await;
+    // Start exit message listener
+    // This will listen for the (single) exit message from the VPN client and update the UI accordingly
+    debug!("starting exit listener");
+    spawn_exit_listener(app.clone(), state.inner().clone(), vpn_exit_rx)
+        .await
+        .ok();
 
-    let app_state = state.lock().await;
-    Ok(app_state.state)
+    // Start the VPN status listener
+    // This will listen for status messages from the VPN client and update the UI accordingly
+    debug!("starting status listener");
+    spawn_status_listener(app, state.inner().clone(), vpn_status_rx)
+        .await
+        .ok();
+
+    // Store the vpn control tx in the app state, which will be used to send control messages to
+    // the running background VPN task, such as to disconnect.
+    trace!("added vpn_ctrl_tx to app state");
+    let mut state = state.lock().await;
+    state.vpn_ctrl_tx = Some(vpn_ctrl_tx);
+
+    Ok(state.state)
 }
 
 #[instrument(skip_all)]
@@ -131,7 +146,7 @@ pub async fn disconnect(
 ) -> Result<ConnectionState, CmdError> {
     debug!("disconnect");
     let mut app_state = state.lock().await;
-    let ConnectionState::Connected = app_state.state else {
+    if app_state.state != ConnectionState::Connected {
         return Err(CmdError::new(
             CmdErrorSource::CallerError,
             format!("cannot disconnect from state {:?}", app_state.state),
@@ -139,36 +154,55 @@ pub async fn disconnect(
     };
 
     // switch to "Disconnecting" state
+    trace!("update connection state [Disconnecting]");
     app_state.state = ConnectionState::Disconnecting;
-    // unlock the mutex
-    drop(app_state);
+
+    debug!("sending event [{}]: Disconnecting", EVENT_CONNECTION_STATE);
     app.emit_all(
         EVENT_CONNECTION_STATE,
         ConnectionEventPayload::new(ConnectionState::Disconnecting, None, None),
     )
     .ok();
 
-    // TODO fake some delay to confirm disconnection
-    let app_state_cloned = state.inner().clone();
-    let task = tokio::spawn(async move {
-        sleep(Duration::from_secs(1)).await;
-        trace!("disconnected");
-
-        let mut state = app_state_cloned.lock().await;
-        state.state = ConnectionState::Disconnected;
-        state.connection_start_time = None;
-
-        debug!("sending event [{}]: disconnected", EVENT_CONNECTION_STATE);
+    let Some(ref mut vpn_tx) = app_state.vpn_ctrl_tx else {
+        trace!("update connection state [Disconnected]");
+        app_state.state = ConnectionState::Disconnected;
+        app_state.connection_start_time = None;
+        debug!("sending event [{}]: Disconnected", EVENT_CONNECTION_STATE);
         app.emit_all(
             EVENT_CONNECTION_STATE,
-            ConnectionEventPayload::new(ConnectionState::Disconnected, None, None),
+            ConnectionEventPayload::new(
+                ConnectionState::Disconnected,
+                Some("vpn handle has not been initialized".to_string()),
+                None,
+            ),
         )
         .ok();
-    });
+        return Err(CmdError::new(
+            CmdErrorSource::InternalError,
+            "vpn handle has not been initialized".to_string(),
+        ));
+    };
 
-    let _ = task.await;
+    // send Stop message to the VPN client
+    debug!("sending Stop message to VPN client");
+    vpn_tx.send(NymVpnCtrlMessage::Stop).await.map_err(|e| {
+        let err_message = format!("failed to send Stop message to VPN client: {}", e);
+        error!(err_message);
+        debug!("sending event [{}]: Disconnected", EVENT_CONNECTION_STATE);
+        app.emit_all(
+            EVENT_CONNECTION_STATE,
+            ConnectionEventPayload::new(
+                ConnectionState::Disconnected,
+                Some(err_message.clone()),
+                None,
+            ),
+        )
+        .ok();
+        CmdError::new(CmdErrorSource::InternalError, err_message)
+    })?;
+    debug!("Stop message sent");
 
-    let app_state = state.lock().await;
     Ok(app_state.state)
 }
 

@@ -1,8 +1,6 @@
-use std::sync::Arc;
-
-use tokio::sync::Mutex;
-
 use crate::fs::{config::AppConfig, data::AppData, storage::AppStorage};
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
 pub mod app;
 

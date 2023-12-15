@@ -1,3 +1,5 @@
+use futures::channel::mpsc::UnboundedSender;
+use nym_vpn_lib::NymVpnCtrlMessage;
 use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
 use ts_rs::TS;
@@ -9,7 +11,7 @@ pub struct NodeConfig {
     pub country: Country,
 }
 
-#[derive(Default, Debug, Clone, Copy, Serialize, Deserialize, TS)]
+#[derive(Default, Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[ts(export)]
 pub enum ConnectionState {
     Connected,
@@ -20,7 +22,7 @@ pub enum ConnectionState {
     Unknown,
 }
 
-#[derive(Default, Debug, Serialize, Deserialize, TS, Clone)]
+#[derive(Default, Debug, Serialize, Deserialize, TS, Clone, PartialEq, Eq)]
 #[ts(export)]
 pub enum VpnMode {
     Mixnet,
@@ -46,6 +48,7 @@ pub struct AppState {
     pub exit_node_location: Option<Country>,
     pub tunnel: Option<TunnelConfig>,
     pub connection_start_time: Option<OffsetDateTime>,
+    pub vpn_ctrl_tx: Option<UnboundedSender<NymVpnCtrlMessage>>,
 }
 
 #[derive(Default, Serialize, Deserialize, Debug, Clone, TS)]

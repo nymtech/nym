@@ -7,7 +7,7 @@
     "withGlobalTauri": false
   },
   "package": {
-    "productName": "nymvpn-ui",
+    "productName": "nym-vpn-ui",
     "version": "0.0.0"
   },
   "tauri": {

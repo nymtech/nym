@@ -21,7 +21,7 @@ mod fs;
 mod states;
 mod vpn_client;
 
-const APP_DIR: &str = "nymvpn";
+const APP_DIR: &str = "nym-vpn";
 const APP_DATA_FILE: &str = "app-data.toml";
 const APP_CONFIG_FILE: &str = "config.toml";
 

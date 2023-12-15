@@ -5285,23 +5285,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "nym-wireguard-types"
-version = "0.1.0"
-source = "git+https://github.com/nymtech/nym?rev=e8956603d76fb12be7f70052981dce32367e0405#e8956603d76fb12be7f70052981dce32367e0405"
-dependencies = [
- "base64 0.21.5",
- "dashmap",
- "hmac 0.12.1",
- "log",
- "nym-crypto",
- "serde",
- "sha2 0.10.8",
- "thiserror",
- "x25519-dalek 2.0.0",
-]
-
-[[package]]
-name = "nymvpn-ui"
+name = "nym-vpn-ui"
 version = "0.0.0"
 dependencies = [
  "anyhow",
@@ -5322,6 +5306,22 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "ts-rs",
+]
+
+[[package]]
+name = "nym-wireguard-types"
+version = "0.1.0"
+source = "git+https://github.com/nymtech/nym?rev=e8956603d76fb12be7f70052981dce32367e0405#e8956603d76fb12be7f70052981dce32367e0405"
+dependencies = [
+ "base64 0.21.5",
+ "dashmap",
+ "hmac 0.12.1",
+ "log",
+ "nym-crypto",
+ "serde",
+ "sha2 0.10.8",
+ "thiserror",
+ "x25519-dalek 2.0.0",
 ]
 
 [[package]]

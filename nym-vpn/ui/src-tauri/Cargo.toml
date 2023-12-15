@@ -1,5 +1,5 @@
 [package]
-name = "nymvpn-ui"
+name = "nym-vpn-ui"
 version = "0.0.0"
 description = "Application UI for Nym VPN desktop clients"
 authors = ["you"]

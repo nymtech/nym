@@ -33,7 +33,7 @@ Then create the main app config file `config.toml`, path is platform specific:
 
 ```toml
 # path to the env config file if you provide one
-env_config_file = "/home/pierre/.config/nymvpn/qa.env"
+env_config_file = "/home/pierre/.config/nym-vpn/qa.env"
 
 entry_gateway = "xxx"
 exit_router = "xxx"

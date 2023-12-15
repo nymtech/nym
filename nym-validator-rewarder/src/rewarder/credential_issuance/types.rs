@@ -3,7 +3,9 @@
 
 use nym_validator_client::nyxd::{AccountId, Coin};
 
-pub struct CredentialIssuanceResults {}
+pub struct CredentialIssuanceResults {
+    pub api_runners: Vec<()>,
+}
 
 impl CredentialIssuanceResults {
     pub fn rewarding_amounts(&self, budget: &Coin) -> Vec<(AccountId, Vec<Coin>)> {

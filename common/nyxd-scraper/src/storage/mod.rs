@@ -101,7 +101,7 @@ impl ScraperStorage {
             return Ok(0);
         };
 
-        Ok(block_end - block_start + 1)
+        Ok(block_end - block_start)
     }
 
     pub async fn get_signed_between(

@@ -65,9 +65,14 @@ impl Rewarder {
         let nyxd_scraper = NyxdScraper::new(config.scraper_config()).await?;
         let nyxd_client = NyxdClient::new(&config);
         let storage = RewarderStorage::init(&config.storage_paths.reward_history).await?;
+        let current_epoch = if let Some(last_epoch) = storage.load_last_rewarding_epoch().await? {
+            last_epoch.next()
+        } else {
+            Epoch::first()?
+        };
 
         Ok(Rewarder {
-            current_epoch: Epoch::first()?,
+            current_epoch,
             config,
             epoch_signing: EpochSigning {
                 nyxd_scraper,
@@ -167,10 +172,16 @@ impl Rewarder {
         let mut task_manager = TaskManager::new(5);
 
         self.epoch_signing.nyxd_scraper.start().await?;
+        self.epoch_signing
+            .nyxd_scraper
+            .wait_for_startup_sync()
+            .await;
 
         // rewarding epochs last from :00 to :00
-        self.current_epoch.end = OffsetDateTime::now_utc();
-        self.current_epoch.start = self.current_epoch.end - Duration::from_secs(60 * 60);
+        // \/\/\/\/\/\/\/ TEMP TESTING!!!
+        self.current_epoch.end_time = OffsetDateTime::now_utc();
+        self.current_epoch.start_time = self.current_epoch.end_time - Duration::from_secs(60 * 60);
+        //  ^^^^^^^^^^^ TEMP TESTING!!!
 
         let until_end = self.current_epoch.until_end();
 

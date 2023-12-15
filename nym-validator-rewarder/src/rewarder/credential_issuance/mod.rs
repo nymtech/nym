@@ -22,6 +22,8 @@ impl CredentialIssuance {
             current_epoch.end_rfc3339()
         );
 
-        Ok(CredentialIssuanceResults {})
+        Ok(CredentialIssuanceResults {
+            api_runners: Vec::new(),
+        })
     }
 }

@@ -86,8 +86,8 @@ impl EpochSigning {
         );
 
         let validators = self.nyxd_scraper.storage.get_all_known_validators().await?;
-        let epoch_start = current_epoch.start;
-        let epoch_end = current_epoch.end;
+        let epoch_start = current_epoch.start_time;
+        let epoch_end = current_epoch.end_time;
         let first_block = self
             .nyxd_scraper
             .storage

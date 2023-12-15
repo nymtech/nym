@@ -28,9 +28,9 @@ CREATE TABLE block_signing_reward
     operator_account            TEXT    NOT NULL,
     amount                      TEXT    NOT NULL,
     voting_power                BIGINT  NOT NULL,
-    voting_power_share          DECIMAL NOT NULL,
+    voting_power_share          TEXT    NOT NULL,
     signed_blocks               INTEGER NOT NULL,
-    signed_blocks_percent       DECIMAL NOT NULL,
+    signed_blocks_percent       TEXT    NOT NULL,
 
     UNIQUE (rewarding_epoch_id, operator_account)
 );
@@ -51,11 +51,13 @@ CREATE TABLE malformed_credential
 
 CREATE TABLE credential_issuance_reward
 (
-    rewarding_epoch_id INTEGER NOT NULL REFERENCES rewarding_epoch (id),
-    amount             TEXT    NOT NULL,
-    operator_account   TEXT    NOT NULL,
-    api_endpoint       TEXT    NOT NULL,
-
+    rewarding_epoch_id         INTEGER NOT NULL REFERENCES rewarding_epoch (id),
+    operator_account           TEXT    NOT NULL,
+    amount                     TEXT    NOT NULL,
+    api_endpoint               TEXT    NOT NULL,
+    issued_partial_credentials INTEGER NOT NULL,
+    issued_credentials_share   TEXT    NOT NULL,
+    validated_issued_credentials INTEGER NOT NULL,
 
     UNIQUE (rewarding_epoch_id, operator_account)
 );

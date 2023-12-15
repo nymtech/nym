@@ -24,23 +24,19 @@ pub struct ValidatorSigning {
 }
 
 impl ValidatorSigning {
+    pub fn moniker(&self) -> String {
+        self.staking_details
+            .description
+            .as_ref()
+            .map(|d| d.moniker.clone())
+            .unwrap_or("UNKNOWN MONIKER".to_string())
+    }
+
     pub fn reward_amount(&self, signing_budget: &Coin) -> Coin {
         let amount =
             Uint128::new(signing_budget.amount) * self.ratio_signed * self.voting_power_ratio;
 
-        let amount = Coin::new(amount.u128(), &signing_budget.denom);
-        let moniker = self
-            .staking_details
-            .description
-            .as_ref()
-            .map(|d| d.moniker.clone())
-            .unwrap_or("UNKNOWN MONIKER".to_string());
-
-        info!(
-            "validator {moniker} will receive {amount} at address {} for block signing work",
-            self.operator_account
-        );
-        amount
+        Coin::new(amount.u128(), &signing_budget.denom)
     }
 }
 
@@ -84,6 +80,8 @@ impl EpochSigningResults {
             let signed: u64 = signed_blocks.try_into().unwrap_or_default();
 
             let voting_power_ratio = Decimal::from_ratio(vp, total_vp_u64);
+
+            debug_assert!(signed <= blocks_u64);
             let ratio_signed = Decimal::from_ratio(signed, blocks_u64);
             let staking_details = validator_details
                 .remove(&validator.consensus_address)
@@ -115,6 +113,14 @@ impl EpochSigningResults {
     pub fn rewarding_amounts(&self, budget: &Coin) -> Vec<(AccountId, Vec<Coin>)> {
         self.validators
             .iter()
+            .inspect(|v| {
+                info!(
+                    "validator {} will receive {} at address {} for block signing work",
+                    v.moniker(),
+                    v.reward_amount(budget),
+                    v.operator_account
+                );
+            })
             .map(|v| (v.operator_account.clone(), vec![v.reward_amount(budget)]))
             .collect()
     }

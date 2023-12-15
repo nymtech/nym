@@ -20,6 +20,8 @@ use nym_crypto::asymmetric::{encryption, identity};
 
 use crate::error::Error;
 
+use super::utils::exp_date_timestamp;
+
 pub const PUBLIC_ATTRIBUTES: u32 = 2;
 pub const PRIVATE_ATTRIBUTES: u32 = 2;
 pub const TOTAL_ATTRIBUTES: u32 = PUBLIC_ATTRIBUTES + PRIVATE_ATTRIBUTES;
@@ -38,6 +40,7 @@ pub struct BandwidthVoucher {
     ecash_keypair: KeyPairUser,
     withdrawal_request_info: RequestInfo,
     withdrawal_request: WithdrawalRequest,
+    expiration_date: u64,
 }
 
 impl BandwidthVoucher {
@@ -52,8 +55,9 @@ impl BandwidthVoucher {
     ) -> Self {
         let voucher_value_plain = voucher_value.clone();
         let voucher_info_plain = voucher_info.clone();
+        let expiration_date = exp_date_timestamp();
         let (withdrawal_request, withdrawal_request_info) =
-            withdrawal_request(params, &ecash_keypair.secret_key()).unwrap();
+            withdrawal_request(params, &ecash_keypair.secret_key(), expiration_date).unwrap();
         BandwidthVoucher {
             voucher_value_plain,
             voucher_info_plain,
@@ -63,6 +67,7 @@ impl BandwidthVoucher {
             ecash_keypair,
             withdrawal_request_info,
             withdrawal_request,
+            expiration_date,
         }
     }
 
@@ -90,15 +95,16 @@ impl BandwidthVoucher {
         ret.extend_from_slice(voucher_info_plain_b);
         ret.extend_from_slice(&withdrawal_request_b);
         ret.extend_from_slice(&withdrawal_request_info_b);
+        ret.extend_from_slice(&self.expiration_date.to_be_bytes());
 
         ret
     }
 
     pub fn try_from_bytes(bytes: &[u8]) -> Result<Self, Error> {
-        if bytes.len() < 32 * 3 + 80 + 4 * 8 {
+        if bytes.len() < 32 * 3 + 80 + 4 * 8 + 8 {
             return Err(Error::BandwidthVoucherDeserializationError(format!(
                 "Less then {} bytes needed",
-                32 * 3 + 80 + 4 * 8
+                32 * 3 + 80 + 4 * 8 + 8
             )));
         }
         let mut buff = [0u8; 32];
@@ -137,7 +143,8 @@ impl BandwidthVoucher {
             + voucher_value_plain_no
             + voucher_info_plain_no
             + withdrawal_request_no
-            + withdrawal_request_info_no;
+            + withdrawal_request_info_no
+            + 8;
         if bytes.len() != total_length {
             return Err(Error::BandwidthVoucherDeserializationError(format!(
                 "Expected {total_length} bytes",
@@ -170,6 +177,13 @@ impl BandwidthVoucher {
         let withdrawal_request_info = RequestInfo::try_from(
             &bytes[var_length_pointer..var_length_pointer + withdrawal_request_info_no],
         )?;
+        var_length_pointer += withdrawal_request_info_no;
+
+        let expiration_date = u64::from_be_bytes(
+            bytes[var_length_pointer..var_length_pointer + 8]
+                .try_into()
+                .unwrap(),
+        );
 
         Ok(Self {
             voucher_value_plain,
@@ -180,6 +194,7 @@ impl BandwidthVoucher {
             ecash_keypair,
             withdrawal_request,
             withdrawal_request_info,
+            expiration_date,
         })
     }
 
@@ -193,6 +208,10 @@ impl BandwidthVoucher {
 
     pub fn ecash_keypair(&self) -> &KeyPairUser {
         &self.ecash_keypair
+    }
+
+    pub fn expiration_date(&self) -> u64 {
+        self.expiration_date
     }
 
     pub fn withdrawal_request(&self) -> &WithdrawalRequest {

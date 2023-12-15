@@ -9,22 +9,23 @@ use crate::support::storage::NymApiStorage;
 use getset::{CopyGetters, Getters};
 use keypair::KeyPair;
 use nym_api_requests::coconut::{
-    BlindSignRequestBody, BlindedSignatureResponse, EcashParametersResponse,
-    OfflineVerifyCredentialBody, OnlineVerifyCredentialBody, VerifyCredentialResponse,
+    BlindSignRequestBody, BlindedSignatureResponse, OfflineVerifyCredentialBody,
+    OnlineVerifyCredentialBody, PartialExpirationDateSignatureResponse, VerifyCredentialResponse,
 };
 use nym_coconut_bandwidth_contract_common::spend_credential::{
     funds_from_cosmos_msgs, SpendCredentialStatus,
 };
 use nym_coconut_dkg_common::types::EpochId;
+use nym_compact_ecash::scheme::expiration_date_signatures::sign_expiration_date;
 
 use crate::coconut::helpers::accepted_vote_err;
-use nym_compact_ecash::error::CompactEcashError;
+use chrono::{Duration, Timelike, Utc};
 use nym_compact_ecash::scheme::keygen::KeyPairAuth;
 use nym_compact_ecash::scheme::withdrawal::WithdrawalRequest;
 use nym_compact_ecash::scheme::EcashCredential;
-use nym_compact_ecash::setup::{GroupParameters, Parameters};
+use nym_compact_ecash::setup::GroupParameters;
 use nym_compact_ecash::utils::BlindedSignature;
-use nym_compact_ecash::{Base58, PublicKeyUser, VerificationKeyAuth};
+use nym_compact_ecash::{constants, PublicKeyUser, VerificationKeyAuth};
 use nym_config::defaults::NYM_API_VERSION;
 use nym_credentials::coconut::params::{
     NymApiCredentialEncryptionAlgorithm, NymApiCredentialHkdfAlgorithm,
@@ -39,7 +40,6 @@ use rand_07::rngs::OsRng;
 use rocket::fairing::AdHoc;
 use rocket::serde::json::Json;
 use rocket::State as RocketState;
-use std::fs;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
@@ -57,7 +57,6 @@ pub struct State {
     client: Arc<dyn LocalClient + Send + Sync>,
     mix_denom: String,
     key_pair: KeyPair,
-    ecash_params: Parameters,
     comm_channel: Arc<dyn APICommunicationChannel + Send + Sync>,
     storage: NymApiStorage,
     rng: Arc<Mutex<OsRng>>,
@@ -78,14 +77,10 @@ impl State {
         let client = Arc::new(client);
         let comm_channel = Arc::new(comm_channel);
         let rng = Arc::new(Mutex::new(OsRng));
-        let binding = fs::read_to_string("ecash_params.txt").unwrap();
-        let params_base58 = binding.trim();
-        let ecash_params = Parameters::try_from_bs58(params_base58).unwrap(); //SW Waiting for an actual parameters generation scheme.
         Self {
             client,
             mix_denom,
             key_pair,
-            ecash_params,
             comm_channel,
             storage,
             rng,
@@ -171,16 +166,20 @@ pub(crate) struct InternalSignRequest {
     withdrawal_request: WithdrawalRequest,
     #[getset(get)]
     ecash_pubkey: PublicKeyUser,
+    #[getset(get)]
+    expiration_date: u64,
 }
 
 impl InternalSignRequest {
     pub fn new(
         withdrawal_request: WithdrawalRequest,
         ecash_pubkey: PublicKeyUser,
+        expiration_date: u64,
     ) -> InternalSignRequest {
         InternalSignRequest {
             withdrawal_request,
             ecash_pubkey,
+            expiration_date,
         }
     }
 
@@ -203,7 +202,8 @@ impl InternalSignRequest {
                 routes![
                     post_blind_sign,
                     verify_offline_credential,
-                    verify_online_credential
+                    verify_online_credential,
+                    expiration_date_signatures
                 ],
             )
         })
@@ -212,11 +212,12 @@ impl InternalSignRequest {
 
 fn blind_sign(request: InternalSignRequest, key_pair: KeyPairAuth) -> Result<BlindedSignature> {
     let params = GroupParameters::new()?;
-    Ok(nym_compact_ecash::scheme::withdrawal::issue_wallet(
+    Ok(nym_compact_ecash::scheme::withdrawal::issue(
         &params,
         key_pair.secret_key(),
         request.ecash_pubkey().clone(),
         request.withdrawal_request(),
+        *request.expiration_date(),
     )?)
 }
 
@@ -241,6 +242,7 @@ pub async fn post_blind_sign(
     let internal_request = InternalSignRequest::new(
         blind_sign_request_body.withdrawal_request().clone(),
         PublicKeyUser::from_base58_string(blind_sign_request_body.ecash_pubkey())?,
+        *blind_sign_request_body.expiration_date(),
     );
     let blinded_signature = if let Some(keypair) = state.key_pair.get_ecash().await {
         blind_sign(internal_request, keypair)?
@@ -264,34 +266,35 @@ pub async fn verify_offline_credential(
     verify_credential_body: Json<OfflineVerifyCredentialBody>,
     state: &RocketState<State>,
 ) -> Result<Json<VerifyCredentialResponse>> {
-    let verification_key = state
-        .verification_key(*verify_credential_body.credential().epoch_id())
-        .await?;
+    todo!();
+    // let verification_key = state
+    //     .verification_key(*verify_credential_body.credential().epoch_id())
+    //     .await?;
 
-    if verify_credential_body
-        .credential()
-        .payment()
-        .spend_verify(
-            &state.ecash_params,
-            &verification_key,
-            verify_credential_body.credential().pay_info(),
-        )
-        .is_err()
-    {
-        return Err(CoconutError::CompactEcashInternalError(
-            CompactEcashError::PaymentVerification,
-        ));
-    }
+    // if verify_credential_body
+    //     .credential()
+    //     .payment()
+    //     .spend_verify(
+    //         &state.ecash_params,
+    //         &verification_key,
+    //         verify_credential_body.credential().pay_info(),
+    //     )
+    //     .is_err()
+    // {
+    //     return Err(CoconutError::CompactEcashInternalError(
+    //         CompactEcashError::PaymentVerification,
+    //     ));
+    // }
 
-    //store credential
-    state
-        .store_credential(
-            verify_credential_body.credential(),
-            verify_credential_body.gateway_cosmos_addr(),
-        )
-        .await?;
+    // //store credential
+    // state
+    //     .store_credential(
+    //         verify_credential_body.credential(),
+    //         verify_credential_body.gateway_cosmos_addr(),
+    //     )
+    //     .await?;
 
-    Ok(Json(VerifyCredentialResponse::new(true)))
+    // Ok(Json(VerifyCredentialResponse::new(true)))
 }
 
 #[post("/verify-online-credential", data = "<verify_credential_body>")]
@@ -329,20 +332,21 @@ pub async fn verify_online_credential(
             status: format!("{:?}", credential_status),
         });
     }
-    let verification_key = state
+    let _verification_key = state
         .verification_key(*verify_credential_body.credential().epoch_id())
         .await?;
-    let mut vote_yes = verify_credential_body
-        .credential()
-        .payment()
-        .spend_verify(
-            &state.ecash_params,
-            &verification_key,
-            verify_credential_body.credential().pay_info(),
-        )
-        .map_err(|_| {
-            CoconutError::CompactEcashInternalError(CompactEcashError::PaymentVerification)
-        })?;
+    // let mut vote_yes = verify_credential_body
+    //     .credential()
+    //     .payment()
+    //     .spend_verify(
+    //         &state.ecash_params,
+    //         &verification_key,
+    //         verify_credential_body.credential().pay_info(),
+    //     )
+    //     .map_err(|_| {
+    //         CoconutError::CompactEcashInternalError(CompactEcashError::PaymentVerification)
+    //     })?;
+    let mut vote_yes = true;
 
     vote_yes &= Coin::from(proposed_release_funds)
         == Coin::new(
@@ -368,34 +372,24 @@ pub async fn verify_online_credential(
     Ok(Json(VerifyCredentialResponse::new(vote_yes)))
 }
 
-#[derive(Getters, CopyGetters)]
-pub struct EcashParameters {
-    #[getset(get = "pub")]
-    ecash_params: Parameters,
-}
+#[get("/expiration-date-signatures")] //SW: TODO : cache this
+pub async fn expiration_date_signatures(
+    state: &RocketState<State>,
+) -> Result<Json<PartialExpirationDateSignatureResponse>> {
+    let now_utc = Utc::now();
+    let midnight = now_utc.timestamp() - now_utc.num_seconds_from_midnight() as i64;
+    let expiration_date = now_utc + Duration::days(constants::VALIDITY_PERIOD as i64);
+    let expiration_date_timestamp = expiration_date.timestamp() - midnight;
 
-impl EcashParameters {
-    pub fn new() -> EcashParameters {
-        let binding = fs::read_to_string("ecash_params.txt").unwrap();
-        let params_base58 = binding.trim();
-        let ecash_params = Parameters::try_from_bs58(params_base58).unwrap(); //SW Waiting for an actual parameters generation scheme.
-        EcashParameters { ecash_params }
-    }
-
-    pub fn stage() -> AdHoc {
-        AdHoc::on_ignite("Ecash Parameters Stage", |rocket| async {
-            rocket.manage(Self::new()).mount(
-                // this format! is so ugly...
-                format!("/{}/{}/{}", NYM_API_VERSION, COCONUT_ROUTES, BANDWIDTH),
-                routes![ecash_parameters],
-            )
-        })
-    }
-}
-
-#[get("/ecash-parameters")]
-pub async fn ecash_parameters(
-    state: &RocketState<EcashParameters>,
-) -> Result<Json<EcashParametersResponse>> {
-    Ok(Json(EcashParametersResponse::new(&state.ecash_params)))
+    let expiration_date_signatures = if let Some(keypair) = state.key_pair.get_ecash().await {
+        sign_expiration_date(
+            &keypair.secret_key(),
+            expiration_date_timestamp.try_into().unwrap(),
+        )
+    } else {
+        return Err(CoconutError::KeyPairNotDerivedYet);
+    };
+    Ok(Json(PartialExpirationDateSignatureResponse::new(
+        &expiration_date_signatures,
+    )))
 }

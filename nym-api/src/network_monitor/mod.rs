@@ -1,7 +1,6 @@
 // Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::coconut::EcashParameters;
 use crate::network_monitor::monitor::preparer::PacketPreparer;
 use crate::network_monitor::monitor::processor::{
     ReceivedProcessor, ReceivedProcessorReceiver, ReceivedProcessorSender,
@@ -100,8 +99,6 @@ impl<'a> NetworkMonitorBuilder<'a> {
         .expect("cannot load ecash keypair"); //SW todo : what to do if it fails here?
         let ack_key = Arc::new(AckKey::new(&mut rng));
 
-        let ecash_parameters = EcashParameters::new().ecash_params().clone();
-
         let (gateway_status_update_sender, gateway_status_update_receiver) = mpsc::unbounded();
         let (received_processor_sender_channel, received_processor_receiver_channel) =
             mpsc::unbounded();
@@ -122,7 +119,6 @@ impl<'a> NetworkMonitorBuilder<'a> {
                 .await,
                 self.nyxd_client.clone(),
                 ecash_keypair,
-                ecash_parameters,
             )
         };
 

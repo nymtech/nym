@@ -5,8 +5,10 @@ use cosmrs::AccountId;
 use getset::{CopyGetters, Getters};
 use nym_compact_ecash::{
     error::CompactEcashError,
-    scheme::{withdrawal::WithdrawalRequest, EcashCredential},
-    setup::Parameters,
+    scheme::{
+        expiration_date_signatures::PartialExpirationDateSignature, withdrawal::WithdrawalRequest,
+        EcashCredential,
+    },
     VerificationKeyAuth,
 };
 use serde::{Deserialize, Serialize};
@@ -84,6 +86,8 @@ pub struct BlindSignRequestBody {
     public_attributes_plain: Vec<String>,
     #[getset(get = "pub")]
     total_params: u32,
+    #[getset(get = "pub")]
+    expiration_date: u64,
 }
 
 impl BlindSignRequestBody {
@@ -95,27 +99,18 @@ impl BlindSignRequestBody {
         //public_attributes: &[Attribute],
         public_attributes_plain: Vec<String>,
         total_params: u32,
+        expiration_date: u64,
     ) -> BlindSignRequestBody {
         BlindSignRequestBody {
             withdrawal_request: withdrawal_request.clone(),
             tx_hash,
             signature,
             ecash_pubkey,
-            // public_attributes: public_attributes
-            //     .iter()
-            //     .map(|attr| attr.to_bs58())
-            //     .collect(),
             public_attributes_plain,
             total_params,
+            expiration_date,
         }
     }
-
-    // pub fn public_attributes(&self) -> Vec<Attribute> {
-    //     self.public_attributes
-    //         .iter()
-    //         .map(|x| Attribute::try_from_bs58(x).unwrap())
-    //         .collect()
-    // }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -187,14 +182,14 @@ impl CosmosAddressResponse {
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct EcashParametersResponse {
-    pub params: Parameters,
+pub struct PartialExpirationDateSignatureResponse {
+    pub signs: Vec<PartialExpirationDateSignature>,
 }
 
-impl EcashParametersResponse {
-    pub fn new(params: &Parameters) -> EcashParametersResponse {
-        EcashParametersResponse {
-            params: params.clone(),
+impl PartialExpirationDateSignatureResponse {
+    pub fn new(signs: &[PartialExpirationDateSignature]) -> PartialExpirationDateSignatureResponse {
+        PartialExpirationDateSignatureResponse {
+            signs: signs.to_owned(),
         }
     }
 }

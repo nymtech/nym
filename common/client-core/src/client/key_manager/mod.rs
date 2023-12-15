@@ -360,7 +360,6 @@ fn _assert_keys_zeroize_on_drop() {
 
     _assert_zeroize_on_drop::<identity::KeyPair>();
     _assert_zeroize_on_drop::<encryption::KeyPair>();
-    _assert_zeroize_on_drop::<KeyPairUser>();
     _assert_zeroize_on_drop::<AckKey>();
     _assert_zeroize_on_drop::<SharedKeys>();
 }

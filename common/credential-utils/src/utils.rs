@@ -123,7 +123,7 @@ where
     for voucher in recovery_storage.unconsumed_vouchers()? {
         let voucher_value = voucher.get_voucher_value();
         recovered_amount += voucher_value.parse::<u128>()?;
-
+        //SW:TODO : need a way to change reset expiration date here, if we recover later
         let state = State::new(voucher);
         let voucher = state.voucher.tx_hash();
         if let Err(e) =

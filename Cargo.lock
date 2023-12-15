@@ -1013,7 +1013,7 @@ dependencies = [
 [[package]]
 name = "bls12_381"
 version = "0.6.0"
-source = "git+https://github.com/jstuczyn/bls12_381.git?branch=gt-serialisation#10fb6f700bfda17c8475af3bfd31e3fec15f2278"
+source = "git+https://github.com/jstuczyn/bls12_381?branch=gt-serialisation#10fb6f700bfda17c8475af3bfd31e3fec15f2278"
 dependencies = [
  "digest 0.9.0",
  "ff 0.11.1",
@@ -6495,6 +6495,7 @@ name = "nym-credentials"
 version = "0.1.0"
 dependencies = [
  "bls12_381 0.5.0",
+ "chrono",
  "cosmrs",
  "log",
  "nym-api-requests",

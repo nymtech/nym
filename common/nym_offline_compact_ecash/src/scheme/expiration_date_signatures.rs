@@ -1,12 +1,13 @@
-use crate::constants;
 use crate::error::{CompactEcashError, Result};
 use crate::scheme::keygen::{SecretKeyAuth, VerificationKeyAuth};
 use crate::scheme::setup::{GroupParameters, Parameters};
+use crate::traits::Bytable;
 use crate::utils::hash_g1;
 use crate::utils::{
     check_bilinear_pairing, generate_lagrangian_coefficients_at_origin,
     try_deserialize_g1_projective,
 };
+use crate::{constants, Base58};
 use bls12_381::{G1Projective, G2Prepared, G2Projective, Scalar};
 use chrono::{Duration, NaiveDate, NaiveDateTime};
 use group::Curve;
@@ -92,6 +93,16 @@ impl TryFrom<&[u8]> for ExpirationDateSignature {
         Ok(ExpirationDateSignature { h, s })
     }
 }
+impl Bytable for ExpirationDateSignature {
+    fn to_byte_vec(&self) -> Vec<u8> {
+        self.to_bytes().to_vec()
+    }
+
+    fn try_from_byte_slice(slice: &[u8]) -> std::result::Result<Self, CompactEcashError> {
+        Self::try_from(slice)
+    }
+}
+impl Base58 for ExpirationDateSignature {}
 
 /// Signs given expiration date for a specified validity period using the given secret key of a single authority.
 ///

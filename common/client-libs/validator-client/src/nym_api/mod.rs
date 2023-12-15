@@ -6,8 +6,8 @@ use crate::nym_api::routes::{CORE_STATUS_COUNT, SINCE_ARG};
 use async_trait::async_trait;
 use http_api_client::{ApiClient, NO_PARAMS};
 use nym_api_requests::coconut::{
-    BlindSignRequestBody, BlindedSignatureResponse, EcashParametersResponse,
-    OfflineVerifyCredentialBody, OnlineVerifyCredentialBody, VerifyCredentialResponse,
+    BlindSignRequestBody, BlindedSignatureResponse, OfflineVerifyCredentialBody,
+    OnlineVerifyCredentialBody, PartialExpirationDateSignatureResponse, VerifyCredentialResponse,
 };
 use nym_api_requests::models::{
     ComputeRewardEstParam, DescribedGateway, GatewayBondAnnotated, GatewayCoreStatusResponse,
@@ -417,13 +417,15 @@ pub trait NymApiClientExt: ApiClient {
         .await
     }
 
-    async fn ecash_parameters(&self) -> Result<EcashParametersResponse, NymAPIError> {
+    async fn expiration_date_signatures(
+        &self,
+    ) -> Result<PartialExpirationDateSignatureResponse, NymAPIError> {
         self.get_json(
             &[
                 routes::API_VERSION,
                 routes::COCONUT_ROUTES,
                 routes::BANDWIDTH,
-                routes::ECASH_PARAMETERS,
+                routes::EXPIRATION_DATE_SIGNATURES,
             ],
             NO_PARAMS,
         )

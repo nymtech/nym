@@ -37,7 +37,6 @@ const MAX_FEEGRANT_UNYM: u128 = 10000;
 pub(crate) struct EcashVerifier {
     nyxd_client: DirectSigningHttpRpcNyxdClient,
     mix_denom_base: String,
-    ecash_parameters: Parameters,
     pk_bytes: [u8; 32], //bytes represenation of a pub key representing the verifier
     pay_infos: Arc<Mutex<Vec<PayInfo>>>,
     cred_sender: UnboundedSender<PendingCredential>,
@@ -46,7 +45,6 @@ pub(crate) struct EcashVerifier {
 impl EcashVerifier {
     pub fn new<St: Storage + 'static>(
         nyxd_client: DirectSigningHttpRpcNyxdClient,
-        ecash_parameters: Parameters,
         pk_bytes: [u8; 32],
         mut shutdown: nym_task::TaskClient,
         storage: St,
@@ -65,7 +63,6 @@ impl EcashVerifier {
         EcashVerifier {
             nyxd_client,
             mix_denom_base,
-            ecash_parameters,
             pk_bytes,
             pay_infos: Arc::new(Mutex::new(Vec::new())),
             cred_sender,
@@ -96,11 +93,7 @@ impl EcashVerifier {
 
         credential
             .payment()
-            .spend_verify(
-                &self.ecash_parameters,
-                aggregated_verification_key,
-                credential.pay_info(),
-            )
+            .spend_verify(aggregated_verification_key, credential.pay_info())
             .map_err(|_| {
                 RequestHandlingError::InvalidBandwidthCredential(String::from(
                     "credential failed to verify on gateway",

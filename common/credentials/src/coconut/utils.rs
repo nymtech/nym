@@ -4,19 +4,29 @@
 use crate::coconut::bandwidth::BandwidthVoucher;
 use crate::coconut::params::{NymApiCredentialEncryptionAlgorithm, NymApiCredentialHkdfAlgorithm};
 use crate::error::Error;
+use chrono::{Duration, Timelike, Utc};
 use log::{debug, warn};
 use nym_api_requests::coconut::BlindSignRequestBody;
 use nym_compact_ecash::scheme::Wallet;
 use nym_compact_ecash::setup::GroupParameters;
 use nym_compact_ecash::utils::BlindedSignature;
 use nym_compact_ecash::{
-    aggregate_verification_keys, aggregate_wallets, issue_verify, PartialWallet,
+    aggregate_verification_keys, aggregate_wallets, constants, issue_verify, PartialWallet,
     VerificationKeyAuth,
 };
 use nym_crypto::asymmetric::encryption::PublicKey;
 use nym_crypto::shared_key::recompute_shared_key;
 use nym_crypto::symmetric::stream_cipher;
 use nym_validator_client::client::CoconutApiClient;
+
+pub fn today_timestamp() -> u64 {
+    let now_utc = Utc::now();
+    (now_utc.timestamp() - now_utc.num_seconds_from_midnight() as i64) as u64
+}
+
+pub fn exp_date_timestamp() -> u64 {
+    today_timestamp() + Duration::days(constants::VALIDITY_PERIOD as i64).num_seconds() as u64
+}
 
 pub async fn obtain_aggregate_verification_key(
     api_clients: &[CoconutApiClient],
@@ -43,9 +53,7 @@ async fn obtain_partial_credential(
     client: &nym_validator_client::client::NymApiClient,
     validator_vk: &VerificationKeyAuth,
 ) -> Result<PartialWallet, Error> {
-    //let public_attributes = attributes.get_public_attributes();
     let public_attributes_plain = attributes.get_public_attributes_plain();
-    //let private_attributes = attributes.get_private_attributes();
     let withdrawal_request = attributes.withdrawal_request();
 
     let blind_sign_request_body = BlindSignRequestBody::new(
@@ -53,9 +61,9 @@ async fn obtain_partial_credential(
         attributes.tx_hash().to_string(),
         attributes.sign(withdrawal_request).to_base58_string(),
         attributes.ecash_keypair().public_key().to_base58_string(),
-        // &public_attributes,
         public_attributes_plain.clone(),
         (public_attributes_plain.len()) as u32,
+        attributes.expiration_date(),
     );
     let response = client.blind_sign(&blind_sign_request_body).await?;
     let encrypted_signature = response.encrypted_signature;
@@ -94,8 +102,6 @@ pub async fn obtain_aggregate_signature(
     if ecash_api_clients.is_empty() {
         return Err(Error::NoValidatorsAvailable);
     }
-    //let public_attributes = attributes.get_public_attributes();
-    //let private_attributes = attributes.get_private_attributes();
 
     let mut wallets = Vec::with_capacity(ecash_api_clients.len());
     let validators_partial_vks: Vec<_> = ecash_api_clients
@@ -136,10 +142,6 @@ pub async fn obtain_aggregate_signature(
         return Err(Error::NotEnoughShares);
     }
 
-    // let mut attributes = Vec::with_capacity(private_attributes.len() + public_attributes.len());
-    // attributes.extend_from_slice(&private_attributes);
-    // attributes.extend_from_slice(&public_attributes);
-
     aggregate_wallets(
         params,
         &verification_key,
@@ -149,32 +151,3 @@ pub async fn obtain_aggregate_signature(
     )
     .map_err(Error::CompactEcashError)
 }
-
-// TODO: better type flow
-// #[allow(clippy::too_many_arguments)]
-// pub fn prepare_credential_for_spending(
-//     params: &nym_coconut_interface::Parameters,
-//     voucher_value: u64,
-//     voucher_info: String,
-//     serial_number: nym_coconut_interface::Attribute,
-//     binding_number: nym_coconut_interface::Attribute,
-//     epoch_id: u64,
-//     signature: &nym_coconut_interface::Signature,
-//     verification_key: &nym_coconut_interface::VerificationKey,
-// ) -> Result<nym_coconut_interface::Credential, Error> {
-//     let theta = nym_coconut_interface::prove_bandwidth_credential(
-//         params,
-//         verification_key,
-//         signature,
-//         serial_number,
-//         binding_number,
-//     )?;
-
-//     Ok(nym_coconut_interface::Credential::new(
-//         PUBLIC_ATTRIBUTES + PRIVATE_ATTRIBUTES,
-//         theta,
-//         voucher_value,
-//         voucher_info,
-//         epoch_id,
-//     ))
-// }

@@ -40,11 +40,9 @@ For example on Linux the path would be `~/.config/nym-vpn/config.toml`
 # path to the env config file if you provide one
 env_config_file = "$HOME/.config/nym-vpn/qa.env"
 
+# pick a gateway and exit router accordingly to the selected env
 entry_gateway = "xxx"
 exit_router = "xxx"
-
-# ⚠ should be the same URL as the one provided by env_config_file
-nym_api = "https://nym/api/"
 ```
 
 ## Dev

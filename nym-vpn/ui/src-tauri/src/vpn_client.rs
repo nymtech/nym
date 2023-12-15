@@ -153,10 +153,8 @@ pub async fn spawn_status_listener(
     Ok(())
 }
 
-fn setup_gateway_client_config(private_key: Option<&str>, nym_api: &str) -> GatewayClientConfig {
+fn setup_gateway_client_config(private_key: Option<&str>) -> GatewayClientConfig {
     let mut config = GatewayClientConfig::default()
-        // .with_custom_api_url(nym_config::defaults::mainnet::NYM_API.parse().unwrap())
-        .with_custom_api_url(nym_api.parse().unwrap())
         // Read in the environment variable NYM_API if it exists
         .with_optional_env(GatewayClientConfig::with_custom_api_url, None, "NYM_API");
     info!("Using nym-api: {}", config.api_url());
@@ -170,6 +168,6 @@ fn setup_gateway_client_config(private_key: Option<&str>, nym_api: &str) -> Gate
 #[instrument(skip_all)]
 pub fn create_vpn_config(app_config: &AppConfig) -> NymVpn {
     let mut nym_vpn = NymVpn::new(&app_config.entry_gateway, &app_config.exit_router);
-    nym_vpn.gateway_config = setup_gateway_client_config(None, &app_config.nym_api);
+    nym_vpn.gateway_config = setup_gateway_client_config(None);
     nym_vpn
 }

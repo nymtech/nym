@@ -13,6 +13,7 @@ function handleError(dispatch: StateDispatch, error?: string | null) {
     dispatch({ type: 'reset-error' });
     return;
   }
+  console.warn(`received backend error: ${error}`);
   dispatch({ type: 'set-error', error });
 }
 

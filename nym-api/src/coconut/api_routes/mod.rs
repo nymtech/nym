@@ -184,7 +184,7 @@ pub async fn issued_credential(
     Ok(Json(IssuedCredentialResponse { credential }))
 }
 
-#[get("/issued-credentials", data = "<params>")]
+#[post("/issued-credentials", data = "<params>")]
 pub async fn issued_credentials(
     params: Json<CredentialsRequestBody>,
     state: &RocketState<State>,

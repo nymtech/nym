@@ -5,8 +5,12 @@ use crate::nym_api::error::NymAPIError;
 use crate::nym_api::routes::{CORE_STATUS_COUNT, SINCE_ARG};
 use async_trait::async_trait;
 use http_api_client::{ApiClient, NO_PARAMS};
+use nym_api_requests::coconut::models::{
+    EpochCredentialsResponse, IssuedCredentialResponse, IssuedCredentialsResponse,
+};
 use nym_api_requests::coconut::{
-    BlindSignRequestBody, BlindedSignatureResponse, VerifyCredentialBody, VerifyCredentialResponse,
+    BlindSignRequestBody, BlindedSignatureResponse, CredentialsRequestBody, VerifyCredentialBody,
+    VerifyCredentialResponse,
 };
 use nym_api_requests::models::{
     ComputeRewardEstParam, DescribedGateway, GatewayBondAnnotated, GatewayCoreStatusResponse,
@@ -15,6 +19,7 @@ use nym_api_requests::models::{
     MixnodeStatusResponse, MixnodeUptimeHistoryResponse, RewardEstimationResponse,
     StakeSaturationResponse, UptimeResponse,
 };
+use nym_coconut_dkg_common::types::EpochId;
 use nym_mixnet_contract_common::mixnode::MixNodeDetails;
 use nym_mixnet_contract_common::{GatewayBond, IdentityKeyRef, MixId};
 use nym_name_service_common::response::NamesListResponse;
@@ -395,6 +400,60 @@ pub trait NymApiClientExt: ApiClient {
             ],
             NO_PARAMS,
             request_body,
+        )
+        .await
+    }
+
+    async fn epoch_credentials(
+        &self,
+        dkg_epoch: EpochId,
+    ) -> Result<EpochCredentialsResponse, NymAPIError> {
+        self.get_json(
+            &[
+                routes::API_VERSION,
+                routes::COCONUT_ROUTES,
+                routes::BANDWIDTH,
+                routes::COCONUT_EPOCH_CREDENTIALS,
+                &dkg_epoch.to_string(),
+            ],
+            NO_PARAMS,
+        )
+        .await
+    }
+
+    async fn issued_credential(
+        &self,
+        credential_id: i64,
+    ) -> Result<IssuedCredentialResponse, NymAPIError> {
+        self.get_json(
+            &[
+                routes::API_VERSION,
+                routes::COCONUT_ROUTES,
+                routes::BANDWIDTH,
+                routes::COCONUT_ISSUED_CREDENTIAL,
+                &credential_id.to_string(),
+            ],
+            NO_PARAMS,
+        )
+        .await
+    }
+
+    async fn issued_credentials(
+        &self,
+        credential_ids: Vec<i64>,
+    ) -> Result<IssuedCredentialsResponse, NymAPIError> {
+        self.post_json(
+            &[
+                routes::API_VERSION,
+                routes::COCONUT_ROUTES,
+                routes::BANDWIDTH,
+                routes::COCONUT_ISSUED_CREDENTIALS,
+            ],
+            NO_PARAMS,
+            &CredentialsRequestBody {
+                credential_ids,
+                pagination: None,
+            },
         )
         .await
     }

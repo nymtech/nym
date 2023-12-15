@@ -25,15 +25,20 @@ First you can provide a network configuration using en env file,
 pick the relevant one [here](https://github.com/nymtech/nym/tree/develop/envs).
 The mainnet config will be used by default if not provided.
 
-Then create the main app config file `config.toml`, path is platform specific:
+Then create the main app config file `config.toml` under `nym-vpn`
+directory, full path is platform specific:
 
 - Linux: Resolves to `$XDG_CONFIG_HOME` or `$HOME/.config`
 - macOS: Resolves to `$HOME/Library/Application Support`
 - Windows: Resolves to `{FOLDERID_RoamingAppData}`
 
+For example on Linux the path would be `~/.config/nym-vpn/config.toml`
+
 ```toml
+# example config on Linux
+
 # path to the env config file if you provide one
-env_config_file = "/home/pierre/.config/nym-vpn/qa.env"
+env_config_file = "$HOME/.config/nym-vpn/qa.env"
 
 entry_gateway = "xxx"
 exit_router = "xxx"

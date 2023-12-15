@@ -44,7 +44,7 @@ impl ConnectionEventPayload {
 fn handle_vpn_exit_error(e: Box<dyn std::error::Error + Send + Sync>) -> String {
     match e.downcast::<Box<NymVpnExitError>>() {
         Ok(e) => {
-            // The double boxing here is unexpected, we should look into that
+            // TODO The double boxing here is unexpected, we should look into that
             match **e {
                 NymVpnExitError::Generic { reason } => reason.to_string(),
                 NymVpnExitError::FailedToResetFirewallPolicy { reason } => reason.to_string(),

@@ -19,6 +19,7 @@ pub(crate) fn nym_contract_cache_routes(settings: &OpenApiSettings) -> (Vec<Rout
         settings: routes::get_mixnodes,
         routes::get_mixnodes_detailed,
         routes::get_gateways,
+        routes::get_all_gateways,
         routes::get_active_set,
         routes::get_active_set_detailed,
         routes::get_rewarded_set,

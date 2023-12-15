@@ -275,6 +275,10 @@ impl NymApiClient {
         Ok(self.nym_api.get_gateways().await?)
     }
 
+    pub async fn get_all_gateways(&self) -> Result<Vec<GatewayBond>, ValidatorClientError> {
+        Ok(self.nym_api.get_all_gateways().await?)
+    }
+
     pub async fn get_cached_described_gateways(
         &self,
     ) -> Result<Vec<DescribedGateway>, ValidatorClientError> {

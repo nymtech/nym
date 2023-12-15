@@ -35,7 +35,7 @@ impl MyTopologyProvider {
             })
             .collect::<Vec<_>>();
 
-        let gateways = self.validator_client.get_cached_gateways().await.unwrap();
+        let gateways = self.validator_client.get_all_gateways().await.unwrap();
 
         nym_topology_from_detailed(filtered_mixnodes, gateways)
     }

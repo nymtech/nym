@@ -115,6 +115,12 @@ pub async fn get_blacklisted_gateways(
 }
 
 #[openapi(tag = "contract-cache")]
+#[get("/gateways/all")]
+pub async fn get_all_gateways(cache: &State<NymContractCache>) -> Json<Vec<GatewayBond>> {
+    Json(cache.gateways_all().await.clone())
+}
+
+#[openapi(tag = "contract-cache")]
 #[get("/epoch/reward_params")]
 pub async fn get_interval_reward_params(
     cache: &State<NymContractCache>,

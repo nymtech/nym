@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::error::NymRewarderError;
-use crate::rewarder::block_signing::types::EpochSigningResults;
+use crate::rewarder::block_signing::types::{EpochSigningResults, RawValidatorResult};
 use crate::rewarder::epoch::Epoch;
 use crate::rewarder::nyxd_client::NyxdClient;
 use nym_validator_client::nyxd::module_traits::staking;
@@ -123,7 +123,7 @@ impl EpochSigning {
                 .storage
                 .get_signed_between_times(&validator.consensus_address, epoch_start, epoch_end)
                 .await?;
-            signed_in_epoch.insert(validator, (signed, vp));
+            signed_in_epoch.insert(validator, RawValidatorResult::new(signed, vp));
         }
 
         let total = self

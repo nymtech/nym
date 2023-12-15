@@ -11,7 +11,7 @@ use nym_config::{
 };
 use nym_network_defaults::NymNetworkDetails;
 use nym_validator_client::nyxd;
-use nym_validator_client::nyxd::Coin;
+use nym_validator_client::nyxd::{AccountId, Coin};
 use serde::{Deserialize, Serialize};
 use std::io;
 use std::path::{Path, PathBuf};
@@ -31,6 +31,9 @@ const DEFAULT_MIX_REWARDING_BUDGET: u128 = 1000_000000;
 const DEFAULT_MIX_REWARDING_DENOM: &str = "unym";
 
 const DEFAULT_EPOCH_DURATION: Duration = Duration::from_secs(60 * 60);
+const DEFAULT_MONITOR_RUN_INTERVAL: Duration = Duration::from_secs(10 * 60);
+const DEFAULT_MONITOR_MIN_VALIDATE: u32 = 10;
+const DEFAULT_MONITOR_SAMPLING_RATE: f32 = 0.10;
 
 /// Get default path to rewarder's config directory.
 /// It should get resolved to `$HOME/.nym/validators-rewarder/config`
@@ -67,6 +70,9 @@ pub struct Config {
     pub rewarding: Rewarding,
 
     #[zeroize(skip)]
+    pub issuance_monitor: IssuanceMonitor,
+
+    #[zeroize(skip)]
     pub nyxd_scraper: NyxdScraper,
 
     #[serde(flatten)]
@@ -89,6 +95,7 @@ impl Config {
         Config {
             save_path: None,
             rewarding: Rewarding::default(),
+            issuance_monitor: IssuanceMonitor::default(),
             nyxd_scraper: NyxdScraper {
                 websocket_url: network.endpoints[0]
                     .websocket_url()
@@ -114,6 +121,16 @@ impl Config {
         // TEMP
         nyxd::Config::try_from_nym_network_details(&NymNetworkDetails::new_from_env())
             .expect("failed to create nyxd client config")
+    }
+
+    pub fn dkg_contract_address(&self) -> AccountId {
+        // TEMP
+        NymNetworkDetails::new_from_env()
+            .contracts
+            .coconut_dkg_contract_address
+            .expect("missing contract address")
+            .parse()
+            .expect("invalid contract address")
     }
 
     pub fn ensure_is_valid(&self) -> Result<(), NymRewarderError> {
@@ -236,4 +253,27 @@ pub struct NyxdScraper {
     /// Url to the websocket endpoint of a validator, for example `wss://rpc.nymtech.net/websocket`
     pub websocket_url: Url,
     // TODO: debug with everything that's currently hardcoded in the scraper
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct IssuanceMonitor {
+    #[serde(with = "humantime_serde")]
+    pub run_interval: Duration,
+
+    /// Defines the minimum number of credentials the monitor will validate
+    /// regardless of the sampling rate
+    pub min_validate_per_issuer: u32,
+
+    /// The sampling rate of the issued credentials
+    pub sampling_rate: f32,
+}
+
+impl Default for IssuanceMonitor {
+    fn default() -> Self {
+        IssuanceMonitor {
+            run_interval: DEFAULT_MONITOR_RUN_INTERVAL,
+            min_validate_per_issuer: DEFAULT_MONITOR_MIN_VALIDATE,
+            sampling_rate: DEFAULT_MONITOR_SAMPLING_RATE,
+        }
+    }
 }

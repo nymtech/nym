@@ -19,9 +19,7 @@ pub struct Epoch {
 }
 
 impl Epoch {
-    pub const LENGTH: Duration = HOUR;
-
-    pub fn first() -> Result<Self, NymRewarderError> {
+    pub fn first(epoch_duration: Duration) -> Result<Self, NymRewarderError> {
         let start = OffsetDateTime::now_utc()
             .add(HOUR)
             .replace_nanosecond(0)?
@@ -31,7 +29,7 @@ impl Epoch {
         Ok(Epoch {
             id: 0,
             start_time: start,
-            end_time: start + Self::LENGTH,
+            end_time: start + epoch_duration,
         })
     }
 
@@ -41,10 +39,11 @@ impl Epoch {
     }
 
     pub fn next(&self) -> Self {
+        let duration = self.end_time - self.start_time;
         Epoch {
             id: self.id + 1,
             start_time: self.end_time,
-            end_time: self.end_time + Self::LENGTH,
+            end_time: self.end_time + duration,
         }
     }
 

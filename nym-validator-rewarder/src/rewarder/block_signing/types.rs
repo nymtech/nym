@@ -48,11 +48,25 @@ pub struct EpochSigningResults {
     pub validators: Vec<ValidatorSigning>,
 }
 
+pub struct RawValidatorResult {
+    pub signed_blocks: i32,
+    pub voting_power: i64,
+}
+
+impl RawValidatorResult {
+    pub fn new(signed_blocks: i32, voting_power: i64) -> Self {
+        Self {
+            signed_blocks,
+            voting_power,
+        }
+    }
+}
+
 impl EpochSigningResults {
     pub fn construct(
         blocks: i64,
         total_vp: i64,
-        validator_results: HashMap<models::Validator, (i32, i64)>,
+        validator_results: HashMap<models::Validator, RawValidatorResult>,
         validator_details: Vec<staking::Validator>,
     ) -> Result<Self, NymRewarderError> {
         let Ok(total_vp_u64): Result<u64, _> = total_vp.try_into() else {
@@ -75,9 +89,9 @@ impl EpochSigningResults {
 
         let mut validators = Vec::new();
 
-        for (validator, (signed_blocks, voting_power_at_epoch_start)) in validator_results {
-            let vp: u64 = voting_power_at_epoch_start.try_into().unwrap_or_default();
-            let signed: u64 = signed_blocks.try_into().unwrap_or_default();
+        for (validator, raw_results) in validator_results {
+            let vp: u64 = raw_results.voting_power.try_into().unwrap_or_default();
+            let signed: u64 = raw_results.signed_blocks.try_into().unwrap_or_default();
 
             let voting_power_ratio = Decimal::from_ratio(vp, total_vp_u64);
 
@@ -96,9 +110,9 @@ impl EpochSigningResults {
                 validator,
                 staking_details,
                 operator_account,
-                voting_power_at_epoch_start,
+                voting_power_at_epoch_start: raw_results.voting_power,
                 voting_power_ratio,
-                signed_blocks,
+                signed_blocks: raw_results.signed_blocks,
                 ratio_signed,
             })
         }

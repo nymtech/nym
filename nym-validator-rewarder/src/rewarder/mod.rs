@@ -41,7 +41,7 @@ pub struct EpochRewards {
 impl EpochRewards {
     pub fn amounts(&self) -> Vec<(AccountId, Vec<Coin>)> {
         let signing = self.signing.rewarding_amounts(&self.signing_budget);
-        let mut credentials = Vec::new();
+        let mut credentials = self.credentials.rewarding_amounts(&self.credentials_budget);
 
         let mut amounts = signing;
         amounts.append(&mut credentials);
@@ -63,24 +63,29 @@ pub struct Rewarder {
 impl Rewarder {
     pub async fn new(config: Config) -> Result<Self, NymRewarderError> {
         let nyxd_scraper = NyxdScraper::new(config.scraper_config()).await?;
+        let dkg_contract = config.dkg_contract_address();
         let nyxd_client = NyxdClient::new(&config);
         let storage = RewarderStorage::init(&config.storage_paths.reward_history).await?;
         let current_epoch = if let Some(last_epoch) = storage.load_last_rewarding_epoch().await? {
             last_epoch.next()
         } else {
-            Epoch::first()?
+            Epoch::first(config.rewarding.epoch_duration)?
         };
 
         Ok(Rewarder {
             current_epoch,
-            config,
+            credential_issuance: CredentialIssuance::new(
+                current_epoch,
+                config.issuance_monitor.run_interval,
+                dkg_contract,
+            ),
             epoch_signing: EpochSigning {
                 nyxd_scraper,
                 nyxd_client: nyxd_client.clone(),
             },
             nyxd_client,
             storage,
-            credential_issuance: CredentialIssuance {},
+            config,
         })
     }
 
@@ -100,7 +105,7 @@ impl Rewarder {
     ) -> Result<CredentialIssuanceResults, NymRewarderError> {
         info!("calculating reward shares");
         self.credential_issuance
-            .get_signed_blocks_results(self.current_epoch)
+            .get_issued_credentials_results(self.current_epoch)
             .await
     }
 
@@ -171,6 +176,8 @@ impl Rewarder {
         // setup shutdowns
         let mut task_manager = TaskManager::new(5);
 
+        self.credential_issuance
+            .start_monitor(task_manager.subscribe());
         self.epoch_signing.nyxd_scraper.start().await?;
         self.epoch_signing
             .nyxd_scraper
@@ -189,7 +196,10 @@ impl Rewarder {
             "the first epoch will finish in {} secs",
             until_end.as_secs()
         );
-        let mut epoch_ticker = interval_at(Instant::now().add(until_end), Epoch::LENGTH);
+        let mut epoch_ticker = interval_at(
+            Instant::now().add(until_end),
+            self.config.rewarding.epoch_duration,
+        );
 
         let shutdown_future = task_manager.catch_interrupt();
         pin!(shutdown_future);

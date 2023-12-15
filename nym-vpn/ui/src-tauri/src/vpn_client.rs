@@ -1,23 +1,17 @@
-use std::error::Error;
-
 use crate::fs::config::AppConfig;
 use crate::states::{app::ConnectionState, SharedAppState};
 use anyhow::Result;
-use futures::channel::mpsc;
 use futures::channel::oneshot::Receiver as OneshotReceiver;
 use futures::StreamExt;
 use nym_vpn_lib::gateway_client::Config as GatewayClientConfig;
 use nym_vpn_lib::nym_config::OptionalSet;
-use nym_vpn_lib::{NymVpn, NymVpnExitStatusMessage};
+use nym_vpn_lib::{NymVpn, NymVpnExitStatusMessage, StatusReceiver};
 use tauri::Manager;
 use time::OffsetDateTime;
 use tracing::{debug, error, info, instrument, trace};
 
 pub const EVENT_CONNECTION_STATE: &str = "connection-state";
 pub const EVENT_CONNECTION_PROGRESS: &str = "connection-progress";
-
-pub type SentStatus = Box<dyn Error + Send + Sync>;
-pub type StatusReceiver = mpsc::Receiver<SentStatus>;
 
 #[derive(Clone, serde::Serialize)]
 pub enum ConnectProgressMsg {

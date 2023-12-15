@@ -203,7 +203,7 @@ async fn issued_credentials() {
 
     let response = test_fixture
         .rocket
-        .get(&route)
+        .post(&route)
         .json(&CredentialsRequestBody {
             credential_ids: vec![5],
             pagination: None,
@@ -218,7 +218,7 @@ async fn issued_credentials() {
 
     let response = test_fixture
         .rocket
-        .get(&route)
+        .post(&route)
         .json(&CredentialsRequestBody {
             credential_ids: vec![5, 13],
             pagination: None,
@@ -233,7 +233,7 @@ async fn issued_credentials() {
 
     let response_paginated = test_fixture
         .rocket
-        .get(&route)
+        .post(&route)
         .json(&CredentialsRequestBody {
             credential_ids: vec![],
             pagination: Some(Pagination {
@@ -254,7 +254,7 @@ async fn issued_credentials() {
 
     let response_paginated = test_fixture
         .rocket
-        .get(&route)
+        .post(&route)
         .json(&CredentialsRequestBody {
             credential_ids: vec![],
             pagination: Some(Pagination {

@@ -377,9 +377,9 @@ pub async fn expiration_date_signatures(
     state: &RocketState<State>,
 ) -> Result<Json<PartialExpirationDateSignatureResponse>> {
     let now_utc = Utc::now();
-    let midnight = now_utc.timestamp() - now_utc.num_seconds_from_midnight() as i64;
     let expiration_date = now_utc + Duration::days(constants::VALIDITY_PERIOD as i64);
-    let expiration_date_timestamp = expiration_date.timestamp() - midnight;
+    let expiration_date_timestamp =
+        expiration_date.timestamp() - now_utc.num_seconds_from_midnight() as i64;
 
     let expiration_date_signatures = if let Some(keypair) = state.key_pair.get_ecash().await {
         sign_expiration_date(

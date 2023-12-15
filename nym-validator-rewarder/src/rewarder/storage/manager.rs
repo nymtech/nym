@@ -29,18 +29,20 @@ impl StorageManager {
         &self,
         epoch: Epoch,
         rewarding_budget: String,
+        total_spent: String,
         rewarding_tx: Option<String>,
         rewarding_error: Option<String>,
     ) -> Result<(), sqlx::Error> {
         sqlx::query!(
             r#"
-                INSERT INTO rewarding_epoch (id, start_time, end_time, budget, rewarding_tx, rewarding_error)
-                VALUES (?, ?, ? ,?, ?, ?)
+                INSERT INTO rewarding_epoch (id, start_time, end_time, budget, spent, rewarding_tx, rewarding_error)
+                VALUES (?, ?, ? ,?, ?, ?, ?)
             "#,
             epoch.id,
             epoch.start_time,
             epoch.end_time,
             rewarding_budget,
+            total_spent: String,
             rewarding_tx,
             rewarding_error
         ).execute(&self.connection_pool).await?;

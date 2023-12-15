@@ -1,8 +1,11 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use nym_coconut::CoconutError;
+use nym_validator_client::nym_api::error::NymAPIError;
 use nym_validator_client::nyxd::error::NyxdError;
 use nym_validator_client::nyxd::tx::ErrorReport;
+use nym_validator_client::nyxd::{AccountId, Hash};
 use std::io;
 use std::path::PathBuf;
 use thiserror::Error;
@@ -85,4 +88,59 @@ pub enum NymRewarderError {
 
     #[error("could not find details for validator {consensus_address}")]
     MissingValidatorDetails { consensus_address: String },
+
+    #[error("api url ({raw}) provided by {runner_account} is invalid: {source}")]
+    MalformedApiUrl {
+        raw: String,
+        runner_account: AccountId,
+        #[source]
+        source: url::ParseError,
+    },
+
+    #[error("failed to resolve nym-api query: {0}")]
+    ApiQueryFailure(#[from] NymAPIError),
+
+    #[error("operator {runner_account} didn't return all requested credentials! requested {requested} but got only {received}")]
+    IncompleteRequest {
+        runner_account: AccountId,
+        requested: usize,
+        received: usize,
+    },
+
+    #[error("the following private attribute commitment is malformed: {raw}: {source}")]
+    MalformedCredentialCommitment {
+        raw: String,
+        #[source]
+        source: CoconutError,
+    },
+
+    #[error("could not verify the blinded credential")]
+    BlindVerificationFailure,
+
+    #[error("the same deposit transaction ({tx_hash}) has been used for multiple issued credentials! {first} and {other}")]
+    DuplicateDepositHash {
+        tx_hash: Hash,
+        first: i64,
+        other: i64,
+    },
+
+    #[error("could not find the deposit value in the event of transaction {tx_hash}")]
+    DepositValueNotFound { tx_hash: Hash },
+
+    #[error("could not find the deposit info in the event of transaction {tx_hash}")]
+    DepositInfoNotFound { tx_hash: Hash },
+
+    #[error("the provided deposit value of transaction {tx_hash} is inconsistent. got '{request:?}' while the value on chain is '{on_chain}'")]
+    InconsistentDepositValue {
+        tx_hash: Hash,
+        request: Option<String>,
+        on_chain: String,
+    },
+
+    #[error("the provided deposit info  of transaction {tx_hash}is inconsistent. got '{request:?}' while the value on chain is '{on_chain}'")]
+    InconsistentDepositInfo {
+        tx_hash: Hash,
+        request: Option<String>,
+        on_chain: String,
+    },
 }

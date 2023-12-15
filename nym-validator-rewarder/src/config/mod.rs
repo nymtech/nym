@@ -255,7 +255,7 @@ pub struct NyxdScraper {
     // TODO: debug with everything that's currently hardcoded in the scraper
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, Copy)]
 pub struct IssuanceMonitor {
     #[serde(with = "humantime_serde")]
     pub run_interval: Duration,

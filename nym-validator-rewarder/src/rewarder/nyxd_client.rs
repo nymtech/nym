@@ -3,12 +3,23 @@
 
 use crate::config::Config;
 use crate::error::NymRewarderError;
-use nym_validator_client::nyxd::error::NyxdError;
-use nym_validator_client::nyxd::module_traits::staking::{
-    QueryHistoricalInfoResponse, QueryValidatorResponse, QueryValidatorsResponse,
+use crate::rewarder::credential_issuance::types::CredentialIssuer;
+use cosmwasm_std::Addr;
+use nym_coconut::VerificationKey;
+use nym_coconut_bandwidth_contract_common::events::{
+    COSMWASM_DEPOSITED_FUNDS_EVENT_TYPE, DEPOSIT_INFO, DEPOSIT_VALUE,
 };
-use nym_validator_client::nyxd::{AccountId, CosmWasmClient, PageRequest, StakingQueryClient};
-use nym_validator_client::{nyxd, DirectSigningHttpRpcNyxdClient};
+use nym_coconut_dkg_common::types::Epoch;
+use nym_validator_client::nyxd::contract_traits::{DkgQueryClient, PagedDkgQueryClient};
+use nym_validator_client::nyxd::helpers::find_tx_attribute;
+use nym_validator_client::nyxd::module_traits::staking::{
+    QueryHistoricalInfoResponse, QueryValidatorsResponse,
+};
+use nym_validator_client::nyxd::{
+    AccountId, CosmWasmClient, Hash, PageRequest, StakingQueryClient,
+};
+use nym_validator_client::DirectSigningHttpRpcNyxdClient;
+use std::ops::Deref;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -51,11 +62,44 @@ impl NyxdClient {
         &self,
         pagination: Option<PageRequest>,
     ) -> Result<QueryValidatorsResponse, NymRewarderError> {
-        Ok(self
-            .inner
+        let guard = self.inner.read().await;
+        Ok(StakingQueryClient::validators(guard.deref(), "".to_string(), pagination).await?)
+    }
+
+    pub(crate) async fn dkg_epoch(&self) -> Result<Epoch, NymRewarderError> {
+        Ok(self.inner.read().await.get_current_epoch().await?)
+    }
+
+    pub(crate) async fn get_credential_issuers(
+        &self,
+        dkg_epoch: u64,
+    ) -> Result<Vec<CredentialIssuer>, NymRewarderError> {
+        self.inner
             .read()
             .await
-            .validators("".to_string(), pagination)
-            .await?)
+            .get_all_verification_key_shares(dkg_epoch)
+            .await?
+            .into_iter()
+            .map(TryInto::try_into)
+            .collect()
+    }
+
+    pub(crate) async fn get_deposit_transaction_attributes(
+        &self,
+        tx_hash: Hash,
+    ) -> Result<(String, String), NymRewarderError> {
+        let tx = self.inner.read().await.get_tx(tx_hash).await?;
+
+        // todo: we need to make it more concrete that the first attribute is the deposit value
+        // and the second one is the deposit info
+        let deposit_value =
+            find_tx_attribute(&tx, COSMWASM_DEPOSITED_FUNDS_EVENT_TYPE, DEPOSIT_VALUE)
+                .ok_or(NymRewarderError::DepositValueNotFound { tx_hash })?;
+
+        let deposit_info =
+            find_tx_attribute(&tx, COSMWASM_DEPOSITED_FUNDS_EVENT_TYPE, DEPOSIT_INFO)
+                .ok_or(NymRewarderError::DepositInfoNotFound { tx_hash })?;
+
+        Ok((deposit_value, deposit_info))
     }
 }

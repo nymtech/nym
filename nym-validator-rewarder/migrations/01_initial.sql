@@ -9,6 +9,7 @@ CREATE TABLE rewarding_epoch
     start_time      TIMESTAMP WITHOUT TIME ZONE NOT NULL,
     end_time        TIMESTAMP WITHOUT TIME ZONE NOT NULL,
     budget          TEXT                        NOT NULL,
+    spent           TEXT                        NOT NULL,
     rewarding_tx    TEXT,
     rewarding_error TEXT
 );
@@ -51,12 +52,12 @@ CREATE TABLE malformed_credential
 
 CREATE TABLE credential_issuance_reward
 (
-    rewarding_epoch_id         INTEGER NOT NULL REFERENCES rewarding_epoch (id),
-    operator_account           TEXT    NOT NULL,
-    amount                     TEXT    NOT NULL,
-    api_endpoint               TEXT    NOT NULL,
-    issued_partial_credentials INTEGER NOT NULL,
-    issued_credentials_share   TEXT    NOT NULL,
+    rewarding_epoch_id           INTEGER NOT NULL REFERENCES rewarding_epoch (id),
+    operator_account             TEXT    NOT NULL,
+    amount                       TEXT    NOT NULL,
+    api_endpoint                 TEXT    NOT NULL,
+    issued_partial_credentials   INTEGER NOT NULL,
+    issued_credentials_share     TEXT    NOT NULL,
     validated_issued_credentials INTEGER NOT NULL,
 
     UNIQUE (rewarding_epoch_id, operator_account)

@@ -72,6 +72,7 @@ impl RewarderStorage {
             .insert_rewarding_epoch(
                 reward.epoch,
                 reward.total_budget.to_string(),
+                reward.total_spent().to_string(),
                 reward_tx,
                 reward_err,
             )

@@ -48,6 +48,15 @@ impl EpochRewards {
 
         amounts
     }
+
+    pub fn total_spent(&self) -> Coin {
+        let amount = self
+            .amounts()
+            .into_iter()
+            .map(|(_, amount)| amount[0].amount)
+            .sum();
+        Coin::new(amount, &self.total_budget.denom)
+    }
 }
 
 pub struct Rewarder {
@@ -63,7 +72,6 @@ pub struct Rewarder {
 impl Rewarder {
     pub async fn new(config: Config) -> Result<Self, NymRewarderError> {
         let nyxd_scraper = NyxdScraper::new(config.scraper_config()).await?;
-        let dkg_contract = config.dkg_contract_address();
         let nyxd_client = NyxdClient::new(&config);
         let storage = RewarderStorage::init(&config.storage_paths.reward_history).await?;
         let current_epoch = if let Some(last_epoch) = storage.load_last_rewarding_epoch().await? {
@@ -77,7 +85,6 @@ impl Rewarder {
             credential_issuance: CredentialIssuance::new(
                 current_epoch,
                 config.issuance_monitor.run_interval,
-                dkg_contract,
             ),
             epoch_signing: EpochSigning {
                 nyxd_scraper,
@@ -176,8 +183,11 @@ impl Rewarder {
         // setup shutdowns
         let mut task_manager = TaskManager::new(5);
 
-        self.credential_issuance
-            .start_monitor(task_manager.subscribe());
+        self.credential_issuance.start_monitor(
+            self.config.issuance_monitor,
+            self.nyxd_client.clone(),
+            task_manager.subscribe(),
+        );
         self.epoch_signing.nyxd_scraper.start().await?;
         self.epoch_signing
             .nyxd_scraper

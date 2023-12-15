@@ -31,9 +31,13 @@ humantime-serde = "1.0"
 # internal
 nym-bin-common = { path = "../common/bin-common", features = ["output_format"] }
 nym-config = { path = "../common/config" }
+nym-coconut = { path = "../common/nymcoconut" }
+nym-credentials = { path = "../common/credentials" }
 nym-network-defaults = { path = "../common/network-defaults" }
 nym-task = { path = "../common/task" }
 nym-validator-client = { path = "../common/client-libs/validator-client" }
+nym-coconut-dkg-common = { path = "../common/cosmwasm-smart-contracts/coconut-dkg"}
+nym-coconut-bandwidth-contract-common = { path = "../common/cosmwasm-smart-contracts/coconut-bandwidth-contract"}
 nyxd-scraper = { path = "../common/nyxd-scraper" }
 
 [build-dependencies]

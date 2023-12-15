@@ -1,13 +1,15 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::error::NymRewarderError;
 use crate::rewarder::epoch::Epoch;
-use cosmwasm_std::{Decimal, Uint128};
+use cosmwasm_std::{Addr, Decimal, Uint128};
+use nym_coconut::VerificationKey;
+use nym_coconut_dkg_common::verification_key::ContractVKShare;
 use nym_validator_client::nyxd::{AccountId, Coin};
-use std::mem;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use tracing::{error, info};
+use tracing::info;
 
 #[derive(Clone)]
 pub struct MonitoringResults {
@@ -36,43 +38,46 @@ impl MonitoringResults {
         dkg_epoch: u32,
         operators: Vec<(String, AccountId)>,
     ) {
-        let mut guard = self.inner.lock().await;
-        guard.operators = operators
-            .into_iter()
-            .map(|(api_runner, runner_account)| RawOperatorIssuing {
-                api_runner,
-                runner_account,
-                issued_credentials: 0,
-                validated_credentials: 0,
-            })
-            .collect();
-        guard.dkg_epoch = Some(dkg_epoch)
+        todo!()
+        // let mut guard = self.inner.lock().await;
+        // guard.operators = operators
+        //     .into_iter()
+        //     .map(|(api_runner, runner_account)| RawOperatorIssuing {
+        //         api_runner,
+        //         runner_account,
+        //         issued_credentials: 0,
+        //         validated_credentials: 0,
+        //     })
+        //     .collect();
+        // guard.dkg_epoch = Some(dkg_epoch)
     }
 
     pub(crate) async fn append_run_results(&self, results: Vec<(String, RawOperatorResult)>) {
-        let mut guard = self.inner.lock().await;
-
-        // sure, a hashmap would have been quicker, but we'll have at most 30-40 runners so
-        // performance overhead is negligible
-        for (api_runner, results) in results {
-            if let Some(entry) = guard
-                .operators
-                .iter_mut()
-                .find(|o| o.api_runner == api_runner)
-            {
-                entry.issued_credentials += results.issued_credentials;
-                entry.validated_credentials += results.validated_credentials;
-            } else {
-                error!("somehow could not find operator results for runner {api_runner}!")
-            }
-        }
+        todo!()
+        // let mut guard = self.inner.lock().await;
+        //
+        // // sure, a hashmap would have been quicker, but we'll have at most 30-40 runners so
+        // // performance overhead is negligible
+        // for (api_runner, results) in results {
+        //     if let Some(entry) = guard
+        //         .operators
+        //         .iter_mut()
+        //         .find(|o| o.api_runner == api_runner)
+        //     {
+        //         entry.issued_credentials += results.issued_credentials;
+        //         entry.validated_credentials += results.validated_credentials;
+        //     } else {
+        //         error!("somehow could not find operator results for runner {api_runner}!")
+        //     }
+        // }
     }
 
     pub(crate) async fn finish_epoch(&self) -> MonitoringResultsInner {
-        let mut guard = self.inner.lock().await;
-        let next_epoch = guard.epoch.next();
-        let next_results = MonitoringResultsInner::new(next_epoch);
-        mem::replace(&mut guard, next_results)
+        todo!()
+        // let mut guard = self.inner.lock().await;
+        // let next_epoch = guard.epoch.next();
+        // let next_results = MonitoringResultsInner::new(next_epoch);
+        // mem::replace(&mut guard, next_results)
     }
 }
 
@@ -138,6 +143,8 @@ pub struct RawOperatorIssuing {
 
     pub issued_credentials: u32,
     pub validated_credentials: u32,
+
+    pub(crate) starting_credential_id: u32,
 }
 
 pub struct OperatorIssuing {
@@ -179,4 +186,25 @@ impl CredentialIssuanceResults {
             .map(|v| (v.runner_account.clone(), vec![v.reward_amount(budget)]))
             .collect()
     }
+}
+
+pub struct CredentialIssuer {
+    pub operator_account: AccountId,
+    pub api_runner: String,
+    pub verification_key: VerificationKey,
+}
+
+impl TryFrom<ContractVKShare> for CredentialIssuer {
+    type Error = NymRewarderError;
+
+    fn try_from(value: ContractVKShare) -> Result<Self, Self::Error> {
+        todo!()
+    }
+}
+
+// safety: we're converting between different wrappers for bech32 addresses
+// and we trust (reasonably so), the values coming out of registered dealers in the DKG contract
+fn addr_to_account_id(addr: Addr) -> AccountId {
+    #[allow(clippy::unwrap_used)]
+    addr.as_str().parse().unwrap()
 }

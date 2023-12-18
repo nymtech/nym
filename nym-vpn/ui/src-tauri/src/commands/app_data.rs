@@ -96,11 +96,11 @@ pub async fn set_ui_theme(
 
 #[instrument(skip(data_state))]
 #[tauri::command]
-pub async fn set_entry_selector(
+pub async fn set_entry_location_selector(
     data_state: State<'_, SharedAppData>,
     entry_selector: bool,
 ) -> Result<(), CmdError> {
-    debug!("set_entry_selector");
+    debug!("set_entry_location_selector");
 
     // save the selected UI theme to disk
     let mut app_data_store = data_state.lock().await;

@@ -1,6 +1,6 @@
 use futures::SinkExt;
-use nym_vpn_lib::{NymVpnCtrlMessage, NymVpnHandle};
 use nym_vpn_lib::gateway_client::{EntryPoint, ExitPoint};
+use nym_vpn_lib::{NymVpnCtrlMessage, NymVpnHandle};
 use tauri::{Manager, State};
 use tracing::{debug, error, info, instrument, trace};
 
@@ -16,6 +16,9 @@ use crate::{
         EVENT_CONNECTION_STATE,
     },
 };
+
+// TODO use a default location for the entry node
+const DEFAULT_ENTRY_NODE_LOCATION: &str = "DE";
 
 #[instrument(skip_all)]
 #[tauri::command]
@@ -69,11 +72,19 @@ pub async fn connect(
     .ok();
 
     let app_state = state.lock().await;
-    let entry_point = EntryPoint::Location(app_state.entry_node_location.clone()
-        .ok_or(CmdError::new(CmdErrorSource::InternalError, "Missing entry country code".to_string()))?.code);
-    let exit_point = ExitPoint::Location(app_state.entry_node_location.clone()
-        .ok_or(CmdError::new(CmdErrorSource::InternalError, "Missing exit country code".to_string()))?.code);
-    let mut vpn_config = create_vpn_config(entry_point,exit_point);
+    let entry_point = EntryPoint::Location(DEFAULT_ENTRY_NODE_LOCATION.into());
+    let exit_point = ExitPoint::Location(
+        app_state
+            .entry_node_location
+            .as_ref()
+            .ok_or(CmdError::new(
+                CmdErrorSource::InternalError,
+                "Missing exit country code".to_string(),
+            ))?
+            .code
+            .clone(),
+    );
+    let mut vpn_config = create_vpn_config(entry_point, exit_point);
     {
         if let VpnMode::TwoHop = app_state.vpn_mode {
             info!("2-hop mode enabled");

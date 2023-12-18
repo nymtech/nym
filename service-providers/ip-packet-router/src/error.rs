@@ -1,4 +1,4 @@
-use std::net::SocketAddr;
+use std::net::{IpAddr, SocketAddr};
 
 pub use nym_client_core::error::ClientCoreError;
 use nym_exit_policy::PolicyError;
@@ -57,8 +57,14 @@ pub enum IpPacketRouterError {
     #[error("the provided socket address, '{addr}' is not covered by the exit policy!")]
     AddressNotCoveredByExitPolicy { addr: SocketAddr },
 
+    #[error("the provided ip address, '{ip}' is not covered by the exit policy!")]
+    IpNotCoveredByExitPolicy { ip: IpAddr },
+
     #[error("failed filter check: '{addr}'")]
     AddressFailedFilterCheck { addr: SocketAddr },
+
+    #[error("failed filter check: '{ip}'")]
+    IpFailedFilterCheck { ip: IpAddr },
 
     #[error("failed to apply the exit policy: {source}")]
     ExitPolicyFailure {

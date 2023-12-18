@@ -6,7 +6,8 @@ use crate::nym_api::routes::{CORE_STATUS_COUNT, SINCE_ARG};
 use async_trait::async_trait;
 use http_api_client::{ApiClient, NO_PARAMS};
 use nym_api_requests::coconut::{
-    BlindSignRequestBody, BlindedSignatureResponse, VerifyCredentialBody, VerifyCredentialResponse,
+    BlindSignRequestBody, BlindedSignatureResponse, EcashParametersResponse,
+    OfflineVerifyCredentialBody, OnlineVerifyCredentialBody, VerifyCredentialResponse,
 };
 use nym_api_requests::models::{
     ComputeRewardEstParam, DescribedGateway, GatewayBondAnnotated, GatewayCoreStatusResponse,
@@ -382,19 +383,49 @@ pub trait NymApiClientExt: ApiClient {
         .await
     }
 
-    async fn verify_bandwidth_credential(
+    async fn verify_offline_credential(
         &self,
-        request_body: &VerifyCredentialBody,
+        request_body: &OfflineVerifyCredentialBody,
     ) -> Result<VerifyCredentialResponse, NymAPIError> {
         self.post_json(
             &[
                 routes::API_VERSION,
                 routes::COCONUT_ROUTES,
                 routes::BANDWIDTH,
-                routes::COCONUT_VERIFY_BANDWIDTH_CREDENTIAL,
+                routes::ECASH_VERIFY_OFFLINE_CREDENTIAL,
             ],
             NO_PARAMS,
             request_body,
+        )
+        .await
+    }
+
+    async fn verify_online_credential(
+        &self,
+        request_body: &OnlineVerifyCredentialBody,
+    ) -> Result<VerifyCredentialResponse, NymAPIError> {
+        self.post_json(
+            &[
+                routes::API_VERSION,
+                routes::COCONUT_ROUTES,
+                routes::BANDWIDTH,
+                routes::ECASH_VERIFY_ONLINE_CREDENTIAL,
+            ],
+            NO_PARAMS,
+            request_body,
+        )
+        .await
+    }
+
+    async fn ecash_parameters(&self) -> Result<EcashParametersResponse, NymAPIError> {
+        self.get_json(
+            &[
+                routes::API_VERSION,
+                routes::COCONUT_ROUTES,
+                routes::BANDWIDTH,
+                routes::ECASH_PARAMETERS,
+            ],
+            NO_PARAMS,
         )
         .await
     }

@@ -123,6 +123,7 @@ impl From<ConfigV1_1_31> for Config {
                 nym_api_urls: value.gateway.nym_api_urls,
                 nyxd_urls: value.gateway.nyxd_urls,
                 cosmos_mnemonic: value.gateway.cosmos_mnemonic,
+                offline_credential_verification: false,
             },
             wireguard: nym_node::config::Wireguard {
                 enabled: value.wireguard.enabled,
@@ -216,6 +217,7 @@ pub struct GatewayV1_1_31 {
     // #[deprecated(note = "move to storage")]
     // TODO: I don't think this should be stored directly in the config...
     pub cosmos_mnemonic: bip39::Mnemonic,
+    pub offline_credential_verification: bool,
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]

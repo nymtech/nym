@@ -16,7 +16,9 @@ pub const COCONUT_ROUTES: &str = "coconut";
 pub const BANDWIDTH: &str = "bandwidth";
 
 pub const COCONUT_BLIND_SIGN: &str = "blind-sign";
-pub const COCONUT_VERIFY_BANDWIDTH_CREDENTIAL: &str = "verify-bandwidth-credential";
+pub const ECASH_VERIFY_OFFLINE_CREDENTIAL: &str = "verify-offline-credential";
+pub const ECASH_VERIFY_ONLINE_CREDENTIAL: &str = "verify-online-credential";
+pub const ECASH_PARAMETERS: &str = "ecash-parameters";
 
 pub const STATUS_ROUTES: &str = "status";
 pub const MIXNODE: &str = "mixnode";

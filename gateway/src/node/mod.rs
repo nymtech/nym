@@ -15,7 +15,7 @@ use crate::node::client_handling::embedded_network_requester::{
     LocalNetworkRequesterHandle, MessageRouter,
 };
 use crate::node::client_handling::websocket;
-use crate::node::client_handling::websocket::connection_handler::coconut::CoconutVerifier;
+use crate::node::client_handling::websocket::connection_handler::coconut::EcashVerifier;
 use crate::node::helpers::{initialise_main_storage, load_network_requester_config};
 use crate::node::mixnet_handling::receiver::connection_handler::ConnectionHandler;
 use crate::node::statistics::collector::GatewayStatisticsCollector;
@@ -26,6 +26,7 @@ use dashmap::DashMap;
 use defguard_wireguard_rs::{WGApi, WireguardInterfaceApi};
 use futures::channel::{mpsc, oneshot};
 use log::*;
+use nym_compact_ecash::setup::Parameters;
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_mixnet_client::forwarder::{MixForwardingSender, PacketForwarder};
 use nym_network_defaults::NymNetworkDetails;
@@ -215,7 +216,7 @@ impl<St> Gateway<St> {
         forwarding_channel: MixForwardingSender,
         active_clients_store: ActiveClientsStore,
         shutdown: TaskClient,
-        coconut_verifier: Arc<CoconutVerifier>,
+        ecash_verifier: Arc<EcashVerifier>,
     ) where
         St: Storage + Clone + 'static,
     {
@@ -230,7 +231,8 @@ impl<St> Gateway<St> {
             listening_address,
             Arc::clone(&self.identity_keypair),
             self.config.gateway.only_coconut_credentials,
-            coconut_verifier,
+            self.config.gateway.offline_credential_verification,
+            ecash_verifier,
         )
         .start(
             forwarding_channel,
@@ -437,6 +439,19 @@ impl<St> Gateway<St> {
         }))
     }
 
+    async fn get_ecash_parameters(&self) -> Result<Parameters, GatewayError> {
+        let validator_client = self.random_api_client()?;
+        match validator_client.ecash_parameters().await {
+            Err(err) => {
+                error!(
+                    "Failed to grab ecash parameters - {err}\n Plesae try again in a few minutes"
+                );
+                Err(GatewayError::NetworkGatewaysQueryFailure { source: err })
+            }
+            Ok(response) => Ok(response.params),
+        }
+    }
+
     pub async fn run(self) -> anyhow::Result<()>
     where
         St: Storage + Clone + 'static,
@@ -449,9 +464,17 @@ impl<St> Gateway<St> {
 
         let shutdown = TaskManager::new(10);
 
-        let coconut_verifier = {
+        let ecash_verifier = {
             let nyxd_client = self.random_nyxd_client()?;
-            CoconutVerifier::new(nyxd_client)
+            let ecash_params = self.get_ecash_parameters().await?;
+            Arc::new(EcashVerifier::new(
+                nyxd_client,
+                ecash_params,
+                self.identity_keypair.public_key().to_bytes(),
+                shutdown.subscribe().named("EcashVerifier"),
+                self.storage.clone(),
+                self.config.gateway.offline_credential_verification,
+            ))
         };
 
         let mix_forwarding_channel =
@@ -481,7 +504,7 @@ impl<St> Gateway<St> {
             mix_forwarding_channel.clone(),
             active_clients_store.clone(),
             shutdown.subscribe().named("websocket::Listener"),
-            Arc::new(coconut_verifier),
+            Arc::clone(&ecash_verifier),
         );
 
         let nr_request_filter = if self.config.network_requester.enabled {
@@ -504,7 +527,7 @@ impl<St> Gateway<St> {
         if self.config.ip_packet_router.enabled {
             let embedded_ip_sp = self
                 .start_ip_packet_router(
-                    mix_forwarding_channel,
+                    mix_forwarding_channel.clone(),
                     shutdown.subscribe().named("ip_service_provider"),
                 )
                 .await?;
@@ -521,6 +544,13 @@ impl<St> Gateway<St> {
         .with_maybe_network_request_filter(nr_request_filter)
         .with_maybe_ip_packet_router(self.ip_packet_router_opts.as_ref().map(|o| &o.config))
         .start(shutdown.subscribe().named("http-api"))?;
+
+        self.start_client_websocket_listener(
+            mix_forwarding_channel,
+            active_clients_store,
+            shutdown.subscribe().named("websocket::Listener"),
+            Arc::clone(&ecash_verifier),
+        );
 
         // Once this is a bit more mature, make this a commandline flag instead of a compile time
         // flag

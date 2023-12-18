@@ -22,6 +22,7 @@ atty = "0.2"
 bip39 = { workspace = true }
 bs58 = "0.4.0"
 clap = { workspace = true, features = ["cargo", "derive"] }
+chrono = "0.4.19"
 colored = "2.0"
 dashmap = { workspace = true }
 dirs = "4.0"
@@ -63,6 +64,7 @@ nym-node = { path = "../nym-node" }
 nym-api-requests = { path = "../nym-api/nym-api-requests" }
 nym-bin-common = { path = "../common/bin-common", features = ["output_format"] }
 nym-coconut-interface = { path = "../common/coconut-interface" }
+nym-compact-ecash = { path = "../common/nym_offline_compact_ecash" }
 nym-config = { path = "../common/config" }
 nym-credentials = { path = "../common/credentials" }
 nym-crypto = { path = "../common/crypto" }

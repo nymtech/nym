@@ -12,7 +12,7 @@ use crate::{cleanup_socket_message, try_decrypt_binary_message};
 use futures::{SinkExt, StreamExt};
 use log::*;
 use nym_bandwidth_controller::BandwidthController;
-use nym_coconut_interface::Credential;
+use nym_compact_ecash::scheme::EcashCredential;
 use nym_credential_storage::ephemeral_storage::EphemeralStorage as EphemeralCredentialStorage;
 use nym_credential_storage::storage::Storage as CredentialStorage;
 use nym_crypto::asymmetric::identity;
@@ -513,14 +513,14 @@ impl<C, St> GatewayClient<C, St> {
         }
     }
 
-    async fn claim_coconut_bandwidth(
+    async fn claim_ecash_bandwidth(
         &mut self,
-        credential: Credential,
+        credential: EcashCredential,
     ) -> Result<(), GatewayClientError> {
         let mut rng = OsRng;
         let iv = IV::new_random(&mut rng);
 
-        let msg = ClientControlRequest::new_enc_coconut_bandwidth_credential(
+        let msg = ClientControlRequest::new_enc_ecash_credential(
             &credential,
             self.shared_key.as_ref().unwrap(),
             iv,
@@ -567,18 +567,18 @@ impl<C, St> GatewayClient<C, St> {
             return self.try_claim_testnet_bandwidth().await;
         }
 
-        let (credential, credential_id) = self
+        let (credential, new_wallet, wallet_id) = self
             .bandwidth_controller
             .as_ref()
             .unwrap()
-            .prepare_coconut_credential()
+            .prepare_ecash_credential(self.gateway_identity.to_bytes())
             .await?;
 
-        self.claim_coconut_bandwidth(credential).await?;
+        self.claim_ecash_bandwidth(credential).await?;
         self.bandwidth_controller
             .as_ref()
             .unwrap()
-            .consume_credential(credential_id)
+            .update_ecash_wallet(new_wallet, wallet_id)
             .await?;
 
         Ok(())
@@ -671,6 +671,7 @@ impl<C, St> GatewayClient<C, St> {
         if !self.authenticated {
             return Err(GatewayClientError::NotAuthenticated);
         }
+        //SW NOTE : Logic to stop sending packet is there already. We only need to update bandwidth_remaining
         if (mix_packet.packet().len() as i64) > self.bandwidth_remaining {
             return Err(GatewayClientError::NotEnoughBandwidth(
                 mix_packet.packet().len() as i64,

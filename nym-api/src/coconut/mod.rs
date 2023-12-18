@@ -5,21 +5,26 @@ use self::comm::APICommunicationChannel;
 use crate::coconut::client::Client as LocalClient;
 use crate::coconut::deposit::extract_encryption_key;
 use crate::coconut::error::{CoconutError, Result};
-use crate::coconut::helpers::accepted_vote_err;
 use crate::support::storage::NymApiStorage;
 use getset::{CopyGetters, Getters};
 use keypair::KeyPair;
 use nym_api_requests::coconut::{
-    BlindSignRequestBody, BlindedSignatureResponse, VerifyCredentialBody, VerifyCredentialResponse,
+    BlindSignRequestBody, BlindedSignatureResponse, EcashParametersResponse,
+    OfflineVerifyCredentialBody, OnlineVerifyCredentialBody, VerifyCredentialResponse,
 };
 use nym_coconut_bandwidth_contract_common::spend_credential::{
     funds_from_cosmos_msgs, SpendCredentialStatus,
 };
 use nym_coconut_dkg_common::types::EpochId;
-use nym_coconut_interface::KeyPair as CoconutKeyPair;
-use nym_coconut_interface::{
-    Attribute, BlindSignRequest, BlindedSignature, Parameters, VerificationKey,
-};
+
+use crate::coconut::helpers::accepted_vote_err;
+use nym_compact_ecash::error::CompactEcashError;
+use nym_compact_ecash::scheme::keygen::KeyPairAuth;
+use nym_compact_ecash::scheme::withdrawal::WithdrawalRequest;
+use nym_compact_ecash::scheme::EcashCredential;
+use nym_compact_ecash::setup::{GroupParameters, Parameters};
+use nym_compact_ecash::utils::BlindedSignature;
+use nym_compact_ecash::{Base58, PublicKeyUser, VerificationKeyAuth};
 use nym_config::defaults::NYM_API_VERSION;
 use nym_credentials::coconut::params::{
     NymApiCredentialEncryptionAlgorithm, NymApiCredentialHkdfAlgorithm,
@@ -28,11 +33,13 @@ use nym_crypto::asymmetric::encryption;
 use nym_crypto::shared_key::new_ephemeral_shared_key;
 use nym_crypto::symmetric::stream_cipher;
 use nym_validator_client::nym_api::routes::{BANDWIDTH, COCONUT_ROUTES};
+use nym_validator_client::nyxd::AccountId;
 use nym_validator_client::nyxd::{Coin, Fee};
 use rand_07::rngs::OsRng;
 use rocket::fairing::AdHoc;
 use rocket::serde::json::Json;
 use rocket::State as RocketState;
+use std::fs;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
@@ -50,6 +57,7 @@ pub struct State {
     client: Arc<dyn LocalClient + Send + Sync>,
     mix_denom: String,
     key_pair: KeyPair,
+    ecash_params: Parameters,
     comm_channel: Arc<dyn APICommunicationChannel + Send + Sync>,
     storage: NymApiStorage,
     rng: Arc<Mutex<OsRng>>,
@@ -70,10 +78,14 @@ impl State {
         let client = Arc::new(client);
         let comm_channel = Arc::new(comm_channel);
         let rng = Arc::new(Mutex::new(OsRng));
+        let binding = fs::read_to_string("ecash_params.txt").unwrap();
+        let params_base58 = binding.trim();
+        let ecash_params = Parameters::try_from_bs58(params_base58).unwrap(); //SW Waiting for an actual parameters generation scheme.
         Self {
             client,
             mix_denom,
             key_pair,
+            ecash_params,
             comm_channel,
             storage,
             rng,
@@ -135,34 +147,40 @@ impl State {
         }
     }
 
-    pub async fn verification_key(&self, epoch_id: EpochId) -> Result<VerificationKey> {
+    pub async fn verification_key(&self, epoch_id: EpochId) -> Result<VerificationKeyAuth> {
         self.comm_channel
             .aggregated_verification_key(epoch_id)
             .await
+    }
+
+    pub async fn store_credential(
+        &self,
+        credential: &EcashCredential,
+        gateway_addr: &AccountId,
+    ) -> Result<()> {
+        self.storage
+            .insert_credential(credential, gateway_addr)
+            .await
+            .map_err(|err| err.into())
     }
 }
 
 #[derive(Getters, CopyGetters, Debug)]
 pub(crate) struct InternalSignRequest {
-    // Total number of parameters to generate for
-    #[getset(get_copy)]
-    total_params: u32,
     #[getset(get)]
-    public_attributes: Vec<Attribute>,
+    withdrawal_request: WithdrawalRequest,
     #[getset(get)]
-    blind_sign_request: BlindSignRequest,
+    ecash_pubkey: PublicKeyUser,
 }
 
 impl InternalSignRequest {
     pub fn new(
-        total_params: u32,
-        public_attributes: Vec<Attribute>,
-        blind_sign_request: BlindSignRequest,
+        withdrawal_request: WithdrawalRequest,
+        ecash_pubkey: PublicKeyUser,
     ) -> InternalSignRequest {
         InternalSignRequest {
-            total_params,
-            public_attributes,
-            blind_sign_request,
+            withdrawal_request,
+            ecash_pubkey,
         }
     }
 
@@ -182,19 +200,23 @@ impl InternalSignRequest {
             rocket.manage(state).mount(
                 // this format! is so ugly...
                 format!("/{}/{}/{}", NYM_API_VERSION, COCONUT_ROUTES, BANDWIDTH),
-                routes![post_blind_sign, verify_bandwidth_credential],
+                routes![
+                    post_blind_sign,
+                    verify_offline_credential,
+                    verify_online_credential
+                ],
             )
         })
     }
 }
 
-fn blind_sign(request: InternalSignRequest, key_pair: &CoconutKeyPair) -> Result<BlindedSignature> {
-    let params = Parameters::new(request.total_params())?;
-    Ok(nym_coconut_interface::blind_sign(
+fn blind_sign(request: InternalSignRequest, key_pair: KeyPairAuth) -> Result<BlindedSignature> {
+    let params = GroupParameters::new()?;
+    Ok(nym_compact_ecash::scheme::withdrawal::issue_wallet(
         &params,
-        &key_pair.secret_key(),
-        request.blind_sign_request(),
-        request.public_attributes(),
+        key_pair.secret_key(),
+        request.ecash_pubkey().clone(),
+        request.withdrawal_request(),
     )?)
 }
 
@@ -217,11 +239,10 @@ pub async fn post_blind_sign(
         .await?;
     let encryption_key = extract_encryption_key(&blind_sign_request_body, tx).await?;
     let internal_request = InternalSignRequest::new(
-        *blind_sign_request_body.total_params(),
-        blind_sign_request_body.public_attributes(),
-        blind_sign_request_body.blind_sign_request().clone(),
+        blind_sign_request_body.withdrawal_request().clone(),
+        PublicKeyUser::from_base58_string(blind_sign_request_body.ecash_pubkey())?,
     );
-    let blinded_signature = if let Some(keypair) = state.key_pair.get().await.as_ref() {
+    let blinded_signature = if let Some(keypair) = state.key_pair.get_ecash().await {
         blind_sign(internal_request, keypair)?
     } else {
         return Err(CoconutError::KeyPairNotDerivedYet);
@@ -238,9 +259,44 @@ pub async fn post_blind_sign(
     Ok(Json(response))
 }
 
-#[post("/verify-bandwidth-credential", data = "<verify_credential_body>")]
-pub async fn verify_bandwidth_credential(
-    verify_credential_body: Json<VerifyCredentialBody>,
+#[post("/verify-offline-credential", data = "<verify_credential_body>")]
+pub async fn verify_offline_credential(
+    verify_credential_body: Json<OfflineVerifyCredentialBody>,
+    state: &RocketState<State>,
+) -> Result<Json<VerifyCredentialResponse>> {
+    let verification_key = state
+        .verification_key(*verify_credential_body.credential().epoch_id())
+        .await?;
+
+    if verify_credential_body
+        .credential()
+        .payment()
+        .spend_verify(
+            &state.ecash_params,
+            &verification_key,
+            verify_credential_body.credential().pay_info(),
+        )
+        .is_err()
+    {
+        return Err(CoconutError::CompactEcashInternalError(
+            CompactEcashError::PaymentVerification,
+        ));
+    }
+
+    //store credential
+    state
+        .store_credential(
+            verify_credential_body.credential(),
+            verify_credential_body.gateway_cosmos_addr(),
+        )
+        .await?;
+
+    Ok(Json(VerifyCredentialResponse::new(true)))
+}
+
+#[post("/verify-online-credential", data = "<verify_credential_body>")]
+pub async fn verify_online_credential(
+    verify_credential_body: Json<OnlineVerifyCredentialBody>,
     state: &RocketState<State>,
 ) -> Result<Json<VerifyCredentialResponse>> {
     let proposal_id = *verify_credential_body.proposal_id();
@@ -248,7 +304,7 @@ pub async fn verify_bandwidth_credential(
     // Proposal description is the blinded serial number
     if !verify_credential_body
         .credential()
-        .has_blinded_serial_number(&proposal.description)?
+        .has_serial_number(&proposal.description)?
     {
         return Err(CoconutError::IncorrectProposal {
             reason: String::from("incorrect blinded serial number in description"),
@@ -261,7 +317,7 @@ pub async fn verify_bandwidth_credential(
     // Credential has not been spent before, and is on its way of being spent
     let credential_status = state
         .client
-        .get_spent_credential(verify_credential_body.credential().blinded_serial_number())
+        .get_spent_credential(verify_credential_body.credential().serial_number())
         .await?
         .spend_credential
         .ok_or(CoconutError::InvalidCredentialStatus {
@@ -278,11 +334,19 @@ pub async fn verify_bandwidth_credential(
         .await?;
     let mut vote_yes = verify_credential_body
         .credential()
-        .verify(&verification_key);
+        .payment()
+        .spend_verify(
+            &state.ecash_params,
+            &verification_key,
+            verify_credential_body.credential().pay_info(),
+        )
+        .map_err(|_| {
+            CoconutError::CompactEcashInternalError(CompactEcashError::PaymentVerification)
+        })?;
 
     vote_yes &= Coin::from(proposed_release_funds)
         == Coin::new(
-            verify_credential_body.credential().voucher_value() as u128,
+            verify_credential_body.credential().value() as u128,
             state.mix_denom.clone(),
         );
 
@@ -302,4 +366,36 @@ pub async fn verify_bandwidth_credential(
     accepted_vote_err(ret)?;
 
     Ok(Json(VerifyCredentialResponse::new(vote_yes)))
+}
+
+#[derive(Getters, CopyGetters)]
+pub struct EcashParameters {
+    #[getset(get = "pub")]
+    ecash_params: Parameters,
+}
+
+impl EcashParameters {
+    pub fn new() -> EcashParameters {
+        let binding = fs::read_to_string("ecash_params.txt").unwrap();
+        let params_base58 = binding.trim();
+        let ecash_params = Parameters::try_from_bs58(params_base58).unwrap(); //SW Waiting for an actual parameters generation scheme.
+        EcashParameters { ecash_params }
+    }
+
+    pub fn stage() -> AdHoc {
+        AdHoc::on_ignite("Ecash Parameters Stage", |rocket| async {
+            rocket.manage(Self::new()).mount(
+                // this format! is so ugly...
+                format!("/{}/{}/{}", NYM_API_VERSION, COCONUT_ROUTES, BANDWIDTH),
+                routes![ecash_parameters],
+            )
+        })
+    }
+}
+
+#[get("/ecash-parameters")]
+pub async fn ecash_parameters(
+    state: &RocketState<EcashParameters>,
+) -> Result<Json<EcashParametersResponse>> {
+    Ok(Json(EcashParametersResponse::new(&state.ecash_params)))
 }

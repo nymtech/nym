@@ -123,6 +123,18 @@ impl CommonConfigsWrapper {
         }
     }
 
+    pub(crate) fn try_get_ecash_key(&self) -> anyhow::Result<nym_pemstore::KeyPairPath> {
+        match self {
+            CommonConfigsWrapper::NymClients(cfg) => {
+                Ok(cfg.storage_paths.inner.keys.ecash_key_pair_path())
+            }
+            CommonConfigsWrapper::NymApi(cfg) => {
+                Ok(cfg.network_monitor.storage_paths.ecash_keypair_path())
+            }
+            CommonConfigsWrapper::Unknown(cfg) => cfg.try_get_ecash_key(),
+        }
+    }
+
     pub(crate) fn try_get_credentials_store(&self) -> anyhow::Result<PathBuf> {
         match self {
             CommonConfigsWrapper::NymClients(cfg) => {
@@ -159,6 +171,17 @@ struct NymApiConfigNetworkMonitorLight {
 #[derive(Deserialize, Debug)]
 struct NetworkMonitorPaths {
     credentials_database_path: PathBuf,
+    ecash_private_key_path: PathBuf,
+    ecash_public_key_path: PathBuf,
+}
+
+impl NetworkMonitorPaths {
+    fn ecash_keypair_path(&self) -> nym_pemstore::KeyPairPath {
+        nym_pemstore::KeyPairPath::new(
+            self.ecash_private_key_path.clone(),
+            self.ecash_public_key_path.clone(),
+        )
+    }
 }
 
 // a hacky way of reading common data from client configs (native, socks5, etc.)
@@ -213,6 +236,10 @@ impl UnknownConfigWrapper {
         } else {
             bail!("no id field present in the config")
         }
+    }
+
+    pub(crate) fn try_get_ecash_key(&self) -> anyhow::Result<nym_pemstore::KeyPairPath> {
+        todo!()
     }
 
     pub(crate) fn try_get_credentials_store(&self) -> anyhow::Result<PathBuf> {

@@ -3,29 +3,51 @@
 
 use cosmrs::AccountId;
 use getset::{CopyGetters, Getters};
+use nym_compact_ecash::{
+    error::CompactEcashError,
+    scheme::{withdrawal::WithdrawalRequest, EcashCredential},
+    setup::Parameters,
+    VerificationKeyAuth,
+};
 use serde::{Deserialize, Serialize};
 
-use nym_coconut_interface::{
-    error::CoconutInterfaceError, Attribute, Base58, BlindSignRequest, Credential, VerificationKey,
-};
-
-#[derive(Serialize, Deserialize, Getters, CopyGetters)]
-pub struct VerifyCredentialBody {
+#[derive(Serialize, Deserialize, Getters, CopyGetters, Clone)]
+pub struct OfflineVerifyCredentialBody {
     #[getset(get = "pub")]
-    credential: Credential,
+    credential: EcashCredential,
+    #[getset(get = "pub")]
+    gateway_cosmos_addr: AccountId,
+}
+
+impl OfflineVerifyCredentialBody {
+    pub fn new(
+        credential: EcashCredential,
+        gateway_cosmos_addr: AccountId,
+    ) -> OfflineVerifyCredentialBody {
+        OfflineVerifyCredentialBody {
+            credential,
+            gateway_cosmos_addr,
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Getters, CopyGetters, Clone)]
+pub struct OnlineVerifyCredentialBody {
+    #[getset(get = "pub")]
+    credential: EcashCredential,
     #[getset(get = "pub")]
     proposal_id: u64,
     #[getset(get = "pub")]
     gateway_cosmos_addr: AccountId,
 }
 
-impl VerifyCredentialBody {
+impl OnlineVerifyCredentialBody {
     pub fn new(
-        credential: Credential,
+        credential: EcashCredential,
         proposal_id: u64,
         gateway_cosmos_addr: AccountId,
-    ) -> VerifyCredentialBody {
-        VerifyCredentialBody {
+    ) -> OnlineVerifyCredentialBody {
+        OnlineVerifyCredentialBody {
             credential,
             proposal_id,
             gateway_cosmos_addr,
@@ -50,12 +72,14 @@ impl VerifyCredentialResponse {
 #[derive(Clone, Serialize, Deserialize, Debug, Getters, CopyGetters)]
 pub struct BlindSignRequestBody {
     #[getset(get = "pub")]
-    blind_sign_request: BlindSignRequest,
+    withdrawal_request: WithdrawalRequest,
     #[getset(get = "pub")]
     tx_hash: String,
     #[getset(get = "pub")]
     signature: String,
-    public_attributes: Vec<String>,
+    #[getset(get = "pub")]
+    ecash_pubkey: String,
+    //public_attributes: Vec<String>,
     #[getset(get = "pub")]
     public_attributes_plain: Vec<String>,
     #[getset(get = "pub")]
@@ -64,32 +88,34 @@ pub struct BlindSignRequestBody {
 
 impl BlindSignRequestBody {
     pub fn new(
-        blind_sign_request: &BlindSignRequest,
+        withdrawal_request: &WithdrawalRequest,
         tx_hash: String,
         signature: String,
-        public_attributes: &[Attribute],
+        ecash_pubkey: String,
+        //public_attributes: &[Attribute],
         public_attributes_plain: Vec<String>,
         total_params: u32,
     ) -> BlindSignRequestBody {
         BlindSignRequestBody {
-            blind_sign_request: blind_sign_request.clone(),
+            withdrawal_request: withdrawal_request.clone(),
             tx_hash,
             signature,
-            public_attributes: public_attributes
-                .iter()
-                .map(|attr| attr.to_bs58())
-                .collect(),
+            ecash_pubkey,
+            // public_attributes: public_attributes
+            //     .iter()
+            //     .map(|attr| attr.to_bs58())
+            //     .collect(),
             public_attributes_plain,
             total_params,
         }
     }
 
-    pub fn public_attributes(&self) -> Vec<Attribute> {
-        self.public_attributes
-            .iter()
-            .map(|x| Attribute::try_from_bs58(x).unwrap())
-            .collect()
-    }
+    // pub fn public_attributes(&self) -> Vec<Attribute> {
+    //     self.public_attributes
+    //         .iter()
+    //         .map(|x| Attribute::try_from_bs58(x).unwrap())
+    //         .collect()
+    // }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -110,7 +136,7 @@ impl BlindedSignatureResponse {
         bs58::encode(&self.to_bytes()).into_string()
     }
 
-    pub fn from_base58_string<I: AsRef<[u8]>>(val: I) -> Result<Self, CoconutInterfaceError> {
+    pub fn from_base58_string<I: AsRef<[u8]>>(val: I) -> Result<Self, CompactEcashError> {
         let bytes = bs58::decode(val).into_vec()?;
         Self::from_bytes(&bytes)
     }
@@ -121,9 +147,12 @@ impl BlindedSignatureResponse {
         bytes
     }
 
-    pub fn from_bytes(bytes: &[u8]) -> Result<Self, CoconutInterfaceError> {
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self, CompactEcashError> {
         if bytes.len() < 32 {
-            return Err(CoconutInterfaceError::InvalidByteLength(bytes.len(), 32));
+            return Err(CompactEcashError::DeserializationMinLength {
+                min: 32,
+                actual: bytes.len(),
+            });
         }
         let mut remote_key = [0u8; 32];
         remote_key.copy_from_slice(&bytes[..32]);
@@ -137,11 +166,11 @@ impl BlindedSignatureResponse {
 
 #[derive(Serialize, Deserialize)]
 pub struct VerificationKeyResponse {
-    pub key: VerificationKey,
+    pub key: VerificationKeyAuth,
 }
 
 impl VerificationKeyResponse {
-    pub fn new(key: VerificationKey) -> VerificationKeyResponse {
+    pub fn new(key: VerificationKeyAuth) -> VerificationKeyResponse {
         VerificationKeyResponse { key }
     }
 }
@@ -154,5 +183,18 @@ pub struct CosmosAddressResponse {
 impl CosmosAddressResponse {
     pub fn new(addr: AccountId) -> CosmosAddressResponse {
         CosmosAddressResponse { addr }
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct EcashParametersResponse {
+    pub params: Parameters,
+}
+
+impl EcashParametersResponse {
+    pub fn new(params: &Parameters) -> EcashParametersResponse {
+        EcashParametersResponse {
+            params: params.clone(),
+        }
     }
 }

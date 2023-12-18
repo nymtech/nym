@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::client::key_manager::persistence::KeyStore;
+use nym_compact_ecash::scheme::keygen::KeyPairUser;
+use nym_compact_ecash::setup::GroupParameters;
+use nym_compact_ecash::{generate_keypair_user, PublicKeyUser};
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_gateway_requests::registration::handshake::SharedKeys;
 use nym_sphinx::acknowledgements::AckKey;
@@ -87,6 +90,14 @@ impl ManagedKeys {
         }
     }
 
+    pub fn ecash_keypair(&self) -> Arc<KeyPairUser> {
+        match self {
+            ManagedKeys::Initial(keys) => keys.ecash_keypair(),
+            ManagedKeys::FullyDerived(keys) => keys.ecash_keypair(),
+            ManagedKeys::Invalidated => unreachable!("the managed keys got invalidated"),
+        }
+    }
+
     pub fn ack_key(&self) -> Arc<AckKey> {
         match self {
             ManagedKeys::Initial(keys) => keys.ack_key(),
@@ -120,6 +131,14 @@ impl ManagedKeys {
         match self {
             ManagedKeys::Initial(keys) => keys.encryption_keypair.public_key(),
             ManagedKeys::FullyDerived(keys) => keys.encryption_keypair.public_key(),
+            ManagedKeys::Invalidated => unreachable!("the managed keys got invalidated"),
+        }
+    }
+
+    pub fn ecash_public_key(&self) -> PublicKeyUser {
+        match self {
+            ManagedKeys::Initial(keys) => keys.ecash_keypair().public_key(),
+            ManagedKeys::FullyDerived(keys) => keys.ecash_keypair().public_key(),
             ManagedKeys::Invalidated => unreachable!("the managed keys got invalidated"),
         }
     }
@@ -185,6 +204,9 @@ pub struct KeyManagerBuilder {
 
     /// key used for producing and processing acknowledgement packets.
     ack_key: Arc<AckKey>,
+
+    /// key used for ecash wallet
+    ecash_keypair: Arc<KeyPairUser>,
 }
 
 impl KeyManagerBuilder {
@@ -197,6 +219,7 @@ impl KeyManagerBuilder {
             identity_keypair: Arc::new(identity::KeyPair::new(rng)),
             encryption_keypair: Arc::new(encryption::KeyPair::new(rng)),
             ack_key: Arc::new(AckKey::new(rng)),
+            ecash_keypair: Arc::new(generate_keypair_user(&GroupParameters::new().unwrap())),
         }
     }
 
@@ -207,6 +230,7 @@ impl KeyManagerBuilder {
         KeyManager {
             identity_keypair: self.identity_keypair,
             encryption_keypair: self.encryption_keypair,
+            ecash_keypair: self.ecash_keypair,
             gateway_shared_key,
             ack_key: self.ack_key,
         }
@@ -218,6 +242,10 @@ impl KeyManagerBuilder {
 
     pub fn encryption_keypair(&self) -> Arc<encryption::KeyPair> {
         Arc::clone(&self.encryption_keypair)
+    }
+
+    pub fn ecash_keypair(&self) -> Arc<KeyPairUser> {
+        Arc::clone(&self.ecash_keypair)
     }
 
     pub fn ack_key(&self) -> Arc<AckKey> {
@@ -240,6 +268,9 @@ pub struct KeyManager {
     /// encryption key associated with the client instance.
     encryption_keypair: Arc<encryption::KeyPair>,
 
+    /// ecash key associated with the client instance
+    ecash_keypair: Arc<KeyPairUser>,
+
     /// shared key derived with the gateway during "registration handshake"
     // I'm not a fan of how we broke the nice transition of `KeyManagerBuilder` -> `KeyManager`
     // by making this field optional.
@@ -255,12 +286,14 @@ impl KeyManager {
     pub fn from_keys(
         id_keypair: identity::KeyPair,
         enc_keypair: encryption::KeyPair,
+        ecash_keypair: KeyPairUser,
         gateway_shared_key: Option<SharedKeys>,
         ack_key: AckKey,
     ) -> Self {
         Self {
             identity_keypair: Arc::new(id_keypair),
             encryption_keypair: Arc::new(enc_keypair),
+            ecash_keypair: Arc::new(ecash_keypair),
             gateway_shared_key: gateway_shared_key.map(Arc::new),
             ack_key: Arc::new(ack_key),
         }
@@ -283,6 +316,12 @@ impl KeyManager {
     pub fn encryption_keypair(&self) -> Arc<encryption::KeyPair> {
         Arc::clone(&self.encryption_keypair)
     }
+
+    /// Gets an atomically reference counted pointer to [`encryption::KeyPair`].
+    pub fn ecash_keypair(&self) -> Arc<KeyPairUser> {
+        Arc::clone(&self.ecash_keypair)
+    }
+
     /// Gets an atomically reference counted pointer to [`AckKey`].
     pub fn ack_key(&self) -> Arc<AckKey> {
         Arc::clone(&self.ack_key)
@@ -310,6 +349,7 @@ impl KeyManager {
         KeyManagerBuilder {
             identity_keypair: self.identity_keypair,
             encryption_keypair: self.encryption_keypair,
+            ecash_keypair: self.ecash_keypair,
             ack_key: self.ack_key,
         }
     }
@@ -320,6 +360,7 @@ fn _assert_keys_zeroize_on_drop() {
 
     _assert_zeroize_on_drop::<identity::KeyPair>();
     _assert_zeroize_on_drop::<encryption::KeyPair>();
+    _assert_zeroize_on_drop::<KeyPairUser>();
     _assert_zeroize_on_drop::<AckKey>();
     _assert_zeroize_on_drop::<SharedKeys>();
 }

@@ -5,7 +5,8 @@ use super::InternalSignRequest;
 use crate::coconut::error::{CoconutError, Result};
 use cosmwasm_std::{to_binary, Addr, CosmosMsg, Decimal, WasmMsg};
 use nym_api_requests::coconut::{
-    BlindSignRequestBody, BlindedSignatureResponse, VerifyCredentialBody, VerifyCredentialResponse,
+    BlindSignRequestBody, BlindedSignatureResponse, OnlineVerifyCredentialBody,
+    VerifyCredentialResponse,
 };
 use nym_coconut::tests::helpers::theta_from_keys_and_attributes;
 use nym_coconut::{prepare_blind_sign, ttp_keygen, Base58, BlindedSignature, Parameters};
@@ -25,7 +26,7 @@ use nym_credentials::coconut::params::{
 use nym_crypto::shared_key::recompute_shared_key;
 use nym_crypto::symmetric::stream_cipher;
 use nym_validator_client::nym_api::routes::{
-    API_VERSION, BANDWIDTH, COCONUT_BLIND_SIGN, COCONUT_ROUTES, COCONUT_VERIFY_BANDWIDTH_CREDENTIAL,
+    API_VERSION, BANDWIDTH, COCONUT_BLIND_SIGN, COCONUT_ROUTES, ECASH_VERIFY_OFFLINE_CREDENTIAL,
 };
 use nym_validator_client::nyxd::Coin;
 use nym_validator_client::nyxd::{
@@ -880,14 +881,17 @@ async fn verification_of_bandwidth_credential() {
     let proposal_id = 42;
     // The address is not used, so we can use a duplicate
     let gateway_cosmos_addr = validator_address.clone();
-    let req =
-        VerifyCredentialBody::new(credential.clone(), proposal_id, gateway_cosmos_addr.clone());
+    let req = OnlineVerifyCredentialBody::new(
+        credential.clone(),
+        proposal_id,
+        gateway_cosmos_addr.clone(),
+    );
 
     // Test endpoint with not proposal for the proposal id
     let response = client
         .post(format!(
             "/{}/{}/{}/{}",
-            API_VERSION, COCONUT_ROUTES, BANDWIDTH, COCONUT_VERIFY_BANDWIDTH_CREDENTIAL
+            API_VERSION, COCONUT_ROUTES, BANDWIDTH, ECASH_VERIFY_OFFLINE_CREDENTIAL
         ))
         .json(&req)
         .dispatch()
@@ -924,7 +928,7 @@ async fn verification_of_bandwidth_credential() {
     let response = client
         .post(format!(
             "/{}/{}/{}/{}",
-            API_VERSION, COCONUT_ROUTES, BANDWIDTH, COCONUT_VERIFY_BANDWIDTH_CREDENTIAL
+            API_VERSION, COCONUT_ROUTES, BANDWIDTH, ECASH_VERIFY_OFFLINE_CREDENTIAL
         ))
         .json(&req)
         .dispatch()
@@ -947,7 +951,7 @@ async fn verification_of_bandwidth_credential() {
     let response = client
         .post(format!(
             "/{}/{}/{}/{}",
-            API_VERSION, COCONUT_ROUTES, BANDWIDTH, COCONUT_VERIFY_BANDWIDTH_CREDENTIAL
+            API_VERSION, COCONUT_ROUTES, BANDWIDTH, ECASH_VERIFY_OFFLINE_CREDENTIAL
         ))
         .json(&req)
         .dispatch()
@@ -979,7 +983,7 @@ async fn verification_of_bandwidth_credential() {
     let response = client
         .post(format!(
             "/{}/{}/{}/{}",
-            API_VERSION, COCONUT_ROUTES, BANDWIDTH, COCONUT_VERIFY_BANDWIDTH_CREDENTIAL
+            API_VERSION, COCONUT_ROUTES, BANDWIDTH, ECASH_VERIFY_OFFLINE_CREDENTIAL
         ))
         .json(&req)
         .dispatch()
@@ -1000,7 +1004,7 @@ async fn verification_of_bandwidth_credential() {
     let response = client
         .post(format!(
             "/{}/{}/{}/{}",
-            API_VERSION, COCONUT_ROUTES, BANDWIDTH, COCONUT_VERIFY_BANDWIDTH_CREDENTIAL
+            API_VERSION, COCONUT_ROUTES, BANDWIDTH, ECASH_VERIFY_OFFLINE_CREDENTIAL
         ))
         .json(&req)
         .dispatch()
@@ -1032,11 +1036,11 @@ async fn verification_of_bandwidth_credential() {
         0,
     );
     let bad_req =
-        VerifyCredentialBody::new(bad_credential, proposal_id, gateway_cosmos_addr.clone());
+        OnlineVerifyCredentialBody::new(bad_credential, proposal_id, gateway_cosmos_addr.clone());
     let response = client
         .post(format!(
             "/{}/{}/{}/{}",
-            API_VERSION, COCONUT_ROUTES, BANDWIDTH, COCONUT_VERIFY_BANDWIDTH_CREDENTIAL
+            API_VERSION, COCONUT_ROUTES, BANDWIDTH, ECASH_VERIFY_OFFLINE_CREDENTIAL
         ))
         .json(&bad_req)
         .dispatch()
@@ -1075,7 +1079,7 @@ async fn verification_of_bandwidth_credential() {
     let response = client
         .post(format!(
             "/{}/{}/{}/{}",
-            API_VERSION, COCONUT_ROUTES, BANDWIDTH, COCONUT_VERIFY_BANDWIDTH_CREDENTIAL
+            API_VERSION, COCONUT_ROUTES, BANDWIDTH, ECASH_VERIFY_OFFLINE_CREDENTIAL
         ))
         .json(&req)
         .dispatch()
@@ -1113,7 +1117,7 @@ async fn verification_of_bandwidth_credential() {
     let response = client
         .post(format!(
             "/{}/{}/{}/{}",
-            API_VERSION, COCONUT_ROUTES, BANDWIDTH, COCONUT_VERIFY_BANDWIDTH_CREDENTIAL
+            API_VERSION, COCONUT_ROUTES, BANDWIDTH, ECASH_VERIFY_OFFLINE_CREDENTIAL
         ))
         .json(&req)
         .dispatch()
@@ -1142,7 +1146,7 @@ async fn verification_of_bandwidth_credential() {
     let response = client
         .post(format!(
             "/{}/{}/{}/{}",
-            API_VERSION, COCONUT_ROUTES, BANDWIDTH, COCONUT_VERIFY_BANDWIDTH_CREDENTIAL
+            API_VERSION, COCONUT_ROUTES, BANDWIDTH, ECASH_VERIFY_OFFLINE_CREDENTIAL
         ))
         .json(&req)
         .dispatch()

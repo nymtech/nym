@@ -38,6 +38,7 @@ nym-bandwidth-controller = { path = "../../common/bandwidth-controller" }
 nym-bin-common = { path = "../../common/bin-common", features = ["output_format"] }
 nym-client-core = { path = "../../common/client-core", features = ["fs-surb-storage", "cli"] }
 nym-coconut-interface = { path = "../../common/coconut-interface" }
+nym-compact-ecash = { path = "../../common/nym_offline_compact_ecash" }
 nym-config = { path = "../../common/config" }
 nym-credential-storage = { path = "../../common/credential-storage" }
 nym-credentials = { path = "../../common/credentials" }

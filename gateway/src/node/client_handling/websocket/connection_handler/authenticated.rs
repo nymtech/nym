@@ -23,7 +23,6 @@ use std::{convert::TryFrom, process, time::Duration};
 
 use crate::node::{
     client_handling::{
-        bandwidth::Bandwidth,
         websocket::{
             connection_handler::{ClientDetails, FreshHandler},
             message_receiver::{
@@ -52,9 +51,6 @@ pub(crate) enum RequestHandlingError {
     #[error("The received request is not valid in the current context")]
     IllegalRequest,
 
-    #[error("Provided bandwidth credential asks for more bandwidth than it is supported to add at once (credential value: {0}, supported: {}). Try to split it before attempting again", i64::MAX)]
-    UnsupportedBandwidthValue(u64),
-
     #[error("Provided bandwidth credential did not verify correctly on {0}")]
     InvalidBandwidthCredential(String),
 
@@ -73,6 +69,9 @@ pub(crate) enum RequestHandlingError {
     #[error("There was a problem with the proposal id: {reason}")]
     ProposalIdError { reason: String },
 
+    #[error("Compact ecash error - {0}")]
+    CompactEcashError(#[from] nym_compact_ecash::error::CompactEcashError),
+
     #[error("Coconut interface error - {0}")]
     CoconutInterfaceError(#[from] nym_coconut_interface::error::CoconutInterfaceError),
 
@@ -81,6 +80,9 @@ pub(crate) enum RequestHandlingError {
 
     #[error("Credential error - {0}")]
     CredentialError(#[from] nym_credentials::error::Error),
+
+    #[error("Internal error")]
+    InternalError,
 }
 
 impl RequestHandlingError {
@@ -215,7 +217,7 @@ where
     ///
     /// # Arguments
     ///
-    /// * `enc_credential`: raw encrypted bandwidth credential to verify.
+    /// * `enc_credential`: raw encrypted credential to verify.
     /// * `iv`: fresh iv used for the credential.
     async fn handle_bandwidth(
         &mut self,
@@ -223,7 +225,7 @@ where
         iv: Vec<u8>,
     ) -> Result<ServerResponse, RequestHandlingError> {
         let iv = IV::try_from_bytes(&iv)?;
-        let credential = ClientControlRequest::try_from_enc_coconut_bandwidth_credential(
+        let credential = ClientControlRequest::try_from_enc_ecash_credential(
             enc_credential,
             &self.client.shared_keys,
             iv,
@@ -232,13 +234,13 @@ where
         // Get the latest coconut signers and their VK
         let credential_api_clients = self
             .inner
-            .coconut_verifier
-            .all_coconut_api_clients(*credential.epoch_id())
+            .ecash_verifier
+            .all_ecash_api_clients(*credential.epoch_id())
             .await?;
         let current_api_clients = self
             .inner
-            .coconut_verifier
-            .all_current_coconut_api_clients()
+            .ecash_verifier
+            .all_current_ecash_api_clients()
             .await?;
         if credential_api_clients.is_empty() || current_api_clients.is_empty() {
             return Err(RequestHandlingError::NotEnoughNymAPIs {
@@ -250,31 +252,27 @@ where
         let aggregated_verification_key =
             nym_credentials::obtain_aggregate_verification_key(&credential_api_clients).await?;
 
-        if !credential.verify(&aggregated_verification_key) {
-            return Err(RequestHandlingError::InvalidBandwidthCredential(
-                String::from("credential failed to verify on gateway"),
-            ));
-        }
-
         self.inner
-            .coconut_verifier
-            .release_funds(current_api_clients, &credential)
+            .ecash_verifier
+            .check_payment(&credential, &aggregated_verification_key)
             .await?;
 
-        let bandwidth = Bandwidth::from(credential);
-        let bandwidth_value = bandwidth.value();
+        if self.inner.offline_credential_verification {
+            self.inner
+                .ecash_verifier
+                .post_credential(current_api_clients, credential.clone())?;
 
-        if bandwidth_value > i64::MAX as u64 {
-            // note that this would have represented more than 1 exabyte,
-            // which is like 125,000 worth of hard drives so I don't think we have
-            // to worry about it for now...
-            warn!("Somehow we received bandwidth value higher than 9223372036854775807. We don't really want to deal with this now");
-            return Err(RequestHandlingError::UnsupportedBandwidthValue(
-                bandwidth_value,
-            ));
+            self.inner.storage.insert_credential(credential).await?;
+        } else {
+            self.inner
+                .ecash_verifier
+                .release_funds(current_api_clients, &credential)
+                .await?;
         }
 
-        self.increase_bandwidth(bandwidth_value as i64).await?;
+        let bandwidth_value = 100000000; //SW MAKE A GLOBAL PARAMETER
+
+        self.increase_bandwidth(bandwidth_value).await?;
         let available_total = self.get_available_bandwidth().await?;
 
         Ok(ServerResponse::Bandwidth { available_total })
@@ -357,7 +355,7 @@ where
         match ClientControlRequest::try_from(raw_request) {
             Err(e) => RequestHandlingError::InvalidTextRequest(e).into_error_message(),
             Ok(request) => match request {
-                ClientControlRequest::BandwidthCredential { enc_credential, iv } => self
+                ClientControlRequest::EcashCredential { enc_credential, iv } => self
                     .handle_bandwidth(enc_credential, iv)
                     .await
                     .into_ws_message(),

@@ -1,7 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use nym_coconut_interface::CoconutError;
+use nym_compact_ecash::error::CompactEcashError;
 use nym_credential_storage::error::StorageError;
 use nym_credentials::error::Error as CredentialsError;
 use nym_crypto::asymmetric::encryption::KeyRecoveryError;
@@ -25,8 +25,8 @@ pub enum BandwidthControllerError {
     #[error(transparent)]
     StorageError(#[from] StorageError),
 
-    #[error("Coconut error - {0}")]
-    CoconutError(#[from] CoconutError),
+    #[error("Ecash error - {0}")]
+    EcashError(#[from] CompactEcashError),
 
     #[error("Validator client error - {0}")]
     ValidatorError(#[from] ValidatorClientError),

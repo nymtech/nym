@@ -1,7 +1,7 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::models::CoconutCredential;
+use crate::models::{CoconutCredential, EcashWallet};
 
 #[derive(Clone)]
 pub struct CoconutCredentialManager {
@@ -45,6 +45,41 @@ impl CoconutCredentialManager {
         Ok(())
     }
 
+    /// Inserts provided signature into the database.
+    ///
+    /// # Arguments
+    ///
+    /// * `voucher_info`: What type of credential it is.
+    /// * `signature`: Ecash wallet credential in the form of a wallet.
+    /// * `value` : The value of the ecash wallet
+    /// * `epoch_id`: The epoch when it was signed.
+
+    pub async fn insert_ecash_wallet(
+        &self,
+        voucher_info: String,
+        wallet: String,
+        value: String,
+        epoch_id: String,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query!(
+            "INSERT INTO ecash_wallets(voucher_info, wallet, value, epoch_id, consumed) VALUES (?, ?, ?, ?, ?)",
+            voucher_info, wallet, value, epoch_id, false
+        )
+        .execute(&self.connection_pool)
+        .await?;
+        Ok(())
+    }
+
+    /// Tries to retrieve one of the stored, unused credentials.
+    pub async fn get_next_ecash_wallet(&self) -> Result<Option<EcashWallet>, sqlx::Error> {
+        sqlx::query_as!(
+            EcashWallet,
+            "SELECT * FROM ecash_wallets WHERE NOT consumed"
+        )
+        .fetch_optional(&self.connection_pool)
+        .await
+    }
+
     /// Tries to retrieve one of the stored, unused credentials.
     pub async fn get_next_coconut_credential(
         &self,
@@ -65,6 +100,31 @@ impl CoconutCredentialManager {
     pub async fn consume_coconut_credential(&self, id: i64) -> Result<(), sqlx::Error> {
         sqlx::query!(
             "UPDATE coconut_credentials SET consumed = TRUE WHERE id = ?",
+            id
+        )
+        .execute(&self.connection_pool)
+        .await?;
+        Ok(())
+    }
+
+    /// Consumes in the database the specified credential.
+    ///
+    /// # Arguments
+    ///
+    /// * `wallet` : New wallet string to update with
+    /// * `id`: Database id.
+    /// * `consumed` : If the wallet is entirely consumed
+    ///
+    pub async fn update_ecash_wallet(
+        &self,
+        wallet: String,
+        id: i64,
+        consumed: bool,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query!(
+            "UPDATE ecash_wallets SET wallet = ?, consumed = ? WHERE id = ?",
+            wallet,
+            consumed,
             id
         )
         .execute(&self.connection_pool)

@@ -3,6 +3,7 @@
 
 use crate::client::key_manager::KeyManager;
 use async_trait::async_trait;
+use nym_compact_ecash::scheme::keygen::KeyPairUser;
 use std::error::Error;
 use tokio::sync::Mutex;
 
@@ -104,6 +105,12 @@ impl OnDiskKeys {
         self.load_keypair(identity_paths, "identity")
     }
 
+    #[doc(hidden)]
+    pub fn load_ecash_keypair(&self) -> Result<KeyPairUser, OnDiskKeysError> {
+        let ecash_paths = self.paths.ecash_key_pair_path();
+        self.load_keypair(ecash_paths, "ecash")
+    }
+
     fn load_key<T: PemStorableKey>(
         &self,
         path: &std::path::Path,
@@ -159,6 +166,7 @@ impl OnDiskKeys {
     fn load_keys(&self) -> Result<KeyManager, OnDiskKeysError> {
         let identity_keypair = self.load_identity_keypair()?;
         let encryption_keypair = self.load_encryption_keypair()?;
+        let ecash_keypair = self.load_ecash_keypair()?;
 
         let ack_key: AckKey = self.load_key(self.paths.ack_key(), "ack key")?;
         let gateway_shared_key: Option<SharedKeys> = self
@@ -168,6 +176,7 @@ impl OnDiskKeys {
         Ok(KeyManager::from_keys(
             identity_keypair,
             encryption_keypair,
+            ecash_keypair,
             gateway_shared_key,
             ack_key,
         ))
@@ -178,6 +187,7 @@ impl OnDiskKeys {
 
         let identity_paths = self.paths.identity_key_pair_path();
         let encryption_paths = self.paths.encryption_key_pair_path();
+        let ecash_paths = self.paths.ecash_key_pair_path();
 
         self.store_keypair(
             keys.identity_keypair.as_ref(),
@@ -189,6 +199,7 @@ impl OnDiskKeys {
             encryption_paths,
             "encryption keys",
         )?;
+        self.store_keypair(keys.ecash_keypair.as_ref(), ecash_paths, "ecash keys")?;
 
         self.store_key(keys.ack_key.as_ref(), self.paths.ack_key(), "ack key")?;
 

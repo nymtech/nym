@@ -34,6 +34,7 @@ use crate::{config, spawn_future};
 use futures::channel::mpsc;
 use log::{debug, error, info};
 use nym_bandwidth_controller::BandwidthController;
+use nym_compact_ecash::setup::Parameters;
 use nym_credential_storage::storage::Storage as CredentialStorage;
 use nym_crypto::asymmetric::encryption;
 use nym_gateway_client::{
@@ -49,7 +50,10 @@ use nym_task::{TaskClient, TaskHandle};
 use nym_topology::provider_trait::TopologyProvider;
 use nym_topology::HardcodedTopologyProvider;
 use nym_validator_client::nyxd::contract_traits::DkgQueryClient;
+use rand::seq::SliceRandom;
+use rand::thread_rng;
 use std::fmt::Debug;
+use std::ops::Deref;
 use std::path::Path;
 use std::sync::Arc;
 use url::Url;
@@ -556,6 +560,23 @@ where
         setup_gateway(setup_method, key_store, details_store).await
     }
 
+    async fn get_ecash_parameters(nym_api_urls: Vec<Url>) -> Result<Parameters, ClientCoreError> {
+        let nym_api = nym_api_urls
+            .choose(&mut thread_rng())
+            .ok_or(ClientCoreError::ListOfNymApisIsEmpty)?;
+
+        let validator_client = nym_validator_client::NymApiClient::new(nym_api.clone());
+        match validator_client.ecash_parameters().await {
+            Err(err) => {
+                error!(
+                    "Failed to grab ecash parameters - {err}\n Plesae try again in a few minutes"
+                );
+                Err(ClientCoreError::ValidatorClientError(err))
+            }
+            Ok(response) => Ok(response.params),
+        }
+    }
+
     pub async fn start_base(mut self) -> Result<BaseClient, ClientCoreError>
     where
         S::ReplyStore: Send + Sync,
@@ -612,9 +633,16 @@ where
 
         // the components are started in very specific order. Unless you know what you are doing,
         // do not change that.
-        let bandwidth_controller = self
-            .dkg_query_client
-            .map(|client| BandwidthController::new(credential_store, client));
+        let ecash_parameters =
+            Self::get_ecash_parameters(self.config.get_nym_api_endpoints()).await?;
+        let bandwidth_controller = self.dkg_query_client.map(|client| {
+            BandwidthController::new(
+                credential_store,
+                client,
+                init_res.managed_keys.ecash_keypair().deref().clone(),
+                ecash_parameters,
+            )
+        });
 
         let topology_provider = Self::setup_topology_provider(
             self.custom_topology_provider.take(),

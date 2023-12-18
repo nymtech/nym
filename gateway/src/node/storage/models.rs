@@ -18,3 +18,10 @@ pub(crate) struct PersistedBandwidth {
     pub(crate) client_address_bs58: String,
     pub(crate) available: i64,
 }
+
+pub(crate) struct PendingStoredCredential {
+    pub(crate) id: i64,
+    pub(crate) credential: String,
+    pub(crate) address: String,
+    pub(crate) api_url: String,
+}

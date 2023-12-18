@@ -1,19 +1,28 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::node::client_handling::websocket::connection_handler::coconut::PendingCredential;
 use crate::node::storage::bandwidth::BandwidthManager;
+use crate::node::storage::credential::CredentialManager;
 use crate::node::storage::error::StorageError;
 use crate::node::storage::inboxes::InboxManager;
 use crate::node::storage::models::{PersistedSharedKeys, StoredMessage};
 use crate::node::storage::shared_keys::SharedKeysManager;
 use async_trait::async_trait;
 use log::{debug, error};
+use nym_compact_ecash::scheme::EcashCredential;
+use nym_compact_ecash::Base58;
 use nym_gateway_requests::registration::handshake::SharedKeys;
 use nym_sphinx::DestinationAddressBytes;
+use nym_validator_client::nyxd::AccountId;
+use nym_validator_client::NymApiClient;
 use sqlx::ConnectOptions;
 use std::path::Path;
+use std::str::FromStr;
+use url::Url;
 
 mod bandwidth;
+mod credential;
 pub(crate) mod error;
 mod inboxes;
 mod models;
@@ -134,6 +143,36 @@ pub(crate) trait Storage: Send + Sync {
         client_address: DestinationAddressBytes,
         amount: i64,
     ) -> Result<(), StorageError>;
+
+    /// Stored the accepted credential
+    ///
+    /// # Arguments
+    ///
+    /// * `credential`: credential to store
+    async fn insert_credential(&self, credential: EcashCredential) -> Result<(), StorageError>;
+
+    /// Store a pending credential
+    ///
+    /// # Arguments
+    ///
+    /// * `pending`: pending credential to store
+    async fn insert_pending_credential(
+        &self,
+        pending: PendingCredential,
+    ) -> Result<(), StorageError>;
+
+    /// Remove a pending credential
+    ///
+    /// # Arguments
+    ///
+    /// * `id`: id of the pending credential to remove
+    async fn remove_pending_credential(&self, id: i64) -> Result<(), StorageError>;
+
+    /// Get all pending credentials
+    ///
+    async fn get_all_pending_credential(
+        &self,
+    ) -> Result<Vec<(i64, PendingCredential)>, StorageError>;
 }
 
 // note that clone here is fine as upon cloning the same underlying pool will be used
@@ -142,6 +181,7 @@ pub(crate) struct PersistentStorage {
     shared_key_manager: SharedKeysManager,
     inbox_manager: InboxManager,
     bandwidth_manager: BandwidthManager,
+    credential_manager: CredentialManager,
 }
 
 impl PersistentStorage {
@@ -187,7 +227,8 @@ impl PersistentStorage {
         Ok(PersistentStorage {
             shared_key_manager: SharedKeysManager::new(connection_pool.clone()),
             inbox_manager: InboxManager::new(connection_pool.clone(), message_retrieval_limit),
-            bandwidth_manager: BandwidthManager::new(connection_pool),
+            bandwidth_manager: BandwidthManager::new(connection_pool.clone()),
+            credential_manager: CredentialManager::new(connection_pool),
         })
     }
 }
@@ -304,6 +345,62 @@ impl Storage for PersistentStorage {
             .await?;
         Ok(())
     }
+
+    async fn insert_credential(&self, credential: EcashCredential) -> Result<(), StorageError> {
+        self.credential_manager
+            .insert_credential(credential.to_bs58())
+            .await?;
+        Ok(())
+    }
+
+    async fn insert_pending_credential(
+        &self,
+        pending: PendingCredential,
+    ) -> Result<(), StorageError> {
+        self.credential_manager
+            .insert_pending_credential(
+                pending.credential.to_bs58(),
+                pending.address.into(),
+                pending.client.api_url().to_string(),
+            )
+            .await?;
+        Ok(())
+    }
+
+    async fn remove_pending_credential(&self, id: i64) -> Result<(), StorageError> {
+        self.credential_manager
+            .remove_pending_credential(id)
+            .await?;
+        Ok(())
+    }
+
+    async fn get_all_pending_credential(
+        &self,
+    ) -> Result<Vec<(i64, PendingCredential)>, StorageError> {
+        let credentials: Vec<_> = self
+            .credential_manager
+            .get_all_pending_credential()
+            .await?
+            .into_iter()
+            .map(|stored_pending| {
+                let credential = EcashCredential::try_from_bs58(stored_pending.credential)
+                    .map_err(|err| StorageError::DataCorruption(err.to_string()))?;
+                Ok((
+                    stored_pending.id,
+                    PendingCredential {
+                        credential,
+                        address: AccountId::from_str(&stored_pending.address)
+                            .map_err(|err| StorageError::DataCorruption(err.to_string()))?,
+                        client: NymApiClient::new(
+                            Url::from_str(&stored_pending.api_url)
+                                .map_err(|err| StorageError::DataCorruption(err.to_string()))?,
+                        ),
+                    },
+                ))
+            })
+            .collect();
+        credentials.into_iter().collect()
+    }
 }
 
 /// In-memory implementation of `Storage`. The intention is primarily in testing environments.
@@ -391,6 +488,27 @@ impl Storage for InMemStorage {
         _client_address: DestinationAddressBytes,
         _amount: i64,
     ) -> Result<(), StorageError> {
+        todo!()
+    }
+
+    async fn insert_credential(&self, _credential: EcashCredential) -> Result<(), StorageError> {
+        todo!()
+    }
+
+    async fn insert_pending_credential(
+        &self,
+        _pending: PendingCredential,
+    ) -> Result<(), StorageError> {
+        todo!()
+    }
+
+    async fn remove_pending_credential(&self, _id: i64) -> Result<(), StorageError> {
+        todo!()
+    }
+
+    async fn get_all_pending_credential(
+        &self,
+    ) -> Result<Vec<(i64, PendingCredential)>, StorageError> {
         todo!()
     }
 }

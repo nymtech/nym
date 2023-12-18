@@ -51,6 +51,12 @@ keys.private_encryption_key_file = '{{ storage_paths.keys.private_encryption_key
 # Path to file containing public encryption key.
 keys.public_encryption_key_file = '{{ storage_paths.keys.public_encryption_key_file }}'
 
+# Path to file containing private ecash key.
+keys.private_ecash_key_file = '{{ storage_paths.keys.private_ecash_key_file }}'
+
+# Path to file containing public ecash key.
+keys.public_ecash_key_file = '{{ storage_paths.keys.public_ecash_key_file }}'
+
 # A gateway specific, optional, base58 stringified shared key used for
 # communication with particular gateway.
 keys.gateway_shared_key_file = '{{ storage_paths.keys.gateway_shared_key_file }}'

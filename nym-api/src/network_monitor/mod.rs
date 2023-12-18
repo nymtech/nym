@@ -1,6 +1,7 @@
 // Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::coconut::EcashParameters;
 use crate::network_monitor::monitor::preparer::PacketPreparer;
 use crate::network_monitor::monitor::processor::{
     ReceivedProcessor, ReceivedProcessorReceiver, ReceivedProcessorSender,
@@ -14,8 +15,11 @@ use crate::network_monitor::monitor::Monitor;
 use crate::nym_contract_cache::cache::NymContractCache;
 use crate::storage::NymApiStorage;
 use crate::support::{config, nyxd};
+use anyhow::Result;
 use futures::channel::mpsc;
 use nym_bandwidth_controller::BandwidthController;
+use nym_compact_ecash::generate_keypair_user;
+use nym_compact_ecash::setup::GroupParameters;
 use nym_credential_storage::persistent_storage::PersistentStorage;
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_sphinx::acknowledgements::AckKey;
@@ -30,6 +34,18 @@ pub(crate) mod test_packet;
 pub(crate) mod test_route;
 
 pub(crate) const ROUTE_TESTING_TEST_NONCE: u64 = 0;
+
+pub(crate) fn init_ecash_keypair(config: &config::NetworkMonitor) -> Result<()> {
+    let kp = generate_keypair_user(&GroupParameters::new().unwrap());
+    nym_pemstore::store_keypair(
+        &kp,
+        &nym_pemstore::KeyPairPath::new(
+            &config.storage_paths.ecash_private_key_path,
+            &config.storage_paths.ecash_public_key_path,
+        ),
+    )?;
+    Ok(())
+}
 
 pub(crate) fn setup<'a>(
     config: &'a config::NetworkMonitor,
@@ -77,7 +93,14 @@ impl<'a> NetworkMonitorBuilder<'a> {
 
         let identity_keypair = Arc::new(identity::KeyPair::new(&mut rng));
         let encryption_keypair = Arc::new(encryption::KeyPair::new(&mut rng));
+        let ecash_keypair = nym_pemstore::load_keypair(&nym_pemstore::KeyPairPath::new(
+            self.config.storage_paths.ecash_private_key_path.clone(),
+            self.config.storage_paths.ecash_public_key_path.clone(),
+        ))
+        .expect("cannot load ecash keypair"); //SW todo : what to do if it fails here?
         let ack_key = Arc::new(AckKey::new(&mut rng));
+
+        let ecash_parameters = EcashParameters::new().ecash_params().clone();
 
         let (gateway_status_update_sender, gateway_status_update_receiver) = mpsc::unbounded();
         let (received_processor_sender_channel, received_processor_receiver_channel) =
@@ -98,6 +121,8 @@ impl<'a> NetworkMonitorBuilder<'a> {
                 )
                 .await,
                 self.nyxd_client.clone(),
+                ecash_keypair,
+                ecash_parameters,
             )
         };
 

@@ -34,6 +34,7 @@ zeroize = { workspace = true }
 nym-bandwidth-controller = { path = "../bandwidth-controller" }
 nym-config = { path = "../config" }
 nym-crypto = { path = "../crypto" }
+nym-compact-ecash = { path = "../nym_offline_compact_ecash" }
 nym-explorer-client = { path = "../../explorer-api/explorer-client" }
 nym-gateway-client = { path = "../client-libs/gateway-client" }
 nym-gateway-requests = { path = "../../gateway/gateway-requests" }

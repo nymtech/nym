@@ -1,9 +1,9 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::backends::sqlite::CoconutCredentialManager;
 use crate::error::StorageError;
 use crate::storage::Storage;
+use crate::{backends::sqlite::CoconutCredentialManager, models::EcashWallet};
 
 use crate::models::CoconutCredential;
 use async_trait::async_trait;
@@ -81,6 +81,30 @@ impl Storage for PersistentStorage {
         Ok(())
     }
 
+    async fn insert_ecash_wallet(
+        &self,
+        voucher_info: String,
+        wallet: String,
+        value: String,
+        epoch_id: String,
+    ) -> Result<(), StorageError> {
+        self.coconut_credential_manager
+            .insert_ecash_wallet(voucher_info, wallet, value, epoch_id)
+            .await?;
+
+        Ok(())
+    }
+
+    async fn get_next_ecash_wallet(&self) -> Result<EcashWallet, StorageError> {
+        let credential = self
+            .coconut_credential_manager
+            .get_next_ecash_wallet()
+            .await?
+            .ok_or(StorageError::NoCredential)?;
+
+        Ok(credential)
+    }
+
     async fn get_next_coconut_credential(&self) -> Result<CoconutCredential, StorageError> {
         let credential = self
             .coconut_credential_manager
@@ -96,6 +120,18 @@ impl Storage for PersistentStorage {
             .consume_coconut_credential(id)
             .await?;
 
+        Ok(())
+    }
+
+    async fn update_ecash_wallet(
+        &self,
+        wallet: String,
+        id: i64,
+        consumed: bool,
+    ) -> Result<(), StorageError> {
+        self.coconut_credential_manager
+            .update_ecash_wallet(wallet, id, consumed)
+            .await?;
         Ok(())
     }
 }

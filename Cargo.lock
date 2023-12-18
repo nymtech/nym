@@ -7529,6 +7529,7 @@ dependencies = [
  "clap 4.4.7",
  "cosmwasm-std",
  "futures",
+ "humantime 2.1.0",
  "humantime-serde",
  "nym-bin-common",
  "nym-coconut",

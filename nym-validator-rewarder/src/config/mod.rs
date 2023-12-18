@@ -220,9 +220,8 @@ pub struct RewardingRatios {
 
     /// The percent of the epoch reward being awarded for credential verification.
     pub credential_verification: f64,
-
-    /// The percent of the epoch reward given to Nym.
-    pub nym: f64,
+    // /// The percent of the epoch reward given to Nym.
+    // pub nym: f64,
 }
 
 impl Default for RewardingRatios {
@@ -231,16 +230,14 @@ impl Default for RewardingRatios {
             block_signing: 0.67,
             credential_issuance: 0.33,
             credential_verification: 0.0,
-            nym: 0.0,
+            // nym: 0.0,
         }
     }
 }
 
 impl RewardingRatios {
     pub fn ensure_is_valid(&self) -> Result<(), NymRewarderError> {
-        if self.block_signing + self.credential_verification + self.credential_issuance + self.nym
-            != 1.0
-        {
+        if self.block_signing + self.credential_verification + self.credential_issuance != 1.0 {
             todo!()
         }
         Ok(())

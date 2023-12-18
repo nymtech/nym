@@ -5,7 +5,7 @@ use nym_coconut::CoconutError;
 use nym_validator_client::nym_api::error::NymAPIError;
 use nym_validator_client::nyxd::error::NyxdError;
 use nym_validator_client::nyxd::tx::ErrorReport;
-use nym_validator_client::nyxd::{AccountId, Hash};
+use nym_validator_client::nyxd::{AccountId, Coin, Hash};
 use std::io;
 use std::path::PathBuf;
 use thiserror::Error;
@@ -153,4 +153,11 @@ pub enum NymRewarderError {
 
     #[error("can't enable block signing rewarding without the block scraper")]
     BlockSigningRewardWithoutScraper,
+
+    #[error("the current rewarder balance is insufficient to start the process. The epoch budget is: {epoch_budget} while we currently have {balance}. (the minimum is set to {minimum})")]
+    InsufficientRewarderBalance {
+        epoch_budget: Coin,
+        balance: Coin,
+        minimum: Coin,
+    },
 }

@@ -14,7 +14,7 @@ use nym_validator_client::nyxd::module_traits::staking::{
     QueryHistoricalInfoResponse, QueryValidatorsResponse,
 };
 use nym_validator_client::nyxd::{
-    AccountId, CosmWasmClient, Hash, PageRequest, StakingQueryClient,
+    AccountId, Coin, CosmWasmClient, Hash, PageRequest, StakingQueryClient,
 };
 use nym_validator_client::DirectSigningHttpRpcNyxdClient;
 use std::ops::Deref;
@@ -47,6 +47,15 @@ impl NyxdClient {
 
     pub(crate) async fn address(&self) -> AccountId {
         self.inner.read().await.address()
+    }
+
+    pub(crate) async fn balance(&self, denom: &str) -> Result<Coin, NymRewarderError> {
+        let guard = self.inner.read().await;
+        let address = guard.address();
+        Ok(guard
+            .get_balance(&address, denom.to_string())
+            .await?
+            .unwrap_or(Coin::new(0, denom)))
     }
 
     pub(crate) async fn historical_info(

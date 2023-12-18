@@ -109,6 +109,24 @@ impl Rewarder {
             None
         };
 
+        if config.issuance_monitor.enabled || config.block_signing.enabled {
+            let balance = nyxd_client
+                .balance(&config.rewarding.epoch_budget.denom)
+                .await?;
+            let minimum = Coin::new(
+                config.rewarding.epoch_budget.amount * 100,
+                &config.rewarding.epoch_budget.denom,
+            );
+
+            if balance.amount < minimum.amount {
+                return Err(NymRewarderError::InsufficientRewarderBalance {
+                    epoch_budget: config.rewarding.epoch_budget.clone(),
+                    balance,
+                    minimum,
+                });
+            }
+        }
+
         Ok(Rewarder {
             current_epoch,
             credential_issuance,

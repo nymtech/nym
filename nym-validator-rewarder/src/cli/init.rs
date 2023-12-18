@@ -1,6 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::cli::ConfigOverridableArgs;
 use crate::config::{default_config_directory, default_data_directory, Config};
 use crate::error::NymRewarderError;
 use std::path::PathBuf;
@@ -24,11 +25,6 @@ pub struct Args {
     force: bool,
 }
 
-#[derive(Debug, clap::Args)]
-pub struct ConfigOverridableArgs {
-    //
-}
-
 fn init_paths() -> io::Result<()> {
     fs::create_dir_all(default_data_directory())?;
     fs::create_dir_all(default_config_directory())
@@ -46,8 +42,10 @@ pub(crate) fn execute(args: Args) -> Result<(), NymRewarderError> {
 
     init_paths().map_err(|source| NymRewarderError::PathInitialisationFailure { source })?;
 
-    Config::new(args.mnemonic)
-        .with_override(args.config_override)
+    let config = Config::new(args.mnemonic).with_override(args.config_override);
+    config.ensure_is_valid()?;
+
+    config
         .save_to_path(&path)
         .map_err(|source| NymRewarderError::ConfigSaveFailure { path, source })?;
 

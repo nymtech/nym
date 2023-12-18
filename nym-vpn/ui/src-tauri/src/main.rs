@@ -64,6 +64,8 @@ async fn main() -> Result<()> {
         &app_config_store.full_path.display()
     );
 
+    let app_data = app_data_store.read().await?;
+    debug!("app_data: {app_data:?}");
     let app_config = app_config_store.read().await?;
     debug!("app_config: {app_config:?}");
 
@@ -89,7 +91,7 @@ async fn main() -> Result<()> {
     info!("Starting tauri app");
 
     tauri::Builder::default()
-        .manage(Arc::new(Mutex::new(AppState::default())))
+        .manage(Arc::new(Mutex::new(AppState::from(&app_data))))
         .manage(Arc::new(Mutex::new(app_data_store)))
         .manage(Arc::new(Mutex::new(app_config_store)))
         .setup(|_app| {

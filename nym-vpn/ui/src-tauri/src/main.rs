@@ -16,6 +16,7 @@ use nym_vpn_lib::nym_config;
 use crate::fs::{config::AppConfig, data::AppData, storage::AppStorage};
 
 mod commands;
+mod country;
 mod error;
 mod fs;
 mod states;

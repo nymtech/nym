@@ -1,6 +1,7 @@
 use tauri::State;
 use tracing::{debug, instrument};
 
+use crate::country::COUNTRIES;
 use crate::states::app::Country;
 use crate::{
     error::{CmdError, CmdErrorSource},
@@ -12,25 +13,8 @@ use crate::{
 #[tauri::command]
 pub fn get_node_countries() -> Result<Vec<Country>, CmdError> {
     debug!("get_node_countries");
-    let countries: Vec<Country> = vec![
-        Country {
-            name: "Ireland".to_string(),
-            code: "IE".to_string(),
-        },
-        Country {
-            name: "Germany".to_string(),
-            code: "DE".to_string(),
-        },
-        Country {
-            name: "Japan".to_string(),
-            code: "JP".to_string(),
-        },
-        Country {
-            name: "Great Britain".to_string(),
-            code: "GB".to_string(),
-        },
-    ];
-    Ok(countries)
+    // TODO fetch the list of countries from some API
+    Ok(COUNTRIES.clone())
 }
 
 #[instrument(skip(state))]

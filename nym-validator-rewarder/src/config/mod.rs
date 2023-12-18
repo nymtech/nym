@@ -11,6 +11,7 @@ use nym_config::{
 };
 use nym_validator_client::nyxd::Coin;
 use serde::{Deserialize, Serialize};
+use serde_with::{serde_as, DisplayFromStr};
 use std::io;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -31,7 +32,7 @@ const DEFAULT_MIX_REWARDING_DENOM: &str = "unym";
 const DEFAULT_EPOCH_DURATION: Duration = Duration::from_secs(60 * 60);
 const DEFAULT_MONITOR_RUN_INTERVAL: Duration = Duration::from_secs(10 * 60);
 const DEFAULT_MONITOR_MIN_VALIDATE: u32 = 10;
-const DEFAULT_MONITOR_SAMPLING_RATE: f32 = 0.10;
+const DEFAULT_MONITOR_SAMPLING_RATE: f64 = 0.10;
 
 /// Get default path to rewarder's config directory.
 /// It should get resolved to `$HOME/.nym/validators-rewarder/config`
@@ -65,12 +66,15 @@ pub struct Config {
     pub(crate) save_path: Option<PathBuf>,
 
     #[zeroize(skip)]
+    #[serde(default)]
     pub rewarding: Rewarding,
 
     #[zeroize(skip)]
+    #[serde(default)]
     pub block_signing: BlockSigning,
 
     #[zeroize(skip)]
+    #[serde(default)]
     pub issuance_monitor: IssuanceMonitor,
 
     #[zeroize(skip)]
@@ -169,7 +173,7 @@ impl Config {
 
 #[derive(Debug, Deserialize, Serialize, Zeroize, ZeroizeOnDrop)]
 pub struct Base {
-    /// Url to the upstream instance of nyxd to use for any queries.
+    /// Url to the upstream instance of nyxd to use for any queries and rewarding.
     #[zeroize(skip)]
     pub upstream_nyxd: Url,
 
@@ -177,9 +181,11 @@ pub struct Base {
     pub(crate) mnemonic: bip39::Mnemonic,
 }
 
+#[serde_as]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Rewarding {
     /// Specifies total budget for the epoch
+    #[serde_as(as = "DisplayFromStr")]
     pub epoch_budget: Coin,
 
     #[serde(with = "humantime_serde")]
@@ -267,7 +273,7 @@ pub struct IssuanceMonitor {
     pub min_validate_per_issuer: u32,
 
     /// The sampling rate of the issued credentials
-    pub sampling_rate: f32,
+    pub sampling_rate: f64,
 }
 
 impl Default for IssuanceMonitor {

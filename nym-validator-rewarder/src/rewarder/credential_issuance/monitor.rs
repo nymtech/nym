@@ -209,7 +209,7 @@ impl CredentialIssuanceMonitor {
             credential_range
         } else {
             let mut rng = thread_rng();
-            let sample_size = (issued as f32 * self.config.sampling_rate) as usize;
+            let sample_size = (issued as f64 * self.config.sampling_rate) as usize;
             credential_range
                 .choose_multiple(&mut rng, sample_size)
                 .copied()

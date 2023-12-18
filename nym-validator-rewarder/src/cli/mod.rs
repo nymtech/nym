@@ -66,7 +66,7 @@ pub struct ConfigOverridableArgs {
     pub credential_monitor_min_validation: Option<u32>,
 
     #[clap(long)]
-    pub credential_monitor_sampling_rate: Option<f32>,
+    pub credential_monitor_sampling_rate: Option<f64>,
 
     #[clap(long)]
     pub scraper_endpoint: Option<Url>,

@@ -5,7 +5,7 @@ import clsx from 'clsx';
 import { Button } from '@mui/base';
 import { useNavigate } from 'react-router-dom';
 import { useMainDispatch, useMainState } from '../../contexts';
-import { StateDispatch } from '../../types';
+import { CmdError, StateDispatch } from '../../types';
 import { QuickConnectCountry, routes } from '../../constants';
 import NetworkModeSelect from './NetworkModeSelect';
 import ConnectionStatus from './ConnectionStatus';
@@ -25,9 +25,9 @@ function Home() {
           console.log('disconnect result');
           console.log(result);
         })
-        .catch((e) => {
-          console.log(e);
-          dispatch({ type: 'set-error', error: e });
+        .catch((e: CmdError) => {
+          console.warn(`backend error: ${e.source} - ${e.message}`);
+          dispatch({ type: 'set-error', error: e.message });
         });
     } else if (state === 'Disconnected') {
       dispatch({ type: 'connect' });
@@ -36,9 +36,9 @@ function Home() {
           console.log('connect result');
           console.log(result);
         })
-        .catch((e) => {
-          console.log(e);
-          dispatch({ type: 'set-error', error: e });
+        .catch((e: CmdError) => {
+          console.warn(`backend error: ${e.source} - ${e.message}`);
+          dispatch({ type: 'set-error', error: e.message });
         });
     }
   };

@@ -17,8 +17,7 @@ use crate::{
     },
 };
 
-// TODO use a default location for the entry node
-const DEFAULT_ENTRY_NODE_LOCATION: &str = "DE";
+const DEFAULT_NODE_LOCATION: &str = "DE";
 
 #[instrument(skip_all)]
 #[tauri::command]
@@ -72,28 +71,36 @@ pub async fn connect(
     .ok();
 
     let app_state = state.lock().await;
-    let entry_point = EntryPoint::Location(DEFAULT_ENTRY_NODE_LOCATION.into());
-    let exit_point = ExitPoint::Location(
-        app_state
-            .entry_node_location
-            .as_ref()
-            .ok_or(CmdError::new(
-                CmdErrorSource::InternalError,
-                "Missing exit country code".to_string(),
-            ))?
-            .code
-            .clone(),
+
+    debug!(
+        "using hardcoded entry node location: {}",
+        DEFAULT_NODE_LOCATION
     );
-    let mut vpn_config = create_vpn_config(entry_point, exit_point);
-    {
-        if let VpnMode::TwoHop = app_state.vpn_mode {
-            info!("2-hop mode enabled");
-            vpn_config.enable_two_hop = true;
-        } else {
-            info!("5-hop mode enabled");
+    let entry_point = EntryPoint::Location(DEFAULT_NODE_LOCATION.into());
+    let exit_point = match app_state.exit_node_location {
+        Some(ref exit_node_location) => {
+            debug!("exit node location set, using: {}", exit_node_location.code);
+            ExitPoint::Location(exit_node_location.code.clone())
         }
+        _ => {
+            debug!(
+                "exit node location not set, using default: {}",
+                DEFAULT_NODE_LOCATION
+            );
+            ExitPoint::Location(DEFAULT_NODE_LOCATION.into())
+        }
+    };
+
+    let mut vpn_config = create_vpn_config(entry_point, exit_point);
+    if let VpnMode::TwoHop = app_state.vpn_mode {
+        info!("2-hop mode enabled");
+        vpn_config.enable_two_hop = true;
+    } else {
+        info!("5-hop mode enabled");
     }
     // vpn_config.disable_routing = true;
+    // !! release the mutex
+    drop(app_state);
 
     // spawn the VPN client and start a new connection
     let NymVpnHandle {

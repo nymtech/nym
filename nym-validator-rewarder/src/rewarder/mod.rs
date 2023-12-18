@@ -14,8 +14,6 @@ use nym_task::TaskManager;
 use nym_validator_client::nyxd::{AccountId, Coin, Hash};
 use nyxd_scraper::NyxdScraper;
 use std::ops::Add;
-use std::time::Duration;
-use time::OffsetDateTime;
 use tokio::pin;
 use tokio::time::{interval_at, Instant};
 use tracing::{error, info, instrument};
@@ -43,26 +41,28 @@ impl EpochRewards {
         let mut amounts = Vec::new();
 
         if let Some(signing) = &self.signing {
-            let mut signing_amounts = signing.rewarding_amounts(&self.signing_budget);
-            amounts.append(&mut signing_amounts);
+            for signing_amount in signing.rewarding_amounts(&self.signing_budget) {
+                if signing_amount.1[0].amount != 0 {
+                    amounts.push(signing_amount)
+                }
+            }
         }
 
         if let Some(credentials) = &self.credentials {
-            let mut credentials_amounts = credentials.rewarding_amounts(&self.credentials_budget);
-            amounts.append(&mut credentials_amounts);
+            for credential_amount in credentials.rewarding_amounts(&self.credentials_budget) {
+                if credential_amount.1[0].amount != 0 {
+                    amounts.push(credential_amount)
+                }
+            }
         }
 
         amounts
     }
+}
 
-    pub fn total_spent(&self) -> Coin {
-        let amount = self
-            .amounts()
-            .into_iter()
-            .map(|(_, amount)| amount[0].amount)
-            .sum();
-        Coin::new(amount, &self.total_budget.denom)
-    }
+pub fn total_spent(amounts: &[(AccountId, Vec<Coin>)], denom: &str) -> Coin {
+    let amount = amounts.iter().map(|(_, amount)| amount[0].amount).sum();
+    Coin::new(amount, denom)
 }
 
 pub struct Rewarder {
@@ -77,12 +77,6 @@ pub struct Rewarder {
 
 impl Rewarder {
     pub async fn new(config: Config) -> Result<Self, NymRewarderError> {
-        let nyxd_scraper = if config.nyxd_scraper.enabled {
-            Some(NyxdScraper::new(config.scraper_config()).await?)
-        } else {
-            None
-        };
-
         let nyxd_client = NyxdClient::new(&config)?;
         let storage = RewarderStorage::init(&config.storage_paths.reward_history).await?;
         let current_epoch = if let Some(last_epoch) = storage.load_last_rewarding_epoch().await? {
@@ -92,11 +86,10 @@ impl Rewarder {
         };
 
         let epoch_signing = if config.block_signing.enabled {
-            // safety: our config has been validated at load time to ensure that if block signing is enabled,
-            // so is the scraper
+            let nyxd_scraper = NyxdScraper::new(config.scraper_config()).await?;
+
             Some(EpochSigning {
-                #[allow(clippy::unwrap_used)]
-                nyxd_scraper: nyxd_scraper.unwrap(),
+                nyxd_scraper,
                 nyxd_client: nyxd_client.clone(),
             })
         } else {
@@ -198,10 +191,12 @@ impl Rewarder {
         })
     }
 
+    #[instrument(skip(self))]
     async fn send_rewards(
         &self,
         amounts: Vec<(AccountId, Vec<Coin>)>,
     ) -> Result<Hash, NymRewarderError> {
+        info!("sending rewards");
         self.nyxd_client
             .send_rewards(self.current_epoch, amounts)
             .await
@@ -218,10 +213,16 @@ impl Rewarder {
             }
         };
 
-        let rewarding_result = self.send_rewards(rewards.amounts()).await;
+        let rewarding_amounts = rewards.amounts();
+        let total_spent = total_spent(
+            &rewarding_amounts,
+            &self.config.rewarding.epoch_budget.denom,
+        );
+
+        let rewarding_result = self.send_rewards(rewarding_amounts).await;
         if let Err(err) = self
             .storage
-            .save_rewarding_information(rewards, rewarding_result)
+            .save_rewarding_information(rewards, total_spent, rewarding_result)
             .await
         {
             error!("failed to persist rewarding information: {err}")
@@ -248,12 +249,6 @@ impl Rewarder {
             epoch_signing.nyxd_scraper.start().await?;
             epoch_signing.nyxd_scraper.wait_for_startup_sync().await;
         }
-
-        // rewarding epochs last from :00 to :00
-        // \/\/\/\/\/\/\/ TEMP TESTING!!!
-        self.current_epoch.end_time = OffsetDateTime::now_utc();
-        self.current_epoch.start_time = self.current_epoch.end_time - Duration::from_secs(60 * 60);
-        //  ^^^^^^^^^^^ TEMP TESTING!!!
 
         let until_end = self.current_epoch.until_end();
 

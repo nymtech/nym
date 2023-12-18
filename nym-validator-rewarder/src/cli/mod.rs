@@ -54,16 +54,13 @@ pub struct ConfigOverridableArgs {
     pub disable_block_signing_rewarding: bool,
 
     #[clap(long)]
-    pub disable_block_scraper: bool,
-
-    #[clap(long)]
     pub disable_credential_issuance_rewarding: bool,
 
     #[clap(long)]
     pub credential_monitor_run_interval: Option<humantime::Duration>,
 
     #[clap(long)]
-    pub credential_monitor_min_validation: Option<u32>,
+    pub credential_monitor_min_validation: Option<usize>,
 
     #[clap(long)]
     pub credential_monitor_sampling_rate: Option<f64>,

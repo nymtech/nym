@@ -14,10 +14,6 @@ impl ConfigOverride for ConfigOverridableArgs {
             config.block_signing.enabled = false
         }
 
-        if self.disable_block_scraper {
-            config.nyxd_scraper.enabled = false
-        }
-
         if self.disable_credential_issuance_rewarding {
             config.issuance_monitor.enabled = false
         }

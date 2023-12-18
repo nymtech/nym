@@ -113,7 +113,7 @@ impl StorageManager {
         epoch: i64,
         starting_dkg_epoch: u32,
         ending_dkg_epoch: u32,
-        total_issued_credentials: u32,
+        total_issued_partial_credentials: u32,
         budget: String,
     ) -> Result<(), sqlx::Error> {
         sqlx::query!(
@@ -122,7 +122,7 @@ impl StorageManager {
                     rewarding_epoch_id,
                     starting_dkg_epoch, 
                     ending_dkg_epoch, 
-                    total_issued_credentials,
+                    total_issued_partial_credentials,
                     budget
                 )
                 VALUES (?, ?, ?, ?, ?)
@@ -130,7 +130,7 @@ impl StorageManager {
             epoch,
             starting_dkg_epoch,
             ending_dkg_epoch,
-            total_issued_credentials,
+            total_issued_partial_credentials,
             budget,
         )
         .execute(&self.connection_pool)

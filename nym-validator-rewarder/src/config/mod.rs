@@ -31,7 +31,7 @@ const DEFAULT_MIX_REWARDING_DENOM: &str = "unym";
 
 const DEFAULT_EPOCH_DURATION: Duration = Duration::from_secs(60 * 60);
 const DEFAULT_MONITOR_RUN_INTERVAL: Duration = Duration::from_secs(10 * 60);
-const DEFAULT_MONITOR_MIN_VALIDATE: u32 = 10;
+const DEFAULT_MONITOR_MIN_VALIDATE: usize = 10;
 const DEFAULT_MONITOR_SAMPLING_RATE: f64 = 0.10;
 
 /// Get default path to rewarder's config directory.
@@ -100,10 +100,7 @@ impl Config {
             rewarding: Rewarding::default(),
             block_signing: Default::default(),
             issuance_monitor: IssuanceMonitor::default(),
-            nyxd_scraper: NyxdScraper {
-                enabled: true,
-                websocket_url,
-            },
+            nyxd_scraper: NyxdScraper { websocket_url },
             base: Base {
                 upstream_nyxd: nyxd_url,
                 mnemonic,
@@ -121,10 +118,6 @@ impl Config {
     }
 
     pub fn ensure_is_valid(&self) -> Result<(), NymRewarderError> {
-        if self.block_signing.enabled && !self.nyxd_scraper.enabled {
-            return Err(NymRewarderError::BlockSigningRewardWithoutScraper);
-        }
-
         self.rewarding.ratios.ensure_is_valid()?;
         Ok(())
     }
@@ -240,9 +233,6 @@ impl RewardingRatios {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct NyxdScraper {
-    /// Specifies whether the chain scraper is enabled.
-    pub enabled: bool,
-
     /// Url to the websocket endpoint of a validator, for example `wss://rpc.nymtech.net/websocket`
     pub websocket_url: Url,
     // TODO: debug with everything that's currently hardcoded in the scraper
@@ -270,7 +260,7 @@ pub struct IssuanceMonitor {
 
     /// Defines the minimum number of credentials the monitor will validate
     /// regardless of the sampling rate
-    pub min_validate_per_issuer: u32,
+    pub min_validate_per_issuer: usize,
 
     /// The sampling rate of the issued credentials
     pub sampling_rate: f64,

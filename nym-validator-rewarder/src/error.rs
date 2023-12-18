@@ -151,9 +151,6 @@ pub enum NymRewarderError {
         on_chain: String,
     },
 
-    #[error("can't enable block signing rewarding without the block scraper")]
-    BlockSigningRewardWithoutScraper,
-
     #[error("the current rewarder balance is insufficient to start the process. The epoch budget is: {} while we currently have {}. (the minimum is set to {})", .0.epoch_budget, .0.balance, .0.minimum)]
     InsufficientRewarderBalance(Box<InsufficientBalance>),
 

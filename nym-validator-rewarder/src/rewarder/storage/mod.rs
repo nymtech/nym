@@ -5,7 +5,7 @@ use crate::error::NymRewarderError;
 use crate::rewarder::epoch::Epoch;
 use crate::rewarder::storage::manager::StorageManager;
 use crate::rewarder::EpochRewards;
-use nym_validator_client::nyxd::Hash;
+use nym_validator_client::nyxd::{Coin, Hash};
 use sqlx::ConnectOptions;
 use std::fmt::Debug;
 use std::path::Path;
@@ -58,6 +58,7 @@ impl RewarderStorage {
     pub(crate) async fn save_rewarding_information(
         &self,
         reward: EpochRewards,
+        total_spent: Coin,
         rewarding_tx: Result<Hash, NymRewarderError>,
     ) -> Result<(), NymRewarderError> {
         info!("persisting reward details");
@@ -72,7 +73,7 @@ impl RewarderStorage {
             .insert_rewarding_epoch(
                 reward.epoch,
                 reward.total_budget.to_string(),
-                reward.total_spent().to_string(),
+                total_spent.to_string(),
                 reward_tx,
                 reward_err,
             )
@@ -118,13 +119,13 @@ impl RewarderStorage {
         let dkg_epoch_start = reward
             .credentials
             .as_ref()
-            .map(|c| *c.dkg_epochs.first().unwrap())
+            .and_then(|c| c.dkg_epochs.first().copied())
             .unwrap_or_default();
         #[allow(clippy::unwrap_used)]
         let dkg_epoch_end = reward
             .credentials
             .as_ref()
-            .map(|c| *c.dkg_epochs.last().unwrap())
+            .and_then(|c| c.dkg_epochs.last().copied())
             .unwrap_or_default();
 
         self.manager
@@ -135,7 +136,7 @@ impl RewarderStorage {
                 reward
                     .credentials
                     .as_ref()
-                    .map(|c| c.total_issued)
+                    .map(|c| c.total_issued_partial_credentials)
                     .unwrap_or_default(),
                 reward.credentials_budget.to_string(),
             )

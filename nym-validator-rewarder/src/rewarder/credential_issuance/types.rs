@@ -157,23 +157,21 @@ pub(crate) struct MonitoringResultsInner {
 
 impl From<MonitoringResultsInner> for CredentialIssuanceResults {
     fn from(value: MonitoringResultsInner) -> Self {
-        // approximation!
-        // get the maximum number of issued credentials of all apis
-        // (we sum values if they cross dkg epochs)
         let total_issued = value
             .operators
             .values()
             .map(|o| {
-                o.per_epoch
+                let operator_issued: u32 = o
+                    .per_epoch
                     .values()
                     .map(|e| e.issued_since_monitor_started)
-                    .sum()
+                    .sum();
+                operator_issued
             })
-            .max()
-            .unwrap_or_default();
+            .sum();
 
         CredentialIssuanceResults {
-            total_issued,
+            total_issued_partial_credentials: total_issued,
             dkg_epochs: value.dkg_epochs,
             api_runners: value
                 .operators
@@ -296,8 +294,7 @@ impl OperatorIssuing {
 }
 
 pub struct CredentialIssuanceResults {
-    // note: this is an approximation!
-    pub total_issued: u32,
+    pub total_issued_partial_credentials: u32,
     pub dkg_epochs: Vec<u32>,
     pub api_runners: Vec<OperatorIssuing>,
 }

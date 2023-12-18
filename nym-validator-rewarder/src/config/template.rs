@@ -56,9 +56,6 @@ min_validate_per_issuer = {{ issuance_monitor.min_validate_per_issuer }}
 sampling_rate = {{ issuance_monitor.sampling_rate }}
     
 [nyxd_scraper]
-# Specifies whether the chain scraper is enabled.
-enabled = {{ nyxd_scraper.enabled }}
-
 # Url to the websocket endpoint of a validator, for example `wss://rpc.nymtech.net/websocket`
 websocket_url = '{{ nyxd_scraper.websocket_url }}'
 "#;

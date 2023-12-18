@@ -41,7 +41,7 @@ CREATE TABLE epoch_credential_issuance
     rewarding_epoch_id       INTEGER NOT NULL PRIMARY KEY REFERENCES rewarding_epoch (id),
     starting_dkg_epoch       INTEGER NOT NULL,
     ending_dkg_epoch         INTEGER NOT NULL,
-    total_issued_credentials INTEGER NOT NULL,
+    total_issued_partial_credentials INTEGER NOT NULL,
     budget                   TEXT    NOT NULL
 );
 

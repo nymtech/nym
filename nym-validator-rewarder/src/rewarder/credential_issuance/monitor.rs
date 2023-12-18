@@ -19,6 +19,7 @@ use nym_credentials::coconut::bandwidth::BandwidthVoucher;
 use nym_task::TaskClient;
 use nym_validator_client::nym_api::{IssuedCredential, IssuedCredentialBody, NymApiClientExt};
 use nym_validator_client::nyxd::Hash;
+use std::cmp::max;
 use std::collections::HashMap;
 use std::sync::OnceLock;
 use tokio::time::interval;
@@ -205,11 +206,14 @@ impl CredentialIssuanceMonitor {
         let credential_range: Vec<_> = (first_id..first_id + total_issued).collect();
         let issued = credential_range.len();
 
-        let sampled = if issued <= self.config.min_validate_per_issuer as usize {
+        let sampled = if issued <= self.config.min_validate_per_issuer {
             credential_range
         } else {
             let mut rng = thread_rng();
-            let sample_size = (issued as f64 * self.config.sampling_rate) as usize;
+            let sample_size = max(
+                self.config.min_validate_per_issuer,
+                (issued as f64 * self.config.sampling_rate) as usize,
+            );
             credential_range
                 .choose_multiple(&mut rng, sample_size)
                 .copied()
@@ -225,6 +229,7 @@ impl CredentialIssuanceMonitor {
         epoch_id: EpochId,
         issuer: CredentialIssuer,
     ) -> Result<RawOperatorResult, NymRewarderError> {
+        info!("checking the issuer's credentials...");
         debug!("checking the issuer's credentials...");
 
         let api_client = api_client(&issuer)?;
@@ -284,6 +289,7 @@ impl CredentialIssuanceMonitor {
     }
 
     async fn check_issuers(&mut self) -> Result<(), NymRewarderError> {
+        info!("checking credential issuers");
         let epoch = self.nyxd_client.dkg_epoch().await?;
         let issuers = self
             .nyxd_client

@@ -46,10 +46,6 @@ impl NyxdClient {
         })
     }
 
-    pub(crate) async fn address(&self) -> AccountId {
-        self.inner.read().await.address()
-    }
-
     pub(crate) async fn balance(&self, denom: &str) -> Result<Coin, NymRewarderError> {
         let guard = self.inner.read().await;
         let address = guard.address();
@@ -57,6 +53,20 @@ impl NyxdClient {
             .get_balance(&address, denom.to_string())
             .await?
             .unwrap_or(Coin::new(0, denom)))
+    }
+
+    pub(crate) async fn send_rewards(
+        &self,
+        epoch: crate::rewarder::Epoch,
+        amounts: Vec<(AccountId, Vec<Coin>)>,
+    ) -> Result<Hash, NymRewarderError> {
+        self.inner
+            .write()
+            .await
+            .send_multiple(amounts, format!("sending rewards for {epoch:?}"), None)
+            .await
+            .map(|res| res.hash)
+            .map_err(Into::into)
     }
 
     pub(crate) async fn historical_info(

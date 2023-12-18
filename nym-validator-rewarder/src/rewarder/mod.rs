@@ -202,13 +202,9 @@ impl Rewarder {
         &self,
         amounts: Vec<(AccountId, Vec<Coin>)>,
     ) -> Result<Hash, NymRewarderError> {
-        let address = self.nyxd_client.address().await;
-        info!("here we ({address}) will be sending the following rewards:");
-        for (target, amount) in amounts {
-            info!("{amount:?} to {target}")
-        }
-
-        Ok(Hash::Sha256([0u8; 32]))
+        self.nyxd_client
+            .send_rewards(self.current_epoch, amounts)
+            .await
     }
 
     async fn handle_epoch_end(&mut self) {

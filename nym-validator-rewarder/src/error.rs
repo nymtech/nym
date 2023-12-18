@@ -154,10 +154,16 @@ pub enum NymRewarderError {
     #[error("can't enable block signing rewarding without the block scraper")]
     BlockSigningRewardWithoutScraper,
 
-    #[error("the current rewarder balance is insufficient to start the process. The epoch budget is: {epoch_budget} while we currently have {balance}. (the minimum is set to {minimum})")]
-    InsufficientRewarderBalance {
-        epoch_budget: Coin,
-        balance: Coin,
-        minimum: Coin,
-    },
+    #[error("the current rewarder balance is insufficient to start the process. The epoch budget is: {} while we currently have {}. (the minimum is set to {})", .0.epoch_budget, .0.balance, .0.minimum)]
+    InsufficientRewarderBalance(Box<InsufficientBalance>),
+
+    #[error("the scraper websocket endpoint hasn't been provided")]
+    UnavailableWebsocketUrl,
+}
+
+#[derive(Debug)]
+pub struct InsufficientBalance {
+    pub epoch_budget: Coin,
+    pub balance: Coin,
+    pub minimum: Coin,
 }

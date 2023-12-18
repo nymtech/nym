@@ -114,11 +114,13 @@ impl RewarderStorage {
         }
 
         // safety: we must have at least a single value here
+        #[allow(clippy::unwrap_used)]
         let dkg_epoch_start = reward
             .credentials
             .as_ref()
             .map(|c| *c.dkg_epochs.first().unwrap())
             .unwrap_or_default();
+        #[allow(clippy::unwrap_used)]
         let dkg_epoch_end = reward
             .credentials
             .as_ref()

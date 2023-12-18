@@ -9,8 +9,6 @@ use nym_config::{
     must_get_home, read_config_from_toml_file, save_formatted_config_to_file, NymConfigTemplate,
     DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, DEFAULT_DATA_DIR, NYM_DIR,
 };
-use nym_network_defaults::NymNetworkDetails;
-use nym_validator_client::nyxd;
 use nym_validator_client::nyxd::Coin;
 use serde::{Deserialize, Serialize};
 use std::io;
@@ -92,9 +90,7 @@ impl NymConfigTemplate for Config {
 }
 
 impl Config {
-    pub fn new(mnemonic: bip39::Mnemonic) -> Self {
-        let network = NymNetworkDetails::new_from_env();
-
+    pub fn new(mnemonic: bip39::Mnemonic, websocket_url: Url, nyxd_url: Url) -> Self {
         Config {
             save_path: None,
             rewarding: Rewarding::default(),
@@ -102,12 +98,10 @@ impl Config {
             issuance_monitor: IssuanceMonitor::default(),
             nyxd_scraper: NyxdScraper {
                 enabled: true,
-                websocket_url: network.endpoints[0]
-                    .websocket_url()
-                    .expect("TODO: hardcoded websocket url is not available"),
+                websocket_url,
             },
             base: Base {
-                upstream_nyxd: network.endpoints[0].nyxd_url(),
+                upstream_nyxd: nyxd_url,
                 mnemonic,
             },
             storage_paths: Default::default(),
@@ -120,12 +114,6 @@ impl Config {
             rpc_url: self.base.upstream_nyxd.clone(),
             database_path: self.storage_paths.nyxd_scraper.clone(),
         }
-    }
-
-    pub fn rpc_client_config(&self) -> nyxd::Config {
-        // TEMP
-        nyxd::Config::try_from_nym_network_details(&NymNetworkDetails::new_from_env())
-            .expect("failed to create nyxd client config")
     }
 
     pub fn ensure_is_valid(&self) -> Result<(), NymRewarderError> {

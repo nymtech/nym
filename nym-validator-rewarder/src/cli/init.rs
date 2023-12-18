@@ -4,6 +4,7 @@
 use crate::cli::ConfigOverridableArgs;
 use crate::config::{default_config_directory, default_data_directory, Config};
 use crate::error::NymRewarderError;
+use nym_network_defaults::NymNetworkDetails;
 use std::path::PathBuf;
 use std::{fs, io};
 
@@ -42,7 +43,13 @@ pub(crate) fn execute(args: Args) -> Result<(), NymRewarderError> {
 
     init_paths().map_err(|source| NymRewarderError::PathInitialisationFailure { source })?;
 
-    let config = Config::new(args.mnemonic).with_override(args.config_override);
+    let network = NymNetworkDetails::new_from_env();
+    let nyxd = network.endpoints[0].nyxd_url();
+    let Some(websocket) = network.endpoints[0].websocket_url() else {
+        return Err(NymRewarderError::UnavailableWebsocketUrl);
+    };
+
+    let config = Config::new(args.mnemonic, websocket, nyxd).with_override(args.config_override);
     config.ensure_is_valid()?;
 
     config

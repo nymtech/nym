@@ -109,6 +109,7 @@ impl MonitoringResults {
         let next_epoch = guard.epoch.next();
 
         // safety: whenever the monitor results are constructed, we always have at least a single value there
+        #[allow(clippy::unwrap_used)]
         let latest_dkg_epoch = guard.dkg_epochs.pop().unwrap();
 
         // only keep results from the latest dkg epoch (but after resetting the counters)

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::config::Config;
-use crate::error::NymRewarderError;
+use crate::error::{InsufficientBalance, NymRewarderError};
 use crate::rewarder::block_signing::types::EpochSigningResults;
 use crate::rewarder::block_signing::EpochSigning;
 use crate::rewarder::credential_issuance::types::CredentialIssuanceResults;
@@ -83,7 +83,7 @@ impl Rewarder {
             None
         };
 
-        let nyxd_client = NyxdClient::new(&config);
+        let nyxd_client = NyxdClient::new(&config)?;
         let storage = RewarderStorage::init(&config.storage_paths.reward_history).await?;
         let current_epoch = if let Some(last_epoch) = storage.load_last_rewarding_epoch().await? {
             last_epoch.next()
@@ -119,11 +119,13 @@ impl Rewarder {
             );
 
             if balance.amount < minimum.amount {
-                return Err(NymRewarderError::InsufficientRewarderBalance {
-                    epoch_budget: config.rewarding.epoch_budget.clone(),
-                    balance,
-                    minimum,
-                });
+                return Err(NymRewarderError::InsufficientRewarderBalance(Box::new(
+                    InsufficientBalance {
+                        epoch_budget: config.rewarding.epoch_budget.clone(),
+                        balance,
+                        minimum,
+                    },
+                )));
             }
         }
 

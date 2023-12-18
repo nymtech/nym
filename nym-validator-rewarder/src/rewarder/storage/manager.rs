@@ -68,6 +68,7 @@ impl StorageManager {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub(crate) async fn insert_rewarding_epoch_block_signing_reward(
         &self,
         epoch: i64,
@@ -138,6 +139,7 @@ impl StorageManager {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub(crate) async fn insert_rewarding_epoch_credential_issuance_reward(
         &self,
         epoch: i64,

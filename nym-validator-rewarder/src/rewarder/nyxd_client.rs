@@ -8,6 +8,7 @@ use nym_coconut_bandwidth_contract_common::events::{
     COSMWASM_DEPOSITED_FUNDS_EVENT_TYPE, DEPOSIT_INFO, DEPOSIT_VALUE,
 };
 use nym_coconut_dkg_common::types::Epoch;
+use nym_network_defaults::NymNetworkDetails;
 use nym_validator_client::nyxd::contract_traits::{DkgQueryClient, PagedDkgQueryClient};
 use nym_validator_client::nyxd::helpers::find_tx_attribute;
 use nym_validator_client::nyxd::module_traits::staking::{
@@ -16,7 +17,7 @@ use nym_validator_client::nyxd::module_traits::staking::{
 use nym_validator_client::nyxd::{
     AccountId, Coin, CosmWasmClient, Hash, PageRequest, StakingQueryClient,
 };
-use nym_validator_client::DirectSigningHttpRpcNyxdClient;
+use nym_validator_client::{nyxd, DirectSigningHttpRpcNyxdClient};
 use std::ops::Deref;
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -27,8 +28,9 @@ pub struct NyxdClient {
 }
 
 impl NyxdClient {
-    pub(crate) fn new(config: &Config) -> Self {
-        let client_config = config.rpc_client_config();
+    pub(crate) fn new(config: &Config) -> Result<Self, NymRewarderError> {
+        let client_config =
+            nyxd::Config::try_from_nym_network_details(&NymNetworkDetails::new_from_env())?;
         let nyxd_url = config.base.upstream_nyxd.as_str();
 
         let mnemonic = config.base.mnemonic.clone();
@@ -37,12 +39,11 @@ impl NyxdClient {
             client_config,
             nyxd_url,
             mnemonic,
-        )
-        .expect("Failed to connect to nyxd!");
+        )?;
 
-        NyxdClient {
+        Ok(NyxdClient {
             inner: Arc::new(RwLock::new(inner)),
-        }
+        })
     }
 
     pub(crate) async fn address(&self) -> AccountId {

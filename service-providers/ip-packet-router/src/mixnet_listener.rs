@@ -1,4 +1,7 @@
-use std::{collections::HashMap, net::IpAddr};
+use std::{
+    collections::HashMap,
+    net::{IpAddr, SocketAddr},
+};
 
 use futures::StreamExt;
 use nym_ip_packet_requests::{
@@ -320,15 +323,11 @@ impl MixnetListener {
         }
 
         // Filter check
-        if let Some(dst) = dst {
-            if !self.request_filter.check_address(&dst).await {
-                log::warn!("Failed filter check: {dst}");
-                // TODO: we could consider sending back a response here
-                return Err(IpPacketRouterError::AddressFailedFilterCheck { addr: dst });
-            }
-        } else {
-            // TODO: we should also filter packets without port number
-            log::warn!("Ignoring filter check for packet without port number! TODO!");
+        let dst = dst.unwrap_or_else(|| SocketAddr::new(dst_addr, 0));
+        if !self.request_filter.check_address(&dst).await {
+            log::info!("Denied filter check: {dst}");
+            // TODO: we could consider sending back a response here
+            return Err(IpPacketRouterError::AddressFailedFilterCheck { addr: dst });
         }
 
         // TODO: consider changing from Vec<u8> to bytes::Bytes?

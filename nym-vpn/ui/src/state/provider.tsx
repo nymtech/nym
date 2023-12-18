@@ -60,7 +60,7 @@ export function MainStateProvider({ children }: Props) {
         dispatch({
           type: 'set-partial-state',
           partialState: {
-            entrySelector: data.entry_selector || false,
+            entrySelector: data.entry_location_selector || false,
             uiTheme: data.ui_theme || 'Light',
             vpnMode: data.vpn_mode || 'TwoHop',
             entryNodeLocation: data.entry_node_location || QuickConnectCountry,

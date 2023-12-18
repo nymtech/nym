@@ -115,4 +115,3 @@ pub async fn set_entry_location_selector(
         .map_err(|e| CmdError::new(CmdErrorSource::InternalError, e.to_string()))?;
     Ok(())
 }
-

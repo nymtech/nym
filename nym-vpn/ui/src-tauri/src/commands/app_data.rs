@@ -102,7 +102,6 @@ pub async fn set_entry_location_selector(
 ) -> Result<(), CmdError> {
     debug!("set_entry_location_selector");
 
-    // save the selected UI theme to disk
     let mut app_data_store = data_state.lock().await;
     let mut app_data = app_data_store
         .read()
@@ -116,3 +115,4 @@ pub async fn set_entry_location_selector(
         .map_err(|e| CmdError::new(CmdErrorSource::InternalError, e.to_string()))?;
     Ok(())
 }
+

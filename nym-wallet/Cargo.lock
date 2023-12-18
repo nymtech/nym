@@ -3593,7 +3593,7 @@ dependencies = [
  "bip39",
  "cfg-if",
  "colored 2.0.4",
- "cosmrs 0.15.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "cosmrs 0.15.0 (git+https://github.com/jstuczyn/cosmos-rust?branch=nym-temp/all-validator-features)",
  "cosmwasm-std",
  "dirs 4.0.0",
  "dotenvy",

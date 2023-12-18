@@ -388,7 +388,9 @@ impl<St> Gateway<St> {
         ))
     }
 
-    async fn wait_for_interrupt(shutdown: TaskManager) -> Result<(), Box<dyn Error + Send + Sync>> {
+    async fn wait_for_interrupt(
+        mut shutdown: TaskManager,
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
         let res = shutdown.catch_interrupt().await;
         log::info!("Stopping nym gateway");
         res

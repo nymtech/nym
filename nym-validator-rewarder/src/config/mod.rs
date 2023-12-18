@@ -11,7 +11,7 @@ use nym_config::{
 };
 use nym_network_defaults::NymNetworkDetails;
 use nym_validator_client::nyxd;
-use nym_validator_client::nyxd::{AccountId, Coin};
+use nym_validator_client::nyxd::Coin;
 use serde::{Deserialize, Serialize};
 use std::io;
 use std::path::{Path, PathBuf};
@@ -70,6 +70,9 @@ pub struct Config {
     pub rewarding: Rewarding,
 
     #[zeroize(skip)]
+    pub block_signing: BlockSigning,
+
+    #[zeroize(skip)]
     pub issuance_monitor: IssuanceMonitor,
 
     #[zeroize(skip)]
@@ -95,8 +98,10 @@ impl Config {
         Config {
             save_path: None,
             rewarding: Rewarding::default(),
+            block_signing: Default::default(),
             issuance_monitor: IssuanceMonitor::default(),
             nyxd_scraper: NyxdScraper {
+                enabled: true,
                 websocket_url: network.endpoints[0]
                     .websocket_url()
                     .expect("TODO: hardcoded websocket url is not available"),
@@ -123,17 +128,11 @@ impl Config {
             .expect("failed to create nyxd client config")
     }
 
-    pub fn dkg_contract_address(&self) -> AccountId {
-        // TEMP
-        NymNetworkDetails::new_from_env()
-            .contracts
-            .coconut_dkg_contract_address
-            .expect("missing contract address")
-            .parse()
-            .expect("invalid contract address")
-    }
-
     pub fn ensure_is_valid(&self) -> Result<(), NymRewarderError> {
+        if self.block_signing.enabled && !self.nyxd_scraper.enabled {
+            return Err(NymRewarderError::BlockSigningRewardWithoutScraper);
+        }
+
         self.rewarding.ratios.ensure_is_valid()?;
         Ok(())
     }
@@ -192,7 +191,7 @@ pub struct Base {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Rewarding {
-    ///
+    /// Specifies total budget for the epoch
     pub epoch_budget: Coin,
 
     #[serde(with = "humantime_serde")]
@@ -250,13 +249,31 @@ impl RewardingRatios {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct NyxdScraper {
+    /// Specifies whether the chain scraper is enabled.
+    pub enabled: bool,
+
     /// Url to the websocket endpoint of a validator, for example `wss://rpc.nymtech.net/websocket`
     pub websocket_url: Url,
     // TODO: debug with everything that's currently hardcoded in the scraper
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Copy)]
+pub struct BlockSigning {
+    /// Specifies whether credential issuance for block signing is enabled.
+    pub enabled: bool,
+}
+
+impl Default for BlockSigning {
+    fn default() -> Self {
+        BlockSigning { enabled: true }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, Copy)]
 pub struct IssuanceMonitor {
+    /// Specifies whether credential issuance monitoring (and associated rewards) are enabled.
+    pub enabled: bool,
+
     #[serde(with = "humantime_serde")]
     pub run_interval: Duration,
 
@@ -271,6 +288,7 @@ pub struct IssuanceMonitor {
 impl Default for IssuanceMonitor {
     fn default() -> Self {
         IssuanceMonitor {
+            enabled: true,
             run_interval: DEFAULT_MONITOR_RUN_INTERVAL,
             min_validate_per_issuer: DEFAULT_MONITOR_MIN_VALIDATE,
             sampling_rate: DEFAULT_MONITOR_SAMPLING_RATE,

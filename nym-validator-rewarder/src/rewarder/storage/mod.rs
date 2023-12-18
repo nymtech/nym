@@ -81,58 +81,82 @@ impl RewarderStorage {
         self.manager
             .insert_rewarding_epoch_block_signing(
                 epoch_id,
-                reward.signing.total_voting_power_at_epoch_start,
-                reward.signing.blocks,
+                reward
+                    .signing
+                    .as_ref()
+                    .map(|s| s.total_voting_power_at_epoch_start)
+                    .unwrap_or_default(),
+                reward
+                    .signing
+                    .as_ref()
+                    .map(|s| s.blocks)
+                    .unwrap_or_default(),
                 reward.signing_budget.to_string(),
             )
             .await?;
 
-        for validator in reward.signing.validators {
-            let reward_amount = validator.reward_amount(&reward.signing_budget).to_string();
-            self.manager
-                .insert_rewarding_epoch_block_signing_reward(
-                    epoch_id,
-                    validator.validator.consensus_address,
-                    validator.operator_account.to_string(),
-                    reward_amount,
-                    validator.voting_power_at_epoch_start,
-                    validator.voting_power_ratio.to_string(),
-                    validator.signed_blocks,
-                    validator.ratio_signed.to_string(),
-                )
-                .await?;
+        if let Some(signing) = reward.signing {
+            for validator in signing.validators {
+                let reward_amount = validator.reward_amount(&reward.signing_budget).to_string();
+                self.manager
+                    .insert_rewarding_epoch_block_signing_reward(
+                        epoch_id,
+                        validator.validator.consensus_address,
+                        validator.operator_account.to_string(),
+                        reward_amount,
+                        validator.voting_power_at_epoch_start,
+                        validator.voting_power_ratio.to_string(),
+                        validator.signed_blocks,
+                        validator.ratio_signed.to_string(),
+                    )
+                    .await?;
+            }
         }
 
         // safety: we must have at least a single value here
-        let dkg_epoch_start = reward.credentials.dkg_epochs.first().unwrap();
-        let dkg_epoch_end = reward.credentials.dkg_epochs.last().unwrap();
+        let dkg_epoch_start = reward
+            .credentials
+            .as_ref()
+            .map(|c| *c.dkg_epochs.first().unwrap())
+            .unwrap_or_default();
+        let dkg_epoch_end = reward
+            .credentials
+            .as_ref()
+            .map(|c| *c.dkg_epochs.last().unwrap())
+            .unwrap_or_default();
 
         self.manager
             .insert_rewarding_epoch_credential_issuance(
                 epoch_id,
-                *dkg_epoch_start,
-                *dkg_epoch_end,
-                reward.credentials.total_issued,
+                dkg_epoch_start,
+                dkg_epoch_end,
+                reward
+                    .credentials
+                    .as_ref()
+                    .map(|c| c.total_issued)
+                    .unwrap_or_default(),
                 reward.credentials_budget.to_string(),
             )
             .await?;
 
-        for api_runner in reward.credentials.api_runners {
-            let reward_amount = api_runner
-                .reward_amount(&reward.credentials_budget)
-                .to_string();
+        if let Some(credentials) = reward.credentials {
+            for api_runner in credentials.api_runners {
+                let reward_amount = api_runner
+                    .reward_amount(&reward.credentials_budget)
+                    .to_string();
 
-            self.manager
-                .insert_rewarding_epoch_credential_issuance_reward(
-                    epoch_id,
-                    api_runner.runner_account.to_string(),
-                    reward_amount,
-                    api_runner.api_runner,
-                    api_runner.issued_credentials,
-                    api_runner.issued_ratio.to_string(),
-                    api_runner.validated_credentials,
-                )
-                .await?;
+                self.manager
+                    .insert_rewarding_epoch_credential_issuance_reward(
+                        epoch_id,
+                        api_runner.runner_account.to_string(),
+                        reward_amount,
+                        api_runner.api_runner,
+                        api_runner.issued_credentials,
+                        api_runner.issued_ratio.to_string(),
+                        api_runner.validated_credentials,
+                    )
+                    .await?;
+            }
         }
 
         Ok(())

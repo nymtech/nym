@@ -30,8 +30,8 @@ mod tasks;
 
 pub struct EpochRewards {
     pub epoch: Epoch,
-    pub signing: EpochSigningResults,
-    pub credentials: CredentialIssuanceResults,
+    pub signing: Option<EpochSigningResults>,
+    pub credentials: Option<CredentialIssuanceResults>,
 
     pub total_budget: Coin,
     pub signing_budget: Coin,
@@ -40,11 +40,17 @@ pub struct EpochRewards {
 
 impl EpochRewards {
     pub fn amounts(&self) -> Vec<(AccountId, Vec<Coin>)> {
-        let signing = self.signing.rewarding_amounts(&self.signing_budget);
-        let mut credentials = self.credentials.rewarding_amounts(&self.credentials_budget);
+        let mut amounts = Vec::new();
 
-        let mut amounts = signing;
-        amounts.append(&mut credentials);
+        if let Some(signing) = &self.signing {
+            let mut signing_amounts = signing.rewarding_amounts(&self.signing_budget);
+            amounts.append(&mut signing_amounts);
+        }
+
+        if let Some(credentials) = &self.credentials {
+            let mut credentials_amounts = credentials.rewarding_amounts(&self.credentials_budget);
+            amounts.append(&mut credentials_amounts);
+        }
 
         amounts
     }
@@ -65,13 +71,18 @@ pub struct Rewarder {
 
     storage: RewarderStorage,
     nyxd_client: NyxdClient,
-    epoch_signing: EpochSigning,
-    credential_issuance: CredentialIssuance,
+    epoch_signing: Option<EpochSigning>,
+    credential_issuance: Option<CredentialIssuance>,
 }
 
 impl Rewarder {
     pub async fn new(config: Config) -> Result<Self, NymRewarderError> {
-        let nyxd_scraper = NyxdScraper::new(config.scraper_config()).await?;
+        let nyxd_scraper = if config.nyxd_scraper.enabled {
+            Some(NyxdScraper::new(config.scraper_config()).await?)
+        } else {
+            None
+        };
+
         let nyxd_client = NyxdClient::new(&config);
         let storage = RewarderStorage::init(&config.storage_paths.reward_history).await?;
         let current_epoch = if let Some(last_epoch) = storage.load_last_rewarding_epoch().await? {
@@ -80,13 +91,28 @@ impl Rewarder {
             Epoch::first(config.rewarding.epoch_duration)?
         };
 
+        let epoch_signing = if config.block_signing.enabled {
+            // safety: our config has been validated at load time to ensure that if block signing is enabled,
+            // so is the scraper
+            Some(EpochSigning {
+                #[allow(clippy::unwrap_used)]
+                nyxd_scraper: nyxd_scraper.unwrap(),
+                nyxd_client: nyxd_client.clone(),
+            })
+        } else {
+            None
+        };
+
+        let credential_issuance = if config.issuance_monitor.enabled {
+            Some(CredentialIssuance::new(current_epoch, &nyxd_client).await?)
+        } else {
+            None
+        };
+
         Ok(Rewarder {
             current_epoch,
-            credential_issuance: CredentialIssuance::new(current_epoch, &nyxd_client).await?,
-            epoch_signing: EpochSigning {
-                nyxd_scraper,
-                nyxd_client: nyxd_client.clone(),
-            },
+            credential_issuance,
+            epoch_signing,
             nyxd_client,
             storage,
             config,
@@ -96,21 +122,35 @@ impl Rewarder {
     #[instrument(skip(self))]
     async fn calculate_block_signing_rewards(
         &mut self,
-    ) -> Result<EpochSigningResults, NymRewarderError> {
+    ) -> Result<Option<EpochSigningResults>, NymRewarderError> {
         info!("calculating reward shares");
-        self.epoch_signing
-            .get_signed_blocks_results(self.current_epoch)
-            .await
+        if let Some(epoch_signing) = &mut self.epoch_signing {
+            Some(
+                epoch_signing
+                    .get_signed_blocks_results(self.current_epoch)
+                    .await,
+            )
+        } else {
+            None
+        }
+        .transpose()
     }
 
     #[instrument(skip(self))]
     async fn calculate_credential_rewards(
         &mut self,
-    ) -> Result<CredentialIssuanceResults, NymRewarderError> {
+    ) -> Result<Option<CredentialIssuanceResults>, NymRewarderError> {
         info!("calculating reward shares");
-        self.credential_issuance
-            .get_issued_credentials_results(self.current_epoch)
-            .await
+        if let Some(credential_issuance) = &mut self.credential_issuance {
+            Some(
+                credential_issuance
+                    .get_issued_credentials_results(self.current_epoch)
+                    .await,
+            )
+        } else {
+            None
+        }
+        .transpose()
     }
 
     async fn determine_epoch_rewards(&mut self) -> Result<EpochRewards, NymRewarderError> {
@@ -180,16 +220,18 @@ impl Rewarder {
         // setup shutdowns
         let mut task_manager = TaskManager::new(5);
 
-        self.credential_issuance.start_monitor(
-            self.config.issuance_monitor,
-            self.nyxd_client.clone(),
-            task_manager.subscribe(),
-        );
-        self.epoch_signing.nyxd_scraper.start().await?;
-        self.epoch_signing
-            .nyxd_scraper
-            .wait_for_startup_sync()
-            .await;
+        if let Some(ref credential_issuance) = self.credential_issuance {
+            credential_issuance.start_monitor(
+                self.config.issuance_monitor,
+                self.nyxd_client.clone(),
+                task_manager.subscribe(),
+            );
+        }
+
+        if let Some(epoch_signing) = &self.epoch_signing {
+            epoch_signing.nyxd_scraper.start().await?;
+            epoch_signing.nyxd_scraper.wait_for_startup_sync().await;
+        }
 
         // rewarding epochs last from :00 to :00
         // \/\/\/\/\/\/\/ TEMP TESTING!!!
@@ -225,7 +267,9 @@ impl Rewarder {
             }
         }
 
-        self.epoch_signing.nyxd_scraper.stop().await;
+        if let Some(epoch_signing) = self.epoch_signing {
+            epoch_signing.nyxd_scraper.stop().await;
+        }
 
         Ok(())
     }

@@ -1,6 +1,9 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+#![warn(clippy::expect_used)]
+#![warn(clippy::unwrap_used)]
+
 use crate::cli::Cli;
 use clap::{crate_name, crate_version, Parser};
 use nym_bin_common::logging::{maybe_print_banner, setup_tracing_logger};

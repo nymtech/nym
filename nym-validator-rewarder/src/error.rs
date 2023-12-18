@@ -150,4 +150,7 @@ pub enum NymRewarderError {
         request: Option<String>,
         on_chain: String,
     },
+
+    #[error("can't enable block signing rewarding without the block scraper")]
+    BlockSigningRewardWithoutScraper,
 }

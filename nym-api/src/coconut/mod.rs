@@ -10,7 +10,8 @@ use getset::{CopyGetters, Getters};
 use keypair::KeyPair;
 use nym_api_requests::coconut::{
     BlindSignRequestBody, BlindedSignatureResponse, OfflineVerifyCredentialBody,
-    OnlineVerifyCredentialBody, PartialExpirationDateSignatureResponse, VerifyCredentialResponse,
+    OnlineVerifyCredentialBody, PartialCoinIndicesSignatureResponse,
+    PartialExpirationDateSignatureResponse, VerifyCredentialResponse,
 };
 use nym_coconut_bandwidth_contract_common::spend_credential::{
     funds_from_cosmos_msgs, SpendCredentialStatus,
@@ -23,7 +24,7 @@ use chrono::{Duration, Timelike, Utc};
 use nym_compact_ecash::scheme::keygen::KeyPairAuth;
 use nym_compact_ecash::scheme::withdrawal::WithdrawalRequest;
 use nym_compact_ecash::scheme::EcashCredential;
-use nym_compact_ecash::setup::GroupParameters;
+use nym_compact_ecash::setup::{setup, sign_coin_indices, GroupParameters};
 use nym_compact_ecash::utils::BlindedSignature;
 use nym_compact_ecash::{constants, PublicKeyUser, VerificationKeyAuth};
 use nym_config::defaults::NYM_API_VERSION;
@@ -203,7 +204,8 @@ impl InternalSignRequest {
                     post_blind_sign,
                     verify_offline_credential,
                     verify_online_credential,
-                    expiration_date_signatures
+                    expiration_date_signatures,
+                    coin_indices_signatures,
                 ],
             )
         })
@@ -266,10 +268,10 @@ pub async fn verify_offline_credential(
     verify_credential_body: Json<OfflineVerifyCredentialBody>,
     state: &RocketState<State>,
 ) -> Result<Json<VerifyCredentialResponse>> {
-    todo!();
-    // let verification_key = state
-    //     .verification_key(*verify_credential_body.credential().epoch_id())
-    //     .await?;
+    todo!(); //SW
+             // let verification_key = state
+             //     .verification_key(*verify_credential_body.credential().epoch_id())
+             //     .await?;
 
     // if verify_credential_body
     //     .credential()
@@ -391,5 +393,23 @@ pub async fn expiration_date_signatures(
     };
     Ok(Json(PartialExpirationDateSignatureResponse::new(
         &expiration_date_signatures,
+    )))
+}
+
+#[get("/coin-indices-signatures")] //SW: TODO : cache this
+pub async fn coin_indices_signatures(
+    state: &RocketState<State>,
+) -> Result<Json<PartialCoinIndicesSignatureResponse>> {
+    let ecash_params = setup(constants::NB_TICKETS);
+    let now_utc = Utc::now();
+    let current_epoch = state.client.get_current_epoch().await?;
+    let verification_key = state.verification_key(current_epoch.epoch_id).await?;
+    let coin_indices_signatures = if let Some(keypair) = state.key_pair.get_ecash().await {
+        sign_coin_indices(&ecash_params, &verification_key, &keypair.secret_key())
+    } else {
+        return Err(CoconutError::KeyPairNotDerivedYet);
+    };
+    Ok(Json(PartialCoinIndicesSignatureResponse::new(
+        &coin_indices_signatures,
     )))
 }

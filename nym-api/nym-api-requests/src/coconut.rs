@@ -9,6 +9,7 @@ use nym_compact_ecash::{
         expiration_date_signatures::PartialExpirationDateSignature, withdrawal::WithdrawalRequest,
         EcashCredential,
     },
+    setup::PartialCoinIndexSignature,
     VerificationKeyAuth,
 };
 use serde::{Deserialize, Serialize};
@@ -189,6 +190,19 @@ pub struct PartialExpirationDateSignatureResponse {
 impl PartialExpirationDateSignatureResponse {
     pub fn new(signs: &[PartialExpirationDateSignature]) -> PartialExpirationDateSignatureResponse {
         PartialExpirationDateSignatureResponse {
+            signs: signs.to_owned(),
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct PartialCoinIndicesSignatureResponse {
+    pub signs: Vec<PartialCoinIndexSignature>,
+}
+
+impl PartialCoinIndicesSignatureResponse {
+    pub fn new(signs: &[PartialCoinIndexSignature]) -> PartialCoinIndicesSignatureResponse {
+        PartialCoinIndicesSignatureResponse {
             signs: signs.to_owned(),
         }
     }

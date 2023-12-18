@@ -1,5 +1,6 @@
 use crate::scheme::expiration_date_signatures::ExpirationDateSignature;
 use crate::scheme::EcashCredential;
+use crate::setup::PartialCoinIndexSignature;
 use crate::traits::Base58;
 use crate::VerificationKeyAuth;
 use serde::de::Unexpected;
@@ -51,3 +52,4 @@ impl_serde!(WithdrawalRequest, V1);
 impl_serde!(EcashCredential, V2);
 impl_serde!(VerificationKeyAuth, V3);
 impl_serde!(ExpirationDateSignature, V4);
+impl_serde!(PartialCoinIndexSignature, V5);

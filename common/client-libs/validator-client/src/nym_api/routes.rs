@@ -19,6 +19,7 @@ pub const COCONUT_BLIND_SIGN: &str = "blind-sign";
 pub const ECASH_VERIFY_OFFLINE_CREDENTIAL: &str = "verify-offline-credential";
 pub const ECASH_VERIFY_ONLINE_CREDENTIAL: &str = "verify-online-credential";
 pub const EXPIRATION_DATE_SIGNATURES: &str = "expiration-date-signatures";
+pub const COIN_INDICES_SIGNATURES: &str = "coin-indices-signatures";
 
 pub const STATUS_ROUTES: &str = "status";
 pub const MIXNODE: &str = "mixnode";

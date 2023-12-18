@@ -3,10 +3,11 @@ use ff::Field;
 use group::{Curve, GroupEncoding};
 use rand::thread_rng;
 
-use crate::constants;
 use crate::error::{CompactEcashError, Result};
+use crate::{constants, Base58};
 
 use crate::scheme::keygen::{SecretKeyAuth, VerificationKeyAuth};
+use crate::traits::Bytable;
 use crate::utils::{check_bilinear_pairing, generate_lagrangian_coefficients_at_origin};
 use crate::utils::{hash_g1, try_deserialize_g1_projective};
 use itertools::Itertools;
@@ -187,6 +188,17 @@ impl TryFrom<&[u8]> for CoinIndexSignature {
         Ok(CoinIndexSignature { h, s })
     }
 }
+
+impl Bytable for CoinIndexSignature {
+    fn to_byte_vec(&self) -> Vec<u8> {
+        self.to_bytes().to_vec()
+    }
+
+    fn try_from_byte_slice(slice: &[u8]) -> std::result::Result<Self, CompactEcashError> {
+        Self::try_from(slice)
+    }
+}
+impl Base58 for CoinIndexSignature {}
 
 /// Signs coin indices.
 ///

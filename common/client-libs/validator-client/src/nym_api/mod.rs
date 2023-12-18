@@ -7,7 +7,8 @@ use async_trait::async_trait;
 use http_api_client::{ApiClient, NO_PARAMS};
 use nym_api_requests::coconut::{
     BlindSignRequestBody, BlindedSignatureResponse, OfflineVerifyCredentialBody,
-    OnlineVerifyCredentialBody, PartialExpirationDateSignatureResponse, VerifyCredentialResponse,
+    OnlineVerifyCredentialBody, PartialCoinIndicesSignatureResponse,
+    PartialExpirationDateSignatureResponse, VerifyCredentialResponse,
 };
 use nym_api_requests::models::{
     ComputeRewardEstParam, DescribedGateway, GatewayBondAnnotated, GatewayCoreStatusResponse,
@@ -426,6 +427,21 @@ pub trait NymApiClientExt: ApiClient {
                 routes::COCONUT_ROUTES,
                 routes::BANDWIDTH,
                 routes::EXPIRATION_DATE_SIGNATURES,
+            ],
+            NO_PARAMS,
+        )
+        .await
+    }
+
+    async fn coin_indices_signatures(
+        &self,
+    ) -> Result<PartialCoinIndicesSignatureResponse, NymAPIError> {
+        self.get_json(
+            &[
+                routes::API_VERSION,
+                routes::COCONUT_ROUTES,
+                routes::BANDWIDTH,
+                routes::COIN_INDICES_SIGNATURES,
             ],
             NO_PARAMS,
         )

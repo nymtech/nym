@@ -10,7 +10,8 @@ use crate::{
 };
 use nym_api_requests::coconut::{
     BlindSignRequestBody, BlindedSignatureResponse, OfflineVerifyCredentialBody,
-    OnlineVerifyCredentialBody, PartialExpirationDateSignatureResponse, VerifyCredentialResponse,
+    OnlineVerifyCredentialBody, PartialCoinIndicesSignatureResponse,
+    PartialExpirationDateSignatureResponse, VerifyCredentialResponse,
 };
 use nym_api_requests::models::{DescribedGateway, MixNodeBondAnnotated};
 use nym_api_requests::models::{
@@ -350,5 +351,11 @@ impl NymApiClient {
         &self,
     ) -> Result<PartialExpirationDateSignatureResponse, ValidatorClientError> {
         Ok(self.nym_api.expiration_date_signatures().await?)
+    }
+
+    pub async fn coin_indices_signatures(
+        &self,
+    ) -> Result<PartialCoinIndicesSignatureResponse, ValidatorClientError> {
+        Ok(self.nym_api.coin_indices_signatures().await?)
     }
 }

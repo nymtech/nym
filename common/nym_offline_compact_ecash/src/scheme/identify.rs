@@ -203,7 +203,7 @@ mod tests {
 
         // Let's try to spend some coins
         let pay_info1 = PayInfo {
-            pay_info_bytes: [6u8; 88],
+            pay_info_bytes: [6u8; 72],
         };
         let spend_vv = 1;
 
@@ -323,7 +323,7 @@ mod tests {
 
         // Let's try to spend some coins
         let pay_info1 = PayInfo {
-            pay_info_bytes: [6u8; 88],
+            pay_info_bytes: [6u8; 72],
         };
         let spend_vv = 1;
 
@@ -346,7 +346,7 @@ mod tests {
             .unwrap());
 
         let pay_info2 = PayInfo {
-            pay_info_bytes: [7u8; 88],
+            pay_info_bytes: [7u8; 72],
         };
         let (payment2, _) = upd_wallet
             .spend(
@@ -465,7 +465,7 @@ mod tests {
 
         // Let's try to spend some coins
         let pay_info1 = PayInfo {
-            pay_info_bytes: [6u8; 88],
+            pay_info_bytes: [6u8; 72],
         };
         let spend_vv = 1;
 
@@ -492,7 +492,7 @@ mod tests {
         aggr_wallet.l.set(current_l - 1);
 
         let pay_info2 = PayInfo {
-            pay_info_bytes: [7u8; 88],
+            pay_info_bytes: [7u8; 72],
         };
 
         let (payment2, _) = aggr_wallet
@@ -616,7 +616,7 @@ mod tests {
 
         // Let's try to spend some coins
         let pay_info1 = PayInfo {
-            pay_info_bytes: [6u8; 88],
+            pay_info_bytes: [6u8; 72],
         };
         let spend_vv = 10;
 
@@ -643,7 +643,7 @@ mod tests {
         aggr_wallet.l.set(current_l - 10);
 
         let pay_info2 = PayInfo {
-            pay_info_bytes: [7u8; 88],
+            pay_info_bytes: [7u8; 72],
         };
         let (payment2, _) = aggr_wallet
             .spend(

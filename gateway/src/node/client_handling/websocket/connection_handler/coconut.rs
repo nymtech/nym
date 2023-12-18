@@ -9,9 +9,11 @@ use futures::channel::mpsc::{self, UnboundedReceiver, UnboundedSender};
 use futures::StreamExt;
 use log::*;
 use nym_api_requests::coconut::OfflineVerifyCredentialBody;
+use nym_compact_ecash::scheme::expiration_date_signatures::date_scalar;
 use nym_compact_ecash::scheme::EcashCredential;
-use nym_compact_ecash::setup::Parameters;
-use nym_compact_ecash::{PayInfo, VerificationKeyAuth};
+use nym_compact_ecash::setup::setup;
+use nym_compact_ecash::{constants, PayInfo, VerificationKeyAuth};
+use nym_credentials::coconut::utils::today_timestamp;
 use nym_validator_client::coconut::all_ecash_api_clients;
 use nym_validator_client::nyxd::{AccountId, Coin, Fee};
 use nym_validator_client::{
@@ -93,7 +95,12 @@ impl EcashVerifier {
 
         credential
             .payment()
-            .spend_verify(aggregated_verification_key, credential.pay_info())
+            .spend_verify(
+                &setup(constants::NB_TICKETS),
+                aggregated_verification_key,
+                credential.pay_info(),
+                date_scalar(today_timestamp()),
+            ) //SW
             .map_err(|_| {
                 RequestHandlingError::InvalidBandwidthCredential(String::from(
                     "credential failed to verify on gateway",

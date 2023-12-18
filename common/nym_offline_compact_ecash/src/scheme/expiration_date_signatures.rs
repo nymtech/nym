@@ -356,6 +356,10 @@ pub fn find_index(spend_date: Scalar, expiration_date: Scalar) -> Result<usize> 
     }
 }
 
+pub fn date_scalar(date: u64) -> Scalar {
+    Scalar::from(date)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -5,7 +5,9 @@ use self::comm::APICommunicationChannel;
 use crate::coconut::client::Client as LocalClient;
 use crate::coconut::deposit::extract_encryption_key;
 use crate::coconut::error::{CoconutError, Result};
+use crate::coconut::helpers::accepted_vote_err;
 use crate::support::storage::NymApiStorage;
+use chrono::{Duration, Timelike, Utc};
 use getset::{CopyGetters, Getters};
 use keypair::KeyPair;
 use nym_api_requests::coconut::{
@@ -17,10 +19,8 @@ use nym_coconut_bandwidth_contract_common::spend_credential::{
     funds_from_cosmos_msgs, SpendCredentialStatus,
 };
 use nym_coconut_dkg_common::types::EpochId;
-use nym_compact_ecash::scheme::expiration_date_signatures::sign_expiration_date;
-
-use crate::coconut::helpers::accepted_vote_err;
-use chrono::{Duration, Timelike, Utc};
+use nym_compact_ecash::error::CompactEcashError;
+use nym_compact_ecash::scheme::expiration_date_signatures::{date_scalar, sign_expiration_date};
 use nym_compact_ecash::scheme::keygen::KeyPairAuth;
 use nym_compact_ecash::scheme::withdrawal::WithdrawalRequest;
 use nym_compact_ecash::scheme::EcashCredential;
@@ -31,6 +31,7 @@ use nym_config::defaults::NYM_API_VERSION;
 use nym_credentials::coconut::params::{
     NymApiCredentialEncryptionAlgorithm, NymApiCredentialHkdfAlgorithm,
 };
+use nym_credentials::coconut::utils::{exp_date_timestamp, today_timestamp};
 use nym_crypto::asymmetric::encryption;
 use nym_crypto::shared_key::new_ephemeral_shared_key;
 use nym_crypto::symmetric::stream_cipher;
@@ -236,6 +237,11 @@ pub async fn post_blind_sign(
     {
         return Ok(Json(response));
     }
+    if *blind_sign_request_body.expiration_date() > exp_date_timestamp() {
+        return Err(
+            CompactEcashError::ExpirationDate("Invalid expiration date".to_string()).into(),
+        );
+    }
     let tx = state
         .client
         .get_tx(blind_sign_request_body.tx_hash())
@@ -268,35 +274,35 @@ pub async fn verify_offline_credential(
     verify_credential_body: Json<OfflineVerifyCredentialBody>,
     state: &RocketState<State>,
 ) -> Result<Json<VerifyCredentialResponse>> {
-    todo!(); //SW
-             // let verification_key = state
-             //     .verification_key(*verify_credential_body.credential().epoch_id())
-             //     .await?;
+    let verification_key = state
+        .verification_key(*verify_credential_body.credential().epoch_id())
+        .await?;
 
-    // if verify_credential_body
-    //     .credential()
-    //     .payment()
-    //     .spend_verify(
-    //         &state.ecash_params,
-    //         &verification_key,
-    //         verify_credential_body.credential().pay_info(),
-    //     )
-    //     .is_err()
-    // {
-    //     return Err(CoconutError::CompactEcashInternalError(
-    //         CompactEcashError::PaymentVerification,
-    //     ));
-    // }
+    if verify_credential_body
+        .credential()
+        .payment()
+        .spend_verify(
+            &setup(constants::NB_TICKETS),
+            &verification_key,
+            verify_credential_body.credential().pay_info(),
+            date_scalar(today_timestamp()),
+        )
+        .is_err()
+    {
+        return Err(CoconutError::CompactEcashInternalError(
+            CompactEcashError::PaymentVerification,
+        ));
+    }
 
-    // //store credential
-    // state
-    //     .store_credential(
-    //         verify_credential_body.credential(),
-    //         verify_credential_body.gateway_cosmos_addr(),
-    //     )
-    //     .await?;
+    //store credential
+    state
+        .store_credential(
+            verify_credential_body.credential(),
+            verify_credential_body.gateway_cosmos_addr(),
+        )
+        .await?;
 
-    // Ok(Json(VerifyCredentialResponse::new(true)))
+    Ok(Json(VerifyCredentialResponse::new(true)))
 }
 
 #[post("/verify-online-credential", data = "<verify_credential_body>")]
@@ -334,21 +340,21 @@ pub async fn verify_online_credential(
             status: format!("{:?}", credential_status),
         });
     }
-    let _verification_key = state
+    let verification_key = state
         .verification_key(*verify_credential_body.credential().epoch_id())
         .await?;
-    // let mut vote_yes = verify_credential_body
-    //     .credential()
-    //     .payment()
-    //     .spend_verify(
-    //         &state.ecash_params,
-    //         &verification_key,
-    //         verify_credential_body.credential().pay_info(),
-    //     )
-    //     .map_err(|_| {
-    //         CoconutError::CompactEcashInternalError(CompactEcashError::PaymentVerification)
-    //     })?;
-    let mut vote_yes = true;
+    let mut vote_yes = verify_credential_body
+        .credential()
+        .payment()
+        .spend_verify(
+            &setup(constants::NB_TICKETS),
+            &verification_key,
+            verify_credential_body.credential().pay_info(),
+            date_scalar(today_timestamp()),
+        )
+        .map_err(|_| {
+            CoconutError::CompactEcashInternalError(CompactEcashError::PaymentVerification)
+        })?;
 
     vote_yes &= Coin::from(proposed_release_funds)
         == Coin::new(
@@ -401,7 +407,6 @@ pub async fn coin_indices_signatures(
     state: &RocketState<State>,
 ) -> Result<Json<PartialCoinIndicesSignatureResponse>> {
     let ecash_params = setup(constants::NB_TICKETS);
-    let now_utc = Utc::now();
     let current_epoch = state.client.get_current_epoch().await?;
     let verification_key = state.verification_key(current_epoch.epoch_id).await?;
     let coin_indices_signatures = if let Some(keypair) = state.key_pair.get_ecash().await {

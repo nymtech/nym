@@ -20,7 +20,6 @@ use anyhow::bail;
 use dashmap::DashMap;
 use futures::channel::{mpsc, oneshot};
 use log::*;
-use nym_compact_ecash::setup::Parameters;
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_mixnet_client::forwarder::{MixForwardingSender, PacketForwarder};
 use nym_network_defaults::NymNetworkDetails;
@@ -348,10 +347,8 @@ impl<St> Gateway<St> {
 
         let ecash_verifier = {
             let nyxd_client = self.random_nyxd_client()?;
-            let ecash_params = self.get_ecash_parameters().await?;
             EcashVerifier::new(
                 nyxd_client,
-                ecash_params,
                 self.identity_keypair.public_key().to_bytes(),
                 shutdown.subscribe().named("EcashVerifier"),
                 self.storage.clone(),

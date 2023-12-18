@@ -7,8 +7,15 @@ use crate::error::Error;
 use chrono::{Duration, Timelike, Utc};
 use log::{debug, warn};
 use nym_api_requests::coconut::BlindSignRequestBody;
+use nym_compact_ecash::scheme::expiration_date_signatures::{
+    aggregate_expiration_signatures, verify_valid_dates_signatures, ExpirationDateSignature,
+    PartialExpirationDateSignature,
+};
 use nym_compact_ecash::scheme::Wallet;
-use nym_compact_ecash::setup::GroupParameters;
+use nym_compact_ecash::setup::{
+    aggregate_indices_signatures, setup, verify_coin_indices_signatures, CoinIndexSignature,
+    GroupParameters, PartialCoinIndexSignature,
+};
 use nym_compact_ecash::utils::BlindedSignature;
 use nym_compact_ecash::{
     aggregate_verification_keys, aggregate_wallets, constants, issue_verify, PartialWallet,
@@ -45,6 +52,92 @@ pub async fn obtain_aggregate_verification_key(
         .collect();
 
     Ok(aggregate_verification_keys(&shares, Some(&indices))?)
+}
+
+pub async fn obtain_expiration_date_signatures(
+    ecash_api_clients: &[CoconutApiClient],
+    vk: &VerificationKeyAuth,
+) -> Result<Vec<ExpirationDateSignature>, Error> {
+    if ecash_api_clients.is_empty() {
+        return Err(Error::NoValidatorsAvailable);
+    }
+
+    let mut signatures: Vec<(
+        u64,
+        VerificationKeyAuth,
+        Vec<PartialExpirationDateSignature>,
+    )> = Vec::with_capacity(ecash_api_clients.len());
+
+    let ecash_params = setup(constants::NB_TICKETS);
+    let expiration_date = exp_date_timestamp();
+    for ecash_api_client in ecash_api_clients.iter() {
+        match ecash_api_client
+            .api_client
+            .expiration_date_signatures()
+            .await
+        {
+            Ok(signature) => {
+                let index = ecash_api_client.node_id;
+                let share = ecash_api_client.verification_key.clone();
+                verify_valid_dates_signatures(
+                    &ecash_params,
+                    &share,
+                    &signature.signs,
+                    expiration_date,
+                )?;
+                signatures.push((index, share, signature.signs));
+            }
+            Err(err) => {
+                warn!(
+                    "failed to obtain expiration date signature from {}: {err}",
+                    ecash_api_client.api_client.api_url()
+                );
+            }
+        }
+    }
+
+    Ok(aggregate_expiration_signatures(
+        &ecash_params,
+        vk,
+        expiration_date,
+        &signatures,
+    )?)
+}
+
+pub async fn obtain_coin_indices_signatures(
+    ecash_api_clients: &[CoconutApiClient],
+    vk: &VerificationKeyAuth,
+) -> Result<Vec<CoinIndexSignature>, Error> {
+    if ecash_api_clients.is_empty() {
+        return Err(Error::NoValidatorsAvailable);
+    }
+
+    let mut signatures: Vec<(u64, VerificationKeyAuth, Vec<PartialCoinIndexSignature>)> =
+        Vec::with_capacity(ecash_api_clients.len());
+
+    let ecash_params = setup(constants::NB_TICKETS);
+    for ecash_api_client in ecash_api_clients.iter() {
+        match ecash_api_client.api_client.coin_indices_signatures().await {
+            Ok(signature) => {
+                let index = ecash_api_client.node_id;
+                let share = ecash_api_client.verification_key.clone();
+                verify_coin_indices_signatures(&ecash_params, vk, &share, &signature.signs)?;
+                signatures.push((index, share, signature.signs));
+            }
+            Err(err) => {
+                warn!(
+                    "failed to obtain expiration date signature from {}: {err}",
+                    ecash_api_client.api_client.api_url()
+                );
+            }
+        }
+    }
+
+    Ok(aggregate_indices_signatures(
+        &ecash_params,
+        vk,
+        &signatures,
+    )?)
 }
 
 async fn obtain_partial_credential(

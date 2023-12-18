@@ -34,7 +34,6 @@ use crate::{config, spawn_future};
 use futures::channel::mpsc;
 use log::{debug, error, info};
 use nym_bandwidth_controller::BandwidthController;
-use nym_compact_ecash::setup::Parameters;
 use nym_credential_storage::storage::Storage as CredentialStorage;
 use nym_crypto::asymmetric::encryption;
 use nym_gateway_client::{
@@ -50,8 +49,6 @@ use nym_task::{TaskClient, TaskHandle};
 use nym_topology::provider_trait::TopologyProvider;
 use nym_topology::HardcodedTopologyProvider;
 use nym_validator_client::nyxd::contract_traits::DkgQueryClient;
-use rand::seq::SliceRandom;
-use rand::thread_rng;
 use std::fmt::Debug;
 use std::ops::Deref;
 use std::path::Path;

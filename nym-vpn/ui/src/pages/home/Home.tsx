@@ -74,7 +74,9 @@ function Home() {
           <NetworkModeSelect />
           <div className="py-2"></div>
           <div className="flex flex-col gap-6">
-            <div className="mt-3 font-semibold text-lg">Connect to</div>
+            <div className="mt-3 font-semibold text-lg">
+              {t('select-node-title')}
+            </div>
             <HopSelect
               country={exitNodeLocation ?? QuickConnectCountry}
               onClick={() => navigate(routes.exitNodeLocation)}

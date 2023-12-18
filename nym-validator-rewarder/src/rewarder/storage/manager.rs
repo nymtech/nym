@@ -2,9 +2,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::rewarder::epoch::Epoch;
-use sqlx::types::time::OffsetDateTime;
-use sqlx::{Executor, Sqlite};
-use tracing::{instrument, trace};
 
 #[derive(Clone)]
 pub(crate) struct StorageManager {
@@ -113,20 +110,30 @@ impl StorageManager {
     pub(crate) async fn insert_rewarding_epoch_credential_issuance(
         &self,
         epoch: i64,
-        dkg_epoch_id: u32,
+        starting_dkg_epoch: u32,
+        ending_dkg_epoch: u32,
         total_issued_credentials: u32,
         budget: String,
     ) -> Result<(), sqlx::Error> {
         sqlx::query!(
             r#"
-                INSERT INTO epoch_credential_issuance (rewarding_epoch_id, dkg_epoch_id, total_issued_credentials, budget)
-                VALUES (?, ?, ?, ?)
+                INSERT INTO epoch_credential_issuance (
+                    rewarding_epoch_id,
+                    starting_dkg_epoch, 
+                    ending_dkg_epoch, 
+                    total_issued_credentials,
+                    budget
+                )
+                VALUES (?, ?, ?, ?, ?)
             "#,
             epoch,
-            dkg_epoch_id,
+            starting_dkg_epoch,
+            ending_dkg_epoch,
             total_issued_credentials,
             budget,
-        ).execute(&self.connection_pool).await?;
+        )
+        .execute(&self.connection_pool)
+        .await?;
 
         Ok(())
     }

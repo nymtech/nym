@@ -8,8 +8,8 @@ use http_api_client::{ApiClient, NO_PARAMS};
 pub use nym_api_requests::{
     coconut::{
         models::{
-            EpochCredentialsResponse, IssuedCredentialBody, IssuedCredentialResponse,
-            IssuedCredentialsResponse,
+            EpochCredentialsResponse, IssuedCredential, IssuedCredentialBody,
+            IssuedCredentialResponse, IssuedCredentialsResponse,
         },
         BlindSignRequestBody, BlindedSignatureResponse, CredentialsRequestBody,
         VerifyCredentialBody, VerifyCredentialResponse,

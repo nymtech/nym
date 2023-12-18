@@ -7536,6 +7536,7 @@ dependencies = [
  "nym-coconut-dkg-common",
  "nym-config",
  "nym-credentials",
+ "nym-crypto",
  "nym-network-defaults",
  "nym-task",
  "nym-validator-client",

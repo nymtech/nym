@@ -39,7 +39,8 @@ CREATE TABLE block_signing_reward
 CREATE TABLE epoch_credential_issuance
 (
     rewarding_epoch_id       INTEGER NOT NULL PRIMARY KEY REFERENCES rewarding_epoch (id),
-    dkg_epoch_id             INTEGER NOT NULL,--     currently not incrementing, needs to change
+    starting_dkg_epoch       INTEGER NOT NULL,
+    ending_dkg_epoch        INTEGER NOT NULL,
     total_issued_credentials INTEGER NOT NULL,
     budget                   TEXT    NOT NULL
 );

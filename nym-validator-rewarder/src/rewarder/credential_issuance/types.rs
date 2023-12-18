@@ -3,13 +3,18 @@
 
 use crate::error::NymRewarderError;
 use crate::rewarder::epoch::Epoch;
+use crate::rewarder::helpers::api_client;
+use crate::rewarder::nyxd_client::NyxdClient;
 use cosmwasm_std::{Addr, Decimal, Uint128};
-use nym_coconut::VerificationKey;
+use nym_coconut::{Base58, VerificationKey};
 use nym_coconut_dkg_common::verification_key::ContractVKShare;
+use nym_validator_client::nym_api::NymApiClientExt;
 use nym_validator_client::nyxd::{AccountId, Coin};
+use std::collections::{HashMap, HashSet};
+use std::mem;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use tracing::info;
+use tracing::{info, warn};
 
 #[derive(Clone)]
 pub struct MonitoringResults {
@@ -17,104 +22,173 @@ pub struct MonitoringResults {
 }
 
 impl MonitoringResults {
-    pub(crate) fn new(initial_epoch: Epoch) -> Self {
-        MonitoringResults {
-            inner: Arc::new(Mutex::new(MonitoringResultsInner::new(initial_epoch))),
+    pub(crate) async fn new_initial(
+        initial_epoch: Epoch,
+        nyxd_client: &NyxdClient,
+    ) -> Result<Self, NymRewarderError> {
+        let epoch = nyxd_client.dkg_epoch().await?;
+        let issuers = nyxd_client.get_credential_issuers(epoch.epoch_id).await?;
+
+        let mut initial_results = HashMap::new();
+
+        for issuer in issuers {
+            let issuer_account = issuer.operator_account.to_string();
+            let mut raw_issuer = RawOperatorIssuing {
+                api_runner: issuer.api_runner.clone(),
+                runner_account: issuer.operator_account.clone(),
+                per_epoch: Default::default(),
+            };
+
+            let Ok(api_client) = api_client(&issuer) else {
+                warn!("failed to create api client for {issuer_account}");
+                initial_results.insert(issuer_account, raw_issuer);
+                continue;
+            };
+
+            let Ok(epoch_credentials) = api_client.epoch_credentials(epoch.epoch_id).await else {
+                warn!("failed to get initial epoch credentials from {issuer_account}");
+                initial_results.insert(issuer_account, raw_issuer);
+                continue;
+            };
+
+            raw_issuer.per_epoch.insert(
+                epoch.epoch_id as u32,
+                IssuedEpochCredentials {
+                    issued_since_monitor_started: 0,
+                    validated_ids: Default::default(),
+                    last_total_issued: epoch_credentials.total_issued,
+                },
+            );
+            initial_results.insert(issuer_account, raw_issuer);
+        }
+
+        Ok(MonitoringResults {
+            inner: Arc::new(Mutex::new(MonitoringResultsInner::new(
+                initial_epoch,
+                epoch.epoch_id as u32,
+                initial_results,
+            ))),
+        })
+    }
+
+    pub(crate) async fn append_run_results(&self, dkg_epoch: u32, results: Vec<RawOperatorResult>) {
+        let mut guard = self.inner.lock().await;
+
+        for result in results {
+            let Some(entry) = guard.operators.get_mut(result.operator_account.as_ref()) else {
+                // if this is the first time we're seeing this data, make sure to set the current results as the starting point
+                guard.operators.insert(
+                    result.operator_account.to_string(),
+                    RawOperatorIssuing::new_empty(dkg_epoch, result),
+                );
+
+                continue;
+            };
+
+            let Some(epoch_data) = entry.per_epoch.get_mut(&dkg_epoch) else {
+                // similar situation to the above, if we don't have the proper initial data, set it to what we got now
+                entry
+                    .per_epoch
+                    .insert(dkg_epoch, IssuedEpochCredentials::new_initial(&result));
+                continue;
+            };
+
+            let issued = result.issued_credentials - epoch_data.last_total_issued;
+            epoch_data.last_total_issued = result.issued_credentials;
+
+            for validated in result.validated_credentials {
+                epoch_data.validated_ids.insert(validated);
+            }
+
+            epoch_data.issued_since_monitor_started += issued;
         }
     }
 
-    pub(crate) async fn api_endpoints(&self) -> Vec<String> {
-        self.inner
-            .lock()
-            .await
-            .operators
-            .iter()
-            .map(|o| o.api_runner.clone())
-            .collect()
-    }
-
-    pub(crate) async fn set_epoch_operators(
-        &self,
-        dkg_epoch: u32,
-        operators: Vec<(String, AccountId)>,
-    ) {
-        todo!()
-        // let mut guard = self.inner.lock().await;
-        // guard.operators = operators
-        //     .into_iter()
-        //     .map(|(api_runner, runner_account)| RawOperatorIssuing {
-        //         api_runner,
-        //         runner_account,
-        //         issued_credentials: 0,
-        //         validated_credentials: 0,
-        //     })
-        //     .collect();
-        // guard.dkg_epoch = Some(dkg_epoch)
-    }
-
-    pub(crate) async fn append_run_results(&self, results: Vec<(String, RawOperatorResult)>) {
-        todo!()
-        // let mut guard = self.inner.lock().await;
-        //
-        // // sure, a hashmap would have been quicker, but we'll have at most 30-40 runners so
-        // // performance overhead is negligible
-        // for (api_runner, results) in results {
-        //     if let Some(entry) = guard
-        //         .operators
-        //         .iter_mut()
-        //         .find(|o| o.api_runner == api_runner)
-        //     {
-        //         entry.issued_credentials += results.issued_credentials;
-        //         entry.validated_credentials += results.validated_credentials;
-        //     } else {
-        //         error!("somehow could not find operator results for runner {api_runner}!")
-        //     }
-        // }
-    }
-
     pub(crate) async fn finish_epoch(&self) -> MonitoringResultsInner {
-        todo!()
-        // let mut guard = self.inner.lock().await;
-        // let next_epoch = guard.epoch.next();
-        // let next_results = MonitoringResultsInner::new(next_epoch);
-        // mem::replace(&mut guard, next_results)
+        let mut guard = self.inner.lock().await;
+        let next_epoch = guard.epoch.next();
+
+        // safety: whenever the monitor results are constructed, we always have at least a single value there
+        let latest_dkg_epoch = guard.dkg_epochs.pop().unwrap();
+
+        // only keep results from the latest dkg epoch (but after resetting the counters)
+        let mut to_keep = HashMap::new();
+        for (runner, result) in &guard.operators {
+            let mut kept_epoch = HashMap::new();
+            if let Some(data) = result.per_epoch.get(&latest_dkg_epoch) {
+                kept_epoch.insert(
+                    latest_dkg_epoch,
+                    IssuedEpochCredentials {
+                        issued_since_monitor_started: 0,
+                        validated_ids: Default::default(),
+                        last_total_issued: data.last_total_issued,
+                    },
+                );
+            }
+
+            to_keep.insert(
+                runner.clone(),
+                RawOperatorIssuing {
+                    api_runner: result.api_runner.clone(),
+                    runner_account: result.runner_account.clone(),
+                    per_epoch: kept_epoch,
+                },
+            );
+        }
+
+        let next_results = MonitoringResultsInner {
+            epoch: next_epoch,
+            dkg_epochs: vec![latest_dkg_epoch],
+            operators: to_keep,
+        };
+
+        mem::replace(&mut guard, next_results)
     }
 }
 
 pub(crate) struct MonitoringResultsInner {
     pub(crate) epoch: Epoch,
-    pub(crate) dkg_epoch: Option<u32>,
-    pub(crate) operators: Vec<RawOperatorIssuing>,
+    pub(crate) dkg_epochs: Vec<u32>,
+
+    // map from operator's account to their results
+    pub(crate) operators: HashMap<String, RawOperatorIssuing>,
 }
 
 impl From<MonitoringResultsInner> for CredentialIssuanceResults {
     fn from(value: MonitoringResultsInner) -> Self {
         // approximation!
+        // get the maximum number of issued credentials of all apis
+        // (we sum values if they cross dkg epochs)
         let total_issued = value
             .operators
-            .iter()
-            .map(|o| o.issued_credentials)
+            .values()
+            .map(|o| {
+                o.per_epoch
+                    .values()
+                    .map(|e| e.issued_since_monitor_started)
+                    .sum()
+            })
             .max()
             .unwrap_or_default();
 
         CredentialIssuanceResults {
             total_issued,
-            dkg_epoch: value.dkg_epoch,
+            dkg_epochs: value.dkg_epochs,
             api_runners: value
                 .operators
-                .into_iter()
+                .into_values()
                 .map(|runner| {
                     let issued_ratio = if total_issued == 0 {
                         Decimal::zero()
                     } else {
-                        Decimal::from_ratio(runner.issued_credentials, total_issued)
+                        Decimal::from_ratio(runner.issued_credentials(), total_issued)
                     };
                     OperatorIssuing {
+                        issued_ratio,
+                        issued_credentials: runner.issued_credentials(),
+                        validated_credentials: runner.validated_credentials(),
                         api_runner: runner.api_runner,
                         runner_account: runner.runner_account,
-                        issued_ratio,
-                        issued_credentials: runner.issued_credentials,
-                        validated_credentials: runner.validated_credentials,
                     }
                 })
                 .collect(),
@@ -123,28 +197,84 @@ impl From<MonitoringResultsInner> for CredentialIssuanceResults {
 }
 
 impl MonitoringResultsInner {
-    fn new(epoch: Epoch) -> MonitoringResultsInner {
+    fn new(
+        epoch: Epoch,
+        initial_dkg_epoch: u32,
+        initial_operators: HashMap<String, RawOperatorIssuing>,
+    ) -> MonitoringResultsInner {
         MonitoringResultsInner {
             epoch,
-            dkg_epoch: None,
-            operators: vec![],
+            dkg_epochs: vec![initial_dkg_epoch],
+            operators: initial_operators,
         }
     }
 }
 
 pub(crate) struct RawOperatorResult {
+    pub(crate) operator_account: AccountId,
+    pub(crate) api_runner: String,
+
+    // how many credentials the operator claims to have issued in **TOTAL** in this **DKG** epoch
     pub(crate) issued_credentials: u32,
-    pub(crate) validated_credentials: u32,
+    pub(crate) validated_credentials: Vec<i64>,
+}
+
+impl RawOperatorResult {
+    pub(crate) fn new_empty(operator_account: AccountId, api_runner: String) -> RawOperatorResult {
+        RawOperatorResult {
+            operator_account,
+            api_runner,
+            issued_credentials: 0,
+            validated_credentials: Default::default(),
+        }
+    }
 }
 
 pub struct RawOperatorIssuing {
     pub api_runner: String,
     pub runner_account: AccountId,
 
-    pub issued_credentials: u32,
-    pub validated_credentials: u32,
+    pub per_epoch: HashMap<u32, IssuedEpochCredentials>,
+}
 
-    pub(crate) starting_credential_id: u32,
+impl RawOperatorIssuing {
+    pub fn new_empty(epoch: u32, raw_result: RawOperatorResult) -> RawOperatorIssuing {
+        let mut per_epoch = HashMap::new();
+        per_epoch.insert(epoch, IssuedEpochCredentials::new_initial(&raw_result));
+        RawOperatorIssuing {
+            api_runner: raw_result.api_runner,
+            runner_account: raw_result.operator_account,
+            per_epoch,
+        }
+    }
+
+    pub fn issued_credentials(&self) -> u32 {
+        self.per_epoch
+            .values()
+            .map(|e| e.issued_since_monitor_started)
+            .sum()
+    }
+
+    pub fn validated_credentials(&self) -> u32 {
+        let ids: usize = self.per_epoch.values().map(|e| e.validated_ids.len()).sum();
+        ids as u32
+    }
+}
+
+pub struct IssuedEpochCredentials {
+    pub issued_since_monitor_started: u32,
+    pub validated_ids: HashSet<i64>,
+    pub last_total_issued: u32,
+}
+
+impl IssuedEpochCredentials {
+    pub fn new_initial(raw: &RawOperatorResult) -> Self {
+        IssuedEpochCredentials {
+            issued_since_monitor_started: 0,
+            validated_ids: raw.validated_credentials.iter().copied().collect(),
+            last_total_issued: raw.issued_credentials,
+        }
+    }
 }
 
 pub struct OperatorIssuing {
@@ -167,7 +297,7 @@ impl OperatorIssuing {
 pub struct CredentialIssuanceResults {
     // note: this is an approximation!
     pub total_issued: u32,
-    pub dkg_epoch: Option<u32>,
+    pub dkg_epochs: Vec<u32>,
     pub api_runners: Vec<OperatorIssuing>,
 }
 
@@ -188,7 +318,9 @@ impl CredentialIssuanceResults {
     }
 }
 
+#[derive(Debug)]
 pub struct CredentialIssuer {
+    // pub public_key: identity::PublicKey,
     pub operator_account: AccountId,
     pub api_runner: String,
     pub verification_key: VerificationKey,
@@ -198,7 +330,16 @@ impl TryFrom<ContractVKShare> for CredentialIssuer {
     type Error = NymRewarderError;
 
     fn try_from(value: ContractVKShare) -> Result<Self, Self::Error> {
-        todo!()
+        Ok(CredentialIssuer {
+            operator_account: addr_to_account_id(value.owner.clone()),
+            api_runner: value.announce_address,
+            verification_key: VerificationKey::try_from_bs58(value.share).map_err(|source| {
+                NymRewarderError::MalformedPartialVerificationKey {
+                    runner: value.owner.to_string(),
+                    source,
+                }
+            })?,
+        })
     }
 }
 

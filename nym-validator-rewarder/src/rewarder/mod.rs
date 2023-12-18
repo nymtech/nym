@@ -82,10 +82,7 @@ impl Rewarder {
 
         Ok(Rewarder {
             current_epoch,
-            credential_issuance: CredentialIssuance::new(
-                current_epoch,
-                config.issuance_monitor.run_interval,
-            ),
+            credential_issuance: CredentialIssuance::new(current_epoch, &nyxd_client).await?,
             epoch_signing: EpochSigning {
                 nyxd_scraper,
                 nyxd_client: nyxd_client.clone(),

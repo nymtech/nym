@@ -102,16 +102,38 @@ impl RewarderStorage {
                 )
                 .await?;
         }
-        //
-        // self.manager
-        //     .insert_rewarding_epoch_credential_issuance(epoch_id)
-        //     .await?;
-        //
-        // for api_runner in reward.credentials.api_runners {
-        //     self.manager
-        //         .insert_rewarding_epoch_credential_issuance_reward(epoch_id)
-        //         .await?;
-        // }
+
+        // safety: we must have at least a single value here
+        let dkg_epoch_start = reward.credentials.dkg_epochs.first().unwrap();
+        let dkg_epoch_end = reward.credentials.dkg_epochs.last().unwrap();
+
+        self.manager
+            .insert_rewarding_epoch_credential_issuance(
+                epoch_id,
+                *dkg_epoch_start,
+                *dkg_epoch_end,
+                reward.credentials.total_issued,
+                reward.credentials_budget.to_string(),
+            )
+            .await?;
+
+        for api_runner in reward.credentials.api_runners {
+            let reward_amount = api_runner
+                .reward_amount(&reward.credentials_budget)
+                .to_string();
+
+            self.manager
+                .insert_rewarding_epoch_credential_issuance_reward(
+                    epoch_id,
+                    api_runner.runner_account.to_string(),
+                    reward_amount,
+                    api_runner.api_runner,
+                    api_runner.issued_credentials,
+                    api_runner.issued_ratio.to_string(),
+                    api_runner.validated_credentials,
+                )
+                .await?;
+        }
 
         Ok(())
     }

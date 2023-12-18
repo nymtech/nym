@@ -4,8 +4,6 @@
 use crate::config::Config;
 use crate::error::NymRewarderError;
 use crate::rewarder::credential_issuance::types::CredentialIssuer;
-use cosmwasm_std::Addr;
-use nym_coconut::VerificationKey;
 use nym_coconut_bandwidth_contract_common::events::{
     COSMWASM_DEPOSITED_FUNDS_EVENT_TYPE, DEPOSIT_INFO, DEPOSIT_VALUE,
 };

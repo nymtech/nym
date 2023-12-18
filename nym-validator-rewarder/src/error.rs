@@ -114,6 +114,13 @@ pub enum NymRewarderError {
         source: CoconutError,
     },
 
+    #[error("the partial verification key for runner {runner} is malformed: {source}")]
+    MalformedPartialVerificationKey {
+        runner: String,
+        #[source]
+        source: CoconutError,
+    },
+
     #[error("could not verify the blinded credential")]
     BlindVerificationFailure,
 
@@ -137,7 +144,7 @@ pub enum NymRewarderError {
         on_chain: String,
     },
 
-    #[error("the provided deposit info  of transaction {tx_hash}is inconsistent. got '{request:?}' while the value on chain is '{on_chain}'")]
+    #[error("the provided deposit info  of transaction {tx_hash} is inconsistent. got '{request:?}' while the value on chain is '{on_chain}'")]
     InconsistentDepositInfo {
         tx_hash: Hash,
         request: Option<String>,

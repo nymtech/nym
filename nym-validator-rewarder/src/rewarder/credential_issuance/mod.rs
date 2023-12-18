@@ -8,23 +8,23 @@ use crate::rewarder::credential_issuance::types::{CredentialIssuanceResults, Mon
 use crate::rewarder::epoch::Epoch;
 use crate::rewarder::nyxd_client::NyxdClient;
 use nym_task::TaskClient;
-use std::time::Duration;
 use tracing::info;
 
 mod monitor;
 pub mod types;
 
 pub struct CredentialIssuance {
-    monitoring_run_interval: Duration,
     monitoring_results: MonitoringResults,
 }
 
 impl CredentialIssuance {
-    pub(crate) fn new(epoch: Epoch, monitoring_run_interval: Duration) -> Self {
-        CredentialIssuance {
-            monitoring_run_interval,
-            monitoring_results: MonitoringResults::new(epoch),
-        }
+    pub(crate) async fn new(
+        epoch: Epoch,
+        nyxd_client: &NyxdClient,
+    ) -> Result<Self, NymRewarderError> {
+        Ok(CredentialIssuance {
+            monitoring_results: MonitoringResults::new_initial(epoch, nyxd_client).await?,
+        })
     }
 
     pub(crate) fn start_monitor(

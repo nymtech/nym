@@ -283,11 +283,13 @@ impl crate::coconut::client::Client for Client {
         self.client_address().await
     }
 
-    async fn get_tx(&self, tx_hash: &str) -> crate::coconut::error::Result<nyxd::TxResponse> {
-        let tx_hash: Hash = tx_hash
-            .parse()
-            .map_err(|_| CoconutError::TxHashParseError)?;
-        Ok(self.0.read().await.get_tx(tx_hash).await?)
+    async fn get_tx(&self, tx_hash: Hash) -> crate::coconut::error::Result<nyxd::TxResponse> {
+        self.0.read().await.get_tx(tx_hash).await.map_err(|source| {
+            CoconutError::TxRetrievalFailure {
+                tx_hash: tx_hash.to_string(),
+                source,
+            }
+        })
     }
 
     async fn get_proposal(

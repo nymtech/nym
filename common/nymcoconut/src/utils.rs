@@ -34,6 +34,7 @@ impl Polynomial {
             // just return the last term of the polynomial
         } else if x.is_zero().into() {
             // we checked that coefficients are not empty so unwrap here is fine
+            #[allow(clippy::unwrap_used)]
             *self.coefficients.first().unwrap()
         } else {
             self.coefficients
@@ -148,6 +149,8 @@ pub(crate) fn try_deserialize_scalar_vec(
 
     let mut out = Vec::with_capacity(expected_len as usize);
     for i in 0..expected_len as usize {
+        // we just checked we have exactly the amount of bytes we need and thus the unwrap is fine
+        #[allow(clippy::unwrap_used)]
         let s_bytes = bytes[i * 32..(i + 1) * 32].try_into().unwrap();
         let s = match Into::<Option<Scalar>>::into(Scalar::from_bytes(&s_bytes)) {
             None => return Err(err),

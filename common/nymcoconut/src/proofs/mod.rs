@@ -91,8 +91,8 @@ impl ProofCmCs {
         commitment_opening: &Scalar,
         commitments: &[G1Projective],
         pedersen_commitments_openings: &[Scalar],
-        private_attributes: &[Attribute],
-        public_attributes: &[Attribute],
+        private_attributes: &[&Attribute],
+        public_attributes: &[&Attribute],
     ) -> Self {
         // note: this is only called from `prepare_blind_sign` that already checks
         // whether private attributes are non-empty and whether we don't have too many
@@ -162,11 +162,8 @@ impl ProofCmCs {
             &challenge,
             &pedersen_commitments_openings.iter().collect::<Vec<_>>(),
         );
-        let response_attributes = produce_responses(
-            &witness_attributes,
-            &challenge,
-            &private_attributes.iter().collect::<Vec<_>>(),
-        );
+        let response_attributes =
+            produce_responses(&witness_attributes, &challenge, private_attributes);
 
         ProofCmCs {
             challenge,
@@ -181,7 +178,7 @@ impl ProofCmCs {
         params: &Parameters,
         commitment: &G1Projective,
         commitments: &[G1Projective],
-        public_attributes: &[Attribute],
+        public_attributes: &[&Attribute],
     ) -> bool {
         if self.response_attributes.len() != commitments.len() {
             return false;
@@ -203,7 +200,7 @@ impl ProofCmCs {
             - public_attributes
                 .iter()
                 .zip(params.gen_hs().iter().skip(self.response_attributes.len()))
-                .map(|(pub_attr, hs)| hs * pub_attr)
+                .map(|(&pub_attr, hs)| hs * pub_attr)
                 .sum::<G1Projective>())
             * self.challenge
             + g1 * self.response_opening
@@ -280,8 +277,12 @@ impl ProofCmCs {
         }
 
         let mut idx = 0;
+        // safety: bound checked + constant offset
+        #[allow(clippy::unwrap_used)]
         let challenge_bytes = bytes[idx..idx + 32].try_into().unwrap();
         idx += 32;
+        // safety: bound checked + constant offset
+        #[allow(clippy::unwrap_used)]
         let response_opening_bytes = bytes[idx..idx + 32].try_into().unwrap();
         idx += 32;
 
@@ -297,6 +298,8 @@ impl ProofCmCs {
             ),
         )?;
 
+        // safety: bound checked + constant offset
+        #[allow(clippy::unwrap_used)]
         let ro_len = u64::from_le_bytes(bytes[idx..idx + 8].try_into().unwrap());
         idx += 8;
         if bytes[idx..].len() < ro_len as usize * 32 + 8 {
@@ -313,6 +316,8 @@ impl ProofCmCs {
             CoconutError::Deserialization("Failed to deserialize openings response".to_string()),
         )?;
 
+        // safety: bound checked + constant offset
+        #[allow(clippy::unwrap_used)]
         let rm_len = u64::from_le_bytes(bytes[ro_end..ro_end + 8].try_into().unwrap());
         let response_attributes = try_deserialize_scalar_vec(
             rm_len,
@@ -462,7 +467,7 @@ impl ProofKappaZeta {
 
     pub(crate) fn from_bytes(bytes: &[u8]) -> Result<Self> {
         // at the very minimum there must be a single attribute being proven
-        if bytes.len() < 32 * 4 || (bytes.len()) % 32 != 0 {
+        if bytes.len() != 128 {
             return Err(CoconutError::DeserializationInvalidLength {
                 actual: bytes.len(),
                 modulus_target: bytes.len(),
@@ -472,24 +477,32 @@ impl ProofKappaZeta {
             });
         }
 
+        // safety: bound checked + constant offset
+        #[allow(clippy::unwrap_used)]
         let challenge_bytes = bytes[..32].try_into().unwrap();
         let challenge = try_deserialize_scalar(
             &challenge_bytes,
             CoconutError::Deserialization("Failed to deserialize challenge".to_string()),
         )?;
 
+        // safety: bound checked + constant offset
+        #[allow(clippy::unwrap_used)]
         let serial_number_bytes = &bytes[32..64].try_into().unwrap();
         let response_serial_number = try_deserialize_scalar(
             serial_number_bytes,
             CoconutError::Deserialization("failed to deserialize the serial number".to_string()),
         )?;
 
+        // safety: bound checked + constant offset
+        #[allow(clippy::unwrap_used)]
         let binding_number_bytes = &bytes[64..96].try_into().unwrap();
         let response_binding_number = try_deserialize_scalar(
             binding_number_bytes,
             CoconutError::Deserialization("failed to deserialize the binding number".to_string()),
         )?;
 
+        // safety: bound checked + constant offset
+        #[allow(clippy::unwrap_used)]
         let blinder_bytes = bytes[96..].try_into().unwrap();
         let response_blinder = try_deserialize_scalar(
             &blinder_bytes,
@@ -512,14 +525,13 @@ impl ProofKappaZeta {
 
 #[cfg(test)]
 mod tests {
-    use group::Group;
-    use rand::thread_rng;
-
+    use super::*;
     use crate::scheme::keygen::keygen;
     use crate::scheme::setup::setup;
     use crate::scheme::verification::{compute_kappa, compute_zeta};
-
-    use super::*;
+    use crate::tests::helpers::random_scalars_refs;
+    use group::Group;
+    use rand::thread_rng;
 
     #[test]
     fn proof_cm_cs_bytes_roundtrip() {
@@ -530,7 +542,7 @@ mod tests {
         let r = params.random_scalar();
         let cms: [G1Projective; 1] = [G1Projective::random(&mut rng)];
         let rs = params.n_random_scalars(1);
-        let private_attributes = params.n_random_scalars(1);
+        random_scalars_refs!(private_attributes, params, 1);
 
         // 0 public 1 private
         let pi_s = ProofCmCs::construct(&params, &cm, &r, &cms, &rs, &private_attributes, &[]);
@@ -546,7 +558,7 @@ mod tests {
             G1Projective::random(&mut rng),
         ];
         let rs = params.n_random_scalars(2);
-        let private_attributes = params.n_random_scalars(2);
+        random_scalars_refs!(private_attributes, params, 2);
 
         // 0 public 2 privates
         let pi_s = ProofCmCs::construct(&params, &cm, &r, &cms, &rs, &private_attributes, &[]);
@@ -562,20 +574,20 @@ mod tests {
         let keypair = keygen(&params);
 
         // we don't care about 'correctness' of the proof. only whether we can correctly recover it from bytes
-        let serial_number = params.random_scalar();
-        let binding_number = params.random_scalar();
+        let serial_number = &params.random_scalar();
+        let binding_number = &params.random_scalar();
         let private_attributes = vec![serial_number, binding_number];
 
         let r = params.random_scalar();
-        let kappa = compute_kappa(&params, &keypair.verification_key(), &private_attributes, r);
+        let kappa = compute_kappa(&params, keypair.verification_key(), &private_attributes, r);
         let zeta = compute_zeta(&params, serial_number);
 
         // 0 public 2 private
         let pi_v = ProofKappaZeta::construct(
             &params,
-            &keypair.verification_key(),
-            &serial_number,
-            &binding_number,
+            keypair.verification_key(),
+            serial_number,
+            binding_number,
             &r,
             &kappa,
             &zeta,
@@ -592,9 +604,9 @@ mod tests {
 
         let pi_v = ProofKappaZeta::construct(
             &params,
-            &keypair.verification_key(),
-            &serial_number,
-            &binding_number,
+            keypair.verification_key(),
+            serial_number,
+            binding_number,
             &r,
             &kappa,
             &zeta,

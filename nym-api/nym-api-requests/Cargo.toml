@@ -13,8 +13,11 @@ getset = "0.1.1"
 schemars = { workspace = true, features = ["preserve_order"] }
 serde = { workspace = true, features = ["derive"] }
 ts-rs = { workspace = true, optional = true }
+tendermint = { workspace = true }
 
 nym-coconut-interface = { path = "../../common/coconut-interface" }
+nym-crypto = { path = "../../common/crypto", features = ["serde", "asymmetric"]}
+
 nym-mixnet-contract-common = { path= "../../common/cosmwasm-smart-contracts/mixnet-contract" }
 nym-node-requests = { path = "../../nym-node/nym-node-requests", default-features = false }
 

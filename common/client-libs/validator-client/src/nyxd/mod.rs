@@ -47,6 +47,10 @@ pub use cosmrs::Coin as CosmosCoin;
 pub use cosmrs::Gas;
 pub use cosmrs::{bip32, AccountId, Denom};
 pub use cosmwasm_std::Coin as CosmWasmCoin;
+pub use cw2;
+pub use cw3;
+pub use cw4;
+pub use cw_controllers;
 pub use fee::{gas_price::GasPrice, GasAdjustable, GasAdjustment};
 pub use tendermint_rpc::{
     endpoint::{tx::Response as TxResponse, validators::Response as ValidatorResponse},
@@ -67,6 +71,7 @@ pub mod contract_traits;
 pub mod cosmwasm_client;
 pub mod error;
 pub mod fee;
+pub mod helpers;
 
 #[derive(Debug, Clone)]
 pub struct Config {

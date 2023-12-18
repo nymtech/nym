@@ -60,6 +60,7 @@ impl From<ConfigV1_1_27> for Config {
                 mixnet_contract_address: value.base.mixnet_contract_address,
                 vesting_contract_address: value.base.vesting_contract_address,
                 mnemonic: value.base.mnemonic,
+                storage_paths: Default::default(),
             },
             network_monitor: NetworkMonitor {
                 enabled: value.network_monitor.enabled,

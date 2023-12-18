@@ -26,6 +26,10 @@ pub struct Args {
 }
 
 pub async fn execute(args: Args, client: SigningClient) -> anyhow::Result<()> {
+    if args.amount == 0 {
+        bail!("did not specify credential amount")
+    }
+
     let loaded = CommonConfigsWrapper::try_load(args.client_config)?;
 
     if let Ok(id) = loaded.try_get_id() {

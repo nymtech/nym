@@ -108,7 +108,7 @@ pub async fn set_entry_selector(
         .read()
         .await
         .map_err(|e| CmdError::new(CmdErrorSource::InternalError, e.to_string()))?;
-    app_data.entry_selector = Some(entry_selector);
+    app_data.entry_location_selector = Some(entry_selector);
     app_data_store.data = app_data;
     app_data_store
         .write()

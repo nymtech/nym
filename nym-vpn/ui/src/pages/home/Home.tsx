@@ -12,7 +12,7 @@ import ConnectionStatus from './ConnectionStatus';
 import HopSelect from './HopSelect';
 
 function Home() {
-  const { state, loading, exitNodeLocation, entryNodeLocation, entrySelector } = useMainState();
+  const { state, loading, exitNodeLocation } = useMainState();
   const dispatch = useMainDispatch() as StateDispatch;
   const navigate = useNavigate();
   const { t } = useTranslation('home');
@@ -75,15 +75,6 @@ function Home() {
           <div className="py-2"></div>
           <div className="flex flex-col gap-6">
             <div className="mt-3 font-semibold text-lg">Connect to</div>
-            {entrySelector ? (
-              <HopSelect
-                country={entryNodeLocation ?? QuickConnectCountry}
-                onClick={() => navigate(routes.entryNodeLocation)}
-                nodeHop="entry"
-              />
-            ) : (
-              <></>
-            )}
             <HopSelect
               country={exitNodeLocation ?? QuickConnectCountry}
               onClick={() => navigate(routes.exitNodeLocation)}

@@ -17,7 +17,6 @@ fn pretty_build_info_static() -> &'static str {
 }
 
 #[derive(Parser, Debug)]
-#[command(args_conflicts_with_subcommands = true)]
 #[clap(author = "Nymtech", version, long_version = pretty_build_info_static(), about)]
 pub(crate) struct Cli {
     /// Path pointing to an env file that configures the Nym API.

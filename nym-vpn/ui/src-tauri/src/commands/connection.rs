@@ -1,5 +1,6 @@
 use futures::SinkExt;
 use nym_vpn_lib::{NymVpnCtrlMessage, NymVpnHandle};
+use nym_vpn_lib::gateway_client::{EntryPoint, ExitPoint};
 use tauri::{Manager, State};
 use tracing::{debug, error, info, instrument, trace};
 
@@ -31,7 +32,7 @@ pub async fn get_connection_state(
 pub async fn connect(
     app: tauri::AppHandle,
     state: State<'_, SharedAppState>,
-    config_store: State<'_, SharedAppConfig>,
+    _config_store: State<'_, SharedAppConfig>,
 ) -> Result<ConnectionState, CmdError> {
     debug!("connect");
     {
@@ -67,15 +68,13 @@ pub async fn connect(
     )
     .ok();
 
-    let app_config = config_store.lock().await.read().await.map_err(|e| {
-        CmdError::new(
-            CmdErrorSource::InternalError,
-            format!("failed to read app config: {}", e),
-        )
-    })?;
-    let mut vpn_config = create_vpn_config(&app_config);
+    let app_state = state.lock().await;
+    let entry_point = EntryPoint::Location(app_state.entry_node_location.clone()
+        .ok_or(CmdError::new(CmdErrorSource::InternalError, "Missing entry country code".to_string()))?.code);
+    let exit_point = ExitPoint::Location(app_state.entry_node_location.clone()
+        .ok_or(CmdError::new(CmdErrorSource::InternalError, "Missing exit country code".to_string()))?.code);
+    let mut vpn_config = create_vpn_config(entry_point,exit_point);
     {
-        let app_state = state.lock().await;
         if let VpnMode::TwoHop = app_state.vpn_mode {
             info!("2-hop mode enabled");
             vpn_config.enable_two_hop = true;

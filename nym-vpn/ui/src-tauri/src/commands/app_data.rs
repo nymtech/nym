@@ -14,24 +14,20 @@ pub fn get_node_countries() -> Result<Vec<Country>, CmdError> {
     debug!("get_node_countries");
     let countries: Vec<Country> = vec![
         Country {
-            name: "United States".to_string(),
-            code: "US".to_string(),
-        },
-        Country {
-            name: "France".to_string(),
-            code: "FR".to_string(),
-        },
-        Country {
-            name: "Switzerland".to_string(),
-            code: "CH".to_string(),
-        },
-        Country {
-            name: "Sweden".to_string(),
-            code: "SE".to_string(),
+            name: "Ireland".to_string(),
+            code: "IE".to_string(),
         },
         Country {
             name: "Germany".to_string(),
             code: "DE".to_string(),
+        },
+        Country {
+            name: "Japan".to_string(),
+            code: "JP".to_string(),
+        },
+        Country {
+            name: "Great Britain".to_string(),
+            code: "GB".to_string(),
         },
     ];
     Ok(countries)

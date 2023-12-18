@@ -1,9 +1,8 @@
-use crate::fs::config::AppConfig;
 use crate::states::{app::ConnectionState, SharedAppState};
 use anyhow::Result;
 use futures::channel::oneshot::Receiver as OneshotReceiver;
 use futures::StreamExt;
-use nym_vpn_lib::gateway_client::Config as GatewayClientConfig;
+use nym_vpn_lib::gateway_client::{Config as GatewayClientConfig, EntryPoint, ExitPoint};
 use nym_vpn_lib::nym_config::OptionalSet;
 use nym_vpn_lib::{NymVpn, NymVpnExitError, NymVpnExitStatusMessage, StatusReceiver};
 use tauri::Manager;
@@ -166,8 +165,8 @@ fn setup_gateway_client_config(private_key: Option<&str>) -> GatewayClientConfig
 }
 
 #[instrument(skip_all)]
-pub fn create_vpn_config(app_config: &AppConfig) -> NymVpn {
-    let mut nym_vpn = NymVpn::new(&app_config.entry_gateway, &app_config.exit_router);
+pub fn create_vpn_config(entry_point: EntryPoint, exit_point: ExitPoint) -> NymVpn {
+    let mut nym_vpn = NymVpn::new(entry_point, exit_point);
     nym_vpn.gateway_config = setup_gateway_client_config(None);
     nym_vpn
 }

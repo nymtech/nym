@@ -34,7 +34,7 @@ pub async fn get_connection_state(
 pub async fn connect(
     app: tauri::AppHandle,
     state: State<'_, SharedAppState>,
-    _config_store: State<'_, SharedAppConfig>,
+    config_store: State<'_, SharedAppConfig>,
 ) -> Result<ConnectionState, CmdError> {
     debug!("connect");
     {
@@ -72,11 +72,22 @@ pub async fn connect(
 
     let app_state = state.lock().await;
 
-    debug!(
-        "using hardcoded entry node location: {}",
-        DEFAULT_NODE_LOCATION
-    );
-    let entry_point = EntryPoint::Location(DEFAULT_NODE_LOCATION.into());
+    // get entry node location from app config file
+    let app_config = config_store
+        .lock()
+        .await
+        .read()
+        .await
+        .map_err(|e| CmdError::new(CmdErrorSource::InternalError, e.to_string()))?;
+    let entry_location = app_config
+        .entry_node_location
+        .clone()
+        .unwrap_or_else(|| DEFAULT_NODE_LOCATION.to_string());
+    // !! release config_store mutex
+    drop(app_config);
+
+    debug!("using entry node location: {}", entry_location);
+    let entry_point = EntryPoint::Location(entry_location);
     let exit_point = match app_state.exit_node_location {
         Some(ref exit_node_location) => {
             debug!("exit node location set, using: {}", exit_node_location.code);
@@ -99,7 +110,7 @@ pub async fn connect(
         info!("5-hop mode enabled");
     }
     // vpn_config.disable_routing = true;
-    // !! release the mutex
+    // !! release app_state mutex
     drop(app_state);
 
     // spawn the VPN client and start a new connection

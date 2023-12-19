@@ -81,6 +81,8 @@ pub struct GatewayClient<C, St = EphemeralCredentialStorage> {
 
     /// Listen to shutdown messages.
     shutdown: TaskClient,
+
+    sent_ws_packets: u64,
 }
 
 impl<C, St> GatewayClient<C, St> {
@@ -109,6 +111,7 @@ impl<C, St> GatewayClient<C, St> {
             reconnection_attempts: DEFAULT_RECONNECTION_ATTEMPTS,
             reconnection_backoff: DEFAULT_RECONNECTION_BACKOFF,
             shutdown,
+            sent_ws_packets: 0,
         }
     }
 
@@ -354,7 +357,11 @@ impl<C, St> GatewayClient<C, St> {
         msg: Message,
     ) -> Result<(), GatewayClientError> {
         match self.connection {
-            SocketState::Available(ref mut conn) => Ok(conn.send(msg).await?),
+            SocketState::Available(ref mut conn) => {
+                let res = conn.send(msg).await?;
+                self.sent_ws_packets += 1;
+                Ok(res)
+            },
             SocketState::PartiallyDelegated(ref mut partially_delegated) => {
                 if let Err(err) = partially_delegated.send_without_response(msg).await {
                     error!("failed to send message without response - {err}...");
@@ -364,6 +371,7 @@ impl<C, St> GatewayClient<C, St> {
                     }
                     Err(err)
                 } else {
+                    self.sent_ws_packets += 1;
                     Ok(())
                 }
             }
@@ -818,6 +826,7 @@ impl GatewayClient<InitOnly, EphemeralCredentialStorage> {
             reconnection_attempts: DEFAULT_RECONNECTION_ATTEMPTS,
             reconnection_backoff: DEFAULT_RECONNECTION_BACKOFF,
             shutdown,
+            sent_ws_packets: 0,
         }
     }
 
@@ -849,6 +858,8 @@ impl GatewayClient<InitOnly, EphemeralCredentialStorage> {
             reconnection_attempts: self.reconnection_attempts,
             reconnection_backoff: self.reconnection_backoff,
             shutdown,
+            // TODO: maybe we need to make this static atomic after all
+            sent_ws_packets: self.sent_ws_packets,
         }
     }
 }

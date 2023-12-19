@@ -113,6 +113,15 @@ where
 
     /// Report queue lengths so that upstream can backoff sending data, and keep connections open.
     lane_queue_lengths: LaneQueueLengths,
+
+    // Count the number of sent packets with real data
+    packet_sent_count: u64,
+
+    // Count the number of packets polled from the real traffic stream
+    packet_polled_count: u64,
+
+    // Count the number of packets polled from the real traffic stream that are retranmissions
+    packet_retransmission_polled_count: u64,
 }
 
 #[derive(Debug)]
@@ -184,6 +193,9 @@ where
             transmission_buffer: TransmissionBuffer::new(),
             client_connection_rx,
             lane_queue_lengths,
+            packet_sent_count: 0,
+            packet_polled_count: 0,
+            packet_retransmission_polled_count: 0,
         }
     }
 
@@ -253,6 +265,7 @@ where
                 )
             }
             StreamMessage::Real(real_message) => {
+                self.packet_sent_count += 1;
                 (real_message.mix_packet, real_message.fragment_id)
             }
         };
@@ -432,6 +445,10 @@ where
 
             Poll::Ready(Some((real_messages, conn_id))) => {
                 log::trace!("handling real_messages: size: {}", real_messages.len());
+                self.packet_polled_count += 1;
+                if conn_id == TransmissionLane::Retransmission {
+                    self.packet_retransmission_polled_count += 1;
+                }
 
                 // First store what we got for the given connection id
                 self.transmission_buffer.store(&conn_id, real_messages);
@@ -491,6 +508,13 @@ where
         } else if mult > self.sending_delay_controller.min_multiplier() {
             shutdown.send_status_msg(Box::new(ClientCoreStatusMessage::GatewayIsSlow));
         }
+
+        info!(
+            "{} packets sent, {} packets polled, {} retransmissions polled",
+            self.packet_sent_count,
+            self.packet_polled_count,
+            self.packet_retransmission_polled_count
+        );
     }
 
     pub(super) async fn run_with_shutdown(&mut self, mut shutdown: nym_task::TaskClient) {

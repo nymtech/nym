@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { Country, NodeHop } from '../../types';
 import { QuickConnectPrefix } from '../../constants';
+import { useMainState } from '../../contexts';
 
 interface HopSelectProps {
   country: Country;
@@ -13,11 +14,13 @@ export default function HopSelect({
   country,
   onClick,
 }: HopSelectProps) {
+  const { state } = useMainState();
   const { t } = useTranslation('home');
+
   return (
     <>
       <div
-        className="relative w-full flex flex-row justify-center cursor-pointer"
+        className="relative w-full flex flex-row justify-center"
         onKeyDown={onClick}
         role="presentation"
         onClick={onClick}
@@ -27,11 +30,12 @@ export default function HopSelect({
           type="text"
           id="floating_outlined"
           value={country.name}
-          className="dark:bg-baltic-sea cursor-pointer pl-11 dark:placeholder-white border border-gun-powder block px-2.5 pb-4 pt-4 w-full text-sm text-gray-900 bg-transparent rounded-lg border-1 border-gray-300 appearance-none dark:text-white dark:border-gray-600 dark:focus:border-blue-500 focus:outline-none focus:ring-0 focus:border-blue-600 peer"
+          className="disabled:cursor-default dark:bg-baltic-sea cursor-pointer pl-11 dark:placeholder-white border border-gun-powder block px-2.5 pb-4 pt-4 w-full text-sm text-gray-900 bg-transparent rounded-lg border-1 border-gray-300 appearance-none dark:text-white dark:border-gray-600 dark:focus:border-blue-500 focus:outline-none focus:ring-0 focus:border-blue-600 peer"
+          disabled={state !== 'Disconnected'}
         />
         <div className="top-1/2 transform -translate-y-1/2 left-2 absolute pointer-events-none">
           {country.name.includes(QuickConnectPrefix) ? (
-            <span className="font-icon cursor-pointer px-2">bolt</span>
+            <span className="font-icon px-2">bolt</span>
           ) : (
             <img
               src={`./flags/${country.code.toLowerCase()}.svg`}

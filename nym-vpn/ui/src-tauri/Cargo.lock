@@ -5267,6 +5267,7 @@ dependencies = [
  "nym-task",
  "nym-validator-client",
  "nym-wireguard-types",
+ "rand 0.7.3",
  "serde",
  "serde_json",
  "signature 1.4.0",

@@ -1,4 +1,5 @@
 use futures::SinkExt;
+use nym_vpn_lib::gateway_client::{EntryPoint, ExitPoint};
 use nym_vpn_lib::{NymVpnCtrlMessage, NymVpnHandle};
 use tauri::{Manager, State};
 use tracing::{debug, error, info, instrument, trace};
@@ -15,6 +16,8 @@ use crate::{
         EVENT_CONNECTION_STATE,
     },
 };
+
+const DEFAULT_NODE_LOCATION: &str = "DE";
 
 #[instrument(skip_all)]
 #[tauri::command]
@@ -67,23 +70,48 @@ pub async fn connect(
     )
     .ok();
 
-    let app_config = config_store.lock().await.read().await.map_err(|e| {
-        CmdError::new(
-            CmdErrorSource::InternalError,
-            format!("failed to read app config: {}", e),
-        )
-    })?;
-    let mut vpn_config = create_vpn_config(&app_config);
-    {
-        let app_state = state.lock().await;
-        if let VpnMode::TwoHop = app_state.vpn_mode {
-            info!("2-hop mode enabled");
-            vpn_config.enable_two_hop = true;
-        } else {
-            info!("5-hop mode enabled");
+    let app_state = state.lock().await;
+
+    // get entry node location from app config file
+    let app_config = config_store
+        .lock()
+        .await
+        .read()
+        .await
+        .map_err(|e| CmdError::new(CmdErrorSource::InternalError, e.to_string()))?;
+    let entry_location = app_config
+        .entry_node_location
+        .clone()
+        .unwrap_or_else(|| DEFAULT_NODE_LOCATION.to_string());
+    // !! release config_store mutex
+    drop(app_config);
+
+    debug!("using entry node location: {}", entry_location);
+    let entry_point = EntryPoint::Location(entry_location);
+    let exit_point = match app_state.exit_node_location {
+        Some(ref exit_node_location) => {
+            debug!("exit node location set, using: {}", exit_node_location.code);
+            ExitPoint::Location(exit_node_location.code.clone())
         }
+        _ => {
+            debug!(
+                "exit node location not set, using default: {}",
+                DEFAULT_NODE_LOCATION
+            );
+            ExitPoint::Location(DEFAULT_NODE_LOCATION.into())
+        }
+    };
+
+    let mut vpn_config = create_vpn_config(entry_point, exit_point);
+    if let VpnMode::TwoHop = app_state.vpn_mode {
+        info!("2-hop mode enabled");
+        vpn_config.enable_two_hop = true;
+    } else {
+        info!("5-hop mode enabled");
     }
     // vpn_config.disable_routing = true;
+    // !! release app_state mutex
+    drop(app_state);
 
     // spawn the VPN client and start a new connection
     let NymVpnHandle {

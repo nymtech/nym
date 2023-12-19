@@ -66,8 +66,8 @@ function ConnectionStatus() {
           {getStatusText(state.state)}
         </div>
       </div>
-      <div className="flex flex-1">
-        {state.loading && state.progressMessages.length > 0 && (
+      <div className="flex-col flex-1 text-center">
+        {state.loading && state.progressMessages.length > 0 && !state.error && (
           <p className="text-dim-gray dark:text-mercury-mist font-bold">
             {t(
               `connection-progress.${

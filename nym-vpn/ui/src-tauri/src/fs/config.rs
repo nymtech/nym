@@ -6,8 +6,6 @@ use serde::{Deserialize, Serialize};
 pub struct AppConfig {
     /// Path pointing to an env configuration file describing the network
     pub env_config_file: Option<PathBuf>,
-    /// Mixnet public ID of the entry gateway
-    pub entry_gateway: String,
-    /// Mixnet recipient address
-    pub exit_router: String,
+    /// Country code (two letters format, eg. FR)
+    pub entry_node_location: Option<String>,
 }

@@ -5,14 +5,15 @@ import clsx from 'clsx';
 import { Button } from '@mui/base';
 import { useNavigate } from 'react-router-dom';
 import { useMainDispatch, useMainState } from '../../contexts';
-import { StateDispatch } from '../../types';
-import { QuickConnectCountry, routes } from '../../constants';
+import { CmdError, StateDispatch } from '../../types';
+import { routes } from '../../constants';
 import NetworkModeSelect from './NetworkModeSelect';
 import ConnectionStatus from './ConnectionStatus';
 import HopSelect from './HopSelect';
 
 function Home() {
-  const { state, loading, exitNodeLocation } = useMainState();
+  const { state, loading, exitNodeLocation, defaultNodeLocation } =
+    useMainState();
   const dispatch = useMainDispatch() as StateDispatch;
   const navigate = useNavigate();
   const { t } = useTranslation('home');
@@ -25,9 +26,9 @@ function Home() {
           console.log('disconnect result');
           console.log(result);
         })
-        .catch((e) => {
-          console.log(e);
-          dispatch({ type: 'set-error', error: e });
+        .catch((e: CmdError) => {
+          console.warn(`backend error: ${e.source} - ${e.message}`);
+          dispatch({ type: 'set-error', error: e.message });
         });
     } else if (state === 'Disconnected') {
       dispatch({ type: 'connect' });
@@ -36,9 +37,9 @@ function Home() {
           console.log('connect result');
           console.log(result);
         })
-        .catch((e) => {
-          console.log(e);
-          dispatch({ type: 'set-error', error: e });
+        .catch((e: CmdError) => {
+          console.warn(`backend error: ${e.source} - ${e.message}`);
+          dispatch({ type: 'set-error', error: e.message });
         });
     }
   };
@@ -73,11 +74,20 @@ function Home() {
         <div className="flex flex-col justify-between">
           <NetworkModeSelect />
           <div className="py-2"></div>
-          <HopSelect
-            country={exitNodeLocation ?? QuickConnectCountry}
-            onClick={() => navigate(routes.exitNodeLocation)}
-            nodeHop="exit"
-          />
+          <div className="flex flex-col gap-6">
+            <div className="mt-3 font-semibold text-lg">
+              {t('select-node-title')}
+            </div>
+            <HopSelect
+              country={exitNodeLocation || defaultNodeLocation}
+              onClick={() => {
+                if (state === 'Disconnected') {
+                  navigate(routes.exitNodeLocation);
+                }
+              }}
+              nodeHop="exit"
+            />
+          </div>
         </div>
         <Button
           className={clsx([

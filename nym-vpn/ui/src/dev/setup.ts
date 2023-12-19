@@ -1,7 +1,7 @@
 import { mockIPC, mockWindows } from '@tauri-apps/api/mocks';
 import { emit } from '@tauri-apps/api/event';
 import { AppDataFromBackend, ConnectionState, Country } from '../types';
-import { ConnectionEvent, QuickConnectCountry } from '../constants';
+import { ConnectionEvent } from '../constants';
 
 export function mockTauriIPC() {
   mockWindows('main');
@@ -56,21 +56,37 @@ export function mockTauriIPC() {
       );
     }
 
+    if (cmd === 'get_default_node_location') {
+      return new Promise<Country>((resolve) =>
+        resolve({
+          name: 'France',
+          code: 'FR',
+        }),
+      );
+    }
+
     if (cmd === 'get_app_data') {
       return new Promise<AppDataFromBackend>((resolve) =>
         resolve({
           monitoring: false,
           autoconnect: false,
           killswitch: false,
+          entry_location_selector: false,
           ui_theme: 'Dark',
           vpn_mode: 'TwoHop',
           entry_node: {
-            country: QuickConnectCountry,
-            id: QuickConnectCountry.code,
+            country: {
+              name: 'France',
+              code: 'FR',
+            },
+            id: 'nodeOne',
           },
           exit_node: {
-            country: QuickConnectCountry,
-            id: QuickConnectCountry.code,
+            country: {
+              name: 'France',
+              code: 'FR',
+            },
+            id: 'nodeTwo',
           },
           entry_node_location: null,
           exit_node_location: null,

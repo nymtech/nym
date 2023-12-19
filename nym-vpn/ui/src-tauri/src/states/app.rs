@@ -4,6 +4,8 @@ use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
 use ts_rs::TS;
 
+use crate::fs::data::AppData;
+
 #[derive(Debug, Serialize, Deserialize, Clone, TS)]
 #[ts(export)]
 pub struct NodeConfig {
@@ -49,6 +51,17 @@ pub struct AppState {
     pub tunnel: Option<TunnelConfig>,
     pub connection_start_time: Option<OffsetDateTime>,
     pub vpn_ctrl_tx: Option<UnboundedSender<NymVpnCtrlMessage>>,
+}
+
+impl From<&AppData> for AppState {
+    fn from(app_data: &AppData) -> Self {
+        AppState {
+            entry_node_location: app_data.entry_node_location.clone(),
+            exit_node_location: app_data.exit_node_location.clone(),
+            vpn_mode: app_data.vpn_mode.clone().unwrap_or_default(),
+            ..Default::default()
+        }
+    }
 }
 
 #[derive(Default, Serialize, Deserialize, Debug, Clone, TS)]

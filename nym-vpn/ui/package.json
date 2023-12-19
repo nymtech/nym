@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "dev:app": "RUST_LOG=nymvpn_ui=trace tauri dev",
+    "dev:app": "tauri dev",
     "dev:browser": "vite --mode dev-browser",
     "build": "tsc && vite build",
     "build:app": "yarn tauri build",

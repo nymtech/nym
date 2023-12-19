@@ -1,14 +1,20 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use super::InternalSignRequest;
 use crate::coconut::error::{CoconutError, Result};
-use cosmwasm_std::{to_binary, Addr, CosmosMsg, Decimal, WasmMsg};
+use crate::coconut::storage::CoconutStorageExt;
+use crate::coconut::{self, State};
+use crate::support::storage::NymApiStorage;
+use async_trait::async_trait;
+use cosmwasm_std::{coin, to_binary, Addr, CosmosMsg, Decimal, WasmMsg};
+use cw3::ProposalResponse;
+use cw4::MemberResponse;
+use nym_api_requests::coconut::models::{IssuedCredentialInner, IssuedCredentialResponse};
 use nym_api_requests::coconut::{
     BlindSignRequestBody, BlindedSignatureResponse, VerifyCredentialBody, VerifyCredentialResponse,
 };
 use nym_coconut::tests::helpers::theta_from_keys_and_attributes;
-use nym_coconut::{prepare_blind_sign, ttp_keygen, Base58, BlindedSignature, Parameters};
+use nym_coconut::{ttp_keygen, Base58, BlindedSignature, Parameters};
 use nym_coconut_bandwidth_contract_common::events::{
     DEPOSITED_FUNDS_EVENT_TYPE, DEPOSIT_ENCRYPTION_KEY, DEPOSIT_IDENTITY_KEY, DEPOSIT_INFO,
     DEPOSIT_VALUE,
@@ -16,27 +22,6 @@ use nym_coconut_bandwidth_contract_common::events::{
 use nym_coconut_bandwidth_contract_common::spend_credential::{
     SpendCredential, SpendCredentialResponse,
 };
-use nym_coconut_interface::{hash_to_scalar, Credential, VerificationKey};
-use nym_config::defaults::VOUCHER_INFO;
-use nym_credentials::coconut::bandwidth::BandwidthVoucher;
-use nym_credentials::coconut::params::{
-    NymApiCredentialEncryptionAlgorithm, NymApiCredentialHkdfAlgorithm,
-};
-use nym_crypto::shared_key::recompute_shared_key;
-use nym_crypto::symmetric::stream_cipher;
-use nym_validator_client::nym_api::routes::{
-    API_VERSION, BANDWIDTH, COCONUT_BLIND_SIGN, COCONUT_ROUTES, COCONUT_VERIFY_BANDWIDTH_CREDENTIAL,
-};
-use nym_validator_client::nyxd::Coin;
-use nym_validator_client::nyxd::{
-    AccountId, Algorithm, Event, EventAttribute, ExecTxResult, Fee, Hash, TxResponse,
-};
-
-use crate::coconut::State;
-use crate::support::storage::NymApiStorage;
-use async_trait::async_trait;
-use cw3::ProposalResponse;
-use cw4::MemberResponse;
 use nym_coconut_dkg_common::dealer::{
     ContractDealing, DealerDetails, DealerDetailsResponse, DealerType,
 };
@@ -45,18 +30,31 @@ use nym_coconut_dkg_common::types::{
     EncodedBTEPublicKeyWithProof, Epoch, EpochId, InitialReplacementData, TOTAL_DEALINGS,
 };
 use nym_coconut_dkg_common::verification_key::{ContractVKShare, VerificationKeyShare};
+use nym_coconut_interface::{hash_to_scalar, Credential, VerificationKey};
+use nym_config::defaults::VOUCHER_INFO;
 use nym_contracts_common::dealings::ContractSafeBytes;
+use nym_credentials::coconut::bandwidth::BandwidthVoucher;
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_dkg::Threshold;
+use nym_validator_client::nym_api::routes::{
+    API_VERSION, BANDWIDTH, COCONUT_BLIND_SIGN, COCONUT_ROUTES, COCONUT_VERIFY_BANDWIDTH_CREDENTIAL,
+};
 use nym_validator_client::nyxd::cosmwasm_client::logs::Log;
 use nym_validator_client::nyxd::cosmwasm_client::types::ExecuteResult;
+use nym_validator_client::nyxd::Coin;
+use nym_validator_client::nyxd::{
+    AccountId, Algorithm, Event, EventAttribute, ExecTxResult, Fee, Hash, TxResponse,
+};
 use rand_07::rngs::OsRng;
-use rand_07::Rng;
+use rand_07::{Rng, RngCore};
 use rocket::http::Status;
 use rocket::local::asynchronous::Client;
 use std::collections::HashMap;
 use std::str::FromStr;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, RwLock};
+
+mod issued_credentials;
 
 const TEST_COIN_DENOM: &str = "unym";
 const TEST_REWARDING_VALIDATOR_ADDRESS: &str = "n19lc9u84cz0yz3fww5283nucc9yvr8gsjmgeul0";
@@ -64,7 +62,7 @@ const TEST_REWARDING_VALIDATOR_ADDRESS: &str = "n19lc9u84cz0yz3fww5283nucc9yvr8g
 #[derive(Clone, Debug)]
 pub(crate) struct DummyClient {
     validator_address: AccountId,
-    tx_db: Arc<RwLock<HashMap<String, TxResponse>>>,
+    tx_db: Arc<RwLock<HashMap<Hash, TxResponse>>>,
     proposal_db: Arc<RwLock<HashMap<u64, ProposalResponse>>>,
     spent_credential_db: Arc<RwLock<HashMap<String, SpendCredentialResponse>>>,
 
@@ -94,7 +92,7 @@ impl DummyClient {
         }
     }
 
-    pub fn with_tx_db(mut self, tx_db: &Arc<RwLock<HashMap<String, TxResponse>>>) -> Self {
+    pub fn with_tx_db(mut self, tx_db: &Arc<RwLock<HashMap<Hash, TxResponse>>>) -> Self {
         self.tx_db = Arc::clone(tx_db);
         self
     }
@@ -172,13 +170,8 @@ impl super::client::Client for DummyClient {
         self.validator_address.clone()
     }
 
-    async fn get_tx(&self, tx_hash: &str) -> Result<TxResponse> {
-        self.tx_db
-            .read()
-            .unwrap()
-            .get(tx_hash)
-            .cloned()
-            .ok_or(CoconutError::TxHashParseError)
+    async fn get_tx(&self, tx_hash: Hash) -> Result<TxResponse> {
+        Ok(self.tx_db.read().unwrap().get(&tx_hash).cloned().unwrap())
     }
 
     async fn get_proposal(&self, proposal_id: u64) -> Result<ProposalResponse> {
@@ -467,27 +460,38 @@ impl super::client::Client for DummyClient {
 
 #[derive(Clone, Debug)]
 pub struct DummyCommunicationChannel {
+    current_epoch: Arc<AtomicU64>,
     aggregated_verification_key: VerificationKey,
 }
 
 impl DummyCommunicationChannel {
     pub fn new(aggregated_verification_key: VerificationKey) -> Self {
         DummyCommunicationChannel {
+            current_epoch: Arc::new(AtomicU64::new(1)),
             aggregated_verification_key,
         }
+    }
+
+    pub fn with_epoch(mut self, current_epoch: Arc<AtomicU64>) -> Self {
+        self.current_epoch = current_epoch;
+        self
     }
 }
 
 #[async_trait]
 impl super::comm::APICommunicationChannel for DummyCommunicationChannel {
+    async fn current_epoch(&self) -> Result<EpochId> {
+        Ok(self.current_epoch.load(Ordering::Relaxed))
+    }
+
     async fn aggregated_verification_key(&self, _epoch_id: EpochId) -> Result<VerificationKey> {
         Ok(self.aggregated_verification_key.clone())
     }
 }
 
-pub fn tx_entry_fixture(tx_hash: &str) -> TxResponse {
+pub fn tx_entry_fixture(hash: Hash) -> TxResponse {
     TxResponse {
-        hash: Hash::from_str(tx_hash).unwrap(),
+        hash,
         height: Default::default(),
         index: 0,
         tx_result: ExecTxResult {
@@ -505,88 +509,242 @@ pub fn tx_entry_fixture(tx_hash: &str) -> TxResponse {
     }
 }
 
-#[tokio::test]
-async fn signed_before() {
-    let tx_hash =
-        Hash::from_str("6B27412050B823E58BB38447D7870BBC8CBE3C51C905BEA89D459ACCDA80A00E").unwrap();
-    let tx_entry = tx_entry_fixture(&tx_hash.to_string());
-    let signature = String::from(
-        "2DHbEZ6pzToGpsAXJrqJi7Wj1pAXeT18283q2YEEyNH5gTymwRozWBdja6SMAVt1dyYmUnM4ZNhsJ4wxZyGh4Z6J",
-    );
+pub fn deposit_tx_fixture(voucher: &BandwidthVoucher) -> TxResponse {
+    TxResponse {
+        hash: voucher.tx_hash(),
+        height: Default::default(),
+        index: 0,
+        tx_result: ExecTxResult {
+            code: Default::default(),
+            data: Default::default(),
+            log: "".to_string(),
+            info: "".to_string(),
+            gas_wanted: 0,
+            gas_used: 0,
+            events: vec![Event {
+                kind: format!("wasm-{}", DEPOSITED_FUNDS_EVENT_TYPE),
+                attributes: vec![
+                    EventAttribute {
+                        key: DEPOSIT_VALUE.to_string(),
+                        value: voucher.get_voucher_value(),
+                        index: false,
+                    },
+                    EventAttribute {
+                        key: DEPOSIT_INFO.to_string(),
+                        value: VOUCHER_INFO.to_string(),
+                        index: false,
+                    },
+                    EventAttribute {
+                        key: DEPOSIT_IDENTITY_KEY.to_string(),
+                        value: voucher.identity_key().public_key().to_base58_string(),
+                        index: false,
+                    },
+                    EventAttribute {
+                        key: DEPOSIT_ENCRYPTION_KEY.parse().unwrap(),
+                        value: voucher.encryption_key().public_key().to_base58_string(),
+                        index: false,
+                    },
+                ],
+            }],
+            codespace: "".to_string(),
+        },
+        tx: vec![],
+        proof: None,
+    }
+}
 
+pub fn blinded_signature_fixture() -> BlindedSignature {
+    let gen1_bytes = [
+        151u8, 241, 211, 167, 49, 151, 215, 148, 38, 149, 99, 140, 79, 169, 172, 15, 195, 104, 140,
+        79, 151, 116, 185, 5, 161, 78, 58, 63, 23, 27, 172, 88, 108, 85, 232, 63, 249, 122, 26,
+        239, 251, 58, 240, 10, 219, 34, 198, 187,
+    ];
+
+    let dummy_bytes = gen1_bytes
+        .iter()
+        .chain(gen1_bytes.iter())
+        .copied()
+        .collect::<Vec<_>>();
+
+    BlindedSignature::from_bytes(&dummy_bytes).unwrap()
+}
+
+pub fn voucher_request_fixture<C: Into<Coin>>(
+    amount: C,
+    tx_hash: Option<String>,
+) -> (BandwidthVoucher, BlindSignRequestBody) {
     let params = Parameters::new(4).unwrap();
     let mut rng = OsRng;
+    let tx_hash = if let Some(provided) = &tx_hash {
+        provided.parse().unwrap()
+    } else {
+        Hash::from_str("6B27412050B823E58BB38447D7870BBC8CBE3C51C905BEA89D459ACCDA80A00E").unwrap()
+    };
+
+    let identity_keypair = identity::KeyPair::new(&mut rng);
+    let encryption_keypair = encryption::KeyPair::new(&mut rng);
+    let id_priv =
+        identity::PrivateKey::from_bytes(&identity_keypair.private_key().to_bytes()).unwrap();
+    let enc_priv =
+        encryption::PrivateKey::from_bytes(&encryption_keypair.private_key().to_bytes()).unwrap();
+
     let voucher = BandwidthVoucher::new(
         &params,
-        "1234".to_string(),
+        amount.into().amount.to_string(),
         VOUCHER_INFO.to_string(),
         tx_hash,
-        identity::PrivateKey::from_base58_string(
-            identity::KeyPair::new(&mut rng)
-                .private_key()
-                .to_base58_string(),
-        )
-        .unwrap(),
-        encryption::PrivateKey::from_bytes(
-            &encryption::KeyPair::new(&mut rng).private_key().to_bytes(),
-        )
-        .unwrap(),
+        id_priv,
+        enc_priv,
     );
-    let (_, blind_sign_req) = prepare_blind_sign(
-        &params,
-        &voucher.get_private_attributes(),
-        &voucher.get_public_attributes(),
-    )
-    .unwrap();
 
-    let key_pair = ttp_keygen(&params, 1, 1).unwrap().remove(0);
-    let mut db_dir = std::env::temp_dir();
-    db_dir.push(&key_pair.verification_key().to_bs58()[..8]);
-    let storage = NymApiStorage::init(db_dir).await.unwrap();
-    let tx_db = Arc::new(RwLock::new(HashMap::new()));
-    tx_db
-        .write()
-        .unwrap()
-        .insert(tx_hash.to_string(), tx_entry.clone());
-    let nyxd_client =
-        DummyClient::new(AccountId::from_str(TEST_REWARDING_VALIDATOR_ADDRESS).unwrap())
-            .with_tx_db(&tx_db);
-    let comm_channel = DummyCommunicationChannel::new(key_pair.verification_key());
-    let staged_key_pair = crate::coconut::KeyPair::new();
-    staged_key_pair.set(Some(key_pair)).await;
-
-    let rocket = rocket::build().attach(InternalSignRequest::stage(
-        nyxd_client,
-        TEST_COIN_DENOM.to_string(),
-        staged_key_pair,
-        comm_channel,
-        storage.clone(),
-    ));
-    let client = Client::tracked(rocket)
-        .await
-        .expect("valid rocket instance");
-
-    let request_body = BlindSignRequestBody::new(
-        &blind_sign_req,
-        tx_hash.to_string(),
-        signature.clone(),
-        &voucher.get_public_attributes(),
+    let request = BlindSignRequestBody::new(
+        voucher.blind_sign_request().clone(),
+        tx_hash,
+        voucher.sign(),
         voucher.get_public_attributes_plain(),
-        4,
     );
 
-    let encrypted_signature = vec![1, 2, 3, 4];
-    let remote_key = [42; 32];
-    let expected_response = BlindedSignatureResponse::new(encrypted_signature, remote_key);
-    storage
-        .insert_blinded_signature_response(
-            &tx_hash.to_string(),
-            &expected_response.to_base58_string(),
-        )
+    (voucher, request)
+}
+
+fn dummy_signature() -> identity::Signature {
+    "3vUCc6MCN5AC2LNgDYjRB1QeErZSN1S8f6K14JHjpUcKWXbjGYFExA8DbwQQBki9gyUqrpBF94Drttb4eMcGQXkp"
+        .parse()
+        .unwrap()
+}
+
+async fn nym_api_storage_fixture(identity: &identity::KeyPair) -> NymApiStorage {
+    let mut db_dir = std::env::temp_dir();
+    db_dir.push(identity.public_key().to_base58_string());
+    NymApiStorage::init(db_dir).await.unwrap()
+}
+
+struct TestFixture {
+    rocket: Client,
+    storage: NymApiStorage,
+    tx_db: Arc<RwLock<HashMap<Hash, TxResponse>>>,
+    epoch: Arc<AtomicU64>,
+}
+
+impl TestFixture {
+    async fn new() -> Self {
+        let mut rng = OsRng;
+        let params = Parameters::new(4).unwrap();
+        let coconut_keypair = ttp_keygen(&params, 1, 1).unwrap().remove(0);
+        let identity = identity::KeyPair::new(&mut rng);
+        let epoch = Arc::new(AtomicU64::new(1));
+        let comm_channel =
+            DummyCommunicationChannel::new(coconut_keypair.verification_key().clone())
+                .with_epoch(epoch.clone());
+        let storage = nym_api_storage_fixture(&identity).await;
+
+        let staged_key_pair = crate::coconut::KeyPair::new();
+        staged_key_pair.set(Some(coconut_keypair)).await;
+
+        let tx_db = Arc::new(RwLock::new(HashMap::new()));
+        let nyxd_client =
+            DummyClient::new(AccountId::from_str(TEST_REWARDING_VALIDATOR_ADDRESS).unwrap())
+                .with_tx_db(&tx_db);
+
+        let rocket = rocket::build().attach(coconut::stage(
+            nyxd_client,
+            TEST_COIN_DENOM.to_string(),
+            identity,
+            staged_key_pair,
+            comm_channel,
+            storage.clone(),
+        ));
+
+        TestFixture {
+            rocket: Client::tracked(rocket)
+                .await
+                .expect("valid rocket instance"),
+            storage,
+            tx_db,
+            epoch,
+        }
+    }
+
+    fn set_epoch(&self, epoch: u64) {
+        self.epoch.store(epoch, Ordering::Relaxed)
+    }
+
+    fn add_tx(&self, hash: Hash, tx: TxResponse) {
+        self.tx_db.write().unwrap().insert(hash, tx);
+    }
+
+    fn add_deposit_tx(&self, voucher: &BandwidthVoucher) {
+        let mut guard = self.tx_db.write().unwrap();
+        let fixture = deposit_tx_fixture(voucher);
+        guard.insert(voucher.tx_hash(), fixture);
+    }
+
+    async fn issue_dummy_credential(&self) {
+        let mut rng = OsRng;
+        let mut tx_hash = [0u8; 32];
+        rng.fill_bytes(&mut tx_hash);
+        let tx_hash = Hash::from_bytes(Algorithm::Sha256, &tx_hash).unwrap();
+
+        let (voucher, req) = voucher_request_fixture(coin(1234, "unym"), Some(tx_hash.to_string()));
+        self.add_deposit_tx(&voucher);
+
+        self.issue_credential(req).await;
+    }
+
+    async fn issue_credential(&self, req: BlindSignRequestBody) -> BlindedSignatureResponse {
+        let response = self
+            .rocket
+            .post(format!(
+                "/{API_VERSION}/{COCONUT_ROUTES}/{BANDWIDTH}/{COCONUT_BLIND_SIGN}",
+            ))
+            .json(&req)
+            .dispatch()
+            .await;
+        assert_eq!(response.status(), Status::Ok);
+        serde_json::from_str(&response.into_string().await.unwrap()).unwrap()
+    }
+
+    async fn issued_credential(&self, id: i64) -> Option<IssuedCredentialResponse> {
+        let response = self
+            .rocket
+            .get(format!(
+                "/{API_VERSION}/{COCONUT_ROUTES}/{BANDWIDTH}/issued-credential/{id}"
+            ))
+            .dispatch()
+            .await;
+        assert_eq!(response.status(), Status::Ok);
+        serde_json::from_str(&response.into_string().await.unwrap()).unwrap()
+    }
+
+    async fn issued_unchecked(&self, id: i64) -> IssuedCredentialInner {
+        self.issued_credential(id)
+            .await
+            .unwrap()
+            .credential
+            .unwrap()
+    }
+}
+
+#[tokio::test]
+async fn already_issued() {
+    let (_, request_body) = voucher_request_fixture(coin(1234, TEST_COIN_DENOM), None);
+    let tx_hash = request_body.tx_hash;
+    let tx_entry = tx_entry_fixture(tx_hash);
+
+    let test_fixture = TestFixture::new().await;
+    test_fixture.add_tx(tx_hash, tx_entry);
+
+    let sig = blinded_signature_fixture();
+    let commitments = request_body.encode_commitments();
+    let public = request_body.public_attributes_plain.clone();
+    test_fixture
+        .storage
+        .store_issued_credential(42, tx_hash, &sig, dummy_signature(), commitments, public)
         .await
         .unwrap();
 
-    let response = client
+    let response = test_fixture
+        .rocket
         .post(format!(
             "/{}/{}/{}/{}",
             API_VERSION, COCONUT_ROUTES, BANDWIDTH, COCONUT_BLIND_SIGN
@@ -595,6 +753,7 @@ async fn signed_before() {
         .dispatch()
         .await;
     assert_eq!(response.status(), Status::Ok);
+    let expected_response = BlindedSignatureResponse::new(sig);
 
     // This is a more direct way, but there's a bug which makes it hang https://github.com/SergioBenitez/Rocket/issues/1893
     // let blinded_signature_response = response
@@ -612,6 +771,9 @@ async fn signed_before() {
 
 #[tokio::test]
 async fn state_functions() {
+    let mut rng = OsRng;
+    let identity = identity::KeyPair::new(&mut rng);
+
     let nyxd_client =
         DummyClient::new(AccountId::from_str(TEST_REWARDING_VALIDATOR_ADDRESS).unwrap());
     let params = Parameters::new(4).unwrap();
@@ -619,38 +781,49 @@ async fn state_functions() {
     let mut db_dir = std::env::temp_dir();
     db_dir.push(&key_pair.verification_key().to_bs58()[..8]);
     let storage = NymApiStorage::init(db_dir).await.unwrap();
-    let comm_channel = DummyCommunicationChannel::new(key_pair.verification_key());
+    let comm_channel = DummyCommunicationChannel::new(key_pair.verification_key().clone());
     let staged_key_pair = crate::coconut::KeyPair::new();
     staged_key_pair.set(Some(key_pair)).await;
     let state = State::new(
         nyxd_client,
         TEST_COIN_DENOM.to_string(),
+        identity,
         staged_key_pair,
         comm_channel,
         storage.clone(),
     );
 
-    let tx_hash = String::from("6B27412050B823E58BB38447D7870BBC8CBE3C51C905BEA89D459ACCDA80A00E");
-    assert!(state.signed_before(&tx_hash).await.unwrap().is_none());
+    let tx_hash = "6B27412050B823E58BB38447D7870BBC8CBE3C51C905BEA89D459ACCDA80A00E"
+        .parse()
+        .unwrap();
+    assert!(state.already_issued(tx_hash).await.unwrap().is_none());
 
-    let encrypted_signature = vec![1, 2, 3, 4];
-    let remote_key = [42; 32];
-    let expected_response = BlindedSignatureResponse::new(encrypted_signature, remote_key);
+    let (_, request_body) = voucher_request_fixture(coin(1234, TEST_COIN_DENOM), None);
+    let commitments = request_body.encode_commitments();
+    let public = request_body.public_attributes_plain.clone();
+    let sig = blinded_signature_fixture();
     storage
-        .insert_blinded_signature_response(&tx_hash, &expected_response.to_base58_string())
+        .store_issued_credential(
+            42,
+            tx_hash,
+            &sig,
+            dummy_signature(),
+            commitments.clone(),
+            public.clone(),
+        )
         .await
         .unwrap();
+
     assert_eq!(
         state
-            .signed_before(&tx_hash)
+            .already_issued(tx_hash)
             .await
             .unwrap()
             .unwrap()
             .to_bytes(),
-        expected_response.to_bytes()
+        blinded_signature_fixture().to_bytes()
     );
 
-    let encryption_keypair = nym_crypto::asymmetric::encryption::KeyPair::new(&mut OsRng);
     let blinded_signature = BlindedSignature::from_bytes(&[
         183, 217, 166, 113, 40, 123, 74, 25, 72, 31, 136, 19, 125, 95, 217, 228, 96, 113, 25, 240,
         12, 102, 125, 11, 174, 20, 216, 82, 192, 71, 27, 194, 48, 20, 17, 95, 243, 179, 82, 21, 57,
@@ -659,68 +832,46 @@ async fn state_functions() {
         222, 119, 93, 146, 116, 229, 0, 152, 51, 232, 2, 102, 204, 147, 202, 254, 243,
     ])
     .unwrap();
+
     // Check that the new payload is not stored if there was already something signed for tx_hash
-    assert_eq!(
-        state
-            .encrypt_and_store(
-                &tx_hash,
-                encryption_keypair.public_key(),
-                &blinded_signature,
-            )
-            .await
-            .unwrap()
-            .to_bytes(),
-        expected_response.to_bytes()
-    );
+    let storage_err = storage
+        .store_issued_credential(
+            42,
+            tx_hash,
+            &blinded_signature,
+            dummy_signature(),
+            commitments.clone(),
+            public.clone(),
+        )
+        .await;
+    assert!(storage_err.is_err());
 
     // And use a new hash to store a new signature
-    let tx_hash = String::from("97D64C38D6601B1F0FD3A82E20D252685CB7A210AFB0261018590659AB82B0BF");
-    let response = state
-        .encrypt_and_store(
-            &tx_hash,
-            encryption_keypair.public_key(),
+    let tx_hash = "97D64C38D6601B1F0FD3A82E20D252685CB7A210AFB0261018590659AB82B0BF"
+        .parse()
+        .unwrap();
+
+    storage
+        .store_issued_credential(
+            42,
+            tx_hash,
             &blinded_signature,
+            dummy_signature(),
+            commitments.clone(),
+            public.clone(),
         )
         .await
         .unwrap();
-    let remote_key =
-        nym_crypto::asymmetric::encryption::PublicKey::from_bytes(&response.remote_key).unwrap();
-
-    let encryption_key = recompute_shared_key::<
-        NymApiCredentialEncryptionAlgorithm,
-        NymApiCredentialHkdfAlgorithm,
-    >(&remote_key, encryption_keypair.private_key());
-    let zero_iv = stream_cipher::zero_iv::<NymApiCredentialEncryptionAlgorithm>();
-    let blinded_signature_bytes = stream_cipher::decrypt::<NymApiCredentialEncryptionAlgorithm>(
-        &encryption_key,
-        &zero_iv,
-        &response.encrypted_signature,
-    );
-
-    let received_blinded_signature =
-        BlindedSignature::from_bytes(&blinded_signature_bytes).unwrap();
-    assert_eq!(
-        blinded_signature.to_bytes(),
-        received_blinded_signature.to_bytes()
-    );
 
     // Check that the same value for tx_hash is returned
-
-    let other_signature = BlindedSignature::from_bytes(&[
-        183, 217, 166, 113, 40, 123, 74, 25, 72, 31, 136, 19, 125, 95, 217, 228, 96, 113, 25, 240,
-        12, 102, 125, 11, 174, 20, 216, 82, 192, 71, 27, 194, 48, 20, 17, 95, 243, 179, 82, 21, 57,
-        143, 101, 19, 22, 186, 147, 13, 131, 236, 38, 138, 192, 235, 169, 142, 176, 118, 153, 238,
-        141, 91, 94, 139, 168, 214, 17, 250, 96, 206, 139, 89, 139, 87, 31, 8, 106, 171, 8, 140,
-        201, 158, 18, 152, 24, 98, 153, 170, 141, 35, 190, 200, 19, 148, 71, 197,
-    ])
-    .unwrap();
     assert_eq!(
         state
-            .encrypt_and_store(&tx_hash, encryption_keypair.public_key(), &other_signature,)
+            .already_issued(tx_hash)
             .await
             .unwrap()
+            .unwrap()
             .to_bytes(),
-        response.to_bytes()
+        blinded_signature.to_bytes()
     );
 }
 
@@ -731,6 +882,8 @@ async fn blind_sign_correct() {
 
     let params = Parameters::new(4).unwrap();
     let mut rng = OsRng;
+    let nym_api_identity = identity::KeyPair::new(&mut rng);
+
     let identity_keypair = identity::KeyPair::new(&mut rng);
     let encryption_keypair = encryption::KeyPair::new(&mut rng);
     let voucher = BandwidthVoucher::new(
@@ -749,55 +902,20 @@ async fn blind_sign_correct() {
     let storage = NymApiStorage::init(db_dir).await.unwrap();
     let tx_db = Arc::new(RwLock::new(HashMap::new()));
 
-    let mut tx_entry = tx_entry_fixture(&tx_hash.to_string());
-    tx_entry.tx_result.events.push(Event {
-        kind: format!("wasm-{}", DEPOSITED_FUNDS_EVENT_TYPE),
-        attributes: vec![],
-    });
-    tx_entry.tx_result.events.get_mut(0).unwrap().attributes = vec![
-        EventAttribute {
-            key: DEPOSIT_VALUE.parse().unwrap(),
-            value: "1234".parse().unwrap(),
-            index: false,
-        },
-        EventAttribute {
-            key: DEPOSIT_INFO.parse().unwrap(),
-            value: VOUCHER_INFO.parse().unwrap(),
-            index: false,
-        },
-        EventAttribute {
-            key: DEPOSIT_IDENTITY_KEY.parse().unwrap(),
-            value: identity_keypair
-                .public_key()
-                .to_base58_string()
-                .parse()
-                .unwrap(),
-            index: false,
-        },
-        EventAttribute {
-            key: DEPOSIT_ENCRYPTION_KEY.parse().unwrap(),
-            value: encryption_keypair
-                .public_key()
-                .to_base58_string()
-                .parse()
-                .unwrap(),
-            index: false,
-        },
-    ];
-    tx_db
-        .write()
-        .unwrap()
-        .insert(tx_hash.to_string(), tx_entry.clone());
+    let tx_entry = deposit_tx_fixture(&voucher);
+
+    tx_db.write().unwrap().insert(tx_hash, tx_entry.clone());
     let nyxd_client =
         DummyClient::new(AccountId::from_str(TEST_REWARDING_VALIDATOR_ADDRESS).unwrap())
             .with_tx_db(&tx_db);
-    let comm_channel = DummyCommunicationChannel::new(key_pair.verification_key());
+    let comm_channel = DummyCommunicationChannel::new(key_pair.verification_key().clone());
     let staged_key_pair = crate::coconut::KeyPair::new();
     staged_key_pair.set(Some(key_pair)).await;
 
-    let rocket = rocket::build().attach(InternalSignRequest::stage(
+    let rocket = rocket::build().attach(coconut::stage(
         nyxd_client,
         TEST_COIN_DENOM.to_string(),
+        nym_api_identity,
         staged_key_pair,
         comm_channel,
         storage.clone(),
@@ -806,15 +924,13 @@ async fn blind_sign_correct() {
         .await
         .expect("valid rocket instance");
 
+    let request_signature = voucher.sign();
+
     let request_body = BlindSignRequestBody::new(
-        voucher.blind_sign_request(),
-        tx_hash.to_string(),
-        voucher
-            .sign(voucher.blind_sign_request())
-            .to_base58_string(),
-        &voucher.get_public_attributes(),
+        voucher.blind_sign_request().clone(),
+        tx_hash,
+        request_signature,
         voucher.get_public_attributes_plain(),
-        4,
     );
 
     let response = client
@@ -825,6 +941,7 @@ async fn blind_sign_correct() {
         .json(&request_body)
         .dispatch()
         .await;
+
     assert_eq!(response.status(), Status::Ok);
     // This is a more direct way, but there's a bug which makes it hang https://github.com/SergioBenitez/Rocket/issues/1893
     // assert!(response.into_json::<BlindedSignatureResponse>().is_some());
@@ -847,26 +964,32 @@ async fn verification_of_bandwidth_credential() {
     let mut key_pairs = ttp_keygen(&params, 1, 1).unwrap();
     let voucher_value = 1234u64;
     let voucher_info = "voucher info";
-    let public_attributes = vec![
+    let public_attributes = [
         hash_to_scalar(voucher_value.to_string()),
         hash_to_scalar(voucher_info),
     ];
+    let public_attributes_ref = vec![&public_attributes[0], &public_attributes[1]];
     let indices: Vec<u64> = key_pairs
         .iter()
         .enumerate()
         .map(|(idx, _)| (idx + 1) as u64)
         .collect();
     let theta =
-        theta_from_keys_and_attributes(&params, &key_pairs, &indices, &public_attributes).unwrap();
+        theta_from_keys_and_attributes(&params, &key_pairs, &indices, &public_attributes_ref)
+            .unwrap();
     let key_pair = key_pairs.remove(0);
     db_dir.push(&key_pair.verification_key().to_bs58()[..8]);
     let storage1 = NymApiStorage::init(db_dir).await.unwrap();
-    let comm_channel = DummyCommunicationChannel::new(key_pair.verification_key());
+    let comm_channel = DummyCommunicationChannel::new(key_pair.verification_key().clone());
     let staged_key_pair = crate::coconut::KeyPair::new();
     staged_key_pair.set(Some(key_pair)).await;
-    let rocket = rocket::build().attach(InternalSignRequest::stage(
+    let mut rng = OsRng;
+    let identity = identity::KeyPair::new(&mut rng);
+
+    let rocket = rocket::build().attach(coconut::stage(
         nyxd_client.clone(),
         TEST_COIN_DENOM.to_string(),
+        identity,
         staged_key_pair,
         comm_channel.clone(),
         storage1.clone(),

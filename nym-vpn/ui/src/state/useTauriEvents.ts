@@ -13,6 +13,7 @@ function handleError(dispatch: StateDispatch, error?: string | null) {
     dispatch({ type: 'reset-error' });
     return;
   }
+  console.warn(`received backend error: ${error}`);
   dispatch({ type: 'set-error', error });
 }
 
@@ -53,11 +54,11 @@ export function useTauriEvents(dispatch: StateDispatch) {
   const registerProgressListener = useCallback(() => {
     return listen<ProgressEventPayload>(ProgressEvent, (event) => {
       console.log(
-        `received event ${event.event}, message: ${event.payload.message}`,
+        `received event ${event.event}, message: ${event.payload.key}`,
       );
       dispatch({
         type: 'new-progress-message',
-        message: event.payload.message,
+        message: event.payload.key,
       });
     });
   }, [dispatch]);

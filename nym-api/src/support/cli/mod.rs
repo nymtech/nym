@@ -126,7 +126,16 @@ pub(crate) fn build_config(args: run::Args) -> Result<Config> {
         }
     };
 
-    let config = override_config(config, args);
+    let mut config = override_config(config, args);
+    // since we have no proper `init`, we have to do id check here:
+    let made_new_keys = config
+        .base
+        .storage_paths
+        .generate_identity_if_missing(&config.base.id)?;
+
+    if made_new_keys {
+        config.save_to_default_location()?
+    }
 
     Ok(config)
 }

@@ -16,6 +16,10 @@ impl KeyPair {
         }
     }
 
+    pub async fn take(&self) -> Option<nym_coconut::KeyPair> {
+        self.inner.write().await.take()
+    }
+
     pub async fn get(&self) -> RwLockReadGuard<'_, Option<nym_coconut::KeyPair>> {
         self.inner.read().await
     }

@@ -80,12 +80,14 @@ async fn start_nym_api_tasks(
     let network_details = NetworkDetails::new(connected_nyxd.to_string(), nym_network_details);
 
     let coconut_keypair = coconut::keypair::KeyPair::new();
+    let identity_keypair = config.base.storage_paths.load_identity()?;
 
     // let's build our rocket!
     let rocket = http::setup_rocket(
         &config,
         network_details,
         nyxd_client.clone(),
+        identity_keypair,
         coconut_keypair.clone(),
     )
     .await?;

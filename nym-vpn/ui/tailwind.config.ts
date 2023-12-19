@@ -76,7 +76,7 @@ export default {
         icon: [
           'Material Symbols Outlined',
           {
-            fontVariationSettings: '"opsz" 24; "wght" 400;',
+            fontVariationSettings: '"opsz" 24;',
           },
         ],
       },

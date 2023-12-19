@@ -9,4 +9,3 @@ export const AppName = 'NymVPN';
 export const ConnectionEvent = 'connection-state';
 export const ProgressEvent = 'connection-progress';
 export const QuickConnectPrefix = 'Fastest';
-export const DefaultNodeLocation = { name: 'France', code: 'FR' };

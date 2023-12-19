@@ -242,6 +242,11 @@ impl Config {
         self
     }
 
+    pub fn with_client_keys_path(mut self, client_keys: PathBuf) -> Self {
+        self.wireguard.storage_paths.client_keys = client_keys;
+        self
+    }
+
     pub fn with_listening_address(mut self, listening_address: IpAddr) -> Self {
         self.gateway.listening_address = listening_address;
 

@@ -7572,6 +7572,7 @@ dependencies = [
  "nym-network-defaults",
  "nym-task",
  "nym-wireguard-types",
+ "serde",
  "tokio",
  "x25519-dalek 2.0.0",
 ]

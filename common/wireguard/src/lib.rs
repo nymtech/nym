@@ -9,13 +9,12 @@ use nym_wireguard_types::registration::GatewayClientRegistry;
 use std::sync::Arc;
 
 // Currently the module related to setting up the virtual network device is platform specific.
+use crate::setup::PeerPair;
 #[cfg(target_os = "linux")]
-use crate::setup::{peer_allowed_ips, peer_static_public_key, PRIVATE_KEY};
+use crate::setup::{peer_static_pairs, PRIVATE_KEY};
 use defguard_wireguard_rs::WGApi;
 #[cfg(target_os = "linux")]
-use defguard_wireguard_rs::{
-    host::Peer, key::Key, net::IpAddrMask, InterfaceConfiguration, WireguardInterfaceApi,
-};
+use defguard_wireguard_rs::{InterfaceConfiguration, WireguardInterfaceApi};
 #[cfg(target_os = "linux")]
 use nym_network_defaults::{WG_PORT, WG_TUN_DEVICE_ADDRESS};
 
@@ -24,6 +23,7 @@ use nym_network_defaults::{WG_PORT, WG_TUN_DEVICE_ADDRESS};
 pub async fn start_wireguard(
     mut task_client: nym_task::TaskClient,
     _gateway_client_registry: Arc<GatewayClientRegistry>,
+    peer_pairs: Vec<PeerPair>,
 ) -> Result<WGApi, Box<dyn std::error::Error + Send + Sync + 'static>> {
     let ifname = String::from("wg0");
     let wgapi = WGApi::new(ifname.clone(), false)?;
@@ -36,13 +36,11 @@ pub async fn start_wireguard(
         peers: vec![],
     };
     wgapi.configure_interface(&interface_config)?;
-    let peer = peer_static_public_key();
-    let mut peer = Peer::new(Key::new(peer.to_bytes()));
-    let peer_ip = peer_allowed_ips();
-    let peer_ip_mask = IpAddrMask::new(peer_ip.network_address(), peer_ip.netmask());
-    peer.set_allowed_ips(vec![peer_ip_mask]);
-    wgapi.configure_peer(&peer)?;
-    wgapi.configure_peer_routing(&[peer.clone()])?;
+    let peers = peer_static_pairs(peer_pairs);
+    for peer in peers.iter() {
+        wgapi.configure_peer(peer)?;
+    }
+    wgapi.configure_peer_routing(&peers)?;
 
     tokio::spawn(async move { task_client.recv().await });
 
@@ -52,6 +50,7 @@ pub async fn start_wireguard(
 pub async fn start_wireguard(
     _task_client: nym_task::TaskClient,
     _gateway_client_registry: Arc<GatewayClientRegistry>,
+    _peer_pairs: Vec<PeerPair>,
 ) -> Result<WGApi, Box<dyn std::error::Error + Send + Sync + 'static>> {
     todo!("WireGuard is currently only supported on Linux")
 }

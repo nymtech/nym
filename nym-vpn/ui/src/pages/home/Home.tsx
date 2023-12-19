@@ -79,7 +79,9 @@ function Home() {
             </div>
             <HopSelect
               country={exitNodeLocation ?? QuickConnectCountry}
-              onClick={() => navigate(routes.exitNodeLocation)}
+              onClick={() => {
+                if (state === 'Disconnected') navigate(routes.exitNodeLocation);
+              }}
               nodeHop="exit"
             />
           </div>

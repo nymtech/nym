@@ -29,6 +29,7 @@ export type AppState = {
   entrySelector: boolean;
   entryNodeLocation: Country | null;
   exitNodeLocation: Country | null;
+  defaultNodeLocation: Country;
   countries: Country[];
 };
 

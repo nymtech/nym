@@ -1,3 +1,4 @@
+use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use tauri::State;
 use tracing::{debug, instrument};
@@ -13,6 +14,11 @@ pub enum NodeType {
     Entry,
     Exit,
 }
+
+static DEFAULT_NODE_LOCATION: Lazy<Country> = Lazy::new(|| Country {
+    code: "DE".to_string(),
+    name: "Germany".to_string(),
+});
 
 #[instrument(skip(app_state, data_state))]
 #[tauri::command]
@@ -56,4 +62,11 @@ pub async fn set_node_location(
         .map_err(|e| CmdError::new(CmdErrorSource::InternalError, e.to_string()))?;
 
     Ok(())
+}
+
+#[instrument]
+#[tauri::command]
+pub async fn get_default_node_location() -> Result<Country, CmdError> {
+    debug!("get_default_node_location");
+    Ok(DEFAULT_NODE_LOCATION.clone())
 }

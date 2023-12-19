@@ -6,13 +6,14 @@ import { Button } from '@mui/base';
 import { useNavigate } from 'react-router-dom';
 import { useMainDispatch, useMainState } from '../../contexts';
 import { CmdError, StateDispatch } from '../../types';
-import { QuickConnectCountry, routes } from '../../constants';
+import { routes } from '../../constants';
 import NetworkModeSelect from './NetworkModeSelect';
 import ConnectionStatus from './ConnectionStatus';
 import HopSelect from './HopSelect';
 
 function Home() {
-  const { state, loading, exitNodeLocation } = useMainState();
+  const { state, loading, exitNodeLocation, defaultNodeLocation } =
+    useMainState();
   const dispatch = useMainDispatch() as StateDispatch;
   const navigate = useNavigate();
   const { t } = useTranslation('home');
@@ -78,9 +79,11 @@ function Home() {
               {t('select-node-title')}
             </div>
             <HopSelect
-              country={exitNodeLocation ?? QuickConnectCountry}
+              country={exitNodeLocation || defaultNodeLocation}
               onClick={() => {
-                if (state === 'Disconnected') navigate(routes.exitNodeLocation);
+                if (state === 'Disconnected') {
+                  navigate(routes.exitNodeLocation);
+                }
               }}
               nodeHop="exit"
             />

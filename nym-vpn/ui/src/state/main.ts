@@ -25,7 +25,8 @@ export type StateAction =
   | { type: 'reset' }
   | { type: 'set-ui-theme'; theme: UiTheme }
   | { type: 'set-countries'; countries: Country[] }
-  | { type: 'set-node-location'; payload: { hop: NodeHop; country: Country } };
+  | { type: 'set-node-location'; payload: { hop: NodeHop; country: Country } }
+  | { type: 'set-default-node-location'; country: Country };
 
 export const initialState: AppState = {
   state: 'Disconnected',
@@ -37,6 +38,10 @@ export const initialState: AppState = {
   progressMessages: [],
   entryNodeLocation: null,
   exitNodeLocation: null,
+  defaultNodeLocation: {
+    name: 'France',
+    code: 'FR',
+  },
   countries: [],
 };
 
@@ -134,6 +139,11 @@ export function reducer(state: AppState, action: StateAction): AppState {
       return {
         ...state,
         uiTheme: action.theme,
+      };
+    case 'set-default-node-location':
+      return {
+        ...state,
+        defaultNodeLocation: action.country,
       };
     case 'reset':
       return initialState;

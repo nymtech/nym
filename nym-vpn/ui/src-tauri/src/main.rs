@@ -110,6 +110,7 @@ async fn main() -> Result<()> {
             app_data::set_entry_location_selector,
             app_data::get_node_countries,
             node_location::set_node_location,
+            node_location::get_default_node_location,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

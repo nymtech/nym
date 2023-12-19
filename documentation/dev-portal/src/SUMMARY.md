@@ -68,6 +68,10 @@
 
 # Events
 
+- [CCC 2023](events/ccc23/welcome.md)
+    - [Mixnet Overview](events/ccc23/mixnet-overview.md)
+    - [NymVPN](events/ccc23/nym-vpn.md)
+    - [FAQ](events/ccc23/faq.md) 
 - [Web3Privacy Now](./events/web3-privacy.md)
 - [HCPP23-serinko](./events/hcpp23-serinko.md)
 - [HCPP23-max](./events/hcpp23-max.md)

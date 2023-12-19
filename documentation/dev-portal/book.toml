@@ -55,6 +55,11 @@ wallet_release_version = "1.2.8"
 command = "mdbook-last-changed"
 renderer = ["html"]
 
+# used for grabbing output of binary commands for automation
+# https://github.com/FauconFan/mdbook-cmdrun
+[preprocessor.cmdrun]
+
+
 #########
 # BUILD #
 #########

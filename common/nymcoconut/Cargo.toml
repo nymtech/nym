@@ -3,6 +3,7 @@ name = "nym-coconut"
 version = "0.5.0"
 authors = ["Jedrzej Stuczynski <andrew@nymtech.net>", "Ania Piotrowska <ania@nymtech.net>"]
 edition = "2021"
+license.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

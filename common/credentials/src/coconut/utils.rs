@@ -32,7 +32,8 @@ pub fn today_timestamp() -> u64 {
 }
 
 pub fn exp_date_timestamp() -> u64 {
-    today_timestamp() + Duration::days(constants::VALIDITY_PERIOD as i64).num_seconds() as u64
+    today_timestamp() + Duration::days(constants::VALIDITY_PERIOD as i64 - 1).num_seconds() as u64
+    //count today as well
 }
 
 pub async fn obtain_aggregate_verification_key(

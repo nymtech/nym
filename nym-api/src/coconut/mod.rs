@@ -7,7 +7,6 @@ use crate::coconut::deposit::extract_encryption_key;
 use crate::coconut::error::{CoconutError, Result};
 use crate::coconut::helpers::accepted_vote_err;
 use crate::support::storage::NymApiStorage;
-use chrono::{Duration, Timelike, Utc};
 use getset::{CopyGetters, Getters};
 use keypair::KeyPair;
 use nym_api_requests::coconut::{
@@ -384,16 +383,8 @@ pub async fn verify_online_credential(
 pub async fn expiration_date_signatures(
     state: &RocketState<State>,
 ) -> Result<Json<PartialExpirationDateSignatureResponse>> {
-    let now_utc = Utc::now();
-    let expiration_date = now_utc + Duration::days(constants::VALIDITY_PERIOD as i64);
-    let expiration_date_timestamp =
-        expiration_date.timestamp() - now_utc.num_seconds_from_midnight() as i64;
-
     let expiration_date_signatures = if let Some(keypair) = state.key_pair.get_ecash().await {
-        sign_expiration_date(
-            &keypair.secret_key(),
-            expiration_date_timestamp.try_into().unwrap(),
-        )
+        sign_expiration_date(&keypair.secret_key(), exp_date_timestamp())
     } else {
         return Err(CoconutError::KeyPairNotDerivedYet);
     };

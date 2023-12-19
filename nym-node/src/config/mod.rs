@@ -93,7 +93,9 @@ impl Default for Wireguard {
             ),
             announced_port: DEFAULT_WIREGUARD_PORT,
             private_network_prefix: DEFAULT_WIREGUARD_PREFIX,
-            storage_paths: persistence::WireguardPaths {},
+            storage_paths: persistence::WireguardPaths {
+                client_keys: PathBuf::from("/root/keys_pub.json"),
+            },
         }
     }
 }

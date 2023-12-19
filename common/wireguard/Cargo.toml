@@ -22,4 +22,5 @@ log.workspace = true
 nym-network-defaults = { path = "../network-defaults" }
 nym-task = { path = "../task" }
 nym-wireguard-types = { path = "../wireguard-types" }
+serde = { workspace = true, features = ["derive"] }
 tokio = { workspace = true, features = ["rt-multi-thread", "net", "io-util"] }

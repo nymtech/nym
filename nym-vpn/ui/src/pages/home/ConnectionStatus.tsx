@@ -66,22 +66,26 @@ function ConnectionStatus() {
           {getStatusText(state.state)}
         </div>
       </div>
-      <div className="flex-col flex-1 text-center">
+      <div className="w-full flex flex-col flex-1 items-center overflow-hidden">
         {state.loading && state.progressMessages.length > 0 && !state.error && (
-          <p className="text-dim-gray dark:text-mercury-mist font-bold">
-            {t(
-              `connection-progress.${
-                state.progressMessages[state.progressMessages.length - 1]
-              }`,
-              {
-                ns: 'backendMessages',
-              },
-            )}
-          </p>
+          <div className="w-4/5 h-2/3 overflow-scroll overflow-ellipsis break-words text-center">
+            <p className="text-dim-gray dark:text-mercury-mist font-bold">
+              {t(
+                `connection-progress.${
+                  state.progressMessages[state.progressMessages.length - 1]
+                }`,
+                {
+                  ns: 'backendMessages',
+                },
+              )}
+            </p>
+          </div>
         )}
         {state.state === 'Connected' && <ConnectionTimer />}
         {state.error && (
-          <p className="text-teaberry font-bold">{state.error}</p>
+          <div className="w-4/5 h-2/3 overflow-scroll overflow-ellipsis break-words text-center">
+            <p className="text-teaberry font-bold">{state.error}</p>
+          </div>
         )}
       </div>
     </div>

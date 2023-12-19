@@ -68,7 +68,7 @@ function ConnectionStatus() {
       </div>
       <div className="w-full flex flex-col flex-1 items-center overflow-hidden">
         {state.loading && state.progressMessages.length > 0 && !state.error && (
-          <div className="w-4/5 h-2/3 overflow-scroll overflow-ellipsis break-words text-center">
+          <div className="w-4/5 h-2/3 overflow-scroll break-words text-center">
             <p className="text-dim-gray dark:text-mercury-mist font-bold">
               {t(
                 `connection-progress.${
@@ -83,7 +83,7 @@ function ConnectionStatus() {
         )}
         {state.state === 'Connected' && <ConnectionTimer />}
         {state.error && (
-          <div className="w-4/5 h-2/3 overflow-scroll overflow-ellipsis break-words text-center">
+          <div className="w-4/5 h-2/3 overflow-scroll break-words text-center">
             <p className="text-teaberry font-bold">{state.error}</p>
           </div>
         )}

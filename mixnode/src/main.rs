@@ -54,7 +54,7 @@ fn test_function() {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     cfg_if::cfg_if! {
-        if #[cfg(feature = "console-subscriber")] {
+        if #[cfg(feature = "tokio-console")] {
             console_subscriber::init();
         }
     }

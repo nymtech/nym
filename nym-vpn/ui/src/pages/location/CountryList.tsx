@@ -19,7 +19,7 @@ export default function CountryList({
             <div
               role="presentation"
               onKeyDown={() => onClick(country.name, country.code)}
-              className="flex flex-row justify-between dark:hover:bg-baltic-sea-jaguar hover:bg-coal-mine-light rounded-lg cursor-pointer px-3"
+              className="flex flex-row justify-between dark:hover:bg-baltic-sea-jaguar hover:bg-cement-feet hover:bg-opacity-20 rounded-lg cursor-pointer px-3"
               onClick={() => onClick(country.name, country.code)}
             >
               <div className="flex flex-row items-center m-1 gap-3 p-1 cursor-pointer">

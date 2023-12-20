@@ -44,7 +44,7 @@ export default function HopSelect({
           className="h-8 scale-90 pointer-events-none fill-current"
           alt={country.code}
         />
-        <div className="text-lg">{country.name}</div>
+        <div className="text-base">{country.name}</div>
       </div>
       <span className="font-icon scale-150 pointer-events-none">
         arrow_right

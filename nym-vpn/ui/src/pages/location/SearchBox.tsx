@@ -13,7 +13,7 @@ export default function SearchBox({
   placeholder,
 }: SearchProps) {
   return (
-    <div className="w-full relative flex flex-row items-center px-4">
+    <div className="w-full relative flex flex-row items-center px-4 mb-2">
       <input
         type="text"
         id="country_search"

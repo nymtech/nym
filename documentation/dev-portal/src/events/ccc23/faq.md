@@ -2,25 +2,17 @@
 
 Besides the FAQ for CCC 2023 event listed below, you can have a look at [Nym general FAQ](https://nymtech.net/developers/faq/general-faq.html) and read through Nym's technical [documentation](https://nymtech.net/docs), [Developer Portal](https://nymtech.net/developers) and [Operators Guide](https://nymtech.net/operators).
 
+## NymVPN
+
+Make sure you read [NymVPV webpage](https://nymvpn.com/en) and our [guide to install, run and test](./nym-vpn.md) the client. 
+
 ## Nym Mixnet Architecture and Rewards
 
 We have a list of questions related to Nym Nodes and the incentives behind running them under [FAQ pages](https://nymtech.net/operators/faq/mixnodes-faq.html) in our [Operators Guide](https://nymtech.net/operators).
 
 ## Project Smoosh
 
-Project Smoosh is a code name for a process in which different components of Nym Mixnet architecture get *smooshed* into one binary. 
-
-Project Smoosh will have four steps, please follow the table below to track the dynamic progress:
-
-| **Step** | **Status** |
-| :--- | :--- |
-| **1.** Combine the `nym-gateway` and `nym-network-requester` into one binary | ✅ done |
-| **2.** Create [Exit Gateway](https://nymtech.net/operators/legal/exit-gateway.html): Take the `nym-gateway` binary including `nym-network-requester` combined in \#1 and switch from [`allowed.list`](https://nymtech.net/.wellknown/network-requester/standard-allowed-list.txt) to a new [exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt) | ✅ done |
-| **3.** Combine all the nodes in the Nym Mixnet into one binary, that is `nym-mixnode`, `nym-gateway` (entry and exit) and `nym-network-requester`. | 🛠️ in progress |
-| **4.** Adjust reward scheme to incentivise and reward Exit Gateways as a part of `nym-node` binary, implementing [zkNym credentials](https://youtu.be/nLmdsZ1BsQg?t=1717). | 🛠️ in progress |
-
-These steps will be staggered over time - period of several months, and will be implemented one by one with enough time to take in feedback and fix bugs in between.  
-Generally, the software will be the same, just instead of multiple binaries, there will be one Nym Node (`nym-node`) binary. Delegations will remain on as they are now, per our token economics (staking, saturation etc)
+Project Smoosh is a code name for a process in which different components of Nym Mixnet architecture get *smooshed* into one binary. Check out [Smoosh FAQ](https://nymtech.net/operators/faq/smoosh-faq.html) in Operators Guide to read more. 
 
 ## Exit Gateway
 
@@ -38,9 +30,7 @@ If you are a dev who is interested to integrate Nym, have a look on our SDK tuto
 * [TypeScript SDKs](https://sdk.nymtech.net/)
 * [Integration FAQ](https://nymtech.net/developers/faq/integrations-faq.html)
 
-## NymVPN
 
-Make sure you read [NymVPV webpage](https://nymvpn.com/en) and our [guide to install, run and test](./nym-vpn.md) the client. 
 
 <!--
 

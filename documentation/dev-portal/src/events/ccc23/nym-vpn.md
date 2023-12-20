@@ -129,158 +129,190 @@ If you running NymVPN on mac OS for the first time, you may see this alert messa
 
 ## Testing
 
-USE SCRIPTS FPOR TESTING, DOCUMENT HOW AND HOW TO SHARE RESULTS
+One of the main aim for the aplha demo is testing. Your share results will help us to make NymVPN robust and stabilise both the client and the network through provided measurements. 
+
+1. Copy the block below and save it to the same folder where you have your `nym-vpn-cli` binary as `tests.sh`
+2. Open terminal in the same directory
+3. Run `sudo sh ./tests.sh`
+4. ADD HOW TO SHARE RESULTS
 
 ```sh
 #!/bin/bash
 
-api_key="YzI4Yjc2ZTI5NW1zaGIyYzZhYjNlNjM1ZmNkY3AxYTExODFqc25mM2FiNjBmODIxMGE="
-ENV_URL="https://github.com/nymtech/nym/blob/develop/envs/sandbox.env"
-
-if [ ! -f "sandbox.env" ]; then
-    echo "sandbox.env not found. downloading..."
-    curl -L "$ENV_URL" -o sandbox.env
-else
-    echo "sandbox.env already exists. Skipping download."
-fi
-
-echo "select the mode of operation:"
-echo "1. decide between two-hop and wireguard"
-echo "2. normal"
-echo "3. manual input"
-read -p "enter your choice (1/2/3): " mode_choice
-
-echo "🚀 🏎 - please be patient, i'm fetching you your entry points - 🚀 🏎 "
+json='[
+  {
+    "host": "143.42.96.234",
+    "identity_key": "378R4NXg38GESird5LYTyz7pZ5PFXXpqCxSjRCq9Jg7J",
+    "address": "6w1zY8LGsw97H92KEdjCMvEDZoKSvXiLnFzLhCnJHmqt.3urfUjH6QG3R8va4pW3vmP2cLtFEUZcofhKuwmHdE8X6@378R4NXg38GESird5LYTyz7pZ5PFXXpqCxSjRCq9Jg7J",
+    "country": "GB",
+    "distance_to_entry_gateway": "901km"
+  },
+  {
+    "host": "85.159.212.96",
+    "identity_key": "5UCiizgbjBQoJYpZ7te6xUoMLjJQrQQRSvsD6tcBPH2n",
+    "address": "9fM5gvHU7xSdZYKE6qAMG7j4Ps2xLeV8Z9cwCLGFv1Gx.HDuXHaFciHQRT63zteyJYk9Vns2LA82v2ABKpcQt1EyS@5UCiizgbjBQoJYpZ7te6xUoMLjJQrQQRSvsD6tcBPH2n",
+    "country": "GB",
+    "distance_to_entry_gateway": "901km"
+  },
+  {
+    "host": "176.58.120.72",
+    "identity_key": "666hA2R52Jmasbx9H1S7DzcGE6x7s7pSxSSB6pWqMKHE",
+    "address": "FaVTCU2m9G18CVGofaQaXk19vfW4VVtXVEogS54fHT53.7PR8kg6nXGe5WgCJ4x6VkNzZTkfKhXLowSWA9Lg4BsPj@666hA2R52Jmasbx9H1S7DzcGE6x7s7pSxSSB6pWqMKHE",
+    "country": "GB",
+    "distance_to_entry_gateway": "901km"
+  },
+  {
+    "host": "172.232.36.90",
+    "identity_key": "7LzcTUZM91MsYSmthN6up4KC9vFf2dmtXwBPhF7W3QM5",
+    "address": "3qoMx9S39ZVXXmmyS8y5Qp5RWQKrFsvge5ftHS3okVq4.G7NaZswPAjtHbBNKmyGW2pnmt51GCtyn3gULEy1FnR6T@7LzcTUZM91MsYSmthN6up4KC9vFf2dmtXwBPhF7W3QM5",
+    "country": "FR",
+    "distance_to_entry_gateway": "584km"
+  },
+  {
+    "host": "51.20.115.58",
+    "identity_key": "AMAQ2LCzyxqdejn4nZsfz94gK11K2sRwkKek6oVFm1WB",
+    "address": "CxStdSUsAsLeiGktFWSDb7X3dSEAqSvszMCK2J9HB6rq.EEQfesdCwSyreqcSsdtpWfKgcftSTnTv13oLn6GmvQae@AMAQ2LCzyxqdejn4nZsfz94gK11K2sRwkKek6oVFm1WB",
+    "country": "SE",
+    "distance_to_entry_gateway": "1601km"
+  },
+  {
+    "host": "172.232.134.126",
+    "identity_key": "AnCe6phpAp3ne2gT3rwNQ4vH6QTNBggPhNka4hBQrEUY",
+    "address": "H8KiTzNAVBuoqA8hDiTmfpC7duZerew4LHRCU6KtWsYo.4KniYqvavPVmMNYqMiHw1gFtHoWCsu8FRLZX31D2bVsJ@AnCe6phpAp3ne2gT3rwNQ4vH6QTNBggPhNka4hBQrEUY",
+    "country": "SE",
+    "distance_to_entry_gateway": "1601km"
+  },
+  {
+    "host": "3.250.81.180",
+    "identity_key": "BHsWt4DEKERkuEgkKburBU81MpDcYk8KPxXR7URNqP78",
+    "address": "7CAFAFofs28BYudM685iTtpZzCuNzcWn4gApxiX7VLTa.7fiUcee2tMJy5XBQAXsECRA1zM9tUYGcLBcArshe1PTS@BHsWt4DEKERkuEgkKburBU81MpDcYk8KPxXR7URNqP78",
+    "country": "IE",
+    "distance_to_entry_gateway": "1361km"
+  },
+  {
+    "host": "35.181.57.111",
+    "identity_key": "CSwbNyC9Tb8HSMQU5EjVqByNNLkkj6aBBPtQFBdVEHFa",
+    "address": "5TpMKoWFQSqyUw4NKSgph6zgW61zcvus73C17J3ZozKz.AzXRZ2cUGVzsRDeWiwK3bqJh3LskbFadK3akTbeAnX2@CSwbNyC9Tb8HSMQU5EjVqByNNLkkj6aBBPtQFBdVEHFa",
+    "country": "FR",
+    "distance_to_entry_gateway": "589km"
+  },
+  {
+    "host": "139.162.180.253",
+    "identity_key": "DphEmo33pZonPcBwJxFEkdS1EMKS9uAt7VGZVdsxGBgY",
+    "address": "4T3BGyjUFZDp5iZa7kGPzx2Kq5UNzQSomwwv4w7D7rGF.56kCcEMvAUsHSZ2CXuJv8Wp4vBwg4CFDTSP4N5Eogx5d@DphEmo33pZonPcBwJxFEkdS1EMKS9uAt7VGZVdsxGBgY",
+    "country": "DE",
+    "distance_to_entry_gateway": "458km"
+  },
+  {
+    "host": "13.39.161.56",
+    "identity_key": "DumEE4vMPrak6oRTSGwwyiYsPFRqtJjy26WEXVNEnZrg",
+    "address": "4WVqE2C1zRWNVZqD6vthDg9FntRDyvhwEwdxajQGUMYc.2kBhfFiwknJex3jyeEqKtLNRANeWryNghHvSLJPwRcfS@DumEE4vMPrak6oRTSGwwyiYsPFRqtJjy26WEXVNEnZrg",
+    "country": "FR",
+    "distance_to_entry_gateway": "589km"
+  },
+  {
+    "host": "170.187.187.235",
+    "identity_key": "EUFhawe7PgYWbXVhv1PcBfeEoNYTNPPE1HXKRELR7bN8",
+    "address": "JAQ4PXuf2FvrTqjan25T1zrNLdxm2jGqwDZZL6a5T7h2.7618iBtCMGhZAteRK16YVowAgnj7wr978Ff4Qbo8Tyvr@EUFhawe7PgYWbXVhv1PcBfeEoNYTNPPE1HXKRELR7bN8",
+    "country": "DE",
+    "distance_to_entry_gateway": "458km"
+  }
+]'
 
 cleanup() {
-    echo "terminating nym-vpn-cli..."
-    pkill -f './nym-vpn-cli'
-    exit
+  echo "terminating nym-vpn-cli..."
+  pkill -f './nym-vpn-cli'
+  sleep 5
 }
 
-get_lat_lon() {
-    local ip=$1
-    local response=$(curl -s "http://ip-api.com/json/${ip}")
-    local lat=$(echo $response | jq '.lat')
-    local lon=$(echo $response | jq '.lon')
-    echo "$lat $lon"
+temp_log_file="temp_log.txt"
+
+perform_tests() {
+  #------------------------------------------------------------------------
+  # ping test
+  #------------------------------------------------------------------------
+  gateway_id=$1
+  exit_address=$2
+
+  test_directory="tests_${gateway_id}_${exit_address}"
+  mkdir -p "$test_directory"
+
+  sites=(google.com youtube.com facebook.com baidu.com wikipedia.org
+    amazon.com twitter.com instagram.com yahoo.com ebay.com netflix.com)
+
+  echo "starting ping test..."
+  ping_results_file="${test_directory}/ping_results_${gateway_id}_${exit_address}.txt"
+  for site in "${sites[@]}"; do
+    ping -c 4 $site >>"$ping_results_file"
+  done
+  echo "ping test completed. Results saved in $ping_results_file"
+
+  #------------------------------------------------------------------------
+
+  file_url="http://ipv4.download.thinkbroadband.com/2MB.zip"
+  wget_time_file="${test_directory}/wget_time_${gateway_id}_${exit_address}.txt"
+  curl_time_file="${test_directory}/curl_time_${gateway_id}_${exit_address}.txt"
+
+  echo "starting download speed test with wget..."
+  start_time=$(date +%s)
+  wget -O /dev/null $file_url
+  end_time=$(date +%s)
+  wget_time=$((end_time - start_time))
+  echo "download speed test with wget completed in $wget_time seconds." > "$wget_time_file"
+
+  echo "starting download speed test with curl..."
+  start_time=$(date +%s)
+  curl -o /dev/null $file_url
+  end_time=$(date +%s)
+  curl_time=$((end_time - start_time))
+  echo "download speed test with curl completed in $curl_time seconds." >"$curl_time_file"
+
+  #------------------------------------------------------------------------
+  # api test
+  api_endpoint="https://validator.nymtech.net/api/v1/mixnodes"
+  iterations=10
+  api_response_file="${test_directory}/api_response_times_${gateway_id}_${exit_address}.txt"
+  >"$api_response_file"
+  for i in $(seq 1 $iterations); do
+    start_time=$(date +%s)
+    response=$(curl -s -o /dev/null -w '%{http_code}' $api_endpoint)
+    end_time=$(date +%s)
+    response_time=$(echo "$end_time - start_time" | bc)
+    echo "iteration $i: response Time = ${response_time}s, status code = $response" >>"$api_response_file"
+  done
+  echo "api response test completed. results saved in $api_response_file."
+
+  #------------------------------------------------------------------------
 }
 
-calculate_distance() {
-    local start_lat=$1
-    local start_lon=$2
-    local end_lat=$3
-    local end_lon=$4
+echo "$json" | jq -c '.[].address' | while IFS= read -r address; do
+  echo "$json" | jq -c '.[].identity_key' | while IFS= read -r identity_key; do
+    identity_key=$(echo "$identity_key" | jq -r .)
+    exit_address=$(echo "$address" | jq -r .)
 
-    local response=$(curl --silent --request GET \
-        --url "https://distance-calculator8.p.rapidapi.com/calc?startLatitude=${start_lat}&startLongitude=${start_lon}&endLatitude=${end_lat}&endLongitude=${end_lon}" \
-        --header "X-RapidAPI-Host: distance-calculator8.p.rapidapi.com" \
-        --header "X-RapidAPI-Key: $(echo -n ${api_key} | base64 -d)")
-    
-    local distance_raw=$(echo $response | jq '.body.distance.kilometers')
-    local distance=$(printf "%.0f" $distance_raw)
-    echo $distance
-}
+    sudo ./nym-vpn-cli -c sandbox.env --entry-gateway-id "$identity_key" --exit-router-address "$exit_address" --enable-two-hop >"$temp_log_file" 2>&1 &
 
-trap cleanup SIGINT SIGTERM
+    timeout=20
+    start_time=$(date +%s)
+    while true; do
+      if grep -q "received plain" "$temp_log_file"; then
+        echo "successful configuration with identity_key: $identity_key and exit address: $exit_address" >>two_hop_perf_test_results.log
+        perform_tests "$identity_key" "$exit_address"
+        break
+      fi
 
-ENDPOINT="https://sandbox-nym-api1.nymtech.net/api/v1/gateways/described"
-MY_IP=$(curl -s http://ipecho.net/plain)
+      current_time=$(date +%s)
+      if ((current_time - start_time > timeout)); then
+        echo "failed to connect with identity_key: $identity_key using the exit address: $exit_address" >>two_hop_perf_test_results.log
+        break
+      fi
 
-json_array=()
-
-data=$(curl -s "$ENDPOINT" | jq -c '.[] | {host: .bond.gateway.host, identity_key: .bond.gateway.identity_key}')
-
-while IFS= read -r entry; do
-    host=$(echo "$entry" | jq -r '.host')
-    identity_key=$(echo "$entry" | jq -r '.identity_key')
-    response=$(curl -s "${host}:8080/api/v1/ip-packet-router")
-
-    if [ -n "$response" ]; then
-        full_address=$(echo "$response" | jq -r '.address')
-        valid_ip=$(echo "$host")
-
-        if [[ $valid_ip =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            country_info=$(curl -s "http://ipinfo.io/${valid_ip}/country" | tr -d '\n')
-            country_info_escaped=$(echo "$country_info" | tr -d '\n' | jq -aRs . | tr -d '"')
-
-            read MY_LAT MY_LON <<< $(get_lat_lon $MY_IP)
-            read HOST_LAT HOST_LON <<< $(get_lat_lon $valid_ip)
-
-            distance_to_gateway=$(calculate_distance $MY_LAT $MY_LON $HOST_LAT $HOST_LON)
-
-            json_object="{\"host\": \"${host}\", \"identity_key\": \"${identity_key}\", \"address\": \"${full_address}\", \"country\": \"${country_info_escaped}\", \"distance_to_entry_gateway\": \"${distance_to_gateway}km\"}"
-            json_array+=("$json_object")
-        else
-            country_info_escaped="invalid ip"
-        fi
-    else
-        continue
-    fi
-done < <(echo "$data")
-
-printf "%s\n" "${json_array[@]}" | jq -s . > temp.json
-json_array_string=$(<temp.json)
-
-
-addresses=($(jq -r '.[].address' <<< "$json_array_string"))
-identity_keys=($(jq -r '.[].identity_key' <<< "$json_array_string"))
-
-if [[ ${#addresses[@]} -eq 0 ]]; then
-    echo "no addresses found, exiting."
-    exit 1
-fi
-
-while : ; do
-    random_index=$((RANDOM % ${#addresses[@]}))
-    random_identity_key=${identity_keys[random_index]}
-    random_address=${addresses[random_index]}
-
-    exists=$(jq --arg ik "$random_identity_key" --arg ad "$random_address" -n '[inputs | select(.identity_key == $ik and .address == $ad)] | length' <<< "$json_array_string" 2>/dev/null)
-    if [[ $exists -eq 0 ]]; then
-        break 
-    fi
+      sleep 1
+    done
+    cleanup
+  done
 done
 
-case $mode_choice in
-    1)
-        read -p "do you want to enable WireGuard? enter (y/n): " answer 
-        if [[ $answer == "y" ]]; then
-            two_hop="--enable-two-hop --enable-wireguard --private-key ILeN6gEh6vJ3Ju8RJ3HVswz+sPgkcKtAYTqzQRhTtlo=" 
-        fi
-        two_hop="--enable-two-hop"
-        ;;
-    2)
-        two_hop=""
-        ;;
-    3)
-        printf "%s\n" "${json_array[@]}" | jq -s .
-        read -p "enter your identity_key: " random_identity_key
-        read -p "enter your exit_address: " random_address
-        read -p "do you want to enter two-hop mode? enter (y/n): " answer
-
-        if [[ $answer == "y" ]]; then
-            read -p "do you want to enable WireGuard? enter (y/n): " wg_answer
-            two_hop="--enable-two-hop"
-            if [[ $wg_answer == "y" ]]; then
-                two_hop="$two_hop --enable-wireguard --private-key ILeN6gEh6vJ3Ju8RJ3HVswz+sPgkcKtAYTqzQRhTtlo="
-            fi
-        else
-            two_hop=""
-        fi
-        ;;
-    *)
-        echo "invalid choice, exiting."
-        exit 1
-        ;;
-esac
-
-echo "starting nym-vpn-cli"
-echo "using configuration id_key: ${random_identity_key} :: exit_address: ${random_address}"
-./nym-vpn-cli -c sandbox.env --entry-gateway "$random_identity_key" --exit-address "$random_address" $two_hop &
-
-wait
-
-cleanup
+rm -f "$temp_log_file"
 
 ```

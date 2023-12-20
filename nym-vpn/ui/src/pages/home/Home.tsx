@@ -73,7 +73,7 @@ function Home() {
       <div className="flex grow flex-col justify-between gap-y-2">
         <div className="flex flex-col justify-between gap-y-2">
           <NetworkModeSelect />
-          <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-4">
             <div className="mt-3 font-semibold text-lg">
               {t('select-node-title')}
             </div>

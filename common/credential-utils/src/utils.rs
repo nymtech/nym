@@ -6,6 +6,7 @@ use nym_client_core::config::disk_persistence::CommonClientPaths;
 use nym_compact_ecash::scheme::keygen::KeyPairUser;
 use nym_config::DEFAULT_DATA_DIR;
 use nym_credential_storage::persistent_storage::PersistentStorage;
+use nym_credentials::coconut::utils::exp_date_timestamp;
 use nym_validator_client::nyxd::contract_traits::{CoconutBandwidthSigningClient, DkgQueryClient};
 use nym_validator_client::nyxd::Coin;
 use std::path::PathBuf;
@@ -120,9 +121,12 @@ where
     C: DkgQueryClient + Send + Sync,
 {
     let mut recovered_amount: u128 = 0;
-    for voucher in recovery_storage.unconsumed_vouchers()? {
+    for mut voucher in recovery_storage.unconsumed_vouchers()? {
         let voucher_value = voucher.get_voucher_value();
         recovered_amount += voucher_value.parse::<u128>()?;
+        if exp_date_timestamp() != voucher.expiration_date() {
+            voucher.reset_expiration_date();
+        }
         //SW:TODO : need a way to change reset expiration date here, if we recover later
         let state = State::new(voucher);
         let voucher = state.voucher.tx_hash();

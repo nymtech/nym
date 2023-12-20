@@ -226,6 +226,18 @@ impl BandwidthVoucher {
         self.voucher_value_plain.clone()
     }
 
+    pub fn reset_expiration_date(&mut self) {
+        self.expiration_date = exp_date_timestamp();
+        let (withdrawal_request, withdrawal_request_info) = withdrawal_request(
+            &GroupParameters::new().unwrap(),
+            &self.ecash_keypair.secret_key(),
+            self.expiration_date,
+        )
+        .unwrap();
+        self.withdrawal_request = withdrawal_request;
+        self.withdrawal_request_info = withdrawal_request_info;
+    }
+
     pub fn get_public_attributes_plain(&self) -> Vec<String> {
         vec![
             self.voucher_value_plain.clone(),

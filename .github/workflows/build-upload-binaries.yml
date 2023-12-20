@@ -1,16 +1,10 @@
-name: build-upload-binaries
+name: ci-build-upload-binaries
 
 on:
   workflow_dispatch:
-    inputs:
-      add_tokio_unstable:
-        description: 'True to add RUSTFLAGS="--cfg tokio_unstable"'
-        required: true
-        default: false
-        type: boolean
-
-env:
-  NETWORK: sandbox
+  pull_request:
+    paths:
+      - 'mixnode/**'
 
 jobs:
   publish-nym:
@@ -22,33 +16,49 @@ jobs:
     runs-on: ${{ matrix.platform }}
     env:
       CARGO_TERM_COLOR: always
+      RUSTFLAGS: "--cfg tokio_unstable"
+
     steps:
       - uses: actions/checkout@v3
 
-      - name: Install Dependencies (Linux)
-        run: sudo apt-get update && sudo apt-get -y install libwebkit2gtk-4.0-dev build-essential curl wget libssl-dev libgtk-3-dev libudev-dev squashfs-tools
-        continue-on-error: true
-
-      - name: Sets env vars for tokio if set in manual dispatch inputs
+      - name: Prepare build output directory
+        shell: bash
+        env:
+          OUTPUT_DIR: ci-builds/${{ github.ref_name }}
         run: |
-          echo 'RUSTFLAGS="--cfg tokio_unstable"' >> $GITHUB_ENV
-        if: github.event_name == 'workflow_dispatch' && inputs.add_tokio_unstable == true
+          rm -rf ci-builds || true
+          mkdir -p $OUTPUT_DIR
+          echo $OUTPUT_DIR
+
+      - name: Install Dependencies (Linux)
+        run: sudo apt update && sudo apt install libudev-dev
 
       - name: Install Rust stable
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
 
-      - name: Build all binaries
+      - name: Build mixnode binary
         uses: actions-rs/cargo@v1
         with:
           command: build
           args: --release --features cpucycles --package nym-mixnode
 
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: nym-binaries-artifacts
-          path: |
-            target/release/nym-mixnode
-          retention-days: 30
+      - name: Prepare build output
+        shell: bash
+        env:
+          OUTPUT_DIR: ci-builds/${{ github.ref_name }}
+        run: |
+          cp target/release/nym-mixnode $OUTPUT_DIR
+
+      - name: Deploy branch to CI www
+        continue-on-error: true
+        uses: easingthemes/ssh-deploy@main
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.CI_WWW_SSH_PRIVATE_KEY }}
+          ARGS: "-avzr"
+          SOURCE: "ci-builds/"
+          REMOTE_HOST: ${{ secrets.CI_WWW_REMOTE_HOST }}
+          REMOTE_USER: ${{ secrets.CI_WWW_REMOTE_USER }}
+          TARGET: ${{ secrets.CI_WWW_REMOTE_TARGET }}/builds/
+          EXCLUDE: "/dist/, /node_modules/"

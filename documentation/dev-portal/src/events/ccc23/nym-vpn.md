@@ -22,7 +22,7 @@ The client can optionally do the first connection to the entry gateway using wir
 
 ## Goals
 
-This version is an experimental software for testing purposes in a limited environment. This testing round aims to help Nym with:
+This version is an experimental software for [testing](./nym-vpn.md#testing) purposes in a limited environment. This testing round aims to help Nym with:
 
 * Stabilise NymVPN client
 * Understand NymVPN client behaviour with various setups (OS, connectivity, etc.)
@@ -41,29 +41,45 @@ FIGURE OUT HOW TO SHARE ACCESS TO DWL THE BINARIES
 
 > Any syntax in `<>` brackets is a user's/version unique variable. Exchange with a corresponding name without the `<>` brackets.
 
-We have CLI and UI binaries available for Linux (Debian based) and Mac. 
+We have CLI and UI binaries available for Linux (Debian based) and macOS. 
 
 ![](images/image1.png)
 
-ADD DWL PAGE LINK
+* Visit the [release page](https://github.com/nymtech/nym/releases/) to download the binary for your system.
+* Open terminal in the same directory and make executable by running:
 
-* Visit the [release page]() to download the binary for your system.
-* Open terminal in the same directory and make executable by running `chmod +x ./nym-vpn_0.0.0_amd64.AppImage`
+```sh
+# for CLI
+chmod +x ./nym-vpn-cli 
 
-### CLI
+# for UI
+chmod +x ./nym-vpn_0.0.0_amd64.AppImage
+# make sure your path to package is correct and the package name as well
+```
 
-### UI
+
+* If you prefer to use the `.deb` version for installation (Linux only), open terminal in the same directory and run:
+```
+sudo dpkg -i ./<PACKAGE_NAME>.deb
+# or
+sudo apt-get install -f ./<PACKAGE_NAME>.deb
+```
 
 ## Running
 
 ***For NymVPN to work, all existing VPNs must be switched off!***
 
+* Get your private key for wireguard [here](https://nymvpn.com/en/37c3)
+* See a JSON list of all Gateways [here](https://nymvpn.com/en/37c3/api/gateways)
+
 ### CLI
 
-Running a help command
+Make sure your terminal is open in the same directory like your binary.
+
+Running a help command:
 
 ```sh
-./nym-vpn-client/target/release/nym-vpn-cli --help
+./nym-vpn-cli --help
 ```
 
 

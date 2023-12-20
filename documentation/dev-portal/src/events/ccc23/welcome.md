@@ -6,23 +6,6 @@ At first glance Nym platform may seem pretty complex. To make the connection bet
 
 
 * [Mixnet Overview](mixnet-overview.md)
-* [NymVPN](nym-cpn.md)
+* [NymVPN](nym-vpn.md)
 * [FAQ](faq.md) 
-
-<!--
-Points:
-
-* Quick mixnet overview
-* FAQ
-	* Nym Node
-	* Rewards
-	* Smoosh
-* VPN demo guide
-	* CLI commands
-	* UI pictures
--->
-
-
-
-
 

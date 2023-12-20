@@ -4,7 +4,7 @@
 use ::nym_config::defaults::setup_env;
 use clap::{crate_name, crate_version, Parser};
 use lazy_static::lazy_static;
-use log::info;
+use log::{error, info};
 use nym_bin_common::bin_info;
 
 #[allow(unused_imports)]

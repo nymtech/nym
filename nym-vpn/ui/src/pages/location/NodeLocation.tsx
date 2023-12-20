@@ -66,22 +66,20 @@ function NodeLocation({ node }: { node: NodeHop }) {
   };
 
   return (
-    <div>
-      <div className="h-full flex flex-col">
-        <div className="h-70 flex flex-col justify-center items-center gap-y-2 p-1">
-          <QuickConnect onClick={handleCountrySelection} />
-          <SearchBox
-            value={search}
-            onChange={filter}
-            placeholder={t('search-country')}
-          />
-          <span className="mt-3" />
-          <CountryList
-            countries={foundCountries}
-            onClick={handleCountrySelection}
-            isSelected={isCountrySelected}
-          />
-        </div>
+    <div className="h-full flex flex-col p-4">
+      <div className="h-70 flex flex-col justify-center items-center gap-y-2">
+        <QuickConnect onClick={handleCountrySelection} />
+        <SearchBox
+          value={search}
+          onChange={filter}
+          placeholder={t('search-country')}
+        />
+        <span className="mt-3" />
+        <CountryList
+          countries={foundCountries}
+          onClick={handleCountrySelection}
+          isSelected={isCountrySelected}
+        />
       </div>
     </div>
   );

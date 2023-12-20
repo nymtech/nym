@@ -71,8 +71,7 @@ function Home() {
     <div className="h-full flex flex-col p-4">
       <ConnectionStatus />
       <div className="flex grow flex-col justify-between gap-y-2">
-        <div></div>
-        <div className="flex flex-col justify-between mt-20 gap-y-2">
+        <div className="flex flex-col justify-between gap-y-2">
           <NetworkModeSelect />
           <div className="flex flex-col gap-6">
             <div className="mt-3 font-semibold text-lg">

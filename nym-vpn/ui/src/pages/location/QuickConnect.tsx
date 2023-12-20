@@ -20,7 +20,7 @@ export default function QuickConnect({ onClick }: QuickConnectProps) {
       }
     >
       <span className="font-icon text-2xl px-4 cursor-pointer">bolt</span>
-      <div className="cursor-pointer">{`${QuickConnectPrefix} ${defaultNodeLocation.name}`}</div>
+      <div className="cursor-pointer">{`${QuickConnectPrefix} (${defaultNodeLocation.name})`}</div>
     </div>
   );
 }

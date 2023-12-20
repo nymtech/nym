@@ -1,10 +1,10 @@
-use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use tauri::State;
 use tracing::{debug, instrument};
 use ts_rs::TS;
 
 use crate::{
+    country::DEFAULT_NODE_LOCATION,
     error::{CmdError, CmdErrorSource},
     states::{app::Country, SharedAppData, SharedAppState},
 };
@@ -14,11 +14,6 @@ pub enum NodeType {
     Entry,
     Exit,
 }
-
-static DEFAULT_NODE_LOCATION: Lazy<Country> = Lazy::new(|| Country {
-    code: "DE".to_string(),
-    name: "Germany".to_string(),
-});
 
 #[instrument(skip(app_state, data_state))]
 #[tauri::command]

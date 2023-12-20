@@ -10,7 +10,7 @@ on:
         type: boolean
 
 env:
-  NETWORK: mainnet
+  NETWORK: sandbox
 
 jobs:
   publish-nym:
@@ -43,19 +43,12 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --workspace --release
+          args: --release --features cpucycles --package nym-mixnode
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v3
         with:
           name: nym-binaries-artifacts
           path: |
-            target/release/nym-client
-            target/release/nym-gateway
             target/release/nym-mixnode
-            target/release/nym-socks5-client
-            target/release/nym-api
-            target/release/nym-network-requester
-            target/release/nym-network-statistics
-            target/release/nym-cli
           retention-days: 30

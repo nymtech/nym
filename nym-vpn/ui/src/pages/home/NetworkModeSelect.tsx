@@ -55,11 +55,11 @@ function NetworkModeSelect() {
   };
 
   return (
-    <div className="">
+    <div>
       <RadioGroup value={selected} onChange={handleSelect}>
         <RadioGroup.Label
           as="div"
-          className="font-semibold text-lg text-baltic-sea dark:text-white mb-4"
+          className="font-semibold text-lg text-baltic-sea dark:text-white mb-5"
         >
           {t('select-network-label')}
         </RadioGroup.Label>

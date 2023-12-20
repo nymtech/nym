@@ -53,6 +53,12 @@ fn test_function() {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    cfg_if::cfg_if! {
+        if #[cfg(feature = "console-subscriber")] {
+            console_subscriber::init();
+        }
+    }
+
     let args = Cli::parse();
     setup_env(args.config_env_file.as_ref());
 

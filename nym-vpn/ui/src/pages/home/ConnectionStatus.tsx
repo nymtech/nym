@@ -55,7 +55,7 @@ function ConnectionStatus() {
     }
   };
   return (
-    <div className="h-64 flex flex-col justify-center items-center gap-y-2">
+    <div className="h-72 flex flex-col justify-center items-center gap-y-2">
       <div className="flex flex-1 items-end">
         <div
           className={clsx([

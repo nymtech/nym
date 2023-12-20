@@ -62,7 +62,7 @@ export default {
       'dim-gray': '#696571',
       // [L] network mode desc text
       // [L] node location select outline
-      'ciment-feet': '#79747E',
+      'cement-feet': '#79747E',
       // [D] node location select outline
       'gun-powder': '#49454F',
       // [D] top-bar icon

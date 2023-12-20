@@ -102,7 +102,7 @@ function NetworkModeSelect() {
                         </RadioGroup.Label>
                         <RadioGroup.Description
                           as="span"
-                          className="text-base text-ciment-feet dark:text-mercury-mist"
+                          className="text-base text-cement-feet dark:text-mercury-mist"
                         >
                           <span>{mode.desc}</span>
                         </RadioGroup.Description>

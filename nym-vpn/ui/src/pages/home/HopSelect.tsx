@@ -21,9 +21,9 @@ export default function HopSelect({
     <div
       className={clsx([
         state === 'Disconnected' ? 'cursor-pointer' : 'cursor-not-allowed',
-        'mb-8 w-full flex flex-row justify-between items-center py-3 px-4',
+        'w-full flex flex-row justify-between items-center py-3 px-4',
         'text-baltic-sea dark:text-mercury-pinkish',
-        'border-ciment-feet dark:border-gun-powder border-2 rounded-lg',
+        'border-cement-feet dark:border-gun-powder border-2 rounded-lg',
         'relative',
       ])}
       onKeyDown={onClick}

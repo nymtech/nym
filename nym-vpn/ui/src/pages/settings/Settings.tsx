@@ -50,7 +50,7 @@ function Settings() {
           <span
             className={clsx([
               darkModeEnabled ? 'translate-x-6' : 'translate-x-1',
-              'inline-block h-4 w-4 transform rounded-full bg-ciment-feet dark:bg-white transition',
+              'inline-block h-4 w-4 transform rounded-full bg-cement-feet dark:bg-white transition',
             ])}
           />
         </Switch>

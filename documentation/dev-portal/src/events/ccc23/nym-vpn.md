@@ -69,8 +69,8 @@ sudo apt-get install -f ./<PACKAGE_NAME>.deb
 
 ***For NymVPN to work, all existing VPNs must be switched off!***
 
-* Get your private key for wireguard [here](https://nymvpn.com/en/37c3)
-* See a JSON list of all Gateways [here](https://nymvpn.com/en/37c3/api/gateways)
+* Get your private key for wireguard setup [here](https://nymvpn.com/en/37c3)
+* See a JSON list of all Gateways [here](https://nymvpn.com/en/ccc/api/gateways)
 
 ### CLI
 
@@ -81,7 +81,6 @@ Running a help command:
 ```sh
 ./nym-vpn-cli --help
 ```
-
 
 ~~~admonish example collapsible=true title="Console output"
 ```
@@ -147,188 +146,141 @@ If you running NymVPN on mac OS for the first time, you may see this alert messa
 
 One of the main aim for the aplha demo is testing. Your share results will help us to make NymVPN robust and stabilise both the client and the network through provided measurements. 
 
-1. Copy the block below and save it to the same folder where you have your `nym-vpn-cli` binary as `tests.sh`
-2. Open terminal in the same directory
-3. Run `sudo sh ./tests.sh`
-4. ADD HOW TO SHARE RESULTS
+1. Create a directory called `nym-vpn_tests` and copy your `nym-vpn-cli` binary and `sandbox.env` to that directory
+2. Copy the [block below](./nym-vpn.md#tests.sh) and save it to the same folder as `tests.sh`
+3. Open terminal in the same directory
+4. Turn off any existing VPN's and run `sudo sh ./tests.sh`
+5. The script will print a JSON view of existing Gateways and prompt you to chose 
+    - `enter a gateway ID`: paste one of the values labeled with a key `"identityKey"` (without `" "`)
+    - `enter an exit address`: paste one of the values labeled with a key `"address"` (without `" "`)
+6. The script shall run the tests and generate a folder called `tests_<LONG_STRING>` and files `perf_test_results.log` or `two_hop_perf_test_results.log` as well as some temp files. This is how the directory structure will look like:
+```sh
+$ <MY_TESTING_DIRECTORY>
+├── tests.sh
+├── nym-vpn-cli
+├── sandbox.env
+├── perf_test_results.log 
+├── tests_<LONG_STRING>
+│   ├── api_response_times.txt
+│   ├── download_time.txt
+│   └── ping_results.txt
+├── timeout
+└── two_hop_perf_test_results.log
+```
+6. In case of errors, see [troubleshooting section](./nym-vpn.md#troubleshooting) below
+7. When the tests are finished, remove the `nym-vpn-cli` binary from the folder and compress it as `nym-vpn_tests.zip`
+8. Upload this compressed file to 
+
+ADDD UPLOAD ADDRESS
+
+#### tests.sh
 
 ```sh
 #!/bin/bash
 
-json='[
-  {
-    "host": "143.42.96.234",
-    "identity_key": "378R4NXg38GESird5LYTyz7pZ5PFXXpqCxSjRCq9Jg7J",
-    "address": "6w1zY8LGsw97H92KEdjCMvEDZoKSvXiLnFzLhCnJHmqt.3urfUjH6QG3R8va4pW3vmP2cLtFEUZcofhKuwmHdE8X6@378R4NXg38GESird5LYTyz7pZ5PFXXpqCxSjRCq9Jg7J",
-    "country": "GB",
-    "distance_to_entry_gateway": "901km"
-  },
-  {
-    "host": "85.159.212.96",
-    "identity_key": "5UCiizgbjBQoJYpZ7te6xUoMLjJQrQQRSvsD6tcBPH2n",
-    "address": "9fM5gvHU7xSdZYKE6qAMG7j4Ps2xLeV8Z9cwCLGFv1Gx.HDuXHaFciHQRT63zteyJYk9Vns2LA82v2ABKpcQt1EyS@5UCiizgbjBQoJYpZ7te6xUoMLjJQrQQRSvsD6tcBPH2n",
-    "country": "GB",
-    "distance_to_entry_gateway": "901km"
-  },
-  {
-    "host": "176.58.120.72",
-    "identity_key": "666hA2R52Jmasbx9H1S7DzcGE6x7s7pSxSSB6pWqMKHE",
-    "address": "FaVTCU2m9G18CVGofaQaXk19vfW4VVtXVEogS54fHT53.7PR8kg6nXGe5WgCJ4x6VkNzZTkfKhXLowSWA9Lg4BsPj@666hA2R52Jmasbx9H1S7DzcGE6x7s7pSxSSB6pWqMKHE",
-    "country": "GB",
-    "distance_to_entry_gateway": "901km"
-  },
-  {
-    "host": "172.232.36.90",
-    "identity_key": "7LzcTUZM91MsYSmthN6up4KC9vFf2dmtXwBPhF7W3QM5",
-    "address": "3qoMx9S39ZVXXmmyS8y5Qp5RWQKrFsvge5ftHS3okVq4.G7NaZswPAjtHbBNKmyGW2pnmt51GCtyn3gULEy1FnR6T@7LzcTUZM91MsYSmthN6up4KC9vFf2dmtXwBPhF7W3QM5",
-    "country": "FR",
-    "distance_to_entry_gateway": "584km"
-  },
-  {
-    "host": "51.20.115.58",
-    "identity_key": "AMAQ2LCzyxqdejn4nZsfz94gK11K2sRwkKek6oVFm1WB",
-    "address": "CxStdSUsAsLeiGktFWSDb7X3dSEAqSvszMCK2J9HB6rq.EEQfesdCwSyreqcSsdtpWfKgcftSTnTv13oLn6GmvQae@AMAQ2LCzyxqdejn4nZsfz94gK11K2sRwkKek6oVFm1WB",
-    "country": "SE",
-    "distance_to_entry_gateway": "1601km"
-  },
-  {
-    "host": "172.232.134.126",
-    "identity_key": "AnCe6phpAp3ne2gT3rwNQ4vH6QTNBggPhNka4hBQrEUY",
-    "address": "H8KiTzNAVBuoqA8hDiTmfpC7duZerew4LHRCU6KtWsYo.4KniYqvavPVmMNYqMiHw1gFtHoWCsu8FRLZX31D2bVsJ@AnCe6phpAp3ne2gT3rwNQ4vH6QTNBggPhNka4hBQrEUY",
-    "country": "SE",
-    "distance_to_entry_gateway": "1601km"
-  },
-  {
-    "host": "3.250.81.180",
-    "identity_key": "BHsWt4DEKERkuEgkKburBU81MpDcYk8KPxXR7URNqP78",
-    "address": "7CAFAFofs28BYudM685iTtpZzCuNzcWn4gApxiX7VLTa.7fiUcee2tMJy5XBQAXsECRA1zM9tUYGcLBcArshe1PTS@BHsWt4DEKERkuEgkKburBU81MpDcYk8KPxXR7URNqP78",
-    "country": "IE",
-    "distance_to_entry_gateway": "1361km"
-  },
-  {
-    "host": "35.181.57.111",
-    "identity_key": "CSwbNyC9Tb8HSMQU5EjVqByNNLkkj6aBBPtQFBdVEHFa",
-    "address": "5TpMKoWFQSqyUw4NKSgph6zgW61zcvus73C17J3ZozKz.AzXRZ2cUGVzsRDeWiwK3bqJh3LskbFadK3akTbeAnX2@CSwbNyC9Tb8HSMQU5EjVqByNNLkkj6aBBPtQFBdVEHFa",
-    "country": "FR",
-    "distance_to_entry_gateway": "589km"
-  },
-  {
-    "host": "139.162.180.253",
-    "identity_key": "DphEmo33pZonPcBwJxFEkdS1EMKS9uAt7VGZVdsxGBgY",
-    "address": "4T3BGyjUFZDp5iZa7kGPzx2Kq5UNzQSomwwv4w7D7rGF.56kCcEMvAUsHSZ2CXuJv8Wp4vBwg4CFDTSP4N5Eogx5d@DphEmo33pZonPcBwJxFEkdS1EMKS9uAt7VGZVdsxGBgY",
-    "country": "DE",
-    "distance_to_entry_gateway": "458km"
-  },
-  {
-    "host": "13.39.161.56",
-    "identity_key": "DumEE4vMPrak6oRTSGwwyiYsPFRqtJjy26WEXVNEnZrg",
-    "address": "4WVqE2C1zRWNVZqD6vthDg9FntRDyvhwEwdxajQGUMYc.2kBhfFiwknJex3jyeEqKtLNRANeWryNghHvSLJPwRcfS@DumEE4vMPrak6oRTSGwwyiYsPFRqtJjy26WEXVNEnZrg",
-    "country": "FR",
-    "distance_to_entry_gateway": "589km"
-  },
-  {
-    "host": "170.187.187.235",
-    "identity_key": "EUFhawe7PgYWbXVhv1PcBfeEoNYTNPPE1HXKRELR7bN8",
-    "address": "JAQ4PXuf2FvrTqjan25T1zrNLdxm2jGqwDZZL6a5T7h2.7618iBtCMGhZAteRK16YVowAgnj7wr978Ff4Qbo8Tyvr@EUFhawe7PgYWbXVhv1PcBfeEoNYTNPPE1HXKRELR7bN8",
-    "country": "DE",
-    "distance_to_entry_gateway": "458km"
-  }
-]'
+NEW_ENDPOINT="http://localhost:8000/data.json"
 
-cleanup() {
-  echo "terminating nym-vpn-cli..."
-  pkill -f './nym-vpn-cli'
-  sleep 5
+download_file() {
+    local file_url=$1
+    local output_file=$2
+    local time_file=$3
+
+    echo "starting download speed test..."
+    local start_time=$(date +%s)
+    if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+        wget -O $output_file $file_url
+    elif [[ "$OSTYPE" == "darwin"* ]]; then
+        curl -o $output_file $file_url
+    fi
+    local end_time=$(date +%s)
+    local elapsed_time=$((end_time - start_time))
+    echo "download speed test completed in $elapsed_time seconds." >"$time_file"
 }
+
+if ! command -v jq &>/dev/null; then
+    echo "jq is not installed. Please install jq to proceed."
+    exit 1
+fi
+
+data=$(curl -s "$NEW_ENDPOINT")
+if [ $? -ne 0 ]; then
+    echo "Error fetching data from endpoint"
+    exit 1
+fi
 
 temp_log_file="temp_log.txt"
 
 perform_tests() {
-  #------------------------------------------------------------------------
-  # ping test
-  #------------------------------------------------------------------------
-  gateway_id=$1
-  exit_address=$2
+    local gateway_id=$1
+    local exit_address=$2
+    local test_directory="tests_${gateway_id}_${exit_address}"
+    local file_url="http://ipv4.download.thinkbroadband.com/2MB.zip"
 
-  test_directory="tests_${gateway_id}_${exit_address}"
-  mkdir -p "$test_directory"
+    mkdir -p "$test_directory"
+    local ping_results_file="${test_directory}/ping_results.txt"
+    local download_time_file="${test_directory}/download_time.txt"
+    local api_response_file="${test_directory}/api_response_times.txt"
 
-  sites=(google.com youtube.com facebook.com baidu.com wikipedia.org
-    amazon.com twitter.com instagram.com yahoo.com ebay.com netflix.com)
+    # ping test
+    echo "starting ping test..."
+    for site in google.com youtube.com facebook.com baidu.com wikipedia.org amazon.com twitter.com instagram.com yahoo.com ebay.com netflix.com; do
+        ping -c 4 $site >>"$ping_results_file"
+    done
+    echo "ping test completed. Results saved in $ping_results_file"
 
-  echo "starting ping test..."
-  ping_results_file="${test_directory}/ping_results_${gateway_id}_${exit_address}.txt"
-  for site in "${sites[@]}"; do
-    ping -c 4 $site >>"$ping_results_file"
-  done
-  echo "ping test completed. Results saved in $ping_results_file"
+    # download speed test
+    download_file $file_url /dev/null "$download_time_file"
 
-  #------------------------------------------------------------------------
+    # api test
+    local api_endpoint="https://validator.nymtech.net/api/v1/mixnodes"
+    local iterations=10
+    >"$api_response_file"
+    for i in $(seq 1 $iterations); do
+        local start_time=$(date +%s)
+        local response=$(curl -s -o /dev/null -w '%{http_code}' $api_endpoint)
+        local end_time=$(date +%s)
 
-  file_url="http://ipv4.download.thinkbroadband.com/2MB.zip"
-  wget_time_file="${test_directory}/wget_time_${gateway_id}_${exit_address}.txt"
-  curl_time_file="${test_directory}/curl_time_${gateway_id}_${exit_address}.txt"
+        local elapsed_seconds=$((end_time - start_time))
+        local hours=$((elapsed_seconds / 3600))
+        local minutes=$(((elapsed_seconds % 3600) / 60))
+        local seconds=$((elapsed_seconds % 60))
 
-  echo "starting download speed test with wget..."
-  start_time=$(date +%s)
-  wget -O /dev/null $file_url
-  end_time=$(date +%s)
-  wget_time=$((end_time - start_time))
-  echo "download speed test with wget completed in $wget_time seconds." > "$wget_time_file"
-
-  echo "starting download speed test with curl..."
-  start_time=$(date +%s)
-  curl -o /dev/null $file_url
-  end_time=$(date +%s)
-  curl_time=$((end_time - start_time))
-  echo "download speed test with curl completed in $curl_time seconds." >"$curl_time_file"
-
-  #------------------------------------------------------------------------
-  # api test
-  api_endpoint="https://validator.nymtech.net/api/v1/mixnodes"
-  iterations=10
-  api_response_file="${test_directory}/api_response_times_${gateway_id}_${exit_address}.txt"
-  >"$api_response_file"
-  for i in $(seq 1 $iterations); do
-    start_time=$(date +%s)
-    response=$(curl -s -o /dev/null -w '%{http_code}' $api_endpoint)
-    end_time=$(date +%s)
-    response_time=$(echo "$end_time - start_time" | bc)
-    echo "iteration $i: response Time = ${response_time}s, status code = $response" >>"$api_response_file"
-  done
-  echo "api response test completed. results saved in $api_response_file."
-
-  #------------------------------------------------------------------------
+        local human_readable_time=$(printf "%02dh:%02dm:%02ds" $hours $minutes $seconds)
+        echo "iteration $i: response Time = ${human_readable_time}, status code = $response" >>"$api_response_file"
+    done
+    echo "api response test completed. Results saved in $api_response_file."
 }
 
-echo "$json" | jq -c '.[].address' | while IFS= read -r address; do
-  echo "$json" | jq -c '.[].identity_key' | while IFS= read -r identity_key; do
-    identity_key=$(echo "$identity_key" | jq -r .)
-    exit_address=$(echo "$address" | jq -r .)
+echo $data | jq .
 
-    sudo ./nym-vpn-cli -c sandbox.env --entry-gateway-id "$identity_key" --exit-router-address "$exit_address" --enable-two-hop >"$temp_log_file" 2>&1 &
+read -p "enter a gateway ID: " identity_key
+read -p "enter an exit address: " exit_address
 
-    timeout=20
-    start_time=$(date +%s)
-    while true; do
-      if grep -q "received plain" "$temp_log_file"; then
-        echo "successful configuration with identity_key: $identity_key and exit address: $exit_address" >>two_hop_perf_test_results.log
+# starting nymVpn
+sudo ./nym-vpn-cli-test -c sandbox.env --entry-gateway-id "$identity_key" --exit-router-address "$exit_address" --enable-two-hop >"$temp_log_file" 2>&1 &
+
+timeout=15
+start_time=$(date +%s)
+while true; do
+    current_time=$(date +%s)
+    if grep -q "received plain" "$temp_log_file"; then
+        echo "successful configuration with identity_key: $identity_key and exit address: $exit_address" >>perf_test_results.log
         perform_tests "$identity_key" "$exit_address"
         break
-      fi
-
-      current_time=$(date +%s)
-      if ((current_time - start_time > timeout)); then
-        echo "failed to connect with identity_key: $identity_key using the exit address: $exit_address" >>two_hop_perf_test_results.log
+    fi
+    if ((current_time - start_time > timeout)); then
+        echo "failed to connect with identity_key: $identity_key using the exit address: $exit_address" >>perf_test_results.log
         break
-      fi
-
-      sleep 1
-    done
-    cleanup
-  done
+    fi
+    sleep 1
 done
 
+echo "terminating nym-vpn-cli..."
+pkill -f './nym-vpn-cli'
+sleep 5
 rm -f "$temp_log_file"
-
 ```
+
+## Troubleshooting
+
+

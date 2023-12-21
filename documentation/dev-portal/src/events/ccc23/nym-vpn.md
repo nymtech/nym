@@ -1,6 +1,6 @@
 # NymVPN alpha
 
-Nym has announced [NymVPN](https://nymvpn.com/en) and presented the [NymVPN Litepaper](https://nymvpn.com/nymVPN-litepaper.pdf). At CCC 2023 we have the unique opportunity to do the first alpha public testing. This page provides a how to guide, explaining steps to install and run NymVPN CLI and UI over Nym testnet environment. 
+Nym has announced [NymVPN](https://nymvpn.com/en) and presented the [NymVPN Litepaper](https://nymvpn.com/nymVPN-litepaper.pdf). At CCC 2023 we have the unique opportunity to do the first alpha public testing. This page provides a how to guide, explaining steps to install and run NymVPN CLI and UI over Nym Sandbox testnet environment. 
  
 NymVPN is a client that uses [Nym Mixnet](https://nymtech.net) to anonymise users entire internet traffic.
 
@@ -150,7 +150,7 @@ Here is a list of the options and their descriptions. Some are essential, some a
 - `-c` is a path to the [Sandbox config](https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env) file saved as `sandbox.env` 
 - `--entry-gateway-id`: paste one of the values labeled with a key `"identityKey"` (without `" "`) from [here](https://nymvpn.com/en/ccc/api/gateways)
 - `--exit-router-address`: paste one of the values labeled with a key `"address"` (without `" "`) from here [here](https://nymvpn.com/en/ccc/api/gateways)
-- `--enable-wireguard`: Enable the wireguard traffic between the client and the entry gateway
+- `--enable-wireguard`: Enable the wireguard traffic between the client and the entry gateway. NymVPN uses Mullvad libraries for wrapping `wireguard-go` and to setup local routing rules to route all traffic to the TUN virtual network device
 - `--wg-ip`: The address of the wireguard interface, you can get it [here](https://nymvpn.com/en/37c3)
 - `--private-key`: get your private key for testing purposes [here](https://nymvpn.com/en/37c3)
 - `--enable-two-hop` is a faster setup where the traffic is routed from the client to Entry Gateway and directly to Exit Gateway (default is 5-hops)

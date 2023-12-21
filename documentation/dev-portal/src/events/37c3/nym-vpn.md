@@ -1,10 +1,10 @@
 # NymVPN alpha
 
-Nym has announced [NymVPN](https://nymvpn.com/en) and presented the [NymVPN Litepaper](https://nymvpn.com/nymVPN-litepaper.pdf). At CCC 2023 we have the unique opportunity to do the first alpha public testing. This page provides a how to guide, explaining steps to install and run NymVPN CLI and UI over Nym Sandbox testnet environment. 
+Nym has announced [NymVPN](https://nymvpn.com/en) and presented the [NymVPN Litepaper](https://nymvpn.com/nymVPN-litepaper.pdf). At CCC 2023 we have the unique opportunity to do the first alpha public testing. This page provides a how to guide, explaining steps to install and run NymVPN CLI and GUI on the Nym Sandbox testnet. 
  
 NymVPN is a client that uses [Nym Mixnet](https://nymtech.net) to anonymise users entire internet traffic.
 
-The default is 5-hops (including Entry and Exit Gateways)
+The default is to run in 5-hop mode: 
 
 ```
                       ┌─►mix──┐  mix     mix
@@ -16,9 +16,9 @@ client ───► Gateway ──┘  mix  │  mix  ┌─►mix ───► 
                          mix  └─►mix──┘  mix
 ```
 
-Users can switch to 2-hops only mode, which is a faster but less private option. 
+Users can switch to 2-hop only mode, which is a faster but less private option. In this mode traffic is only sent between the two Gateway's, and is not passed between Mix Nodes. 
 
-The client can optionally do the first connection to the entry gateway using wireguard, and it uses Mullvad libraries for wrapping `wireguard-go` and to setup local routing rules to route all traffic to the TUN virtual network device.
+The client can optionally do the first connection to the entry gateway using Wireguard. NymVPN uses Mullvad libraries for wrapping `wireguard-go` and to setup local routing rules to route all traffic to the TUN virtual network device.
 
 ```admonish warning
 NymVPN is an experimental software and it's for [testing](./nym-vpn.md#testing) purposes only. All users testing the client are expected to sign GDPR Information Sheet and Consent Form, available [here](https://opnform.com/forms/nymvpn-user-research-at-37c3-yccqko).
@@ -26,10 +26,10 @@ NymVPN is an experimental software and it's for [testing](./nym-vpn.md#testing) 
 
 ## Goals
 
-The aplha testing round aims to support Nym with:
+This alpha testing will help:
 
 * Stabilise NymVPN client
-* Understand NymVPN client behavior with various setups (OS, connectivity, etc.)
+* Understand NymVPN client behavior in various setups (OS, connectivity, etc.)
 * Stabilize the VPN infrastructure and improve its reliability / speed / features (e.g. IPv6 support)
 * Load test the network in Sandbox environment and identify / anticipate potential weaknesses
  
@@ -41,8 +41,6 @@ Our alpha testing round is done live with some participants at CCC 2023. This gu
 
 > **If you committ to test NymVPN aplha, please start with the [user research form](https://opnform.com/forms/nymvpn-user-research-at-37c3-yccqko) where all the steps will be provided**. 
 
-FIGURE OUT HOW TO SHARE ACCESS TO DWL THE BINARIES
-
 ## Preparation
 
 > Any syntax in `<>` brackets is a user's/version unique variable. Exchange with a corresponding name without the `<>` brackets.
@@ -51,18 +49,17 @@ We have CLI and UI binaries available for Linux (Debian based) and macOS.
 
 ![](images/image1.png)
 
-* Visit the [release page](https://github.com/nymtech/nym/releases/) to download the binary for your system.
+* Visit the [releases page](https://github.com/nymtech/nym/releases/) to download the binary for your system.
 * Open terminal in the same directory and make executable by running:
 
 ```sh
 # for CLI
 chmod +x ./nym-vpn-cli 
 
-# for UI
+# for GUI
 chmod +x ./nym-vpn_0.0.0_amd64.AppImage
 # make sure your path to package is correct and the package name as well
 ```
-
 
 * If you prefer to use the `.deb` version for installation (Linux only), open terminal in the same directory and run:
 ```
@@ -70,13 +67,14 @@ sudo dpkg -i ./<PACKAGE_NAME>.deb
 # or
 sudo apt-get install -f ./<PACKAGE_NAME>.deb
 ```
-* Create Sandbox environment config file by saving [this](https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env) as `sandbox.env` in the same directory like your NymVPN binaries
+
+* Create Sandbox environment config file by saving [this](https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env) as `sandbox.env` in the same directory as your NymVPN binaries. 
 
 ## Running
 
-***For NymVPN to work, all existing VPNs must be switched off!***
+***For NymVPN to work, all other VPNs must be switched off!***
 
-**Note:** At this alpha stage of NymVPN, network connection (wifi) must be re-connected after or in between NymVPN testing rounds. 
+**Note:** At this alpha stage of NymVPN, network connection (wifi) must be re-connected after or in-between NymVPN testing rounds. 
 
 * Get your private key for wireguard setup [here](https://nymvpn.com/en/37c3)
 * See a JSON list of all Gateways [here](https://nymvpn.com/en/ccc/api/gateways)
@@ -84,7 +82,7 @@ sudo apt-get install -f ./<PACKAGE_NAME>.deb
 
 ### CLI
 
-Make sure your terminal is open in the same directory like your `nym-vpn-cli` binary.
+Make sure your terminal is open in the same directory as your `nym-vpn-cli` binary.
 
 Running a help command:
 
@@ -162,7 +160,7 @@ Here is a list of the options and their descriptions. Some are essential, some a
 - `--mtu`: The MTU of the TUN device. More detailed description coming soon.
 - `--disable-routing`: Disable routing all traffic through the VPN TUN device. More detailed description coming soon.
 
-### UI
+### GUI
 
 If you installed the `.deb` package you may be able to have a NymVPN application icon in your app menu. However this may not work as the application needs root permission.
 
@@ -180,7 +178,7 @@ In case of errors, see [troubleshooting section](./nym-vpn.md#macos-alert-on-nym
 
 ## Testing
 
-One of the main aim for the aplha demo is testing. Your share results will help us to make NymVPN robust and stabilise both the client and the network through provided measurements. 
+One of the main aims of the demo is testing; your results will help us to make NymVPN robust and stabilise both the client and the network through provided measurements. 
 
 1. Create a directory called `nym-vpn_tests` and copy your `nym-vpn-cli` binary and `sandbox.env` to that directory
 2. Copy the [block below](./nym-vpn.md#testssh) and save it to the same folder as `tests.sh`
@@ -293,7 +291,7 @@ read -p "enter a gateway ID: " identity_key
 read -p "enter an exit address: " exit_address
 
 # starting nymVpn
-sudo ./nym-vpn-cli-test -c sandbox.env --entry-gateway-id "$identity_key" --exit-router-address "$exit_address" --enable-two-hop >"$temp_log_file" 2>&1 &
+sudo ./nym-vpn-cli -c sandbox.env --entry-gateway-id "$identity_key" --exit-router-address "$exit_address" --enable-two-hop >"$temp_log_file" 2>&1 &
 
 timeout=15
 start_time=$(date +%s)

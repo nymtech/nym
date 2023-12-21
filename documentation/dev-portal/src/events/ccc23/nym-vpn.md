@@ -20,6 +20,8 @@ Users can switch to 2-hops only mode, which is a faster but less private option.
 
 The client can optionally do the first connection to the entry gateway using wireguard, and it uses Mullvad libraries for wrapping `wireguard-go` and to setup local routing rules to route all traffic to the TUN virtual network device.
 
+ADD WARNING EXPERIMENTAL SOFTWARE FOR TESTING PURPOSES ONLY ETC
+
 ## Goals
 
 This version is an experimental software for [testing](./nym-vpn.md#testing) purposes in a limited environment. This testing round aims to help Nym with:

@@ -205,16 +205,16 @@ In case of errors, see [troubleshooting section](./nym-vpn.md#macos-alert-on-nym
 
 One of the main aims of the demo is testing; your results will help us to make NymVPN robust and stabilise both the client and the network through provided measurements. 
 
-1. Create a directory called `nym-vpn_tests` and copy your `nym-vpn-cli` binary and `sandbox.env` to that directory
+1. Create a directory called `nym-vpn-tests` and copy your `nym-vpn-cli` binary and `sandbox.env` to that directory
 2. Copy the [block below](./nym-vpn.md#testssh) and save it to the same folder as `tests.sh`
 3. Open terminal in the same directory
-4. Turn off any existing VPN's (including the NymVPN instances) and run `sudo sh ./tests.sh`
+4. Turn off any existing VPN's (including the NymVPN instances) and run `sudo sh ./tests.sh`.
 5. In case of errors, see [troubleshooting section](./nym-vpn.md#missing-jq-error) below
-6. The script will print a JSON view of existing Gateways and prompt you to chose 
+6. The script will print a JSON view of existing Gateways and prompt you to. **Make sure to use two different Gateways for entry and exit***
     - `enter a gateway ID`: paste one of the values labeled with a key `"identityKey"` printed above (without `" "`) 
     - `enter an exit address`: paste one of the values labeled with a key `"address"` printed above (without `" "`)
-    - Make sure to use two different Gateways for entry and exit
-7. The script shall run the tests and generate a folder called `tests_<LONG_STRING>` and files `perf_test_results.log` or `two_hop_perf_test_results.log` as well as some temp files. This is how the directory structure will look like:
+7. Note that the testing script doesn't print many logs, in case of doubts you can check logs in the log file `temp_log.txt` located in the same directory. 
+8. The script shall run the tests and generate a folder called `tests_<LONG_STRING>` and files `perf_test_results.log` or `two_hop_perf_test_results.log` as well as some temp files. This is how the directory structure will look like:
 ```sh
 nym-vpn-tests
 ├── tests.sh
@@ -228,9 +228,9 @@ nym-vpn-tests
 ├── timeout
 └── two_hop_perf_test_results.log
 ```
-8. In case of errors, see [troubleshooting section](./nym-vpn.md#missing-jq-error) below
-9. When the tests are finished, remove the `nym-vpn-cli` binary from the folder and compress it as `nym-vpn_tests.zip`
-10. Upload this compressed file to the [questionnaire](https://opnform.com/forms/nymvpn-user-research-at-37c3-yccqko) upload field when prompted. 
+9. In case of errors, see [troubleshooting section](./nym-vpn.md#missing-jq-error) below
+10. When the tests are finished, remove the `nym-vpn-cli` binary from the folder and compress it as `nym-vpn-tests.zip`
+11. Upload this compressed file to the [questionnaire](https://opnform.com/forms/nymvpn-user-research-at-37c3-yccqko) upload field when prompted. 
 
 #### tests.sh
 

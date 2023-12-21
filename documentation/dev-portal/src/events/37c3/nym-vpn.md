@@ -68,7 +68,29 @@ sudo dpkg -i ./<PACKAGE_NAME>.deb
 sudo apt-get install -f ./<PACKAGE_NAME>.deb
 ```
 
-* Create Sandbox environment config file by saving [this](https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env) as `sandbox.env` in the same directory as your NymVPN binaries. 
+* For CLI: Create Sandbox environment config file by saving [this](https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env) as `sandbox.env` in the same directory as your NymVPN binaries. In case of GUI setup, see the steps below.
+
+### GUI configuration
+
+* Create a NymVPN config directory called `nym-vpn` in your `~/.config`, either manually or by a command:
+```sh
+# for Linux
+mkrid $HOME/.config/nym-vpn/
+
+# for macOS
+mkdir $HOME/Library/Application Support/nym-vpn/
+```
+* Create the network config by saving [this](https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env) as `sandbox.env` in the directory `nym-vpn` you just created
+* Create the main config file called `config.toml` in the same directory with this content:
+```toml
+# for Linux
+env_config_file = "~/.config/nym-vpn/sandbox.env"
+entry_node_location = "DE" # two letters country code
+
+# for macOS
+env_config_file = "$HOME/Library/Application Support/nym-vpn/"
+entry_node_location = "DE" # two letters country code
+```
 
 ## Running
 
@@ -164,13 +186,13 @@ Here is a list of the options and their descriptions. Some are essential, some a
 
 If you installed the `.deb` package you may be able to have a NymVPN application icon in your app menu. However this may not work as the application needs root permission.
 
-The easiest way to run NymVPN at alpha stage is to open terminal in the same directory where you [installed](./nym-vpn.md#preparation) the binary, make sure you added [Sandbox config](https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env) as `sanbox.env` and run:
+Make sure you went through the GUI configuration in the [preparation section](./nym-vpn.md#gui-configuration). Then open terminal in the same directory where you [installed](./nym-vpn.md#preparation) the binary run:
 
 ```sh
-sudo ./nym-vpn_0.0.0_amd64.AppImage
+sudo -E ./nym-vpn_0.0.0_amd64.AppImage
 
-# In case there were last minute changes and your binary has a different name, run:
-sudo ./<FULL_BINARY_NAME>
+# In case you use another binary, just add the correct name as:
+sudo -E ./<FULL_BINARY_NAME>
 ```
 
 In case of errors, see [troubleshooting section](./nym-vpn.md#macos-alert-on-nymvpn-ui-startup).

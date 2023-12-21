@@ -35,9 +35,11 @@ The aplha testing round aims to support Nym with:
  
  
 ```admonish info
-Our alpha testing round is done live with some participants at CCC 2023. This guide will not work for everyone, as the NymVPN binaries aren't publicly accessible yet. Note that this setup of Nym testnet Sandbox environment is limited for CCC 2023 event and some of the configurations will not work in the future. 
+Our alpha testing round is done live with some participants at CCC 2023. This guide will not work for everyone, as the NymVPN binaries aren't publicly accessible yet. Note that this setup of Nym testnet Sandbox environment is limited for CCC 2023 event and some of the configurations will not work in the future.
 
 ```
+
+> **If you committ to test NymVPN aplha, please start with the [user research form](https://opnform.com/forms/nymvpn-user-research-at-37c3-yccqko) where all the steps will be provided**. 
 
 FIGURE OUT HOW TO SHARE ACCESS TO DWL THE BINARIES
 
@@ -73,6 +75,8 @@ sudo apt-get install -f ./<PACKAGE_NAME>.deb
 ## Running
 
 ***For NymVPN to work, all existing VPNs must be switched off!***
+
+**Note:** At this alpha stage of NymVPN, network connection (wifi) must be re-connected after or in between NymVPN testing rounds. 
 
 * Get your private key for wireguard setup [here](https://nymvpn.com/en/37c3)
 * See a JSON list of all Gateways [here](https://nymvpn.com/en/ccc/api/gateways)
@@ -137,19 +141,39 @@ To run the CLI a few things need to be specified:
 ```sh
 sudo ./nym-vpn-cli -c ./sandbox.env --entry-gateway-id <ENTRY_GATEWAY_ID> --exit-router-address <EXIT_ROUTER_ADDRESS> --enable-wireguard --private-key <PRIVATE_KEY> --wg-ip <WG_IP>
 ```
+All the arguments' values and your private key for testing purposes can be found on our event webpage [nymvpn.com/en/37c3](https://nymvpn.com/en/37c3).
+
 ### Options Flags
+
+Here is a list of the options and their descriptions. Some are essential, some are more technical and not needed to adjusted by users:
 
 - `-c` is a path to the [Sandbox config](https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env) file saved as `sandbox.env` 
 - `--entry-gateway-id`: paste one of the values labeled with a key `"identityKey"` (without `" "`) from [here](https://nymvpn.com/en/ccc/api/gateways)
 - `--exit-router-address`: paste one of the values labeled with a key `"address"` (without `" "`) from here [here](https://nymvpn.com/en/ccc/api/gateways)
+- `--enable-wireguard`: Enable the wireguard traffic between the client and the entry gateway
+- `--wg-ip`: The address of the wireguard interface, you can get it [here](https://nymvpn.com/en/37c3)
+- `--private-key`: get your private key for testing purposes [here](https://nymvpn.com/en/37c3)
+- `--enable-two-hop` is a faster setup where the traffic is routed from the client to Entry Gateway and directly to Exit Gateway (default is 5-hops)
 
-- `--enable-poisson`: Enables process rate limiting of outbound traffic (disabled by default), 
+**More advanced options**
 
-EXPLAIN WG AND WG IP
-EXPLAIN PRIVATE KEY
-EXPLAIN TWO HOPS
+- `--enable-poisson`: Enables process rate limiting of outbound traffic (disabled by default). It means that NymVPN client will send packets at a steady stream to the Entry Gateway. By default it's on average one sphinx packet per 20ms, but there is some randomness (poisson distribution). When there are no real data to fill the sphinx packets with, cover packets are generated instead. 
+- `--ip` is the IP address of the TUN device. More detailed description coming soon.
+- `--mtu`: The MTU of the TUN device. More detailed description coming soon.
+- `--disable-routing`: Disable routing all traffic through the VPN TUN device. More detailed description coming soon.
 
 ### UI
+
+If you installed the `.deb` package you may be able to have a NymVPN application icon in your app menu. However this may not work as the application needs root permission.
+
+The easiest way to run NymVPN at alpha stage is to open terminal in the same directory where you [installed](./nym-vpn.md#preparation) the binary, make sure you added [Sandbox config](https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env) as `sanbox.env` and run:
+
+```sh
+sudo ./nym-vpn_0.0.0_amd64.AppImage
+
+# In case there were last minute changes and your binary has a different name, run:
+sudo ./<FULL_BINARY_NAME>
+```
 
 In case of errors, see [troubleshooting section](./nym-vpn.md#macos-alert-on-nymvpn-ui-startup).
 
@@ -179,11 +203,9 @@ $ <MY_TESTING_DIRECTORY>
 ├── timeout
 └── two_hop_perf_test_results.log
 ```
-6. In case of errors, see [troubleshooting section](./nym-vpn.md#troubleshooting) below
+6. In case of errors, see [troubleshooting section](./nym-vpn.md#missing-jq-error) below
 7. When the tests are finished, remove the `nym-vpn-cli` binary from the folder and compress it as `nym-vpn_tests.zip`
-8. Upload this compressed file to 
-
-ADDD UPLOAD ADDRESS
+8. Upload this compressed file to the [questionnaire](https://opnform.com/forms/nymvpn-user-research-at-37c3-yccqko)
 
 #### tests.sh
 
@@ -295,13 +317,38 @@ rm -f "$temp_log_file"
 
 ## Troubleshooting
 
+#### Thread `main` panicked
+
+If you see a message like:
+```sh
+thread 'main' panicked at /Users/runner/.cargo/git/checkouts/mullvadvpn-app-a575cf705b5dfd76/ccfbaa2/talpid-routing/src/unix.rs:301:30:
+```
+Restart your wifi connection and start again. 
+
+#### macOS alert on NymVPN UI startup
+
+If you are running NymVPN on mac OS for the first time, you may see this alert message:
+
+![](images/image3.png)
+
+1. Head to System Settings -> Privacy & Security and click `Allow anyway`
+
+![](images/image5.png)
+
+2. Confirm with your password or TouchID
+
+3. Possibly you may have to confirm again upon running the application
+
 #### Missing `jq` error
 
 In case of missing `jq` on Linux (Debian) install it with:
 ```sh
+# Linux (Debian)
 sudo apt-get install jq
+# macOS
+brew install jq
 ``` 
-On some Linux distributions however the [script](./nym-vpn.md#tests.sh) returns `jq` error even if your system says `jq is already the newest version`.
+On some Linux distributions however the [script](./nym-vpn.md#tests.sh) returns `jq` error even if your system claims that `jq is already the newest version`.
 In that case, comment the `jq` check in the script as follows:
 ```sh
 #if ! command -v jq &>/dev/null; then
@@ -327,17 +374,4 @@ python3 -m http.server 8000
 ```
 6. Continue with the steps listed in [testing section](./nym-vpn.md#testing)
 
-#### macOS alert on NymVPN UI startup
-
-If you are running NymVPN on mac OS for the first time, you may see this alert message:
-
-![](images/image3.png)
-
-1. Head to System Settings -> Privacy & Security and click `Allow anyway`
-
-![](images/image5.png)
-
-2. Confirm with your password or TouchID
-
-3. Possibly you may have to confirm again upon running the application
 

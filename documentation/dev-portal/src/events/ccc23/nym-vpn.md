@@ -205,7 +205,7 @@ $ <MY_TESTING_DIRECTORY>
 ```
 6. In case of errors, see [troubleshooting section](./nym-vpn.md#missing-jq-error) below
 7. When the tests are finished, remove the `nym-vpn-cli` binary from the folder and compress it as `nym-vpn_tests.zip`
-8. Upload this compressed file to the [questionnaire](https://opnform.com/forms/nymvpn-user-research-at-37c3-yccqko)
+8. Upload this compressed file to the [questionnaire](https://opnform.com/forms/nymvpn-user-research-at-37c3-yccqko) upload field when prompted. 
 
 #### tests.sh
 

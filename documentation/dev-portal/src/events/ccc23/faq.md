@@ -1,4 +1,4 @@
-# Frequently Asked Questions
+# Frequently Asked Questions @ 37C3
 
 Besides the FAQ for CCC 2023 event listed below, you can have a look at [Nym general FAQ](https://nymtech.net/developers/faq/general-faq.html) and read through Nym's technical [documentation](https://nymtech.net/docs), [Developer Portal](https://nymtech.net/developers) and [Operators Guide](https://nymtech.net/operators).
 
@@ -6,9 +6,41 @@ Besides the FAQ for CCC 2023 event listed below, you can have a look at [Nym gen
 
 Make sure you read [NymVPV webpage](https://nymvpn.com/en) and our [guide to install, run and test](./nym-vpn.md) the client. 
 
+### What's the difference between 2-hops and 5-hops
+
+The default is 5-hops (including Entry and Exit Gateways), which means that the traffic goes from the local client to Entry Gateway -> though 3 layes of Mix Nodes -> to Exit Gateway -> internet. this option uses all the Nym Mixnet features for maximum privacy.
+
+```
+                      ┌─►mix──┐  mix     mix
+                      │       │
+            Entry     │       │                   Exit
+client ───► Gateway ──┘  mix  │  mix  ┌─►mix ───► Gateway ───► internet
+                              │       │
+                              │       │
+                         mix  └─►mix──┘  mix
+```
+
+The 2-hop option is going from the local client -> Entry Gateway -> directly to Exit Gateway -> internet. This option is good for operations demanding faster connection. Keep in mind that this setup by-passes the 3 layers of Mix Nodes. 
+
+```
+            Entry         Exit
+client ───► Gateway ────► Gateway ───► internet
+```
+
+We highly recommend to read more about [Nym network overview](https://nymtech.net/docs/architecture/network-overview.html) and the [Mixnet traffic flow](https://nymtech.net/docs/architecture/traffic-flow.html).
+
 ### Why do I see different sizes of packets in my terminal log?
 
 One of features of Nym Mixnet's clients is to break data into the same size packets called Sphinx, which is currently ~2kb. When running NymVPN, the data log shows payload sizes, which are the raw sizes of the IP packets, not Sphinx. The payload sizes will be capped by the configured MTU, which is set around 1500 bytes.
+
+### What is 'poisson filter' about?
+
+By default `--enable-poisson` is disabled and packets are sent from the local client to the Entry Gateway as quickly as possible. With the poisson process enabled the Nym client will send packets at a steady stream to the Entry Gateway. By default it's on average one sphinx packet per 20ms, but there is some randomness (poisson distribution). When there are no real data to fill the sphinx packets with, cover packets are generated instead.
+
+Enabling the poisson filter is one of the key mechanisms to de-correlate input and output traffic to the Mixnet. The performance impact however is dramatic:
+1 packer per 20ms is 50 packets / sec so ballpark 100kb/s.
+For mobile clients that means constantly sending data eating up data allowance.
+
 
 ## Nym Mixnet Architecture and Rewards
 
@@ -34,10 +66,3 @@ If you are a dev who is interested to integrate Nym, have a look on our SDK tuto
 * [TypeScript SDKs](https://sdk.nymtech.net/)
 * [Integration FAQ](https://nymtech.net/developers/faq/integrations-faq.html)
 
-
-
-<!--
-
-Reach out to Marc and Romain about gathered FAQ
-
--->

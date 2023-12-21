@@ -84,7 +84,7 @@ mkdir $HOME/Library/Application Support/nym-vpn/
 * Create the main config file called `config.toml` in the same directory with this content:
 ```toml
 # for Linux
-env_config_file = "~/.config/nym-vpn/sandbox.env"
+env_config_file = "/home/<USER>config/nym-vpn/sandbox.env" # change <USER> to your username
 entry_node_location = "DE" # two letters country code
 
 # for macOS

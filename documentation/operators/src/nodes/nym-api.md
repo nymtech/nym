@@ -18,7 +18,6 @@ The process of enabling these different aspects of the system will take time. At
 
 ```admonish warning
 It is highly recommended to run `nym-api` alongside a full node since you will be exposing HTTP port(s) to the Internet. We also observed degradation in p2p and block signing operations when `nym-api` was run alongside a signing validator.
-
 ```
 
 ### Rewards
@@ -32,14 +31,13 @@ We are working on load testing currently in order to get good specs for a full n
 ### (Coming Soon) Credential Generation
 Validators that take part in the DKG ceremony will become part of the 'quorum' generating and verifying zk-Nym credentials. These will initially be used for private proof of payment for NymVPN (see our blogposts [here](https://blog.nymtech.net/nymvpn-an-invitation-for-privacy-experts-and-enthusiasts-63644139d09d) and [here](https://blog.nymtech.net/zk-nyms-are-here-a-major-milestone-towards-a-market-ready-mixnet-a3470c9ab10a) for more on this), and in the future will be expanded into more general usecases such as [offline ecash](https://arxiv.org/abs/2303.08221). 
 
-The DKG ceremony will be used to create a subset of existing Validators - referred to as the quorum. As outlined above, they will be the ones taking part in the generation and verification of zk-Nym credentials. The size of the 'minimum viable quorum' is 10 - we are aiming for a larger number than this for the initial quorum in order to have some redundancy in the case of a Validator dropping or going offline. 
+The DKG ceremony will be used to create a subset of existing validators - referred to as the quorum. As outlined above, they will be the ones taking part in the generation and verification of zk-Nym credentials. The size of the 'minimum viable quorum' is 10 - we are aiming for a larger number than this for the initial quorum in order to have some redundancy in the case of a Validator dropping or going offline. 
 
 We will be releasing more detailed step-by-step documentation for involved Validators nearer to the ceremony itself, but at a high level it will involve:
-* the deployment and initialisation of [`group`](https://github.com/nymtech/nym/tree/develop/contracts/multisig/cw4-group) and [`multisig`](https://github.com/nymtech/nym/tree/develop/contracts/multisig) contracts by Nym. Validators that are members of the group contract are the only ones that will be able to take part in the ceremony. 
+* the deployment and initialisation of [`group`](https://github.com/nymtech/nym/tree/develop/contracts/multisig/cw4-group) and [`multisig`](https://github.com/nymtech/nym/tree/develop/contracts/multisig) contracts by Nym. Validators that are members of the `group` contract are the only ones that will be able to take part in the ceremony. 
 * the deployment and initialisation of an instance of the [DKG contract](https://github.com/nymtech/nym/tree/develop/contracts/coconut-dkg) by Nym.  
-* _______ 
-* Validators will update their `nym-api` configs with the address of the now-initialised DKG contract. They will also stop running their API instance in caching only mode, instead switching over run with the `--enabled-credentials-mode`. From the perspective of operators, this is all they have to do - the following happens under the hood:
-  * participants in the ceremony - members of the `group` contract - _____ 
+* Validators will update their `nym-api` configs with the address of the deployed contracts. They will also stop running their API instance in caching only mode, instead switching over run with the `--enabled-credentials-mode`.
+* From the perspective of operators, this is all they have to do. Under the hood, each `nym-api` instance will then take part in several rounds of key submission, verification, and derivation. This will continue until quorum is acheived. _More information on this coming soon_. 
 
 **We will be communicating individually with members of the existing Validator set who have expressed interest in joining the quorum concerning the timing and specifics of the ceremony**. 
 

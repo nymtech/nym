@@ -49,7 +49,7 @@ We have CLI and UI binaries available for Linux (Debian based) and macOS.
 
 ![](images/image1.png)
 
-* Visit the [releases page](https://github.com/nymtech/nym/releases/) to download the binary for your system.
+* Visit the [releases page](https://github.com/nymtech/nym/releases/tag/ccc) to download the binary for your system.
 * Open terminal in the same directory and make executable by running:
 
 ```sh
@@ -106,6 +106,10 @@ entry_node_location = "DE" # two letters country code
 
 Make sure your terminal is open in the same directory as your `nym-vpn-cli` binary.
 
+```admonish info
+The entire command syntax with all the needed arguments' values and your private key for testing purposes can be found on our event webpage [nymvpn.com/en/37c3](https://nymvpn.com/en/37c3).
+```
+
 Running a help command:
 
 ```sh
@@ -161,7 +165,6 @@ To run the CLI a few things need to be specified:
 ```sh
 sudo ./nym-vpn-cli -c ./sandbox.env --entry-gateway-id <ENTRY_GATEWAY_ID> --exit-router-address <EXIT_ROUTER_ADDRESS> --enable-wireguard --private-key <PRIVATE_KEY> --wg-ip <WG_IP>
 ```
-All the arguments' values and your private key for testing purposes can be found on our event webpage [nymvpn.com/en/37c3](https://nymvpn.com/en/37c3).
 
 ### Options Flags
 

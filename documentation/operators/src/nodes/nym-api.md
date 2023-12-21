@@ -3,7 +3,7 @@
 [//]: # (> The nym-api binary was built in the [building nym]&#40;../binaries/building-nym.md&#41; section. If you haven't yet built Nym and want to run the code, go there first. You can build just the API with `cargo build --release --bin nym-api`.)
 [//]: # ()
 
-> The `nym-api` binary should be coming out in the next release - we're releasing this document beforehand so that validators have information as soon as possible and get an idea of what to expect. This doc will be expanded over time as we release the API binary itself as well as start enabling functionality.
+> The `nym-api` binary will be released in the immediate future - we're releasing this document beforehand so that Validators have information as soon as possible and get an idea of what to expect. This doc will be expanded over time as we release the API binary itself as well as start enabling functionality.  
 
 > Any syntax in `<>` brackets is a user's unique variable. Exchange with a corresponding name without the `<>` brackets.
 
@@ -30,9 +30,19 @@ Rewards for credential signing will be calculated hourly, with API operators rec
 We are working on load testing currently in order to get good specs for a full node + Nym API setup. Bear in mind that credential signing is primarily CPU-bound.
 
 ### (Coming Soon) Credential Generation
-Validators that take part in the DKG ceremony (more details on this soon) will become part of the quorum generating and verifying zk-Nym credentials. These will initially be used for private proof of payment for NymVPN (see our blogposts [here](https://blog.nymtech.net/nymvpn-an-invitation-for-privacy-experts-and-enthusiasts-63644139d09d) and [here](https://blog.nymtech.net/zk-nyms-are-here-a-major-milestone-towards-a-market-ready-mixnet-a3470c9ab10a) for more on this), and in the future will be expanded into more general usecases such as [offline e-cash](https://arxiv.org/abs/2303.08221).
+Validators that take part in the DKG ceremony will become part of the 'quorum' generating and verifying zk-Nym credentials. These will initially be used for private proof of payment for NymVPN (see our blogposts [here](https://blog.nymtech.net/nymvpn-an-invitation-for-privacy-experts-and-enthusiasts-63644139d09d) and [here](https://blog.nymtech.net/zk-nyms-are-here-a-major-milestone-towards-a-market-ready-mixnet-a3470c9ab10a) for more on this), and in the future will be expanded into more general usecases such as [offline ecash](https://arxiv.org/abs/2303.08221). 
 
-## Current version
+The DKG ceremony will be used to create a subset of existing Validators - referred to as the quorum. As outlined above, they will be the ones taking part in the generation and verification of zk-Nym credentials. The size of the 'minimum viable quorum' is 10 - we are aiming for a larger number than this for the initial quorum in order to have some redundancy in the case of a Validator dropping or going offline. 
+
+We will be releasing more detailed step-by-step documentation for involved Validators nearer to the ceremony itself, but at a high level the DKG ceremony will involve:
+* the deployment and initialisation of a [multisig contract](https://github.com/nymtech/nym/tree/develop/contracts/multisig) by Nym.   
+* the deployment and initialisation of an instance of the [DKG contract](https://github.com/nymtech/nym/tree/develop/contracts/coconut-dkg) by Nym.  
+* Validators will submit an ed25519 public key to the DKG contract, as well as a NYM deposit. The key is used for signature verification of submitted messages, and the deposit is slashing collateral. 
+* Once a minimum quorum has been achieved, Validators will update their `nym-api` configs with the address of the now-initialised DKG contract. They will also stop running their API instance in caching only mode, instead switching over run with the `--enabled-credentials-mode` as `true`.  
+
+It is important to note that there is a timeout period for public key and deposit submission. As such this must be planned, and cannot happen entirely async. **We will be communicating individually with members of the existing Validator set who have expressed interest in joining the quorum concerning the timing and specifics of the ceremony**. 
+
+## Current version 
 ```
 <!-- cmdrun ../../../../target/release/nym-api --version | grep "Build Version" | cut -b 21-26  -->
 ```

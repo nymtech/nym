@@ -190,6 +190,7 @@ One of the main aim for the aplha demo is testing. Your share results will help 
 6. The script will print a JSON view of existing Gateways and prompt you to chose 
     - `enter a gateway ID`: paste one of the values labeled with a key `"identityKey"` [here](https://nymvpn.com/en/ccc/api/gateways) (without `" "`) 
     - `enter an exit address`: paste one of the values labeled with a key `"address"` [here](https://nymvpn.com/en/ccc/api/gateways) (without `" "`)
+    - Make sure to use two different Gateways for entry and exit
 7. The script shall run the tests and generate a folder called `tests_<LONG_STRING>` and files `perf_test_results.log` or `two_hop_perf_test_results.log` as well as some temp files. This is how the directory structure will look like:
 ```sh
 nym-vpn-tests

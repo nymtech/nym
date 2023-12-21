@@ -216,7 +216,7 @@ You can use the following command to download them for the correct network:
 wget  -O $HOME/.nyxd/config/genesis.json https://nymtech.net/genesis/genesis.json
 
 # Sandbox testnet
-wget -O $HOME/.nyxd/config/genesis.json https://rpc.sandbox.nymtech.net/snapshots/genesis.json | jq '.result.genesis'
+curl https://rpc.sandbox.nymtech.net/snapshots/genesis.json | jq '.result.genesis' > $HOME/.nyxd/config/genesis.json
 ```
 
 ### `config.toml` configuration
@@ -254,7 +254,7 @@ And if you wish to add a human-readable moniker to your node:
 Finally, if you plan on using [Cockpit](https://cockpit-project.org/documentation.html) on your server, change the `grpc` port from `9090` as this is the port used by Cockpit.
 
 ### `app.toml` configuration
-In the file `$HOME/nyxd/config/app.toml`, set the following values:
+In the file `$HOME/.nyxd/config/app.toml`, set the following values:
 
 ```
 # Mainnet
@@ -264,7 +264,6 @@ minimum-gas-prices = "0.025unym,0.025unyx"
 ```
 # Sandbox Testnet
 minimum-gas-prices = "0.025unym,0.025unyx"
-enable = true` in the `[api]` section to get the API server running
 ```
 
 ### Setting up your validator's admin user
@@ -304,6 +303,31 @@ File at /path/to/genesis.json is a valid genesis file
 
 > If this test did not pass, check that you have replaced the contents of `/<PATH-TO>/.nyxd/config/genesis.json` with that of the correct genesis file.
 
+### Setting up nyxd as full node (non-signing)
+
+```admonish danger title=""
+Skip this section if you're planning to run a validator node to join network consensus. To ensure security & maximum availability of validators, do not expose additional services to the Internet
+```
+
+Unlike signing validators, full nodes do not propose / sign blocks. A full node is typically used for indexing blocks produced on the chain and for exposing web interfaces such as RPC, API and gRPC endpoints required for external applications/services to interact with the blockchain.
+
+By default, API server is disabled and RPC/gRPC servers listen to the loopback address only. In a production setup, it is recommended to use a webserver such as Nginx or caddy to proxy requests to the endpoints as required.
+
+To enable Cosmos REST API, you can enable it in `$HOME/.nyxd/config/app.toml` like :
+
+```
+[api]
+
+# Enable defines if the API server should be enabled. Toggle this to `true`
+enable = true
+
+# Swagger defines if swagger documentation should automatically be registered.
+# You can also expose swagger documentation by toggling the below configuration to true
+swagger = true
+```
+
+For more information on enabling access to various endpoints via Nginx, refer to the [example configuration here](./maintenance.md#setup)
+
 ### Open firewall ports
 
 Before starting the validator, we will need to open the firewall ports:
@@ -318,6 +342,9 @@ sudo ufw enable
 # 26660: If prometheus is enabled
 # 22 : Default SSH port
 sudo ufw allow 26656,26660,22
+
+## !! FOR FULL NODES ONLY !! - exposing Nginx for serving web requests
+sudo ufw allow 80,443
 
 # to check everything worked
 sudo ufw status
@@ -358,10 +385,8 @@ lz4 -c -d nyxd-sandbox-snapshot-data.tar.lz4 | tar -x -C $HOME/.nyxd
 You can then restart `nyxd` - it should start syncing from a block > 2000000.
 
 ### Joining Consensus
-```admonish caution title=""
-When joining consensus, make sure that you do not disrupt (or worse - halt) the network by coming in with a disproportionately large amount of staked tokens.
-
-Please initially stake a small amount of tokens compared to existing validators, then delegate to yourself in tranches over time.
+```admonish info title=""
+You can skip this section if you are planning to run a full-node. This step will make your node a signing validator which joins network consensus
 ```
 
 Once your validator has synced and you have received tokens, you can join consensus and produce blocks.
@@ -473,11 +498,15 @@ To upgrade your validator, follow the steps on the [maintenance page](./maintena
 
 #### Common reasons for your validator being jailed
 
-The most common reason for your validator being jailed is that your validator is out of memory because of bloated syslogs.
+Your validator will be jailed if your node:
+ - misses _`x`_ amount of blocks in _`y`_ interval, where _`x`_ and _`y`_ are parameters set by chain governance
+ - performs double signing (two conflicting signatures on the same block using the same key)
 
-Running the command `df -H` will return the size of the various partitions of your VPS.
+Double signing is a serious infraction. If a node double signs, all the delegators to the node (including self-delegation) will be slashed by 5%. Additionally, the node will be permanently jailed and removed from consensus (called _tombstoning_)
 
-If the `/dev/sda` partition is almost full, try pruning some of the `.gz` syslog archives and restart your validator process.
+One of the most common reason for your validator being jailed is that your validator is out of memory because of bloated syslogs.
+
+Running the command `df -H` will return the size of the various partitions of your VPS. If the partition with blockchain data is almost full, try pruning the blockchain data or expanding the storage size.
 
 ### Day 2 operations with your validator
 

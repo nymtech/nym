@@ -188,8 +188,8 @@ One of the main aim for the aplha demo is testing. Your share results will help 
 4. Turn off any existing VPN's and run `sudo sh ./tests.sh`
 5. In case of errors, see [troubleshooting section](./nym-vpn.md#missing-jq-error) below
 6. The script will print a JSON view of existing Gateways and prompt you to chose 
-    - `enter a gateway ID`: paste one of the values labeled with a key `"identityKey"` (without `" "`) [here](https://nymvpn.com/en/ccc/api/gateways)
-    - `enter an exit address`: paste one of the values labeled with a key `"address"` (without `" "`)
+    - `enter a gateway ID`: paste one of the values labeled with a key `"identityKey"` [here](https://nymvpn.com/en/ccc/api/gateways) (without `" "`) 
+    - `enter an exit address`: paste one of the values labeled with a key `"address"` [here](https://nymvpn.com/en/ccc/api/gateways) (without `" "`)
 7. The script shall run the tests and generate a folder called `tests_<LONG_STRING>` and files `perf_test_results.log` or `two_hop_perf_test_results.log` as well as some temp files. This is how the directory structure will look like:
 ```sh
 nym-vpn-tests
@@ -357,6 +357,10 @@ In that case, comment the `jq` check in the script as follows:
 #    exit 1
 #fi
 ```
+
+#### Error current_time: not found
+
+When running `sudo sh ./test.sh` you may see an error like: `93: current_time: not found`. This has something to do with the `current_time` setup of your system and on itself shall not have a negative impact on the test. It has nothing to do with the client at all as it only relates to the code in our testing script. 
 
 #### Not connecting to the endpoint
 

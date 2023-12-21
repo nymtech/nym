@@ -185,7 +185,7 @@ One of the main aim for the aplha demo is testing. Your share results will help 
 1. Create a directory called `nym-vpn_tests` and copy your `nym-vpn-cli` binary and `sandbox.env` to that directory
 2. Copy the [block below](./nym-vpn.md#testssh) and save it to the same folder as `tests.sh`
 3. Open terminal in the same directory
-4. Turn off any existing VPN's and run `sudo sh ./tests.sh`
+4. Turn off any existing VPN's (including the NymVPN instances) and run `sudo sh ./tests.sh`
 5. In case of errors, see [troubleshooting section](./nym-vpn.md#missing-jq-error) below
 6. The script will print a JSON view of existing Gateways and prompt you to chose 
     - `enter a gateway ID`: paste one of the values labeled with a key `"identityKey"` printed above (without `" "`) 

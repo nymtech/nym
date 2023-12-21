@@ -26,7 +26,8 @@ export type StateAction =
   | { type: 'set-ui-theme'; theme: UiTheme }
   | { type: 'set-countries'; countries: Country[] }
   | { type: 'set-node-location'; payload: { hop: NodeHop; country: Country } }
-  | { type: 'set-default-node-location'; country: Country };
+  | { type: 'set-default-node-location'; country: Country }
+  | { type: 'set-root-font-size'; size: number };
 
 export const initialState: AppState = {
   state: 'Disconnected',
@@ -43,6 +44,7 @@ export const initialState: AppState = {
     code: 'FR',
   },
   countries: [],
+  rootFontSize: 12,
 };
 
 export function reducer(state: AppState, action: StateAction): AppState {
@@ -144,6 +146,11 @@ export function reducer(state: AppState, action: StateAction): AppState {
       return {
         ...state,
         defaultNodeLocation: action.country,
+      };
+    case 'set-root-font-size':
+      return {
+        ...state,
+        rootFontSize: action.size,
       };
     case 'reset':
       return initialState;

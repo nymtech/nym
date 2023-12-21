@@ -65,6 +65,10 @@ export function mockTauriIPC() {
       );
     }
 
+    if (cmd === 'set_root_font_size') {
+      return new Promise<void>((resolve) => resolve());
+    }
+
     if (cmd === 'get_app_data') {
       return new Promise<AppDataFromBackend>((resolve) =>
         resolve({
@@ -73,6 +77,7 @@ export function mockTauriIPC() {
           killswitch: false,
           entry_location_selector: false,
           ui_theme: 'Dark',
+          ui_root_font_size: 12,
           vpn_mode: 'TwoHop',
           entry_node: {
             country: {

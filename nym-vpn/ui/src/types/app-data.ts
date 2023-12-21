@@ -19,6 +19,7 @@ export interface AppDataFromBackend {
   killswitch: boolean | null;
   entry_location_selector: boolean | null;
   ui_theme: UiTheme | null;
+  ui_root_font_size: number | null;
   vpn_mode: VpnMode | null;
   entry_node: NodeConfig | null;
   exit_node: NodeConfig | null;

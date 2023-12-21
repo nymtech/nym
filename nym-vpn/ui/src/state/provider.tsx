@@ -7,6 +7,7 @@ import {
   ConnectionState,
   Country,
 } from '../types';
+import { DefaultRootFontSize } from '../constants';
 import { initialState, reducer } from './main';
 import { useTauriEvents } from './useTauriEvents';
 
@@ -89,10 +90,16 @@ export function MainStateProvider({ children }: Props) {
       .then((data) => {
         console.log('app data read from disk:');
         console.log(data);
+
+        if (data.ui_root_font_size) {
+          document.documentElement.style.fontSize = `${data.ui_root_font_size}px`;
+        }
+
         const partialState: Partial<typeof initialState> = {
           entrySelector: data.entry_location_selector || false,
           uiTheme: data.ui_theme || 'Light',
           vpnMode: data.vpn_mode || 'TwoHop',
+          rootFontSize: data.ui_root_font_size || DefaultRootFontSize,
         };
         if (data.entry_node_location) {
           partialState.entryNodeLocation = data.entry_node_location;

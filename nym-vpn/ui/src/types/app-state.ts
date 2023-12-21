@@ -31,6 +31,7 @@ export type AppState = {
   exitNodeLocation: Country | null;
   defaultNodeLocation: Country;
   countries: Country[];
+  rootFontSize: number;
 };
 
 export type ConnectionEventPayload = {

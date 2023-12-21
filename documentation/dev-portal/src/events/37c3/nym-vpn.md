@@ -181,9 +181,9 @@ Here is a list of the options and their descriptions. Some are essential, some a
 **More advanced options**
 
 - `--enable-poisson`: Enables process rate limiting of outbound traffic (disabled by default). It means that NymVPN client will send packets at a steady stream to the Entry Gateway. By default it's on average one sphinx packet per 20ms, but there is some randomness (poisson distribution). When there are no real data to fill the sphinx packets with, cover packets are generated instead. 
-- `--ip` is the IP address of the TUN device. More detailed description coming soon.
-- `--mtu`: The MTU of the TUN device. More detailed description coming soon.
-- `--disable-routing`: Disable routing all traffic through the VPN TUN device. More detailed description coming soon.
+- `--ip` is the IP address of the TUN device. That is the IP address of the local private network that is setu up between local client and the Exit Gateway.
+- `--mtu`: The MTU of the TUN device. That is the max IP packet size of the local private network that is setu up between local client and the Exit Gateway.
+- `--disable-routing`: Disable routing all traffic through the VPN TUN device.
 
 ### GUI
 

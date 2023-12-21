@@ -68,6 +68,7 @@ sudo dpkg -i ./<PACKAGE_NAME>.deb
 # or
 sudo apt-get install -f ./<PACKAGE_NAME>.deb
 ```
+* Create Sandbox environment config file by saving [this](https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env) as `sandbox.env` in the same directory like your NymVPN binaries
 
 ## Running
 
@@ -75,10 +76,11 @@ sudo apt-get install -f ./<PACKAGE_NAME>.deb
 
 * Get your private key for wireguard setup [here](https://nymvpn.com/en/37c3)
 * See a JSON list of all Gateways [here](https://nymvpn.com/en/ccc/api/gateways)
+* As NymVPN need a permission for network settings, it is run with `sudo` root command
 
 ### CLI
 
-Make sure your terminal is open in the same directory like your binary.
+Make sure your terminal is open in the same directory like your `nym-vpn-cli` binary.
 
 Running a help command:
 
@@ -109,6 +111,8 @@ Options:
           Enable the wireguard traffic between the client and the entry gateway
       --private-key <PRIVATE_KEY>
           Associated private key
+      --wg-ip <WG_IP>
+          The IP address of the wireguard interface
       --ip <IP>
           The IP address of the TUN device
       --mtu <MTU>
@@ -124,12 +128,22 @@ Options:
   -V, --version
           Print version
 
+
 ```
 ~~~
 
-ADD EXAMPLES FOR RUNNING
+To run the CLI a few things need to be specified:
 
-ADD GATEWAYS
+```sh
+sudo ./nym-vpn-cli -c ./sandbox.env --entry-gateway-id <ENTRY_GATEWAY_ID> --exit-router-address <EXIT_ROUTER_ADDRESS> --enable-wireguard --private-key <PRIVATE_KEY> --wg-ip <WG_IP>
+```
+- `-c` is a path to the [Sandbox config]((https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env)) file saved as `sandbox.env` 
+- `--entry-gateway-id`: paste one of the values labeled with a key `"identityKey"` (without `" "`) from [here](https://nymvpn.com/en/ccc/api/gateways)
+- `--exit-router-address`: paste one of the values labeled with a key `"address"` (without `" "`) from here [here](https://nymvpn.com/en/ccc/api/gateways)
+
+EXPLAIN WG AND WG IP
+EXPLAIN PRIVATE KEY
+EXPLAIN TWO HOPS
 
 ### UI
 
@@ -155,7 +169,7 @@ One of the main aim for the aplha demo is testing. Your share results will help 
 3. Open terminal in the same directory
 4. Turn off any existing VPN's and run `sudo sh ./tests.sh`
 5. The script will print a JSON view of existing Gateways and prompt you to chose 
-    - `enter a gateway ID`: paste one of the values labeled with a key `"identityKey"` (without `" "`)
+    - `enter a gateway ID`: paste one of the values labeled with a key `"identityKey"` (without `" "`) [here](https://nymvpn.com/en/ccc/api/gateways)
     - `enter an exit address`: paste one of the values labeled with a key `"address"` (without `" "`)
 6. The script shall run the tests and generate a folder called `tests_<LONG_STRING>` and files `perf_test_results.log` or `two_hop_perf_test_results.log` as well as some temp files. This is how the directory structure will look like:
 ```sh

@@ -678,7 +678,7 @@ Which should return:
            └─2380 nginx: worker process
 ```
 
-#### Configuration
+#### Full Node Configuration
 
 Proxying various full node services through port 80 can then be done by creating a file with the following at `/etc/nginx/sites-enabled/nyxd-webrequests.conf`:
 
@@ -714,6 +714,24 @@ server {
   server_name "<grpc.nyx.yourdomain.tld>";
   location / {
     grpc_pass 127.0.0.1:9090;
+  }
+}
+```
+
+#### nym-api Configuration
+
+```sh
+### To expose nym-api webserver
+server {
+  listen 80;
+  listen [::]:80;
+  server_name "<nym-api.nyx.yourdomain.tld>";
+
+  location / {
+    proxy_pass http://127.0.0.1:8000;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
   }
 }
 ```

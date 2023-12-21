@@ -17,7 +17,7 @@ This is important for both the proper decentralisation of the network uptime cal
 The process of enabling these different aspects of the system will take time. At the moment, Nym API operators will only have to run the binary in a minimal 'caching' mode in order to get used to maintaining an additional process running alongside a full node.
 
 ```admonish warning
-It is highly recommended to run `nym-api` alongside a full node since you will be exposing HTTP port(s) to the Internet. We also observed degradation in p2p and block signing operations when nym-api was run alongside a signing validator.
+It is highly recommended to run `nym-api` alongside a full node since you will be exposing HTTP port(s) to the Internet. We also observed degradation in p2p and block signing operations when `nym-api` was run alongside a signing validator.
 
 ```
 
@@ -167,3 +167,6 @@ Starting nym api...
 
 ## Automation
 You will most likely want to automate your validator restarting if your server reboots. Checkout the [maintenance page](./maintenance.md) for an example `service` file.
+
+## Exposing web endpoint using HTTPS
+It is recommended to expose the webserver over HTTPS by using a webserver like Nginx. An example configuration for configuring Nginx is listed [on the maintenance page](maintenance.md#nym-api-configuration)

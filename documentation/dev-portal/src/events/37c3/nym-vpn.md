@@ -75,7 +75,7 @@ sudo apt-get install -f ./<PACKAGE_NAME>.deb
 * Create a NymVPN config directory called `nym-vpn` in your `~/.config`, either manually or by a command:
 ```sh
 # for Linux
-mkrid $HOME/.config/nym-vpn/
+mkdir $HOME/.config/nym-vpn/
 
 # for macOS
 mkdir $HOME/Library/Application Support/nym-vpn/

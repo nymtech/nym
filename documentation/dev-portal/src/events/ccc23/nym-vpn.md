@@ -178,7 +178,7 @@ ADDD UPLOAD ADDRESS
 ```sh
 #!/bin/bash
 
-NEW_ENDPOINT="http://localhost:8000/data.json"
+NEW_ENDPOINT="https://nymvpn.com/en/ccc/api/gateways"
 
 download_file() {
     local file_url=$1
@@ -283,4 +283,34 @@ rm -f "$temp_log_file"
 
 ## Troubleshooting
 
+#### Missing `jq` error
 
+In case of missing `jq` on Linux (Debian) install it with:
+```sh
+sudo apt-get install jq
+``` 
+On some Linux distributions however the [script](./nym-vpn.md#tests.sh) returns `jq` error even if your system says `jq is already the newest version`.
+In that case, comment the `jq` check in the script as follows:
+```sh
+#if ! command -v jq &>/dev/null; then
+#    echo "jq is not installed. Please install jq to proceed."
+#    exit 1
+#fi
+```
+
+#### Not connecting to the endpoint
+
+In case the automatic download of all the Gateways fail (and it shouldn't), you do an easy manual work around:
+
+1. Open the list of Gateways created by API [here](https://nymvpn.com/en/ccc/api/gateways)
+2. On top click on `JSON` option (shall be default view) and `Save`
+3. Save it as `data.json` to the `nym-vpn-tests` folder
+4. Replace line 3 in the [script `tests.sh`](./nym-vpn.md#tests.sh) with:
+```sh
+NEW_ENDPOINT="http://localhost:8000/data.json"
+```
+5. In a new terminal window run:
+```sh
+python3 -m http.server 8000
+```
+6. Continue with the steps listed in [testing section](./nym-vpn.md#testing)

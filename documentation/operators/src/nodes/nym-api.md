@@ -34,13 +34,14 @@ Validators that take part in the DKG ceremony will become part of the 'quorum' g
 
 The DKG ceremony will be used to create a subset of existing Validators - referred to as the quorum. As outlined above, they will be the ones taking part in the generation and verification of zk-Nym credentials. The size of the 'minimum viable quorum' is 10 - we are aiming for a larger number than this for the initial quorum in order to have some redundancy in the case of a Validator dropping or going offline. 
 
-We will be releasing more detailed step-by-step documentation for involved Validators nearer to the ceremony itself, but at a high level the DKG ceremony will involve:
-* the deployment and initialisation of a [multisig contract](https://github.com/nymtech/nym/tree/develop/contracts/multisig) by Nym.   
+We will be releasing more detailed step-by-step documentation for involved Validators nearer to the ceremony itself, but at a high level it will involve:
+* the deployment and initialisation of [`group`](https://github.com/nymtech/nym/tree/develop/contracts/multisig/cw4-group) and [`multisig`](https://github.com/nymtech/nym/tree/develop/contracts/multisig) contracts by Nym. Validators that are members of the group contract are the only ones that will be able to take part in the ceremony. 
 * the deployment and initialisation of an instance of the [DKG contract](https://github.com/nymtech/nym/tree/develop/contracts/coconut-dkg) by Nym.  
-* Validators will submit an ed25519 public key to the DKG contract, as well as a NYM deposit. The key is used for signature verification of submitted messages, and the deposit is slashing collateral. 
-* Once a minimum quorum has been achieved, Validators will update their `nym-api` configs with the address of the now-initialised DKG contract. They will also stop running their API instance in caching only mode, instead switching over run with the `--enabled-credentials-mode` as `true`.  
+* _______ 
+* Validators will update their `nym-api` configs with the address of the now-initialised DKG contract. They will also stop running their API instance in caching only mode, instead switching over run with the `--enabled-credentials-mode`. From the perspective of operators, this is all they have to do - the following happens under the hood:
+  * participants in the ceremony - members of the `group` contract - _____ 
 
-It is important to note that there is a timeout period for public key and deposit submission. As such this must be planned, and cannot happen entirely async. **We will be communicating individually with members of the existing Validator set who have expressed interest in joining the quorum concerning the timing and specifics of the ceremony**. 
+**We will be communicating individually with members of the existing Validator set who have expressed interest in joining the quorum concerning the timing and specifics of the ceremony**. 
 
 ## Current version 
 ```

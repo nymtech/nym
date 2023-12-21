@@ -186,12 +186,13 @@ One of the main aim for the aplha demo is testing. Your share results will help 
 2. Copy the [block below](./nym-vpn.md#testssh) and save it to the same folder as `tests.sh`
 3. Open terminal in the same directory
 4. Turn off any existing VPN's and run `sudo sh ./tests.sh`
-5. The script will print a JSON view of existing Gateways and prompt you to chose 
+5. In case of errors, see [troubleshooting section](./nym-vpn.md#missing-jq-error) below
+6. The script will print a JSON view of existing Gateways and prompt you to chose 
     - `enter a gateway ID`: paste one of the values labeled with a key `"identityKey"` (without `" "`) [here](https://nymvpn.com/en/ccc/api/gateways)
     - `enter an exit address`: paste one of the values labeled with a key `"address"` (without `" "`)
-6. The script shall run the tests and generate a folder called `tests_<LONG_STRING>` and files `perf_test_results.log` or `two_hop_perf_test_results.log` as well as some temp files. This is how the directory structure will look like:
+7. The script shall run the tests and generate a folder called `tests_<LONG_STRING>` and files `perf_test_results.log` or `two_hop_perf_test_results.log` as well as some temp files. This is how the directory structure will look like:
 ```sh
-$ <MY_TESTING_DIRECTORY>
+nym-vpn-tests
 ├── tests.sh
 ├── nym-vpn-cli
 ├── sandbox.env
@@ -203,9 +204,9 @@ $ <MY_TESTING_DIRECTORY>
 ├── timeout
 └── two_hop_perf_test_results.log
 ```
-6. In case of errors, see [troubleshooting section](./nym-vpn.md#missing-jq-error) below
-7. When the tests are finished, remove the `nym-vpn-cli` binary from the folder and compress it as `nym-vpn_tests.zip`
-8. Upload this compressed file to the [questionnaire](https://opnform.com/forms/nymvpn-user-research-at-37c3-yccqko) upload field when prompted. 
+8. In case of errors, see [troubleshooting section](./nym-vpn.md#missing-jq-error) below
+9. When the tests are finished, remove the `nym-vpn-cli` binary from the folder and compress it as `nym-vpn_tests.zip`
+10. Upload this compressed file to the [questionnaire](https://opnform.com/forms/nymvpn-user-research-at-37c3-yccqko) upload field when prompted. 
 
 #### tests.sh
 

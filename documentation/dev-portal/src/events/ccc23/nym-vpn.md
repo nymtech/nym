@@ -183,7 +183,7 @@ In case of errors, see [troubleshooting section](./nym-vpn.md#macos-alert-on-nym
 One of the main aim for the aplha demo is testing. Your share results will help us to make NymVPN robust and stabilise both the client and the network through provided measurements. 
 
 1. Create a directory called `nym-vpn_tests` and copy your `nym-vpn-cli` binary and `sandbox.env` to that directory
-2. Copy the [block below](./nym-vpn.md#tests.sh) and save it to the same folder as `tests.sh`
+2. Copy the [block below](./nym-vpn.md#testssh) and save it to the same folder as `tests.sh`
 3. Open terminal in the same directory
 4. Turn off any existing VPN's and run `sudo sh ./tests.sh`
 5. The script will print a JSON view of existing Gateways and prompt you to chose 
@@ -348,7 +348,7 @@ sudo apt-get install jq
 # macOS
 brew install jq
 ``` 
-On some Linux distributions however the [script](./nym-vpn.md#tests.sh) returns `jq` error even if your system claims that `jq is already the newest version`.
+On some Linux distributions however the [script](./nym-vpn.md#testssh) returns `jq` error even if your system claims that `jq is already the newest version`.
 In that case, comment the `jq` check in the script as follows:
 ```sh
 #if ! command -v jq &>/dev/null; then
@@ -364,7 +364,7 @@ In case the automatic download of all the Gateways fail (and it shouldn't), you 
 1. Open the list of Gateways created by API [here](https://nymvpn.com/en/ccc/api/gateways)
 2. On top click on `JSON` option (shall be default view) and `Save`
 3. Save it as `data.json` to the `nym-vpn-tests` folder
-4. Replace line 3 in the [script `tests.sh`](./nym-vpn.md#tests.sh) with:
+4. Replace line 3 in the [script `tests.sh`](./nym-vpn.md#testssh) with:
 ```sh
 NEW_ENDPOINT="http://localhost:8000/data.json"
 ```

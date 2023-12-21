@@ -44,7 +44,7 @@ For mobile clients that means constantly sending data eating up data allowance.
 
 ## Nym Mixnet Architecture and Rewards
 
-We have a list of questions related to Nym Nodes and the incentives behind running them under [FAQ pages](https://nymtech.net/operators/faq/mixnodes-faq.html) in our [Operators Guide](https://nymtech.net/operators). For better knowledge about Nym architecture we recomment to read [Nym network overview](https://nymtech.net/docs/architecture/network-overview.html) and the [Mixnet traffic flow](https://nymtech.net/docs/architecture/traffic-flow.html) in our [technical documentation](https://nymtech.net/docs).
+We have a list of questions related to Nym Nodes and the incentives behind running them under [FAQ pages](https://nymtech.net/operators/faq/mixnodes-faq.html) in our [Operators Guide](https://nymtech.net/operators). For better knowledge about Nym architecture we recommend to read [Nym network overview](https://nymtech.net/docs/architecture/network-overview.html) and the [Mixnet traffic flow](https://nymtech.net/docs/architecture/traffic-flow.html) in our [technical documentation](https://nymtech.net/docs).
 
 ## Project Smoosh
 
@@ -56,7 +56,7 @@ Part of the the transition under code name [Project Smoosh](./faq.md#project-smo
 
 * Read more how the exit policy gets implemented [here](https://nymtech.net/operators/faq/smoosh-faq.html#how-will-the-exit-policy-be-implemented)
 * Check out [Nym Operators Legal Forum](https://nymtech.net/operators/legal/exit-gateway.html)
-* Do reach out to us during CCC 2023 with any experiences you may have running Tor Exit relays or legal findings and suggestions for Nym Exit Gateway operators 
+* Do reach out to us during 37c3 with any experiences you may have running Tor Exit relays or legal findings and suggestions for Nym Exit Gateway operators 
 
 ## Nym Integrations and SDKs
 

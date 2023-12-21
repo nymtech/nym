@@ -44,7 +44,7 @@ For mobile clients that means constantly sending data eating up data allowance.
 
 ## Nym Mixnet Architecture and Rewards
 
-We have a list of questions related to Nym Nodes and the incentives behind running them under [FAQ pages](https://nymtech.net/operators/faq/mixnodes-faq.html) in our [Operators Guide](https://nymtech.net/operators).
+We have a list of questions related to Nym Nodes and the incentives behind running them under [FAQ pages](https://nymtech.net/operators/faq/mixnodes-faq.html) in our [Operators Guide](https://nymtech.net/operators). For better knowledge about Nym architecture we recomment to read [Nym network overview](https://nymtech.net/docs/architecture/network-overview.html) and the [Mixnet traffic flow](https://nymtech.net/docs/architecture/traffic-flow.html) in our [technical documentation](https://nymtech.net/docs).
 
 ## Project Smoosh
 

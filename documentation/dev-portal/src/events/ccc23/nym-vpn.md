@@ -137,9 +137,13 @@ To run the CLI a few things need to be specified:
 ```sh
 sudo ./nym-vpn-cli -c ./sandbox.env --entry-gateway-id <ENTRY_GATEWAY_ID> --exit-router-address <EXIT_ROUTER_ADDRESS> --enable-wireguard --private-key <PRIVATE_KEY> --wg-ip <WG_IP>
 ```
-- `-c` is a path to the [Sandbox config]((https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env)) file saved as `sandbox.env` 
+### Options Flags
+
+- `-c` is a path to the [Sandbox config](https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env) file saved as `sandbox.env` 
 - `--entry-gateway-id`: paste one of the values labeled with a key `"identityKey"` (without `" "`) from [here](https://nymvpn.com/en/ccc/api/gateways)
 - `--exit-router-address`: paste one of the values labeled with a key `"address"` (without `" "`) from here [here](https://nymvpn.com/en/ccc/api/gateways)
+
+- `--enable-poisson`: Enables process rate limiting of outbound traffic (disabled by default), 
 
 EXPLAIN WG AND WG IP
 EXPLAIN PRIVATE KEY
@@ -147,17 +151,7 @@ EXPLAIN TWO HOPS
 
 ### UI
 
-If you running NymVPN on mac OS for the first time, you may see this alert message:
-
-![](images/image3.png)
-
-1. Head to System Settings -> Privacy & Security and click `Allow anyway`
-
-![](images/image5.png)
-
-2. Confirm with your password or TouchID
-
-3. Possibly you may have to confirm again upon running the application
+In case of errors, see [troubleshooting section](./nym-vpn.md#macos-alert-on-nymvpn-ui-startup).
 
 
 ## Testing
@@ -332,3 +326,18 @@ NEW_ENDPOINT="http://localhost:8000/data.json"
 python3 -m http.server 8000
 ```
 6. Continue with the steps listed in [testing section](./nym-vpn.md#testing)
+
+#### macOS alert on NymVPN UI startup
+
+If you are running NymVPN on mac OS for the first time, you may see this alert message:
+
+![](images/image3.png)
+
+1. Head to System Settings -> Privacy & Security and click `Allow anyway`
+
+![](images/image5.png)
+
+2. Confirm with your password or TouchID
+
+3. Possibly you may have to confirm again upon running the application
+

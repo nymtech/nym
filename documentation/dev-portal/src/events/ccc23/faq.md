@@ -6,6 +6,10 @@ Besides the FAQ for CCC 2023 event listed below, you can have a look at [Nym gen
 
 Make sure you read [NymVPV webpage](https://nymvpn.com/en) and our [guide to install, run and test](./nym-vpn.md) the client. 
 
+### Why do I see different sizes of packets in my terminal log?
+
+One of features of Nym Mixnet's clients is to break data into the same size packets called Sphinx, which is currently ~2kb. When running NymVPN, the data log shows payload sizes, which are the raw sizes of the IP packets, not Sphinx. The payload sizes will be capped by the configured MTU, which is set around 1500 bytes.
+
 ## Nym Mixnet Architecture and Rewards
 
 We have a list of questions related to Nym Nodes and the incentives behind running them under [FAQ pages](https://nymtech.net/operators/faq/mixnodes-faq.html) in our [Operators Guide](https://nymtech.net/operators).

@@ -1,0 +1,148 @@
+# List of rules with definitions
+# https://github.com/realm/SwiftLint/blob/master/Rules.md
+
+disabled_rules:
+  - todo
+
+opt_in_rules:
+  - anyobject_protocol
+  - attributes
+  - balanced_xctest_lifecycle
+  - capture_variable
+  - closure_body_length
+  - closure_end_indentation
+  - closure_parameter_position
+  - closure_spacing
+  - collection_alignment
+  - colon
+  - conditional_returns_on_newline
+  - contains_over_filter_count
+  - contains_over_filter_is_empty
+  - contains_over_first_not_nil
+  - contains_over_range_nil_comparison
+  - convenience_type
+  - discouraged_none_name
+  - discouraged_object_literal
+  - empty_collection_literal
+  - empty_count
+  - empty_string
+  - empty_xctest_method
+  - enum_case_associated_values_count
+  - expiring_todo
+  - explicit_init
+  - fallthrough
+  - fatal_error_message
+  - file_header
+  - file_name
+  - file_name_no_space
+  - first_where
+  - flatmap_over_map_reduce
+  - force_cast
+  - force_try
+  - force_unwrapping
+  - function_default_parameter_at_end
+  - identical_operands
+  - implicit_return
+  - indentation_width
+  - joined_default_parameter
+  - last_where
+  - legacy_random
+  - line_length
+  - literal_expression_end_indentation
+  - lower_acl_than_parent
+  - multiline_arguments
+  - multiline_arguments_brackets
+  - multiline_function_chains
+  - multiline_literal_brackets
+  - multiline_parameters
+  - multiline_parameters_brackets
+  - no_extension_access_modifier
+  - operator_usage_whitespace
+  - overridden_super_call
+  - pattern_matching_keywords
+  - prefer_self_type_over_type_of_self
+  - prefer_zero_over_explicit_init
+  - private_action
+  - private_outlet
+  - prohibited_interface_builder
+  - prohibited_super_call
+  - redundant_nil_coalescing
+  - redundant_type_annotation
+  - sorted_first_last
+  - switch_case_on_newline
+  - test_case_accessibility
+  - toggle_bool
+  - trailing_closure
+  - unavailable_function
+  - unneeded_parentheses_in_closure_argument
+  - unused_declaration
+  - unused_import
+  - vertical_parameter_alignment_on_call
+  - vertical_whitespace_closing_braces
+  - weak_delegate
+  - xct_specific_matcher
+  - yoda_condition
+
+attributes:
+  always_on_same_line:
+    - "@IBSegueAction"
+    - "@IBAction"
+    - "@NSManaged"
+    - "@objc"
+    - "@MainActor"
+    - "@discardableResult"
+
+conditional_returns_on_newline:
+  if_only: true
+
+cyclomatic_complexity:
+  ignores_case_statements: true
+
+enum_case_associated_values_count:
+  warning: 4
+  error: 6
+
+function_parameter_count:
+  warning: 6
+  error: 8
+
+identifier_name:
+  min_length: 2
+  max_length: 60
+
+indentation_width:
+  indentation_width: 4
+
+legacy_hashing: error
+
+line_length:
+  ignores_urls: true
+  ignores_comments: true
+  ignores_function_declarations: false
+  ignores_interpolated_strings: true
+  warning: 120
+  error: 240
+
+multiline_parameters:
+  allowsSingleLine: false
+
+private_outlet:
+  allow_private_set: true
+  
+trailing_closure:
+  only_single_muted_parameter: true
+
+trailing_whitespace:
+  ignores_comments: true
+
+type_body_length:
+  warning: 400
+  error: 500
+
+type_name:
+  min_length: 2
+  max_length: 60
+
+warning_threshold: 15
+
+reporter: "xcode"

@@ -676,6 +676,7 @@ impl<C, St> GatewayClient<C, St> {
         &mut self,
         mix_packet: MixPacket,
     ) -> Result<(), GatewayClientError> {
+        println!("sent_ws_packets: {}", self.sent_ws_packets);
         if !self.authenticated {
             return Err(GatewayClientError::NotAuthenticated);
         }

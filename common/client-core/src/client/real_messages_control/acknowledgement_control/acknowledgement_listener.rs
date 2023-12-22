@@ -40,6 +40,7 @@ impl AcknowledgementListener {
     async fn on_ack(&mut self, ack_content: Vec<u8>) {
         trace!("Received an ack");
         self.ack_total_received += 1;
+        println!("ack_total_received: {}", self.ack_total_received);
 
         let frag_id = match recover_identifier(&self.ack_key, &ack_content)
             .map(FragmentIdentifier::try_from_bytes)
@@ -60,6 +61,7 @@ impl AcknowledgementListener {
 
         trace!("Received {} from the mix network", frag_id);
         self.ack_received += 1;
+        println!("ack_received: {}", self.ack_received);
 
         self.action_sender
             .unbounded_send(Action::new_remove(frag_id))

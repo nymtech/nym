@@ -4,6 +4,7 @@ import { invoke } from '@tauri-apps/api';
 import { Switch } from '@headlessui/react';
 import { useMainDispatch, useMainState } from '../../contexts';
 import { StateDispatch } from '../../types';
+import UiScaler from './UiScaler';
 
 function Settings() {
   const state = useMainState();
@@ -55,6 +56,7 @@ function Settings() {
           />
         </Switch>
       </div>
+      <UiScaler />
     </div>
   );
 }

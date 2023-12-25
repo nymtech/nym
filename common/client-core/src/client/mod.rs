@@ -17,9 +17,9 @@ pub(crate) mod transmission_buffer;
 
 // Packet counters for statistics. These are updated by the various components of the client and
 // the packet stats task will periodically read and summarise them.
-// Another reason it's useful to have these here is that some components, like the gateway client,
-// will check and compare its own packet counters against these to ensure that nothing has been
-// lost in the system due e.g async cancellation bugs.
+// Another reason it's useful to have these here is that some components, will check and compare
+// its own packet counters against these to ensure that nothing has been lost in the system due e.g
+// async cancellation bugs.
 pub(crate) static REAL_PACKETS_SENT: AtomicU64 = AtomicU64::new(0);
 pub(crate) static COVER_PACKETS_SENT: AtomicU64 = AtomicU64::new(0);
 

@@ -522,10 +522,10 @@ where
         let mult = self.sending_delay_controller.current_multiplier();
         let delay = self.current_average_message_sending_delay().as_millis();
         let status_str = if self.config.traffic.disable_main_poisson_packet_distribution {
-            format!("Status: {lanes} lanes, backlog: {backlog:.2} kiB ({packets}), no delay")
+            format!("Packet backlog: {backlog:.2} kiB ({packets}), {lanes} lanes, no delay")
         } else {
             format!(
-                "Status: {lanes} lanes, backlog: {backlog:.2} kiB ({packets}), avg delay: {delay}ms ({mult})"
+                "Packet backlog: {backlog:.2} kiB ({packets}), {lanes} lanes, avg delay: {delay}ms ({mult})"
             )
         };
         if packets > 1000 {

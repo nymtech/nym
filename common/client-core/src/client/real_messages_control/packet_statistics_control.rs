@@ -20,12 +20,12 @@ impl PacketStatisticsControl {
         let _additional_reply_surbs_queued = client::ADDITIONAL_REPLY_SURBS_QUEUED.load(Relaxed);
 
         log::info!(
-            "packets sent: {} (real: {}, cover: {})",
+            "packets sent: {} (real: {}, cover: {}, retransmissions: {})",
             real_packets_sent + cover_packets_sent,
             real_packets_sent,
-            cover_packets_sent
+            cover_packets_sent,
+            retransmissions_queued,
         );
-        log::info!("retransmissions sent: {}", retransmissions_queued);
         log::info!(
             "acks received: {} (real: {}, cover: {})",
             total_acks_received,

@@ -82,6 +82,7 @@ pub struct GatewayClient<C, St = EphemeralCredentialStorage> {
     /// Listen to shutdown messages.
     shutdown: TaskClient,
 
+    /// Number of websocket packets sent
     sent_ws_packets: u64,
 }
 
@@ -358,10 +359,10 @@ impl<C, St> GatewayClient<C, St> {
     ) -> Result<(), GatewayClientError> {
         match self.connection {
             SocketState::Available(ref mut conn) => {
-                let res = conn.send(msg).await?;
+                conn.send(msg).await?;
                 self.sent_ws_packets += 1;
-                Ok(res)
-            },
+                Ok(())
+            }
             SocketState::PartiallyDelegated(ref mut partially_delegated) => {
                 if let Err(err) = partially_delegated.send_without_response(msg).await {
                     error!("failed to send message without response - {err}...");
@@ -676,7 +677,12 @@ impl<C, St> GatewayClient<C, St> {
         &mut self,
         mix_packet: MixPacket,
     ) -> Result<(), GatewayClientError> {
-        println!("sent_ws_packets: {}", self.sent_ws_packets);
+        // This is mostly just a sanity check to compare against the number of packets we sent
+        // earlier in the pipeline in the native/socks5 client
+        if self.sent_ws_packets % 100 == 0 {
+            debug!("sent_ws_packets: {}", self.sent_ws_packets);
+        }
+
         if !self.authenticated {
             return Err(GatewayClientError::NotAuthenticated);
         }

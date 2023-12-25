@@ -3,6 +3,7 @@
 
 use crate::client::mix_traffic::BatchMixMessageSender;
 use crate::client::topology_control::TopologyAccessor;
+use crate::client::COVER_PACKETS_SENT;
 use crate::{config, spawn_future};
 use futures::task::{Context, Poll};
 use futures::{Future, Stream, StreamExt};
@@ -191,6 +192,8 @@ impl LoopCoverTrafficStream<OsRng> {
                     log::warn!("Failed to send cover message - channel closed");
                 }
             }
+        } else {
+            COVER_PACKETS_SENT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         }
 
         // TODO: I'm not entirely sure whether this is really required, because I'm not 100%

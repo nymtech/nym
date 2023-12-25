@@ -1,6 +1,8 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::client::{REAL_ACKS_RECEIVED, TOTAL_ACKS_RECEIVED};
+
 use super::action_controller::{AckActionSender, Action};
 use futures::StreamExt;
 use log::*;
@@ -17,9 +19,6 @@ pub(super) struct AcknowledgementListener {
     ack_key: Arc<AckKey>,
     ack_receiver: AcknowledgementReceiver,
     action_sender: AckActionSender,
-
-    ack_received: u64,
-    ack_total_received: u64,
 }
 
 impl AcknowledgementListener {
@@ -32,15 +31,12 @@ impl AcknowledgementListener {
             ack_key,
             ack_receiver,
             action_sender,
-            ack_received: 0,
-            ack_total_received: 0,
         }
     }
 
     async fn on_ack(&mut self, ack_content: Vec<u8>) {
         trace!("Received an ack");
-        self.ack_total_received += 1;
-        println!("ack_total_received: {}", self.ack_total_received);
+        TOTAL_ACKS_RECEIVED.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
 
         let frag_id = match recover_identifier(&self.ack_key, &ack_content)
             .map(FragmentIdentifier::try_from_bytes)
@@ -60,8 +56,7 @@ impl AcknowledgementListener {
         }
 
         trace!("Received {} from the mix network", frag_id);
-        self.ack_received += 1;
-        println!("ack_received: {}", self.ack_received);
+        REAL_ACKS_RECEIVED.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
 
         self.action_sender
             .unbounded_send(Action::new_remove(frag_id))

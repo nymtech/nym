@@ -6,6 +6,10 @@ use crate::client::mix_traffic::BatchMixMessageSender;
 use crate::client::real_messages_control::acknowledgement_control::SentPacketNotificationSender;
 use crate::client::topology_control::TopologyAccessor;
 use crate::client::transmission_buffer::TransmissionBuffer;
+use crate::client::{
+    ADDITIONAL_REPLY_SURBS_QUEUED, COVER_PACKETS_SENT, REAL_PACKETS_QUEUED, REAL_PACKETS_SENT,
+    REPLY_SURB_REQUESTS_QUEUED, RETRANSMISSIONS_QUEUED,
+};
 use crate::config;
 use futures::task::{Context, Poll};
 use futures::{Future, Stream, StreamExt};
@@ -23,6 +27,7 @@ use nym_task::connections::{
 };
 use rand::{CryptoRng, Rng};
 use std::pin::Pin;
+use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -114,14 +119,8 @@ where
     /// Report queue lengths so that upstream can backoff sending data, and keep connections open.
     lane_queue_lengths: LaneQueueLengths,
 
-    // Count the number of sent packets with real data
-    packet_sent_count: u64,
-
     // Count the number of packets polled from the real traffic stream
     packet_polled_count: u64,
-
-    // Count the number of packets polled from the real traffic stream that are retranmissions
-    packet_retransmission_polled_count: u64,
 }
 
 #[derive(Debug)]
@@ -193,9 +192,7 @@ where
             transmission_buffer: TransmissionBuffer::new(),
             client_connection_rx,
             lane_queue_lengths,
-            packet_sent_count: 0,
             packet_polled_count: 0,
-            packet_retransmission_polled_count: 0,
         }
     }
 
@@ -265,13 +262,16 @@ where
                 )
             }
             StreamMessage::Real(real_message) => {
-                self.packet_sent_count += 1;
                 (real_message.mix_packet, real_message.fragment_id)
             }
         };
 
         if let Err(err) = self.mix_tx.send(vec![next_message]).await {
             log::error!("Failed to send: {err}");
+        } else if fragment_id.is_some() {
+            REAL_PACKETS_SENT.fetch_add(1, Ordering::Relaxed);
+        } else {
+            COVER_PACKETS_SENT.fetch_add(1, Ordering::Relaxed);
         }
 
         // notify ack controller about sending our message only after we actually managed to push it
@@ -352,6 +352,26 @@ where
         // Update the published queue length
         let lane_length = self.transmission_buffer.lane_length(&lane);
         self.lane_queue_lengths.set(&lane, lane_length);
+
+        // This is the last step in the pipeline where we know the type of the message, so
+        // lets count the number of retransmissions and reply surb messages sent here.
+        match lane {
+            TransmissionLane::General => (),
+            TransmissionLane::ConnectionId(_) => (),
+            TransmissionLane::ReplySurbRequest => {
+                REPLY_SURB_REQUESTS_QUEUED.fetch_add(1, Ordering::Relaxed);
+            }
+            TransmissionLane::AdditionalReplySurbs => {
+                ADDITIONAL_REPLY_SURBS_QUEUED.fetch_add(1, Ordering::Relaxed);
+            }
+            TransmissionLane::Retransmission => {
+                RETRANSMISSIONS_QUEUED.fetch_add(1, Ordering::Relaxed);
+            }
+        };
+        // To avoid comparing apples to oranges when presenting the fraction of packets that are
+        // retransmissions, we also need to keep track to the total number of real messages queued,
+        // even though we also track the actual number of messages sent later in the pipeline.
+        REAL_PACKETS_QUEUED.fetch_add(1, Ordering::Relaxed);
 
         Some(real_next)
     }
@@ -445,9 +465,23 @@ where
 
             Poll::Ready(Some((real_messages, conn_id))) => {
                 log::trace!("handling real_messages: size: {}", real_messages.len());
+                // Keep track on the number of packets polled to compare against the number of
+                // packets sent. This is just a sanity check to make sure we are not losing
+                // packets in the system.
                 self.packet_polled_count += 1;
+                let rpq = REAL_PACKETS_QUEUED.load(Ordering::Relaxed);
+                // We expect to be one packet ahead
+                if self.packet_polled_count > rpq + 1 {
+                    log::warn!(
+                        "We might to be losing packets in the system! (real packets queued: {rpq}, real packets polled: {rpp})",
+                        rpp = self.packet_polled_count
+                    );
+                }
+
+                // This is the last step in the pipeline where we know the type of the message, so
+                // lets count the number of retransmissions here.
                 if conn_id == TransmissionLane::Retransmission {
-                    self.packet_retransmission_polled_count += 1;
+                    RETRANSMISSIONS_QUEUED.fetch_add(1, Ordering::Relaxed);
                 }
 
                 // First store what we got for the given connection id
@@ -508,13 +542,6 @@ where
         } else if mult > self.sending_delay_controller.min_multiplier() {
             shutdown.send_status_msg(Box::new(ClientCoreStatusMessage::GatewayIsSlow));
         }
-
-        info!(
-            "{} packets sent, {} packets polled, {} retransmissions polled",
-            self.packet_sent_count,
-            self.packet_polled_count,
-            self.packet_retransmission_polled_count
-        );
     }
 
     pub(super) async fn run_with_shutdown(&mut self, mut shutdown: nym_task::TaskClient) {

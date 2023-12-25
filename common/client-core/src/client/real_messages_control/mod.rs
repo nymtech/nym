@@ -5,6 +5,7 @@
 // INPUT2: Acks from mix
 // OUTPUT: MixMessage to mix traffic
 
+use self::packet_statistics_control::PacketStatisticsControl;
 use self::{
     acknowledgement_control::AcknowledgementController, real_traffic_stream::OutQueueControl,
 };
@@ -37,6 +38,7 @@ pub(crate) use acknowledgement_control::{AckActionSender, Action};
 
 pub(crate) mod acknowledgement_control;
 pub(crate) mod message_handler;
+pub(crate) mod packet_statistics_control;
 pub(crate) mod real_traffic_stream;
 
 // TODO: ack_key and self_recipient shouldn't really be part of this config
@@ -125,6 +127,7 @@ where
     out_queue_control: OutQueueControl<R>,
     ack_control: AcknowledgementController<R>,
     reply_control: ReplyController<R>,
+    packet_statistics_control: PacketStatisticsControl,
 }
 
 // obviously when we finally make shared rng that is on 'higher' level, this should become
@@ -201,10 +204,13 @@ impl RealMessagesController<OsRng> {
             client_connection_rx,
         );
 
+        let packet_statistics_control = PacketStatisticsControl::new();
+
         RealMessagesController {
             out_queue_control,
             ack_control,
             reply_control,
+            packet_statistics_control,
         }
     }
 
@@ -212,6 +218,7 @@ impl RealMessagesController<OsRng> {
         let mut out_queue_control = self.out_queue_control;
         let ack_control = self.ack_control;
         let mut reply_control = self.reply_control;
+        let mut packet_statistics_control = self.packet_statistics_control;
 
         let shutdown_handle = shutdown.fork("out_queue_control");
         spawn_future(async move {
@@ -222,6 +229,11 @@ impl RealMessagesController<OsRng> {
         spawn_future(async move {
             reply_control.run_with_shutdown(shutdown_handle).await;
             debug!("The reply controller has finished execution!");
+        });
+        let shutdown_handle = shutdown.fork("packet_statistics_control");
+        spawn_future(async move {
+            packet_statistics_control.run_with_shutdown(shutdown_handle).await;
+            debug!("The packet statistics controller has finished execution!");
         });
 
         ack_control.start_with_shutdown(shutdown.with_suffix("ack_control"), packet_type);

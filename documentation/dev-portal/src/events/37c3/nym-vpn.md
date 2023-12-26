@@ -360,7 +360,7 @@ while true; do
     esac
 done
 
-sudo ./nym-vpn-cli -c sandbox.env --entry-gateway-id ${identity_key} --exit-router-address ${exit_address} --enable-two-hop $wireguard_options >"$temp_log_file" 2>&1 &
+sudo ./nym-vpn-cli-test -c sandbox.env --entry-gateway-id ${identity_key} --exit-router-address ${exit_address} --enable-two-hop $wireguard_options >"$temp_log_file" 2>&1 &
 
 timeout=15
 start_time=$(date +%s)
@@ -384,37 +384,6 @@ sleep 5
 rm -f "$temp_log_file"
 
 ```
-#### tests-wireguard.sh
-
-```sh
-read -p "enter a gateway ID: " identity_key
-read -p "enter an exit address: " exit_address
-
-while true; do
-    read -p "enable WireGuard? (yes/no): " enable_wireguard
-    enable_wireguard=$(echo "$enable_wireguard" | tr '[:upper:]' '[:lower:]')
-
-    case "$enable_wireguard" in
-    "yes")
-        read -p "enter your WireGuard private key: " priv_key
-        read -p "enter your WireGuard IP: " wg_ip
-        wireguard_options="--enable-wireguard --private-key $priv_key --wg-ip $wg_ip"
-        break
-        ;;
-    "no")
-        wireguard_options=""
-        break
-        ;;
-    *)
-        echo "invalid response. please enter 'yes' or 'no'."
-        ;;
-    esac
-done
-
-sudo ./nym-vpn-cli-test -c sandbox.env --entry-gateway-id ${identity_key} --exit-router-address ${exit_address} --enable-two-hop $wireguard_options >"$temp_log_file" 2>&1 &
-
-```
-
 
 ## Troubleshooting
 
@@ -478,5 +447,6 @@ NEW_ENDPOINT="http://localhost:8000/data.json"
 python3 -m http.server 8000
 ```
 6. Continue with the steps listed in [testing section](./nym-vpn.md#testing)
+
 
 

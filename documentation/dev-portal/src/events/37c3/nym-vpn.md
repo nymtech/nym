@@ -360,7 +360,7 @@ while true; do
     esac
 done
 
-sudo ./nym-vpn-cli-test -c sandbox.env --entry-gateway-id ${identity_key} --exit-router-address ${exit_address} --enable-two-hop $wireguard_options >"$temp_log_file" 2>&1 &
+sudo ./nym-vpn-cli -c sandbox.env --entry-gateway-id ${identity_key} --exit-router-address ${exit_address} --enable-two-hop $wireguard_options >"$temp_log_file" 2>&1 &
 
 timeout=15
 start_time=$(date +%s)

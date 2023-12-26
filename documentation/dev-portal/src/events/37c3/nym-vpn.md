@@ -207,13 +207,16 @@ One of the main aims of the demo is testing; your results will help us to make N
 1. Create a directory called `nym-vpn-tests` and copy your `nym-vpn-cli` binary and `sandbox.env` to that directory
 2. Copy the [block below](./nym-vpn.md#testssh) and save it to the same folder as `tests.sh`
 3. Open terminal in the same directory
-4. Turn off any existing VPN's (including the NymVPN instances) and run `sudo sh ./tests.sh`.
-5. In case of errors, see [troubleshooting section](./nym-vpn.md#missing-jq-error) below
-6. The script will print a JSON view of existing Gateways and prompt you to. **Make sure to use two different Gateways for entry and exit***
-    - `enter a gateway ID`: paste one of the values labeled with a key `"identityKey"` printed above (without `" "`) 
-    - `enter an exit address`: paste one of the values labeled with a key `"address"` printed above (without `" "`)
-7. Note that the testing script doesn't print many logs, in case of doubts you can check logs in the log file `temp_log.txt` located in the same directory. 
-8. The script shall run the tests and generate a folder called `tests_<LONG_STRING>` and files `perf_test_results.log` or `two_hop_perf_test_results.log` as well as some temp files. This is how the directory structure will look like:
+4. Turn off any existing VPN's (including the NymVPN instances) and make the script executable by running `chmod +x ./tests.sh`
+5. Run the tests: `sudo ./tests.sh`
+6. In case of errors, see [troubleshooting section](./nym-vpn.md#missing-jq-error) below
+7. The script will print a JSON view of existing Gateways and prompt you to:
+    - `enter a gateway ID:` paste one of the values labeled with a key `"identityKey"` printed above (without `" "`)
+    - (**Make sure to use two different Gateways for entry and exit***) 
+    - `enter an exit address:` paste one of the values labeled with a key `"address"` printed above (without `" "`)
+    - `enable WireGuard? (yes/no):` if you chose yes, find your private key and wireguard IP [here](https://nymvpn.com/en/37c3)
+8. Note that the testing script doesn't print many logs, in case of doubts you can check logs in the log file `temp_log.txt` located in the same directory. 
+9. The script shall run the tests and generate a folder called `tests_<LONG_STRING>` and files `perf_test_results.log` or `two_hop_perf_test_results.log` as well as some temp files. This is how the directory structure will look like:
 ```sh
 nym-vpn-tests
 ├── tests.sh
@@ -227,9 +230,9 @@ nym-vpn-tests
 ├── timeout
 └── two_hop_perf_test_results.log
 ```
-9. In case of errors, see [troubleshooting section](./nym-vpn.md#missing-jq-error) below
-10. When the tests are finished, remove the `nym-vpn-cli` binary from the folder and compress it as `nym-vpn-tests.zip`
-11. Upload this compressed file to the [questionnaire](https://opnform.com/forms/nymvpn-user-research-at-37c3-yccqko) upload field when prompted. 
+10. In case of errors, see [troubleshooting section](./nym-vpn.md#missing-jq-error) below
+11. When the tests are finished, remove the `nym-vpn-cli` binary from the folder and compress it as `nym-vpn-tests.zip`
+12. Upload this compressed file to the [questionnaire](https://opnform.com/forms/nymvpn-user-research-at-37c3-yccqko) upload field when prompted. 
 
 #### tests.sh
 

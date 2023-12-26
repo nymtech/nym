@@ -38,7 +38,7 @@ This alpha testing will help:
 Our alpha testing round is done live with some participants at CCC 2023. This guide will not work for everyone, as the NymVPN binaries aren't publicly accessible yet. Note that this setup of Nym testnet Sandbox environment is limited for CCC 2023 event and some of the configurations will not work in the future.
 ```
 
-> **If you commit to test NymVPN aplha, please start with the [user research form](https://opnform.com/forms/nymvpn-user-research-at-37c3-yccqko) where all the steps will be provided**. 
+> **If you commit to test NymVPN alpha, please start with the [user research form](https://opnform.com/forms/nymvpn-user-research-at-37c3-yccqko) where all the steps will be provided**. 
 
 ## Preparation
 

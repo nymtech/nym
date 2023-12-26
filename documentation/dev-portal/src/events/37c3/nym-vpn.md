@@ -21,7 +21,7 @@ Users can switch to 2-hop only mode, which is a faster but less private option. 
 The client can optionally do the first connection to the entry gateway using Wireguard. NymVPN uses Mullvad libraries for wrapping `wireguard-go` and to setup local routing rules to route all traffic to the TUN virtual network device.
 
 ```admonish warning
-NymVPN is an experimental software and it's for [testing](./nym-vpn.md#testing) purposes only. All users testing the client are expected to sign GDPR Information Sheet and Consent Form, available [here](https://opnform.com/forms/nymvpn-user-research-at-37c3-yccqko).
+NymVPN is an experimental software and it's for [testing](./nym-vpn.md#testing) purposes only. All users testing the client are expected to sign GDPR Information Sheet and Consent Form (shared at the event), and follow the steps listed in the form [*NymVPN User research at 37c3*](https://opnform.com/forms/nymvpn-user-research-at-37c3-yccqko).
 ```
 
 ## Goals
@@ -36,7 +36,6 @@ This alpha testing will help:
  
 ```admonish info
 Our alpha testing round is done live with some participants at CCC 2023. This guide will not work for everyone, as the NymVPN binaries aren't publicly accessible yet. Note that this setup of Nym testnet Sandbox environment is limited for CCC 2023 event and some of the configurations will not work in the future.
-
 ```
 
 > **If you commit to test NymVPN aplha, please start with the [user research form](https://opnform.com/forms/nymvpn-user-research-at-37c3-yccqko) where all the steps will be provided**. 
@@ -237,7 +236,39 @@ nym-vpn-tests
 ```sh
 #!/bin/bash
 
-NEW_ENDPOINT="https://nymvpn.com/en/ccc/api/gateways"
+ENDPOINT="https://sandbox-nym-api1.nymtech.net/api/v1/gateways/described"
+json_array=()
+
+data=$(curl -s "$ENDPOINT" | jq -c '.[] | {host: .bond.gateway.host, hostname: .self_described.host_information.hostname, identity_key: .bond.gateway.identity_key, exitGateway: .self_described.ip_packet_router.address}')
+
+while IFS= read -r entry; do
+    host=$(echo "$entry" | jq -r '.host')
+    hostname=$(echo "$entry" | jq -r '.hostname')
+    identity_key=$(echo "$entry" | jq -r '.identity_key')
+    exit_gateway_address=$(echo "$entry" | jq -r '.exitGateway // empty')
+    valid_ip=$(echo "$host")
+
+    if [ -n "$exit_gateway_address" ]; then
+        exit_gateway="{\"address\": \"${exit_gateway_address}\"}"
+    else
+        exit_gateway="{}"
+    fi
+
+    if [[ $valid_ip =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        country_info=$(curl -s "http://ipinfo.io/${valid_ip}/country" | tr -d '\n')
+        country_info_escaped=$(echo "$country_info" | tr -d '\n' | jq -aRs . | tr -d '"')
+    else
+        country_info_escaped=""
+    fi
+
+    json_object="{\"hostname\": \"${hostname}\", \"identityKey\": \"${identity_key}\", \"exitGateway\": ${exit_gateway}, \"location\": \"${country_info_escaped}\"}"
+    json_array+=("$json_object")
+done < <(echo "$data")
+
+if [ $? -ne 0 ]; then
+    echo "Error fetching data from endpoint"
+    exit 1
+fi
 
 download_file() {
     local file_url=$1
@@ -258,12 +289,6 @@ download_file() {
 
 if ! command -v jq &>/dev/null; then
     echo "jq is not installed. Please install jq to proceed."
-    exit 1
-fi
-
-data=$(curl -s "$NEW_ENDPOINT")
-if [ $? -ne 0 ]; then
-    echo "Error fetching data from endpoint"
     exit 1
 fi
 
@@ -316,7 +341,7 @@ read -p "enter a gateway ID: " identity_key
 read -p "enter an exit address: " exit_address
 
 # starting nymVpn
-sudo ./nym-vpn-cli -c sandbox.env --entry-gateway-id "$identity_key" --exit-router-address "$exit_address" --enable-two-hop >"$temp_log_file" 2>&1 &
+sudo ./nym-vpn-cli-test -c sandbox.env --entry-gateway-id "$identity_key" --exit-router-address "$exit_address" --enable-two-hop >"$temp_log_file" 2>&1 &
 
 timeout=15
 start_time=$(date +%s)
@@ -338,6 +363,7 @@ echo "terminating nym-vpn-cli..."
 pkill -f './nym-vpn-cli'
 sleep 5
 rm -f "$temp_log_file"
+
 ```
 
 ## Troubleshooting

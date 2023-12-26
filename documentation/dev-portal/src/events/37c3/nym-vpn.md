@@ -21,7 +21,7 @@ Users can switch to 2-hop only mode, which is a faster but less private option. 
 The client can optionally do the first connection to the entry gateway using Wireguard. NymVPN uses Mullvad libraries for wrapping `wireguard-go` and to setup local routing rules to route all traffic to the TUN virtual network device.
 
 ```admonish warning
-NymVPN is an experimental software and it's for [testing](./nym-vpn.md#testing) purposes only. All users testing the client are expected to sign GDPR Information Sheet and Consent Form, available [here](https://opnform.com/forms/nymvpn-user-research-at-37c3-yccqko).
+NymVPN is an experimental software and it's for [testing](./nym-vpn.md#testing) purposes only. All users testing the client are expected to sign GDPR Information Sheet and Consent Form (shared at the event), and follow the steps listed in the form [*NymVPN User research at 37c3*](https://opnform.com/forms/nymvpn-user-research-at-37c3-yccqko).
 ```
 
 ## Goals

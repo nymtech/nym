@@ -13,6 +13,7 @@ export type StateAction =
   | { type: 'set-partial-state'; partialState: Partial<AppState> }
   | { type: 'change-connection-state'; state: ConnectionState }
   | { type: 'set-vpn-mode'; mode: VpnMode }
+  | { type: 'set-entry-selector'; entrySelector: boolean }
   | { type: 'set-error'; error: string }
   | { type: 'reset-error' }
   | { type: 'new-progress-message'; message: ConnectProgressMsg }
@@ -23,17 +24,27 @@ export type StateAction =
   | { type: 'set-disconnected' }
   | { type: 'reset' }
   | { type: 'set-ui-theme'; theme: UiTheme }
-  | { type: 'set-node-location'; payload: { hop: NodeHop; country: Country } };
+  | { type: 'set-countries'; countries: Country[] }
+  | { type: 'set-node-location'; payload: { hop: NodeHop; country: Country } }
+  | { type: 'set-default-node-location'; country: Country }
+  | { type: 'set-root-font-size'; size: number };
 
 export const initialState: AppState = {
   state: 'Disconnected',
   loading: false,
-  vpnMode: 'Mixnet',
+  vpnMode: 'TwoHop',
+  entrySelector: false,
   tunnel: { name: 'nym', id: 'nym' },
   uiTheme: 'Light',
   progressMessages: [],
   entryNodeLocation: null,
   exitNodeLocation: null,
+  defaultNodeLocation: {
+    name: 'France',
+    code: 'FR',
+  },
+  countries: [],
+  rootFontSize: 12,
 };
 
 export function reducer(state: AppState, action: StateAction): AppState {
@@ -53,6 +64,16 @@ export function reducer(state: AppState, action: StateAction): AppState {
       return {
         ...state,
         vpnMode: action.mode,
+      };
+    case 'set-entry-selector':
+      return {
+        ...state,
+        entrySelector: action.entrySelector,
+      };
+    case 'set-countries':
+      return {
+        ...state,
+        countries: action.countries,
       };
     case 'set-partial-state': {
       return { ...state, ...action.partialState };
@@ -120,6 +141,16 @@ export function reducer(state: AppState, action: StateAction): AppState {
       return {
         ...state,
         uiTheme: action.theme,
+      };
+    case 'set-default-node-location':
+      return {
+        ...state,
+        defaultNodeLocation: action.country,
+      };
+    case 'set-root-font-size':
+      return {
+        ...state,
+        rootFontSize: action.size,
       };
     case 'reset':
       return initialState;

@@ -26,8 +26,12 @@ export type AppState = {
   vpnMode: VpnMode;
   tunnel: TunnelConfig;
   uiTheme: 'Light' | 'Dark';
+  entrySelector: boolean;
   entryNodeLocation: Country | null;
   exitNodeLocation: Country | null;
+  defaultNodeLocation: Country;
+  countries: Country[];
+  rootFontSize: number;
 };
 
 export type ConnectionEventPayload = {

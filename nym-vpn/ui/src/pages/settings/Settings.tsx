@@ -4,16 +4,19 @@ import { invoke } from '@tauri-apps/api';
 import { Switch } from '@headlessui/react';
 import { useMainDispatch, useMainState } from '../../contexts';
 import { StateDispatch } from '../../types';
+import UiScaler from './UiScaler';
 
 function Settings() {
   const state = useMainState();
   const dispatch = useMainDispatch() as StateDispatch;
 
-  const [enabled, setEnabled] = useState(state.uiTheme === 'Dark');
+  const [darkModeEnabled, setDarkModeEnabled] = useState(
+    state.uiTheme === 'Dark',
+  );
 
   useEffect(() => {
-    setEnabled(state.uiTheme === 'Dark');
-  }, [state.uiTheme]);
+    setDarkModeEnabled(state.uiTheme === 'Dark');
+  }, [state]);
 
   const handleThemeChange = async (darkMode: boolean) => {
     if (darkMode && state.uiTheme === 'Light') {
@@ -29,28 +32,31 @@ function Settings() {
   };
 
   return (
-    <div className="h-full flex flex-col p-4">
+    <div className="h-full flex flex-col p-4 gap-4">
       <div className="flex flex-row justify-between items-center">
         <p className="text-lg text-baltic-sea dark:text-mercury-pinkish">
           Dark Mode
         </p>
         <Switch
-          checked={enabled}
+          checked={darkModeEnabled}
           onChange={handleThemeChange}
           className={clsx([
-            enabled ? 'bg-melon' : 'bg-mercury-pinkish dark:bg-gun-powder',
+            darkModeEnabled
+              ? 'bg-melon'
+              : 'bg-mercury-pinkish dark:bg-gun-powder',
             'relative inline-flex h-6 w-11 items-center rounded-full',
           ])}
         >
           <span className="sr-only">Dark mode</span>
           <span
             className={clsx([
-              enabled ? 'translate-x-6' : 'translate-x-1',
-              'inline-block h-4 w-4 transform rounded-full bg-ciment-feet dark:bg-white transition',
+              darkModeEnabled ? 'translate-x-6' : 'translate-x-1',
+              'inline-block h-4 w-4 transform rounded-full bg-cement-feet dark:bg-white transition',
             ])}
           />
         </Switch>
       </div>
+      <UiScaler />
     </div>
   );
 }

@@ -55,7 +55,7 @@ function ConnectionStatus() {
     }
   };
   return (
-    <div className="h-64 flex flex-col justify-center items-center gap-y-2">
+    <div className="h-72 flex flex-col justify-center items-center gap-y-2">
       <div className="flex flex-1 items-end">
         <div
           className={clsx([
@@ -66,22 +66,26 @@ function ConnectionStatus() {
           {getStatusText(state.state)}
         </div>
       </div>
-      <div className="flex flex-1">
-        {state.loading && state.progressMessages.length > 0 && (
-          <p className="text-dim-gray dark:text-mercury-mist font-bold">
-            {t(
-              `connection-progress.${
-                state.progressMessages[state.progressMessages.length - 1]
-              }`,
-              {
-                ns: 'backendMessages',
-              },
-            )}
-          </p>
+      <div className="w-full flex flex-col flex-1 items-center overflow-hidden">
+        {state.loading && state.progressMessages.length > 0 && !state.error && (
+          <div className="w-4/5 h-2/3 overflow-scroll break-words text-center">
+            <p className="text-dim-gray dark:text-mercury-mist font-bold">
+              {t(
+                `connection-progress.${
+                  state.progressMessages[state.progressMessages.length - 1]
+                }`,
+                {
+                  ns: 'backendMessages',
+                },
+              )}
+            </p>
+          </div>
         )}
         {state.state === 'Connected' && <ConnectionTimer />}
         {state.error && (
-          <p className="text-teaberry font-bold">{state.error}</p>
+          <div className="w-4/5 h-2/3 overflow-scroll break-words text-center">
+            <p className="text-teaberry font-bold">{state.error}</p>
+          </div>
         )}
       </div>
     </div>

@@ -3,6 +3,7 @@ name = "nym-cli-commands"
 version = "1.0.0"
 authors.workspace = true
 edition = "2021"
+license.workspace = true
 
 [dependencies]
 anyhow = { workspace = true }

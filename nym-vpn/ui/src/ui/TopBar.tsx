@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { AppName, routes } from '../constants';
+import { routes } from '../constants';
 import { Routes } from '../types';
 
 type NavLocation = {
@@ -22,7 +22,7 @@ export default function TopBar() {
   const { t } = useTranslation();
 
   const [currentNavLocation, setCurrentNavLocation] = useState<NavLocation>({
-    title: AppName,
+    title: '',
     rightIcon: 'settings',
     handleRightNav: () => {
       navigate(routes.settings);
@@ -32,7 +32,7 @@ export default function TopBar() {
   const navBarData = useMemo<NavBarData>(() => {
     return {
       '/': {
-        title: AppName,
+        title: '',
         rightIcon: 'settings',
         handleRightNav: () => {
           navigate(routes.settings);

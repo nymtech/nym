@@ -38,11 +38,18 @@ For example on Linux the path would be `~/.config/nym-vpn/config.toml`
 # example config on Linux
 
 # path to the env config file if you provide one
-env_config_file = "$HOME/.config/nym-vpn/qa.env"
+env_config_file = "/home/<USER>/.config/nym-vpn/qa.env"
+```
 
-# pick a gateway and exit router accordingly to the selected env
-entry_gateway = "xxx"
-exit_router = "xxx"
+## Optional config
+
+In the config file `nym-vpn/config.toml`
+
+```toml
+env_config_file = "/home/<USER>/.config/nym-vpn/qa.env"
+
+# set the entry node location to use, as two letter country code
+entry_node_location = "FR"
 ```
 
 ## Dev

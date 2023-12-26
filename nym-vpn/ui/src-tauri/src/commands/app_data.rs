@@ -1,6 +1,7 @@
 use tauri::State;
 use tracing::{debug, instrument};
 
+use crate::country::COUNTRIES;
 use crate::states::app::Country;
 use crate::{
     error::{CmdError, CmdErrorSource},
@@ -12,29 +13,8 @@ use crate::{
 #[tauri::command]
 pub fn get_node_countries() -> Result<Vec<Country>, CmdError> {
     debug!("get_node_countries");
-    let countries: Vec<Country> = vec![
-        Country {
-            name: "United States".to_string(),
-            code: "US".to_string(),
-        },
-        Country {
-            name: "France".to_string(),
-            code: "FR".to_string(),
-        },
-        Country {
-            name: "Switzerland".to_string(),
-            code: "CH".to_string(),
-        },
-        Country {
-            name: "Sweden".to_string(),
-            code: "SE".to_string(),
-        },
-        Country {
-            name: "Germany".to_string(),
-            code: "DE".to_string(),
-        },
-    ];
-    Ok(countries)
+    // TODO fetch the list of countries from some API
+    Ok(COUNTRIES.clone())
 }
 
 #[instrument(skip(state))]
@@ -90,6 +70,50 @@ pub async fn set_ui_theme(
         .await
         .map_err(|e| CmdError::new(CmdErrorSource::InternalError, e.to_string()))?;
     app_data.ui_theme = Some(theme);
+    app_data_store.data = app_data;
+    app_data_store
+        .write()
+        .await
+        .map_err(|e| CmdError::new(CmdErrorSource::InternalError, e.to_string()))?;
+    Ok(())
+}
+
+#[instrument(skip(data_state))]
+#[tauri::command]
+pub async fn set_root_font_size(
+    data_state: State<'_, SharedAppData>,
+    size: u32,
+) -> Result<(), CmdError> {
+    debug!("set_root_font_size");
+
+    let mut app_data_store = data_state.lock().await;
+    let mut app_data = app_data_store
+        .read()
+        .await
+        .map_err(|e| CmdError::new(CmdErrorSource::InternalError, e.to_string()))?;
+    app_data.ui_root_font_size = Some(size);
+    app_data_store.data = app_data;
+    app_data_store
+        .write()
+        .await
+        .map_err(|e| CmdError::new(CmdErrorSource::InternalError, e.to_string()))?;
+    Ok(())
+}
+
+#[instrument(skip(data_state))]
+#[tauri::command]
+pub async fn set_entry_location_selector(
+    data_state: State<'_, SharedAppData>,
+    entry_selector: bool,
+) -> Result<(), CmdError> {
+    debug!("set_entry_location_selector");
+
+    let mut app_data_store = data_state.lock().await;
+    let mut app_data = app_data_store
+        .read()
+        .await
+        .map_err(|e| CmdError::new(CmdErrorSource::InternalError, e.to_string()))?;
+    app_data.entry_location_selector = Some(entry_selector);
     app_data_store.data = app_data;
     app_data_store
         .write()

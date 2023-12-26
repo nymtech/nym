@@ -1,8 +1,13 @@
 import React, { useEffect, useReducer } from 'react';
 import { invoke } from '@tauri-apps/api';
 import { MainDispatchContext, MainStateContext } from '../contexts';
-import { AppDataFromBackend, CmdError, ConnectionState } from '../types';
-import { QuickConnectCountry } from '../constants';
+import {
+  AppDataFromBackend,
+  CmdError,
+  ConnectionState,
+  Country,
+} from '../types';
+import { DefaultRootFontSize } from '../constants';
 import { initialState, reducer } from './main';
 import { useTauriEvents } from './useTauriEvents';
 
@@ -26,12 +31,53 @@ export function MainStateProvider({ children }: Props) {
       return await invoke<number | undefined>('get_connection_start_time');
     };
 
-    getInitialConnectionState().then((state) =>
-      dispatch({ type: 'change-connection-state', state }),
-    );
-    getSessionStartTime().then((startTime) =>
-      dispatch({ type: 'set-connection-start-time', startTime }),
-    );
+    // init country list
+    const getCountries = async () => {
+      return await invoke<Country[]>('get_node_countries');
+    };
+
+    // init default node location
+    const getDefaultNodeLocation = async () => {
+      return await invoke<Country>('get_default_node_location');
+    };
+
+    getInitialConnectionState()
+      .then((state) => dispatch({ type: 'change-connection-state', state }))
+      .catch((e: CmdError) => {
+        console.warn(
+          `command [get_connection_state] returned an error: ${e.source} - ${e.message}`,
+        );
+      });
+
+    getSessionStartTime()
+      .then((startTime) =>
+        dispatch({ type: 'set-connection-start-time', startTime }),
+      )
+      .catch((e: CmdError) => {
+        console.warn(
+          `command [get_connection_start_time] returned an error: ${e.source} - ${e.message}`,
+        );
+      });
+
+    getCountries()
+      .then((countries) => {
+        dispatch({ type: 'set-countries', countries });
+      })
+      .catch((e: CmdError) => {
+        console.warn(
+          `command [get_node_countries] returned an error: ${e.source} - ${e.message}`,
+        );
+      });
+
+    getDefaultNodeLocation()
+      .then((country) => {
+        dispatch({ type: 'set-default-node-location', country });
+      })
+      .catch((e: CmdError) => {
+        console.warn(
+          `command [get_default_node_location] returned an error: ${e.source} - ${e.message}`,
+        );
+      });
   }, []);
 
   // get saved on disk app data and restore state from it
@@ -42,20 +88,34 @@ export function MainStateProvider({ children }: Props) {
 
     getAppData()
       .then((data) => {
+        console.log('app data read from disk:');
         console.log(data);
+
+        if (data.ui_root_font_size) {
+          document.documentElement.style.fontSize = `${data.ui_root_font_size}px`;
+        }
+
+        const partialState: Partial<typeof initialState> = {
+          entrySelector: data.entry_location_selector || false,
+          uiTheme: data.ui_theme || 'Light',
+          vpnMode: data.vpn_mode || 'TwoHop',
+          rootFontSize: data.ui_root_font_size || DefaultRootFontSize,
+        };
+        if (data.entry_node_location) {
+          partialState.entryNodeLocation = data.entry_node_location;
+        }
+        if (data.exit_node_location) {
+          partialState.exitNodeLocation = data.exit_node_location;
+        }
         dispatch({
           type: 'set-partial-state',
-          partialState: {
-            uiTheme: data.ui_theme || 'Light',
-            vpnMode: data.vpn_mode || 'TwoHop',
-            entryNodeLocation: data.entry_node_location || QuickConnectCountry,
-            exitNodeLocation: data.exit_node_location || QuickConnectCountry,
-          },
+          partialState,
         });
       })
-      .catch((err: CmdError) => {
-        // TODO handle error properly
-        console.log(err);
+      .catch((e: CmdError) => {
+        console.warn(
+          `command [get_app_data] returned an error: ${e.source} - ${e.message}`,
+        );
       });
   }, []);
 

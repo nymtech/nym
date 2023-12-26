@@ -12,14 +12,14 @@ export default function CountryList({
 }: CountryListProps) {
   const { t } = useTranslation('nodeLocation');
   return (
-    <ul className="flex flex-col w-full items-stretch p-1">
+    <ul className="flex flex-col w-full items-stretch gap-4">
       {countries && countries.length > 0 ? (
         countries.map((country) => (
           <li key={country.code} className="list-none w-full">
             <div
               role="presentation"
               onKeyDown={() => onClick(country.name, country.code)}
-              className="flex flex-row justify-between dark:hover:bg-baltic-sea-jaguar hover:bg-coal-mine-light rounded-lg cursor-pointer"
+              className="flex flex-row justify-between dark:hover:bg-gun-powder hover:dark:bg-opacity-80 hover:bg-cement-feet hover:bg-opacity-20 rounded-lg cursor-pointer px-3"
               onClick={() => onClick(country.name, country.code)}
             >
               <div className="flex flex-row items-center m-1 gap-3 p-1 cursor-pointer">
@@ -32,14 +32,14 @@ export default function CountryList({
                   {country.name}
                 </div>
               </div>
-              <div className="p-4 flex items-center text-mercury-mist text-xs cursor-pointer">
+              <div className="p-4 flex items-center text-mercury-mist text-sm cursor-pointer">
                 {isSelected(country.code) ? t('selected') : ''}
               </div>
             </div>
           </li>
         ))
       ) : (
-        <p>{t('none-found')}</p>
+        <p className="flex justify-center">{t('none-found')}</p>
       )}
     </ul>
   );

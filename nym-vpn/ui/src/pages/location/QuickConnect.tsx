@@ -1,25 +1,26 @@
-import { useTranslation } from 'react-i18next';
-import { QuickConnectCountry } from '../../constants';
+import { useMainState } from '../../contexts';
+import { QuickConnectPrefix } from '../../constants';
+
 interface QuickConnectProps {
   onClick: (name: string, code: string) => void;
 }
+
 export default function QuickConnect({ onClick }: QuickConnectProps) {
-  const { t } = useTranslation('nodeLocation');
+  const { defaultNodeLocation } = useMainState();
+
   return (
     <div
       role="presentation"
       onKeyDown={() =>
-        onClick(QuickConnectCountry.name, QuickConnectCountry.code)
+        onClick(defaultNodeLocation.name, defaultNodeLocation.code)
       }
-      className="flex flex-row w-full py-8 cursor-pointer"
+      className="flex px-1 flex-row items-center w-full py-8 cursor-pointer"
       onClick={() =>
-        onClick(QuickConnectCountry.name, QuickConnectCountry.code)
+        onClick(defaultNodeLocation.name, defaultNodeLocation.code)
       }
     >
-      <span className="font-icon px-4 cursor-pointer">bolt</span>
-      <div className="cursor-pointer">{`${t('quick-connect')} (${
-        QuickConnectCountry.name
-      })`}</div>
+      <span className="font-icon text-2xl px-4 cursor-pointer">bolt</span>
+      <div className="cursor-pointer">{`${QuickConnectPrefix} (${defaultNodeLocation.name})`}</div>
     </div>
   );
 }

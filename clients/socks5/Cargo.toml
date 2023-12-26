@@ -5,6 +5,7 @@ authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>"]
 description = "A SOCKS5 localhost proxy that converts incoming messages to Sphinx and sends them to a Nym address"
 edition = "2021"
 rust-version = "1.56"
+license.workspace = true
 
 [dependencies]
 clap = { workspace = true, features = ["cargo", "derive"] }

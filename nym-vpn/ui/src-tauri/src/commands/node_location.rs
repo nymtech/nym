@@ -4,6 +4,7 @@ use tracing::{debug, instrument};
 use ts_rs::TS;
 
 use crate::{
+    country::DEFAULT_NODE_LOCATION,
     error::{CmdError, CmdErrorSource},
     states::{app::Country, SharedAppData, SharedAppState},
 };
@@ -56,4 +57,11 @@ pub async fn set_node_location(
         .map_err(|e| CmdError::new(CmdErrorSource::InternalError, e.to_string()))?;
 
     Ok(())
+}
+
+#[instrument]
+#[tauri::command]
+pub async fn get_default_node_location() -> Result<Country, CmdError> {
+    debug!("get_default_node_location");
+    Ok(DEFAULT_NODE_LOCATION.clone())
 }

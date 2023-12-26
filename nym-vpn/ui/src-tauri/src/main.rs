@@ -16,6 +16,7 @@ use nym_vpn_lib::nym_config;
 use crate::fs::{config::AppConfig, data::AppData, storage::AppStorage};
 
 mod commands;
+mod country;
 mod error;
 mod fs;
 mod states;
@@ -63,6 +64,8 @@ async fn main() -> Result<()> {
         &app_config_store.full_path.display()
     );
 
+    let app_data = app_data_store.read().await?;
+    debug!("app_data: {app_data:?}");
     let app_config = app_config_store.read().await?;
     debug!("app_config: {app_config:?}");
 
@@ -88,7 +91,7 @@ async fn main() -> Result<()> {
     info!("Starting tauri app");
 
     tauri::Builder::default()
-        .manage(Arc::new(Mutex::new(AppState::default())))
+        .manage(Arc::new(Mutex::new(AppState::from(&app_data))))
         .manage(Arc::new(Mutex::new(app_data_store)))
         .manage(Arc::new(Mutex::new(app_config_store)))
         .setup(|_app| {
@@ -104,8 +107,11 @@ async fn main() -> Result<()> {
             app_data::get_app_data,
             app_data::set_app_data,
             app_data::set_ui_theme,
+            app_data::set_entry_location_selector,
             app_data::get_node_countries,
+            app_data::set_root_font_size,
             node_location::set_node_location,
+            node_location::get_default_node_location,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

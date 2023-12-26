@@ -202,7 +202,7 @@ In case of errors, see [troubleshooting section](./nym-vpn.md#macos-alert-on-nym
 
 ## Testing
 
-One of the main aims of the demo is testing; your results will help us to make NymVPN robust and stabilise both the client and the network through provided measurements. 
+One of the main aims of the demo is testing; your results will help us to make NymVPN robust and stabilise both the client and the network through provided measurements. Before you go into testing, make sure you went through [preparation steps](./nym-vpn.md#preparation) and the [CLI binary](https://github.com/nymtech/nym/releases/tag/ccc) for your system is ready to run.
 
 1. Create a directory called `nym-vpn-tests` and copy your `nym-vpn-cli` binary and `sandbox.env` to that directory
 2. Copy the [block below](./nym-vpn.md#testssh) and save it to the same folder as `tests.sh`
@@ -360,7 +360,7 @@ while true; do
     esac
 done
 
-sudo ./nym-vpn-cli-test -c sandbox.env --entry-gateway-id ${identity_key} --exit-router-address ${exit_address} --enable-two-hop $wireguard_options >"$temp_log_file" 2>&1 &
+sudo ./nym-vpn-cli -c sandbox.env --entry-gateway-id ${identity_key} --exit-router-address ${exit_address} --enable-two-hop $wireguard_options >"$temp_log_file" 2>&1 &
 
 timeout=15
 start_time=$(date +%s)

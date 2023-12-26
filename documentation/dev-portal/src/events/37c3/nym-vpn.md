@@ -387,6 +387,8 @@ rm -f "$temp_log_file"
 
 ## Troubleshooting
 
+Below are listed some points which may need to be addressed when testing NymVPN alpha. If you crashed into any errors which are not listed, please contact us at the event. 
+
 #### Thread `main` panicked
 
 If you see a message like:

@@ -238,6 +238,7 @@ nym-vpn-tests
 
 ENDPOINT="https://sandbox-nym-api1.nymtech.net/api/v1/gateways/described"
 json_array=()
+echo "🚀 🏎 - please be patient, i'm fetching you your entry points - 🚀 🏎 "
 
 data=$(curl -s "$ENDPOINT" | jq -c '.[] | {host: .bond.gateway.host, hostname: .self_described.host_information.hostname, identity_key: .bond.gateway.identity_key, exitGateway: .self_described.ip_packet_router.address}')
 
@@ -253,20 +254,18 @@ while IFS= read -r entry; do
     else
         exit_gateway="{}"
     fi
-
     if [[ $valid_ip =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
         country_info=$(curl -s "http://ipinfo.io/${valid_ip}/country" | tr -d '\n')
         country_info_escaped=$(echo "$country_info" | tr -d '\n' | jq -aRs . | tr -d '"')
     else
         country_info_escaped=""
     fi
-
     json_object="{\"hostname\": \"${hostname}\", \"identityKey\": \"${identity_key}\", \"exitGateway\": ${exit_gateway}, \"location\": \"${country_info_escaped}\"}"
     json_array+=("$json_object")
 done < <(echo "$data")
 
 if [ $? -ne 0 ]; then
-    echo "Error fetching data from endpoint"
+    echo "error fetching data from endpoint"
     exit 1
 fi
 
@@ -335,13 +334,33 @@ perform_tests() {
     echo "api response test completed. Results saved in $api_response_file."
 }
 
-echo $data | jq .
+printf "%s\n" "${json_array[@]}" | jq -s .
 
 read -p "enter a gateway ID: " identity_key
 read -p "enter an exit address: " exit_address
 
-# starting nymVpn
-sudo ./nym-vpn-cli-test -c sandbox.env --entry-gateway-id "$identity_key" --exit-router-address "$exit_address" --enable-two-hop >"$temp_log_file" 2>&1 &
+while true; do
+    read -p "enable WireGuard? (yes/no): " enable_wireguard
+    enable_wireguard=$(echo "$enable_wireguard" | tr '[:upper:]' '[:lower:]')
+
+    case "$enable_wireguard" in
+    "yes")
+        read -p "enter your WireGuard private key: " priv_key
+        read -p "enter your WireGuard IP: " wg_ip
+        wireguard_options="--enable-wireguard --private-key $priv_key --wg-ip $wg_ip"
+        break
+        ;;
+    "no")
+        wireguard_options=""
+        break
+        ;;
+    *)
+        echo "invalid response. please enter 'yes' or 'no'."
+        ;;
+    esac
+done
+
+sudo ./nym-vpn-cli -c sandbox.env --entry-gateway-id ${identity_key} --exit-router-address ${exit_address} --enable-two-hop $wireguard_options >"$temp_log_file" 2>&1 &
 
 timeout=15
 start_time=$(date +%s)
@@ -365,6 +384,37 @@ sleep 5
 rm -f "$temp_log_file"
 
 ```
+#### tests-wireguard.sh
+
+```sh
+read -p "enter a gateway ID: " identity_key
+read -p "enter an exit address: " exit_address
+
+while true; do
+    read -p "enable WireGuard? (yes/no): " enable_wireguard
+    enable_wireguard=$(echo "$enable_wireguard" | tr '[:upper:]' '[:lower:]')
+
+    case "$enable_wireguard" in
+    "yes")
+        read -p "enter your WireGuard private key: " priv_key
+        read -p "enter your WireGuard IP: " wg_ip
+        wireguard_options="--enable-wireguard --private-key $priv_key --wg-ip $wg_ip"
+        break
+        ;;
+    "no")
+        wireguard_options=""
+        break
+        ;;
+    *)
+        echo "invalid response. please enter 'yes' or 'no'."
+        ;;
+    esac
+done
+
+sudo ./nym-vpn-cli-test -c sandbox.env --entry-gateway-id ${identity_key} --exit-router-address ${exit_address} --enable-two-hop $wireguard_options >"$temp_log_file" 2>&1 &
+
+```
+
 
 ## Troubleshooting
 

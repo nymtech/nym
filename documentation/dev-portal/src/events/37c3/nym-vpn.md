@@ -21,7 +21,7 @@ Users can switch to 2-hop only mode, which is a faster but less private option. 
 The client can optionally do the first connection to the entry gateway using Wireguard. NymVPN uses Mullvad libraries for wrapping `wireguard-go` and to setup local routing rules to route all traffic to the TUN virtual network device.
 
 ```admonish warning
-NymVPN is an experimental software and it's for [testing](./nym-vpn.md#testing) purposes only. All users testing the client are expected to sign GDPR Information Sheet and Consent Form, available [here](https://opnform.com/forms/nymvpn-user-research-at-37c3-yccqko).
+NymVPN is an experimental software and it's for [testing](./nym-vpn.md#testing) purposes only. All users testing the client are expected to sign GDPR Information Sheet and Consent Form (shared at the event), and follow the steps listed in the form [*NymVPN User research at 37c3*](https://opnform.com/forms/nymvpn-user-research-at-37c3-yccqko).
 ```
 
 ## Goals
@@ -36,10 +36,9 @@ This alpha testing will help:
  
 ```admonish info
 Our alpha testing round is done live with some participants at CCC 2023. This guide will not work for everyone, as the NymVPN binaries aren't publicly accessible yet. Note that this setup of Nym testnet Sandbox environment is limited for CCC 2023 event and some of the configurations will not work in the future.
-
 ```
 
-> **If you commit to test NymVPN aplha, please start with the [user research form](https://opnform.com/forms/nymvpn-user-research-at-37c3-yccqko) where all the steps will be provided**. 
+> **If you commit to test NymVPN alpha, please start with the [user research form](https://opnform.com/forms/nymvpn-user-research-at-37c3-yccqko) where all the steps will be provided**. 
 
 ## Preparation
 
@@ -203,18 +202,21 @@ In case of errors, see [troubleshooting section](./nym-vpn.md#macos-alert-on-nym
 
 ## Testing
 
-One of the main aims of the demo is testing; your results will help us to make NymVPN robust and stabilise both the client and the network through provided measurements. 
+One of the main aims of the demo is testing; your results will help us to make NymVPN robust and stabilise both the client and the network through provided measurements. Before you go into testing, make sure you went through [preparation steps](./nym-vpn.md#preparation) and the [CLI binary](https://github.com/nymtech/nym/releases/tag/ccc) for your system is ready to run.
 
 1. Create a directory called `nym-vpn-tests` and copy your `nym-vpn-cli` binary and `sandbox.env` to that directory
 2. Copy the [block below](./nym-vpn.md#testssh) and save it to the same folder as `tests.sh`
 3. Open terminal in the same directory
-4. Turn off any existing VPN's (including the NymVPN instances) and run `sudo sh ./tests.sh`.
-5. In case of errors, see [troubleshooting section](./nym-vpn.md#missing-jq-error) below
-6. The script will print a JSON view of existing Gateways and prompt you to. **Make sure to use two different Gateways for entry and exit***
-    - `enter a gateway ID`: paste one of the values labeled with a key `"identityKey"` printed above (without `" "`) 
-    - `enter an exit address`: paste one of the values labeled with a key `"address"` printed above (without `" "`)
-7. Note that the testing script doesn't print many logs, in case of doubts you can check logs in the log file `temp_log.txt` located in the same directory. 
-8. The script shall run the tests and generate a folder called `tests_<LONG_STRING>` and files `perf_test_results.log` or `two_hop_perf_test_results.log` as well as some temp files. This is how the directory structure will look like:
+4. Turn off any existing VPN's (including the NymVPN instances) and make the script executable by running `chmod +x ./tests.sh`
+5. Run the tests: `sudo ./tests.sh`
+6. In case of errors, see [troubleshooting section](./nym-vpn.md#missing-jq-error) below
+7. The script will print a JSON view of existing Gateways and prompt you to:
+    - ***(Make sure to use two different Gateways for entry and exit!)***
+    - `enter a gateway ID:` paste one of the values labeled with a key `"identityKey"` printed above (without `" "`) 
+    - `enter an exit address:` paste one of the values labeled with a key `"address"` printed above (without `" "`)
+    - `enable WireGuard? (yes/no):` if you chose yes, find your private key and wireguard IP [here](https://nymvpn.com/en/37c3)
+8. Note that the testing script doesn't print many logs, in case of doubts you can check logs in the log file `temp_log.txt` located in the same directory. 
+9. The script shall run the tests and generate a folder called `tests_<LONG_STRING>` and files `perf_test_results.log` or `two_hop_perf_test_results.log` as well as some temp files. This is how the directory structure will look like:
 ```sh
 nym-vpn-tests
 ├── tests.sh
@@ -228,16 +230,47 @@ nym-vpn-tests
 ├── timeout
 └── two_hop_perf_test_results.log
 ```
-9. In case of errors, see [troubleshooting section](./nym-vpn.md#missing-jq-error) below
-10. When the tests are finished, remove the `nym-vpn-cli` binary from the folder and compress it as `nym-vpn-tests.zip`
-11. Upload this compressed file to the [questionnaire](https://opnform.com/forms/nymvpn-user-research-at-37c3-yccqko) upload field when prompted. 
+10. In case of errors, see [troubleshooting section](./nym-vpn.md#missing-jq-error) below
+11. When the tests are finished, remove the `nym-vpn-cli` binary from the folder and compress it as `nym-vpn-tests.zip`
+12. Upload this compressed file to the [questionnaire](https://opnform.com/forms/nymvpn-user-research-at-37c3-yccqko) upload field when prompted. 
 
 #### tests.sh
 
 ```sh
 #!/bin/bash
 
-NEW_ENDPOINT="https://nymvpn.com/en/ccc/api/gateways"
+ENDPOINT="https://sandbox-nym-api1.nymtech.net/api/v1/gateways/described"
+json_array=()
+echo "🚀 🏎 - please be patient, i'm fetching you your entry points - 🚀 🏎 "
+
+data=$(curl -s "$ENDPOINT" | jq -c '.[] | {host: .bond.gateway.host, hostname: .self_described.host_information.hostname, identity_key: .bond.gateway.identity_key, exitGateway: .self_described.ip_packet_router.address}')
+
+while IFS= read -r entry; do
+    host=$(echo "$entry" | jq -r '.host')
+    hostname=$(echo "$entry" | jq -r '.hostname')
+    identity_key=$(echo "$entry" | jq -r '.identity_key')
+    exit_gateway_address=$(echo "$entry" | jq -r '.exitGateway // empty')
+    valid_ip=$(echo "$host")
+
+    if [ -n "$exit_gateway_address" ]; then
+        exit_gateway="{\"address\": \"${exit_gateway_address}\"}"
+    else
+        exit_gateway="{}"
+    fi
+    if [[ $valid_ip =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        country_info=$(curl -s "http://ipinfo.io/${valid_ip}/country" | tr -d '\n')
+        country_info_escaped=$(echo "$country_info" | tr -d '\n' | jq -aRs . | tr -d '"')
+    else
+        country_info_escaped=""
+    fi
+    json_object="{\"hostname\": \"${hostname}\", \"identityKey\": \"${identity_key}\", \"exitGateway\": ${exit_gateway}, \"location\": \"${country_info_escaped}\"}"
+    json_array+=("$json_object")
+done < <(echo "$data")
+
+if [ $? -ne 0 ]; then
+    echo "error fetching data from endpoint"
+    exit 1
+fi
 
 download_file() {
     local file_url=$1
@@ -258,12 +291,6 @@ download_file() {
 
 if ! command -v jq &>/dev/null; then
     echo "jq is not installed. Please install jq to proceed."
-    exit 1
-fi
-
-data=$(curl -s "$NEW_ENDPOINT")
-if [ $? -ne 0 ]; then
-    echo "Error fetching data from endpoint"
     exit 1
 fi
 
@@ -310,13 +337,33 @@ perform_tests() {
     echo "api response test completed. Results saved in $api_response_file."
 }
 
-echo $data | jq .
+printf "%s\n" "${json_array[@]}" | jq -s .
 
 read -p "enter a gateway ID: " identity_key
 read -p "enter an exit address: " exit_address
 
-# starting nymVpn
-sudo ./nym-vpn-cli -c sandbox.env --entry-gateway-id "$identity_key" --exit-router-address "$exit_address" --enable-two-hop >"$temp_log_file" 2>&1 &
+while true; do
+    read -p "enable WireGuard? (yes/no): " enable_wireguard
+    enable_wireguard=$(echo "$enable_wireguard" | tr '[:upper:]' '[:lower:]')
+
+    case "$enable_wireguard" in
+    "yes")
+        read -p "enter your WireGuard private key: " priv_key
+        read -p "enter your WireGuard IP: " wg_ip
+        wireguard_options="--enable-wireguard --private-key $priv_key --wg-ip $wg_ip"
+        break
+        ;;
+    "no")
+        wireguard_options=""
+        break
+        ;;
+    *)
+        echo "invalid response. please enter 'yes' or 'no'."
+        ;;
+    esac
+done
+
+sudo ./nym-vpn-cli -c sandbox.env --entry-gateway-id ${identity_key} --exit-router-address ${exit_address} --enable-two-hop $wireguard_options >"$temp_log_file" 2>&1 &
 
 timeout=15
 start_time=$(date +%s)
@@ -338,9 +385,12 @@ echo "terminating nym-vpn-cli..."
 pkill -f './nym-vpn-cli'
 sleep 5
 rm -f "$temp_log_file"
+
 ```
 
 ## Troubleshooting
+
+Below are listed some points which may need to be addressed when testing NymVPN alpha. If you crashed into any errors which are not listed, please contact us at the event. 
 
 #### Thread `main` panicked
 
@@ -402,5 +452,6 @@ NEW_ENDPOINT="http://localhost:8000/data.json"
 python3 -m http.server 8000
 ```
 6. Continue with the steps listed in [testing section](./nym-vpn.md#testing)
+
 
 

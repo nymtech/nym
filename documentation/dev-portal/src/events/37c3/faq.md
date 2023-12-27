@@ -1,10 +1,12 @@
 # Frequently Asked Questions @ 37C3
 
-Besides the FAQ for CCC 2023 event listed below, you can have a look at [Nym general FAQ](https://nymtech.net/developers/faq/general-faq.html) and read through Nym's technical [documentation](https://nymtech.net/docs), [Developer Portal](https://nymtech.net/developers) and [Operators Guide](https://nymtech.net/operators).
+This is a FAQ page tailored for CCC 2023 event (37c3). If you interested to read more about Nym platform, you can have a look at [Nym general FAQ](https://nymtech.net/developers/faq/general-faq.html) and read through Nym's technical [documentation](https://nymtech.net/docs), [Developer Portal](https://nymtech.net/developers) and [Operators Guide](https://nymtech.net/operators).
 
 ## NymVPN
 
-Make sure you read [NymVPV webpage](https://nymvpn.com/en) and our [guide to install, run and test](./nym-vpn.md) the client. 
+If this your first time hearing about NymVPN, make sure you read [NymVPN webpage](https://nymvpn.com/en), the official [support & FAQ page](https://nymvpn.com/en/support) and our guide on how to [install, run and test](./nym-vpn.md) the client.
+
+Below are some extra FAQ's which came out during the event.
 
 ### What's the difference between 2-hops and 5-hops
 

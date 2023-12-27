@@ -1,6 +1,6 @@
 # Frequently Asked Questions @ 37C3
 
-Besides the FAQ for CCC 2023 event listed below, you can have a look at [Nym general FAQ](https://nymtech.net/developers/faq/general-faq.html) and read through Nym's technical [documentation](https://nymtech.net/docs), [Developer Portal](https://nymtech.net/developers) and [Operators Guide](https://nymtech.net/operators).
+This is a FAQ page tailored for CCC 2023 event (37c3). If you interested to read more about Nym platform, you can have a look at [Nym general FAQ](https://nymtech.net/developers/faq/general-faq.html) and read through Nym's technical [documentation](https://nymtech.net/docs), [Developer Portal](https://nymtech.net/developers) and [Operators Guide](https://nymtech.net/operators).
 
 ## NymVPN
 

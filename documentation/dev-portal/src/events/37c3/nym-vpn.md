@@ -211,8 +211,8 @@ One of the main aims of the demo is testing; your results will help us to make N
 5. Run the tests: `sudo ./tests.sh`
 6. In case of errors, see [troubleshooting section](./nym-vpn.md#missing-jq-error) below
 7. The script will print a JSON view of existing Gateways and prompt you to:
-    - `enter a gateway ID:` paste one of the values labeled with a key `"identityKey"` printed above (without `" "`)
-    - (**Make sure to use two different Gateways for entry and exit***) 
+    - ***(Make sure to use two different Gateways for entry and exit!)***
+    - `enter a gateway ID:` paste one of the values labeled with a key `"identityKey"` printed above (without `" "`) 
     - `enter an exit address:` paste one of the values labeled with a key `"address"` printed above (without `" "`)
     - `enable WireGuard? (yes/no):` if you chose yes, find your private key and wireguard IP [here](https://nymvpn.com/en/37c3)
 8. Note that the testing script doesn't print many logs, in case of doubts you can check logs in the log file `temp_log.txt` located in the same directory. 

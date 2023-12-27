@@ -4,28 +4,32 @@
 import PackageDescription
 
 let package = Package(
-    name: "Theme",
+    name: "UIComponents",
     platforms: [
         .iOS(.v16)
     ],
     products: [
         .library(
-            name: "Theme",
-            targets: ["Theme"]
+            name: "UIComponents",
+            targets: ["UIComponents"]
         )
+    ],
+    dependencies: [
+        .package(path: "../Theme")
     ],
     targets: [
         .target(
-            name: "Theme",
+            name: "UIComponents",
+            dependencies: [
+                "Theme"
+            ],
             resources: [
-                .copy("Resources/Fonts/Lato-Bold.ttf"),
-                .copy("Resources/Fonts/Lato-Regular.ttf"),
                 .process("Resources/Assets.xcassets")
             ]
         ),
         .testTarget(
-            name: "ThemeTests",
-            dependencies: ["Theme"]
+            name: "UIComponentsTests",
+            dependencies: ["UIComponents"]
         )
     ]
 )

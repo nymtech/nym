@@ -20,7 +20,6 @@ opt_in_rules:
   - contains_over_filter_is_empty
   - contains_over_first_not_nil
   - contains_over_range_nil_comparison
-  - convenience_type
   - discouraged_none_name
   - discouraged_object_literal
   - empty_collection_literal
@@ -56,7 +55,6 @@ opt_in_rules:
   - multiline_literal_brackets
   - multiline_parameters
   - multiline_parameters_brackets
-  - no_extension_access_modifier
   - operator_usage_whitespace
   - overridden_super_call
   - pattern_matching_keywords
@@ -125,6 +123,9 @@ line_length:
 
 multiline_parameters:
   allowsSingleLine: false
+
+nesting:
+  type_level: 3
 
 private_outlet:
   allow_private_set: true

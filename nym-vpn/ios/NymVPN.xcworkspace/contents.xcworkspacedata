@@ -8,6 +8,9 @@
       location = "group:Home">
    </FileRef>
    <FileRef
+      location = "group:UIComponents">
+   </FileRef>
+   <FileRef
       location = "group:Theme">
    </FileRef>
 </Workspace>

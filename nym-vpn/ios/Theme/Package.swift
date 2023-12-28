@@ -5,6 +5,7 @@ import PackageDescription
 
 let package = Package(
     name: "Theme",
+    defaultLocalization: "en",
     platforms: [
         .iOS(.v16)
     ],
@@ -20,7 +21,8 @@ let package = Package(
             resources: [
                 .copy("Resources/Fonts/Lato-Bold.ttf"),
                 .copy("Resources/Fonts/Lato-Regular.ttf"),
-                .process("Resources/Assets.xcassets")
+                .process("Resources/Assets.xcassets"),
+                .process("Resources/Localizable.xcstrings")
             ]
         ),
         .testTarget(

@@ -5,6 +5,7 @@ import PackageDescription
 
 let package = Package(
     name: "UIComponents",
+    defaultLocalization: "en",
     platforms: [
         .iOS(.v16)
     ],

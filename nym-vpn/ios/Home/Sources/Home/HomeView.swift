@@ -8,9 +8,12 @@ public struct HomeView: View {
     public var body: some View {
         VStack {
             CustomNavBar(
-                title: "NymVPN",
+                title: "NymVPN".localizedString,
                 rightButtonConfig: settingsButtonConfig()
             )
+            Spacer()
+                .frame(height: 50)
+            StatusButton(config: .connected)
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

@@ -21,6 +21,7 @@ public struct CustomNavBar: View {
             button(with: leftButtonConfig)
             Spacer()
             Text(title)
+                .foregroundStyle(NymColor.sysOnSurface)
                 .textStyle(.Title.Large.primary)
             Spacer()
             button(with: rightButtonConfig)
@@ -40,7 +41,7 @@ private extension CustomNavBar {
             config?.action?()
         } label: {
             if let type = config?.type {
-                Image(type.imageName)
+                Image(uiImage: UIImage(named: type.imageName) ?? UIImage())
                     .tint(NymColor.navigationBarSettingsGear)
             }
         }

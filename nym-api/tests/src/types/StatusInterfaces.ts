@@ -168,6 +168,12 @@ export interface AvgUptime {
   node_performance: nodePerformance;
 }
 
+export interface GatewayUptimeResponse {
+  identity: string;
+  avg_uptime: number;
+  node_performance: nodePerformance;
+}
+
 export interface DetailedGateway {
   gateway_bond: GatewayBond;
   performance: string;

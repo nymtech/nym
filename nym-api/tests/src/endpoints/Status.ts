@@ -4,6 +4,7 @@ import {
   CoreCount,
   DetailedGateway,
   DetailedMixnodes,
+  GatewayUptimeResponse,
   InclusionProbabilities,
   InclusionProbability,
   NodeHistory,
@@ -67,7 +68,7 @@ export default class Status extends APIClient {
 
   public async getGatewayAverageUptime(
     identity_key: string
-  ): Promise<CoreCount | ErrorMsg> {
+  ): Promise<GatewayUptimeResponse | ErrorMsg> {
     const response = await this.restClient.sendGet({
       route: `/gateway/${identity_key}/avg_uptime`,
     });

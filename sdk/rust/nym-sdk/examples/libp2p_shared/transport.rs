@@ -170,7 +170,7 @@ impl NymTransport {
                     );
                     inbound_tx
                         .send(msg.message.clone())
-                        .map_err(|e| Error::InboundSendError(e.to_string()))?;
+                        .map_err(|e| Error::InboundSendFailure(e.to_string()))?;
                 }
             }
             None => {
@@ -207,7 +207,7 @@ impl NymTransport {
             pending_conn
                 .connection_tx
                 .send(conn)
-                .map_err(|_| Error::ConnectionSendError)?;
+                .map_err(|_| Error::ConnectionSendFailure)?;
 
             if let Some(waker) = self.waker.take() {
                 waker.wake();
@@ -247,7 +247,7 @@ impl NymTransport {
                 message: Message::ConnectionResponse(resp),
                 recipient: msg.recipient.unwrap(),
             })
-            .map_err(|e| Error::OutboundSendError(e.to_string()))?;
+            .map_err(|e| Error::OutboundSendFailure(e.to_string()))?;
 
         if let Some(waker) = self.waker.take() {
             waker.wake();
@@ -287,7 +287,7 @@ impl NymTransport {
         );
         inbound_tx
             .send(msg.message.clone())
-            .map_err(|e| Error::InboundSendError(e.to_string()))?;
+            .map_err(|e| Error::InboundSendFailure(e.to_string()))?;
 
         // try to pop queued messages and send them on inbound channel
         while let Some(msg) = queue.pop() {
@@ -297,7 +297,7 @@ impl NymTransport {
             );
             inbound_tx
                 .send(msg.message.clone())
-                .map_err(|e| Error::InboundSendError(e.to_string()))?;
+                .map_err(|e| Error::InboundSendFailure(e.to_string()))?;
         }
 
         if let Some(waker) = self.waker.clone().take() {
@@ -340,7 +340,7 @@ impl NymTransport {
                         let upgrade = Upgrade::new(connection_rx);
                         connection_tx
                             .send((inner.peer_id, conn))
-                            .map_err(|_| Error::ConnectionSendError)?;
+                            .map_err(|_| Error::ConnectionSendFailure)?;
                         Ok(InboundTransportEvent::ConnectionRequest(upgrade))
                     }
                     Err(e) => Err(e),
@@ -380,7 +380,7 @@ impl Future for Upgrade {
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         self.connection_tx
             .poll_unpin(cx)
-            .map_err(|_| Error::RecvError)
+            .map_err(|_| Error::RecvFailure)
     }
 }
 
@@ -441,7 +441,7 @@ impl Transport for NymTransport {
                     message: Message::ConnectionRequest(msg),
                     recipient,
                 })
-                .map_err(|e| Error::OutboundSendError(e.to_string()))?;
+                .map_err(|e| Error::OutboundSendFailure(e.to_string()))?;
 
             debug!("sent outbound ConnectionRequest");
             if let Some(waker) = waker.take() {
@@ -555,7 +555,7 @@ mod test {
                         message: msg,
                     }),
                 })
-                .map_err(|e| Error::OutboundSendError(e.to_string()))?;
+                .map_err(|e| Error::OutboundSendFailure(e.to_string()))?;
             Ok(())
         }
     }

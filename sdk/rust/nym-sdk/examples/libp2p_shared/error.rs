@@ -48,15 +48,15 @@ pub enum Error {
     #[error("no substream found for given ID")]
     SubstreamIdDoesNotExist(SubstreamId),
     #[error("recv error: channel closed")]
-    OneshotRecvError(#[from] tokio::sync::oneshot::error::RecvError),
+    OneshotRecvFailure(#[from] tokio::sync::oneshot::error::RecvError),
     #[error("recv error: channel closed")]
-    RecvError,
+    RecvFailure,
     #[error("outbound send error")]
-    OutboundSendError(String),
+    OutboundSendFailure(String),
     #[error("inbound send error")]
-    InboundSendError(String),
+    InboundSendFailure(String),
     #[error("failed to send new connection; receiver dropped")]
-    ConnectionSendError,
+    ConnectionSendFailure,
     #[error("failed to send initial TransportEvent::NewAddress")]
     SendErrorTransportEvent,
     #[error("dial timed out")]

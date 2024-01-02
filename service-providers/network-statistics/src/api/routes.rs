@@ -1,14 +1,15 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use rocket::serde::json::Json;
-use rocket::State;
-use serde::{Deserialize, Serialize};
-
-use nym_statistics_common::StatsMessage;
+// due to the macro expansion of rather old rocket macros...
+#![allow(unused_imports)]
 
 use crate::api::error::Result;
 use crate::storage::NetworkStatisticsStorage;
+use nym_statistics_common::StatsMessage;
+use rocket::serde::json::Json;
+use rocket::State;
+use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct StatisticsRequest {

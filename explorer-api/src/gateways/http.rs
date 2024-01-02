@@ -1,6 +1,9 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+// due to the macro expansion of rather old rocket macros...
+#![allow(unused_imports)]
+
 use nym_explorer_api_requests::PrettyDetailedGatewayBond;
 use rocket::response::status::NotFound;
 use rocket::serde::json::Json;

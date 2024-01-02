@@ -62,7 +62,7 @@ async fn check_inbound(
         if let Some(notify_tx) = notify_inbound_tx {
             notify_tx
                 .send(())
-                .map_err(|e| Error::InboundSendError(e.to_string()))?;
+                .map_err(|e| Error::InboundSendFailure(e.to_string()))?;
         }
 
         handle_inbound(msg, inbound_tx).await?;
@@ -78,7 +78,7 @@ async fn handle_inbound(
     let data = parse_message_data(&msg.message)?;
     inbound_tx
         .send(data)
-        .map_err(|e| Error::InboundSendError(e.to_string()))?;
+        .map_err(|e| Error::InboundSendFailure(e.to_string()))?;
     Ok(())
 }
 
@@ -95,7 +95,7 @@ async fn check_outbound(
             )
             .await
         }
-        None => Err(Error::RecvError),
+        None => Err(Error::RecvFailure),
     }
 }
 

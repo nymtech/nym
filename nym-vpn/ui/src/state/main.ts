@@ -22,6 +22,8 @@ export type StateAction =
   | { type: 'set-connected'; startTime: number }
   | { type: 'set-connection-start-time'; startTime?: number | null }
   | { type: 'set-disconnected' }
+  | { type: 'set-auto-connect'; autoConnect: boolean }
+  | { type: 'set-monitoring'; monitoring: boolean }
   | { type: 'reset' }
   | { type: 'set-ui-theme'; theme: UiTheme }
   | { type: 'set-countries'; countries: Country[] }
@@ -37,6 +39,8 @@ export const initialState: AppState = {
   tunnel: { name: 'nym', id: 'nym' },
   uiTheme: 'Light',
   progressMessages: [],
+  autoConnect: false,
+  monitoring: false,
   entryNodeLocation: null,
   exitNodeLocation: null,
   defaultNodeLocation: {
@@ -69,6 +73,16 @@ export function reducer(state: AppState, action: StateAction): AppState {
       return {
         ...state,
         entrySelector: action.entrySelector,
+      };
+    case 'set-auto-connect':
+      return {
+        ...state,
+        autoConnect: action.autoConnect,
+      };
+    case 'set-monitoring':
+      return {
+        ...state,
+        monitoring: action.monitoring,
       };
     case 'set-countries':
       return {
@@ -152,6 +166,7 @@ export function reducer(state: AppState, action: StateAction): AppState {
         ...state,
         rootFontSize: action.size,
       };
+
     case 'reset':
       return initialState;
   }

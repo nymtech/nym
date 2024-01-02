@@ -1,7 +1,7 @@
 import { ChangeEvent, useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api';
-import { useMainDispatch, useMainState } from '../../contexts';
-import { CmdError, StateDispatch } from '../../types';
+import { useMainDispatch, useMainState } from '../../../contexts';
+import { CmdError, StateDispatch } from '../../../types';
 
 function UiScaler() {
   const [slideValue, setSlideValue] = useState(12);

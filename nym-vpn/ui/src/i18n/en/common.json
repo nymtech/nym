@@ -3,5 +3,9 @@
   "disconnect": "Disconnect",
   "first-hop-selection": "First hop selection",
   "last-hop-selection": "Last hop selection",
-  "settings": "Settings"
+  "settings": "Settings",
+  "display-theme": "Display theme",
+  "logs": "Logs",
+  "feedback": "Feedback",
+  "legal": "Legal"
 }

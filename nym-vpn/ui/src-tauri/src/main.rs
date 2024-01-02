@@ -108,6 +108,8 @@ async fn main() -> Result<()> {
             app_data::set_app_data,
             app_data::set_ui_theme,
             app_data::set_entry_location_selector,
+            app_data::set_monitoring,
+            app_data::set_auto_connect,
             app_data::get_node_countries,
             app_data::set_root_font_size,
             node_location::set_node_location,

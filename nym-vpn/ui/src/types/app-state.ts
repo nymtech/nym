@@ -27,6 +27,8 @@ export type AppState = {
   tunnel: TunnelConfig;
   uiTheme: 'Light' | 'Dark';
   entrySelector: boolean;
+  autoConnect: boolean;
+  monitoring: boolean;
   entryNodeLocation: Country | null;
   exitNodeLocation: Country | null;
   defaultNodeLocation: Country;

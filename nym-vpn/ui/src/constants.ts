@@ -1,6 +1,10 @@
 export const routes = {
   root: '/',
   settings: '/settings',
+  display: '/settings/display',
+  logs: '/settings/logs',
+  feedback: '/settings/feedback',
+  legal: '/settings/legal',
   entryNodeLocation: '/entry-node-location',
   exitNodeLocation: '/exit-node-location',
 } as const;

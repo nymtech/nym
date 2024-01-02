@@ -88,6 +88,22 @@ impl Client {
         self.0.read().await.address()
     }
 
+    pub(crate) async fn balance<S: Into<String>>(&self, denom: S) -> Result<Coin, NyxdError> {
+        let guard = self.0.read().await;
+        let denom = denom.into();
+        let address = guard.address();
+        match self
+            .0
+            .read()
+            .await
+            .get_balance(&address, denom.clone())
+            .await?
+        {
+            None => Ok(Coin::new(0, denom)),
+            Some(coin) => Ok(coin),
+        }
+    }
+
     pub(crate) async fn chain_details(&self) -> ChainDetails {
         self.0.read().await.current_chain_details().clone()
     }

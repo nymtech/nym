@@ -21,7 +21,7 @@ use nym_coconut_bandwidth_contract_common::spend_credential::{
 };
 use nym_coconut_dkg_common::types::EpochId;
 use nym_credentials::coconut::bandwidth::BandwidthVoucher;
-use nym_validator_client::nyxd::{Coin, Fee};
+use nym_validator_client::nyxd::Coin;
 use rocket::serde::json::Json;
 use rocket::State as RocketState;
 
@@ -94,6 +94,9 @@ pub async fn verify_bandwidth_credential(
 ) -> Result<Json<VerifyCredentialResponse>> {
     let proposal_id = verify_credential_body.proposal_id;
     let proposal = state.client.get_proposal(proposal_id).await?;
+
+    // TODO: introduce a check to make sure we haven't already voted for this proposal to prevent DDOS
+
     // Proposal description is the blinded serial number
     if !verify_credential_body
         .credential
@@ -136,15 +139,7 @@ pub async fn verify_bandwidth_credential(
     // Vote yes or no on the proposal based on the verification result
     let ret = state
         .client
-        .vote_proposal(
-            proposal_id,
-            vote_yes,
-            Some(Fee::new_payer_granter_auto(
-                None,
-                None,
-                Some(verify_credential_body.gateway_cosmos_addr.clone()),
-            )),
-        )
+        .vote_proposal(proposal_id, vote_yes, None)
         .await;
     accepted_vote_err(ret)?;
 

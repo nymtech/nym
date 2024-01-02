@@ -12,14 +12,10 @@ use nym_validator_client::{
             MultisigSigningClient,
         },
         cosmwasm_client::logs::{find_attribute, BANDWIDTH_PROPOSAL_ID},
-        Coin, Fee,
+        Coin,
     },
     CoconutApiClient, DirectSigningHttpRpcNyxdClient,
 };
-use std::time::{Duration, SystemTime};
-
-const ONE_HOUR_SEC: u64 = 3600;
-const MAX_FEEGRANT_UNYM: u128 = 10000;
 
 pub(crate) struct CoconutVerifier {
     nyxd_client: DirectSigningHttpRpcNyxdClient,
@@ -55,10 +51,6 @@ impl CoconutVerifier {
         api_clients: Vec<CoconutApiClient>,
         credential: &Credential,
     ) -> Result<(), RequestHandlingError> {
-        // Use a custom multiplier for revoke, as the default one (1.3)
-        // isn't enough
-        let revoke_fee = Some(Fee::Auto(Some(1.5)));
-
         let res = self
             .nyxd_client
             .spend_credential(
@@ -94,25 +86,7 @@ impl CoconutVerifier {
             self.nyxd_client.address(),
         );
         for client in api_clients {
-            self.nyxd_client
-                .grant_allowance(
-                    &client.cosmos_address,
-                    vec![Coin::new(MAX_FEEGRANT_UNYM, self.mix_denom_base.clone())],
-                    SystemTime::now().checked_add(Duration::from_secs(ONE_HOUR_SEC)),
-                    // It would be nice to be able to filter deeper, but for now only the msg type filter is avaialable
-                    vec![String::from("/cosmwasm.wasm.v1.MsgExecuteContract")],
-                    "Create allowance to vote the release of funds".to_string(),
-                    None,
-                )
-                .await?;
             let ret = client.api_client.verify_bandwidth_credential(&req).await;
-            self.nyxd_client
-                .revoke_allowance(
-                    &client.cosmos_address,
-                    "Cleanup the previous allowance for releasing funds".to_string(),
-                    revoke_fee.clone(),
-                )
-                .await?;
             match ret {
                 Ok(res) => {
                     if !res.verification_result {

@@ -24,6 +24,9 @@ pub(crate) mod storage;
 #[cfg(test)]
 pub(crate) mod tests;
 
+// equivalent of 10nym
+pub(crate) const MINIMUM_BALANCE: u128 = 10_000000;
+
 pub fn stage<C, D>(
     client: C,
     mix_denom: String,

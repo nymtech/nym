@@ -140,16 +140,11 @@ impl Client {
     }
 
     pub(crate) async fn balance<S: Into<String>>(&self, denom: S) -> Result<Coin, NyxdError> {
-        let guard = self.0.read().await;
+        let address = self.client_address().await;
         let denom = denom.into();
-        let address = guard.address();
-        match self
-            .0
-            .read()
-            .await
-            .get_balance(&address, denom.clone())
-            .await?
-        {
+        let balance = nyxd_query!(self, get_balance(&address, denom.clone()).await?);
+
+        match balance {
             None => Ok(Coin::new(0, denom)),
             Some(coin) => Ok(coin),
         }

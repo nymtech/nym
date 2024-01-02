@@ -92,7 +92,7 @@ impl UpgradePlan {
     }
 
     pub(crate) fn next_upgrade(&self) -> Option<&UpgradeInfo> {
-        self.queued_up.get(0)
+        self.queued_up.first()
     }
 
     pub(crate) fn pop_next_upgrade(&mut self) -> Option<UpgradeInfo> {

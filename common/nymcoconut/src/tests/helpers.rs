@@ -108,6 +108,17 @@ pub fn transpose_matrix<T: Debug>(matrix: Vec<Vec<T>>) -> Vec<Vec<T>> {
         .collect::<Vec<_>>()
 }
 
+#[macro_export]
+macro_rules! random_scalars_refs {
+    ( $x: ident, $params: expr, $n: expr ) => {
+        let _vec = $params.n_random_scalars($n);
+        #[allow(clippy::map_identity)]
+        let $x = _vec.iter().collect::<Vec<_>>();
+    };
+}
+
+pub use random_scalars_refs;
+
 #[cfg(test)]
 pub mod tests {
     use super::*;
@@ -170,14 +181,3 @@ pub mod tests {
             .collect()
     }
 }
-
-#[macro_export]
-macro_rules! random_scalars_refs {
-    ( $x: ident, $params: expr, $n: expr ) => {
-        let _vec = $params.n_random_scalars($n);
-        #[allow(clippy::map_identity)]
-        let $x = _vec.iter().collect::<Vec<_>>();
-    };
-}
-
-pub use random_scalars_refs;

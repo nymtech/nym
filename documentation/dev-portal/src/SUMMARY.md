@@ -68,9 +68,6 @@
 
 # Events
 
-- [37C3](events/37c3/welcome.md)
-    - [NymVPN](events/37c3/nym-vpn.md)
-    - [FAQ](events/37c3/faq.md) 
 - [Web3Privacy Now](./events/web3-privacy.md)
 - [HCPP23-serinko](./events/hcpp23-serinko.md)
 - [HCPP23-max](./events/hcpp23-max.md)

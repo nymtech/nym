@@ -107,7 +107,7 @@ impl CredentialIssuanceMonitor {
         trace!("deposit exists");
 
         // check if the deposit values match
-        let credential_value = issued_credential.credential.public_attributes.get(0);
+        let credential_value = issued_credential.credential.public_attributes.first();
         let credential_info = issued_credential.credential.public_attributes.get(1);
 
         if credential_value != Some(&deposit_value) {

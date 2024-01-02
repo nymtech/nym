@@ -1,3 +1,6 @@
+// due to the macro expansion of rather old rocket macros...
+#![allow(unused_imports)]
+
 use crate::service_providers::models::{
     DirectoryService, DirectorySpDetailed, HarbourMasterService, PagedResult,
 };

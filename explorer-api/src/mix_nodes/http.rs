@@ -1,3 +1,6 @@
+// due to the macro expansion of rather old rocket macros...
+#![allow(unused_imports)]
+
 use crate::mix_nodes::models::{MixNodeActiveSetSummary, MixNodeSummary};
 use crate::state::ExplorerApiStateContext;
 use nym_explorer_api_requests::{MixnodeStatus, PrettyDetailedMixNodeBond};

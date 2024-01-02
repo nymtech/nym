@@ -451,7 +451,7 @@ impl<St> Gateway<St> {
 
         let coconut_verifier = {
             let nyxd_client = self.random_nyxd_client()?;
-            CoconutVerifier::new(nyxd_client)
+            CoconutVerifier::new(nyxd_client).await
         };
 
         let mix_forwarding_channel =

@@ -81,6 +81,15 @@ ExitPolicy accept6 *6:119
 ExitPolicy accept *4:120
 ExitPolicy reject6 [FC00::]/7:*
 
+# Portless
+ExitPolicy accept *:0
+ExitPolicy accept *4:0
+ExitPolicy accept *6:0
+
+ExitPolicy reject *:0
+ExitPolicy reject *4:0
+ExitPolicy reject *6:0
+
 #ExitPolicy accept *:8080 #and another comment here
 
 ExitPolicy reject FE80:0000:0000:0000:0202:B3FF:FE1E:8329:*
@@ -181,6 +190,60 @@ ExitPolicy reject *:*
                     mask: 7,
                 },
                 ports: PortRange::new_all(),
+            },
+        );
+
+        // ExitPolicy accept *:0
+        expected.push(
+            Accept,
+            AddressPortPattern {
+                ip_pattern: IpPattern::Star,
+                ports: PortRange::new_zero(),
+            },
+        );
+
+        // ExitPolicy accept *4:0
+        expected.push(
+            Accept,
+            AddressPortPattern {
+                ip_pattern: IpPattern::V4Star,
+                ports: PortRange::new_zero(),
+            },
+        );
+
+        // ExitPolicy accept *6:0
+        expected.push(
+            Accept,
+            AddressPortPattern {
+                ip_pattern: IpPattern::V6Star,
+                ports: PortRange::new_zero(),
+            },
+        );
+
+        // ExitPolicy reject *:0
+        expected.push(
+            Reject,
+            AddressPortPattern {
+                ip_pattern: IpPattern::Star,
+                ports: PortRange::new_zero(),
+            },
+        );
+
+        // ExitPolicy reject *4:0
+        expected.push(
+            Reject,
+            AddressPortPattern {
+                ip_pattern: IpPattern::V4Star,
+                ports: PortRange::new_zero(),
+            },
+        );
+
+        // ExitPolicy reject *6:0
+        expected.push(
+            Reject,
+            AddressPortPattern {
+                ip_pattern: IpPattern::V6Star,
+                ports: PortRange::new_zero(),
             },
         );
 

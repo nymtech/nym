@@ -10,9 +10,8 @@ use async_trait::async_trait;
 use cosmrs::AccountId;
 use cosmwasm_std::Addr;
 use nym_coconut_dkg_common::msg::ExecuteMsg as DkgExecuteMsg;
-use nym_coconut_dkg_common::types::EncodedBTEPublicKeyWithProof;
+use nym_coconut_dkg_common::types::{EncodedBTEPublicKeyWithProof, PartialContractDealing};
 use nym_coconut_dkg_common::verification_key::VerificationKeyShare;
-use nym_contracts_common::dealings::ContractSafeBytes;
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
@@ -58,14 +57,11 @@ pub trait DkgSigningClient {
 
     async fn submit_dealing_bytes(
         &self,
-        dealing_bytes: ContractSafeBytes,
+        dealing: PartialContractDealing,
         resharing: bool,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
-        let req = DkgExecuteMsg::CommitDealing {
-            dealing_bytes,
-            resharing,
-        };
+        let req = DkgExecuteMsg::CommitDealing { dealing, resharing };
 
         self.execute_dkg_contract(fee, req, "dealing commitment".to_string(), vec![])
             .await
@@ -153,11 +149,8 @@ mod tests {
             } => client
                 .register_dealer(bte_key_with_proof, announce_address, resharing, None)
                 .ignore(),
-            DkgExecuteMsg::CommitDealing {
-                dealing_bytes,
-                resharing,
-            } => client
-                .submit_dealing_bytes(dealing_bytes, resharing, None)
+            DkgExecuteMsg::CommitDealing { dealing, resharing } => client
+                .submit_dealing_bytes(dealing, resharing, None)
                 .ignore(),
             DkgExecuteMsg::CommitVerificationKeyShare { share, resharing } => client
                 .submit_verification_key_share(share, resharing, None)

@@ -65,6 +65,7 @@ impl PagedDealerResponse {
     }
 }
 
+#[deprecated]
 #[cw_serde]
 pub struct ContractDealing {
     pub dealing: ContractSafeBytes,

@@ -13,9 +13,16 @@ pub type EncodedBTEPublicKeyWithProof = String;
 pub type EncodedBTEPublicKeyWithProofRef<'a> = &'a str;
 pub type NodeIndex = u64;
 pub type EpochId = u64;
+pub type DealingIndex = u32;
 
 // 2 public attributes, 2 private attributes, 1 fixed for coconut credential
 pub const TOTAL_DEALINGS: usize = 2 + 2 + 1;
+
+#[cw_serde]
+pub struct PartialContractDealing {
+    pub index: u32,
+    pub data: ContractSafeBytes,
+}
 
 #[cw_serde]
 pub struct InitialReplacementData {

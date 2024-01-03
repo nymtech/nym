@@ -16,4 +16,7 @@ pub struct State {
     pub mix_denom: String,
     pub multisig_addr: Addr,
     pub group_addr: Cw4Contract,
+
+    /// Specifies the number of elements in the derived keys
+    pub key_size: u32,
 }

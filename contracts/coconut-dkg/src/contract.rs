@@ -39,7 +39,7 @@ pub fn instantiate(
     let multisig_addr = deps.api.addr_validate(&msg.multisig_addr)?;
     MULTISIG.set(deps.branch(), Some(multisig_addr.clone()))?;
 
-    let group_addr = Cw4Contract(deps.api.addr_validate(&msg.group_addr).map_err(|_| {
+    let group_addr = Cw4Contract::new(deps.api.addr_validate(&msg.group_addr).map_err(|_| {
         ContractError::InvalidGroup {
             addr: msg.group_addr.clone(),
         }
@@ -49,6 +49,7 @@ pub fn instantiate(
         group_addr,
         multisig_addr,
         mix_denom: msg.mix_denom,
+        key_size: msg.key_size,
     };
     STATE.save(deps.storage, &state)?;
 
@@ -79,10 +80,9 @@ pub fn execute(
             announce_address,
             resharing,
         } => try_add_dealer(deps, info, bte_key_with_proof, announce_address, resharing),
-        ExecuteMsg::CommitDealing {
-            dealing_bytes,
-            resharing,
-        } => try_commit_dealings(deps, info, dealing_bytes, resharing),
+        ExecuteMsg::CommitDealing { dealing, resharing } => {
+            try_commit_dealings(deps, info, dealing, resharing)
+        }
         ExecuteMsg::CommitVerificationKeyShare { share, resharing } => {
             try_commit_verification_key_share(deps, env, info, share, resharing)
         }
@@ -141,7 +141,7 @@ mod tests {
     use cw4::Member;
     use cw_multi_test::{App, AppBuilder, AppResponse, ContractWrapper, Executor};
     use nym_coconut_dkg_common::msg::ExecuteMsg::RegisterDealer;
-    use nym_coconut_dkg_common::types::NodeIndex;
+    use nym_coconut_dkg_common::types::{NodeIndex, TOTAL_DEALINGS};
     use nym_group_contract_common::msg::InstantiateMsg as GroupInstantiateMsg;
 
     fn instantiate_with_group(app: &mut App, members: &[Addr]) -> Addr {
@@ -178,6 +178,7 @@ mod tests {
             multisig_addr: MULTISIG_CONTRACT.to_string(),
             time_configuration: None,
             mix_denom: TEST_MIX_DENOM.to_string(),
+            key_size: TOTAL_DEALINGS as u32,
         };
         app.instantiate_contract(
             coconut_dkg_code_id,
@@ -213,6 +214,7 @@ mod tests {
             multisig_addr: "multisig_addr".to_string(),
             time_configuration: None,
             mix_denom: "nym".to_string(),
+            key_size: 5,
         };
         let info = mock_info("creator", &[]);
 

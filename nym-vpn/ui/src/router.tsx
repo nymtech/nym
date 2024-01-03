@@ -9,6 +9,7 @@ import {
   NavLayout,
   NodeLocation,
   Settings,
+  SettingsLayout,
 } from './pages';
 import { routes } from './constants';
 
@@ -24,9 +25,14 @@ const router = createBrowserRouter([
       },
       {
         path: routes.settings,
-        element: <Settings />,
+        element: <SettingsLayout />,
         errorElement: <Error />,
         children: [
+          {
+            element: <Settings />,
+            errorElement: <Error />,
+            index: true,
+          },
           {
             path: routes.display,
             element: <Display />,

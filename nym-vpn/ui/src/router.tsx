@@ -26,26 +26,28 @@ const router = createBrowserRouter([
         path: routes.settings,
         element: <Settings />,
         errorElement: <Error />,
-      },
-      {
-        path: routes.display,
-        element: <Display />,
-        errorElement: <Error />,
-      },
-      {
-        path: routes.logs,
-        element: <Logs />,
-        errorElement: <Error />,
-      },
-      {
-        path: routes.feedback,
-        element: <Feedback />,
-        errorElement: <Error />,
-      },
-      {
-        path: routes.legal,
-        element: <Legal />,
-        errorElement: <Error />,
+        children: [
+          {
+            path: routes.display,
+            element: <Display />,
+            errorElement: <Error />,
+          },
+          {
+            path: routes.logs,
+            element: <Logs />,
+            errorElement: <Error />,
+          },
+          {
+            path: routes.feedback,
+            element: <Feedback />,
+            errorElement: <Error />,
+          },
+          {
+            path: routes.legal,
+            element: <Legal />,
+            errorElement: <Error />,
+          },
+        ]
       },
       {
         path: routes.entryNodeLocation,

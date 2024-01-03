@@ -1,14 +1,16 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::types::{PartialContractDealing, EncodedBTEPublicKeyWithProof, EpochId, TimeConfiguration};
+use crate::types::{
+    DealingIndex, EncodedBTEPublicKeyWithProof, EpochId, PartialContractDealing, TimeConfiguration,
+};
 use crate::verification_key::VerificationKeyShare;
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::Addr;
 
 #[cfg(feature = "schema")]
 use crate::{
-    dealer::{DealerDetailsResponse, PagedDealerResponse, PagedDealingsResponse},
+    dealer::{DealerDetailsResponse, DealingResponse, PagedDealerResponse, PagedDealingsResponse},
     types::{Epoch, InitialReplacementData},
     verification_key::PagedVKSharesResponse,
 };
@@ -82,11 +84,19 @@ pub enum QueryMsg {
         start_after: Option<String>,
     },
 
-    #[cfg_attr(feature = "schema", returns(PagedDealingsResponse))]
+    #[cfg_attr(feature = "schema", returns(DealingResponse))]
     GetDealing {
-        idx: u64,
+        epoch_id: EpochId,
+        dealer: String,
+        dealing_index: DealingIndex,
+    },
+
+    #[cfg_attr(feature = "schema", returns(PagedDealingsResponse))]
+    GetDealings {
+        epoch_id: EpochId,
+        dealer: String,
         limit: Option<u32>,
-        start_after: Option<String>,
+        start_after: Option<DealingIndex>,
     },
 
     #[cfg_attr(feature = "schema", returns(PagedVKSharesResponse))]

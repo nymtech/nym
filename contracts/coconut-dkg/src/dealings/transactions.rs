@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::dealers::storage as dealers_storage;
-use crate::dealings::storage::{has_committed_dealing, save_dealing};
+use crate::dealings::storage::StoredDealing;
 use crate::epoch_state::storage::{CURRENT_EPOCH, INITIAL_REPLACEMENT_DATA};
 use crate::epoch_state::utils::check_epoch_state;
 use crate::error::ContractError;
@@ -48,7 +48,7 @@ pub fn try_commit_dealings(
     }
 
     // check if this dealer has already committed this particular dealing
-    if has_committed_dealing(deps.storage, epoch.epoch_id, &info.sender, dealing.index) {
+    if StoredDealing::exists(deps.storage, epoch.epoch_id, &info.sender, dealing.index) {
         return Err(ContractError::DealingAlreadyCommitted {
             epoch_id: epoch.epoch_id,
             dealer: info.sender,
@@ -56,7 +56,7 @@ pub fn try_commit_dealings(
         });
     }
 
-    save_dealing(deps.storage, epoch.epoch_id, &info.sender, dealing);
+    StoredDealing::save(deps.storage, epoch.epoch_id, &info.sender, dealing);
 
     Ok(Response::new())
 }

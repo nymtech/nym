@@ -70,7 +70,7 @@ pub trait DkgQueryClient {
         start_after: Option<String>,
         limit: Option<u32>,
     ) -> Result<PagedDealingsResponse, NyxdError> {
-        let request = DkgQueryMsg::GetDealing {
+        let request = DkgQueryMsg::GetDealings {
             idx,
             limit,
             start_after,
@@ -165,7 +165,7 @@ mod tests {
             DkgQueryMsg::GetPastDealers { limit, start_after } => {
                 client.get_past_dealers_paged(start_after, limit).ignore()
             }
-            DkgQueryMsg::GetDealing {
+            DkgQueryMsg::GetDealings {
                 idx,
                 limit,
                 start_after,

@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::dealers::storage::{current_dealers, past_dealers};
-use crate::dealings::storage::DEALINGS_BYTES;
 use crate::epoch_state::storage::{CURRENT_EPOCH, INITIAL_REPLACEMENT_DATA, THRESHOLD};
 use crate::epoch_state::utils::check_epoch_state;
 use crate::error::ContractError;
@@ -17,21 +16,22 @@ fn reset_epoch_state(storage: &mut dyn Storage) -> Result<(), ContractError> {
         .keys(storage, None, None, Order::Ascending)
         .collect::<Result<_, _>>()?;
 
-    for dealer_addr in dealers {
-        let details = current_dealers().load(storage, &dealer_addr)?;
-        for dealings in DEALINGS_BYTES {
-            let dealing_keys: Vec<_> = dealings
-                .keys(storage, None, None, Order::Ascending)
-                .flatten()
-                .collect();
-            for key in dealing_keys {
-                dealings.remove(storage, &key);
-            }
-        }
-        current_dealers().remove(storage, &dealer_addr)?;
-        past_dealers().save(storage, &dealer_addr, &details)?;
-    }
-    Ok(())
+    todo!()
+    // for dealer_addr in dealers {
+    //     let details = current_dealers().load(storage, &dealer_addr)?;
+    //     for dealings in DEALINGS_BYTES {
+    //         let dealing_keys: Vec<_> = dealings
+    //             .keys(storage, None, None, Order::Ascending)
+    //             .flatten()
+    //             .collect();
+    //         for key in dealing_keys {
+    //             dealings.remove(storage, &key);
+    //         }
+    //     }
+    //     current_dealers().remove(storage, &dealer_addr)?;
+    //     past_dealers().save(storage, &dealer_addr, &details)?;
+    // }
+    // Ok(())
 }
 
 fn dealers_still_active(

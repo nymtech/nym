@@ -5,7 +5,7 @@ use crate::dealers::queries::{
     query_current_dealers_paged, query_dealer_details, query_past_dealers_paged,
 };
 use crate::dealers::transactions::try_add_dealer;
-use crate::dealings::queries::query_dealings_paged;
+use crate::dealings::queries::{query_dealing, query_dealings_paged};
 use crate::dealings::transactions::try_commit_dealings;
 use crate::epoch_state::queries::{
     query_current_epoch, query_current_epoch_threshold, query_initial_dealers,
@@ -112,10 +112,22 @@ pub fn query(deps: Deps<'_>, _env: Env, msg: QueryMsg) -> Result<QueryResponse, 
             to_binary(&query_past_dealers_paged(deps, start_after, limit)?)?
         }
         QueryMsg::GetDealing {
-            idx,
+            epoch_id,
+            dealer,
+            dealing_index,
+        } => to_binary(&query_dealing(deps, epoch_id, dealer, dealing_index)?)?,
+        QueryMsg::GetDealings {
+            epoch_id,
+            dealer,
             limit,
             start_after,
-        } => to_binary(&query_dealings_paged(deps, idx, start_after, limit)?)?,
+        } => to_binary(&query_dealings_paged(
+            deps,
+            epoch_id,
+            dealer,
+            limit,
+            start_after,
+        )?)?,
         QueryMsg::GetVerificationKeys {
             epoch_id,
             limit,

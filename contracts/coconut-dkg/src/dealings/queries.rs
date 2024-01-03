@@ -2,44 +2,52 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::dealings::storage;
-use crate::dealings::storage::DEALINGS_BYTES;
-use cosmwasm_std::{Deps, Order, StdResult};
+use crate::dealings::storage::StoredDealing;
+use cosmwasm_std::{Deps, StdResult};
 use cw_storage_plus::Bound;
-use nym_coconut_dkg_common::dealer::{ContractDealing, PagedDealingsResponse};
-use nym_coconut_dkg_common::types::TOTAL_DEALINGS;
+use nym_coconut_dkg_common::dealer::{DealingResponse, PagedDealingsResponse};
+use nym_coconut_dkg_common::types::{DealingIndex, EpochId};
+pub fn query_dealing(
+    deps: Deps<'_>,
+    epoch_id: EpochId,
+    dealer: String,
+    dealing_index: DealingIndex,
+) -> StdResult<DealingResponse> {
+    let dealer = deps.api.addr_validate(&dealer)?;
+    let dealing = StoredDealing::read(deps.storage, epoch_id, &dealer, dealing_index);
+
+    Ok(DealingResponse {
+        epoch_id,
+        dealer,
+        dealing_index,
+        dealing,
+    })
+}
 
 pub fn query_dealings_paged(
     deps: Deps<'_>,
-    idx: u64,
-    start_after: Option<String>,
+    epoch_id: EpochId,
+    dealer: String,
+    start_after: Option<DealingIndex>,
     limit: Option<u32>,
 ) -> StdResult<PagedDealingsResponse> {
     let limit = limit
         .unwrap_or(storage::DEALINGS_PAGE_DEFAULT_LIMIT)
-        .min(storage::DEALINGS_PAGE_MAX_LIMIT) as usize;
+        .min(storage::DEALINGS_PAGE_MAX_LIMIT);
 
-    let idx = idx as usize;
-    if idx >= TOTAL_DEALINGS {
-        return Ok(PagedDealingsResponse::new(vec![], limit, None));
-    }
+    let dealer = deps.api.addr_validate(&dealer)?;
+    let start = start_after.map(Bound::exclusive);
 
-    let addr = start_after
-        .map(|addr| deps.api.addr_validate(&addr))
-        .transpose()?;
-
-    let start = addr.as_ref().map(Bound::exclusive);
-
-    let dealings = DEALINGS_BYTES[idx]
-        .range(deps.storage, start, None, Order::Ascending)
-        .take(limit)
-        .map(|res| res.map(|(dealer, dealing)| ContractDealing::new(dealing, dealer)))
+    let dealings = StoredDealing::prefix_range(deps.storage, (epoch_id, &dealer), start)
+        .take(limit as usize)
         .collect::<StdResult<Vec<_>>>()?;
 
-    let start_next_after = dealings.last().map(|dealing| dealing.dealer.clone());
+    let start_next_after = dealings.last().map(|dealing| dealing.index);
 
     Ok(PagedDealingsResponse::new(
+        epoch_id,
+        dealer,
         dealings,
-        limit,
         start_next_after,
     ))
 }

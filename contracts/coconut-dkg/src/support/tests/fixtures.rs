@@ -20,7 +20,7 @@ pub fn vk_share_fixture(owner: &str, index: u64) -> ContractVKShare {
 }
 
 pub fn dealing_bytes_fixture() -> ContractSafeBytes {
-    ContractSafeBytes(vec![])
+    ContractSafeBytes(vec![1, 2, 3])
 }
 
 pub fn partial_dealing_fixture() -> PartialContractDealing {

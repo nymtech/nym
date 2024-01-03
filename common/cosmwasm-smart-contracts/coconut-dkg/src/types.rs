@@ -21,8 +21,17 @@ pub const TOTAL_DEALINGS: usize = 2 + 2 + 1;
 
 #[cw_serde]
 pub struct PartialContractDealing {
-    pub index: u32,
+    pub index: DealingIndex,
     pub data: ContractDealing,
+}
+
+impl From<(DealingIndex, ContractDealing)> for PartialContractDealing {
+    fn from(value: (DealingIndex, ContractDealing)) -> Self {
+        PartialContractDealing {
+            index: value.0,
+            data: value.1,
+        }
+    }
 }
 
 #[cw_serde]

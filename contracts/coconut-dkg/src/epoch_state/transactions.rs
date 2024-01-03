@@ -16,22 +16,12 @@ fn reset_epoch_state(storage: &mut dyn Storage) -> Result<(), ContractError> {
         .keys(storage, None, None, Order::Ascending)
         .collect::<Result<_, _>>()?;
 
-    todo!()
-    // for dealer_addr in dealers {
-    //     let details = current_dealers().load(storage, &dealer_addr)?;
-    //     for dealings in DEALINGS_BYTES {
-    //         let dealing_keys: Vec<_> = dealings
-    //             .keys(storage, None, None, Order::Ascending)
-    //             .flatten()
-    //             .collect();
-    //         for key in dealing_keys {
-    //             dealings.remove(storage, &key);
-    //         }
-    //     }
-    //     current_dealers().remove(storage, &dealer_addr)?;
-    //     past_dealers().save(storage, &dealer_addr, &details)?;
-    // }
-    // Ok(())
+    for dealer_addr in dealers {
+        let details = current_dealers().load(storage, &dealer_addr)?;
+        current_dealers().remove(storage, &dealer_addr)?;
+        past_dealers().save(storage, &dealer_addr, &details)?;
+    }
+    Ok(())
 }
 
 fn dealers_still_active(
@@ -198,9 +188,7 @@ pub(crate) mod tests {
     use cosmwasm_std::testing::mock_env;
     use cosmwasm_std::Addr;
     use cw4::Member;
-    use nym_coconut_dkg_common::types::{
-        ContractSafeBytes, DealerDetails, EpochState, TimeConfiguration,
-    };
+    use nym_coconut_dkg_common::types::{DealerDetails, EpochState, TimeConfiguration};
     use rusty_fork::rusty_fork_test;
 
     // Because of the global variable handling group, we need individual process for each test
@@ -783,44 +771,28 @@ pub(crate) mod tests {
         let mut deps = init_contract();
         let all_details: [_; 100] = std::array::from_fn(|i| dealer_details_fixture(i as u64));
 
-        todo!()
-        // THRESHOLD.save(deps.as_mut().storage, &42).unwrap();
-        // for details in all_details.iter() {
-        //     current_dealers()
-        //         .save(deps.as_mut().storage, &details.address, details)
-        //         .unwrap();
-        //     for dealings in DEALINGS_BYTES {
-        //         dealings
-        //             .save(
-        //                 deps.as_mut().storage,
-        //                 &details.address,
-        //                 &ContractSafeBytes(vec![1, 2, 3]),
-        //             )
-        //             .unwrap();
-        //     }
-        // }
-        //
-        // reset_epoch_state(deps.as_mut().storage).unwrap();
-        //
-        // assert!(THRESHOLD.may_load(&deps.storage).unwrap().is_none());
-        // for details in all_details {
-        //     for dealings in DEALINGS_BYTES {
-        //         assert!(dealings
-        //             .may_load(&deps.storage, &details.address)
-        //             .unwrap()
-        //             .is_none());
-        //     }
-        //     assert!(current_dealers()
-        //         .may_load(deps.as_mut().storage, &details.address)
-        //         .unwrap()
-        //         .is_none());
-        //     assert_eq!(
-        //         past_dealers()
-        //             .load(&deps.storage, &details.address)
-        //             .unwrap(),
-        //         details
-        //     );
-        // }
+        THRESHOLD.save(deps.as_mut().storage, &42).unwrap();
+        for details in all_details.iter() {
+            current_dealers()
+                .save(deps.as_mut().storage, &details.address, details)
+                .unwrap();
+        }
+
+        reset_epoch_state(deps.as_mut().storage).unwrap();
+
+        assert!(THRESHOLD.may_load(&deps.storage).unwrap().is_none());
+        for details in all_details {
+            assert!(current_dealers()
+                .may_load(deps.as_mut().storage, &details.address)
+                .unwrap()
+                .is_none());
+            assert_eq!(
+                past_dealers()
+                    .load(&deps.storage, &details.address)
+                    .unwrap(),
+                details
+            );
+        }
     }
 
     #[test]

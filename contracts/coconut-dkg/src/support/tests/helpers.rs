@@ -9,7 +9,6 @@ use cosmwasm_std::{
     QuerierResult, SystemResult, WasmQuery,
 };
 use cw4::{Cw4QueryMsg, Member, MemberListResponse, MemberResponse};
-use lazy_static::lazy_static;
 use nym_coconut_dkg_common::msg::InstantiateMsg;
 use nym_coconut_dkg_common::types::{DealerDetails, TOTAL_DEALINGS};
 use std::sync::Mutex;
@@ -20,9 +19,7 @@ pub const ADMIN_ADDRESS: &str = "admin address";
 pub const GROUP_CONTRACT: &str = "group contract address";
 pub const MULTISIG_CONTRACT: &str = "multisig contract address";
 
-lazy_static! {
-    pub static ref GROUP_MEMBERS: Mutex<Vec<(Member, u64)>> = Mutex::new(vec![]);
-}
+pub(crate) static GROUP_MEMBERS: Mutex<Vec<(Member, u64)>> = Mutex::new(Vec::new());
 
 pub fn add_fixture_dealer(deps: DepsMut<'_>) {
     let owner = Addr::unchecked("owner");

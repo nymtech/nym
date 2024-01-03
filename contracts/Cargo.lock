@@ -1222,7 +1222,6 @@ dependencies = [
  "cw-storage-plus",
  "cw4",
  "cw4-group",
- "lazy_static",
  "nym-coconut-dkg-common",
  "nym-group-contract-common",
  "rusty-fork",

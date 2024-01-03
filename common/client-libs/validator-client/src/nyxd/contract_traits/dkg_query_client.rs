@@ -8,9 +8,11 @@ use crate::nyxd::CosmWasmClient;
 use async_trait::async_trait;
 use cosmrs::AccountId;
 use nym_coconut_dkg_common::{
-    dealer::{ContractDealing, DealerDetailsResponse, PagedDealerResponse, PagedDealingsResponse},
+    dealer::{DealerDetailsResponse, DealingResponse, PagedDealerResponse, PagedDealingsResponse},
     msg::QueryMsg as DkgQueryMsg,
-    types::{DealerDetails, Epoch, EpochId, InitialReplacementData},
+    types::{
+        DealerDetails, DealingIndex, Epoch, EpochId, InitialReplacementData, PartialContractDealing,
+    },
     verification_key::{ContractVKShare, PagedVKSharesResponse},
 };
 use serde::Deserialize;
@@ -64,14 +66,31 @@ pub trait DkgQueryClient {
         self.query_dkg_contract(request).await
     }
 
-    async fn get_dealings_paged(
+    async fn get_dealing(
         &self,
-        idx: u64,
-        start_after: Option<String>,
+        epoch_id: EpochId,
+        dealer: String,
+        dealing_index: DealingIndex,
+    ) -> Result<DealingResponse, NyxdError> {
+        let request = DkgQueryMsg::GetDealing {
+            epoch_id,
+            dealer,
+            dealing_index,
+        };
+
+        self.query_dkg_contract(request).await
+    }
+
+    async fn get_dealer_dealings_paged(
+        &self,
+        epoch_id: EpochId,
+        dealer: &str,
+        start_after: Option<DealingIndex>,
         limit: Option<u32>,
     ) -> Result<PagedDealingsResponse, NyxdError> {
         let request = DkgQueryMsg::GetDealings {
-            idx,
+            epoch_id,
+            dealer: dealer.to_string(),
             limit,
             start_after,
         };
@@ -106,8 +125,12 @@ pub trait PagedDkgQueryClient: DkgQueryClient {
         collect_paged!(self, get_past_dealers_paged, dealers)
     }
 
-    async fn get_all_epoch_dealings(&self, idx: u64) -> Result<Vec<ContractDealing>, NyxdError> {
-        collect_paged!(self, get_dealings_paged, dealings, idx)
+    async fn get_all_dealer_dealings(
+        &self,
+        epoch_id: EpochId,
+        dealer: &str,
+    ) -> Result<Vec<PartialContractDealing>, NyxdError> {
+        collect_paged!(self, get_dealer_dealings_paged, dealings, epoch_id, dealer)
     }
 
     async fn get_all_verification_key_shares(
@@ -165,11 +188,19 @@ mod tests {
             DkgQueryMsg::GetPastDealers { limit, start_after } => {
                 client.get_past_dealers_paged(start_after, limit).ignore()
             }
+            DkgQueryMsg::GetDealing {
+                epoch_id,
+                dealer,
+                dealing_index,
+            } => client.get_dealing(epoch_id, dealer, dealing_index).ignore(),
             DkgQueryMsg::GetDealings {
-                idx,
+                epoch_id,
+                dealer,
                 limit,
                 start_after,
-            } => client.get_dealings_paged(idx, start_after, limit).ignore(),
+            } => client
+                .get_dealer_dealings_paged(epoch_id, &dealer, limit, start_after)
+                .ignore(),
             DkgQueryMsg::GetVerificationKeys {
                 epoch_id,
                 limit,

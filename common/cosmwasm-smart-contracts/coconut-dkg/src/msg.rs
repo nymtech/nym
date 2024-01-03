@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::types::{ContractSafeBytes, EncodedBTEPublicKeyWithProof, EpochId, TimeConfiguration};
+use crate::types::{PartialContractDealing, EncodedBTEPublicKeyWithProof, EpochId, TimeConfiguration};
 use crate::verification_key::VerificationKeyShare;
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::Addr;
@@ -21,6 +21,9 @@ pub struct InstantiateMsg {
     pub multisig_addr: String,
     pub time_configuration: Option<TimeConfiguration>,
     pub mix_denom: String,
+
+    /// Specifies the number of elements in the derived keys
+    pub key_size: u32,
 }
 
 #[cw_serde]
@@ -32,7 +35,7 @@ pub enum ExecuteMsg {
     },
 
     CommitDealing {
-        dealing_bytes: ContractSafeBytes,
+        dealing: PartialContractDealing,
         resharing: bool,
     },
 

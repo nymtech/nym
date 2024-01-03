@@ -2,17 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::dealers::storage as dealers_storage;
-use crate::dealings::storage::DEALINGS_BYTES;
-use crate::epoch_state::storage::INITIAL_REPLACEMENT_DATA;
+use crate::dealings::storage::{has_committed_dealing, save_dealing};
+use crate::epoch_state::storage::{CURRENT_EPOCH, INITIAL_REPLACEMENT_DATA};
 use crate::epoch_state::utils::check_epoch_state;
 use crate::error::ContractError;
+use crate::state::STATE;
 use cosmwasm_std::{DepsMut, MessageInfo, Response};
-use nym_coconut_dkg_common::types::{ContractSafeBytes, EpochState};
+use nym_coconut_dkg_common::types::{EpochState, PartialContractDealing};
 
 pub fn try_commit_dealings(
     deps: DepsMut<'_>,
     info: MessageInfo,
-    dealing_bytes: ContractSafeBytes,
+    dealing: PartialContractDealing,
     resharing: bool,
 ) -> Result<Response, ContractError> {
     check_epoch_state(deps.storage, EpochState::DealingExchange { resharing })?;
@@ -32,18 +33,32 @@ pub fn try_commit_dealings(
         return Err(ContractError::NotAnInitialDealer);
     }
 
-    // check if this dealer has already committed to all dealings
-    // (we don't want to allow overwriting anything)
-    for dealings in DEALINGS_BYTES {
-        if !dealings.has(deps.storage, &info.sender) {
-            dealings.save(deps.storage, &info.sender, &dealing_bytes)?;
-            return Ok(Response::default());
-        }
+    let state = STATE.load(deps.storage)?;
+    let epoch = CURRENT_EPOCH.load(deps.storage)?;
+
+    // check if the index is in range without doing expensive storage reads
+    // note: dealing indexing starts from 0
+    if dealing.index >= state.key_size {
+        return Err(ContractError::DealingOutOfRange {
+            epoch_id: epoch.epoch_id,
+            dealer: info.sender,
+            index: dealing.index,
+            key_size: state.key_size,
+        });
     }
 
-    Err(ContractError::AlreadyCommitted {
-        commitment: String::from("dealing"),
-    })
+    // check if this dealer has already committed this particular dealing
+    if has_committed_dealing(deps.storage, epoch.epoch_id, &info.sender, dealing.index) {
+        return Err(ContractError::DealingAlreadyCommitted {
+            epoch_id: epoch.epoch_id,
+            dealer: info.sender,
+            index: dealing.index,
+        });
+    }
+
+    save_dealing(deps.storage, epoch.epoch_id, &info.sender, dealing);
+
+    Ok(Response::new())
 }
 
 #[cfg(test)]
@@ -51,13 +66,15 @@ pub(crate) mod tests {
     use super::*;
     use crate::epoch_state::storage::CURRENT_EPOCH;
     use crate::epoch_state::transactions::advance_epoch_state;
-    use crate::support::tests::fixtures::{dealer_details_fixture, dealing_bytes_fixture};
+    use crate::support::tests::fixtures::{dealer_details_fixture, partial_dealing_fixture};
     use crate::support::tests::helpers;
     use crate::support::tests::helpers::add_fixture_dealer;
     use cosmwasm_std::testing::{mock_env, mock_info};
     use cosmwasm_std::Addr;
     use nym_coconut_dkg_common::dealer::DealerDetails;
-    use nym_coconut_dkg_common::types::{InitialReplacementData, TimeConfiguration};
+    use nym_coconut_dkg_common::types::{
+        ContractSafeBytes, InitialReplacementData, TimeConfiguration, TOTAL_DEALINGS,
+    };
 
     #[test]
     fn invalid_commit_dealing() {
@@ -65,10 +82,10 @@ pub(crate) mod tests {
         let owner = Addr::unchecked("owner1");
         let mut env = mock_env();
         let info = mock_info(owner.as_str(), &[]);
-        let dealing_bytes = dealing_bytes_fixture();
+        let dealing = partial_dealing_fixture();
 
-        let ret = try_commit_dealings(deps.as_mut(), info.clone(), dealing_bytes.clone(), false)
-            .unwrap_err();
+        let ret =
+            try_commit_dealings(deps.as_mut(), info.clone(), dealing.clone(), false).unwrap_err();
         assert_eq!(
             ret,
             ContractError::IncorrectEpochState {
@@ -84,8 +101,8 @@ pub(crate) mod tests {
         add_fixture_dealer(deps.as_mut());
         advance_epoch_state(deps.as_mut(), env).unwrap();
 
-        let ret = try_commit_dealings(deps.as_mut(), info.clone(), dealing_bytes.clone(), false)
-            .unwrap_err();
+        let ret =
+            try_commit_dealings(deps.as_mut(), info.clone(), dealing.clone(), false).unwrap_err();
         assert_eq!(ret, ContractError::NotADealer);
 
         let dealer_details = DealerDetails {
@@ -114,8 +131,8 @@ pub(crate) mod tests {
                 },
             )
             .unwrap();
-        let ret = try_commit_dealings(deps.as_mut(), info.clone(), dealing_bytes.clone(), true)
-            .unwrap_err();
+        let ret =
+            try_commit_dealings(deps.as_mut(), info.clone(), dealing.clone(), true).unwrap_err();
         assert_eq!(ret, ContractError::NotAnInitialDealer);
 
         INITIAL_REPLACEMENT_DATA
@@ -125,18 +142,60 @@ pub(crate) mod tests {
             })
             .unwrap();
 
-        for dealings in DEALINGS_BYTES {
-            assert!(!dealings.has(deps.as_mut().storage, &owner));
-            let ret = try_commit_dealings(deps.as_mut(), info.clone(), dealing_bytes.clone(), true);
-            assert!(ret.is_ok());
-            assert!(dealings.has(deps.as_mut().storage, &owner));
-        }
-        let ret = try_commit_dealings(deps.as_mut(), info, dealing_bytes, true).unwrap_err();
+        // back to 'normal' mode
+        CURRENT_EPOCH
+            .update::<_, ContractError>(deps.as_mut().storage, |mut epoch| {
+                epoch.state = EpochState::DealingExchange { resharing: false };
+                Ok(epoch)
+            })
+            .unwrap();
+
+        // dealing out of range
+        let ret = try_commit_dealings(
+            deps.as_mut(),
+            info.clone(),
+            PartialContractDealing {
+                index: 42,
+                data: ContractSafeBytes(vec![1, 2, 3]),
+            },
+            false,
+        )
+        .unwrap_err();
         assert_eq!(
             ret,
-            ContractError::AlreadyCommitted {
-                commitment: String::from("dealing"),
+            ContractError::DealingOutOfRange {
+                epoch_id: 0,
+                dealer: info.sender.clone(),
+                index: 42,
+                key_size: TOTAL_DEALINGS as u32,
             }
         );
+
+        // 'good' dealing
+        let ret = try_commit_dealings(deps.as_mut(), info.clone(), dealing.clone(), false);
+        assert!(ret.is_ok());
+
+        // duplicate dealing
+        let ret =
+            try_commit_dealings(deps.as_mut(), info.clone(), dealing.clone(), false).unwrap_err();
+        assert_eq!(
+            ret,
+            ContractError::DealingAlreadyCommitted {
+                epoch_id: 0,
+                dealer: info.sender.clone(),
+                index: 0,
+            }
+        );
+
+        // same index, but next epoch
+        CURRENT_EPOCH
+            .update::<_, ContractError>(deps.as_mut().storage, |mut epoch| {
+                epoch.epoch_id += 1;
+                Ok(epoch)
+            })
+            .unwrap();
+
+        let ret = try_commit_dealings(deps.as_mut(), info.clone(), dealing.clone(), false);
+        assert!(ret.is_ok());
     }
 }

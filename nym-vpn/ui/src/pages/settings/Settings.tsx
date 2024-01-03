@@ -124,29 +124,27 @@ function Settings() {
       />
       <SettingsGroup
         settings={[
-            {
-                title: t('logs'),
-                desc: '',
-                leadingIcon: <img
-                    src={`./icons/logs.svg`}
-                    className="h-8"
-                    alt={t('logs')}
-                />,
-                onClick: () => {
-                    navigate(routes.logs);
-                },
-                trailing: (
-                    <div className="font-icon cursor-pointer">arrow_right</div>
-                ),
+          {
+            title: t('logs'),
+            desc: '',
+            leadingIcon: (
+              <img src={`./icons/logs.svg`} className="h-8" alt={t('logs')} />
+            ),
+            onClick: () => {
+              navigate(routes.logs);
             },
+            trailing: (
+              <div className="font-icon cursor-pointer">arrow_right</div>
+            ),
+          },
         ]}
       />
-        <SettingsGroup
-            settings={[
-                {
-                    title: t('feedback'),
-                    desc: '',
-                    leadingIcon: 'question_answer',
+      <SettingsGroup
+        settings={[
+          {
+            title: t('feedback'),
+            desc: '',
+            leadingIcon: 'question_answer',
             onClick: () => {
               navigate(routes.feedback);
             },

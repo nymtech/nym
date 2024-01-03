@@ -38,12 +38,10 @@ function SettingsGroup({ settings }: Props) {
               ])}
             >
               <div className="flex flex-1 items-center justify-between gap-4">
-                {setting.leadingIcon ? (
+                {setting.leadingIcon && (
                   <span className="font-icon text-2xl">
                     {setting.leadingIcon}
                   </span>
-                ) : (
-                  <></>
                 )}
                 <div className="flex flex-1 items-center">
                   <div className="text-sm">

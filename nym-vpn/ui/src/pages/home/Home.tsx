@@ -83,14 +83,16 @@ function Home() {
             <div className="mt-3 font-semibold text-lg">
               {t('select-node-title')}
             </div>
-            {entrySelector ? (
+            {entrySelector && (
               <HopSelect
                 country={entryNodeLocation || defaultNodeLocation}
-                onClick={() => navigate(routes.entryNodeLocation)}
+                onClick={() => {
+                  if (state === 'Disconnected') {
+                    navigate(routes.entryNodeLocation);
+                  }
+                }}
                 nodeHop="entry"
               />
-            ) : (
-              <></>
             )}
             <HopSelect
               country={exitNodeLocation || defaultNodeLocation}

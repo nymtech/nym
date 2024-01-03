@@ -4,7 +4,7 @@ import { RadioGroup } from '@headlessui/react';
 
 type Setting = {
   title: string;
-  leadingIcon: string | null;
+  leadingIcon: string | null | ReactNode;
   desc: string;
   onClick: () => void;
   trailing: ReactNode;

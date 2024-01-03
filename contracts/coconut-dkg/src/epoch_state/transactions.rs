@@ -10,7 +10,7 @@ use crate::verification_key_shares::storage::verified_dealers;
 use cosmwasm_std::{Addr, Deps, DepsMut, Env, Order, Response, Storage};
 use nym_coconut_dkg_common::types::{Epoch, EpochState, InitialReplacementData};
 
-fn reset_epoch_state(storage: &mut dyn Storage) -> Result<(), ContractError> {
+fn reset_dkg_state(storage: &mut dyn Storage) -> Result<(), ContractError> {
     THRESHOLD.remove(storage);
     let dealers: Vec<_> = current_dealers()
         .keys(storage, None, None, Order::Ascending)
@@ -113,6 +113,8 @@ pub(crate) fn advance_epoch_state(deps: DepsMut<'_>, env: Env) -> Result<Respons
     } else if dealers_eq_members(&deps)? {
         // The dealer set hasn't changed, so we only extend the finish timestamp
         // The epoch remains the same, as we use it as key for storing VKs
+
+        // TODO: change that behaviour in the following PR
         Epoch::new(
             current_epoch.state,
             current_epoch.epoch_id,
@@ -142,7 +144,7 @@ pub(crate) fn advance_epoch_state(deps: DepsMut<'_>, env: Env) -> Result<Respons
 
             EpochState::PublicKeySubmission { resharing: true }
         };
-        reset_epoch_state(deps.storage)?;
+        reset_dkg_state(deps.storage)?;
         Epoch::new(
             state,
             current_epoch.epoch_id + 1,
@@ -164,7 +166,7 @@ pub(crate) fn try_surpassed_threshold(
     let threshold = THRESHOLD.load(deps.storage)?;
     let dealers = verified_dealers(deps.storage)?;
     if dealers_still_active(&deps.as_ref(), dealers.into_iter())? < threshold as usize {
-        reset_epoch_state(deps.storage)?;
+        reset_dkg_state(deps.storage)?;
         CURRENT_EPOCH.update::<_, ContractError>(deps.storage, |epoch| {
             Ok(Epoch::new(
                 EpochState::default(),
@@ -778,7 +780,7 @@ pub(crate) mod tests {
                 .unwrap();
         }
 
-        reset_epoch_state(deps.as_mut().storage).unwrap();
+        reset_dkg_state(deps.as_mut().storage).unwrap();
 
         assert!(THRESHOLD.may_load(&deps.storage).unwrap().is_none());
         for details in all_details {

@@ -1,5 +1,6 @@
 import React, { useEffect, useReducer } from 'react';
 import { invoke } from '@tauri-apps/api';
+import { getVersion } from '@tauri-apps/api/app';
 import { MainDispatchContext, MainStateContext } from '../contexts';
 import {
   AppDataFromBackend,
@@ -40,6 +41,19 @@ export function MainStateProvider({ children }: Props) {
     const getDefaultNodeLocation = async () => {
       return await invoke<Country>('get_default_node_location');
     };
+
+    getVersion()
+      .then((version) =>
+        dispatch({
+          type: 'set-version',
+          version,
+        }),
+      )
+      .catch((e: CmdError) => {
+        console.warn(
+          `command [set-version] returned an error: ${e.source} - ${e.message}`,
+        );
+      });
 
     getInitialConnectionState()
       .then((state) => dispatch({ type: 'change-connection-state', state }))

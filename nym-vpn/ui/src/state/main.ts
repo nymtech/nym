@@ -19,6 +19,7 @@ export type StateAction =
   | { type: 'new-progress-message'; message: ConnectProgressMsg }
   | { type: 'connect' }
   | { type: 'disconnect' }
+  | { type: 'set-version'; version: string }
   | { type: 'set-connected'; startTime: number }
   | { type: 'set-connection-start-time'; startTime?: number | null }
   | { type: 'set-disconnected' }
@@ -33,6 +34,7 @@ export type StateAction =
 
 export const initialState: AppState = {
   state: 'Disconnected',
+  version: null,
   loading: false,
   vpnMode: 'TwoHop',
   entrySelector: false,
@@ -115,6 +117,11 @@ export function reducer(state: AppState, action: StateAction): AppState {
     case 'disconnect': {
       return { ...state, state: 'Disconnecting', loading: true };
     }
+    case 'set-version':
+      return {
+        ...state,
+        version: action.version,
+      };
     case 'set-connected': {
       console.log(
         `__REDUCER [set-connected] changing connection state to Connected`,

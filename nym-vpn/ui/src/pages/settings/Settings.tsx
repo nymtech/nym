@@ -212,6 +212,9 @@ function Settings() {
           },
         ]}
       />
+      <div className="text-comet text-sm tracking-tight leading-tight">
+        Version {state.version}
+      </div>
     </div>
   );
 }

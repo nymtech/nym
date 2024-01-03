@@ -4,7 +4,7 @@ import { RadioGroup } from '@headlessui/react';
 
 type Setting = {
   title: string;
-  leadingIcon: string;
+  leadingIcon: string | null;
   desc: string;
   onClick: () => void;
   trailing: ReactNode;
@@ -23,8 +23,9 @@ function SettingsGroup({ settings }: Props) {
             <RadioGroup.Option
               key={setting.title}
               value={setting.title}
+              onClick={setting.onClick}
               className={clsx([
-                'bg-white dark:bg-baltic-sea-jaguar relative flex px-5 py-3 shadow-md focus:outline-none',
+                'bg-white dark:bg-baltic-sea-jaguar relative flex px-5 py-2 shadow-md focus:outline-none',
                 index === 0 && 'rounded-t-lg',
                 index === settings.length - 1 &&
                   settings.length === 2 &&
@@ -33,12 +34,17 @@ function SettingsGroup({ settings }: Props) {
                   index !== settings.length - 1 &&
                   'border-y border-mercury-mist',
                 index === settings.length - 1 && 'rounded-b-lg',
+                setting.desc === '' && 'py-4',
               ])}
             >
               <div className="flex flex-1 items-center justify-between gap-4">
-                <span className="font-icon text-2xl">
-                  {setting.leadingIcon}
-                </span>
+                {setting.leadingIcon ? (
+                  <span className="font-icon text-2xl">
+                    {setting.leadingIcon}
+                  </span>
+                ) : (
+                  <></>
+                )}
                 <div className="flex flex-1 items-center">
                   <div className="text-sm">
                     <RadioGroup.Label
@@ -55,9 +61,7 @@ function SettingsGroup({ settings }: Props) {
                     </RadioGroup.Description>
                   </div>
                 </div>
-                <span className="text-2xl" onClick={setting.onClick}>
-                  {setting.trailing}
-                </span>
+                <div>{setting.trailing}</div>
               </div>
             </RadioGroup.Option>
           ))}

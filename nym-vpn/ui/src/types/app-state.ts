@@ -19,6 +19,7 @@ export interface TunnelConfig {
 
 export type AppState = {
   state: ConnectionState;
+  version: string | null;
   loading: boolean;
   error?: string | null;
   progressMessages: ConnectProgressMsg[];

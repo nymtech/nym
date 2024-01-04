@@ -5,7 +5,6 @@ import {
   Feedback,
   Home,
   Legal,
-  Logs,
   NavLayout,
   NodeLocation,
   Settings,
@@ -39,11 +38,6 @@ const router = createBrowserRouter([
             errorElement: <Error />,
           },
           {
-            path: routes.logs,
-            element: <Logs />,
-            errorElement: <Error />,
-          },
-          {
             path: routes.feedback,
             element: <Feedback />,
             errorElement: <Error />,
@@ -53,7 +47,7 @@ const router = createBrowserRouter([
             element: <Legal />,
             errorElement: <Error />,
           },
-        ]
+        ],
       },
       {
         path: routes.entryNodeLocation,

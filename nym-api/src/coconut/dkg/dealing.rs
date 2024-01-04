@@ -90,7 +90,6 @@ pub(crate) async fn dealing_exchange(
             let contract_dealing =
                 PartialContractDealing::new(dealing_index, ContractDealing::from(&dealing));
 
-            println!("submit dealing");
             dkg_client
                 .submit_dealing(contract_dealing, resharing)
                 .await?;

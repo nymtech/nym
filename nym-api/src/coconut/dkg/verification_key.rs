@@ -562,11 +562,9 @@ pub(crate) mod tests {
                 initial_dealers: vec![Addr::unchecked(TEST_VALIDATORS_ADDRESS[0])],
                 initial_height: 1,
             });
-            println!("filter");
             let filtered = deterministic_filter_dealers(dkg_client, state, 0, 2, true)
                 .await
                 .unwrap();
-            println!("filtered");
             assert_eq!(filtered.len(), contract_state.key_size as usize);
             let corrupted_status = state
                 .all_dealers()

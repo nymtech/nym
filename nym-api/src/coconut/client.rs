@@ -5,10 +5,10 @@ use crate::coconut::error::Result;
 use cw3::ProposalResponse;
 use cw4::MemberResponse;
 use nym_coconut_bandwidth_contract_common::spend_credential::SpendCredentialResponse;
-use nym_coconut_dkg_common::dealer::{DealerDetails, DealerDetailsResponse};
+use nym_coconut_dkg_common::dealer::{DealerDetails, DealerDetailsResponse, DealingStatusResponse};
 use nym_coconut_dkg_common::types::{
-    EncodedBTEPublicKeyWithProof, Epoch, EpochId, InitialReplacementData, PartialContractDealing,
-    State,
+    DealingIndex, EncodedBTEPublicKeyWithProof, Epoch, EpochId, InitialReplacementData,
+    PartialContractDealing, State,
 };
 use nym_coconut_dkg_common::verification_key::{ContractVKShare, VerificationKeyShare};
 use nym_dkg::Threshold;
@@ -32,6 +32,12 @@ pub trait Client {
     async fn get_current_epoch_threshold(&self) -> Result<Option<Threshold>>;
     async fn get_initial_dealers(&self) -> Result<Option<InitialReplacementData>>;
     async fn get_self_registered_dealer_details(&self) -> Result<DealerDetailsResponse>;
+    async fn get_dealing_status(
+        &self,
+        epoch_id: EpochId,
+        dealer: String,
+        dealing_index: DealingIndex,
+    ) -> Result<DealingStatusResponse>;
     async fn get_current_dealers(&self) -> Result<Vec<DealerDetails>>;
     async fn get_dealings(
         &self,

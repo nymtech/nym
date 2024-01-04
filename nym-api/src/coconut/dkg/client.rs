@@ -7,7 +7,7 @@ use cw3::ProposalResponse;
 use cw4::MemberResponse;
 use nym_coconut_dkg_common::dealer::{DealerDetails, DealerDetailsResponse};
 use nym_coconut_dkg_common::types::{
-    EncodedBTEPublicKeyWithProof, Epoch, EpochId, InitialReplacementData, NodeIndex,
+    DealingIndex, EncodedBTEPublicKeyWithProof, Epoch, EpochId, InitialReplacementData, NodeIndex,
     PartialContractDealing, State as ContractState,
 };
 use nym_coconut_dkg_common::verification_key::{ContractVKShare, VerificationKeyShare};
@@ -90,6 +90,32 @@ impl DkgClient {
 
     pub(crate) async fn get_current_dealers(&self) -> Result<Vec<DealerDetails>, CoconutError> {
         self.inner.get_current_dealers().await
+    }
+
+    pub(crate) async fn get_dealing_status(
+        &self,
+        epoch_id: EpochId,
+        dealing_index: DealingIndex,
+    ) -> Result<bool, CoconutError> {
+        let address = self.inner.address().await.to_string();
+
+        let mut ret = self
+            .inner
+            .get_dealing_status(epoch_id, address.clone(), dealing_index)
+            .await
+            .map(|r| r.dealing_submitted);
+        for _ in 0..Self::RETRIES {
+            if ret.is_ok() {
+                return ret;
+            }
+            tokio::time::sleep(Duration::from_millis(200)).await;
+            ret = self
+                .inner
+                .get_dealing_status(epoch_id, address.clone(), dealing_index)
+                .await
+                .map(|r| r.dealing_submitted);
+        }
+        ret
     }
 
     pub(crate) async fn get_dealings(

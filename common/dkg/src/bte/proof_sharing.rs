@@ -76,8 +76,8 @@ impl<'a> Instance<'a> {
     }
 }
 
-#[derive(Debug)]
-#[cfg_attr(test, derive(Clone, PartialEq, Eq))]
+#[derive(Debug, Clone)]
+#[cfg_attr(test, derive(PartialEq, Eq))]
 pub struct ProofOfSecretSharing {
     ff: G1Projective,
     aa: G2Projective,

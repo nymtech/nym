@@ -9,8 +9,11 @@ use async_trait::async_trait;
 use cw3::ProposalResponse;
 use cw4::MemberResponse;
 use nym_coconut_bandwidth_contract_common::spend_credential::SpendCredentialResponse;
+use nym_coconut_dkg_common::dealer::DealingStatusResponse;
 use nym_coconut_dkg_common::msg::QueryMsg as DkgQueryMsg;
-use nym_coconut_dkg_common::types::{InitialReplacementData, PartialContractDealing, State};
+use nym_coconut_dkg_common::types::{
+    DealingIndex, InitialReplacementData, PartialContractDealing, State,
+};
 use nym_coconut_dkg_common::{
     dealer::{DealerDetails, DealerDetailsResponse},
     types::{EncodedBTEPublicKeyWithProof, Epoch, EpochId},
@@ -402,6 +405,18 @@ impl crate::coconut::client::Client for Client {
     ) -> crate::coconut::error::Result<DealerDetailsResponse> {
         let self_address = &self.address().await;
         Ok(nyxd_query!(self, get_dealer_details(self_address).await?))
+    }
+
+    async fn get_dealing_status(
+        &self,
+        epoch_id: EpochId,
+        dealer: String,
+        dealing_index: DealingIndex,
+    ) -> crate::coconut::error::Result<DealingStatusResponse> {
+        Ok(nyxd_query!(
+            self,
+            get_dealing_status(epoch_id, dealer, dealing_index).await?
+        ))
     }
 
     async fn get_current_dealers(&self) -> crate::coconut::error::Result<Vec<DealerDetails>> {

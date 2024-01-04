@@ -82,7 +82,7 @@ impl RecoveredVerificationKeys {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 #[cfg_attr(test, derive(PartialEq, Eq))]
 pub struct Dealing {
     pub public_coefficients: PublicCoefficients,

@@ -26,6 +26,8 @@ pub(crate) async fn dealing_exchange(
     let contract_state = dkg_client.get_contract_state().await?;
     let expected_key_size = contract_state.key_size;
 
+    let epoch_id = dkg_client.get_current_epoch().await?.epoch_id;
+
     let dealers = dkg_client.get_current_dealers().await?;
     let threshold = dkg_client.get_current_epoch_threshold().await?;
     let initial_dealers = dkg_client
@@ -73,22 +75,44 @@ pub(crate) async fn dealing_exchange(
                 dealing_index + 1
             );
 
+            // see if we have already submitted this one (we might have crashed)
+            if dkg_client
+                .get_dealing_status(epoch_id, dealing_index)
+                .await?
+            {
+                warn!("we have already submitted dealing {dealing_index} before - we probably crashed!");
+                continue;
+            }
+
+            // see if we have already generated, but not submitted this one before (we might have crashed or validator might have had a problem)
+            let contract_dealing = if let Some(prior_dealing) =
+                state.get_dealing(epoch_id, dealing_index)
+            {
+                warn!("we have already generated dealing {dealing_index} before, but failed to submit it");
+                PartialContractDealing::new(dealing_index, ContractDealing::from(prior_dealing))
+            } else {
+                // generate fresh dealing
+                let (dealing, _) = Dealing::create(
+                    rng.clone(),
+                    params,
+                    dealer_index,
+                    state.threshold()?,
+                    &receivers,
+                    prior_resharing_secrets.pop_front(),
+                );
+
+                let contract_dealing =
+                    PartialContractDealing::new(dealing_index, ContractDealing::from(&dealing));
+                state.store_dealing(epoch_id, dealing_index, dealing);
+
+                contract_dealing
+            };
+
             debug!(
                 "Submitting dealing for indexes {:?} with resharing: {}",
                 receivers.keys().collect::<Vec<_>>(),
                 prior_resharing_secrets.front().is_some()
             );
-            let (dealing, _) = Dealing::create(
-                rng.clone(),
-                params,
-                dealer_index,
-                state.threshold()?,
-                &receivers,
-                prior_resharing_secrets.pop_front(),
-            );
-
-            let contract_dealing =
-                PartialContractDealing::new(dealing_index, ContractDealing::from(&dealing));
 
             dkg_client
                 .submit_dealing(contract_dealing, resharing)

@@ -8,7 +8,10 @@ use crate::nyxd::CosmWasmClient;
 use async_trait::async_trait;
 use cosmrs::AccountId;
 use nym_coconut_dkg_common::{
-    dealer::{DealerDetailsResponse, DealingResponse, PagedDealerResponse, PagedDealingsResponse},
+    dealer::{
+        DealerDetailsResponse, DealingResponse, DealingStatusResponse, PagedDealerResponse,
+        PagedDealingsResponse,
+    },
     msg::QueryMsg as DkgQueryMsg,
     types::{
         DealerDetails, DealingIndex, Epoch, EpochId, InitialReplacementData,
@@ -34,6 +37,7 @@ pub trait DkgQueryClient {
         let request = DkgQueryMsg::GetCurrentEpochState {};
         self.query_dkg_contract(request).await
     }
+
     async fn get_current_epoch_threshold(&self) -> Result<Option<u64>, NyxdError> {
         let request = DkgQueryMsg::GetCurrentEpochThreshold {};
         self.query_dkg_contract(request).await
@@ -69,6 +73,21 @@ pub trait DkgQueryClient {
         limit: Option<u32>,
     ) -> Result<PagedDealerResponse, NyxdError> {
         let request = DkgQueryMsg::GetPastDealers { start_after, limit };
+        self.query_dkg_contract(request).await
+    }
+
+    async fn get_dealing_status(
+        &self,
+        epoch_id: EpochId,
+        dealer: String,
+        dealing_index: DealingIndex,
+    ) -> Result<DealingStatusResponse, NyxdError> {
+        let request = DkgQueryMsg::GetDealingStatus {
+            epoch_id,
+            dealer,
+            dealing_index,
+        };
+
         self.query_dkg_contract(request).await
     }
 
@@ -195,6 +214,13 @@ mod tests {
             DkgQueryMsg::GetPastDealers { limit, start_after } => {
                 client.get_past_dealers_paged(start_after, limit).ignore()
             }
+            DkgQueryMsg::GetDealingStatus {
+                epoch_id,
+                dealer,
+                dealing_index,
+            } => client
+                .get_dealing_status(epoch_id, dealer, dealing_index)
+                .ignore(),
             DkgQueryMsg::GetDealing {
                 epoch_id,
                 dealer,

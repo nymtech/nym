@@ -11,7 +11,7 @@ use cosmwasm_std::Addr;
 #[cfg(feature = "schema")]
 use crate::{
     dealer::{DealerDetailsResponse, DealingResponse, PagedDealerResponse, PagedDealingsResponse},
-    types::{Epoch, InitialReplacementData},
+    types::{Epoch, InitialReplacementData, State},
     verification_key::PagedVKSharesResponse,
 };
 #[cfg(feature = "schema")]
@@ -60,6 +60,9 @@ pub enum ExecuteMsg {
 #[cw_serde]
 #[cfg_attr(feature = "schema", derive(QueryResponses))]
 pub enum QueryMsg {
+    #[cfg_attr(feature = "schema", returns(State))]
+    GetState {},
+
     #[cfg_attr(feature = "schema", returns(Epoch))]
     GetCurrentEpochState {},
 

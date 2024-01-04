@@ -8,6 +8,7 @@ use std::str::FromStr;
 pub use crate::dealer::{DealerDetails, PagedDealerResponse};
 pub use contracts_common::dealings::ContractSafeBytes;
 pub use cosmwasm_std::{Addr, Coin, Timestamp};
+pub use cw4::Cw4Contract;
 
 pub type EncodedBTEPublicKeyWithProof = String;
 pub type EncodedBTEPublicKeyWithProofRef<'a> = &'a str;
@@ -17,12 +18,19 @@ pub type DealingIndex = u32;
 pub type ContractDealing = ContractSafeBytes;
 
 // 2 public attributes, 2 private attributes, 1 fixed for coconut credential
+#[deprecated]
 pub const TOTAL_DEALINGS: usize = 2 + 2 + 1;
 
 #[cw_serde]
 pub struct PartialContractDealing {
     pub index: DealingIndex,
     pub data: ContractDealing,
+}
+
+impl PartialContractDealing {
+    pub fn new(index: DealingIndex, data: ContractDealing) -> Self {
+        PartialContractDealing { index, data }
+    }
 }
 
 impl From<(DealingIndex, ContractDealing)> for PartialContractDealing {
@@ -88,6 +96,16 @@ impl Default for TimeConfiguration {
             in_progress_time_secs: 60 * 60 * 24 * 14,      // 2 weeks
         }
     }
+}
+
+#[cw_serde]
+pub struct State {
+    pub mix_denom: String,
+    pub multisig_addr: Addr,
+    pub group_addr: Cw4Contract,
+
+    /// Specifies the number of elements in the derived keys
+    pub key_size: u32,
 }
 
 #[cw_serde]

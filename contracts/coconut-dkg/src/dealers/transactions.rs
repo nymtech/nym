@@ -5,7 +5,7 @@ use crate::dealers::storage as dealers_storage;
 use crate::epoch_state::storage::INITIAL_REPLACEMENT_DATA;
 use crate::epoch_state::utils::check_epoch_state;
 use crate::error::ContractError;
-use crate::state::STATE;
+use crate::state::storage::STATE;
 use cosmwasm_std::{Addr, DepsMut, MessageInfo, Response};
 use nym_coconut_dkg_common::types::{DealerDetails, EncodedBTEPublicKeyWithProof, EpochState};
 

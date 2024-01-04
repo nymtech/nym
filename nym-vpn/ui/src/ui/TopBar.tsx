@@ -45,6 +45,34 @@ export default function TopBar() {
           navigate(-1);
         },
       },
+      '/settings/display': {
+        title: t('display-theme'),
+        leftIcon: 'arrow_back',
+        handleLeftNav: () => {
+          navigate(-1);
+        },
+      },
+      '/settings/logs': {
+        title: t('logs'),
+        leftIcon: 'arrow_back',
+        handleLeftNav: () => {
+          navigate(-1);
+        },
+      },
+      '/settings/feedback': {
+        title: t('feedback'),
+        leftIcon: 'arrow_back',
+        handleLeftNav: () => {
+          navigate(-1);
+        },
+      },
+      '/settings/legal': {
+        title: t('legal'),
+        leftIcon: 'arrow_back',
+        handleLeftNav: () => {
+          navigate(-1);
+        },
+      },
       '/entry-node-location': {
         title: t('first-hop-selection'),
         leftIcon: 'arrow_back',

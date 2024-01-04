@@ -12,8 +12,14 @@ import ConnectionStatus from './ConnectionStatus';
 import HopSelect from './HopSelect';
 
 function Home() {
-  const { state, loading, exitNodeLocation, defaultNodeLocation } =
-    useMainState();
+  const {
+    state,
+    loading,
+    entryNodeLocation,
+    exitNodeLocation,
+    entrySelector,
+    defaultNodeLocation,
+  } = useMainState();
   const dispatch = useMainDispatch() as StateDispatch;
   const navigate = useNavigate();
   const { t } = useTranslation('home');
@@ -77,6 +83,17 @@ function Home() {
             <div className="mt-3 font-semibold text-lg">
               {t('select-node-title')}
             </div>
+            {entrySelector && (
+              <HopSelect
+                country={entryNodeLocation || defaultNodeLocation}
+                onClick={() => {
+                  if (state === 'Disconnected') {
+                    navigate(routes.entryNodeLocation);
+                  }
+                }}
+                nodeHop="entry"
+              />
+            )}
             <HopSelect
               country={exitNodeLocation || defaultNodeLocation}
               onClick={() => {

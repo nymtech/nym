@@ -19,6 +19,7 @@ export interface TunnelConfig {
 
 export type AppState = {
   state: ConnectionState;
+  version: string | null;
   loading: boolean;
   error?: string | null;
   progressMessages: ConnectProgressMsg[];
@@ -27,6 +28,8 @@ export type AppState = {
   tunnel: TunnelConfig;
   uiTheme: 'Light' | 'Dark';
   entrySelector: boolean;
+  autoConnect: boolean;
+  monitoring: boolean;
   entryNodeLocation: Country | null;
   exitNodeLocation: Country | null;
   defaultNodeLocation: Country;

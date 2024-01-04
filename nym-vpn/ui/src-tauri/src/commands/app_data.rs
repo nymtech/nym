@@ -121,3 +121,47 @@ pub async fn set_entry_location_selector(
         .map_err(|e| CmdError::new(CmdErrorSource::InternalError, e.to_string()))?;
     Ok(())
 }
+
+#[instrument(skip(data_state))]
+#[tauri::command]
+pub async fn set_auto_connect(
+    data_state: State<'_, SharedAppData>,
+    entry_selector: bool,
+) -> Result<(), CmdError> {
+    debug!("set_auto_connect");
+
+    let mut app_data_store = data_state.lock().await;
+    let mut app_data = app_data_store
+        .read()
+        .await
+        .map_err(|e| CmdError::new(CmdErrorSource::InternalError, e.to_string()))?;
+    app_data.autoconnect = Some(entry_selector);
+    app_data_store.data = app_data;
+    app_data_store
+        .write()
+        .await
+        .map_err(|e| CmdError::new(CmdErrorSource::InternalError, e.to_string()))?;
+    Ok(())
+}
+
+#[instrument(skip(data_state))]
+#[tauri::command]
+pub async fn set_monitoring(
+    data_state: State<'_, SharedAppData>,
+    entry_selector: bool,
+) -> Result<(), CmdError> {
+    debug!("set_monitoring");
+
+    let mut app_data_store = data_state.lock().await;
+    let mut app_data = app_data_store
+        .read()
+        .await
+        .map_err(|e| CmdError::new(CmdErrorSource::InternalError, e.to_string()))?;
+    app_data.monitoring = Some(entry_selector);
+    app_data_store.data = app_data;
+    app_data_store
+        .write()
+        .await
+        .map_err(|e| CmdError::new(CmdErrorSource::InternalError, e.to_string()))?;
+    Ok(())
+}

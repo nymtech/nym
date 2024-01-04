@@ -1,5 +1,15 @@
 import { createBrowserRouter } from 'react-router-dom';
-import { Error, Home, NavLayout, NodeLocation, Settings } from './pages';
+import {
+  Display,
+  Error,
+  Feedback,
+  Home,
+  Legal,
+  NavLayout,
+  NodeLocation,
+  Settings,
+  SettingsLayout,
+} from './pages';
 import { routes } from './constants';
 
 const router = createBrowserRouter([
@@ -14,8 +24,30 @@ const router = createBrowserRouter([
       },
       {
         path: routes.settings,
-        element: <Settings />,
+        element: <SettingsLayout />,
         errorElement: <Error />,
+        children: [
+          {
+            element: <Settings />,
+            errorElement: <Error />,
+            index: true,
+          },
+          {
+            path: routes.display,
+            element: <Display />,
+            errorElement: <Error />,
+          },
+          {
+            path: routes.feedback,
+            element: <Feedback />,
+            errorElement: <Error />,
+          },
+          {
+            path: routes.legal,
+            element: <Legal />,
+            errorElement: <Error />,
+          },
+        ],
       },
       {
         path: routes.entryNodeLocation,

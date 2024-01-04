@@ -1,5 +1,6 @@
 import React, { useEffect, useReducer } from 'react';
 import { invoke } from '@tauri-apps/api';
+import { getVersion } from '@tauri-apps/api/app';
 import { MainDispatchContext, MainStateContext } from '../contexts';
 import {
   AppDataFromBackend,
@@ -40,6 +41,17 @@ export function MainStateProvider({ children }: Props) {
     const getDefaultNodeLocation = async () => {
       return await invoke<Country>('get_default_node_location');
     };
+
+    getVersion()
+      .then((version) =>
+        dispatch({
+          type: 'set-version',
+          version,
+        }),
+      )
+      .catch((e) => {
+        console.warn(`command [set-version] returned an error: ${e}`);
+      });
 
     getInitialConnectionState()
       .then((state) => dispatch({ type: 'change-connection-state', state }))
@@ -99,6 +111,8 @@ export function MainStateProvider({ children }: Props) {
           entrySelector: data.entry_location_selector || false,
           uiTheme: data.ui_theme || 'Light',
           vpnMode: data.vpn_mode || 'TwoHop',
+          autoConnect: data.autoconnect || false,
+          monitoring: data.monitoring || false,
           rootFontSize: data.ui_root_font_size || DefaultRootFontSize,
         };
         if (data.entry_node_location) {

@@ -75,6 +75,7 @@ fn dkg_proposal() {
         multisig_addr: multisig_contract_addr.to_string(),
         time_configuration: None,
         mix_denom: TEST_COIN_DENOM.to_string(),
+        key_size: 5,
     };
     let coconut_dkg_contract_addr = app
         .instantiate_contract(

@@ -11,6 +11,7 @@ use nym_coconut_dkg_common::types::{
     PartialContractDealing, State as ContractState,
 };
 use nym_coconut_dkg_common::verification_key::{ContractVKShare, VerificationKeyShare};
+use nym_contracts_common::IdentityKey;
 use nym_dkg::Threshold;
 use nym_validator_client::nyxd::cosmwasm_client::logs::{find_attribute, NODE_INDEX};
 use nym_validator_client::nyxd::cosmwasm_client::types::ExecuteResult;
@@ -152,12 +153,13 @@ impl DkgClient {
     pub(crate) async fn register_dealer(
         &self,
         bte_key: EncodedBTEPublicKeyWithProof,
+        identity_key: IdentityKey,
         announce_address: String,
         resharing: bool,
     ) -> Result<NodeIndex, CoconutError> {
         let res = self
             .inner
-            .register_dealer(bte_key, announce_address, resharing)
+            .register_dealer(bte_key, identity_key, announce_address, resharing)
             .await?;
         let node_index = find_attribute(&res.logs, "wasm", NODE_INDEX)
             .ok_or(CoconutError::NodeIndexRecoveryError {

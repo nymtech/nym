@@ -70,6 +70,7 @@ async fn start_nym_api_tasks(config: Config) -> anyhow::Result<ShutdownHandles> 
 
     let coconut_keypair = coconut::keypair::KeyPair::new();
     let identity_keypair = config.base.storage_paths.load_identity()?;
+    let identity_public_key = *identity_keypair.public_key();
 
     // let's build our rocket!
     let rocket = http::setup_rocket(
@@ -137,6 +138,7 @@ async fn start_nym_api_tasks(config: Config) -> anyhow::Result<ShutdownHandles> 
             &config.coconut_signer,
             nyxd_client.clone(),
             coconut_keypair,
+            identity_public_key,
             OsRng,
             &shutdown,
         )

@@ -15,6 +15,7 @@ use crate::nyxd;
 use crate::support::config;
 use anyhow::{bail, Result};
 use nym_coconut_dkg_common::types::EpochState;
+use nym_crypto::asymmetric::identity;
 use nym_dkg::bte::keys::KeyPair as DkgKeyPair;
 use nym_task::{TaskClient, TaskManager};
 use rand::rngs::OsRng;
@@ -51,6 +52,7 @@ impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
         config: &config::CoconutSigner,
         nyxd_client: nyxd::Client,
         coconut_keypair: CoconutKeyPair,
+        identity_key: identity::PublicKey,
         rng: R,
     ) -> Result<Self> {
         let Some(announce_address) = &config.announce_address else {
@@ -82,6 +84,7 @@ impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
                 persistent_state,
                 announce_address.clone(),
                 dkg_keypair,
+                identity_key,
                 coconut_keypair,
             ),
             rng,
@@ -208,6 +211,7 @@ impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
         config: &config::CoconutSigner,
         nyxd_client: nyxd::Client,
         coconut_keypair: CoconutKeyPair,
+        identity_key: identity::PublicKey,
         rng: R,
         shutdown: &TaskManager,
     ) -> Result<()>
@@ -215,7 +219,8 @@ impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
         R: Sync + Send + 'static,
     {
         let shutdown_listener = shutdown.subscribe();
-        let dkg_controller = DkgController::new(config, nyxd_client, coconut_keypair, rng).await?;
+        let dkg_controller =
+            DkgController::new(config, nyxd_client, coconut_keypair, identity_key, rng).await?;
         tokio::spawn(async move { dkg_controller.run(shutdown_listener).await });
         Ok(())
     }

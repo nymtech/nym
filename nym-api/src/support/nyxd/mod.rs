@@ -467,12 +467,13 @@ impl crate::coconut::client::Client for Client {
     async fn register_dealer(
         &self,
         bte_key: EncodedBTEPublicKeyWithProof,
+        identity_key: IdentityKey,
         announce_address: String,
         resharing: bool,
     ) -> Result<ExecuteResult, CoconutError> {
         Ok(nyxd_signing!(
             self,
-            register_dealer(bte_key, announce_address, resharing, None).await?
+            register_dealer(bte_key, announce_address, identity_key, resharing, None).await?
         ))
     }
 

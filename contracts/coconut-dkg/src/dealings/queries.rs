@@ -5,8 +5,29 @@ use crate::dealings::storage;
 use crate::dealings::storage::StoredDealing;
 use cosmwasm_std::{Deps, StdResult};
 use cw_storage_plus::Bound;
-use nym_coconut_dkg_common::dealer::{DealingResponse, PagedDealingsResponse};
+use nym_coconut_dkg_common::dealer::{
+    DealingResponse, DealingStatusResponse, PagedDealingsResponse,
+};
 use nym_coconut_dkg_common::types::{DealingIndex, EpochId};
+
+// this does almost the same as query_dealing but doesn't return the actual dealing to make it easier on the validator
+// so it wouldn't need to deal with the deserialization
+pub fn query_dealing_status(
+    deps: Deps<'_>,
+    epoch_id: EpochId,
+    dealer: String,
+    dealing_index: DealingIndex,
+) -> StdResult<DealingStatusResponse> {
+    let dealer = deps.api.addr_validate(&dealer)?;
+    let dealing_submitted = StoredDealing::exists(deps.storage, epoch_id, &dealer, dealing_index);
+
+    Ok(DealingStatusResponse {
+        epoch_id,
+        dealer,
+        dealing_index,
+        dealing_submitted,
+    })
+}
 
 pub fn query_dealing(
     deps: Deps<'_>,
@@ -106,6 +127,35 @@ pub(crate) mod tests {
         assert_eq!(retrieved.dealing_index, dealing.index);
         assert_eq!(retrieved.dealer, Addr::unchecked("foo"));
         assert_eq!(retrieved.dealing.unwrap(), dealing.data);
+    }
+
+    #[test]
+    fn test_query_dealing_status() {
+        let mut deps = init_contract();
+
+        let bad_address = "FOOMP".to_string();
+        assert!(query_dealing_status(deps.as_ref(), 0, bad_address, 0).is_err());
+
+        let empty = query_dealing_status(deps.as_ref(), 0, "foo".to_string(), 0).unwrap();
+        assert_eq!(empty.epoch_id, 0);
+        assert_eq!(empty.dealing_index, 0);
+        assert_eq!(empty.dealer, Addr::unchecked("foo"));
+        assert!(!empty.dealing_submitted);
+
+        // insert the dealing
+        let dealing = partial_dealing_fixture();
+        StoredDealing::save(
+            deps.as_mut().storage,
+            0,
+            &Addr::unchecked("foo"),
+            dealing.clone(),
+        );
+
+        let retrieved = query_dealing_status(deps.as_ref(), 0, "foo".to_string(), 0).unwrap();
+        assert_eq!(retrieved.epoch_id, 0);
+        assert_eq!(retrieved.dealing_index, dealing.index);
+        assert_eq!(retrieved.dealer, Addr::unchecked("foo"));
+        assert!(retrieved.dealing_submitted)
     }
 
     #[cfg(test)]

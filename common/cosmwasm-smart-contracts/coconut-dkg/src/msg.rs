@@ -10,7 +10,10 @@ use cosmwasm_std::Addr;
 
 #[cfg(feature = "schema")]
 use crate::{
-    dealer::{DealerDetailsResponse, DealingResponse, PagedDealerResponse, PagedDealingsResponse},
+    dealer::{
+        DealerDetailsResponse, DealingResponse, DealingStatusResponse, PagedDealerResponse,
+        PagedDealingsResponse,
+    },
     types::{Epoch, InitialReplacementData, State},
     verification_key::PagedVKSharesResponse,
 };
@@ -85,6 +88,13 @@ pub enum QueryMsg {
     GetPastDealers {
         limit: Option<u32>,
         start_after: Option<String>,
+    },
+
+    #[cfg_attr(feature = "schema", returns(DealingStatusResponse))]
+    GetDealingStatus {
+        epoch_id: EpochId,
+        dealer: String,
+        dealing_index: DealingIndex,
     },
 
     #[cfg_attr(feature = "schema", returns(DealingResponse))]

@@ -5,6 +5,19 @@
     {
       "type": "object",
       "required": [
+        "get_state"
+      ],
+      "properties": {
+        "get_state": {
+          "type": "object",
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
         "get_current_epoch_state"
       ],
       "properties": {
@@ -129,10 +142,47 @@
         "get_dealing": {
           "type": "object",
           "required": [
-            "idx"
+            "dealer",
+            "dealing_index",
+            "epoch_id"
           ],
           "properties": {
-            "idx": {
+            "dealer": {
+              "type": "string"
+            },
+            "dealing_index": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "epoch_id": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "get_dealings"
+      ],
+      "properties": {
+        "get_dealings": {
+          "type": "object",
+          "required": [
+            "dealer",
+            "epoch_id"
+          ],
+          "properties": {
+            "dealer": {
+              "type": "string"
+            },
+            "epoch_id": {
               "type": "integer",
               "format": "uint64",
               "minimum": 0.0
@@ -147,9 +197,11 @@
             },
             "start_after": {
               "type": [
-                "string",
+                "integer",
                 "null"
-              ]
+              ],
+              "format": "uint32",
+              "minimum": 0.0
             }
           },
           "additionalProperties": false

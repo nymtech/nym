@@ -40,12 +40,12 @@
         "commit_dealing": {
           "type": "object",
           "required": [
-            "dealing_bytes",
+            "dealing",
             "resharing"
           ],
           "properties": {
-            "dealing_bytes": {
-              "$ref": "#/definitions/ContractSafeBytes"
+            "dealing": {
+              "$ref": "#/definitions/PartialContractDealing"
             },
             "resharing": {
               "type": "boolean"
@@ -145,6 +145,24 @@
         "format": "uint8",
         "minimum": 0.0
       }
+    },
+    "PartialContractDealing": {
+      "type": "object",
+      "required": [
+        "data",
+        "index"
+      ],
+      "properties": {
+        "data": {
+          "$ref": "#/definitions/ContractSafeBytes"
+        },
+        "index": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false
     }
   }
 }

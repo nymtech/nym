@@ -80,6 +80,17 @@ pub struct DealingResponse {
 }
 
 #[cw_serde]
+pub struct DealingStatusResponse {
+    pub epoch_id: EpochId,
+
+    pub dealer: Addr,
+
+    pub dealing_index: DealingIndex,
+
+    pub dealing_submitted: bool,
+}
+
+#[cw_serde]
 pub struct PagedDealingsResponse {
     pub epoch_id: EpochId,
 

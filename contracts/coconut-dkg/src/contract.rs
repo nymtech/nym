@@ -78,9 +78,17 @@ pub fn execute(
     match msg {
         ExecuteMsg::RegisterDealer {
             bte_key_with_proof,
+            identity_key,
             announce_address,
             resharing,
-        } => try_add_dealer(deps, info, bte_key_with_proof, announce_address, resharing),
+        } => try_add_dealer(
+            deps,
+            info,
+            bte_key_with_proof,
+            identity_key,
+            announce_address,
+            resharing,
+        ),
         ExecuteMsg::CommitDealing { dealing, resharing } => {
             try_commit_dealings(deps, info, dealing, resharing)
         }
@@ -268,6 +276,7 @@ mod tests {
                     coconut_dkg_contract_addr.clone(),
                     &RegisterDealer {
                         bte_key_with_proof: "bte_key_with_proof".to_string(),
+                        identity_key: "identity".to_string(),
                         announce_address: "127.0.0.1:8000".to_string(),
                         resharing: false,
                     },
@@ -282,6 +291,7 @@ mod tests {
                     coconut_dkg_contract_addr.clone(),
                     &RegisterDealer {
                         bte_key_with_proof: "bte_key_with_proof".to_string(),
+                        identity_key: "identity".to_string(),
                         announce_address: "127.0.0.1:8000".to_string(),
                         resharing: false,
                     },
@@ -298,6 +308,7 @@ mod tests {
                 coconut_dkg_contract_addr,
                 &RegisterDealer {
                     bte_key_with_proof: "bte_key_with_proof".to_string(),
+                    identity_key: "identity".to_string(),
                     announce_address: "127.0.0.1:8000".to_string(),
                     resharing: false,
                 },

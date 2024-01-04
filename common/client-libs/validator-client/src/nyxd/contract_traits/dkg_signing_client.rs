@@ -12,6 +12,7 @@ use cosmwasm_std::Addr;
 use nym_coconut_dkg_common::msg::ExecuteMsg as DkgExecuteMsg;
 use nym_coconut_dkg_common::types::{EncodedBTEPublicKeyWithProof, PartialContractDealing};
 use nym_coconut_dkg_common::verification_key::VerificationKeyShare;
+use nym_contracts_common::IdentityKey;
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
@@ -41,12 +42,14 @@ pub trait DkgSigningClient {
     async fn register_dealer(
         &self,
         bte_key: EncodedBTEPublicKeyWithProof,
+        identity_key: IdentityKey,
         announce_address: String,
         resharing: bool,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
         let req = DkgExecuteMsg::RegisterDealer {
             bte_key_with_proof: bte_key,
+            identity_key,
             announce_address,
             resharing,
         };
@@ -144,10 +147,17 @@ mod tests {
         match msg {
             DkgExecuteMsg::RegisterDealer {
                 bte_key_with_proof,
+                identity_key,
                 announce_address,
                 resharing,
             } => client
-                .register_dealer(bte_key_with_proof, announce_address, resharing, None)
+                .register_dealer(
+                    bte_key_with_proof,
+                    identity_key,
+                    announce_address,
+                    resharing,
+                    None,
+                )
                 .ignore(),
             DkgExecuteMsg::CommitDealing { dealing, resharing } => client
                 .submit_dealing_bytes(dealing, resharing, None)

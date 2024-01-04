@@ -108,6 +108,7 @@ pub(crate) mod tests {
         let dealer_details = DealerDetails {
             address: owner.clone(),
             bte_public_key_with_proof: String::new(),
+            ed25519_identity: String::new(),
             announce_address: String::new(),
             assigned_index: 1,
         };

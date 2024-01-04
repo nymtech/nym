@@ -30,6 +30,7 @@ pub fn add_fixture_dealer(deps: DepsMut<'_>) {
             &DealerDetails {
                 address: owner.clone(),
                 bte_public_key_with_proof: String::new(),
+                ed25519_identity: String::new(),
                 announce_address: String::new(),
                 assigned_index: 100,
             },

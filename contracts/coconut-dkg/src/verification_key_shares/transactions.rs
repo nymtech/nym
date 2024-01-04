@@ -122,6 +122,7 @@ mod tests {
         let dealer_details = DealerDetails {
             address: dealer.clone(),
             bte_public_key_with_proof: String::new(),
+            ed25519_identity: String::new(),
             announce_address: announce_address.clone(),
             assigned_index: 1,
         };
@@ -193,6 +194,7 @@ mod tests {
         let dealer_details = DealerDetails {
             address: dealer.clone(),
             bte_public_key_with_proof: String::new(),
+            ed25519_identity: String::new(),
             announce_address: String::new(),
             assigned_index: 1,
         };
@@ -300,6 +302,7 @@ mod tests {
         let dealer_details = DealerDetails {
             address: owner.clone(),
             bte_public_key_with_proof: String::new(),
+            ed25519_identity: String::new(),
             announce_address: String::new(),
             assigned_index: 1,
         };

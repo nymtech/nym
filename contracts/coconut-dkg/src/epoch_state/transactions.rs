@@ -813,6 +813,7 @@ pub(crate) mod tests {
                     &DealerDetails {
                         address: address.clone(),
                         bte_public_key_with_proof: "bte_public_key_with_proof".to_string(),
+                        ed25519_identity: "identity".to_string(),
                         announce_address: "127.0.0.1".to_string(),
                         assigned_index: i,
                     },

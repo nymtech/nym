@@ -17,6 +17,7 @@ use crate::{
     types::{Epoch, InitialReplacementData, State},
     verification_key::PagedVKSharesResponse,
 };
+use contracts_common::IdentityKey;
 #[cfg(feature = "schema")]
 use cosmwasm_schema::QueryResponses;
 
@@ -35,6 +36,7 @@ pub struct InstantiateMsg {
 pub enum ExecuteMsg {
     RegisterDealer {
         bte_key_with_proof: EncodedBTEPublicKeyWithProof,
+        identity_key: IdentityKey,
         announce_address: String,
         resharing: bool,
     },

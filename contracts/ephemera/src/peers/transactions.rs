@@ -3,7 +3,7 @@
 
 use crate::error::ContractError;
 use crate::peers::storage::PEERS;
-use crate::state::storage::STATE;
+use crate::state::STATE;
 use cosmwasm_std::{DepsMut, MessageInfo, Response};
 use nym_ephemera_common::types::JsonPeerInfo;
 

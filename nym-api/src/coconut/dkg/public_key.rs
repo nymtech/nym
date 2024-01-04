@@ -38,7 +38,12 @@ pub(crate) async fn public_key_submission(
             // If it was a dealer in a previous epoch, re-register it for this epoch
             debug!("Registering for the current DKG round, with keys from a previous epoch");
             dkg_client
-                .register_dealer(bte_key, state.announce_address().to_string(), resharing)
+                .register_dealer(
+                    bte_key,
+                    state.identity_key().to_base58_string(),
+                    state.announce_address().to_string(),
+                    resharing,
+                )
                 .await?;
         }
         details.assigned_index
@@ -46,7 +51,12 @@ pub(crate) async fn public_key_submission(
         debug!("Registering for the first time to be a dealer");
         // First time registration
         dkg_client
-            .register_dealer(bte_key, state.announce_address().to_string(), resharing)
+            .register_dealer(
+                bte_key,
+                state.identity_key().to_base58_string(),
+                state.announce_address().to_string(),
+                resharing,
+            )
             .await?
     };
     state.set_node_index(Some(index));
@@ -61,9 +71,11 @@ pub(crate) mod tests {
     use crate::coconut::dkg::state::PersistentState;
     use crate::coconut::tests::DummyClient;
     use crate::coconut::KeyPair;
+    use nym_crypto::asymmetric::identity;
     use nym_dkg::bte::keys::KeyPair as DkgKeyPair;
     use nym_validator_client::nyxd::AccountId;
     use rand::rngs::OsRng;
+    use rand_07::thread_rng;
     use std::path::PathBuf;
     use std::str::FromStr;
     use url::Url;
@@ -76,11 +88,13 @@ pub(crate) mod tests {
         let dkg_client = DkgClient::new(DummyClient::new(
             AccountId::from_str(TEST_VALIDATOR_ADDRESS).unwrap(),
         ));
+        let identity_keypair = identity::KeyPair::new(&mut thread_rng());
         let mut state = State::new(
             PathBuf::default(),
             PersistentState::default(),
             Url::parse("localhost:8000").unwrap(),
             DkgKeyPair::new(&nym_dkg::bte::setup(), OsRng),
+            *identity_keypair.public_key(),
             KeyPair::new(),
         );
 

@@ -11,6 +11,7 @@ use nym_coconut_dkg_common::types::{
     PartialContractDealing, State,
 };
 use nym_coconut_dkg_common::verification_key::{ContractVKShare, VerificationKeyShare};
+use nym_contracts_common::IdentityKey;
 use nym_dkg::Threshold;
 use nym_validator_client::nyxd::cosmwasm_client::types::ExecuteResult;
 use nym_validator_client::nyxd::{AccountId, Fee, Hash, TxResponse};
@@ -52,6 +53,7 @@ pub trait Client {
     async fn register_dealer(
         &self,
         bte_key: EncodedBTEPublicKeyWithProof,
+        identity_key: IdentityKey,
         announce_address: String,
         resharing: bool,
     ) -> Result<ExecuteResult>;

@@ -8,6 +8,7 @@ use cosmwasm_std::Addr;
 use log::debug;
 use nym_coconut_dkg_common::dealer::DealerDetails;
 use nym_coconut_dkg_common::types::{DealingIndex, EpochId, EpochState};
+use nym_crypto::asymmetric::identity;
 use nym_dkg::bte::{keys::KeyPair as DkgKeyPair, PublicKey, PublicKeyWithProof};
 use nym_dkg::{Dealing, NodeIndex, RecoveredVerificationKeys, Threshold};
 use serde::de::Error;
@@ -249,6 +250,7 @@ impl PersistentState {
 pub(crate) struct State {
     persistent_state_path: PathBuf,
     announce_address: Url,
+    identity_key: identity::PublicKey,
     dkg_keypair: DkgKeyPair,
     coconut_keypair: CoconutKeyPair,
     node_index: Option<NodeIndex>,
@@ -269,11 +271,13 @@ impl State {
         persistent_state: PersistentState,
         announce_address: Url,
         dkg_keypair: DkgKeyPair,
+        identity_key: identity::PublicKey,
         coconut_keypair: CoconutKeyPair,
     ) -> Self {
         State {
             persistent_state_path,
             announce_address,
+            identity_key,
             dkg_keypair,
             coconut_keypair,
             node_index: persistent_state.node_index,
@@ -310,6 +314,10 @@ impl State {
 
     pub fn announce_address(&self) -> &Url {
         &self.announce_address
+    }
+
+    pub fn identity_key(&self) -> identity::PublicKey {
+        self.identity_key
     }
 
     pub fn dkg_keypair(&self) -> &DkgKeyPair {

@@ -125,9 +125,7 @@ function Settings() {
         settings={[
           {
             title: t('logs'),
-            leadingIcon: (
-              <img src={`./icons/logs.svg`} className="h-8" alt={t('logs')} />
-            ),
+            leadingIcon: 'sort',
             onClick: () => {
               navigate(routes.logs);
             },

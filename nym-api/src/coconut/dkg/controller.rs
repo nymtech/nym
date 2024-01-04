@@ -140,6 +140,7 @@ impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
                             verification_key_submission(
                                 &self.dkg_client,
                                 &mut self.state,
+                                epoch.epoch_id,
                                 &keypair_path,
                                 resharing,
                             )

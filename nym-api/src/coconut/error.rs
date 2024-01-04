@@ -124,6 +124,11 @@ pub enum CoconutError {
     // I guess we should make this one a bit more detailed
     #[error("the provided query arguments were invalid")]
     InvalidQueryArguments,
+
+    #[error("insufficient number of dealings provided to derive the key")]
+    InsufficientDealings {
+        // TODO: details
+    },
 }
 
 impl<'r, 'o: 'r> Responder<'r, 'o> for CoconutError {

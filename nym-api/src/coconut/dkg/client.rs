@@ -5,22 +5,24 @@ use crate::coconut::client::Client;
 use crate::coconut::error::CoconutError;
 use cw3::ProposalResponse;
 use cw4::MemberResponse;
-use nym_coconut_dkg_common::dealer::{ContractDealing, DealerDetails, DealerDetailsResponse};
+use nym_coconut_dkg_common::dealer::{DealerDetails, DealerDetailsResponse};
 use nym_coconut_dkg_common::types::{
     EncodedBTEPublicKeyWithProof, Epoch, EpochId, InitialReplacementData, NodeIndex,
+    PartialContractDealing, State as ContractState,
 };
 use nym_coconut_dkg_common::verification_key::{ContractVKShare, VerificationKeyShare};
-use nym_contracts_common::dealings::ContractSafeBytes;
 use nym_dkg::Threshold;
 use nym_validator_client::nyxd::cosmwasm_client::logs::{find_attribute, NODE_INDEX};
 use nym_validator_client::nyxd::cosmwasm_client::types::ExecuteResult;
 use nym_validator_client::nyxd::AccountId;
+use std::time::Duration;
 
 pub(crate) struct DkgClient {
     inner: Box<dyn Client + Send + Sync>,
 }
 
 impl DkgClient {
+    // FIXME:
     // Some queries simply don't work the first time
     // Until we determine why that is, retry the query a few more times
     const RETRIES: usize = 3;
@@ -44,7 +46,20 @@ impl DkgClient {
             if ret.is_ok() {
                 return ret;
             }
+            tokio::time::sleep(Duration::from_millis(200)).await;
             ret = self.inner.get_current_epoch().await;
+        }
+        ret
+    }
+
+    pub(crate) async fn get_contract_state(&self) -> Result<ContractState, CoconutError> {
+        let mut ret = self.inner.contract_state().await;
+        for _ in 0..Self::RETRIES {
+            if ret.is_ok() {
+                return ret;
+            }
+            tokio::time::sleep(Duration::from_millis(200)).await;
+            ret = self.inner.contract_state().await;
         }
         ret
     }
@@ -79,14 +94,16 @@ impl DkgClient {
 
     pub(crate) async fn get_dealings(
         &self,
-        idx: usize,
-    ) -> Result<Vec<ContractDealing>, CoconutError> {
-        let mut ret = self.inner.get_dealings(idx).await;
+        epoch_id: EpochId,
+        dealer: String,
+    ) -> Result<Vec<PartialContractDealing>, CoconutError> {
+        let mut ret = self.inner.get_dealings(epoch_id, &dealer).await;
         for _ in 0..Self::RETRIES {
             if ret.is_ok() {
                 return ret;
             }
-            ret = self.inner.get_dealings(idx).await;
+            tokio::time::sleep(Duration::from_millis(200)).await;
+            ret = self.inner.get_dealings(epoch_id, &dealer).await;
         }
         ret
     }
@@ -131,10 +148,10 @@ impl DkgClient {
 
     pub(crate) async fn submit_dealing(
         &self,
-        dealing_bytes: ContractSafeBytes,
+        dealing: PartialContractDealing,
         resharing: bool,
     ) -> Result<(), CoconutError> {
-        self.inner.submit_dealing(dealing_bytes, resharing).await?;
+        self.inner.submit_dealing(dealing, resharing).await?;
         Ok(())
     }
 
@@ -151,6 +168,7 @@ impl DkgClient {
             if let Ok(res) = ret {
                 return Ok(res);
             }
+            tokio::time::sleep(Duration::from_millis(200)).await;
             ret = self
                 .inner
                 .submit_verification_key_share(share.clone(), resharing)

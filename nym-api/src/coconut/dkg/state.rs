@@ -304,6 +304,7 @@ impl State {
             .collect()
     }
 
+    // FIXME: BUG: if we remove dealers, we won't be able to verify shares of other parties...
     pub fn current_dealers_by_idx(&self) -> BTreeMap<NodeIndex, PublicKey> {
         self.dealers
             .iter()
@@ -364,8 +365,7 @@ impl State {
             .find(|(addr, _)| *addr == dealer_addr)
         {
             debug!(
-                "Dealer {} misbehaved: {:?}. It will be marked locally as bad dealer and ignored",
-                dealer_addr, reason
+                "Dealer {dealer_addr} misbehaved: {reason:?}. It will be marked locally as bad dealer and ignored",
             );
             *value = Err(reason);
         }
@@ -395,7 +395,6 @@ impl State {
         self.was_in_progress = true;
     }
 
-    #[cfg(test)]
     pub fn all_dealers(&self) -> &BTreeMap<Addr, Result<DkgParticipant, ComplaintReason>> {
         &self.dealers
     }

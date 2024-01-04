@@ -1,34 +1,34 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "DealingResponse",
+  "title": "PagedDealingsResponse",
   "type": "object",
   "required": [
     "dealer",
-    "dealing_index",
+    "dealings",
     "epoch_id"
   ],
   "properties": {
     "dealer": {
       "$ref": "#/definitions/Addr"
     },
-    "dealing": {
-      "anyOf": [
-        {
-          "$ref": "#/definitions/ContractSafeBytes"
-        },
-        {
-          "type": "null"
-        }
-      ]
-    },
-    "dealing_index": {
-      "type": "integer",
-      "format": "uint32",
-      "minimum": 0.0
+    "dealings": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/PartialContractDealing"
+      }
     },
     "epoch_id": {
       "type": "integer",
       "format": "uint64",
+      "minimum": 0.0
+    },
+    "start_next_after": {
+      "description": "Field indicating paging information for the following queries if the caller wishes to get further entries.",
+      "type": [
+        "integer",
+        "null"
+      ],
+      "format": "uint32",
       "minimum": 0.0
     }
   },
@@ -45,6 +45,24 @@
         "format": "uint8",
         "minimum": 0.0
       }
+    },
+    "PartialContractDealing": {
+      "type": "object",
+      "required": [
+        "data",
+        "index"
+      ],
+      "properties": {
+        "data": {
+          "$ref": "#/definitions/ContractSafeBytes"
+        },
+        "index": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false
     }
   }
 }

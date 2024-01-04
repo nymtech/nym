@@ -22,11 +22,13 @@ use nym_coconut_bandwidth_contract_common::events::{
 use nym_coconut_bandwidth_contract_common::spend_credential::{
     SpendCredential, SpendCredentialResponse,
 };
-use nym_coconut_dkg_common::dealer::{DealerDetails, DealerDetailsResponse, DealerType};
+use nym_coconut_dkg_common::dealer::{
+    DealerDetails, DealerDetailsResponse, DealerType, DealingStatusResponse,
+};
 use nym_coconut_dkg_common::event_attributes::{DKG_PROPOSAL_ID, NODE_INDEX};
 use nym_coconut_dkg_common::types::{
-    EncodedBTEPublicKeyWithProof, Epoch, EpochId, InitialReplacementData, PartialContractDealing,
-    State as ContractState,
+    DealingIndex, EncodedBTEPublicKeyWithProof, Epoch, EpochId, InitialReplacementData,
+    PartialContractDealing, State as ContractState,
 };
 use nym_coconut_dkg_common::verification_key::{ContractVKShare, VerificationKeyShare};
 use nym_coconut_interface::{hash_to_scalar, Credential, VerificationKey};
@@ -258,6 +260,21 @@ impl super::client::Client for DummyClient {
         Ok(DealerDetailsResponse {
             details,
             dealer_type,
+        })
+    }
+
+    async fn get_dealing_status(
+        &self,
+        epoch_id: EpochId,
+        dealer: String,
+        dealing_index: DealingIndex,
+    ) -> crate::coconut::error::Result<DealingStatusResponse> {
+        let dealings = self.get_dealings(epoch_id, &dealer).await?;
+        Ok(DealingStatusResponse {
+            epoch_id,
+            dealer: Addr::unchecked(dealer),
+            dealing_index,
+            dealing_submitted: dealings.get(dealing_index as usize).is_some(),
         })
     }
 

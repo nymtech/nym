@@ -7,12 +7,12 @@ use crate::coconut::keypair::KeyPair as CoconutKeyPair;
 use cosmwasm_std::Addr;
 use log::debug;
 use nym_coconut_dkg_common::dealer::DealerDetails;
-use nym_coconut_dkg_common::types::EpochState;
+use nym_coconut_dkg_common::types::{DealingIndex, EpochId, EpochState};
 use nym_dkg::bte::{keys::KeyPair as DkgKeyPair, PublicKey, PublicKeyWithProof};
-use nym_dkg::{NodeIndex, RecoveredVerificationKeys, Threshold};
+use nym_dkg::{Dealing, NodeIndex, RecoveredVerificationKeys, Threshold};
 use serde::de::Error;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::path::{Path, PathBuf};
 use url::Url;
 
@@ -159,10 +159,54 @@ where
         .collect()
 }
 
+mod generated_dealings {
+    use nym_coconut_dkg_common::types::{DealingIndex, EpochId};
+    use nym_dkg::Dealing;
+    use serde::{Deserialize, Deserializer, Serialize, Serializer};
+    use std::collections::HashMap;
+
+    type Helper = HashMap<EpochId, HashMap<DealingIndex, Vec<u8>>>;
+
+    pub fn serialize<S: Serializer>(
+        dealings: &HashMap<EpochId, HashMap<DealingIndex, Dealing>>,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error> {
+        let mut helper = HashMap::new();
+        for (epoch, dealings) in dealings {
+            let mut inner = HashMap::new();
+            for (dealing_index, dealing) in dealings {
+                inner.insert(*dealing_index, dealing.to_bytes());
+            }
+            helper.insert(*epoch, inner);
+        }
+        helper.serialize(serializer)
+    }
+
+    pub fn deserialize<'de, D: Deserializer<'de>>(
+        deserializer: D,
+    ) -> Result<HashMap<EpochId, HashMap<DealingIndex, Dealing>>, D::Error> {
+        let helper = <Helper>::deserialize(deserializer)?;
+
+        let mut epoch_dealings = HashMap::with_capacity(helper.len());
+        for (epoch, dealings) in helper {
+            let mut inner = HashMap::with_capacity(dealings.len());
+            for (dealing_index, raw_dealing) in dealings {
+                let dealing =
+                    Dealing::try_from_bytes(&raw_dealing).map_err(serde::de::Error::custom)?;
+                inner.insert(dealing_index, dealing);
+            }
+            epoch_dealings.insert(epoch, inner);
+        }
+        Ok(epoch_dealings)
+    }
+}
+
 #[derive(Default, Deserialize, Serialize)]
 pub(crate) struct PersistentState {
     node_index: Option<NodeIndex>,
     dealers: BTreeMap<Addr, Result<DkgParticipant, ComplaintReason>>,
+    #[serde(with = "generated_dealings")]
+    generated_dealings: HashMap<EpochId, HashMap<DealingIndex, Dealing>>,
     receiver_index: Option<usize>,
     threshold: Option<Threshold>,
     #[serde(serialize_with = "vks_serialize")]
@@ -179,6 +223,7 @@ impl From<&State> for PersistentState {
         PersistentState {
             node_index: s.node_index,
             dealers: s.dealers.clone(),
+            generated_dealings: s.generated_dealings.clone(),
             receiver_index: s.receiver_index,
             threshold: s.threshold,
             recovered_vks: s.recovered_vks.clone(),
@@ -208,6 +253,7 @@ pub(crate) struct State {
     coconut_keypair: CoconutKeyPair,
     node_index: Option<NodeIndex>,
     dealers: BTreeMap<Addr, Result<DkgParticipant, ComplaintReason>>,
+    generated_dealings: HashMap<EpochId, HashMap<DealingIndex, Dealing>>,
     receiver_index: Option<usize>,
     threshold: Option<Threshold>,
     recovered_vks: Vec<RecoveredVerificationKeys>,
@@ -232,6 +278,7 @@ impl State {
             coconut_keypair,
             node_index: persistent_state.node_index,
             dealers: persistent_state.dealers,
+            generated_dealings: persistent_state.generated_dealings,
             receiver_index: persistent_state.receiver_index,
             threshold: persistent_state.threshold,
             recovered_vks: persistent_state.recovered_vks,
@@ -275,6 +322,24 @@ impl State {
 
     pub async fn take_coconut_keypair(&self) -> Option<nym_coconut::KeyPair> {
         self.coconut_keypair.take().await
+    }
+
+    pub fn get_dealing(&self, epoch_id: EpochId, dealing_index: DealingIndex) -> Option<&Dealing> {
+        self.generated_dealings
+            .get(&epoch_id)
+            .and_then(|epoch_dealings| epoch_dealings.get(&dealing_index))
+    }
+
+    pub fn store_dealing(
+        &mut self,
+        epoch_id: EpochId,
+        dealing_index: DealingIndex,
+        dealing: Dealing,
+    ) {
+        self.generated_dealings
+            .entry(epoch_id)
+            .or_default()
+            .insert(dealing_index, dealing);
     }
 
     #[cfg(test)]

@@ -13,7 +13,8 @@ use crate::epoch_state::queries::{
 use crate::epoch_state::storage::CURRENT_EPOCH;
 use crate::epoch_state::transactions::{advance_epoch_state, try_surpassed_threshold};
 use crate::error::ContractError;
-use crate::state::{State, MULTISIG, STATE};
+use crate::state::queries::query_state;
+use crate::state::storage::{MULTISIG, STATE};
 use crate::verification_key_shares::queries::query_vk_shares_paged;
 use crate::verification_key_shares::transactions::try_commit_verification_key_share;
 use crate::verification_key_shares::transactions::try_verify_verification_key_share;
@@ -22,7 +23,7 @@ use cosmwasm_std::{
 };
 use cw4::Cw4Contract;
 use nym_coconut_dkg_common::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
-use nym_coconut_dkg_common::types::{Epoch, EpochState};
+use nym_coconut_dkg_common::types::{Epoch, EpochState, State};
 
 /// Instantiate the contract.
 ///
@@ -97,6 +98,7 @@ pub fn execute(
 #[entry_point]
 pub fn query(deps: Deps<'_>, _env: Env, msg: QueryMsg) -> Result<QueryResponse, ContractError> {
     let response = match msg {
+        QueryMsg::GetState {} => to_binary(&query_state(deps.storage)?)?,
         QueryMsg::GetCurrentEpochState {} => to_binary(&query_current_epoch(deps.storage)?)?,
         QueryMsg::GetCurrentEpochThreshold {} => {
             to_binary(&query_current_epoch_threshold(deps.storage)?)?

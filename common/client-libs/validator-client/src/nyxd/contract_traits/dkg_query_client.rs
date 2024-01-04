@@ -11,7 +11,8 @@ use nym_coconut_dkg_common::{
     dealer::{DealerDetailsResponse, DealingResponse, PagedDealerResponse, PagedDealingsResponse},
     msg::QueryMsg as DkgQueryMsg,
     types::{
-        DealerDetails, DealingIndex, Epoch, EpochId, InitialReplacementData, PartialContractDealing,
+        DealerDetails, DealingIndex, Epoch, EpochId, InitialReplacementData,
+        PartialContractDealing, State,
     },
     verification_key::{ContractVKShare, PagedVKSharesResponse},
 };
@@ -23,6 +24,11 @@ pub trait DkgQueryClient {
     async fn query_dkg_contract<T>(&self, query: DkgQueryMsg) -> Result<T, NyxdError>
     where
         for<'a> T: Deserialize<'a>;
+
+    async fn get_state(&self) -> Result<State, NyxdError> {
+        let request = DkgQueryMsg::GetState {};
+        self.query_dkg_contract(request).await
+    }
 
     async fn get_current_epoch(&self) -> Result<Epoch, NyxdError> {
         let request = DkgQueryMsg::GetCurrentEpochState {};
@@ -174,6 +180,7 @@ mod tests {
         msg: DkgQueryMsg,
     ) {
         match msg {
+            DkgQueryMsg::GetState {} => client.get_state().ignore(),
             DkgQueryMsg::GetCurrentEpochState {} => client.get_current_epoch().ignore(),
             DkgQueryMsg::GetCurrentEpochThreshold {} => {
                 client.get_current_epoch_threshold().ignore()

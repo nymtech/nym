@@ -1236,6 +1236,7 @@ dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
  "cw-utils",
+ "cw4",
  "nym-contracts-common",
  "nym-multisig-contract-common",
 ]

@@ -68,6 +68,8 @@ pub(crate) struct DummyClient {
     contract_state: Arc<RwLock<ContractState>>,
     dealer_details: Arc<RwLock<HashMap<String, (DealerDetails, bool)>>>,
     threshold: Arc<RwLock<Option<Threshold>>>,
+    // it's a really bad practice, but I'm not going to be changing it now...
+    #[allow(clippy::type_complexity)]
     dealings: Arc<RwLock<HashMap<EpochId, HashMap<String, Vec<PartialContractDealing>>>>>,
     verification_share: Arc<RwLock<HashMap<String, ContractVKShare>>>,
     group_db: Arc<RwLock<HashMap<String, MemberResponse>>>,
@@ -136,6 +138,8 @@ impl DummyClient {
         self
     }
 
+    // it's a really bad practice, but I'm not going to be changing it now...
+    #[allow(clippy::type_complexity)]
     pub fn with_dealings(
         mut self,
         dealings: &Arc<RwLock<HashMap<EpochId, HashMap<String, Vec<PartialContractDealing>>>>>,

@@ -176,11 +176,11 @@ pub(crate) mod tests {
             PathBuf::default(),
             PersistentState::default(),
             Url::parse("localhost:8000").unwrap(),
-            DkgKeyPair::new(&params, OsRng),
+            DkgKeyPair::new(params, OsRng),
             KeyPair::new(),
         );
         state.set_node_index(Some(self_index));
-        let keypairs = insert_dealers(&params, &dealer_details_db);
+        let keypairs = insert_dealers(params, &dealer_details_db);
 
         let contract_state = dkg_client.get_contract_state().await.unwrap();
 
@@ -239,11 +239,11 @@ pub(crate) mod tests {
             PathBuf::default(),
             PersistentState::default(),
             Url::parse("localhost:8000").unwrap(),
-            DkgKeyPair::new(&params, OsRng),
+            DkgKeyPair::new(params, OsRng),
             KeyPair::new(),
         );
         state.set_node_index(Some(self_index));
-        insert_dealers(&params, &dealer_details_db);
+        insert_dealers(params, &dealer_details_db);
 
         dealer_details_db
             .write()

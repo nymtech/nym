@@ -136,6 +136,39 @@
     {
       "type": "object",
       "required": [
+        "get_dealing_status"
+      ],
+      "properties": {
+        "get_dealing_status": {
+          "type": "object",
+          "required": [
+            "dealer",
+            "dealing_index",
+            "epoch_id"
+          ],
+          "properties": {
+            "dealer": {
+              "type": "string"
+            },
+            "dealing_index": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "epoch_id": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
         "get_dealing"
       ],
       "properties": {

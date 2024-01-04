@@ -1,13 +1,12 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::coconut::dkg;
 use crate::coconut::dkg::client::DkgClient;
 use crate::coconut::dkg::state::{ConsistentState, State};
 use crate::coconut::error::CoconutError;
 use log::debug;
-use nym_coconut_dkg_common::types::TOTAL_DEALINGS;
-use nym_contracts_common::dealings::ContractSafeBytes;
-use nym_dkg::bte::setup;
+use nym_coconut_dkg_common::types::{ContractDealing, PartialContractDealing};
 use nym_dkg::Dealing;
 use rand::RngCore;
 use std::collections::VecDeque;
@@ -23,6 +22,9 @@ pub(crate) async fn dealing_exchange(
         debug!("Receiver index was set previously, nothing to do");
         return Ok(());
     }
+
+    let contract_state = dkg_client.get_contract_state().await?;
+    let expected_key_size = contract_state.key_size;
 
     let dealers = dkg_client.get_current_dealers().await?;
     let threshold = dkg_client.get_current_epoch_threshold().await?;
@@ -44,7 +46,7 @@ pub(crate) async fn dealing_exchange(
         // Double check that we are in resharing mode
         if resharing {
             let sk = keypair.secret_key();
-            if sk.size() + 1 != TOTAL_DEALINGS {
+            if sk.size() + 1 != expected_key_size as usize {
                 return Err(CoconutError::CorruptedCoconutKeyPair);
             }
 
@@ -64,8 +66,13 @@ pub(crate) async fn dealing_exchange(
     };
     let mut prior_resharing_secrets = VecDeque::from(prior_resharing_secrets);
     if !resharing || initial_dealers.iter().any(|d| *d == own_address) {
-        let params = setup();
-        for _ in 0..TOTAL_DEALINGS {
+        let params = dkg::params();
+        for dealing_index in 0..expected_key_size {
+            debug!(
+                "dealing {dealing_index} ({} out of {expected_key_size})",
+                dealing_index + 1
+            );
+
             debug!(
                 "Submitting dealing for indexes {:?} with resharing: {}",
                 receivers.keys().collect::<Vec<_>>(),
@@ -73,14 +80,19 @@ pub(crate) async fn dealing_exchange(
             );
             let (dealing, _) = Dealing::create(
                 rng.clone(),
-                &params,
+                params,
                 dealer_index,
                 state.threshold()?,
                 &receivers,
                 prior_resharing_secrets.pop_front(),
             );
+
+            let contract_dealing =
+                PartialContractDealing::new(dealing_index, ContractDealing::from(&dealing));
+
+            println!("submit dealing");
             dkg_client
-                .submit_dealing(ContractSafeBytes::from(&dealing), resharing)
+                .submit_dealing(contract_dealing, resharing)
                 .await?;
         }
     } else {
@@ -160,7 +172,7 @@ pub(crate) mod tests {
                 .with_dealings(&dealings_db)
                 .with_threshold(&threshold_db),
         );
-        let params = setup();
+        let params = dkg::params();
         let mut state = State::new(
             PathBuf::default(),
             PersistentState::default(),
@@ -170,6 +182,8 @@ pub(crate) mod tests {
         );
         state.set_node_index(Some(self_index));
         let keypairs = insert_dealers(&params, &dealer_details_db);
+
+        let contract_state = dkg_client.get_contract_state().await.unwrap();
 
         dealing_exchange(&dkg_client, &mut state, OsRng, false)
             .await
@@ -187,16 +201,20 @@ pub(crate) mod tests {
         let dealings = dealings_db
             .read()
             .unwrap()
+            .get(&0)
+            .unwrap()
             .get(TEST_VALIDATORS_ADDRESS[0])
             .unwrap()
             .clone();
-        assert_eq!(dealings.len(), TOTAL_DEALINGS);
+        assert_eq!(dealings.len(), contract_state.key_size as usize);
 
         dealing_exchange(&dkg_client, &mut state, OsRng, false)
             .await
             .unwrap();
         let new_dealings = dealings_db
             .read()
+            .unwrap()
+            .get(&0)
             .unwrap()
             .get(TEST_VALIDATORS_ADDRESS[0])
             .unwrap()
@@ -217,7 +235,7 @@ pub(crate) mod tests {
                 .with_dealings(&dealings_db)
                 .with_threshold(&threshold_db),
         );
-        let params = setup();
+        let params = dkg::params();
         let mut state = State::new(
             PathBuf::default(),
             PersistentState::default(),
@@ -285,7 +303,9 @@ pub(crate) mod tests {
             .with_threshold(&threshold_db)
             .with_initial_dealers_db(&initial_dealers_db),
         );
-        let params = setup();
+        let contract_state = dkg_client.get_contract_state().await.unwrap();
+
+        let params = dkg::params();
         let mut keys = ttp_keygen(&Parameters::new(4).unwrap(), 3, 4).unwrap();
         let coconut_keypair = KeyPair::new();
         coconut_keypair.set(Some(keys.pop().unwrap())).await;
@@ -294,11 +314,11 @@ pub(crate) mod tests {
             PathBuf::default(),
             PersistentState::default(),
             Url::parse("localhost:8000").unwrap(),
-            DkgKeyPair::new(&params, OsRng),
+            DkgKeyPair::new(params, OsRng),
             coconut_keypair.clone(),
         );
         state.set_node_index(Some(self_index));
-        let keypairs = insert_dealers(&params, &dealer_details_db);
+        let keypairs = insert_dealers(params, &dealer_details_db);
 
         dealing_exchange(&dkg_client, &mut state, OsRng, true)
             .await
@@ -313,14 +333,16 @@ pub(crate) mod tests {
         );
         assert_eq!(state.threshold().unwrap(), 3);
         assert_eq!(state.receiver_index().unwrap(), 1);
-        let addr = dkg_client.get_address().await;
-        assert!(dealings_db.read().unwrap().get(addr.as_ref()).is_none());
+        // let addr = dkg_client.get_address().await;
+
+        // no dealings submitted for the first (zeroth) epoch
+        assert!(dealings_db.read().unwrap().get(&0).is_none());
 
         let mut state = State::new(
             PathBuf::default(),
             PersistentState::default(),
             Url::parse("localhost:8000").unwrap(),
-            DkgKeyPair::new(&params, OsRng),
+            DkgKeyPair::new(params, OsRng),
             coconut_keypair,
         );
         state.set_node_index(Some(self_index));
@@ -340,9 +362,11 @@ pub(crate) mod tests {
         let dealings = dealings_db
             .read()
             .unwrap()
+            .get(&0)
+            .unwrap()
             .get(TEST_VALIDATORS_ADDRESS[0])
             .unwrap()
             .clone();
-        assert_eq!(dealings.len(), TOTAL_DEALINGS);
+        assert_eq!(dealings.len(), contract_state.key_size as usize);
     }
 }

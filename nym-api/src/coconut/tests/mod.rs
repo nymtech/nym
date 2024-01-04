@@ -8,7 +8,7 @@ use crate::support::storage::NymApiStorage;
 use async_trait::async_trait;
 use cosmwasm_std::{coin, to_binary, Addr, CosmosMsg, Decimal, WasmMsg};
 use cw3::ProposalResponse;
-use cw4::MemberResponse;
+use cw4::{Cw4Contract, MemberResponse};
 use nym_api_requests::coconut::models::{IssuedCredentialBody, IssuedCredentialResponse};
 use nym_api_requests::coconut::{
     BlindSignRequestBody, BlindedSignatureResponse, VerifyCredentialBody, VerifyCredentialResponse,
@@ -22,17 +22,15 @@ use nym_coconut_bandwidth_contract_common::events::{
 use nym_coconut_bandwidth_contract_common::spend_credential::{
     SpendCredential, SpendCredentialResponse,
 };
-use nym_coconut_dkg_common::dealer::{
-    ContractDealing, DealerDetails, DealerDetailsResponse, DealerType,
-};
+use nym_coconut_dkg_common::dealer::{DealerDetails, DealerDetailsResponse, DealerType};
 use nym_coconut_dkg_common::event_attributes::{DKG_PROPOSAL_ID, NODE_INDEX};
 use nym_coconut_dkg_common::types::{
-    EncodedBTEPublicKeyWithProof, Epoch, EpochId, InitialReplacementData, TOTAL_DEALINGS,
+    EncodedBTEPublicKeyWithProof, Epoch, EpochId, InitialReplacementData, PartialContractDealing,
+    State as ContractState,
 };
 use nym_coconut_dkg_common::verification_key::{ContractVKShare, VerificationKeyShare};
 use nym_coconut_interface::{hash_to_scalar, Credential, VerificationKey};
 use nym_config::defaults::VOUCHER_INFO;
-use nym_contracts_common::dealings::ContractSafeBytes;
 use nym_credentials::coconut::bandwidth::BandwidthVoucher;
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_dkg::Threshold;
@@ -67,9 +65,10 @@ pub(crate) struct DummyClient {
     spent_credential_db: Arc<RwLock<HashMap<String, SpendCredentialResponse>>>,
 
     epoch: Arc<RwLock<Epoch>>,
+    contract_state: Arc<RwLock<ContractState>>,
     dealer_details: Arc<RwLock<HashMap<String, (DealerDetails, bool)>>>,
     threshold: Arc<RwLock<Option<Threshold>>>,
-    dealings: Arc<RwLock<HashMap<String, Vec<ContractSafeBytes>>>>,
+    dealings: Arc<RwLock<HashMap<EpochId, HashMap<String, Vec<PartialContractDealing>>>>>,
     verification_share: Arc<RwLock<HashMap<String, ContractVKShare>>>,
     group_db: Arc<RwLock<HashMap<String, MemberResponse>>>,
     initial_dealers_db: Arc<RwLock<Option<InitialReplacementData>>>,
@@ -83,6 +82,12 @@ impl DummyClient {
             proposal_db: Arc::new(RwLock::new(HashMap::new())),
             spent_credential_db: Arc::new(RwLock::new(HashMap::new())),
             epoch: Arc::new(RwLock::new(Epoch::default())),
+            contract_state: Arc::new(RwLock::new(ContractState {
+                mix_denom: TEST_COIN_DENOM.to_string(),
+                multisig_addr: Addr::unchecked("dummy address"),
+                group_addr: Cw4Contract::new(Addr::unchecked("dummy cw4")),
+                key_size: 5,
+            })),
             dealer_details: Arc::new(RwLock::new(HashMap::new())),
             threshold: Arc::new(RwLock::new(None)),
             dealings: Arc::new(RwLock::new(HashMap::new())),
@@ -133,7 +138,7 @@ impl DummyClient {
 
     pub fn with_dealings(
         mut self,
-        dealings: &Arc<RwLock<HashMap<String, Vec<ContractSafeBytes>>>>,
+        dealings: &Arc<RwLock<HashMap<EpochId, HashMap<String, Vec<PartialContractDealing>>>>>,
     ) -> Self {
         self.dealings = Arc::clone(dealings);
         self
@@ -203,6 +208,10 @@ impl super::client::Client for DummyClient {
             })
     }
 
+    async fn contract_state(&self) -> Result<ContractState> {
+        Ok(self.contract_state.read().unwrap().clone())
+    }
+
     async fn get_current_epoch(&self) -> Result<Epoch> {
         Ok(*self.epoch.read().unwrap())
     }
@@ -259,17 +268,21 @@ impl super::client::Client for DummyClient {
             .collect())
     }
 
-    async fn get_dealings(&self, idx: usize) -> Result<Vec<ContractDealing>> {
+    async fn get_dealings(
+        &self,
+        epoch_id: EpochId,
+        dealer: &str,
+    ) -> Result<Vec<PartialContractDealing>> {
         Ok(self
             .dealings
             .read()
             .unwrap()
-            .iter()
-            .map(|(dealer, dealings)| ContractDealing {
-                dealing: dealings.get(idx).unwrap().clone(),
-                dealer: Addr::unchecked(dealer),
-            })
-            .collect())
+            .get(&epoch_id)
+            .cloned()
+            .unwrap_or_default()
+            .get(dealer)
+            .cloned()
+            .unwrap_or_default())
     }
 
     async fn get_verification_key_shares(
@@ -367,19 +380,16 @@ impl super::client::Client for DummyClient {
 
     async fn submit_dealing(
         &self,
-        dealing_bytes: ContractSafeBytes,
+        dealing: PartialContractDealing,
         _resharing: bool,
     ) -> Result<ExecuteResult> {
-        self.dealings
-            .write()
-            .unwrap()
+        let current_epoch = self.epoch.read().unwrap().epoch_id;
+        let mut guard = self.dealings.write().unwrap();
+        let epoch_dealings = guard.entry(current_epoch).or_default();
+        let existing_dealings = epoch_dealings
             .entry(self.validator_address.to_string())
-            .and_modify(|v| {
-                if v.len() < TOTAL_DEALINGS {
-                    v.push(dealing_bytes.clone())
-                }
-            })
-            .or_insert_with(|| vec![dealing_bytes]);
+            .or_default();
+        existing_dealings.push(dealing);
 
         Ok(ExecuteResult {
             logs: vec![],

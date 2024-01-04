@@ -10,14 +10,13 @@ use cw3::ProposalResponse;
 use cw4::MemberResponse;
 use nym_coconut_bandwidth_contract_common::spend_credential::SpendCredentialResponse;
 use nym_coconut_dkg_common::msg::QueryMsg as DkgQueryMsg;
-use nym_coconut_dkg_common::types::InitialReplacementData;
+use nym_coconut_dkg_common::types::{InitialReplacementData, PartialContractDealing, State};
 use nym_coconut_dkg_common::{
-    dealer::{ContractDealing, DealerDetails, DealerDetailsResponse},
+    dealer::{DealerDetails, DealerDetailsResponse},
     types::{EncodedBTEPublicKeyWithProof, Epoch, EpochId},
     verification_key::{ContractVKShare, VerificationKeyShare},
 };
 use nym_config::defaults::{ChainDetails, NymNetworkDetails};
-use nym_contracts_common::dealings::ContractSafeBytes;
 use nym_ephemera_common::msg::QueryMsg as EphemeraQueryMsg;
 use nym_ephemera_common::types::JsonPeerInfo;
 use nym_mixnet_contract_common::families::FamilyHead;
@@ -374,6 +373,10 @@ impl crate::coconut::client::Client for Client {
         ))
     }
 
+    async fn contract_state(&self) -> crate::coconut::error::Result<State> {
+        Ok(nyxd_query!(self, get_state().await?))
+    }
+
     async fn get_current_epoch(&self) -> crate::coconut::error::Result<Epoch> {
         Ok(nyxd_query!(self, get_current_epoch().await?))
     }
@@ -407,9 +410,10 @@ impl crate::coconut::client::Client for Client {
 
     async fn get_dealings(
         &self,
-        idx: usize,
-    ) -> crate::coconut::error::Result<Vec<ContractDealing>> {
-        Ok(nyxd_query!(self, get_all_epoch_dealings(idx as u64).await?))
+        epoch_id: EpochId,
+        dealer: &str,
+    ) -> crate::coconut::error::Result<Vec<PartialContractDealing>> {
+        Ok(nyxd_query!(self, get_all_dealer_dealings(epoch_id, dealer).await?))
     }
 
     async fn get_verification_key_shares(
@@ -456,12 +460,12 @@ impl crate::coconut::client::Client for Client {
 
     async fn submit_dealing(
         &self,
-        dealing_bytes: ContractSafeBytes,
+        dealing: PartialContractDealing,
         resharing: bool,
     ) -> Result<ExecuteResult, CoconutError> {
         Ok(nyxd_signing!(
             self,
-            submit_dealing_bytes(dealing_bytes, resharing, None).await?
+            submit_dealing_bytes(dealing, resharing, None).await?
         ))
     }
 

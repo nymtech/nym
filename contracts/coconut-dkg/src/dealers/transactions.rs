@@ -38,6 +38,7 @@ pub fn try_add_dealer(
     mut deps: DepsMut<'_>,
     info: MessageInfo,
     bte_key_with_proof: EncodedBTEPublicKeyWithProof,
+    identity_key: String,
     announce_address: String,
     resharing: bool,
 ) -> Result<Response, ContractError> {
@@ -65,6 +66,7 @@ pub fn try_add_dealer(
     let dealer_details = DealerDetails {
         address: info.sender.clone(),
         bte_public_key_with_proof: bte_key_with_proof,
+        ed25519_identity: identity_key,
         announce_address,
         assigned_index: node_index,
     };
@@ -141,6 +143,7 @@ pub(crate) mod tests {
         let mut env = mock_env();
         let info = mock_info(owner.as_str(), &[]);
         let bte_key_with_proof = String::from("bte_key_with_proof");
+        let identity = String::from("identity");
         let announce_address = String::from("localhost:8000");
 
         env.block.time = env
@@ -155,6 +158,7 @@ pub(crate) mod tests {
             deps.as_mut(),
             info,
             bte_key_with_proof,
+            identity,
             announce_address,
             false,
         )

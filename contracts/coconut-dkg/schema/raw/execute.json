@@ -13,6 +13,7 @@
           "required": [
             "announce_address",
             "bte_key_with_proof",
+            "identity_key",
             "resharing"
           ],
           "properties": {
@@ -20,6 +21,9 @@
               "type": "string"
             },
             "bte_key_with_proof": {
+              "type": "string"
+            },
+            "identity_key": {
               "type": "string"
             },
             "resharing": {

@@ -34,6 +34,7 @@ pub fn dealer_details_fixture(assigned_index: u64) -> DealerDetails {
     DealerDetails {
         address: Addr::unchecked(format!("owner{}", assigned_index)),
         bte_public_key_with_proof: "".to_string(),
+        ed25519_identity: "".to_string(),
         announce_address: "".to_string(),
         assigned_index,
     }

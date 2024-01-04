@@ -68,4 +68,10 @@ pub enum ContractError {
 
     #[error("No verification key committed for owner {owner}")]
     NoCommitForOwner { owner: String },
+
+    #[error("failed to parse {value} into a valid SemVer version: {error_message}")]
+    SemVerFailure {
+        value: String,
+        error_message: String,
+    },
 }

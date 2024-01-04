@@ -24,6 +24,10 @@ use cosmwasm_std::{
 use cw4::Cw4Contract;
 use nym_coconut_dkg_common::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
 use nym_coconut_dkg_common::types::{Epoch, EpochState, State};
+use semver::Version;
+
+const CONTRACT_NAME: &str = "crate:nym-coconut-dkg";
+const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// Instantiate the contract.
 ///
@@ -63,6 +67,8 @@ pub fn instantiate(
             env.block.time,
         ),
     )?;
+
+    cw2::set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
     Ok(Response::default())
 }
@@ -159,8 +165,28 @@ pub fn query(deps: Deps<'_>, _env: Env, msg: QueryMsg) -> Result<QueryResponse, 
 }
 
 #[entry_point]
-pub fn migrate(_deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
-    Ok(Default::default())
+pub fn migrate(deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+    fn parse_semver(raw: &str) -> Result<Version, ContractError> {
+        raw.parse()
+            .map_err(|error: semver::Error| ContractError::SemVerFailure {
+                value: CONTRACT_VERSION.to_string(),
+                error_message: error.to_string(),
+            })
+    }
+
+    // Note: don't remove this particular bit of code as we have to ALWAYS check whether we have to
+    // update the stored version
+    let build_version: Version = parse_semver(CONTRACT_VERSION)?;
+    let stored_version: Version = parse_semver(&cw2::get_contract_version(deps.storage)?.version)?;
+
+    if stored_version < build_version {
+        cw2::set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
+
+        // If state structure changed in any contract version in the way migration is needed, it
+        // should occur here, for example anything from `crate::queued_migrations::`
+    }
+
+    Ok(Response::new())
 }
 
 #[cfg(test)]

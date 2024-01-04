@@ -105,6 +105,7 @@ fn dkg_proposal() {
         coconut_dkg_contract_addr.clone(),
         &RegisterDealer {
             bte_key_with_proof: "bte_key_with_proof".to_string(),
+            identity_key: "identity".to_string(),
             announce_address: "127.0.0.1:8000".to_string(),
             resharing: false,
         },

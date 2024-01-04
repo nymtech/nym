@@ -36,7 +36,7 @@ cw-storage-plus = { workspace = true, features = ["iterator"] }
 
 serde = { version = "1.0", default-features = false, features = ["derive"] }
 thiserror ={ workspace = true }
-semver = { version = "1.0.16", default-features = false }
+semver = { workspace = true, default-features = false }
 
 [dev-dependencies]
 rand_chacha = "0.3.1"

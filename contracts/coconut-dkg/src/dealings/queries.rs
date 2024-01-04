@@ -111,7 +111,7 @@ pub(crate) mod tests {
     #[cfg(test)]
     mod query_dealings {
         use super::*;
-        use nym_coconut_dkg_common::types::TOTAL_DEALINGS;
+        use nym_coconut_dkg_common::types::DEFAULT_DEALINGS;
 
         #[test]
         fn dealings_empty_on_init() {
@@ -124,7 +124,7 @@ pub(crate) mod tests {
         fn dealings_paged_retrieval_obeys_limits() {
             let mut deps = init_contract();
             let limit = 2;
-            fill_dealings(deps.as_mut(), 0, 10, TOTAL_DEALINGS as u32);
+            fill_dealings(deps.as_mut(), 0, 10, DEFAULT_DEALINGS as u32);
 
             for dealer in 0..10 {
                 let dealer = format!("dealer{dealer}");
@@ -138,7 +138,7 @@ pub(crate) mod tests {
         #[test]
         fn dealings_paged_retrieval_has_default_limit() {
             let mut deps = init_contract();
-            fill_dealings(deps.as_mut(), 0, 10, TOTAL_DEALINGS as u32);
+            fill_dealings(deps.as_mut(), 0, 10, DEFAULT_DEALINGS as u32);
 
             for dealer in 0..10 {
                 let dealer = format!("dealer{dealer}");
@@ -152,7 +152,7 @@ pub(crate) mod tests {
         #[test]
         fn dealings_paged_retrieval_has_max_limit() {
             let mut deps = init_contract();
-            fill_dealings(deps.as_mut(), 0, 10, TOTAL_DEALINGS as u32);
+            fill_dealings(deps.as_mut(), 0, 10, DEFAULT_DEALINGS as u32);
 
             // query with a crazily high limit in an attempt to use too many resources
             let crazy_limit = 1000 * DEALINGS_PAGE_MAX_LIMIT;

@@ -73,7 +73,7 @@ pub(crate) mod tests {
     use cosmwasm_std::Addr;
     use nym_coconut_dkg_common::dealer::DealerDetails;
     use nym_coconut_dkg_common::types::{
-        ContractSafeBytes, InitialReplacementData, TimeConfiguration, TOTAL_DEALINGS,
+        ContractSafeBytes, InitialReplacementData, TimeConfiguration, DEFAULT_DEALINGS,
     };
 
     #[test]
@@ -167,7 +167,7 @@ pub(crate) mod tests {
                 epoch_id: 0,
                 dealer: info.sender.clone(),
                 index: 42,
-                key_size: TOTAL_DEALINGS as u32,
+                key_size: DEFAULT_DEALINGS as u32,
             }
         );
 

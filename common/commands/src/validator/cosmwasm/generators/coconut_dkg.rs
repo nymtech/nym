@@ -6,7 +6,7 @@ use log::{debug, info};
 use std::str::FromStr;
 
 use nym_coconut_dkg_common::msg::InstantiateMsg;
-use nym_coconut_dkg_common::types::TimeConfiguration;
+use nym_coconut_dkg_common::types::{TimeConfiguration, DEFAULT_DEALINGS};
 use nym_validator_client::nyxd::AccountId;
 
 #[derive(Debug, Parser)]
@@ -93,6 +93,7 @@ pub async fn generate(args: Args) {
         multisig_addr: multisig_addr.to_string(),
         time_configuration: Some(time_configuration),
         mix_denom,
+        key_size: DEFAULT_DEALINGS as u32,
     };
 
     debug!("instantiate_msg: {:?}", instantiate_msg);

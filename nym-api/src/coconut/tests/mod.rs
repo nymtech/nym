@@ -33,6 +33,7 @@ use nym_coconut_dkg_common::types::{
 use nym_coconut_dkg_common::verification_key::{ContractVKShare, VerificationKeyShare};
 use nym_coconut_interface::{hash_to_scalar, Credential, VerificationKey};
 use nym_config::defaults::VOUCHER_INFO;
+use nym_contracts_common::IdentityKey;
 use nym_credentials::coconut::bandwidth::BandwidthVoucher;
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_dkg::Threshold;
@@ -356,6 +357,7 @@ impl super::client::Client for DummyClient {
     async fn register_dealer(
         &self,
         bte_public_key_with_proof: EncodedBTEPublicKeyWithProof,
+        identity_key: IdentityKey,
         announce_address: String,
         _resharing: bool,
     ) -> Result<ExecuteResult> {
@@ -379,6 +381,7 @@ impl super::client::Client for DummyClient {
                     DealerDetails {
                         address: Addr::unchecked(self.validator_address.to_string()),
                         bte_public_key_with_proof,
+                        ed25519_identity: identity_key,
                         announce_address,
                         assigned_index,
                     },

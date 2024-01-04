@@ -361,10 +361,12 @@ pub(crate) mod tests {
     use nym_coconut_dkg_common::dealer::DealerDetails;
     use nym_coconut_dkg_common::types::{EpochId, InitialReplacementData, PartialContractDealing};
     use nym_coconut_dkg_common::verification_key::ContractVKShare;
+    use nym_crypto::asymmetric::identity;
     use nym_dkg::bte::keys::KeyPair as DkgKeyPair;
     use nym_validator_client::nyxd::AccountId;
     use rand::rngs::OsRng;
     use rand::Rng;
+    use rand_07::thread_rng;
     use std::collections::HashMap;
     use std::env::temp_dir;
     use std::path::PathBuf;
@@ -406,6 +408,7 @@ pub(crate) mod tests {
     async fn prepare_clients_and_states(db: &MockContractDb) -> Vec<(DkgClient, State)> {
         let params = dkg::params();
         let mut clients_and_states = vec![];
+        let identity_keypair = identity::KeyPair::new(&mut thread_rng());
 
         for addr in TEST_VALIDATORS_ADDRESS {
             let dkg_client = DkgClient::new(
@@ -423,6 +426,7 @@ pub(crate) mod tests {
                 PersistentState::default(),
                 Url::parse("localhost:8000").unwrap(),
                 keypair,
+                *identity_keypair.public_key(),
                 KeyPair::new(),
             );
             clients_and_states.push((dkg_client, state));
@@ -940,11 +944,13 @@ pub(crate) mod tests {
             .with_initial_dealers_db(&db.initial_dealers_db),
         );
         let keypair = DkgKeyPair::new(dkg::params(), OsRng);
+        let identity_keypair = identity::KeyPair::new(&mut thread_rng());
         let state = State::new(
             PathBuf::default(),
             PersistentState::default(),
             Url::parse("localhost:8000").unwrap(),
             keypair,
+            *identity_keypair.public_key(),
             KeyPair::new(),
         );
 
@@ -1044,11 +1050,13 @@ pub(crate) mod tests {
             .with_initial_dealers_db(&db.initial_dealers_db),
         );
         let keypair = DkgKeyPair::new(dkg::params(), OsRng);
+        let identity_keypair = identity::KeyPair::new(&mut thread_rng());
         let state = State::new(
             PathBuf::default(),
             PersistentState::default(),
             Url::parse("localhost:8000").unwrap(),
             keypair,
+            *identity_keypair.public_key(),
             KeyPair::new(),
         );
         let new_dkg_client2 = DkgClient::new(
@@ -1063,11 +1071,13 @@ pub(crate) mod tests {
             .with_initial_dealers_db(&db.initial_dealers_db),
         );
         let keypair = DkgKeyPair::new(dkg::params(), OsRng);
+        let identity_keypair = identity::KeyPair::new(&mut thread_rng());
         let state2 = State::new(
             PathBuf::default(),
             PersistentState::default(),
             Url::parse("localhost:8000").unwrap(),
             keypair,
+            *identity_keypair.public_key(),
             KeyPair::new(),
         );
 

@@ -139,10 +139,12 @@ pub(crate) mod tests {
     use nym_coconut::{ttp_keygen, Parameters};
     use nym_coconut_dkg_common::dealer::DealerDetails;
     use nym_coconut_dkg_common::types::InitialReplacementData;
+    use nym_crypto::asymmetric::identity;
     use nym_dkg::bte::keys::KeyPair as DkgKeyPair;
     use nym_dkg::bte::{Params, PublicKeyWithProof};
     use nym_validator_client::nyxd::AccountId;
     use rand::rngs::OsRng;
+    use rand_07::thread_rng;
     use std::collections::HashMap;
     use std::path::PathBuf;
     use std::str::FromStr;
@@ -163,6 +165,8 @@ pub(crate) mod tests {
         let mut keypairs = vec![];
         for (idx, addr) in TEST_VALIDATORS_ADDRESS.iter().enumerate() {
             let keypair = DkgKeyPair::new(params, OsRng);
+            let identity_keypair = identity::KeyPair::new(&mut thread_rng());
+
             let bte_public_key_with_proof =
                 bs58::encode(&keypair.public_key().to_bytes()).into_string();
             keypairs.push(keypair);
@@ -172,6 +176,7 @@ pub(crate) mod tests {
                     DealerDetails {
                         address: Addr::unchecked(*addr),
                         bte_public_key_with_proof,
+                        ed25519_identity: identity_keypair.public_key().to_base58_string(),
                         announce_address: format!("localhost:80{}", idx),
                         assigned_index: (idx + 1) as u64,
                     },
@@ -196,11 +201,13 @@ pub(crate) mod tests {
                 .with_threshold(&threshold_db),
         );
         let params = dkg::params();
+        let identity_keypair = identity::KeyPair::new(&mut thread_rng());
         let mut state = State::new(
             PathBuf::default(),
             PersistentState::default(),
             Url::parse("localhost:8000").unwrap(),
             DkgKeyPair::new(params, OsRng),
+            *identity_keypair.public_key(),
             KeyPair::new(),
         );
         state.set_node_index(Some(self_index));
@@ -259,11 +266,13 @@ pub(crate) mod tests {
                 .with_threshold(&threshold_db),
         );
         let params = dkg::params();
+        let identity_keypair = identity::KeyPair::new(&mut thread_rng());
         let mut state = State::new(
             PathBuf::default(),
             PersistentState::default(),
             Url::parse("localhost:8000").unwrap(),
             DkgKeyPair::new(params, OsRng),
+            *identity_keypair.public_key(),
             KeyPair::new(),
         );
         state.set_node_index(Some(self_index));
@@ -332,12 +341,14 @@ pub(crate) mod tests {
         let mut keys = ttp_keygen(&Parameters::new(4).unwrap(), 3, 4).unwrap();
         let coconut_keypair = KeyPair::new();
         coconut_keypair.set(Some(keys.pop().unwrap())).await;
+        let identity_keypair = identity::KeyPair::new(&mut thread_rng());
 
         let mut state = State::new(
             PathBuf::default(),
             PersistentState::default(),
             Url::parse("localhost:8000").unwrap(),
             DkgKeyPair::new(params, OsRng),
+            *identity_keypair.public_key(),
             coconut_keypair.clone(),
         );
         state.set_node_index(Some(self_index));
@@ -361,11 +372,13 @@ pub(crate) mod tests {
         // no dealings submitted for the first (zeroth) epoch
         assert!(dealings_db.read().unwrap().get(&0).is_none());
 
+        let identity_keypair = identity::KeyPair::new(&mut thread_rng());
         let mut state = State::new(
             PathBuf::default(),
             PersistentState::default(),
             Url::parse("localhost:8000").unwrap(),
             DkgKeyPair::new(params, OsRng),
+            *identity_keypair.public_key(),
             coconut_keypair,
         );
         state.set_node_index(Some(self_index));

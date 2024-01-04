@@ -539,6 +539,20 @@
           }
         },
         "additionalProperties": false
+      },
+      {
+        "description": "Gets the stored contract version information that's required by the CW2 spec interface for migrations.",
+        "type": "object",
+        "required": [
+          "get_cw2_contract_version"
+        ],
+        "properties": {
+          "get_cw2_contract_version": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
       }
     ]
   },
@@ -550,6 +564,26 @@
   },
   "sudo": null,
   "responses": {
+    "get_c_w2_contract_version": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "ContractVersion",
+      "type": "object",
+      "required": [
+        "contract",
+        "version"
+      ],
+      "properties": {
+        "contract": {
+          "description": "contract is the crate name of the implementing contract, eg. `crate:cw20-base` we will use other prefixes for other languages, and their standard global namespacing",
+          "type": "string"
+        },
+        "version": {
+          "description": "version is any string that this implementation knows. It may be simple counter \"1\", \"2\". or semantic version on release tags \"v0.7.0\", or some custom feature flag list. the only code that needs to understand the version parsing is code that knows how to migrate from the given contract (and is tied to it's implementation somehow)",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
     "get_current_dealers": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "PagedDealerResponse",

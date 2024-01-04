@@ -159,7 +159,7 @@ pub fn query(deps: Deps<'_>, _env: Env, msg: QueryMsg) -> Result<QueryResponse, 
             limit,
             start_after,
         } => to_binary(&query_vk_shares_paged(deps, epoch_id, start_after, limit)?)?,
-        QueryMsg::GetCW2ContractVersion {} => to_binary(&cw2::get_contract_version(deps.storage)?),
+        QueryMsg::GetCW2ContractVersion {} => to_binary(&cw2::get_contract_version(deps.storage)?)?,
     };
 
     Ok(response)

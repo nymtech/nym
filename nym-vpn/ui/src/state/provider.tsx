@@ -49,10 +49,8 @@ export function MainStateProvider({ children }: Props) {
           version,
         }),
       )
-      .catch((e: CmdError) => {
-        console.warn(
-          `command [set-version] returned an error: ${e.source} - ${e.message}`,
-        );
+      .catch((e) => {
+        console.warn(`command [set-version] returned an error: ${e}`);
       });
 
     getInitialConnectionState()

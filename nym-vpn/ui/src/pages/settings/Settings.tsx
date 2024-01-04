@@ -59,7 +59,6 @@ function Settings() {
             title: t('auto-connect.title'),
             desc: t('auto-connect.desc'),
             leadingIcon: 'hdr_auto',
-            onClick: () => {},
             trailing: (
               <Switch
                 checked={autoConnect}
@@ -84,7 +83,6 @@ function Settings() {
             title: t('entry-selector.title'),
             desc: t('entry-selector.desc'),
             leadingIcon: 'looks_two',
-            onClick: () => {},
             trailing: (
               <Switch
                 checked={entrySelector}
@@ -111,13 +109,14 @@ function Settings() {
         settings={[
           {
             title: t('display-theme'),
-            desc: '',
             leadingIcon: 'contrast',
             onClick: () => {
               navigate(routes.display);
             },
             trailing: (
-              <div className="font-icon cursor-pointer">arrow_right</div>
+              <div className="font-icon text-2xl cursor-pointer">
+                arrow_right
+              </div>
             ),
           },
         ]}
@@ -126,7 +125,6 @@ function Settings() {
         settings={[
           {
             title: t('logs'),
-            desc: '',
             leadingIcon: (
               <img src={`./icons/logs.svg`} className="h-8" alt={t('logs')} />
             ),
@@ -134,7 +132,9 @@ function Settings() {
               navigate(routes.logs);
             },
             trailing: (
-              <div className="font-icon cursor-pointer">arrow_right</div>
+              <div className="font-icon text-2xl cursor-pointer">
+                arrow_right
+              </div>
             ),
           },
         ]}
@@ -143,20 +143,20 @@ function Settings() {
         settings={[
           {
             title: t('feedback'),
-            desc: '',
             leadingIcon: 'question_answer',
             onClick: () => {
               navigate(routes.feedback);
             },
             trailing: (
-              <div className="font-icon cursor-pointer">arrow_right</div>
+              <div className="font-icon text-2xl cursor-pointer">
+                arrow_right
+              </div>
             ),
           },
           {
             title: t('error-reporting.title'),
             desc: t('error-reporting.desc'),
             leadingIcon: 'error',
-            onClick: () => {},
             trailing: (
               <Switch
                 checked={monitoring}
@@ -179,10 +179,10 @@ function Settings() {
           },
           {
             title: t('faq'),
-            desc: '',
             leadingIcon: 'help',
-            onClick: () => {},
-            trailing: <div className="font-icon cursor-pointer">launch</div>,
+            trailing: (
+              <div className="font-icon text-2xl cursor-pointer">launch</div>
+            ),
           },
         ]}
       />
@@ -190,13 +190,13 @@ function Settings() {
         settings={[
           {
             title: t('legal'),
-            desc: '',
-            leadingIcon: '',
             onClick: () => {
               navigate(routes.legal);
             },
             trailing: (
-              <div className="font-icon cursor-pointer">arrow_right</div>
+              <div className="font-icon text-2xl cursor-pointer">
+                arrow_right
+              </div>
             ),
           },
         ]}
@@ -205,12 +205,9 @@ function Settings() {
         settings={[
           {
             title: t('quit'),
-            desc: '',
-            leadingIcon: '',
             onClick: () => {
               //TODO shutdown gracefully
             },
-            trailing: <div></div>,
           },
         ]}
       />

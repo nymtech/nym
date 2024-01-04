@@ -10,7 +10,7 @@ use cosmwasm_std::{
 };
 use cw4::{Cw4QueryMsg, Member, MemberListResponse, MemberResponse};
 use nym_coconut_dkg_common::msg::InstantiateMsg;
-use nym_coconut_dkg_common::types::{DealerDetails, TOTAL_DEALINGS};
+use nym_coconut_dkg_common::types::{DealerDetails, DEFAULT_DEALINGS};
 use std::sync::Mutex;
 
 use super::fixtures::TEST_MIX_DENOM;
@@ -84,7 +84,7 @@ pub fn init_contract() -> OwnedDeps<MemoryStorage, MockApi, MockQuerier<Empty>> 
         multisig_addr: String::from(MULTISIG_CONTRACT),
         time_configuration: None,
         mix_denom: TEST_MIX_DENOM.to_string(),
-        key_size: TOTAL_DEALINGS as u32,
+        key_size: DEFAULT_DEALINGS as u32,
     };
     let env = mock_env();
     let info = mock_info(ADMIN_ADDRESS, &[]);

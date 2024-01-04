@@ -155,7 +155,7 @@ mod tests {
     use cw4::Member;
     use cw_multi_test::{App, AppBuilder, AppResponse, ContractWrapper, Executor};
     use nym_coconut_dkg_common::msg::ExecuteMsg::RegisterDealer;
-    use nym_coconut_dkg_common::types::{NodeIndex, TOTAL_DEALINGS};
+    use nym_coconut_dkg_common::types::{NodeIndex, DEFAULT_DEALINGS};
     use nym_group_contract_common::msg::InstantiateMsg as GroupInstantiateMsg;
 
     fn instantiate_with_group(app: &mut App, members: &[Addr]) -> Addr {
@@ -192,7 +192,7 @@ mod tests {
             multisig_addr: MULTISIG_CONTRACT.to_string(),
             time_configuration: None,
             mix_denom: TEST_MIX_DENOM.to_string(),
-            key_size: TOTAL_DEALINGS as u32,
+            key_size: DEFAULT_DEALINGS as u32,
         };
         app.instantiate_contract(
             coconut_dkg_code_id,

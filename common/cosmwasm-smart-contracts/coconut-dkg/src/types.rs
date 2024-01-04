@@ -18,8 +18,7 @@ pub type DealingIndex = u32;
 pub type ContractDealing = ContractSafeBytes;
 
 // 2 public attributes, 2 private attributes, 1 fixed for coconut credential
-#[deprecated]
-pub const TOTAL_DEALINGS: usize = 2 + 2 + 1;
+pub const DEFAULT_DEALINGS: usize = 2 + 2 + 1;
 
 #[cw_serde]
 pub struct PartialContractDealing {

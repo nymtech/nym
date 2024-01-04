@@ -413,7 +413,10 @@ impl crate::coconut::client::Client for Client {
         epoch_id: EpochId,
         dealer: &str,
     ) -> crate::coconut::error::Result<Vec<PartialContractDealing>> {
-        Ok(nyxd_query!(self, get_all_dealer_dealings(epoch_id, dealer).await?))
+        Ok(nyxd_query!(
+            self,
+            get_all_dealer_dealings(epoch_id, dealer).await?
+        ))
     }
 
     async fn get_verification_key_shares(

@@ -120,6 +120,11 @@ pub enum QueryMsg {
         limit: Option<u32>,
         start_after: Option<String>,
     },
+
+    /// Gets the stored contract version information that's required by the CW2 spec interface for migrations.
+    #[serde(rename = "get_cw2_contract_version")]
+    #[cfg_attr(feature = "schema", returns(cw2::ContractVersion))]
+    GetCW2ContractVersion {},
 }
 
 #[cw_serde]

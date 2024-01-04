@@ -135,6 +135,11 @@ pub trait DkgQueryClient {
         };
         self.query_dkg_contract(request).await
     }
+
+    async fn get_contract_cw2_version(&self) -> Result<cw2::ContractVersion, NyxdError> {
+        self.query_dkg_contract(DkgQueryMsg::GetCW2ContractVersion {})
+            .await
+    }
 }
 
 // extension trait to the query client to deal with the paged queries
@@ -241,6 +246,7 @@ mod tests {
             } => client
                 .get_vk_shares_paged(epoch_id, start_after, limit)
                 .ignore(),
+            DkgQueryMsg::GetCW2ContractVersion {} => client.get_contract_cw2_version().ignore(),
         };
     }
 }

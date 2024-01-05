@@ -34,6 +34,8 @@ fn verify_dealer(deps: DepsMut<'_>, dealer: &Addr, resharing: bool) -> Result<()
     Ok(())
 }
 
+// future optimisation:
+// for a recurring dealer just let it refresh the keys without having to do all the storage operations
 pub fn try_add_dealer(
     mut deps: DepsMut<'_>,
     info: MessageInfo,

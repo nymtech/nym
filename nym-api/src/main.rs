@@ -73,7 +73,8 @@ async fn start_nym_api_tasks(config: Config) -> anyhow::Result<ShutdownHandles> 
 
     // if the keypair doesnt exist (because say this API is running in the caching mode), nothing will happen
     if let Some(loaded_keys) = load_coconut_keypair_if_exists(&config.coconut_signer)? {
-        coconut_keypair_wrapper.set(Some(loaded_keys)).await
+        todo!()
+        // coconut_keypair_wrapper.set(loaded_keys).await
     }
 
     let identity_keypair = config.base.storage_paths.load_identity()?;

@@ -662,41 +662,42 @@ struct TestFixture {
 
 impl TestFixture {
     async fn new() -> Self {
-        let mut rng = OsRng;
-        let params = Parameters::new(4).unwrap();
-        let coconut_keypair = ttp_keygen(&params, 1, 1).unwrap().remove(0);
-        let identity = identity::KeyPair::new(&mut rng);
-        let epoch = Arc::new(AtomicU64::new(1));
-        let comm_channel =
-            DummyCommunicationChannel::new(coconut_keypair.verification_key().clone())
-                .with_epoch(epoch.clone());
-        let storage = nym_api_storage_fixture(&identity).await;
-
-        let staged_key_pair = crate::coconut::KeyPair::new();
-        staged_key_pair.set(Some(coconut_keypair)).await;
-
-        let tx_db = Arc::new(RwLock::new(HashMap::new()));
-        let nyxd_client =
-            DummyClient::new(AccountId::from_str(TEST_REWARDING_VALIDATOR_ADDRESS).unwrap())
-                .with_tx_db(&tx_db);
-
-        let rocket = rocket::build().attach(coconut::stage(
-            nyxd_client,
-            TEST_COIN_DENOM.to_string(),
-            identity,
-            staged_key_pair,
-            comm_channel,
-            storage.clone(),
-        ));
-
-        TestFixture {
-            rocket: Client::tracked(rocket)
-                .await
-                .expect("valid rocket instance"),
-            storage,
-            tx_db,
-            epoch,
-        }
+        todo!()
+        // let mut rng = OsRng;
+        // let params = Parameters::new(4).unwrap();
+        // let coconut_keypair = ttp_keygen(&params, 1, 1).unwrap().remove(0);
+        // let identity = identity::KeyPair::new(&mut rng);
+        // let epoch = Arc::new(AtomicU64::new(1));
+        // let comm_channel =
+        //     DummyCommunicationChannel::new(coconut_keypair.verification_key().clone())
+        //         .with_epoch(epoch.clone());
+        // let storage = nym_api_storage_fixture(&identity).await;
+        //
+        // let staged_key_pair = crate::coconut::KeyPair::new();
+        // staged_key_pair.set(Some(coconut_keypair)).await;
+        //
+        // let tx_db = Arc::new(RwLock::new(HashMap::new()));
+        // let nyxd_client =
+        //     DummyClient::new(AccountId::from_str(TEST_REWARDING_VALIDATOR_ADDRESS).unwrap())
+        //         .with_tx_db(&tx_db);
+        //
+        // let rocket = rocket::build().attach(coconut::stage(
+        //     nyxd_client,
+        //     TEST_COIN_DENOM.to_string(),
+        //     identity,
+        //     staged_key_pair,
+        //     comm_channel,
+        //     storage.clone(),
+        // ));
+        //
+        // TestFixture {
+        //     rocket: Client::tracked(rocket)
+        //         .await
+        //         .expect("valid rocket instance"),
+        //     storage,
+        //     tx_db,
+        //     epoch,
+        // }
     }
 
     fn set_epoch(&self, epoch: u64) {
@@ -805,511 +806,514 @@ async fn already_issued() {
 
 #[tokio::test]
 async fn state_functions() {
-    let mut rng = OsRng;
-    let identity = identity::KeyPair::new(&mut rng);
-
-    let nyxd_client =
-        DummyClient::new(AccountId::from_str(TEST_REWARDING_VALIDATOR_ADDRESS).unwrap());
-    let params = Parameters::new(4).unwrap();
-    let key_pair = ttp_keygen(&params, 1, 1).unwrap().remove(0);
-    let mut db_dir = std::env::temp_dir();
-    db_dir.push(&key_pair.verification_key().to_bs58()[..8]);
-    let storage = NymApiStorage::init(db_dir).await.unwrap();
-    let comm_channel = DummyCommunicationChannel::new(key_pair.verification_key().clone());
-    let staged_key_pair = crate::coconut::KeyPair::new();
-    staged_key_pair.set(Some(key_pair)).await;
-    let state = State::new(
-        nyxd_client,
-        TEST_COIN_DENOM.to_string(),
-        identity,
-        staged_key_pair,
-        comm_channel,
-        storage.clone(),
-    );
-
-    let tx_hash = "6B27412050B823E58BB38447D7870BBC8CBE3C51C905BEA89D459ACCDA80A00E"
-        .parse()
-        .unwrap();
-    assert!(state.already_issued(tx_hash).await.unwrap().is_none());
-
-    let (_, request_body) = voucher_request_fixture(coin(1234, TEST_COIN_DENOM), None);
-    let commitments = request_body.encode_commitments();
-    let public = request_body.public_attributes_plain.clone();
-    let sig = blinded_signature_fixture();
-    storage
-        .store_issued_credential(
-            42,
-            tx_hash,
-            &sig,
-            dummy_signature(),
-            commitments.clone(),
-            public.clone(),
-        )
-        .await
-        .unwrap();
-
-    assert_eq!(
-        state
-            .already_issued(tx_hash)
-            .await
-            .unwrap()
-            .unwrap()
-            .to_bytes(),
-        blinded_signature_fixture().to_bytes()
-    );
-
-    let blinded_signature = BlindedSignature::from_bytes(&[
-        183, 217, 166, 113, 40, 123, 74, 25, 72, 31, 136, 19, 125, 95, 217, 228, 96, 113, 25, 240,
-        12, 102, 125, 11, 174, 20, 216, 82, 192, 71, 27, 194, 48, 20, 17, 95, 243, 179, 82, 21, 57,
-        143, 101, 19, 22, 186, 147, 13, 147, 238, 39, 119, 15, 36, 251, 131, 250, 38, 185, 113,
-        187, 40, 227, 107, 134, 190, 123, 183, 126, 176, 226, 173, 147, 137, 17, 175, 13, 115, 78,
-        222, 119, 93, 146, 116, 229, 0, 152, 51, 232, 2, 102, 204, 147, 202, 254, 243,
-    ])
-    .unwrap();
-
-    // Check that the new payload is not stored if there was already something signed for tx_hash
-    let storage_err = storage
-        .store_issued_credential(
-            42,
-            tx_hash,
-            &blinded_signature,
-            dummy_signature(),
-            commitments.clone(),
-            public.clone(),
-        )
-        .await;
-    assert!(storage_err.is_err());
-
-    // And use a new hash to store a new signature
-    let tx_hash = "97D64C38D6601B1F0FD3A82E20D252685CB7A210AFB0261018590659AB82B0BF"
-        .parse()
-        .unwrap();
-
-    storage
-        .store_issued_credential(
-            42,
-            tx_hash,
-            &blinded_signature,
-            dummy_signature(),
-            commitments.clone(),
-            public.clone(),
-        )
-        .await
-        .unwrap();
-
-    // Check that the same value for tx_hash is returned
-    assert_eq!(
-        state
-            .already_issued(tx_hash)
-            .await
-            .unwrap()
-            .unwrap()
-            .to_bytes(),
-        blinded_signature.to_bytes()
-    );
+    todo!()
+    // let mut rng = OsRng;
+    // let identity = identity::KeyPair::new(&mut rng);
+    //
+    // let nyxd_client =
+    //     DummyClient::new(AccountId::from_str(TEST_REWARDING_VALIDATOR_ADDRESS).unwrap());
+    // let params = Parameters::new(4).unwrap();
+    // let key_pair = ttp_keygen(&params, 1, 1).unwrap().remove(0);
+    // let mut db_dir = std::env::temp_dir();
+    // db_dir.push(&key_pair.verification_key().to_bs58()[..8]);
+    // let storage = NymApiStorage::init(db_dir).await.unwrap();
+    // let comm_channel = DummyCommunicationChannel::new(key_pair.verification_key().clone());
+    // let staged_key_pair = crate::coconut::KeyPair::new();
+    // staged_key_pair.set(Some(key_pair)).await;
+    // let state = State::new(
+    //     nyxd_client,
+    //     TEST_COIN_DENOM.to_string(),
+    //     identity,
+    //     staged_key_pair,
+    //     comm_channel,
+    //     storage.clone(),
+    // );
+    //
+    // let tx_hash = "6B27412050B823E58BB38447D7870BBC8CBE3C51C905BEA89D459ACCDA80A00E"
+    //     .parse()
+    //     .unwrap();
+    // assert!(state.already_issued(tx_hash).await.unwrap().is_none());
+    //
+    // let (_, request_body) = voucher_request_fixture(coin(1234, TEST_COIN_DENOM), None);
+    // let commitments = request_body.encode_commitments();
+    // let public = request_body.public_attributes_plain.clone();
+    // let sig = blinded_signature_fixture();
+    // storage
+    //     .store_issued_credential(
+    //         42,
+    //         tx_hash,
+    //         &sig,
+    //         dummy_signature(),
+    //         commitments.clone(),
+    //         public.clone(),
+    //     )
+    //     .await
+    //     .unwrap();
+    //
+    // assert_eq!(
+    //     state
+    //         .already_issued(tx_hash)
+    //         .await
+    //         .unwrap()
+    //         .unwrap()
+    //         .to_bytes(),
+    //     blinded_signature_fixture().to_bytes()
+    // );
+    //
+    // let blinded_signature = BlindedSignature::from_bytes(&[
+    //     183, 217, 166, 113, 40, 123, 74, 25, 72, 31, 136, 19, 125, 95, 217, 228, 96, 113, 25, 240,
+    //     12, 102, 125, 11, 174, 20, 216, 82, 192, 71, 27, 194, 48, 20, 17, 95, 243, 179, 82, 21, 57,
+    //     143, 101, 19, 22, 186, 147, 13, 147, 238, 39, 119, 15, 36, 251, 131, 250, 38, 185, 113,
+    //     187, 40, 227, 107, 134, 190, 123, 183, 126, 176, 226, 173, 147, 137, 17, 175, 13, 115, 78,
+    //     222, 119, 93, 146, 116, 229, 0, 152, 51, 232, 2, 102, 204, 147, 202, 254, 243,
+    // ])
+    // .unwrap();
+    //
+    // // Check that the new payload is not stored if there was already something signed for tx_hash
+    // let storage_err = storage
+    //     .store_issued_credential(
+    //         42,
+    //         tx_hash,
+    //         &blinded_signature,
+    //         dummy_signature(),
+    //         commitments.clone(),
+    //         public.clone(),
+    //     )
+    //     .await;
+    // assert!(storage_err.is_err());
+    //
+    // // And use a new hash to store a new signature
+    // let tx_hash = "97D64C38D6601B1F0FD3A82E20D252685CB7A210AFB0261018590659AB82B0BF"
+    //     .parse()
+    //     .unwrap();
+    //
+    // storage
+    //     .store_issued_credential(
+    //         42,
+    //         tx_hash,
+    //         &blinded_signature,
+    //         dummy_signature(),
+    //         commitments.clone(),
+    //         public.clone(),
+    //     )
+    //     .await
+    //     .unwrap();
+    //
+    // // Check that the same value for tx_hash is returned
+    // assert_eq!(
+    //     state
+    //         .already_issued(tx_hash)
+    //         .await
+    //         .unwrap()
+    //         .unwrap()
+    //         .to_bytes(),
+    //     blinded_signature.to_bytes()
+    // );
 }
 
 #[tokio::test]
 async fn blind_sign_correct() {
-    let tx_hash =
-        Hash::from_str("7C41AF8266D91DE55E1C8F4712E6A952A165ED3D8C27C7B00428CBD0DE00A52B").unwrap();
-
-    let params = Parameters::new(4).unwrap();
-    let mut rng = OsRng;
-    let nym_api_identity = identity::KeyPair::new(&mut rng);
-
-    let identity_keypair = identity::KeyPair::new(&mut rng);
-    let encryption_keypair = encryption::KeyPair::new(&mut rng);
-    let voucher = BandwidthVoucher::new(
-        &params,
-        "1234".to_string(),
-        VOUCHER_INFO.to_string(),
-        tx_hash,
-        identity::PrivateKey::from_base58_string(identity_keypair.private_key().to_base58_string())
-            .unwrap(),
-        encryption::PrivateKey::from_bytes(&encryption_keypair.private_key().to_bytes()).unwrap(),
-    );
-
-    let key_pair = ttp_keygen(&params, 1, 1).unwrap().remove(0);
-    let mut db_dir = std::env::temp_dir();
-    db_dir.push(&key_pair.verification_key().to_bs58()[..8]);
-    let storage = NymApiStorage::init(db_dir).await.unwrap();
-    let tx_db = Arc::new(RwLock::new(HashMap::new()));
-
-    let tx_entry = deposit_tx_fixture(&voucher);
-
-    tx_db.write().unwrap().insert(tx_hash, tx_entry.clone());
-    let nyxd_client =
-        DummyClient::new(AccountId::from_str(TEST_REWARDING_VALIDATOR_ADDRESS).unwrap())
-            .with_tx_db(&tx_db);
-    let comm_channel = DummyCommunicationChannel::new(key_pair.verification_key().clone());
-    let staged_key_pair = crate::coconut::KeyPair::new();
-    staged_key_pair.set(Some(key_pair)).await;
-
-    let rocket = rocket::build().attach(coconut::stage(
-        nyxd_client,
-        TEST_COIN_DENOM.to_string(),
-        nym_api_identity,
-        staged_key_pair,
-        comm_channel,
-        storage.clone(),
-    ));
-    let client = Client::tracked(rocket)
-        .await
-        .expect("valid rocket instance");
-
-    let request_signature = voucher.sign();
-
-    let request_body = BlindSignRequestBody::new(
-        voucher.blind_sign_request().clone(),
-        tx_hash,
-        request_signature,
-        voucher.get_public_attributes_plain(),
-    );
-
-    let response = client
-        .post(format!(
-            "/{}/{}/{}/{}",
-            API_VERSION, COCONUT_ROUTES, BANDWIDTH, COCONUT_BLIND_SIGN
-        ))
-        .json(&request_body)
-        .dispatch()
-        .await;
-
-    assert_eq!(response.status(), Status::Ok);
-    // This is a more direct way, but there's a bug which makes it hang https://github.com/SergioBenitez/Rocket/issues/1893
-    // assert!(response.into_json::<BlindedSignatureResponse>().is_some());
-    let blinded_signature_response =
-        serde_json::from_str::<BlindedSignatureResponse>(&response.into_string().await.unwrap());
-    assert!(blinded_signature_response.is_ok());
+    todo!()
+    // let tx_hash =
+    //     Hash::from_str("7C41AF8266D91DE55E1C8F4712E6A952A165ED3D8C27C7B00428CBD0DE00A52B").unwrap();
+    //
+    // let params = Parameters::new(4).unwrap();
+    // let mut rng = OsRng;
+    // let nym_api_identity = identity::KeyPair::new(&mut rng);
+    //
+    // let identity_keypair = identity::KeyPair::new(&mut rng);
+    // let encryption_keypair = encryption::KeyPair::new(&mut rng);
+    // let voucher = BandwidthVoucher::new(
+    //     &params,
+    //     "1234".to_string(),
+    //     VOUCHER_INFO.to_string(),
+    //     tx_hash,
+    //     identity::PrivateKey::from_base58_string(identity_keypair.private_key().to_base58_string())
+    //         .unwrap(),
+    //     encryption::PrivateKey::from_bytes(&encryption_keypair.private_key().to_bytes()).unwrap(),
+    // );
+    //
+    // let key_pair = ttp_keygen(&params, 1, 1).unwrap().remove(0);
+    // let mut db_dir = std::env::temp_dir();
+    // db_dir.push(&key_pair.verification_key().to_bs58()[..8]);
+    // let storage = NymApiStorage::init(db_dir).await.unwrap();
+    // let tx_db = Arc::new(RwLock::new(HashMap::new()));
+    //
+    // let tx_entry = deposit_tx_fixture(&voucher);
+    //
+    // tx_db.write().unwrap().insert(tx_hash, tx_entry.clone());
+    // let nyxd_client =
+    //     DummyClient::new(AccountId::from_str(TEST_REWARDING_VALIDATOR_ADDRESS).unwrap())
+    //         .with_tx_db(&tx_db);
+    // let comm_channel = DummyCommunicationChannel::new(key_pair.verification_key().clone());
+    // let staged_key_pair = crate::coconut::KeyPair::new();
+    // staged_key_pair.set(Some(key_pair)).await;
+    //
+    // let rocket = rocket::build().attach(coconut::stage(
+    //     nyxd_client,
+    //     TEST_COIN_DENOM.to_string(),
+    //     nym_api_identity,
+    //     staged_key_pair,
+    //     comm_channel,
+    //     storage.clone(),
+    // ));
+    // let client = Client::tracked(rocket)
+    //     .await
+    //     .expect("valid rocket instance");
+    //
+    // let request_signature = voucher.sign();
+    //
+    // let request_body = BlindSignRequestBody::new(
+    //     voucher.blind_sign_request().clone(),
+    //     tx_hash,
+    //     request_signature,
+    //     voucher.get_public_attributes_plain(),
+    // );
+    //
+    // let response = client
+    //     .post(format!(
+    //         "/{}/{}/{}/{}",
+    //         API_VERSION, COCONUT_ROUTES, BANDWIDTH, COCONUT_BLIND_SIGN
+    //     ))
+    //     .json(&request_body)
+    //     .dispatch()
+    //     .await;
+    //
+    // assert_eq!(response.status(), Status::Ok);
+    // // This is a more direct way, but there's a bug which makes it hang https://github.com/SergioBenitez/Rocket/issues/1893
+    // // assert!(response.into_json::<BlindedSignatureResponse>().is_some());
+    // let blinded_signature_response =
+    //     serde_json::from_str::<BlindedSignatureResponse>(&response.into_string().await.unwrap());
+    // assert!(blinded_signature_response.is_ok());
 }
 
 #[tokio::test]
 async fn verification_of_bandwidth_credential() {
-    // Setup variables
-    let validator_address = AccountId::from_str(TEST_REWARDING_VALIDATOR_ADDRESS).unwrap();
-    let proposal_db = Arc::new(RwLock::new(HashMap::new()));
-    let spent_credential_db = Arc::new(RwLock::new(HashMap::new()));
-    let nyxd_client = DummyClient::new(validator_address.clone())
-        .with_proposal_db(&proposal_db)
-        .with_spent_credential_db(&spent_credential_db);
-    let mut db_dir = std::env::temp_dir();
-    let params = Parameters::new(4).unwrap();
-    let mut key_pairs = ttp_keygen(&params, 1, 1).unwrap();
-    let voucher_value = 1234u64;
-    let voucher_info = "voucher info";
-    let public_attributes = [
-        hash_to_scalar(voucher_value.to_string()),
-        hash_to_scalar(voucher_info),
-    ];
-    let public_attributes_ref = vec![&public_attributes[0], &public_attributes[1]];
-    let indices: Vec<u64> = key_pairs
-        .iter()
-        .enumerate()
-        .map(|(idx, _)| (idx + 1) as u64)
-        .collect();
-    let theta =
-        theta_from_keys_and_attributes(&params, &key_pairs, &indices, &public_attributes_ref)
-            .unwrap();
-    let key_pair = key_pairs.remove(0);
-    db_dir.push(&key_pair.verification_key().to_bs58()[..8]);
-    let storage1 = NymApiStorage::init(db_dir).await.unwrap();
-    let comm_channel = DummyCommunicationChannel::new(key_pair.verification_key().clone());
-    let staged_key_pair = crate::coconut::KeyPair::new();
-    staged_key_pair.set(Some(key_pair)).await;
-    let mut rng = OsRng;
-    let identity = identity::KeyPair::new(&mut rng);
-
-    let rocket = rocket::build().attach(coconut::stage(
-        nyxd_client.clone(),
-        TEST_COIN_DENOM.to_string(),
-        identity,
-        staged_key_pair,
-        comm_channel.clone(),
-        storage1.clone(),
-    ));
-
-    let client = Client::tracked(rocket)
-        .await
-        .expect("valid rocket instance");
-
-    let credential = Credential::new(4, theta.clone(), voucher_value, voucher_info.to_string(), 0);
-    let proposal_id = 42;
-    // The address is not used, so we can use a duplicate
-    let gateway_cosmos_addr = validator_address.clone();
-    let req =
-        VerifyCredentialBody::new(credential.clone(), proposal_id, gateway_cosmos_addr.clone());
-
-    // Test endpoint with not proposal for the proposal id
-    let response = client
-        .post(format!(
-            "/{}/{}/{}/{}",
-            API_VERSION, COCONUT_ROUTES, BANDWIDTH, COCONUT_VERIFY_BANDWIDTH_CREDENTIAL
-        ))
-        .json(&req)
-        .dispatch()
-        .await;
-    assert_eq!(response.status(), Status::BadRequest);
-    assert_eq!(
-        response.into_string().await.unwrap(),
-        CoconutError::IncorrectProposal {
-            reason: "proposal not found".to_string()
-        }
-        .to_string()
-    );
-
-    let mut proposal = ProposalResponse {
-        id: proposal_id,
-        title: String::new(),
-        description: String::from("25mnnoCcUfeizfC85avvroFg2prpEZBgJbJM2SLtkgyyUkoAU3cqJiqWmg8cMHEPjfFf5sQF92SMAM2vbEoLZvUjenvXhadTLdA4TqMYArJpihyqirW2AhGoNehtcdcK5gnH"),
-        msgs: vec![],
-        status: cw3::Status::Open,
-        expires: cw_utils::Expiration::Never {},
-        threshold: cw_utils::ThresholdResponse::AbsolutePercentage {
-            percentage: Decimal::from_ratio(2u32, 3u32),
-            total_weight: 100,
-        },
-        proposer: Addr::unchecked("proposer"),
-        deposit: None,
-    };
-
-    // Test the endpoint with a different blinded serial number in the description
-    proposal_db
-        .write()
-        .unwrap()
-        .insert(proposal_id, proposal.clone());
-    let response = client
-        .post(format!(
-            "/{}/{}/{}/{}",
-            API_VERSION, COCONUT_ROUTES, BANDWIDTH, COCONUT_VERIFY_BANDWIDTH_CREDENTIAL
-        ))
-        .json(&req)
-        .dispatch()
-        .await;
-    assert_eq!(response.status(), Status::BadRequest);
-    assert_eq!(
-        response.into_string().await.unwrap(),
-        CoconutError::IncorrectProposal {
-            reason: "incorrect blinded serial number in description".to_string()
-        }
-        .to_string()
-    );
-
-    // Test the endpoint with no msg in the proposal action
-    proposal.description = credential.blinded_serial_number();
-    proposal_db
-        .write()
-        .unwrap()
-        .insert(proposal_id, proposal.clone());
-    let response = client
-        .post(format!(
-            "/{}/{}/{}/{}",
-            API_VERSION, COCONUT_ROUTES, BANDWIDTH, COCONUT_VERIFY_BANDWIDTH_CREDENTIAL
-        ))
-        .json(&req)
-        .dispatch()
-        .await;
-    assert_eq!(response.status(), Status::BadRequest);
-    assert_eq!(
-        response.into_string().await.unwrap(),
-        CoconutError::IncorrectProposal {
-            reason: "action is not to release funds".to_string()
-        }
-        .to_string()
-    );
-
-    // Test the endpoint without any credential recorded in the Coconut Bandwidth Contract
-    let funds = Coin::new(voucher_value as u128, TEST_COIN_DENOM);
-    let msg = nym_coconut_bandwidth_contract_common::msg::ExecuteMsg::ReleaseFunds {
-        funds: funds.clone().into(),
-    };
-    let cosmos_msg = CosmosMsg::Wasm(WasmMsg::Execute {
-        contract_addr: String::new(),
-        msg: to_binary(&msg).unwrap(),
-        funds: vec![],
-    });
-    proposal.msgs = vec![cosmos_msg];
-    proposal_db
-        .write()
-        .unwrap()
-        .insert(proposal_id, proposal.clone());
-    let response = client
-        .post(format!(
-            "/{}/{}/{}/{}",
-            API_VERSION, COCONUT_ROUTES, BANDWIDTH, COCONUT_VERIFY_BANDWIDTH_CREDENTIAL
-        ))
-        .json(&req)
-        .dispatch()
-        .await;
-    assert_eq!(response.status(), Status::BadRequest);
-    assert_eq!(
-        response.into_string().await.unwrap(),
-        CoconutError::InvalidCredentialStatus {
-            status: "spent credential not found".to_string()
-        }
-        .to_string()
-    );
-
-    spent_credential_db.write().unwrap().insert(
-        credential.blinded_serial_number(),
-        SpendCredentialResponse::new(None),
-    );
-    let response = client
-        .post(format!(
-            "/{}/{}/{}/{}",
-            API_VERSION, COCONUT_ROUTES, BANDWIDTH, COCONUT_VERIFY_BANDWIDTH_CREDENTIAL
-        ))
-        .json(&req)
-        .dispatch()
-        .await;
-    assert_eq!(response.status(), Status::BadRequest);
-    assert_eq!(
-        response.into_string().await.unwrap(),
-        CoconutError::InvalidCredentialStatus {
-            status: "Inexistent".to_string()
-        }
-        .to_string()
-    );
-
-    // Test the endpoint with a credential that doesn't verify correctly
-    let mut spent_credential = SpendCredential::new(
-        funds.clone().into(),
-        credential.blinded_serial_number(),
-        Addr::unchecked("unimportant"),
-    );
-    spent_credential_db.write().unwrap().insert(
-        credential.blinded_serial_number(),
-        SpendCredentialResponse::new(Some(spent_credential.clone())),
-    );
-    let bad_credential = Credential::new(
-        4,
-        theta.clone(),
-        voucher_value,
-        String::from("bad voucher info"),
-        0,
-    );
-    let bad_req =
-        VerifyCredentialBody::new(bad_credential, proposal_id, gateway_cosmos_addr.clone());
-    let response = client
-        .post(format!(
-            "/{}/{}/{}/{}",
-            API_VERSION, COCONUT_ROUTES, BANDWIDTH, COCONUT_VERIFY_BANDWIDTH_CREDENTIAL
-        ))
-        .json(&bad_req)
-        .dispatch()
-        .await;
-    assert_eq!(response.status(), Status::Ok);
-    let verify_credential_response =
-        serde_json::from_str::<VerifyCredentialResponse>(&response.into_string().await.unwrap())
-            .unwrap();
-    assert!(!verify_credential_response.verification_result);
-    assert_eq!(
-        cw3::Status::Rejected,
-        proposal_db
-            .read()
-            .unwrap()
-            .get(&proposal_id)
-            .unwrap()
-            .status
-    );
-
-    // Test the endpoint with a proposal that has a different value for the funds to be released
-    // then what's in the credential
-    let funds = Coin::new((voucher_value + 10) as u128, TEST_COIN_DENOM);
-    let msg = nym_coconut_bandwidth_contract_common::msg::ExecuteMsg::ReleaseFunds {
-        funds: funds.clone().into(),
-    };
-    let cosmos_msg = CosmosMsg::Wasm(WasmMsg::Execute {
-        contract_addr: String::new(),
-        msg: to_binary(&msg).unwrap(),
-        funds: vec![],
-    });
-    proposal.msgs = vec![cosmos_msg];
-    proposal_db
-        .write()
-        .unwrap()
-        .insert(proposal_id, proposal.clone());
-    let response = client
-        .post(format!(
-            "/{}/{}/{}/{}",
-            API_VERSION, COCONUT_ROUTES, BANDWIDTH, COCONUT_VERIFY_BANDWIDTH_CREDENTIAL
-        ))
-        .json(&req)
-        .dispatch()
-        .await;
-    assert_eq!(response.status(), Status::Ok);
-    let verify_credential_response =
-        serde_json::from_str::<VerifyCredentialResponse>(&response.into_string().await.unwrap())
-            .unwrap();
-    assert!(!verify_credential_response.verification_result);
-    assert_eq!(
-        cw3::Status::Rejected,
-        proposal_db
-            .read()
-            .unwrap()
-            .get(&proposal_id)
-            .unwrap()
-            .status
-    );
-
-    // Test the endpoint with every dependency met
-    let funds = Coin::new(voucher_value as u128, TEST_COIN_DENOM);
-    let msg = nym_coconut_bandwidth_contract_common::msg::ExecuteMsg::ReleaseFunds {
-        funds: funds.clone().into(),
-    };
-    let cosmos_msg = CosmosMsg::Wasm(WasmMsg::Execute {
-        contract_addr: String::new(),
-        msg: to_binary(&msg).unwrap(),
-        funds: vec![],
-    });
-    proposal.msgs = vec![cosmos_msg];
-    proposal_db
-        .write()
-        .unwrap()
-        .insert(proposal_id, proposal.clone());
-    let response = client
-        .post(format!(
-            "/{}/{}/{}/{}",
-            API_VERSION, COCONUT_ROUTES, BANDWIDTH, COCONUT_VERIFY_BANDWIDTH_CREDENTIAL
-        ))
-        .json(&req)
-        .dispatch()
-        .await;
-    assert_eq!(response.status(), Status::Ok);
-    let verify_credential_response =
-        serde_json::from_str::<VerifyCredentialResponse>(&response.into_string().await.unwrap())
-            .unwrap();
-    assert!(verify_credential_response.verification_result);
-    assert_eq!(
-        cw3::Status::Passed,
-        proposal_db
-            .read()
-            .unwrap()
-            .get(&proposal_id)
-            .unwrap()
-            .status
-    );
-
-    // Test the endpoint with the credential marked as Spent in the Coconut Bandwidth Contract
-    spent_credential.mark_as_spent();
-    spent_credential_db.write().unwrap().insert(
-        credential.blinded_serial_number(),
-        SpendCredentialResponse::new(Some(spent_credential)),
-    );
-    let response = client
-        .post(format!(
-            "/{}/{}/{}/{}",
-            API_VERSION, COCONUT_ROUTES, BANDWIDTH, COCONUT_VERIFY_BANDWIDTH_CREDENTIAL
-        ))
-        .json(&req)
-        .dispatch()
-        .await;
-    assert_eq!(response.status(), Status::BadRequest);
-    assert_eq!(
-        response.into_string().await.unwrap(),
-        CoconutError::InvalidCredentialStatus {
-            status: "Spent".to_string()
-        }
-        .to_string()
-    );
+    todo!()
+    // // Setup variables
+    // let validator_address = AccountId::from_str(TEST_REWARDING_VALIDATOR_ADDRESS).unwrap();
+    // let proposal_db = Arc::new(RwLock::new(HashMap::new()));
+    // let spent_credential_db = Arc::new(RwLock::new(HashMap::new()));
+    // let nyxd_client = DummyClient::new(validator_address.clone())
+    //     .with_proposal_db(&proposal_db)
+    //     .with_spent_credential_db(&spent_credential_db);
+    // let mut db_dir = std::env::temp_dir();
+    // let params = Parameters::new(4).unwrap();
+    // let mut key_pairs = ttp_keygen(&params, 1, 1).unwrap();
+    // let voucher_value = 1234u64;
+    // let voucher_info = "voucher info";
+    // let public_attributes = [
+    //     hash_to_scalar(voucher_value.to_string()),
+    //     hash_to_scalar(voucher_info),
+    // ];
+    // let public_attributes_ref = vec![&public_attributes[0], &public_attributes[1]];
+    // let indices: Vec<u64> = key_pairs
+    //     .iter()
+    //     .enumerate()
+    //     .map(|(idx, _)| (idx + 1) as u64)
+    //     .collect();
+    // let theta =
+    //     theta_from_keys_and_attributes(&params, &key_pairs, &indices, &public_attributes_ref)
+    //         .unwrap();
+    // let key_pair = key_pairs.remove(0);
+    // db_dir.push(&key_pair.verification_key().to_bs58()[..8]);
+    // let storage1 = NymApiStorage::init(db_dir).await.unwrap();
+    // let comm_channel = DummyCommunicationChannel::new(key_pair.verification_key().clone());
+    // let staged_key_pair = crate::coconut::KeyPair::new();
+    // staged_key_pair.set(Some(key_pair)).await;
+    // let mut rng = OsRng;
+    // let identity = identity::KeyPair::new(&mut rng);
+    //
+    // let rocket = rocket::build().attach(coconut::stage(
+    //     nyxd_client.clone(),
+    //     TEST_COIN_DENOM.to_string(),
+    //     identity,
+    //     staged_key_pair,
+    //     comm_channel.clone(),
+    //     storage1.clone(),
+    // ));
+    //
+    // let client = Client::tracked(rocket)
+    //     .await
+    //     .expect("valid rocket instance");
+    //
+    // let credential = Credential::new(4, theta.clone(), voucher_value, voucher_info.to_string(), 0);
+    // let proposal_id = 42;
+    // // The address is not used, so we can use a duplicate
+    // let gateway_cosmos_addr = validator_address.clone();
+    // let req =
+    //     VerifyCredentialBody::new(credential.clone(), proposal_id, gateway_cosmos_addr.clone());
+    //
+    // // Test endpoint with not proposal for the proposal id
+    // let response = client
+    //     .post(format!(
+    //         "/{}/{}/{}/{}",
+    //         API_VERSION, COCONUT_ROUTES, BANDWIDTH, COCONUT_VERIFY_BANDWIDTH_CREDENTIAL
+    //     ))
+    //     .json(&req)
+    //     .dispatch()
+    //     .await;
+    // assert_eq!(response.status(), Status::BadRequest);
+    // assert_eq!(
+    //     response.into_string().await.unwrap(),
+    //     CoconutError::IncorrectProposal {
+    //         reason: "proposal not found".to_string()
+    //     }
+    //     .to_string()
+    // );
+    //
+    // let mut proposal = ProposalResponse {
+    //     id: proposal_id,
+    //     title: String::new(),
+    //     description: String::from("25mnnoCcUfeizfC85avvroFg2prpEZBgJbJM2SLtkgyyUkoAU3cqJiqWmg8cMHEPjfFf5sQF92SMAM2vbEoLZvUjenvXhadTLdA4TqMYArJpihyqirW2AhGoNehtcdcK5gnH"),
+    //     msgs: vec![],
+    //     status: cw3::Status::Open,
+    //     expires: cw_utils::Expiration::Never {},
+    //     threshold: cw_utils::ThresholdResponse::AbsolutePercentage {
+    //         percentage: Decimal::from_ratio(2u32, 3u32),
+    //         total_weight: 100,
+    //     },
+    //     proposer: Addr::unchecked("proposer"),
+    //     deposit: None,
+    // };
+    //
+    // // Test the endpoint with a different blinded serial number in the description
+    // proposal_db
+    //     .write()
+    //     .unwrap()
+    //     .insert(proposal_id, proposal.clone());
+    // let response = client
+    //     .post(format!(
+    //         "/{}/{}/{}/{}",
+    //         API_VERSION, COCONUT_ROUTES, BANDWIDTH, COCONUT_VERIFY_BANDWIDTH_CREDENTIAL
+    //     ))
+    //     .json(&req)
+    //     .dispatch()
+    //     .await;
+    // assert_eq!(response.status(), Status::BadRequest);
+    // assert_eq!(
+    //     response.into_string().await.unwrap(),
+    //     CoconutError::IncorrectProposal {
+    //         reason: "incorrect blinded serial number in description".to_string()
+    //     }
+    //     .to_string()
+    // );
+    //
+    // // Test the endpoint with no msg in the proposal action
+    // proposal.description = credential.blinded_serial_number();
+    // proposal_db
+    //     .write()
+    //     .unwrap()
+    //     .insert(proposal_id, proposal.clone());
+    // let response = client
+    //     .post(format!(
+    //         "/{}/{}/{}/{}",
+    //         API_VERSION, COCONUT_ROUTES, BANDWIDTH, COCONUT_VERIFY_BANDWIDTH_CREDENTIAL
+    //     ))
+    //     .json(&req)
+    //     .dispatch()
+    //     .await;
+    // assert_eq!(response.status(), Status::BadRequest);
+    // assert_eq!(
+    //     response.into_string().await.unwrap(),
+    //     CoconutError::IncorrectProposal {
+    //         reason: "action is not to release funds".to_string()
+    //     }
+    //     .to_string()
+    // );
+    //
+    // // Test the endpoint without any credential recorded in the Coconut Bandwidth Contract
+    // let funds = Coin::new(voucher_value as u128, TEST_COIN_DENOM);
+    // let msg = nym_coconut_bandwidth_contract_common::msg::ExecuteMsg::ReleaseFunds {
+    //     funds: funds.clone().into(),
+    // };
+    // let cosmos_msg = CosmosMsg::Wasm(WasmMsg::Execute {
+    //     contract_addr: String::new(),
+    //     msg: to_binary(&msg).unwrap(),
+    //     funds: vec![],
+    // });
+    // proposal.msgs = vec![cosmos_msg];
+    // proposal_db
+    //     .write()
+    //     .unwrap()
+    //     .insert(proposal_id, proposal.clone());
+    // let response = client
+    //     .post(format!(
+    //         "/{}/{}/{}/{}",
+    //         API_VERSION, COCONUT_ROUTES, BANDWIDTH, COCONUT_VERIFY_BANDWIDTH_CREDENTIAL
+    //     ))
+    //     .json(&req)
+    //     .dispatch()
+    //     .await;
+    // assert_eq!(response.status(), Status::BadRequest);
+    // assert_eq!(
+    //     response.into_string().await.unwrap(),
+    //     CoconutError::InvalidCredentialStatus {
+    //         status: "spent credential not found".to_string()
+    //     }
+    //     .to_string()
+    // );
+    //
+    // spent_credential_db.write().unwrap().insert(
+    //     credential.blinded_serial_number(),
+    //     SpendCredentialResponse::new(None),
+    // );
+    // let response = client
+    //     .post(format!(
+    //         "/{}/{}/{}/{}",
+    //         API_VERSION, COCONUT_ROUTES, BANDWIDTH, COCONUT_VERIFY_BANDWIDTH_CREDENTIAL
+    //     ))
+    //     .json(&req)
+    //     .dispatch()
+    //     .await;
+    // assert_eq!(response.status(), Status::BadRequest);
+    // assert_eq!(
+    //     response.into_string().await.unwrap(),
+    //     CoconutError::InvalidCredentialStatus {
+    //         status: "Inexistent".to_string()
+    //     }
+    //     .to_string()
+    // );
+    //
+    // // Test the endpoint with a credential that doesn't verify correctly
+    // let mut spent_credential = SpendCredential::new(
+    //     funds.clone().into(),
+    //     credential.blinded_serial_number(),
+    //     Addr::unchecked("unimportant"),
+    // );
+    // spent_credential_db.write().unwrap().insert(
+    //     credential.blinded_serial_number(),
+    //     SpendCredentialResponse::new(Some(spent_credential.clone())),
+    // );
+    // let bad_credential = Credential::new(
+    //     4,
+    //     theta.clone(),
+    //     voucher_value,
+    //     String::from("bad voucher info"),
+    //     0,
+    // );
+    // let bad_req =
+    //     VerifyCredentialBody::new(bad_credential, proposal_id, gateway_cosmos_addr.clone());
+    // let response = client
+    //     .post(format!(
+    //         "/{}/{}/{}/{}",
+    //         API_VERSION, COCONUT_ROUTES, BANDWIDTH, COCONUT_VERIFY_BANDWIDTH_CREDENTIAL
+    //     ))
+    //     .json(&bad_req)
+    //     .dispatch()
+    //     .await;
+    // assert_eq!(response.status(), Status::Ok);
+    // let verify_credential_response =
+    //     serde_json::from_str::<VerifyCredentialResponse>(&response.into_string().await.unwrap())
+    //         .unwrap();
+    // assert!(!verify_credential_response.verification_result);
+    // assert_eq!(
+    //     cw3::Status::Rejected,
+    //     proposal_db
+    //         .read()
+    //         .unwrap()
+    //         .get(&proposal_id)
+    //         .unwrap()
+    //         .status
+    // );
+    //
+    // // Test the endpoint with a proposal that has a different value for the funds to be released
+    // // then what's in the credential
+    // let funds = Coin::new((voucher_value + 10) as u128, TEST_COIN_DENOM);
+    // let msg = nym_coconut_bandwidth_contract_common::msg::ExecuteMsg::ReleaseFunds {
+    //     funds: funds.clone().into(),
+    // };
+    // let cosmos_msg = CosmosMsg::Wasm(WasmMsg::Execute {
+    //     contract_addr: String::new(),
+    //     msg: to_binary(&msg).unwrap(),
+    //     funds: vec![],
+    // });
+    // proposal.msgs = vec![cosmos_msg];
+    // proposal_db
+    //     .write()
+    //     .unwrap()
+    //     .insert(proposal_id, proposal.clone());
+    // let response = client
+    //     .post(format!(
+    //         "/{}/{}/{}/{}",
+    //         API_VERSION, COCONUT_ROUTES, BANDWIDTH, COCONUT_VERIFY_BANDWIDTH_CREDENTIAL
+    //     ))
+    //     .json(&req)
+    //     .dispatch()
+    //     .await;
+    // assert_eq!(response.status(), Status::Ok);
+    // let verify_credential_response =
+    //     serde_json::from_str::<VerifyCredentialResponse>(&response.into_string().await.unwrap())
+    //         .unwrap();
+    // assert!(!verify_credential_response.verification_result);
+    // assert_eq!(
+    //     cw3::Status::Rejected,
+    //     proposal_db
+    //         .read()
+    //         .unwrap()
+    //         .get(&proposal_id)
+    //         .unwrap()
+    //         .status
+    // );
+    //
+    // // Test the endpoint with every dependency met
+    // let funds = Coin::new(voucher_value as u128, TEST_COIN_DENOM);
+    // let msg = nym_coconut_bandwidth_contract_common::msg::ExecuteMsg::ReleaseFunds {
+    //     funds: funds.clone().into(),
+    // };
+    // let cosmos_msg = CosmosMsg::Wasm(WasmMsg::Execute {
+    //     contract_addr: String::new(),
+    //     msg: to_binary(&msg).unwrap(),
+    //     funds: vec![],
+    // });
+    // proposal.msgs = vec![cosmos_msg];
+    // proposal_db
+    //     .write()
+    //     .unwrap()
+    //     .insert(proposal_id, proposal.clone());
+    // let response = client
+    //     .post(format!(
+    //         "/{}/{}/{}/{}",
+    //         API_VERSION, COCONUT_ROUTES, BANDWIDTH, COCONUT_VERIFY_BANDWIDTH_CREDENTIAL
+    //     ))
+    //     .json(&req)
+    //     .dispatch()
+    //     .await;
+    // assert_eq!(response.status(), Status::Ok);
+    // let verify_credential_response =
+    //     serde_json::from_str::<VerifyCredentialResponse>(&response.into_string().await.unwrap())
+    //         .unwrap();
+    // assert!(verify_credential_response.verification_result);
+    // assert_eq!(
+    //     cw3::Status::Passed,
+    //     proposal_db
+    //         .read()
+    //         .unwrap()
+    //         .get(&proposal_id)
+    //         .unwrap()
+    //         .status
+    // );
+    //
+    // // Test the endpoint with the credential marked as Spent in the Coconut Bandwidth Contract
+    // spent_credential.mark_as_spent();
+    // spent_credential_db.write().unwrap().insert(
+    //     credential.blinded_serial_number(),
+    //     SpendCredentialResponse::new(Some(spent_credential)),
+    // );
+    // let response = client
+    //     .post(format!(
+    //         "/{}/{}/{}/{}",
+    //         API_VERSION, COCONUT_ROUTES, BANDWIDTH, COCONUT_VERIFY_BANDWIDTH_CREDENTIAL
+    //     ))
+    //     .json(&req)
+    //     .dispatch()
+    //     .await;
+    // assert_eq!(response.status(), Status::BadRequest);
+    // assert_eq!(
+    //     response.into_string().await.unwrap(),
+    //     CoconutError::InvalidCredentialStatus {
+    //         status: "Spent".to_string()
+    //     }
+    //     .to_string()
+    // );
 }

@@ -23,11 +23,6 @@ pub(crate) struct DkgClient {
 }
 
 impl DkgClient {
-    // FIXME:
-    // Some queries simply don't work the first time
-    // Until we determine why that is, retry the query a few more times
-    const RETRIES: usize = 3;
-
     pub(crate) fn new<C>(nyxd_client: C) -> Self
     where
         C: Client + Send + Sync + 'static,
@@ -42,27 +37,11 @@ impl DkgClient {
     }
 
     pub(crate) async fn get_current_epoch(&self) -> Result<Epoch, CoconutError> {
-        let mut ret = self.inner.get_current_epoch().await;
-        for _ in 0..Self::RETRIES {
-            if ret.is_ok() {
-                return ret;
-            }
-            tokio::time::sleep(Duration::from_millis(200)).await;
-            ret = self.inner.get_current_epoch().await;
-        }
-        ret
+        self.inner.get_current_epoch().await
     }
 
     pub(crate) async fn get_contract_state(&self) -> Result<ContractState, CoconutError> {
-        let mut ret = self.inner.contract_state().await;
-        for _ in 0..Self::RETRIES {
-            if ret.is_ok() {
-                return ret;
-            }
-            tokio::time::sleep(Duration::from_millis(200)).await;
-            ret = self.inner.contract_state().await;
-        }
-        ret
+        self.inner.contract_state().await
     }
 
     pub(crate) async fn group_member(&self) -> Result<MemberResponse, CoconutError> {
@@ -100,23 +79,10 @@ impl DkgClient {
     ) -> Result<bool, CoconutError> {
         let address = self.inner.address().await.to_string();
 
-        let mut ret = self
-            .inner
+        self.inner
             .get_dealing_status(epoch_id, address.clone(), dealing_index)
             .await
-            .map(|r| r.dealing_submitted);
-        for _ in 0..Self::RETRIES {
-            if ret.is_ok() {
-                return ret;
-            }
-            tokio::time::sleep(Duration::from_millis(200)).await;
-            ret = self
-                .inner
-                .get_dealing_status(epoch_id, address.clone(), dealing_index)
-                .await
-                .map(|r| r.dealing_submitted);
-        }
-        ret
+            .map(|r| r.dealing_submitted)
     }
 
     pub(crate) async fn get_dealings(
@@ -124,15 +90,7 @@ impl DkgClient {
         epoch_id: EpochId,
         dealer: String,
     ) -> Result<Vec<PartialContractDealing>, CoconutError> {
-        let mut ret = self.inner.get_dealings(epoch_id, &dealer).await;
-        for _ in 0..Self::RETRIES {
-            if ret.is_ok() {
-                return ret;
-            }
-            tokio::time::sleep(Duration::from_millis(200)).await;
-            ret = self.inner.get_dealings(epoch_id, &dealer).await;
-        }
-        ret
+        self.inner.get_dealings(epoch_id, &dealer).await
     }
 
     pub(crate) async fn get_verification_key_shares(
@@ -188,21 +146,9 @@ impl DkgClient {
         share: VerificationKeyShare,
         resharing: bool,
     ) -> Result<ExecuteResult, CoconutError> {
-        let mut ret = self
-            .inner
+        self.inner
             .submit_verification_key_share(share.clone(), resharing)
-            .await;
-        for _ in 0..Self::RETRIES {
-            if let Ok(res) = ret {
-                return Ok(res);
-            }
-            tokio::time::sleep(Duration::from_millis(200)).await;
-            ret = self
-                .inner
-                .submit_verification_key_share(share.clone(), resharing)
-                .await;
-        }
-        ret
+            .await
     }
 
     pub(crate) async fn vote_verification_key_share(

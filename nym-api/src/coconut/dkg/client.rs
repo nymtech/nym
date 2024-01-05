@@ -16,7 +16,6 @@ use nym_dkg::Threshold;
 use nym_validator_client::nyxd::cosmwasm_client::logs::{find_attribute, NODE_INDEX};
 use nym_validator_client::nyxd::cosmwasm_client::types::ExecuteResult;
 use nym_validator_client::nyxd::AccountId;
-use std::time::Duration;
 
 pub(crate) struct DkgClient {
     inner: Box<dyn Client + Send + Sync>,

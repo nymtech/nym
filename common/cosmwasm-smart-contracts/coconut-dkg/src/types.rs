@@ -238,7 +238,7 @@ impl EpochState {
     pub fn first() -> Self {
         EpochState::PublicKeySubmission { resharing: false }
     }
-    
+
     pub fn next(self) -> Option<Self> {
         match self {
             EpochState::WaitingInitialisation => None,

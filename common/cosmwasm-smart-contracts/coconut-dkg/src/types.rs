@@ -113,7 +113,7 @@ pub struct Epoch {
     pub state: EpochState,
     pub epoch_id: EpochId,
     pub time_configuration: TimeConfiguration,
-    pub finish_timestamp: Timestamp,
+    pub finish_timestamp: Option<Timestamp>,
 }
 
 impl Epoch {
@@ -124,36 +124,40 @@ impl Epoch {
         current_timestamp: Timestamp,
     ) -> Self {
         let duration = match state {
+            EpochState::WaitingInitialisation => None,
             EpochState::PublicKeySubmission { .. } => {
-                time_configuration.public_key_submission_time_secs
+                Some(time_configuration.public_key_submission_time_secs)
             }
-            EpochState::DealingExchange { .. } => time_configuration.dealing_exchange_time_secs,
+            EpochState::DealingExchange { .. } => {
+                Some(time_configuration.dealing_exchange_time_secs)
+            }
             EpochState::VerificationKeySubmission { .. } => {
-                time_configuration.verification_key_submission_time_secs
+                Some(time_configuration.verification_key_submission_time_secs)
             }
             EpochState::VerificationKeyValidation { .. } => {
-                time_configuration.verification_key_validation_time_secs
+                Some(time_configuration.verification_key_validation_time_secs)
             }
             EpochState::VerificationKeyFinalization { .. } => {
-                time_configuration.verification_key_finalization_time_secs
+                Some(time_configuration.verification_key_finalization_time_secs)
             }
-            EpochState::InProgress => time_configuration.in_progress_time_secs,
+            EpochState::InProgress => Some(time_configuration.in_progress_time_secs),
         };
         Epoch {
             state,
             epoch_id,
             time_configuration,
-            finish_timestamp: current_timestamp.plus_seconds(duration),
+            finish_timestamp: duration.map(|d| current_timestamp.plus_seconds(d)),
         }
     }
 
-    pub fn final_timestamp_secs(&self) -> u64 {
-        let mut finish = self.finish_timestamp.seconds();
+    pub fn final_timestamp_secs(&self) -> Option<u64> {
+        let mut finish = self.finish_timestamp?.seconds();
         let time_configuration = self.time_configuration;
         let mut curr_epoch_state = self.state;
         while let Some(state) = curr_epoch_state.next() {
             curr_epoch_state = state;
             let adding = match curr_epoch_state {
+                EpochState::WaitingInitialisation => return None,
                 EpochState::PublicKeySubmission { .. } => {
                     time_configuration.public_key_submission_time_secs
                 }
@@ -171,12 +175,13 @@ impl Epoch {
             };
             finish += adding;
         }
-        finish
+        Some(finish)
     }
 }
 
 // currently (it is still extremely likely to change, we might be able to get rid of verification key-related complaints),
 // the epoch can be in the following states (in order):
+// 0. WaitingInitialisation -> the contract has been instantiated, but awaits for the admin to kick off the process (group members might still be getting added)
 // 1. PublicKeySubmission -> potential dealers are submitting their BTE and ed25519 public keys to participate in dealing exchange
 // 2. DealingExchange -> the actual (off-chain) dealing exchange is happening
 // 3. ComplaintSubmission -> receivers submitting evidence of other dealers sending malformed data
@@ -190,6 +195,7 @@ impl Epoch {
 #[cw_serde]
 #[derive(Copy)]
 pub enum EpochState {
+    WaitingInitialisation,
     PublicKeySubmission { resharing: bool },
     DealingExchange { resharing: bool },
     VerificationKeySubmission { resharing: bool },
@@ -200,13 +206,14 @@ pub enum EpochState {
 
 impl Default for EpochState {
     fn default() -> Self {
-        Self::PublicKeySubmission { resharing: false }
+        Self::WaitingInitialisation
     }
 }
 
 impl Display for EpochState {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
+            EpochState::WaitingInitialisation => write!(f, "Waiting for initialisation"),
             EpochState::PublicKeySubmission { resharing } => {
                 write!(f, "PublicKeySubmission (resharing: {resharing})")
             }
@@ -228,8 +235,13 @@ impl Display for EpochState {
 }
 
 impl EpochState {
+    pub fn first() -> Self {
+        EpochState::PublicKeySubmission { resharing: false }
+    }
+    
     pub fn next(self) -> Option<Self> {
         match self {
+            EpochState::WaitingInitialisation => None,
             EpochState::PublicKeySubmission { resharing } => {
                 Some(EpochState::DealingExchange { resharing })
             }

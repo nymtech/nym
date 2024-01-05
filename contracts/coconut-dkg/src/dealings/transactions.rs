@@ -65,10 +65,10 @@ pub fn try_commit_dealings(
 pub(crate) mod tests {
     use super::*;
     use crate::epoch_state::storage::CURRENT_EPOCH;
-    use crate::epoch_state::transactions::advance_epoch_state;
+    use crate::epoch_state::transactions::{advance_epoch_state, try_initiate_dkg};
     use crate::support::tests::fixtures::{dealer_details_fixture, partial_dealing_fixture};
     use crate::support::tests::helpers;
-    use crate::support::tests::helpers::add_fixture_dealer;
+    use crate::support::tests::helpers::{add_fixture_dealer, ADMIN_ADDRESS};
     use cosmwasm_std::testing::{mock_env, mock_info};
     use cosmwasm_std::Addr;
     use nym_coconut_dkg_common::dealer::DealerDetails;
@@ -79,8 +79,10 @@ pub(crate) mod tests {
     #[test]
     fn invalid_commit_dealing() {
         let mut deps = helpers::init_contract();
-        let owner = Addr::unchecked("owner1");
         let mut env = mock_env();
+        try_initiate_dkg(deps.as_mut(), env.clone(), mock_info(ADMIN_ADDRESS, &[])).unwrap();
+
+        let owner = Addr::unchecked("owner1");
         let info = mock_info(owner.as_str(), &[]);
         let dealing = partial_dealing_fixture();
 
@@ -89,7 +91,7 @@ pub(crate) mod tests {
         assert_eq!(
             ret,
             ContractError::IncorrectEpochState {
-                current_state: EpochState::default().to_string(),
+                current_state: EpochState::PublicKeySubmission { resharing: false }.to_string(),
                 expected_state: EpochState::DealingExchange { resharing: false }.to_string()
             }
         );

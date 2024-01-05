@@ -79,10 +79,10 @@ pub fn try_add_dealer(
 pub(crate) mod tests {
     use super::*;
     use crate::dealers::storage::current_dealers;
-    use crate::epoch_state::transactions::advance_epoch_state;
+    use crate::epoch_state::transactions::{advance_epoch_state, try_initiate_dkg};
     use crate::support::tests::fixtures::dealer_details_fixture;
     use crate::support::tests::helpers;
-    use crate::support::tests::helpers::{add_fixture_dealer, GROUP_MEMBERS};
+    use crate::support::tests::helpers::{add_fixture_dealer, ADMIN_ADDRESS, GROUP_MEMBERS};
     use cosmwasm_std::testing::{mock_env, mock_info};
     use cw4::Member;
     use nym_coconut_dkg_common::types::{InitialReplacementData, TimeConfiguration};
@@ -139,8 +139,10 @@ pub(crate) mod tests {
     #[test]
     fn invalid_state() {
         let mut deps = helpers::init_contract();
-        let owner = Addr::unchecked("owner");
         let mut env = mock_env();
+        try_initiate_dkg(deps.as_mut(), env.clone(), mock_info(ADMIN_ADDRESS, &[])).unwrap();
+
+        let owner = Addr::unchecked("owner");
         let info = mock_info(owner.as_str(), &[]);
         let bte_key_with_proof = String::from("bte_key_with_proof");
         let identity = String::from("identity");
@@ -167,7 +169,7 @@ pub(crate) mod tests {
             ret,
             ContractError::IncorrectEpochState {
                 current_state: EpochState::DealingExchange { resharing: false }.to_string(),
-                expected_state: EpochState::default().to_string(),
+                expected_state: EpochState::PublicKeySubmission { resharing: false }.to_string(),
             }
         );
     }

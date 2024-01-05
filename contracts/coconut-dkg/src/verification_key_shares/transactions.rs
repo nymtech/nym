@@ -91,9 +91,9 @@ pub fn try_verify_verification_key_share(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::epoch_state::transactions::advance_epoch_state;
+    use crate::epoch_state::transactions::{advance_epoch_state, try_initiate_dkg};
     use crate::support::tests::helpers;
-    use crate::support::tests::helpers::{add_fixture_dealer, MULTISIG_CONTRACT};
+    use crate::support::tests::helpers::{add_fixture_dealer, ADMIN_ADDRESS, MULTISIG_CONTRACT};
     use cosmwasm_std::testing::{mock_env, mock_info};
     use cw_controllers::AdminError;
     use nym_coconut_dkg_common::dealer::DealerDetails;
@@ -103,6 +103,8 @@ mod tests {
     fn current_epoch_id() {
         let mut deps = helpers::init_contract();
         let mut env = mock_env();
+        try_initiate_dkg(deps.as_mut(), env.clone(), mock_info(ADMIN_ADDRESS, &[])).unwrap();
+
         let info = mock_info("requester", &[]);
         let share = "share".to_string();
 
@@ -150,6 +152,8 @@ mod tests {
     fn commit_vk_share() {
         let mut deps = helpers::init_contract();
         let mut env = mock_env();
+        try_initiate_dkg(deps.as_mut(), env.clone(), mock_info(ADMIN_ADDRESS, &[])).unwrap();
+
         let info = mock_info("requester", &[]);
         let share = "share".to_string();
 
@@ -164,7 +168,7 @@ mod tests {
         assert_eq!(
             ret,
             ContractError::IncorrectEpochState {
-                current_state: EpochState::default().to_string(),
+                current_state: EpochState::PublicKeySubmission { resharing: false }.to_string(),
                 expected_state: EpochState::VerificationKeySubmission { resharing: false }
                     .to_string()
             }
@@ -225,6 +229,8 @@ mod tests {
     fn invalid_verify_vk_share() {
         let mut deps = helpers::init_contract();
         let mut env = mock_env();
+        try_initiate_dkg(deps.as_mut(), env.clone(), mock_info(ADMIN_ADDRESS, &[])).unwrap();
+
         let info = mock_info("requester", &[]);
         let owner = Addr::unchecked("owner");
         let multisig_info = mock_info(MULTISIG_CONTRACT, &[]);
@@ -235,7 +241,7 @@ mod tests {
         assert_eq!(
             ret,
             ContractError::IncorrectEpochState {
-                current_state: EpochState::default().to_string(),
+                current_state: EpochState::PublicKeySubmission { resharing: false }.to_string(),
                 expected_state: EpochState::VerificationKeyFinalization { resharing: false }
                     .to_string()
             }
@@ -282,6 +288,8 @@ mod tests {
     fn verify_vk_share() {
         let mut deps = helpers::init_contract();
         let mut env = mock_env();
+        try_initiate_dkg(deps.as_mut(), env.clone(), mock_info(ADMIN_ADDRESS, &[])).unwrap();
+
         let owner = Addr::unchecked("owner");
         let info = mock_info(owner.as_ref(), &[]);
         let share = "share".to_string();

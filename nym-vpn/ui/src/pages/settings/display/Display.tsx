@@ -32,8 +32,14 @@ function Display() {
   };
 
   return (
-    <div className="h-full flex flex-col p-4 gap-4">
-      <div className="flex flex-row justify-between items-center">
+    <div className="h-full flex flex-col p-4 py-6 gap-6">
+      <div
+        className={clsx([
+          'flex flex-row justify-between items-center',
+          'bg-white dark:bg-baltic-sea-jaguar',
+          'px-6 py-4 rounded-lg',
+        ])}
+      >
         <p className="text-lg text-baltic-sea dark:text-mercury-pinkish">
           Dark Mode
         </p>

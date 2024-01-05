@@ -11,7 +11,7 @@ export default {
       'baltic-sea': {
         // [D] bg for top-bar nav
         // [D] bg for network modes
-        jaguar: '#2A2831',
+        jaguar: '#2B2831',
         // [L] status-line title text + icon
         // [L] connection timer text
         // [L] "Connecting" status text

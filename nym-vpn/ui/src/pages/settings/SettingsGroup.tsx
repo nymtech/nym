@@ -8,6 +8,7 @@ type Setting = {
   desc?: string;
   onClick?: () => void;
   trailing?: ReactNode;
+  disabled?: boolean;
 };
 
 interface Props {
@@ -33,9 +34,13 @@ function SettingsGroup({ settings }: Props) {
               'border-y border-mercury-mist',
             index === settings.length - 1 && 'rounded-b-lg',
             setting.desc === undefined && 'py-4',
+            setting.disabled && 'opacity-50 pointer-events-none',
           ])}
         >
-          <div className="flex flex-1 items-center justify-between gap-4">
+          <div
+            role={setting.disabled ? 'none' : 'button'}
+            className="flex flex-1 items-center justify-between gap-4"
+          >
             {setting.leadingIcon && (
               <span className="font-icon text-2xl">{setting.leadingIcon}</span>
             )}

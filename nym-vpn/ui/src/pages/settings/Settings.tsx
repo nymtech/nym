@@ -59,6 +59,7 @@ function Settings() {
             title: t('auto-connect.title'),
             desc: t('auto-connect.desc'),
             leadingIcon: 'hdr_auto',
+            disabled: true,
             trailing: (
               <Switch
                 checked={autoConnect}
@@ -69,6 +70,7 @@ function Settings() {
                     : 'bg-mercury-pinkish dark:bg-gun-powder',
                   'relative inline-flex h-6 w-11 items-center rounded-full',
                 ])}
+                disabled
               >
                 <span
                   className={clsx([
@@ -83,6 +85,7 @@ function Settings() {
             title: t('entry-selector.title'),
             desc: t('entry-selector.desc'),
             leadingIcon: 'looks_two',
+            disabled: true,
             trailing: (
               <Switch
                 checked={entrySelector}
@@ -93,6 +96,7 @@ function Settings() {
                     : 'bg-mercury-pinkish dark:bg-gun-powder',
                   'relative inline-flex h-6 w-11 items-center rounded-full',
                 ])}
+                disabled
               >
                 <span
                   className={clsx([
@@ -129,11 +133,8 @@ function Settings() {
             onClick: () => {
               navigate(routes.logs);
             },
-            trailing: (
-              <div className="font-icon text-2xl cursor-pointer">
-                arrow_right
-              </div>
-            ),
+            trailing: <div className="font-icon text-2xl">arrow_right</div>,
+            disabled: true,
           },
         ]}
       />
@@ -150,11 +151,13 @@ function Settings() {
                 arrow_right
               </div>
             ),
+            disabled: true,
           },
           {
             title: t('error-reporting.title'),
             desc: t('error-reporting.desc'),
             leadingIcon: 'error',
+            disabled: true,
             trailing: (
               <Switch
                 checked={monitoring}
@@ -165,6 +168,7 @@ function Settings() {
                     : 'bg-mercury-pinkish dark:bg-gun-powder',
                   'relative inline-flex h-6 w-11 items-center rounded-full',
                 ])}
+                disabled
               >
                 <span
                   className={clsx([
@@ -178,6 +182,7 @@ function Settings() {
           {
             title: t('faq'),
             leadingIcon: 'help',
+            disabled: true,
             trailing: (
               <div className="font-icon text-2xl cursor-pointer">launch</div>
             ),
@@ -191,6 +196,7 @@ function Settings() {
             onClick: () => {
               navigate(routes.legal);
             },
+            disabled: true,
             trailing: (
               <div className="font-icon text-2xl cursor-pointer">
                 arrow_right
@@ -206,6 +212,7 @@ function Settings() {
             onClick: () => {
               //TODO shutdown gracefully
             },
+            disabled: true,
           },
         ]}
       />

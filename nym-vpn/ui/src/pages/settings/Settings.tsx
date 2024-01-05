@@ -133,7 +133,11 @@ function Settings() {
             onClick: () => {
               navigate(routes.logs);
             },
-            trailing: <div className="font-icon text-2xl">arrow_right</div>,
+            trailing: (
+              <div className="font-icon text-2xl cursor-pointer">
+                arrow_right
+              </div>
+            ),
             disabled: true,
           },
         ]}

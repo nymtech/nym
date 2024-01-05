@@ -25,6 +25,13 @@ pub trait DkgSigningClient {
         funds: Vec<Coin>,
     ) -> Result<ExecuteResult, NyxdError>;
 
+    async fn initiate_dkg(&self, fee: Option<Fee>) -> Result<ExecuteResult, NyxdError> {
+        let req = DkgExecuteMsg::InitiateDkg {};
+
+        self.execute_dkg_contract(fee, req, "initiating the DKG".to_string(), vec![])
+            .await
+    }
+
     async fn advance_dkg_epoch_state(&self, fee: Option<Fee>) -> Result<ExecuteResult, NyxdError> {
         let req = DkgExecuteMsg::AdvanceEpochState {};
 
@@ -145,6 +152,7 @@ mod tests {
         msg: DkgExecuteMsg,
     ) {
         match msg {
+            DkgExecuteMsg::InitiateDkg {} => client.initiate_dkg(None).ignore(),
             DkgExecuteMsg::RegisterDealer {
                 bte_key_with_proof,
                 identity_key,

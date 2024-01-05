@@ -18,25 +18,12 @@ use nym_coconut_dkg_common::types::EpochState;
 use nym_crypto::asymmetric::identity;
 use nym_dkg::bte::keys::KeyPair as DkgKeyPair;
 use nym_task::{TaskClient, TaskManager};
-use rand::rngs::OsRng;
 use rand::{CryptoRng, RngCore};
 use std::path::PathBuf;
 use std::time::{Duration, SystemTime};
 use tokio::time::interval;
 
-pub(crate) fn init_keypair(config: &config::CoconutSigner) -> Result<()> {
-    let mut rng = OsRng;
-    let dkg_params = nym_dkg::bte::setup();
-    let kp = DkgKeyPair::new(&dkg_params, &mut rng);
-    nym_pemstore::store_keypair(
-        &kp,
-        &nym_pemstore::KeyPairPath::new(
-            &config.storage_paths.decryption_key_path,
-            &config.storage_paths.public_key_with_proof_path,
-        ),
-    )?;
-    Ok(())
-}
+pub(crate) mod keys;
 
 pub(crate) struct DkgController<R> {
     dkg_client: DkgClient,
@@ -48,10 +35,11 @@ pub(crate) struct DkgController<R> {
 }
 
 impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
-    pub(crate) async fn new(
+    pub(crate) fn new(
         config: &config::CoconutSigner,
         nyxd_client: nyxd::Client,
         coconut_keypair: CoconutKeyPair,
+        dkg_keypair: DkgKeyPair,
         identity_key: identity::PublicKey,
         rng: R,
     ) -> Result<Self> {
@@ -59,18 +47,6 @@ impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
             bail!("can't start a DKG controller without specifying an announce address!")
         };
 
-        let dkg_keypair = nym_pemstore::load_keypair(&nym_pemstore::KeyPairPath::new(
-            &config.storage_paths.decryption_key_path,
-            &config.storage_paths.public_key_with_proof_path,
-        ))?;
-        if let Ok(coconut_keypair_value) =
-            nym_pemstore::load_keypair(&nym_pemstore::KeyPairPath::new(
-                &config.storage_paths.secret_key_path,
-                &config.storage_paths.verification_key_path,
-            ))
-        {
-            coconut_keypair.set(Some(coconut_keypair_value)).await;
-        }
         let persistent_state =
             PersistentState::load_from_file(&config.storage_paths.dkg_persistent_state_path)
                 .unwrap_or_default();
@@ -92,12 +68,12 @@ impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
         })
     }
 
-    async fn dump_persistent_state(&self) {
-        if !self.state.coconut_keypair_is_some().await {
-            // Delete the files just in case the process is killed before the new keys are generated
-            std::fs::remove_file(&self.secret_key_path).ok();
-            std::fs::remove_file(&self.verification_key_path).ok();
-        }
+    fn persist_state(&self) {
+        // if !self.state.coconut_keypair_is_some().await {
+        //     // Delete the files just in case the process is killed before the new keys are generated
+        //     std::fs::remove_file(&self.secret_key_path).ok();
+        //     std::fs::remove_file(&self.verification_key_path).ok();
+        // }
         let persistent_state = PersistentState::from(&self.state);
         if let Err(err) = persistent_state.save_to_file(self.state.persistent_state_path()) {
             warn!("Could not backup the state for this iteration: {err}");
@@ -170,7 +146,7 @@ impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
                 self.state.set_was_in_progress();
                 // We're dumping state here so that we don't do it uselessly during the
                 // long InProgress state
-                self.dump_persistent_state().await;
+                self.persist_state();
                 Ok(())
             }
         };
@@ -179,7 +155,7 @@ impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
         } else if epoch.state != EpochState::InProgress
             && epoch.state != EpochState::WaitingInitialisation
         {
-            self.dump_persistent_state().await;
+            self.persist_state();
         }
 
         if let Ok(current_timestamp) = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH) {
@@ -205,12 +181,11 @@ impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
         }
     }
 
-    // TODO: can we make it non-async? it seems we'd have to modify `coconut_keypair.set(coconut_keypair_value)` in new
-    // could we do it?
-    pub(crate) async fn start(
+    pub(crate) fn start(
         config: &config::CoconutSigner,
         nyxd_client: nyxd::Client,
         coconut_keypair: CoconutKeyPair,
+        dkg_bte_keypair: DkgKeyPair,
         identity_key: identity::PublicKey,
         rng: R,
         shutdown: &TaskManager,
@@ -219,8 +194,14 @@ impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
         R: Sync + Send + 'static,
     {
         let shutdown_listener = shutdown.subscribe();
-        let dkg_controller =
-            DkgController::new(config, nyxd_client, coconut_keypair, identity_key, rng).await?;
+        let dkg_controller = DkgController::new(
+            config,
+            nyxd_client,
+            coconut_keypair,
+            dkg_bte_keypair,
+            identity_key,
+            rng,
+        )?;
         tokio::spawn(async move { dkg_controller.run(shutdown_listener).await });
         Ok(())
     }

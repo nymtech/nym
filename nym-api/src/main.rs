@@ -4,6 +4,7 @@
 #[macro_use]
 extern crate rocket;
 
+use crate::coconut::dkg::controller::keys::{load_bte_keypair, load_coconut_keypair_if_exists};
 use crate::epoch_operations::RewardedSetUpdater;
 use crate::network::models::NetworkDetails;
 use crate::node_describe_cache::DescribedNodes;
@@ -68,7 +69,13 @@ async fn start_nym_api_tasks(config: Config) -> anyhow::Result<ShutdownHandles> 
     let nym_network_details = NymNetworkDetails::new_from_env();
     let network_details = NetworkDetails::new(connected_nyxd.to_string(), nym_network_details);
 
-    let coconut_keypair = coconut::keypair::KeyPair::new();
+    let coconut_keypair_wrapper = coconut::keypair::KeyPair::new();
+
+    // if the keypair doesnt exist (because say this API is running in the caching mode), nothing will happen
+    if let Some(loaded_keys) = load_coconut_keypair_if_exists(&config.coconut_signer)? {
+        coconut_keypair_wrapper.set(Some(loaded_keys)).await
+    }
+
     let identity_keypair = config.base.storage_paths.load_identity()?;
     let identity_public_key = *identity_keypair.public_key();
 
@@ -78,7 +85,7 @@ async fn start_nym_api_tasks(config: Config) -> anyhow::Result<ShutdownHandles> 
         network_details,
         nyxd_client.clone(),
         identity_keypair,
-        coconut_keypair.clone(),
+        coconut_keypair_wrapper.clone(),
     )
     .await?;
 
@@ -134,15 +141,17 @@ async fn start_nym_api_tasks(config: Config) -> anyhow::Result<ShutdownHandles> 
 
     // start dkg task
     if config.coconut_signer.enabled {
+        let dkg_bte_keypair = load_bte_keypair(&config.coconut_signer)?;
+
         DkgController::start(
             &config.coconut_signer,
             nyxd_client.clone(),
-            coconut_keypair,
+            coconut_keypair_wrapper,
+            dkg_bte_keypair,
             identity_public_key,
             OsRng,
             &shutdown,
-        )
-        .await?;
+        )?;
     }
 
     // and then only start the uptime updater (and the monitor itself, duh)

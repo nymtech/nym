@@ -36,7 +36,7 @@ pub struct InstantiateMsg {
 pub enum ExecuteMsg {
     // we could have just re-used AdvanceEpochState, but imo an explicit message is better
     InitiateDkg {},
-    
+
     RegisterDealer {
         bte_key_with_proof: EncodedBTEPublicKeyWithProof,
         identity_key: IdentityKey,

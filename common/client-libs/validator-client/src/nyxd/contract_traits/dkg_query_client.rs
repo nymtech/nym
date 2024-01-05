@@ -7,7 +7,9 @@ use crate::nyxd::error::NyxdError;
 use crate::nyxd::CosmWasmClient;
 use async_trait::async_trait;
 use cosmrs::AccountId;
-use nym_coconut_dkg_common::{
+use serde::Deserialize;
+
+pub use nym_coconut_dkg_common::{
     dealer::{
         DealerDetailsResponse, DealingResponse, DealingStatusResponse, PagedDealerResponse,
         PagedDealingsResponse,
@@ -19,7 +21,6 @@ use nym_coconut_dkg_common::{
     },
     verification_key::{ContractVKShare, PagedVKSharesResponse},
 };
-use serde::Deserialize;
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]

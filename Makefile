@@ -136,9 +136,9 @@ CONTRACTS=vesting_contract mixnet_contract nym_service_provider_directory nym_na
 CONTRACTS_WASM=$(addsuffix .wasm, $(CONTRACTS))
 CONTRACTS_OUT_DIR=contracts/target/wasm32-unknown-unknown/release
 
-contracts: build-release-contracts wasm-opt-contracts
+contracts: build-release-contracts wasm-opt-contracts canonical-multisig
 
-multisig: prepare-cw-plus build-cw3 build-cw4 opt-cw3 opt-cw4
+canonical-multisig: prepare-cw-plus build-cw3 build-cw4 opt-cw3 opt-cw4
 prepare-cw-plus:
 	git -C cw-plus fetch
 	# make sure to use correct version

@@ -15,6 +15,12 @@ pub enum ContractError {
     #[error(transparent)]
     Admin(#[from] AdminError),
 
+    #[error("Dkg hasn't been initialised yet")]
+    WaitingInitialisation,
+
+    #[error("Dkg has already been initialised")]
+    AlreadyInitialised,
+
     #[error("Group contract invalid address '{addr}'")]
     InvalidGroup { addr: String },
 

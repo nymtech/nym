@@ -1,4 +1,4 @@
-// Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2022-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::dealers::queries::{
@@ -11,10 +11,12 @@ use crate::epoch_state::queries::{
     query_current_epoch, query_current_epoch_threshold, query_initial_dealers,
 };
 use crate::epoch_state::storage::CURRENT_EPOCH;
-use crate::epoch_state::transactions::{advance_epoch_state, try_surpassed_threshold};
+use crate::epoch_state::transactions::{
+    advance_epoch_state, try_initiate_dkg, try_surpassed_threshold,
+};
 use crate::error::ContractError;
 use crate::state::queries::query_state;
-use crate::state::storage::{MULTISIG, STATE};
+use crate::state::storage::{DKG_ADMIN, MULTISIG, STATE};
 use crate::verification_key_shares::queries::query_vk_shares_paged;
 use crate::verification_key_shares::transactions::try_commit_verification_key_share;
 use crate::verification_key_shares::transactions::try_verify_verification_key_share;
@@ -38,11 +40,13 @@ const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 pub fn instantiate(
     mut deps: DepsMut<'_>,
     env: Env,
-    _info: MessageInfo,
+    info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
     let multisig_addr = deps.api.addr_validate(&msg.multisig_addr)?;
     MULTISIG.set(deps.branch(), Some(multisig_addr.clone()))?;
+
+    DKG_ADMIN.set(deps.branch(), Some(info.sender))?;
 
     let group_addr = Cw4Contract::new(deps.api.addr_validate(&msg.group_addr).map_err(|_| {
         ContractError::InvalidGroup {
@@ -61,7 +65,7 @@ pub fn instantiate(
     CURRENT_EPOCH.save(
         deps.storage,
         &Epoch::new(
-            EpochState::default(),
+            EpochState::WaitingInitialisation,
             0,
             msg.time_configuration.unwrap_or_default(),
             env.block.time,
@@ -82,6 +86,7 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
+        ExecuteMsg::InitiateDkg {} => try_initiate_dkg(deps, env, info),
         ExecuteMsg::RegisterDealer {
             bte_key_with_proof,
             identity_key,
@@ -199,7 +204,7 @@ mod tests {
     use cosmwasm_std::{coins, Addr};
     use cw4::Member;
     use cw_multi_test::{App, AppBuilder, AppResponse, ContractWrapper, Executor};
-    use nym_coconut_dkg_common::msg::ExecuteMsg::RegisterDealer;
+    use nym_coconut_dkg_common::msg::ExecuteMsg::{InitiateDkg, RegisterDealer};
     use nym_coconut_dkg_common::types::{NodeIndex, DEFAULT_DEALINGS};
     use nym_group_contract_common::msg::InstantiateMsg as GroupInstantiateMsg;
 
@@ -295,6 +300,14 @@ mod tests {
                 .unwrap();
         });
         let coconut_dkg_contract_addr = instantiate_with_group(&mut app, &members);
+
+        app.execute_contract(
+            Addr::unchecked(ADMIN_ADDRESS),
+            coconut_dkg_contract_addr.clone(),
+            &InitiateDkg {},
+            &[],
+        )
+        .unwrap();
 
         for (idx, member) in members.iter().enumerate() {
             let res = app

@@ -138,6 +138,22 @@ CONTRACTS_OUT_DIR=contracts/target/wasm32-unknown-unknown/release
 
 contracts: build-release-contracts wasm-opt-contracts
 
+multisig: prepare-cw-plus build-cw3 build-cw4 opt-cw3 opt-cw4
+prepare-cw-plus:
+	git -C cw-plus fetch
+	# make sure to use correct version
+	git -C cw-plus reset --hard v1.0.0
+
+build-cw3:
+	RUSTFLAGS='-C link-arg=-s' cargo build --manifest-path cw-plus/contracts/cw3-flex-multisig/Cargo.toml --release --lib --target wasm32-unknown-unknown
+build-cw4:
+	RUSTFLAGS='-C link-arg=-s' cargo build --manifest-path cw-plus/contracts/cw4-group/Cargo.toml --release --lib --target wasm32-unknown-unknown
+
+opt-cw3:
+	wasm-opt --signext-lowering -Os cw-plus/target/wasm32-unknown-unknown/release/cw3_flex_multisig.wasm -o cw-plus/target/wasm32-unknown-unknown/release/cw3_flex_multisig.wasm
+opt-cw4:
+	wasm-opt --signext-lowering -Os cw-plus/target/wasm32-unknown-unknown/release/cw4_group.wasm -o cw-plus/target/wasm32-unknown-unknown/release/cw4_group.wasm
+
 wasm-opt-contracts:
 	for contract in $(CONTRACTS_WASM); do \
 	  wasm-opt --signext-lowering -Os $(CONTRACTS_OUT_DIR)/$$contract -o $(CONTRACTS_OUT_DIR)/$$contract; \

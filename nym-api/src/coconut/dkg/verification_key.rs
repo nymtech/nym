@@ -243,7 +243,7 @@ pub(crate) async fn verification_key_submission(
         proposal_id
     );
     state.set_proposal_id(proposal_id);
-    state.set_coconut_keypair(Some(coconut_keypair)).await;
+    state.set_coconut_keypair(epoch_id, coconut_keypair).await;
     info!("DKG: Submitted own verification key");
 
     Ok(())
@@ -352,8 +352,8 @@ pub(crate) async fn verification_key_finalization(
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
+    use crate::coconut::dkg::controller::DkgController;
     use crate::coconut::dkg::dealing::dealing_exchange;
-    use crate::coconut::dkg::public_key::public_key_submission;
     use crate::coconut::dkg::state::PersistentState;
     use crate::coconut::tests::DummyClient;
     use crate::coconut::KeyPair;
@@ -405,7 +405,7 @@ pub(crate) mod tests {
         "n1jfrs6cmw9t7dv0x8cgny6geunzjh56n2s89fkv",
     ];
 
-    async fn prepare_clients_and_states(db: &MockContractDb) -> Vec<(DkgClient, State)> {
+    async fn prepare_clients_and_states(db: &MockContractDb) -> Vec<DkgController> {
         let params = dkg::params();
         let mut clients_and_states = vec![];
         let identity_keypair = identity::KeyPair::new(&mut thread_rng());
@@ -429,52 +429,50 @@ pub(crate) mod tests {
                 *identity_keypair.public_key(),
                 KeyPair::new(),
             );
-            clients_and_states.push((dkg_client, state));
+            clients_and_states.push(DkgController::test_mock(dkg_client, state));
         }
-        for (dkg_client, state) in clients_and_states.iter_mut() {
-            public_key_submission(dkg_client, state, false)
-                .await
-                .unwrap();
+        for controller in clients_and_states.iter_mut() {
+            controller.public_key_submission(0, false).await.unwrap();
         }
         clients_and_states
     }
 
-    async fn prepare_clients_and_states_with_dealing(
-        db: &MockContractDb,
-    ) -> Vec<(DkgClient, State)> {
+    async fn prepare_clients_and_states_with_dealing(db: &MockContractDb) -> Vec<DkgController> {
         let mut clients_and_states = prepare_clients_and_states(db).await;
-        for (dkg_client, state) in clients_and_states.iter_mut() {
-            dealing_exchange(dkg_client, state, OsRng, false)
+        for controller in clients_and_states.iter_mut() {
+            dealing_exchange(&controller.dkg_client, &mut controller.state, OsRng, false)
                 .await
                 .unwrap();
         }
         clients_and_states
     }
 
-    async fn prepare_clients_and_states_with_submission(
-        db: &MockContractDb,
-    ) -> Vec<(DkgClient, State)> {
+    async fn prepare_clients_and_states_with_submission(db: &MockContractDb) -> Vec<DkgController> {
         let mut clients_and_states = prepare_clients_and_states_with_dealing(db).await;
-        for (dkg_client, state) in clients_and_states.iter_mut() {
+        for controller in clients_and_states.iter_mut() {
             let random_file: usize = OsRng.gen();
             let private_key_path = temp_dir().join(format!("private{}.pem", random_file));
             let public_key_path = temp_dir().join(format!("public{}.pem", random_file));
             let keypair_path = KeyPairPath::new(private_key_path.clone(), public_key_path.clone());
-            verification_key_submission(dkg_client, state, 0, &keypair_path, false)
-                .await
-                .unwrap();
+            verification_key_submission(
+                &controller.dkg_client,
+                &mut controller.state,
+                0,
+                &keypair_path,
+                false,
+            )
+            .await
+            .unwrap();
             std::fs::remove_file(private_key_path).unwrap();
             std::fs::remove_file(public_key_path).unwrap();
         }
         clients_and_states
     }
 
-    async fn prepare_clients_and_states_with_validation(
-        db: &MockContractDb,
-    ) -> Vec<(DkgClient, State)> {
+    async fn prepare_clients_and_states_with_validation(db: &MockContractDb) -> Vec<DkgController> {
         let mut clients_and_states = prepare_clients_and_states_with_submission(db).await;
-        for (dkg_client, state) in clients_and_states.iter_mut() {
-            verification_key_validation(dkg_client, state, false)
+        for controller in clients_and_states.iter_mut() {
+            verification_key_validation(&controller.dkg_client, &mut controller.state, false)
                 .await
                 .unwrap();
         }
@@ -483,10 +481,10 @@ pub(crate) mod tests {
 
     async fn prepare_clients_and_states_with_finalization(
         db: &MockContractDb,
-    ) -> Vec<(DkgClient, State)> {
+    ) -> Vec<DkgController> {
         let mut clients_and_states = prepare_clients_and_states_with_validation(db).await;
-        for (dkg_client, state) in clients_and_states.iter_mut() {
-            verification_key_finalization(dkg_client, state, false)
+        for controller in clients_and_states.iter_mut() {
+            verification_key_finalization(&controller.dkg_client, &mut controller.state, false)
                 .await
                 .unwrap();
         }
@@ -498,12 +496,22 @@ pub(crate) mod tests {
     async fn check_dealers_filter_all_good() {
         let db = MockContractDb::new();
         let mut clients_and_states = prepare_clients_and_states_with_dealing(&db).await;
-        let contract_state = clients_and_states[0].0.get_contract_state().await.unwrap();
+        let contract_state = clients_and_states[0]
+            .dkg_client
+            .get_contract_state()
+            .await
+            .unwrap();
 
-        for (dkg_client, state) in clients_and_states.iter_mut() {
-            let filtered = deterministic_filter_dealers(dkg_client, state, 0, 2, false)
-                .await
-                .unwrap();
+        for controller in clients_and_states.iter_mut() {
+            let filtered = deterministic_filter_dealers(
+                &controller.dkg_client,
+                &mut controller.state,
+                0,
+                2,
+                false,
+            )
+            .await
+            .unwrap();
             assert_eq!(filtered.len(), contract_state.key_size as usize);
             for mapping in filtered.iter() {
                 assert_eq!(mapping.len(), 4);
@@ -516,7 +524,11 @@ pub(crate) mod tests {
     async fn check_dealers_filter_one_bad_dealing() {
         let db = MockContractDb::new();
         let mut clients_and_states = prepare_clients_and_states_with_dealing(&db).await;
-        let contract_state = clients_and_states[0].0.get_contract_state().await.unwrap();
+        let contract_state = clients_and_states[0]
+            .dkg_client
+            .get_contract_state()
+            .await
+            .unwrap();
 
         // corrupt just one dealing
         db.dealings_db
@@ -532,12 +544,19 @@ pub(crate) mod tests {
                 validator_dealings.push(last);
             });
 
-        for (dkg_client, state) in clients_and_states.iter_mut().skip(1) {
-            let filtered = deterministic_filter_dealers(dkg_client, state, 0, 2, false)
-                .await
-                .unwrap();
+        for controller in clients_and_states.iter_mut().skip(1) {
+            let filtered = deterministic_filter_dealers(
+                &controller.dkg_client,
+                &mut controller.state,
+                0,
+                2,
+                false,
+            )
+            .await
+            .unwrap();
             assert_eq!(filtered.len(), contract_state.key_size as usize);
-            let corrupted_status = state
+            let corrupted_status = controller
+                .state
                 .all_dealers()
                 .get(&Addr::unchecked(TEST_VALIDATORS_ADDRESS[0]))
                 .unwrap()
@@ -552,25 +571,36 @@ pub(crate) mod tests {
     async fn check_dealers_resharing_filter_one_missing_dealing() {
         let db = MockContractDb::new();
         let mut clients_and_states = prepare_clients_and_states(&db).await;
-        let contract_state = clients_and_states[0].0.get_contract_state().await.unwrap();
+        let contract_state = clients_and_states[0]
+            .dkg_client
+            .get_contract_state()
+            .await
+            .unwrap();
 
         // add all but the first dealing
-        for (dkg_client, state) in clients_and_states.iter_mut().skip(1) {
-            dealing_exchange(dkg_client, state, OsRng, true)
+        for controller in clients_and_states.iter_mut().skip(1) {
+            dealing_exchange(&controller.dkg_client, &mut controller.state, OsRng, true)
                 .await
                 .unwrap();
         }
 
-        for (dkg_client, state) in clients_and_states.iter_mut().skip(1) {
+        for controller in clients_and_states.iter_mut().skip(1) {
             *db.initial_dealers_db.write().unwrap() = Some(InitialReplacementData {
                 initial_dealers: vec![Addr::unchecked(TEST_VALIDATORS_ADDRESS[0])],
                 initial_height: 1,
             });
-            let filtered = deterministic_filter_dealers(dkg_client, state, 0, 2, true)
-                .await
-                .unwrap();
+            let filtered = deterministic_filter_dealers(
+                &controller.dkg_client,
+                &mut controller.state,
+                0,
+                2,
+                true,
+            )
+            .await
+            .unwrap();
             assert_eq!(filtered.len(), contract_state.key_size as usize);
-            let corrupted_status = state
+            let corrupted_status = controller
+                .state
                 .all_dealers()
                 .get(&Addr::unchecked(TEST_VALIDATORS_ADDRESS[0]))
                 .unwrap()
@@ -586,25 +616,36 @@ pub(crate) mod tests {
     async fn check_dealers_resharing_filter_one_noninitial_missing_dealing() {
         let db = MockContractDb::new();
         let mut clients_and_states = prepare_clients_and_states(&db).await;
-        let contract_state = clients_and_states[0].0.get_contract_state().await.unwrap();
+        let contract_state = clients_and_states[0]
+            .dkg_client
+            .get_contract_state()
+            .await
+            .unwrap();
 
         // add all but the first dealing
-        for (dkg_client, state) in clients_and_states.iter_mut().skip(1) {
-            dealing_exchange(dkg_client, state, OsRng, true)
+        for controller in clients_and_states.iter_mut().skip(1) {
+            dealing_exchange(&controller.dkg_client, &mut controller.state, OsRng, true)
                 .await
                 .unwrap();
         }
 
-        for (dkg_client, state) in clients_and_states.iter_mut().skip(1) {
+        for controller in clients_and_states.iter_mut().skip(1) {
             *db.initial_dealers_db.write().unwrap() = Some(InitialReplacementData {
                 initial_dealers: vec![],
                 initial_height: 1,
             });
-            let filtered = deterministic_filter_dealers(dkg_client, state, 0, 2, true)
-                .await
-                .unwrap();
+            let filtered = deterministic_filter_dealers(
+                &controller.dkg_client,
+                &mut controller.state,
+                0,
+                2,
+                true,
+            )
+            .await
+            .unwrap();
             assert_eq!(filtered.len(), contract_state.key_size as usize);
-            assert!(state
+            assert!(controller
+                .state
                 .all_dealers()
                 .get(&Addr::unchecked(TEST_VALIDATORS_ADDRESS[0]))
                 .unwrap()
@@ -618,7 +659,11 @@ pub(crate) mod tests {
     async fn check_dealers_filter_all_bad_dealings() {
         let db = MockContractDb::new();
         let mut clients_and_states = prepare_clients_and_states_with_dealing(&db).await;
-        let contract_state = clients_and_states[0].0.get_contract_state().await.unwrap();
+        let contract_state = clients_and_states[0]
+            .dkg_client
+            .get_contract_state()
+            .await
+            .unwrap();
 
         // corrupt all dealings of one address
         db.dealings_db
@@ -634,15 +679,22 @@ pub(crate) mod tests {
                 });
             });
 
-        for (dkg_client, state) in clients_and_states.iter_mut().skip(1) {
-            let filtered = deterministic_filter_dealers(dkg_client, state, 0, 2, false)
-                .await
-                .unwrap();
+        for controller in clients_and_states.iter_mut().skip(1) {
+            let filtered = deterministic_filter_dealers(
+                &controller.dkg_client,
+                &mut controller.state,
+                0,
+                2,
+                false,
+            )
+            .await
+            .unwrap();
             assert_eq!(filtered.len(), contract_state.key_size as usize);
             for mapping in filtered.iter() {
                 assert_eq!(mapping.len(), 3);
             }
-            let corrupted_status = state
+            let corrupted_status = controller
+                .state
                 .all_dealers()
                 .get(&Addr::unchecked(TEST_VALIDATORS_ADDRESS[0]))
                 .unwrap()
@@ -657,7 +709,11 @@ pub(crate) mod tests {
     async fn check_dealers_filter_malformed_dealing() {
         let db = MockContractDb::new();
         let mut clients_and_states = prepare_clients_and_states_with_dealing(&db).await;
-        let contract_state = clients_and_states[0].0.get_contract_state().await.unwrap();
+        let contract_state = clients_and_states[0]
+            .dkg_client
+            .get_contract_state()
+            .await
+            .unwrap();
 
         // corrupt just one dealing
         db.dealings_db
@@ -673,17 +729,30 @@ pub(crate) mod tests {
                 validator_dealings.push(last);
             });
 
-        for (dkg_client, state) in clients_and_states.iter_mut().skip(1) {
-            deterministic_filter_dealers(dkg_client, state, 0, 2, false)
-                .await
-                .unwrap();
+        for controller in clients_and_states.iter_mut().skip(1) {
+            deterministic_filter_dealers(
+                &controller.dkg_client,
+                &mut controller.state,
+                0,
+                2,
+                false,
+            )
+            .await
+            .unwrap();
             // second filter will leave behind the bad dealer and surface why it was left out
             // in the first place
-            let filtered = deterministic_filter_dealers(dkg_client, state, 0, 2, false)
-                .await
-                .unwrap();
+            let filtered = deterministic_filter_dealers(
+                &controller.dkg_client,
+                &mut controller.state,
+                0,
+                2,
+                false,
+            )
+            .await
+            .unwrap();
             assert_eq!(filtered.len(), contract_state.key_size as usize);
-            let corrupted_status = state
+            let corrupted_status = controller
+                .state
                 .all_dealers()
                 .get(&Addr::unchecked(TEST_VALIDATORS_ADDRESS[0]))
                 .unwrap()
@@ -698,7 +767,11 @@ pub(crate) mod tests {
     async fn check_dealers_filter_dealing_verification_error() {
         let db = MockContractDb::new();
         let mut clients_and_states = prepare_clients_and_states_with_dealing(&db).await;
-        let contract_state = clients_and_states[0].0.get_contract_state().await.unwrap();
+        let contract_state = clients_and_states[0]
+            .dkg_client
+            .get_contract_state()
+            .await
+            .unwrap();
 
         // corrupt just one dealing
         db.dealings_db
@@ -719,17 +792,30 @@ pub(crate) mod tests {
                 validator_dealings.push(last);
             });
 
-        for (dkg_client, state) in clients_and_states.iter_mut().skip(1) {
-            deterministic_filter_dealers(dkg_client, state, 0, 2, false)
-                .await
-                .unwrap();
+        for controller in clients_and_states.iter_mut().skip(1) {
+            deterministic_filter_dealers(
+                &controller.dkg_client,
+                &mut controller.state,
+                0,
+                2,
+                false,
+            )
+            .await
+            .unwrap();
             // second filter will leave behind the bad dealer and surface why it was left out
             // in the first place
-            let filtered = deterministic_filter_dealers(dkg_client, state, 0, 2, false)
-                .await
-                .unwrap();
+            let filtered = deterministic_filter_dealers(
+                &controller.dkg_client,
+                &mut controller.state,
+                0,
+                2,
+                false,
+            )
+            .await
+            .unwrap();
             assert_eq!(filtered.len(), contract_state.key_size as usize);
-            let corrupted_status = state
+            let corrupted_status = controller
+                .state
                 .all_dealers()
                 .get(&Addr::unchecked(TEST_VALIDATORS_ADDRESS[0]))
                 .unwrap()
@@ -744,11 +830,17 @@ pub(crate) mod tests {
     async fn partial_keypair_derivation() {
         let db = MockContractDb::new();
         let mut clients_and_states = prepare_clients_and_states_with_dealing(&db).await;
-        for (dkg_client, state) in clients_and_states.iter_mut() {
-            let filtered = deterministic_filter_dealers(dkg_client, state, 0, 2, false)
-                .await
-                .unwrap();
-            assert!(derive_partial_keypair(state, 2, filtered).is_ok());
+        for controller in clients_and_states.iter_mut() {
+            let filtered = deterministic_filter_dealers(
+                &controller.dkg_client,
+                &mut controller.state,
+                0,
+                2,
+                false,
+            )
+            .await
+            .unwrap();
+            assert!(derive_partial_keypair(&mut controller.state, 2, filtered).is_ok());
         }
     }
 
@@ -772,11 +864,17 @@ pub(crate) mod tests {
                 validator_dealings.push(last);
             });
 
-        for (dkg_client, state) in clients_and_states.iter_mut().skip(1) {
-            let filtered = deterministic_filter_dealers(dkg_client, state, 0, 2, false)
-                .await
-                .unwrap();
-            assert!(derive_partial_keypair(state, 2, filtered).is_ok());
+        for controller in clients_and_states.iter_mut().skip(1) {
+            let filtered = deterministic_filter_dealers(
+                &controller.dkg_client,
+                &mut controller.state,
+                0,
+                2,
+                false,
+            )
+            .await
+            .unwrap();
+            assert!(derive_partial_keypair(&mut controller.state, 2, filtered).is_ok());
         }
     }
 
@@ -786,13 +884,13 @@ pub(crate) mod tests {
         let db = MockContractDb::new();
         let mut clients_and_states = prepare_clients_and_states_with_submission(&db).await;
 
-        for (_, state) in clients_and_states.iter_mut() {
+        for controller in clients_and_states.iter_mut() {
             assert!(db
                 .proposal_db
                 .read()
                 .unwrap()
-                .contains_key(&state.proposal_id_value().unwrap()));
-            assert!(state.coconut_keypair_is_some().await);
+                .contains_key(&controller.state.proposal_id_value().unwrap()));
+            assert!(controller.state.coconut_keypair_is_some().await);
         }
     }
 
@@ -801,12 +899,12 @@ pub(crate) mod tests {
     async fn validate_verification_key() {
         let db = MockContractDb::new();
         let mut clients_and_states = prepare_clients_and_states_with_validation(&db).await;
-        for (_, state) in clients_and_states.iter_mut() {
+        for controller in clients_and_states.iter_mut() {
             let proposal = db
                 .proposal_db
                 .read()
                 .unwrap()
-                .get(&state.proposal_id_value().unwrap())
+                .get(&controller.state.proposal_id_value().unwrap())
                 .unwrap()
                 .clone();
             assert_eq!(proposal.status, Status::Passed);
@@ -825,18 +923,18 @@ pub(crate) mod tests {
             .entry(TEST_VALIDATORS_ADDRESS[0].to_string())
             .and_modify(|share| share.share.push('x'));
 
-        for (dkg_client, state) in clients_and_states.iter_mut() {
-            verification_key_validation(dkg_client, state, false)
+        for controller in clients_and_states.iter_mut() {
+            verification_key_validation(&controller.dkg_client, &mut controller.state, false)
                 .await
                 .unwrap();
         }
 
-        for (idx, (_, state)) in clients_and_states.iter().enumerate() {
+        for (idx, controller) in clients_and_states.iter().enumerate() {
             let proposal = db
                 .proposal_db
                 .read()
                 .unwrap()
-                .get(&state.proposal_id_value().unwrap())
+                .get(&controller.state.proposal_id_value().unwrap())
                 .unwrap()
                 .clone();
             if idx == 0 {
@@ -867,18 +965,18 @@ pub(crate) mod tests {
             .entry(TEST_VALIDATORS_ADDRESS[0].to_string())
             .and_modify(|share| share.share = second_share);
 
-        for (dkg_client, state) in clients_and_states.iter_mut() {
-            verification_key_validation(dkg_client, state, false)
+        for controller in clients_and_states.iter_mut() {
+            verification_key_validation(&controller.dkg_client, &mut controller.state, false)
                 .await
                 .unwrap();
         }
 
-        for (idx, (_, state)) in clients_and_states.iter().enumerate() {
+        for (idx, controller) in clients_and_states.iter().enumerate() {
             let proposal = db
                 .proposal_db
                 .read()
                 .unwrap()
-                .get(&state.proposal_id_value().unwrap())
+                .get(&controller.state.proposal_id_value().unwrap())
                 .unwrap()
                 .clone();
             if idx == 0 {
@@ -895,12 +993,12 @@ pub(crate) mod tests {
         let db = MockContractDb::new();
         let clients_and_states = prepare_clients_and_states_with_finalization(&db).await;
 
-        for (_, state) in clients_and_states.iter() {
+        for controller in clients_and_states.iter() {
             let proposal = db
                 .proposal_db
                 .read()
                 .unwrap()
-                .get(&state.proposal_id_value().unwrap())
+                .get(&controller.state.proposal_id_value().unwrap())
                 .unwrap()
                 .clone();
             assert_eq!(proposal.status, Status::Executed);
@@ -912,21 +1010,22 @@ pub(crate) mod tests {
     async fn reshare_preserves_keys() {
         let db = MockContractDb::new();
         let mut clients_and_states = prepare_clients_and_states_with_finalization(&db).await;
-        for (_, state) in clients_and_states.iter_mut() {
-            state.set_was_in_progress();
+        for controller in clients_and_states.iter_mut() {
+            controller.state.set_was_in_progress();
         }
 
         let mut vks = vec![];
         let mut indices = vec![];
-        for (_, state) in clients_and_states.iter() {
-            let vk = state
+        for controller in clients_and_states.iter() {
+            let vk = controller
+                .state
                 .coconut_keypair()
                 .await
                 .as_ref()
                 .unwrap()
                 .verification_key()
                 .clone();
-            let index = state.node_index().unwrap();
+            let index = controller.state.node_index().unwrap();
             vks.push(vk);
             indices.push(index);
         }
@@ -961,46 +1060,51 @@ pub(crate) mod tests {
         *db.dealings_db.write().unwrap() = Default::default();
         *db.verification_share_db.write().unwrap() = Default::default();
         let mut initial_dealers = vec![];
-        for (dkg_client, _) in clients_and_states.iter() {
-            let client_address = Addr::unchecked(dkg_client.get_address().await.as_ref());
+        for controller in clients_and_states.iter() {
+            let client_address =
+                Addr::unchecked(controller.dkg_client.get_address().await.as_ref());
             initial_dealers.push(client_address);
         }
         *db.initial_dealers_db.write().unwrap() = Some(InitialReplacementData {
             initial_dealers,
             initial_height: 1,
         });
-        *clients_and_states.first_mut().unwrap() = (new_dkg_client, state);
+        *clients_and_states.first_mut().unwrap() = DkgController::test_mock(new_dkg_client, state);
 
-        for (dkg_client, state) in clients_and_states.iter_mut() {
-            public_key_submission(dkg_client, state, true)
+        for controller in clients_and_states.iter_mut() {
+            controller.public_key_submission(0, true).await.unwrap();
+        }
+
+        for controller in clients_and_states.iter_mut() {
+            dealing_exchange(&controller.dkg_client, &mut controller.state, OsRng, true)
                 .await
                 .unwrap();
         }
 
-        for (dkg_client, state) in clients_and_states.iter_mut() {
-            dealing_exchange(dkg_client, state, OsRng, true)
-                .await
-                .unwrap();
-        }
-
-        for (dkg_client, state) in clients_and_states.iter_mut() {
+        for controller in clients_and_states.iter_mut() {
             let random_file: usize = OsRng.gen();
             let private_key_path = temp_dir().join(format!("private{}.pem", random_file));
             let public_key_path = temp_dir().join(format!("public{}.pem", random_file));
             let keypair_path = KeyPairPath::new(private_key_path.clone(), public_key_path.clone());
-            verification_key_submission(dkg_client, state, 0, &keypair_path, true)
-                .await
-                .unwrap();
+            verification_key_submission(
+                &controller.dkg_client,
+                &mut controller.state,
+                0,
+                &keypair_path,
+                true,
+            )
+            .await
+            .unwrap();
             std::fs::remove_file(private_key_path).unwrap();
             std::fs::remove_file(public_key_path).unwrap();
         }
-        for (dkg_client, state) in clients_and_states.iter_mut() {
-            verification_key_validation(dkg_client, state, true)
+        for controller in clients_and_states.iter_mut() {
+            verification_key_validation(&controller.dkg_client, &mut controller.state, true)
                 .await
                 .unwrap();
         }
-        for (dkg_client, state) in clients_and_states.iter_mut() {
-            verification_key_finalization(dkg_client, state, true)
+        for controller in clients_and_states.iter_mut() {
+            verification_key_finalization(&controller.dkg_client, &mut controller.state, true)
                 .await
                 .unwrap();
         }
@@ -1013,15 +1117,16 @@ pub(crate) mod tests {
 
         let mut vks = vec![];
         let mut indices = vec![];
-        for (_, state) in clients_and_states.iter() {
-            let vk = state
+        for controller in clients_and_states.iter() {
+            let vk = controller
+                .state
                 .coconut_keypair()
                 .await
                 .as_ref()
                 .unwrap()
                 .verification_key()
                 .clone();
-            let index = state.node_index().unwrap();
+            let index = controller.state.node_index().unwrap();
             vks.push(vk);
             indices.push(index);
         }
@@ -1034,8 +1139,8 @@ pub(crate) mod tests {
     async fn reshare_after_reset() {
         let db = MockContractDb::new();
         let mut clients_and_states = prepare_clients_and_states_with_finalization(&db).await;
-        for (_, state) in clients_and_states.iter_mut() {
-            state.set_was_in_progress();
+        for controller in clients_and_states.iter_mut() {
+            controller.state.set_was_in_progress();
         }
 
         let new_dkg_client = DkgClient::new(
@@ -1088,39 +1193,43 @@ pub(crate) mod tests {
         *db.dealings_db.write().unwrap() = Default::default();
         *db.verification_share_db.write().unwrap() = Default::default();
         clients_and_states.pop().unwrap();
-        let (initial_client2, initial_state2) = clients_and_states.pop().unwrap();
-        clients_and_states.push((new_dkg_client, state));
-        clients_and_states.push((new_dkg_client2, state2));
+        let controller2 = clients_and_states.pop().unwrap();
+        clients_and_states.push(DkgController::test_mock(new_dkg_client, state));
+        clients_and_states.push(DkgController::test_mock(new_dkg_client2, state2));
 
         // DKG in reset mode
-        for (dkg_client, state) in clients_and_states.iter_mut() {
-            public_key_submission(dkg_client, state, false)
+        for controller in clients_and_states.iter_mut() {
+            controller.public_key_submission(0, false).await.unwrap();
+        }
+        for controller in clients_and_states.iter_mut() {
+            dealing_exchange(&controller.dkg_client, &mut controller.state, OsRng, false)
                 .await
                 .unwrap();
         }
-        for (dkg_client, state) in clients_and_states.iter_mut() {
-            dealing_exchange(dkg_client, state, OsRng, false)
-                .await
-                .unwrap();
-        }
-        for (dkg_client, state) in clients_and_states.iter_mut() {
+        for controller in clients_and_states.iter_mut() {
             let random_file: usize = OsRng.gen();
             let private_key_path = temp_dir().join(format!("private{}.pem", random_file));
             let public_key_path = temp_dir().join(format!("public{}.pem", random_file));
             let keypair_path = KeyPairPath::new(private_key_path.clone(), public_key_path.clone());
-            verification_key_submission(dkg_client, state, 0, &keypair_path, false)
-                .await
-                .unwrap();
+            verification_key_submission(
+                &controller.dkg_client,
+                &mut controller.state,
+                0,
+                &keypair_path,
+                false,
+            )
+            .await
+            .unwrap();
             std::fs::remove_file(private_key_path).unwrap();
             std::fs::remove_file(public_key_path).unwrap();
         }
-        for (dkg_client, state) in clients_and_states.iter_mut() {
-            verification_key_validation(dkg_client, state, false)
+        for controller in clients_and_states.iter_mut() {
+            verification_key_validation(&controller.dkg_client, &mut controller.state, false)
                 .await
                 .unwrap();
         }
-        for (dkg_client, state) in clients_and_states.iter_mut() {
-            verification_key_finalization(dkg_client, state, false)
+        for controller in clients_and_states.iter_mut() {
+            verification_key_finalization(&controller.dkg_client, &mut controller.state, false)
                 .await
                 .unwrap();
         }
@@ -1130,22 +1239,23 @@ pub(crate) mod tests {
             .unwrap()
             .values()
             .all(|proposal| { proposal.status == Status::Executed }));
-        for (_, state) in clients_and_states.iter_mut() {
-            state.set_was_in_progress();
+        for controller in clients_and_states.iter_mut() {
+            controller.state.set_was_in_progress();
         }
 
         // DKG in reshare mode
         let mut vks = vec![];
         let mut indices = vec![];
-        for (_, state) in clients_and_states.iter() {
-            let vk = state
+        for controller in clients_and_states.iter() {
+            let vk = controller
+                .state
                 .coconut_keypair()
                 .await
                 .as_ref()
                 .unwrap()
                 .verification_key()
                 .clone();
-            let index = state.node_index().unwrap();
+            let index = controller.state.node_index().unwrap();
             vks.push(vk);
             indices.push(index);
         }
@@ -1157,47 +1267,52 @@ pub(crate) mod tests {
         *db.dealings_db.write().unwrap() = Default::default();
         *db.verification_share_db.write().unwrap() = Default::default();
         let mut initial_dealers = vec![];
-        for (dkg_client, _) in clients_and_states.iter() {
-            let client_address = Addr::unchecked(dkg_client.get_address().await.as_ref());
+        for controller in clients_and_states.iter() {
+            let client_address =
+                Addr::unchecked(controller.dkg_client.get_address().await.as_ref());
             initial_dealers.push(client_address);
         }
         *db.initial_dealers_db.write().unwrap() = Some(InitialReplacementData {
             initial_dealers,
             initial_height: 1,
         });
-        *clients_and_states.last_mut().unwrap() = (initial_client2, initial_state2);
+        *clients_and_states.last_mut().unwrap() = controller2;
 
-        for (dkg_client, state) in clients_and_states.iter_mut() {
-            public_key_submission(dkg_client, state, true)
+        for controller in clients_and_states.iter_mut() {
+            controller.public_key_submission(0, true).await.unwrap();
+        }
+
+        for controller in clients_and_states.iter_mut() {
+            dealing_exchange(&controller.dkg_client, &mut controller.state, OsRng, true)
                 .await
                 .unwrap();
         }
 
-        for (dkg_client, state) in clients_and_states.iter_mut() {
-            dealing_exchange(dkg_client, state, OsRng, true)
-                .await
-                .unwrap();
-        }
-
-        for (dkg_client, state) in clients_and_states.iter_mut() {
+        for controller in clients_and_states.iter_mut() {
             let random_file: usize = OsRng.gen();
             let private_key_path = temp_dir().join(format!("private{}.pem", random_file));
             let public_key_path = temp_dir().join(format!("public{}.pem", random_file));
             let keypair_path = KeyPairPath::new(private_key_path.clone(), public_key_path.clone());
-            verification_key_submission(dkg_client, state, 0, &keypair_path, true)
-                .await
-                .unwrap();
+            verification_key_submission(
+                &controller.dkg_client,
+                &mut controller.state,
+                0,
+                &keypair_path,
+                true,
+            )
+            .await
+            .unwrap();
             std::fs::remove_file(private_key_path).unwrap();
             std::fs::remove_file(public_key_path).unwrap();
         }
 
-        for (dkg_client, state) in clients_and_states.iter_mut() {
-            verification_key_validation(dkg_client, state, true)
+        for controller in clients_and_states.iter_mut() {
+            verification_key_validation(&controller.dkg_client, &mut controller.state, true)
                 .await
                 .unwrap();
         }
-        for (dkg_client, state) in clients_and_states.iter_mut() {
-            verification_key_finalization(dkg_client, state, true)
+        for controller in clients_and_states.iter_mut() {
+            verification_key_finalization(&controller.dkg_client, &mut controller.state, true)
                 .await
                 .unwrap();
         }
@@ -1210,15 +1325,16 @@ pub(crate) mod tests {
 
         let mut vks = vec![];
         let mut indices = vec![];
-        for (_, state) in clients_and_states.iter() {
-            let vk = state
+        for controller in clients_and_states.iter() {
+            let vk = controller
+                .state
                 .coconut_keypair()
                 .await
                 .as_ref()
                 .unwrap()
                 .verification_key()
                 .clone();
-            let index = state.node_index().unwrap();
+            let index = controller.state.node_index().unwrap();
             vks.push(vk);
             indices.push(index);
         }

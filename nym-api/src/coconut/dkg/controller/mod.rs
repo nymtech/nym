@@ -8,8 +8,7 @@ use crate::coconut::dkg::verification_key::{
     verification_key_finalization, verification_key_validation,
 };
 use crate::coconut::dkg::{
-    dealing::dealing_exchange, public_key::public_key_submission,
-    verification_key::verification_key_submission,
+    dealing::dealing_exchange, verification_key::verification_key_submission,
 };
 use crate::coconut::keypair::KeyPair as CoconutKeyPair;
 use crate::nyxd;
@@ -19,6 +18,7 @@ use nym_coconut_dkg_common::types::{Epoch, EpochId, EpochState};
 use nym_crypto::asymmetric::identity;
 use nym_dkg::bte::keys::KeyPair as DkgKeyPair;
 use nym_task::{TaskClient, TaskManager};
+use rand::rngs::OsRng;
 use rand::{CryptoRng, RngCore};
 use std::path::PathBuf;
 use std::time::Duration;
@@ -28,11 +28,11 @@ use tokio::time::interval;
 mod error;
 pub(crate) mod keys;
 
-pub(crate) struct DkgController<R> {
-    dkg_client: DkgClient,
+pub(crate) struct DkgController<R = OsRng> {
+    pub(crate) dkg_client: DkgClient,
     secret_key_path: PathBuf,
     verification_key_path: PathBuf,
-    state: State,
+    pub(crate) state: State,
     rng: R,
     polling_rate: Duration,
 }
@@ -69,6 +69,10 @@ impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
             rng,
             polling_rate: config.debug.dkg_contract_polling_rate,
         })
+    }
+
+    pub(crate) fn coconut_keypaths(&self) -> nym_pemstore::KeyPairPath {
+        nym_pemstore::KeyPairPath::new(&self.secret_key_path, &self.verification_key_path)
     }
 
     fn persist_state(&self) -> Result<(), DkgError> {
@@ -124,13 +128,17 @@ impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
     }
 
     async fn handle_awaiting_initialisation(&mut self) -> Result<(), DkgError> {
-        info!("DKG hasn't been initialised yet");
-        return Ok(());
+        info!("DKG hasn't been initialised yet - nothing to do");
+        Ok(())
     }
 
-    async fn handle_key_submission(&mut self, resharing: bool) -> Result<(), DkgError> {
+    async fn handle_key_submission(
+        &mut self,
+        epoch_id: EpochId,
+        resharing: bool,
+    ) -> Result<(), DkgError> {
         debug!("DKG: public key submission (resharing: {resharing})");
-        public_key_submission(&self.dkg_client, &mut self.state, resharing)
+        self.public_key_submission(epoch_id, resharing)
             .await
             .map_err(|source| DkgError::PublicKeySubmissionFailure { source })
     }
@@ -152,12 +160,10 @@ impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
         epoch_id: EpochId,
         resharing: bool,
     ) -> Result<(), DkgError> {
-        debug!("DKG: verification key sumbission (resharing: {resharing})");
+        debug!("DKG: verification key submission (resharing: {resharing})");
 
-        let keypair_path = nym_pemstore::KeyPairPath::new(
-            self.secret_key_path.clone(),
-            self.verification_key_path.clone(),
-        );
+        let keypair_path =
+            nym_pemstore::KeyPairPath::new(&self.secret_key_path, &self.verification_key_path);
         verification_key_submission(
             &self.dkg_client,
             &mut self.state,
@@ -219,7 +225,8 @@ impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
         match epoch.state {
             EpochState::WaitingInitialisation => self.handle_awaiting_initialisation().await?,
             EpochState::PublicKeySubmission { resharing } => {
-                self.handle_key_submission(resharing).await?
+                self.handle_key_submission(epoch.epoch_id, resharing)
+                    .await?
             }
             EpochState::DealingExchange { resharing } => {
                 self.handle_dealing_exchange(resharing).await?
@@ -292,5 +299,19 @@ impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
         )?;
         tokio::spawn(async move { dkg_controller.run(shutdown_listener).await });
         Ok(())
+    }
+}
+
+#[cfg(test)]
+impl DkgController {
+    pub(crate) fn test_mock(dkg_client: DkgClient, state: State) -> DkgController {
+        DkgController {
+            dkg_client,
+            secret_key_path: Default::default(),
+            verification_key_path: Default::default(),
+            state,
+            rng: OsRng,
+            polling_rate: Default::default(),
+        }
     }
 }

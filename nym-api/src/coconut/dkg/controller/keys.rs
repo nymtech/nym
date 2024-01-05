@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::support::config;
-use anyhow::Context;
+use anyhow::{anyhow, bail, Context};
+use nym_coconut_dkg_common::types::EpochId;
 use nym_dkg::bte::keys::KeyPair as DkgKeyPair;
 use rand::{CryptoRng, RngCore};
+use thiserror::__private::AsDisplay;
 
 pub(crate) fn init_bte_keypair<R: RngCore + CryptoRng>(
     rng: &mut R,
@@ -18,8 +20,8 @@ pub(crate) fn init_bte_keypair<R: RngCore + CryptoRng>(
             &config.storage_paths.decryption_key_path,
             &config.storage_paths.public_key_with_proof_path,
         ),
-    )?;
-    Ok(())
+    )
+    .context("DKG BTE keypair store failure")
 }
 
 pub(crate) fn load_bte_keypair(config: &config::CoconutSigner) -> anyhow::Result<DkgKeyPair> {
@@ -42,4 +44,51 @@ pub(crate) fn load_coconut_keypair_if_exists(
     ))
     .context("coconut keypair load failure")
     .map(Some)
+}
+
+pub(crate) fn persist_coconut_keypair(
+    keys: &nym_coconut_interface::KeyPair,
+    store_paths: &nym_pemstore::KeyPairPath,
+) -> anyhow::Result<()> {
+    nym_pemstore::store_keypair(keys, store_paths).context("coconut keypair store failure")
+}
+
+pub(crate) fn archive_coconut_keypair(
+    store_paths: &nym_pemstore::KeyPairPath,
+    epoch_id: EpochId,
+) -> anyhow::Result<()> {
+    if !store_paths.private_key_path.exists() {
+        bail!(
+            "private key does not exist at {}",
+            store_paths.private_key_path.as_display()
+        )
+    }
+
+    let dir = store_paths
+        .private_key_path
+        .parent()
+        .ok_or(anyhow!("the private key does not have a valid parent"))?;
+    let filename = store_paths
+        .private_key_path
+        .file_name()
+        .ok_or(anyhow!("the private key does not have a filename"))?
+        .to_str()
+        .ok_or(anyhow!("the key filename is not valid UTF8"))?;
+    let archive_path = dir.join(format!("epoch-{epoch_id}-{filename}.archived"));
+    std::fs::rename(&store_paths.private_key_path, archive_path)?;
+
+    let dir = store_paths
+        .public_key_path
+        .parent()
+        .ok_or(anyhow!("the public key does not have a valid parent"))?;
+    let filename = store_paths
+        .public_key_path
+        .file_name()
+        .ok_or(anyhow!("the public key does not have a filename"))?
+        .to_str()
+        .ok_or(anyhow!("the key filename is not valid UTF8"))?;
+    let archive_path = dir.join(format!("epoch-{epoch_id}-{filename}.archived"));
+    std::fs::rename(&store_paths.public_key_path, archive_path)?;
+
+    Ok(())
 }

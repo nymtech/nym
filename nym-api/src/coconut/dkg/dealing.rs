@@ -47,18 +47,19 @@ pub(crate) async fn dealing_exchange(
     let prior_resharing_secrets = if let Some(mut keypair) = state.take_coconut_keypair().await {
         // Double check that we are in resharing mode
         if resharing {
-            let sk = keypair.secret_key();
-            if sk.size() + 1 != expected_key_size as usize {
-                return Err(CoconutError::CorruptedCoconutKeyPair);
-            }
-
-            let (x, mut scalars) = sk.into_raw();
-
-            // We can now erase the keypair from memory
-            debug!("Removing coconut keypair from memory");
-            keypair.zeroize();
-            scalars.push(x);
-            scalars
+            todo!()
+            // let sk = keypair.secret_key();
+            // if sk.size() + 1 != expected_key_size as usize {
+            //     return Err(CoconutError::CorruptedCoconutKeyPair);
+            // }
+            //
+            // let (x, mut scalars) = sk.into_raw();
+            //
+            // // We can now erase the keypair from memory
+            // debug!("Removing coconut keypair from memory");
+            // keypair.zeroize();
+            // scalars.push(x);
+            // scalars
         } else {
             log::warn!("Coconut key hasn't been reset in memory. The state might be corrupt");
             vec![]
@@ -340,7 +341,7 @@ pub(crate) mod tests {
         let params = dkg::params();
         let mut keys = ttp_keygen(&Parameters::new(4).unwrap(), 3, 4).unwrap();
         let coconut_keypair = KeyPair::new();
-        coconut_keypair.set(Some(keys.pop().unwrap())).await;
+        coconut_keypair.set(0, keys.pop().unwrap()).await;
         let identity_keypair = identity::KeyPair::new(&mut thread_rng());
 
         let mut state = State::new(

@@ -1,7 +1,10 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+mod registration;
+
 use crate::coconut::dkg::complaints::ComplaintReason;
+use crate::coconut::dkg::state::registration::RegistrationState;
 use crate::coconut::error::CoconutError;
 use crate::coconut::keypair::KeyPair as CoconutKeyPair;
 use cosmwasm_std::Addr;
@@ -11,6 +14,8 @@ use nym_coconut_dkg_common::types::{DealingIndex, EpochId, EpochState};
 use nym_crypto::asymmetric::identity;
 use nym_dkg::bte::{keys::KeyPair as DkgKeyPair, PublicKey, PublicKeyWithProof};
 use nym_dkg::{Dealing, NodeIndex, RecoveredVerificationKeys, Threshold};
+use nym_validator_client::nyxd::{tx, Hash};
+use rocket::form::validate::Contains;
 use serde::de::Error;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::collections::{BTreeMap, HashMap};
@@ -271,8 +276,18 @@ impl PersistentState {
     }
 }
 
+#[derive(Default)]
+pub(crate) struct DkgState {
+    pub(crate) registration: RegistrationState,
+}
+
 pub(crate) struct State {
+    /// Path to the file containing the persistent state
     persistent_state_path: PathBuf,
+
+    dkg_instances: HashMap<EpochId, DkgState>,
+
+    //
     announce_address: Url,
     identity_key: identity::PublicKey,
     dkg_keypair: DkgKeyPair,
@@ -298,28 +313,33 @@ impl State {
         identity_key: identity::PublicKey,
         coconut_keypair: CoconutKeyPair,
     ) -> Self {
-        State {
-            persistent_state_path,
-            announce_address,
-            identity_key,
-            dkg_keypair,
-            coconut_keypair,
-            node_index: persistent_state.node_index,
-            dealers: persistent_state.dealers,
-            generated_dealings: persistent_state.generated_dealings,
-            receiver_index: persistent_state.receiver_index,
-            threshold: persistent_state.threshold,
-            recovered_vks: persistent_state.recovered_vks,
-            proposal_id: persistent_state.proposal_id,
-            voted_vks: persistent_state.voted_vks,
-            executed_proposal: persistent_state.executed_proposal,
-            was_in_progress: persistent_state.was_in_progress,
-        }
+        todo!()
+        // State {
+        //     persistent_state_path,
+        //     announce_address,
+        //     identity_key,
+        //     dkg_keypair,
+        //     coconut_keypair,
+        //     node_index: persistent_state.node_index,
+        //     dealers: persistent_state.dealers,
+        //     generated_dealings: persistent_state.generated_dealings,
+        //     receiver_index: persistent_state.receiver_index,
+        //     threshold: persistent_state.threshold,
+        //     recovered_vks: persistent_state.recovered_vks,
+        //     proposal_id: persistent_state.proposal_id,
+        //     voted_vks: persistent_state.voted_vks,
+        //     executed_proposal: persistent_state.executed_proposal,
+        //     was_in_progress: persistent_state.was_in_progress,
+        // }
+    }
+
+    pub fn persist(&self) -> Result<(), CoconutError> {
+        PersistentState::from(self).save_to_file(self.persistent_state_path())
     }
 
     pub async fn reset_persistent(&mut self, reset_coconut_keypair: bool) {
         if reset_coconut_keypair {
-            self.coconut_keypair.set(None).await;
+            self.coconut_keypair.invalidate().await;
         }
         self.node_index = Default::default();
         self.dealers = Default::default();
@@ -330,6 +350,26 @@ impl State {
         self.voted_vks = Default::default();
         self.executed_proposal = Default::default();
         self.was_in_progress = Default::default();
+    }
+
+    pub fn init_dkg_state(&mut self, epoch_id: EpochId) {
+        if !self.dkg_instances.contains_key(&epoch_id) {
+            self.dkg_instances.insert(epoch_id, Default::default());
+        }
+    }
+
+    pub fn registration_state(&self, epoch_id: EpochId) -> &RegistrationState {
+        // safety: before any accessors are called, `init_dkg_state` is used at the beginning of submission handler
+        &self.dkg_instances[&epoch_id].registration
+    }
+
+    pub fn registration_state_mut(&mut self, epoch_id: EpochId) -> &mut RegistrationState {
+        // safety: before any accessors are called, `init_dkg_state` is used at the beginning of submission handler
+        &mut self.dkg_instances.get_mut(&epoch_id).unwrap().registration
+    }
+
+    pub fn already_registered(&self, epoch_id: EpochId) -> bool {
+        self.registration_state(epoch_id).completed()
     }
 
     pub fn persistent_state_path(&self) -> &Path {
@@ -352,7 +392,7 @@ impl State {
         self.coconut_keypair.get().await.is_some()
     }
 
-    pub async fn take_coconut_keypair(&self) -> Option<nym_coconut::KeyPair> {
+    pub async fn take_coconut_keypair(&self) -> Option<(EpochId, nym_coconut::KeyPair)> {
         self.coconut_keypair.take().await
     }
 
@@ -438,9 +478,10 @@ impl State {
 
     pub async fn set_coconut_keypair(
         &mut self,
-        coconut_keypair: Option<nym_coconut_interface::KeyPair>,
+        epoch_id: EpochId,
+        coconut_keypair: nym_coconut_interface::KeyPair,
     ) {
-        self.coconut_keypair.set(coconut_keypair).await
+        self.coconut_keypair.set(epoch_id, coconut_keypair).await
     }
 
     pub fn set_node_index(&mut self, node_index: Option<NodeIndex>) {

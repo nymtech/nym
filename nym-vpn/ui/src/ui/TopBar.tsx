@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import clsx from 'clsx';
 import { routes } from '../constants';
 import { Routes } from '../types';
 
@@ -95,7 +96,13 @@ export default function TopBar() {
   }, [location.pathname, navBarData]);
 
   return (
-    <nav className="flex flex-row flex-nowrap justify-between items-center shrink-0 bg-white text-baltic-sea dark:bg-baltic-sea-jaguar dark:text-mercury-pinkish h-16 text-xl">
+    <nav
+      className={clsx([
+        'flex flex-row flex-nowrap justify-between items-center shrink-0',
+        'bg-white text-baltic-sea dark:bg-baltic-sea-jaguar dark:text-mercury-pinkish',
+        'h-16 text-xl shadow z-50',
+      ])}
+    >
       {currentNavLocation?.leftIcon ? (
         <button className="w-6 mx-4" onClick={currentNavLocation.handleLeftNav}>
           <span className="font-icon dark:text-laughing-jack text-2xl">

@@ -15,6 +15,7 @@ use serde::de::Error;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::collections::{BTreeMap, HashMap};
 use std::path::{Path, PathBuf};
+use time::OffsetDateTime;
 use url::Url;
 
 fn bte_pk_serialize<S: Serializer>(
@@ -203,8 +204,11 @@ mod generated_dealings {
     }
 }
 
-#[derive(Default, Deserialize, Serialize)]
+#[derive(Deserialize, Serialize)]
 pub(crate) struct PersistentState {
+    timestamp: OffsetDateTime,
+
+    //
     node_index: Option<NodeIndex>,
     dealers: BTreeMap<Addr, Result<DkgParticipant, ComplaintReason>>,
     #[serde(with = "generated_dealings")]
@@ -220,9 +224,28 @@ pub(crate) struct PersistentState {
     was_in_progress: bool,
 }
 
+impl Default for PersistentState {
+    fn default() -> Self {
+        PersistentState {
+            timestamp: OffsetDateTime::now_utc(),
+            node_index: None,
+            dealers: Default::default(),
+            generated_dealings: Default::default(),
+            receiver_index: None,
+            threshold: None,
+            recovered_vks: vec![],
+            proposal_id: None,
+            voted_vks: false,
+            executed_proposal: false,
+            was_in_progress: false,
+        }
+    }
+}
+
 impl From<&State> for PersistentState {
     fn from(s: &State) -> Self {
         PersistentState {
+            timestamp: OffsetDateTime::now_utc(),
             node_index: s.node_index,
             dealers: s.dealers.clone(),
             generated_dealings: s.generated_dealings.clone(),
@@ -309,8 +332,8 @@ impl State {
         self.was_in_progress = Default::default();
     }
 
-    pub fn persistent_state_path(&self) -> PathBuf {
-        self.persistent_state_path.clone()
+    pub fn persistent_state_path(&self) -> &Path {
+        self.persistent_state_path.as_path()
     }
 
     pub fn announce_address(&self) -> &Url {

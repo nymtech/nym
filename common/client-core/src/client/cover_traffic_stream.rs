@@ -102,7 +102,7 @@ where
 // obviously when we finally make shared rng that is on 'higher' level, this should become
 // generic `R`
 impl LoopCoverTrafficStream<OsRng> {
-    pub fn new(
+    pub(crate) fn new(
         ack_key: Arc<AckKey>,
         average_ack_delay: Duration,
         mix_tx: BatchMixMessageSender,

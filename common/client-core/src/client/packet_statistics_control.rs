@@ -1,6 +1,6 @@
-use std::{sync::atomic::Ordering::Relaxed, time::Duration};
+use std::time::Duration;
 
-use crate::{client, spawn_future};
+use crate::spawn_future;
 
 #[derive(Default, Debug)]
 struct PacketStatistics {

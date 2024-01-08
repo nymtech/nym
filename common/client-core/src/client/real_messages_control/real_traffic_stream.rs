@@ -24,7 +24,6 @@ use nym_task::connections::{
 };
 use rand::{CryptoRng, Rng};
 use std::pin::Pin;
-use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::time::Duration;
 

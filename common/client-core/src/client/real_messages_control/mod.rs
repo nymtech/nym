@@ -184,6 +184,7 @@ impl RealMessagesController<OsRng> {
             ack_controller_connectors,
             message_handler.clone(),
             reply_controller_sender,
+            stats_tx.clone(),
         );
 
         let reply_control = ReplyController::new(

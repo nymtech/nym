@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::client::{REAL_ACKS_RECEIVED, TOTAL_ACKS_RECEIVED};
+use crate::client::packet_statistics_control::{PacketStatisticsEvent, PacketStatisticsReporter};
 
 use super::action_controller::{AckActionSender, Action};
 use futures::StreamExt;
@@ -19,6 +19,7 @@ pub(super) struct AcknowledgementListener {
     ack_key: Arc<AckKey>,
     ack_receiver: AcknowledgementReceiver,
     action_sender: AckActionSender,
+    stats_tx: PacketStatisticsReporter,
 }
 
 impl AcknowledgementListener {
@@ -26,17 +27,25 @@ impl AcknowledgementListener {
         ack_key: Arc<AckKey>,
         ack_receiver: AcknowledgementReceiver,
         action_sender: AckActionSender,
+        stats_tx: PacketStatisticsReporter,
     ) -> Self {
         AcknowledgementListener {
             ack_key,
             ack_receiver,
             action_sender,
+            stats_tx,
         }
     }
 
     async fn on_ack(&mut self, ack_content: Vec<u8>) {
         trace!("Received an ack");
-        TOTAL_ACKS_RECEIVED.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        if self
+            .stats_tx
+            .send(PacketStatisticsEvent::TotalAckReceived)
+            .is_err()
+        {
+            log::error!("Failed to send ack statistics event to the statistics reporter!");
+        }
 
         let frag_id = match recover_identifier(&self.ack_key, &ack_content)
             .map(FragmentIdentifier::try_from_bytes)
@@ -56,7 +65,13 @@ impl AcknowledgementListener {
         }
 
         trace!("Received {} from the mix network", frag_id);
-        REAL_ACKS_RECEIVED.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        if self
+            .stats_tx
+            .send(PacketStatisticsEvent::RealAckReceived)
+            .is_err()
+        {
+            log::error!("Failed to send ack statistics event to the statistics reporter!");
+        }
 
         self.action_sender
             .unbounded_send(Action::new_remove(frag_id))

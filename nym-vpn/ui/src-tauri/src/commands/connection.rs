@@ -8,7 +8,7 @@ use crate::{
     error::{CmdError, CmdErrorSource},
     states::{
         app::{ConnectionState, VpnMode},
-        SharedAppConfig, SharedAppData, SharedAppState,
+        SharedAppData, SharedAppState,
     },
     vpn_client::{
         create_vpn_config, spawn_exit_listener, spawn_status_listener, ConnectProgressMsg,
@@ -34,7 +34,6 @@ pub async fn get_connection_state(
 pub async fn connect(
     app: tauri::AppHandle,
     state: State<'_, SharedAppState>,
-    config_store: State<'_, SharedAppConfig>,
 ) -> Result<ConnectionState, CmdError> {
     debug!("connect");
     {
@@ -74,7 +73,10 @@ pub async fn connect(
 
     let entry_point = match app_state.entry_node_location {
         Some(ref entry_node_location) => {
-            debug!("entry node location set, using: {}", entry_node_location.code);
+            debug!(
+                "entry node location set, using: {}",
+                entry_node_location.code
+            );
             EntryPoint::Location(entry_node_location.code.clone())
         }
         _ => {

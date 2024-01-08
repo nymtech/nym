@@ -2,35 +2,95 @@ use std::{sync::atomic::Ordering::Relaxed, time::Duration};
 
 use crate::{client, spawn_future};
 
-pub(crate) struct PacketStatisticsControl {}
+#[derive(Default, Debug)]
+struct PacketStatistics {
+    real_packets_sent: u64,
+    cover_packets_sent: u64,
+    real_acks_received: u64,
+    total_acks_received: u64,
+    real_packets_queued: u64,
+    retransmissions_queued: u64,
+    reply_surbs_queued: u64,
+    additional_reply_surbs_queued: u64,
+}
+
+impl PacketStatistics {
+    fn handle_event(&mut self, event: PacketStatisticsEvent) {
+        match event {
+            PacketStatisticsEvent::RealPacketSent => {
+                self.real_packets_sent += 1;
+            }
+            PacketStatisticsEvent::CoverPacketSent => {
+                self.cover_packets_sent += 1;
+            }
+            PacketStatisticsEvent::TotalAckReceived => {
+                self.total_acks_received += 1;
+            }
+            PacketStatisticsEvent::RealAckReceived => {
+                self.real_acks_received += 1;
+            }
+            PacketStatisticsEvent::RealPacketQueued => {
+                self.real_packets_queued += 1;
+            }
+            PacketStatisticsEvent::RetransmissionQueued => {
+                self.retransmissions_queued += 1;
+            }
+            PacketStatisticsEvent::ReplySurbRequestQueued => {
+                self.reply_surbs_queued += 1;
+            }
+            PacketStatisticsEvent::AdditionalReplySurbRequestQueued => {
+                self.additional_reply_surbs_queued += 1;
+            }
+        }
+    }
+}
+
+pub(crate) enum PacketStatisticsEvent {
+    // The real packets sent
+    RealPacketSent,
+    // The cover packets sent
+    CoverPacketSent,
+
+    // The total acks received
+    TotalAckReceived,
+    // Out of the total acks received, this is the subset of those that were real
+    RealAckReceived,
+
+    // Types of packets queued
+    RealPacketQueued,
+    RetransmissionQueued,
+    ReplySurbRequestQueued,
+    AdditionalReplySurbRequestQueued,
+}
+
+pub(crate) struct PacketStatisticsControl {
+    // Incoming packet stats events from other tasks
+    stats_rx: tokio::sync::mpsc::UnboundedReceiver<PacketStatisticsEvent>,
+    stats: PacketStatistics,
+}
 
 impl PacketStatisticsControl {
     pub(crate) fn new() -> Self {
-        Self {}
+        let (_, stats_rx) = tokio::sync::mpsc::unbounded_channel();
+        Self {
+            stats_rx,
+            stats: PacketStatistics::default(),
+        }
     }
 
     fn report_statistics(&self) {
-        let real_packets_sent = client::REAL_PACKETS_SENT.load(Relaxed);
-        let cover_packets_sent = client::COVER_PACKETS_SENT.load(Relaxed);
-        let real_acks_received = client::REAL_ACKS_RECEIVED.load(Relaxed);
-        let total_acks_received = client::TOTAL_ACKS_RECEIVED.load(Relaxed);
-        let _real_packets_queued = client::REAL_PACKETS_QUEUED.load(Relaxed);
-        let retransmissions_queued = client::RETRANSMISSIONS_QUEUED.load(Relaxed);
-        let _reply_surbs_queued = client::REPLY_SURB_REQUESTS_QUEUED.load(Relaxed);
-        let _additional_reply_surbs_queued = client::ADDITIONAL_REPLY_SURBS_QUEUED.load(Relaxed);
-
         log::info!(
             "packets sent: {} (real: {}, cover: {}, retransmissions: {})",
-            real_packets_sent + cover_packets_sent,
-            real_packets_sent,
-            cover_packets_sent,
-            retransmissions_queued,
+            self.stats.real_packets_sent + self.stats.cover_packets_sent,
+            self.stats.real_packets_sent,
+            self.stats.cover_packets_sent,
+            self.stats.retransmissions_queued,
         );
         log::info!(
             "acks received: {} (real: {}, cover: {})",
-            total_acks_received,
-            real_acks_received,
-            total_acks_received - real_acks_received,
+            self.stats.total_acks_received,
+            self.stats.real_acks_received,
+            self.stats.total_acks_received - self.stats.real_acks_received,
         );
     }
 
@@ -46,6 +106,10 @@ impl PacketStatisticsControl {
                 _ = shutdown.recv() => {
                     log::trace!("PacketStatisticsControl: Received shutdown");
                     break;
+                }
+                _ = self.stats_rx.recv() => {
+                    log::trace!("PacketStatisticsControl: Received stats event");
+                    self.stats.handle_event(PacketStatisticsEvent::RealPacketSent);
                 }
                 _ = interval.tick() => {
                     self.report_statistics();

@@ -11,6 +11,7 @@
 		D99A147A2B357E9900F2728B /* NymVPNApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D99A14792B357E9900F2728B /* NymVPNApp.swift */; };
 		D99A148A2B35A73F00F2728B /* Home in Frameworks */ = {isa = PBXBuildFile; productRef = D99A14892B35A73F00F2728B /* Home */; };
 		D99A148C2B35A74200F2728B /* Theme in Frameworks */ = {isa = PBXBuildFile; productRef = D99A148B2B35A74200F2728B /* Theme */; };
+		D9F699E02B4C1862005576A9 /* Settings in Frameworks */ = {isa = PBXBuildFile; productRef = D9F699DF2B4C1862005576A9 /* Settings */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -24,6 +25,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				D9F699E02B4C1862005576A9 /* Settings in Frameworks */,
 				D99A148C2B35A74200F2728B /* Theme in Frameworks */,
 				D99A148A2B35A73F00F2728B /* Home in Frameworks */,
 			);
@@ -85,6 +87,7 @@
 			packageProductDependencies = (
 				D99A14892B35A73F00F2728B /* Home */,
 				D99A148B2B35A74200F2728B /* Theme */,
+				D9F699DF2B4C1862005576A9 /* Settings */,
 			);
 			productName = NymVPN;
 			productReference = D99A14762B357E9900F2728B /* NymVPN.app */;
@@ -382,6 +385,10 @@
 		D99A148B2B35A74200F2728B /* Theme */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = Theme;
+		};
+		D9F699DF2B4C1862005576A9 /* Settings */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = Settings;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

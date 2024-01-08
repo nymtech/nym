@@ -70,7 +70,7 @@ impl<C, St: Storage> BandwidthController<C, St> {
 
         let sk_user = self.ecash_keypair.secret_key();
         let pay_info = PayInfo::generate_pay_info(provider_pk);
-        let nb_tickets = 1u64; //SW: TEMPORARY VALUE, what should we put there?
+        let nb_tickets = 1u64; //SW: MAKE THAT A GLOBAL CONSTANT?
         let wallet_value = u64::from_str(&ecash_wallet.value)
             .map_err(|err| BandwidthControllerError::CredentialStorageError(Box::new(err)))?;
         let credential_value = nb_tickets * wallet_value / (ecash_params.get_total_coins());
@@ -87,7 +87,7 @@ impl<C, St: Storage> BandwidthController<C, St> {
             nb_tickets,
             expiration_date_signatures,
             coin_indices_signatures,
-            date_scalar(spend_date), //SW
+            date_scalar(spend_date),
         )?;
 
         let credential = EcashCredential::new(payment, credential_value, pay_info, epoch_id);

@@ -127,7 +127,7 @@ where
         if exp_date_timestamp() != voucher.expiration_date() {
             voucher.reset_expiration_date();
         }
-        //SW:TODO : need a way to change reset expiration date here, if we recover later
+
         let state = State::new(voucher);
         let voucher = state.voucher.tx_hash();
         if let Err(e) =

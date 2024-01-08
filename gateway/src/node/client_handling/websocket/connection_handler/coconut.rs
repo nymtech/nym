@@ -54,7 +54,7 @@ impl EcashVerifier {
     ) -> Self {
         let mix_denom_base = nyxd_client.current_chain_details().mix_denom.base.clone();
         let (cred_sender, cred_receiver) = mpsc::unbounded();
-        //SW do not initialize unused elements
+        //initialize a credential sender only if we are in offline mode
         if offline_verification {
             let cs = CredentialSender::new(cred_receiver, storage);
             cs.start(shutdown);
@@ -100,7 +100,7 @@ impl EcashVerifier {
                 aggregated_verification_key,
                 credential.pay_info(),
                 date_scalar(today_timestamp()),
-            ) //SW
+            )
             .map_err(|_| {
                 RequestHandlingError::InvalidBandwidthCredential(String::from(
                     "credential failed to verify on gateway",

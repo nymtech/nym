@@ -29,7 +29,7 @@ use crate::node::{
                 IsActive, IsActiveRequestReceiver, IsActiveResultSender, MixMessageReceiver,
             },
         },
-        FREE_TESTNET_BANDWIDTH_VALUE,
+        FREE_TESTNET_BANDWIDTH_VALUE, TICKET_BANDWIDTH_VALUE,
     },
     storage::{error::StorageError, Storage},
 };
@@ -270,7 +270,7 @@ where
                 .await?;
         }
 
-        let bandwidth_value = 100000000; //SW MAKE A GLOBAL PARAMETER
+        let bandwidth_value = TICKET_BANDWIDTH_VALUE;
 
         self.increase_bandwidth(bandwidth_value).await?;
         let available_total = self.get_available_bandwidth().await?;

@@ -33,7 +33,6 @@ pub async fn set_node_location(
             state.exit_node_location = Some(country.clone());
         }
     }
-    // TODO pick a node according to the selected country
 
     // save the location on disk
     let mut app_data_store = data_state.lock().await;

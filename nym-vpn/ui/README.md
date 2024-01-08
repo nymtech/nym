@@ -41,17 +41,6 @@ For example on Linux the path would be `~/.config/nym-vpn/config.toml`
 env_config_file = "/home/<USER>/.config/nym-vpn/qa.env"
 ```
 
-## Optional config
-
-In the config file `nym-vpn/config.toml`
-
-```toml
-env_config_file = "/home/<USER>/.config/nym-vpn/qa.env"
-
-# set the entry node location to use, as two letter country code
-entry_node_location = "FR"
-```
-
 ## Dev
 
 ```

@@ -8,7 +8,7 @@ use crate::{
     error::{CmdError, CmdErrorSource},
     states::{
         app::{ConnectionState, VpnMode},
-        SharedAppConfig, SharedAppData, SharedAppState,
+        SharedAppData, SharedAppState,
     },
     vpn_client::{
         create_vpn_config, spawn_exit_listener, spawn_status_listener, ConnectProgressMsg,
@@ -34,7 +34,6 @@ pub async fn get_connection_state(
 pub async fn connect(
     app: tauri::AppHandle,
     state: State<'_, SharedAppState>,
-    config_store: State<'_, SharedAppConfig>,
 ) -> Result<ConnectionState, CmdError> {
     debug!("connect");
     {
@@ -72,22 +71,22 @@ pub async fn connect(
 
     let app_state = state.lock().await;
 
-    // get entry node location from app config file
-    let app_config = config_store
-        .lock()
-        .await
-        .read()
-        .await
-        .map_err(|e| CmdError::new(CmdErrorSource::InternalError, e.to_string()))?;
-    let entry_location = app_config
-        .entry_node_location
-        .clone()
-        .unwrap_or_else(|| DEFAULT_NODE_LOCATION.to_string());
-    // !! release config_store mutex
-    drop(app_config);
-
-    debug!("using entry node location: {}", entry_location);
-    let entry_point = EntryPoint::Location(entry_location);
+    let entry_point = match app_state.entry_node_location {
+        Some(ref entry_node_location) => {
+            debug!(
+                "entry node location set, using: {}",
+                entry_node_location.code
+            );
+            EntryPoint::Location(entry_node_location.code.clone())
+        }
+        _ => {
+            debug!(
+                "entry node location not set, using default: {}",
+                DEFAULT_NODE_LOCATION
+            );
+            EntryPoint::Location(DEFAULT_NODE_LOCATION.into())
+        }
+    };
     let exit_point = match app_state.exit_node_location {
         Some(ref exit_node_location) => {
             debug!("exit node location set, using: {}", exit_node_location.code);

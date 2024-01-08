@@ -85,7 +85,6 @@ function Settings() {
             title: t('entry-selector.title'),
             desc: t('entry-selector.desc'),
             leadingIcon: 'looks_two',
-            disabled: true,
             trailing: (
               <Switch
                 checked={entrySelector}
@@ -96,7 +95,6 @@ function Settings() {
                     : 'bg-mercury-pinkish dark:bg-gun-powder',
                   'relative inline-flex h-6 w-11 items-center rounded-full',
                 ])}
-                disabled
               >
                 <span
                   className={clsx([

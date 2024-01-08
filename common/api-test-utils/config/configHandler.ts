@@ -1,4 +1,6 @@
+import { dir } from "console";
 import { readFileSync } from "fs";
+import { dirname } from "path";
 import { TLogLevelName } from "tslog";
 
 import YAML from "yaml";
@@ -10,9 +12,11 @@ class ConfigHandler {
 
   public commonConfig: { request_headers: object };
 
+  private currentEnvironment: string;
+
   public environment: string;
 
-  public environmnetConfig: {
+  public environmentConfig: {
     log_level: TLogLevelName;
     time_zone: string;
     api_base_url: string;
@@ -35,8 +39,9 @@ class ConfigHandler {
 
   private setCommonConfig(): void {
     try {
+      const baseWorkingDirectory = __dirname;
       this.commonConfig = YAML.parse(
-        readFileSync("src/config/config.yaml", "utf8")
+        readFileSync(baseWorkingDirectory + "/config.yaml", "utf8"),
       ).common;
     } catch (error) {
       throw Error(`Error reading common config: (${error})`);
@@ -46,12 +51,22 @@ class ConfigHandler {
   private setEnvironmentConfig(environment: string): void {
     this.ensureEnvironmentIsValid(environment);
     try {
-      this.environmnetConfig = YAML.parse(
-        readFileSync("src/config/config.yaml", "utf8")
+      const baseWorkingDirectory = __dirname;
+      this.environmentConfig = YAML.parse(
+        readFileSync(baseWorkingDirectory + "/config.yaml", "utf8"),
       )[environment];
     } catch (error) {
+      console.log("fadsfasdfasdfsdfsa")
       throw Error(`Error reading environment config: (${error})`);
     }
+  }
+
+  public getEnvironmentConfig(environment: string): any {
+    const baseWorkingDirectory = __dirname;
+    return (
+      this.environmentConfig ||
+      YAML.parse(readFileSync(baseWorkingDirectory + "/config.yaml", "utf8"))[environment]
+    );
   }
 
   private ensureEnvironmentIsValid(environment: string): void {

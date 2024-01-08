@@ -13,9 +13,9 @@ import ConfigHandler from "../config/configHandler";
 
 const config = ConfigHandler.getInstance();
 const log = new Logger({
-  minLevel: config.environmnetConfig.log_level,
+  minLevel: config.environmentConfig.log_level,
   dateTimeTimezone:
-    config.environmnetConfig.time_zone ||
+    config.environmentConfig.time_zone ||
     Intl.DateTimeFormat().resolvedOptions().timeZone,
 });
 
@@ -24,7 +24,7 @@ function isSet(property): boolean {
 }
 
 export class RestClient {
-  private static authToken: string;
+  public static authToken: string;
 
   private axiosInstance: AxiosInstance;
 
@@ -83,7 +83,7 @@ export class RestClient {
         data,
         additionalConfigs,
         params,
-      })
+      }),
     );
 
     await this.axiosInstance
@@ -214,7 +214,7 @@ export class RestClient {
 
     if (isSet(additionalConfigs)) {
       logRecord = `${logRecord}\nAdditional Configuration: ${stringify(
-        additionalConfigs
+        additionalConfigs,
       )}`;
     }
 

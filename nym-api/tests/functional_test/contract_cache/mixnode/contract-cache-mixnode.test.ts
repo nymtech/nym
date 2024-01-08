@@ -1,5 +1,5 @@
 import ContractCache from "../../../src/endpoints/ContractCache";
-import ConfigHandler from "../../../src/config/configHandler";
+import ConfigHandler from "../../../../../common/api-test-utils/config/configHandler"
 
 let contract: ContractCache;
 let config: ConfigHandler;

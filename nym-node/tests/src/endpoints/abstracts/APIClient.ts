@@ -1,10 +1,11 @@
 import { Logger } from "tslog";
 import ConfigHandler from "../../../../../common/api-test-utils/config/configHandler";
 import { RestClient } from "../../../../../common/api-test-utils/restClient/RestClient";
+// import { ConfigHandler, RestClient } from '../../../../../common/api-test-utils';
+
 
 export abstract class APIClient {
-  protected constructor(serviceUrl: string) {
-    const baseUrl: string = this.config.environmentConfig.api_base_url;
+  protected constructor(baseUrl: string, serviceUrl: string) {
     this.url = baseUrl + serviceUrl;
     this.restClient = new RestClient(this.url);
     this.serviceName = this.constructor.toString().match(/\w+/g)[1];

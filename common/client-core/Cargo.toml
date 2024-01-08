@@ -59,7 +59,7 @@ features = ["time"]
 version = "0.20.1"
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.sqlx]
-version = "0.6.2"
+workspace = true
 features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"]
 optional = true
 
@@ -90,7 +90,7 @@ tempfile = "3.1.0"
 
 [build-dependencies]
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
-sqlx = { version = "0.6.2", features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"] }
+sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"] }
 
 [features]
 default = []

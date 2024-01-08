@@ -53,7 +53,7 @@ ts-rs = { workspace = true, optional = true}
 anyhow = { workspace = true }
 getset = "0.1.1"
 
-sqlx = { version = "0.6.2", features = [
+sqlx = { workspace = true, features = [
     "runtime-tokio-rustls",
     "sqlite",
     "macros",
@@ -115,7 +115,7 @@ generate-ts = ["ts-rs"]
 
 [build-dependencies]
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
-sqlx = { version = "0.6.2", features = [
+sqlx = { workspace = true, features = [
     "runtime-tokio-rustls",
     "sqlite",
     "macros",

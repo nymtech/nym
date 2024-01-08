@@ -3,6 +3,33 @@
 @tailwind utilities;
 
 @layer base {
+  /* provides main font Lato */
+  @font-face {
+    font-family: 'Lato';
+    font-style: normal;
+    font-weight: 400 600;
+    src: url(assets/fonts/Lato/Lato-Regular.ttf) format('truetype');
+  }
+  @font-face {
+    font-family: 'Lato';
+    font-style: italic;
+    font-weight: 400 600;
+    src: url(assets/fonts/Lato/Lato-Italic.ttf) format('truetype');
+  }
+  @font-face {
+    font-family: 'Lato';
+    font-style: normal;
+    font-weight: 700;
+    src: url(assets/fonts/Lato/Lato-Bold.ttf) format('truetype');
+  }
+  @font-face {
+    font-family: 'Lato';
+    font-style: italic;
+    font-weight: 700;
+    src: url(assets/fonts/Lato/Lato-BoldItalic.ttf) format('truetype');
+  }
+
+  /* icon font */
   @font-face {
     font-family: 'Material Symbols Outlined';
     font-style: normal;

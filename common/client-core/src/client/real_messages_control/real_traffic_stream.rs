@@ -3,13 +3,10 @@
 
 use self::sending_delay_controller::SendingDelayController;
 use crate::client::mix_traffic::BatchMixMessageSender;
+use crate::client::packet_statistics_control::{PacketStatisticsEvent, PacketStatisticsReporter};
 use crate::client::real_messages_control::acknowledgement_control::SentPacketNotificationSender;
 use crate::client::topology_control::TopologyAccessor;
 use crate::client::transmission_buffer::TransmissionBuffer;
-use crate::client::{
-    ADDITIONAL_REPLY_SURBS_QUEUED, COVER_PACKETS_SENT, REAL_PACKETS_QUEUED, REAL_PACKETS_SENT,
-    REPLY_SURB_REQUESTS_QUEUED, RETRANSMISSIONS_QUEUED,
-};
 use crate::config;
 use futures::task::{Context, Poll};
 use futures::{Future, Stream, StreamExt};
@@ -119,8 +116,8 @@ where
     /// Report queue lengths so that upstream can backoff sending data, and keep connections open.
     lane_queue_lengths: LaneQueueLengths,
 
-    // Count the number of packets polled from the real traffic stream
-    packet_polled_count: u64,
+    /// Channel used for sending statistics events to `PacketStatisticsControl`.
+    stats_tx: PacketStatisticsReporter,
 }
 
 #[derive(Debug)]
@@ -179,6 +176,7 @@ where
         topology_access: TopologyAccessor,
         lane_queue_lengths: LaneQueueLengths,
         client_connection_rx: ConnectionCommandReceiver,
+        stats_tx: PacketStatisticsReporter,
     ) -> Self {
         OutQueueControl {
             config,
@@ -192,7 +190,7 @@ where
             transmission_buffer: TransmissionBuffer::new(),
             client_connection_rx,
             lane_queue_lengths,
-            packet_polled_count: 0,
+            stats_tx,
         }
     }
 
@@ -268,11 +266,36 @@ where
 
         if let Err(err) = self.mix_tx.send(vec![next_message]).await {
             log::error!("Failed to send: {err}");
-        } else if fragment_id.is_some() {
-            REAL_PACKETS_SENT.fetch_add(1, Ordering::Relaxed);
         } else {
-            COVER_PACKETS_SENT.fetch_add(1, Ordering::Relaxed);
+            let event = if fragment_id.is_some() {
+                PacketStatisticsEvent::RealPacketSent
+            } else {
+                PacketStatisticsEvent::CoverPacketSent
+            };
+            if self.stats_tx.send(event).is_err() {
+                log::error!("Failed to send stats event");
+            }
         }
+
+        // if fragment_id.is_some() {
+        //     // REAL_PACKETS_SENT.fetch_add(1, Ordering::Relaxed);
+        //     if self
+        //         .stats_tx
+        //         .send(PacketStatisticsEvent::RealPacketSent)
+        //         .is_err()
+        //     {
+        //         log::error!("Failed to send stats event");
+        //     }
+        // } else {
+        //     // COVER_PACKETS_SENT.fetch_add(1, Ordering::Relaxed);
+        //     if self
+        //         .stats_tx
+        //         .send(PacketStatisticsEvent::CoverPacketSent)
+        //         .is_err()
+        //     {
+        //         log::error!("Failed to send stats event");
+        //     }
+        // }
 
         // notify ack controller about sending our message only after we actually managed to push it
         // through the channel
@@ -355,23 +378,32 @@ where
 
         // This is the last step in the pipeline where we know the type of the message, so
         // lets count the number of retransmissions and reply surb messages sent here.
-        match lane {
-            TransmissionLane::General => (),
-            TransmissionLane::ConnectionId(_) => (),
+        let stat_event = match lane {
+            TransmissionLane::General => None,
+            TransmissionLane::ConnectionId(_) => None,
             TransmissionLane::ReplySurbRequest => {
-                REPLY_SURB_REQUESTS_QUEUED.fetch_add(1, Ordering::Relaxed);
+                Some(PacketStatisticsEvent::ReplySurbRequestQueued)
             }
             TransmissionLane::AdditionalReplySurbs => {
-                ADDITIONAL_REPLY_SURBS_QUEUED.fetch_add(1, Ordering::Relaxed);
+                Some(PacketStatisticsEvent::AdditionalReplySurbRequestQueued)
             }
-            TransmissionLane::Retransmission => {
-                RETRANSMISSIONS_QUEUED.fetch_add(1, Ordering::Relaxed);
-            }
+            TransmissionLane::Retransmission => Some(PacketStatisticsEvent::RetransmissionQueued),
         };
+        if let Some(stat_event) = stat_event {
+            if self.stats_tx.send(stat_event).is_err() {
+                log::error!("Failed to send stats event");
+            }
+        }
         // To avoid comparing apples to oranges when presenting the fraction of packets that are
         // retransmissions, we also need to keep track to the total number of real messages queued,
         // even though we also track the actual number of messages sent later in the pipeline.
-        REAL_PACKETS_QUEUED.fetch_add(1, Ordering::Relaxed);
+        if self
+            .stats_tx
+            .send(PacketStatisticsEvent::RealPacketQueued)
+            .is_err()
+        {
+            log::error!("Failed to send stats event");
+        }
 
         Some(real_next)
     }
@@ -465,23 +497,17 @@ where
 
             Poll::Ready(Some((real_messages, conn_id))) => {
                 log::trace!("handling real_messages: size: {}", real_messages.len());
-                // Keep track on the number of packets polled to compare against the number of
-                // packets sent. This is just a sanity check to make sure we are not losing
-                // packets in the system.
-                self.packet_polled_count += 1;
-                let rpq = REAL_PACKETS_QUEUED.load(Ordering::Relaxed);
-                // We expect to be one packet ahead
-                if self.packet_polled_count > rpq + 1 {
-                    log::warn!(
-                        "We might to be losing packets in the system! (real packets queued: {rpq}, real packets polled: {rpp})",
-                        rpp = self.packet_polled_count
-                    );
-                }
 
                 // This is the last step in the pipeline where we know the type of the message, so
                 // lets count the number of retransmissions here.
                 if conn_id == TransmissionLane::Retransmission {
-                    RETRANSMISSIONS_QUEUED.fetch_add(1, Ordering::Relaxed);
+                    if self
+                        .stats_tx
+                        .send(PacketStatisticsEvent::RetransmissionQueued)
+                        .is_err()
+                    {
+                        log::error!("Failed to send stats event");
+                    }
                 }
 
                 // First store what we got for the given connection id

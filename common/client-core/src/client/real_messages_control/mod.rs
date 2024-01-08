@@ -35,6 +35,8 @@ use crate::client::replies::reply_controller;
 use crate::config;
 pub(crate) use acknowledgement_control::{AckActionSender, Action};
 
+use super::packet_statistics_control::PacketStatisticsReporter;
+
 pub(crate) mod acknowledgement_control;
 pub(crate) mod message_handler;
 pub(crate) mod real_traffic_stream;
@@ -143,6 +145,7 @@ impl RealMessagesController<OsRng> {
         reply_controller_receiver: ReplyControllerReceiver,
         lane_queue_lengths: LaneQueueLengths,
         client_connection_rx: ConnectionCommandReceiver,
+        stats_tx: PacketStatisticsReporter,
     ) -> Self {
         let rng = OsRng;
 
@@ -199,6 +202,7 @@ impl RealMessagesController<OsRng> {
             topology_access,
             lane_queue_lengths,
             client_connection_rx,
+            stats_tx,
         );
 
         RealMessagesController {

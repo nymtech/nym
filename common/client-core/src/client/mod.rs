@@ -21,13 +21,6 @@ pub(crate) mod transmission_buffer;
 // Another reason it's useful to have these here is that some components, will check and compare
 // its own packet counters against these to ensure that nothing has been lost in the system due e.g
 // async cancellation bugs.
-pub(crate) static REAL_PACKETS_SENT: AtomicU64 = AtomicU64::new(0);
-pub(crate) static COVER_PACKETS_SENT: AtomicU64 = AtomicU64::new(0);
 
 pub(crate) static REAL_ACKS_RECEIVED: AtomicU64 = AtomicU64::new(0);
 pub(crate) static TOTAL_ACKS_RECEIVED: AtomicU64 = AtomicU64::new(0);
-
-pub(crate) static REAL_PACKETS_QUEUED: AtomicU64 = AtomicU64::new(0);
-pub(crate) static RETRANSMISSIONS_QUEUED: AtomicU64 = AtomicU64::new(0);
-pub(crate) static REPLY_SURB_REQUESTS_QUEUED: AtomicU64 = AtomicU64::new(0);
-pub(crate) static ADDITIONAL_REPLY_SURBS_QUEUED: AtomicU64 = AtomicU64::new(0);

@@ -289,6 +289,7 @@ where
         client_connection_rx: ConnectionCommandReceiver,
         shutdown: TaskClient,
         packet_type: PacketType,
+        stats_tx: PacketStatisticsReporter,
     ) {
         info!("Starting real traffic stream...");
 
@@ -303,6 +304,7 @@ where
             reply_controller_receiver,
             lane_queue_lengths,
             client_connection_rx,
+            stats_tx,
         )
         .start_with_shutdown(shutdown, packet_type);
     }
@@ -714,6 +716,7 @@ where
             client_connection_rx,
             shutdown.fork("real_traffic_controller"),
             self.config.debug.traffic.packet_type,
+            packet_stats_reporter.clone(),
         );
 
         if !self

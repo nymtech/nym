@@ -114,9 +114,9 @@ impl PacketStatisticsControl {
                     log::trace!("PacketStatisticsControl: Received shutdown");
                     break;
                 }
-                _ = self.stats_rx.recv() => {
+                Some(stats_event) = self.stats_rx.recv() => {
                     log::trace!("PacketStatisticsControl: Received stats event");
-                    self.stats.handle_event(PacketStatisticsEvent::RealPacketSent);
+                    self.stats.handle_event(stats_event);
                 }
                 _ = interval.tick() => {
                     self.report_statistics();

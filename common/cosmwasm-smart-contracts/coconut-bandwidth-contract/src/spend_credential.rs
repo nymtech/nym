@@ -142,7 +142,7 @@ pub fn funds_from_cosmos_msgs(msgs: Vec<CosmosMsg>) -> Option<Coin> {
         contract_addr: _,
         msg,
         funds: _,
-    })) = msgs.get(0)
+    })) = msgs.first()
     {
         if let Ok(ExecuteMsg::ReleaseFunds { funds }) = from_binary::<ExecuteMsg>(msg) {
             return Some(funds);

@@ -1,3 +1,6 @@
+// due to the macro expansion of rather old rocket macros...
+#![allow(unused_imports)]
+
 use crate::country_statistics::country_nodes_distribution::CountryNodesDistribution;
 use crate::state::ExplorerApiStateContext;
 use rocket::serde::json::Json;

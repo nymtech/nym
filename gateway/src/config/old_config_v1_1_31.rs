@@ -1,5 +1,5 @@
 // Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: GPL-3.0-only
 
 use crate::config::persistence::paths::GatewayPaths;
 use nym_bin_common::logging::LoggingSettings;
@@ -128,6 +128,7 @@ impl From<ConfigV1_1_31> for Config {
                 enabled: value.wireguard.enabled,
                 bind_address: value.wireguard.bind_address,
                 announced_port: value.wireguard.announced_port,
+                private_network_prefix: Default::default(),
                 storage_paths: nym_node::config::persistence::WireguardPaths {
                     // no fields (yet)
                 },

@@ -16,7 +16,7 @@ Here’s how to configure Telegram with NymConnect:
 	For more releases, check out [Github](https://github.com/nymtech/nym/tags). NymConnect is available for Linux, Windows, and MacOS.
 	On Linux make sure NymConnect is executable. Opening a terminal in the same directory and run:
 	```sh
-	chmod +x ./<YOUR-NYM-CONNECT-VERSION>.AppImage
+	chmod +x ./<VERSION>
 	```    
 2. **Start NymConnect**
 	Telegram is added to NymConnect by default.

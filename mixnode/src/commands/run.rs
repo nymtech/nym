@@ -1,5 +1,5 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: GPL-3.0-only
 
 use super::OverrideConfig;
 use crate::commands::{override_config, try_load_current_config, version_check};

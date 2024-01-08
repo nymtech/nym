@@ -108,13 +108,13 @@ impl ConnectionHandler {
                     let reply_packet = match maybe_echo_packet {
                         Some(Ok(echo_packet)) => self.handle_echo_packet(echo_packet),
                         Some(Err(err)) => {
-                             error!(
+                             debug!(
                                 "The socket connection got corrupted with error: {err}. Closing the socket",
                             );
                             return;
                         }
                         None => {
-                            error!("The socket connection got terminated by the remote!");
+                            debug!("The socket connection got terminated by the remote!");
                             return;
                         }
                     };
@@ -125,7 +125,7 @@ impl ConnectionHandler {
                         .write_all(reply_packet.to_bytes().as_ref())
                         .await
                     {
-                        error!(
+                        debug!(
                             "Failed to write reply packet back to the sender - {}. Closing the socket on our end",
                             err
                         );

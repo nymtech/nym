@@ -1,8 +1,9 @@
 [package]
 name = "nym-cli"
-version = "1.1.31"
+version = "1.1.33"
 authors.workspace = true
 edition = "2021"
+license.workspace = true
 
 [dependencies]
 base64 = "0.13.0"
@@ -10,7 +11,7 @@ bs58 = "0.4"
 clap = { workspace = true, features = ["derive"] }
 clap_complete = "4.0"
 clap_complete_fig = "4.0"
-dotenvy = "0.15.6"
+dotenvy = { workspace = true }
 log = { workspace = true }
 pretty_env_logger = "0.4"
 serde = { version = "1", features = ["derive"] }

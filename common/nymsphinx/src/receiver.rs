@@ -169,6 +169,10 @@ pub struct SphinxMessageReceiver {
 
 impl SphinxMessageReceiver {
     /// Allows setting non-default number of expected mix hops in the network.
+    // IMPORTANT NOTE: this is among others used to deserialize SURBs. Meaning that this is a
+    // global setting and currently always set to the default value. The implication is that it is
+    // not currently possible to have different number of hops for different SURB messages. So,
+    // don't try to use <3 mix hops for SURBs until this is refactored.
     #[must_use]
     pub fn with_mix_hops(mut self, hops: u8) -> Self {
         self.num_mix_hops = hops;

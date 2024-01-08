@@ -7,10 +7,18 @@
     "withGlobalTauri": false
   },
   "package": {
-    "productName": "nymvpn-ui",
-    "version": "0.0.0"
+    "productName": "nym-vpn",
+    "version": "0.0.1"
   },
   "tauri": {
+    "updater": {
+      "active": true,
+      "endpoints": [
+        "https://releases.myapp.com/{{target}}/{{arch}}/{{current_version}}"
+      ],
+      "dialog": true,
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDUxMjFCMDhFOTczQzE5MjUKUldRbEdUeVhqckFoVVljRDZNZkRQZzIyYTBSZUVmSk1SVUlaTC9OeTk0NDFYUVl1blhWV2VTQi8K"
+    },
     "allowlist": {
       "all": false,
       "shell": {
@@ -21,7 +29,7 @@
     "bundle": {
       "active": true,
       "targets": "all",
-      "identifier": "com.tauri.dev",
+      "identifier": "net.nymtech.vpn",
       "icon": [
         "icons/32x32.png",
         "icons/128x128.png",
@@ -38,8 +46,8 @@
         "fullscreen": false,
         "resizable": true,
         "title": "NymVPN",
-        "width": 800,
-        "height": 600
+        "width": 440,
+        "height": 920
       }
     ]
   }

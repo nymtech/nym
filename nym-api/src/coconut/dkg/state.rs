@@ -1,12 +1,11 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: GPL-3.0-only
 
 use crate::coconut::dkg::complaints::ComplaintReason;
 use crate::coconut::error::CoconutError;
 use crate::coconut::keypair::KeyPair as CoconutKeyPair;
 use cosmwasm_std::Addr;
 use log::debug;
-use nym_coconut::SecretKey;
 use nym_coconut_dkg_common::dealer::DealerDetails;
 use nym_coconut_dkg_common::types::EpochState;
 use nym_dkg::bte::{keys::KeyPair as DkgKeyPair, PublicKey, PublicKeyWithProof};
@@ -274,12 +273,15 @@ impl State {
         self.coconut_keypair.get().await.is_some()
     }
 
-    pub async fn coconut_secret_key(&self) -> Option<SecretKey> {
-        self.coconut_keypair
-            .get()
-            .await
-            .as_ref()
-            .map(|kp| kp.secret_key())
+    pub async fn take_coconut_keypair(&self) -> Option<nym_coconut::KeyPair> {
+        self.coconut_keypair.take().await
+    }
+
+    #[cfg(test)]
+    pub async fn coconut_keypair(
+        &self,
+    ) -> tokio::sync::RwLockReadGuard<'_, Option<nym_coconut::KeyPair>> {
+        self.coconut_keypair.get().await
     }
 
     pub fn node_index(&self) -> Option<NodeIndex> {

@@ -1,3 +1,6 @@
+// due to the macro expansion of rather old rocket macros...
+#![allow(unused_imports)]
+
 use rocket::serde::json::Json;
 use rocket::{Route, State};
 use rocket_okapi::okapi::openapi3::OpenApi;

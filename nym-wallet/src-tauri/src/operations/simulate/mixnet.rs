@@ -38,7 +38,7 @@ async fn simulate_mixnet_operation(
         .nyxd
         .wrap_contract_execute_message(mixnet_contract, &msg, funds)?;
 
-    let result = client.nyxd.simulate(vec![msg]).await?;
+    let result = client.nyxd.simulate(vec![msg], "").await?;
     guard.create_detailed_fee(result)
 }
 

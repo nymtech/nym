@@ -127,7 +127,9 @@ impl ActionController {
                 .insert(frag_id, (Arc::new(pending_ack), None))
                 .is_some()
             {
-                panic!("Tried to insert duplicate pending ack")
+                // This used to be a panic, however since we've seen this actually happen in the
+                // wild, let's not take the whole client (and possibly gateway) down because of it.
+                error!("Tried to insert duplicate pending ack! This should not be possible!")
             }
         }
     }
@@ -263,7 +265,7 @@ impl ActionController {
     pub(super) async fn run_with_shutdown(&mut self, mut shutdown: nym_task::TaskClient) {
         debug!("Started ActionController with graceful shutdown support");
 
-        while !shutdown.is_shutdown() {
+        loop {
             tokio::select! {
                 action = self.incoming_actions.next() => match action {
                     Some(action) => self.process_action(action),
@@ -283,6 +285,7 @@ impl ActionController {
                 },
                 _ = shutdown.recv_with_delay() => {
                     log::trace!("ActionController: Received shutdown");
+                    break;
                 }
             }
         }

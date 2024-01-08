@@ -1,7 +1,10 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: GPL-3.0-only
 
 use crate::coconut::error::CoconutError;
+use crate::coconut::state::BANDWIDTH_CREDENTIAL_PARAMS;
+use nym_api_requests::coconut::BlindSignRequestBody;
+use nym_coconut::{BlindedSignature, SecretKey};
 use nym_validator_client::nyxd::error::NyxdError::AbciError;
 
 // If the result is already established, the vote might be redundant and
@@ -16,4 +19,19 @@ pub(crate) fn accepted_vote_err(ret: Result<(), CoconutError>) -> Result<(), Coc
         }
     }
     Ok(())
+}
+
+pub(crate) fn blind_sign(
+    request: &BlindSignRequestBody,
+    signing_key: &SecretKey,
+) -> Result<BlindedSignature, CoconutError> {
+    let public_attributes = request.public_attributes_hashed();
+    let attributes_ref = public_attributes.iter().collect::<Vec<_>>();
+
+    Ok(nym_coconut_interface::blind_sign(
+        &BANDWIDTH_CREDENTIAL_PARAMS,
+        signing_key,
+        &request.inner_sign_request,
+        &attributes_ref,
+    )?)
 }

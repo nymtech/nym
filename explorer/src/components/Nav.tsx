@@ -22,6 +22,7 @@ import { useMainContext } from '../context/main';
 import { MobileDrawerClose } from '../icons/MobileDrawerClose';
 import { Socials } from './Socials';
 import { Footer } from './Footer';
+import { NymVpnIcon } from '../icons/NymVpn';
 import { DarkLightSwitchDesktop } from './Switch';
 import { NavOptionType } from '../context/nav';
 
@@ -341,6 +342,9 @@ export const Nav: FCWithChildren = ({ children }) => {
                 alignItems: 'center',
               }}
             >
+              <MuiLink component={Link} to="http://nymvpn.com" target="_blank" underline="none" marginRight={1}>
+                <NymVpnIcon />
+              </MuiLink>
               <Socials />
               <DarkLightSwitchDesktop defaultChecked />
             </Box>

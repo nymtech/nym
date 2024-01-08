@@ -14,6 +14,7 @@ pub struct NodeRoles {
     pub mixnode_enabled: bool,
     pub gateway_enabled: bool,
     pub network_requester_enabled: bool,
+    pub ip_packet_router_enabled: bool,
 }
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize, JsonSchema)]

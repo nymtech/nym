@@ -34,7 +34,10 @@ impl TryFrom<&[u8]> for Ciphertext {
             )));
         }
 
+        // safety: we just checked for the length so the unwraps are fine
+        #[allow(clippy::unwrap_used)]
         let c1_bytes: &[u8; 48] = &bytes[..48].try_into().unwrap();
+        #[allow(clippy::unwrap_used)]
         let c2_bytes: &[u8; 48] = &bytes[48..].try_into().unwrap();
 
         let c1 = try_deserialize_g1_projective(
@@ -112,7 +115,16 @@ impl Bytable for PrivateKey {
     }
 
     fn try_from_byte_slice(slice: &[u8]) -> Result<Self> {
-        PrivateKey::from_bytes(slice.try_into().unwrap())
+        let received = slice.len();
+        let Ok(arr) = slice.try_into() else {
+            return Err(CoconutError::UnexpectedArrayLength {
+                typ: "elgamal::PrivateKey".to_string(),
+                received,
+                expected: 32,
+            });
+        };
+
+        PrivateKey::from_bytes(arr)
     }
 }
 
@@ -145,21 +157,36 @@ impl PublicKey {
     }
 
     pub fn to_bytes(&self) -> [u8; 48] {
-        self.to_byte_vec().try_into().unwrap()
+        self.0.to_affine().to_compressed()
     }
 
     pub fn from_bytes(bytes: &[u8; 48]) -> Result<PublicKey> {
-        Ok(PublicKey::try_from(bytes.to_vec().as_slice()).unwrap())
+        try_deserialize_g1_projective(
+            bytes,
+            CoconutError::Deserialization(
+                "Failed to deserialize compressed ElGamal public key".to_string(),
+            ),
+        )
+        .map(PublicKey)
     }
 }
 
 impl Bytable for PublicKey {
     fn to_byte_vec(&self) -> Vec<u8> {
-        self.0.to_affine().to_compressed().into()
+        self.to_bytes().into()
     }
 
     fn try_from_byte_slice(slice: &[u8]) -> Result<Self> {
-        Ok(PublicKey::from_bytes(slice.try_into().unwrap()).unwrap())
+        let received = slice.len();
+        let Ok(arr) = slice.try_into() else {
+            return Err(CoconutError::UnexpectedArrayLength {
+                typ: "elgamal::PublicKey".to_string(),
+                received,
+                expected: 48,
+            });
+        };
+
+        PublicKey::from_bytes(arr)
     }
 }
 
@@ -167,13 +194,7 @@ impl TryFrom<&[u8]> for PublicKey {
     type Error = CoconutError;
 
     fn try_from(slice: &[u8]) -> Result<PublicKey> {
-        try_deserialize_g1_projective(
-            slice.try_into().unwrap(),
-            CoconutError::Deserialization(
-                "Failed to deserialize compressed ElGamal public key".to_string(),
-            ),
-        )
-        .map(PublicKey)
+        PublicKey::try_from_byte_slice(slice)
     }
 }
 
@@ -225,7 +246,7 @@ pub fn elgamal_keygen(params: &Parameters) -> ElGamalKeyPair {
 
 pub fn compute_attribute_encryption(
     params: &Parameters,
-    private_attributes: &[Attribute],
+    private_attributes: &[&Attribute],
     pub_key: &PublicKey,
     commitment_hash: G1Projective,
 ) -> (Vec<Ciphertext>, Vec<EphemeralKey>) {

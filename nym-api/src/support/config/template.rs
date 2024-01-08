@@ -1,5 +1,5 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: GPL-3.0-only
 
 pub(crate) const CONFIG_TEMPLATE: &str = r#"
 # This is a TOML config file.
@@ -15,15 +15,15 @@ id = '{{ base.id }}'
 # Validator server to which the API will be getting information about the network.
 local_validator = '{{ base.local_validator }}'
 
-# Address of the validator contract managing the network.
-mixnet_contract_address = '{{ base.mixnet_contract_address }}'
-
-# Address of the vesting contract holding locked tokens
-vesting_contract_address = '{{ base.vesting_contract_address }}'
-
 # Mnemonic used for rewarding and validator interaction
 mnemonic = '{{ base.mnemonic }}'
 
+[base.storage_paths]
+# Path to file containing private identity key of the nym-api.
+private_identity_key_file = '{{ base.storage_paths.private_identity_key_file }}'
+
+# Path to file containing public identity key of the nym-api.
+public_identity_key_file = '{{ base.storage_paths.public_identity_key_file }}'
 
 ##### network monitor config options #####
 

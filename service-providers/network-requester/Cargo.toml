@@ -1,9 +1,10 @@
 # Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: GPL-3.0-only
 
 [package]
 name = "nym-network-requester"
-version = "1.1.31"
+license = "GPL-3.0"
+version = "1.1.32"
 authors.workspace = true
 edition.workspace = true
 rust-version = "1.65"
@@ -31,7 +32,7 @@ regex = "1.8.4"
 reqwest = { workspace = true, features = ["json"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
-sqlx = { version = "0.6.1", features = ["runtime-tokio-rustls", "chrono"]}
+sqlx = { workspace = true, features = ["runtime-tokio-rustls", "chrono"]}
 tap = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = [ "net", "rt-multi-thread", "macros" ] }

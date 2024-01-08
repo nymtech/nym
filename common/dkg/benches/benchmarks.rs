@@ -366,11 +366,7 @@ pub fn creating_proof_of_chunking_for_100_parties(c: &mut Criterion) {
         .map(|&node_index| polynomial.evaluate_at(&Scalar::from(node_index)).into())
         .collect::<Vec<_>>();
 
-    let remote_share_key_pairs = shares
-        .iter()
-        .zip(receivers.values())
-        .map(|(share, key)| (share, key))
-        .collect::<Vec<_>>();
+    let remote_share_key_pairs = shares.iter().zip(receivers.values()).collect::<Vec<_>>();
     let ordered_public_keys = receivers.values().copied().collect::<Vec<_>>();
 
     let (ciphertexts, hazmat) = encrypt_shares(&remote_share_key_pairs, &params, &mut rng);
@@ -400,11 +396,7 @@ pub fn verifying_proof_of_chunking_for_100_parties(c: &mut Criterion) {
         .map(|&node_index| polynomial.evaluate_at(&Scalar::from(node_index)).into())
         .collect::<Vec<_>>();
 
-    let remote_share_key_pairs = shares
-        .iter()
-        .zip(receivers.values())
-        .map(|(share, key)| (share, key))
-        .collect::<Vec<_>>();
+    let remote_share_key_pairs = shares.iter().zip(receivers.values()).collect::<Vec<_>>();
     let ordered_public_keys = receivers.values().copied().collect::<Vec<_>>();
 
     let (ciphertexts, hazmat) = encrypt_shares(&remote_share_key_pairs, &params, &mut rng);
@@ -436,11 +428,7 @@ pub fn creating_proof_of_secret_sharing_for_100_parties(c: &mut Criterion) {
         .map(|&node_index| polynomial.evaluate_at(&Scalar::from(node_index)).into())
         .collect::<Vec<_>>();
 
-    let remote_share_key_pairs = shares
-        .iter()
-        .zip(receivers.values())
-        .map(|(share, key)| (share, key))
-        .collect::<Vec<_>>();
+    let remote_share_key_pairs = shares.iter().zip(receivers.values()).collect::<Vec<_>>();
 
     let (ciphertexts, hazmat) = encrypt_shares(&remote_share_key_pairs, &params, &mut rng);
 
@@ -478,11 +466,7 @@ pub fn verifying_proof_of_secret_sharing_for_100_parties(c: &mut Criterion) {
         .map(|&node_index| polynomial.evaluate_at(&Scalar::from(node_index)).into())
         .collect::<Vec<_>>();
 
-    let remote_share_key_pairs = shares
-        .iter()
-        .zip(receivers.values())
-        .map(|(share, key)| (share, key))
-        .collect::<Vec<_>>();
+    let remote_share_key_pairs = shares.iter().zip(receivers.values()).collect::<Vec<_>>();
 
     let (ciphertexts, hazmat) = encrypt_shares(&remote_share_key_pairs, &params, &mut rng);
 
@@ -545,11 +529,7 @@ pub fn share_encryption_100(c: &mut Criterion) {
         .map(|&node_index| polynomial.evaluate_at(&Scalar::from(node_index)).into())
         .collect::<Vec<_>>();
 
-    let remote_share_key_pairs = shares
-        .iter()
-        .zip(receivers.values())
-        .map(|(share, key)| (share, key))
-        .collect::<Vec<_>>();
+    let remote_share_key_pairs = shares.iter().zip(receivers.values()).collect::<Vec<_>>();
 
     c.bench_function("100 shares encryption", |b| {
         b.iter(|| black_box(encrypt_shares(&remote_share_key_pairs, &params, &mut rng)))

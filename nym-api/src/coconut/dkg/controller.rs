@@ -1,5 +1,5 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: GPL-3.0-only
 
 use crate::coconut::dkg::client::DkgClient;
 use crate::coconut::dkg::state::{ConsistentState, PersistentState, State};
@@ -13,7 +13,7 @@ use crate::coconut::dkg::{
 use crate::coconut::keypair::KeyPair as CoconutKeyPair;
 use crate::nyxd;
 use crate::support::config;
-use anyhow::Result;
+use anyhow::{bail, Result};
 use nym_coconut_dkg_common::types::EpochState;
 use nym_dkg::bte::keys::KeyPair as DkgKeyPair;
 use nym_task::{TaskClient, TaskManager};
@@ -53,6 +53,10 @@ impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
         coconut_keypair: CoconutKeyPair,
         rng: R,
     ) -> Result<Self> {
+        let Some(announce_address) = &config.announce_address else {
+            bail!("can't start a DKG controller without specifying an announce address!")
+        };
+
         let dkg_keypair = nym_pemstore::load_keypair(&nym_pemstore::KeyPairPath::new(
             &config.storage_paths.decryption_key_path,
             &config.storage_paths.public_key_with_proof_path,
@@ -76,7 +80,7 @@ impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
             state: State::new(
                 config.storage_paths.dkg_persistent_state_path.clone(),
                 persistent_state,
-                config.announce_address.clone(),
+                announce_address.clone(),
                 dkg_keypair,
                 coconut_keypair,
             ),

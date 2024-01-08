@@ -102,6 +102,8 @@ pub(crate) struct Peer {
     /// assert_eq!(peer_id, public_key.peer_id());
     ///
     /// ```
+    #[allow(clippy::struct_field_names)]
+    // this should get resolved properly at some point, but not now...
     pub peer_id: PeerId,
     /// The peer's public key. It matches PeerId.
     pub public_key: PublicKey,

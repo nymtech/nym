@@ -115,11 +115,7 @@ impl Dealing {
             .map(|&node_index| polynomial.evaluate_at(&Scalar::from(node_index)).into())
             .collect::<Vec<_>>();
 
-        let remote_share_key_pairs = shares
-            .iter()
-            .zip(receivers.values())
-            .map(|(share, key)| (share, key))
-            .collect::<Vec<_>>();
+        let remote_share_key_pairs = shares.iter().zip(receivers.values()).collect::<Vec<_>>();
         let ordered_public_keys = receivers.values().copied().collect::<Vec<_>>();
 
         let (ciphertexts, hazmat) = encrypt_shares(&remote_share_key_pairs, params, &mut rng);

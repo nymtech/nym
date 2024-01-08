@@ -1,6 +1,6 @@
 {
   "name": "@nymproject/nodejs-client",
-  "version": "1.2.4-rc.1",
+  "version": "1.2.4-rc.2",
   "license": "Apache-2.0",
   "author": "Nym Technologies SA",
   "files": [
@@ -25,7 +25,7 @@
     "tsc": "tsc --noEmit true"
   },
   "dependencies": {
-    "@nymproject/nym-client-wasm-node": ">=1.2.4-rc.1 || ^1",
+    "@nymproject/nym-client-wasm-node": ">=1.2.4-rc.2 || ^1",
     "comlink": "^4.3.1",
     "fake-indexeddb": "^4.0.2",
     "rollup-plugin-polyfill": "^4.2.0",

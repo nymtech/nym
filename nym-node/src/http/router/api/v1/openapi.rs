@@ -1,5 +1,5 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: GPL-3.0-only
 
 use crate::http::router::api;
 use crate::http::router::types::{ErrorResponse, RequestError};
@@ -27,6 +27,7 @@ use utoipa_swagger_ui::SwaggerUi;
         api::v1::mixnode::root::root_mixnode,
         api::v1::network_requester::root::root_network_requester,
         api::v1::network_requester::exit_policy::node_exit_policy,
+        api::v1::ip_packet_router::root::root_ip_packet_router,
     ),
     components(
         schemas(
@@ -56,6 +57,7 @@ use utoipa_swagger_ui::SwaggerUi;
             api_requests::v1::network_requester::exit_policy::models::AddressPortPattern,
             api_requests::v1::network_requester::exit_policy::models::PortRange,
             api_requests::v1::network_requester::exit_policy::models::UsedExitPolicy,
+            api_requests::v1::ip_packet_router::models::IpPacketRouter,
         ),
         responses(RequestError)
     )

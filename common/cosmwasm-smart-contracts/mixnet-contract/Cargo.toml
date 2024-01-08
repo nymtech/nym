@@ -25,12 +25,12 @@ humantime-serde = "1.1.1"
 
 # TO CHECK WHETHER STILL NEEDED:
 log = { workspace = true }
-time = { version = "0.3.6", features = ["parsing", "formatting"] }
+time = { workspace = true, features = ["parsing", "formatting"] }
 ts-rs = { workspace = true, optional = true }
 
 [dev-dependencies]
 rand_chacha = "0.3"
-time = { version = "0.3.5", features = ["serde", "macros"] }
+time = { workspace = true, features = ["serde", "macros"] }
 
 [features]
 default = []

@@ -516,6 +516,7 @@ where
                     recipient,
                     to_send,
                     nym_sphinx::params::PacketType::Mix,
+                    self.config.reply_surbs.surb_mix_hops,
                 )
                 .await
             {

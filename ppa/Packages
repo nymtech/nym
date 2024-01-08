@@ -1,0 +1,34 @@
+Package: nym-mixnode
+Version: 1.1.33-1
+Architecture: amd64
+Maintainer: Dave Hrycyszyn <futurechimp@users.noreply.github.com>
+Installed-Size: 23794
+Depends: libc6 (>= 2.34)
+Filename: ./debian/nym-mixnode_1.1.33-1_amd64.deb
+Size: 5245732
+MD5sum: a9377a1aabfda9d95ce3a937fb4f02ed
+SHA1: 535e76d7c5c0d8dc96b30c34fa1de46fbc9c40dd
+SHA256: 70874c9d738998b6b671965ee724c47f56a8486d8eb6c73e94498f8c240fa62b
+Priority: optional
+Description: Implementation of a Loopix-based Mixnode
+ <!--
+ Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
+ SPDX-License-Identifier: Apache-2.0
+ -->
+ .
+ # Nym Mixnode
+ .
+ A Rust mixnode implementation.
+ .
+ ## Usage
+ .
+ * `nym-mixnode` prints a help message showing usage options
+ * `nym-mixnode run --help` prints a help message showing usage options for the
+ run command
+ * `nym-mixnode run --layer 1 --host x.x.x.x` will start the mixnode in layer 1
+ and bind to the specified host IP address. Coordinate with other people in your
+ network to find out which layer needs coverage.
+ .
+ By default, the Nym Mixnode will start on port 1789. If desired, you can change
+ the port using the `--port` option.
+

@@ -1,7 +1,9 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: GPL-3.0-only
 
 use crate::support::config::default_data_directory;
+use anyhow::Context;
+use nym_crypto::asymmetric::identity;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
@@ -14,6 +16,9 @@ pub const DEFAULT_DKG_DECRYPTION_KEY_FILENAME: &str = "dkg_decryption_key.pem";
 pub const DEFAULT_DKG_PUBLIC_KEY_WITH_PROOF_FILENAME: &str = "dkg_public_key_with_proof.pem";
 pub const DEFAULT_COCONUT_VERIFICATION_KEY_FILENAME: &str = "coconut_verification_key.pem";
 pub const DEFAULT_COCONUT_SECRET_KEY_FILENAME: &str = "coconut_secret_key.pem";
+
+pub const DEFAULT_PRIVATE_IDENTITY_KEY_FILENAME: &str = "private_identity.pem";
+pub const DEFAULT_PUBLIC_IDENTITY_KEY_FILENAME: &str = "public_identity.pem";
 
 // #[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
 // pub struct NymApiPathfinder {
@@ -97,5 +102,37 @@ impl CoconutSignerPaths {
             decryption_key_path: data_dir.join(DEFAULT_DKG_DECRYPTION_KEY_FILENAME),
             public_key_with_proof_path: data_dir.join(DEFAULT_DKG_PUBLIC_KEY_WITH_PROOF_FILENAME),
         }
+    }
+}
+
+#[derive(Debug, Default, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(default)]
+pub struct NymApiPaths {
+    /// Path to file containing private identity key of the nym-api.
+    pub private_identity_key_file: PathBuf,
+
+    /// Path to file containing public identity key of the nym-api.
+    pub public_identity_key_file: PathBuf,
+}
+
+impl NymApiPaths {
+    pub fn new_default<P: AsRef<Path>>(id: P) -> Self {
+        let data_dir = default_data_directory(id);
+
+        NymApiPaths {
+            private_identity_key_file: data_dir.join(DEFAULT_PRIVATE_IDENTITY_KEY_FILENAME),
+            public_identity_key_file: data_dir.join(DEFAULT_PUBLIC_IDENTITY_KEY_FILENAME),
+        }
+    }
+
+    pub fn load_identity(&self) -> anyhow::Result<identity::KeyPair> {
+        let keypaths = nym_pemstore::KeyPairPath::new(
+            &self.private_identity_key_file,
+            &self.public_identity_key_file,
+        );
+
+        nym_pemstore::load_keypair(&keypaths).context(format!(
+            "failed to load identity keys of the nym api. paths: {keypaths:?}"
+        ))
     }
 }

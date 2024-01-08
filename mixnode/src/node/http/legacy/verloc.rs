@@ -1,3 +1,6 @@
+// Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: GPL-3.0-only
+
 use axum::extract::{Query, State};
 use nym_mixnode_common::verloc::{AtomicVerlocResult, VerlocResult};
 use nym_node::http::api::{FormattedResponse, OutputParams};

@@ -80,7 +80,7 @@ impl BinaryBuildInformation {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[cfg_attr(feature = "bin_info_schema", derive(schemars::JsonSchema))]
 pub struct BinaryBuildInformationOwned {

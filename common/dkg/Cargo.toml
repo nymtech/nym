@@ -3,6 +3,7 @@ name = "nym-dkg"
 version = "0.1.0"
 edition = "2021"
 resolver = "2"
+license.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -11,7 +12,7 @@ bitvec = "1.0.0"
 
 # unfortunately until https://github.com/zkcrypto/bls12_381/issues/10 is resolved, we have to rely on the fork
 # as we need to be able to serialize Gt so that we could create the lookup table for baby-step-giant-step algorithm
-bls12_381 = { git = "https://github.com/jstuczyn/bls12_381", branch ="gt-serialisation", default-features = false, features = ["alloc", "pairings", "experimental", "zeroize"] }
+bls12_381 = { workspace = true, default-features = false, features = ["alloc", "pairings", "experimental", "zeroize"] }
 nym-contracts-common = { path = "../cosmwasm-smart-contracts/contracts-common", optional = true }
 bs58 = "0.4"
 
@@ -29,11 +30,11 @@ zeroize = { workspace = true, features = ["zeroize_derive"] }
 nym-pemstore = { path = "../pemstore" }
 
 [dependencies.group]
-version = "0.11"
+workspace = true
 default-features = false
 
 [dependencies.ff]
-version = "0.11"
+workspace = true
 default-features = false
 
 [dev-dependencies]

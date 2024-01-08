@@ -2,7 +2,8 @@ pub use nym_client_core::config::Config as BaseClientConfig;
 
 use nym_bin_common::logging::LoggingSettings;
 use nym_config::{
-    must_get_home, save_formatted_config_to_file, NymConfigTemplate, DEFAULT_CONFIG_DIR,
+    defaults::mainnet, must_get_home, save_formatted_config_to_file,
+    serde_helpers::de_maybe_stringified, NymConfigTemplate, DEFAULT_CONFIG_DIR,
     DEFAULT_CONFIG_FILENAME, DEFAULT_DATA_DIR, NYM_DIR,
 };
 use nym_service_providers_common::DEFAULT_SERVICE_PROVIDERS_DIR;
@@ -11,6 +12,7 @@ use std::{
     io,
     path::{Path, PathBuf},
 };
+use url::Url;
 
 use crate::config::persistence::IpPacketRouterPaths;
 
@@ -55,6 +57,9 @@ pub struct Config {
     #[serde(flatten)]
     pub base: BaseClientConfig,
 
+    #[serde(default)]
+    pub ip_packet_router: IpPacketRouter,
+
     pub storage_paths: IpPacketRouterPaths,
 
     pub logging: LoggingSettings,
@@ -70,6 +75,7 @@ impl Config {
     pub fn new<S: AsRef<str>>(id: S) -> Self {
         Config {
             base: BaseClientConfig::new(id.as_ref(), env!("CARGO_PKG_VERSION")),
+            ip_packet_router: Default::default(),
             storage_paths: IpPacketRouterPaths::new_base(default_data_directory(id.as_ref())),
             logging: Default::default(),
         }
@@ -100,5 +106,34 @@ impl Config {
     pub fn validate(&self) -> bool {
         // no other sections have explicit requirements (yet)
         self.base.validate()
+    }
+
+    #[doc(hidden)]
+    pub fn set_no_poisson_process(&mut self) {
+        self.base.set_no_poisson_process()
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct IpPacketRouter {
+    /// Disable Poisson sending rate.
+    pub disable_poisson_rate: bool,
+
+    /// Specifies the url for an upstream source of the exit policy used by this node.
+    #[serde(deserialize_with = "de_maybe_stringified")]
+    pub upstream_exit_policy_url: Option<Url>,
+}
+
+impl Default for IpPacketRouter {
+    fn default() -> Self {
+        IpPacketRouter {
+            disable_poisson_rate: true,
+            upstream_exit_policy_url: Some(
+                mainnet::EXIT_POLICY_URL
+                    .parse()
+                    .expect("invalid default exit policy URL"),
+            ),
+        }
     }
 }

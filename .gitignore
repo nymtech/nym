@@ -9,6 +9,7 @@
 target
 .env
 .env.dev
+envs/devnet.env
 /.vscode/settings.json
 validator/.vscode
 sample-configs/validator-config.toml
@@ -46,3 +47,5 @@ cpu-cycles/libcpucycles/build
 foxyfox.env
 
 .next
+ppa-private-key.b64
+ppa-private-key.asc

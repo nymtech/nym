@@ -1,5 +1,5 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: GPL-3.0-only
 
 // there is couple of reasons for putting this in a separate module:
 // 1. I didn't feel it fit well in nym contract "cache". It seems like purpose of cache is to just keep updating local data

@@ -13,6 +13,7 @@ license.workspace = true
 [dependencies]
 base64 = { workspace = true }
 dashmap = { workspace = true }
+log = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 thiserror = { workspace = true }
 
@@ -28,13 +29,7 @@ sha2 = { version = "0.10.8", optional = true }
 utoipa = { workspace = true, optional = true }
 serde_json = { workspace = true, optional = true }
 
-# target-specific dependencies
-[target."cfg(not(target_arch = \"wasm32\"))".dependencies.boringtun]
-workspace = true
-
-[target."cfg(target_arch = \"wasm32\")".dependencies.x25519-dalek]
-version = "2.0.0"
-
+x25519-dalek = { version = "2.0.0", features = ["static_secrets"] }
 
 [dev-dependencies]
 rand = "0.7.3"

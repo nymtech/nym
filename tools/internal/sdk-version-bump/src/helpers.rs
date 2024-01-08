@@ -44,7 +44,7 @@ pub(crate) trait ReleasePackage: Sized {
         Ok(())
     }
 
-    fn update_nym_dependencies(&mut self, _: &HashSet<String>) -> anyhow::Result<()> {
+    fn update_nym_dependencies(&mut self, _: &HashSet<String>, _: bool) -> anyhow::Result<()> {
         Ok(())
     }
 }
@@ -57,28 +57,29 @@ pub(crate) trait VersionBumpExt: Sized {
     fn try_remove_prerelease(&self) -> anyhow::Result<Self>;
 }
 
+pub(crate) fn try_bump_raw_prerelease(raw: &str) -> anyhow::Result<Prerelease> {
+    // ugh that's disgusting
+    let (rc_prefix, pre_version) = raw
+        .split_once('.')
+        .context("the prerelease version does not contain a valid rc.X suffix")?;
+
+    let parsed_version: u32 = pre_version.parse()?;
+    let updated_version = parsed_version + 1;
+
+    Ok(format!("{rc_prefix}.{updated_version}").parse()?)
+}
+
 impl VersionBumpExt for Version {
     fn try_bump_prerelease(&self) -> anyhow::Result<Self> {
         if self.pre.is_empty() {
             bail!("the current version ({self}) does not have pre-release data set - are you sure you followed the release process correctly?")
         }
 
-        // ugh that's disgusting
-        let (rc_prefix, pre_version) = self
-            .pre
-            .as_str()
-            .split_once('.')
-            .context("the prerelease version does not contain a valid rc.X suffix")?;
-
-        let parsed_version: u32 = pre_version.parse()?;
-        let updated_version = parsed_version + 1;
-
-        let pre = format!("{rc_prefix}.{updated_version}").parse()?;
         Ok(Version {
             major: self.major,
             minor: self.minor,
             patch: self.patch,
-            pre,
+            pre: try_bump_raw_prerelease(self.pre.as_str())?,
             build: self.build.clone(),
         })
     }

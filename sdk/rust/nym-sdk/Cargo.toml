@@ -2,6 +2,7 @@
 name = "nym-sdk"
 version = "0.1.0"
 edition = "2021"
+license.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -49,7 +50,7 @@ nym-bin-common = { path = "../../../common/bin-common" }
 # extra dependencies for libp2p examples
 libp2p = { git = "https://github.com/ChainSafe/rust-libp2p.git", rev = "e3440d25681df380c9f0f8cfdcfd5ecc0a4f2fb6", features = [ "identify", "macros", "ping", "tokio", "tcp", "dns", "websocket", "noise", "mplex", "yamux", "gossipsub" ]}
 tokio-stream = "0.1.12"
-tokio-util = { version = "0.7", features = ["codec"] }
+tokio-util = { workspace = true, features = ["codec"] }
 parking_lot = "0.12"
 hex = "0.4"
 

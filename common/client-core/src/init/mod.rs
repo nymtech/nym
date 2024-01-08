@@ -94,6 +94,8 @@ where
     D::StorageError: Send + Sync + 'static,
     T: DeserializeOwned + Serialize + Send + Sync,
 {
+    log::trace!("Setting up new gateway");
+
     // if we're setting up new gateway, failing to load existing information is fine.
     // as a matter of fact, it's only potentially a problem if we DO succeed
     if _load_gateway_details(details_store).await.is_ok() && !overwrite_data {
@@ -210,6 +212,7 @@ where
     D::StorageError: Send + Sync + 'static,
     T: DeserializeOwned + Serialize + Send + Sync,
 {
+    log::debug!("Setting up gateway");
     match setup {
         GatewaySetup::MustLoad => use_loaded_gateway_details(key_store, details_store).await,
         GatewaySetup::New {

@@ -1,3 +1,6 @@
+# Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
+# SPDX-License-Identifier: GPL-3.0-only
+
 [package]
 name = "nym-node"
 version = "0.1.0"
@@ -6,7 +9,7 @@ repository.workspace = true
 homepage.workspace = true
 documentation.workspace = true
 edition.workspace = true
-license.workspace = true
+license = "GPL-3.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -14,6 +17,8 @@ license.workspace = true
 anyhow = { workspace = true }
 bytes = "1.5.0"
 colored = "2"
+ipnetwork = "0.16"
+rand = "0.7.3"
 serde = { workspace = true, features = ["derive"] }
 serde_yaml = "0.9.25"
 serde_json = { workspace = true }
@@ -48,6 +53,7 @@ nym-config = { path = "../common/config" }
 nym-crypto = { path = "../common/crypto", features = ["asymmetric" ]}
 nym-node-requests = { path = "nym-node-requests", default-features = false, features = ["openapi"]}
 nym-task = { path = "../common/task" }
+nym-wireguard = { path = "../common/wireguard" }
 nym-wireguard-types = { path = "../common/wireguard-types", features = ["verify"] }
 
 [dev-dependencies]

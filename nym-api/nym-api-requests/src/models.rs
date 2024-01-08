@@ -363,11 +363,17 @@ pub struct NymNodeDescription {
     // TODO: do we really care about ALL build info or just the version?
     pub build_information: BinaryBuildInformationOwned,
 
+    #[serde(default)]
+    pub network_requester: Option<NetworkRequesterDetails>,
+
+    #[serde(default)]
+    pub ip_packet_router: Option<IpPacketRouterDetails>,
+
     // for now we only care about their ws/wss situation, nothing more
     pub mixnet_websockets: WebSockets,
 }
 
-#[derive(Clone, Serialize, Deserialize, schemars::JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct DescribedGateway {
     pub bond: GatewayBond,
     pub self_described: Option<NymNodeDescription>,
@@ -380,4 +386,19 @@ impl From<GatewayBond> for DescribedGateway {
             self_described: None,
         }
     }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+pub struct NetworkRequesterDetails {
+    /// address of the embedded network requester
+    pub address: String,
+
+    /// flag indicating whether this network requester uses the exit policy rather than the deprecated allow list
+    pub uses_exit_policy: bool,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+pub struct IpPacketRouterDetails {
+    /// address of the embedded ip packet router
+    pub address: String,
 }

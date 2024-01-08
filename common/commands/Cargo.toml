@@ -3,6 +3,7 @@ name = "nym-cli-commands"
 version = "1.0.0"
 authors.workspace = true
 edition = "2021"
+license.workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
@@ -21,7 +22,7 @@ rand = {version = "0.6", features = ["std"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
-time = { version = "0.3.6", features = ["parsing", "formatting"] }
+time = { workspace = true, features = ["parsing", "formatting"] }
 toml = "0.5.6"
 url = { workspace = true }
 tap = "1"

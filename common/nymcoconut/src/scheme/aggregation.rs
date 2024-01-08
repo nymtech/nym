@@ -50,7 +50,7 @@ where
 impl Aggregatable for PartialSignature {
     fn aggregate(sigs: &[PartialSignature], indices: Option<&[u64]>) -> Result<Signature> {
         let h = sigs
-            .get(0)
+            .first()
             .ok_or_else(|| CoconutError::Aggregation("Empty set of signatures".to_string()))?
             .sig1();
 
@@ -83,7 +83,7 @@ pub fn aggregate_verification_keys(
 pub fn aggregate_signatures(
     params: &Parameters,
     verification_key: &VerificationKey,
-    attributes: &[Attribute],
+    attributes: &[&Attribute],
     signatures: &[PartialSignature],
     indices: Option<&[SignerIndex]>,
 ) -> Result<Signature> {
@@ -100,7 +100,7 @@ pub fn aggregate_signatures(
     let tmp = attributes
         .iter()
         .zip(verification_key.beta_g2.iter())
-        .map(|(attr, beta_i)| beta_i * attr)
+        .map(|(&attr, beta_i)| beta_i * attr)
         .sum::<G2Projective>();
 
     if !check_bilinear_pairing(
@@ -119,7 +119,7 @@ pub fn aggregate_signatures(
 pub fn aggregate_signature_shares(
     params: &Parameters,
     verification_key: &VerificationKey,
-    attributes: &[Attribute],
+    attributes: &[&Attribute],
     shares: &[SignatureShare],
 ) -> Result<Signature> {
     let (signatures, indices): (Vec<_>, Vec<_>) = shares
@@ -138,13 +138,13 @@ pub fn aggregate_signature_shares(
 
 #[cfg(test)]
 mod tests {
-    use bls12_381::G1Projective;
-    use group::Group;
-
     use crate::scheme::issuance::sign;
     use crate::scheme::keygen::ttp_keygen;
     use crate::scheme::setup::Parameters;
     use crate::scheme::verification::verify;
+    use crate::tests::helpers::random_scalars_refs;
+    use bls12_381::G1Projective;
+    use group::Group;
 
     use super::*;
 
@@ -155,7 +155,7 @@ mod tests {
 
         let vks = keypairs
             .into_iter()
-            .map(|keypair| keypair.verification_key())
+            .map(|keypair| keypair.verification_key().clone())
             .collect::<Vec<_>>();
 
         let aggr_vk1 = aggregate_verification_keys(&vks[..3], Some(&[1, 2, 3])).unwrap();
@@ -212,13 +212,18 @@ mod tests {
     #[test]
     fn signature_aggregation_works_for_any_subset_of_signatures() {
         let mut params = Parameters::new(2).unwrap();
-        let attributes = params.n_random_scalars(2);
+        random_scalars_refs!(attributes, params, 2);
 
         let keypairs = ttp_keygen(&params, 3, 5).unwrap();
 
         let (sks, vks): (Vec<_>, Vec<_>) = keypairs
             .into_iter()
-            .map(|keypair| (keypair.secret_key(), keypair.verification_key()))
+            .map(|keypair| {
+                (
+                    keypair.secret_key().clone(),
+                    keypair.verification_key().clone(),
+                )
+            })
             .unzip();
 
         let sigs = sks
@@ -312,12 +317,17 @@ mod tests {
     fn signature_aggregation_doesnt_work_for_empty_set_of_signatures() {
         let signatures: Vec<Signature> = vec![];
         let params = Parameters::new(2).unwrap();
-        let attributes = params.n_random_scalars(2);
+        random_scalars_refs!(attributes, params, 2);
         let keypairs = ttp_keygen(&params, 3, 5).unwrap();
 
         let (_, vks): (Vec<_>, Vec<_>) = keypairs
             .into_iter()
-            .map(|keypair| (keypair.secret_key(), keypair.verification_key()))
+            .map(|keypair| {
+                (
+                    keypair.secret_key().clone(),
+                    keypair.verification_key().clone(),
+                )
+            })
             .unzip();
 
         let aggr_vk_all = aggregate_verification_keys(&vks, None).unwrap();
@@ -330,11 +340,16 @@ mod tests {
     fn signature_aggregation_doesnt_work_if_indices_have_invalid_length() {
         let signatures = vec![random_signature()];
         let params = Parameters::new(2).unwrap();
-        let attributes = params.n_random_scalars(2);
+        random_scalars_refs!(attributes, params, 2);
         let keypairs = ttp_keygen(&params, 3, 5).unwrap();
         let (_, vks): (Vec<_>, Vec<_>) = keypairs
             .into_iter()
-            .map(|keypair| (keypair.secret_key(), keypair.verification_key()))
+            .map(|keypair| {
+                (
+                    keypair.secret_key().clone(),
+                    keypair.verification_key().clone(),
+                )
+            })
             .unzip();
         let aggr_vk_all = aggregate_verification_keys(&vks, None).unwrap();
 
@@ -356,11 +371,16 @@ mod tests {
     fn signature_aggregation_doesnt_work_for_non_unique_indices() {
         let signatures = vec![random_signature(), random_signature()];
         let params = Parameters::new(2).unwrap();
-        let attributes = params.n_random_scalars(2);
+        random_scalars_refs!(attributes, params, 2);
         let keypairs = ttp_keygen(&params, 3, 5).unwrap();
         let (_, vks): (Vec<_>, Vec<_>) = keypairs
             .into_iter()
-            .map(|keypair| (keypair.secret_key(), keypair.verification_key()))
+            .map(|keypair| {
+                (
+                    keypair.secret_key().clone(),
+                    keypair.verification_key().clone(),
+                )
+            })
             .unzip();
         let aggr_vk_all = aggregate_verification_keys(&vks, None).unwrap();
 

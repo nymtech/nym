@@ -1,8 +1,11 @@
-import * as React from 'react';
+import React from 'react';
 import Box from '@mui/material/Box';
-import { Typography } from '@mui/material';
+import MuiLink from '@mui/material/Link';
+import { Link } from 'react-router-dom';
+import Typography from '@mui/material/Typography';
 import { Socials } from './Socials';
 import { useIsMobile } from '../hooks/useIsMobile';
+import { NymVpnIcon } from '../icons/NymVpn';
 
 export const Footer: FCWithChildren = () => {
   const isMobile = useIsMobile();
@@ -31,6 +34,9 @@ export const Footer: FCWithChildren = () => {
             mb: 2,
           }}
         >
+          <MuiLink component={Link} to="http://nymvpn.com" target="_blank" underline="none" marginRight={1}>
+            <NymVpnIcon />
+          </MuiLink>
           <Socials isFooter />
         </Box>
       )}

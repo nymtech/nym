@@ -493,10 +493,16 @@ impl TaskClient {
 impl Drop for TaskClient {
     fn drop(&mut self) {
         if !self.mode.should_signal_on_drop() {
-            self.log(Level::Debug, "the task client is getting dropped");
+            self.log(
+                Level::Trace,
+                "the task client is getting dropped but inststructed to not signal: this is expected during client shutdown",
+            );
             return;
         } else {
-            self.log(Level::Info, "the task client is getting dropped");
+            self.log(
+                Level::Debug,
+                "the task client is getting dropped: this is expected during client shutdown",
+            );
         }
 
         if !self.is_shutdown_poll() {

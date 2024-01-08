@@ -21,10 +21,14 @@ pub use nym_coconut::{
 pub struct Credential {
     #[getset(get = "pub")]
     n_params: u32,
+
     #[getset(get = "pub")]
     theta: Theta,
+
     voucher_value: u64,
+
     voucher_info: String,
+
     #[getset(get = "pub")]
     epoch_id: u64,
 }
@@ -64,14 +68,12 @@ impl Credential {
 
     pub fn verify(&self, verification_key: &VerificationKey) -> bool {
         let params = Parameters::new(self.n_params).unwrap();
-        let public_attributes = [
-            self.voucher_value.to_string().as_bytes(),
-            self.voucher_info.as_bytes(),
-        ]
-        .iter()
-        .map(hash_to_scalar)
-        .collect::<Vec<Attribute>>();
-        nym_coconut::verify_credential(&params, verification_key, &self.theta, &public_attributes)
+
+        let hashed_value = hash_to_scalar(self.voucher_value.to_string());
+        let hashed_info = hash_to_scalar(&self.voucher_info);
+        let public_attributes = &[&hashed_value, &hashed_info];
+
+        nym_coconut::verify_credential(&params, verification_key, &self.theta, public_attributes)
     }
 
     pub fn as_bytes(&self) -> Vec<u8> {
@@ -180,8 +182,8 @@ mod tests {
             &params,
             &verification_key,
             &signature,
-            serial_number,
-            binding_number,
+            &serial_number,
+            &binding_number,
         )
         .unwrap();
         let credential = Credential::new(4, theta, voucher_value, voucher_info, 42);

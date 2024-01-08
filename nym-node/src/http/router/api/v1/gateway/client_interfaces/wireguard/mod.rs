@@ -1,5 +1,5 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: GPL-3.0-only
 
 use crate::http::api::v1::gateway::client_interfaces::wireguard::client_registry::{
     get_all_clients, get_client, register_client,
@@ -7,8 +7,11 @@ use crate::http::api::v1::gateway::client_interfaces::wireguard::client_registry
 use crate::wireguard::types::{GatewayClientRegistry, PendingRegistrations};
 use axum::routing::{get, post};
 use axum::Router;
-use nym_crypto::asymmetric::encryption;
+use ipnetwork::IpNetwork;
+use nym_crypto::asymmetric::encryption::PrivateKey;
 use nym_node_requests::routes::api::v1::gateway::client_interfaces::wireguard;
+use nym_wireguard::setup;
+use nym_wireguard_types::registration::PrivateIPs;
 use std::sync::Arc;
 
 pub(crate) mod client_registry;
@@ -22,19 +25,24 @@ pub struct WireguardAppState {
 
 impl WireguardAppState {
     pub fn new(
-        dh_keypair: Arc<encryption::KeyPair>,
         client_registry: Arc<GatewayClientRegistry>,
         registration_in_progress: Arc<PendingRegistrations>,
         binding_port: u16,
-    ) -> Self {
-        WireguardAppState {
+        private_ip_network: IpNetwork,
+    ) -> Result<Self, crate::error::NymNodeError> {
+        Ok(WireguardAppState {
             inner: Some(WireguardAppStateInner {
-                dh_keypair,
+                private_key: Arc::new(PrivateKey::from_bytes(
+                    setup::server_static_private_key().as_ref(),
+                )?),
                 client_registry,
                 registration_in_progress,
                 binding_port,
+                free_private_network_ips: Arc::new(
+                    private_ip_network.iter().map(|ip| (ip, true)).collect(),
+                ),
             }),
-        }
+        })
     }
 
     // #[allow(dead_code)]
@@ -73,10 +81,11 @@ macro_rules! get_state {
 
 #[derive(Clone)]
 pub(crate) struct WireguardAppStateInner {
-    dh_keypair: Arc<encryption::KeyPair>,
+    private_key: Arc<PrivateKey>,
     client_registry: Arc<GatewayClientRegistry>,
     registration_in_progress: Arc<PendingRegistrations>,
     binding_port: u16,
+    free_private_network_ips: Arc<PrivateIPs>,
 }
 
 pub(crate) fn routes<S>(initial_state: WireguardAppState) -> Router<S> {
@@ -98,13 +107,17 @@ mod test {
     use axum::http::StatusCode;
     use dashmap::DashMap;
     use hmac::Mac;
+    use ipnetwork::IpNetwork;
     use nym_crypto::asymmetric::encryption;
     use nym_node_requests::api::v1::gateway::client_interfaces::wireguard::models::{
         ClientMac, ClientMessage, ClientRegistrationResponse, GatewayClient, InitMessage,
         PeerPublicKey,
     };
     use nym_node_requests::routes::api::v1::gateway::client_interfaces::wireguard;
+    use nym_wireguard::setup::server_static_private_key;
     use nym_wireguard_types::registration::HmacSha256;
+    use std::net::IpAddr;
+    use std::str::FromStr;
     use std::sync::Arc;
     use tower::Service;
     use tower::ServiceExt;
@@ -120,29 +133,42 @@ mod test {
         // 6. Gateway verifies mac digest and nonce, and stores client's public key and socket address and port
 
         let mut rng = rand::thread_rng();
+        let gateway_private_key =
+            encryption::PrivateKey::from_bytes(server_static_private_key().as_bytes()).unwrap();
+        let gateway_public_key = encryption::PublicKey::from(&gateway_private_key);
 
-        let gateway_key_pair = encryption::KeyPair::new(&mut rng);
+        let gateway_key_pair = encryption::KeyPair::from_bytes(
+            &gateway_private_key.to_bytes(),
+            &gateway_public_key.to_bytes(),
+        )
+        .unwrap();
         let client_key_pair = encryption::KeyPair::new(&mut rng);
 
-        let gateway_static_public =
-            PublicKey::try_from(gateway_key_pair.public_key().to_bytes()).unwrap();
+        let gateway_static_public = PublicKey::from(gateway_key_pair.public_key().to_bytes());
 
-        let client_static_private =
-            StaticSecret::try_from(client_key_pair.private_key().to_bytes()).unwrap();
-        let client_static_public =
-            PublicKey::try_from(client_key_pair.public_key().to_bytes()).unwrap();
+        let client_static_private = StaticSecret::from(client_key_pair.private_key().to_bytes());
+        let client_static_public = PublicKey::from(client_key_pair.public_key().to_bytes());
 
         let client_dh = client_static_private.diffie_hellman(&gateway_static_public);
 
         let registration_in_progress = Arc::new(DashMap::new());
         let client_registry = Arc::new(DashMap::new());
+        let free_private_network_ips = Arc::new(
+            IpNetwork::from_str("10.1.0.0/24")
+                .unwrap()
+                .iter()
+                .map(|ip| (ip, true))
+                .collect(),
+        );
+        let client_private_ip = IpAddr::from_str("10.1.0.42").unwrap();
 
         let state = WireguardAppState {
             inner: Some(WireguardAppStateInner {
                 client_registry: Arc::clone(&client_registry),
-                dh_keypair: Arc::new(gateway_key_pair),
+                private_key: Arc::new(gateway_private_key),
                 registration_in_progress: Arc::clone(&registration_in_progress),
                 binding_port: 8080,
+                free_private_network_ips,
             }),
         };
 
@@ -186,11 +212,13 @@ mod test {
 
         let mut mac = HmacSha256::new_from_slice(client_dh.as_bytes()).unwrap();
         mac.update(client_static_public.as_bytes());
+        mac.update(client_private_ip.to_string().as_bytes());
         mac.update(&nonce.to_le_bytes());
         let mac = mac.finalize().into_bytes();
 
         let finalized_message = ClientMessage::Final(GatewayClient {
             pub_key: PeerPublicKey::new(client_static_public),
+            private_ip: client_private_ip,
             mac: ClientMac::new(mac.as_slice().to_vec()),
         });
 

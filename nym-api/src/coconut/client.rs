@@ -1,5 +1,5 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: GPL-3.0-only
 
 use crate::coconut::error::Result;
 use cw3::ProposalResponse;
@@ -13,12 +13,12 @@ use nym_coconut_dkg_common::verification_key::{ContractVKShare, VerificationKeyS
 use nym_contracts_common::dealings::ContractSafeBytes;
 use nym_dkg::Threshold;
 use nym_validator_client::nyxd::cosmwasm_client::types::ExecuteResult;
-use nym_validator_client::nyxd::{AccountId, Fee, TxResponse};
+use nym_validator_client::nyxd::{AccountId, Fee, Hash, TxResponse};
 
 #[async_trait]
 pub trait Client {
     async fn address(&self) -> AccountId;
-    async fn get_tx(&self, tx_hash: &str) -> Result<TxResponse>;
+    async fn get_tx(&self, tx_hash: Hash) -> Result<TxResponse>;
     async fn get_proposal(&self, proposal_id: u64) -> Result<ProposalResponse>;
     async fn list_proposals(&self) -> Result<Vec<ProposalResponse>>;
     async fn get_spent_credential(

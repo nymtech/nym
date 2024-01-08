@@ -1,5 +1,5 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: GPL-3.0-only
 
 use crate::nym_contract_cache::cache::NymContractCache;
 use crate::support::caching::cache::{SharedCache, UninitialisedCache};
@@ -7,8 +7,10 @@ use crate::support::caching::refresher::{CacheItemProvider, CacheRefresher};
 use crate::support::config;
 use crate::support::config::DEFAULT_NODE_DESCRIBE_BATCH_SIZE;
 use futures_util::{stream, StreamExt};
-use nym_api_requests::models::NymNodeDescription;
-use nym_config::defaults::DEFAULT_NYM_NODE_HTTP_PORT;
+use nym_api_requests::models::{
+    IpPacketRouterDetails, NetworkRequesterDetails, NymNodeDescription,
+};
+use nym_config::defaults::{mainnet, DEFAULT_NYM_NODE_HTTP_PORT};
 use nym_contracts_common::IdentityKey;
 use nym_mixnet_contract_common::Gateway;
 use nym_node_requests::api::client::{NymNodeApiClientError, NymNodeApiClientExt};
@@ -152,9 +154,37 @@ async fn get_gateway_description(
                 source: err,
             })?;
 
+    let network_requester =
+        if let Ok(nr) = client.get_network_requester().await {
+            let exit_policy = client.get_exit_policy().await.map_err(|err| {
+                NodeDescribeCacheError::ApiFailure {
+                    gateway: gateway.identity_key.clone(),
+                    source: err,
+                }
+            })?;
+            let uses_nym_exit_policy = exit_policy.upstream_source == mainnet::EXIT_POLICY_URL;
+
+            Some(NetworkRequesterDetails {
+                address: nr.address,
+                uses_exit_policy: exit_policy.enabled && uses_nym_exit_policy,
+            })
+        } else {
+            None
+        };
+
+    let ip_packet_router = if let Ok(ipr) = client.get_ip_packet_router().await {
+        Some(IpPacketRouterDetails {
+            address: ipr.address,
+        })
+    } else {
+        None
+    };
+
     let description = NymNodeDescription {
         host_information: host_info.data,
         build_information: build_info,
+        network_requester,
+        ip_packet_router,
         mixnet_websockets: websockets,
     };
 

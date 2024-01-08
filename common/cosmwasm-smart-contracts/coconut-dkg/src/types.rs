@@ -174,17 +174,19 @@ impl Display for EpochState {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             EpochState::PublicKeySubmission { resharing } => {
-                write!(f, "PublicKeySubmission with resharing {resharing}")
+                write!(f, "PublicKeySubmission (resharing: {resharing})")
             }
-            EpochState::DealingExchange { resharing } => write!(f, "DealingExchange {resharing}"),
+            EpochState::DealingExchange { resharing } => {
+                write!(f, "DealingExchange (resharing: {resharing})")
+            }
             EpochState::VerificationKeySubmission { resharing } => {
-                write!(f, "VerificationKeySubmission with resharing {resharing}")
+                write!(f, "VerificationKeySubmission (resharing: {resharing})")
             }
             EpochState::VerificationKeyValidation { resharing } => {
-                write!(f, "VerificationKeyValidation with resharing {resharing}")
+                write!(f, "VerificationKeyValidation (resharing: {resharing})")
             }
             EpochState::VerificationKeyFinalization { resharing } => {
-                write!(f, "VerificationKeyFinalization with resharing {resharing}")
+                write!(f, "VerificationKeyFinalization (resharing: {resharing})")
             }
             EpochState::InProgress => write!(f, "InProgress"),
         }

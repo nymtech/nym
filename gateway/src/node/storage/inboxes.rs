@@ -1,5 +1,5 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: GPL-3.0-only
 
 use crate::node::storage::models::StoredMessage;
 
@@ -75,7 +75,11 @@ impl InboxManager {
             sqlx::query_as!(
                 StoredMessage,
                 r#"
-                    SELECT * FROM message_store 
+                    SELECT 
+                        id as "id!",
+                        client_address_bs58 as "client_address_bs58!",
+                        content as "content!" 
+                    FROM message_store 
                     WHERE client_address_bs58 = ? AND id > ?
                     ORDER BY id ASC
                     LIMIT ?;
@@ -90,7 +94,11 @@ impl InboxManager {
             sqlx::query_as!(
                 StoredMessage,
                 r#"
-                    SELECT * FROM message_store 
+                   SELECT 
+                        id as "id!",
+                        client_address_bs58 as "client_address_bs58!",
+                        content as "content!"
+                    FROM message_store
                     WHERE client_address_bs58 = ?
                     ORDER BY id ASC
                     LIMIT ?;

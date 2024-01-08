@@ -25,6 +25,7 @@ export const Traffic = () => {
     await client?.client.start({
       clientId: crypto.randomUUID(),
       nymApiUrl,
+      forceTls: true, // force WSS
     });
 
     client?.events.subscribeToConnected((e) => {

@@ -2,6 +2,7 @@
 name = "nym-bandwidth-controller"
 version = "0.1.0"
 edition = "2021"
+license.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -10,6 +11,7 @@ bip39 = { workspace = true }
 rand = "0.7.3"
 thiserror = { workspace = true }
 url = { workspace = true }
+zeroize = { workspace = true }
 
 nym-coconut-interface = { path = "../coconut-interface" }
 nym-credential-storage = { path = "../credential-storage" }

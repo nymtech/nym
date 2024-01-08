@@ -13,6 +13,9 @@ pub(crate) async fn execute(
         nym_cli_commands::validator::mixnet::operators::mixnode::settings::MixnetOperatorsMixnodeSettingsCommands::UpdateConfig(args) => {
             nym_cli_commands::validator::mixnet::operators::mixnode::settings::update_config::update_config(args, create_signing_client(global_args, network_details)?).await
         }
+        nym_cli_commands::validator::mixnet::operators::mixnode::settings::MixnetOperatorsMixnodeSettingsCommands::UpdateCostParameters(args) => {
+            nym_cli_commands::validator::mixnet::operators::mixnode::settings::update_cost_params::update_cost_params(args, create_signing_client(global_args, network_details)?).await
+        }
         _ => unreachable!(),
     }
     Ok(())

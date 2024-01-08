@@ -1,5 +1,5 @@
 // Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: GPL-3.0-only
 
 use crate::config::old_config_v1_1_29::{
     ConfigV1_1_29, DebugV1_1_29, GatewayPathsV1_1_29, GatewayV1_1_29, KeysPathsV1_1_29,

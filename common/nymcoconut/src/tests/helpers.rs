@@ -5,15 +5,17 @@ use crate::*;
 use itertools::izip;
 use std::fmt::Debug;
 
+// unwraps are fine in the test code
+#[allow(clippy::unwrap_used)]
 pub fn theta_from_keys_and_attributes(
     params: &Parameters,
     coconut_keypairs: &Vec<KeyPair>,
     indices: &[scheme::SignerIndex],
-    public_attributes: &Vec<PublicAttribute>,
+    public_attributes: &[&PublicAttribute],
 ) -> Result<Theta, CoconutError> {
     let serial_number = params.random_scalar();
     let binding_number = params.random_scalar();
-    let private_attributes = vec![serial_number, binding_number];
+    let private_attributes = vec![&serial_number, &binding_number];
 
     // generate commitment
     let (commitments_openings, blind_sign_request) =
@@ -21,7 +23,7 @@ pub fn theta_from_keys_and_attributes(
 
     let verification_keys: Vec<VerificationKey> = coconut_keypairs
         .iter()
-        .map(|keypair| keypair.verification_key())
+        .map(|keypair| keypair.verification_key().clone())
         .collect();
 
     // aggregate verification keys
@@ -33,7 +35,7 @@ pub fn theta_from_keys_and_attributes(
     for keypair in coconut_keypairs {
         let blinded_signature = blind_sign(
             params,
-            &keypair.secret_key(),
+            keypair.secret_key(),
             &blind_sign_request,
             public_attributes,
         )?;
@@ -49,7 +51,7 @@ pub fn theta_from_keys_and_attributes(
     .map(|(idx, s, vk)| {
         (
             *idx,
-            s.unblind(
+            s.unblind_and_verify(
                 params,
                 vk,
                 &private_attributes,
@@ -81,13 +83,15 @@ pub fn theta_from_keys_and_attributes(
         params,
         &verification_key,
         &signature,
-        serial_number,
-        binding_number,
+        &serial_number,
+        &binding_number,
     )?;
 
     Ok(theta)
 }
 
+// unwraps are fine in the test code
+#[allow(clippy::unwrap_used)]
 pub fn transpose_matrix<T: Debug>(matrix: Vec<Vec<T>>) -> Vec<Vec<T>> {
     if matrix.is_empty() {
         return vec![];
@@ -103,6 +107,17 @@ pub fn transpose_matrix<T: Debug>(matrix: Vec<Vec<T>>) -> Vec<Vec<T>> {
         })
         .collect::<Vec<_>>()
 }
+
+#[macro_export]
+macro_rules! random_scalars_refs {
+    ( $x: ident, $params: expr, $n: expr ) => {
+        let _vec = $params.n_random_scalars($n);
+        #[allow(clippy::map_identity)]
+        let $x = _vec.iter().collect::<Vec<_>>();
+    };
+}
+
+pub use random_scalars_refs;
 
 #[cfg(test)]
 pub mod tests {

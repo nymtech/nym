@@ -68,13 +68,23 @@ pub async fn current_gateways<R: Rng>(
     log::trace!("Fetching list of gateways from: {nym_api}");
 
     let gateways = client.get_cached_described_gateways().await?;
+    log::debug!("Found {} gateways", gateways.len());
+    log::trace!("Gateways: {:#?}", gateways);
+
     let valid_gateways = gateways
         .into_iter()
         .filter_map(|gateway| gateway.try_into().ok())
         .collect::<Vec<gateway::Node>>();
+    log::debug!("Ater checking validity: {}", valid_gateways.len());
+    log::trace!("Valid gateways: {:#?}", valid_gateways);
 
     // we were always filtering by version so I'm not removing that 'feature'
     let filtered_gateways = valid_gateways.filter_by_version(env!("CARGO_PKG_VERSION"));
+    log::debug!("After filtering for version: {}", filtered_gateways.len());
+    log::trace!("Filtered gateways: {:#?}", filtered_gateways);
+
+    log::info!("nym-api reports {} valid gateways", filtered_gateways.len());
+
     Ok(filtered_gateways)
 }
 
@@ -249,6 +259,7 @@ pub(super) fn get_specified_gateway(
     gateways: &[gateway::Node],
     must_use_tls: bool,
 ) -> Result<gateway::Node, ClientCoreError> {
+    log::debug!("Requesting specified gateway: {}", gateway_identity);
     let user_gateway = identity::PublicKey::from_base58_string(gateway_identity)
         .map_err(ClientCoreError::UnableToCreatePublicKeyFromGatewayId)?;
 

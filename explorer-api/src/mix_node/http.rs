@@ -1,6 +1,9 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+// due to the macro expansion of rather old rocket macros...
+#![allow(unused_imports)]
+
 use crate::mix_node::delegations::{
     get_single_mixnode_delegations, get_single_mixnode_delegations_summed,
 };

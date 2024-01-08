@@ -5,7 +5,7 @@
 # Binaries
 
 - [Pre-built Binaries](binaries/pre-built-binaries.md)
-    - [Binary Initialisation and Configuration](binaries/init-and-config.md)
+<!--    - [Binary Initialisation and Configuration](binaries/init-and-config.md) -->
 - [Building from Source](binaries/building-nym.md)
 <!-- - [Version Compatibility Table](binaries/version-compatiblity.md) -->
 
@@ -17,7 +17,11 @@
     - [Gateway](nodes/gateway-setup.md)
     - [Network Requester](nodes/network-requester-setup.md)
 - [Nyx Validator Setup](nodes/validator-setup.md)
+  - [Nym API Setup](nodes/nym-api.md)
 - [Maintenance](nodes/maintenance.md)
+  - [Manual Node Upgrade](nodes/manual-upgrade.md)
+
+[//]: # (  - [Automatic Node Upgrade: Nymvisor Setup and Usage]&#40;nodes/nymvisor-upgrade.md&#41;)
 - [Troubleshooting](nodes/troubleshooting.md)
 
 # FAQ

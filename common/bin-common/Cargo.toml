@@ -47,8 +47,9 @@ default = []
 openapi = ["utoipa"]
 output_format = ["serde_json"]
 bin_info_schema = ["schemars"]
+basic_tracing = ["tracing-subscriber"]
 tracing = [
-    "tracing-subscriber",
+    "basic_tracing",
     "tracing-tree",
     "opentelemetry-jaeger",
     "tracing-opentelemetry",

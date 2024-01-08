@@ -264,7 +264,13 @@ mod stringified_ip_pattern {
 impl AddressPortPattern {
     /// Return true iff this pattern matches a given address and port.
     pub fn matches(&self, addr: &IpAddr, port: u16) -> bool {
-        self.ip_pattern.matches(addr) && self.ports.contains(port)
+        // For backward compatibility, we treat port 0 as a wildcard until all gateways have
+        // upgraded, at which point we can add *:0 to the policy list.
+        if port == 0 {
+            self.ip_pattern.matches(addr)
+        } else {
+            self.ip_pattern.matches(addr) && self.ports.contains(port)
+        }
     }
 
     /// As matches, but accept a SocketAddr.
@@ -395,19 +401,9 @@ fn parse_addr(s: &str) -> Result<IpAddr, PolicyError> {
     })
 }
 
-/// Helper: try to parse a port making sure it's non-zero
 fn parse_port(s: &str) -> Result<u16, PolicyError> {
-    let port = s
-        .parse::<u16>()
-        .map_err(|_| PolicyError::InvalidPort { raw: s.to_string() })?;
-
-    if port == 0 {
-        Err(PolicyError::InvalidPort {
-            raw: port.to_string(),
-        })
-    } else {
-        Ok(port)
-    }
+    s.parse::<u16>()
+        .map_err(|_| PolicyError::InvalidPort { raw: s.to_string() })
 }
 
 impl FromStr for IpPattern {
@@ -494,6 +490,10 @@ impl PortRange {
         PortRange::new_unchecked(1, 65535)
     }
 
+    pub fn new_zero() -> Self {
+        PortRange { start: 0, end: 0 }
+    }
+
     /// Create a new PortRange.
     ///
     /// The Portrange contains all ports between `start` and `end` inclusive.
@@ -574,6 +574,7 @@ mod test {
 
         check("marzipan:80");
         check("1.2.3.4:90-80");
+        check("1.2.3.4:0-80");
         check("1.2.3.4/100:8888");
         check("[1.2.3.4]/16:80");
         check("[::1]/130:8888");
@@ -612,6 +613,22 @@ mod test {
 
         check("0.0.0.0/0:*", &["127.0.0.1:80"], &["[f00b::]:80"]);
         check("[::]/0:*", &["[f00b::]:80"], &["127.0.0.1:80"]);
+
+        check(
+            "*:0",
+            &["1.2.3.4:0", "[::1]:0", "9.0.0.0:0"],
+            &["1.2.3.4:443", "[::1]:500", "9.0.0.0:80", "[::1]:80"],
+        );
+        check(
+            "*4:0",
+            &["1.2.3.4:0", "9.0.0.0:0"],
+            &["1.2.3.4:443", "9.0.0.0:80", "[::1]:0", "[::1]:80"],
+        );
+        check(
+            "*6:0",
+            &["[::1]:0"],
+            &["[::1]:80", "1.2.3.4:0", "1.2.3.4:443"],
+        );
     }
 
     #[test]
@@ -620,6 +637,7 @@ mod test {
         policy.push(AddressPolicyAction::Accept, "*:443".parse()?);
         policy.push(AddressPolicyAction::Accept, "[::1]:80".parse()?);
         policy.push(AddressPolicyAction::Reject, "*:80".parse()?);
+        policy.push(AddressPolicyAction::Accept, "*:0".parse()?);
 
         let policy = policy; // drop mut
         assert!(policy
@@ -640,6 +658,9 @@ mod test {
         assert!(policy
             .allows_sockaddr(&"127.0.0.1:66".parse().unwrap())
             .is_none());
+        assert!(policy
+            .allows_sockaddr(&"127.0.0.1:0".parse().unwrap())
+            .unwrap());
         Ok(())
     }
 
@@ -672,7 +693,6 @@ mod test {
         assert_eq!("*".parse::<PortRange>().unwrap(), PortRange::new_all());
 
         assert!("hello".parse::<PortRange>().is_err());
-        assert!("0".parse::<PortRange>().is_err());
         assert!("65536".parse::<PortRange>().is_err());
         assert!("65537".parse::<PortRange>().is_err());
         assert!("1-2-3".parse::<PortRange>().is_err());
@@ -680,6 +700,9 @@ mod test {
         assert!("1-".parse::<PortRange>().is_err());
         assert!("-2".parse::<PortRange>().is_err());
         assert!("-".parse::<PortRange>().is_err());
+
+        assert_eq!("0".parse::<PortRange>().unwrap(), PortRange::new_zero(),);
+        assert!("0-1".parse::<PortRange>().is_err());
     }
 
     #[test]

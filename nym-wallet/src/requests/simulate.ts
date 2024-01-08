@@ -69,8 +69,8 @@ export const simulateVestingUpdateGatewayConfig = async (update: GatewayConfigUp
 export const simulateWithdrawVestedCoins = async (args: any) =>
   invokeWrapper<FeeDetails>('simulate_withdraw_vested_coins', args);
 
-export const simulateSend = async ({ address, amount }: { address: string; amount: DecCoin }) =>
-  invokeWrapper<FeeDetails>('simulate_send', { address, amount });
+export const simulateSend = async ({ address, amount, memo }: { address: string; amount: DecCoin; memo: string }) =>
+  invokeWrapper<FeeDetails>('simulate_send', { address, amount, memo });
 
 export const getCustomFees = async ({ feesAmount }: { feesAmount: DecCoin }) =>
   invokeWrapper<FeeDetails>('get_custom_fees', { feesAmount });

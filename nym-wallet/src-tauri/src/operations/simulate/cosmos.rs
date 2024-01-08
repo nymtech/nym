@@ -12,6 +12,7 @@ use std::str::FromStr;
 pub async fn simulate_send(
     address: &str,
     amount: DecCoin,
+    memo: String,
     state: tauri::State<'_, WalletState>,
 ) -> Result<FeeDetails, BackendError> {
     let guard = state.read().await;
@@ -30,7 +31,7 @@ pub async fn simulate_send(
         amount,
     };
 
-    let result = client.nyxd.simulate(vec![msg]).await?;
+    let result = client.nyxd.simulate(vec![msg], memo).await?;
     guard.create_detailed_fee(result)
 }
 

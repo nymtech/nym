@@ -1,5 +1,5 @@
 // Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: GPL-3.0-only
 
 #[macro_use]
 extern crate rocket;
@@ -10,7 +10,6 @@ use crate::node_describe_cache::DescribedNodes;
 use crate::node_status_api::uptime_updater::HistoricalUptimeUpdater;
 use crate::support::caching::cache::SharedCache;
 use crate::support::cli;
-use crate::support::cli::CliArgs;
 use crate::support::config::Config;
 use crate::support::storage;
 use crate::support::storage::NymApiStorage;
@@ -20,14 +19,13 @@ use anyhow::Result;
 use circulating_supply_api::cache::CirculatingSupplyCache;
 use clap::Parser;
 use coconut::dkg::controller::DkgController;
-use log::info;
 use node_status_api::NodeStatusCache;
 use nym_bin_common::logging::setup_logging;
+use nym_config::defaults::NymNetworkDetails;
 use nym_contract_cache::cache::NymContractCache;
 use nym_sphinx::receiver::SphinxMessageReceiver;
 use nym_task::TaskManager;
 use rand::rngs::OsRng;
-use std::error::Error;
 use support::{http, nyxd};
 
 mod circulating_supply_api;
@@ -48,7 +46,7 @@ struct ShutdownHandles {
 }
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
+async fn main() -> Result<(), anyhow::Error> {
     println!("Starting nym api...");
 
     cfg_if::cfg_if! {if #[cfg(feature = "console-subscriber")] {
@@ -57,26 +55,28 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     }}
 
     setup_logging();
-    let args = cli::CliArgs::parse();
+    let args = cli::Cli::parse();
+    trace!("{:#?}", args);
+
     setup_env(args.config_env_file.as_ref());
-    run_nym_api(args).await
+    args.execute().await
 }
 
-async fn start_nym_api_tasks(
-    config: Config,
-) -> Result<ShutdownHandles, Box<dyn Error + Send + Sync>> {
+async fn start_nym_api_tasks(config: Config) -> anyhow::Result<ShutdownHandles> {
     let nyxd_client = nyxd::Client::new(&config);
     let connected_nyxd = config.get_nyxd_url();
-    let nym_network_details = config.get_network_details();
+    let nym_network_details = NymNetworkDetails::new_from_env();
     let network_details = NetworkDetails::new(connected_nyxd.to_string(), nym_network_details);
 
     let coconut_keypair = coconut::keypair::KeyPair::new();
+    let identity_keypair = config.base.storage_paths.load_identity()?;
 
     // let's build our rocket!
     let rocket = http::setup_rocket(
         &config,
         network_details,
         nyxd_client.clone(),
+        identity_keypair,
         coconut_keypair.clone(),
     )
     .await?;
@@ -207,32 +207,4 @@ async fn start_nym_api_tasks(
         task_manager_handle: shutdown,
         rocket_handle: rocket_shutdown_handle,
     })
-}
-
-async fn run_nym_api(cli_args: CliArgs) -> Result<(), Box<dyn Error + Send + Sync>> {
-    let save_to_file = cli_args.save_config;
-    let config = cli::build_config(cli_args)?;
-
-    // if we just wanted to write data to the config, exit, don't start any tasks
-    if save_to_file {
-        info!("Saving the configuration to a file");
-        config.save_to_default_location()?;
-        config
-            .get_ephemera_args()
-            .cmd
-            .clone()
-            .execute(Some(&config.get_id()));
-        return Ok(());
-    }
-
-    let shutdown_handlers = start_nym_api_tasks(config).await?;
-
-    let res = shutdown_handlers
-        .task_manager_handle
-        .catch_interrupt()
-        .await;
-    log::info!("Stopping nym API");
-    shutdown_handlers.rocket_handle.notify();
-
-    res
 }

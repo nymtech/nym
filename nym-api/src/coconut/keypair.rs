@@ -1,5 +1,5 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: GPL-3.0-only
 
 use std::sync::Arc;
 use tokio::sync::{RwLock, RwLockReadGuard};
@@ -14,6 +14,10 @@ impl KeyPair {
         Self {
             inner: Arc::new(RwLock::new(None)),
         }
+    }
+
+    pub async fn take(&self) -> Option<nym_coconut::KeyPair> {
+        self.inner.write().await.take()
     }
 
     pub async fn get(&self) -> RwLockReadGuard<'_, Option<nym_coconut::KeyPair>> {

@@ -1,5 +1,5 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: GPL-3.0-only
 
 use crate::http::api::v1::gateway::client_interfaces::wireguard::WireguardAppState;
 use crate::http::state::AppState;
@@ -9,6 +9,7 @@ use nym_node_requests::routes::api::v1;
 
 pub mod gateway;
 pub mod health;
+pub mod ip_packet_router;
 pub mod mixnode;
 pub mod network_requester;
 pub mod node;
@@ -20,6 +21,7 @@ pub struct Config {
     pub gateway: gateway::Config,
     pub mixnode: mixnode::Config,
     pub network_requester: network_requester::Config,
+    pub ip_packet_router: ip_packet_router::Config,
 }
 
 pub(super) fn routes(config: Config, initial_wg_state: WireguardAppState) -> Router<AppState> {
@@ -33,6 +35,10 @@ pub(super) fn routes(config: Config, initial_wg_state: WireguardAppState) -> Rou
         .nest(
             v1::NETWORK_REQUESTER,
             network_requester::routes(config.network_requester),
+        )
+        .nest(
+            v1::IP_PACKET_ROUTER,
+            ip_packet_router::routes(config.ip_packet_router),
         )
         .merge(node::routes(config.node))
         .merge(openapi::route())

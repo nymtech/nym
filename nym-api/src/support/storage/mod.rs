@@ -1,5 +1,5 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: GPL-3.0-only
 
 use crate::network_monitor::monitor::summary_producer::{GatewayResult, MixnodeResult};
 use crate::network_monitor::test_route::TestRoute;
@@ -713,27 +713,6 @@ impl NymApiStorage {
         self.manager.purge_old_mixnode_statuses(until).await?;
         self.manager
             .purge_old_gateway_statuses(until)
-            .await
-            .map_err(|err| err.into())
-    }
-
-    pub(crate) async fn get_blinded_signature_response(
-        &self,
-        tx_hash: &str,
-    ) -> Result<Option<String>, NymApiStorageError> {
-        self.manager
-            .get_blinded_signature_response(tx_hash)
-            .await
-            .map_err(|err| err.into())
-    }
-
-    pub(crate) async fn insert_blinded_signature_response(
-        &self,
-        tx_hash: &str,
-        blinded_signature_response: &str,
-    ) -> Result<(), NymApiStorageError> {
-        self.manager
-            .insert_blinded_signature_response(tx_hash, blinded_signature_response)
             .await
             .map_err(|err| err.into())
     }

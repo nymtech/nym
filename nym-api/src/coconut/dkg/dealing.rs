@@ -1,5 +1,5 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: GPL-3.0-only
 
 use crate::coconut::dkg::client::DkgClient;
 use crate::coconut::dkg::state::{ConsistentState, State};
@@ -11,6 +11,7 @@ use nym_dkg::bte::setup;
 use nym_dkg::Dealing;
 use rand::RngCore;
 use std::collections::VecDeque;
+use zeroize::Zeroize;
 
 pub(crate) async fn dealing_exchange(
     dkg_client: &DkgClient,
@@ -39,16 +40,19 @@ pub(crate) async fn dealing_exchange(
         .keys()
         .position(|node_index| *node_index == dealer_index);
 
-    let prior_resharing_secrets = if let Some(sk) = state.coconut_secret_key().await {
+    let prior_resharing_secrets = if let Some(mut keypair) = state.take_coconut_keypair().await {
         // Double check that we are in resharing mode
         if resharing {
-            let (x, mut scalars) = sk.into_raw();
-            if scalars.len() + 1 != TOTAL_DEALINGS {
+            let sk = keypair.secret_key();
+            if sk.size() + 1 != TOTAL_DEALINGS {
                 return Err(CoconutError::CorruptedCoconutKeyPair);
             }
+
+            let (x, mut scalars) = sk.into_raw();
+
             // We can now erase the keypair from memory
             debug!("Removing coconut keypair from memory");
-            state.set_coconut_keypair(None).await;
+            keypair.zeroize();
             scalars.push(x);
             scalars
         } else {

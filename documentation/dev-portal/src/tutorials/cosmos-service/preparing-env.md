@@ -29,7 +29,7 @@ cargo new nym-cosmos-service
 ```
 [dependencies]
 clap = { version = "4.0", features = ["derive"] }
-cosmrs = "=0.14.0"
+cosmrs = "=0.15.0"
 tokio = { version = "1.24.1", features = ["rt-multi-thread", "macros"] }
 serde = "1.0.152"
 serde_json = "1.0.91"

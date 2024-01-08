@@ -1,189 +1,112 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: GPL-3.0-only
 
+use crate::coconut::error::{CoconutError, Result};
 use nym_api_requests::coconut::BlindSignRequestBody;
 use nym_coconut_bandwidth_contract_common::events::{
-    DEPOSITED_FUNDS_EVENT_TYPE, DEPOSIT_ENCRYPTION_KEY, DEPOSIT_IDENTITY_KEY, DEPOSIT_INFO,
-    DEPOSIT_VALUE,
+    COSMWASM_DEPOSITED_FUNDS_EVENT_TYPE, DEPOSIT_ENCRYPTION_KEY, DEPOSIT_IDENTITY_KEY,
+    DEPOSIT_INFO, DEPOSIT_VALUE,
 };
 use nym_credentials::coconut::bandwidth::BandwidthVoucher;
-use nym_crypto::asymmetric::encryption;
-use nym_crypto::asymmetric::identity::{self, Signature};
+use nym_crypto::asymmetric::identity;
+use nym_validator_client::nyxd::helpers::find_tx_attribute;
 use nym_validator_client::nyxd::TxResponse;
 
-use super::error::{CoconutError, Result};
-
-pub async fn extract_encryption_key(
-    blind_sign_request_body: &BlindSignRequestBody,
-    tx: TxResponse,
-) -> Result<encryption::PublicKey> {
-    let blind_sign_request = blind_sign_request_body.blind_sign_request();
-    let public_attributes = blind_sign_request_body.public_attributes();
-    let public_attributes_plain = blind_sign_request_body.public_attributes_plain();
-
-    if !BandwidthVoucher::verify_against_plain(&public_attributes, public_attributes_plain) {
+pub async fn validate_deposit_tx(request: &BlindSignRequestBody, tx: TxResponse) -> Result<()> {
+    if request.public_attributes_plain.len() != BandwidthVoucher::PUBLIC_ATTRIBUTES as usize {
         return Err(CoconutError::InconsistentPublicAttributes);
     }
 
-    let tx_hash_str = blind_sign_request_body.tx_hash();
-    let mut message = blind_sign_request.to_bytes();
-    message.extend_from_slice(tx_hash_str.as_bytes());
+    // extract actual public attributes + associated x25519 public key
+    let deposit_value = find_tx_attribute(&tx, COSMWASM_DEPOSITED_FUNDS_EVENT_TYPE, DEPOSIT_VALUE)
+        .ok_or(CoconutError::DepositValueNotFound)?;
 
-    let signature = Signature::from_base58_string(blind_sign_request_body.signature())?;
+    let deposit_info = find_tx_attribute(&tx, COSMWASM_DEPOSITED_FUNDS_EVENT_TYPE, DEPOSIT_INFO)
+        .ok_or(CoconutError::DepositInfoNotFound)?;
 
-    let attributes: &Vec<_> = tx
-        .tx_result
-        .events
-        .iter()
-        .find(|event| event.kind == format!("wasm-{}", DEPOSITED_FUNDS_EVENT_TYPE))
-        .ok_or(CoconutError::DepositEventNotFound)?
-        .attributes
-        .as_ref();
+    let x25519_raw = find_tx_attribute(
+        &tx,
+        COSMWASM_DEPOSITED_FUNDS_EVENT_TYPE,
+        DEPOSIT_IDENTITY_KEY,
+    )
+    .ok_or(CoconutError::DepositVerifKeyNotFound)?;
 
-    let deposit_value: &str = attributes
-        .iter()
-        .find(|tag| tag.key == DEPOSIT_VALUE)
-        .ok_or(CoconutError::DepositValueNotFound)?
-        .value
-        .as_ref();
-    let deposit_value_plain = public_attributes_plain.get(0).cloned().unwrap_or_default();
-    if deposit_value != deposit_value_plain {
-        return Err(CoconutError::DifferentPublicAttributes(
-            deposit_value.to_string(),
-            deposit_value_plain,
-        ));
+    // we're not using it anymore, but for legacy reasons it must be present
+    let _ed25519_raw = find_tx_attribute(
+        &tx,
+        COSMWASM_DEPOSITED_FUNDS_EVENT_TYPE,
+        DEPOSIT_ENCRYPTION_KEY,
+    )
+    .ok_or(CoconutError::DepositEncrKeyNotFound)?;
+
+    // check public attributes against request data
+    // (thinking about it attaching that data might be redundant since we have the source of truth on the chain)
+    // safety: we won't read data out of bounds since we just checked we have BandwidthVoucher::PUBLIC_ATTRIBUTES values in the vec
+    if deposit_value != request.public_attributes_plain[0] {
+        return Err(CoconutError::InconsistentDepositValue {
+            request: request.public_attributes_plain[0].clone(),
+            on_chain: deposit_value,
+        });
     }
 
-    let deposit_info: &str = attributes
-        .iter()
-        .find(|tag| tag.key == DEPOSIT_INFO)
-        .ok_or(CoconutError::DepositInfoNotFound)?
-        .value
-        .as_ref();
-    let deposit_info_plain = public_attributes_plain.get(1).cloned().unwrap_or_default();
-    if deposit_info != deposit_info_plain {
-        return Err(CoconutError::DifferentPublicAttributes(
-            deposit_info.to_string(),
-            deposit_info_plain,
-        ));
+    if deposit_info != request.public_attributes_plain[1] {
+        return Err(CoconutError::InconsistentDepositInfo {
+            request: request.public_attributes_plain[1].clone(),
+            on_chain: deposit_info,
+        });
     }
 
-    let verification_key = identity::PublicKey::from_base58_string(
-        &attributes
-            .iter()
-            .find(|tag| tag.key == DEPOSIT_IDENTITY_KEY)
-            .ok_or(CoconutError::DepositVerifKeyNotFound)?
-            .value,
-    )?;
+    // verify signature
+    let x25519 = identity::PublicKey::from_base58_string(x25519_raw)?;
+    let plaintext =
+        BandwidthVoucher::signable_plaintext(&request.inner_sign_request, request.tx_hash);
+    x25519.verify(plaintext, &request.signature)?;
 
-    let encryption_key = encryption::PublicKey::from_base58_string(
-        &attributes
-            .iter()
-            .find(|tag| tag.key == DEPOSIT_ENCRYPTION_KEY)
-            .ok_or(CoconutError::DepositEncrKeyNotFound)?
-            .value,
-    )?;
-
-    verification_key.verify(&message, &signature)?;
-
-    Ok(encryption_key)
+    Ok(())
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::coconut::tests::tx_entry_fixture;
-    use nym_coconut::{prepare_blind_sign, BlindSignRequest, Parameters};
+    use crate::coconut::tests::{tx_entry_fixture, voucher_request_fixture};
+    use cosmwasm_std::coin;
+    use nym_api_requests::coconut::BlindSignRequestBody;
+    use nym_coconut::BlindSignRequest;
+    use nym_coconut_bandwidth_contract_common::events::DEPOSITED_FUNDS_EVENT_TYPE;
     use nym_config::defaults::VOUCHER_INFO;
-    use nym_validator_client::nyxd::Hash;
     use nym_validator_client::nyxd::{Event, EventAttribute};
-    use rand_07::rngs::OsRng;
-    use std::str::FromStr;
 
     #[tokio::test]
-    async fn extract_encryption_key_test() {
-        let tx_hash =
-            Hash::from_str("6B27412050B823E58BB38447D7870BBC8CBE3C51C905BEA89D459ACCDA80A00E")
-                .unwrap();
-        let mut tx_entry = tx_entry_fixture(&tx_hash.to_string());
-        let params = Parameters::new(4).unwrap();
-        let mut rng = OsRng;
-        let voucher = BandwidthVoucher::new(
-            &params,
-            "1234".to_string(),
-            VOUCHER_INFO.to_string(),
-            tx_hash,
-            identity::PrivateKey::from_base58_string(
-                identity::KeyPair::new(&mut rng)
-                    .private_key()
-                    .to_base58_string(),
-            )
-            .unwrap(),
-            encryption::PrivateKey::from_bytes(
-                &encryption::KeyPair::new(&mut rng).private_key().to_bytes(),
-            )
-            .unwrap(),
-        );
-        let (_, blind_sign_req) = prepare_blind_sign(
-            &params,
-            &voucher.get_private_attributes(),
-            &voucher.get_public_attributes(),
-        )
-        .unwrap();
-        let signature = "2DHbEZ6pzToGpsAXJrqJi7Wj1pAXeT18283q2YEEyNH5gTymwRozWBdja6SMAVt1dyYmUnM4ZNhsJ4wxZyGh4Z6J".to_string();
+    async fn validate_deposit_tx_test() {
+        let (voucher, correct_request) = voucher_request_fixture(coin(1234, "unym"), None);
 
-        let req = BlindSignRequestBody::new(
-            &blind_sign_req,
-            tx_hash.to_string(),
-            signature.clone(),
-            &voucher.get_public_attributes(),
-            vec![
-                String::from("First wrong plain"),
-                String::from("Second wrong plain"),
-            ],
-            4,
-        );
-        let err = extract_encryption_key(&req, tx_entry.clone())
-            .await
-            .unwrap_err();
-        assert_eq!(
-            err.to_string(),
-            CoconutError::InconsistentPublicAttributes.to_string()
-        );
-
-        let req = BlindSignRequestBody::new(
-            &blind_sign_req,
-            tx_hash.to_string(),
-            String::from("Invalid signature"),
-            &voucher.get_public_attributes(),
-            voucher.get_public_attributes_plain(),
-            4,
-        );
-        let err = extract_encryption_key(&req, tx_entry.clone())
-            .await
-            .unwrap_err();
-
-        assert!(matches!(
-            err,
-            CoconutError::Ed25519ParseError(
-                nym_crypto::asymmetric::identity::Ed25519RecoveryError::MalformedSignatureString { .. }
-            )
-        ));
-
-        let correct_request = BlindSignRequestBody::new(
-            &blind_sign_req,
-            tx_hash.to_string(),
-            signature.clone(),
-            &voucher.get_public_attributes(),
-            voucher.get_public_attributes_plain(),
-            4,
-        );
+        let mut tx_entry = tx_entry_fixture(correct_request.tx_hash);
+        let good_deposit_attribute = EventAttribute {
+            key: DEPOSIT_VALUE.to_string(),
+            value: correct_request.public_attributes_plain[0].clone(),
+            index: false,
+        };
+        let good_info_attribute = EventAttribute {
+            key: DEPOSIT_INFO.to_string(),
+            value: correct_request.public_attributes_plain[1].clone(),
+            index: false,
+        };
+        let good_identity_key_attribute = EventAttribute {
+            key: DEPOSIT_IDENTITY_KEY.to_string(),
+            value: "2eSxwquNJb2nZTEW5p4rbqjHfBaz9UaNhjHHiexPN4He".to_string(),
+            index: false,
+        };
+        let good_encryption_key_attribute = EventAttribute {
+            key: DEPOSIT_ENCRYPTION_KEY.to_string(),
+            value: "2eSxwquNJb2nZTEW5p4rbqjHfBaz9UaNhjHHiexPN4He".to_string(),
+            index: false,
+        };
 
         tx_entry.tx_result.events.push(Event {
             kind: format!("wasm-{}", DEPOSITED_FUNDS_EVENT_TYPE),
             attributes: vec![],
         });
-        let err = extract_encryption_key(&correct_request, tx_entry.clone())
+        let err = validate_deposit_tx(&correct_request, tx_entry.clone())
             .await
             .unwrap_err();
         assert_eq!(
@@ -191,26 +114,34 @@ mod test {
             CoconutError::DepositValueNotFound.to_string(),
         );
 
-        tx_entry.tx_result.events.get_mut(0).unwrap().attributes = vec![EventAttribute {
-            key: DEPOSIT_VALUE.parse().unwrap(),
-            value: "10".parse().unwrap(),
-            index: false,
-        }];
-        let err = extract_encryption_key(&correct_request, tx_entry.clone())
+        tx_entry.tx_result.events.get_mut(0).unwrap().attributes = vec![
+            EventAttribute {
+                key: DEPOSIT_VALUE.parse().unwrap(),
+                value: "10".parse().unwrap(),
+                index: false,
+            },
+            good_info_attribute.clone(),
+            good_identity_key_attribute.clone(),
+            good_encryption_key_attribute.clone(),
+        ];
+        let err = validate_deposit_tx(&correct_request, tx_entry.clone())
             .await
             .unwrap_err();
         assert_eq!(
             err.to_string(),
-            CoconutError::DifferentPublicAttributes("10".to_string(), "1234".to_string())
-                .to_string(),
+            CoconutError::InconsistentDepositValue {
+                request: "1234".to_string(),
+                on_chain: "10".to_string()
+            }
+            .to_string()
         );
 
-        tx_entry.tx_result.events.get_mut(0).unwrap().attributes = vec![EventAttribute {
-            key: DEPOSIT_VALUE.parse().unwrap(),
-            value: "1234".parse().unwrap(),
-            index: false,
-        }];
-        let err = extract_encryption_key(&correct_request, tx_entry.clone())
+        tx_entry.tx_result.events.get_mut(0).unwrap().attributes = vec![
+            good_deposit_attribute.clone(),
+            good_identity_key_attribute.clone(),
+            good_encryption_key_attribute.clone(),
+        ];
+        let err = validate_deposit_tx(&correct_request, tx_entry.clone())
             .await
             .unwrap_err();
         assert_eq!(
@@ -219,42 +150,33 @@ mod test {
         );
 
         tx_entry.tx_result.events.get_mut(0).unwrap().attributes = vec![
-            EventAttribute {
-                key: DEPOSIT_VALUE.parse().unwrap(),
-                value: "1234".parse().unwrap(),
-                index: false,
-            },
+            good_deposit_attribute.clone(),
             EventAttribute {
                 key: DEPOSIT_INFO.parse().unwrap(),
                 value: "bandwidth deposit info".parse().unwrap(),
                 index: false,
             },
+            good_identity_key_attribute.clone(),
+            good_encryption_key_attribute.clone(),
         ];
-        let err = extract_encryption_key(&correct_request, tx_entry.clone())
+        let err = validate_deposit_tx(&correct_request, tx_entry.clone())
             .await
             .unwrap_err();
         assert_eq!(
             err.to_string(),
-            CoconutError::DifferentPublicAttributes(
-                "bandwidth deposit info".to_string(),
-                VOUCHER_INFO.to_string(),
-            )
+            CoconutError::InconsistentDepositInfo {
+                on_chain: "bandwidth deposit info".to_string(),
+                request: VOUCHER_INFO.to_string(),
+            }
             .to_string(),
         );
 
         tx_entry.tx_result.events.get_mut(0).unwrap().attributes = vec![
-            EventAttribute {
-                key: DEPOSIT_VALUE.parse().unwrap(),
-                value: "1234".parse().unwrap(),
-                index: false,
-            },
-            EventAttribute {
-                key: DEPOSIT_INFO.parse().unwrap(),
-                value: VOUCHER_INFO.parse().unwrap(),
-                index: false,
-            },
+            good_deposit_attribute.clone(),
+            good_info_attribute.clone(),
+            good_encryption_key_attribute.clone(),
         ];
-        let err = extract_encryption_key(&correct_request, tx_entry.clone())
+        let err = validate_deposit_tx(&correct_request, tx_entry.clone())
             .await
             .unwrap_err();
         assert_eq!(
@@ -263,23 +185,16 @@ mod test {
         );
 
         tx_entry.tx_result.events.get_mut(0).unwrap().attributes = vec![
-            EventAttribute {
-                key: DEPOSIT_VALUE.parse().unwrap(),
-                value: "1234".parse().unwrap(),
-                index: false,
-            },
-            EventAttribute {
-                key: DEPOSIT_INFO.parse().unwrap(),
-                value: VOUCHER_INFO.parse().unwrap(),
-                index: false,
-            },
+            good_deposit_attribute.clone(),
+            good_info_attribute.clone(),
             EventAttribute {
                 key: DEPOSIT_IDENTITY_KEY.parse().unwrap(),
                 value: "verification key".parse().unwrap(),
                 index: false,
             },
+            good_encryption_key_attribute.clone(),
         ];
-        let err = extract_encryption_key(&correct_request, tx_entry.clone())
+        let err = validate_deposit_tx(&correct_request, tx_entry.clone())
             .await
             .unwrap_err();
 
@@ -291,16 +206,8 @@ mod test {
         ));
 
         tx_entry.tx_result.events.get_mut(0).unwrap().attributes = vec![
-            EventAttribute {
-                key: DEPOSIT_VALUE.parse().unwrap(),
-                value: "1234".parse().unwrap(),
-                index: false,
-            },
-            EventAttribute {
-                key: DEPOSIT_INFO.parse().unwrap(),
-                value: VOUCHER_INFO.parse().unwrap(),
-                index: false,
-            },
+            good_deposit_attribute.clone(),
+            good_info_attribute.clone(),
             EventAttribute {
                 key: DEPOSIT_IDENTITY_KEY.parse().unwrap(),
                 value: "2eSxwquNJb2nZTEW5p4rbqjHfBaz9UaNhjHHiexPN4He"
@@ -309,7 +216,7 @@ mod test {
                 index: false,
             },
         ];
-        let err = extract_encryption_key(&correct_request, tx_entry.clone())
+        let err = validate_deposit_tx(&correct_request, tx_entry.clone())
             .await
             .unwrap_err();
         assert_eq!(
@@ -318,16 +225,8 @@ mod test {
         );
 
         tx_entry.tx_result.events.get_mut(0).unwrap().attributes = vec![
-            EventAttribute {
-                key: DEPOSIT_VALUE.parse().unwrap(),
-                value: "1234".parse().unwrap(),
-                index: false,
-            },
-            EventAttribute {
-                key: DEPOSIT_INFO.parse().unwrap(),
-                value: VOUCHER_INFO.parse().unwrap(),
-                index: false,
-            },
+            good_deposit_attribute.clone(),
+            good_info_attribute.clone(),
             EventAttribute {
                 key: DEPOSIT_IDENTITY_KEY.parse().unwrap(),
                 value: "6EJGMdEq7t8Npz54uPkftGsdmj7DKntLVputAnDfVZB2"
@@ -341,29 +240,16 @@ mod test {
                 index: false,
             },
         ];
-        let err = extract_encryption_key(&correct_request, tx_entry.clone())
+        let err = validate_deposit_tx(&correct_request, tx_entry.clone())
             .await
             .unwrap_err();
 
-        assert!(matches!(
-            err,
-            CoconutError::X25519ParseError(
-                nym_crypto::asymmetric::encryption::KeyRecoveryError::MalformedPublicKeyString { .. }
-            )
-        ));
+        assert!(matches!(err, CoconutError::SignatureVerificationError(..)));
 
         let expected_encryption_key = "HxnTpWTkgigSTAysVKLE8pEiUULHdTT1BxFfzfJvQRi6";
         tx_entry.tx_result.events.get_mut(0).unwrap().attributes = vec![
-            EventAttribute {
-                key: DEPOSIT_VALUE.parse().unwrap(),
-                value: "1234".parse().unwrap(),
-                index: false,
-            },
-            EventAttribute {
-                key: DEPOSIT_INFO.parse().unwrap(),
-                value: VOUCHER_INFO.parse().unwrap(),
-                index: false,
-            },
+            good_deposit_attribute.clone(),
+            good_info_attribute.clone(),
             EventAttribute {
                 key: DEPOSIT_IDENTITY_KEY.parse().unwrap(),
                 value: "6EJGMdEq7t8Npz54uPkftGsdmj7DKntLVputAnDfVZB2"
@@ -377,7 +263,7 @@ mod test {
                 index: false,
             },
         ];
-        let err = extract_encryption_key(&correct_request, tx_entry.clone())
+        let err = validate_deposit_tx(&correct_request, tx_entry.clone())
             .await
             .unwrap_err();
         assert_eq!(
@@ -414,28 +300,21 @@ mod test {
             66, 137, 17, 32,
         ])
         .unwrap();
+
         let correct_request = BlindSignRequestBody::new(
-            &blind_sign_req,
-            "7C41AF8266D91DE55E1C8F4712E6A952A165ED3D8C27C7B00428CBD0DE00A52B".to_string(),
-            "gSFgpma5GAVMcsmZwKieqGNHNd3dPzcfa8eT2Qn2LoBccSeyiJdphREbNrkuh5XWxMe2hUsranaYzLro48L9Qhd".to_string(),
-            &voucher.get_public_attributes(),
+            blind_sign_req,
+            "7C41AF8266D91DE55E1C8F4712E6A952A165ED3D8C27C7B00428CBD0DE00A52B"
+                .parse()
+                .unwrap(),
+            "3vUCc6MCN5AC2LNgDYjRB1QeErZSN1S8f6K14JHjpUcKWXbjGYFExA8DbwQQBki9gyUqrpBF94Drttb4eMcGQXkp".parse().unwrap(),
             voucher.get_public_attributes_plain(),
-            4,
         );
         tx_entry.tx_result.events.get_mut(0).unwrap().attributes = vec![
-            EventAttribute {
-                key: DEPOSIT_VALUE.parse().unwrap(),
-                value: "1234".parse().unwrap(),
-                index: false,
-            },
-            EventAttribute {
-                key: DEPOSIT_INFO.parse().unwrap(),
-                value: VOUCHER_INFO.parse().unwrap(),
-                index: false,
-            },
+            good_deposit_attribute.clone(),
+            good_info_attribute.clone(),
             EventAttribute {
                 key: DEPOSIT_IDENTITY_KEY.parse().unwrap(),
-                value: "64auwDkWan7R8yH1Mwe9dS4qXgrDBCUNDg3Q4KFnd2P5"
+                value: "3xoM5GmUSq7YW4YNQrax1fEFLw1GbZozxe6UUoJcrqLG"
                     .parse()
                     .unwrap(),
                 index: false,
@@ -448,9 +327,7 @@ mod test {
                 index: false,
             },
         ];
-        let encryption_key = extract_encryption_key(&correct_request, tx_entry.clone())
-            .await
-            .unwrap();
-        assert_eq!(encryption_key.to_base58_string(), expected_encryption_key);
+        let res = validate_deposit_tx(&correct_request, tx_entry.clone()).await;
+        assert!(res.is_ok())
     }
 }

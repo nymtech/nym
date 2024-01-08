@@ -1,21 +1,21 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: GPL-3.0-only
 
 use crate::coconut::dkg::client::DkgClient;
 use crate::coconut::dkg::complaints::ComplaintReason;
 use crate::coconut::dkg::state::{ConsistentState, State};
 use crate::coconut::error::CoconutError;
 use crate::coconut::helpers::accepted_vote_err;
+use crate::coconut::state::BANDWIDTH_CREDENTIAL_PARAMS;
 use cosmwasm_std::Addr;
 use cw3::{ProposalResponse, Status};
 use log::debug;
 use nym_coconut::tests::helpers::transpose_matrix;
-use nym_coconut::{check_vk_pairing, Base58, KeyPair, Parameters, SecretKey, VerificationKey};
+use nym_coconut::{check_vk_pairing, Base58, KeyPair, SecretKey, VerificationKey};
 use nym_coconut_dkg_common::event_attributes::DKG_PROPOSAL_ID;
 use nym_coconut_dkg_common::types::{NodeIndex, TOTAL_DEALINGS};
 use nym_coconut_dkg_common::verification_key::owner_from_cosmos_msgs;
 use nym_coconut_interface::KeyPair as CoconutKeyPair;
-use nym_credentials::coconut::bandwidth::{PRIVATE_ATTRIBUTES, PUBLIC_ATTRIBUTES};
 use nym_dkg::bte::{decrypt_share, setup};
 use nym_dkg::error::DkgError;
 use nym_dkg::{combine_shares, try_recover_verification_keys, Dealing, Threshold};
@@ -140,7 +140,6 @@ fn derive_partial_keypair(
     }
     state.set_recovered_vks(recovered_vks);
 
-    let params = Parameters::new(PUBLIC_ATTRIBUTES + PRIVATE_ATTRIBUTES)?;
     let x = scalars.pop().ok_or(CoconutError::DkgError(
         DkgError::NotEnoughDealingsAvailable {
             available: 0,
@@ -148,7 +147,7 @@ fn derive_partial_keypair(
         },
     ))?;
     let sk = SecretKey::create_from_raw(x, scalars);
-    let vk = sk.verification_key(&params);
+    let vk = sk.verification_key(&BANDWIDTH_CREDENTIAL_PARAMS);
 
     Ok(CoconutKeyPair::from_keys(sk, vk))
 }
@@ -234,7 +233,7 @@ pub(crate) async fn verification_key_validation(
         .map(|recovered_vk| recovered_vk.recovered_partials.clone())
         .collect();
     let recovered_partials = transpose_matrix(recovered_partials);
-    let params = Parameters::new(PUBLIC_ATTRIBUTES + PRIVATE_ATTRIBUTES)?;
+    let params = &BANDWIDTH_CREDENTIAL_PARAMS;
     for contract_share in vk_shares {
         if let Some(proposal_id) = proposal_ids.get(&contract_share.owner).copied() {
             match VerificationKey::try_from_bs58(contract_share.share) {
@@ -243,7 +242,7 @@ pub(crate) async fn verification_key_validation(
                         .iter()
                         .position(|node_index| contract_share.node_index == *node_index)
                     {
-                        let ret = if !check_vk_pairing(&params, &recovered_partials[idx], &vk) {
+                        let ret = if !check_vk_pairing(params, &recovered_partials[idx], &vk) {
                             debug!(
                                 "Voting NO to proposal {} because of failed VK pairing",
                                 proposal_id
@@ -836,16 +835,17 @@ pub(crate) mod tests {
         for (_, state) in clients_and_states.iter_mut() {
             state.set_was_in_progress();
         }
-        let params = Parameters::new(4).unwrap();
 
         let mut vks = vec![];
         let mut indices = vec![];
         for (_, state) in clients_and_states.iter() {
             let vk = state
-                .coconut_secret_key()
+                .coconut_keypair()
                 .await
+                .as_ref()
                 .unwrap()
-                .verification_key(&params);
+                .verification_key()
+                .clone();
             let index = state.node_index().unwrap();
             vks.push(vk);
             indices.push(index);
@@ -933,10 +933,12 @@ pub(crate) mod tests {
         let mut indices = vec![];
         for (_, state) in clients_and_states.iter() {
             let vk = state
-                .coconut_secret_key()
+                .coconut_keypair()
                 .await
+                .as_ref()
                 .unwrap()
-                .verification_key(&params);
+                .verification_key()
+                .clone();
             let index = state.node_index().unwrap();
             vks.push(vk);
             indices.push(index);
@@ -1047,16 +1049,16 @@ pub(crate) mod tests {
         }
 
         // DKG in reshare mode
-        let params = Parameters::new(4).unwrap();
-
         let mut vks = vec![];
         let mut indices = vec![];
         for (_, state) in clients_and_states.iter() {
             let vk = state
-                .coconut_secret_key()
+                .coconut_keypair()
                 .await
+                .as_ref()
                 .unwrap()
-                .verification_key(&params);
+                .verification_key()
+                .clone();
             let index = state.node_index().unwrap();
             vks.push(vk);
             indices.push(index);
@@ -1124,10 +1126,12 @@ pub(crate) mod tests {
         let mut indices = vec![];
         for (_, state) in clients_and_states.iter() {
             let vk = state
-                .coconut_secret_key()
+                .coconut_keypair()
                 .await
+                .as_ref()
                 .unwrap()
-                .verification_key(&params);
+                .verification_key()
+                .clone();
             let index = state.node_index().unwrap();
             vks.push(vk);
             indices.push(index);

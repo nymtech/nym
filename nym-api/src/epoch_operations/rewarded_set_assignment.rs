@@ -1,5 +1,5 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: GPL-3.0-only
 
 use crate::epoch_operations::error::RewardingError;
 use crate::epoch_operations::helpers::stake_to_f64;
@@ -24,7 +24,15 @@ struct MixnodeWithStakeAndPerformance {
 
 impl MixnodeWithStakeAndPerformance {
     fn to_selection_weight(&self) -> f64 {
-        let scaled_stake = self.total_stake * self.performance;
+        let scaled_performance = match self.performance.checked_pow(20) {
+            Ok(perf) => perf,
+            Err(overflow) => {
+                warn!("the node's performance ({}) has overflow while scaling it by the factor of 20: {overflow}. Setting it to 0 instead.", self.performance);
+                return 0.;
+            }
+        };
+
+        let scaled_stake = self.total_stake * scaled_performance;
         stake_to_f64(scaled_stake)
     }
 }

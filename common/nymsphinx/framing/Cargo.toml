@@ -9,7 +9,7 @@ repository = { workspace = true }
 
 [dependencies]
 bytes = "1.0"
-tokio-util = { version = "0.7.4", features = ["codec"] }
+tokio-util = { workspace = true, features = ["codec"] }
 thiserror = { workspace = true }
 
 nym-sphinx-types = { path = "../types", features = ["sphinx", "outfox"] }

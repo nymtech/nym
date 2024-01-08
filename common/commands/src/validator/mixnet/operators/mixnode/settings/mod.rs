@@ -4,6 +4,7 @@
 use clap::{Args, Subcommand};
 
 pub mod update_config;
+pub mod update_cost_params;
 pub mod vesting_update_config;
 
 #[derive(Debug, Args)]
@@ -20,7 +21,5 @@ pub enum MixnetOperatorsMixnodeSettingsCommands {
     /// Update mixnode configuration for a mixnode bonded with locked tokens
     VestingUpdateConfig(vesting_update_config::Args),
     /// Update mixnode cost parameters
-    UpdateCostParameters,
-    /// Update mixnode cost parameters for a mixnode bonded with locked tokens
-    VestingUpdateCostParameters,
+    UpdateCostParameters(update_cost_params::Args),
 }

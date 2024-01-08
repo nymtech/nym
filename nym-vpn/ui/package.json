@@ -1,14 +1,14 @@
 {
   "name": "nym-vpn-ui",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.0.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "dev:app": "WEBKIT_DISABLE_COMPOSITING_MODE=1 tauri dev",
+    "dev:app": "tauri dev",
     "dev:browser": "vite --mode dev-browser",
     "build": "tsc && vite build",
-    "build:app": "yarn build && cd src-tauri && cargo build --release --lib --features custom-protocol",
+    "build:app": "yarn tauri build",
     "preview": "vite preview",
     "lint": "eslint --ext .ts,.tsx src/",
     "lint:fix": "eslint --ext .js,.ts --fix src/",
@@ -18,30 +18,39 @@
     "tauri": "tauri"
   },
   "dependencies": {
-    "@mui/base": "^5.0.0-beta.20",
-    "@mui/material": "^5.14.14",
+    "@headlessui/react": "^1.7.17",
+    "@headlessui/tailwindcss": "^0.2.0",
+    "@mui/base": "^5.0.0-beta.24",
     "@tauri-apps/api": "^1.5.0",
     "clsx": "^2.0.0",
+    "dayjs": "^1.11.10",
+    "i18next": "^23.7.6",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "react-i18next": "^14.0.0",
+    "react-router-dom": "^6.18.0"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^1.5.0",
-    "@types/react": "^18.2.31",
-    "@types/react-dom": "^18.2.14",
+    "@types/react": "^18.2.37",
+    "@types/react-dom": "^18.2.15",
+    "@types/react-router-dom": "^5.3.3",
     "@typescript-eslint/eslint-plugin": "^6.8.0",
     "@typescript-eslint/parser": "^6.8.0",
     "@vitejs/plugin-react-swc": "^3.3.2",
     "autoprefixer": "^10.4.16",
     "eslint": "^8.52.0",
     "eslint-config-prettier": "^9.0.0",
+    "eslint-import-resolver-typescript": "^3.6.1",
+    "eslint-plugin-import": "^2.29.0",
+    "eslint-plugin-jsx-a11y": "^6.8.0",
     "eslint-plugin-react": "^7.33.2",
     "eslint-plugin-react-hooks": "^4.6.0",
     "postcss": "^8.4.31",
-    "postcss-import": "^15.1.0",
+    "postcss-import": "^16.0.0",
     "prettier": "^3.0.3",
     "tailwindcss": "^3.3.3",
     "typescript": "^5.0.2",
-    "vite": "^4.4.5"
+    "vite": "^5.0.5"
   }
 }

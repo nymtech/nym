@@ -20,12 +20,12 @@ impl CheckResponse for broadcast::tx_commit::Response {
             });
         }
 
-        if self.deliver_tx.code.is_err() {
+        if self.tx_result.code.is_err() {
             return Err(NyxdError::BroadcastTxErrorDeliverTx {
                 hash: self.hash,
                 height: Some(self.height),
-                code: self.deliver_tx.code.value(),
-                raw_log: self.deliver_tx.log,
+                code: self.tx_result.code.value(),
+                raw_log: self.tx_result.log,
             });
         }
 

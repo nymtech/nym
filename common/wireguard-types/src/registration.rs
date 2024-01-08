@@ -6,6 +6,7 @@ use crate::PeerPublicKey;
 use base64::{engine::general_purpose, Engine};
 use dashmap::DashMap;
 use serde::{Deserialize, Serialize};
+use std::net::IpAddr;
 use std::{fmt, ops::Deref, str::FromStr};
 
 #[cfg(feature = "verify")]
@@ -17,11 +18,13 @@ use sha2::Sha256;
 
 pub type GatewayClientRegistry = DashMap<PeerPublicKey, GatewayClient>;
 pub type PendingRegistrations = DashMap<PeerPublicKey, Nonce>;
+pub type PrivateIPs = DashMap<IpAddr, Free>;
 
 #[cfg(feature = "verify")]
 pub type HmacSha256 = Hmac<Sha256>;
 
 pub type Nonce = u64;
+pub type Free = bool;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(tag = "type", rename_all = "camelCase")]
@@ -72,6 +75,9 @@ pub struct GatewayClient {
     #[cfg_attr(feature = "openapi", schema(value_type = String, format = Byte))]
     pub pub_key: PeerPublicKey,
 
+    /// Assigned private IP
+    pub private_ip: IpAddr,
+
     /// Sha256 hmac on the data (alongside the prior nonce)
     #[cfg_attr(feature = "openapi", schema(value_type = String, format = Byte))]
     pub mac: ClientMac,
@@ -79,14 +85,18 @@ pub struct GatewayClient {
 
 impl GatewayClient {
     #[cfg(feature = "verify")]
-    pub fn new(local_secret: &PrivateKey, remote_public: PublicKey, nonce: u64) -> Self {
+    pub fn new(
+        local_secret: &PrivateKey,
+        remote_public: PublicKey,
+        private_ip: IpAddr,
+        nonce: u64,
+    ) -> Self {
         // convert from 1.0 x25519-dalek private key into 2.0 x25519-dalek
         #[allow(clippy::expect_used)]
-        let static_secret = boringtun::x25519::StaticSecret::try_from(local_secret.to_bytes())
-            .expect("conversion between x25519 private keys is infallible");
-        let local_public: boringtun::x25519::PublicKey = (&static_secret).into();
+        let static_secret = x25519_dalek::StaticSecret::from(local_secret.to_bytes());
+        let local_public: x25519_dalek::PublicKey = (&static_secret).into();
 
-        let remote_public = boringtun::x25519::PublicKey::from(remote_public.to_bytes());
+        let remote_public = x25519_dalek::PublicKey::from(remote_public.to_bytes());
 
         let dh = static_secret.diffie_hellman(&remote_public);
 
@@ -96,10 +106,12 @@ impl GatewayClient {
             .expect("x25519 shared secret is always 32 bytes long");
 
         mac.update(local_public.as_bytes());
+        mac.update(private_ip.to_string().as_bytes());
         mac.update(&nonce.to_le_bytes());
 
         GatewayClient {
             pub_key: PeerPublicKey::new(local_public),
+            private_ip,
             mac: ClientMac(mac.finalize().into_bytes().to_vec()),
         }
     }
@@ -110,8 +122,7 @@ impl GatewayClient {
     pub fn verify(&self, gateway_key: &PrivateKey, nonce: u64) -> Result<(), Error> {
         // convert from 1.0 x25519-dalek private key into 2.0 x25519-dalek
         #[allow(clippy::expect_used)]
-        let static_secret = boringtun::x25519::StaticSecret::try_from(gateway_key.to_bytes())
-            .expect("conversion between x25519 private keys is infallible");
+        let static_secret = x25519_dalek::StaticSecret::from(gateway_key.to_bytes());
 
         let dh = static_secret.diffie_hellman(&self.pub_key);
 
@@ -121,6 +132,7 @@ impl GatewayClient {
             .expect("x25519 shared secret is always 32 bytes long");
 
         mac.update(self.pub_key.as_bytes());
+        mac.update(self.private_ip.to_string().as_bytes());
         mac.update(&nonce.to_le_bytes());
 
         mac.verify_slice(&self.mac)
@@ -209,6 +221,7 @@ mod tests {
         let client = GatewayClient::new(
             client_key_pair.private_key(),
             *gateway_key_pair.public_key(),
+            "10.0.0.42".parse().unwrap(),
             nonce,
         );
         assert!(client.verify(gateway_key_pair.private_key(), nonce).is_ok())

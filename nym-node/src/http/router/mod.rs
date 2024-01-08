@@ -1,5 +1,5 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: GPL-3.0-only
 
 use crate::error::NymNodeError;
 pub use crate::http::api::v1::gateway::client_interfaces::wireguard::WireguardAppState;
@@ -8,6 +8,7 @@ use crate::http::state::AppState;
 use crate::http::NymNodeHTTPServer;
 use axum::Router;
 use nym_node_requests::api::v1::gateway::models::{Gateway, Wireguard};
+use nym_node_requests::api::v1::ip_packet_router::models::IpPacketRouter;
 use nym_node_requests::api::v1::mixnode::models::Mixnode;
 use nym_node_requests::api::v1::network_requester::exit_policy::models::UsedExitPolicy;
 use nym_node_requests::api::v1::network_requester::models::NetworkRequester;
@@ -45,6 +46,7 @@ impl Config {
                     gateway: Default::default(),
                     mixnode: Default::default(),
                     network_requester: Default::default(),
+                    ip_packet_router: Default::default(),
                 },
             },
         }
@@ -92,6 +94,13 @@ impl Config {
     #[must_use]
     pub fn with_used_exit_policy(mut self, exit_policy: UsedExitPolicy) -> Self {
         self.api.v1_config.network_requester.exit_policy = Some(exit_policy);
+        self
+    }
+
+    #[must_use]
+    pub fn with_ip_packet_router(mut self, ip_packet_router: IpPacketRouter) -> Self {
+        self.api.v1_config.node.roles.ip_packet_router_enabled = true;
+        self.api.v1_config.ip_packet_router.details = Some(ip_packet_router);
         self
     }
 }

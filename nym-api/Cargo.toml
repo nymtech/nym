@@ -1,9 +1,10 @@
 # Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
-# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: GPL-3.0-only
 
 [package]
 name = "nym-api"
-version = "1.1.32"
+license = "GPL-3.0"
+version = "1.1.34"
 authors = [
     "Dave Hrycyszyn <futurechimp@users.noreply.github.com>",
     "Jędrzej Stuczyński <andrew@nymtech.net>",
@@ -23,6 +24,7 @@ clap = { workspace = true, features = ["cargo", "derive"] }
 console-subscriber = { version = "0.1.1", optional = true } # validator-api needs to be built with RUSTFLAGS="--cfg tokio_unstable"
 dirs = "4.0"
 futures = { workspace = true }
+itertools = "0.12.0"
 humantime-serde = "1.0"
 lazy_static = "1.4.0"
 log = { workspace = true }
@@ -36,7 +38,7 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 tap = "1.0"
 thiserror = { workspace = true }
-time = { version = "0.3.14", features = ["serde-human-readable", "parsing"] }
+time = { workspace = true, features = ["serde-human-readable", "parsing"] }
 tokio = { version = "1.24.1", features = [
     "rt-multi-thread",
     "macros",
@@ -51,7 +53,7 @@ ts-rs = { workspace = true, optional = true}
 anyhow = { workspace = true }
 getset = "0.1.1"
 
-sqlx = { version = "0.6.2", features = [
+sqlx = { workspace = true, features = [
     "runtime-tokio-rustls",
     "sqlite",
     "macros",
@@ -96,14 +98,14 @@ nym-contracts-common = { path = "../common/cosmwasm-smart-contracts/contracts-co
 nym-multisig-contract-common = { path = "../common/cosmwasm-smart-contracts/multisig-contract" }
 nym-service-provider-directory-common = { path = "../common/cosmwasm-smart-contracts/service-provider-directory" }
 nym-name-service-common = { path = "../common/cosmwasm-smart-contracts/name-service" }
-nym-coconut = { path = "../common/nymcoconut" }
+nym-coconut = { path = "../common/nymcoconut", features = ["key-zeroize"] }
 nym-sphinx = { path = "../common/nymsphinx" }
 nym-pemstore = { path = "../common/pemstore" }
 nym-task = { path = "../common/task" }
 nym-topology = { path = "../common/topology" }
 nym-api-requests = { path = "nym-api-requests" }
 nym-validator-client = { path = "../common/client-libs/validator-client" }
-nym-bin-common = { path = "../common/bin-common" }
+nym-bin-common = { path = "../common/bin-common", features = ["output_format"] }
 nym-node-tester-utils = { path = "../common/node-tester-utils" }
 nym-node-requests = { path = "../nym-node/nym-node-requests" }
 
@@ -113,7 +115,7 @@ generate-ts = ["ts-rs"]
 
 [build-dependencies]
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
-sqlx = { version = "0.6.2", features = [
+sqlx = { workspace = true, features = [
     "runtime-tokio-rustls",
     "sqlite",
     "macros",

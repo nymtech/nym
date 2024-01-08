@@ -16,6 +16,8 @@ in combination with their own configuration. If you are trying to access somethi
 3. If you are using `mixFetch` in a web app with HTTPS you will need to use a gateway that has Secure Websockets to
 avoid getting a [mixed content](https://developer.mozilla.org/en-US/docs/Web/Security/Mixed_content) error.
 
+4. For now, mixfetch doesn't work with SURBS, altough this may change in the future. 
+
 
 Read [this article](https://blog.nymtech.net/mixfetch-like-the-fetch-api-but-via-the-mixnet-82acfd435c62) to learn more about mixFetch.
 
@@ -29,18 +31,6 @@ Read [this article](https://blog.nymtech.net/mixfetch-like-the-fetch-api-but-via
 // For mainnet
 import type { SetupMixFetchOps } from '@nymproject/mix-fetch';
 
-const extra = {
-  hiddenGateways: [
-    {
-      owner: 'n1kymvkx6vsq7pvn6hfurkpg06h3j4gxj4em7tlg',
-      host: 'gateway1.nymtech.net',
-      explicitIp: '213.219.38.119',
-      identityKey: 'E3mvZTHQCdBvhfr178Swx9g4QG3kkRUun7YnToLMcMbM',
-      sphinxKey: 'CYcrjoJ8GT7Dp54zViUyyRUfegeRCyPifWQZHRgMZrfX',
-    },
-  ],
-};
-
 const mixFetchOptions: SetupMixFetchOps = {
   preferredGateway: 'E3mvZTHQCdBvhfr178Swx9g4QG3kkRUun7YnToLMcMbM', // with WSS
   preferredNetworkRequester:
@@ -49,7 +39,7 @@ const mixFetchOptions: SetupMixFetchOps = {
     requestTimeoutMs: 60_000,
   },
   forceTls: true, // force WSS
-  extra, // manually set the gateway details for WSS so certificates will work for hostname
+  extra: {}, 
 };
 ```
 
@@ -84,28 +74,12 @@ import { mixFetch } from "@nymproject/mix-fetch-full-fat";
 
 ##### Example: using the `mixFetch` client:
 
-<Callout type="info" emoji="ℹ️">
-    Again, for this example, we will be using the `full-fat` version of the ESM SDK. 
-</Callout>
-
 `Get` and `Post` outputs will be observable from your console. 
 
 ```ts
 import "./App.css";
 import { mixFetch, SetupMixFetchOps } from '@nymproject/mix-fetch-full-fat';
 import React from 'react';
-
-const extra = {
-  hiddenGateways: [
-    {
-      owner: 'n1kymvkx6vsq7pvn6hfurkpg06h3j4gxj4em7tlg',
-      host: 'gateway1.nymtech.net',
-      explicitIp: '213.219.38.119',
-      identityKey: 'E3mvZTHQCdBvhfr178Swx9g4QG3kkRUun7YnToLMcMbM',
-      sphinxKey: 'CYcrjoJ8GT7Dp54zViUyyRUfegeRCyPifWQZHRgMZrfX',
-    },
-  ],
-};
 
 const mixFetchOptions: SetupMixFetchOps = {
   preferredGateway: 'E3mvZTHQCdBvhfr178Swx9g4QG3kkRUun7YnToLMcMbM', // with WSS
@@ -115,7 +89,7 @@ const mixFetchOptions: SetupMixFetchOps = {
     requestTimeoutMs: 60_000,
   },
   forceTls: true, // force WSS
-  extra
+  extra: {},
 };
 
 

@@ -1,5 +1,5 @@
 // Copyright 2022-2023 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: GPL-3.0-only
 
 use nym_sdk::mixnet::InputMessage;
 use nym_service_providers_common::interface::{
@@ -189,6 +189,7 @@ impl MixnetAddress {
                     recipient: *recipient,
                     data: message,
                     lane: TransmissionLane::ConnectionId(connection_id),
+                    mix_hops: None,
                 }),
                 packet_type,
             },

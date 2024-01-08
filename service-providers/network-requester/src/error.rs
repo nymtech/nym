@@ -1,3 +1,6 @@
+// Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: GPL-3.0-only
+
 pub use nym_client_core::error::ClientCoreError;
 use nym_exit_policy::policy::PolicyError;
 use nym_socks5_requests::{RemoteAddress, Socks5RequestError};

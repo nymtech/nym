@@ -1,6 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::helpers::try_bump_raw_prerelease;
 use crate::json_types::DepsSet;
 use crate::{json_types, ReleasePackage};
 use anyhow::{bail, Context};
@@ -14,10 +15,18 @@ pub struct PackageJson {
     inner: json_types::Package,
 }
 
-fn update_dependencies(deps: &mut DepsSet, names: &HashSet<String>) -> anyhow::Result<()> {
+fn update_dependencies(
+    deps: &mut DepsSet,
+    names: &HashSet<String>,
+    pre_release: bool,
+) -> anyhow::Result<()> {
     for (package, version) in deps.iter_mut() {
         if names.contains(package) {
-            let updated = try_bump_minor_version_req(version)?;
+            let updated = if pre_release {
+                try_bump_prerelease_version_req(version)?
+            } else {
+                try_bump_minor_version_req(version)?
+            };
 
             println!("\t\t>>> updating '{package}' from {version} to {updated}");
             *version = updated
@@ -52,21 +61,25 @@ impl ReleasePackage for PackageJson {
         self.inner.version = version.to_string()
     }
 
-    fn update_nym_dependencies(&mut self, names: &HashSet<String>) -> anyhow::Result<()> {
+    fn update_nym_dependencies(
+        &mut self,
+        names: &HashSet<String>,
+        pre_release: bool,
+    ) -> anyhow::Result<()> {
         println!("\t>>> updating @nymproject dependencies...");
-        update_dependencies(&mut self.inner.dependencies, names)?;
+        update_dependencies(&mut self.inner.dependencies, names, pre_release)?;
 
         println!("\t>>> updating @nymproject peerDependencies...");
-        update_dependencies(&mut self.inner.peer_dependencies, names)?;
+        update_dependencies(&mut self.inner.peer_dependencies, names, pre_release)?;
 
         println!("\t>>> updating @nymproject devDependencies...");
-        update_dependencies(&mut self.inner.dev_dependencies, names)?;
+        update_dependencies(&mut self.inner.dev_dependencies, names, pre_release)?;
 
         println!("\t>>> updating @nymproject optionalDependencies...");
-        update_dependencies(&mut self.inner.optional_dependencies, names)?;
+        update_dependencies(&mut self.inner.optional_dependencies, names, pre_release)?;
 
         println!("\t>>> updating @nymproject bundledDependencies...");
-        update_dependencies(&mut self.inner.bundled_dependencies, names)?;
+        update_dependencies(&mut self.inner.bundled_dependencies, names, pre_release)?;
 
         Ok(())
     }
@@ -101,9 +114,9 @@ pub(crate) fn find_package_path(dir: &Path) -> anyhow::Result<PathBuf> {
 
 // expected structure: `>=X.Y.Z-rc.W || ^X`
 fn try_bump_minor_version_req(raw_req: &str) -> anyhow::Result<String> {
-    let (req, major) = raw_req
-        .split_once("||")
-        .context("invalid version requirement")?;
+    let (req, major) = raw_req.split_once("||").context(format!(
+        "'{raw_req}' is not a valid semver version requirement - we expect '`>=X.Y.Z-rc.W || ^X`'"
+    ))?;
     let parsed_req = VersionReq::parse(req)?;
     let parsed_major = VersionReq::parse(major)?;
     if parsed_req.comparators.len() != 1 {
@@ -117,6 +130,30 @@ fn try_bump_minor_version_req(raw_req: &str) -> anyhow::Result<String> {
             minor: parsed_req.comparators[0].minor,
             patch: parsed_req.comparators[0].patch.map(|p| p + 1),
             pre: Prerelease::new("rc.0")?,
+        }],
+    };
+
+    Ok(format!("{updated} || {parsed_major}"))
+}
+
+// expected structure: `>=X.Y.Z-rc.W || ^X`
+fn try_bump_prerelease_version_req(raw_req: &str) -> anyhow::Result<String> {
+    let (req, major) = raw_req.split_once("||").context(format!(
+        "'{raw_req}' is not a valid semver version requirement - we expect '`>=X.Y.Z-rc.W || ^X`'"
+    ))?;
+    let parsed_req = VersionReq::parse(req)?;
+    let parsed_major = VersionReq::parse(major)?;
+    if parsed_req.comparators.len() != 1 {
+        bail!("wrong number of version requirements present in {parsed_req}")
+    }
+
+    let updated = VersionReq {
+        comparators: vec![Comparator {
+            op: parsed_req.comparators[0].op,
+            major: parsed_req.comparators[0].major,
+            minor: parsed_req.comparators[0].minor,
+            patch: parsed_req.comparators[0].patch,
+            pre: try_bump_raw_prerelease(parsed_req.comparators[0].pre.as_str())?,
         }],
     };
 

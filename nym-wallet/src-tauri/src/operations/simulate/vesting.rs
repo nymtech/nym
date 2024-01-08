@@ -39,7 +39,7 @@ async fn simulate_vesting_operation(
         .nyxd
         .wrap_contract_execute_message(vesting_contract, &msg, funds)?;
 
-    let result = client.nyxd.simulate(vec![msg]).await?;
+    let result = client.nyxd.simulate(vec![msg], "").await?;
     guard.create_detailed_fee(result)
 }
 

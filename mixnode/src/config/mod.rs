@@ -1,5 +1,5 @@
 // Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: GPL-3.0-only
 
 use crate::config::persistence::paths::MixNodePaths;
 use crate::config::template::CONFIG_TEMPLATE;
@@ -164,6 +164,7 @@ impl Config {
         save_formatted_config_to_file(self, config_save_location)
     }
 
+    #[allow(unused)]
     pub fn try_save(&self) -> io::Result<()> {
         if let Some(save_location) = &self.save_path {
             save_formatted_config_to_file(self, save_location)

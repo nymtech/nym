@@ -34,17 +34,24 @@ pub use crate::nyxd::fee::Fee;
 pub use crate::rpc::TendermintRpcClient;
 pub use coin::Coin;
 pub use cosmrs::bank::MsgSend;
-pub use cosmrs::tendermint::abci::{response::DeliverTx, Event, EventAttribute};
+pub use cosmrs::tendermint::abci::{
+    response::DeliverTx, types::ExecTxResult, Event, EventAttribute,
+};
 pub use cosmrs::tendermint::block::Height;
 pub use cosmrs::tendermint::hash::{self, Algorithm, Hash};
 pub use cosmrs::tendermint::validator::Info as TendermintValidatorInfo;
 pub use cosmrs::tendermint::Time as TendermintTime;
 pub use cosmrs::tx::Msg;
 pub use cosmrs::tx::{self};
+pub use cosmrs::Any;
 pub use cosmrs::Coin as CosmosCoin;
 pub use cosmrs::Gas;
 pub use cosmrs::{bip32, AccountId, Denom};
 pub use cosmwasm_std::Coin as CosmWasmCoin;
+pub use cw2;
+pub use cw3;
+pub use cw4;
+pub use cw_controllers;
 pub use fee::{gas_price::GasPrice, GasAdjustable, GasAdjustment};
 pub use tendermint_rpc::{
     endpoint::{tx::Response as TxResponse, validators::Response as ValidatorResponse},
@@ -65,6 +72,7 @@ pub mod contract_traits;
 pub mod cosmwasm_client;
 pub mod error;
 pub mod fee;
+pub mod helpers;
 
 #[derive(Debug, Clone)]
 pub struct Config {
@@ -374,7 +382,11 @@ where
         })
     }
 
-    pub async fn simulate<I, M>(&self, messages: I) -> Result<SimulateResponse, NyxdError>
+    pub async fn simulate<I, M>(
+        &self,
+        messages: I,
+        memo: impl Into<String> + Send + 'static,
+    ) -> Result<SimulateResponse, NyxdError>
     where
         I: IntoIterator<Item = M> + Send,
         M: Msg,
@@ -389,7 +401,7 @@ where
                     .map_err(|_| {
                         NyxdError::SerializationError("custom simulate messages".to_owned())
                     })?,
-                "simulating execution of transactions",
+                memo,
             )
             .await
     }

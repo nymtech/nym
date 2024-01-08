@@ -1,20 +1,20 @@
 # Frequently Asked Questions
 
-## Mixnet nodes
+## Nym Nodes
 
-### What determines the rewards when running a mix node?
+### What determines the rewards when running a Mix Node?
 
-The stake required for a mix node to achieve maximum rewards is called mix node saturation point. This is calculated from the staking supply (all circulating supply + part of unlocked tokens). The target level of staking is to have 50% of the staking supply locked in mix nodes.
+The stake required for a Mix Node to achieve maximum rewards is called Mix Node saturation point. This is calculated from the staking supply (all circulating supply + part of unlocked tokens). The target level of staking is to have 50% of the staking supply locked in Mix Nodes.
 
 The node stake saturation point, which we denote by Nsat, is given by the stake supply, target level of staking divided by the number of rewarded (active) nodes. 
 
-This design ensures the nodes aim to have a same size of stake (reputation) which can be done by delegation staking, as well as it ensures that there is a decentralization of staking as any higher level of staked tokens per node results in worse rewards. On the contrary, the more mix nodes are active, the lower is Nsat. The equilibrium is reached when the staked tokens are delegated equally across the active mix-nodes and that's our basis for this incentive system.
+This design ensures the nodes aim to have a same size of stake (reputation) which can be done by delegation staking, as well as it ensures that there is a decentralization of staking as any higher level of staked tokens per node results in worse rewards. On the contrary, the more Mix Nodes are active, the lower is Nsat. The equilibrium is reached when the staked tokens are delegated equally across the active mix-nodes and that's our basis for this incentive system.
 
-For more detailed calculation, read our blog post [Nym Token Economics update](https://blog.nymtech.net/nym-token-economics-update-fedff0ed5267). More info on staking can be found [here](https://blog.nymtech.net/staking-in-nym-introducing-mainnet-mixmining-f9bb1cbc7c36). And [here](https://blog.nymtech.net/want-to-stake-in-nym-here-is-how-to-choose-a-mix-node-to-delegate-nym-to-c3b862add165) is more info on how to choose a mix node for delegation. And finally an [update](https://blog.nymtech.net/quarterly-token-economic-parameter-update-b2862948710f) on token economics from July 2023.
+For more detailed calculation, read our blog post [Nym Token Economics update](https://blog.nymtech.net/nym-token-economics-update-fedff0ed5267). More info on staking can be found [here](https://blog.nymtech.net/staking-in-nym-introducing-mainnet-mixmining-f9bb1cbc7c36). And [here](https://blog.nymtech.net/want-to-stake-in-nym-here-is-how-to-choose-a-mix-node-to-delegate-nym-to-c3b862add165) is more info on how to choose a Mix Node for delegation. And finally an [update](https://blog.nymtech.net/quarterly-token-economic-parameter-update-b2862948710f) on token economics from July 2023.
 
 ### Which VPS providers would you recommend?
 
-Consider in which jurisdiction you reside and where do you want to run a mix node. Do you want to pay by crypto or not and what are the other important particularities for your case? We always recommend operators to try to choose smaller and decentralised VPS providers over the most known ones controlling a majority of the internet. We receive some good feedback on these: Linode, Ghandi, Flokinet and Exoscale. Do your own research and share with the community.
+Consider in which jurisdiction you reside and where do you want to run a Mix Node. Do you want to pay by crypto or not and what are the other important particularities for your case? We always recommend operators to try to choose smaller and decentralised VPS providers over the most known ones controlling a majority of the internet. We receive some good feedback on these: Linode, Ghandi, Flokinet and Exoscale. Do your own research and share with the community.
 
 <!---### Why is a mix node setup on a self-hosted machine so tricky?--->
 
@@ -22,17 +22,17 @@ Consider in which jurisdiction you reside and where do you want to run a mix nod
 
 The sizes are shown in the configs [here](https://github.com/nymtech/nym/blob/1ba6444e722e7757f1175a296bed6e31e25b8db8/common/nymsphinx/params/src/packet_sizes.rs#L12) (default is the one clients use, the others are for research purposes, not to be used in production as this would fragment the anonymity set). More info can be found [here](https://github.com/nymtech/nym/blob/4844ac953a12b29fa27688609ec193f1d560c996/common/nymsphinx/anonymous-replies/src/reply_surb.rs#L80).
 
-### Why a mix node and a gateway cannot be bond to the same wallet?
+### Why a Mix Node and a Gateway cannot be bonded with the same wallet?
 
 Because of the way the smart contract works we keep it one-node one-address at the moment.
 
 ### Which nodes are the most needed to be setup to strengthen Nym infrastructure and which ones bring rewards?
 
-Right now only mix nodes are rewarded. We're working on gateway and service payments. Gateways are the weak link right now due mostly to lack of incentivisation. Services like Network Requesters are obviously the most necessary for people to start using the platform, and we're working on smart contracts to allow for people to start advertising them the same way they do mix nodes.
+Right now only Mix Nodes are rewarded. We're working on Gateway and service payments. Gateways are the weak link right now due mostly to lack of incentivisation. Services like Network Requesters are obviously the most necessary for people to start using the platform, and we're working on smart contracts to allow for people to start advertising them the same way they do Mix Nodes.
 
-### Are mixnodes whitelisted?
+### Are Mix Nodes whitelisted?
 
-Nope, anyone can run a mix node. Purely reliant on the node's reputation (self stake + delegations) & routing score.
+Nope, anyone can run a Mix Node. Purely reliant on the node's reputation (self stake + delegations) & routing score.
 
 ## Validators and tokens
 
@@ -43,6 +43,14 @@ Nope, anyone can run a mix node. Purely reliant on the node's reputation (self s
 <!--- Commenting for now as NYX is not publicly out yet
 ### What's the difference between NYM and NYX?
 --->
+
+### Why some Nyx blockchain operations take one hour and others are instant?
+
+This is based on the definition in [Nym's CosmWasm](https://github.com/nymtech/nym/tree/develop/common/cosmwasm-smart-contracts) smart contracts code.
+
+Whatever is defined as [a pending epoch event](https://github.com/nymtech/nym/blob/b07627d57e075b6de35b4b1a84927578c3172811/common/cosmwasm-smart-contracts/mixnet-contract/src/pending_events.rs#L35-L103) will get resolved at the end of the current epoch.
+
+And whatever is defined as [a pending interval event](https://github.com/nymtech/nym/blob/b07627d57e075b6de35b4b1a84927578c3172811/common/cosmwasm-smart-contracts/mixnet-contract/src/pending_events.rs#L145-L172) will get resolved at the end of the current interval.
 
 ### Can I run a validator?
 

@@ -10,6 +10,8 @@ public struct NymTextStyleModifier: ViewModifier {
     public func body(content: Content) -> some View {
         content
             .font(textStyle.nymFont.font)
+            .kerning(textStyle.kerning)
+            .lineSpacing(textStyle.lineSpacing)
     }
 }
 

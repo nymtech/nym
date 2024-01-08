@@ -17,8 +17,8 @@ public enum StatusButtonConfig: String {
         case .connected:
             return NymColor.confirm
         case .connecting, .disconnecting:
-            return NymColor.statusButtonTitleConnecting
-        case .disconnected ,.error:
+            return NymColor.sysOnSurfaceWhite
+        case .disconnected, .error:
             return NymColor.sysOnSecondary
         }
     }

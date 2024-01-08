@@ -1,6 +1,61 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "2hopWireGuardSubtitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Best for browsing, streaming, sharing"
+          }
+        }
+      }
+    },
+    "2hopWireGuardTitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "2-hop WireGuard"
+          }
+        }
+      }
+    },
+    "5hopMixnetSubtitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Best for payments, emails, messages"
+          }
+        }
+      }
+    },
+    "5hopMixnetTitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "5-hop mixnet"
+          }
+        }
+      }
+    },
+    "connect" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect"
+          }
+        }
+      }
+    },
     "connected" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -23,6 +78,17 @@
         }
       }
     },
+    "connectTo" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect to"
+          }
+        }
+      }
+    },
     "disconnected" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -34,6 +100,28 @@
         }
       }
     },
+    "disconnecting" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Disconnecting..."
+          }
+        }
+      }
+    },
+    "firstHop" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "First hop"
+          }
+        }
+      }
+    },
     "NymVPN" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -41,6 +129,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "NymVPN"
+          }
+        }
+      }
+    },
+    "selectNetwork" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Select network"
           }
         }
       }

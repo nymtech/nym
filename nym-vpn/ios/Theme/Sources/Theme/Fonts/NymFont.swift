@@ -17,6 +17,7 @@ extension NymFont {
     public enum LatoWeight: String, CaseIterable {
         case regular = "Regular"
         case bold = "Bold"
+        case semibold = "SemiBold"
     }
 }
 

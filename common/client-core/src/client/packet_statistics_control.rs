@@ -1,6 +1,6 @@
 use std::{sync::atomic::Ordering::Relaxed, time::Duration};
 
-use crate::client;
+use crate::{client, spawn_future};
 
 pub(crate) struct PacketStatisticsControl {}
 
@@ -53,5 +53,11 @@ impl PacketStatisticsControl {
             }
         }
         log::debug!("PacketStatisticsControl: Exiting");
+    }
+
+    pub(crate) fn start_with_shutdown(mut self, task_client: nym_task::TaskClient) {
+        spawn_future(async move {
+            self.run_with_shutdown(task_client).await;
+        })
     }
 }

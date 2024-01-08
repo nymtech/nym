@@ -10,6 +10,7 @@ use crate::client::inbound_messages::{InputMessage, InputMessageReceiver, InputM
 use crate::client::key_manager::persistence::KeyStore;
 use crate::client::mix_traffic::transceiver::{GatewayReceiver, GatewayTransceiver, RemoteGateway};
 use crate::client::mix_traffic::{BatchMixMessageSender, MixTrafficController};
+use crate::client::packet_statistics_control::PacketStatisticsControl;
 use crate::client::real_messages_control;
 use crate::client::real_messages_control::RealMessagesController;
 use crate::client::received_buffer::{
@@ -506,6 +507,12 @@ where
         Ok(())
     }
 
+    fn start_packet_statistics_control(shutdown: TaskClient) {
+        info!("Starting packet statistics control...");
+        let packet_statistics_control = PacketStatisticsControl::new();
+        packet_statistics_control.start_with_shutdown(shutdown);
+    }
+
     fn start_mix_traffic_controller(
         gateway_transceiver: Box<dyn GatewayTransceiver + Send>,
         shutdown: TaskClient,
@@ -632,6 +639,8 @@ where
             shutdown.fork("topology_refresher"),
         )
         .await?;
+
+        Self::start_packet_statistics_control(shutdown.fork("packet_statistics_control"));
 
         let gateway_packet_router = PacketRouter::new(
             ack_sender,

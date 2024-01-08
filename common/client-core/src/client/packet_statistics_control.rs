@@ -63,19 +63,26 @@ pub(crate) enum PacketStatisticsEvent {
     AdditionalReplySurbRequestQueued,
 }
 
+pub(crate) type PacketStatisticsReporter =
+    tokio::sync::mpsc::UnboundedSender<PacketStatisticsEvent>;
+type PacketStatisticsReceiver = tokio::sync::mpsc::UnboundedReceiver<PacketStatisticsEvent>;
+
 pub(crate) struct PacketStatisticsControl {
     // Incoming packet stats events from other tasks
-    stats_rx: tokio::sync::mpsc::UnboundedReceiver<PacketStatisticsEvent>,
+    stats_rx: PacketStatisticsReceiver,
     stats: PacketStatistics,
 }
 
 impl PacketStatisticsControl {
-    pub(crate) fn new() -> Self {
-        let (_, stats_rx) = tokio::sync::mpsc::unbounded_channel();
-        Self {
-            stats_rx,
-            stats: PacketStatistics::default(),
-        }
+    pub(crate) fn new() -> (Self, PacketStatisticsReporter) {
+        let (stats_tx, stats_rx) = tokio::sync::mpsc::unbounded_channel();
+        (
+            Self {
+                stats_rx,
+                stats: PacketStatistics::default(),
+            },
+            stats_tx,
+        )
     }
 
     fn report_statistics(&self) {

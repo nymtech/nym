@@ -25,6 +25,8 @@ use tokio::time::{sleep, Sleep};
 #[cfg(target_arch = "wasm32")]
 use wasmtimer::tokio::{sleep, Sleep};
 
+use super::packet_statistics_control::{PacketStatisticsEvent, PacketStatisticsReporter};
+
 pub struct LoopCoverTrafficStream<R>
 where
     R: CryptoRng + Rng,
@@ -62,6 +64,8 @@ where
     secondary_packet_size: Option<PacketSize>,
 
     packet_type: PacketType,
+
+    stats_tx: PacketStatisticsReporter,
 }
 
 impl<R> Stream for LoopCoverTrafficStream<R>
@@ -106,6 +110,7 @@ impl LoopCoverTrafficStream<OsRng> {
         topology_access: TopologyAccessor,
         traffic_config: config::Traffic,
         cover_config: config::CoverTraffic,
+        stats_tx: PacketStatisticsReporter,
     ) -> Self {
         let rng = OsRng;
 
@@ -123,6 +128,7 @@ impl LoopCoverTrafficStream<OsRng> {
             primary_packet_size: traffic_config.primary_packet_size,
             secondary_packet_size: traffic_config.secondary_packet_size,
             packet_type: traffic_config.packet_type,
+            stats_tx,
         }
     }
 
@@ -193,7 +199,14 @@ impl LoopCoverTrafficStream<OsRng> {
                 }
             }
         } else {
-            COVER_PACKETS_SENT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            // COVER_PACKETS_SENT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            if self
+                .stats_tx
+                .send(PacketStatisticsEvent::CoverPacketSent)
+                .is_err()
+            {
+                log::error!("Failed to send cover packet statistics event - channel closed");
+            }
         }
 
         // TODO: I'm not entirely sure whether this is really required, because I'm not 100%

@@ -50,5 +50,5 @@ pub async fn start_wireguard(
 
 #[cfg(not(target_os = "linux"))]
 pub async fn start_wireguard() {
-    todo!("WireGuard is currently only supported on Linux")
+    todo!("WireGuard is currently only supported on Linux");
 }

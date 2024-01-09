@@ -24,7 +24,7 @@ import { MixNodeResponse, MixnodeStatusWithAll, toMixnodeStatus } from '@src/typ
 import { NYM_BIG_DIPPER } from '@src/api/constants';
 import { currencyToString } from '@src/utils/currency';
 import { splice } from '@src/utils';
-import { useGetMixNodeStatusColor } from '@src/hooks';
+import { useGetMixNodeStatusColor, useIsMobile } from '@src/hooks';
 
 export const PageMixnodes: FCWithChildren = () => {
   const { mixnodes, fetchMixnodes } = useMainContext();
@@ -40,6 +40,7 @@ export const PageMixnodes: FCWithChildren = () => {
 
   const navigate = useNavigate();
   const wallet = useWallet();
+  const isMobile = useIsMobile();
 
   const handleNewDelegation = (delegationModalProps: DelegationModalProps) => {
     setItemSelectedForDelegation(undefined);
@@ -96,6 +97,22 @@ export const PageMixnodes: FCWithChildren = () => {
 
   const columns: GridColDef[] = [
     {
+      field: 'delegate',
+      disableColumnMenu: true,
+      disableReorder: true,
+      sortable: false,
+      width: isMobile ? 25 : 100,
+      headerAlign: 'left',
+      headerClassName: 'MuiDataGrid-header-override',
+      renderHeader: () => null,
+      renderCell: (params: GridRenderCellParams) => (
+        <DelegateIconButton
+          size="small"
+          onDelegate={() => handleOnDelegate({ identityKey: params.row.identity_key, mixId: params.row.mix_id })}
+        />
+      ),
+    },
+    {
       field: 'identity_key',
       width: 325,
       headerName: 'Identity Key',
@@ -105,10 +122,6 @@ export const PageMixnodes: FCWithChildren = () => {
       renderHeader: () => <CustomColumnHeading headingTitle="Identity Key" />,
       renderCell: (params: GridRenderCellParams) => (
         <Stack direction="row" alignItems="center" gap={1}>
-          <DelegateIconButton
-            size="small"
-            onDelegate={() => handleOnDelegate({ identityKey: params.value, mixId: params.row.mix_id })}
-          />
           <CopyToClipboard
             sx={{ mr: 0.5, color: 'grey.400' }}
             smallIcons

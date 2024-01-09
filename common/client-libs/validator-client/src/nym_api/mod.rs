@@ -51,7 +51,7 @@ pub trait NymApiClientExt: ApiClient {
         .await
     }
 
-    pub async fn get_all_mixnodes(&self) -> Result<Vec<MixNodeDetails>, NymAPIError> {
+    async fn get_all_mixnodes(&self) -> Result<Vec<MixNodeDetails>, NymAPIError> {
         self.get_json(
             &[routes::API_VERSION, routes::MIXNODES, routes::ALL],
             NO_PARAMS,
@@ -100,7 +100,7 @@ pub trait NymApiClientExt: ApiClient {
         .await
     }
 
-    pub async fn get_all_gateways(&self) -> Result<Vec<GatewayBond>, NymAPIError> {
+    async fn get_all_gateways(&self) -> Result<Vec<GatewayBond>, NymAPIError> {
         self.get_json(
             &[routes::API_VERSION, routes::GATEWAYS, routes::ALL],
             NO_PARAMS,
@@ -155,7 +155,7 @@ pub trait NymApiClientExt: ApiClient {
         .await
     }
 
-    pub async fn get_current_epoch(&self) -> Result<Interval, NymAPIError> {
+    async fn get_current_epoch(&self) -> Result<Interval, NymAPIError> {
         self.get_json(
             &[routes::API_VERSION, routes::EPOCH, routes::CURRENT],
             NO_PARAMS,

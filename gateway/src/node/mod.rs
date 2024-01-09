@@ -242,10 +242,8 @@ impl<St> Gateway<St> {
         websocket::Listener::new(
             listening_address,
             Arc::clone(&self.identity_keypair),
-            Arc::clone(&self.sphinx_keypair),
             self.config.gateway.only_coconut_credentials,
             coconut_verifier,
-            self.random_api_client(),
         )
         .start(
             forwarding_channel,

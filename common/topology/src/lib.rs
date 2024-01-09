@@ -184,7 +184,7 @@ impl NymTopology {
             layer_entry.push(node)
         }
 
-        NymTopology { mixes, gateways }
+        NymTopology::new(mixes, gateways)
     }
 
     #[cfg(feature = "serializable")]

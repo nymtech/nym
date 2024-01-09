@@ -6478,6 +6478,7 @@ dependencies = [
  "nym-network-defaults",
  "nym-network-requester",
  "nym-node",
+ "nym-noise",
  "nym-pemstore",
  "nym-sphinx",
  "nym-statistics-common",
@@ -6518,7 +6519,6 @@ dependencies = [
  "nym-crypto",
  "nym-gateway-requests",
  "nym-network-defaults",
- "nym-noise",
  "nym-pemstore",
  "nym-sphinx",
  "nym-task",
@@ -6685,6 +6685,7 @@ dependencies = [
  "nym-mixnet-client",
  "nym-mixnode-common",
  "nym-node",
+ "nym-noise",
  "nym-nonexhaustive-delayqueue",
  "nym-pemstore",
  "nym-sphinx",
@@ -6936,6 +6937,21 @@ dependencies = [
  "wasm-client-core",
  "wasm-utils",
  "wasmtimer",
+]
+
+[[package]]
+name = "nym-noise"
+version = "0.1.0"
+dependencies = [
+ "bytes",
+ "futures",
+ "log",
+ "nym-topology",
+ "pin-project",
+ "sha2 0.10.8",
+ "snow",
+ "thiserror",
+ "tokio",
 ]
 
 [[package]]

@@ -4,11 +4,15 @@
 use futures::channel::mpsc;
 use futures::StreamExt;
 use log::*;
+use nym_client_core::client::topology_control::accessor::TopologyAccessor;
+use nym_crypto::asymmetric::encryption;
+use nym_noise::upgrade_noise_initiator_with_topology;
 use nym_sphinx::addressing::nodes::NymNodeRoutingAddress;
 use nym_sphinx::framing::codec::NymCodec;
 use nym_sphinx::framing::packet::FramedNymPacket;
 use nym_sphinx::params::PacketType;
 use nym_sphinx::NymPacket;
+use nym_validator_client::NymApiClient;
 use std::collections::HashMap;
 use std::io;
 use std::net::SocketAddr;
@@ -59,6 +63,9 @@ pub trait SendWithoutResponse {
 pub struct Client {
     conn_new: HashMap<NymNodeRoutingAddress, ConnectionSender>,
     config: Config,
+    topology_access: TopologyAccessor,
+    api_client: NymApiClient,
+    local_identity: Arc<encryption::KeyPair>,
 }
 
 struct ConnectionSender {
@@ -76,10 +83,18 @@ impl ConnectionSender {
 }
 
 impl Client {
-    pub fn new(config: Config) -> Client {
+    pub fn new(
+        config: Config,
+        topology_access: TopologyAccessor,
+        api_client: NymApiClient,
+        local_identity: Arc<encryption::KeyPair>,
+    ) -> Client {
         Client {
             conn_new: HashMap::new(),
             config,
+            topology_access,
+            api_client,
+            local_identity,
         }
     }
 
@@ -88,6 +103,10 @@ impl Client {
         receiver: mpsc::Receiver<FramedNymPacket>,
         connection_timeout: Duration,
         current_reconnection: &AtomicU32,
+        topology_access: TopologyAccessor,
+        api_client: NymApiClient,
+        local_public_key: &[u8],
+        local_private_key: &[u8],
     ) {
         let connection_fut = TcpStream::connect(address);
 
@@ -97,7 +116,41 @@ impl Client {
                     debug!("Managed to establish connection to {}", address);
                     // if we managed to connect, reset the reconnection count (whatever it might have been)
                     current_reconnection.store(0, Ordering::Release);
-                    Framed::new(stream, NymCodec)
+                    //Get the topology, because we need the keys for the handshake
+                    let topology_ref = match topology_access.current_topology().await {
+                        Some(topology) => topology,
+                        None => {
+                            error!("Cannot perform Noise handshake to {address}, due to topology error");
+                            return;
+                        }
+                    };
+
+                    let epoch_id = match api_client.get_current_epoch_id().await {
+                        Ok(id) => id,
+                        Err(err) => {
+                            error!("Cannot perform Noise handshake to {address}, due to epoch id error - {err}");
+                            return;
+                        }
+                    };
+
+                    let noise_stream = match upgrade_noise_initiator_with_topology(
+                        stream,
+                        Default::default(),
+                        &topology_ref,
+                        epoch_id,
+                        local_public_key,
+                        local_private_key,
+                    )
+                    .await
+                    {
+                        Ok(noise_stream) => noise_stream,
+                        Err(err) => {
+                            error!("Failed to perform Noise handshake with {address} - {err}");
+                            return;
+                        }
+                    };
+                    debug!("Noise initiator handshake completed for {:?}", address);
+                    Framed::new(noise_stream, NymCodec)
                 }
                 Err(err) => {
                     debug!(
@@ -175,6 +228,11 @@ impl Client {
         // copy the value before moving into another task
         let initial_connection_timeout = self.config.initial_connection_timeout;
 
+        let topology_access_clone = self.topology_access.clone();
+        let api_client_clone = self.api_client.clone();
+        let local_public_key = self.local_identity.public_key().to_bytes();
+        let local_private_key = self.local_identity.private_key().to_bytes();
+
         tokio::spawn(async move {
             // before executing the manager, wait for what was specified, if anything
             if let Some(backoff) = backoff {
@@ -187,6 +245,10 @@ impl Client {
                 receiver,
                 initial_connection_timeout,
                 &current_reconnection_attempt,
+                topology_access_clone,
+                api_client_clone,
+                &local_public_key,
+                &local_private_key,
             )
             .await
         });
@@ -255,13 +317,16 @@ mod tests {
     use super::*;
 
     fn dummy_client() -> Client {
-        Client::new(Config {
-            initial_reconnection_backoff: Duration::from_millis(10_000),
-            maximum_reconnection_backoff: Duration::from_millis(300_000),
-            initial_connection_timeout: Duration::from_millis(1_500),
-            maximum_connection_buffer_size: 128,
-            use_legacy_version: false,
-        })
+        Client::new(
+            Config {
+                initial_reconnection_backoff: Duration::from_millis(10_000),
+                maximum_reconnection_backoff: Duration::from_millis(300_000),
+                initial_connection_timeout: Duration::from_millis(1_500),
+                maximum_connection_buffer_size: 128,
+                use_legacy_version: false,
+            },
+            TopologyAccessor::new(),
+        )
     }
 
     #[test]

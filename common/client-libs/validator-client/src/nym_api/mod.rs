@@ -21,7 +21,7 @@ use nym_api_requests::models::{
 };
 use nym_coconut_dkg_common::types::EpochId;
 use nym_mixnet_contract_common::mixnode::MixNodeDetails;
-use nym_mixnet_contract_common::{GatewayBond, IdentityKeyRef, MixId};
+use nym_mixnet_contract_common::{GatewayBond, IdentityKeyRef, Interval, MixId};
 use nym_name_service_common::response::NamesListResponse;
 use nym_service_provider_directory_common::response::ServicesListResponse;
 
@@ -46,6 +46,14 @@ pub trait NymApiClientExt: ApiClient {
                 routes::MIXNODES,
                 routes::DETAILED,
             ],
+            NO_PARAMS,
+        )
+        .await
+    }
+
+    pub async fn get_all_mixnodes(&self) -> Result<Vec<MixNodeDetails>, NymAPIError> {
+        self.get_json(
+            &[routes::API_VERSION, routes::MIXNODES, routes::ALL],
             NO_PARAMS,
         )
         .await
@@ -87,6 +95,14 @@ pub trait NymApiClientExt: ApiClient {
     async fn get_gateways_described(&self) -> Result<Vec<DescribedGateway>, NymAPIError> {
         self.get_json(
             &[routes::API_VERSION, routes::GATEWAYS, routes::DESCRIBED],
+            NO_PARAMS,
+        )
+        .await
+    }
+
+    pub async fn get_all_gateways(&self) -> Result<Vec<GatewayBond>, NymAPIError> {
+        self.get_json(
+            &[routes::API_VERSION, routes::GATEWAYS, routes::ALL],
             NO_PARAMS,
         )
         .await
@@ -134,6 +150,14 @@ pub trait NymApiClientExt: ApiClient {
                 &mix_id.to_string(),
                 routes::REPORT,
             ],
+            NO_PARAMS,
+        )
+        .await
+    }
+
+    pub async fn get_current_epoch(&self) -> Result<Interval, NymAPIError> {
+        self.get_json(
+            &[routes::API_VERSION, routes::EPOCH, routes::CURRENT],
             NO_PARAMS,
         )
         .await

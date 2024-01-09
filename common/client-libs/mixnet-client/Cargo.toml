@@ -16,3 +16,7 @@ tokio-util = { workspace = true, features = ["codec"] }
 # internal
 nym-sphinx = { path = "../../nymsphinx" }
 nym-task = { path = "../../task" }
+nym-client-core = { path = "../../client-core" }
+nym-noise = { path = "../../nymnoise"}
+nym-crypto = { path = "../../crypto" }
+nym-validator-client = { path = "../validator-client"}

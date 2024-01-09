@@ -83,6 +83,16 @@ impl<'a> TopologyReadPermit<'a> {
 
         Ok(topology)
     }
+
+    pub fn try_get_raw_topology_ref(&'a self) -> Result<&'a NymTopology, NymTopologyError> {
+        // 1. Have we managed to get anything from the refresher, i.e. have the nym-api queries gone through?
+        let topology = self
+            .permit
+            .as_ref()
+            .ok_or(NymTopologyError::EmptyNetworkTopology)?;
+
+        Ok(topology)
+    }
 }
 
 impl<'a> From<RwLockReadGuard<'a, Option<NymTopology>>> for TopologyReadPermit<'a> {

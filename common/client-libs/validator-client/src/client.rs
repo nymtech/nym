@@ -271,6 +271,14 @@ impl NymApiClient {
         Ok(self.nym_api.get_mixnodes().await?)
     }
 
+    pub async fn get_all_mixnodes(&self) -> Result<Vec<MixNodeDetails>, ValidatorClientError> {
+        Ok(self.nym_api.get_all_mixnodes().await?)
+    }
+
+    pub async fn get_all_gateways(&self) -> Result<Vec<GatewayBond>, ValidatorClientError> {
+        Ok(self.nym_api.get_all_gateways().await?)
+    }
+
     pub async fn get_cached_gateways(&self) -> Result<Vec<GatewayBond>, ValidatorClientError> {
         Ok(self.nym_api.get_gateways().await?)
     }
@@ -279,6 +287,12 @@ impl NymApiClient {
         &self,
     ) -> Result<Vec<DescribedGateway>, ValidatorClientError> {
         Ok(self.nym_api.get_gateways_described().await?)
+    }
+
+    pub async fn get_current_epoch_id(
+        &self,
+    ) -> Result<nym_mixnet_contract_common::EpochId, ValidatorClientError> {
+        Ok(self.nym_api.get_current_epoch().await?.current_epoch_id())
     }
 
     pub async fn get_gateway_core_status_count(

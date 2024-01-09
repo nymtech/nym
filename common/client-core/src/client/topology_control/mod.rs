@@ -16,9 +16,9 @@ use tokio::time::sleep;
 #[cfg(target_arch = "wasm32")]
 use wasmtimer::tokio::sleep;
 
-mod accessor;
+pub mod accessor;
 pub mod geo_aware_provider;
-pub(crate) mod nym_api_provider;
+pub mod nym_api_provider;
 
 // TODO: move it to config later
 const MAX_FAILURE_COUNT: usize = 10;

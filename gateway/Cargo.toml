@@ -82,6 +82,10 @@ nym-ip-packet-router = { path = "../service-providers/ip-packet-router" }
 nym-wireguard = { path = "../common/wireguard", optional = true }
 defguard_wireguard_rs = { git = "https://github.com/neacsu/wireguard-rs.git", rev = "c2cd0c1119f699f4bc43f5e6ffd6fc242caa42ed", optional = true }
 
+nym-validator-client = { path = "../common/client-libs/validator-client"}
+nym-topology = { path = "../common/topology" }
+nym-noise = { path = "../common/nymnoise" }
+
 [dev-dependencies]
 tower = "0.4.13"
 rand = "0.8.5"

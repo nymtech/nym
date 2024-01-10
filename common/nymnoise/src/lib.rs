@@ -63,23 +63,13 @@ pub enum NoisePattern {
     #[default]
     XKpsk3,
     IKpsk2,
-
-    //DEMO MODE, TO BE DELETED
-    NN,
-    XXpsk0,
-    XKpsk3Var,
 }
 
 impl NoisePattern {
     fn as_str(&self) -> &'static str {
         match self {
             Self::XKpsk3 => "Noise_XKpsk3_25519_AESGCM_SHA256",
-            Self::IKpsk2 => "Noise_IKpsk2_25519_ChaChaPoly_BLAKE2s", //Wireguard handshake
-
-            //DEMO MODE, TO BE DELETED
-            Self::NN => "Noise_NN_25519_AESGCM_SHA256",
-            Self::XXpsk0 => "Noise_XXpsk0_25519_AESGCM_SHA256",
-            Self::XKpsk3Var => "Noise_XKpsk3_25519_ChaChaPoly_BLAKE2s",
+            Self::IKpsk2 => "Noise_IKpsk2_25519_ChaChaPoly_BLAKE2s", //Wireguard handshake (not exactly though)
         }
     }
 
@@ -161,6 +151,10 @@ impl NoiseStream {
         let mut buf = vec![0u8; MAXMSGLEN];
         handshake.read_message(&msg, &mut buf)?;
         Ok(())
+    }
+
+    pub fn peer_addr(&self) -> Result<std::net::SocketAddr, io::Error> {
+        self.inner_stream.peer_addr()
     }
 }
 

@@ -9,33 +9,29 @@ function ConnectionStatus() {
 
   const { t } = useTranslation('home');
   const statusBadgeDynStyles = {
-    Connected: [
-      'bg-blanc-nacre-icicle',
-      'text-vert-menthe',
-      'dark:bg-baltic-sea-quartzite',
-    ],
+    Connected: ['text-vert-menthe', 'bg-vert-prasin bg-opacity-10'],
     Disconnected: [
-      'bg-blanc-nacre-platinum',
+      'bg-cement-feet bg-opacity-10',
       'text-coal-mine-light',
-      'dark:bg-baltic-sea-oil',
+      'dark:bg-oil dark:bg-opacity-15',
       'dark:text-coal-mine-dark',
     ],
     Connecting: [
-      'bg-blanc-nacre-platinum',
+      'bg-cement-feet bg-opacity-10',
       'text-baltic-sea',
-      'dark:bg-baltic-sea-oil',
+      'dark:bg-oil dark:bg-opacity-15',
       'dark:text-white',
     ],
     Disconnecting: [
-      'bg-blanc-nacre-platinum',
+      'bg-cement-feet bg-opacity-10',
       'text-baltic-sea',
-      'dark:bg-baltic-sea-oil',
+      'dark:bg-oil dark:bg-opacity-15',
       'dark:text-white',
     ],
     Unknown: [
-      'bg-blanc-nacre-platinum',
+      'bg-cement-feet bg-opacity-10',
       'text-coal-mine-light',
-      'dark:bg-baltic-sea-oil',
+      'dark:bg-oil dark:bg-opacity-15',
       'dark:text-coal-mine-dark',
     ],
   };
@@ -60,7 +56,7 @@ function ConnectionStatus() {
         <div
           className={clsx([
             ...statusBadgeDynStyles[state.state],
-            'font-bold py-4 px-6 rounded-full text-lg',
+            'text-lg font-bold py-3 px-6 rounded-full',
           ])}
         >
           {getStatusText(state.state)}
@@ -69,7 +65,7 @@ function ConnectionStatus() {
       <div className="w-full flex flex-col flex-1 items-center overflow-hidden">
         {state.loading && state.progressMessages.length > 0 && !state.error && (
           <div className="w-4/5 h-2/3 overflow-scroll break-words text-center">
-            <p className="text-dim-gray dark:text-mercury-mist font-bold">
+            <p className="text-sm text-dim-gray dark:text-mercury-mist font-bold">
               {t(
                 `connection-progress.${
                   state.progressMessages[state.progressMessages.length - 1]
@@ -84,7 +80,7 @@ function ConnectionStatus() {
         {state.state === 'Connected' && <ConnectionTimer />}
         {state.error && (
           <div className="w-4/5 h-2/3 overflow-scroll break-words text-center">
-            <p className="text-teaberry font-bold">{state.error}</p>
+            <p className="text-sm text-teaberry font-bold">{state.error}</p>
           </div>
         )}
       </div>

@@ -32,8 +32,8 @@ export default function HopSelect({
     >
       <div
         className={clsx([
-          'absolute left-3 -top-3 px-1',
-          'bg-blanc-nacre dark:bg-baltic-sea text-sm',
+          'absolute left-3 -top-2.5 px-1',
+          'bg-blanc-nacre dark:bg-baltic-sea text-xs',
         ])}
       >
         {nodeHop === 'entry' ? t('first-hop') : t('last-hop')}

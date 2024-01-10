@@ -59,7 +59,7 @@ function NetworkModeSelect() {
       <RadioGroup value={selected} onChange={handleSelect}>
         <RadioGroup.Label
           as="div"
-          className="font-semibold text-lg text-baltic-sea dark:text-white mb-5"
+          className="font-semibold text-base text-baltic-sea dark:text-white mb-6"
         >
           {t('select-network-label')}
         </RadioGroup.Label>
@@ -70,7 +70,7 @@ function NetworkModeSelect() {
               value={mode.name}
               className={({ checked }) =>
                 clsx([
-                  'bg-white dark:bg-baltic-sea-jaguar relative flex rounded-lg px-5 py-3 shadow-md focus:outline-none',
+                  'bg-white dark:bg-baltic-sea-jaguar relative flex rounded-lg px-5 py-2 focus:outline-none',
                   (state.state !== 'Disconnected' || loading) &&
                     'cursor-not-allowed',
                   checked &&
@@ -88,7 +88,7 @@ function NetworkModeSelect() {
                         radio_button_checked
                       </span>
                     ) : (
-                      <span className="font-icon text-2xl text-mercury-pinkish">
+                      <span className="font-icon text-2xl text-cement-feet dark:laughing-jack">
                         radio_button_unchecked
                       </span>
                     )}
@@ -96,13 +96,16 @@ function NetworkModeSelect() {
                       <div className="text-sm">
                         <RadioGroup.Label
                           as="p"
-                          className="font-semibold text-lg text-baltic-sea dark:text-mercury-pinkish"
+                          className={clsx([
+                            'text-base text-baltic-sea dark:text-mercury-pinkish',
+                            checked && 'font-semibold',
+                          ])}
                         >
                           {mode.title}
                         </RadioGroup.Label>
                         <RadioGroup.Description
                           as="span"
-                          className="text-base text-cement-feet dark:text-mercury-mist"
+                          className="text-sm text-cement-feet dark:text-mercury-mist"
                         >
                           <span>{mode.desc}</span>
                         </RadioGroup.Description>

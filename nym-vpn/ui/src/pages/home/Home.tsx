@@ -79,36 +79,38 @@ function Home() {
       <div className="flex grow flex-col justify-between gap-y-6">
         <div className="flex flex-col justify-between gap-y-4">
           <NetworkModeSelect />
-          <div className="flex flex-col gap-4">
-            <div className="mt-3 font-semibold text-lg">
+          <div className="flex flex-col gap-6">
+            <div className="mt-3 text-base font-semibold">
               {t('select-node-title')}
             </div>
-            {entrySelector && (
+            <div className="flex flex-col gap-5">
+              {entrySelector && (
+                <HopSelect
+                  country={entryNodeLocation || defaultNodeLocation}
+                  onClick={() => {
+                    if (state === 'Disconnected') {
+                      navigate(routes.entryNodeLocation);
+                    }
+                  }}
+                  nodeHop="entry"
+                />
+              )}
               <HopSelect
-                country={entryNodeLocation || defaultNodeLocation}
+                country={exitNodeLocation || defaultNodeLocation}
                 onClick={() => {
                   if (state === 'Disconnected') {
-                    navigate(routes.entryNodeLocation);
+                    navigate(routes.exitNodeLocation);
                   }
                 }}
-                nodeHop="entry"
+                nodeHop="exit"
               />
-            )}
-            <HopSelect
-              country={exitNodeLocation || defaultNodeLocation}
-              onClick={() => {
-                if (state === 'Disconnected') {
-                  navigate(routes.exitNodeLocation);
-                }
-              }}
-              nodeHop="exit"
-            />
+            </div>
           </div>
         </div>
         <Button
           className={clsx([
             'flex justify-center items-center',
-            'rounded-lg text-lg font-bold py-4 px-6 h-16',
+            'rounded-lg text-lg font-bold py-3 px-6',
             'focus:outline-none focus:ring-4 focus:ring-black focus:dark:ring-white shadow',
             (state === 'Disconnected' || state === 'Connecting') &&
               'bg-melon text-white dark:text-baltic-sea',

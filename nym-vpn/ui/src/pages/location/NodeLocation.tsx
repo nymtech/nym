@@ -74,7 +74,7 @@ function NodeLocation({ node }: { node: NodeHop }) {
           onChange={filter}
           placeholder={t('search-country')}
         />
-        <span className="mt-3" />
+        <span className="mt-2" />
         <CountryList
           countries={foundCountries}
           onClick={handleCountrySelection}

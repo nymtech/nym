@@ -26,7 +26,6 @@ use dashmap::DashMap;
 use defguard_wireguard_rs::{WGApi, WireguardInterfaceApi};
 use futures::channel::{mpsc, oneshot};
 use log::*;
-use nym_bin_common::output_format::OutputFormat;
 use nym_client_core::client::topology_control::accessor::TopologyAccessor;
 use nym_client_core::client::topology_control::nym_api_provider::NymApiTopologyProvider;
 use nym_client_core::client::topology_control::TopologyRefresher;
@@ -515,7 +514,7 @@ impl<St> Gateway<St> {
             let nyxd_client = self.random_nyxd_client()?;
             CoconutVerifier::new(nyxd_client).await
         };
-        let random_api_client = self.random_api_client();
+        let random_api_client = self.random_api_client()?;
         let topology_provider = Self::setup_topology_provider(self.config.get_nym_api_endpoints());
         let shared_topology_access = TopologyAccessor::new();
 

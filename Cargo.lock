@@ -6635,8 +6635,10 @@ dependencies = [
  "nym-sphinx",
  "nym-task",
  "nym-validator-client",
+ "rand 0.7.3",
  "tokio",
  "tokio-util",
+ "url",
 ]
 
 [[package]]

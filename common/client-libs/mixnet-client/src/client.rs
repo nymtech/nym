@@ -315,8 +315,11 @@ impl SendWithoutResponse for Client {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rand::rngs::OsRng;
+    use url::Url;
 
     fn dummy_client() -> Client {
+        let mut rng = OsRng;
         Client::new(
             Config {
                 initial_reconnection_backoff: Duration::from_millis(10_000),
@@ -326,6 +329,8 @@ mod tests {
                 use_legacy_version: false,
             },
             TopologyAccessor::new(),
+            NymApiClient::new(Url::parse("http://dummy.url").unwrap()),
+            Arc::new(encryption::KeyPair::new(&mut rng)),
         )
     }
 

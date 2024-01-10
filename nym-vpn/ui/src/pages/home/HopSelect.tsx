@@ -41,7 +41,7 @@ export default function HopSelect({
       <div className="flex flex-row items-center gap-3">
         <img
           src={`./flags/${country.code.toLowerCase()}.svg`}
-          className="h-8 scale-90 pointer-events-none fill-current"
+          className="h-7 scale-90 pointer-events-none fill-current"
           alt={country.code}
         />
         <div className="text-base">{country.name}</div>

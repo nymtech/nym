@@ -75,8 +75,10 @@ function Home() {
 
   return (
     <div className="h-full flex flex-col p-4">
-      <ConnectionStatus />
-      <div className="flex grow flex-col justify-between gap-y-6">
+      <div className="grow">
+        <ConnectionStatus />
+      </div>
+      <div className="flex flex-col justify-between gap-y-6">
         <div className="flex flex-col justify-between gap-y-4">
           <NetworkModeSelect />
           <div className="flex flex-col gap-6">

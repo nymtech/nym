@@ -8,6 +8,7 @@ function ConnectionStatus() {
   const state = useMainState();
 
   const { t } = useTranslation('home');
+
   const statusBadgeDynStyles = {
     Connected: ['text-vert-menthe', 'bg-vert-prasin bg-opacity-10'],
     Disconnected: [
@@ -51,7 +52,7 @@ function ConnectionStatus() {
     }
   };
   return (
-    <div className="h-72 flex flex-col justify-center items-center gap-y-2">
+    <div className="h-full min-h-64 flex flex-col justify-center items-center gap-y-2">
       <div className="flex flex-1 items-end">
         <div
           className={clsx([

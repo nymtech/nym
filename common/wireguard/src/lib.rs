@@ -8,21 +8,17 @@ pub mod setup;
 use nym_wireguard_types::registration::GatewayClientRegistry;
 use std::sync::Arc;
 
-#[cfg(target_os = "linux")]
-use defguard_wireguard_rs::{
-    host::Peer, key::Key, net::IpAddrMask, InterfaceConfiguration, WGApi, WireguardInterfaceApi,
-};
-
-#[cfg(target_os = "linux")]
-use nym_network_defaults::{WG_PORT, WG_TUN_DEVICE_ADDRESS};
-
 /// Start wireguard device
 #[cfg(target_os = "linux")]
 pub async fn start_wireguard(
     mut task_client: nym_task::TaskClient,
     _gateway_client_registry: Arc<GatewayClientRegistry>,
-) -> Result<WGApi, Box<dyn std::error::Error + Send + Sync + 'static>> {
+) -> Result<defguard_wireguard_rs::WGApi, Box<dyn std::error::Error + Send + Sync + 'static>> {
     use crate::setup::{peer_allowed_ips, peer_static_public_key, PRIVATE_KEY};
+    use defguard_wireguard_rs::{
+        host::Peer, key::Key, net::IpAddrMask, InterfaceConfiguration, WGApi, WireguardInterfaceApi,
+    };
+    use nym_network_defaults::{WG_PORT, WG_TUN_DEVICE_ADDRESS};
 
     let ifname = String::from("wg0");
     let wgapi = WGApi::new(ifname.clone(), false)?;

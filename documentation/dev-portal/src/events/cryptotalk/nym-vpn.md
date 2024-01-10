@@ -1,8 +1,19 @@
 # NymVPN alpha
 
-Nym has announced [NymVPN](https://nymvpn.com/en) and presented the [NymVPN Litepaper](https://nymvpn.com/nymVPN-litepaper.pdf). At CCC 2023 we have the unique opportunity to do the first alpha public testing. This page provides a how to guide, explaining steps to install and run NymVPN CLI and GUI on the Nym Sandbox testnet. 
+<div style="padding:56.25% 0 0 0;position:relative;"><iframe src="https://player.vimeo.com/video/897010658?h=1f55870fe6&amp;badge=0&amp;autopause=0&amp;player_id=0&amp;app_id=58479" frameborder="0" allow="autoplay; fullscreen; picture-in-picture" style="position:absolute;top:0;left:0;width:100%;height:100%;" title="NYMVPN alpha demo 37C3"></iframe></div><script src="https://player.vimeo.com/api/player.js"></script>
+
+We are honored to present NymVPN, a client that uses [Nym Mixnet](https://nymtech.net) to anonymise users entire internet traffic through either a 5-hop mixnet for a full network privacy or through the faster 2-hop decentralised VPN with extra features. At this event we have the unique opportunity to be part of the initial alpha testing. The following pages provides a how to guide, explaining steps to install and run NymVPN CLI and GUI on our testing environment Nym Sandbox. 
  
-NymVPN is a client that uses [Nym Mixnet](https://nymtech.net) to anonymise users entire internet traffic.
+## Guides 
+
+* [GNU/Linux](.nym-vpn-linux.md)
+* [Mac OS](nym-vpn-mac.md)
+* [Testing scripts](nym-vpn-testing.md)
+* [NymVPN FAQ](faq.md)
+
+## NymVPN
+
+> The following overview provides an easy introduction to the NymVPN alpha client. We recommend interested developers to begin with [Nym network overview](https://nymtech.net/docs/architecture/network-overview.html) and the [Mixnet traffic flow](https://nymtech.net/docs/architecture/traffic-flow.html) pages.
 
 The default is to run in 5-hop mode: 
 
@@ -20,11 +31,7 @@ Users can switch to 2-hop only mode, which is a faster but less private option. 
 
 The client can optionally do the first connection to the entry gateway using Wireguard. NymVPN uses Mullvad libraries for wrapping `wireguard-go` and to setup local routing rules to route all traffic to the TUN virtual network device.
 
-```admonish warning
-NymVPN is an experimental software and it's for [testing](./nym-vpn.md#testing) purposes only. All users testing the client are expected to sign GDPR Information Sheet and Consent Form (shared at the event), and follow the steps listed in the form [*NymVPN User research at 37c3*](https://opnform.com/forms/nymvpn-user-research-at-37c3-yccqko).
-```
-
-## Goals
+## Goals of testing
 
 This alpha testing will help:
 
@@ -35,10 +42,10 @@ This alpha testing will help:
  
  
 ```admonish info
-Our alpha testing round is done live with some participants at CCC 2023. This guide will not work for everyone, as the NymVPN binaries aren't publicly accessible yet. Note that this setup of Nym testnet Sandbox environment is limited for CCC 2023 event and some of the configurations will not work in the future.
+Our alpha testing round is done live with some participants at the event. This guide will not work for everyone, as the NymVPN binaries aren't publicly accessible yet. Note that this setup of Nym testnet Sandbox environment is limited event and some of the configurations will not work in the future.
 ```
 
-> **If you commit to test NymVPN alpha, please start with the [user research form](https://opnform.com/forms/nymvpn-user-research-at-37c3-yccqko) where all the steps will be provided**. 
+> **If you commit to test NymVPN alpha, please start with the [user research form](https://opnform.com/forms/nymvpn-user-research-at-37c3-yccqko-2) where all the steps will be provided**. 
 
 ## Preparation
 

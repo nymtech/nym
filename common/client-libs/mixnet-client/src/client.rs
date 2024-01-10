@@ -105,8 +105,7 @@ impl Client {
         current_reconnection: &AtomicU32,
         topology_access: TopologyAccessor,
         api_client: NymApiClient,
-        local_public_key: &[u8],
-        local_private_key: &[u8],
+        local_identity: Arc<encryption::KeyPair>,
     ) {
         let connection_fut = TcpStream::connect(address);
 
@@ -138,8 +137,8 @@ impl Client {
                         Default::default(),
                         &topology_ref,
                         epoch_id,
-                        local_public_key,
-                        local_private_key,
+                        &local_identity.public_key().to_bytes(),
+                        &local_identity.private_key().to_bytes(),
                     )
                     .await
                     {
@@ -230,8 +229,7 @@ impl Client {
 
         let topology_access_clone = self.topology_access.clone();
         let api_client_clone = self.api_client.clone();
-        let local_public_key = self.local_identity.public_key().to_bytes();
-        let local_private_key = self.local_identity.private_key().to_bytes();
+        let local_id_key = self.local_identity.clone();
 
         tokio::spawn(async move {
             // before executing the manager, wait for what was specified, if anything
@@ -247,8 +245,7 @@ impl Client {
                 &current_reconnection_attempt,
                 topology_access_clone,
                 api_client_clone,
-                &local_public_key,
-                &local_private_key,
+                local_id_key,
             )
             .await
         });

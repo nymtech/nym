@@ -73,6 +73,7 @@
     - [NymVPN MacOS Guide](events/cryptotalk/nym-vpn-mac.md)
     - [NymVPN Testing](events/cryptotalk/nym-vpn-testing.md)
     - [NymVPN Troubleshooting](events/cryptotalk/nym-vpn-troubleshooting.md)
+    - [NymVPN FAQ](events/cryptotalk/nym-vpn-faq.md)
 - [Web3Privacy Now](./events/web3-privacy.md)
 - [HCPP23-serinko](./events/hcpp23-serinko.md)
 - [HCPP23-max](./events/hcpp23-max.md)

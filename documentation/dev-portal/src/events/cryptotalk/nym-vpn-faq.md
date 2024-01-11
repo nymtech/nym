@@ -6,11 +6,11 @@ This is a FAQ page tailored for this event. If you interested to read more about
 
 If this your first time hearing about NymVPN, make sure you read [NymVPN webpage](https://nymvpn.com/en), the official [support & FAQ page](https://nymvpn.com/en/support) and our guide on how to [install, run and test](./nym-vpn.md) the client.
 
-Below are some extra FAQ's which came out during the event.
+Below are some extra FAQs which came out during the event.
 
 ### What's the difference between 2-hops and 5-hops
 
-The default is 5-hops (including Entry and Exit Gateways), which means that the traffic goes from the local client to Entry Gateway -> though 3 layes of Mix Nodes -> to Exit Gateway -> internet. this option uses all the Nym Mixnet features for maximum privacy.
+The default is 5-hops (including Entry and Exit Gateways), which means that the traffic goes from the local client to Entry Gateway -> through 3 layers of Mix Nodes -> to Exit Gateway -> internet. this option uses all the Nym Mixnet features for maximum privacy.
 
 ```
                       ┌─►mix──┐  mix     mix
@@ -22,7 +22,7 @@ client ───► Gateway ──┘  mix  │  mix  ┌─►mix ───► 
                          mix  └─►mix──┘  mix
 ```
 
-The 2-hop option is going from the local client -> Entry Gateway -> directly to Exit Gateway -> internet. This option is good for operations demanding faster connection. Keep in mind that this setup by-passes the 3 layers of Mix Nodes, however the anonymising features happening in your local client still apply.
+The 2-hop option is going from the local client -> Entry Gateway -> directly to Exit Gateway -> internet. This option is good for operations demanding faster connection. Keep in mind that this setup by-passes the 3 layers of Mix Nodes. The anonymising features done by your local client like breaking data into same-size packets with inserting additional "dummy" ones to break the time and volume patterns is done in both options.
 
 ```
             Entry         Exit

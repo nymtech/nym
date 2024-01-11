@@ -1,9 +1,4 @@
-#TODO
-1. exhange the binray release link
-2.
-
 # NymVPN alpha: Guide for GNU/Linux
-
 
 ```admonish warning
 NymVPN is an experimental software and it's for [testing](./nym-vpn-testing.md) purposes only. All users testing the client are expected to sign GDPR Information Sheet and Consent Form (shared at the event), and follow the steps listed in the form [*NymVPN User research*](https://opnform.com/forms/nymvpn-user-research-at-37c3-yccqko-2).

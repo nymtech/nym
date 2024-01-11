@@ -1,9 +1,3 @@
-#TODO
-1. echange the binary release link
-2. publish sha256sums
-4. change binary name on "make executable for GUI" chmod command and GUI run command
-
-
 # NymVPN alpha: Guide for Mac OS
 
 ```admonish warning

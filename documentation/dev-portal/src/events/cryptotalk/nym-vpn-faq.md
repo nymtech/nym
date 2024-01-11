@@ -4,9 +4,9 @@ This is a FAQ page tailored for this event. If you interested to read more about
 
 ## NymVPN
 
-If this your first time hearing about NymVPN, make sure you read [NymVPN webpage](https://nymvpn.com/en), the official [support & FAQ page](https://nymvpn.com/en/support) and our guide on how to [install, run and test](./nym-vpn.md) the client.
+If this your first time hearing about NymVPN, make sure you visit [NymVPN webpage](https://nymvpn.com/en), the official NymVPN [support & FAQ page](https://nymvpn.com/en/support) and the proceed to the introduction and guide on how to [install, run and test](./nym-vpn.md) the client.
 
-Below are some extra FAQs which came out during the event.
+Below are some extra FAQs which came out during the initial alpha testing round.
 
 ### What's the difference between 2-hops and 5-hops
 

@@ -5,14 +5,13 @@
 
 pub mod setup;
 
-use nym_wireguard_types::registration::GatewayClientRegistry;
-use std::sync::Arc;
-
 /// Start wireguard device
 #[cfg(target_os = "linux")]
 pub async fn start_wireguard(
     mut task_client: nym_task::TaskClient,
-    _gateway_client_registry: Arc<GatewayClientRegistry>,
+    _gateway_client_registry: std::sync::Arc<
+        nym_wireguard_types::registration::GatewayClientRegistry,
+    >,
 ) -> Result<defguard_wireguard_rs::WGApi, Box<dyn std::error::Error + Send + Sync + 'static>> {
     use crate::setup::{peer_allowed_ips, peer_static_public_key, PRIVATE_KEY};
     use defguard_wireguard_rs::{

@@ -4,16 +4,6 @@
 
 We are honored to present NymVPN, a client that uses [Nym Mixnet](https://nymtech.net) to anonymise all of a user's internet traffic through either a 5-hop mixnet (for a full network privacy) or the faster 2-hop decentralised VPN (with some extra features). At this event we have the unique opportunity to be part of the initial alpha testing. The following pages provide a how-to guide, explaining steps to install and run NymVPN CLI and GUI on our testing environment Nym Sandbox.
 
-## NymVPN Guide & FAQ pages
-
-To download, install and test NymVPN alpha, visit pages listed below:
-
-* [GNU/Linux](nym-vpn-linux.md)
-* [Mac OS](nym-vpn-mac.md)
-* [Testing scripts](nym-vpn-testing.md)
-* [Troubleshooting](nym-vpn-troubleshooting.md)
-* [NymVPN FAQ](nym-vpn-faq.md)
-
 ## NymVPN
 
 The following overview provides an easy introduction to the NymVPN alpha client. We recommend interested developers to begin with [Nym network overview](https://nymtech.net/docs/architecture/network-overview.html) and the [Mixnet traffic flow](https://nymtech.net/docs/architecture/traffic-flow.html) pages.
@@ -33,6 +23,16 @@ client ───► Gateway ──┘  mix  │  mix  ┌─►mix ───► 
 Users can switch to 2-hop only mode, which is a faster but less private option. In this mode traffic is only sent between the two Gateways, and is not passed between Mix Nodes.
 
 The client can optionally do the first hop (local client to Entry Gateway) using Wireguard. NymVPN uses Mullvad libraries for wrapping `wireguard-go` and to setup local routing rules to route all traffic to the TUN virtual network device.
+
+## NymVPN Guide & FAQ pages
+
+To download, install and test NymVPN alpha, visit pages listed below:
+
+* [GNU/Linux](nym-vpn-linux.md)
+* [Mac OS](nym-vpn-mac.md)
+* [Testing scripts](nym-vpn-testing.md)
+* [Troubleshooting](nym-vpn-troubleshooting.md)
+* [NymVPN FAQ](nym-vpn-faq.md)
 
 ## Goals of testing
 

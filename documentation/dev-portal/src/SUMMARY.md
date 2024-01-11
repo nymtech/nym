@@ -68,7 +68,7 @@
 
 # Events
 
-- [cryptotalk](events/cryptotalk/nym-vpn.md)
+- [CryptoTalk](events/cryptotalk/nym-vpn.md)
     - [NymVPN Linux Guide](events/cryptotalk/nym-vpn-linux.md)
     - [NymVPN MacOS Guide](events/cryptotalk/nym-vpn-mac.md)
     - [NymVPN Testing](events/cryptotalk/nym-vpn-testing.md)

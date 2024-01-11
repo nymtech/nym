@@ -53,7 +53,7 @@ function ConnectionStatus() {
   };
   return (
     <div className="h-full min-h-52 flex flex-col justify-center items-center gap-y-2">
-      <div className="flex flex-1 items-end">
+      <div className="flex flex-1 items-end select-none hover:cursor-default">
         <div
           className={clsx([
             ...statusBadgeDynStyles[state.state],

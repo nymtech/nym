@@ -5,7 +5,7 @@ import {
   Feedback,
   Home,
   Legal,
-  NavLayout,
+  MainLayout,
   NodeLocation,
   Settings,
   SettingsLayout,
@@ -15,7 +15,7 @@ import { routes } from './constants';
 const router = createBrowserRouter([
   {
     path: routes.root,
-    element: <NavLayout />,
+    element: <MainLayout />,
     children: [
       {
         element: <Home />,

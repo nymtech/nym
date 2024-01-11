@@ -57,24 +57,16 @@ function Home() {
       case 'Disconnected':
         return t('connect');
       case 'Connecting':
-        return (
-          <div className="flex justify-center items-center animate-spin">
-            <span className="font-icon text-2xl font-medium">autorenew</span>
-          </div>
-        );
+        return <span className="font-icon text-xl font-medium">autorenew</span>;
       case 'Disconnecting':
-        return (
-          <div className="flex justify-center items-center animate-spin">
-            <span className="font-icon text-2xl font-medium">autorenew</span>
-          </div>
-        );
+        return <span className="font-icon text-xl font-medium">autorenew</span>;
       case 'Unknown':
         return t('status.unknown');
     }
   }, [state, t]);
 
   return (
-    <div className="h-full flex flex-col p-4">
+    <div className="h-full flex flex-col">
       <div className="grow">
         <ConnectionStatus />
       </div>
@@ -118,6 +110,7 @@ function Home() {
               'bg-melon text-white dark:text-baltic-sea',
             (state === 'Connected' || state === 'Disconnecting') &&
               'bg-cornflower text-white dark:text-baltic-sea',
+            loading && 'cursor-progress',
           ])}
           onClick={handleClick}
           disabled={loading}

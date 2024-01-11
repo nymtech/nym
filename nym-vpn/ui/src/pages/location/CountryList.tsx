@@ -14,6 +14,7 @@ export default function CountryList({
   isSelected,
 }: CountryListProps) {
   const { t } = useTranslation('nodeLocation');
+
   return (
     <ul className="flex flex-col w-full items-stretch gap-1">
       {countries && countries.length > 0 ? (

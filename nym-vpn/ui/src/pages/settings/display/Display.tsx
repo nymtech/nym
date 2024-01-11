@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import clsx from 'clsx';
 import { invoke } from '@tauri-apps/api';
 import { Switch } from '@headlessui/react';
+import { useTranslation } from 'react-i18next';
 import { useMainDispatch, useMainState } from '../../../contexts';
 import { StateDispatch } from '../../../types';
 import UiScaler from './UiScaler';
@@ -9,6 +10,7 @@ import UiScaler from './UiScaler';
 function Display() {
   const state = useMainState();
   const dispatch = useMainDispatch() as StateDispatch;
+  const { t } = useTranslation();
 
   const [darkModeEnabled, setDarkModeEnabled] = useState(
     state.uiTheme === 'Dark',
@@ -32,7 +34,7 @@ function Display() {
   };
 
   return (
-    <div className="h-full flex flex-col p-4 py-6 gap-6">
+    <div className="h-full flex flex-col py-6 gap-6">
       <div
         className={clsx([
           'flex flex-row justify-between items-center',
@@ -40,8 +42,8 @@ function Display() {
           'px-6 py-4 rounded-lg',
         ])}
       >
-        <p className="text-lg text-baltic-sea dark:text-mercury-pinkish">
-          Dark Mode
+        <p className="text-base text-baltic-sea dark:text-mercury-pinkish select-none">
+          {t('ui-mode.dark')}
         </p>
         <Switch
           checked={darkModeEnabled}

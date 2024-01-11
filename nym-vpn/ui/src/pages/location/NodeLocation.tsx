@@ -66,7 +66,7 @@ function NodeLocation({ node }: { node: NodeHop }) {
   };
 
   return (
-    <div className="h-full flex flex-col p-4">
+    <div className="h-full flex flex-col">
       <div className="h-70 flex flex-col justify-center items-center gap-y-2">
         <QuickConnect onClick={handleCountrySelection} />
         <SearchBox

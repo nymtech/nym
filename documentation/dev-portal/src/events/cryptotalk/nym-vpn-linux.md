@@ -8,18 +8,50 @@ NymVPN is an experimental software and it's for [testing](./nym-vpn-testing.md) 
 
 > Any syntax in `<>` brackets is a user's/version unique variable. Exchange with a corresponding name without the `<>` brackets.
 
-![](images/image1.png)
+You can use our automated script of follow the steps below to download, verify, install and run NymVPN client. 
 
-* [ ] Visit the [releases page](https://github.com/nymtech/nym/releases/tag/nym-vpn-alpha-0.0.1) to download the binary for Debian based Linux
+
+### Automated Script CLI Installation
+
+Open a terminal and follow these steps:
+
+* Download the script
+```sh
+curl -o nym-vpn-client-executor.sh -L https://gist.githubusercontent.com/tommyv1987/87267ded27e1eb7651aa9cc745ddf4af/raw/99cea8f4d80f2d002802ed1cbedba288bfca4488/execute-nym-vpn-cli-binary.sh
+```
+* Make the script executable
+```sh
+chmod u+x nym-vpn-client-executor.sh
+```
+* Run the script
+```sh
+./nym-vpn-client-executor.sh
+```
+* When prompted to verify `sha256sum` paste one from the [release page](https://github.com/nymtech/nym/releases/tag/nym-vpn-alpha-0.0.2) including the binary name (all as one input with a space in between), for example:
+```sh
+61a08de46881411e140f66cdb4940041150adb573c10e3f510a58a86a32f08fb  nym-vpn-cli-ubuntu-22.04.zip
+```
+
+The script will automatically start the client. Follow the instructions:
+
+* The script will print a JSON view of existing Gateways and prompt you to:
+    - ***(Make sure to use two different Gateways for entry and exit!)***
+    - `enter a gateway ID:` paste one of the values labeled with a key `"identityKey"` printed above (without `" "`)
+    - `enter an exit address:` paste one of the values labeled with a key `"address"` printed above (without `" "`)
+    - `do you want five hop or two hop?`: type `five` or `two` 
+
+### Manual CLI and GUI Installation
+
+* Visit the [releases page](https://github.com/nymtech/nym/releases/tag/nym-vpn-alpha-0.0.2) to download the binary for Debian based Linux
 * Open terminal in the same directory and check the the `sha256sum` by running:
 ```sh
 # for CLI
-sha256sum ./nym-vpn-cli-ubuntu-22.04.zip
+sha256sum ./nym-vpn-cli_0.1.0_ubuntu-22.04_amd64.zip
 
 # for GUI
-sha256sum ./nym-vpn-ui-ubuntu-22.04.zip
+sha256sum ./nym-vpn-ui_0.0.2_ubuntu-22.04_amd64.zip
 ```
-* Compare the result with the sha256 hash shared on the [release page](https://github.com/nymtech/nym/releases/tag/nym-vpn-alpha-0.0.1)
+* Compare the result with the sha256 hash shared on the [release page](https://github.com/nymtech/nym/releases/tag/nym-vpn-alpha-0.0.2)
 * Extract files with `unzip` command or manually as you are used to
 * If you prefer to run `.AppImage` make executable by running:
 ```sh
@@ -27,16 +59,18 @@ sha256sum ./nym-vpn-ui-ubuntu-22.04.zip
 chmod +x ./nym-vpn-cli
 
 # for GUI
-chmod +x ./appimage/nym-vpn_0.0.1_amd64.AppImage
+chmod +x ./appimage/nym-vpn_0.0.2_amd64.AppImage
 # make sure your path to package is correct and the package name as well
 ```
 * If you prefer to use the `.deb` version for installation (Linux only), open terminal in the same directory and run:
 ```sh
 cd deb
 
-sudo dpkg -i ./nym-vpn_0.0.1_amd64.deb
+sudo dpkg -i ./nym-vpn_0.0.2_amd64.deb
+
 # or
-sudo apt-get install -f ./nym-vpn_0.0.1_amd64.deb
+sudo apt-get install -f ./nym-vpn_0.0.2_amd64.deb
+
 ```
 * **For CLI**: Create Sandbox environment config file by saving [this](https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env) as `sandbox.env` in the same directory as your NymVPN binaries. In case of GUI setup, see the steps below.
 
@@ -55,7 +89,7 @@ env_config_file = "/home/<USER>/.config/nym-vpn/sandbox.env"
 entry_node_location = "DE" # two letters country code
 ```
 
-## Running
+## Run NymVPN
 
 * **For NymVPN to work, all other VPNs must be switched off!**
 * At this alpha stage of NymVPN, network connection (wifi) must be re-connected after or in-between NymVPN testing rounds.
@@ -80,7 +114,7 @@ Make sure you went through the GUI configuration in the [preparation section](#g
 
 ```sh
 # .AppImage must be run from the same directory
-sudo -E ./nym-vpn_0.0.1_amd64.AppImage
+sudo -E ./nym-vpn_0.0.2_amd64.AppImage
 
 # .deb installation shall be executable from anywhere as
 sudo -E nym-vpn

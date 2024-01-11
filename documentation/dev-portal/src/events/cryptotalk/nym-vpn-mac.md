@@ -8,45 +8,84 @@ NymVPN is an experimental software and it's for [testing](./nym-vpn-testing.md) 
 
 > Any syntax in `<>` brackets is a user's/version unique variable. Exchange with a corresponding name without the `<>` brackets.
 
-![](images/image1.png)
+### CLI Installation
 
-* Visit the [releases page](https://github.com/nymtech/nym/releases/tag/nym-vpn-alpha-0.0.1) to download the binary for your system.
-* Open terminal in the same directory and make executable by running:
+You can use our automated script of follow the steps below to download, verify, install and run NymVPN client. 
 
+#### Automated Script CLI Installation
+
+Open a terminal and follow these steps:
+
+* Download the script
+```sh
+curl -o nym-vpn-client-executor.sh -L https://gist.githubusercontent.com/tommyv1987/87267ded27e1eb7651aa9cc745ddf4af/raw/99cea8f4d80f2d002802ed1cbedba288bfca4488/execute-nym-vpn-cli-binary.sh
+```
+* Make the script executable
+```sh
+chmod u+x nym-vpn-client-executor.sh
+```
+* Run the script
+```sh
+./nym-vpn-client-executor.sh
+```
+* When prompted to verify `sha256sum` paste one from the [release page](https://github.com/nymtech/nym/releases/tag/nym-vpn-alpha-0.0.2) including the binary name (all as one input with a space in between), for example:
+```sh
+96623ccc69bc4cc0e4e3e18528b6dae6be69f645d0a592d926a3158ce2d0c269  nym-vpn-cli_0.1.0_macos_x86_64.zip
+```
+
+The script will automatically start the client. Follow the instructions:
+
+* The script will print a JSON view of existing Gateways and prompt you to:
+    - ***(Make sure to use two different Gateways for entry and exit!)***
+    - `enter a gateway ID:` paste one of the values labeled with a key `"identityKey"` printed above (without `" "`)
+    - `enter an exit address:` paste one of the values labeled with a key `"address"` printed above (without `" "`)
+    - `do you want five hop or two hop?`: type `five` or `two` 
+
+#### Manual CLI Installation
+
+* Visit the [releases page](https://github.com/nymtech/nym/releases/tag/nym-vpn-alpha-0.0.2) to download the binary for Debian based Linux
+* Open terminal in the same directory and check the the `sha256sum` by running:
+```sh
+# x86_64
+sha256sum ./nym-vpn-cli_0.1.0_macos_x86_64.zip
+
+# aarch64
+sha256sum ./nym-vpn-cli_0.1.0_macos_aarch64.zip
+```
+* Compare the result with the sha256 hash shared on the [release page](https://github.com/nymtech/nym/releases/tag/nym-vpn-alpha-0.0.2)
+* Extract files with `unzip` command or manually as you are used to
 ```sh
 # for CLI
 chmod +x ./nym-vpn-cli
-
-# for GUI
-chmod +x ./nym-vpn_0.0.0_amd64.AppImage
-# make sure your path to package is correct and the package name as well
 ```
 
-* **For CLI**: Create Sandbox environment config file by saving [this](https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env) as `sandbox.env` in the same directory as your NymVPN binaries. In case of GUI setup, see the steps below.
+* Create Sandbox environment config file by saving [this](https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env) as `sandbox.env` in the same directory as your NymVPN binaries. In case of GUI setup, see the steps below.
 
-### GUI configuration
+### GUI Installation
 
-* Create a NymVPN config directory called `nym-vpn` in your `~/.config`, either manually or by a command:
+We created a [script](https://gist.github.com/tommyv1987/7d210d4daa8f7abc61f9a696d0321f19) which does download, extraction, installation and configuration for MacOS users automatically following the steps below:
+
+* To download the script, open a terminal in a directory where you want to download the script and run:
 ```sh
-mkdir $HOME/Library/Application Support/nym-vpn/
+curl -o nym-vpn-client-executor.sh - L https://gist.githubusercontent.com/tommyv1987/7d210d4daa8f7abc61f9a696d0321f19/raw/4397365b4cf74594c7f99c1ef5d690b2f5b41192/nym-vpn-client-macos-executor.sh
 ```
-* Create the network config by saving [this](https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env) as `sandbox.env` in the config directory `nym-vpn` you just created
-* Create the main config file called `config.toml` in the same directory with this content:
-```toml
-env_config_file = "$HOME/Library/Application Support/nym-vpn/"
-entry_node_location = "DE" # two letters country code
+* Make executable
+```sh
+chmod u+x nym-vpn-client-macos-executor.sh
 ```
-
-**Note:** Some users had a problem to access their home config folder on macOS, in that case save the configuration files in the same directory where you downloaded your `nym-vpn` binary as following:
-
-* Create the network config by saving [this](https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env) as `.env` (yes just like that) in the same directory like `nym-vpn` binaries.
-* Create the main config file called `config.toml` in the very same directory with this content:
-```toml
-env_config_file = "$HOME/Library/Application Support/nym-vpn/"
-entry_node_location = "DE" # two letters country code
+* Run
+```sh
+./nym-vpn-client-macos-executor.sh
 ```
+* When prompted to verify `sha256sum` paste one from the [release page](https://github.com/nymtech/nym/releases/tag/nym-vpn-alpha-0.0.2) including the binary name (all as one input with a space in between), for example:
+```sh
+06c7c82f032f230187da1002a9a9a88242d3bbf6c5c09dc961a71df151d768d0  nym-vpn-ui_0.0.2_macos_x86_64.zip
+```
+* The script will run the application and it will prompt you for a country code to exit, chose one of the offered options
 
-## Running
+In case of errors check out the [troubleshooting](./nym-vpn-troubleshooting.html#installing-gui-on-macos-not-working) section.
+
+## Run NymVPN
 
 * **For NymVPN to work, all other VPNs must be switched off!**
 * At this alpha stage of NymVPN, network connection (wifi) must be re-connected after or in-between NymVPN testing rounds.
@@ -65,12 +104,13 @@ sudo ./nym-vpn-cli -c ./sandbox.env --entry-gateway-id <ENTRY_GATEWAY_ID> --exit
 
 ### Run GUI
 
+Make sure you went through the GUI configuration in the [preparation section](#gui-installation).
+
 You may be able to have a NymVPN application icon in your app menu. However this may not work as the application needs root permission.
 
-Make sure you went through the GUI configuration in the [preparation section](#gui-configuration). Then open terminal in the same directory where you [installed](#preparation) the binary and run:
-
+* Run GUI from terminal:
 ```sh
-sudo -E ./<FULL_BINARY_NAME>
+sudo $nym_vpn_dir/nym-vpn
 ```
 
 In case of errors, see [troubleshooting section](./nym-vpn-troubleshooting.md#macos-alert-on-nymvpn-ui-startup).

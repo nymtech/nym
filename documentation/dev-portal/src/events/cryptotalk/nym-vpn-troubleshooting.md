@@ -2,6 +2,42 @@
 
 Below are listed some points which may need to be addressed when testing NymVPN alpha. If you crashed into any errors which are not listed, please contact us at the event.
 
+#### Problems with the newest version `nym-vpn-alpha-0.0.2 demo`
+
+Try the previous version `nym-vpn-alpha-0.0.1 demo` which was tested multiple times by downloading the client from this [release page(https://github.com/nymtech/nym/releases/tag/nym-vpn-alpha-0.0.1) and doing all the steps with the name of your downloaded binary.
+
+#### Installing GUI on MacOS not working
+
+In case there was a problem running the script, try a manual configuration:
+
+* Visit the [releases page](https://github.com/nymtech/nym/releases/tag/nym-vpn-alpha-0.0.1) to download the binary for Debian based Linux
+* Open terminal in the same directory and check the the `sha256sum` by running:
+```sh
+# for MacOS GUI
+sha256sum ./nym-vpn-ui-macos-latest.zip
+```
+* Compare the result with the sha256 hash shared on the [release page](https://github.com/nymtech/nym/releases/tag/nym-vpn-alpha-0.0.1)
+* Extract files with `unzip` command or manually as you are used toi
+* Create a NymVPN config directory called `nym-vpn` in your `~/.config`, either manually or by a command:
+```sh
+mkdir $HOME/Library/Application Support/nym-vpn/
+```
+* Create the network config by saving [this](https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env) as `sandbox.env` in the config directory `nym-vpn` you just created
+* Create the main config file called `config.toml` in the same directory with this content:
+```toml
+env_config_file = "$HOME/Library/Application Support/nym-vpn/"
+entry_node_location = "DE" # two letters country code
+```
+
+**Note:** Some users had a problem to access their home config folder on macOS, in that case save the configuration files in the same directory where you downloaded your `nym-vpn` binary as following:
+
+* Create the network config by saving [this](https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env) as `.env` (yes just like that) in the same directory like `nym-vpn` binaries.
+* Create the main config file called `config.toml` in the very same directory with this content:
+```toml
+env_config_file = "$HOME/Library/Application Support/nym-vpn/"
+entry_node_location = "DE" # two letters country code
+```
+
 #### Thread `main` panicked
 
 If you see a message like:

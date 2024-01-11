@@ -8,7 +8,7 @@ One of the main aims of NymVPN alpha release is testing; your results will help 
 
 > Any syntax in `<>` brackets is a user's/version unique variable. Exchange with a corresponding name without the `<>` brackets.
 
-1. Create a directory called `nym-vpn-tests` and copy your `nym-vpn-cli` binary and `sandbox.env` to that directory
+1. Create a directory called `nym-vpn-tests` and copy your `nym-vpn-cli` binary and [`sandbox.env`](https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env) to that directory
 2. Copy the [block below](#testssh) and save it as `tests.sh` to the same folder
 3. Open terminal in the same directory
 4. Turn off any existing VPN's (including the NymVPN instances), reconnect your wifi and make the script executable by running `chmod +x ./tests.sh`

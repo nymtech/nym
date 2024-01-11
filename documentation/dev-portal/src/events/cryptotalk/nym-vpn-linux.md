@@ -10,22 +10,33 @@ NymVPN is an experimental software and it's for [testing](./nym-vpn-testing.md) 
 
 ![](images/image1.png)
 
-* Visit the [releases page](https://github.com/nymtech/nym/releases/tag/ccc) to download the binary for Debian based Linux
-* Open terminal in the same directory and make executable by running:
+* [ ] Visit the [releases page](https://github.com/nymtech/nym/releases/tag/nym-vpn-alpha-0.0.1) to download the binary for Debian based Linux
+* Open terminal in the same directory and check the the `sha256sum` by running:
+```sh
+# for CLI
+sha256sum ./nym-vpn-cli-ubuntu-22.04.zip
 
+# for GUI
+sha256sum ./nym-vpn-ui-ubuntu-22.04.zip
+```
+* Compare the result with the sha256 hash shared on the [release page](https://github.com/nymtech/nym/releases/tag/nym-vpn-alpha-0.0.1)
+* Extract files with `unzip` command or manually as you are used to
+* If you prefer to run `.AppImage` make executable by running:
 ```sh
 # for CLI
 chmod +x ./nym-vpn-cli
 
 # for GUI
-chmod +x ./nym-vpn_0.0.0_amd64.AppImage
+chmod +x ./appimage/nym-vpn_0.0.1_amd64.AppImage
 # make sure your path to package is correct and the package name as well
 ```
 * If you prefer to use the `.deb` version for installation (Linux only), open terminal in the same directory and run:
-```
-sudo dpkg -i ./<PACKAGE_NAME>.deb
+```sh
+cd deb
+
+sudo dpkg -i ./nym-vpn_0.0.1_amd64.deb
 # or
-sudo apt-get install -f ./<PACKAGE_NAME>.deb
+sudo apt-get install -f ./nym-vpn_0.0.1_amd64.deb
 ```
 * **For CLI**: Create Sandbox environment config file by saving [this](https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env) as `sandbox.env` in the same directory as your NymVPN binaries. In case of GUI setup, see the steps below.
 
@@ -35,9 +46,6 @@ sudo apt-get install -f ./<PACKAGE_NAME>.deb
 ```sh
 # for Linux
 mkdir $HOME/.config/nym-vpn/
-
-# for macOS
-mkdir $HOME/Library/Application Support/nym-vpn/
 ```
 * Create the network config by saving [this](https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env) as `sandbox.env` in the directory `nym-vpn` you just created
 * Create the main config file called `config.toml` in the same directory with this content:
@@ -71,7 +79,11 @@ In case you used `.deb` package and installed the client, you may be able to hav
 Make sure you went through the GUI configuration in the [preparation section](#gui-configuration). Then open terminal in the same directory where you [installed](#preparation) the binary and run:
 
 ```sh
-sudo -E ./<FULL_BINARY_NAME>
+# .AppImage must be run from the same directory
+sudo -E ./nym-vpn_0.0.1_amd64.AppImage
+
+# .deb installation shall be executable from anywhere as
+sudo -E nym-vpn
 ```
 
 In case of errors, see [troubleshooting section](./nym-vpn-troubleshooting.md).

@@ -10,7 +10,7 @@ NymVPN is an experimental software and it's for [testing](./nym-vpn-testing.md) 
 
 ![](images/image1.png)
 
-* Visit the [releases page](https://github.com/nymtech/nym/releases/tag/ccc) to download the binary for your system.
+* Visit the [releases page](https://github.com/nymtech/nym/releases/tag/nym-vpn-alpha-0.0.1) to download the binary for your system.
 * Open terminal in the same directory and make executable by running:
 
 ```sh

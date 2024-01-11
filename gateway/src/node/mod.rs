@@ -209,7 +209,7 @@ impl<St> Gateway<St> {
     }
 
     #[cfg(all(feature = "wireguard", not(target_os = "linux")))]
-    async fn start_wireguard(&self, shutdown: TaskClient) {
+    async fn start_wireguard(&self, _shutdown: TaskClient) {
         nym_wireguard::start_wireguard().await
     }
 

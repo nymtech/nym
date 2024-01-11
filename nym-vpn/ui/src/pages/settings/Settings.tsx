@@ -52,7 +52,7 @@ function Settings() {
   };
 
   return (
-    <div className="h-full flex flex-col p-4 mt-2 gap-8">
+    <div className="h-full flex flex-col mt-2 gap-6">
       <SettingsGroup
         settings={[
           {
@@ -218,7 +218,7 @@ function Settings() {
           },
         ]}
       />
-      <div className="text-comet text-sm tracking-tight leading-tight">
+      <div className="flex grow flex-col justify-end text-comet text-sm tracking-tight leading-tight mb-4">
         Version {state.version}
       </div>
     </div>

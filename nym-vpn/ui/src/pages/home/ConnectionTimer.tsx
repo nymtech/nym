@@ -27,11 +27,11 @@ function ConnectionTimer() {
   }, [sessionStartDate]);
 
   return (
-    <div className="flex flex-col items-center">
-      <p className="font-bold text-dim-gray dark:text-mercury-mist">
+    <div className="flex flex-col items-center gap-2">
+      <p className="text-sm font-bold text-dim-gray dark:text-mercury-mist">
         {t('connection-time')}
       </p>
-      <p className="font-bold text-baltic-sea dark:text-white">
+      <p className="text-sm font-bold text-baltic-sea dark:text-flawed-white">
         {connectionTime}
       </p>
     </div>

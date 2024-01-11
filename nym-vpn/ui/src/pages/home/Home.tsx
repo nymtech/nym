@@ -57,63 +57,60 @@ function Home() {
       case 'Disconnected':
         return t('connect');
       case 'Connecting':
-        return (
-          <div className="flex justify-center items-center animate-spin">
-            <span className="font-icon text-2xl font-medium">autorenew</span>
-          </div>
-        );
+        return <span className="font-icon text-xl font-medium">autorenew</span>;
       case 'Disconnecting':
-        return (
-          <div className="flex justify-center items-center animate-spin">
-            <span className="font-icon text-2xl font-medium">autorenew</span>
-          </div>
-        );
+        return <span className="font-icon text-xl font-medium">autorenew</span>;
       case 'Unknown':
         return t('status.unknown');
     }
   }, [state, t]);
 
   return (
-    <div className="h-full flex flex-col p-4">
-      <ConnectionStatus />
-      <div className="flex grow flex-col justify-between gap-y-6">
+    <div className="h-full flex flex-col">
+      <div className="grow">
+        <ConnectionStatus />
+      </div>
+      <div className="flex flex-col justify-between gap-y-8">
         <div className="flex flex-col justify-between gap-y-4">
           <NetworkModeSelect />
-          <div className="flex flex-col gap-4">
-            <div className="mt-3 font-semibold text-lg">
+          <div className="flex flex-col gap-6">
+            <div className="mt-3 text-base font-semibold">
               {t('select-node-title')}
             </div>
-            {entrySelector && (
+            <div className="flex flex-col gap-5">
+              {entrySelector && (
+                <HopSelect
+                  country={entryNodeLocation || defaultNodeLocation}
+                  onClick={() => {
+                    if (state === 'Disconnected') {
+                      navigate(routes.entryNodeLocation);
+                    }
+                  }}
+                  nodeHop="entry"
+                />
+              )}
               <HopSelect
-                country={entryNodeLocation || defaultNodeLocation}
+                country={exitNodeLocation || defaultNodeLocation}
                 onClick={() => {
                   if (state === 'Disconnected') {
-                    navigate(routes.entryNodeLocation);
+                    navigate(routes.exitNodeLocation);
                   }
                 }}
-                nodeHop="entry"
+                nodeHop="exit"
               />
-            )}
-            <HopSelect
-              country={exitNodeLocation || defaultNodeLocation}
-              onClick={() => {
-                if (state === 'Disconnected') {
-                  navigate(routes.exitNodeLocation);
-                }
-              }}
-              nodeHop="exit"
-            />
+            </div>
           </div>
         </div>
         <Button
           className={clsx([
             'flex justify-center items-center',
-            'rounded-lg text-lg font-bold py-4 px-6 h-16',
+            'rounded-lg text-lg font-bold py-3 px-6',
             'focus:outline-none focus:ring-4 focus:ring-black focus:dark:ring-white shadow',
             (state === 'Disconnected' || state === 'Connecting') &&
               'bg-melon text-white dark:text-baltic-sea',
             (state === 'Connected' || state === 'Disconnecting') &&
               'bg-cornflower text-white dark:text-baltic-sea',
+            loading && 'cursor-progress',
           ])}
           onClick={handleClick}
           disabled={loading}

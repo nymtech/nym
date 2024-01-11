@@ -20,14 +20,9 @@ export default {
         // [L] node location select text value + icon + label
         // [D] button text
         DEFAULT: '#1C1B1F', // [D] main bg
-        oil: '#1F1F22', // [D] connection status bg
-        quartzite: '#202C25', // [D] "Connected" status bg
       },
-      'blanc-nacre': {
-        DEFAULT: '#F2F4F6', // [L] main bg
-        platinum: '#E7E8EC', // [L] connection status bg
-        icicle: '#E1EFE7', // [L] "Connected" status bg
-      },
+      // [L] main bg
+      'blanc-nacre': '#F2F4F6',
       // [DL] primary accent
       melon: '#FB6E4E',
       // [DL] secondary accent
@@ -44,6 +39,7 @@ export default {
       // [L] bg for network modes
       // [L] button text
       white: '#FFF',
+      'flawed-white': '#FFFBFE',
       black: '#000',
       mercury: {
         // [D] status-line title text + icon
@@ -63,6 +59,7 @@ export default {
       'dim-gray': '#696571',
       // [L] network mode desc text
       // [L] node location select outline
+      // [L] connection status bg (combined with 10% opacity)
       'cement-feet': '#79747E',
       // [D] node location select outline
       'gun-powder': '#49454F',
@@ -70,6 +67,10 @@ export default {
       'laughing-jack': '#CAC4D0',
       // [L] button bg in disabled state
       'wind-chime': '#DEDEE1',
+      // [D] connection status bg (combined with 15% opacity)
+      oil: '#313033',
+      // [DL] "Connected" status bg (combined with 10% opacity)
+      'vert-prasin': '#47C45D',
     },
     extend: {
       fontFamily: {

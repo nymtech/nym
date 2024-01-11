@@ -7,5 +7,9 @@
   "display-theme": "Display theme",
   "logs": "Logs",
   "feedback": "Feedback",
-  "legal": "Legal"
+  "legal": "Legal",
+  "ui-mode": {
+    "dark": "Dark mode",
+    "light": "Light mode"
+  }
 }

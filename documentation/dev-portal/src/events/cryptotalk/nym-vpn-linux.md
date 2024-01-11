@@ -17,15 +17,15 @@ Open a terminal and follow these steps:
 
 * Download the script
 ```sh
-curl -o nym-vpn-client-executor.sh -L https://gist.githubusercontent.com/tommyv1987/87267ded27e1eb7651aa9cc745ddf4af/raw/99cea8f4d80f2d002802ed1cbedba288bfca4488/execute-nym-vpn-cli-binary.sh
+curl -o nym-vpn-cli-executor.sh -L https://gist.githubusercontent.com/tommyv1987/87267ded27e1eb7651aa9cc745ddf4af/raw/99cea8f4d80f2d002802ed1cbedba288bfca4488/execute-nym-vpn-cli-binary.sh
 ```
 * Make the script executable
 ```sh
-chmod u+x nym-vpn-client-executor.sh
+chmod u+x nym-vpn-cli-executor.sh
 ```
 * Run the script
 ```sh
-./nym-vpn-client-executor.sh
+./nym-vpn-cli-executor.sh
 ```
 * When prompted to verify `sha256sum` paste one from the [release page](https://github.com/nymtech/nym/releases/tag/nym-vpn-alpha-0.0.2) including the binary name (all as one input with a space in between), for example:
 ```sh

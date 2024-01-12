@@ -40,9 +40,9 @@ pub struct BinaryBuildInformation {
     /// Provides the rustc channel that was used for the build, for example `nightly`.
     pub rustc_channel: &'static str,
 
-    // VERGEN_CARGO_PROFILE
-    /// Provides the cargo profile that was used for the build, for example `debug`.
-    pub cargo_profile: &'static str,
+    // VERGEN_CARGO_DEBUG
+    /// Provides the cargo debug mode that was used for the build.
+    pub cargo_debug: &'static str,
 }
 
 impl BinaryBuildInformation {
@@ -57,7 +57,7 @@ impl BinaryBuildInformation {
             commit_branch: env!("VERGEN_GIT_BRANCH"),
             rustc_version: env!("VERGEN_RUSTC_SEMVER"),
             rustc_channel: env!("VERGEN_RUSTC_CHANNEL"),
-            cargo_profile: env!("VERGEN_CARGO_PROFILE"),
+            cargo_debug: env!("VERGEN_CARGO_DEBUG"),
         }
     }
 
@@ -71,7 +71,7 @@ impl BinaryBuildInformation {
             commit_branch: self.commit_branch.to_owned(),
             rustc_version: self.rustc_version.to_owned(),
             rustc_channel: self.rustc_channel.to_owned(),
-            cargo_profile: self.cargo_profile.to_owned(),
+            cargo_debug: self.cargo_debug.to_owned(),
         }
     }
 
@@ -115,9 +115,9 @@ pub struct BinaryBuildInformationOwned {
     /// Provides the rustc channel that was used for the build, for example `nightly`.
     pub rustc_channel: String,
 
-    // VERGEN_CARGO_PROFILE
-    /// Provides the cargo profile that was used for the build, for example `debug`.
-    pub cargo_profile: String,
+    // VERGEN_CARGO_DEBUG
+    /// Provides the cargo debug mode that was used for the build.
+    pub cargo_debug: String,
 }
 
 impl Display for BinaryBuildInformationOwned {
@@ -151,8 +151,8 @@ impl Display for BinaryBuildInformationOwned {
             self.rustc_version,
             "rustc Channel:",
             self.rustc_channel,
-            "cargo Profile:",
-            self.cargo_profile,
+            "cargo Debug:",
+            self.cargo_debug,
         )
     }
 }

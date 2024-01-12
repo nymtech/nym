@@ -35,9 +35,10 @@ opentelemetry = { version = "0.19.0", optional = true, features = ["rt-tokio"] }
 
 
 [build-dependencies]
-vergen = { version = "=7.4.3", default-features = false, features = [
+vergen = { version = "=8.2.6", default-features = false, features = [
     "build",
     "git",
+    "gitcl",
     "rustc",
     "cargo",
 ] }

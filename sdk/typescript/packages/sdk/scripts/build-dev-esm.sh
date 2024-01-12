@@ -27,6 +27,7 @@ rm dist/worker.js || true
 rollup -c rollup-coconut-worker.config.mjs
 
 # move it next to the Typescript `src/index.ts` so it can be inlined by rollup
+mkdir dist/esm || true
 cp dist/worker.js src/coconut/worker.js || true
 rm dist/worker.js || true
 

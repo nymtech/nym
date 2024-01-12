@@ -13,7 +13,8 @@
   "scripts": {
     "build": "scripts/build-prod.sh",
     "build:dev": "scripts/build.sh",
-    "build:dev:esm": "scripts/build-dev-esm.sh",
+    "build:dev:esm": "SDK_DEV_MODE=true scripts/build-dev-esm.sh",
+    "build:dev:esm:no-inline": "scripts/build-dev-esm.sh",
     "build:worker": "rollup -c rollup-worker.config.mjs",
     "clean": "rimraf dist",
     "docs:dev": "run-p docs:watch docs:serve ",
@@ -32,6 +33,7 @@
   },
   "dependencies": {
     "@nymproject/nym-client-wasm": ">=1.2.4-rc.2 || ^1",
+    "@nymproject/nym-credential-client-wasm": ">=1.2.0-rc.9 || ^1",
     "comlink": "^4.3.1"
   },
   "devDependencies": {

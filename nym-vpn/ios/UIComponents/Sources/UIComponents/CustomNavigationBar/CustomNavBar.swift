@@ -8,8 +8,8 @@ public struct CustomNavBar: View {
 
     public init(
         title: String,
-        leftButton: CustomNavBarButton? = nil,
-        rightButton: CustomNavBarButton? = nil
+        leftButton: CustomNavBarButton? = CustomNavBarButton(type: .empty, action: {}),
+        rightButton: CustomNavBarButton? = CustomNavBarButton(type: .empty, action: {})
     ) {
         self.title = title
         self.leftButton = leftButton

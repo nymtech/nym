@@ -6,7 +6,7 @@ public struct ConnectButton: View {
 
     public var body: some View {
         HStack {
-            Text("Connect")
+            Text("connect".localizedString)
                 .foregroundStyle(NymColor.connectTitle)
                 .textStyle(.Label.Huge.primary)
         }

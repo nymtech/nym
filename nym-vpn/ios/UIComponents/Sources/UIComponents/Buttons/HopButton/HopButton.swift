@@ -2,14 +2,16 @@ import SwiftUI
 import Theme
 
 public struct HopButton: View {
+    private let hopType: HopType
     private let country: Country
 
-    public init(country: Country) {
+    public init(hopType: HopType, country: Country) {
+        self.hopType = hopType
         self.country = country
     }
 
     public var body: some View {
-        VStack(alignment: .leading) {
+        StrokeBorderView(strokeTitle: hopType.localizedTitle) {
             HStack {
                 Image(country.code)
                     .resizable()
@@ -27,22 +29,6 @@ public struct HopButton: View {
                     .padding(16)
             }
         }
-        .padding(0)
-        .frame(maxWidth: .infinity, minHeight: 56, maxHeight: 56)
-        .cornerRadius(8)
-        .overlay {
-            RoundedRectangle(cornerRadius: 8)
-                .inset(by: 0.5)
-                .stroke(Color(red: 0.29, green: 0.27, blue: 0.31), lineWidth: 1)
-        }
-        .overlay(alignment: .topLeading) {
-            Text("firstHop".localizedString)
-                .foregroundStyle(NymColor.sysOnSurface)
-                .textStyle(.Body.Small.primary)
-                .padding(4)
-                .background(NymColor.background)
-                .position(x: 40, y: 0)
-        }
     }
 }
 
@@ -53,5 +39,19 @@ public struct Country {
     public init(name: String, code: String) {
         self.name = name
         self.code = code
+    }
+}
+
+public enum HopType {
+    case first
+    case last
+
+    var localizedTitle: String {
+        switch self {
+        case .first:
+            "firstHop".localizedString
+        case .last:
+            "lastHop".localizedString
+        }
     }
 }

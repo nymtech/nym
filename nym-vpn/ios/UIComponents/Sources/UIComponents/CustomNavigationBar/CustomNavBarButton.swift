@@ -3,13 +3,16 @@ import Theme
 
 public struct CustomNavBarButton: View {
     public enum ButtonType: String {
-        case settingsGear
+        case back
+        case settings
         case empty
 
         var imageName: String? {
             switch self {
-            case .settingsGear:
-                self.rawValue
+            case .back:
+                "arrowBack"
+            case .settings:
+                "settingsGear"
             case .empty:
                 nil
             }

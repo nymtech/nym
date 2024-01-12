@@ -28,8 +28,7 @@ private extension HomeView {
     func navbar() -> some View {
         CustomNavBar(
             title: "NymVPN".localizedString,
-            leftButton: CustomNavBarButton(type: .empty, action: {}),
-            rightButton: CustomNavBarButton(type: .settingsGear, action: {})
+            rightButton: CustomNavBarButton(type: .settings, action: {})
         )
         Spacer()
             .frame(height: 50)
@@ -86,10 +85,10 @@ private extension HomeView {
             .frame(height: 24)
 
         VStack {
-            HopButton(country: Country(name: "Germany", code: "de"))
+            HopButton(hopType: .first, country: Country(name: "Germany", code: "de"))
             Spacer()
                 .frame(height: 24)
-            HopButton(country: Country(name: "Switzerland", code: "ch"))
+            HopButton(hopType: .last, country: Country(name: "Switzerland", code: "ch"))
         }
         .padding(.horizontal, 16)
 

@@ -122,6 +122,39 @@
         }
       }
     },
+    "firstHopSelection" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "First hop selection"
+          }
+        }
+      }
+    },
+    "lastHop" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Last hop"
+          }
+        }
+      }
+    },
+    "lastHopSelection" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Last hop selection"
+          }
+        }
+      }
+    },
     "NymVPN" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -129,6 +162,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "NymVPN"
+          }
+        }
+      }
+    },
+    "search" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Search"
+          }
+        }
+      }
+    },
+    "searchCountry" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Search country"
           }
         }
       }

@@ -3,4 +3,4 @@
 useradd nym
 mkdir -p /etc/nym
 chown -R nym /etc/nym
-su nym -c 'NYM_HOME_DIR=/etc/nym nym-mixnode init --host $(curl https://ipinfo.io/ip) --id nym-mixnode'
+su nym -c 'NYM_HOME_DIR=/etc/nym nym-mixnode init --host 0.0.0.0 --id nym-mixnode'

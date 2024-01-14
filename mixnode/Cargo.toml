@@ -86,5 +86,4 @@ cpucycles = [
 [package.metadata.deb]
 name = "nym-mixnode"
 maintainer-scripts = "debian"
-depends = "curl"
 systemd-units = { enable = false }

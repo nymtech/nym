@@ -158,6 +158,12 @@ build-explorer-api:
 build-nym-cli:
 	cargo build -p nym-cli --release
 
+build-nym-gateway:
+	cargo build -p nym-gateway --release
+
+build-nym-mixnode:
+	cargo build -p nym-mixnode --release
+
 # -----------------------------------------------------------------------------
 # Misc
 # -----------------------------------------------------------------------------
@@ -171,5 +177,5 @@ run-api-tests:
 
 # Build debian package, and update PPA
 # Requires base64 encode GPG key to be set up in environment PPA_SIGNING_KEY
-ppa:
+ppa: build-nym-mixnode build-nym-gateway
 	scripts/ppa.sh

@@ -58,7 +58,7 @@ journalctl -f -u nym-mixnode
 # cargo install cargo-deb
 
 # Build package
-cargo deb -p nym-mixnode
+cargo deb -p nym-gateway
 
 # Install
 

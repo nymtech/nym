@@ -1,0 +1,11 @@
+[Unit]
+Description=Nym Gateway
+After=network-online.target
+
+[Service]
+ExecStart=/usr/bin/nym-gateway run --id nym-gateway
+User=nym
+Environment="NYM_HOME_DIR=/etc/nym"
+
+[Install]
+WantedBy=multi-user.target

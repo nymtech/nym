@@ -12,6 +12,7 @@ help:
 	@echo "  clippy: run clippy for all workspaces"
 	@echo "  test: run clippy, unit tests, and formatting."
 	@echo "  test-all: like test, but also includes the expensive tests"
+	@echo "  ppa: build debian package and generate files required for PPA update"
 
 # -----------------------------------------------------------------------------
 # Meta targets
@@ -170,5 +171,5 @@ run-api-tests:
 
 # Build debian package, and update PPA
 # Requires base64 encode GPG key to be set up in environment PPA_SIGNING_KEY
-deb:
+ppa:
 	scripts/ppa.sh

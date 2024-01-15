@@ -1,1 +1,1 @@
-# GUI
+# NymVPN Application (GUI)

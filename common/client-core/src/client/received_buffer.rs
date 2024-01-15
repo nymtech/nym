@@ -356,8 +356,7 @@ impl<R: MessageReceiver> ReceivedMessagesBuffer<R> {
                 };
 
             if let Some(completed) = completed_message {
-                // WIP(JON): here we are receiving messages, which in our case are TCP packets
-                info!("received {completed}");
+                debug!("received {completed}");
                 completed_messages.push(completed)
             }
         }
@@ -449,6 +448,12 @@ impl<R: MessageReceiver> FragmentedMessageReceiver<R> {
         }
     }
 
+    fn report_real_packet_received(&self, num_packets: usize) {
+        self.packet_stats_reporter
+            .send(PacketStatisticsEvent::RealPacketsReceived(num_packets))
+            .ok();
+    }
+
     async fn run_with_shutdown(
         &mut self,
         mut shutdown: nym_task::TaskClient,
@@ -457,15 +462,8 @@ impl<R: MessageReceiver> FragmentedMessageReceiver<R> {
         while !shutdown.is_shutdown() {
             tokio::select! {
                 new_messages = self.mixnet_packet_receiver.next() => {
-                    // WIP(JON): here we receive packets (fragments), before re-assembled
                     if let Some(new_messages) = new_messages {
-                        if self
-                            .packet_stats_reporter
-                            .send(PacketStatisticsEvent::PacketReceived(new_messages.len()))
-                            .is_err()
-                        {
-                            log::error!("Failed to send cover packet statistics event: channel closed");
-                        }
+                        self.report_real_packet_received(new_messages.len());
                         self.received_buffer.handle_new_received(new_messages).await?;
                     } else {
                         log::trace!("FragmentedMessageReceiver: Stopping since channel closed");

@@ -271,30 +271,8 @@ where
             } else {
                 PacketStatisticsEvent::CoverPacketSent
             };
-            if self.stats_tx.send(event).is_err() {
-                log::error!("Failed to send stats event");
-            }
+            self.stats_tx.send(event).ok();
         }
-
-        // if fragment_id.is_some() {
-        //     // REAL_PACKETS_SENT.fetch_add(1, Ordering::Relaxed);
-        //     if self
-        //         .stats_tx
-        //         .send(PacketStatisticsEvent::RealPacketSent)
-        //         .is_err()
-        //     {
-        //         log::error!("Failed to send stats event");
-        //     }
-        // } else {
-        //     // COVER_PACKETS_SENT.fetch_add(1, Ordering::Relaxed);
-        //     if self
-        //         .stats_tx
-        //         .send(PacketStatisticsEvent::CoverPacketSent)
-        //         .is_err()
-        //     {
-        //         log::error!("Failed to send stats event");
-        //     }
-        // }
 
         // notify ack controller about sending our message only after we actually managed to push it
         // through the channel
@@ -389,20 +367,14 @@ where
             TransmissionLane::Retransmission => Some(PacketStatisticsEvent::RetransmissionQueued),
         };
         if let Some(stat_event) = stat_event {
-            if self.stats_tx.send(stat_event).is_err() {
-                log::error!("Failed to send stats event");
-            }
+            self.stats_tx.send(stat_event).ok();
         }
         // To avoid comparing apples to oranges when presenting the fraction of packets that are
         // retransmissions, we also need to keep track to the total number of real messages queued,
         // even though we also track the actual number of messages sent later in the pipeline.
-        if self
-            .stats_tx
+        self.stats_tx
             .send(PacketStatisticsEvent::RealPacketQueued)
-            .is_err()
-        {
-            log::error!("Failed to send stats event");
-        }
+            .ok();
 
         Some(real_next)
     }
@@ -500,13 +472,9 @@ where
                 // This is the last step in the pipeline where we know the type of the message, so
                 // lets count the number of retransmissions here.
                 if conn_id == TransmissionLane::Retransmission {
-                    if self
-                        .stats_tx
+                    self.stats_tx
                         .send(PacketStatisticsEvent::RetransmissionQueued)
-                        .is_err()
-                    {
-                        log::error!("Failed to send stats event");
-                    }
+                        .ok();
                 }
 
                 // First store what we got for the given connection id

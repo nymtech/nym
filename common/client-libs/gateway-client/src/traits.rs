@@ -20,8 +20,6 @@ pub trait GatewayPacketRouter {
             PacketSize::OutfoxAckPacket.size() + MAX_NODE_ADDRESS_UNPADDED_LEN;
 
         for received_packet in unwrapped_packets {
-            // WIP(JON): received raw packets, before they are even classified according to type
-
             // note: if we ever fail to route regular outfox, it might be because I've removed a match on
             // `size == PacketSize::OutfoxRegularPacket.size() - outfox_ack_overhead` since it seemed
             // redundant given we have `size == PacketSize::OutfoxRegularPacket.plaintext_size() - outfox_ack_overhead`

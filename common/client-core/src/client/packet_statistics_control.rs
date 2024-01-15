@@ -9,7 +9,7 @@ struct PacketStatistics {
     cover_packets_sent: u64,
 
     // Received
-    total_packets_received: u64,
+    real_packets_received: u64,
     total_acks_received: u64,
     real_acks_received: u64,
 
@@ -30,9 +30,9 @@ impl PacketStatistics {
             PacketStatisticsEvent::CoverPacketSent => {
                 self.cover_packets_sent += 1;
             }
-            PacketStatisticsEvent::PacketReceived(packets) => {
+            PacketStatisticsEvent::RealPacketsReceived(packets) => {
                 // self.total_packets_received += TryInto::<u64>::try_into(packets).unwrap_or(1);
-                self.total_packets_received += match packets.try_into() {
+                self.real_packets_received += match packets.try_into() {
                     Ok(p) => p,
                     Err(_err) => {
                         log::error!("Conversion error usize -> u64 when handling the number of received packets!");
@@ -69,9 +69,8 @@ pub(crate) enum PacketStatisticsEvent {
     CoverPacketSent,
 
     // Packet of any type received
-    PacketReceived(usize),
-
-    // Ack of any type received
+    RealPacketsReceived(usize),
+    // Ack of any type received. This is a subset of the total packets received
     AckReceived,
     // Out of the total acks received, this is the subset of those that were real
     RealAckReceived,
@@ -106,6 +105,7 @@ impl PacketStatisticsControl {
     }
 
     fn report_statistics(&self) {
+        log::trace!("packet statistics: {:?}", &self.stats);
         log::info!(
             "packets sent: {} (real: {}, cover: {}, retransmissions: {})",
             self.stats.real_packets_sent + self.stats.cover_packets_sent,
@@ -114,9 +114,9 @@ impl PacketStatisticsControl {
             self.stats.retransmissions_queued,
         );
         log::info!(
-            "packets received: {}, acks received: {} (real: {}, cover: {})",
-            self.stats.total_packets_received,
-            self.stats.total_acks_received,
+            "packets received: {}, (real: {}, acks: {}, acks for cover: {})",
+            self.stats.real_packets_received + self.stats.total_acks_received,
+            self.stats.real_packets_received,
             self.stats.real_acks_received,
             self.stats.total_acks_received - self.stats.real_acks_received,
         );

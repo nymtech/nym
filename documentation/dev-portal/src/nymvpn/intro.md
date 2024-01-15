@@ -24,17 +24,16 @@ Users can switch to 2-hop only mode, which is a faster but less private option. 
 
 The client can optionally do the first hop (local client to Entry Gateway) using Wireguard. NymVPN uses Mullvad libraries for wrapping `wireguard-go` and to setup local routing rules to route all traffic to the TUN virtual network device.
 
-## NymVPN Guide & FAQ pages
+## NymVPN Guides
 
 To download, install and test NymVPN alpha, visit pages listed below:
 
-<!--
-* [GNU/Linux]()
-* [Mac OS]()
-* [Testing scripts]()
-* [Troubleshooting]()
-* [NymVPN FAQ]()
--->
+* [NymVPN Application (GUI)](gui.md)
+* [NymVPN Command Line Interface (CLI)](cli.md)
+* [Testing scripts](testing.md)
+* [Troubleshooting](troubleshooting.md)
+* [NymVPN FAQ](faq.md)
+
 
 ## Goals of testing
 
@@ -47,7 +46,7 @@ This alpha testing will help:
 
 
 ```admonish info
-Our alpha testing round is done live with some participants at the event. This guide will not work for everyone, as the NymVPN binaries aren't publicly accessible yet. Note that this setup of Nym testnet Sandbox environment is limited event and some of the configurations will not work in the future.
+Our alpha testing round is done with participants at live workshop events. This guide will not work for everyone, as the NymVPN source code is not yet publicly accessible. The alpha testing is done on Nym testnet Sandbox environment, this congiguration is limited and will not work in the future.
 
-**If you commit to test NymVPN alpha, please start with the [user research form](https://opnform.com/forms/nymvpn-user-research-at-37c3-yccqko-2) where all the steps will be provided**.
+**If you commit to test NymVPN alpha, please start with the [user research form](https://opnform.com/forms/nymvpn-user-research-at-37c3-yccqko-2) where all the steps will be provided**. If you disagree with any of the conditions listed, please leave this page.
 ```

@@ -18,6 +18,15 @@
 
 # User Manuals
 
+- [NymVPN alpha](nymvpn/intro.md)
+    - [GUI](nymvpn/gui.md)
+        - [GNU/Linux](nymvpn/gui-linux.md)
+        - [MacOS](nymvpn/gui-mac.md)
+    - [CLI](nymvpn/cli.md)
+        - [GNU/Linux](nymvpn/cli-linux.md)
+        - [MacOS](nymvpn/cli-mac.md)
+    - [Testing](nymvpn/testing.md)
+    - [Troubleshooting](nymvpn/troubleshooting)
 - [NymConnect X Monero](tutorials/monero.md)
 - [NymConnect X Matrix](tutorials/matrix.md)
 - [NymConnect X Telegram](tutorials/telegram.md)
@@ -68,12 +77,6 @@
 
 # Events
 
-- [CryptoTalk](events/cryptotalk/nym-vpn.md)
-    - [NymVPN Linux Guide](events/cryptotalk/nym-vpn-linux.md)
-    - [NymVPN MacOS Guide](events/cryptotalk/nym-vpn-mac.md)
-    - [NymVPN Testing](events/cryptotalk/nym-vpn-testing.md)
-    - [NymVPN Troubleshooting](events/cryptotalk/nym-vpn-troubleshooting.md)
-    - [NymVPN FAQ](events/cryptotalk/nym-vpn-faq.md)
 - [Web3Privacy Now](./events/web3-privacy.md)
 - [HCPP23-serinko](./events/hcpp23-serinko.md)
 - [HCPP23-max](./events/hcpp23-max.md)

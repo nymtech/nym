@@ -1650,13 +1650,42 @@ dependencies = [
 ]
 
 [[package]]
+name = "cosmos-sdk-proto"
+version = "0.20.0"
+source = "git+https://github.com/jstuczyn/cosmos-rust?branch=nym-temp/all-validator-features#41ed4631e146268b0300033c8bbb993d79a49f58"
+dependencies = [
+ "prost 0.12.1",
+ "prost-types 0.12.1",
+ "tendermint-proto",
+]
+
+[[package]]
 name = "cosmrs"
 version = "0.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "47126f5364df9387b9d8559dcef62e99010e1d4098f39eb3f7ee4b5c254e40ea"
 dependencies = [
  "bip32",
- "cosmos-sdk-proto",
+ "cosmos-sdk-proto 0.20.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ecdsa 0.16.8",
+ "eyre",
+ "k256",
+ "rand_core 0.6.4",
+ "serde",
+ "serde_json",
+ "signature 2.1.0",
+ "subtle-encoding",
+ "tendermint",
+ "thiserror",
+]
+
+[[package]]
+name = "cosmrs"
+version = "0.15.0"
+source = "git+https://github.com/jstuczyn/cosmos-rust?branch=nym-temp/all-validator-features#41ed4631e146268b0300033c8bbb993d79a49f58"
+dependencies = [
+ "bip32",
+ "cosmos-sdk-proto 0.20.0 (git+https://github.com/jstuczyn/cosmos-rust?branch=nym-temp/all-validator-features)",
  "ecdsa 0.16.8",
  "eyre",
  "k256",
@@ -2213,6 +2242,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "darling"
+version = "0.20.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0209d94da627ab5605dcccf08bb18afa5009cfbef48d8a8b7d7bdbc79be25c5e"
+dependencies = [
+ "darling_core 0.20.3",
+ "darling_macro 0.20.3",
+]
+
+[[package]]
 name = "darling_core"
 version = "0.13.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2241,6 +2280,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "darling_core"
+version = "0.20.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "177e3443818124b357d8e76f53be906d60937f0d3a90773a664fa63fa253e621"
+dependencies = [
+ "fnv",
+ "ident_case",
+ "proc-macro2",
+ "quote",
+ "strsim",
+ "syn 2.0.38",
+]
+
+[[package]]
 name = "darling_macro"
 version = "0.13.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2260,6 +2313,17 @@ dependencies = [
  "darling_core 0.14.4",
  "quote",
  "syn 1.0.109",
+]
+
+[[package]]
+name = "darling_macro"
+version = "0.20.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "836a9bbc7ad63342d6d6e7b815ccab164bc77a2d95d84bc3117a8c0d5c98e2d5"
+dependencies = [
+ "darling_core 0.20.3",
+ "quote",
+ "syn 2.0.38",
 ]
 
 [[package]]
@@ -5945,7 +6009,7 @@ name = "nym-api-requests"
 version = "0.1.0"
 dependencies = [
  "bs58 0.4.0",
- "cosmrs",
+ "cosmrs 0.15.0 (git+https://github.com/jstuczyn/cosmos-rust?branch=nym-temp/all-validator-features)",
  "cosmwasm-std",
  "getset",
  "nym-coconut-interface",
@@ -6003,7 +6067,7 @@ name = "nym-bity-integration"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "cosmrs",
+ "cosmrs 0.15.0 (git+https://github.com/jstuczyn/cosmos-rust?branch=nym-temp/all-validator-features)",
  "eyre",
  "k256",
  "nym-cli-commands",
@@ -6048,7 +6112,7 @@ dependencies = [
  "cfg-if",
  "clap 4.4.7",
  "comfy-table",
- "cosmrs",
+ "cosmrs 0.15.0 (git+https://github.com/jstuczyn/cosmos-rust?branch=nym-temp/all-validator-features)",
  "cosmwasm-std",
  "cw-utils",
  "handlebars",
@@ -6317,7 +6381,7 @@ name = "nym-credentials"
 version = "0.1.0"
 dependencies = [
  "bls12_381",
- "cosmrs",
+ "cosmrs 0.15.0 (git+https://github.com/jstuczyn/cosmos-rust?branch=nym-temp/all-validator-features)",
  "log",
  "nym-api-requests",
  "nym-coconut-interface",
@@ -6676,7 +6740,6 @@ dependencies = [
  "nym-types",
  "nym-validator-client",
  "opentelemetry",
- "pretty_env_logger",
  "rand 0.7.3",
  "serde",
  "serde_json",
@@ -7405,7 +7468,7 @@ name = "nym-types"
 version = "1.0.0"
 dependencies = [
  "base64 0.21.4",
- "cosmrs",
+ "cosmrs 0.15.0 (git+https://github.com/jstuczyn/cosmos-rust?branch=nym-temp/all-validator-features)",
  "cosmwasm-std",
  "eyre",
  "hmac 0.12.1",
@@ -7439,7 +7502,7 @@ dependencies = [
  "bip32",
  "bip39",
  "colored",
- "cosmrs",
+ "cosmrs 0.15.0 (git+https://github.com/jstuczyn/cosmos-rust?branch=nym-temp/all-validator-features)",
  "cosmwasm-std",
  "cw-controllers",
  "cw-utils",
@@ -7482,6 +7545,40 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-validator-rewarder"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bip39",
+ "clap 4.4.7",
+ "cosmwasm-std",
+ "futures",
+ "humantime 2.1.0",
+ "humantime-serde",
+ "nym-bin-common",
+ "nym-coconut",
+ "nym-coconut-bandwidth-contract-common",
+ "nym-coconut-dkg-common",
+ "nym-config",
+ "nym-credentials",
+ "nym-crypto",
+ "nym-network-defaults",
+ "nym-task",
+ "nym-validator-client",
+ "nyxd-scraper",
+ "serde",
+ "serde_with",
+ "sha2 0.10.8",
+ "sqlx",
+ "thiserror",
+ "time",
+ "tokio",
+ "tracing",
+ "url",
+ "zeroize",
+]
+
+[[package]]
 name = "nym-vesting-contract-common"
 version = "0.7.0"
 dependencies = [
@@ -7499,7 +7596,7 @@ dependencies = [
 name = "nym-wallet-types"
 version = "1.0.0"
 dependencies = [
- "cosmrs",
+ "cosmrs 0.15.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "cosmwasm-std",
  "hex-literal",
  "nym-config",
@@ -7583,7 +7680,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "const_format",
- "cosmrs",
+ "cosmrs 0.15.0 (git+https://github.com/jstuczyn/cosmos-rust?branch=nym-temp/all-validator-features)",
  "eyre",
  "futures",
  "nym-bin-common",
@@ -9805,6 +9902,35 @@ dependencies = [
  "itoa",
  "ryu",
  "serde",
+]
+
+[[package]]
+name = "serde_with"
+version = "3.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "64cd236ccc1b7a29e7e2739f27c0b2dd199804abc4290e32f59f3b68d6405c23"
+dependencies = [
+ "base64 0.21.4",
+ "chrono",
+ "hex",
+ "indexmap 1.9.3",
+ "indexmap 2.0.2",
+ "serde",
+ "serde_json",
+ "serde_with_macros",
+ "time",
+]
+
+[[package]]
+name = "serde_with_macros"
+version = "3.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "93634eb5f75a2323b16de4748022ac4297f9e76b6dced2be287a099f41b5e788"
+dependencies = [
+ "darling 0.20.3",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.38",
 ]
 
 [[package]]

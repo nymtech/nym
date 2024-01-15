@@ -35,7 +35,7 @@ impl NetworkStatisticsAPI {
 
     pub async fn run(self) {
         let rocket_shutdown_handle = self.rocket.shutdown();
-        let shutdown = TaskManager::new(10);
+        let mut shutdown = TaskManager::new(10);
         tokio::spawn(self.rocket.launch());
 
         shutdown.catch_interrupt().await.ok();

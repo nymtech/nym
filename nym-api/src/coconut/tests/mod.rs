@@ -9,7 +9,7 @@ use async_trait::async_trait;
 use cosmwasm_std::{coin, to_binary, Addr, CosmosMsg, Decimal, WasmMsg};
 use cw3::ProposalResponse;
 use cw4::MemberResponse;
-use nym_api_requests::coconut::models::{IssuedCredentialInner, IssuedCredentialResponse};
+use nym_api_requests::coconut::models::{IssuedCredentialBody, IssuedCredentialResponse};
 use nym_api_requests::coconut::{
     BlindSignRequestBody, BlindedSignatureResponse, VerifyCredentialBody, VerifyCredentialResponse,
 };
@@ -716,7 +716,7 @@ impl TestFixture {
         serde_json::from_str(&response.into_string().await.unwrap()).unwrap()
     }
 
-    async fn issued_unchecked(&self, id: i64) -> IssuedCredentialInner {
+    async fn issued_unchecked(&self, id: i64) -> IssuedCredentialBody {
         self.issued_credential(id)
             .await
             .unwrap()

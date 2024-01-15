@@ -60,7 +60,7 @@ impl RunExternalNodeCmd {
             .with_members_provider(members_provider)?
             .build();
 
-        let shutdown = TaskManager::new(10);
+        let mut shutdown = TaskManager::new(10);
 
         let shutdown_listener = shutdown.subscribe();
         tokio::spawn(ephemera.run(shutdown_listener));

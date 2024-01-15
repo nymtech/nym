@@ -1,7 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::storage::models::Validator;
+use crate::storage::models::{CommitSignature, Validator};
 use sqlx::types::time::OffsetDateTime;
 use sqlx::{Executor, Sqlite};
 use tracing::{instrument, trace};
@@ -84,8 +84,8 @@ impl StorageManager {
                 SELECT COUNT(*) as count FROM pre_commit
                 WHERE 
                     validator_address == ?
-                    AND height > ? 
-                    AND height < ?
+                    AND height >= ? 
+                    AND height <= ?
             "#,
             consensus_address,
             start_height,
@@ -96,6 +96,24 @@ impl StorageManager {
         .count;
 
         Ok(count)
+    }
+
+    pub(crate) async fn get_precommit(
+        &self,
+        consensus_address: &str,
+        height: i64,
+    ) -> Result<Option<CommitSignature>, sqlx::Error> {
+        sqlx::query_as(
+            r#"
+                SELECT * FROM pre_commit
+                WHERE validator_address = ? 
+                AND height = ?
+            "#,
+        )
+        .bind(consensus_address)
+        .bind(height)
+        .fetch_optional(&self.connection_pool)
+        .await
     }
 
     pub(crate) async fn get_block_validators(
@@ -116,6 +134,12 @@ impl StorageManager {
         )
         .fetch_all(&self.connection_pool)
         .await
+    }
+
+    pub(crate) async fn get_validators(&self) -> Result<Vec<Validator>, sqlx::Error> {
+        sqlx::query_as("SELECT * FROM validator")
+            .fetch_all(&self.connection_pool)
+            .await
     }
 
     pub(crate) async fn get_last_processed_height(&self) -> Result<i64, sqlx::Error> {

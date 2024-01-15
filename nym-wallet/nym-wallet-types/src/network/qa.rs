@@ -35,6 +35,7 @@ pub(crate) fn validators() -> Vec<ValidatorDetails> {
     vec![ValidatorDetails::new(
         "https://qa-validator.qa.nymte.ch/",
         Some("https://qa-nym-api.qa.nymte.ch/api"),
+        Some("wss://qa-validator.qa.nymte.ch/websocket"),
     )]
 }
 

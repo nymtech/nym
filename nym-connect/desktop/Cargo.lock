@@ -1013,8 +1013,7 @@ dependencies = [
 [[package]]
 name = "cosmos-sdk-proto"
 version = "0.20.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "32560304ab4c365791fd307282f76637213d8083c1a98490c35159cd67852237"
+source = "git+https://github.com/jstuczyn/cosmos-rust?branch=nym-temp/all-validator-features#67718aa27a96efb9881e927a8f998c94b885093c"
 dependencies = [
  "prost",
  "prost-types",
@@ -1024,8 +1023,7 @@ dependencies = [
 [[package]]
 name = "cosmrs"
 version = "0.15.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "47126f5364df9387b9d8559dcef62e99010e1d4098f39eb3f7ee4b5c254e40ea"
+source = "git+https://github.com/jstuczyn/cosmos-rust?branch=nym-temp/all-validator-features#67718aa27a96efb9881e927a8f998c94b885093c"
 dependencies = [
  "bip32",
  "cosmos-sdk-proto",

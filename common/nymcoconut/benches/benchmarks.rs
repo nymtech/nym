@@ -255,7 +255,7 @@ fn bench_coconut(c: &mut Criterion) {
             b.iter(|| {
                 verify_partial_blind_signature(
                     &params,
-                    &blind_sign_request,
+                    blind_sign_request.get_private_attributes_pedersen_commitments(),
                     &public_attributes,
                     random_blind_signature,
                     partial_verification_key,

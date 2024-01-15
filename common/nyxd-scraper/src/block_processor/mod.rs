@@ -11,8 +11,10 @@ use crate::storage::{persist_block, ScraperStorage};
 use futures::StreamExt;
 use std::collections::{BTreeMap, HashSet, VecDeque};
 use std::ops::{Add, Range};
+use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::mpsc::{Sender, UnboundedReceiver};
+use tokio::sync::Notify;
 use tokio::time::{interval_at, Instant};
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use tokio_util::sync::CancellationToken;
@@ -39,6 +41,7 @@ impl PendingSync {
 
 pub struct BlockProcessor {
     cancel: CancellationToken,
+    synced: Arc<Notify>,
     last_processed_height: u32,
     last_processed_at: Instant,
     pending_sync: PendingSync,
@@ -60,6 +63,7 @@ pub struct BlockProcessor {
 impl BlockProcessor {
     pub async fn new(
         cancel: CancellationToken,
+        synced: Arc<Notify>,
         incoming: UnboundedReceiver<BlockToProcess>,
         block_requester: Sender<BlockRequest>,
         storage: ScraperStorage,
@@ -69,6 +73,7 @@ impl BlockProcessor {
 
         Ok(BlockProcessor {
             cancel,
+            synced,
             last_processed_height: last_processed.try_into().unwrap_or_default(),
             last_processed_at: Instant::now(),
             pending_sync: Default::default(),
@@ -243,6 +248,10 @@ impl BlockProcessor {
         }
 
         self.try_request_pending().await;
+
+        if self.pending_sync.is_empty() {
+            self.synced.notify_one();
+        }
     }
 
     async fn try_request_pending(&mut self) -> bool {
@@ -294,7 +303,7 @@ impl BlockProcessor {
             error!("failed to perform startup sync: {err}");
             self.cancel.cancel();
             return;
-        }
+        };
 
         loop {
             tokio::select! {

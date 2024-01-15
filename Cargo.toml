@@ -102,6 +102,7 @@ members = [
     "nym-node",
     "nym-node/nym-node-requests",
     "nym-outfox",
+    "nym-validator-rewarder",
     "tools/internal/ssl-inject",
     "tools/internal/sdk-version-bump",
     "tools/nym-cli",
@@ -124,6 +125,7 @@ default-members = [
     "nym-api",
     "tools/nymvisor",
     "explorer-api",
+    "nym-validator-rewarder",
 ]
 
 exclude = ["explorer", "contracts", "nym-wallet", "nym-connect/mobile/src-tauri", "nym-connect/desktop", "nym-vpn/ui/src-tauri", "cpu-cycles"]
@@ -201,7 +203,10 @@ cw-controllers = { version = "=1.1.0" }
 
 # cosmrs-related
 bip32 = "0.5.1"
-cosmrs = "=0.15.0"
+
+# temporarily using a fork again (yay.) because we need staking and slashing support
+cosmrs = { git = "https://github.com/jstuczyn/cosmos-rust", branch ="nym-temp/all-validator-features" }
+#cosmrs = {  git = "https://github.com/jstuczyn/cosmos-rust", branch = "nym-temp/all-validator-features" } # unfortuntely we need a fork by yours truly to get the staking support
 tendermint = "0.34" # same version as used by cosmrs
 tendermint-rpc = "0.34" # same version as used by cosmrs
 prost = "0.12"

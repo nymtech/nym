@@ -1,6 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::client::packet_statistics_control::PacketStatisticsEvent;
 use crate::client::replies::reply_controller::ReplyControllerSender;
 use crate::client::replies::reply_storage::SentReplyKeys;
 use crate::spawn_future;
@@ -20,6 +21,8 @@ use nym_sphinx::params::ReplySurbKeyDigestAlgorithm;
 use nym_sphinx::receiver::{MessageReceiver, MessageRecoveryError, ReconstructedMessage};
 use std::collections::HashSet;
 use std::sync::Arc;
+
+use super::packet_statistics_control::{self, PacketStatisticsControl, PacketStatisticsReporter};
 
 // Buffer Requests to say "hey, send any reconstructed messages to this channel"
 // or to say "hey, I'm going offline, don't send anything more to me. Just buffer them instead"
@@ -353,6 +356,7 @@ impl<R: MessageReceiver> ReceivedMessagesBuffer<R> {
                 };
 
             if let Some(completed) = completed_message {
+                // WIP(JON): here we are receiving messages, which in our case are TCP packets
                 info!("received {completed}");
                 completed_messages.push(completed)
             }
@@ -429,16 +433,19 @@ impl<R: MessageReceiver> RequestReceiver<R> {
 struct FragmentedMessageReceiver<R: MessageReceiver> {
     received_buffer: ReceivedMessagesBuffer<R>,
     mixnet_packet_receiver: MixnetMessageReceiver,
+    packet_stats_reporter: PacketStatisticsReporter,
 }
 
 impl<R: MessageReceiver> FragmentedMessageReceiver<R> {
     fn new(
         received_buffer: ReceivedMessagesBuffer<R>,
         mixnet_packet_receiver: MixnetMessageReceiver,
+        packet_stats_reporter: PacketStatisticsReporter,
     ) -> Self {
         FragmentedMessageReceiver {
             received_buffer,
             mixnet_packet_receiver,
+            packet_stats_reporter,
         }
     }
 
@@ -450,7 +457,15 @@ impl<R: MessageReceiver> FragmentedMessageReceiver<R> {
         while !shutdown.is_shutdown() {
             tokio::select! {
                 new_messages = self.mixnet_packet_receiver.next() => {
+                    // WIP(JON): here we receive packets (fragments), before re-assembled
                     if let Some(new_messages) = new_messages {
+                        if self
+                            .packet_stats_reporter
+                            .send(PacketStatisticsEvent::PacketReceived(new_messages.len()))
+                            .is_err()
+                        {
+                            log::error!("Failed to send cover packet statistics event: channel closed");
+                        }
                         self.received_buffer.handle_new_received(new_messages).await?;
                     } else {
                         log::trace!("FragmentedMessageReceiver: Stopping since channel closed");
@@ -480,6 +495,7 @@ impl<R: MessageReceiver + Clone + Send + 'static> ReceivedMessagesBufferControll
         mixnet_packet_receiver: MixnetMessageReceiver,
         reply_key_storage: SentReplyKeys,
         reply_controller_sender: ReplyControllerSender,
+        packet_statistics_reporter: PacketStatisticsReporter,
     ) -> Self {
         let received_buffer = ReceivedMessagesBuffer::new(
             local_encryption_keypair,
@@ -491,6 +507,7 @@ impl<R: MessageReceiver + Clone + Send + 'static> ReceivedMessagesBufferControll
             fragmented_message_receiver: FragmentedMessageReceiver::new(
                 received_buffer.clone(),
                 mixnet_packet_receiver,
+                packet_statistics_reporter,
             ),
             request_receiver: RequestReceiver::new(received_buffer, query_receiver),
         }

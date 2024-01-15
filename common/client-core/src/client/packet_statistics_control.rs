@@ -4,10 +4,17 @@ use crate::spawn_future;
 
 #[derive(Default, Debug)]
 struct PacketStatistics {
+    // Sent
     real_packets_sent: u64,
     cover_packets_sent: u64,
-    real_acks_received: u64,
+
+    // Received
+    total_packets_received: u64,
     total_acks_received: u64,
+    real_acks_received: u64,
+
+    // Types of packets queued
+    // TODO: track the type sent instead
     real_packets_queued: u64,
     retransmissions_queued: u64,
     reply_surbs_queued: u64,
@@ -23,7 +30,17 @@ impl PacketStatistics {
             PacketStatisticsEvent::CoverPacketSent => {
                 self.cover_packets_sent += 1;
             }
-            PacketStatisticsEvent::TotalAckReceived => {
+            PacketStatisticsEvent::PacketReceived(packets) => {
+                // self.total_packets_received += TryInto::<u64>::try_into(packets).unwrap_or(1);
+                self.total_packets_received += match packets.try_into() {
+                    Ok(p) => p,
+                    Err(_err) => {
+                        log::error!("Conversion error usize -> u64 when handling the number of received packets!");
+                        1
+                    }
+                }
+            }
+            PacketStatisticsEvent::AckReceived => {
                 self.total_acks_received += 1;
             }
             PacketStatisticsEvent::RealAckReceived => {
@@ -51,8 +68,11 @@ pub(crate) enum PacketStatisticsEvent {
     // The cover packets sent
     CoverPacketSent,
 
-    // The total acks received
-    TotalAckReceived,
+    // Packet of any type received
+    PacketReceived(usize),
+
+    // Ack of any type received
+    AckReceived,
     // Out of the total acks received, this is the subset of those that were real
     RealAckReceived,
 
@@ -94,7 +114,8 @@ impl PacketStatisticsControl {
             self.stats.retransmissions_queued,
         );
         log::info!(
-            "acks received: {} (real: {}, cover: {})",
+            "packets received: {}, acks received: {} (real: {}, cover: {})",
+            self.stats.total_packets_received,
             self.stats.total_acks_received,
             self.stats.real_acks_received,
             self.stats.total_acks_received - self.stats.real_acks_received,

@@ -1,7 +1,7 @@
 // Copyright 2022-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use super::packet_statistics_control::PacketStatisticsReporter;
+use super::packet_statistics_control::{PacketStatisticsReporter, self};
 use super::received_buffer::ReceivedBufferMessage;
 use super::topology_control::geo_aware_provider::GeoAwareTopologyProvider;
 use crate::client::base_client::storage::gateway_details::GatewayDetailsStore;
@@ -318,6 +318,7 @@ where
         reply_key_storage: SentReplyKeys,
         reply_controller_sender: ReplyControllerSender,
         shutdown: TaskClient,
+        packet_statistics_control: PacketStatisticsReporter,
     ) {
         info!("Starting received messages buffer controller...");
         let controller: ReceivedMessagesBufferController<SphinxMessageReceiver> =
@@ -327,6 +328,7 @@ where
                 mixnet_receiver,
                 reply_key_storage,
                 reply_controller_sender,
+                packet_statistics_control,
             );
         controller.start_with_shutdown(shutdown)
     }
@@ -678,6 +680,7 @@ where
             reply_storage.key_storage(),
             reply_controller_sender.clone(),
             shutdown.fork("received_messages_buffer"),
+            packet_stats_reporter.clone(),
         );
 
         // The message_sender is the transmitter for any component generating sphinx packets

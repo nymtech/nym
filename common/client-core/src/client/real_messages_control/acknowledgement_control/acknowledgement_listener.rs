@@ -41,7 +41,7 @@ impl AcknowledgementListener {
         trace!("Received an ack");
         if self
             .stats_tx
-            .send(PacketStatisticsEvent::TotalAckReceived)
+            .send(PacketStatisticsEvent::AckReceived)
             .is_err()
         {
             log::error!("Failed to send ack statistics event to the statistics reporter!");

@@ -1,5 +1,11 @@
 # NymVPN Command Line Interface (CLI)
 
+```admonish info
+Our alpha testing round is done with participants at live workshop events. This guide will not work for everyone, as the NymVPN source code is not yet publicly accessible. The alpha testing is done on Nym testnet Sandbox environment, this congiguration is limited and will not work in the future.
+
+**If you commit to test NymVPN alpha, please start with the [user research form](https://opnform.com/forms/nymvpn-user-research-at-37c3-yccqko-2) where all the steps will be provided**. If you disagree with any of the conditions listed, please leave this page.
+```
+
 NymVPN CLI is a fundamental way to run the client for different purposes, currently it is a must for users who want to run the [testing scripts](testing.md).
 
 Below is a way to setup NymVPN CLI using an [automated script](#automated-script-for-cli-installation), if you prefer to do your own setup go to the page according to your operation system:
@@ -38,4 +44,4 @@ chmod u+x nym-vpn-client-executor.sh
     
     <!-- enter wireguard ID -->
 
-6. To run the `nym-vpn-cli` again, follow the easy steps for [Linux](cli-linux.md#run-nymvpn) or [MacOS](cli-macos.md#run-nymvpn).
+6. To run the `nym-vpn-cli` again, follow the easy steps for [Linux](cli-linux.md#run-nymvpn) or [MacOS](cli-macos.md#run-nymvpn)

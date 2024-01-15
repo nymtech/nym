@@ -44,9 +44,3 @@ This alpha testing will help:
 * Stabilize the VPN infrastructure and improve its reliability / speed / features (e.g. IPv6 support)
 * Load test the network in Sandbox environment and identify / anticipate potential weaknesses
 
-
-```admonish info
-Our alpha testing round is done with participants at live workshop events. This guide will not work for everyone, as the NymVPN source code is not yet publicly accessible. The alpha testing is done on Nym testnet Sandbox environment, this congiguration is limited and will not work in the future.
-
-**If you commit to test NymVPN alpha, please start with the [user research form](https://opnform.com/forms/nymvpn-user-research-at-37c3-yccqko-2) where all the steps will be provided**. If you disagree with any of the conditions listed, please leave this page.
-```

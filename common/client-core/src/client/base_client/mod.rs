@@ -1,7 +1,7 @@
 // Copyright 2022-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use super::packet_statistics_control::{PacketStatisticsReporter, self};
+use super::packet_statistics_control::{self, PacketStatisticsReporter};
 use super::received_buffer::ReceivedBufferMessage;
 use super::topology_control::geo_aware_provider::GeoAwareTopologyProvider;
 use crate::client::base_client::storage::gateway_details::GatewayDetailsStore;

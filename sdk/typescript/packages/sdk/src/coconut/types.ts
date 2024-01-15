@@ -16,7 +16,7 @@ export interface LoadedEvent {
 export type Credential = any; // TODO
 
 export interface CredentialClientOpts {
-  isSandbox?: boolean;
+  useSandbox?: boolean;
   networkDetails?: {};
 }
 

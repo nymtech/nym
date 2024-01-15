@@ -93,6 +93,20 @@ jobs:
         if: ${{ always() }}
         run: |
           security delete-keychain $RUNNER_TEMP/app-signing.keychain-db
+
+      - name: Debug - Print create-release outputs
+        if: github.event_name == 'release'
+        run: |
+          echo "Release ID: ${{ steps.create-release.outputs.id }}"
+          echo "Release Assets: ${{ steps.create-release.outputs.assets }}"
+
+# this is failing somehow, let's see what's being outputted
+      - name: Debug - Print create-release outputs
+        if: github.event_name == 'release'
+        run: |
+          echo "Release ID: ${{ steps.create-release.outputs.id }}"
+          echo "Release Assets: ${{ steps.create-release.outputs.assets }}"
+
       - id: create-release
         name: Upload to release based on tag name
         uses: softprops/action-gh-release@v1

@@ -26,6 +26,7 @@ pub const SERVICE_PROVIDER_DIRECTORY_CONTRACT_ADDRESS: &str =
 pub const NAME_SERVICE_CONTRACT_ADDRESS: &str = "NAME_SERVICE_CONTRACT_ADDRESS";
 pub const NYXD: &str = "NYXD";
 pub const NYM_API: &str = "NYM_API";
+pub const NYXD_WEBSOCKET: &str = "NYXD_WS";
 pub const EXPLORER_API: &str = "EXPLORER_API";
 pub const EXIT_POLICY_URL: &str = "EXIT_POLICY";
 

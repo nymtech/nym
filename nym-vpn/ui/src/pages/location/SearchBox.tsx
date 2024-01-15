@@ -29,6 +29,15 @@ export default function SearchBox({
         placeholder={placeholder}
         onChange={onChange}
       />
+      <div
+        className={clsx([
+          'absolute left-7 -top-2 px-1',
+          'text-cement-feet dark:text-mercury-mist',
+          'bg-blanc-nacre dark:bg-baltic-sea text-xs',
+        ])}
+      >
+        Search
+      </div>
       <span
         className={clsx([
           'font-icon text-2xl absolute left-7',

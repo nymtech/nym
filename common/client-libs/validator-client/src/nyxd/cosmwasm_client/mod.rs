@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::nyxd::cosmwasm_client::client_traits::{CosmWasmClient, SigningCosmWasmClient};
+use crate::nyxd::cosmwasm_client::client_traits::SigningCosmWasmClient;
 use crate::nyxd::error::NyxdError;
 use crate::nyxd::{Config, GasPrice, Hash, Height};
 use crate::rpc::TendermintRpcClient;
@@ -26,6 +26,7 @@ use cosmrs::rpc::{HttpClient, HttpClientUrl};
 pub mod client_traits;
 mod helpers;
 pub mod logs;
+pub mod module_traits;
 pub mod types;
 
 #[derive(Debug)]
@@ -327,14 +328,6 @@ where
     ) -> Result<Raw, Self::Error> {
         self.signer.sign_direct_with_account(signer, sign_doc)
     }
-}
-
-#[async_trait]
-impl<C, S> CosmWasmClient for MaybeSigningClient<C, S>
-where
-    C: TendermintRpcClient + Send + Sync,
-    S: Send + Sync,
-{
 }
 
 #[async_trait]

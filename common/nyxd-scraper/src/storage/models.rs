@@ -4,7 +4,7 @@
 use sqlx::types::time::OffsetDateTime;
 use sqlx::FromRow;
 
-#[derive(Debug, Clone, FromRow)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, FromRow)]
 pub struct Validator {
     pub consensus_address: String,
     pub consensus_pubkey: String,

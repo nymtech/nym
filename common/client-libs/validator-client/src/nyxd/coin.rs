@@ -8,6 +8,8 @@ use cosmwasm_std::{Fraction, Uint128};
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::ops::Div;
+use std::str::FromStr;
+use thiserror::Error;
 
 #[derive(Serialize, Deserialize, Clone, Copy, Default, Debug, PartialEq, Eq)]
 pub struct MismatchedDenoms;
@@ -123,6 +125,37 @@ impl From<CosmWasmCoin> for Coin {
             amount: coin.amount.u128(),
             denom: coin.denom,
         }
+    }
+}
+
+// unfortunately cosmwasm didn't re-export this correct so we just redefine its
+#[derive(Error, Debug, PartialEq, Eq)]
+pub enum CoinFromStrError {
+    #[error("Missing denominator")]
+    MissingDenom,
+    #[error("Missing amount or non-digit characters in amount")]
+    MissingAmount,
+    #[error("Invalid amount: {0}")]
+    InvalidAmount(#[from] std::num::ParseIntError),
+}
+
+impl FromStr for Coin {
+    type Err = CoinFromStrError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let pos = s
+            .find(|c: char| !c.is_ascii_digit())
+            .ok_or(CoinFromStrError::MissingDenom)?;
+        let (amount, denom) = s.split_at(pos);
+
+        if amount.is_empty() {
+            return Err(CoinFromStrError::MissingAmount);
+        }
+
+        Ok(Coin {
+            amount: amount.parse::<u128>()?,
+            denom: denom.to_string(),
+        })
     }
 }
 

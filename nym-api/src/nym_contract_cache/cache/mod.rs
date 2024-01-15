@@ -182,19 +182,20 @@ impl NymContractCache {
         }
     }
 
-    pub async fn mixnodes_basic(&self) -> Vec<MixNodeBond> {
-        match time::timeout(Duration::from_millis(100), self.inner.read()).await {
-            Ok(cache) => cache
-                .mixnodes
-                .clone()
-                .into_iter()
-                .map(|bond| bond.bond_information)
-                .collect(),
-            Err(err) => {
-                error!("{err}");
-                Vec::new()
-            }
-        }
+    pub async fn mixnodes_filtered_basic(&self) -> Vec<MixNodeBond> {
+        self.mixnodes_filtered()
+            .await
+            .into_iter()
+            .map(|bond| bond.bond_information)
+            .collect()
+    }
+
+    pub async fn mixnodes_all_basic(&self) -> Vec<MixNodeBond> {
+        self.mixnodes_all()
+            .await
+            .into_iter()
+            .map(|bond| bond.bond_information)
+            .collect()
     }
 
     pub async fn gateways_filtered(&self) -> Vec<GatewayBond> {

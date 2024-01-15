@@ -5,11 +5,14 @@ async function main() {
   const mnemonic = document.getElementById('mnemonic') as HTMLInputElement;
   const coin = document.getElementById('coin') as HTMLInputElement;
   const button = document.getElementById('button') as HTMLButtonElement;
-  
-  const client = await createNymCredentialsClient({ isSandbox: true }); // options: {isSandbox?: boolean; networkDetails?: {}}
+
+  const client = await createNymCredentialsClient();
 
   const generateCredential = async () => {
-    const credential = await client.comlink.acquireCredential(coin.value, mnemonic.value, {});
+    const amount = coin.value;
+    const mnemonicString = mnemonic.value;
+    console.log({ amount, mnemonicString });
+    const credential = await client.comlink.acquireCredential(amount, mnemonicString, { isSandbox: true }); // options: {isSandbox?: boolean; networkDetails?: {}}
     appendOutput(JSON.stringify(credential, null, 2));
   };
 
@@ -23,4 +26,3 @@ window.addEventListener('DOMContentLoaded', () => {
   // let's do this!
   main();
 });
-

@@ -1,8 +1,8 @@
 import * as Comlink from 'comlink';
 import InlineWasmWebWorker from 'web-worker:./worker';
-import { EventKinds, CredentialClientOpts, INymCredentialClientWebWorker, NymCredentialsClient } from './types';
+import { EventKinds, INymCredentialClientWebWorker, NymCredentialsClient } from './types';
 
-export const createNymCredentialsClient = async (options?: CredentialClientOpts): Promise<NymCredentialsClient> => {
+export const createNymCredentialsClient = async (): Promise<NymCredentialsClient> => {
   // eslint-disable-next-line @typescript-eslint/no-use-before-define
   const worker = await createWorker();
 

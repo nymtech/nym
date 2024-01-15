@@ -36,7 +36,7 @@ async function main() {
   const webWorker: INymCredentialClientWebWorker = {
     async acquireCredential(coin: string, mnemonic: string, opts: CredentialClientOpts) {
       console.log('[Worker] --- acquireCredential ---', { coin, mnemonic, opts });
-      return acquireCredential(coin, mnemonic, opts);
+      return acquireCredential(mnemonic, coin, opts);
     },
   };
 
@@ -47,4 +47,4 @@ async function main() {
   postMessageWithType<LoadedEvent>({ kind: EventKinds.Loaded, args: { loaded: true } });
 }
 
-main().catch((e: any) => console.error('Unhandled exception in credential worker', e));;
+main().catch((e: any) => console.error('Unhandled exception in credential worker', e));

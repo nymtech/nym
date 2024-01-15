@@ -19,7 +19,7 @@ jobs:
 
     outputs:
       release_id: ${{ steps.create-release.outputs.id }}
-      release_date: ${{ fromJSON(steps.create-release.outputs.assets)[0].created_at }}
+      release_date: ${{ fromJSON(steps.create-release.outputs.assets)[0].published_at }}
       version: ${{ steps.release-info.outputs.version }}
       filename: ${{ steps.release-info.outputs.filename }}
       file_hash: ${{ steps.release-info.outputs.file_hash }}
@@ -94,15 +94,13 @@ jobs:
         run: |
           security delete-keychain $RUNNER_TEMP/app-signing.keychain-db
 
-      - name: Debug - Print create-release outputs
-        if: github.event_name == 'release'
+      - name: debug print
         run: |
           echo "Release ID: ${{ steps.create-release.outputs.id }}"
           echo "Release Assets: ${{ steps.create-release.outputs.assets }}"
 
-# this is failing somehow, let's see what's being outputted
-      - name: Debug - Print create-release outputs
-        if: github.event_name == 'release'
+      # this is failing somehow, let's see what's being outputted
+      - name: debug print 2
         run: |
           echo "Release ID: ${{ steps.create-release.outputs.id }}"
           echo "Release Assets: ${{ steps.create-release.outputs.assets }}"

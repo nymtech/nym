@@ -19,8 +19,14 @@ pub(crate) mod helpers;
 pub(crate) mod tasks;
 pub(crate) mod upgrades;
 
+#[cfg(unix)]
 fn main() -> anyhow::Result<()> {
     let args = Cli::parse();
 
     Ok(args.execute()?)
+}
+
+#[cfg(not(unix))]
+fn main() {
+    panic!("nymvisor is not supported on this platform")
 }

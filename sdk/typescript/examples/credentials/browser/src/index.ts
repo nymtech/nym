@@ -3,6 +3,9 @@ import { appendOutput } from './utils';
 
 async function main() {
   const mnemonic = document.getElementById('mnemonic') as HTMLInputElement;
+  if (process.env.MNEMONIC) {
+    mnemonic.defaultValue = process.env.MNEMONIC;
+  }
   const coin = document.getElementById('coin') as HTMLInputElement;
   const button = document.getElementById('button') as HTMLButtonElement;
 
@@ -12,8 +15,15 @@ async function main() {
     const amount = coin.value;
     const mnemonicString = mnemonic.value;
     console.log({ amount, mnemonicString });
-    const credential = await client.comlink.acquireCredential(amount, mnemonicString, { isSandbox: true }); // options: {isSandbox?: boolean; networkDetails?: {}}
-    appendOutput(JSON.stringify(credential, null, 2));
+    try {
+      appendOutput('About to get a credential... 🥁');
+      const credential = await client.comlink.acquireCredential(amount, mnemonicString, { useSandbox: true }); // options: {useSandbox?: boolean; networkDetails?: {}}
+      appendOutput('Success! 🎉');
+      appendOutput(JSON.stringify(credential, null, 2));
+    } catch (e) {
+      console.error('Failed to get credential', e);
+      appendOutput((e as any).message);
+    }
   };
 
   if (button) {

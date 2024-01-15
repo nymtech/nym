@@ -32,6 +32,6 @@ chmod u+x nym-vpn-client-macos-executor.sh
 06c7c82f032f230187da1002a9a9a88242d3bbf6c5c09dc961a71df151d768d0  nym-vpn-ui_0.0.2_macos_x86_64.zip
 ```
 5. The script will run the application and it will prompt you for a country code to exit, chose one of the offered options in the same format
-6. To run the application again, follow the easy steps for [Linux](gui-linux.md#run-nymvpn) or [MacOS](gui-macos.md#run-nymvpn)
+6. To run the application again, follow the easy steps for [Linux](gui-linux.md#run-nymvpn) or [MacOS](gui-mac.md#run-nymvpn)
 
-In case of errors check out the [troubleshooting](./nym-vpn-troubleshooting.html#installing-gui-on-macos-not-working) section.
+In case of errors check out the [troubleshooting](troubleshooting.md#installing-gui-on-macos-not-working) section.

@@ -6,7 +6,7 @@ If you interested to read more about Nym platform, you can have a look at [Nym g
 
 ## NymVPN
 
-If this your first time hearing about NymVPN, make sure you visit [NymVPN webpage](https://nymvpn.com/en), the official NymVPN [support & FAQ page](https://nymvpn.com/en/support) and the proceed to the introduction and guide on how to [install, run and test](/intro.md#nymvpn-guides) the client.
+If this your first time hearing about NymVPN, make sure you visit [NymVPN webpage](https://nymvpn.com/en), the official NymVPN [support & FAQ page](https://nymvpn.com/en/support) and the proceed to the introduction and guide on how to [install, run and test](intro.md#nymvpn-guides) the client.
 
 Below are some extra FAQs which came out during the previous alpha testing round.
 
@@ -56,7 +56,7 @@ Project Smoosh is a code name for a process in which different components of Nym
 
 ## Exit Gateway
 
-Part of the the transition under code name [Project Smoosh](./nym-vpn-faq.md#project-smoosh) is a creation of [Nym Exit Gateway](https://nymtech.net/operators/legal/exit-gateway.html) functionality. The operators running Gateways would have to “open” their nodes to a wider range of online services, in a similar fashion to Tor exit relays. The main change will be to expand the original short [allowed.list](https://nymtech.net/.wellknown/network-requester/standard-allowed-list.txt) to a more permissive setup. An [exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt) will constrain the hosts that the users of the Nym VPN and Mixnet can connect to. This will be done in an effort to protect the operators, as Gateways will act both as SOCKS5 Network Requesters, and exit nodes for IP traffic from Nym VPN and Mixnet clients.
+Part of the the transition under code name [Project Smoosh](#project-smoosh) is a creation of [Nym Exit Gateway](https://nymtech.net/operators/legal/exit-gateway.html) functionality. The operators running Gateways would have to “open” their nodes to a wider range of online services, in a similar fashion to Tor exit relays. The main change will be to expand the original short [allowed.list](https://nymtech.net/.wellknown/network-requester/standard-allowed-list.txt) to a more permissive setup. An [exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt) will constrain the hosts that the users of the Nym VPN and Mixnet can connect to. This will be done in an effort to protect the operators, as Gateways will act both as SOCKS5 Network Requesters, and exit nodes for IP traffic from Nym VPN and Mixnet clients.
 
 * Read more how the exit policy gets implemented [here](https://nymtech.net/operators/faq/smoosh-faq.html#how-will-the-exit-policy-be-implemented)
 * Check out [Nym Operators Legal Forum](https://nymtech.net/operators/legal/exit-gateway.html)

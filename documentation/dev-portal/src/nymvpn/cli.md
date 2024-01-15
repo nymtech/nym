@@ -44,4 +44,4 @@ chmod u+x nym-vpn-client-executor.sh
     
     <!-- enter wireguard ID -->
 
-6. To run the `nym-vpn-cli` again, follow the easy steps for [Linux](cli-linux.md#run-nymvpn) or [MacOS](cli-macos.md#run-nymvpn)
+6. To run the `nym-vpn-cli` again, follow the easy steps for [Linux](cli-linux.md#run-nymvpn) or [MacOS](cli-mac.md#run-nymvpn)

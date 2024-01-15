@@ -69,7 +69,7 @@ sudo apt-get install jq
 # macOS
 brew install jq
 ```
-On some Linux distributions however the [script](./nym-vpn.md#testssh) returns `jq` error even if your system claims that `jq is already the newest version`.
+On some Linux distributions however the [script](testing.md#testssh) returns `jq` error even if your system claims that `jq is already the newest version`.
 In that case, comment the `jq` check in the script as follows:
 ```sh
 #if ! command -v jq &>/dev/null; then
@@ -89,7 +89,7 @@ In case the automatic download of all the Gateways fail (and it shouldn't), you 
 1. Open the list of Gateways created by API [here](https://nymvpn.com/en/ccc/api/gateways)
 2. On top click on `JSON` option (shall be default view) and `Save`
 3. Save it as `data.json` to the `nym-vpn-tests` folder
-4. Replace line 3 in the [script `tests.sh`](./nym-vpn.md#testssh) with:
+4. Replace line 3 in the [script `tests.sh`](testing.md#testssh) with:
 ```sh
 NEW_ENDPOINT="http://localhost:8000/data.json"
 ```
@@ -97,4 +97,4 @@ NEW_ENDPOINT="http://localhost:8000/data.json"
 ```sh
 python3 -m http.server 8000
 ```
-6. Continue with the steps listed in [testing section](./nym-vpn.md#testing)
+6. Continue with the steps listed in [testing section](testing.md)

@@ -1,6 +1,6 @@
 # Testing NymVPN alpha
 
-> Before you get into testing NymVPN, make sure to go through the preparation steps for [Linux](nym-vpn-linux.md) or [MacOS](nym-vpn-mac.md).
+> Before you get into testing NymVPN, make sure to go through the preparation steps for NymVPN [CLI](cli.md).
 
 One of the main aims of NymVPN alpha release is testing; your results will help us to make NymVPN robust and stabilise both the client and the network through provided measurements.
 
@@ -13,7 +13,7 @@ One of the main aims of NymVPN alpha release is testing; your results will help 
 3. Open terminal in the same directory
 4. Turn off any existing VPN's (including the NymVPN instances), reconnect your wifi and make the script executable by running `chmod +x ./tests.sh`
 5. Run the tests: `sudo ./tests.sh`
-6. In case of errors, see the [troubleshooting section](./nym-vpn-troubleshooting.md#missing-jq-error) below
+6. In case of errors, see the [troubleshooting section](troubleshooting.md#missing-jq-error) below
 7. The script will print a JSON view of existing Gateways and prompt you to:
     - ***(Make sure to use two different Gateways for entry and exit!)***
     - `enter a gateway ID:` paste one of the values labeled with a key `"identityKey"` printed above (without `" "`)
@@ -34,7 +34,7 @@ nym-vpn-tests
 ├── timeout
 └── two_hop_perf_test_results.log
 ```
-10. In case of errors, see [troubleshooting section](./nym-vpn-troubleshooting.md#missing-jq-error) below
+10. In case of errors, see [troubleshooting section](troubleshooting.md#missing-jq-error) below
 11. When the tests are finished, remove the `nym-vpn-cli` binary from the folder and compress the entire folder as `nym-vpn-tests.zip`
 12. Upload this compressed file to the [questionnaire](https://opnform.com/forms/nymvpn-user-research-at-37c3-yccqko-2) upload field when prompted
 

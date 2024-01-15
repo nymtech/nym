@@ -59,55 +59,11 @@ sudo ./nym-vpn-cli -c ./sandbox.env --entry-gateway-id <ENTRY_GATEWAY_ID> --exit
 ```
 ~~~admonish example collapsible=true title="Console output"
 ```
-./binaries/nym-vpn-cli --help
+<!-- cmdrun ./binaries/nym-vpn-cli --help -->
 ```
 ~~~
 
-~~~admonish example collapsible=true title="Console output"
-```
-Usage: nym-vpn-cli [OPTIONS]
-
-Options:
-  -c, --config-env-file <CONFIG_ENV_FILE>
-          Path pointing to an env file describing the network
-      --mixnet-client-path <MIXNET_CLIENT_PATH>
-          Path to the data directory of a previously initialised mixnet client, where the keys reside
-      --entry-gateway-id <ENTRY_GATEWAY_ID>
-          Mixnet public ID of the entry gateway
-      --entry-gateway-country <ENTRY_GATEWAY_COUNTRY>
-          Auto-select entry gateway by country ISO
-      --exit-router-address <EXIT_ROUTER_ADDRESS>
-          Mixnet recipient address
-      --exit-gateway-id <EXIT_GATEWAY_ID>
-
-      --exit-router-country <EXIT_ROUTER_COUNTRY>
-          Mixnet recipient address
-      --enable-wireguard
-          Enable the wireguard traffic between the client and the entry gateway
-      --private-key <PRIVATE_KEY>
-          Associated private key
-      --wg-ip <WG_IP>
-          The IP address of the wireguard interface
-      --ip <IP>
-          The IP address of the TUN device
-      --mtu <MTU>
-          The MTU of the TUN device
-      --disable-routing
-          Disable routing all traffic through the VPN TUN device
-      --enable-two-hop
-          Enable two-hop mixnet traffic. This means that traffic jumps directly from entry gateway to exit gateway
-      --enable-poisson-rate
-          Enable Poisson process rate limiting of outbound traffic
-  -h, --help
-          Print help
-  -V, --version
-          Print version
-
-
-```
-~~~
-
-**Fundamental commands and arguments**
+**Fundamental commands and arguments**  
 
 Here is a list of the options and their descriptions. Some are essential, some are more technical and not needed to adjusted by users:
 

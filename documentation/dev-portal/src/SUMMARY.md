@@ -20,10 +20,10 @@
 
 - [NymVPN alpha](nymvpn/intro.md)
     - [GUI](nymvpn/gui.md)
-        - [GNU/Linux](nymvpn/gui-linux.md)
+        - [Linux](nymvpn/gui-linux.md)
         - [MacOS](nymvpn/gui-mac.md)
     - [CLI](nymvpn/cli.md)
-        - [GNU/Linux](nymvpn/cli-linux.md)
+        - [Linux](nymvpn/cli-linux.md)
         - [MacOS](nymvpn/cli-mac.md)
     - [Testing](nymvpn/testing.md)
     - [Troubleshooting](nymvpn/troubleshooting.md)

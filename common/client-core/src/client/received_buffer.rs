@@ -1,9 +1,10 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::client::packet_statistics_control::PacketStatisticsEvent;
-use crate::client::replies::reply_controller::ReplyControllerSender;
-use crate::client::replies::reply_storage::SentReplyKeys;
+use crate::client::{
+    packet_statistics_control::{PacketStatisticsEvent, PacketStatisticsReporter},
+    replies::{reply_controller::ReplyControllerSender, reply_storage::SentReplyKeys},
+};
 use crate::spawn_future;
 use futures::channel::mpsc;
 use futures::lock::Mutex;
@@ -21,8 +22,6 @@ use nym_sphinx::params::ReplySurbKeyDigestAlgorithm;
 use nym_sphinx::receiver::{MessageReceiver, MessageRecoveryError, ReconstructedMessage};
 use std::collections::HashSet;
 use std::sync::Arc;
-
-use super::packet_statistics_control::{self, PacketStatisticsControl, PacketStatisticsReporter};
 
 // Buffer Requests to say "hey, send any reconstructed messages to this channel"
 // or to say "hey, I'm going offline, don't send anything more to me. Just buffer them instead"
@@ -450,8 +449,7 @@ impl<R: MessageReceiver> FragmentedMessageReceiver<R> {
 
     fn report_real_packet_received(&self, num_packets: usize) {
         self.packet_stats_reporter
-            .send(PacketStatisticsEvent::RealPacketsReceived(num_packets))
-            .ok();
+            .report(PacketStatisticsEvent::RealPacketsReceived(num_packets));
     }
 
     async fn run_with_shutdown(

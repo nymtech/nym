@@ -2,6 +2,9 @@ use std::time::Duration;
 
 use crate::spawn_future;
 
+// Time interval between reporting packet statistics
+const PACKET_REPORT_INTERVAL_SECS: u64 = 2;
+
 #[derive(Default, Debug)]
 struct PacketStatistics {
     // Sent
@@ -82,9 +85,24 @@ pub(crate) enum PacketStatisticsEvent {
     AdditionalReplySurbRequestQueued,
 }
 
-pub(crate) type PacketStatisticsReporter =
-    tokio::sync::mpsc::UnboundedSender<PacketStatisticsEvent>;
 type PacketStatisticsReceiver = tokio::sync::mpsc::UnboundedReceiver<PacketStatisticsEvent>;
+
+#[derive(Clone)]
+pub(crate) struct PacketStatisticsReporter {
+    stats_tx: tokio::sync::mpsc::UnboundedSender<PacketStatisticsEvent>,
+}
+
+impl PacketStatisticsReporter {
+    pub(crate) fn new(stats_tx: tokio::sync::mpsc::UnboundedSender<PacketStatisticsEvent>) -> Self {
+        Self { stats_tx }
+    }
+
+    pub(crate) fn report(&self, event: PacketStatisticsEvent) {
+        self.stats_tx.send(event).unwrap_or_else(|err| {
+            log::error!("Failed to report packet stat: {:?}", err);
+        });
+    }
+}
 
 pub(crate) struct PacketStatisticsControl {
     // Incoming packet stats events from other tasks
@@ -100,7 +118,7 @@ impl PacketStatisticsControl {
                 stats_rx,
                 stats: PacketStatistics::default(),
             },
-            stats_tx,
+            PacketStatisticsReporter::new(stats_tx),
         )
     }
 
@@ -125,23 +143,28 @@ impl PacketStatisticsControl {
     pub(crate) async fn run_with_shutdown(&mut self, mut shutdown: nym_task::TaskClient) {
         log::debug!("Started PacketStatisticsControl with graceful shutdown support");
 
-        let interval = Duration::from_secs(2);
+        let interval = Duration::from_secs(PACKET_REPORT_INTERVAL_SECS);
         let mut interval = tokio::time::interval(interval);
 
         loop {
             tokio::select! {
-                biased;
-                _ = shutdown.recv() => {
-                    log::trace!("PacketStatisticsControl: Received shutdown");
-                    break;
-                }
-                Some(stats_event) = self.stats_rx.recv() => {
-                    log::trace!("PacketStatisticsControl: Received stats event");
-                    self.stats.handle_event(stats_event);
-                }
+                stats_event = self.stats_rx.recv() => match stats_event {
+                    Some(stats_event) => {
+                        log::trace!("PacketStatisticsControl: Received stats event");
+                        self.stats.handle_event(stats_event);
+                    },
+                    None => {
+                        log::trace!("PacketStatisticsControl: stopping since stats channel was closed");
+                        break;
+                    }
+                },
                 _ = interval.tick() => {
                     self.report_statistics();
                 }
+                _ = shutdown.recv_with_delay() => {
+                    log::trace!("PacketStatisticsControl: Received shutdown");
+                    break;
+                },
             }
         }
         log::debug!("PacketStatisticsControl: Exiting");

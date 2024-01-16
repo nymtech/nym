@@ -271,7 +271,7 @@ where
             } else {
                 PacketStatisticsEvent::CoverPacketSent
             };
-            self.stats_tx.send(event).ok();
+            self.stats_tx.report(event);
         }
 
         // notify ack controller about sending our message only after we actually managed to push it
@@ -367,14 +367,13 @@ where
             TransmissionLane::Retransmission => Some(PacketStatisticsEvent::RetransmissionQueued),
         };
         if let Some(stat_event) = stat_event {
-            self.stats_tx.send(stat_event).ok();
+            self.stats_tx.report(stat_event);
         }
         // To avoid comparing apples to oranges when presenting the fraction of packets that are
         // retransmissions, we also need to keep track to the total number of real messages queued,
         // even though we also track the actual number of messages sent later in the pipeline.
         self.stats_tx
-            .send(PacketStatisticsEvent::RealPacketQueued)
-            .ok();
+            .report(PacketStatisticsEvent::RealPacketQueued);
 
         Some(real_next)
     }
@@ -473,8 +472,7 @@ where
                 // lets count the number of retransmissions here.
                 if conn_id == TransmissionLane::Retransmission {
                     self.stats_tx
-                        .send(PacketStatisticsEvent::RetransmissionQueued)
-                        .ok();
+                        .report(PacketStatisticsEvent::RetransmissionQueued);
                 }
 
                 // First store what we got for the given connection id

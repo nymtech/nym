@@ -102,6 +102,7 @@ where
 // obviously when we finally make shared rng that is on 'higher' level, this should become
 // generic `R`
 impl LoopCoverTrafficStream<OsRng> {
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         ack_key: Arc<AckKey>,
         average_ack_delay: Duration,
@@ -199,13 +200,7 @@ impl LoopCoverTrafficStream<OsRng> {
                 }
             }
         } else {
-            if self
-                .stats_tx
-                .send(PacketStatisticsEvent::CoverPacketSent)
-                .is_err()
-            {
-                log::error!("Failed to send cover packet statistics event - channel closed");
-            }
+            self.stats_tx.report(PacketStatisticsEvent::CoverPacketSent);
         }
 
         // TODO: I'm not entirely sure whether this is really required, because I'm not 100%

@@ -1,7 +1,7 @@
 # NymVPN alpha CLI: Guide for GNU/Linux
 
 ```admonish warning
-NymVPN is an experimental software and it's for [testing](testing.md) purposes only. All users testing the client are expected to sign GDPR Information Sheet and Consent Form (shared at the event), and follow the steps listed in the form [*NymVPN User research*](https://opnform.com/forms/nymvpn-user-research-at-37c3-yccqko-2).
+NymVPN is an experimental software and it's for [testing](testing.md) purposes only. All users testing the client are expected to sign GDPR Information Sheet and Consent Form (shared at the workshop), and follow the steps listed in the form [*NymVPN User research*](https://opnform.com/forms/nymvpn-user-research-at-37c3-yccqko-2).
 ```
 
 ## Installation
@@ -53,8 +53,44 @@ sudo ./nym-vpn-cli -c ./sandbox.env --entry-gateway-id <ENTRY_GATEWAY_ID> --exit
 ```
 ~~~admonish example collapsible=true title="Console output"
 ```
-<!-- cmdrun chmod u+x ./binaries/nym-vpn-cli -->
-<!-- cmdrun ./binaries/nym-vpn-cli --help -->
+Usage: nym-vpn-cli [OPTIONS]
+
+Options:
+  -c, --config-env-file <CONFIG_ENV_FILE>
+          Path pointing to an env file describing the network
+      --mixnet-client-path <MIXNET_CLIENT_PATH>
+          Path to the data directory of a previously initialised mixnet client, where the keys reside
+      --entry-gateway-id <ENTRY_GATEWAY_ID>
+          Mixnet public ID of the entry gateway
+      --entry-gateway-country <ENTRY_GATEWAY_COUNTRY>
+          Auto-select entry gateway by country ISO
+      --exit-router-address <EXIT_ROUTER_ADDRESS>
+          Mixnet recipient address
+      --exit-gateway-id <EXIT_GATEWAY_ID>
+          
+      --exit-router-country <EXIT_ROUTER_COUNTRY>
+          Mixnet recipient address
+      --enable-wireguard
+          Enable the wireguard traffic between the client and the entry gateway
+      --private-key <PRIVATE_KEY>
+          Associated private key
+      --wg-ip <WG_IP>
+          The IP address of the wireguard interface used for the first hop to the entry gateway
+      --nym-ip <NYM_IP>
+          The IP address of the nym TUN device that wraps IP packets in sphinx packets
+      --nym-mtu <NYM_MTU>
+          The MTU of the nym TUN device that wraps IP packets in sphinx packets
+      --disable-routing
+          Disable routing all traffic through the nym TUN device. When the flag is set, the nym TUN device will be created, but to route traffic through it you will need to do it manually, e.g. ping -Itun0
+      --enable-two-hop
+          Enable two-hop mixnet traffic. This means that traffic jumps directly from entry gateway to exit gateway
+      --enable-poisson-rate
+          Enable Poisson process rate limiting of outbound traffic
+  -h, --help
+          Print help
+  -V, --version
+          Print version
+
 ```
 ~~~
 

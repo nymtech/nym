@@ -2,7 +2,7 @@
 
 <div style="padding:56.25% 0 0 0;position:relative;"><iframe src="https://player.vimeo.com/video/897010658?h=1f55870fe6&amp;badge=0&amp;autopause=0&amp;player_id=0&amp;app_id=58479" frameborder="0" allow="autoplay; fullscreen; picture-in-picture" style="position:absolute;top:0;left:0;width:100%;height:100%;" title="NYMVPN alpha demo 37C3"></iframe></div><script src="https://player.vimeo.com/api/player.js"></script>
 
-We are honored to present NymVPN, a client that uses [Nym Mixnet](https://nymtech.net) to anonymise all of a user's internet traffic through either a 5-hop mixnet (for a full network privacy) or the faster 2-hop decentralised VPN (with some extra features). Today users have a unique opportunity to be part of the initial alpha testing. The following pages provide a how-to guide, explaining steps to install and run NymVPN CLI and GUI on our testnet environment Nym Sandbox as well as provide some scripts for qualitative testing.
+We are honored to present NymVPN, a client that uses [Nym Mixnet](https://nymtech.net) to anonymise all of a user's internet traffic through either a 5-hop mixnet (for a full network privacy) or the faster 2-hop decentralised VPN (with some extra features). Today users have a unique opportunity to be part of the initial alpha testing. The following pages provide a how-to guide, explaining steps to install and run NymVPN [CLI](cli.md) and [GUI](gui.md) on our testnet environment Nym Sandbox as well as provide some scripts for qualitative testing.
 
 ## NymVPN
 

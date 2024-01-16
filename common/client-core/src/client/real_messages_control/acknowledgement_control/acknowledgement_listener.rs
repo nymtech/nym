@@ -55,6 +55,8 @@ impl AcknowledgementListener {
         // because nothing was inserted in the first place
         if frag_id == COVER_FRAG_ID {
             trace!("Received an ack for a cover message - no need to do anything");
+            self.stats_tx
+                .report(PacketStatisticsEvent::CoverAckReceived);
             return;
         }
 

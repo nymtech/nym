@@ -13,8 +13,12 @@ struct PacketStatistics {
 
     // Received
     real_packets_received: u64,
+    cover_packets_received: u64,
+
+    // Acks
     total_acks_received: u64,
     real_acks_received: u64,
+    cover_acks_received: u64,
 
     // Types of packets queued
     // TODO: track the type sent instead
@@ -33,21 +37,20 @@ impl PacketStatistics {
             PacketStatisticsEvent::CoverPacketSent => {
                 self.cover_packets_sent += 1;
             }
-            PacketStatisticsEvent::RealPacketsReceived(packets) => {
-                // self.total_packets_received += TryInto::<u64>::try_into(packets).unwrap_or(1);
-                self.real_packets_received += match packets.try_into() {
-                    Ok(p) => p,
-                    Err(_err) => {
-                        log::error!("Conversion error usize -> u64 when handling the number of received packets!");
-                        1
-                    }
-                }
+            PacketStatisticsEvent::RealPacketReceived => {
+                self.real_packets_received += 1;
+            }
+            PacketStatisticsEvent::CoverPacketReceived => {
+                self.cover_packets_received += 1;
             }
             PacketStatisticsEvent::AckReceived => {
                 self.total_acks_received += 1;
             }
             PacketStatisticsEvent::RealAckReceived => {
                 self.real_acks_received += 1;
+            }
+            PacketStatisticsEvent::CoverAckReceived => {
+                self.cover_acks_received += 1;
             }
             PacketStatisticsEvent::RealPacketQueued => {
                 self.real_packets_queued += 1;
@@ -66,17 +69,23 @@ impl PacketStatistics {
 }
 
 pub(crate) enum PacketStatisticsEvent {
-    // The real packets sent
+    // The real packets sent. Recall that acks are sent by the gateway, so it's not included here.
     RealPacketSent,
     // The cover packets sent
     CoverPacketSent,
 
-    // Packet of any type received
-    RealPacketsReceived(usize),
-    // Ack of any type received. This is a subset of the total packets received
+    // Real packets received
+    RealPacketReceived,
+    // Cover packets received
+    CoverPacketReceived,
+
+    // Ack of any type received. This is mostly used as a consistency check, and should be the sum
+    // of real and cover acks received.
     AckReceived,
     // Out of the total acks received, this is the subset of those that were real
     RealAckReceived,
+    // Out of the total acks received, this is the subset of those that were for cover traffic
+    CoverAckReceived,
 
     // Types of packets queued
     RealPacketQueued,
@@ -132,11 +141,12 @@ impl PacketStatisticsControl {
             self.stats.retransmissions_queued,
         );
         log::info!(
-            "packets received: {}, (real: {}, acks: {}, acks for cover: {})",
-            self.stats.real_packets_received + self.stats.total_acks_received,
+            "packets received: {}, (real: {}, cover: {}, acks: {}, acks for cover: {})",
+            self.stats.real_packets_received + self.stats.cover_packets_received,
             self.stats.real_packets_received,
+            self.stats.cover_packets_received,
             self.stats.real_acks_received,
-            self.stats.total_acks_received - self.stats.real_acks_received,
+            self.stats.cover_acks_received,
         );
     }
 

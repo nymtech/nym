@@ -45,14 +45,21 @@ struct ReceivedMessagesBufferInner<R: MessageReceiver> {
     // but perhaps it should be changed to include timestamps of when the message was reconstructed
     // and every now and then remove ids older than X
     recently_reconstructed: HashSet<i32>,
+
+    stats_tx: PacketStatisticsReporter,
 }
 
 impl<R: MessageReceiver> ReceivedMessagesBufferInner<R> {
     fn recover_from_fragment(&mut self, fragment_data: &[u8]) -> Option<NymMessage> {
         if nym_sphinx::cover::is_cover(fragment_data) {
             trace!("The message was a loop cover message! Skipping it");
+            self.stats_tx
+                .report(PacketStatisticsEvent::CoverPacketReceived);
             return None;
         }
+
+        self.stats_tx
+            .report(PacketStatisticsEvent::RealPacketReceived);
 
         let fragment = match self.message_receiver.recover_fragment(fragment_data) {
             Err(err) => {
@@ -143,6 +150,7 @@ impl<R: MessageReceiver> ReceivedMessagesBuffer<R> {
         local_encryption_keypair: Arc<encryption::KeyPair>,
         reply_key_storage: SentReplyKeys,
         reply_controller_sender: ReplyControllerSender,
+        stats_tx: PacketStatisticsReporter,
     ) -> Self {
         ReceivedMessagesBuffer {
             inner: Arc::new(Mutex::new(ReceivedMessagesBufferInner {
@@ -151,6 +159,7 @@ impl<R: MessageReceiver> ReceivedMessagesBuffer<R> {
                 message_receiver: R::new(),
                 message_sender: None,
                 recently_reconstructed: HashSet::new(),
+                stats_tx,
             })),
             reply_key_storage,
             reply_controller_sender,
@@ -431,25 +440,17 @@ impl<R: MessageReceiver> RequestReceiver<R> {
 struct FragmentedMessageReceiver<R: MessageReceiver> {
     received_buffer: ReceivedMessagesBuffer<R>,
     mixnet_packet_receiver: MixnetMessageReceiver,
-    packet_stats_reporter: PacketStatisticsReporter,
 }
 
 impl<R: MessageReceiver> FragmentedMessageReceiver<R> {
     fn new(
         received_buffer: ReceivedMessagesBuffer<R>,
         mixnet_packet_receiver: MixnetMessageReceiver,
-        packet_stats_reporter: PacketStatisticsReporter,
     ) -> Self {
         FragmentedMessageReceiver {
             received_buffer,
             mixnet_packet_receiver,
-            packet_stats_reporter,
         }
-    }
-
-    fn report_real_packet_received(&self, num_packets: usize) {
-        self.packet_stats_reporter
-            .report(PacketStatisticsEvent::RealPacketsReceived(num_packets));
     }
 
     async fn run_with_shutdown(
@@ -461,7 +462,6 @@ impl<R: MessageReceiver> FragmentedMessageReceiver<R> {
             tokio::select! {
                 new_messages = self.mixnet_packet_receiver.next() => {
                     if let Some(new_messages) = new_messages {
-                        self.report_real_packet_received(new_messages.len());
                         self.received_buffer.handle_new_received(new_messages).await?;
                     } else {
                         log::trace!("FragmentedMessageReceiver: Stopping since channel closed");
@@ -497,13 +497,13 @@ impl<R: MessageReceiver + Clone + Send + 'static> ReceivedMessagesBufferControll
             local_encryption_keypair,
             reply_key_storage,
             reply_controller_sender,
+            packet_statistics_reporter,
         );
 
         ReceivedMessagesBufferController {
             fragmented_message_receiver: FragmentedMessageReceiver::new(
                 received_buffer.clone(),
                 mixnet_packet_receiver,
-                packet_statistics_reporter,
             ),
             request_receiver: RequestReceiver::new(received_buffer, query_receiver),
         }

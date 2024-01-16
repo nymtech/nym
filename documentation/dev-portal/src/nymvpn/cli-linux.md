@@ -35,7 +35,7 @@ Make sure your terminal is open in the same directory as your `nym-vpn-cli` bina
 ```sh
 sudo ./nym-vpn-cli -c ./sandbox.env --entry-gateway-id <ENTRY_GATEWAY_ID> --exit-router-address <EXIT_ROUTER_ADDRESS> --enable-wireguard --private-key <PRIVATE_KEY> --wg-ip <WIREGUARD_IP>
 ```
-3. To chose different Gateways, visit [nymvpn.com/en/alpha/api/gateways](https://nymvpn.com/en/alpha/api/gateways) and pick one
+3. To choose different Gateways, visit [nymvpn.com/en/alpha/api/gateways](https://nymvpn.com/en/alpha/api/gateways) and pick one
 4. See all possibilities in [command explanation](#cli-commands-and-options) section below
 
 In case of errors, see [troubleshooting section](troubleshooting.md).
@@ -46,20 +46,21 @@ The basic syntax of `nym-vpn-cli` is:
 ```sh
 sudo ./nym-vpn-cli -c ./sandbox.env --entry-gateway-id <ENTRY_GATEWAY_ID> --exit-router-address <EXIT_ROUTER_ADDRESS> --enable-wireguard --private-key <PRIVATE_KEY> --wg-ip <WG_IP>
 ```
-* To chose different Gateways, visit [nymvpn.com/en/alpha/api/gateways](https://nymvpn.com/en/alpha/api/gateways)
+* To choose different Gateways, visit [nymvpn.com/en/alpha/api/gateways](https://nymvpn.com/en/alpha/api/gateways)
 * To see all possibilities run with `--help` flag:
 ```sh
 ./nym-vpn-cli --help
 ```
 ~~~admonish example collapsible=true title="Console output"
 ```
+<!-- chmod u+x ./binaries/nym-vpn-cli -->
 <!-- cmdrun ./binaries/nym-vpn-cli --help -->
 ```
 ~~~
 
-**Fundamental commands and arguments**  
+Here is a list of the options and their descriptions. Some are essential, some are more technical and not needed to be adjusted by users.
 
-Here is a list of the options and their descriptions. Some are essential, some are more technical and not needed to adjusted by users:
+**Fundamental commands and arguments**  
 
 - `-c` is a path to the [Sandbox config](https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env) file saved as `sandbox.env`
 - `--entry-gateway-id`: paste one of the values labeled with a key `"identityKey"` (without `" "`) from [here](https://nymvpn.com/en/alpha/api/gateways)

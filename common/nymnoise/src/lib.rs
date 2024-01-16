@@ -15,6 +15,8 @@ use snow::Builder;
 use snow::Error;
 use snow::HandshakeState;
 use snow::TransportState;
+use std::cmp::min;
+use std::collections::VecDeque;
 use std::io;
 use std::io::ErrorKind;
 use std::num::TryFromIntError;
@@ -98,6 +100,7 @@ pub struct NoiseStream {
     inner_stream: Framed<TcpStream, LengthDelimitedCodec>,
     handshake: Option<HandshakeState>,
     noise: Option<TransportState>,
+    dec_buffer: VecDeque<u8>,
 }
 
 impl NoiseStream {
@@ -108,6 +111,7 @@ impl NoiseStream {
                 .new_framed(inner_stream),
             handshake: Some(handshake),
             noise: None,
+            dec_buffer: VecDeque::with_capacity(MAXMSGLEN),
         }
     }
 
@@ -170,7 +174,10 @@ impl AsyncRead for NoiseStream {
         let projected_self = self.project();
 
         match projected_self.inner_stream.poll_next(cx) {
-            Poll::Pending => Poll::Pending, //no new data, wake up already scheduled
+            Poll::Pending => {
+                //no new data, waking is already scheduled.
+                //Nothing new to decrypt, only check if we can return something from dec_storage, happens after
+            }
 
             Poll::Ready(Some(Ok(noise_msg))) => {
                 //We have a new moise msg
@@ -192,15 +199,29 @@ impl AsyncRead for NoiseStream {
                     }
                     None => return Poll::Ready(Err(ErrorKind::Other.into())),
                 };
-                buf.put_slice(&dec_msg[..len]);
-                Poll::Ready(Ok(()))
+                projected_self.dec_buffer.extend(&dec_msg[..len]);
             }
 
-            Poll::Ready(Some(Err(err))) => Poll::Ready(Err(err)),
+            Poll::Ready(Some(Err(err))) => return Poll::Ready(Err(err)),
 
             //Stream is done, return Ok with nothing in buf
-            Poll::Ready(None) => Poll::Ready(Ok(())),
+            Poll::Ready(None) => return Poll::Ready(Ok(())),
         }
+
+        //check and return what we can
+        let read_len = min(buf.remaining(), projected_self.dec_buffer.len());
+        if read_len > 0 {
+            buf.put_slice(
+                &projected_self
+                    .dec_buffer
+                    .drain(..read_len)
+                    .collect::<Vec<u8>>(),
+            );
+            return Poll::Ready(Ok(()));
+        }
+
+        //If we end up here, it must mean the previous poll_next was pending as well, otherwise something was returned. Hence waking is already scheduled
+        Poll::Pending
     }
 }
 

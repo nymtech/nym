@@ -1,0 +1,6 @@
+#DEBHELPER#
+
+useradd nym
+mkdir -p /etc/nym
+chown -R nym /etc/nym
+su nym -c 'NYM_HOME_DIR=/etc/nym nym-gateway init --host 0.0.0.0 --id nym-gateway --public-ips $(curl https://ipinfo.io/ip)'

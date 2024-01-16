@@ -6954,6 +6954,7 @@ dependencies = [
  "snow",
  "thiserror",
  "tokio",
+ "tokio-util",
 ]
 
 [[package]]

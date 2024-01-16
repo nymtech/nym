@@ -134,9 +134,9 @@ impl NoiseStream {
         &mut self,
         handshake: &mut HandshakeState,
     ) -> Result<(), NoiseError> {
-        let mut buf = BytesMut::with_capacity(MAXMSGLEN);
-        handshake.write_message(&[], &mut buf)?;
-
+        let mut buf = BytesMut::zeroed(MAXMSGLEN + TAGLEN);
+        let len = handshake.write_message(&[], &mut buf)?;
+        buf.truncate(len);
         self.inner_stream.send(buf.into()).await?;
         Ok(())
     }
@@ -218,9 +218,9 @@ impl AsyncWrite for NoiseStream {
             Poll::Ready(Err(err)) => Poll::Ready(Err(err)),
 
             Poll::Ready(Ok(())) => {
-                let mut noise_buf = BytesMut::with_capacity(MAXMSGLEN + TAGLEN);
+                let mut noise_buf = BytesMut::zeroed(MAXMSGLEN + TAGLEN);
 
-                let Ok(_) = (match projected_self.noise {
+                let Ok(len) = (match projected_self.noise {
                     Some(transport_state) => {
                         warn!(
                             "Noise sending nonce : {:?}",
@@ -232,7 +232,7 @@ impl AsyncWrite for NoiseStream {
                 }) else {
                     return Poll::Ready(Err(ErrorKind::InvalidInput.into()));
                 };
-
+                noise_buf.truncate(len);
                 match projected_self.inner_stream.start_send(noise_buf.into()) {
                     Ok(()) => Poll::Ready(Ok(buf.len())),
                     Err(e) => Poll::Ready(Err(e)),

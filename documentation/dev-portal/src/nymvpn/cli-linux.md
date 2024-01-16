@@ -53,7 +53,7 @@ sudo ./nym-vpn-cli -c ./sandbox.env --entry-gateway-id <ENTRY_GATEWAY_ID> --exit
 ```
 ~~~admonish example collapsible=true title="Console output"
 ```
-<!-- chmod u+x ./binaries/nym-vpn-cli -->
+<!-- cmdrun chmod u+x ./binaries/nym-vpn-cli -->
 <!-- cmdrun ./binaries/nym-vpn-cli --help -->
 ```
 ~~~

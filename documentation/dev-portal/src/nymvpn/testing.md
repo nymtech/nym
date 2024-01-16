@@ -1,5 +1,9 @@
 # Testing NymVPN alpha
 
+```admonish warning
+NymVPN is an experimental software and it's for [testing](./testing.md) purposes only. All users testing the client are expected to sign GDPR Information Sheet and Consent Form (shared at the workshop), and follow the steps listed in the form [*NymVPN User research*](https://opnform.com/forms/nymvpn-user-research-at-37c3-yccqko-2).
+```
+
 > Before you get into testing NymVPN, make sure to go through the preparation steps for NymVPN [CLI](cli.md).
 
 One of the main aims of NymVPN alpha release is testing; your results will help us to make NymVPN robust and stabilise both the client and the network through provided measurements.

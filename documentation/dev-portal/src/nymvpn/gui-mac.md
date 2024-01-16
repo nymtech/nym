@@ -14,7 +14,7 @@ NymVPN is an experimental software and it's for [testing](testing.md) purposes o
 ```sh
 mkdir -p "$HOME/nym-vpn-latest"
 ```
-2. Open Github [releases page](https://github.com/nymtech/nym/releases/tag/nym-vpn-alpha-0.0.2) to download the binary for Debian based Linux
+2. Open Github [releases page](https://github.com/nymtech/nym/releases/tag/nym-vpn-alpha-0.0.2) and download the binary for MacOS
 3. Open terminal in the same directory and check the the `sha256sum` by running:
 ```sh
 # aarch64
@@ -48,7 +48,7 @@ entry_node_location = "DE" # two letters country code
 ```
 9. Create testnet configuration file by saving [this](https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env) as `.env` in the same directory `~/nym-vpn-latest`
 ```sh
-curl -L "https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env" -o .env
+curl -L "https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env" -o "$HOME/nym-vpn-latest/.env"
 ```
 ## Run NymVPN
 

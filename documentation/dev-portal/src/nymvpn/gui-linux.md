@@ -10,7 +10,7 @@ NymVPN is an experimental software and it's for [testing](testing.md) purposes o
 
 ### Installation
 
-1. Open Github [releases page](https://github.com/nymtech/nym/releases/tag/nym-vpn-alpha-0.0.2) to download the binary for Debian based Linux
+1. Open Github [releases page](https://github.com/nymtech/nym/releases/tag/nym-vpn-alpha-0.0.2) and download the binary for Debian based Linux
 2. Open terminal in the same directory and check the the `sha256sum` by running:
 ```sh
 sha256sum ./nym-vpn-ui_0.0.2_ubuntu-22.04_amd64.zip
@@ -20,7 +20,6 @@ sha256sum ./nym-vpn-ui_0.0.2_ubuntu-22.04_amd64.zip
 4. If you prefer to run `.AppImage` make executable by running:
 ```sh
 chmod u+x ./appimage/nym-vpn_0.0.2_amd64.AppImage
-# make sure your path to package is correct and the package name as well
 ```
 5. If you prefer to use the `.deb` version for installation (Linux only), open terminal in the same directory and run:
 ```sh

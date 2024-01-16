@@ -1,6 +1,6 @@
 # Frequently Asked Questions
 
-**NymVPN [*Support & FAQ page*](https://nymvpn.com/en/support)** contains all essential FAQs regarding the client. This page is a source of additional information often seeked by users, operators and developers testing NymVPN.
+**NymVPN [*Support & FAQ page*](https://nymvpn.com/en/support)** contains all essential FAQs regarding the client. This page (below) is a source of additional information often seeked by users, operators and developers testing NymVPN.
 
 If you interested to read more about Nym platform, you can have a look at [Nym general FAQ](https://nymtech.net/developers/faq/general-faq.html) and read through Nym's technical [documentation](https://nymtech.net/docs), [Developer Portal](https://nymtech.net/developers) and [Operators Guide](https://nymtech.net/operators).
 
@@ -8,7 +8,7 @@ If you interested to read more about Nym platform, you can have a look at [Nym g
 
 If this your first time hearing about NymVPN, make sure you visit [NymVPN webpage](https://nymvpn.com/en), the official NymVPN [support & FAQ page](https://nymvpn.com/en/support) and the proceed to the introduction and guide on how to [install, run and test](intro.md#nymvpn-guides) the client.
 
-Below are some extra FAQs which came out during the previous alpha testing round.
+Below are some extra FAQs which came out during the previous alpha testing rounds.
 
 ### What's the difference between 2-hops and 5-hops
 
@@ -60,7 +60,7 @@ Part of the the transition under code name [Project Smoosh](#project-smoosh) is 
 
 * Read more how the exit policy gets implemented [here](https://nymtech.net/operators/faq/smoosh-faq.html#how-will-the-exit-policy-be-implemented)
 * Check out [Nym Operators Legal Forum](https://nymtech.net/operators/legal/exit-gateway.html)
-* Do reach out to us during 37c3 with any experiences you may have running Tor Exit relays or legal findings and suggestions for Nym Exit Gateway operators
+* Do reach out to us with any experiences you may have running Tor Exit relays or legal findings and suggestions for Nym Exit Gateway operators
 
 ## Nym Integrations and SDKs
 

@@ -8,7 +8,7 @@ NymVPN is an experimental software and it's for [testing](./testing.md) purposes
 
 > Any syntax in `<>` brackets is a user's/version unique variable. Exchange with a corresponding name without the `<>` brackets.
 
-1. Open Github [releases page](https://github.com/nymtech/nym/releases/tag/nym-vpn-alpha-0.0.2) to download the binary for Debian based Linux
+1. Open Github [releases page](https://github.com/nymtech/nym/releases/tag/nym-vpn-alpha-0.0.2) and download the binary for MacOS
 2. Open terminal in the same directory and check the the `sha256sum` by running:
 ```sh
 # x86_64
@@ -22,7 +22,6 @@ sha256sum ./nym-vpn-cli_0.1.0_macos_aarch64.zip
 4. Make executable by running:
 ```sh
 chmod u+x ./nym-vpn-cli
-# make sure your path to package is correct and the package name as well
 ```
 5. Create Sandbox environment config file by saving [this](https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env) as `sandbox.env` in the same directory as your NymVPN binaries by running:
 ```sh

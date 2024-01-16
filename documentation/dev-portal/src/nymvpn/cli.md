@@ -1,7 +1,7 @@
 # NymVPN Command Line Interface (CLI)
 
 ```admonish info
-Our alpha testing round is done with participants at live workshop events. This guide will not work for everyone, as the NymVPN source code is not yet publicly accessible. The alpha testing is done on Nym testnet Sandbox environment, this congiguration is limited and will not work in the future.
+Our alpha testing round is done with participants at live workshop events. This guide will not work for everyone, as the NymVPN source code is not yet publicly accessible. The alpha testing is done on Nym testnet Sandbox environment, this configuration is limited and will not work in the future.
 
 **If you commit to test NymVPN alpha, please start with the [user research form](https://opnform.com/forms/nymvpn-user-research-at-37c3-yccqko-2) where all the steps will be provided**. If you disagree with any of the conditions listed, please leave this page.
 ```
@@ -15,7 +15,7 @@ Below is a way to setup NymVPN CLI using an [automated script](#automated-script
 
 ## Automated Script for CLI Installation
 
-Open a terminal and follow these steps:
+We created a [script](https://gist.github.com/tommyv1987/87267ded27e1eb7651aa9cc745ddf4af/) which does download, sha256 verification, extraction, installation and configuration for Linux and MacOS users automatically following the steps below:
 
 1. Download the script and save it as `nym-vpn-client-executor.sh`: 
 ```sh
@@ -29,19 +29,18 @@ chmod u+x nym-vpn-client-executor.sh
 ```sh
 ./nym-vpn-client-executor.sh
 ```
-4. Verify the `nym-vpn-cli` binary: When prompted to verify `sha256sum` paste one from the [release page](https://github.com/nymtech/nym/releases/tag/nym-vpn-alpha-0.0.2) including the binary name (all as one input with a space in between), for example:
+4. Verify the `nym-vpn-cli` binary: When prompted to verify `sha256sum` paste your correct one from the [release page](https://github.com/nymtech/nym/releases/tag/nym-vpn-alpha-0.0.2) including the binary name (all as one input with a space in between), for example:
 ```sh
+# Choose one according to the system you use, this is just an example
 96623ccc69bc4cc0e4e3e18528b6dae6be69f645d0a592d926a3158ce2d0c269  nym-vpn-cli_0.1.0_macos_x86_64.zip
 ```
-
 5. The script will automatically start the client. Follow the instructions:  
 
 * It prints a JSON view of existing Gateways and prompt you to:
-    - ***(Make sure to use two different Gateways for entry and exit!)***
+    - *Make sure to use two different Gateways for entry and exit!*
     - `enter a gateway ID:` paste one of the values labeled with a key `"identityKey"` printed above (without `" "`)
     - `enter an exit address:` paste one of the values labeled with a key `"address"` printed above (without `" "`)
     - `do you want five hop or two hop?`: type `five` or `two`
-    
-    <!-- enter wireguard ID -->
+    - `enable WireGuard? (yes/no):` if you chose yes, find your private key and wireguard IP [here](https://nymvpn.com/en/alpha)
 
 6. To run the `nym-vpn-cli` again, follow the easy steps for [Linux](cli-linux.md#run-nymvpn) or [MacOS](cli-mac.md#run-nymvpn)

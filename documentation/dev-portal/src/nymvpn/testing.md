@@ -11,11 +11,17 @@ One of the main aims of NymVPN alpha release is testing; your results will help 
 1. Create a directory called `nym-vpn-tests` and copy your `nym-vpn-cli` binary and [`sandbox.env`](https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env) to that directory
 2. Copy the [block below](#testssh) and save it as `tests.sh` to the same folder
 3. Open terminal in the same directory
-4. Turn off any existing VPN's (including the NymVPN instances), reconnect your wifi and make the script executable by running `chmod +x ./tests.sh`
-5. Run the tests: `sudo ./tests.sh`
+4. Turn off any existing VPN's (including the NymVPN instances), reconnect your wifi and make the script executable by running 
+```sh
+chmod u+x ./tests.sh
+```
+5. Run the tests: 
+```sh
+sudo ./tests.sh
+````
 6. In case of errors, see the [troubleshooting section](troubleshooting.md#missing-jq-error) below
 7. The script will print a JSON view of existing Gateways and prompt you to:
-    - ***(Make sure to use two different Gateways for entry and exit!)***
+    - *Make sure to use two different Gateways for entry and exit!*
     - `enter a gateway ID:` paste one of the values labeled with a key `"identityKey"` printed above (without `" "`)
     - `enter an exit address:` paste one of the values labeled with a key `"address"` printed above (without `" "`)
     - `enable WireGuard? (yes/no):` if you chose yes, find your private key and wireguard IP [here](https://nymvpn.com/en/alpha)

@@ -184,17 +184,9 @@ impl AsyncRead for NoiseStream {
                 let mut dec_msg = vec![0u8; MAXMSGLEN];
                 let len = match projected_self.noise {
                     Some(transport_state) => {
-                        warn!(
-                            "Noise msg read : {:?} - {:?}",
-                            &noise_msg[..10],
-                            transport_state.receiving_nonce()
-                        );
                         match transport_state.read_message(&noise_msg, &mut dec_msg) {
                             Ok(len) => len,
-                            Err(err) => {
-                                println!("Error : {:?}", err);
-                                return Poll::Ready(Err(ErrorKind::InvalidInput.into()));
-                            }
+                            Err(_) => return Poll::Ready(Err(ErrorKind::InvalidInput.into())),
                         }
                     }
                     None => return Poll::Ready(Err(ErrorKind::Other.into())),
@@ -242,13 +234,7 @@ impl AsyncWrite for NoiseStream {
                 let mut noise_buf = BytesMut::zeroed(MAXMSGLEN + TAGLEN);
 
                 let Ok(len) = (match projected_self.noise {
-                    Some(transport_state) => {
-                        warn!(
-                            "Noise sending nonce : {:?}",
-                            transport_state.sending_nonce()
-                        );
-                        transport_state.write_message(buf, &mut noise_buf)
-                    }
+                    Some(transport_state) => transport_state.write_message(buf, &mut noise_buf),
                     None => return Poll::Ready(Err(ErrorKind::Other.into())),
                 }) else {
                     return Poll::Ready(Err(ErrorKind::InvalidInput.into()));

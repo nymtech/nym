@@ -1,0 +1,3 @@
+[submodule "cw-plus"]
+	path = cw-plus
+	url = git@github.com:CosmWasm/cw-plus.git

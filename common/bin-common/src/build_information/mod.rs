@@ -49,6 +49,13 @@ pub struct BinaryBuildInformation {
 impl BinaryBuildInformation {
     // explicitly require the build_version to be passed as it's binary specific
     pub const fn new(binary_name: &'static str, build_version: &'static str) -> Self {
+        let cargo_debug = env!("VERGEN_CARGO_DEBUG");
+        let cargo_profile = if const_str::equal!(cargo_debug, "true") {
+            "debug"
+        } else {
+            "release"
+        };
+
         BinaryBuildInformation {
             binary_name,
             build_timestamp: env!("VERGEN_BUILD_TIMESTAMP"),
@@ -58,7 +65,7 @@ impl BinaryBuildInformation {
             commit_branch: env!("VERGEN_GIT_BRANCH"),
             rustc_version: env!("VERGEN_RUSTC_SEMVER"),
             rustc_channel: env!("VERGEN_RUSTC_CHANNEL"),
-            cargo_profile: env!("VERGEN_CARGO_DEBUG"),
+            cargo_profile,
         }
     }
 
@@ -153,7 +160,7 @@ impl Display for BinaryBuildInformationOwned {
             self.rustc_version,
             "rustc Channel:",
             self.rustc_channel,
-            "cargo Debug:",
+            "cargo Profile:",
             self.cargo_profile,
         )
     }

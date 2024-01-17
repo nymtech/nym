@@ -726,6 +726,7 @@ server {
   listen 80;
   listen [::]:80;
   server_name "<nym-api.nyx.yourdomain.tld>";
+  add_header 'Access-Control-Allow-Origin' '*';
 
   location / {
     proxy_pass http://127.0.0.1:8000;

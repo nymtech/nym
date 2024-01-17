@@ -8,10 +8,7 @@ Our alpha testing round is done with participants at live workshop events. This 
 
 This is the alpha version of NymVPN application - the GUI. A demo of how the client will look like for majority of day-to-day users. For qualitative testing the [CLI](cli.md) is a necessity but to run the GUI holds the same importance as it provides the user with an experience of the actual app and the developers with a valuable feedback from the users. 
 
-Below is an [automated script](#automated-script-for-gui-installation) for MacOS users (soon for Linux as well), if you prefer to do your own setup go to the page according to your operation system:
-
-* [NymVPN GUI for Linux](gui-linux.md)
-* [NymVPN GUI for MacOS](gui-mac.md)
+Follow the simple [automated script](#automated-script-for-gui-installation) for MacOS users (soon for Linux as well) to install and run NymVPN application (GUI), if you are on Linux follow [these steps](gui-linux.md) or if you prefer to do a manual setup on MacOS [go here](gui-mac.md).
 
 ## Automated Script for GUI Installation
 

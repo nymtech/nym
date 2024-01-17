@@ -8,10 +8,7 @@ Our alpha testing round is done with participants at live workshop events. This 
 
 NymVPN CLI is a fundamental way to run the client for different purposes, currently it is a must for users who want to run the [testing scripts](testing.md).
 
-Below is a way to setup NymVPN CLI using an [automated script](#automated-script-for-cli-installation), if you prefer to do your own setup go to the page according to your operation system:
-
-* [NymVPN CLI for GNU/Linux](cli-linux.md)
-* [NymVPN CLI for MacOS](cli-mac.md)
+Follow the simple [automated script](#automated-script-for-cli-installation) below to install and run NymVPN CLI, if you prefer to do a manual setup follow the steps in the guide for [Linux](cli-linux.md) or [MacOS](cli-mac.md)
 
 ## Automated Script for CLI Installation
 

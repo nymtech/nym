@@ -2,17 +2,31 @@
 
 <div style="padding:56.25% 0 0 0;position:relative;"><iframe src="https://player.vimeo.com/video/897010658?h=1f55870fe6&amp;badge=0&amp;autopause=0&amp;player_id=0&amp;app_id=58479" frameborder="0" allow="autoplay; fullscreen; picture-in-picture" style="position:absolute;top:0;left:0;width:100%;height:100%;" title="NYMVPN alpha demo 37C3"></iframe></div><script src="https://player.vimeo.com/api/player.js"></script>
 
-```admonish warning
-NymVPN is an experimental software and it's for [testing](testing.md) purposes only. All users testing the client are expected to sign GDPR Information Sheet and Consent Form (shared at the workshop), and follow the steps listed in the form [*NymVPN User research*](https://opnform.com/forms/nymvpn-user-research-at-37c3-yccqko-2).
-```
+**Nym proudly presents NymVPN Alpha** - a client that uses [Nym Mixnet](https://nymtech.net) to anonymise all of a user's internet traffic through either a 5-hop mixnet (for a full network privacy) or the faster 2-hop decentralised VPN (with some extra features). 
 
-We are honored to present NymVPN, a client that uses [Nym Mixnet](https://nymtech.net) to anonymise all of a user's internet traffic through either a 5-hop mixnet (for a full network privacy) or the faster 2-hop decentralised VPN (with some extra features). Today users have a unique opportunity to be part of the initial alpha testing. The following pages provide a how-to guide, explaining steps to install and run NymVPN [CLI](cli.md) and [GUI](gui.md) on our testnet environment Nym Sandbox as well as provide some scripts for qualitative testing.
 
-## NymVPN
+**You are invited to take part in the alpha testing** of this new application. The following pages provide a how-to guide, explaining steps to install and run NymVPN [CLI](cli.md) and [GUI](gui.md) on the Sandbox testnet environment as well as provide some scripts for [qualitative testing](testing.md).
 
-This is a simplified introduction to the NymVPN alpha client. We recommend interested developers to begin with [Nym network overview](https://nymtech.net/docs/architecture/network-overview.html) and the [Mixnet traffic flow](https://nymtech.net/docs/architecture/traffic-flow.html) pages.
+**Here is how**
 
-The default is to run in 5-hop mode:
+1. Go to the NymVPN [testers form](https://opnform.com/forms/nymvpn-user-research-at-37c3-yccqko-2)
+2. Please consent to the GDPR so we can use the results
+3. To test the GUI, [go here](gui.md)
+4. To test the CLI, [go here](cli.md)
+5. Run [qualitative testing script](testing.md)
+6. Fill and submit the [form!](https://opnform.com/forms/nymvpn-user-research-at-37c3-yccqko-2)
+7. Join the [NymVPN matrix channel](https://matrix.to/#/#NymVPN:nymtech.chat) if you have any questions, comments or blockers
+
+***NymVPN Alpha testing will last from 15th of January - 15th of February.***
+
+*NOTE: NymVPN Alpha is experimental software for testing purposes only.* 
+
+
+## NymVPN Overview
+
+To understand what's under the hood of NymVPN and the mixnet, we recommend interested developers to begin with [Nym network overview](https://nymtech.net/docs/architecture/network-overview.html) and the [Mixnet traffic flow](https://nymtech.net/docs/architecture/traffic-flow.html) pages.
+
+The default setup of NymVPN is to run in 5-hop mode (mixnet):
 
 ```
                       ┌─►mix──┐  mix     mix
@@ -28,23 +42,11 @@ Users can switch to 2-hop only mode, which is a faster but less private option. 
 
 The client can optionally do the first hop (local client to Entry Gateway) using Wireguard. NymVPN uses Mullvad libraries for wrapping `wireguard-go` and to setup local routing rules to route all traffic to the TUN virtual network device.
 
-## NymVPN Guides
-
-To download, install and test NymVPN alpha, visit pages listed below:
+## NymVPN Documanetation Pages
 
 * [NymVPN Application (GUI)](gui.md)
 * [NymVPN Command Line Interface (CLI)](cli.md)
 * [Testing scripts](testing.md)
 * [Troubleshooting](troubleshooting.md)
 * [NymVPN FAQ](faq.md)
-
-
-## Goals of testing
-
-This alpha testing will help:
-
-* Stabilise NymVPN client
-* Understand NymVPN client behavior in various setups (OS, connectivity, etc.)
-* Stabilize the VPN infrastructure and improve its reliability / speed / features (e.g. IPv6 support)
-* Load test the network in Sandbox environment and identify / anticipate potential weaknesses
 

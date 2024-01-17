@@ -32,6 +32,7 @@ sudo ./nym-vpn-client-installer.sh
 06c7c82f032f230187da1002a9a9a88242d3bbf6c5c09dc961a71df151d768d0  nym-vpn-ui_0.0.2_macos_x86_64.zip
 ```
 5. The script will run the application and it will prompt you for a country code to exit, chose one of the offered options in the same format as listed
+
 6. To run the application again, reconnect your wifi and run
 ```sh
 # Linux

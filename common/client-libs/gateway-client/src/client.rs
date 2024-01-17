@@ -81,9 +81,6 @@ pub struct GatewayClient<C, St = EphemeralCredentialStorage> {
 
     /// Listen to shutdown messages.
     shutdown: TaskClient,
-
-    /// Number of websocket packets sent
-    sent_ws_packets: u64,
 }
 
 impl<C, St> GatewayClient<C, St> {
@@ -112,7 +109,6 @@ impl<C, St> GatewayClient<C, St> {
             reconnection_attempts: DEFAULT_RECONNECTION_ATTEMPTS,
             reconnection_backoff: DEFAULT_RECONNECTION_BACKOFF,
             shutdown,
-            sent_ws_packets: 0,
         }
     }
 
@@ -360,7 +356,6 @@ impl<C, St> GatewayClient<C, St> {
         match self.connection {
             SocketState::Available(ref mut conn) => {
                 conn.send(msg).await?;
-                self.sent_ws_packets += 1;
                 Ok(())
             }
             SocketState::PartiallyDelegated(ref mut partially_delegated) => {
@@ -372,7 +367,6 @@ impl<C, St> GatewayClient<C, St> {
                     }
                     Err(err)
                 } else {
-                    self.sent_ws_packets += 1;
                     Ok(())
                 }
             }
@@ -677,12 +671,6 @@ impl<C, St> GatewayClient<C, St> {
         &mut self,
         mix_packet: MixPacket,
     ) -> Result<(), GatewayClientError> {
-        // This is mostly just a sanity check to compare against the number of packets we sent
-        // earlier in the pipeline in the native/socks5 client
-        if self.sent_ws_packets % 100 == 0 {
-            debug!("sent_ws_packets: {}", self.sent_ws_packets);
-        }
-
         if !self.authenticated {
             return Err(GatewayClientError::NotAuthenticated);
         }
@@ -833,7 +821,6 @@ impl GatewayClient<InitOnly, EphemeralCredentialStorage> {
             reconnection_attempts: DEFAULT_RECONNECTION_ATTEMPTS,
             reconnection_backoff: DEFAULT_RECONNECTION_BACKOFF,
             shutdown,
-            sent_ws_packets: 0,
         }
     }
 
@@ -865,8 +852,6 @@ impl GatewayClient<InitOnly, EphemeralCredentialStorage> {
             reconnection_attempts: self.reconnection_attempts,
             reconnection_backoff: self.reconnection_backoff,
             shutdown,
-            // TODO: maybe we need to make this static atomic after all
-            sent_ws_packets: self.sent_ws_packets,
         }
     }
 }

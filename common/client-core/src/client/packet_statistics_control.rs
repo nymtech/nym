@@ -9,7 +9,11 @@ const PACKET_REPORT_INTERVAL_SECS: u64 = 2;
 struct PacketStatistics {
     // Sent
     real_packets_sent: u64,
+    real_packets_sent_size: usize,
     cover_packets_sent: u64,
+    cover_packets_sent_size: usize,
+    background_cover_packets_sent: u64,
+    background_cover_packets_sent_size: usize,
 
     // Received
     real_packets_received: u64,
@@ -31,11 +35,17 @@ struct PacketStatistics {
 impl PacketStatistics {
     fn handle_event(&mut self, event: PacketStatisticsEvent) {
         match event {
-            PacketStatisticsEvent::RealPacketSent => {
+            PacketStatisticsEvent::RealPacketSent(packet_size) => {
                 self.real_packets_sent += 1;
+                self.real_packets_sent_size += packet_size;
             }
-            PacketStatisticsEvent::CoverPacketSent => {
+            PacketStatisticsEvent::CoverPacketSent(packet_size) => {
                 self.cover_packets_sent += 1;
+                self.cover_packets_sent_size += packet_size;
+            }
+            PacketStatisticsEvent::BackgroundCoverPacketSent(packet_size) => {
+                self.background_cover_packets_sent += 1;
+                self.background_cover_packets_sent_size += packet_size;
             }
             PacketStatisticsEvent::RealPacketReceived => {
                 self.real_packets_received += 1;
@@ -70,9 +80,11 @@ impl PacketStatistics {
 
 pub(crate) enum PacketStatisticsEvent {
     // The real packets sent. Recall that acks are sent by the gateway, so it's not included here.
-    RealPacketSent,
+    RealPacketSent(usize),
     // The cover packets sent
-    CoverPacketSent,
+    CoverPacketSent(usize),
+    // The cover packets sent in the background
+    BackgroundCoverPacketSent(usize),
 
     // Real packets received
     RealPacketReceived,

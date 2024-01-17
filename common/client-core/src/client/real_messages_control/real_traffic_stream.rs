@@ -220,7 +220,7 @@ where
     async fn on_message(&mut self, next_message: StreamMessage) {
         trace!("created new message");
 
-        let (next_message, fragment_id) = match next_message {
+        let (next_message, fragment_id, packet_size) = match next_message {
             StreamMessage::Cover => {
                 let cover_traffic_packet_size = self.loop_cover_message_size();
                 trace!("the next loop cover message will be put in a {cover_traffic_packet_size} packet");
@@ -256,10 +256,16 @@ where
                         "Somehow failed to generate a loop cover message with a valid topology",
                     ),
                     None,
+                    cover_traffic_packet_size.size(),
                 )
             }
             StreamMessage::Real(real_message) => {
-                (real_message.mix_packet, real_message.fragment_id)
+                let packet_size = real_message.packet_size();
+                (
+                    real_message.mix_packet,
+                    real_message.fragment_id,
+                    packet_size,
+                )
             }
         };
 
@@ -267,9 +273,9 @@ where
             log::error!("Failed to send: {err}");
         } else {
             let event = if fragment_id.is_some() {
-                PacketStatisticsEvent::RealPacketSent
+                PacketStatisticsEvent::RealPacketSent(packet_size)
             } else {
-                PacketStatisticsEvent::CoverPacketSent
+                PacketStatisticsEvent::CoverPacketSent(packet_size)
             };
             self.stats_tx.report(event);
         }

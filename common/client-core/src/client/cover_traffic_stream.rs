@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::client::mix_traffic::BatchMixMessageSender;
+use crate::client::packet_statistics_control::{PacketStatisticsEvent, PacketStatisticsReporter};
 use crate::client::topology_control::TopologyAccessor;
-// use crate::client::COVER_PACKETS_SENT;
 use crate::{config, spawn_future};
 use futures::task::{Context, Poll};
 use futures::{Future, Stream, StreamExt};
@@ -24,8 +24,6 @@ use tokio::time::{sleep, Sleep};
 
 #[cfg(target_arch = "wasm32")]
 use wasmtimer::tokio::{sleep, Sleep};
-
-use super::packet_statistics_control::{PacketStatisticsEvent, PacketStatisticsReporter};
 
 pub struct LoopCoverTrafficStream<R>
 where
@@ -200,7 +198,10 @@ impl LoopCoverTrafficStream<OsRng> {
                 }
             }
         } else {
-            self.stats_tx.report(PacketStatisticsEvent::CoverPacketSent);
+            self.stats_tx
+                .report(PacketStatisticsEvent::BackgroundCoverPacketSent(
+                    cover_traffic_packet_size.size(),
+                ));
         }
 
         // TODO: I'm not entirely sure whether this is really required, because I'm not 100%

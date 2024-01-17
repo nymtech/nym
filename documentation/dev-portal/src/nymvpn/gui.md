@@ -8,7 +8,7 @@ Our alpha testing round is done with participants at live workshop events. This 
 
 This is the alpha version of NymVPN application - the GUI. A demo of how the client will look like for majority of day-to-day users. For qualitative testing the [CLI](cli.md) is a necessity but to run the GUI holds the same importance as it provides the user with an experience of the actual app and the developers with a valuable feedback from the users. 
 
-Follow the simple [automated script](#automated-script-for-gui-installation) below to install and run NymVPN GUI. If you prefer to do a manual setup follow the steps in the guide for [Linux](gui-linux.md) or [MacOS](gui-mac.md)
+Follow the simple [automated script](#automated-script-for-gui-installation) below to install and run NymVPN GUI. If you prefer to do a manual setup follow the steps in the guide for [Linux](gui-linux.md) or [MacOS](gui-mac.md).
 
 ## Automated Script for GUI Installation
 
@@ -16,7 +16,7 @@ We wrote a [script](https://gist.github.com/tommyv1987/7d210d4daa8f7abc61f9a696d
 
 1. To download the script, open a terminal in a directory where you want to download the script and run:
 ```sh
-curl -o nym-vpn-client-executor.sh - L https://gist.githubusercontent.com/tommyv1987/7d210d4daa8f7abc61f9a696d0321f19/raw/181968941ce268a3937e82239ddfd293dd96bb60/nym-vpn-client-installer.sh
+curl -o nym-vpn-client-installer.sh - L https://gist.githubusercontent.com/tommyv1987/7d210d4daa8f7abc61f9a696d0321f19/raw/181968941ce268a3937e82239ddfd293dd96bb60/nym-vpn-client-installer.sh
 ```
 2. Make the script executable
 ```sh

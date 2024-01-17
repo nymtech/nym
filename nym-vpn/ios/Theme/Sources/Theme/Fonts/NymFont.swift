@@ -18,6 +18,7 @@ extension NymFont {
         case regular = "Regular"
         case bold = "Bold"
         case semibold = "SemiBold"
+        case medium = "Medium"
     }
 }
 

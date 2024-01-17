@@ -11,6 +11,8 @@ public struct NymColor {
     public static let statusInfoText = Color(.statusInfoText)
     public static let statusTimer = Color(.statusTimer)
 
+    public static let countrySelectionSelectedBackground = Color(.countrySelectionSelectedBackground)
+
     // MARK: - Network button -
     public static let networkButtonCircle = Color(.networkButtonCircle)
 

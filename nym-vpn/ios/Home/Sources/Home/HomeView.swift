@@ -3,17 +3,25 @@ import UIComponents
 import Theme
 
 public struct HomeView: View {
-    @ObservedObject private var viewModel = HomeViewViewModel(selectedNetwork: .mixnet)
+    @ObservedObject private var viewModel = HomeViewModel(selectedNetwork: .mixnet)
     public init() {}
 
     public var body: some View {
+        HomeFlowCoordinator(state: viewModel, content: content)
+    }
+}
+
+private extension HomeView {
+    @ViewBuilder
+    func content() -> some View {
         VStack {
             navbar()
+            Spacer()
             statusAreaSection()
+            Spacer()
             networkSection()
             connectionSection()
             connectButton()
-            Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background {
@@ -21,14 +29,13 @@ public struct HomeView: View {
                 .ignoresSafeArea()
         }
     }
-}
 
-private extension HomeView {
     @ViewBuilder
     func navbar() -> some View {
         CustomNavBar(
             title: "NymVPN".localizedString,
-            rightButton: CustomNavBarButton(type: .settings, action: {})
+            rightButton: CustomNavBarButton(type: .settings, action: { print("settings")
+                viewModel.navigateToSettings() })
         )
         Spacer()
             .frame(height: 50)
@@ -86,9 +93,15 @@ private extension HomeView {
 
         VStack {
             HopButton(hopType: .first, country: Country(name: "Germany", code: "de"))
+                .onTapGesture {
+                    viewModel.navigateToFirstHopSelection()
+                }
             Spacer()
                 .frame(height: 24)
             HopButton(hopType: .last, country: Country(name: "Switzerland", code: "ch"))
+                .onTapGesture {
+                    viewModel.navigateToLastHopSelection()
+                }
         }
         .padding(.horizontal, 16)
 
@@ -100,5 +113,8 @@ private extension HomeView {
     func connectButton() -> some View {
         ConnectButton()
             .padding(.horizontal, 16)
+            .onTapGesture {
+                viewModel.connect()
+            }
     }
 }

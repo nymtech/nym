@@ -22,6 +22,7 @@ let package = Package(
                 .copy("Resources/Fonts/Lato-Bold.ttf"),
                 .copy("Resources/Fonts/Lato-Regular.ttf"),
                 .copy("Resources/Fonts/Lato-SemiBold.ttf"),
+                .copy("Resources/Fonts/Lato-Medium.ttf"),
                 .process("Resources/Colors.xcassets"),
                 .process("Resources/Localizable.xcstrings")
             ]

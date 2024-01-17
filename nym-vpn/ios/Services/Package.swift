@@ -4,30 +4,26 @@
 import PackageDescription
 
 let package = Package(
-    name: "Home",
+    name: "Services",
     defaultLocalization: "en",
     platforms: [
         .iOS(.v16)
     ],
     products: [
         .library(
-            name: "Home",
-            targets: ["Home"]
+            name: "Tunnels",
+            targets: ["Tunnels"]
         )
-    ],
-    dependencies: [
-        .package(path: "../UIComponents"),
-        .package(path: "../Settings")
     ],
     targets: [
         .target(
-            name: "Home",
-            dependencies: ["UIComponents", "Settings"],
-            path: "Sources"
+            name: "Tunnels",
+            dependencies: [],
+            path: "Sources/Services/Tunnels"
         ),
         .testTarget(
-            name: "HomeTests",
-            dependencies: ["Home"]
+            name: "TunnelsTests",
+            dependencies: ["Tunnels"]
         )
     ]
 )

@@ -1,11 +1,12 @@
 import SwiftUI
 import Home
 import Theme
+import Tunnels
 
 @main
 struct NymVPNApp: App {
     init() {
-        ThemeConfiguration.setup()
+        setup()
     }
 
     var body: some Scene {
@@ -13,6 +14,13 @@ struct NymVPNApp: App {
             NavigationStack {
                 HomeView()
             }
+            .environmentObject(TunnelsManager.shared)
         }
+    }
+}
+
+private extension NymVPNApp {
+    func setup() {
+        ThemeConfiguration.setup()
     }
 }

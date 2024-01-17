@@ -14,6 +14,10 @@ public struct StrokeBorderView<Content: View>: View {
         VStack(alignment: .leading) {
             content
         }
+        .contentShape(
+            RoundedRectangle(cornerRadius: 8)
+                .inset(by: 0.5)
+        )
         .padding(0)
         .frame(maxWidth: .infinity, minHeight: 56, maxHeight: 56)
         .cornerRadius(8)

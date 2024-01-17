@@ -8,23 +8,67 @@
 
 /* Begin PBXBuildFile section */
 		D9264E262B3DA062004594A8 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = D9264E252B3DA062004594A8 /* Assets.xcassets */; };
+		D954C0B92B51C1CA00C6BAAC /* NetworkExtension.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D954C0A62B51C17200C6BAAC /* NetworkExtension.framework */; };
+		D954C0BC2B51C1CA00C6BAAC /* PacketTunnelProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = D954C0BB2B51C1CA00C6BAAC /* PacketTunnelProvider.swift */; };
+		D954C0C12B51C1CA00C6BAAC /* NymMixnetTunnel.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = D954C0B82B51C1CA00C6BAAC /* NymMixnetTunnel.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		D96740232B56A67A001F6891 /* Tunnels in Frameworks */ = {isa = PBXBuildFile; productRef = D96740222B56A67A001F6891 /* Tunnels */; };
 		D99A147A2B357E9900F2728B /* NymVPNApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D99A14792B357E9900F2728B /* NymVPNApp.swift */; };
 		D99A148A2B35A73F00F2728B /* Home in Frameworks */ = {isa = PBXBuildFile; productRef = D99A14892B35A73F00F2728B /* Home */; };
 		D99A148C2B35A74200F2728B /* Theme in Frameworks */ = {isa = PBXBuildFile; productRef = D99A148B2B35A74200F2728B /* Theme */; };
 		D9F699E02B4C1862005576A9 /* Settings in Frameworks */ = {isa = PBXBuildFile; productRef = D9F699DF2B4C1862005576A9 /* Settings */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		D954C0BF2B51C1CA00C6BAAC /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = D99A146E2B357E9900F2728B /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = D954C0B72B51C1CA00C6BAAC;
+			remoteInfo = NymMixnetTunnel;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		D954C0B32B51C17200C6BAAC /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				D954C0C12B51C1CA00C6BAAC /* NymMixnetTunnel.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
 		D9264E252B3DA062004594A8 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		D954C0A62B51C17200C6BAAC /* NetworkExtension.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = NetworkExtension.framework; path = System/Library/Frameworks/NetworkExtension.framework; sourceTree = SDKROOT; };
+		D954C0B82B51C1CA00C6BAAC /* NymMixnetTunnel.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = NymMixnetTunnel.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		D954C0BB2B51C1CA00C6BAAC /* PacketTunnelProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PacketTunnelProvider.swift; sourceTree = "<group>"; };
+		D954C0BD2B51C1CA00C6BAAC /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		D954C0BE2B51C1CA00C6BAAC /* NymMixnetTunnel.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = NymMixnetTunnel.entitlements; sourceTree = "<group>"; };
 		D99A14762B357E9900F2728B /* NymVPN.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NymVPN.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		D99A14792B357E9900F2728B /* NymVPNApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NymVPNApp.swift; sourceTree = "<group>"; };
+		D9F699E32B4C47DE005576A9 /* Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "Bridging-Header.h"; sourceTree = "<group>"; };
+		D9F699E62B4C89F1005576A9 /* NymVPN.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = NymVPN.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		D954C0B52B51C1CA00C6BAAC /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D954C0B92B51C1CA00C6BAAC /* NetworkExtension.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		D99A14732B357E9900F2728B /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				D96740232B56A67A001F6891 /* Tunnels in Frameworks */,
 				D9F699E02B4C1862005576A9 /* Settings in Frameworks */,
 				D99A148C2B35A74200F2728B /* Theme in Frameworks */,
 				D99A148A2B35A73F00F2728B /* Home in Frameworks */,
@@ -34,10 +78,29 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		D954C0BA2B51C1CA00C6BAAC /* NymMixnetTunnel */ = {
+			isa = PBXGroup;
+			children = (
+				D954C0BB2B51C1CA00C6BAAC /* PacketTunnelProvider.swift */,
+				D954C0BD2B51C1CA00C6BAAC /* Info.plist */,
+				D954C0BE2B51C1CA00C6BAAC /* NymMixnetTunnel.entitlements */,
+			);
+			path = NymMixnetTunnel;
+			sourceTree = "<group>";
+		};
+		D967402C2B56CA1A001F6891 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				D9F699E32B4C47DE005576A9 /* Bridging-Header.h */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
 		D99A146D2B357E9900F2728B = {
 			isa = PBXGroup;
 			children = (
 				D99A14782B357E9900F2728B /* NymVPN */,
+				D954C0BA2B51C1CA00C6BAAC /* NymMixnetTunnel */,
 				D99A14772B357E9900F2728B /* Products */,
 				D99A14882B35A73F00F2728B /* Frameworks */,
 			);
@@ -47,6 +110,7 @@
 			isa = PBXGroup;
 			children = (
 				D99A14762B357E9900F2728B /* NymVPN.app */,
+				D954C0B82B51C1CA00C6BAAC /* NymMixnetTunnel.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -54,8 +118,10 @@
 		D99A14782B357E9900F2728B /* NymVPN */ = {
 			isa = PBXGroup;
 			children = (
+				D9F699E62B4C89F1005576A9 /* NymVPN.entitlements */,
 				D99A14792B357E9900F2728B /* NymVPNApp.swift */,
 				D9264E252B3DA062004594A8 /* Assets.xcassets */,
+				D967402C2B56CA1A001F6891 /* Resources */,
 			);
 			path = NymVPN;
 			sourceTree = "<group>";
@@ -63,6 +129,7 @@
 		D99A14882B35A73F00F2728B /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				D954C0A62B51C17200C6BAAC /* NetworkExtension.framework */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -70,6 +137,23 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		D954C0B72B51C1CA00C6BAAC /* NymMixnetTunnel */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = D954C0C22B51C1CA00C6BAAC /* Build configuration list for PBXNativeTarget "NymMixnetTunnel" */;
+			buildPhases = (
+				D954C0B42B51C1CA00C6BAAC /* Sources */,
+				D954C0B52B51C1CA00C6BAAC /* Frameworks */,
+				D954C0B62B51C1CA00C6BAAC /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = NymMixnetTunnel;
+			productName = NymMixnetTunnel;
+			productReference = D954C0B82B51C1CA00C6BAAC /* NymMixnetTunnel.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 		D99A14752B357E9900F2728B /* NymVPN */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = D99A14842B357E9A00F2728B /* Build configuration list for PBXNativeTarget "NymVPN" */;
@@ -78,16 +162,19 @@
 				D99A14732B357E9900F2728B /* Frameworks */,
 				D99A14742B357E9900F2728B /* Resources */,
 				D99A14872B359C8800F2728B /* Run Swiftlint */,
+				D954C0B32B51C17200C6BAAC /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				D954C0C02B51C1CA00C6BAAC /* PBXTargetDependency */,
 			);
 			name = NymVPN;
 			packageProductDependencies = (
 				D99A14892B35A73F00F2728B /* Home */,
 				D99A148B2B35A74200F2728B /* Theme */,
 				D9F699DF2B4C1862005576A9 /* Settings */,
+				D96740222B56A67A001F6891 /* Tunnels */,
 			);
 			productName = NymVPN;
 			productReference = D99A14762B357E9900F2728B /* NymVPN.app */;
@@ -100,9 +187,12 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
-				LastSwiftUpdateCheck = 1510;
+				LastSwiftUpdateCheck = 1520;
 				LastUpgradeCheck = 1510;
 				TargetAttributes = {
+					D954C0B72B51C1CA00C6BAAC = {
+						CreatedOnToolsVersion = 15.2;
+					};
 					D99A14752B357E9900F2728B = {
 						CreatedOnToolsVersion = 15.1;
 					};
@@ -122,11 +212,19 @@
 			projectRoot = "";
 			targets = (
 				D99A14752B357E9900F2728B /* NymVPN */,
+				D954C0B72B51C1CA00C6BAAC /* NymMixnetTunnel */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		D954C0B62B51C1CA00C6BAAC /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		D99A14742B357E9900F2728B /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -160,6 +258,14 @@
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		D954C0B42B51C1CA00C6BAAC /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D954C0BC2B51C1CA00C6BAAC /* PacketTunnelProvider.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		D99A14722B357E9900F2728B /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -170,7 +276,73 @@
 		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		D954C0C02B51C1CA00C6BAAC /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = D954C0B72B51C1CA00C6BAAC /* NymMixnetTunnel */;
+			targetProxy = D954C0BF2B51C1CA00C6BAAC /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
+		D954C0C32B51C1CA00C6BAAC /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = NymMixnetTunnel/NymMixnetTunnel.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = VW5DZLFHM5;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = NymMixnetTunnel/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = NymMixnetTunnel;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.2;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "net.nymtech.vpn.network-extension";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		D954C0C42B51C1CA00C6BAAC /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = NymMixnetTunnel/NymMixnetTunnel.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = VW5DZLFHM5;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = NymMixnetTunnel/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = NymMixnetTunnel;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.2;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "net.nymtech.vpn.network-extension";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 		D99A14822B357E9A00F2728B /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -293,8 +465,10 @@
 		D99A14852B357E9A00F2728B /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = NymVPN/NymVPN.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
@@ -305,18 +479,26 @@
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)",
+				);
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = net.nymtech.vpn;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = "$(PROJECT_DIR)/NymVPN/Resources/Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -325,8 +507,10 @@
 		D99A14862B357E9A00F2728B /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = NymVPN/NymVPN.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
@@ -337,18 +521,26 @@
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)",
+				);
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = net.nymtech.vpn;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = "$(PROJECT_DIR)/NymVPN/Resources/Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -357,6 +549,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		D954C0C22B51C1CA00C6BAAC /* Build configuration list for PBXNativeTarget "NymMixnetTunnel" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				D954C0C32B51C1CA00C6BAAC /* Debug */,
+				D954C0C42B51C1CA00C6BAAC /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		D99A14712B357E9900F2728B /* Build configuration list for PBXProject "NymVPN" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -378,6 +579,10 @@
 /* End XCConfigurationList section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		D96740222B56A67A001F6891 /* Tunnels */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = Tunnels;
+		};
 		D99A14892B35A73F00F2728B /* Home */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = Home;

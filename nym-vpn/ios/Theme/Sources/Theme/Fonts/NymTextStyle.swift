@@ -42,6 +42,12 @@ extension NymTextStyle {
                 NymTextStyle(nymFont: .lato(size: 14, weight: .bold), kerning: 0.1)
             }
         }
+
+        public struct Small {
+            public static var primary: NymTextStyle {
+                NymTextStyle(nymFont: .lato(size: 11, weight: .medium), kerning: 0.5)
+            }
+        }
     }
 
     // MARK: - Body -

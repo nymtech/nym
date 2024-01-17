@@ -10,14 +10,26 @@ public struct HopListView: View {
     }
 
     public var body: some View {
-        VStack {
+        VStack(spacing: 0) {
             navbar()
+            Spacer()
+                .frame(height: 24)
+
+            countryButton()
+            Spacer()
+                .frame(height: 24)
+
+            countryButton2()
             Spacer()
                 .frame(height: 24)
 
             searchView()
             Spacer()
+                .frame(height: 24)
+
+            availableCountryList()
         }
+        .navigationBarBackButtonHidden(true)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background {
             NymColor.background
@@ -31,21 +43,93 @@ private extension HopListView {
     func navbar() -> some View {
         CustomNavBar(
             title: viewModel.type.selectHopLocalizedTitle,
-            leftButton: CustomNavBarButton(type: .back, action: {})
+            leftButton: CustomNavBarButton(type: .back, action: { viewModel.navigateHome() })
         )
+    }
+
+    @ViewBuilder
+    func countryButton() -> some View {
+        CountryCellButton(
+            viewModel: CountryCellButtonViewModel(
+                type: .fastest(
+                    country: Country(name: "Germany", code: "de")
+                ),
+                isSelected: false
+            )
+        )
+        .padding(.horizontal, 15)
+    }
+
+    @ViewBuilder
+    func countryButton2() -> some View {
+        CountryCellButton(
+            viewModel: CountryCellButtonViewModel(
+                type: .country(
+                    country: Country(name: "Germany", code: "de")
+                ),
+                isSelected: true
+            )
+        )
+        .padding(.horizontal, 15)
     }
 
     @ViewBuilder
     func searchView() -> some View {
         SearchView(viewModel: SearchViewModel())
-            .padding(.horizontal, 16)
+            .padding(.horizontal, 40)
     }
-}
 
-public struct HopListViewModel {
-    public let type: HopType
+    @ViewBuilder
+    func availableCountryList() -> some View {
+        ScrollView {
+            switzerland()
+            germany()
+            switzerland()
+            germany()
+            switzerland()
+            germany()
+            switzerland()
+            germany()
+            switzerland()
+            germany()
+            switzerland()
+            germany()
+            switzerland()
+            germany()
+            switzerland()
+            germany()
+            switzerland()
+            germany()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .ignoresSafeArea(.all)
+    }
 
-    public init(type: HopType) {
-        self.type = type
+    @ViewBuilder
+    func germany() -> some View {
+        CountryCellButton(
+            viewModel: CountryCellButtonViewModel(
+                type: .country(
+                    country: Country(name: "Germany", code: "de")
+                ),
+                isSelected: false
+            )
+        )
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .ignoresSafeArea(.all)
+    }
+
+    @ViewBuilder
+    func switzerland() -> some View {
+        CountryCellButton(
+            viewModel: CountryCellButtonViewModel(
+                type: .country(
+                    country: Country(name: "Switzerland", code: "ch")
+                ),
+                isSelected: false
+            )
+        )
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .ignoresSafeArea(.all)
     }
 }

@@ -111,6 +111,17 @@
         }
       }
     },
+    "fastest" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fastest"
+          }
+        }
+      }
+    },
     "firstHop" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -184,6 +195,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Search country"
+          }
+        }
+      }
+    },
+    "selected" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Selected"
           }
         }
       }

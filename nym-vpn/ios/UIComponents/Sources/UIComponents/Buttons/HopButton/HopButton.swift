@@ -13,11 +13,7 @@ public struct HopButton: View {
     public var body: some View {
         StrokeBorderView(strokeTitle: hopType.localizedTitle) {
             HStack {
-                Image(country.code)
-                    .resizable()
-                    .frame(width: 24, height: 24)
-                    .cornerRadius(50)
-                    .padding(16)
+                FlagImage(countryCode: country.code)
 
                 Text(country.name)
                     .foregroundStyle(NymColor.sysOnSurface)

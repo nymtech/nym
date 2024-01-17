@@ -2,7 +2,7 @@ import SwiftUI
 import Theme
 
 public struct StatusInfoView: View {
-    private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
+    private let timer = Timer.publish(every: 0.3, on: .main, in: .common).autoconnect()
     @State private var timeConnected = "00:00:00"
     @State private var startDate = Date.now
 

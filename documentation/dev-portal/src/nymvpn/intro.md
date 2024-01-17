@@ -9,17 +9,17 @@
 
 **Here is how**
 
-1. Go to the NymVPN [testers form](https://opnform.com/forms/nymvpn-user-research-at-37c3-yccqko-2)
+1. Go to the NymVPN [testers form]({{nym_vpn_form_url}})
 2. Please consent to the GDPR so we can use the results
 3. To test the GUI, [go here](gui.md)
 4. To test the CLI, [go here](cli.md)
 5. Run [qualitative testing script](testing.md)
-6. Fill and submit the [form!](https://opnform.com/forms/nymvpn-user-research-at-37c3-yccqko-2)
+6. Fill and submit the [form!]({{nym_vpn_form_url}})
 7. Join the [NymVPN matrix channel](https://matrix.to/#/#NymVPN:nymtech.chat) if you have any questions, comments or blockers
 
 ***NymVPN Alpha testing will last from 15th of January - 15th of February.***
 
-*NOTE: NymVPN Alpha is experimental software for testing purposes only.* 
+*NOTE: NymVPN Alpha is experimental software for [testing purposes](testing.md) only.* 
 
 
 ## NymVPN Overview
@@ -42,11 +42,13 @@ Users can switch to 2-hop only mode, which is a faster but less private option. 
 
 The client can optionally do the first hop (local client to Entry Gateway) using Wireguard. NymVPN uses Mullvad libraries for wrapping `wireguard-go` and to setup local routing rules to route all traffic to the TUN virtual network device.
 
-## NymVPN Documanetation Pages
+## NymVPN Resources & Guides
 
-* [NymVPN Application (GUI)](gui.md)
-* [NymVPN Command Line Interface (CLI)](cli.md)
+* [NymVPN webpage](https://nymvpn.com)
+* [Alpha release page]({{nym_vpn_latest_binary_url}})
+* [NymVPN application (GUI) guide](gui.md)
+* [NymVPN Command Line Interface (CLI) guide](cli.md)
 * [Testing scripts](testing.md)
 * [Troubleshooting](troubleshooting.md)
 * [NymVPN FAQ](faq.md)
-
+* [NymVPN matrix channel](https://matrix.to/#/#NymVPN:nymtech.chat)

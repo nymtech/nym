@@ -1,7 +1,7 @@
 # NymVPN alpha GUI: Guide for GNU/Linux
 
 ```admonish info
-NymVPN is an experimental software and it's for [testing](./testing.md) purposes only. All users testing the client are expected to sign GDPR Information Sheet and Consent Form (shared at the workshop) so we use their results to improve the client, and submit the form [*NymVPN User research*](https://opnform.com/forms/nymvpn-user-research-at-37c3-yccqko-2) with the testing results.
+NymVPN is an experimental software and it's for [testing](./testing.md) purposes only. All users testing the client are expected to sign GDPR Information Sheet and Consent Form (shared at the workshop) so we use their results to improve the client, and submit the form [*NymVPN User research*]({{nym_vpn_form_url}}) with the testing results.
 ```
 
 ## Preparation
@@ -10,12 +10,12 @@ NymVPN is an experimental software and it's for [testing](./testing.md) purposes
 
 ### Installation
 
-1. Open Github [releases page](https://github.com/nymtech/nym/releases/tag/nym-vpn-alpha-0.0.2) and download the binary for Debian based Linux
+1. Open Github [releases page]({{nym_vpn_latest_binary_url}}) and download the binary for Debian based Linux
 2. Open terminal in the same directory and check the the `sha256sum` by running:
 ```sh
 sha256sum ./nym-vpn-ui_0.0.2_ubuntu-22.04_amd64.zip
 ```
-2. Compare the output with the sha256 hash shared on the [release page](https://github.com/nymtech/nym/releases/tag/nym-vpn-alpha-0.0.2)
+2. Compare the output with the sha256 hash shared on the [release page]({{nym_vpn_latest_binary_url}})
 3. Extract files with `unzip` command or manually as you are used to
 4. If you prefer to run `.AppImage` make executable by running:
 ```sh

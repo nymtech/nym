@@ -1,7 +1,7 @@
 # Testing NymVPN alpha
 
 ```admonish info
-NymVPN is an experimental software and it's for [testing](./testing.md) purposes only. All users testing the client are expected to sign GDPR Information Sheet and Consent Form (shared at the workshop) so we use their results to improve the client, and submit the form [*NymVPN User research*](https://opnform.com/forms/nymvpn-user-research-at-37c3-yccqko-2) with the testing results.
+NymVPN is an experimental software and it's for [testing](./testing.md) purposes only. All users testing the client are expected to sign GDPR Information Sheet and Consent Form (shared at the workshop) so we use their results to improve the client, and submit the form [*NymVPN User research*]({{nym_vpn_form_url}}) with the testing results.
 ```
 
 > Before you get into testing NymVPN, make sure to go through the preparation steps for NymVPN [CLI](cli.md).
@@ -12,7 +12,7 @@ One of the main aims of NymVPN alpha release is testing; your results will help 
 
 > Any syntax in `<>` brackets is a user's/version unique variable. Exchange with a corresponding name without the `<>` brackets.
 
-1. Create a directory called `nym-vpn-tests` and copy your `nym-vpn-cli` binary ([download here](https://github.com/nymtech/nym/releases/tag/nym-vpn-alpha-0.0.2)) and [`sandbox.env`](https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env) to that directory
+1. Create a directory called `nym-vpn-tests` and copy your `nym-vpn-cli` binary ([download here]({{nym_vpn_latest_binary_url}})) and [`sandbox.env`](https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env) to that directory
 2. Copy the [block below](#testssh) and save it as `tests.sh` to the same folder
 3. Open terminal in the same directory
 4. Turn off any existing VPN's (including the NymVPN instances), reconnect your wifi and make the script executable by running 
@@ -45,7 +45,7 @@ nym-vpn-tests
 └── two_hop_perf_test_results.log
 ```
 10. When the tests are finished, remove the `nym-vpn-cli` binary from the folder and compress the entire folder as `nym-vpn-tests.zip`
-11. Upload this compressed file to the [form](https://opnform.com/forms/nymvpn-user-research-at-37c3-yccqko-2) upload field when prompted
+11. Upload this compressed file to the [form]({{nym_vpn_form_url}}) upload field when prompted
 
 #### tests.sh
 

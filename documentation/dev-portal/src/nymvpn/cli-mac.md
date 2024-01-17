@@ -1,14 +1,14 @@
 # NymVPN alpha CLI: Guide for MacOS
 
 ```admonish info
-NymVPN is an experimental software and it's for [testing](./testing.md) purposes only. All users testing the client are expected to sign GDPR Information Sheet and Consent Form (shared at the workshop) so we use their results to improve the client, and submit the form [*NymVPN User research*](https://opnform.com/forms/nymvpn-user-research-at-37c3-yccqko-2) with the testing results.
+NymVPN is an experimental software and it's for [testing](./testing.md) purposes only. All users testing the client are expected to sign GDPR Information Sheet and Consent Form (shared at the workshop) so we use their results to improve the client, and submit the form [*NymVPN User research*]({{nym_vpn_form_url}}) with the testing results.
 ```
 
 ## Preparation
 
 > Any syntax in `<>` brackets is a user's/version unique variable. Exchange with a corresponding name without the `<>` brackets.
 
-1. Open Github [releases page](https://github.com/nymtech/nym/releases/tag/nym-vpn-alpha-0.0.2) and download the binary for MacOS
+1. Open Github [releases page]({{nym_vpn_latest_binary_url}}) and download the binary for MacOS
 2. Open terminal in the same directory and check the the `sha256sum` by running:
 ```sh
 # x86_64
@@ -17,7 +17,7 @@ sha256sum ./nym-vpn-cli_0.1.0_macos_x86_64.zip
 # aarch64
 sha256sum ./nym-vpn-cli_0.1.0_macos_aarch64.zip
 ```
-2. Compare the output with the sha256 hash shared on the [release page](https://github.com/nymtech/nym/releases/tag/nym-vpn-alpha-0.0.2)
+2. Compare the output with the sha256 hash shared on the [release page]({{nym_vpn_latest_binary_url}})
 3. Extract files with `unzip` command or manually as you are used to
 4. Make executable by running:
 ```sh

@@ -2,9 +2,9 @@
 
 Below are listed some points which may need to be addressed when testing NymVPN alpha. If you crashed into any errors which are not listed, please contact us at the testing workshop or in the NymVPN [Matrix channel](https://matrix.to/#/#NymVPN:nymtech.chat).
 
-#### Problems with the newest version `nym-vpn-alpha-0.0.2 demo`
+#### Problems with the newest version `nym-vpn-alpha-0.0.X demo`
 
-Try the previous version `nym-vpn-alpha-0.0.1 demo` which was tested multiple times by downloading the client from the [release page `nym-vpn-alpha-0.0.1`](https://github.com/nymtech/nym/releases/tag/nym-vpn-alpha-0.0.1). Then follow all the setup steps the name of your downloaded binary.
+Try the previous version which was tested multiple times by downloading the client from the [release page](https://github.com/nymtech/nym/releases). Then follow all the setup steps the name of your downloaded binary.
 
 #### Installing GUI on MacOS not working
 

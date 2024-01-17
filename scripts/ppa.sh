@@ -8,6 +8,7 @@ rm ppa-signing-key.asc
 
 cargo deb -p nym-mixnode
 cargo deb -p nym-gateway
+cargo deb -p nym-cli
 
 mv target/debian/*.deb ppa/debian
 

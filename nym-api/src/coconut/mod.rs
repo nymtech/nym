@@ -5,7 +5,7 @@ use self::comm::APICommunicationChannel;
 use crate::coconut::client::Client as LocalClient;
 use crate::coconut::state::State;
 use crate::support::storage::NymApiStorage;
-use keypair::KeyPair;
+use keys::KeyPair;
 use nym_config::defaults::NYM_API_VERSION;
 use nym_crypto::asymmetric::identity;
 use nym_validator_client::nym_api::routes::{BANDWIDTH, COCONUT_ROUTES};
@@ -18,7 +18,7 @@ mod deposit;
 pub(crate) mod dkg;
 pub(crate) mod error;
 pub(crate) mod helpers;
-pub(crate) mod keypair;
+pub(crate) mod keys;
 pub(crate) mod state;
 pub(crate) mod storage;
 #[cfg(test)]

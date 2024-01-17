@@ -1,12 +1,10 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-mod registration;
-
 use crate::coconut::dkg::complaints::ComplaintReason;
 use crate::coconut::dkg::state::registration::RegistrationState;
 use crate::coconut::error::CoconutError;
-use crate::coconut::keypair::KeyPair as CoconutKeyPair;
+use crate::coconut::keys::{KeyPair as CoconutKeyPair, KeyPairWithEpoch};
 use cosmwasm_std::Addr;
 use log::debug;
 use nym_coconut_dkg_common::dealer::DealerDetails;
@@ -15,35 +13,23 @@ use nym_crypto::asymmetric::identity;
 use nym_dkg::bte::{keys::KeyPair as DkgKeyPair, PublicKey, PublicKeyWithProof};
 use nym_dkg::{Dealing, NodeIndex, RecoveredVerificationKeys, Threshold};
 use nym_validator_client::nyxd::{tx, Hash};
-use rocket::form::validate::Contains;
 use serde::de::Error;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde_helpers::{bte_pk_serde, generated_dealings, vks_serde};
 use std::collections::{BTreeMap, HashMap};
 use std::path::{Path, PathBuf};
 use time::OffsetDateTime;
+use tokio::sync::RwLockReadGuard;
 use url::Url;
 
-fn bte_pk_serialize<S: Serializer>(
-    val: &PublicKeyWithProof,
-    serializer: S,
-) -> Result<S::Ok, S::Error> {
-    val.to_bytes().serialize(serializer)
-}
-
-fn bte_pk_deserialize<'de, D>(deserializer: D) -> Result<PublicKeyWithProof, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let vec: Vec<u8> = Deserialize::deserialize(deserializer)?;
-    PublicKeyWithProof::try_from_bytes(&vec).map_err(|err| Error::custom(format_args!("{:?}", err)))
-}
+mod registration;
+mod serde_helpers;
 
 // note: each dealer is also a receiver which simplifies some logic significantly
 #[derive(Clone, Deserialize, Debug, Serialize)]
 pub(crate) struct DkgParticipant {
     pub(crate) _address: Addr,
-    #[serde(serialize_with = "bte_pk_serialize")]
-    #[serde(deserialize_with = "bte_pk_deserialize")]
+    #[serde(with = "bte_pk_serde")]
     pub(crate) bte_public_key_with_proof: PublicKeyWithProof,
     pub(crate) assigned_index: NodeIndex,
 }
@@ -146,69 +132,6 @@ impl ConsistentState for State {
     }
 }
 
-fn vks_serialize<S: Serializer>(
-    val: &[RecoveredVerificationKeys],
-    serializer: S,
-) -> Result<S::Ok, S::Error> {
-    let vec: Vec<Vec<u8>> = val.iter().map(|vk| vk.to_bytes()).collect();
-    vec.serialize(serializer)
-}
-
-fn vks_deserialize<'de, D>(deserializer: D) -> Result<Vec<RecoveredVerificationKeys>, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let vec: Vec<Vec<u8>> = Deserialize::deserialize(deserializer)?;
-    vec.into_iter()
-        .map(|b| {
-            RecoveredVerificationKeys::try_from_bytes(&b)
-                .map_err(|err| D::Error::custom(format_args!("{:?}", err)))
-        })
-        .collect()
-}
-
-mod generated_dealings {
-    use nym_coconut_dkg_common::types::{DealingIndex, EpochId};
-    use nym_dkg::Dealing;
-    use serde::{Deserialize, Deserializer, Serialize, Serializer};
-    use std::collections::HashMap;
-
-    type Helper = HashMap<EpochId, HashMap<DealingIndex, Vec<u8>>>;
-
-    pub fn serialize<S: Serializer>(
-        dealings: &HashMap<EpochId, HashMap<DealingIndex, Dealing>>,
-        serializer: S,
-    ) -> Result<S::Ok, S::Error> {
-        let mut helper = HashMap::new();
-        for (epoch, dealings) in dealings {
-            let mut inner = HashMap::new();
-            for (dealing_index, dealing) in dealings {
-                inner.insert(*dealing_index, dealing.to_bytes());
-            }
-            helper.insert(*epoch, inner);
-        }
-        helper.serialize(serializer)
-    }
-
-    pub fn deserialize<'de, D: Deserializer<'de>>(
-        deserializer: D,
-    ) -> Result<HashMap<EpochId, HashMap<DealingIndex, Dealing>>, D::Error> {
-        let helper = <Helper>::deserialize(deserializer)?;
-
-        let mut epoch_dealings = HashMap::with_capacity(helper.len());
-        for (epoch, dealings) in helper {
-            let mut inner = HashMap::with_capacity(dealings.len());
-            for (dealing_index, raw_dealing) in dealings {
-                let dealing =
-                    Dealing::try_from_bytes(&raw_dealing).map_err(serde::de::Error::custom)?;
-                inner.insert(dealing_index, dealing);
-            }
-            epoch_dealings.insert(epoch, inner);
-        }
-        Ok(epoch_dealings)
-    }
-}
-
 #[derive(Deserialize, Serialize)]
 pub(crate) struct PersistentState {
     timestamp: OffsetDateTime,
@@ -220,8 +143,7 @@ pub(crate) struct PersistentState {
     generated_dealings: HashMap<EpochId, HashMap<DealingIndex, Dealing>>,
     receiver_index: Option<usize>,
     threshold: Option<Threshold>,
-    #[serde(serialize_with = "vks_serialize")]
-    #[serde(deserialize_with = "vks_deserialize")]
+    #[serde(with = "vks_serde")]
     recovered_vks: Vec<RecoveredVerificationKeys>,
     proposal_id: Option<u64>,
     voted_vks: bool,
@@ -288,19 +210,33 @@ pub(crate) struct State {
     dkg_instances: HashMap<EpochId, DkgState>,
 
     //
+    #[deprecated]
     announce_address: Url,
+    #[deprecated]
     identity_key: identity::PublicKey,
+    #[deprecated]
     dkg_keypair: DkgKeyPair,
+    #[deprecated]
     coconut_keypair: CoconutKeyPair,
+    #[deprecated]
     node_index: Option<NodeIndex>,
+    #[deprecated]
     dealers: BTreeMap<Addr, Result<DkgParticipant, ComplaintReason>>,
+    #[deprecated]
     generated_dealings: HashMap<EpochId, HashMap<DealingIndex, Dealing>>,
+    #[deprecated]
     receiver_index: Option<usize>,
+    #[deprecated]
     threshold: Option<Threshold>,
+    #[deprecated]
     recovered_vks: Vec<RecoveredVerificationKeys>,
+    #[deprecated]
     proposal_id: Option<u64>,
+    #[deprecated]
     voted_vks: bool,
+    #[deprecated]
     executed_proposal: bool,
+    #[deprecated]
     was_in_progress: bool,
 }
 
@@ -313,24 +249,24 @@ impl State {
         identity_key: identity::PublicKey,
         coconut_keypair: CoconutKeyPair,
     ) -> Self {
-        todo!()
-        // State {
-        //     persistent_state_path,
-        //     announce_address,
-        //     identity_key,
-        //     dkg_keypair,
-        //     coconut_keypair,
-        //     node_index: persistent_state.node_index,
-        //     dealers: persistent_state.dealers,
-        //     generated_dealings: persistent_state.generated_dealings,
-        //     receiver_index: persistent_state.receiver_index,
-        //     threshold: persistent_state.threshold,
-        //     recovered_vks: persistent_state.recovered_vks,
-        //     proposal_id: persistent_state.proposal_id,
-        //     voted_vks: persistent_state.voted_vks,
-        //     executed_proposal: persistent_state.executed_proposal,
-        //     was_in_progress: persistent_state.was_in_progress,
-        // }
+        State {
+            persistent_state_path,
+            dkg_instances: Default::default(),
+            announce_address,
+            identity_key,
+            dkg_keypair,
+            coconut_keypair,
+            node_index: persistent_state.node_index,
+            dealers: persistent_state.dealers,
+            generated_dealings: persistent_state.generated_dealings,
+            receiver_index: persistent_state.receiver_index,
+            threshold: persistent_state.threshold,
+            recovered_vks: persistent_state.recovered_vks,
+            proposal_id: persistent_state.proposal_id,
+            voted_vks: persistent_state.voted_vks,
+            executed_proposal: persistent_state.executed_proposal,
+            was_in_progress: persistent_state.was_in_progress,
+        }
     }
 
     pub fn persist(&self) -> Result<(), CoconutError> {
@@ -392,7 +328,7 @@ impl State {
         self.coconut_keypair.get().await.is_some()
     }
 
-    pub async fn take_coconut_keypair(&self) -> Option<(EpochId, nym_coconut::KeyPair)> {
+    pub async fn take_coconut_keypair(&self) -> Option<KeyPairWithEpoch> {
         self.coconut_keypair.take().await
     }
 
@@ -417,7 +353,7 @@ impl State {
     #[cfg(test)]
     pub async fn coconut_keypair(
         &self,
-    ) -> tokio::sync::RwLockReadGuard<'_, Option<nym_coconut::KeyPair>> {
+    ) -> tokio::sync::RwLockReadGuard<'_, Option<KeyPairWithEpoch>> {
         self.coconut_keypair.get().await
     }
 

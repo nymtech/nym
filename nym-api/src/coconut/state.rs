@@ -5,7 +5,7 @@ use crate::coconut::client::Client as LocalClient;
 use crate::coconut::comm::APICommunicationChannel;
 use crate::coconut::deposit::validate_deposit_tx;
 use crate::coconut::error::Result;
-use crate::coconut::keypair::KeyPair;
+use crate::coconut::keys::KeyPair;
 use crate::coconut::storage::CoconutStorageExt;
 use crate::support::storage::NymApiStorage;
 use lazy_static::lazy_static;

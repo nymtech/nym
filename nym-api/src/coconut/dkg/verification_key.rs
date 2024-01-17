@@ -23,6 +23,7 @@ use nym_dkg::{combine_shares, try_recover_verification_keys, Dealing, Threshold}
 use nym_pemstore::KeyPairPath;
 use nym_validator_client::nyxd::cosmwasm_client::logs::find_attribute;
 use std::collections::{BTreeMap, HashMap};
+use std::path::PathBuf;
 
 // Filter the dealers based on what dealing they posted (or not) in the contract
 
@@ -207,7 +208,7 @@ pub(crate) async fn verification_key_submission(
     dkg_client: &DkgClient,
     state: &mut State,
     epoch_id: EpochId,
-    keypair_path: &KeyPairPath,
+    key_path: &PathBuf,
     resharing: bool,
 ) -> Result<(), CoconutError> {
     if state.coconut_keypair_is_some().await {
@@ -215,38 +216,40 @@ pub(crate) async fn verification_key_submission(
         return Ok(());
     }
 
-    let threshold = state.threshold()?;
-    let dealings_maps =
-        deterministic_filter_dealers(dkg_client, state, epoch_id, threshold, resharing).await?;
-    debug!(
-        "Filtered dealers to {:?}",
-        dealings_maps[0].keys().collect::<Vec<_>>()
-    );
-    let coconut_keypair = derive_partial_keypair(state, threshold, dealings_maps)?;
-    debug!("Derived own coconut keypair");
-    let vk_share = coconut_keypair.verification_key().to_bs58();
-    nym_pemstore::store_keypair(&coconut_keypair, keypair_path)?;
-    let res = dkg_client
-        .submit_verification_key_share(vk_share, resharing)
-        .await?;
-    let proposal_id = find_attribute(&res.logs, "wasm", DKG_PROPOSAL_ID)
-        .ok_or(CoconutError::ProposalIdError {
-            reason: String::from("proposal id not found"),
-        })?
-        .value
-        .parse::<u64>()
-        .map_err(|_| CoconutError::ProposalIdError {
-            reason: String::from("proposal id could not be parsed to u64"),
-        })?;
-    debug!(
-        "Submitted own verification key share, proposal id {} is attached to it",
-        proposal_id
-    );
-    state.set_proposal_id(proposal_id);
-    state.set_coconut_keypair(epoch_id, coconut_keypair).await;
-    info!("DKG: Submitted own verification key");
-
-    Ok(())
+    todo!()
+    //
+    // let threshold = state.threshold()?;
+    // let dealings_maps =
+    //     deterministic_filter_dealers(dkg_client, state, epoch_id, threshold, resharing).await?;
+    // debug!(
+    //     "Filtered dealers to {:?}",
+    //     dealings_maps[0].keys().collect::<Vec<_>>()
+    // );
+    // let coconut_keypair = derive_partial_keypair(state, threshold, dealings_maps)?;
+    // debug!("Derived own coconut keypair");
+    // let vk_share = coconut_keypair.verification_key().to_bs58();
+    // nym_pemstore::store_keypair(&coconut_keypair, keypair_path)?;
+    // let res = dkg_client
+    //     .submit_verification_key_share(vk_share, resharing)
+    //     .await?;
+    // let proposal_id = find_attribute(&res.logs, "wasm", DKG_PROPOSAL_ID)
+    //     .ok_or(CoconutError::ProposalIdError {
+    //         reason: String::from("proposal id not found"),
+    //     })?
+    //     .value
+    //     .parse::<u64>()
+    //     .map_err(|_| CoconutError::ProposalIdError {
+    //         reason: String::from("proposal id could not be parsed to u64"),
+    //     })?;
+    // debug!(
+    //     "Submitted own verification key share, proposal id {} is attached to it",
+    //     proposal_id
+    // );
+    // state.set_proposal_id(proposal_id);
+    // state.set_coconut_keypair(epoch_id, coconut_keypair).await;
+    // info!("DKG: Submitted own verification key");
+    //
+    // Ok(())
 }
 
 fn validate_proposal(proposal: &ProposalResponse) -> Option<(Addr, u64)> {
@@ -451,20 +454,17 @@ pub(crate) mod tests {
         let mut clients_and_states = prepare_clients_and_states_with_dealing(db).await;
         for controller in clients_and_states.iter_mut() {
             let random_file: usize = OsRng.gen();
-            let private_key_path = temp_dir().join(format!("private{}.pem", random_file));
-            let public_key_path = temp_dir().join(format!("public{}.pem", random_file));
-            let keypair_path = KeyPairPath::new(private_key_path.clone(), public_key_path.clone());
+            let keypath = temp_dir().join(format!("coconut{}.pem", random_file));
             verification_key_submission(
                 &controller.dkg_client,
                 &mut controller.state,
                 0,
-                &keypair_path,
+                &keypath,
                 false,
             )
             .await
             .unwrap();
-            std::fs::remove_file(private_key_path).unwrap();
-            std::fs::remove_file(public_key_path).unwrap();
+            std::fs::remove_file(keypath).unwrap();
         }
         clients_and_states
     }
@@ -1023,6 +1023,7 @@ pub(crate) mod tests {
                 .await
                 .as_ref()
                 .unwrap()
+                .keys
                 .verification_key()
                 .clone();
             let index = controller.state.node_index().unwrap();
@@ -1083,20 +1084,17 @@ pub(crate) mod tests {
 
         for controller in clients_and_states.iter_mut() {
             let random_file: usize = OsRng.gen();
-            let private_key_path = temp_dir().join(format!("private{}.pem", random_file));
-            let public_key_path = temp_dir().join(format!("public{}.pem", random_file));
-            let keypair_path = KeyPairPath::new(private_key_path.clone(), public_key_path.clone());
+            let keypath = temp_dir().join(format!("coconut{}.pem", random_file));
             verification_key_submission(
                 &controller.dkg_client,
                 &mut controller.state,
                 0,
-                &keypair_path,
+                &keypath,
                 true,
             )
             .await
             .unwrap();
-            std::fs::remove_file(private_key_path).unwrap();
-            std::fs::remove_file(public_key_path).unwrap();
+            std::fs::remove_file(keypath).unwrap();
         }
         for controller in clients_and_states.iter_mut() {
             verification_key_validation(&controller.dkg_client, &mut controller.state, true)
@@ -1124,6 +1122,7 @@ pub(crate) mod tests {
                 .await
                 .as_ref()
                 .unwrap()
+                .keys
                 .verification_key()
                 .clone();
             let index = controller.state.node_index().unwrap();
@@ -1208,20 +1207,17 @@ pub(crate) mod tests {
         }
         for controller in clients_and_states.iter_mut() {
             let random_file: usize = OsRng.gen();
-            let private_key_path = temp_dir().join(format!("private{}.pem", random_file));
-            let public_key_path = temp_dir().join(format!("public{}.pem", random_file));
-            let keypair_path = KeyPairPath::new(private_key_path.clone(), public_key_path.clone());
+            let keypath = temp_dir().join(format!("coconut{}.pem", random_file));
             verification_key_submission(
                 &controller.dkg_client,
                 &mut controller.state,
                 0,
-                &keypair_path,
+                &keypath,
                 false,
             )
             .await
             .unwrap();
-            std::fs::remove_file(private_key_path).unwrap();
-            std::fs::remove_file(public_key_path).unwrap();
+            std::fs::remove_file(keypath).unwrap();
         }
         for controller in clients_and_states.iter_mut() {
             verification_key_validation(&controller.dkg_client, &mut controller.state, false)
@@ -1253,6 +1249,7 @@ pub(crate) mod tests {
                 .await
                 .as_ref()
                 .unwrap()
+                .keys
                 .verification_key()
                 .clone();
             let index = controller.state.node_index().unwrap();
@@ -1290,20 +1287,17 @@ pub(crate) mod tests {
 
         for controller in clients_and_states.iter_mut() {
             let random_file: usize = OsRng.gen();
-            let private_key_path = temp_dir().join(format!("private{}.pem", random_file));
-            let public_key_path = temp_dir().join(format!("public{}.pem", random_file));
-            let keypair_path = KeyPairPath::new(private_key_path.clone(), public_key_path.clone());
+            let keypath = temp_dir().join(format!("coconut{}.pem", random_file));
             verification_key_submission(
                 &controller.dkg_client,
                 &mut controller.state,
                 0,
-                &keypair_path,
+                &keypath,
                 true,
             )
             .await
             .unwrap();
-            std::fs::remove_file(private_key_path).unwrap();
-            std::fs::remove_file(public_key_path).unwrap();
+            std::fs::remove_file(keypath).unwrap();
         }
 
         for controller in clients_and_states.iter_mut() {
@@ -1332,6 +1326,7 @@ pub(crate) mod tests {
                 .await
                 .as_ref()
                 .unwrap()
+                .keys
                 .verification_key()
                 .clone();
             let index = controller.state.node_index().unwrap();

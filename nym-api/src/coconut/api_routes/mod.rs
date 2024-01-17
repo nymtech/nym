@@ -72,7 +72,7 @@ pub async fn post_blind_sign(
 
     // produce the partial signature
     debug!("producing the partial credential");
-    let blinded_signature = blind_sign(&blind_sign_request_body, signing_key.secret_key())?;
+    let blinded_signature = blind_sign(&blind_sign_request_body, signing_key.keys.secret_key())?;
 
     // store the information locally
     debug!("storing the issued credential in the database");

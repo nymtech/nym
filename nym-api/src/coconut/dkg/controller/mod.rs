@@ -10,7 +10,7 @@ use crate::coconut::dkg::verification_key::{
 use crate::coconut::dkg::{
     dealing::dealing_exchange, verification_key::verification_key_submission,
 };
-use crate::coconut::keypair::KeyPair as CoconutKeyPair;
+use crate::coconut::keys::KeyPair as CoconutKeyPair;
 use crate::nyxd;
 use crate::support::config;
 use anyhow::{bail, Result};
@@ -30,8 +30,7 @@ pub(crate) mod keys;
 
 pub(crate) struct DkgController<R = OsRng> {
     pub(crate) dkg_client: DkgClient,
-    secret_key_path: PathBuf,
-    verification_key_path: PathBuf,
+    pub(crate) coconut_key_path: PathBuf,
     pub(crate) state: State,
     rng: R,
     polling_rate: Duration,
@@ -56,8 +55,7 @@ impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
 
         Ok(DkgController {
             dkg_client: DkgClient::new(nyxd_client),
-            secret_key_path: config.storage_paths.secret_key_path.clone(),
-            verification_key_path: config.storage_paths.verification_key_path.clone(),
+            coconut_key_path: config.storage_paths.coconut_key_path.clone(),
             state: State::new(
                 config.storage_paths.dkg_persistent_state_path.clone(),
                 persistent_state,
@@ -69,10 +67,6 @@ impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
             rng,
             polling_rate: config.debug.dkg_contract_polling_rate,
         })
-    }
-
-    pub(crate) fn coconut_keypaths(&self) -> nym_pemstore::KeyPairPath {
-        nym_pemstore::KeyPairPath::new(&self.secret_key_path, &self.verification_key_path)
     }
 
     fn persist_state(&self) -> Result<(), DkgError> {
@@ -162,13 +156,11 @@ impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
     ) -> Result<(), DkgError> {
         debug!("DKG: verification key submission (resharing: {resharing})");
 
-        let keypair_path =
-            nym_pemstore::KeyPairPath::new(&self.secret_key_path, &self.verification_key_path);
         verification_key_submission(
             &self.dkg_client,
             &mut self.state,
             epoch_id,
-            &keypair_path,
+            &self.coconut_key_path,
             resharing,
         )
         .await
@@ -307,8 +299,7 @@ impl DkgController {
     pub(crate) fn test_mock(dkg_client: DkgClient, state: State) -> DkgController {
         DkgController {
             dkg_client,
-            secret_key_path: Default::default(),
-            verification_key_path: Default::default(),
+            coconut_key_path: Default::default(),
             state,
             rng: OsRng,
             polling_rate: Default::default(),

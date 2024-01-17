@@ -1,10 +1,12 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use nym_coconut_dkg_common::types::EpochId;
 use rocket::http::{ContentType, Status};
 use rocket::response::Responder;
 use rocket::{response, Request, Response};
 use std::io::Cursor;
+use std::path::PathBuf;
 use thiserror::Error;
 
 use nym_crypto::asymmetric::{
@@ -12,6 +14,7 @@ use nym_crypto::asymmetric::{
     identity::{Ed25519RecoveryError, SignatureError},
 };
 use nym_dkg::error::DkgError;
+use nym_pemstore::KeyPairPath;
 use nym_validator_client::coconut::CoconutApiError;
 use nym_validator_client::nyxd::error::{NyxdError, TendermintError};
 
@@ -117,6 +120,16 @@ pub enum CoconutError {
 
     #[error("the coconut keypair is corrupted")]
     CorruptedCoconutKeyPair,
+
+    #[error("failed to archive coconut key for epoch {epoch_id} using path {}: {source}", path.display())]
+    KeyArchiveFailure {
+        epoch_id: EpochId,
+        path: PathBuf,
+
+        // I hate that we're using anyhow error source here, but changing that would require bigger refactoring
+        #[source]
+        source: anyhow::Error,
+    },
 
     #[error("there was a problem with the proposal id: {reason}")]
     ProposalIdError { reason: String },

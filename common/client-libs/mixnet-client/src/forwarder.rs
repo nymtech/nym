@@ -10,7 +10,6 @@ use nym_crypto::asymmetric::encryption;
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_validator_client::NymApiClient;
 use std::sync::Arc;
-use std::time::Duration;
 
 pub type MixForwardingSender = mpsc::UnboundedSender<MixPacket>;
 type MixForwardingReceiver = mpsc::UnboundedReceiver<MixPacket>;
@@ -25,24 +24,12 @@ pub struct PacketForwarder {
 
 impl PacketForwarder {
     pub fn new(
-        initial_reconnection_backoff: Duration,
-        maximum_reconnection_backoff: Duration,
-        initial_connection_timeout: Duration,
-        maximum_connection_buffer_size: usize,
-        use_legacy_version: bool,
+        client_config: Config,
         topology_access: TopologyAccessor,
         api_client: NymApiClient,
         local_identity: Arc<encryption::KeyPair>,
         shutdown: nym_task::TaskClient,
     ) -> (PacketForwarder, MixForwardingSender) {
-        let client_config = Config::new(
-            initial_reconnection_backoff,
-            maximum_reconnection_backoff,
-            initial_connection_timeout,
-            maximum_connection_buffer_size,
-            use_legacy_version,
-        );
-
         let (packet_sender, packet_receiver) = mpsc::unbounded();
 
         (

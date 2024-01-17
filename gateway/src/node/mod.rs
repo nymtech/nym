@@ -260,12 +260,15 @@ impl<St> Gateway<St> {
     ) -> MixForwardingSender {
         info!("Starting mix packet forwarder...");
 
-        let (mut packet_forwarder, packet_sender) = PacketForwarder::new(
+        let forwarder_config = nym_mixnet_client::client::Config::new(
             self.config.debug.packet_forwarding_initial_backoff,
             self.config.debug.packet_forwarding_maximum_backoff,
             self.config.debug.initial_connection_timeout,
             self.config.debug.maximum_connection_buffer_size,
             self.config.debug.use_legacy_framed_packet_version,
+        );
+        let (mut packet_forwarder, packet_sender) = PacketForwarder::new(
+            forwarder_config,
             topology_access,
             api_client,
             Arc::clone(&self.sphinx_keypair),

@@ -39,7 +39,8 @@ impl AcknowledgementListener {
 
     async fn on_ack(&mut self, ack_content: Vec<u8>) {
         trace!("Received an ack");
-        self.stats_tx.report(PacketStatisticsEvent::AckReceived);
+        self.stats_tx
+            .report(PacketStatisticsEvent::AckReceived(ack_content.len()));
 
         let frag_id = match recover_identifier(&self.ack_key, &ack_content)
             .map(FragmentIdentifier::try_from_bytes)
@@ -56,12 +57,13 @@ impl AcknowledgementListener {
         if frag_id == COVER_FRAG_ID {
             trace!("Received an ack for a cover message - no need to do anything");
             self.stats_tx
-                .report(PacketStatisticsEvent::CoverAckReceived);
+                .report(PacketStatisticsEvent::CoverAckReceived(ack_content.len()));
             return;
         }
 
         trace!("Received {} from the mix network", frag_id);
-        self.stats_tx.report(PacketStatisticsEvent::RealAckReceived);
+        self.stats_tx
+            .report(PacketStatisticsEvent::RealAckReceived(ack_content.len()));
         self.action_sender
             .unbounded_send(Action::new_remove(frag_id))
             .unwrap();

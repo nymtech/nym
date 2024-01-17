@@ -12,17 +12,20 @@ struct PacketStatistics {
     real_packets_sent_size: usize,
     cover_packets_sent: u64,
     cover_packets_sent_size: usize,
-    background_cover_packets_sent: u64,
-    background_cover_packets_sent_size: usize,
 
     // Received
     real_packets_received: u64,
+    real_packets_received_size: usize,
     cover_packets_received: u64,
+    cover_packets_received_size: usize,
 
     // Acks
     total_acks_received: u64,
+    total_acks_received_size: usize,
     real_acks_received: u64,
+    real_acks_received_size: usize,
     cover_acks_received: u64,
+    cover_acks_received_size: usize,
 
     // Types of packets queued
     // TODO: track the type sent instead
@@ -43,24 +46,25 @@ impl PacketStatistics {
                 self.cover_packets_sent += 1;
                 self.cover_packets_sent_size += packet_size;
             }
-            PacketStatisticsEvent::BackgroundCoverPacketSent(packet_size) => {
-                self.background_cover_packets_sent += 1;
-                self.background_cover_packets_sent_size += packet_size;
-            }
-            PacketStatisticsEvent::RealPacketReceived => {
+            PacketStatisticsEvent::RealPacketReceived(packet_size) => {
                 self.real_packets_received += 1;
+                self.real_packets_received_size += packet_size;
             }
-            PacketStatisticsEvent::CoverPacketReceived => {
+            PacketStatisticsEvent::CoverPacketReceived(packet_size) => {
                 self.cover_packets_received += 1;
+                self.cover_packets_received_size += packet_size;
             }
-            PacketStatisticsEvent::AckReceived => {
+            PacketStatisticsEvent::AckReceived(packet_size) => {
                 self.total_acks_received += 1;
+                self.total_acks_received_size += packet_size;
             }
-            PacketStatisticsEvent::RealAckReceived => {
+            PacketStatisticsEvent::RealAckReceived(packet_size) => {
                 self.real_acks_received += 1;
+                self.real_acks_received_size += packet_size;
             }
-            PacketStatisticsEvent::CoverAckReceived => {
+            PacketStatisticsEvent::CoverAckReceived(packet_size) => {
                 self.cover_acks_received += 1;
+                self.cover_acks_received_size += packet_size;
             }
             PacketStatisticsEvent::RealPacketQueued => {
                 self.real_packets_queued += 1;
@@ -83,21 +87,19 @@ pub(crate) enum PacketStatisticsEvent {
     RealPacketSent(usize),
     // The cover packets sent
     CoverPacketSent(usize),
-    // The cover packets sent in the background
-    BackgroundCoverPacketSent(usize),
 
     // Real packets received
-    RealPacketReceived,
+    RealPacketReceived(usize),
     // Cover packets received
-    CoverPacketReceived,
+    CoverPacketReceived(usize),
 
     // Ack of any type received. This is mostly used as a consistency check, and should be the sum
     // of real and cover acks received.
-    AckReceived,
+    AckReceived(usize),
     // Out of the total acks received, this is the subset of those that were real
-    RealAckReceived,
+    RealAckReceived(usize),
     // Out of the total acks received, this is the subset of those that were for cover traffic
-    CoverAckReceived,
+    CoverAckReceived(usize),
 
     // Types of packets queued
     RealPacketQueued,

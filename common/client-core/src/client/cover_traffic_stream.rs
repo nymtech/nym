@@ -198,10 +198,9 @@ impl LoopCoverTrafficStream<OsRng> {
                 }
             }
         } else {
-            self.stats_tx
-                .report(PacketStatisticsEvent::BackgroundCoverPacketSent(
-                    cover_traffic_packet_size.size(),
-                ));
+            self.stats_tx.report(PacketStatisticsEvent::CoverPacketSent(
+                cover_traffic_packet_size.size(),
+            ));
         }
 
         // TODO: I'm not entirely sure whether this is really required, because I'm not 100%

@@ -54,12 +54,16 @@ impl<R: MessageReceiver> ReceivedMessagesBufferInner<R> {
         if nym_sphinx::cover::is_cover(fragment_data) {
             trace!("The message was a loop cover message! Skipping it");
             self.stats_tx
-                .report(PacketStatisticsEvent::CoverPacketReceived);
+                .report(PacketStatisticsEvent::CoverPacketReceived(
+                    fragment_data.len(),
+                ));
             return None;
         }
 
         self.stats_tx
-            .report(PacketStatisticsEvent::RealPacketReceived);
+            .report(PacketStatisticsEvent::RealPacketReceived(
+                fragment_data.len(),
+            ));
 
         let fragment = match self.message_receiver.recover_fragment(fragment_data) {
             Err(err) => {

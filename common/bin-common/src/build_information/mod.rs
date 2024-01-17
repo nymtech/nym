@@ -42,7 +42,8 @@ pub struct BinaryBuildInformation {
 
     // VERGEN_CARGO_DEBUG
     /// Provides the cargo debug mode that was used for the build.
-    pub cargo_debug: &'static str,
+    // NOTE: keep the old name cargo_profile instead of cargo_debug for backwards compatibility
+    pub cargo_profile: &'static str,
 }
 
 impl BinaryBuildInformation {
@@ -57,7 +58,7 @@ impl BinaryBuildInformation {
             commit_branch: env!("VERGEN_GIT_BRANCH"),
             rustc_version: env!("VERGEN_RUSTC_SEMVER"),
             rustc_channel: env!("VERGEN_RUSTC_CHANNEL"),
-            cargo_debug: env!("VERGEN_CARGO_DEBUG"),
+            cargo_profile: env!("VERGEN_CARGO_DEBUG"),
         }
     }
 
@@ -71,7 +72,7 @@ impl BinaryBuildInformation {
             commit_branch: self.commit_branch.to_owned(),
             rustc_version: self.rustc_version.to_owned(),
             rustc_channel: self.rustc_channel.to_owned(),
-            cargo_debug: self.cargo_debug.to_owned(),
+            cargo_profile: self.cargo_profile.to_owned(),
         }
     }
 
@@ -117,7 +118,8 @@ pub struct BinaryBuildInformationOwned {
 
     // VERGEN_CARGO_DEBUG
     /// Provides the cargo debug mode that was used for the build.
-    pub cargo_debug: String,
+    // NOTE: keep the old name cargo_profile instead of cargo_debug for backwards compatibility
+    pub cargo_profile: String,
 }
 
 impl Display for BinaryBuildInformationOwned {
@@ -152,7 +154,7 @@ impl Display for BinaryBuildInformationOwned {
             "rustc Channel:",
             self.rustc_channel,
             "cargo Debug:",
-            self.cargo_debug,
+            self.cargo_profile,
         )
     }
 }

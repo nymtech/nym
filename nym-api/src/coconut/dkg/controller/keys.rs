@@ -1,11 +1,13 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::coconut::keys::KeyPairWithEpoch;
 use crate::support::config;
 use anyhow::{anyhow, bail, Context};
 use nym_coconut_dkg_common::types::EpochId;
 use nym_dkg::bte::keys::KeyPair as DkgKeyPair;
 use rand::{CryptoRng, RngCore};
+use std::path::Path;
 use thiserror::__private::AsDisplay;
 
 pub(crate) fn init_bte_keypair<R: RngCore + CryptoRng>(
@@ -34,61 +36,41 @@ pub(crate) fn load_bte_keypair(config: &config::CoconutSigner) -> anyhow::Result
 
 pub(crate) fn load_coconut_keypair_if_exists(
     config: &config::CoconutSigner,
-) -> anyhow::Result<Option<nym_coconut_interface::KeyPair>> {
-    if !config.storage_paths.secret_key_path.exists() {
+) -> anyhow::Result<Option<KeyPairWithEpoch>> {
+    if !config.storage_paths.coconut_key_path.exists() {
         return Ok(None);
     }
-    nym_pemstore::load_keypair(&nym_pemstore::KeyPairPath::new(
-        &config.storage_paths.secret_key_path,
-        &config.storage_paths.verification_key_path,
-    ))
-    .context("coconut keypair load failure")
-    .map(Some)
+    nym_pemstore::load_key(&config.storage_paths.coconut_key_path)
+        .context("coconut key load failure")
+        .map(Some)
 }
 
-pub(crate) fn persist_coconut_keypair(
-    keys: &nym_coconut_interface::KeyPair,
-    store_paths: &nym_pemstore::KeyPairPath,
+pub(crate) fn persist_coconut_keypair<P: AsRef<Path>>(
+    keys: &KeyPairWithEpoch,
+    store_path: P,
 ) -> anyhow::Result<()> {
-    nym_pemstore::store_keypair(keys, store_paths).context("coconut keypair store failure")
+    nym_pemstore::store_key(keys, store_path).context("coconut key store failure")
 }
 
-pub(crate) fn archive_coconut_keypair(
-    store_paths: &nym_pemstore::KeyPairPath,
+pub(crate) fn archive_coconut_keypair<P: AsRef<Path>>(
+    store_path: P,
     epoch_id: EpochId,
 ) -> anyhow::Result<()> {
-    if !store_paths.private_key_path.exists() {
-        bail!(
-            "private key does not exist at {}",
-            store_paths.private_key_path.as_display()
-        )
+    let store_path = store_path.as_ref();
+    if !store_path.exists() {
+        bail!("coconut key does not exist at {}", store_path.as_display())
     }
 
-    let dir = store_paths
-        .private_key_path
+    let dir = store_path
         .parent()
-        .ok_or(anyhow!("the private key does not have a valid parent"))?;
-    let filename = store_paths
-        .private_key_path
+        .ok_or(anyhow!("the coconut key does not have a valid parent"))?;
+    let filename = store_path
         .file_name()
-        .ok_or(anyhow!("the private key does not have a filename"))?
+        .ok_or(anyhow!("the coconut key does not have a valid filename"))?
         .to_str()
-        .ok_or(anyhow!("the key filename is not valid UTF8"))?;
+        .ok_or(anyhow!("the coconut key filename is not valid UTF8"))?;
     let archive_path = dir.join(format!("epoch-{epoch_id}-{filename}.archived"));
-    std::fs::rename(&store_paths.private_key_path, archive_path)?;
-
-    let dir = store_paths
-        .public_key_path
-        .parent()
-        .ok_or(anyhow!("the public key does not have a valid parent"))?;
-    let filename = store_paths
-        .public_key_path
-        .file_name()
-        .ok_or(anyhow!("the public key does not have a filename"))?
-        .to_str()
-        .ok_or(anyhow!("the key filename is not valid UTF8"))?;
-    let archive_path = dir.join(format!("epoch-{epoch_id}-{filename}.archived"));
-    std::fs::rename(&store_paths.public_key_path, archive_path)?;
+    std::fs::rename(store_path, archive_path)?;
 
     Ok(())
 }

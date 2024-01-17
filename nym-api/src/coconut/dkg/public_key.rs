@@ -1,6 +1,7 @@
 // Copyright 2022-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::coconut::dkg::controller::keys::archive_coconut_keypair;
 use crate::coconut::dkg::controller::DkgController;
 use crate::coconut::error::CoconutError;
 use log::debug;
@@ -26,11 +27,17 @@ impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
 
         // if we have coconut keys available, it means we have already completed the DKG before (in previous epoch)
         // in which case, archive and reset those keys
-        if let Some((old_epoch, _)) = self.state.take_coconut_keypair().await {
+        if let Some(old_keypair) = self.state.take_coconut_keypair().await {
             debug!("resetting and archiving old coconut keypair");
-            let store_path = self.coconut_keypaths();
-            // archive_coconut_keypair(&store_path, old_epoch)?
-            //
+            if let Err(source) =
+                archive_coconut_keypair(&self.coconut_key_path, old_keypair.issued_for_epoch)
+            {
+                return Err(CoconutError::KeyArchiveFailure {
+                    epoch_id,
+                    path: self.coconut_key_path.clone(),
+                    source,
+                });
+            }
         }
 
         // FAILURE CASE:
@@ -48,6 +55,7 @@ impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
             }
         }
 
+        // perform the full registration instead
         let bte_key = bs58::encode(&self.state.dkg_keypair().public_key().to_bytes()).into_string();
         let identity_key = self.state.identity_key().to_base58_string();
         let announce_address = self.state.announce_address().to_string();
@@ -88,7 +96,7 @@ pub(crate) mod tests {
             AccountId::from_str(TEST_VALIDATOR_ADDRESS).unwrap(),
         ));
         let identity_keypair = identity::KeyPair::new(&mut thread_rng());
-        let mut state = State::new(
+        let state = State::new(
             PathBuf::default(),
             PersistentState::default(),
             Url::parse("localhost:8000").unwrap(),
@@ -96,6 +104,7 @@ pub(crate) mod tests {
             *identity_keypair.public_key(),
             KeyPair::new(),
         );
+        let epoch = dkg_client.get_current_epoch().await.unwrap().epoch_id;
         let mut controller = DkgController::test_mock(dkg_client, state);
 
         assert!(controller
@@ -105,7 +114,10 @@ pub(crate) mod tests {
             .unwrap()
             .details
             .is_none());
-        controller.public_key_submission(0, false).await.unwrap();
+        controller
+            .public_key_submission(epoch, false)
+            .await
+            .unwrap();
         let client_idx = controller
             .dkg_client
             .get_self_registered_dealer_details()
@@ -114,11 +126,31 @@ pub(crate) mod tests {
             .details
             .unwrap()
             .assigned_index;
-        assert_eq!(controller.state.node_index().unwrap(), client_idx);
+        assert_eq!(
+            controller
+                .state
+                .registration_state(epoch)
+                .assigned_index
+                .unwrap(),
+            client_idx
+        );
 
         // keeps the same index from chain, not calling register_dealer again
-        controller.state.set_node_index(None);
-        controller.public_key_submission(0, false).await.unwrap();
-        assert_eq!(controller.state.node_index().unwrap(), client_idx);
+        controller
+            .state
+            .registration_state_mut(epoch)
+            .assigned_index = None;
+        controller
+            .public_key_submission(epoch, false)
+            .await
+            .unwrap();
+        assert_eq!(
+            controller
+                .state
+                .registration_state(epoch)
+                .assigned_index
+                .unwrap(),
+            client_idx
+        );
     }
 }

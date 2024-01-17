@@ -69,7 +69,7 @@ async fn start_nym_api_tasks(config: Config) -> anyhow::Result<ShutdownHandles> 
     let nym_network_details = NymNetworkDetails::new_from_env();
     let network_details = NetworkDetails::new(connected_nyxd.to_string(), nym_network_details);
 
-    let coconut_keypair_wrapper = coconut::keypair::KeyPair::new();
+    let coconut_keypair_wrapper = coconut::keys::KeyPair::new();
 
     // if the keypair doesnt exist (because say this API is running in the caching mode), nothing will happen
     if let Some(loaded_keys) = load_coconut_keypair_if_exists(&config.coconut_signer)? {

@@ -29,7 +29,7 @@ Rewards for credential signing will be calculated hourly, with API operators rec
 
 ### Hardware Requirements
 
-The specification mentioned below is for running a full node alongside the nym-api. It is recommended to run nym-api and a full Nyx node on the same machine for optimum performance.
+The specification mentioned below is for running a full node alongside the nym-api. It is recommended to run `nym-api` and a full Nyx node on the same machine for optimum performance.
 
 Bear in mind that credential signing is primarily CPU-bound, so choose the fastest CPU available to you.
 
@@ -75,9 +75,10 @@ pruning = "custom"
 
 # This number is likely to be updated once zk-nym signing goes live
 pruning-keep-recent = "750000"
+pruning-interval = "100"
 ```
 
-The value of `pruning-interval` can be customised as per your requirement.
+The example value of `100` for `pruning-interval` can be customised as per your requirement.
 
 
 ### (Coming Soon) Credential Generation

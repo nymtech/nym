@@ -37,16 +37,25 @@ pub trait Storage: Send + Sync {
     /// * `signature`: Ecash wallet credential in the form of a wallet.
     /// * `value` : The value of the ecash wallet
     /// * `epoch_id`: The epoch when it was signed.
+    /// * `expiration_date`: The midnight timestamp of the expiration day
     async fn insert_ecash_wallet(
         &self,
         voucher_info: String,
         signature: String,
         value: String,
         epoch_id: String,
+        expiration_date: i64,
     ) -> Result<(), Self::StorageError>;
 
     /// Tries to retrieve one of the stored, unused credentials.
-    async fn get_next_ecash_wallet(&self) -> Result<EcashWallet, Self::StorageError>;
+    ///
+    /// # Arguments
+    ///
+    /// * `spend_date`: The date for which the wallet must be valid
+    async fn get_next_ecash_wallet(
+        &self,
+        spend_date: i64,
+    ) -> Result<EcashWallet, Self::StorageError>;
 
     /// Tries to retrieve one of the stored, unused credentials.
     async fn get_next_coconut_credential(&self) -> Result<CoconutCredential, Self::StorageError>;

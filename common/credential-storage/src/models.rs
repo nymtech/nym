@@ -22,5 +22,6 @@ pub struct EcashWallet {
     pub wallet: String,
     pub value: String,
     pub epoch_id: String,
+    pub expiration_date: i64,
     pub consumed: bool,
 }

@@ -60,12 +60,14 @@ impl CoconutCredentialManager {
     /// * `signature`: Ecash wallet credential in the form of a wallet.
     /// * `value` : The value of the ecash wallet
     /// * `epoch_id`: The epoch when it was signed.
+    /// * `expiration_date`: The expiration date timestamp
     pub async fn insert_ecash_wallet(
         &self,
         voucher_info: String,
         wallet: String,
         value: String,
         epoch_id: String,
+        expiration_date: i64,
     ) {
         let mut creds = self.ecash.write().await;
         let id = creds.len() as i64;
@@ -75,14 +77,18 @@ impl CoconutCredentialManager {
             wallet,
             value,
             epoch_id,
+            expiration_date,
             consumed: false,
         });
     }
 
     /// Tries to retrieve one of the stored, unused credentials.
-    pub async fn get_next_ecash_wallet(&self) -> Option<EcashWallet> {
+    pub async fn get_next_ecash_wallet(&self, spend_date: i64) -> Option<EcashWallet> {
         let creds = self.ecash.read().await;
-        creds.iter().find(|c| !c.consumed).cloned()
+        creds
+            .iter()
+            .find(|c| !c.consumed && c.expiration_date >= spend_date) //created from a u64 so no problem there
+            .cloned()
     }
 
     /// Tries to retrieve one of the stored, unused credentials.

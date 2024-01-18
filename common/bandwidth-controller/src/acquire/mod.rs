@@ -89,6 +89,7 @@ where
             wallet.to_bs58(),
             state.voucher.get_voucher_value(),
             epoch_id.to_string(),
+            state.voucher.expiration_date().try_into().unwrap(), //will not fail for the forseeable future
         )
         .await
         .map_err(|err| BandwidthControllerError::CredentialStorageError(Box::new(err)))

@@ -10,5 +10,6 @@ CREATE TABLE ecash_wallets
     wallet              TEXT    NOT NULL UNIQUE,
     value               TEXT    NOT NULL,
     epoch_id            TEXT    NOT NULL,
+    expiration_date     INTEGER NOT NULL,
     consumed            BOOLEAN NOT NULL
 );

@@ -53,6 +53,7 @@ impl CoconutCredentialManager {
     /// * `signature`: Ecash wallet credential in the form of a wallet.
     /// * `value` : The value of the ecash wallet
     /// * `epoch_id`: The epoch when it was signed.
+    /// * `expiration_date`: Expiration date timestamp
 
     pub async fn insert_ecash_wallet(
         &self,
@@ -60,10 +61,11 @@ impl CoconutCredentialManager {
         wallet: String,
         value: String,
         epoch_id: String,
+        expiration_date: i64,
     ) -> Result<(), sqlx::Error> {
         sqlx::query!(
-            "INSERT INTO ecash_wallets(voucher_info, wallet, value, epoch_id, consumed) VALUES (?, ?, ?, ?, ?)",
-            voucher_info, wallet, value, epoch_id, false
+            "INSERT INTO ecash_wallets(voucher_info, wallet, value, epoch_id, expiration_date, consumed) VALUES (?, ?, ?, ?, ?, ?)",
+            voucher_info, wallet, value, epoch_id, expiration_date, false
         )
         .execute(&self.connection_pool)
         .await?;
@@ -71,10 +73,14 @@ impl CoconutCredentialManager {
     }
 
     /// Tries to retrieve one of the stored, unused credentials.
-    pub async fn get_next_ecash_wallet(&self) -> Result<Option<EcashWallet>, sqlx::Error> {
+    pub async fn get_next_ecash_wallet(
+        &self,
+        spend_date: i64,
+    ) -> Result<Option<EcashWallet>, sqlx::Error> {
         sqlx::query_as!(
             EcashWallet,
-            "SELECT * FROM ecash_wallets WHERE NOT consumed"
+            "SELECT * FROM ecash_wallets WHERE NOT consumed AND expiration_date >= ?",
+            spend_date
         )
         .fetch_optional(&self.connection_pool)
         .await

@@ -47,9 +47,10 @@ impl<C, St: Storage> BandwidthController<C, St> {
         C: DkgQueryClient + Sync + Send,
         <St as Storage>::StorageError: Send + Sync + 'static,
     {
+        let spend_date = today_timestamp();
         let ecash_wallet = self
             .storage
-            .get_next_ecash_wallet()
+            .get_next_ecash_wallet(spend_date.try_into().unwrap()) // will not fail for the foreseeable future
             .await
             .map_err(|err| BandwidthControllerError::CredentialStorageError(Box::new(err)))?;
 
@@ -74,7 +75,6 @@ impl<C, St: Storage> BandwidthController<C, St> {
         let wallet_value = u64::from_str(&ecash_wallet.value)
             .map_err(|err| BandwidthControllerError::CredentialStorageError(Box::new(err)))?;
         let credential_value = nb_tickets * wallet_value / (ecash_params.get_total_coins());
-        let spend_date = today_timestamp();
 
         // the below would only be executed once we know where we want to spend it (i.e. which gateway and stuff)
 

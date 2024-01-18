@@ -38,7 +38,7 @@ impl RequestFilter {
     pub(crate) async fn new(config: &Config) -> Result<Self, NetworkRequesterError> {
         if config.network_requester.use_deprecated_allow_list {
             info!("setting up allow-list based 'OutboundRequestFilter'...");
-            Ok(Self::new_allow_list_request_filter(config))
+            Ok(Self::new_allow_list_request_filter(config).await)
         } else {
             info!("setting up ExitPolicy based request filter...");
             Self::new_exit_policy_filter(config).await
@@ -89,7 +89,7 @@ impl RequestFilter {
         }
     }
 
-    fn new_allow_list_request_filter(config: &Config) -> Self {
+    async fn new_allow_list_request_filter(config: &Config) -> Self {
         let standard_list = StandardList::new();
         let allowed_hosts = StoredAllowedHosts::new(&config.storage_paths.allowed_list_location);
         let unknown_hosts =
@@ -99,7 +99,8 @@ impl RequestFilter {
         RequestFilter {
             inner: Arc::new(RequestFilterInner::AllowList {
                 open_proxy: config.network_requester.open_proxy,
-                filter: OutboundRequestFilter::new(allowed_hosts, standard_list, unknown_hosts),
+                filter: OutboundRequestFilter::new(allowed_hosts, standard_list, unknown_hosts)
+                    .await,
             }),
         }
     }

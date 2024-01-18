@@ -13,13 +13,13 @@ NymVPN is an experimental software and it's for [testing](./testing.md) purposes
 ```sh
 sha256sum ./nym-vpn-cli_0.1.0_ubuntu-22.04_amd64.zip
 ```
-2. Compare the output with the sha256 hash shared on the [release page]({{nym_vpn_latest_binary_url}})
-3. Extract files with `unzip` command or manually as you are used to
-4. Make executable by running:
+3. Compare the output with the sha256 hash shared on the [release page]({{nym_vpn_latest_binary_url}})
+4. Extract files with `unzip` command or manually as you are used to
+5. Make executable by running:
 ```sh
 chmod u+x ./nym-vpn-cli
 ```
-5. Create Sandbox environment config file by saving [this](https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env) as `sandbox.env` in the same directory as your NymVPN binaries by running:
+6. Create Sandbox environment config file by saving [this](https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env) as `sandbox.env` in the same directory as your NymVPN binaries by running:
 ```sh
 curl -o sandbox.env -L https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env
 ```

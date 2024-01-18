@@ -15,13 +15,13 @@ NymVPN is an experimental software and it's for [testing](./testing.md) purposes
 ```sh
 sha256sum ./nym-vpn-ui_0.0.2_ubuntu-22.04_amd64.zip
 ```
-2. Compare the output with the sha256 hash shared on the [release page]({{nym_vpn_latest_binary_url}})
-3. Extract files with `unzip` command or manually as you are used to
-4. If you prefer to run `.AppImage` make executable by running:
+3. Compare the output with the sha256 hash shared on the [release page]({{nym_vpn_latest_binary_url}})
+4. Extract files with `unzip` command or manually as you are used to
+5. If you prefer to run `.AppImage` make executable by running:
 ```sh
 chmod u+x ./appimage/nym-vpn_0.0.2_amd64.AppImage
 ```
-5. If you prefer to use the `.deb` version for installation (Linux only), open terminal in the same directory and run:
+6. If you prefer to use the `.deb` version for installation (Linux only), open terminal in the same directory and run:
 ```sh
 cd deb
 
@@ -33,16 +33,16 @@ sudo apt-get install -f ./nym-vpn_0.0.2_amd64.deb
 
 ### Configuration
 
-6. Create a NymVPN config directory called `nym-vpn` in your `~/.config`, either manually or by a command:
+7. Create a NymVPN config directory called `nym-vpn` in your `~/.config`, either manually or by a command:
 ```sh
 mkdir $HOME/.config/nym-vpn/
 ```
-7. Create the network config by saving [this](https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env) as `sandbox.env` in the directory `~/.config/nym-vpn/` you just created by running:
+8. Create the network config by saving [this](https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env) as `sandbox.env` in the directory `~/.config/nym-vpn/` you just created by running:
 ```sh
 curl -o $HOME/.config/nym-vpn/sandbox.env -L https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env
 ```
 
-8. Create NymVPN main config file called `config.toml` in the same directory `~/.config/nym-vpn/` with this content:
+9. Create NymVPN main config file called `config.toml` in the same directory `~/.config/nym-vpn/` with this content:
 ```toml
 # change <USER> to your username
 env_config_file = "/home/<USER>/.config/nym-vpn/sandbox.env"

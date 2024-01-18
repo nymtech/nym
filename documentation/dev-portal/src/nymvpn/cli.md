@@ -40,5 +40,5 @@ sudo ./execute-nym-vpn-cli-binary.sh
     - `do you want five hop or two hop?`: type `five` or `two`
     - `enable WireGuard? (yes/no):` if you chose yes, find your private key and wireguard IP [here](https://nymvpn.com/en/alpha)
 
-6. To run the `nym-vpn-cli` again, reconnect your wifi and follow the easy steps for [Linux](cli-linux.md#run-nymvpn) or [MacOS](cli-mac.md#run-nymvpn)
+6. To run `nym-vpn-cli` again, reconnect your wifi and follow the easy steps for [Linux](cli-linux.md#run-nymvpn) or [MacOS](cli-mac.md#run-nymvpn)
 

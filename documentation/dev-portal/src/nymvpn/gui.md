@@ -16,7 +16,7 @@ We wrote a [script](https://gist.github.com/tommyv1987/7d210d4daa8f7abc61f9a696d
 
 1. To download the script, open a terminal in a directory where you want to download the script and run:
 ```sh
-curl -o nym-vpn-client-installer.sh - L https://gist.githubusercontent.com/tommyv1987/7d210d4daa8f7abc61f9a696d0321f19/raw/181968941ce268a3937e82239ddfd293dd96bb60/nym-vpn-client-installer.sh
+curl -o nym-vpn-client-installer.sh -L https://gist.githubusercontent.com/tommyv1987/7d210d4daa8f7abc61f9a696d0321f19/raw/181968941ce268a3937e82239ddfd293dd96bb60/nym-vpn-client-installer.sh
 ```
 2. Make the script executable
 ```sh
@@ -33,7 +33,7 @@ sudo ./nym-vpn-client-installer.sh
 ```
 5. The script will run the application and it will prompt you for a country code to exit, chose one of the offered options in the same format as listed
 
-6. To run the application again, reconnect your wifi and run
+6. To start the application again, reconnect your wifi and run
 ```sh
 # Linux
 sudo -E ~/nym-vpn-latest/nym-vpn_0.0.2_amd64.AppImage

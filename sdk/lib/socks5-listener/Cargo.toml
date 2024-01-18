@@ -23,7 +23,6 @@ nym-config-common = { path = "../../../common/config", package = "nym-config" }
 nym-credential-storage = { path = "../../../common/credential-storage" }
 nym-crypto = { path = "../../../common/crypto" }
 nym-socks5-client-core = { path = "../../../common/socks5-client-core", default-features = false }
-openssl = { version = "^0.10.55", features = ["vendored"] }
 serde = { workspace = true }
 tokio = { workspace = true, features = ["sync", "time"] }
 log = "0.4.17"

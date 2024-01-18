@@ -99,7 +99,9 @@ impl SecretKey {
         Self { x, ys }
     }
 
-    pub fn into_raw(&self) -> (Scalar, Vec<Scalar>) {
+    /// Extract the Scalar copy of the underlying secrets.
+    /// The caller of this function must exercise extreme care to not misuse the data and ensuring it gets zeroized
+    pub fn hazmat_to_raw(&self) -> (Scalar, Vec<Scalar>) {
         (self.x, self.ys.clone())
     }
 

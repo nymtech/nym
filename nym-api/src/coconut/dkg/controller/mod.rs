@@ -4,11 +4,9 @@
 use crate::coconut::dkg::client::DkgClient;
 use crate::coconut::dkg::controller::error::DkgError;
 use crate::coconut::dkg::state::{ConsistentState, PersistentState, State};
+use crate::coconut::dkg::verification_key::verification_key_submission;
 use crate::coconut::dkg::verification_key::{
     verification_key_finalization, verification_key_validation,
-};
-use crate::coconut::dkg::{
-    dealing::dealing_exchange, verification_key::verification_key_submission,
 };
 use crate::coconut::keys::KeyPair as CoconutKeyPair;
 use crate::nyxd;
@@ -32,7 +30,7 @@ pub(crate) struct DkgController<R = OsRng> {
     pub(crate) dkg_client: DkgClient,
     pub(crate) coconut_key_path: PathBuf,
     pub(crate) state: State,
-    rng: R,
+    pub(super) rng: R,
     polling_rate: Duration,
 }
 
@@ -137,16 +135,15 @@ impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
             .map_err(|source| DkgError::PublicKeySubmissionFailure { source })
     }
 
-    async fn handle_dealing_exchange(&mut self, resharing: bool) -> Result<(), DkgError> {
+    async fn handle_dealing_exchange(
+        &mut self,
+        epoch_id: EpochId,
+        resharing: bool,
+    ) -> Result<(), DkgError> {
         debug!("DKG: dealing exchange (resharing: {resharing})");
-        dealing_exchange(
-            &self.dkg_client,
-            &mut self.state,
-            self.rng.clone(),
-            resharing,
-        )
-        .await
-        .map_err(|source| DkgError::DealingExchangeFailure { source })
+        self.dealing_exchange(epoch_id, resharing)
+            .await
+            .map_err(|source| DkgError::DealingExchangeFailure { source })
     }
 
     async fn handle_verification_key_submission(
@@ -221,7 +218,8 @@ impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
                     .await?
             }
             EpochState::DealingExchange { resharing } => {
-                self.handle_dealing_exchange(resharing).await?
+                self.handle_dealing_exchange(epoch.epoch_id, resharing)
+                    .await?
             }
             EpochState::VerificationKeySubmission { resharing } => {
                 self.handle_verification_key_submission(epoch.epoch_id, resharing)

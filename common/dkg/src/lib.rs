@@ -13,6 +13,7 @@ pub mod dealing;
 pub(crate) mod share;
 pub(crate) mod utils;
 
+pub use bls12_381::Scalar;
 pub use dealing::*;
 pub use share::*;
 

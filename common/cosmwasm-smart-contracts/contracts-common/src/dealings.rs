@@ -23,6 +23,12 @@ impl Deref for ContractSafeBytes {
     }
 }
 
+impl From<Vec<u8>> for ContractSafeBytes {
+    fn from(value: Vec<u8>) -> Self {
+        ContractSafeBytes(value)
+    }
+}
+
 impl Display for ContractSafeBytes {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         if !self.0.is_empty() {

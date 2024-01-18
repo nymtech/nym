@@ -4,8 +4,10 @@
 mod persistence;
 
 use nym_coconut_dkg_common::types::EpochId;
+use nym_dkg::Scalar;
 use std::collections::HashMap;
 use std::ops::Deref;
+use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 use tokio::sync::{RwLock, RwLockReadGuard};
 
@@ -13,6 +15,7 @@ use tokio::sync::{RwLock, RwLockReadGuard};
 pub struct KeyPair {
     // keys: Arc<RwLock<HashMap<EpochId, nym_coconut_interface::KeyPair>>>,
     keys: Arc<RwLock<Option<KeyPairWithEpoch>>>,
+    valid: Arc<AtomicBool>,
 }
 
 #[derive(Debug)]
@@ -21,10 +24,25 @@ pub struct KeyPairWithEpoch {
     pub(crate) issued_for_epoch: EpochId,
 }
 
+impl KeyPairWithEpoch {
+    // extract underlying secrets from the coconut's secret key.
+    // the caller of this function must exercise extreme care to not misuse the data and ensuring it gets zeroized
+    // `KeyPair` and `SecretKey` implement ZeroizeOnDrop; `Scalar` does not (it implements `Copy` -> important to keep in mind)
+    pub(crate) fn hazmat_into_secrets(self) -> Vec<Scalar> {
+        let (x, mut secrets) = self.keys.secret_key().hazmat_to_raw();
+
+        secrets.insert(0, x);
+        secrets
+        // since `nym_coconut_interface::KeyPair` implements `ZeroizeOnDrop` and we took ownership of the keypair,
+        // it will get zeroized after we exit this scope
+    }
+}
+
 impl KeyPair {
     pub fn new() -> Self {
         Self {
             keys: Arc::new(RwLock::new(None)),
+            valid: Arc::new(Default::default()),
         }
     }
 

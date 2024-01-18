@@ -3,130 +3,331 @@
 
 use crate::coconut::dkg;
 use crate::coconut::dkg::client::DkgClient;
-use crate::coconut::dkg::state::{ConsistentState, State};
+use crate::coconut::dkg::complaints::ComplaintReason;
+use crate::coconut::dkg::controller::keys::archive_coconut_keypair;
+use crate::coconut::dkg::controller::DkgController;
+use crate::coconut::dkg::state::{ConsistentState, ParticipantState, State};
 use crate::coconut::error::CoconutError;
+use crate::coconut::keys::KeyPairWithEpoch;
 use log::debug;
-use nym_coconut_dkg_common::types::{ContractDealing, PartialContractDealing};
-use nym_dkg::Dealing;
-use rand::RngCore;
-use std::collections::VecDeque;
+use nym_coconut_dkg_common::types::{
+    ContractDealing, DealingIndex, EpochId, PartialContractDealing,
+};
+use nym_dkg::bte::{PublicKey, PublicKeyWithProof};
+use nym_dkg::{Dealing, NodeIndex, Scalar, Threshold};
+use rand::{CryptoRng, RngCore};
+use rocket::form::validate::Len;
+use std::collections::{BTreeMap, HashMap, VecDeque};
+use std::fmt::{Debug, Formatter};
 use zeroize::Zeroize;
 
-pub(crate) async fn dealing_exchange(
-    dkg_client: &DkgClient,
-    state: &mut State,
-    rng: impl RngCore + Clone,
-    resharing: bool,
-) -> Result<(), CoconutError> {
-    if state.receiver_index().is_some() {
-        debug!("Receiver index was set previously, nothing to do");
-        return Ok(());
+enum DealingGeneration {
+    Fresh { number: u32 },
+    Resharing { prior_secrets: Vec<Scalar> },
+}
+
+impl Debug for DealingGeneration {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DealingGeneration::Fresh { number } => f
+                .debug_struct("DealingGeneration::Fresh")
+                .field("number", number)
+                .finish(),
+            DealingGeneration::Resharing { prior_secrets } => f
+                .debug_struct("DealingGeneration::Resharing")
+                .field("number", &prior_secrets.len())
+                .finish(),
+        }
+    }
+}
+
+impl<R: RngCore + CryptoRng> DkgController<R> {
+    async fn generate_dealings(
+        &mut self,
+        epoch_id: EpochId,
+        spec: DealingGeneration,
+    ) -> Result<HashMap<DealingIndex, Dealing>, CoconutError> {
+        let threshold = self.dkg_client.get_current_epoch_threshold().await?.ok_or(
+            CoconutError::UnrecoverableState {
+                reason: String::from("Threshold should have been set"),
+            },
+        )?;
+
+        let dealer_index = self
+            .state
+            .registration_state(epoch_id)?
+            .assigned_index
+            .ok_or(CoconutError::UnrecoverableState {
+                reason: String::from("Node index should have been set"),
+            })?;
+
+        // in our case every dealer is also a receiver
+
+        // ASSUMPTION: all dealers see the same contract data, i.e. if one fails to decode and verify the receiver's key,
+        // all of them will
+        let filtered_receivers: BTreeMap<_, _> = self
+            .state
+            .dkg_state(epoch_id)?
+            .dealers
+            .iter()
+            .filter_map(|(index, dealer)| match &dealer.state {
+                ParticipantState::Invalid(_) => None,
+                ParticipantState::VerifiedKey(key) => Some((*index, *key.public_key())),
+            })
+            .collect();
+
+        let dbg_receivers = filtered_receivers.keys().collect::<Vec<_>>();
+        debug!("generating dealings with threshold {threshold} for receivers: {dbg_receivers:?} with the following spec: {spec:?}. Our index is {dealer_index}");
+
+        let mut dealings = HashMap::new();
+        match spec {
+            DealingGeneration::Fresh { number } => {
+                for i in 0..number {
+                    let dealing = Dealing::create(
+                        &mut self.rng,
+                        dkg::params(),
+                        dealer_index,
+                        threshold,
+                        &filtered_receivers,
+                        None,
+                    );
+                    dealings.insert(i as DealingIndex, dealing.0);
+                }
+            }
+            DealingGeneration::Resharing { prior_secrets } => {
+                for (i, secret) in prior_secrets.into_iter().enumerate() {
+                    let dealing = Dealing::create(
+                        &mut self.rng,
+                        dkg::params(),
+                        dealer_index,
+                        threshold,
+                        &filtered_receivers,
+                        Some(secret),
+                    );
+                    dealings.insert(i as DealingIndex, dealing.0);
+                }
+            }
+        }
+
+        // update the state with the dealing information
+        self.state
+            .dealing_exchange_state_mut(epoch_id)?
+            .generated_dealings = dealings.clone();
+
+        Ok(dealings)
     }
 
-    let contract_state = dkg_client.get_contract_state().await?;
-    let expected_key_size = contract_state.key_size;
+    async fn generate_fresh_dealings(
+        &mut self,
+        epoch_id: EpochId,
+        number: u32,
+    ) -> Result<HashMap<DealingIndex, Dealing>, CoconutError> {
+        self.generate_dealings(epoch_id, DealingGeneration::Fresh { number })
+            .await
+    }
 
-    let epoch_id = dkg_client.get_current_epoch().await?.epoch_id;
+    async fn generate_resharing_dealings(
+        &mut self,
+        epoch_id: EpochId,
+        prior_secrets: Vec<Scalar>,
+    ) -> Result<HashMap<DealingIndex, Dealing>, CoconutError> {
+        self.generate_dealings(epoch_id, DealingGeneration::Resharing { prior_secrets })
+            .await
+    }
 
-    let dealers = dkg_client.get_current_dealers().await?;
-    let threshold = dkg_client.get_current_epoch_threshold().await?;
-    let initial_dealers = dkg_client
-        .get_initial_dealers()
-        .await?
-        .map(|d| d.initial_dealers)
-        .unwrap_or_default();
-    let own_address = dkg_client.get_address().await.as_ref().to_string();
-    state.set_dealers(dealers);
-    state.set_threshold(threshold);
-    let receivers = state.current_dealers_by_idx();
-    let dealer_index = state.node_index_value()?;
-    let receiver_index = receivers
-        .keys()
-        .position(|node_index| *node_index == dealer_index);
+    async fn resubmit_pregenerated_dealings(
+        &self,
+        epoch_id: EpochId,
+        resharing: bool,
+    ) -> Result<(), CoconutError> {
+        let dealing_state = self.state.dealing_exchange_state(epoch_id)?;
 
-    let prior_resharing_secrets = if let Some(mut keypair) = state.take_coconut_keypair().await {
-        // Double check that we are in resharing mode
-        if resharing {
-            todo!()
-            // let sk = keypair.secret_key();
-            // if sk.size() + 1 != expected_key_size as usize {
-            //     return Err(CoconutError::CorruptedCoconutKeyPair);
-            // }
-            //
-            // let (x, mut scalars) = sk.into_raw();
-            //
-            // // We can now erase the keypair from memory
-            // debug!("Removing coconut keypair from memory");
-            // keypair.zeroize();
-            // scalars.push(x);
-            // scalars
-        } else {
-            log::warn!("Coconut key hasn't been reset in memory. The state might be corrupt");
-            vec![]
-        }
-    } else {
-        vec![]
-    };
-    let mut prior_resharing_secrets = VecDeque::from(prior_resharing_secrets);
-    if !resharing || initial_dealers.iter().any(|d| *d == own_address) {
-        let params = dkg::params();
-        for dealing_index in 0..expected_key_size {
-            debug!(
-                "dealing {dealing_index} ({} out of {expected_key_size})",
-                dealing_index + 1
-            );
+        for (dealing_index, dealing) in &dealing_state.generated_dealings {
+            // check which dealing is actually present on the chain (some might have gotten stuck in the mempool for quite a while)
+            let dealing_submitted = self
+                .dkg_client
+                .get_dealing_status(epoch_id, *dealing_index)
+                .await?;
 
-            // see if we have already submitted this one (we might have crashed)
-            if dkg_client
-                .get_dealing_status(epoch_id, dealing_index)
-                .await?
-            {
-                warn!("we have already submitted dealing {dealing_index} before - we probably crashed!");
+            if dealing_submitted {
+                warn!("we have already submitted dealing {dealing_index} before - we probably crashed or the chain timed out!");
                 continue;
             }
-
-            // see if we have already generated, but not submitted this one before (we might have crashed or validator might have had a problem)
-            let contract_dealing = if let Some(prior_dealing) =
-                state.get_dealing(epoch_id, dealing_index)
-            {
-                warn!("we have already generated dealing {dealing_index} before, but failed to submit it");
-                PartialContractDealing::new(dealing_index, ContractDealing::from(prior_dealing))
-            } else {
-                // generate fresh dealing
-                let (dealing, _) = Dealing::create(
-                    rng.clone(),
-                    params,
-                    dealer_index,
-                    state.threshold()?,
-                    &receivers,
-                    prior_resharing_secrets.pop_front(),
-                );
-
-                let contract_dealing =
-                    PartialContractDealing::new(dealing_index, ContractDealing::from(&dealing));
-                state.store_dealing(epoch_id, dealing_index, dealing);
-
-                contract_dealing
-            };
-
-            debug!(
-                "Submitting dealing for indexes {:?} with resharing: {}",
-                receivers.keys().collect::<Vec<_>>(),
-                prior_resharing_secrets.front().is_some()
+            warn!(
+                "we have already generated dealing {dealing_index} before, but failed to submit it"
             );
+            let contract_dealing =
+                PartialContractDealing::new(*dealing_index, ContractDealing::from(dealing));
 
-            dkg_client
+            self.dkg_client
                 .submit_dealing(contract_dealing, resharing)
                 .await?;
         }
-    } else {
-        debug!("Nothing to do, waiting for initial dealers to submit dealings");
+        Ok(())
     }
 
-    info!("DKG: Finished dealing exchange");
-    state.set_receiver_index(receiver_index);
+    /// Check whether this dealer can participate in the resharing
+    /// by looking into the contract and ensuring it's in the list of initial dealers for this epoch
+    async fn can_reshare(&self) -> Result<bool, CoconutError> {
+        let Some(initial_data) = self.dkg_client.get_initial_dealers().await? else {
+            return Ok(false);
+        };
 
-    Ok(())
+        let address = self.dkg_client.get_address().await;
+        Ok(initial_data
+            .initial_dealers
+            .iter()
+            .any(|d| d.as_str() == address.as_ref()))
+    }
+
+    async fn handle_resharing_with_prior_key(
+        &mut self,
+        epoch_id: EpochId,
+        expected_key_size: u32,
+        old_keypair: KeyPairWithEpoch,
+    ) -> Result<(), CoconutError> {
+        // make sure we're allowed to participate in resharing
+        if !self.can_reshare().await? {
+            // we have to wait for other dealers to give us the dealings (hopefully)
+            warn!("we we have an existing coconut keypair, but we're not allowed to participate in resharing");
+            return Ok(());
+        }
+
+        // EDGE CASE:
+        // make sure our keypair is from strictly the previous epoch
+        // because our node might have been offline for multiple epochs and while we do have a coconut keypair,
+        // it could be outdated and we can't use it for resharing
+        let previous = epoch_id.saturating_sub(1);
+        if old_keypair.issued_for_epoch != previous {
+            warn!("our existing coconut keypair has been generated for an distant epoch ({} vs expected {previous} for resharing)", old_keypair.issued_for_epoch);
+            // don't participate in resharing
+            return Ok(());
+        }
+
+        // EDGE CASE:
+        // we have changed the key size (because we wanted to add new attribute to credentials)
+        // in this instance we can't reuse our key and have to generate brand new dealings
+        if expected_key_size != 1 + old_keypair.keys.secret_key().size() as u32 {
+            warn!("our existing coconut keypair has different size than the currently expected value ({expected_key_size} vs {})", old_keypair.keys.secret_key().size() as u32);
+            self.generate_fresh_dealings(epoch_id, expected_key_size)
+                .await?;
+            return Ok(());
+        }
+
+        // generate resharing dealings
+        let prior_secrets = old_keypair.hazmat_into_secrets();
+        // safety:
+        // the prior secrets will be immediately converted into `Polynomial` with the specified coefficient
+        // that does implement `ZeroizeOnDrop`
+        self.generate_resharing_dealings(epoch_id, prior_secrets)
+            .await?;
+
+        Ok(())
+    }
+
+    pub(crate) async fn dealing_exchange(
+        &mut self,
+        epoch_id: EpochId,
+        resharing: bool,
+    ) -> Result<(), CoconutError> {
+        let dealing_state = self.state.dealing_exchange_state(epoch_id)?;
+
+        // check if we have already submitted the dealings
+        if dealing_state.completed() {
+            // the only way this could be a false positive is if the chain forked and blocks got reverted,
+            // but I don't think we have to worry about that
+            debug!("we have already submitted all the dealings for this epoch");
+            return Ok(());
+        }
+
+        // FAILURE CASE:
+        // check if we have already generated the dealings, but they failed to get sent to the contract for whatever reason
+        if !dealing_state.generated_dealings.is_empty() {
+            debug!("we have already generated the dealings for this epoch");
+            self.resubmit_pregenerated_dealings(epoch_id, resharing)
+                .await?;
+
+            // if we managed to resubmit the dealings (i.e. we didn't return an error),
+            // it means the state is complete now.
+            self.state.dealing_exchange_state_mut(epoch_id)?.completed = true;
+            return Ok(());
+        }
+
+        // we don't have any prior information - grab, parse and cache it since we will need it in next steps
+        // and it's not going to change during the epoch
+        let dealers = self.dkg_client.get_current_dealers().await?;
+        self.state.dkg_state_mut(epoch_id)?.set_dealers(dealers);
+
+        // get the expected key size which will determine the number of dealings we need to construct
+        let contract_state = self.dkg_client.get_contract_state().await?;
+        let expected_key_size = contract_state.key_size;
+
+        // there are few cases to cover here based on the resharing status and presence of coconut keypair:
+        // - resharing + we have a key => we should use the prior secrets for the resharing dealings generation
+        // - resharing + we don't have a key => we are a new party that joined the existing setup and we have to wait for others to give us the shares
+        // - no resharing + we have a key => whole DKG has been restarted (probably enough new parties joined / old parties left) to trigger it
+        // - no resharing + we don't have a key => either as above (but we're a new party) or it's the very first instance of the DKG
+        if let Some(old_keypair) = self.state.take_coconut_keypair().await {
+            let keypair_epoch = old_keypair.issued_for_epoch;
+
+            if resharing {
+                debug!("resharing + prior key");
+                self.handle_resharing_with_prior_key(epoch_id, expected_key_size, old_keypair)
+                    .await?;
+            } else {
+                debug!("no resharing + prior key");
+                self.generate_fresh_dealings(epoch_id, expected_key_size)
+                    .await?;
+            }
+
+            // EDGE CASE:
+            // make sure to persist the state after possibly generating the resharing dealings as we're going to be archiving the keypair
+            // (so we won't be able to create resharing dealings again if we crashed since we won't be able to load the keys)
+            self.state.persist()?;
+            // archive the keypair
+            if let Err(source) = archive_coconut_keypair(&self.coconut_key_path, keypair_epoch) {
+                return Err(CoconutError::KeyArchiveFailure {
+                    epoch_id,
+                    path: self.coconut_key_path.clone(),
+                    source,
+                });
+            }
+        } else {
+            // sure, the if statements could be collapsed, but i prefer to explicitly repeat the block for readability
+            if resharing {
+                debug!("resharing + no prior key -> nothing to do");
+                if self.can_reshare().await? {
+                    warn!("this dealer was expected to participate in resharing but it doesn't have any prior keys to use");
+                }
+            } else {
+                debug!("no resharing + no prior key");
+                self.generate_fresh_dealings(epoch_id, expected_key_size)
+                    .await?;
+            }
+        }
+
+        // if we have generated any dealings => submit them, otherwise we're done
+        let dealings = &self
+            .state
+            .dealing_exchange_state(epoch_id)?
+            .generated_dealings;
+        let total = dealings.len();
+        for (i, (dealing_index, dealing)) in dealings.iter().enumerate() {
+            let i = i + 1;
+            debug!("submitting dealing index {dealing_index} ({i}/{total})");
+
+            let contract_dealing =
+                PartialContractDealing::new(*dealing_index, ContractDealing::from(dealing));
+
+            self.dkg_client
+                .submit_dealing(contract_dealing, resharing)
+                .await?;
+        }
+
+        self.state.dealing_exchange_state_mut(epoch_id)?.completed = true;
+        info!("DKG: Finished dealing exchange");
+        Ok(())
+    }
 }
 
 #[cfg(test)]

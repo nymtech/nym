@@ -652,7 +652,7 @@ impl Payment {
     ) -> Result<()> {
         // Check if the element h of the payment expiration signature equals the identity.
         if bool::from(self.sig_exp.h.is_identity()) {
-            return Err(CompactEcashError::Spend(
+            return Err(CompactEcashError::ExpirationDate(
                 "The element h of the payment expiration signature equals the identity".to_string(),
             ));
         }
@@ -672,7 +672,7 @@ impl Payment {
             &self.sig_exp.s.to_affine(),
             params.grp().prepared_miller_g2(),
         ) {
-            return Err(CompactEcashError::Spend(
+            return Err(CompactEcashError::ExpirationDate(
                 "The bilinear check for kappa_e failed".to_string(),
             ));
         }

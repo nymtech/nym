@@ -9,6 +9,7 @@ use futures::channel::mpsc::{self, UnboundedReceiver, UnboundedSender};
 use futures::StreamExt;
 use log::*;
 use nym_api_requests::coconut::OfflineVerifyCredentialBody;
+use nym_compact_ecash::error::CompactEcashError;
 use nym_compact_ecash::scheme::expiration_date_signatures::date_scalar;
 use nym_compact_ecash::scheme::EcashCredential;
 use nym_compact_ecash::setup::setup;
@@ -101,10 +102,15 @@ impl EcashVerifier {
                 credential.pay_info(),
                 date_scalar(today_timestamp()),
             )
-            .map_err(|_| {
-                RequestHandlingError::InvalidBandwidthCredential(String::from(
+            .map_err(|err| match err {
+                CompactEcashError::ExpirationDate(_) => {
+                    RequestHandlingError::InvalidBandwidthCredential(String::from(
+                        "credential failed to verify on gateway - past expiration date",
+                    ))
+                }
+                _ => RequestHandlingError::InvalidBandwidthCredential(String::from(
                     "credential failed to verify on gateway",
-                ))
+                )),
             })?;
 
         self.insert_pay_info(credential.pay_info().clone(), insert_index)

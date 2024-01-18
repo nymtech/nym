@@ -2,8 +2,8 @@
 
 [//]: # (> The nym-api binary was built in the [building nym]&#40;../binaries/building-nym.md&#41; section. If you haven't yet built Nym and want to run the code, go there first. You can build just the API with `cargo build --release --bin nym-api`.)
 
-> The `nym-api` binary will be released in the immediate future - we're releasing this document beforehand so that Validators have information as soon as possible and get an idea of what to expect. This doc will be expanded over time as we release the API binary itself as well as start enabling functionality.  
-> 
+> The `nym-api` binary will be released in the immediate future - we're releasing this document beforehand so that validators have information as soon as possible and get an idea of what to expect. This doc will be expanded over time as we release the API binary itself as well as start enabling functionality.
+>
 > You can build the API with `cargo build --release --bin nym-api`.
 
 > Any syntax in `<>` brackets is a user's unique variable. Exchange with a corresponding name without the `<>` brackets.
@@ -18,7 +18,7 @@ This is important for both the proper decentralisation of the network uptime cal
 The process of enabling these different aspects of the system will take time. At the moment, Nym API operators will only have to run the binary in a minimal 'caching' mode in order to get used to maintaining an additional process running alongside a full node.
 
 ```admonish warning
-It is highly recommended to run `nym-api` alongside a full node since you will be exposing HTTP port(s) to the Internet. We also observed degradation in p2p and block signing operations when `nym-api` was run alongside a signing validator.
+It is highly recommended to run `nym-api` alongside a full node and NOT a validator node, since you will be exposing HTTP port(s) to the Internet. We also observed degradation in p2p and block signing operations when `nym-api` was run alongside a signing validator.
 ```
 
 ### Rewards
@@ -26,23 +26,75 @@ Operators of Nym API will be rewarded for performing the extra work of taking pa
 
 Rewards for credential signing will be calculated hourly, with API operators receiving a proportional amount of the reward pool (333NYM per hour / 237,600 NYM per month), proportional to the percentage of credentials they have signed.
 
-### (Coming Soon) Machine Specs
-We are working on load testing currently in order to get good specs for a full node + Nym API setup. Bear in mind that credential signing is primarily CPU-bound.
+
+### Hardware Requirements
+
+The specification mentioned below is for running a full node alongside the nym-api. It is recommended to run `nym-api` and a full Nyx node on the same machine for optimum performance.
+
+Bear in mind that credential signing is primarily CPU-bound, so choose the fastest CPU available to you.
+
+#### Minimum Requirements
+
+| Hardware | Minimum Specification                      |
+|----------|--------------------------------------------|
+| CPU      | 8-cores, 2.8GHz base clock speed or higher |
+| RAM      | 16GB DDR4+                                 |
+| Disk     | 500 GiB+ NVMe SSD                          |
+
+#### Recommended Requirements
+
+| Hardware | Minimum Specification                       |
+|----------|---------------------------------------------|
+| CPU      | 16-cores, 2.8GHz base clock speed or higher |
+| RAM      | 32GB DDR4+                                  |
+| Disk     | 1 TiB+ NVMe SSD                             |
+
+### Full node configuration
+
+To install a full node from scratch, refer to the [validator setup guide](./validator-setup.md) and follow the steps outlined there.
+Additionally, to ensure `nym-api` works as expected, ensure the configuration is as below:
+
+#### Ensure transaction index is turned on in your `config.toml`:
+
+```
+[tx_index]
+
+# Ensure that this is not set to "null". You're free to use any indexer
+
+indexer = "kv"
+```
+
+#### Ensure pruning settings are manually configured
+
+`nym-api` needs to check validity of user-submitted transactions (in the past) while issuing credentials and as part of double-spend check. Hence, aggressively pruning data will lead to errors with your `nym-api`
+
+Make sure your pruning settings are configured as below in `app.toml`:
+
+```
+pruning = "custom"
+
+# This number is likely to be updated once zk-nym signing goes live
+pruning-keep-recent = "750000"
+pruning-interval = "100"
+```
+
+The example value of `100` for `pruning-interval` can be customised as per your requirement.
+
 
 ### (Coming Soon) Credential Generation
-Validators that take part in the DKG ceremony will become part of the 'quorum' generating and verifying zk-Nym credentials. These will initially be used for private proof of payment for NymVPN (see our blogposts [here](https://blog.nymtech.net/nymvpn-an-invitation-for-privacy-experts-and-enthusiasts-63644139d09d) and [here](https://blog.nymtech.net/zk-nyms-are-here-a-major-milestone-towards-a-market-ready-mixnet-a3470c9ab10a) for more on this), and in the future will be expanded into more general usecases such as [offline ecash](https://arxiv.org/abs/2303.08221). 
+Validators that take part in the DKG ceremony will become part of the 'quorum' generating and verifying zk-Nym credentials. These will initially be used for private proof of payment for NymVPN (see our blogposts [here](https://blog.nymtech.net/nymvpn-an-invitation-for-privacy-experts-and-enthusiasts-63644139d09d) and [here](https://blog.nymtech.net/zk-nyms-are-here-a-major-milestone-towards-a-market-ready-mixnet-a3470c9ab10a) for more on this), and in the future will be expanded into more general usecases such as [offline ecash](https://arxiv.org/abs/2303.08221).
 
-The DKG ceremony will be used to create a subset of existing validators - referred to as the quorum. As outlined above, they will be the ones taking part in the generation and verification of zk-Nym credentials. The size of the 'minimum viable quorum' is 10 - we are aiming for a larger number than this for the initial quorum in order to have some redundancy in the case of a Validator dropping or going offline. 
+The DKG ceremony will be used to create a subset of existing validators - referred to as the quorum. As outlined above, they will be the ones taking part in the generation and verification of zk-Nym credentials. The size of the 'minimum viable quorum' is 10 - we are aiming for a larger number than this for the initial quorum in order to have some redundancy in the case of a Validator dropping or going offline.
 
 We will be releasing more detailed step-by-step documentation for involved validators nearer to the ceremony itself, but at a high level it will involve:
-* the deployment and initialisation of [`group`](https://github.com/nymtech/nym/tree/develop/contracts/multisig/cw4-group) and [`multisig`](https://github.com/nymtech/nym/tree/develop/contracts/multisig) contracts by Nym. Validators that are members of the `group` contract are the only ones that will be able to take part in the ceremony. 
-* the deployment and initialisation of an instance of the [DKG contract](https://github.com/nymtech/nym/tree/develop/contracts/coconut-dkg) by Nym.  
+* the deployment and initialisation of [`group`](https://github.com/nymtech/nym/tree/develop/contracts/multisig/cw4-group) and [`multisig`](https://github.com/nymtech/nym/tree/develop/contracts/multisig) contracts by Nym. Validators that are members of the `group` contract are the only ones that will be able to take part in the ceremony.
+* the deployment and initialisation of an instance of the [DKG contract](https://github.com/nymtech/nym/tree/develop/contracts/coconut-dkg) by Nym.
 * Validators will update their `nym-api` configs with the address of the deployed contracts. They will also stop running their API instance in caching only mode, instead switching over run with the `--enabled-credentials-mode`.
-* From the perspective of operators, this is all they have to do. Under the hood, each `nym-api` instance will then take part in several rounds of key submission, verification, and derivation. This will continue until quorum is acheived. More information on this will be released closer to the time of the ceremony. 
+* From the perspective of operators, this is all they have to do. Under the hood, each `nym-api` instance will then take part in several rounds of key submission, verification, and derivation. This will continue until quorum is acheived. More information on this will be released closer to the time of the ceremony.
 
-**We will be communicating individually with members of the existing Validator set who have expressed interest in joining the quorum concerning the timing and specifics of the ceremony**. 
+**We will be communicating individually with members of the existing Validator set who have expressed interest in joining the quorum concerning the timing and specifics of the ceremony**.
 
-## Current version 
+## Current version
 ```
 <!-- cmdrun ../../../../target/release/nym-api --version | grep "Build Version" | cut -b 21-26  -->
 ```
@@ -85,10 +137,10 @@ The API binary currently defaults to running in caching mode. You can run your A
 ./nym-api run
 ```
 
-By default the API will be trying to query a running `nyxd` process (either a validator or RPC node) on `localhost:26657`. This value can be modified either via the `--nyxd-validator ` flag on `run`:
+By default the API will be trying to query your full node running locally on `localhost:26657`. If your node is hosted elsewhere, you can specify the RPC location by using the `--nyxd-validator ` flag on `run`:
 
 ```
-./nym-api run --nyxd-validator https://rpc.nymtech.net:443
+./nym-api run --nyxd-validator https://rpc-nym.yourcorp.tld:443
 ```
 
 > You can also change the value of `local_validator` in the config file found by default in `$HOME/.nym/nym-api/<ID>/config/config.toml`.
@@ -179,4 +231,6 @@ Starting nym api...
 You will most likely want to automate your validator restarting if your server reboots. Checkout the [maintenance page](./maintenance.md) for an example `service` file.
 
 ## Exposing web endpoint using HTTPS
-It is recommended to expose the webserver over HTTPS by using a webserver like Nginx. An example configuration for configuring Nginx is listed [on the maintenance page](maintenance.md#nym-api-configuration)
+It is recommended to expose the webserver over HTTPS by using a webserver like Nginx. An example configuration for configuring Nginx is listed [on the maintenance page](maintenance.md#nym-api-configuration). If you're using a custom solution, ensure to allow requests from anywhere by setting a permissive CORS policy.
+
+For example, it is configured in Nginx using: `add_header 'Access-Control-Allow-Origin' '*';`

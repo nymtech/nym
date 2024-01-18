@@ -33,7 +33,7 @@ sudo ./nym-vpn-client-installer.sh
 ```
 5. The script will run the application and it will prompt you for a country code to exit, chose one of the offered options in the same format as listed
 
-6. To run the application again, reconnect your wifi and run
+6. To start the application again, reconnect your wifi and run
 ```sh
 # Linux
 sudo -E ~/nym-vpn-latest/nym-vpn_0.0.2_amd64.AppImage
